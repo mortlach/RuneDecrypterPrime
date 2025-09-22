@@ -1,0 +1,338 @@
+from __future__ import annotations
+from typing import Tuple, Dict, Callable, Any, TYPE_CHECKING
+
+# Only import for type hints to avoid circular import at runtime
+if TYPE_CHECKING:
+    from rune_decrypter_prime.ui.api import CipherSpec, KeySpec
+
+
+def _pull_N(kwargs: dict, default: int = 29) -> int:
+    """Prefer explicit 'alphabet_size' or 'N' if provided by caller; otherwise default to 29."""
+    if "alphabet_size" in kwargs and kwargs["alphabet_size"] is not None:
+        return int(kwargs["alphabet_size"])
+    if "N" in kwargs and kwargs["N"] is not None:
+        return int(kwargs["N"])
+    return default
+
+
+def _make_vigenere_like_spec(**kwargs):
+    """
+    Best-effort creation of a Vigenère *wrapper*. If the runtime doesn't expose
+    CipherSpec.wrapper(core="vigenere"), gracefully fall back to a generic user_map2
+    that implements ct = (pt + k) mod N.
+    """
+    from rune_decrypter_prime.ui.api import CipherSpec  # lazy import
+    # Try the official wrapper constructor if present
+    wrapper_ctor = getattr(CipherSpec, "wrapper", None)
+    if callable(wrapper_ctor):
+        return wrapper_ctor(core="vigenere")
+
+    # Fallback to a user_map2 that behaves like Vigenère.
+    N = _pull_N(kwargs)
+    def f(pt: int, k: int) -> int:
+        return (pt + k) % N
+    return CipherSpec.user_map2(function=f, N=N, degeneracy="forbid", resolver="first", per_pos_limit=1)
+
+
+# ui/wrappers.py
+from types import SimpleNamespace as _NS
+from typing import Union as _Union
+
+from rune_decrypter_prime.ciphers import registry as _cipher_registry
+
+def cipher_instance(spec_or_name: _Union[str, object], **overrides):
+    """
+    Materialise a concrete cipher instance from a name or CipherSpec.
+    - If a name is given, build a minimal spec with that name, apply overrides, then construct.
+    - If a CipherSpec is given, apply overrides to a shallow copy and construct.
+
+    Returns: live cipher object implementing encrypt(...)/decrypt(...).
+    """
+    if isinstance(spec_or_name, str):
+        name = spec_or_name
+        spec = _NS(name=name)
+    else:
+        spec = spec_or_name
+        name = getattr(spec, "name", None)
+        if not name:
+            raise ValueError("CipherSpec must have a 'name' attribute")
+
+    if overrides:
+        base = _NS(**getattr(spec, "__dict__", {}))
+        for k, v in overrides.items():
+            setattr(base, k, v)
+        spec = base
+
+    ctor = _cipher_registry.get(name)  # uses your existing cipher registry
+    return ctor(spec)
+
+
+class by_name:
+    """
+    UX registry for cipher wrappers. Every handler accepts **kwargs so callers
+    can pass extra params without signature explosions (e.g., key_len, default_key, N).
+    """
+
+    @staticmethod
+    def cipher_instance(name: str, **overrides):
+        return cipher_instance(name, **overrides)
+
+    @classmethod
+    def cipher(cls, name: str, **kwargs) -> "CipherSpec":
+        spec, _ = cls._get(name, **kwargs)
+        return spec
+
+    @classmethod
+    def cipher_with_key(
+        cls, name: str, **kwargs
+    ) -> Tuple["CipherSpec", "KeySpec | tuple[KeySpec, KeySpec] | None"]:
+        return cls._get(name, **kwargs)
+
+    # ---------------- registry core ---------------- #
+
+    @classmethod
+    def _get(cls, name: str, **kwargs) -> Tuple["CipherSpec", "KeySpec | tuple[KeySpec, KeySpec] | None"]:
+        key = name.lower().strip()
+        if key not in cls._REG:
+            raise KeyError(f"Unknown cipher '{name}'. Available: {sorted(cls._REG)}")
+        return cls._REG[key](**kwargs)
+
+    # ---------------- handlers ---------------- #
+    # IMPORTANT: Lazy-import ui.api types inside handlers to avoid circular import.
+
+    @staticmethod
+    def _vigenere(*, key_len: int | None = None, default_key: bool = False, **kwargs: Any):
+        """Vigenère wrapper → core 'vigenere' (or generic-map fallback)."""
+        from rune_decrypter_prime.ui.api import KeySpec  # lazy
+        spec = _make_vigenere_like_spec(**kwargs)
+        key = KeySpec.repeat(len=key_len) if (default_key and key_len and key_len > 0) else None
+        return spec, key
+
+    @staticmethod
+    def _caesar(*, key_len: int | None = None, default_key: bool = False, **kwargs: Any):
+        """Caesar as period-1 Vigenère on the UX surface (uses same wrapper/fallback)."""
+        from rune_decrypter_prime.ui.api import KeySpec  # lazy
+        spec = _make_vigenere_like_spec(**kwargs)
+        # ignore key_len; caesar is period 1
+        key = KeySpec.repeat(len=1) if default_key else None
+        return spec, key
+
+    @staticmethod
+    def _affine(
+        *, key_len: int | None = None, default_key: bool = False,
+        degeneracy: str = "forbid", resolver: str = "first", per_pos_limit: int = 1, **kwargs: Any
+    ):
+        """
+        Affine cipher: ct = (a * pt + b) mod N
+        Implemented using generic user_map3 (pt, a, b) → ct.
+        """
+        from rune_decrypter_prime.ui.api import CipherSpec, KeySpec  # lazy
+        N = _pull_N(kwargs)
+        def f(pt: int, a: int, b: int) -> int:
+            return (a * pt + b) % N
+
+        spec = CipherSpec.user_map3(
+            function=f, N=N, degeneracy=degeneracy, resolver=resolver, per_pos_limit=per_pos_limit
+        )
+        if default_key:
+            L = key_len if (key_len and key_len > 0) else 1
+            return spec, (KeySpec.repeat(len=L), KeySpec.repeat(len=L))
+        return spec, None
+
+    @staticmethod
+    def _xor_mod(
+        *, key_len: int | None = None, default_key: bool = False,
+        degeneracy: str = "allow", resolver: str = "first", per_pos_limit: int = 1, **kwargs: Any
+    ):
+        """'xor-mod' cipher: ct = (pt ^ k) % N."""
+        from rune_decrypter_prime.ui.api import CipherSpec, KeySpec  # lazy
+        N = _pull_N(kwargs)
+        def f(pt: int, k: int) -> int:
+            return (pt ^ k) % N
+
+        spec = CipherSpec.user_map2(
+            function=f, N=N, degeneracy=degeneracy, resolver=resolver, per_pos_limit=per_pos_limit
+        )
+        key = KeySpec.repeat(len=key_len) if (default_key and key_len and key_len > 0) else None
+        return spec, key
+
+    @staticmethod
+    def _beaufort(
+        *, key_len: int | None = None, default_key: bool = False,
+        degeneracy: str = "forbid", resolver: str = "first", per_pos_limit: int = 1, **kwargs: Any
+    ):
+        """Classical Beaufort: ct = (k - pt) mod N"""
+        from rune_decrypter_prime.ui.api import CipherSpec, KeySpec  # lazy
+        N = _pull_N(kwargs)
+        def f(pt: int, k: int) -> int:
+            return (k - pt) % N
+
+        spec = CipherSpec.user_map2(
+            function=f, N=N, degeneracy=degeneracy, resolver=resolver, per_pos_limit=per_pos_limit
+        )
+        key = KeySpec.repeat(len=key_len) if (default_key and key_len and key_len > 0) else None
+        return spec, key
+
+    @staticmethod
+    def _variant_vigenere(
+        *, key_len: int | None = None, default_key: bool = False,
+        degeneracy: str = "forbid", resolver: str = "first", per_pos_limit: int = 1, **kwargs: Any
+    ):
+        """Variant Vigenère (aka Beaufort-variant): ct = (pt - k) mod N"""
+        from rune_decrypter_prime.ui.api import CipherSpec, KeySpec  # lazy
+        N = _pull_N(kwargs)
+        def f(pt: int, k: int) -> int:
+            return (pt - k) % N
+
+        spec = CipherSpec.user_map2(
+            function=f, N=N, degeneracy=degeneracy, resolver=resolver, per_pos_limit=per_pos_limit
+        )
+        key = KeySpec.repeat(len=key_len) if (default_key and key_len and key_len > 0) else None
+        return spec, key
+
+    # @staticmethod
+    # def _columnar(
+    #     *, key_len: int | None = None, default_key: bool = False,
+    #     degeneracy: str = "forbid", resolver: str = "first", per_pos_limit: int = 1, **kwargs: Any
+    # ):
+    #     """Columnar transposition: values unchanged, positions permuted."""
+    #     from rune_decrypter_prime.ui.api import CipherSpec, KeySpec
+    #     N = _pull_N(kwargs)
+    #     def f(pt: int, k: int) -> int:
+    #         return pt
+    #     spec = CipherSpec.user_map2(function=f, N=N,
+    #                                 degeneracy=degeneracy, resolver=resolver,
+    #                                 per_pos_limit=per_pos_limit)
+    #     # todo add this to other ciphers
+    #     key = KeySpec.permutation(key_len) if (default_key and key_len and key_len > 0) else None
+    #     return spec, key
+
+    @staticmethod
+    def _railfence(
+        *, default_key: bool = False, **kwargs: Any
+    ):
+        """Railfence cipher: key = number of rails."""
+        from rune_decrypter_prime.ui.api import CipherSpec, KeySpec
+        N = _pull_N(kwargs)
+        def f(pt: int, k: int) -> int:
+            return pt
+        spec = CipherSpec.user_map2(function=f, N=N,
+                                    degeneracy="forbid", resolver="first", per_pos_limit=1)
+        key = KeySpec.scalar(max_val=10) if default_key else None
+        return spec, key
+
+    @staticmethod
+    def _route(
+        *, cols: int | None = None, default_key: bool = False, **kwargs: Any
+    ):
+        """Route cipher: permute column order in a grid."""
+        from rune_decrypter_prime.ui.api import CipherSpec, KeySpec
+        N = _pull_N(kwargs)
+        def f(pt: int, k: int) -> int:
+            return pt
+        spec = CipherSpec.user_map2(function=f, N=N,
+                                    degeneracy="forbid", resolver="first", per_pos_limit=1)
+        key = KeySpec.permutation(cols) if (default_key and cols and cols > 0) else None
+        return spec, key
+
+    @staticmethod
+    def _double_transposition(
+        *, key_len1: int | None = None, key_len2: int | None = None,
+        default_key: bool = False, **kwargs: Any
+    ):
+        """Double transposition: two permutations applied in sequence."""
+        from rune_decrypter_prime.ui.api import CipherSpec, KeySpec
+        N = _pull_N(kwargs)
+        def f(pt: int, k: int) -> int:
+            return pt
+        spec = CipherSpec.user_map2(function=f, N=N,
+                                    degeneracy="forbid", resolver="first", per_pos_limit=1)
+        if default_key and key_len1 and key_len2:
+            return spec, (KeySpec.permutation(key_len1), KeySpec.permutation(key_len2))
+        return spec, None
+
+    @staticmethod
+    def _blockperm(
+        *, block_size: int | None = None, default_key: bool = False, **kwargs: Any
+    ):
+        """Block permutation cipher: permute letters inside fixed-size blocks."""
+        from rune_decrypter_prime.ui.api import CipherSpec, KeySpec
+        N = _pull_N(kwargs)
+        def f(pt: int, k: int) -> int:
+            return pt
+        spec = CipherSpec.user_map2(function=f, N=N,
+                                    degeneracy="forbid", resolver="first", per_pos_limit=1)
+        key = KeySpec.permutation(block_size) if (default_key and block_size and block_size > 0) else None
+        return spec, key
+
+    @staticmethod
+    def _playfair(
+        *, default_key: bool = False, **kwargs: Any
+    ):
+        """Playfair cipher: key = 25-letter square (permutation)."""
+        from rune_decrypter_prime.ui.api import CipherSpec, KeySpec
+        N = _pull_N(kwargs)
+        def f(p1: int, p2: int, key: list[int]) -> tuple[int,int]:
+            return (p1, p2)
+        spec = CipherSpec.user_map3(function=f, N=N,
+                                    degeneracy="allow", resolver="first", per_pos_limit=1)
+        key = KeySpec.permutation(25) if default_key else None
+        return spec, key
+
+    @staticmethod
+    def _foursquare(
+        *, default_key: bool = False, **kwargs: Any
+    ):
+        """Four-square cipher: two keyword squares (two permutations of 25)."""
+        from rune_decrypter_prime.ui.api import CipherSpec, KeySpec
+        N = _pull_N(kwargs)
+        def f(p1: int, p2: int, k1: list[int], k2: list[int]) -> tuple[int,int]:
+            return (p1, p2)
+        spec = CipherSpec.user_map3(function=f, N=N,
+                                    degeneracy="allow", resolver="first", per_pos_limit=1)
+        if default_key:
+            return spec, (KeySpec.permutation(25), KeySpec.permutation(25))
+        return spec, None
+
+    @staticmethod
+    def _columnar(*, key_len: int | None = None, default_key: bool = False, **kwargs: Any):
+        from rune_decrypter_prime.ui.api import CipherSpec, KeySpec
+        spec = CipherSpec._wrapper(name="columnar", core_name="columnar")
+        key = KeySpec.permutation(len=key_len) if (default_key and key_len and key_len > 0) else None
+        return spec, key
+
+    @staticmethod
+    def _mono(*, key_len: int | None = None, default_key: bool = False, **kwargs: Any):
+        """
+        Monoalphabetic substitution (permutation of N symbols).
+        UX wrapper that targets the core 'substitution' cipher.
+        """
+        from rune_decrypter_prime.ui.api import CipherSpec, KeySpec  # lazy
+        # Reuse the generic wrapper hook just like _columnar does
+        spec = CipherSpec._wrapper(name="substitution", core_name="substitution")
+        # For mono, a “key” is a permutation of the alphabet (length = N)
+        if default_key:
+            # If caller passed a concrete length, honour it; else assume alphabet size (N) was provided upstream.
+            L = key_len if (key_len and key_len > 0) else None
+            return spec, KeySpec.permutation(len=L)
+        return spec, None
+
+
+    _REG: Dict[str, Callable[..., Tuple["CipherSpec", "KeySpec | tuple[KeySpec, KeySpec] | None"]]] = {
+        "vigenere": _vigenere.__func__,
+        "caesar": _caesar.__func__,
+        "affine": _affine.__func__,
+        "xor-mod": _xor_mod.__func__,
+        "beaufort": _beaufort.__func__,
+        "variant-vigenere": _variant_vigenere.__func__,
+        "columnar": _columnar.__func__,
+        "railfence": _railfence.__func__,
+        "route": _route.__func__,
+        "double_transposition": _double_transposition.__func__,
+        "blockperm": _blockperm.__func__,
+        "playfair": _playfair.__func__,
+        "foursquare": _foursquare.__func__,
+        #todo mono / substitution meh
+        "mono": _mono.__func__,
+        "substitution": _mono.__func__,
+    }

@@ -1,0 +1,1217 @@
+[
+  {
+    "path": "rune_decrypter_prime/__init__.py",
+    "bytes": 541,
+    "sha256": "d44d08ee887973cd8312f059220560773799ff1c4ec2b8c8bd37deb4f51b23b8"
+  },
+  {
+    "path": "rune_decrypter_prime/backends/__init__.py",
+    "bytes": 171,
+    "sha256": "0e19a1c4d54d264e29752d581f43e6a14baa219e7ce6c4079918002a19cd6bc1"
+  },
+  {
+    "path": "rune_decrypter_prime/backends/device.py",
+    "bytes": 1611,
+    "sha256": "c25d9f020b2818051915378c6f4d13b5399c8075284e4992c00bc0bd19e1eee3"
+  },
+  {
+    "path": "rune_decrypter_prime/backends/xp.py",
+    "bytes": 9902,
+    "sha256": "7bed16f88aa3476353278f185b736fd551b7c1fcd0d47a8900beba2048c337bf"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/__init__.py",
+    "bytes": 362,
+    "sha256": "84488721d5433c60cbaf5657f50194e5fe1b27a5d11cb62d5ffd1bb586307148"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/affine_cipher.py",
+    "bytes": 2427,
+    "sha256": "46d086fa168f50b00756f86e1bb18c72ab05d6a20b10bd9f5306e9567efb7d1d"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/beaufort_cipher.py",
+    "bytes": 3143,
+    "sha256": "39dcfdc01be6f30a687bf5856c3fd5c8ea050380cc6e73c6fcdc769c4cbbaeac"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/bigram_substitution_cipher.py",
+    "bytes": 11220,
+    "sha256": "076189c20da357b280c253ab5c8f9959f2375c30beb259f4e33a1f602f9c3ea0"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/block_permutation_cipher.py",
+    "bytes": 1765,
+    "sha256": "c273316ed444e4eabefb1a86623acfe01bd9c32000c5693e7539ed3bc77aea74"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/columnar_transposition_cipher.py",
+    "bytes": 3247,
+    "sha256": "d12a52f2e96ac84233f57d0dae318ad97c603b14b5b29dd8647a312c0cc20c89"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/dev/__init__.py",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/dev/affine_xp.py",
+    "bytes": 1447,
+    "sha256": "e16f206c65f2b056e679bd524b387e2fe31b88f24620841849d727d2afce84c5"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/dev/beaufort_xp.py",
+    "bytes": 970,
+    "sha256": "321b4a81eafe240ad13fc6f0895648aa4a55c9c6e5816429c89070e9d305c6f1"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/dev/block_permutation_cipher2.py",
+    "bytes": 2620,
+    "sha256": "97c275cc6da4e240da249ec2a75755877a5c6923cc75a32bc72aef11b42aa09a"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/dev/blockperm_xp.py",
+    "bytes": 1730,
+    "sha256": "efeeaa385a513594434a0babe142ad027043dd937c1c2afee85302087b0d3d0c"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/dev/columnar_transposition_cipher2.py",
+    "bytes": 3826,
+    "sha256": "a18546df7b0b230dc74c30d9827f801ddc89cb295648e74e7ea4507928a48b18"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/dev/columnar_xp.py",
+    "bytes": 1619,
+    "sha256": "003bf14048d9e9d82e99e6f35c95a8b034f9c69e05a085dc08634f301513ed2e"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/dev/hill2x2_xp.py",
+    "bytes": 1803,
+    "sha256": "e20ffc6710487293fabdf0b6e8462b6d8056ef87090d6bb2ea46a5e7630760f0"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/dev/railfence_xp.py",
+    "bytes": 1709,
+    "sha256": "37a3b2c18fe634604d70f64dbf2a246601e3b76ae308a01f6c72427e7f3b4493"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/dev/route_xp.py",
+    "bytes": 1531,
+    "sha256": "900fb70dd2e8f7055cf9602a494f13a27d25420614990d5abc2edbc84253b007"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/dev/substitution_xp.py",
+    "bytes": 1102,
+    "sha256": "3a50854aab105254baaa1f0557f1fad933c168f2bd2a0e1686f8dfc33993dd1e"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/dev/variant_beaufort_xp.py",
+    "bytes": 978,
+    "sha256": "282533331431756e0bdeb1c915dd6eba98726c6e29f7e46a834e415026dc9c33"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/double_transposition.py",
+    "bytes": 3869,
+    "sha256": "96bcab1842c12b59009cd8129643ebf310e12e3a62005f939347f86853f575b8"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/generic_map_cipher.py",
+    "bytes": 18460,
+    "sha256": "ce1bef29407e7504359771547892198630ecb7d30cbf6ac4a5d9cd5ed7eab5e2"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/hill_cipher.py",
+    "bytes": 1349,
+    "sha256": "7e9dc64e67257c57add1ff0553954ce09a9f76ef0bd9775202efa9b41113f6c2"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/legacy/__init__.py",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/legacy/blockperm_OLD.py",
+    "bytes": 1429,
+    "sha256": "23a81f6ab2381d874cb208276e0ee61f342352c3124f221afbbe19114321918c"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/legacy/caesar_cipher.py",
+    "bytes": 1316,
+    "sha256": "ce8ccb7caa1d85a29fc660a85956713637c6e2a998e2f4a6acd813cb18f1a280"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/legacy/mono.py",
+    "bytes": 1979,
+    "sha256": "690df2f5e8a02f88e0ff7a41b6b99c7eb2e93c59db084115ff93d1a53f615be0"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/legacy/railfence_cipher.py",
+    "bytes": 3022,
+    "sha256": "508588b48ef7f90df3df3db0b684d290a06ebb94921194b3a2ba966d22d03f4c"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/legacy/route_cipher.py",
+    "bytes": 3575,
+    "sha256": "23d5fc3de788c434119073edff4bd7b06be70b01888cef20b14b8132a6def525"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/legacy/simple_substitution_cipher.py",
+    "bytes": 2439,
+    "sha256": "fd96089bfd052812ec5c4ecedf48ed899709250b56920be3eb30b8f4aa6e3543"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/legacy/substitution_cipher.py",
+    "bytes": 1894,
+    "sha256": "c550044606b89871a3f45dc129b4a463b4d9d774934d226431d31d76e76166e4"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/legacy/vigenere_cipher2.py",
+    "bytes": 3110,
+    "sha256": "87a6d3a512785ef14cc1cf6074ee3b6ada4a24b3ed49f729e094a1e543762947"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/legacy/vigenere_family_cipher.py",
+    "bytes": 4909,
+    "sha256": "b744623bd9c66cb8893bf7b93e281945a932c32002b8a946459e142faf6fc2ae"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/pipeline.py",
+    "bytes": 37201,
+    "sha256": "5e248ad76b3f69ee0b9258cf2316300014488c1d45e776d1ae8ba994246ed941"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/playsquare_cipher.py",
+    "bytes": 12649,
+    "sha256": "ea34ca9ca8f8e19fc1da54980b87c560a69dc929cb8931e786d43fd5164fe47d"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/railfence_cipher2.py",
+    "bytes": 3400,
+    "sha256": "9a655ab515a455de025d7c317f5b92f875fdaa79bfe2f30f416935c64dfbcad5"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/registry.py",
+    "bytes": 1391,
+    "sha256": "0673b270b9feeb5c2e929ecdf3bbf33fe7a1a29007fe1995e2b82f254d0bc919"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/route_cipher2.py",
+    "bytes": 2380,
+    "sha256": "c898eef3ed50975252129eb8dc32ac3023d474f5adb4efa13d6d9c810b55df72"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/substitution_cipher.py",
+    "bytes": 4278,
+    "sha256": "0423ab2c5eef49a4d6a0856fa4c352ca1d9ef5f7715c0669757d4dd0f945ac35"
+  },
+  {
+    "path": "rune_decrypter_prime/ciphers/vigenere_cipher.py",
+    "bytes": 9390,
+    "sha256": "49b034d541d2f913bacd30648726ccb47a29eb1b16447e988b2679106defdda0"
+  },
+  {
+    "path": "rune_decrypter_prime/core/__init__.py",
+    "bytes": 167,
+    "sha256": "507d2cba55bd2b9ff65fc6f2cdfc67a17bd54b5e89515f36cd5cabfb39f660b1"
+  },
+  {
+    "path": "rune_decrypter_prime/core/abcs.py",
+    "bytes": 1294,
+    "sha256": "149ddd302221dfab3057e372a15351fde137fd8b9b2789418f65ffdbdda1cc6d"
+  },
+  {
+    "path": "rune_decrypter_prime/core/config.py",
+    "bytes": 5907,
+    "sha256": "08be26b0651176919603df43b0cd9f3f716e8d10b16072a72750db3addf1585b"
+  },
+  {
+    "path": "rune_decrypter_prime/core/factory.py",
+    "bytes": 331,
+    "sha256": "b19b4205bff83ead82e2bbb69e1bc75dab51a744ca8568cb8c6662745e7e7770"
+  },
+  {
+    "path": "rune_decrypter_prime/core/keyops.py",
+    "bytes": 9963,
+    "sha256": "d30f167d5f90ab6fce907fe074a48662c11decf16002fd7b24fb044f6855ae5c"
+  },
+  {
+    "path": "rune_decrypter_prime/core/logging_config.py",
+    "bytes": 7239,
+    "sha256": "ea05907b8d75e55e61bd1324fe5c8281cf6962881e8e0ae18e3e4a40a7331c1e"
+  },
+  {
+    "path": "rune_decrypter_prime/core/problem.py",
+    "bytes": 4106,
+    "sha256": "152f2a6e2b90e07bb623977d059130a6f5687699b157500cdd5031f152ba27c6"
+  },
+  {
+    "path": "rune_decrypter_prime/core/rune_solver.py",
+    "bytes": 6929,
+    "sha256": "ba13c596c64312a98b0c1f67c756a5c0e1919856c65b9aaa00d48c7e05b3cd32"
+  },
+  {
+    "path": "rune_decrypter_prime/core/solver_engine.py",
+    "bytes": 19046,
+    "sha256": "01cf4aa98e9c8eef47e6b22f3ad5275370b761d19665526a405b2fbb564b9c80"
+  },
+  {
+    "path": "rune_decrypter_prime/core/telemetry.py",
+    "bytes": 1627,
+    "sha256": "147476ef73ac1023e0fe55287b9855dbc886ae7b7e15d59b4829eac0d437f436"
+  },
+  {
+    "path": "rune_decrypter_prime/core/telemetry_helpers.py",
+    "bytes": 7085,
+    "sha256": "a798f84185ae654c19d142c0f9f545ea0bc0c6754c8ec29f73ad13918224d1de"
+  },
+  {
+    "path": "rune_decrypter_prime/core/transpositions.py",
+    "bytes": 4089,
+    "sha256": "abf5cf8697b0ce39c51c219e216d84f0d81e2b4bebdefa21668bc98db0440b13"
+  },
+  {
+    "path": "rune_decrypter_prime/data/__init__.py",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "rune_decrypter_prime/data/__pycache__/__init__.cpython-311.pyc",
+    "bytes": 204,
+    "sha256": "3e77bcd255b35f934714399c543fa32efc898621722e7040719c63f8c30d4647"
+  },
+  {
+    "path": "rune_decrypter_prime/data/__pycache__/__init__.cpython-312.pyc",
+    "bytes": 192,
+    "sha256": "f99a63d2263b67d1ea2724af7374df7914a5e42bd7e542d4fcb3efb999b582f0"
+  },
+  {
+    "path": "rune_decrypter_prime/data/cipher_tests/__init__.py",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "rune_decrypter_prime/data/cipher_tests/__pycache__/__init__.cpython-311.pyc",
+    "bytes": 217,
+    "sha256": "b3a0f69df0cc7dacf8d79ebc305d8f44a29124afca1acf0a8e2018d708309ea7"
+  },
+  {
+    "path": "rune_decrypter_prime/data/cipher_tests/__pycache__/__init__.cpython-312.pyc",
+    "bytes": 205,
+    "sha256": "383010f4049b0fa181ecf24b5cbdb80b5aa16cabb8655808119ddbc3a17a3a88"
+  },
+  {
+    "path": "rune_decrypter_prime/data/cipher_tests/__pycache__/baseline_registry.cpython-311.pyc",
+    "bytes": 2367,
+    "sha256": "bf3a4da2b702a24e666474e6bd6564420007d4679dfc66469a6ba4e5a0aa67f3"
+  },
+  {
+    "path": "rune_decrypter_prime/data/cipher_tests/__pycache__/baseline_registry.cpython-312.pyc",
+    "bytes": 2268,
+    "sha256": "0fc406fb2dbf5a0c8d71db1a5099a2da34558ac782a4b5b5ba99cbb422ec37fe"
+  },
+  {
+    "path": "rune_decrypter_prime/data/cipher_tests/__pycache__/plaintext.cpython-311.pyc",
+    "bytes": 101593,
+    "sha256": "68010e13befa025b89047af98120b00907042929ce772de43816f7b64b072660"
+  },
+  {
+    "path": "rune_decrypter_prime/data/cipher_tests/__pycache__/vig_example_ct.cpython-311.pyc",
+    "bytes": 48969,
+    "sha256": "6fea2617c25029fcbbc00343bb6763bad11747e156b6ef17cb6a45986827975f"
+  },
+  {
+    "path": "rune_decrypter_prime/data/cipher_tests/baseline_registry.py",
+    "bytes": 5638,
+    "sha256": "425e2c2e7826fdb9238538b21b1642a0074517d1517a70665dd481772b1d6b3e"
+  },
+  {
+    "path": "rune_decrypter_prime/data/cipher_tests/plaintext.py",
+    "bytes": 38810,
+    "sha256": "22b4d9c3c932f8f3aa93e59ccfcaf223502578cc97ba9c1c35f95b4dfb5bbfad"
+  },
+  {
+    "path": "rune_decrypter_prime/data/cipher_tests/vig_example_ct.py",
+    "bytes": 23929,
+    "sha256": "4b2709e07d3a31cb6aa4df512160b350d6eaa776beb2cf73fb35c4cf08ccfbd4"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/__init__.py",
+    "bytes": 167,
+    "sha256": "507d2cba55bd2b9ff65fc6f2cdfc67a17bd54b5e89515f36cd5cabfb39f660b1"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/char/fwd/char29_joint_fwd_1_nose.bin.zst",
+    "bytes": 664,
+    "sha256": "7cb7c52f396e80acb888f7c8312ddbf839d9fdbf91950caefe0a37057c8cba1b"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/char/fwd/char29_joint_fwd_1_wise.bin.zst",
+    "bytes": 700,
+    "sha256": "746e1515516b8bc01537a02480880f11876691a89fc95edf2a5026922eabad85"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/char/fwd/char29_joint_fwd_2_nose.bin.zst",
+    "bytes": 16352,
+    "sha256": "e77187aaab010605118b2b4dfd24a814af75350941706bdd58a0c2e335f868e8"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/char/fwd/char29_joint_fwd_2_wise.bin.zst",
+    "bytes": 17351,
+    "sha256": "23c85645787291bdc32f15d5bc67bd68650e0071fa9b3964719c1d423e7e372b"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/char/rev/char29_joint_rev_1_nose.bin.zst",
+    "bytes": 667,
+    "sha256": "956871e0c42b7dfd20e56b5749d8adf3ad939249a282d1fd9c07c2d4a943c9a8"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/char/rev/char29_joint_rev_1_wise.bin.zst",
+    "bytes": 703,
+    "sha256": "97e4fbbc4c0b060110ea7da2d160679ab3acea82776dfd97f2627276b88beac3"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/char/rev/char29_joint_rev_2_nose.bin.zst",
+    "bytes": 16187,
+    "sha256": "9e996209965ade69fff0adfe212815830f3ae94c76ae5430415bc2629af1d706"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/char/rev/char29_joint_rev_2_wise.bin.zst",
+    "bytes": 17211,
+    "sha256": "91158c00d2304e3e670610ea34f076c6f76f80b3d5ac4e5a566e2aa007b7761f"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/fwd/fwd_nose_char_n1_win10_logp.npz",
+    "bytes": 29483,
+    "sha256": "f5f63312142f1f0e33ed22a81d3eb89469f7ac55ff796f6b5aee752a1b7875da"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/fwd/fwd_nose_char_n1_win10_madsum.npz",
+    "bytes": 30531,
+    "sha256": "ae6050eae845eac1b4636673c00d5030194a90ddb9c64d3ffe9be95858aa9e12"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/fwd/fwd_nose_char_n1_win10_zsum.npz",
+    "bytes": 30004,
+    "sha256": "66c57ba1cbf668fdbec2987b7b2b5bca50d4b8ba436d01f8f6de2c6b8b0c9ba7"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/fwd/fwd_nose_char_n2_win10_logp.npz",
+    "bytes": 29520,
+    "sha256": "0e35047f441c8375737dddab1636141c457919640f4d7baecd32d8a901441587"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/fwd/fwd_nose_char_n2_win10_madsum.npz",
+    "bytes": 29855,
+    "sha256": "6687bdff2e8dd63e09c45715ce6fcf26870f93b2315486fa2974bf8f70210673"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/fwd/fwd_nose_char_n2_win10_zsum.npz",
+    "bytes": 29665,
+    "sha256": "12e3034960bc80dcefae848c59a290d3bc0761aa2e2c88568b8edfb42b0696b2"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/fwd/fwd_wise_char_n1_win10_logp.npz",
+    "bytes": 29432,
+    "sha256": "af87be35678d7fb7377a52f194ec0d3fd53985b9e82f95b983cb1a4a6f72e62c"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/fwd/fwd_wise_char_n1_win10_madsum.npz",
+    "bytes": 30695,
+    "sha256": "4f4b2f41fe6e31079e898ca77ad6c4d598d178aecc1802c6af3aafd2e1cfbb50"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/fwd/fwd_wise_char_n1_win10_zsum.npz",
+    "bytes": 30454,
+    "sha256": "feb0d7c0995521d75003dddc89896402aa84f5866b25355bfd9444b2cc9c1f87"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/fwd/fwd_wise_char_n2_win10_logp.npz",
+    "bytes": 29462,
+    "sha256": "4f113a8572ced38fc6c463a3ed80627ce0349c85cf42bfc75973208cb0c53fe1"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/fwd/fwd_wise_char_n2_win10_madsum.npz",
+    "bytes": 29973,
+    "sha256": "f04be1af2b98550cf1611ddf2be0f2cee2d1339c974448cdb4432e91c50a309d"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/fwd/fwd_wise_char_n2_win10_zsum.npz",
+    "bytes": 29795,
+    "sha256": "8c7ef3b1d8d7e7a3519ed248724e278e8021820e7464a3e0ad104d857307f4db"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/rev/rev_nose_char_n1_win10_logp.npz",
+    "bytes": 30065,
+    "sha256": "ada02783e9bd46e4c8b316954defb73c2738e937f4780571d8cb82c7587a02ba"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/rev/rev_nose_char_n1_win10_madsum.npz",
+    "bytes": 31017,
+    "sha256": "5034af73ed30b94b2a3b145f6b13e79e3096bb1c5afeae1567e7573d5307cc4d"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/rev/rev_nose_char_n1_win10_zsum.npz",
+    "bytes": 30413,
+    "sha256": "d5b443815c3d0f7a7aed49be31d177d23a0867bd47647359038625523ff9d144"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/rev/rev_nose_char_n2_win10_logp.npz",
+    "bytes": 30143,
+    "sha256": "4179d25dee39880b8285701f3efe3eeb1813eb05a33755c9729884d8c8188c68"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/rev/rev_nose_char_n2_win10_madsum.npz",
+    "bytes": 30364,
+    "sha256": "b9841c4865642e04eb17112f0b163477f0f297718e687650dcfcee6b3832e71c"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/rev/rev_nose_char_n2_win10_zsum.npz",
+    "bytes": 30158,
+    "sha256": "97cd86f82bd2452c7105c6af0c4e8ad81550604fd347028bc3e7e00be3f87658"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/rev/rev_wise_char_n1_win10_logp.npz",
+    "bytes": 30049,
+    "sha256": "0566cad00ee4cb17885e9ecfb1eae9ad0ed20bdf59170599bf533f3e72d2fb31"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/rev/rev_wise_char_n1_win10_madsum.npz",
+    "bytes": 30824,
+    "sha256": "349abf637c9072317a6e9dc63e53786bd9ce9621c1fcfa085b1242d17f31714f"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/rev/rev_wise_char_n1_win10_zsum.npz",
+    "bytes": 30786,
+    "sha256": "f0bc959573b26bdf9b1ec4d3a7cfc4d85870c85ffc10394689a69c149cbc0b0f"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/rev/rev_wise_char_n2_win10_logp.npz",
+    "bytes": 30074,
+    "sha256": "521dfdfb62a5e7a6bd765de81591cc752fc9d21d7ebf535f8e397f80274b7a42"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/rev/rev_wise_char_n2_win10_madsum.npz",
+    "bytes": 30490,
+    "sha256": "66c71199b9346a2affa896b3601fe6f7d5bb550a49badb3307003a71658d63d2"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/char/rev/rev_wise_char_n2_win10_zsum.npz",
+    "bytes": 30276,
+    "sha256": "d68d2bf960b705097ef91a55278cde171c2d7d3e92bcbcc1b6d9403497627bd3"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/fwd/fwd_nose_wli_n1_win10_logp.npz",
+    "bytes": 29837,
+    "sha256": "9443405a7814e94229292a6b396c82599f4701cf69deaaac2455d771a380e81c"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/fwd/fwd_nose_wli_n1_win10_madsum.npz",
+    "bytes": 29889,
+    "sha256": "75ba2ddb5562455e376c5c8d5488cdbc26c965587cd30915ab84e1024e6b3435"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/fwd/fwd_nose_wli_n1_win10_zsum.npz",
+    "bytes": 29859,
+    "sha256": "5361354660a4c1c943b89be0778444b52219ef8b0d28ea1d5e30fe1cc179045c"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/fwd/fwd_nose_wli_n2_win10_logp.npz",
+    "bytes": 30021,
+    "sha256": "22fd0f2318d398564eb66686dd0a87675b3a69a862d95263912cbe6b9170cc44"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/fwd/fwd_nose_wli_n2_win10_madsum.npz",
+    "bytes": 30152,
+    "sha256": "959a2e89f9190743d9f0ef869a5471b37ef071368e7017cb0f719a9a703fd6b9"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/fwd/fwd_nose_wli_n2_win10_zsum.npz",
+    "bytes": 30134,
+    "sha256": "49a62512a069f282be48a7c5712e3d3eae2b24fc09957dcdd10dfb00bb9375f9"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/fwd/fwd_wise_wli_n1_win10_logp.npz",
+    "bytes": 31581,
+    "sha256": "1e555a5366299481f6e62dae6b949ff5f2fe6553fa73f6e600d6adbcb59d0bcc"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/fwd/fwd_wise_wli_n1_win10_madsum.npz",
+    "bytes": 31701,
+    "sha256": "750e8985319d279f8ce9f0c27b880303589bcd927d1b6b40c9d9905f97cc8aa4"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/fwd/fwd_wise_wli_n1_win10_zsum.npz",
+    "bytes": 31563,
+    "sha256": "22446b88d0489a52ff2e7e9f12e9cc2143bc7bbe35644427fb5596e8402d20cc"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/fwd/fwd_wise_wli_n2_win10_logp.npz",
+    "bytes": 31578,
+    "sha256": "9bcdff73775d51223cb2d10f2fb0a0eedc966c4b1ee3abd790fcc91fcf7bc4da"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/fwd/fwd_wise_wli_n2_win10_madsum.npz",
+    "bytes": 32024,
+    "sha256": "7a390ac14f908ab22424ebcda32066462fa8c2b53eeff413de457e20a6e79fcb"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/fwd/fwd_wise_wli_n2_win10_zsum.npz",
+    "bytes": 32076,
+    "sha256": "928193e174ba060ced0288fd281fe43fbc3010d362fff43977d7cb2b2a35f528"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/rev/rev_nose_wli_n1_win10_logp.npz",
+    "bytes": 30409,
+    "sha256": "337b590171116bcc2d058360d7cee98de3d211afcea1376d0ed64c49cd7ed4fb"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/rev/rev_nose_wli_n1_win10_madsum.npz",
+    "bytes": 30378,
+    "sha256": "95c7bd872cff02ec20889da2e2063c9542f60dfaab76a71e1d5f2040f19cfbed"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/rev/rev_nose_wli_n1_win10_zsum.npz",
+    "bytes": 30335,
+    "sha256": "16a5e3e6644fb586cde802f06d4894c3a51f8be78b2e70cfab0e9d58710612f8"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/rev/rev_nose_wli_n2_win10_logp.npz",
+    "bytes": 30644,
+    "sha256": "19e14d62b149264f00ea2ff4a2ecadf941086a9e15e2e633ea1d9d8fc7cf71da"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/rev/rev_nose_wli_n2_win10_madsum.npz",
+    "bytes": 30678,
+    "sha256": "7d5b04390ac965f0c697880a40e21d5e1e4b82133fa70cea1c967bb652c8ad40"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/rev/rev_nose_wli_n2_win10_zsum.npz",
+    "bytes": 30671,
+    "sha256": "0088d6b59445bc6621348353699509855218d2363fdd11bc661e3ab9d73fca4a"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/rev/rev_wise_wli_n1_win10_logp.npz",
+    "bytes": 31609,
+    "sha256": "891b0ce75e6a20f1628b75ed04b9385dc8f79cfa9d8de21c78f63f1a9cd6343a"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/rev/rev_wise_wli_n1_win10_madsum.npz",
+    "bytes": 31641,
+    "sha256": "09372a1583530475d4fc81840fcc70799196c6a53176e4588f7d26a2d853b896"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/rev/rev_wise_wli_n1_win10_zsum.npz",
+    "bytes": 31479,
+    "sha256": "63a276618819f9a4bc36e69b36b20146c41adf144c152389cdbe50e217e19dcd"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/rev/rev_wise_wli_n2_win10_logp.npz",
+    "bytes": 31641,
+    "sha256": "fa3ebb035c27e763260fdaf8cbf0710da25a2f07dda5d2873074228c741d9d64"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/rev/rev_wise_wli_n2_win10_madsum.npz",
+    "bytes": 32015,
+    "sha256": "660d5681658805295308acd71cf225028c63ef9761e9c18cdfbfeaa3d6628a53"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/ecdf/wli/rev/rev_wise_wli_n2_win10_zsum.npz",
+    "bytes": 32051,
+    "sha256": "89a1930239d5f255157edcbbd5dc27e3a5f5292aa1088c51bf841e032e6b7108"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/index.json",
+    "bytes": 647,
+    "sha256": "6b73c513be4c2f7ee6199ca333958bf402ad58ae7d936c4f982a920246d4c0df"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/wli/fwd/wli29_joint_fwd_1_nose.bin.zst",
+    "bytes": 55683,
+    "sha256": "e13c5a51e142c55046eed85cb1de328f22993f2ff75e88786d05d2a3ab1997be"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/wli/fwd/wli29_joint_fwd_1_wise.bin.zst",
+    "bytes": 55718,
+    "sha256": "69bd17a16752a4bd8dba4075caf739ba2f57af95296bfd65e6f181634d4ff825"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/wli/fwd/wli29_joint_fwd_2_nose.bin.zst",
+    "bytes": 1997463,
+    "sha256": "150664b34eed6ceafda4c45ffe9b2c562eca562c2f9007a0021883c58f73d7ad"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/wli/fwd/wli29_joint_fwd_2_wise.bin.zst",
+    "bytes": 2008060,
+    "sha256": "0b10dd446fa0e2de9d384a4ed64a73ad6b5412b49eedf4bef98e25754a6950c3"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/wli/rev/wli29_joint_rev_1_nose.bin.zst",
+    "bytes": 62947,
+    "sha256": "d7654058a64e11821b689634c96ebc69f2f5bacab029f49f5dbb66b9810d6b8e"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/wli/rev/wli29_joint_rev_1_wise.bin.zst",
+    "bytes": 62980,
+    "sha256": "18e37bb9f8b179b4f388b69ac9ae3d850730d37fcdaf079a68aa6a8154dce448"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/wli/rev/wli29_joint_rev_2_nose.bin.zst",
+    "bytes": 2143326,
+    "sha256": "308527bf21df88f3d112b673e930af8502edf1ec3071178bfcf99e9e246f46bf"
+  },
+  {
+    "path": "rune_decrypter_prime/data/language_model/lmp/wli/rev/wli29_joint_rev_2_wise.bin.zst",
+    "bytes": 2154616,
+    "sha256": "f5153123f49d8868f9af140e80eb076f56ea170969cb94d15ea70088e95813d7"
+  },
+  {
+    "path": "rune_decrypter_prime/data/liber_primus/readme.txt",
+    "bytes": 11,
+    "sha256": "62bfdf0b726cbcc51d7ad57cfd2f03c007306a8a74d477500f92863236d79c13"
+  },
+  {
+    "path": "rune_decrypter_prime/io/__init__.py",
+    "bytes": 165,
+    "sha256": "517dbf4f11db2296db99e30969bce8894e7e327499c98584500b35fd3c599c86"
+  },
+  {
+    "path": "rune_decrypter_prime/io/run_logger.py",
+    "bytes": 4264,
+    "sha256": "8c6ad31c94e29548f75e650d50c1d1590f92e3e2cb396c89ac6f59ae8704fa1e"
+  },
+  {
+    "path": "rune_decrypter_prime/io/telemetry_utils.py",
+    "bytes": 1143,
+    "sha256": "c3a80caa5afd350625ffc2c86779e6047da34b285caa8b64be2a39d7af4cf2c6"
+  },
+  {
+    "path": "rune_decrypter_prime/optimizers/__init__.py",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "rune_decrypter_prime/optimizers/beam_optimizer.py",
+    "bytes": 11858,
+    "sha256": "25a1765d0467c5f44647f036712d8afba48f71e2ebd0a4d5e10957c9628350c5"
+  },
+  {
+    "path": "rune_decrypter_prime/optimizers/ga_optimizer.py",
+    "bytes": 84761,
+    "sha256": "6b8d400c29d3ef0a8347186a57aafb396ac785d5558dc5d282a621f2ca3484d6"
+  },
+  {
+    "path": "rune_decrypter_prime/optimizers/hybrid_optimizer.py",
+    "bytes": 20646,
+    "sha256": "dd37de5d4a226c63af97ac726f75e3a33f7659c14e32af429bc0a5640a07f838"
+  },
+  {
+    "path": "rune_decrypter_prime/optimizers/optimizer_base.py",
+    "bytes": 18208,
+    "sha256": "df7611d45f7d6bfb09eac9e00515f3f8bae7351f7cd7d4a75239a313fa11ddeb"
+  },
+  {
+    "path": "rune_decrypter_prime/optimizers/sa_optimizer.py",
+    "bytes": 44696,
+    "sha256": "f35f291e9fb1cd8e364eb87b474b44b257702cf9aafae945d2ad2f3ea881e0ba"
+  },
+  {
+    "path": "rune_decrypter_prime/scoring/__init__.py",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "rune_decrypter_prime/scoring/base_scorer.py",
+    "bytes": 4236,
+    "sha256": "3cd5e75085ed49a5480619660e25a44f647fc93616a7eea3b2f2daa18fcd68c6"
+  },
+  {
+    "path": "rune_decrypter_prime/scoring/language_model/__init__.py",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "rune_decrypter_prime/scoring/language_model/_fastlm.cp311-win_amd64.pyd",
+    "bytes": 171008,
+    "sha256": "0f8d021fc0659e662ba3c65a6a0d6efeb6403262effc2baf7472fef36831f467"
+  },
+  {
+    "path": "rune_decrypter_prime/scoring/language_model/fastlm.cpp",
+    "bytes": 19886,
+    "sha256": "52211c687c8a142b777e7be86064cd4593ec037c9bfc8aeceda274d24ee02efb"
+  },
+  {
+    "path": "rune_decrypter_prime/scoring/language_model/language_model_prime.py",
+    "bytes": 15105,
+    "sha256": "11398cd372595685316b929f8d8c05f71a51178e74a15be059335d12a67012a8"
+  },
+  {
+    "path": "rune_decrypter_prime/scoring/language_model/language_model_prime_runtime.py",
+    "bytes": 15217,
+    "sha256": "9ffc9aff41050b0c6b5c982167852434ad41d98c9ec9a76eadf845549176c3f5"
+  },
+  {
+    "path": "rune_decrypter_prime/scoring/language_model/paths.py",
+    "bytes": 6281,
+    "sha256": "c43f37e2c9ec800aa37dc1b4e62f28a35a64d3a898f71f7da3b2893d9f6fcf7c"
+  },
+  {
+    "path": "rune_decrypter_prime/scoring/language_model/setup_fastlm.py",
+    "bytes": 4885,
+    "sha256": "e9c383b7dbbca37031544e35cb8bc6b64f830fd2f7abe7db896991d2a5584965"
+  },
+  {
+    "path": "rune_decrypter_prime/scoring/readme.txt",
+    "bytes": 9010,
+    "sha256": "a2174d0a6bf3111130e8451dff5d2ad593b6bab8ebe81ebb151dd8bfdc87b1cc"
+  },
+  {
+    "path": "rune_decrypter_prime/scoring/rune_scorer.py",
+    "bytes": 19159,
+    "sha256": "265bd0224445438f4b774682633d1f56c471beb8a0505bc617da977f51bf496c"
+  },
+  {
+    "path": "rune_decrypter_prime/scoring/torch_rune_scorer.py",
+    "bytes": 33714,
+    "sha256": "6529878b208d2c3e3e22be5fd51c3ce8a2cf72a324488f8a92fe95771ff03d2e"
+  },
+  {
+    "path": "rune_decrypter_prime/scoring/unified_rune_scorer.py",
+    "bytes": 3817,
+    "sha256": "e297f00dbb314ef5a482def4447b6055d7db2e83d553dd3042c90319d31ad90a"
+  },
+  {
+    "path": "rune_decrypter_prime/scoring/unified_tables.py",
+    "bytes": 4457,
+    "sha256": "99c7357d8b0d2af0daeb00fd7c0c0d9f2ecaf27157a8fb72127b7859627ad0e7"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/__init__.py",
+    "bytes": 496,
+    "sha256": "c312cbd423200a488c001686af41fbb603da52ca04d4732f456b32e382e3544e"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/__init__.py",
+    "bytes": 382,
+    "sha256": "93df7950a58e93b1672bb98fab6f0ed90353fd1bd25f75362323f18e573a202b"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/__init__.py",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Autokey.py",
+    "bytes": 2138,
+    "sha256": "1114031c9c5adba0a9f5aafbaadfa7570084974203eea6489e0aa86f519515a7"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Beginner_Tutorial_Run.py",
+    "bytes": 2318,
+    "sha256": "a8cab0d6c7dcdecb91e49ccbd4e921e38871ea19f2da3c785a9f359e9771ee21"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Bigram_Substitution.py",
+    "bytes": 3796,
+    "sha256": "819f9c4c8eb744a455b1258b27d9233e7757a780f2610f0e601a58571218657b"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Hill_2\u00d72_CIpher.py",
+    "bytes": 2084,
+    "sha256": "fafefccfe75207e21895cb16bc6b4330291b2bce2d48be5c99c9a4017aed2ee3"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Known-key.py",
+    "bytes": 426,
+    "sha256": "13ee7bb18c3a24804ebb37b2327ca05a2ddb2c1e7998ecb979181b0f3be37768"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Known_Key_FastPath_Demo.py",
+    "bytes": 1062,
+    "sha256": "8a33a590f6c3ba98bfd090f5e8355cbbbd1b98d62d68405372dd5ba40dbaedf6"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Monoalphabetic_substitution_1.py",
+    "bytes": 774,
+    "sha256": "5610e6f08da86e6a1728a44924edd9cefc3822593207bdb699a182b8ff4f1b11"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Monoalphabetic_Substitution_GA.py",
+    "bytes": 1783,
+    "sha256": "3980725645f24c8f1ddb46a96d4559509a236cb384783d4f47bfc89ce5fce6b4"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Multiplicative_Vigenere.py",
+    "bytes": 1889,
+    "sha256": "8e6687e7bfc2c3872e407ced0ef55355d890d2be4439e7d39dc6de9a496bbab9"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Multiplicative_Vigen\u00e8re.py",
+    "bytes": 662,
+    "sha256": "2f9aee0e68e4ac6633ef8142d7dcde4f5c9b0f09e1d2340aae2c9ab87a7642d7"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/multiply-Vigen\u00e8re.py",
+    "bytes": 770,
+    "sha256": "15f77199515a50cf99f4f1ac57f660f4dacaaefb5b20231dcafd23ba05f61fc9"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Pure_Custum_Hybrid_Toy.py",
+    "bytes": 4529,
+    "sha256": "4b81adef0c7d4aa446c2e56c5fb6f38c02e1e0275f795cf55cb092db5d79ed71"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Railfence_Tutorial.py",
+    "bytes": 1849,
+    "sha256": "1477d59f3aaaff65bdbc36abbe7e539a258117399abb0d6b51cb620b9475ed8c"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Spiral_Route_Cipher.py",
+    "bytes": 2015,
+    "sha256": "a81af38ccbcfb911514cef8ff68adf7d052012de6f556eb7c2f22e7272dc4307"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Tutorial_Affine29.py",
+    "bytes": 4008,
+    "sha256": "12b375bc11f2cc73e23759d058565a7af14386b3804ae25e0521abe793580338"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Tutorial_BigramSubstitution.py",
+    "bytes": 1683,
+    "sha256": "c1c55146d16ccde612acabbdd61317108419f32452c971286bc75788ecb81910"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Tutorial_ColumnarTransposition.py",
+    "bytes": 3309,
+    "sha256": "beeabd9186ffaf878eaadfcf3250b1f53100a61fa3ba166fb92262fd08b335df"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Tutorial_Hill2x2.py",
+    "bytes": 1741,
+    "sha256": "cbefdec61360d6e3637b3b430983c5899e5e881783df8b969865877f2edfcf9a"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Tutorial_MonoSubstitution_GA.py",
+    "bytes": 24673,
+    "sha256": "c70cbb51480c0cac60d05f4281b792fbaffd4b2173a73a8a703b9ef89e8e3c69"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Tutorial_Playfair29.py",
+    "bytes": 6772,
+    "sha256": "e28efe1ad21d599c25dcd64cb38f0f85de325a0b1c060be65a6179fe00f6c092"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Tutorial_Playsquare25.py",
+    "bytes": 3699,
+    "sha256": "aeb6cbde5287e9060ed814318089c45a5d94d7a41e74d2cdb650c9c4c3049886"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Tutorial_Railfence.py",
+    "bytes": 2046,
+    "sha256": "bf4bbde02cf9d9e6cf231954060f1ae3521c1f58dfc9790a321d590a686cddc0"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Tutorial_Vigenere_GeneralMap.py",
+    "bytes": 11145,
+    "sha256": "824c613a413ae454bf57f53dafcbd7fad5a46f006533ac5fa0381bbf25e41245"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/dev/Vigenere_StepByStep_Run.py",
+    "bytes": 851,
+    "sha256": "1aff7eeb935e5a8a9205ac4563ffd170e25dfbb0c4690eea997388aeea6682db"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/01021e93/telemetry.json",
+    "bytes": 12884,
+    "sha256": "c399901eaee696cc69fa454b0a11a36f8e715ef393c73bd66b123847a8085392"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/21e57830/telemetry.json",
+    "bytes": 11350,
+    "sha256": "071d746e98018a67c9a5e0ce052f84831171650c62a902e613bf50977c40754b"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/27c02159/telemetry.json",
+    "bytes": 9571,
+    "sha256": "33ab468eed0738811bb7032fa44557096f0c7d1d86617d8b9391628d8182b4e1"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/33789fce/telemetry.json",
+    "bytes": 58371,
+    "sha256": "7c64bb7162a65d8008d1462b5ff15737fa8d193870b464b7cda9ceefaba49c6d"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/3c461daf/telemetry.json",
+    "bytes": 13035,
+    "sha256": "39aa1c7a2f37ed00e652aaa3c83a6871c4569f3b9d03157a422c5863bd44fec7"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/3d852341/telemetry.json",
+    "bytes": 17705,
+    "sha256": "7e710dc0dfb0bae2e9aaa2fbb9f34df3d5698c7f8df6abee6d56ee7921b198d1"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/3f47780f/telemetry.json",
+    "bytes": 13037,
+    "sha256": "bfcfe74fcd377149f3097dcff5bc07b91bc1bf96e3cd01779e39b93bd83e8543"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/4226b863/telemetry.json",
+    "bytes": 58380,
+    "sha256": "b3ffd3b2b6c972ca5903897bae55e153601d4bc1fc4cbec8b4022a410e649657"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/46e0d45c/telemetry.json",
+    "bytes": 12834,
+    "sha256": "a1bb2763fee5a49eff13d45141dc2397369aef4d76791d23b8d56bd6c0a2d16b"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/4ecf5941/telemetry.json",
+    "bytes": 58541,
+    "sha256": "7e839fc537cc54ec9c647874b3b2a3902e083ac37032fca0e1f1c0fc4f5f41e9"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/4f85bf1b/telemetry.json",
+    "bytes": 9535,
+    "sha256": "f9781198333583435b1f560ec96078a9728b2dfec51cd50799143c032aaf8e54"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/598368ff/telemetry.json",
+    "bytes": 9658,
+    "sha256": "617327f67b84e60c25ab2546f92ee42f33a95d42953e8d352071d58c4b48c3b9"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/5d9c3a19/telemetry.json",
+    "bytes": 12863,
+    "sha256": "013c910336cf4e7cfc67aa0918aa086f62b705025f1c8571f105ec2e4e1517c5"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/60d8952a/telemetry.json",
+    "bytes": 9523,
+    "sha256": "f80462bf1e1fd1aa87de6f3fbfa202cb3475a0f260371122ffaf6d4dcad405a9"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/68dff73f/telemetry.json",
+    "bytes": 58544,
+    "sha256": "3b1c17f264158f248d1836923c358e3738a0949da3544bb59e53f56bccbde04f"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/6dc96c21/telemetry.json",
+    "bytes": 12889,
+    "sha256": "6fbb7b5cd0ae894f805520f4462d43c49bd1e17facfe9fa81be12ae2f5930231"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/723cc639/telemetry.json",
+    "bytes": 10186,
+    "sha256": "f1deb8494b4c69b57d69d7e5d7feca8aaa153fa80c1e972e9495f72393bf2e1d"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/74bd84f9/telemetry.json",
+    "bytes": 13654,
+    "sha256": "a5645318199e7eef2c6e3ba39d8259da1cde05ce38eb82502ce4178a3b0b8ce0"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/75f23c00/telemetry.json",
+    "bytes": 12874,
+    "sha256": "989cb768764094b95aa837da55db95913419beb81082d76879b4d64cd99cbb89"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/8bc07f11/telemetry.json",
+    "bytes": 10517,
+    "sha256": "581c8c0af76a524b2912c10ff5b236c41265a650e13764869ccfd121e731ef98"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/96d15108/telemetry.json",
+    "bytes": 58374,
+    "sha256": "e5f5299f63372797260bfbabbafe84e2a2b0d272a3d01978e6be773f947d7116"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/98a20036/telemetry.json",
+    "bytes": 13435,
+    "sha256": "f3bc1ddccd59ab95d15b015786d33222c2fffeaa1a60e98045a33b25dcd0832f"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/9de4232d/telemetry.json",
+    "bytes": 58390,
+    "sha256": "8754078ddf635d94568ca491d8bb922614ce8029f84ce921c14859c3b14c5e3c"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/9e65d09c/telemetry.json",
+    "bytes": 58539,
+    "sha256": "2e71c6dda07d57e8776f64abd724a7e28aec3e8ac8e86df9b53e650c38b7beba"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/a84d44f2/telemetry.json",
+    "bytes": 10299,
+    "sha256": "fa89cdb8d3f7b5a0ac5f290227a54dab7d7a2553b9e0d20842df2425d2b9fd76"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/a8e382ae/telemetry.json",
+    "bytes": 12949,
+    "sha256": "bce65cf7ba627db88e6c3db58242e5854885a4a8e203867d3758fb35274a050b"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/ae26b9d8/telemetry.json",
+    "bytes": 12028,
+    "sha256": "b650f13b02b081dadbfd9d40452cb538339b91bf883be3217cc9ded3d8225045"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/b4add000/telemetry.json",
+    "bytes": 13040,
+    "sha256": "e3ad3f3bdd725bf48fbe4fd141ab69de493b4802e2242349bba0665eed2fc5d7"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/c0eb209b/telemetry.json",
+    "bytes": 9672,
+    "sha256": "7285f4084bc2cb5b607d32d4a5f6d898cea073b9e9abe697be0dc3fe9a219445"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/c314aa8b/telemetry.json",
+    "bytes": 14867,
+    "sha256": "89718d591ecbff2926008cf333075d4ac48b192b569e0996024e2ff4520d60e3"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/cfd1f508/telemetry.json",
+    "bytes": 12928,
+    "sha256": "4e22105cba6c1489d4a4abc07fbbe0f97fdc8afe8d08ff35f0f9f01b2107d9b9"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/d4923f16/telemetry.json",
+    "bytes": 13448,
+    "sha256": "afe971d57215bb8b3ec0c4abdb183b9139cf7f42d1f92b2c7bd2fb9992b6731e"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/e2cab8ef/telemetry.json",
+    "bytes": 13174,
+    "sha256": "198d53924d8778786bf2212c48a171cb9375bfbbb9cdc13e653cd797fe9e0e61"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/e6ab2d95/telemetry.json",
+    "bytes": 12867,
+    "sha256": "1e21b2b009ad8acffff1bab8544e20732c4e4aaff302aa8a06bcc517456f063a"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/e72f6ed3/telemetry.json",
+    "bytes": 58539,
+    "sha256": "bcbcfcb657aa0b891b7f331f33d3a61684c61c94d78a5678ded0676b0880d9ce"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/e807b18b/telemetry.json",
+    "bytes": 11521,
+    "sha256": "a72610f394013f304e618d3bf47fc715c99e98ecf8a5674f267fdc689ccf38c6"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/out/logs/20250921/febb59df/telemetry.json",
+    "bytes": 9972,
+    "sha256": "c5ab0989c026accd08f485903001226f0ea6c6230bfcdb57b23809d8105b30cb"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/pretty.py",
+    "bytes": 8953,
+    "sha256": "8bf843354bcb335b80b36079cfdbdd94e429094cbe1adf5c4202b4bc63cdee70"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/Tutorial_ColumnarTransposition.py",
+    "bytes": 3538,
+    "sha256": "6d90b1858fc659e285d42259de0a9840f0704fb1463537a1d01d950d4a35295a"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/Tutorial_MonoSubstitution_GA_Friendly.py",
+    "bytes": 6285,
+    "sha256": "42ec80ea09e0c6d781b98b315b1ad9b28e997a920509f40e90be7eee9730d08c"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/Tutorial_MonoSubstitution_HYBRID.py",
+    "bytes": 16327,
+    "sha256": "4f730960867bba174650307d4294b2d1a0f461f7487df65663567ba52cfe6a19"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/Tutorial_MonoSubstitution_SA.py",
+    "bytes": 28478,
+    "sha256": "b5c42cf402dd8b93f64c8fd55ae51ada78e4ed7d1e093cae4269378b7c1b832f"
+  },
+  {
+    "path": "rune_decrypter_prime/tutorials/v1/Tutorial_Vigenere_GeneralMap.py",
+    "bytes": 12285,
+    "sha256": "f3be67c7bc9c099be32391358277b53898f25dbeb78dbf3c8654759ffcd02e6d"
+  },
+  {
+    "path": "rune_decrypter_prime/ui/__init__.py",
+    "bytes": 613,
+    "sha256": "b1e93bcbcb29bb6200ee4482d3ec9ba51803e12342a23779f5fc2e8da7fed9ad"
+  },
+  {
+    "path": "rune_decrypter_prime/ui/_resolve.py",
+    "bytes": 6127,
+    "sha256": "5ad1e9cf871288c0e40e684621d8a4e9a0f2e2b3e50b02e4140278f9f16efca7"
+  },
+  {
+    "path": "rune_decrypter_prime/ui/api.py",
+    "bytes": 38043,
+    "sha256": "a1968aed3e123a1eb0daf78a308d2a22a62c33d08ee30d5e5127ed55861c0105"
+  },
+  {
+    "path": "rune_decrypter_prime/ui/beginner.py",
+    "bytes": 4748,
+    "sha256": "72b64512dee651f3b611a152b0f07dc4066aea1d93d20ec49b1e99a46d2ecd19"
+  },
+  {
+    "path": "rune_decrypter_prime/ui/maps_api.py",
+    "bytes": 8666,
+    "sha256": "535a3a8d0e5f7fa7c5a41ddd3743af15f16c379750e8d0dec49ea533a41df867"
+  },
+  {
+    "path": "rune_decrypter_prime/ui/normalize.py",
+    "bytes": 16204,
+    "sha256": "58a16fdb726b682cd17c04f44e3c9dbd9603de44f4237959854d82c37c5e4562"
+  },
+  {
+    "path": "rune_decrypter_prime/ui/transposition.py",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "rune_decrypter_prime/ui/wrappers.py",
+    "bytes": 14437,
+    "sha256": "0ae31fbf53672bf7c3e9b3b611c4b71aecda7cbd31977fa8de2f0a96668921e3"
+  },
+  {
+    "path": "rune_decrypter_prime/utils/__init__.py",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "rune_decrypter_prime/utils/alphabet.py",
+    "bytes": 5304,
+    "sha256": "0d855265b1f1cb2a4baecc005b7ba2d7a07b12618e5dffaff8efc867c7d3cd37"
+  },
+  {
+    "path": "rune_decrypter_prime/utils/interrupter.py",
+    "bytes": 2815,
+    "sha256": "ba63b4b51ccd0d28c8c705d082378b3028c7d9969d914e600918c1e8d68172a5"
+  },
+  {
+    "path": "rune_decrypter_prime/utils/runeglish.py",
+    "bytes": 9775,
+    "sha256": "75e955bd139c9fb8a56fe9b06aea8c6887c234c8e7a79404962079d5e917ce54"
+  },
+  {
+    "path": "rune_decrypter_prime/utils/seed_utils.py",
+    "bytes": 4316,
+    "sha256": "56c3807c822b63b9db9121af9a6a0d2908404d0b9b32efef1d0bfb66f7d6a30e"
+  },
+  {
+    "path": "rune_decrypter_prime/utils/telemetry.py",
+    "bytes": 1244,
+    "sha256": "f92ebf92914ac7ecd97f2c752e595ea433d7bc12dfb26510e6c7542374930cd8"
+  },
+  {
+    "path": "rune_decrypter_prime/utils/telemetry_utils.py",
+    "bytes": 2698,
+    "sha256": "c7e97e5e97cd909f0b2b9060978afa820fc878dc301cf8fe2fc9af8dd3cbc1c7"
+  },
+  {
+    "path": "rune_decrypter_prime/utils/transposition.py",
+    "bytes": 3430,
+    "sha256": "99cfe226a2e403558576755b0d32b5c30e1346a08d2c8a583627ddd5398dceef"
+  }
+]

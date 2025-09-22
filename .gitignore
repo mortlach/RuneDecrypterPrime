@@ -209,3 +209,4 @@ __marimo__/
 pytest.ini
 /.idea
 /out
+/rune_decrypter_prime/tutorials/v1/out
