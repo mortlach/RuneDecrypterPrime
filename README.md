@@ -6,9 +6,16 @@
 
 ## 1) What this project is
 
-`rune_decrypter_prime` is a modular cryptanalysis toolkit for a 29‑rune alphabet. It targets classical ciphers (monoalphabetic substitution, Vigenère, columnar transposition, etc.) using language‑model scoring plus search‑based optimisers (SA, GA, Hybrid).
+`rune_decrypter_prime` is a **modular, extensible cryptanalysis toolkit** for a 29‑rune alphabet. Its design is deliberately plug‑and‑play:
 
-You can declare cipher maths succinctly, choose a key model, and let an optimiser search for the best key against a statistical scorer.
+* **Ciphers** can be added from the simplest Caesar shift to more complex systems like Enigma by defining their maths once.
+* **Keys** are described declaratively, so new key models drop in cleanly.
+* **Optimisers** (SA, GA, Hybrid) are interchangeable, and new search strategies can be introduced without changing cipher code.
+* **Scorers** are modular: current language‑model scoring works with NumPy, Torch, or the fast C++ backend, and future scoring methods can be slotted in.
+
+This architecture makes the system *infinitely extensible* — you can grow from basic teaching ciphers to complex research‑grade experiments.
+
+You declare cipher maths succinctly, choose a key model, and let an optimiser search for the best key against a statistical scorer.
 
 ---
 
@@ -87,7 +94,7 @@ Ciphertext  +  CipherSpec  +  KeySpec  +  SolveSpec  →  optimiser loop → bes
 
 ---
 
-## 6) Public API you’ll use
+## 6) Introduction to the API
 
 Import the UI layer:
 
@@ -207,4 +214,4 @@ The aim is determinism, but GA uses shuffles; small run‑to‑run variation is 
 * Did the tutorials run end‑to‑end?
 * Anything unclear or repeated in this README?
 
-Thank you for testing!
+Thank you for testing! 
