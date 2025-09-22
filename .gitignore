@@ -208,3 +208,4 @@ __marimo__/
 /tests
 pytest.ini
 /.idea
+/out
