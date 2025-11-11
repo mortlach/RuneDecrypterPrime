@@ -12,6 +12,8 @@ This architecture makes the system *infinitely extensible* — you can grow from
 
 You declare cipher maths succinctly, choose a key model, and let an optimiser search for the best key against a statistical scorer.
 
+(atm docs provided by a llm near you, so, you know ... )  
+
 ---
 
 ## 2) Requirements and install
