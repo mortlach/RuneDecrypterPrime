@@ -1,0 +1,21 @@
+# -*- coding: utf-8 -*-
+import numpy as np
+from rune_decrypter_prime.keyops import PermutationKeyOps, PermutationKeyConfig
+import pytest
+
+
+pytestmark = [pytest.mark.tier_a]
+
+
+def test_materialize_and_validate():
+    keyop = PermutationKeyOps(PermutationKeyConfig(K=10))
+    k = keyop.materialize(seed=123)
+    keyop.validate(k)  # no exception → valid permutation
+
+def test_normalize_projects_to_perm():
+    keyop = PermutationKeyOps(PermutationKeyConfig(K=7))
+    v = np.array([10, 11, 12, 13, 14, 15, 16], dtype=np.uint8)
+    p = keyop.normalize(v)
+    keyop.validate(p)
+    # rank-based projection is deterministic for fixed input
+    assert set(p.tolist()) == set(range(7))

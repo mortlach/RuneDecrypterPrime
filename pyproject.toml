@@ -1,0 +1,26 @@
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rune-decrypter-prime"
+version = "1.0.0"
+description = "Deterministic, solving toolkit for a 29-rune alphabet."
+authors = [{ name = "mortlach" }]
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-org/rune_decrypter_prime"
+Documentation = "https://github.com/your-org/rune_decrypter_prime/tree/main/docs"
+Issues = "https://github.com/your-org/rune_decrypter_prime/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["rune_decrypter_prime*","rdp*"]

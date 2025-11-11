@@ -1,0 +1,8 @@
+{
+  "rng-core": 5,
+  "rng-noncore": 5,
+  "magic-direction": 8,
+  "telemetry-legacy": 8,
+  "telemetry-writes": 1,
+  "debug-prints": 36
+}
