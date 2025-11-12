@@ -1,8 +1,5 @@
 # FAQ
 
-**How do I install without the command line?**  
-Open in PyCharm -> add a Virtualenv -> install packages via the Packages panel -> mark `rune_decrypter_prime/` as a source root.
-
 **Why did my result change?**  
 Check the solver seed, `Direction`, and any input permutation. Ensure scorer objective and model match.
 
