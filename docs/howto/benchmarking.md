@@ -1,55 +1,72 @@
 # How-To: Benchmark Solvers (CPU)
 
-Audience: Hands-on / Expert
-Time: 3–6 minutes
-Outcome: Run a small, deterministic benchmark and capture results under output/
-Prereqs: Python 3.11+, repo installed (pip install -e .[dev])
+Audience: Hands-on / Expert  
+Time: 3–6 minutes  
+Outcome: Run a deterministic benchmark and capture results under `output/tools/benchmarks/`.  
+Prereqs: Python 3.11+, repo installed (`pip install -e .[dev]`), CPU reference environment.
 
-## What you run
-- A tiny CPU-only harness that compares a few presets on short texts.
-- Seeds are fixed; telemetry is disabled for speed; outputs are archived under output/tools/benchmarks/.
+---
 
-## Run it
+## What the harness does
+- Exercises a handful of solver presets on short texts.
+- Uses fixed seeds and disables telemetry for speed.
+- Stores CSV/JSON summaries plus optional cProfile data under a timestamped folder.
+
+---
+
+## Run the main benchmark
 ```powershell
 # From repo root
 python tools/benchmarks/benchmark_harness.py
 ```
-You will see a CSV table in the console and an archive folder printed, e.g.
-`[bench] Reports written to output/tools/benchmarks/20250101T120000Z__bench__abcd123`.
+You’ll see a table in the console and a line like:
+```text
+[bench] Reports written to output/tools/benchmarks/20250101T120000Z__bench__abcd123
+```
 
-## Outputs\n- results.json � list of rows (name, score, seconds)
-- results.csv – name,score,seconds
-- results.json – the same rows in JSON
+### Outputs
+- `results.csv` – columns: name, score, seconds.
+- `results.json` – same rows as JSON (easier to diff or feed into scripts).
 
-## Tips
-- Keep benchmarks on CPU to compare apples with apples across machines.
-- Use the same seed when you tweak budgets; seconds should be stable within noise.
-- If a code change adds many redundant array conversions, seconds will drift – use this harness to catch regressions.
+Keep CPU-only runs for apples-to-apples comparisons across machines.
 
-## Related docs
-- guides/outputs.md
-- guides/solvers_deep.md
-
-
+---
 
 ## Compare two runs
-`powershell
+```powershell
 python tools/benchmarks/compare_runs.py <old.json> <new.json>
-`
-A slowdown >20% is flagged for quick triage. Keep budgets tiny and CPU-only for consistent comparisons.
+```
+The script flags slowdowns >20 % so you can triage regressions quickly. Use the JSON files from the benchmark folders.
 
-## Run all tutorials (timed)
-`powershell
+---
+
+## Run all tutorials (smoke + timing)
+```powershell
 python tools/benchmarks/run_all_tutorials.py
-`
-Writes tutorials_results.json/csv under output/tools/benchmarks/... and exits non-zero if any tutorial fails to run.
+```
+Writes `tutorials_results.csv/json` under the same benchmark folder and exits non-zero if any tutorial fails.
 
-## Profile code paths (cProfile)
-`powershell
-# All canonical tutorials, top 30 functions
+---
+
+## Profile hot paths (cProfile)
+```powershell
+# All canonical tutorials, report top 30 functions
 python tools/benchmarks/profile_bench.py --target all --top 30
 
-# A single tutorial module
+# Single tutorial
 python tools/benchmarks/profile_bench.py --target tutorials.v1.Tutorial_MonoSubstitution_GA --top 50
-`
-Outputs include raw .prof, a human-readable top-N, and a JSON top-N plus per-category cumulative time under output/tools/benchmarks/... .
+```
+Outputs include `.prof` files, human-readable summaries, and JSON reports so you can compare cumulative times per category.
+
+---
+
+## Tips
+- Keep seeds + budgets fixed so seconds stay within normal jitter.
+- If you’re testing CUDA/Torch changes, run a separate GPU-focused harness; keep this CPU suite stable for reference numbers.
+- When timings drift unexpectedly, inspect the benchmark folder’s `results.json` and rerun with `--top` profiling to see which functions changed.
+
+---
+
+## Related docs
+- `docs/guides/outputs.md` – explains the output tree (`output/tools/benchmarks/...`).
+- `docs/guides/solvers_deep.md` – deep dive into solver configs/patience knobs.

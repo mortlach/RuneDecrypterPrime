@@ -27,5 +27,5 @@ Prereqs: Python 3.11+, repo installed (`pip install -e .[dev]`)
 
 ## Troubleshooting
 - If seeds differ, re-check environment variables and tutorial constants.
-- Use `docs/appendices/high_school_troubleshooting.md` for a checklist.
+- Use `docs/guides/troubleshooting.md` for a checklist.
 

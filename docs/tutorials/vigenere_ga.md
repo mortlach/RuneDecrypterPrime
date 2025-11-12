@@ -49,5 +49,5 @@ Expected score: **=0.55** mono match on CPU.
 - Logs: `output/tutorials/<run>/logs/app.jsonl`
 - Traces: `output/tutorials/<run>/trace/`
 - Artifacts (plaintext/key previews): `output/tutorials/<run>/artifacts/`
-- If telemetry is missing or folders appear outside `output/`, follow `docs/appendices/high_school_troubleshooting.md`.
+- If telemetry is missing or folders appear outside `output/`, follow `docs/guides/troubleshooting.md`.
 

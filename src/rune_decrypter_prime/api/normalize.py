@@ -1,7 +1,4 @@
-# ============================================================
-# rune_decrypter_prime/api/normalize.py
-#   Single-source normalisation for ciphertext & WLI (UI boundary)
-# ============================================================
+"""Single-source normalisation helpers for the public API boundary."""
 from __future__ import annotations
 from typing import List, Tuple, Sequence, Union, Optional, TypeVar, Dict, Any
 import numpy as np
@@ -16,6 +13,7 @@ from rune_decrypter_prime.core.types import (
     ObjectiveSpec,
     Stat,
     ObjectiveFamily,
+    ensure_direction,
 )
 _T = TypeVar("_T")
 
@@ -82,34 +80,8 @@ def normalize_objective_spec(value: Any) -> ObjectiveSpec:
         raise ValueError(f"Unknown ObjectiveSpec parameter type: {type(value)}.")
 
 def normalize_encoding_dir(direction: [str, Direction]) -> Direction:
-    """
-    Normalise the text encoding direction to a Direction enum.
-
-    This helper accepts the canonical values "ltr" and "rtl" as well as
-    the legacy aliases "fwd" and "rev".  In v1 the meaning of the
-    legacy aliases is fixed: "fwd" is treated as left-to-right and
-    "rev" is treated as right-to-left.  Any other string will raise
-    a ValueError.  If a Direction enum is passed through it is
-    returned unchanged.
-    """
-    # Accept both strings and Direction values; string inputs are case-insensitive.
-    if isinstance(direction, str):
-        v = direction.strip().lower()
-        # canonical names
-        if v == "ltr":
-            return Direction.LTR
-        if v == "rtl":
-            return Direction.RTL
-        # legacy aliases: fwd is forward (left-to-right), rev is reverse (right-to-left)
-        if v == "fwd":
-            return Direction.LTR
-        if v == "rev":
-            return Direction.RTL
-        raise ValueError(f"Unknown direction string: {direction}.")
-    elif isinstance(direction, Direction):
-        return direction
-    else:
-        raise ValueError(f"Unknown direction parameter(s): {type(direction)}.")
+    """Wrapper around `ensure_direction` so API and core share alias semantics."""
+    return ensure_direction(direction)
 
 
 def normalize_se_mode(value: Any) -> SeMode:

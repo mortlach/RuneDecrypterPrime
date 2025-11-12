@@ -22,7 +22,7 @@ Prereqs: None
 ## How To Use These Principles
 ### Hands-on
 - Start from tutorials; match seeds and log folders before experimenting.
-- When stuck, see `docs/appendices/high_school_troubleshooting.md` mapped to the determinism + telemetry pillars.
+- When stuck, see `docs/guides/troubleshooting.md` mapped to the determinism + telemetry pillars.
 
 ### Expert
 - Before merging, confirm: seed path intact, telemetry fields present, outputs still under `output/`.

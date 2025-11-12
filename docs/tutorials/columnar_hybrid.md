@@ -55,5 +55,5 @@ Expected: **score >=0.62** and **match >=98%** against the reference plaintext. 
 - Logs: `output/tutorials/<run>/logs/app.jsonl`.
 - Spans: look for `solver_spans.hybrid` entries describing beam/GA/SA stages.
 - Artifacts: decrypted plaintext + key in `output/tutorials/<run>/artifacts/`.
-- For issues, follow `docs/appendices/high_school_troubleshooting.md` (direction/permutation mismatches are the usual culprit).
+- For issues, follow `docs/guides/troubleshooting.md` (direction/permutation mismatches are the usual culprit).
 

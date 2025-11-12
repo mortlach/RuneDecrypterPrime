@@ -82,7 +82,7 @@ Every helper (`tests/conftest.py`, tutorials, RunLogger) writes relative to the 
 
 ## Related Docs
 - `guides/telemetry.md` - describes the JSON payloads stored inside `logs/app.jsonl`.
-- `appendices/high_school_troubleshooting.md` - what to do if outputs are missing.
+- `guides/troubleshooting.md` - what to do if outputs are missing.
 - `docs/tests_docs/tools.md` - how helper scripts (symbol index, release builder) populate the `output/share/` and `output/release/` trees.
 
 

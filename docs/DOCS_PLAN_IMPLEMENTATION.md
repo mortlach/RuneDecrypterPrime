@@ -18,7 +18,7 @@ Deliverable: `docs/DOCS_PLAN_IMPLEMENTATION.md` (this file).
 - `README.md`
 - `docs/README.md`
 - `docs/INDEX.md` (or create if missing)
-- `docs/appendices/high_school_troubleshooting.md`
+- `docs/guides/troubleshooting.md`
 - Cross-link `docs/guides/documentation_playbook.md`
 
 **Steps**

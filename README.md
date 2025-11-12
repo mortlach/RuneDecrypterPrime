@@ -105,6 +105,26 @@ Change one thing at a time and watch what moves.
 
 ---
 
+## Documentation map
+
+- **Guides**
+  - `docs/setup/installation.md` – full bootstrap instructions with platform-specific commands.
+  - `docs/guides/quickstart.md` – immediate run examples (Start_Here, CLI tests, RunAPI snippet).
+  - `docs/guides/architecture.md` – conceptual overview of the pipeline and where each component lives.
+  - `docs/guides/troubleshooting.md` – environment checks, common fixes, and quick validation commands.
+- **How-tos**
+  - `docs/howto/beginner_guide.md` – “Hello Cipher” walkthrough aimed at first-time users.
+  - `docs/howto/cipher_design_guide.md` – design principles for bespoke/general-map ciphers.
+  - `docs/howto/add_cipher.md`, `docs/howto/add_solver.md`, `docs/howto/wrappers.md` – contributor playbooks.
+  - `docs/howto/deterministic_run.md`, `docs/howto/read_telemetry.md` – reproducibility and telemetry reading tips.
+- **Reference**
+  - Per-folder `src/.../README.txt` files explain each module (API, core, backends, scoring, solvers, telemetry, etc.).
+  - `tests/README` (if present) plus test names (Tier-A, telemetry, tutorials) show where contracts are enforced.
+
+Use the quickstart/troubleshooting docs when onboarding, then dive into the how-tos once you’re ready to build your own ciphers or solvers.
+
+---
+
 ## Requirements
 
 * **CPython 3.11** (64‑bit).

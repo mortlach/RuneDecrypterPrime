@@ -5,7 +5,7 @@ This index mirrors `docs/DOCS_PLAN.md` and `docs/DOCS_PLAN_IMPLEMENTATION.md`. U
 ## Getting Started
 - `README.md`
 - `setup/installation.md`
-- `appendices/high_school_troubleshooting.md`
+- `guides/troubleshooting.md`
 
 ## Guides
 | Topic | Hands-on Entry | Deep-dive Entry |

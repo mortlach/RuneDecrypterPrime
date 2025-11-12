@@ -1,4 +1,4 @@
-# core/types.py
+"""Strict enums and dataclasses shared across the core/engine pipeline."""
 from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum

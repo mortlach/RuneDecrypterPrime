@@ -45,6 +45,6 @@ print(sol.best_plaintext, sol.score)
 ## Outputs & Troubleshooting
 - Logs/trace/artifacts live under `output/tutorials/...` like other tutorials.
 - If the crib is ignored, ensure it matches the encryption direction and key length.
-- For general issues, follow `docs/appendices/high_school_troubleshooting.md`.
+- For general issues, follow `docs/guides/troubleshooting.md`.
 
 

@@ -217,7 +217,7 @@ Every guide uses this template:
 
 **Appendices:**
 
-* `high_school_troubleshooting.md`, `faq.md`, `glossary.md`
+* `guides/troubleshooting.md`, `faq.md`, `glossary.md`
 
 ### 9A. Docs↔Code Sync (tools-backed, IDE-run)
 

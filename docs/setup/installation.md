@@ -1,50 +1,88 @@
 # Installation
 
-Two parallel tracks keep the repo approachable for high school Hands-ons and expert contributors. Both tracks share the **same deterministic seeds** and **output/** folder.
+Everyone follows the same deterministic workflow: install Python 3.11, create a
+virtual environment, install the package in editable mode, and keep all outputs
+under `output/`. The steps below work for both GUI-first and CLI-only setups.
 
-## Track 1 - Hands-on (GUI friendly)
-1. **Install Python 3.11.** Download it from python.org (or your platform package manager) and make sure python --version reports 3.11.x.
-2. **Clone or unzip the repo** into a writable folder with an output/ subdirectory (create it once if missing).
-3. **Create a virtual environment** from your IDE or from PowerShell:
-   `powershell
-   python -m venv .venv
-   .\.venv\Scripts\activate
-   `
-4. **Install dependencies** with pip (inside the venv):
-   `powershell
-   pip install -e .[dev]
-   `
-   This installs NumPy, tqdm, pytest, and Torch CPU. Set RDP_TORCH=0 before the pip command if the machines should skip Torch.
-5. **Mark sources (IDE only).** In PyCharm/VS Code mark src/ as the source root so imports resolve without editing PYTHONPATH.
-6. **Run a tutorial** (either from the IDE Run button or from the terminal):
-   `powershell
-   python tutorials/v1/Tutorial_MonoSubstitution_GA.py --print-progress
-   `
-   Every run writes into output/tutorials/<timestamp>__tutorials__v1__<git>/.
+## 1. Install prerequisites
+1. **Python 3.11 (64-bit).** Download from [python.org](https://www.python.org/downloads/)
+   or use your OS package manager. Verify with:
+   ```
+   python --version
+   # -> Python 3.11.x
+   ```
+2. **Git** (optional but recommended) so you can pull updates and track changes.
+3. **C/C++ build tools** (only needed if you plan to rebuild the optional
+   `_fastlm` extension on Linux/macOS).
 
-## Tier 2 - Expert / CLI
-1. **Clone** the repo and keep .git intact: git clone https://github.com/your-org/RuneDecrypterPrime.git.
-2. **Bootstrap tools env**:
-   `powershell
-   python -m venv .venv
-   .\.venv\Scripts\activate
-   pip install -e .[dev,docs]
-   pre-commit install
-   `
-3. **Run the Tier-A tests** before editing:
-   `powershell
+## 2. Clone the repo
+```bash
+git clone https://github.com/your-org/RuneDecrypterPrime.git
+cd RuneDecrypterPrime
+```
+
+## 3. Create & activate a virtual environment
+### Windows (PowerShell)
+```powershell
+python -m venv .venv
+.\.venv\Scripts\activate
+```
+
+### macOS / Linux
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Use `deactivate` to exit the environment when you are done.
+
+## 4. Install dependencies
+Inside the activated venv:
+```bash
+pip install -U pip
+pip install -e .[dev]
+```
+
+- This installs NumPy, pytest, ruff, and Torch CPU by default.
+- **Skipping Torch?** Set the env var *before* the install command:
+  - Windows PowerShell: `set RDP_TORCH=0`
+  - macOS/Linux: `export RDP_TORCH=0`
+
+## 5. (Optional) Build the fast LM extension
+Windows ships with `_fastlm.cp311-win_amd64.pyd`. On macOS/Linux run:
+```bash
+python src/rune_decrypter_prime/scoring/language_model/setup_fastlm.py
+```
+This builds `_fastlm.<platform>.so` next to `fastlm.cpp`. Re-run it whenever you
+change Python versions.
+
+## 6. Verify the install
+1. **Run the quick tutorial:**
+   ```bash
+   python tutorials/v1/Start_Here.py
+   ```
+   Expect two runs (Wrapper Beam / General Map GA). Logs land under
+   `output/tutorials/<timestamp>__tutorials__start_here__nogit/`.
+2. **Run Tier-A tests (fast smoke):**
+   ```bash
    pytest -m tier_a
-   `
-4. **Regenerate docs/tools outputs** (all land in output/):
-   - python tools/repo_utils/index_project_symbols.py
-   - python tools/repo_utils/share_package.py
-   - python tools/repo_utils/make_release_src.py
-5. **Prefer CLI for automation.** IDEs remain optional; everything (tests, tutorials, telemetry dumps) is runnable via python ... or pytest ....
+   ```
 
-## Shared Tips
-- Activate the virtual environment in every shell before running tutorials/tests.
-- Keep progress_pct=1 and flip print_progress=True only when teaching; leave it False in CI shells.
-- If a command needs to write files, point it at output/<kind>/... (the helper scripts already do this).
-- When working on Windows, set PYTHONUTF8=1 to avoid encoding surprises in telemetry JSON.
+If both commands succeed, you’re ready to build your own ciphers/solvers.
 
+## 7. Optional tooling extras (contributors)
+```bash
+pip install -e .[dev,docs]
+pre-commit install
+```
+This installs doc build deps and hooks. Use the CLI for automation; IDEs are
+optional as long as they respect the same virtualenv.
+
+## Shared tips
+- Always activate the venv in new shells before running tutorials/tests.
+- Keep `progress_pct=1`, set `print_progress=True` only when teaching; leave it
+  `False` in CI.
+- Every script writes under `output/<kind>/<run_id>/...`. If you add new tools,
+  send their artefacts there too.
+- On Windows, `set PYTHONUTF8=1` avoids encoding issues in telemetry JSONL.
 

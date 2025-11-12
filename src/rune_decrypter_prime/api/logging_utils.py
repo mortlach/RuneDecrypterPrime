@@ -1,3 +1,4 @@
+"""User-facing logging normalisers that feed the core LoggingConfig."""
 from __future__ import annotations
 
 from typing import Any

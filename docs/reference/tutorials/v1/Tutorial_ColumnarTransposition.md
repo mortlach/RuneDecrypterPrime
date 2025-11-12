@@ -20,7 +20,7 @@ python tutorials/v1/Tutorial_ColumnarTransposition.py --print-progress
 - Telemetry must include the pipeline block and solver spans (`tests/telemetry/test_solver_pipeline_block.py`).
 
 ## Troubleshooting
-- If scores dip below the target, re-check seeds/virtualenv; refer to `docs/appendices/high_school_troubleshooting.md`.
+- If scores dip below the target, re-check seeds/virtualenv; refer to `docs/guides/troubleshooting.md`.
 
 ## Related Docs
 - `docs/guides/outputs.md` (run directory layout).

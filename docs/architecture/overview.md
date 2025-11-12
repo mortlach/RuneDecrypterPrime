@@ -17,7 +17,7 @@ RuneDecrypterPrime (RDP) is designed to be **transparent, modular, and determini
 
 ## 2) System at a Glance
 
-```
+```text
 User (tutorial / script)
         │
         ▼
@@ -120,7 +120,7 @@ Best key / plaintext + telemetry (META, logs, artefacts) under `output/`
 
 ## 4) End‑to‑End Flow (User Input → Output)
 
-```
+```text
 [1] User code (tutorial/script)
     └─ selects cipher, key model, objective, budgets, device
          │

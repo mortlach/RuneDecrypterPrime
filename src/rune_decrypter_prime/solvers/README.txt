@@ -20,3 +20,13 @@ Design notes
 - Seeds are consumed via NumPy’s `Generator`, passed in by `engine.EngineConfig`.
 - Telemetry is emitted through `solver_start/progress/end` events with percent
   progress derived from `progress_pct`.
+
+Adding a solver
+---------------
+1. Subclass `solver_base.SolverBase`, implement `_initial_key_and_score`,
+   neighbour/selection logic, and `solve()`.
+2. Register the solver in `core/engine/_SOLVER_TABLE` and expose a builder in
+   `api/specs.SolverSpec`.
+3. Emit useful telemetry fields via `self._progress_pct(...)` so tutorials and
+   dashboards can track convergence. Add regression tests under
+   `tests/solvers/` and `tests/telemetry/`.

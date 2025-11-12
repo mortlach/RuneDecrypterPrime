@@ -19,3 +19,12 @@ Guidelines
   remains stable.
 - Avoid putting heavy business logic here; telemetry should be best-effort and
   never throw exceptions back into solver/scorer code.
+
+Extending telemetry
+-------------------
+1. **New event types:** define them in `events.py`, document the payload, and
+   add schema tests under `tests/telemetry/`.
+2. **Pipeline data:** if a new stage needs metadata, extend `pipeline.make_pipeline_block`
+   so RunAPI/Engine automatically include it.
+3. **Redaction/privacy:** respect `LoggingConfig.redact_identity` and future
+   privacy toggles whenever you emit hostnames, usernames, or file-system paths.

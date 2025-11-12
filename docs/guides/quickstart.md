@@ -1,50 +1,84 @@
 # Quickstart
 
-Audience: Hands-on / Expert
-Time: 5 minutes
-Outcome: Run a deterministic tutorial and find its outputs
-Prereqs: Python 3.11+, repo set up (venv, deps installed)
+Audience: Hands-on / Expert  
+Time: 5 minutes  
+Outcome: Run the deterministic tutorials and know where the outputs live.  
+Prereqs: Followed the steps in `docs/setup/installation.md`.
 
-Two common entry points share the same deterministic contracts.
+---
 
-## Track 1 - Hands-on snippet
+## 1. Hands-on path (Start_Here tutorial)
+1. Activate your virtualenv.
+2. Run the intro tutorial:
+
+```bash
+python tutorials/v1/Start_Here.py
+```
+3. Expected console output:
+
+```text
+[Wrapper Beam] score=0.69
+  Plaintext: ᛏᚻᛖᚱᛖ ᚹᚪᛋ ᚪ ᛏᚪᛒᛚᛖ ᛋᛖᛏ …
+  Key: [3, 1, 4, 1]
+
+[General Map Beam] score=0.03
+  Plaintext: …
+  Key: [13, 0, 24, 28]
+```
+4. Inspect telemetry/logs under
+   `output/tutorials/<timestamp>__tutorials__start_here__nogit/`.
+5. Compare `telemetry.run` blocks if you need to confirm two runs are identical.
+
+Troubleshooting: see `docs/guides/troubleshooting.md` for simple
+checks (venv active, outputs under `output/`, Tier-A tests).
+
+---
+
+## 2. Advanced path (CLI + tests)
+Use the CLI for automation and regression tests:
+```bash
+# Always activate venv first
+source .venv/bin/activate          # or .\.venv\Scripts\activate on Windows
+
+# Run a tutorial regression
+python -m pytest tests/tutorials/test_mono_substitution.py -q
+
+# Run Tier-A smoke
+pytest -m tier_a
+```
+Pytest writes to `output/tests/<timestamp>__tests__pytest__.../`. Each test gets
+its own subfolder under `artifacts/tests/<nodeid>/`.
+
+Keep `seed`, `progress_pct`, and `print_progress` explicit in solver configs so
+telemetry stays reproducible.
+
+---
+
+## 3. RunAPI snippet (build your own run)
 ```python
 from rune_decrypter_prime.api import run, KeySpec, SolverSpec, by_name
 from rune_decrypter_prime.core.types import Direction
 
-SEED = 1337
 cipher = by_name.cipher("vigenere", key_len=6)
 key = KeySpec.repeat(len=6)
-solver = SolverSpec.ga(pop_size=64, generations=40, seed=SEED, progress_pct=1, print_progress=True)
+solver = SolverSpec.ga(pop_size=64, generations=40, seed=1337, progress_pct=1)
 
-solution = run(
-    text="??????",
+sol = run(
+    text="ᛏᚻᛖᚱᛖ ᚹᚪᛋ ᚪ ᛏᚪᛒᛚᛖ ᛋᛖᛏ",
     cipher=cipher,
     key=key,
     solver=solver,
     scorer_params=dict(encoding_dir=Direction.LTR),
     telemetry_on=True,
 )
-print(solution.plaintext_rune[:120])
+print(sol.plaintext_rune[:80], sol.key)
 ```
-Outputs appear in `output/tutorials/<timestamp>__tutorials__v1__<git>/`.
+Use this pattern for custom ciphers or to embed Rune Decrypter Prime inside your
+own scripts. Outputs still go under `output/<kind>/<run_id>/...`.
 
-Troubleshooting: see `docs/appendices/high_school_troubleshooting.md` for a checklist and the two-test Tier-A command.
-
-## Track 2 - Advanced test slice
-```powershell
-# Activate your environment
-.\.venv\Scripts\activate
-
-# Run a focused tutorial test and view output
-python -m pytest tests/tutorials/test_mono_substitution.py -q
-```
-Pytest writes to `output/tests/...` (see `tests/conftest.py`).
-
-Keep `seed`, `progress_pct`, and `print_progress` explicit so telemetry traces stay reproducible across both tracks.
+---
 
 ## Related tests
 - `tests/tutorials/test_mono_substitution.py`
 - `tests/tutorials/test_hybrid_stage2_regression.py`
 - `tests/smoke/test_determinism_canary.py`
-

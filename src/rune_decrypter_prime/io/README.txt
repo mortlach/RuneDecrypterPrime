@@ -16,3 +16,13 @@ Design notes
   prepares the output directories.
 - Keep dependencies minimal; higher layers pass in objects to log so we can
   reuse the same adapters in CLI tools and tests.
+
+Extending I/O
+-------------
+1. **New log sinks:** wrap them in `run_logger.py` and respect the same schema
+   keys (`telemetry.run`, solver spans, `solution.meta["work"]`). Never write
+   outside the run directory that `LoggingConfig` returns.
+2. **Randomness helpers:** keep RNG utilities in `io/rng.py` so solvers and
+   ciphers share the same deterministic source-of-truth.
+3. **Redaction:** honour `LoggingConfig.redact_identity` whenever you emit user
+   identifiers or hostnames. Add tests in `tests/telemetry` if you extend that feature.

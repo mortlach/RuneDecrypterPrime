@@ -1,9 +1,4 @@
-# ============================================================
-# rune_decrypter_prime/backends/xp.py
-# Unified array backend adapter with optional CuPy/Torch support.
-# Exposes a minimal NumPy-like API used by scoring/optimisers.
-# No behavioural change: selection logic and ops preserved.
-# ============================================================
+"""Unified array backend adapter (NumPy baseline with optional Torch/CuPy)."""
 
 from __future__ import annotations
 

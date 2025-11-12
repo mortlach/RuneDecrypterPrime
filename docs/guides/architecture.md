@@ -1,26 +1,26 @@
 # Architecture Guide
 
-Audience: Hands-on / Expert
-Time: 5-10 minutes
-Outcome: Understand the single path (API -> Problem -> Engine -> Solver -> Scoring) and where telemetry is attached
-Prereqs: Completed one tutorial run
+Audience: Hands-on / Expert  
+Time: 5-10 minutes  
+Outcome: Understand the single path (API → Problem → Engine → Solver → Scoring) and where telemetry is attached.  
+Prereqs: Completed one tutorial run.
 
 This page is the overview. Deep dives live in `docs/reference/core/*` and `docs/reference/api/*`.
 
 > Tracks: **Hands-on** sections explain what happens when you press 'Run' on a tutorial, **Expert** sections describe the modules and tests that enforce the contracts.
 
 ## What This Page Covers
-- Single-path pipeline from `RunAPI.run()` to telemetry.
-- How config objects (cipher/scorer/solver) are materialised.
-- Where solvers, key operations, and scoring fit.
-- Which tests guarantee determinism and telemetry.
+- **Single path from button-press to logs.** We walk through every stage that the ciphertext touches (RunAPI → ProblemInstance → Engine → Solver → Scoring) so you can reason about reproducibility.
+- **Config materialisation.** Learn how lenient user inputs (strings, tuples, rune text) become strict dataclasses/enums before any solver touches them.
+- **Where each subsystem fits.** Understand the roles of KeyOps, ciphers, scorers, solvers, and telemetry so you know where to plug in a new idea.
+- **Determinism guarantees.** See the contract tests that make sure every run logs the same metadata and produces the same score when given the same seed/config.
 
 ---
 
 ## Why It Matters
-- **Hands-on** - knowing the path makes it easier to debug or compare runs with other puzzlers. Same inputs should always produce the same outputs.
-- **Expert** - every new component (cipher, solver, scorer) plugs into this path, so architecture discipline prevents duplicate pipelines and inconsistent telemetry.
-- **Mission alignment** - determinism, telemetry-first logging, and output hygiene depend on a single path through the system.
+- **Hands-on users** can debug confidently. If the `telemetry.run` block matches between two machines, the plaintext/key should match too. When it doesn’t, this guide tells you where to look.
+- **Experts/builders** rely on the same path to add components. Ciphers, scorers, solvers, and telemetry modules only need to satisfy their layer’s contract instead of inventing new pipelines.
+- **Mission alignment** demands determinism, telemetry-first logging, and output hygiene. A single, well-documented path is how we keep those promises without regression slip-ups.
 
 ---
 
@@ -36,7 +36,17 @@ RunAPI.run()
    |
    +-- solvers/* (Beam / GA / SA / Hybrid -> scoring/* -> telemetry/pipeline.py)
 ```
-All logging flows through `io/run_logger.py`, and every solver emits `solution.meta["work"]` and `telemetry.solver_spans`.
+Every path ends in `telemetry.run`/`telemetry.solver` events under `output/<kind>/<run_id>/logs/app.jsonl`. Solvers also attach `solution.meta["work"]` so downstream tooling can reason about convergence speed.
+
+### Component Snapshots
+| Layer | Purpose | Where to start |
+| --- | --- | --- |
+| API (`src/rune_decrypter_prime/api/`) | Turns rune strings, tuples, or numpy arrays into strict configs (`CipherSpec`, `KeySpec`, `ScoringConfig`, `SolverConfig`). | `api/README.txt`, `api/run.py` |
+| Problem (`src/rune_decrypter_prime/core/problem/`) | Binds cipher, scorer, ciphertext, WLI, and KeyOps into a `DecryptionProblem`. Tracks permutations + telemetry pipeline block. | `core/problem/instance.py` |
+| Engine (`src/rune_decrypter_prime/core/engine/engine.py`) | Seeds RNGs, instantiates solvers, raises `run_start/run_end`, and ensures caches get cleared. | Module docstring + `tests/telemetry/test_engine_*` |
+| Solvers (`src/rune_decrypter_prime/solvers/`) | Beam/GA/SA/Hybrid search strategies that talk only to `problem.evaluate_keys`. Emit solver spans + stats. | `solvers/README.txt`, `solver_base.py` |
+| Scoring (`src/rune_decrypter_prime/scoring/`) | Rune scorer (NumPy/Torch) with ECDF percentiles, WLI handling, and telemetry. | `scoring/README.txt`, `rune_scorer.py` |
+| Telemetry & IO (`src/rune_decrypter_prime/telemetry/`, `io/`) | Structured logging, pipeline block builders, redaction toggles, and JSONL writers. | `telemetry/README.txt`, `io/run_logger.py` |
 
 ---
 
@@ -47,7 +57,7 @@ All logging flows through `io/run_logger.py`, and every solver emits `solution.m
 4. **Solver** - Beam/GA/SA/Hybrid iterate with `progress_pct=1`, updating telemetry buckets and `solution.meta["work"]` statistics.
 5. **Outputs** - `io/run_logger.py` writes JSONL logs under `output/<kind>/<timestamp>__<label>__<git>/logs/`, and tutorials print the highlights so Hands-on users can compare runs.
 
-If your run diverges from someone else's, compare the `telemetry.run` block (direction, permutation hash, solver params) before investigating code.
+If your run diverges from someone else's, compare the `telemetry.run` block (direction, permutation hash, solver params, seed) first. Most mismatches are configuration differences, not code bugs.
 
 ---
 
@@ -67,12 +77,13 @@ When extending any layer, update both docs and the relevant tests so the single-
 
 ## How to Use the Architecture
 ### Hands-on
-- Run any tutorial, then open `output/tutorials/<run>/logs/app.jsonl` and find the `telemetry.run` block.
-- Match the fields (`text_encoding_direction`, `input_permutation`) against the diagram above to understand what changed between runs.
-- Use `docs/appendices/high_school_troubleshooting.md` if telemetry is missing or logs end up outside `output/`.
+1. Run any tutorial, then open `output/tutorials/<run>/logs/app.jsonl`.
+2. Find the latest `telemetry.run` block and check `text_encoding_direction`, `input_permutation`, `solver`, `seed`.
+3. Match those fields against the diagram. If they differ from a reference run, fix the config before touching code.
+4. Use `docs/guides/troubleshooting.md` if telemetry is missing or logs end up outside `output/`.
 
 ### Expert
-- Instrument a run to inspect each stage:
+Instrument a run to inspect each stage:
 ```python
 from rune_decrypter_prime.api import run, SolverSpec, KeySpec, by_name
 
@@ -108,7 +119,9 @@ print(sol.meta["telemetry"]["pipeline"])
 ---
 
 ## Related Docs
-- `guides/outputs.md` - shows where pipeline results are stored.
-- `guides/telemetry.md` - schema details for telemetry events.
-- `howto/deterministic_run.md` - step-by-step reproduction recipe referencing this architecture.
+- `docs/guides/outputs.md` – storage layout + redaction options.
+- `docs/guides/telemetry.md` – schema details for telemetry events.
+- `docs/guides/quickstart.md` – tutorial walkthrough that references this architecture.
+- `docs/howto/deterministic_run.md` – step-by-step reproduction recipe.
+- `src/*/README.txt` – per-folder summaries for when you jump into the code.
 

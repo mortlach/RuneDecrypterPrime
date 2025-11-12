@@ -18,3 +18,14 @@ Guidelines
 - When updating the language model, keep the folder layout stable so older
   code (and the optional `_fastlm` extension) can keep streaming data without
   path rewrites.
+
+Updating assets
+---------------
+1. **Language models:** regenerate the `.npz` tables offline, drop them under
+   the matching `language_model/lmp/...` folder, and update any version markers.
+   Run the scorer parity tests (`tests/scoring/*`) to confirm nothing regressed.
+2. **Tutorial fixtures:** keep plaintexts/WLI in `cipher_tests/` so both tests
+   and tutorials can load the same canonical data. Update docs when you add new
+   sample texts.
+3. **Large files:** if assets exceed repo limits, document where to fetch them
+   (e.g., release artefacts) instead of checking them into `data/`.
