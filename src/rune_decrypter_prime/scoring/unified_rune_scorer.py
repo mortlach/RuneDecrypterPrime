@@ -8,7 +8,7 @@ import numpy as np
 
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.backends.xp import select_backend
-from rune_decrypter_prime.core.types import Direction
+from rune_decrypter_prime.core.types import Device
 
 class UnifiedRuneScorer:
     """
@@ -30,7 +30,16 @@ class UnifiedRuneScorer:
         self.cfg_scorer = cfg_scorer_params
         self._backend_name = "numpy"
         self._backend = None
-        device_req = str(getattr(cfg_cipher, "device", "auto") or "auto")
+
+        device_req = "auto"
+        cfg_device = getattr(cfg_cipher, "device", None)
+        if isinstance(cfg_device, str):
+            device_req = (cfg_device or "auto").strip().lower() or "auto"
+        elif isinstance(cfg_device, Device):
+            device_req = cfg_device.value
+        elif cfg_device is not None:
+            device_req = str(cfg_device).strip().lower() or "auto"
+
         dev_name, _xp = select_backend(device_req)
         if dev_name == "cuda":
             from rune_decrypter_prime.scoring.torch_rune_scorer import RuneScorerTorch
