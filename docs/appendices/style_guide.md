@@ -12,7 +12,7 @@ Add the following four lines immediately after the title:
 Audience: Hands-on / Expert
 Time: <estimate>
 Outcome: <what the reader achieves>
-Prereqs: <tools or steps>
+Prereqs: <tools or steps> 
 ```
 
 ## Drafts and deep dives
