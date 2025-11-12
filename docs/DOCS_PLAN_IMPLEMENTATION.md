@@ -5,7 +5,7 @@ This plan turns `docs/DOCS_PLAN.md` into actionable phases. Each stage lists the
 ---
 
 ## Stage 0 - Prep ( 🚀 Complete before edits )
-1. Confirm `docs/DOCS_PLAN.md` is the latest contract (done).
+1. Confirm `docs/DOCS_PLAN.md` is the latest contract (done). 
 2. Snapshot current docs/tests (`pytest tests -q`) so regressions are visible.
 3. Create tracking issue checklist (per stage) to log progress.
 
