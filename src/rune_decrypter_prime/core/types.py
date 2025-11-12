@@ -113,10 +113,10 @@ def _coerce_enum_value(enum_cls, value, *, aliases=None, param_name="value"):
 
 def ensure_direction(value) -> Direction:
     return _coerce_enum_value(Direction, value, aliases={
-        "forward": Direction.RTL,
-        "fwd": Direction.RTL,
-        "reverse": Direction.LTR,
-        "rev": Direction.LTR,
+        "forward": Direction.LTR,
+        "fwd": Direction.LTR,
+        "reverse": Direction.RTL,
+        "rev": Direction.RTL,
     }, param_name="direction")
 
 
