@@ -113,31 +113,29 @@ def normalize_encoding_dir(direction: [str, Direction]) -> Direction:
 
 
 def normalize_se_mode(value: Any) -> SeMode:
-    if type(value) is str:
-        if value == "nose":
-            return SeMode.NOSE
-        if value == "wise":
-            return SeMode.WISE
-        else:
-            raise ValueError(f"Unknown SeMode string: {value}.")
-    elif type(value) is Direction:
+    if isinstance(value, SeMode):
         return value
-    else:
-        raise ValueError(f"Unknown SeMode parameter(s): {type(value)}.")
+    if isinstance(value, str):
+        v = value.strip().lower()
+        if v == "nose":
+            return SeMode.NOSE
+        if v == "wise":
+            return SeMode.WISE
+        raise ValueError(f"Unknown SeMode string: {value}.")
+    raise ValueError(f"Unknown SeMode parameter(s): {type(value)}.")
 
 
 def normalize_channel(value: Any) -> Channel:
-    if type(value) is str:
-        if value == "char":
+    if isinstance(value, str):
+        v = value.strip().lower()
+        if v == "char":
             return Channel.CHAR
-        if value == "wli":
+        if v == "wli":
             return Channel.WLI
-        else:
-            raise ValueError(f"Unknown Channel string: {value}.")
-    elif type(value) is Channel:
+        raise ValueError(f"Unknown Channel string: {value}.")
+    if isinstance(value, Channel):
         return value
-    else:
-        raise ValueError(f"Unknown Channel parameter(s): {type(value)}.")
+    raise ValueError(f"Unknown Channel parameter(s): {type(value)}.")
 
 
 def normalize_device(value: Any) -> Device:
@@ -156,17 +154,17 @@ def normalize_device(value: Any) -> Device:
 
 
 def normalize_scorer_params(params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    if "channel" in params.keys():
+    if not params:
+        return {}
+    if "channel" in params:
         params["channel"] = normalize_channel(params["channel"])
-    if "device" in params.keys():
+    if "device" in params:
         params["device"] = normalize_device(params["device"])
-    if "se_mode" in params.keys():
+    if "se_mode" in params:
         params["se_mode"] = normalize_se_mode(params["se_mode"])
-    if "encoding_dir" in params.keys():
+    if "encoding_dir" in params:
         params["encoding_dir"] = normalize_encoding_dir(params["encoding_dir"])
-    if "encoding_dir" in params.keys():
-        params["encoding_dir"] = normalize_encoding_dir(params["encoding_dir"])
-    if "objective" in params.keys():
+    if "objective" in params:
         params["objective"] = normalize_objective_spec(params["objective"])
     return params
 

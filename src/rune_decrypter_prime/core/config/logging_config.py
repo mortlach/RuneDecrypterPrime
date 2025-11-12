@@ -47,6 +47,7 @@ class LoggingConfig:
     run_kind: str = "run"
     label: Optional[str] = None
     fixed_run_dir: Optional[str] = None
+    redact_identity: bool = False
 
 # ----------------------------
 # Module state & simple accessors
@@ -198,8 +199,8 @@ def _write_meta(
     meta: Dict[str, Any] = {
         # Legacy/previously observed fields (kept to avoid breaking readers)
         "created": timestamp,
-        "user": getpass.getuser(),
-        "host": socket.gethostname(),
+        "user": None if cfg.redact_identity else getpass.getuser(),
+        "host": None if cfg.redact_identity else socket.gethostname(),
         "repo_root": ".",
         "out_root": _relativize_path(out_root, repo_root),
         "run_kind": cfg.run_kind,
