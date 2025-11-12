@@ -343,7 +343,7 @@ Apply these **once** and update imports where noted:
 * Public "pipeline" is **API-level**; cipher intrinsics renamed to **`cipher_pipeline.py`**.
 * Legacy solver path quarantined under **`core/legacy/`**.
 * No CLI in docs; everything is **PyCharm** runnable.
-* **Docs sync is mandatory** via the two tools; CI enforces it.
+* **Docs sync is mandatory** via the two tools; CI enforces it. 
 
 ---
 

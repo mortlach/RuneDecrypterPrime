@@ -32,7 +32,7 @@ Deliverable: `docs/DOCS_PLAN_IMPLEMENTATION.md` (this file).
 - `rg` for outdated paths ("out/", "C:\").
 - `pytest tests -q` (sanity).
 
----
+--- 
 
 ## Stage 2 - Core Guides (Architecture, Philosophy, Extending)
 **Targets**

@@ -1,7 +1,4 @@
-# ============================================================
-# rune_decrypter_prime/core/unified_rune_scorer.py   (Unified façade)
-# Selects Torch or NumPy scorer based on cfg_cipher.device; stable public API.
-# ============================================================
+"""Unified façade that selects the NumPy or Torch rune scorer at runtime."""
 from __future__ import annotations
 from typing import Any, Iterable, Sequence, Dict
 import numpy as np
@@ -89,7 +86,14 @@ class UnifiedRuneScorer:
         # Device preference: prefer backend-provided; else cfg/device or cpu
         if "device" not in tel or not tel["device"]:
             dev = getattr(self.cfg_cipher, "device", None)
-            tel["device"] = str(dev or ("cuda" if self._backend_name == "torch" else "cpu")).lower()
+            if isinstance(dev, Device):
+                tel["device"] = dev.value
+            elif isinstance(dev, str):
+                tel["device"] = dev.strip().lower() or ("cuda" if self._backend_name == "torch" else "cpu")
+            else:
+                tel["device"] = "cuda" if self._backend_name == "torch" else "cpu"
+
+        tel.setdefault("backend", self._backend_name)
 
         # DType is fixed float32 for both current backends
         tel.setdefault("dtype", "float32")

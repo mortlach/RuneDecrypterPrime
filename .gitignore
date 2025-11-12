@@ -216,3 +216,5 @@ __marimo__/
 /tools/repo_utils
 /tools/ci
 /legacy
+docs/DOCS_PLAN_IMPLEMENTATION.md
+docs/DOCS_PLAN.md
