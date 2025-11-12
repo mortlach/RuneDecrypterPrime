@@ -14,7 +14,7 @@ Prereqs: Python 3.11+, repo installed (`pip install -e .[dev]`)
 ## Hands-on Steps
 1. Open `tutorials/v1/Tutorial_Vigenere_GeneralMap.py` (environment setup: `guides/quickstart.md`).
 2. Keep `TUTORIAL_SEED = 12345` so your run matches other solvers.
-3. Press Run (PyCharm) or execute `python tutorials/v1/Tutorial_Vigenere_GeneralMap.py --print-progress`.
+3. Execute `python tutorials/v1/Tutorial_Vigenere_GeneralMap.py --print-progress`.
 4. Watch the GA progress lines (`pct=... best_score=...`). When it finishes, note the plaintext preview and score.
 5. Inspect `output/tutorials/<timestamp>__tutorials__vigenere__<git>/logs/app.jsonl` for the `telemetry.run` block.
 

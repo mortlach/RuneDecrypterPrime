@@ -38,7 +38,7 @@ This index mirrors `docs/DOCS_PLAN.md` and `docs/DOCS_PLAN_IMPLEMENTATION.md`. U
 
 ## Tests & Tooling
 - `tests_docs/overview.md`
-- `tests_docs/running_in_pycharm.md`
+- `tests_docs/running_in_ide.md`
 - `tests_docs/tiering.md`
 - `tests_docs/tools.md`
 

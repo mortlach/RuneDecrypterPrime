@@ -24,7 +24,7 @@ If any check fails, re-run the steps from `docs/setup/installation.md`.
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
-| `ModuleNotFoundError: rune_decrypter_prime` | venv not activated or IDE not pointing at `src/` | Activate `.venv` and mark `src/` as the source root (PyCharm/VS Code). |
+| `ModuleNotFoundError: rune_decrypter_prime` | venv not activated or IDE/editor not pointing at `src/` | Activate `.venv` and configure your editor to treat `src/` as the project root (or add `src/` to `PYTHONPATH`). |
 | `torch` missing or fails to import | Torch CPU wheel skipped (common on lab machines) | Set `RDP_TORCH=0` before `pip install -e .[dev]`, or re-run the install to pull the CPU wheel. |
 | Tutorial prints zero progress | Solver config left at defaults | Set `print_progress=True` and keep `progress_pct=1` when teaching/demonstrating. |
 | Files end up outside `output/` | Commands run from the wrong directory | `cd` into the repo root and re-run; check `pwd`/`Get-Location`. All scripts should write under `output/<kind>/...`. |
