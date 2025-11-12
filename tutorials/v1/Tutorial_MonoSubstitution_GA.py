@@ -139,14 +139,14 @@ def _solve_once(direction: Direction, telemetry_on: bool):
         **({} if seeds is None else {"initial_keys": seeds}),
     )
 
-    return sol, pt_en, seeds
+    return sol, pt_en, seeds, pt_idx, wli
 
 
 def main():
     for label, direction, telemetry_on in SCENARIOS:
         print("=" * 72)
         print(f"{label} (direction={direction.value}, telemetry_on={telemetry_on})")
-        sol, pt_en, seeds = _solve_once(direction, telemetry_on)
+        sol, pt_en, seeds, pt_idx, wli = _solve_once(direction, telemetry_on)
 
         mode_label = "GA (seeded start)" if seeds is not None else "GA (noise start)"
         print(f"Mode: {mode_label}")
@@ -159,25 +159,15 @@ def main():
         has_tel = bool(getattr(sol, "meta", {}).get("telemetry"))
         print("Telemetry attached:", has_tel)
 
-        # Similarity (rough) to original plaintext runes
-        pt_idx = sol.meta.get("pt_idx_ref") if hasattr(sol, "meta") else None
-        try:
-            pt_ref = Runeglish.to_rune(list(pt_idx), sol.meta.get("wli_ref")) if pt_idx is not None else None
-        except Exception:
-            pt_ref = None
-        if pt_ref:
-            m = min(len(pt_ref), len(str(rec)))
-            match = sum(1 for i in range(m) if pt_ref[i] == str(rec)[i])
-            ratio = (match / m) if m else 0.0
-            print("Match ratio:", f"{ratio:.3f}")
-
+        pt_ref = Runeglish.to_rune(list(pt_idx), wli)
         print_run_report(
             title=f"{_DEF_TITLE}-{direction.value.lower()}",
             cipher="mono",
             solution=sol,
             match_ok=None,
             app_version="tutorial-1.3",
-            pt_rune_ref=pt_en,
+            pt_rune_ref=pt_ref,
+            pt_idx_ref=pt_idx,
         )
 
 

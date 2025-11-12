@@ -141,7 +141,7 @@ def main():
         title="Columnar Transposition",
         cipher="columnar",
         solution=sol,
-        match_ok=(list(getattr(sol, "key", [])) == key_true),
+        match_ok=None,
         app_version="tutorial-1.0",
         key_idx=key_true,
         key_len=len(key_true),

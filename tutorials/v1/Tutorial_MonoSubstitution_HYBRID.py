@@ -139,13 +139,8 @@ def main():
     recovered = getattr(sol, "plaintext_rune", "") or getattr(sol, "plaintext_str", "")
     print("Recovered plaintext:", preview(str(recovered)))
     print("Score:", round(sol.score, 6))
-    # Similarity (rough) to original plaintext runes
+    # Keep reference for pretty printer (auto match ratio)
     pt_ref = Runeglish.to_rune(list(pt_idx), wli)
-    rec = str(recovered)
-    m = min(len(pt_ref), len(rec))
-    match = sum(1 for i in range(m) if pt_ref[i] == rec[i])
-    ratio = (match / m) if m else 0.0
-    print("Match ratio:", f"{ratio:.3f}")
 
     print_run_report(
         title="mono-hybrid",
@@ -154,6 +149,7 @@ def main():
         match_ok=None,
         app_version="tutorial-1.3",
         pt_rune_ref=pt_ref,
+        pt_idx_ref=pt_idx,
     )
 
 if __name__ == "__main__":

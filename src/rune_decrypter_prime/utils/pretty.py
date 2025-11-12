@@ -5,6 +5,8 @@ from datetime import datetime
 
 from rune_decrypter_prime.utils.runeglish import Runeglish
 
+_MATCH_RATIO_THRESHOLD = 0.97
+
 # Toggle to see a compact timeline of solver/optimizer events at the end
 SHOW_TIMELINE = False
 
@@ -112,6 +114,43 @@ def _find_last(events: List[Dict[str, Any]], typ: str) -> Optional[Dict[str, Any
             return ev
     return None
 
+
+def _normalize_rune_stream(text: Any) -> str:
+    if text is None:
+        return ""
+    if _is_np_array(text):
+        try:
+            text = "".join(map(str, _to_list(text)))
+        except Exception:
+            text = str(text)
+    return "".join(ch for ch in str(text) if not str(ch).isspace())
+
+
+def _match_ratio_from_idx(found: Any, reference: Any) -> Optional[float]:
+    ref_vals = _to_list(reference)
+    if not ref_vals:
+        return None
+    cand_vals = _to_list(found)
+    denom = max(len(ref_vals), len(cand_vals))
+    if denom == 0:
+        return None
+    limit = min(len(ref_vals), len(cand_vals))
+    matches = sum(1 for i in range(limit) if cand_vals[i] == ref_vals[i])
+    return matches / float(denom)
+
+
+def _match_ratio_from_runes(found: Any, reference: Any) -> Optional[float]:
+    ref_norm = _normalize_rune_stream(reference)
+    if not ref_norm:
+        return None
+    cand_norm = _normalize_rune_stream(found)
+    denom = max(len(ref_norm), len(cand_norm))
+    if denom == 0:
+        return None
+    limit = min(len(ref_norm), len(cand_norm))
+    matches = sum(1 for i in range(limit) if cand_norm[i] == ref_norm[i])
+    return matches / float(denom)
+
 # ── main printer ─────────────────────────────────────────────────────────────
 def print_run_report(
     *,
@@ -130,7 +169,7 @@ def print_run_report(
     pt_idx_ref: Optional[Sequence[int]] = None,
     verbose: bool = True,
     show_timeline: bool = False,   # default off to reduce clutter
-    preview_len: int = 360,
+    preview_len: int = 200,
     compact: bool = True,          # NEW: compact mode hides bulky sections
 ) -> None:
     """
@@ -321,6 +360,16 @@ def print_run_report(
     ct_rune_attr  = getattr(solution, "ciphertext_rune", "") or ""
     ct_runes_disp = ct_rune or ct_rune_attr or _runes_from_idx(ct_idx_list, wli_for_latin)
 
+    # ---- match ratio & recovered flag --------------------------------------
+    match_ratio: Optional[float] = None
+    if _nonempty(pt_idx_ref):
+        match_ratio = _match_ratio_from_idx(pt_idx, pt_idx_ref)
+    elif pt_ref_runes:
+        match_ratio = _match_ratio_from_runes(pt_runes, pt_ref_runes)
+
+    if match_ok is None and match_ratio is not None:
+        match_ok = match_ratio >= _MATCH_RATIO_THRESHOLD
+
     # ---- print --------------------------------------------------------------
     line = "-" * 72
     print(line)
@@ -375,8 +424,15 @@ def print_run_report(
         print(_preview_list(pt_idx))
 
     # Footer blocks
+    recovered_label = "Unknown"
+    if match_ok is True:
+        recovered_label = "Yes"
+    elif match_ok is False:
+        recovered_label = "No"
     print(line)
-    print(f"Recovered? : {'Yes' if match_ok else 'No'}")
+    print(f"Recovered? : {recovered_label}")
+    if match_ratio is not None:
+        print(f"Match ratio: {match_ratio:.3f}")
     if score is not None:
         print(f"Score      : {score:.6f}")
 
