@@ -241,6 +241,39 @@ def _build_railfence_wrapper(
     return cfg
 
 
+def _build_autokey_wrapper(
+    *,
+    cipher: CipherSpec,
+    key: KeySpec,
+    ct: np.ndarray,
+    wli: Optional[Sequence[Sequence[int]]],
+    device: Device,
+    encoding_dir: Direction,
+    initial_text_permutation_indices: Optional[Sequence[int]],
+) -> CipherConfig:
+    key_spec = expect_key_plan(key, "repeat", "Autokey requires KeySpec.repeat(len=seed_len)")
+    seed_len = int(key_spec.params.get("len", 0) or 0)
+    extras = getattr(cipher, "extra", {}) or {}
+    if seed_len <= 0:
+        seed_len = int(extras.get("seed_length", 0) or 0)
+    if seed_len <= 0:
+        raise ValueError("Autokey requires a positive seed length")
+    alphabet = int(extras.get("alphabet_size", getattr(cipher, "N", 29)) or 29)
+
+    cfg = CipherConfig(
+        ciphertext=ct,
+        wli_data=wli,
+        key_length=seed_len,
+        encoding_dir=encoding_dir,
+        initial_text_permutation_indices=initial_text_permutation_indices,
+        device=device,
+        name="autokey",
+    )
+    setattr(cfg, "seed_length", seed_len)
+    setattr(cfg, "alphabet_size", alphabet)
+    return cfg
+
+
 _WRAPPER_BUILDERS = {
     "vigenere": _build_vigenere_wrapper,
     "columnar": _build_columnar_wrapper,
@@ -249,4 +282,5 @@ _WRAPPER_BUILDERS = {
     "hill2x2": _build_hill_wrapper,
     "hill-2x2": _build_hill_wrapper,
     "railfence": _build_railfence_wrapper,
+    "autokey": _build_autokey_wrapper,
 }

@@ -15,3 +15,4 @@ from rune_decrypter_prime.ciphers.substitution_cipher import SubstitutionCipher
 from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
 from rune_decrypter_prime.ciphers.columnar_transposition_cipher import ColumnarTranspositionCipher
 from rune_decrypter_prime.ciphers.railfence_cipher import RailFenceCipher
+from rune_decrypter_prime.ciphers.autokey_cipher import AutokeyCipher

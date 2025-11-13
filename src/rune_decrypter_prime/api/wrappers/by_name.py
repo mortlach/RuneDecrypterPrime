@@ -256,6 +256,31 @@ class by_name:
         return spec, key
 
     @staticmethod
+    def _autokey(
+        *,
+        seed_len: int | None = None,
+        alphabet_size: int | None = None,
+        default_key: bool = False,
+        **kwargs: Any,
+    ):
+        """Autokey cipher: search over the seed of length `seed_len`."""
+        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+
+        seed = int(seed_len) if seed_len is not None else 3
+        if seed <= 0:
+            raise ValueError("autokey requires seed_len >= 1")
+        alphabet = int(alphabet_size) if alphabet_size is not None else 29
+        if alphabet <= 0:
+            raise ValueError("autokey alphabet_size must be positive")
+
+        spec = CipherSpec._wrapper(name="autokey", core_name="autokey", N=alphabet)
+        spec.extra["seed_length"] = seed
+        spec.extra["alphabet_size"] = alphabet
+
+        key = KeySpec.repeat(len=seed) if default_key else None
+        return spec, key
+
+    @staticmethod
     def _route(
         *, cols: int | None = None, default_key: bool = False, **kwargs: Any
     ):
@@ -381,6 +406,7 @@ class by_name:
         "variant-vigenere": _variant_vigenere.__func__,
         "columnar": _columnar.__func__,
         "railfence": _railfence.__func__,
+        "autokey": _autokey.__func__,
         "route": _route.__func__,
         "double_transposition": _double_transposition.__func__,
         "blockperm": _blockperm.__func__,
