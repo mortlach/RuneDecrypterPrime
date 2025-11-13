@@ -8,7 +8,7 @@ mutation, and validation belong to the KeyOps layer.
 Key files
 ---------
 - `vigenere_cipher.py`, `substitution_cipher.py`, `columnar_transposition_cipher.py`,
-  etc.: batch decrypt/encrypt implementations.
+  `railfence_cipher.py`, etc.: batch decrypt/encrypt implementations.
 - `generic_map_cipher.py`: runtime for user-defined map/lookup specs coming from
   the API.
 - `base_keyed_cipher.py`: shared helpers (`_as_u8`, dtype guards).

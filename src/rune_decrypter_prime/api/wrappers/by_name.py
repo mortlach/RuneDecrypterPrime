@@ -223,16 +223,36 @@ class by_name:
 
     @staticmethod
     def _railfence(
-        *, default_key: bool = False, **kwargs: Any
+        *,
+        rails: int | None = None,
+        min_rails: int | None = None,
+        max_rails: int | None = None,
+        default_key: bool = False,
+        **kwargs: Any,
     ):
-        """Railfence cipher: key = number of rails."""
+        """Railfence cipher: scalar key controlling the number of rails."""
         from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
-        N = _pull_N(kwargs)
-        def f(pt: int, k: int) -> int:
-            return pt
-        spec = CipherSpec.user_map2(function=f, N=N,
-                                    degeneracy="forbid", resolver="first", per_pos_limit=1)
-        key = KeySpec.scalar(max_val=10) if default_key else None
+
+        spec = CipherSpec._wrapper(name="railfence", core_name="railfence")
+        extras = spec.extra
+
+        if rails is not None:
+            fixed = int(rails)
+            if fixed < 2:
+                raise ValueError("railfence requires rails >= 2")
+            extras["rails"] = fixed
+            extras["min_rails"] = fixed
+            extras["max_rails"] = fixed
+        else:
+            min_hint = max(2, int(min_rails) if min_rails is not None else 2)
+            if max_rails is None:
+                max_hint = max(min_hint, 8)
+            else:
+                max_hint = max(min_hint, int(max_rails))
+            extras["min_rails"] = min_hint
+            extras["max_rails"] = max_hint
+
+        key = KeySpec.scalar(max_val=extras["max_rails"]) if default_key else None
         return spec, key
 
     @staticmethod

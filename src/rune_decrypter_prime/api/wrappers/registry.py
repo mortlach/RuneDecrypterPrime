@@ -202,6 +202,45 @@ def _build_hill_wrapper(
     return cfg
 
 
+def _build_railfence_wrapper(
+    *,
+    cipher: CipherSpec,
+    key: KeySpec,
+    ct: np.ndarray,
+    wli: Optional[Sequence[Sequence[int]]],
+    device: Device,
+    encoding_dir: Direction,
+    initial_text_permutation_indices: Optional[Sequence[int]],
+) -> CipherConfig:
+    key_spec = expect_key_plan(key, "scalar", "Railfence requires KeySpec.scalar(max_val=...)")
+    extras = getattr(cipher, "extra", {}) or {}
+
+    min_rails = max(2, int(extras.get("min_rails", 2)))
+    max_hint = extras.get("max_rails")
+    if max_hint is None:
+        max_hint = key_spec.params.get("max_val", min_rails)
+    max_rails = max(min_rails, int(max_hint))
+
+    rails_fixed = extras.get("rails")
+    if rails_fixed is not None:
+        rails_fixed = int(rails_fixed)
+        min_rails = max_rails = max(min_rails, rails_fixed)
+
+    cfg = CipherConfig(
+        ciphertext=ct,
+        wli_data=wli,
+        key_length=1,
+        encoding_dir=encoding_dir,
+        initial_text_permutation_indices=initial_text_permutation_indices,
+        device=device,
+        name="railfence",
+    )
+    setattr(cfg, "min_rails", min_rails)
+    setattr(cfg, "max_rails", max_rails)
+    setattr(cfg, "rails_fixed", rails_fixed)
+    return cfg
+
+
 _WRAPPER_BUILDERS = {
     "vigenere": _build_vigenere_wrapper,
     "columnar": _build_columnar_wrapper,
@@ -209,4 +248,5 @@ _WRAPPER_BUILDERS = {
     "hill": _build_hill_wrapper,
     "hill2x2": _build_hill_wrapper,
     "hill-2x2": _build_hill_wrapper,
+    "railfence": _build_railfence_wrapper,
 }
