@@ -5,7 +5,7 @@ What this file teaches (and enforces):
 
 1) Domain & shape:
    - A permutation key is a 1-D array of length K containing each integer
-     0..K-1 exactly once (dtype uint8).
+     0..K-1 exactly once (dtype KEY_DTYPE / int16).
 
 2) Local moves (search-friendly):
    - mutate(key, rng) performs a small, bijective change (typically a 2-swap).
@@ -35,18 +35,18 @@ Use these tests as a template when designing your own permutation-style KeyOps.
 import numpy as np
 import pytest
 
+from rune_decrypter_prime.core.types import KEY_DTYPE
 from rune_decrypter_prime.keyops.registry import create
 from rune_decrypter_prime.keyops import PermutationKeyOps
 
 
 def _is_perm(arr: np.ndarray) -> bool:
-    "Quick invariant: 1-D uint8 and a true permutation of 0..K-1."
-    return (
-        isinstance(arr, np.ndarray)
-        and arr.dtype == np.uint8
-        and arr.ndim == 1
-        and np.array_equal(np.sort(arr), np.arange(arr.size, dtype=np.uint8))
-    )
+    "Quick invariant: 1-D KEY_DTYPE and a true permutation of 0..K-1."
+    if not isinstance(arr, np.ndarray) or arr.ndim != 1:
+        return False
+    if arr.dtype != KEY_DTYPE:
+        return False
+    return np.array_equal(np.sort(arr), np.arange(arr.size, dtype=KEY_DTYPE))
 
 
 def _hamming(a: np.ndarray, b: np.ndarray) -> int:
@@ -113,7 +113,7 @@ def test_recombine_child_is_permutation_and_idempotent_on_equal_parents():
     child = ops.recombine(p1, p2, rng)
     assert _is_perm(child)
     assert child.shape == (K,)
-    assert child.dtype == np.uint8
+    assert child.dtype == KEY_DTYPE
 
 
 def test_make_population_and_batch_neighbors_contracts():
@@ -123,7 +123,7 @@ def test_make_population_and_batch_neighbors_contracts():
 
     pop = ops.make_population(N, rng)
     assert pop.shape == (N, K)
-    assert pop.dtype == np.uint8 and pop.flags["C_CONTIGUOUS"]
+    assert pop.dtype == KEY_DTYPE and pop.flags["C_CONTIGUOUS"]
     # Every row is a permutation; ensure some diversity
     assert all(_is_perm(row) for row in pop)
     uniq = np.unique(pop.view([("", pop.dtype)] * K))
@@ -132,7 +132,7 @@ def test_make_population_and_batch_neighbors_contracts():
     base = ops.random(rng)
     batch = ops.batch_neighbors(base, B, rng)
     assert batch.shape == (B, K)
-    assert batch.dtype == np.uint8 and batch.flags["C_CONTIGUOUS"]
+    assert batch.dtype == KEY_DTYPE and batch.flags["C_CONTIGUOUS"]
     for row in batch:
         assert _is_perm(row)
         assert _hamming(base, row) in (2, 3), "neighbors should be small moves"

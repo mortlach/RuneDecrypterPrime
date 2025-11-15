@@ -24,7 +24,7 @@ from __future__ import annotations
 from typing import Any, Dict, Optional, Tuple
 import numpy as np
 
-from ..core.types import SolverName
+from ..core.types import SolverName, KEY_DTYPE
 from .solver_base import SolverBase
 from .beam import BeamSolver
 from .ga import GASolver
@@ -101,6 +101,8 @@ class HybridSolver(SolverBase):
             }:
                 b_params[k] = v
 
+        self._inherit_progress_knobs(b_params)
+
         beam_rng = _child_rng(self.rng, tag=1)
         beam = BeamSolver(
             self.problem,
@@ -113,7 +115,7 @@ class HybridSolver(SolverBase):
         )
         sol = beam.solve()
 
-        best_key = np.asarray(sol.key, dtype=np.uint8).reshape(-1)
+        best_key = np.asarray(sol.key, dtype=KEY_DTYPE).reshape(-1)
         best_score = float(sol.score)
 
         # Try to pull final beam keys for GA seeding (if provided by BeamSolver meta)
@@ -123,7 +125,7 @@ class HybridSolver(SolverBase):
             beam_meta = meta.get("beam", {})
             fbk = beam_meta.get("final_keys", None)
             if fbk is not None:
-                arr = np.asarray(fbk, dtype=np.uint8, copy=False)
+                arr = np.asarray(fbk, dtype=KEY_DTYPE, copy=False)
                 if arr.ndim == 2 and arr.shape[1] == self.K:
                     beam_mat = arr
         except Exception:
@@ -135,14 +137,16 @@ class HybridSolver(SolverBase):
         """Run GA; return (best_key, best_score)."""
         self._phase = "ga"
         g_params = {}
-        # collect ga.* or flat aliases
         for k, v in (self.params or {}).items():
             if k.startswith("ga."):
-                g_params[k[3:]] = v  # strip "ga."
-        # honour flat fallbacks
+                g_params[k[3:]] = v
+        ga_block = self.params.get("ga")
+        if isinstance(ga_block, dict):
+            g_params.update(ga_block)
         for alias in ("pop_size", "generations", "tournament_k", "elite_frac", "cx_frac", "mut_prob", "plateau_gens"):
-            if alias in self.params and (alias not in g_params):
+            if alias in self.params and alias not in g_params:
                 g_params[alias] = self.params[alias]
+        self._inherit_progress_knobs(g_params)
 
         ga_rng = _child_rng(self.rng, tag=2)
         ga = GASolver(
@@ -155,7 +159,7 @@ class HybridSolver(SolverBase):
             log_interval=self.log_interval,
         )
         sol = ga.solve()
-        return np.asarray(sol.key, dtype=np.uint8).reshape(-1), float(sol.score)
+        return np.asarray(sol.key, dtype=KEY_DTYPE).reshape(-1), float(sol.score)
 
     def _run_sa(self, start_key: np.ndarray) -> Tuple[np.ndarray, float]:
         """Run SA from a given starting key; return (best_key, best_score)."""
@@ -163,10 +167,14 @@ class HybridSolver(SolverBase):
         s_params = {}
         for k, v in (self.params or {}).items():
             if k.startswith("sa."):
-                s_params[k[3:]] = v  # strip "sa."
+                s_params[k[3:]] = v
+        sa_block = self.params.get("sa")
+        if isinstance(sa_block, dict):
+            s_params.update(sa_block)
         for alias in ("iters", "T0", "Tmin", "cool", "local_improve_on_accept"):
-            if alias in self.params and (alias not in s_params):
+            if alias in self.params and alias not in s_params:
                 s_params[alias] = self.params[alias]
+        self._inherit_progress_knobs(s_params)
 
         sa_rng = _child_rng(self.rng, tag=3)
         sa = SASolver(
@@ -179,11 +187,12 @@ class HybridSolver(SolverBase):
             log_interval=self.log_interval,
         )
         sol = sa.solve()
-        return np.asarray(sol.key, dtype=np.uint8).reshape(-1), float(sol.score)
+        return np.asarray(sol.key, dtype=KEY_DTYPE).reshape(-1), float(sol.score)
 
     # --------- main solve ---------
 
     def solve(self):
+        self._capture_seed_quality()
         fast = self._maybe_return_test_key_fastpath(SolverName.HYBRID)
         if fast is not None:
             return fast
@@ -240,3 +249,12 @@ class HybridSolver(SolverBase):
         except Exception as e:
             self._end_span(span, error=str(e))
             raise
+
+    def _inherit_progress_knobs(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Propagate console/preview knobs into sub-solvers."""
+        if not isinstance(payload, dict):
+            return payload
+        for key in ("progress_pct", "print_progress", "progress_preview_chars", "verbose_console"):
+            if key in self.params and key not in payload:
+                payload[key] = self.params[key]
+        return payload

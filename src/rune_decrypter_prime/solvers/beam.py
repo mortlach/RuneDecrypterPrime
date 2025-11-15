@@ -14,7 +14,7 @@ from typing import List, Optional
 from collections import deque
 import numpy as np
 
-from ..core.types import SolverName
+from ..core.types import SolverName, KEY_DTYPE
 from .solver_base import SolverBase
 
 
@@ -173,7 +173,7 @@ class BeamSolver(SolverBase):
                 parents = int(beam.shape[0])
                 cands_per_parent = int(expanded.shape[0] // max(1, parents))
             else:
-                expanded = np.vstack([self.keyops.mutate(k, self.rng) for k in beam]).astype(np.uint8)
+                expanded = np.vstack([self.keyops.mutate(k, self.rng) for k in beam]).astype(KEY_DTYPE)
                 parents = int(beam.shape[0])
                 cands_per_parent = 1
 
@@ -181,12 +181,12 @@ class BeamSolver(SolverBase):
         if attempted <= 0:
             # Hard safety: create at least one by mutating the best key
             k_best = beam[int(np.argmax(scores))]
-            expanded = self.keyops.mutate(k_best, self.rng).reshape(1, -1).astype(np.uint8)
+            expanded = self.keyops.mutate(k_best, self.rng).reshape(1, -1).astype(KEY_DTYPE)
             attempted = 1
             parents = 1
             cands_per_parent = 1
 
-        expanded = np.ascontiguousarray(expanded, dtype=np.uint8)
+        expanded = np.ascontiguousarray(expanded, dtype=KEY_DTYPE)
         return expanded, attempted, int(parents), int(cands_per_parent)
 
     # -------------------------- main solve ---------------------------
@@ -286,24 +286,24 @@ class BeamSolver(SolverBase):
                     recent_hashes.discard(old)
             if not keep:
                 return u8[:0]
-            return np.ascontiguousarray(np.vstack(keep), dtype=np.uint8)
+            return np.ascontiguousarray(np.vstack(keep), dtype=KEY_DTYPE)
 
         try:
             # 1) Seed beam
             if self.seed_keys is not None and len(self.seed_keys) > 0:
-                beam = np.ascontiguousarray(self.seed_keys, dtype=np.uint8)
+                beam = np.ascontiguousarray(self.seed_keys, dtype=KEY_DTYPE)
                 if beam.shape[0] < W:
                     extra_n = W - beam.shape[0]
                     extra = (self.keyops.make_population(extra_n, self.rng)
                              if "make_population" in self.keyops.caps.ops
-                             else np.vstack([self.keyops.random(self.rng) for _ in range(extra_n)]).astype(np.uint8))
-                    beam = np.ascontiguousarray(np.vstack([beam, extra]), dtype=np.uint8)
+                             else np.vstack([self.keyops.random(self.rng) for _ in range(extra_n)]).astype(KEY_DTYPE))
+                    beam = np.ascontiguousarray(np.vstack([beam, extra]), dtype=KEY_DTYPE)
                 else:
-                    beam = np.ascontiguousarray(beam[:W], dtype=np.uint8)
+                    beam = np.ascontiguousarray(beam[:W], dtype=KEY_DTYPE)
             else:
                 beam = (self.keyops.make_population(W, self.rng)
                         if "make_population" in self.keyops.caps.ops
-                        else np.vstack([self.keyops.random(self.rng) for _ in range(W)]).astype(np.uint8))
+                        else np.vstack([self.keyops.random(self.rng) for _ in range(W)]).astype(KEY_DTYPE))
 
             scores = self._score_batch(beam)
             candidates_seen += int(beam.shape[0])
@@ -323,7 +323,7 @@ class BeamSolver(SolverBase):
                 candidates_seen += int(expanded.shape[0])
 
                 # Merge and keep top-W
-                all_keys = np.vstack([beam, expanded]).astype(np.uint8, copy=False)
+                all_keys = np.vstack([beam, expanded]).astype(KEY_DTYPE, copy=False)
                 all_scores = np.concatenate([scores, exp_scores])
 
                 if all_keys.shape[0] > W:
@@ -332,20 +332,34 @@ class BeamSolver(SolverBase):
                 else:
                     idx = np.argsort(all_scores)[::-1]
 
-                beam = np.ascontiguousarray(all_keys[idx], dtype=np.uint8)
+                beam = np.ascontiguousarray(all_keys[idx], dtype=KEY_DTYPE)
                 scores = np.ascontiguousarray(all_scores[idx], dtype=np.float64)
 
                 # percent progress (verbose only), add parents and cands_per_parent
-                self._progress_pct(r, rounds, best_score=float(scores[0]),
-                                   round=int(r), rounds=int(rounds),
-                                   attempted=int(attempted), kept=int(beam.shape[0]),
-                                   parents=int(parents_used), cands_per_parent=int(cpp))
+                self._progress_pct(
+                    r,
+                    rounds,
+                    best_score=float(scores[0]),
+                    round=int(r),
+                    rounds=int(rounds),
+                    attempted=int(attempted),
+                    kept=int(beam.shape[0]),
+                    parents=int(parents_used),
+                    cands_per_parent=int(cpp),
+                    preview_key=beam[0] if beam.size else None,
+                )
 
                 round_best = float(scores[0])
                 if self._early_stop_stop_score(round_best) or self._early_stop_update(round_best, r):
-                    self._progress_pct(r, rounds, best_score=float(round_best),
-                                       round=int(r), rounds=int(rounds),
-                                       reason=(self._stop_reason or "stop"))
+                    self._progress_pct(
+                        r,
+                        rounds,
+                        best_score=float(round_best),
+                        round=int(r),
+                        rounds=int(rounds),
+                        reason=(self._stop_reason or "stop"),
+                        preview_key=beam[0] if beam.size else None,
+                    )
                     break
 
             best_idx = int(np.argmax(scores))
@@ -362,7 +376,7 @@ class BeamSolver(SolverBase):
                     meta = getattr(sol, "meta", None)
                     if isinstance(meta, dict):
                         beam_meta = meta.setdefault("beam", {})
-                        beam_meta["final_keys"] = beam.astype(np.uint8, copy=True).tolist()
+                        beam_meta["final_keys"] = beam.astype(KEY_DTYPE, copy=True).tolist()
             except Exception:
                 pass
             return sol

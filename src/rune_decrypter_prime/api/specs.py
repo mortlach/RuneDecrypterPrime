@@ -15,7 +15,7 @@ from rune_decrypter_prime.core.config import (
     SolverConfig,
     RunConfig
 )
-from rune_decrypter_prime.core.types import Device
+from rune_decrypter_prime.core.types import Device, KEY_DTYPE
 # Local helpers
 # Ensure generic cipher is registered (side-effect registration of user_map2/3/lookup)
 import rune_decrypter_prime.ciphers.generic_map_cipher  # noqa: F401
@@ -135,7 +135,7 @@ class KeySpec:
 
     @classmethod
     def otp(cls, *, stream: Iterable[int]) -> KeySpec:
-        arr = np.asarray(list(stream), dtype=np.uint8).reshape(-1)
+        arr = np.asarray(list(stream), dtype=KEY_DTYPE).reshape(-1)
         if arr.size == 0:
             raise ValueError("KeySpec.otp requires a non-empty stream")
         return cls(plan="otp", params={"stream": arr.tolist()})

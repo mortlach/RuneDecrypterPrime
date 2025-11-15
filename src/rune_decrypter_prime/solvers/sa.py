@@ -12,7 +12,7 @@ from __future__ import annotations
 import math
 import numpy as np
 
-from ..core.types import SolverName
+from ..core.types import SolverName, KEY_DTYPE
 from .solver_base import SolverBase
 
 
@@ -75,17 +75,17 @@ class SASolver(SolverBase):
         # Best of seeds (if any) else random
         k0 = self._maybe_best_of_seeds(self.rng)
         if k0 is None:
-            k0 = self.keyops.random(self.rng).astype(np.uint8, copy=False)
+            k0 = self.keyops.random(self.rng).astype(KEY_DTYPE, copy=False)
         s0 = float(self._score_batch(k0[None, :])[0])
         return k0, s0
 
     def _neighbor(self, k: np.ndarray) -> np.ndarray:
         if "neighbour" in self.keyops.caps.ops:
-            return np.ascontiguousarray(self.keyops.neighbour(k, self.rng), dtype=np.uint8)
+            return np.ascontiguousarray(self.keyops.neighbour(k, self.rng), dtype=KEY_DTYPE)
         if "neighbor" in self.keyops.caps.ops:
-            return np.ascontiguousarray(self.keyops.neighbor(k, self.rng), dtype=np.uint8)
+            return np.ascontiguousarray(self.keyops.neighbor(k, self.rng), dtype=KEY_DTYPE)
         # Fallback: mutate a single copy
-        return np.ascontiguousarray(self.keyops.mutate(k[None, :], self.rng)[0], dtype=np.uint8)
+        return np.ascontiguousarray(self.keyops.mutate(k[None, :], self.rng)[0], dtype=KEY_DTYPE)
 
     # ---------- main solve ----------
 
@@ -166,9 +166,16 @@ class SASolver(SolverBase):
                             since_improve = 0
 
                 # Percent-bucket progress
-                self._progress_pct(it, I, iter=int(it), temp=float(T),
-                                   best_score=float(s_best), evals=int(total_evals),
-                                   since_improve=int(since_improve))
+                self._progress_pct(
+                    it,
+                    I,
+                    iter=int(it),
+                    temp=float(T),
+                    best_score=float(s_best),
+                    evals=int(total_evals),
+                    since_improve=int(since_improve),
+                    preview_key=k_best,
+                )
 
                 # Early-stop checks
                 stop, reason = self._maybe_early_stop(

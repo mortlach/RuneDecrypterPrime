@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import Optional, Tuple
 import numpy as np
 
-from ..core.types import SolverName
+from ..core.types import SolverName, KEY_DTYPE
 from .solver_base import SolverBase
 
 
@@ -77,7 +77,7 @@ class GASolver(SolverBase):
             # Prefer any batch-aware recombine implementations
             try:
                 batch = self.keyops.recombine(parents, n_children, self.rng)
-                batch = np.ascontiguousarray(batch, dtype=np.uint8)
+                batch = np.ascontiguousarray(batch, dtype=KEY_DTYPE)
                 if batch.ndim == 2 and int(batch.shape[0]) == int(n_children):
                     return batch
             except TypeError:
@@ -94,8 +94,8 @@ class GASolver(SolverBase):
                     child = self.keyops.recombine(a, b, self.rng)
                 except TypeError:
                     child = self.keyops.recombine(a, b)  # last-ditch: rng optional
-                rows.append(np.ascontiguousarray(child, dtype=np.uint8))
-            return np.stack(rows, axis=0).astype(np.uint8, copy=False)
+                rows.append(np.ascontiguousarray(child, dtype=KEY_DTYPE))
+            return np.stack(rows, axis=0).astype(KEY_DTYPE, copy=False)
 
         # Fallback: uniform crossover from random parent pairs
         P, K = parents.shape
@@ -103,14 +103,14 @@ class GASolver(SolverBase):
         b = parents[self.rng.integers(0, P, size=n_children)]
         mask = self.rng.integers(0, 2, size=(n_children, K), dtype=np.uint8)
         children = (a & (mask == 0)) | (b & (mask == 1))
-        return np.ascontiguousarray(children.astype(np.uint8), dtype=np.uint8)
+        return np.ascontiguousarray(children.astype(KEY_DTYPE), dtype=KEY_DTYPE)
 
     def _mutate_batch(self, kids: np.ndarray, mut_prob: float) -> np.ndarray:
         """Prefer keyops.mutate; fallback to replace-one-gene."""
         if "mutate" in self.keyops.caps.ops:
             try:
                 mutated = self.keyops.mutate(kids, self.rng, prob=mut_prob)
-                mutated = np.ascontiguousarray(mutated, dtype=np.uint8)
+                mutated = np.ascontiguousarray(mutated, dtype=KEY_DTYPE)
                 if mutated.shape == kids.shape:
                     return mutated
             except TypeError:
@@ -129,12 +129,12 @@ class GASolver(SolverBase):
         rows = self.rng.choice(n, size=mcount, replace=False)
         cols = self.rng.integers(0, K, size=mcount)
         A = int(getattr(self.keyops.caps, "mod", 0) or 29)  # assume 29-rune if unknown
-        out[rows, cols] = self.rng.integers(0, A, size=mcount, dtype=np.uint8)
-        return np.ascontiguousarray(out, dtype=np.uint8)
+        out[rows, cols] = self.rng.integers(0, A, size=mcount, dtype=KEY_DTYPE)
+        return np.ascontiguousarray(out, dtype=KEY_DTYPE)
 
     def _mutate_rows_with_prob(self, kids: np.ndarray, mut_prob: float) -> np.ndarray:
         """Slow-path mutate: apply keyops.mutate row-wise honoring mut_prob."""
-        out = np.ascontiguousarray(kids.copy(), dtype=np.uint8)
+        out = np.ascontiguousarray(kids.copy(), dtype=KEY_DTYPE)
         if mut_prob <= 0.0:
             return out
         mask = self.rng.random(out.shape[0]) < float(mut_prob)
@@ -143,7 +143,7 @@ class GASolver(SolverBase):
             return out
         for idx in rows:
             child = self.keyops.mutate(out[idx], self.rng)
-            out[idx] = np.ascontiguousarray(child, dtype=np.uint8)
+            out[idx] = np.ascontiguousarray(child, dtype=KEY_DTYPE)
         return out
 
     # ---------- main solve ----------
@@ -157,6 +157,7 @@ class GASolver(SolverBase):
         mut_prob: float = float(self.get_param("mut_prob", 0.15))
         plateau_gens: int = int(self.get_param("plateau_gens", 0))
 
+        self._capture_seed_quality()
         fast = self._maybe_return_test_key_fastpath(SolverName.GA)
         if fast is not None:
             return fast
@@ -173,21 +174,40 @@ class GASolver(SolverBase):
 
         try:
             # Seed population
+            seed_mask = np.zeros(P, dtype=bool)
             if self.seed_keys is not None and len(self.seed_keys) > 0:
-                base = np.ascontiguousarray(self.seed_keys, dtype=np.uint8)
+                base = np.ascontiguousarray(self.seed_keys, dtype=KEY_DTYPE)
                 if base.shape[0] < P:
                     extra = (self.keyops.make_population(P - base.shape[0], self.rng)
                              if "make_population" in self.keyops.caps.ops
-                             else np.vstack([self.keyops.random(self.rng) for _ in range(P - base.shape[0])]).astype(np.uint8))
-                    pop = np.ascontiguousarray(np.vstack([base, extra]), dtype=np.uint8)
+                             else np.vstack([self.keyops.random(self.rng) for _ in range(P - base.shape[0])]).astype(KEY_DTYPE))
+                    pop = np.ascontiguousarray(np.vstack([base, extra]), dtype=KEY_DTYPE)
                 else:
-                    pop = np.ascontiguousarray(base[:P], dtype=np.uint8)
+                    pop = np.ascontiguousarray(base[:P], dtype=KEY_DTYPE)
+                seed_rows = min(base.shape[0], P)
+                seed_mask[:seed_rows] = True
             else:
                 pop = (self.keyops.make_population(P, self.rng)
                        if "make_population" in self.keyops.caps.ops
-                       else np.vstack([self.keyops.random(self.rng) for _ in range(P)]).astype(np.uint8))
+                       else np.vstack([self.keyops.random(self.rng) for _ in range(P)]).astype(KEY_DTYPE))
 
             scores = self._score_batch(pop); total_evals += int(pop.shape[0])
+            if seed_mask.any():
+                try:
+                    seed_scores = scores[seed_mask]
+                    rand_scores = scores[~seed_mask] if (~seed_mask).any() else None
+                    payload = {
+                        "population": P,
+                        "seed_count": int(seed_mask.sum()),
+                        "seed_best_score": float(np.max(seed_scores)),
+                        "seed_mean_score": float(np.mean(seed_scores)),
+                    }
+                    if rand_scores is not None and rand_scores.size:
+                        payload["random_best_score"] = float(np.max(rand_scores))
+                        payload["random_mean_score"] = float(np.mean(rand_scores))
+                    self._append_seed_diag("ga_initial", payload)
+                except Exception:
+                    pass
             order = np.argsort(scores)[::-1]
             pop, scores = pop[order], scores[order]
             best_key, best_score = pop[0].copy(), float(scores[0])
@@ -221,7 +241,7 @@ class GASolver(SolverBase):
                     children.append(base_mut)
 
                 if children:
-                    children = np.ascontiguousarray(np.vstack(children), dtype=np.uint8)
+                    children = np.ascontiguousarray(np.vstack(children), dtype=KEY_DTYPE)
                     children = self._mutate_batch(children, mut_prob=mut_prob)
                 else:
                     # very small populations: force some mutation of elites
@@ -231,7 +251,7 @@ class GASolver(SolverBase):
                 # Evaluate children, merge, keep top-P
                 child_scores = self._score_batch(children); total_evals += int(children.shape[0])
 
-                all_keys = np.vstack([elite_keys, pop, children]).astype(np.uint8, copy=False)
+                all_keys = np.vstack([elite_keys, pop, children]).astype(KEY_DTYPE, copy=False)
                 all_scores = np.concatenate([scores[:elites], scores, child_scores])
 
                 if all_keys.shape[0] > P:
@@ -240,7 +260,7 @@ class GASolver(SolverBase):
                 else:
                     keep = np.argsort(all_scores)[::-1]
 
-                pop = np.ascontiguousarray(all_keys[keep], dtype=np.uint8)
+                pop = np.ascontiguousarray(all_keys[keep], dtype=KEY_DTYPE)
                 scores = np.ascontiguousarray(all_scores[keep], dtype=np.float64)
 
                 # Track best and patience
@@ -252,9 +272,16 @@ class GASolver(SolverBase):
                     since_improve += 1
 
                 # Percent-bucket progress
-                self._progress_pct(gen, G, generation=int(gen), pop_size=int(P),
-                                   best_score=float(best_score), evals=int(total_evals),
-                                   since_improve=int(since_improve))
+                self._progress_pct(
+                    gen,
+                    G,
+                    generation=int(gen),
+                    pop_size=int(P),
+                    best_score=float(best_score),
+                    evals=int(total_evals),
+                    since_improve=int(since_improve),
+                    preview_key=best_key,
+                )
 
                 # Unified early stop
                 stop, reason = self._maybe_early_stop(

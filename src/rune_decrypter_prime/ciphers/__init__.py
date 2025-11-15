@@ -16,3 +16,5 @@ from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
 from rune_decrypter_prime.ciphers.columnar_transposition_cipher import ColumnarTranspositionCipher
 from rune_decrypter_prime.ciphers.railfence_cipher import RailFenceCipher
 from rune_decrypter_prime.ciphers.autokey_cipher import AutokeyCipher
+from rune_decrypter_prime.ciphers.playfair_cipher import Playfair29Cipher
+from rune_decrypter_prime.ciphers.bigram_substitution_cipher import BigramSubstitutionCipher

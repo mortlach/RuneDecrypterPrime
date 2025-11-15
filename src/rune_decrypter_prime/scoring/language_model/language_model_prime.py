@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Tuple, Literal, Dict, Any, Optional
+from typing import List, Tuple, Literal, Dict, Any, Optional, Sequence
 import math
 import os
 import struct
@@ -287,6 +287,60 @@ class LanguageModelPrime:
             means.append((mc, ml, mz, mm))
             sds.append((sc, sl, sz, sm))
         return {"means": means, "sds": sds, "seconds": elapsed}
+
+    def wli_bigram_logp_and_counts(
+        self,
+        bigrams: Sequence[Sequence[int]] | np.ndarray,
+        contexts: Sequence[Sequence[Sequence[int]]] | np.ndarray,
+        *,
+        direction: DIR = "rtl",
+        se: SE = "nose",
+        n: int = 2,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Aggregate raw log-probabilities and counts for WLI bigrams over given contexts.
+
+        Parameters
+        ----------
+        bigrams :
+            Array-like of shape (K, 2) containing rune indices in [0, 29).
+        contexts :
+            Array-like of shape (C, 2, 2) where each entry is [[pos1, len1], [pos2, len2]].
+        direction, se, n :
+            Passed to the underlying FastTransitionModel (n should remain 2 here).
+        """
+        big_arr = np.asarray(bigrams, dtype=np.uint8)
+        if big_arr.ndim != 2 or big_arr.shape[1] != 2:
+            raise ValueError("bigrams must be array-like with shape (K, 2)")
+        ctx_arr = np.asarray(contexts, dtype=np.uint8)
+        if ctx_arr.ndim != 3 or ctx_arr.shape[1:] != (2, 2):
+            raise ValueError("contexts must be array-like with shape (C, 2, 2)")
+        if ctx_arr.shape[0] == 0:
+            raise ValueError("contexts must be non-empty")
+
+        dtag = _norm_dir(direction)
+        setag = _norm_se(se)
+        mdl = self._ensure(dtag, setag, "wli", int(n))
+
+        pt_batch = np.ascontiguousarray(big_arr, dtype=np.uint8)
+        K = pt_batch.shape[0]
+        logp_acc = np.full(K, -np.inf, dtype=np.float64)
+        count_acc = np.zeros(K, dtype=np.float64)
+
+        for ctx in ctx_arr:
+            wli_batch = np.broadcast_to(ctx, (K, 2, 2)).copy()
+            lp = np.asarray(
+                mdl.batch_logp(pt_batch, wli_batch, int(n), 0),
+                dtype=np.float64,
+            ).reshape(-1)
+            ct_vals = np.asarray(
+                mdl.batch_count(pt_batch, wli_batch, int(n), 0),
+                dtype=np.float64,
+            ).reshape(-1)
+            logp_acc = np.logaddexp(logp_acc, lp)
+            count_acc += ct_vals
+
+        return logp_acc, count_acc
 
     # ---------- internals ----------
 

@@ -274,6 +274,125 @@ def _build_autokey_wrapper(
     return cfg
 
 
+def _build_bigram_sub_wrapper(
+    *,
+    cipher: CipherSpec,
+    key: KeySpec,
+    ct: np.ndarray,
+    wli: Optional[Sequence[Sequence[int]]],
+    device: Device,
+    encoding_dir: Direction,
+    initial_text_permutation_indices: Optional[Sequence[int]],
+) -> CipherConfig:
+    key_spec = expect_key_plan(key, "perm", "Bigram substitution requires KeySpec.permutation(len=29*29)")
+    length = int(key_spec.params.get("len", 0) or 0)
+    alphabet_size = int(getattr(cipher, "alphabet_size", getattr(cipher, "N", 29)) or 29)
+    key_len = alphabet_size * alphabet_size
+    if length not in (0, key_len):
+        raise ValueError(f"Bigram substitution permutation must have length {key_len}")
+    cfg = CipherConfig(
+        ciphertext=ct,
+        wli_data=wli,
+        key_length=key_len,
+        encoding_dir=encoding_dir,
+        initial_text_permutation_indices=initial_text_permutation_indices,
+        device=device,
+        name="bigram_sub",
+    )
+    extras = getattr(cipher, "extra", {}) or {}
+    if "pad_value" in extras:
+        setattr(cfg, "pad_value", int(extras["pad_value"]))
+    crib_codes = extras.get("bigram_crib") or getattr(cipher, "crib", None)
+    if crib_codes:
+        setattr(cfg, "bigram_crib", crib_codes)
+        pins_ct: list[int] = []
+        pins_pt: list[int] = []
+        multi_entries: list[dict] = []
+        for entry in crib_codes:
+            if isinstance(entry, dict):
+                ct_code = int(entry.get("cipher"))
+                if "plaintext" in entry:
+                    pins_ct.append(ct_code)
+                    pins_pt.append(int(entry["plaintext"]))
+                options = entry.get("options")
+                if options:
+                    pt_codes: list[int] = []
+                    weights: list[float | None] = []
+                    for opt in options:
+                        val = opt.get("plain")
+                        if val is None:
+                            val = opt.get("value")
+                        pt_codes.append(int(val))
+                        weights.append(None if opt.get("weight") is None else float(opt.get("weight")))
+                    multi_entries.append(
+                        {
+                            "ct": ct_code,
+                            "pt_codes": pt_codes,
+                            "weights": weights if any(w is not None for w in weights) else None,
+                        }
+                    )
+            else:
+                ct_code, pt_code = entry
+                pins_ct.append(int(ct_code))
+                pins_pt.append(int(pt_code))
+        hints: dict[str, object] = {}
+        if pins_ct:
+            hints["crib_ct_codes"] = pins_ct
+            hints["crib_pt_codes"] = pins_pt
+        if multi_entries:
+            hints["crib_multi"] = multi_entries
+        if hints:
+            existing = dict(getattr(cfg, "keyops_hints", {}) or {})
+            existing.update(hints)
+            setattr(cfg, "keyops_hints", existing)
+    active_codes = _active_bigram_codes(ct, alphabet_size=alphabet_size)
+    if active_codes:
+        existing = dict(getattr(cfg, "keyops_hints", {}) or {})
+        existing["active_ct_codes"] = active_codes
+        setattr(cfg, "keyops_hints", existing)
+    return cfg
+
+
+def _build_playfair_wrapper(
+    *,
+    cipher: CipherSpec,
+    key: KeySpec,
+    ct: np.ndarray,
+    wli: Optional[Sequence[Sequence[int]]],
+    device: Device,
+    encoding_dir: Direction,
+    initial_text_permutation_indices: Optional[Sequence[int]],
+) -> CipherConfig:
+    key_spec = expect_key_plan(key, "perm", "Playfair requires KeySpec.permutation(len=25)")
+    length = int(key_spec.params.get("len", 0) or 0)
+    if length not in (0, 25):
+        raise ValueError("Playfair permutation length must be 25")
+    cfg = CipherConfig(
+        ciphertext=ct,
+        wli_data=wli,
+        key_length=25,
+        encoding_dir=encoding_dir,
+        initial_text_permutation_indices=initial_text_permutation_indices,
+        device=device,
+        name="playfair29",
+    )
+    extras = getattr(cipher, "extra", {}) or {}
+    if "filler_idx29" in extras:
+        setattr(cfg, "filler_idx29", int(extras["filler_idx29"]))
+    return cfg
+
+
+def _active_bigram_codes(ct: np.ndarray, alphabet_size: int) -> list[int]:
+    arr = np.asarray(ct, dtype=np.uint8).reshape(-1)
+    limit = (arr.size // 2) * 2
+    if limit == 0:
+        return []
+    pairs = arr[:limit].reshape(-1, 2).astype(np.int64, copy=False)
+    codes = pairs[:, 0] * alphabet_size + pairs[:, 1]
+    unique = np.unique(codes)
+    return unique.astype(int).tolist()
+
+
 _WRAPPER_BUILDERS = {
     "vigenere": _build_vigenere_wrapper,
     "columnar": _build_columnar_wrapper,
@@ -283,4 +402,7 @@ _WRAPPER_BUILDERS = {
     "hill-2x2": _build_hill_wrapper,
     "railfence": _build_railfence_wrapper,
     "autokey": _build_autokey_wrapper,
+    "bigram_sub": _build_bigram_sub_wrapper,
+    "playfair29": _build_playfair_wrapper,
+    "playfair": _build_playfair_wrapper,
 }

@@ -12,7 +12,7 @@ from rune_decrypter_prime.core.config import RunConfig, Solution, SolverConfig
 from rune_decrypter_prime.core.engine.builders import build_cipher, build_scorer
 from rune_decrypter_prime.core.engine import EngineConfig, solve as engine_solve
 from rune_decrypter_prime.core.problem import ProblemInstance, ProblemSpec
-from rune_decrypter_prime.core.types import Direction, SolverName, ensure_direction, ensure_solver_name
+from rune_decrypter_prime.core.types import Direction, SolverName, ensure_direction, ensure_solver_name, KEY_DTYPE
 from rune_decrypter_prime.api.pipeline_helpers import finalize_solution
 
 from rune_decrypter_prime.solvers.beam import BeamSolver
@@ -124,7 +124,7 @@ class RuneSolverEngine:
         keys = getattr(self.cfg.cipher, "initial_keys", None)
         if keys is None:
             return None
-        arr = np.asarray(keys, dtype=np.uint8)
+        arr = np.asarray(keys, dtype=KEY_DTYPE)
         if arr.size == 0:
             return None
         return arr

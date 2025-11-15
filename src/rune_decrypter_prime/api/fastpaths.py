@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 from rune_decrypter_prime.api.pipeline_helpers import finalize_solution, coerce_wli_for_config
 from rune_decrypter_prime.core.config import CipherConfig, SolverConfig
-from rune_decrypter_prime.core.types import Direction, SolverName
+from rune_decrypter_prime.core.types import Direction, SolverName, KEY_DTYPE
 from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
 from rune_decrypter_prime.telemetry.pipeline import make_pipeline_block
 
@@ -33,10 +33,10 @@ def maybe_known_key_fastpath(
         stream = key.params.get("stream")
         if stream is None:
             raise ValueError("OTP KeySpec requires 'stream' parameter.")
-        k = np.asarray(stream, dtype=np.uint8).reshape(-1)
+        k = np.asarray(stream, dtype=KEY_DTYPE).reshape(-1)
     else:
         val = int(key.params.get("value", 0))
-        k = np.full(L, val, dtype=np.uint8)
+        k = np.full(L, val, dtype=KEY_DTYPE)
     if k.size < L:
         k = np.resize(k, L)
     elif k.size > L:

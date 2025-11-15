@@ -13,18 +13,21 @@ _CANON_OPTS: dict[str, set[str]] = {
     "beam": {
         "patience_delta", "plateau_rounds","max_children_per_parent","params","beam_width", "rounds",
         "patience_rounds", "patience_min_delta", "stop_score", "progress_pct", "print_progress",
+        "progress_preview_chars",
         "verbose_console", "verbose", "initial_keys", "seed_keys", "test_key","expand_mode",
         "sample","sample_per_parent","top_parents_factor",'seed','log_interval'
     },
     "ga": {
         "params","pop_size", "generations", "elite_frac", "cx_frac", "mut_prob", "local_improve_iters",
         "patience_rounds", "patience_min_delta", "stop_score", "progress_pct", "print_progress",
+        "progress_preview_chars",
         "verbose_console", "verbose","initial_keys", "seed_keys", "test_key",'seed','log_interval',
         'auto_cooling', 'gens', 'plateau_gens', 'pop', 'tournament_k'
     },
     "sa": {
         "sa_auto_cooling", "sa_iters", "tol","params","iters", "sa_init_temp", "sa_min_temp", "sa_cooling",
         "patience_rounds","patience_min_delta", "stop_score", "progress_pct", "print_progress",
+        "progress_preview_chars",
         "verbose_console", "verbose", "initial_keys","seed_keys", "test_key",'seed','log_interval',
         'auto_cooling', 'local_improve_on_accept','sa_elitism', 'sa_rescue_drop_abs',
         'sa_rescue_drop_ratio', 'sa_reseed_interval'
@@ -32,6 +35,7 @@ _CANON_OPTS: dict[str, set[str]] = {
     "hybrid": {
         "ga", "sa", "beam_width", "generations", "pop_size", "iters", "phase_order",
         "patience_rounds", "patience_min_delta", "stop_score", "progress_pct", "print_progress",
+        "progress_preview_chars",
         "verbose_console", "verbose","initial_keys", "seed_keys", "test_key","use_beam","rounds",
         "expand_mode","sample","sample_per_parent","top_parents_factor",'seed','log_interval'
     }

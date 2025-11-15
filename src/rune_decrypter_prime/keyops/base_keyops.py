@@ -30,6 +30,8 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Optional, Sequence
 import numpy as np
 
+from rune_decrypter_prime.core.types import KEY_DTYPE
+
 ArrayU8 = np.ndarray
 
 
@@ -58,6 +60,7 @@ class KeyOpBase:
 
     def __init__(self, caps: KeyCaps):
         self.caps = caps
+        self.dtype = getattr(self, "dtype", KEY_DTYPE)
         # Registry of verb -> callable (filled by derived classes or here if default)
         self.ops: Dict[str, Callable] = {}
         # Required verbs must be provided by concrete class
@@ -116,13 +119,13 @@ class KeyOpBase:
         """Default recombine = copy-parent with splice; override in families that support crossover."""
         K = int(self.caps.length)
         k = int(rng.randint(1, K)) if K > 1 else 1
-        child = np.concatenate([p1[:k], p2[k:]]).astype(np.uint8, copy=False)
+        child = np.concatenate([p1[:k], p2[k:]]).astype(self.dtype, copy=False)
         return self.normalize(child)
 
     def make_population(self, n: int, rng: np.random.RandomState) -> np.ndarray:
         """Vectorised seeding if desired; default = loop random+normalize."""
         rows = [self.normalize(self.random(rng)) for _ in range(int(n))]
-        return np.ascontiguousarray(np.stack(rows, axis=0), dtype=np.uint8)
+        return np.ascontiguousarray(np.stack(rows, axis=0), dtype=self.dtype)
 
     def batch_neighbors(
         self,
@@ -133,7 +136,7 @@ class KeyOpBase:
     ) -> np.ndarray:
         """Default = n independent neighbours via neighbor()."""
         rows = [self.normalize(self.neighbor(base, rng)) for _ in range(int(n))]
-        return np.ascontiguousarray(np.stack(rows, axis=0), dtype=np.uint8)
+        return np.ascontiguousarray(np.stack(rows, axis=0), dtype=self.dtype)
 
     def local_improve(
         self,

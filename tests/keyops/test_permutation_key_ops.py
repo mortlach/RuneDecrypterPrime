@@ -6,15 +6,17 @@ and consumes only the injected RNG. With the same seed, sequences are identical.
 import numpy as np
 import pytest
 
+from rune_decrypter_prime.core.types import KEY_DTYPE
 from rune_decrypter_prime.keyops.registry import create
 from rune_decrypter_prime.keyops import PermutationKeyOps
 
 
 def _is_perm(arr: np.ndarray) -> bool:
+    arr = np.asarray(arr)
     return (
-        arr.dtype == np.uint8
+        arr.dtype == KEY_DTYPE
         and arr.ndim == 1
-        and np.array_equal(np.sort(arr), np.arange(arr.size, dtype=np.uint8))
+        and np.array_equal(np.sort(arr), np.arange(arr.size, dtype=KEY_DTYPE))
     )
 
 
@@ -46,7 +48,7 @@ def test_batch_neighbors_and_population_shapes_and_types():
     batch = ops.batch_neighbors(key, B, rng)
     assert isinstance(batch, np.ndarray)
     assert batch.shape == (B, K)
-    assert batch.dtype == np.uint8
+    assert batch.dtype == KEY_DTYPE
     # Each row should be a permutation
     assert all(np.array_equal(np.sort(row), np.arange(K)) for row in batch)
 
@@ -59,7 +61,7 @@ def test_recombine_child_is_valid_permutation():
     p1, p2 = ops.random(rng), ops.random(rng)
     child = ops.recombine(p1, p2, rng)
     assert child.shape == (K,)
-    assert child.dtype == np.uint8
+    assert child.dtype == KEY_DTYPE
     assert np.array_equal(np.sort(child), np.arange(K))
 
 
@@ -91,22 +93,8 @@ Extra, robust checks for PermutationKeyOps:
 - make_population() returns a batch of valid permutations with some diversity
 - recombine(p, p) returns p (idempotence on identical parents)
 - batch_neighbors() produce "local" moves (small Hamming distance)
-- all verbs return contiguous uint8 arrays
+- all verbs return contiguous KEY_DTYPE arrays
 """
-
-import numpy as np
-import pytest
-
-from rune_decrypter_prime.keyops.registry import create
-from rune_decrypter_prime.keyops import PermutationKeyOps
-
-
-def _is_perm(arr: np.ndarray) -> bool:
-    return (
-        arr.dtype == np.uint8
-        and arr.ndim == 1
-        and np.array_equal(np.sort(arr), np.arange(arr.size, dtype=np.uint8))
-    )
 
 
 def _hamming(a: np.ndarray, b: np.ndarray) -> int:
@@ -129,8 +117,8 @@ def test_neighbor_is_bijective_and_pure():
     # Bijective: output is a true permutation
     assert _is_perm(neigh), "neighbor must keep a true permutation"
 
-    # Return type: contiguous uint8
-    assert neigh.dtype == np.uint8 and neigh.flags["C_CONTIGUOUS"]
+    # Return type: contiguous KEY_DTYPE
+    assert neigh.dtype == KEY_DTYPE and neigh.flags["C_CONTIGUOUS"]
 
 
 def test_neighbor_small_K_behavior():
@@ -159,7 +147,7 @@ def test_make_population_returns_valid_and_diverse_batch():
     pop = ops.make_population(B, rng)
     assert isinstance(pop, np.ndarray)
     assert pop.shape == (B, K)
-    assert pop.dtype == np.uint8
+    assert pop.dtype == KEY_DTYPE
     assert pop.flags["C_CONTIGUOUS"]
 
     # Every row is a true permutation
@@ -192,7 +180,7 @@ def test_batch_neighbors_locality_and_types():
     batch = ops.batch_neighbors(base, B, rng)
 
     assert batch.shape == (B, K)
-    assert batch.dtype == np.uint8
+    assert batch.dtype == KEY_DTYPE
     assert batch.flags["C_CONTIGUOUS"]
 
     # Locality: each neighbor should be a "small" move from base.
@@ -214,7 +202,7 @@ def test_permutation_ops_invariants_and_shapes(K):
 
     # random
     key = ops.random(rng)
-    assert key.dtype == np.uint8
+    assert key.dtype == KEY_DTYPE
     assert key.shape == (K,)
     assert is_perm(key)
 
@@ -222,14 +210,14 @@ def test_permutation_ops_invariants_and_shapes(K):
     for _ in range(100):
         key_m = ops.mutate(key, rng)
         key_n = ops.neighbor(key, rng) if hasattr(ops, "neighbor") else ops.mutate(key, rng)
-        assert key_m.shape == (K,) and key_m.dtype == np.uint8 and is_perm(key_m)
-        assert key_n.shape == (K,) and key_n.dtype == np.uint8 and is_perm(key_n)
+        assert key_m.shape == (K,) and key_m.dtype == KEY_DTYPE and is_perm(key_m)
+        assert key_n.shape == (K,) and key_n.dtype == KEY_DTYPE and is_perm(key_n)
 
     # recombine
     parent_a = ops.random(rng)
     parent_b = ops.random(rng)
     child = ops.recombine(parent_a, parent_b, rng)
-    assert child.shape == (K,) and child.dtype == np.uint8 and is_perm(child)
+    assert child.shape == (K,) and child.dtype == KEY_DTYPE and is_perm(child)
 
 def test_permutation_make_population_and_batch_neighbors():
     K, N, B = 9, 16, 8
@@ -237,12 +225,12 @@ def test_permutation_make_population_and_batch_neighbors():
     rng = np.random.default_rng(7)
 
     pop = ops.make_population(N, rng)
-    assert pop.shape == (N, K) and pop.dtype == np.uint8
+    assert pop.shape == (N, K) and pop.dtype == KEY_DTYPE
     assert all(is_perm(pop[i]) for i in range(N))
 
     base = ops.random(rng)
     neigh = ops.batch_neighbors(base, B, rng) if hasattr(ops, "batch_neighbors") else np.stack([ops.mutate(base, rng) for _ in range(B)])
-    assert neigh.shape == (B, K) and neigh.dtype == np.uint8
+    assert neigh.shape == (B, K) and neigh.dtype == KEY_DTYPE
     assert all(is_perm(neigh[i]) for i in range(B))
     # diversity sanity: not all neighbors equal base
     assert np.any((neigh != base).any(axis=1))

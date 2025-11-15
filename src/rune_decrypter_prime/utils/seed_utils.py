@@ -112,5 +112,3 @@ def make_seeds_from_freq(
         out.append(mutate_seed_once(base, swaps=swaps_per_key, rng=rng))
     return out
 
-# TODO: Confirm that constructing LanguageModelPrime without lm_root is stable
-#       across environments (no hidden disk I/O); if not, document/test the contract.

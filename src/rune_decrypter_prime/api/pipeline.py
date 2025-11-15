@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional, Sequence
 from types import SimpleNamespace
 import numpy as np
 
-from rune_decrypter_prime.core.types import Device, Direction, SolverName
+from rune_decrypter_prime.core.types import Device, Direction, SolverName, KEY_DTYPE
 from rune_decrypter_prime.api.fastpaths import maybe_known_key_fastpath
 from rune_decrypter_prime.api.pipeline_helpers import finalize_solution, coerce_wli_for_config
 from rune_decrypter_prime.api.wrappers.registry import build_cipher_config
@@ -88,7 +88,7 @@ def execute_run(
         stop_score=None,
         verbose=True,
         log_interval=log_int,
-        seed_keys=(np.asarray(initial_keys, dtype=np.uint8) if initial_keys is not None else None),
+        seed_keys=(np.asarray(initial_keys, dtype=KEY_DTYPE) if initial_keys is not None else None),
     )
 
     result = engine_solve(instance, eng_cfg)

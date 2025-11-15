@@ -4,6 +4,11 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Literal, Optional
 
+import numpy as np
+
+# Central dtype for key material (needs >255 for bigram/permutation keys)
+KEY_DTYPE = np.int16
+
 class Direction(Enum):
     """Canonical text-encoding direction for the pipeline.
     Core uses this Enum only (never raw strings). When serialized to JSON,
@@ -64,6 +69,7 @@ class KeyKind(Enum):
 class KeyOpsFamily(Enum):
     """KeyOps families recognised by the core/keyops registry."""
     PERMUTATION = "permutation"
+    CRIBBED_PERMUTATION = "cribbed_permutation"
     VECTOR = "vector"
     AFFINE = "affine"
     MATRIX = "matrix"
@@ -148,6 +154,8 @@ def ensure_scorer_impl(value) -> ScorerImpl:
 def ensure_keyops_family(value) -> KeyOpsFamily:
     return _coerce_enum_value(KeyOpsFamily, value, aliases={
         "perm": KeyOpsFamily.PERMUTATION,
+        "cribbed_perm": KeyOpsFamily.CRIBBED_PERMUTATION,
+        "crib_perm": KeyOpsFamily.CRIBBED_PERMUTATION,
     }, param_name="keyops family")
 
 

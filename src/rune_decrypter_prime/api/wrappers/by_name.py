@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Tuple, Dict, Callable, Any
+from typing import Tuple, Dict, Callable, Any, Sequence
 
 # Only import for type hints to avoid circular import at runtime
 def _pull_N(kwargs: dict, default: int = 29) -> int:
@@ -35,6 +35,7 @@ from types import SimpleNamespace as _NS
 from typing import Union as _Union
 
 from rune_decrypter_prime.ciphers import registry as _cipher_registry
+from rune_decrypter_prime.utils.runeglish import Runeglish
 
 def cipher_instance(spec_or_name: _Union[str, object], **overrides):
     """
@@ -328,19 +329,40 @@ class by_name:
 
     @staticmethod
     def _playfair(
-        *, default_key: bool = False, **kwargs: Any
+        *,
+        default_key: bool = False,
+        filler_idx: int | None = None,
+        **kwargs: Any,
     ):
         """Playfair cipher: key = 25-letter square (permutation)."""
         from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
-        N = _pull_N(kwargs)
-        def f(p1: int, p2: int, key: list[int]) -> tuple[int,int]:
-            return (p1, p2)
-        spec = CipherSpec.user_map3(function=f, N=N,
-                                    degeneracy="allow", resolver="first", per_pos_limit=1)
-        #key = KeySpec.permutation(25) if default_key else None
+
+        spec = CipherSpec._wrapper(name="playfair29", core_name="playfair29")
+        if filler_idx is not None:
+            spec.extra["filler_idx29"] = int(filler_idx)
         key = KeySpec.permutation(len=25) if default_key else None
         return spec, key
 
+    @staticmethod
+    def _bigram_sub(
+        *,
+        default_key: bool = False,
+        pad_value: int | None = None,
+        crib: Any = None,
+        alphabet_size: int = 29,
+        **kwargs: Any,
+    ):
+        """Bigram substitution cipher (permutation of 29*29 digraphs)."""
+        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+
+        spec = CipherSpec._wrapper(name="bigram_sub", core_name="bigram_sub")
+        if pad_value is not None:
+            spec.extra["pad_value"] = int(pad_value)
+        crib_codes = _normalize_bigram_crib(crib, alphabet=alphabet_size)
+        if crib_codes:
+            spec.extra["bigram_crib"] = crib_codes
+        key = KeySpec.permutation(len=29 * 29) if default_key else None
+        return spec, key
     @staticmethod
     def _foursquare(
         *, default_key: bool = False, **kwargs: Any
@@ -411,8 +433,113 @@ class by_name:
         "double_transposition": _double_transposition.__func__,
         "blockperm": _blockperm.__func__,
         "playfair": _playfair.__func__,
+        "playfair29": _playfair.__func__,
+        "bigram_sub": _bigram_sub.__func__,
         "foursquare": _foursquare.__func__,
         "mono": _mono.__func__,
         "substitution": _mono.__func__,
         "hill": _hill.__func__,
     }
+def _descriptor_to_bigram_code(descriptor: Any, alphabet: int) -> int:
+    """Convert a user descriptor (code, rune pair, or rune string) into a bigram code."""
+    total = alphabet * alphabet
+    if isinstance(descriptor, int):
+        code = int(descriptor)
+        if not (0 <= code < total):
+            raise ValueError(f"Bigram code {code} outside valid range [0, {total})")
+        return code
+
+    runes: Sequence[int]
+    if isinstance(descriptor, str):
+        runes = Runeglish.rune_to_pos(descriptor)
+    elif isinstance(descriptor, Sequence):
+        vals = []
+        for entry in descriptor:
+            if isinstance(entry, str):
+                positions = Runeglish.rune_to_pos(entry)
+                if len(positions) != 1:
+                    raise ValueError(f"Rune descriptor '{entry}' must map to a single rune")
+                vals.append(int(positions[0]))
+            else:
+                vals.append(int(entry))
+        runes = vals
+    else:
+        raise TypeError("Crib descriptors must be ints, rune strings, or length-2 sequences of rune indices")
+
+    if len(runes) != 2:
+        raise ValueError(f"Crib descriptors must describe exactly two runes, got {runes}")
+    a, b = int(runes[0]), int(runes[1])
+    if not (0 <= a < alphabet and 0 <= b < alphabet):
+        raise ValueError("Rune indices in crib descriptors must lie within the alphabet")
+    return a * alphabet + b
+
+
+def _normalize_bigram_crib(crib: Any, alphabet: int) -> list[dict]:
+    if crib is None:
+        return []
+    entries: list[dict] = []
+    seen_ct: set[int] = set()
+    seen_pt: set[int] = set()
+
+    def _looks_like_bigram_descriptor(value: Any) -> bool:
+        if isinstance(value, (str, bytes)):
+            return True
+        if not isinstance(value, Sequence):
+            return False
+        if len(value) != 2:
+            return False
+        return not any(isinstance(elem, (Sequence, dict)) and not isinstance(elem, (str, bytes))
+                       for elem in value)
+
+    def _normalize_option(option: Any) -> dict:
+        weight = None
+        desc = option
+        if isinstance(option, dict):
+            if "value" in option:
+                desc = option["value"]
+            elif "plain" in option:
+                desc = option["plain"]
+            else:
+                raise ValueError("Crib option dicts must include 'value' (or 'plain')")
+            if "weight" in option and option["weight"] is not None:
+                weight = float(option["weight"])
+        code = _descriptor_to_bigram_code(desc, alphabet)
+        return {"plain": code, "weight": weight}
+
+    def _normalize_plain_target(target: Any) -> dict:
+        if isinstance(target, dict):
+            if "options" in target or "one_of" in target:
+                raw = target.get("options") or target.get("one_of")
+                opts = [_normalize_option(opt) for opt in raw]
+                if not opts:
+                    raise ValueError("Crib multi-option entries must include at least one candidate")
+                return {"options": opts}
+            if "value" in target or "plain" in target:
+                entry = _normalize_option(target)
+                return {"plaintext": entry["plain"]}
+        if isinstance(target, (str, bytes)) or not isinstance(target, Sequence) or _looks_like_bigram_descriptor(target):
+            return {"plaintext": _descriptor_to_bigram_code(target, alphabet)}
+        # treat as multi-option sequence
+        opts = [_normalize_option(opt) for opt in target]
+        if not opts:
+            raise ValueError("Crib multi-option entries must include at least one candidate")
+        return {"options": opts}
+
+    for pair in crib:
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            raise ValueError("Crib entries must be pairs: (cipher_descriptor, plaintext_descriptor)")
+        ct_desc, pt_desc = pair
+        ct_code = _descriptor_to_bigram_code(ct_desc, alphabet)
+        if ct_code in seen_ct:
+            raise ValueError(f"Cipher bigram code {ct_code} appears multiple times in crib")
+        plain_block = _normalize_plain_target(pt_desc)
+        entry = {"cipher": ct_code, **plain_block}
+        if "plaintext" in plain_block:
+            pt_code = plain_block["plaintext"]
+            if pt_code in seen_pt:
+                raise ValueError(f"Plaintext bigram code {pt_code} appears multiple times in crib")
+            seen_pt.add(pt_code)
+        entries.append(entry)
+        seen_ct.add(ct_code)
+
+    return entries

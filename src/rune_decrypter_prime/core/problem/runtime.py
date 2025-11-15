@@ -9,7 +9,7 @@ from typing import Optional, Sequence, Tuple, Any
 from rune_decrypter_prime.core.config import CipherConfig
 from rune_decrypter_prime.telemetry.bag import TelemetryBag
 from rune_decrypter_prime.core.telemetry import _Timer
-from rune_decrypter_prime.core.types import Device, ensure_device
+from rune_decrypter_prime.core.types import Device, ensure_device, KEY_DTYPE
 from rune_decrypter_prime.telemetry.pipeline import device_request_str
 from rune_decrypter_prime.keyops.registry import create as create_keyops
 from rune_decrypter_prime.io.logging_adapter import module_logger
@@ -37,6 +37,7 @@ class DecryptionProblem:
     K: int = field(init=False, default=0)
     ciphertext_len: int = field(init=False, default=0)
     xp: Any = field(default=None, repr=False)
+    key_dtype: Any = field(init=False, repr=False, default=KEY_DTYPE)
 
     telemetry: TelemetryBag = field(default_factory=TelemetryBag)
 
@@ -98,6 +99,7 @@ class DecryptionProblem:
 
         # Construct KeyOps (and resolve fixed K)
         self.keyops = self._build_keyops_for_problem()
+        self.key_dtype = getattr(self.keyops, "dtype", KEY_DTYPE)
 
     # =========================================================
     # KeyOps construction (single source of truth for K)
@@ -185,9 +187,10 @@ class DecryptionProblem:
             dtype=self.xp.float64,
         )
 
-    def _ensure_u8_batch_2d(self, keys: Any):
-        """Normalise keys to contiguous uint8 with shape [B, K] using the active xp backend."""
-        k = self.xp.asarray(keys, dtype=self.xp.uint8)
+    def _ensure_key_batch_2d(self, keys: Any):
+        """Normalise keys to contiguous KEY_DTYPE with shape [B, K] using the active xp backend."""
+        target_dtype = getattr(self, "key_dtype", KEY_DTYPE)
+        k = self.xp.asarray(keys, dtype=target_dtype)
         if getattr(k, "ndim", 1) == 1:
             k = k[None, :]
         # contiguity across numpy/torch/cupy
@@ -205,9 +208,9 @@ class DecryptionProblem:
                 try:
                     k = k.contiguous()
                 except Exception:
-                    k = self.xp.asarray(k, dtype=self.xp.uint8)
+                    k = self.xp.asarray(k, dtype=target_dtype)
             else:
-                k = self.xp.asarray(k, dtype=self.xp.uint8)
+                k = self.xp.asarray(k, dtype=target_dtype)
         return k
 
     def evaluate_keys(self, keys: Any, *, batch_hint: bool = True) -> Any:
@@ -218,7 +221,7 @@ class DecryptionProblem:
         if self.ciphertext is None:
             raise ValueError("DecryptionProblem has no ciphertext bound")
 
-        k = self._ensure_u8_batch_2d(keys)
+        k = self._ensure_key_batch_2d(keys)
         B, K = int(k.shape[0]), int(k.shape[1])
 
         if getattr(self, "keyops", None) is not None and getattr(self.keyops, "caps", None):

@@ -42,6 +42,7 @@ import numpy as np
 
 from rune_decrypter_prime.utils.interrupter import InterruptorManager, InterruptorInfo  # noqa: F401
 from rune_decrypter_prime.utils.transposition import TranspositionManager
+from rune_decrypter_prime.core.types import KEY_DTYPE
 
 ArrayU8 = np.ndarray
 
@@ -78,6 +79,7 @@ class CipherPipelineMixin:
         checked as a runtime assertion (disabled by default).
     """
     A: int = 29  # alphabet size; override if needed
+    mod_keys: bool = True  # apply key % A before passing to core kernels
 
     def __init__(self, *, text_transposition: str = "ltr", key_transposition: str = "ltr",initial_text_permutation_indices: Optional[Sequence[int]] = None) -> None:
         """Initialise pipeline managers and debugging flags.
@@ -186,7 +188,9 @@ class CipherPipelineMixin:
         ct_tr = self._trans_mgr.apply_text(ct_core)
 
         # 4) key -> [B,K] and key transposition (core semantics)
-        key_arr = self._as_u8(key, "key") % self.A
+        key_arr = self._as_key_dtype(key, "key")
+        if getattr(self, "mod_keys", True):
+            key_arr = key_arr % self.A
         if key_arr.ndim == 1:
             key_arr = key_arr[None, :]  # [1,K]
         keys_tr = self._trans_mgr.apply_key(key_arr)
@@ -244,7 +248,9 @@ class CipherPipelineMixin:
         pt_tr = self._trans_mgr.apply_text(pt_core)
 
         # 4) key -> [B,K] and key transposition (core semantics)
-        key_arr = self._as_u8(key, "key") % self.A
+        key_arr = self._as_key_dtype(key, "key")
+        if getattr(self, "mod_keys", True):
+            key_arr = key_arr % self.A
         if key_arr.ndim == 1:
             key_arr = key_arr[None, :]  # [1,K]
         keys_tr = self._trans_mgr.apply_key(key_arr)
@@ -298,6 +304,15 @@ class CipherPipelineMixin:
         return arr
 
     @staticmethod
+    def _as_key_dtype(x, name: str) -> ArrayU8:
+        """Coerce an input to a contiguous `KEY_DTYPE` array (keys only)."""
+        arr = x.get() if hasattr(x, "get") else x
+        arr = np.asarray(arr, dtype=KEY_DTYPE)
+        if arr.ndim < 1:
+            raise ValueError(f"{name} must be array-like")
+        return arr
+
+    @staticmethod
     def _as_intp(x, name: str) -> ArrayU8:
         """Coerce an input to a 1-D `np.intp` array."""
         arr = np.asarray(x, dtype=np.intp)
@@ -310,7 +325,7 @@ class CipherPipelineMixin:
         """Tile a single key row to length `L` and truncate."""
         K = int(key_row.shape[0])
         reps = (L + K - 1) // K
-        return np.tile(key_row, reps)[:L].astype(np.uint8)
+        return np.tile(key_row, reps)[:L].astype(KEY_DTYPE)
 
     def _validate_interrupt_idx(self, idx: np.ndarray, length: int) -> None:
         """Validate interruptor indices (shape, range, uniqueness)."""
@@ -334,7 +349,7 @@ class CipherPipelineMixin:
         """Decrypt a single key against a single ciphertext and return 1-D plaintext."""
         plains = self.decrypt(
             ciphertext=np.asarray(ciphertext, dtype=np.uint8),
-            key=np.asarray(key, dtype=np.uint8),
+            key=self._as_key_dtype(key, "key"),
             interrupt_idx=None if interrupt_idx is None else np.asarray(interrupt_idx, dtype=np.intp),
             interrupt_sym=None if interrupt_sym is None else np.asarray(interrupt_sym, dtype=np.uint8),
         )
@@ -351,7 +366,7 @@ class CipherPipelineMixin:
         """Encrypt a single key against a single plaintext and return 1-D ciphertext."""
         cts = self.encrypt(
             plaintext=np.asarray(plaintext, dtype=np.uint8),
-            key=np.asarray(key, dtype=np.uint8),
+            key=self._as_key_dtype(key, "key"),
             interrupt_idx=None if interrupt_idx is None else np.asarray(interrupt_idx, dtype=np.intp),
             interrupt_sym=None if interrupt_sym is None else np.asarray(interrupt_sym, dtype=np.uint8),
         )
@@ -360,13 +375,13 @@ class CipherPipelineMixin:
     def encrypt_1d(self, plaintext: np.ndarray, key: np.ndarray) -> np.ndarray:
         """Convenience wrapper to encrypt 1-D inputs via the batch core."""
         pt = np.asarray(plaintext, np.uint8)[None, :]
-        kk = np.asarray(key, np.uint8)[None, :]
+        kk = np.asarray(key, KEY_DTYPE)[None, :]
         return self._core_encrypt_batch(pt, kk)[0]
 
     def decrypt_1d(self, ciphertext: np.ndarray, key: np.ndarray) -> np.ndarray:
         """Convenience wrapper to decrypt 1-D inputs via the batch core."""
         ct = np.asarray(ciphertext, np.uint8)[None, :]
-        kk = np.asarray(key, np.uint8)[None, :]
+        kk = self._as_key_dtype(key, "key")[None, :]
         return self._core_decrypt_batch(ct, kk)[0]
 
 #

@@ -68,6 +68,8 @@ def _alias_kwargs_for_family(family: KeyOpsFamily, kwargs: Dict[str, Any]) -> Di
                 out["mod"] = out.pop("alphabet_size")
     elif fam is KeyOpsFamily.PERMUTATION:
         pass  # no extra aliases beyond K
+    elif fam is KeyOpsFamily.CRIBBED_PERMUTATION:
+        out.pop("A", None)
 
     # Coerce to ints where present (robust to numpy scalars / strings)
     if "K" in out and out["K"] is not None:
@@ -100,6 +102,10 @@ except Exception:
     pass
 try:
     from . import vector  # registers KeyOpsFamily.VECTOR on import
+except Exception:
+    pass
+try:
+    from . import cribbed_permutation  # registers KeyOpsFamily.CRIBBED_PERMUTATION on import
 except Exception:
     pass
 

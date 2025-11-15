@@ -79,9 +79,18 @@ def normalize_objective_spec(value: Any) -> ObjectiveSpec:
     else:
         raise ValueError(f"Unknown ObjectiveSpec parameter type: {type(value)}.")
 
-def normalize_encoding_dir(direction: [str, Direction]) -> Direction:
-    """Wrapper around `ensure_direction` so API and core share alias semantics."""
-    return ensure_direction(direction)
+def normalize_encoding_dir(direction: Union[str, Direction]) -> Direction:
+    """Strict public API normaliser for text direction."""
+    if direction is None:
+        raise ValueError("encoding_dir must be 'ltr' or 'rtl', not None.")
+    if isinstance(direction, str):
+        key = direction.strip().lower()
+        if key not in {"ltr", "rtl"}:
+            raise ValueError(f"Unknown encoding_dir '{direction}'. Expected 'ltr' or 'rtl'.")
+    try:
+        return ensure_direction(direction)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(str(exc)) from exc
 
 
 def normalize_se_mode(value: Any) -> SeMode:

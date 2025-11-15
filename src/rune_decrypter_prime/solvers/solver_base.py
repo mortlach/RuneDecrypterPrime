@@ -16,6 +16,7 @@ from ..core.types import (
     ensure_device,
     ensure_direction,
     ensure_solver_name,
+    KEY_DTYPE,
 )
 
 # Utils
@@ -119,6 +120,7 @@ class SolverBase:
         "stop_score", "patience_rounds", "patience_min_delta",
         # common
         "K", "seed", "verbose", "log_interval", "progress_pct", "print_progress", "verbose_console",
+        "progress_preview_chars",
         "seed_keys_count", "seed_source",
     }
     _PROGRESS_WHITELIST = {
@@ -149,6 +151,7 @@ class SolverBase:
     ):
         self.problem = problem
         self.keyops = getattr(problem, "keyops")
+        self.key_dtype = getattr(self.keyops, "dtype", KEY_DTYPE)
         self.K: int = int(self.keyops.caps.length)
         self.solver_name: SolverName = ensure_solver_name(optimizer_name)
         self.optimizer_name = self.solver_name.value
@@ -179,6 +182,10 @@ class SolverBase:
         # Percent-based progress (prints every X% when verbose)
         self.progress_pct: int = int(self.params.get("progress_pct", 1))
         self._next_pct_mark: int = self.progress_pct  # next threshold to print
+        self.progress_preview_chars: int = max(
+            0, int(self.params.get("progress_preview_chars", 0) or 0)
+        )
+        self.params.setdefault("progress_preview_chars", self.progress_preview_chars)
 
         # Early stop / patience (generic)
         self.patience_rounds: int = int(self.params.get(
@@ -196,17 +203,18 @@ class SolverBase:
         self._decrypt_time = 0.0
         self._score_time = 0.0
         self._candidates_evaluated = 0
+        self._seed_diag: Dict[str, Any] = {}
 
         # Normalize seed_keys
         if self.seed_keys is not None and len(self.seed_keys) > 0:
-            arr = np.asarray(self.seed_keys, dtype=np.uint8)
+            arr = np.asarray(self.seed_keys, dtype=self.key_dtype)
             if arr.ndim == 1:
                 arr = arr.reshape(1, -1)
             normalized_rows = [
-                np.asarray(self.keyops.normalize(row), dtype=np.uint8)
+                np.asarray(self.keyops.normalize(row), dtype=self.key_dtype)
                 for row in arr
             ]
-            self.seed_keys = np.ascontiguousarray(np.vstack(normalized_rows), dtype=np.uint8)
+            self.seed_keys = np.ascontiguousarray(np.vstack(normalized_rows), dtype=self.key_dtype)
 
     # ---------------- Param + telemetry helpers ----------------
 
@@ -327,6 +335,7 @@ class SolverBase:
 
         live = self._live_counters()
         payload = dict(fields)
+        preview_key = payload.pop("preview_key", None)
         payload.setdefault("step", int(current_step))
         payload.update({
             "pct": pct,
@@ -355,6 +364,11 @@ class SolverBase:
         for k, v in (extra_fields or {}).items():
             payload.setdefault(k, v)
 
+        if self.progress_preview_chars > 0 and not payload.get("preview"):
+            preview = self._plaintext_preview(preview_key, self.progress_preview_chars)
+            if preview:
+                payload.setdefault("preview", preview)
+
         self._maybe_console_progress(payload)
         self._progress(**payload)
 
@@ -381,8 +395,13 @@ class SolverBase:
         since_str = f" since={int(since)}" if isinstance(since, (int, float)) else ""
         reason = payload.get("reason")
         reason_str = f" reason={reason}" if reason else ""
+        preview = payload.get("preview")
+        preview_str = ""
+        if preview:
+            snippet = str(preview).replace("\n", " ")
+            preview_str = f' text="{snippet}"'
         prefix = f"[{self.optimizer_name} {pct_val:3d}%]" if pct_val is not None else f"[{self.optimizer_name}]"
-        print(f"{prefix}{best_str}{evals_str}{since_str}{reason_str}", flush=False)
+        print(f"{prefix}{best_str}{evals_str}{since_str}{reason_str}{preview_str}", flush=False)
 
     def _since_improve(self, step: int) -> int:
         """Steps since the last qualifying improvement."""
@@ -412,8 +431,8 @@ class SolverBase:
 
     def _evaluate_keys(self, keys: np.ndarray) -> np.ndarray:
         """Single source for scoring; enforces shapes/dtypes and accumulates telemetry."""
-        if keys.dtype != np.uint8:
-            keys = keys.astype(np.uint8, copy=False)
+        if keys.dtype != self.key_dtype:
+            keys = keys.astype(self.key_dtype, copy=False)
         if keys.ndim == 1:
             keys = keys.reshape(1, -1)
         assert keys.shape[1] == self.K, f"Key length mismatch: {keys.shape[1]} != {self.K}"
@@ -520,7 +539,7 @@ class SolverBase:
         return self._finalize_solution(best_key, best_score)
 
     def _finalize_solution(self, best_key: np.ndarray, best_score: float) -> Solution:
-        k = np.ascontiguousarray(best_key, dtype=np.uint8).reshape(-1)
+        k = np.ascontiguousarray(best_key, dtype=self.key_dtype).reshape(-1)
         try:
             budget = max(4096, int(self.K) * 64) if hasattr(self, "K") else 4096
             base_hints = self._local_improve_hints()
@@ -568,9 +587,42 @@ class SolverBase:
         except Exception:
             pass
 
+        try:
+            if getattr(self, "_seed_diag", None):
+                seed_meta = sol.meta.setdefault("seed_diag", {})
+                if isinstance(seed_meta, dict):
+                    seed_meta.update(self._seed_diag)
+        except Exception:
+            pass
+
         # Attach solver events + UI blocks
         attach_telemetry_to_meta(sol, self.problem)
         return sol
+
+    def _plaintext_preview(self, key, max_chars: int) -> str:
+        """Decrypt ``key`` and return a short plaintext preview (best-effort)."""
+        if key is None or max_chars <= 0:
+            return ""
+        try:
+            cipher = getattr(self.problem, "cipher", None)
+            ciphertext = getattr(self.problem, "ciphertext", None)
+            if cipher is None or ciphertext is None:
+                return ""
+            k = np.asarray(key, dtype=self.key_dtype).reshape(-1)
+            pt = cipher.decrypt(ciphertext=ciphertext, key=k)
+            pt_u8 = np.asarray(pt, dtype=np.uint8).reshape(-1)
+            wli = getattr(self.problem, "wli_data", None)
+            preview = ""
+            try:
+                preview = Runeglish.to_rune_latin(pt_u8.tolist(), wli if wli is not None else None)
+            except Exception:
+                preview = _to_plaintext_str(pt_u8, wli)
+            if not preview:
+                preview = "".join(str(int(v)) for v in pt_u8[:max_chars])
+            preview = preview.replace("\n", " ").strip()
+            return preview[:max_chars]
+        except Exception:
+            return ""
 
     # ---------------- Span end with richer fallbacks ----------------
 
@@ -694,6 +746,53 @@ class SolverBase:
         """Canonical batch evaluation via Problem (decrypt+score+WLI)."""
         return self.problem.evaluate_keys(pop)
 
+    # ---------------- Seed diagnostics ----------------
+
+    def _append_seed_diag(self, tag: str, payload: Dict[str, Any]) -> None:
+        try:
+            if not isinstance(self._seed_diag, dict):
+                self._seed_diag = {}
+            self._seed_diag[tag] = payload
+        except Exception:
+            pass
+
+    def _capture_seed_quality(self) -> None:
+        if self.seed_keys is None:
+            return
+        try:
+            count = len(self.seed_keys)
+        except Exception:
+            count = 0
+        if count == 0:
+            return
+        if isinstance(self._seed_diag, dict) and "baseline" in self._seed_diag:
+            return
+        try:
+            seeds = np.asarray(self.seed_keys, dtype=self.key_dtype)
+            if seeds.ndim == 1:
+                seeds = seeds.reshape(1, -1)
+            seeds = np.ascontiguousarray(seeds[:, : self.K], dtype=self.key_dtype)
+            if seeds.shape[1] != self.K:
+                return
+            seed_scores = self._score_batch(seeds)
+            if "make_population" in getattr(self.keyops.caps, "ops", set()):
+                random = self.keyops.make_population(seeds.shape[0], self.rng)
+            else:
+                random = np.vstack([self.keyops.random(self.rng) for _ in range(seeds.shape[0])]).astype(
+                    self.key_dtype
+                )
+            random_scores = self._score_batch(random)
+            payload = {
+                "count": int(seeds.shape[0]),
+                "seed_score_mean": float(np.mean(seed_scores)),
+                "seed_score_max": float(np.max(seed_scores)),
+                "random_score_mean": float(np.mean(random_scores)),
+                "random_score_max": float(np.max(random_scores)),
+            }
+            self._append_seed_diag("baseline", payload)
+        except Exception as exc:
+            self._append_seed_diag("baseline_error", {"error": str(exc)})
+
     # ---------------- Utilities used by solvers ----------------
 
     def _maybe_return_test_key_fastpath(self, tag: Union[SolverName, str, None] = None):
@@ -706,12 +805,12 @@ class SolverBase:
             if tk is None:
                 return None
 
-        key_u8 = np.asarray(tk, dtype=np.uint8)
-        key_u8 = self.keyops.normalize(key_u8)[: self.K]
-        if key_u8.ndim != 1 or key_u8.shape[0] != self.K:
-            key_u8 = key_u8.reshape(-1)[: self.K].astype(np.uint8, copy=False)
+        key_arr = np.asarray(tk, dtype=self.key_dtype)
+        key_arr = self.keyops.normalize(key_arr)[: self.K]
+        if key_arr.ndim != 1 or key_arr.shape[0] != self.K:
+            key_arr = key_arr.reshape(-1)[: self.K].astype(self.key_dtype, copy=False)
 
-        pt_idx = self.problem.cipher.decrypt(key=key_u8, ciphertext=self.problem.ciphertext)
+        pt_idx = self.problem.cipher.decrypt(key=key_arr, ciphertext=self.problem.ciphertext)
         if isinstance(pt_idx, tuple):
             pt_idx = pt_idx[0]
         pt_idx = np.asarray(pt_idx, dtype=np.int64).ravel()
@@ -721,11 +820,11 @@ class SolverBase:
         if wli is None:
             wli = getattr(getattr(self.problem, "c_cfg", None), "wli_data", None)
         pt_str = Runeglish.to_rune(pt_list, wli)
-        score = float(self._score_batch(key_u8[None, :])[0])
+        score = float(self._score_batch(key_arr[None, :])[0])
 
         solver_tag = tag.value if isinstance(tag, SolverName) else tag
         solver_str = solver_tag or getattr(self, "optimizer_name", self.solver_name.value)
-        sol = Solution(key_u8.tolist(), pt_str, score, {"solver": solver_str, "reason": "test_key"})
+        sol = Solution(key_arr.tolist(), pt_str, score, {"solver": solver_str, "reason": "test_key"})
         meta = getattr(sol, "meta", {})
         if isinstance(meta, dict):
             work = meta.setdefault("work", {})
@@ -782,10 +881,10 @@ class SolverBase:
         if not callable(local_improve):
             return key, float(score)
 
-        key = np.ascontiguousarray(key, dtype=np.uint8)
+        key = np.ascontiguousarray(key, dtype=self.key_dtype)
 
         def _score_fn_any(x):
-            x = np.asarray(x, dtype=np.uint8)
+            x = np.asarray(x, dtype=self.key_dtype)
             if x.ndim == 1:
                 return float(self._score_batch(x[None, :])[0])
             return self._score_batch(x)
@@ -797,7 +896,7 @@ class SolverBase:
         k2, s2 = local_improve(
             key=key, score=float(score), scorer=_score_fn_any, rng=rng, hint=merged_hint,
         )
-        k2 = np.ascontiguousarray(k2, dtype=np.uint8)
+        k2 = np.ascontiguousarray(k2, dtype=self.key_dtype)
         return k2, float(s2)
 
     def _keyops_family(self) -> str:
@@ -887,20 +986,20 @@ class SolverBase:
 
         if no_seeds:
             if initial_key is not None:
-                key = np.ascontiguousarray(np.array(initial_key, dtype=np.uint8))
+                key = np.ascontiguousarray(np.array(initial_key, dtype=self.key_dtype))
                 if key.ndim == 2:
                     key = key[0]
                 elif key.ndim != 1:
                     key = self.keyops.normalize(key)
                     if key.ndim == 2:
                         key = key[0]
-                return key.astype(np.uint8, copy=False)
-            return self.keyops.random(rng).astype(np.uint8, copy=False)
+                return key.astype(self.key_dtype, copy=False)
+            return self.keyops.random(rng).astype(self.key_dtype, copy=False)
 
-        seeds = np.array(seed_keys, dtype=np.uint8, copy=False)
+        seeds = np.array(seed_keys, dtype=self.key_dtype, copy=False)
         if seeds.ndim == 1:
             seeds = seeds[None, :]
-        seeds = np.ascontiguousarray(seeds, dtype=np.uint8)
+        seeds = np.ascontiguousarray(seeds, dtype=self.key_dtype)
 
         if seeds.shape[1] != self.K:
             rows = []
@@ -908,8 +1007,8 @@ class SolverBase:
                 fixed = self.keyops.normalize(row)
                 if fixed.ndim == 2:
                     fixed = fixed[0]
-                rows.append(np.ascontiguousarray(fixed, dtype=np.uint8))
-            seeds = np.ascontiguousarray(np.stack(rows, axis=0), dtype=np.uint8)
+                rows.append(np.ascontiguousarray(fixed, dtype=self.key_dtype))
+            seeds = np.ascontiguousarray(np.stack(rows, axis=0), dtype=self.key_dtype)
 
         scores = self._score_batch(seeds)
         best_idx = int(np.argmax(scores))
@@ -925,11 +1024,11 @@ class SolverBase:
         best = float(score)
         A, K = int(self.A), int(k.size)
         for col in range(K):
-            batch = np.tile(k, (A, 1)).astype(np.uint8)
-            batch[:, col] = np.arange(A, dtype=np.uint8)
+            batch = np.tile(k, (A, 1)).astype(self.key_dtype)
+            batch[:, col] = np.arange(A, dtype=self.key_dtype)
             scores = self._score_batch(batch)
             j = int(np.argmax(scores))
             if scores[j] > best:
-                k[col] = np.uint8(j)
+                k[col] = self.key_dtype.type(j)
                 best = float(scores[j])
         return k, best

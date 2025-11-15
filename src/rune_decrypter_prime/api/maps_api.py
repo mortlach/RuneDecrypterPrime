@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union, Sequence
 import numpy as np
 
 from rune_decrypter_prime.core.config import CipherConfig, RunConfig, SolverConfig
+from rune_decrypter_prime.core.types import KEY_DTYPE
 from rune_decrypter_prime.api.specs import CipherSpec, KeySpec, SolverSpec  # reuse canonical classes
 from rune_decrypter_prime.api.normalize import to_indices, make_single_word_wli
 from rune_decrypter_prime.api.wrappers import by_name
@@ -110,10 +111,10 @@ def preview(
         stream = key.params.get("stream", None)
         if stream is None:
             raise ValueError("OTP KeySpec requires 'stream' parameter.")
-        k = np.asarray(stream, dtype=np.uint8).reshape(-1)
+        k = np.asarray(stream, dtype=KEY_DTYPE).reshape(-1)
     elif key.plan == "const":
         val = int(key.params.get("value", 0))
-        k = np.full(L, val, dtype=np.uint8)
+        k = np.full(L, val, dtype=KEY_DTYPE)
     else:
         raise ValueError("preview requires KeySpec.otp(.) or KeySpec.const(.)")
 

@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import Optional, Any
 import numpy as np
 
-from rune_decrypter_prime.core.types import KeyKind, KeyOpsFamily
+from rune_decrypter_prime.core.types import KeyKind, KeyOpsFamily, KEY_DTYPE
 from rune_decrypter_prime.io.rng import RNGController
 from .base_keyops import KeyOpBase, KeyCaps
 from .registry import register_keyop
@@ -58,7 +58,7 @@ class PermutationKeyOps(KeyOpBase):
         # todo used in sa get rid
         self.caps.kind = KeyKind.PERM
         self.K = K
-        self.dtype = np.uint8
+        self.dtype = KEY_DTYPE
         super().__init__(self.caps)
 
         # Work buffers
@@ -87,18 +87,21 @@ class PermutationKeyOps(KeyOpBase):
     # ----------- helpers (pure) -----------
     @staticmethod
     def _is_perm_1d(key: np.ndarray) -> bool:
-        if key.ndim != 1 or key.dtype != np.uint8:
+        if key.ndim != 1:
             return False
-        K = key.size
-        return np.array_equal(np.sort(key), np.arange(K, dtype=np.uint8))
+        arr = np.asarray(key, dtype=np.int64).reshape(-1)
+        K = arr.size
+        if K == 0:
+            return False
+        return np.array_equal(np.sort(arr), np.arange(K, dtype=np.int64))
 
     @staticmethod
     def _repair_to_perm_1d(vec: np.ndarray) -> np.ndarray:
         # stable rank -> 0..K-1
-        v = vec.astype(np.int64, copy=False)
+        v = np.asarray(vec, dtype=np.int64).reshape(-1)
         order = np.argsort(v, kind="mergesort")
-        out = np.empty_like(order, dtype=np.uint8)
-        out[order] = np.arange(order.size, dtype=np.uint8)
+        out = np.empty_like(order, dtype=KEY_DTYPE)
+        out[order] = np.arange(order.size, dtype=KEY_DTYPE)
         return out
 
     # ----------- required verbs -----------
@@ -163,7 +166,7 @@ class PermutationKeyOps(KeyOpBase):
         Permutation-safe 'mixed' mutator for SA/GA.
         Uses only structure-preserving moves (no element resample/reset).
         """
-        p = np.asarray(perm, dtype=np.uint8).copy()
+        p = np.asarray(perm, dtype=self.dtype).copy()
         K = int(p.shape[0])
         if K <= 1:
             return p
@@ -201,7 +204,7 @@ class PermutationKeyOps(KeyOpBase):
     def _pmx(a: np.ndarray, b: np.ndarray, rng) -> np.ndarray:
         K = a.size
         i, j = sorted(rng.choice(K, size=2, replace=False))
-        child = np.full(K, 255, dtype=np.uint8)
+        child = np.full(K, 255, dtype=KEY_DTYPE)
         child[i:j+1] = a[i:j+1]
         # PMX mapping
         for k in range(i, j + 1):
@@ -223,7 +226,7 @@ class PermutationKeyOps(KeyOpBase):
     def _ox(a: np.ndarray, b: np.ndarray, rng) -> np.ndarray:
         K = a.size
         i, j = sorted(rng.choice(K, size=2, replace=False))
-        child = np.full(K, 255, dtype=np.uint8)
+        child = np.full(K, 255, dtype=KEY_DTYPE)
         child[i:j+1] = a[i:j+1]
         used = set(child[i:j+1].tolist())
         cursor = (j + 1) % K
@@ -262,7 +265,7 @@ class PermutationKeyOps(KeyOpBase):
         K is inferred from the key itself to avoid coupling to internal fields.
         """
         import numpy as np
-        k = np.asarray(key, dtype=np.uint8)
+        k = np.asarray(key, dtype=self.dtype)
         assert k.ndim == 1, f"Permutation key must be 1-D, got shape {k.shape}"
         K = int(k.shape[0])
         # values must be < K and a bijection
