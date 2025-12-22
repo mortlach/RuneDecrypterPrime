@@ -4,7 +4,7 @@ solver/sa.py — Simulated Annealing using KeyOps neighbour + decrypt/score
 
 Parity goals:
   - Classic acceptance with temperature schedule.
-  - Deterministic rng; honours patience/stop_score.
+  - Deterministic rng; honours plateau/stop_score.
   - Emits canonical progress: iter, temp, evals, since_improve, best_score.
 """
 
@@ -29,17 +29,7 @@ class SASolver(SolverBase):
             else:
                 params = dict(getattr(opt_cfg, "__dict__", {}))
 
-        # Accept historical “sa_*” keys (tutorials/docs) alongside canonical names.
-        def _alias(alias: str, canonical: str) -> None:
-            if alias in params and canonical not in params:
-                params[canonical] = params[alias]
-
-        _alias("sa_iters", "iters")
-        _alias("sa_init_temp", "T0")
-        _alias("sa_min_temp", "Tmin")
-        _alias("sa_cooling", "cool")
-
-        auto_cooling = params.pop("sa_auto_cooling", params.pop("auto_cooling", False))
+        auto_cooling = params.pop("auto_cooling", False)
 
         # Defaults (kept close to common SA setups; we’ll match legacy constants if provided)
         params.setdefault("iters", 2000)
@@ -113,8 +103,7 @@ class SASolver(SolverBase):
             total_evals += 1
 
             self._early_stop_reset(initial_best=s_best,
-                                   patience_override=int(self.get_param("patience_rounds",
-                                                                        self.get_param("no_improve_rounds", 0))))
+                                   plateau_override=int(self.get_param("plateau_rounds", 0)))
 
             T = float(T0)
             self._maybe_update_hamming_progress(0.0)
@@ -143,13 +132,11 @@ class SASolver(SolverBase):
                     if local_improve:
                         k_cur, s_cur = self._local_improve(k_cur, s_cur, self.rng)
 
-                # Track best & patience
+                # Track best & plateau
                 if s_cur > s_best:
                     k_best, s_best = k_cur.copy(), float(s_cur)
-                    self._register_step_best(s_best, it)
-                    since_improve = 0
-                else:
-                    since_improve = self._since_improve(it)
+                plateau_stop = self._early_stop_update(float(s_best), int(it))
+                since_improve = int(self._since_improve(int(it)))
 
                 # Optional rescue/reset if we drift too far from the best solution seen.
                 if rescue_abs > 0 and (s_best - s_cur) >= rescue_abs:
@@ -165,8 +152,8 @@ class SASolver(SolverBase):
                         total_evals += 1
                         if s_cur > s_best:
                             k_best, s_best = k_cur.copy(), float(s_cur)
-                            self._register_step_best(s_best, it)
-                            since_improve = 0
+                            plateau_stop = self._early_stop_update(float(s_best), int(it))
+                            since_improve = int(self._since_improve(int(it)))
 
                 # Percent-bucket progress
                 self._progress_pct(
@@ -181,19 +168,7 @@ class SASolver(SolverBase):
                 )
 
                 # Early-stop checks
-                stop, reason = self._maybe_early_stop(
-                    best_score=s_best,
-                    current_step=it,
-                    total_steps=I,
-                    stop_score=self.get_param("stop_score", None),
-                    plateau_gens=None,
-                    no_improve=None,
-                    patience_rounds=int(self.get_param("patience_rounds",
-                                                       self.get_param("no_improve_rounds", 0)) or 0),
-                    since_improve=since_improve,
-                    progress_fields={"iter": it, "temp": T},
-                )
-                if stop:
+                if self._early_stop_stop_score(float(s_best)) or plateau_stop:
                     break
 
             self._end_span(getattr(self, "_span", None),

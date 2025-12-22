@@ -43,7 +43,7 @@ def test_ga_stage2_mono_runs_to_high_quality():
             cx_frac=0.85,
             mut_prob=0.25,
             tournament_k=4,
-            plateau_gens=25,
+            plateau_rounds=25,
             stop_score=0.60,
             log_interval=0,
             progress_pct=1,
@@ -74,3 +74,4 @@ def test_ga_stage2_mono_runs_to_high_quality():
         assert sol.score >= 0.64, f"Expected score >=0.64 for this scenario, got {sol.score:.4f}"
     finally:
         random.setstate(random_state)
+

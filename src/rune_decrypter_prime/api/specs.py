@@ -223,6 +223,7 @@ class SolverSpec:
         Beam search (UI builder).
         Friendly keys accepted: width -> beam_width.
         Canonicalised keys passed downstream: beam_width (int), plus any passthroughs.
+        Plateau: use plateau_rounds / plateau_min_delta (patience_* aliases accepted).
         """
         from rune_decrypter_prime.api._resolve import resolve_optimizer_aliases as _resolve_opt
         seed = params.pop("seed", None)
@@ -234,6 +235,7 @@ class SolverSpec:
         """
         Genetic algorithm (UI builder).
         Friendly keys accepted: population/pop -> pop_size; iterations/iters -> generations (pure GA).
+        Plateau: use plateau_rounds / plateau_min_delta (plateau_gens, patience_* aliases accepted).
         Canonicalised keys passed downstream: pop_size, generations.
         """
         from rune_decrypter_prime.api._resolve import resolve_optimizer_aliases as _resolve_opt
@@ -246,7 +248,8 @@ class SolverSpec:
         """
         Simulated annealing (UI builder).
         Friendly keys accepted: iters/iterations -> sa_iters.
-        Canonicalised keys passed downstream: sa_iters (+ sa_init_temp, sa_min_temp, sa_cooling if provided).
+        Plateau: use plateau_rounds / plateau_min_delta (patience_* aliases accepted).
+        Canonicalised keys passed downstream: iters (+ T0, Tmin, cool if provided).
         """
         from rune_decrypter_prime.api._resolve import resolve_optimizer_aliases as _resolve_opt
         seed = params.pop("seed", None)

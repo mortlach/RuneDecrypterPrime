@@ -1,29 +1,26 @@
-# # # ============================================================
-# # # rune_decrypter_prime/solver/hybrid_solver.py
-# # # Hybrid orchestrator: Beam → GA → SA
-# # # ============================================================
-# -*- coding: utf-8 -*-
 """
-Mono Substitution (29 runes) — HYBRID walkthrough (Beam → GA → SA)
+Mono Substitution (29 runes) - HYBRID walkthrough (Beam -> GA -> SA)
 
-What you’ll see
+What you'll see
 ---------------
-1) English → runes (single direction).
-2) Random key → encrypt → ciphertext.
-3) HYBRID optimiser runs: Beam warm-start (if available) → GA explore → SA polish.
+1) English -> runes (single direction).
+2) Random key -> encrypt -> ciphertext.
+3) HYBRID optimizer runs: Beam warm-start (if available) -> GA explore -> SA polish.
 4) We deliberately start from **noise** (no seeds) to show robustness.
 5) A short, friendly report at the end.
 
 You can tweak GA/SA knobs inside the Hybrid params.
 """
+
 from __future__ import annotations
 import sys
 from pathlib import Path
 
 # Ensure repo root on sys.path before importing project modules
 _ROOT = Path(__file__).resolve().parents[3]
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
+_SRC = _ROOT / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
 from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, by_name, cipher_instance
 from rune_decrypter_prime.utils.runeglish import Runeglish
@@ -40,7 +37,7 @@ CIPHERTEXT_SEED = 12345
 
 
 def preview(s: str, n: int = 120) -> str:
-    return s if len(s) <= n else s[:n] + "…"
+    return s if len(s) <= n else s[:n] + "..."
 
 def _invert_perm(pt_to_ct: np.ndarray) -> np.ndarray:
     inv = np.empty_like(pt_to_ct)
@@ -51,11 +48,11 @@ def _invert_perm(pt_to_ct: np.ndarray) -> np.ndarray:
 def _build_ciphertext(pt_en: str, *, encoding_dir: Direction = Direction.RTL, seed: int = 42):
     pt_idx, wli, _ = Runeglish.encode_english_to_runes(pt_en, direction=encoding_dir.value)
     rng = np.random.default_rng(seed)
-    key_fwd = rng.permutation(29).astype(np.uint8)            # pt→ct
+    key_fwd = rng.permutation(29).astype(np.uint8)            # pt->ct
     ciph = cipher_instance(by_name.cipher("mono"))
     ct_idx = ciph.encrypt(plaintext=np.asarray(pt_idx, np.uint8), key=key_fwd)
     ct_runes = Runeglish.to_rune(ct_idx.tolist(), wli)
-    key_inv = _invert_perm(key_fwd)                            # ct→pt
+    key_inv = _invert_perm(key_fwd)                            # ct->pt
     return ct_runes, wli, key_fwd.tolist(), key_inv.tolist(), pt_idx
 
 
@@ -63,13 +60,13 @@ def main():
     # english words encoded right-to-left or left-to-right
     encoding_dir = Direction.RTL
 
-    # 1) English → ciphertext
+    # 1) English -> ciphertext
     pt_en = plaintext_english_string
     ct_runes, wli, _key_fwd, _key_inv, pt_idx = _build_ciphertext(
         pt_en, encoding_dir=encoding_dir, seed=CIPHERTEXT_SEED
     )
 
-    # 2) Hybrid Solver config (hybrid is a combination of Beam → GA → SA solvers), for demo use random noise starting keys
+    # 2) Hybrid Solver config (hybrid is a combination of Beam -> GA -> SA solvers), for demo use random noise starting keys
     hybrid = SolverSpec.hybrid(
         use_beam=True,
         beam_width=12,
@@ -87,9 +84,8 @@ def main():
             cx_frac=0.85,
             mut_prob=0.35,
             tournament_k=3,
-            plateau_gens=8,
+            plateau_rounds=8,
             stop_score=0.150,
-            auto_cooling=False,
             print_progress=True,
         ),
         sa=dict(
@@ -135,7 +131,7 @@ def main():
 
     # 4) Report
     print("-" * 72)
-    print("Mono Substitution — HYBRID (Beam → GA → SA)")
+    print("Mono Substitution - HYBRID (Beam -> GA -> SA)")
     recovered = getattr(sol, "plaintext_rune", "") or getattr(sol, "plaintext_str", "")
     print("Recovered plaintext:", preview(str(recovered)))
     print("Score:", round(sol.score, 6))
@@ -154,3 +150,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

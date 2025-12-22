@@ -4,8 +4,9 @@ import sys
 from pathlib import Path
 from typing import Sequence
 _ROOT = Path(__file__).resolve().parents[3]
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
+_SRC = _ROOT / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
 from rune_decrypter_prime.api import Direction, KeySpec, SolverSpec, by_name, run
 from rune_decrypter_prime.utils.pretty import print_run_report
@@ -72,8 +73,8 @@ def main() -> None:
         beam_width=64,
         log_interval=20,
         stop_score=0.56,
-        patience_rounds=40,
-        patience_min_delta=1e-4,
+        plateau_rounds=40,
+        plateau_min_delta=1e-4,
         seed=TUTORIAL_SEED,
     )
 
@@ -125,3 +126,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

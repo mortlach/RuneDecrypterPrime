@@ -17,7 +17,7 @@ Params (all optional; defaults chosen to match common recipes):
 
 Stop behaviour:
   - Global stop_score honoured across phases (early termination if reached).
-  - Per-phase patience and plateaus are handled by the sub-solvers themselves.
+  - Per-phase plateaus are handled by the sub-solvers themselves.
 """
 
 from __future__ import annotations
@@ -100,6 +100,9 @@ class HybridSolver(SolverBase):
                 "beam_width", "rounds",
             }:
                 b_params[k] = v
+        for key in ("plateau_rounds", "plateau_min_delta"):
+            if key in self.params and key not in b_params:
+                b_params[key] = self.params[key]
 
         self._inherit_progress_knobs(b_params)
 
@@ -143,9 +146,12 @@ class HybridSolver(SolverBase):
         ga_block = self.params.get("ga")
         if isinstance(ga_block, dict):
             g_params.update(ga_block)
-        for alias in ("pop_size", "generations", "tournament_k", "elite_frac", "cx_frac", "mut_prob", "plateau_gens"):
+        for alias in ("pop_size", "generations", "tournament_k", "elite_frac", "cx_frac", "mut_prob"):
             if alias in self.params and alias not in g_params:
                 g_params[alias] = self.params[alias]
+        for key in ("plateau_rounds", "plateau_min_delta"):
+            if key in self.params and key not in g_params:
+                g_params[key] = self.params[key]
         self._inherit_progress_knobs(g_params)
 
         ga_rng = _child_rng(self.rng, tag=2)
@@ -174,6 +180,9 @@ class HybridSolver(SolverBase):
         for alias in ("iters", "T0", "Tmin", "cool", "local_improve_on_accept"):
             if alias in self.params and alias not in s_params:
                 s_params[alias] = self.params[alias]
+        for key in ("plateau_rounds", "plateau_min_delta"):
+            if key in self.params and key not in s_params:
+                s_params[key] = self.params[key]
         self._inherit_progress_knobs(s_params)
 
         sa_rng = _child_rng(self.rng, tag=3)

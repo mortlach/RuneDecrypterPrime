@@ -103,7 +103,7 @@ class SolverBase:
                     _maybe_return_test_key_fastpath, _make_solution
 
     New (generic) early-stop:
-      - Patience across steps (rounds/generations/iters), with a min_delta improvement threshold.
+      - Plateau across steps (rounds/generations/iters), with a min_delta improvement threshold.
       - Works for all solvers by calling `_update_best_and_check_patience(best, step)`.
     """
 
@@ -111,13 +111,13 @@ class SolverBase:
     _SPAN_WHITELIST_PARAMS = {
         # GA
         "pop_size", "generations", "elite_frac", "cx_frac", "mut_prob", "tournament_k",
-        "plateau_gens", "perm_batch_improve_rounds", "perm_batch_improve_size",
+        "perm_batch_improve_rounds", "perm_batch_improve_size",
         # SA
         "iters", "T0", "Tmin", "cool", "accept_in_log", "log_eps", "local_improve_on_accept",
         # Beam / Hybrid
         "beam_width", "use_beam", "rounds",
         # Early stop (generic)
-        "stop_score", "patience_rounds", "patience_min_delta",
+        "stop_score", "plateau_rounds", "plateau_min_delta",
         # common
         "K", "seed", "verbose", "log_interval", "progress_pct", "print_progress", "verbose_console",
         "progress_preview_chars",
@@ -132,7 +132,7 @@ class SolverBase:
         "phase", "reason", "round", "rounds", "parents", "cands_per_parent",
         "evals",
         "hamming_weight",
-        # patience
+        # plateau
         "since_improve", "patience_left",
         # sa stuff
         "accepts", "accept_rate",
@@ -188,12 +188,9 @@ class SolverBase:
         )
         self.params.setdefault("progress_preview_chars", self.progress_preview_chars)
 
-        # Early stop / patience (generic)
-        self.patience_rounds: int = int(self.params.get(
-            "patience_rounds",
-            self.params.get("no_improve_rounds", 3))
-        )  # no_improve_rounds alias
-        self.patience_min_delta: float = float(self.params.get("patience_min_delta", 0.0))
+        # Early stop / plateau (generic)
+        self.plateau_rounds: int = int(self.params.get("plateau_rounds", 0))
+        self.plateau_min_delta: float = float(self.params.get("plateau_min_delta", 0.0))
         self._best_score_so_far: float = -np.inf
         self._best_at_step: int = 0
         self._last_best = float("-inf")
@@ -262,13 +259,13 @@ class SolverBase:
             if k in self._SPAN_WHITELIST_PARAMS and v is not None:
                 out[k] = self._to_plain(v)
         out.setdefault("K", self.K)
-        # include stop_score/patience from kwargs if not in params
+        # include stop_score/plateau from kwargs if not in params
         if "stop_score" not in out and self.stop_score is not None:
             out["stop_score"] = self._to_plain(self.stop_score)
-        if "patience_rounds" not in out and self.patience_rounds:
-            out["patience_rounds"] = self.patience_rounds
-        if "patience_min_delta" not in out and self.patience_min_delta:
-            out["patience_min_delta"] = self.patience_min_delta
+        if "plateau_rounds" not in out and self.plateau_rounds:
+            out["plateau_rounds"] = self.plateau_rounds
+        if "plateau_min_delta" not in out and self.plateau_min_delta:
+            out["plateau_min_delta"] = self.plateau_min_delta
         # seed introspection (uniform)
         try:
             n_seeds = 0
@@ -365,13 +362,13 @@ class SolverBase:
         if live.get("evals") is not None:
             payload.setdefault("evals", live["evals"])
 
-        if getattr(self, "patience_rounds", 0) > 0:
+        if getattr(self, "plateau_rounds", 0) > 0:
             try:
                 since = int(self._since_improve(current_step))
             except Exception:
                 since = int(payload.get("since_improve", 0))
             payload.setdefault("since_improve", since)
-            payload.setdefault("patience_left", max(0, int(self.patience_rounds) - since))
+            payload.setdefault("patience_left", max(0, int(self.plateau_rounds) - since))
 
         extra_fields = {}
         extra_fn = getattr(self, "extra_progress_fields", None)
@@ -446,19 +443,19 @@ class SolverBase:
         return int(step) - int(getattr(self, "_best_at_step", 0) or 0)
 
     def _register_step_best(self, current_best: float, step: int) -> bool:
-        """Update the running best. Returns True if we improved by ≥ patience_min_delta."""
+        """Update the running best. Returns True if we improved by ≥ plateau_min_delta."""
         improved = False
-        if current_best > (self._best_score_so_far + self.patience_min_delta):
+        if current_best > (self._best_score_so_far + self.plateau_min_delta):
             self._best_score_so_far = float(current_best)
             self._best_at_step = int(step)
             improved = True
         return improved
 
     def _patience_should_stop(self, step: int) -> bool:
-        """True if patience is active and we've gone 'patience_rounds' steps with no improvement."""
-        if self.patience_rounds <= 0:
+        """True if plateau is active and we've gone 'plateau_rounds' steps with no improvement."""
+        if self.plateau_rounds <= 0:
             return False
-        return self._since_improve(step) >= self.patience_rounds
+        return self._since_improve(step) >= self.plateau_rounds
 
     def _update_best_and_check_patience(self, current_best: float, step: int) -> bool:
         """Convenience: register improvement and return early-stop decision."""
@@ -746,17 +743,15 @@ class SolverBase:
 
     # ---------------- Early-stop controls (public helpers) ----------------
 
-    def _early_stop_reset(self, initial_best: float, patience_override: int | None = None) -> None:
+    def _early_stop_reset(self, initial_best: float, plateau_override: int | None = None) -> None:
         """Initialise early-stop state; keeps public/internal mirrors in sync."""
-        pr = int(self.get_param("patience_rounds",
-                                self.get_param("no_improve_rounds", 0)) or 0)
-        self._patience_rounds = int(patience_override if patience_override is not None else pr) or 0
-        self.patience_rounds = self._patience_rounds
+        pr = int(self.get_param("plateau_rounds", 0) or 0)
+        self._plateau_rounds = int(plateau_override if plateau_override is not None else pr) or 0
+        self.plateau_rounds = self._plateau_rounds
 
-        pd = float(self.get_param("patience_delta",
-                                  self.get_param("patience_min_delta", 0.0)) or 0.0)
-        self._patience_delta = pd
-        self.patience_min_delta = pd
+        pd = float(self.get_param("plateau_min_delta", 0.0) or 0.0)
+        self._plateau_delta = pd
+        self.plateau_min_delta = pd
 
         self._best_score_so_far = float(initial_best)
         self._last_improve_at = 0
@@ -764,18 +759,18 @@ class SolverBase:
         self._stop_reason = None
 
     def _early_stop_update(self, current_best: float, step: int) -> bool:
-        """Update patience state; return True if patience triggers a stop."""
-        if int(getattr(self, "patience_rounds", 0) or 0) <= 0:
-            return False
-        min_delta = float(getattr(self, "_patience_delta",
-                                  getattr(self, "patience_min_delta", 0.0)) or 0.0)
+        """Update plateau state; return True if plateau triggers a stop."""
+        min_delta = float(getattr(self, "_plateau_delta",
+                                  getattr(self, "plateau_min_delta", 0.0)) or 0.0)
         if (current_best - self._best_score_so_far) > min_delta:
             self._best_score_so_far = float(current_best)
             self._last_improve_at = int(step)
             self._best_at_step = int(step)
             return False
-        if (int(step) - int(self._last_improve_at)) >= int(self.patience_rounds):
-            self._stop_reason = f"no_improve_{int(self.patience_rounds)}"
+        if int(getattr(self, "plateau_rounds", 0) or 0) <= 0:
+            return False
+        if (int(step) - int(self._last_improve_at)) >= int(self.plateau_rounds):
+            self._stop_reason = f"no_improve_{int(self.plateau_rounds)}"
             return True
         return False
 
@@ -987,9 +982,7 @@ class SolverBase:
         current_step: int | None,
         total_steps: int | None,
         stop_score: float | None = None,
-        plateau_gens: int | None = None,
-        no_improve: int | None = None,
-        patience_rounds: int | None = None,
+        plateau_rounds: int | None = None,
         since_improve: int | None = None,
         progress_fields: dict | None = None,
     ) -> tuple[bool, str]:
@@ -1001,15 +994,13 @@ class SolverBase:
 
         if (stop_score is not None) and (best_score is not None) and (best_score >= float(stop_score)):
             reason = "stop_score"
-        elif plateau_gens and (no_improve is not None) and (no_improve >= int(plateau_gens)):
-            reason = "plateau"
-        elif patience_rounds and (since_improve is not None) and (since_improve >= int(patience_rounds)):
-            reason = f"no_improve_{int(patience_rounds)}"
+        elif plateau_rounds and (since_improve is not None) and (since_improve >= int(plateau_rounds)):
+            reason = f"no_improve_{int(plateau_rounds)}"
 
         if reason:
             fields = dict(progress_fields or {})
             fields.update({"reason": reason})
-            if reason == "plateau":
+            if reason.startswith("no_improve_"):
                 fields["plateau"] = True
             self._progress_pct(
                 current_step=current_step,

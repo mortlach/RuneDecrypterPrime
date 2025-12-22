@@ -45,8 +45,8 @@ def test_tutorial_mono_runs(optimizer):
             sa_rescue_drop_abs=0.02,
             sa_rescue_drop_ratio=0.5,
             local_improve_on_accept=True,
-            patience_rounds=60,
-            patience_min_delta=1e-4,
+            plateau_rounds=60,
+            plateau_min_delta=1e-4,
             stop_score=0.555,
             progress_pct=1,
             seed=12345,
@@ -60,7 +60,7 @@ def test_tutorial_mono_runs(optimizer):
             cx_frac=0.85,
             mut_prob=0.25,
             tournament_k=4,
-            plateau_gens=20,
+            plateau_rounds=20,
             progress_pct=1,
             seed=12345,
         )
@@ -102,3 +102,4 @@ def test_tutorial_mono_runs(optimizer):
     target_text = latin_text if latin_text else recovered_rune
     rx = r"[A-Z]{3,}" if latin_text else r"[\u16A0-\u16FF]{3,}"
     assert re.search(rx, target_text), "Recovered plaintext looks too random"
+

@@ -4,8 +4,9 @@ from pathlib import Path
 
 # Ensure repo root on sys.path so the package imports resolve when run directly
 _ROOT = Path(__file__).resolve().parents[3]
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
+_SRC = _ROOT / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
 from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, by_name
 from rune_decrypter_prime.utils.runeglish import Runeglish
@@ -48,7 +49,7 @@ def main():
     # encoding direction
     direction = Direction.RTL
 
-    # English plaintext → runes (then strip spaces for columnar)
+    # English plaintext ? runes (then strip spaces for columnar)
     pt_en = plaintext_english_string
     pt_idx, wli_pt, pt_runes = Runeglish.encode_english_to_runes(pt_en, direction=direction.value)
     pt_runes_nosp = pt_runes.replace(" ", "")
@@ -87,9 +88,8 @@ def main():
             cx_frac=0.85,
             mut_prob=0.3,
             tournament_k=3,
-            plateau_gens=12,
-            stop_score=0.62,
-            auto_cooling=False,
+            plateau_rounds=12,
+            stop_score=0.503,
             print_progress=True,
         ),
         sa=dict(
@@ -97,8 +97,9 @@ def main():
             sa_init_temp=0.95,
             sa_min_temp=1e-4,
             sa_cooling=0.997,
+            plateau_rounds=300,
             local_improve_on_accept=True,
-            stop_score=0.62,
+            stop_score=0.503,
             print_progress=True,
         ),
 
@@ -150,3 +151,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

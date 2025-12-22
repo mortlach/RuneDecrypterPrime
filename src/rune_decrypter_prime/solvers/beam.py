@@ -59,7 +59,7 @@ class BeamSolver(SolverBase):
         params.setdefault("expand.max_children_per_parent", None)  # None = exhaustive
 
         params.setdefault("expand.dedup", True)
-        params.setdefault("expand.plateau_rounds", 0)  # 0 = off
+        params.setdefault("plateau_rounds", 0)  # 0 = off
 
         rng = kwargs.get("rng", None)
         if rng is None:
@@ -213,34 +213,15 @@ class BeamSolver(SolverBase):
         max_children: Optional[int] = None if m_children_raw in (None, 0) else int(m_children_raw)
 
         dedup_on: bool = bool(self.get_param("expand.dedup", True))
-        plateau_rounds: int = int(self.get_param("expand.plateau_rounds", 0))
+        plateau_rounds: int = int(self.get_param("plateau_rounds", 0))
 
         # Parents count per round
         parents_base = max(1, int(np.floor(parents_frac * W)))
         parents_k = min(parents_cap, parents_base) if parents_cap else parents_base
 
-        # ---- normalize tutorial aliases -> beam.* keys (no new names) ----
-        def _alias(src, dst):
-            if (src in self.params) and (dst not in self.params):
-                self.params[dst] = self.params[src]
-
-        _alias("expand_mode", "expand.parent_mode")  # "top" | "sample"
-        _alias("sample_per_parent", "expand.max_children_per_parent")
-        _alias("top_parents_factor", "expand.parents_frac")
-        _alias("patience_rounds", "expand.plateau_rounds")
-
         fast = self._maybe_return_test_key_fastpath(SolverName.BEAM)
         if fast is not None:
             return fast
-
-        # refresh derived locals after aliasing
-        p_mode = str(self.get_param("expand.parent_mode", p_mode)).lower()
-        parents_frac = float(self.get_param("expand.parents_frac", parents_frac))
-        m_children_raw = self.get_param("expand.max_children_per_parent", m_children_raw)
-        max_children = None if m_children_raw in (None, 0) else int(m_children_raw)
-        plateau_rounds = int(self.get_param("expand.plateau_rounds", plateau_rounds))
-        parents_base = max(1, int(np.floor(parents_frac * W)))
-        parents_k = min(parents_cap, parents_base) if parents_cap else parents_base
 
         # Positions per round
         if isinstance(pos_per_round_raw, str) and pos_per_round_raw.lower() == "all":
@@ -260,7 +241,7 @@ class BeamSolver(SolverBase):
         self.params["expand.position_mode"] = pos_mode
         self.params["expand.max_children_per_parent"] = max_children
         self.params["expand.dedup"] = dedup_on
-        self.params["expand.plateau_rounds"] = plateau_rounds
+        self.params["plateau_rounds"] = plateau_rounds
 
         span = self._start_span()
         candidates_seen = 0
@@ -311,7 +292,7 @@ class BeamSolver(SolverBase):
 
             self._early_stop_reset(
                 initial_best=float(np.max(scores)),
-                patience_override=int(self.get_param("expand.plateau_rounds", 0))
+                plateau_override=int(self.get_param("plateau_rounds", 0))
             )
 
             for r in range(1, rounds + 1):

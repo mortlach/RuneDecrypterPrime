@@ -44,8 +44,8 @@ def test_sa_stage2_mono_regression():
         sa_rescue_drop_ratio=0.5,
         local_improve_on_accept=True,
         log_interval=0,
-        patience_rounds=30,
-        patience_min_delta=1e-4,
+        plateau_rounds=30,
+        plateau_min_delta=1e-4,
         stop_score=0.65,
         progress_pct=1,
         seed=321,
@@ -73,3 +73,4 @@ def test_sa_stage2_mono_regression():
 
     assert match_rate >= 0.96, f"Expected >=96% token match, got {match_rate:.4f}"
     assert sol.score >= 0.68, f"Expected score >=0.68, got {sol.score:.4f}"
+

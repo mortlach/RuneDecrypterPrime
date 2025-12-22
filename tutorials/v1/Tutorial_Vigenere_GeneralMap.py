@@ -3,25 +3,26 @@ from pathlib import Path
 
 # Ensure repo root is importable when running this file directly
 _ROOT = Path(__file__).resolve().parents[3]
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
+_SRC = _ROOT / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
 from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, define_map
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.pretty import print_run_report
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 
-# -*- coding: utf-8 -*-
 """
-Tutorial: Vigenère via the General Map API
+Tutorial: Vigenere via the General Map API
 
 What it shows:
-1. Define a Vigenère cell as a simple function: (pt, k) % 29.
-2. Encode English text → rune indices (with spaces/WLI).
-3. Encrypt with a short numeric key, repeat-to-length handled inline.
+1. Define a Vigenere cell as a simple function: (pt + k) % 29.
+2. Encode English text -> rune indices (with spaces/WLI).
+3. Encrypt with a short numeric key; repeat-to-length handled inline.
 4. Tell the solver only the period, not the key.
 5. Use the built-in pretty printer to show results.
 """
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -45,7 +46,7 @@ def main():
     encoding_dir = Direction.RTL
     pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(pt_en, direction=encoding_dir.value)
 
-    # Cipher spec: Vigenère cell (pt,k) -> (pt+k)%29
+    # Cipher spec: Vigen?re cell (pt,k) -> (pt+k)%29
     cipher = define_map(function=vigenere_map, N=N)
 
     # Encrypt with a short numeric key
@@ -59,9 +60,8 @@ def main():
     solve_spec = SolverSpec.beam(
         beam_width=24,
         stop_score=0.32,
-        patience_rounds=6,
-        patience_min_delta=1e-4,
-        plateau_rounds=3,
+        plateau_rounds=6,
+        plateau_min_delta=1e-4,
         max_children_per_parent=16,
         verbose=True,
         progress_pct=1,
@@ -106,3 +106,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

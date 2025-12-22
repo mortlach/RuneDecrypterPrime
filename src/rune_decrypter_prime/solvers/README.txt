@@ -2,12 +2,12 @@ rune_decrypter_prime/solvers
 ============================
 
 Search algorithms that explore the key space. All solvers inherit from
-`solver_base.SolverBase`, which provides telemetry spans, shared patience logic,
+`solver_base.SolverBase`, which provides telemetry spans, shared plateau logic,
 and helper hooks (`_score_batch`, `_maybe_return_test_key_fastpath`, etc.).
 
 Implemented solvers
 -------------------
-- `beam.py`: deterministic beam search with plateau/patience controls.
+- `beam.py`: deterministic beam search with plateau controls.
 - `ga.py`: genetic algorithm (population, crossover, mutation, optional local
   improve pass).
 - `sa.py`: simulated annealing with rescue/reseed knobs.

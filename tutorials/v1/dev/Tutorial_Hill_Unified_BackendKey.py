@@ -70,7 +70,7 @@ def main():
         sa_init_temp=1.5,  # gentle cooling
         sa_min_temp=1e-3,
         sa_cooling=0.96,
-        patience_rounds=3000,  # stop if no improvement for a while
+        plateau_rounds=3000,  # stop if no improvement for a while
         seed=123,
         sa_elitism=True,
         sa_reseed_interval=3000,
@@ -127,3 +127,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

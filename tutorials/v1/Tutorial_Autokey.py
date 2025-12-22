@@ -7,8 +7,9 @@ from typing import List, Sequence
 import numpy as np
 
 _ROOT = Path(__file__).resolve().parents[3]
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
+_SRC = _ROOT / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
 from rune_decrypter_prime.api import Direction, KeySpec, SolverSpec, by_name, cipher_instance, run
 from rune_decrypter_prime.utils.pretty import print_run_report
@@ -82,7 +83,7 @@ def main() -> None:
         cx_frac=0.9,
         mut_prob=0.25,
         tournament_k=4,
-        plateau_gens=25,
+        plateau_rounds=25,
     )
     baseline_solver = SolverSpec.ga(seed=2024, **solver_kwargs)
     crib_solver = SolverSpec.ga(seed=4242, **solver_kwargs)
@@ -149,3 +150,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

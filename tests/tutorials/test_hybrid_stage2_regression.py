@@ -44,7 +44,7 @@ def test_hybrid_stage2_trimmed_mono_regression():
             cx_frac=0.85,
             mut_prob=0.25,
             tournament_k=4,
-            plateau_gens=8,
+            plateau_rounds=8,
             stop_score=0.64,
             log_interval=0,
         ),
@@ -86,3 +86,4 @@ def test_hybrid_stage2_trimmed_mono_regression():
     match_rate = plaintext_match_rate(sol.plaintext_idx, pt_idx)
     assert match_rate >= 0.98, f"Expected >=98% match, got {match_rate:.4f}"
     assert sol.score >= 0.62, f"Expected score >=0.62, got {sol.score:.4f}"
+

@@ -5,7 +5,7 @@ solver/ga.py — Vectorised GA using KeyOps + batch decrypt/score
 Parity goals:
   - Population seeding respects provided seed_keys.
   - Tournament selection (default), elitism, crossover, mutation.
-  - Early-stop via target score and patience/plateau.
+  - Early-stop via target score and plateau (no-improve rounds).
   - Canonical telemetry fields: generation, pop_size, evals, since_improve, best_score.
 """
 
@@ -40,8 +40,8 @@ class GASolver(SolverBase):
         params.setdefault("cx_frac", 0.5)       # fraction of new children from crossover
         params.setdefault("mut_prob", 0.15)     # mutate probability per child (delegated to keyops)
 
-        # Plateau stopper (optional alternative to patience_rounds)
-        params.setdefault("plateau_gens", 0)    # 0 = off
+        # Plateau stopper (no-improve rounds)
+        params.setdefault("plateau_rounds", 0)    # 0 = off
 
         rng = kwargs.get("rng")
         if rng is None:
@@ -155,7 +155,7 @@ class GASolver(SolverBase):
         elite_frac: float = float(self.get_param("elite_frac", 0.05))
         cx_frac: float = float(self.get_param("cx_frac", 0.5))
         mut_prob: float = float(self.get_param("mut_prob", 0.15))
-        plateau_gens: int = int(self.get_param("plateau_gens", 0))
+        plateau_rounds: int = int(self.get_param("plateau_rounds", 0))
 
         self._capture_seed_quality()
         fast = self._maybe_return_test_key_fastpath(SolverName.GA)
@@ -170,8 +170,6 @@ class GASolver(SolverBase):
         span = self._start_span()
         total_evals = 0
         best_score = float("-inf")
-        since_improve = 0
-
         try:
             # Seed population
             seed_mask = np.zeros(P, dtype=bool)
@@ -212,10 +210,9 @@ class GASolver(SolverBase):
             pop, scores = pop[order], scores[order]
             best_key, best_score = pop[0].copy(), float(scores[0])
 
-            # Set up patience tracking
+            # Set up plateau tracking
             self._early_stop_reset(initial_best=best_score,
-                                   patience_override=int(self.get_param("patience_rounds",
-                                                                        self.get_param("no_improve_rounds", 0))))
+                                   plateau_override=plateau_rounds)
 
             self._maybe_update_hamming_progress(0.0)
             for gen in range(1, G + 1):
@@ -265,13 +262,12 @@ class GASolver(SolverBase):
                 pop = np.ascontiguousarray(all_keys[keep], dtype=KEY_DTYPE)
                 scores = np.ascontiguousarray(all_scores[keep], dtype=np.float64)
 
-                # Track best and patience
+                # Track best and plateau
                 if scores[0] > best_score:
                     best_score = float(scores[0])
                     best_key = pop[0].copy()
-                    since_improve = 0
-                else:
-                    since_improve += 1
+                plateau_stop = self._early_stop_update(float(best_score), int(gen))
+                since_improve = int(self._since_improve(int(gen)))
 
                 # Percent-bucket progress
                 self._progress_pct(
@@ -286,19 +282,7 @@ class GASolver(SolverBase):
                 )
 
                 # Unified early stop
-                stop, reason = self._maybe_early_stop(
-                    best_score=best_score,
-                    current_step=gen,
-                    total_steps=G,
-                    stop_score=self.get_param("stop_score", None),
-                    plateau_gens=plateau_gens if plateau_gens > 0 else None,
-                    no_improve=since_improve,
-                    patience_rounds=int(self.get_param("patience_rounds",
-                                                       self.get_param("no_improve_rounds", 0)) or 0),
-                    since_improve=since_improve,
-                    progress_fields={"generation": gen, "pop_size": P},
-                )
-                if stop:
+                if self._early_stop_stop_score(float(best_score)) or plateau_stop:
                     break
 
             # Finalise

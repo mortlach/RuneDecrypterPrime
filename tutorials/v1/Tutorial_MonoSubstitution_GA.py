@@ -1,31 +1,31 @@
 
-# -*- coding: utf-8 -*-
 """
-Mono Substitution (29 runes) — GA tutorial (friendly version)
+Mono Substitution (29 runes) - GA tutorial (friendly version)
 
 What this does
 --------------
 1) Turn a short English text into runes (one direction, kept consistent).
 2) Make ciphertext by encrypting with a random key.
-3) EITHER start GA from **noise** OR from **seeded keys** (your choice).
+3) Either start GA from **noise** or from **seeded keys** (your choice).
 4) GA searches for a key that makes the text look like real language.
 5) Stop early if we hit a good score (stop_score).
 
 How to use
 ---------
-• Set START_MODE = "seeded" (fast) or "noise" (pure random start).
-• You can also pick a run profile: "short", "medium", "long".
-• We keep parameter names the same as your GA solver.
+- Set START_MODE = "seeded" (fast) or "noise" (pure random start).
+- You can also pick a run profile: "short", "medium", "long".
+- We keep parameter names the same as your GA solver.
 """
-# -*- coding: utf-8 -*-
+
 from __future__ import annotations
 import sys
 from pathlib import Path
 
 # Ensure project root is importable when run as a script (so "python Tutorial_*.py" works)
 _ROOT = Path(__file__).resolve().parents[3]
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
+_SRC = _ROOT / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
 from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, by_name, define_map, cipher_instance
 from rune_decrypter_prime.utils.runeglish import Runeglish
@@ -48,7 +48,7 @@ CIPHERTEXT_SEED = 12345
 
 # -------------------------- small helpers --------------------------
 def preview(s: str, n: int = 120) -> str:
-    return s if len(s) <= n else s[:n] + "…"
+    return s if len(s) <= n else s[:n] + "..."
 
 def _invert_perm(pt_to_ct: np.ndarray) -> np.ndarray:
     inv = np.empty_like(pt_to_ct)
@@ -87,29 +87,41 @@ def _solve_once(direction: Direction, telemetry_on: bool):
         pt_en, encoding_direction=direction, seed=CIPHERTEXT_SEED
     )
 
+    # LTR runs are a bit tougher; give them a slightly larger budget.
+    if direction == Direction.LTR:
+        seed_keys = 240
+        seed_swaps = 3
+        run_profile = "long"
+        stop_score = 0.50
+    else:
+        seed_keys = 120
+        seed_swaps = 2
+        run_profile = RUN_PROFILE
+        stop_score = STOP_SCORE
+
     seeds = None
     if START_MODE == "seeded":
         seeds = make_seeds_from_freq(
             ct_runes.replace(" ", ""),
-            n_keys=120,
-            swaps_per_key=2,
+            n_keys=seed_keys,
+            swaps_per_key=seed_swaps,
             seed=TUTORIAL_SEED,
             direction=direction.value,
         )
 
-    if RUN_PROFILE == "short":
+    if run_profile == "short":
         population, generations = 64, 48
-    elif RUN_PROFILE == "medium":
+    elif run_profile == "medium":
         population, generations = 96, 96
-    elif RUN_PROFILE == "long":
+    elif run_profile == "long":
         population, generations = 144, 160
     else:
-        raise ValueError(f"Unknown RUN_PROFILE: {RUN_PROFILE!r}")
+        raise ValueError(f"Unknown run_profile: {run_profile!r}")
 
     ga = SolverSpec.ga(
         pop_size=population,
         generations=generations,
-        stop_score=STOP_SCORE,
+        stop_score=stop_score,
         verbose=True,
         progress_pct=2,
         print_progress=True,
@@ -117,7 +129,7 @@ def _solve_once(direction: Direction, telemetry_on: bool):
         cx_frac=0.85,
         mut_prob=0.25,
         tournament_k=4,
-        plateau_gens=20,
+        plateau_rounds=20,
         log_interval=5,
         seed=TUTORIAL_SEED,
     )
@@ -173,3 +185,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

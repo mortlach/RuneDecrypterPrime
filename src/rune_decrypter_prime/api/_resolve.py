@@ -8,58 +8,106 @@ from typing import Dict, Any, Optional
 
 # ----------------------------- optimiser ----------------------------- #
 
-# Canonical parameter sets per optimiser (v1)
+# Canonical parameter sets per optimiser (v1).
+# NOTE: aliases are normalized in resolve_optimizer_aliases().
 _CANON_OPTS: dict[str, set[str]] = {
     "beam": {
-        "patience_delta", "plateau_rounds","max_children_per_parent","params","beam_width", "rounds",
-        "patience_rounds", "patience_min_delta", "stop_score", "progress_pct", "print_progress",
-        "progress_preview_chars",
-        "verbose_console", "verbose", "initial_keys", "seed_keys", "test_key","expand_mode",
-        "sample","sample_per_parent","top_parents_factor",'seed','log_interval'
+        "params", "beam_width", "rounds",
+        "expand_mode", "sample_per_parent", "top_parents_factor",
+        "max_children_per_parent",
+        "plateau_rounds", "plateau_min_delta", "stop_score",
+        "progress_pct", "print_progress", "progress_preview_chars",
+        "verbose_console", "verbose", "initial_keys", "seed_keys", "test_key", "seed", "log_interval",
     },
     "ga": {
-        "params","pop_size", "generations", "elite_frac", "cx_frac", "mut_prob", "local_improve_iters",
-        "patience_rounds", "patience_min_delta", "stop_score", "progress_pct", "print_progress",
-        "progress_preview_chars",
-        "verbose_console", "verbose","initial_keys", "seed_keys", "test_key",'seed','log_interval',
-        'auto_cooling', 'gens', 'plateau_gens', 'pop', 'tournament_k'
+        "params", "pop_size", "generations", "elite_frac", "cx_frac", "mut_prob", "local_improve_iters",
+        "tournament_k",
+        "plateau_rounds", "plateau_min_delta", "stop_score",
+        "progress_pct", "print_progress", "progress_preview_chars",
+        "verbose_console", "verbose", "initial_keys", "seed_keys", "test_key", "seed", "log_interval",
     },
     "sa": {
-        "sa_auto_cooling", "sa_iters", "tol","params","iters", "sa_init_temp", "sa_min_temp", "sa_cooling",
-        "patience_rounds","patience_min_delta", "stop_score", "progress_pct", "print_progress",
-        "progress_preview_chars",
-        "verbose_console", "verbose", "initial_keys","seed_keys", "test_key",'seed','log_interval',
-        'auto_cooling', 'local_improve_on_accept','sa_elitism', 'sa_rescue_drop_abs',
-        'sa_rescue_drop_ratio', 'sa_reseed_interval'
+        "params", "tol", "iters", "T0", "Tmin", "cool", "auto_cooling",
+        "local_improve_on_accept", "sa_elitism", "sa_rescue_drop_abs", "sa_rescue_drop_ratio",
+        "sa_reseed_interval",
+        "plateau_rounds", "plateau_min_delta", "stop_score",
+        "progress_pct", "print_progress", "progress_preview_chars",
+        "verbose_console", "verbose", "initial_keys", "seed_keys", "test_key", "seed", "log_interval",
     },
     "hybrid": {
         "ga", "sa", "beam_width", "generations", "pop_size", "iters", "phase_order",
-        "patience_rounds", "patience_min_delta", "stop_score", "progress_pct", "print_progress",
+        "plateau_rounds", "plateau_min_delta", "stop_score", "progress_pct", "print_progress",
         "progress_preview_chars",
-        "verbose_console", "verbose","initial_keys", "seed_keys", "test_key","use_beam","rounds",
-        "expand_mode","sample","sample_per_parent","top_parents_factor",'seed','log_interval'
-    }
+        "verbose_console", "verbose", "initial_keys", "seed_keys", "test_key", "use_beam", "rounds",
+        "expand_mode", "sample_per_parent", "top_parents_factor", "seed", "log_interval",
+    },
 }
 
-def resolve_optimizer_aliases(name: str, params: Dict[str, Any]) -> Dict[str, Any]:
-    """**Strict** canonicalisation: accepts only v1 keys; raises on unknowns.
+_COMMON_ALIASES: dict[str, str] = {
+    "patience_rounds": "plateau_rounds",
+    "no_improve_rounds": "plateau_rounds",
+    "patience_min_delta": "plateau_min_delta",
+    "patience_delta": "plateau_min_delta",
+}
 
-    We keep the function name for compatibility with existing import sites,
-    but it no longer expands legacy aliases. This aligns with the v1 goal
-    to remove magic strings and synonyms.
-    """
-    keyset = _CANON_OPTS.get((name or "").lower())
+_ALIAS_MAP: dict[str, dict[str, str]] = {
+    "beam": {
+        "width": "beam_width",
+        "max_children_per_parent": "sample_per_parent",
+    },
+    "ga": {
+        "gens": "generations",
+        "iterations": "generations",
+        "iters": "generations",
+        "pop": "pop_size",
+        "population": "pop_size",
+        "plateau_gens": "plateau_rounds",
+    },
+    "sa": {
+        "sa_iters": "iters",
+        "iterations": "iters",
+        "sa_init_temp": "T0",
+        "sa_min_temp": "Tmin",
+        "sa_cooling": "cool",
+        "sa_auto_cooling": "auto_cooling",
+    },
+    "hybrid": {
+        "gens": "generations",
+        "iters": "iters",
+        "iterations": "iters",
+        "pop": "pop_size",
+        "population": "pop_size",
+        "plateau_gens": "plateau_rounds",
+    },
+}
+
+def _apply_aliases(params: Dict[str, Any], aliases: Dict[str, str]) -> Dict[str, Any]:
+    out = dict(params)
+    for alias, canonical in aliases.items():
+        if alias in out:
+            if canonical not in out:
+                out[canonical] = out[alias]
+            out.pop(alias)
+    return out
+
+def resolve_optimizer_aliases(name: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    """Strict canonicalisation: normalize legacy aliases to canonical keys and raise on unknowns."""
+    name_key = (name or "").lower()
+    keyset = _CANON_OPTS.get(name_key)
     if keyset is None:
         raise ValueError(f"Unknown optimiser '{name}'. Allowed: {sorted(_CANON_OPTS)}")
 
-    unknown = [k for k in params.keys() if k not in keyset]
+    normalized = _apply_aliases(params, _COMMON_ALIASES)
+    normalized = _apply_aliases(normalized, _ALIAS_MAP.get(name_key, {}))
+
+    unknown = [k for k in normalized.keys() if k not in keyset]
     if unknown:
         allowed = ", ".join(sorted(keyset))
         bad = ", ".join(sorted(unknown))
         raise ValueError(f"Unknown {name} parameter(s): {bad}. Allowed: {allowed}")
 
     # Shallow copy to avoid caller mutation; values pass through unchanged
-    return dict(params)
+    return dict(normalized)
 
 
 # ------------------------------ scorer ------------------------------ #

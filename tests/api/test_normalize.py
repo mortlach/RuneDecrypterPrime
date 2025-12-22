@@ -150,11 +150,11 @@ def test_normalize_text_permutation_and_helpers():
 
 
 def test_normalize_optimizer_spec_flattens_params():
-    spec = {"name": "beam", "params": {"beam_width": 4, "patience_rounds": 1}}
+    spec = {"name": "beam", "params": {"beam_width": 4, "plateau_rounds": 1}}
     out = normalize_optimizer_spec(spec)
     assert out["name"] == "beam"
     assert out["beam_width"] == 4
-    assert out["patience_rounds"] == 1
+    assert out["plateau_rounds"] == 1
 
 
 def test_normalize_logging_cfg_filters_and_normalizes_paths(tmp_path):
@@ -168,3 +168,4 @@ def test_normalize_logging_cfg_filters_and_normalizes_paths(tmp_path):
     assert isinstance(cfg, LoggingConfig)
     assert cfg.verbose is False
     assert cfg.out_root == str(tmp_path)
+

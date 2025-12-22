@@ -115,8 +115,8 @@ def solve_with_wrappers(
     solver_spec = api.SolverSpec.beam(
         beam_width=18,
         stop_score=0.55,
-        patience_rounds=6,
-        patience_min_delta=1e-4,
+        plateau_rounds=6,
+        plateau_min_delta=1e-4,
         log_interval=25,
         seed=1337,
         **_progress_kwargs(demo),
@@ -149,8 +149,8 @@ def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any
         elite_frac=0.2,
         mut_prob=0.15,
         stop_score=0.5,
-        patience_rounds=4,
-        patience_min_delta=1e-4,
+        plateau_rounds=4,
+        plateau_min_delta=1e-4,
         **_progress_kwargs(demo),
         seed=4242,
     )
@@ -195,3 +195,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
