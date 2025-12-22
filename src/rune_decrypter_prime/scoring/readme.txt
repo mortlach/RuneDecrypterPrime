@@ -35,3 +35,9 @@ Extending scoring
    `tests/scoring/` to confirm NumPy and Torch agree within tolerance.
 3. **Objectives:** add them to `ObjectiveSpec` / `api/normalize.py`, then update
    `_extract()` logic and the ECDF lookup to respect the new stats.
+
+Hamming component
+-----------------
+- Build the optional C++ extension once via `scoring/hamming/setup_hamming.py`.
+- Configure with `hamming_*` fields on `ScoringConfig` (wordlist dir, weight,
+  max_hd, direction mode, length weights). Defaults keep the component disabled.

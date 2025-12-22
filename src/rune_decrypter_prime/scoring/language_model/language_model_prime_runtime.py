@@ -64,6 +64,7 @@ class ECDFCache:
         self.root: Path = (root or default_lm_root()).resolve()
         self.idx = load_index(self.root)
         self._cache: dict[tuple, tuple[np.ndarray, np.ndarray]] = {}
+        self._printed_files: set[Path] = set()
 
     def _ecdf_path(self, *, model: str, mode: str, pos: str, n: int, stat: str) -> Path:
         model_cfg = self.idx.models[model]
@@ -78,6 +79,13 @@ class ECDFCache:
         fp = self._ecdf_path(model=model, mode=mode, pos=pos, n=n, stat=stat)
         if not fp.exists():
             raise FileNotFoundError(f"ECDF file not found: {fp}")
+        if fp not in self._printed_files:
+            try:
+                rel = fp.relative_to(self.root)
+            except Exception:
+                rel = fp
+            print(f"[LM ECDF] Loading {rel}")
+            self._printed_files.add(fp)
         arr = np.load(fp, allow_pickle=False)
         grid = np.asarray(arr["grid"], dtype=np.float32)
         q = np.asarray(arr["q"], dtype=np.float32)

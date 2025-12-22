@@ -67,6 +67,21 @@ def execute_run(
     )
     instance = ProblemInstance.materialise(spec)
 
+    progress_cb = None
+    if isinstance(logging, dict):
+        cb = logging.get("progress_callback")
+        if callable(cb):
+            progress_cb = cb
+    if progress_cb is not None:
+        tele = getattr(instance.problem, "telemetry", None)
+        if tele is None:
+            tele = {}
+            instance.problem.telemetry = tele
+        try:
+            tele["progress_callback"] = progress_cb
+        except Exception:
+            pass
+
     # 3) EngineConfig + run
     solver_kind: SolverName = normalize_optimizer_name(solver.name)
     log_int = 50

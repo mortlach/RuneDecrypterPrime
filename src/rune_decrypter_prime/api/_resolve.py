@@ -66,7 +66,11 @@ def resolve_optimizer_aliases(name: str, params: Dict[str, Any]) -> Dict[str, An
 _CANON_SCORER_KEYS = {"model_root","smoothing","alpha","oov_policy","include_char",
                       "use_word_breaks","n_char","n_wli","win","se_mode","objective",
                       "weights","maximize","encoding_dir","char_weights","wli_weights",
-                      "impl","dtype"}
+                      "impl","dtype",
+                      "hamming_enabled","hamming_wordlist_dir","hamming_build_rtl",
+                      "hamming_weight","hamming_weight_max","hamming_ramp_start_frac","hamming_ramp_end_frac",
+                      "hamming_max_hd","hamming_length_weights",
+                      "hamming_direction_mode"}
 
 def resolve_scorer_aliases(params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """Validate scorer params to canonical v1 keys; raise on unknown.

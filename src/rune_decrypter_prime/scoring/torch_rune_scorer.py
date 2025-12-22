@@ -216,6 +216,48 @@ class RuneScorerTorch(BaseScorer):
         }
         self._last_stats: Dict[str, Any] = {}
 
+        # Optional Hamming backend (shared C++ module)
+        self._hamming_backend = None
+        raw_hw = _cfg_get(scorer_cfg, "hamming_weight", None)
+        hw_max_default = float(_cfg_get(scorer_cfg, "hamming_weight_max", 0.01) or 0.0)
+        if raw_hw is None:
+            if bool(_cfg_get(scorer_cfg, "hamming_enabled", False)):
+                self._hamming_weight = hw_max_default
+            else:
+                self._hamming_weight = 0.0
+        else:
+            self._hamming_weight = float(raw_hw)
+        self._hamming_weight_max: float = float(_cfg_get(scorer_cfg, "hamming_weight_max", hw_max_default))
+        self._hamming_ramp_start: float = float(_cfg_get(scorer_cfg, "hamming_ramp_start_frac", 0.2) or 0.0)
+        self._hamming_ramp_end: float = float(_cfg_get(scorer_cfg, "hamming_ramp_end_frac", 0.7) or 1.0)
+        self._hamming_max_hd: int = int(_cfg_get(scorer_cfg, "hamming_max_hd", 2 ** 31 - 1))
+        self._hamming_direction_mode: str = str(_cfg_get(scorer_cfg, "hamming_direction_mode", "match") or "match").lower()
+        self._hamming_enabled: bool = bool(_cfg_get(scorer_cfg, "hamming_enabled", False) or self._hamming_weight != 0.0)
+        self._hamming_length_weights = None
+        try:
+            lw = _cfg_get(scorer_cfg, "hamming_length_weights")
+            if lw:
+                self._hamming_length_weights = {int(k): float(v) for k, v in dict(lw).items()}
+        except Exception:
+            self._hamming_length_weights = None
+
+        if self._hamming_enabled:
+            try:
+                from rune_decrypter_prime.scoring.hamming.loader import load_raw1grams_wordlists
+                from rune_decrypter_prime.scoring.hamming.backend import HammingBackend
+
+                wl_dir = _cfg_get(scorer_cfg, "hamming_wordlist_dir")
+                build_rtl = bool(_cfg_get(scorer_cfg, "hamming_build_rtl", False))
+                wl_ltr, wl_rtl = load_raw1grams_wordlists(wl_dir, build_rtl=build_rtl)
+                self._hamming_backend = HammingBackend(
+                    wl_ltr,
+                    wl_rtl if build_rtl else None,
+                    max_hd=self._hamming_max_hd,
+                    length_weights=self._hamming_length_weights,
+                )
+            except Exception:
+                self._hamming_backend = None
+
         # tables provider + caches
         self._prov: TablesProvider | None = None
         self._tables: Dict[Tuple[str, int], Dict[str, Any]] = {}
@@ -383,6 +425,29 @@ class RuneScorerTorch(BaseScorer):
         score_mean_vec = mix.mean(axis=1).astype(np.float32, copy=False)
         score_std_vec  = mix.std(axis=1).astype(np.float32, copy=False)
 
+        hamming_batch = None
+        hamming_avg_batch = None
+        if self._hamming_backend is not None and wli_b is not None:
+            try:
+                totals: list[float] = []
+                avgs: list[float] = []
+                for i in range(B):
+                    stats = self._hamming_backend.total_min_hd_stats(
+                        pt_b[i].tolist(),
+                        wli_b[i].tolist(),
+                        direction=self.direction,
+                        mode=self._hamming_direction_mode,
+                    )
+                    totals.append(float(stats.get("total_hd", 0.0)))
+                    avgs.append(float(stats.get("avg_hd_word", stats.get("total_hd", 0.0))))
+                penalties_arr = np.asarray(avgs, dtype=np.float32)
+                score_mean_vec = score_mean_vec - self._hamming_weight * penalties_arr
+                hamming_batch = np.asarray(totals, dtype=np.float32)
+                hamming_avg_batch = penalties_arr
+            except Exception:
+                hamming_batch = None
+                hamming_avg_batch = None
+
         # record telemetry (no-throw)
         try:
             if B == 1:
@@ -391,6 +456,9 @@ class RuneScorerTorch(BaseScorer):
                     "n_windows": int(mix.shape[1]),
                     "score_mean": float(score_mean_vec[0]),
                     "score_std": float(score_std_vec[0]),
+                    "hamming_total_hd": (float(hamming_batch[0]) if hamming_batch is not None else None),
+                    "hamming_avg_hd": (float(hamming_avg_batch[0]) if hamming_avg_batch is not None else None),
+                    "hamming_weight": self._hamming_weight,
                 }
             else:
                 self._last_stats = {
@@ -398,6 +466,9 @@ class RuneScorerTorch(BaseScorer):
                     "n_windows": int(mix.shape[1]),
                     "score_mean_batch": score_mean_vec.tolist(),
                     "score_std_batch": score_std_vec.tolist(),
+                    "hamming_total_hd_batch": (hamming_batch.tolist() if hamming_batch is not None else None),
+                    "hamming_avg_hd_batch": (hamming_avg_batch.tolist() if hamming_avg_batch is not None else None),
+                    "hamming_weight": self._hamming_weight,
                 }
             _tstash(self._telemetry, **self._last_stats)
 
@@ -409,6 +480,19 @@ class RuneScorerTorch(BaseScorer):
             pass
 
         return score_mean_vec
+
+    def set_hamming_progress(self, progress: float) -> None:
+        """
+        Optional hook for solvers: update the effective Hamming weight using a
+        piecewise-linear ramp based on progress in [0,1].
+        """
+        if not self._hamming_enabled:
+            return
+        try:
+            from rune_decrypter_prime.scoring.hamming.anneal import compute_hamming_weight
+            self._hamming_weight = float(compute_hamming_weight(progress, self._hamming_weight_max, self._hamming_ramp_start, self._hamming_ramp_end))
+        except Exception:
+            pass
 
     # ---------- BaseScorer API ----------
 
@@ -424,7 +508,7 @@ class RuneScorerTorch(BaseScorer):
         pt_b = np.stack(P, axis=0)
 
         wli_b = None
-        if wlis is not None and bool(self.use_wli):
+        if wlis is not None:
             if isinstance(wlis, np.ndarray):
                 if wlis.ndim == 2 and wlis.shape[1] == 2:
                     wli_b = np.stack([wlis] * len(P), axis=0).astype(np.uint8, copy=False)

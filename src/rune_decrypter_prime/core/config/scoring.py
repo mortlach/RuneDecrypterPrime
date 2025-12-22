@@ -69,6 +69,17 @@ class ScoringConfig:
     impl: Optional[ScorerImpl] = ScorerImpl.AUTO
     dtype: Literal["float32", "float64"] = "float32"
     objective: ObjectiveSpec = ObjectiveSpec(family=ObjectiveFamily.PCT,stat=Stat.LOGP,win=10)
+    # Optional Hamming scorer component
+    hamming_enabled: bool = False
+    hamming_wordlist_dir: Path | None = None
+    hamming_build_rtl: bool = False
+    hamming_weight: float | None = None
+    hamming_weight_max: float = 0.01
+    hamming_ramp_start_frac: float = 0.2
+    hamming_ramp_end_frac: float = 0.7
+    hamming_max_hd: int = 1_000_000
+    hamming_length_weights: Dict[int, float] = field(default_factory=dict)
+    hamming_direction_mode: str = "match"  # "match" | "both"
 
     def __post_init__(self) -> None:
         if self.encoding_dir is not None:
@@ -91,6 +102,14 @@ class ScoringConfig:
             fam = ensure_objective_family(obj.family)
             stat = ensure_stat(obj.stat) if obj.stat is not None else None
             self.objective = ObjectiveSpec(family=fam, stat=stat, win=obj.win)
+
+        if isinstance(self.hamming_wordlist_dir, (str, bytes)):
+            self.hamming_wordlist_dir = Path(self.hamming_wordlist_dir)
+        self.hamming_direction_mode = str(self.hamming_direction_mode or "match").lower()
+        if self.hamming_direction_mode not in {"match", "both"}:
+            raise ValueError("hamming_direction_mode must be 'match' or 'both'")
+        self.hamming_ramp_start_frac = float(self.hamming_ramp_start_frac)
+        self.hamming_ramp_end_frac = float(self.hamming_ramp_end_frac)
 
         self.char_weights = self._normalise_channel_weights(self.char_weights, 'char_weights')
         self.wli_weights = self._normalise_channel_weights(self.wli_weights, 'wli_weights')
@@ -120,6 +139,16 @@ class ScoringConfig:
         out["wli_weights"] = self.wli_weights
         out["impl"] = self.impl.value if isinstance(self.impl, ScorerImpl) else self.impl
         out["dtype"] = self.dtype
+        out["hamming_enabled"] = self.hamming_enabled
+        out["hamming_wordlist_dir"] = self.hamming_wordlist_dir
+        out["hamming_build_rtl"] = self.hamming_build_rtl
+        out["hamming_weight"] = self.hamming_weight
+        out["hamming_weight_max"] = self.hamming_weight_max
+        out["hamming_ramp_start_frac"] = self.hamming_ramp_start_frac
+        out["hamming_ramp_end_frac"] = self.hamming_ramp_end_frac
+        out["hamming_max_hd"] = self.hamming_max_hd
+        out["hamming_length_weights"] = dict(self.hamming_length_weights or {})
+        out["hamming_direction_mode"] = self.hamming_direction_mode
         return out
 
 

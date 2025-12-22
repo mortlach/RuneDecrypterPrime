@@ -290,6 +290,7 @@ class BeamSolver(SolverBase):
 
         try:
             # 1) Seed beam
+            self._maybe_update_hamming_progress(0.0)
             if self.seed_keys is not None and len(self.seed_keys) > 0:
                 beam = np.ascontiguousarray(self.seed_keys, dtype=KEY_DTYPE)
                 if beam.shape[0] < W:
@@ -314,6 +315,7 @@ class BeamSolver(SolverBase):
             )
 
             for r in range(1, rounds + 1):
+                self._maybe_update_hamming_progress(r / float(rounds))
                 expanded, attempted, parents_used, cpp = self._expand_round_safe(beam, scores, r)
 
                 if dedup_on:

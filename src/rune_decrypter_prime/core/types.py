@@ -69,7 +69,6 @@ class KeyKind(Enum):
 class KeyOpsFamily(Enum):
     """KeyOps families recognised by the core/keyops registry."""
     PERMUTATION = "permutation"
-    CRIBBED_PERMUTATION = "cribbed_permutation"
     VECTOR = "vector"
     AFFINE = "affine"
     MATRIX = "matrix"
@@ -154,8 +153,6 @@ def ensure_scorer_impl(value) -> ScorerImpl:
 def ensure_keyops_family(value) -> KeyOpsFamily:
     return _coerce_enum_value(KeyOpsFamily, value, aliases={
         "perm": KeyOpsFamily.PERMUTATION,
-        "cribbed_perm": KeyOpsFamily.CRIBBED_PERMUTATION,
-        "crib_perm": KeyOpsFamily.CRIBBED_PERMUTATION,
     }, param_name="keyops family")
 
 

@@ -117,10 +117,13 @@ class SASolver(SolverBase):
                                                                         self.get_param("no_improve_rounds", 0))))
 
             T = float(T0)
+            self._maybe_update_hamming_progress(0.0)
             for it in range(1, I + 1):
                 # Temperature schedule (geometric)
                 if it > 1:
                     T = max(Tmin, T * cool)
+                # Update Hamming weight based on progress through SA
+                self._maybe_update_hamming_progress(it / float(I))
 
                 # Neighbour + evaluate
                 k2 = self._neighbor(k_cur)

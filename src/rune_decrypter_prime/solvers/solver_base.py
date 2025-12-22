@@ -131,6 +131,7 @@ class SolverBase:
         "decrypt_time_s", "score_time_s", "tokens",
         "phase", "reason", "round", "rounds", "parents", "cands_per_parent",
         "evals",
+        "hamming_weight",
         # patience
         "since_improve", "patience_left",
         # sa stuff
@@ -210,10 +211,25 @@ class SolverBase:
             arr = np.asarray(self.seed_keys, dtype=self.key_dtype)
             if arr.ndim == 1:
                 arr = arr.reshape(1, -1)
-            normalized_rows = [
-                np.asarray(self.keyops.normalize(row), dtype=self.key_dtype)
-                for row in arr
-            ]
+            normalized_rows = []
+            dropped = 0
+            rng_fallback = self.rng or np.random.default_rng()
+            for row in arr:
+                try:
+                    normalized_rows.append(np.asarray(self.keyops.normalize(row), dtype=self.key_dtype))
+                    continue
+                except Exception as exc:
+                    logger.debug("Seed normalize failed, attempting fallback: %s", exc)
+                try:
+                    replacement = np.asarray(self.keyops.random(rng_fallback), dtype=self.key_dtype)
+                    normalized_rows.append(replacement)
+                except Exception as exc:
+                    dropped += 1
+                    logger.warning("Dropping invalid seed after fallback failure: %s", exc)
+            if not normalized_rows:
+                raise ValueError("No valid seed keys after normalization")
+            if dropped:
+                self._append_seed_diag("seed_normalize_dropped", {"dropped": dropped, "total": int(arr.shape[0])})
             self.seed_keys = np.ascontiguousarray(np.vstack(normalized_rows), dtype=self.key_dtype)
 
     # ---------------- Param + telemetry helpers ----------------
@@ -343,6 +359,9 @@ class SolverBase:
             "score_time_s": live["score_time_s"],
             "tokens": live["tokens"],
         })
+        hw = getattr(self, "_hamming_weight_current", None)
+        if hw is not None:
+            payload.setdefault("hamming_weight", hw)
         if live.get("evals") is not None:
             payload.setdefault("evals", live["evals"])
 
@@ -370,7 +389,26 @@ class SolverBase:
                 payload.setdefault("preview", preview)
 
         self._maybe_console_progress(payload)
+        self._run_progress_callback(payload, preview_key)
         self._progress(**payload)
+
+    def _run_progress_callback(self, payload, preview_key):
+        tele = getattr(self.problem, "telemetry", None)
+        cb = None
+        if tele is not None:
+            try:
+                cb = getattr(tele, "progress_callback", None)
+            except Exception:
+                cb = None
+            if cb is None and isinstance(tele, dict):
+                cb = tele.get("progress_callback")
+        if not callable(cb):
+            return
+        key_list = None
+        if preview_key is not None:
+            key_arr = np.asarray(preview_key, dtype=self.key_dtype).reshape(-1)
+            key_list = key_arr.astype(int).tolist()
+        cb(dict(payload), key_list)
 
     # ---------------- Early-stop / Patience helpers ----------------
     def _maybe_console_progress(self, payload: Dict[str, Any]) -> None:
@@ -459,6 +497,21 @@ class SolverBase:
 
         self._candidates_evaluated += int(keys.shape[0])
         return np.asarray(scores, dtype=np.float64)
+
+    # ---------------- Hamming annealing helper ----------------
+    def _maybe_update_hamming_progress(self, progress: float) -> None:
+        """
+        If the scorer exposes set_hamming_progress, update it with a progress fraction [0,1].
+        Stores the current weight (best-effort) for diagnostics.
+        """
+        scorer = getattr(self.problem, "scorer", None)
+        fn = getattr(scorer, "set_hamming_progress", None) if scorer is not None else None
+        if callable(fn):
+            try:
+                fn(progress)
+                self._hamming_weight_current = getattr(scorer, "_hamming_weight", None)
+            except Exception:
+                self._hamming_weight_current = None
 
     def _slow_evaluate_keys(self, keys: np.ndarray) -> np.ndarray:
         """Extremely conservative fallback."""

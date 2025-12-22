@@ -109,6 +109,49 @@ class RuneScorer(BaseScorer):
         )
         self._ecdf = self._rt.ecdf
 
+        # Optional Hamming backend (lazy import; skip if unavailable or disabled)
+        self._hamming_backend = None
+        raw_hw = _cfg_get(scorer_cfg, "hamming_weight", None)
+        hw_max_default = float(_cfg_get(scorer_cfg, "hamming_weight_max", 0.01) or 0.0)
+        if raw_hw is None:
+            if bool(_cfg_get(scorer_cfg, "hamming_enabled", False)):
+                self._hamming_weight = hw_max_default
+            else:
+                self._hamming_weight = 0.0
+        else:
+            self._hamming_weight = float(raw_hw)
+        self._hamming_weight_max: float = float(_cfg_get(scorer_cfg, "hamming_weight_max", hw_max_default))
+        self._hamming_ramp_start: float = float(_cfg_get(scorer_cfg, "hamming_ramp_start_frac", 0.2) or 0.0)
+        self._hamming_ramp_end: float = float(_cfg_get(scorer_cfg, "hamming_ramp_end_frac", 0.7) or 1.0)
+        self._hamming_max_hd: int = int(_cfg_get(scorer_cfg, "hamming_max_hd", 2 ** 31 - 1))
+        self._hamming_direction_mode: str = str(_cfg_get(scorer_cfg, "hamming_direction_mode", "match") or "match").lower()
+        self._hamming_enabled: bool = bool(_cfg_get(scorer_cfg, "hamming_enabled", False) or self._hamming_weight != 0.0)
+        self._hamming_length_weights = None
+        try:
+            lw = _cfg_get(scorer_cfg, "hamming_length_weights")
+            if lw:
+                self._hamming_length_weights = {int(k): float(v) for k, v in dict(lw).items()}
+        except Exception:
+            self._hamming_length_weights = None
+
+        if self._hamming_enabled:
+            try:
+                from rune_decrypter_prime.scoring.hamming.loader import load_raw1grams_wordlists
+                from rune_decrypter_prime.scoring.hamming.backend import HammingBackend
+
+                wl_dir = _cfg_get(scorer_cfg, "hamming_wordlist_dir")
+                build_rtl = bool(_cfg_get(scorer_cfg, "hamming_build_rtl", False))
+                wl_ltr, wl_rtl = load_raw1grams_wordlists(wl_dir, build_rtl=build_rtl)
+                self._hamming_backend = HammingBackend(
+                    wl_ltr,
+                    wl_rtl if build_rtl else None,
+                    max_hd=self._hamming_max_hd,
+                    length_weights=self._hamming_length_weights,
+                )
+            except Exception:
+                warnings.warn("Hamming backend unavailable; skipping Hamming scoring component", RuntimeWarning, stacklevel=2)
+                self._hamming_backend = None
+
         # Telemetry invariants
         self._device_str = "cpu"
         # Caches for WLI conversions/windows (bounded LRU)
@@ -159,8 +202,10 @@ class RuneScorer(BaseScorer):
             pt_w = np.ascontiguousarray([pt[s:s + win] for s in starts], dtype=np.uint8)
 
         # Optional WLI (shared per window)
-        if wli_windows is not None and self.use_word_breaks:
+        wli = None
+        if wli_windows is not None:
             wli = self._get_wli_array(wli_windows)
+        if wli is not None and self.use_word_breaks:
             wli_w = self._get_wli_windows(wli, win, nwin)
         else:
             wli_w = None
@@ -200,12 +245,45 @@ class RuneScorer(BaseScorer):
         mean = float(np.mean(perwin, dtype=np.float64))
         std = float(np.std(perwin, dtype=np.float64))  # population/std across windows
 
+        hamming_total = None
+        hamming_avg = None
+        if self._hamming_backend is not None and wli is not None:
+            try:
+                stats = self._hamming_backend.total_min_hd_stats(
+                    pt.tolist(),
+                    wli.tolist(),
+                    direction=self.direction,
+                    mode=self._hamming_direction_mode,
+                )
+                hamming_total = float(stats.get("total_hd", 0.0))
+                hamming_avg = float(stats.get("avg_hd_word", hamming_total))
+                mean = float(mean - self._hamming_weight * hamming_avg)
+            except Exception:
+                hamming_total = None
+                hamming_avg = None
+
         self._stash_stats(
             dtype=self._dtype,
             impl="numpy", device=self._device_str,
             score_mean=mean, score_std=std, n_windows=int(nwin),
+            hamming_total_hd=(hamming_total if hamming_total is not None else None),
+            hamming_avg_hd=(hamming_avg if hamming_avg is not None else None),
+            hamming_weight=self._hamming_weight,
         )
         return mean
+
+    def set_hamming_progress(self, progress: float) -> None:
+        """
+        Optional hook for solvers: update the effective Hamming weight using a
+        piecewise-linear ramp based on progress in [0,1].
+        """
+        if not self._hamming_enabled:
+            return
+        try:
+            from rune_decrypter_prime.scoring.hamming.anneal import compute_hamming_weight
+            self._hamming_weight = float(compute_hamming_weight(progress, self._hamming_weight_max, self._hamming_ramp_start, self._hamming_ramp_end))
+        except Exception:
+            pass
 
     def batch_score(self, pts: Sequence[Iterable[int]], wlis: Sequence[Iterable[Tuple[int, int]]] | Iterable[Tuple[int, int]] | None = None) -> np.ndarray:
         pts_seq = list(pts)

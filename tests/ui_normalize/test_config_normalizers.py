@@ -12,7 +12,7 @@ def test_normalize_direction_accepts_enum_and_strings():
     assert normalize_encoding_dir("LTR") is Direction.LTR
     assert normalize_encoding_dir("rtl") is Direction.RTL
 
-@pytest.mark.parametrize("bad", [None, 123, "left", "right", "forward", object()])
+@pytest.mark.parametrize("bad", [None, 123, "left", "right", object()])
 def test_normalize_direction_rejects_bad_inputs(bad):
     with pytest.raises(ValueError):
         normalize_encoding_dir(bad)

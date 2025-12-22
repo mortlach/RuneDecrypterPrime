@@ -85,8 +85,16 @@ def normalize_encoding_dir(direction: Union[str, Direction]) -> Direction:
         raise ValueError("encoding_dir must be 'ltr' or 'rtl', not None.")
     if isinstance(direction, str):
         key = direction.strip().lower()
+        alias = {
+            "fwd": "ltr",
+            "forward": "ltr",
+            "rev": "rtl",
+            "reverse": "rtl",
+        }
+        key = alias.get(key, key)
         if key not in {"ltr", "rtl"}:
             raise ValueError(f"Unknown encoding_dir '{direction}'. Expected 'ltr' or 'rtl'.")
+        direction = key
     try:
         return ensure_direction(direction)
     except (TypeError, ValueError) as exc:

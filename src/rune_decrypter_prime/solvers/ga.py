@@ -217,7 +217,9 @@ class GASolver(SolverBase):
                                    patience_override=int(self.get_param("patience_rounds",
                                                                         self.get_param("no_improve_rounds", 0))))
 
+            self._maybe_update_hamming_progress(0.0)
             for gen in range(1, G + 1):
+                self._maybe_update_hamming_progress(gen / float(G))
                 # Elitism
                 elites_idx = np.arange(elites) if elites > 0 else np.empty((0,), dtype=np.int64)
                 elite_keys = pop[elites_idx] if elites > 0 else pop[:0]
