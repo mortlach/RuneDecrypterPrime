@@ -100,7 +100,7 @@ class RuneScorer(BaseScorer):
         self._weights_pair: Optional[Tuple[float, float]] = _cfg_get(scorer_cfg, "weights")
 
         # Language-model runtime (LM tables + ECDF cache)
-        self._rt = LmPrimeRuntime(
+        self._rt = LmPrimeRuntime.get_cached(
             root=getattr(scorer_cfg, "model_root", None),
             smoothing=getattr(scorer_cfg, "smoothing", None),
             alpha=float(getattr(scorer_cfg, "alpha", 0.0) or 0.0),

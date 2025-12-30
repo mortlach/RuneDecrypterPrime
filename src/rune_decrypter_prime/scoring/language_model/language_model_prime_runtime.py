@@ -40,6 +40,7 @@ import numpy as np
 from .language_model_prime import LanguageModelPrime
 from .paths import load_index, expand_pattern, default_lm_root  # (used by ECDFCache)
 
+_LM_RUNTIME_CACHE: dict[tuple, "LmPrimeRuntime"] = {}
 
 # ──────────────────────────────────────────────────────────────────────────────
 # ECDF loader/cache
@@ -170,6 +171,38 @@ class LmPrimeRuntime:
         self.ecdf = ECDFCache(self.root)
         # Coverage cache: key = (L, n, wise:bool, N)
         self._coverage_cache: Dict[Tuple[int, int, bool, int], Tuple[np.ndarray, np.ndarray]] = {}
+
+    @classmethod
+    def get_cached(
+        cls,
+        root: Optional[Path] = None,
+        *,
+        smoothing: str = "auto_gt",
+        alpha: float = 0.5,
+        oov_policy: str = "floor_min_seen",
+        include_char: bool = True,
+    ) -> "LmPrimeRuntime":
+        """
+        Return a shared LmPrimeRuntime instance for the given configuration.
+
+        This avoids reloading LM tables/ECDF files across repeated runs within
+        the same process (e.g., window scans).
+        """
+        root_path = (root or default_lm_root()).resolve()
+        smoothing = "auto_gt" if smoothing is None else smoothing
+        oov_policy = "floor_min_seen" if oov_policy is None else oov_policy
+        key = (str(root_path), str(smoothing), float(alpha), str(oov_policy), bool(include_char))
+        cached = _LM_RUNTIME_CACHE.get(key)
+        if cached is None:
+            cached = cls(
+                root=root_path,
+                smoothing=smoothing,
+                alpha=float(alpha),
+                oov_policy=oov_policy,
+                include_char=include_char,
+            )
+            _LM_RUNTIME_CACHE[key] = cached
+        return cached
 
     # ─── internals ───
 

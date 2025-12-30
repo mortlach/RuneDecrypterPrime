@@ -11,6 +11,13 @@ from .normalize import (
     invert_permutation,
 )
 from .maps_api import define_map, define_cipher, preview
+from .data_helpers import (
+    get_lp_section,
+    load_lp_master_section,
+    load_lp_master_transcript,
+    load_lp_section,
+    load_lp_section_inputs,
+)
 
 
 __all__ = [
@@ -27,6 +34,11 @@ __all__ = [
     "define_map",
     "define_cipher",
     "preview",
+    "get_lp_section",
+    "load_lp_master_section",
+    "load_lp_master_transcript",
+    "load_lp_section",
+    "load_lp_section_inputs",
     "by_name",
     "cipher_instance"
 ]
