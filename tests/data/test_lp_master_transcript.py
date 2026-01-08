@@ -3,11 +3,13 @@ from __future__ import annotations
 from importlib import util
 from pathlib import Path
 
+from rune_decrypter_prime.api import load_lp_master_section, load_lp_section
 from rune_decrypter_prime.data.liber_primus.lp_data import LP_DATA
 from rune_decrypter_prime.data.liber_primus.lp_master import (
     CANON_PAGE_COUNT,
     RuneGlyphIndex,
     extract_section_ct_wli,
+    extract_section_ct_wli_by_id,
     load_master_transcript,
     match_lp_section,
 )
@@ -69,3 +71,32 @@ def test_pages_54_55_match_old_5455():
 
     assert ct_idx == old_ct
     assert wli == old_wli
+
+
+def test_pages_54_55_span_matches_master_section_and_crosses_boundary():
+    doc = load_master_transcript(attach_catalogue=True)
+    p54 = doc.page_by_canon("54.jpg")
+    p55 = doc.page_by_canon("55.jpg")
+    boundary = p55.rec.g_start
+
+    assert doc._glyph_to_word[boundary - 1] == doc._glyph_to_word[boundary]
+
+    span = doc.glyph_span(p54.rec.g_start, p55.rec.g_end - p54.rec.g_start)
+    ct_span, wli_span = span.ct_wli()
+    ct_api, wli_api = load_lp_master_section(13, split="page")
+
+    assert len(ct_api) == 308
+    assert ct_api == ct_span
+    assert wli_api == wli_span
+
+
+def test_load_lp_master_section_api_matches_direct_extract():
+    doc = load_master_transcript(attach_catalogue=True)
+    ct_direct, wli_direct = extract_section_ct_wli_by_id(doc, section_id=13, split="page")
+    ct_api, wli_api = load_lp_master_section(13, split="page")
+    ct_data, wli_data = load_lp_section(13, split="page")
+
+    assert ct_api == ct_direct
+    assert wli_api == wli_direct
+    assert ct_api == ct_data
+    assert wli_api == wli_data
