@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from rune_decrypter_prime.core.config import CipherConfig
+from rune_decrypter_prime.core.config import CipherConfig, InterruptorConfig
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
 from rune_decrypter_prime.core.types import Direction, KEY_DTYPE
 from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
@@ -25,8 +25,8 @@ def test_interruptors_exact_are_reinserted():
         device="cpu",
         encoding_dir=Direction.LTR,
         name="vigenere",
+        interruptors_cfg=InterruptorConfig(mode="exact", exact=[1]),
     )
-    cfg.interruptors_exact = [1]
 
     cipher = RuneVigenereCipher(cfg)
     problem = DecryptionProblem(cipher=cipher, scorer=ZeroScorer(), c_cfg=cfg)

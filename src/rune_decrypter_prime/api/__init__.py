@@ -11,6 +11,7 @@ from .normalize import (
     invert_permutation,
 )
 from .maps_api import define_map, define_cipher, preview
+from rune_decrypter_prime.core.config import InterruptorConfig
 from .data_helpers import (
     get_lp_section,
     load_lp_master_section,
@@ -34,6 +35,7 @@ __all__ = [
     "define_map",
     "define_cipher",
     "preview",
+    "InterruptorConfig",
     "get_lp_section",
     "load_lp_master_section",
     "load_lp_master_transcript",

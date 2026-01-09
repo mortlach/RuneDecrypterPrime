@@ -42,6 +42,13 @@ class SolverName(Enum):
     HYBRID  = "hybrid"
 
 
+class InterruptorSearchStrategy(Enum):
+    """Search strategy for interruptor positions."""
+    AUTO = "auto"
+    BRUTEFORCE = "bruteforce"
+    KEYOPS = "keyops"
+
+
 class CipherKind(Enum):
     """Canonical cipher family for strict branching in the core.
     UI may keep string fields, but the core uses this Enum only.
@@ -159,6 +166,14 @@ def ensure_keyops_family(value) -> KeyOpsFamily:
         "interruptor": KeyOpsFamily.COMPOSITE,
         "interruptors": KeyOpsFamily.COMPOSITE,
     }, param_name="keyops family")
+
+
+def ensure_interruptor_search_strategy(value) -> InterruptorSearchStrategy:
+    return _coerce_enum_value(
+        InterruptorSearchStrategy,
+        value,
+        param_name="interruptor search strategy",
+    )
 
 
 

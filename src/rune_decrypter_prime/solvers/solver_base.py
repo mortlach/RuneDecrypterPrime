@@ -592,6 +592,49 @@ class SolverBase:
         except Exception:
             return None
 
+    def _interruptor_meta(self, key: np.ndarray) -> Optional[Dict[str, Any]]:
+        """Best-effort interruptor metadata for pretty printers."""
+        problem = getattr(self, "problem", None)
+        if problem is None:
+            return None
+        c_cfg = getattr(problem, "c_cfg", None)
+        if c_cfg is None:
+            return None
+
+        mode = None
+        expected = None
+        cfg = getattr(c_cfg, "interruptors_cfg", None)
+        if cfg is not None and hasattr(cfg, "mode"):
+            mode = getattr(cfg, "mode", None)
+            if mode == "exact":
+                expected = list(getattr(cfg, "exact", None) or [])
+        else:
+            exact = getattr(c_cfg, "interruptors_exact", None)
+            legacy = getattr(c_cfg, "interruptors", None)
+            if exact is not None or legacy is not None:
+                mode = "exact"
+                expected = list(exact or legacy or [])
+
+        split = getattr(self.keyops, "split_key", None)
+        if not callable(split):
+            return None
+        try:
+            core, intr = split(key)
+            core_len = int(np.asarray(core, dtype=self.key_dtype).reshape(-1).size)
+            intr_vals = np.asarray(intr, dtype=np.int64).reshape(-1)
+            found = [int(v) for v in intr_vals.tolist() if int(v) >= 0]
+        except Exception:
+            return None
+
+        meta: Dict[str, Any] = {"found": found}
+        if mode is not None:
+            meta["mode"] = mode
+        if expected is not None:
+            meta["expected"] = list(expected)
+        if core_len >= 0:
+            meta["core_length"] = core_len
+        return meta
+
     # ---------------- Finalization ----------------
 
     def _make_solution(self, best_key: np.ndarray, best_score: float) -> Solution:
@@ -649,6 +692,13 @@ class SolverBase:
                 if live.get("score_time_s") is not None:
                     work.setdefault("score_time_s", float(live["score_time_s"]))
                     timings.setdefault("score_time_s", float(live["score_time_s"]))
+        except Exception:
+            pass
+
+        try:
+            intr_meta = self._interruptor_meta(k)
+            if intr_meta:
+                sol.meta.setdefault("interruptors", intr_meta)
         except Exception:
             pass
 

@@ -6,10 +6,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional, Sequence, Tuple, Any
 
-from rune_decrypter_prime.core.config import CipherConfig
+from rune_decrypter_prime.core.config import CipherConfig, InterruptorConfig
 from rune_decrypter_prime.telemetry.bag import TelemetryBag
 from rune_decrypter_prime.core.telemetry import _Timer
-from rune_decrypter_prime.core.types import Device, ensure_device, KEY_DTYPE
+from rune_decrypter_prime.core.types import (
+    Device,
+    InterruptorSearchStrategy,
+    ensure_device,
+    ensure_interruptor_search_strategy,
+    KEY_DTYPE,
+)
 from rune_decrypter_prime.telemetry.pipeline import device_request_str
 from rune_decrypter_prime.keyops.registry import create as create_keyops
 from rune_decrypter_prime.io.logging_adapter import module_logger
@@ -162,7 +168,7 @@ class DecryptionProblem:
         """
         core_keys, key_interrupts = self._split_key_batch(k_uint8)
         if key_interrupts is None:
-            interrupt_idx = self._resolve_interrupt_idx()
+            interrupt_idx = self._normalize_interrupt_idx(self._resolve_interrupt_idx())
             plains = self.cipher.decrypt(
                 ciphertext=self.ciphertext,
                 key=core_keys,
@@ -182,10 +188,11 @@ class DecryptionProblem:
 
         out = []
         for i in range(core.shape[0]):
+            idx = self._normalize_interrupt_idx(intr[i])
             pt = self.cipher.decrypt(
                 ciphertext=self.ciphertext,
                 key=core[i],
-                interrupt_idx=intr[i],
+                interrupt_idx=idx,
                 interrupt_sym=None,
             )
             if hasattr(pt, "ndim") and pt.ndim >= 2:
@@ -193,8 +200,29 @@ class DecryptionProblem:
             out.append(pt)
         return out
 
+    def _interruptor_cfg(self) -> Optional[InterruptorConfig]:
+        cfg = getattr(self.c_cfg, "interruptors_cfg", None)
+        return cfg if isinstance(cfg, InterruptorConfig) else None
+
+    def _normalize_interrupt_idx(self, idx):
+        if idx is None:
+            return None
+        arr = to_numpy(idx).astype("intp", copy=False).reshape(-1)
+        if arr.size == 0:
+            return None
+        arr = arr[arr >= 0]
+        if arr.size == 0:
+            return None
+        return arr
+
     def _resolve_interrupt_idx(self):
         """Resolve canonical interruptor positions with exact taking precedence."""
+        cfg = self._interruptor_cfg()
+        if cfg is not None:
+            if cfg.mode == "exact":
+                return cfg.exact
+            return None
+
         exact = getattr(self.c_cfg, "interruptors_exact", None)
         if exact is not None:
             return exact
@@ -204,6 +232,15 @@ class DecryptionProblem:
         return None
 
     def _interruptors_search_enabled(self) -> bool:
+        cfg = self._interruptor_cfg()
+        if cfg is not None:
+            if cfg.mode != "pool":
+                return False
+            try:
+                return int(cfg.max_count or 0) > 0 and len(cfg.pool or []) > 0
+            except Exception:
+                return False
+
         if getattr(self.c_cfg, "interruptors_exact", None) is not None:
             return False
         pool = getattr(self.c_cfg, "interruptors_pool", None)
@@ -414,10 +451,11 @@ class DecryptionProblem:
                     pt = self._decrypt_batch(key_core)
                     pt_arr = to_numpy(pt[0] if isinstance(pt, list) else pt)
                 else:
+                    idx = self._normalize_interrupt_idx(key_interrupts[b])
                     pt = self.cipher.decrypt(
                         ciphertext=self.ciphertext,
                         key=key_core,
-                        interrupt_idx=key_interrupts[b],
+                        interrupt_idx=idx,
                         interrupt_sym=None,
                     )
                     pt_arr = to_numpy(pt)
@@ -461,6 +499,7 @@ class DecryptionProblem:
                 ct_idx = to_numpy(ct_arr).astype("uint8", copy=False)
             if interrupt_idx is None:
                 interrupt_idx = self._resolve_interrupt_idx()
+            interrupt_idx = self._normalize_interrupt_idx(interrupt_idx)
             if interrupt_idx is not None and hasattr(cipher, "_as_intp"):
                 try:
                     idx = cipher._as_intp(interrupt_idx, "interrupt_idx")
@@ -588,6 +627,7 @@ class DecryptionProblem:
         key_np = to_numpy(key).astype(self.key_dtype, copy=False).reshape(1, -1)
         key_core, key_interrupts = self._split_key_batch(key_np)
         interrupt_idx = self._resolve_interrupt_idx() if key_interrupts is None else key_interrupts[0]
+        interrupt_idx = self._normalize_interrupt_idx(interrupt_idx)
         if cfg is None:
             pt = self.cipher.decrypt(
                 ciphertext=self.ciphertext,
@@ -653,11 +693,25 @@ class DecryptionProblem:
         if isinstance(pb, bool):
             hints["prefers_batch"] = pb
 
-        pool = getattr(self.c_cfg, "interruptors_pool", None)
-        if pool is not None:
-            hints["interruptors_pool"] = list(pool)
-        max_n = getattr(self.c_cfg, "interruptors_max", None)
-        if max_n is not None:
-            hints["interruptors_max"] = int(max_n)
+        cfg = self._interruptor_cfg()
+        if cfg is not None and cfg.mode == "pool":
+            hints["interruptors_pool"] = list(cfg.pool or [])
+            hints["interruptors_min"] = int(cfg.min_count or 0)
+            if cfg.max_count is not None:
+                hints["interruptors_max"] = int(cfg.max_count)
+            hints["interruptors_sentinel"] = -1
+            try:
+                strategy = ensure_interruptor_search_strategy(cfg.search_strategy)
+            except Exception:
+                strategy = InterruptorSearchStrategy.AUTO
+            hints["interruptors_search_strategy"] = strategy.value
+            hints["interruptors_bruteforce_max"] = int(cfg.bruteforce_max or 0)
+        else:
+            pool = getattr(self.c_cfg, "interruptors_pool", None)
+            if pool is not None:
+                hints["interruptors_pool"] = list(pool)
+            max_n = getattr(self.c_cfg, "interruptors_max", None)
+            if max_n is not None:
+                hints["interruptors_max"] = int(max_n)
 
         return hints

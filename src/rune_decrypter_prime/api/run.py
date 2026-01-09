@@ -15,7 +15,7 @@ from rune_decrypter_prime.api.normalize import (
     normalize_scorer_params,
 )
 from rune_decrypter_prime.api._resolve import resolve_scorer_aliases
-from rune_decrypter_prime.core.config import ScoringConfig, SolverConfig
+from rune_decrypter_prime.core.config import ScoringConfig, SolverConfig, InterruptorConfig
 
 
 class RunAPI:
@@ -45,6 +45,7 @@ class RunAPI:
         telemetry_on: bool = True,
         encoding_dir: Optional[Union[str, Direction]] = Direction.RTL,
         initial_text_permutation_indices: Optional[Sequence[int]] = None,
+        interruptors: Optional[InterruptorConfig | Dict[str, Any]] = None,
         interruptors_exact: Optional[Sequence[int]] = None,
         interruptors_pool: Optional[Sequence[int]] = None,
         interruptors_max: Optional[int] = None,
@@ -101,6 +102,7 @@ class RunAPI:
             encoding_dir=encoding_dir,
             initial_keys=initial_keys,
             initial_text_permutation_indices=initial_text_permutation_indices,
+            interruptors=interruptors,
             interruptors_exact=interruptors_exact,
             interruptors_pool=interruptors_pool,
             interruptors_max=interruptors_max,

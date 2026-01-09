@@ -24,12 +24,32 @@ def _rng_choice(rng, values, size=None, replace=False):
     raise TypeError("RNG must support .choice (Generator/RandomState).")
 
 
+def _ncr_limited(n: int, r: int, limit: int) -> int:
+    if r < 0 or r > n:
+        return 0
+    r = min(r, n - r)
+    if r == 0:
+        return 1
+    if limit <= 0:
+        return limit + 1
+    result = 1
+    for i in range(1, r + 1):
+        result = result * (n - r + i) // i
+        if result > limit:
+            return limit + 1
+    return result
+
+
 @dataclass
 class CompositeKeyConfig:
     K: int
     mod: int = 29
     interruptors_pool: Sequence[int] = ()
+    interruptors_min: int = 0
     interruptors_max: int = 0
+    interruptors_sentinel: int = -1
+    interruptors_search_strategy: str = "auto"
+    interruptors_bruteforce_max: int = 0
     core_family: KeyOpsFamily | str = KeyOpsFamily.VECTOR
 
 
@@ -40,6 +60,7 @@ class CompositeKeyOps(KeyOpBase):
 
     - Core key is managed by a nested KeyOps family (vector/permutation/etc).
     - Interruptor positions are unique, sorted indices from a fixed pool.
+      Unused slots are filled with a sentinel (-1) to support variable counts.
     """
 
     def __init__(self, cfg_or_K: Optional[Any] = None, **kwargs: Any):
@@ -50,7 +71,11 @@ class CompositeKeyOps(KeyOpBase):
                 K=int(cfg_or_K) if cfg_or_K is not None else int(kwargs.get("K")),
                 mod=int(kwargs.get("mod", 29)),
                 interruptors_pool=kwargs.get("interruptors_pool", ()),
+                interruptors_min=int(kwargs.get("interruptors_min", 0) or 0),
                 interruptors_max=int(kwargs.get("interruptors_max", 0) or 0),
+                interruptors_sentinel=int(kwargs.get("interruptors_sentinel", -1)),
+                interruptors_search_strategy=kwargs.get("interruptors_search_strategy", "auto"),
+                interruptors_bruteforce_max=int(kwargs.get("interruptors_bruteforce_max", 0) or 0),
                 core_family=kwargs.get("core_family", KeyOpsFamily.VECTOR),
             )
         else:
@@ -58,14 +83,25 @@ class CompositeKeyOps(KeyOpBase):
                 K=int(kwargs.get("K")),
                 mod=int(kwargs.get("mod", 29)),
                 interruptors_pool=kwargs.get("interruptors_pool", ()),
+                interruptors_min=int(kwargs.get("interruptors_min", 0) or 0),
                 interruptors_max=int(kwargs.get("interruptors_max", 0) or 0),
+                interruptors_sentinel=int(kwargs.get("interruptors_sentinel", -1)),
+                interruptors_search_strategy=kwargs.get("interruptors_search_strategy", "auto"),
+                interruptors_bruteforce_max=int(kwargs.get("interruptors_bruteforce_max", 0) or 0),
                 core_family=kwargs.get("core_family", KeyOpsFamily.VECTOR),
             )
 
         self.core_K: int = int(cfg.K)
         self.mod: int = int(cfg.mod)
-        self.interrupt_K: int = int(cfg.interruptors_max)
+        self.interrupt_K: int = int(getattr(cfg, "interruptors_max", 0))
+        self.interrupt_min: int = int(getattr(cfg, "interruptors_min", 0))
+        self.sentinel: int = int(getattr(cfg, "interruptors_sentinel", -1))
         self.core_family = cfg.core_family
+
+        if self.sentinel >= 0:
+            raise ValueError("interruptors_sentinel must be negative")
+        if self.interrupt_min < 0:
+            raise ValueError("interruptors_min must be >= 0")
 
         pool = np.asarray(list(cfg.interruptors_pool or ()), dtype=np.int64).reshape(-1)
         if pool.size == 0:
@@ -75,6 +111,8 @@ class CompositeKeyOps(KeyOpBase):
             raise ValueError("interruptors_pool values must be >= 0")
         if self.interrupt_K <= 0:
             raise ValueError("CompositeKeyOps requires interruptors_max > 0")
+        if self.interrupt_min > self.interrupt_K:
+            raise ValueError("interruptors_min cannot exceed interruptors_max")
         if pool.size < self.interrupt_K:
             raise ValueError("interruptors_pool must contain at least interruptors_max entries")
         self.pool = np.sort(pool)
@@ -102,7 +140,9 @@ class CompositeKeyOps(KeyOpBase):
             "family": KeyOpsFamily.COMPOSITE,
             "core_family": core_family,
             "core_length": self.core_K,
+            "interruptors_min": self.interrupt_min,
             "interruptors_max": self.interrupt_K,
+            "interruptors_sentinel": self.sentinel,
         }
         ops = {
             "random",
@@ -117,7 +157,24 @@ class CompositeKeyOps(KeyOpBase):
         self.dtype = KEY_DTYPE
         super().__init__(self.caps)
 
-        self._expand_limit = int(kwargs.get("interruptors_expand_limit", 64) or 64)
+        strategy_raw = kwargs.get(
+            "interruptors_search_strategy",
+            getattr(cfg, "interruptors_search_strategy", "auto"),
+        )
+        self._interrupt_search_strategy = str(strategy_raw or "auto").strip().lower()
+        if self._interrupt_search_strategy not in {"auto", "bruteforce", "keyops"}:
+            raise ValueError("interruptors_search_strategy must be 'auto', 'bruteforce', or 'keyops'")
+
+        self._interrupt_bruteforce_max = int(
+            kwargs.get(
+                "interruptors_bruteforce_max",
+                getattr(cfg, "interruptors_bruteforce_max", 0),
+            )
+            or 0
+        )
+
+        base_limit = int(kwargs.get("interruptors_expand_limit", 64) or 64)
+        self._expand_limit = self._resolve_expand_limit(base_limit)
         self._mut_interrupt_prob = float(kwargs.get("interruptors_mut_prob", 0.2) or 0.2)
 
     # --------------------------- helpers ---------------------------------
@@ -132,6 +189,8 @@ class CompositeKeyOps(KeyOpBase):
         mapped = []
         for val in raw.tolist():
             v = int(val)
+            if v < 0:
+                continue
             idx = int(np.searchsorted(pool, v))
             if idx <= 0:
                 mapped.append(int(pool[0]))
@@ -149,16 +208,20 @@ class CompositeKeyOps(KeyOpBase):
             if v not in seen:
                 uniq.append(v)
                 seen.add(v)
-        if len(uniq) < self.interrupt_K:
+        if len(uniq) < self.interrupt_min:
             for v in pool.tolist():
                 if v not in seen:
                     uniq.append(int(v))
                     seen.add(v)
-                    if len(uniq) == self.interrupt_K:
+                    if len(uniq) >= self.interrupt_min:
                         break
 
+        if len(uniq) > self.interrupt_K:
+            uniq = uniq[: self.interrupt_K]
+
         uniq = sorted(uniq)
-        return np.asarray(uniq, dtype=self.dtype)
+        pad = [self.sentinel] * (self.interrupt_K - len(uniq))
+        return np.asarray(uniq + pad, dtype=self.dtype)
 
     def _normalize_interruptors(self, raw: np.ndarray) -> np.ndarray:
         raw = np.asarray(raw, dtype=np.int64)
@@ -176,6 +239,31 @@ class CompositeKeyOps(KeyOpBase):
         core = arr[: self.core_K]
         intr = arr[self.core_K :]
         return core, intr
+
+    def _interruptor_value_cap(self) -> int:
+        allow_sentinel = self.interrupt_min < self.interrupt_K
+        return int(self.pool_size + (1 if allow_sentinel else 0))
+
+    def _interruptor_combo_count(self, limit: int) -> int:
+        if limit <= 0:
+            return limit + 1
+        total = 0
+        n = int(self.pool_size)
+        for k in range(int(self.interrupt_min), int(self.interrupt_K) + 1):
+            total += _ncr_limited(n, k, limit - total)
+            if total > limit:
+                return limit + 1
+        return total
+
+    def _resolve_expand_limit(self, base_limit: int) -> int:
+        base_limit = max(1, int(base_limit))
+        if self._interrupt_search_strategy == "bruteforce":
+            return max(base_limit, self._interruptor_value_cap())
+        if self._interrupt_search_strategy == "auto" and self._interrupt_bruteforce_max > 0:
+            combos = self._interruptor_combo_count(self._interrupt_bruteforce_max)
+            if combos <= self._interrupt_bruteforce_max:
+                return max(base_limit, self._interruptor_value_cap())
+        return base_limit
 
     def split_key(self, key_or_batch: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         arr = self.normalize(key_or_batch)
@@ -215,8 +303,14 @@ class CompositeKeyOps(KeyOpBase):
 
     def random(self, rng) -> np.ndarray:
         core = np.asarray(self._core_ops.random(rng), dtype=self.dtype).reshape(-1)
-        intr = _rng_choice(rng, self.pool, size=self.interrupt_K, replace=False)
-        intr = np.sort(np.asarray(intr, dtype=self.dtype))
+        count = int(_rng_integers(rng, self.interrupt_min, self.interrupt_K + 1))
+        if count > 0:
+            picks = _rng_choice(rng, self.pool, size=count, replace=False)
+            picks = sorted(int(v) for v in np.asarray(picks, dtype=np.int64).tolist())
+        else:
+            picks = []
+        pad = [self.sentinel] * (self.interrupt_K - len(picks))
+        intr = np.asarray(picks + pad, dtype=self.dtype)
         return np.concatenate([core, intr], axis=0).astype(self.dtype, copy=False)
 
     def mutate(self, key: np.ndarray, rng) -> np.ndarray:
@@ -228,15 +322,24 @@ class CompositeKeyOps(KeyOpBase):
             self.core_K == 0 or (self.interrupt_K > 0 and rng.random() < self._mut_interrupt_prob)
         )
         if mutate_interruptors:
-            used = set(int(v) for v in intr.tolist())
-            avail = [int(v) for v in self.pool.tolist() if v not in used]
-            if avail:
-                slot = int(_rng_integers(rng, 0, self.interrupt_K))
-                repl = int(_rng_choice(rng, avail, size=None, replace=False))
-                intr[slot] = repl
-                intr = self._normalize_interruptors(intr)
+            used = [int(v) for v in intr.tolist() if int(v) >= 0]
+            used_set = set(used)
+            count = len(used)
+            allow_remove = count > self.interrupt_min
+            allow_add = count < self.interrupt_K
+
+            slot = int(_rng_integers(rng, 0, self.interrupt_K))
+            remove = allow_remove and (not allow_add or rng.random() < 0.5)
+            if remove:
+                intr[slot] = self.sentinel
             else:
-                core = np.asarray(self._core_ops.mutate(core, rng), dtype=self.dtype)
+                avail = [int(v) for v in self.pool.tolist() if v not in used_set]
+                if avail:
+                    repl = int(_rng_choice(rng, avail, size=None, replace=False))
+                    intr[slot] = repl
+                elif allow_remove:
+                    intr[slot] = self.sentinel
+            intr = self._normalize_interruptors(intr)
         else:
             core = np.asarray(self._core_ops.mutate(core, rng), dtype=self.dtype)
 
@@ -248,20 +351,30 @@ class CompositeKeyOps(KeyOpBase):
         b = self.normalize(p2)
         core = np.asarray(self._core_ops.recombine(a[: self.core_K], b[: self.core_K], rng), dtype=self.dtype)
 
-        intr_a = a[self.core_K :]
-        intr_b = b[self.core_K :]
-        union = sorted(set(int(v) for v in np.concatenate([intr_a, intr_b], axis=0).tolist()))
-        if len(union) >= self.interrupt_K:
-            chosen = _rng_choice(rng, union, size=self.interrupt_K, replace=False)
-            intr = np.sort(np.asarray(chosen, dtype=self.dtype))
+        intr_a = [int(v) for v in a[self.core_K :].tolist() if int(v) >= 0]
+        intr_b = [int(v) for v in b[self.core_K :].tolist() if int(v) >= 0]
+        union = sorted(set(intr_a + intr_b))
+
+        count_a = len(intr_a)
+        count_b = len(intr_b)
+        target = count_a if rng.random() < 0.5 else count_b
+        target = max(self.interrupt_min, min(self.interrupt_K, int(target)))
+
+        if target <= 0:
+            picks = []
+        elif len(union) >= target:
+            chosen = _rng_choice(rng, union, size=target, replace=False)
+            picks = [int(v) for v in np.asarray(chosen, dtype=np.int64).tolist()]
         else:
-            intr = list(union)
+            picks = list(union)
             for v in self.pool.tolist():
-                if v not in intr:
-                    intr.append(int(v))
-                if len(intr) == self.interrupt_K:
+                if v not in picks:
+                    picks.append(int(v))
+                if len(picks) >= target:
                     break
-            intr = np.asarray(sorted(intr), dtype=self.dtype)
+        picks = sorted(picks)
+        pad = [self.sentinel] * (self.interrupt_K - len(picks))
+        intr = np.asarray(picks + pad, dtype=self.dtype)
 
         out = np.concatenate([core.reshape(-1), intr.reshape(-1)], axis=0)
         return np.asarray(out, dtype=self.dtype)
@@ -280,8 +393,14 @@ class CompositeKeyOps(KeyOpBase):
 
         intr_rows = []
         for _ in range(n):
-            picks = _rng_choice(rng, self.pool, size=self.interrupt_K, replace=False)
-            intr_rows.append(np.sort(np.asarray(picks, dtype=self.dtype)))
+            count = int(_rng_integers(rng, self.interrupt_min, self.interrupt_K + 1))
+            if count > 0:
+                picks = _rng_choice(rng, self.pool, size=count, replace=False)
+                picks = sorted(int(v) for v in np.asarray(picks, dtype=np.int64).tolist())
+            else:
+                picks = []
+            pad = [self.sentinel] * (self.interrupt_K - len(picks))
+            intr_rows.append(np.asarray(picks + pad, dtype=self.dtype))
         intr = np.ascontiguousarray(np.stack(intr_rows, axis=0), dtype=self.dtype)
 
         out = np.concatenate([core, intr], axis=1)
@@ -314,8 +433,12 @@ class CompositeKeyOps(KeyOpBase):
 
         idx = pos - self.core_K
         intr = base[self.core_K :].copy()
-        used = set(int(v) for v in intr.tolist())
+        used_vals = [int(v) for v in intr.tolist() if int(v) >= 0]
+        used = set(used_vals)
         available = [int(v) for v in self.pool.tolist() if v not in used or v == int(intr[idx])]
+        allow_sentinel = (len(used_vals) > self.interrupt_min) or (int(intr[idx]) < 0)
+        if allow_sentinel:
+            available.append(self.sentinel)
         if not available:
             return base.reshape(1, -1)
 
@@ -323,10 +446,18 @@ class CompositeKeyOps(KeyOpBase):
             available = _rng_choice(rng, available, size=self._expand_limit, replace=False).tolist()
 
         rows = []
+        seen = set()
         for v in available:
             cand = base.copy()
             cand[self.core_K + idx] = int(v)
-            rows.append(self.normalize(cand))
+            norm = self.normalize(cand)
+            key_bytes = norm.tobytes()
+            if key_bytes in seen:
+                continue
+            seen.add(key_bytes)
+            rows.append(norm)
+        if not rows:
+            return base.reshape(1, -1)
         return np.ascontiguousarray(np.stack(rows, axis=0), dtype=self.dtype)
 
     # --------------------------- misc helpers ---------------------------
@@ -341,9 +472,18 @@ class CompositeKeyOps(KeyOpBase):
         assert k.ndim == 1, f"Composite key must be 1-D, got shape {k.shape}"
         assert k.size == (self.core_K + self.interrupt_K), "Composite key length mismatch"
         intr = k[self.core_K :]
-        assert np.all(np.isin(intr, self.pool)), "Interruptor positions must be in pool"
-        assert len(np.unique(intr)) == self.interrupt_K, "Interruptor positions must be unique"
-        assert np.all(np.diff(np.sort(intr)) >= 0), "Interruptor positions must be sorted"
+        used = intr[intr >= 0]
+        assert used.size >= self.interrupt_min, "Interruptor count below minimum"
+        assert used.size <= self.interrupt_K, "Interruptor count exceeds maximum"
+        assert np.all(np.isin(used, self.pool)), "Interruptor positions must be in pool"
+        assert len(np.unique(used)) == used.size, "Interruptor positions must be unique"
+        if used.size:
+            assert np.all(np.diff(np.sort(used)) >= 0), "Interruptor positions must be sorted"
+        if np.any(intr < 0):
+            first_neg = int(np.argmax(intr < 0))
+            assert np.all(intr[first_neg:] < 0), "Sentinel values must be trailing"
+            if used.size:
+                assert np.array_equal(intr[:used.size], np.sort(used)), "Interruptor positions must be sorted"
 
 
 __all__ = ["CompositeKeyConfig", "CompositeKeyOps"]

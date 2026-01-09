@@ -19,10 +19,15 @@ def build_cipher_config(
     encoding_dir: Direction,
     initial_text_permutation_indices: Optional[Sequence[int]],
     initial_keys: Optional[Sequence[Sequence[int]]],
+    interruptors: Optional[object],
     interruptors_exact: Optional[Sequence[int]],
     interruptors_pool: Optional[Sequence[int]],
     interruptors_max: Optional[int],
 ) -> CipherConfig:
+    if interruptors is not None and any(
+        x is not None for x in (interruptors_exact, interruptors_pool, interruptors_max)
+    ):
+        raise ValueError("interruptors config cannot be combined with interruptors_exact/pool/max")
     kind = resolve_cipher_kind(cipher)
     if kind == "wrapper":
         return _build_wrapper_cipher_config(
@@ -34,6 +39,7 @@ def build_cipher_config(
             encoding_dir=encoding_dir,
             initial_text_permutation_indices=initial_text_permutation_indices,
             initial_keys=initial_keys,
+            interruptors=interruptors,
             interruptors_exact=interruptors_exact,
             interruptors_pool=interruptors_pool,
             interruptors_max=interruptors_max,
@@ -48,6 +54,7 @@ def build_cipher_config(
             encoding_dir=encoding_dir,
             initial_text_permutation_indices=initial_text_permutation_indices,
             initial_keys=initial_keys,
+            interruptors=interruptors,
             interruptors_exact=interruptors_exact,
             interruptors_pool=interruptors_pool,
             interruptors_max=interruptors_max,
@@ -65,6 +72,7 @@ def _build_generic_cipher_config(
     encoding_dir: Direction,
     initial_text_permutation_indices: Optional[Sequence[int]],
     initial_keys: Optional[Sequence[Sequence[int]]],
+    interruptors: Optional[object],
     interruptors_exact: Optional[Sequence[int]],
     interruptors_pool: Optional[Sequence[int]],
     interruptors_max: Optional[int],
@@ -78,14 +86,12 @@ def _build_generic_cipher_config(
         initial_text_permutation_indices=initial_text_permutation_indices,
         device=device,
         name=(cipher.name or cipher.kind),
+        interruptors_cfg=interruptors,
+        interruptors_exact=None if interruptors_exact is None else list(interruptors_exact),
+        interruptors_pool=None if interruptors_pool is None else list(interruptors_pool),
+        interruptors_max=None if interruptors_max is None else int(interruptors_max),
     )
     setattr(cfg, "spec", cipher)
-    if interruptors_exact is not None:
-        cfg.interruptors_exact = list(interruptors_exact)
-    if interruptors_pool is not None:
-        cfg.interruptors_pool = list(interruptors_pool)
-    if interruptors_max is not None:
-        cfg.interruptors_max = int(interruptors_max)
     if initial_keys is not None:
         cfg.initial_keys = list(initial_keys)
     return cfg
@@ -101,6 +107,7 @@ def _build_wrapper_cipher_config(
     encoding_dir: Direction,
     initial_text_permutation_indices: Optional[Sequence[int]],
     initial_keys: Optional[Sequence[Sequence[int]]],
+    interruptors: Optional[object],
     interruptors_exact: Optional[Sequence[int]],
     interruptors_pool: Optional[Sequence[int]],
     interruptors_max: Optional[int],
@@ -122,13 +129,11 @@ def _build_wrapper_cipher_config(
         device=device,
         encoding_dir=encoding_dir,
         initial_text_permutation_indices=initial_text_permutation_indices,
+        interruptors=interruptors,
+        interruptors_exact=interruptors_exact,
+        interruptors_pool=interruptors_pool,
+        interruptors_max=interruptors_max,
     )
-    if interruptors_exact is not None:
-        cfg.interruptors_exact = list(interruptors_exact)
-    if interruptors_pool is not None:
-        cfg.interruptors_pool = list(interruptors_pool)
-    if interruptors_max is not None:
-        cfg.interruptors_max = int(interruptors_max)
     if initial_keys is not None:
         cfg.initial_keys = list(initial_keys)
     return cfg
@@ -143,6 +148,10 @@ def _build_vigenere_wrapper(
     device: Device,
     encoding_dir: Direction,
     initial_text_permutation_indices: Optional[Sequence[int]],
+    interruptors: Optional[object],
+    interruptors_exact: Optional[Sequence[int]],
+    interruptors_pool: Optional[Sequence[int]],
+    interruptors_max: Optional[int],
 ) -> CipherConfig:
     key_spec = expect_key_plan(key, "repeat", "Vigenere requires KeySpec.repeat(len=K)")
     period = int(key_spec.params.get("len", 0) or 0)
@@ -156,6 +165,10 @@ def _build_vigenere_wrapper(
         initial_text_permutation_indices=initial_text_permutation_indices,
         device=device,
         name="vigenere",
+        interruptors_cfg=interruptors,
+        interruptors_exact=None if interruptors_exact is None else list(interruptors_exact),
+        interruptors_pool=None if interruptors_pool is None else list(interruptors_pool),
+        interruptors_max=None if interruptors_max is None else int(interruptors_max),
     )
 
 
@@ -168,6 +181,10 @@ def _build_columnar_wrapper(
     device: Device,
     encoding_dir: Direction,
     initial_text_permutation_indices: Optional[Sequence[int]],
+    interruptors: Optional[object],
+    interruptors_exact: Optional[Sequence[int]],
+    interruptors_pool: Optional[Sequence[int]],
+    interruptors_max: Optional[int],
 ) -> CipherConfig:
     key_spec = expect_key_plan(key, "perm", "Columnar requires KeySpec.permutation(len=cols)")
     cols = int(key_spec.params.get("len", 0) or 0)
@@ -181,6 +198,10 @@ def _build_columnar_wrapper(
         initial_text_permutation_indices=initial_text_permutation_indices,
         device=device,
         name="columnar",
+        interruptors_cfg=interruptors,
+        interruptors_exact=None if interruptors_exact is None else list(interruptors_exact),
+        interruptors_pool=None if interruptors_pool is None else list(interruptors_pool),
+        interruptors_max=None if interruptors_max is None else int(interruptors_max),
     )
 
 
@@ -193,6 +214,10 @@ def _build_substitution_wrapper(
     device: Device,
     encoding_dir: Direction,
     initial_text_permutation_indices: Optional[Sequence[int]],
+    interruptors: Optional[object],
+    interruptors_exact: Optional[Sequence[int]],
+    interruptors_pool: Optional[Sequence[int]],
+    interruptors_max: Optional[int],
 ) -> CipherConfig:
     alphabet_size = int(getattr(cipher, "N", 0) or 29)
     return CipherConfig(
@@ -203,6 +228,10 @@ def _build_substitution_wrapper(
         initial_text_permutation_indices=initial_text_permutation_indices,
         device=device,
         name="substitution",
+        interruptors_cfg=interruptors,
+        interruptors_exact=None if interruptors_exact is None else list(interruptors_exact),
+        interruptors_pool=None if interruptors_pool is None else list(interruptors_pool),
+        interruptors_max=None if interruptors_max is None else int(interruptors_max),
     )
 
 
@@ -215,6 +244,10 @@ def _build_hill_wrapper(
     device: Device,
     encoding_dir: Direction,
     initial_text_permutation_indices: Optional[Sequence[int]],
+    interruptors: Optional[object],
+    interruptors_exact: Optional[Sequence[int]],
+    interruptors_pool: Optional[Sequence[int]],
+    interruptors_max: Optional[int],
 ) -> CipherConfig:
     cfg = CipherConfig(
         ciphertext=ct,
@@ -224,6 +257,10 @@ def _build_hill_wrapper(
         initial_text_permutation_indices=initial_text_permutation_indices,
         device=device,
         name="hill",
+        interruptors_cfg=interruptors,
+        interruptors_exact=None if interruptors_exact is None else list(interruptors_exact),
+        interruptors_pool=None if interruptors_pool is None else list(interruptors_pool),
+        interruptors_max=None if interruptors_max is None else int(interruptors_max),
     )
     setattr(cfg, "text_transposition", "ltr")
     return cfg
@@ -238,6 +275,10 @@ def _build_railfence_wrapper(
     device: Device,
     encoding_dir: Direction,
     initial_text_permutation_indices: Optional[Sequence[int]],
+    interruptors: Optional[object],
+    interruptors_exact: Optional[Sequence[int]],
+    interruptors_pool: Optional[Sequence[int]],
+    interruptors_max: Optional[int],
 ) -> CipherConfig:
     key_spec = expect_key_plan(key, "scalar", "Railfence requires KeySpec.scalar(max_val=...)")
     extras = getattr(cipher, "extra", {}) or {}
@@ -261,6 +302,10 @@ def _build_railfence_wrapper(
         initial_text_permutation_indices=initial_text_permutation_indices,
         device=device,
         name="railfence",
+        interruptors_cfg=interruptors,
+        interruptors_exact=None if interruptors_exact is None else list(interruptors_exact),
+        interruptors_pool=None if interruptors_pool is None else list(interruptors_pool),
+        interruptors_max=None if interruptors_max is None else int(interruptors_max),
     )
     setattr(cfg, "min_rails", min_rails)
     setattr(cfg, "max_rails", max_rails)
@@ -277,6 +322,10 @@ def _build_autokey_wrapper(
     device: Device,
     encoding_dir: Direction,
     initial_text_permutation_indices: Optional[Sequence[int]],
+    interruptors: Optional[object],
+    interruptors_exact: Optional[Sequence[int]],
+    interruptors_pool: Optional[Sequence[int]],
+    interruptors_max: Optional[int],
 ) -> CipherConfig:
     key_spec = expect_key_plan(key, "repeat", "Autokey requires KeySpec.repeat(len=seed_len)")
     seed_len = int(key_spec.params.get("len", 0) or 0)
@@ -295,6 +344,10 @@ def _build_autokey_wrapper(
         initial_text_permutation_indices=initial_text_permutation_indices,
         device=device,
         name="autokey",
+        interruptors_cfg=interruptors,
+        interruptors_exact=None if interruptors_exact is None else list(interruptors_exact),
+        interruptors_pool=None if interruptors_pool is None else list(interruptors_pool),
+        interruptors_max=None if interruptors_max is None else int(interruptors_max),
     )
     setattr(cfg, "seed_length", seed_len)
     setattr(cfg, "alphabet_size", alphabet)

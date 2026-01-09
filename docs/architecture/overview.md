@@ -84,6 +84,20 @@ Best key / plaintext + telemetry (META, logs, artefacts) under `output/`
   * Operators are deterministic given a seeded RNG.
   * Composition is encouraged (e.g., small moves plus an occasional larger jump) and recorded in telemetry.
 
+### Interruptors (position-only symbols)
+
+* **Role:** Define fixed or optimizable interruptor positions as part of the key space, with a clear
+  configuration surface and deterministic normalization.
+* **Why:** Interruptors affect the core text and must be handled consistently across the pipeline and
+  optimizers without ad-hoc branching.
+* **Design notes:**
+
+  * Default index space is absolute, pre-transposition positions.
+  * Interruptor values are fixed from ciphertext (no value search in v1).
+  * Search strategy (bruteforce vs KeyOps) is configurable.
+
+See `docs/architecture/interruptors.md` for the detailed design spec.
+
 ### Optimisers (strategy, not domain)
 
 * **Role:** Search the key space defined by the key model using KeyOps, retaining the best candidate by a scorer.

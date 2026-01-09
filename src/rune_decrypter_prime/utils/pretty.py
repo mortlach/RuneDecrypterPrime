@@ -167,6 +167,7 @@ def print_run_report(
     wli: Optional[Sequence[Sequence[int]]] = None,
     pt_rune_ref: Optional[str] = None,
     pt_idx_ref: Optional[Sequence[int]] = None,
+    interruptors_ref: Optional[Sequence[int]] = None,
     verbose: bool = True,
     show_timeline: bool = False,   # default off to reduce clutter
     preview_len: int = 200,
@@ -370,6 +371,31 @@ def print_run_report(
     if match_ok is None and match_ratio is not None:
         match_ok = match_ratio >= _MATCH_RATIO_THRESHOLD
 
+    # ---- interruptors (if solved) ------------------------------------------
+    intr_meta = _as_dict(meta.get("interruptors", {}))
+    intr_found_raw = intr_meta.get("found", None)
+    intr_found = [int(v) for v in _to_list(intr_found_raw) if int(v) >= 0] if intr_found_raw is not None else None
+
+    intr_expected: list[int] = []
+    expected_known = False
+    if interruptors_ref is not None:
+        intr_expected = [int(v) for v in _to_list(interruptors_ref) if int(v) >= 0]
+        expected_known = True
+    elif "expected" in intr_meta:
+        intr_expected = [int(v) for v in _to_list(intr_meta.get("expected")) if int(v) >= 0]
+        expected_known = True
+    else:
+        core_len = intr_meta.get("core_length", None)
+        if core_len is not None and key_idx is not None:
+            try:
+                core_len = int(core_len)
+                key_vals = _to_list(key_idx)
+                if len(key_vals) > core_len:
+                    intr_expected = [int(v) for v in key_vals[core_len:] if int(v) >= 0]
+                    expected_known = True
+            except Exception:
+                expected_known = False
+
     # ---- print --------------------------------------------------------------
     line = "-" * 72
     print(line)
@@ -401,6 +427,13 @@ def print_run_report(
     if found_key is not None:
         fk = list(found_key) if isinstance(found_key, (list, tuple)) or _is_np_array(found_key) else found_key
         print(f"Key(found) : {fk}")
+
+    if intr_found is not None:
+        print(f"Interruptors(found): {intr_found}")
+        if expected_known:
+            print(f"Interruptors(real) : {intr_expected}")
+            match = sorted(intr_found) == sorted(intr_expected)
+            print(f"Interruptors match: {'Yes' if match else 'No'}")
 
     # Inputs (hidden in compact mode)
     if verbose and not compact:

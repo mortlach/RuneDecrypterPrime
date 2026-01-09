@@ -7,8 +7,12 @@
 - `_latin_from_runes_str(runes)` - best-effort transliteration for display.
 - `_now_str()` - timestamp for reports.
 
-## `print_run_report(solution, *, title=None, stream=None)`
+## `print_run_report(solution, *, ...)`
 Prints a formatted summary including score, direction, key, plaintext snippets, seed information, and telemetry pointers. Tutorials call this after `RunAPI.run` so Hands-on users can see the results quickly.
+
+Interruptors:
+- If the solver is optimizing interruptor positions, `print_run_report` will show the found positions.
+- Pass `interruptors_ref=[...]` to display the expected positions and a match verdict.
 
 ## Usage
 ```python
@@ -19,5 +23,6 @@ print_run_report(sol, title="Vigenere GA")
 ```
 
 ## Tests
-- Covered indirectly by tutorials/regressions. If `print_run_report` failed to render plaintext/keys, tutorial tests would fail due to missing output or exceptions.
+- `tests/telemetry/test_pretty_interruptors.py` covers interruptor printing.
+- Tutorials/regressions still provide broader coverage for plaintext rendering.
 
