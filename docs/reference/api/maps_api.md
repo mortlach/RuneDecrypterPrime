@@ -5,7 +5,7 @@
 ## Key Helpers
 | Function | Description | Notes |
 | --- | --- | --- |
-| `define_map(*, function=None, table=None, degeneracy="forbid", resolver="first", per_pos_limit=1, name=None)` | Build a `CipherSpec` for either a callable map (`function(pt, key)` or `function(pt, k1, k2)`) or a lookup table. | Exactly one of `function`/`table` is required. Picks `user_map2`, `user_map3`, or `lookup` under the hood. |
+| `define_map(*, function=None, table=None, degeneracy="forbid", resolver="expand_beam", per_pos_limit=29, resolver_limit=8193, name=None)` | Build a `CipherSpec` for either a callable map (`function(pt, key)` or `function(pt, k1, k2)`) or a lookup table. | Exactly one of `function`/`table` is required. Picks `user_map2`, `user_map3`, or `lookup` under the hood. `per_pos_limit` caps candidates per position; `resolver_limit` caps full plaintext expansions when `resolver="expand_beam"`. |
 | `define_cipher(spec=None, name=None, key=None, key_len=None, **kwargs)` | Return `(CipherSpec, KeySpec)` by either wrapping an explicit spec or reusing a registered by-name cipher (e.g., `"columnar"`). | Mirrors the defaults exposed via `api/wrappers/by_name.py`. |
 | `preview(text, *, cipher, key, direction="decrypt", text_encoding_direction="ltr", device="cpu")` | Perform a single encrypt/decrypt against a fully specified cipher + key without invoking a solver. | Accepts rune indices, rune strings, or English strings; key must be `KeySpec.otp(...)` or `KeySpec.const(...)`. |
 
@@ -39,6 +39,53 @@ preview_indices = preview(
     direction="decrypt",
 )
 print(preview_indices.tolist())
+```
+
+## Degeneracy limits (quick guide)
+When `degeneracy="allow"`, each (ciphertext, key) position can map to multiple plaintexts. Two limits keep
+the search tractable:
+- `per_pos_limit` caps candidates stored per position.
+- `resolver_limit` caps full plaintext expansions scored per key when `resolver="expand_beam"`.
+
+Short pipeline example (known key fast-path via `test_key`):
+```python
+import numpy as np
+from rune_decrypter_prime.api import RunAPI, SolverSpec, KeySpec, define_map, preview
+from rune_decrypter_prime.core.types import Direction, Device
+
+spec = define_map(
+    N=29,
+    function=lambda pt, k: (pt % 5 + k) % 29,
+    degeneracy="allow",
+    resolver="expand_beam",
+    per_pos_limit=29,
+    resolver_limit=8193,
+)
+
+plaintext = np.array([4, 20, 1, 3, 14, 25, 6, 8, 9, 10, 12, 17, 18, 2, 5, 7, 11, 13, 15, 19], dtype=np.uint8)
+key = np.array([7, 0, 18, 5, 12, 9, 0, 21, 3, 14, 6, 11, 22, 4, 19, 2, 8, 13, 25, 1], dtype=np.uint8)
+
+# Encrypt with a known key stream.
+ciphertext = preview(
+    text=plaintext,
+    cipher=spec,
+    key=KeySpec.otp(stream=key.tolist()),
+    direction="encrypt",
+    text_encoding_direction="ltr",
+    device="cpu",
+)
+
+solver = SolverSpec.beam(beam_width=1, test_key=key.tolist(), seed=7)
+solution = RunAPI.run(
+    text=ciphertext,
+    cipher=spec,
+    key=KeySpec.repeat(len=len(key)),
+    solver=solver,
+    device=Device.CPU,
+    encoding_dir=Direction.LTR,
+    telemetry_on=False,
+)
+print(solution.plaintext_rune)
 ```
 
 ## Validation & Tests

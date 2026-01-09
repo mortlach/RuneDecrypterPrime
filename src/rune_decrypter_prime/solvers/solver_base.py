@@ -516,7 +516,16 @@ class SolverBase:
         decrypt = getattr(self.problem, "decrypt_to_text", None)
         scorer = getattr(self.problem, "score_plaintext", None)
         for i, k in enumerate(keys):
-            pt = decrypt(k) if decrypt else self.problem.cipher.decrypt(self.problem.ciphertext, k)
+            if decrypt:
+                pt = decrypt(k)
+            else:
+                resolve = getattr(self.problem, "resolve_plaintext", None)
+                if callable(resolve):
+                    pt = resolve(k)
+                    if pt is None:
+                        pt = self.problem.cipher.decrypt(self.problem.ciphertext, k)
+                else:
+                    pt = self.problem.cipher.decrypt(self.problem.ciphertext, k)
             scores[i] = float(scorer(pt)) if scorer else float(self.problem.scorer.score(pt))
         return scores
 
@@ -603,8 +612,14 @@ class SolverBase:
                 budget = max(128, budget // 2)
         except Exception:
             pass
-        pt = self.problem.cipher.decrypt(ciphertext=self.problem.ciphertext, key=k)
-        pt_u8 = np.asarray(pt, dtype=np.uint8).reshape(-1)
+        resolve = getattr(self.problem, "resolve_plaintext", None)
+        pt = resolve(k) if callable(resolve) else None
+        if pt is None:
+            pt = self.problem.cipher.decrypt(ciphertext=self.problem.ciphertext, key=k)
+        pt_u8 = np.asarray(pt, dtype=np.uint8)
+        if pt_u8.ndim >= 2:
+            pt_u8 = pt_u8[0]
+        pt_u8 = pt_u8.reshape(-1)
 
         sol = Solution(key=k.copy(), plaintext=pt_u8.copy(), score=float(best_score))
         try:
@@ -659,8 +674,14 @@ class SolverBase:
             if cipher is None or ciphertext is None:
                 return ""
             k = np.asarray(key, dtype=self.key_dtype).reshape(-1)
-            pt = cipher.decrypt(ciphertext=ciphertext, key=k)
-            pt_u8 = np.asarray(pt, dtype=np.uint8).reshape(-1)
+            resolve = getattr(self.problem, "resolve_plaintext", None)
+            pt = resolve(k) if callable(resolve) else None
+            if pt is None:
+                pt = cipher.decrypt(ciphertext=ciphertext, key=k)
+            pt_u8 = np.asarray(pt, dtype=np.uint8)
+            if pt_u8.ndim >= 2:
+                pt_u8 = pt_u8[0]
+            pt_u8 = pt_u8.reshape(-1)
             wli = getattr(self.problem, "wli_data", None)
             preview = ""
             try:
@@ -858,10 +879,16 @@ class SolverBase:
         if key_arr.ndim != 1 or key_arr.shape[0] != self.K:
             key_arr = key_arr.reshape(-1)[: self.K].astype(self.key_dtype, copy=False)
 
-        pt_idx = self.problem.cipher.decrypt(key=key_arr, ciphertext=self.problem.ciphertext)
+        resolve = getattr(self.problem, "resolve_plaintext", None)
+        pt_idx = resolve(key_arr) if callable(resolve) else None
+        if pt_idx is None:
+            pt_idx = self.problem.cipher.decrypt(key=key_arr, ciphertext=self.problem.ciphertext)
         if isinstance(pt_idx, tuple):
             pt_idx = pt_idx[0]
-        pt_idx = np.asarray(pt_idx, dtype=np.int64).ravel()
+        pt_idx = np.asarray(pt_idx, dtype=np.int64)
+        if pt_idx.ndim >= 2:
+            pt_idx = pt_idx[0]
+        pt_idx = pt_idx.ravel()
         pt_list = pt_idx.tolist()
 
         wli = getattr(self.problem, "wli_data", None)
@@ -913,10 +940,16 @@ class SolverBase:
         return sol
 
     def _decrypt_to_text(self, key_u8: np.ndarray) -> str:
-        pt_idx = self.problem.cipher.decrypt(key=key_u8, ciphertext=self._ct)
+        resolve = getattr(self.problem, "resolve_plaintext", None)
+        pt_idx = resolve(key_u8) if callable(resolve) else None
+        if pt_idx is None:
+            pt_idx = self.problem.cipher.decrypt(key=key_u8, ciphertext=self._ct)
         if isinstance(pt_idx, tuple):
             pt_idx = pt_idx[0]
-        pt_idx = np.asarray(pt_idx, dtype=np.int64).ravel().tolist()
+        pt_idx = np.asarray(pt_idx, dtype=np.int64)
+        if pt_idx.ndim >= 2:
+            pt_idx = pt_idx[0]
+        pt_idx = pt_idx.ravel().tolist()
         return Runeglish.to_rune(pt_idx, wli=getattr(self.problem.c_cfg, "wli_data", None))
 
     def _local_improve(self, key: np.ndarray, score: float, rng, **hint):

@@ -28,6 +28,9 @@ def execute_run(
     encoding_dir: Direction,
     initial_keys: Optional[Sequence[Sequence[int]]],
     initial_text_permutation_indices: Optional[Sequence[int]],
+    interruptors_exact: Optional[Sequence[int]],
+    interruptors_pool: Optional[Sequence[int]],
+    interruptors_max: Optional[int],
 ):
     # 0) Known-key fast path
     fast = maybe_known_key_fastpath(
@@ -55,6 +58,9 @@ def execute_run(
         encoding_dir=encoding_dir,
         initial_text_permutation_indices=initial_text_permutation_indices,
         initial_keys=initial_keys,
+        interruptors_exact=interruptors_exact,
+        interruptors_pool=interruptors_pool,
+        interruptors_max=interruptors_max,
     )
 
     # 2) Materialise Stage-2 ProblemInstance

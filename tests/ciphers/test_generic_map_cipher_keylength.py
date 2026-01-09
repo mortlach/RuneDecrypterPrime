@@ -38,7 +38,8 @@ def _spec_lookup(table, N=A, **kw):
         table=table,
         degeneracy=kw.get("degeneracy", "allow"),
         resolver=kw.get("resolver", "first"),
-        per_pos_limit=int(kw.get("per_pos_limit", 3)),
+        per_pos_limit=int(kw.get("per_pos_limit", 29)),
+        resolver_limit=int(kw.get("resolver_limit", 8193)),
     )
 
 
@@ -49,7 +50,8 @@ def _spec_user_map2(func, N=A, **kw):
         function=func,
         degeneracy=kw.get("degeneracy", "forbid"),
         resolver=kw.get("resolver", "first"),
-        per_pos_limit=int(kw.get("per_pos_limit", 3)),
+        per_pos_limit=int(kw.get("per_pos_limit", 29)),
+        resolver_limit=int(kw.get("resolver_limit", 8193)),
     )
 
 
@@ -86,14 +88,14 @@ def _roundtrip_user_api(cipher: GenericMapCipher, pt_1d: np.ndarray, key_1d: np.
 
 def test_lookup_table_requires_key_length_when_ambiguous():
     table = np.mod(np.arange(A * A).reshape(A, A), A).astype(np.uint8)
-    spec = _spec_lookup(table, N=A, per_pos_limit=4)
+    spec = _spec_lookup(table, N=A, per_pos_limit=29, resolver_limit=8193)
     with pytest.raises(ValueError):
         GenericMapCipher(_mk_cfg(spec, key_length=None, length=8))
 
 
 def test_lookup_with_explicit_key_length_roundtrips():
     table = np.add.outer(np.arange(A), np.arange(A)) % A
-    spec = _spec_lookup(table, N=A, per_pos_limit=4)
+    spec = _spec_lookup(table, N=A, per_pos_limit=29, resolver_limit=8193)
     cfg = _mk_cfg(spec, key_length=A, length=16)
     cipher = GenericMapCipher(cfg)
 

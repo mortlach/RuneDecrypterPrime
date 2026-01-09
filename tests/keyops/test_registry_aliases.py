@@ -15,6 +15,7 @@ def test_available_lists_core_families():
     fams = set(available())
     assert KeyOpsFamily.PERMUTATION in fams
     assert KeyOpsFamily.VECTOR in fams
+    assert KeyOpsFamily.COMPOSITE in fams
 
 
 def test_alias_perm_resolves_to_permutation_family():

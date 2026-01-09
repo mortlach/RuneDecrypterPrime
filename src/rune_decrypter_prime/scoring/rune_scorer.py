@@ -100,13 +100,18 @@ class RuneScorer(BaseScorer):
         self._weights_pair: Optional[Tuple[float, float]] = _cfg_get(scorer_cfg, "weights")
 
         # Language-model runtime (LM tables + ECDF cache)
-        self._rt = LmPrimeRuntime.get_cached(
+        rt_kwargs = dict(
             root=getattr(scorer_cfg, "model_root", None),
             smoothing=getattr(scorer_cfg, "smoothing", None),
             alpha=float(getattr(scorer_cfg, "alpha", 0.0) or 0.0),
             oov_policy=getattr(scorer_cfg, "oov_policy", None),
             include_char=self.include_char,
         )
+        get_cached = getattr(LmPrimeRuntime, "get_cached", None)
+        if callable(get_cached):
+            self._rt = get_cached(**rt_kwargs)
+        else:
+            self._rt = LmPrimeRuntime(**rt_kwargs)
         self._ecdf = self._rt.ecdf
 
         # Optional Hamming backend (lazy import; skip if unavailable or disabled)

@@ -45,6 +45,9 @@ class RunAPI:
         telemetry_on: bool = True,
         encoding_dir: Optional[Union[str, Direction]] = Direction.RTL,
         initial_text_permutation_indices: Optional[Sequence[int]] = None,
+        interruptors_exact: Optional[Sequence[int]] = None,
+        interruptors_pool: Optional[Sequence[int]] = None,
+        interruptors_max: Optional[int] = None,
     ):
         """
         Run a single decrypt attempt over the given ciphertext.
@@ -98,6 +101,9 @@ class RunAPI:
             encoding_dir=encoding_dir,
             initial_keys=initial_keys,
             initial_text_permutation_indices=initial_text_permutation_indices,
+            interruptors_exact=interruptors_exact,
+            interruptors_pool=interruptors_pool,
+            interruptors_max=interruptors_max,
         )
 
     # Backwards compatibility: ``solve`` maps to ``run`` for existing code

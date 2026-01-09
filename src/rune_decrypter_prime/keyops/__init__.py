@@ -10,6 +10,7 @@ from rune_decrypter_prime.keyops.registry import register_keyop, has, get, avail
 #from rune_decrypter_prime.keyops.matrix import MatrixKey, MatrixKeyConfig  # ensures 'matrix' is registered
 from rune_decrypter_prime.keyops.permutation_ops import PermutationKeyOps, PermutationKeyConfig
 from rune_decrypter_prime.keyops.vector import VectorKeyOps, VectorKeyConfig
+from rune_decrypter_prime.keyops.composite import CompositeKeyOps, CompositeKeyConfig
 #from rune_decrypter_prime.keyops.affine import AffineKey, AffineKeyConfig
 
 __all__ = [
@@ -19,6 +20,7 @@ __all__ = [
     #"KeySpec",
     "PermutationKeyOps", "PermutationKeyConfig",
     "VectorKeyOps", "VectorKeyConfig",
+    "CompositeKeyOps", "CompositeKeyConfig",
  #   "AffineKey", "AffineKeyConfig",
 ]
 __all__.extend(["VectorKeyOps", "VectorKeyConfig"])

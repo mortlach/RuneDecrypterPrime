@@ -89,8 +89,18 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
         A_key = self.A if self.kind is not CipherKind.USER_MAP3 else self.A * self.A  # domain size for key value index
 
         # build enc/dec tables (NumPy arrays)
-        enc = np.empty((self.A, A_key), dtype=np.uint8)
-        dec_first = np.full((A_key, self.A), 255, dtype=np.uint8)
+        enc = np.zeros((self.A, A_key), dtype=np.uint8)
+        dec_len = np.zeros((A_key, self.A), dtype=np.uint16)
+        dec_all = np.zeros((A_key, self.A, self.A), dtype=np.uint8)
+
+        def _push_candidate(kv: int, ct_val: int, pt_val: int, seen: np.ndarray) -> None:
+            if seen[ct_val, pt_val]:
+                return
+            idx = int(dec_len[kv, ct_val])
+            if idx < self.A:
+                dec_all[kv, ct_val, idx] = np.uint8(pt_val)
+                dec_len[kv, ct_val] = np.uint16(idx + 1)
+            seen[ct_val, pt_val] = True
 
         if self.kind in (CipherKind.USER_MAP2, CipherKind.USER_MAP3):
             if K <= 0:
@@ -99,21 +109,21 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
             if not callable(f):
                 raise ValueError(f"{self.kind.value} requires spec.function")
             if self.kind is CipherKind.USER_MAP2:
-                for pt in range(self.A):
-                    for kv in range(A_key):
+                for kv in range(A_key):
+                    seen = np.zeros((self.A, self.A), dtype=bool)
+                    for pt in range(self.A):
                         ct = int(f(pt, kv)) % self.A
                         enc[pt, kv] = np.uint8(ct)
-                        if dec_first[kv, ct] == 255:
-                            dec_first[kv, ct] = np.uint8(pt)
+                        _push_candidate(kv, int(ct), int(pt), seen)
             else:  # user_map3
-                for pt in range(self.A):
-                    for kv in range(A_key):
-                        k1 = kv // self.A
-                        k2 = kv % self.A
+                for kv in range(A_key):
+                    seen = np.zeros((self.A, self.A), dtype=bool)
+                    k1 = kv // self.A
+                    k2 = kv % self.A
+                    for pt in range(self.A):
                         ct = int(f(pt, k1, k2)) % self.A
                         enc[pt, kv] = np.uint8(ct)
-                        if dec_first[kv, ct] == 255:
-                            dec_first[kv, ct] = np.uint8(pt)
+                        _push_candidate(kv, int(ct), int(pt), seen)
 
         elif self.kind is CipherKind.LOOKUP:
             table = getattr(spec, "table", None)
@@ -146,27 +156,40 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
                     f"lookup table shape {T.shape}; expected ({self.A},{A_key}) or ({self.A},{K}) or ({self.A},1)"
                 )
 
-            for pt in range(self.A):
-                for kv in range(A_key):
+            for kv in range(A_key):
+                seen = np.zeros((self.A, self.A), dtype=bool)
+                for pt in range(self.A):
                     val = T_use[pt, kv]
-                    if isinstance(val, (list, tuple, np.ndarray)):
-                        if len(val) == 0:
-                            continue
-                        ct0 = int(val[0]) % self.A
-                        enc[pt, kv] = np.uint8(ct0)
-                        if dec_first[kv, ct0] == 255:
-                            dec_first[kv, ct0] = np.uint8(pt)
+                    if isinstance(val, np.ndarray):
+                        vals = [val.item()] if val.ndim == 0 else list(val)
+                    elif isinstance(val, (list, tuple)):
+                        vals = list(val)
                     else:
-                        ct = int(val) % self.A
-                        enc[pt, kv] = np.uint8(ct)
-                        if dec_first[kv, ct] == 255:
-                            dec_first[kv, ct] = np.uint8(pt)
+                        vals = [] if val is None else [val]
+
+                    if not vals:
+                        enc[pt, kv] = np.uint8(0)
+                        continue
+
+                    ct0 = int(vals[0]) % self.A
+                    enc[pt, kv] = np.uint8(ct0)
+                    for ct in vals:
+                        ct_val = int(ct) % self.A
+                        _push_candidate(kv, int(ct_val), int(pt), seen)
         else:
             raise ValueError(f"Unknown map kind '{self.kind.value}'")
 
-        dec_first[dec_first == 255] = 0
+        # derive first-inverse from full candidate table
+        dec_first = np.zeros((A_key, self.A), dtype=np.uint8)
+        for kv in range(A_key):
+            for ct in range(self.A):
+                if dec_len[kv, ct] > 0:
+                    dec_first[kv, ct] = dec_all[kv, ct, 0]
+
         self._enc_np = enc
         self._dec_np = dec_first
+        self._dec_all = dec_all
+        self._dec_len = dec_len
 
         # backend switch (CPU default)
         requested = ensure_device(getattr(cfg, "device", Device.CPU))
@@ -256,6 +279,10 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
             invalid: (B, Lq)      bool
         """
         LIMIT = 4 if limit is None else int(limit)
+        if LIMIT < 0:
+            raise ValueError("limit must be >= 0")
+        if LIMIT > self.A:
+            LIMIT = int(self.A)
         ct = _as_u8(ct_tr,"ct").reshape(-1)
         keys = _as_u8(keys_tr,"key")
         if keys.ndim == 1:
@@ -267,20 +294,20 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
         cols = (pos % K).astype(np.int64)
         kv = keys[:, cols]  # (B,Lq)
 
-        # build short lists using enc/dec tables
-        lens = np.zeros((B, Lq), dtype=np.uint8)
+        # build short lists using candidate tables
+        lens = np.zeros((B, Lq), dtype=np.uint16)
         cands = np.zeros((B, Lq, LIMIT), dtype=np.uint8)
         for b in range(B):
             for i, p in enumerate(pos):
                 kl = int(kv[b, i])
                 ct_sym = int(ct[p])
-                pts = np.flatnonzero(self._enc_np[:, kl] == ct_sym)
-                if pts.size:
-                    Lm = min(int(pts.size), LIMIT)
-                    lens[b, i] = Lm
-                    cands[b, i, :Lm] = pts[:Lm].astype(np.uint8, copy=False)
+                n = int(self._dec_len[kl, ct_sym]) if hasattr(self, "_dec_len") else 0
+                if n > 0:
+                    Lm = min(n, LIMIT)
+                    lens[b, i] = np.uint16(Lm)
+                    cands[b, i, :Lm] = self._dec_all[kl, ct_sym, :Lm]
                     if Lm < LIMIT:
-                        cands[b, i, Lm:] = cands[b, i, Lm-1]
+                        cands[b, i, Lm:] = cands[b, i, Lm - 1]
                 else:
                     lens[b, i] = 0
                     if LIMIT:

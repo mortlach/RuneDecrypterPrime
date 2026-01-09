@@ -35,6 +35,7 @@ class CipherSpec:
     Degeneracy:
       - degeneracy="allow" keeps candidate lists per (ct,key) column up to per_pos_limit
       - degeneracy="forbid" uses the first encountered pt for each (ct,key) pair
+      - resolver_limit caps the number of full plaintext candidates scored per key
     """
     name: str
     N: int = 29
@@ -44,8 +45,9 @@ class CipherSpec:
     function: Optional[Callable[..., int]] = None
     table: Optional[Any] = None
     degeneracy: str = "forbid"
-    resolver: str = "first"      # "first" | "expand_beam"
-    per_pos_limit: int = 1
+    resolver: str = "expand_beam"      # "first" | "expand_beam"
+    per_pos_limit: int = 29
+    resolver_limit: int = 8193
 
     # wrapper routing
     wrapper_core: Optional[str] = None
@@ -57,33 +59,39 @@ class CipherSpec:
     @classmethod
     def user_map2(cls, function: Callable[[int, int], int], *,
                   N: int = 29, degeneracy: str = "forbid",
-                  resolver: str = "first", per_pos_limit: int = 1,
+                  resolver: str = "expand_beam", per_pos_limit: int = 29,
+                  resolver_limit: int = 8193,
                   name: Optional[str] = None) -> CipherSpec:
         if not callable(function):
             raise TypeError("user_map2 requires a function(pt, k) -> ct")
         return cls(kind="user_map2", name=name or "user_map2", N=N,
                    function=function, degeneracy=degeneracy,
-                   resolver=resolver, per_pos_limit=per_pos_limit)
+                   resolver=resolver, per_pos_limit=per_pos_limit,
+                   resolver_limit=resolver_limit)
 
     @classmethod
     def user_map3(cls, function: Callable[[int, int, int], int], *,
                   N: int = 29, degeneracy: str = "forbid",
-                  resolver: str = "first", per_pos_limit: int = 1,
+                  resolver: str = "expand_beam", per_pos_limit: int = 29,
+                  resolver_limit: int = 8193,
                   name: Optional[str] = None) -> CipherSpec:
         if not callable(function):
             raise TypeError("user_map3 requires a function(pt, k1, k2) -> ct")
         return cls(kind="user_map3", name=name or "user_map3", N=N,
                    function=function, degeneracy=degeneracy,
-                   resolver=resolver, per_pos_limit=per_pos_limit)
+                   resolver=resolver, per_pos_limit=per_pos_limit,
+                   resolver_limit=resolver_limit)
 
     @classmethod
     def from_lookup(cls, table: Any, *,
                     N: int = 29, degeneracy: str = "allow",
-                    resolver: str = "first", per_pos_limit: int = 4,
+                    resolver: str = "expand_beam", per_pos_limit: int = 29,
+                    resolver_limit: int = 8193,
                     name: Optional[str] = None) -> CipherSpec:
         return cls(kind="lookup", name=name or "lookup", N=N,
                    table=table, degeneracy=degeneracy,
-                   resolver=resolver, per_pos_limit=per_pos_limit)
+                   resolver=resolver, per_pos_limit=per_pos_limit,
+                   resolver_limit=resolver_limit)
 
     # internal: built by wrappers
     @classmethod

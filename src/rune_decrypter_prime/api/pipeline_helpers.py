@@ -84,9 +84,13 @@ def ensure_plaintext_rune(res, *, ciphertext=None, wli=None, cipher=None, encodi
 
     # ---- Plaintext indices --------------------------------------------------
     idx_source = getattr(res, "plaintext_idx", None)
+    arr = None
     if idx_source is not None:
         arr = _np.asarray(idx_source, dtype=_np.uint8).reshape(-1)
-    else:
+        if arr.size == 0:
+            arr = None
+
+    if arr is None:
         pt = getattr(res, "plaintext", None)
         if isinstance(pt, (list, tuple, _np.ndarray)):
             arr = _np.asarray(pt, dtype=_np.uint8).reshape(-1)

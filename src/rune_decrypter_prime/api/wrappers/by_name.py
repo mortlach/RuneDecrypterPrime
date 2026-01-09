@@ -27,7 +27,16 @@ def _make_vigenere_like_spec(**kwargs):
     N = _pull_N(kwargs)
     def f(pt: int, k: int) -> int:
         return (pt + k) % N
-    return CipherSpec.user_map2(function=f, N=N, degeneracy="forbid", resolver="first", per_pos_limit=1)
+    resolver_limit_raw = kwargs.get("resolver_limit", 8193)
+    resolver_limit = 8193 if resolver_limit_raw is None else int(resolver_limit_raw)
+    return CipherSpec.user_map2(
+        function=f,
+        N=N,
+        degeneracy="forbid",
+        resolver="first",
+        per_pos_limit=29,
+        resolver_limit=resolver_limit,
+    )
 
 
 # patche_old_ui/wrappers.py
@@ -116,7 +125,8 @@ class by_name:
     @staticmethod
     def _affine(
         *, key_len: int | None = None, default_key: bool = False,
-        degeneracy: str = "forbid", resolver: str = "first", per_pos_limit: int = 1, **kwargs: Any
+        degeneracy: str = "forbid", resolver: str = "first", per_pos_limit: int = 29,
+        resolver_limit: int = 8193, **kwargs: Any
     ):
         """
         Affine cipher: ct = (a * pt + b) mod N
@@ -128,7 +138,8 @@ class by_name:
             return (a * pt + b) % N
 
         spec = CipherSpec.user_map3(
-            function=f, N=N, degeneracy=degeneracy, resolver=resolver, per_pos_limit=per_pos_limit
+            function=f, N=N, degeneracy=degeneracy, resolver=resolver,
+            per_pos_limit=per_pos_limit, resolver_limit=resolver_limit,
         )
         if default_key:
             L = key_len if (key_len and key_len > 0) else 1
@@ -138,7 +149,8 @@ class by_name:
     @staticmethod
     def _xor_mod(
         *, key_len: int | None = None, default_key: bool = False,
-        degeneracy: str = "allow", resolver: str = "first", per_pos_limit: int = 1, **kwargs: Any
+        degeneracy: str = "allow", resolver: str = "expand_beam", per_pos_limit: int = 29,
+        resolver_limit: int = 8193, **kwargs: Any
     ):
         """'xor-mod' cipher: ct = (pt ^ k) % N."""
         from rune_decrypter_prime.api.specs import CipherSpec, KeySpec  # lazy
@@ -147,7 +159,8 @@ class by_name:
             return (pt ^ k) % N
 
         spec = CipherSpec.user_map2(
-            function=f, N=N, degeneracy=degeneracy, resolver=resolver, per_pos_limit=per_pos_limit
+            function=f, N=N, degeneracy=degeneracy, resolver=resolver,
+            per_pos_limit=per_pos_limit, resolver_limit=resolver_limit,
         )
         key = KeySpec.repeat(len=key_len) if (default_key and key_len and key_len > 0) else None
         return spec, key
@@ -155,7 +168,8 @@ class by_name:
     @staticmethod
     def _beaufort(
         *, key_len: int | None = None, default_key: bool = False,
-        degeneracy: str = "forbid", resolver: str = "first", per_pos_limit: int = 1, **kwargs: Any
+        degeneracy: str = "forbid", resolver: str = "first", per_pos_limit: int = 29,
+        resolver_limit: int = 8193, **kwargs: Any
     ):
         """Classical Beaufort: ct = (k - pt) mod N"""
         from rune_decrypter_prime.api.specs import CipherSpec, KeySpec  # lazy
@@ -164,7 +178,8 @@ class by_name:
             return (k - pt) % N
 
         spec = CipherSpec.user_map2(
-            function=f, N=N, degeneracy=degeneracy, resolver=resolver, per_pos_limit=per_pos_limit
+            function=f, N=N, degeneracy=degeneracy, resolver=resolver,
+            per_pos_limit=per_pos_limit, resolver_limit=resolver_limit,
         )
         key = KeySpec.repeat(len=key_len) if (default_key and key_len and key_len > 0) else None
         return spec, key
@@ -172,7 +187,8 @@ class by_name:
     @staticmethod
     def _variant_vigenere(
         *, key_len: int | None = None, default_key: bool = False,
-        degeneracy: str = "forbid", resolver: str = "first", per_pos_limit: int = 1, **kwargs: Any
+        degeneracy: str = "forbid", resolver: str = "first", per_pos_limit: int = 29,
+        resolver_limit: int = 8193, **kwargs: Any
     ):
         """Variant Vigenère (aka Beaufort-variant): ct = (pt - k) mod N"""
         from rune_decrypter_prime.api.specs import CipherSpec, KeySpec  # lazy
@@ -181,7 +197,8 @@ class by_name:
             return (pt - k) % N
 
         spec = CipherSpec.user_map2(
-            function=f, N=N, degeneracy=degeneracy, resolver=resolver, per_pos_limit=per_pos_limit
+            function=f, N=N, degeneracy=degeneracy, resolver=resolver,
+            per_pos_limit=per_pos_limit, resolver_limit=resolver_limit,
         )
         key = KeySpec.repeat(len=key_len) if (default_key and key_len and key_len > 0) else None
         return spec, key
@@ -289,8 +306,13 @@ class by_name:
         N = _pull_N(kwargs)
         def f(pt: int, k: int) -> int:
             return pt
-        spec = CipherSpec.user_map2(function=f, N=N,
-                                    degeneracy="forbid", resolver="first", per_pos_limit=1)
+        resolver_limit_raw = kwargs.get("resolver_limit", 8193)
+        resolver_limit = 8193 if resolver_limit_raw is None else int(resolver_limit_raw)
+        spec = CipherSpec.user_map2(
+            function=f, N=N,
+            degeneracy="forbid", resolver="first",
+            per_pos_limit=29, resolver_limit=resolver_limit,
+        )
         #key = KeySpec.permutation(cols) if (default_key and cols and cols > 0) else None
         key = KeySpec.permutation(len=cols) if (default_key and cols and cols > 0) else None
         return spec, key
@@ -305,8 +327,13 @@ class by_name:
         N = _pull_N(kwargs)
         def f(pt: int, k: int) -> int:
             return pt
-        spec = CipherSpec.user_map2(function=f, N=N,
-                                    degeneracy="forbid", resolver="first", per_pos_limit=1)
+        resolver_limit_raw = kwargs.get("resolver_limit", 8193)
+        resolver_limit = 8193 if resolver_limit_raw is None else int(resolver_limit_raw)
+        spec = CipherSpec.user_map2(
+            function=f, N=N,
+            degeneracy="forbid", resolver="first",
+            per_pos_limit=29, resolver_limit=resolver_limit,
+        )
         if default_key and key_len1 and key_len2:
             return spec, (KeySpec.permutation(key_len1), KeySpec.permutation(key_len2))
         return spec, None
@@ -320,8 +347,13 @@ class by_name:
         N = _pull_N(kwargs)
         def f(pt: int, k: int) -> int:
             return pt
-        spec = CipherSpec.user_map2(function=f, N=N,
-                                    degeneracy="forbid", resolver="first", per_pos_limit=1)
+        resolver_limit_raw = kwargs.get("resolver_limit", 8193)
+        resolver_limit = 8193 if resolver_limit_raw is None else int(resolver_limit_raw)
+        spec = CipherSpec.user_map2(
+            function=f, N=N,
+            degeneracy="forbid", resolver="first",
+            per_pos_limit=29, resolver_limit=resolver_limit,
+        )
         #key = KeySpec.permutation(block_size) if (default_key and block_size and block_size > 0) else None
         key = KeySpec.permutation(len=block_size) if (default_key and block_size and block_size > 0) else None
         return spec, key
@@ -335,8 +367,13 @@ class by_name:
         N = _pull_N(kwargs)
         def f(p1: int, p2: int, k1: list[int], k2: list[int]) -> tuple[int,int]:
             return (p1, p2)
-        spec = CipherSpec.user_map3(function=f, N=N,
-                                    degeneracy="allow", resolver="first", per_pos_limit=1)
+        resolver_limit_raw = kwargs.get("resolver_limit", 8193)
+        resolver_limit = 8193 if resolver_limit_raw is None else int(resolver_limit_raw)
+        spec = CipherSpec.user_map3(
+            function=f, N=N,
+            degeneracy="allow", resolver="expand_beam",
+            per_pos_limit=29, resolver_limit=resolver_limit,
+        )
         if default_key:
             return spec, (KeySpec.permutation(len=25), KeySpec.permutation(len=25))
         return spec, None

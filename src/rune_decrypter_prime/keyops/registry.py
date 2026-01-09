@@ -60,7 +60,7 @@ def _alias_kwargs_for_family(family: KeyOpsFamily, kwargs: Dict[str, Any]) -> Di
             out["K"] = out.pop("L")
 
     # Family-specific
-    if fam is KeyOpsFamily.VECTOR:
+    if fam is KeyOpsFamily.VECTOR or fam is KeyOpsFamily.COMPOSITE:
         if "mod" not in out:
             if "A" in out:
                 out["mod"] = out.pop("A")
@@ -99,6 +99,10 @@ except Exception:
     pass
 try:
     from . import vector  # registers KeyOpsFamily.VECTOR on import
+except Exception:
+    pass
+try:
+    from . import composite  # registers KeyOpsFamily.COMPOSITE on import
 except Exception:
     pass
 __all__ = ["register_keyop", "create", "get", "has", "available"]

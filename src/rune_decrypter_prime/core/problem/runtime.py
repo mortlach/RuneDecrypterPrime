@@ -129,9 +129,15 @@ class DecryptionProblem:
         family = getattr(self.cipher, "keyops_family", None) or getattr(self.c_cfg, "keyops_family", None)
         if not family:
             family = "vector" if getattr(self.cipher, "is_vector_key", False) else "perm"
+        core_family = family
+
+        if self._interruptors_search_enabled():
+            family = "composite"
 
         # --- construct ---
         hints = self._gather_keyops_hints()
+        if str(family).lower() == "composite":
+            hints.setdefault("core_family", core_family)
         try:
             keyops = create_keyops(family, K=K, **hints)
         except TypeError:
@@ -140,7 +146,10 @@ class DecryptionProblem:
 
         caps_len = int(getattr(getattr(keyops, "caps", None), "length", K))
         if caps_len != int(K):
-            raise ValueError(f"KeyOps length mismatch: caps.length={caps_len} != resolved K={K}")
+            traits = getattr(getattr(keyops, "caps", None), "traits", {}) or {}
+            core_len = traits.get("core_length")
+            if core_len is None or int(core_len) != int(K):
+                raise ValueError(f"KeyOps length mismatch: caps.length={caps_len} != resolved K={K}")
         return keyops
 
     # =========================================================
@@ -151,15 +160,67 @@ class DecryptionProblem:
         Decrypt a batch of keys -> list of plaintexts (length B).
         Always returns a Python list for scorer compatibility.
         """
-        plains = self.cipher.decrypt(
-            ciphertext=self.ciphertext,
-            key=k_uint8,
-            interrupt_idx=getattr(self.c_cfg, "interruptors_exact", None),
-            interrupt_sym=None,
-        )
-        if hasattr(plains, "ndim") and plains.ndim >= 2:
-            return [plains[i] for i in range(plains.shape[0])]
-        return list(plains)
+        core_keys, key_interrupts = self._split_key_batch(k_uint8)
+        if key_interrupts is None:
+            interrupt_idx = self._resolve_interrupt_idx()
+            plains = self.cipher.decrypt(
+                ciphertext=self.ciphertext,
+                key=core_keys,
+                interrupt_idx=interrupt_idx,
+                interrupt_sym=None,
+            )
+            if hasattr(plains, "ndim") and plains.ndim >= 2:
+                return [plains[i] for i in range(plains.shape[0])]
+            return list(plains)
+
+        core = to_numpy(core_keys).astype(self.key_dtype, copy=False)
+        intr = to_numpy(key_interrupts).astype("intp", copy=False)
+        if core.ndim == 1:
+            core = core[None, :]
+        if intr.ndim == 1:
+            intr = intr[None, :]
+
+        out = []
+        for i in range(core.shape[0]):
+            pt = self.cipher.decrypt(
+                ciphertext=self.ciphertext,
+                key=core[i],
+                interrupt_idx=intr[i],
+                interrupt_sym=None,
+            )
+            if hasattr(pt, "ndim") and pt.ndim >= 2:
+                pt = pt[0]
+            out.append(pt)
+        return out
+
+    def _resolve_interrupt_idx(self):
+        """Resolve canonical interruptor positions with exact taking precedence."""
+        exact = getattr(self.c_cfg, "interruptors_exact", None)
+        if exact is not None:
+            return exact
+        legacy = getattr(self.c_cfg, "interruptors", None)
+        if legacy is not None:
+            return legacy
+        return None
+
+    def _interruptors_search_enabled(self) -> bool:
+        if getattr(self.c_cfg, "interruptors_exact", None) is not None:
+            return False
+        pool = getattr(self.c_cfg, "interruptors_pool", None)
+        max_n = getattr(self.c_cfg, "interruptors_max", None)
+        if pool is None or max_n is None:
+            return False
+        try:
+            return int(max_n) > 0 and len(pool) > 0
+        except Exception:
+            return False
+
+    def _split_key_batch(self, keys: Any):
+        keys_np = to_numpy(keys)
+        split = getattr(self.keyops, "split_key", None)
+        if callable(split):
+            return split(keys_np)
+        return keys_np, None
 
     def _score_batch_texts(self, plains_seq, wli):
         """
@@ -236,26 +297,336 @@ class DecryptionProblem:
             self.telemetry.device = to_canonical_device_str(dev_kind)
             self.telemetry.dtype = str(dtype)
 
+        deg_cfg = self._degeneracy_cfg()
+
         # Decrypt and score with timing
         t_dec, t_sc = _Timer(), _Timer()
-        t_dec.start()
-        plains_seq = self._decrypt_batch(k)
-        self.telemetry.decrypt_time_s += t_dec.stop()
+        if deg_cfg is not None:
+            t_dec.start()
+            plains_seq, scores, cand_count, sc_time = self._evaluate_keys_with_degeneracy(k, deg_cfg)
+            self.telemetry.decrypt_time_s += t_dec.stop()
+            self.telemetry.score_time_s += float(sc_time)
+        else:
+            t_dec.start()
+            plains_seq = self._decrypt_batch(k)
+            self.telemetry.decrypt_time_s += t_dec.stop()
 
-        t_sc.start()
-        scores = self._score_batch_texts(plains_seq, self.wli_data)
-        self.telemetry.score_time_s += t_sc.stop()
+            t_sc.start()
+            scores = self._score_batch_texts(plains_seq, self.wli_data)
+            self.telemetry.score_time_s += t_sc.stop()
+            cand_count = int(B)
 
         # Counters
         if plains_seq and hasattr(plains_seq[0], "__len__"):
             N = int(len(plains_seq[0]))
         else:
             N = self.ciphertext_len
-        self.telemetry.tokens_processed += B * N
+        self.telemetry.tokens_processed += int(cand_count) * N
         self.telemetry.evaluate_keys_calls += 1
-        self.telemetry.candidates_evaluated += B
+        self.telemetry.candidates_evaluated += int(cand_count)
 
         return to_numpy(scores)
+
+    def _degeneracy_cfg(self) -> Optional[dict]:
+        """Return degeneracy config if enabled and supported by the cipher."""
+        spec = getattr(self.c_cfg, "spec", None)
+        if spec is None:
+            return None
+        deg = str(getattr(spec, "degeneracy", "forbid") or "forbid").strip().lower()
+        if deg != "allow":
+            return None
+        if not callable(getattr(self.cipher, "candidates_for", None)):
+            return None
+
+        resolver = str(getattr(spec, "resolver", "first") or "first").strip().lower()
+        per_pos_limit = int(getattr(spec, "per_pos_limit", 1) or 0)
+        resolver_limit = int(getattr(spec, "resolver_limit", 8193) or 0)
+        if resolver_limit <= 0:
+            resolver_limit = 1
+
+        A = getattr(self.cipher, "A", None)
+        if A is None:
+            A = getattr(self.cipher, "N", None)
+        if per_pos_limit <= 0:
+            per_pos_limit = int(A) if A is not None else 0
+        if A is not None and per_pos_limit > int(A):
+            per_pos_limit = int(A)
+
+        return {
+            "resolver": resolver,
+            "per_pos_limit": per_pos_limit,
+            "resolver_limit": resolver_limit,
+        }
+
+    def _evaluate_keys_with_degeneracy(self, keys: Any, cfg: dict):
+        """Evaluate keys with degeneracy-aware candidate expansion."""
+        resolver = cfg.get("resolver", "first")
+        per_pos_limit = int(cfg.get("per_pos_limit", 1) or 0)
+        resolver_limit = int(cfg.get("resolver_limit", 1) or 1)
+
+        keys_np = to_numpy(keys)
+        if keys_np.ndim == 1:
+            keys_np = keys_np[None, :]
+        core_keys, key_interrupts = self._split_key_batch(keys_np)
+
+        if key_interrupts is None:
+            ct_tr, keys_tr, info, L_full = self._prepare_candidate_inputs(core_keys)
+            cands, lens, invalid = self.cipher.candidates_for(ct_tr, keys_tr, limit=per_pos_limit)
+            B = int(keys_tr.shape[0])
+        else:
+            keys_tr = None
+            cands = lens = invalid = None
+            info = None
+            L_full = int(self.ciphertext_len)
+            B = int(core_keys.shape[0])
+
+        scores_out = self.xp.full((B,), float("-inf"), dtype=self.xp.float64)
+        plains_out = [None] * B
+        total_scored = 0
+        score_time = 0.0
+
+        for b in range(B):
+            if key_interrupts is None:
+                if invalid is not None and bool(to_numpy(invalid[b]).any()):
+                    continue
+                cands_b = cands[b]
+                lens_b = lens[b]
+                info_b = info
+                L_full_b = L_full
+                key_core = core_keys[b]
+            else:
+                ct_tr, keys_tr_b, info_b, L_full_b = self._prepare_candidate_inputs(
+                    core_keys[b:b + 1],
+                    interrupt_idx=key_interrupts[b],
+                )
+                cands_b, lens_b, invalid_b = self.cipher.candidates_for(
+                    ct_tr,
+                    keys_tr_b,
+                    limit=per_pos_limit,
+                )
+                if invalid_b is not None and bool(to_numpy(invalid_b[0]).any()):
+                    continue
+                key_core = core_keys[b]
+
+            if resolver != "expand_beam":
+                # "first" resolver: decrypt normally but reject invalid keys
+                if key_interrupts is None:
+                    pt = self._decrypt_batch(key_core)
+                    pt_arr = to_numpy(pt[0] if isinstance(pt, list) else pt)
+                else:
+                    pt = self.cipher.decrypt(
+                        ciphertext=self.ciphertext,
+                        key=key_core,
+                        interrupt_idx=key_interrupts[b],
+                        interrupt_sym=None,
+                    )
+                    pt_arr = to_numpy(pt)
+                pt_arr = pt_arr.astype("uint8", copy=False).reshape(-1)
+                plains_out[b] = pt_arr
+                t_sc = _Timer()
+                t_sc.start()
+                sc = float(self._score_batch_texts([pt_arr], self.wli_data)[0])
+                score_time += t_sc.stop()
+                scores_out[b] = sc
+                total_scored += 1
+                continue
+
+            pt_best, sc_best, scored, sc_time = self._resolve_candidates_for_key(
+                cands_b[0] if key_interrupts is not None else cands_b,
+                lens_b[0] if key_interrupts is not None else lens_b,
+                info_b,
+                L_full=L_full_b,
+                resolver_limit=resolver_limit,
+            )
+            if pt_best is not None:
+                plains_out[b] = pt_best
+                scores_out[b] = sc_best
+                total_scored += int(scored)
+                score_time += float(sc_time)
+
+        return plains_out, scores_out, total_scored, score_time
+
+    def _prepare_candidate_inputs(self, keys_np: np.ndarray, *, interrupt_idx: Optional[Any] = None):
+        """Prepare core/transposed ciphertext + keys for candidates_for()."""
+        cipher = self.cipher
+        ct_arr = to_numpy(self.ciphertext).reshape(-1)
+
+        if hasattr(cipher, "_intr_mgr") and hasattr(cipher, "_trans_mgr"):
+            if hasattr(cipher, "_as_u8"):
+                try:
+                    ct_idx = cipher._as_u8(ct_arr, "ciphertext")
+                except TypeError:
+                    ct_idx = cipher._as_u8(ct_arr)
+            else:
+                ct_idx = to_numpy(ct_arr).astype("uint8", copy=False)
+            if interrupt_idx is None:
+                interrupt_idx = self._resolve_interrupt_idx()
+            if interrupt_idx is not None and hasattr(cipher, "_as_intp"):
+                try:
+                    idx = cipher._as_intp(interrupt_idx, "interrupt_idx")
+                except TypeError:
+                    idx = cipher._as_intp(interrupt_idx)
+            elif interrupt_idx is not None:
+                idx = to_numpy(interrupt_idx).astype("intp", copy=False)
+            else:
+                idx = None
+
+            if idx is not None and hasattr(cipher, "_validate_interrupt_idx"):
+                cipher._validate_interrupt_idx(idx, int(ct_idx.size))
+
+            if idx is not None:
+                ct_core, info = cipher._intr_mgr.remove_from(ct_idx, possible_idx=idx)
+            else:
+                ct_core, info = cipher._intr_mgr.remove_from(ct_idx, possible_idx=None)
+
+            ct_tr = cipher._trans_mgr.apply_text(ct_core)
+            if hasattr(cipher, "_as_key_dtype"):
+                try:
+                    key_arr = cipher._as_key_dtype(keys_np, "key")
+                except TypeError:
+                    key_arr = cipher._as_key_dtype(keys_np)
+            else:
+                key_arr = to_numpy(keys_np).astype(self.key_dtype, copy=False)
+            if getattr(cipher, "mod_keys", True):
+                A = getattr(cipher, "A", None)
+                if A is not None:
+                    key_arr = key_arr % int(A)
+            if key_arr.ndim == 1:
+                key_arr = key_arr[None, :]
+            keys_tr = cipher._trans_mgr.apply_key(key_arr)
+            return ct_tr, keys_tr, info, int(ct_idx.size)
+
+        # Fallback: assume candidates_for consumes full ciphertext/key space
+        key_arr = to_numpy(keys_np).astype(self.key_dtype, copy=False)
+        if key_arr.ndim == 1:
+            key_arr = key_arr[None, :]
+        ct_arr_u8 = to_numpy(ct_arr).astype("uint8", copy=False)
+        return ct_arr_u8, key_arr, None, int(ct_arr_u8.size)
+
+    @staticmethod
+    def _enumerate_candidates(cands_row: np.ndarray, lens_row: np.ndarray, limit: int) -> np.ndarray:
+        """Enumerate candidate plaintexts in core/transposed space with a hard cap."""
+        lens_np = to_numpy(lens_row).reshape(-1)
+        if limit <= 0:
+            return to_numpy([]).astype("uint8").reshape(0, int(lens_np.size))
+
+        lengths = [int(x) for x in lens_np]
+        if not lengths:
+            return to_numpy([]).astype("uint8").reshape(0, 0)
+        if any(L <= 0 for L in lengths):
+            return to_numpy([]).astype("uint8").reshape(0, len(lengths))
+
+        total = 1
+        for L in lengths:
+            total *= L
+            if total > limit:
+                total = limit + 1
+                break
+        out_n = min(limit, total) if total != (limit + 1) else limit
+        L = len(lengths)
+        out = to_numpy([[0] * L for _ in range(out_n)]).astype("uint8", copy=False)
+
+        idx = [0] * L
+        for n in range(out_n):
+            for i in range(L):
+                out[n, i] = cands_row[i, idx[i]]
+            # increment mixed-radix counter
+            for pos in range(L - 1, -1, -1):
+                idx[pos] += 1
+                if idx[pos] < lengths[pos]:
+                    break
+                idx[pos] = 0
+        return out
+
+    def _reassemble_plaintexts(self, plains_tr: np.ndarray, info, L_full: int) -> list[np.ndarray]:
+        """Undo text transposition and reinsert interruptors for candidate batches."""
+        cipher = self.cipher
+        if not hasattr(cipher, "_trans_mgr"):
+            return [to_numpy(row).astype("uint8", copy=False).reshape(-1) for row in plains_tr]
+
+        out = []
+        for row in plains_tr:
+            cand_core = cipher._trans_mgr.undo_text(to_numpy(row).astype("uint8", copy=False))
+            if info is not None and hasattr(cipher, "_intr_mgr"):
+                cand_full = cipher._intr_mgr.insert_into(cand_core, info)
+            else:
+                cand_full = cand_core
+            cand_full = to_numpy(cand_full).astype("uint8", copy=False).reshape(-1)
+            if L_full and cand_full.size != int(L_full):
+                raise ValueError(f"reassembled plaintext has length {cand_full.size}, expected {L_full}")
+            out.append(cand_full)
+        return out
+
+    def _resolve_candidates_for_key(
+        self,
+        cands_row: np.ndarray,
+        lens_row: np.ndarray,
+        info,
+        *,
+        L_full: int,
+        resolver_limit: int,
+    ):
+        """Return (best_plaintext, best_score, scored_count, score_time) for one key."""
+        seqs_tr = self._enumerate_candidates(cands_row, lens_row, resolver_limit)
+        if seqs_tr.size == 0:
+            return None, float("-inf"), 0, 0.0
+        plains_full = self._reassemble_plaintexts(seqs_tr, info, L_full)
+        t_sc = _Timer()
+        t_sc.start()
+        scores = self._score_batch_texts(plains_full, self.wli_data)
+        sc_time = t_sc.stop()
+        scores_np = to_numpy(scores)
+        if scores_np.size == 0:
+            return None, float("-inf"), 0, sc_time
+        best_idx = int(scores_np.argmax())
+        best_plain = to_numpy(plains_full[best_idx]).astype("uint8", copy=False).reshape(-1)
+        return best_plain, float(scores_np[best_idx]), int(len(plains_full)), sc_time
+
+    def resolve_plaintext(self, key: Any) -> Optional[np.ndarray]:
+        """Resolve a key to a plaintext, honoring degeneracy settings if enabled."""
+        cfg = self._degeneracy_cfg()
+        key_np = to_numpy(key).astype(self.key_dtype, copy=False).reshape(1, -1)
+        key_core, key_interrupts = self._split_key_batch(key_np)
+        interrupt_idx = self._resolve_interrupt_idx() if key_interrupts is None else key_interrupts[0]
+        if cfg is None:
+            pt = self.cipher.decrypt(
+                ciphertext=self.ciphertext,
+                key=key_core[0] if hasattr(key_core, "ndim") and key_core.ndim == 2 else key_core,
+                interrupt_idx=interrupt_idx,
+                interrupt_sym=None,
+            )
+            pt_arr = to_numpy(pt).astype("uint8", copy=False)
+            if pt_arr.ndim >= 2:
+                pt_arr = pt_arr[0]
+            return pt_arr.reshape(-1)
+
+        keys_np = to_numpy(key_core).astype(self.key_dtype, copy=False).reshape(1, -1)
+        ct_tr, keys_tr, info, L_full = self._prepare_candidate_inputs(keys_np, interrupt_idx=interrupt_idx)
+        cands, lens, invalid = self.cipher.candidates_for(ct_tr, keys_tr, limit=cfg["per_pos_limit"])
+        if invalid is not None and bool(to_numpy(invalid[0]).any()):
+            return None
+
+        resolver = cfg.get("resolver", "first")
+        if resolver != "expand_beam":
+            pt = self.cipher.decrypt(
+                ciphertext=self.ciphertext,
+                key=key_core[0] if hasattr(key_core, "ndim") and key_core.ndim == 2 else key_core,
+                interrupt_idx=interrupt_idx,
+                interrupt_sym=None,
+            )
+            pt_arr = to_numpy(pt).astype("uint8", copy=False)
+            if pt_arr.ndim >= 2:
+                pt_arr = pt_arr[0]
+            return pt_arr.reshape(-1)
+
+        pt_best, _score, _count, _sc_time = self._resolve_candidates_for_key(
+            cands[0],
+            lens[0],
+            info,
+            L_full=L_full,
+            resolver_limit=int(cfg.get("resolver_limit", 1) or 1),
+        )
+        return pt_best
 
     def _gather_keyops_hints(self) -> dict:
         """Collect generic hints for KeyOps constructors without branching on family."""
@@ -281,5 +652,12 @@ class DecryptionProblem:
         pb = getattr(self.cipher, "prefers_batch", None)
         if isinstance(pb, bool):
             hints["prefers_batch"] = pb
+
+        pool = getattr(self.c_cfg, "interruptors_pool", None)
+        if pool is not None:
+            hints["interruptors_pool"] = list(pool)
+        max_n = getattr(self.c_cfg, "interruptors_max", None)
+        if max_n is not None:
+            hints["interruptors_max"] = int(max_n)
 
         return hints

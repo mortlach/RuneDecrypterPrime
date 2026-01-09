@@ -16,6 +16,8 @@ def test_define_map_cipher_roundtrip_and_telemetry():
         function=lambda pt, k: (pt ^ k) % 29,
         name="unit_test_xor",
         degeneracy="forbid",
+        per_pos_limit=29,
+        resolver_limit=8193,
     )
     xor_spec.name = None  # allow engine to route via canonical user_map2 entry
     cipher_spec, key_spec = define_cipher(spec=xor_spec, key=KeySpec.const(value=7))

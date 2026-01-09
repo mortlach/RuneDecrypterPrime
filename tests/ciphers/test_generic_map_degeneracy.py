@@ -35,7 +35,8 @@ def test_xor_mod29_candidate_counts_and_values(k: int, ct: int):
         function=lambda pt, kk: (pt ^ kk) % N,
         degeneracy="allow",
         resolver="first",
-        per_pos_limit=8,
+        per_pos_limit=29,
+        resolver_limit=8193,
         name="xor-mod29",
     )
     cipher = _build_cipher_for_spec(spec, key_length=1, device="cpu", length=1)
@@ -62,7 +63,8 @@ def test_xor_mod29_explicit_multi_solution_example():
         function=lambda pt, kk: (pt ^ kk) % 29,
         degeneracy="allow",
         resolver="first",
-        per_pos_limit=8,
+        per_pos_limit=29,
+        resolver_limit=8193,
         name="xor-mod29",
     )
     cipher = _build_cipher_for_spec(spec, key_length=1, device="cpu", length=1)
@@ -86,7 +88,8 @@ def test_lookup_table_respects_per_pos_limit():
         table=table,
         degeneracy="allow",
         resolver="first",
-        per_pos_limit=1,
+        per_pos_limit=29,
+        resolver_limit=8193,
         name="zero-table",
     )
     cipher = _build_cipher_for_spec(spec, key_length=1, device="cpu", length=1)
@@ -95,7 +98,7 @@ def test_lookup_table_respects_per_pos_limit():
     ct_arr = np.array([0], dtype=np.uint8)
 
     cands, lens, invalid = cipher.candidates_for(ct_arr, key, limit=spec.per_pos_limit)
-    assert int(lens[0, 0]) == 1
+    assert int(lens[0, 0]) == 29
     assert cands[0, 0, 0] == 0
     assert not bool(invalid[0, 0])
 
@@ -107,7 +110,8 @@ def test_candidates_match_on_cuda():
         function=lambda pt, kk: (pt + kk) % 29,
         degeneracy="allow",
         resolver="first",
-        per_pos_limit=4,
+        per_pos_limit=29,
+        resolver_limit=8193,
         name="add-mod29",
     )
     cpu_cipher = _build_cipher_for_spec(spec, key_length=1, device="cpu", length=4)

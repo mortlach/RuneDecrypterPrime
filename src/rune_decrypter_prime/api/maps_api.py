@@ -21,8 +21,9 @@ def define_map(*, N: int = 29,
                function: Optional[Callable[..., int]] = None,
                table: Optional[Any] = None,
                degeneracy: str = "forbid",
-               resolver: str = "first",
-               per_pos_limit: int = 1,
+               resolver: str = "expand_beam",
+               per_pos_limit: int = 29,
+               resolver_limit: int = 8193,
                name: Optional[str] = None) -> CipherSpec:
     """Define a user map or lookup table → `CipherSpec`.
     Exactly one of `function` or `table` must be provided.
@@ -35,15 +36,18 @@ def define_map(*, N: int = 29,
         n = len(inspect.signature(function).parameters)
         if n == 2:
             return CipherSpec.user_map2(function=function, N=N, degeneracy=degeneracy,
-                                        resolver=resolver, per_pos_limit=per_pos_limit, name=name or "user_map2")
+                                        resolver=resolver, per_pos_limit=per_pos_limit,
+                                        resolver_limit=resolver_limit, name=name or "user_map2")
         if n == 3:
             return CipherSpec.user_map3(function=function, N=N, degeneracy=degeneracy,
-                                        resolver=resolver, per_pos_limit=per_pos_limit, name=name or "user_map3")
+                                        resolver=resolver, per_pos_limit=per_pos_limit,
+                                        resolver_limit=resolver_limit, name=name or "user_map3")
         raise ValueError("function must accept (pt,k) or (pt,k1,k2)")
 
     # table path
     return CipherSpec.from_lookup(table=table, N=N, degeneracy=degeneracy,
-                                  resolver=resolver, per_pos_limit=per_pos_limit, name=name or "lookup")
+                                  resolver=resolver, per_pos_limit=per_pos_limit,
+                                  resolver_limit=resolver_limit, name=name or "lookup")
 
 
 def define_cipher(
