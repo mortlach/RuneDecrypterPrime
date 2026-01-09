@@ -39,7 +39,10 @@ if hasattr(sys.stdout, "reconfigure"):
 
 TUTORIAL_SEED = 2027
 INTERRUPTOR_SYMBOL = 27
-INTERRUPTOR_COUNT = 2
+INTERRUPTOR_TRUE_COUNT = 2
+INTERRUPTOR_MIN = 0
+INTERRUPTOR_MAX = 3
+INTERRUPTOR_SENTINEL = -1
 KEY_NUMS = [7, 0, 13, 2, 5, 21, 8]
 
 
@@ -53,9 +56,9 @@ def main() -> None:
     wli = list(word_breaks1)
 
     interruptors = [i for i, v in enumerate(pt_idx) if v == INTERRUPTOR_SYMBOL]
-    if len(interruptors) != INTERRUPTOR_COUNT:
+    if len(interruptors) != INTERRUPTOR_TRUE_COUNT:
         raise ValueError(
-            f"Expected {INTERRUPTOR_COUNT} interruptors with symbol {INTERRUPTOR_SYMBOL}, "
+            f"Expected {INTERRUPTOR_TRUE_COUNT} interruptors with symbol {INTERRUPTOR_SYMBOL}, "
             f"found {len(interruptors)}"
         )
 
@@ -83,6 +86,7 @@ def main() -> None:
 
     print("Interruptor symbol:", INTERRUPTOR_SYMBOL)
     print("Interruptor positions (true):", interruptors)
+    print("Interruptor count range:", f"{INTERRUPTOR_MIN}..{INTERRUPTOR_MAX}")
     print("Interruptor pool size:", len(pool))
     print("Interruptor pool preview:", pool[:12])
     print("Plaintext preview:", _preview(pt_runes))
@@ -91,8 +95,8 @@ def main() -> None:
     interrupt_cfg = InterruptorConfig(
         mode="pool",
         pool=pool,
-        min_count=INTERRUPTOR_COUNT,
-        max_count=INTERRUPTOR_COUNT,
+        min_count=INTERRUPTOR_MIN,
+        max_count=INTERRUPTOR_MAX,
     )
 
     solver = SolverSpec.beam(
@@ -129,8 +133,8 @@ def main() -> None:
         solution=solution,
         match_ok=None,
         app_version="tutorial-1.0",
-        key_idx=KEY_NUMS + interruptors,
-        key_len=len(KEY_NUMS) + len(interruptors),
+        key_idx=KEY_NUMS + interruptors + [INTERRUPTOR_SENTINEL],
+        key_len=len(KEY_NUMS) + INTERRUPTOR_MAX,
         ct_idx=ct_idx_list,
         ct_rune=ct_runes,
         pt_rune_ref=pt_runes,

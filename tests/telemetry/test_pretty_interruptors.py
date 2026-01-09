@@ -49,3 +49,23 @@ def test_print_run_report_omits_interruptors_without_meta(capsys):
 
     out = capsys.readouterr().out
     assert "Interruptors(" not in out
+
+
+def test_print_run_report_prefers_interruptors_ref(capsys):
+    sol = _make_solution()
+    sol.meta = {"interruptors": {"found": [4, 9], "expected": [9], "core_length": 3}}
+
+    print_run_report(
+        title="Interruptor Demo",
+        cipher="vigenere",
+        solution=sol,
+        match_ok=None,
+        app_version="test",
+        interruptors_ref=[1, 2],
+        key_idx=[1, 2, 3, 4, 9],
+        key_len=5,
+    )
+
+    out = capsys.readouterr().out
+    assert "Interruptors(found): [4, 9]" in out
+    assert "Interruptors(real) : [1, 2]" in out
