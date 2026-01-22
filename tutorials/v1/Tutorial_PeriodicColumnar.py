@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Sequence
+import itertools
 
 import numpy as np
 
@@ -37,6 +38,10 @@ USE_SEEDS = True
 BLOCK_SEEDS = 6
 SEED_KEYS = 32
 SEED_SWAPS = 2
+BRUTEFORCE_SUB_THEN_COL = True
+SWEEP_BLOCK_SEEDS = 3
+SWEEP_KEYS = 6
+SWEEP_KEEP = 2
 
 ORDERS = ("sub_then_col", "col_then_sub")
 SCENARIOS: Tuple[Tuple[str, Dict[str, Any]], ...] = (
@@ -162,6 +167,148 @@ def _attach_column_tail(keys: list[list[int]], columns: int, seed: int) -> list[
     return out
 
 
+def _columnar_cipher(columns: int):
+    cache = getattr(_columnar_cipher, "_cache", None)
+    if cache is None:
+        cache = {}
+        setattr(_columnar_cipher, "_cache", cache)
+    if columns in cache:
+        return cache[columns]
+    spec = by_name.cipher("columnar", key_length=columns)
+    cipher = cipher_instance(spec)
+    cache[columns] = cipher
+    return cipher
+
+
+def _columnar_undo(ct_idx: np.ndarray, columns: int, perm: Sequence[int]) -> np.ndarray:
+    cipher = _columnar_cipher(columns)
+    return cipher.decrypt_single(ciphertext=ct_idx, key=list(perm))
+
+
+def _score_test_key(
+    ct_idx: np.ndarray,
+    *,
+    period: int,
+    direction: Direction,
+    scorer_params: Dict[str, Any],
+    wli: Sequence[Sequence[int]],
+    key: Sequence[int],
+    seed: int,
+) -> float:
+    cipher_spec = by_name.cipher(
+        "periodic_substitution",
+        period=period,
+        alphabet_size=ALPHABET,
+    )
+    key_spec = KeySpec.periodic_substitution(period=period, alphabet_size=ALPHABET)
+    solver = SolverSpec.kaeding(
+        test_key=list(key),
+        verbose=False,
+        print_progress=False,
+        seed=seed,
+    )
+    sol = run(
+        text=ct_idx,
+        cipher=cipher_spec,
+        key=key_spec,
+        solver=solver,
+        scorer_params=dict(scorer_params),
+        wli_data=wli,
+        encoding_dir=direction,
+        telemetry_on=False,
+    )
+    return float(sol.score)
+
+
+def _solve_sub_then_col(
+    ct_idx: np.ndarray,
+    *,
+    period: int,
+    columns: int,
+    direction: Direction,
+    scorer_params: Dict[str, Any],
+    wli: Sequence[Sequence[int]],
+    solver_kwargs: Dict[str, Any],
+) -> tuple[Any, Sequence[int], Sequence[int]]:
+    perms = list(itertools.permutations(range(columns)))
+    ranked: list[tuple[float, Sequence[int], np.ndarray]] = []
+    print(f"Brute-force columns: {len(perms)} permutations")
+
+    for perm in perms:
+        ct_ps = _columnar_undo(ct_idx, columns, perm)
+        seeds = _make_periodic_seeds(
+            ct_ps,
+            period=period,
+            direction=direction,
+            seed=TUTORIAL_SEED + period + columns,
+            n_block_seeds=SWEEP_BLOCK_SEEDS,
+            total_seeds=SWEEP_KEYS,
+            swaps_per_block=SEED_SWAPS,
+        )
+        best = float("-inf")
+        for seed_key in seeds:
+            score = _score_test_key(
+                ct_ps,
+                period=period,
+                direction=direction,
+                scorer_params=scorer_params,
+                wli=wli,
+                key=seed_key,
+                seed=TUTORIAL_SEED,
+            )
+            if score > best:
+                best = score
+        ranked.append((best, perm, ct_ps))
+
+    ranked.sort(key=lambda x: x[0], reverse=True)
+    top = ranked[: max(1, SWEEP_KEEP)]
+    for score, perm, _ in top:
+        print(f"  sweep best score={score:.6f} perm={list(perm)}")
+
+    best_sol = None
+    best_perm = None
+    best_score = float("-inf")
+    for _, perm, ct_ps in top:
+        seed_keys = None
+        if USE_SEEDS:
+            seed_keys = _make_periodic_seeds(
+                ct_ps,
+                period=period,
+                direction=direction,
+                seed=TUTORIAL_SEED + period + columns,
+                n_block_seeds=BLOCK_SEEDS,
+                total_seeds=SEED_KEYS,
+                swaps_per_block=SEED_SWAPS,
+            )
+
+        cipher_spec = by_name.cipher(
+            "periodic_substitution",
+            period=period,
+            alphabet_size=ALPHABET,
+        )
+        key_spec = KeySpec.periodic_substitution(period=period, alphabet_size=ALPHABET)
+        solver = SolverSpec.kaeding(**solver_kwargs)
+        sol = run(
+            text=ct_ps,
+            cipher=cipher_spec,
+            key=key_spec,
+            solver=solver,
+            scorer_params=dict(scorer_params),
+            wli_data=wli,
+            encoding_dir=direction,
+            telemetry_on=True,
+            **({} if seed_keys is None else {"initial_keys": seed_keys}),
+        )
+        if sol.score > best_score:
+            best_sol = sol
+            best_perm = perm
+            best_score = float(sol.score)
+
+    if best_sol is None or best_perm is None:
+        raise RuntimeError("sub_then_col solve failed to return a solution")
+    return best_sol, best_perm, best_sol.key
+
+
 def main() -> None:
     direction = Direction.RTL
     pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(
@@ -190,6 +337,59 @@ def main() -> None:
             print(f"Scenario: {label} (period={period}, columns={columns}, order={order})")
             print("Ciphertext preview:", _preview(ct_runes))
 
+            scorer_params = dict(
+                objective="pct.logp.win10",
+                include_char=True,
+                use_word_breaks=True,
+                char_weights={3: 0.3, 4: 0.7},
+                wli_weights={3: 0.4, 4: 0.6},
+                encoding_dir=direction,
+            )
+
+            solver_kwargs = dict(
+                steps=cfg["steps"],
+                restarts=cfg["restarts"],
+                inner_batch=cfg["inner_batch"],
+                slip_every=cfg["slip_every"],
+                slip_blocks=cfg["slip_blocks"],
+                block_schedule="random",
+                plateau_rounds=0,
+                plateau_min_delta=0.0,
+                progress_pct=2,
+                print_progress=True,
+                seed=TUTORIAL_SEED,
+            )
+
+            if order == "sub_then_col" and BRUTEFORCE_SUB_THEN_COL:
+                sol, best_perm, best_key = _solve_sub_then_col(
+                    ct_idx,
+                    period=period,
+                    columns=columns,
+                    direction=direction,
+                    scorer_params=scorer_params,
+                    wli=wli,
+                    solver_kwargs=solver_kwargs,
+                )
+                recovered = getattr(sol, "plaintext_rune", "") or getattr(sol, "plaintext_str", "")
+                print("Recovered preview:", _preview(str(recovered)))
+                key_full = list(best_key) + list(best_perm)
+
+                print_run_report(
+                    title=f"periodic-columnar-{label}-{order}",
+                    cipher="periodic_columnar",
+                    solution=sol,
+                    match_ok=None,
+                    app_version="tutorial-1.0",
+                    key_idx=key_full,
+                    key_len=int(len(key_full)),
+                    ct_idx=ct_idx.tolist(),
+                    ct_rune=ct_runes,
+                    pt_rune_ref=pt_runes,
+                    pt_idx_ref=pt_idx,
+                    wli=wli,
+                )
+                continue
+
             seed_keys = None
             if USE_SEEDS and order == "col_then_sub":
                 seed_keys = _make_periodic_seeds(
@@ -217,38 +417,16 @@ def main() -> None:
                 alphabet_size=ALPHABET,
             )
 
-            solver_kwargs = dict(
-                steps=cfg["steps"],
-                restarts=cfg["restarts"],
-                inner_batch=cfg["inner_batch"],
-                slip_every=cfg["slip_every"],
-                slip_blocks=cfg["slip_blocks"],
-                col_every=cfg["col_every"],
-                col_batch=cfg["col_batch"],
-                block_schedule="random",
-                plateau_rounds=0,
-                plateau_min_delta=0.0,
-                progress_pct=2,
-                print_progress=True,
-                seed=TUTORIAL_SEED,
-            )
+            solver_kwargs["col_every"] = cfg["col_every"]
+            solver_kwargs["col_batch"] = cfg["col_batch"]
             solver = SolverSpec.kaeding(**solver_kwargs)
-
-            scorer_params = dict(
-                objective="pct.logp.win10",
-                include_char=True,
-                use_word_breaks=True,
-                char_weights={3: 0.3, 4: 0.7},
-                wli_weights={3: 0.4, 4: 0.6},
-                encoding_dir=direction,
-            )
 
             sol = run(
                 text=ct_idx.tolist(),
                 cipher=cipher_spec,
                 key=key_spec,
                 solver=solver,
-                scorer_params=scorer_params,
+                scorer_params=dict(scorer_params),
                 wli_data=wli,
                 encoding_dir=direction,
                 telemetry_on=True,
