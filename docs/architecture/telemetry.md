@@ -17,6 +17,7 @@ Structured JSONL events that describe a run. Minimal schema; true on/off toggle.
 - `device` (e.g. `"cpu"`)  
 - `seed`  
 - `pipeline` (direction, permutation summary)
+- Solver-specific fields may appear (e.g., Kaeding emits `block`, `restart`, `slip`, `col_moves`).
 
 ## Telemetry toggle and overhead
 - `RunAPI.run(..., telemetry=False)` -> **no events and no files**.  

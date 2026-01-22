@@ -4,7 +4,7 @@ from typing import Optional, Sequence, Tuple, Union
 import numpy as np
 
 from rune_decrypter_prime.core.config import CipherConfig
-from rune_decrypter_prime.core.types import Device, Direction
+from rune_decrypter_prime.core.types import Device, Direction, KeyOpsFamily
 from rune_decrypter_prime.api.api_utils import expect_key_plan, resolve_cipher_kind, resolve_key_length
 from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
 
@@ -190,6 +190,8 @@ def _build_columnar_wrapper(
     cols = int(key_spec.params.get("len", 0) or 0)
     if cols <= 1:
         raise ValueError("Columnar requires permutation len >= 2")
+    if cols > 255:
+        raise ValueError("Columnar requires permutation len <= 255 (uint8 key limit)")
     return CipherConfig(
         ciphertext=ct,
         wli_data=wli,
@@ -218,7 +220,7 @@ def _build_substitution_wrapper(
     interruptors_exact: Optional[Sequence[int]],
     interruptors_pool: Optional[Sequence[int]],
     interruptors_max: Optional[int],
-) -> CipherConfig:
+    ) -> CipherConfig:
     alphabet_size = int(getattr(cipher, "N", 0) or 29)
     return CipherConfig(
         ciphertext=ct,
@@ -234,6 +236,110 @@ def _build_substitution_wrapper(
         interruptors_max=None if interruptors_max is None else int(interruptors_max),
     )
 
+
+def _build_periodic_substitution_wrapper(
+    *,
+    cipher: CipherSpec,
+    key: KeySpec,
+    ct: np.ndarray,
+    wli: Optional[Sequence[Sequence[int]]],
+    device: Device,
+    encoding_dir: Direction,
+    initial_text_permutation_indices: Optional[Sequence[int]],
+    interruptors: Optional[object],
+    interruptors_exact: Optional[Sequence[int]],
+    interruptors_pool: Optional[Sequence[int]],
+    interruptors_max: Optional[int],
+) -> CipherConfig:
+    key_spec = expect_key_plan(
+        key,
+        "periodic_structured",
+        "Periodic substitution requires KeySpec.periodic_substitution(...)",
+    )
+    period = int(key_spec.params.get("period", 0) or 0)
+    columns = key_spec.params.get("columns", None)
+    if columns not in (None, 0):
+        raise ValueError("Periodic substitution does not accept columns (use periodic_columnar)")
+    alphabet_size = int(key_spec.params.get("alphabet_size", getattr(cipher, "N", 29)) or 29)
+    if period <= 0:
+        raise ValueError("Periodic substitution requires period >= 1")
+    if alphabet_size <= 0:
+        raise ValueError("Periodic substitution requires alphabet_size >= 1")
+
+    key_length = int(period * alphabet_size)
+    cfg = CipherConfig(
+        ciphertext=ct,
+        wli_data=wli,
+        key_length=key_length,
+        encoding_dir=encoding_dir,
+        initial_text_permutation_indices=initial_text_permutation_indices,
+        device=device,
+        name="periodic_substitution",
+        interruptors_cfg=interruptors,
+        interruptors_exact=None if interruptors_exact is None else list(interruptors_exact),
+        interruptors_pool=None if interruptors_pool is None else list(interruptors_pool),
+        interruptors_max=None if interruptors_max is None else int(interruptors_max),
+    )
+    cfg.keyops_family = KeyOpsFamily.MATRIX
+    cfg.keyops_hints = {"period": int(period), "A": int(alphabet_size)}
+    cfg.period = int(period)
+    cfg.alphabet_size = int(alphabet_size)
+    return cfg
+
+
+def _build_periodic_columnar_wrapper(
+    *,
+    cipher: CipherSpec,
+    key: KeySpec,
+    ct: np.ndarray,
+    wli: Optional[Sequence[Sequence[int]]],
+    device: Device,
+    encoding_dir: Direction,
+    initial_text_permutation_indices: Optional[Sequence[int]],
+    interruptors: Optional[object],
+    interruptors_exact: Optional[Sequence[int]],
+    interruptors_pool: Optional[Sequence[int]],
+    interruptors_max: Optional[int],
+) -> CipherConfig:
+    key_spec = expect_key_plan(
+        key,
+        "periodic_structured",
+        "Periodic columnar requires KeySpec.periodic_columnar(...)",
+    )
+    period = int(key_spec.params.get("period", 0) or 0)
+    columns = int(key_spec.params.get("columns", 0) or 0)
+    alphabet_size = int(key_spec.params.get("alphabet_size", getattr(cipher, "N", 29)) or 29)
+    if period <= 0:
+        raise ValueError("Periodic columnar requires period >= 1")
+    if columns <= 0:
+        raise ValueError("Periodic columnar requires columns >= 1")
+    if columns > 255:
+        raise ValueError("Periodic columnar requires columns <= 255 (uint8 column limit)")
+    if alphabet_size <= 0:
+        raise ValueError("Periodic columnar requires alphabet_size >= 1")
+
+    order = (getattr(cipher, "extra", {}) or {}).get("order", "sub_then_col")
+    key_length = int(period * alphabet_size + columns)
+    cfg = CipherConfig(
+        ciphertext=ct,
+        wli_data=wli,
+        key_length=key_length,
+        encoding_dir=encoding_dir,
+        initial_text_permutation_indices=initial_text_permutation_indices,
+        device=device,
+        name="periodic_columnar",
+        interruptors_cfg=interruptors,
+        interruptors_exact=None if interruptors_exact is None else list(interruptors_exact),
+        interruptors_pool=None if interruptors_pool is None else list(interruptors_pool),
+        interruptors_max=None if interruptors_max is None else int(interruptors_max),
+        order=str(order or "sub_then_col"),
+    )
+    cfg.keyops_family = KeyOpsFamily.MATRIX
+    cfg.keyops_hints = {"period": int(period), "A": int(alphabet_size), "columns": int(columns)}
+    cfg.period = int(period)
+    cfg.columns = int(columns)
+    cfg.alphabet_size = int(alphabet_size)
+    return cfg
 
 def _build_hill_wrapper(
     *,
@@ -358,6 +464,8 @@ _WRAPPER_BUILDERS = {
     "vigenere": _build_vigenere_wrapper,
     "columnar": _build_columnar_wrapper,
     "substitution": _build_substitution_wrapper,
+    "periodic_substitution": _build_periodic_substitution_wrapper,
+    "periodic_columnar": _build_periodic_columnar_wrapper,
     "hill": _build_hill_wrapper,
     "hill2x2": _build_hill_wrapper,
     "hill-2x2": _build_hill_wrapper,

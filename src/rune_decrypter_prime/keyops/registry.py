@@ -105,4 +105,8 @@ try:
     from . import composite  # registers KeyOpsFamily.COMPOSITE on import
 except Exception:
     pass
+try:
+    from . import periodic_structured_matrix_ops  # registers KeyOpsFamily.MATRIX on import
+except Exception:
+    pass
 __all__ = ["register_keyop", "create", "get", "has", "available"]

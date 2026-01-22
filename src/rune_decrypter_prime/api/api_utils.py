@@ -25,6 +25,21 @@ def resolve_key_length(key_spec: Union[KeySpec, Tuple[KeySpec, KeySpec]], cipher
         length = int(ciphertext_len)
     elif plan == "scalar":
         length = 1
+    elif plan == "periodic_structured":
+        period = int(key_spec.params.get("period", 0) or 0)
+        A = int(key_spec.params.get("alphabet_size", 29) or 29)
+        columns = key_spec.params.get("columns", None)
+        if period <= 0:
+            raise ValueError("periodic_structured requires period >= 1")
+        if A <= 0:
+            raise ValueError("periodic_structured requires alphabet_size >= 1")
+        if columns is None:
+            length = int(period * A)
+        else:
+            columns = int(columns)
+            if columns <= 0:
+                raise ValueError("periodic_structured requires columns >= 1")
+            length = int(period * A + columns)
     else:
         length = int(key_spec.params.get("len", 1) or 1)
 

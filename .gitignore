@@ -243,3 +243,4 @@ src/rune_decrypter_prime/data/language_model/lmp/wli/rtl/wli29_joint_rtl_3_wise.
 src/rune_decrypter_prime/data/language_model/lmp/wli/rtl/wli29_joint_rtl_4_nose.bin.zst
 src/rune_decrypter_prime/data/language_model/lmp/wli/rtl/wli29_joint_rtl_4_wise.bin.zst
 /solving
+/planning

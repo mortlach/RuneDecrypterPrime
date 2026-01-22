@@ -41,6 +41,13 @@ _CANON_OPTS: dict[str, set[str]] = {
         "verbose_console", "verbose", "initial_keys", "seed_keys", "test_key", "use_beam", "rounds",
         "expand_mode", "sample_per_parent", "top_parents_factor", "seed", "log_interval",
     },
+    "kaeding": {
+        "params", "steps", "restarts", "inner_batch", "block_schedule",
+        "slip_every", "slip_blocks", "col_every", "col_batch",
+        "plateau_rounds", "plateau_min_delta", "stop_score",
+        "progress_pct", "print_progress", "progress_preview_chars",
+        "verbose_console", "verbose", "initial_keys", "seed_keys", "test_key", "seed", "log_interval",
+    },
 }
 
 _COMMON_ALIASES: dict[str, str] = {
@@ -78,6 +85,10 @@ _ALIAS_MAP: dict[str, dict[str, str]] = {
         "pop": "pop_size",
         "population": "pop_size",
         "plateau_gens": "plateau_rounds",
+    },
+    "kaeding": {
+        "iters": "steps",
+        "iterations": "steps",
     },
 }
 

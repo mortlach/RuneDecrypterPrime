@@ -19,6 +19,7 @@ Operations that create and change keys during search, with invariants enforced p
 ## Invariants
 - **Permutation keys**: always a bijection (length 29 or N).  
 - **Vector keys**: values are mod-29; length preserved.
+- **Periodic structured keys**: p blocks are permutations of 0..A-1; optional columnar tail is a permutation of 0..W-1 (W <= 255).
 
 ## RNG discipline
 All randomness is injected by the Engine (named child streams). No global RNG calls in KeyOps.

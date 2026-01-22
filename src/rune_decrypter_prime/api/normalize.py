@@ -379,7 +379,10 @@ def normalize_optimizer_name(x: Union[str, SolverName]) -> SolverName:
         case "ga":     return SolverName.GA
         case "sa":     return SolverName.SA
         case "hybrid": return SolverName.HYBRID
-    raise ValueError(f"Unknown solver name: {x!r} (expected 'beam'|'ga'|'sa'|'hybrid' or OptimizerName)")
+        case "kaeding": return SolverName.KAEDING
+    raise ValueError(
+        f"Unknown solver name: {x!r} (expected 'beam'|'ga'|'sa'|'hybrid'|'kaeding' or OptimizerName)"
+    )
 
 
 

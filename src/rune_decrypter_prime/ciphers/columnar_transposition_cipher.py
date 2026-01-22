@@ -46,6 +46,7 @@ class ColumnarTranspositionCipher(CipherPipelineMixin, KeyedCipherBase):
     """
     name: str = "columnar"
     keyops_family: KeyOpsFamily = KeyOpsFamily.PERMUTATION
+    mod_keys: bool = False
 
     def __init__(self, cfg, *, text_transposition: Direction | str = Direction.LTR, key_transposition: Direction | str = Direction.LTR):
         text_dir = ensure_direction(getattr(cfg, "text_transposition", text_transposition))
@@ -67,6 +68,8 @@ class ColumnarTranspositionCipher(CipherPipelineMixin, KeyedCipherBase):
         if not key_len or key_len <= 0:
             raise ValueError("Columnar requires positive key_length in cfg")
         self.key_length = int(key_len)
+        if self.key_length > 255:
+            raise ValueError("Columnar requires key_length <= 255 (uint8 key limit)")
 
         # optional legacy interruptors (kept for parity)
         intr_exact = getattr(cfg, "interruptors_exact", None)

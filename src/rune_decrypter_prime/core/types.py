@@ -40,6 +40,7 @@ class SolverName(Enum):
     GA  = "ga"
     SA  = "sa"
     HYBRID  = "hybrid"
+    KAEDING = "kaeding"
 
 
 class InterruptorSearchStrategy(Enum):

@@ -396,6 +396,8 @@ class by_name:
         if cols is not None:
             cols = int(cols)
             if cols > 0:
+                if cols > 255:
+                    raise ValueError("columnar requires columns <= 255 (uint8 key limit)")
                 spec.extra["key_length"] = cols
         key = None
         if default_key and cols and cols > 0:
@@ -418,6 +420,66 @@ class by_name:
             return spec, KeySpec.permutation(len=L)
         return spec, None
 
+    @staticmethod
+    def _periodic_substitution(
+        *,
+        period: int | None = None,
+        alphabet_size: int | None = None,
+        default_key: bool = False,
+        **kwargs: Any,
+    ):
+        """Periodic substitution cipher wrapper."""
+        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+        if period is None or int(period) <= 0:
+            raise ValueError("periodic_substitution requires period >= 1")
+        A = int(alphabet_size) if alphabet_size is not None else _pull_N(kwargs)
+        if A <= 0:
+            raise ValueError("periodic_substitution requires alphabet_size >= 1")
+
+        spec = CipherSpec._wrapper(name="periodic_substitution", core_name="periodic_substitution", N=A)
+        spec.extra["period"] = int(period)
+        spec.extra["alphabet_size"] = int(A)
+
+        key = KeySpec.periodic_substitution(period=int(period), alphabet_size=int(A)) if default_key else None
+        return spec, key
+
+    @staticmethod
+    def _periodic_columnar(
+        *,
+        period: int | None = None,
+        columns: int | None = None,
+        cols: int | None = None,
+        order: str | None = None,
+        alphabet_size: int | None = None,
+        default_key: bool = False,
+        **kwargs: Any,
+    ):
+        """Periodic substitution + columnar transposition wrapper."""
+        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+        if period is None or int(period) <= 0:
+            raise ValueError("periodic_columnar requires period >= 1")
+        col_raw = columns if columns is not None else cols
+        if col_raw is None or int(col_raw) <= 0:
+            raise ValueError("periodic_columnar requires columns >= 1")
+        if int(col_raw) > 255:
+            raise ValueError("periodic_columnar requires columns <= 255 (uint8 column limit)")
+        A = int(alphabet_size) if alphabet_size is not None else _pull_N(kwargs)
+        if A <= 0:
+            raise ValueError("periodic_columnar requires alphabet_size >= 1")
+
+        spec = CipherSpec._wrapper(name="periodic_columnar", core_name="periodic_columnar", N=A)
+        spec.extra["period"] = int(period)
+        spec.extra["columns"] = int(col_raw)
+        spec.extra["alphabet_size"] = int(A)
+        spec.extra["order"] = str(order or "sub_then_col")
+
+        key = (
+            KeySpec.periodic_columnar(period=int(period), columns=int(col_raw), alphabet_size=int(A))
+            if default_key
+            else None
+        )
+        return spec, key
+
 
     _REG: Dict[str, Callable[..., Tuple["CipherSpec", "KeySpec | tuple[KeySpec, KeySpec] | None"]]] = {
         "vigenere": _vigenere.__func__,
@@ -435,5 +497,7 @@ class by_name:
         "foursquare": _foursquare.__func__,
         "mono": _mono.__func__,
         "substitution": _mono.__func__,
+        "periodic_substitution": _periodic_substitution.__func__,
+        "periodic_columnar": _periodic_columnar.__func__,
         "hill": _hill.__func__,
     }

@@ -12,6 +12,7 @@ from rune_decrypter_prime.core.types import (
     Direction,
     ensure_device,
     ensure_direction,
+    KeyOpsFamily,
 )
 
 # ---------------- CipherConfig ------------------------------------------------
@@ -21,6 +22,12 @@ class CipherConfig:
     ciphertext: Sequence[int]
     wli_data: Sequence[Sequence[int]]
     key_length: Optional[int]
+    keyops_family: Optional[KeyOpsFamily | str] = None
+    keyops_hints: Optional[Dict[str, Any]] = None
+    alphabet_size: Optional[int] = None
+    period: Optional[int] = None
+    columns: Optional[int] = None
+    order: Optional[str] = None
     plaintext_english26: Optional[str] = None
     plaintext: Optional[Sequence[int]] = None
     initial_text_permutation_indices: Optional[Sequence[int]] = None

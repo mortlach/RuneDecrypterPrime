@@ -116,6 +116,9 @@ class SolverBase:
         "iters", "T0", "Tmin", "cool", "accept_in_log", "log_eps", "local_improve_on_accept",
         # Beam / Hybrid
         "beam_width", "use_beam", "rounds",
+        # Kaeding
+        "steps", "restarts", "inner_batch", "block_schedule",
+        "slip_every", "slip_blocks", "col_every", "col_batch",
         # Early stop (generic)
         "stop_score", "plateau_rounds", "plateau_min_delta",
         # common
@@ -131,6 +134,7 @@ class SolverBase:
         "decrypt_time_s", "score_time_s", "tokens",
         "phase", "reason", "round", "rounds", "parents", "cands_per_parent",
         "evals",
+        "block", "restart", "slip", "col_moves",
         "hamming_weight",
         # plateau
         "since_improve", "patience_left",

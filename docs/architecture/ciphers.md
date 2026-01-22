@@ -12,9 +12,14 @@ Reversible mappings over the 29-rune alphabet. Each cipher declares a **Key Norm
 | Cipher | Key model | Notes |
 |---|---|---|
 | Substitution | Permutation(29) | Full monoalphabetic mapping |
-| Columnar Transposition | Permutation(N) | Column order over N columns |
+| Columnar Transposition | Permutation(N) | Column order over N columns (N <= 255) |
 | Vigenere | Vector(N) (0..28) | Repeating additive shifts |
 | Generic-Map (affine-like) | Vector(2) (0..28) | Add/Sub/Mul/Div (mod 29); invalid ops rejected |
+| Periodic Substitution | Matrix(periodic_structured) | p inverse tables of size A |
+| Periodic Columnar | Matrix(periodic_structured) | p*A + W (W <= 255); order is configurable |
+
+Note: Columnar keys currently use uint8 storage in the cipher core, so N/W must be <= 255.
+To lift this, switch the columnar kernels to use KEY_DTYPE throughout.
 
 **Examples (shape)**
 ```python
@@ -40,6 +45,7 @@ res2 = RunAPI.run(
 - **Vector**: integers wrapped mod-29 per element; fixed length.
 
 ## Compatibility
+- Periodic Substitution/Periodic Columnar  Matrix KeyOps (periodic_structured).
 - Substitution/Columnar ↔ Permutation KeyOps.  
 - Vigenere/Generic-Map ↔ Vector KeyOps.
 

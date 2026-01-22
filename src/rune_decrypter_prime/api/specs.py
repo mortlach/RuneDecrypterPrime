@@ -98,6 +98,51 @@ class CipherSpec:
     def _wrapper(cls, *, name: str, core_name: str, N: int = 29) -> CipherSpec:
         return cls(kind="wrapper", name=name, N=N, wrapper_core=core_name)
 
+    @classmethod
+    def periodic_substitution(
+        cls,
+        *,
+        period: int,
+        alphabet_size: int = 29,
+        name: Optional[str] = None,
+    ) -> CipherSpec:
+        p = int(period)
+        if p <= 0:
+            raise ValueError("period must be >= 1")
+        A = int(alphabet_size)
+        if A <= 0:
+            raise ValueError("alphabet_size must be >= 1")
+        spec = cls._wrapper(name=name or "periodic_substitution", core_name="periodic_substitution", N=A)
+        spec.extra["period"] = p
+        spec.extra["alphabet_size"] = A
+        return spec
+
+    @classmethod
+    def periodic_columnar(
+        cls,
+        *,
+        period: int,
+        columns: int,
+        alphabet_size: int = 29,
+        order: str = "sub_then_col",
+        name: Optional[str] = None,
+    ) -> CipherSpec:
+        p = int(period)
+        c = int(columns)
+        if p <= 0:
+            raise ValueError("period must be >= 1")
+        if c <= 0:
+            raise ValueError("columns must be >= 1")
+        A = int(alphabet_size)
+        if A <= 0:
+            raise ValueError("alphabet_size must be >= 1")
+        spec = cls._wrapper(name=name or "periodic_columnar", core_name="periodic_columnar", N=A)
+        spec.extra["period"] = p
+        spec.extra["columns"] = c
+        spec.extra["alphabet_size"] = A
+        spec.extra["order"] = str(order or "sub_then_col")
+        return spec
+
 
 # ---------------------------------------------------------------------------
 # UI KeySpec (front-door)
@@ -121,6 +166,7 @@ class KeySpec:
       - "otp":    explicit per-position key stream (period_hint() is None)
       - "const":  constant value replicated to text length (period_hint() is None)
       - "keystream": function-defined stream (advanced)
+      - "periodic_structured": periodic substitution blocks with optional columnar tail
     """
     plan: str
     params: Dict[str, Any] = field(default_factory=dict)
@@ -161,6 +207,47 @@ class KeySpec:
         if int(len) <= 0:
             raise ValueError("KeySpec.permutation requires len > 0")
         return cls(plan="perm", params={"len": int(len)})
+
+    @classmethod
+    def periodic_structured(
+        cls,
+        *,
+        period: int,
+        alphabet_size: int = 29,
+        columns: int | None = None,
+    ) -> "KeySpec":
+        p = int(period)
+        if p <= 0:
+            raise ValueError("period must be >= 1")
+        A = int(alphabet_size)
+        if A <= 0:
+            raise ValueError("alphabet_size must be >= 1")
+        params: Dict[str, Any] = {"period": p, "alphabet_size": A}
+        if columns is not None:
+            c = int(columns)
+            if c <= 0:
+                raise ValueError("columns must be >= 1")
+            params["columns"] = c
+        return cls(plan="periodic_structured", params=params)
+
+    @classmethod
+    def periodic_substitution(
+        cls,
+        *,
+        period: int,
+        alphabet_size: int = 29,
+    ) -> "KeySpec":
+        return cls.periodic_structured(period=period, alphabet_size=alphabet_size, columns=None)
+
+    @classmethod
+    def periodic_columnar(
+        cls,
+        *,
+        period: int,
+        columns: int,
+        alphabet_size: int = 29,
+    ) -> "KeySpec":
+        return cls.periodic_structured(period=period, columns=columns, alphabet_size=alphabet_size)
 
     @classmethod
     def matrix2x2(cls, *, A: int = 29) -> KeySpec:
@@ -329,3 +416,14 @@ class SolverSpec:
             canon_top["sa"] = dict(canon_sa)
 
         return cls(name="hybrid", params=canon_top, seed=seed)
+
+    @classmethod
+    def kaeding(cls, **params: Any) -> "SolverSpec":
+        """
+        Kaeding-style structured solver (periodic structured keys).
+        Canonicalised keys passed downstream: steps, restarts, inner_batch, slip/col params.
+        """
+        from rune_decrypter_prime.api._resolve import resolve_optimizer_aliases as _resolve_opt
+        seed = params.pop("seed", None)
+        canon: Dict[str, Any] = _resolve_opt("kaeding", dict(params))
+        return cls(name="kaeding", params=canon, seed=seed)

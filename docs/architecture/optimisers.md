@@ -13,6 +13,7 @@ Algorithms that search the key space. Common interface and shared semantics acro
 - **GA (Genetic Algorithm)** - population, selection, recombination, mutation.
 - **Beam** - keep top-B candidates each step, expand systematically.
 - **Hybrid** - fixed sequence of phases: **Beam -> GA -> SA**.
+- **Kaeding** - block-focused solver for periodic structured keys.
 
 ## Shared semantics
 | Field            | Meaning                                      |

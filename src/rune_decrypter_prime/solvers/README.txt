@@ -12,6 +12,7 @@ Implemented solvers
   improve pass).
 - `sa.py`: simulated annealing with rescue/reseed knobs.
 - `hybrid.py`: orchestrates multi-phase runs that combine GA/SA/Beam.
+- `kaeding_periodic_structured.py`: block-focused solver for periodic structured keys.
 
 Design notes
 ------------
