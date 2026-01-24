@@ -62,7 +62,7 @@ SCENARIOS: Tuple[Tuple[str, Dict[str, Any]], ...] = (
     (
         "medium",
         dict(
-            period=3,
+            period=6,
             columns=4,
             steps=800,
             restarts=2,

@@ -37,9 +37,16 @@ def test_pct_win10_stats_present_numpy():
     stats = getattr(scorer, "last_stats")() if hasattr(scorer, "last_stats") else tel
 
     assert "score_mean" in stats and "score_std" in stats and "n_windows" in stats
+    assert "raw_score_mean" in stats and "raw_score_std" in stats
     assert 0.0 <= stats["score_mean"] <= 1.0
     assert 0 <= stats["score_std"] < 0.5  # sanity: dispersion should be bounded
     assert stats["n_windows"] > 0
+    obj = stats.get("objective_stats") or stats.get("objective")
+    assert isinstance(obj, dict)
+    assert "pct" in obj and "raw" in obj and "components" in obj and "windows" in obj
+    assert isinstance(obj["components"], dict)
+    assert "char_n2" in obj["components"]
+    assert "wli_n2" in obj["components"]
 
 def test_pct_win10_wli_numpy_vs_list_equivalence():
     """Regression guard: ndarray and list inputs must score identically."""
@@ -134,8 +141,10 @@ def test_pct_win10_batch_stats_present_numpy():
     # Telemetry should include batch stats
     tel = scorer.telemetry()
     assert "score_mean_batch" in tel and "score_std_batch" in tel and "n_windows" in tel
+    assert "raw_score_mean_batch" in tel
     assert len(tel["score_mean_batch"]) == B
     assert len(tel["score_std_batch"]) == B
+    assert len(tel["raw_score_mean_batch"]) == B
 
     # n_windows sanity
     expected_nwin = int(pt.shape[0]) - 10 + 1
@@ -147,6 +156,25 @@ def test_pct_win10_batch_stats_present_numpy():
         np.asarray(tel["score_mean_batch"], dtype=np.float32),
         rtol=0, atol=3e-6
     )
+
+
+def test_pct_win10_batch_score_with_raw_numpy():
+    pt = np.asarray(plaintext1, dtype=np.uint8)
+    wli = np.asarray(word_breaks1, dtype=np.uint8)
+    pts = [pt, pt]
+    wlis = [wli, wli]
+
+    cfg_c = CipherConfig(ciphertext=pt, wli_data=wli, key_length=None,
+                         initial_text_permutation_indices=None)
+    cfg_s = ScoringConfig(include_char=True, use_word_breaks=True,
+                          n_char=2, n_wli=2, dtype="float32").asdict()
+    scorer = build_scorer(cfg_c, cfg_s)
+
+    pct, raw = scorer.batch_score_with_raw(pts, wlis)
+    assert isinstance(pct, np.ndarray) and isinstance(raw, np.ndarray)
+    assert pct.shape == raw.shape == (2,)
+    tel = scorer.telemetry()
+    assert "raw_score_mean_batch" in tel
 
 
 @pytest.mark.tier_a

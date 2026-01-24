@@ -44,6 +44,9 @@ _CANON_OPTS: dict[str, set[str]] = {
     "kaeding": {
         "params", "steps", "restarts", "inner_batch", "block_schedule",
         "slip_every", "slip_blocks", "col_every", "col_batch",
+        "slip_policy", "stall_rounds", "stall_slip_limit", "slip_swaps", "stall_stop_on_limit",
+        "slip_follow_steps", "use_raw_score", "raw_accept_min_delta", "pct_plateau_min_delta",
+        "delta_window", "top_k",
         "plateau_rounds", "plateau_min_delta", "stop_score",
         "progress_pct", "print_progress", "progress_preview_chars",
         "verbose_console", "verbose", "initial_keys", "seed_keys", "test_key", "seed", "log_interval",

@@ -381,6 +381,8 @@ class RuneScorerTorch(BaseScorer):
 
         nwin = L - int(self.win) + 1
         mix = np.zeros((B, nwin), dtype=np.float32)
+        raw_mix = np.zeros((B, nwin), dtype=np.float32)
+        components = {} if B == 1 else None
 
         for channel, n, w in self._active_models(self.use_wli):
             toks = self._pack_char_ngram(pt_t, int(n)) if channel == "char" else (
@@ -419,11 +421,21 @@ class RuneScorerTorch(BaseScorer):
             else:
                 means = out.unfold(dimension=1, size=K, step=1).contiguous().mean(dim=-1)  # [B, nwin]
 
-            u = self._percentiles(channel, int(n), means.detach().cpu().numpy())
+            means_np = means.detach().cpu().numpy()
+            u = self._percentiles(channel, int(n), means_np)
             mix += float(w) * u
+            raw_mix += float(w) * means_np
+            if components is not None:
+                label = f"{'char' if channel == 'char' else 'wli'}_n{int(n)}"
+                components[label] = {
+                    "pct": float(np.mean(u)),
+                    "raw": float(np.mean(means_np)),
+                }
 
         score_mean_vec = mix.mean(axis=1).astype(np.float32, copy=False)
         score_std_vec  = mix.std(axis=1).astype(np.float32, copy=False)
+        raw_mean_vec = raw_mix.mean(axis=1).astype(np.float32, copy=False)
+        raw_std_vec = raw_mix.std(axis=1).astype(np.float32, copy=False)
 
         hamming_batch = None
         hamming_avg_batch = None
@@ -442,23 +454,44 @@ class RuneScorerTorch(BaseScorer):
                     avgs.append(float(stats.get("avg_hd_word", stats.get("total_hd", 0.0))))
                 penalties_arr = np.asarray(avgs, dtype=np.float32)
                 score_mean_vec = score_mean_vec - self._hamming_weight * penalties_arr
+                raw_mean_vec = raw_mean_vec - self._hamming_weight * penalties_arr
                 hamming_batch = np.asarray(totals, dtype=np.float32)
                 hamming_avg_batch = penalties_arr
             except Exception:
                 hamming_batch = None
                 hamming_avg_batch = None
 
+        window_pcts = None
+        if B == 1 and mix.shape[1] > 0:
+            try:
+                window_pcts = {
+                    "p10": float(np.percentile(mix[0], 10.0)),
+                    "p50": float(np.percentile(mix[0], 50.0)),
+                    "p90": float(np.percentile(mix[0], 90.0)),
+                }
+            except Exception:
+                window_pcts = None
+
         # record telemetry (no-throw)
         try:
             if B == 1:
+                objective = {
+                    "pct": float(score_mean_vec[0]),
+                    "raw": float(raw_mean_vec[0]),
+                    "components": (components if components is not None else {}),
+                    "windows": (window_pcts if window_pcts is not None else {}),
+                }
                 self._last_stats = {
                     "objective": f"pct.logp.win{int(self.win)}",
                     "n_windows": int(mix.shape[1]),
                     "score_mean": float(score_mean_vec[0]),
                     "score_std": float(score_std_vec[0]),
+                    "raw_score_mean": float(raw_mean_vec[0]),
+                    "raw_score_std": float(raw_std_vec[0]),
                     "hamming_total_hd": (float(hamming_batch[0]) if hamming_batch is not None else None),
                     "hamming_avg_hd": (float(hamming_avg_batch[0]) if hamming_avg_batch is not None else None),
                     "hamming_weight": self._hamming_weight,
+                    "objective_stats": objective,
                 }
             else:
                 self._last_stats = {
@@ -466,6 +499,8 @@ class RuneScorerTorch(BaseScorer):
                     "n_windows": int(mix.shape[1]),
                     "score_mean_batch": score_mean_vec.tolist(),
                     "score_std_batch": score_std_vec.tolist(),
+                    "raw_score_mean_batch": raw_mean_vec.tolist(),
+                    "raw_score_std_batch": raw_std_vec.tolist(),
                     "hamming_total_hd_batch": (hamming_batch.tolist() if hamming_batch is not None else None),
                     "hamming_avg_hd_batch": (hamming_avg_batch.tolist() if hamming_avg_batch is not None else None),
                     "hamming_weight": self._hamming_weight,
@@ -476,6 +511,12 @@ class RuneScorerTorch(BaseScorer):
             am = [(c, int(n), float(w)) for (c, n, w) in self._active_models(self.use_wli)]
             _tstash(self._telemetry, active_models=am,
                     sum_weights=float(sum(w for _, _, w in am)))
+        except Exception:
+            pass
+
+        try:
+            self._last_raw_batch = raw_mean_vec.astype(np.float32, copy=False)
+            self._last_raw_std_batch = raw_std_vec.astype(np.float32, copy=False)
         except Exception:
             pass
 
@@ -529,6 +570,20 @@ class RuneScorerTorch(BaseScorer):
 
     def score(self, pt: Iterable[int], wli=None) -> float:
         return float(self.batch_score([np.asarray(pt, np.uint8)], wli)[0])
+
+    def batch_score_with_raw(self, pts: Sequence[Iterable[int]], wlis=None) -> Tuple[np.ndarray, np.ndarray]:
+        pct = self.batch_score(pts, wlis)
+        raw = getattr(self, "_last_raw_batch", None)
+        if raw is None:
+            try:
+                raw = pct.copy()
+            except Exception:
+                raw = pct
+        return pct.astype(np.float32, copy=False), np.asarray(raw, dtype=np.float32)
+
+    def score_with_raw(self, pt: Iterable[int], wli=None) -> Tuple[float, float]:
+        pct, raw = self.batch_score_with_raw([np.asarray(pt, np.uint8)], wli)
+        return float(pct[0]), float(raw[0])
 
     def last_stats(self) -> Dict[str, Any]:
         return dict(self._last_stats or {})

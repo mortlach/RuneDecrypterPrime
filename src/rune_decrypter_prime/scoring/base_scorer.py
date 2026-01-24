@@ -91,6 +91,26 @@ class BaseScorer(ABC):
     def __call__(self, plaintexts: Any, wli_windows: Any | None = None):
         return self.score(plaintexts, wli_windows)
 
+    def score_with_raw(self, plaintext: Iterable[int], wli_windows: Any | None = None) -> Tuple[float, float]:
+        """
+        Optional: return (pct_score, raw_score). Defaults to pct for both.
+        Concrete scorers can override for raw logp support.
+        """
+        pct = float(self.score(plaintext, wli_windows))
+        return pct, pct
+
+    def batch_score_with_raw(self, pts: Sequence[Iterable[int]], wlis: Any | None = None) -> Tuple[Any, Any]:
+        """
+        Optional: return (pct_scores, raw_scores). Defaults to pct for both.
+        Concrete scorers can override for raw logp support.
+        """
+        pct = self.batch_score(pts, wlis)
+        try:
+            raw = pct.copy()
+        except Exception:
+            raw = pct
+        return pct, raw
+
     def last_stats(self):
         """Return per-call stats recorded by the last score()/batch_score() call, if any."""
         return getattr(self, "_last_stats", {}) or {}

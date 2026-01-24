@@ -122,8 +122,14 @@ class ECDFCache:
     @staticmethod
     def energy(p: np.ndarray, eps: float = 1e-9) -> np.ndarray:
         """Convert percentile (likelihood) to a positive surprisal-like score."""
-        p = np.clip(p, 0.0, 1.0).astype(np.float32, copy=False)
-        return (-np.log1p(-p + eps)).astype(np.float32, copy=False)
+        p = np.asarray(p, dtype=np.float32)
+        lo = np.nextafter(np.float32(0.0), np.float32(1.0))
+        hi = np.nextafter(np.float32(1.0), np.float32(0.0))
+        if eps is not None:
+            lo = np.maximum(lo, np.float32(eps))
+            hi = np.minimum(hi, np.float32(1.0 - float(eps)))
+        p = np.clip(p, lo, hi).astype(np.float32, copy=False)
+        return (-np.log1p(-p)).astype(np.float32, copy=False)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -383,12 +389,17 @@ class LmPrimeRuntime:
         win: int,
         pt_windows: List[List[int]],
         wli_windows: List[List[List[int]]],
+        *,
+        include_energy: bool = True,
     ) -> Dict[str, Dict[str, np.ndarray]]:
         """WLI × WISE. Windows must include [29] ... [30]."""
         logp_a, zsum_a, madsum_a = self._score_batch_wli(dir_, "wise", n, pt_windows, wli_windows)
         b = Bucket(_norm_dir(dir_), "wise", "wli", int(n), int(win))
         pct = self.ecdf.percentiles_multi(b, {"zsum": zsum_a, "madsum": madsum_a, "logp": logp_a})
-        energy = {k: self.ecdf.energy(v) for k, v in pct.items()}
+        if include_energy:
+            energy = {k: self.ecdf.energy(v) for k, v in pct.items()}
+        else:
+            energy = {k: np.zeros_like(v) for k, v in pct.items()}
         interior, total = self._coverage_arrays_cached(len(pt_windows[0]), n, True, len(pt_windows))
         return {
             "avg": {"logp": logp_a, "zsum": zsum_a, "madsum": madsum_a},
@@ -404,12 +415,17 @@ class LmPrimeRuntime:
         win: int,
         pt_windows: List[List[int]],
         wli_windows: List[List[List[int]]],
+        *,
+        include_energy: bool = True,
     ) -> Dict[str, Dict[str, np.ndarray]]:
         """WLI × NOSE. No 29/30 in the windows."""
         logp_a, zsum_a, madsum_a = self._score_batch_wli(dir_, "nose", n, pt_windows, wli_windows)
         b = Bucket(_norm_dir(dir_), "nose", "wli", int(n), int(win))
         pct = self.ecdf.percentiles_multi(b, {"zsum": zsum_a, "madsum": madsum_a, "logp": logp_a})
-        energy = {k: self.ecdf.energy(v) for k, v in pct.items()}
+        if include_energy:
+            energy = {k: self.ecdf.energy(v) for k, v in pct.items()}
+        else:
+            energy = {k: np.zeros_like(v) for k, v in pct.items()}
         interior, total = self._coverage_arrays_cached(len(pt_windows[0]), n, False, len(pt_windows))
         return {
             "avg": {"logp": logp_a, "zsum": zsum_a, "madsum": madsum_a},
@@ -424,12 +440,17 @@ class LmPrimeRuntime:
         n: int,
         win: int,
         pt_windows: List[List[int]],
+        *,
+        include_energy: bool = True,
     ) -> Dict[str, Dict[str, np.ndarray]]:
         """CHAR × WISE. Windows must include [29] ... [30]."""
         logp_a, zsum_a, madsum_a = self._score_batch_char(dir_, "wise", n, pt_windows)
         b = Bucket(_norm_dir(dir_), "wise", "char", int(n), int(win))
         pct = self.ecdf.percentiles_multi(b, {"zsum": zsum_a, "madsum": madsum_a, "logp": logp_a})
-        energy = {k: self.ecdf.energy(v) for k, v in pct.items()}
+        if include_energy:
+            energy = {k: self.ecdf.energy(v) for k, v in pct.items()}
+        else:
+            energy = {k: np.zeros_like(v) for k, v in pct.items()}
         interior, total = self._coverage_arrays_cached(len(pt_windows[0]), n, True, len(pt_windows))
         return {
             "avg": {"logp": logp_a, "zsum": zsum_a, "madsum": madsum_a},
@@ -444,12 +465,17 @@ class LmPrimeRuntime:
         n: int,
         win: int,
         pt_windows: List[List[int]],
+        *,
+        include_energy: bool = True,
     ) -> Dict[str, Dict[str, np.ndarray]]:
         """CHAR × NOSE. No 29/30 in the windows."""
         logp_a, zsum_a, madsum_a = self._score_batch_char(dir_, "nose", n, pt_windows)
         b = Bucket(_norm_dir(dir_), "nose", "char", int(n), int(win))
         pct = self.ecdf.percentiles_multi(b, {"zsum": zsum_a, "madsum": madsum_a, "logp": logp_a})
-        energy = {k: self.ecdf.energy(v) for k, v in pct.items()}
+        if include_energy:
+            energy = {k: self.ecdf.energy(v) for k, v in pct.items()}
+        else:
+            energy = {k: np.zeros_like(v) for k, v in pct.items()}
         interior, total = self._coverage_arrays_cached(len(pt_windows[0]), n, False, len(pt_windows))
         return {
             "avg": {"logp": logp_a, "zsum": zsum_a, "madsum": madsum_a},

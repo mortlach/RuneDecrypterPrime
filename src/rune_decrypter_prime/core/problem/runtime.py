@@ -285,6 +285,44 @@ class DecryptionProblem:
             dtype=self.xp.float64,
         )
 
+    def _score_batch_texts_with_raw(self, plains_seq, wli):
+        """
+        Score a batch of plaintexts and return (pct_scores, raw_scores).
+        Falls back to pct for raw if the scorer doesn't expose raw.
+        """
+        if wli is not None:
+            if not (isinstance(wli, (list, tuple)) and all(
+                isinstance(p, (list, tuple)) and len(p) == 2 and isinstance(p[0], int) and isinstance(p[1], int)
+                for p in wli
+            )):
+                raise TypeError("WLI must be a list of (int,int) pairs or empty list")
+
+        sc = self.scorer
+        if hasattr(sc, "batch_score_with_raw") and callable(sc.batch_score_with_raw):
+            try:
+                pct, raw = sc.batch_score_with_raw(plains_seq, wli)
+                return (
+                    self.xp.asarray(pct, dtype=self.xp.float64).reshape(-1),
+                    self.xp.asarray(raw, dtype=self.xp.float64).reshape(-1),
+                )
+            except Exception:
+                pass
+
+        scores_pct = []
+        scores_raw = []
+        for pt in plains_seq:
+            if hasattr(sc, "score_with_raw") and callable(sc.score_with_raw):
+                pct, raw = sc.score_with_raw(pt, wli)
+            else:
+                pct = float(sc.score_text(pt, wli) if hasattr(sc, "score_text") else sc.score(pt, wli))
+                raw = pct
+            scores_pct.append(float(pct))
+            scores_raw.append(float(raw))
+        return (
+            self.xp.asarray(scores_pct, dtype=self.xp.float64),
+            self.xp.asarray(scores_raw, dtype=self.xp.float64),
+        )
+
     def _ensure_key_batch_2d(self, keys: Any):
         """Normalise keys to contiguous KEY_DTYPE with shape [B, K] using the active xp backend."""
         target_dtype = getattr(self, "key_dtype", KEY_DTYPE)
@@ -363,6 +401,60 @@ class DecryptionProblem:
         self.telemetry.candidates_evaluated += int(cand_count)
 
         return to_numpy(scores)
+
+    def evaluate_keys_with_raw(self, keys: Any, *, batch_hint: bool = True):
+        """
+        Evaluate candidate keys and return (pct_scores, raw_scores).
+        Raw scores fall back to pct if the scorer doesn't expose raw.
+        """
+        if self.ciphertext is None:
+            raise ValueError("DecryptionProblem has no ciphertext bound")
+
+        k = self._ensure_key_batch_2d(keys)
+        B, K = int(k.shape[0]), int(k.shape[1])
+
+        if getattr(self, "keyops", None) is not None and getattr(self.keyops, "caps", None):
+            expK = int(self.keyops.caps.length)
+            if K != expK:
+                raise ValueError(f"Key length mismatch: got {K}, expected {expK}")
+
+        # Telemetry device/dtype initialisation (once)
+        if getattr(self.telemetry, "device", "unknown") == "unknown" or getattr(self.telemetry, "dtype", "unknown") == "unknown":
+            dev_kind = ensure_device(getattr(self.c_cfg, "device", Device.CPU))
+            dtype = getattr(self.scorer, "dtype", None) or "float32"
+            self.telemetry.device = to_canonical_device_str(dev_kind)
+            self.telemetry.dtype = str(dtype)
+
+        deg_cfg = self._degeneracy_cfg()
+
+        # Decrypt and score with timing
+        t_dec, t_sc = _Timer(), _Timer()
+        if deg_cfg is not None:
+            t_dec.start()
+            plains_seq, scores_pct, cand_count, sc_time = self._evaluate_keys_with_degeneracy(k, deg_cfg)
+            scores_raw = scores_pct
+            self.telemetry.decrypt_time_s += t_dec.stop()
+            self.telemetry.score_time_s += float(sc_time)
+        else:
+            t_dec.start()
+            plains_seq = self._decrypt_batch(k)
+            self.telemetry.decrypt_time_s += t_dec.stop()
+
+            t_sc.start()
+            scores_pct, scores_raw = self._score_batch_texts_with_raw(plains_seq, self.wli_data)
+            self.telemetry.score_time_s += t_sc.stop()
+            cand_count = int(B)
+
+        # Counters
+        if plains_seq and hasattr(plains_seq[0], "__len__"):
+            N = int(len(plains_seq[0]))
+        else:
+            N = self.ciphertext_len
+        self.telemetry.tokens_processed += int(cand_count) * N
+        self.telemetry.evaluate_keys_calls += 1
+        self.telemetry.candidates_evaluated += int(cand_count)
+
+        return to_numpy(scores_pct), to_numpy(scores_raw)
 
     def _degeneracy_cfg(self) -> Optional[dict]:
         """Return degeneracy config if enabled and supported by the cipher."""

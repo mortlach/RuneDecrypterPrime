@@ -4,6 +4,7 @@ Kaeding-style solver for periodic structured keys.
 Block-focused swaps with occasional column moves and slips.
 """
 from __future__ import annotations
+from collections import deque
 import numpy as np
 
 from ..core.types import SolverName, KEY_DTYPE
@@ -92,6 +93,42 @@ class KaedingPeriodicStructuredSolver(SolverBase):
             out[start : start + self.A] = base
         return out
 
+    def _partial_slip_block(self, key: np.ndarray, block: int, swaps: int) -> np.ndarray:
+        out = key.copy()
+        start = int(block) * self.A
+        swaps = max(1, int(swaps))
+        for _ in range(swaps):
+            a = int(self.rng.integers(0, self.A))
+            b = int(self.rng.integers(0, self.A - 1))
+            if b >= a:
+                b += 1
+            i1 = start + a
+            i2 = start + b
+            out[i1], out[i2] = out[i2], out[i1]
+        return out
+
+    def _score_batch_dual(self, keys: np.ndarray, *, use_raw: bool) -> tuple[np.ndarray, np.ndarray]:
+        if use_raw:
+            eval_raw = getattr(self.problem, "evaluate_keys_with_raw", None)
+            if callable(eval_raw):
+                pct, raw = eval_raw(keys)
+                return np.asarray(pct, dtype=np.float64), np.asarray(raw, dtype=np.float64)
+        pct = self._score_batch(keys)
+        return np.asarray(pct, dtype=np.float64), np.asarray(pct, dtype=np.float64)
+
+    @staticmethod
+    def _pick_stall_phase(attempts: np.ndarray, improves: np.ndarray) -> int:
+        if attempts.size == 0:
+            return 0
+        # Prefer the least-improving phase (tie-breaker: fewer attempts).
+        scores = improves.astype(np.int64)
+        min_imp = int(scores.min())
+        candidates = np.where(scores == min_imp)[0]
+        if candidates.size == 1:
+            return int(candidates[0])
+        cand_attempts = attempts[candidates]
+        return int(candidates[int(np.argmin(cand_attempts))])
+
     def solve(self):
         traits = self._structure_traits()
         self.A = int(traits.get("alphabet_size"))
@@ -108,9 +145,22 @@ class KaedingPeriodicStructuredSolver(SolverBase):
         slip_blocks = max(1, int(self.get_param("slip_blocks", 1)))
         col_every = max(0, int(self.get_param("col_every", 10)))
         col_batch = max(1, int(self.get_param("col_batch", 64)))
+        slip_policy = str(self.get_param("slip_policy", "fixed") or "fixed").lower()
+        stall_rounds = max(0, int(self.get_param("stall_rounds", slip_every)))
+        stall_slip_limit = max(0, int(self.get_param("stall_slip_limit", 2)))
+        slip_swaps = max(1, int(self.get_param("slip_swaps", 20)))
+        stall_stop_on_limit = bool(self.get_param("stall_stop_on_limit", False))
+        slip_follow_steps = max(1, int(self.get_param("slip_follow_steps", 200)))
+        use_raw_score = bool(self.get_param("use_raw_score", True))
+        raw_accept_min_delta = float(self.get_param("raw_accept_min_delta", 1e-6) or 0.0)
+        pct_plateau_min_delta = float(self.get_param("pct_plateau_min_delta", 0.0) or 0.0)
+        delta_window = max(1, int(self.get_param("delta_window", 200)))
+        top_k = max(0, int(self.get_param("top_k", 0)))
 
         if block_schedule not in {"round_robin", "random"}:
             raise ValueError("block_schedule must be 'round_robin' or 'random'")
+        if slip_policy not in {"fixed", "stall"}:
+            raise ValueError("slip_policy must be 'fixed' or 'stall'")
 
         fast = self._maybe_return_test_key_fastpath(SolverName.KAEDING)
         if fast is not None:
@@ -123,25 +173,65 @@ class KaedingPeriodicStructuredSolver(SolverBase):
 
         try:
             best_key = None
-            best_score = float("-inf")
+            best_raw = float("-inf")
+            best_pct = float("-inf")
+            best_pct_seen = float("-inf")
+            last_pct_improve_at = 0
+            accept_count = 0
+            attempt_count = 0
+            delta_history = deque(maxlen=delta_window)
+            phase_attempts = np.zeros((self.period,), dtype=np.int64)
+            phase_improves = np.zeros((self.period,), dtype=np.int64)
+            phase_best_delta = np.full((self.period,), float("-inf"), dtype=np.float64)
+            slip_history: list[dict] = []
+            active_slips: list[dict] = []
+            top_candidates: list[tuple[float, float, tuple[int, ...]]] = []
+            top_seen: set[tuple[int, ...]] = set()
 
-            self._early_stop_reset(initial_best=best_score,
+            self._early_stop_reset(initial_best=best_raw,
                                    plateau_override=int(self.get_param("plateau_rounds", 0)))
 
             self._maybe_update_hamming_progress(0.0)
 
+            def _record_top(raw_score: float, pct_score: float, key_vec: np.ndarray) -> None:
+                if top_k <= 0:
+                    return
+                t = tuple(int(x) for x in key_vec.tolist())
+                if t in top_seen:
+                    return
+                top_candidates.append((float(raw_score), float(pct_score), t))
+                top_seen.add(t)
+                if len(top_candidates) > top_k:
+                    top_candidates.sort(key=lambda x: x[0], reverse=True)
+                    drop = top_candidates[top_k:]
+                    top_candidates[:] = top_candidates[:top_k]
+                    for _, _, k in drop:
+                        top_seen.discard(k)
+
+            def _update_best(raw_score: float, pct_score: float, key_vec: np.ndarray, step_idx: int) -> None:
+                nonlocal best_raw, best_pct, best_key, best_pct_seen, last_pct_improve_at
+                if raw_score > (best_raw + raw_accept_min_delta):
+                    best_raw = float(raw_score)
+                    best_pct = float(pct_score)
+                    best_key = key_vec.copy()
+                    _record_top(best_raw, best_pct, best_key)
+                if pct_score > (best_pct_seen + pct_plateau_min_delta):
+                    best_pct_seen = float(pct_score)
+                    last_pct_improve_at = int(step_idx)
+
             for restart in range(restarts):
+                stall_slips_used = 0
                 if restart == 0:
                     k = self._maybe_best_of_seeds(self.rng)
                 else:
                     k = self.keyops.random(self.rng).astype(KEY_DTYPE, copy=False)
                 k = np.ascontiguousarray(self.keyops.normalize(k), dtype=self.key_dtype)
-                s = float(self._score_batch(k[None, :])[0])
+                s_pct_arr, s_raw_arr = self._score_batch_dual(k[None, :], use_raw=use_raw_score)
+                s_pct = float(s_pct_arr[0])
+                s_raw = float(s_raw_arr[0])
                 total_evals += 1
 
-                if s > best_score:
-                    best_score = float(s)
-                    best_key = k.copy()
+                _update_best(s_raw, s_pct, k, global_step)
 
                 for step in range(1, steps + 1):
                     global_step += 1
@@ -154,41 +244,113 @@ class KaedingPeriodicStructuredSolver(SolverBase):
 
                     slip = False
                     col_moves = 0
-                    improved = False
+                    block_improved = False
+                    col_improved = False
+                    best_delta_raw = 0.0
+                    median_delta_raw = 0.0
 
                     candidates = self._block_swap_batch(k, block, inner_batch)
-                    scores = self._score_batch(candidates)
+                    scores_pct, scores_raw = self._score_batch_dual(candidates, use_raw=use_raw_score)
                     total_evals += int(candidates.shape[0])
-                    idx = int(np.argmax(scores))
-                    if scores[idx] > s:
+                    attempt_count += 1
+                    phase_attempts[block] += 1
+                    raw_deltas = scores_raw - s_raw
+                    idx = int(np.argmax(scores_raw))
+                    if raw_deltas.size:
+                        best_delta_raw = float(raw_deltas[idx])
+                        median_delta_raw = float(np.median(raw_deltas))
+                        delta_history.append(best_delta_raw)
+                    if scores_raw[idx] > (s_raw + raw_accept_min_delta):
                         k = candidates[idx].copy()
-                        s = float(scores[idx])
-                        improved = True
+                        s_raw = float(scores_raw[idx])
+                        s_pct = float(scores_pct[idx])
+                        block_improved = True
+                        accept_count += 1
+                        phase_improves[block] += 1
+                        if best_delta_raw > phase_best_delta[block]:
+                            phase_best_delta[block] = best_delta_raw
 
                     if has_columnar and col_every > 0 and (step % col_every == 0):
                         col_candidates = self._col_swap_batch(k, col_batch)
-                        col_scores = self._score_batch(col_candidates)
+                        col_pct, col_raw = self._score_batch_dual(col_candidates, use_raw=use_raw_score)
                         total_evals += int(col_candidates.shape[0])
                         col_moves = int(col_candidates.shape[0])
-                        idx = int(np.argmax(col_scores))
-                        if col_scores[idx] > s:
-                            k = col_candidates[idx].copy()
-                            s = float(col_scores[idx])
-                            improved = True
+                        attempt_count += 1
+                        col_deltas = col_raw - s_raw
+                        col_idx = int(np.argmax(col_raw))
+                        if col_deltas.size:
+                            col_best_delta = float(col_deltas[col_idx])
+                            delta_history.append(col_best_delta)
+                            best_delta_raw = max(best_delta_raw, col_best_delta)
+                            median_delta_raw = float(np.median(col_deltas))
+                        if col_raw[col_idx] > (s_raw + raw_accept_min_delta):
+                            k = col_candidates[col_idx].copy()
+                            s_raw = float(col_raw[col_idx])
+                            s_pct = float(col_pct[col_idx])
+                            col_improved = True
+                            accept_count += 1
 
-                    if slip_every > 0 and (step % slip_every == 0):
+                    if slip_policy == "fixed" and slip_every > 0 and (step % slip_every == 0):
+                        raw_before = float(s_raw)
                         picks = self.rng.choice(self.period, size=min(self.period, slip_blocks), replace=False)
                         k = self._slip_blocks(k, picks.tolist())
-                        s = float(self._score_batch(k[None, :])[0])
+                        s_pct_arr, s_raw_arr = self._score_batch_dual(k[None, :], use_raw=use_raw_score)
+                        s_pct = float(s_pct_arr[0])
+                        s_raw = float(s_raw_arr[0])
                         total_evals += 1
                         slip = True
+                        active_slips.append({
+                            "step": int(global_step),
+                            "raw_before": raw_before,
+                            "raw_after": float(s_raw),
+                            "raw_best_after": float(s_raw),
+                        })
 
-                    if s > best_score:
-                        best_score = float(s)
-                        best_key = k.copy()
+                    _update_best(s_raw, s_pct, k, global_step)
 
-                    plateau_stop = self._early_stop_update(float(best_score), int(global_step))
+                    plateau_stop = self._early_stop_update(float(best_raw), int(global_step))
                     since_improve = int(self._since_improve(int(global_step)))
+
+                    if slip_policy == "stall" and stall_rounds > 0 and since_improve >= stall_rounds:
+                        if stall_slips_used < stall_slip_limit:
+                            raw_before = float(s_raw)
+                            stall_phase = self._pick_stall_phase(phase_attempts, phase_improves)
+                            k = self._partial_slip_block(k, stall_phase, slip_swaps)
+                            s_pct_arr, s_raw_arr = self._score_batch_dual(k[None, :], use_raw=use_raw_score)
+                            s_pct = float(s_pct_arr[0])
+                            s_raw = float(s_raw_arr[0])
+                            total_evals += 1
+                            slip = True
+                            stall_slips_used += 1
+                            active_slips.append({
+                                "step": int(global_step),
+                                "raw_before": raw_before,
+                                "raw_after": float(s_raw),
+                                "raw_best_after": float(s_raw),
+                            })
+                            _update_best(s_raw, s_pct, k, global_step)
+                            self._last_improve_at = int(global_step)
+                            self._best_at_step = int(global_step)
+                            plateau_stop = False
+                            since_improve = 0
+                        elif stall_stop_on_limit:
+                            self._stop_reason = f"stall_slip_limit_{int(stall_slip_limit)}"
+                            plateau_stop = True
+
+                    if plateau_stop and pct_plateau_min_delta > 0.0:
+                        if (int(global_step) - int(last_pct_improve_at)) < int(self.plateau_rounds):
+                            self._last_improve_at = int(last_pct_improve_at)
+                            plateau_stop = False
+
+                    for rec in list(active_slips):
+                        rec["raw_best_after"] = max(float(rec.get("raw_best_after", s_raw)), float(s_raw))
+                        if int(global_step) - int(rec["step"]) >= slip_follow_steps:
+                            rec["raw_best_after_200"] = float(rec.pop("raw_best_after"))
+                            slip_history.append(rec)
+                            active_slips.remove(rec)
+
+                    accept_rate = float(accept_count) / float(max(1, attempt_count))
+                    hist_median = float(np.median(delta_history)) if len(delta_history) > 0 else 0.0
 
                     self._progress_pct(
                         global_step,
@@ -198,30 +360,105 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                         block=int(block),
                         slip=int(slip),
                         col_moves=int(col_moves),
-                        improved=int(improved),
-                        best_score=float(best_score),
+                        improved=int(block_improved or col_improved),
+                        best_score=float(best_pct),
+                        best_raw=float(best_raw),
+                        delta_raw_best=float(best_delta_raw),
+                        delta_raw_median=float(hist_median),
+                        accept_rate=accept_rate,
                         evals=int(total_evals),
                         since_improve=int(since_improve),
                         preview_key=best_key,
                     )
 
-                    if self._early_stop_stop_score(float(best_score)) or plateau_stop:
+                    if self._early_stop_stop_score(float(best_pct)) or plateau_stop:
                         break
 
-                if self._early_stop_stop_score(float(best_score)) or plateau_stop:
+                if self._early_stop_stop_score(float(best_pct)) or plateau_stop:
                     break
 
             if best_key is None:
                 best_key = self.keyops.random(self.rng).astype(self.key_dtype, copy=False)
-                best_score = float(self._score_batch(best_key[None, :])[0])
+                best_pct_arr, best_raw_arr = self._score_batch_dual(best_key[None, :], use_raw=use_raw_score)
+                best_pct = float(best_pct_arr[0])
+                best_raw = float(best_raw_arr[0])
                 total_evals += 1
+
+            # Finalize slip history and attach telemetry summaries.
+            try:
+                for rec in list(active_slips):
+                    rec["raw_best_after_200"] = float(rec.pop("raw_best_after", best_raw))
+                    slip_history.append(rec)
+                    active_slips.remove(rec)
+            except Exception:
+                pass
+
+            tele = getattr(self.problem, "telemetry", None)
+            if isinstance(tele, dict):
+                try:
+                    sc = getattr(self.problem, "scorer", None)
+                    wli = getattr(self.problem, "wli_data", None)
+                    pt_idx = None
+                    resolver = getattr(self.problem, "resolve_plaintext", None)
+                    if callable(resolver):
+                        pt_idx = resolver(best_key)
+                    if pt_idx is None:
+                        pt_idx = self.problem.cipher.decrypt(ciphertext=self.problem.ciphertext, key=best_key)
+                    if isinstance(pt_idx, tuple):
+                        pt_idx = pt_idx[0]
+                    pt_idx = np.asarray(pt_idx, dtype=np.int64).reshape(-1).tolist()
+                    if sc is not None:
+                        if hasattr(sc, "score_with_raw") and callable(sc.score_with_raw):
+                            sc.score_with_raw(pt_idx, wli)
+                        else:
+                            sc.score(pt_idx, wli)
+                        stats = sc.last_stats() if hasattr(sc, "last_stats") else {}
+                        obj = None
+                        if isinstance(stats, dict):
+                            obj = stats.get("objective_stats") or stats.get("objective")
+                        if isinstance(obj, dict):
+                            tele["objective"] = obj
+                        else:
+                            tele["objective"] = {"pct": float(best_pct), "raw": float(best_raw)}
+                except Exception:
+                    tele["objective"] = {"pct": float(best_pct), "raw": float(best_raw)}
+
+                try:
+                    per_phase = {}
+                    for i in range(int(self.period)):
+                        per_phase[int(i)] = {
+                            "attempts": int(phase_attempts[i]),
+                            "improves": int(phase_improves[i]),
+                            "best_delta_raw": (
+                                None if not np.isfinite(phase_best_delta[i]) else float(phase_best_delta[i])
+                            ),
+                        }
+                    kaeding_meta = {
+                        "accept_rate": float(accept_count) / float(max(1, attempt_count)),
+                        "best_delta_raw": (float(max(delta_history)) if len(delta_history) > 0 else 0.0),
+                        "median_delta_raw": (float(np.median(delta_history)) if len(delta_history) > 0 else 0.0),
+                        "since_improve": int(self._since_improve(int(global_step))),
+                        "slips": slip_history,
+                        "per_phase": per_phase,
+                        "best_pct": float(best_pct),
+                        "best_raw": float(best_raw),
+                    }
+                    if top_candidates:
+                        top_candidates.sort(key=lambda x: x[0], reverse=True)
+                        kaeding_meta["top_keys"] = [list(k) for _, _, k in top_candidates]
+                        kaeding_meta["top_raw"] = [float(r) for r, _, _ in top_candidates]
+                        kaeding_meta["top_pct"] = [float(p) for _, p, _ in top_candidates]
+                    tele["kaeding"] = kaeding_meta
+                except Exception:
+                    pass
 
             self._end_span(getattr(self, "_span", None),
                            steps=int(global_step),
                            candidates=int(total_evals),
-                           best_score=float(best_score),
+                           best_score=float(best_pct),
+                           best_raw=float(best_raw),
                            reason=(getattr(self, "_stop_reason", None) or "done"))
-            return self._finalize_solution(best_key, float(best_score))
+            return self._finalize_solution(best_key, float(best_pct))
 
         except Exception as e:
             self._end_span(getattr(self, "_span", None), error=str(e))

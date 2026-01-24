@@ -428,6 +428,12 @@ class SolverBase:
                 best_str = f" best={float(best):.6f}"
             except Exception:
                 best_str = f" best={best}"
+        best_raw = payload.get("best_raw")
+        if best_raw is not None:
+            try:
+                best_str += f" raw={float(best_raw):.6f}"
+            except Exception:
+                best_str += f" raw={best_raw}"
         evals = payload.get("evals")
         evals_str = f" evals={int(evals)}" if isinstance(evals, (int, float)) else ""
         since = payload.get("since_improve")

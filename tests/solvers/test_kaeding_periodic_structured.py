@@ -12,6 +12,16 @@ class ZeroScorer:
     def batch_score(self, pts, wli=None):
         return np.zeros((len(pts),), dtype=np.float64)
 
+    def batch_score_with_raw(self, pts, wli=None):
+        zeros = np.zeros((len(pts),), dtype=np.float64)
+        return zeros, zeros.copy()
+
+    def score(self, pt, wli=None):
+        return 0.0
+
+    def score_with_raw(self, pt, wli=None):
+        return 0.0, 0.0
+
 
 def _make_periodic_problem(period: int = 2, A: int = 5):
     key_len = period * A

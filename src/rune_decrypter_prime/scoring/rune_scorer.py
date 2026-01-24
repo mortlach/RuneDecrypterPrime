@@ -168,6 +168,7 @@ class RuneScorer(BaseScorer):
     def score(self, plaintext: Iterable[int], wli_windows: Iterable[Tuple[int, int]] | None = None) -> float:
         fam = self.objective.family
         stat = self.objective.stat
+        want_energy = fam is ObjectiveFamily.ENERGY
 
         if fam is ObjectiveFamily.NEGLOGP or fam is ObjectiveFamily.AVG:
             warnings.warn("Using legacy objective; consider migrating to PCT.*", DeprecationWarning, stacklevel=2)
@@ -219,6 +220,8 @@ class RuneScorer(BaseScorer):
         models = self._active_models()
 
         perwin = np.zeros((nwin,), dtype=np.float32)
+        raw_perwin = np.zeros((nwin,), dtype=np.float32)
+        components: Dict[str, Dict[str, float]] = {}
         dir_name = BaseScorer._dir_name(self.direction)
         se_name = BaseScorer._se_name(self.se_mode)
 
@@ -226,19 +229,25 @@ class RuneScorer(BaseScorer):
         for ch, n, w in models:
             if ch is Channel.CHAR:
                 call = self._rt.score_char_nose if se_name == "nose" else self._rt.score_char_wise
-                bucket = call(dir_name, int(n), win, pt_w)
+                bucket = call(dir_name, int(n), win, pt_w, include_energy=want_energy)
+                label = f"char_n{int(n)}"
             else:
                 if wli_w is None:
                     # No WLI data: component contributes zeros
                     continue
                 call = self._rt.score_wli_nose if se_name == "nose" else self._rt.score_wli_wise
-                bucket = call(dir_name, int(n), win, pt_w, wli_w)
+                bucket = call(dir_name, int(n), win, pt_w, wli_w, include_energy=want_energy)
+                label = f"wli_n{int(n)}"
 
             try:
                 u = np.asarray(bucket["pct"][stat.value], dtype=np.float32)
             except Exception:
                 # Very old table shapes: fall back to pct.logp
                 u = np.asarray(bucket.get("pct", {}).get("logp", [0.0] * nwin), dtype=np.float32)
+            try:
+                raw = np.asarray(bucket["avg"][stat.value], dtype=np.float32)
+            except Exception:
+                raw = np.asarray(bucket.get("avg", {}).get("logp", [0.0] * nwin), dtype=np.float32)
 
             # Clamp then mix
             if self._ecdf_floor > 0.0:
@@ -246,9 +255,20 @@ class RuneScorer(BaseScorer):
             if self._ecdf_ceiling < 1.0:
                 u = np.minimum(u, np.float32(self._ecdf_ceiling))
             perwin += np.float32(w) * u
+            raw_perwin += np.float32(w) * raw
+            components[label] = {
+                "pct": float(np.mean(u, dtype=np.float64)),
+                "raw": float(np.mean(raw, dtype=np.float64)),
+            }
 
         mean = float(np.mean(perwin, dtype=np.float64))
         std = float(np.std(perwin, dtype=np.float64))  # population/std across windows
+        raw_mean = float(np.mean(raw_perwin, dtype=np.float64))
+        raw_std = float(np.std(raw_perwin, dtype=np.float64))
+
+        p10 = float(np.percentile(perwin, 10.0))
+        p50 = float(np.percentile(perwin, 50.0))
+        p90 = float(np.percentile(perwin, 90.0))
 
         hamming_total = None
         hamming_avg = None
@@ -263,19 +283,39 @@ class RuneScorer(BaseScorer):
                 hamming_total = float(stats.get("total_hd", 0.0))
                 hamming_avg = float(stats.get("avg_hd_word", hamming_total))
                 mean = float(mean - self._hamming_weight * hamming_avg)
+                raw_mean = float(raw_mean - self._hamming_weight * hamming_avg)
             except Exception:
                 hamming_total = None
                 hamming_avg = None
+
+        objective = {
+            "pct": mean,
+            "raw": raw_mean,
+            "components": components,
+            "windows": {"p10": p10, "p50": p50, "p90": p90},
+        }
 
         self._stash_stats(
             dtype=self._dtype,
             impl="numpy", device=self._device_str,
             score_mean=mean, score_std=std, n_windows=int(nwin),
+            raw_score_mean=raw_mean, raw_score_std=raw_std,
             hamming_total_hd=(hamming_total if hamming_total is not None else None),
             hamming_avg_hd=(hamming_avg if hamming_avg is not None else None),
             hamming_weight=self._hamming_weight,
+            objective_stats=objective,
         )
         return mean
+
+    def score_with_raw(
+        self,
+        plaintext: Iterable[int],
+        wli_windows: Iterable[Tuple[int, int]] | None = None,
+    ) -> Tuple[float, float]:
+        pct = float(self.score(plaintext, wli_windows))
+        stats = self.last_stats() if hasattr(self, "last_stats") else {}
+        raw = stats.get("raw_score_mean", pct) if isinstance(stats, dict) else pct
+        return pct, float(raw)
 
     def set_hamming_progress(self, progress: float) -> None:
         """
@@ -339,9 +379,12 @@ class RuneScorer(BaseScorer):
 
         out = np.zeros((len(pts),), dtype=np.float32)
         stds = np.zeros_like(out)
+        raws = np.zeros_like(out)
         for i, pt in enumerate(materialised_pts):
             wli_i = wli_single if wli_single is not None else (wli_list[i] if wli_list is not None else None)
             out[i] = self.score(pt, wli_i)
+            stats = self.last_stats()
+            raws[i] = np.float32(float(stats.get("raw_score_mean", out[i])) if isinstance(stats, dict) else float(out[i]))
             stds[i] = np.float32(float(self.telemetry().get("score_std", 0.0)))
 
         self._stash_stats(
@@ -349,9 +392,55 @@ class RuneScorer(BaseScorer):
             impl="numpy", device=self._device_str,
             score_mean_batch=out.astype(np.float32).tolist(),
             score_std_batch=stds.astype(np.float32).tolist(),
+            raw_score_mean_batch=raws.astype(np.float32).tolist(),
             n_windows=max(0, L0 - int(WIN_FIXED) + 1),
         )
         return out.astype(np.float32, copy=False)
+
+    def batch_score_with_raw(
+        self,
+        pts: Sequence[Iterable[int]],
+        wlis: Sequence[Iterable[Tuple[int, int]]] | Iterable[Tuple[int, int]] | None = None,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        pts_seq = list(pts)
+        if not pts_seq:
+            return np.asarray([], dtype=np.float32), np.asarray([], dtype=np.float32)
+        out = np.zeros((len(pts_seq),), dtype=np.float32)
+        raw = np.zeros_like(out)
+        stds = np.zeros_like(out)
+        n_windows = None
+        for i, pt in enumerate(pts_seq):
+            wli_i = None
+            if wlis is not None:
+                if isinstance(wlis, (list, tuple)) and len(wlis) == len(pts_seq):
+                    wli_i = wlis[i]
+                else:
+                    wli_i = wlis
+            pct_i = float(self.score(pt, wli_i))
+            stats = self.last_stats()
+            raw_i = stats.get("raw_score_mean", pct_i) if isinstance(stats, dict) else pct_i
+            out[i] = np.float32(pct_i)
+            raw[i] = np.float32(raw_i)
+            stds[i] = np.float32(float(self.telemetry().get("score_std", 0.0)))
+            if n_windows is None and isinstance(stats, dict):
+                n_windows = stats.get("n_windows")
+        if n_windows is None:
+            try:
+                L0 = len(pts_seq[0])
+            except Exception:
+                n_windows = 0
+            else:
+                n_windows = max(0, int(L0) - int(WIN_FIXED) + 1)
+        self._stash_stats(
+            dtype=self._dtype,
+            impl="numpy",
+            device=self._device_str,
+            score_mean_batch=out.astype(np.float32).tolist(),
+            score_std_batch=stds.astype(np.float32).tolist(),
+            raw_score_mean_batch=raw.astype(np.float32).tolist(),
+            n_windows=int(n_windows),
+        )
+        return out.astype(np.float32, copy=False), raw.astype(np.float32, copy=False)
 
     def clear_wli_cache(self) -> None:
         """Manual hook to drop cached WLI conversions/windows between solver runs."""
@@ -420,7 +509,7 @@ class RuneScorer(BaseScorer):
         for ch, n, w in self._active_models():
             if ch is Channel.CHAR:
                 call = self._rt.score_char_nose if se_name == "nose" else self._rt.score_char_wise
-                bucket = call(dir_name, int(n), int(WIN_FIXED), [pt])
+                bucket = call(dir_name, int(n), int(WIN_FIXED), [pt], include_energy=False)
                 char_val = _extract_legacy(bucket, self.objective)
                 break
 
@@ -431,7 +520,7 @@ class RuneScorer(BaseScorer):
                 if ch is Channel.WLI:
                     wli = _to_u8_L2(wli_windows)
                     call = self._rt.score_wli_nose if se_name == "nose" else self._rt.score_wli_wise
-                    bucket = call(dir_name, int(n), int(WIN_FIXED), [pt], [wli])
+                    bucket = call(dir_name, int(n), int(WIN_FIXED), [pt], [wli], include_energy=False)
                     wli_val = _extract_legacy(bucket, self.objective)
                     break
 
