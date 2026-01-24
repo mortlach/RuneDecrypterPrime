@@ -78,6 +78,22 @@ class RuneScorer(BaseScorer):
             raise TypeError("se_mode must be SeMode Enum")
         if not isinstance(self.objective, ObjectiveSpec):
             raise TypeError("objective must be ObjectiveSpec")
+        if self.objective.family is ObjectiveFamily.ENERGY:
+            self.objective = ObjectiveSpec(
+                family=ObjectiveFamily.PCT,
+                stat=self.objective.stat,
+                win=self.objective.win,
+            )
+        if self.objective.family in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
+            if self.objective.win is None:
+                legacy_win = _cfg_get(scorer_cfg, "win", WIN_FIXED)
+                self.objective = ObjectiveSpec(
+                    family=ObjectiveFamily.PCT,
+                    stat=self.objective.stat,
+                    win=int(legacy_win),
+                )
+            if int(self.objective.win) != int(WIN_FIXED):
+                raise ValueError("pct/energy objectives only support win=10 in the current LM tables.")
 
         # Channels
         self.include_char: bool = bool(_cfg_get(scorer_cfg, "include_char", True))
@@ -91,6 +107,9 @@ class RuneScorer(BaseScorer):
             raise ValueError("ecdf_floor/ceiling must be in [0,1]")
         if self._ecdf_floor > self._ecdf_ceiling:
             raise ValueError("ecdf_floor cannot exceed ecdf_ceiling")
+        self._stride: int = int(_cfg_get(scorer_cfg, "stride", 1) or 1)
+        if self._stride <= 0:
+            raise ValueError("stride must be >= 1")
 
         # Model selection — either per-order maps or legacy single-order + pair weights
         self._char_weights: Dict[int, float] | None = _cfg_get(scorer_cfg, "char_weights")
@@ -170,7 +189,7 @@ class RuneScorer(BaseScorer):
         stat = self.objective.stat
         want_energy = fam is ObjectiveFamily.ENERGY
 
-        if fam is ObjectiveFamily.NEGLOGP or fam is ObjectiveFamily.AVG:
+        if fam is ObjectiveFamily.NEGLOGP:
             warnings.warn("Using legacy objective; consider migrating to PCT.*", DeprecationWarning, stacklevel=2)
             out = float(self._score_legacy_scalar(plaintext, wli_windows))
             self._stash_stats(
@@ -178,6 +197,9 @@ class RuneScorer(BaseScorer):
                 impl="numpy", device=self._device_str,
                 legacy_objective=True, score_mean=out, score_std=0.0, n_windows=1,
             )
+            return out
+        if fam is ObjectiveFamily.AVG:
+            out = float(self._score_raw_avg(plaintext, wli_windows))
             return out
 
         # ENERGY alias → PCT
@@ -257,13 +279,13 @@ class RuneScorer(BaseScorer):
             perwin += np.float32(w) * u
             raw_perwin += np.float32(w) * raw
             components[label] = {
-                "pct": float(np.mean(u, dtype=np.float64)),
-                "raw": float(np.mean(raw, dtype=np.float64)),
+                "pct_lm": float(np.mean(u, dtype=np.float64)),
+                "raw_lm": float(np.mean(raw, dtype=np.float64)),
             }
 
         mean = float(np.mean(perwin, dtype=np.float64))
         std = float(np.std(perwin, dtype=np.float64))  # population/std across windows
-        raw_mean = float(np.mean(raw_perwin, dtype=np.float64))
+        raw_lm = float(np.mean(raw_perwin, dtype=np.float64))
         raw_std = float(np.std(raw_perwin, dtype=np.float64))
 
         p10 = float(np.percentile(perwin, 10.0))
@@ -272,6 +294,7 @@ class RuneScorer(BaseScorer):
 
         hamming_total = None
         hamming_avg = None
+        penalty_raw = 0.0
         if self._hamming_backend is not None and wli is not None:
             try:
                 stats = self._hamming_backend.total_min_hd_stats(
@@ -282,15 +305,24 @@ class RuneScorer(BaseScorer):
                 )
                 hamming_total = float(stats.get("total_hd", 0.0))
                 hamming_avg = float(stats.get("avg_hd_word", hamming_total))
-                mean = float(mean - self._hamming_weight * hamming_avg)
-                raw_mean = float(raw_mean - self._hamming_weight * hamming_avg)
+                penalty_raw = float(-self._hamming_weight * hamming_avg)
             except Exception:
                 hamming_total = None
                 hamming_avg = None
 
+        raw_total = float(raw_lm + penalty_raw)
+
+        energy_lm = None
+        try:
+            energy_lm = float(self._ecdf.energy(np.asarray([mean], dtype=np.float32))[0])
+        except Exception:
+            energy_lm = None
         objective = {
-            "pct": mean,
-            "raw": raw_mean,
+            "pct_lm": mean,
+            "energy_lm": energy_lm,
+            "raw_lm": raw_lm,
+            "raw_total": raw_total,
+            "penalty_raw": penalty_raw,
             "components": components,
             "windows": {"p10": p10, "p50": p50, "p90": p90},
         }
@@ -299,13 +331,18 @@ class RuneScorer(BaseScorer):
             dtype=self._dtype,
             impl="numpy", device=self._device_str,
             score_mean=mean, score_std=std, n_windows=int(nwin),
-            raw_score_mean=raw_mean, raw_score_std=raw_std,
+            raw_score_mean=raw_total, raw_score_std=raw_std,
+            raw_score_mean_lm=raw_lm,
+            penalty_raw=penalty_raw,
             hamming_total_hd=(hamming_total if hamming_total is not None else None),
             hamming_avg_hd=(hamming_avg if hamming_avg is not None else None),
             hamming_weight=self._hamming_weight,
             objective_stats=objective,
         )
         return mean
+
+    def supports_raw(self) -> bool:
+        return True
 
     def score_with_raw(
         self,
@@ -316,6 +353,132 @@ class RuneScorer(BaseScorer):
         stats = self.last_stats() if hasattr(self, "last_stats") else {}
         raw = stats.get("raw_score_mean", pct) if isinstance(stats, dict) else pct
         return pct, float(raw)
+
+    def _score_raw_avg(
+        self,
+        plaintext: Iterable[int],
+        wli_windows: Iterable[Tuple[int, int]] | None = None,
+    ) -> float:
+        stat = self.objective.stat
+        if stat is None:
+            raise ValueError("ObjectiveSpec.stat is required for avg objectives.")
+        if self.objective.win is None:
+            raise ValueError("ObjectiveSpec.win is required for avg objectives.")
+
+        pt = _to_u8_1d(plaintext)
+        L = int(pt.shape[0])
+        win = int(self.objective.win)
+        stride = int(self._stride)
+        nwin = max(0, (L - win) // stride + 1)
+        if nwin == 0:
+            self._stash_stats(
+                dtype=self._dtype,
+                impl="numpy", device=self._device_str,
+                score_mean=0.0, score_std=0.0, n_windows=0,
+                raw_score_mean=0.0, raw_score_std=0.0,
+                raw_score_mean_lm=0.0,
+                penalty_raw=0.0,
+            )
+            return 0.0
+
+        try:
+            from numpy.lib.stride_tricks import sliding_window_view as _swv  # type: ignore
+            pt_w = _swv(pt, win)
+            if stride != 1:
+                pt_w = pt_w[::stride]
+            if not pt_w.flags["C_CONTIGUOUS"]:
+                pt_w = np.ascontiguousarray(pt_w, dtype=np.uint8)
+            else:
+                pt_w = pt_w.astype(np.uint8, copy=False)
+        except Exception:
+            starts = range(0, L - win + 1, stride)
+            pt_w = np.ascontiguousarray([pt[s:s + win] for s in starts], dtype=np.uint8)
+
+        wli = None
+        if wli_windows is not None:
+            wli = self._get_wli_array(wli_windows)
+        if wli is not None and self.use_word_breaks:
+            wli_w = self._get_wli_windows(wli, win, nwin, stride=stride)
+        else:
+            wli_w = None
+
+        models = self._active_models()
+        raw_perwin = np.zeros((nwin,), dtype=np.float32)
+        components: Dict[str, Dict[str, float]] = {}
+        dir_name = BaseScorer._dir_name(self.direction)
+        se_name = BaseScorer._se_name(self.se_mode)
+
+        for ch, n, w in models:
+            if ch is Channel.CHAR:
+                logp_a, zsum_a, madsum_a = self._rt._score_batch_char(dir_name, se_name, int(n), pt_w)
+                label = f"char_n{int(n)}"
+            else:
+                if wli_w is None:
+                    continue
+                logp_a, zsum_a, madsum_a = self._rt._score_batch_wli(dir_name, se_name, int(n), pt_w, wli_w)
+                label = f"wli_n{int(n)}"
+
+            if stat is Stat.ZSUM:
+                raw = zsum_a
+            elif stat is Stat.MADSUM:
+                raw = madsum_a
+            else:
+                raw = logp_a
+
+            raw_perwin += np.float32(w) * np.asarray(raw, dtype=np.float32)
+            components[label] = {
+                "raw_lm": float(np.mean(raw, dtype=np.float64)),
+            }
+
+        raw_lm = float(np.mean(raw_perwin, dtype=np.float64))
+        raw_std = float(np.std(raw_perwin, dtype=np.float64))
+
+        hamming_total = None
+        hamming_avg = None
+        penalty_raw = 0.0
+        if self._hamming_backend is not None and wli is not None:
+            try:
+                stats = self._hamming_backend.total_min_hd_stats(
+                    pt.tolist(),
+                    wli.tolist(),
+                    direction=self.direction,
+                    mode=self._hamming_direction_mode,
+                )
+                hamming_total = float(stats.get("total_hd", 0.0))
+                hamming_avg = float(stats.get("avg_hd_word", hamming_total))
+                penalty_raw = float(-self._hamming_weight * hamming_avg)
+            except Exception:
+                hamming_total = None
+                hamming_avg = None
+
+        raw_total = float(raw_lm + penalty_raw)
+
+        p10 = float(np.percentile(raw_perwin, 10.0))
+        p50 = float(np.percentile(raw_perwin, 50.0))
+        p90 = float(np.percentile(raw_perwin, 90.0))
+        objective = {
+            "pct_lm": None,
+            "energy_lm": None,
+            "raw_lm": raw_lm,
+            "raw_total": raw_total,
+            "penalty_raw": penalty_raw,
+            "components": components,
+            "windows": {"p10": p10, "p50": p50, "p90": p90},
+        }
+
+        self._stash_stats(
+            dtype=self._dtype,
+            impl="numpy", device=self._device_str,
+            score_mean=raw_total, score_std=raw_std, n_windows=int(nwin),
+            raw_score_mean=raw_total, raw_score_std=raw_std,
+            raw_score_mean_lm=raw_lm,
+            penalty_raw=penalty_raw,
+            hamming_total_hd=(hamming_total if hamming_total is not None else None),
+            hamming_avg_hd=(hamming_avg if hamming_avg is not None else None),
+            hamming_weight=self._hamming_weight,
+            objective_stats=objective,
+        )
+        return raw_total
 
     def set_hamming_progress(self, progress: float) -> None:
         """
@@ -469,8 +632,8 @@ class RuneScorer(BaseScorer):
         for key in drop_keys:
             del self._wli_window_cache[key]
 
-    def _get_wli_windows(self, wli: np.ndarray, win: int, nwin: int) -> np.ndarray:
-        cache_key = (id(wli), int(win))
+    def _get_wli_windows(self, wli: np.ndarray, win: int, nwin: int, *, stride: int = 1) -> np.ndarray:
+        cache_key = (id(wli), int(win), int(stride))
         entry = self._wli_window_cache.get(cache_key)
         if entry is not None and entry.source_array is wli:
             self._wli_window_cache.move_to_end(cache_key)
@@ -479,17 +642,19 @@ class RuneScorer(BaseScorer):
             from numpy.lib.stride_tricks import sliding_window_view as _swv  # type: ignore
             wli_w = _swv(wli, window_shape=win, axis=0)
             wli_w = np.swapaxes(wli_w, 1, 2)
+            if int(stride) != 1:
+                wli_w = wli_w[:: int(stride)]
             if not wli_w.flags["C_CONTIGUOUS"]:
                 wli_w = np.ascontiguousarray(wli_w, dtype=np.uint8)
             else:
                 wli_w = wli_w.astype(np.uint8, copy=False)
         except Exception:
-            starts = range(0, nwin)
+            starts = range(0, nwin * int(stride), int(stride))
             wli_w = np.ascontiguousarray([wli[s:s + win, :] for s in starts], dtype=np.uint8)
         self._remember_wli_windows(cache_key, wli, wli_w)
         return wli_w
 
-    def _remember_wli_windows(self, key: Tuple[int, int], source_array: np.ndarray, windows: np.ndarray) -> None:
+    def _remember_wli_windows(self, key: Tuple[int, int, int], source_array: np.ndarray, windows: np.ndarray) -> None:
         if len(self._wli_window_cache) >= self._wli_cache_limit:
             self._wli_window_cache.popitem(last=False)
         self._wli_window_cache[key] = _WliWindowCacheEntry(source_array=source_array, windows=windows)

@@ -419,9 +419,15 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                         if isinstance(obj, dict):
                             tele["objective"] = obj
                         else:
-                            tele["objective"] = {"pct": float(best_pct), "raw": float(best_raw)}
+                            tele["objective"] = {
+                                "pct_lm": float(best_pct),
+                                "raw_total": float(best_raw),
+                            }
                 except Exception:
-                    tele["objective"] = {"pct": float(best_pct), "raw": float(best_raw)}
+                    tele["objective"] = {
+                        "pct_lm": float(best_pct),
+                        "raw_total": float(best_raw),
+                    }
 
                 try:
                     per_phase = {}
@@ -452,13 +458,14 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                 except Exception:
                     pass
 
+            final_score = float(best_raw) if use_raw_score else float(best_pct)
             self._end_span(getattr(self, "_span", None),
                            steps=int(global_step),
                            candidates=int(total_evals),
-                           best_score=float(best_pct),
+                           best_score=float(final_score),
                            best_raw=float(best_raw),
                            reason=(getattr(self, "_stop_reason", None) or "done"))
-            return self._finalize_solution(best_key, float(best_pct))
+            return self._finalize_solution(best_key, float(final_score))
 
         except Exception as e:
             self._end_span(getattr(self, "_span", None), error=str(e))

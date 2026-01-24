@@ -43,7 +43,8 @@ def test_pct_win10_stats_present_numpy():
     assert stats["n_windows"] > 0
     obj = stats.get("objective_stats") or stats.get("objective")
     assert isinstance(obj, dict)
-    assert "pct" in obj and "raw" in obj and "components" in obj and "windows" in obj
+    assert "pct_lm" in obj and "raw_lm" in obj and "raw_total" in obj and "penalty_raw" in obj
+    assert "energy_lm" in obj and "components" in obj and "windows" in obj
     assert isinstance(obj["components"], dict)
     assert "char_n2" in obj["components"]
     assert "wli_n2" in obj["components"]

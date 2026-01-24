@@ -91,9 +91,13 @@ class BaseScorer(ABC):
     def __call__(self, plaintexts: Any, wli_windows: Any | None = None):
         return self.score(plaintexts, wli_windows)
 
+    def supports_raw(self) -> bool:
+        """Return True if this scorer provides real raw scores."""
+        return False
+
     def score_with_raw(self, plaintext: Iterable[int], wli_windows: Any | None = None) -> Tuple[float, float]:
         """
-        Optional: return (pct_score, raw_score). Defaults to pct for both.
+        Optional: return (primary_score, raw_score). Defaults to primary for both.
         Concrete scorers can override for raw logp support.
         """
         pct = float(self.score(plaintext, wli_windows))
@@ -101,7 +105,7 @@ class BaseScorer(ABC):
 
     def batch_score_with_raw(self, pts: Sequence[Iterable[int]], wlis: Any | None = None) -> Tuple[Any, Any]:
         """
-        Optional: return (pct_scores, raw_scores). Defaults to pct for both.
+        Optional: return (primary_scores, raw_scores). Defaults to primary for both.
         Concrete scorers can override for raw logp support.
         """
         pct = self.batch_score(pts, wlis)

@@ -25,12 +25,12 @@ def normalize_objective_family(value: Any) -> ObjectiveFamily:
         if v in ("avg", "average"):
             return ObjectiveFamily.AVG
         if v == "energy":
-            return ObjectiveFamily.ENERGY
+            return ObjectiveFamily.PCT
         if v == "neglogp":
             return ObjectiveFamily.NEGLOGP
         raise ValueError(f"Unknown ObjectiveFamily string: {value}.")
     elif isinstance(value, ObjectiveFamily):
-        return value
+        return ObjectiveFamily.PCT if value is ObjectiveFamily.ENERGY else value
     else:
         raise ValueError(f"Unknown ObjectiveFamily parameter type: {type(value)}.")
 
@@ -53,6 +53,8 @@ def normalize_stat(value: Any) -> Stat:
 
 def normalize_objective_spec(value: Any) -> ObjectiveSpec:
     if isinstance(value, ObjectiveSpec):
+        if value.family is ObjectiveFamily.ENERGY:
+            return ObjectiveSpec(family=ObjectiveFamily.PCT, stat=value.stat, win=value.win)
         return value
     if isinstance(value, str):
         # parse simple dotted strings like "pct.logp.win10" or "neglogp"
@@ -63,12 +65,22 @@ def normalize_objective_spec(value: Any) -> ObjectiveSpec:
             else:
                 raise ValueError(f"ObjectiveSpec '{value}' must include window (e.g. win10).")
             return ObjectiveSpec(
-                family=normalize_objective_family(parts[0]),
+                family=ObjectiveFamily.PCT,
                 stat=normalize_stat(parts[1]),
                 win=win,
             )
         elif parts[0] in ("avg", "neglogp"):
-            return ObjectiveSpec(family=normalize_objective_family(parts[0]))
+            fam = normalize_objective_family(parts[0])
+            stat = None
+            win = None
+            if fam is ObjectiveFamily.AVG:
+                if len(parts) >= 2 and parts[1]:
+                    stat = normalize_stat(parts[1])
+                else:
+                    stat = Stat.LOGP
+                if len(parts) >= 3 and parts[2].startswith("win"):
+                    win = int(parts[2][3:])
+            return ObjectiveSpec(family=fam, stat=stat, win=win)
         else:
             raise ValueError(f"Cannot parse ObjectiveSpec string: {value}.")
     elif isinstance(value, dict):
@@ -155,6 +167,21 @@ def normalize_scorer_params(params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         params["encoding_dir"] = normalize_encoding_dir(params["encoding_dir"])
     if "objective" in params:
         params["objective"] = normalize_objective_spec(params["objective"])
+    if "objective" not in params and "win" in params:
+        params["objective"] = ObjectiveSpec(
+            family=ObjectiveFamily.PCT,
+            stat=Stat.LOGP,
+            win=int(params["win"]),
+        )
+        params.pop("win", None)
+    if "objective" in params and "win" in params:
+        obj = params.get("objective")
+        legacy_win = params.get("win")
+        if isinstance(obj, ObjectiveSpec) and obj.family in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY, ObjectiveFamily.AVG):
+            if obj.win is None and legacy_win is not None:
+                stat = obj.stat if obj.stat is not None else (Stat.LOGP if obj.family is ObjectiveFamily.AVG else obj.stat)
+                params["objective"] = ObjectiveSpec(family=obj.family, stat=stat, win=int(legacy_win))
+        params.pop("win", None)
     return params
 
 # ----------------------------- public API ----------------------------- #

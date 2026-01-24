@@ -126,33 +126,134 @@ def _attach_col_tail(sub_keys: Sequence[Sequence[int]], col_tail: Sequence[int])
     return [list(k) + tail for k in sub_keys]
 
 
-def _solution_raw(sol) -> float | None:
+def _objective_fields(sol) -> dict:
     meta = getattr(sol, "meta", None)
-    raw = None
-    if isinstance(meta, dict):
-        tel = meta.get("telemetry", {})
-        if isinstance(tel, dict):
-            obj = tel.get("objective")
-            if isinstance(obj, dict):
-                raw = obj.get("raw")
-            if raw is None:
+    if not isinstance(meta, dict):
+        return {}
+    tel = meta.get("telemetry", {})
+    if not isinstance(tel, dict):
+        return {}
+    obj = tel.get("objective")
+    if isinstance(obj, dict):
+        return obj
+    obj = tel.get("objective_stats")
+    return obj if isinstance(obj, dict) else {}
+
+
+def _solution_raw(sol) -> float | None:
+    obj = _objective_fields(sol)
+    raw = obj.get("raw_total")
+    if raw is None:
+        raw = obj.get("raw")
+    if raw is None:
+        meta = getattr(sol, "meta", None)
+        if isinstance(meta, dict):
+            tel = meta.get("telemetry", {})
+            if isinstance(tel, dict):
                 kaeding = tel.get("kaeding")
                 if isinstance(kaeding, dict):
                     raw = kaeding.get("best_raw")
     if raw is None:
         return None
     try:
-        raw_f = float(raw)
+        return float(raw)
     except (TypeError, ValueError):
         return None
-    score = getattr(sol, "score", None)
-    if score is not None:
-        try:
-            if abs(raw_f - float(score)) < 1e-12:
-                return None
-        except (TypeError, ValueError):
-            pass
-    return raw_f
+
+
+def _format_scores(sol) -> str:
+    pct = float(getattr(sol, "score", 0.0) or 0.0)
+    raw_total = _solution_raw(sol)
+    raw_str = f"{raw_total:.6f}" if raw_total is not None else "N/A"
+    return f"pct_lm={pct:.6f} raw_total={raw_str}"
+
+
+def _print_scorer_params(label: str, params: dict) -> None:
+    objective = params.get("objective", "N/A")
+    include_char = params.get("include_char")
+    use_word_breaks = params.get("use_word_breaks")
+    char_weights = params.get("char_weights")
+    wli_weights = params.get("wli_weights")
+    encoding_dir = params.get("encoding_dir")
+    print(
+        f"{label} objective: {objective} | include_char={include_char} "
+        f"use_word_breaks={use_word_breaks} | char_weights={char_weights} "
+        f"wli_weights={wli_weights} | encoding_dir={encoding_dir}"
+    )
+
+
+def _print_solver_cfg(label: str, cfg: dict) -> None:
+    keys = [
+        "steps",
+        "restarts",
+        "inner_batch",
+        "block_schedule",
+        "use_raw_score",
+        "stop_score",
+        "slip_policy",
+        "slip_blocks",
+        "slip_swaps",
+        "stall_rounds",
+        "stall_slip_limit",
+        "slip_follow_steps",
+        "delta_window",
+        "pct_plateau_min_delta",
+        "raw_accept_min_delta",
+        "progress_pct",
+        "print_progress",
+    ]
+    parts = [f"{k}={cfg.get(k)}" for k in keys if k in cfg]
+    print(f"{label} solver config: " + ", ".join(parts))
+
+
+def _print_hybrid_cfg(label: str, cfg: dict) -> None:
+    keys = [
+        "use_beam",
+        "beam_width",
+        "rounds",
+        "expand_mode",
+        "sample_per_parent",
+        "top_parents_factor",
+        "stop_score",
+        "progress_pct",
+        "print_progress",
+        "seed",
+        "log_interval",
+    ]
+    parts = [f"{k}={cfg.get(k)}" for k in keys if k in cfg]
+    print(f"{label} hybrid config: " + ", ".join(parts))
+    ga = cfg.get("ga", {})
+    if isinstance(ga, dict):
+        ga_keys = [
+            "pop_size",
+            "generations",
+            "elite_frac",
+            "cx_frac",
+            "mut_prob",
+            "tournament_k",
+            "plateau_rounds",
+            "stop_score",
+        ]
+        ga_parts = [f"{k}={ga.get(k)}" for k in ga_keys if k in ga]
+        print(f"{label} GA config: " + ", ".join(ga_parts))
+    sa = cfg.get("sa", {})
+    if isinstance(sa, dict):
+        sa_keys = [
+            "sa_iters",
+            "sa_init_temp",
+            "sa_min_temp",
+            "sa_cooling",
+            "plateau_rounds",
+            "local_improve_on_accept",
+            "stop_score",
+        ]
+        sa_parts = [f"{k}={sa.get(k)}" for k in sa_keys if k in sa]
+        print(f"{label} SA config: " + ", ".join(sa_parts))
+
+
+def _print_optimizer_scalar(label: str, use_raw: bool, objective: str) -> None:
+    scalar = "raw_total" if use_raw else "pct_lm"
+    print(f"{label} optimizer scalar: {scalar} (objective={objective})")
 
 
 def _phase_accuracy_report(
@@ -484,6 +585,8 @@ def main() -> None:
         wli_weights={},
         encoding_dir=direction,
     )
+    _print_scorer_params("Full scorer", scorer_params_full)
+    _print_scorer_params("Stage 1 scorer", scorer_params_stage1)
 
     cipher_full = by_name.cipher(
         "periodic_columnar",
@@ -513,7 +616,7 @@ def main() -> None:
         wli=wli,
         direction=direction,
     )
-    print(f"  true_sub + true_col: {float(sol_true.score):.6f}")
+    print(f"  true_sub + true_col: {_format_scores(sol_true)}")
     sol_true_rand_col = _score_test_key(
         text=ct_idx.tolist(),
         cipher_spec=cipher_full,
@@ -523,7 +626,7 @@ def main() -> None:
         wli=wli,
         direction=direction,
     )
-    print(f"  true_sub + rand_col: {float(sol_true_rand_col.score):.6f}")
+    print(f"  true_sub + rand_col: {_format_scores(sol_true_rand_col)}")
     sol_rand_sub_true = _score_test_key(
         text=ct_idx.tolist(),
         cipher_spec=cipher_full,
@@ -533,7 +636,7 @@ def main() -> None:
         wli=wli,
         direction=direction,
     )
-    print(f"  rand_sub + true_col: {float(sol_rand_sub_true.score):.6f}")
+    print(f"  rand_sub + true_col: {_format_scores(sol_rand_sub_true)}")
 
     sub_cipher = cipher_instance(cipher_sub)
     inter_true = sub_cipher.decrypt_single(ciphertext=ct_idx, key=true_sub_key)
@@ -547,7 +650,7 @@ def main() -> None:
         wli=wli,
         direction=direction,
     )
-    print(f"  stage1-only (true_sub, col scrambled): {float(sol_stage1_only.score):.6f}")
+    print(f"  stage1-only (true_sub, col scrambled): {_format_scores(sol_stage1_only)}")
 
     sol_stage1_oracle = _score_test_key(
         text=ct_idx.tolist(),
@@ -559,9 +662,8 @@ def main() -> None:
         direction=direction,
     )
     stage1_oracle_pct = float(sol_stage1_oracle.score)
-    stage1_oracle_raw = _solution_raw(sol_stage1_oracle)
-    stage1_oracle_raw_str = f"{stage1_oracle_raw:.6f}" if stage1_oracle_raw is not None else "N/A"
-    print(f"Stage 1 oracle (unigram): pct={stage1_oracle_pct:.6f} raw={stage1_oracle_raw_str}")
+    print(f"Stage 1 oracle (unigram): {_format_scores(sol_stage1_oracle)}")
+    print("Stage 1 note: unigram pct_lm ignores order; high pct_lm does not imply readable plaintext.")
 
     # --- Stage 1: periodic substitution ---
     seed_keys = None
@@ -575,9 +677,15 @@ def main() -> None:
             total_seeds=SEED_KEYS,
             swaps_per_block=SEED_SWAPS,
         )
-        print(f"Seed pool: {len(seed_keys)} keys")
+        print(
+            f"Seed pool: {len(seed_keys)} keys "
+            f"(blocks={BLOCK_SEEDS}, total={SEED_KEYS}, swaps_per_block={SEED_SWAPS})"
+        )
 
-    solver_sub = SolverSpec.kaeding(**_apply_plateau(SOLVER_SUB))
+    solver_sub_cfg = _apply_plateau(SOLVER_SUB)
+    _print_solver_cfg("Stage 1 Kaeding", solver_sub_cfg)
+    _print_optimizer_scalar("Stage 1 Kaeding", bool(solver_sub_cfg.get("use_raw_score")), scorer_params_stage1["objective"])
+    solver_sub = SolverSpec.kaeding(**solver_sub_cfg)
 
     sol_sub = run(
         text=ct_idx.tolist(),
@@ -599,19 +707,26 @@ def main() -> None:
         if nth_idx > 0:
             gap_pct = float(top_pct[0]) - float(top_pct[nth_idx])
             print(
-                f"Stage 1 top-{nth_idx + 1} pct gap: {gap_pct:.6f} "
+                f"Stage 1 top-{nth_idx + 1} pct_lm gap: {gap_pct:.6f} "
                 f"(best={float(top_pct[0]):.6f}, nth={float(top_pct[nth_idx]):.6f})"
             )
         else:
-            print(f"Stage 1 top pct best={float(top_pct[0]):.6f}")
+            print(f"Stage 1 top pct_lm best={float(top_pct[0]):.6f}")
 
     score_sub_pct = float(getattr(sol_sub, "score", 0.0) or 0.0)
     plateau_hit = _stopped_on_plateau(sol_sub)
+    gap_str = f"{gap_pct:.6f}" if gap_pct is not None else "N/A"
+    print(
+        "Stage 1 summary: "
+        f"pct_lm={score_sub_pct:.6f} plateau={plateau_hit} "
+        f"gap_pct={gap_str} trigger={HYBRID_TRIGGER_PCT} "
+        f"oracle_pct={stage1_oracle_pct:.6f}"
+    )
     hybrid_reasons: list[str] = []
     if plateau_hit:
         hybrid_reasons.append("plateau")
     if HYBRID_TRIGGER_PCT is not None and score_sub_pct < float(HYBRID_TRIGGER_PCT):
-        hybrid_reasons.append(f"pct<{float(HYBRID_TRIGGER_PCT):.3f}")
+        hybrid_reasons.append(f"pct_lm<{float(HYBRID_TRIGGER_PCT):.3f}")
     if gap_pct is not None and gap_pct < float(HYBRID_PCT_GAP_EPS):
         hybrid_reasons.append(f"low_gap<{float(HYBRID_PCT_GAP_EPS):.4f}")
     if stage1_oracle_pct and score_sub_pct < stage1_oracle_pct * float(HYBRID_ORACLE_GUARD_FRAC):
@@ -636,7 +751,7 @@ def main() -> None:
         if hybrid_keys:
             print(f"Hybrid seed pool: {len(hybrid_keys)} keys")
 
-        hybrid = SolverSpec.hybrid(
+        hybrid_cfg = dict(
             use_beam=True,
             beam_width=96,
             rounds=6,
@@ -671,6 +786,9 @@ def main() -> None:
             log_interval=10,
             stop_score=0.6,
         )
+        _print_hybrid_cfg("Stage 1 hybrid", hybrid_cfg)
+        _print_optimizer_scalar("Stage 1 hybrid", False, scorer_params_stage1["objective"])
+        hybrid = SolverSpec.hybrid(**hybrid_cfg)
 
         sol_h = run(
             text=ct_idx.tolist(),
@@ -687,7 +805,7 @@ def main() -> None:
         sub_pct = float(getattr(sol_sub, "score", 0.0) or 0.0)
         h_pct = float(getattr(sol_h, "score", 0.0) or 0.0)
         if h_pct > sub_pct:
-            print(f"Stage 1 hybrid improved (pct): {sub_pct:.6f} -> {h_pct:.6f}")
+            print(f"Stage 1 hybrid improved (pct_lm): {sub_pct:.6f} -> {h_pct:.6f}")
             sol_sub = sol_h
 
     # Decrypt to intermediate text (columnar ciphertext) for top Stage-1 candidates
@@ -717,7 +835,7 @@ def main() -> None:
             stage1_keys.append(fallback)
 
     # --- Stage 2: columnar transposition ---
-    solver_col = SolverSpec.hybrid(
+    solver_col_cfg = dict(
         use_beam=True,
         beam_width=128,
         rounds=8,
@@ -752,6 +870,9 @@ def main() -> None:
         log_interval=10,
         stop_score=0.6,
     )
+    _print_hybrid_cfg("Stage 2 columnar", solver_col_cfg)
+    _print_optimizer_scalar("Stage 2 columnar", False, scorer_params_full["objective"])
+    solver_col = SolverSpec.hybrid(**solver_col_cfg)
 
     col_seeds = _make_columnar_seeds(COLUMNS, TUTORIAL_SEED, n_keys=16)
     best_full = None
@@ -775,6 +896,8 @@ def main() -> None:
         # Verify combined key on original ciphertext.
         col_key = list(getattr(sol_col, "key", []))
         full_key = list(sub_key) + list(col_key)
+        print(f"Stage 2 verify Kaeding: test_key_len={len(full_key)}")
+        _print_optimizer_scalar("Stage 2 verify Kaeding", False, scorer_params_full["objective"])
         solver_verify = SolverSpec.kaeding(
             test_key=full_key,
             verbose=False,
@@ -815,7 +938,7 @@ def main() -> None:
         )
         refine_sub_keys = [best_sub] + refine_neighbors
         refine_keys = _attach_col_tail(refine_sub_keys, best_col)
-        solver_sub_refine = SolverSpec.kaeding(
+        solver_sub_refine_cfg = dict(
             steps=2500,
             restarts=1,
             inner_batch=128,
@@ -838,6 +961,9 @@ def main() -> None:
             print_progress=True,
             seed=TUTORIAL_SEED,
         )
+        _print_solver_cfg("Stage 3 refine Kaeding", solver_sub_refine_cfg)
+        _print_optimizer_scalar("Stage 3 refine Kaeding", False, scorer_params_full["objective"])
+        solver_sub_refine = SolverSpec.kaeding(**solver_sub_refine_cfg)
         sol_refine = run(
             text=ct_idx.tolist(),
             cipher=cipher_full,
@@ -860,7 +986,7 @@ def main() -> None:
         ref_sub = refined_key[:sub_len]
         ref_col = refined_key[sub_len:]
         inter_idx = sub_cipher.decrypt_single(ciphertext=ct_idx, key=ref_sub)
-        solver_col_polish = SolverSpec.hybrid(
+        solver_col_polish_cfg = dict(
             use_beam=True,
             beam_width=96,
             rounds=4,
@@ -895,6 +1021,9 @@ def main() -> None:
             log_interval=10,
             stop_score=0.6,
         )
+        _print_hybrid_cfg("Stage 4 columnar polish", solver_col_polish_cfg)
+        _print_optimizer_scalar("Stage 4 columnar polish", False, scorer_params_full["objective"])
+        solver_col_polish = SolverSpec.hybrid(**solver_col_polish_cfg)
         polish_keys = _merge_seed_keys(ref_col, col_seeds, limit=16)
         sol_col_polish = run(
             text=inter_idx.tolist(),

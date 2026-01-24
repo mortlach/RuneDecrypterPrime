@@ -35,6 +35,8 @@ def _objective_from_string(spec: str) -> ObjectiveSpec:
         raise ValueError("objective string cannot be empty")
     parts = [token for token in text.replace("/", ".").split(".") if token]
     family = ensure_objective_family(parts[0])
+    if family is ObjectiveFamily.ENERGY:
+        family = ObjectiveFamily.PCT
     stat = None
     win = None
     for token in parts[1:]:
@@ -60,6 +62,7 @@ class ScoringConfig:
     n_char: int = 2
     n_wli: int  = 2
     win: int = 10
+    stride: int = 1
     se_mode: SeMode = SeMode.NOSE
     weights: Tuple[float, float] = (0.25, 0.75)   # (w_char, w_wli)
     maximize: bool = True
@@ -92,6 +95,8 @@ class ScoringConfig:
         obj = getattr(self, "objective", None)
         if isinstance(obj, dict):
             fam = ensure_objective_family(obj.get("family", ObjectiveFamily.PCT))
+            if fam is ObjectiveFamily.ENERGY:
+                fam = ObjectiveFamily.PCT
             stat_val = obj.get("stat")
             stat = ensure_stat(stat_val) if stat_val is not None else None
             win = obj.get("win")
@@ -100,6 +105,8 @@ class ScoringConfig:
             self.objective = _objective_from_string(obj)
         elif isinstance(obj, ObjectiveSpec):
             fam = ensure_objective_family(obj.family)
+            if fam is ObjectiveFamily.ENERGY:
+                fam = ObjectiveFamily.PCT
             stat = ensure_stat(obj.stat) if obj.stat is not None else None
             self.objective = ObjectiveSpec(family=fam, stat=stat, win=obj.win)
 
@@ -110,6 +117,33 @@ class ScoringConfig:
             raise ValueError("hamming_direction_mode must be 'match' or 'both'")
         self.hamming_ramp_start_frac = float(self.hamming_ramp_start_frac)
         self.hamming_ramp_end_frac = float(self.hamming_ramp_end_frac)
+
+        obj = getattr(self, "objective", None)
+        if isinstance(obj, ObjectiveSpec) and obj.family in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
+            if obj.win is None:
+                legacy_win = getattr(self, "win", None)
+                if legacy_win is None:
+                    raise ValueError("ObjectiveSpec.win is required for pct/energy objectives.")
+                self.objective = ObjectiveSpec(family=obj.family, stat=obj.stat, win=int(legacy_win))
+                obj = self.objective
+            if int(obj.win) != 10:
+                raise ValueError("pct/energy objectives only support win=10 in the current LM tables.")
+            self.win = int(obj.win)
+        if isinstance(obj, ObjectiveSpec) and obj.family is ObjectiveFamily.AVG:
+            if obj.stat is None:
+                obj = ObjectiveSpec(family=obj.family, stat=Stat.LOGP, win=obj.win)
+                self.objective = obj
+            if obj.win is None:
+                legacy_win = getattr(self, "win", None)
+                if legacy_win is None:
+                    raise ValueError("ObjectiveSpec.win is required for avg objectives.")
+                obj = ObjectiveSpec(family=obj.family, stat=obj.stat, win=int(legacy_win))
+                self.objective = obj
+            self.win = int(obj.win)
+
+        self.stride = int(self.stride or 1)
+        if self.stride <= 0:
+            raise ValueError("stride must be >= 1")
 
         self.char_weights = self._normalise_channel_weights(self.char_weights, 'char_weights')
         self.wli_weights = self._normalise_channel_weights(self.wli_weights, 'wli_weights')
@@ -125,6 +159,7 @@ class ScoringConfig:
         out["n_char"] = self.n_char
         out["n_wli"] = self.n_wli
         out["win"] = self.win
+        out["stride"] = self.stride
         out["se_mode"] = self.se_mode
         out["objective"] = self.objective
         #     {

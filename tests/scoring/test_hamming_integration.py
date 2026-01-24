@@ -42,10 +42,10 @@ def test_hamming_affects_rune_scorer(monkeypatch):
     wl_ltr, _ = load_raw1grams_wordlists()
     assert wl_ltr and 1 in wl_ltr, "Packaged hamming wordlists should include length-1 entries"
     word = wl_ltr[1][0]
-    wli = [[0, 1]]
+    pt = [word[0]] * 10
+    wli = [[0, 1] for _ in range(len(pt))]
 
-    # Ensure small window to avoid early return; stub LM runtime.
-    monkeypatch.setattr(rune_scorer, "WIN_FIXED", 1)
+    # Use win=10 default; stub LM runtime to keep LM score deterministic.
     monkeypatch.setattr(rune_scorer, "LmPrimeRuntime", _StubRt)
 
     cfg = ScoringConfig(
@@ -59,17 +59,21 @@ def test_hamming_affects_rune_scorer(monkeypatch):
     assert scorer._hamming_backend is not None, "Hamming backend should be initialised"
 
     # Exact match -> hamming_total=0, score is the LM floor (1e-6).
-    s_match = scorer.score(word, wli)
-    assert s_match == pytest.approx(1e-6, rel=0, abs=1e-8)
+    pct_match, raw_match = scorer.score_with_raw(pt, wli)
+    assert pct_match == pytest.approx(1e-6, rel=0, abs=1e-8)
 
     # Single-symbol word: changing rune by +1 ensures HD=1.
     backend = scorer._hamming_backend
-    mutated = [(word[0] + 1) % 29]
-    hd_mut = backend.total_min_hd(mutated, wli, direction=Direction.LTR)
+    mutated = list(pt)
+    mutated[0] = (mutated[0] + 1) % 29
+    stats = backend.total_min_hd_stats(mutated, wli, direction=Direction.LTR)
+    hd_mut = stats["total_hd"]
+    hd_avg = stats["avg_hd_word"]
     assert hd_mut == 1
 
-    s_miss = scorer.score(mutated, wli)
-    assert s_miss == pytest.approx(s_match - hd_mut, rel=1e-6, abs=1e-6)
+    pct_miss, raw_miss = scorer.score_with_raw(mutated, wli)
+    assert pct_miss == pytest.approx(pct_match, rel=0, abs=1e-12)
+    assert raw_miss == pytest.approx(raw_match - hd_avg, rel=1e-6, abs=1e-6)
 
 
 @requires_ext
@@ -129,9 +133,11 @@ def test_selected_vs_unselected_words_have_correct_hd(monkeypatch):
     length, sel_rune, unsel_rune = pair
     sel_idx = Runeglish.rune_to_pos(sel_rune)
     unsel_idx = Runeglish.rune_to_pos(unsel_rune)
-    wli = [[i, length] for i in range(length)]
+    copies = (10 + length - 1) // length
+    sel_pt = list(sel_idx) * copies
+    unsel_pt = list(unsel_idx) * copies
+    wli = [[i, length] for _ in range(copies) for i in range(length)]
 
-    monkeypatch.setattr(rune_scorer, "WIN_FIXED", 1)
     monkeypatch.setattr(rune_scorer, "LmPrimeRuntime", _StubRt)
     cfg = ScoringConfig(
         hamming_enabled=True,
@@ -142,6 +148,7 @@ def test_selected_vs_unselected_words_have_correct_hd(monkeypatch):
     scorer = rune_scorer.RuneScorer(fake_cipher, cfg)
     assert scorer._hamming_backend is not None
 
-    score_sel = scorer.score(sel_idx, wli)
-    score_unsel = scorer.score(unsel_idx, wli)
-    assert score_unsel < score_sel, "Unselected word should score worse due to HD penalty"
+    pct_sel, raw_sel = scorer.score_with_raw(sel_pt, wli)
+    pct_unsel, raw_unsel = scorer.score_with_raw(unsel_pt, wli)
+    assert pct_unsel == pytest.approx(pct_sel, rel=0, abs=1e-12)
+    assert raw_unsel < raw_sel, "Unselected word should score worse due to HD penalty"

@@ -55,6 +55,32 @@ class UnifiedRuneScorer:
     def batch_score(self, pts: Sequence[Iterable[int]], wlis=None) -> np.ndarray:
         return np.asarray(self._backend.batch_score(pts, wlis), dtype=np.float32)
 
+    def batch_score_with_raw(self, pts: Sequence[Iterable[int]], wlis=None) -> tuple[np.ndarray, np.ndarray]:
+        if hasattr(self._backend, "batch_score_with_raw"):
+            try:
+                return self._backend.batch_score_with_raw(pts, wlis)
+            except Exception:
+                pass
+        pct = np.asarray(self._backend.batch_score(pts, wlis), dtype=np.float32)
+        return pct, pct.copy()
+
+    def score_with_raw(self, plaintext: Iterable[int], wli_windows=None) -> tuple[float, float]:
+        if hasattr(self._backend, "score_with_raw"):
+            try:
+                return self._backend.score_with_raw(plaintext, wli_windows)
+            except Exception:
+                pass
+        pct = float(self._backend.score(plaintext, wli_windows))
+        return pct, pct
+
+    def supports_raw(self) -> bool:
+        if hasattr(self._backend, "supports_raw"):
+            try:
+                return bool(self._backend.supports_raw())
+            except Exception:
+                return False
+        return False
+
     def to_text(self, plaintext: Iterable[int]) -> str:
         # Prefer backend's to_text if available; else deterministic fallback.
         if hasattr(self._backend, "to_text"):

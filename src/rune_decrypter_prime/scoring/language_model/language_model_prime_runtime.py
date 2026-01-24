@@ -37,6 +37,8 @@ from typing import Dict, List, Tuple, Optional
 
 import numpy as np
 
+from rune_decrypter_prime.core.types import Stat
+from rune_decrypter_prime.scoring.stat_transform import apply_stat_transform
 from .language_model_prime import LanguageModelPrime
 from .paths import load_index, expand_pattern, default_lm_root  # (used by ECDFCache)
 
@@ -350,7 +352,13 @@ class LmPrimeRuntime:
             raise ValueError("window too short for given n")
         inv = np.float32(1.0 / total)
 
-        return logp_sum * inv, zsum_sum * inv, madsum_sum * inv
+        logp_avg = logp_sum * inv
+        zsum_avg = zsum_sum * inv
+        madsum_avg = madsum_sum * inv
+        logp_avg = apply_stat_transform(Stat.LOGP, logp_avg)
+        zsum_avg = apply_stat_transform(Stat.ZSUM, zsum_avg)
+        madsum_avg = apply_stat_transform(Stat.MADSUM, madsum_avg)
+        return logp_avg, zsum_avg, madsum_avg
 
     def _score_batch_char(
         self,
@@ -378,7 +386,13 @@ class LmPrimeRuntime:
             raise ValueError("window too short for given n")
         inv = np.float32(1.0 / total)
 
-        return logp_sum * inv, zsum_sum * inv, madsum_sum * inv
+        logp_avg = logp_sum * inv
+        zsum_avg = zsum_sum * inv
+        madsum_avg = madsum_sum * inv
+        logp_avg = apply_stat_transform(Stat.LOGP, logp_avg)
+        zsum_avg = apply_stat_transform(Stat.ZSUM, zsum_avg)
+        madsum_avg = apply_stat_transform(Stat.MADSUM, madsum_avg)
+        return logp_avg, zsum_avg, madsum_avg
 
     # ─── public API (4 calls) ───
 

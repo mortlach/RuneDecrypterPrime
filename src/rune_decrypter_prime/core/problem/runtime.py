@@ -12,6 +12,7 @@ from rune_decrypter_prime.core.telemetry import _Timer
 from rune_decrypter_prime.core.types import (
     Device,
     InterruptorSearchStrategy,
+    ObjectiveFamily,
     ensure_device,
     ensure_interruptor_search_strategy,
     KEY_DTYPE,
@@ -285,10 +286,10 @@ class DecryptionProblem:
             dtype=self.xp.float64,
         )
 
-    def _score_batch_texts_with_raw(self, plains_seq, wli):
+    def _score_batch_texts_with_raw(self, plains_seq, wli, *, require_raw: bool = False):
         """
-        Score a batch of plaintexts and return (pct_scores, raw_scores).
-        Falls back to pct for raw if the scorer doesn't expose raw.
+        Score a batch of plaintexts and return (primary_scores, raw_scores).
+        Raw scores fall back to primary if the scorer doesn't expose raw.
         """
         if wli is not None:
             if not (isinstance(wli, (list, tuple)) and all(
@@ -298,6 +299,15 @@ class DecryptionProblem:
                 raise TypeError("WLI must be a list of (int,int) pairs or empty list")
 
         sc = self.scorer
+        if require_raw:
+            supports_raw = False
+            if hasattr(sc, "supports_raw") and callable(sc.supports_raw):
+                try:
+                    supports_raw = bool(sc.supports_raw())
+                except Exception:
+                    supports_raw = False
+            if not supports_raw:
+                raise ValueError("Raw scoring requested but scorer does not support raw outputs.")
         if hasattr(sc, "batch_score_with_raw") and callable(sc.batch_score_with_raw):
             try:
                 pct, raw = sc.batch_score_with_raw(plains_seq, wli)
@@ -316,6 +326,8 @@ class DecryptionProblem:
             else:
                 pct = float(sc.score_text(pt, wli) if hasattr(sc, "score_text") else sc.score(pt, wli))
                 raw = pct
+                if require_raw:
+                    raise ValueError("Raw scoring requested but scorer returned pct fallback.")
             scores_pct.append(float(pct))
             scores_raw.append(float(raw))
         return (
@@ -402,10 +414,10 @@ class DecryptionProblem:
 
         return to_numpy(scores)
 
-    def evaluate_keys_with_raw(self, keys: Any, *, batch_hint: bool = True):
+    def evaluate_keys_with_raw(self, keys: Any, *, batch_hint: bool = True, require_raw: bool = False):
         """
-        Evaluate candidate keys and return (pct_scores, raw_scores).
-        Raw scores fall back to pct if the scorer doesn't expose raw.
+        Evaluate candidate keys and return (primary_scores, raw_scores).
+        Raw scores fall back to primary if the scorer doesn't expose raw.
         """
         if self.ciphertext is None:
             raise ValueError("DecryptionProblem has no ciphertext bound")
@@ -430,9 +442,18 @@ class DecryptionProblem:
         # Decrypt and score with timing
         t_dec, t_sc = _Timer(), _Timer()
         if deg_cfg is not None:
+            obj = getattr(self.scorer, "objective", None)
+            use_raw_primary = bool(require_raw)
+            if obj is not None and getattr(obj, "family", None) is ObjectiveFamily.AVG:
+                use_raw_primary = True
+                require_raw = True
             t_dec.start()
-            plains_seq, scores_pct, cand_count, sc_time = self._evaluate_keys_with_degeneracy(k, deg_cfg)
-            scores_raw = scores_pct
+            plains_seq, scores_pct, scores_raw, cand_count, sc_time = self._evaluate_keys_with_degeneracy_raw(
+                k,
+                deg_cfg,
+                use_raw_primary=use_raw_primary,
+                require_raw=require_raw,
+            )
             self.telemetry.decrypt_time_s += t_dec.stop()
             self.telemetry.score_time_s += float(sc_time)
         else:
@@ -441,7 +462,7 @@ class DecryptionProblem:
             self.telemetry.decrypt_time_s += t_dec.stop()
 
             t_sc.start()
-            scores_pct, scores_raw = self._score_batch_texts_with_raw(plains_seq, self.wli_data)
+            scores_pct, scores_raw = self._score_batch_texts_with_raw(plains_seq, self.wli_data, require_raw=require_raw)
             self.telemetry.score_time_s += t_sc.stop()
             cand_count = int(B)
 
@@ -455,6 +476,106 @@ class DecryptionProblem:
         self.telemetry.candidates_evaluated += int(cand_count)
 
         return to_numpy(scores_pct), to_numpy(scores_raw)
+
+    def _evaluate_keys_with_degeneracy_raw(
+        self,
+        keys: Any,
+        cfg: dict,
+        *,
+        use_raw_primary: bool,
+        require_raw: bool,
+    ):
+        """Degeneracy-aware evaluation that returns (pct_scores, raw_scores)."""
+        resolver = cfg.get("resolver", "first")
+        per_pos_limit = int(cfg.get("per_pos_limit", 1) or 0)
+        resolver_limit = int(cfg.get("resolver_limit", 1) or 1)
+
+        keys_np = to_numpy(keys)
+        if keys_np.ndim == 1:
+            keys_np = keys_np[None, :]
+        core_keys, key_interrupts = self._split_key_batch(keys_np)
+
+        if key_interrupts is None:
+            ct_tr, keys_tr, info, L_full = self._prepare_candidate_inputs(core_keys)
+            cands, lens, invalid = self.cipher.candidates_for(ct_tr, keys_tr, limit=per_pos_limit)
+            B = int(keys_tr.shape[0])
+        else:
+            keys_tr = None
+            cands = lens = invalid = None
+            info = None
+            L_full = int(self.ciphertext_len)
+            B = int(core_keys.shape[0])
+
+        scores_pct_out = self.xp.full((B,), float("-inf"), dtype=self.xp.float64)
+        scores_raw_out = self.xp.full((B,), float("-inf"), dtype=self.xp.float64)
+        plains_out = [None] * B
+        total_scored = 0
+        score_time = 0.0
+
+        for b in range(B):
+            if key_interrupts is None:
+                if invalid is not None and bool(to_numpy(invalid[b]).any()):
+                    continue
+                cands_b = cands[b]
+                lens_b = lens[b]
+                info_b = info
+                L_full_b = L_full
+                key_core = core_keys[b]
+            else:
+                ct_tr, keys_tr_b, info_b, L_full_b = self._prepare_candidate_inputs(
+                    core_keys[b:b + 1],
+                    interrupt_idx=key_interrupts[b],
+                )
+                cands_b, lens_b, invalid_b = self.cipher.candidates_for(
+                    ct_tr,
+                    keys_tr_b,
+                    limit=per_pos_limit,
+                )
+                if invalid_b is not None and bool(to_numpy(invalid_b[0]).any()):
+                    continue
+                key_core = core_keys[b]
+
+            if resolver != "expand_beam":
+                if key_interrupts is None:
+                    pt = self._decrypt_batch(key_core)
+                    pt_arr = to_numpy(pt[0] if isinstance(pt, list) else pt)
+                else:
+                    idx = self._normalize_interrupt_idx(key_interrupts[b])
+                    pt = self.cipher.decrypt(
+                        ciphertext=self.ciphertext,
+                        key=key_core,
+                        interrupt_idx=idx,
+                        interrupt_sym=None,
+                    )
+                    pt_arr = to_numpy(pt)
+                pt_arr = pt_arr.astype("uint8", copy=False).reshape(-1)
+                plains_out[b] = pt_arr
+                t_sc = _Timer()
+                t_sc.start()
+                pct_arr, raw_arr = self._score_batch_texts_with_raw([pt_arr], self.wli_data, require_raw=require_raw)
+                score_time += t_sc.stop()
+                scores_pct_out[b] = float(pct_arr[0])
+                scores_raw_out[b] = float(raw_arr[0])
+                total_scored += 1
+                continue
+
+            pt_best, pct_best, raw_best, scored, sc_time = self._resolve_candidates_for_key_with_raw(
+                cands_b[0] if key_interrupts is not None else cands_b,
+                lens_b[0] if key_interrupts is not None else lens_b,
+                info_b,
+                L_full=L_full_b,
+                resolver_limit=resolver_limit,
+                use_raw_primary=use_raw_primary,
+                require_raw=require_raw,
+            )
+            if pt_best is not None:
+                plains_out[b] = pt_best
+                scores_pct_out[b] = float(pct_best)
+                scores_raw_out[b] = float(raw_best)
+                total_scored += int(scored)
+                score_time += float(sc_time)
+
+        return plains_out, scores_pct_out, scores_raw_out, total_scored, score_time
 
     def _degeneracy_cfg(self) -> Optional[dict]:
         """Return degeneracy config if enabled and supported by the cipher."""
@@ -712,6 +833,39 @@ class DecryptionProblem:
         best_idx = int(scores_np.argmax())
         best_plain = to_numpy(plains_full[best_idx]).astype("uint8", copy=False).reshape(-1)
         return best_plain, float(scores_np[best_idx]), int(len(plains_full)), sc_time
+
+    def _resolve_candidates_for_key_with_raw(
+        self,
+        cands_row: np.ndarray,
+        lens_row: np.ndarray,
+        info,
+        *,
+        L_full: int,
+        resolver_limit: int,
+        use_raw_primary: bool,
+        require_raw: bool,
+    ):
+        """Return (best_plaintext, best_pct, best_raw, scored_count, score_time)."""
+        seqs_tr = self._enumerate_candidates(cands_row, lens_row, resolver_limit)
+        if seqs_tr.size == 0:
+            return None, float("-inf"), float("-inf"), 0, 0.0
+        plains_full = self._reassemble_plaintexts(seqs_tr, info, L_full)
+        t_sc = _Timer()
+        t_sc.start()
+        scores_pct, scores_raw = self._score_batch_texts_with_raw(
+            plains_full,
+            self.wli_data,
+            require_raw=require_raw,
+        )
+        sc_time = t_sc.stop()
+        pct_np = to_numpy(scores_pct)
+        raw_np = to_numpy(scores_raw)
+        if pct_np.size == 0:
+            return None, float("-inf"), float("-inf"), 0, sc_time
+        primary = raw_np if use_raw_primary else pct_np
+        best_idx = int(primary.argmax())
+        best_plain = to_numpy(plains_full[best_idx]).astype("uint8", copy=False).reshape(-1)
+        return best_plain, float(pct_np[best_idx]), float(raw_np[best_idx]), int(len(plains_full)), sc_time
 
     def resolve_plaintext(self, key: Any) -> Optional[np.ndarray]:
         """Resolve a key to a plaintext, honoring degeneracy settings if enabled."""
