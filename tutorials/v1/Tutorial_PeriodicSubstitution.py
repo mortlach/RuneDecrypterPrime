@@ -42,9 +42,78 @@ SCENARIOS: Tuple[Tuple[str, Dict[str, Any]], ...] = (
     ("medium", dict(period=3, steps=700, restarts=2, inner_batch=64, slip_every=80, slip_blocks=1)),
 )
 
+FALLBACK_CFG: Dict[str, Any] = dict(
+    steps=1400,
+    restarts=4,
+    inner_batch=96,
+    slip_every=60,
+    slip_blocks=2,
+    slip_policy="stall",
+    stall_rounds=120,
+    stall_slip_limit=4,
+    slip_swaps=40,
+    plateau_min_delta=1e-6,
+    block_seeds=10,
+    seed_keys=64,
+    seed_swaps=3,
+)
+
 
 def _preview(text: str, n: int = 120) -> str:
     return text if len(text) <= n else text[:n] + "..."
+
+
+def _match_ratio(solution, pt_idx: list[int]) -> float:
+    guess = getattr(solution, "plaintext_idx", None)
+    if not guess:
+        return 0.0
+    a = np.asarray(guess, dtype=np.int64).reshape(-1)
+    b = np.asarray(pt_idx, dtype=np.int64).reshape(-1)
+    n = min(a.size, b.size)
+    if n <= 0:
+        return 0.0
+    return float(np.mean(a[:n] == b[:n]))
+
+
+def _seed_cfg(cfg: Dict[str, Any]) -> Dict[str, int]:
+    return {
+        "block_seeds": int(cfg.get("block_seeds", BLOCK_SEEDS)),
+        "seed_keys": int(cfg.get("seed_keys", SEED_KEYS)),
+        "seed_swaps": int(cfg.get("seed_swaps", SEED_SWAPS)),
+    }
+
+
+def _build_solver_kwargs(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    plateau_rounds = int(cfg.get("plateau_rounds", max(10, int(cfg["steps"] * 0.1))))
+    solver_kwargs = dict(
+        steps=int(cfg["steps"]),
+        restarts=int(cfg["restarts"]),
+        inner_batch=int(cfg["inner_batch"]),
+        slip_every=int(cfg["slip_every"]),
+        slip_blocks=int(cfg["slip_blocks"]),
+        block_schedule=str(cfg.get("block_schedule", "random") or "random"),
+        plateau_rounds=plateau_rounds,
+        plateau_min_delta=float(cfg.get("plateau_min_delta", 1e-4)),
+        stop_score=float(cfg.get("stop_score", 0.55)),
+        progress_pct=2,
+        print_progress=True,
+        seed=TUTORIAL_SEED,
+    )
+    for key in (
+        "slip_policy",
+        "stall_rounds",
+        "stall_slip_limit",
+        "slip_swaps",
+        "stall_stop_on_limit",
+        "use_raw_score",
+        "raw_accept_min_delta",
+        "pct_plateau_min_delta",
+        "delta_window",
+        "top_k",
+    ):
+        if key in cfg:
+            solver_kwargs[key] = cfg[key]
+    return solver_kwargs
 
 
 def _make_periodic_key(period: int, alphabet_size: int, seed: int) -> np.ndarray:
@@ -139,14 +208,15 @@ def main() -> None:
 
         seed_keys = None
         if USE_SEEDS:
+            seed_cfg = _seed_cfg(cfg)
             seed_keys = _make_periodic_seeds(
                 ct_idx,
                 period=period,
                 direction=direction,
                 seed=TUTORIAL_SEED + period,
-                n_block_seeds=BLOCK_SEEDS,
-                total_seeds=SEED_KEYS,
-                swaps_per_block=SEED_SWAPS,
+                n_block_seeds=seed_cfg["block_seeds"],
+                total_seeds=seed_cfg["seed_keys"],
+                swaps_per_block=seed_cfg["seed_swaps"],
             )
             print(f"Seed pool: {len(seed_keys)} keys")
 
@@ -157,21 +227,7 @@ def main() -> None:
         )
         key_spec = KeySpec.periodic_substitution(period=period, alphabet_size=ALPHABET)
 
-        plateau_rounds = max(10, int(cfg["steps"] * 0.1))
-        solver_kwargs = dict(
-            steps=cfg["steps"],
-            restarts=cfg["restarts"],
-            inner_batch=cfg["inner_batch"],
-            slip_every=cfg["slip_every"],
-            slip_blocks=cfg["slip_blocks"],
-            block_schedule="random",
-            plateau_rounds=plateau_rounds,
-            plateau_min_delta=1e-4,
-            stop_score=0.55,
-            progress_pct=2,
-            print_progress=True,
-            seed=TUTORIAL_SEED,
-        )
+        solver_kwargs = _build_solver_kwargs(cfg)
         solver = SolverSpec.kaeding(**solver_kwargs)
 
         scorer_params = dict(
@@ -194,6 +250,36 @@ def main() -> None:
             telemetry_on=True,
             **({} if seed_keys is None else {"initial_keys": seed_keys}),
         )
+
+        if _match_ratio(sol, pt_idx) < 0.999:
+            print("Retrying with stronger Kaeding settings...")
+            retry_cfg = dict(cfg)
+            retry_cfg.update(FALLBACK_CFG)
+            seed_keys = None
+            if USE_SEEDS:
+                seed_cfg = _seed_cfg(retry_cfg)
+                seed_keys = _make_periodic_seeds(
+                    ct_idx,
+                    period=period,
+                    direction=direction,
+                    seed=TUTORIAL_SEED + period + 99,
+                    n_block_seeds=seed_cfg["block_seeds"],
+                    total_seeds=seed_cfg["seed_keys"],
+                    swaps_per_block=seed_cfg["seed_swaps"],
+                )
+                print(f"Seed pool (retry): {len(seed_keys)} keys")
+            solver = SolverSpec.kaeding(**_build_solver_kwargs(retry_cfg))
+            sol = run(
+                text=ct_runes,
+                cipher=cipher_spec,
+                key=key_spec,
+                solver=solver,
+                scorer_params=scorer_params,
+                wli_data=wli,
+                encoding_dir=direction,
+                telemetry_on=True,
+                **({} if seed_keys is None else {"initial_keys": seed_keys}),
+            )
 
         recovered = getattr(sol, "plaintext_rune", "") or getattr(sol, "plaintext_str", "")
         print("Recovered preview:", _preview(str(recovered)))

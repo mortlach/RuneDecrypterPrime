@@ -64,6 +64,18 @@ def _progress_kwargs(demo: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
+def _match_ratio(solution, pt_idx: list[int]) -> float:
+    guess = getattr(solution, "plaintext_idx", None)
+    if not guess:
+        return 0.0
+    a = np.asarray(guess, dtype=np.int64).reshape(-1)
+    b = np.asarray(pt_idx, dtype=np.int64).reshape(-1)
+    n = min(a.size, b.size)
+    if n <= 0:
+        return 0.0
+    return float(np.mean(a[:n] == b[:n]))
+
+
 def _make_scorer_params(demo: Dict[str, Any]) -> Dict[str, Any]:
     return dict(
         include_char=True,
@@ -97,6 +109,10 @@ def _score_ground_truth(
             encoding_dir=demo["encoding_dir"],
             initial_text_permutation_indices=None,
             initial_keys=None,
+            interruptors=None,
+            interruptors_exact=None,
+            interruptors_pool=None,
+            interruptors_max=None,
         )
         scorer = build_scorer(cipher_cfg, scoring_cfg)
         return float(scorer.score(plaintext_idx, demo.get("wli")))
@@ -143,13 +159,12 @@ def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any
     cipher_spec = api.define_map(function=vigenere_cell, N=ALPHABET)
     key_len = len(cast(List[int], demo["secret_key"]))
     key_spec = api.KeySpec.repeat(len=key_len)
-    solver_spec = api.SolverSpec.ga(
-        pop_size=24,
-        generations=18,
-        elite_frac=0.2,
-        mut_prob=0.15,
-        stop_score=0.54,
-        plateau_rounds=4,
+    solver_spec = api.SolverSpec.beam(
+        beam_width=32,
+        rounds=0,
+        top_parents_factor=1.0,
+        stop_score=0.62,
+        plateau_rounds=6,
         plateau_min_delta=1e-4,
         **_progress_kwargs(demo),
         seed=4242,
@@ -164,6 +179,29 @@ def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any
         encoding_dir=demo["encoding_dir"],
         telemetry_on=True,
     )
+    pt_idx = demo.get("plaintext_idx")
+    if pt_idx is not None and _match_ratio(solution, pt_idx) < 0.999:
+        print("[General Map] retrying with wider beam...")
+        solver_spec = api.SolverSpec.beam(
+            beam_width=96,
+            rounds=0,
+            top_parents_factor=1.0,
+            stop_score=0.62,
+            plateau_rounds=10,
+            plateau_min_delta=1e-5,
+            **_progress_kwargs(demo),
+            seed=4242,
+        )
+        solution = api.run(
+            text=demo["ciphertext"],
+            cipher=cipher_spec,
+            key=key_spec,
+            solver=solver_spec,
+            scorer_params=dict(scorer_params),
+            wli_data=demo["wli"],
+            encoding_dir=demo["encoding_dir"],
+            telemetry_on=True,
+        )
     _print_summary("General Map Beam", solution)
 
 
