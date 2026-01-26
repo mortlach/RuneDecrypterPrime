@@ -68,9 +68,28 @@ def test_sa_stage2_mono_regression():
         telemetry_on=False,
     )
 
+    # Score of the true key (scale can drift across ECDF calibration updates).
+    true_sol = run(
+        text=ct_runes,
+        cipher=by_name.cipher("mono"),
+        key=KeySpec.permutation(len=29),
+        solver=SolverSpec.beam(beam_width=1, test_key=key_inv.tolist()),
+        scorer_params=dict(
+            char_weights={2: 0.3},
+            wli_weights={2: 0.7},
+            use_word_breaks=True,
+            encoding_dir=direction,
+        ),
+        wli_data=wli,
+        encoding_dir=direction,
+        telemetry_on=False,
+    )
+
     recovered = np.asarray(sol.plaintext_idx, dtype=np.uint8)
     match_rate = float(np.mean(recovered == pt_idx))
 
     assert match_rate >= 0.96, f"Expected >=96% token match, got {match_rate:.4f}"
-    assert sol.score >= 0.68, f"Expected score >=0.68, got {sol.score:.4f}"
+    assert sol.score >= (true_sol.score * 0.95), (
+        f"Expected score within 95% of true-key score {true_sol.score:.4f}, got {sol.score:.4f}"
+    )
 

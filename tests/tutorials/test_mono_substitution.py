@@ -9,6 +9,8 @@ from rune_decrypter_prime.api import run, KeySpec, SolverSpec, by_name, cipher_i
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
+from tests.tutorials._utils import plaintext_match_rate
+from tests.scoring._helpers.lm_test_guard import require_full_lm_assets
 
 pytestmark = pytest.mark.tier_a
 
@@ -16,6 +18,7 @@ pytestmark = pytest.mark.tier_a
 @pytest.mark.parametrize("optimizer", ["sa", "ga"])
 def test_tutorial_mono_runs(optimizer):
     """Check that SA/GA tutorials recover text above a minimum score."""
+    require_full_lm_assets(models=("char", "wli"), modes=("rtl",), poses=("nose",), ns=(2,), ecdf_stats=("logp",))
 
     pt_en = plaintext_english_string
     pt_idx, wli, _ = Runeglish.encode_english_to_runes(pt_en, direction=Direction.RTL.value)
@@ -90,7 +93,8 @@ def test_tutorial_mono_runs(optimizer):
         pt_arr = getattr(sol, "plaintext", [])
         recovered_rune = Runeglish.to_rune(pt_arr, wli)
     assert isinstance(recovered_rune, str)
-    assert sol.score >= 0.55, f"{optimizer} tutorial must reach >=0.55 mono score (got {sol.score:.3f})"
+    match_rate = plaintext_match_rate(sol.plaintext_idx, pt_idx)
+    assert match_rate >= 0.9, f"{optimizer} tutorial must reach >=90% match (got {match_rate:.3f})"
 
     latin_text = None
     if hasattr(Runeglish, "runes_to_latin"):

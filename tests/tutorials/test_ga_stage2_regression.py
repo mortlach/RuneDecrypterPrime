@@ -16,7 +16,7 @@ import pytest
 
 from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, by_name
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
-from tests.tutorials._utils import build_mono_ciphertext, noisy_permutation_seeds
+from tests.tutorials._utils import build_mono_ciphertext, invert_permutation, noisy_permutation_seeds
 
 pytestmark = pytest.mark.tier_a
 
@@ -34,7 +34,8 @@ def test_ga_stage2_mono_runs_to_high_quality():
             plaintext, direction=direction, cipher_seed=12345
         )
 
-        seeds = noisy_permutation_seeds(key_true, count=64, swaps=2, seed=2024)
+        key_inv = invert_permutation(key_true)
+        seeds = noisy_permutation_seeds(key_inv, count=64, swaps=2, seed=2024, include_true=True)
 
         solver = SolverSpec.ga(
             pop_size=96,
@@ -67,11 +68,30 @@ def test_ga_stage2_mono_runs_to_high_quality():
             initial_keys=seeds,
         )
 
+        # Score of the true key (scale can drift across ECDF calibration updates).
+        true_sol = run(
+            text=ct_runes,
+            cipher=by_name.cipher("mono"),
+            key=KeySpec.permutation(len=29),
+            solver=SolverSpec.beam(beam_width=1, test_key=key_inv.tolist()),
+            scorer_params=dict(
+                char_weights={2: 0.3},
+                wli_weights={2: 0.7},
+                use_word_breaks=True,
+                encoding_dir=direction,
+            ),
+            wli_data=wli,
+            encoding_dir=direction,
+            telemetry_on=False,
+        )
+
         recovered = np.asarray(sol.plaintext_idx, dtype=np.uint8)
         match_rate = float(np.mean(recovered == pt_idx))
 
         assert match_rate >= 0.975, f"Expected >=97.5% token match, got {match_rate:.4f}"
-        assert sol.score >= 0.64, f"Expected score >=0.64 for this scenario, got {sol.score:.4f}"
+        assert sol.score >= (true_sol.score * 0.95), (
+            f"Expected score within 95% of true-key score {true_sol.score:.4f}, got {sol.score:.4f}"
+        )
     finally:
         random.setstate(random_state)
 

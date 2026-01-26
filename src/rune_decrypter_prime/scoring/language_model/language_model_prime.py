@@ -23,7 +23,7 @@ from .paths import load_index, expand_pattern, default_lm_root
 DEFAULT_SMOOTHING = "auto_gt"          # "none" | "lidstone" | "jeffreys" | "auto_gt"
 DEFAULT_OOV_POLICY = "floor_min_seen"  # "floor_min_seen" | "lidstone"
 
-DIR   = Literal["ltr", "rtl", "forward", "reverse"]
+DIR   = Literal["ltr", "rtl"]
 SE    = Literal["wise", "nose", "WISE", "NOSE"]
 MODEL = Literal["wli", "char", "WLI", "CHAR"]
 
@@ -33,11 +33,11 @@ MODEL = Literal["wli", "char", "WLI", "CHAR"]
 
 def _norm_dir(direction: DIR) -> str:
     d = str(direction).lower()
-    if d in ("ltr", "forward"):
+    if d == "ltr":
         return "ltr"
-    if d in ("rtl", "reverse"):
+    if d == "rtl":
         return "rtl"
-    raise ValueError("direction must be 'ltr'/'forward' or 'rtl'/'reverse'")
+    raise ValueError("direction must be 'ltr' or 'rtl'")
 
 
 def _norm_se(se: SE) -> str:

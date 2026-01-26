@@ -22,18 +22,51 @@ except Exception:  # pragma: no cover
 requires_ext = pytest.mark.skipif(not _EXT_AVAILABLE, reason="Hamming extension not built")
 
 
+class _StubECDF:
+    def validate_clamp_range(self, **_kwargs):
+        return None
+
+    def load(self, **_kwargs):
+        grid = np.array([0.0, 1.0], dtype=np.float64)
+        q = np.array([0.0, 1.0], dtype=np.float64)
+        return grid, q
+
+    def interp_percentile(self, grid, q, x):
+        return np.zeros_like(np.asarray(x, dtype=np.float32))
+
+    @staticmethod
+    def energy(p: np.ndarray) -> np.ndarray:
+        p = np.asarray(p, dtype=np.float32)
+        return (-np.log1p(-np.clip(p, 0.0, 1.0))).astype(np.float32, copy=False)
+
+    def asset_id(self, **_kwargs):
+        return "stub"
+
+    def meta_hash(self, **_kwargs):
+        return "stub"
+
+    def interp_dtype(self, **_kwargs):
+        return "float64"
+
+    def meta(self, **_kwargs):
+        return {}
+
+
 class _StubRt:
-    """Minimal LM runtime stub that returns zero pct scores."""
+    """Minimal LM runtime stub that returns zero logp stats."""
 
     def __init__(self, *_, **__):
-        self.ecdf = None
+        self.ecdf = _StubECDF()
 
-    def _bucket(self, *args, **kwargs):
-        pt_w = args[-1] if args else kwargs.get("pt_w")
-        nwin = pt_w.shape[0] if hasattr(pt_w, "shape") else len(pt_w or [])
-        return {"pct": {"logp": np.zeros((nwin,), dtype=np.float32)}}
+    def _score_batch_char(self, _dir, _se, _n, pt_windows):
+        nwin = pt_windows.shape[0] if hasattr(pt_windows, "shape") else len(pt_windows or [])
+        zeros = np.zeros((nwin,), dtype=np.float32)
+        return zeros, zeros, zeros
 
-    score_char_nose = score_char_wise = score_wli_nose = score_wli_wise = _bucket
+    def _score_batch_wli(self, _dir, _se, _n, pt_windows, _wli_windows):
+        nwin = pt_windows.shape[0] if hasattr(pt_windows, "shape") else len(pt_windows or [])
+        zeros = np.zeros((nwin,), dtype=np.float32)
+        return zeros, zeros, zeros
 
 
 @requires_ext

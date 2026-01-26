@@ -117,7 +117,11 @@ class RuntimeTablesProvider:
 
         model = _norm_model(kind)
 
-        # Resolve file and load raw arrays
+        # Prime LM smoothing/OOV so the cached logp reflects the configured policy.
+        # This ensures Torch and NumPy backends read identical (smoothed) tables.
+        _ = self._lm._ensure(d, se, model, int(n))
+
+        # Resolve file and load arrays (served from _load_bin cache)
         path = self._lm._joint_path(d, se, model, int(n))
         keys, logp, _cnts, mask = _load_bin(path)
 

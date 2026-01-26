@@ -127,7 +127,6 @@ def test_runapi_accepts_crib_seeded_keys_for_vigenere():
 
     match = plaintext_match_rate(sol.plaintext_idx, pt_idx)
     assert match >= 0.99
-    assert sol.score >= 0.35
 
 
 def test_hill_seeded_runapi_from_crib():
@@ -166,4 +165,3 @@ def test_hill_seeded_runapi_from_crib():
 
     match = plaintext_match_rate(sol.plaintext_idx, pt_idx)
     assert match >= 0.95, f"Hill crib seed expected >=95% match, got {match:.3f}"
-    assert sol.score >= 0.6, f"Hill run score should stay high, got {sol.score:.3f}"

@@ -35,8 +35,6 @@ def _objective_from_string(spec: str) -> ObjectiveSpec:
         raise ValueError("objective string cannot be empty")
     parts = [token for token in text.replace("/", ".").split(".") if token]
     family = ensure_objective_family(parts[0])
-    if family is ObjectiveFamily.ENERGY:
-        family = ObjectiveFamily.PCT
     stat = None
     win = None
     for token in parts[1:]:
@@ -72,6 +70,9 @@ class ScoringConfig:
     impl: Optional[ScorerImpl] = ScorerImpl.AUTO
     dtype: Literal["float32", "float64"] = "float32"
     objective: ObjectiveSpec = ObjectiveSpec(family=ObjectiveFamily.PCT,stat=Stat.LOGP,win=10)
+    ecdf_clamp_min: float = 1e-6
+    ecdf_clamp_max: float = 1.0 - 1e-6
+    diagnostics_enabled: bool = False
     # Optional Hamming scorer component
     hamming_enabled: bool = False
     hamming_wordlist_dir: Path | None = None
@@ -95,8 +96,6 @@ class ScoringConfig:
         obj = getattr(self, "objective", None)
         if isinstance(obj, dict):
             fam = ensure_objective_family(obj.get("family", ObjectiveFamily.PCT))
-            if fam is ObjectiveFamily.ENERGY:
-                fam = ObjectiveFamily.PCT
             stat_val = obj.get("stat")
             stat = ensure_stat(stat_val) if stat_val is not None else None
             win = obj.get("win")
@@ -105,8 +104,6 @@ class ScoringConfig:
             self.objective = _objective_from_string(obj)
         elif isinstance(obj, ObjectiveSpec):
             fam = ensure_objective_family(obj.family)
-            if fam is ObjectiveFamily.ENERGY:
-                fam = ObjectiveFamily.PCT
             stat = ensure_stat(obj.stat) if obj.stat is not None else None
             self.objective = ObjectiveSpec(family=fam, stat=stat, win=obj.win)
 
@@ -120,6 +117,9 @@ class ScoringConfig:
 
         obj = getattr(self, "objective", None)
         if isinstance(obj, ObjectiveSpec) and obj.family in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
+            if obj.stat is None:
+                obj = ObjectiveSpec(family=obj.family, stat=Stat.LOGP, win=obj.win)
+                self.objective = obj
             if obj.win is None:
                 legacy_win = getattr(self, "win", None)
                 if legacy_win is None:
@@ -174,6 +174,9 @@ class ScoringConfig:
         out["wli_weights"] = self.wli_weights
         out["impl"] = self.impl.value if isinstance(self.impl, ScorerImpl) else self.impl
         out["dtype"] = self.dtype
+        out["ecdf_clamp_min"] = self.ecdf_clamp_min
+        out["ecdf_clamp_max"] = self.ecdf_clamp_max
+        out["diagnostics_enabled"] = self.diagnostics_enabled
         out["hamming_enabled"] = self.hamming_enabled
         out["hamming_wordlist_dir"] = self.hamming_wordlist_dir
         out["hamming_build_rtl"] = self.hamming_build_rtl

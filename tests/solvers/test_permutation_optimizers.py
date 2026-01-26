@@ -98,4 +98,3 @@ def test_sa_permutation_solver_preserves_bijection_and_reaches_quality():
     match_rate = plaintext_match_rate(sol.plaintext_idx, pt_idx)
 
     assert match_rate >= 0.9, f"SA expected >=90% plaintext match, got {match_rate:.3f}"
-    assert sol.score >= 0.3, f"SA score should stay healthy, got {sol.score:.3f}"

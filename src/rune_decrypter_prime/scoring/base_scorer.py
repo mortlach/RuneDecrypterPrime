@@ -59,7 +59,7 @@ def normalize_objective(obj: str, default_win: int) -> str:
         return f"pct.logp.win{int(default_win)}"
     o = str(obj).strip().lower()
     if o in {"energy.logp", "energy", "logp.energy"}:
-        return f"pct.logp.win{int(default_win)}"
+        return f"energy.logp.win{int(default_win)}"
     if o.startswith("pct.logp.win"):
         return o
     if o == "pct.logp":
@@ -153,7 +153,7 @@ class BaseScorer(ABC):
             # Never let telemetry affect scoring
             pass
 
-    # Require and resolve ObjectiveSpec(PCT, LOGP, win=K). Sets self.win and returns K.
+    # Require and resolve ObjectiveSpec(PCT|ENERGY, LOGP, win=K). Sets self.win and returns K.
     def _require_objective_pct_logp_win(self) -> int:
         """
         Enforce the v1 objective contract:
@@ -175,8 +175,8 @@ class BaseScorer(ABC):
         # Compare via .value if present (Enum), else str()
         fam_val = getattr(fam, "value", str(fam)).lower()
         stat_val = getattr(stat, "value", str(stat)).lower()
-        if fam_val != "pct" or stat_val != "logp":
-            raise ValueError(f"unsupported objective: {obj!r} (expected pct.logp.winK)")
+        if fam_val not in ("pct", "energy") or stat_val != "logp":
+            raise ValueError(f"unsupported objective: {obj!r} (expected pct.logp.winK or energy.logp.winK)")
 
         k = int(win) if (win is not None) else int(getattr(self, "win", 10))
         # Keep base/state coherent

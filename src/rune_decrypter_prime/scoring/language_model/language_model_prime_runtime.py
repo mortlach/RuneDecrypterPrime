@@ -32,6 +32,7 @@ Return shape for each scorer:
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 
@@ -61,18 +62,32 @@ class Bucket:
 class ECDFCache:
     """
     Caches ECDF lookup arrays per (mode,pos,model,n,stat).
-    Expects each NPZ to provide arrays: 'grid' and 'q' (float32), monotone in grid.
+    Enforces ABI: grid/q are float64 on disk, strictly increasing, meta_json required.
+    Allows explicit float32 working buffers if they remain strictly increasing.
     """
-    def __init__(self, root: Optional[Path] = None):
+    def __init__(self, root: Optional[Path] = None, *, prefer_float32: bool = True):
         self.root: Path = (root or default_lm_root()).resolve()
         self.idx = load_index(self.root)
         self._cache: dict[tuple, tuple[np.ndarray, np.ndarray]] = {}
+        self._meta_cache: dict[tuple, dict] = {}
+        self._hash_cache: dict[tuple, str] = {}
+        self._interp_dtype_cache: dict[tuple, str] = {}
+        self._q_range_cache: dict[tuple, tuple[float, float]] = {}
         self._printed_files: set[Path] = set()
+        self._prefer_float32 = bool(prefer_float32)
 
     def _ecdf_path(self, *, model: str, mode: str, pos: str, n: int, stat: str) -> Path:
         model_cfg = self.idx.models[model]
         pattern: str = model_cfg["ecdf_pattern"]
         return expand_pattern(self.root, pattern, mode=mode, pos=pos, n=n, stat=stat)
+
+    def asset_id(self, *, model: str, mode: str, pos: str, n: int, stat: str) -> str:
+        """Stable asset id for telemetry (relative path when possible)."""
+        fp = self._ecdf_path(model=model, mode=mode, pos=pos, n=n, stat=stat)
+        try:
+            return str(fp.relative_to(self.root)).replace("\\", "/")
+        except Exception:
+            return str(fp)
 
     def load(self, *, model: str, mode: str, pos: str, n: int, stat: str) -> tuple[np.ndarray, np.ndarray]:
         key = (mode, pos, model, int(n), stat)
@@ -89,16 +104,147 @@ class ECDFCache:
                 rel = fp
             print(f"[LM ECDF] Loading {rel}")
             self._printed_files.add(fp)
-        arr = np.load(fp, allow_pickle=False)
-        grid = np.asarray(arr["grid"], dtype=np.float32)
-        q = np.asarray(arr["q"], dtype=np.float32)
+
+        arr = np.load(fp, allow_pickle=True)
+        if "grid" not in arr or "q" not in arr:
+            missing = [k for k in ("grid", "q") if k not in arr]
+            raise ValueError(f"ECDF missing arrays: {', '.join(missing)} in {fp}")
+
+        grid64 = np.asarray(arr["grid"])
+        q64 = np.asarray(arr["q"])
+        if grid64.dtype != np.float64:
+            raise ValueError(f"ECDF grid dtype must be float64; got {grid64.dtype} in {fp}")
+        if q64.dtype != np.float64:
+            raise ValueError(f"ECDF q dtype must be float64; got {q64.dtype} in {fp}")
+        if grid64.ndim != 1 or q64.ndim != 1 or grid64.size != q64.size:
+            raise ValueError(f"ECDF grid/q must be 1D and same length in {fp}")
+        if grid64.size > 1 and not bool(np.all(np.diff(grid64) > 0.0)):
+            raise ValueError(f"ECDF grid must be strictly increasing in {fp}")
+        if q64.size > 1 and not bool(np.all(np.diff(q64) > 0.0)):
+            raise ValueError(f"ECDF q must be strictly increasing in {fp}")
+        q0 = float(q64[0]) if q64.size else 0.0
+        q1 = float(q64[-1]) if q64.size else 0.0
+        if not (0.0 <= q0 < q1 <= 1.0):
+            raise ValueError(f"ECDF q range invalid in {fp}: q0={q0}, q1={q1}")
+
+        if "meta_json" not in arr:
+            raise ValueError(f"ECDF meta_json missing in {fp}")
+        raw_meta = arr["meta_json"]
+        meta_json = None
+        try:
+            if isinstance(raw_meta, np.ndarray):
+                if raw_meta.shape == ():
+                    raw_meta = raw_meta.item()
+                elif raw_meta.size == 1:
+                    raw_meta = raw_meta.reshape(()).item()
+            if isinstance(raw_meta, bytes):
+                meta_json = raw_meta.decode("utf-8")
+            elif isinstance(raw_meta, str):
+                meta_json = raw_meta
+        except Exception:
+            meta_json = None
+        if not meta_json:
+            raise ValueError(f"ECDF meta_json could not be decoded in {fp}")
+        try:
+            meta = json.loads(meta_json)
+        except Exception as exc:
+            raise ValueError(f"ECDF meta_json invalid JSON in {fp}: {exc}") from exc
+
+        # Minimal required meta validation
+        for k in ("model", "direction", "se_mode", "n", "stat", "win_ngrams"):
+            if k not in meta:
+                raise ValueError(f"ECDF meta_json missing '{k}' in {fp}")
+        if str(meta.get("model")) != str(model):
+            raise ValueError(f"ECDF meta_json model mismatch in {fp}")
+        if str(meta.get("direction")) != str(mode):
+            raise ValueError(f"ECDF meta_json direction mismatch in {fp}")
+        if str(meta.get("se_mode")) != str(pos):
+            raise ValueError(f"ECDF meta_json se_mode mismatch in {fp}")
+        if int(meta.get("n")) != int(n):
+            raise ValueError(f"ECDF meta_json n mismatch in {fp}")
+        if str(meta.get("stat")) != str(stat):
+            raise ValueError(f"ECDF meta_json stat mismatch in {fp}")
+
+        # Compute meta hash (meta_json + grid + q)
+        try:
+            import hashlib
+            h = hashlib.sha256()
+            h.update(meta_json.encode("utf-8"))
+            h.update(np.ascontiguousarray(grid64, dtype=np.float64).tobytes())
+            h.update(np.ascontiguousarray(q64, dtype=np.float64).tobytes())
+            meta_hash = h.hexdigest()
+        except Exception as exc:
+            raise ValueError(f"ECDF meta_hash computation failed in {fp}: {exc}") from exc
+
+        # Working buffers for interpolation
+        interp_dtype = "float64"
+        if self._prefer_float32:
+            grid32 = grid64.astype(np.float32)
+            if grid32.size > 1 and bool(np.all(np.diff(grid32) > 0.0)):
+                q32 = q64.astype(np.float32)
+                grid = grid32
+                q = q32
+                interp_dtype = "float32"
+            else:
+                grid = grid64
+                q = q64
+                interp_dtype = "float64"
+        else:
+            grid = grid64
+            q = q64
+            interp_dtype = "float64"
+
         self._cache[key] = (grid, q)
+        self._meta_cache[key] = dict(meta)
+        self._hash_cache[key] = meta_hash
+        self._interp_dtype_cache[key] = interp_dtype
+        self._q_range_cache[key] = (q0, q1)
         return (grid, q)
+
+    def meta(self, *, model: str, mode: str, pos: str, n: int, stat: str) -> dict:
+        key = (mode, pos, model, int(n), stat)
+        if key not in self._meta_cache:
+            _ = self.load(model=model, mode=mode, pos=pos, n=n, stat=stat)
+        return dict(self._meta_cache[key])
+
+    def meta_hash(self, *, model: str, mode: str, pos: str, n: int, stat: str) -> str:
+        key = (mode, pos, model, int(n), stat)
+        if key not in self._hash_cache:
+            _ = self.load(model=model, mode=mode, pos=pos, n=n, stat=stat)
+        return str(self._hash_cache[key])
+
+    def interp_dtype(self, *, model: str, mode: str, pos: str, n: int, stat: str) -> str:
+        key = (mode, pos, model, int(n), stat)
+        if key not in self._interp_dtype_cache:
+            _ = self.load(model=model, mode=mode, pos=pos, n=n, stat=stat)
+        return str(self._interp_dtype_cache[key])
+
+    def validate_clamp_range(self, *, model: str, mode: str, pos: str, n: int, stat: str,
+                             clamp_min: float, clamp_max: float) -> None:
+        key = (mode, pos, model, int(n), stat)
+        if key not in self._q_range_cache:
+            _ = self.load(model=model, mode=mode, pos=pos, n=n, stat=stat)
+        q0, q1 = self._q_range_cache[key]
+        if not (q0 <= float(clamp_min) and float(clamp_max) <= q1):
+            raise ValueError(
+                f"ECDF clamp range outside q range: clamp_min={clamp_min}, "
+                f"clamp_max={clamp_max}, q0={q0}, q1={q1}"
+            )
 
     @staticmethod
     def interp_percentile(grid: np.ndarray, q: np.ndarray, x: np.ndarray) -> np.ndarray:
-        """Piecewise-linear ECDF mapping; clamped to [0, 1]."""
-        out = np.interp(x, grid, q, left=0.0, right=1.0)
+        """Piecewise-linear ECDF mapping; clamped to [0, 1] with tiny endpoint tolerance."""
+        # Allow a tiny epsilon near endpoints to avoid CPU/GPU drift from float jitter.
+        x_arr = np.asarray(x, dtype=np.float32)
+        g0 = np.float32(grid[0])
+        g1 = np.float32(grid[-1])
+        eps = np.float32(1.0e-5)
+        # Nudge tiny-below-min values just inside the grid to avoid falling off to 0.0.
+        low_nudge = np.minimum(g0 + eps, g1)
+        high_nudge = np.maximum(g1 - eps, g0)
+        x_adj = np.where((x_arr < g0) & (x_arr >= g0 - eps), low_nudge, x_arr)
+        x_adj = np.where((x_adj > g1) & (x_adj <= g1 + eps), high_nudge, x_adj)
+        out = np.interp(x_adj, grid, q, left=0.0, right=1.0)
         return out.astype(np.float32, copy=False)
 
     def percentiles(self, b: Bucket, x: np.ndarray) -> Dict[str, np.ndarray]:
@@ -140,9 +286,9 @@ class ECDFCache:
 
 def _norm_dir(d: str) -> str:
     d = str(d).lower()
-    if d in ("ltr", "forward"):
+    if d == "ltr":
         return "ltr"
-    if d in ("rtl", "reverse"):
+    if d == "rtl":
         return "rtl"
     raise ValueError("dir must be 'ltr' or 'rtl'")
 

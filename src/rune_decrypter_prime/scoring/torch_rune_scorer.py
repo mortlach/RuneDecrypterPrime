@@ -44,6 +44,7 @@ from rune_decrypter_prime.scoring.stat_transform import apply_stat_transform
 from rune_decrypter_prime.backends.xp import select_backend
 from rune_decrypter_prime.scoring.base_scorer import BaseScorer, normalize_objective as _norm_obj
 from rune_decrypter_prime.utils.telemetry import stash as _tstash  # canonical helper  ✔
+from rune_decrypter_prime.core.types import Direction, SeMode, ensure_direction, ensure_se_mode
 
 # --------------------------- small utils ---------------------------
 
@@ -99,25 +100,17 @@ def _xxh64_u32words_cpu(tokens_u32: torch.Tensor | np.ndarray) -> np.ndarray:
     h = (P5 + total_len) & MASK64
     t_u64 = t.astype(u64, copy=False)
 
-    if n == 1:
-        k1 = (t_u64[..., 0] * P2) & MASK64
+    pairs = n // 2
+    for i in range(pairs):
+        k1 = (t_u64[..., 2 * i] | (t_u64[..., 2 * i + 1] << u64(32))) & MASK64
+        k1 = (k1 * P2) & MASK64
         k1 = rotl64(k1, 31); k1 = (k1 * P1) & MASK64
         h ^= k1; h = (rotl64(h, 27) * P1 + P4) & MASK64
-    elif n == 2:
-        k1 = ((t_u64[..., 0] | (t_u64[..., 1] << u64(32))) * P2) & MASK64
-        k1 = rotl64(k1, 31); k1 = (k1 * P1) & MASK64
-        h ^= k1; h = (rotl64(h, 27) * P1 + P4) & MASK64
-    elif n == 3:
-        k1 = ((t_u64[..., 0] | (t_u64[..., 1] << u64(32))) * P2) & MASK64
-        k1 = rotl64(k1, 31); k1 = (k1 * P1) & MASK64
-        h ^= k1; h = (rotl64(h, 27) * P1 + P4) & MASK64
-        h ^= (t_u64[..., 2] * P1) & MASK64
+
+    if n % 2 == 1:
+        k1 = (t_u64[..., -1] * P1) & MASK64
+        h ^= k1
         h = (rotl64(h, 23) * P2 + P3) & MASK64
-    else:
-        for i in range(4):
-            k1 = (t_u64[..., i] * P2) & MASK64
-            k1 = rotl64(k1, 31); k1 = (k1 * P1) & MASK64
-            h ^= k1; h = (rotl64(h, 27) * P1 + P4) & MASK64
 
     h ^= (h >> u64(33)); h = (h * P2) & MASK64
     h ^= (h >> u64(29)); h = (h * P3) & MASK64
@@ -142,21 +135,17 @@ def _xxh64_u32words_device(tokens_u32: torch.Tensor) -> torch.Tensor:
         t = tokens_u32.to(torch.uint64)
         def _rotl(x, r): return ((x << r) | (x >> (64 - r))) & MASK64
 
-        if n == 1:
-            k1 = _rotl(t[..., 0] * P2, 31) * P1 & MASK64
+        pairs = n // 2
+        for i in range(pairs):
+            k1 = (t[..., 2 * i] | (t[..., 2 * i + 1] << 32)) & MASK64
+            k1 = (k1 * P2) & MASK64
+            k1 = _rotl(k1, 31) * P1 & MASK64
             h ^= k1; h = (_rotl(h, 27) * P1 + P4) & MASK64
-        elif n == 2:
-            k1 = _rotl((t[..., 0] | (t[..., 1] << 32)) * P2, 31) * P1 & MASK64
-            h ^= k1; h = (_rotl(h, 27) * P1 + P4) & MASK64
-        elif n == 3:
-            k1 = _rotl((t[..., 0] | (t[..., 1] << 32)) * P2, 31) * P1 & MASK64
-            h ^= k1; h = (_rotl(h, 27) * P1 + P4) & MASK64
-            h ^= (t[..., 2] * P1) & MASK64
+
+        if n % 2 == 1:
+            k1 = (t[..., -1] * P1) & MASK64
+            h ^= k1
             h = (_rotl(h, 23) * P2 + P3) & MASK64
-        else:
-            for i in range(4):
-                k1 = _rotl(t[..., i] * P2, 31) * P1 & MASK64
-                h ^= k1; h = (_rotl(h, 27) * P1 + P4) & MASK64
 
         h ^= (h >> 33); h = (h * P2) & MASK64
         h ^= (h >> 29); h = (h * P3) & MASK64
@@ -187,9 +176,13 @@ class RuneScorerTorch(BaseScorer):
         self.win    = int(_cfg_get(scorer_cfg, "win", 10))
         self.stride = int(_cfg_get(scorer_cfg, "stride", 1)) or 1
 
-        # direction naming drift: accept encoding_dir or direction; default ltr
-        self.direction = str(_cfg_get(scorer_cfg, "encoding_dir",
-                           _cfg_get(scorer_cfg, "direction", "ltr"))).lower()
+        # direction + se_mode (strict in core; UI may normalize earlier)
+        raw_dir = _cfg_get(scorer_cfg, "encoding_dir",
+                           _cfg_get(scorer_cfg, "direction", Direction.LTR))
+        self.direction = ensure_direction(raw_dir)
+        self.se_mode = ensure_se_mode(_cfg_get(scorer_cfg, "se_mode", SeMode.NOSE))
+        if self.se_mode is SeMode.WISE:
+            raise ValueError("WISE mode is not supported yet; use NOSE.")
 
         # weights: legacy pair or dict maps
         self.weights = tuple(_cfg_get(scorer_cfg, "weights", (0.5, 0.5)))
@@ -202,13 +195,13 @@ class RuneScorerTorch(BaseScorer):
         if not (hasattr(obj, "family") and hasattr(obj, "stat")):
             # No objective provided: build the v1 default Enum spec using current win
             obj = ObjectiveSpec(ObjectiveFamily.PCT, Stat.LOGP, int(self.win))
-        if getattr(obj, "family", None) is ObjectiveFamily.ENERGY:
-            obj = ObjectiveSpec(ObjectiveFamily.PCT, obj.stat, obj.win)
         if getattr(obj, "family", None) in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
+            if getattr(obj, "stat", None) is None:
+                obj = ObjectiveSpec(getattr(obj, "family"), Stat.LOGP, getattr(obj, "win", None))
             win = getattr(obj, "win", None)
             if win is None:
                 win = int(self.win)
-                obj = ObjectiveSpec(ObjectiveFamily.PCT, obj.stat, win)
+                obj = ObjectiveSpec(getattr(obj, "family"), obj.stat, win)
             if int(win) != 10:
                 raise ValueError("pct/energy objectives only support win=10 in the current LM tables.")
             self.win = int(win)
@@ -221,15 +214,23 @@ class RuneScorerTorch(BaseScorer):
         self.objective = obj
 
         # ECDF config
-        self._ecdf_floor   = float(_cfg_get(scorer_cfg, "ecdf_floor", 1e-6))
-        self._ecdf_ceiling = float(_cfg_get(scorer_cfg, "ecdf_ceiling", 1.0))
+        self._ecdf_clamp_min = float(_cfg_get(scorer_cfg, "ecdf_clamp_min",
+                                              _cfg_get(scorer_cfg, "ecdf_floor", 1e-6)))
+        self._ecdf_clamp_max = float(_cfg_get(scorer_cfg, "ecdf_clamp_max",
+                                              _cfg_get(scorer_cfg, "ecdf_ceiling",
+                                                       float(np.nextafter(np.float32(1.0), np.float32(0.0))))))
+        if not (0.0 < self._ecdf_clamp_min < 1.0 and 0.0 < self._ecdf_clamp_max < 1.0):
+            raise ValueError("ecdf_clamp_min/max must be in (0,1) for ENERGY-safe scoring")
+        if self._ecdf_clamp_min >= self._ecdf_clamp_max:
+            raise ValueError("ecdf_clamp_min must be < ecdf_clamp_max")
+        self._diagnostics_enabled = bool(_cfg_get(scorer_cfg, "diagnostics_enabled", False))
 
         # telemetry holders (no-throw)
         self._telemetry: Dict[str, Any] = {
             "impl": "torch", "device": self.device.type,
             "objective": self.objective, "win": int(self.win),
-            "stride": int(self.stride), "ecdf_floor": self._ecdf_floor,
-            "_ecdf_ceiling": self._ecdf_ceiling, "encoding_dir": self.direction,
+            "stride": int(self.stride), "ecdf_clamp_min": self._ecdf_clamp_min,
+            "ecdf_clamp_max": self._ecdf_clamp_max, "encoding_dir": self.direction,
         }
         self._last_stats: Dict[str, Any] = {}
 
@@ -348,15 +349,66 @@ class RuneScorerTorch(BaseScorer):
         tot = sum(w for _, _, w in models) or 1.0
         return [(c, n, w / tot) for (c, n, w) in models]
 
+    def _objective_id(
+        self,
+        stat_name: str,
+        variant: str,
+        W: int,
+        n_set: Sequence[int],
+        direction: str,
+        se_mode: str,
+    ) -> str:
+        fam = getattr(self.objective.family, "value", str(self.objective.family))
+        channels = []
+        if self.include_char:
+            channels.append("char")
+        if self.use_wli:
+            channels.append("wli")
+        ch_part = "_".join(channels) if channels else "none"
+        n_part = "n" + "_".join(str(int(n)) for n in n_set)
+        return f"{fam}.{stat_name}.{variant}.W{int(W)}.{n_part}.{ch_part}.{direction}.{se_mode}"
+
+    def _objective_label(
+        self,
+        stat_name: str,
+        variant: str,
+        W: int,
+        n_set: Sequence[int],
+        direction: str,
+        se_mode: str,
+    ) -> str:
+        fam = getattr(self.objective.family, "value", str(self.objective.family))
+        fam_label = {
+            "pct": "Percentile of",
+            "energy": "Energy of",
+            "avg": "Average",
+        }.get(fam, fam)
+        variant_label = "interior" if "interior" in variant else "total"
+        channels = []
+        if self.include_char:
+            channels.append("char")
+        if self.use_wli:
+            channels.append("wli")
+        ch_part = "+".join(channels) if channels else "none"
+        n_part = ",".join(str(int(n)) for n in n_set)
+        return f"{fam_label} {stat_name} per n-gram ({variant_label}), W={int(W)}, n={n_part}, {ch_part}, {direction}, {se_mode}"
+
     # ---------- pct.logp.winK ----------
-    def _percentiles(self, model: str, n: int, means_np: np.ndarray) -> np.ndarray:
-        # todo link to objectivesepc
+    def _percentiles(self, model: str, n: int, means_np: np.ndarray, *, se_name: str) -> np.ndarray:
         # Ensure ECDF gets a plain "ltr"/"rtl" string
         mode = self.direction.value if hasattr(self.direction, "value") else str(self.direction).split(".")[-1].lower()
-        grid, q = self._ecdf.load(model=model, mode=mode, pos="nose", n=int(n), stat="logp")
-        u = np.interp(means_np.astype(np.float32, copy=False), grid, q, left=0.0, right=1.0).astype(np.float32, copy=False)
-        if self._ecdf_floor > 0.0: u = np.maximum(u, np.float32(self._ecdf_floor))
-        if self._ecdf_ceiling < 1.0: u = np.minimum(u, np.float32(self._ecdf_ceiling))
+        self._ecdf.validate_clamp_range(
+            model=model,
+            mode=mode,
+            pos=se_name,
+            n=int(n),
+            stat="logp",
+            clamp_min=self._ecdf_clamp_min,
+            clamp_max=self._ecdf_clamp_max,
+        )
+        grid, q = self._ecdf.load(model=model, mode=mode, pos=se_name, n=int(n), stat="logp")
+        u = self._ecdf.interp_percentile(grid, q, means_np.astype(np.float32, copy=False))
+        u = np.clip(u, np.float32(self._ecdf_clamp_min), np.float32(self._ecdf_clamp_max))
         return u
 
     def _pack_char_ngram(self, pt_t: torch.Tensor, n: int) -> torch.Tensor:
@@ -374,197 +426,84 @@ class RuneScorerTorch(BaseScorer):
         toks = torch.stack([rune[..., i] | (pos[..., i] << 5) | (ln[..., i] << 11) for i in range(n)], dim=-1)
         return toks.to(torch.uint32)
 
+    
     def _score_pct_logp_win(self, pt_b: np.ndarray, wli_b: np.ndarray | None) -> np.ndarray:
         self.ensure_loaded(self.device)
         B, L = int(pt_b.shape[0]), int(pt_b.shape[1])
+        from rune_decrypter_prime.core.types import ObjectiveFamily, Stat
 
-        if L < int(self.win):
-            out = np.full((B,), float(self._ecdf_floor), dtype=np.float32)
-            # single/batch stats
-            if B == 1:
-                self._last_stats = {"objective": f"pct.logp.win{int(self.win)}",
-                                    "score_mean": float(out[0]), "score_std": 0.0, "n_windows": 0}
-            else:
-                self._last_stats = {"objective": f"pct.logp.win{int(self.win)}", "n_windows": 0,
-                                    "score_mean_batch": out.astype(np.float32, copy=False).tolist(),
-                                    "score_std_batch": [0.0] * B}
-            _tstash(self._telemetry, **self._last_stats)
-            return out
+        se_name = BaseScorer._se_name(self.se_mode)
+        if se_name != "nose":
+            raise ValueError("Torch scorer currently supports se_mode='nose' only")
 
-        pt_t = torch.from_numpy(pt_b).to(self.device, dtype=torch.uint8, non_blocking=True)
-        wli_t = None
-        if (wli_b is not None) and self.use_wli:
-            wli_t = torch.from_numpy(wli_b).to(self.device, dtype=torch.uint8, non_blocking=True)
-
-        nwin = L - int(self.win) + 1
-        mix = np.zeros((B, nwin), dtype=np.float32)
-        raw_mix = np.zeros((B, nwin), dtype=np.float32)
-        components = {} if B == 1 else None
-
-        for channel, n, w in self._active_models(self.use_wli):
-            toks = self._pack_char_ngram(pt_t, int(n)) if channel == "char" else (
-                   self._pack_wli_ngram(pt_t, wli_t, int(n)) if wli_t is not None else None)
-            if toks is None:  # WLI disabled at runtime
-                continue
-
-            h = (_xxh64_u32words_device(toks) if self.device.type == "cuda"
-                 else torch.from_numpy(_xxh64_u32words_cpu(toks).view(np.int64)).to(self.device))
-
-            tbl = self._ensure_table(channel, int(n))
-            keys_i64 = tbl["keys"]; logp_f32 = tbl["logp"]; mask = int(tbl["mask"])
-            fb = float(tbl["stats"]["fallback_logp"])
-
-            # linear probe (device)
-            # simplified inline open addressing
-            idx = (h & torch.tensor(mask, dtype=keys_i64.dtype, device=self.device)).to(torch.long)
-            out = torch.full(h.shape, fill_value=fb, dtype=torch.float32, device=self.device)
-            found = torch.zeros(h.shape, dtype=torch.bool, device=self.device)
-            for _ in range(1024):
-                k = keys_i64[idx]
-                is_empty = (k == 0)
-                is_match = (k == h)
-                take = (~found) & is_match
-                if take.any():
-                    out[take] = logp_f32[idx[take]]
-                    found[take] = True
-                cont = (~found) & (~is_empty)
-                if not cont.any():
-                    break
-                idx[cont] = (idx[cont] + 1) & mask
-
-            K = int(self.win) - int(n) + 1
-            if K <= 0 or out.shape[1] < K:
-                means = torch.empty((B, 0), dtype=torch.float32, device=self.device)
-            else:
-                means = out.unfold(dimension=1, size=K, step=1).contiguous().mean(dim=-1)  # [B, nwin]
-
-            means_np = means.detach().cpu().numpy()
-            means_np = apply_stat_transform("logp", means_np)
-            u = self._percentiles(channel, int(n), means_np)
-            mix += float(w) * u
-            raw_mix += float(w) * means_np
-            if components is not None:
-                label = f"{'char' if channel == 'char' else 'wli'}_n{int(n)}"
-                components[label] = {
-                    "pct_lm": float(np.mean(u)),
-                    "raw_lm": float(np.mean(means_np)),
-                }
-
-        score_mean_vec = mix.mean(axis=1).astype(np.float32, copy=False)
-        score_std_vec  = mix.std(axis=1).astype(np.float32, copy=False)
-        raw_lm_vec = raw_mix.mean(axis=1).astype(np.float32, copy=False)
-        raw_std_vec = raw_mix.std(axis=1).astype(np.float32, copy=False)
-        penalty_raw_vec = np.zeros_like(raw_lm_vec)
-        raw_mean_vec = raw_lm_vec.copy()
-
-        hamming_batch = None
-        hamming_avg_batch = None
-        if self._hamming_backend is not None and wli_b is not None:
-            try:
-                totals: list[float] = []
-                avgs: list[float] = []
-                for i in range(B):
-                    stats = self._hamming_backend.total_min_hd_stats(
-                        pt_b[i].tolist(),
-                        wli_b[i].tolist(),
-                        direction=self.direction,
-                        mode=self._hamming_direction_mode,
-                    )
-                    totals.append(float(stats.get("total_hd", 0.0)))
-                    avgs.append(float(stats.get("avg_hd_word", stats.get("total_hd", 0.0))))
-                penalties_arr = np.asarray(avgs, dtype=np.float32)
-                penalty_raw_vec = -self._hamming_weight * penalties_arr
-                raw_mean_vec = raw_lm_vec + penalty_raw_vec
-                hamming_batch = np.asarray(totals, dtype=np.float32)
-                hamming_avg_batch = penalties_arr
-            except Exception:
-                hamming_batch = None
-                hamming_avg_batch = None
-
-        window_pcts = None
-        if B == 1 and mix.shape[1] > 0:
-            try:
-                window_pcts = {
-                    "p10": float(np.percentile(mix[0], 10.0)),
-                    "p50": float(np.percentile(mix[0], 50.0)),
-                    "p90": float(np.percentile(mix[0], 90.0)),
-                }
-            except Exception:
-                window_pcts = None
-
-        # record telemetry (no-throw)
-        try:
-            if B == 1:
-                objective = {
-                    "pct_lm": float(score_mean_vec[0]),
-                    "energy_lm": float(ECDFCache.energy(np.asarray([score_mean_vec[0]], dtype=np.float32))[0]),
-                    "raw_lm": float(raw_lm_vec[0]),
-                    "raw_total": float(raw_mean_vec[0]),
-                    "penalty_raw": float(penalty_raw_vec[0]),
-                    "components": (components if components is not None else {}),
-                    "windows": (window_pcts if window_pcts is not None else {}),
-                }
-                self._last_stats = {
-                    "objective": f"pct.logp.win{int(self.win)}",
-                    "n_windows": int(mix.shape[1]),
-                    "score_mean": float(score_mean_vec[0]),
-                    "score_std": float(score_std_vec[0]),
-                    "raw_score_mean": float(raw_mean_vec[0]),
-                    "raw_score_mean_lm": float(raw_lm_vec[0]),
-                    "penalty_raw": float(penalty_raw_vec[0]),
-                    "raw_score_std": float(raw_std_vec[0]),
-                    "hamming_total_hd": (float(hamming_batch[0]) if hamming_batch is not None else None),
-                    "hamming_avg_hd": (float(hamming_avg_batch[0]) if hamming_avg_batch is not None else None),
-                    "hamming_weight": self._hamming_weight,
-                    "objective_stats": objective,
-                }
-            else:
-                self._last_stats = {
-                    "objective": f"pct.logp.win{int(self.win)}",
-                    "n_windows": int(mix.shape[1]),
-                    "score_mean_batch": score_mean_vec.tolist(),
-                    "score_std_batch": score_std_vec.tolist(),
-                    "raw_score_mean_batch": raw_mean_vec.tolist(),
-                    "raw_score_std_batch": raw_std_vec.tolist(),
-                    "raw_score_mean_lm_batch": raw_lm_vec.tolist(),
-                    "penalty_raw_batch": penalty_raw_vec.tolist(),
-                    "hamming_total_hd_batch": (hamming_batch.tolist() if hamming_batch is not None else None),
-                    "hamming_avg_hd_batch": (hamming_avg_batch.tolist() if hamming_avg_batch is not None else None),
-                    "hamming_weight": self._hamming_weight,
-                }
-            _tstash(self._telemetry, **self._last_stats)
-
-            # active models snapshot
-            am = [(c, int(n), float(w)) for (c, n, w) in self._active_models(self.use_wli)]
-            _tstash(self._telemetry, active_models=am,
-                    sum_weights=float(sum(w for _, _, w in am)))
-        except Exception:
-            pass
-
-        try:
-            self._last_raw_batch = raw_mean_vec.astype(np.float32, copy=False)
-            self._last_raw_std_batch = raw_std_vec.astype(np.float32, copy=False)
-        except Exception:
-            pass
-
-        return score_mean_vec
-
-    def _score_raw_logp_win(self, pt_b: np.ndarray, wli_b: np.ndarray | None) -> np.ndarray:
-        self.ensure_loaded(self.device)
-        B, L = int(pt_b.shape[0]), int(pt_b.shape[1])
-        win = int(self.win)
+        stat = getattr(self.objective, "stat", None)
+        if stat not in (None, Stat.LOGP):
+            raise ValueError("torch backend only supports pct/energy for logp stat")
+        stat_name = "logp"
+        want_energy = getattr(self.objective, "family", None) is ObjectiveFamily.ENERGY
+        W = int(self.win)
         stride = int(self.stride) if int(self.stride) > 0 else 1
-        if L < win:
-            out = np.zeros((B,), dtype=np.float32)
+
+        models = self._active_models(self.use_wli)
+        n_set = sorted({int(n) for _, n, _ in models})
+        if not n_set:
+            raise ValueError("No active models; check weights and include/use flags")
+        n_max = max(n_set)
+        L_max = W + n_max - 1
+        L_n_map = {int(n): (int(W) + int(n) - 1) for n in n_set}
+        nwin_aligned = max(0, L - L_max + 1)
+
+        variant = "mean_per_ngram_interior" if se_name == "wise" else "mean_per_ngram_total"
+        total_eval = (W + 2) if se_name == "wise" else W
+        interior_eval = W if se_name == "wise" else W
+
+        if nwin_aligned <= 0:
+            pct_floor = float(self._ecdf_clamp_min)
+            energy_floor = float(self._ecdf.energy(np.asarray([pct_floor], dtype=np.float32))[0])
+            score_val = energy_floor if want_energy else pct_floor
+            out = np.full((B,), score_val, dtype=np.float32)
+            stats: Dict[str, Any] = {
+                "score_std": 0.0,
+                "n_windows": 0,
+                "window.win_ngrams": int(W),
+                "window.se_mode": se_name,
+                "window.n_set": list(n_set),
+                "window.stride_runes": int(stride),
+                "window.L_n": L_n_map,
+                "window.L_max": int(L_max),
+                "window.n_windows": 0,
+                "stat.name": stat_name,
+                "stat.variant": variant,
+                "stat.ngrams_total": int(total_eval),
+                **({"stat.ngrams_interior": int(interior_eval)} if se_name == "wise" else {}),
+                "direction": self.direction.value,
+                "objective.id": self._objective_id(stat_name, variant, W, n_set, self.direction.value, se_name),
+                "objective.label": self._objective_label(stat_name, variant, W, n_set, self.direction.value, se_name),
+            }
             if B == 1:
-                self._last_stats = {"objective": f"avg.logp.win{int(self.win)}",
-                                    "score_mean": float(out[0]), "score_std": 0.0, "n_windows": 0}
+                stats["score_mean"] = float(out[0])
+                stats["objective_stats"] = {
+                    f"pct_{stat_name}_{variant}": pct_floor,
+                    f"energy_{stat_name}_{variant}": energy_floor,
+                    f"{stat_name}_mean_per_ngram_total": 0.0,
+                    f"{stat_name}_mean_per_ngram_interior": 0.0,
+                    f"{stat_name}_mean_per_ngram_penalized": 0.0,
+                    "penalty_hamming": 0.0,
+                    "components": {},
+                    "windows": {},
+                    "n_windows": 0,
+                    "score_mean": float(out[0]),
+                }
             else:
-                self._last_stats = {"objective": f"avg.logp.win{int(self.win)}", "n_windows": 0,
-                                    "score_mean_batch": out.astype(np.float32, copy=False).tolist(),
-                                    "score_std_batch": [0.0] * B}
-            _tstash(self._telemetry, **self._last_stats)
-            self._last_raw_batch = out.astype(np.float32, copy=False)
+                stats["score_mean_batch"] = out.astype(np.float32, copy=False).tolist()
+                stats["score_std_batch"] = [0.0] * B
+            _tstash(self._telemetry, **stats)
+            self._last_stats = stats
+            try:
+                self._last_raw_batch = out.astype(np.float32, copy=False)
+                self._last_raw_std_batch = np.zeros_like(out, dtype=np.float32)
+            except Exception:
+                pass
             return out
 
         pt_t = torch.from_numpy(pt_b).to(self.device, dtype=torch.uint8, non_blocking=True)
@@ -572,14 +511,19 @@ class RuneScorerTorch(BaseScorer):
         if (wli_b is not None) and self.use_wli:
             wli_t = torch.from_numpy(wli_b).to(self.device, dtype=torch.uint8, non_blocking=True)
 
-        nwin_full = L - win + 1
-        nwin = (nwin_full + stride - 1) // stride
-        raw_mix = np.zeros((B, nwin), dtype=np.float32)
+        nwin = ((nwin_aligned - 1) // stride) + 1
+        pct_mix = np.zeros((B, nwin), dtype=np.float32)
+        stat_total_mix = np.zeros((B, nwin), dtype=np.float32)
         components = {} if B == 1 else None
 
-        for channel, n, w in self._active_models(self.use_wli):
+        asset_ids: list[str] = []
+        asset_fps: list[str] = []
+        interp_dtypes: list[str] = []
+        meta_json_list: list[str] = []
+
+        for channel, n, w in models:
             toks = self._pack_char_ngram(pt_t, int(n)) if channel == "char" else (
-                   self._pack_wli_ngram(pt_t, wli_t, int(n)) if wli_t is not None else None)
+                self._pack_wli_ngram(pt_t, wli_t, int(n)) if wli_t is not None else None)
             if toks is None:
                 continue
 
@@ -606,28 +550,66 @@ class RuneScorerTorch(BaseScorer):
                     break
                 idx[cont] = (idx[cont] + 1) & mask
 
-            K = win - int(n) + 1
+            K = int(W)
             if K <= 0 or out.shape[1] < K:
                 means = torch.empty((B, 0), dtype=torch.float32, device=self.device)
             else:
-                means = out.unfold(dimension=1, size=K, step=1).contiguous().mean(dim=-1)
+                means_full = out.unfold(dimension=1, size=K, step=1).contiguous().mean(dim=-1)
+                means_full = means_full[:, :nwin_aligned]
+                if stride != 1:
+                    means_full = means_full[:, ::stride]
+                means = means_full
 
             means_np = means.detach().cpu().numpy()
             means_np = apply_stat_transform("logp", means_np)
-            if stride != 1 and means_np.shape[1] > 0:
-                means_np = means_np[:, ::stride]
-            raw_mix += float(w) * means_np
+            u = self._percentiles(channel, int(n), means_np, se_name=se_name)
+            pct_mix += float(w) * u
+            stat_total_mix += float(w) * means_np
             if components is not None:
                 label = f"{'char' if channel == 'char' else 'wli'}_n{int(n)}"
                 components[label] = {
-                    "raw_lm": float(np.mean(means_np)),
+                    f"{stat_name}_mean_per_ngram_total": float(np.mean(means_np)),
+                    f"{stat_name}_mean_per_ngram_interior": float(np.mean(means_np)),
                 }
 
-        raw_lm_vec = raw_mix.mean(axis=1).astype(np.float32, copy=False)
-        raw_std_vec = raw_mix.std(axis=1).astype(np.float32, copy=False)
-        penalty_raw_vec = np.zeros_like(raw_lm_vec)
-        raw_mean_vec = raw_lm_vec.copy()
+            model_name = "char" if channel == "char" else "wli"
+            asset_ids.append(self._ecdf.asset_id(model=model_name,
+                                                 mode=self.direction.value,
+                                                 pos=se_name,
+                                                 n=int(n), stat=stat_name))
+            asset_fps.append(self._ecdf.meta_hash(model=model_name,
+                                                  mode=self.direction.value,
+                                                  pos=se_name,
+                                                  n=int(n), stat=stat_name))
+            interp_dtypes.append(self._ecdf.interp_dtype(model=model_name,
+                                                         mode=self.direction.value,
+                                                         pos=se_name,
+                                                         n=int(n), stat=stat_name))
+            if self._diagnostics_enabled:
+                try:
+                    import json as _json
+                    meta = self._ecdf.meta(model=model_name, mode=self.direction.value,
+                                           pos=se_name, n=int(n), stat=stat_name)
+                    meta_json_list.append(_json.dumps(meta, sort_keys=True))
+                except Exception:
+                    pass
 
+        pct_mean_vec = pct_mix.mean(axis=1).astype(np.float32, copy=False)
+        pct_std_vec = pct_mix.std(axis=1).astype(np.float32, copy=False)
+        energy_perwin = self._ecdf.energy(pct_mix)
+        energy_mean_vec = energy_perwin.mean(axis=1).astype(np.float32, copy=False)
+        energy_std_vec = energy_perwin.std(axis=1).astype(np.float32, copy=False)
+        score_mean_vec = energy_mean_vec if want_energy else pct_mean_vec
+        score_std_vec = energy_std_vec if want_energy else pct_std_vec
+
+        stat_total_mean_vec = stat_total_mix.mean(axis=1).astype(np.float32, copy=False)
+        stat_total_std_vec = stat_total_mix.std(axis=1).astype(np.float32, copy=False)
+        stat_interior_mean_vec = stat_total_mean_vec
+        stat_interior_std_vec = stat_total_std_vec
+        stat_variant_mean_vec = stat_interior_mean_vec if se_name == "wise" else stat_total_mean_vec
+        stat_variant_std_vec = stat_interior_std_vec if se_name == "wise" else stat_total_std_vec
+
+        penalty_hamming_vec = np.zeros_like(stat_variant_mean_vec)
         hamming_batch = None
         hamming_avg_batch = None
         if self._hamming_backend is not None and wli_b is not None:
@@ -644,21 +626,23 @@ class RuneScorerTorch(BaseScorer):
                     totals.append(float(stats.get("total_hd", 0.0)))
                     avgs.append(float(stats.get("avg_hd_word", stats.get("total_hd", 0.0))))
                 penalties_arr = np.asarray(avgs, dtype=np.float32)
-                penalty_raw_vec = -self._hamming_weight * penalties_arr
-                raw_mean_vec = raw_lm_vec + penalty_raw_vec
+                penalty_hamming_vec = -self._hamming_weight * penalties_arr
                 hamming_batch = np.asarray(totals, dtype=np.float32)
                 hamming_avg_batch = penalties_arr
             except Exception:
                 hamming_batch = None
                 hamming_avg_batch = None
 
+        stat_penalized_vec = stat_variant_mean_vec + penalty_hamming_vec
+
+        window_metric = energy_perwin if want_energy else pct_mix
         window_pcts = None
-        if B == 1 and raw_mix.shape[1] > 0:
+        if B == 1 and pct_mix.shape[1] > 0:
             try:
                 window_pcts = {
-                    "p10": float(np.percentile(raw_mix[0], 10.0)),
-                    "p50": float(np.percentile(raw_mix[0], 50.0)),
-                    "p90": float(np.percentile(raw_mix[0], 90.0)),
+                    "p10": float(np.percentile(window_metric[0], 10.0)),
+                    "p50": float(np.percentile(window_metric[0], 50.0)),
+                    "p90": float(np.percentile(window_metric[0], 90.0)),
                 }
             except Exception:
                 window_pcts = None
@@ -666,53 +650,366 @@ class RuneScorerTorch(BaseScorer):
         try:
             if B == 1:
                 objective = {
-                    "pct_lm": None,
-                    "energy_lm": None,
-                    "raw_lm": float(raw_lm_vec[0]),
-                    "raw_total": float(raw_mean_vec[0]),
-                    "penalty_raw": float(penalty_raw_vec[0]),
+                    f"pct_{stat_name}_{variant}": float(pct_mean_vec[0]),
+                    f"energy_{stat_name}_{variant}": float(energy_mean_vec[0]),
+                    f"{stat_name}_mean_per_ngram_total": float(stat_total_mean_vec[0]),
+                    f"{stat_name}_mean_per_ngram_interior": float(stat_interior_mean_vec[0]),
+                    f"{stat_name}_mean_per_ngram_penalized": float(stat_penalized_vec[0]),
+                    "penalty_hamming": float(penalty_hamming_vec[0]),
                     "components": (components if components is not None else {}),
                     "windows": (window_pcts if window_pcts is not None else {}),
+                    "n_windows": int(pct_mix.shape[1]),
+                    "score_mean": float(score_mean_vec[0]),
                 }
                 self._last_stats = {
-                    "objective": f"avg.logp.win{int(self.win)}",
-                    "n_windows": int(raw_mix.shape[1]),
-                    "score_mean": float(raw_mean_vec[0]),
-                    "score_std": float(raw_std_vec[0]),
-                    "raw_score_mean": float(raw_mean_vec[0]),
-                    "raw_score_mean_lm": float(raw_lm_vec[0]),
-                    "penalty_raw": float(penalty_raw_vec[0]),
-                    "raw_score_std": float(raw_std_vec[0]),
+                    "n_windows": int(pct_mix.shape[1]),
+                    "score_mean": float(score_mean_vec[0]),
+                    "score_std": float(score_std_vec[0]),
+                    "stat.mean_per_ngram_total.mean": float(stat_total_mean_vec[0]),
+                    "stat.mean_per_ngram_total.std": float(stat_total_std_vec[0]),
+                    "stat.mean_per_ngram_interior.mean": float(stat_interior_mean_vec[0]),
+                    "stat.mean_per_ngram_interior.std": float(stat_interior_std_vec[0]),
+                    "stat.mean_per_ngram_penalized": float(stat_penalized_vec[0]),
+                    "stat.std_per_ngram_penalized": float(stat_variant_std_vec[0]),
+                    "penalty_hamming": float(penalty_hamming_vec[0]),
                     "hamming_total_hd": (float(hamming_batch[0]) if hamming_batch is not None else None),
                     "hamming_avg_hd": (float(hamming_avg_batch[0]) if hamming_avg_batch is not None else None),
                     "hamming_weight": self._hamming_weight,
                     "objective_stats": objective,
+                    "window.win_ngrams": int(W),
+                    "window.se_mode": se_name,
+                    "window.n_set": list(n_set),
+                    "window.stride_runes": int(stride),
+                    "window.L_n": L_n_map,
+                    "window.L_max": int(L_max),
+                    "window.n_windows": int(pct_mix.shape[1]),
+                    "stat.name": stat_name,
+                    "stat.variant": variant,
+                    "stat.ngrams_total": int(total_eval),
+                    **({"stat.ngrams_interior": int(interior_eval)} if se_name == "wise" else {}),
+                    "direction": self.direction.value,
+                    "objective.id": self._objective_id(stat_name, variant, W, n_set, self.direction.value, se_name),
+                    "objective.label": self._objective_label(stat_name, variant, W, n_set, self.direction.value, se_name),
+                    "ecdf.asset_id": asset_ids[0] if len(asset_ids) == 1 else asset_ids,
+                    "ecdf.asset_fingerprint": asset_fps[0] if len(asset_fps) == 1 else asset_fps,
+                    "ecdf.disk_dtype": "float64",
+                    "ecdf.canonical_dtype": "float64",
+                    "ecdf.compute_dtype": interp_dtypes[0] if len(interp_dtypes) == 1 else interp_dtypes,
+                    "ecdf.meta_hash": asset_fps[0] if len(asset_fps) == 1 else asset_fps,
+                    "ecdf.interp": "linear",
+                    "ecdf.interp_dtype": interp_dtypes[0] if len(interp_dtypes) == 1 else interp_dtypes,
+                    "ecdf.clamp_min": float(self._ecdf_clamp_min),
+                    "ecdf.clamp_max": float(self._ecdf_clamp_max),
                 }
             else:
                 self._last_stats = {
-                    "objective": f"avg.logp.win{int(self.win)}",
-                    "n_windows": int(raw_mix.shape[1]),
-                    "score_mean_batch": raw_mean_vec.tolist(),
-                    "score_std_batch": raw_std_vec.tolist(),
-                    "raw_score_mean_batch": raw_mean_vec.tolist(),
-                    "raw_score_std_batch": raw_std_vec.tolist(),
-                    "raw_score_mean_lm_batch": raw_lm_vec.tolist(),
-                    "penalty_raw_batch": penalty_raw_vec.tolist(),
+                    "n_windows": int(pct_mix.shape[1]),
+                    "score_mean_batch": score_mean_vec.tolist(),
+                    "score_std_batch": score_std_vec.tolist(),
+                    "stat.mean_per_ngram_penalized_batch": stat_penalized_vec.tolist(),
+                    "stat.std_per_ngram_penalized_batch": stat_variant_std_vec.tolist(),
+                    "penalty_hamming_batch": penalty_hamming_vec.tolist(),
                     "hamming_total_hd_batch": (hamming_batch.tolist() if hamming_batch is not None else None),
                     "hamming_avg_hd_batch": (hamming_avg_batch.tolist() if hamming_avg_batch is not None else None),
                     "hamming_weight": self._hamming_weight,
+                    "window.win_ngrams": int(W),
+                    "window.se_mode": se_name,
+                    "window.n_set": list(n_set),
+                    "window.stride_runes": int(stride),
+                    "window.L_n": L_n_map,
+                    "window.L_max": int(L_max),
+                    "window.n_windows": int(pct_mix.shape[1]),
+                    "stat.name": stat_name,
+                    "stat.variant": variant,
+                    "stat.ngrams_total": int(total_eval),
+                    **({"stat.ngrams_interior": int(interior_eval)} if se_name == "wise" else {}),
+                    "direction": self.direction.value,
+                    "objective.id": self._objective_id(stat_name, variant, W, n_set, self.direction.value, se_name),
+                    "objective.label": self._objective_label(stat_name, variant, W, n_set, self.direction.value, se_name),
+                    "ecdf.asset_id": asset_ids[0] if len(asset_ids) == 1 else asset_ids,
+                    "ecdf.asset_fingerprint": asset_fps[0] if len(asset_fps) == 1 else asset_fps,
+                    "ecdf.disk_dtype": "float64",
+                    "ecdf.canonical_dtype": "float64",
+                    "ecdf.compute_dtype": interp_dtypes[0] if len(interp_dtypes) == 1 else interp_dtypes,
+                    "ecdf.meta_hash": asset_fps[0] if len(asset_fps) == 1 else asset_fps,
+                    "ecdf.interp": "linear",
+                    "ecdf.interp_dtype": interp_dtypes[0] if len(interp_dtypes) == 1 else interp_dtypes,
+                    "ecdf.clamp_min": float(self._ecdf_clamp_min),
+                    "ecdf.clamp_max": float(self._ecdf_clamp_max),
+                }
+            if self._diagnostics_enabled and meta_json_list:
+                self._last_stats["ecdf.meta_json"] = meta_json_list
+            _tstash(self._telemetry, **self._last_stats)
+
+            am = [(c, int(n), float(w)) for (c, n, w) in self._active_models(self.use_wli)]
+            _tstash(self._telemetry, active_models=am,
+                    sum_weights=float(sum(w for _, _, w in am)))
+        except Exception:
+            pass
+
+        try:
+            self._last_raw_batch = stat_penalized_vec.astype(np.float32, copy=False)
+            self._last_raw_std_batch = stat_variant_std_vec.astype(np.float32, copy=False)
+        except Exception:
+            pass
+
+        return score_mean_vec
+
+    
+    def _score_raw_logp_win(self, pt_b: np.ndarray, wli_b: np.ndarray | None) -> np.ndarray:
+        self.ensure_loaded(self.device)
+        B, L = int(pt_b.shape[0]), int(pt_b.shape[1])
+        from rune_decrypter_prime.core.types import Stat
+
+        se_name = BaseScorer._se_name(self.se_mode)
+        if se_name != "nose":
+            raise ValueError("Torch scorer currently supports se_mode='nose' only")
+
+        stat = getattr(self.objective, "stat", None)
+        if stat not in (None, Stat.LOGP):
+            raise ValueError("torch backend only supports avg.logp")
+        stat_name = "logp"
+        W = int(self.win)
+        stride = int(self.stride) if int(self.stride) > 0 else 1
+
+        models = self._active_models(self.use_wli)
+        n_set = sorted({int(n) for _, n, _ in models})
+        if not n_set:
+            raise ValueError("No active models; check weights and include/use flags")
+        n_max = max(n_set)
+        L_max = W + n_max - 1
+        L_n_map = {int(n): (int(W) + int(n) - 1) for n in n_set}
+        nwin_aligned = max(0, L - L_max + 1)
+
+        variant = "mean_per_ngram_interior" if se_name == "wise" else "mean_per_ngram_total"
+        total_eval = (W + 2) if se_name == "wise" else W
+        interior_eval = W if se_name == "wise" else W
+
+        if nwin_aligned <= 0:
+            out = np.zeros((B,), dtype=np.float32)
+            stats: Dict[str, Any] = {
+                "score_std": 0.0,
+                "n_windows": 0,
+                "window.win_ngrams": int(W),
+                "window.se_mode": se_name,
+                "window.n_set": list(n_set),
+                "window.stride_runes": int(stride),
+                "window.L_n": L_n_map,
+                "window.L_max": int(L_max),
+                "window.n_windows": 0,
+                "stat.name": stat_name,
+                "stat.variant": variant,
+                "stat.ngrams_total": int(total_eval),
+                **({"stat.ngrams_interior": int(interior_eval)} if se_name == "wise" else {}),
+                "direction": self.direction.value,
+                "objective.id": self._objective_id(stat_name, variant, W, n_set, self.direction.value, se_name),
+                "objective.label": self._objective_label(stat_name, variant, W, n_set, self.direction.value, se_name),
+            }
+            if B == 1:
+                stats["score_mean"] = float(out[0])
+                stats["objective_stats"] = {
+                    f"{stat_name}_mean_per_ngram_total": 0.0,
+                    f"{stat_name}_mean_per_ngram_interior": 0.0,
+                    f"{stat_name}_mean_per_ngram_penalized": 0.0,
+                    "penalty_hamming": 0.0,
+                    "components": {},
+                    "windows": {},
+                    "n_windows": 0,
+                    "score_mean": float(out[0]),
+                }
+            else:
+                stats["score_mean_batch"] = out.astype(np.float32, copy=False).tolist()
+                stats["score_std_batch"] = [0.0] * B
+            _tstash(self._telemetry, **stats)
+            self._last_stats = stats
+            try:
+                self._last_raw_batch = out.astype(np.float32, copy=False)
+                self._last_raw_std_batch = np.zeros_like(out, dtype=np.float32)
+            except Exception:
+                pass
+            return out
+
+        pt_t = torch.from_numpy(pt_b).to(self.device, dtype=torch.uint8, non_blocking=True)
+        wli_t = None
+        if (wli_b is not None) and self.use_wli:
+            wli_t = torch.from_numpy(wli_b).to(self.device, dtype=torch.uint8, non_blocking=True)
+
+        nwin = ((nwin_aligned - 1) // stride) + 1
+        stat_total_mix = np.zeros((B, nwin), dtype=np.float32)
+        components = {} if B == 1 else None
+
+        for channel, n, w in models:
+            toks = self._pack_char_ngram(pt_t, int(n)) if channel == "char" else (
+                self._pack_wli_ngram(pt_t, wli_t, int(n)) if wli_t is not None else None)
+            if toks is None:
+                continue
+
+            h = (_xxh64_u32words_device(toks) if self.device.type == "cuda"
+                 else torch.from_numpy(_xxh64_u32words_cpu(toks).view(np.int64)).to(self.device))
+
+            tbl = self._ensure_table(channel, int(n))
+            keys_i64 = tbl["keys"]; logp_f32 = tbl["logp"]; mask = int(tbl["mask"])
+            fb = float(tbl["stats"]["fallback_logp"])
+
+            idx = (h & torch.tensor(mask, dtype=keys_i64.dtype, device=self.device)).to(torch.long)
+            out = torch.full(h.shape, fill_value=fb, dtype=torch.float32, device=self.device)
+            found = torch.zeros(h.shape, dtype=torch.bool, device=self.device)
+            for _ in range(1024):
+                k = keys_i64[idx]
+                is_empty = (k == 0)
+                is_match = (k == h)
+                take = (~found) & is_match
+                if take.any():
+                    out[take] = logp_f32[idx[take]]
+                    found[take] = True
+                cont = (~found) & (~is_empty)
+                if not cont.any():
+                    break
+                idx[cont] = (idx[cont] + 1) & mask
+
+            K = int(W)
+            if K <= 0 or out.shape[1] < K:
+                means = torch.empty((B, 0), dtype=torch.float32, device=self.device)
+            else:
+                means_full = out.unfold(dimension=1, size=K, step=1).contiguous().mean(dim=-1)
+                means_full = means_full[:, :nwin_aligned]
+                if stride != 1:
+                    means_full = means_full[:, ::stride]
+                means = means_full
+
+            means_np = means.detach().cpu().numpy()
+            means_np = apply_stat_transform("logp", means_np)
+            stat_total_mix += float(w) * means_np
+            if components is not None:
+                label = f"{'char' if channel == 'char' else 'wli'}_n{int(n)}"
+                components[label] = {
+                    f"{stat_name}_mean_per_ngram_total": float(np.mean(means_np)),
+                    f"{stat_name}_mean_per_ngram_interior": float(np.mean(means_np)),
+                }
+
+        stat_total_mean_vec = stat_total_mix.mean(axis=1).astype(np.float32, copy=False)
+        stat_total_std_vec = stat_total_mix.std(axis=1).astype(np.float32, copy=False)
+        stat_interior_mean_vec = stat_total_mean_vec
+        stat_interior_std_vec = stat_total_std_vec
+        stat_variant_mean_vec = stat_interior_mean_vec if se_name == "wise" else stat_total_mean_vec
+        stat_variant_std_vec = stat_interior_std_vec if se_name == "wise" else stat_total_std_vec
+
+        penalty_hamming_vec = np.zeros_like(stat_variant_mean_vec)
+        hamming_batch = None
+        hamming_avg_batch = None
+        if self._hamming_backend is not None and wli_b is not None:
+            try:
+                totals: list[float] = []
+                avgs: list[float] = []
+                for i in range(B):
+                    stats = self._hamming_backend.total_min_hd_stats(
+                        pt_b[i].tolist(),
+                        wli_b[i].tolist(),
+                        direction=self.direction,
+                        mode=self._hamming_direction_mode,
+                    )
+                    totals.append(float(stats.get("total_hd", 0.0)))
+                    avgs.append(float(stats.get("avg_hd_word", stats.get("total_hd", 0.0))))
+                penalties_arr = np.asarray(avgs, dtype=np.float32)
+                penalty_hamming_vec = -self._hamming_weight * penalties_arr
+                hamming_batch = np.asarray(totals, dtype=np.float32)
+                hamming_avg_batch = penalties_arr
+            except Exception:
+                hamming_batch = None
+                hamming_avg_batch = None
+
+        stat_penalized_vec = stat_variant_mean_vec + penalty_hamming_vec
+
+        window_pcts = None
+        if B == 1 and stat_total_mix.shape[1] > 0:
+            try:
+                window_pcts = {
+                    "p10": float(np.percentile(stat_total_mix[0], 10.0)),
+                    "p50": float(np.percentile(stat_total_mix[0], 50.0)),
+                    "p90": float(np.percentile(stat_total_mix[0], 90.0)),
+                }
+            except Exception:
+                window_pcts = None
+
+        try:
+            if B == 1:
+                objective = {
+                    f"{stat_name}_mean_per_ngram_total": float(stat_total_mean_vec[0]),
+                    f"{stat_name}_mean_per_ngram_interior": float(stat_interior_mean_vec[0]),
+                    f"{stat_name}_mean_per_ngram_penalized": float(stat_penalized_vec[0]),
+                    "penalty_hamming": float(penalty_hamming_vec[0]),
+                    "components": (components if components is not None else {}),
+                    "windows": (window_pcts if window_pcts is not None else {}),
+                    "n_windows": int(stat_total_mix.shape[1]),
+                    "score_mean": float(stat_penalized_vec[0]),
+                }
+                self._last_stats = {
+                    "n_windows": int(stat_total_mix.shape[1]),
+                    "score_mean": float(stat_penalized_vec[0]),
+                    "score_std": float(stat_variant_std_vec[0]),
+                    "stat.mean_per_ngram_total.mean": float(stat_total_mean_vec[0]),
+                    "stat.mean_per_ngram_total.std": float(stat_total_std_vec[0]),
+                    "stat.mean_per_ngram_interior.mean": float(stat_interior_mean_vec[0]),
+                    "stat.mean_per_ngram_interior.std": float(stat_interior_std_vec[0]),
+                    "stat.mean_per_ngram_penalized": float(stat_penalized_vec[0]),
+                    "stat.std_per_ngram_penalized": float(stat_variant_std_vec[0]),
+                    "penalty_hamming": float(penalty_hamming_vec[0]),
+                    "hamming_total_hd": (float(hamming_batch[0]) if hamming_batch is not None else None),
+                    "hamming_avg_hd": (float(hamming_avg_batch[0]) if hamming_avg_batch is not None else None),
+                    "hamming_weight": self._hamming_weight,
+                    "objective_stats": objective,
+                    "window.win_ngrams": int(W),
+                    "window.se_mode": se_name,
+                    "window.n_set": list(n_set),
+                    "window.stride_runes": int(stride),
+                    "window.L_n": L_n_map,
+                    "window.L_max": int(L_max),
+                    "window.n_windows": int(stat_total_mix.shape[1]),
+                    "stat.name": stat_name,
+                    "stat.variant": variant,
+                    "stat.ngrams_total": int(total_eval),
+                    **({"stat.ngrams_interior": int(interior_eval)} if se_name == "wise" else {}),
+                    "direction": self.direction.value,
+                    "objective.id": self._objective_id(stat_name, variant, W, n_set, self.direction.value, se_name),
+                    "objective.label": self._objective_label(stat_name, variant, W, n_set, self.direction.value, se_name),
+                }
+            else:
+                self._last_stats = {
+                    "n_windows": int(stat_total_mix.shape[1]),
+                    "score_mean_batch": stat_penalized_vec.tolist(),
+                    "score_std_batch": stat_variant_std_vec.tolist(),
+                    "stat.mean_per_ngram_penalized_batch": stat_penalized_vec.tolist(),
+                    "stat.std_per_ngram_penalized_batch": stat_variant_std_vec.tolist(),
+                    "penalty_hamming_batch": penalty_hamming_vec.tolist(),
+                    "hamming_total_hd_batch": (hamming_batch.tolist() if hamming_batch is not None else None),
+                    "hamming_avg_hd_batch": (hamming_avg_batch.tolist() if hamming_avg_batch is not None else None),
+                    "hamming_weight": self._hamming_weight,
+                    "window.win_ngrams": int(W),
+                    "window.se_mode": se_name,
+                    "window.n_set": list(n_set),
+                    "window.stride_runes": int(stride),
+                    "window.L_n": L_n_map,
+                    "window.L_max": int(L_max),
+                    "window.n_windows": int(stat_total_mix.shape[1]),
+                    "stat.name": stat_name,
+                    "stat.variant": variant,
+                    "stat.ngrams_total": int(total_eval),
+                    **({"stat.ngrams_interior": int(interior_eval)} if se_name == "wise" else {}),
+                    "direction": self.direction.value,
+                    "objective.id": self._objective_id(stat_name, variant, W, n_set, self.direction.value, se_name),
+                    "objective.label": self._objective_label(stat_name, variant, W, n_set, self.direction.value, se_name),
                 }
             _tstash(self._telemetry, **self._last_stats)
         except Exception:
             pass
 
         try:
-            self._last_raw_batch = raw_mean_vec.astype(np.float32, copy=False)
-            self._last_raw_std_batch = raw_std_vec.astype(np.float32, copy=False)
+            self._last_raw_batch = stat_penalized_vec.astype(np.float32, copy=False)
+            self._last_raw_std_batch = stat_variant_std_vec.astype(np.float32, copy=False)
         except Exception:
             pass
 
-        return raw_mean_vec
+        return stat_penalized_vec
 
     def set_hamming_progress(self, progress: float) -> None:
         """
