@@ -68,8 +68,8 @@ def _make_scorer_params(demo: Dict[str, Any]) -> Dict[str, Any]:
     return dict(
         include_char=True,
         use_word_breaks=True,
-        n_char=2,
-        n_wli=2,
+        char_weights={2: 0.3},
+        wli_weights={2: 0.7},
         encoding_dir=demo["encoding_dir"],
         objective="pct.logp.win10",
     )
@@ -114,7 +114,7 @@ def solve_with_wrappers(
     """Minimal Vigenere run using the ergonomic by_name wrapper helpers."""
     solver_spec = api.SolverSpec.beam(
         beam_width=18,
-        stop_score=0.55,
+        stop_score=0.54,
         plateau_rounds=6,
         plateau_min_delta=1e-4,
         log_interval=25,
@@ -148,7 +148,7 @@ def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any
         generations=18,
         elite_frac=0.2,
         mut_prob=0.15,
-        stop_score=0.5,
+        stop_score=0.54,
         plateau_rounds=4,
         plateau_min_delta=1e-4,
         **_progress_kwargs(demo),

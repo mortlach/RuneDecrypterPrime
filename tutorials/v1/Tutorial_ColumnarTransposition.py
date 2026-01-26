@@ -89,7 +89,7 @@ def main():
             mut_prob=0.3,
             tournament_k=3,
             plateau_rounds=12,
-            stop_score=0.503,
+            stop_score=0.54,
             print_progress=True,
         ),
         sa=dict(
@@ -99,20 +99,21 @@ def main():
             sa_cooling=0.997,
             plateau_rounds=300,
             local_improve_on_accept=True,
-            stop_score=0.503,
+            stop_score=0.54,
             print_progress=True,
         ),
 
         seed=TUTORIAL_SEED,
         verbose=True,
         log_interval=10,
-        stop_score=0.62,
+        stop_score=0.54,
     )
 
     # Scorer tuned for NO word-breaks
     scorer_params = {
         "objective": "pct.logp.win10",
-        "n_char": 2,
+        "char_weights": {2: 1.0},
+        "wli_weights": {},
         "use_word_breaks": False,  # force no WLI
         "include_char": True,
         "encoding_dir": direction,

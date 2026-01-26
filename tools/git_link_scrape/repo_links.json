@@ -1,9 +1,21 @@
 [
   {
+    "path": ".gitignore",
+    "size": 6559,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/.gitignore",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/.gitignore"
+  },
+  {
     "path": "CONTRIBUTING.md",
     "size": 126,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/CONTRIBUTING.md",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/CONTRIBUTING.md"
+  },
+  {
+    "path": "docs.zip",
+    "size": 162022,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/docs.zip",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/docs.zip"
   },
   {
     "path": "docs/appendices/determinism_checklist.md",
@@ -840,6 +852,18 @@
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/README.md"
   },
   {
+    "path": "README_TESTS_SCORING.md",
+    "size": 3014,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/README_TESTS_SCORING.md",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/README_TESTS_SCORING.md"
+  },
+  {
+    "path": "rune_decrypter_prime - Copy.zip",
+    "size": 1463943,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/rune_decrypter_prime%20-%20Copy.zip",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/rune_decrypter_prime%20-%20Copy.zip"
+  },
+  {
     "path": "solving/5455/diff_vig_variants.py",
     "size": 16805,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/solving/5455/diff_vig_variants.py",
@@ -1243,7 +1267,7 @@
   },
   {
     "path": "src/rune_decrypter_prime/core/config/scoring.py",
-    "size": 9939,
+    "size": 10115,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/core/config/scoring.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/core/config/scoring.py"
   },
@@ -1465,7 +1489,7 @@
   },
   {
     "path": "src/rune_decrypter_prime/scoring/base_scorer.py",
-    "size": 32498,
+    "size": 32544,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/scoring/base_scorer.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/base_scorer.py"
   },
@@ -1488,6 +1512,36 @@
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/hamming/backend.py"
   },
   {
+    "path": "src/rune_decrypter_prime/scoring/hamming/bindings.cpp",
+    "size": 1323,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/scoring/hamming/bindings.cpp",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/hamming/bindings.cpp"
+  },
+  {
+    "path": "src/rune_decrypter_prime/scoring/hamming/Flat2DArray.cpp",
+    "size": 25,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/scoring/hamming/Flat2DArray.cpp",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/hamming/Flat2DArray.cpp"
+  },
+  {
+    "path": "src/rune_decrypter_prime/scoring/hamming/Flat2DArray.h",
+    "size": 1993,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/scoring/hamming/Flat2DArray.h",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/hamming/Flat2DArray.h"
+  },
+  {
+    "path": "src/rune_decrypter_prime/scoring/hamming/Hamming.cpp",
+    "size": 21,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/scoring/hamming/Hamming.cpp",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/hamming/Hamming.cpp"
+  },
+  {
+    "path": "src/rune_decrypter_prime/scoring/hamming/Hamming.h",
+    "size": 6305,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/scoring/hamming/Hamming.h",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/hamming/Hamming.h"
+  },
+  {
     "path": "src/rune_decrypter_prime/scoring/hamming/loader.py",
     "size": 4029,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/scoring/hamming/loader.py",
@@ -1500,20 +1554,38 @@
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/hamming/setup_hamming.py"
   },
   {
+    "path": "src/rune_decrypter_prime/scoring/hamming/Types.h",
+    "size": 220,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/scoring/hamming/Types.h",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/hamming/Types.h"
+  },
+  {
     "path": "src/rune_decrypter_prime/scoring/language_model/__init__.py",
     "size": 0,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/scoring/language_model/__init__.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/language_model/__init__.py"
   },
   {
+    "path": "src/rune_decrypter_prime/scoring/language_model/ecdf_validator.py",
+    "size": 8617,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/scoring/language_model/ecdf_validator.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/language_model/ecdf_validator.py"
+  },
+  {
+    "path": "src/rune_decrypter_prime/scoring/language_model/fastlm.cpp",
+    "size": 19469,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/scoring/language_model/fastlm.cpp",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/language_model/fastlm.cpp"
+  },
+  {
     "path": "src/rune_decrypter_prime/scoring/language_model/language_model_prime.py",
-    "size": 16863,
+    "size": 16795,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/scoring/language_model/language_model_prime.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/language_model/language_model_prime.py"
   },
   {
     "path": "src/rune_decrypter_prime/scoring/language_model/language_model_prime_runtime.py",
-    "size": 21999,
+    "size": 28942,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/scoring/language_model/language_model_prime_runtime.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/language_model/language_model_prime_runtime.py"
   },
@@ -1543,7 +1615,7 @@
   },
   {
     "path": "src/rune_decrypter_prime/scoring/rune_scorer.py",
-    "size": 33321,
+    "size": 52140,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/scoring/rune_scorer.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/rune_scorer.py"
   },
@@ -1561,7 +1633,7 @@
   },
   {
     "path": "src/rune_decrypter_prime/scoring/torch_rune_scorer.py",
-    "size": 37650,
+    "size": 53890,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/scoring/torch_rune_scorer.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/torch_rune_scorer.py"
   },
@@ -1573,9 +1645,15 @@
   },
   {
     "path": "src/rune_decrypter_prime/scoring/unified_tables.py",
-    "size": 4908,
+    "size": 5152,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/scoring/unified_tables.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/unified_tables.py"
+  },
+  {
+    "path": "src/rune_decrypter_prime/scoring/windowing.py",
+    "size": 2546,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/src/rune_decrypter_prime/scoring/windowing.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/src/rune_decrypter_prime/scoring/windowing.py"
   },
   {
     "path": "src/rune_decrypter_prime/solvers/__init__.py",
@@ -2202,16 +2280,52 @@
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/__init__.py"
   },
   {
+    "path": "tests/scoring/_baselines/scorer_drift_baseline.json",
+    "size": 40843,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/scoring/_baselines/scorer_drift_baseline.json",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/_baselines/scorer_drift_baseline.json"
+  },
+  {
+    "path": "tests/scoring/_helpers/__init__.py",
+    "size": 0,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/scoring/_helpers/__init__.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/_helpers/__init__.py"
+  },
+  {
+    "path": "tests/scoring/_helpers/lm_test_guard.py",
+    "size": 6936,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/scoring/_helpers/lm_test_guard.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/_helpers/lm_test_guard.py"
+  },
+  {
+    "path": "tests/scoring/generate_scorer_baselines.py",
+    "size": 9923,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/scoring/generate_scorer_baselines.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/generate_scorer_baselines.py"
+  },
+  {
     "path": "tests/scoring/test_backend_selection_and_parity.py",
-    "size": 2152,
+    "size": 2339,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/scoring/test_backend_selection_and_parity.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/test_backend_selection_and_parity.py"
+  },
+  {
+    "path": "tests/scoring/test_ecdf_cache_strict.py",
+    "size": 4427,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/scoring/test_ecdf_cache_strict.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/test_ecdf_cache_strict.py"
   },
   {
     "path": "tests/scoring/test_ecdf_energy_clamp.py",
     "size": 326,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/scoring/test_ecdf_energy_clamp.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/test_ecdf_energy_clamp.py"
+  },
+  {
+    "path": "tests/scoring/test_ecdf_validator.py",
+    "size": 3578,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/scoring/test_ecdf_validator.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/test_ecdf_validator.py"
   },
   {
     "path": "tests/scoring/test_hamming_anneal.py",
@@ -2227,21 +2341,57 @@
   },
   {
     "path": "tests/scoring/test_hamming_integration.py",
-    "size": 6339,
+    "size": 7292,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/scoring/test_hamming_integration.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/test_hamming_integration.py"
   },
   {
+    "path": "tests/scoring/test_lm_raw_data_integrity.py",
+    "size": 6441,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/scoring/test_lm_raw_data_integrity.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/test_lm_raw_data_integrity.py"
+  },
+  {
     "path": "tests/scoring/test_pct_win10_stats_and_telemetry.py",
-    "size": 8913,
+    "size": 9714,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/scoring/test_pct_win10_stats_and_telemetry.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/test_pct_win10_stats_and_telemetry.py"
+  },
+  {
+    "path": "tests/scoring/test_scorer_kaeding_style_avg_logp.py",
+    "size": 5141,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/scoring/test_scorer_kaeding_style_avg_logp.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/test_scorer_kaeding_style_avg_logp.py"
+  },
+  {
+    "path": "tests/scoring/test_scorer_pct_edges_and_clamps.py",
+    "size": 3610,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/scoring/test_scorer_pct_edges_and_clamps.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/test_scorer_pct_edges_and_clamps.py"
+  },
+  {
+    "path": "tests/scoring/test_scorer_smoothing_effect.py",
+    "size": 2520,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/scoring/test_scorer_smoothing_effect.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/test_scorer_smoothing_effect.py"
   },
   {
     "path": "tests/scoring/test_stat_transform_hook.py",
     "size": 1158,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/scoring/test_stat_transform_hook.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/test_stat_transform_hook.py"
+  },
+  {
+    "path": "tests/scoring/test_windowing_spans.py",
+    "size": 1944,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/scoring/test_windowing_spans.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/test_windowing_spans.py"
+  },
+  {
+    "path": "tests/scoring/test_wli_windowing.py",
+    "size": 959,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/scoring/test_wli_windowing.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/scoring/test_wli_windowing.py"
   },
   {
     "path": "tests/smoke/__init__.py",
@@ -2275,7 +2425,7 @@
   },
   {
     "path": "tests/solvers/test_permutation_optimizers.py",
-    "size": 3116,
+    "size": 3034,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/solvers/test_permutation_optimizers.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/solvers/test_permutation_optimizers.py"
   },
@@ -2377,7 +2527,7 @@
   },
   {
     "path": "tests/tutorials/test_crib_drag_api.py",
-    "size": 5659,
+    "size": 5545,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/tutorials/test_crib_drag_api.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/tutorials/test_crib_drag_api.py"
   },
@@ -2389,25 +2539,25 @@
   },
   {
     "path": "tests/tutorials/test_future_presets.py",
-    "size": 2451,
+    "size": 2422,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/tutorials/test_future_presets.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/tutorials/test_future_presets.py"
   },
   {
     "path": "tests/tutorials/test_ga_stage2_regression.py",
-    "size": 2534,
+    "size": 3293,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/tutorials/test_ga_stage2_regression.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/tutorials/test_ga_stage2_regression.py"
   },
   {
     "path": "tests/tutorials/test_hybrid_stage2_regression.py",
-    "size": 2477,
+    "size": 3105,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/tutorials/test_hybrid_stage2_regression.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/tutorials/test_hybrid_stage2_regression.py"
   },
   {
     "path": "tests/tutorials/test_mono_substitution.py",
-    "size": 3366,
+    "size": 3669,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/tutorials/test_mono_substitution.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/tutorials/test_mono_substitution.py"
   },
@@ -2419,7 +2569,7 @@
   },
   {
     "path": "tests/tutorials/test_sa_stage2_regression.py",
-    "size": 2232,
+    "size": 2852,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tests/tutorials/test_sa_stage2_regression.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tests/tutorials/test_sa_stage2_regression.py"
   },
@@ -2488,6 +2638,60 @@
     "size": 5363,
     "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tools/docs_lint/run_docs_lint.py",
     "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tools/docs_lint/run_docs_lint.py"
+  },
+  {
+    "path": "tools/git_link_scrape/git_link_scrpae_readme.txt",
+    "size": 6718,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tools/git_link_scrape/git_link_scrpae_readme.txt",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tools/git_link_scrape/git_link_scrpae_readme.txt"
+  },
+  {
+    "path": "tools/git_link_scrape/repo_links.csv",
+    "size": 124922,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tools/git_link_scrape/repo_links.csv",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tools/git_link_scrape/repo_links.csv"
+  },
+  {
+    "path": "tools/git_link_scrape/repo_links.json",
+    "size": 158185,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tools/git_link_scrape/repo_links.json",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tools/git_link_scrape/repo_links.json"
+  },
+  {
+    "path": "tools/git_link_scrape/repo_links.md",
+    "size": 221952,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tools/git_link_scrape/repo_links.md",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tools/git_link_scrape/repo_links.md"
+  },
+  {
+    "path": "tools/git_link_scrape/scrap_github.py",
+    "size": 4706,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tools/git_link_scrape/scrap_github.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tools/git_link_scrape/scrap_github.py"
+  },
+  {
+    "path": "tools/lm_ecdf/buildcdf.py",
+    "size": 21575,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tools/lm_ecdf/buildcdf.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tools/lm_ecdf/buildcdf.py"
+  },
+  {
+    "path": "tools/lm_ecdf/language_model_prime.py",
+    "size": 12456,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tools/lm_ecdf/language_model_prime.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tools/lm_ecdf/language_model_prime.py"
+  },
+  {
+    "path": "tools/lm_ecdf/lmprime_runtime.py",
+    "size": 12643,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tools/lm_ecdf/lmprime_runtime.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tools/lm_ecdf/lmprime_runtime.py"
+  },
+  {
+    "path": "tools/lm_ecdf/migrate_ecdf_assets.py",
+    "size": 6955,
+    "blob_url": "https://github.com/mortlach/RuneDecrypterPrime/blob/score_upgrade/tools/lm_ecdf/migrate_ecdf_assets.py",
+    "raw_url": "https://raw.githubusercontent.com/mortlach/RuneDecrypterPrime/score_upgrade/tools/lm_ecdf/migrate_ecdf_assets.py"
   },
   {
     "path": "tutorials/__init__.py",

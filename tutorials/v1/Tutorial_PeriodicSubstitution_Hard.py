@@ -127,32 +127,41 @@ def _objective_fields(sol) -> dict:
     return obj if isinstance(obj, dict) else {}
 
 
-def _solution_raw(sol) -> float | None:
+def _solution_penalized_mean(sol) -> float | None:
     obj = _objective_fields(sol)
-    raw = obj.get("raw_total")
-    if raw is None:
-        raw = obj.get("raw")
-    if raw is None:
-        meta = getattr(sol, "meta", None)
-        if isinstance(meta, dict):
-            tel = meta.get("telemetry", {})
-            if isinstance(tel, dict):
-                kaeding = tel.get("kaeding")
-                if isinstance(kaeding, dict):
-                    raw = kaeding.get("best_raw")
-    if raw is None:
-        return None
-    try:
-        return float(raw)
-    except (TypeError, ValueError):
-        return None
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            if isinstance(key, str) and key.endswith("_mean_per_ngram_penalized"):
+                try:
+                    return float(value)
+                except (TypeError, ValueError):
+                    pass
+    meta = getattr(sol, "meta", None)
+    if isinstance(meta, dict):
+        tel = meta.get("telemetry", {})
+        if isinstance(tel, dict):
+            stat_penalized = tel.get("stat.mean_per_ngram_penalized")
+            if stat_penalized is not None:
+                try:
+                    return float(stat_penalized)
+                except (TypeError, ValueError):
+                    pass
+            kaeding = tel.get("kaeding")
+            if isinstance(kaeding, dict):
+                legacy = kaeding.get("best_raw")
+                if legacy is not None:
+                    try:
+                        return float(legacy)
+                    except (TypeError, ValueError):
+                        pass
+    return None
 
 
 def _format_scores(sol) -> str:
     pct = float(getattr(sol, "score", 0.0) or 0.0)
-    raw_total = _solution_raw(sol)
-    raw_str = f"{raw_total:.6f}" if raw_total is not None else "N/A"
-    return f"pct_lm={pct:.6f} raw_total={raw_str}"
+    penalized_mean = _solution_penalized_mean(sol)
+    penalized_str = f"{penalized_mean:.6f}" if penalized_mean is not None else "N/A"
+    return f"pct_lm={pct:.6f} penalized_mean={penalized_str}"
 
 
 def _print_scorer_params(label: str, params: dict) -> None:
@@ -189,7 +198,11 @@ def _print_solver_cfg(label: str, cfg: dict) -> None:
         "progress_pct",
         "print_progress",
     ]
-    parts = [f"{k}={cfg.get(k)}" for k in keys if k in cfg]
+    alias = {
+        "use_raw_score": "use_penalized_score",
+        "raw_accept_min_delta": "penalized_min_delta",
+    }
+    parts = [f"{alias.get(k, k)}={cfg.get(k)}" for k in keys if k in cfg]
     print(f"{label} solver config: " + ", ".join(parts))
 
 
@@ -239,7 +252,7 @@ def _print_hybrid_cfg(label: str, cfg: dict) -> None:
 
 
 def _print_optimizer_scalar(label: str, use_raw: bool, objective: str) -> None:
-    scalar = "raw_total" if use_raw else "pct_lm"
+    scalar = "penalized_mean" if use_raw else "pct_lm"
     print(f"{label} optimizer scalar: {scalar} (objective={objective})")
 
 

@@ -85,7 +85,7 @@ def main():
             mut_prob=0.35,
             tournament_k=3,
             plateau_rounds=8,
-            stop_score=0.150,
+            stop_score=0.55,
             print_progress=True,
         ),
         sa=dict(
@@ -99,7 +99,7 @@ def main():
             sa_rescue_drop_abs=0.02,
             sa_rescue_drop_ratio=0.5,
             local_improve_on_accept=False,
-            stop_score=0.150,
+            stop_score=0.55,
             print_progress=True,
         ),
 
@@ -107,7 +107,7 @@ def main():
         seed=TUTORIAL_SEED,
         verbose=True,
         log_interval=10,
-        stop_score=0.150,
+        stop_score=0.55,
     )
 
     # 3) Run solver

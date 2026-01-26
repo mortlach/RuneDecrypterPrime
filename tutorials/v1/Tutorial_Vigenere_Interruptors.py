@@ -101,10 +101,10 @@ def main() -> None:
         solver=solver,
         scorer_params=dict(
             objective="pct.logp.win10",
-            n_char=2,
-            n_wli=2,
             include_char=True,
             use_word_breaks=True,
+            char_weights={2: 0.3},
+            wli_weights={2: 0.7},
             encoding_dir=direction,
         ),
         wli_data=wli,

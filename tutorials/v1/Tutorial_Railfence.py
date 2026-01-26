@@ -72,7 +72,7 @@ def main() -> None:
     solver_spec = SolverSpec.beam(
         beam_width=64,
         log_interval=20,
-        stop_score=0.56,
+        stop_score=0.54,
         plateau_rounds=40,
         plateau_min_delta=1e-4,
         seed=TUTORIAL_SEED,
@@ -80,10 +80,10 @@ def main() -> None:
 
     scorer_params = dict(
         objective="pct.logp.win10",
-        n_char=2,
-        n_wli=None,
         include_char=True,
         use_word_breaks=False,  # ciphertext lost spacing during transposition
+        char_weights={2: 1.0},
+        wli_weights={},
         encoding_dir=direction,
     )
 

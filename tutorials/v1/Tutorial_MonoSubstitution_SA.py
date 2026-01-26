@@ -112,7 +112,7 @@ def main():
 
         plateau_rounds=60,
         plateau_min_delta=1e-4,
-        stop_score=0.150,
+        stop_score=0.55,
         progress_pct=2,
         print_progress=True,
         verbose=True,

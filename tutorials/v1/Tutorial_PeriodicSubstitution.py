@@ -157,6 +157,7 @@ def main() -> None:
         )
         key_spec = KeySpec.periodic_substitution(period=period, alphabet_size=ALPHABET)
 
+        plateau_rounds = max(10, int(cfg["steps"] * 0.1))
         solver_kwargs = dict(
             steps=cfg["steps"],
             restarts=cfg["restarts"],
@@ -164,8 +165,9 @@ def main() -> None:
             slip_every=cfg["slip_every"],
             slip_blocks=cfg["slip_blocks"],
             block_schedule="random",
-            plateau_rounds=0,
-            plateau_min_delta=0.0,
+            plateau_rounds=plateau_rounds,
+            plateau_min_delta=1e-4,
+            stop_score=0.55,
             progress_pct=2,
             print_progress=True,
             seed=TUTORIAL_SEED,

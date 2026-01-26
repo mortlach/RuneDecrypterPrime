@@ -84,16 +84,18 @@ def main() -> None:
         mut_prob=0.25,
         tournament_k=4,
         plateau_rounds=25,
+        plateau_min_delta=1e-4,
+        stop_score=0.54,
     )
     baseline_solver = SolverSpec.ga(seed=2024, **solver_kwargs)
     crib_solver = SolverSpec.ga(seed=4242, **solver_kwargs)
 
     scorer_params = dict(
         objective="pct.logp.win10",
-        n_char=2,
-        n_wli=2,
         include_char=True,
         use_word_breaks=True,
+        char_weights={2: 0.3},
+        wli_weights={2: 0.7},
         encoding_dir=direction,
     )
 

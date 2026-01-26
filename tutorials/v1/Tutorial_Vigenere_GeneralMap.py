@@ -59,7 +59,7 @@ def main():
     key_spec   = KeySpec.repeat(len=len(key_nums))
     solve_spec = SolverSpec.beam(
         beam_width=24,
-        stop_score=0.32,
+        stop_score=0.54,
         plateau_rounds=6,
         plateau_min_delta=1e-4,
         max_children_per_parent=16,

@@ -42,7 +42,7 @@ if hasattr(sys.stdout, "reconfigure"):
 # Default to seeded keys for reproducible convergence
 START_MODE = "seeded"
 RUN_PROFILE = "medium"
-STOP_SCORE = 0.150
+STOP_SCORE = 0.55
 TUTORIAL_SEED = 12345
 CIPHERTEXT_SEED = 12345
 
@@ -92,7 +92,7 @@ def _solve_once(direction: Direction, telemetry_on: bool):
         seed_keys = 240
         seed_swaps = 3
         run_profile = "long"
-        stop_score = 0.50
+        stop_score = 0.56
     else:
         seed_keys = 120
         seed_swaps = 2
