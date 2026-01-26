@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 OWNER = "mortlach"
 REPO = "RuneDecrypterPrime"
-BRANCH = "score_upgrade"
+BRANCH = "dev"
 
 OUT_JSON = "repo_links.json"
 OUT_CSV = "repo_links.csv"
