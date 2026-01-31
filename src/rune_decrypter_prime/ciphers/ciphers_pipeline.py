@@ -101,13 +101,18 @@ class CipherPipelineMixin:
         enabled by additive ciphers that want the optional invariant check.
         """
         self._intr_mgr = InterruptorManager()
+        self._text_perm_full = None
+        self._text_perm_inv = None
 
         if initial_text_permutation_indices is not None:
-            # Explicit permutations bypass the named "ltr"/"rtl" modes so Stage-2 can track
-            # the exact input ordering that was applied upstream.
-            self._trans_mgr = TranspositionManager(text_mode="perm", key_mode=key_transposition,
-                                                   text_perm=np.asarray(initial_text_permutation_indices,
-                                                                        dtype=np.int64))
+            perm = np.asarray(initial_text_permutation_indices, dtype=np.int64).reshape(-1)
+            self._validate_full_perm(perm)
+            self._text_perm_full = perm
+            inv = np.empty_like(perm)
+            inv[perm] = np.arange(perm.size, dtype=np.int64)
+            self._text_perm_inv = inv
+            # Explicit permutations override named text modes; keep text transposition neutral.
+            self._trans_mgr = TranspositionManager(text_mode="ltr", key_mode=key_transposition)
         else:
             self._trans_mgr = TranspositionManager(text_mode=text_transposition, key_mode=key_transposition)
         # Only additive ciphers (e.g., Vigenère) should enable this in their __init__
@@ -116,10 +121,45 @@ class CipherPipelineMixin:
     @property
     def initial_text_permutation_indices(self) -> Optional[list[int]]:
         """Ground truth: explicit ciphertext-index permutation applied in core space, or None."""
+        if self._text_perm_full is not None:
+            return [int(x) for x in np.asarray(self._text_perm_full, dtype=np.int64).tolist()]
         if getattr(self._trans_mgr, "text_mode", None) != "perm":
             return None
         tp = getattr(self._trans_mgr, "_text_perm", None)
         return None if tp is None else [int(x) for x in np.asarray(tp, dtype=np.int64).tolist()]
+
+    @staticmethod
+    def _validate_full_perm(perm: np.ndarray) -> None:
+        if perm.ndim != 1:
+            raise ValueError("text_perm must be 1-D")
+        n = int(perm.size)
+        if n == 0:
+            return
+        if (perm < 0).any() or (perm >= n).any():
+            raise ValueError("text_perm must be a permutation of 0..n-1")
+        if np.unique(perm).size != n:
+            raise ValueError("text_perm must not contain duplicates")
+
+    def _apply_full_text_perm(self, arr: np.ndarray) -> np.ndarray:
+        if self._text_perm_full is None:
+            return arr
+        if self._text_perm_full.size != arr.size:
+            raise ValueError("text_perm must match text length")
+        return arr[self._text_perm_full]
+
+    def _undo_full_text_perm(self, arr: np.ndarray) -> np.ndarray:
+        if self._text_perm_full is None:
+            return arr
+        if self._text_perm_inv is None or self._text_perm_inv.size != arr.size:
+            raise ValueError("text_perm must match text length")
+        return arr[self._text_perm_inv]
+
+    def _map_interrupt_idx_for_perm(self, idx: np.ndarray, length: int) -> np.ndarray:
+        if self._text_perm_full is None:
+            return idx
+        if self._text_perm_inv is None or self._text_perm_full.size != int(length):
+            raise ValueError("text_perm must match text length")
+        return self._text_perm_inv[idx]
 
     # ---------- Decrypt (canonical pipeline) ----------
     def decrypt(
@@ -176,18 +216,23 @@ class CipherPipelineMixin:
         else:
             ct_idx = self._as_u8(ciphertext, "ciphertext")
 
-        # 2) remove interruptors (absolute index-space)
+        # 2) optional full-text permutation (applies before interruptor removal)
+        ct_full = ct_idx
+        ct_idx = self._apply_full_text_perm(ct_idx)
+
+        # 3) remove interruptors (absolute index-space, mapped if permuted)
         if interrupt_idx is not None:
             idx = self._as_intp(interrupt_idx, "interrupt_idx")
-            self._validate_interrupt_idx(idx, int(ct_idx.size))
+            self._validate_interrupt_idx(idx, int(ct_full.size))
+            idx = self._map_interrupt_idx_for_perm(idx, int(ct_full.size))
             ct_core, info = self._intr_mgr.remove_from(ct_idx, possible_idx=idx)
         else:
             ct_core, info = self._intr_mgr.remove_from(ct_idx, possible_idx=None)
 
-        # 3) text transposition (core-only)
+        # 4) text transposition (core-only)
         ct_tr = self._trans_mgr.apply_text(ct_core)
 
-        # 4) key -> [B,K] and key transposition (core semantics)
+        # 5) key -> [B,K] and key transposition (core semantics)
         key_arr = self._as_key_dtype(key, "key")
         if getattr(self, "mod_keys", True):
             key_arr = key_arr % self.A
@@ -197,10 +242,10 @@ class CipherPipelineMixin:
         if keys_tr.size == 0 or keys_tr.shape[0] == 0:
             return np.empty((0, int(ct_idx.size)), dtype=np.uint8)
 
-        # 5) cipher-specific batch decrypt in transposed/core space
+        # 6) cipher-specific batch decrypt in transposed/core space
         plains_tr = self._core_decrypt_batch(ct_tr, keys_tr)  # [B,L_core_tr] uint8
 
-        # 6) optional invariant (do NOT reimplement maths here)
+        # 7) optional invariant (do NOT reimplement maths here)
         if (getattr(self, "_additive_debug", False) or
             (hasattr(self, "keyops") and getattr(self.keyops.caps, "can_additive_invariant", False))) \
                 and keys_tr.shape[0] >= 1:
@@ -208,13 +253,14 @@ class CipherPipelineMixin:
             if not np.array_equal(re_enc, ct_tr):
                 raise AssertionError("core re-encrypt mismatch")
 
-        # 7) undo transposition; reinsert interruptors; stack
+        # 8) undo transposition; reinsert interruptors; undo full permutation; stack
         B, _ = plains_tr.shape
-        L_full = int(ct_idx.size)
+        L_full = int(ct_full.size)
         batch_out: list[np.ndarray] = []
         for i in range(B):
             cand_core = self._trans_mgr.undo_text(plains_tr[i])
             cand_full = self._intr_mgr.insert_into(cand_core, info)
+            cand_full = self._undo_full_text_perm(cand_full)
             cand_full = np.asarray(cand_full, dtype=np.uint8)
             if cand_full.ndim != 1 or cand_full.size != L_full:
                 raise ValueError(f"insert_into returned shape {cand_full.shape}, expected ({L_full},)")
@@ -236,18 +282,23 @@ class CipherPipelineMixin:
         # 1) normalise
         pt_idx = self._as_u8(plaintext, "plaintext")
 
-        # 2) remove interruptors (absolute index-space)
+        # 2) optional full-text permutation (applies before interruptor removal)
+        pt_full = pt_idx
+        pt_idx = self._apply_full_text_perm(pt_idx)
+
+        # 3) remove interruptors (absolute index-space, mapped if permuted)
         if interrupt_idx is not None:
             idx = self._as_intp(interrupt_idx, "interrupt_idx")
-            self._validate_interrupt_idx(idx, int(pt_idx.size))
+            self._validate_interrupt_idx(idx, int(pt_full.size))
+            idx = self._map_interrupt_idx_for_perm(idx, int(pt_full.size))
             pt_core, info = self._intr_mgr.remove_from(pt_idx, possible_idx=idx)
         else:
             pt_core, info = self._intr_mgr.remove_from(pt_idx, possible_idx=None)
 
-        # 3) text transposition (core-only)
+        # 4) text transposition (core-only)
         pt_tr = self._trans_mgr.apply_text(pt_core)
 
-        # 4) key -> [B,K] and key transposition (core semantics)
+        # 5) key -> [B,K] and key transposition (core semantics)
         key_arr = self._as_key_dtype(key, "key")
         if getattr(self, "mod_keys", True):
             key_arr = key_arr % self.A
@@ -255,10 +306,10 @@ class CipherPipelineMixin:
             key_arr = key_arr[None, :]  # [1,K]
         keys_tr = self._trans_mgr.apply_key(key_arr)
 
-        # 5) cipher-specific batch encrypt in transposed/core space
+        # 6) cipher-specific batch encrypt in transposed/core space
         cts_tr = self._core_encrypt_batch(pt_tr, keys_tr)  # [B,L_core_tr] uint8
 
-        # 6) optional invariant (do NOT reimplement maths here)
+        # 7) optional invariant (do NOT reimplement maths here)
         if (getattr(self, "_additive_debug", False) or
             (hasattr(self, "keyops") and getattr(self.keyops.caps, "can_additive_invariant", False))) \
                 and keys_tr.shape[0] >= 1:
@@ -266,13 +317,14 @@ class CipherPipelineMixin:
             if not np.array_equal(recon, pt_tr):
                 raise AssertionError("core re-decrypt mismatch")
 
-        # 7) undo transposition; reinsert interruptors; stack
+        # 8) undo transposition; reinsert interruptors; undo full permutation; stack
         B, _ = cts_tr.shape
-        L_full = int(pt_idx.size)
+        L_full = int(pt_full.size)
         batch_out: list[np.ndarray] = []
         for i in range(B):
             cand_core = self._trans_mgr.undo_text(cts_tr[i])
             cand_full = self._intr_mgr.insert_into(cand_core, info)
+            cand_full = self._undo_full_text_perm(cand_full)
             cand_full = np.asarray(cand_full, dtype=np.uint8)
             if cand_full.ndim != 1 or cand_full.size != L_full:
                 raise ValueError(f"insert_into returned shape {cand_full.shape}, expected ({L_full},)")

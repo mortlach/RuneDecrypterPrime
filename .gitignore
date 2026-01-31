@@ -244,4 +244,4 @@ src/rune_decrypter_prime/data/language_model/lmp/wli/rtl/wli29_joint_rtl_4_nose.
 src/rune_decrypter_prime/data/language_model/lmp/wli/rtl/wli29_joint_rtl_4_wise.bin.zst
 /solving
 /planning
-README_TESTS_SCORING_2.md
+planning/README_TESTS_SCORING_2.md

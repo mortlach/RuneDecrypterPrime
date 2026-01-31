@@ -235,18 +235,12 @@ def coerce_wli_for_config(wli):
     if wli is None:
         return None
     converted = []
-    needs_span_conversion = any(int(pair[1]) < int(pair[0]) for pair in wli if pair is not None)
     for pair in wli:
         if pair is None:
             continue
-        start = int(pair[0])
-        second = int(pair[1])
-        if needs_span_conversion:
-            span = max(second, 0)
-            end = start + max(span - 1, 0)
-        else:
-            end = second
-        if end < start:
-            end = start
-        converted.append((start, end))
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            raise ValueError("wli entries must be (pos_in_word, word_len) pairs")
+        pos = int(pair[0])
+        ln = int(pair[1])
+        converted.append([pos, ln])
     return converted

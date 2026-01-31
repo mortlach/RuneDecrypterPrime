@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from rune_decrypter_prime.core.config import CipherConfig
 from rune_decrypter_prime.ciphers.periodic_columnar_cipher import PeriodicColumnarCipher
@@ -46,6 +47,31 @@ def test_periodic_columnar_columns_one():
     keyops = PeriodicStructuredMatrixKeyOps(K=key_len, period=period, A=A, columns=columns)
     key = keyops.random(rng)
     pt = np.array([0, 1, 2, 3, 4, 5, 6, 0], dtype=np.uint8)
+
+    cfg = _make_cfg(period, A, columns, "sub_then_col")
+    cipher = PeriodicColumnarCipher(cfg)
+    ct = cipher.encrypt_single(plaintext=pt, key=key)
+    pt_out = cipher.decrypt_single(ciphertext=ct, key=key)
+    assert np.array_equal(pt_out, pt)
+
+
+@pytest.mark.tier_a
+@pytest.mark.parametrize(
+    "length, columns",
+    [
+        (7, 4),
+        (10, 6),
+        (13, 5),
+    ],
+)
+def test_periodic_columnar_roundtrip_lengths_not_multiple_of_columns(length, columns):
+    period = 2
+    A = 5
+    key_len = period * A + columns
+    rng = np.random.default_rng(4)
+    keyops = PeriodicStructuredMatrixKeyOps(K=key_len, period=period, A=A, columns=columns)
+    key = keyops.random(rng)
+    pt = rng.integers(0, A, size=length, dtype=np.uint8)
 
     cfg = _make_cfg(period, A, columns, "sub_then_col")
     cipher = PeriodicColumnarCipher(cfg)

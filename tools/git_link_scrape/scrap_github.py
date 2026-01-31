@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 OWNER = "mortlach"
 REPO = "RuneDecrypterPrime"
-BRANCH = "dev"
+BRANCH = "local_stress"
 
 OUT_JSON = "repo_links.json"
 OUT_CSV = "repo_links.csv"
@@ -53,8 +53,34 @@ GITHUB_TOKEN = ""  # or paste a token, or leave blank
 class LinkRow:
     path: str
     size: int
-    blob_url: str
-    raw_url: str
+    blob_branch_url: str
+    raw_branch_url: str
+    blob_commit_url: str
+    raw_commit_url: str
+
+def _resolve_branch_commit(owner: str, repo: str, branch: str, token: str = "") -> str:
+    ref = _http_json(
+        f"https://api.github.com/repos/{owner}/{repo}/git/refs/heads/{branch}",
+        token,
+    )
+    return ref["object"]["sha"]
+
+def _make_urls(
+    owner: str,
+    repo: str,
+    branch: str,
+    commit_sha: str,
+    path: str,
+) -> tuple[str, str, str, str]:
+    quoted_path = "/".join(urllib.parse.quote(p) for p in path.split("/"))
+
+    blob_branch = f"https://github.com/{owner}/{repo}/blob/{branch}/{quoted_path}"
+    raw_branch  = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{quoted_path}"
+
+    blob_commit = f"https://github.com/{owner}/{repo}/blob/{commit_sha}/{quoted_path}"
+    raw_commit  = f"https://raw.githubusercontent.com/{owner}/{repo}/{commit_sha}/{quoted_path}"
+
+    return blob_branch, raw_branch, blob_commit, raw_commit
 
 
 def _http_json(url: str, token: str = "") -> Dict[str, Any]:
@@ -97,52 +123,75 @@ def _should_include(path: str, size: int) -> bool:
     return True
 
 
-def _make_urls(owner: str, repo: str, branch: str, path: str) -> Tuple[str, str]:
-    # Raw URLs need URL-encoding for unusual characters/spaces.
-    quoted_path = "/".join(urllib.parse.quote(p) for p in path.split("/"))
-    blob = f"https://github.com/{owner}/{repo}/blob/{branch}/{quoted_path}"
-    raw = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{quoted_path}"
-    return blob, raw
-
 
 def main() -> None:
     token = (GITHUB_TOKEN or "").strip()
+
+    commit_sha = _resolve_branch_commit(OWNER, REPO, BRANCH, token)
     tree_sha = _get_tree_sha(OWNER, REPO, BRANCH, token)
     tree = _get_repo_tree(OWNER, REPO, tree_sha, token)
 
     if tree.get("truncated"):
-        raise RuntimeError(
-            "GitHub API returned a truncated tree. "
-            "This repo/branch is too large for the single-call recursive tree endpoint."
-        )
+        raise RuntimeError("GitHub API returned a truncated tree.")
 
-    rows: List[LinkRow] = []
+    rows: list[LinkRow] = []
+
     for item in tree.get("tree", []):
         if item.get("type") != "blob":
             continue
+
         path = item.get("path", "")
         size = int(item.get("size", 0) or 0)
-        if not path:
+
+        if not path or not _should_include(path, size):
             continue
-        if not _should_include(path, size):
-            continue
-        blob_url, raw_url = _make_urls(OWNER, REPO, BRANCH, path)
-        rows.append(LinkRow(path=path, size=size, blob_url=blob_url, raw_url=raw_url))
+
+        bb, rb, bc, rc = _make_urls(
+            OWNER, REPO, BRANCH, commit_sha, path
+        )
+
+        rows.append(
+            LinkRow(
+                path=path,
+                size=size,
+                blob_branch_url=bb,
+                raw_branch_url=rb,
+                blob_commit_url=bc,
+                raw_commit_url=rc,
+            )
+        )
 
     rows.sort(key=lambda r: r.path.lower())
+    payload = {
+        "repo": f"{OWNER}/{REPO}",
+        "branch": BRANCH,
+        "commit": commit_sha,
+        "text_only": TEXT_ONLY,
+        "generated_by": "make_repo_links.py",
+        "files": [r.__dict__ for r in rows],
+    }
 
-    # JSON
     with open(OUT_JSON, "w", encoding="utf-8") as f:
-        json.dump([r.__dict__ for r in rows], f, indent=2, ensure_ascii=False)
+        json.dump(payload, f, indent=2, ensure_ascii=False)
 
-    # CSV
     with open(OUT_CSV, "w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["path", "size", "blob_url", "raw_url"])
+        w = csv.DictWriter(
+            f,
+            fieldnames=[
+                "path",
+                "size",
+                "blob_branch_url",
+                "raw_branch_url",
+                "blob_commit_url",
+                "raw_commit_url",
+            ],
+        )
         w.writeheader()
         for r in rows:
             w.writerow(r.__dict__)
 
-    print(f"Wrote {len(rows)} rows to {OUT_JSON} and {OUT_CSV}")
+    print(f"Wrote {len(rows)} rows for commit {commit_sha}")
+
 
 
 if __name__ == "__main__":

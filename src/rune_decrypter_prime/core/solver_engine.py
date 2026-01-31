@@ -71,7 +71,7 @@ def build_optimizer(problem, optimizer_cfg, *, rng=None):
     stop_score = params.get("stop_score")
 
     if rng is None:
-        rng = np.random.default_rng()
+        raise TypeError("build_optimizer requires rng (np.random.Generator) for determinism")
 
     solver_cls = _SOLVER_TABLE[kind]
     solver = solver_cls(

@@ -14,7 +14,7 @@ pytestmark = pytest.mark.tier_a
 def test_problem_spec_overrides_permutation_and_direction():
     length = 16
     ciphertext = np.arange(length, dtype=np.uint8).tolist()
-    wli = [[0, length]]
+    wli = [[i, length] for i in range(length)]
     perm = list(reversed(range(length)))
 
     cipher_cfg = CipherConfig(

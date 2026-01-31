@@ -251,19 +251,16 @@ def to_indices(text: Union[str, np.ndarray, Sequence[int], Tuple[np.ndarray, Seq
     raise TypeError("Unsupported ciphertext type: expected str | array | sequence[int] | (indices, wli) tuple.")
 
 
-def make_single_word_wli(L: int) -> [List[List[int,int]],None]:
-    """Return a single-word WLI: [[0, L]].
-    WLI is *always* a list of [start, length] pairs (v1 contract).
-    """
-    if  L >= 0:
-        return [[i, L] for i in range(0,L)]
-    else:
-        return None
+def make_single_word_wli(L: int) -> list[list[int]] | None:
+    """Return a single-word WLI using (pos_in_word, word_len)."""
+    if L >= 0:
+        return [[i, L] for i in range(0, L)]
+    return None
 
 
 def wli_from_text(text: str) -> List[List[int]]:
     """Infer WLI from spaces in a *string* input after transliteration.
-    Each rune of a word shares that word’s [start, length].
+    WLI entries are (pos_in_word, word_len).
     """
     words = [w for w in text.split() if w]
     # Build lengths in rune-space (after transliteration) for correctness.
@@ -273,11 +270,9 @@ def wli_from_text(text: str) -> List[List[int]]:
         rune_lengths.append(len(Runeglish.rune_to_pos(rw)))
 
     wli: list[list[int]] = []
-    pos = 0
     for ln in rune_lengths:
-        for _ in range(ln):
-            wli.append([pos, ln])
-        pos += ln
+        for i in range(ln):
+            wli.append([i, ln])
     return wli
 
 def runes_from_indices(idx: Sequence[int], wli: Optional[Sequence[Sequence[int]]] = None) -> str:
@@ -288,7 +283,7 @@ def runes_from_indices(idx: Sequence[int], wli: Optional[Sequence[Sequence[int]]
     idx = list(map(int, idx))
     if Runeglish is None:
         return ""
-    if wli is None:
+    if not wli:
         # Single-word render
         return "".join(Runeglish.pos_to_rune(i) for i in idx)  # type: ignore[union-attr]
 
@@ -339,16 +334,17 @@ def normalize_ciphertext(
         wli_list = wli_from_text(text)
     else:
         wli_list = make_single_word_wli(int(ct.size))
+    _assert_core_ready(ct, wli_list)
     return ct, wli_list
 
 
 # --------------------------- internal helpers --------------------------- #
 
-def _assert_core_ready(ct: np.ndarray, wli_list: Sequence[Sequence[int]] =None) -> None:
+def _assert_core_ready(ct: np.ndarray, wli_list: Sequence[Sequence[int]] = None) -> None:
     """Hard, cheap assertions for the UI→core boundary.
     Guarantees so the core never re-casts/validates again:
       • ct: dtype=uint8, shape (L,), C-contiguous
-      • WLI: python list of [start, length] pairs, len == L, ints ≥ 0
+      • WLI: list of (pos_in_word, word_len) pairs with length == L
     """
     if not isinstance(ct, np.ndarray):
         raise TypeError("ct must be a numpy ndarray")
@@ -360,17 +356,53 @@ def _assert_core_ready(ct: np.ndarray, wli_list: Sequence[Sequence[int]] =None) 
         raise ValueError("ct must be C-contiguous")
 
     if wli_list is not None:
-        L = int(ct.size)
         if not isinstance(wli_list, (list, tuple)):
-            raise TypeError("wli must be a list of [start, length] pairs")
-        if len(wli_list) != L:
-            raise ValueError("wli length must match ciphertext length")
-        for p in wli_list:
-            if not (isinstance(p, (list, tuple)) and len(p) == 2):
-                raise TypeError("each wli entry must be a [start, length] pair")
-            s, ln = int(p[0]), int(p[1])
-            if s < 0 or ln <= 0:
-                raise ValueError("wli entries must be non-negative; length must be > 0")
+            raise TypeError("wli must be a list of [pos_in_word, word_len] pairs")
+        if len(wli_list) == 0:
+            return
+        _validate_wli_poslen(wli_list, int(ct.size))
+
+
+def _as_int(value: Any, name: str) -> int:
+    import numpy as _np
+    if isinstance(value, (bool, str, bytes, bytearray)):
+        raise TypeError(f"{name} must be an integer")
+    if isinstance(value, (float, _np.floating)):
+        raise TypeError(f"{name} must be an integer")
+    try:
+        return int(value)
+    except Exception as exc:
+        raise TypeError(f"{name} must be an integer") from exc
+
+
+def _validate_wli_poslen(wli_list: Sequence[Sequence[int]], L: int) -> None:
+    if len(wli_list) != int(L):
+        raise ValueError("wli length must match ciphertext length")
+    expected_pos = 0
+    current_len = None
+    for i, p in enumerate(wli_list):
+        if not (isinstance(p, (list, tuple)) and len(p) == 2):
+            raise TypeError("each wli entry must be a [pos_in_word, word_len] pair")
+        pos = _as_int(p[0], f"wli[{i}][0]")
+        ln = _as_int(p[1], f"wli[{i}][1]")
+        if pos < 0 or ln <= 0:
+            raise ValueError("wli entries must be non-negative; word_len must be > 0")
+        if pos >= ln:
+            raise ValueError("wli pos_in_word must be < word_len")
+        if pos > 255 or ln > 255:
+            raise ValueError("wli entries must fit in uint8 (<=255)")
+        if expected_pos == 0:
+            current_len = ln
+        if ln != current_len:
+            raise ValueError("wli word_len must remain constant within a word")
+        if pos != expected_pos:
+            raise ValueError("wli pos_in_word sequence must be contiguous within each word")
+        expected_pos += 1
+        if expected_pos == current_len:
+            expected_pos = 0
+            current_len = None
+    if expected_pos != 0:
+        raise ValueError("wli word_len exceeds available positions")
 
 # --- Enum normalisers (API boundary only) -------------------------------------
 from typing import Any, Union

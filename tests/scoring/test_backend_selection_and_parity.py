@@ -39,7 +39,7 @@ def test_cuda_stats_align_with_cpu_reference():
 
     require_full_lm_assets(models=("char", "wli"), modes=("ltr",), poses=("nose",), ns=(2,), ecdf_stats=("logp",))
     plaintext = np.arange(128, dtype=np.uint8) % 29
-    wli = [[i, i + 1] for i in range(len(plaintext))]
+    wli = [[i, len(plaintext)] for i in range(len(plaintext))]
 
     c_cpu, s_cpu = _mk_cfgs(device="cpu", encoding_dir="ltr")
     cpu = build_scorer(c_cpu, s_cpu)

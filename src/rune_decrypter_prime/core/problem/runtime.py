@@ -96,7 +96,11 @@ class DecryptionProblem:
 
         # Bind ciphertext / WLI / key_length
         self.ciphertext = self.xp.asarray(self.c_cfg.ciphertext, dtype=self.xp.uint8)
-        self.wli_data = None if self.c_cfg.wli_data is None else list(map(tuple, self.c_cfg.wli_data))
+        raw_wli = getattr(self.c_cfg, "wli_data", None)
+        if raw_wli is None or (hasattr(raw_wli, "__len__") and len(raw_wli) == 0):
+            self.wli_data = None
+        else:
+            self.wli_data = [[int(p[0]), int(p[1])] for p in raw_wli]
         self.key_length = self.c_cfg.key_length
 
         self.ciphertext_len = (
@@ -710,6 +714,9 @@ class DecryptionProblem:
                     ct_idx = cipher._as_u8(ct_arr)
             else:
                 ct_idx = to_numpy(ct_arr).astype("uint8", copy=False)
+            ct_full = ct_idx
+            if hasattr(cipher, "_apply_full_text_perm"):
+                ct_idx = cipher._apply_full_text_perm(ct_idx)
             if interrupt_idx is None:
                 interrupt_idx = self._resolve_interrupt_idx()
             interrupt_idx = self._normalize_interrupt_idx(interrupt_idx)
@@ -724,7 +731,9 @@ class DecryptionProblem:
                 idx = None
 
             if idx is not None and hasattr(cipher, "_validate_interrupt_idx"):
-                cipher._validate_interrupt_idx(idx, int(ct_idx.size))
+                cipher._validate_interrupt_idx(idx, int(ct_full.size))
+                if hasattr(cipher, "_map_interrupt_idx_for_perm"):
+                    idx = cipher._map_interrupt_idx_for_perm(idx, int(ct_full.size))
 
             if idx is not None:
                 ct_core, info = cipher._intr_mgr.remove_from(ct_idx, possible_idx=idx)
@@ -746,7 +755,7 @@ class DecryptionProblem:
             if key_arr.ndim == 1:
                 key_arr = key_arr[None, :]
             keys_tr = cipher._trans_mgr.apply_key(key_arr)
-            return ct_tr, keys_tr, info, int(ct_idx.size)
+            return ct_tr, keys_tr, info, int(ct_full.size)
 
         # Fallback: assume candidates_for consumes full ciphertext/key space
         key_arr = to_numpy(keys_np).astype(self.key_dtype, copy=False)
@@ -803,6 +812,8 @@ class DecryptionProblem:
                 cand_full = cipher._intr_mgr.insert_into(cand_core, info)
             else:
                 cand_full = cand_core
+            if hasattr(cipher, "_undo_full_text_perm"):
+                cand_full = cipher._undo_full_text_perm(cand_full)
             cand_full = to_numpy(cand_full).astype("uint8", copy=False).reshape(-1)
             if L_full and cand_full.size != int(L_full):
                 raise ValueError(f"reassembled plaintext has length {cand_full.size}, expected {L_full}")

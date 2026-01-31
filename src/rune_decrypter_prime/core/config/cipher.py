@@ -53,28 +53,63 @@ class CipherConfig:
             try:
                 import numpy as _np  # local import to avoid core-level import debt
                 arr = self.wli_data
-                # Coerce to list-of-tuples
+                # Allow empty list/array to mean "no WLI"
                 if isinstance(arr, _np.ndarray):
-                    if arr.ndim == 1:
-                        # Tests sometimes pass 1D starts; map to (start, start)
-                        arr = _np.stack([arr, arr], axis=1)
-                    if arr.shape[1] != 2:
-                        raise ValueError("wli_data ndarray must have shape (N,2)")
-                    pairs = [(int(a), int(b)) for a, b in arr.tolist()]
-                else:
-                    pairs = []
-                    for pair in arr:
-                        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
-                            raise ValueError("wli_data items must be (start, end) pairs per docs")
-                        a, b = int(pair[0]), int(pair[1])
-                        if a < 0 or b < 0 or a > b:
-                            raise ValueError("wli_data pairs must be non-negative with start <= end")
-                        pairs.append((a, b))
-                self.wli_data = pairs
+                    if arr.size == 0:
+                        self.wli_data = []
+                        arr = None
+                    else:
+                        if arr.ndim != 2 or arr.shape[1] != 2:
+                            raise ValueError("wli_data ndarray must have shape (N,2)")
+                        pairs = [[int(a), int(b)] for a, b in arr.tolist()]
+                        self._validate_wli_pairs(pairs)
+                        self.wli_data = pairs
+                        arr = None
+                if arr is not None:
+                    pairs = list(arr)
+                    if len(pairs) == 0:
+                        self.wli_data = []
+                    else:
+                        out: list[list[int]] = []
+                        for i, pair in enumerate(pairs):
+                            if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+                                raise ValueError("wli_data items must be (pos_in_word, word_len) pairs")
+                            out.append([int(pair[0]), int(pair[1])])
+                        self._validate_wli_pairs(out)
+                        self.wli_data = out
             except Exception as exc:
                 raise ValueError("wli_data must be a sequence of two-integer tuples as documented") from exc
 
         self._normalize_interruptors_cfg()
+
+    def _validate_wli_pairs(self, pairs: list[list[int]]) -> None:
+        # Empty list means "no WLI"; caller must handle WLI requirement.
+        if not pairs:
+            return
+        ct_len = len(self.ciphertext) if self.ciphertext is not None else None
+        if ct_len is not None and len(pairs) != int(ct_len):
+            raise ValueError("wli_data length must match ciphertext length")
+        expected_pos = 0
+        current_len = None
+        for i, (pos, ln) in enumerate(pairs):
+            if pos < 0 or ln <= 0:
+                raise ValueError("wli_data entries must be non-negative; word_len must be > 0")
+            if pos >= ln:
+                raise ValueError("wli_data pos_in_word must be < word_len")
+            if pos > 255 or ln > 255:
+                raise ValueError("wli_data entries must fit in uint8 (<=255)")
+            if expected_pos == 0:
+                current_len = ln
+            if ln != current_len:
+                raise ValueError("wli_data word_len must remain constant within a word")
+            if pos != expected_pos:
+                raise ValueError("wli_data pos_in_word sequence must be contiguous within each word")
+            expected_pos += 1
+            if expected_pos == current_len:
+                expected_pos = 0
+                current_len = None
+        if expected_pos != 0:
+            raise ValueError("wli_data word_len exceeds available positions")
 
     def _normalize_interruptors_cfg(self) -> None:
         cfg_raw = getattr(self, "interruptors_cfg", None)

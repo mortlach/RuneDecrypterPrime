@@ -81,6 +81,9 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
         self.kind_value = self.kind.value
         self.A = int(getattr(spec, "N", 29))
         self.N = self.A
+        if self.kind is CipherKind.USER_MAP3:
+            # user_map3 key values encode (k1,k2) pairs in [0..A-1]^2
+            self.keyops_hints = {"mod": int(self.A * self.A)}
 
         # resolve period K (required for function kinds; inferable for lookup)
         K_cfg = int(getattr(cfg, "key_length", 0) or 0)

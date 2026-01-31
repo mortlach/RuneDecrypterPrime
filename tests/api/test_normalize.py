@@ -108,7 +108,7 @@ def test_make_single_word_wli_and_wli_from_text():
     wli = make_single_word_wli(3)
     assert wli == [[0, 3], [1, 3], [2, 3]]
     rune_wli = wli_from_text("ᛏᛖ")
-    assert rune_wli == [[0, 2], [0, 2]]
+    assert rune_wli == [[0, 2], [1, 2]]
 
 
 def test_normalize_ciphertext_infers_wli_from_string():
@@ -119,7 +119,7 @@ def test_normalize_ciphertext_infers_wli_from_string():
 
 def test_normalize_ciphertext_tuple_roundtrip_and_assert_core_ready():
     arr = np.array([1, 2], dtype=np.uint8)
-    wli = [[0, 2], [0, 2]]
+    wli = [[0, 2], [1, 2]]
     ct, out_wli = normalize_ciphertext((arr, wli))
     _assert_core_ready(ct, out_wli)
     with pytest.raises(TypeError):

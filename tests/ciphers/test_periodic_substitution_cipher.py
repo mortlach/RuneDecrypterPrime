@@ -56,3 +56,30 @@ def test_periodic_substitution_bad_key_length():
     key = np.arange(key_len - 1, dtype=np.int16)
     with pytest.raises(ValueError):
         cipher.decrypt_single(ciphertext=np.array([0, 1, 2], dtype=np.uint8), key=key)
+
+
+@pytest.mark.tier_a
+@pytest.mark.parametrize("length", [1, 2, 6, 7, 8, 15])
+def test_periodic_substitution_encrypt_decrypt_roundtrip_random(length):
+    period = 3
+    A = 7
+    key_len = period * A
+    cfg = CipherConfig(
+        ciphertext=[0],
+        wli_data=[],
+        key_length=key_len,
+        name="periodic_substitution",
+        period=period,
+        alphabet_size=A,
+        keyops_hints={"period": period, "A": A},
+    )
+    cipher = PeriodicSubstitutionCipher(cfg)
+    rng = np.random.default_rng(123)
+    keyops = PeriodicStructuredMatrixKeyOps(K=key_len, period=period, A=A)
+    key = keyops.random(rng)
+    pt = rng.integers(0, A, size=length, dtype=np.uint8)
+
+    ct = cipher.encrypt_single(plaintext=pt, key=key)
+    pt_out = cipher.decrypt_single(ciphertext=ct, key=key)
+
+    assert np.array_equal(pt_out, pt)

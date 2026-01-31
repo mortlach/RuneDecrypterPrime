@@ -13,6 +13,7 @@ from ..core.types import (
     Device,
     Direction,
     SolverName,
+    ObjectiveFamily,
     ensure_device,
     ensure_direction,
     ensure_solver_name,
@@ -207,30 +208,22 @@ class SolverBase:
         self._candidates_evaluated = 0
         self._seed_diag: Dict[str, Any] = {}
 
-        # Normalize seed_keys
+        # Normalize seed_keys (strict: no silent fallback)
         if self.seed_keys is not None and len(self.seed_keys) > 0:
             arr = np.asarray(self.seed_keys, dtype=self.key_dtype)
             if arr.ndim == 1:
                 arr = arr.reshape(1, -1)
             normalized_rows = []
-            dropped = 0
-            rng_fallback = self.rng or np.random.default_rng()
-            for row in arr:
+            for i, row in enumerate(arr):
                 try:
-                    normalized_rows.append(np.asarray(self.keyops.normalize(row), dtype=self.key_dtype))
-                    continue
+                    norm = np.asarray(self.keyops.normalize(row), dtype=self.key_dtype)
                 except Exception as exc:
-                    logger.debug("Seed normalize failed, attempting fallback: %s", exc)
-                try:
-                    replacement = np.asarray(self.keyops.random(rng_fallback), dtype=self.key_dtype)
-                    normalized_rows.append(replacement)
-                except Exception as exc:
-                    dropped += 1
-                    logger.warning("Dropping invalid seed after fallback failure: %s", exc)
-            if not normalized_rows:
-                raise ValueError("No valid seed keys after normalization")
-            if dropped:
-                self._append_seed_diag("seed_normalize_dropped", {"dropped": dropped, "total": int(arr.shape[0])})
+                    raise ValueError(f"Invalid seed key at index {i}") from exc
+                if norm.ndim == 2:
+                    norm = norm[0]
+                if norm.shape[0] != self.K:
+                    raise ValueError(f"Seed key at index {i} has length {norm.shape[0]}, expected {self.K}")
+                normalized_rows.append(norm)
             self.seed_keys = np.ascontiguousarray(np.vstack(normalized_rows), dtype=self.key_dtype)
 
     # ---------------- Param + telemetry helpers ----------------
@@ -873,7 +866,18 @@ class SolverBase:
 
     def _score_batch(self, pop: np.ndarray) -> np.ndarray:
         """Canonical batch evaluation via Problem (decrypt+score+WLI)."""
-        return self.problem.evaluate_keys(pop)
+        scores = self.problem.evaluate_keys(pop)
+        return self._rank_scores(scores)
+
+    def _objective_family(self):
+        obj = getattr(getattr(self.problem, "scorer", None), "objective", None)
+        return getattr(obj, "family", None)
+
+    def _rank_scores(self, scores: np.ndarray) -> np.ndarray:
+        fam = self._objective_family()
+        if fam is ObjectiveFamily.NEGLOGP:
+            return -np.asarray(scores, dtype=np.float64)
+        return scores
 
     # ---------------- Seed diagnostics ----------------
 
@@ -1148,6 +1152,9 @@ class SolverBase:
             seeds = np.ascontiguousarray(np.stack(rows, axis=0), dtype=self.key_dtype)
 
         scores = self._score_batch(seeds)
+        # If subclass overrides _score_batch, ensure objective direction is enforced here.
+        if type(self)._score_batch is not SolverBase._score_batch:
+            scores = self._rank_scores(scores)
         best_idx = int(np.argmax(scores))
         return seeds[best_idx].copy()
 

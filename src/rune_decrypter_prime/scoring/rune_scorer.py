@@ -44,10 +44,14 @@ def _to_u8_1d(a: Iterable[int]) -> np.ndarray:
 
 
 def _to_u8_L2(wli_like: Iterable[Tuple[int, int]]) -> np.ndarray:
-    arr = np.asarray(list(wli_like), dtype=np.uint8)
-    if arr.ndim != 2 or arr.shape[1] != 2:
-        raise ValueError(f"WLI must be shape (L,2); got {tuple(arr.shape)}")
-    return np.ascontiguousarray(arr, dtype=np.uint8)
+    arr_i64 = np.asarray(list(wli_like), dtype=np.int64)
+    if arr_i64.ndim != 2 or arr_i64.shape[1] != 2:
+        raise ValueError(f"WLI must be shape (L,2); got {tuple(arr_i64.shape)}")
+    if arr_i64.size == 0:
+        raise ValueError("WLI must be non-empty when use_word_breaks is enabled")
+    if (arr_i64 < 0).any() or (arr_i64 > 255).any():
+        raise ValueError("WLI entries must fit in uint8 (0..255)")
+    return np.ascontiguousarray(arr_i64.astype(np.uint8, copy=False), dtype=np.uint8)
 
 
 # =============================== Scorer ===============================
@@ -317,6 +321,9 @@ class RuneScorer(BaseScorer):
         stat = self.objective.stat
         want_energy = fam is ObjectiveFamily.ENERGY
 
+        if self._requires_wli() and wli_windows is None:
+            raise ValueError("WLI is required when use_word_breaks=True and WLI models are active")
+
         if fam is ObjectiveFamily.NEGLOGP:
             warnings.warn("Using legacy objective; consider migrating to PCT.*", DeprecationWarning, stacklevel=2)
             out = float(self._score_legacy_scalar(plaintext, wli_windows))
@@ -341,10 +348,8 @@ class RuneScorer(BaseScorer):
 
         # Optional WLI (shared per sentence)
         wli = None
-        if wli_windows is not None:
+        if wli_windows is not None and self.use_word_breaks:
             wli = self._get_wli_array(wli_windows)
-        if wli is not None and not self.use_word_breaks:
-            wli = None
 
         models = self._active_models()
         n_set = sorted({int(n) for _, n, _ in models})
@@ -638,10 +643,8 @@ class RuneScorer(BaseScorer):
         stride = int(self._stride)
 
         wli = None
-        if wli_windows is not None:
+        if wli_windows is not None and self.use_word_breaks:
             wli = self._get_wli_array(wli_windows)
-        if wli is not None and not self.use_word_breaks:
-            wli = None
 
         models = self._active_models()
         n_set = sorted({int(n) for _, n, _ in models})
@@ -823,6 +826,8 @@ class RuneScorer(BaseScorer):
             pass
 
     def batch_score(self, pts: Sequence[Iterable[int]], wlis: Sequence[Iterable[Tuple[int, int]]] | Iterable[Tuple[int, int]] | None = None) -> np.ndarray:
+        if self._requires_wli() and wlis is None:
+            raise ValueError("WLI is required when use_word_breaks=True and WLI models are active")
         pts_seq = list(pts)
         if not pts_seq:
             return np.asarray([], dtype=np.float32)
@@ -901,6 +906,8 @@ class RuneScorer(BaseScorer):
         pts: Sequence[Iterable[int]],
         wlis: Sequence[Iterable[Tuple[int, int]]] | Iterable[Tuple[int, int]] | None = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
+        if self._requires_wli() and wlis is None:
+            raise ValueError("WLI is required when use_word_breaks=True and WLI models are active")
         pts_seq = list(pts)
         if not pts_seq:
             return np.asarray([], dtype=np.float32), np.asarray([], dtype=np.float32)
@@ -1119,6 +1126,15 @@ class RuneScorer(BaseScorer):
         if s <= 0.0:
             raise ValueError("No active models; check weights and include/use flags")
         return [(ch, n, (w / s)) for ch, n, w in models]
+
+    def _requires_wli(self) -> bool:
+        if not self.use_word_breaks:
+            return False
+        try:
+            models = self._active_models()
+        except Exception:
+            return False
+        return any(ch is Channel.WLI for ch, _, _ in models)
 
 
 # ---------------------------- legacy extraction ----------------------------
