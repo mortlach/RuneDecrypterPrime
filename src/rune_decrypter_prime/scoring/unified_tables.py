@@ -37,7 +37,7 @@ class RuntimeTablesProvider:
 
     Implementation details:
       • Uses LanguageModelPrime's index/patterns to resolve joint-bin paths
-      • Loads C-contiguous NumPy arrays via _load_bin(...)
+      • Loads C-contiguous NumPy arrays via _load_bin(...) using the LM instance cache
       • Computes robust stats needed by GPU scorer (z-norm + fallback)
       • Returns CPU NumPy arrays; Torch scorer moves them to device on load
     """
@@ -121,9 +121,9 @@ class RuntimeTablesProvider:
         # This ensures Torch and NumPy backends read identical (smoothed) tables.
         _ = self._lm._ensure(d, se, model, int(n))
 
-        # Resolve file and load arrays (served from _load_bin cache)
+        # Resolve file and load arrays (served from the LM instance cache)
         path = self._lm._joint_path(d, se, model, int(n))
-        keys, logp, _cnts, mask = _load_bin(path)
+        keys, logp, _cnts, mask = _load_bin(path, cache=self._lm._bin_cache)
 
         # Normalise dtype/layout and compute stats
         keys = np.asarray(keys, dtype=np.uint64, order="C")

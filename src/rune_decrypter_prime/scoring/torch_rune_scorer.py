@@ -20,7 +20,7 @@
 # Inputs/Outputs
 # --------------
 # - Inputs: pt_b (uint8 ndarray [B, L]); optional wli_b (uint8 ndarray).
-# - Output: float32 ndarray [B] in [0, 1].
+# - Output: float32 (default) or float64 ndarray [B] in [0, 1].
 #
 # Notes
 # -----
@@ -43,6 +43,7 @@ from rune_decrypter_prime.scoring.language_model.language_model_prime_runtime im
 from rune_decrypter_prime.scoring.stat_transform import apply_stat_transform
 from rune_decrypter_prime.backends.xp import select_backend
 from rune_decrypter_prime.scoring.base_scorer import BaseScorer, normalize_objective as _norm_obj
+from rune_decrypter_prime.scoring.windowing import START_TAG, END_TAG
 from rune_decrypter_prime.utils.telemetry import stash as _tstash  # canonical helper  ✔
 from rune_decrypter_prime.core.types import Direction, SeMode, ensure_direction, ensure_se_mode
 
@@ -175,6 +176,10 @@ class RuneScorerTorch(BaseScorer):
         self.n_wli  = int(_cfg_get(scorer_cfg, "n_wli", 2))
         self.win    = int(_cfg_get(scorer_cfg, "win", 10))
         self.stride = int(_cfg_get(scorer_cfg, "stride", 1)) or 1
+        self._dtype = str(_cfg_get(scorer_cfg, "dtype", "float32") or "float32").lower()
+        if self._dtype not in {"float32", "float64"}:
+            self._dtype = "float32"
+        self._score_dtype = np.float64 if self._dtype == "float64" else np.float32
 
         # direction + se_mode (strict in core; UI may normalize earlier)
         raw_dir = _cfg_get(scorer_cfg, "encoding_dir",
@@ -231,6 +236,7 @@ class RuneScorerTorch(BaseScorer):
             "objective": self.objective, "win": int(self.win),
             "stride": int(self.stride), "ecdf_clamp_min": self._ecdf_clamp_min,
             "ecdf_clamp_max": self._ecdf_clamp_max, "encoding_dir": self.direction,
+            "dtype": self._dtype,
         }
         self._last_stats: Dict[str, Any] = {}
 
@@ -280,7 +286,10 @@ class RuneScorerTorch(BaseScorer):
         self._prov: TablesProvider | None = None
         self._tables: Dict[Tuple[str, int], Dict[str, Any]] = {}
         self._loaded_device: torch.device | None = None
-        self._ecdf = ECDFCache(root=_cfg_get(scorer_cfg, "model_root", None))
+        self._ecdf = ECDFCache(
+            root=_cfg_get(scorer_cfg, "model_root", None),
+            prefer_float32=(self._dtype != "float64"),
+        )
 
         # det settings
         torch.use_deterministic_algorithms(True)
@@ -403,13 +412,16 @@ class RuneScorerTorch(BaseScorer):
             pos=se_name,
             n=int(n),
             stat="logp",
+            win=int(self.win),
             clamp_min=self._ecdf_clamp_min,
             clamp_max=self._ecdf_clamp_max,
         )
-        grid, q = self._ecdf.load(model=model, mode=mode, pos=se_name, n=int(n), stat="logp")
-        u = self._ecdf.interp_percentile(grid, q, means_np.astype(np.float32, copy=False))
-        u = np.clip(u, np.float32(self._ecdf_clamp_min), np.float32(self._ecdf_clamp_max))
-        return u
+        grid, q = self._ecdf.load(model=model, mode=mode, pos=se_name, n=int(n), stat="logp", win=int(self.win))
+        score_dtype = self._score_dtype
+        means_cast = np.asarray(means_np, dtype=score_dtype)
+        u = self._ecdf.interp_percentile(grid, q, means_cast)
+        u = np.clip(u, score_dtype(self._ecdf_clamp_min), score_dtype(self._ecdf_clamp_max))
+        return u.astype(score_dtype, copy=False)
 
     def _pack_char_ngram(self, pt_t: torch.Tensor, n: int) -> torch.Tensor:
         B, L = pt_t.shape; s = pt_t.stride(); Wn = L - n + 1
@@ -443,6 +455,7 @@ class RuneScorerTorch(BaseScorer):
         want_energy = getattr(self.objective, "family", None) is ObjectiveFamily.ENERGY
         W = int(self.win)
         stride = int(self.stride) if int(self.stride) > 0 else 1
+        score_dtype = self._score_dtype
 
         models = self._active_models(self.use_wli)
         n_set = sorted({int(n) for _, n, _ in models})
@@ -458,10 +471,33 @@ class RuneScorerTorch(BaseScorer):
         interior_eval = W if se_name == "wise" else W
 
         if nwin_aligned <= 0:
-            pct_floor = float(self._ecdf_clamp_min)
-            energy_floor = float(self._ecdf.energy(np.asarray([pct_floor], dtype=np.float32))[0])
-            score_val = energy_floor if want_energy else pct_floor
-            out = np.full((B,), score_val, dtype=np.float32)
+            pct_floor = score_dtype(self._ecdf_clamp_min)
+            energy_floor = float(self._ecdf.energy(np.asarray([pct_floor], dtype=score_dtype))[0])
+            score_val = energy_floor if want_energy else float(pct_floor)
+            out = np.full((B,), score_val, dtype=score_dtype)
+            penalty_hamming_vec = np.zeros((B,), dtype=score_dtype)
+            hamming_batch = None
+            hamming_avg_batch = None
+            if self._hamming_backend is not None and wli_b is not None:
+                try:
+                    totals: list[float] = []
+                    avgs: list[float] = []
+                    for i in range(B):
+                        stats = self._hamming_backend.total_min_hd_stats(
+                            pt_b[i].tolist(),
+                            wli_b[i].tolist(),
+                            direction=self.direction,
+                            mode=self._hamming_direction_mode,
+                        )
+                        totals.append(float(stats.get("total_hd", 0.0)))
+                        avgs.append(float(stats.get("avg_hd_word", stats.get("total_hd", 0.0))))
+                    penalties_arr = np.asarray(avgs, dtype=score_dtype)
+                    penalty_hamming_vec = -score_dtype(self._hamming_weight) * penalties_arr
+                    hamming_batch = np.asarray(totals, dtype=score_dtype)
+                    hamming_avg_batch = penalties_arr
+                except Exception:
+                    hamming_batch = None
+                    hamming_avg_batch = None
             stats: Dict[str, Any] = {
                 "score_std": 0.0,
                 "n_windows": 0,
@@ -482,26 +518,35 @@ class RuneScorerTorch(BaseScorer):
             }
             if B == 1:
                 stats["score_mean"] = float(out[0])
+                stats["stat.mean_per_ngram_penalized"] = float(penalty_hamming_vec[0])
+                stats["penalty_hamming"] = float(penalty_hamming_vec[0])
+                stats["hamming_total_hd"] = (float(hamming_batch[0]) if hamming_batch is not None else None)
+                stats["hamming_avg_hd"] = (float(hamming_avg_batch[0]) if hamming_avg_batch is not None else None)
+                stats["hamming_weight"] = self._hamming_weight
                 stats["objective_stats"] = {
                     f"pct_{stat_name}_{variant}": pct_floor,
                     f"energy_{stat_name}_{variant}": energy_floor,
                     f"{stat_name}_mean_per_ngram_total": 0.0,
                     f"{stat_name}_mean_per_ngram_interior": 0.0,
-                    f"{stat_name}_mean_per_ngram_penalized": 0.0,
-                    "penalty_hamming": 0.0,
+                    f"{stat_name}_mean_per_ngram_penalized": float(penalty_hamming_vec[0]),
+                    "penalty_hamming": float(penalty_hamming_vec[0]),
                     "components": {},
                     "windows": {},
                     "n_windows": 0,
                     "score_mean": float(out[0]),
                 }
             else:
-                stats["score_mean_batch"] = out.astype(np.float32, copy=False).tolist()
+                stats["score_mean_batch"] = out.astype(score_dtype, copy=False).tolist()
                 stats["score_std_batch"] = [0.0] * B
+                stats["penalty_hamming_batch"] = penalty_hamming_vec.astype(score_dtype, copy=False).tolist()
+                stats["hamming_total_hd_batch"] = (hamming_batch.tolist() if hamming_batch is not None else None)
+                stats["hamming_avg_hd_batch"] = (hamming_avg_batch.tolist() if hamming_avg_batch is not None else None)
+                stats["hamming_weight"] = self._hamming_weight
             _tstash(self._telemetry, **stats)
             self._last_stats = stats
             try:
-                self._last_raw_batch = out.astype(np.float32, copy=False)
-                self._last_raw_std_batch = np.zeros_like(out, dtype=np.float32)
+                self._last_raw_batch = out.astype(score_dtype, copy=False)
+                self._last_raw_std_batch = np.zeros_like(out, dtype=score_dtype)
             except Exception:
                 pass
             return out
@@ -512,8 +557,8 @@ class RuneScorerTorch(BaseScorer):
             wli_t = torch.from_numpy(wli_b).to(self.device, dtype=torch.uint8, non_blocking=True)
 
         nwin = ((nwin_aligned - 1) // stride) + 1
-        pct_mix = np.zeros((B, nwin), dtype=np.float32)
-        stat_total_mix = np.zeros((B, nwin), dtype=np.float32)
+        pct_mix = np.zeros((B, nwin), dtype=score_dtype)
+        stat_total_mix = np.zeros((B, nwin), dtype=score_dtype)
         components = {} if B == 1 else None
 
         asset_ids: list[str] = []
@@ -552,9 +597,16 @@ class RuneScorerTorch(BaseScorer):
 
             K = int(W)
             if K <= 0 or out.shape[1] < K:
-                means = torch.empty((B, 0), dtype=torch.float32, device=self.device)
+                means = torch.empty(
+                    (B, 0),
+                    dtype=(torch.float64 if self._dtype == "float64" else torch.float32),
+                    device=self.device,
+                )
             else:
-                means_full = out.unfold(dimension=1, size=K, step=1).contiguous().mean(dim=-1)
+                if self._dtype == "float64":
+                    means_full = out.to(torch.float64).unfold(dimension=1, size=K, step=1).contiguous().mean(dim=-1)
+                else:
+                    means_full = out.unfold(dimension=1, size=K, step=1).contiguous().mean(dim=-1)
                 means_full = means_full[:, :nwin_aligned]
                 if stride != 1:
                     means_full = means_full[:, ::stride]
@@ -562,9 +614,10 @@ class RuneScorerTorch(BaseScorer):
 
             means_np = means.detach().cpu().numpy()
             means_np = apply_stat_transform("logp", means_np)
+            means_np = np.asarray(means_np, dtype=score_dtype)
             u = self._percentiles(channel, int(n), means_np, se_name=se_name)
-            pct_mix += float(w) * u
-            stat_total_mix += float(w) * means_np
+            pct_mix += score_dtype(w) * u
+            stat_total_mix += score_dtype(w) * means_np
             if components is not None:
                 label = f"{'char' if channel == 'char' else 'wli'}_n{int(n)}"
                 components[label] = {
@@ -576,34 +629,34 @@ class RuneScorerTorch(BaseScorer):
             asset_ids.append(self._ecdf.asset_id(model=model_name,
                                                  mode=self.direction.value,
                                                  pos=se_name,
-                                                 n=int(n), stat=stat_name))
+                                                 n=int(n), stat=stat_name, win=int(self.win)))
             asset_fps.append(self._ecdf.meta_hash(model=model_name,
                                                   mode=self.direction.value,
                                                   pos=se_name,
-                                                  n=int(n), stat=stat_name))
+                                                  n=int(n), stat=stat_name, win=int(self.win)))
             interp_dtypes.append(self._ecdf.interp_dtype(model=model_name,
                                                          mode=self.direction.value,
                                                          pos=se_name,
-                                                         n=int(n), stat=stat_name))
+                                                         n=int(n), stat=stat_name, win=int(self.win)))
             if self._diagnostics_enabled:
                 try:
                     import json as _json
                     meta = self._ecdf.meta(model=model_name, mode=self.direction.value,
-                                           pos=se_name, n=int(n), stat=stat_name)
+                                           pos=se_name, n=int(n), stat=stat_name, win=int(self.win))
                     meta_json_list.append(_json.dumps(meta, sort_keys=True))
                 except Exception:
                     pass
 
-        pct_mean_vec = pct_mix.mean(axis=1).astype(np.float32, copy=False)
-        pct_std_vec = pct_mix.std(axis=1).astype(np.float32, copy=False)
+        pct_mean_vec = np.asarray(pct_mix.mean(axis=1, dtype=score_dtype), dtype=score_dtype)
+        pct_std_vec = np.asarray(pct_mix.std(axis=1, dtype=score_dtype), dtype=score_dtype)
         energy_perwin = self._ecdf.energy(pct_mix)
-        energy_mean_vec = energy_perwin.mean(axis=1).astype(np.float32, copy=False)
-        energy_std_vec = energy_perwin.std(axis=1).astype(np.float32, copy=False)
+        energy_mean_vec = np.asarray(energy_perwin.mean(axis=1, dtype=score_dtype), dtype=score_dtype)
+        energy_std_vec = np.asarray(energy_perwin.std(axis=1, dtype=score_dtype), dtype=score_dtype)
         score_mean_vec = energy_mean_vec if want_energy else pct_mean_vec
         score_std_vec = energy_std_vec if want_energy else pct_std_vec
 
-        stat_total_mean_vec = stat_total_mix.mean(axis=1).astype(np.float32, copy=False)
-        stat_total_std_vec = stat_total_mix.std(axis=1).astype(np.float32, copy=False)
+        stat_total_mean_vec = np.asarray(stat_total_mix.mean(axis=1, dtype=score_dtype), dtype=score_dtype)
+        stat_total_std_vec = np.asarray(stat_total_mix.std(axis=1, dtype=score_dtype), dtype=score_dtype)
         stat_interior_mean_vec = stat_total_mean_vec
         stat_interior_std_vec = stat_total_std_vec
         stat_variant_mean_vec = stat_interior_mean_vec if se_name == "wise" else stat_total_mean_vec
@@ -625,9 +678,9 @@ class RuneScorerTorch(BaseScorer):
                     )
                     totals.append(float(stats.get("total_hd", 0.0)))
                     avgs.append(float(stats.get("avg_hd_word", stats.get("total_hd", 0.0))))
-                penalties_arr = np.asarray(avgs, dtype=np.float32)
-                penalty_hamming_vec = -self._hamming_weight * penalties_arr
-                hamming_batch = np.asarray(totals, dtype=np.float32)
+                penalties_arr = np.asarray(avgs, dtype=score_dtype)
+                penalty_hamming_vec = -score_dtype(self._hamming_weight) * penalties_arr
+                hamming_batch = np.asarray(totals, dtype=score_dtype)
                 hamming_avg_batch = penalties_arr
             except Exception:
                 hamming_batch = None
@@ -748,8 +801,8 @@ class RuneScorerTorch(BaseScorer):
             pass
 
         try:
-            self._last_raw_batch = stat_penalized_vec.astype(np.float32, copy=False)
-            self._last_raw_std_batch = stat_variant_std_vec.astype(np.float32, copy=False)
+            self._last_raw_batch = stat_penalized_vec.astype(score_dtype, copy=False)
+            self._last_raw_std_batch = stat_variant_std_vec.astype(score_dtype, copy=False)
         except Exception:
             pass
 
@@ -771,6 +824,7 @@ class RuneScorerTorch(BaseScorer):
         stat_name = "logp"
         W = int(self.win)
         stride = int(self.stride) if int(self.stride) > 0 else 1
+        score_dtype = self._score_dtype
 
         models = self._active_models(self.use_wli)
         n_set = sorted({int(n) for _, n, _ in models})
@@ -786,7 +840,7 @@ class RuneScorerTorch(BaseScorer):
         interior_eval = W if se_name == "wise" else W
 
         if nwin_aligned <= 0:
-            out = np.zeros((B,), dtype=np.float32)
+            out = np.zeros((B,), dtype=score_dtype)
             stats: Dict[str, Any] = {
                 "score_std": 0.0,
                 "n_windows": 0,
@@ -818,13 +872,13 @@ class RuneScorerTorch(BaseScorer):
                     "score_mean": float(out[0]),
                 }
             else:
-                stats["score_mean_batch"] = out.astype(np.float32, copy=False).tolist()
+                stats["score_mean_batch"] = out.astype(score_dtype, copy=False).tolist()
                 stats["score_std_batch"] = [0.0] * B
             _tstash(self._telemetry, **stats)
             self._last_stats = stats
             try:
-                self._last_raw_batch = out.astype(np.float32, copy=False)
-                self._last_raw_std_batch = np.zeros_like(out, dtype=np.float32)
+                self._last_raw_batch = out.astype(score_dtype, copy=False)
+                self._last_raw_std_batch = np.zeros_like(out, dtype=score_dtype)
             except Exception:
                 pass
             return out
@@ -835,7 +889,7 @@ class RuneScorerTorch(BaseScorer):
             wli_t = torch.from_numpy(wli_b).to(self.device, dtype=torch.uint8, non_blocking=True)
 
         nwin = ((nwin_aligned - 1) // stride) + 1
-        stat_total_mix = np.zeros((B, nwin), dtype=np.float32)
+        stat_total_mix = np.zeros((B, nwin), dtype=score_dtype)
         components = {} if B == 1 else None
 
         for channel, n, w in models:
@@ -869,9 +923,16 @@ class RuneScorerTorch(BaseScorer):
 
             K = int(W)
             if K <= 0 or out.shape[1] < K:
-                means = torch.empty((B, 0), dtype=torch.float32, device=self.device)
+                means = torch.empty(
+                    (B, 0),
+                    dtype=(torch.float64 if self._dtype == "float64" else torch.float32),
+                    device=self.device,
+                )
             else:
-                means_full = out.unfold(dimension=1, size=K, step=1).contiguous().mean(dim=-1)
+                if self._dtype == "float64":
+                    means_full = out.to(torch.float64).unfold(dimension=1, size=K, step=1).contiguous().mean(dim=-1)
+                else:
+                    means_full = out.unfold(dimension=1, size=K, step=1).contiguous().mean(dim=-1)
                 means_full = means_full[:, :nwin_aligned]
                 if stride != 1:
                     means_full = means_full[:, ::stride]
@@ -879,7 +940,8 @@ class RuneScorerTorch(BaseScorer):
 
             means_np = means.detach().cpu().numpy()
             means_np = apply_stat_transform("logp", means_np)
-            stat_total_mix += float(w) * means_np
+            means_np = np.asarray(means_np, dtype=score_dtype)
+            stat_total_mix += score_dtype(w) * means_np
             if components is not None:
                 label = f"{'char' if channel == 'char' else 'wli'}_n{int(n)}"
                 components[label] = {
@@ -887,8 +949,8 @@ class RuneScorerTorch(BaseScorer):
                     f"{stat_name}_mean_per_ngram_interior": float(np.mean(means_np)),
                 }
 
-        stat_total_mean_vec = stat_total_mix.mean(axis=1).astype(np.float32, copy=False)
-        stat_total_std_vec = stat_total_mix.std(axis=1).astype(np.float32, copy=False)
+        stat_total_mean_vec = np.asarray(stat_total_mix.mean(axis=1, dtype=score_dtype), dtype=score_dtype)
+        stat_total_std_vec = np.asarray(stat_total_mix.std(axis=1, dtype=score_dtype), dtype=score_dtype)
         stat_interior_mean_vec = stat_total_mean_vec
         stat_interior_std_vec = stat_total_std_vec
         stat_variant_mean_vec = stat_interior_mean_vec if se_name == "wise" else stat_total_mean_vec
@@ -910,9 +972,9 @@ class RuneScorerTorch(BaseScorer):
                     )
                     totals.append(float(stats.get("total_hd", 0.0)))
                     avgs.append(float(stats.get("avg_hd_word", stats.get("total_hd", 0.0))))
-                penalties_arr = np.asarray(avgs, dtype=np.float32)
-                penalty_hamming_vec = -self._hamming_weight * penalties_arr
-                hamming_batch = np.asarray(totals, dtype=np.float32)
+                penalties_arr = np.asarray(avgs, dtype=score_dtype)
+                penalty_hamming_vec = -score_dtype(self._hamming_weight) * penalties_arr
+                hamming_batch = np.asarray(totals, dtype=score_dtype)
                 hamming_avg_batch = penalties_arr
             except Exception:
                 hamming_batch = None
@@ -1004,8 +1066,8 @@ class RuneScorerTorch(BaseScorer):
             pass
 
         try:
-            self._last_raw_batch = stat_penalized_vec.astype(np.float32, copy=False)
-            self._last_raw_std_batch = stat_variant_std_vec.astype(np.float32, copy=False)
+            self._last_raw_batch = stat_penalized_vec.astype(score_dtype, copy=False)
+            self._last_raw_std_batch = stat_variant_std_vec.astype(score_dtype, copy=False)
         except Exception:
             pass
 
@@ -1042,9 +1104,17 @@ class RuneScorerTorch(BaseScorer):
 
     def batch_score(self, pts: Sequence[Iterable[int]], wlis=None) -> np.ndarray:
         if not pts:
-            return np.zeros((0,), dtype=np.float32)
-        P = [np.asarray(p, np.uint8) for p in pts]
+            return np.zeros((0,), dtype=np.float64)
+        P: list[np.ndarray] = []
+        for p in pts:
+            arr = np.asarray(p, dtype=np.int64).reshape(-1)
+            if (arr < 0).any() or (arr > 30).any():
+                raise ValueError("Torch scorer expects rune tokens in [0..30]")
+            P.append(arr.astype(np.uint8, copy=False))
         pt_b = np.stack(P, axis=0)
+        if self.se_mode is SeMode.NOSE:
+            if np.any((pt_b == START_TAG) | (pt_b == END_TAG)):
+                raise ValueError("NOSE input must not include boundary tags")
 
         wli_b = None
         if wlis is not None:
@@ -1063,8 +1133,11 @@ class RuneScorerTorch(BaseScorer):
                     wli_b = np.stack([w0] * len(P), axis=0)
                 else:
                     raise ValueError("wlis list must be list[(L,2)] or a single (L,2)")
+        if wli_b is not None:
+            if (wli_b[..., 0] > 63).any() or (wli_b[..., 1] > 63).any():
+                raise ValueError("WLI entries must be <= 63 for torch scorer")
 
-        return self._score_batch_impl(pt_b, wli_b)
+        return self._score_batch_impl(pt_b, wli_b).astype(np.float64, copy=False)
 
     def score(self, pt: Iterable[int], wli=None) -> float:
         return float(self.batch_score([np.asarray(pt, np.uint8)], wli)[0])
@@ -1077,7 +1150,7 @@ class RuneScorerTorch(BaseScorer):
                 raw = pct.copy()
             except Exception:
                 raw = pct
-        return pct.astype(np.float32, copy=False), np.asarray(raw, dtype=np.float32)
+        return pct, np.asarray(raw, dtype=np.float64)
 
     def score_with_raw(self, pt: Iterable[int], wli=None) -> Tuple[float, float]:
         pct, raw = self.batch_score_with_raw([np.asarray(pt, np.uint8)], wli)

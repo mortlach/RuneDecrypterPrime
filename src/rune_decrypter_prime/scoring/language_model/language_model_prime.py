@@ -54,13 +54,11 @@ def _norm_model(model: MODEL) -> str:
     raise ValueError("model must be 'wli' or 'char'")
 
 
-# Cache to avoid re-decompressing the same .bin.zst multiple times in a run.
-# Keyed by absolute Path; values are writable C-contiguous arrays and the mask.
-_load_bin_cache: dict[Path, tuple[np.ndarray, np.ndarray, np.ndarray, np.uint32]] = {}
+# Optional logging for joint-table loads (per environment).
 _LOG_LOADS = bool(os.environ.get("RDP_LM_LOG_LOADS"))
 
 
-def _load_bin(path: Path):
+def _load_bin(path: Path, *, cache: dict[Path, tuple[np.ndarray, np.ndarray, np.ndarray, np.uint32]] | None = None):
     """
     Read a combined .bin.zst with header "<4sBHIff" (magic 'WLI0') then:
       keys:uint64[M], logp:float32[M], cnts:uint64[M]
@@ -75,14 +73,13 @@ def _load_bin(path: Path):
 
     Notes
     -----
-    • Uses a simple in-process cache so we only decompress and print once per file.
+    • If a cache is provided, it is used to avoid re-decompressing the same file.
+      The cache must be per-scorer instance to prevent cross-config contamination.
     • Arrays are copied into writable C-contiguous buffers; the native scorer
       may update `logp` when applying smoothing.
     """
-    global _load_bin_cache
-
-    if path in _load_bin_cache:
-        return _load_bin_cache[path]
+    if cache is not None and path in cache:
+        return cache[path]
 
     if not path.exists():
         raise FileNotFoundError(f"LM file not found: {path}")
@@ -114,7 +111,8 @@ def _load_bin(path: Path):
         np.array(cnts, copy=True),
         mask,
     )
-    _load_bin_cache[path] = out
+    if cache is not None:
+        cache[path] = out
     return out
 
 
@@ -174,6 +172,7 @@ class LanguageModelPrime:
         self._alpha = float(alpha)
         self._oov_mode = omap[self.oov_policy]
         self._cache: Dict[Tuple[str, str, str, int], _fastlm.FastTransitionModel] = {}
+        self._bin_cache: dict[Path, tuple[np.ndarray, np.ndarray, np.ndarray, np.uint32]] = {}
 
     # ---------- public API ----------
 
@@ -359,7 +358,7 @@ class LanguageModelPrime:
         if mdl is not None:
             return mdl
         path = self._joint_path(*key)
-        keys, logp, cnts, mask = _load_bin(path)
+        keys, logp, cnts, mask = _load_bin(path, cache=self._bin_cache)
         mdl = _fastlm.FastTransitionModel(
             keys, logp, cnts, int(mask),
             self._smooth_mode, self._alpha, self._oov_mode, False

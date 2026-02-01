@@ -15,6 +15,17 @@ except Exception:
     torch = None
 
 
+def _make_wli(length: int, max_len: int = 63) -> list[list[int]]:
+    wli: list[list[int]] = []
+    i = 0
+    while i < length:
+        ln = min(max_len, length - i)
+        for j in range(ln):
+            wli.append([j, ln])
+        i += ln
+    return wli
+
+
 @pytest.mark.parametrize("encoding_dir", ["ltr", "rtl"])
 def test_backend_selection_cpu_uses_reference(encoding_dir: str):
     c_cfg, s_cfg = _mk_cfgs(device="cpu", encoding_dir=encoding_dir)
@@ -39,7 +50,7 @@ def test_cuda_stats_align_with_cpu_reference():
 
     require_full_lm_assets(models=("char", "wli"), modes=("ltr",), poses=("nose",), ns=(2,), ecdf_stats=("logp",))
     plaintext = np.arange(128, dtype=np.uint8) % 29
-    wli = [[i, len(plaintext)] for i in range(len(plaintext))]
+    wli = _make_wli(len(plaintext))
 
     c_cpu, s_cpu = _mk_cfgs(device="cpu", encoding_dir="ltr")
     cpu = build_scorer(c_cpu, s_cpu)

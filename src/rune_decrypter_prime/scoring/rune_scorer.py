@@ -49,8 +49,8 @@ def _to_u8_L2(wli_like: Iterable[Tuple[int, int]]) -> np.ndarray:
         raise ValueError(f"WLI must be shape (L,2); got {tuple(arr_i64.shape)}")
     if arr_i64.size == 0:
         raise ValueError("WLI must be non-empty when use_word_breaks is enabled")
-    if (arr_i64 < 0).any() or (arr_i64 > 255).any():
-        raise ValueError("WLI entries must fit in uint8 (0..255)")
+    if (arr_i64 < 0).any() or (arr_i64 > 63).any():
+        raise ValueError("WLI entries must be <= 63 to match LMPrime WLI encoding")
     return np.ascontiguousarray(arr_i64.astype(np.uint8, copy=False), dtype=np.uint8)
 
 
@@ -119,7 +119,10 @@ class RuneScorer(BaseScorer):
             "ecdf_clamp_max",
             _cfg_get(scorer_cfg, "ecdf_ceiling", _DEF_CLAMP_MAX),
         ))
-        self._dtype: str = str(_cfg_get(scorer_cfg, "dtype", "float32"))
+        self._dtype: str = str(_cfg_get(scorer_cfg, "dtype", "float32") or "float32").lower()
+        if self._dtype not in {"float32", "float64"}:
+            self._dtype = "float32"
+        self._acc_dtype = np.float64 if self._dtype == "float64" else np.float32
         if not (0.0 < self._ecdf_clamp_min < 1.0 and 0.0 < self._ecdf_clamp_max < 1.0):
             raise ValueError("ecdf_clamp_min/max must be in (0,1) for ENERGY-safe scoring")
         if self._ecdf_clamp_min >= self._ecdf_clamp_max:
@@ -142,6 +145,7 @@ class RuneScorer(BaseScorer):
             alpha=float(getattr(scorer_cfg, "alpha", 0.0) or 0.0),
             oov_policy=getattr(scorer_cfg, "oov_policy", None),
             include_char=self.include_char,
+            prefer_float32=(self._dtype != "float64"),
         )
         get_cached = getattr(LmPrimeRuntime, "get_cached", None)
         if callable(get_cached):
@@ -345,6 +349,7 @@ class RuneScorer(BaseScorer):
         pt = _to_u8_1d(plaintext)
         W = int(self.objective.win or WIN_FIXED)
         stride = int(self._stride)
+        acc_dtype = self._acc_dtype
 
         # Optional WLI (shared per sentence)
         wli = None
@@ -371,7 +376,7 @@ class RuneScorer(BaseScorer):
         # Short text: no windows
         if nwin == 0:
             pct_floor = float(self._ecdf_clamp_min)
-            energy_floor = float(self._ecdf.energy(np.asarray([pct_floor], dtype=np.float32))[0])
+            energy_floor = float(self._ecdf.energy(np.asarray([pct_floor], dtype=acc_dtype))[0])
             score_mean = energy_floor if want_energy else pct_floor
             score_std = 0.0
             hamming_total = None
@@ -437,9 +442,9 @@ class RuneScorer(BaseScorer):
             )
             return float(score_mean)
 
-        pct_perwin = np.zeros((nwin,), dtype=np.float32)
-        stat_total_perwin = np.zeros((nwin,), dtype=np.float32)
-        stat_interior_perwin = np.zeros((nwin,), dtype=np.float32)
+        pct_perwin = np.zeros((nwin,), dtype=acc_dtype)
+        stat_total_perwin = np.zeros((nwin,), dtype=acc_dtype)
+        stat_interior_perwin = np.zeros((nwin,), dtype=acc_dtype)
         components: Dict[str, Dict[str, float]] = {}
 
         asset_ids: List[str] = []
@@ -470,9 +475,10 @@ class RuneScorer(BaseScorer):
             else:
                 avg_total = logp_a
 
-            avg_interior = avg_total * np.float32(scale_interior)
-            stat_total_perwin += np.float32(w) * np.asarray(avg_total, dtype=np.float32)
-            stat_interior_perwin += np.float32(w) * np.asarray(avg_interior, dtype=np.float32)
+            avg_total = np.asarray(avg_total, dtype=acc_dtype)
+            avg_interior = avg_total * acc_dtype(scale_interior)
+            stat_total_perwin += acc_dtype(w) * avg_total
+            stat_interior_perwin += acc_dtype(w) * avg_interior
 
             stat_variant = avg_interior if wise else avg_total
 
@@ -483,13 +489,14 @@ class RuneScorer(BaseScorer):
                 pos=se_name,
                 n=int(n),
                 stat=stat_name,
+                win=int(W),
                 clamp_min=self._ecdf_clamp_min,
                 clamp_max=self._ecdf_clamp_max,
             )
-            grid, q = self._ecdf.load(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name)
-            u = self._ecdf.interp_percentile(grid, q, np.asarray(stat_variant, dtype=np.float32))
-            u = np.clip(u, np.float32(self._ecdf_clamp_min), np.float32(self._ecdf_clamp_max))
-            pct_perwin += np.float32(w) * u
+            grid, q = self._ecdf.load(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name, win=int(W))
+            u = self._ecdf.interp_percentile(grid, q, np.asarray(stat_variant, dtype=acc_dtype))
+            u = np.clip(u, acc_dtype(self._ecdf_clamp_min), acc_dtype(self._ecdf_clamp_max))
+            pct_perwin += acc_dtype(w) * u
 
             components[label] = {
                 f"{stat_name}_mean_per_ngram_total": float(np.mean(avg_total, dtype=np.float64)),
@@ -497,13 +504,13 @@ class RuneScorer(BaseScorer):
                 f"pct_{stat_name}_{variant}": float(np.mean(u, dtype=np.float64)),
             }
 
-            asset_ids.append(self._ecdf.asset_id(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name))
-            asset_fps.append(self._ecdf.meta_hash(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name))
-            interp_dtypes.append(self._ecdf.interp_dtype(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name))
+            asset_ids.append(self._ecdf.asset_id(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name, win=int(W)))
+            asset_fps.append(self._ecdf.meta_hash(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name, win=int(W)))
+            interp_dtypes.append(self._ecdf.interp_dtype(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name, win=int(W)))
             if self._diagnostics_enabled:
                 try:
                     import json as _json
-                    meta = self._ecdf.meta(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name)
+                    meta = self._ecdf.meta(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name, win=int(W))
                     meta_json_list.append(_json.dumps(meta, sort_keys=True))
                 except Exception:
                     pass
@@ -701,8 +708,9 @@ class RuneScorer(BaseScorer):
             )
             return 0.0
 
-        stat_total_perwin = np.zeros((nwin,), dtype=np.float32)
-        stat_interior_perwin = np.zeros((nwin,), dtype=np.float32)
+        acc_dtype = self._acc_dtype
+        stat_total_perwin = np.zeros((nwin,), dtype=acc_dtype)
+        stat_interior_perwin = np.zeros((nwin,), dtype=acc_dtype)
         components: Dict[str, Dict[str, float]] = {}
 
         for ch, n, w in models:
@@ -726,9 +734,10 @@ class RuneScorer(BaseScorer):
             else:
                 avg_total = logp_a
 
-            avg_interior = avg_total * np.float32(scale_interior)
-            stat_total_perwin += np.float32(w) * np.asarray(avg_total, dtype=np.float32)
-            stat_interior_perwin += np.float32(w) * np.asarray(avg_interior, dtype=np.float32)
+            avg_total = np.asarray(avg_total, dtype=acc_dtype)
+            avg_interior = avg_total * acc_dtype(scale_interior)
+            stat_total_perwin += acc_dtype(w) * avg_total
+            stat_interior_perwin += acc_dtype(w) * avg_interior
             components[label] = {
                 f"{stat_name}_mean_per_ngram_total": float(np.mean(avg_total, dtype=np.float64)),
                 f"{stat_name}_mean_per_ngram_interior": float(np.mean(avg_interior, dtype=np.float64)),
@@ -874,15 +883,15 @@ class RuneScorer(BaseScorer):
                     else:
                         raise ValueError("wlis iterable must expand to plaintext length or batch size.")
 
-        out = np.zeros((len(pts),), dtype=np.float32)
+        out = np.zeros((len(pts),), dtype=np.float64)
         stds = np.zeros_like(out)
         raws = np.zeros_like(out)
         for i, pt in enumerate(materialised_pts):
             wli_i = wli_single if wli_single is not None else (wli_list[i] if wli_list is not None else None)
-            out[i] = self.score(pt, wli_i)
+            out[i] = float(self.score(pt, wli_i))
             stats = self.last_stats()
-            raws[i] = np.float32(float(stats.get("stat.mean_per_ngram_penalized", out[i])) if isinstance(stats, dict) else float(out[i]))
-            stds[i] = np.float32(float(self.telemetry().get("score_std", 0.0)))
+            raws[i] = float(stats.get("stat.mean_per_ngram_penalized", out[i])) if isinstance(stats, dict) else float(out[i])
+            stds[i] = float(self.telemetry().get("score_std", 0.0))
 
         nwin = 0
         try:
@@ -894,12 +903,12 @@ class RuneScorer(BaseScorer):
         self._stash_stats(
             dtype=self._dtype,
             impl="numpy", device=self._device_str,
-            score_mean_batch=out.astype(np.float32).tolist(),
-            score_std_batch=stds.astype(np.float32).tolist(),
-            **{"stat.mean_per_ngram_penalized_batch": raws.astype(np.float32).tolist()},
+            score_mean_batch=out.tolist(),
+            score_std_batch=stds.tolist(),
+            **{"stat.mean_per_ngram_penalized_batch": raws.tolist()},
             n_windows=int(nwin),
         )
-        return out.astype(np.float32, copy=False)
+        return out
 
     def batch_score_with_raw(
         self,
@@ -911,7 +920,7 @@ class RuneScorer(BaseScorer):
         pts_seq = list(pts)
         if not pts_seq:
             return np.asarray([], dtype=np.float32), np.asarray([], dtype=np.float32)
-        out = np.zeros((len(pts_seq),), dtype=np.float32)
+        out = np.zeros((len(pts_seq),), dtype=np.float64)
         raw = np.zeros_like(out)
         stds = np.zeros_like(out)
         n_windows = None
@@ -925,9 +934,9 @@ class RuneScorer(BaseScorer):
             pct_i = float(self.score(pt, wli_i))
             stats = self.last_stats()
             raw_i = stats.get("stat.mean_per_ngram_penalized", pct_i) if isinstance(stats, dict) else pct_i
-            out[i] = np.float32(pct_i)
-            raw[i] = np.float32(raw_i)
-            stds[i] = np.float32(float(self.telemetry().get("score_std", 0.0)))
+            out[i] = float(pct_i)
+            raw[i] = float(raw_i)
+            stds[i] = float(self.telemetry().get("score_std", 0.0))
             if n_windows is None and isinstance(stats, dict):
                 n_windows = stats.get("n_windows")
         if n_windows is None:
@@ -952,12 +961,12 @@ class RuneScorer(BaseScorer):
             dtype=self._dtype,
             impl="numpy",
             device=self._device_str,
-            score_mean_batch=out.astype(np.float32).tolist(),
-            score_std_batch=stds.astype(np.float32).tolist(),
-            **{"stat.mean_per_ngram_penalized_batch": raw.astype(np.float32).tolist()},
+            score_mean_batch=out.tolist(),
+            score_std_batch=stds.tolist(),
+            **{"stat.mean_per_ngram_penalized_batch": raw.tolist()},
             n_windows=int(n_windows),
         )
-        return out.astype(np.float32, copy=False), raw.astype(np.float32, copy=False)
+        return out, raw
 
     def clear_wli_cache(self) -> None:
         """Manual hook to drop cached WLI conversions/windows between solver runs."""

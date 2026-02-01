@@ -31,7 +31,7 @@ def _build_problem(table: np.ndarray, ct: np.ndarray) -> DecryptionProblem:
     )
     cfg = CipherConfig(
         ciphertext=ct,
-        wli_data=[[0, int(ct.size)]],
+        wli_data=[],
         key_length=1,
         device="cpu",
         encoding_dir=Direction.LTR,

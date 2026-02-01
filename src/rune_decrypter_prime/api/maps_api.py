@@ -130,7 +130,7 @@ def preview(
     from rune_decrypter_prime.core.factory import build_solver  # lazy import to avoid circulars
     cfg = CipherConfig(
         ciphertext=np.zeros(L, dtype=np.uint8),
-        wli_data=[[0, L]],
+        wli_data=[],
         key_length=int(k.size if cipher.kind != "user_map3" else 1),
         text_transposition=text_encoding_direction,
         device=device,
@@ -141,7 +141,8 @@ def preview(
     # Optimiser fast-path: test_key returns single decrypt w/o search
     opt = SolverConfig(name="beam", params={"beam_width": 1, "test_key": k.tolist()})
     run_cfg = RunConfig(cipher=cfg, scorer_name="rune",
-                        scorer_params={"objective": "pct.logp.win10", "n_char": 2, "n_wli": 2, "win": 10},
+                        scorer_params={"objective": "pct.logp.win10", "n_char": 2, "n_wli": 2, "win": 10,
+                                       "use_word_breaks": False, "wli_weights": {}},
                         solver=opt, logging={})
     engine = build_solver(run_cfg)
 

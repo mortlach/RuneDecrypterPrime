@@ -96,8 +96,8 @@ class CipherConfig:
                 raise ValueError("wli_data entries must be non-negative; word_len must be > 0")
             if pos >= ln:
                 raise ValueError("wli_data pos_in_word must be < word_len")
-            if pos > 255 or ln > 255:
-                raise ValueError("wli_data entries must fit in uint8 (<=255)")
+            if pos > 63 or ln > 63:
+                raise ValueError("wli_data entries must be <= 63 to match LMPrime WLI encoding")
             if expected_pos == 0:
                 current_len = ln
             if ln != current_len:

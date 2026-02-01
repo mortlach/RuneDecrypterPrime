@@ -17,3 +17,13 @@ def test_interruptor_config_pool_defaults_to_range():
 def test_interruptor_config_exact_rejects_pool():
     with pytest.raises(ValueError):
         InterruptorConfig(mode="exact", exact=[1], pool=[2])
+
+
+def test_interruptor_config_rejects_non_full_score_mode():
+    with pytest.raises(NotImplementedError):
+        InterruptorConfig(mode="exact", exact=[1], score_mode="core")
+
+
+def test_interruptor_config_rejects_non_fixed_value_mode():
+    with pytest.raises(NotImplementedError):
+        InterruptorConfig(mode="exact", exact=[1], value_mode="free")

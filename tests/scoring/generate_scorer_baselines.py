@@ -175,7 +175,7 @@ def _fingerprint_ecdf_tables(lm_root: Path) -> Dict[str, Any]:
                 for n in (1, 2, 3, 4):
                     for stat in ("logp", "zsum", "madsum"):
                         try:
-                            grid, q = ecdf.load(model=model, mode=mode, pos=pos, n=n, stat=stat)
+                            grid, q = ecdf.load(model=model, mode=mode, pos=pos, n=n, stat=stat, win=10)
                         except FileNotFoundError:
                             continue
 

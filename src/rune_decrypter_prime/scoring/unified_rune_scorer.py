@@ -19,7 +19,7 @@ class UnifiedRuneScorer:
       • score(pt: Iterable[int], wli) -> float
       • batch_score(pts: Sequence[Iterable[int]], wlis) -> np.ndarray
       • to_text(pt: Iterable[int]) -> str
-      • telemetry() -> {"impl": "...", "device": "...", "dtype": "float32", ...}
+      • telemetry() -> {"impl": "...", "device": "...", "dtype": "float32|float64", ...}
     """
 
     def __init__(self, cfg_cipher, cfg_scorer_params, tables: Any | None = None):
@@ -27,6 +27,17 @@ class UnifiedRuneScorer:
         self.cfg_scorer = cfg_scorer_params
         self._backend_name = "numpy"
         self._backend = None
+        self._dtype = "float32"
+        cfg_dtype = None
+        if isinstance(cfg_scorer_params, dict):
+            cfg_dtype = cfg_scorer_params.get("dtype")
+        else:
+            cfg_dtype = getattr(cfg_scorer_params, "dtype", None)
+        if cfg_dtype is not None:
+            dt = str(cfg_dtype).strip().lower()
+            if dt in {"float32", "float64"}:
+                self._dtype = dt
+        self._out_dtype = np.float64 if self._dtype == "float64" else np.float32
 
         device_req = "auto"
         cfg_device = getattr(cfg_cipher, "device", None)
@@ -53,15 +64,16 @@ class UnifiedRuneScorer:
         return float(self._backend.score(plaintext, wli_windows))
 
     def batch_score(self, pts: Sequence[Iterable[int]], wlis=None) -> np.ndarray:
-        return np.asarray(self._backend.batch_score(pts, wlis), dtype=np.float32)
+        return np.asarray(self._backend.batch_score(pts, wlis), dtype=self._out_dtype)
 
     def batch_score_with_raw(self, pts: Sequence[Iterable[int]], wlis=None) -> tuple[np.ndarray, np.ndarray]:
         if hasattr(self._backend, "batch_score_with_raw"):
             try:
-                return self._backend.batch_score_with_raw(pts, wlis)
+                pct, raw = self._backend.batch_score_with_raw(pts, wlis)
+                return np.asarray(pct, dtype=self._out_dtype), np.asarray(raw, dtype=self._out_dtype)
             except Exception:
                 pass
-        pct = np.asarray(self._backend.batch_score(pts, wlis), dtype=np.float32)
+        pct = np.asarray(self._backend.batch_score(pts, wlis), dtype=self._out_dtype)
         return pct, pct.copy()
 
     def score_with_raw(self, plaintext: Iterable[int], wli_windows=None) -> tuple[float, float]:
@@ -121,6 +133,5 @@ class UnifiedRuneScorer:
 
         tel.setdefault("backend", self._backend_name)
 
-        # DType is fixed float32 for both current backends
-        tel.setdefault("dtype", "float32")
+        tel.setdefault("dtype", self._dtype)
         return tel

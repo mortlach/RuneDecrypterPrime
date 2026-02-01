@@ -8,6 +8,7 @@ from rune_decrypter_prime.api.pipeline import execute_run
 from rune_decrypter_prime.api.specs import CipherSpec, KeySpec, SolverSpec
 from rune_decrypter_prime.api.normalize import (
     normalize_ciphertext,
+    to_indices,
     _assert_core_ready,
     normalize_device,
     normalize_optimizer_spec,
@@ -72,9 +73,11 @@ class RunAPI:
         encoding_dir = normalize_encoding_dir(encoding_dir)
 
         # Normalise ciphertext and optional WLI data
-        ct, wli = normalize_ciphertext(text, wli_data)
         if force_no_wli:
+            ct = to_indices(text)
             wli = None
+        else:
+            ct, wli = normalize_ciphertext(text, wli_data)
         _assert_core_ready(ct, wli)
 
         # Normalise scorer parameters and build scoring config

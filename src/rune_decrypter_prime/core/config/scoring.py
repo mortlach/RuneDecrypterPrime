@@ -148,6 +148,10 @@ class ScoringConfig:
         self.char_weights = self._normalise_channel_weights(self.char_weights, 'char_weights')
         self.wli_weights = self._normalise_channel_weights(self.wli_weights, 'wli_weights')
 
+        if not bool(self.maximize):
+            raise ValueError("maximize must be True; objectives are defined as higher-is-better")
+        self.maximize = True
+
     def asdict(self) -> Dict[str, Any]:
         out = asdict(self)
         out["model_root"] = self.model_root

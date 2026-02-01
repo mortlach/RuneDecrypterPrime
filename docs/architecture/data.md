@@ -1,7 +1,7 @@
 # Data & Scoring (WLI)
 
 **Concept**  
-Scorers evaluate plaintext candidates and return WLI pairs (list of numeric pairs). The first element ranks candidates; the second is auxiliary (e.g. a length or secondary metric).
+Scorers consume plaintext rune indices and optional WLI pairs. WLI is a per-rune `(pos_in_word, word_len)` list used for word-boundary features; spaces are **not** part of rune indices. WLI values must be `<= 63` (LMPrime 6-bit encoding). When WLI is present, word boundaries are fixed by that list; when WLI is absent, there is no word-boundary contract.
 
 ## Behaviour
 - English-tuned models for the 29-rune alphabet.  
@@ -16,7 +16,7 @@ res = RunAPI.run(
     solver_spec=SolverSpec(name="GA", eval_budget=40_000),
     seed=33,
 )
-print(res.score)  # primary fitness; raw WLI pairs appear in telemetry
+print(res.score)  # primary fitness; WLI (if provided) is metadata for scoring
 ```
 
 ## Appendix: Faster scorers (optional)
@@ -30,4 +30,3 @@ If you provide a faster backend (compiled extension or Torch kernels), keep thes
 [Telemetry](telemetry.md) · [Optimisers](optimisers.md)
 
 [<- Telemetry](telemetry.md) · [Next -> Tutorials](../tutorials/index.md)
-

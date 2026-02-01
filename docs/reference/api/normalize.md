@@ -23,8 +23,12 @@
 | Function | Description |
 | --- | --- |
 | `to_indices(text)` | Convert rune strings, English strings, numpy arrays, or `(indices, wli)` tuples to a contiguous `np.uint8` array. |
-| `make_single_word_wli(L)` | Build `[[0, L]]` for whole-text scorers. |
-| `wli_from_text(text)` | Infer WLI spans from spaces after transliteration. |
+| `make_single_word_wli(L)` | Build `[[0, L], [1, L], ..., [L-1, L]]` using `(pos_in_word, word_len)`. |
+| `wli_from_text(text)` | Infer WLI pairs `(pos_in_word, word_len)` from spaces after transliteration. |
+
+Notes:
+- WLI is a pure word-boundary signal; spaces are not part of rune indices. When WLI is present, word boundaries are fixed by the list.
+- WLI entries must be `<= 63` (LMPrime uses 6-bit pos/len encoding). For long inputs without spaces, prefer `wli_data=[]` with `scorer_params.use_word_breaks=False`.
 
 ### Permutation / Optimiser Helpers
 | Function | Description |

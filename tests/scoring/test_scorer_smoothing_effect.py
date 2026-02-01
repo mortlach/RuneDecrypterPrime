@@ -28,8 +28,7 @@ def _require_char4_joint() -> None:
 
 def _mk_cipher_cfg(length: int) -> dict:
     ct = list(range(length))
-    wli = [(i, i + 1) for i in range(length)]
-    return CipherConfig(ciphertext=ct, wli_data=wli, key_length=None, device=Device.CPU, encoding_dir=Direction.LTR).asdict()
+    return CipherConfig(ciphertext=ct, wli_data=[], key_length=None, device=Device.CPU, encoding_dir=Direction.LTR).asdict()
 
 
 def _mk_avg_scorer(*, smoothing: str) -> object:

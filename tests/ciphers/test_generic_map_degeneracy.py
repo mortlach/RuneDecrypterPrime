@@ -16,7 +16,7 @@ pytestmark = pytest.mark.tier_a
 def _build_cipher_for_spec(spec: CipherSpec, *, key_length: int = 1, device: str = "cpu", length: int = 1):
     cfg = CipherConfig(
         ciphertext=np.zeros(length, dtype=np.uint8),
-        wli_data=[[0, length]],
+        wli_data=[],
         key_length=int(key_length),
         device=device,
         encoding_dir=Direction.LTR,

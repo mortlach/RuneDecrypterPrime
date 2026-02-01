@@ -61,7 +61,7 @@ class Bucket:
 
 class ECDFCache:
     """
-    Caches ECDF lookup arrays per (mode,pos,model,n,stat).
+    Caches ECDF lookup arrays per (mode,pos,model,n,stat,win).
     Enforces ABI: grid/q are float64 on disk, strictly increasing, meta_json required.
     Allows explicit float32 working buffers if they remain strictly increasing.
     """
@@ -76,25 +76,29 @@ class ECDFCache:
         self._printed_files: set[Path] = set()
         self._prefer_float32 = bool(prefer_float32)
 
-    def _ecdf_path(self, *, model: str, mode: str, pos: str, n: int, stat: str) -> Path:
+    def _ecdf_path(self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int) -> Path:
         model_cfg = self.idx.models[model]
         pattern: str = model_cfg["ecdf_pattern"]
-        return expand_pattern(self.root, pattern, mode=mode, pos=pos, n=n, stat=stat)
+        return expand_pattern(self.root, pattern, mode=mode, pos=pos, n=n, stat=stat, win=int(win))
 
-    def asset_id(self, *, model: str, mode: str, pos: str, n: int, stat: str) -> str:
+    @staticmethod
+    def _key(*, model: str, mode: str, pos: str, n: int, stat: str, win: int) -> tuple:
+        return (mode, pos, model, int(n), stat, int(win))
+
+    def asset_id(self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int) -> str:
         """Stable asset id for telemetry (relative path when possible)."""
-        fp = self._ecdf_path(model=model, mode=mode, pos=pos, n=n, stat=stat)
+        fp = self._ecdf_path(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         try:
             return str(fp.relative_to(self.root)).replace("\\", "/")
         except Exception:
             return str(fp)
 
-    def load(self, *, model: str, mode: str, pos: str, n: int, stat: str) -> tuple[np.ndarray, np.ndarray]:
-        key = (mode, pos, model, int(n), stat)
+    def load(self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int) -> tuple[np.ndarray, np.ndarray]:
+        key = self._key(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         hit = self._cache.get(key)
         if hit is not None:
             return hit
-        fp = self._ecdf_path(model=model, mode=mode, pos=pos, n=n, stat=stat)
+        fp = self._ecdf_path(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         if not fp.exists():
             raise FileNotFoundError(f"ECDF file not found: {fp}")
         if fp not in self._printed_files:
@@ -164,6 +168,8 @@ class ECDFCache:
             raise ValueError(f"ECDF meta_json n mismatch in {fp}")
         if str(meta.get("stat")) != str(stat):
             raise ValueError(f"ECDF meta_json stat mismatch in {fp}")
+        if int(meta.get("win_ngrams")) != int(win):
+            raise ValueError(f"ECDF meta_json win_ngrams mismatch in {fp}")
 
         # Compute meta hash (meta_json + grid + q)
         try:
@@ -180,8 +186,10 @@ class ECDFCache:
         interp_dtype = "float64"
         if self._prefer_float32:
             grid32 = grid64.astype(np.float32)
-            if grid32.size > 1 and bool(np.all(np.diff(grid32) > 0.0)):
-                q32 = q64.astype(np.float32)
+            q32 = q64.astype(np.float32)
+            grid_ok = (grid32.size <= 1) or bool(np.all(np.diff(grid32) > 0.0))
+            q_ok = (q32.size <= 1) or bool(np.all(np.diff(q32) > 0.0))
+            if grid_ok and q_ok:
                 grid = grid32
                 q = q32
                 interp_dtype = "float32"
@@ -201,29 +209,29 @@ class ECDFCache:
         self._q_range_cache[key] = (q0, q1)
         return (grid, q)
 
-    def meta(self, *, model: str, mode: str, pos: str, n: int, stat: str) -> dict:
-        key = (mode, pos, model, int(n), stat)
+    def meta(self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int) -> dict:
+        key = self._key(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         if key not in self._meta_cache:
-            _ = self.load(model=model, mode=mode, pos=pos, n=n, stat=stat)
+            _ = self.load(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         return dict(self._meta_cache[key])
 
-    def meta_hash(self, *, model: str, mode: str, pos: str, n: int, stat: str) -> str:
-        key = (mode, pos, model, int(n), stat)
+    def meta_hash(self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int) -> str:
+        key = self._key(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         if key not in self._hash_cache:
-            _ = self.load(model=model, mode=mode, pos=pos, n=n, stat=stat)
+            _ = self.load(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         return str(self._hash_cache[key])
 
-    def interp_dtype(self, *, model: str, mode: str, pos: str, n: int, stat: str) -> str:
-        key = (mode, pos, model, int(n), stat)
+    def interp_dtype(self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int) -> str:
+        key = self._key(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         if key not in self._interp_dtype_cache:
-            _ = self.load(model=model, mode=mode, pos=pos, n=n, stat=stat)
+            _ = self.load(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         return str(self._interp_dtype_cache[key])
 
     def validate_clamp_range(self, *, model: str, mode: str, pos: str, n: int, stat: str,
-                             clamp_min: float, clamp_max: float) -> None:
-        key = (mode, pos, model, int(n), stat)
+                             win: int, clamp_min: float, clamp_max: float) -> None:
+        key = self._key(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         if key not in self._q_range_cache:
-            _ = self.load(model=model, mode=mode, pos=pos, n=n, stat=stat)
+            _ = self.load(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         q0, q1 = self._q_range_cache[key]
         if not (q0 <= float(clamp_min) and float(clamp_max) <= q1):
             raise ValueError(
@@ -234,24 +242,27 @@ class ECDFCache:
     @staticmethod
     def interp_percentile(grid: np.ndarray, q: np.ndarray, x: np.ndarray) -> np.ndarray:
         """Piecewise-linear ECDF mapping; clamped to [0, 1] with tiny endpoint tolerance."""
+        dtype = np.float64 if (grid.dtype == np.float64 or q.dtype == np.float64) else np.float32
         # Allow a tiny epsilon near endpoints to avoid CPU/GPU drift from float jitter.
-        x_arr = np.asarray(x, dtype=np.float32)
-        g0 = np.float32(grid[0])
-        g1 = np.float32(grid[-1])
-        eps = np.float32(1.0e-5)
+        x_arr = np.asarray(x, dtype=dtype)
+        g0 = dtype(grid[0])
+        g1 = dtype(grid[-1])
+        eps = dtype(1.0e-5)
         # Nudge tiny-below-min values just inside the grid to avoid falling off to 0.0.
         low_nudge = np.minimum(g0 + eps, g1)
         high_nudge = np.maximum(g1 - eps, g0)
         x_adj = np.where((x_arr < g0) & (x_arr >= g0 - eps), low_nudge, x_arr)
         x_adj = np.where((x_adj > g1) & (x_adj <= g1 + eps), high_nudge, x_adj)
-        out = np.interp(x_adj, grid, q, left=0.0, right=1.0)
-        return out.astype(np.float32, copy=False)
+        grid_cast = grid.astype(dtype, copy=False)
+        q_cast = q.astype(dtype, copy=False)
+        out = np.interp(x_adj, grid_cast, q_cast, left=dtype(0.0), right=dtype(1.0))
+        return out.astype(dtype, copy=False)
 
     def percentiles(self, b: Bucket, x: np.ndarray) -> Dict[str, np.ndarray]:
         """Compute percentiles for all three stats using the same bucket selector."""
         out: Dict[str, np.ndarray] = {}
         for stat in ("zsum", "madsum", "logp"):
-            grid, qq = self.load(model=b.model, mode=b.d, pos=b.se, n=b.n, stat=stat)
+            grid, qq = self.load(model=b.model, mode=b.d, pos=b.se, n=b.n, stat=stat, win=b.win)
             out[stat] = self.interp_percentile(grid, qq, x)
         return out
 
@@ -263,21 +274,22 @@ class ECDFCache:
         """
         out: Dict[str, np.ndarray] = {}
         for stat, x in arrays.items():
-            grid, qq = self.load(model=b.model, mode=b.d, pos=b.se, n=b.n, stat=stat)
+            grid, qq = self.load(model=b.model, mode=b.d, pos=b.se, n=b.n, stat=stat, win=b.win)
             out[stat] = self.interp_percentile(grid, qq, x)
         return out
 
     @staticmethod
     def energy(p: np.ndarray, eps: float = 1e-9) -> np.ndarray:
         """Convert percentile (likelihood) to a positive surprisal-like score."""
-        p = np.asarray(p, dtype=np.float32)
-        lo = np.nextafter(np.float32(0.0), np.float32(1.0))
-        hi = np.nextafter(np.float32(1.0), np.float32(0.0))
+        dtype = np.float64 if np.asarray(p).dtype == np.float64 else np.float32
+        p = np.asarray(p, dtype=dtype)
+        lo = np.nextafter(dtype(0.0), dtype(1.0))
+        hi = np.nextafter(dtype(1.0), dtype(0.0))
         if eps is not None:
-            lo = np.maximum(lo, np.float32(eps))
-            hi = np.minimum(hi, np.float32(1.0 - float(eps)))
-        p = np.clip(p, lo, hi).astype(np.float32, copy=False)
-        return (-np.log1p(-p)).astype(np.float32, copy=False)
+            lo = np.maximum(lo, dtype(eps))
+            hi = np.minimum(hi, dtype(1.0 - float(eps)))
+        p = np.clip(p, lo, hi).astype(dtype, copy=False)
+        return (-np.log1p(-p)).astype(dtype, copy=False)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -307,6 +319,7 @@ class LmPrimeRuntime:
         alpha: float = 0.5,
         oov_policy: str = "floor_min_seen",
         include_char: bool = True,
+        prefer_float32: bool = True,
     ):
         # Discover language model root and index once
         self.root: Path = (root or default_lm_root()).resolve()
@@ -322,7 +335,7 @@ class LmPrimeRuntime:
         )
 
         # ECDF normalisation cache (reads NPZ based on index.json patterns)
-        self.ecdf = ECDFCache(self.root)
+        self.ecdf = ECDFCache(self.root, prefer_float32=bool(prefer_float32))
         # Coverage cache: key = (L, n, wise:bool, N)
         self._coverage_cache: Dict[Tuple[int, int, bool, int], Tuple[np.ndarray, np.ndarray]] = {}
 
@@ -335,6 +348,7 @@ class LmPrimeRuntime:
         alpha: float = 0.5,
         oov_policy: str = "floor_min_seen",
         include_char: bool = True,
+        prefer_float32: bool = True,
     ) -> "LmPrimeRuntime":
         """
         Return a shared LmPrimeRuntime instance for the given configuration.
@@ -345,7 +359,7 @@ class LmPrimeRuntime:
         root_path = (root or default_lm_root()).resolve()
         smoothing = "auto_gt" if smoothing is None else smoothing
         oov_policy = "floor_min_seen" if oov_policy is None else oov_policy
-        key = (str(root_path), str(smoothing), float(alpha), str(oov_policy), bool(include_char))
+        key = (str(root_path), str(smoothing), float(alpha), str(oov_policy), bool(include_char), bool(prefer_float32))
         cached = _LM_RUNTIME_CACHE.get(key)
         if cached is None:
             cached = cls(
@@ -354,6 +368,7 @@ class LmPrimeRuntime:
                 alpha=float(alpha),
                 oov_policy=oov_policy,
                 include_char=include_char,
+                prefer_float32=bool(prefer_float32),
             )
             _LM_RUNTIME_CACHE[key] = cached
         return cached

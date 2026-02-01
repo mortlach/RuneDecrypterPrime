@@ -11,7 +11,7 @@ Prereqs: Read the Architecture overview and ran one tutorial
 - **RunAPI.run** is the single public entry point for decryption runs.
 - **specs.py** declares `CipherSpec`, `KeySpec`, `SolverSpec`, `ScoringConfig` (strict types; enums only).
 - **by_name.py** exposes friendly constructors that return the strict specs (no magic strings beyond registered names).
-- **normalize.py** converts user-friendly inputs (strings, indices) to canonical forms (indices, WLI pairs).
+- **normalize.py** converts user-friendly inputs (strings, indices) to canonical forms (indices, WLI pairs using `(pos_in_word, word_len)` when provided).
 - **pipeline.py** defines direction and permutation handling used by the core runtime.
 
 ## Data flow (API -> Core)
@@ -54,7 +54,7 @@ sol = RunAPI.run(
 ## FAQ (API layer)
 - **Where does the seed live?** In the `SolverSpec`; the engine fans out named RNG streams.
 - **How do I pass an initial permutation?** Use `initial_text_permutation_indices` on `RunAPI.run`.
-- **Can I run without WLI?** Yes; pass indices only and the scorer will derive admissible defaults if supported.
+- **Can I run without WLI?** Yes; pass `wli_data=[]` and set `scorer_params.use_word_breaks=False`. Otherwise, the API will infer WLI from spaces in strings or fall back to a single-word WLI for index inputs (WLI pos/len must be `<= 63`).
 
 
 ## Related tests

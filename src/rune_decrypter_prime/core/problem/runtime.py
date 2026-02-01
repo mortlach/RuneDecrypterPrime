@@ -257,6 +257,40 @@ class DecryptionProblem:
         except Exception:
             return False
 
+    @staticmethod
+    def _seq_len(seq) -> int:
+        if hasattr(seq, "shape") and getattr(seq, "shape", None):
+            return int(seq.shape[-1])
+        return int(len(seq))
+
+    @staticmethod
+    def _iter_plaintexts(plains_seq):
+        if plains_seq is None:
+            return []
+        if hasattr(plains_seq, "ndim") and int(getattr(plains_seq, "ndim", 0)) == 1:
+            return [plains_seq]
+        return plains_seq
+
+    def _validate_wli_alignment(self, plains_seq, wli) -> None:
+        if wli is None:
+            return
+        if not (isinstance(wli, (list, tuple)) and all(
+            isinstance(p, (list, tuple)) and len(p) == 2 and isinstance(p[0], int) and isinstance(p[1], int)
+            for p in wli
+        )):
+            raise TypeError("WLI must be a list of (int,int) pairs or empty list")
+        wli_len = int(len(wli))
+        for i, pt in enumerate(self._iter_plaintexts(plains_seq)):
+            try:
+                pt_len = self._seq_len(pt)
+            except Exception as exc:
+                raise ValueError("Unable to determine plaintext length for WLI alignment check") from exc
+            if pt_len != wli_len:
+                raise ValueError(
+                    f"WLI length {wli_len} does not match plaintext length {pt_len} at batch index {i}. "
+                    "This indicates scoring text length drift (e.g., interruptor stripping/compaction)."
+                )
+
     def _split_key_batch(self, keys: Any):
         keys_np = to_numpy(keys)
         split = getattr(self.keyops, "split_key", None)
@@ -269,12 +303,7 @@ class DecryptionProblem:
         Score a batch of plaintexts. Prefers scorer.batch_score, falls back to per-item.
         Returns float64 [B].
         """
-        if wli is not None:
-            if not (isinstance(wli, (list, tuple)) and all(
-                isinstance(p, (list, tuple)) and len(p) == 2 and isinstance(p[0], int) and isinstance(p[1], int)
-                for p in wli
-            )):
-                raise TypeError("WLI must be a list of (int,int) pairs or empty list")
+        self._validate_wli_alignment(plains_seq, wli)
 
         sc = self.scorer
         if hasattr(sc, "batch_score") and callable(sc.batch_score):
@@ -295,12 +324,7 @@ class DecryptionProblem:
         Score a batch of plaintexts and return (primary_scores, raw_scores).
         Raw scores fall back to primary if the scorer doesn't expose raw.
         """
-        if wli is not None:
-            if not (isinstance(wli, (list, tuple)) and all(
-                isinstance(p, (list, tuple)) and len(p) == 2 and isinstance(p[0], int) and isinstance(p[1], int)
-                for p in wli
-            )):
-                raise TypeError("WLI must be a list of (int,int) pairs or empty list")
+        self._validate_wli_alignment(plains_seq, wli)
 
         sc = self.scorer
         if require_raw:

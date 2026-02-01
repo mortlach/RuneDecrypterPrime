@@ -95,7 +95,7 @@ def test_ecdf_dtype_knob_is_real():
 
     scorer = _make_char_only_scorer(impl=ScorerImpl.NUMPY, dtype="float64")
     prefer = getattr(getattr(scorer, "_ecdf", None), "_prefer_float32", None)
-    assert prefer is True
+    assert prefer is False
 
 
 def test_numpy_vs_torch_ranking_parity_fixed_candidates():

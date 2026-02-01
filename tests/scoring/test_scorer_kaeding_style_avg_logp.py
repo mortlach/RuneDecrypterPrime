@@ -39,8 +39,7 @@ def _mk_cipher_cfg(length: int, *, encoding_dir: Direction) -> dict:
     # build_scorer expects a CipherConfig-like mapping.
     # ciphertext and wli_data are required by CipherConfig, but scoring only needs device/dir and lengths.
     ct = list(range(length))
-    wli = [(i, i + 1) for i in range(length)]
-    return CipherConfig(ciphertext=ct, wli_data=wli, key_length=None, device=Device.CPU, encoding_dir=encoding_dir).asdict()
+    return CipherConfig(ciphertext=ct, wli_data=[], key_length=None, device=Device.CPU, encoding_dir=encoding_dir).asdict()
 
 
 def _mk_kaeding_scorer(win_ngrams: int, *, encoding_dir: Direction) -> object:

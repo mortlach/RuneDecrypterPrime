@@ -8,6 +8,10 @@
 | `_objective_from_string(spec)` | Parses legacy strings (`"pct.logp.win10"`, `"energy"`, etc.) into `ObjectiveSpec`. |
 | `ScoringConfig` | Dataclass with all scorer knobs (`model_root`, `impl`, `dtype`, `objective`, `encoding_dir`, WLI/text channel weights). `__post_init__` normalises enums and channel weights. |
 
+## Notes
+- `maximize` is enforced `True`; objectives are defined as higher-is-better (NEGLOGP is inverted in solver ranking).
+- `dtype` controls scorer precision: `float64` enables high-precision accumulation/ECDF interpolation and comparison; `float32` is the default for speed.
+
 ## Usage
 ```python
 from rune_decrypter_prime.core.config.scoring import ScoringConfig

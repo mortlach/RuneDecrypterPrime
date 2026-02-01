@@ -67,11 +67,20 @@ def test_ecdf_cache_loads_and_records_meta(tmp_path: Path) -> None:
     _write_ecdf(tmp_path, grid=grid, q=q, meta=meta)
 
     ecdf = ECDFCache(root=tmp_path)
-    g, qq = ecdf.load(model="char", mode="ltr", pos="nose", n=1, stat="logp")
+    g, qq = ecdf.load(model="char", mode="ltr", pos="nose", n=1, stat="logp", win=10)
     assert g.size == qq.size == 4
-    assert ecdf.meta_hash(model="char", mode="ltr", pos="nose", n=1, stat="logp")
-    assert ecdf.interp_dtype(model="char", mode="ltr", pos="nose", n=1, stat="logp") in {"float32", "float64"}
-    ecdf.validate_clamp_range(model="char", mode="ltr", pos="nose", n=1, stat="logp", clamp_min=0.25, clamp_max=0.45)
+    assert ecdf.meta_hash(model="char", mode="ltr", pos="nose", n=1, stat="logp", win=10)
+    assert ecdf.interp_dtype(model="char", mode="ltr", pos="nose", n=1, stat="logp", win=10) in {"float32", "float64"}
+    ecdf.validate_clamp_range(
+        model="char",
+        mode="ltr",
+        pos="nose",
+        n=1,
+        stat="logp",
+        win=10,
+        clamp_min=0.25,
+        clamp_max=0.45,
+    )
 
 
 def test_ecdf_cache_falls_back_to_float64_interp(tmp_path: Path) -> None:
@@ -82,9 +91,9 @@ def test_ecdf_cache_falls_back_to_float64_interp(tmp_path: Path) -> None:
     _write_ecdf(tmp_path, grid=grid, q=q, meta=meta)
 
     ecdf = ECDFCache(root=tmp_path)
-    g, _ = ecdf.load(model="char", mode="ltr", pos="nose", n=1, stat="logp")
+    g, _ = ecdf.load(model="char", mode="ltr", pos="nose", n=1, stat="logp", win=10)
     assert g.dtype == np.float64
-    assert ecdf.interp_dtype(model="char", mode="ltr", pos="nose", n=1, stat="logp") == "float64"
+    assert ecdf.interp_dtype(model="char", mode="ltr", pos="nose", n=1, stat="logp", win=10) == "float64"
 
 
 def test_ecdf_cache_rejects_meta_mismatch(tmp_path: Path) -> None:
@@ -96,7 +105,7 @@ def test_ecdf_cache_rejects_meta_mismatch(tmp_path: Path) -> None:
 
     ecdf = ECDFCache(root=tmp_path)
     with pytest.raises(ValueError, match="direction mismatch"):
-        _ = ecdf.load(model="char", mode="ltr", pos="nose", n=1, stat="logp")
+        _ = ecdf.load(model="char", mode="ltr", pos="nose", n=1, stat="logp", win=10)
 
 
 def test_ecdf_cache_rejects_missing_meta_json(tmp_path: Path) -> None:
@@ -109,4 +118,31 @@ def test_ecdf_cache_rejects_missing_meta_json(tmp_path: Path) -> None:
 
     ecdf = ECDFCache(root=tmp_path)
     with pytest.raises(ValueError, match="meta_json missing"):
-        _ = ecdf.load(model="char", mode="ltr", pos="nose", n=1, stat="logp")
+        _ = ecdf.load(model="char", mode="ltr", pos="nose", n=1, stat="logp", win=10)
+
+
+def test_ecdf_cache_rejects_win_mismatch(tmp_path: Path) -> None:
+    _write_index(tmp_path)
+    grid = np.linspace(0.1, 0.4, 4, dtype=np.float64)
+    q = np.linspace(0.2, 0.5, 4, dtype=np.float64)
+    meta = _meta_base(win=10, n=1)
+    _write_ecdf(tmp_path, grid=grid, q=q, meta=meta)
+
+    ecdf = ECDFCache(root=tmp_path)
+    _ = ecdf.load(model="char", mode="ltr", pos="nose", n=1, stat="logp", win=10)
+    with pytest.raises(ValueError, match="win_ngrams mismatch"):
+        _ = ecdf.load(model="char", mode="ltr", pos="nose", n=1, stat="logp", win=12)
+
+
+def test_ecdf_cache_float32_requires_monotone_q(tmp_path: Path) -> None:
+    _write_index(tmp_path)
+    grid = np.linspace(0.1, 0.4, 4, dtype=np.float64)
+    # Tiny deltas collapse in float32 and should force float64 interp.
+    q = np.array([0.1, 0.1 + 1e-12, 0.1 + 2e-12, 0.1 + 3e-12], dtype=np.float64)
+    meta = _meta_base(win=10, n=1)
+    _write_ecdf(tmp_path, grid=grid, q=q, meta=meta)
+
+    ecdf = ECDFCache(root=tmp_path)
+    g, _ = ecdf.load(model="char", mode="ltr", pos="nose", n=1, stat="logp", win=10)
+    assert g.dtype == np.float64
+    assert ecdf.interp_dtype(model="char", mode="ltr", pos="nose", n=1, stat="logp", win=10) == "float64"

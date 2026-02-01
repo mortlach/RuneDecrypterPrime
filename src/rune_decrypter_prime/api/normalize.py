@@ -252,7 +252,7 @@ def to_indices(text: Union[str, np.ndarray, Sequence[int], Tuple[np.ndarray, Seq
 
 
 def make_single_word_wli(L: int) -> list[list[int]] | None:
-    """Return a single-word WLI using (pos_in_word, word_len)."""
+    """Return a single-word WLI using (pos_in_word, word_len). (L must be <= 63 for LMPrime WLI encoding.)"""
     if L >= 0:
         return [[i, L] for i in range(0, L)]
     return None
@@ -389,8 +389,8 @@ def _validate_wli_poslen(wli_list: Sequence[Sequence[int]], L: int) -> None:
             raise ValueError("wli entries must be non-negative; word_len must be > 0")
         if pos >= ln:
             raise ValueError("wli pos_in_word must be < word_len")
-        if pos > 255 or ln > 255:
-            raise ValueError("wli entries must fit in uint8 (<=255)")
+        if pos > 63 or ln > 63:
+            raise ValueError("wli entries must be <= 63 to match LMPrime WLI encoding")
         if expected_pos == 0:
             current_len = ln
         if ln != current_len:

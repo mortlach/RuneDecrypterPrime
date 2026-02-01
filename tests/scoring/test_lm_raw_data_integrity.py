@@ -146,7 +146,7 @@ def test_ecdf_tables_are_monotone_and_end_at_0_1() -> None:
                 for n in (1, 2, 3, 4):
                     for stat in ("logp", "zsum", "madsum"):
                         try:
-                            grid, q = ecdf.load(model=model, mode=mode, pos=pos, n=n, stat=stat)
+                            grid, q = ecdf.load(model=model, mode=mode, pos=pos, n=n, stat=stat, win=10)
                         except FileNotFoundError:
                             continue
 

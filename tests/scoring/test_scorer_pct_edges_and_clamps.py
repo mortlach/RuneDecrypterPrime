@@ -13,8 +13,7 @@ from tests.scoring._helpers.lm_test_guard import require_full_lm_assets
 
 def _mk_cipher_cfg(length: int) -> dict:
     ct = list(range(length))
-    wli = [(i, i + 1) for i in range(length)]
-    return CipherConfig(ciphertext=ct, wli_data=wli, key_length=None, device=Device.CPU, encoding_dir=Direction.LTR).asdict()
+    return CipherConfig(ciphertext=ct, wli_data=[], key_length=None, device=Device.CPU, encoding_dir=Direction.LTR).asdict()
 
 
 def _mk_pct_scorer(*, ecdf_clamp_min: float | None = None, ecdf_clamp_max: float | None = None) -> object:
