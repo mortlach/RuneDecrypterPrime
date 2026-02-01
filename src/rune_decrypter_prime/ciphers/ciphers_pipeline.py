@@ -91,9 +91,10 @@ class CipherPipelineMixin:
         key_transposition : {"ltr","rtl"}, optional
             Initial key transposition mode to be managed by `TranspositionManager`.
 
-        initial_text_permutation_indices: Explicit permutation over ciphertext token
-        indices after interrupter removal. Inverse is applied to plaintext before
-        reinserting interrupters. When provided, it overrides text_transposition
+        initial_text_permutation_indices: Explicit permutation over full ciphertext
+        token indices (including interruptors). Applied before interruptor removal;
+        inverse is applied after reinsertion so plaintext returns in natural order.
+        When provided, it overrides text_transposition.
 
         Notes
         -----
@@ -120,7 +121,7 @@ class CipherPipelineMixin:
 
     @property
     def initial_text_permutation_indices(self) -> Optional[list[int]]:
-        """Ground truth: explicit ciphertext-index permutation applied in core space, or None."""
+        """Ground truth: explicit ciphertext-index permutation applied in full-text space, or None."""
         if self._text_perm_full is not None:
             return [int(x) for x in np.asarray(self._text_perm_full, dtype=np.int64).tolist()]
         if getattr(self._trans_mgr, "text_mode", None) != "perm":
@@ -174,12 +175,13 @@ class CipherPipelineMixin:
 
         The decrypt flow is:
             1) Normalise inputs (fallback to bound `cfg.ciphertext` if None).
-            2) Remove interruptors → `(ct_core, info)`.
-            3) Apply text transposition → `ct_tr`.
-            4) Prepare key to `[B,K]` and apply key transposition → `keys_tr`.
-            5) Delegate to `_core_decrypt_batch(ct_tr, keys_tr)` → `plains_tr`.
-            6) Optionally assert additive invariant for debugging.
-            7) Undo text transposition, reinsert interruptors, and stack batches.
+            2) Apply full-text permutation (if provided).
+            3) Remove interruptors -> `(ct_core, info)`.
+            4) Apply text transposition -> `ct_tr`.
+            5) Prepare key to `[B,K]` and apply key transposition -> `keys_tr`.
+            6) Delegate to `_core_decrypt_batch(ct_tr, keys_tr)` -> `plains_tr`.
+            7) Optionally assert additive invariant for debugging.
+            8) Undo text transposition, reinsert interruptors, undo permutation, and stack batches.
 
         Parameters
         ----------
@@ -278,7 +280,7 @@ class CipherPipelineMixin:
             interrupt_idx: Optional[ArrayU8] = None,
             interrupt_sym: Optional[ArrayU8] = None,
     ) -> ArrayU8:
-        """Encrypt in canonical pipeline form (mirror of `decrypt`)."""
+        """Encrypt in canonical pipeline form (mirror of `decrypt`). Full-text permutations apply before interruptor removal."""
         # 1) normalise
         pt_idx = self._as_u8(plaintext, "plaintext")
 

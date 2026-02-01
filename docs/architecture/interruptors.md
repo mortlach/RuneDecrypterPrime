@@ -87,7 +87,9 @@ When `search_strategy="auto"`:
 This is configurable to prevent runaway search space growth.
 
 ## Pipeline Impact (Default)
-Index space defaults to pre-transposition absolute indices:
+Index space defaults to pre-transposition absolute indices. If a full-text permutation
+is configured, interruptor indices are interpreted in the pre-permutation space and
+mapped before removal.
 1) Remove interruptors at absolute indices.
 2) Transpose core if configured.
 3) Decrypt/encrypt core.

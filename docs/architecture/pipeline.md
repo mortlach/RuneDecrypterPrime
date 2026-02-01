@@ -10,16 +10,18 @@ Text-level transforms applied *outside* the cipher: direction and whole-text per
 
 **Fields**
 - `text_encoding_direction`: `"ltr"` or `"rtl"` (aliases normalised to enum).
-- `input_permutation`: `"none"` or `"reverse"` (round-tripped after decrypt).
+- `input_permutation`: telemetry summary of the full-text permutation (identity when none).
 
 **Example**
 ```python
+ciphertext_idx = [0, 1, 2, 3]  # toy indices
+perm = list(reversed(range(len(ciphertext_idx))))
 result = RunAPI.run(
-    ciphertext="...",
+    ciphertext=ciphertext_idx,
     cipher_spec=CipherSpec(name="Substitution"),
     solver_spec=SolverSpec(name="GA", eval_budget=20_000),
     text_encoding_direction="rtl",
-    input_permutation="reverse",
+    initial_text_permutation_indices=perm,
     seed=7,
 )
 # The engine undoes the permutation after decryption so plaintext is in natural order.
@@ -27,9 +29,10 @@ result = RunAPI.run(
 
 ## Round-trip and scope notes
 - **Round-trip:** pipeline changes are always reversed before the final plaintext is returned.  
-  Example: `input_permutation="reverse"` -> decrypt -> reverse again -> readable plaintext.
+  Example: `initial_text_permutation_indices=perm` -> decrypt -> undo perm -> readable plaintext.
 - **Scope:** pipeline is cipher-agnostic; it does not implement cipher logic.
 - **Interruptors:** model interruptors in the cipher or a higher layer; keep pipeline focused on direction and whole-text permutations.
+  Interruptor indices are interpreted in pre-permutation coordinates and mapped internally when a permutation is provided.
 
 **Telemetry**
 A pipeline summary appears in `run_start` and `run_end` events.
