@@ -105,7 +105,7 @@ class SolverBase:
 
     New (generic) early-stop:
       - Plateau across steps (rounds/generations/iters), with a min_delta improvement threshold.
-      - Works for all solvers by calling `_update_best_and_check_patience(best, step)`.
+      - Works for all solvers by calling `_early_stop_update(best, step)` and `_early_stop_stop_score(...)`.
     """
 
     # ---- Telemetry whitelists ----
@@ -448,7 +448,7 @@ class SolverBase:
     def _register_step_best(self, current_best: float, step: int) -> bool:
         """Update the running best. Returns True if we improved by ≥ plateau_min_delta."""
         improved = False
-        if current_best > (self._best_score_so_far + self.plateau_min_delta):
+        if self._is_improvement(current_best, self._best_score_so_far, self.plateau_min_delta):
             self._best_score_so_far = float(current_best)
             self._best_at_step = int(step)
             improved = True
@@ -461,9 +461,8 @@ class SolverBase:
         return self._since_improve(step) >= self.plateau_rounds
 
     def _update_best_and_check_patience(self, current_best: float, step: int) -> bool:
-        """Convenience: register improvement and return early-stop decision."""
-        self._register_step_best(current_best, step)
-        return self._patience_should_stop(step)
+        """Legacy helper: delegate to the unified early-stop update."""
+        return self._early_stop_update(current_best, step)
 
     # ---------------- Scoring adapters ----------------
 
@@ -836,7 +835,7 @@ class SolverBase:
         """Update plateau state; return True if plateau triggers a stop."""
         min_delta = float(getattr(self, "_plateau_delta",
                                   getattr(self, "plateau_min_delta", 0.0)) or 0.0)
-        if (current_best - self._best_score_so_far) > min_delta:
+        if self._is_improvement(current_best, self._best_score_so_far, min_delta):
             self._best_score_so_far = float(current_best)
             self._last_improve_at = int(step)
             self._best_at_step = int(step)
@@ -861,6 +860,26 @@ class SolverBase:
             self._stop_reason = "target_score"
             return True
         return False
+
+    @staticmethod
+    def _is_improvement(current_best: float, prev_best: float, min_delta: float) -> bool:
+        """Return True when current_best improves by at least min_delta."""
+        return float(current_best) >= (float(prev_best) + float(min_delta))
+
+    @staticmethod
+    def _stable_topk_indices(scores: np.ndarray, k: int) -> np.ndarray:
+        """Deterministic top-k indices: score desc, index asc for ties."""
+        arr = np.asarray(scores, dtype=np.float64).reshape(-1)
+        n = int(arr.size)
+        if k <= 0 or n == 0:
+            return np.empty((0,), dtype=np.int64)
+        k = int(min(k, n))
+        if k == n:
+            idx = np.arange(n, dtype=np.int64)
+            return np.lexsort((idx, -arr))
+        part = np.argpartition(arr, -k)[-k:]
+        order = np.lexsort((part, -arr[part]))
+        return part[order]
 
     # ---------------- Core scoring entrypoint ----------------
 

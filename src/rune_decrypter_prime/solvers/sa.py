@@ -44,6 +44,9 @@ class SASolver(SolverBase):
             Tmin = max(1e-12, float(params["Tmin"]))
             params["cool"] = 1.0 if Tmin >= T0 else float((Tmin / T0) ** (1.0 / I))
 
+        if bool(params.get("sa_elitism", False)):
+            raise ValueError("sa_elitism is not supported (remove or set to False)")
+
         rng = kwargs.get("rng")
         if rng is None:
             raise TypeError("SASolver requires rng=np.random.Generator from the engine")

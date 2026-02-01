@@ -253,11 +253,7 @@ class GASolver(SolverBase):
                 all_keys = np.vstack([elite_keys, pop, children]).astype(KEY_DTYPE, copy=False)
                 all_scores = np.concatenate([scores[:elites], scores, child_scores])
 
-                if all_keys.shape[0] > P:
-                    keep = np.argpartition(all_scores, -P)[-P:]
-                    keep = keep[np.argsort(all_scores[keep])[::-1]]
-                else:
-                    keep = np.argsort(all_scores)[::-1]
+                keep = self._stable_topk_indices(all_scores, int(P))
 
                 pop = np.ascontiguousarray(all_keys[keep], dtype=KEY_DTYPE)
                 scores = np.ascontiguousarray(all_scores[keep], dtype=np.float64)

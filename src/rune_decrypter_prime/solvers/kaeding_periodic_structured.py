@@ -218,6 +218,7 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                 if pct_score > (best_pct_seen + pct_plateau_min_delta):
                     best_pct_seen = float(pct_score)
                     last_pct_improve_at = int(step_idx)
+                    self._best_at_step = int(step_idx)
 
             for restart in range(restarts):
                 stall_slips_used = 0

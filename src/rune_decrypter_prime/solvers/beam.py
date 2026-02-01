@@ -309,11 +309,7 @@ class BeamSolver(SolverBase):
                 all_keys = np.vstack([beam, expanded]).astype(KEY_DTYPE, copy=False)
                 all_scores = np.concatenate([scores, exp_scores])
 
-                if all_keys.shape[0] > W:
-                    idx = np.argpartition(all_scores, -W)[-W:]
-                    idx = idx[np.argsort(all_scores[idx])[::-1]]
-                else:
-                    idx = np.argsort(all_scores)[::-1]
+                idx = self._stable_topk_indices(all_scores, int(W))
 
                 beam = np.ascontiguousarray(all_keys[idx], dtype=KEY_DTYPE)
                 scores = np.ascontiguousarray(all_scores[idx], dtype=np.float64)
