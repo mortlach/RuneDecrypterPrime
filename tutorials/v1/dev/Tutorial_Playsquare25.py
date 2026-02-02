@@ -69,7 +69,17 @@ def main() -> None:
     ct = run.encrypt(text=pt_runes25, cipher=cipher, key=true_key, wli_data=None).ciphertext
 
     # Solve with GA+SA hybrid (permutation key)
-    solve = SolverSpec.hybrid(pop_size=150, generations=200, sa_iters=2000, sa_init_temp=1.0, sa_min_temp=0.001, sa_cooling=0.999)
+    solve = SolverSpec.hybrid(
+        pop_size=150,
+        generations=200,
+        sa_iters=2000,
+        sa_init_temp=1.0,
+        sa_min_temp=0.001,
+        sa_cooling=0.999,
+        plateau_rounds=20,
+        plateau_min_delta=1e-4,
+        stop_score=0.55,
+    )
 
     # Scoring without word breaks
     scorer_params = dict(objective="pct.logp.win10", n_char=2, n_wli=None, win=10, include_char=True, use_word_breaks=False, weights=(1.0,))

@@ -26,7 +26,16 @@ def main():
 
     cipher = by_name.cipher("mono", alphabet=N)
     key    = KeySpec.permutation(len=N)
-    solve  = SolverSpec.ga(population=300, generations=400, elite_frac=0.05, cx_frac=0.7, mut_prob=0.3)
+    solve  = SolverSpec.ga(
+        population=300,
+        generations=400,
+        elite_frac=0.05,
+        cx_frac=0.7,
+        mut_prob=0.3,
+        plateau_rounds=20,
+        plateau_min_delta=1e-4,
+        stop_score=0.55,
+    )
 
     sol = run.solve(
         text=ct_runes, cipher=cipher, key=key, solve=solve,

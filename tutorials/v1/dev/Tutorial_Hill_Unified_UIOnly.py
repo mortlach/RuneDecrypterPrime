@@ -41,9 +41,19 @@ def main():
 
     # 3) Solve via UI
     spec  = CipherSpec(name="hill", key=key_plan)
-    solve = SolverSpec(cipher=spec,
-                       scorer={"impl": "char", "order": 3},
-                       solver={"name": "ga", "generations": 50, "pop": 64, "seed": 123})
+    solve = SolverSpec(
+        cipher=spec,
+        scorer={"impl": "char", "order": 3},
+        solver={
+            "name": "ga",
+            "generations": 50,
+            "pop": 64,
+            "seed": 123,
+            "plateau_rounds": 10,
+            "plateau_min_delta": 1e-4,
+            "stop_score": 0.5,
+        },
+    )
     result = run.solve(ct, solve)
 
     # 4) Prints

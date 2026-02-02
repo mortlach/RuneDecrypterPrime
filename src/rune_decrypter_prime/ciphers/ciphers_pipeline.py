@@ -237,6 +237,7 @@ class CipherPipelineMixin:
         # 5) key -> [B,K] and key transposition (core semantics)
         key_arr = self._as_key_dtype(key, "key")
         if getattr(self, "mod_keys", True):
+            self._validate_key_range(key_arr)
             key_arr = key_arr % self.A
         if key_arr.ndim == 1:
             key_arr = key_arr[None, :]  # [1,K]
@@ -303,6 +304,7 @@ class CipherPipelineMixin:
         # 5) key -> [B,K] and key transposition (core semantics)
         key_arr = self._as_key_dtype(key, "key")
         if getattr(self, "mod_keys", True):
+            self._validate_key_range(key_arr)
             key_arr = key_arr % self.A
         if key_arr.ndim == 1:
             key_arr = key_arr[None, :]  # [1,K]
@@ -365,6 +367,19 @@ class CipherPipelineMixin:
         if arr.ndim < 1:
             raise ValueError(f"{name} must be array-like")
         return arr
+
+    def _validate_key_range(self, key_arr: np.ndarray) -> None:
+        """Validate key values are within [0, A) when mod_keys is enabled."""
+        if not getattr(self, "mod_keys", True):
+            return
+        A = getattr(self, "A", None)
+        if A is None:
+            return
+        arr = np.asarray(key_arr)
+        if arr.size == 0:
+            return
+        if np.any(arr < 0) or np.any(arr >= int(A)):
+            raise ValueError(f"key values must be in [0, {int(A)}) when mod_keys is enabled")
 
     @staticmethod
     def _as_intp(x, name: str) -> ArrayU8:

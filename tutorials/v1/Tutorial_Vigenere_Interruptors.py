@@ -91,6 +91,9 @@ def main() -> None:
     solver = SolverSpec.beam(
         beam_width=1,
         test_key=key_arr.tolist(),
+        stop_score=0.5,
+        plateau_rounds=4,
+        plateau_min_delta=1e-4,
         progress_pct=1,
         seed=TUTORIAL_SEED,
     )

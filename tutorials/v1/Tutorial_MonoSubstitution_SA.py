@@ -139,7 +139,6 @@ def main():
         sa_min_temp=1e-4,
         sa_cooling=0.999,
         sa_auto_cooling=True,
-        sa_elitism=True,
         sa_reseed_interval=400,
         sa_rescue_drop_abs=0.02,
         sa_rescue_drop_ratio=0.5,

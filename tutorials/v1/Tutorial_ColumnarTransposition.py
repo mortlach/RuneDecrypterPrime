@@ -89,6 +89,7 @@ def main():
             mut_prob=0.3,
             tournament_k=3,
             plateau_rounds=12,
+            plateau_min_delta=1e-4,
             stop_score=0.54,
             print_progress=True,
         ),
@@ -98,6 +99,7 @@ def main():
             sa_min_temp=1e-4,
             sa_cooling=0.997,
             plateau_rounds=300,
+            plateau_min_delta=1e-4,
             local_improve_on_accept=True,
             stop_score=0.54,
             print_progress=True,
@@ -106,6 +108,8 @@ def main():
         seed=TUTORIAL_SEED,
         verbose=True,
         log_interval=10,
+        plateau_rounds=8,
+        plateau_min_delta=1e-4,
         stop_score=0.54,
     )
 

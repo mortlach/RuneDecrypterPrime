@@ -42,6 +42,9 @@ def main():
         sa_init_temp=1.0,
         sa_min_temp=0.001,
         sa_cooling=0.997,
+        plateau_rounds=120,
+        plateau_min_delta=1e-4,
+        stop_score=0.55,
     )
 
     sol = run.solve(

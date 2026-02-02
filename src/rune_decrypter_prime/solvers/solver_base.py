@@ -214,8 +214,11 @@ class SolverBase:
             if arr.ndim == 1:
                 arr = arr.reshape(1, -1)
             normalized_rows = []
+            validate = getattr(self.keyops, "validate", None)
             for i, row in enumerate(arr):
                 try:
+                    if callable(validate):
+                        validate(row)
                     norm = np.asarray(self.keyops.normalize(row), dtype=self.key_dtype)
                 except Exception as exc:
                     raise ValueError(f"Invalid seed key at index {i}") from exc

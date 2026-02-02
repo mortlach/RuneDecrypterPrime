@@ -28,7 +28,16 @@ def main() -> None:
     # Cipher by name: “route-snake” (you added the modernized class)
     cipher = by_name.cipher("route-snake", key_len=C)     # key is a column permutation per snake pass
     key_spec = KeySpec.permutation(len=C)
-    solve = SolverSpec.ga(population=120, generations=300, cx_frac=0.7, mut_prob=0.3, elite_frac=0.05)
+    solve = SolverSpec.ga(
+        population=120,
+        generations=300,
+        cx_frac=0.7,
+        mut_prob=0.3,
+        elite_frac=0.05,
+        plateau_rounds=20,
+        plateau_min_delta=1e-4,
+        stop_score=0.55,
+    )
 
     scorer_params = dict(objective="pct.logp.win10", n_char=2, n_wli=None, win=10, include_char=True, use_word_breaks=False, weights=(1.0,))
 

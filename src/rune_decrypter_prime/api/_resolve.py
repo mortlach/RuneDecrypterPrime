@@ -28,7 +28,7 @@ _CANON_OPTS: dict[str, set[str]] = {
     },
     "sa": {
         "params", "tol", "iters", "T0", "Tmin", "cool", "auto_cooling",
-        "local_improve_on_accept", "sa_elitism", "sa_rescue_drop_abs", "sa_rescue_drop_ratio",
+        "local_improve_on_accept", "sa_rescue_drop_abs", "sa_rescue_drop_ratio",
         "sa_reseed_interval",
         "plateau_rounds", "plateau_min_delta", "stop_score",
         "progress_pct", "print_progress", "progress_preview_chars",

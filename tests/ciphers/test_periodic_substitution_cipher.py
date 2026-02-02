@@ -58,6 +58,32 @@ def test_periodic_substitution_bad_key_length():
         cipher.decrypt_single(ciphertext=np.array([0, 1, 2], dtype=np.uint8), key=key)
 
 
+def test_periodic_substitution_rejects_non_permutation_blocks():
+    period = 2
+    A = 5
+    key_len = period * A
+    cfg = CipherConfig(
+        ciphertext=[0],
+        wli_data=[],
+        key_length=key_len,
+        name="periodic_substitution",
+        period=period,
+        alphabet_size=A,
+        keyops_hints={"period": period, "A": A},
+    )
+    cipher = PeriodicSubstitutionCipher(cfg)
+
+    # Duplicate within block
+    bad = np.array([0, 1, 1, 3, 4, 0, 1, 2, 3, 4], dtype=np.int16)
+    with pytest.raises(ValueError):
+        cipher.decrypt_single(ciphertext=np.array([0, 1, 2], dtype=np.uint8), key=bad)
+
+    # Out-of-range within block
+    bad2 = np.array([0, 1, 2, 3, 5, 0, 1, 2, 3, 4], dtype=np.int16)
+    with pytest.raises(ValueError):
+        cipher.encrypt_single(plaintext=np.array([0, 1, 2], dtype=np.uint8), key=bad2)
+
+
 @pytest.mark.tier_a
 @pytest.mark.parametrize("length", [1, 2, 6, 7, 8, 15])
 def test_periodic_substitution_encrypt_decrypt_roundtrip_random(length):

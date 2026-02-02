@@ -54,7 +54,6 @@ def test_hybrid_stage2_trimmed_mono_regression():
             sa_min_temp=1e-3,
             sa_auto_cooling=True,
             sa_cooling=0.997,
-            sa_elitism=True,
             sa_rescue_drop_abs=0.02,
             sa_rescue_drop_ratio=0.5,
             local_improve_on_accept=True,

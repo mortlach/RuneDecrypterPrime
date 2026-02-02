@@ -27,7 +27,12 @@ def main():
     ct_runes = Runeglish.to_rune(ct_idx, wli)
 
     key_spec = KeySpec.repeat(len=len(key_nums))
-    solve    = SolverSpec.beam(beam_width=48)
+    solve    = SolverSpec.beam(
+        beam_width=48,
+        plateau_rounds=8,
+        plateau_min_delta=1e-4,
+        stop_score=0.55,
+    )
 
     sol = run.solve(
         text=ct_runes, cipher=cipher, key=key_spec, solve=solve,

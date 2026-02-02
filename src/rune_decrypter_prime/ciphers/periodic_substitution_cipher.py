@@ -26,6 +26,24 @@ def _cfg_get(cfg, name: str, default=None):
     return default
 
 
+def _validate_key_blocks(keys_arr: np.ndarray, period: int, A: int) -> None:
+    if keys_arr.ndim != 2:
+        raise ValueError("keys must be 2-D [B, K]")
+    expected = int(period * A)
+    if keys_arr.shape[1] != expected:
+        raise ValueError(f"Expected key length {expected}, got {keys_arr.shape[1]}")
+    B = int(keys_arr.shape[0])
+    for b in range(B):
+        for r in range(int(period)):
+            start = r * int(A)
+            end = start + int(A)
+            block = keys_arr[b, start:end].astype(np.int64, copy=False)
+            if (block < 0).any() or (block >= int(A)).any():
+                raise ValueError("periodic_substitution key blocks must be in [0, A)")
+            if np.unique(block).size != int(A):
+                raise ValueError("periodic_substitution key blocks must be permutations of 0..A-1")
+
+
 @register_cipher("periodic_substitution")
 class PeriodicSubstitutionCipher(CipherPipelineMixin, KeyedCipherBase):
     """
@@ -77,6 +95,8 @@ class PeriodicSubstitutionCipher(CipherPipelineMixin, KeyedCipherBase):
         if ct_arr.shape[0] != keys_arr.shape[0]:
             raise ValueError("Batch size mismatch between ciphertext and keys")
 
+        _validate_key_blocks(keys_arr, self.period, self.A)
+
         L = int(ct_arr.shape[1])
         phase = np.arange(L, dtype=np.int64) % int(self.period)
         idx = phase[None, :] * int(self.A) + ct_arr.astype(np.int64)
@@ -95,6 +115,8 @@ class PeriodicSubstitutionCipher(CipherPipelineMixin, KeyedCipherBase):
             pt_arr = np.repeat(pt_arr, keys_arr.shape[0], axis=0)
         if pt_arr.shape[0] != keys_arr.shape[0]:
             raise ValueError("Batch size mismatch between plaintext and keys")
+
+        _validate_key_blocks(keys_arr, self.period, self.A)
 
         B, L = int(keys_arr.shape[0]), int(pt_arr.shape[1])
         inv = np.empty((B, int(self.period), int(self.A)), dtype=np.int64)

@@ -72,9 +72,19 @@ def main():
 
     # --- 4) Solve via the public API ---
     spec  = CipherSpec(name="hill", key=keyop)  # factories will re-materialize keys for search
-    solve = SolverSpec(cipher=spec,
-                       scorer={"impl": "char", "order": 3},  # normal tutorial scorer
-                       solver={"name": "ga", "generations": 50, "pop": 64, "seed": 123})
+    solve = SolverSpec(
+        cipher=spec,
+        scorer={"impl": "char", "order": 3},  # normal tutorial scorer
+        solver={
+            "name": "ga",
+            "generations": 50,
+            "pop": 64,
+            "seed": 123,
+            "plateau_rounds": 10,
+            "plateau_min_delta": 1e-4,
+            "stop_score": 0.5,
+        },
+    )
     result = run.solve(ct, solve)  # returns a stable result structure with telemetry
 
     # --- 5) Minimal prints (beginner-friendly) ---

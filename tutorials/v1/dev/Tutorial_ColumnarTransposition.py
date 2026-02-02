@@ -50,7 +50,17 @@ def main():
     # Build cipher + key spec
     cipher = by_name.cipher("columnar", key_len=len(key))
     key_spec = KeySpec.permutation(len=len(key))
-    solve_spec = SolverSpec.hybrid(pop_size=200, generations=100, sa_iters=2000, sa_init_temp=1.0, sa_min_temp=0.001, sa_cooling=0.999)
+    solve_spec = SolverSpec.hybrid(
+        pop_size=200,
+        generations=100,
+        sa_iters=2000,
+        sa_init_temp=1.0,
+        sa_min_temp=0.001,
+        sa_cooling=0.999,
+        plateau_rounds=20,
+        plateau_min_delta=1e-4,
+        stop_score=0.55,
+    )
     # solve_spec = SolveSpec.ga(population=50, generations=300, mut_prob=0.4,cx_frac=0.5,elite_frac=0.01)
     # solve_spec_2 = SolveSpec.sa(sa_iters = 200000)
 

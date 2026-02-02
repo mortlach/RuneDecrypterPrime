@@ -91,8 +91,6 @@ class SASolver(SolverBase):
         rescue_abs: float = float(self.get_param("sa_rescue_drop_abs", 0.0) or 0.0)
         rescue_ratio: float = float(self.get_param("sa_rescue_drop_ratio", 0.0) or 0.0)
         reseed_interval: int = int(self.get_param("sa_reseed_interval", 0) or 0)
-        elitism: bool = bool(self.get_param("sa_elitism", False))
-
         fast = self._maybe_return_test_key_fastpath(SolverName.SA)
         if fast is not None:
             return fast

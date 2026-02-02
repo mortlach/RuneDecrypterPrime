@@ -77,7 +77,6 @@ def test_sa_permutation_solver_preserves_bijection_and_reaches_quality():
         sa_min_temp=1e-3,
         sa_cooling=0.995,
         sa_auto_cooling=True,
-        sa_elitism=True,
         log_interval=0,
         progress_pct=1,
         seed=4242,

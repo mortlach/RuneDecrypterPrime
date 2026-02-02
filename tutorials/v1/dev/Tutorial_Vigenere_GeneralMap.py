@@ -140,7 +140,12 @@ def main() -> None:
 
     # Step D — Tell the solver only the period K; set a modest beam.
     key_spec   = KeySpec.repeat(len=len(key_nums))
-    solve_spec = SolverSpec.beam(beam_width=32)
+    solve_spec = SolverSpec.beam(
+        beam_width=32,
+        plateau_rounds=8,
+        plateau_min_delta=1e-4,
+        stop_score=0.55,
+    )
 
     # Make scoring word-break aware .
     scorer_params = {

@@ -70,6 +70,7 @@ class VectorKeyOps(KeyOpBase):
             "expand_position",
         }
         self.caps = KeyCaps(length=self.K, prefers_batch=True, traits=traits, ops=ops)
+        super().__init__(self.caps)
 
     # --------------------------- Core verbs -----------------------------------
     def normalize(self, key: np.ndarray) -> np.ndarray:
@@ -113,15 +114,14 @@ class VectorKeyOps(KeyOpBase):
 
     def validate(self, key) -> None:
         """
-        Raise if key is not uint8, length K, with non-negative values.
-        (Upper-bound-by-mod is guaranteed by the class' own random/normalize path.)
+        Raise if key is not uint8, length K, and within [0, mod).
         """
         import numpy as np
         k = np.asarray(key, dtype=np.uint8)
         assert k.ndim == 1, f"Vector key must be 1-D, got shape {k.shape}"
         assert k.size > 0, "Vector key must be non-empty"
-        # dtype cast ensures 0..255; just assert no wrap-around negatives
         assert np.all(k >= 0), "Vector key entries must be >= 0"
+        assert np.all(k < self.mod), f"Vector key entries must be < mod ({self.mod})"
 
     def partial_mask(self, L: int, depth: int):
         """

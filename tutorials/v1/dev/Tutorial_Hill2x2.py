@@ -29,7 +29,13 @@ def main():
 
     cipher = define_map(function=hill2x2_map,N=N)
     key_spec = KeySpec.matrix2x2(N)
-    solve_spec = SolverSpec.ga(population=100, generations=500)
+    solve_spec = SolverSpec.ga(
+        population=100,
+        generations=500,
+        plateau_rounds=20,
+        plateau_min_delta=1e-4,
+        stop_score=0.55,
+    )
 
     sol = run.solve(text=ct_runes,cipher=cipher,key=key_spec,solve=solve_spec,
                     device="cpu",scorer="rune",

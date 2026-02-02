@@ -88,7 +88,16 @@ def main() -> None:
     keyops = HybridKeyOps(flag_len=len(flags), rng_seed=1337)
     key = KeySpec.custom(keyops=keyops)
 
-    solve = SolverSpec.ga(population=200, generations=300, cx_frac=0.7, mut_prob=0.3, elite_frac=0.05)
+    solve = SolverSpec.ga(
+        population=200,
+        generations=300,
+        cx_frac=0.7,
+        mut_prob=0.3,
+        elite_frac=0.05,
+        plateau_rounds=20,
+        plateau_min_delta=1e-4,
+        stop_score=0.55,
+    )
     scorer_params = dict(objective="pct.logp.win10", n_char=2, n_wli=None, win=10, include_char=True, use_word_breaks=False, weights=(1.0,))
 
     sol = run.solve(

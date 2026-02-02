@@ -130,6 +130,7 @@ def _solve_once(direction: Direction, telemetry_on: bool):
         mut_prob=0.25,
         tournament_k=4,
         plateau_rounds=20,
+        plateau_min_delta=1e-4,
         log_interval=5,
         seed=TUTORIAL_SEED,
     )

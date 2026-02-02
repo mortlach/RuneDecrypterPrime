@@ -773,6 +773,8 @@ class DecryptionProblem:
             else:
                 key_arr = to_numpy(keys_np).astype(self.key_dtype, copy=False)
             if getattr(cipher, "mod_keys", True):
+                if hasattr(cipher, "_validate_key_range"):
+                    cipher._validate_key_range(key_arr)
                 A = getattr(cipher, "A", None)
                 if A is not None:
                     key_arr = key_arr % int(A)

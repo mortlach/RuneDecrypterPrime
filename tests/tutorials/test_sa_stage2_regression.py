@@ -38,7 +38,6 @@ def test_sa_stage2_mono_regression():
         sa_min_temp=1e-3,
         sa_cooling=0.998,
         sa_auto_cooling=True,
-        sa_elitism=True,
         sa_reseed_interval=0,
         sa_rescue_drop_abs=0.02,
         sa_rescue_drop_ratio=0.5,

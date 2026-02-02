@@ -35,6 +35,12 @@ from rune_decrypter_prime.core.types import KEY_DTYPE
 ArrayU8 = np.ndarray
 
 
+def _rng_integers(rng, low: int, high: int):
+    if hasattr(rng, "integers"):  # Generator
+        return int(rng.integers(low, high, endpoint=False))
+    return int(rng.randint(low, high))
+
+
 @dataclass
 class KeyCaps:
     length: int
@@ -74,6 +80,7 @@ class KeyOpBase:
             "neighbor", "recombine",
             "make_population", "batch_neighbors",
             "local_improve", "expand_position",
+            "crossover",
         ):
             fn = getattr(self, name, None)
             if callable(fn):
@@ -81,11 +88,11 @@ class KeyOpBase:
                 self.caps.ops.add(name)
 
     def supports(self, verb: str) -> bool:
-        return verb in self.caps.ops
+        return verb in self.ops
 
     def op(self, verb: str):
         """Return a bound callable for the verb, or raise KeyError."""
-        return self.caps.ops[verb]
+        return self.ops[verb]
 
     def apply(self, verb: str, *args, **kwargs):
         return self.op(verb)(*args, **kwargs)
@@ -118,7 +125,7 @@ class KeyOpBase:
     def recombine(self, p1: np.ndarray, p2: np.ndarray, rng: np.random.RandomState) -> np.ndarray:
         """Default recombine = copy-parent with splice; override in families that support crossover."""
         K = int(self.caps.length)
-        k = int(rng.randint(1, K)) if K > 1 else 1
+        k = _rng_integers(rng, 1, K) if K > 1 else 1
         child = np.concatenate([p1[:k], p2[k:]]).astype(self.dtype, copy=False)
         return self.normalize(child)
 

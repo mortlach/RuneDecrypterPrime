@@ -104,6 +104,7 @@ def main() -> None:
         expand_mode="sweep",
         plateau_rounds=8,
         plateau_min_delta=1e-4,
+        stop_score=0.55,
         progress_pct=5,
         seed=TUTORIAL_SEED,
     )

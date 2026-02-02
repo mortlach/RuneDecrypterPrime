@@ -71,8 +71,9 @@ def main():
         sa_min_temp=1e-3,
         sa_cooling=0.96,
         plateau_rounds=3000,  # stop if no improvement for a while
+        plateau_min_delta=1e-4,
+        stop_score=0.5,
         seed=123,
-        sa_elitism=True,
         sa_reseed_interval=3000,
         sa_rescue_drop_abs=0.01,
         sa_rescue_drop_ratio=0.6,

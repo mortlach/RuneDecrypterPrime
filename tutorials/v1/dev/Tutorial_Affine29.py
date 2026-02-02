@@ -56,7 +56,16 @@ def main() -> None:
     key_spec = KeySpec.vector(len=2)  # modern helper: 2 unknown ints
 
     # Solve (beam or GA — pick one)
-    solve = SolverSpec.ga(population=80, generations=120, elite_frac=0.05, cx_frac=0.7, mut_prob=0.3)
+    solve = SolverSpec.ga(
+        population=80,
+        generations=120,
+        elite_frac=0.05,
+        cx_frac=0.7,
+        mut_prob=0.3,
+        plateau_rounds=15,
+        plateau_min_delta=1e-4,
+        stop_score=0.55,
+    )
 
     sol = run.solve(
         text=ct_runes,
