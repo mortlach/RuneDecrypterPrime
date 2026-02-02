@@ -90,7 +90,7 @@ def main():
             tournament_k=3,
             plateau_rounds=12,
             plateau_min_delta=1e-4,
-            stop_score=0.54,
+            stop_score=0.503,
             print_progress=True,
         ),
         sa=dict(
@@ -101,7 +101,7 @@ def main():
             plateau_rounds=300,
             plateau_min_delta=1e-4,
             local_improve_on_accept=True,
-            stop_score=0.54,
+            stop_score=0.503,
             print_progress=True,
         ),
 
@@ -110,7 +110,7 @@ def main():
         log_interval=10,
         plateau_rounds=8,
         plateau_min_delta=1e-4,
-        stop_score=0.54,
+        stop_score=0.503,
     )
 
     # Scorer tuned for NO word-breaks

@@ -61,6 +61,61 @@ def _child_rng(seed: Optional[int]) -> np.random.Generator:
     s = 0 if seed is None else int(seed)
     return np.random.default_rng(s)
 
+def _scorer_meta(problem: Any, spec: ProblemInstance) -> Dict[str, str]:
+    impl = None
+    dtype = None
+    device = None
+
+    scorer = getattr(problem, "scorer", None)
+    if scorer is not None:
+        try:
+            tele = scorer.telemetry() if callable(getattr(scorer, "telemetry", None)) else getattr(scorer, "telemetry", None)
+        except Exception:
+            tele = None
+        if isinstance(tele, dict):
+            impl = tele.get("impl", impl)
+            dtype = tele.get("dtype", dtype)
+            device = tele.get("device", device)
+
+        if impl in (None, "unknown") and hasattr(scorer, "impl_name"):
+            try:
+                impl = scorer.impl_name()
+            except Exception:
+                pass
+        if dtype in (None, "unknown") and hasattr(scorer, "dtype_name"):
+            try:
+                dtype = scorer.dtype_name()
+            except Exception:
+                pass
+        if device in (None, "unknown") and hasattr(scorer, "device_name"):
+            try:
+                device = scorer.device_name()
+            except Exception:
+                pass
+
+        if impl is None:
+            impl = getattr(scorer, "impl", None)
+        if dtype is None:
+            dtype = getattr(scorer, "dtype", None) or getattr(scorer, "_dtype", None)
+
+    scorer_params = getattr(spec, "spec", None)
+    scorer_params = getattr(scorer_params, "scorer_params", None)
+    if (impl in (None, "unknown")) and scorer_params is not None:
+        impl = scorer_params.get("impl") if isinstance(scorer_params, dict) else getattr(scorer_params, "impl", None)
+    if (dtype in (None, "unknown")) and scorer_params is not None:
+        dtype = scorer_params.get("dtype") if isinstance(scorer_params, dict) else getattr(scorer_params, "dtype", None)
+
+    impl = getattr(impl, "value", impl) if impl is not None else None
+    device = getattr(device, "value", device) if device is not None else None
+
+    out = {
+        "impl": str(impl or "unknown"),
+        "dtype": str(dtype or "float32"),
+    }
+    if device not in (None, "n/a"):
+        out["device"] = str(device)
+    return out
+
 
 def _solver_from_cfg(kind: SolverName, problem: Any, params: Dict[str, Any] | None,
                      rng: np.random.Generator, cfg: EngineConfig):
@@ -96,18 +151,14 @@ def solve(instance: ProblemInstance, engine_cfg: EngineConfig):
     except Exception:
         dev = "cpu"
 
-    try:
-        scorer_impl = getattr(instance.problem.scorer, "impl_name", lambda: "unknown")()
-        scorer_dtype = getattr(instance.problem.scorer, "dtype_name", lambda: "float32")()
-    except Exception:
-        scorer_impl, scorer_dtype = "unknown", "float32"
+    scorer_meta = _scorer_meta(instance.problem, instance)
 
     tel_run_start(
         problem=instance.problem,
         seed=engine_cfg.seed,
         solver=kind.value,
         device=dev,
-        scorer={"impl": scorer_impl, "dtype": scorer_dtype},
+        scorer=scorer_meta,
         pipeline=instance.pipeline_block,
         params=(engine_cfg.params or {}),
     )
@@ -133,7 +184,7 @@ def solve(instance: ProblemInstance, engine_cfg: EngineConfig):
             seed=engine_cfg.seed,
             solver=kind.value,
             device=dev,
-            scorer={"impl": scorer_impl, "dtype": scorer_dtype},
+            scorer=scorer_meta,
             pipeline=instance.pipeline_block,
             result=result_payload,
         )
@@ -146,7 +197,7 @@ def solve(instance: ProblemInstance, engine_cfg: EngineConfig):
             seed=engine_cfg.seed,
             solver=kind.value,
             device=dev,
-            scorer={"impl": scorer_impl, "dtype": scorer_dtype},
+            scorer=scorer_meta,
             pipeline=instance.pipeline_block,
             result={"error": str(e)},
         )

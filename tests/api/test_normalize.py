@@ -83,18 +83,21 @@ def test_normalize_device_accepts_strings_and_enums():
 def test_normalize_scorer_params_handles_none_and_normalises_members():
     assert normalize_scorer_params(None) == {}
     params = {
-        "channel": "char",
-        "device": "cuda",
         "se_mode": "wise",
         "encoding_dir": "fwd",
         "objective": "pct.logp.win10",
     }
     out = normalize_scorer_params(dict(params))
-    assert out["channel"] is Channel.CHAR
-    assert out["device"] is Device.CUDA
     assert out["se_mode"] is SeMode.WISE
     assert out["encoding_dir"] is Direction.LTR
     assert out["objective"].family is ObjectiveFamily.PCT
+
+
+def test_normalize_scorer_params_rejects_device_and_channel():
+    with pytest.raises(ValueError):
+        normalize_scorer_params({"device": "cuda"})
+    with pytest.raises(ValueError):
+        normalize_scorer_params({"channel": "char"})
 
 
 def test_to_indices_accepts_tuple_fast_path():
@@ -102,6 +105,15 @@ def test_to_indices_accepts_tuple_fast_path():
     out = to_indices((data, []))
     assert out.dtype == np.uint8
     assert out.flags.c_contiguous
+
+
+def test_to_indices_rejects_out_of_range_values():
+    with pytest.raises(ValueError):
+        to_indices([0, 29])
+    with pytest.raises(ValueError):
+        to_indices([-1, 0])
+    with pytest.raises(ValueError):
+        to_indices(np.array([300], dtype=np.int64))
 
 
 def test_make_single_word_wli_and_wli_from_text():

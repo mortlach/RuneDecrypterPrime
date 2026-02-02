@@ -14,6 +14,7 @@ from rune_decrypter_prime.api.normalize import (
     normalize_optimizer_spec,
     normalize_encoding_dir,
     normalize_scorer_params,
+    normalize_text_permutation,
 )
 from rune_decrypter_prime.api._resolve import resolve_scorer_aliases
 from rune_decrypter_prime.core.config import ScoringConfig, SolverConfig, InterruptorConfig
@@ -79,6 +80,11 @@ class RunAPI:
         else:
             ct, wli = normalize_ciphertext(text, wli_data)
         _assert_core_ready(ct, wli)
+        if initial_text_permutation_indices is not None:
+            initial_text_permutation_indices = normalize_text_permutation(
+                initial_text_permutation_indices,
+                int(ct.size),
+            )
 
         # Normalise scorer parameters and build scoring config
         scorer_params = normalize_scorer_params(resolve_scorer_aliases(scorer_params or {}))

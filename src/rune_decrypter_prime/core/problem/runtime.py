@@ -436,6 +436,8 @@ class DecryptionProblem:
             N = int(len(plains_seq[0]))
         else:
             N = self.ciphertext_len
+        self.telemetry.eval_batches += 1
+        self.telemetry.eval_keys += int(B)
         self.telemetry.tokens_processed += int(cand_count) * N
         self.telemetry.evaluate_keys_calls += 1
         self.telemetry.candidates_evaluated += int(cand_count)
@@ -499,6 +501,8 @@ class DecryptionProblem:
             N = int(len(plains_seq[0]))
         else:
             N = self.ciphertext_len
+        self.telemetry.eval_batches += 1
+        self.telemetry.eval_keys += int(B)
         self.telemetry.tokens_processed += int(cand_count) * N
         self.telemetry.evaluate_keys_calls += 1
         self.telemetry.candidates_evaluated += int(cand_count)

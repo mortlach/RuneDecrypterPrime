@@ -1,5 +1,6 @@
 # rune_decrypter_prime/telemetry/events.py
 from __future__ import annotations
+import copy
 import time
 from typing import Any, Dict
 
@@ -47,7 +48,7 @@ def solver_end(problem, name: str, result: Dict[str, Any] | None, t0: float) -> 
     tel = _ensure_tel_dict(problem)
     if tel is None:
         return
-    now = time.time()
+    now = time.perf_counter()
     spans = tel.setdefault("solver_spans", {})
     this = spans.setdefault(str(name), {})
     this.setdefault("solver", str(name))
@@ -79,12 +80,14 @@ def attach_telemetry_to_meta(sol, problem) -> None:
         meta = getattr(sol, "meta", None)
         if not isinstance(meta, dict):
             return
-        tel = meta.setdefault("telemetry", {})
+        existing = meta.get("telemetry", {})
+        tel = dict(existing) if isinstance(existing, dict) else {}
         p_tel = getattr(problem, "telemetry", None)
         if isinstance(p_tel, dict):
-            # shallow copy to avoid sharing references
-            for k, v in p_tel.items():
+            p_copy = copy.deepcopy(p_tel)
+            for k, v in p_copy.items():
                 tel.setdefault(k, v)
+        meta["telemetry"] = tel
         run = tel.get("run", {})
         if "seed" not in tel and isinstance(run, dict) and "seed" in run:
             tel["seed"] = run.get("seed")
@@ -128,28 +131,19 @@ def run_start(*, problem, seed, solver, device, scorer, pipeline, params=None) -
         pass
     if not isinstance(tel, dict):
         return
-    run = tel.setdefault("run", {})
-    already_started = "start_ts" in run
-    run.setdefault("seed", int(seed) if seed is not None else None)
-    run.setdefault("solver", str(solver))
-    run.setdefault("device", str(device))
+    run: Dict[str, Any] = {
+        "seed": int(seed) if seed is not None else None,
+        "solver": str(solver),
+        "device": str(device),
+        "start_ts": _time.time(),
+    }
     if isinstance(scorer, dict):
-        current = run.get("scorer", {})
-        merged = dict(current)
-        merged.update(dict(scorer))
-        run["scorer"] = merged
+        run["scorer"] = dict(scorer)
     if isinstance(pipeline, dict):
-        current = run.get("pipeline", {})
-        merged = dict(current)
-        merged.update(dict(pipeline))
-        run["pipeline"] = merged
+        run["pipeline"] = dict(pipeline)
     if isinstance(params, dict):
-        current = run.get("params", {})
-        merged = dict(current)
-        merged.update(dict(params))
-        run["params"] = merged
-    if not already_started:
-        run["start_ts"] = _time.time()
+        run["params"] = dict(params)
+    tel["run"] = run
 
 def run_end(*, problem, seed, solver, device, scorer, pipeline, result=None) -> None:
     tel = getattr(problem, "telemetry", None)

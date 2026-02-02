@@ -158,9 +158,9 @@ def normalize_scorer_params(params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if not params:
         return {}
     if "channel" in params:
-        params["channel"] = normalize_channel(params["channel"])
+        raise ValueError("scorer_params.channel is not supported (use include_char/use_word_breaks/weights instead).")
     if "device" in params:
-        params["device"] = normalize_device(params["device"])
+        raise ValueError("scorer_params.device is not supported (use RunAPI device=...).")
     if "se_mode" in params:
         params["se_mode"] = normalize_se_mode(params["se_mode"])
     if "encoding_dir" in params:
@@ -186,6 +186,22 @@ def normalize_scorer_params(params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 
 # ----------------------------- public API ----------------------------- #
 
+def _coerce_index_array(data: Any) -> np.ndarray:
+    raw = np.asarray(data)
+    if raw.dtype.kind == "f":
+        if not np.all(np.isfinite(raw)):
+            raise ValueError("ciphertext indices must be finite integers")
+        if not np.all(raw == np.floor(raw)):
+            raise TypeError("ciphertext indices must be integers")
+    idx = raw.astype(np.int64, copy=False).reshape(-1)
+    if idx.size and ((idx < 0).any() or (idx > 28).any()):
+        raise ValueError("ciphertext indices must be in [0..28]")
+    out = idx.astype(np.uint8, copy=False).reshape(-1)
+    # Force C-contig; view if possible, else copy once.
+    if not out.flags.c_contiguous:
+        out = np.ascontiguousarray(out)
+    return out
+
 def to_indices(text: Union[str, np.ndarray, Sequence[int], Tuple[np.ndarray, Sequence[Sequence[int]]]]) -> np.ndarray:
     """Return `np.ndarray[np.uint8]` of rune indices (shape (L,), C-contiguous).
 
@@ -199,27 +215,15 @@ def to_indices(text: Union[str, np.ndarray, Sequence[int], Tuple[np.ndarray, Seq
     # Fast-path: (indices, wli) tuple — accept indices directly
     if isinstance(text, tuple) and len(text) == 2:
         arr, _ = text
-        if not isinstance(arr, np.ndarray):
-            arr = np.asarray(arr, dtype=np.uint8)
-        out = arr.astype(np.uint8, copy=False).reshape(-1)
-        # Force C-contig; view if possible, else copy once.
-        if not out.flags.c_contiguous:
-            out = np.ascontiguousarray(out)
-        return out
+        return _coerce_index_array(arr)
 
     # Numpy array of ints
     if isinstance(text, np.ndarray):
-        out = text.astype(np.uint8, copy=False).reshape(-1)
-        if not out.flags.c_contiguous:
-            out = np.ascontiguousarray(out)
-        return out
+        return _coerce_index_array(text)
 
     # List/tuple of ints
     if isinstance(text, (list, tuple)) and not isinstance(text, str):
-        out = np.asarray(text, dtype=np.uint8).reshape(-1)
-        if not out.flags.c_contiguous:
-            out = np.ascontiguousarray(out)
-        return out
+        return _coerce_index_array(text)
 
     # String path: rune string or English words
     if isinstance(text, str):
@@ -243,10 +247,7 @@ def to_indices(text: Union[str, np.ndarray, Sequence[int], Tuple[np.ndarray, Seq
                     all_idx.extend(Runeglish.rune_to_pos(rw))
                 except KeyError as e:
                     raise ValueError(f"English→rune produced unknown rune: {e.args[0]}") from None
-        out = np.asarray(all_idx, dtype=np.uint8).reshape(-1)
-        if not out.flags.c_contiguous:
-            out = np.ascontiguousarray(out)
-        return out
+        return _coerce_index_array(all_idx)
 
     raise TypeError("Unsupported ciphertext type: expected str | array | sequence[int] | (indices, wli) tuple.")
 
