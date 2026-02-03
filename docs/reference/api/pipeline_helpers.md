@@ -5,7 +5,7 @@
 ## Functions
 | Function | Description |
 | --- | --- |
-| `finalize_solution(problem, res, **kwargs)` | Attaches telemetry (`telemetry.events.attach_telemetry_to_meta`, `telemetry.pipeline.finalize_run_meta`), injects the computed pipeline block, and calls `ensure_plaintext_rune` so every solution has rune/latin/plaintext views. |
+| `finalize_solution(problem, res, **kwargs)` | Attaches telemetry (`telemetry.events.attach_telemetry_to_meta`, `telemetry.pipeline.finalize_run_meta`), injects the computed pipeline block, and calls `ensure_plaintext_rune` so every solution has rune/latin/plaintext views. Telemetry is deep-copied into `Solution.meta` to prevent late mutation of `problem.telemetry`. |
 | `ensure_plaintext_rune(res, *, ciphertext=None, wli=None, cipher=None, encoding_dir=Direction.RTL)` | Idempotently populates `plaintext_idx`, `plaintext_rune`, `plaintext_latin`, and ciphertext equivalents. Handles numpy arrays, rune strings, and ensures keys/WLIs are serialisable lists. |
 | `coerce_wli_for_config(wli)` | Validates/normalises WLI pairs `(pos_in_word, word_len)` so they can be stored in `CipherConfig`. |
 

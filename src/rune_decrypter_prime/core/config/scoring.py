@@ -12,11 +12,13 @@ import math
 from rune_decrypter_prime.core.types import (
     ScorerImpl,
     Direction,
+    FloatDType,
     SeMode,
     ObjectiveFamily,
     Stat,
     ObjectiveSpec,
     ensure_direction,
+    ensure_float_dtype,
     ensure_scorer_impl,
     ensure_se_mode,
     ensure_objective_family,
@@ -68,7 +70,9 @@ class ScoringConfig:
     char_weights: Dict[int, float] = field(default_factory=lambda: {2: 0.5})
     wli_weights: Dict[int, float] = field(default_factory=lambda: {2: 0.5})
     impl: Optional[ScorerImpl] = ScorerImpl.AUTO
-    dtype: Literal["float32", "float64"] = "float32"
+    compute_dtype: FloatDType | Literal["float32", "float64"] = "float32"
+    acc_dtype: FloatDType | Literal["float32", "float64"] = "float64"
+    dtype: FloatDType | Literal["float32", "float64"] | None = None
     objective: ObjectiveSpec = ObjectiveSpec(family=ObjectiveFamily.PCT,stat=Stat.LOGP,win=10)
     ecdf_clamp_min: float = 1e-6
     ecdf_clamp_max: float = 1.0 - 1e-6
@@ -92,6 +96,14 @@ class ScoringConfig:
             self.impl = ensure_scorer_impl(self.impl)
         if self.se_mode is not None:
             self.se_mode = ensure_se_mode(self.se_mode)
+        if self.compute_dtype is not None:
+            self.compute_dtype = ensure_float_dtype(self.compute_dtype)
+        if self.acc_dtype is not None:
+            self.acc_dtype = ensure_float_dtype(self.acc_dtype)
+        if self.dtype is not None:
+            self.dtype = ensure_float_dtype(self.dtype)
+        if self.dtype is None:
+            self.dtype = self.acc_dtype
 
         obj = getattr(self, "objective", None)
         if isinstance(obj, dict):
@@ -177,7 +189,9 @@ class ScoringConfig:
         out["char_weights"] = self.char_weights
         out["wli_weights"] = self.wli_weights
         out["impl"] = self.impl.value if isinstance(self.impl, ScorerImpl) else self.impl
-        out["dtype"] = self.dtype
+        out["compute_dtype"] = self.compute_dtype.value if isinstance(self.compute_dtype, FloatDType) else self.compute_dtype
+        out["acc_dtype"] = self.acc_dtype.value if isinstance(self.acc_dtype, FloatDType) else self.acc_dtype
+        out["dtype"] = self.dtype.value if isinstance(self.dtype, FloatDType) else self.dtype
         out["ecdf_clamp_min"] = self.ecdf_clamp_min
         out["ecdf_clamp_max"] = self.ecdf_clamp_max
         out["diagnostics_enabled"] = self.diagnostics_enabled

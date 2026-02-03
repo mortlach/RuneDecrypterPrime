@@ -31,6 +31,7 @@ from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, by_nam
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.pretty import print_run_report
 from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
+from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 import numpy as np
 
@@ -92,12 +93,10 @@ def _solve_once(direction: Direction, telemetry_on: bool):
         seed_keys = 240
         seed_swaps = 3
         run_profile = "long"
-        stop_score = 0.56
     else:
         seed_keys = 120
         seed_swaps = 2
         run_profile = RUN_PROFILE
-        stop_score = STOP_SCORE
 
     seeds = None
     if START_MODE == "seeded":
@@ -118,10 +117,29 @@ def _solve_once(direction: Direction, telemetry_on: bool):
     else:
         raise ValueError(f"Unknown run_profile: {run_profile!r}")
 
+    scorer_params = dict(
+        char_weights={2: 0.3},
+        wli_weights={2: 0.7},
+        use_word_breaks=True,
+        encoding_dir=direction,
+    )
+
+    stop = oracle_stop_score(
+        pt_idx,
+        wli,
+        scorer_params,
+        device="cpu",
+        encoding_dir=direction,
+        margin=0.02,
+        min_score=0.50,
+        fallback=STOP_SCORE,
+    )
+    print_stop_summary(f"Mono GA {direction.value}", stop)
+
     ga = SolverSpec.ga(
         pop_size=population,
         generations=generations,
-        stop_score=stop_score,
+        stop_score=stop.stop_score,
         verbose=True,
         progress_pct=2,
         print_progress=True,
@@ -140,12 +158,7 @@ def _solve_once(direction: Direction, telemetry_on: bool):
         cipher=by_name.cipher("mono"),
         key=KeySpec.permutation(len=29),
         solver=ga,
-        scorer_params=dict(
-            char_weights={2: 0.3},
-            wli_weights={2: 0.7},
-            use_word_breaks=True,
-            encoding_dir=direction,
-        ),
+        scorer_params=dict(scorer_params),
         wli_data=wli,
         encoding_dir=direction,
         telemetry_on=telemetry_on,

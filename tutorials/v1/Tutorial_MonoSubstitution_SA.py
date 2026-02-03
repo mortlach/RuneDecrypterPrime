@@ -28,6 +28,7 @@ from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, by_nam
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.pretty import print_run_report
 from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
+from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -117,6 +118,18 @@ def main():
         encoding_dir=encoding_direction,
     )
 
+    stop = oracle_stop_score(
+        pt_idx,
+        wli,
+        scorer_params,
+        device="cpu",
+        encoding_dir=encoding_direction,
+        margin=0.02,
+        min_score=0.50,
+        fallback=0.55,
+    )
+    print_stop_summary("Mono SA", stop)
+
     def _solve_with_sa(sa_kwargs: dict) -> object:
         sa = SolverSpec.sa(**sa_kwargs)
         return run(
@@ -147,7 +160,7 @@ def main():
 
         plateau_rounds=120,
         plateau_min_delta=1e-4,
-        stop_score=0.55,
+        stop_score=stop.stop_score,
         progress_pct=2,
         print_progress=True,
         verbose=True,

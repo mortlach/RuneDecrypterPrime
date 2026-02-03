@@ -36,14 +36,29 @@ from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext, pla
 BASELINE_PATH = Path(__file__).resolve().parent / "_baselines" / "scorer_drift_baseline.json"
 
 
-def _mk_cipher_cfg(length: int, *, device: Device = Device.CPU, encoding_dir: Direction = Direction.LTR) -> CipherConfig:
+def _mk_cipher_cfg(
+    length: int,
+    *,
+    device: Device = Device.CPU,
+    encoding_dir: Direction = Direction.LTR,
+    include_wli: bool = False,
+) -> CipherConfig:
     # Minimal CipherConfig: build_scorer uses device/encoding and doesn't require keyops for pure scoring.
     ct = list(range(length))
-    wli = [(i, i + 1) for i in range(length)]
+    if include_wli:
+        # Single-word WLI: contiguous positions with fixed word length.
+        wli = [(i, length) for i in range(length)]
+    else:
+        wli = []
     return CipherConfig(ciphertext=ct, wli_data=wli, key_length=None, device=device, encoding_dir=encoding_dir)
 
 
-def _mk_avg_logp_scorer(win: int, *, encoding_dir: Direction = Direction.LTR) -> Any:
+def _mk_avg_logp_scorer(
+    win: int,
+    *,
+    encoding_dir: Direction = Direction.LTR,
+    dtype: str = "float64",
+) -> Any:
     # Kaeding-style: average log-probability of tetragrams (or n-grams) over a passage.
     s_cfg = ScoringConfig(
         objective=ObjectiveSpec(family=ObjectiveFamily.AVG, stat=Stat.LOGP, win=int(win)),
@@ -53,51 +68,56 @@ def _mk_avg_logp_scorer(win: int, *, encoding_dir: Direction = Direction.LTR) ->
         use_word_breaks=False,
         char_weights={4: 1.0},
         wli_weights={},
-        dtype="float32",
+        dtype=dtype,
     ).asdict()
-    c_cfg = _mk_cipher_cfg(win, encoding_dir=encoding_dir).asdict()
+    # Kaeding avg logp ignores WLI; keep WLI empty to avoid LMPrime <=63 cap.
+    c_cfg = _mk_cipher_cfg(win, encoding_dir=encoding_dir, include_wli=False).asdict()
     return build_scorer(c_cfg, s_cfg)
 
 
-def _kaeding_stats(rng: np.random.Generator) -> Dict[str, Any]:
+def _kaeding_stats(rng: np.random.Generator, *, dtypes: Tuple[str, ...]) -> Dict[str, Any]:
     # Use the shipped test plaintexts (29-char alphabet indices) as a stable reference.
     pt = np.asarray(long_plaintext, dtype=np.uint8)
     assert pt.ndim == 1 and pt.size >= 1500
 
     out: Dict[str, Any] = {}
 
-    for N in (100, 1000):
-        scorer = _mk_avg_logp_scorer(N, encoding_dir=Direction.LTR)
+    for dtype in dtypes:
+        per_dtype: Dict[str, Any] = {}
+        for N in (100, 1000):
+            scorer = _mk_avg_logp_scorer(N, encoding_dir=Direction.LTR, dtype=dtype)
 
-        # Random contiguous passages (English-ish)
-        K = 80 if N == 100 else 40
-        scores_real: List[float] = []
-        scores_rand: List[float] = []
+            # Random contiguous passages (English-ish)
+            K = 80 if N == 100 else 40
+            scores_real: List[float] = []
+            scores_rand: List[float] = []
 
-        for _ in range(K):
-            start = int(rng.integers(0, pt.size - N))
-            block = pt[start : start + N]
-            # Kaeding's "fitness" is an average log probability per tetragram.
-            scores_real.append(float(scorer.score(block, None)))
+            for _ in range(K):
+                start = int(rng.integers(0, pt.size - N))
+                block = pt[start : start + N]
+                # Kaeding's "fitness" is an average log probability per tetragram.
+                scores_real.append(float(scorer.score(block, None)))
 
-            # Random control (uniform 0..28)
-            block_r = rng.integers(0, 29, size=N, dtype=np.uint8)
-            scores_rand.append(float(scorer.score(block_r, None)))
+                # Random control (uniform 0..28)
+                block_r = rng.integers(0, 29, size=N, dtype=np.uint8)
+                scores_rand.append(float(scorer.score(block_r, None)))
 
-        out[f"N{N}"] = {
-            "K": K,
-            "real_mean": float(np.mean(scores_real)),
-            "real_std": float(np.std(scores_real, ddof=0)),
-            "rand_mean": float(np.mean(scores_rand)),
-            "rand_std": float(np.std(scores_rand, ddof=0)),
-        }
+            per_dtype[f"N{N}"] = {
+                "K": K,
+                "real_mean": float(np.mean(scores_real)),
+                "real_std": float(np.std(scores_real, ddof=0)),
+                "rand_mean": float(np.mean(scores_rand)),
+                "rand_std": float(np.std(scores_rand, ddof=0)),
+            }
 
-    # One fixed, reproducible score for the standard test plaintext (with its real WLI).
-    # Even though the Kaeding scorer ignores WLI, we keep this as a consistent debug anchor.
-    anchor = np.asarray(plaintext1, dtype=np.uint8)
-    scorer_anchor = _mk_avg_logp_scorer(int(anchor.size), encoding_dir=Direction.LTR)
-    out["anchor_plaintext1_len"] = int(anchor.size)
-    out["anchor_plaintext1_avglogp"] = float(scorer_anchor.score(anchor, word_breaks1))
+        # One fixed, reproducible score for the standard test plaintext (with its real WLI).
+        # Even though the Kaeding scorer ignores WLI, we keep this as a consistent debug anchor.
+        anchor = np.asarray(plaintext1, dtype=np.uint8)
+        scorer_anchor = _mk_avg_logp_scorer(int(anchor.size), encoding_dir=Direction.LTR, dtype=dtype)
+        per_dtype["anchor_plaintext1_len"] = int(anchor.size)
+        per_dtype["anchor_plaintext1_avglogp"] = float(scorer_anchor.score(anchor, word_breaks1))
+        per_dtype["dtype"] = dtype
+        out[dtype] = per_dtype
 
     return out
 
@@ -186,6 +206,8 @@ def _fingerprint_ecdf_tables(lm_root: Path) -> Dict[str, Any]:
                             "grid_max": float(grid.max()) if grid.size else None,
                             "q_min": float(q.min()) if q.size else None,
                             "q_max": float(q.max()) if q.size else None,
+                            "grid_dtype": str(grid.dtype),
+                            "q_dtype": str(q.dtype),
                             "grid_monotone": bool(np.all(np.diff(grid) > 0.0)) if grid.size > 1 else True,
                             "q_monotone": bool(np.all(np.diff(q) >= 0.0)) if q.size > 1 else True,
                             "q_ends_01": bool((abs(float(q[0]) - 0.0) < 1e-6) and (abs(float(q[-1]) - 1.0) < 1e-6)) if q.size else False,
@@ -194,7 +216,7 @@ def _fingerprint_ecdf_tables(lm_root: Path) -> Dict[str, Any]:
     return out
 
 
-def generate(*, seed: int = 12345) -> Dict[str, Any]:
+def generate(*, seed: int = 12345, dtypes: Tuple[str, ...] = ("float32", "float64")) -> Dict[str, Any]:
     rng = np.random.default_rng(seed)
 
     lm_root = default_lm_root().resolve()
@@ -211,7 +233,8 @@ def generate(*, seed: int = 12345) -> Dict[str, Any]:
             "python": platform.python_version(),
             "platform": platform.platform(),
         },
-        "kaeding_style": _kaeding_stats(rng),
+        "kaeding_style": _kaeding_stats(rng, dtypes=dtypes),
+        "scoring_dtypes": list(dtypes),
         "lm_joint_fingerprint": _fingerprint_joint_tables(lm_root, idx),
         "lm_ecdf_fingerprint": _fingerprint_ecdf_tables(lm_root),
         "tolerances": {

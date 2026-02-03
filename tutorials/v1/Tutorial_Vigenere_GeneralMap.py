@@ -10,6 +10,7 @@ if str(_SRC) not in sys.path:
 from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, define_map
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.pretty import print_run_report
+from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 
 """
@@ -55,11 +56,31 @@ def main():
     ct_idx = [vigenere_map(p, k) for p, k in zip(pt_idx, stream)]
     ct_runes = Runeglish.to_rune(ct_idx, wli)
 
+    scorer_params = dict(
+        char_weights={2: 0.3},
+        wli_weights={2: 0.7},
+        include_char=True,
+        use_word_breaks=True,
+        encoding_dir=encoding_dir,
+    )
+
+    stop = oracle_stop_score(
+        pt_idx,
+        wli,
+        scorer_params,
+        device="cpu",
+        encoding_dir=encoding_dir,
+        margin=0.02,
+        min_score=0.50,
+        fallback=0.54,
+    )
+    print_stop_summary("Vigenere Beam", stop)
+
     # Solver knows only the period (length of key), not the key itself
     key_spec   = KeySpec.repeat(len=len(key_nums))
     solve_spec = SolverSpec.beam(
         beam_width=24,
-        stop_score=0.54,
+        stop_score=stop.stop_score,
         plateau_rounds=6,
         plateau_min_delta=1e-4,
         max_children_per_parent=16,
@@ -75,13 +96,7 @@ def main():
         cipher=cipher,
         key=key_spec,
         solver=solve_spec,
-        scorer_params=dict(
-            char_weights={2: 0.3},
-            wli_weights={2: 0.7},
-            include_char=True,
-            use_word_breaks=True,
-            encoding_dir=encoding_dir,
-        ),
+        scorer_params=dict(scorer_params),
         wli_data=wli,
         encoding_dir=encoding_dir,
         telemetry_on=True,

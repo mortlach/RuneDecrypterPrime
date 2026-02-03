@@ -11,6 +11,7 @@
 ## Notes
 - `maximize` is enforced `True`; objectives are defined as higher-is-better (NEGLOGP is inverted in solver ranking).
 - `dtype` controls scorer precision: `float64` enables high-precision accumulation/ECDF interpolation and comparison; `float32` is the default for speed.
+- `device` is **not** part of `ScoringConfig`; it is a top-level RunAPI setting. Likewise, `channel` is not a scorer param (use `char_weights`/`wli_weights` instead). Passing either under `scorer_params` is rejected during normalization.
 
 ## Usage
 ```python

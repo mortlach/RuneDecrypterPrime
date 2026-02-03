@@ -164,3 +164,7 @@ def test_ecdf_tables_are_monotone_and_end_at_0_1() -> None:
                             assert float(grid.max()) == pytest.approx(float(b["grid_max"]), abs=tol)
                             assert float(q.min()) == pytest.approx(float(b["q_min"]), abs=tol)
                             assert float(q.max()) == pytest.approx(float(b["q_max"]), abs=tol)
+                            if "grid_dtype" in b:
+                                assert str(grid.dtype) == str(b["grid_dtype"])
+                            if "q_dtype" in b:
+                                assert str(q.dtype) == str(b["q_dtype"])

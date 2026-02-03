@@ -678,6 +678,10 @@ def main() -> None:
     print(f"Stage 1 oracle (unigram): {_format_scores(sol_stage1_oracle)}")
     print("Stage 1 note: unigram pct_lm ignores order; high pct_lm does not imply readable plaintext.")
 
+    stop_stage1 = max(stage1_oracle_pct - 0.02, 0.45)
+    stop_full = max(float(sol_true.score) - 0.02, 0.50)
+    print(f"Stop scores: stage1={stop_stage1:.6f} full={stop_full:.6f}")
+
     # --- Stage 1: periodic substitution ---
     seed_keys = None
     if USE_SEEDS:
@@ -696,6 +700,7 @@ def main() -> None:
         )
 
     solver_sub_cfg = _apply_plateau(SOLVER_SUB)
+    solver_sub_cfg["stop_score"] = stop_stage1
     _print_solver_cfg("Stage 1 Kaeding", solver_sub_cfg)
     _print_optimizer_scalar("Stage 1 Kaeding", bool(solver_sub_cfg.get("use_raw_score")), scorer_params_stage1["objective"])
     solver_sub = SolverSpec.kaeding(**solver_sub_cfg)
@@ -781,7 +786,7 @@ def main() -> None:
                 mut_prob=0.25,
                 tournament_k=3,
                 plateau_rounds=24,
-                stop_score=0.5,
+                stop_score=stop_stage1,
                 print_progress=True,
             ),
             sa=dict(
@@ -791,13 +796,13 @@ def main() -> None:
                 sa_cooling=0.997,
                 plateau_rounds=400,
                 local_improve_on_accept=True,
-                stop_score=0.5,
+                stop_score=stop_stage1,
                 print_progress=True,
             ),
             seed=TUTORIAL_SEED,
             verbose=True,
             log_interval=10,
-            stop_score=0.6,
+            stop_score=stop_stage1,
         )
         _print_hybrid_cfg("Stage 1 hybrid", hybrid_cfg)
         _print_optimizer_scalar("Stage 1 hybrid", False, scorer_params_stage1["objective"])
@@ -865,7 +870,7 @@ def main() -> None:
             mut_prob=0.3,
             tournament_k=3,
             plateau_rounds=30,
-            stop_score=0.48,
+            stop_score=stop_full,
             print_progress=True,
         ),
         sa=dict(
@@ -875,13 +880,13 @@ def main() -> None:
             sa_cooling=0.997,
             plateau_rounds=400,
             local_improve_on_accept=True,
-            stop_score=0.48,
+            stop_score=stop_full,
             print_progress=True,
         ),
         seed=TUTORIAL_SEED,
         verbose=True,
         log_interval=10,
-        stop_score=0.6,
+        stop_score=stop_full,
     )
     _print_hybrid_cfg("Stage 2 columnar", solver_col_cfg)
     _print_optimizer_scalar("Stage 2 columnar", False, scorer_params_full["objective"])
@@ -969,7 +974,7 @@ def main() -> None:
             pct_plateau_min_delta=1e-4,
             delta_window=200,
             col_every=0,
-            stop_score=0.5,
+            stop_score=stop_full,
             progress_pct=2,
             print_progress=True,
             seed=TUTORIAL_SEED,
@@ -1016,7 +1021,7 @@ def main() -> None:
                 mut_prob=0.3,
                 tournament_k=3,
                 plateau_rounds=20,
-                stop_score=0.48,
+                stop_score=stop_full,
                 print_progress=True,
             ),
             sa=dict(
@@ -1026,13 +1031,13 @@ def main() -> None:
                 sa_cooling=0.997,
                 plateau_rounds=200,
                 local_improve_on_accept=True,
-                stop_score=0.48,
+                stop_score=stop_full,
                 print_progress=True,
             ),
             seed=TUTORIAL_SEED,
             verbose=True,
             log_interval=10,
-            stop_score=0.6,
+            stop_score=stop_full,
         )
         _print_hybrid_cfg("Stage 4 columnar polish", solver_col_polish_cfg)
         _print_optimizer_scalar("Stage 4 columnar polish", False, scorer_params_full["objective"])

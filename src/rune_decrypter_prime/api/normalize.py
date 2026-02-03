@@ -14,6 +14,7 @@ from rune_decrypter_prime.core.types import (
     Stat,
     ObjectiveFamily,
     ensure_direction,
+    ensure_float_dtype,
 )
 _T = TypeVar("_T")
 
@@ -182,6 +183,12 @@ def normalize_scorer_params(params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
                 stat = obj.stat if obj.stat is not None else (Stat.LOGP if obj.family is ObjectiveFamily.AVG else obj.stat)
                 params["objective"] = ObjectiveSpec(family=obj.family, stat=stat, win=int(legacy_win))
         params.pop("win", None)
+    if "compute_dtype" in params:
+        params["compute_dtype"] = ensure_float_dtype(params["compute_dtype"]).value
+    if "acc_dtype" in params:
+        params["acc_dtype"] = ensure_float_dtype(params["acc_dtype"]).value
+    if "dtype" in params and params["dtype"] is not None:
+        params["dtype"] = ensure_float_dtype(params["dtype"]).value
     return params
 
 # ----------------------------- public API ----------------------------- #

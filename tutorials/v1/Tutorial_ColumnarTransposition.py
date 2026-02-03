@@ -11,6 +11,7 @@ if str(_SRC) not in sys.path:
 from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, by_name
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.pretty import print_run_report
+from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 
 # -*- coding: utf-8 -*-
@@ -70,6 +71,28 @@ def main():
     cipher   = by_name.cipher("columnar")
     key_spec = KeySpec.permutation(len=len(key_true))
 
+    # Scorer tuned for NO word-breaks
+    scorer_params = {
+        "objective": "pct.logp.win10",
+        "char_weights": {2: 1.0},
+        "wli_weights": {},
+        "use_word_breaks": False,  # force no WLI
+        "include_char": True,
+        "encoding_dir": direction,
+    }
+
+    stop = oracle_stop_score(
+        Runeglish.rune_to_pos(pt_runes_nosp),
+        None,
+        scorer_params,
+        device="cpu",
+        encoding_dir=direction,
+        margin=0.02,
+        min_score=0.45,
+        fallback=0.503,
+    )
+    print_stop_summary("Columnar Hybrid", stop)
+
     # Hybrid config
     solve_spec = SolverSpec.hybrid(
         use_beam=True,
@@ -90,7 +113,7 @@ def main():
             tournament_k=3,
             plateau_rounds=12,
             plateau_min_delta=1e-4,
-            stop_score=0.503,
+            stop_score=stop.stop_score,
             print_progress=True,
         ),
         sa=dict(
@@ -101,7 +124,7 @@ def main():
             plateau_rounds=300,
             plateau_min_delta=1e-4,
             local_improve_on_accept=True,
-            stop_score=0.503,
+            stop_score=stop.stop_score,
             print_progress=True,
         ),
 
@@ -110,18 +133,8 @@ def main():
         log_interval=10,
         plateau_rounds=8,
         plateau_min_delta=1e-4,
-        stop_score=0.503,
+        stop_score=stop.stop_score,
     )
-
-    # Scorer tuned for NO word-breaks
-    scorer_params = {
-        "objective": "pct.logp.win10",
-        "char_weights": {2: 1.0},
-        "wli_weights": {},
-        "use_word_breaks": False,  # force no WLI
-        "include_char": True,
-        "encoding_dir": direction,
-    }
 
     # Solve with the API
     sol = run(

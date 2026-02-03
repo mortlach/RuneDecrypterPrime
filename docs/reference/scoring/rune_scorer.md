@@ -14,6 +14,7 @@
 - Accepts `ScoringConfig` (objective, weights, encoding direction, etc.) and loads language models from disk when needed.
 - `score` / `batch_score` return mono scores that must meet the tutorial thresholds (≥0.55) and populate telemetry via `_stash_stats`.
 - When WLI is present, word boundaries are fixed by the WLI list; when WLI is absent, no word-boundary semantics are assumed.
+- Assumes plaintext indices are already validated to `0..28` and WLI entries to `<= 63` by the API/normalisation layer.
 - Supports deterministic RNG via the provided `xp` backend (NumPy for this file).
 
 ## Tests

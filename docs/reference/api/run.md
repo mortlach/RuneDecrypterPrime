@@ -11,6 +11,7 @@
 
 ## Key Behaviours
 - Normalises `device`, `encoding_dir`, ciphertext, and optional WLI data via `api.normalize`.
+- Validates `initial_text_permutation_indices` against the ciphertext length and rejects non-permutations.
 - Resolves scorer aliases (`resolve_scorer_aliases`), converts params into a `ScoringConfig`, and records the encoding direction for telemetry.
 - Flattens `SolverSpec` into canonical solver params (name + seed) via `normalize_optimizer_spec`.
 - Forwards all metadata (`initial_keys`, `initial_text_permutation_indices`, telemetry flag) to `api.pipeline.execute_run`, which emits telemetry + outputs under `output/<kind>/...`.

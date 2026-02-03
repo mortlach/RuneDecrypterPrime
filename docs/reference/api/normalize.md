@@ -10,7 +10,7 @@
 | `normalize_objective_family(value)` | strings such as `"pct"`, `"avg"`, `"energy"` or `ObjectiveFamily` enums | `ObjectiveFamily` |
 | `normalize_stat(value)` | `"logp"`, `"zsum"`, `"madsum"` strings or `Stat` enums | `Stat` |
 | `normalize_objective_spec(value)` | dotted strings like `pct.logp.win10`, dictionaries, or `ObjectiveSpec` instances | `ObjectiveSpec` |
-| `normalize_scorer_params(params)` | dict of scorer kwargs | dict with `channel`, `device`, `encoding_dir`, `objective`, etc. coerced to enums |
+| `normalize_scorer_params(params)` | dict of scorer kwargs | dict with `encoding_dir`, `objective`, etc. coerced to enums; rejects `channel`/`device` keys |
 
 ### Direction / Device / Channels
 | Function | Notes |
@@ -22,7 +22,7 @@
 ### Ciphertext & WLI Utilities
 | Function | Description |
 | --- | --- |
-| `to_indices(text)` | Convert rune strings, English strings, numpy arrays, or `(indices, wli)` tuples to a contiguous `np.uint8` array. |
+| `to_indices(text)` | Convert rune strings, English strings, numpy arrays, or `(indices, wli)` tuples to a contiguous `np.uint8` array. Validates integer inputs are in `[0..28]` before casting. |
 | `make_single_word_wli(L)` | Build `[[0, L], [1, L], ..., [L-1, L]]` using `(pos_in_word, word_len)`. |
 | `wli_from_text(text)` | Infer WLI pairs `(pos_in_word, word_len)` from spaces after transliteration. |
 
@@ -45,8 +45,6 @@ from rune_decrypter_prime.core.types import Direction
 
 # Convert a human-friendly scorer config into strict enums.
 scorer_params = normalize.normalize_scorer_params({
-    "channel": "wli",
-    "device": "gpu",
     "encoding_dir": "rtl",
     "objective": "pct.logp.win10",
 })

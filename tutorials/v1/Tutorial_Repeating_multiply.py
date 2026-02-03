@@ -14,6 +14,7 @@ from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, define
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1_rev, word_breaks1_rev
 from rune_decrypter_prime.utils.pretty import print_run_report
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 """
 Tutorial: Repeating Multiply (mod 29) via Generic Map
@@ -57,12 +58,32 @@ def main() -> None:
     cipher = define_map(function=mult_map, N=N)
     key_spec = KeySpec.repeat(len=KEY_LEN)
 
+    scorer_params = dict(
+        char_weights={2: 0.3},
+        wli_weights={2: 0.7},
+        include_char=True,
+        use_word_breaks=True,
+        encoding_dir=Direction.RTL,
+    )
+
+    stop = oracle_stop_score(
+        pt_idx,
+        wli,
+        scorer_params,
+        device="cpu",
+        encoding_dir=Direction.RTL,
+        margin=0.02,
+        min_score=0.50,
+        fallback=0.55,
+    )
+    print_stop_summary("Repeating Multiply Beam", stop)
+
     solve_spec = SolverSpec.beam(
         beam_width=32,
         max_children_per_parent=24,
         plateau_rounds=8,
         plateau_min_delta=1e-4,
-        stop_score=0.55,
+        stop_score=stop.stop_score,
         verbose=True,
         progress_pct=2,
         print_progress=True,
@@ -74,13 +95,7 @@ def main() -> None:
         cipher=cipher,
         key=key_spec,
         solver=solve_spec,
-        scorer_params=dict(
-            char_weights={2: 0.3},
-            wli_weights={2: 0.7},
-            include_char=True,
-            use_word_breaks=True,
-            encoding_dir=Direction.RTL,
-        ),
+        scorer_params=dict(scorer_params),
         wli_data=wli,
         encoding_dir=Direction.RTL,
         telemetry_on=True,

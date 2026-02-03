@@ -21,6 +21,7 @@ from rune_decrypter_prime.api import (
 )
 from rune_decrypter_prime.utils.pretty import print_run_report
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 """
 Tutorial: Vigenere with interruptors (solver search)
@@ -108,12 +109,33 @@ def main() -> None:
         max_count=len(interruptors),
     )
 
+    scorer_params = dict(
+        objective="pct.logp.win10",
+        include_char=True,
+        use_word_breaks=True,
+        char_weights={2: 0.3},
+        wli_weights={2: 0.7},
+        encoding_dir=direction,
+    )
+
+    stop = oracle_stop_score(
+        pt_idx,
+        wli,
+        scorer_params,
+        device="cpu",
+        encoding_dir=direction,
+        margin=0.02,
+        min_score=0.50,
+        fallback=0.55,
+    )
+    print_stop_summary("Vigenere Interruptors (solve)", stop)
+
     solver = SolverSpec.beam(
         beam_width=32,
         expand_mode="sweep",
         plateau_rounds=6,
         plateau_min_delta=1e-4,
-        stop_score=0.55,
+        stop_score=stop.stop_score,
         progress_pct=10,
         seed=TUTORIAL_SEED,
     )
@@ -123,14 +145,7 @@ def main() -> None:
         cipher=by_name.cipher("vigenere"),
         key=KeySpec.repeat(len=len(KEY_NUMS)),
         solver=solver,
-        scorer_params=dict(
-            objective="pct.logp.win10",
-            include_char=True,
-            use_word_breaks=True,
-            char_weights={2: 0.3},
-            wli_weights={2: 0.7},
-            encoding_dir=direction,
-        ),
+        scorer_params=dict(scorer_params),
         wli_data=wli,
         encoding_dir=direction,
         telemetry_on=True,

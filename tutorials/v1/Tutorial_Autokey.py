@@ -14,6 +14,7 @@ if str(_SRC) not in sys.path:
 from rune_decrypter_prime.api import Direction, KeySpec, SolverSpec, by_name, cipher_instance, run
 from rune_decrypter_prime.utils.pretty import print_run_report
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 
 SEED = [6, 1, 4]
@@ -76,6 +77,27 @@ def main() -> None:
     cipher_spec = by_name.cipher("autokey", seed_len=SEED_LEN, alphabet_size=ALPHABET_SIZE)
     key_spec = KeySpec.repeat(len=SEED_LEN)
 
+    scorer_params = dict(
+        objective="pct.logp.win10",
+        include_char=True,
+        use_word_breaks=True,
+        char_weights={2: 0.3},
+        wli_weights={2: 0.7},
+        encoding_dir=direction,
+    )
+
+    stop = oracle_stop_score(
+        pt_idx,
+        wli,
+        scorer_params,
+        device="cpu",
+        encoding_dir=direction,
+        margin=0.02,
+        min_score=0.50,
+        fallback=0.54,
+    )
+    print_stop_summary("Autokey GA", stop)
+
     solver_kwargs = dict(
         pop_size=144,
         generations=120,
@@ -85,19 +107,10 @@ def main() -> None:
         tournament_k=4,
         plateau_rounds=25,
         plateau_min_delta=1e-4,
-        stop_score=0.54,
+        stop_score=stop.stop_score,
     )
     baseline_solver = SolverSpec.ga(seed=2024, **solver_kwargs)
     crib_solver = SolverSpec.ga(seed=4242, **solver_kwargs)
-
-    scorer_params = dict(
-        objective="pct.logp.win10",
-        include_char=True,
-        use_word_breaks=True,
-        char_weights={2: 0.3},
-        wli_weights={2: 0.7},
-        encoding_dir=direction,
-    )
 
     def _run(label: str, solver: SolverSpec, initial_keys: Sequence[Sequence[int]] | None):
         solution = run(

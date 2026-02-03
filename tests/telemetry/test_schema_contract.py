@@ -32,7 +32,7 @@ def test_schema_contract_minimal_plus_pipeline(small_problem_cfg):
     assert tel.get("device") in (Device.CPU.value, Device.CUDA.value)
     sc = tel.get("scorer", {})
     assert sc.get("impl") in (ScorerImpl.TORCH.value, ScorerImpl.NUMPY.value, ScorerImpl.AUTO.value , ScorerImpl.UNIFIED.value) # todo hmm "numpy", "torch", "torch_cuda", "cuda")
-    assert sc.get("dtype") == "float32"
+    assert sc.get("dtype") == "float64"
 
     # Pipeline block (canonical names, no magic 'ltr'/'rtl')
     pipe = tel.get("pipeline", {})

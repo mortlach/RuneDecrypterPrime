@@ -23,6 +23,7 @@ from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, by_nam
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.pretty import print_run_report
 from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
+from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext_string
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -541,6 +542,18 @@ def main() -> None:
     )
     print(f"  rand_key: {_format_scores(sol_rand)}")
 
+    stop = oracle_stop_score(
+        pt_idx,
+        wli,
+        scorer_params,
+        device="cpu",
+        encoding_dir=direction,
+        margin=0.02,
+        min_score=0.50,
+        fallback=0.50,
+    )
+    print_stop_summary("PeriodicSub Hard", stop)
+
     seed_keys = None
     if USE_SEEDS:
         seed_keys = _make_periodic_seeds(
@@ -558,6 +571,7 @@ def main() -> None:
         )
 
     solver_cfg = _apply_plateau(SOLVER_CFG)
+    solver_cfg["stop_score"] = stop.stop_score
     _print_solver_cfg("Stage 1 Kaeding", solver_cfg)
     _print_optimizer_scalar("Stage 1 Kaeding", bool(solver_cfg.get("use_raw_score")), scorer_params["objective"])
     solver = SolverSpec.kaeding(**solver_cfg)
@@ -646,7 +660,7 @@ def main() -> None:
                 mut_prob=0.25,
                 tournament_k=3,
                 plateau_rounds=24,
-                stop_score=0.5,
+                stop_score=stop.stop_score,
                 print_progress=True,
             ),
             sa=dict(
@@ -656,13 +670,13 @@ def main() -> None:
                 sa_cooling=0.997,
                 plateau_rounds=400,
                 local_improve_on_accept=True,
-                stop_score=0.5,
+                stop_score=stop.stop_score,
                 print_progress=True,
             ),
             seed=TUTORIAL_SEED,
             verbose=True,
             log_interval=10,
-            stop_score=0.6,
+            stop_score=stop.stop_score,
         )
         _print_hybrid_cfg("Stage 1 hybrid", hybrid_cfg)
         _print_optimizer_scalar("Stage 1 hybrid", False, scorer_params["objective"])

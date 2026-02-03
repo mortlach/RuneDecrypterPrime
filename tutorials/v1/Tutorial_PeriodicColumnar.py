@@ -25,6 +25,7 @@ from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, by_nam
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.pretty import print_run_report
 from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
+from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -433,7 +434,20 @@ def main() -> None:
                 encoding_dir=direction,
             )
 
+            stop = oracle_stop_score(
+                pt_idx,
+                wli,
+                scorer_params,
+                device="cpu",
+                encoding_dir=direction,
+                margin=0.02,
+                min_score=0.50,
+                fallback=0.55,
+            )
+            print_stop_summary(f"PeriodicColumnar {label}/{order}", stop)
+
             solver_kwargs = _build_solver_kwargs(cfg)
+            solver_kwargs["stop_score"] = stop.stop_score
             seed_cfg = _seed_cfg(cfg)
             sweep_cfg = _sweep_cfg(cfg)
 
@@ -460,7 +474,7 @@ def main() -> None:
                         direction=direction,
                         scorer_params=scorer_params,
                         wli=wli,
-                        solver_kwargs=_build_solver_kwargs(retry_cfg),
+                        solver_kwargs={**_build_solver_kwargs(retry_cfg), "stop_score": stop.stop_score},
                         seed_cfg=_seed_cfg(retry_cfg),
                         sweep_cfg=_sweep_cfg(retry_cfg),
                     )
@@ -543,7 +557,9 @@ def main() -> None:
                     )
                     seed_keys = _attach_column_tail(seed_keys, columns, seed=TUTORIAL_SEED + 1)
                     print(f"Seed pool (retry): {len(seed_keys)} keys (col_then_sub)")
-                solver = SolverSpec.kaeding(**_build_solver_kwargs(retry_cfg))
+                retry_kwargs = _build_solver_kwargs(retry_cfg)
+                retry_kwargs["stop_score"] = stop.stop_score
+                solver = SolverSpec.kaeding(**retry_kwargs)
                 sol = run(
                     text=ct_idx.tolist(),
                     cipher=cipher_spec,

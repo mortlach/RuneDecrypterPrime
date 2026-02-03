@@ -4,7 +4,7 @@
 
 ## Workflow (`execute_run`)
 1. **Known-key fast path** - `maybe_known_key_fastpath` returns early when the cipher/key combo can be evaluated without invoking the solver (used in tutorials/tests to ensure deterministic shortcuts).
-2. **CipherConfig build** - `build_cipher_config` (from `api.wrappers.registry`) materialises cipher/key metadata, captures permutation indices, device, encoding direction, and any seeded keys.
+2. **CipherConfig build** - `build_cipher_config` (from `api.wrappers.registry`) materialises cipher/key metadata, captures permutation indices, device, encoding direction, and any seeded keys. (Permutation indices are normalised/validated by `RunAPI` before this point.)
 3. **Problem materialisation** - creates `ProblemSpec` + `ProblemInstance`, wiring the scorer configuration and pipeline block (`telemetry.pipeline`).
 4. **Engine execution** - converts the `SolverConfig` into `EngineConfig` (`normalize_optimizer_name`, log interval, seed keys), then calls `core.engine.solve`.
 5. **Finalize solution** - `pipeline_helpers.finalize_solution` attaches telemetry, plaintext/ciphertext views, WLI, and the pipeline block so callers receive a consistent `Solution`.

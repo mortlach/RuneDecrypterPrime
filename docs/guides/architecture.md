@@ -107,6 +107,7 @@ print(sol.meta["telemetry"]["pipeline"])
 ## FAQ / How-To
 - **Where do I add a new solver?** Implement under `src/rune_decrypter_prime/solvers/`, register it in `core/engine/_SOLVER_TABLE`, add a builder in `api/specs.py`, and document telemetry fields in `telemetry/`.
 - **How do I pass a custom permutation?** Use `RunAPI.run(..., initial_text_permutation_indices=perm)`; the block is captured by `telemetry/pipeline.make_pipeline_block`. Permutation length must match the full ciphertext, and interruptor indices remain in pre-permutation coordinates. Covered by `tests/pipeline/test_permutation_tracking.py`.
+- **What input validation happens at the API?** `RunAPI` rejects rune indices outside `0..28` and validates that `initial_text_permutation_indices` is a full-length permutation. `scorer_params` cannot include `device` or `channel` (device is a top-level RunAPI arg; channel weights use `char_weights`/`wli_weights`).
 - **Why enums everywhere?** Core logic remains typed until telemetry/logging time, ensuring deterministic comparisons and eliminating magic strings.
 
 ---

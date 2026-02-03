@@ -31,7 +31,7 @@ def test_minimal_telemetry_contract(small_problem_cfg):
 
     # Scorer sanity
     sc = tel1.get("scorer", {})
-    assert sc.get("dtype") == "float32"
+    assert sc.get("dtype") == "float64"
     assert sc.get("impl") in (ScorerImpl.NUMPY.value, ScorerImpl.TORCH.value, ScorerImpl.AUTO.value, ScorerImpl.UNIFIED.value)#"numpy", "torch", "torch_cuda", "cuda")
     if tel1.get("device") == Device.CPU.value:
         assert sc.get("device") == Device.CPU.value

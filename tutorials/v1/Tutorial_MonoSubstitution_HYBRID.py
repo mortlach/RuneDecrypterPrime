@@ -25,6 +25,7 @@ if str(_SRC) not in sys.path:
 from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, by_name, cipher_instance
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.pretty import print_run_report
+from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 import numpy as np
 
@@ -66,6 +67,26 @@ def main():
         pt_en, encoding_dir=encoding_dir, seed=CIPHERTEXT_SEED
     )
 
+    scorer_params = dict(
+        char_weights={2: 0.3},
+        wli_weights={2: 0.7},
+        include_char=True,
+        use_word_breaks=True,
+        encoding_dir=encoding_dir,
+    )
+
+    stop = oracle_stop_score(
+        pt_idx,
+        wli,
+        scorer_params,
+        device="cpu",
+        encoding_dir=encoding_dir,
+        margin=0.02,
+        min_score=0.50,
+        fallback=0.55,
+    )
+    print_stop_summary("Mono Hybrid", stop)
+
     # 2) Hybrid Solver config (hybrid is a combination of Beam -> GA -> SA solvers), for demo use random noise starting keys
     hybrid = SolverSpec.hybrid(
         use_beam=True,
@@ -86,7 +107,7 @@ def main():
             tournament_k=3,
             plateau_rounds=8,
             plateau_min_delta=1e-4,
-            stop_score=0.55,
+            stop_score=stop.stop_score,
             print_progress=True,
         ),
         sa=dict(
@@ -101,7 +122,7 @@ def main():
             local_improve_on_accept=False,
             plateau_rounds=80,
             plateau_min_delta=1e-4,
-            stop_score=0.55,
+            stop_score=stop.stop_score,
             print_progress=True,
         ),
 
@@ -111,7 +132,7 @@ def main():
         log_interval=10,
         plateau_rounds=8,
         plateau_min_delta=1e-4,
-        stop_score=0.55,
+        stop_score=stop.stop_score,
     )
 
     # 3) Run solver
@@ -121,13 +142,7 @@ def main():
         key=KeySpec.permutation(len=29),
         solver=hybrid,
         device="cpu",
-        scorer_params=dict(
-            char_weights={2: 0.3},
-            wli_weights={2: 0.7},
-            include_char=True,
-            use_word_breaks=True,
-            encoding_dir=encoding_dir,
-        ),
+        scorer_params=dict(scorer_params),
         wli_data=wli,
         encoding_dir=encoding_dir,
         telemetry_on=True,

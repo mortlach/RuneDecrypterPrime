@@ -4,8 +4,8 @@
 
 ## Helpers
 - `_ensure_tel_dict(problem)` - Lazily initialises `problem.telemetry` as a dict, ensuring subsequent events have a place to live.
-- `run_start(problem, seed, solver, device, scorer, pipeline, params)` - Envelope emitted by `core/engine/engine.solve` before any solver work begins.
-- `run_end(problem, seed, solver, device, scorer, pipeline, result)` - Envelope emitted after solver completion (success or failure).
+- `run_start(problem, seed, solver, device, scorer, pipeline, params)` - Envelope emitted by `core/engine/engine.solve` before any solver work begins. Overwrites the `telemetry.run` envelope to avoid stale data from earlier phases.
+- `run_end(problem, seed, solver, device, scorer, pipeline, result)` - Envelope emitted after solver completion (success or failure). Uses `perf_counter` timings and then copies the run envelope into solution metadata.
 - Additional functions in the file cover `solver_start`, `solver_progress`, `solver_end`, and progress aggregation (see source for full list).
 
 ## Usage

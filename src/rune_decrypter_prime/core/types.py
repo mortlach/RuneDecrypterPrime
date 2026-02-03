@@ -29,6 +29,11 @@ class ScorerImpl(Enum):
     UNIFIED = "unified"
     AUTO = "auto"
 
+class FloatDType(Enum):
+    """Canonical float dtype for scoring/telemetry knobs."""
+    FLOAT32 = "float32"
+    FLOAT64 = "float64"
+
 
 class ScorerName(Enum):
     """Canonical scorer families recognised by the config layer."""
@@ -157,6 +162,18 @@ def ensure_scorer_name(value) -> ScorerName:
 
 def ensure_scorer_impl(value) -> ScorerImpl:
     return _coerce_enum_value(ScorerImpl, value, param_name="scorer impl")
+
+def ensure_float_dtype(value) -> FloatDType:
+    return _coerce_enum_value(FloatDType, value, aliases={
+        "f32": FloatDType.FLOAT32,
+        "fp32": FloatDType.FLOAT32,
+        "32": FloatDType.FLOAT32,
+        "float32": FloatDType.FLOAT32,
+        "f64": FloatDType.FLOAT64,
+        "fp64": FloatDType.FLOAT64,
+        "64": FloatDType.FLOAT64,
+        "float64": FloatDType.FLOAT64,
+    }, param_name="float dtype")
 
 
 def ensure_keyops_family(value) -> KeyOpsFamily:

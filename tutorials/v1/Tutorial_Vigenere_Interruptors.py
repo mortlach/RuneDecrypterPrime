@@ -22,6 +22,7 @@ from rune_decrypter_prime.api import (
 from rune_decrypter_prime.utils.interrupter import InterruptorManager
 from rune_decrypter_prime.utils.pretty import print_run_report
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 """
 Tutorial: Vigenere with interruptors (exact positions)
@@ -88,10 +89,31 @@ def main() -> None:
     print("Core length:", int(pt_core.size), "->", int(ct_core.size))
     print("Core interruptors removed:", info.idx.tolist())
 
+    scorer_params = dict(
+        objective="pct.logp.win10",
+        include_char=True,
+        use_word_breaks=True,
+        char_weights={2: 0.3},
+        wli_weights={2: 0.7},
+        encoding_dir=direction,
+    )
+
+    stop = oracle_stop_score(
+        pt_idx,
+        wli,
+        scorer_params,
+        device="cpu",
+        encoding_dir=direction,
+        margin=0.02,
+        min_score=0.45,
+        fallback=0.5,
+    )
+    print_stop_summary("Vigenere Interruptors", stop)
+
     solver = SolverSpec.beam(
         beam_width=1,
         test_key=key_arr.tolist(),
-        stop_score=0.5,
+        stop_score=stop.stop_score,
         plateau_rounds=4,
         plateau_min_delta=1e-4,
         progress_pct=1,
@@ -102,14 +124,7 @@ def main() -> None:
         cipher=by_name.cipher("vigenere"),
         key=KeySpec.repeat(len=key_len),
         solver=solver,
-        scorer_params=dict(
-            objective="pct.logp.win10",
-            include_char=True,
-            use_word_breaks=True,
-            char_weights={2: 0.3},
-            wli_weights={2: 0.7},
-            encoding_dir=direction,
-        ),
+        scorer_params=dict(scorer_params),
         wli_data=wli,
         encoding_dir=direction,
         telemetry_on=True,

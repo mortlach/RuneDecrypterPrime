@@ -43,7 +43,7 @@ def test_vigenere_roundtrip_min_telemetry(device, small_problem_cfg):
 
     # Extra: dtype/impl sanity stays
     sc = tel.get("scorer", {})
-    assert sc.get("dtype") == "float32"
+    assert sc.get("dtype") == "float64"
     assert sc.get("impl") in ("numpy", "torch", "torch_cuda", "cuda")
 
     # No magic strings anywhere (ltr/rtl/etc.)

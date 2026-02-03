@@ -176,10 +176,25 @@ class RuneScorerTorch(BaseScorer):
         self.n_wli  = int(_cfg_get(scorer_cfg, "n_wli", 2))
         self.win    = int(_cfg_get(scorer_cfg, "win", 10))
         self.stride = int(_cfg_get(scorer_cfg, "stride", 1)) or 1
-        self._dtype = str(_cfg_get(scorer_cfg, "dtype", "float32") or "float32").lower()
-        if self._dtype not in {"float32", "float64"}:
-            self._dtype = "float32"
-        self._score_dtype = np.float64 if self._dtype == "float64" else np.float32
+        def _dtype_str(value: Any, default: str) -> str:
+            if value is None:
+                return default
+            if hasattr(value, "value"):
+                return str(getattr(value, "value")).lower()
+            return str(value).lower()
+        compute_dt = _dtype_str(_cfg_get(scorer_cfg, "compute_dtype", None), "float32")
+        acc_dt = _dtype_str(_cfg_get(scorer_cfg, "acc_dtype", None), "float64")
+        out_dt = _dtype_str(_cfg_get(scorer_cfg, "dtype", None), acc_dt)
+        if compute_dt not in {"float32", "float64"}:
+            compute_dt = "float32"
+        if acc_dt not in {"float32", "float64"}:
+            acc_dt = "float64"
+        if out_dt not in {"float32", "float64"}:
+            out_dt = acc_dt
+        self._compute_dtype = compute_dt
+        self._acc_dtype = acc_dt
+        self._dtype = out_dt
+        self._score_dtype = np.float64 if self._acc_dtype == "float64" else np.float32
 
         # direction + se_mode (strict in core; UI may normalize earlier)
         raw_dir = _cfg_get(scorer_cfg, "encoding_dir",
@@ -237,6 +252,8 @@ class RuneScorerTorch(BaseScorer):
             "stride": int(self.stride), "ecdf_clamp_min": self._ecdf_clamp_min,
             "ecdf_clamp_max": self._ecdf_clamp_max, "encoding_dir": self.direction,
             "dtype": self._dtype,
+            "compute_dtype": self._compute_dtype,
+            "acc_dtype": self._acc_dtype,
         }
         self._last_stats: Dict[str, Any] = {}
 
@@ -288,7 +305,7 @@ class RuneScorerTorch(BaseScorer):
         self._loaded_device: torch.device | None = None
         self._ecdf = ECDFCache(
             root=_cfg_get(scorer_cfg, "model_root", None),
-            prefer_float32=(self._dtype != "float64"),
+            prefer_float32=(self._acc_dtype != "float64"),
         )
 
         # det settings
@@ -599,11 +616,11 @@ class RuneScorerTorch(BaseScorer):
             if K <= 0 or out.shape[1] < K:
                 means = torch.empty(
                     (B, 0),
-                    dtype=(torch.float64 if self._dtype == "float64" else torch.float32),
+                    dtype=(torch.float64 if self._acc_dtype == "float64" else torch.float32),
                     device=self.device,
                 )
             else:
-                if self._dtype == "float64":
+                if self._acc_dtype == "float64":
                     means_full = out.to(torch.float64).unfold(dimension=1, size=K, step=1).contiguous().mean(dim=-1)
                 else:
                     means_full = out.unfold(dimension=1, size=K, step=1).contiguous().mean(dim=-1)
@@ -925,11 +942,11 @@ class RuneScorerTorch(BaseScorer):
             if K <= 0 or out.shape[1] < K:
                 means = torch.empty(
                     (B, 0),
-                    dtype=(torch.float64 if self._dtype == "float64" else torch.float32),
+                    dtype=(torch.float64 if self._acc_dtype == "float64" else torch.float32),
                     device=self.device,
                 )
             else:
-                if self._dtype == "float64":
+                if self._acc_dtype == "float64":
                     means_full = out.to(torch.float64).unfold(dimension=1, size=K, step=1).contiguous().mean(dim=-1)
                 else:
                     means_full = out.unfold(dimension=1, size=K, step=1).contiguous().mean(dim=-1)

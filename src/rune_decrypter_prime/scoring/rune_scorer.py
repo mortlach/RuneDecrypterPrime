@@ -11,7 +11,7 @@ import numpy as np
 import warnings
 
 from rune_decrypter_prime.scoring.base_scorer import BaseScorer, WIN_FIXED
-from rune_decrypter_prime.scoring.language_model.language_model_prime_runtime import LmPrimeRuntime
+from rune_decrypter_prime.scoring.language_model.language_model_prime_runtime import LmPrimeRuntime, ECDFCache
 from rune_decrypter_prime.scoring.windowing import (
     START_TAG,
     END_TAG,
@@ -119,10 +119,24 @@ class RuneScorer(BaseScorer):
             "ecdf_clamp_max",
             _cfg_get(scorer_cfg, "ecdf_ceiling", _DEF_CLAMP_MAX),
         ))
-        self._dtype: str = str(_cfg_get(scorer_cfg, "dtype", "float32") or "float32").lower()
-        if self._dtype not in {"float32", "float64"}:
-            self._dtype = "float32"
-        self._acc_dtype = np.float64 if self._dtype == "float64" else np.float32
+        def _dtype_str(value: Any, default: str) -> str:
+            if value is None:
+                return default
+            if hasattr(value, "value"):
+                return str(getattr(value, "value")).lower()
+            return str(value).lower()
+        compute_dt = _dtype_str(_cfg_get(scorer_cfg, "compute_dtype", None), "float32")
+        acc_dt = _dtype_str(_cfg_get(scorer_cfg, "acc_dtype", None), "float64")
+        out_dt = _dtype_str(_cfg_get(scorer_cfg, "dtype", None), acc_dt)
+        if compute_dt not in {"float32", "float64"}:
+            compute_dt = "float32"
+        if acc_dt not in {"float32", "float64"}:
+            acc_dt = "float64"
+        if out_dt not in {"float32", "float64"}:
+            out_dt = acc_dt
+        self._compute_dtype = compute_dt
+        self._acc_dtype = np.float64 if acc_dt == "float64" else np.float32
+        self._dtype = out_dt
         if not (0.0 < self._ecdf_clamp_min < 1.0 and 0.0 < self._ecdf_clamp_max < 1.0):
             raise ValueError("ecdf_clamp_min/max must be in (0,1) for ENERGY-safe scoring")
         if self._ecdf_clamp_min >= self._ecdf_clamp_max:
@@ -145,14 +159,14 @@ class RuneScorer(BaseScorer):
             alpha=float(getattr(scorer_cfg, "alpha", 0.0) or 0.0),
             oov_policy=getattr(scorer_cfg, "oov_policy", None),
             include_char=self.include_char,
-            prefer_float32=(self._dtype != "float64"),
+            prefer_float32=(self._compute_dtype != "float64"),
         )
         get_cached = getattr(LmPrimeRuntime, "get_cached", None)
         if callable(get_cached):
             self._rt = get_cached(**rt_kwargs)
         else:
             self._rt = LmPrimeRuntime(**rt_kwargs)
-        self._ecdf = self._rt.ecdf
+        self._ecdf = ECDFCache(getattr(scorer_cfg, "model_root", None), prefer_float32=(acc_dt != "float64"))
 
         # Optional Hamming backend (lazy import; skip if unavailable or disabled)
         self._hamming_backend = None
@@ -199,6 +213,14 @@ class RuneScorer(BaseScorer):
 
         # Telemetry invariants
         self._device_str = "cpu"
+        self._telemetry: Dict[str, Any] = {
+            "impl": "numpy",
+            "device": self._device_str,
+            "compute_dtype": self._compute_dtype,
+            "acc_dtype": acc_dt,
+            "dtype": self._dtype,
+            "encoding_dir": self.direction,
+        }
         # Caches for WLI conversions/windows (bounded LRU)
         self._wli_cache_limit = 8
         self._wli_source_cache: "OrderedDict[int, _WliSourceCacheEntry]" = OrderedDict()
@@ -522,6 +544,8 @@ class RuneScorer(BaseScorer):
         energy_std = float(np.std(energy_perwin, dtype=np.float64))
 
         score_mean = energy_mean if want_energy else pct_mean
+        if not want_energy:
+            score_mean = float(np.clip(score_mean, self._ecdf_clamp_min, self._ecdf_clamp_max))
         score_std = energy_std if want_energy else pct_std
 
         stat_total_mean = float(np.mean(stat_total_perwin, dtype=np.float64))
@@ -1151,14 +1175,14 @@ def _extract_legacy(bucket_out: Dict[str, Any], objective: ObjectiveSpec) -> flo
     fam = objective.family
     stat = objective.stat or Stat.LOGP
     if fam is ObjectiveFamily.NEGLOGP:
-        return float(-np.asarray(bucket_out["avg"]["logp"], dtype=np.float32)[0])
+        return float(-np.asarray(bucket_out["avg"]["logp"], dtype=np.float64)[0])
     if fam is ObjectiveFamily.AVG:
         if stat not in (Stat.LOGP, Stat.ZSUM, Stat.MADSUM):
             raise ValueError(f"unknown avg stat: {stat}")
-        return float(np.asarray(bucket_out["avg"][stat.value], dtype=np.float32)[0])
+        return float(np.asarray(bucket_out["avg"][stat.value], dtype=np.float64)[0])
     # Fallback: try pct.logp scalar if present
     try:
-        return float(np.asarray(bucket_out["pct"]["logp"], dtype=np.float32)[0])
+        return float(np.asarray(bucket_out["pct"]["logp"], dtype=np.float64)[0])
     except Exception as e:
         raise ValueError(f"unsupported legacy objective: {fam}.{stat}") from e
 

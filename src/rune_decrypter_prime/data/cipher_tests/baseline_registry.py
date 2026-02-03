@@ -70,7 +70,13 @@ BASELINE: dict = {
           "beam": {"beam_width": 8, "verbose": False, "stop_score": 0.98},
           "ga": {"population": 64, "generations": 50},
     },
-    "logging": {"write_jsonl": True, "verbose": True, "print_progress": True},
+    "logging": {
+        "run_kind": "tests",
+        "label": "pytest",
+        "write_jsonl": True,
+        "verbose": True,
+        "print_progress": True,
+    },
     "devices": ["cpu", "torch", "cuda"],
     # Default config knobs (mapped to dataclasses by helpers)
     "scoring": {

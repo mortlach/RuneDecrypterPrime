@@ -153,7 +153,13 @@ def run_roundtrip_case(
     enable_trace = bool(log_over.pop("enable_trace", False))
     trace_sort = str(log_over.pop("trace_sort", "cumulative"))
     trace_top_n = int(log_over.pop("trace_top_n", 30))
-    log_defaults = {"verbose": True, "print_progress": True, "write_jsonl": True}
+    log_defaults = {
+        "run_kind": "tests",
+        "label": "pytest",
+        "verbose": True,
+        "print_progress": True,
+        "write_jsonl": True,
+    }
     log_cfg = LoggingConfig(**{**log_defaults, **log_over})
 
     solver_cfg = RunConfig(

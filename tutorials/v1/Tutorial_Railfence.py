@@ -11,6 +11,7 @@ if str(_SRC) not in sys.path:
 from rune_decrypter_prime.api import Direction, KeySpec, SolverSpec, by_name, run
 from rune_decrypter_prime.utils.pretty import print_run_report
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 
 
@@ -69,15 +70,6 @@ def main() -> None:
 
     cipher_spec = by_name.cipher("railfence", min_rails=2, max_rails=6)
     key_spec = KeySpec.scalar(max_val=6)
-    solver_spec = SolverSpec.beam(
-        beam_width=64,
-        log_interval=20,
-        stop_score=0.54,
-        plateau_rounds=40,
-        plateau_min_delta=1e-4,
-        seed=TUTORIAL_SEED,
-    )
-
     scorer_params = dict(
         objective="pct.logp.win10",
         include_char=True,
@@ -85,6 +77,27 @@ def main() -> None:
         char_weights={2: 1.0},
         wli_weights={},
         encoding_dir=direction,
+    )
+
+    stop = oracle_stop_score(
+        pt_idx,
+        None,
+        scorer_params,
+        device="cpu",
+        encoding_dir=direction,
+        margin=0.02,
+        min_score=0.50,
+        fallback=0.54,
+    )
+    print_stop_summary("Railfence Beam", stop)
+
+    solver_spec = SolverSpec.beam(
+        beam_width=64,
+        log_interval=20,
+        stop_score=stop.stop_score,
+        plateau_rounds=40,
+        plateau_min_delta=1e-4,
+        seed=TUTORIAL_SEED,
     )
 
     solution = run(

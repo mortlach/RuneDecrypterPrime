@@ -21,7 +21,7 @@ This page is the quick-reference companion to `guides/scoring_deep.md`, which di
 ## 2. Choosing objectives & params
 - **Default:** `"pct.logp.win10"` — percentile of per-window log-probability over 10-character windows. Deterministic, scale-free, and available on every backend.
 - **Aliases:** strings like `"energy.logp"` or `"pct.logp"` are normalised in `api/normalize.normalize_objective_spec`; they become the canonical `ObjectiveSpec`.
-- **Knobs:** set objectives, channel weights, ECDF clamps, and encoding direction via `scorer_params`. Keep them explicit when sharing configs so other solvers can reproduce your run.
+- **Knobs:** set objectives, channel weights, ECDF clamps, and encoding direction via `scorer_params`. Keep them explicit when sharing configs so other solvers can reproduce your run. `device` and `channel` are not valid in `scorer_params` (set device on `RunAPI.run`, and use `include_char` / `use_word_breaks` or weights for channels).
 - **Objective direction:** all objectives are higher-is-better; NEGLOGP is flipped internally. `ScoringConfig.maximize` is enforced `True`.
 - **Precision:** set `scorer_params["dtype"]="float64"` to accumulate/compare in float64; default `float32` keeps compute faster. Telemetry records `dtype`.
 - **When to tweak:** increase `wli_weights` if you want word-boundary signal, or clamp ECDF floors/ceilings when experimenting with noisy language models (see `scoring/rune_scorer.py` docstring).

@@ -11,11 +11,11 @@ Prereqs: Read the Architecture overview and ran one tutorial
 - **RunAPI.run** is the single public entry point for decryption runs.
 - **specs.py** declares `CipherSpec`, `KeySpec`, `SolverSpec`, `ScoringConfig` (strict types; enums only).
 - **by_name.py** exposes friendly constructors that return the strict specs (no magic strings beyond registered names).
-- **normalize.py** converts user-friendly inputs (strings, indices) to canonical forms (indices, WLI pairs using `(pos_in_word, word_len)` when provided).
+- **normalize.py** converts user-friendly inputs (strings, indices) to canonical forms (indices, WLI pairs using `(pos_in_word, word_len)` when provided). It rejects out-of-range rune indices (must be 0..28) and disallows scorer params that belong in other configs (device/channel).
 - **pipeline.py** defines direction and permutation handling used by the core runtime.
 
 ## Data flow (API -> Core)
-1. Inputs normalised (indices, WLI, direction, permutation).
+1. Inputs normalised (indices, WLI, direction, permutation). `initial_text_permutation_indices` is validated to match ciphertext length.
 2. A `ProblemSpec` is built and materialised into a `ProblemInstance`.
 3. The `Engine` selects a solver family and executes with injected RNG.
 4. Scores and telemetry flow back into a `Solution`.
@@ -53,8 +53,9 @@ sol = RunAPI.run(
 
 ## FAQ (API layer)
 - **Where does the seed live?** In the `SolverSpec`; the engine fans out named RNG streams.
-- **How do I pass an initial permutation?** Use `initial_text_permutation_indices` on `RunAPI.run`.
+- **How do I pass an initial permutation?** Use `initial_text_permutation_indices` on `RunAPI.run`. It must be a full-length permutation of the ciphertext indices.
 - **Can I run without WLI?** Yes; pass `wli_data=[]` and set `scorer_params.use_word_breaks=False`. Otherwise, the API will infer WLI from spaces in strings or fall back to a single-word WLI for index inputs (WLI pos/len must be `<= 63`).
+- **Where do I set device/channel?** `device` is a top-level RunAPI argument; channel weights live in `scorer_params` (`char_weights`, `wli_weights`). Passing `device` or `channel` inside `scorer_params` is rejected.
 
 
 ## Related tests

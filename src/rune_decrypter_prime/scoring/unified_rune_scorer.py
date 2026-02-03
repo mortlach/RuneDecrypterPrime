@@ -27,16 +27,34 @@ class UnifiedRuneScorer:
         self.cfg_scorer = cfg_scorer_params
         self._backend_name = "numpy"
         self._backend = None
-        self._dtype = "float32"
+        self._dtype = "float64"
+        self._compute_dtype = "float32"
+        self._acc_dtype = "float64"
         cfg_dtype = None
+        cfg_compute = None
+        cfg_acc = None
         if isinstance(cfg_scorer_params, dict):
             cfg_dtype = cfg_scorer_params.get("dtype")
+            cfg_compute = cfg_scorer_params.get("compute_dtype")
+            cfg_acc = cfg_scorer_params.get("acc_dtype")
         else:
             cfg_dtype = getattr(cfg_scorer_params, "dtype", None)
+            cfg_compute = getattr(cfg_scorer_params, "compute_dtype", None)
+            cfg_acc = getattr(cfg_scorer_params, "acc_dtype", None)
+        if cfg_compute is not None:
+            dt = str(getattr(cfg_compute, "value", cfg_compute)).strip().lower()
+            if dt in {"float32", "float64"}:
+                self._compute_dtype = dt
+        if cfg_acc is not None:
+            dt = str(getattr(cfg_acc, "value", cfg_acc)).strip().lower()
+            if dt in {"float32", "float64"}:
+                self._acc_dtype = dt
         if cfg_dtype is not None:
-            dt = str(cfg_dtype).strip().lower()
+            dt = str(getattr(cfg_dtype, "value", cfg_dtype)).strip().lower()
             if dt in {"float32", "float64"}:
                 self._dtype = dt
+        if cfg_dtype is None:
+            self._dtype = self._acc_dtype
         self._out_dtype = np.float64 if self._dtype == "float64" else np.float32
 
         device_req = "auto"
@@ -134,4 +152,6 @@ class UnifiedRuneScorer:
         tel.setdefault("backend", self._backend_name)
 
         tel.setdefault("dtype", self._dtype)
+        tel.setdefault("compute_dtype", self._compute_dtype)
+        tel.setdefault("acc_dtype", self._acc_dtype)
         return tel

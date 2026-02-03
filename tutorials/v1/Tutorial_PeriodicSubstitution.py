@@ -23,6 +23,7 @@ from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, by_nam
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.pretty import print_run_report
 from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
+from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -227,9 +228,6 @@ def main() -> None:
         )
         key_spec = KeySpec.periodic_substitution(period=period, alphabet_size=ALPHABET)
 
-        solver_kwargs = _build_solver_kwargs(cfg)
-        solver = SolverSpec.kaeding(**solver_kwargs)
-
         scorer_params = dict(
             objective="pct.logp.win10",
             include_char=True,
@@ -238,6 +236,22 @@ def main() -> None:
             wli_weights={3: 0.4, 4: 0.6},
             encoding_dir=direction,
         )
+
+        stop = oracle_stop_score(
+            pt_idx,
+            wli,
+            scorer_params,
+            device="cpu",
+            encoding_dir=direction,
+            margin=0.02,
+            min_score=0.50,
+            fallback=0.55,
+        )
+        print_stop_summary(f"PeriodicSub {label}", stop)
+
+        solver_kwargs = _build_solver_kwargs(cfg)
+        solver_kwargs["stop_score"] = stop.stop_score
+        solver = SolverSpec.kaeding(**solver_kwargs)
 
         sol = run(
             text=ct_runes,
@@ -268,7 +282,9 @@ def main() -> None:
                     swaps_per_block=seed_cfg["seed_swaps"],
                 )
                 print(f"Seed pool (retry): {len(seed_keys)} keys")
-            solver = SolverSpec.kaeding(**_build_solver_kwargs(retry_cfg))
+            retry_kwargs = _build_solver_kwargs(retry_cfg)
+            retry_kwargs["stop_score"] = stop.stop_score
+            solver = SolverSpec.kaeding(**retry_kwargs)
             sol = run(
                 text=ct_runes,
                 cipher=cipher_spec,

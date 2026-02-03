@@ -335,7 +335,9 @@ class LmPrimeRuntime:
         )
 
         # ECDF normalisation cache (reads NPZ based on index.json patterns)
-        self.ecdf = ECDFCache(self.root, prefer_float32=bool(prefer_float32))
+        self._prefer_float32 = bool(prefer_float32)
+        self._compute_dtype = np.float32 if self._prefer_float32 else np.float64
+        self.ecdf = ECDFCache(self.root, prefer_float32=self._prefer_float32)
         # Coverage cache: key = (L, n, wise:bool, N)
         self._coverage_cache: Dict[Tuple[int, int, bool, int], Tuple[np.ndarray, np.ndarray]] = {}
 
@@ -511,11 +513,14 @@ class LmPrimeRuntime:
         total = float(self._total_eval_from_L(L, n))
         if total <= 0:
             raise ValueError("window too short for given n")
-        inv = np.float32(1.0 / total)
+        compute_dtype = getattr(self, "_compute_dtype", np.float32)
+        if isinstance(compute_dtype, str):
+            compute_dtype = np.float64 if compute_dtype == "float64" else np.float32
+        inv = compute_dtype(1.0 / total)
 
-        logp_avg = logp_sum * inv
-        zsum_avg = zsum_sum * inv
-        madsum_avg = madsum_sum * inv
+        logp_avg = np.asarray(logp_sum, dtype=compute_dtype) * inv
+        zsum_avg = np.asarray(zsum_sum, dtype=compute_dtype) * inv
+        madsum_avg = np.asarray(madsum_sum, dtype=compute_dtype) * inv
         logp_avg = apply_stat_transform(Stat.LOGP, logp_avg)
         zsum_avg = apply_stat_transform(Stat.ZSUM, zsum_avg)
         madsum_avg = apply_stat_transform(Stat.MADSUM, madsum_avg)
@@ -545,11 +550,14 @@ class LmPrimeRuntime:
         total = float(self._total_eval_from_L(L, n))
         if total <= 0:
             raise ValueError("window too short for given n")
-        inv = np.float32(1.0 / total)
+        compute_dtype = getattr(self, "_compute_dtype", np.float32)
+        if isinstance(compute_dtype, str):
+            compute_dtype = np.float64 if compute_dtype == "float64" else np.float32
+        inv = compute_dtype(1.0 / total)
 
-        logp_avg = logp_sum * inv
-        zsum_avg = zsum_sum * inv
-        madsum_avg = madsum_sum * inv
+        logp_avg = np.asarray(logp_sum, dtype=compute_dtype) * inv
+        zsum_avg = np.asarray(zsum_sum, dtype=compute_dtype) * inv
+        madsum_avg = np.asarray(madsum_sum, dtype=compute_dtype) * inv
         logp_avg = apply_stat_transform(Stat.LOGP, logp_avg)
         zsum_avg = apply_stat_transform(Stat.ZSUM, zsum_avg)
         madsum_avg = apply_stat_transform(Stat.MADSUM, madsum_avg)

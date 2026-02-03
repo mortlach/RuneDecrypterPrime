@@ -1,7 +1,7 @@
 # Data & Scoring (WLI)
 
 **Concept**  
-Scorers consume plaintext rune indices and optional WLI pairs. WLI is a per-rune `(pos_in_word, word_len)` list used for word-boundary features; spaces are **not** part of rune indices. WLI values must be `<= 63` (LMPrime 6-bit encoding). When WLI is present, word boundaries are fixed by that list; when WLI is absent, there is no word-boundary contract.
+Scorers consume plaintext rune indices and optional WLI pairs. WLI is a per-rune `(pos_in_word, word_len)` list used for word-boundary features; spaces are **not** part of rune indices. Rune indices must be in the canonical `0..28` range (29-rune alphabet). WLI values must be `<= 63` (LMPrime 6-bit encoding). When WLI is present, word boundaries are fixed by that list; when WLI is absent, there is no word-boundary contract.
 
 ## Behaviour
 - English-tuned models for the 29-rune alphabet.  
