@@ -39,7 +39,7 @@ MAX_SIZE_BYTES: Optional[int] = 2_000_000  # 2 MB; set to None to disable
 # Optional: skip directories by prefix
 EXCLUDE_PREFIXES = (
     ".git/",
-    "src/rune_decrypter_prime/data/",   # huge LM artefacts live here
+    #"src/rune_decrypter_prime/data/",   # huge LM artefacts live here
 )
 
 # Optional: set a token to avoid rate limits (fine to leave blank)

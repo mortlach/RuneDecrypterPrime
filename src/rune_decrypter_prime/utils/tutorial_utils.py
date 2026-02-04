@@ -58,8 +58,11 @@ def oracle_stop_score(
         return StopScoreResult(None, fallback, f"oracle_failed: {exc}")
 
     stop = float(oracle - float(margin))
+    # Never allow stop_score to exceed the oracle score.
+    cap = float(oracle) - 1e-6
     if min_score is not None:
         stop = max(stop, float(min_score))
+    stop = min(stop, cap)
     if max_score is not None:
         stop = min(stop, float(max_score))
     return StopScoreResult(oracle, stop, "oracle_ok")
