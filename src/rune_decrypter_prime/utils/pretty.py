@@ -264,6 +264,20 @@ def print_run_report(
         or ""
     )
 
+    # stop reason: prefer Solution field, then telemetry.run.result.reason, then solver span result
+    run_block = _as_dict(tel.get("run", {}))
+    run_result = _as_dict(run_block.get("result", {}))
+    stop_reason = getattr(solution, "stop_reason", None)
+    if stop_reason is None:
+        stop_reason = run_result.get("reason")
+    if stop_reason is None and solver_name:
+        spans = _as_dict(tel.get("solver_spans", {}))
+        span = _as_dict(spans.get(solver_name, {}))
+        span_result = _as_dict(span.get("result", {}))
+        stop_reason = span_result.get("reason")
+    if stop_reason is None and last_e:
+        stop_reason = last_e.get("reason")
+
     # params: meta wins; backfill from first start; sanitize & drop nested "name"
     solver_params_raw = dict(_as_dict(m_solver.get("params", {})))
     if first_s and isinstance(first_s.get("params"), dict):
@@ -412,6 +426,7 @@ def print_run_report(
     if "candidates" in work: summary_bits.append(f"candidates={work['candidates']:,}")
     if "iters" in work: summary_bits.append(f"iters={work['iters']}")
     if score is not None: summary_bits.append(f"score={score:.6f}")
+    if stop_reason: summary_bits.append(f"stop={stop_reason}")
     if "total" in t_view:  summary_bits.append(f"total={t_view['total']:.3f}s")
     print("Summary     :", " | ".join(summary_bits) if summary_bits else "(no summary)")
     print(f"Telemetry   : {'Yes' if telemetry_present else 'No'}")
@@ -468,6 +483,7 @@ def print_run_report(
         print(f"Match ratio: {match_ratio:.3f}")
     if score is not None:
         print(f"Score      : {score:.6f}")
+    print(f"Stop reason: {stop_reason or 'Unknown'}")
 
     print("Scorer     :", scorer_view if scorer_view else {})
 

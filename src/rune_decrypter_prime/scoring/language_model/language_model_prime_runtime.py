@@ -44,6 +44,7 @@ from .language_model_prime import LanguageModelPrime
 from .paths import load_index, expand_pattern, default_lm_root  # (used by ECDFCache)
 
 _LM_RUNTIME_CACHE: dict[tuple, "LmPrimeRuntime"] = {}
+_ECDF_GLOBAL_CACHE: dict[tuple, tuple[np.ndarray, np.ndarray, dict, str, tuple[float, float]]] = {}
 
 # ──────────────────────────────────────────────────────────────────────────────
 # ECDF loader/cache
@@ -98,89 +99,95 @@ class ECDFCache:
         hit = self._cache.get(key)
         if hit is not None:
             return hit
-        fp = self._ecdf_path(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
-        if not fp.exists():
-            raise FileNotFoundError(f"ECDF file not found: {fp}")
-        if fp not in self._printed_files:
-            try:
-                rel = fp.relative_to(self.root)
-            except Exception:
-                rel = fp
-            print(f"[LM ECDF] Loading {rel}")
-            self._printed_files.add(fp)
+        global_hit = _ECDF_GLOBAL_CACHE.get(key)
+        if global_hit is not None:
+            grid64, q64, meta, meta_hash, q_range = global_hit
+            q0, q1 = q_range
+        else:
+            fp = self._ecdf_path(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
+            if not fp.exists():
+                raise FileNotFoundError(f"ECDF file not found: {fp}")
+            if fp not in self._printed_files:
+                try:
+                    rel = fp.relative_to(self.root)
+                except Exception:
+                    rel = fp
+                print(f"[LM ECDF] Loading {rel}")
+                self._printed_files.add(fp)
 
-        arr = np.load(fp, allow_pickle=True)
-        if "grid" not in arr or "q" not in arr:
-            missing = [k for k in ("grid", "q") if k not in arr]
-            raise ValueError(f"ECDF missing arrays: {', '.join(missing)} in {fp}")
+            arr = np.load(fp, allow_pickle=True)
+            if "grid" not in arr or "q" not in arr:
+                missing = [k for k in ("grid", "q") if k not in arr]
+                raise ValueError(f"ECDF missing arrays: {', '.join(missing)} in {fp}")
 
-        grid64 = np.asarray(arr["grid"])
-        q64 = np.asarray(arr["q"])
-        if grid64.dtype != np.float64:
-            raise ValueError(f"ECDF grid dtype must be float64; got {grid64.dtype} in {fp}")
-        if q64.dtype != np.float64:
-            raise ValueError(f"ECDF q dtype must be float64; got {q64.dtype} in {fp}")
-        if grid64.ndim != 1 or q64.ndim != 1 or grid64.size != q64.size:
-            raise ValueError(f"ECDF grid/q must be 1D and same length in {fp}")
-        if grid64.size > 1 and not bool(np.all(np.diff(grid64) > 0.0)):
-            raise ValueError(f"ECDF grid must be strictly increasing in {fp}")
-        if q64.size > 1 and not bool(np.all(np.diff(q64) > 0.0)):
-            raise ValueError(f"ECDF q must be strictly increasing in {fp}")
-        q0 = float(q64[0]) if q64.size else 0.0
-        q1 = float(q64[-1]) if q64.size else 0.0
-        if not (0.0 <= q0 < q1 <= 1.0):
-            raise ValueError(f"ECDF q range invalid in {fp}: q0={q0}, q1={q1}")
+            grid64 = np.asarray(arr["grid"])
+            q64 = np.asarray(arr["q"])
+            if grid64.dtype != np.float64:
+                raise ValueError(f"ECDF grid dtype must be float64; got {grid64.dtype} in {fp}")
+            if q64.dtype != np.float64:
+                raise ValueError(f"ECDF q dtype must be float64; got {q64.dtype} in {fp}")
+            if grid64.ndim != 1 or q64.ndim != 1 or grid64.size != q64.size:
+                raise ValueError(f"ECDF grid/q must be 1D and same length in {fp}")
+            if grid64.size > 1 and not bool(np.all(np.diff(grid64) > 0.0)):
+                raise ValueError(f"ECDF grid must be strictly increasing in {fp}")
+            if q64.size > 1 and not bool(np.all(np.diff(q64) > 0.0)):
+                raise ValueError(f"ECDF q must be strictly increasing in {fp}")
+            q0 = float(q64[0]) if q64.size else 0.0
+            q1 = float(q64[-1]) if q64.size else 0.0
+            if not (0.0 <= q0 < q1 <= 1.0):
+                raise ValueError(f"ECDF q range invalid in {fp}: q0={q0}, q1={q1}")
 
-        if "meta_json" not in arr:
-            raise ValueError(f"ECDF meta_json missing in {fp}")
-        raw_meta = arr["meta_json"]
-        meta_json = None
-        try:
-            if isinstance(raw_meta, np.ndarray):
-                if raw_meta.shape == ():
-                    raw_meta = raw_meta.item()
-                elif raw_meta.size == 1:
-                    raw_meta = raw_meta.reshape(()).item()
-            if isinstance(raw_meta, bytes):
-                meta_json = raw_meta.decode("utf-8")
-            elif isinstance(raw_meta, str):
-                meta_json = raw_meta
-        except Exception:
+            if "meta_json" not in arr:
+                raise ValueError(f"ECDF meta_json missing in {fp}")
+            raw_meta = arr["meta_json"]
             meta_json = None
-        if not meta_json:
-            raise ValueError(f"ECDF meta_json could not be decoded in {fp}")
-        try:
-            meta = json.loads(meta_json)
-        except Exception as exc:
-            raise ValueError(f"ECDF meta_json invalid JSON in {fp}: {exc}") from exc
+            try:
+                if isinstance(raw_meta, np.ndarray):
+                    if raw_meta.shape == ():
+                        raw_meta = raw_meta.item()
+                    elif raw_meta.size == 1:
+                        raw_meta = raw_meta.reshape(()).item()
+                if isinstance(raw_meta, bytes):
+                    meta_json = raw_meta.decode("utf-8")
+                elif isinstance(raw_meta, str):
+                    meta_json = raw_meta
+            except Exception:
+                meta_json = None
+            if not meta_json:
+                raise ValueError(f"ECDF meta_json could not be decoded in {fp}")
+            try:
+                meta = json.loads(meta_json)
+            except Exception as exc:
+                raise ValueError(f"ECDF meta_json invalid JSON in {fp}: {exc}") from exc
 
-        # Minimal required meta validation
-        for k in ("model", "direction", "se_mode", "n", "stat", "win_ngrams"):
-            if k not in meta:
-                raise ValueError(f"ECDF meta_json missing '{k}' in {fp}")
-        if str(meta.get("model")) != str(model):
-            raise ValueError(f"ECDF meta_json model mismatch in {fp}")
-        if str(meta.get("direction")) != str(mode):
-            raise ValueError(f"ECDF meta_json direction mismatch in {fp}")
-        if str(meta.get("se_mode")) != str(pos):
-            raise ValueError(f"ECDF meta_json se_mode mismatch in {fp}")
-        if int(meta.get("n")) != int(n):
-            raise ValueError(f"ECDF meta_json n mismatch in {fp}")
-        if str(meta.get("stat")) != str(stat):
-            raise ValueError(f"ECDF meta_json stat mismatch in {fp}")
-        if int(meta.get("win_ngrams")) != int(win):
-            raise ValueError(f"ECDF meta_json win_ngrams mismatch in {fp}")
+            # Minimal required meta validation
+            for k in ("model", "direction", "se_mode", "n", "stat", "win_ngrams"):
+                if k not in meta:
+                    raise ValueError(f"ECDF meta_json missing '{k}' in {fp}")
+            if str(meta.get("model")) != str(model):
+                raise ValueError(f"ECDF meta_json model mismatch in {fp}")
+            if str(meta.get("direction")) != str(mode):
+                raise ValueError(f"ECDF meta_json direction mismatch in {fp}")
+            if str(meta.get("se_mode")) != str(pos):
+                raise ValueError(f"ECDF meta_json se_mode mismatch in {fp}")
+            if int(meta.get("n")) != int(n):
+                raise ValueError(f"ECDF meta_json n mismatch in {fp}")
+            if str(meta.get("stat")) != str(stat):
+                raise ValueError(f"ECDF meta_json stat mismatch in {fp}")
+            if int(meta.get("win_ngrams")) != int(win):
+                raise ValueError(f"ECDF meta_json win_ngrams mismatch in {fp}")
 
-        # Compute meta hash (meta_json + grid + q)
-        try:
-            import hashlib
-            h = hashlib.sha256()
-            h.update(meta_json.encode("utf-8"))
-            h.update(np.ascontiguousarray(grid64, dtype=np.float64).tobytes())
-            h.update(np.ascontiguousarray(q64, dtype=np.float64).tobytes())
-            meta_hash = h.hexdigest()
-        except Exception as exc:
-            raise ValueError(f"ECDF meta_hash computation failed in {fp}: {exc}") from exc
+            # Compute meta hash (meta_json + grid + q)
+            try:
+                import hashlib
+                h = hashlib.sha256()
+                h.update(meta_json.encode("utf-8"))
+                h.update(np.ascontiguousarray(grid64, dtype=np.float64).tobytes())
+                h.update(np.ascontiguousarray(q64, dtype=np.float64).tobytes())
+                meta_hash = h.hexdigest()
+            except Exception as exc:
+                raise ValueError(f"ECDF meta_hash computation failed in {fp}: {exc}") from exc
+            _ECDF_GLOBAL_CACHE[key] = (grid64, q64, dict(meta), meta_hash, (q0, q1))
 
         # Working buffers for interpolation
         interp_dtype = "float64"
