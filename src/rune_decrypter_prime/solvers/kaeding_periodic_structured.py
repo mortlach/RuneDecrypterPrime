@@ -116,6 +116,61 @@ class KaedingPeriodicStructuredSolver(SolverBase):
         pct = self._score_batch(keys)
         return np.asarray(pct, dtype=np.float64), np.asarray(pct, dtype=np.float64)
 
+    def _maybe_best_of_seeds(self, rng):
+        """
+        Kaeding-stage alignment: when use_raw_score=True, choose the initial seed by raw.
+
+        SolverBase._maybe_best_of_seeds() ranks seeds using the primary objective
+        (typically pct). That can be inconsistent with Kaeding's raw-driven search,
+        so we override here to pick the best seed under the same ranking signal Kaeding
+        will optimise.
+        """
+        seed_keys = getattr(self, "seed_keys", None)
+        initial_key = getattr(self, "initial_key", None)
+
+        no_seeds = False
+        if seed_keys is None:
+            no_seeds = True
+        elif isinstance(seed_keys, np.ndarray):
+            no_seeds = (seed_keys.size == 0)
+        elif isinstance(seed_keys, (list, tuple)):
+            no_seeds = (len(seed_keys) == 0)
+
+        if no_seeds:
+            if initial_key is not None:
+                key = np.ascontiguousarray(np.array(initial_key, dtype=self.key_dtype))
+                if key.ndim == 2:
+                    key = key[0]
+                elif key.ndim != 1:
+                    key = self.keyops.normalize(key)
+                    if key.ndim == 2:
+                        key = key[0]
+                return key.astype(self.key_dtype, copy=False)
+            return self.keyops.random(rng).astype(self.key_dtype, copy=False)
+
+        seeds = np.array(seed_keys, dtype=self.key_dtype, copy=False)
+        if seeds.ndim == 1:
+            seeds = seeds[None, :]
+        seeds = np.ascontiguousarray(seeds, dtype=self.key_dtype)
+
+        if seeds.shape[1] != self.K:
+            rows = []
+            for row in seeds:
+                fixed = self.keyops.normalize(row)
+                if fixed.ndim == 2:
+                    fixed = fixed[0]
+                rows.append(np.ascontiguousarray(fixed, dtype=self.key_dtype))
+            seeds = np.ascontiguousarray(np.stack(rows, axis=0), dtype=self.key_dtype)
+
+        use_raw_score = bool(self.get_param("use_raw_score", True))
+        if use_raw_score:
+            _, raw = self._score_batch_dual(seeds, use_raw=True)
+            scores = np.asarray(raw, dtype=np.float64)
+        else:
+            scores = self._score_batch(seeds)
+        best_idx = int(np.argmax(scores))
+        return seeds[best_idx].copy()
+
     @staticmethod
     def _pick_stall_phase(attempts: np.ndarray, improves: np.ndarray) -> int:
         if attempts.size == 0:
