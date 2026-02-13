@@ -46,7 +46,7 @@ SEED_KEYS = 128
 SEED_SWAPS = 2
 
 PLATEAU_PCT = 0.10
-PLATEAU_MIN_DELTA = 1e-4
+PLATEAU_MIN_DELTA = 1e-6
 
 RUN_HYBRID = True
 HYBRID_TRIGGER_PCT = None
@@ -77,12 +77,31 @@ SOLVER_SUB: Dict[str, int | float | str | bool] = dict(
     pct_plateau_min_delta=1e-4,
     delta_window=200,
     top_k=TOP_STAGE1_KEYS,
-    stop_score=0.5,
+    stop_score=0.48,
     progress_pct=2,
     print_progress=True,
     seed=TUTORIAL_SEED,
 )
 
+#SOLVER_CFG_STAGE1_FAST = dict(
+SOLVER_SUB = dict(
+    steps=450,
+    restarts=1,
+    inner_batch=24,
+    block_schedule="round_robin",
+
+    slip_policy="stall",
+    stall_rounds=80,
+    stall_slip_limit=1,
+    slip_blocks=1,
+    slip_swaps=8,
+    slip_follow_steps=80,
+
+    delta_window=120,
+    pct_plateau_min_delta=6e-4,
+
+    stop_score=1.0,
+)
 
 def _preview(text: str, n: int = 120) -> str:
     return text if len(text) <= n else text[:n] + "..."
@@ -828,6 +847,9 @@ def main() -> None:
 
     # Decrypt to intermediate text (columnar ciphertext) for top Stage-1 candidates
     stage1_keys = list(kaeding_top_keys)
+    # DEBUG: force Stage 2 to start from the known true substitution key only.
+    stage1_keys = [true_sub_key]
+    print("[DEBUG] Stage 2 forced to use true_sub_key only (bypassing Stage 1).")
     final_sub_key = list(getattr(sol_sub, "key", []) or [])
     if final_sub_key:
         if final_sub_key not in stage1_keys:

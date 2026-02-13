@@ -44,6 +44,9 @@ from .language_model_prime import LanguageModelPrime
 from .paths import load_index, expand_pattern, default_lm_root  # (used by ECDFCache)
 
 _LM_RUNTIME_CACHE: dict[tuple, "LmPrimeRuntime"] = {}
+# Global disk-cache for ECDF assets. Key MUST include the resolved LM root;
+# tests frequently use tmp_path roots with different contents but identical
+# (mode,pos,model,n,stat,win) selectors.
 _ECDF_GLOBAL_CACHE: dict[tuple, tuple[np.ndarray, np.ndarray, dict, str, tuple[float, float]]] = {}
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -99,7 +102,8 @@ class ECDFCache:
         hit = self._cache.get(key)
         if hit is not None:
             return hit
-        global_hit = _ECDF_GLOBAL_CACHE.get(key)
+        global_key = (str(self.root),) + key
+        global_hit = _ECDF_GLOBAL_CACHE.get(global_key)
         if global_hit is not None:
             grid64, q64, meta, meta_hash, q_range = global_hit
             q0, q1 = q_range
@@ -187,7 +191,7 @@ class ECDFCache:
                 meta_hash = h.hexdigest()
             except Exception as exc:
                 raise ValueError(f"ECDF meta_hash computation failed in {fp}: {exc}") from exc
-            _ECDF_GLOBAL_CACHE[key] = (grid64, q64, dict(meta), meta_hash, (q0, q1))
+            _ECDF_GLOBAL_CACHE[global_key] = (grid64, q64, dict(meta), meta_hash, (q0, q1))
 
         # Working buffers for interpolation
         interp_dtype = "float64"

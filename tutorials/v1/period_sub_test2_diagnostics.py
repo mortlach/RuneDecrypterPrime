@@ -38,6 +38,8 @@ USE_SEEDS = True
 BLOCK_SEEDS = 12
 SEED_KEYS = 128
 SEED_SWAPS = 2
+DIAG_SEED_POOL = True
+PLAINTEXT_CHARS = None
 
 PLATEAU_PCT = 0.10
 PLATEAU_MIN_DELTA = 1e-4
@@ -83,6 +85,31 @@ def _preview(text: str, n: int = 120) -> str:
 
 def _phase_counts(ct_idx: np.ndarray, period: int) -> list[int]:
     return [int(len(ct_idx[r::period])) for r in range(period)]
+
+
+def _key_equal(a: Sequence[int], b: Sequence[int]) -> bool:
+    return list(a) == list(b)
+
+
+def _key_hamming(a: Sequence[int], b: Sequence[int]) -> int:
+    return sum(int(x != y) for x, y in zip(a, b))
+
+
+def _seed_pool_diagnostic(seed_pool: Sequence[Sequence[int]], true_key: Sequence[int]) -> None:
+    hits: list[int] = []
+    best_d: int | None = None
+    best_i: int | None = None
+    for i, k in enumerate(seed_pool):
+        if _key_equal(k, true_key):
+            hits.append(i)
+        d = _key_hamming(k, true_key)
+        if best_d is None or d < best_d:
+            best_d = d
+            best_i = i
+    key_len = len(true_key)
+    print(f"[SeedPool] true_key exact matches: {hits if hits else 'none'}")
+    if best_d is not None:
+        print(f"[SeedPool] closest key index={best_i} hamming={best_d} out of {key_len}")
 
 
 def _score_test_key(
@@ -472,8 +499,9 @@ def _build_ciphertext(
 
 def main() -> None:
     direction = Direction.RTL
+    plaintext = long_plaintext_string if PLAINTEXT_CHARS is None else long_plaintext_string[: int(PLAINTEXT_CHARS)]
     pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(
-        long_plaintext_string,
+        plaintext,
         direction=direction.value,
     )
     pt_idx_arr = np.asarray(pt_idx, dtype=np.uint8)
@@ -569,6 +597,8 @@ def main() -> None:
             f"Seed pool: {len(seed_keys)} keys "
             f"(blocks={BLOCK_SEEDS}, total={SEED_KEYS}, swaps_per_block={SEED_SWAPS})"
         )
+        if DIAG_SEED_POOL:
+            _seed_pool_diagnostic(seed_keys, true_key)
 
     solver_cfg = _apply_plateau(SOLVER_CFG)
     solver_cfg["stop_score"] = float(stop.stop_score)
