@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 import subprocess
-from typing import Dict, Iterable, List, Tuple, Any
+from typing import Dict, Iterable, List, Tuple, Any, Sequence
 
 import numpy as np
 
@@ -104,7 +104,7 @@ def _git_short_hash() -> str:
         return "nogit"
 
 
-def _write_reports(rows: List[dict], summary: dict) -> Path:
+def _write_reports(rows: List[dict], summary: dict, *, manifest: dict | None = None) -> Path:
     root = _repo_root()
     out_root = root / "output" / "tools" / "benchmarks"
     out_root.mkdir(parents=True, exist_ok=True)
@@ -113,6 +113,8 @@ def _write_reports(rows: List[dict], summary: dict) -> Path:
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "instances.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    if manifest is not None:
+        (run_dir / "run_manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
     _write_csv(run_dir / "instances.csv", rows)
     return run_dir
 
@@ -288,6 +290,70 @@ def _hard_abort_sanity(
         )
 
 
+def _print_setup_snapshot(
+    *,
+    direction: Direction,
+    lm_root: Path,
+    orders: Sequence[str],
+) -> None:
+    print(
+        f"[bench] setup: direction={direction.value} A={ALPHABET_SIZE} lm_root={str(lm_root)} "
+        f"orders={list(orders)} random_keys={RANDOM_KEYS} ablation_keys={ABLATION_KEYS}",
+        flush=True,
+    )
+    print(
+        f"[bench] setup: text_offsets={list(TEXT_OFFSETS)} key_seeds={list(KEY_SEEDS)} "
+        f"raw_specs={[name for name, _ in RAW_SPECS]}",
+        flush=True,
+    )
+    tier_str = ", ".join([f"{t.name}(p{t.period},c{t.columns},L{t.length})" for t in TIERS])
+    print(f"[bench] setup: tiers={tier_str}", flush=True)
+    for b in BUDGETS:
+        est = int(int(b.plan.n_starts) * (int(b.plan.refine_steps) + 1))
+        print(
+            f"[bench] setup: budget={b.name} n_keys={b.n_keys} "
+            f"plan={json.dumps(dict(b.plan.__dict__), sort_keys=True)} est_seed_evals~{est}",
+            flush=True,
+        )
+
+
+def _build_run_manifest(
+    *,
+    direction: Direction,
+    lm_root: Path,
+    orders: Sequence[str],
+    required_ns: Sequence[int],
+    total_runs: int,
+) -> dict:
+    return {
+        "kind": "bench_seed_periodic_columnar",
+        "version": 1,
+        "generated_utc": datetime.now(timezone.utc).isoformat(),
+        "git_short": _git_short_hash(),
+        "script": str(Path(__file__).resolve().as_posix()),
+        "repo_root": str(_repo_root().as_posix()),
+        "direction": str(direction.value),
+        "alphabet_size": int(ALPHABET_SIZE),
+        "orders": [str(o) for o in orders],
+        "text_offsets": [int(x) for x in TEXT_OFFSETS],
+        "key_seeds": [int(x) for x in KEY_SEEDS],
+        "raw_specs": [{"name": str(name), "weights": {int(k): float(v) for k, v in weights.items()}} for name, weights in RAW_SPECS],
+        "tiers": [
+            {"name": str(t.name), "period": int(t.period), "columns": int(t.columns), "length": int(t.length)}
+            for t in TIERS
+        ],
+        "budgets": [
+            {"name": str(b.name), "n_keys": int(b.n_keys), "plan": dict(b.plan.__dict__)}
+            for b in BUDGETS
+        ],
+        "random_keys": int(RANDOM_KEYS),
+        "ablation_keys": int(ABLATION_KEYS),
+        "required_ns": [int(x) for x in required_ns],
+        "lm_root": str(lm_root),
+        "expected_runs": int(total_runs),
+    }
+
+
 def _percentiles(values: Iterable[float], pcts: Tuple[int, ...] = (10, 25, 50, 75, 90, 95)) -> Dict[str, float]:
     arr = np.asarray(list(values), dtype=np.float64)
     if arr.size == 0:
@@ -404,10 +470,18 @@ def main() -> None:
     orders = list(ORDER_MAIN)
     if RUN_SUB_THEN_COL_DIAGNOSTIC:
         orders.append("sub_then_col")
+    _print_setup_snapshot(direction=direction, lm_root=lm_root, orders=orders)
 
     rows: List[dict] = []
     t0_all = time.time()
     total_runs = len(orders) * len(RAW_SPECS) * len(TIERS) * len(TEXT_OFFSETS) * len(KEY_SEEDS) * len(BUDGETS)
+    manifest = _build_run_manifest(
+        direction=direction,
+        lm_root=lm_root,
+        orders=orders,
+        required_ns=tuple(int(n) for n in required_ns),
+        total_runs=total_runs,
+    )
     run_idx = 0
     print(
         f"[bench] Starting {total_runs} runs "
@@ -680,10 +754,11 @@ def main() -> None:
                             )
 
     summary = _summarize(rows)
-    run_dir = _write_reports(rows, summary)
+    run_dir = _write_reports(rows, summary, manifest=manifest)
     rel = run_dir.relative_to(_repo_root())
     total = time.time() - t0_all
     print(f"[bench] Completed in {total:.1f}s. Reports written to {rel}")
+    print(f"[bench] Manifest written to {str((run_dir / 'run_manifest.json').relative_to(_repo_root()))}")
     _print_summary(summary)
 
 

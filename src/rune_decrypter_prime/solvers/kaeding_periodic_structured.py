@@ -5,6 +5,7 @@ Block-focused swaps with occasional column moves and slips.
 """
 from __future__ import annotations
 from collections import deque
+import hashlib
 import numpy as np
 
 from ..core.types import SolverName, KEY_DTYPE
@@ -32,6 +33,8 @@ class KaedingPeriodicStructuredSolver(SolverBase):
         params.setdefault("slip_blocks", 1)
         params.setdefault("col_every", 10)
         params.setdefault("col_batch", 64)
+        params.setdefault("seed_selection_metric", "auto")
+        params.setdefault("seed_restarts", 0)
 
         rng = kwargs.get("rng")
         if rng is None:
@@ -116,14 +119,25 @@ class KaedingPeriodicStructuredSolver(SolverBase):
         pct = self._score_batch(keys)
         return np.asarray(pct, dtype=np.float64), np.asarray(pct, dtype=np.float64)
 
-    def _maybe_best_of_seeds(self, rng):
-        """
-        Kaeding-stage alignment: when use_raw_score=True, choose the initial seed by raw.
+    @staticmethod
+    def _key_hash16(key_vec: np.ndarray) -> str:
+        arr = np.asarray(key_vec, dtype=np.int16).reshape(-1)
+        return hashlib.sha1(arr.tobytes()).hexdigest()[:16]
 
-        SolverBase._maybe_best_of_seeds() ranks seeds using the primary objective
-        (typically pct). That can be inconsistent with Kaeding's raw-driven search,
-        so we override here to pick the best seed under the same ranking signal Kaeding
-        will optimise.
+    def _resolve_seed_selection_metric(self, *, use_raw_score: bool) -> str:
+        raw = str(self.get_param("seed_selection_metric", "auto") or "auto").strip().lower()
+        if raw == "auto":
+            return "raw" if use_raw_score else "pct"
+        if raw in {"raw", "pct"}:
+            return raw
+        raise ValueError("seed_selection_metric must be one of {'auto','raw','pct'}")
+
+    def _prepare_seed_schedule(self, rng, *, use_raw_score: bool) -> list[np.ndarray]:
+        """
+        Build restart seed schedule.
+
+        - If seed_keys are provided: rank them once and consume in order for early restarts.
+        - Otherwise: keep old behaviour (initial_key if present, else random for restart 0).
         """
         seed_keys = getattr(self, "seed_keys", None)
         initial_key = getattr(self, "initial_key", None)
@@ -145,8 +159,31 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                     key = self.keyops.normalize(key)
                     if key.ndim == 2:
                         key = key[0]
-                return key.astype(self.key_dtype, copy=False)
-            return self.keyops.random(rng).astype(self.key_dtype, copy=False)
+                key = key.astype(self.key_dtype, copy=False)
+                self._seed_selection_meta = {
+                    "seed_selected_source": "initial_key",
+                    "seed_selection_metric": "n/a",
+                    "seed_selected_index": -1,
+                    "seed_selected_hash": self._key_hash16(key),
+                    "seed_selected_raw": float("nan"),
+                    "seed_selected_pct": float("nan"),
+                    "seed_pool_size": 0,
+                    "seed_restarts_used": 1,
+                }
+                return [key]
+
+            k = self.keyops.random(rng).astype(self.key_dtype, copy=False)
+            self._seed_selection_meta = {
+                "seed_selected_source": "random",
+                "seed_selection_metric": "n/a",
+                "seed_selected_index": -1,
+                "seed_selected_hash": self._key_hash16(k),
+                "seed_selected_raw": float("nan"),
+                "seed_selected_pct": float("nan"),
+                "seed_pool_size": 0,
+                "seed_restarts_used": 1,
+            }
+            return [k]
 
         seeds = np.array(seed_keys, dtype=self.key_dtype, copy=False)
         if seeds.ndim == 1:
@@ -162,14 +199,37 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                 rows.append(np.ascontiguousarray(fixed, dtype=self.key_dtype))
             seeds = np.ascontiguousarray(np.stack(rows, axis=0), dtype=self.key_dtype)
 
-        use_raw_score = bool(self.get_param("use_raw_score", True))
-        if use_raw_score:
-            _, raw = self._score_batch_dual(seeds, use_raw=True)
-            scores = np.asarray(raw, dtype=np.float64)
-        else:
-            scores = self._score_batch(seeds)
-        best_idx = int(np.argmax(scores))
-        return seeds[best_idx].copy()
+        # Always request dual scores so we can rank by either raw or pct.
+        pct_scores, raw_scores = self._score_batch_dual(seeds, use_raw=True)
+        pct_scores = np.asarray(pct_scores, dtype=np.float64)
+        raw_scores = np.asarray(raw_scores, dtype=np.float64)
+
+        metric = self._resolve_seed_selection_metric(use_raw_score=use_raw_score)
+        rank_scores = raw_scores if metric == "raw" else pct_scores
+        order = np.argsort(rank_scores, kind="mergesort")[::-1]
+        ordered = np.ascontiguousarray(seeds[order], dtype=self.key_dtype)
+        ordered_raw = raw_scores[order]
+        ordered_pct = pct_scores[order]
+
+        seed_restarts = max(0, int(self.get_param("seed_restarts", 0)))
+        n_use = int(ordered.shape[0]) if seed_restarts <= 0 else min(seed_restarts, int(ordered.shape[0]))
+        schedule = [ordered[i].copy() for i in range(n_use)]
+
+        first_raw = float(ordered_raw[0]) if ordered_raw.size else float("nan")
+        first_pct = float(ordered_pct[0]) if ordered_pct.size else float("nan")
+        first_idx = int(order[0]) if order.size else -1
+        first_hash = self._key_hash16(schedule[0]) if schedule else ""
+        self._seed_selection_meta = {
+            "seed_selected_source": "seed_pool",
+            "seed_selection_metric": metric,
+            "seed_selected_index": first_idx,
+            "seed_selected_hash": first_hash,
+            "seed_selected_raw": first_raw,
+            "seed_selected_pct": first_pct,
+            "seed_pool_size": int(seeds.shape[0]),
+            "seed_restarts_used": int(len(schedule)),
+        }
+        return schedule
 
     @staticmethod
     def _pick_stall_phase(attempts: np.ndarray, improves: np.ndarray) -> int:
@@ -190,7 +250,8 @@ class KaedingPeriodicStructuredSolver(SolverBase):
         self.period = int(traits.get("period"))
         self.columns = int(traits.get("columns", 0) or 0)
         self.sub_len = int(self.period * self.A)
-        has_columnar = bool(traits.get("has_columnar", False) and self.columns > 0)
+        # Column swap requires at least two columns; columns==1 is a valid degenerate case.
+        has_columnar = bool(traits.get("has_columnar", False) and self.columns > 1)
 
         steps = max(1, int(self.get_param("steps", 2000)))
         restarts = max(1, int(self.get_param("restarts", 8)))
@@ -221,6 +282,7 @@ class KaedingPeriodicStructuredSolver(SolverBase):
         if fast is not None:
             return fast
 
+        self._seed_selection_meta = {}
         span = self._start_span()
         total_evals = 0
         total_steps = steps * restarts
@@ -234,6 +296,9 @@ class KaedingPeriodicStructuredSolver(SolverBase):
             last_pct_improve_at = 0
             accept_count = 0
             attempt_count = 0
+            block_accept_count = 0
+            col_accept_count = 0
+            slip_count = 0
             delta_history = deque(maxlen=delta_window)
             phase_attempts = np.zeros((self.period,), dtype=np.int64)
             phase_improves = np.zeros((self.period,), dtype=np.int64)
@@ -242,6 +307,7 @@ class KaedingPeriodicStructuredSolver(SolverBase):
             active_slips: list[dict] = []
             top_candidates: list[tuple[float, float, tuple[int, ...]]] = []
             top_seen: set[tuple[int, ...]] = set()
+            restart_start_hashes: list[str] = []
 
             self._early_stop_reset(initial_best=best_raw,
                                    plateau_override=int(self.get_param("plateau_rounds", 0)))
@@ -275,13 +341,19 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                     last_pct_improve_at = int(step_idx)
                     self._best_at_step = int(step_idx)
 
+            seed_schedule = self._prepare_seed_schedule(self.rng, use_raw_score=use_raw_score)
+            if isinstance(self._seed_selection_meta, dict):
+                self._seed_selection_meta.setdefault("seed_restarts_used", int(len(seed_schedule)))
+                self._seed_selection_meta.setdefault("seed_restarts_config", int(self.get_param("seed_restarts", 0)))
+
             for restart in range(restarts):
                 stall_slips_used = 0
-                if restart == 0:
-                    k = self._maybe_best_of_seeds(self.rng)
+                if restart < len(seed_schedule):
+                    k = seed_schedule[restart].copy()
                 else:
                     k = self.keyops.random(self.rng).astype(KEY_DTYPE, copy=False)
                 k = np.ascontiguousarray(self.keyops.normalize(k), dtype=self.key_dtype)
+                restart_start_hashes.append(self._key_hash16(k))
                 s_pct_arr, s_raw_arr = self._score_batch_dual(k[None, :], use_raw=use_raw_score)
                 s_pct = float(s_pct_arr[0])
                 s_raw = float(s_raw_arr[0])
@@ -316,15 +388,16 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                         best_delta_raw = float(raw_deltas[idx])
                         median_delta_raw = float(np.median(raw_deltas))
                         delta_history.append(best_delta_raw)
-                    if scores_raw[idx] > (s_raw + raw_accept_min_delta):
-                        k = candidates[idx].copy()
-                        s_raw = float(scores_raw[idx])
-                        s_pct = float(scores_pct[idx])
-                        block_improved = True
-                        accept_count += 1
-                        phase_improves[block] += 1
-                        if best_delta_raw > phase_best_delta[block]:
-                            phase_best_delta[block] = best_delta_raw
+                        if scores_raw[idx] > (s_raw + raw_accept_min_delta):
+                            k = candidates[idx].copy()
+                            s_raw = float(scores_raw[idx])
+                            s_pct = float(scores_pct[idx])
+                            block_improved = True
+                            accept_count += 1
+                            block_accept_count += 1
+                            phase_improves[block] += 1
+                            if best_delta_raw > phase_best_delta[block]:
+                                phase_best_delta[block] = best_delta_raw
 
                     if has_columnar and col_every > 0 and (step % col_every == 0):
                         col_candidates = self._col_swap_batch(k, col_batch)
@@ -345,6 +418,7 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                             s_pct = float(col_pct[col_idx])
                             col_improved = True
                             accept_count += 1
+                            col_accept_count += 1
 
                     if slip_policy == "fixed" and slip_every > 0 and (step % slip_every == 0):
                         raw_before = float(s_raw)
@@ -355,6 +429,7 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                         s_raw = float(s_raw_arr[0])
                         total_evals += 1
                         slip = True
+                        slip_count += 1
                         active_slips.append({
                             "step": int(global_step),
                             "raw_before": raw_before,
@@ -377,6 +452,7 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                             s_raw = float(s_raw_arr[0])
                             total_evals += 1
                             slip = True
+                            slip_count += 1
                             stall_slips_used += 1
                             active_slips.append({
                                 "step": int(global_step),
@@ -497,6 +573,9 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                         }
                     kaeding_meta = {
                         "accept_rate": float(accept_count) / float(max(1, attempt_count)),
+                        "block_accept_count": int(block_accept_count),
+                        "col_accept_count": int(col_accept_count),
+                        "slip_count": int(slip_count),
                         "best_delta_raw": (float(max(delta_history)) if len(delta_history) > 0 else 0.0),
                         "median_delta_raw": (float(np.median(delta_history)) if len(delta_history) > 0 else 0.0),
                         "since_improve": int(self._since_improve(int(global_step))),
@@ -504,7 +583,11 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                         "per_phase": per_phase,
                         "best_pct": float(best_pct),
                         "best_raw": float(best_raw),
+                        "restart_start_hashes": list(restart_start_hashes),
                     }
+                    seed_meta = getattr(self, "_seed_selection_meta", None)
+                    if isinstance(seed_meta, dict) and seed_meta:
+                        kaeding_meta.update(seed_meta)
                     if top_candidates:
                         top_candidates.sort(key=lambda x: x[0], reverse=True)
                         kaeding_meta["top_keys"] = [list(k) for _, _, k in top_candidates]
