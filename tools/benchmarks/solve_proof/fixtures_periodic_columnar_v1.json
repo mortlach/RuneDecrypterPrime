@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "cipher": "periodic_columnar",
+  "direction": "ltr",
+  "order": "col_then_sub",
+  "alphabet_size": 29,
+  "text_source": "rune_decrypter_prime.data.cipher_tests.plaintext.long_plaintext_string",
+  "default_text_offsets": [0, 211],
+  "default_key_seeds": [111, 222],
+  "tiers": [
+    {
+      "fixture_id": "p5_c1_l400",
+      "period": 5,
+      "columns": 1,
+      "length": 400,
+      "difficulty": "control",
+      "enabled": true,
+      "notes": "Substitution-only control; should be first solve proof."
+    },
+    {
+      "fixture_id": "p5_c5_l400",
+      "period": 5,
+      "columns": 5,
+      "length": 400,
+      "difficulty": "easy",
+      "enabled": true,
+      "notes": "Early transposition coupling."
+    },
+    {
+      "fixture_id": "p5_c9_l800",
+      "period": 5,
+      "columns": 9,
+      "length": 800,
+      "difficulty": "easy_plus",
+      "enabled": true,
+      "notes": "Higher column complexity with longer text."
+    },
+    {
+      "fixture_id": "p10_c1_l800",
+      "period": 10,
+      "columns": 1,
+      "length": 800,
+      "difficulty": "control_mid",
+      "enabled": true,
+      "notes": "Mid-period substitution-only control."
+    },
+    {
+      "fixture_id": "p10_c7_l1200",
+      "period": 10,
+      "columns": 7,
+      "length": 1200,
+      "difficulty": "medium",
+      "enabled": true,
+      "notes": "Middle ladder anchor."
+    },
+    {
+      "fixture_id": "p10_c10_l1200",
+      "period": 10,
+      "columns": 10,
+      "length": 1200,
+      "difficulty": "medium_plus",
+      "enabled": true,
+      "notes": "Transposition-heavy middle tier."
+    },
+    {
+      "fixture_id": "p13_c1_l1200",
+      "period": 13,
+      "columns": 1,
+      "length": 1200,
+      "difficulty": "control_hard",
+      "enabled": true,
+      "notes": "High-period substitution-only control."
+    },
+    {
+      "fixture_id": "p13_c9_l1200",
+      "period": 13,
+      "columns": 9,
+      "length": 1200,
+      "difficulty": "hard",
+      "enabled": true,
+      "notes": "High-period transposition with long text."
+    },
+    {
+      "fixture_id": "p13_c13_l1200",
+      "period": 13,
+      "columns": 13,
+      "length": 1200,
+      "difficulty": "hard_plus",
+      "enabled": true,
+      "notes": "Main boundary target before full text."
+    },
+    {
+      "fixture_id": "p5_c1_l2376",
+      "period": 5,
+      "columns": 1,
+      "length": 2376,
+      "difficulty": "control_full_text",
+      "enabled": true,
+      "notes": "Full-text substitution-only control."
+    },
+    {
+      "fixture_id": "p5_c5_l2376",
+      "period": 5,
+      "columns": 5,
+      "length": 2376,
+      "difficulty": "easy_full_text",
+      "enabled": true,
+      "notes": "Full-text easy transposition tier."
+    },
+    {
+      "fixture_id": "p5_c9_l2376",
+      "period": 5,
+      "columns": 9,
+      "length": 2376,
+      "difficulty": "easy_plus_full_text",
+      "enabled": true,
+      "notes": "Full-text higher-column period-5 tier."
+    },
+    {
+      "fixture_id": "p10_c1_l2376",
+      "period": 10,
+      "columns": 1,
+      "length": 2376,
+      "difficulty": "control_mid_full_text",
+      "enabled": true,
+      "notes": "Full-text period-10 substitution-only control."
+    },
+    {
+      "fixture_id": "p10_c7_l2376",
+      "period": 10,
+      "columns": 7,
+      "length": 2376,
+      "difficulty": "medium_full_text",
+      "enabled": true,
+      "notes": "Full-text period-10 medium tier."
+    },
+    {
+      "fixture_id": "p10_c10_l2376",
+      "period": 10,
+      "columns": 10,
+      "length": 2376,
+      "difficulty": "medium_plus_full_text",
+      "enabled": true,
+      "notes": "Full-text period-10 transposition-heavy tier."
+    },
+    {
+      "fixture_id": "p13_c1_l2376",
+      "period": 13,
+      "columns": 1,
+      "length": 2376,
+      "difficulty": "control_hard_full_text",
+      "enabled": true,
+      "notes": "Full-text period-13 substitution-only control."
+    },
+    {
+      "fixture_id": "p13_c9_l2376",
+      "period": 13,
+      "columns": 9,
+      "length": 2376,
+      "difficulty": "hard_full_text",
+      "enabled": true,
+      "notes": "Full-text period-13 hard tier."
+    },
+    {
+      "fixture_id": "p13_c13_l2376",
+      "period": 13,
+      "columns": 13,
+      "length": 2376,
+      "difficulty": "full_text",
+      "enabled": true,
+      "notes": "Full encoded test plaintext length."
+    }
+  ]
+}

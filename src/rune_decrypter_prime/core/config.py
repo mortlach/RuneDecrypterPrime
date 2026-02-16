@@ -13,6 +13,8 @@ This file re-exports public names for backward compatibility.
 from warnings import warn as _warn
 from .config import (
     CipherConfig,
+    HardCribConfig,
+    HardCribMode,
     ScoringConfig,
     SolverConfig,
     RunConfig,
@@ -21,6 +23,8 @@ from .config import (
 
 __all__ = [
     "CipherConfig",
+    "HardCribConfig",
+    "HardCribMode",
     "ScoringConfig",
     "SolverConfig",
     "RunConfig",

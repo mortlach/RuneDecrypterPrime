@@ -24,6 +24,7 @@ from rune_decrypter_prime.core.types import (
     ensure_objective_family,
     ensure_stat,
 )
+from rune_decrypter_prime.core.config.hard_crib import HardCribConfig, normalize_hard_crib_config
 
 
 def _objective_from_string(spec: str) -> ObjectiveSpec:
@@ -77,6 +78,7 @@ class ScoringConfig:
     ecdf_clamp_min: float = 1e-6
     ecdf_clamp_max: float = 1.0 - 1e-6
     diagnostics_enabled: bool = False
+    hard_crib: Optional[HardCribConfig | Dict[str, Any]] = None
     # Optional Hamming scorer component
     hamming_enabled: bool = False
     hamming_wordlist_dir: Path | None = None
@@ -159,6 +161,7 @@ class ScoringConfig:
 
         self.char_weights = self._normalise_channel_weights(self.char_weights, 'char_weights')
         self.wli_weights = self._normalise_channel_weights(self.wli_weights, 'wli_weights')
+        self.hard_crib = normalize_hard_crib_config(self.hard_crib)
 
         if not bool(self.maximize):
             raise ValueError("maximize must be True; objectives are defined as higher-is-better")
@@ -195,6 +198,7 @@ class ScoringConfig:
         out["ecdf_clamp_min"] = self.ecdf_clamp_min
         out["ecdf_clamp_max"] = self.ecdf_clamp_max
         out["diagnostics_enabled"] = self.diagnostics_enabled
+        out["hard_crib"] = self.hard_crib.asdict() if isinstance(self.hard_crib, HardCribConfig) else None
         out["hamming_enabled"] = self.hamming_enabled
         out["hamming_wordlist_dir"] = self.hamming_wordlist_dir
         out["hamming_build_rtl"] = self.hamming_build_rtl

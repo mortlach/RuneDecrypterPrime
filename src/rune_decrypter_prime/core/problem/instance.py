@@ -45,7 +45,7 @@ class ProblemInstance:
         scorer = build_scorer(spec.cipher_cfg, spec.scorer_params)
 
         # 2) Bind into the canonical DecryptionProblem
-        problem = DecryptionProblem(cipher=cipher, scorer=scorer, c_cfg=spec.cipher_cfg)
+        problem = DecryptionProblem(cipher=cipher, scorer=scorer, c_cfg=spec.cipher_cfg, s_cfg=spec.scorer_params)
 
         # Enforce direction for the pipeline block
         direction: Direction = ensure_direction(spec.text_encoding_direction)

@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Sequence, Tuple, Any
 
 from rune_decrypter_prime.core.config import CipherConfig, InterruptorConfig
+from rune_decrypter_prime.core.config.hard_crib import HardCribConfig, normalize_hard_crib_config
 from rune_decrypter_prime.telemetry.bag import TelemetryBag
 from rune_decrypter_prime.core.telemetry import _Timer
 from rune_decrypter_prime.core.types import (
@@ -29,6 +30,19 @@ from rune_decrypter_prime.telemetry.schema import (
 
 logger = module_logger(__name__)
 
+
+@dataclass(slots=True)
+class _CompiledHardCrib:
+    fixed_chars: dict[int, frozenset[int]]
+    per_word_allowed: dict[int, frozenset[tuple[int, ...]]]
+    global_allowed_by_len: dict[int, frozenset[tuple[int, ...]]]
+    word_spans: tuple[tuple[int, int], ...]
+
+    @property
+    def has_word_rules(self) -> bool:
+        return bool(self.per_word_allowed) or bool(self.global_allowed_by_len)
+
+
 @dataclass(slots=True)
 class DecryptionProblem:
     """
@@ -38,6 +52,7 @@ class DecryptionProblem:
     cipher: object
     scorer: object
     c_cfg: CipherConfig
+    s_cfg: Any = None
 
     # ---- fields initialised in __post_init__ ----
     keyops: Any = field(init=False, repr=False)
@@ -52,6 +67,8 @@ class DecryptionProblem:
     ciphertext: Optional[Any] = None          # xp.ndarray[uint8]
     wli_data: Optional[Sequence[Tuple[int, int]]] = None
     key_length: Optional[int] = None
+    _hard_crib_cfg: Optional[HardCribConfig] = field(init=False, default=None, repr=False)
+    _hard_crib_compiled: Optional[_CompiledHardCrib] = field(init=False, default=None, repr=False)
 
     # =========================================================
     # Lifecycle
@@ -82,6 +99,14 @@ class DecryptionProblem:
         t.setdefault("evaluate_keys_calls", 0)
         t.setdefault("candidates_evaluated", 0)
         t.setdefault("lm_load_time_s", 0)
+        t.setdefault("crib_enabled", False)
+        t.setdefault("crib_mode", None)
+        t.setdefault("crib_pass_total", 0)
+        t.setdefault("crib_reject_total", 0)
+        t.setdefault("crib_reject_fixed_char", 0)
+        t.setdefault("crib_reject_word_index", 0)
+        t.setdefault("crib_reject_global_len", 0)
+        t.setdefault("crib_all_rejected_batches", 0)
 
         # Normalise config
         if isinstance(self.c_cfg, dict):
@@ -111,6 +136,12 @@ class DecryptionProblem:
         # Construct KeyOps (and resolve fixed K)
         self.keyops = self._build_keyops_for_problem()
         self.key_dtype = getattr(self.keyops, "dtype", KEY_DTYPE)
+        self._hard_crib_cfg = self._resolve_hard_crib_cfg()
+        self._hard_crib_compiled = self._compile_hard_crib(self._hard_crib_cfg)
+        self.telemetry["crib_enabled"] = bool(self._hard_crib_compiled is not None)
+        self.telemetry["crib_mode"] = (
+            self._hard_crib_cfg.mode.value if isinstance(self._hard_crib_cfg, HardCribConfig) else None
+        )
 
     # =========================================================
     # KeyOps construction (single source of truth for K)
@@ -298,13 +329,171 @@ class DecryptionProblem:
             return split(keys_np)
         return keys_np, None
 
-    def _score_batch_texts(self, plains_seq, wli):
-        """
-        Score a batch of plaintexts. Prefers scorer.batch_score, falls back to per-item.
-        Returns float64 [B].
-        """
-        self._validate_wli_alignment(plains_seq, wli)
+    def _resolve_hard_crib_cfg(self) -> Optional[HardCribConfig]:
+        raw = None
+        s_cfg = getattr(self, "s_cfg", None)
+        if s_cfg is not None:
+            if isinstance(s_cfg, dict):
+                raw = s_cfg.get("hard_crib")
+            else:
+                raw = getattr(s_cfg, "hard_crib", None)
+        return normalize_hard_crib_config(raw)
 
+    @staticmethod
+    def _word_spans_from_wli(wli: Sequence[Tuple[int, int]]) -> tuple[tuple[int, int], ...]:
+        if not wli:
+            return tuple()
+        spans: list[tuple[int, int]] = []
+        i = 0
+        n = int(len(wli))
+        while i < n:
+            pos0, ln0 = int(wli[i][0]), int(wli[i][1])
+            if pos0 != 0:
+                raise ValueError("WLI must start each word with pos_in_word=0")
+            if ln0 <= 0:
+                raise ValueError("WLI word_len must be > 0")
+            end = i + ln0
+            if end > n:
+                raise ValueError("WLI word_len exceeds available positions")
+            for off in range(ln0):
+                p, ln = int(wli[i + off][0]), int(wli[i + off][1])
+                if p != off or ln != ln0:
+                    raise ValueError("WLI does not form contiguous [pos,len] sequences per word")
+            spans.append((i, end))
+            i = end
+        return tuple(spans)
+
+    def _compile_hard_crib(self, cfg: Optional[HardCribConfig]) -> Optional[_CompiledHardCrib]:
+        if cfg is None or (not bool(cfg.enabled)) or (not bool(cfg.has_any_rules)):
+            return None
+
+        fixed_chars: dict[int, frozenset[int]] = {}
+        for pos, allowed in (cfg.fixed_chars or {}).items():
+            p = int(pos)
+            if p < 0 or p >= int(self.ciphertext_len):
+                raise ValueError(f"hard_crib.fixed_chars position {p} out of range for text length {self.ciphertext_len}")
+            fixed_chars[p] = frozenset(int(v) for v in allowed)
+
+        has_word_rules = bool(cfg.has_word_rules)
+        if has_word_rules and self.wli_data is None:
+            if bool(cfg.require_wli_for_word_rules):
+                raise ValueError("hard_crib word rules require WLI data, but WLI is missing for this run")
+            has_word_rules = False
+
+        word_spans: tuple[tuple[int, int], ...] = tuple()
+        per_word_allowed: dict[int, frozenset[tuple[int, ...]]] = {}
+        global_allowed_by_len: dict[int, frozenset[tuple[int, ...]]] = {}
+
+        if has_word_rules:
+            word_spans = self._word_spans_from_wli(self.wli_data)  # type: ignore[arg-type]
+            n_words = int(len(word_spans))
+
+            for word_idx, allowed_words in (cfg.per_word_allowed or {}).items():
+                idx = int(word_idx)
+                if idx < 0 or idx >= n_words:
+                    raise ValueError(f"hard_crib.per_word_allowed index {idx} out of range for {n_words} words")
+                start, end = word_spans[idx]
+                expected_len = int(end - start)
+                cooked: set[tuple[int, ...]] = set()
+                for word in allowed_words:
+                    tup = tuple(int(v) for v in word)
+                    if len(tup) != expected_len:
+                        raise ValueError(
+                            f"hard_crib.per_word_allowed[{idx}] contains length {len(tup)}; expected {expected_len}"
+                        )
+                    cooked.add(tup)
+                if not cooked:
+                    raise ValueError(f"hard_crib.per_word_allowed[{idx}] cannot be empty")
+                per_word_allowed[idx] = frozenset(cooked)
+
+            for word_len, allowed_words in (cfg.global_allowed_by_len or {}).items():
+                L = int(word_len)
+                if L <= 0:
+                    raise ValueError("hard_crib.global_allowed_by_len keys must be >= 1")
+                cooked: set[tuple[int, ...]] = set()
+                for word in allowed_words:
+                    tup = tuple(int(v) for v in word)
+                    if len(tup) != L:
+                        raise ValueError(
+                            f"hard_crib.global_allowed_by_len[{L}] contains length {len(tup)}; expected {L}"
+                        )
+                    cooked.add(tup)
+                if not cooked:
+                    raise ValueError(f"hard_crib.global_allowed_by_len[{L}] cannot be empty")
+                global_allowed_by_len[L] = frozenset(cooked)
+
+        return _CompiledHardCrib(
+            fixed_chars=fixed_chars,
+            per_word_allowed=per_word_allowed,
+            global_allowed_by_len=global_allowed_by_len,
+            word_spans=word_spans,
+        )
+
+    def _crib_filter_mask(self, plains_seq) -> tuple[list[bool], int, int, int] | None:
+        compiled = self._hard_crib_compiled
+        if compiled is None:
+            return None
+
+        plains = list(self._iter_plaintexts(plains_seq))
+        n = int(len(plains))
+        mask = [True] * n
+        rej_fixed = 0
+        rej_word = 0
+        rej_global = 0
+
+        for i, pt in enumerate(plains):
+            pt_arr = to_numpy(pt).astype("int64", copy=False).reshape(-1)
+
+            failed = False
+            for pos, allowed in compiled.fixed_chars.items():
+                if pos >= pt_arr.size or int(pt_arr[pos]) not in allowed:
+                    failed = True
+                    rej_fixed += 1
+                    break
+            if failed:
+                mask[i] = False
+                continue
+
+            if compiled.per_word_allowed:
+                for word_idx, allowed_words in compiled.per_word_allowed.items():
+                    start, end = compiled.word_spans[word_idx]
+                    word = tuple(int(v) for v in pt_arr[start:end].tolist())
+                    if word not in allowed_words:
+                        failed = True
+                        rej_word += 1
+                        break
+            if failed:
+                mask[i] = False
+                continue
+
+            if compiled.global_allowed_by_len:
+                for start, end in compiled.word_spans:
+                    L = int(end - start)
+                    allowed_words = compiled.global_allowed_by_len.get(L)
+                    if not allowed_words:
+                        continue
+                    word = tuple(int(v) for v in pt_arr[start:end].tolist())
+                    if word not in allowed_words:
+                        failed = True
+                        rej_global += 1
+                        break
+            if failed:
+                mask[i] = False
+
+        pass_count = sum(1 for ok in mask if ok)
+        reject_count = int(n - pass_count)
+        t = self.telemetry
+        t["crib_pass_total"] = int(t.get("crib_pass_total", 0)) + pass_count
+        t["crib_reject_total"] = int(t.get("crib_reject_total", 0)) + reject_count
+        t["crib_reject_fixed_char"] = int(t.get("crib_reject_fixed_char", 0)) + int(rej_fixed)
+        t["crib_reject_word_index"] = int(t.get("crib_reject_word_index", 0)) + int(rej_word)
+        t["crib_reject_global_len"] = int(t.get("crib_reject_global_len", 0)) + int(rej_global)
+        if reject_count == n and n > 0:
+            t["crib_all_rejected_batches"] = int(t.get("crib_all_rejected_batches", 0)) + 1
+
+        return mask, rej_fixed, rej_word, rej_global
+
+    def _score_batch_texts_core(self, plains_seq, wli):
         sc = self.scorer
         if hasattr(sc, "batch_score") and callable(sc.batch_score):
             try:
@@ -319,13 +508,34 @@ class DecryptionProblem:
             dtype=self.xp.float64,
         )
 
-    def _score_batch_texts_with_raw(self, plains_seq, wli, *, require_raw: bool = False):
+    def _score_batch_texts(self, plains_seq, wli):
         """
-        Score a batch of plaintexts and return (primary_scores, raw_scores).
-        Raw scores fall back to primary if the scorer doesn't expose raw.
+        Score a batch of plaintexts. Prefers scorer.batch_score, falls back to per-item.
+        Returns float64 [B].
         """
-        self._validate_wli_alignment(plains_seq, wli)
+        plains = list(self._iter_plaintexts(plains_seq))
+        self._validate_wli_alignment(plains, wli)
 
+        filt = self._crib_filter_mask(plains)
+        if filt is None:
+            return self._score_batch_texts_core(plains, wli)
+
+        mask, _, _, _ = filt
+        if all(mask):
+            return self._score_batch_texts_core(plains, wli)
+
+        out = self.xp.full((len(plains),), float("-inf"), dtype=self.xp.float64)
+        keep = [i for i, ok in enumerate(mask) if ok]
+        if not keep:
+            return out
+
+        kept_plain = [plains[int(i)] for i in keep]
+        kept_scores = self._score_batch_texts_core(kept_plain, wli)
+        for j, idx in enumerate(keep):
+            out[idx] = kept_scores[j]
+        return out
+
+    def _score_batch_texts_with_raw_core(self, plains_seq, wli, *, require_raw: bool = False):
         sc = self.scorer
         if require_raw:
             supports_raw = False
@@ -362,6 +572,35 @@ class DecryptionProblem:
             self.xp.asarray(scores_pct, dtype=self.xp.float64),
             self.xp.asarray(scores_raw, dtype=self.xp.float64),
         )
+
+    def _score_batch_texts_with_raw(self, plains_seq, wli, *, require_raw: bool = False):
+        """
+        Score a batch of plaintexts and return (primary_scores, raw_scores).
+        Raw scores fall back to primary if the scorer doesn't expose raw.
+        """
+        plains = list(self._iter_plaintexts(plains_seq))
+        self._validate_wli_alignment(plains, wli)
+
+        filt = self._crib_filter_mask(plains)
+        if filt is None:
+            return self._score_batch_texts_with_raw_core(plains, wli, require_raw=require_raw)
+
+        mask, _, _, _ = filt
+        if all(mask):
+            return self._score_batch_texts_with_raw_core(plains, wli, require_raw=require_raw)
+
+        out_pct = self.xp.full((len(plains),), float("-inf"), dtype=self.xp.float64)
+        out_raw = self.xp.full((len(plains),), float("-inf"), dtype=self.xp.float64)
+        keep = [i for i, ok in enumerate(mask) if ok]
+        if not keep:
+            return out_pct, out_raw
+
+        kept_plain = [plains[int(i)] for i in keep]
+        kept_pct, kept_raw = self._score_batch_texts_with_raw_core(kept_plain, wli, require_raw=require_raw)
+        for j, idx in enumerate(keep):
+            out_pct[idx] = kept_pct[j]
+            out_raw[idx] = kept_raw[j]
+        return out_pct, out_raw
 
     def _ensure_key_batch_2d(self, keys: Any):
         """Normalise keys to contiguous KEY_DTYPE with shape [B, K] using the active xp backend."""

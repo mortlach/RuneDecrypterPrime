@@ -1,0 +1,211 @@
+{
+  "version": 1,
+  "profiles": [
+    {
+      "profile_id": "proof_fulltext_quick",
+      "estimated_wall_minutes": 90,
+      "tiers": [
+        "p5_c1_l2376",
+        "p5_c5_l2376",
+        "p10_c1_l2376",
+        "p10_c7_l2376",
+        "p13_c1_l2376",
+        "p13_c9_l2376",
+        "p13_c13_l2376"
+      ],
+      "text_offsets": [0],
+      "key_seeds": [111],
+      "modes": ["none", "seed_raw", "seed_tail_diverse"],
+      "solver": {
+        "name": "kaeding",
+        "params": {
+          "steps": 300,
+          "restarts": 2,
+          "inner_batch": 128,
+          "col_every": 10,
+          "col_batch": 64,
+          "slip_every": 60,
+          "slip_blocks": 1,
+          "slip_policy": "stall",
+          "stall_rounds": 250,
+          "stall_slip_limit": 3,
+          "slip_swaps": 40,
+          "use_raw_score": true,
+          "top_k": 64,
+          "progress_pct": 10,
+          "print_progress": true,
+          "seed": 2026
+        }
+      },
+      "seed_plan": {
+        "n_block_seeds": 8,
+        "n_tail_seeds": 8,
+        "n_starts": 64,
+        "refine_steps": 800
+      },
+      "n_seed_keys": 64
+    },
+    {
+      "profile_id": "proof_fulltext_all",
+      "estimated_wall_minutes": 480,
+      "tiers": [
+        "p5_c1_l2376",
+        "p5_c5_l2376",
+        "p5_c9_l2376",
+        "p10_c1_l2376",
+        "p10_c7_l2376",
+        "p10_c10_l2376",
+        "p13_c1_l2376",
+        "p13_c9_l2376",
+        "p13_c13_l2376"
+      ],
+      "text_offsets": [0],
+      "key_seeds": [111, 222],
+      "modes": ["none", "seed_raw", "seed_tail_diverse", "seed_pct_rerank"],
+      "solver": {
+        "name": "kaeding",
+        "params": {
+          "steps": 720,
+          "restarts": 4,
+          "inner_batch": 128,
+          "col_every": 8,
+          "col_batch": 64,
+          "slip_every": 60,
+          "slip_blocks": 1,
+          "slip_policy": "stall",
+          "stall_rounds": 300,
+          "stall_slip_limit": 4,
+          "slip_swaps": 48,
+          "use_raw_score": true,
+          "top_k": 64,
+          "progress_pct": 10,
+          "print_progress": true,
+          "seed": 2026
+        }
+      },
+      "seed_plan": {
+        "n_block_seeds": 10,
+        "n_tail_seeds": 10,
+        "n_starts": 96,
+        "refine_steps": 1200
+      },
+      "n_seed_keys": 64
+    },
+    {
+      "profile_id": "proof_quick_30m",
+      "estimated_wall_minutes": 30,
+      "tiers": ["p5_c1_l400", "p5_c5_l400", "p10_c1_l800", "p13_c1_l1200"],
+      "text_offsets": [0],
+      "key_seeds": [111],
+      "modes": ["none", "seed_raw"],
+      "solver": {
+        "name": "kaeding",
+        "params": {
+          "steps": 220,
+          "restarts": 2,
+          "inner_batch": 96,
+          "col_every": 8,
+          "col_batch": 48,
+          "slip_every": 60,
+          "slip_blocks": 1,
+          "slip_policy": "stall",
+          "stall_rounds": 220,
+          "stall_slip_limit": 3,
+          "slip_swaps": 32,
+          "use_raw_score": true,
+          "top_k": 32,
+          "progress_pct": 10,
+          "print_progress": true,
+          "seed": 2026
+        }
+      },
+      "seed_plan": {
+        "n_block_seeds": 6,
+        "n_tail_seeds": 6,
+        "n_starts": 24,
+        "refine_steps": 220
+      },
+      "n_seed_keys": 32
+    },
+    {
+      "profile_id": "proof_standard_2h",
+      "estimated_wall_minutes": 120,
+      "tiers": [
+        "p5_c1_l400",
+        "p5_c5_l400",
+        "p10_c7_l1200",
+        "p10_c10_l1200",
+        "p13_c1_l1200",
+        "p13_c9_l1200",
+        "p13_c13_l1200"
+      ],
+      "text_offsets": [0, 211],
+      "key_seeds": [111, 222],
+      "modes": ["none", "seed_raw", "seed_tail_diverse"],
+      "solver": {
+        "name": "kaeding",
+        "params": {
+          "steps": 320,
+          "restarts": 3,
+          "inner_batch": 128,
+          "col_every": 8,
+          "col_batch": 48,
+          "slip_every": 60,
+          "slip_blocks": 1,
+          "slip_policy": "stall",
+          "stall_rounds": 240,
+          "stall_slip_limit": 3,
+          "slip_swaps": 40,
+          "use_raw_score": true,
+          "top_k": 64,
+          "progress_pct": 10,
+          "print_progress": true,
+          "seed": 2026
+        }
+      },
+      "seed_plan": {
+        "n_block_seeds": 8,
+        "n_tail_seeds": 8,
+        "n_starts": 64,
+        "refine_steps": 800
+      },
+      "n_seed_keys": 64
+    },
+    {
+      "profile_id": "proof_overnight_8h",
+      "estimated_wall_minutes": 480,
+      "tiers": ["p10_c7_l1200", "p10_c10_l1200", "p13_c9_l1200", "p13_c13_l1200", "p13_c13_l2376"],
+      "text_offsets": [0, 211],
+      "key_seeds": [111, 222, 333, 444],
+      "modes": ["none", "seed_raw", "seed_tail_diverse", "seed_pct_rerank"],
+      "solver": {
+        "name": "kaeding",
+        "params": {
+          "steps": 480,
+          "restarts": 4,
+          "inner_batch": 128,
+          "col_every": 8,
+          "col_batch": 48,
+          "slip_every": 60,
+          "slip_blocks": 1,
+          "slip_policy": "stall",
+          "stall_rounds": 300,
+          "stall_slip_limit": 4,
+          "slip_swaps": 48,
+          "use_raw_score": true,
+          "top_k": 64,
+          "progress_pct": 10,
+          "print_progress": true,
+          "seed": 2026
+        }
+      },
+      "seed_plan": {
+        "n_block_seeds": 10,
+        "n_tail_seeds": 10,
+        "n_starts": 96,
+        "refine_steps": 1100
+      },
+      "n_seed_keys": 64
+    }
+  ]
+}

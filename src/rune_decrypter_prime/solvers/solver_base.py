@@ -441,8 +441,89 @@ class SolverBase:
         if preview:
             snippet = str(preview).replace("\n", " ")
             preview_str = f' text="{snippet}"'
+        model_str = ""
+        model_label = self._progress_model_label()
+        if model_label:
+            model_str = f" model={model_label}"
         prefix = f"[{self.optimizer_name} {pct_val:3d}%]" if pct_val is not None else f"[{self.optimizer_name}]"
-        print(f"{prefix}{best_str}{evals_str}{since_str}{reason_str}{preview_str}", flush=False)
+        print(f"{prefix}{model_str}{best_str}{evals_str}{since_str}{reason_str}{preview_str}", flush=False)
+
+    def _progress_model_label(self) -> str:
+        cached = getattr(self, "_cached_progress_model_label", None)
+        if cached is not None:
+            return str(cached)
+
+        label = ""
+        try:
+            s_cfg = getattr(self.problem, "s_cfg", None)
+            obj = getattr(self.problem, "scorer", None)
+            obj = getattr(obj, "objective", None)
+            if s_cfg is not None:
+                obj = getattr(s_cfg, "objective", obj)
+
+            if obj is not None and hasattr(obj, "family"):
+                family = getattr(obj.family, "value", obj.family)
+                stat = getattr(getattr(obj, "stat", None), "value", getattr(obj, "stat", None))
+                win = getattr(obj, "win", None)
+                parts = [str(family)] if family is not None else []
+                if stat is not None:
+                    parts.append(str(stat))
+                if win is not None:
+                    parts.append(f"win{int(win)}")
+                if parts:
+                    label = ".".join(parts)
+            elif obj is not None:
+                label = str(obj)
+
+            def _positive_keys(d: Any) -> list[int]:
+                if d is None:
+                    return []
+                items = d.items() if isinstance(d, dict) else []
+                out: list[int] = []
+                for k, v in items:
+                    try:
+                        if float(v) > 0.0:
+                            out.append(int(k))
+                    except Exception:
+                        continue
+                return sorted(set(out))
+
+            char_ns = _positive_keys(getattr(s_cfg, "char_weights", None) if s_cfg is not None else None)
+            wli_ns = _positive_keys(getattr(s_cfg, "wli_weights", None) if s_cfg is not None else None)
+            wb = bool(getattr(s_cfg, "use_word_breaks", False)) if s_cfg is not None else False
+            char_w = getattr(s_cfg, "char_weights", None) if s_cfg is not None else None
+            wli_w = getattr(s_cfg, "wli_weights", None) if s_cfg is not None else None
+
+            def _fmt_weights(d: Any) -> str:
+                if not isinstance(d, dict) or not d:
+                    return "{}"
+                parts = []
+                for k in sorted(d.keys(), key=lambda x: int(x)):
+                    try:
+                        parts.append(f"{int(k)}:{float(d[k]):.3g}")
+                    except Exception:
+                        continue
+                return "{" + ",".join(parts) + "}" if parts else "{}"
+
+            tails: list[str] = []
+            if char_ns:
+                tails.append("char" + "".join(str(n) for n in char_ns))
+                tails.append("cw" + _fmt_weights(char_w))
+            if wli_ns:
+                tails.append("wli" + "".join(str(n) for n in wli_ns))
+                tails.append("ww" + _fmt_weights(wli_w))
+            else:
+                tails.append("wli0")
+                tails.append("ww{}")
+            tails.append("wb1" if wb else "wb0")
+
+            if tails:
+                label = f"{label} ({','.join(tails)})" if label else ",".join(tails)
+        except Exception:
+            label = ""
+
+        setattr(self, "_cached_progress_model_label", str(label))
+        return str(label)
 
     def _since_improve(self, step: int) -> int:
         """Steps since the last qualifying improvement."""
@@ -647,6 +728,23 @@ class SolverBase:
 
     def _finalize_solution(self, best_key: np.ndarray, best_score: float) -> Solution:
         k = np.ascontiguousarray(best_key, dtype=self.key_dtype).reshape(-1)
+        if not np.isfinite(float(best_score)):
+            sol = Solution(key=k.copy(), plaintext=np.asarray([], dtype=np.uint8), score=float(best_score))
+            try:
+                sol.plaintext_idx = []
+                sol.plaintext_str = ""
+                sol.stop_reason = "all_rejected_by_hard_crib"
+                sol.extras["hard_crib_all_rejected"] = True
+                if not hasattr(sol, "meta") or sol.meta is None:
+                    sol.meta = {}
+                sol.meta.setdefault("hard_crib", {})
+                if isinstance(sol.meta["hard_crib"], dict):
+                    sol.meta["hard_crib"]["all_rejected"] = True
+                    sol.meta["hard_crib"]["best_score"] = float(best_score)
+            except Exception:
+                pass
+            attach_telemetry_to_meta(sol, self.problem)
+            return sol
         try:
             budget = max(4096, int(self.K) * 64) if hasattr(self, "K") else 4096
             base_hints = self._local_improve_hints()

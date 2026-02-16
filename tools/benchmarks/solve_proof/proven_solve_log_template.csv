@@ -1,0 +1,1 @@
+timestamp_utc,run_id,fixture_version,fixture_id,profile_id,mode,text_id,key_seed,period,columns,length,solver_steps,solver_restarts,evals,seconds,sol_pct,sol_raw_full,match_ratio,bestk_match_ratio,n_unique_tails_topk,status,notes

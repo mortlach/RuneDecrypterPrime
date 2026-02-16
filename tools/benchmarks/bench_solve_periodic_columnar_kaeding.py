@@ -1,29 +1,64 @@
 """
 End-to-end benchmark: seed pool -> Kaeding solver (PeriodicColumnar).
 
-Purpose
--------
-We already have a seed-quality benchmark (`bench_seed_periodic_columnar.py`) that
-measures raw_fulltext (unwindowed avg logp over the whole text) and reports
-PCT/ECDF transfer diagnostics.
+This file is intentionally explicit about scoring, because confusion here causes
+invalid conclusions. Read this as the contract for what is being benchmarked.
 
-This benchmark answers the next questions:
-  1) Do these seeds improve Kaeding Stage-1 outcomes under the real engine?
-  2) If Kaeding emits a top-K candidate set, can WLI-2 rerank "snap" us closer to truth
-     (measured by best-1 / best-K match_ratio), without letting WLI steer the optimiser yet?
+Pipeline (plain English)
+------------------------
+For each fixture instance (period, columns, length):
+  1) Build ciphertext from known plaintext + known true key.
+  2) Run Gate-0 checks:
+     - known-key roundtrip must match exactly
+     - oracle must beat random on configured metrics
+  3) Run Stage-1 Kaeding solve in one or more modes:
+     - none
+     - seed_raw
+     - seed_tail_diverse
+     - seed_pct_rerank
+  4) Collect top-K candidates and compute diagnostics:
+     - best-1 match_ratio
+     - best-K match_ratio
+     - optional WLI rerank picks (diagnostic only)
+  5) Persist full per-instance rows + candidate sets + summary.
 
-Notes
------
-* Kaeding in the engine operates on the scorer's objective (typically PCT) but can
-  optimise "raw" when available via evaluate_keys_with_raw(). In the current engine,
-  that "raw" is the win=10 windowed mean-per-ngram stat (diagnostic here as raw_native_win10).
-* We intentionally report:
-    - raw_fulltext_char (primary, Kaeding-original-style)
-    - raw_fulltext_wli1/wli2 (Stage-2 rerank metrics; full-stream and within-word variants)
-    - raw_native_win10 (engine raw)
-    - pct_ecdf (engine objective)
-  so we can see transfer and objective mismatch.
-* WLI is only used for reranking here; Stage-1 solver runs with WLI disabled.
+Scoring Contract (paranoid mode)
+--------------------------------
+There are multiple scores in this benchmark. They are NOT the same thing.
+
+A) Stage-1 solver primary objective (`pct_ecdf_win10`)
+   - scorer objective: `pct.logp.win10`
+   - char model: enabled (typically n=3,4)
+   - WLI in Stage-1: disabled (`force_no_wli=True`, `use_word_breaks=False`)
+   - this is the engine objective used by `scorer.score(...)`.
+
+B) Stage-1 solver optimisation metric when `use_raw_score=True`
+   - Kaeding calls `evaluate_keys_with_raw(...)`.
+   - In current RDP scorer path, "raw" here is
+     `stat.mean_per_ngram_penalized` for the SAME win=10 objective family.
+   - We log this as `raw_native_win10`.
+   - Important: this is NOT unwindowed full-text raw logp.
+
+C) External diagnostics (`raw_fulltext_*`)
+   - computed separately via `LanguageModelPrime` helpers in this script.
+   - `raw_fulltext_char`: unwindowed full-text average logp over full text.
+   - `raw_fulltext_wli1/wli2`: WLI diagnostics (full-stream/within-word variants).
+   - These are for analysis/transfer checks, not Stage-1 move acceptance.
+
+Answer to common confusion
+-------------------------
+If you expected "Kaeding optimises raw full-text logp like older tutorials":
+not in this benchmark configuration. Here Stage-1 runs on PCT win10 objective
+with raw-native win10 acceptance when enabled. Full-text raw is logged for
+diagnostics and comparisons.
+
+Why this benchmark keeps all scores
+-----------------------------------
+We need all of them to detect objective mismatch:
+  - A mode can improve `pct_ecdf_win10` while not improving match_ratio.
+  - A mode can improve full-text raw diagnostics without being selected by
+    Stage-1 objective.
+  - This separation is intentional so regressions are visible.
 """
 
 from __future__ import annotations
@@ -52,6 +87,7 @@ import numpy as np
 from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, by_name
 from rune_decrypter_prime.ciphers.periodic_columnar_cipher import PeriodicColumnarCipher
 from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rune_decrypter_prime.core.config.hard_crib import HardCribConfig, normalize_hard_crib_config
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rune_decrypter_prime.core.types import Device, ObjectiveFamily, ObjectiveSpec, SeMode, Stat, ScorerImpl
@@ -69,14 +105,56 @@ RANDOM_KEYS_SANITY = 32
 TOP_K = 64  # candidate retention / rerank pool size
 PREVIEW_CHARS = 240
 
+# Hard-crib wiring (benchmark-level, no CLI):
+# - Per-mode profile map. Use "off" for baseline modes.
+# - Supported profiles in this script:
+#     off
+#     fixed_chars_light
+#     fixed_chars_medium
+#     word_index_light
+#     word_index_plus_shortlist
+#
+# NOTE:
+# Stage-1 currently uses force_no_wli=True in this benchmark. Any word-based hard crib
+# profile will hard-abort in Gate-0 unless force_no_wli is disabled for that run mode.
+HARD_CRIB_PROFILE_BY_MODE: Dict[str, str] = {
+    "none": "off",
+    "seed_raw": "off",
+    "seed_pct_rerank": "off",
+    "seed_tail_diverse": "off",
+}
+
+# Direction guard for crib profiles (benchmark safety). Set to None to disable.
+HARD_CRIB_EXPECTED_DIRECTION: str | None = "ltr"
+
+# Fixed-char profile strengths (fractions over plaintext length).
+HARD_CRIB_FIXED_CHAR_FRACS_LIGHT: Tuple[float, ...] = (0.07, 0.19, 0.37, 0.61, 0.83)
+HARD_CRIB_FIXED_CHAR_FRACS_MEDIUM: Tuple[float, ...] = (0.04, 0.11, 0.19, 0.28, 0.37, 0.51, 0.63, 0.77, 0.89)
+
+# Word-rule profile controls (indices are 0-based word indices in WLI order).
+HARD_CRIB_WORD_INDEX_LIGHT: Tuple[int, ...] = (0, 3, 7, 12)
+HARD_CRIB_SHORTLEN_RULES: Tuple[int, ...] = (1, 2, 3)
+
 # Benchmark profile (no CLI):
 # - focus_p7_p13: period-7 + period-13 focused matrix (recommended next run)
 # - overnight_8h: default practical run (drops p10 calibration tiers)
 # - pilot_quick: short A/B sanity run (includes tail-heavy budget)
 # - preflight_1h: ~1h run with tail-diverse seed mode enabled
 # - overnight_p13_all: overnight run focused on period=13 with all seed/budget options
+# - solve_proof_fulltext_quick: all-difficulty full-text solve proof (quick smoke)
+# - solve_proof_fulltext_all: all-difficulty full-text solve proof (long)
+# - solve_proof_pipeline_no_cribs: staged full-text proof run with per-instance early stop
 # - explore_long: larger matrix for research runs
-BENCH_PROFILE = "focus_p7_p13"
+# Active run profile for this script invocation.
+# For a lighter smoke test use: "solve_proof_fulltext_quick"
+BENCH_PROFILE = "solve_proof_pipeline_no_cribs"
+
+# Solve-proof controls (used by solve_proof_pipeline_no_cribs).
+SOLVE_MATCH_THRESHOLD = 0.90
+PIPELINE_STOP_ON_SOLVE = True
+PIPELINE_STOP_ON_STALL = True
+PIPELINE_STALL_DELTA = 0.002
+PIPELINE_STALL_STAGE_LIMIT = 2
 
 # Optional resume mode
 # - Set to a previous benchmark output folder to continue only missing runs.
@@ -190,6 +268,41 @@ def _budget_tail_heavy() -> Budget:
     )
 
 
+def _budget_proof_long() -> Budget:
+    # Tutorial-inspired stronger budget for full-text capability proofs.
+    return Budget(
+        name="proof_long",
+        solver=SolverSpec.kaeding(
+            steps=1200,
+            restarts=6,
+            inner_batch=128,
+            col_every=8,
+            col_batch=64,
+            slip_every=60,
+            slip_blocks=1,
+            slip_policy="stall",
+            stall_rounds=400,
+            stall_slip_limit=4,
+            slip_swaps=48,
+            use_raw_score=True,
+            top_k=TOP_K,
+            progress_pct=10,
+            print_progress=True,
+            seed=2026,
+        ),
+        seed_plan=SeedPlan(
+            n_block_seeds=10,
+            n_tail_seeds=10,
+            n_starts=96,
+            refine_steps=1200,
+            tail_move_prob=0.55,
+            temp_start=0.07,
+            temp_end=0.006,
+        ),
+        n_seed_keys=64,
+    )
+
+
 def _profile_settings(profile: str) -> tuple[List[Tier], List[int], List[int], List[Budget], List[str]]:
     p = str(profile).strip().lower()
     if p == "focus_p7_p13":
@@ -237,9 +350,51 @@ def _profile_settings(profile: str) -> tuple[List[Tier], List[int], List[int], L
             [_budget_small(), _budget_tail_heavy()],
             modes,
         )
+    if p == "solve_proof_fulltext_quick":
+        tiers = [
+            Tier(name="proof_p5_c1_l2376", period=5, columns=1, length=2376),
+            Tier(name="proof_p5_c5_l2376", period=5, columns=5, length=2376),
+            Tier(name="proof_p10_c1_l2376", period=10, columns=1, length=2376),
+            Tier(name="proof_p10_c7_l2376", period=10, columns=7, length=2376),
+            Tier(name="proof_p13_c1_l2376", period=13, columns=1, length=2376),
+            Tier(name="proof_p13_c9_l2376", period=13, columns=9, length=2376),
+            Tier(name="proof_p13_c13_l2376", period=13, columns=13, length=2376),
+        ]
+        modes = ["none", "seed_raw", "seed_tail_diverse"]
+        return tiers, [0], [111], [_budget_small()], modes
+    if p == "solve_proof_fulltext_all":
+        tiers = [
+            Tier(name="proof_p5_c1_l2376", period=5, columns=1, length=2376),
+            Tier(name="proof_p5_c5_l2376", period=5, columns=5, length=2376),
+            Tier(name="proof_p5_c9_l2376", period=5, columns=9, length=2376),
+            Tier(name="proof_p10_c1_l2376", period=10, columns=1, length=2376),
+            Tier(name="proof_p10_c7_l2376", period=10, columns=7, length=2376),
+            Tier(name="proof_p10_c10_l2376", period=10, columns=10, length=2376),
+            Tier(name="proof_p13_c1_l2376", period=13, columns=1, length=2376),
+            Tier(name="proof_p13_c9_l2376", period=13, columns=9, length=2376),
+            Tier(name="proof_p13_c13_l2376", period=13, columns=13, length=2376),
+        ]
+        modes = ["none", "seed_raw", "seed_tail_diverse", "seed_pct_rerank"]
+        return tiers, [0], [111, 222], [_budget_small(), _budget_proof_long()], modes
+    if p == "solve_proof_pipeline_no_cribs":
+        tiers = [
+            Tier(name="proof_p5_c1_l2376", period=5, columns=1, length=2376),
+            Tier(name="proof_p5_c5_l2376", period=5, columns=5, length=2376),
+            Tier(name="proof_p5_c9_l2376", period=5, columns=9, length=2376),
+            Tier(name="proof_p10_c1_l2376", period=10, columns=1, length=2376),
+            Tier(name="proof_p10_c7_l2376", period=10, columns=7, length=2376),
+            Tier(name="proof_p10_c10_l2376", period=10, columns=10, length=2376),
+            Tier(name="proof_p13_c1_l2376", period=13, columns=1, length=2376),
+            Tier(name="proof_p13_c9_l2376", period=13, columns=9, length=2376),
+            Tier(name="proof_p13_c13_l2376", period=13, columns=13, length=2376),
+        ]
+        # Stage order: baseline -> strong seeded -> diverse seeded -> mixed rerank seeded.
+        modes = ["none", "seed_raw", "seed_tail_diverse", "seed_pct_rerank"]
+        return tiers, [0], [111], [_budget_proof_long()], modes
     raise ValueError(
         f"[bench_solve] Unknown BENCH_PROFILE={profile!r}. "
-        f"Use focus_p7_p13|overnight_p13_all|overnight_8h|pilot_quick|preflight_1h|explore_long."
+        "Use focus_p7_p13|overnight_p13_all|overnight_8h|pilot_quick|preflight_1h|explore_long|"
+        "solve_proof_fulltext_quick|solve_proof_fulltext_all|solve_proof_pipeline_no_cribs."
     )
 
 
@@ -332,6 +487,17 @@ def _build_run_manifest(
             "e_tail": int(TAIL_DIVERSE_E_TAIL),
             "inner_batch": int(TAIL_DIVERSE_INNER_BATCH),
             "topk_diag": int(TAIL_DIVERSE_TOPK_DIAG),
+        },
+        "hard_crib": {
+            "expected_direction": HARD_CRIB_EXPECTED_DIRECTION,
+            "profile_by_mode": dict(HARD_CRIB_PROFILE_BY_MODE),
+            "profiles_supported": [
+                "off",
+                "fixed_chars_light",
+                "fixed_chars_medium",
+                "word_index_light",
+                "word_index_plus_shortlist",
+            ],
         },
         "seed_pct_rerank": {
             "char_weights": dict(SEED_RERANK_CHAR_WEIGHTS),
@@ -437,6 +603,11 @@ def _compute_summary(rows: List[dict]) -> dict:
             corr_match_wli2_within=_percentiles([float(r.get("corr_match_wli2_within", float("nan"))) for r in items]),
             evals=_percentiles([float(r.get("evals", 0) or 0) for r in items]),
             seconds=_percentiles([float(r.get("seconds", 0.0) or 0.0) for r in items]),
+            stage1_crib_reject_total=_percentiles([float(r.get("stage1_crib_reject_total", float("nan"))) for r in items]),
+            stage1_crib_pass_total=_percentiles([float(r.get("stage1_crib_pass_total", float("nan"))) for r in items]),
+            stage1_crib_all_rejected_batches=_percentiles(
+                [float(r.get("stage1_crib_all_rejected_batches", float("nan"))) for r in items]
+            ),
             oracle_gap_pct=_percentiles(pct_gap),
             oracle_gap_raw_full=_percentiles(raw_full_gap),
             oracle_gap_raw_native=_percentiles(raw_native_gap),
@@ -444,6 +615,23 @@ def _compute_summary(rows: List[dict]) -> dict:
             rate_sol_gt_oracle_raw_full=float(np.mean(np.asarray(raw_full_gap, dtype=np.float64) > 0.0)),
             rate_sol_gt_oracle_raw_native=float(np.mean(np.asarray(raw_native_gap, dtype=np.float64) > 0.0)),
             rate_seed_pool_equal_raw=(float(np.mean(seed_eq_arr)) if seed_eq_arr.size else float("nan")),
+            rate_hard_crib_enabled_requested=float(
+                np.mean(np.asarray([float(r.get("hard_crib_enabled_requested", 0.0)) for r in items], dtype=np.float64))
+            ),
+            rate_hard_crib_runtime_enabled=float(
+                np.mean(np.asarray([float(r.get("stage1_crib_enabled", 0.0)) for r in items], dtype=np.float64))
+            ),
+            rate_hard_crib_oracle_ok=float(
+                np.mean(np.asarray([float(r.get("hard_crib_oracle_ok", 1.0)) for r in items], dtype=np.float64))
+            ),
+            rate_hard_crib_word_rules=float(
+                np.mean(
+                    np.asarray(
+                        [float(r.get("hard_crib_word_rules_requiring_wli", 0.0)) for r in items],
+                        dtype=np.float64,
+                    )
+                )
+            ),
         )
         summary["tiers"].setdefault(tier, []).append(entry)
 
@@ -499,6 +687,109 @@ def _write_csv(path: Path, rows: List[dict]) -> None:
         writer.writeheader()
         for row in rows:
             writer.writerow({k: row.get(k, "") for k in keys})
+
+
+_SOLVE_PROOF_LOG_COLUMNS = [
+    "timestamp_utc",
+    "run_id",
+    "fixture_version",
+    "fixture_id",
+    "profile_id",
+    "mode",
+    "text_id",
+    "key_seed",
+    "period",
+    "columns",
+    "length",
+    "solver_steps",
+    "solver_restarts",
+    "evals",
+    "seconds",
+    "sol_pct",
+    "sol_raw_full",
+    "match_ratio",
+    "bestk_match_ratio",
+    "n_unique_tails_topk",
+    "status",
+    "notes",
+]
+
+
+def _auto_status_from_recovery(*, match_ratio: float, bestk_match_ratio: float) -> str:
+    m = float(match_ratio)
+    b = float(bestk_match_ratio)
+    top = max(m, b)
+    if top >= 0.95:
+        return "solved"
+    if top >= 0.80:
+        return "partial_high"
+    if top >= 0.50:
+        return "partial"
+    return "unsolved"
+
+
+def _append_solve_proof_log(
+    *,
+    run_id: str,
+    profile_id: str,
+    rows: List[dict],
+    new_from_idx: int,
+    solver_params_by_budget: Dict[str, dict],
+) -> tuple[Path | None, int]:
+    if not str(profile_id).startswith("solve_proof_fulltext"):
+        return None, 0
+    if new_from_idx >= len(rows):
+        return None, 0
+
+    root = _repo_root()
+    solve_root = root / "tools" / "benchmarks" / "solve_proof"
+    solve_root.mkdir(parents=True, exist_ok=True)
+    log_path = solve_root / "proven_solve_log.csv"
+    write_header = (not log_path.exists()) or (log_path.stat().st_size == 0)
+
+    n_written = 0
+    with log_path.open("a", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=_SOLVE_PROOF_LOG_COLUMNS)
+        if write_header:
+            w.writeheader()
+        for row in rows[new_from_idx:]:
+            match_ratio = float(row.get("match_ratio", float("nan")))
+            bestk = float(row.get("bestk_match_ratio", match_ratio))
+            budget_name = str(row.get("budget", ""))
+            s_params = dict(solver_params_by_budget.get(budget_name, {}) or {})
+            reason = str(row.get("instance_early_stop_reason", "") or "")
+            status = _auto_status_from_recovery(match_ratio=match_ratio, bestk_match_ratio=bestk)
+            if reason == "solved":
+                status = "solved"
+            elif reason == "stalled_no_improve" and status == "unsolved":
+                status = "stalled"
+            out = {
+                "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                "run_id": str(run_id),
+                "fixture_version": "fixtures_periodic_columnar_v1",
+                "fixture_id": str(row.get("tier", "")),
+                "profile_id": str(profile_id),
+                "mode": str(row.get("mode", "")),
+                "text_id": int(row.get("text_id", -1)),
+                "key_seed": int(row.get("key_seed", -1)),
+                "period": int(row.get("period", -1)),
+                "columns": int(row.get("columns", -1)),
+                "length": int(row.get("length", -1)),
+                "solver_steps": int(s_params.get("steps", -1) or -1),
+                "solver_restarts": int(s_params.get("restarts", -1) or -1),
+                "evals": int(float(row.get("evals", 0) or 0)),
+                "seconds": float(row.get("seconds", float("nan"))),
+                "sol_pct": float(row.get("sol_pct", float("nan"))),
+                "sol_raw_full": float(row.get("sol_raw_full", float("nan"))),
+                "match_ratio": match_ratio,
+                "bestk_match_ratio": bestk,
+                "n_unique_tails_topk": float(row.get("n_unique_tails_topk", float("nan"))),
+                "status": status,
+                "notes": (reason if reason else "auto_status_from_recovery"),
+            }
+            w.writerow(out)
+            n_written += 1
+    return log_path, n_written
 
 
 def _require_assets(direction: Direction, *, ns: Tuple[int, ...], need_wli: bool) -> Path:
@@ -596,6 +887,201 @@ def _word_spans_from_wli(wli: Sequence[Sequence[int]]) -> List[Tuple[int, int]]:
         if pos == ln - 1:
             spans.append((start, int(i) + 1))
     return spans
+
+
+def _hard_crib_profile_for_mode(mode: str) -> str:
+    return str(HARD_CRIB_PROFILE_BY_MODE.get(str(mode), "off")).strip().lower()
+
+
+def _pick_positions_from_fracs(length: int, fracs: Sequence[float]) -> List[int]:
+    if length <= 0:
+        return []
+    out: List[int] = []
+    seen: set[int] = set()
+    for f in fracs:
+        p = int(round(float(f) * float(max(0, length - 1))))
+        p = max(0, min(int(length - 1), p))
+        if p in seen:
+            continue
+        seen.add(p)
+        out.append(p)
+    return out
+
+
+def _build_hard_crib_for_instance(
+    *,
+    profile: str,
+    direction: Direction,
+    pt_idx: np.ndarray,
+    wli_list: Sequence[Sequence[int]],
+) -> tuple[dict | None, dict]:
+    """
+    Build a normalised hard_crib payload for this instance.
+    Crib rules are numeric (rune indices), not Latin strings.
+    """
+    p = str(profile).strip().lower()
+    meta = {
+        "hard_crib_profile": p,
+        "hard_crib_enabled_requested": 0,
+        "hard_crib_rule_fixed_chars": 0,
+        "hard_crib_rule_per_word": 0,
+        "hard_crib_rule_global_len": 0,
+        "hard_crib_has_word_rules": 0,
+    }
+    if p in {"", "off", "none"}:
+        return None, meta
+
+    if HARD_CRIB_EXPECTED_DIRECTION is not None:
+        want = str(HARD_CRIB_EXPECTED_DIRECTION).strip().lower()
+        got = str(direction.value).strip().lower()
+        if got != want:
+            raise RuntimeError(
+                f"[bench_solve] hard-crib direction guard failed: expected={want} got={got} profile={p}"
+            )
+
+    pt_u8 = np.asarray(pt_idx, dtype=np.uint8).reshape(-1)
+    if pt_u8.size == 0:
+        raise RuntimeError("[bench_solve] hard-crib build failed: empty plaintext")
+    spans = _word_spans_from_wli(wli_list)
+
+    cfg: Dict[str, Any] = {
+        "enabled": True,
+        "mode": "hard",
+        "require_wli_for_word_rules": True,
+        "fixed_chars": {},
+        "per_word_allowed": {},
+        "global_allowed_by_len": {},
+    }
+
+    if p == "fixed_chars_light":
+        for pos in _pick_positions_from_fracs(int(pt_u8.size), HARD_CRIB_FIXED_CHAR_FRACS_LIGHT):
+            cfg["fixed_chars"][int(pos)] = [int(pt_u8[pos])]
+    elif p == "fixed_chars_medium":
+        for pos in _pick_positions_from_fracs(int(pt_u8.size), HARD_CRIB_FIXED_CHAR_FRACS_MEDIUM):
+            cfg["fixed_chars"][int(pos)] = [int(pt_u8[pos])]
+    elif p == "word_index_light":
+        for idx in HARD_CRIB_WORD_INDEX_LIGHT:
+            if idx < 0 or idx >= len(spans):
+                continue
+            s, e = spans[idx]
+            cfg["per_word_allowed"][int(idx)] = [pt_u8[s:e].astype(np.int64).tolist()]
+    elif p == "word_index_plus_shortlist":
+        for idx in HARD_CRIB_WORD_INDEX_LIGHT:
+            if idx < 0 or idx >= len(spans):
+                continue
+            s, e = spans[idx]
+            cfg["per_word_allowed"][int(idx)] = [pt_u8[s:e].astype(np.int64).tolist()]
+        for L in HARD_CRIB_SHORTLEN_RULES:
+            allow: List[List[int]] = []
+            seen: set[tuple[int, ...]] = set()
+            for s, e in spans:
+                if int(e - s) != int(L):
+                    continue
+                t = tuple(int(v) for v in pt_u8[s:e].tolist())
+                if t in seen:
+                    continue
+                seen.add(t)
+                allow.append([int(v) for v in t])
+            if allow:
+                cfg["global_allowed_by_len"][int(L)] = allow
+    else:
+        raise ValueError(f"[bench_solve] unknown hard-crib profile: {profile!r}")
+
+    hard_crib_cfg: HardCribConfig = normalize_hard_crib_config(cfg)  # type: ignore[assignment]
+    if hard_crib_cfg is None or not hard_crib_cfg.enabled or not hard_crib_cfg.has_any_rules:
+        raise RuntimeError(f"[bench_solve] hard-crib profile {p!r} produced no effective rules")
+
+    payload = hard_crib_cfg.asdict()
+    meta["hard_crib_enabled_requested"] = 1
+    meta["hard_crib_rule_fixed_chars"] = int(len(payload.get("fixed_chars", {}) or {}))
+    meta["hard_crib_rule_per_word"] = int(len(payload.get("per_word_allowed", {}) or {}))
+    meta["hard_crib_rule_global_len"] = int(len(payload.get("global_allowed_by_len", {}) or {}))
+    meta["hard_crib_has_word_rules"] = int(
+        bool((payload.get("per_word_allowed", {}) or {}) or (payload.get("global_allowed_by_len", {}) or {}))
+    )
+    return payload, meta
+
+
+def _preflight_hard_crib_oracle(
+    *,
+    hard_crib: dict | None,
+    pt_true: np.ndarray,
+    wli_list: Sequence[Sequence[int]],
+    force_no_wli: bool,
+    tier_name: str,
+    mode: str,
+    text_id: int,
+    key_seed: int,
+) -> dict:
+    """
+    Gate-0b: hard-crib preflight.
+    - Fail fast if word-rules are requested while WLI is disabled.
+    - Fail fast if oracle plaintext violates crib rules.
+    """
+    out = {
+        "hard_crib_oracle_ok": 1,
+        "hard_crib_word_rules_requiring_wli": 0,
+    }
+    if not hard_crib:
+        return out
+
+    cfg = normalize_hard_crib_config(hard_crib)
+    if cfg is None or not cfg.enabled or not cfg.has_any_rules:
+        return out
+
+    has_word_rules = bool(cfg.has_word_rules)
+    out["hard_crib_word_rules_requiring_wli"] = int(has_word_rules)
+    if has_word_rules and bool(force_no_wli):
+        raise RuntimeError(
+            "[bench_solve] hard-crib preflight failure: word-based rules are enabled "
+            f"but this mode runs with force_no_wli=True (tier={tier_name} mode={mode} text={text_id} key_seed={key_seed})"
+        )
+
+    pt = np.asarray(pt_true, dtype=np.uint8).reshape(-1)
+    if pt.size == 0:
+        raise RuntimeError("[bench_solve] hard-crib preflight failure: empty oracle plaintext")
+
+    for raw_pos, allowed in (cfg.fixed_chars or {}).items():
+        pos = int(raw_pos)
+        allowed_set = {int(v) for v in allowed}
+        if pos < 0 or pos >= pt.size or int(pt[pos]) not in allowed_set:
+            raise RuntimeError(
+                "[bench_solve] hard-crib preflight failure: oracle violates fixed-char rule "
+                f"(tier={tier_name} mode={mode} text={text_id} key_seed={key_seed} pos={pos})"
+            )
+
+    if has_word_rules:
+        spans = _word_spans_from_wli(wli_list)
+        for raw_idx, allowed_words in (cfg.per_word_allowed or {}).items():
+            idx = int(raw_idx)
+            if idx < 0 or idx >= len(spans):
+                raise RuntimeError(
+                    "[bench_solve] hard-crib preflight failure: per_word index out of range "
+                    f"(tier={tier_name} mode={mode} text={text_id} key_seed={key_seed} idx={idx})"
+                )
+            s, e = spans[idx]
+            cand = tuple(int(v) for v in pt[s:e].tolist())
+            allowed_set = {tuple(int(x) for x in word) for word in allowed_words}
+            if cand not in allowed_set:
+                raise RuntimeError(
+                    "[bench_solve] hard-crib preflight failure: oracle violates per_word_allowed "
+                    f"(tier={tier_name} mode={mode} text={text_id} key_seed={key_seed} idx={idx})"
+                )
+        if cfg.global_allowed_by_len:
+            for s, e in spans:
+                L = int(e - s)
+                allowed_words = (cfg.global_allowed_by_len or {}).get(L)
+                if not allowed_words:
+                    continue
+                cand = tuple(int(v) for v in pt[s:e].tolist())
+                allowed_set = {tuple(int(x) for x in word) for word in allowed_words}
+                if cand not in allowed_set:
+                    raise RuntimeError(
+                        "[bench_solve] hard-crib preflight failure: oracle violates global_allowed_by_len "
+                        f"(tier={tier_name} mode={mode} text={text_id} key_seed={key_seed} word_len={L})"
+                    )
+
+    return out
 
 
 class RawFulltextScorer:
@@ -797,6 +1283,29 @@ def _print_setup_snapshot(*, direction: Direction) -> None:
         f"wli_weights={json.dumps(SEED_RERANK_WLI_WEIGHTS, sort_keys=True)}",
         flush=True,
     )
+    print(
+        "[bench_solve] setup: stage1_scoring "
+        "objective=pct.logp.win10 "
+        "optimizer_metric=raw_native_win10_when_use_raw_score=1 "
+        "stage1_wli=off(force_no_wli=1,use_word_breaks=0)",
+        flush=True,
+    )
+    print(
+        "[bench_solve] setup: hard_crib "
+        f"expected_direction={HARD_CRIB_EXPECTED_DIRECTION} "
+        f"profile_by_mode={json.dumps(HARD_CRIB_PROFILE_BY_MODE, sort_keys=True)}",
+        flush=True,
+    )
+    if str(BENCH_PROFILE).strip().lower() == "solve_proof_pipeline_no_cribs":
+        print(
+            "[bench_solve] setup: solve_proof_pipeline "
+            f"threshold={SOLVE_MATCH_THRESHOLD:.3f} "
+            f"stop_on_solve={int(bool(PIPELINE_STOP_ON_SOLVE))} "
+            f"stop_on_stall={int(bool(PIPELINE_STOP_ON_STALL))} "
+            f"stall_delta={PIPELINE_STALL_DELTA:.4f} "
+            f"stall_stage_limit={int(PIPELINE_STALL_STAGE_LIMIT)}",
+            flush=True,
+        )
     tier_str = ", ".join([f"{t.name}(p{t.period},c{t.columns},L{t.length})" for t in TIERS])
     print(f"[bench_solve] setup: tiers={tier_str}", flush=True)
     for b in SOLVER_BUDGETS:
@@ -1198,6 +1707,9 @@ def main() -> None:
 
     rows: List[dict] = []
     t0_all = time.time()
+    solver_params_by_budget: Dict[str, dict] = {
+        str(b.name): dict(getattr(b.solver, "params", {}) or {}) for b in SOLVER_BUDGETS
+    }
 
     # Each instance is solved in configured modes (profile-controlled).
     seed_modes = list(SEED_MODES)
@@ -1223,6 +1735,7 @@ def main() -> None:
         done_solves = 0
         run_dir = _write_reports(rows=[], summary={"tiers": {}})
         completed = set()
+    rows_start_idx_for_log = int(len(rows))
 
     rel = run_dir.relative_to(_repo_root())
     manifest = _build_run_manifest(
@@ -1350,7 +1863,14 @@ def main() -> None:
                 disc_wli2_full = _oracle_vs_random_stats(oracle_wli2_full, random_wli2_full)
                 disc_wli2_within = _oracle_vs_random_stats(oracle_wli2_within, random_wli2_within)
 
+                pipeline_profile = str(BENCH_PROFILE).strip().lower() == "solve_proof_pipeline_no_cribs"
+                instance_best_recovery = float("-inf")
+                instance_no_improve_stages = 0
+                instance_stop_reason = ""
+
                 for budget in SOLVER_BUDGETS:
+                    if instance_stop_reason:
+                        break
                     budget_pending = any(
                         (tier.name, budget.name, m, int(text_id), int(key_seed)) not in completed for m in seed_modes
                     )
@@ -1386,11 +1906,51 @@ def main() -> None:
                     seed_pool_tail_meta = None
 
                     for mode in seed_modes:
+                        if instance_stop_reason:
+                            break
                         row_id = (tier.name, budget.name, mode, int(text_id), int(key_seed))
                         if row_id in completed:
                             continue
 
                         t0 = time.time()
+                        stage1_force_no_wli = True
+
+                        hard_crib_profile = _hard_crib_profile_for_mode(mode)
+                        hard_crib_payload = None
+                        hard_crib_meta = {
+                            "hard_crib_profile": hard_crib_profile,
+                            "hard_crib_enabled_requested": 0,
+                            "hard_crib_rule_fixed_chars": 0,
+                            "hard_crib_rule_per_word": 0,
+                            "hard_crib_rule_global_len": 0,
+                            "hard_crib_has_word_rules": 0,
+                        }
+                        if hard_crib_profile not in {"", "off", "none"}:
+                            hard_crib_payload, hard_crib_meta = _build_hard_crib_for_instance(
+                                profile=hard_crib_profile,
+                                direction=direction,
+                                pt_idx=pt_idx,
+                                wli_list=wli_list,
+                            )
+                        hard_crib_gate = _preflight_hard_crib_oracle(
+                            hard_crib=hard_crib_payload,
+                            pt_true=pt_idx,
+                            wli_list=wli_list,
+                            force_no_wli=stage1_force_no_wli,
+                            tier_name=tier.name,
+                            mode=mode,
+                            text_id=int(text_id),
+                            key_seed=int(key_seed),
+                        )
+                        if hard_crib_payload is not None:
+                            print(
+                                f"[bench_solve] gate0b hard_crib ok tier={tier.name} mode={mode} text={text_id} key_seed={key_seed} "
+                                f"profile={hard_crib_profile} rules(fixed={hard_crib_meta['hard_crib_rule_fixed_chars']},"
+                                f"word={hard_crib_meta['hard_crib_rule_per_word']},"
+                                f"globlen={hard_crib_meta['hard_crib_rule_global_len']})",
+                                flush=True,
+                            )
+
                         seed_keys = None
                         if mode == "seed_raw":
                             if seed_pool_raw is None:
@@ -1506,6 +2066,8 @@ def main() -> None:
                             encoding_dir=direction,
                             impl=ScorerImpl.NUMPY,
                         )
+                        if hard_crib_payload is not None:
+                            scorer_params["hard_crib"] = hard_crib_payload
 
                         cipher_spec = by_name.cipher(
                             "periodic_columnar",
@@ -1529,7 +2091,7 @@ def main() -> None:
                             scorer_params=scorer_params,
                             telemetry_on=True,
                             encoding_dir=direction,
-                            force_no_wli=True,
+                            force_no_wli=stage1_force_no_wli,
                             **({} if seed_keys is None else {"initial_keys": seed_keys}),
                         )
 
@@ -1539,6 +2101,27 @@ def main() -> None:
 
                         tel = getattr(sol, "meta", {}).get("telemetry", {}) if hasattr(sol, "meta") else {}
                         work = getattr(sol, "meta", {}).get("work", {}) if hasattr(sol, "meta") else {}
+                        stage1_crib_enabled = int(bool(tel.get("crib_enabled", False))) if isinstance(tel, dict) else 0
+                        stage1_crib_mode = str(tel.get("crib_mode", "")) if isinstance(tel, dict) else ""
+                        stage1_crib_pass_total = int(tel.get("crib_pass_total", 0) or 0) if isinstance(tel, dict) else 0
+                        stage1_crib_reject_total = int(tel.get("crib_reject_total", 0) or 0) if isinstance(tel, dict) else 0
+                        stage1_crib_reject_fixed_char = (
+                            int(tel.get("crib_reject_fixed_char", 0) or 0) if isinstance(tel, dict) else 0
+                        )
+                        stage1_crib_reject_word_index = (
+                            int(tel.get("crib_reject_word_index", 0) or 0) if isinstance(tel, dict) else 0
+                        )
+                        stage1_crib_reject_global_len = (
+                            int(tel.get("crib_reject_global_len", 0) or 0) if isinstance(tel, dict) else 0
+                        )
+                        stage1_crib_all_rejected_batches = (
+                            int(tel.get("crib_all_rejected_batches", 0) or 0) if isinstance(tel, dict) else 0
+                        )
+                        hard_crib_all_rejected = 0
+                        if hasattr(sol, "meta") and isinstance(getattr(sol, "meta", {}), dict):
+                            hc_meta = getattr(sol, "meta", {}).get("hard_crib", {})
+                            if isinstance(hc_meta, dict):
+                                hard_crib_all_rejected = int(bool(hc_meta.get("all_rejected", False)))
 
                         # ---------------- Stage-2 diagnostics: candidate retention + WLI rerank ----------------
                         stage2_t0 = time.time()
@@ -1713,6 +2296,23 @@ def main() -> None:
                         )
 
                         stage2_seconds = float(time.time() - stage2_t0)
+                        stage_recovery = float(max(float(match), float(bestk_match)))
+                        prior_best = float(instance_best_recovery)
+                        improve = stage_recovery - prior_best if np.isfinite(prior_best) else stage_recovery
+                        if stage_recovery > instance_best_recovery:
+                            instance_best_recovery = stage_recovery
+                        if pipeline_profile:
+                            if improve <= float(PIPELINE_STALL_DELTA):
+                                instance_no_improve_stages += 1
+                            else:
+                                instance_no_improve_stages = 0
+                            if bool(PIPELINE_STOP_ON_SOLVE) and stage_recovery >= float(SOLVE_MATCH_THRESHOLD):
+                                instance_stop_reason = "solved"
+                            elif (
+                                bool(PIPELINE_STOP_ON_STALL)
+                                and int(instance_no_improve_stages) >= int(PIPELINE_STALL_STAGE_LIMIT)
+                            ):
+                                instance_stop_reason = "stalled_no_improve"
 
                         dt = time.time() - t0
                         rows.append(
@@ -1731,6 +2331,16 @@ def main() -> None:
                                 preflight_score_delta_raw_full=float(preflight_meta.get("preflight_score_delta_raw_full", float("nan"))),
                                 preflight_score_delta_pct=float(preflight_meta.get("preflight_score_delta_pct", float("nan"))),
                                 preflight_score_delta_raw_native=float(preflight_meta.get("preflight_score_delta_raw_native", float("nan"))),
+                                hard_crib_profile=str(hard_crib_meta.get("hard_crib_profile", "off")),
+                                hard_crib_enabled_requested=int(hard_crib_meta.get("hard_crib_enabled_requested", 0)),
+                                hard_crib_rule_fixed_chars=int(hard_crib_meta.get("hard_crib_rule_fixed_chars", 0)),
+                                hard_crib_rule_per_word=int(hard_crib_meta.get("hard_crib_rule_per_word", 0)),
+                                hard_crib_rule_global_len=int(hard_crib_meta.get("hard_crib_rule_global_len", 0)),
+                                hard_crib_has_word_rules=int(hard_crib_meta.get("hard_crib_has_word_rules", 0)),
+                                hard_crib_word_rules_requiring_wli=int(
+                                    hard_crib_gate.get("hard_crib_word_rules_requiring_wli", 0)
+                                ),
+                                hard_crib_oracle_ok=int(hard_crib_gate.get("hard_crib_oracle_ok", 1)),
                                 oracle_raw_full=oracle_raw_full,
                                 oracle_raw_native=oracle_raw_native,
                                 oracle_pct=oracle_pct,
@@ -1783,6 +2393,16 @@ def main() -> None:
                                 seed_rerank_applied=int(seed_rerank_applied),
                                 seed_selection_metric_requested=str(solver_params.get("seed_selection_metric", "auto")),
                                 seed_restarts_requested=int(solver_params.get("seed_restarts", 0) or 0),
+                                stage1_force_no_wli=int(bool(stage1_force_no_wli)),
+                                stage1_crib_enabled=stage1_crib_enabled,
+                                stage1_crib_mode=stage1_crib_mode,
+                                stage1_crib_pass_total=stage1_crib_pass_total,
+                                stage1_crib_reject_total=stage1_crib_reject_total,
+                                stage1_crib_reject_fixed_char=stage1_crib_reject_fixed_char,
+                                stage1_crib_reject_word_index=stage1_crib_reject_word_index,
+                                stage1_crib_reject_global_len=stage1_crib_reject_global_len,
+                                stage1_crib_all_rejected_batches=stage1_crib_all_rejected_batches,
+                                hard_crib_all_rejected=hard_crib_all_rejected,
                                 seed_rerank_objective="pct.logp.win10",
                                 seed_rerank_use_word_breaks=1,
                                 seed_rerank_char_weights=json.dumps(SEED_RERANK_CHAR_WEIGHTS, sort_keys=True),
@@ -1815,6 +2435,11 @@ def main() -> None:
                                 preview_pick_wli1_latin=preview_pick_wli1,
                                 preview_pick_wli2_full_latin=preview_pick_wli2_full,
                                 preview_pick_wli2_within_latin=preview_pick_wli2_within,
+                                stage_recovery=stage_recovery,
+                                instance_best_recovery_so_far=float(instance_best_recovery),
+                                instance_no_improve_stages=int(instance_no_improve_stages),
+                                instance_early_stop_reason=str(instance_stop_reason),
+                                solve_threshold=float(SOLVE_MATCH_THRESHOLD),
                                 evals=int(work.get("evals", 0) or 0),
                                 tokens=int(work.get("tokens", 0) or 0),
                                 seconds=round(dt, 3),
@@ -1837,6 +2462,14 @@ def main() -> None:
                             f"run={_format_seconds(dt)} elapsed={_format_seconds(elapsed)} eta={_format_seconds(eta)}"
                             , flush=True
                         )
+                        if instance_stop_reason:
+                            print(
+                                f"[bench_solve] early-stop tier={tier.name} text={text_id} key_seed={key_seed} "
+                                f"reason={instance_stop_reason} "
+                                f"best_recovery={instance_best_recovery:.3f} "
+                                f"threshold={SOLVE_MATCH_THRESHOLD:.3f}",
+                                flush=True,
+                            )
 
     summary = _checkpoint(run_dir, rows=rows)
     total = time.time() - t0_all
@@ -1860,10 +2493,24 @@ def main() -> None:
                 f"wli2full-bestk_p50={e['wli2_full_minus_bestk']['p50']:.3f} "
                 f"rate_pct>oracle={e['rate_sol_gt_oracle_pct']:.2f} "
                 f"seedpool_eq_raw={e['rate_seed_pool_equal_raw']:.2f} "
+                f"crib_rt_enabled={e['rate_hard_crib_runtime_enabled']:.2f} "
+                f"crib_rej_p50={e['stage1_crib_reject_total']['p50']:.0f} "
                 f"evals_p50={e['evals']['p50']:.0f}"
             )
 
     _print_run_warnings(rows)
+    log_path, n_logged = _append_solve_proof_log(
+        run_id=str(run_dir.name),
+        profile_id=str(BENCH_PROFILE),
+        rows=rows,
+        new_from_idx=rows_start_idx_for_log,
+        solver_params_by_budget=solver_params_by_budget,
+    )
+    if log_path is not None:
+        print(
+            f"[bench_solve] Solve-proof log appended: {n_logged} rows -> {log_path.relative_to(_repo_root())}",
+            flush=True,
+        )
 
 
 if __name__ == "__main__":

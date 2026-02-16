@@ -382,7 +382,12 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                     total_evals += int(candidates.shape[0])
                     attempt_count += 1
                     phase_attempts[block] += 1
-                    raw_deltas = scores_raw - s_raw
+                    if np.isneginf(s_raw):
+                        raw_deltas = np.where(np.isfinite(scores_raw), np.inf, -np.inf)
+                    elif np.isfinite(s_raw):
+                        raw_deltas = scores_raw - s_raw
+                    else:
+                        raw_deltas = np.full_like(scores_raw, -np.inf)
                     idx = int(np.argmax(scores_raw))
                     if raw_deltas.size:
                         best_delta_raw = float(raw_deltas[idx])
@@ -405,7 +410,12 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                         total_evals += int(col_candidates.shape[0])
                         col_moves = int(col_candidates.shape[0])
                         attempt_count += 1
-                        col_deltas = col_raw - s_raw
+                        if np.isneginf(s_raw):
+                            col_deltas = np.where(np.isfinite(col_raw), np.inf, -np.inf)
+                        elif np.isfinite(s_raw):
+                            col_deltas = col_raw - s_raw
+                        else:
+                            col_deltas = np.full_like(col_raw, -np.inf)
                         col_idx = int(np.argmax(col_raw))
                         if col_deltas.size:
                             col_best_delta = float(col_deltas[col_idx])
