@@ -21,6 +21,7 @@ raw-fulltext optimisation benchmark.
 
 import csv
 import json
+import os
 import subprocess
 import sys
 import time
@@ -63,6 +64,12 @@ HEARTBEAT_SECONDS = 1200  # human-facing checkpoint (~3 updates/hour on long run
 PREVIEW_CHARS = 240
 AUTOSKIP_PROVEN = True
 AUTOSKIP_PROVEN_MIN_MATCH = SOLVE_MATCH_THRESHOLD
+FORCE_RERUN_PROVEN = str(os.environ.get("RDP_PIPELINE_FORCE_RERUN_PROVEN", "0")).strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 TEXT_OFFSETS = [0]
 KEY_SEEDS = [111]
@@ -854,14 +861,16 @@ def main() -> None:
 
     hist = root / "tools" / "benchmarks" / "solve_proof" / "proven_solve_pipeline_log.csv"
     hist.parent.mkdir(parents=True, exist_ok=True)
+    autoskip_effective = bool(AUTOSKIP_PROVEN) and (not bool(FORCE_RERUN_PROVEN))
     proven_index = (
         _load_proven_solved_index(hist, min_match=float(AUTOSKIP_PROVEN_MIN_MATCH))
-        if bool(AUTOSKIP_PROVEN)
+        if autoskip_effective
         else {}
     )
     print(
         "[pipeline] setup: autoskip_proven="
-        f"{'on' if AUTOSKIP_PROVEN else 'off'} "
+        f"{'on' if autoskip_effective else 'off'} "
+        f"(requested={'on' if AUTOSKIP_PROVEN else 'off'}, force_rerun={'on' if FORCE_RERUN_PROVEN else 'off'}) "
         f"min_match={float(AUTOSKIP_PROVEN_MIN_MATCH):.3f} "
         f"known={len(proven_index)} "
         f"source={hist.relative_to(root)}",
@@ -888,7 +897,9 @@ def main() -> None:
         alphabet_size=int(ALPHABET_SIZE),
         solve_threshold=float(SOLVE_MATCH_THRESHOLD),
         stall_delta=float(STALL_DELTA),
-        autoskip_proven=bool(AUTOSKIP_PROVEN),
+        autoskip_proven=bool(autoskip_effective),
+        autoskip_proven_requested=bool(AUTOSKIP_PROVEN),
+        force_rerun_proven=bool(FORCE_RERUN_PROVEN),
         autoskip_proven_min_match=float(AUTOSKIP_PROVEN_MIN_MATCH),
         stage1_use_oracle_stop=bool(STAGE1_USE_ORACLE_GUIDE_STOP),
         stage3_use_oracle_stop=bool(STAGE3_USE_ORACLE_GUIDE_STOP),
@@ -940,7 +951,7 @@ def main() -> None:
                 t0_i = time.time()
                 key_len = int(tier.period * ALPHABET_SIZE + tier.columns)
                 proven_key = (str(tier.name), int(text_id), int(key_seed))
-                if bool(AUTOSKIP_PROVEN) and (proven_key in proven_index):
+                if bool(autoskip_effective) and (proven_key in proven_index):
                     src = dict(proven_index.get(proven_key, {}))
                     src_run = str(src.get("run_id", "") or "")
                     src_ts = str(src.get("timestamp_utc", "") or "")
