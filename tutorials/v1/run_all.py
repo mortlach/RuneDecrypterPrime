@@ -46,6 +46,10 @@ def _iter_scripts(base: Path) -> list[Path]:
             continue
         if name.startswith("_"):
             continue
+        if name.startswith("Diag_"):
+            continue
+        if "diagnostic" in stem.lower():
+            continue
         if SKIP_HARD and name.endswith("_Hard.py"):
             continue
         if include and name not in include and stem not in include:
