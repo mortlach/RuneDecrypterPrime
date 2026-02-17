@@ -23,6 +23,17 @@ Goals:
 - Incremental transposition complexity next.
 - Boundary targets (`period=13`) at long text (`L=1200` and full text `L=2376`) last.
 
+## Conventions
+- There is no `columns=0` fixture in these benchmarks.
+- `columns=1` is the no-op/minimal-transposition control case.
+- Fixture ids encode order/shape (for example `focus_*` vs `subcol_*`) to avoid log collisions.
+
+## Proven Autoskip (Default)
+- Default behavior is to skip instances already marked solved in the proven log.
+- Override only when explicitly requested:
+  - `col_then_sub` pipeline: set `RDP_PIPELINE_FORCE_RERUN_PROVEN=1`
+  - `sub_then_col` pipeline: set `RDP_SUBCOL_FORCE_RERUN_PROVEN=1`
+
 ## Update Policy
 - Add new fixture rows instead of rewriting history.
 - Keep `fixture_id` stable.

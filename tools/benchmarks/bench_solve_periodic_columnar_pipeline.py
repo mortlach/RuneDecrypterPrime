@@ -105,6 +105,10 @@ STAGE1_SCOUT_STEP_SCALE = 1.0
 STAGE1_SCOUT_RESTART_SCALE = 1.0
 STAGE1_SCOUT_MIN_STEPS = 600
 STAGE1_SCOUT_MIN_RESTARTS = 1
+STAGE1_C1_MAX_SCOUTS = 2
+STAGE1_C1_FORCE_ORACLE_STOP = True
+STAGE1_C1_ORACLE_STOP_MARGIN = 0.0
+STAGE1_C1_EARLY_BREAK_ON_SOLVED_MATCH = True
 
 # Stage-3 dynamic budget based on stage2 objective gap to oracle objective (same scorer).
 # Lower gap => lighter stage3; higher gap => heavier stage3.
@@ -824,6 +828,9 @@ def main() -> None:
         f"stage12_promote_top={int(STAGE12_PROMOTE_TOP)} "
         f"stage1_scout_scale=(steps={float(STAGE1_SCOUT_STEP_SCALE):.2f},restarts={float(STAGE1_SCOUT_RESTART_SCALE):.2f}) "
         f"stage1_scout_mins=(steps={int(STAGE1_SCOUT_MIN_STEPS)},restarts={int(STAGE1_SCOUT_MIN_RESTARTS)}) "
+        f"stage1_c1_guards=(max_scouts={int(STAGE1_C1_MAX_SCOUTS)},"
+        f"force_oracle_stop={int(bool(STAGE1_C1_FORCE_ORACLE_STOP))},"
+        f"early_break_match={int(bool(STAGE1_C1_EARLY_BREAK_ON_SOLVED_MATCH))}) "
         f"stage1_sub_candidates={STAGE1_SUB_CANDIDATES} "
         f"stage1_sub_by_c={json.dumps(STAGE1_SUB_CANDIDATES_BY_COLUMNS, separators=(',', ':'))} "
         f"stage3_init_keys={STAGE3_INITIAL_KEYS} "
@@ -922,6 +929,12 @@ def main() -> None:
             restart_scale=float(STAGE1_SCOUT_RESTART_SCALE),
             min_steps=int(STAGE1_SCOUT_MIN_STEPS),
             min_restarts=int(STAGE1_SCOUT_MIN_RESTARTS),
+        ),
+        stage1_c1_guards=dict(
+            max_scouts=int(STAGE1_C1_MAX_SCOUTS),
+            force_oracle_stop=bool(STAGE1_C1_FORCE_ORACLE_STOP),
+            oracle_stop_margin=float(STAGE1_C1_ORACLE_STOP_MARGIN),
+            early_break_on_solved_match=bool(STAGE1_C1_EARLY_BREAK_ON_SOLVED_MATCH),
         ),
         stage1_sub_candidates=int(STAGE1_SUB_CANDIDATES),
         stage1_sub_by_c=dict(STAGE1_SUB_CANDIDATES_BY_COLUMNS),
@@ -1152,15 +1165,31 @@ def main() -> None:
                 stage1_sub_limit = int(STAGE1_SUB_CANDIDATES_BY_COLUMNS.get(int(tier.columns), STAGE1_SUB_CANDIDATES))
                 stage1_archive_keep = max(int(stage1_sub_limit), int(STAGE12_ARCHIVE_KEEP), 1)
                 stage1_scout_runs = max(1, int(STAGE12_SCOUT_RUNS))
-                if STAGE1_USE_ORACLE_GUIDE_STOP:
-                    s1_stop = min(0.999999, float(oracle_s1) + float(STAGE1_ORACLE_STOP_MARGIN))
+                if int(tier.columns) == 1:
+                    stage1_scout_runs = min(int(stage1_scout_runs), int(STAGE1_C1_MAX_SCOUTS))
+                stage1_oracle_guard = bool(
+                    STAGE1_USE_ORACLE_GUIDE_STOP
+                    or (
+                        bool(STAGE1_C1_FORCE_ORACLE_STOP)
+                        and int(tier.columns) == 1
+                        and bool(stage1_use_full)
+                    )
+                )
+                if stage1_oracle_guard:
+                    s1_margin = (
+                        float(STAGE1_ORACLE_STOP_MARGIN)
+                        if bool(STAGE1_USE_ORACLE_GUIDE_STOP)
+                        else float(STAGE1_C1_ORACLE_STOP_MARGIN)
+                    )
+                    s1_stop = min(0.999999, float(oracle_s1) + float(s1_margin))
                     solver_stage1_base_cfg["stop_score"] = float(s1_stop)
                 print(
                     f"[pipeline] stage1-stop tier={tier.name} text={text_id} key_seed={key_seed} "
                     f"stop_score={solver_stage1_base_cfg.get('stop_score', 'none')} "
                     f"plateau_rounds={solver_stage1_base_cfg.get('plateau_rounds')} "
                     f"plateau_min_delta={solver_stage1_base_cfg.get('plateau_min_delta')} "
-                    f"scouts={stage1_scout_runs} archive_keep={stage1_archive_keep}",
+                    f"scouts={stage1_scout_runs} archive_keep={stage1_archive_keep} "
+                    f"oracle_guard={'on' if stage1_oracle_guard else 'off'}",
                     flush=True,
                 )
                 s1_eval_wli = None if stage1_force_no_wli else wli
@@ -1173,8 +1202,10 @@ def main() -> None:
                 base_steps = int(solver_stage1_base_cfg.get("steps", 0))
                 base_restarts = int(solver_stage1_base_cfg.get("restarts", 0))
                 base_seed_restarts = int(solver_stage1_base_cfg.get("seed_restarts", STAGE1_SEED_RESTARTS))
+                stage1_scouts_done = 0
 
                 for scout_idx in range(stage1_scout_runs):
+                    stage1_scouts_done += 1
                     solver_stage1_cfg = dict(solver_stage1_base_cfg)
                     if scout_idx > 0:
                         solver_stage1_cfg["steps"] = max(
@@ -1254,6 +1285,19 @@ def main() -> None:
                             scout_seed=int(scout_seed),
                         )
                     )
+                    if (
+                        bool(STAGE1_C1_EARLY_BREAK_ON_SOLVED_MATCH)
+                        and int(tier.columns) == 1
+                        and stage1_best_pt
+                    ):
+                        stage1_best_m = float(base._match_ratio(stage1_best_pt, pt_idx.tolist()))
+                        if stage1_best_m >= float(SOLVE_MATCH_THRESHOLD):
+                            print(
+                                f"[pipeline] stage1-early-stop tier={tier.name} text={text_id} key_seed={key_seed} "
+                                f"reason=c1_solved match={stage1_best_m:.3f} scouts_done={stage1_scouts_done}/{stage1_scout_runs}",
+                                flush=True,
+                            )
+                            break
 
                 dt1 = float(time.time() - t_s1)
                 stage1_ranked = sorted(
@@ -1281,7 +1325,7 @@ def main() -> None:
                         seconds=round(dt1, 3),
                         evals=int(ev1),
                         candidates=len(sub_candidates),
-                        scouts=int(stage1_scout_runs),
+                        scouts=int(stage1_scouts_done),
                         archive_keep=int(stage1_archive_keep),
                     )
                 )
@@ -1290,7 +1334,7 @@ def main() -> None:
                     f"score={float(stage1_best_score if np.isfinite(stage1_best_score) else np.nan):.6f} "
                     f"sub_key_match={float(sub_key_match):.3f} "
                     f"evals={int(ev1)} seconds={dt1:.1f} "
-                    f"candidates={len(sub_candidates)} scouts={int(stage1_scout_runs)}",
+                    f"candidates={len(sub_candidates)} scouts={int(stage1_scouts_done)}",
                     flush=True,
                 )
 
