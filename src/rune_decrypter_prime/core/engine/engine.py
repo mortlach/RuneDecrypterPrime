@@ -42,6 +42,24 @@ _SOLVER_TABLE: Dict[SolverName, Any] = {
 }
 
 
+_GLOBAL_EARLY_STOP_DEFAULTS: Dict[SolverName, Dict[str, Any]] = {
+    SolverName.BEAM: {"plateau_rounds": 16, "plateau_min_delta": 1e-6},
+    SolverName.GA: {"plateau_rounds": 24, "plateau_min_delta": 1e-6},
+    SolverName.SA: {"plateau_rounds": 300, "plateau_min_delta": 1e-6},
+    SolverName.HYBRID: {"plateau_rounds": 24, "plateau_min_delta": 1e-6},
+    SolverName.KAEDING: {"plateau_rounds": 360, "plateau_min_delta": 1e-6},
+}
+
+
+def _with_early_stop_defaults(kind: SolverName, params: Dict[str, Any] | None) -> Dict[str, Any]:
+    """Apply conservative plateau defaults when callers omit them."""
+    out: Dict[str, Any] = dict(params or {})
+    defaults = _GLOBAL_EARLY_STOP_DEFAULTS.get(kind, {})
+    for key, value in defaults.items():
+        out.setdefault(key, value)
+    return out
+
+
 @dataclass(slots=True)
 class EngineConfig:
     """Thin, typed bag for engine-level knobs (avoid dicts here)."""
@@ -142,6 +160,8 @@ def solve(instance: ProblemInstance, engine_cfg: EngineConfig):
 
     kind = ensure_solver_name(engine_cfg.solver)
 
+    effective_params = _with_early_stop_defaults(kind, engine_cfg.params)
+
     # --- run_start telemetry (top-level wrapper around per-solver events) ---
     # Solvers already emit their own solver_start/progress/solver_end spans.
     # The run_start/run_end here are just a light envelope for the *whole* run.
@@ -160,12 +180,12 @@ def solve(instance: ProblemInstance, engine_cfg: EngineConfig):
         device=dev,
         scorer=scorer_meta,
         pipeline=instance.pipeline_block,
-        params=(engine_cfg.params or {}),
+        params=effective_params,
     )
 
     # --- build solver and run ---
     rng = _child_rng(engine_cfg.seed)
-    solver = _solver_from_cfg(kind, instance.problem, engine_cfg.params, rng, engine_cfg)
+    solver = _solver_from_cfg(kind, instance.problem, effective_params, rng, engine_cfg)
 
     scorer_obj = getattr(instance.problem, "scorer", None)
     clear_cache = getattr(scorer_obj, "clear_wli_cache", None)

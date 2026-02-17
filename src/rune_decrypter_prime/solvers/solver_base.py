@@ -813,6 +813,15 @@ class SolverBase:
         except Exception:
             pass
 
+        try:
+            stop_reason = getattr(self, "_stop_reason", None)
+            if stop_reason:
+                sol.stop_reason = str(stop_reason)
+                if isinstance(sol.meta, dict):
+                    sol.meta.setdefault("stop_reason", str(stop_reason))
+        except Exception:
+            pass
+
         # Attach solver events + UI blocks
         attach_telemetry_to_meta(sol, self.problem)
         return sol
@@ -964,8 +973,8 @@ class SolverBase:
 
     @staticmethod
     def _is_improvement(current_best: float, prev_best: float, min_delta: float) -> bool:
-        """Return True when current_best improves by at least min_delta."""
-        return float(current_best) >= (float(prev_best) + float(min_delta))
+        """Return True when current_best improves by more than min_delta (strict)."""
+        return float(current_best) > (float(prev_best) + float(min_delta))
 
     @staticmethod
     def _stable_topk_indices(scores: np.ndarray, k: int) -> np.ndarray:
