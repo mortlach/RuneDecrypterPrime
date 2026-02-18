@@ -11,6 +11,7 @@ Goals:
 - `fixtures_periodic_columnar_v1.json`: tier ladder (period/columns/length) and defaults.
 - `solver_profiles_v1.json`: run profiles (quick vs long).
 - `proven_solve_log_template.csv`: append-only schema for solved/not-solved history.
+- `../COMMUNITY_BENCHMARK_BRANCH.md`: branch-level quickstart for external benchmark runners.
 
 ## Usage Model
 1. Pick a fixture set and profile.
@@ -31,8 +32,20 @@ Goals:
 ## Proven Autoskip (Default)
 - Default behavior is to skip instances already marked solved in the proven log.
 - Override only when explicitly requested:
-  - `col_then_sub` pipeline: set `RDP_PIPELINE_FORCE_RERUN_PROVEN=1`
+  - `col_then_sub` pipeline: set `FORCE_RERUN_PROVEN=True` in
+    `tools/benchmarks/bench_solve_periodic_columnar_pipeline.py`
   - `sub_then_col` pipeline: set `RDP_SUBCOL_FORCE_RERUN_PROVEN=1`
+
+## Runtime Targeting
+- `col_then_sub` pipeline:
+  - `KEY_SEEDS_OVERRIDE=[111,222,...]` (or `None`)
+  - `TIERS_REGEX_OVERRIDE=<regex>` (or `None`)
+  - `AVOID_REPEAT_FAIL=True|False`
+  - `FAILED_RETRY_SEED_DELTA=<int>`
+  - `STAGE2_HYBRID_SUB_CANDIDATES` / `STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS`
+- `sub_then_col` pipeline:
+  - `RDP_SUBCOL_KEY_SEEDS=111,222,...`
+  - `RDP_SUBCOL_TIERS_REGEX=<regex>`
 
 ## Update Policy
 - Add new fixture rows instead of rewriting history.

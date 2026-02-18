@@ -17,11 +17,19 @@ Scoring used:
 
 This is intentionally tutorial-aligned for practical solve progress, not a pure
 raw-fulltext optimisation benchmark.
+
+Run controls (hardcoded at top of this file):
+- FORCE_RERUN_PROVEN
+- KEY_SEEDS_OVERRIDE
+- TIERS_REGEX_OVERRIDE
+- AVOID_REPEAT_FAIL
+- FAILED_RETRY_SEED_DELTA
 """
 
 import csv
+import hashlib
 import json
-import os
+import re
 import subprocess
 import sys
 import time
@@ -64,15 +72,16 @@ HEARTBEAT_SECONDS = 1200  # human-facing checkpoint (~3 updates/hour on long run
 PREVIEW_CHARS = 240
 AUTOSKIP_PROVEN = True
 AUTOSKIP_PROVEN_MIN_MATCH = SOLVE_MATCH_THRESHOLD
-FORCE_RERUN_PROVEN = str(os.environ.get("RDP_PIPELINE_FORCE_RERUN_PROVEN", "0")).strip().lower() in {
-    "1",
-    "true",
-    "yes",
-    "on",
-}
+FORCE_RERUN_PROVEN = False
+AVOID_REPEAT_FAIL = True
+FAILED_RETRY_SEED_DELTA = 1
+FAILED_RETRY_SEED_STRIDE = 104729
 
 TEXT_OFFSETS = [0]
 KEY_SEEDS = [111]
+# Community defaults: run the full profile-defined matrix unless explicitly narrowed.
+KEY_SEEDS_OVERRIDE: List[int] | None = None
+TIERS_REGEX_OVERRIDE: str | None = None
 STAGE1_SUB_CANDIDATES = 16
 STAGE3_INITIAL_KEYS = 24
 STAGE1_SUB_CANDIDATES_BY_COLUMNS = {1: 6, 3: 10, 5: 12, 7: 14}
@@ -85,6 +94,8 @@ STAGE2_EXACT_EARLY_SOLVE_BREAK = True
 STAGE2_FAST_CHAR_WEIGHTS = {3: 0.5, 4: 0.5}
 STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS = {3: 4, 5: 3, 7: 2}
 STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS = {3: 72, 5: 128, 7: 192}
+STAGE2_HYBRID_SUB_CANDIDATES = 8
+STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS = {10: 8, 13: 6}
 STAGE1_USE_ORACLE_GUIDE_STOP = True
 STAGE1_ORACLE_STOP_MARGIN = 0.005
 STAGE3_USE_ORACLE_GUIDE_STOP = False
@@ -105,6 +116,9 @@ STAGE1_SCOUT_STEP_SCALE = 1.0
 STAGE1_SCOUT_RESTART_SCALE = 1.0
 STAGE1_SCOUT_MIN_STEPS = 600
 STAGE1_SCOUT_MIN_RESTARTS = 1
+STAGE1_SCOUT_NO_IMPROVE_DELTA = 1e-6
+STAGE1_SCOUT_NO_IMPROVE_PATIENCE = 2
+STAGE1_SCOUT_MIN_NEW_ARCHIVE = 2
 STAGE1_C1_MAX_SCOUTS = 2
 STAGE1_C1_FORCE_ORACLE_STOP = True
 STAGE1_C1_ORACLE_STOP_MARGIN = 0.0
@@ -178,6 +192,7 @@ def _apply_run_mode() -> None:
     global STAGE2_EXACT_SUB_CANDIDATES, STAGE1_SEED_RESTARTS
     global STAGE2_EXACT_PASS1_TOP_TAILS, STAGE2_EXACT_TWO_PASS, STAGE2_EXACT_EARLY_SOLVE_BREAK
     global STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS, STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS
+    global STAGE2_HYBRID_SUB_CANDIDATES, STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS
     global STAGE1_SEED_N_BLOCKS, STAGE1_SEED_TOTAL, STAGE1_SEED_SWAPS
     global STAGE1_SUB_CANDIDATES_BY_COLUMNS, STAGE3_INITIAL_KEYS_BY_COLUMNS, STAGE3_DYNAMIC_BANDS
     global STAGE1_USE_ORACLE_GUIDE_STOP, STAGE3_USE_ORACLE_GUIDE_STOP, STAGE3_ORACLE_STOP_MARGIN, STAGE3_ORACLE_STOP_RELAX_FRACTION
@@ -185,6 +200,7 @@ def _apply_run_mode() -> None:
     global STAGE1_C1_USE_FULL_SCORER
     global STAGE12_SCOUT_RUNS, STAGE12_ARCHIVE_KEEP, STAGE12_PROMOTE_TOP
     global STAGE1_SCOUT_STEP_SCALE, STAGE1_SCOUT_RESTART_SCALE, STAGE1_SCOUT_MIN_STEPS, STAGE1_SCOUT_MIN_RESTARTS
+    global STAGE1_SCOUT_NO_IMPROVE_DELTA, STAGE1_SCOUT_NO_IMPROVE_PATIENCE, STAGE1_SCOUT_MIN_NEW_ARCHIVE
     if PIPELINE_RUN_MODE == "full":
         return
     if PIPELINE_RUN_MODE == "focus_p5_p7":
@@ -223,6 +239,9 @@ def _apply_run_mode() -> None:
         STAGE1_SCOUT_RESTART_SCALE = 0.70
         STAGE1_SCOUT_MIN_STEPS = 900
         STAGE1_SCOUT_MIN_RESTARTS = 1
+        STAGE1_SCOUT_NO_IMPROVE_DELTA = 1e-6
+        STAGE1_SCOUT_NO_IMPROVE_PATIENCE = 2
+        STAGE1_SCOUT_MIN_NEW_ARCHIVE = 2
 
         SOLVER_STAGE1.update(
             steps=2600,
@@ -319,6 +338,9 @@ def _apply_run_mode() -> None:
         STAGE1_SCOUT_RESTART_SCALE = 0.67
         STAGE1_SCOUT_MIN_STEPS = 900
         STAGE1_SCOUT_MIN_RESTARTS = 1
+        STAGE1_SCOUT_NO_IMPROVE_DELTA = 1e-6
+        STAGE1_SCOUT_NO_IMPROVE_PATIENCE = 2
+        STAGE1_SCOUT_MIN_NEW_ARCHIVE = 2
 
         SOLVER_STAGE1.update(
             steps=3400,
@@ -384,14 +406,16 @@ def _apply_run_mode() -> None:
         KEY_SEEDS = [111]
 
         STAGE1_SUB_CANDIDATES = 20
-        STAGE1_SUB_CANDIDATES_BY_COLUMNS = {1: 8, 3: 12, 5: 14, 7: 16, 10: 16, 13: 18}
+        STAGE1_SUB_CANDIDATES_BY_COLUMNS = {1: 8, 3: 16, 5: 16, 7: 18, 10: 16, 13: 18}
         STAGE3_INITIAL_KEYS = 14
         STAGE3_INITIAL_KEYS_BY_COLUMNS = {1: 8, 3: 18, 5: 24, 7: 28, 10: 32, 13: 40}
 
         STAGE2_EXACT_SUB_CANDIDATES = 3
         STAGE2_EXACT_PASS1_TOP_TAILS = 160
-        STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS = {3: 12, 5: 8, 7: 3}
+        STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS = {3: 16, 5: 10, 7: 4}
         STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS = {3: 6, 5: 120, 7: 192}
+        STAGE2_HYBRID_SUB_CANDIDATES = 8
+        STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS = {10: 8, 13: 6}
         STAGE2_EXACT_TWO_PASS = True
         STAGE2_EXACT_EARLY_SOLVE_BREAK = True
         STAGE1_SEED_RESTARTS = 128
@@ -414,20 +438,23 @@ def _apply_run_mode() -> None:
         STAGE3_PROBE_ENTRY_SCORE = 0.06
         STAGE3_PROBE_ENTRY_SCORE_BY_COLUMNS = {3: 0.06, 5: 0.06, 7: 0.06, 10: 0.06, 13: 0.06}
         STAGE1_C1_USE_FULL_SCORER = True
-        STAGE12_SCOUT_RUNS = 8
-        STAGE12_ARCHIVE_KEEP = 24
+        STAGE12_SCOUT_RUNS = 6
+        STAGE12_ARCHIVE_KEEP = 16
         STAGE12_PROMOTE_TOP = 8
-        STAGE1_SCOUT_STEP_SCALE = 0.45
-        STAGE1_SCOUT_RESTART_SCALE = 0.67
+        STAGE1_SCOUT_STEP_SCALE = 0.28
+        STAGE1_SCOUT_RESTART_SCALE = 0.25
         STAGE1_SCOUT_MIN_STEPS = 900
         STAGE1_SCOUT_MIN_RESTARTS = 1
+        STAGE1_SCOUT_NO_IMPROVE_DELTA = 1e-6
+        STAGE1_SCOUT_NO_IMPROVE_PATIENCE = 1
+        STAGE1_SCOUT_MIN_NEW_ARCHIVE = 4
 
         SOLVER_STAGE1.update(
-            steps=3400,
-            restarts=3,
+            steps=2600,
+            restarts=2,
             inner_batch=128,
             top_k=28,
-            seed_restarts=128,
+            seed_restarts=96,
             plateau_rounds=420,
             plateau_min_delta=5e-4,
             progress_pct=5,
@@ -495,6 +522,9 @@ def _apply_run_mode() -> None:
         STAGE1_SCOUT_RESTART_SCALE = 1.0
         STAGE1_SCOUT_MIN_STEPS = 60
         STAGE1_SCOUT_MIN_RESTARTS = 1
+        STAGE1_SCOUT_NO_IMPROVE_DELTA = 1e-6
+        STAGE1_SCOUT_NO_IMPROVE_PATIENCE = 1
+        STAGE1_SCOUT_MIN_NEW_ARCHIVE = 0
 
         SOLVER_STAGE1.update(
             steps=80,
@@ -542,6 +572,22 @@ def _apply_run_mode() -> None:
         f"Unknown PIPELINE_RUN_MODE={PIPELINE_RUN_MODE!r}; "
         "expected 'full', 'focus_p5_p7', 'focus_p10_fast', 'focus_p10_fast_resume', or 'smoke'"
     )
+
+
+def _apply_runtime_overrides() -> None:
+    global KEY_SEEDS, TIERS
+    if KEY_SEEDS_OVERRIDE is not None:
+        vals = [int(x) for x in KEY_SEEDS_OVERRIDE]
+        if vals:
+            seen: set[int] = set()
+            KEY_SEEDS = [int(x) for x in vals if not (int(x) in seen or seen.add(int(x)))]
+    if TIERS_REGEX_OVERRIDE:
+        rx = re.compile(str(TIERS_REGEX_OVERRIDE))
+        TIERS = [t for t in TIERS if rx.search(str(t.name))]
+        if not TIERS:
+            raise ValueError(
+                f"TIERS_REGEX_OVERRIDE={TIERS_REGEX_OVERRIDE!r} matched zero tiers"
+            )
 
 
 def _repo_root() -> Path:
@@ -780,8 +826,69 @@ def _load_proven_solved_index(path: Path, *, min_match: float) -> Dict[Tuple[str
     return out
 
 
+def _config_fingerprint(payload: Dict[str, Any]) -> str:
+    try:
+        canon = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    except Exception:
+        canon = str(payload)
+    return hashlib.sha1(canon.encode("utf-8")).hexdigest()[:12]
+
+
+def _parse_notes_kv(notes: str) -> Dict[str, str]:
+    out: Dict[str, str] = {}
+    for part in re.split(r"[;|]", str(notes or "")):
+        if "=" not in part:
+            continue
+        k, v = part.split("=", 1)
+        key = str(k).strip()
+        if not key:
+            continue
+        out[key] = str(v).strip()
+    return out
+
+
+def _load_failed_attempt_index(
+    path: Path,
+    *,
+    profile_id: str,
+    config_fingerprint: str,
+) -> Dict[Tuple[str, int, int], int]:
+    out: Dict[Tuple[str, int, int], int] = {}
+    if not path.exists():
+        return out
+    try:
+        with path.open(newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                status = str(row.get("status", "")).strip().lower()
+                if status not in {"unsolved", "stalled"}:
+                    continue
+                fixture = str(row.get("fixture_id", "")).strip()
+                if not fixture:
+                    continue
+                try:
+                    text_id = int(str(row.get("text_id", "")).strip())
+                    key_seed = int(str(row.get("key_seed", "")).strip())
+                except Exception:
+                    continue
+                row_profile = str(row.get("profile_id", "")).strip()
+                if row_profile and row_profile != str(profile_id):
+                    continue
+                row_cfg = str(row.get("config_fingerprint", "")).strip()
+                if not row_cfg:
+                    row_cfg = _parse_notes_kv(str(row.get("notes", ""))).get("cfg", "")
+                if row_cfg and row_cfg != str(config_fingerprint):
+                    continue
+                k = (fixture, int(text_id), int(key_seed))
+                out[k] = int(out.get(k, 0)) + 1
+    except Exception:
+        return {}
+    return out
+
+
 def main() -> None:
     _apply_run_mode()
+    _apply_runtime_overrides()
     direction = Direction.LTR
     print("[pipeline] bootstrap: checking LM assets...", flush=True)
     base._require_assets(direction, ns=(1, 3, 4), need_wli=True)
@@ -828,6 +935,9 @@ def main() -> None:
         f"stage12_promote_top={int(STAGE12_PROMOTE_TOP)} "
         f"stage1_scout_scale=(steps={float(STAGE1_SCOUT_STEP_SCALE):.2f},restarts={float(STAGE1_SCOUT_RESTART_SCALE):.2f}) "
         f"stage1_scout_mins=(steps={int(STAGE1_SCOUT_MIN_STEPS)},restarts={int(STAGE1_SCOUT_MIN_RESTARTS)}) "
+        f"stage1_scout_plateau=(delta={float(STAGE1_SCOUT_NO_IMPROVE_DELTA):.1e},"
+        f"patience={int(STAGE1_SCOUT_NO_IMPROVE_PATIENCE)},"
+        f"min_new_archive={int(STAGE1_SCOUT_MIN_NEW_ARCHIVE)}) "
         f"stage1_c1_guards=(max_scouts={int(STAGE1_C1_MAX_SCOUTS)},"
         f"force_oracle_stop={int(bool(STAGE1_C1_FORCE_ORACLE_STOP))},"
         f"early_break_match={int(bool(STAGE1_C1_EARLY_BREAK_ON_SOLVED_MATCH))}) "
@@ -838,6 +948,8 @@ def main() -> None:
         f"stage2_exact_max_columns={STAGE2_EXACT_MAX_COLUMNS} "
         f"stage2_exact_sub_candidates={STAGE2_EXACT_SUB_CANDIDATES} "
         f"stage2_exact_sub_by_c={json.dumps(STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS, separators=(',', ':'))} "
+        f"stage2_hybrid_sub_candidates={STAGE2_HYBRID_SUB_CANDIDATES} "
+        f"stage2_hybrid_sub_by_c={json.dumps(STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS, separators=(',', ':'))} "
         f"stage2_two_pass={int(bool(STAGE2_EXACT_TWO_PASS))} "
         f"stage2_pass1_top_tails={STAGE2_EXACT_PASS1_TOP_TAILS} "
         f"stage2_pass1_top_by_c={json.dumps(STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS, separators=(',', ':'))} "
@@ -864,6 +976,13 @@ def main() -> None:
         flush=True,
     )
     print(f"[pipeline] setup: tiers={len(TIERS)} text_offsets={TEXT_OFFSETS} key_seeds={KEY_SEEDS}", flush=True)
+    if KEY_SEEDS_OVERRIDE or TIERS_REGEX_OVERRIDE:
+        print(
+            "[pipeline] setup: runtime_overrides "
+            f"key_seeds_override={KEY_SEEDS_OVERRIDE if KEY_SEEDS_OVERRIDE is not None else 'none'} "
+            f"tiers_regex_override={TIERS_REGEX_OVERRIDE or 'none'}",
+            flush=True,
+        )
     print(f"[pipeline] reports: {run_dir.relative_to(root)}", flush=True)
 
     hist = root / "tools" / "benchmarks" / "solve_proof" / "proven_solve_pipeline_log.csv"
@@ -929,6 +1048,9 @@ def main() -> None:
             restart_scale=float(STAGE1_SCOUT_RESTART_SCALE),
             min_steps=int(STAGE1_SCOUT_MIN_STEPS),
             min_restarts=int(STAGE1_SCOUT_MIN_RESTARTS),
+            no_improve_delta=float(STAGE1_SCOUT_NO_IMPROVE_DELTA),
+            no_improve_patience=int(STAGE1_SCOUT_NO_IMPROVE_PATIENCE),
+            min_new_archive=int(STAGE1_SCOUT_MIN_NEW_ARCHIVE),
         ),
         stage1_c1_guards=dict(
             max_scouts=int(STAGE1_C1_MAX_SCOUTS),
@@ -940,6 +1062,8 @@ def main() -> None:
         stage1_sub_by_c=dict(STAGE1_SUB_CANDIDATES_BY_COLUMNS),
         stage2_exact_sub_by_c=dict(STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS),
         stage2_pass1_top_by_c=dict(STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS),
+        stage2_hybrid_sub_candidates=int(STAGE2_HYBRID_SUB_CANDIDATES),
+        stage2_hybrid_sub_by_c=dict(STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS),
         stage3_init_by_c=dict(STAGE3_INITIAL_KEYS_BY_COLUMNS),
         stage3_dynamic_bands=[dict(b) for b in STAGE3_DYNAMIC_BANDS],
         scorer_stage1=dict(SCORER_STAGE1),
@@ -947,6 +1071,46 @@ def main() -> None:
         solver_stage1=dict(SOLVER_STAGE1),
         solver_stage2=dict(SOLVER_STAGE2),
         solver_stage3=dict(SOLVER_STAGE3),
+        runtime_overrides=dict(
+            key_seeds_override=(
+                [int(x) for x in KEY_SEEDS_OVERRIDE]
+                if KEY_SEEDS_OVERRIDE is not None
+                else None
+            ),
+            tiers_regex_override=(
+                None if TIERS_REGEX_OVERRIDE in (None, "") else str(TIERS_REGEX_OVERRIDE)
+            ),
+        ),
+        failed_repeat_avoid=dict(
+            enabled=bool(AVOID_REPEAT_FAIL),
+            retry_seed_delta=int(FAILED_RETRY_SEED_DELTA),
+            retry_seed_stride=int(FAILED_RETRY_SEED_STRIDE),
+        ),
+    )
+    config_fingerprint = _config_fingerprint(run_config)
+    failed_attempt_index = (
+        _load_failed_attempt_index(
+            hist,
+            profile_id=str(PROFILE),
+            config_fingerprint=str(config_fingerprint),
+        )
+        if bool(AVOID_REPEAT_FAIL)
+        else {}
+    )
+    run_config["config_fingerprint"] = str(config_fingerprint)
+    run_config["failed_repeat_avoid"] = dict(
+        enabled=bool(AVOID_REPEAT_FAIL),
+        retry_seed_delta=int(FAILED_RETRY_SEED_DELTA),
+        retry_seed_stride=int(FAILED_RETRY_SEED_STRIDE),
+        known_failed=len(failed_attempt_index),
+    )
+    print(
+        "[pipeline] setup: failed_repeat_avoid="
+        f"{'on' if AVOID_REPEAT_FAIL else 'off'} "
+        f"retry_seed_delta={int(FAILED_RETRY_SEED_DELTA)} "
+        f"known_failed={len(failed_attempt_index)} "
+        f"config_fingerprint={config_fingerprint}",
+        flush=True,
     )
     best_global = {
         "match": float("-inf"),
@@ -964,6 +1128,9 @@ def main() -> None:
                 t0_i = time.time()
                 key_len = int(tier.period * ALPHABET_SIZE + tier.columns)
                 proven_key = (str(tier.name), int(text_id), int(key_seed))
+                repeat_attempt = int(failed_attempt_index.get(proven_key, 0)) if bool(AVOID_REPEAT_FAIL) else 0
+                search_seed_offset = int(repeat_attempt * int(FAILED_RETRY_SEED_DELTA))
+                search_seed_shift = int(search_seed_offset * int(FAILED_RETRY_SEED_STRIDE))
                 if bool(autoskip_effective) and (proven_key in proven_index):
                     src = dict(proven_index.get(proven_key, {}))
                     src_run = str(src.get("run_id", "") or "")
@@ -1003,6 +1170,9 @@ def main() -> None:
                             total_seconds=0.0,
                             total_evals=0,
                             preview_best_latin=preview_txt,
+                            retry_attempt=int(repeat_attempt),
+                            search_seed_offset=int(search_seed_offset),
+                            config_fingerprint=str(config_fingerprint),
                         )
                     )
                     stages.append(
@@ -1056,7 +1226,12 @@ def main() -> None:
                         stage3_match_ratio=inst_row["stage3_match_ratio"],
                         total_seconds=inst_row["total_seconds"],
                         total_evals=inst_row["total_evals"],
-                        notes=inst_row["stop_reason"],
+                        notes=(
+                            f"{inst_row['stop_reason']};"
+                            f"cfg={config_fingerprint};"
+                            f"retry={int(repeat_attempt)};"
+                            f"soff={int(search_seed_offset)}"
+                        ),
                     )
                     _append_csv_row(hist, hist_row)
                     history_rows_written += 1
@@ -1090,6 +1265,14 @@ def main() -> None:
                         last_hb = now
                     continue
 
+                if bool(AVOID_REPEAT_FAIL) and int(repeat_attempt) > 0:
+                    print(
+                        f"[pipeline] retry-avoid tier={tier.name} text={text_id} key_seed={key_seed} "
+                        f"prior_failed_attempts={int(repeat_attempt)} "
+                        f"search_seed_offset={int(search_seed_offset)}",
+                        flush=True,
+                    )
+
                 rng = np.random.default_rng(int(key_seed))
                 keyops = PeriodicStructuredMatrixKeyOps(K=key_len, period=tier.period, A=ALPHABET_SIZE, columns=tier.columns)
                 key_true = keyops.random(rng).astype(np.int16, copy=False)
@@ -1108,6 +1291,7 @@ def main() -> None:
                 stage1_force_no_wli = (not stage1_use_full)
                 print(
                     f"[pipeline] objective tier={tier.name} text={text_id} key_seed={key_seed} "
+                    f"search_seed_offset={int(search_seed_offset)} "
                     f"stage1={scorer_stage1['objective']} "
                     f"stage23={scorer_full['objective']}",
                     flush=True,
@@ -1162,6 +1346,7 @@ def main() -> None:
                 # Stage 1
                 t_s1 = time.time()
                 solver_stage1_base_cfg = dict(SOLVER_STAGE1)
+                solver_stage1_base_cfg["seed"] = int(solver_stage1_base_cfg.get("seed", 2026)) + int(search_seed_shift)
                 stage1_sub_limit = int(STAGE1_SUB_CANDIDATES_BY_COLUMNS.get(int(tier.columns), STAGE1_SUB_CANDIDATES))
                 stage1_archive_keep = max(int(stage1_sub_limit), int(STAGE12_ARCHIVE_KEEP), 1)
                 stage1_scout_runs = max(1, int(STAGE12_SCOUT_RUNS))
@@ -1189,6 +1374,10 @@ def main() -> None:
                     f"plateau_rounds={solver_stage1_base_cfg.get('plateau_rounds')} "
                     f"plateau_min_delta={solver_stage1_base_cfg.get('plateau_min_delta')} "
                     f"scouts={stage1_scout_runs} archive_keep={stage1_archive_keep} "
+                    f"scout_plateau=(delta={float(STAGE1_SCOUT_NO_IMPROVE_DELTA):.1e},"
+                    f"patience={int(STAGE1_SCOUT_NO_IMPROVE_PATIENCE)},"
+                    f"min_new_archive={int(STAGE1_SCOUT_MIN_NEW_ARCHIVE)}) "
+                    f"search_seed_offset={int(search_seed_offset)} "
                     f"oracle_guard={'on' if stage1_oracle_guard else 'off'}",
                     flush=True,
                 )
@@ -1203,10 +1392,14 @@ def main() -> None:
                 base_restarts = int(solver_stage1_base_cfg.get("restarts", 0))
                 base_seed_restarts = int(solver_stage1_base_cfg.get("seed_restarts", STAGE1_SEED_RESTARTS))
                 stage1_scouts_done = 0
+                stage1_no_improve_scouts = 0
 
                 for scout_idx in range(stage1_scout_runs):
                     stage1_scouts_done += 1
+                    pre_scout_best_score = float(stage1_best_score)
+                    pre_scout_archive_n = int(len(stage1_archive))
                     solver_stage1_cfg = dict(solver_stage1_base_cfg)
+                    solver_stage1_cfg["seed"] = int(solver_stage1_base_cfg.get("seed", 2026)) + 7919 * int(scout_idx)
                     if scout_idx > 0:
                         solver_stage1_cfg["steps"] = max(
                             int(STAGE1_SCOUT_MIN_STEPS),
@@ -1221,7 +1414,7 @@ def main() -> None:
                             int(round(float(base_seed_restarts) * float(STAGE1_SCOUT_RESTART_SCALE))),
                         )
 
-                    scout_seed = 2026 + int(key_seed) + 1009 * int(scout_idx)
+                    scout_seed = 2026 + int(key_seed) + int(search_seed_shift) + 1009 * int(scout_idx)
                     s1_seeds = make_periodic_seed_pool(
                         ct_idx,
                         period=tier.period,
@@ -1299,6 +1492,28 @@ def main() -> None:
                             )
                             break
 
+                    stage1_score_gain = float(stage1_best_score - pre_scout_best_score) if np.isfinite(stage1_best_score) and np.isfinite(pre_scout_best_score) else float("inf")
+                    stage1_new_archive = int(len(stage1_archive) - pre_scout_archive_n)
+                    if (
+                        scout_idx > 0
+                        and stage1_score_gain <= float(STAGE1_SCOUT_NO_IMPROVE_DELTA)
+                        and stage1_new_archive <= int(STAGE1_SCOUT_MIN_NEW_ARCHIVE)
+                    ):
+                        stage1_no_improve_scouts += 1
+                    else:
+                        stage1_no_improve_scouts = 0
+                    if (
+                        scout_idx + 1 < int(stage1_scout_runs)
+                        and stage1_no_improve_scouts >= int(STAGE1_SCOUT_NO_IMPROVE_PATIENCE)
+                    ):
+                        print(
+                            f"[pipeline] stage1-early-stop tier={tier.name} text={text_id} key_seed={key_seed} "
+                            f"reason=scout_plateau scouts_done={stage1_scouts_done}/{stage1_scout_runs} "
+                            f"score_gain={stage1_score_gain:.6g} new_archive={stage1_new_archive}",
+                            flush=True,
+                        )
+                        break
+
                 dt1 = float(time.time() - t_s1)
                 stage1_ranked = sorted(
                     stage1_archive.values(),
@@ -1345,6 +1560,7 @@ def main() -> None:
                 stage2_archive_keep = max(1, int(STAGE12_ARCHIVE_KEEP))
                 stage2_promote_top = max(1, int(STAGE12_PROMOTE_TOP))
                 stage2_archive: Dict[Tuple[int, ...], Dict[str, Any]] = {}
+                stage2_entry_score = float("-inf")
 
                 def _consider_stage2_candidate(*, full_key_arr: np.ndarray, pt2_arr: np.ndarray, match_val: float, score_val: float, preview_label: str) -> None:
                     nonlocal best2_match, best2_score, best2_key, best2_pt, best2_preview, best2_secs, best2_evals
@@ -1369,6 +1585,11 @@ def main() -> None:
 
                 exact_sub_limit = int(STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS.get(int(tier.columns), STAGE2_EXACT_SUB_CANDIDATES))
                 pass1_top_tails = int(STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS.get(int(tier.columns), STAGE2_EXACT_PASS1_TOP_TAILS))
+                hybrid_sub_limit = int(
+                    STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS.get(
+                        int(tier.columns), STAGE2_HYBRID_SUB_CANDIDATES
+                    )
+                )
                 if int(tier.columns) <= 1:
                     for i, sub_key in enumerate(sub_candidates):
                         sub_arr = np.asarray(sub_key, dtype=np.int16)
@@ -1483,10 +1704,13 @@ def main() -> None:
                         flush=True,
                     )
                 else:
-                    for i, sub_key in enumerate(sub_candidates):
+                    hybrid_subs = sub_candidates[: max(1, int(hybrid_sub_limit))]
+                    for i, sub_key in enumerate(hybrid_subs):
                         t_s2 = time.time()
                         inter = sub_cipher.decrypt_single(ciphertext=ct_idx, key=np.asarray(sub_key, dtype=np.int16))
-                        sol2 = run(text=np.asarray(inter, dtype=np.uint8).tolist(), cipher=by_name.cipher("columnar", key_length=tier.columns), key=KeySpec.permutation(len=tier.columns), solver=SolverSpec.hybrid(**dict(SOLVER_STAGE2)), scorer_params=scorer_full, wli_data=wli, encoding_dir=direction, telemetry_on=True, force_no_wli=False)
+                        solver_stage2_cfg = dict(SOLVER_STAGE2)
+                        solver_stage2_cfg["seed"] = int(solver_stage2_cfg.get("seed", 2026)) + int(search_seed_shift) + 131 * int(i)
+                        sol2 = run(text=np.asarray(inter, dtype=np.uint8).tolist(), cipher=by_name.cipher("columnar", key_length=tier.columns), key=KeySpec.permutation(len=tier.columns), solver=SolverSpec.hybrid(**solver_stage2_cfg), scorer_params=scorer_full, wli_data=wli, encoding_dir=direction, telemetry_on=True, force_no_wli=False)
                         dt2 = float(time.time() - t_s2)
                         ev2 = int((getattr(sol2, "meta", {}) or {}).get("work", {}).get("evals", 0) or 0)
                         stage2_evals_total += int(ev2)
@@ -1508,28 +1732,61 @@ def main() -> None:
                     print(
                         f"[pipeline] stage2-summary tier={tier.name} text={text_id} key_seed={key_seed} "
                         f"mode=hybrid best_match={float(best2_match):.3f} best_score={float(best2_score):.6f} "
-                        f"evals={int(stage2_evals_total)}",
+                        f"evals={int(stage2_evals_total)} sub_limit={int(hybrid_sub_limit)}",
                         flush=True,
                     )
 
-                stage2_ranked = sorted(
-                    stage2_archive.values(),
+                stage2_all = list(stage2_archive.values())
+                stage2_ranked_by_score = sorted(
+                    stage2_all,
                     key=lambda e: (float(e.get("score", float("-inf"))), float(e.get("match", float("-inf")))),
                     reverse=True,
                 )
-                if len(stage2_ranked) > int(stage2_archive_keep):
-                    stage2_ranked = stage2_ranked[: int(stage2_archive_keep)]
-                stage2_promoted = stage2_ranked[: int(stage2_promote_top)]
-                if stage2_promoted:
-                    top = stage2_promoted[0]
-                    best2_score = float(top.get("score", best2_score))
-                    best2_match = float(top.get("match", best2_match))
+                stage2_ranked_by_match = sorted(
+                    stage2_all,
+                    key=lambda e: (float(e.get("match", float("-inf"))), float(e.get("score", float("-inf")))),
+                    reverse=True,
+                )
+                stage2_ranked = stage2_ranked_by_score[: int(stage2_archive_keep)]
+
+                stage2_promoted: List[Dict[str, Any]] = []
+                stage2_promoted_seen: set[Tuple[int, ...]] = set()
+
+                def _push_promoted(entry: Dict[str, Any]) -> None:
+                    key_vals = tuple(int(x) for x in entry.get("key", []))
+                    if (not key_vals) or (key_vals in stage2_promoted_seen):
+                        return
+                    stage2_promoted_seen.add(key_vals)
+                    stage2_promoted.append(entry)
+
+                max_rank = max(len(stage2_ranked_by_score), len(stage2_ranked_by_match))
+                for r in range(max_rank):
+                    if len(stage2_promoted) >= int(stage2_promote_top):
+                        break
+                    if r < len(stage2_ranked_by_score):
+                        _push_promoted(stage2_ranked_by_score[r])
+                    if len(stage2_promoted) >= int(stage2_promote_top):
+                        break
+                    if r < len(stage2_ranked_by_match):
+                        _push_promoted(stage2_ranked_by_match[r])
+
+                if (best2_key is None) and stage2_ranked_by_score:
+                    top = stage2_ranked_by_score[0]
                     best2_key = list(map(int, top.get("key", [])))
                     best2_pt = list(map(int, top.get("plaintext", [])))
                     best2_preview = str(top.get("preview", best2_preview))
+                    best2_score = float(top.get("score", best2_score))
+                    best2_match = float(top.get("match", best2_match))
+
+                if stage2_ranked_by_score:
+                    stage2_entry_score = float(stage2_ranked_by_score[0].get("score", float("-inf")))
+                elif np.isfinite(best2_score):
+                    stage2_entry_score = float(best2_score)
                 print(
                     f"[pipeline] stage2-archive tier={tier.name} text={text_id} key_seed={key_seed} "
-                    f"entries={len(stage2_archive)} kept={len(stage2_ranked)} promoted={len(stage2_promoted)}",
+                    f"entries={len(stage2_archive)} kept={len(stage2_ranked)} promoted={len(stage2_promoted)} "
+                    f"top_score={float(stage2_entry_score) if np.isfinite(stage2_entry_score) else float('nan'):.6f} "
+                    f"top_match={float(best2_match) if np.isfinite(best2_match) else float('nan'):.3f}",
                     flush=True,
                 )
 
@@ -1572,7 +1829,7 @@ def main() -> None:
                                 seed_key,
                                 period=tier.period,
                                 columns=tier.columns,
-                                seed=7000 + int(key_seed) + 97 * int(j),
+                                seed=7000 + int(key_seed) + int(search_seed_shift) + 97 * int(j),
                                 n=per_seed,
                             )
                         )
@@ -1587,8 +1844,10 @@ def main() -> None:
                         if len(init3) >= int(init3_n):
                             break
                     solver_stage3_cfg = dict(SOLVER_STAGE3)
-                    if np.isfinite(best2_score) and np.isfinite(oracle_s23):
-                        stage2_gap_to_oracle = max(0.0, float(oracle_s23) - float(best2_score))
+                    solver_stage3_cfg["seed"] = int(solver_stage3_cfg.get("seed", 2026)) + int(search_seed_shift)
+                    stage2_gate_score = float(stage2_entry_score if np.isfinite(stage2_entry_score) else best2_score)
+                    if np.isfinite(stage2_gate_score) and np.isfinite(oracle_s23):
+                        stage2_gap_to_oracle = max(0.0, float(oracle_s23) - float(stage2_gate_score))
                     else:
                         stage2_gap_to_oracle = float("inf")
                     band = _select_stage3_band(stage2_gap_to_oracle)
@@ -1601,7 +1860,7 @@ def main() -> None:
                         inner_batch=int(band.get("inner_batch", solver_stage3_cfg.get("inner_batch", 0))),
                     )
 
-                    entry_score = float(best2_score) if np.isfinite(best2_score) else float("-inf")
+                    entry_score = float(stage2_gate_score) if np.isfinite(stage2_gate_score) else float("-inf")
                     if stage3_full_entry_score is None and stage3_probe_entry_score is None:
                         stage3_entry_mode = "full"
                     else:
@@ -1729,6 +1988,9 @@ def main() -> None:
                         float(stage3_probe_entry_score) if stage3_probe_entry_score is not None else np.nan
                     ),
                     stage3_band=str(stage3_band_name),
+                    retry_attempt=int(repeat_attempt),
+                    search_seed_offset=int(search_seed_offset),
+                    config_fingerprint=str(config_fingerprint),
                     total_seconds=round(dt_i, 3), total_evals=total_evals, preview_best_latin=best_preview,
                 ))
                 inst_row = dict(instances[-1])
@@ -1775,7 +2037,12 @@ def main() -> None:
                     stage3_match_ratio=inst_row["stage3_match_ratio"],
                     total_seconds=inst_row["total_seconds"],
                     total_evals=inst_row["total_evals"],
-                    notes=inst_row["stop_reason"],
+                    notes=(
+                        f"{inst_row['stop_reason']};"
+                        f"cfg={config_fingerprint};"
+                        f"retry={int(repeat_attempt)};"
+                        f"soff={int(search_seed_offset)}"
+                    ),
                 )
                 _append_csv_row(hist, hist_row)
                 history_rows_written += 1
