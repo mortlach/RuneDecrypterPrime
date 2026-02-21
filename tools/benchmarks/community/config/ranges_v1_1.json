@@ -1,0 +1,150 @@
+{
+  "version": "v1.1",
+  "notes": [
+    "This file defines the human-facing tuning knobs for community benchmark profiles.",
+    "Each knob has a label, meaning, value type, and recommended bounds for safe exploration.",
+    "PIPELINE_DEFAULT means: keep the current pipeline default unchanged."
+  ],
+  "knobs": [
+    {
+      "key": "stage3_gating.full_entry_score",
+      "label": "Stage3 Full Entry Score",
+      "meaning": "Score threshold for entering full Stage-3 refinement. null disables this gate.",
+      "value_type": "float_or_null_or_default",
+      "default": "PIPELINE_DEFAULT",
+      "min_value": 0.0,
+      "max_value": 1.0,
+      "mode": "basic"
+    },
+    {
+      "key": "stage3_gating.probe_entry_score",
+      "label": "Stage3 Probe Entry Score",
+      "meaning": "Score threshold for entering probe Stage-3 mode. null disables probe gating.",
+      "value_type": "float_or_null_or_default",
+      "default": "PIPELINE_DEFAULT",
+      "min_value": 0.0,
+      "max_value": 1.0,
+      "mode": "basic"
+    },
+    {
+      "key": "stage12_carry_through.promote_top",
+      "label": "Stage1/2 Promote Top",
+      "meaning": "How many top candidates are promoted from Stage-1/2 into later refinement.",
+      "value_type": "int_or_default",
+      "default": "PIPELINE_DEFAULT",
+      "min_value": 1,
+      "max_value": 128,
+      "mode": "basic"
+    },
+    {
+      "key": "stage12_carry_through.archive_keep",
+      "label": "Stage1/2 Archive Keep",
+      "meaning": "How many candidates are retained in the Stage-1/2 archive.",
+      "value_type": "int_or_default",
+      "default": "PIPELINE_DEFAULT",
+      "min_value": 1,
+      "max_value": 256,
+      "mode": "basic"
+    },
+    {
+      "key": "stage1_breadth.sub_candidates_by_columns",
+      "label": "Stage1 Sub Candidates by Columns",
+      "meaning": "Per-column candidate breadth for Stage-1 substitution exploration.",
+      "value_type": "int_map_or_default",
+      "default": "PIPELINE_DEFAULT",
+      "allowed_item_keys": [
+        1,
+        3,
+        5,
+        7,
+        10,
+        13
+      ],
+      "min_item_value": 1,
+      "max_item_value": 256,
+      "mode": "basic"
+    },
+    {
+      "key": "stage3_basin_exploration.initial_keys_by_columns",
+      "label": "Stage3 Initial Keys by Columns",
+      "meaning": "Per-column number of Stage-3 starting keys for basin diversity.",
+      "value_type": "int_map_or_default",
+      "default": "PIPELINE_DEFAULT",
+      "allowed_item_keys": [
+        1,
+        3,
+        5,
+        7,
+        10,
+        13
+      ],
+      "min_item_value": 1,
+      "max_item_value": 256,
+      "mode": "basic"
+    },
+    {
+      "key": "solver_stage1",
+      "label": "Solver Stage1 Override",
+      "meaning": "Advanced direct override map for SOLVER_STAGE1 (use with care).",
+      "value_type": "dict_or_default",
+      "default": "PIPELINE_DEFAULT",
+      "mode": "advanced"
+    },
+    {
+      "key": "solver_stage2",
+      "label": "Solver Stage2 Override",
+      "meaning": "Advanced direct override map for SOLVER_STAGE2 (use with care).",
+      "value_type": "dict_or_default",
+      "default": "PIPELINE_DEFAULT",
+      "mode": "advanced"
+    },
+    {
+      "key": "solver_stage3",
+      "label": "Solver Stage3 Override",
+      "meaning": "Advanced direct override map for SOLVER_STAGE3 (use with care).",
+      "value_type": "dict_or_default",
+      "default": "PIPELINE_DEFAULT",
+      "mode": "advanced"
+    }
+  ],
+  "sampling_spaces": {
+    "community_safe": {
+      "description": "Conservative randomized search space for friendly community benchmarking.",
+      "scalar_ranges": {
+        "stage12_carry_through.promote_top": [
+          8,
+          32
+        ],
+        "stage12_carry_through.archive_keep": [
+          24,
+          64
+        ]
+      },
+      "map_ranges": {
+        "stage1_breadth.sub_candidates_by_columns": {
+          "columns": [
+            3,
+            5,
+            7,
+            10,
+            13
+          ],
+          "min": 8,
+          "max": 64
+        },
+        "stage3_basin_exploration.initial_keys_by_columns": {
+          "columns": [
+            3,
+            5,
+            7,
+            10,
+            13
+          ],
+          "min": 12,
+          "max": 64
+        }
+      }
+    }
+  }
+}
+

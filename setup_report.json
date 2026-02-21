@@ -1,0 +1,28 @@
+{
+  "already_linked_count": 1,
+  "already_valid_assets_count": 0,
+  "asset_details": [],
+  "assets_root": "assets",
+  "created_links_count": 0,
+  "fastlm_build_attempted": false,
+  "fastlm_build_succeeded": false,
+  "fastlm_present": true,
+  "forward_links_count": 1,
+  "issues": [],
+  "link_details": [
+    {
+      "link_path": "C:\\Users\\sjduk\\OneDrive\\Documents\\github\\RuneDecrypterPrime\\assets\\language_model\\lmp",
+      "link_relpath": "language_model/lmp",
+      "status": "already_linked",
+      "target_path": "C:\\Users\\sjduk\\OneDrive\\Documents\\github\\RuneDecrypterPrime\\src\\rune_decrypter_prime\\data\\language_model\\lmp",
+      "target_relpath": "src/rune_decrypter_prime/data/language_model/lmp"
+    }
+  ],
+  "manifest_path": "C:\\Users\\sjduk\\OneDrive\\Documents\\github\\RuneDecrypterPrime\\assets_manifest_v1.json",
+  "packed_root": "assets_packed",
+  "recombined_assets_count": 0,
+  "required_assets_count": 0,
+  "success": true,
+  "timestamp_utc": "2026-02-20T04:51:30.823218+00:00",
+  "verified_assets_count": 0
+}

@@ -1,0 +1,40 @@
+{
+  "checks": [
+    {
+      "name": "required_imports",
+      "passed": true
+    },
+    {
+      "name": "required_assets_present",
+      "passed": true
+    },
+    {
+      "name": "fastlm_present",
+      "passed": true
+    },
+    {
+      "detail": {
+        "lm_root": "C:\\Users\\sjduk\\OneDrive\\Documents\\github\\RuneDecrypterPrime\\assets\\language_model\\lmp",
+        "raw": -10.797100950109549,
+        "score": 0.4966555446408828,
+        "tokens": 41,
+        "words": 6
+      },
+      "name": "tiny_cpu_scoring_probe",
+      "passed": true
+    }
+  ],
+  "device": "cpu",
+  "fastlm_present": true,
+  "issues": [],
+  "probe_details": {
+    "lm_root": "C:\\Users\\sjduk\\OneDrive\\Documents\\github\\RuneDecrypterPrime\\assets\\language_model\\lmp",
+    "raw": -10.797100950109549,
+    "score": 0.4966555446408828,
+    "tokens": 41,
+    "words": 6
+  },
+  "scoring_backend": "numpy",
+  "success": true,
+  "timestamp_utc": "2026-02-20T04:51:41.014966+00:00"
+}

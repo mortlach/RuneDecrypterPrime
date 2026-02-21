@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rdp:community-benchmark:result:v1.1",
+  "title": "RDP Community Benchmark Result Row v1.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "campaign_id",
+    "job_id",
+    "git_sha",
+    "text_fixture_id",
+    "period",
+    "columns",
+    "order",
+    "profile_id",
+    "run_seed",
+    "replicate_idx",
+    "config_fingerprint",
+    "status",
+    "stop_reason",
+    "best_match_ratio",
+    "best_stage",
+    "total_seconds",
+    "total_evals",
+    "stage1_best_score",
+    "stage2_best_score",
+    "stage3_best_score",
+    "device",
+    "scoring_backend",
+    "fastlm_present"
+  ],
+  "properties": {
+    "campaign_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "job_id": {
+      "type": "string",
+      "minLength": 8
+    },
+    "git_sha": {
+      "type": "string",
+      "minLength": 7
+    },
+    "text_fixture_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "period": {
+      "type": "integer",
+      "minimum": 7,
+      "maximum": 13
+    },
+    "columns": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 13
+    },
+    "order": {
+      "type": "string",
+      "enum": [
+        "col_then_sub",
+        "sub_then_col"
+      ]
+    },
+    "profile_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run_seed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "replicate_idx": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "config_fingerprint": {
+      "type": "string",
+      "minLength": 8
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "solved",
+        "unsolved",
+        "stalled",
+        "error"
+      ]
+    },
+    "stop_reason": {
+      "type": "string",
+      "enum": [
+        "solved_threshold_met",
+        "time_cap_reached",
+        "eval_cap_reached",
+        "stage1_budget_exhausted",
+        "stage2_budget_exhausted",
+        "stage3_budget_exhausted",
+        "plateau_detected",
+        "no_candidates_to_promote",
+        "invalid_config",
+        "missing_assets",
+        "fastlm_unavailable",
+        "exception_raised"
+      ]
+    },
+    "best_match_ratio": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "best_stage": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "total_seconds": {
+      "type": "number",
+      "minimum": 0.0
+    },
+    "total_evals": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "stage1_best_score": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "stage2_best_score": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "stage3_best_score": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "output_run_dir": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "device": {
+      "type": "string",
+      "enum": [
+        "cpu"
+      ]
+    },
+    "scoring_backend": {
+      "type": "string",
+      "enum": [
+        "numpy"
+      ]
+    },
+    "fastlm_present": {
+      "type": "boolean"
+    }
+  }
+}

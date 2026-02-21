@@ -1,0 +1,7 @@
+{
+  "manifest": "assets_manifest_v1.json",
+  "preflight_report": "preflight_report.json",
+  "ready": true,
+  "setup_report": "setup_report.json",
+  "timestamp_utc": "2026-02-20T04:51:41.018536+00:00"
+}
