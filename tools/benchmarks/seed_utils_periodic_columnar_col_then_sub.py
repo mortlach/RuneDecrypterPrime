@@ -24,7 +24,7 @@ Design rules
 - No optimiser logic: we only build candidate starts; Kaeding/keyops handle optimisation.
 """
 
-from collections import Counter
+from functools import lru_cache
 from typing import List, Sequence
 
 import numpy as np
@@ -41,22 +41,30 @@ def _validate_rank_order(order: Sequence[int], *, A: int) -> list[int]:
     return out
 
 
-def _lm_unigram_rank(*, A: int, direction: str) -> list[int]:
-    """Return a plaintext unigram rank order (most likely first) using LMPrime."""
-    d = str(direction).strip().lower()
-    if d not in {"ltr", "rtl"}:
-        raise ValueError("direction must be 'ltr' or 'rtl'")
+@lru_cache(maxsize=8)
+def _lm_unigram_rank_cached(A: int, direction: str) -> tuple[int, ...]:
+    """Cached plaintext unigram rank order (most likely first) using LMPrime."""
     # Estimate by scoring constant single-symbol strings.
     L = 64
-    lm = LanguageModelPrime(lm_root=None, smoothing=None, alpha=0.5, oov_policy=None, include_char=True)
+    lm = LanguageModelPrime(
+        lm_root=None, smoothing=None, alpha=0.5, oov_policy=None, include_char=True
+    )
     pts = [[r] * L for r in range(int(A))]
-    res = lm.score(pts, None, direction=d, se="nose", n=1, model="char")
+    res = lm.score(pts, None, direction=direction, se="nose", n=1, model="char")
     raw = [float(np.exp(float(s.logprob_sum) / float(L))) for s in res]
     raw_arr = np.asarray(raw, dtype=np.float64)
     Z = float(raw_arr.sum()) or 1.0
     probs = raw_arr / Z
     # Stable sort: if tied, lower symbol id first.
-    return [int(x) for x in np.argsort(-probs, kind="stable").tolist()]
+    return tuple(int(x) for x in np.argsort(-probs, kind="stable").tolist())
+
+
+def _lm_unigram_rank(*, A: int, direction: str) -> list[int]:
+    """Return a plaintext unigram rank order (most likely first) using LMPrime."""
+    d = str(direction).strip().lower()
+    if d not in {"ltr", "rtl"}:
+        raise ValueError("direction must be 'ltr' or 'rtl'")
+    return list(_lm_unigram_rank_cached(int(A), d))
 
 
 def _rank_align_perm_from_counts(
@@ -84,7 +92,7 @@ def _jitter_perm(
     """Random swap jitter (perm stays a valid permutation)."""
     A = int(perm.size)
     out = np.asarray(perm, dtype=np.uint8).copy()
-    for _ in range(max(1, int(swaps))):
+    for _ in range(max(0, int(swaps))):
         i = int(rng.integers(0, A))
         j = int(rng.integers(0, A))
         if i == j:
@@ -188,7 +196,16 @@ def make_periodic_seed_pool_col_then_sub(
         for _ in range(max(0, int(n_block_seeds) - 1)):
             jittered = _jitter_perm(base, swaps=int(swaps_per_block), rng=phase_rng)
             seeds.append(jittered.tolist())
-        blocks_per_phase.append(seeds)
+        # De-dup per-phase seeds while preserving deterministic order.
+        seen_phase: set[tuple[int, ...]] = set()
+        uniq_phase: List[List[int]] = []
+        for s in seeds:
+            st = tuple(int(x) for x in s)
+            if st in seen_phase:
+                continue
+            seen_phase.add(st)
+            uniq_phase.append(s)
+        blocks_per_phase.append(uniq_phase)
 
     def _concat(blocks: List[List[int]]) -> List[int]:
         out: List[int] = []
@@ -197,13 +214,46 @@ def make_periodic_seed_pool_col_then_sub(
         return out
 
     keys: List[List[int]] = []
-    # Base key: take the base block from each phase.
-    keys.append(_concat([seeds[0] for seeds in blocks_per_phase]))
+    seen_full: set[tuple[int, ...]] = set()
 
-    # Sample combinations (deterministic).
-    for _ in range(max(0, int(total_seeds) - 1)):
-        pick = [phase_seeds[int(rng.integers(0, len(phase_seeds)))] for phase_seeds in blocks_per_phase]
-        keys.append(_concat(pick))
+    def _push_full(candidate: List[int]) -> bool:
+        ctup = tuple(int(x) for x in candidate)
+        if ctup in seen_full:
+            return False
+        seen_full.add(ctup)
+        keys.append(candidate)
+        return True
+
+    target = max(1, int(total_seeds))
+    # Base key: take the base block from each phase.
+    _push_full(_concat([seeds[0] for seeds in blocks_per_phase]))
+
+    # Sample random combinations first (deterministic RNG stream).
+    attempts = 0
+    max_attempts = max(1024, target * 16)
+    while (len(keys) < target) and (attempts < max_attempts):
+        pick = [
+            phase_seeds[int(rng.integers(0, len(phase_seeds)))]
+            for phase_seeds in blocks_per_phase
+        ]
+        _push_full(_concat(pick))
+        attempts += 1
+
+    # Deterministic fallback to fill remaining unique keys, if available.
+    if len(keys) < target:
+        radices = [len(phase_seeds) for phase_seeds in blocks_per_phase]
+        idx = [0] * len(radices)
+        wrapped = False
+        while (len(keys) < target) and (not wrapped):
+            pick = [blocks_per_phase[r][idx[r]] for r in range(len(radices))]
+            _push_full(_concat(pick))
+            for r in range(len(radices) - 1, -1, -1):
+                idx[r] += 1
+                if idx[r] < radices[r]:
+                    break
+                idx[r] = 0
+                if r == 0:
+                    wrapped = True
     return keys
 
 

@@ -73,7 +73,7 @@ from tools.benchmarks import bench_solve_periodic_columnar_kaeding as base
 ALPHABET_SIZE = 29  # Rune alphabet size used by periodic substitution/key layout.
 ORDER = "col_then_sub"  # Cipher composition order benchmarked by this script.
 PROFILE = "pipeline_col_then_sub_v1"  # Human-readable profile id written to logs/history.
-PIPELINE_RUN_MODE = "focus_p5_p7"  # Active preset selector.
+PIPELINE_RUN_MODE = "focus_p10_fast_resume"  # Active preset selector.
 # Allowed: "full" | "focus_p5_p7" | "focus_p10_fast" | "focus_p10_fast_resume" | "smoke"
 
 SOLVE_MATCH_THRESHOLD = 0.90  # Match ratio considered solved.
@@ -83,7 +83,7 @@ HEARTBEAT_SECONDS = 1200  # Progress heartbeat cadence.
 PREVIEW_CHARS = 240  # Preview snippet length for plaintext logging.
 AUTOSKIP_PROVEN = True  # Skip instances already proven in solve-proof history.
 AUTOSKIP_PROVEN_MIN_MATCH = SOLVE_MATCH_THRESHOLD  # Proven threshold for autoskip index.
-FORCE_RERUN_PROVEN = False  # Override autoskip and rerun proven instances.
+FORCE_RERUN_PROVEN = True  # Override autoskip and rerun proven instances.
 AVOID_REPEAT_FAIL = True  # Diversify search seed if same config failed previously.
 FAILED_RETRY_SEED_DELTA = 1  # Per-failure increment applied to search-seed offset.
 FAILED_RETRY_SEED_STRIDE = 104729  # Large stride multiplier to decorrelate retry seeds.
@@ -91,8 +91,10 @@ FAILED_RETRY_SEED_STRIDE = 104729  # Large stride multiplier to decorrelate retr
 TEXT_OFFSETS = [0]  # Plaintext slice offset hints for fixture generation.
 KEY_SEEDS = [111]  # Baseline synthetic key seeds for this run mode.
 # Community defaults: run the full profile-defined matrix unless explicitly narrowed.
-KEY_SEEDS_OVERRIDE: List[int] | None = None  # Optional hard override for key-seed list.
+KEY_SEEDS_OVERRIDE: List[int] | None = [111, 211, 311]  # Optional hard override for key-seed list.
 TIERS_REGEX_OVERRIDE: str | None = None  # Optional regex filter on tier names.
+TIERS_PERIOD_SWEEP: str = "p10_only"  # "none" | "p10_only" | "p13_only" (flip to p13_only for the next sweep)
+TIERS_MIN_COLUMNS: int | None = None  # Keep only tiers with columns >= this value (None disables).
 STAGE1_SUB_CANDIDATES = 16  # Default Stage-1 substitution candidates kept.
 STAGE3_INITIAL_KEYS = 24  # Default Stage-3 init key count (mutated from Stage-2).
 STAGE1_SUB_CANDIDATES_BY_COLUMNS = {1: 6, 3: 10, 5: 12, 7: 14}  # Stage-1 keep count by columns.
@@ -105,8 +107,13 @@ STAGE2_EXACT_EARLY_SOLVE_BREAK = True  # Break exact search immediately on solve
 STAGE2_FAST_CHAR_WEIGHTS = {3: 0.2, 4: 0.8}  # Fast pass1 char scorer weights.
 STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS = {3: 4, 5: 3, 7: 2}  # Exact Stage-2 sub count by columns.
 STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS = {3: 72, 5: 128, 7: 192}  # Exact pass1 shortlist by columns.
-STAGE2_HYBRID_SUB_CANDIDATES = 8  # Default sub candidates sent to hybrid Stage-2.
-STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS = {10: 8, 13: 6}  # Hybrid Stage-2 sub cap by columns.
+STAGE2_HYBRID_SUB_CANDIDATES = 12  # Default sub candidates sent to hybrid Stage-2.
+STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS = {10: 12, 13: 12}  # Hybrid Stage-2 sub cap by columns.
+STAGE2_TAIL_SEEDS_TOTAL = 256  # Default tail seed pool size for Stage-2 hybrid.
+STAGE2_TAIL_SEEDS_TOTAL_BY_COLUMNS = {10: 1024, 13: 2048}  # Wider tail pool for hard columns.
+STAGE2_TAIL_STRUCTURED_SWAPS = 96  # Default structured tail swaps.
+STAGE2_TAIL_STRUCTURED_SWAPS_BY_COLUMNS = {10: 160, 13: 224}  # More structured diversity on hard columns.
+STAGE2_TAIL_RANDOM_FRACTION = 0.50  # Random tail-share of total seeds.
 STAGE1_USE_ORACLE_GUIDE_STOP = True  # Enable Stage-1 oracle-guided stop score.
 STAGE1_ORACLE_STOP_MARGIN = 0.005  # Margin added to Stage-1 oracle stop score.
 STAGE3_USE_ORACLE_GUIDE_STOP = False  # Enable Stage-3 oracle-guided stop score.
@@ -120,6 +127,11 @@ STAGE1_SEED_RESTARTS = 64  # Seed-pool restarts used to generate Stage-1 starts.
 STAGE1_SEED_N_BLOCKS = 18  # Number of periodic blocks sampled per seed-pool generation.
 STAGE1_SEED_TOTAL = 256  # Total seed-pool size for Stage-1.
 STAGE1_SEED_SWAPS = 3  # Swap depth when mutating Stage-1 seed-pool keys.
+STAGE1_SEED_GLOBAL_SHRINK_DEFAULT = 0.0  # Default phase histogram shrinkage.
+STAGE1_SEED_GLOBAL_SHRINK_BY_PERIOD = {13: 0.30}  # Stabilise p13 stage-1 seeding.
+STAGE1_SEED_PHASE_LEN_TARGET_DEFAULT = 160  # Default effective per-phase target length.
+STAGE1_SEED_PHASE_LEN_TARGET_BY_PERIOD = {13: 192}  # p13-specific phase target.
+STAGE1_SEED_RESTART_MULT_BY_PERIOD = {13: 1.50}  # p13-only scout restart multiplier.
 STAGE12_SCOUT_RUNS = 1  # Number of Stage-1 scout searches before archive selection.
 STAGE12_ARCHIVE_KEEP = 1  # Archive size retained from Stage-1/2 candidate pool.
 STAGE12_PROMOTE_TOP = 1  # Number of archived candidates promoted to Stage-3.
@@ -134,6 +146,8 @@ STAGE1_C1_MAX_SCOUTS = 2  # Extra guard: max scout runs when columns==1.
 STAGE1_C1_FORCE_ORACLE_STOP = True  # Force oracle stop-score for columns==1.
 STAGE1_C1_ORACLE_STOP_MARGIN = 0.0  # Additional margin for c1 oracle stop.
 STAGE1_C1_EARLY_BREAK_ON_SOLVED_MATCH = True  # Break Stage-1 c1 if solved match appears.
+STAGE3_HARD_COLUMNS = {10, 13}  # Columns considered hard for far-band override.
+STAGE3_HARD_FAR_OVERRIDE = dict(steps=7200, restarts=3, plateau_rounds=520, col_batch=192)
 
 # Stage-3 dynamic budget based on stage2 objective gap to oracle objective (same scorer).
 # Lower gap => lighter stage3; higher gap => heavier stage3.
@@ -432,8 +446,8 @@ def _apply_run_mode() -> None:
         # c7 remains the hardest p10 basin: widen exact-stage coverage there.
         STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS = {3: 24, 5: 12, 7: 12}
         STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS = {3: 6, 5: 120, 7: 768}
-        STAGE2_HYBRID_SUB_CANDIDATES = 10
-        STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS = {10: 10, 13: 8}
+        STAGE2_HYBRID_SUB_CANDIDATES = 12
+        STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS = {10: 12, 13: 12}
         STAGE2_EXACT_TWO_PASS = True
         STAGE2_EXACT_EARLY_SOLVE_BREAK = True
         STAGE1_SEED_RESTARTS = 128
@@ -607,6 +621,23 @@ def _apply_runtime_overrides() -> None:
             raise ValueError(
                 f"TIERS_REGEX_OVERRIDE={TIERS_REGEX_OVERRIDE!r} matched zero tiers"
             )
+    sweep = str(TIERS_PERIOD_SWEEP).strip().lower()
+    if sweep not in {"none", "p10_only", "p13_only"}:
+        raise ValueError(
+            f"TIERS_PERIOD_SWEEP={TIERS_PERIOD_SWEEP!r} must be one of: none, p10_only, p13_only"
+        )
+    if sweep == "p10_only":
+        TIERS = [t for t in TIERS if int(t.period) == 10]
+    elif sweep == "p13_only":
+        TIERS = [t for t in TIERS if int(t.period) == 13]
+    if TIERS_MIN_COLUMNS is not None:
+        cmin = int(TIERS_MIN_COLUMNS)
+        TIERS = [t for t in TIERS if int(t.columns) >= cmin]
+    if not TIERS:
+        raise ValueError(
+            "Tier selection is empty after overrides; adjust TIERS_REGEX_OVERRIDE / "
+            "TIERS_PERIOD_SWEEP / TIERS_MIN_COLUMNS"
+        )
 
 
 def _repo_root() -> Path:
@@ -949,6 +980,9 @@ def main() -> None:
         "[colsub] setup: search knobs "
         f"stage1_seed_restarts={STAGE1_SEED_RESTARTS} "
         f"stage1_seed_plan=(blocks={STAGE1_SEED_N_BLOCKS},total={STAGE1_SEED_TOTAL},swaps={STAGE1_SEED_SWAPS}) "
+        f"stage1_seed_restart_mult_by_period={json.dumps(STAGE1_SEED_RESTART_MULT_BY_PERIOD, separators=(',', ':'))} "
+        f"stage1_seed_shrink_by_period={json.dumps(STAGE1_SEED_GLOBAL_SHRINK_BY_PERIOD, separators=(',', ':'))} "
+        f"stage1_seed_phase_target_by_period={json.dumps(STAGE1_SEED_PHASE_LEN_TARGET_BY_PERIOD, separators=(',', ':'))} "
         f"stage12_scout_runs={int(STAGE12_SCOUT_RUNS)} "
         f"stage12_archive_keep={int(STAGE12_ARCHIVE_KEEP)} "
         f"stage12_promote_top={int(STAGE12_PROMOTE_TOP)} "
@@ -969,6 +1003,11 @@ def main() -> None:
         f"stage2_exact_sub_by_c={json.dumps(STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS, separators=(',', ':'))} "
         f"stage2_hybrid_sub_candidates={STAGE2_HYBRID_SUB_CANDIDATES} "
         f"stage2_hybrid_sub_by_c={json.dumps(STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS, separators=(',', ':'))} "
+        f"stage2_tail_total={STAGE2_TAIL_SEEDS_TOTAL} "
+        f"stage2_tail_total_by_c={json.dumps(STAGE2_TAIL_SEEDS_TOTAL_BY_COLUMNS, separators=(',', ':'))} "
+        f"stage2_tail_swaps={STAGE2_TAIL_STRUCTURED_SWAPS} "
+        f"stage2_tail_swaps_by_c={json.dumps(STAGE2_TAIL_STRUCTURED_SWAPS_BY_COLUMNS, separators=(',', ':'))} "
+        f"stage2_tail_random_fraction={float(STAGE2_TAIL_RANDOM_FRACTION):.2f} "
         f"stage2_two_pass={int(bool(STAGE2_EXACT_TWO_PASS))} "
         f"stage2_pass1_top_tails={STAGE2_EXACT_PASS1_TOP_TAILS} "
         f"stage2_pass1_top_by_c={json.dumps(STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS, separators=(',', ':'))} "
@@ -994,12 +1033,20 @@ def main() -> None:
         ),
         flush=True,
     )
+    print(
+        "[colsub] setup: stage3_hard_far_override "
+        f"hard_columns={sorted(int(x) for x in STAGE3_HARD_COLUMNS)} "
+        f"override={json.dumps(STAGE3_HARD_FAR_OVERRIDE, separators=(',', ':'))}",
+        flush=True,
+    )
     print(f"[colsub] setup: tiers={len(TIERS)} text_offsets={TEXT_OFFSETS} key_seeds={KEY_SEEDS}", flush=True)
-    if KEY_SEEDS_OVERRIDE or TIERS_REGEX_OVERRIDE:
+    if KEY_SEEDS_OVERRIDE or TIERS_REGEX_OVERRIDE or TIERS_PERIOD_SWEEP != "none" or TIERS_MIN_COLUMNS is not None:
         print(
             "[colsub] setup: runtime_overrides "
             f"key_seeds_override={KEY_SEEDS_OVERRIDE if KEY_SEEDS_OVERRIDE is not None else 'none'} "
-            f"tiers_regex_override={TIERS_REGEX_OVERRIDE or 'none'}",
+            f"tiers_regex_override={TIERS_REGEX_OVERRIDE or 'none'} "
+            f"tiers_period_sweep={TIERS_PERIOD_SWEEP} "
+            f"tiers_min_columns={TIERS_MIN_COLUMNS if TIERS_MIN_COLUMNS is not None else 'none'}",
             flush=True,
         )
     print(f"[colsub] reports: {run_dir.relative_to(root)}", flush=True)
@@ -1058,6 +1105,11 @@ def main() -> None:
             n_blocks=int(STAGE1_SEED_N_BLOCKS),
             total=int(STAGE1_SEED_TOTAL),
             swaps=int(STAGE1_SEED_SWAPS),
+            restart_mult_by_period=dict(STAGE1_SEED_RESTART_MULT_BY_PERIOD),
+            global_shrink_default=float(STAGE1_SEED_GLOBAL_SHRINK_DEFAULT),
+            global_shrink_by_period=dict(STAGE1_SEED_GLOBAL_SHRINK_BY_PERIOD),
+            phase_len_target_default=int(STAGE1_SEED_PHASE_LEN_TARGET_DEFAULT),
+            phase_len_target_by_period=dict(STAGE1_SEED_PHASE_LEN_TARGET_BY_PERIOD),
         ),
         stage12_scout=dict(
             runs=int(STAGE12_SCOUT_RUNS),
@@ -1083,8 +1135,19 @@ def main() -> None:
         stage2_pass1_top_by_c=dict(STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS),
         stage2_hybrid_sub_candidates=int(STAGE2_HYBRID_SUB_CANDIDATES),
         stage2_hybrid_sub_by_c=dict(STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS),
+        stage2_tail_seed_pool=dict(
+            total=int(STAGE2_TAIL_SEEDS_TOTAL),
+            total_by_c=dict(STAGE2_TAIL_SEEDS_TOTAL_BY_COLUMNS),
+            structured_swaps=int(STAGE2_TAIL_STRUCTURED_SWAPS),
+            structured_swaps_by_c=dict(STAGE2_TAIL_STRUCTURED_SWAPS_BY_COLUMNS),
+            random_fraction=float(STAGE2_TAIL_RANDOM_FRACTION),
+        ),
         stage3_init_by_c=dict(STAGE3_INITIAL_KEYS_BY_COLUMNS),
         stage3_dynamic_bands=[dict(b) for b in STAGE3_DYNAMIC_BANDS],
+        stage3_hard_far_override=dict(
+            hard_columns=sorted(int(x) for x in STAGE3_HARD_COLUMNS),
+            override=dict(STAGE3_HARD_FAR_OVERRIDE),
+        ),
         scorer_stage1=dict(SCORER_STAGE1),
         scorer_stage23=dict(SCORER_FULL),
         solver_stage1=dict(SOLVER_STAGE1),
@@ -1098,6 +1161,10 @@ def main() -> None:
             ),
             tiers_regex_override=(
                 None if TIERS_REGEX_OVERRIDE in (None, "") else str(TIERS_REGEX_OVERRIDE)
+            ),
+            tiers_period_sweep=str(TIERS_PERIOD_SWEEP),
+            tiers_min_columns=(
+                None if TIERS_MIN_COLUMNS is None else int(TIERS_MIN_COLUMNS)
             ),
         ),
         failed_repeat_avoid=dict(
@@ -1242,7 +1309,11 @@ def main() -> None:
                         best_stage=inst_row["best_stage"],
                         stage1_sub_key_match=inst_row["stage1_sub_key_match"],
                         stage2_match_ratio=inst_row["stage2_match_ratio"],
+                        stage2_sub_key_match=inst_row.get("stage2_sub_key_match", np.nan),
+                        stage2_tail_key_match=inst_row.get("stage2_tail_key_match", np.nan),
                         stage3_match_ratio=inst_row["stage3_match_ratio"],
+                        stage3_sub_key_match=inst_row.get("stage3_sub_key_match", np.nan),
+                        stage3_tail_key_match=inst_row.get("stage3_tail_key_match", np.nan),
                         total_seconds=inst_row["total_seconds"],
                         total_evals=inst_row["total_evals"],
                         notes=(
@@ -1303,6 +1374,9 @@ def main() -> None:
                 ct_idx = full_cipher.encrypt_single(plaintext=pt_idx, key=key_true)
                 sub_len = int(tier.period * ALPHABET_SIZE)
                 true_sub = key_true[:sub_len].astype(np.int16, copy=False)
+                true_tail = key_true[sub_len : sub_len + int(tier.columns)].astype(
+                    np.int16, copy=False
+                )
                 pt_stage1_oracle = np.asarray(sub_cipher.decrypt_single(ciphertext=ct_idx, key=true_sub), dtype=np.uint8).reshape(-1)
                 scorer_full = dict(SCORER_FULL, encoding_dir=direction)
                 stage1_use_full = bool(STAGE1_C1_USE_FULL_SCORER and int(tier.columns) == 1)
@@ -1387,11 +1461,41 @@ def main() -> None:
                     )
                     s1_stop = min(0.999999, float(oracle_s1) + float(s1_margin))
                     solver_stage1_base_cfg["stop_score"] = float(s1_stop)
+                period_restart_mult = float(
+                    STAGE1_SEED_RESTART_MULT_BY_PERIOD.get(int(tier.period), 1.0)
+                )
+                solver_stage1_base_cfg["seed_restarts"] = max(
+                    1,
+                    int(
+                        round(
+                            float(
+                                solver_stage1_base_cfg.get(
+                                    "seed_restarts", STAGE1_SEED_RESTARTS
+                                )
+                            )
+                            * period_restart_mult
+                        )
+                    ),
+                )
+                seed_global_shrink = float(
+                    STAGE1_SEED_GLOBAL_SHRINK_BY_PERIOD.get(
+                        int(tier.period), STAGE1_SEED_GLOBAL_SHRINK_DEFAULT
+                    )
+                )
+                seed_phase_len_target = int(
+                    STAGE1_SEED_PHASE_LEN_TARGET_BY_PERIOD.get(
+                        int(tier.period), STAGE1_SEED_PHASE_LEN_TARGET_DEFAULT
+                    )
+                )
                 print(
                     f"[colsub] stage1-stop tier={tier.name} text={text_id} key_seed={key_seed} "
                     f"stop_score={solver_stage1_base_cfg.get('stop_score', 'none')} "
                     f"plateau_rounds={solver_stage1_base_cfg.get('plateau_rounds')} "
                     f"plateau_min_delta={solver_stage1_base_cfg.get('plateau_min_delta')} "
+                    f"seed_restarts={solver_stage1_base_cfg.get('seed_restarts')} "
+                    f"seed_restart_mult={period_restart_mult:.2f} "
+                    f"seed_shrink={seed_global_shrink:.3f} "
+                    f"seed_phase_target={seed_phase_len_target} "
                     f"scouts={stage1_scout_runs} archive_keep={stage1_archive_keep} "
                     f"scout_plateau=(delta={float(STAGE1_SCOUT_NO_IMPROVE_DELTA):.1e},"
                     f"patience={int(STAGE1_SCOUT_NO_IMPROVE_PATIENCE)},"
@@ -1409,7 +1513,9 @@ def main() -> None:
                 ev1 = 0
                 base_steps = int(solver_stage1_base_cfg.get("steps", 0))
                 base_restarts = int(solver_stage1_base_cfg.get("restarts", 0))
-                base_seed_restarts = int(solver_stage1_base_cfg.get("seed_restarts", STAGE1_SEED_RESTARTS))
+                base_seed_restarts = int(
+                    solver_stage1_base_cfg.get("seed_restarts", STAGE1_SEED_RESTARTS)
+                )
                 stage1_scouts_done = 0
                 stage1_no_improve_scouts = 0
 
@@ -1443,6 +1549,8 @@ def main() -> None:
                         total_seeds=int(STAGE1_SEED_TOTAL),
                         swaps_per_block=int(STAGE1_SEED_SWAPS),
                         alphabet_size=ALPHABET_SIZE,
+                        global_shrink=float(seed_global_shrink),
+                        phase_len_target=int(seed_phase_len_target),
                     )
                     sol1 = run(
                         text=ct_idx.tolist(),
@@ -1575,14 +1683,26 @@ def main() -> None:
                 # Stage 2
                 best2_match, best2_score, best2_key, best2_preview, best2_secs, best2_evals = float("-inf"), float("-inf"), None, "", 0.0, 0
                 best2_pt: List[int] | None = None
+                best2_sub_key_match = float("nan")
+                best2_tail_key_match = float("nan")
                 stage2_evals_total = 0
                 stage2_archive_keep = max(1, int(STAGE12_ARCHIVE_KEEP))
                 stage2_promote_top = max(1, int(STAGE12_PROMOTE_TOP))
                 stage2_archive: Dict[Tuple[int, ...], Dict[str, Any]] = {}
                 stage2_entry_score = float("-inf")
 
-                def _consider_stage2_candidate(*, full_key_arr: np.ndarray, pt2_arr: np.ndarray, match_val: float, score_val: float, preview_label: str) -> None:
+                def _consider_stage2_candidate(
+                    *,
+                    full_key_arr: np.ndarray,
+                    pt2_arr: np.ndarray,
+                    match_val: float,
+                    score_val: float,
+                    preview_label: str,
+                    sub_key_match: float | None = None,
+                    tail_key_match: float | None = None,
+                ) -> None:
                     nonlocal best2_match, best2_score, best2_key, best2_pt, best2_preview, best2_secs, best2_evals
+                    nonlocal best2_sub_key_match, best2_tail_key_match
                     key_list = full_key_arr.astype(int).tolist()
                     key_t = tuple(int(x) for x in key_list)
                     prev = stage2_archive.get(key_t)
@@ -1591,11 +1711,23 @@ def main() -> None:
                             key=key_list,
                             score=float(score_val),
                             match=float(match_val),
+                            sub_key_match=(
+                                float(sub_key_match) if sub_key_match is not None else float("nan")
+                            ),
+                            tail_key_match=(
+                                float(tail_key_match) if tail_key_match is not None else float("nan")
+                            ),
                             plaintext=pt2_arr.astype(int).tolist(),
                             preview=base._safe_preview_latin(pt2_arr, wli),
                         )
                     if (match_val > best2_match) or (abs(match_val - best2_match) <= 1e-12 and score_val > best2_score):
                         best2_match, best2_score = float(match_val), float(score_val)
+                        best2_sub_key_match = (
+                            float(sub_key_match) if sub_key_match is not None else float("nan")
+                        )
+                        best2_tail_key_match = (
+                            float(tail_key_match) if tail_key_match is not None else float("nan")
+                        )
                         best2_key = key_list
                         best2_pt = pt2_arr.astype(int).tolist()
                         best2_preview = base._safe_preview_latin(pt2_arr, wli)
@@ -1615,6 +1747,8 @@ def main() -> None:
                         full_key = np.concatenate([sub_arr, np.asarray([0], dtype=np.int16)], axis=0)
                         pt2 = np.asarray(full_cipher.decrypt_single(ciphertext=ct_idx, key=full_key), dtype=np.uint8).reshape(-1)
                         m2 = base._match_ratio(pt2.tolist(), pt_idx.tolist())
+                        sub_m = float(base._match_ratio(sub_arr.tolist(), true_sub.tolist()))
+                        tail_m = 1.0
                         sc2 = float(scorer_full_runtime.score(pt2, wli))
                         stage2_evals_total += 1
                         stages.append(
@@ -1625,6 +1759,8 @@ def main() -> None:
                                 stage=f"stage2_identity_attempt_{i+1}",
                                 score=sc2,
                                 match_ratio=float(m2),
+                                sub_key_match=float(sub_m),
+                                tail_key_match=float(tail_m),
                                 seconds=0.0,
                                 evals=0,
                             )
@@ -1635,12 +1771,15 @@ def main() -> None:
                             match_val=float(m2),
                             score_val=float(sc2),
                             preview_label=f"stage2_identity_best_{i+1}",
+                            sub_key_match=float(sub_m),
+                            tail_key_match=float(tail_m),
                         )
                 elif int(tier.columns) <= int(STAGE2_EXACT_MAX_COLUMNS):
                     exact_subs = sub_candidates[: max(1, int(exact_sub_limit))]
                     exact_early_stop = False
                     for i, sub_key in enumerate(exact_subs):
                         sub_arr = np.asarray(sub_key, dtype=np.int16)
+                        sub_m = float(base._match_ratio(sub_arr.tolist(), true_sub.tolist()))
                         pass1_evals = 0
                         pass2_evals = 0
                         shortlist_tails: List[Tuple[int, ...]] = []
@@ -1657,6 +1796,7 @@ def main() -> None:
                                 stage2_evals_total += 1
                                 if bool(STAGE2_EXACT_EARLY_SOLVE_BREAK):
                                     m2 = base._match_ratio(pt2.tolist(), pt_idx.tolist())
+                                    tail_m = float(base._match_ratio(col_key.tolist(), true_tail.tolist()))
                                     if float(m2) >= float(SOLVE_MATCH_THRESHOLD):
                                         sc2 = float(scorer_full_runtime.score(pt2, wli))
                                         pass2_evals += 1
@@ -1667,6 +1807,8 @@ def main() -> None:
                                             match_val=float(m2),
                                             score_val=float(sc2),
                                             preview_label=f"stage2_exact_best_sub{i+1}",
+                                            sub_key_match=float(sub_m),
+                                            tail_key_match=float(tail_m),
                                         )
                                         exact_early_stop = True
                                         break
@@ -1683,6 +1825,7 @@ def main() -> None:
                                 full_key = np.concatenate([sub_arr, col_key], axis=0)
                                 pt2 = np.asarray(full_cipher.decrypt_single(ciphertext=ct_idx, key=full_key), dtype=np.uint8).reshape(-1)
                                 m2 = base._match_ratio(pt2.tolist(), pt_idx.tolist())
+                                tail_m = float(base._match_ratio(col_key.tolist(), true_tail.tolist()))
                                 sc2 = float(scorer_full_runtime.score(pt2, wli))
                                 pass2_evals += 1
                                 stage2_evals_total += 1
@@ -1692,6 +1835,8 @@ def main() -> None:
                                     match_val=float(m2),
                                     score_val=float(sc2),
                                     preview_label=f"stage2_exact_best_sub{i+1}",
+                                    sub_key_match=float(sub_m),
+                                    tail_key_match=float(tail_m),
                                 )
                                 if bool(STAGE2_EXACT_EARLY_SOLVE_BREAK) and float(m2) >= float(SOLVE_MATCH_THRESHOLD):
                                     exact_early_stop = True
@@ -1704,6 +1849,8 @@ def main() -> None:
                                 stage=f"stage2_exact_attempt_{i+1}",
                                 score=float(best2_score),
                                 match_ratio=float(best2_match),
+                                sub_key_match=float(best2_sub_key_match),
+                                tail_key_match=float(best2_tail_key_match),
                                 seconds=0.0,
                                 evals=int(stage2_evals_total),
                                 pass1_evals=int(pass1_evals),
@@ -1719,6 +1866,8 @@ def main() -> None:
                     print(
                         f"[colsub] stage2-summary tier={tier.name} text={text_id} key_seed={key_seed} "
                         f"mode=exact best_match={float(best2_match):.3f} best_score={float(best2_score):.6f} "
+                        f"best_sub_key_match={float(best2_sub_key_match) if np.isfinite(best2_sub_key_match) else float('nan'):.3f} "
+                        f"best_tail_key_match={float(best2_tail_key_match) if np.isfinite(best2_tail_key_match) else float('nan'):.3f} "
                         f"evals={int(stage2_evals_total)}",
                         flush=True,
                     )
@@ -1729,12 +1878,31 @@ def main() -> None:
                         inter = sub_cipher.decrypt_single(ciphertext=ct_idx, key=np.asarray(sub_key, dtype=np.int16))
                         solver_stage2_cfg = dict(SOLVER_STAGE2)
                         solver_stage2_cfg["seed"] = int(solver_stage2_cfg.get("seed", 2026)) + int(search_seed_shift) + 131 * int(i)
+                        tail_total = int(
+                            STAGE2_TAIL_SEEDS_TOTAL_BY_COLUMNS.get(
+                                int(tier.columns), STAGE2_TAIL_SEEDS_TOTAL
+                            )
+                        )
+                        tail_structured_swaps = int(
+                            STAGE2_TAIL_STRUCTURED_SWAPS_BY_COLUMNS.get(
+                                int(tier.columns), STAGE2_TAIL_STRUCTURED_SWAPS
+                            )
+                        )
+                        tail_random = int(
+                            max(
+                                1,
+                                min(
+                                    int(tail_total),
+                                    round(float(tail_total) * float(STAGE2_TAIL_RANDOM_FRACTION)),
+                                ),
+                            )
+                        )
                         tail_seeds = make_tail_seed_pool(
                             columns=int(tier.columns),
                             seed=int(solver_stage2_cfg.get("seed", 0)),
-                            total_seeds=256,
-                            structured_swaps=96,
-                            random_seeds=128,
+                            total_seeds=int(tail_total),
+                            structured_swaps=int(tail_structured_swaps),
+                            random_seeds=int(tail_random),
                             max_exact_columns=int(STAGE2_EXACT_MAX_COLUMNS),
                         )
                         sol2 = run(
@@ -1758,18 +1926,43 @@ def main() -> None:
                         full_key = np.concatenate([np.asarray(sub_key, dtype=np.int16), col_key], axis=0)
                         pt2 = np.asarray(full_cipher.decrypt_single(ciphertext=ct_idx, key=full_key), dtype=np.uint8).reshape(-1)
                         m2 = base._match_ratio(pt2.tolist(), pt_idx.tolist())
-                        sc2 = float(getattr(sol2, "score", float("nan")))
-                        stages.append(dict(tier=tier.name, text_id=int(text_id), key_seed=int(key_seed), stage=f"stage2_col_attempt_{i+1}", score=sc2, match_ratio=float(m2), seconds=round(dt2, 3), evals=ev2))
+                        sub_m = float(
+                            base._match_ratio(
+                                np.asarray(sub_key, dtype=np.int16).tolist(),
+                                true_sub.tolist(),
+                            )
+                        )
+                        tail_m = float(base._match_ratio(col_key.astype(int).tolist(), true_tail.tolist()))
+                        sc2 = float(scorer_full_runtime.score(pt2, wli))
+                        stage2_evals_total += 1
+                        stages.append(
+                            dict(
+                                tier=tier.name,
+                                text_id=int(text_id),
+                                key_seed=int(key_seed),
+                                stage=f"stage2_col_attempt_{i+1}",
+                                score=sc2,
+                                match_ratio=float(m2),
+                                sub_key_match=float(sub_m),
+                                tail_key_match=float(tail_m),
+                                seconds=round(dt2, 3),
+                                evals=ev2,
+                            )
+                        )
                         _consider_stage2_candidate(
                             full_key_arr=full_key,
                             pt2_arr=pt2,
                             match_val=float(m2),
                             score_val=float(sc2),
                             preview_label=f"stage2_best_attempt_{i+1}",
+                            sub_key_match=float(sub_m),
+                            tail_key_match=float(tail_m),
                         )
                     print(
                         f"[colsub] stage2-summary tier={tier.name} text={text_id} key_seed={key_seed} "
                         f"mode=hybrid best_match={float(best2_match):.3f} best_score={float(best2_score):.6f} "
+                        f"best_sub_key_match={float(best2_sub_key_match) if np.isfinite(best2_sub_key_match) else float('nan'):.3f} "
+                        f"best_tail_key_match={float(best2_tail_key_match) if np.isfinite(best2_tail_key_match) else float('nan'):.3f} "
                         f"evals={int(stage2_evals_total)} sub_limit={int(hybrid_sub_limit)}",
                         flush=True,
                     )
@@ -1834,6 +2027,8 @@ def main() -> None:
                 best3_match, best3_score, stop_reason = float("nan"), float("nan"), "completed_pipeline"
                 best3_key: List[int] | None = None
                 best3_pt: List[int] | None = None
+                best3_sub_key_match = float("nan")
+                best3_tail_key_match = float("nan")
                 ev3 = 0
                 stage2_gap_to_oracle = float("nan")
                 stage3_band_name = ""
@@ -1897,6 +2092,27 @@ def main() -> None:
                         col_batch=int(band.get("col_batch", solver_stage3_cfg.get("col_batch", 0))),
                         inner_batch=int(band.get("inner_batch", solver_stage3_cfg.get("inner_batch", 0))),
                     )
+                    hard_far_override_applied = False
+                    if (
+                        str(stage3_band_name) == "far"
+                        and int(tier.columns) in STAGE3_HARD_COLUMNS
+                    ):
+                        solver_stage3_cfg.update(
+                            steps=int(STAGE3_HARD_FAR_OVERRIDE.get("steps", solver_stage3_cfg.get("steps", 0))),
+                            restarts=int(
+                                STAGE3_HARD_FAR_OVERRIDE.get("restarts", solver_stage3_cfg.get("restarts", 0))
+                            ),
+                            plateau_rounds=int(
+                                STAGE3_HARD_FAR_OVERRIDE.get(
+                                    "plateau_rounds",
+                                    solver_stage3_cfg.get("plateau_rounds", 0),
+                                )
+                            ),
+                            col_batch=int(
+                                STAGE3_HARD_FAR_OVERRIDE.get("col_batch", solver_stage3_cfg.get("col_batch", 0))
+                            ),
+                        )
+                        hard_far_override_applied = True
 
                     entry_score = float(stage2_gate_score) if np.isfinite(stage2_gate_score) else float("-inf")
                     if stage3_full_entry_score is None and stage3_probe_entry_score is None:
@@ -1946,6 +2162,7 @@ def main() -> None:
                         f"steps={solver_stage3_cfg.get('steps')} restarts={solver_stage3_cfg.get('restarts')} "
                         f"col_batch={solver_stage3_cfg.get('col_batch')} inner_batch={solver_stage3_cfg.get('inner_batch')} "
                         f"stop_score={solver_stage3_cfg.get('stop_score', 'none')} "
+                        f"hard_far_override={int(bool(hard_far_override_applied))} "
                         f"plateau_rounds={solver_stage3_cfg.get('plateau_rounds')} "
                         f"plateau_min_delta={solver_stage3_cfg.get('plateau_min_delta')}",
                         flush=True,
@@ -1960,6 +2177,17 @@ def main() -> None:
                         k3 = np.asarray(getattr(sol3, "key", []) or [], dtype=np.int16).reshape(-1)
                         if k3.size == int(key_len):
                             best3_key = k3.astype(int).tolist()
+                            best3_sub_key_match = float(
+                                base._match_ratio(
+                                    k3[:sub_len].astype(int).tolist(), true_sub.tolist()
+                                )
+                            )
+                            best3_tail_key_match = float(
+                                base._match_ratio(
+                                    k3[sub_len : sub_len + int(tier.columns)].astype(int).tolist(),
+                                    true_tail.tolist(),
+                                )
+                            )
                     except Exception:
                         best3_key = None
                     if pt3.size > 0:
@@ -1972,6 +2200,8 @@ def main() -> None:
                             stage="stage3_full_refine",
                             score=best3_score,
                             match_ratio=float(best3_match),
+                            sub_key_match=float(best3_sub_key_match),
+                            tail_key_match=float(best3_tail_key_match),
                             seconds=round(dt3, 3),
                             evals=ev3,
                             stage3_band=stage3_band_name,
@@ -1998,6 +2228,8 @@ def main() -> None:
                         f"[colsub] stage3-summary tier={tier.name} text={text_id} key_seed={key_seed} "
                         f"band={stage3_band_name} entry_mode={stage3_entry_mode} "
                         f"match={float(best3_match):.3f} score={float(best3_score):.6f} "
+                        f"sub_key_match={float(best3_sub_key_match) if np.isfinite(best3_sub_key_match) else float('nan'):.3f} "
+                        f"tail_key_match={float(best3_tail_key_match) if np.isfinite(best3_tail_key_match) else float('nan'):.3f} "
                         f"evals={ev3} stop={stop_reason}",
                         flush=True,
                     )
@@ -2015,8 +2247,13 @@ def main() -> None:
                     key_seed=int(key_seed), offset_hint=int(off), offset_used=int(offset_used), status=status, stop_reason=stop_reason,
                     solve_threshold=float(SOLVE_MATCH_THRESHOLD), best_stage=best_stage, best_match_ratio=float(best_match),
                     best_objective_score=float(best_objective_score),
-                    stage1_sub_key_match=float(sub_key_match), stage2_match_ratio=float(best2_match if np.isfinite(best2_match) else np.nan),
+                    stage1_sub_key_match=float(sub_key_match),
+                    stage2_match_ratio=float(best2_match if np.isfinite(best2_match) else np.nan),
+                    stage2_sub_key_match=float(best2_sub_key_match),
+                    stage2_tail_key_match=float(best2_tail_key_match),
                     stage3_match_ratio=float(best3_match if np.isfinite(best3_match) else np.nan),
+                    stage3_sub_key_match=float(best3_sub_key_match),
+                    stage3_tail_key_match=float(best3_tail_key_match),
                     stage2_gap_to_oracle=float(stage2_gap_to_oracle),
                     stage3_entry_mode=str(stage3_entry_mode),
                     stage3_entry_full_score=(
@@ -2072,7 +2309,11 @@ def main() -> None:
                     best_stage=inst_row["best_stage"],
                     stage1_sub_key_match=inst_row["stage1_sub_key_match"],
                     stage2_match_ratio=inst_row["stage2_match_ratio"],
+                    stage2_sub_key_match=inst_row.get("stage2_sub_key_match", np.nan),
+                    stage2_tail_key_match=inst_row.get("stage2_tail_key_match", np.nan),
                     stage3_match_ratio=inst_row["stage3_match_ratio"],
+                    stage3_sub_key_match=inst_row.get("stage3_sub_key_match", np.nan),
+                    stage3_tail_key_match=inst_row.get("stage3_tail_key_match", np.nan),
                     total_seconds=inst_row["total_seconds"],
                     total_evals=inst_row["total_evals"],
                     notes=(
