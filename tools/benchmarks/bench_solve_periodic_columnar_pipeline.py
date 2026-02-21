@@ -60,69 +60,70 @@ from rune_decrypter_prime.utils.seed_utils import make_periodic_seed_pool
 
 from tools.benchmarks import bench_solve_periodic_columnar_kaeding as base
 
-ALPHABET_SIZE = 29
-ORDER = "col_then_sub"
-PROFILE = "pipeline_fulltext_v1"
-PIPELINE_RUN_MODE = "focus_p10_fast_resume"  # "full" | "focus_p5_p7" | "focus_p10_fast" | "focus_p10_fast_resume" | "smoke"
+ALPHABET_SIZE = 29  # Rune alphabet size used by periodic substitution/key layout.
+ORDER = "col_then_sub"  # Cipher composition order benchmarked by this script.
+PROFILE = "pipeline_fulltext_v1"  # Human-readable profile id written to logs/history.
+PIPELINE_RUN_MODE = "focus_p10_fast_resume"  # Active preset selector.
+# Allowed: "full" | "focus_p5_p7" | "focus_p10_fast" | "focus_p10_fast_resume" | "smoke"
 
-SOLVE_MATCH_THRESHOLD = 0.90
-STALL_DELTA = 0.002
-STALL_STAGE_LIMIT = 1
-HEARTBEAT_SECONDS = 1200  # human-facing checkpoint (~3 updates/hour on long runs)
-PREVIEW_CHARS = 240
-AUTOSKIP_PROVEN = True
-AUTOSKIP_PROVEN_MIN_MATCH = SOLVE_MATCH_THRESHOLD
-FORCE_RERUN_PROVEN = False
-AVOID_REPEAT_FAIL = True
-FAILED_RETRY_SEED_DELTA = 1
-FAILED_RETRY_SEED_STRIDE = 104729
+SOLVE_MATCH_THRESHOLD = 0.90  # Match ratio considered solved.
+STALL_DELTA = 0.002  # Minimum global-best gain required to avoid "stalled" status.
+STALL_STAGE_LIMIT = 1  # Number of consecutive stalled stages before instance is stalled.
+HEARTBEAT_SECONDS = 1200  # Progress heartbeat cadence.
+PREVIEW_CHARS = 240  # Preview snippet length for plaintext logging.
+AUTOSKIP_PROVEN = True  # Skip instances already proven in solve-proof history.
+AUTOSKIP_PROVEN_MIN_MATCH = SOLVE_MATCH_THRESHOLD  # Proven threshold for autoskip index.
+FORCE_RERUN_PROVEN = False  # Override autoskip and rerun proven instances.
+AVOID_REPEAT_FAIL = True  # Diversify search seed if same config failed previously.
+FAILED_RETRY_SEED_DELTA = 1  # Per-failure increment applied to search-seed offset.
+FAILED_RETRY_SEED_STRIDE = 104729  # Large stride multiplier to decorrelate retry seeds.
 
-TEXT_OFFSETS = [0]
-KEY_SEEDS = [111]
+TEXT_OFFSETS = [0]  # Plaintext slice offset hints for fixture generation.
+KEY_SEEDS = [111]  # Baseline synthetic key seeds for this run mode.
 # Community defaults: run the full profile-defined matrix unless explicitly narrowed.
-KEY_SEEDS_OVERRIDE: List[int] | None = None
-TIERS_REGEX_OVERRIDE: str | None = None
-STAGE1_SUB_CANDIDATES = 16
-STAGE3_INITIAL_KEYS = 24
-STAGE1_SUB_CANDIDATES_BY_COLUMNS = {1: 6, 3: 10, 5: 12, 7: 14}
-STAGE3_INITIAL_KEYS_BY_COLUMNS = {1: 8, 3: 12, 5: 16, 7: 20}
-STAGE2_EXACT_MAX_COLUMNS = 7
-STAGE2_EXACT_SUB_CANDIDATES = 2
-STAGE2_EXACT_TWO_PASS = True
-STAGE2_EXACT_PASS1_TOP_TAILS = 256
-STAGE2_EXACT_EARLY_SOLVE_BREAK = True
-STAGE2_FAST_CHAR_WEIGHTS = {3: 0.5, 4: 0.5}
-STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS = {3: 4, 5: 3, 7: 2}
-STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS = {3: 72, 5: 128, 7: 192}
-STAGE2_HYBRID_SUB_CANDIDATES = 8
-STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS = {10: 8, 13: 6}
-STAGE1_USE_ORACLE_GUIDE_STOP = True
-STAGE1_ORACLE_STOP_MARGIN = 0.005
-STAGE3_USE_ORACLE_GUIDE_STOP = False
-STAGE3_ORACLE_STOP_MARGIN = 0.002
-STAGE3_ORACLE_STOP_RELAX_FRACTION = 0.0  # 0.10 => accept 10% below oracle objective
-STAGE3_FULL_ENTRY_SCORE: float | None = None
-STAGE3_FULL_ENTRY_SCORE_BY_COLUMNS: Dict[int, float] = {}
-STAGE3_PROBE_ENTRY_SCORE: float | None = None
-STAGE3_PROBE_ENTRY_SCORE_BY_COLUMNS: Dict[int, float] = {}
-STAGE1_SEED_RESTARTS = 64
-STAGE1_SEED_N_BLOCKS = 18
-STAGE1_SEED_TOTAL = 256
-STAGE1_SEED_SWAPS = 3
-STAGE12_SCOUT_RUNS = 1
-STAGE12_ARCHIVE_KEEP = 1
-STAGE12_PROMOTE_TOP = 1
-STAGE1_SCOUT_STEP_SCALE = 1.0
-STAGE1_SCOUT_RESTART_SCALE = 1.0
-STAGE1_SCOUT_MIN_STEPS = 600
-STAGE1_SCOUT_MIN_RESTARTS = 1
-STAGE1_SCOUT_NO_IMPROVE_DELTA = 1e-6
-STAGE1_SCOUT_NO_IMPROVE_PATIENCE = 2
-STAGE1_SCOUT_MIN_NEW_ARCHIVE = 2
-STAGE1_C1_MAX_SCOUTS = 2
-STAGE1_C1_FORCE_ORACLE_STOP = True
-STAGE1_C1_ORACLE_STOP_MARGIN = 0.0
-STAGE1_C1_EARLY_BREAK_ON_SOLVED_MATCH = True
+KEY_SEEDS_OVERRIDE: List[int] | None = None  # Optional hard override for key-seed list.
+TIERS_REGEX_OVERRIDE: str | None = None  # Optional regex filter on tier names.
+STAGE1_SUB_CANDIDATES = 16  # Default Stage-1 substitution candidates kept.
+STAGE3_INITIAL_KEYS = 24  # Default Stage-3 init key count (mutated from Stage-2).
+STAGE1_SUB_CANDIDATES_BY_COLUMNS = {1: 6, 3: 10, 5: 12, 7: 14}  # Stage-1 keep count by columns.
+STAGE3_INITIAL_KEYS_BY_COLUMNS = {1: 8, 3: 12, 5: 16, 7: 20}  # Stage-3 init count by columns.
+STAGE2_EXACT_MAX_COLUMNS = 7  # Use exact tail enumeration when columns <= this value.
+STAGE2_EXACT_SUB_CANDIDATES = 2  # Default Stage-1 sub candidates sent to exact Stage-2.
+STAGE2_EXACT_TWO_PASS = True  # Enable exact-tail pass1 rank + pass2 deep eval.
+STAGE2_EXACT_PASS1_TOP_TAILS = 256  # Default pass1 shortlist size for exact Stage-2.
+STAGE2_EXACT_EARLY_SOLVE_BREAK = True  # Break exact search immediately on solved match.
+STAGE2_FAST_CHAR_WEIGHTS = {3: 0.2, 4: 0.8}  # Fast pass1 char scorer weights.
+STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS = {3: 4, 5: 3, 7: 2}  # Exact Stage-2 sub count by columns.
+STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS = {3: 72, 5: 128, 7: 192}  # Exact pass1 shortlist by columns.
+STAGE2_HYBRID_SUB_CANDIDATES = 8  # Default sub candidates sent to hybrid Stage-2.
+STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS = {10: 8, 13: 6}  # Hybrid Stage-2 sub cap by columns.
+STAGE1_USE_ORACLE_GUIDE_STOP = True  # Enable Stage-1 oracle-guided stop score.
+STAGE1_ORACLE_STOP_MARGIN = 0.005  # Margin added to Stage-1 oracle stop score.
+STAGE3_USE_ORACLE_GUIDE_STOP = False  # Enable Stage-3 oracle-guided stop score.
+STAGE3_ORACLE_STOP_MARGIN = 0.002  # Margin added to Stage-3 oracle stop score.
+STAGE3_ORACLE_STOP_RELAX_FRACTION = 0.0  # Relaxation of oracle stop score (fraction of |oracle|).
+STAGE3_FULL_ENTRY_SCORE: float | None = None  # Full Stage-3 budget gate (None disables).
+STAGE3_FULL_ENTRY_SCORE_BY_COLUMNS: Dict[int, float] = {}  # Per-column overrides for full gate.
+STAGE3_PROBE_ENTRY_SCORE: float | None = None  # Probe/medium Stage-3 gate (None disables).
+STAGE3_PROBE_ENTRY_SCORE_BY_COLUMNS: Dict[int, float] = {}  # Per-column overrides for probe gate.
+STAGE1_SEED_RESTARTS = 64  # Seed-pool restarts used to generate Stage-1 starts.
+STAGE1_SEED_N_BLOCKS = 18  # Number of periodic blocks sampled per seed-pool generation.
+STAGE1_SEED_TOTAL = 256  # Total seed-pool size for Stage-1.
+STAGE1_SEED_SWAPS = 3  # Swap depth when mutating Stage-1 seed-pool keys.
+STAGE12_SCOUT_RUNS = 1  # Number of Stage-1 scout searches before archive selection.
+STAGE12_ARCHIVE_KEEP = 1  # Archive size retained from Stage-1/2 candidate pool.
+STAGE12_PROMOTE_TOP = 1  # Number of archived candidates promoted to Stage-3.
+STAGE1_SCOUT_STEP_SCALE = 1.0  # Multiplicative reduction for scout steps after scout 1.
+STAGE1_SCOUT_RESTART_SCALE = 1.0  # Multiplicative reduction for scout restarts after scout 1.
+STAGE1_SCOUT_MIN_STEPS = 600  # Lower bound for scout steps after scaling.
+STAGE1_SCOUT_MIN_RESTARTS = 1  # Lower bound for scout restarts after scaling.
+STAGE1_SCOUT_NO_IMPROVE_DELTA = 1e-6  # Scout score-gain threshold for plateau detection.
+STAGE1_SCOUT_NO_IMPROVE_PATIENCE = 2  # Consecutive plateau scouts before early stop.
+STAGE1_SCOUT_MIN_NEW_ARCHIVE = 2  # Minimum new archived keys required to avoid plateau stop.
+STAGE1_C1_MAX_SCOUTS = 2  # Extra guard: max scout runs when columns==1.
+STAGE1_C1_FORCE_ORACLE_STOP = True  # Force oracle stop-score for columns==1.
+STAGE1_C1_ORACLE_STOP_MARGIN = 0.0  # Additional margin for c1 oracle stop.
+STAGE1_C1_EARLY_BREAK_ON_SOLVED_MATCH = True  # Break Stage-1 c1 if solved match appears.
 
 # Stage-3 dynamic budget based on stage2 objective gap to oracle objective (same scorer).
 # Lower gap => lighter stage3; higher gap => heavier stage3.
@@ -134,7 +135,13 @@ STAGE3_DYNAMIC_BANDS = [
 ]
 
 SCORER_STAGE1 = dict(objective="pct.logp.win10", include_char=True, use_word_breaks=False, char_weights={1: 1.0}, wli_weights={})
-SCORER_FULL = dict(objective="pct.logp.win10", include_char=True, use_word_breaks=True, char_weights={3: 0.3, 4: 0.7}, wli_weights={3: 0.4, 4: 0.6})
+SCORER_FULL = dict(
+    objective="pct.logp.win10",
+    include_char=False,
+    use_word_breaks=True,
+    char_weights={},
+    wli_weights={2: 0.3, 4: 0.7},
+)
 STAGE1_C1_USE_FULL_SCORER = False
 
 SOLVER_STAGE1 = dict(
@@ -386,7 +393,7 @@ def _apply_run_mode() -> None:
         )
         return
     if PIPELINE_RUN_MODE == "focus_p10_fast_resume":
-        PROFILE = "pipeline_focus_p10_p13_resume_v1"
+        PROFILE = "pipeline_focus_p10_p13_hard_basin_v2"
         HEARTBEAT_SECONDS = 900
         TIERS = [
             Tier("focus_p10_c1_l2376", 10, 1, 2376),
@@ -405,17 +412,18 @@ def _apply_run_mode() -> None:
         TEXT_OFFSETS = [0]
         KEY_SEEDS = [111]
 
-        STAGE1_SUB_CANDIDATES = 20
-        STAGE1_SUB_CANDIDATES_BY_COLUMNS = {1: 8, 3: 16, 5: 16, 7: 18, 10: 16, 13: 18}
-        STAGE3_INITIAL_KEYS = 14
-        STAGE3_INITIAL_KEYS_BY_COLUMNS = {1: 8, 3: 18, 5: 24, 7: 28, 10: 32, 13: 40}
+        STAGE1_SUB_CANDIDATES = 24
+        STAGE1_SUB_CANDIDATES_BY_COLUMNS = {1: 8, 3: 32, 5: 24, 7: 24, 10: 20, 13: 20}
+        STAGE3_INITIAL_KEYS = 18
+        STAGE3_INITIAL_KEYS_BY_COLUMNS = {1: 8, 3: 36, 5: 30, 7: 40, 10: 40, 13: 48}
 
-        STAGE2_EXACT_SUB_CANDIDATES = 3
+        STAGE2_EXACT_SUB_CANDIDATES = 4
         STAGE2_EXACT_PASS1_TOP_TAILS = 160
-        STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS = {3: 16, 5: 10, 7: 4}
-        STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS = {3: 6, 5: 120, 7: 192}
-        STAGE2_HYBRID_SUB_CANDIDATES = 8
-        STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS = {10: 8, 13: 6}
+        # c7 remains the hardest p10 basin: widen exact-stage coverage there.
+        STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS = {3: 24, 5: 12, 7: 12}
+        STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS = {3: 6, 5: 120, 7: 768}
+        STAGE2_HYBRID_SUB_CANDIDATES = 10
+        STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS = {10: 10, 13: 8}
         STAGE2_EXACT_TWO_PASS = True
         STAGE2_EXACT_EARLY_SOLVE_BREAK = True
         STAGE1_SEED_RESTARTS = 128
@@ -433,14 +441,15 @@ def _apply_run_mode() -> None:
         STAGE3_USE_ORACLE_GUIDE_STOP = True
         STAGE3_ORACLE_STOP_MARGIN = 0.0
         STAGE3_ORACLE_STOP_RELAX_FRACTION = 0.10
-        STAGE3_FULL_ENTRY_SCORE = 0.10
-        STAGE3_FULL_ENTRY_SCORE_BY_COLUMNS = {3: 0.10, 5: 0.10, 7: 0.10, 10: 0.10, 13: 0.10}
-        STAGE3_PROBE_ENTRY_SCORE = 0.06
-        STAGE3_PROBE_ENTRY_SCORE_BY_COLUMNS = {3: 0.06, 5: 0.06, 7: 0.06, 10: 0.06, 13: 0.06}
+        # Hard-basin profile: always run full Stage-3 band budget (no probe gate).
+        STAGE3_FULL_ENTRY_SCORE = None
+        STAGE3_FULL_ENTRY_SCORE_BY_COLUMNS = {}
+        STAGE3_PROBE_ENTRY_SCORE = None
+        STAGE3_PROBE_ENTRY_SCORE_BY_COLUMNS = {}
         STAGE1_C1_USE_FULL_SCORER = True
         STAGE12_SCOUT_RUNS = 6
-        STAGE12_ARCHIVE_KEEP = 16
-        STAGE12_PROMOTE_TOP = 8
+        STAGE12_ARCHIVE_KEEP = 48
+        STAGE12_PROMOTE_TOP = 24
         STAGE1_SCOUT_STEP_SCALE = 0.28
         STAGE1_SCOUT_RESTART_SCALE = 0.25
         STAGE1_SCOUT_MIN_STEPS = 900
