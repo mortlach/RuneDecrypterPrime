@@ -12,8 +12,11 @@ This folder contains typed configuration modules that benchmark scripts import.
 
 - `no_wli_pipeline_profiles.py`
   - Defines no-WLI staged pipeline profiles.
-  - Current production profile: `no_wli_a1_m12_b34_v1`.
-  - Scorer schedule: `A_char1 -> M_char12 -> B_char34`.
+  - Profiles:
+    - `no_wli_a1_m12_b34_v1`
+    - `no_wli_a1_m34_b34_v1`
+    - `no_wli_a34_m34_b34_v1`
+  - Stage-2 pass1 shortlist defaults to char34, with deterministic char2 fallback when diversity collapses.
 
 ## Usage Pattern
 
@@ -26,4 +29,3 @@ This folder contains typed configuration modules that benchmark scripts import.
 
 - This module layer is benchmark-facing and does not change solver-core APIs.
 - Other benchmark attack scripts can migrate to this pattern incrementally.
-
