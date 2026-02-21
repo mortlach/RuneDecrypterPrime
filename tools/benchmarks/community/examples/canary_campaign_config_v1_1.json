@@ -1,0 +1,36 @@
+{
+  "campaign_spec_version": "v1.1",
+  "campaign_id": "COMMUNITY_BENCH_CANARY_V1_1_PLACEHOLDER",
+  "git_sha": "PUT_GIT_SHA_HERE",
+  "campaign_seed": 987654321,
+  "fixtures": [
+    {
+      "text_fixture_id": "fixture_001",
+      "path": "tools/benchmarks/community/fixtures/fixture_001.json",
+      "notes": "Same fixture(s) as full campaign; keep canary representative."
+    }
+  ],
+  "grid": {
+    "period_min": 10,
+    "period_max": 11,
+    "columns_min": 3,
+    "columns_max": 4,
+    "orders": [
+      "col_then_sub",
+      "sub_then_col"
+    ]
+  },
+  "sampling_policy": "stratified_subset",
+  "replicates_per_cell": 1,
+  "profile_ids": [
+    "baseline_resume_v1_1"
+  ],
+  "required_backend": "cpu_numpy_fastlm",
+  "caps": {
+    "max_seconds_per_job": 300,
+    "max_total_evals_per_job": null
+  },
+  "notes": [
+    "Canary must stay small (minutes) but include a small-columns case (e.g. c=3)."
+  ]
+}

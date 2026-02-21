@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rdp:community-benchmark:manifest:v1.1",
+  "title": "RDP Community Benchmark Manifest Row v1.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "campaign_id",
+    "job_id",
+    "git_sha",
+    "text_fixture_id",
+    "period",
+    "columns",
+    "order",
+    "profile_id",
+    "run_seed",
+    "replicate_idx",
+    "config_fingerprint"
+  ],
+  "properties": {
+    "campaign_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "job_id": {
+      "type": "string",
+      "minLength": 8
+    },
+    "git_sha": {
+      "type": "string",
+      "minLength": 7
+    },
+    "text_fixture_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "period": {
+      "type": "integer",
+      "minimum": 7,
+      "maximum": 13
+    },
+    "columns": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 13
+    },
+    "order": {
+      "type": "string",
+      "enum": [
+        "col_then_sub",
+        "sub_then_col"
+      ]
+    },
+    "profile_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run_seed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "replicate_idx": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "config_fingerprint": {
+      "type": "string",
+      "minLength": 8
+    }
+  }
+}

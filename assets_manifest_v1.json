@@ -1,0 +1,17 @@
+{
+  "manifest_version": "v1.1",
+  "notes": [
+    "Final assets live under ./assets/ (generated locally).",
+    "Packed parts live under ./assets_packed/ (tracked).",
+    "Temporary bridge mode: forward-link ./assets/language_model/lmp to src/rune_decrypter_prime/data/language_model/lmp."
+  ],
+  "assets_root": "assets",
+  "packed_root": "assets_packed",
+  "required_assets": [],
+  "forward_links": [
+    {
+      "link_relpath": "language_model/lmp",
+      "target_relpath": "src/rune_decrypter_prime/data/language_model/lmp"
+    }
+  ]
+}

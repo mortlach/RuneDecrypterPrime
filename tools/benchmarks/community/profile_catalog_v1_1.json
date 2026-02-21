@@ -1,0 +1,82 @@
+{
+  "catalog_version": "v1.1",
+  "notes": [
+    "Profiles are the only place where solver/scorer tuning is defined for community benchmarking.",
+    "Runners must not edit solver parameters directly.",
+    "The implementation must validate that overrides only touch whitelisted keys."
+  ],
+  "allowed_override_keys": [
+    "scorer_schedule",
+    "stage3_gating",
+    "stage12_carry_through",
+    "stage1_breadth",
+    "stage3_basin_exploration",
+    "solver_stage1",
+    "solver_stage2",
+    "solver_stage3"
+  ],
+  "profiles": [
+    {
+      "profile_id": "baseline_resume_v1_1",
+      "description": "Baseline profile intended to match current default pipeline behaviour for local runs, but executed in campaign mode (no proven autoskip).",
+      "scorer_schedule": {
+        "early": "stage1_default_char1_only",
+        "middle": "stage2_default_mixed",
+        "late": "stage3_default_mixed"
+      },
+      "overrides": {
+        "stage3_gating": {
+          "full_entry_score": "PIPELINE_DEFAULT",
+          "probe_entry_score": "PIPELINE_DEFAULT"
+        },
+        "stage12_carry_through": {
+          "promote_top": "PIPELINE_DEFAULT",
+          "archive_keep": "PIPELINE_DEFAULT"
+        },
+        "stage1_breadth": {
+          "sub_candidates_by_columns": "PIPELINE_DEFAULT"
+        },
+        "stage3_basin_exploration": {
+          "initial_keys_by_columns": "PIPELINE_DEFAULT"
+        },
+        "solver_stage1": "PIPELINE_DEFAULT",
+        "solver_stage2": "PIPELINE_DEFAULT",
+        "solver_stage3": "PIPELINE_DEFAULT"
+      }
+    },
+    {
+      "profile_id": "stage3_fullband_basin_v1_1",
+      "description": "Hard-profile: disables Stage-3 probe gating and increases basin throughput (promote_top, initial keys) while keeping Stage-1 depth mostly flat.",
+      "scorer_schedule": {
+        "early": "stage1_default_char1_only",
+        "middle": "stage2_default_mixed",
+        "late": "stage3_default_mixed"
+      },
+      "overrides": {
+        "stage3_gating": {
+          "full_entry_score": null,
+          "probe_entry_score": null
+        },
+        "stage12_carry_through": {
+          "promote_top": 16,
+          "archive_keep": 32
+        },
+        "stage1_breadth": {
+          "sub_candidates_by_columns": {
+            "3": 32,
+            "7": 24
+          }
+        },
+        "stage3_basin_exploration": {
+          "initial_keys_by_columns": {
+            "3": 32,
+            "7": 24
+          }
+        },
+        "solver_stage1": "PIPELINE_DEFAULT",
+        "solver_stage2": "PIPELINE_DEFAULT",
+        "solver_stage3": "PIPELINE_DEFAULT"
+      }
+    }
+  ]
+}

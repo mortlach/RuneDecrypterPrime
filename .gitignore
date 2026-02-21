@@ -225,6 +225,7 @@ docs/DOCS_PLAN_IMPLEMENTATION2.md
 docs/DOCS_PLAN2.md
 /bigram_research
 /RuneDecrypterPrime-test-0.2
+/assets/
 /src/build_tmp_hamming
 src/rune_decrypter_prime/data/language_model/lmp/char/rtl/char29_joint_rtl_4_wise.bin.zst
 src/rune_decrypter_prime/data/language_model/lmp/char/rtl/char29_joint_rtl_4_nose.bin.zst
@@ -248,3 +249,5 @@ planning/README_TESTS_SCORING_2.md
 tools/git_link_scrape/prompt.txt
 tools/benchmarks/benchdocs_1
 /tools/benchmarks/solve_proof
+/tools/git_link_scrape
+/tools/lm_ecdf/
