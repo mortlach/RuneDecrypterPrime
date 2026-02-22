@@ -4,8 +4,8 @@ This guide is for contributors running a shard.
 
 ## Step 1: Setup + preflight
 Run the repository setup/deploy step (see docs/setup). It must produce:
-- benchmark_ready.json
-- preflight_report.json (pass)
+- `output/tools/benchmarks/community/setup_preflight/latest/benchmark_ready.json`
+- `output/tools/benchmarks/community/setup_preflight/latest/preflight_report.json` (pass)
 
 If setup fails, do not run shards. Share setup/preflight logs for debugging.
 
@@ -46,7 +46,7 @@ python tools/benchmarks/community/run_shard.py `
 
 ## Step 4: Share output
 Share the folder:
-- run_bundle/
+- `<output_root>/run_bundle__<campaign>__<runner>__<shard>/`
 
 It must contain:
 - results.jsonl

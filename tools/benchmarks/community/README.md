@@ -19,6 +19,7 @@ Key goals:
    - Build/verify `_fastlm` (required for v1.1 benchmark compliance)
    - Run preflight and produce a report
    - Write a `benchmark_ready.json` marker only if everything succeeded
+   - Output location: `output/tools/benchmarks/community/setup_preflight/latest/`
 
    See: `docs/setup/setup_and_preflight_v1_1.md`
 

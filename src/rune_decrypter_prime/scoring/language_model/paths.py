@@ -1,7 +1,7 @@
 # ============================================================
 # rune_decrypter_prime/scoring/language_model/paths.py   (LM path helpers)
 # Utilities to resolve packaged language-model roots and expand index patterns.
-# Pure-config; no env/CLI lookups. Windows- and PyCharm-friendly.
+# Pure-config; no env/CLI lookups.
 # ============================================================
 
 from __future__ import annotations
@@ -28,9 +28,9 @@ def _coerce_model_root(value: Union[str, os.PathLike, Path, None]) -> Path:
     unless it is already an absolute path.
 
     Behaviour:
-      • None or empty string → "<pkg>/data/language_model/lmp"
-      • Relative path       → interpreted under "<pkg>/data/language_model"
-      • Absolute path       → used as-is
+      - None or empty string -> "<pkg>/data/language_model/lmp"
+      - Relative path        -> interpreted under "<pkg>/data/language_model"
+      - Absolute path        -> used as-is
     """
     # Default if value is None or empty string
     if value is None or (isinstance(value, str) and not value.strip()):
@@ -47,9 +47,9 @@ def resolve_lm_root(cfg: Union[ScoringConfig, Mapping[str, Any], None]) -> Path:
     Resolve a language-model root folder from a config object or mapping.
 
     Semantics:
-      - None or empty config/model_root → packaged default (_DEFAULT_LM_NAME).
-      - Relative str/path → relative to <pkg>/data/language_model.
-      - Absolute path → used as-is.
+      - None or empty config/model_root -> packaged default (_DEFAULT_LM_NAME).
+      - Relative str/path -> relative to <pkg>/data/language_model.
+      - Absolute path -> used as-is.
 
     Raises:
       FileNotFoundError with a friendly list of available packaged models when absent.
@@ -106,7 +106,7 @@ def load_index(root: Path) -> LmIndex:
         with idx_path.open("r", encoding="utf-8") as fh:
             data: Dict[str, Any] = json.load(fh)
     except FileNotFoundError:
-        # Keep this blunt and config-centric — no env/CLI mentioned.
+        # Keep this blunt and config-centric; no env/CLI mentioned.
         raise FileNotFoundError(
             f"LM index.json not found at: {idx_path}\n"
             f"(root was resolved from config to: {root})"

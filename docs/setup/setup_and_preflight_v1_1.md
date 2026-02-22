@@ -23,11 +23,11 @@ This keeps campaign paths stable while data move/packing is staged.
 
 ## Outputs
 Setup must write:
-- setup.log
-- setup_report.json
-- preflight.log
-- preflight_report.json
-- benchmark_ready.json (success marker only)
+- run directory under:
+  - `output/tools/benchmarks/community/setup_preflight/<timestamp>__setup_preflight*/`
+- and refresh latest pointer directory:
+  - `output/tools/benchmarks/community/setup_preflight/latest/`
+  - contains `setup.log`, `setup_report.json`, `preflight.log`, `preflight_report.json`, `benchmark_ready.json` (success marker only)
 
 ## What preflight must confirm
 1) Required imports succeed (RDP core + scoring + benchmark pipeline entrypoints).
@@ -46,5 +46,5 @@ Setup must write:
 
 ## If setup or preflight fails
 Contributors should share:
-- setup_report.json + setup.log
-- preflight_report.json + preflight.log
+- `output/tools/benchmarks/community/setup_preflight/latest/setup_report.json` + `setup.log`
+- `output/tools/benchmarks/community/setup_preflight/latest/preflight_report.json` + `preflight.log`

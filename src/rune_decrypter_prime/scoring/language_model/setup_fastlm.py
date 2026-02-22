@@ -1,7 +1,7 @@
 # ============================================================
 # rune_decrypter_prime/scoring/language_model/setup_fastlm.py
-# One-click builder for the optional _fastlm extension (no CLI, no env vars).
-# Press ▶ in PyCharm. Toggle BUILD_MODE = "safe" | "fastmath".
+# One-file builder for the optional _fastlm extension.
+# Edit BUILD_MODE below, then run this module with any Python workflow.
 # ============================================================
 
 from __future__ import annotations
@@ -89,7 +89,7 @@ def _copy_built():
     built_dir = BUILD_LIB / "rune_decrypter_prime" / "scoring" / "language_model"
     cand = sorted(built_dir.glob(f"_fastlm*{suffix}"))
     if not cand:
-        print("[fastlm] WARNING️  Built artifact not found in:", built_dir)
+        print("[fastlm] WARNING  Built artifact not found in:", built_dir)
         return None
     src = cand[0]
     dest = HERE / f"_fastlm{suffix}"
@@ -99,7 +99,7 @@ def _copy_built():
 
 
 def _try_import():
-    print("\n[fastlm] Verifying import …")
+    print("\n[fastlm] Verifying import ...")
     # Ensure the actual repo root is on sys.path
     if str(REPO_ROOT) not in sys.path:
         sys.path.insert(0, str(REPO_ROOT))
@@ -107,7 +107,7 @@ def _try_import():
         from rune_decrypter_prime.scoring.language_model import _fastlm  # type: ignore
         print("[fastlm] SUCCESS Import OK:", _fastlm)
     except Exception:
-        print("[fastlm] WARNING️️  Import failed:")
+        print("[fastlm] WARNING  Import failed:")
         traceback.print_exc()
 
 

@@ -17,6 +17,7 @@ if __package__ in (None, ""):
 
 from tools.benchmarks.community._campaign_common import load_json, read_jsonl, write_json
 from tools.benchmarks.community.config import load_profile_catalog_from_dict
+from tools.benchmarks.community.setup_and_preflight import latest_setup_bundle_dir
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CAMPAIGN_CONFIG = REPO_ROOT / "tools" / "benchmarks" / "community" / "examples" / "campaign_config_v1_1.json"
@@ -68,6 +69,18 @@ def _copy_if_exists(src: Path, dst: Path) -> None:
     if src.exists():
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
+
+
+def _copy_setup_preflight_artifacts(*, repo_root: Path, run_bundle: Path) -> Path:
+    source_dir = latest_setup_bundle_dir(repo_root)
+    if source_dir is None:
+        # Back-compat fallback for partially configured environments.
+        source_dir = repo_root
+    _copy_if_exists(source_dir / "setup.log", run_bundle / "setup.log")
+    _copy_if_exists(source_dir / "setup_report.json", run_bundle / "setup_report.json")
+    _copy_if_exists(source_dir / "preflight.log", run_bundle / "preflight.log")
+    _copy_if_exists(source_dir / "preflight_report.json", run_bundle / "preflight_report.json")
+    return source_dir
 
 
 def _build_run_bundle_dir(*, output_root: Path, campaign_id: str, runner_id: str, shard_path: Path) -> Path:
@@ -269,10 +282,7 @@ def run_shard_bundle(
     _copy_if_exists(campaign_config_path, run_bundle / "campaign_config_v1_1.json")
     _copy_if_exists(profile_catalog_path, run_bundle / "profile_catalog_v1_1.json")
     _copy_if_exists(shard_path, run_bundle / "shard_manifest.jsonl")
-    _copy_if_exists(repo_root / "setup.log", run_bundle / "setup.log")
-    _copy_if_exists(repo_root / "setup_report.json", run_bundle / "setup_report.json")
-    _copy_if_exists(repo_root / "preflight.log", run_bundle / "preflight.log")
-    _copy_if_exists(repo_root / "preflight_report.json", run_bundle / "preflight_report.json")
+    setup_source_dir = _copy_setup_preflight_artifacts(repo_root=repo_root, run_bundle=run_bundle)
 
     run_meta = {
         "runner_id": runner_id,
@@ -288,6 +298,7 @@ def run_shard_bundle(
         },
         "shard_path": str(shard_path),
         "run_bundle_path": str(run_bundle),
+        "setup_preflight_source_dir": str(setup_source_dir),
         "started_at_utc": _utc_now(),
         "processed_jobs": 0,
         "resume_skips": 0,

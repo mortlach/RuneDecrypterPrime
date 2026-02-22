@@ -25,7 +25,7 @@ All outputs are written under `output/tools/benchmarks/` and mirror runner struc
 
 To copy older run history into this layout (non-destructive), run:
 
-- `C:\Python\Python311\python.exe tools/benchmarks/periodic_sub_trans/common/migrate_legacy_outputs.py`
+- `python tools/benchmarks/periodic_sub_trans/common/migrate_legacy_outputs.py`
 
 A manifest is written to:
 
@@ -45,4 +45,4 @@ and then aggregated by a shared campaign summarizer.
 
 Import helper:
 
-- `C:\Python\Python311\python.exe tools/benchmarks/periodic_sub_trans/common/import_community_bundle.py --source <bundle_dir> --flavor no_wli --contributor <id>`
+- `python tools/benchmarks/periodic_sub_trans/common/import_community_bundle.py --source <bundle_dir> --flavor no_wli --contributor <id>`

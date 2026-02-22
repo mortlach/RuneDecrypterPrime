@@ -13,7 +13,7 @@ git clone <repo-url>
 cd RuneDecrypterPrime
 git checkout benchmark-community
 
-C:\Python\Python311\python.exe -m venv .venv
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -U pip
 python -m pip install -e .[dev]
@@ -39,7 +39,7 @@ Defaults are set for community reproducibility:
 
 ## 4) Execute
 ```powershell
-C:\Python\Python311\python.exe tools\benchmarks\bench_solve_periodic_columnar_pipeline.py
+python tools/benchmarks/bench_solve_periodic_columnar_pipeline.py
 ```
 
 ## 5) Share results

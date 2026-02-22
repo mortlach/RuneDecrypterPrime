@@ -14,6 +14,6 @@ Run canary after setup/preflight passes and before running a full shard.
 
 ## What to do if canary fails
 Stop. Share:
-- setup_report.json + setup.log
-- preflight_report.json + preflight.log
+- `output/tools/benchmarks/community/setup_preflight/latest/setup_report.json` + `setup.log`
+- `output/tools/benchmarks/community/setup_preflight/latest/preflight_report.json` + `preflight.log`
 - run.log + results.jsonl (partial)

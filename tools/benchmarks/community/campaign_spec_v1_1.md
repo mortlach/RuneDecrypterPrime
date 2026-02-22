@@ -85,11 +85,11 @@ A single setup/deploy step must:
 
 ### 4.2 Outputs
 Setup must write:
-- setup.log
-- setup_report.json
-- preflight.log
-- preflight_report.json
-- benchmark_ready.json (success marker only)
+- run directory under:
+  - `output/tools/benchmarks/community/setup_preflight/<timestamp>__setup_preflight*/`
+- latest pointer directory:
+  - `output/tools/benchmarks/community/setup_preflight/latest/`
+  - contains `setup.log`, `setup_report.json`, `preflight.log`, `preflight_report.json`, `benchmark_ready.json` (success marker only)
 
 ### 4.3 Clean-room / idempotence
 - safe to rerun

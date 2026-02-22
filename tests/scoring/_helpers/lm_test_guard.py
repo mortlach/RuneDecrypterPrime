@@ -122,7 +122,7 @@ def require_full_lm_assets(
 
     if missing:
         # Keep the skip message short but actionable.
-        # (PyCharm shows the full message; this makes it easy to see which files are absent.)
+        # Full output includes concrete missing paths for quick diagnosis.
         examples = missing[:12]
         lines = [f"LM asset set incomplete under {lm_root}. Missing examples:"]
         for m in examples:

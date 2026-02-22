@@ -21,6 +21,8 @@ SETUP_REPORT_FILENAME = "setup_report.json"
 PREFLIGHT_LOG_FILENAME = "preflight.log"
 PREFLIGHT_REPORT_FILENAME = "preflight_report.json"
 READY_MARKER_FILENAME = "benchmark_ready.json"
+SETUP_OUTPUT_RELROOT = Path("output") / "tools" / "benchmarks" / "community" / "setup_preflight"
+SETUP_LATEST_DIRNAME = "latest"
 
 FASTLM_MODULE = "rune_decrypter_prime.scoring.language_model._fastlm"
 FASTLM_BUILD_SCRIPT = Path("src/rune_decrypter_prime/scoring/language_model/setup_fastlm.py")
@@ -42,6 +44,76 @@ class ForwardLink:
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _setup_output_root(repo_root: Path) -> Path:
+    return (repo_root / SETUP_OUTPUT_RELROOT).resolve()
+
+
+def _new_setup_run_dir(repo_root: Path) -> Path:
+    root = _setup_output_root(repo_root)
+    root.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    base = root / f"{stamp}__setup_preflight"
+    if not base.exists():
+        base.mkdir(parents=True, exist_ok=True)
+        return base
+    suffix = 2
+    while True:
+        candidate = root / f"{stamp}__setup_preflight_{suffix:02d}"
+        if not candidate.exists():
+            candidate.mkdir(parents=True, exist_ok=True)
+            return candidate
+        suffix += 1
+
+
+def latest_setup_bundle_dir(repo_root: Path) -> Path | None:
+    """
+    Return the latest setup/preflight artefact directory when available.
+
+    New location:
+      output/tools/benchmarks/community/setup_preflight/latest/
+
+    Legacy fallback:
+      repo root (setup_report.json etc directly under root)
+    """
+    repo_root = repo_root.resolve()
+    latest_dir = _setup_output_root(repo_root) / SETUP_LATEST_DIRNAME
+    required = (
+        SETUP_LOG_FILENAME,
+        SETUP_REPORT_FILENAME,
+        PREFLIGHT_LOG_FILENAME,
+        PREFLIGHT_REPORT_FILENAME,
+        READY_MARKER_FILENAME,
+    )
+    if latest_dir.exists() and all((latest_dir / name).exists() for name in required):
+        return latest_dir
+
+    legacy_required = (
+        repo_root / SETUP_LOG_FILENAME,
+        repo_root / SETUP_REPORT_FILENAME,
+        repo_root / PREFLIGHT_LOG_FILENAME,
+        repo_root / PREFLIGHT_REPORT_FILENAME,
+        repo_root / READY_MARKER_FILENAME,
+    )
+    if all(path.exists() for path in legacy_required):
+        return repo_root
+    return None
+
+
+def _refresh_latest_bundle(run_dir: Path) -> None:
+    latest_dir = run_dir.parent / SETUP_LATEST_DIRNAME
+    latest_dir.mkdir(parents=True, exist_ok=True)
+    for name in (
+        SETUP_LOG_FILENAME,
+        SETUP_REPORT_FILENAME,
+        PREFLIGHT_LOG_FILENAME,
+        PREFLIGHT_REPORT_FILENAME,
+        READY_MARKER_FILENAME,
+    ):
+        src = run_dir / name
+        if src.exists():
+            shutil.copy2(src, latest_dir / name)
 
 
 def _sha256_file(path: Path) -> str:
@@ -646,11 +718,12 @@ def run_preflight(
 
 def run_setup_and_preflight(repo_root: Path, *, skip_fastlm_build: bool) -> int:
     repo_root = repo_root.resolve()
-    setup_log_path = repo_root / SETUP_LOG_FILENAME
-    preflight_log_path = repo_root / PREFLIGHT_LOG_FILENAME
-    setup_report_path = repo_root / SETUP_REPORT_FILENAME
-    preflight_report_path = repo_root / PREFLIGHT_REPORT_FILENAME
-    ready_marker_path = repo_root / READY_MARKER_FILENAME
+    run_dir = _new_setup_run_dir(repo_root)
+    setup_log_path = run_dir / SETUP_LOG_FILENAME
+    preflight_log_path = run_dir / PREFLIGHT_LOG_FILENAME
+    setup_report_path = run_dir / SETUP_REPORT_FILENAME
+    preflight_report_path = run_dir / PREFLIGHT_REPORT_FILENAME
+    ready_marker_path = run_dir / READY_MARKER_FILENAME
     manifest_path = repo_root / MANIFEST_FILENAME
 
     ready_marker_path.unlink(missing_ok=True)
@@ -658,6 +731,7 @@ def run_setup_and_preflight(repo_root: Path, *, skip_fastlm_build: bool) -> int:
     with setup_log_path.open("w", encoding="utf-8", newline="\n") as setup_log:
         setup_log.write(f"[setup] start { _utc_now() }\n")
         setup_log.write(f"[setup] repo_root={repo_root}\n")
+        setup_log.write(f"[setup] run_dir={run_dir}\n")
         setup_log.write(f"[setup] manifest={manifest_path}\n")
 
         manifest, manifest_issues = _read_manifest(manifest_path)
@@ -715,7 +789,8 @@ def run_setup_and_preflight(repo_root: Path, *, skip_fastlm_build: bool) -> int:
         setup_report = {
             "timestamp_utc": _utc_now(),
             "success": bool(setup_success),
-            "manifest_path": str(manifest_path),
+            "run_dir": str(run_dir.relative_to(repo_root).as_posix()),
+            "manifest_path": MANIFEST_FILENAME,
             "assets_root": assets_root,
             "packed_root": packed_root,
             "required_assets_count": int(len(required_assets)),
@@ -739,6 +814,7 @@ def run_setup_and_preflight(repo_root: Path, *, skip_fastlm_build: bool) -> int:
     with preflight_log_path.open("w", encoding="utf-8", newline="\n") as preflight_log:
         preflight_log.write(f"[preflight] start { _utc_now() }\n")
         preflight_log.write(f"[preflight] repo_root={repo_root}\n")
+        preflight_log.write(f"[preflight] run_dir={run_dir}\n")
         preflight_report = run_preflight(
             repo_root=repo_root,
             assets_root=assets_root,
@@ -746,6 +822,7 @@ def run_setup_and_preflight(repo_root: Path, *, skip_fastlm_build: bool) -> int:
             fastlm_present=bool(fastlm_report["fastlm_present"]),
             preflight_log=preflight_log,
         )
+        preflight_report["run_dir"] = str(run_dir.relative_to(repo_root).as_posix())
         _atomic_write_json(preflight_report_path, preflight_report)
         preflight_log.write(f"[preflight] success={preflight_report['success']}\n")
         preflight_log.write(f"[preflight] end { _utc_now() }\n")
@@ -757,8 +834,10 @@ def run_setup_and_preflight(repo_root: Path, *, skip_fastlm_build: bool) -> int:
             "setup_report": setup_report_path.name,
             "preflight_report": preflight_report_path.name,
             "manifest": manifest_path.name,
+            "run_dir": str(run_dir.relative_to(repo_root).as_posix()),
         }
         _atomic_write_json(ready_marker_path, ready_payload)
+        _refresh_latest_bundle(run_dir)
         return 0
 
     return 1

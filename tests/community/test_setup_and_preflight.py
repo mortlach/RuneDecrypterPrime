@@ -259,17 +259,36 @@ def test_run_setup_and_preflight_writes_reports_and_ready_marker(monkeypatch, tm
 
     rc = sp.run_setup_and_preflight(tmp_path, skip_fastlm_build=True)
     assert rc == 0
-    assert (tmp_path / "setup.log").exists()
-    assert (tmp_path / "preflight.log").exists()
-    assert (tmp_path / "setup_report.json").exists()
-    assert (tmp_path / "preflight_report.json").exists()
-    assert (tmp_path / "benchmark_ready.json").exists()
+    latest = sp.latest_setup_bundle_dir(tmp_path)
+    assert latest is not None
+    assert (latest / "setup.log").exists()
+    assert (latest / "preflight.log").exists()
+    assert (latest / "setup_report.json").exists()
+    assert (latest / "preflight_report.json").exists()
+    assert (latest / "benchmark_ready.json").exists()
+    assert not (tmp_path / "setup_report.json").exists()
+    assert not (tmp_path / "preflight_report.json").exists()
+    assert not (tmp_path / "benchmark_ready.json").exists()
 
 
 def test_run_setup_and_preflight_fails_when_manifest_invalid(tmp_path: Path):
     (tmp_path / "assets_manifest_v1.json").write_text("{}", encoding="utf-8")
     rc = sp.run_setup_and_preflight(tmp_path, skip_fastlm_build=True)
     assert rc == 1
-    assert (tmp_path / "setup_report.json").exists()
-    assert (tmp_path / "preflight_report.json").exists()
-    assert not (tmp_path / "benchmark_ready.json").exists()
+    out_root = tmp_path / "output" / "tools" / "benchmarks" / "community" / "setup_preflight"
+    run_dirs = [p for p in out_root.iterdir() if p.is_dir() and p.name != sp.SETUP_LATEST_DIRNAME]
+    assert run_dirs, "expected setup/preflight run directory"
+    run_dir = sorted(run_dirs)[-1]
+    assert (run_dir / "setup_report.json").exists()
+    assert (run_dir / "preflight_report.json").exists()
+    assert not (run_dir / "benchmark_ready.json").exists()
+
+
+def test_latest_setup_bundle_dir_legacy_fallback(tmp_path: Path):
+    (tmp_path / "setup.log").write_text("ok\n", encoding="utf-8")
+    (tmp_path / "setup_report.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "preflight.log").write_text("ok\n", encoding="utf-8")
+    (tmp_path / "preflight_report.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "benchmark_ready.json").write_text("{}", encoding="utf-8")
+    resolved = sp.latest_setup_bundle_dir(tmp_path)
+    assert resolved == tmp_path
