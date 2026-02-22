@@ -1,6 +1,10 @@
+import pytest
+
 from rune_decrypter_prime.api import RunAPI, by_name, KeySpec, SolverSpec
 from rune_decrypter_prime.core.types import Direction
 from rune_decrypter_prime.telemetry.pipeline import dump_telemetry
+
+pytestmark = pytest.mark.tier_a
 
 
 def test_telemetry_off_prevents_dump(tmp_path):
@@ -19,4 +23,3 @@ def test_telemetry_off_prevents_dump(tmp_path):
     # dump should be a no-op
     path = dump_telemetry(sol, base_dir=tmp_path)
     assert path == ""
-

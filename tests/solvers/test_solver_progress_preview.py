@@ -6,6 +6,8 @@ import pytest
 from rune_decrypter_prime.solvers.solver_base import SolverBase
 from rune_decrypter_prime.core.types import SolverName, KEY_DTYPE, Device, Direction
 
+pytestmark = pytest.mark.tier_a
+
 
 class _DummyKeyOps:
     def __init__(self, length: int):

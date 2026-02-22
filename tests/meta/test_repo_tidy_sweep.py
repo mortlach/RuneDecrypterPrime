@@ -3,8 +3,12 @@ from __future__ import annotations
 import inspect
 from pathlib import Path
 
+import pytest
+
 import tools.repo_tidy.sweep as sweep_mod
 from tools.repo_tidy.sweep import _check_tree_policy, run_sweep
+
+pytestmark = pytest.mark.tier_a
 
 
 def _repo_root() -> Path:

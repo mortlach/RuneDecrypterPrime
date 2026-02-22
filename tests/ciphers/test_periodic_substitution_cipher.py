@@ -5,6 +5,8 @@ from rune_decrypter_prime.core.config import CipherConfig
 from rune_decrypter_prime.ciphers.periodic_substitution_cipher import PeriodicSubstitutionCipher
 from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
 
+pytestmark = pytest.mark.tier_a
+
 
 def _ref_periodic_decrypt(ct: np.ndarray, key: np.ndarray, period: int, A: int) -> np.ndarray:
     out = np.empty_like(ct)

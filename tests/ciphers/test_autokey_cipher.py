@@ -7,6 +7,8 @@ import pytest
 
 from rune_decrypter_prime.ciphers.autokey_cipher import AutokeyCipher
 
+pytestmark = pytest.mark.tier_a
+
 
 def _make_cfg(seed_len: int = 3, alphabet_size: int = 29):
     return SimpleNamespace(

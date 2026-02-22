@@ -7,6 +7,8 @@ import pytest
 
 from rune_decrypter_prime.ciphers.railfence_cipher import RailFenceCipher
 
+pytestmark = pytest.mark.tier_a
+
 
 def _make_cipher(**overrides) -> RailFenceCipher:
     cfg_kwargs = dict(min_rails=2, max_rails=6)
