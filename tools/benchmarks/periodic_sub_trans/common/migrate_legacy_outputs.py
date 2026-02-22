@@ -10,6 +10,7 @@ This script is intentionally non-destructive:
 
 import json
 import shutil
+import argparse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List
@@ -29,6 +30,7 @@ class MappingRule:
 
 RULES = (
     MappingRule("__bench_solve_pipeline_no_wli__", "no_wli"),
+    MappingRule("__bench_solve_col_then_sub_pipeline__", "col_then_sub"),
     MappingRule("__bench_solve_sub_then_col_pipeline__", "sub_then_col"),
     MappingRule("__bench_solve_pipeline__", "col_then_sub"),
 )
@@ -42,7 +44,7 @@ def classify_folder(name: str) -> str:
     return "misc_legacy"
 
 
-def migrate() -> List[dict]:
+def migrate(*, prune_copied: bool = False) -> List[dict]:
     DEST_ROOT.mkdir(parents=True, exist_ok=True)
     rows: List[dict] = []
 
@@ -72,6 +74,9 @@ def migrate() -> List[dict]:
         try:
             shutil.copytree(src, dst)
             row["status"] = "copied"
+            if bool(prune_copied):
+                shutil.rmtree(src)
+                row["status"] = "copied_pruned"
         except Exception as exc:  # pragma: no cover - defensive log path
             row["status"] = "error"
             row["error"] = f"{type(exc).__name__}: {exc}"
@@ -83,12 +88,21 @@ def migrate() -> List[dict]:
 
 
 def main() -> None:
-    rows = migrate()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--prune-copied",
+        action="store_true",
+        help="Delete source folders only after successful copy",
+    )
+    args = parser.parse_args()
+
+    rows = migrate(prune_copied=bool(args.prune_copied))
     copied = sum(1 for row in rows if row["status"] == "copied")
+    copied_pruned = sum(1 for row in rows if row["status"] == "copied_pruned")
     skipped = sum(1 for row in rows if row["status"] == "skipped_exists")
     errors = sum(1 for row in rows if row["status"] == "error")
     print(
-        f"[legacy-import] done copied={copied} skipped_exists={skipped} "
+        f"[legacy-import] done copied={copied} copied_pruned={copied_pruned} skipped_exists={skipped} "
         f"errors={errors} manifest={MANIFEST_PATH}"
     )
 
