@@ -12,14 +12,10 @@ the search shape is different:
 
 It writes per-instance checkpoints and append-only history, plus a solved-only
 JSONL with config+instance payload for reproducibility.
-
-Stage A/B scorer profile is selected via:
-- RDP_SUBCOL_STAGEAB_PROFILE=A_char1|A_char34|A_char34_wli34
 """
 
 import csv
 import json
-import os
 import re
 import subprocess
 import sys
@@ -53,12 +49,19 @@ from rune_decrypter_prime.utils.seed_utils_periodic_columnar_sub_then_col import
 )
 
 from tools.benchmarks.periodic_sub_trans.common import bench_solve_periodic_columnar_kaeding as base
+from tools.benchmarks.periodic_sub_trans.common.core_enums import (
+    BenchmarkOrder,
+    InstanceStatus,
+    InstanceStopReason,
+    PipelineRunMode,
+    StageABScorerProfile,
+)
 from tools.benchmarks.periodic_sub_trans.common.paths import make_flavor_run_dir
 
 ALPHABET_SIZE = 29
-ORDER = "sub_then_col"
+ORDER = BenchmarkOrder.SUB_THEN_COL.value
 PROFILE = "pipeline_sub_then_col_v1"
-PIPELINE_RUN_MODE = str(os.environ.get("RDP_SUBCOL_MODE", "focus_sub_then_col")).strip()  # "focus_sub_then_col" | "smoke"
+PIPELINE_RUN_MODE = PipelineRunMode.FOCUS_SUB_THEN_COL.value
 
 SOLVE_MATCH_THRESHOLD = 0.90
 STALL_DELTA = 0.002
@@ -67,37 +70,30 @@ HEARTBEAT_SECONDS = 1200
 
 AUTOSKIP_PROVEN = True
 AUTOSKIP_PROVEN_MIN_MATCH = SOLVE_MATCH_THRESHOLD
-FORCE_RERUN_PROVEN = str(os.environ.get("RDP_SUBCOL_FORCE_RERUN_PROVEN", "0")).strip().lower() in {
-    "1",
-    "true",
-    "yes",
-    "on",
-}
+FORCE_RERUN_PROVEN = False
 
 TEXT_OFFSETS = [0]
 KEY_SEEDS = [111]
-KEY_SEEDS_OVERRIDE = str(os.environ.get("RDP_SUBCOL_KEY_SEEDS", "")).strip()
-TIERS_REGEX_OVERRIDE = str(os.environ.get("RDP_SUBCOL_TIERS_REGEX", "")).strip()
+KEY_SEEDS_OVERRIDE: Sequence[int] | str | None = None
+TIERS_REGEX_OVERRIDE: str | None = None
 
-STAGEAB_SCORER_PROFILE = str(
-    os.environ.get("RDP_SUBCOL_STAGEAB_PROFILE", "A_char34_wli34")
-).strip()
+STAGEAB_SCORER_PROFILE = StageABScorerProfile.A_CHAR34_WLI34.value
 STAGEAB_SCORER_PROFILES: Dict[str, Dict[str, Any]] = {
-    "A_char1": dict(
+    StageABScorerProfile.A_CHAR1.value: dict(
         objective="pct.logp.win10",
         include_char=True,
         use_word_breaks=False,
         char_weights={1: 1.0},
         wli_weights={},
     ),
-    "A_char34": dict(
+    StageABScorerProfile.A_CHAR34.value: dict(
         objective="pct.logp.win10",
         include_char=True,
         use_word_breaks=False,
         char_weights={3: 0.3, 4: 0.7},
         wli_weights={},
     ),
-    "A_char34_wli34": dict(
+    StageABScorerProfile.A_CHAR34_WLI34.value: dict(
         objective="pct.logp.win10",
         include_char=True,
         use_word_breaks=True,
@@ -105,7 +101,7 @@ STAGEAB_SCORER_PROFILES: Dict[str, Dict[str, Any]] = {
         wli_weights={3: 0.4, 4: 0.6},
     ),
 }
-SCORER_SUB: Dict[str, Any] = dict(STAGEAB_SCORER_PROFILES["A_char34_wli34"])
+SCORER_SUB: Dict[str, Any] = dict(STAGEAB_SCORER_PROFILES[StageABScorerProfile.A_CHAR34_WLI34.value])
 SCORER_FULL = dict(
     objective="pct.logp.win10",
     include_char=True,
@@ -223,11 +219,11 @@ def _apply_run_mode() -> None:
     global COL_SAMPLE_SIZE, STAGE3_INITIAL_KEYS, STAGE3_FULL_ENTRY_SCORE, STAGE3_PROBE_ENTRY_SCORE
     global COL_KEEP, SUB_PROBE_N_BLOCKS, SUB_PROBE_TOTAL_SEEDS, SUB_PROBE_SWAPS, SUB_PROBE_EVAL_KEYS
     global SUB_REFINE_N_BLOCKS, SUB_REFINE_TOTAL_SEEDS, SUB_REFINE_SWAPS, SUB_REFINE_TOP_KEYS_PER_PERM
-    if PIPELINE_RUN_MODE == "focus_sub_then_col":
+    if PIPELINE_RUN_MODE == PipelineRunMode.FOCUS_SUB_THEN_COL.value:
         PROFILE = "pipeline_sub_then_col_focus_v1"
         HEARTBEAT_SECONDS = 1200
         return
-    if PIPELINE_RUN_MODE == "smoke":
+    if PIPELINE_RUN_MODE == PipelineRunMode.SMOKE.value:
         PROFILE = "pipeline_sub_then_col_smoke_v1"
         HEARTBEAT_SECONDS = 120
         TIERS = [
@@ -265,8 +261,11 @@ def _apply_run_mode() -> None:
             col_batch=24,
         )
         return
+    allowed = ", ".join(
+        [PipelineRunMode.FOCUS_SUB_THEN_COL.value, PipelineRunMode.SMOKE.value]
+    )
     raise ValueError(
-        f"Unknown PIPELINE_RUN_MODE={PIPELINE_RUN_MODE!r}; expected 'focus_sub_then_col' or 'smoke'"
+        f"Unknown PIPELINE_RUN_MODE={PIPELINE_RUN_MODE!r}; expected one of: {allowed}"
     )
 
 
@@ -276,29 +275,36 @@ def _resolve_stageab_scorer_profile() -> None:
     if k not in STAGEAB_SCORER_PROFILES:
         allowed = ", ".join(sorted(STAGEAB_SCORER_PROFILES.keys()))
         raise ValueError(
-            f"Unknown RDP_SUBCOL_STAGEAB_PROFILE={k!r}; expected one of: {allowed}"
+            f"Unknown STAGEAB_SCORER_PROFILE={k!r}; expected one of: {allowed}"
         )
     SCORER_SUB = dict(STAGEAB_SCORER_PROFILES[k])
 
 
 def _apply_runtime_overrides() -> None:
     global KEY_SEEDS, TIERS
-    if KEY_SEEDS_OVERRIDE:
-        vals = []
-        for token in KEY_SEEDS_OVERRIDE.split(","):
-            t = token.strip()
-            if not t:
-                continue
-            vals.append(int(t))
+    vals: List[int] = []
+    if KEY_SEEDS_OVERRIDE is not None and KEY_SEEDS_OVERRIDE != "":
+        if isinstance(KEY_SEEDS_OVERRIDE, (list, tuple, set)):
+            for token in KEY_SEEDS_OVERRIDE:
+                t = str(token).strip()
+                if not t:
+                    continue
+                vals.append(int(t))
+        else:
+            for token in str(KEY_SEEDS_OVERRIDE).split(","):
+                t = token.strip()
+                if not t:
+                    continue
+                vals.append(int(t))
         if vals:
             seen: set[int] = set()
             KEY_SEEDS = [int(x) for x in vals if not (int(x) in seen or seen.add(int(x)))]
     if TIERS_REGEX_OVERRIDE:
-        rx = re.compile(TIERS_REGEX_OVERRIDE)
+        rx = re.compile(str(TIERS_REGEX_OVERRIDE))
         TIERS = [t for t in TIERS if rx.search(str(t.name))]
         if not TIERS:
             raise ValueError(
-                f"RDP_SUBCOL_TIERS_REGEX={TIERS_REGEX_OVERRIDE!r} matched zero tiers"
+                f"TIERS_REGEX_OVERRIDE={TIERS_REGEX_OVERRIDE!r} matched zero tiers"
             )
 
 
@@ -506,7 +512,10 @@ def _load_proven_solved_index(path: Path, *, min_match: float) -> Dict[Tuple[str
         with path.open(newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                if str(row.get("status", "")).strip().lower() not in {"solved", "skipped_proven"}:
+                if str(row.get("status", "")).strip().lower() not in {
+                    InstanceStatus.SOLVED.value,
+                    InstanceStatus.SKIPPED_PROVEN.value,
+                }:
                     continue
                 try:
                     mr = float(row.get("best_match_ratio", "nan"))
@@ -717,8 +726,8 @@ def main() -> None:
                             key_seed=int(key_seed),
                             offset_hint=int(off),
                             offset_used=int(offset_used),
-                            status="skipped_proven",
-                            stop_reason="autoskip_proven",
+                            status=InstanceStatus.SKIPPED_PROVEN.value,
+                            stop_reason=InstanceStopReason.AUTOSKIP_PROVEN.value,
                             solve_threshold=float(SOLVE_MATCH_THRESHOLD),
                             best_stage=src_stage,
                             best_match_ratio=float(src_match if np.isfinite(src_match) else np.nan),
@@ -769,7 +778,7 @@ def main() -> None:
                             period=tier.period,
                             columns=tier.columns,
                             length=tier.length,
-                            status="skipped_proven",
+                            status=InstanceStatus.SKIPPED_PROVEN.value,
                             solve_threshold=float(SOLVE_MATCH_THRESHOLD),
                             stageab_scorer_profile=str(STAGEAB_SCORER_PROFILE),
                             best_match_ratio=float(src_match if np.isfinite(src_match) else np.nan),
@@ -785,7 +794,7 @@ def main() -> None:
                             best_score_per_tail_top5="[]",
                             total_seconds=0.0,
                             total_evals=0,
-                            notes="autoskip_proven",
+                            notes=InstanceStopReason.AUTOSKIP_PROVEN.value,
                         ),
                     )
                     history_rows_written += 1
@@ -798,7 +807,7 @@ def main() -> None:
                         flush=True,
                     )
                     print(
-                        f"[subcol] {done}/{total} tier={tier.name} status=skipped_proven "
+                        f"[subcol] {done}/{total} tier={tier.name} status={InstanceStatus.SKIPPED_PROVEN.value} "
                         f"elapsed={_fmt_secs(elapsed)} eta={_fmt_secs(eta)}",
                         flush=True,
                     )
@@ -1140,12 +1149,12 @@ def main() -> None:
                 best_full_score = float(stage_sub_score if np.isfinite(stage_sub_score) else float("-inf"))
                 best_stage = "stageB_sub_refine"
                 best_preview = _preview_latin(stageB_ranked[0]["plaintext"], wli) if stageB_ranked else ""
-                stop_reason = "unsolved"
+                stop_reason = InstanceStopReason.UNSOLVED.value
                 full_evals = 0
                 stage3_entry_mode = "none"
                 stage3_band = "none"
                 if np.isfinite(best_full_match) and best_full_match >= float(SOLVE_MATCH_THRESHOLD):
-                    stop_reason = "solved_stageB"
+                    stop_reason = InstanceStopReason.SOLVED_STAGE_B.value
                 elif stageB_ranked:
                     entry_score = float(stageB_ranked[0]["score"])
                     full_gate = (
@@ -1299,14 +1308,16 @@ def main() -> None:
                         best_stage = "stageC_full_refine"
                         best_preview = _preview_latin(pt_full.tolist(), wli) if pt_full.size > 0 else best_preview
                     if np.isfinite(m_full) and m_full >= float(SOLVE_MATCH_THRESHOLD):
-                        stop_reason = "solved_stageC"
+                        stop_reason = InstanceStopReason.SOLVED_STAGE_C.value
                     elif (m_full - (stage_sub_match if np.isfinite(stage_sub_match) else 0.0)) <= float(STALL_DELTA):
-                        stop_reason = "stalled_no_improve"
+                        stop_reason = InstanceStopReason.STALLED_NO_IMPROVE.value
                     else:
-                        stop_reason = "completed_pipeline"
+                        stop_reason = InstanceStopReason.COMPLETED_PIPELINE.value
 
-                status = "solved" if best_full_match >= float(SOLVE_MATCH_THRESHOLD) else (
-                    "stalled" if stop_reason == "stalled_no_improve" else "unsolved"
+                status = InstanceStatus.SOLVED.value if best_full_match >= float(SOLVE_MATCH_THRESHOLD) else (
+                    InstanceStatus.STALLED.value
+                    if stop_reason == InstanceStopReason.STALLED_NO_IMPROVE.value
+                    else InstanceStatus.UNSOLVED.value
                 )
                 dt_i = float(time.time() - t0_i)
                 total_evals = int(probe_evals + stageB_evals + full_evals)
@@ -1390,7 +1401,7 @@ def main() -> None:
                 _append_csv_row(hist, hist_row)
                 history_rows_written += 1
 
-                if status == "solved":
+                if status == InstanceStatus.SOLVED.value:
                     stage_rows_instance = [
                         dict(s)
                         for s in stages

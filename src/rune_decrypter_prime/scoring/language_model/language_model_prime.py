@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Tuple, Literal, Dict, Any, Optional, Sequence
 import math
-import os
 import struct
 
 import numpy as np
@@ -54,8 +53,14 @@ def _norm_model(model: MODEL) -> str:
     raise ValueError("model must be 'wli' or 'char'")
 
 
-# Optional logging for joint-table loads (per environment).
-_LOG_LOADS = bool(os.environ.get("RDP_LM_LOG_LOADS"))
+# Optional logging for joint-table loads (explicit toggle via setter).
+_LOG_LOADS = False
+
+
+def set_lm_load_logging(enabled: bool) -> None:
+    """Enable/disable LM table load logging at runtime."""
+    global _LOG_LOADS
+    _LOG_LOADS = bool(enabled)
 
 
 def _load_bin(path: Path, *, cache: dict[Path, tuple[np.ndarray, np.ndarray, np.ndarray, np.uint32]] | None = None):

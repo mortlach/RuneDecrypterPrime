@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -69,18 +68,18 @@ def main() -> int:
         return 0
 
     repo_root = base.parents[2]
-    env = os.environ.copy()
     src_path = repo_root / "src"
-    current = env.get("PYTHONPATH")
-    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{current}" if current else str(src_path)
-
     failures: list[str] = []
     for script in scripts:
         print(f"\n=== Running {script.name} ===")
+        launch = (
+            "import runpy, sys; "
+            f"sys.path.insert(0, {str(src_path)!r}); "
+            f"runpy.run_path({str(script)!r}, run_name='__main__')"
+        )
         result = subprocess.run(
-            [sys.executable, str(script)],
+            [sys.executable, "-c", launch],
             cwd=str(repo_root),
-            env=env,
         )
         if result.returncode != 0:
             failures.append(script.name)

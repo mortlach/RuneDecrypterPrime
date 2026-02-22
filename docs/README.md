@@ -10,6 +10,14 @@ It defines stable interfaces for **Cipher**, **KeyOps**, **Optimiser**, **Scorer
 
 > RDP is a reproducible lab for decryption methods: build, run, compare, and share results with consistent behaviour.
 
+## User docs first
+
+If you just want to run the project (not extend internals), start here:
+
+- `docs/user/README.md`
+- `docs/guides/quickstart.md`
+- `docs/guides/troubleshooting.md`
+
 ---
 
 ## Purpose and scope

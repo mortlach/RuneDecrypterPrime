@@ -45,12 +45,13 @@ from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import PeriodicS
 from rune_decrypter_prime.utils.seed_utils import make_periodic_seed_pool
 
 from tools.benchmarks.periodic_sub_trans.common import bench_solve_periodic_columnar_kaeding as base
+from tools.benchmarks.periodic_sub_trans.common.core_enums import BenchmarkOrder
 from tools.benchmarks.config.no_wli_pipeline_profiles import get_no_wli_pipeline_profile
 from tools.benchmarks.periodic_sub_trans.common.paths import make_flavor_run_dir
 
 
 ALPHABET_SIZE = 29
-ORDER = "col_then_sub"  # keep v1 aligned with the proven pipeline; add both orders in later variants.
+ORDER = BenchmarkOrder.COL_THEN_SUB.value  # keep v1 aligned with the proven pipeline; add both orders in later variants.
 PROFILE = "pipeline_no_wli_v1"
 PIPELINE_RUN_MODE = "focus_500_nowli"  # "full" | "focus_500_nowli" | "smoke"
 ENCODING_DIR = "ltr"  # "ltr" | "rtl"

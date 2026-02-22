@@ -4,6 +4,7 @@ This index mirrors `docs/DOCS_PLAN.md` and `docs/DOCS_PLAN_IMPLEMENTATION.md`. U
 
 ## Getting Started
 - `README.md`
+- `user/README.md`
 - `setup/installation.md`
 - `guides/troubleshooting.md`
 

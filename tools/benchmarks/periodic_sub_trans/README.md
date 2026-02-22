@@ -8,6 +8,11 @@ This package is the harmonized home for periodic substitution/transposition benc
 - `col_then_sub/`
 - `sub_then_col/`
 
+Primary entrypoints:
+- `python tools/benchmarks/periodic_sub_trans/no_wli/runner.py`
+- `python tools/benchmarks/periodic_sub_trans/col_then_sub/bench_solve_periodic_columnar_pipeline_col_then_sub.py`
+- `python tools/benchmarks/periodic_sub_trans/sub_then_col/runner.py`
+
 ## Shared code
 
 - `common/` for reusable benchmark infrastructure (paths, reports, artifacts, logging, telemetry projections).
@@ -21,15 +26,26 @@ All outputs are written under `output/tools/benchmarks/` and mirror runner struc
 - `output/tools/benchmarks/periodic_sub_trans/col_then_sub/...`
 - `output/tools/benchmarks/periodic_sub_trans/sub_then_col/...`
 
-## Legacy migration
+Legacy imports are kept under:
+- `output/tools/benchmarks/periodic_sub_trans/<flavor>/legacy_import/...`
+
+## Legacy migration and cleanup
 
 To copy older run history into this layout (non-destructive), run:
 
 - `python tools/benchmarks/periodic_sub_trans/common/migrate_legacy_outputs.py`
 
+To copy and remove old root-level run folders after successful copy:
+
+- `python tools/benchmarks/periodic_sub_trans/common/migrate_legacy_outputs.py --prune-copied`
+
 A manifest is written to:
 
 - `output/tools/benchmarks/periodic_sub_trans/legacy_import_manifest.json`
+
+To port legacy generic solve-history rows into flavor history (col-then-sub):
+
+- `python tools/benchmarks/periodic_sub_trans/common/port_legacy_solve_history.py`
 
 ## Community integration shape
 

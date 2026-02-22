@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import re
 import subprocess
 import sys
@@ -15,18 +14,16 @@ def test_railfence_tutorial_script_recovers_plaintext():
     repo_root = Path(__file__).resolve().parents[2]
     script = repo_root / "tutorials" / "v1" / "Tutorial_Railfence.py"
     assert script.is_file(), "tutorial script is missing"
-
-    env = os.environ.copy()
     src_path = repo_root / "src"
-    py_path = env.get("PYTHONPATH")
-    env["PYTHONPATH"] = (
-        f"{src_path}{os.pathsep}{py_path}" if py_path else str(src_path)
+    launch = (
+        "import runpy, sys; "
+        f"sys.path.insert(0, {str(src_path)!r}); "
+        f"runpy.run_path({str(script)!r}, run_name='__main__')"
     )
 
     result = subprocess.run(
-        [sys.executable, str(script)],
+        [sys.executable, "-c", launch],
         cwd=str(repo_root),
-        env=env,
         capture_output=True,
         text=True,
         encoding="utf-8",

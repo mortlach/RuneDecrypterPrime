@@ -67,6 +67,7 @@ from tools.benchmarks.periodic_sub_trans.common.seed_utils_periodic_columnar_col
     make_periodic_seed_pool_col_then_sub,
     make_tail_seed_pool,
 )
+from tools.benchmarks.periodic_sub_trans.common.core_enums import BenchmarkOrder
 
 from tools.benchmarks.periodic_sub_trans.common import bench_solve_periodic_columnar_kaeding as base
 from tools.benchmarks.periodic_sub_trans.common.io_reports import (
@@ -76,7 +77,7 @@ from tools.benchmarks.periodic_sub_trans.common.io_reports import (
 from tools.benchmarks.periodic_sub_trans.common.paths import make_flavor_run_dir
 
 ALPHABET_SIZE = 29  # Rune alphabet size used by periodic substitution/key layout.
-ORDER = "col_then_sub"  # Cipher composition order benchmarked by this script.
+ORDER = BenchmarkOrder.COL_THEN_SUB.value  # Cipher composition order benchmarked by this script.
 PROFILE = "pipeline_col_then_sub_v1"  # Human-readable profile id written to logs/history.
 PIPELINE_RUN_MODE = "focus_p10_fast_resume"  # Active preset selector.
 # Allowed: "full" | "focus_p5_p7" | "focus_p10_fast" | "focus_p10_fast_resume" | "smoke"

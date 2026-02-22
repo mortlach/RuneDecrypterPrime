@@ -18,6 +18,12 @@ from tools.benchmarks.community.config import (
     apply_profile_overrides_to_pipeline_module,
     load_profile_catalog_from_dict,
 )
+from tools.benchmarks.periodic_sub_trans.common.core_enums import (
+    BenchmarkOrder,
+    InstanceStatus,
+    InstanceStopReason,
+    PipelineRunMode,
+)
 
 DEFAULT_LENGTH = 2376
 
@@ -77,7 +83,15 @@ def _configure_module_for_campaign_job(
     _apply_if_present(module, "KEY_SEEDS_OVERRIDE", [run_seed])
     _apply_if_present(module, "KEY_SEEDS", [run_seed])
     _apply_if_present(module, "TEXT_OFFSETS", [0])
-    _apply_if_present(module, "PIPELINE_RUN_MODE", "full" if order == "col_then_sub" else "focus_sub_then_col")
+    _apply_if_present(
+        module,
+        "PIPELINE_RUN_MODE",
+        (
+            PipelineRunMode.FULL.value
+            if order == BenchmarkOrder.COL_THEN_SUB.value
+            else PipelineRunMode.FOCUS_SUB_THEN_COL.value
+        ),
+    )
     _apply_if_present(module, "PROFILE", f"community_{profile_id}")
     _apply_if_present(module, "HEARTBEAT_SECONDS", 3600)
 
@@ -125,24 +139,28 @@ def _stage_num(best_stage: str) -> int:
 
 def _map_status(status: str) -> str:
     raw = str(status).strip().lower()
-    if raw in {"solved", "unsolved", "stalled"}:
+    if raw in {
+        InstanceStatus.SOLVED.value,
+        InstanceStatus.UNSOLVED.value,
+        InstanceStatus.STALLED.value,
+    }:
         return raw
-    if raw == "skipped_proven":
-        return "error"
-    return "error"
+    if raw == InstanceStatus.SKIPPED_PROVEN.value:
+        return InstanceStatus.ERROR.value
+    return InstanceStatus.ERROR.value
 
 
 def _map_stop_reason(raw_stop_reason: str, *, mapped_status: str, best_stage: str, stage3_best_score: float | None) -> str:
     raw = str(raw_stop_reason or "").strip().lower()
-    if mapped_status == "solved":
+    if mapped_status == InstanceStatus.SOLVED.value:
         return "solved_threshold_met"
-    if raw in {"solved_stage2", "solved_stage3"}:
+    if raw in {"solved_stage2", "solved_stage3", InstanceStopReason.SOLVED_STAGE_B.value, InstanceStopReason.SOLVED_STAGE_C.value}:
         return "solved_threshold_met"
-    if raw == "stalled_no_improve":
+    if raw == InstanceStopReason.STALLED_NO_IMPROVE.value:
         return "plateau_detected"
-    if raw.startswith("autoskip_proven"):
+    if raw.startswith(InstanceStopReason.AUTOSKIP_PROVEN.value):
         return "invalid_config"
-    if raw == "completed_pipeline":
+    if raw == InstanceStopReason.COMPLETED_PIPELINE.value:
         if _stage_num(best_stage) >= 3 or stage3_best_score is not None:
             return "stage3_budget_exhausted"
         return "stage2_budget_exhausted"
@@ -225,9 +243,9 @@ def run_single_job(
     repo_root: Path,
 ) -> dict[str, Any]:
     order = str(job["order"])
-    if order == "col_then_sub":
+    if order == BenchmarkOrder.COL_THEN_SUB.value:
         module_name = "tools.benchmarks.periodic_sub_trans.col_then_sub.runner"
-    elif order == "sub_then_col":
+    elif order == BenchmarkOrder.SUB_THEN_COL.value:
         module_name = "tools.benchmarks.periodic_sub_trans.sub_then_col.runner"
     else:
         raise ValueError(f"unsupported order: {order}")

@@ -524,7 +524,6 @@ class CipherPipelineMixin:
 #         """
 #         self._intr_mgr = InterruptorManager()
 #         self._trans_mgr = TranspositionManager(text_mode=text_transposition, key_mode=key_transposition)
-#         #self._debug_core_check = bool(int(os.getenv("RUNE_DEBUG_CORE", "0")))
 #         # Only additive ciphers (e.g., Vigenère) should enable this in their __init__
 #         self._additive_debug = False
 #

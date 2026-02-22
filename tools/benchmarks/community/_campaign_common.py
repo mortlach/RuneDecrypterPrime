@@ -6,7 +6,12 @@ import math
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
-VALID_ORDERS: tuple[str, str] = ("col_then_sub", "sub_then_col")
+from tools.benchmarks.periodic_sub_trans.common.core_enums import BenchmarkOrder
+
+VALID_ORDERS: tuple[str, str] = (
+    BenchmarkOrder.COL_THEN_SUB.value,
+    BenchmarkOrder.SUB_THEN_COL.value,
+)
 
 
 def _normalise_floats(value: Any) -> Any:

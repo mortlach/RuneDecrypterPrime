@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-import os
 from pathlib import Path
+import subprocess
 
 
 def repo_root() -> Path:
@@ -16,12 +16,24 @@ def output_root() -> Path:
 
 def run_tag(default: str = "nogit") -> str:
     """
-    Deterministic run label suffix without invoking git.
+    Deterministic run label suffix.
 
-    If RDP_RUN_TAG is set, use it (trimmed). Otherwise fall back to "nogit".
+    Uses current git short SHA when available, otherwise falls back to `default`.
     """
-    value = os.environ.get("RDP_RUN_TAG", "").strip()
-    return value or default
+    root = repo_root()
+    try:
+        return (
+            subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],
+                cwd=root,
+                stderr=subprocess.DEVNULL,
+            )
+            .decode("utf-8")
+            .strip()
+            or default
+        )
+    except Exception:
+        return default
 
 
 def make_flavor_run_dir(*, flavor: str, run_prefix: str = "bench_solve_pipeline") -> Path:

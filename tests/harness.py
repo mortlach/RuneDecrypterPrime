@@ -34,15 +34,17 @@ from rune_decrypter_prime.io.run_logger import get_logger
 
 # ---------------- helpers ----------------
 from pathlib import Path as _Path
-import os as _os
 try:
     from rune_decrypter_prime.core.config.logging_config import get_run_dir as _get_run_dir
 except Exception:
     _get_run_dir = None
-if not _os.environ.get('RDP_TEST_OUT_BASE'):
-    _base = (_get_run_dir() / 'artifacts' / 'tests') if _get_run_dir else _Path('output') / 'tests' / 'manual' / 'artifacts' / 'tests'
-    _base.mkdir(parents=True, exist_ok=True)
-    _os.environ['RDP_TEST_OUT_BASE'] = str(_base)
+
+_TEST_OUT_BASE = (
+    (_get_run_dir() / "artifacts" / "tests")
+    if _get_run_dir
+    else _Path("output") / "tests" / "manual" / "artifacts" / "tests"
+)
+_TEST_OUT_BASE.mkdir(parents=True, exist_ok=True)
 def _coerce_dict(x: Any) -> Dict[str, Any]:
     if x is None:
         return {}

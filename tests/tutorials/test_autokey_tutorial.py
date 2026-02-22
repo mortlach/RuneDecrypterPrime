@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import re
 import subprocess
 import sys
@@ -15,16 +14,16 @@ def test_autokey_tutorial_runs_both_modes():
     repo_root = Path(__file__).resolve().parents[2]
     script = repo_root / "tutorials" / "v1" / "Tutorial_Autokey.py"
     assert script.is_file(), "Tutorial script missing"
-
-    env = os.environ.copy()
     src_path = repo_root / "src"
-    current = env.get("PYTHONPATH")
-    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{current}" if current else str(src_path)
+    launch = (
+        "import runpy, sys; "
+        f"sys.path.insert(0, {str(src_path)!r}); "
+        f"runpy.run_path({str(script)!r}, run_name='__main__')"
+    )
 
     result = subprocess.run(
-        [sys.executable, str(script)],
+        [sys.executable, "-c", launch],
         cwd=str(repo_root),
-        env=env,
         capture_output=True,
         text=True,
         encoding="utf-8",

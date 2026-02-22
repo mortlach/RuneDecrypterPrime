@@ -195,7 +195,8 @@ cython_debug/
 .pypirc
 
 # Repository outputs (generated artifacts)
-output/
+output/*
+!output/README.md
 tools/out/
 setup.log
 preflight.log
@@ -216,8 +217,10 @@ __marimo__/
 assets/
 bigram_research/
 legacy/
-planning/
-solving/
+planning/*
+!planning/README.md
+solving/*
+!solving/README.md
 RuneDecrypterPrime-test-0.2/
 tools/benchmarks/solve_proof/
 tools/git_link_scrape/
