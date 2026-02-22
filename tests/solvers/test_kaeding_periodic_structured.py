@@ -7,6 +7,8 @@ from rune_decrypter_prime.ciphers.periodic_substitution_cipher import PeriodicSu
 from rune_decrypter_prime.ciphers.substitution_cipher import SubstitutionCipher
 from rune_decrypter_prime.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
 
+pytestmark = pytest.mark.tier_a
+
 
 class ZeroScorer:
     def batch_score(self, pts, wli=None):

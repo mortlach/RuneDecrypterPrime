@@ -36,7 +36,8 @@ Completed in tool subtree:
   - `repo_utils/*`
   - `scaffold/new_cipher_scaffold.py`
   - `symbols/generate_symbol_index.py`
-  - `git_link_scrape/prompt.txt` (retained as reference only)
+  - `git_link_scrape/scrape_github.py` + `git_link_scrape/prompt.txt`
+  - `docs_lint/run_docs_lint.py`
 - Removed `tools/docs_lint/` tracked reports (moved under `output/tools/docs_lint/legacy_reports/`).
 
 Execution checklist:

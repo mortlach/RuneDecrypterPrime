@@ -3,6 +3,8 @@ import pytest
 from rune_decrypter_prime.core.config import CipherConfig
 from rune_decrypter_prime.ciphers.columnar_transposition_cipher import ColumnarTranspositionCipher
 
+pytestmark = pytest.mark.tier_a
+
 
 def test_columnar_key_length_limit():
     cfg = CipherConfig(

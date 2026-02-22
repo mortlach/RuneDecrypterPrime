@@ -10,6 +10,8 @@ from rune_decrypter_prime.core.config import CipherConfig
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
 from rune_decrypter_prime.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
 
+pytestmark = pytest.mark.tier_a
+
 
 class _NoopScorer:
     def batch_score(self, pts, wli=None):
