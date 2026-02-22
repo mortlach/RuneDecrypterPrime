@@ -52,14 +52,44 @@ STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS = {
     4: 24,
     5: 120,
 }
-STAGE3_INITIAL_KEYS = 64
+STAGE3_INITIAL_KEYS = 24
 STAGE3_INITIAL_KEYS_BY_COLUMNS = {
     1: 24,
-    2: 32,
-    3: 48,
-    4: 56,
-    5: 64,
+    2: 24,
+    3: 24,
+    4: 24,
+    5: 24,
 }
+STAGE3_DYNAMIC_BANDS_SOLVE = [
+    {"name": "very_close", "max_gap": 0.010, "steps": 400, "restarts": 8, "plateau_rounds": 120, "col_batch": 64, "inner_batch": 96},
+    {"name": "close", "max_gap": 0.030, "steps": 600, "restarts": 12, "plateau_rounds": 140, "col_batch": 64, "inner_batch": 96},
+    {"name": "mid", "max_gap": 0.080, "steps": 700, "restarts": 16, "plateau_rounds": 160, "col_batch": 80, "inner_batch": 96},
+    {"name": "far", "max_gap": 1e9, "steps": 800, "restarts": 24, "plateau_rounds": 180, "col_batch": 80, "inner_batch": 96},
+]
+STAGE3_TWO_PHASE_ENABLED = True
+STAGE3_PHASEA_CFG = {
+    "steps": 350,
+    "restarts": 1,
+    "inner_batch": 64,
+    "col_every": 1,
+    "col_batch": 64,
+    "slip_every": 0,
+    "slip_swaps": 0,
+    "stall_slip_limit": 0,
+}
+STAGE3_PHASEB_CFG = {
+    "steps": 1400,
+    "inner_batch": 128,
+    "col_every": 1,
+    "col_batch": 96,
+    "slip_every": 70,
+    "stall_rounds": 160,
+    "stall_slip_limit": 8,
+    "slip_swaps": 28,
+}
+STAGE3_PHASEB_TOP_N = 8
+STAGE3_PHASEB_GATE_DELTA_FLOOR = 0.008
+STAGE3_PHASEB_GATE_END_GAIN_FLOOR = 0.004
 
 
 def main() -> None:
@@ -99,7 +129,14 @@ def main() -> None:
     no_wli.STAGE3_INITIAL_KEYS_BY_COLUMNS = {
         int(k): int(v) for k, v in STAGE3_INITIAL_KEYS_BY_COLUMNS.items()
     }
+    no_wli.STAGE3_DYNAMIC_BANDS = [dict(b) for b in STAGE3_DYNAMIC_BANDS_SOLVE]
     no_wli.SOLVER_STAGE1 = dict(no_wli.SOLVER_STAGE1, seed_restarts=int(STAGE1_SEED_RESTARTS))
+    no_wli.STAGE3_TWO_PHASE_ENABLED = bool(STAGE3_TWO_PHASE_ENABLED)
+    no_wli.STAGE3_PHASEA_CFG = dict(STAGE3_PHASEA_CFG)
+    no_wli.STAGE3_PHASEB_CFG = dict(STAGE3_PHASEB_CFG)
+    no_wli.STAGE3_PHASEB_TOP_N = int(STAGE3_PHASEB_TOP_N)
+    no_wli.STAGE3_PHASEB_GATE_DELTA_FLOOR = float(STAGE3_PHASEB_GATE_DELTA_FLOOR)
+    no_wli.STAGE3_PHASEB_GATE_END_GAIN_FLOOR = float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR)
 
     no_wli.main()
 

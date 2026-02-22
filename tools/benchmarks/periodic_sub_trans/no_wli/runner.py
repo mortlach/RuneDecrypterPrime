@@ -13,6 +13,7 @@ Default scorer schedule:
 """
 
 import csv
+import hashlib
 import json
 import subprocess
 import sys
@@ -113,6 +114,32 @@ STAGE3_DYNAMIC_BANDS = [
     dict(name="mid", max_gap=0.080, steps=2400, restarts=2, plateau_rounds=260, col_batch=112, inner_batch=128),
     dict(name="far", max_gap=1e9, steps=3200, restarts=2, plateau_rounds=320, col_batch=112, inner_batch=128),
 ]
+
+# Optional two-phase Stage-3 mode (solve-first).
+STAGE3_TWO_PHASE_ENABLED = False
+STAGE3_PHASEA_CFG: Dict[str, Any] = {
+    "steps": 350,
+    "restarts": 1,
+    "inner_batch": 64,
+    "col_every": 1,
+    "col_batch": 64,
+    "slip_every": 0,
+    "slip_swaps": 0,
+    "stall_slip_limit": 0,
+}
+STAGE3_PHASEB_CFG: Dict[str, Any] = {
+    "steps": 1400,
+    "inner_batch": 128,
+    "col_every": 1,
+    "col_batch": 96,
+    "slip_every": 70,
+    "stall_rounds": 160,
+    "stall_slip_limit": 8,
+    "slip_swaps": 28,
+}
+STAGE3_PHASEB_TOP_N = 8
+STAGE3_PHASEB_GATE_DELTA_FLOOR = 0.008
+STAGE3_PHASEB_GATE_END_GAIN_FLOOR = 0.004
 
 # Scorers (char-only everywhere).
 SCORER_STAGE1 = dict(
@@ -425,6 +452,11 @@ def _mutate_full_key(base_key: Sequence[int], *, period: int, columns: int, seed
     return out[: int(n)]
 
 
+def _key_hash16(key_vals: Sequence[int]) -> str:
+    arr = np.asarray(list(map(int, key_vals)), dtype=np.int16).reshape(-1)
+    return hashlib.sha1(arr.tobytes()).hexdigest()[:16]
+
+
 def _preview_latin(pt: Sequence[int], wli: Sequence[Sequence[int]]) -> str:
     return base._safe_preview_latin(pt, wli, limit=PREVIEW_CHARS)
 
@@ -624,6 +656,14 @@ def main() -> None:
             init_keys=int(STAGE3_INITIAL_KEYS),
             init_by_columns={str(k): int(v) for k, v in STAGE3_INITIAL_KEYS_BY_COLUMNS.items()},
             dynamic_bands=[dict(b) for b in STAGE3_DYNAMIC_BANDS],
+            two_phase=dict(
+                enabled=bool(STAGE3_TWO_PHASE_ENABLED),
+                phase_a=dict(STAGE3_PHASEA_CFG),
+                phase_b=dict(STAGE3_PHASEB_CFG),
+                phase_b_top_n=int(STAGE3_PHASEB_TOP_N),
+                gate_delta_floor=float(STAGE3_PHASEB_GATE_DELTA_FLOOR),
+                gate_end_gain_floor=float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR),
+            ),
         ),
     )
     (run_dir / "run_config.json").write_text(json.dumps(run_config, indent=2), encoding="utf-8")
@@ -662,6 +702,16 @@ def main() -> None:
         f"stage2_pass1_fallback={_weights_text(STAGE2_PASS1_FALLBACK_CHAR_WEIGHTS)} "
         f"stage2_hybrid_sub_candidates={int(STAGE2_HYBRID_SUB_CANDIDATES)} "
         f"stage2_hybrid_sub_by_c={json.dumps({str(k): int(v) for k, v in STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS.items()}, separators=(',', ':'))}",
+        flush=True,
+    )
+    print(
+        f"[pipeline_no_wli] setup: stage3_two_phase="
+        f"{'on' if bool(STAGE3_TWO_PHASE_ENABLED) else 'off'} "
+        f"phaseA={json.dumps(dict(STAGE3_PHASEA_CFG), separators=(',', ':'))} "
+        f"phaseB={json.dumps(dict(STAGE3_PHASEB_CFG), separators=(',', ':'))} "
+        f"phaseB_top_n={int(STAGE3_PHASEB_TOP_N)} "
+        f"phaseB_gate=(delta={float(STAGE3_PHASEB_GATE_DELTA_FLOOR):.4f},"
+        f"end_gain={float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR):.4f})",
         flush=True,
     )
     print(f"[pipeline_no_wli] setup: tiers={len(TIERS)} text_offsets={TEXT_OFFSETS} key_seeds={KEY_SEEDS}", flush=True)
@@ -1362,96 +1412,398 @@ def main() -> None:
                         f"gap_to_oracle={stage2_gap_to_oracle:.6f}",
                         flush=True,
                     )
-                    sol3 = run(
-                        text=ct_idx.tolist(),
-                        cipher=by_name.cipher("periodic_columnar", period=tier.period, columns=tier.columns, order=ORDER, alphabet_size=ALPHABET_SIZE),
-                        key=KeySpec.periodic_columnar(period=tier.period, columns=tier.columns, alphabet_size=ALPHABET_SIZE),
-                        solver=SolverSpec.kaeding(**solver_stage3_cfg),
-                        scorer_params=scorer_full,
-                        wli_data=[],
-                        encoding_dir=direction,
-                        telemetry_on=True,
-                        force_no_wli=True,
-                        initial_keys=init3,
-                    )
-                    dt3 = float(time.time() - t_s3)
-                    ev3 = int((getattr(sol3, "meta", {}) or {}).get("work", {}).get("evals", 0) or 0)
-                    pt3 = np.asarray(getattr(sol3, "plaintext_idx", []) or [], dtype=np.uint8).reshape(-1)
-                    k3_arr = np.asarray(getattr(sol3, "key", []) or [], dtype=np.int16).reshape(-1)
-                    if k3_arr.size == int(key_len):
-                        best3_key = k3_arr.astype(int).tolist()
-                    best3_match = base._match_ratio(pt3.tolist(), pt_idx.tolist())
-                    best3_score = float(getattr(sol3, "score", float("nan")))
-                    sol3_meta = (getattr(sol3, "meta", {}) or {})
-                    tele3 = sol3_meta.get("telemetry", {}) if isinstance(sol3_meta, dict) else {}
-                    kaeding3 = tele3.get("kaeding", {}) if isinstance(tele3, dict) else {}
-                    slip_count = int(kaeding3.get("slip_count", 0) or 0) if isinstance(kaeding3, dict) else 0
-                    accept_rate = (
-                        float(kaeding3.get("accept_rate", float("nan"))) if isinstance(kaeding3, dict) else float("nan")
-                    )
-                    slips_list = kaeding3.get("slips", []) if isinstance(kaeding3, dict) else []
+                    if bool(STAGE3_TWO_PHASE_ENABLED):
+                        print(
+                            f"[pipeline_no_wli] stage3-two-phase "
+                            f"phaseA={json.dumps(dict(STAGE3_PHASEA_CFG), separators=(',', ':'))} "
+                            f"phaseB={json.dumps(dict(STAGE3_PHASEB_CFG), separators=(',', ':'))} "
+                            f"phaseB_top_n={int(STAGE3_PHASEB_TOP_N)} "
+                            f"gate=(delta={float(STAGE3_PHASEB_GATE_DELTA_FLOOR):.4f},"
+                            f"end_gain={float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR):.4f})",
+                            flush=True,
+                        )
+                    dt3 = 0.0
+                    ev3 = 0
+                    slip_count = 0
                     slip_accept_count = 0
-                    if isinstance(slips_list, list):
-                        for rec in slips_list:
-                            if not isinstance(rec, dict):
-                                continue
-                            raw_before = float(rec.get("raw_before", float("nan")))
-                            raw_after = float(rec.get("raw_after", float("nan")))
-                            if np.isfinite(raw_before) and np.isfinite(raw_after) and raw_after > raw_before:
-                                slip_accept_count += 1
-                    slip_accept_rate = (
-                        float(slip_accept_count) / float(max(1, slip_count)) if slip_count > 0 else float("nan")
-                    )
+                    slip_accept_rate = float("nan")
+                    accept_rate = float("nan")
                     phase_attempts_total = 0
                     phase_improves_total = 0
                     phase_best_delta_max = float("nan")
-                    per_phase = kaeding3.get("per_phase", {}) if isinstance(kaeding3, dict) else {}
-                    if isinstance(per_phase, dict) and per_phase:
-                        delta_vals: List[float] = []
-                        for rec in per_phase.values():
-                            if not isinstance(rec, dict):
+                    phaseA_best_delta = float("nan")
+                    phaseA_best_start_score = float("nan")
+                    phaseA_best_end_score = float("nan")
+                    phaseB_top_n_used = 0
+                    phaseB_skipped = 0
+                    phaseB_ran = 0
+                    phaseB_skip_reason = ""
+
+                    def _extract_kaeding_metrics(kaeding_obj: Any) -> Dict[str, float]:
+                        if not isinstance(kaeding_obj, dict):
+                            return dict(
+                                slip_count=0,
+                                slip_accept_count=0,
+                                slip_accept_rate=float("nan"),
+                                accept_rate=float("nan"),
+                                phase_attempts_total=0,
+                                phase_improves_total=0,
+                                phase_best_delta_max=float("nan"),
+                            )
+                        _slip_count = int(kaeding_obj.get("slip_count", 0) or 0)
+                        _accept_rate = float(kaeding_obj.get("accept_rate", float("nan")))
+                        _slips_list = kaeding_obj.get("slips", [])
+                        _slip_accept_count = 0
+                        if isinstance(_slips_list, list):
+                            for rec in _slips_list:
+                                if not isinstance(rec, dict):
+                                    continue
+                                raw_before = float(rec.get("raw_before", float("nan")))
+                                raw_after = float(rec.get("raw_after", float("nan")))
+                                if np.isfinite(raw_before) and np.isfinite(raw_after) and raw_after > raw_before:
+                                    _slip_accept_count += 1
+                        _slip_accept_rate = (
+                            float(_slip_accept_count) / float(max(1, _slip_count)) if _slip_count > 0 else float("nan")
+                        )
+                        _phase_attempts_total = 0
+                        _phase_improves_total = 0
+                        _phase_best_delta_max = float("nan")
+                        per_phase = kaeding_obj.get("per_phase", {})
+                        if isinstance(per_phase, dict) and per_phase:
+                            delta_vals: List[float] = []
+                            for rec in per_phase.values():
+                                if not isinstance(rec, dict):
+                                    continue
+                                _phase_attempts_total += int(rec.get("attempts", 0) or 0)
+                                _phase_improves_total += int(rec.get("improves", 0) or 0)
+                                d = rec.get("best_delta_raw", None)
+                                if d is not None and np.isfinite(float(d)):
+                                    delta_vals.append(float(d))
+                            if delta_vals:
+                                _phase_best_delta_max = float(max(delta_vals))
+                        return dict(
+                            slip_count=int(_slip_count),
+                            slip_accept_count=int(_slip_accept_count),
+                            slip_accept_rate=float(_slip_accept_rate),
+                            accept_rate=float(_accept_rate),
+                            phase_attempts_total=int(_phase_attempts_total),
+                            phase_improves_total=int(_phase_improves_total),
+                            phase_best_delta_max=float(_phase_best_delta_max),
+                        )
+
+                    def _append_stage3_topk(kaeding_obj: Any) -> None:
+                        if (not bool(SAVE_STAGE3_TOPK)) or (not isinstance(kaeding_obj, dict)):
+                            return
+                        top_keys = kaeding_obj.get("top_keys", [])
+                        top_raw = kaeding_obj.get("top_raw", [])
+                        top_pct = kaeding_obj.get("top_pct", [])
+                        if not isinstance(top_keys, list):
+                            return
+                        for rank_idx, key_vals in enumerate(top_keys[: int(SAVE_STAGE3_TOPK_LIMIT)], start=1):
+                            if not isinstance(key_vals, list):
                                 continue
-                            phase_attempts_total += int(rec.get("attempts", 0) or 0)
-                            phase_improves_total += int(rec.get("improves", 0) or 0)
-                            d = rec.get("best_delta_raw", None)
-                            if d is not None and np.isfinite(float(d)):
-                                delta_vals.append(float(d))
-                        if delta_vals:
-                            phase_best_delta_max = float(max(delta_vals))
-                    if bool(SAVE_STAGE3_TOPK) and isinstance(kaeding3, dict):
-                        top_keys = kaeding3.get("top_keys", [])
-                        top_raw = kaeding3.get("top_raw", [])
-                        top_pct = kaeding3.get("top_pct", [])
-                        if isinstance(top_keys, list):
-                            for rank_idx, key_vals in enumerate(top_keys[: int(SAVE_STAGE3_TOPK_LIMIT)], start=1):
-                                if not isinstance(key_vals, list):
+                            key_list = list(map(int, key_vals))
+                            if len(key_list) != int(key_len):
+                                continue
+                            pt_k = np.asarray(
+                                full_cipher.decrypt_single(ciphertext=ct_idx, key=np.asarray(key_list, dtype=np.int16)),
+                                dtype=np.uint8,
+                            ).reshape(-1)
+                            stage3_topk_payload.append(
+                                dict(
+                                    rank=int(rank_idx),
+                                    score_raw=(
+                                        float(top_raw[rank_idx - 1])
+                                        if isinstance(top_raw, list) and (rank_idx - 1) < len(top_raw)
+                                        else float("nan")
+                                    ),
+                                    score_pct=(
+                                        float(top_pct[rank_idx - 1])
+                                        if isinstance(top_pct, list) and (rank_idx - 1) < len(top_pct)
+                                        else float("nan")
+                                    ),
+                                    score_judge=float(scorer_full_runtime.score(pt_k, None)),
+                                    match_ratio=float(base._match_ratio(pt_k.tolist(), pt_idx.tolist())),
+                                    key_idx=key_list,
+                                    plaintext_idx=pt_k.astype(int).tolist(),
+                                )
+                            )
+
+                    if not bool(STAGE3_TWO_PHASE_ENABLED):
+                        t_run = time.time()
+                        sol3 = run(
+                            text=ct_idx.tolist(),
+                            cipher=by_name.cipher("periodic_columnar", period=tier.period, columns=tier.columns, order=ORDER, alphabet_size=ALPHABET_SIZE),
+                            key=KeySpec.periodic_columnar(period=tier.period, columns=tier.columns, alphabet_size=ALPHABET_SIZE),
+                            solver=SolverSpec.kaeding(**solver_stage3_cfg),
+                            scorer_params=scorer_full,
+                            wli_data=[],
+                            encoding_dir=direction,
+                            telemetry_on=True,
+                            force_no_wli=True,
+                            initial_keys=init3,
+                        )
+                        dt3 += float(time.time() - t_run)
+                        ev3 += int((getattr(sol3, "meta", {}) or {}).get("work", {}).get("evals", 0) or 0)
+                        pt3 = np.asarray(getattr(sol3, "plaintext_idx", []) or [], dtype=np.uint8).reshape(-1)
+                        k3_arr = np.asarray(getattr(sol3, "key", []) or [], dtype=np.int16).reshape(-1)
+                        if k3_arr.size == int(key_len):
+                            best3_key = k3_arr.astype(int).tolist()
+                        best3_match = base._match_ratio(pt3.tolist(), pt_idx.tolist())
+                        best3_score = float(getattr(sol3, "score", float("nan")))
+                        tele3 = (getattr(sol3, "meta", {}) or {}).get("telemetry", {})
+                        kaeding3 = tele3.get("kaeding", {}) if isinstance(tele3, dict) else {}
+                        mm = _extract_kaeding_metrics(kaeding3)
+                        slip_count = int(mm["slip_count"])
+                        slip_accept_count = int(mm["slip_accept_count"])
+                        slip_accept_rate = float(mm["slip_accept_rate"])
+                        accept_rate = float(mm["accept_rate"])
+                        phase_attempts_total = int(mm["phase_attempts_total"])
+                        phase_improves_total = int(mm["phase_improves_total"])
+                        phase_best_delta_max = float(mm["phase_best_delta_max"])
+                        _append_stage3_topk(kaeding3)
+                    else:
+                        base_seed = int(solver_stage3_cfg.get("seed", SOLVER_STAGE3.get("seed", 2026)))
+                        phaseA_cfg = dict(solver_stage3_cfg)
+                        phaseA_cfg.update(dict(STAGE3_PHASEA_CFG))
+                        phaseA_cfg["restarts"] = 1
+                        phaseA_cfg["seed_restarts"] = 0
+
+                        phaseA_rows: List[Dict[str, Any]] = []
+                        for restart_idx, seed_key in enumerate(init3):
+                            seed_key_arr = np.asarray(seed_key, dtype=np.int16).reshape(-1)
+                            start_pt = np.asarray(
+                                full_cipher.decrypt_single(ciphertext=ct_idx, key=seed_key_arr),
+                                dtype=np.uint8,
+                            ).reshape(-1)
+                            start_score = float(scorer_full_runtime.score(start_pt, None))
+                            start_hash = _key_hash16(seed_key_arr.astype(int).tolist())
+                            seed_offset = int((restart_idx + 1) * 10007)
+
+                            cfg_i = dict(phaseA_cfg)
+                            cfg_i["seed"] = int(base_seed + seed_offset)
+
+                            t_run = time.time()
+                            sol_i = run(
+                                text=ct_idx.tolist(),
+                                cipher=by_name.cipher("periodic_columnar", period=tier.period, columns=tier.columns, order=ORDER, alphabet_size=ALPHABET_SIZE),
+                                key=KeySpec.periodic_columnar(period=tier.period, columns=tier.columns, alphabet_size=ALPHABET_SIZE),
+                                solver=SolverSpec.kaeding(**cfg_i),
+                                scorer_params=scorer_full,
+                                wli_data=[],
+                                encoding_dir=direction,
+                                telemetry_on=True,
+                                force_no_wli=True,
+                                initial_keys=[seed_key_arr.astype(int).tolist()],
+                            )
+                            dt_run = float(time.time() - t_run)
+                            dt3 += float(dt_run)
+                            ev_i = int((getattr(sol_i, "meta", {}) or {}).get("work", {}).get("evals", 0) or 0)
+                            ev3 += int(ev_i)
+
+                            pt_i = np.asarray(getattr(sol_i, "plaintext_idx", []) or [], dtype=np.uint8).reshape(-1)
+                            k_i_arr = np.asarray(getattr(sol_i, "key", []) or [], dtype=np.int16).reshape(-1)
+                            end_key_list = seed_key_arr.astype(int).tolist()
+                            if k_i_arr.size == int(key_len):
+                                end_key_list = k_i_arr.astype(int).tolist()
+                            end_hash = _key_hash16(end_key_list)
+                            end_score = float(getattr(sol_i, "score", float("nan")))
+                            end_match = float(base._match_ratio(pt_i.tolist(), pt_idx.tolist())) if pt_i.size > 0 else float("nan")
+                            best_delta = float(end_score - start_score) if np.isfinite(end_score) and np.isfinite(start_score) else float("nan")
+
+                            tele_i = (getattr(sol_i, "meta", {}) or {}).get("telemetry", {})
+                            kaeding_i = tele_i.get("kaeding", {}) if isinstance(tele_i, dict) else {}
+                            mm_i = _extract_kaeding_metrics(kaeding_i)
+
+                            phaseA_rows.append(
+                                dict(
+                                    restart_idx=int(restart_idx),
+                                    seed_offset=int(seed_offset),
+                                    start_hash=str(start_hash),
+                                    end_hash=str(end_hash),
+                                    start_score=float(start_score),
+                                    end_score=float(end_score),
+                                    best_delta=float(best_delta),
+                                    end_match=float(end_match),
+                                    end_key=list(map(int, end_key_list)),
+                                    end_plaintext=pt_i.astype(int).tolist(),
+                                    metrics=mm_i,
+                                )
+                            )
+                            stages.append(
+                                dict(
+                                    tier=tier.name,
+                                    text_id=int(text_id),
+                                    key_seed=int(key_seed),
+                                    stage="stage3_phaseA_restart",
+                                    restart_idx=int(restart_idx),
+                                    seed_offset=int(seed_offset),
+                                    start_hash=str(start_hash),
+                                    end_hash=str(end_hash),
+                                    start_score=float(start_score),
+                                    end_score=float(end_score),
+                                    score=float(end_score),
+                                    best_delta=float(best_delta),
+                                    match_ratio=float(end_match),
+                                    seconds=round(dt_run, 3),
+                                    evals=int(ev_i),
+                                    slip_count=int(mm_i["slip_count"]),
+                                    slip_accept_count=int(mm_i["slip_accept_count"]),
+                                    slip_accept_rate=float(mm_i["slip_accept_rate"]),
+                                    accept_rate=float(mm_i["accept_rate"]),
+                                )
+                            )
+
+                        phaseA_start_scores = [float(r["start_score"]) for r in phaseA_rows if np.isfinite(float(r["start_score"]))]
+                        phaseA_end_scores = [float(r["end_score"]) for r in phaseA_rows if np.isfinite(float(r["end_score"]))]
+                        phaseA_deltas = [float(r["best_delta"]) for r in phaseA_rows if np.isfinite(float(r["best_delta"]))]
+                        phaseA_best_start_score = float(max(phaseA_start_scores)) if phaseA_start_scores else float("nan")
+                        phaseA_best_end_score = float(max(phaseA_end_scores)) if phaseA_end_scores else float("nan")
+                        phaseA_best_delta = float(max(phaseA_deltas)) if phaseA_deltas else float("nan")
+
+                        # Keep best observed candidate from phase A as fallback/final.
+                        if phaseA_rows:
+                            phaseA_best = max(
+                                phaseA_rows,
+                                key=lambda r: (float(r["end_score"]), float(r["end_match"]) if np.isfinite(float(r["end_match"])) else float("-inf")),
+                            )
+                            best3_score = float(phaseA_best["end_score"])
+                            best3_match = float(phaseA_best["end_match"]) if np.isfinite(float(phaseA_best["end_match"])) else float("nan")
+                            best3_key = list(map(int, phaseA_best["end_key"]))
+                            pt3 = np.asarray(phaseA_best["end_plaintext"], dtype=np.uint8).reshape(-1)
+                            mm_best = dict(phaseA_best["metrics"])
+                            slip_count = int(mm_best["slip_count"])
+                            slip_accept_count = int(mm_best["slip_accept_count"])
+                            slip_accept_rate = float(mm_best["slip_accept_rate"])
+                            accept_rate = float(mm_best["accept_rate"])
+                            phase_attempts_total = int(mm_best["phase_attempts_total"])
+                            phase_improves_total = int(mm_best["phase_improves_total"])
+                            phase_best_delta_max = float(mm_best["phase_best_delta_max"])
+
+                        gate_delta = float(STAGE3_PHASEB_GATE_DELTA_FLOOR)
+                        gate_end_gain = float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR)
+                        gate_skip = (
+                            np.isfinite(phaseA_best_delta)
+                            and np.isfinite(phaseA_best_start_score)
+                            and np.isfinite(phaseA_best_end_score)
+                            and (float(phaseA_best_delta) < gate_delta)
+                            and (float(phaseA_best_end_score) < float(phaseA_best_start_score) + gate_end_gain)
+                        )
+                        stages.append(
+                            dict(
+                                tier=tier.name,
+                                text_id=int(text_id),
+                                key_seed=int(key_seed),
+                                stage="stage3_phaseB_gate",
+                                phaseA_best_delta=float(phaseA_best_delta),
+                                phaseA_best_start_score=float(phaseA_best_start_score),
+                                phaseA_best_end_score=float(phaseA_best_end_score),
+                                gate_delta_floor=float(gate_delta),
+                                gate_end_gain_floor=float(gate_end_gain),
+                                phaseB_skipped=int(1 if gate_skip else 0),
+                                phaseB_top_n=int(STAGE3_PHASEB_TOP_N),
+                            )
+                        )
+
+                        if gate_skip:
+                            phaseB_skipped = 1
+                            phaseB_skip_reason = "phaseA_low_progress"
+                            stop_reason = "stage3_phaseb_skipped"
+                        else:
+                            top_n = max(1, int(STAGE3_PHASEB_TOP_N))
+                            ranked = sorted(
+                                phaseA_rows,
+                                key=lambda r: (
+                                    float(r["end_score"]),
+                                    float(r["best_delta"]) if np.isfinite(float(r["best_delta"])) else float("-inf"),
+                                    -int(r["restart_idx"]),
+                                ),
+                                reverse=True,
+                            )
+                            selected: List[Dict[str, Any]] = []
+                            seen_basin: set[Tuple[str, str]] = set()
+                            for row in ranked:
+                                basin_id = (str(row["start_hash"]), str(row["end_hash"]))
+                                if basin_id in seen_basin:
                                     continue
-                                key_list = list(map(int, key_vals))
-                                if len(key_list) != int(key_len):
-                                    continue
-                                pt_k = np.asarray(
-                                    full_cipher.decrypt_single(ciphertext=ct_idx, key=np.asarray(key_list, dtype=np.int16)),
-                                    dtype=np.uint8,
-                                ).reshape(-1)
-                                stage3_topk_payload.append(
+                                seen_basin.add(basin_id)
+                                selected.append(row)
+                                if len(selected) >= top_n:
+                                    break
+                            if not selected and ranked:
+                                selected = [ranked[0]]
+                            phaseB_top_n_used = int(len(selected))
+                            phaseB_ran = int(1 if selected else 0)
+                            if selected:
+                                phaseB_init = [list(map(int, row["end_key"])) for row in selected]
+                                phaseB_cfg = dict(solver_stage3_cfg)
+                                phaseB_cfg.update(dict(STAGE3_PHASEB_CFG))
+                                phaseB_cfg["restarts"] = int(max(1, len(phaseB_init)))
+                                phaseB_cfg["seed_restarts"] = 0
+                                phaseB_cfg["seed"] = int(base_seed + 900001)
+                                t_run = time.time()
+                                sol_b = run(
+                                    text=ct_idx.tolist(),
+                                    cipher=by_name.cipher("periodic_columnar", period=tier.period, columns=tier.columns, order=ORDER, alphabet_size=ALPHABET_SIZE),
+                                    key=KeySpec.periodic_columnar(period=tier.period, columns=tier.columns, alphabet_size=ALPHABET_SIZE),
+                                    solver=SolverSpec.kaeding(**phaseB_cfg),
+                                    scorer_params=scorer_full,
+                                    wli_data=[],
+                                    encoding_dir=direction,
+                                    telemetry_on=True,
+                                    force_no_wli=True,
+                                    initial_keys=phaseB_init,
+                                )
+                                dt_run = float(time.time() - t_run)
+                                dt3 += float(dt_run)
+                                ev_b = int((getattr(sol_b, "meta", {}) or {}).get("work", {}).get("evals", 0) or 0)
+                                ev3 += int(ev_b)
+
+                                pt_b = np.asarray(getattr(sol_b, "plaintext_idx", []) or [], dtype=np.uint8).reshape(-1)
+                                k_b_arr = np.asarray(getattr(sol_b, "key", []) or [], dtype=np.int16).reshape(-1)
+                                best_b_key = best3_key if best3_key is not None else list(map(int, phaseB_init[0]))
+                                if k_b_arr.size == int(key_len):
+                                    best_b_key = k_b_arr.astype(int).tolist()
+                                best_b_score = float(getattr(sol_b, "score", float("nan")))
+                                best_b_match = float(base._match_ratio(pt_b.tolist(), pt_idx.tolist())) if pt_b.size > 0 else float("nan")
+                                tele_b = (getattr(sol_b, "meta", {}) or {}).get("telemetry", {})
+                                kaeding_b = tele_b.get("kaeding", {}) if isinstance(tele_b, dict) else {}
+                                mm_b = _extract_kaeding_metrics(kaeding_b)
+
+                                stages.append(
                                     dict(
-                                        rank=int(rank_idx),
-                                        score_raw=(
-                                            float(top_raw[rank_idx - 1])
-                                            if isinstance(top_raw, list) and (rank_idx - 1) < len(top_raw)
-                                            else float("nan")
-                                        ),
-                                        score_pct=(
-                                            float(top_pct[rank_idx - 1])
-                                            if isinstance(top_pct, list) and (rank_idx - 1) < len(top_pct)
-                                            else float("nan")
-                                        ),
-                                        score_judge=float(scorer_full_runtime.score(pt_k, None)),
-                                        match_ratio=float(base._match_ratio(pt_k.tolist(), pt_idx.tolist())),
-                                        key_idx=key_list,
-                                        plaintext_idx=pt_k.astype(int).tolist(),
+                                        tier=tier.name,
+                                        text_id=int(text_id),
+                                        key_seed=int(key_seed),
+                                        stage="stage3_phaseB",
+                                        phaseB_top_n_used=int(phaseB_top_n_used),
+                                        score=float(best_b_score),
+                                        match_ratio=float(best_b_match),
+                                        seconds=round(dt_run, 3),
+                                        evals=int(ev_b),
+                                        slip_count=int(mm_b["slip_count"]),
+                                        slip_accept_count=int(mm_b["slip_accept_count"]),
+                                        slip_accept_rate=float(mm_b["slip_accept_rate"]),
+                                        accept_rate=float(mm_b["accept_rate"]),
+                                        phase_attempts_total=int(mm_b["phase_attempts_total"]),
+                                        phase_improves_total=int(mm_b["phase_improves_total"]),
+                                        phase_best_delta_max=float(mm_b["phase_best_delta_max"]),
                                     )
                                 )
+
+                                if np.isfinite(best_b_score) and (not np.isfinite(best3_score) or best_b_score > best3_score):
+                                    best3_score = float(best_b_score)
+                                    best3_match = float(best_b_match)
+                                    best3_key = list(map(int, best_b_key))
+                                    pt3 = pt_b.copy()
+                                    slip_count = int(mm_b["slip_count"])
+                                    slip_accept_count = int(mm_b["slip_accept_count"])
+                                    slip_accept_rate = float(mm_b["slip_accept_rate"])
+                                    accept_rate = float(mm_b["accept_rate"])
+                                    phase_attempts_total = int(mm_b["phase_attempts_total"])
+                                    phase_improves_total = int(mm_b["phase_improves_total"])
+                                    phase_best_delta_max = float(mm_b["phase_best_delta_max"])
+                                _append_stage3_topk(kaeding_b)
                     stages.append(
                         dict(
                             tier=tier.name,
@@ -1471,6 +1823,14 @@ def main() -> None:
                             phase_attempts_total=int(phase_attempts_total),
                             phase_improves_total=int(phase_improves_total),
                             phase_best_delta_max=float(phase_best_delta_max),
+                            stage3_two_phase=int(bool(STAGE3_TWO_PHASE_ENABLED)),
+                            phaseA_best_delta=float(phaseA_best_delta),
+                            phaseA_best_start_score=float(phaseA_best_start_score),
+                            phaseA_best_end_score=float(phaseA_best_end_score),
+                            phaseB_ran=int(phaseB_ran),
+                            phaseB_skipped=int(phaseB_skipped),
+                            phaseB_skip_reason=str(phaseB_skip_reason),
+                            phaseB_top_n_used=int(phaseB_top_n_used),
                         )
                     )
                     if pt3.size > 0:
@@ -1484,7 +1844,8 @@ def main() -> None:
                     print(
                         f"[pipeline_no_wli] stage3-summary tier={tier.name} text={text_id} key_seed={key_seed} "
                         f"band={stage3_band_name} match={float(best3_match):.3f} score={float(best3_score):.6f} "
-                        f"evals={ev3} stop={stop_reason}",
+                        f"evals={ev3} two_phase={'on' if bool(STAGE3_TWO_PHASE_ENABLED) else 'off'} "
+                        f"phaseB_ran={int(phaseB_ran)} phaseB_skipped={int(phaseB_skipped)} stop={stop_reason}",
                         flush=True,
                     )
                 else:
