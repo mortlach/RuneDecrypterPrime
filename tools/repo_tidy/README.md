@@ -3,11 +3,12 @@
 This folder contains repository hygiene checks used by maintainers.
 
 - `sweep.py`: validates:
-  - repository tree policy (`src`, `docs`, `tools/benchmarks`, `tools/repo_tidy`, `tests`, `tutorials`, `assets_packed`, `solve/5455`)
+  - repository tree policy (`src`, `docs`, `tools/*`, `tests`, `tutorials`, `assets_packed`, `solve/5455`)
   - no machine-specific absolute paths in text files under policy-managed roots
 
 The sweep intentionally does not call git. It scans the filesystem directly and
 ignores runtime/cache folders such as `output/`, `.venv/`, `.pytest_cache/`, and `.git/`.
+It also ignores local-only workspace roots (for example `planning/`, `assets/`) that are gitignored by policy.
 
 Run:
 

@@ -2,7 +2,7 @@
 """Compare two benchmark result JSON files.
 
 Usage:
-  python tools/benchmarks/compare_runs.py <old.json> <new.json>
+  python tools/benchmarks/analysis/compare_runs.py <old.json> <new.json>
 
 Prints a table with absolute and percent deltas. Flags >20% slowdowns.
 """
@@ -57,4 +57,3 @@ def main(argv: list[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv))
-

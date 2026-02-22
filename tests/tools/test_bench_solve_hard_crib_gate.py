@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from rune_decrypter_prime.core.types import Direction
-from tools.benchmarks.bench_solve_periodic_columnar_kaeding import (
+from tools.benchmarks.periodic_sub_trans.common.bench_solve_periodic_columnar_kaeding import (
     _build_hard_crib_for_instance,
     _preflight_hard_crib_oracle,
 )

@@ -20,11 +20,12 @@ python -m pip install -e .[dev]
 ```
 
 ## 2) Primary benchmark scripts
-- `tools/benchmarks/bench_solve_periodic_columnar_pipeline.py` (`order=col_then_sub`)
-- `tools/benchmarks/bench_solve_periodic_columnar_pipeline_sub_then_col.py` (`order=sub_then_col`)
+- `tools/benchmarks/periodic_sub_trans/col_then_sub/runner.py` (`order=col_then_sub`)
+- `tools/benchmarks/periodic_sub_trans/sub_then_col/runner.py` (`order=sub_then_col`)
+- `tools/benchmarks/periodic_sub_trans/no_wli/runner.py` (no-WLI flavour)
 
 ## 3) Run controls (hardcoded, edit in file top section)
-For `bench_solve_periodic_columnar_pipeline.py`:
+For `periodic_sub_trans/col_then_sub/runner.py`:
 - `PIPELINE_RUN_MODE`
 - `FORCE_RERUN_PROVEN`
 - `KEY_SEEDS_OVERRIDE`
@@ -39,12 +40,12 @@ Defaults are set for community reproducibility:
 
 ## 4) Execute
 ```powershell
-python tools/benchmarks/bench_solve_periodic_columnar_pipeline.py
+python tools/benchmarks/periodic_sub_trans/col_then_sub/runner.py
 ```
 
 ## 5) Share results
 Share the run folder under:
-- `output/tools/benchmarks/<timestamp>__bench_solve_pipeline__<gitshort>/`
+- `output/tools/benchmarks/periodic_sub_trans/<flavor>/<timestamp>__<run_name>__<gitshort>/`
 
 Minimum files to share:
 - `summary.json`

@@ -4,7 +4,7 @@ Status date: 2026-02-22
 
 Scope target:
 - Top-level folders intended for repository source: `src`, `docs`, `tools`, `tests`, `tutorials`, `assets_packed`, `solve`
-- `tools/` intended subfolders: `tools/benchmarks`, `tools/repo_tidy`
+- `tools/` intended subfolders: `tools/benchmarks`, `tools/ci`, `tools/docs_lint`, `tools/git_link_scrape`, `tools/repo_tidy`, `tools/repo_utils`, `tools/scaffold`, `tools/symbols`
 - `solve/` intended subfolders: `solve/5455`
 
 Already completed:
@@ -22,7 +22,7 @@ Pending cleanup:
 Completed in top-level cleanup:
 - `bigram_research/` -> `docs/research/bigram_research/`
 - `legacy/` -> `docs/legacy_source_snapshot/`
-- `planning/` -> `output/archive/planning_workspace/` (kept as local archive, out of source tree)
+- `planning/` kept as top-level local workspace (gitignored), excluded from strict source-tree checks.
 - `solving/` -> `solve/5455/workbench/solving/`
 - `assets/` treated as generated-local runtime workspace and excluded from strict source-tree checks.
 - Finster solve outputs migrated to output root:
@@ -31,7 +31,7 @@ Completed in top-level cleanup:
 - Finster solve scripts now default to `output/solve/5455/workbench/solving/finster/...`.
 
 Completed in tool subtree:
-- Migrated utility scripts into `tools/benchmarks/repo_tools/...`:
+- Migrated utility scripts into `tools/...`:
   - `ci/validate_outputs.py`
   - `repo_utils/*`
   - `scaffold/new_cipher_scaffold.py`

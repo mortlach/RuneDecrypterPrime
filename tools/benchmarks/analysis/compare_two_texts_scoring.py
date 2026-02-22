@@ -8,7 +8,7 @@ Purpose:
 Usage:
   - edit TEXT_A / TEXT_B / DIRECTION at the top
   - run:
-      python tools/benchmarks/compare_two_texts_scoring.py
+      python tools/benchmarks/analysis/compare_two_texts_scoring.py
 """
 
 from __future__ import annotations
@@ -16,7 +16,12 @@ from __future__ import annotations
 import sys
 from pathlib import Path as _Path
 
-_ROOT = _Path(__file__).resolve().parents[2]
+_cur = _Path(__file__).resolve()
+_ROOT = _cur
+for _parent in [_cur.parent, *_cur.parents]:
+    if (_parent / "src" / "rune_decrypter_prime").exists():
+        _ROOT = _parent
+        break
 _SRC = _ROOT / "src"
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))

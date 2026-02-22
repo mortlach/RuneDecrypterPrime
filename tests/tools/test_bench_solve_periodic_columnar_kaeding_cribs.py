@@ -8,7 +8,7 @@ from rune_decrypter_prime.ciphers.periodic_columnar_cipher import PeriodicColumn
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.types import Device
 from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
-from tools.benchmarks.bench_solve_periodic_columnar_kaeding_cribs import (
+from tools.benchmarks.periodic_sub_trans.common.bench_solve_periodic_columnar_kaeding_cribs import (
     ALPHABET_SIZE,
     LONG14_DISAPPOINTMENT,
     ORDER,
@@ -77,7 +77,7 @@ def test_build_payload_long14_raises_when_slice_has_no_disappointment():
 
 
 def test_profile_quick_30m_shape(monkeypatch):
-    import tools.benchmarks.bench_solve_periodic_columnar_kaeding_cribs as mod
+    import tools.benchmarks.periodic_sub_trans.common.bench_solve_periodic_columnar_kaeding_cribs as mod
 
     monkeypatch.setattr(mod, "BENCH_PROFILE", "cribs_quick_30m")
     tiers, modes, offsets, seeds, solver = _profile()

@@ -29,6 +29,6 @@ This guide describes how we create and maintain repo docs when iterating with Ch
 - Troubleshooting or FAQ section
 
 ## Tooling
-- Generate symbol indexes or release artifacts via `python tools/benchmarks/repo_tools/repo_utils/index_project_symbols.py` and `python tools/benchmarks/repo_tools/repo_utils/share_package.py`; both write to `output/share/<timestamp>` so no personal paths leak.
+- Generate symbol indexes or release artifacts via `python tools/repo_utils/index_project_symbols.py` and `python tools/repo_utils/share_package.py`; both write to `output/share/<timestamp>` so no personal paths leak.
 - Keep docs in UTF-8 and prefer ASCII punctuation unless the file already uses typographic quotes/dashes.
 

@@ -44,7 +44,7 @@ from rune_decrypter_prime.core.types import Device
 from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
 from rune_decrypter_prime.utils.seed_utils import make_periodic_seed_pool
 
-from tools.benchmarks import bench_solve_periodic_columnar_kaeding as base
+from tools.benchmarks.periodic_sub_trans.common import bench_solve_periodic_columnar_kaeding as base
 from tools.benchmarks.config.no_wli_pipeline_profiles import get_no_wli_pipeline_profile
 from tools.benchmarks.periodic_sub_trans.common.paths import make_flavor_run_dir
 

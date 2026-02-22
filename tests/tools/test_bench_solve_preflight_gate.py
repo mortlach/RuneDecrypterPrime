@@ -6,7 +6,9 @@ import pytest
 from rune_decrypter_prime.ciphers.periodic_columnar_cipher import PeriodicColumnarCipher
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.types import Device, Direction
-from tools.benchmarks.bench_solve_periodic_columnar_kaeding import _preflight_known_key_roundtrip
+from tools.benchmarks.periodic_sub_trans.common.bench_solve_periodic_columnar_kaeding import (
+    _preflight_known_key_roundtrip,
+)
 
 
 class _FakeRawScorer:

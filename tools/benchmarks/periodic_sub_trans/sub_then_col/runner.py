@@ -52,7 +52,7 @@ from rune_decrypter_prime.utils.seed_utils_periodic_columnar_sub_then_col import
     undo_columnar_with_perm,
 )
 
-from tools.benchmarks import bench_solve_periodic_columnar_kaeding as base
+from tools.benchmarks.periodic_sub_trans.common import bench_solve_periodic_columnar_kaeding as base
 from tools.benchmarks.periodic_sub_trans.common.paths import make_flavor_run_dir
 
 ALPHABET_SIZE = 29

@@ -19,7 +19,13 @@ ALLOWED_TOP_DIRS = {
 
 ALLOWED_TOOLS_SUBDIRS = {
     "benchmarks",
+    "ci",
+    "docs_lint",
+    "git_link_scrape",
     "repo_tidy",
+    "repo_utils",
+    "scaffold",
+    "symbols",
 }
 
 ALLOWED_SOLVE_SUBDIRS = {
@@ -42,6 +48,8 @@ IGNORED_TOP_DIRS = {
     "__pycache__",
     # Generated local asset workspace from community setup/preflight.
     "assets",
+    # Local working notes; intentionally top-level and gitignored.
+    "planning",
     "output",
 }
 

@@ -1,6 +1,6 @@
 # Solve Pipeline Benchmark
 
-Script: `tools/benchmarks/bench_solve_periodic_columnar_pipeline.py`
+Script: `tools/benchmarks/periodic_sub_trans/col_then_sub/runner.py`
 
 Purpose:
 - Practical staged solving (no cribs) for periodic-columnar.
@@ -21,7 +21,7 @@ Outputs:
   - `tools/benchmarks/solve_proof/proven_solve_pipeline_log.csv`
 
 Hardcoded run controls (edit at top of
-`tools/benchmarks/bench_solve_periodic_columnar_pipeline.py`):
+`tools/benchmarks/periodic_sub_trans/col_then_sub/runner.py`):
 - `FORCE_RERUN_PROVEN`: rerun fixtures even if proven solved.
 - `KEY_SEEDS_OVERRIDE`: override key seeds list (`None` keeps profile defaults).
 - `TIERS_REGEX_OVERRIDE`: run only tiers whose `tier.name` matches (`None` disables).

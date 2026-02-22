@@ -33,7 +33,7 @@ Goals:
 - Default behavior is to skip instances already marked solved in the proven log.
 - Override only when explicitly requested:
   - `col_then_sub` pipeline: set `FORCE_RERUN_PROVEN=True` in
-    `tools/benchmarks/bench_solve_periodic_columnar_pipeline.py`
+    `tools/benchmarks/periodic_sub_trans/col_then_sub/runner.py`
   - `sub_then_col` pipeline: set `RDP_SUBCOL_FORCE_RERUN_PROVEN=1`
 
 ## Runtime Targeting

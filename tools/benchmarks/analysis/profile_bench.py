@@ -3,10 +3,10 @@
 
 Usage examples:
   # Profile all five canonical tutorials
-  python tools/benchmarks/profile_bench.py --target all --top 30
+  python tools/benchmarks/analysis/profile_bench.py --target all --top 30
 
   # Profile a specific module path (dotted import)
-  python tools/benchmarks/profile_bench.py --target tutorials.v1.Tutorial_MonoSubstitution_GA --top 50
+  python tools/benchmarks/analysis/profile_bench.py --target tutorials.v1.Tutorial_MonoSubstitution_GA --top 50
 
 Outputs (per target) are written to output/tools/benchmarks/<timestamp>__bench__<git>/:
   - <safe_name>__profile.prof   (raw pstats)
@@ -53,7 +53,11 @@ CATEGORIES = [
 
 
 def repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    cur = Path(__file__).resolve()
+    for parent in [cur.parent, *cur.parents]:
+        if (parent / "src" / "rune_decrypter_prime").exists():
+            return parent
+    return cur.parents[0]
 
 
 def git_short_hash() -> str:

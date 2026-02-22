@@ -647,7 +647,7 @@ def run_preflight(
     try:
         importlib.import_module("rune_decrypter_prime")
         importlib.import_module("rune_decrypter_prime.core.engine.builders")
-        importlib.import_module("tools.benchmarks.bench_solve_periodic_columnar_pipeline")
+        importlib.import_module("tools.benchmarks.periodic_sub_trans.col_then_sub.runner")
         checks.append({"name": "required_imports", "passed": True})
         preflight_log.write("[check] required_imports ok\n")
     except Exception as exc:

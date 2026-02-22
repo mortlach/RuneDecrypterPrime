@@ -65,7 +65,17 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path as _Path
-_ROOT = _Path(__file__).resolve().parents[2]
+
+
+def _find_repo_root(start: _Path) -> _Path:
+    cur = start.resolve()
+    for parent in [cur.parent, *cur.parents]:
+        if (parent / "src" / "rune_decrypter_prime").exists():
+            return parent
+    return cur.parents[0]
+
+
+_ROOT = _find_repo_root(_Path(__file__).resolve())
 _SRC = _ROOT / "src"
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
@@ -402,7 +412,7 @@ TIERS, TEXT_OFFSETS, KEY_SEEDS, SOLVER_BUDGETS, SEED_MODES = _profile_settings(B
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(_ROOT)
 
 
 def _git_short_hash() -> str:

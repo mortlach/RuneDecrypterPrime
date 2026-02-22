@@ -8,9 +8,19 @@ from typing import Any, Dict, List, Tuple
 
 import numpy as np
 
+def _find_repo_root(start: Path) -> Path:
+    cur = start.resolve()
+    for parent in [cur.parent, *cur.parents]:
+        if (parent / "src" / "rune_decrypter_prime").exists():
+            return parent
+    return cur.parents[0]
+
+
+REPO_ROOT = _find_repo_root(Path(__file__).resolve())
+
 if __package__ in (None, ""):
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+    sys.path.insert(0, str(REPO_ROOT))
+    sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from rune_decrypter_prime.api import Direction
 from rune_decrypter_prime.ciphers.periodic_columnar_cipher import PeriodicColumnarCipher
@@ -18,8 +28,7 @@ from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.types import Device
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-OUTPUT_ROOT = REPO_ROOT / "output" / "tools" / "benchmarks"
+OUTPUT_ROOT = REPO_ROOT / "output" / "tools" / "benchmarks" / "periodic_sub_trans" / "no_wli"
 
 
 def _load_json(path: Path) -> Dict[str, Any]:
@@ -37,7 +46,7 @@ def _match_ratio(a: List[int], b: List[int]) -> float:
 def _latest_no_wli_run_dir() -> Path:
     if not OUTPUT_ROOT.exists():
         raise FileNotFoundError(f"Output root missing: {OUTPUT_ROOT}")
-    cands = [p for p in OUTPUT_ROOT.iterdir() if p.is_dir() and "__bench_solve_pipeline_no_wli__" in p.name]
+    cands = [p for p in OUTPUT_ROOT.iterdir() if p.is_dir()]
     if not cands:
         raise FileNotFoundError(f"No no-WLI run directories found under: {OUTPUT_ROOT}")
     cands.sort(key=lambda p: p.name, reverse=True)
@@ -289,4 +298,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

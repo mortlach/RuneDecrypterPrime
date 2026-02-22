@@ -87,7 +87,11 @@ SEED_POOL_PLAN = SeedPlan(
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    cur = Path(__file__).resolve()
+    for parent in [cur.parent, *cur.parents]:
+        if (parent / "src" / "rune_decrypter_prime").exists():
+            return parent
+    return cur.parents[0]
 
 
 def _git_short_hash() -> str:

@@ -17,7 +17,7 @@ Prereqs: Python 3.11+, repo installed (`pip install -e .[dev]`), CPU reference e
 ## Run the main benchmark
 ```powershell
 # From repo root
-python tools/benchmarks/benchmark_harness.py
+python tools/benchmarks/analysis/benchmark_harness.py
 ```
 You’ll see a table in the console and a line like:
 ```text
@@ -34,7 +34,7 @@ Keep CPU-only runs for apples-to-apples comparisons across machines.
 
 ## Compare two runs
 ```powershell
-python tools/benchmarks/compare_runs.py <old.json> <new.json>
+python tools/benchmarks/analysis/compare_runs.py <old.json> <new.json>
 ```
 The script flags slowdowns >20 % so you can triage regressions quickly. Use the JSON files from the benchmark folders.
 
@@ -42,7 +42,7 @@ The script flags slowdowns >20 % so you can triage regressions quickly. Use th
 
 ## Run all tutorials (smoke + timing)
 ```powershell
-python tools/benchmarks/run_all_tutorials.py
+python tools/benchmarks/analysis/run_all_tutorials.py
 ```
 Writes `tutorials_results.csv/json` under the same benchmark folder and exits non-zero if any tutorial fails.
 
@@ -51,10 +51,10 @@ Writes `tutorials_results.csv/json` under the same benchmark folder and exits no
 ## Profile hot paths (cProfile)
 ```powershell
 # All canonical tutorials, report top 30 functions
-python tools/benchmarks/profile_bench.py --target all --top 30
+python tools/benchmarks/analysis/profile_bench.py --target all --top 30
 
 # Single tutorial
-python tools/benchmarks/profile_bench.py --target tutorials.v1.Tutorial_MonoSubstitution_GA --top 50
+python tools/benchmarks/analysis/profile_bench.py --target tutorials.v1.Tutorial_MonoSubstitution_GA --top 50
 ```
 Outputs include `.prof` files, human-readable summaries, and JSON reports so you can compare cumulative times per category.
 

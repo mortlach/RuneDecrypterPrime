@@ -226,9 +226,9 @@ def run_single_job(
 ) -> dict[str, Any]:
     order = str(job["order"])
     if order == "col_then_sub":
-        module_name = "tools.benchmarks.bench_solve_periodic_columnar_pipeline"
+        module_name = "tools.benchmarks.periodic_sub_trans.col_then_sub.runner"
     elif order == "sub_then_col":
-        module_name = "tools.benchmarks.bench_solve_periodic_columnar_pipeline_sub_then_col"
+        module_name = "tools.benchmarks.periodic_sub_trans.sub_then_col.runner"
     else:
         raise ValueError(f"unsupported order: {order}")
 

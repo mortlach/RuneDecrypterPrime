@@ -63,12 +63,12 @@ from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rune_decrypter_prime.core.types import Device
 from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
-from tools.benchmarks.seed_utils_periodic_columnar_col_then_sub import (
+from tools.benchmarks.periodic_sub_trans.common.seed_utils_periodic_columnar_col_then_sub import (
     make_periodic_seed_pool_col_then_sub,
     make_tail_seed_pool,
 )
 
-from tools.benchmarks import bench_solve_periodic_columnar_kaeding as base
+from tools.benchmarks.periodic_sub_trans.common import bench_solve_periodic_columnar_kaeding as base
 from tools.benchmarks.periodic_sub_trans.common.io_reports import (
     write_csv_rows,
     write_json,
