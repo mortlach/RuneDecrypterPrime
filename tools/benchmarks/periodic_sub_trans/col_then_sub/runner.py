@@ -69,6 +69,10 @@ from tools.benchmarks.seed_utils_periodic_columnar_col_then_sub import (
 )
 
 from tools.benchmarks import bench_solve_periodic_columnar_kaeding as base
+from tools.benchmarks.periodic_sub_trans.common.io_reports import (
+    write_csv_rows,
+    write_json,
+)
 from tools.benchmarks.periodic_sub_trans.common.paths import make_flavor_run_dir
 
 ALPHABET_SIZE = 29  # Rune alphabet size used by periodic substitution/key layout.
@@ -84,7 +88,7 @@ HEARTBEAT_SECONDS = 1200  # Progress heartbeat cadence.
 PREVIEW_CHARS = 240  # Preview snippet length for plaintext logging.
 AUTOSKIP_PROVEN = True  # Skip instances already proven in solve-proof history.
 AUTOSKIP_PROVEN_MIN_MATCH = SOLVE_MATCH_THRESHOLD  # Proven threshold for autoskip index.
-FORCE_RERUN_PROVEN = True  # Override autoskip and rerun proven instances.
+FORCE_RERUN_PROVEN = False  # Override autoskip and rerun proven instances.
 AVOID_REPEAT_FAIL = True  # Diversify search seed if same config failed previously.
 FAILED_RETRY_SEED_DELTA = 1  # Per-failure increment applied to search-seed offset.
 FAILED_RETRY_SEED_STRIDE = 104729  # Large stride multiplier to decorrelate retry seeds.
@@ -160,6 +164,13 @@ STAGE3_DYNAMIC_BANDS = [
 ]
 
 SCORER_STAGE1 = dict(objective="pct.logp.win10", include_char=True, use_word_breaks=False, char_weights={1: 1.0}, wli_weights={})
+SCORER_STAGE1_HARD_RERANK = dict(
+    objective="pct.logp.win10",
+    include_char=True,
+    use_word_breaks=False,
+    char_weights={3: 0.2, 4: 0.8},
+    wli_weights={},
+)
 SCORER_FULL = dict(
     objective="pct.logp.win10",
     include_char=False,
@@ -168,6 +179,8 @@ SCORER_FULL = dict(
     wli_weights={2: 0.3, 4: 0.7},
 )
 STAGE1_C1_USE_FULL_SCORER = False
+STAGE1_HARD_RERANK_ENABLED = True  # Re-rank stage1 archive with char34 (no WLI) on hard columns.
+STAGE1_HARD_RERANK_COLUMNS = {10, 13}  # Columns where stage1 hard rerank is applied.
 
 SOLVER_STAGE1 = dict(
     steps=9000, restarts=5, inner_batch=256, slip_every=0, slip_blocks=1, slip_policy="stall",
@@ -438,7 +451,7 @@ def _apply_run_mode() -> None:
         KEY_SEEDS = [111]
 
         STAGE1_SUB_CANDIDATES = 24
-        STAGE1_SUB_CANDIDATES_BY_COLUMNS = {1: 8, 3: 32, 5: 24, 7: 24, 10: 20, 13: 20}
+        STAGE1_SUB_CANDIDATES_BY_COLUMNS = {1: 8, 3: 32, 5: 24, 7: 24, 10: 32, 13: 32}
         STAGE3_INITIAL_KEYS = 18
         STAGE3_INITIAL_KEYS_BY_COLUMNS = {1: 8, 3: 36, 5: 30, 7: 40, 10: 40, 13: 48}
 
@@ -642,7 +655,7 @@ def _apply_runtime_overrides() -> None:
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return _ROOT
 
 
 def _git_short() -> str:
@@ -785,35 +798,28 @@ def _oracle_score_for_stage(
     return float(score), float(raw), _objective_text(getattr(s_cfg, "objective", None))
 
 
-def _write_csv_rows(path: Path, rows: List[Dict[str, Any]]) -> None:
-    if not rows:
-        return
-    fieldnames: List[str] = []
-    seen: set[str] = set()
-    for row in rows:
-        for key in row.keys():
-            if key in seen:
-                continue
-            seen.add(key)
-            fieldnames.append(str(key))
-    with path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-        w.writeheader()
-        for row in rows:
-            w.writerow(row)
-
-
 def _append_csv_row(path: Path, row: Dict[str, Any]) -> None:
     if not row:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
-    fieldnames = [str(k) for k in row.keys()]
+    fieldnames: List[str]
+    if path.exists() and path.stat().st_size > 0:
+        try:
+            with path.open(newline="", encoding="utf-8") as f:
+                reader = csv.reader(f)
+                header = next(reader, [])
+            fieldnames = [str(h) for h in header if str(h)]
+        except Exception:
+            fieldnames = [str(k) for k in row.keys()]
+    else:
+        fieldnames = [str(k) for k in row.keys()]
+    safe_row = {str(k): row.get(str(k), "") for k in fieldnames}
     write_header = (not path.exists()) or path.stat().st_size == 0
     with path.open("a", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         if write_header:
             w.writeheader()
-        w.writerow(row)
+        w.writerow(safe_row)
 
 
 def _to_int_list(values: Sequence[int] | np.ndarray) -> List[int]:
@@ -947,6 +953,10 @@ def main() -> None:
 
     root = _repo_root()
     run_dir = make_flavor_run_dir(flavor="col_then_sub", run_prefix="bench_solve_col_then_sub_pipeline")
+    best_dir = run_dir / "best"
+    best_dir.mkdir(parents=True, exist_ok=True)
+    final_dir = run_dir / "final_instances"
+    final_dir.mkdir(parents=True, exist_ok=True)
 
     print(
         f"[colsub] setup: profile={PROFILE} mode={PIPELINE_RUN_MODE} "
@@ -993,6 +1003,9 @@ def main() -> None:
         f"early_break_match={int(bool(STAGE1_C1_EARLY_BREAK_ON_SOLVED_MATCH))}) "
         f"stage1_sub_candidates={STAGE1_SUB_CANDIDATES} "
         f"stage1_sub_by_c={json.dumps(STAGE1_SUB_CANDIDATES_BY_COLUMNS, separators=(',', ':'))} "
+        f"stage1_hard_rerank=(enabled={int(bool(STAGE1_HARD_RERANK_ENABLED))},"
+        f"columns={sorted(int(x) for x in STAGE1_HARD_RERANK_COLUMNS)},"
+        f"char={_weights_text(dict(SCORER_STAGE1_HARD_RERANK.get('char_weights', {})))}) "
         f"stage3_init_keys={STAGE3_INITIAL_KEYS} "
         f"stage3_init_by_c={json.dumps(STAGE3_INITIAL_KEYS_BY_COLUMNS, separators=(',', ':'))} "
         f"stage2_exact_max_columns={STAGE2_EXACT_MAX_COLUMNS} "
@@ -1128,6 +1141,11 @@ def main() -> None:
         ),
         stage1_sub_candidates=int(STAGE1_SUB_CANDIDATES),
         stage1_sub_by_c=dict(STAGE1_SUB_CANDIDATES_BY_COLUMNS),
+        stage1_hard_rerank=dict(
+            enabled=bool(STAGE1_HARD_RERANK_ENABLED),
+            columns=sorted(int(x) for x in STAGE1_HARD_RERANK_COLUMNS),
+            scorer=dict(SCORER_STAGE1_HARD_RERANK),
+        ),
         stage2_exact_sub_by_c=dict(STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS),
         stage2_pass1_top_by_c=dict(STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS),
         stage2_hybrid_sub_candidates=int(STAGE2_HYBRID_SUB_CANDIDATES),
@@ -1187,6 +1205,7 @@ def main() -> None:
         retry_seed_stride=int(FAILED_RETRY_SEED_STRIDE),
         known_failed=len(failed_attempt_index),
     )
+    write_json(run_dir / "run_config.json", run_config)
     print(
         "[colsub] setup: failed_repeat_avoid="
         f"{'on' if AVOID_REPEAT_FAIL else 'off'} "
@@ -1284,11 +1303,36 @@ def main() -> None:
                         best_global["preview"] = str(preview_txt)
 
                     summary_ckpt = _build_summary(TIERS, instances)
-                    (run_dir / "instances.json").write_text(json.dumps(instances, indent=2), encoding="utf-8")
-                    (run_dir / "stages.json").write_text(json.dumps(stages, indent=2), encoding="utf-8")
-                    (run_dir / "summary.json").write_text(json.dumps(summary_ckpt, indent=2), encoding="utf-8")
-                    _write_csv_rows(run_dir / "instances.csv", instances)
-                    _write_csv_rows(run_dir / "stages.csv", stages)
+                    write_json(run_dir / "instances.json", instances)
+                    write_json(run_dir / "stages.json", stages)
+                    write_json(run_dir / "summary.json", summary_ckpt)
+                    write_csv_rows(run_dir / "instances.csv", instances)
+                    write_csv_rows(run_dir / "stages.csv", stages)
+
+                    stage_rows_instance = [
+                        dict(s)
+                        for s in stages
+                        if s.get("tier") == tier.name
+                        and int(s.get("text_id", -1)) == int(text_id)
+                        and int(s.get("key_seed", -1)) == int(key_seed)
+                    ]
+                    artifact_payload = dict(
+                        profile=PROFILE,
+                        mode=PIPELINE_RUN_MODE,
+                        config_fingerprint=str(config_fingerprint),
+                        instance=inst_row,
+                        stages=stage_rows_instance,
+                        io=dict(
+                            ciphertext_idx=[],
+                            target_plaintext_idx=_to_int_list(pt_idx),
+                            final_best_key_idx=[],
+                            final_best_plaintext_idx=[],
+                        ),
+                    )
+                    artifact_name = (
+                        f"{tier.name}__text{int(text_id)}__seed{int(key_seed)}.json"
+                    )
+                    write_json(final_dir / artifact_name, artifact_payload)
 
                     hist_row = dict(
                         timestamp_utc=datetime.now(timezone.utc).isoformat(),
@@ -1379,6 +1423,10 @@ def main() -> None:
                 stage1_use_full = bool(STAGE1_C1_USE_FULL_SCORER and int(tier.columns) == 1)
                 scorer_stage1 = dict((SCORER_FULL if stage1_use_full else SCORER_STAGE1), encoding_dir=direction)
                 stage1_force_no_wli = (not stage1_use_full)
+                stage1_hard_rerank_active = bool(
+                    STAGE1_HARD_RERANK_ENABLED
+                    and int(tier.columns) in set(int(x) for x in STAGE1_HARD_RERANK_COLUMNS)
+                )
                 print(
                     f"[colsub] objective tier={tier.name} text={text_id} key_seed={key_seed} "
                     f"search_seed_offset={int(search_seed_offset)} "
@@ -1388,6 +1436,14 @@ def main() -> None:
                 )
                 scorer_full_runtime = build_scorer(cfg_full, ScoringConfig(**scorer_full))
                 scorer_stage1_runtime = build_scorer(cfg_sub, ScoringConfig(**scorer_stage1))
+                scorer_stage1_hard_runtime = (
+                    build_scorer(
+                        cfg_sub,
+                        ScoringConfig(**dict(SCORER_STAGE1_HARD_RERANK, encoding_dir=direction)),
+                    )
+                    if stage1_hard_rerank_active
+                    else None
+                )
                 scorer_stage2_fast_runtime = None
                 if int(tier.columns) <= int(STAGE2_EXACT_MAX_COLUMNS) and bool(STAGE2_EXACT_TWO_PASS):
                     scorer_stage2_fast = dict(
@@ -1515,6 +1571,7 @@ def main() -> None:
                 )
                 stage1_scouts_done = 0
                 stage1_no_improve_scouts = 0
+                stage1_rerank_evals = 0
 
                 for scout_idx in range(stage1_scout_runs):
                     stage1_scouts_done += 1
@@ -1639,9 +1696,35 @@ def main() -> None:
                         break
 
                 dt1 = float(time.time() - t_s1)
+                if stage1_hard_rerank_active and scorer_stage1_hard_runtime is not None and stage1_archive:
+                    reranked = 0
+                    for entry in stage1_archive.values():
+                        pt_entry = np.asarray(entry.get("plaintext", []), dtype=np.uint8).reshape(-1)
+                        if pt_entry.size == 0:
+                            continue
+                        entry["rerank_score"] = float(scorer_stage1_hard_runtime.score(pt_entry, None))
+                        reranked += 1
+                    stage1_rerank_evals = int(reranked)
+                    ev1 += int(reranked)
+                    print(
+                        f"[colsub] stage1-rerank tier={tier.name} text={text_id} key_seed={key_seed} "
+                        f"mode=char34_no_wli active=1 entries={reranked}",
+                        flush=True,
+                    )
                 stage1_ranked = sorted(
                     stage1_archive.values(),
-                    key=lambda e: (float(e.get("score", float("-inf"))), float(e.get("sub_key_match", float("-inf")))),
+                    key=(
+                        (lambda e: (
+                            float(e.get("rerank_score", float("-inf"))),
+                            float(e.get("score", float("-inf"))),
+                            float(e.get("sub_key_match", float("-inf"))),
+                        ))
+                        if stage1_hard_rerank_active
+                        else (lambda e: (
+                            float(e.get("score", float("-inf"))),
+                            float(e.get("sub_key_match", float("-inf"))),
+                        ))
+                    ),
                     reverse=True,
                 )
                 if len(stage1_ranked) > int(stage1_archive_keep):
@@ -1666,6 +1749,8 @@ def main() -> None:
                         candidates=len(sub_candidates),
                         scouts=int(stage1_scouts_done),
                         archive_keep=int(stage1_archive_keep),
+                        hard_rerank_active=int(bool(stage1_hard_rerank_active)),
+                        hard_rerank_evals=int(stage1_rerank_evals),
                     )
                 )
                 print(
@@ -1673,7 +1758,9 @@ def main() -> None:
                     f"score={float(stage1_best_score if np.isfinite(stage1_best_score) else np.nan):.6f} "
                     f"sub_key_match={float(sub_key_match):.3f} "
                     f"evals={int(ev1)} seconds={dt1:.1f} "
-                    f"candidates={len(sub_candidates)} scouts={int(stage1_scouts_done)}",
+                    f"candidates={len(sub_candidates)} scouts={int(stage1_scouts_done)} "
+                    f"hard_rerank={'on' if stage1_hard_rerank_active else 'off'} "
+                    f"rerank_evals={int(stage1_rerank_evals)}",
                     flush=True,
                 )
 
@@ -2284,11 +2371,39 @@ def main() -> None:
 
                 # Checkpoint per-instance so completed solves survive interruption/restarts.
                 summary_ckpt = _build_summary(TIERS, instances)
-                (run_dir / "instances.json").write_text(json.dumps(instances, indent=2), encoding="utf-8")
-                (run_dir / "stages.json").write_text(json.dumps(stages, indent=2), encoding="utf-8")
-                (run_dir / "summary.json").write_text(json.dumps(summary_ckpt, indent=2), encoding="utf-8")
-                _write_csv_rows(run_dir / "instances.csv", instances)
-                _write_csv_rows(run_dir / "stages.csv", stages)
+                write_json(run_dir / "instances.json", instances)
+                write_json(run_dir / "stages.json", stages)
+                write_json(run_dir / "summary.json", summary_ckpt)
+                write_csv_rows(run_dir / "instances.csv", instances)
+                write_csv_rows(run_dir / "stages.csv", stages)
+
+                artifact_payload = dict(
+                    profile=PROFILE,
+                    mode=PIPELINE_RUN_MODE,
+                    config_fingerprint=str(config_fingerprint),
+                    instance=inst_row,
+                    stages=stage_rows_instance,
+                    io=dict(
+                        ciphertext_idx=_to_int_list(ct_idx),
+                        target_plaintext_idx=_to_int_list(pt_idx),
+                        final_best_key_idx=(
+                            list(map(int, best_key_idx))
+                            if best_key_idx is not None
+                            else []
+                        ),
+                        final_best_plaintext_idx=(
+                            list(map(int, best_plaintext_idx))
+                            if best_plaintext_idx is not None
+                            else []
+                        ),
+                        true_key_idx=_to_int_list(key_true),
+                        wli_data=[list(map(int, span)) for span in wli],
+                    ),
+                )
+                artifact_name = (
+                    f"{tier.name}__text{int(text_id)}__seed{int(key_seed)}.json"
+                )
+                write_json(final_dir / artifact_name, artifact_payload)
 
                 hist_row = dict(
                     timestamp_utc=datetime.now(timezone.utc).isoformat(),
@@ -2375,14 +2490,26 @@ def main() -> None:
 
     summary = _build_summary(TIERS, instances)
 
-    (run_dir / "instances.json").write_text(json.dumps(instances, indent=2), encoding="utf-8")
-    (run_dir / "stages.json").write_text(json.dumps(stages, indent=2), encoding="utf-8")
-    (run_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-    _write_csv_rows(run_dir / "instances.csv", instances)
-    _write_csv_rows(run_dir / "stages.csv", stages)
+    write_json(run_dir / "instances.json", instances)
+    write_json(run_dir / "stages.json", stages)
+    write_json(run_dir / "summary.json", summary)
+    write_csv_rows(run_dir / "instances.csv", instances)
+    write_csv_rows(run_dir / "stages.csv", stages)
+    if instances:
+        best_instance = max(
+            instances,
+            key=lambda r: float(r.get("best_match_ratio", float("-inf"))),
+        )
+        write_json(best_dir / "best_instance.json", best_instance)
+        (best_dir / "best_preview.txt").write_text(
+            str(best_instance.get("preview_best_latin", "")),
+            encoding="utf-8",
+        )
 
     print(f"[colsub] completed in {base._format_seconds(time.time() - t0_all)}", flush=True)
     print(f"[colsub] reports: {run_dir.relative_to(root)}", flush=True)
+    print(f"[colsub] final_artifacts: {final_dir.relative_to(root)}", flush=True)
+    print(f"[colsub] best: {(best_dir / 'best_instance.json').relative_to(root)}", flush=True)
     print(f"[colsub] history: {hist.relative_to(root)} rows={history_rows_written}", flush=True)
     print(
         "[colsub] proven-solved: "
