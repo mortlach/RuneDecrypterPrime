@@ -16,6 +16,14 @@ classifiers = [
   "Operating System :: OS Independent",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "jsonschema>=4.23.0",
+]
+test = [
+  "jsonschema>=4.23.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/your-org/rune_decrypter_prime"
 Documentation = "https://github.com/your-org/rune_decrypter_prime/tree/main/docs"
