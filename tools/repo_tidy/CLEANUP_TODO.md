@@ -5,7 +5,7 @@ Status date: 2026-02-22
 Scope target:
 - Top-level folders intended for repository source: `src`, `docs`, `tools`, `tests`, `tutorials`, `assets_packed`, `solve`
 - `tools/` intended subfolders: `tools/benchmarks`, `tools/ci`, `tools/docs_lint`, `tools/git_link_scrape`, `tools/repo_tidy`, `tools/repo_utils`, `tools/scaffold`, `tools/symbols`
-- `solve/` intended subfolders: `solve/5455`
+- `solve/` intended state: legacy shim (README-only), active puzzle work under ignored `solving/<puzzle>/`
 
 Already completed:
 - Moved stray generated artifacts out of `src/output/` and `tools/output/` into `output/src/` and `output/tools/`.
@@ -23,7 +23,7 @@ Completed in top-level cleanup:
 - `bigram_research/` -> `docs/research/bigram_research/`
 - `legacy/` -> `docs/legacy_source_snapshot/`
 - `planning/` kept as top-level local workspace (gitignored), excluded from strict source-tree checks.
-- `solving/` -> `solve/5455/workbench/solving/`
+- `solving/` kept as local puzzle workspace (gitignored) with puzzle folders (e.g. `54_55`, `finster`).
 - `assets/` treated as generated-local runtime workspace and excluded from strict source-tree checks.
 - Finster solve outputs migrated to output root:
   - `solve/5455/workbench/solving/finster/outputs/*`

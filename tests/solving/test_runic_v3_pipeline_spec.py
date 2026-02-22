@@ -7,11 +7,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-# Solve scripts now live under solve/5455/workbench/solving.
+# Solve scripts now live under top-level solving/<puzzle>/.
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_SOLVE_WORKBENCH = _REPO_ROOT / "solve" / "5455" / "workbench"
-if _SOLVE_WORKBENCH.exists() and str(_SOLVE_WORKBENCH) not in sys.path:
-    sys.path.insert(0, str(_SOLVE_WORKBENCH))
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from solving.finster import runic_v3_pipeline as rv3
 

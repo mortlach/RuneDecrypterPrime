@@ -28,9 +28,8 @@ ALLOWED_TOOLS_SUBDIRS = {
     "symbols",
 }
 
-ALLOWED_SOLVE_SUBDIRS = {
-    "5455",
-}
+# solve/ is a legacy shim kept as README-only.
+ALLOWED_SOLVE_SUBDIRS: set[str] = set()
 
 FORBIDDEN_ROOT_OUTPUT_FILES = {
     "setup.log",
@@ -181,11 +180,15 @@ def _check_top_level_policy(repo_root: Path, *, strict: bool) -> List[SweepIssue
                 continue
             if child.name in ALLOWED_SOLVE_SUBDIRS:
                 continue
+            if ALLOWED_SOLVE_SUBDIRS:
+                detail = f"solve subdir '{child.name}' is not in allowed set {sorted(ALLOWED_SOLVE_SUBDIRS)}"
+            else:
+                detail = f"solve subdir '{child.name}' is not allowed (solve/ is README-only shim)"
             issues.append(
                 SweepIssue(
                     kind="tree_policy",
                     path=f"solve/{child.name}",
-                    detail=f"solve subdir '{child.name}' is not in allowed set {sorted(ALLOWED_SOLVE_SUBDIRS)}",
+                    detail=detail,
                 )
             )
     return issues
@@ -221,11 +224,18 @@ def _check_tree_policy(paths: Iterable[Path]) -> List[SweepIssue]:
                 )
         if parts[0] == "solve":
             if len(parts) < 2 or parts[1] not in ALLOWED_SOLVE_SUBDIRS:
+                if ALLOWED_SOLVE_SUBDIRS:
+                    detail = (
+                        "tracked solve path must be under "
+                        f"solve/{' or solve/'.join(sorted(ALLOWED_SOLVE_SUBDIRS))}"
+                    )
+                else:
+                    detail = "tracked solve path is not allowed; keep solve/ as README-only shim"
                 issues.append(
                     SweepIssue(
                         kind="tree_policy",
                         path=p.as_posix(),
-                        detail=f"tracked solve path must be under solve/{' or solve/'.join(sorted(ALLOWED_SOLVE_SUBDIRS))}",
+                        detail=detail,
                     )
                 )
     return issues

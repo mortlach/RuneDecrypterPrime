@@ -9,6 +9,6 @@ Puzzle-specific solve scripts and local outputs live here.
 
 ## Current layout
 
-- `solving/43_44/` for puzzle 43/44 work (merged from prior 5455 folders).
+- `solving/54_55/` for puzzle 54/55 work (merged from prior 5455 folders).
 - `solving/finster/` for Finster puzzle work.
 - `solving/shared_examples/` for reusable local snippets.
