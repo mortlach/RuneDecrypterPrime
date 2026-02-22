@@ -1,159 +1,85 @@
+# Rune Decrypter Prime
 
-## 1) What this project is
+Rune Decrypter Prime (RDP) is a deterministic cryptanalysis toolkit focused on a 29-rune alphabet.
+The repository now treats the community benchmark flow as a first-class path, with one cross-platform
+bootstrap entrypoint.
 
-`rune_decrypter_prime` is a **modular, extensible cryptanalysis toolkit** for a 29‑rune alphabet. Its design is deliberately plug‑and‑play:
+## Quick Start (Community Benchmark)
 
-* **Ciphers** can be added from the simplest Caesar shift to more complex systems like Enigma by defining their maths once.
-* **Keys** are described declaratively, so new key models drop in cleanly.
-* **Optimisers** (SA, GA, Hybrid) are interchangeable, and new search strategies can be introduced without changing cipher code.
-* **Scorers** are modular: current language‑model scoring works with NumPy, Torch, or the fast C++ backend, and future scoring methods can be slotted in.
-
-This architecture makes the system *infinitely extensible* — you can grow from basic teaching ciphers to complex research‑grade experiments.
-
-You declare cipher maths succinctly, choose a key model, and let an optimiser search for the best key against a statistical scorer.
-
-(atm docs provided by a llm near you, so, you know ... )  
-
----
-
-## 2) Requirements and install
-
-**Python:** 3.11+ on Windows, macOS, or Linux.
-**Dependencies:**
-
-* Required: `numpy`, `zstandard`
-* Optional: `torch` (GPU acceleration if CUDA available)
-* Build‑time (for C++ module): `pybind11`, `setuptools`, plus a C++20 compiler
-
-Install the Python deps in your environment:
+Use one command from repo root:
 
 ```bash
-python -m pip install numpy zstandard
-# Optional acceleration
-python -m pip install torch       # if you want CUDA/torch backend
-# For building the C++ scorer (see next section)
-python -m pip install pybind11 setuptools
+python install.py --target runner
 ```
 
----
+Windows (if `python` alias is unavailable):
 
-## 3) Fast language‑model scorer (C++)
+```powershell
+py -3.11 install.py --target runner
+```
 
-The language‑model scorer uses a compiled extension `_fastlm`.
+What this does:
 
-* **Windows (CPython 3.11, x64):** a prebuilt binary `_fastlm.cp311-win_amd64.pyd` ships in
-  `rune_decrypter_prime/scoring/language_model/`. Nothing to build.
-* **Other platforms / Python versions:** build the module once using the provided script:
+1. Creates/uses a local virtual environment.
+2. Installs target-specific dependencies.
+3. Installs the repo in editable mode.
+4. Runs setup + preflight:
+   - recombine assets from `assets_packed/` into `assets/`
+   - build/verify `_fastlm`
+   - run CPU compliance checks
+   - write `benchmark_ready.json` on success
+
+Output artefacts:
+
+- `output/tools/benchmarks/community/setup_preflight/latest/`
+
+Optional: run a canary immediately after setup.
 
 ```bash
-# From the repository root:
-python rune_decrypter_prime/scoring/language_model/setup_fastlm.py
+python install.py --target runner --run-canary
 ```
 
-The script:
+## Install Targets
 
-* compiles `fastlm.cpp` (C++20; uses `pybind11`)
-* drops `_fastlm.*.pyd/.so` next to `fastlm.cpp`
-* verifies import automatically
+- `runner`: shard execution contributors.
+- `organiser`: run-bundle validate/combine/aggregate.
+- `dev`: full development environment.
+- `ci-smoke`: lightweight CI checks.
 
-**Compiler notes:**
+Target requirement files live under `requirements/targets/`.
 
-* Windows: MSVC (Build Tools for Visual Studio) with C++ workload
-* macOS: Xcode Command Line Tools (clang)
-* Linux: `gcc` or `clang` and Python dev headers
+## Wrapper Scripts
 
-If the build succeeds, `rune_decrypter_prime/scoring/language_model/_fastlm.*` will exist and `run.solve(...)` can use the fast scorer.
+Use any of the thin wrappers if preferred:
 
----
+- `install.ps1`
+- `install.sh`
+- `install.bat`
 
----
+Each wrapper forwards arguments to `python install.py`.
 
-## What we care about (philosophy)
+## Community Benchmark Flow
 
-* **Determinism.** Same seed + same config → same result, byte‑for‑byte. We compare ideas fairly and don’t keep rediscovering the same solution.
-* **Separation of concerns.** Cipher maths, keys, search, and scoring are cleanly split. Swap one without surprising the others.
-* **Explicit over clever.** Strong enums and typed configs. No hidden globals, no silent I/O.
-* **Observability.** Every run leaves a tidy trail under `output/…`: metadata, logs, and artefacts (files land where you can find them later).
-* **Extensibility.** New cipher, key model, optimiser, or scorer drops in behind small contracts. No rewrites to join the party.
-* **Robust scoring.** Start with transparent stats (unigram/bigram/wordlists). Add language models when needed — still deterministic and auditable.
+Primary docs:
 
-### Pipeline, at a glance
+- `tools/benchmarks/community/README.md`
+- `docs/setup/setup_and_preflight_v1_1.md`
+- `docs/setup/installation.md`
 
-```
-Cipher maths  +  Key model  +  Optimiser  +  Scorer
-        │             │            │            │
-        └─────────────┴────────────┴────────────┘
-                  run → best candidate + logs → output/…
-```
+High-level flow:
 
-* **Cipher**: transformations only (no search logic)
-* **Keys**: declarative shapes (repeat/permutation/OTP/…)
-* **Optimiser**: GA/SA/greedy/grid — your choice
-* **Scorer**: classical first; LM‑based scorers plug in via the same interface
+1. `python install.py --target runner`
+2. Generate manifest + shards.
+3. Run assigned shard.
+4. Share `run_bundle`.
+5. Organiser validates, combines, and aggregates.
 
----
+## Development Notes
 
-## Start here (IDE, no fuss)
+- Python: 3.11+
+- Determinism is required for benchmark mode.
+- CPU-only scoring is required for v1.1 campaign compliance.
 
-1. Open `tutorials/v1/Start_Here.py` in your IDE.
-2. Press **Run**.
-3. Look in `output/…` for `META.json`, `logs/*.jsonl`, and `artifacts/…`.
+## License
 
-Change one thing at a time and watch what moves.
-
-> Prefer a command? With your venv active: `python tutorials/v1/Start_Here.py`
-
----
-
-## Documentation map
-
-- **Guides**
-  - `docs/setup/installation.md` – full bootstrap instructions with platform-specific commands.
-  - `docs/guides/quickstart.md` – immediate run examples (Start_Here, CLI tests, RunAPI snippet).
-  - `docs/guides/architecture.md` – conceptual overview of the pipeline and where each component lives.
-  - `docs/guides/troubleshooting.md` – environment checks, common fixes, and quick validation commands.
-- **How-tos**
-  - `docs/howto/beginner_guide.md` – “Hello Cipher” walkthrough aimed at first-time users.
-  - `docs/howto/cipher_design_guide.md` – design principles for bespoke/general-map ciphers.
-  - `docs/howto/add_cipher.md`, `docs/howto/add_solver.md`, `docs/howto/wrappers.md` – contributor playbooks.
-  - `docs/howto/deterministic_run.md`, `docs/howto/read_telemetry.md` – reproducibility and telemetry reading tips.
-- **Reference**
-  - Per-folder `src/.../README.txt` files explain each module (API, core, backends, scoring, solvers, telemetry, etc.).
-  - `tests/README` (if present) plus test names (Tier-A, telemetry, tutorials) show where contracts are enforced.
-
-Use the quickstart/troubleshooting docs when onboarding, then dive into the how-tos once you’re ready to build your own ciphers or solvers.
-
----
-
-## Requirements
-
-* **CPython 3.11** (64‑bit).
-* Windows 10/11, macOS 13+, or a modern Linux distro.
-* Optional: CUDA GPU + PyTorch if you want the Torch scorer.
-* Optional build chain (only if rebuilding the fast LM extension): C/C++ compiler + `pybind11`.
-
-## Installation
-
-### Recommended (editable dev install)
-
-Create a 3.11 virtual env in your IDE, then install the project with dev extras.
-
-```bash
-# 1) clone
-git clone https://github.com/mortlach/RuneDecrypterPrime.git
-cd RuneDecrypterPrime
-
-# 2) create + activate a virtual environment
-python -m venv .venv
-# Windows
-.\.venv\Scripts\activate
-# macOS/Linux
-source .venv/bin/activate
-
-# 3) install (dev extras include pytest/ruff etc.)
-python -m pip install -U pip
-python -m pip install -e .[dev]
-```
-
-**Skipping Torch on CPU‑only machines?**
-Set `RDP_TORCH=0` before instal
+MIT (see `LICENSE_MIT.txt`).

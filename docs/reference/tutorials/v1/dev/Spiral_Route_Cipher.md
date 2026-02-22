@@ -5,7 +5,7 @@
 Audience: Hands‑on / Expert
 Time: 8-12 minutes (CPU)
 Outcome: Build a grid route transform and recover its parameters
-Prereqs: Python 3.11+, repo installed (`pip install -e .[dev]`)
+Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`)
 
 ## Run command
 ```bash

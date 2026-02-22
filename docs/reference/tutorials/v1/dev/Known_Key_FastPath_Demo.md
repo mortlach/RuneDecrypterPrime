@@ -5,5 +5,5 @@
 Audience: Hands‑on / Expert
 Time: 2-4 minutes
 Outcome: Decrypt a ciphertext with a known OTP/const key, inspect telemetry
-Prereqs: Python 3.11+, repo installed (`pip install -e .[dev]`)
+Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`)
 

@@ -1,60 +1,20 @@
-# Community Benchmark Guide
+# Community Benchmark Branch Guide
 
-Guide for running reproducible benchmark sweeps and sharing comparable outputs.
+This file is retained for compatibility, but the canonical benchmark workflow is now:
 
-## Goals
+- `python install.py --target runner`
+- `tools/benchmarks/community/README.md`
 
-- Keep benchmark config explicit in source files (edit constants in runner files).
-- Keep outputs comparable via stable profiles + config fingerprinting.
-- Keep solved-instance autoskip enabled by default.
+## Important
 
-## Setup
+Legacy "autoskip proven" branch behavior is not the campaign standard for v1.1.
+Campaign mode requires:
 
-```powershell
-git clone <repo-url>
-cd RuneDecrypterPrime
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -U pip
-python -m pip install -e .[dev]
-```
+1. Resume-only skips (explicitly logged).
+2. Deterministic manifests/shards from tracked config.
+3. CPU-only compliance fields in results.
+4. Shareable `run_bundle` outputs validated before combining.
 
-## Primary benchmark entrypoints
-
-- `python tools/benchmarks/periodic_sub_trans/no_wli/runner.py`
-- `python tools/benchmarks/periodic_sub_trans/col_then_sub/bench_solve_periodic_columnar_pipeline_col_then_sub.py`
-- `python tools/benchmarks/periodic_sub_trans/sub_then_col/runner.py`
-
-## Run controls
-
-Edit runner constants at the top of each script.
-
-Most commonly adjusted:
-
-- `PIPELINE_RUN_MODE`
-- `FORCE_RERUN_PROVEN`
-- `KEY_SEEDS_OVERRIDE`
-- `TIERS_REGEX_OVERRIDE`
-- `AVOID_REPEAT_FAIL`
-- `FAILED_RETRY_SEED_DELTA`
-
-## Output + share checklist
-
-Share run folders from:
-
-- `output/tools/benchmarks/periodic_sub_trans/<flavor>/<timestamp>__<run_name>__<tag>/`
-
-Minimum files to share:
-
-- `summary.json`
-- `instances.csv`
-- `stages.csv`
-
-Optional:
-
-- `final_instances/*.json`
-- corresponding solve-proof log rows under `tools/benchmarks/solve_proof/`
-
-## Sweep rule
-
-Do not retune solver constants mid-sweep. Start a new run after config changes.
+Use the community scripts in this folder (`generate_manifest.py`, `shard_manifest.py`,
+`run_shard.py`, `validate_run_bundle.py`, `combine_results.py`, `aggregate_results.py`)
+as the source of truth.

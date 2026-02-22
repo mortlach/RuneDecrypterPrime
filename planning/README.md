@@ -12,3 +12,8 @@ Working notes, design drafts, and migration plans live here.
 
 - Final runner entrypoints (place those under `tools/...`).
 - Core library code (place that under `src/...`).
+
+## Local-only note
+
+- `planning/*` is gitignored in this repo (except `planning/README.md`).
+- Keep campaign specs, phase plans, and scratch migration notes here locally.

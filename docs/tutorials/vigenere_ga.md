@@ -5,7 +5,7 @@
 Audience: Hands-on
 Time: 5-10 minutes (CPU)
 Outcome: Recover plaintext, score >=0.55
-Prereqs: Python 3.11+, repo installed (`pip install -e .[dev]`)
+Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`)
 
 ## What You Build
 - Decrypt a seeded Vigenere ciphertext using the GA solver.

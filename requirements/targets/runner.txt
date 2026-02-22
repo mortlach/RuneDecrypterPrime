@@ -1,0 +1,7 @@
+-r base.txt
+
+numpy==1.26.4
+zstandard==0.23.0
+pybind11==2.13.6
+setuptools>=68
+wheel>=0.43

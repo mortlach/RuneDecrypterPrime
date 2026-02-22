@@ -5,7 +5,7 @@
 Audience: Hands-on / Expert
 Time: 5-10 minutes (CPU)
 Outcome: Seed beam search with cribbed keys; compare against unseeded run
-Prereqs: Python 3.11+, repo installed (`pip install -e .[dev]`)
+Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`)
 
 ## Goal
 - Use a known plaintext fragment (crib) to seed the key search for a Vigenere cipher.

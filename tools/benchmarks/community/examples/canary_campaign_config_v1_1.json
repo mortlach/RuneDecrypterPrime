@@ -1,13 +1,13 @@
 {
   "campaign_spec_version": "v1.1",
-  "campaign_id": "COMMUNITY_BENCH_CANARY_V1_1_PLACEHOLDER",
-  "git_sha": "PUT_GIT_SHA_HERE",
+  "campaign_id": "community_bench_canary_v1_1_example",
+  "git_sha": "48e462bc36c870823dc8811777a6bdc0c9052ec6",
   "campaign_seed": 987654321,
   "fixtures": [
     {
       "text_fixture_id": "fixture_001",
       "path": "tools/benchmarks/community/fixtures/fixture_001.json",
-      "notes": "Same fixture(s) as full campaign; keep canary representative."
+      "notes": "Same fixture metadata as full campaign; keep canary representative."
     }
   ],
   "grid": {
@@ -31,6 +31,7 @@
     "max_total_evals_per_job": null
   },
   "notes": [
-    "Canary must stay small (minutes) but include a small-columns case (e.g. c=3)."
+    "Canary must stay small (minutes) but include a small-columns case (e.g. c=3).",
+    "Set campaign_id/git_sha to your release values before collecting shared community bundles."
   ]
 }
