@@ -29,7 +29,7 @@ This guide maps the learning ladder:
 - Keep all randomness seeded (use `numpy.default_rng(seed)` and pass `seed` into any solver).
 
 **How to use it:**
-- Run the script directly from your IDE: `python tutorials/v1/dev/rail_fence/solve.py`.
+- Run the script with your preferred workflow (for example: `python tutorials/v1/dev/rail_fence/solve.py`).
 - Log outputs will still go to `output/tutorials/...`, so other solvers can compare runs.
 
 **When you're done:**
@@ -83,7 +83,7 @@ This guide maps the learning ladder:
 ---
 
 ## FAQ
-- **Can Hands-on tutorials use CLI?** We keep them IDE-first for reproducibility; experts can run CLI commands but must document the steps.
+- **Can Hands-on tutorials use CLI?** Yes. IDE, CLI, and notebooks are all supported; document reproducible steps for whichever workflow you use.
 - **How do I know if my change is "promotion-ready"?** Check the requirements above, ensure tests exist, and reference `docs/DOCS_PLAN.md` for tone/coverage expectations.
 - **Where should I describe my new component?** Update the relevant guide (architecture, scoring, outputs) and add a recipe or tutorial entry as soon as it's promoted.
 

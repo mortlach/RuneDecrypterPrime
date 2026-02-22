@@ -1644,7 +1644,7 @@
       "zeros": 21145545
     }
   },
-  "lm_root": "C:\\Users\\sjduk\\OneDrive\\Documents\\github\\RuneDecrypterPrime\\src\\rune_decrypter_prime\\data\\language_model\\lmp",
+  "lm_root": "src/rune_decrypter_prime/data/language_model/lmp",
   "platform": {
     "platform": "Windows-10-10.0.26200-SP0",
     "python": "3.11.8"

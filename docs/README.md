@@ -59,7 +59,7 @@ Ciphertext
 
 ---
 
-## Quick start (IDE-friendly)
+## Quick start (workflow-agnostic)
 
 Open a tutorial under `tutorials/v1/` and run as-is (fixed seeds). Inspect `output/tutorials/.../logs/app.jsonl`.
 

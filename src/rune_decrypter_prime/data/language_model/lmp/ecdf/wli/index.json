@@ -1,7 +1,7 @@
 {
   "created_ts": 1753851878.2010915,
-  "scores_dir": "C:\\Users\\sjduk\\OneDrive\\Documents\\github\\language_model_prime\\lmprime_out\\scores",
-  "ecdf_out_dir": "C:\\Users\\sjduk\\OneDrive\\Documents\\github\\language_model_prime\\lmprime_out\\ecdf",
+  "scores_dir": "generated/scores",
+  "ecdf_out_dir": "generated/ecdf",
   "num_knots": 4096,
   "min_counts": 0,
   "wise_norm_in_files": "auto",

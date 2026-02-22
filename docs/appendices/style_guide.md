@@ -20,7 +20,7 @@ Prereqs: <tools or steps>
 - Guide pages should call out when they are overviews and point to deep dives.
 
 - British English.
-- IDE-first examples, no CLI.
+- Workflow-agnostic examples (IDE/CLI/notebook all acceptable).
 - Canonical Enums in examples.
 - Keep snippets small and runnable; avoid pseudo-code.
 

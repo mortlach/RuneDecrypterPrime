@@ -24,7 +24,7 @@ If you provide a faster backend (compiled extension or Torch kernels), keep thes
 
 - Parity: scores must match the CPU reference path for the same inputs.  
 - Determinism: keep Torch on CPU and seed via the engine's injected RNG.  
-- Deployment: provide IDE-friendly setup steps in a local README under `tools/`.
+- Deployment: provide workflow-agnostic setup steps in a local README under `tools/`.
 
 **See also**  
 [Telemetry](telemetry.md) · [Optimisers](optimisers.md)

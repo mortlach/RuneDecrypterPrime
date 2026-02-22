@@ -9,7 +9,7 @@ Goal
 - Use a genetic algorithm to recover a substitution key and decrypt the text.
 
 Steps
-1. Open `tutorials/v1/Tutorial_MonoSubstitution_GA.py` in your IDE.
+1. Open `tutorials/v1/Tutorial_MonoSubstitution_GA.py`.
 2. Leave the fixed seed as provided.
 3. Run. Inspect console progress and final output.
 4. Open `output/tutorials/.../logs/app.jsonl` to see `telemetry.solver_progress`.

@@ -114,7 +114,7 @@ def test_joint_tables_have_expected_shapes_and_zero_counts() -> None:
     if baseline is None:
         pytest.skip(
             "No drift baseline found. "
-            "Run tests/scoring/generate_scorer_baselines.py in PyCharm to generate one."
+            "Run tests/scoring/generate_scorer_baselines.py to generate one."
         )
 
     fp0 = baseline.get("lm_joint_fingerprint", {})

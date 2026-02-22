@@ -1,6 +1,6 @@
 ﻿# Tutorials (v1)
 
-Short, deterministic walkthroughs. Open each `.py` in your IDE and run as-is. Seeds are fixed so results match across machines.
+Short, deterministic walkthroughs. Run each `.py` script with your preferred workflow. Seeds are fixed so results match across machines.
 
 ## Script -> Doc -> Outputs
 | Script (repo)                                  | Doc page                                | Outputs directory                     |

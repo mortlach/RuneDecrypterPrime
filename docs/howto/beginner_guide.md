@@ -1,6 +1,6 @@
 # Hello Cipher — First Steps (Beginner Guide)
 
-*Goal:* get a first, successful solve in a few minutes, understand the idea at a high level, and learn how to make one small change and re‑run. No command line needed; everything works from your IDE or a live Python interpreter.
+*Goal:* get a first, successful solve in a few minutes, understand the idea at a high level, and learn how to make one small change and re‑run. Use whichever workflow you prefer (IDE, terminal, notebook, or Python interpreter).
 
 ---
 
@@ -17,8 +17,8 @@ If you enjoy that, there’s a tiny starter script template at the end so you ca
 
 ## 2) Run your first solve (no setup tricks)
 
-1. In your IDE, open the tutorials folder and look for the Vigenère tutorial (the name will mention *Vigenère* or *GeneralMap*).
-2. Open the file and click **Run**.
+1. Open the tutorials folder and look for the Vigenère tutorial (the name will mention *Vigenère* or *GeneralMap*).
+2. Open the file and run it with your preferred tool.
 3. You should see a short summary in the console and a solved plaintext. The run also writes a small audit trail under an `output/` folder so you can repeat or share the result later.
 
 > If you don’t have a GPU, that’s fine—the code will use the CPU with the **same meaning** to the numbers.
@@ -87,7 +87,7 @@ print("plaintext:", getattr(result, "best_plaintext", None))
 print("output folder:", getattr(result, "output_dir", "./output"))
 ```
 
-> If your IDE says an import name is different, just copy the import line from the tutorial and paste it over the import here. Keep the rest the same.
+> If your environment says an import name is different, copy the import line from the tutorial and paste it over the import here. Keep the rest the same.
 
 ---
 

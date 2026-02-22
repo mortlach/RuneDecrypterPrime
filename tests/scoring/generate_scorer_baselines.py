@@ -1,6 +1,6 @@
 # tests/scoring/generate_scorer_baselines.py
 #
-# PyCharm-friendly baseline generator.
+# Baseline generator.
 #
 # Run this file directly (Run ▶) to generate/update:
 #   tests/scoring/_baselines/scorer_drift_baseline.json
@@ -9,7 +9,7 @@
 #   - LM asset fingerprints (sizes, zero counts, header stubs, ranges)
 #   - Kaeding-style avg logp sanity statistics (English vs random; SD scales with length)
 #
-# The repo does not ship the full LM tables. If they are missing, this script will explain what is absent.
+# The repo does not ship the full LM tables. If they are missing, this script explains what is absent.
 
 from __future__ import annotations
 
@@ -219,16 +219,21 @@ def _fingerprint_ecdf_tables(lm_root: Path) -> Dict[str, Any]:
 def generate(*, seed: int = 12345, dtypes: Tuple[str, ...] = ("float32", "float64")) -> Dict[str, Any]:
     rng = np.random.default_rng(seed)
 
+    repo_root = Path(__file__).resolve().parents[2]
     lm_root = default_lm_root().resolve()
     if not lm_root.exists():
         raise RuntimeError(f"LM root not found: {lm_root}")
+    try:
+        lm_root_rel = lm_root.relative_to(repo_root).as_posix()
+    except ValueError:
+        lm_root_rel = lm_root.as_posix()
 
     idx = load_index(lm_root)
 
     baseline: Dict[str, Any] = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "seed": int(seed),
-        "lm_root": str(lm_root),
+        "lm_root": lm_root_rel,
         "platform": {
             "python": platform.python_version(),
             "platform": platform.platform(),

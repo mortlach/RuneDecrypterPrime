@@ -14,7 +14,7 @@ Prereqs: Python 3.11+, repo installed (`pip install -e .[dev]`)
 ## Hands-on Steps
 1. Open `tutorials/v1/Tutorial_ColumnarTransposition.py` (see `guides/quickstart.md` if your environment is not ready).
 2. Keep `TUTORIAL_SEED = 2025` so ciphertext/key generation stays deterministic.
-3. Run the script (IDE Run or `python tutorials/v1/Tutorial_ColumnarTransposition.py --print-progress`).
+3. Run the script with your preferred workflow (for example: `python tutorials/v1/Tutorial_ColumnarTransposition.py --print-progress`).
 4. Observe the beam phase (`progress_pct=1` buckets) followed by SA refinements.
 5. Inspect `output/tutorials/<run>/logs/app.jsonl` for `solver_spans` showing beam to SA transitions.
 

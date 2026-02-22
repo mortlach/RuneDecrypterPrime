@@ -17,7 +17,7 @@ Prereqs: None
 2. Two-layer model - API is forgiving (strings accepted), core uses enums/config dataclasses. Guarded by normaliser tests and guardrails.
 3. Separation of concerns - API -> Problem -> Engine -> Solver -> Scoring -> Telemetry. Each layer has its own tests.
 4. Observability - telemetry schema is minimal but mandatory (`telemetry.run`, `solver_progress`, `solution.meta["work"]`). Turning it off is explicit.
-5. Teachability first - tutorials prefer IDE/Run over ad-hoc CLI; canonical names only, no deprecated alias chatter.
+5. Teachability first - tutorials are workflow-agnostic and reproducible; canonical names only, no deprecated alias chatter.
 
 ## How To Use These Principles
 ### Hands-on
@@ -29,7 +29,7 @@ Prereqs: None
 - Reference `docs/DOCS_PLAN.md` and `docs/DOCS_PLAN_IMPLEMENTATION.md` when editing guides or adding components.
 
 ## FAQ
-- Why no CLI? Keeping runs IDE-first avoids divergent environments and keeps beginners aligned.
+- Which workflow is preferred? Any workflow is valid if runs remain deterministic and telemetry-complete.
 - Can I change default seeds? Yes, but document the reason and update telemetry contract tests.
 - What if I need silence in logs? Disable `print_progress`, not telemetry; telemetry stays on so results remain auditable.
 
