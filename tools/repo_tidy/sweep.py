@@ -40,6 +40,8 @@ IGNORED_TOP_DIRS = {
     ".pytest_cache",
     ".venv",
     "__pycache__",
+    # Generated local asset workspace from community setup/preflight.
+    "assets",
     "output",
 }
 

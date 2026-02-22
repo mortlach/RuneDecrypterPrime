@@ -12,7 +12,7 @@ Give confidence that contracts hold and full solves remain reproducible.
 | 4 Ratchet | Regression/perf | telemetry snapshot lock; <= ~15% logging overhead gain |
 
 ## Documentation & schema checks
-- **Docs lint:** use the linter under `tools/docs_lint/` to check headings, links, and example blocks. It should report zero broken links and valid code fences.
+- **Docs lint:** run your docs linter through `tools/benchmarks/repo_tools/ci/validate_outputs.py` so reports stay under `output/`. It should report zero broken links and valid code fences.
 - **Telemetry snapshot:** keep a small JSONL sample under `tests/assets/telemetry_snapshot.jsonl` and assert required events/fields remain stable between versions.
 
 **See also**  

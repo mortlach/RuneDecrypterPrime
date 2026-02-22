@@ -44,7 +44,10 @@ output/
   share/
     <timestamp>__share__<label>/...  (symbol index, release bundles)
   release/
-    ... (created by tools/repo_utils/make_release_src.py)
+    ... (created by tools/benchmarks/repo_tools/repo_utils/make_release_src.py)
+  solve/
+    5455/workbench/solving/finster/<cipher_id>/<timestamp>/...
+    5455/workbench/solving/finster/runic_z_solve/<timestamp>/summary.json
 ```
 
 Every helper (`tests/conftest.py`, tutorials, RunLogger) writes relative to the repo root so the tree stays portable.
@@ -62,8 +65,8 @@ Every helper (`tests/conftest.py`, tutorials, RunLogger) writes relative to the 
 ## Expert Track - Logging & Validation
 - **LoggingConfig** (`src/rune_decrypter_prime/core/config/logging_config.py`) initialises the `output/<kind>/<run_id>/` folders used by tests and tooling.
 - Tests (`tests/telemetry/test_schema_contract.py`) assume `META.json` includes repo/out roots, run IDs, git info, and pointers to logs/trace/artifacts.
-- Tools (`tools/repo_utils/index_project_symbols.py`, `share_package.py`) always write into `output/share/<timestamp>__share__<label>/`.
-- Docs lint runner (`python tools/docs_lint/run_docs_lint.py --label preflight`) writes into `output/tools/docs_lint/<timestamp>__docs_lint__<label>__<git>/`, depositing `docs_lint_report.json` and `.md`.
+- Tools (`tools/benchmarks/repo_tools/repo_utils/index_project_symbols.py`, `share_package.py`) write into `output/share/<timestamp>__share__<label>/`.
+- Use `tools/benchmarks/repo_tools/ci/validate_outputs.py` to enforce that docs lint commands write into `output/tools/docs_lint/<...>/`.
 - When adding scripts, call `io/run_logger.get_logger()` or `LoggingConfig` to guarantee they write inside `output/`.
 
 **Verification checklist when touching logging:**

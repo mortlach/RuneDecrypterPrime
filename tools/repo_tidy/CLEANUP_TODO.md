@@ -14,24 +14,30 @@ Already completed:
 - Removed machine-specific workflow references from updated files (`PyCharm`, absolute local paths).
 - Community setup/preflight now writes to `output/tools/benchmarks/community/setup_preflight/...` (latest snapshot under `.../latest/`), not repo root.
 
-Pending cleanup (reported by `python tools/repo_tidy/sweep.py --strict-top-level`):
-- Top-level folders to archive/migrate/remove:
-  - `assets/`
-  - `bigram_research/`
-  - `legacy/`
-  - `planning/`
-  - `solving/`
-- `tools/` subfolders to migrate into approved structure or retire:
-  - `tools/ci/`
-  - `tools/docs_lint/`
-  - `tools/git_link_scrape/`
-  - `tools/out/`
-  - `tools/repo_utils/`
-  - `tools/scaffold/`
-  - `tools/symbols/`
+Pending cleanup:
 - Benchmark artefact hygiene:
   - Move/replace `tools/benchmarks/solve_proof/proven_solve_pipeline_log.csv` with output-root history under `output/tools/benchmarks/solve_proof/...`.
   - Keep only static templates/spec docs under `tools/benchmarks/solve_proof/`.
+
+Completed in top-level cleanup:
+- `bigram_research/` -> `docs/research/bigram_research/`
+- `legacy/` -> `docs/legacy_source_snapshot/`
+- `planning/` -> `output/archive/planning_workspace/` (kept as local archive, out of source tree)
+- `solving/` -> `solve/5455/workbench/solving/`
+- `assets/` treated as generated-local runtime workspace and excluded from strict source-tree checks.
+- Finster solve outputs migrated to output root:
+  - `solve/5455/workbench/solving/finster/outputs/*`
+  - -> `output/solve/5455/workbench/solving/finster/outputs/*`
+- Finster solve scripts now default to `output/solve/5455/workbench/solving/finster/...`.
+
+Completed in tool subtree:
+- Migrated utility scripts into `tools/benchmarks/repo_tools/...`:
+  - `ci/validate_outputs.py`
+  - `repo_utils/*`
+  - `scaffold/new_cipher_scaffold.py`
+  - `symbols/generate_symbol_index.py`
+  - `git_link_scrape/prompt.txt` (retained as reference only)
+- Removed `tools/docs_lint/` tracked reports (moved under `output/tools/docs_lint/legacy_reports/`).
 
 Execution checklist:
 1. For each pending folder, decide one action: move, archive, or delete.
