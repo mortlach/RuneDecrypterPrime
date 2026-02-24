@@ -112,6 +112,22 @@ def test_no_wli_focus_mode_starts_with_period5_tiers():
     assert int(no_wli_runner.TIERS[0].columns) == 1
 
 
+def test_no_wli_focus_p5_c1_only_mode_single_tier():
+    old_mode = str(no_wli_runner.PIPELINE_RUN_MODE)
+    try:
+        no_wli_runner.PIPELINE_RUN_MODE = "focus_p5_c1_only"
+        no_wli_runner._apply_profile_defaults()
+        no_wli_runner._apply_run_mode()
+        assert len(no_wli_runner.TIERS) == 1
+        assert str(no_wli_runner.TIERS[0].name) == "focus_p5_c1_l452"
+        assert int(no_wli_runner.TIERS[0].period) == 5
+        assert int(no_wli_runner.TIERS[0].columns) == 1
+    finally:
+        no_wli_runner.PIPELINE_RUN_MODE = old_mode
+        no_wli_runner._apply_profile_defaults()
+        no_wli_runner._apply_run_mode()
+
+
 def test_no_wli_stage2_judge_pool_limit_for_avg_fulltext():
     assert no_wli_runner.STAGE2_PROMOTE_BY_STAGE3_JUDGE is True
     assert no_wli_runner.STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE is True
@@ -155,8 +171,28 @@ def test_no_wli_stage3_stop_log_has_entry_diagnostics():
     assert "entry_score_source=" in text
     assert "promoted_best_match=" in text
     assert "best2_in_promoted=" in text
+    assert "best2_in_stage2_topk=" in text
     assert "setup: ecdf_guard=" in text
     assert "stage1-diversity" in text
+    assert "stage3_diagnostics" in text
+
+
+def test_stage2_promotion_uses_kept_pool_in_no_wli_and_colsub():
+    no_wli_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
+    colsub_text = Path("tools/benchmarks/periodic_sub_trans/col_then_sub/runner.py").read_text(encoding="utf-8")
+    assert "stage2_kept_by_score = list(stage2_ranked)" in no_wli_text
+    assert "stage2_kept_by_match = sorted(" in no_wli_text
+    assert "if r < len(stage2_kept_by_score):" in no_wli_text
+    assert "stage2_kept_by_score = list(stage2_ranked)" in colsub_text
+    assert "stage2_kept_by_match = sorted(" in colsub_text
+    assert "if r < len(stage2_kept_by_score):" in colsub_text
+
+
+def test_stall_stage_limit_is_applied_in_stage3_stop_no_wli_and_colsub():
+    no_wli_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
+    colsub_text = Path("tools/benchmarks/periodic_sub_trans/col_then_sub/runner.py").read_text(encoding="utf-8")
+    assert 'stop_reason = "stalled_no_improve" if int(STALL_STAGE_LIMIT) <= 1 else "unsolved"' in no_wli_text
+    assert 'stop_reason = "stalled_no_improve" if int(STALL_STAGE_LIMIT) <= 1 else "unsolved"' in colsub_text
 
 
 def test_no_wli_elitism_injects_best_entry_into_ranked_pool():

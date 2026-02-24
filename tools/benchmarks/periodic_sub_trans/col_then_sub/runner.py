@@ -2182,6 +2182,16 @@ def main() -> None:
                     reverse=True,
                 )
                 stage2_ranked = stage2_ranked_by_score[: int(stage2_archive_keep)]
+                # Promotion must come from the pruned "kept" pool, not the full archive.
+                stage2_kept_by_score = list(stage2_ranked)
+                stage2_kept_by_match = sorted(
+                    stage2_ranked,
+                    key=lambda e: (
+                        float(e.get("match", float("-inf"))),
+                        float(e.get("score", float("-inf"))),
+                    ),
+                    reverse=True,
+                )
 
                 stage2_promoted: List[Dict[str, Any]] = []
                 stage2_promoted_seen: set[Tuple[int, ...]] = set()
@@ -2193,27 +2203,27 @@ def main() -> None:
                     stage2_promoted_seen.add(key_vals)
                     stage2_promoted.append(entry)
 
-                max_rank = max(len(stage2_ranked_by_score), len(stage2_ranked_by_match))
+                max_rank = max(len(stage2_kept_by_score), len(stage2_kept_by_match))
                 for r in range(max_rank):
                     if len(stage2_promoted) >= int(stage2_promote_top):
                         break
-                    if r < len(stage2_ranked_by_score):
-                        _push_promoted(stage2_ranked_by_score[r])
+                    if r < len(stage2_kept_by_score):
+                        _push_promoted(stage2_kept_by_score[r])
                     if len(stage2_promoted) >= int(stage2_promote_top):
                         break
-                    if r < len(stage2_ranked_by_match):
-                        _push_promoted(stage2_ranked_by_match[r])
+                    if r < len(stage2_kept_by_match):
+                        _push_promoted(stage2_kept_by_match[r])
 
-                if (best2_key is None) and stage2_ranked_by_score:
-                    top = stage2_ranked_by_score[0]
+                if (best2_key is None) and stage2_kept_by_score:
+                    top = stage2_kept_by_score[0]
                     best2_key = list(map(int, top.get("key", [])))
                     best2_pt = list(map(int, top.get("plaintext", [])))
                     best2_preview = str(top.get("preview", best2_preview))
                     best2_score = float(top.get("score", best2_score))
                     best2_match = float(top.get("match", best2_match))
 
-                if stage2_ranked_by_score:
-                    stage2_entry_score = float(stage2_ranked_by_score[0].get("score", float("-inf")))
+                if stage2_kept_by_score:
+                    stage2_entry_score = float(stage2_kept_by_score[0].get("score", float("-inf")))
                 elif np.isfinite(best2_score):
                     stage2_entry_score = float(best2_score)
                 print(
@@ -2426,7 +2436,9 @@ def main() -> None:
                     if np.isfinite(best3_match) and best3_match >= SOLVE_MATCH_THRESHOLD:
                         stop_reason = "solved_stage3"
                     elif (best3_match - best2_match) <= STALL_DELTA:
-                        stop_reason = "stalled_no_improve"
+                        # col_then_sub has one post-Stage2 improvement boundary (Stage2 -> Stage3).
+                        # Respect stall-stage-limit semantics without overstating available boundaries.
+                        stop_reason = "stalled_no_improve" if int(STALL_STAGE_LIMIT) <= 1 else "unsolved"
                     print(
                         f"[colsub] stage3-summary tier={tier.name} text={text_id} key_seed={key_seed} "
                         f"band={stage3_band_name} entry_mode={stage3_entry_mode} "

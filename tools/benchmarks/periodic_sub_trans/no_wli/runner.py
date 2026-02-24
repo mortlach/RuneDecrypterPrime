@@ -58,7 +58,7 @@ from tools.benchmarks.periodic_sub_trans.common.paths import make_flavor_run_dir
 ALPHABET_SIZE = 29
 ORDER = BenchmarkOrder.COL_THEN_SUB.value  # keep v1 aligned with the proven pipeline; add both orders in later variants.
 PROFILE = "pipeline_no_wli_v1"
-PIPELINE_RUN_MODE = "focus_500_nowli"  # "full" | "focus_500_nowli" | "smoke"
+PIPELINE_RUN_MODE = "focus_p5_c1_only"  # "full" | "focus_500_nowli" | "focus_p5_c1_only" | "smoke"
 ENCODING_DIR = "ltr"  # "ltr" | "rtl"
 NO_WLI_PIPELINE_PROFILE_ID = "no_wli_a1_m4_b4_stage3avg_fulltext_longrun3x_v1"
 # Previous default kept in-file for one-line A/B rollback when needed.
@@ -461,6 +461,15 @@ def _apply_run_mode() -> None:
         TIERS[:] = [
             Tier("smoke_p7_c5_l452", 7, 5, 452),
             Tier("smoke_p9_c7_l446", 9, 7, 446),
+        ]
+        return
+    if PIPELINE_RUN_MODE == "focus_p5_c1_only":
+        PROFILE = f"{NO_WLI_PIPELINE_PROFILE_ID}__p5c1"
+        HEARTBEAT_SECONDS = 900
+        TEXT_OFFSETS[:] = [0]
+        KEY_SEEDS[:] = [111]
+        TIERS[:] = [
+            Tier("focus_p5_c1_l452", 5, 1, 452),
         ]
         return
     if PIPELINE_RUN_MODE == "focus_500_nowli":
@@ -1783,6 +1792,16 @@ def main() -> None:
                     ranked_entries=stage2_ranked,
                     best_entry=stage2_best_entry,
                 )
+                # Promotion must come from the pruned "kept" pool, not the full archive.
+                stage2_kept_by_score = list(stage2_ranked)
+                stage2_kept_by_match = sorted(
+                    stage2_ranked,
+                    key=lambda e: (
+                        float(e.get("match", float("-inf"))),
+                        float(e.get("score", float("-inf"))),
+                    ),
+                    reverse=True,
+                )
 
                 stage2_promoted: List[Dict[str, Any]] = []
                 stage2_promoted_seen: set[Tuple[int, ...]] = set()
@@ -1795,27 +1814,27 @@ def main() -> None:
                     stage2_promoted_seen.add(key_vals)
                     stage2_promoted.append(entry)
 
-                max_rank = max(len(stage2_ranked_by_score), len(stage2_ranked_by_match))
+                max_rank = max(len(stage2_kept_by_score), len(stage2_kept_by_match))
                 for r in range(max_rank):
                     if len(stage2_promoted) >= int(stage2_promote_top):
                         break
-                    if r < len(stage2_ranked_by_score):
-                        _push_promoted(stage2_ranked_by_score[r])
+                    if r < len(stage2_kept_by_score):
+                        _push_promoted(stage2_kept_by_score[r])
                     if len(stage2_promoted) >= int(stage2_promote_top):
                         break
-                    if r < len(stage2_ranked_by_match):
-                        _push_promoted(stage2_ranked_by_match[r])
+                    if r < len(stage2_kept_by_match):
+                        _push_promoted(stage2_kept_by_match[r])
 
-                if (best2_key is None) and stage2_ranked_by_score:
-                    top = stage2_ranked_by_score[0]
+                if (best2_key is None) and stage2_kept_by_score:
+                    top = stage2_kept_by_score[0]
                     best2_key = list(map(int, top.get("key", [])))
                     best2_pt = list(map(int, top.get("plaintext", [])))
                     best2_preview = str(top.get("preview", best2_preview))
                     best2_score = float(top.get("score", best2_score))
                     best2_match = float(top.get("match", best2_match))
 
-                if stage2_ranked_by_score:
-                    stage2_entry_score = float(stage2_ranked_by_score[0].get("score", float("-inf")))
+                if stage2_kept_by_score:
+                    stage2_entry_score = float(stage2_kept_by_score[0].get("score", float("-inf")))
                 elif np.isfinite(best2_score):
                     stage2_entry_score = float(best2_score)
                 stage2_entry_score_judge = float("-inf")
@@ -1901,7 +1920,7 @@ def main() -> None:
                 }
 
                 stage2_topk_payload: List[Dict[str, Any]] = []
-                for rank_idx, ent in enumerate(stage2_ranked_by_score[: int(SAVE_STAGE2_TOPK)], start=1):
+                for rank_idx, ent in enumerate(stage2_kept_by_score[: int(SAVE_STAGE2_TOPK)], start=1):
                     key_list = list(map(int, ent.get("key", [])))
                     pt_list = list(map(int, ent.get("plaintext", [])))
                     judge_sc = float(stage2_judge_scores.get(int(rank_idx), float("nan")))
@@ -1915,11 +1934,46 @@ def main() -> None:
                             plaintext_idx=pt_list,
                         )
                     )
+                stage2_topk_has_best_match = False
+                if stage2_best_entry is not None:
+                    best2_t = _entry_key_tuple(stage2_best_entry)
+                    payload_key_set = {
+                        tuple(int(x) for x in row.get("key_idx", []))
+                        for row in stage2_topk_payload
+                        if isinstance(row.get("key_idx"), list) and row.get("key_idx")
+                    }
+                    stage2_topk_has_best_match = bool(best2_t in payload_key_set)
+                    if (not stage2_topk_has_best_match) and best2_t:
+                        best2_pt = np.asarray(stage2_best_entry.get("plaintext", []), dtype=np.uint8).reshape(-1)
+                        best2_judge = float("nan")
+                        if best2_pt.size > 0:
+                            _judge_arr, _judge_stats = score_plaintexts_chunked(
+                                scorer=scorer_full_runtime,
+                                plaintexts=[best2_pt],
+                                wli=None,
+                                chunk_size=1,
+                                require_batch=bool(REQUIRE_BATCH_SCORING),
+                            )
+                            if _judge_arr.size > 0:
+                                best2_judge = float(_judge_arr[0])
+                        stage2_topk_payload.append(
+                            dict(
+                                rank=int(len(stage2_topk_payload) + 1),
+                                score_stage2=float(stage2_best_entry.get("score", float("nan"))),
+                                score_judge=float(best2_judge),
+                                match_ratio=float(stage2_best_entry.get("match", float("nan"))),
+                                key_idx=list(map(int, stage2_best_entry.get("key", []))),
+                                plaintext_idx=list(map(int, stage2_best_entry.get("plaintext", []))),
+                                tag="best_match_injected",
+                            )
+                        )
+                        stage2_topk_has_best_match = True
                 print(
                     f"[pipeline_no_wli] stage2-archive tier={tier.name} text={text_id} key_seed={key_seed} "
                     f"entries={len(stage2_archive)} kept={len(stage2_ranked)} promoted={len(stage2_promoted)} "
                     f"judge_pool={int(stage2_judge_pool_size)} promoted_by={stage2_promote_mode} "
                     f"best2_in_promoted={1 if stage2_best_in_promoted else 0} "
+                    f"best2_in_stage2_topk={1 if stage2_topk_has_best_match else 0} "
                     f"top_score_mid_rank1={float(stage2_entry_score) if np.isfinite(stage2_entry_score) else float('nan'):.6f} "
                     f"top_score_judge_rank1={float(stage2_entry_score_judge) if np.isfinite(stage2_entry_score_judge) else float('nan'):.6f} "
                     f"top_match_ratio={float(best2_match) if np.isfinite(best2_match) else float('nan'):.3f}",
@@ -1934,6 +1988,13 @@ def main() -> None:
                 pt3 = np.asarray([], dtype=np.uint8)
                 best3_key: List[int] | None = None
                 stage3_topk_payload: List[Dict[str, Any]] = []
+                stage3_init_target = 0
+                stage3_init_actual = 0
+                stage3_promoted_keys_count = 0
+                stage3_gate_source = ""
+                stage3_phaseB_top_n_cfg = 0
+                stage3_phaseB_gate_delta_cfg = float("nan")
+                stage3_phaseB_gate_end_gain_cfg = float("nan")
                 if np.isfinite(best2_match) and best2_match >= SOLVE_MATCH_THRESHOLD:
                     stop_reason = "solved_stage2"
                 elif best2_key is not None:
@@ -1948,6 +2009,7 @@ def main() -> None:
                     )
                     if not promoted_keys:
                         promoted_keys = [list(map(int, best2_key))]
+                    stage3_promoted_keys_count = int(len(promoted_keys))
 
                     per_seed = max(1, int(np.ceil(float(init3_n) / float(len(promoted_keys)))))
                     init3_all: List[List[int]] = []
@@ -1972,6 +2034,8 @@ def main() -> None:
                         init3.append(list(map(int, k)))
                         if len(init3) >= int(init3_n):
                             break
+                    stage3_init_target = int(init3_n)
+                    stage3_init_actual = int(len(init3))
 
                     solver_stage3_cfg = dict(SOLVER_STAGE3)
                     stage2_gate_source = "mid"
@@ -1981,6 +2045,7 @@ def main() -> None:
                     else:
                         stage2_gate_score = float(stage2_entry_score)
                         stage2_gate_source = "mid"
+                    stage3_gate_source = str(stage2_gate_source)
                     promoted_best_match = float("nan")
                     if stage2_promoted:
                         promoted_match_vals = [
@@ -2014,6 +2079,9 @@ def main() -> None:
                         stage3_phaseB_top_n = int(max(int(stage3_phaseB_top_n), int(STAGE3_C1_PHASEB_TOP_N)))
                         stage3_phaseB_gate_delta = float(max(float(stage3_phaseB_gate_delta), float(STAGE3_C1_PHASEB_GATE_DELTA_FLOOR)))
                         stage3_phaseB_gate_end_gain = float(max(float(stage3_phaseB_gate_end_gain), float(STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR)))
+                    stage3_phaseB_top_n_cfg = int(stage3_phaseB_top_n)
+                    stage3_phaseB_gate_delta_cfg = float(stage3_phaseB_gate_delta)
+                    stage3_phaseB_gate_end_gain_cfg = float(stage3_phaseB_gate_end_gain)
                     solver_stage3_cfg.update(
                         steps=int(band.get("steps", solver_stage3_cfg.get("steps", 0))),
                         restarts=int(band.get("restarts", solver_stage3_cfg.get("restarts", 0))),
@@ -2490,7 +2558,10 @@ def main() -> None:
                     if np.isfinite(best3_match) and best3_match >= SOLVE_MATCH_THRESHOLD:
                         stop_reason = "solved_stage3"
                     elif (best3_match - best2_match) <= STALL_DELTA:
-                        stop_reason = "stalled_no_improve"
+                        # no_wli has one post-Stage2 improvement boundary (Stage2 -> Stage3).
+                        # Respect stall-stage-limit semantics without pretending there are more
+                        # consecutive boundaries than exist.
+                        stop_reason = "stalled_no_improve" if int(STALL_STAGE_LIMIT) <= 1 else "unsolved"
                     else:
                         stop_reason = "unsolved"
                     print(
@@ -2577,7 +2648,23 @@ def main() -> None:
                         list(map(int, final_best_plaintext_idx)) if final_best_plaintext_idx is not None else []
                     ),
                     stage2_topk=stage2_topk_payload,
+                    stage2_topk_has_best_match=int(1 if stage2_topk_has_best_match else 0),
                     stage3_topk=(stage3_topk_payload if bool(SAVE_STAGE3_TOPK) else []),
+                    stage3_diagnostics=dict(
+                        init_target=int(stage3_init_target),
+                        init_actual=int(stage3_init_actual),
+                        promoted_keys=int(stage3_promoted_keys_count),
+                        gate_source=str(stage3_gate_source),
+                        phaseB_top_n_cfg=int(stage3_phaseB_top_n_cfg),
+                        phaseB_gate_delta_cfg=float(stage3_phaseB_gate_delta_cfg),
+                        phaseB_gate_end_gain_cfg=float(stage3_phaseB_gate_end_gain_cfg),
+                        phaseB_ran=int(phaseB_ran) if "phaseB_ran" in locals() else 0,
+                        phaseB_skipped=int(phaseB_skipped) if "phaseB_skipped" in locals() else 0,
+                        phaseB_top_n_used=int(phaseB_top_n_used) if "phaseB_top_n_used" in locals() else 0,
+                        phaseB_skip_reason=str(phaseB_skip_reason) if "phaseB_skip_reason" in locals() else "",
+                        stage3_eval_count=int(ev3),
+                        c1_focus=int(1 if (int(tier.columns) <= 1 and bool(STAGE3_C1_FOCUS_ENABLED)) else 0),
+                    ),
                 )
                 artifact_name = f"{tier.name}__text{int(text_id)}__seed{int(key_seed)}.json"
                 (final_dir / artifact_name).write_text(json.dumps(artifact_payload, indent=2), encoding="utf-8")
