@@ -3,7 +3,13 @@
 This guide is for contributors running a shard.
 
 ## Step 1: Setup + preflight
-Run the repository setup/deploy step (see docs/setup). It must produce:
+Run the repository bootstrap step:
+
+```powershell
+python install.py --target runner
+```
+
+It must produce:
 - `output/tools/benchmarks/community/setup_preflight/latest/benchmark_ready.json`
 - `output/tools/benchmarks/community/setup_preflight/latest/preflight_report.json` (pass)
 

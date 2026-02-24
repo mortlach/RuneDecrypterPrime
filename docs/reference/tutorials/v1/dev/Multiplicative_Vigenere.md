@@ -5,5 +5,5 @@
 Audience: Hands‑on / Expert
 Time: 6-10 minutes
 Outcome: Implement and recover a multiplicative key stream
-Prereqs: Python 3.11+, repo installed (`pip install -e .[dev]`)
+Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`)
 

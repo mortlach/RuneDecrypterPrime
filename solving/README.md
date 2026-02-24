@@ -1,12 +1,14 @@
 # Solving Folder
 
-Campaign-specific solve scripts and outputs live here.
+Puzzle-specific solve scripts and local outputs live here.
 
 ## Typical layout
 
-- `solving/<campaign>/` for scripts/config.
-- `solving/<campaign>/outputs/` for campaign output snapshots.
+- `solving/<puzzle_id_or_name>/` for puzzle-focused scripts and notes.
+- `solving/shared_examples/` for non-puzzle helper examples.
 
-## Current active example
+## Current layout
 
-- `solving/finster/` contains the Finster runic pipeline and outputs.
+- `solving/54_55/` for puzzle 54/55 work (merged from prior 5455 folders).
+- `solving/finster/` for Finster puzzle work.
+- `solving/shared_examples/` for reusable local snippets.

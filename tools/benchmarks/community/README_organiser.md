@@ -2,6 +2,12 @@
 
 This guide is for the person coordinating the campaign.
 
+## Environment setup
+
+```powershell
+python install.py --target organiser
+```
+
 ## Inputs
 You collect multiple `run_bundle/` folders from contributors.
 

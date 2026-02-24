@@ -5,7 +5,7 @@
 Audience: Hands-on
 Time: 10-15 minutes (CPU)
 Outcome: Recover plaintext >=98% match, score >=0.62
-Prereqs: Python 3.11+, repo installed (`pip install -e .[dev]`)
+Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`)
 
 ## What You Build
 - Solve a columnar transposition cipher using the Hybrid solver (beam warm start + SA polish).

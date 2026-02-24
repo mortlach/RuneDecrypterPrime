@@ -46,8 +46,8 @@ output/
   release/
     ... (created by tools/repo_utils/make_release_src.py)
   solve/
-    5455/workbench/solving/finster/<cipher_id>/<timestamp>/...
-    5455/workbench/solving/finster/runic_z_solve/<timestamp>/summary.json
+    <puzzle_id_or_name>/<timestamp>/...
+    <puzzle_id_or_name>/<solver_name>/<timestamp>/summary.json
 ```
 
 Every helper (`tests/conftest.py`, tutorials, RunLogger) writes relative to the repo root so the tree stays portable.

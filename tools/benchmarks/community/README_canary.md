@@ -5,6 +5,12 @@ The canary run is a short end-to-end smoke test intended to catch problems early
 ## When to run canary
 Run canary after setup/preflight passes and before running a full shard.
 
+Quick command:
+
+```powershell
+python install.py --target runner --run-canary
+```
+
 ## What canary contains
 - 6–12 jobs
 - spans both orders

@@ -5,5 +5,5 @@
 Audience: Hands‑on
 Time: 2-3 minutes
 Outcome: Run a seeded example, locate `META.json` and `logs/app.jsonl`
-Prereqs: Python 3.11+, repo installed (`pip install -e .[dev]`)
+Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`)
 

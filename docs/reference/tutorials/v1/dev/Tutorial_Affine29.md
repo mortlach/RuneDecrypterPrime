@@ -5,7 +5,7 @@
 Audience: Hands‑on / Expert
 Time: 6-10 minutes (CPU)
 Outcome: Encrypt/decrypt and recover (a, b) with GA/SA presets
-Prereqs: Python 3.11+, repo installed (`pip install -e .[dev]`)
+Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`)
 
 ## Run command
 ```bash

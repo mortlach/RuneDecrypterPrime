@@ -10,6 +10,10 @@ description = "Deterministic, solving toolkit for a 29-rune alphabet."
 authors = [{ name = "mortlach" }]
 readme = "README.md"
 requires-python = ">=3.11"
+dependencies = [
+  "numpy>=1.26",
+  "zstandard>=0.22",
+]
 classifiers = [
   "Programming Language :: Python :: 3",
   "License :: OSI Approved :: MIT License",
@@ -17,17 +21,28 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+community-runner = [
+  "jsonschema>=4.23.0",
+  "pybind11>=2.13.0",
+]
+community-organiser = [
+  "jsonschema>=4.23.0",
+]
 dev = [
+  "pytest>=8.0",
+  "ruff>=0.5.0",
+  "pre-commit>=3.0",
   "jsonschema>=4.23.0",
 ]
 test = [
+  "pytest>=8.0",
   "jsonschema>=4.23.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-org/rune_decrypter_prime"
-Documentation = "https://github.com/your-org/rune_decrypter_prime/tree/main/docs"
-Issues = "https://github.com/your-org/rune_decrypter_prime/issues"
+Homepage = "https://github.com/mortlach/RuneDecrypterPrime"
+Documentation = "https://github.com/mortlach/RuneDecrypterPrime/tree/main/docs"
+Issues = "https://github.com/mortlach/RuneDecrypterPrime/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

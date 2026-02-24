@@ -5,7 +5,7 @@
 Audience: Hands‑on
 Time: 8-12 minutes (CPU)
 Outcome: Recover plaintext, score ≥0.55
-Prereqs: Python 3.11+, repo installed (`pip install -e .[dev]`)
+Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`)
 
 ## Goal & Requirements
 - Recover the mono substitution key using GA with no prior crib.

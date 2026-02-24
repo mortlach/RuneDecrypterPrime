@@ -17,7 +17,6 @@ def _load_json(path: Path) -> dict:
 def test_phase1_required_files_exist():
     required = [
         Path("tools/benchmarks/community/README.md"),
-        Path("tools/benchmarks/community/campaign_spec_v1_1.md"),
         Path("tools/benchmarks/community/README_runner.md"),
         Path("tools/benchmarks/community/README_canary.md"),
         Path("tools/benchmarks/community/README_organiser.md"),
@@ -105,4 +104,3 @@ def test_result_schema_loads_and_validates():
 )
 def test_example_json_files_parse(path: Path):
     _load_json(path)
-

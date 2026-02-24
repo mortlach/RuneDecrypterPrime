@@ -1,4 +1,9 @@
 {
-  "placeholder": true,
-  "notes": "Replace this file with the real fixture schema used by your benchmark pipeline."
+  "text_fixture_id": "fixture_001",
+  "length": 2376,
+  "description": "Example fixture metadata used for local setup/canary validation.",
+  "notes": [
+    "Replace with the real fixture schema + content for production community campaigns.",
+    "The local runner currently reads length/text_length/plaintext_length from this JSON when present."
+  ]
 }

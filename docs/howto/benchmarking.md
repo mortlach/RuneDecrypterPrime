@@ -3,7 +3,7 @@
 Audience: Hands-on / Expert  
 Time: 3–6 minutes  
 Outcome: Run a deterministic benchmark and capture results under `output/tools/benchmarks/`.  
-Prereqs: Python 3.11+, repo installed (`pip install -e .[dev]`), CPU reference environment.
+Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`), CPU reference environment.
 
 ---
 

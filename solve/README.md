@@ -1,8 +1,8 @@
 # Solve Folder
 
-Legacy or ad-hoc solve assets live here.
+Legacy shim folder.
 
 ## Guidance
 
-- New campaign work should prefer `solving/`.
-- Keep this folder for historical material that is still useful for comparison.
+- Active puzzle work should live under `solving/`.
+- Keep this folder minimal (README only) so older local references do not break.
