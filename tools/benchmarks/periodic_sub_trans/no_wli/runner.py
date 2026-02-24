@@ -15,6 +15,7 @@ Default scorer schedule:
 import csv
 import hashlib
 import json
+import re
 import subprocess
 import sys
 import time
@@ -40,11 +41,15 @@ from rune_decrypter_prime.ciphers.periodic_substitution_cipher import PeriodicSu
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
-from rune_decrypter_prime.core.types import Device
+from rune_decrypter_prime.core.types import Device, ScorerImpl
 from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
 from rune_decrypter_prime.utils.seed_utils import make_periodic_seed_pool
 
 from tools.benchmarks.periodic_sub_trans.common import bench_solve_periodic_columnar_kaeding as base
+from tools.benchmarks.periodic_sub_trans.common.batch_eval import (
+    decrypt_and_score_keys_chunked,
+    score_plaintexts_chunked,
+)
 from tools.benchmarks.periodic_sub_trans.common.core_enums import BenchmarkOrder
 from tools.benchmarks.config.no_wli_pipeline_profiles import get_no_wli_pipeline_profile
 from tools.benchmarks.periodic_sub_trans.common.paths import make_flavor_run_dir
@@ -55,10 +60,20 @@ ORDER = BenchmarkOrder.COL_THEN_SUB.value  # keep v1 aligned with the proven pip
 PROFILE = "pipeline_no_wli_v1"
 PIPELINE_RUN_MODE = "focus_500_nowli"  # "full" | "focus_500_nowli" | "smoke"
 ENCODING_DIR = "ltr"  # "ltr" | "rtl"
-NO_WLI_PIPELINE_PROFILE_ID = "no_wli_a1_m12_b34_v1"
+NO_WLI_PIPELINE_PROFILE_ID = "no_wli_a1_m4_b4_stage3avg_fulltext_longrun3x_v1"
+# Previous default kept in-file for one-line A/B rollback when needed.
+NO_WLI_PIPELINE_PROFILE_ID_PREVIOUS_DEFAULT = "no_wli_a1_m12_b34_stage3avg_fulltext_v1"
+NO_WLI_LONGRUN3X_PROFILE_ID = "no_wli_a1_m4_b4_stage3avg_fulltext_longrun3x_v1"
 SCORER_STAGE1_LABEL = "A_char1"
 SCORER_STAGE2_LABEL = "M_char12"
 SCORER_STAGE3_LABEL = "B_char34"
+SCORER_IMPL = ScorerImpl.NUMPY.value  # Keep scoring/backend consistent across stages for now.
+SCORER_STAGE3_IMPL_AVG_FULLTEXT = ScorerImpl.NUMPY.value  # Stability guard for AVG full-text.
+BATCH_EVAL_CHUNK_SIZE = 256  # Shared chunk size for decrypt+score batching in runner-level loops.
+REQUIRE_BATCH_SCORING = True  # Fail fast if scorer can't execute true batch path in perf profiles.
+STAGE2_PROMOTE_BY_STAGE3_JUDGE = True  # Bridge into Stage-3 objective basin before refine.
+STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE = True  # Use Stage-3 objective for entry-band selection.
+REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT = True  # Hard guard: avg.full_text scorers must never touch ECDF.
 
 SOLVE_MATCH_THRESHOLD = 0.90
 STALL_DELTA = 0.002
@@ -107,6 +122,7 @@ STAGE1_SCOUT_MIN_RESTARTS = 1
 STAGE1_SCOUT_NO_IMPROVE_DELTA = 1e-6
 STAGE1_SCOUT_NO_IMPROVE_PATIENCE = 1
 STAGE1_SCOUT_MIN_NEW_ARCHIVE = 4
+STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS = 2
 
 # Stage-3 dynamic budget bands (no-WLI, short text). These are deliberately modest.
 STAGE3_DYNAMIC_BANDS = [
@@ -142,6 +158,30 @@ STAGE3_PHASEB_TOP_N = 8
 STAGE3_PHASEB_GATE_DELTA_FLOOR = 0.008
 STAGE3_PHASEB_GATE_END_GAIN_FLOOR = 0.004
 
+# c1 fast-pass focus overrides (used to solve p5/c1 first without globally over-tuning all tiers).
+STAGE3_C1_FOCUS_ENABLED = True
+STAGE3_C1_INIT_KEYS = 192
+STAGE3_C1_PHASEA_STEPS = 2400
+STAGE3_C1_PHASEB_STEPS = 12000
+STAGE3_C1_PHASEB_TOP_N = 48
+STAGE3_C1_PHASEB_GATE_DELTA_FLOOR = 0.010
+STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR = 0.006
+
+_STAGE3_TWO_PHASE_ENABLED_DEFAULT = bool(STAGE3_TWO_PHASE_ENABLED)
+_STAGE3_PHASEA_CFG_DEFAULT = dict(STAGE3_PHASEA_CFG)
+_STAGE3_PHASEB_CFG_DEFAULT = dict(STAGE3_PHASEB_CFG)
+_STAGE3_PHASEB_TOP_N_DEFAULT = int(STAGE3_PHASEB_TOP_N)
+_STAGE3_PHASEB_GATE_DELTA_FLOOR_DEFAULT = float(STAGE3_PHASEB_GATE_DELTA_FLOOR)
+_STAGE3_PHASEB_GATE_END_GAIN_FLOOR_DEFAULT = float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR)
+_STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS_DEFAULT = int(STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS)
+_STAGE3_C1_FOCUS_ENABLED_DEFAULT = bool(STAGE3_C1_FOCUS_ENABLED)
+_STAGE3_C1_INIT_KEYS_DEFAULT = int(STAGE3_C1_INIT_KEYS)
+_STAGE3_C1_PHASEA_STEPS_DEFAULT = int(STAGE3_C1_PHASEA_STEPS)
+_STAGE3_C1_PHASEB_STEPS_DEFAULT = int(STAGE3_C1_PHASEB_STEPS)
+_STAGE3_C1_PHASEB_TOP_N_DEFAULT = int(STAGE3_C1_PHASEB_TOP_N)
+_STAGE3_C1_PHASEB_GATE_DELTA_FLOOR_DEFAULT = float(STAGE3_C1_PHASEB_GATE_DELTA_FLOOR)
+_STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR_DEFAULT = float(STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR)
+
 # Scorers (char-only everywhere).
 SCORER_STAGE1 = dict(
     objective="pct.logp.win10",
@@ -149,6 +189,7 @@ SCORER_STAGE1 = dict(
     use_word_breaks=False,
     char_weights={1: 1.0},
     wli_weights={},
+    impl=SCORER_IMPL,
 )
 SCORER_STAGE2 = dict(
     objective="pct.logp.win10",
@@ -156,6 +197,7 @@ SCORER_STAGE2 = dict(
     use_word_breaks=False,
     char_weights={1: 0.4, 2: 0.6},
     wli_weights={},
+    impl=SCORER_IMPL,
 )
 SCORER_FULL = dict(
     objective="pct.logp.win10",
@@ -163,6 +205,7 @@ SCORER_FULL = dict(
     use_word_breaks=False,
     char_weights={3: 0.2, 4: 0.8},
     wli_weights={},
+    impl=SCORER_IMPL,
 )
 
 SOLVER_STAGE1 = dict(
@@ -282,9 +325,14 @@ def _apply_profile_defaults() -> None:
     global STAGE1_SEED_RESTARTS, STAGE1_SEED_N_BLOCKS, STAGE1_SEED_TOTAL, STAGE1_SEED_SWAPS
     global STAGE12_SCOUT_RUNS, STAGE12_ARCHIVE_KEEP, STAGE12_PROMOTE_TOP
     global STAGE1_SCOUT_STEP_SCALE, STAGE1_SCOUT_RESTART_SCALE, STAGE1_SCOUT_MIN_STEPS, STAGE1_SCOUT_MIN_RESTARTS
-    global STAGE1_SCOUT_NO_IMPROVE_DELTA, STAGE1_SCOUT_NO_IMPROVE_PATIENCE, STAGE1_SCOUT_MIN_NEW_ARCHIVE
+    global STAGE1_SCOUT_NO_IMPROVE_DELTA, STAGE1_SCOUT_NO_IMPROVE_PATIENCE, STAGE1_SCOUT_MIN_NEW_ARCHIVE, STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS
     global STAGE3_DYNAMIC_BANDS
     global SOLVER_STAGE1, SOLVER_STAGE2, SOLVER_STAGE3
+    global STAGE3_TWO_PHASE_ENABLED, STAGE3_PHASEA_CFG, STAGE3_PHASEB_CFG
+    global STAGE3_PHASEB_TOP_N, STAGE3_PHASEB_GATE_DELTA_FLOOR, STAGE3_PHASEB_GATE_END_GAIN_FLOOR
+    global STAGE3_C1_FOCUS_ENABLED, STAGE3_C1_INIT_KEYS
+    global STAGE3_C1_PHASEA_STEPS, STAGE3_C1_PHASEB_STEPS, STAGE3_C1_PHASEB_TOP_N
+    global STAGE3_C1_PHASEB_GATE_DELTA_FLOOR, STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR
 
     profile = get_no_wli_pipeline_profile(NO_WLI_PIPELINE_PROFILE_ID)
     PROFILE = str(profile.profile_id)
@@ -294,6 +342,9 @@ def _apply_profile_defaults() -> None:
     SCORER_STAGE1 = profile.scorer_schedule.stage1_a.to_params()
     SCORER_STAGE2 = profile.scorer_schedule.stage2_m.to_params()
     SCORER_FULL = profile.scorer_schedule.stage3_b.to_params()
+    SCORER_STAGE1["impl"] = SCORER_IMPL
+    SCORER_STAGE2["impl"] = SCORER_IMPL
+    SCORER_FULL["impl"] = _effective_stage3_impl(SCORER_FULL)
 
     STAGE1_SUB_CANDIDATES = int(profile.stage1_sub_candidates)
     STAGE3_INITIAL_KEYS = int(profile.stage3_initial_keys)
@@ -336,14 +387,54 @@ def _apply_profile_defaults() -> None:
     STAGE1_SCOUT_NO_IMPROVE_DELTA = float(profile.stage1_scout_no_improve_delta)
     STAGE1_SCOUT_NO_IMPROVE_PATIENCE = int(profile.stage1_scout_no_improve_patience)
     STAGE1_SCOUT_MIN_NEW_ARCHIVE = int(profile.stage1_scout_min_new_archive)
+    STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS = int(_STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS_DEFAULT)
 
     STAGE3_DYNAMIC_BANDS = [dict(x) for x in profile.stage3_dynamic_bands]
     SOLVER_STAGE1 = dict(profile.solver_stage1)
     SOLVER_STAGE2 = dict(profile.solver_stage2)
     SOLVER_STAGE3 = dict(profile.solver_stage3)
+    STAGE3_TWO_PHASE_ENABLED = bool(_STAGE3_TWO_PHASE_ENABLED_DEFAULT)
+    STAGE3_PHASEA_CFG = dict(_STAGE3_PHASEA_CFG_DEFAULT)
+    STAGE3_PHASEB_CFG = dict(_STAGE3_PHASEB_CFG_DEFAULT)
+    STAGE3_PHASEB_TOP_N = int(_STAGE3_PHASEB_TOP_N_DEFAULT)
+    STAGE3_PHASEB_GATE_DELTA_FLOOR = float(_STAGE3_PHASEB_GATE_DELTA_FLOOR_DEFAULT)
+    STAGE3_PHASEB_GATE_END_GAIN_FLOOR = float(_STAGE3_PHASEB_GATE_END_GAIN_FLOOR_DEFAULT)
+    STAGE3_C1_FOCUS_ENABLED = bool(_STAGE3_C1_FOCUS_ENABLED_DEFAULT)
+    STAGE3_C1_INIT_KEYS = int(_STAGE3_C1_INIT_KEYS_DEFAULT)
+    STAGE3_C1_PHASEA_STEPS = int(_STAGE3_C1_PHASEA_STEPS_DEFAULT)
+    STAGE3_C1_PHASEB_STEPS = int(_STAGE3_C1_PHASEB_STEPS_DEFAULT)
+    STAGE3_C1_PHASEB_TOP_N = int(_STAGE3_C1_PHASEB_TOP_N_DEFAULT)
+    STAGE3_C1_PHASEB_GATE_DELTA_FLOOR = float(_STAGE3_C1_PHASEB_GATE_DELTA_FLOOR_DEFAULT)
+    STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR = float(_STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR_DEFAULT)
 
-
-_apply_profile_defaults()
+    if str(profile.profile_id) == NO_WLI_LONGRUN3X_PROFILE_ID:
+        # Longrun profile default: safe local refinement first, then aggressive phase-B only for top-N.
+        STAGE3_TWO_PHASE_ENABLED = True
+        STAGE3_PHASEA_CFG = {
+            "steps": 900,
+            "restarts": 1,
+            "inner_batch": 96,
+            "col_every": 0,
+            "col_batch": 0,
+            "slip_every": 0,
+            "slip_swaps": 0,
+            "stall_slip_limit": 0,
+        }
+        STAGE3_PHASEB_CFG = {
+            "steps": 4200,
+            "inner_batch": 128,
+            "col_every": 1,
+            "col_batch": 128,
+            "slip_every": 70,
+            "stall_rounds": 240,
+            "stall_slip_limit": 8,
+            "slip_swaps": 28,
+        }
+        STAGE3_PHASEB_TOP_N = 16
+        STAGE3_PHASEB_GATE_DELTA_FLOOR = 0.008
+        STAGE3_PHASEB_GATE_END_GAIN_FLOOR = 0.004
+        # Force full scout pass before early-stop can trigger.
+        STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS = int(max(1, STAGE12_SCOUT_RUNS))
 
 
 def _repo_root() -> Path:
@@ -377,17 +468,18 @@ def _apply_run_mode() -> None:
         HEARTBEAT_SECONDS = 900
         TEXT_OFFSETS[:] = [0]
         KEY_SEEDS[:] = [111]
-        # Curated, runic-like lengths and friendly columns (<=7) so stage2 exact tail is exercised.
+        # Curated runic-like set, explicitly starting with period-5 no-WLI tiers.
         TIERS[:] = [
+            Tier("focus_p5_c1_l452", 5, 1, 452),
+            Tier("focus_p5_c3_l452", 5, 3, 452),
+            Tier("focus_p5_c5_l452", 5, 5, 452),
             Tier("focus_p7_c5_l452", 7, 5, 452),
             Tier("focus_p7_c7_l452", 7, 7, 452),
             Tier("focus_p8_c5_l505", 8, 5, 505),
-            Tier("focus_p9_c5_l446", 9, 5, 446),
             Tier("focus_p9_c7_l446", 9, 7, 446),
-            Tier("focus_p14_c5_l452", 14, 5, 452),
+            Tier("focus_p14_c7_l452", 14, 7, 452),
             Tier("focus_p15_c7_l415", 15, 7, 415),
             Tier("focus_p18_c7_l446", 18, 7, 446),
-            Tier("focus_p21_c5_l483", 21, 5, 483),
             Tier("focus_p21_c7_l483", 21, 7, 483),
         ]
         return
@@ -496,6 +588,159 @@ def _weights_text(weights: Dict[int, float]) -> str:
     return "{" + ",".join(parts) + "}"
 
 
+def _scorer_objective_summary(scorer_cfg: Dict[str, Any]) -> str:
+    obj = str(scorer_cfg.get("objective", "unknown"))
+    policy = scorer_cfg.get("avg_window_policy", None)
+    if policy and str(policy).strip().lower() == "full_text":
+        m = re.search(r"\.win(\d+)$", obj)
+        win_cfg = m.group(1) if m else "na"
+        if obj.startswith("avg.logp"):
+            return (
+                f"avg.logp (policy=full_text,span=full_text,"
+                f"win_configured={win_cfg},win_effective=FULL_TEXT)"
+            )
+        return (
+            f"{obj} (policy=full_text,span=full_text,"
+            f"win_configured={win_cfg},win_effective=FULL_TEXT)"
+        )
+    if policy:
+        return f"{obj} policy={policy}"
+    return obj
+
+
+def _is_avg_fulltext_scorer(scorer_cfg: Dict[str, Any]) -> bool:
+    obj = str(scorer_cfg.get("objective", "")).strip().lower()
+    policy = str(scorer_cfg.get("avg_window_policy", "")).strip().lower()
+    return obj.startswith("avg.logp") and policy == "full_text"
+
+
+def _effective_stage3_impl(scorer_cfg: Dict[str, Any]) -> str:
+    if _is_avg_fulltext_scorer(scorer_cfg):
+        return str(SCORER_STAGE3_IMPL_AVG_FULLTEXT)
+    return str(SCORER_IMPL)
+
+
+def _stage2_judge_pool_limit(
+    *,
+    ranked_count: int,
+    archive_keep: int,
+    stage3_scorer_cfg: Dict[str, Any],
+) -> int:
+    ranked_n = max(0, int(ranked_count))
+    if ranked_n <= 0:
+        return 0
+    if (not bool(STAGE2_PROMOTE_BY_STAGE3_JUDGE)) and (not bool(STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE)):
+        target = max(1, int(SAVE_STAGE2_TOPK))
+        return max(1, min(ranked_n, target))
+    if _is_avg_fulltext_scorer(stage3_scorer_cfg):
+        target = max(1, int(archive_keep))
+    else:
+        target = max(1, int(SAVE_STAGE2_TOPK))
+    return max(1, min(ranked_n, target))
+
+
+def _guard_no_ecdf_usage(*, scorer_runtime: Any, scorer_cfg: Dict[str, Any], stage_label: str) -> None:
+    """Fail fast if an AVG full-text scorer attempts to initialize/use ECDF."""
+
+    if not _is_avg_fulltext_scorer(scorer_cfg):
+        return
+    if not bool(REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT):
+        return
+    ecdf_attr = getattr(scorer_runtime, "_ecdf", None)
+    if ecdf_attr is not None:
+        raise RuntimeError(
+            f"[pipeline_no_wli] ECDF guard failed: stage={stage_label} objective={scorer_cfg.get('objective')} "
+            "avg_window_policy=full_text unexpectedly has initialized ECDF."
+        )
+    if hasattr(scorer_runtime, "_ensure_ecdf"):
+        def _ecdf_forbidden(*_args: Any, **_kwargs: Any) -> Any:
+            raise RuntimeError(
+                f"[pipeline_no_wli] ECDF guard failed: stage={stage_label} objective={scorer_cfg.get('objective')} "
+                "avg_window_policy=full_text attempted ECDF access."
+            )
+
+        setattr(scorer_runtime, "_ensure_ecdf", _ecdf_forbidden)
+
+
+def _entry_key_tuple(entry: Dict[str, Any]) -> Tuple[int, ...]:
+    key_vals = entry.get("key", [])
+    if not isinstance(key_vals, list) or (not key_vals):
+        return tuple()
+    return tuple(int(x) for x in key_vals)
+
+
+def _ensure_best_entry_in_ranked(
+    *,
+    ranked_entries: Sequence[Dict[str, Any]],
+    best_entry: Dict[str, Any] | None,
+) -> List[Dict[str, Any]]:
+    out = list(ranked_entries)
+    if best_entry is None:
+        return out
+    best_t = _entry_key_tuple(best_entry)
+    if not best_t:
+        return out
+    ranked_key_set = {_entry_key_tuple(ent) for ent in out}
+    if best_t not in ranked_key_set:
+        out.insert(0, best_entry)
+    return out
+
+
+def _ensure_best_entry_in_promoted(
+    *,
+    promoted_entries: Sequence[Dict[str, Any]],
+    best_entry: Dict[str, Any] | None,
+    promote_top: int,
+) -> Tuple[List[Dict[str, Any]], bool]:
+    out = list(promoted_entries)
+    if best_entry is None:
+        return out, False
+    best_t = _entry_key_tuple(best_entry)
+    if not best_t:
+        return out, False
+    promoted_key_set = {_entry_key_tuple(ent) for ent in out}
+    if best_t in promoted_key_set:
+        return out, True
+    top_n = int(max(1, promote_top))
+    if len(out) >= top_n:
+        out = out[: top_n - 1]
+    out.append(best_entry)
+    return out, True
+
+
+def _build_stage3_promoted_keys(
+    *,
+    promoted_entries: Sequence[Dict[str, Any]],
+    best_key: Sequence[int] | None,
+    key_len: int,
+) -> List[List[int]]:
+    out: List[List[int]] = []
+    seen: set[Tuple[int, ...]] = set()
+    if best_key is not None:
+        best_list = [int(x) for x in best_key]
+        if len(best_list) == int(key_len):
+            best_t = tuple(best_list)
+            if best_t not in seen:
+                seen.add(best_t)
+                out.append(best_list)
+    for ent in promoted_entries:
+        key_vals = ent.get("key", [])
+        if not isinstance(key_vals, list):
+            continue
+        k = [int(x) for x in key_vals]
+        if len(k) != int(key_len):
+            continue
+        kt = tuple(k)
+        if kt in seen:
+            continue
+        seen.add(kt)
+        out.append(k)
+    return out
+
+
+_apply_profile_defaults()
+
+
 def _tail_hamming(a: Sequence[int], b: Sequence[int]) -> int:
     return int(sum(1 for x, y in zip(a, b) if int(x) != int(y)))
 
@@ -545,7 +790,7 @@ def _oracle_score_for_stage(
     scorer = build_scorer(cipher_cfg, s_cfg)
     # no-WLI: always score without WLI arg.
     score, raw = scorer.score_with_raw(pt_idx, None)
-    return float(score), float(raw), _objective_text(getattr(s_cfg, "objective", None))
+    return float(score), float(raw), _scorer_objective_summary(scorer_params)
 
 
 def _write_csv_rows(path: Path, rows: List[Dict[str, Any]]) -> None:
@@ -628,6 +873,7 @@ def main() -> None:
                 no_improve_delta=float(STAGE1_SCOUT_NO_IMPROVE_DELTA),
                 no_improve_patience=int(STAGE1_SCOUT_NO_IMPROVE_PATIENCE),
                 min_new_archive=int(STAGE1_SCOUT_MIN_NEW_ARCHIVE),
+                early_stop_min_scouts=int(STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS),
             ),
             sub_candidates=int(STAGE1_SUB_CANDIDATES),
             sub_candidates_by_columns={str(k): int(v) for k, v in STAGE1_SUB_CANDIDATES_BY_COLUMNS.items()},
@@ -650,6 +896,16 @@ def main() -> None:
             hybrid_solver=dict(SOLVER_STAGE2),
             hybrid_sub_candidates=int(STAGE2_HYBRID_SUB_CANDIDATES),
             hybrid_sub_by_columns={str(k): int(v) for k, v in STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS.items()},
+            judge_pool=dict(
+                mode=(
+                    "stage3_judge_enabled"
+                    if bool(STAGE2_PROMOTE_BY_STAGE3_JUDGE or STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE)
+                    else "telemetry_only_topk"
+                ),
+                topk_default=int(SAVE_STAGE2_TOPK),
+                promote_by_stage3_judge=bool(STAGE2_PROMOTE_BY_STAGE3_JUDGE),
+                entry_band_by_stage3_judge=bool(STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE),
+            ),
         ),
         stage3=dict(
             scorer=dict(SCORER_FULL),
@@ -665,6 +921,15 @@ def main() -> None:
                 gate_delta_floor=float(STAGE3_PHASEB_GATE_DELTA_FLOOR),
                 gate_end_gain_floor=float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR),
             ),
+            c1_focus=dict(
+                enabled=bool(STAGE3_C1_FOCUS_ENABLED),
+                init_keys=int(STAGE3_C1_INIT_KEYS),
+                phase_a_steps=int(STAGE3_C1_PHASEA_STEPS),
+                phase_b_steps=int(STAGE3_C1_PHASEB_STEPS),
+                phase_b_top_n=int(STAGE3_C1_PHASEB_TOP_N),
+                gate_delta_floor=float(STAGE3_C1_PHASEB_GATE_DELTA_FLOOR),
+                gate_end_gain_floor=float(STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR),
+            ),
         ),
     )
     (run_dir / "run_config.json").write_text(json.dumps(run_config, indent=2), encoding="utf-8")
@@ -675,10 +940,25 @@ def main() -> None:
         flush=True,
     )
     print(
-        f"[pipeline_no_wli] setup: objective=pct.logp.win10 "
-        f"stage1=({SCORER_STAGE1_LABEL},wli_off) "
-        f"stage2=({SCORER_STAGE2_LABEL},wli_off) "
-        f"stage3=({SCORER_STAGE3_LABEL},wli_off)",
+        f"[pipeline_no_wli] PROFILE_BANNER "
+        f"NO_WLI_PIPELINE_PROFILE_ID={NO_WLI_PIPELINE_PROFILE_ID} "
+        f"previous_default={NO_WLI_PIPELINE_PROFILE_ID_PREVIOUS_DEFAULT} "
+        f"stage3={_scorer_objective_summary(SCORER_FULL)}",
+        flush=True,
+    )
+    print(
+        f"[pipeline_no_wli] setup: objective "
+        f"impl(stage1/2)={getattr(SCORER_IMPL, 'value', SCORER_IMPL)} "
+        f"impl(stage3)={str(SCORER_FULL.get('impl', SCORER_IMPL))} "
+        f"stage1=({SCORER_STAGE1_LABEL},{_scorer_objective_summary(SCORER_STAGE1)},wli_off) "
+        f"stage2=({SCORER_STAGE2_LABEL},{_scorer_objective_summary(SCORER_STAGE2)},wli_off) "
+        f"stage3=({SCORER_STAGE3_LABEL},{_scorer_objective_summary(SCORER_FULL)},wli_off)",
+        flush=True,
+    )
+    print(
+        f"[pipeline_no_wli] setup: ecdf_guard="
+        f"{'on' if bool(REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT) else 'off'} "
+        f"(avg_fulltext_required_for_all_stages={bool(REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT)})",
         flush=True,
     )
     print(
@@ -691,7 +971,8 @@ def main() -> None:
         f"stage1_scout_mins=(steps={int(STAGE1_SCOUT_MIN_STEPS)},restarts={int(STAGE1_SCOUT_MIN_RESTARTS)}) "
         f"stage1_scout_plateau=(delta={float(STAGE1_SCOUT_NO_IMPROVE_DELTA):.1e},"
         f"patience={int(STAGE1_SCOUT_NO_IMPROVE_PATIENCE)},"
-        f"min_new_archive={int(STAGE1_SCOUT_MIN_NEW_ARCHIVE)}) "
+        f"min_new_archive={int(STAGE1_SCOUT_MIN_NEW_ARCHIVE)},"
+        f"early_stop_min_scouts={int(STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS)}) "
         f"stage1_sub_candidates={int(STAGE1_SUB_CANDIDATES)} "
         f"stage1_sub_by_c={json.dumps({str(k): int(v) for k, v in STAGE1_SUB_CANDIDATES_BY_COLUMNS.items()}, separators=(',', ':'))} "
         f"stage3_init_keys={int(STAGE3_INITIAL_KEYS)} "
@@ -712,7 +993,14 @@ def main() -> None:
         f"phaseB={json.dumps(dict(STAGE3_PHASEB_CFG), separators=(',', ':'))} "
         f"phaseB_top_n={int(STAGE3_PHASEB_TOP_N)} "
         f"phaseB_gate=(delta={float(STAGE3_PHASEB_GATE_DELTA_FLOOR):.4f},"
-        f"end_gain={float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR):.4f})",
+        f"end_gain={float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR):.4f}) "
+        f"c1_focus=(enabled={1 if bool(STAGE3_C1_FOCUS_ENABLED) else 0},"
+        f"init_keys={int(STAGE3_C1_INIT_KEYS)},"
+        f"phaseA_steps={int(STAGE3_C1_PHASEA_STEPS)},"
+        f"phaseB_steps={int(STAGE3_C1_PHASEB_STEPS)},"
+        f"phaseB_top_n={int(STAGE3_C1_PHASEB_TOP_N)},"
+        f"gate_delta={float(STAGE3_C1_PHASEB_GATE_DELTA_FLOOR):.4f},"
+        f"gate_end_gain={float(STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR):.4f})",
         flush=True,
     )
     print(f"[pipeline_no_wli] setup: tiers={len(TIERS)} text_offsets={TEXT_OFFSETS} key_seeds={KEY_SEEDS}", flush=True)
@@ -769,36 +1057,69 @@ def main() -> None:
                 scorer_stage1 = dict(SCORER_STAGE1, encoding_dir=direction)
                 scorer_stage2 = dict(SCORER_STAGE2, encoding_dir=direction)
                 scorer_full = dict(SCORER_FULL, encoding_dir=direction)
+                if bool(REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT):
+                    scorer_gate = [
+                        ("stage1", scorer_stage1),
+                        ("stage2", scorer_stage2),
+                        ("stage3", scorer_full),
+                    ]
+                    non_fulltext = [lbl for lbl, cfg in scorer_gate if not _is_avg_fulltext_scorer(cfg)]
+                    if non_fulltext:
+                        raise RuntimeError(
+                            "[pipeline_no_wli] no-ECDF guard requires avg.logp full_text for all stages; "
+                            f"non_compliant={','.join(non_fulltext)} profile={NO_WLI_PIPELINE_PROFILE_ID}"
+                        )
                 scorer_stage1_runtime = build_scorer(cfg_sub, ScoringConfig(**scorer_stage1))
                 scorer_stage2_runtime = build_scorer(cfg_full, ScoringConfig(**scorer_stage2))
                 scorer_full_runtime = build_scorer(cfg_full, ScoringConfig(**scorer_full))
+                _guard_no_ecdf_usage(scorer_runtime=scorer_stage1_runtime, scorer_cfg=scorer_stage1, stage_label="stage1")
+                _guard_no_ecdf_usage(scorer_runtime=scorer_stage2_runtime, scorer_cfg=scorer_stage2, stage_label="stage2")
+                _guard_no_ecdf_usage(scorer_runtime=scorer_full_runtime, scorer_cfg=scorer_full, stage_label="stage3")
                 scorer_stage2_pass1_primary_runtime = None
                 scorer_stage2_pass1_fallback_runtime = None
                 if int(tier.columns) <= int(STAGE2_EXACT_MAX_COLUMNS) and bool(STAGE2_EXACT_TWO_PASS):
+                    stage2_objective = str(SCORER_STAGE2.get("objective", "pct.logp.win10"))
+                    stage2_avg_policy = SCORER_STAGE2.get("avg_window_policy", None)
                     scorer_stage2_pass1_primary = dict(
-                        objective="pct.logp.win10",
+                        objective=stage2_objective,
                         include_char=True,
                         use_word_breaks=False,
                         char_weights=dict(STAGE2_PASS1_PRIMARY_CHAR_WEIGHTS),
                         wli_weights={},
                         encoding_dir=direction,
+                        impl=SCORER_IMPL,
                     )
+                    if stage2_avg_policy is not None:
+                        scorer_stage2_pass1_primary["avg_window_policy"] = str(stage2_avg_policy)
                     scorer_stage2_pass1_primary_runtime = build_scorer(
                         cfg_full, ScoringConfig(**scorer_stage2_pass1_primary)
+                    )
+                    _guard_no_ecdf_usage(
+                        scorer_runtime=scorer_stage2_pass1_primary_runtime,
+                        scorer_cfg=scorer_stage2_pass1_primary,
+                        stage_label="stage2_pass1_primary",
                     )
                     if dict(STAGE2_PASS1_FALLBACK_CHAR_WEIGHTS) and (
                         dict(STAGE2_PASS1_FALLBACK_CHAR_WEIGHTS) != dict(STAGE2_PASS1_PRIMARY_CHAR_WEIGHTS)
                     ):
                         scorer_stage2_pass1_fallback = dict(
-                            objective="pct.logp.win10",
+                            objective=stage2_objective,
                             include_char=True,
                             use_word_breaks=False,
                             char_weights=dict(STAGE2_PASS1_FALLBACK_CHAR_WEIGHTS),
                             wli_weights={},
                             encoding_dir=direction,
+                            impl=SCORER_IMPL,
                         )
+                        if stage2_avg_policy is not None:
+                            scorer_stage2_pass1_fallback["avg_window_policy"] = str(stage2_avg_policy)
                         scorer_stage2_pass1_fallback_runtime = build_scorer(
                             cfg_full, ScoringConfig(**scorer_stage2_pass1_fallback)
+                        )
+                        _guard_no_ecdf_usage(
+                            scorer_runtime=scorer_stage2_pass1_fallback_runtime,
+                            scorer_cfg=scorer_stage2_pass1_fallback,
+                            stage_label="stage2_pass1_fallback",
                         )
 
                 oracle_s1, oracle_s1_raw, s1_obj = _oracle_score_for_stage(pt_idx=pt_stage1_oracle, cipher_cfg=cfg_sub, scorer_params=scorer_stage1)
@@ -854,11 +1175,14 @@ def main() -> None:
                     f"scouts={stage1_scout_runs} archive_keep={stage1_archive_keep} "
                     f"scout_plateau=(delta={float(STAGE1_SCOUT_NO_IMPROVE_DELTA):.1e},"
                     f"patience={int(STAGE1_SCOUT_NO_IMPROVE_PATIENCE)},"
-                    f"min_new_archive={int(STAGE1_SCOUT_MIN_NEW_ARCHIVE)}) "
+                    f"min_new_archive={int(STAGE1_SCOUT_MIN_NEW_ARCHIVE)},"
+                    f"early_stop_min_scouts={int(STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS)}) "
                     f"oracle_guard=off",
                     flush=True,
                 )
                 stage1_archive: Dict[Tuple[int, ...], Dict[str, Any]] = {}
+                stage1_unique_start_hashes: set[str] = set()
+                stage1_unique_end_hashes: set[str] = set()
                 stage1_best_score = float("-inf")
                 stage1_best_sub: List[int] = []
                 stage1_best_pt: List[int] = []
@@ -869,11 +1193,14 @@ def main() -> None:
                 base_seed_restarts = int(solver_stage1_base_cfg.get("seed_restarts", STAGE1_SEED_RESTARTS))
                 stage1_scouts_done = 0
                 stage1_no_improve_scouts = 0
+                stage1_seed_probe_added_total = 0
+                stage1_seed_probe_scouts = 0
 
                 for scout_idx in range(stage1_scout_runs):
                     stage1_scouts_done += 1
                     pre_scout_best_score = float(stage1_best_score)
                     pre_scout_archive_n = int(len(stage1_archive))
+                    pre_scout_unique_end_n = int(len(stage1_unique_end_hashes))
                     solver_stage1_cfg = dict(solver_stage1_base_cfg)
                     solver_stage1_cfg["seed"] = int(solver_stage1_base_cfg.get("seed", 2026)) + 7919 * int(scout_idx)
                     if scout_idx > 0:
@@ -901,6 +1228,8 @@ def main() -> None:
                         swaps_per_block=int(STAGE1_SEED_SWAPS),
                         alphabet_size=ALPHABET_SIZE,
                     )
+                    for _seed_key in s1_seeds:
+                        stage1_unique_start_hashes.add(_key_hash16(_seed_key))
                     sol1 = run(
                         text=ct_idx.tolist(),
                         cipher=by_name.cipher("periodic_substitution", period=tier.period, alphabet_size=ALPHABET_SIZE),
@@ -918,28 +1247,89 @@ def main() -> None:
                     sub_best = np.asarray(getattr(sol1, "key", []) or [], dtype=np.int16).reshape(-1)
                     sub_key_match_this = base._match_ratio(sub_best.tolist(), true_sub.tolist())
                     sub_candidates_this = _extract_top_keys(sol1, limit=stage1_sub_limit) or [sub_best.astype(int).tolist()]
+                    sub_candidates_source = "telemetry_topk"
+                    seed_probe_added = 0
+                    if len(sub_candidates_this) < int(stage1_sub_limit):
+                        # Fallback when telemetry top-keys collapse to 1 candidate:
+                        # probe deterministic stage1 seed pool and backfill best-scoring diverse keys.
+                        seen_keys: set[Tuple[int, ...]] = set(
+                            tuple(int(x) for x in row) for row in sub_candidates_this if row
+                        )
+                        seed_probe_keys: List[np.ndarray] = []
+                        for seed_key in s1_seeds:
+                            seed_arr = np.asarray(seed_key, dtype=np.int16).reshape(-1)
+                            if seed_arr.size != int(sub_len):
+                                continue
+                            seed_t = tuple(int(x) for x in seed_arr.tolist())
+                            if seed_t in seen_keys:
+                                continue
+                            seen_keys.add(seed_t)
+                            seed_probe_keys.append(seed_arr)
+                        if seed_probe_keys:
+                            _pt_seed, sc_seed, _seed_stats = decrypt_and_score_keys_chunked(
+                                cipher=sub_cipher,
+                                ciphertext=ct_idx,
+                                keys=seed_probe_keys,
+                                scorer=scorer_stage1_runtime,
+                                wli=None,
+                                key_dtype=np.int16,
+                                chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                                require_batch=bool(REQUIRE_BATCH_SCORING),
+                            )
+                            if int(sc_seed.size) > 0:
+                                seed_ranked = np.argsort(sc_seed)[::-1]
+                                for seed_idx in seed_ranked.tolist():
+                                    if len(sub_candidates_this) >= int(stage1_sub_limit):
+                                        break
+                                    key_list = seed_probe_keys[int(seed_idx)].astype(int).tolist()
+                                    sub_candidates_this.append(key_list)
+                                    seed_probe_added += 1
+                        if seed_probe_added > 0:
+                            sub_candidates_source = "telemetry_plus_seed_probe"
+                            stage1_seed_probe_scouts += 1
+                            stage1_seed_probe_added_total += int(seed_probe_added)
+                        elif sub_candidates_this:
+                            sub_candidates_source = "telemetry_only"
+                        else:
+                            sub_candidates_source = "seed_probe_empty"
 
+                    sub_keys_stage1: List[np.ndarray] = []
                     for sub_key in sub_candidates_this:
                         sub_arr = np.asarray(sub_key, dtype=np.int16).reshape(-1)
-                        if sub_arr.size != int(sub_len):
-                            continue
-                        pt1 = np.asarray(sub_cipher.decrypt_single(ciphertext=ct_idx, key=sub_arr), dtype=np.uint8).reshape(-1)
-                        sc1 = float(scorer_stage1_runtime.score(pt1, None))
-                        key_t = tuple(int(x) for x in sub_arr.tolist())
-                        sub_m = float(base._match_ratio(sub_arr.tolist(), true_sub.tolist()))
-                        prev = stage1_archive.get(key_t)
-                        if (prev is None) or (sc1 > float(prev.get("score", float("-inf")))):
-                            stage1_archive[key_t] = dict(
-                                sub_key=sub_arr.astype(int).tolist(),
-                                score=float(sc1),
-                                sub_key_match=float(sub_m),
-                                plaintext=pt1.astype(int).tolist(),
-                            )
-                        if sc1 > stage1_best_score:
-                            stage1_best_score = float(sc1)
-                            stage1_best_sub = sub_arr.astype(int).tolist()
-                            stage1_best_pt = pt1.astype(int).tolist()
-                            stage1_best_match = float(sub_m)
+                        if sub_arr.size == int(sub_len):
+                            sub_keys_stage1.append(sub_arr)
+                    if sub_keys_stage1:
+                        pt_batch, sc_batch, _batch_stats = decrypt_and_score_keys_chunked(
+                            cipher=sub_cipher,
+                            ciphertext=ct_idx,
+                            keys=sub_keys_stage1,
+                            scorer=scorer_stage1_runtime,
+                            wli=None,
+                            key_dtype=np.int16,
+                            chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                            require_batch=bool(REQUIRE_BATCH_SCORING),
+                        )
+                        scout_unique_end_hashes: set[str] = set()
+                        for i_row, sub_arr in enumerate(sub_keys_stage1):
+                            pt1 = np.asarray(pt_batch[i_row], dtype=np.uint8).reshape(-1)
+                            sc1 = float(sc_batch[i_row])
+                            key_t = tuple(int(x) for x in sub_arr.tolist())
+                            scout_unique_end_hashes.add(_key_hash16(key_t))
+                            sub_m = float(base._match_ratio(sub_arr.tolist(), true_sub.tolist()))
+                            prev = stage1_archive.get(key_t)
+                            if (prev is None) or (sc1 > float(prev.get("score", float("-inf")))):
+                                stage1_archive[key_t] = dict(
+                                    sub_key=sub_arr.astype(int).tolist(),
+                                    score=float(sc1),
+                                    sub_key_match=float(sub_m),
+                                    plaintext=pt1.astype(int).tolist(),
+                                )
+                            if sc1 > stage1_best_score:
+                                stage1_best_score = float(sc1)
+                                stage1_best_sub = sub_arr.astype(int).tolist()
+                                stage1_best_pt = pt1.astype(int).tolist()
+                                stage1_best_match = float(sub_m)
+                        stage1_unique_end_hashes.update(scout_unique_end_hashes)
 
                     stage1_score_gain = (
                         float(stage1_best_score - pre_scout_best_score)
@@ -947,6 +1337,7 @@ def main() -> None:
                         else float("inf")
                     )
                     stage1_new_archive = int(len(stage1_archive) - pre_scout_archive_n)
+                    stage1_new_unique_hashes = int(len(stage1_unique_end_hashes) - pre_scout_unique_end_n)
                     stages.append(
                         dict(
                             tier=tier.name,
@@ -958,28 +1349,36 @@ def main() -> None:
                             seconds=0.0,
                             evals=int(scout_evals),
                             candidates=len(sub_candidates_this),
+                            candidate_source=str(sub_candidates_source),
+                            seed_probe_added=int(seed_probe_added),
                             scout_seed=int(scout_seed),
                             archive_size=int(len(stage1_archive)),
                             new_archive_keys=int(stage1_new_archive),
+                            new_archive_hashes=int(stage1_new_unique_hashes),
                             score_gain=(float(stage1_score_gain) if np.isfinite(stage1_score_gain) else np.nan),
                         )
                     )
                     if (
                         scout_idx > 0
                         and stage1_score_gain <= float(STAGE1_SCOUT_NO_IMPROVE_DELTA)
-                        and stage1_new_archive <= int(STAGE1_SCOUT_MIN_NEW_ARCHIVE)
+                        and stage1_new_unique_hashes <= int(STAGE1_SCOUT_MIN_NEW_ARCHIVE)
                     ):
                         stage1_no_improve_scouts += 1
                     else:
                         stage1_no_improve_scouts = 0
+                    min_scouts_before_early_stop = int(
+                        max(1, min(int(stage1_scout_runs), int(STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS)))
+                    )
                     if (
                         scout_idx + 1 < int(stage1_scout_runs)
+                        and int(stage1_scouts_done) >= int(min_scouts_before_early_stop)
                         and stage1_no_improve_scouts >= int(STAGE1_SCOUT_NO_IMPROVE_PATIENCE)
                     ):
                         print(
                             f"[pipeline_no_wli] stage1-early-stop tier={tier.name} text={text_id} key_seed={key_seed} "
                             f"reason=scout_plateau scouts_done={stage1_scouts_done}/{stage1_scout_runs} "
-                            f"score_gain={stage1_score_gain:.6g} new_archive={stage1_new_archive}",
+                            f"score_gain={stage1_score_gain:.6g} new_archive={stage1_new_archive} "
+                            f"new_archive_hashes={int(stage1_new_unique_hashes)}",
                             flush=True,
                         )
                         break
@@ -1020,6 +1419,15 @@ def main() -> None:
                     f"score={float(stage1_best_score if np.isfinite(stage1_best_score) else np.nan):.6f} "
                     f"sub_key_match={float(sub_key_match):.3f} evals={int(ev1)} seconds={dt1:.1f} "
                     f"candidates={len(sub_candidates)} scouts={int(stage1_scouts_done)} "
+                    f"archive_size={int(len(stage1_archive))} "
+                    f"seed_probe_scouts={int(stage1_seed_probe_scouts)} "
+                    f"seed_probe_added_total={int(stage1_seed_probe_added_total)}",
+                    flush=True,
+                )
+                print(
+                    f"[pipeline_no_wli] stage1-diversity tier={tier.name} text={text_id} key_seed={key_seed} "
+                    f"unique_start_hash={int(len(stage1_unique_start_hashes))} "
+                    f"unique_end_hash={int(len(stage1_unique_end_hashes))} "
                     f"archive_size={int(len(stage1_archive))}",
                     flush=True,
                 )
@@ -1037,6 +1445,17 @@ def main() -> None:
                 hybrid_sub_limit = int(
                     STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS.get(int(tier.columns), STAGE2_HYBRID_SUB_CANDIDATES)
                 )
+                tail_chunk = int(BATCH_EVAL_CHUNK_SIZE)
+
+                def _iter_tail_chunks(columns: int, chunk_size: int):
+                    block: List[Tuple[int, ...]] = []
+                    for tail in permutations(range(int(columns))):
+                        block.append(tuple(int(x) for x in tail))
+                        if len(block) >= int(chunk_size):
+                            yield block
+                            block = []
+                    if block:
+                        yield block
 
                 def _consider_stage2_candidate(*, full_key_arr: np.ndarray, pt2_arr: np.ndarray, match_val: float, score_val: float, preview_label: str) -> None:
                     nonlocal best2_match, best2_score, best2_key, best2_pt, best2_preview
@@ -1059,23 +1478,38 @@ def main() -> None:
                         _print_stage_preview(label=preview_label, pt=pt2_arr.tolist(), wli=wli, match_ratio=float(match_val))
 
                 if int(tier.columns) <= 1:
-                    for i, sub_key in enumerate(sub_candidates):
-                        sub_arr = np.asarray(sub_key, dtype=np.int16)
+                    full_keys_identity: List[np.ndarray] = []
+                    for sub_key in sub_candidates:
+                        sub_arr = np.asarray(sub_key, dtype=np.int16).reshape(-1)
                         full_key = np.concatenate([sub_arr, np.asarray([0], dtype=np.int16)], axis=0)
-                        pt2 = np.asarray(full_cipher.decrypt_single(ciphertext=ct_idx, key=full_key), dtype=np.uint8).reshape(-1)
-                        m2 = base._match_ratio(pt2.tolist(), pt_idx.tolist())
-                        sc2 = float(scorer_stage2_runtime.score(pt2, None))
-                        stage2_evals_total += 1
-                        _consider_stage2_candidate(
-                            full_key_arr=full_key,
-                            pt2_arr=pt2,
-                            match_val=float(m2),
-                            score_val=float(sc2),
-                            preview_label=f"stage2_identity_best_{i+1}",
+                        full_keys_identity.append(full_key)
+                    if full_keys_identity:
+                        pt_batch, sc_batch, _batch_stats = decrypt_and_score_keys_chunked(
+                            cipher=full_cipher,
+                            ciphertext=ct_idx,
+                            keys=full_keys_identity,
+                            scorer=scorer_stage2_runtime,
+                            wli=None,
+                            key_dtype=np.int16,
+                            chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                            require_batch=bool(REQUIRE_BATCH_SCORING),
                         )
+                        for i, full_key in enumerate(full_keys_identity):
+                            pt2 = np.asarray(pt_batch[i], dtype=np.uint8).reshape(-1)
+                            m2 = base._match_ratio(pt2.tolist(), pt_idx.tolist())
+                            sc2 = float(sc_batch[i])
+                            stage2_evals_total += 1
+                            _consider_stage2_candidate(
+                                full_key_arr=full_key,
+                                pt2_arr=pt2,
+                                match_val=float(m2),
+                                score_val=float(sc2),
+                                preview_label=f"stage2_identity_best_{i+1}",
+                            )
                     print(
                         f"[pipeline_no_wli] stage2-summary tier={tier.name} text={text_id} key_seed={key_seed} "
-                        f"mode=identity best_match={float(best2_match):.3f} best_score={float(best2_score):.6f} evals={int(stage2_evals_total)}",
+                        f"mode=identity best_match_ratio={float(best2_match):.3f} "
+                        f"best_score_at_best_match={float(best2_score):.6f} evals={int(stage2_evals_total)}",
                         flush=True,
                     )
                 elif int(tier.columns) <= int(STAGE2_EXACT_MAX_COLUMNS):
@@ -1093,29 +1527,53 @@ def main() -> None:
 
                         if bool(STAGE2_EXACT_TWO_PASS) and scorer_stage2_pass1_primary_runtime is not None:
                             pass1_ranked: List[Tuple[float, Tuple[int, ...]]] = []
-                            for tail in permutations(range(int(tier.columns))):
-                                col_key = np.asarray(tail, dtype=np.int16)
-                                full_key = np.concatenate([sub_arr, col_key], axis=0)
-                                pt2 = np.asarray(full_cipher.decrypt_single(ciphertext=ct_idx, key=full_key), dtype=np.uint8).reshape(-1)
-                                fast_sc = float(scorer_stage2_pass1_primary_runtime.score(pt2, None))
-                                pass1_ranked.append((fast_sc, tuple(int(x) for x in tail)))
-                                pass1_evals += 1
-                                stage2_evals_total += 1
-                                if bool(STAGE2_EXACT_EARLY_SOLVE_BREAK):
-                                    m2 = base._match_ratio(pt2.tolist(), pt_idx.tolist())
-                                    if float(m2) >= float(SOLVE_MATCH_THRESHOLD):
-                                        sc2 = float(scorer_stage2_runtime.score(pt2, None))
-                                        pass2_evals += 1
-                                        stage2_evals_total += 1
-                                        _consider_stage2_candidate(
-                                            full_key_arr=full_key,
-                                            pt2_arr=pt2,
-                                            match_val=float(m2),
-                                            score_val=float(sc2),
-                                            preview_label=f"stage2_exact_best_sub{i+1}",
-                                        )
-                                        exact_early_stop = True
-                                        break
+                            for tail_block in _iter_tail_chunks(int(tier.columns), tail_chunk):
+                                full_keys_block: List[np.ndarray] = []
+                                for tail in tail_block:
+                                    col_key = np.asarray(tail, dtype=np.int16)
+                                    full_keys_block.append(np.concatenate([sub_arr, col_key], axis=0))
+                                pt_block, fast_block, _batch_stats = decrypt_and_score_keys_chunked(
+                                    cipher=full_cipher,
+                                    ciphertext=ct_idx,
+                                    keys=full_keys_block,
+                                    scorer=scorer_stage2_pass1_primary_runtime,
+                                    wli=None,
+                                    key_dtype=np.int16,
+                                    chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                                    require_batch=bool(REQUIRE_BATCH_SCORING),
+                                )
+                                pass1_evals += int(len(tail_block))
+                                stage2_evals_total += int(len(tail_block))
+                                for j, tail in enumerate(tail_block):
+                                    pt2 = np.asarray(pt_block[j], dtype=np.uint8).reshape(-1)
+                                    full_key = full_keys_block[j]
+                                    fast_sc = float(fast_block[j])
+                                    pass1_ranked.append((fast_sc, tail))
+                                    if bool(STAGE2_EXACT_EARLY_SOLVE_BREAK):
+                                        m2 = base._match_ratio(pt2.tolist(), pt_idx.tolist())
+                                        if float(m2) >= float(SOLVE_MATCH_THRESHOLD):
+                                            sc2 = float(
+                                                score_plaintexts_chunked(
+                                                    scorer=scorer_stage2_runtime,
+                                                    plaintexts=np.asarray([pt2], dtype=np.uint8),
+                                                    wli=None,
+                                                    chunk_size=1,
+                                                    require_batch=bool(REQUIRE_BATCH_SCORING),
+                                                )[0][0]
+                                            )
+                                            pass2_evals += 1
+                                            stage2_evals_total += 1
+                                            _consider_stage2_candidate(
+                                                full_key_arr=full_key,
+                                                pt2_arr=pt2,
+                                                match_val=float(m2),
+                                                score_val=float(sc2),
+                                                preview_label=f"stage2_exact_best_sub{i+1}",
+                                            )
+                                            exact_early_stop = True
+                                            break
+                                if exact_early_stop:
+                                    break
                             if not exact_early_stop:
                                 pass1_ranked.sort(key=lambda x: (x[0], x[1]), reverse=True)
                                 k_short = min(int(pass1_top_tails), len(pass1_ranked))
@@ -1129,17 +1587,26 @@ def main() -> None:
                                 if collapsed and scorer_stage2_pass1_fallback_runtime is not None:
                                     pass1_fallback_used = True
                                     pass1_ranked_fb: List[Tuple[float, Tuple[int, ...]]] = []
-                                    for tail in permutations(range(int(tier.columns))):
-                                        col_key = np.asarray(tail, dtype=np.int16)
-                                        full_key = np.concatenate([sub_arr, col_key], axis=0)
-                                        pt2 = np.asarray(
-                                            full_cipher.decrypt_single(ciphertext=ct_idx, key=full_key),
-                                            dtype=np.uint8,
-                                        ).reshape(-1)
-                                        fast_sc_fb = float(scorer_stage2_pass1_fallback_runtime.score(pt2, None))
-                                        pass1_ranked_fb.append((fast_sc_fb, tuple(int(x) for x in tail)))
-                                        pass1_evals += 1
-                                        stage2_evals_total += 1
+                                    for tail_block in _iter_tail_chunks(int(tier.columns), tail_chunk):
+                                        full_keys_block: List[np.ndarray] = []
+                                        for tail in tail_block:
+                                            col_key = np.asarray(tail, dtype=np.int16)
+                                            full_keys_block.append(np.concatenate([sub_arr, col_key], axis=0))
+                                        _pt_block, fast_fb_block, _batch_stats = decrypt_and_score_keys_chunked(
+                                            cipher=full_cipher,
+                                            ciphertext=ct_idx,
+                                            keys=full_keys_block,
+                                            scorer=scorer_stage2_pass1_fallback_runtime,
+                                            wli=None,
+                                            key_dtype=np.int16,
+                                            chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                                            require_batch=bool(REQUIRE_BATCH_SCORING),
+                                        )
+                                        pass1_evals += int(len(tail_block))
+                                        stage2_evals_total += int(len(tail_block))
+                                        for j, tail in enumerate(tail_block):
+                                            fast_sc_fb = float(fast_fb_block[j])
+                                            pass1_ranked_fb.append((fast_sc_fb, tail))
                                     pass1_ranked_fb.sort(key=lambda x: (x[0], x[1]), reverse=True)
                                     shortlist_tails = [tail for _s, tail in pass1_ranked_fb[:k_short]]
                                     pass1_scorer_used = "fallback_char2"
@@ -1154,23 +1621,40 @@ def main() -> None:
                             )
 
                         if not exact_early_stop:
-                            for tail in shortlist_tails:
-                                col_key = np.asarray(tail, dtype=np.int16)
-                                full_key = np.concatenate([sub_arr, col_key], axis=0)
-                                pt2 = np.asarray(full_cipher.decrypt_single(ciphertext=ct_idx, key=full_key), dtype=np.uint8).reshape(-1)
-                                m2 = base._match_ratio(pt2.tolist(), pt_idx.tolist())
-                                sc2 = float(scorer_stage2_runtime.score(pt2, None))
-                                pass2_evals += 1
-                                stage2_evals_total += 1
-                                _consider_stage2_candidate(
-                                    full_key_arr=full_key,
-                                    pt2_arr=pt2,
-                                    match_val=float(m2),
-                                    score_val=float(sc2),
-                                    preview_label=f"stage2_exact_best_sub{i+1}",
+                            for lo in range(0, len(shortlist_tails), int(tail_chunk)):
+                                tail_block = shortlist_tails[lo : lo + int(tail_chunk)]
+                                full_keys_block: List[np.ndarray] = []
+                                for tail in tail_block:
+                                    col_key = np.asarray(tail, dtype=np.int16)
+                                    full_keys_block.append(np.concatenate([sub_arr, col_key], axis=0))
+                                pt_block, sc_block, _batch_stats = decrypt_and_score_keys_chunked(
+                                    cipher=full_cipher,
+                                    ciphertext=ct_idx,
+                                    keys=full_keys_block,
+                                    scorer=scorer_stage2_runtime,
+                                    wli=None,
+                                    key_dtype=np.int16,
+                                    chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                                    require_batch=bool(REQUIRE_BATCH_SCORING),
                                 )
-                                if bool(STAGE2_EXACT_EARLY_SOLVE_BREAK) and float(m2) >= float(SOLVE_MATCH_THRESHOLD):
-                                    exact_early_stop = True
+                                pass2_evals += int(len(tail_block))
+                                stage2_evals_total += int(len(tail_block))
+                                for j, _tail in enumerate(tail_block):
+                                    pt2 = np.asarray(pt_block[j], dtype=np.uint8).reshape(-1)
+                                    full_key = full_keys_block[j]
+                                    m2 = base._match_ratio(pt2.tolist(), pt_idx.tolist())
+                                    sc2 = float(sc_block[j])
+                                    _consider_stage2_candidate(
+                                        full_key_arr=full_key,
+                                        pt2_arr=pt2,
+                                        match_val=float(m2),
+                                        score_val=float(sc2),
+                                        preview_label=f"stage2_exact_best_sub{i+1}",
+                                    )
+                                    if bool(STAGE2_EXACT_EARLY_SOLVE_BREAK) and float(m2) >= float(SOLVE_MATCH_THRESHOLD):
+                                        exact_early_stop = True
+                                        break
+                                if exact_early_stop:
                                     break
 
                         stages.append(
@@ -1201,7 +1685,8 @@ def main() -> None:
                             break
                     print(
                         f"[pipeline_no_wli] stage2-summary tier={tier.name} text={text_id} key_seed={key_seed} "
-                        f"mode=exact best_match={float(best2_match):.3f} best_score={float(best2_score):.6f} evals={int(stage2_evals_total)}",
+                        f"mode=exact best_match_ratio={float(best2_match):.3f} "
+                        f"best_score_at_best_match={float(best2_score):.6f} evals={int(stage2_evals_total)}",
                         flush=True,
                     )
                 else:
@@ -1231,7 +1716,14 @@ def main() -> None:
                         full_key = np.concatenate([np.asarray(sub_key, dtype=np.int16), col_key], axis=0)
                         pt2 = np.asarray(full_cipher.decrypt_single(ciphertext=ct_idx, key=full_key), dtype=np.uint8).reshape(-1)
                         m2 = base._match_ratio(pt2.tolist(), pt_idx.tolist())
-                        sc2 = float(scorer_stage2_runtime.score(pt2, None))
+                        _judge_scores, _judge_stats = score_plaintexts_chunked(
+                            scorer=scorer_stage2_runtime,
+                            plaintexts=[pt2],
+                            wli=None,
+                            chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                            require_batch=bool(REQUIRE_BATCH_SCORING),
+                        )
+                        sc2 = float(_judge_scores[0]) if _judge_scores.size > 0 else float("nan")
                         stages.append(
                             dict(
                                 tier=tier.name,
@@ -1253,7 +1745,8 @@ def main() -> None:
                         )
                     print(
                         f"[pipeline_no_wli] stage2-summary tier={tier.name} text={text_id} key_seed={key_seed} "
-                        f"mode=hybrid best_match={float(best2_match):.3f} best_score={float(best2_score):.6f} "
+                        f"mode=hybrid best_match_ratio={float(best2_match):.3f} "
+                        f"best_score_at_best_match={float(best2_score):.6f} "
                         f"evals={int(stage2_evals_total)} sub_limit={int(hybrid_sub_limit)}",
                         flush=True,
                     )
@@ -1270,9 +1763,30 @@ def main() -> None:
                     reverse=True,
                 )
                 stage2_ranked = stage2_ranked_by_score[: int(stage2_archive_keep)]
+                stage2_best_entry: Dict[str, Any] | None = None
+                stage2_best_key_t: Tuple[int, ...] = tuple()
+                if best2_key is not None:
+                    stage2_best_key_t = tuple(int(x) for x in best2_key)
+                    if stage2_best_key_t and stage2_best_key_t in stage2_archive:
+                        stage2_best_entry = dict(stage2_archive[stage2_best_key_t])
+                    elif stage2_best_key_t and best2_pt is not None:
+                        stage2_best_entry = dict(
+                            key=list(map(int, best2_key)),
+                            score=float(best2_score),
+                            match=float(best2_match),
+                            plaintext=list(map(int, best2_pt)),
+                            preview=str(best2_preview),
+                        )
+                # Elitism guard: never let the Stage-2 best candidate be excluded from the
+                # Stage-3 bridge pool when ranking/pruning by score.
+                stage2_ranked = _ensure_best_entry_in_ranked(
+                    ranked_entries=stage2_ranked,
+                    best_entry=stage2_best_entry,
+                )
 
                 stage2_promoted: List[Dict[str, Any]] = []
                 stage2_promoted_seen: set[Tuple[int, ...]] = set()
+                stage2_promote_mode = "score_match_interleave"
 
                 def _push_promoted(entry: Dict[str, Any]) -> None:
                     key_vals = tuple(int(x) for x in entry.get("key", []))
@@ -1305,21 +1819,92 @@ def main() -> None:
                 elif np.isfinite(best2_score):
                     stage2_entry_score = float(best2_score)
                 stage2_entry_score_judge = float("-inf")
-                if stage2_ranked_by_score:
-                    top_plain = stage2_ranked_by_score[0].get("plaintext", [])
-                    if isinstance(top_plain, list) and top_plain:
-                        top_plain_arr = np.asarray(top_plain, dtype=np.uint8).reshape(-1)
-                        stage2_entry_score_judge = float(scorer_full_runtime.score(top_plain_arr, None))
+                stage2_judge_pool_size = _stage2_judge_pool_limit(
+                    ranked_count=len(stage2_ranked),
+                    archive_keep=int(stage2_archive_keep),
+                    stage3_scorer_cfg=dict(SCORER_FULL),
+                )
+                stage2_judge_entries = stage2_ranked[: int(stage2_judge_pool_size)]
+                stage2_judge_plaintexts: List[np.ndarray] = []
+                stage2_judge_map: List[int] = []
+                for rank_idx, ent in enumerate(stage2_judge_entries, start=1):
+                    pt_list = ent.get("plaintext", [])
+                    if isinstance(pt_list, list) and pt_list:
+                        stage2_judge_plaintexts.append(np.asarray(pt_list, dtype=np.uint8).reshape(-1))
+                        stage2_judge_map.append(int(rank_idx))
+                stage2_judge_scores: Dict[int, float] = {}
+                if stage2_judge_plaintexts:
+                    _judge_scores, _judge_stats = score_plaintexts_chunked(
+                        scorer=scorer_full_runtime,
+                        plaintexts=stage2_judge_plaintexts,
+                        wli=None,
+                        chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                        require_batch=bool(REQUIRE_BATCH_SCORING),
+                    )
+                    for idx, rank_idx in enumerate(stage2_judge_map):
+                        if idx < int(_judge_scores.size):
+                            stage2_judge_scores[int(rank_idx)] = float(_judge_scores[idx])
+                if 1 in stage2_judge_scores:
+                    stage2_entry_score_judge = float(stage2_judge_scores[1])
                 if (not np.isfinite(stage2_entry_score_judge)) and np.isfinite(stage2_entry_score):
                     stage2_entry_score_judge = float(stage2_entry_score)
+
+                if bool(STAGE2_PROMOTE_BY_STAGE3_JUDGE) and _is_avg_fulltext_scorer(SCORER_FULL) and stage2_judge_scores:
+                    judged_entries: List[Dict[str, Any]] = []
+                    for rank_idx, ent in enumerate(stage2_judge_entries, start=1):
+                        judge_sc = float(stage2_judge_scores.get(int(rank_idx), float("nan")))
+                        if not np.isfinite(judge_sc):
+                            continue
+                        enriched = dict(ent)
+                        enriched["judge_score"] = float(judge_sc)
+                        judged_entries.append(enriched)
+                    if judged_entries:
+                        by_judge = sorted(
+                            judged_entries,
+                            key=lambda e: (
+                                float(e.get("judge_score", float("-inf"))),
+                                float(e.get("match", float("-inf"))),
+                            ),
+                            reverse=True,
+                        )
+                        by_match = sorted(
+                            judged_entries,
+                            key=lambda e: (
+                                float(e.get("match", float("-inf"))),
+                                float(e.get("judge_score", float("-inf"))),
+                            ),
+                            reverse=True,
+                        )
+                        stage2_promoted = []
+                        stage2_promoted_seen = set()
+                        max_jrank = max(len(by_judge), len(by_match))
+                        for r in range(max_jrank):
+                            if len(stage2_promoted) >= int(stage2_promote_top):
+                                break
+                            if r < len(by_judge):
+                                _push_promoted(by_judge[r])
+                            if len(stage2_promoted) >= int(stage2_promote_top):
+                                break
+                            if r < len(by_match):
+                                _push_promoted(by_match[r])
+                        stage2_promote_mode = "judge_match_interleave"
+
+                stage2_promoted, stage2_best_in_promoted = _ensure_best_entry_in_promoted(
+                    promoted_entries=stage2_promoted,
+                    best_entry=stage2_best_entry,
+                    promote_top=int(stage2_promote_top),
+                )
+                stage2_promoted_seen = {
+                    _entry_key_tuple(ent)
+                    for ent in stage2_promoted
+                    if _entry_key_tuple(ent)
+                }
+
                 stage2_topk_payload: List[Dict[str, Any]] = []
                 for rank_idx, ent in enumerate(stage2_ranked_by_score[: int(SAVE_STAGE2_TOPK)], start=1):
                     key_list = list(map(int, ent.get("key", [])))
                     pt_list = list(map(int, ent.get("plaintext", [])))
-                    judge_sc = float("nan")
-                    if pt_list:
-                        pt_arr = np.asarray(pt_list, dtype=np.uint8).reshape(-1)
-                        judge_sc = float(scorer_full_runtime.score(pt_arr, None))
+                    judge_sc = float(stage2_judge_scores.get(int(rank_idx), float("nan")))
                     stage2_topk_payload.append(
                         dict(
                             rank=int(rank_idx),
@@ -1333,9 +1918,11 @@ def main() -> None:
                 print(
                     f"[pipeline_no_wli] stage2-archive tier={tier.name} text={text_id} key_seed={key_seed} "
                     f"entries={len(stage2_archive)} kept={len(stage2_ranked)} promoted={len(stage2_promoted)} "
-                    f"top_score_mid={float(stage2_entry_score) if np.isfinite(stage2_entry_score) else float('nan'):.6f} "
-                    f"top_score_judge={float(stage2_entry_score_judge) if np.isfinite(stage2_entry_score_judge) else float('nan'):.6f} "
-                    f"top_match={float(best2_match) if np.isfinite(best2_match) else float('nan'):.3f}",
+                    f"judge_pool={int(stage2_judge_pool_size)} promoted_by={stage2_promote_mode} "
+                    f"best2_in_promoted={1 if stage2_best_in_promoted else 0} "
+                    f"top_score_mid_rank1={float(stage2_entry_score) if np.isfinite(stage2_entry_score) else float('nan'):.6f} "
+                    f"top_score_judge_rank1={float(stage2_entry_score_judge) if np.isfinite(stage2_entry_score_judge) else float('nan'):.6f} "
+                    f"top_match_ratio={float(best2_match) if np.isfinite(best2_match) else float('nan'):.3f}",
                     flush=True,
                 )
 
@@ -1351,24 +1938,21 @@ def main() -> None:
                     stop_reason = "solved_stage2"
                 elif best2_key is not None:
                     t_s3 = time.time()
-                    init3_n = int(STAGE3_INITIAL_KEYS_BY_COLUMNS.get(int(tier.columns), STAGE3_INITIAL_KEYS))
-                    promoted_keys: List[List[int]] = []
-                    seen_promoted: set[Tuple[int, ...]] = set()
-                    for ent in stage2_promoted:
-                        k = list(map(int, ent.get("key", [])))
-                        if len(k) != int(key_len):
-                            continue
-                        kt = tuple(k)
-                        if kt in seen_promoted:
-                            continue
-                        seen_promoted.add(kt)
-                        promoted_keys.append(k)
+                    c1_focus_enabled = bool(STAGE3_C1_FOCUS_ENABLED and int(tier.columns) <= 1)
+                    init3_n_base = int(STAGE3_INITIAL_KEYS_BY_COLUMNS.get(int(tier.columns), STAGE3_INITIAL_KEYS))
+                    init3_n = int(max(init3_n_base, int(STAGE3_C1_INIT_KEYS))) if c1_focus_enabled else int(init3_n_base)
+                    promoted_keys = _build_stage3_promoted_keys(
+                        promoted_entries=stage2_promoted,
+                        best_key=best2_key,
+                        key_len=int(key_len),
+                    )
                     if not promoted_keys:
                         promoted_keys = [list(map(int, best2_key))]
 
                     per_seed = max(1, int(np.ceil(float(init3_n) / float(len(promoted_keys)))))
                     init3_all: List[List[int]] = []
                     for j, seed_key in enumerate(promoted_keys):
+                        init3_all.append(list(map(int, seed_key)))
                         init3_all.extend(
                             _mutate_full_key(
                                 seed_key,
@@ -1390,13 +1974,46 @@ def main() -> None:
                             break
 
                     solver_stage3_cfg = dict(SOLVER_STAGE3)
-                    stage2_gate_score = float(stage2_entry_score_judge if np.isfinite(stage2_entry_score_judge) else stage2_entry_score)
+                    stage2_gate_source = "mid"
+                    if bool(STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE) and np.isfinite(stage2_entry_score_judge):
+                        stage2_gate_score = float(stage2_entry_score_judge)
+                        stage2_gate_source = "judge"
+                    else:
+                        stage2_gate_score = float(stage2_entry_score)
+                        stage2_gate_source = "mid"
+                    promoted_best_match = float("nan")
+                    if stage2_promoted:
+                        promoted_match_vals = [
+                            float(ent.get("match", float("nan"))) for ent in stage2_promoted
+                        ]
+                        finite_promoted = [v for v in promoted_match_vals if np.isfinite(v)]
+                        if finite_promoted:
+                            promoted_best_match = float(max(finite_promoted))
+                    if np.isfinite(best2_match):
+                        promoted_best_match = (
+                            float(best2_match)
+                            if (not np.isfinite(promoted_best_match))
+                            else float(max(float(promoted_best_match), float(best2_match)))
+                        )
                     if np.isfinite(stage2_gate_score) and np.isfinite(oracle_s3):
                         stage2_gap_to_oracle = max(0.0, float(oracle_s3) - float(stage2_gate_score))
                     else:
                         stage2_gap_to_oracle = float("inf")
                     band = _select_stage3_band(stage2_gap_to_oracle)
                     stage3_band_name = str(band.get("name", ""))
+                    stage3_phaseA_cfg = dict(STAGE3_PHASEA_CFG)
+                    stage3_phaseB_cfg = dict(STAGE3_PHASEB_CFG)
+                    stage3_phaseB_top_n = int(STAGE3_PHASEB_TOP_N)
+                    stage3_phaseB_gate_delta = float(STAGE3_PHASEB_GATE_DELTA_FLOOR)
+                    stage3_phaseB_gate_end_gain = float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR)
+                    if c1_focus_enabled:
+                        stage3_phaseA_cfg["steps"] = int(max(int(stage3_phaseA_cfg.get("steps", 0)), int(STAGE3_C1_PHASEA_STEPS)))
+                        stage3_phaseB_cfg["steps"] = int(max(int(stage3_phaseB_cfg.get("steps", 0)), int(STAGE3_C1_PHASEB_STEPS)))
+                        stage3_phaseB_cfg["col_every"] = 0
+                        stage3_phaseB_cfg["col_batch"] = 0
+                        stage3_phaseB_top_n = int(max(int(stage3_phaseB_top_n), int(STAGE3_C1_PHASEB_TOP_N)))
+                        stage3_phaseB_gate_delta = float(max(float(stage3_phaseB_gate_delta), float(STAGE3_C1_PHASEB_GATE_DELTA_FLOOR)))
+                        stage3_phaseB_gate_end_gain = float(max(float(stage3_phaseB_gate_end_gain), float(STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR)))
                     solver_stage3_cfg.update(
                         steps=int(band.get("steps", solver_stage3_cfg.get("steps", 0))),
                         restarts=int(band.get("restarts", solver_stage3_cfg.get("restarts", 0))),
@@ -1407,7 +2024,10 @@ def main() -> None:
                     print(
                         f"[pipeline_no_wli] stage3-stop tier={tier.name} text={text_id} key_seed={key_seed} "
                         f"band={stage3_band_name} entry_mode=full entry_score={stage2_gate_score:.6f} "
+                        f"entry_score_source={stage2_gate_source} "
                         f"init_keys={len(init3)} promoted_keys={len(promoted_keys)} "
+                        f"init_target={int(init3_n)} c1_focus={1 if c1_focus_enabled else 0} "
+                        f"stage2_best_match={float(best2_match):.3f} promoted_best_match={float(promoted_best_match):.3f} "
                         f"steps={solver_stage3_cfg.get('steps')} restarts={solver_stage3_cfg.get('restarts')} "
                         f"col_batch={solver_stage3_cfg.get('col_batch')} inner_batch={solver_stage3_cfg.get('inner_batch')} "
                         f"gap_to_oracle={stage2_gap_to_oracle:.6f}",
@@ -1416,11 +2036,11 @@ def main() -> None:
                     if bool(STAGE3_TWO_PHASE_ENABLED):
                         print(
                             f"[pipeline_no_wli] stage3-two-phase "
-                            f"phaseA={json.dumps(dict(STAGE3_PHASEA_CFG), separators=(',', ':'))} "
-                            f"phaseB={json.dumps(dict(STAGE3_PHASEB_CFG), separators=(',', ':'))} "
-                            f"phaseB_top_n={int(STAGE3_PHASEB_TOP_N)} "
-                            f"gate=(delta={float(STAGE3_PHASEB_GATE_DELTA_FLOOR):.4f},"
-                            f"end_gain={float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR):.4f})",
+                            f"phaseA={json.dumps(dict(stage3_phaseA_cfg), separators=(',', ':'))} "
+                            f"phaseB={json.dumps(dict(stage3_phaseB_cfg), separators=(',', ':'))} "
+                            f"phaseB_top_n={int(stage3_phaseB_top_n)} "
+                            f"gate=(delta={float(stage3_phaseB_gate_delta):.4f},"
+                            f"end_gain={float(stage3_phaseB_gate_end_gain):.4f})",
                             flush=True,
                         )
                     dt3 = 0.0
@@ -1500,16 +2120,29 @@ def main() -> None:
                         top_pct = kaeding_obj.get("top_pct", [])
                         if not isinstance(top_keys, list):
                             return
+                        top_key_records: List[Tuple[int, List[int]]] = []
                         for rank_idx, key_vals in enumerate(top_keys[: int(SAVE_STAGE3_TOPK_LIMIT)], start=1):
                             if not isinstance(key_vals, list):
                                 continue
                             key_list = list(map(int, key_vals))
                             if len(key_list) != int(key_len):
                                 continue
-                            pt_k = np.asarray(
-                                full_cipher.decrypt_single(ciphertext=ct_idx, key=np.asarray(key_list, dtype=np.int16)),
-                                dtype=np.uint8,
-                            ).reshape(-1)
+                            top_key_records.append((int(rank_idx), key_list))
+                        if not top_key_records:
+                            return
+                        eval_keys = [key_list for _rank_idx, key_list in top_key_records]
+                        pt_batch, judge_scores, _judge_stats = decrypt_and_score_keys_chunked(
+                            cipher=full_cipher,
+                            ciphertext=ct_idx,
+                            keys=eval_keys,
+                            scorer=scorer_full_runtime,
+                            wli=None,
+                            chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                            require_batch=bool(REQUIRE_BATCH_SCORING),
+                        )
+                        for idx, (rank_idx, key_list) in enumerate(top_key_records):
+                            pt_k = np.asarray(pt_batch[idx], dtype=np.uint8).reshape(-1)
+                            judge_sc = float(judge_scores[idx]) if idx < int(judge_scores.size) else float("nan")
                             stage3_topk_payload.append(
                                 dict(
                                     rank=int(rank_idx),
@@ -1523,7 +2156,7 @@ def main() -> None:
                                         if isinstance(top_pct, list) and (rank_idx - 1) < len(top_pct)
                                         else float("nan")
                                     ),
-                                    score_judge=float(scorer_full_runtime.score(pt_k, None)),
+                                    score_judge=float(judge_sc),
                                     match_ratio=float(base._match_ratio(pt_k.tolist(), pt_idx.tolist())),
                                     key_idx=key_list,
                                     plaintext_idx=pt_k.astype(int).tolist(),
@@ -1566,18 +2199,36 @@ def main() -> None:
                     else:
                         base_seed = int(solver_stage3_cfg.get("seed", SOLVER_STAGE3.get("seed", 2026)))
                         phaseA_cfg = dict(solver_stage3_cfg)
-                        phaseA_cfg.update(dict(STAGE3_PHASEA_CFG))
+                        phaseA_cfg.update(dict(stage3_phaseA_cfg))
                         phaseA_cfg["restarts"] = 1
                         phaseA_cfg["seed_restarts"] = 0
 
                         phaseA_rows: List[Dict[str, Any]] = []
+                        phaseA_seed_keys = [list(map(int, seed_key)) for seed_key in init3]
+                        phaseA_start_pts, phaseA_start_scores, _phaseA_batch_stats = decrypt_and_score_keys_chunked(
+                            cipher=full_cipher,
+                            ciphertext=ct_idx,
+                            keys=phaseA_seed_keys,
+                            scorer=scorer_full_runtime,
+                            wli=None,
+                            chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                            require_batch=bool(REQUIRE_BATCH_SCORING),
+                        )
                         for restart_idx, seed_key in enumerate(init3):
                             seed_key_arr = np.asarray(seed_key, dtype=np.int16).reshape(-1)
-                            start_pt = np.asarray(
-                                full_cipher.decrypt_single(ciphertext=ct_idx, key=seed_key_arr),
-                                dtype=np.uint8,
-                            ).reshape(-1)
-                            start_score = float(scorer_full_runtime.score(start_pt, None))
+                            start_pt = (
+                                np.asarray(phaseA_start_pts[restart_idx], dtype=np.uint8).reshape(-1)
+                                if restart_idx < len(phaseA_start_pts)
+                                else np.asarray(
+                                    full_cipher.decrypt_single(ciphertext=ct_idx, key=seed_key_arr),
+                                    dtype=np.uint8,
+                                ).reshape(-1)
+                            )
+                            start_score = (
+                                float(phaseA_start_scores[restart_idx])
+                                if restart_idx < int(phaseA_start_scores.size)
+                                else float("nan")
+                            )
                             start_hash = _key_hash16(seed_key_arr.astype(int).tolist())
                             seed_offset = int((restart_idx + 1) * 10007)
 
@@ -1681,8 +2332,8 @@ def main() -> None:
                             phase_improves_total = int(mm_best["phase_improves_total"])
                             phase_best_delta_max = float(mm_best["phase_best_delta_max"])
 
-                        gate_delta = float(STAGE3_PHASEB_GATE_DELTA_FLOOR)
-                        gate_end_gain = float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR)
+                        gate_delta = float(stage3_phaseB_gate_delta)
+                        gate_end_gain = float(stage3_phaseB_gate_end_gain)
                         gate_skip = (
                             np.isfinite(phaseA_best_delta)
                             and np.isfinite(phaseA_best_start_score)
@@ -1702,7 +2353,7 @@ def main() -> None:
                                 gate_delta_floor=float(gate_delta),
                                 gate_end_gain_floor=float(gate_end_gain),
                                 phaseB_skipped=int(1 if gate_skip else 0),
-                                phaseB_top_n=int(STAGE3_PHASEB_TOP_N),
+                                phaseB_top_n=int(stage3_phaseB_top_n),
                             )
                         )
 
@@ -1711,7 +2362,7 @@ def main() -> None:
                             phaseB_skip_reason = "phaseA_low_progress"
                             stop_reason = "stage3_phaseb_skipped"
                         else:
-                            top_n = max(1, int(STAGE3_PHASEB_TOP_N))
+                            top_n = max(1, int(stage3_phaseB_top_n))
                             ranked = sorted(
                                 phaseA_rows,
                                 key=lambda r: (
@@ -1738,7 +2389,7 @@ def main() -> None:
                             if selected:
                                 phaseB_init = [list(map(int, row["end_key"])) for row in selected]
                                 phaseB_cfg = dict(solver_stage3_cfg)
-                                phaseB_cfg.update(dict(STAGE3_PHASEB_CFG))
+                                phaseB_cfg.update(dict(stage3_phaseB_cfg))
                                 phaseB_cfg["restarts"] = int(max(1, len(phaseB_init)))
                                 phaseB_cfg["seed_restarts"] = 0
                                 phaseB_cfg["seed"] = int(base_seed + 900001)

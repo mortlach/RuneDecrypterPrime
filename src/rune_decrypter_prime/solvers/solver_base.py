@@ -465,10 +465,17 @@ class SolverBase:
                 family = getattr(obj.family, "value", obj.family)
                 stat = getattr(getattr(obj, "stat", None), "value", getattr(obj, "stat", None))
                 win = getattr(obj, "win", None)
+                avg_policy = getattr(s_cfg, "avg_window_policy", None) if s_cfg is not None else None
+                avg_policy = getattr(avg_policy, "value", avg_policy)
+                avg_policy_txt = str(avg_policy).strip().lower() if avg_policy is not None else ""
+                is_avg_full_text = str(family).strip().lower() == "avg" and avg_policy_txt == "full_text"
                 parts = [str(family)] if family is not None else []
                 if stat is not None:
                     parts.append(str(stat))
-                if win is not None:
+                if is_avg_full_text:
+                    # Runtime is full-text averaging, so avoid misleading "winK" labeling.
+                    parts.append("full_text")
+                elif win is not None:
                     parts.append(f"win{int(win)}")
                 if parts:
                     label = ".".join(parts)

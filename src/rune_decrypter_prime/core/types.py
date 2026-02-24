@@ -237,6 +237,11 @@ class Stat(Enum):
     ZSUM = "zsum"
     MADSUM = "madsum"
 
+
+class AvgWindowPolicy(Enum):
+    FIXED_WIN = "fixed_win"
+    FULL_TEXT = "full_text"
+
 @dataclass(frozen=True)
 class ObjectiveSpec:
     family: ObjectiveFamily
@@ -254,3 +259,17 @@ def ensure_objective_family(value) -> ObjectiveFamily:
 
 def ensure_stat(value) -> Stat:
     return _coerce_enum_value(Stat, value, param_name="stat")
+
+
+def ensure_avg_window_policy(value) -> AvgWindowPolicy:
+    return _coerce_enum_value(
+        AvgWindowPolicy,
+        value,
+        aliases={
+            "win": AvgWindowPolicy.FIXED_WIN,
+            "window": AvgWindowPolicy.FIXED_WIN,
+            "fulltext": AvgWindowPolicy.FULL_TEXT,
+            "full": AvgWindowPolicy.FULL_TEXT,
+        },
+        param_name="avg window policy",
+    )

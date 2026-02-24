@@ -91,14 +91,19 @@ def _normalise_row(src: Dict[str, str], fields: List[str]) -> Dict[str, str]:
     return out
 
 
+def _repo_rel(path: Path) -> str:
+    """Return repo-relative POSIX path for machine-independent manifests."""
+    return path.resolve().relative_to(ROOT.resolve()).as_posix()
+
+
 def port_history() -> Dict[str, object]:
     src_fields, src_rows = _read_csv(SOURCE_LOG)
     dst_fields, dst_rows = _read_csv(DEST_LOG)
 
     if not src_rows:
         result = {
-            "source": str(SOURCE_LOG),
-            "destination": str(DEST_LOG),
+            "source": _repo_rel(SOURCE_LOG),
+            "destination": _repo_rel(DEST_LOG),
             "status": "no_source_rows",
             "imported": 0,
             "skipped_duplicates": 0,
@@ -137,8 +142,8 @@ def port_history() -> Dict[str, object]:
                 writer.writerow({k: row.get(k, "") for k in fields})
 
     result = {
-        "source": str(SOURCE_LOG),
-        "destination": str(DEST_LOG),
+        "source": _repo_rel(SOURCE_LOG),
+        "destination": _repo_rel(DEST_LOG),
         "source_rows": len(src_rows),
         "destination_existing_rows": len(dst_rows),
         "imported": len(imported_rows),
@@ -156,10 +161,9 @@ def main() -> None:
         f"imported={int(result.get('imported', 0))} "
         f"skipped_duplicates={int(result.get('skipped_duplicates', 0))} "
         f"skipped_incompatible={int(result.get('skipped_incompatible', 0))} "
-        f"manifest={MANIFEST}"
+        f"manifest={_repo_rel(MANIFEST)}"
     )
 
 
 if __name__ == "__main__":
     main()
-

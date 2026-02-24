@@ -98,6 +98,10 @@ class DecryptionProblem:
         t.setdefault("tokens_processed", 0)
         t.setdefault("evaluate_keys_calls", 0)
         t.setdefault("candidates_evaluated", 0)
+        t.setdefault("score_batch_calls", 0)
+        t.setdefault("score_batch_with_raw_calls", 0)
+        t.setdefault("score_batch_fallback_scalar", 0)
+        t.setdefault("score_batch_with_raw_fallback_scalar", 0)
         t.setdefault("lm_load_time_s", 0)
         t.setdefault("crib_enabled", False)
         t.setdefault("crib_mode", None)
@@ -496,9 +500,13 @@ class DecryptionProblem:
     def _score_batch_texts_core(self, plains_seq, wli):
         sc = self.scorer
         if hasattr(sc, "batch_score") and callable(sc.batch_score):
+            self.telemetry["score_batch_calls"] = int(self.telemetry.get("score_batch_calls", 0)) + 1
             try:
                 return self.xp.asarray(sc.batch_score(plains_seq, wli), dtype=self.xp.float64).reshape(-1)
             except Exception:
+                self.telemetry["score_batch_fallback_scalar"] = int(
+                    self.telemetry.get("score_batch_fallback_scalar", 0)
+                ) + 1
                 pass  # fall back to item-wise
         return self.xp.asarray(
             [
@@ -547,6 +555,9 @@ class DecryptionProblem:
             if not supports_raw:
                 raise ValueError("Raw scoring requested but scorer does not support raw outputs.")
         if hasattr(sc, "batch_score_with_raw") and callable(sc.batch_score_with_raw):
+            self.telemetry["score_batch_with_raw_calls"] = int(
+                self.telemetry.get("score_batch_with_raw_calls", 0)
+            ) + 1
             try:
                 pct, raw = sc.batch_score_with_raw(plains_seq, wli)
                 return (
@@ -554,6 +565,9 @@ class DecryptionProblem:
                     self.xp.asarray(raw, dtype=self.xp.float64).reshape(-1),
                 )
             except Exception:
+                self.telemetry["score_batch_with_raw_fallback_scalar"] = int(
+                    self.telemetry.get("score_batch_with_raw_fallback_scalar", 0)
+                ) + 1
                 pass
 
         scores_pct = []

@@ -8,7 +8,7 @@ explicit, deterministic, and reusable across cipher-method benchmark runners.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, Mapping
+from typing import Any, Dict, Mapping, Optional
 
 
 @dataclass(frozen=True)
@@ -19,15 +19,19 @@ class ScorerSpec:
     char_weights: Mapping[int, float]
     include_char: bool = True
     use_word_breaks: bool = False
+    avg_window_policy: Optional[str] = None
 
     def to_params(self) -> Dict[str, Any]:
-        return {
+        params = {
             "objective": str(self.objective),
             "include_char": bool(self.include_char),
             "use_word_breaks": bool(self.use_word_breaks),
             "char_weights": {int(k): float(v) for k, v in self.char_weights.items()},
             "wli_weights": {},
         }
+        if self.avg_window_policy is not None:
+            params["avg_window_policy"] = str(self.avg_window_policy)
+        return params
 
 
 @dataclass(frozen=True)
@@ -231,6 +235,153 @@ def _build_profiles() -> Dict[str, NoWliPipelineProfile]:
             "progress_pct": 1,
             "print_progress": True,
             "seed": 2026,
+        },
+    )
+
+    _base = profiles["no_wli_a1_m12_b34_v1"]
+    profiles["no_wli_a1_m12_b34_stage3avg_fulltext_v1"] = NoWliPipelineProfile(
+        profile_id="no_wli_a1_m12_b34_stage3avg_fulltext_v1",
+        description=(
+            "No-WLI staged profile using AVG full-text objective family "
+            "across all stages with char-order progression."
+        ),
+        scorer_schedule=NoWliScorerSchedule(
+            stage1_label="A_char1_avg_fulltext",
+            stage2_label="M_char12_avg_fulltext",
+            stage3_label="B_char4_avg_fulltext",
+            stage1_a=ScorerSpec(
+                objective="avg.logp.win20",
+                char_weights={1: 1.0},
+                avg_window_policy="full_text",
+            ),
+            stage2_m=ScorerSpec(
+                objective="avg.logp.win20",
+                char_weights={1: 0.4, 2: 0.6},
+                avg_window_policy="full_text",
+            ),
+            stage3_b=ScorerSpec(
+                objective="avg.logp.win20",
+                char_weights={4: 1.0},
+                avg_window_policy="full_text",
+            ),
+            stage2_pass1_primary={4: 1.0},
+            stage2_pass1_fallback=_base.scorer_schedule.stage2_pass1_fallback,
+        ),
+        stage1_sub_candidates=_base.stage1_sub_candidates,
+        stage3_initial_keys=64,
+        stage1_sub_candidates_by_columns=dict(_base.stage1_sub_candidates_by_columns),
+        stage3_initial_keys_by_columns={1: 16, 3: 64, 5: 64, 7: 80, 10: 96, 13: 96},
+        stage2_exact_max_columns=_base.stage2_exact_max_columns,
+        stage2_exact_sub_candidates=_base.stage2_exact_sub_candidates,
+        stage2_exact_sub_candidates_by_columns=dict(_base.stage2_exact_sub_candidates_by_columns),
+        stage2_exact_two_pass=_base.stage2_exact_two_pass,
+        stage2_exact_pass1_top_tails=_base.stage2_exact_pass1_top_tails,
+        stage2_exact_pass1_top_tails_by_columns=dict(_base.stage2_exact_pass1_top_tails_by_columns),
+        stage2_exact_early_solve_break=_base.stage2_exact_early_solve_break,
+        stage2_hybrid_sub_candidates=_base.stage2_hybrid_sub_candidates,
+        stage2_hybrid_sub_candidates_by_columns=dict(_base.stage2_hybrid_sub_candidates_by_columns),
+        stage1_seed_restarts=_base.stage1_seed_restarts,
+        stage1_seed_n_blocks=_base.stage1_seed_n_blocks,
+        stage1_seed_total=_base.stage1_seed_total,
+        stage1_seed_swaps=_base.stage1_seed_swaps,
+        stage12_scout_runs=_base.stage12_scout_runs,
+        stage12_archive_keep=192,
+        stage12_promote_top=96,
+        stage1_scout_step_scale=_base.stage1_scout_step_scale,
+        stage1_scout_restart_scale=_base.stage1_scout_restart_scale,
+        stage1_scout_min_steps=_base.stage1_scout_min_steps,
+        stage1_scout_min_restarts=_base.stage1_scout_min_restarts,
+        stage1_scout_no_improve_delta=_base.stage1_scout_no_improve_delta,
+        stage1_scout_no_improve_patience=_base.stage1_scout_no_improve_patience,
+        stage1_scout_min_new_archive=_base.stage1_scout_min_new_archive,
+        stage3_dynamic_bands=tuple(dict(b) for b in _base.stage3_dynamic_bands),
+        solver_stage1=dict(_base.solver_stage1),
+        solver_stage2=dict(_base.solver_stage2),
+        solver_stage3={
+            **dict(_base.solver_stage3),
+            "use_raw_score": True,
+            "raw_accept_min_delta": 1e-7,
+            "pct_plateau_min_delta": 1e-4,
+            "plateau_min_delta": 1e-4,
+        },
+    )
+    _avg_fulltext = profiles["no_wli_a1_m12_b34_stage3avg_fulltext_v1"]
+    profiles["no_wli_a1_m4_b4_stage3avg_fulltext_longrun3x_v1"] = NoWliPipelineProfile(
+        profile_id="no_wli_a1_m4_b4_stage3avg_fulltext_longrun3x_v1",
+        description=(
+            "No-WLI AVG full-text long-run profile: A_char2 -> M_char4 -> B_char4, "
+            "with ~3x Stage-1/3 iteration budget and relaxed scout early-stop guards."
+        ),
+        scorer_schedule=NoWliScorerSchedule(
+            stage1_label="A_char2_avg_fulltext",
+            stage2_label="M_char4_avg_fulltext",
+            stage3_label="B_char4_avg_fulltext",
+            stage1_a=ScorerSpec(
+                objective="avg.logp.win20",
+                char_weights={2: 1.0},
+                avg_window_policy="full_text",
+            ),
+            stage2_m=ScorerSpec(
+                objective="avg.logp.win20",
+                char_weights={4: 1.0},
+                avg_window_policy="full_text",
+            ),
+            stage3_b=ScorerSpec(
+                objective="avg.logp.win20",
+                char_weights={4: 1.0},
+                avg_window_policy="full_text",
+            ),
+            stage2_pass1_primary={4: 1.0},
+            stage2_pass1_fallback={4: 1.0},
+        ),
+        stage1_sub_candidates=_avg_fulltext.stage1_sub_candidates,
+        stage3_initial_keys=int(_avg_fulltext.stage3_initial_keys) * 3,
+        stage1_sub_candidates_by_columns=dict(_avg_fulltext.stage1_sub_candidates_by_columns),
+        stage3_initial_keys_by_columns={
+            int(k): int(v) * 3 for k, v in _avg_fulltext.stage3_initial_keys_by_columns.items()
+        },
+        stage2_exact_max_columns=_avg_fulltext.stage2_exact_max_columns,
+        stage2_exact_sub_candidates=_avg_fulltext.stage2_exact_sub_candidates,
+        stage2_exact_sub_candidates_by_columns=dict(_avg_fulltext.stage2_exact_sub_candidates_by_columns),
+        stage2_exact_two_pass=_avg_fulltext.stage2_exact_two_pass,
+        stage2_exact_pass1_top_tails=_avg_fulltext.stage2_exact_pass1_top_tails,
+        stage2_exact_pass1_top_tails_by_columns=dict(_avg_fulltext.stage2_exact_pass1_top_tails_by_columns),
+        stage2_exact_early_solve_break=_avg_fulltext.stage2_exact_early_solve_break,
+        stage2_hybrid_sub_candidates=_avg_fulltext.stage2_hybrid_sub_candidates,
+        stage2_hybrid_sub_candidates_by_columns=dict(_avg_fulltext.stage2_hybrid_sub_candidates_by_columns),
+        stage1_seed_restarts=int(_avg_fulltext.stage1_seed_restarts) * 3,
+        stage1_seed_n_blocks=_avg_fulltext.stage1_seed_n_blocks,
+        stage1_seed_total=int(_avg_fulltext.stage1_seed_total) * 3,
+        stage1_seed_swaps=_avg_fulltext.stage1_seed_swaps,
+        stage12_scout_runs=_avg_fulltext.stage12_scout_runs,
+        stage12_archive_keep=_avg_fulltext.stage12_archive_keep,
+        stage12_promote_top=_avg_fulltext.stage12_promote_top,
+        stage1_scout_step_scale=_avg_fulltext.stage1_scout_step_scale,
+        stage1_scout_restart_scale=_avg_fulltext.stage1_scout_restart_scale,
+        stage1_scout_min_steps=int(_avg_fulltext.stage1_scout_min_steps) * 3,
+        stage1_scout_min_restarts=_avg_fulltext.stage1_scout_min_restarts,
+        stage1_scout_no_improve_delta=_avg_fulltext.stage1_scout_no_improve_delta,
+        stage1_scout_no_improve_patience=3,
+        stage1_scout_min_new_archive=1,
+        stage3_dynamic_bands=tuple(
+            {
+                **dict(b),
+                "steps": int(dict(b).get("steps", 0)) * 3,
+                "plateau_rounds": int(dict(b).get("plateau_rounds", 0)) * 3,
+            }
+            for b in _avg_fulltext.stage3_dynamic_bands
+        ),
+        solver_stage1={
+            **dict(_avg_fulltext.solver_stage1),
+            "steps": int(dict(_avg_fulltext.solver_stage1).get("steps", 0)) * 3,
+            "plateau_rounds": int(dict(_avg_fulltext.solver_stage1).get("plateau_rounds", 0)) * 3,
+            "seed_restarts": int(dict(_avg_fulltext.solver_stage1).get("seed_restarts", 0)) * 3,
+        },
+        solver_stage2=dict(_avg_fulltext.solver_stage2),
+        solver_stage3={
+            **dict(_avg_fulltext.solver_stage3),
+            "steps": int(dict(_avg_fulltext.solver_stage3).get("steps", 0)) * 3,
+            "plateau_rounds": int(dict(_avg_fulltext.solver_stage3).get("plateau_rounds", 0)) * 3,
         },
     )
     profiles["no_wli_a1_m34_b34_v1"] = NoWliPipelineProfile(

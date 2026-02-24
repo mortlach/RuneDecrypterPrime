@@ -40,7 +40,7 @@ from rune_decrypter_prime.ciphers.periodic_substitution_cipher import PeriodicSu
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
-from rune_decrypter_prime.core.types import Device
+from rune_decrypter_prime.core.types import Device, ScorerImpl
 from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
 from rune_decrypter_prime.utils.seed_utils import make_periodic_seed_pool
 from rune_decrypter_prime.utils.seed_utils_periodic_columnar_sub_then_col import (
@@ -49,6 +49,10 @@ from rune_decrypter_prime.utils.seed_utils_periodic_columnar_sub_then_col import
 )
 
 from tools.benchmarks.periodic_sub_trans.common import bench_solve_periodic_columnar_kaeding as base
+from tools.benchmarks.periodic_sub_trans.common.batch_eval import (
+    decrypt_and_score_keys_chunked,
+)
+from tools.benchmarks.periodic_sub_trans.common.io_reports import write_json
 from tools.benchmarks.periodic_sub_trans.common.core_enums import (
     BenchmarkOrder,
     InstanceStatus,
@@ -62,6 +66,9 @@ ALPHABET_SIZE = 29
 ORDER = BenchmarkOrder.SUB_THEN_COL.value
 PROFILE = "pipeline_sub_then_col_v1"
 PIPELINE_RUN_MODE = PipelineRunMode.FOCUS_SUB_THEN_COL.value
+SCORER_IMPL = ScorerImpl.TORCH.value  # Use torch scoring backend for performance benchmark runs.
+BATCH_EVAL_CHUNK_SIZE = 256  # Shared chunk size for decrypt+score batching in runner-level loops.
+REQUIRE_BATCH_SCORING = True  # Fail fast if scorer can't execute true batch path in perf profiles.
 
 SOLVE_MATCH_THRESHOLD = 0.90
 STALL_DELTA = 0.002
@@ -85,6 +92,7 @@ STAGEAB_SCORER_PROFILES: Dict[str, Dict[str, Any]] = {
         use_word_breaks=False,
         char_weights={1: 1.0},
         wli_weights={},
+        impl=SCORER_IMPL,
     ),
     StageABScorerProfile.A_CHAR34.value: dict(
         objective="pct.logp.win10",
@@ -92,6 +100,7 @@ STAGEAB_SCORER_PROFILES: Dict[str, Dict[str, Any]] = {
         use_word_breaks=False,
         char_weights={3: 0.3, 4: 0.7},
         wli_weights={},
+        impl=SCORER_IMPL,
     ),
     StageABScorerProfile.A_CHAR34_WLI34.value: dict(
         objective="pct.logp.win10",
@@ -99,6 +108,7 @@ STAGEAB_SCORER_PROFILES: Dict[str, Dict[str, Any]] = {
         use_word_breaks=True,
         char_weights={3: 0.3, 4: 0.7},
         wli_weights={3: 0.4, 4: 0.6},
+        impl=SCORER_IMPL,
     ),
 }
 SCORER_SUB: Dict[str, Any] = dict(STAGEAB_SCORER_PROFILES[StageABScorerProfile.A_CHAR34_WLI34.value])
@@ -108,6 +118,7 @@ SCORER_FULL = dict(
     use_word_breaks=True,
     char_weights={3: 0.3, 4: 0.7},
     wli_weights={3: 0.4, 4: 0.6},
+    impl=SCORER_IMPL,
 )
 
 SOLVER_SUB = dict(
@@ -599,6 +610,7 @@ def main() -> None:
     )
     print(
         f"[subcol] setup: stageAB_scorer_profile={STAGEAB_SCORER_PROFILE} "
+        f"impl={getattr(SCORER_IMPL, 'value', SCORER_IMPL)} "
         f"stageAB=(char={_weights_text(dict(SCORER_SUB.get('char_weights', {})))}"
         f",wli={_weights_text(dict(SCORER_SUB.get('wli_weights', {})))},"
         f"wb={1 if bool(SCORER_SUB.get('use_word_breaks', False)) else 0})",
@@ -942,22 +954,32 @@ def main() -> None:
                     best_match_here = float("-inf")
                     best_sub_here: List[int] | None = None
                     best_pt_here: List[int] | None = None
+                    sub_eval_keys: List[List[int]] = []
                     for sub_key in seed_pool[: int(SUB_PROBE_EVAL_KEYS)]:
                         sub_arr = np.asarray(sub_key, dtype=np.int16).reshape(-1)
                         if sub_arr.size != int(sub_len):
                             continue
-                        pt_guess = np.asarray(
-                            sub_cipher.decrypt_single(ciphertext=ct_sub, key=sub_arr),
-                            dtype=np.uint8,
-                        ).reshape(-1)
-                        sc = float(scorer_sub_runtime.score(pt_guess, wli))
-                        mr = float(base._match_ratio(pt_guess.tolist(), pt_idx.tolist()))
-                        probe_evals += 1
-                        if (sc > best_score_here) or (sc == best_score_here and mr > best_match_here):
-                            best_score_here = sc
-                            best_match_here = mr
-                            best_sub_here = sub_arr.astype(int).tolist()
-                            best_pt_here = pt_guess.astype(int).tolist()
+                        sub_eval_keys.append(sub_arr.astype(int).tolist())
+                    if sub_eval_keys:
+                        pt_batch, sc_batch, _batch_stats = decrypt_and_score_keys_chunked(
+                            cipher=sub_cipher,
+                            ciphertext=ct_sub,
+                            keys=sub_eval_keys,
+                            scorer=scorer_sub_runtime,
+                            wli=wli,
+                            chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                            require_batch=bool(REQUIRE_BATCH_SCORING),
+                        )
+                        probe_evals += int(len(sub_eval_keys))
+                        for j, sub_key_vals in enumerate(sub_eval_keys):
+                            pt_guess = np.asarray(pt_batch[j], dtype=np.uint8).reshape(-1)
+                            sc = float(sc_batch[j]) if j < int(sc_batch.size) else float("nan")
+                            mr = float(base._match_ratio(pt_guess.tolist(), pt_idx.tolist()))
+                            if (sc > best_score_here) or (sc == best_score_here and mr > best_match_here):
+                                best_score_here = sc
+                                best_match_here = mr
+                                best_sub_here = list(map(int, sub_key_vals))
+                                best_pt_here = pt_guess.astype(int).tolist()
 
                     if best_sub_here is None:
                         continue
@@ -1077,6 +1099,7 @@ def main() -> None:
                     top_subs = _extract_top_keys(sol_sub, limit=int(SUB_REFINE_TOP_KEYS_PER_PERM))
                     if not top_subs and getattr(sol_sub, "key", None) is not None:
                         top_subs = [list(map(int, list(sol_sub.key)))]
+                    eval_full_keys: List[List[int]] = []
                     for sub_key in top_subs:
                         sub_arr = np.asarray(sub_key, dtype=np.int16).reshape(-1)
                         if sub_arr.size != int(sub_len):
@@ -1085,22 +1108,32 @@ def main() -> None:
                             [sub_arr, np.asarray(perm, dtype=np.int16)],
                             axis=0,
                         ).astype(np.int16, copy=False)
-                        pt_guess = np.asarray(
-                            full_cipher.decrypt_single(ciphertext=ct_idx, key=full_key),
-                            dtype=np.uint8,
-                        ).reshape(-1)
-                        sc = float(scorer_full_runtime.score(pt_guess, wli))
-                        mr = float(base._match_ratio(pt_guess.tolist(), pt_idx.tolist()))
-                        kt = tuple(int(x) for x in full_key.tolist())
-                        prev = stageB_rows.get(kt)
-                        if (prev is None) or (sc > float(prev.get("score", float("-inf")))):
-                            stageB_rows[kt] = dict(
-                                key=full_key.astype(int).tolist(),
-                                score=float(sc),
-                                match=float(mr),
-                                plaintext=pt_guess.astype(int).tolist(),
-                                perm=list(perm),
-                            )
+                        eval_full_keys.append(full_key.astype(int).tolist())
+                    if eval_full_keys:
+                        pt_batch, sc_batch, _batch_stats = decrypt_and_score_keys_chunked(
+                            cipher=full_cipher,
+                            ciphertext=ct_idx,
+                            keys=eval_full_keys,
+                            scorer=scorer_full_runtime,
+                            wli=wli,
+                            chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                            require_batch=bool(REQUIRE_BATCH_SCORING),
+                        )
+                        for j, full_key_vals in enumerate(eval_full_keys):
+                            full_key = np.asarray(full_key_vals, dtype=np.int16).reshape(-1)
+                            pt_guess = np.asarray(pt_batch[j], dtype=np.uint8).reshape(-1)
+                            sc = float(sc_batch[j]) if j < int(sc_batch.size) else float("nan")
+                            mr = float(base._match_ratio(pt_guess.tolist(), pt_idx.tolist()))
+                            kt = tuple(int(x) for x in full_key.tolist())
+                            prev = stageB_rows.get(kt)
+                            if (prev is None) or (sc > float(prev.get("score", float("-inf")))):
+                                stageB_rows[kt] = dict(
+                                    key=full_key.astype(int).tolist(),
+                                    score=float(sc),
+                                    match=float(mr),
+                                    plaintext=pt_guess.astype(int).tolist(),
+                                    perm=list(perm),
+                                )
                 stageB_ranked = _stable_top_by_score(
                     list(stageB_rows.values()),
                     int(STAGE3_INITIAL_KEYS_BY_COLUMNS.get(int(tier.columns), STAGE3_INITIAL_KEYS)),
@@ -1424,15 +1457,24 @@ def main() -> None:
                             wli_data=[[int(a), int(b)] for a, b in wli],
                         ),
                     )
-                    with solved_jsonl.open("a", encoding="utf-8") as f:
-                        f.write(json.dumps(solved_payload, ensure_ascii=False) + "\n")
                     solved_path = solved_dir / f"{tier.name}__text{text_id}__seed{key_seed}.json"
-                    solved_path.write_text(json.dumps(solved_payload, indent=2), encoding="utf-8")
-                    print(
-                        f"[subcol] proven-solved-write tier={tier.name} text={text_id} key_seed={key_seed} "
-                        f"jsonl={solved_jsonl.relative_to(root)} file={solved_path.relative_to(root)}",
-                        flush=True,
-                    )
+                    try:
+                        solved_jsonl.parent.mkdir(parents=True, exist_ok=True)
+                        solved_dir.mkdir(parents=True, exist_ok=True)
+                        with solved_jsonl.open("a", encoding="utf-8") as f:
+                            f.write(json.dumps(solved_payload, ensure_ascii=False) + "\n")
+                        write_json(solved_path, solved_payload)
+                        print(
+                            f"[subcol] proven-solved-write tier={tier.name} text={text_id} key_seed={key_seed} "
+                            f"jsonl={solved_jsonl.relative_to(root)} file={solved_path.relative_to(root)}",
+                            flush=True,
+                        )
+                    except Exception as exc:
+                        print(
+                            f"[subcol] warn: proven-solved-write failed tier={tier.name} text={text_id} key_seed={key_seed} "
+                            f"err={type(exc).__name__}:{exc}",
+                            flush=True,
+                        )
 
                 done += 1
                 elapsed = time.time() - t0_all

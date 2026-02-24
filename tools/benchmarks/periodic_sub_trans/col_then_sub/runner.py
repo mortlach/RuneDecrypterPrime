@@ -44,7 +44,7 @@ from itertools import permutations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
 import numpy as np
 
@@ -61,13 +61,17 @@ from rune_decrypter_prime.ciphers.periodic_substitution_cipher import PeriodicSu
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
-from rune_decrypter_prime.core.types import Device
+from rune_decrypter_prime.core.types import Device, ScorerImpl
 from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
 from tools.benchmarks.periodic_sub_trans.common.seed_utils_periodic_columnar_col_then_sub import (
     make_periodic_seed_pool_col_then_sub,
     make_tail_seed_pool,
 )
 from tools.benchmarks.periodic_sub_trans.common.core_enums import BenchmarkOrder
+from tools.benchmarks.periodic_sub_trans.common.batch_eval import (
+    decrypt_and_score_keys_chunked,
+    score_plaintexts_chunked,
+)
 
 from tools.benchmarks.periodic_sub_trans.common import bench_solve_periodic_columnar_kaeding as base
 from tools.benchmarks.periodic_sub_trans.common.io_reports import (
@@ -81,6 +85,9 @@ ORDER = BenchmarkOrder.COL_THEN_SUB.value  # Cipher composition order benchmarke
 PROFILE = "pipeline_col_then_sub_v1"  # Human-readable profile id written to logs/history.
 PIPELINE_RUN_MODE = "focus_p10_fast_resume"  # Active preset selector.
 # Allowed: "full" | "focus_p5_p7" | "focus_p10_fast" | "focus_p10_fast_resume" | "smoke"
+SCORER_IMPL = ScorerImpl.TORCH.value  # Use true batch scorer path for performance-focused benchmark runs.
+BATCH_EVAL_CHUNK_SIZE = 256  # Shared chunk size for decrypt+score batching in runner-level loops.
+REQUIRE_BATCH_SCORING = True  # Fail fast if scorer can't execute true batch path in perf profiles.
 
 SOLVE_MATCH_THRESHOLD = 0.90  # Match ratio considered solved.
 STALL_DELTA = 0.002  # Minimum global-best gain required to avoid "stalled" status.
@@ -89,7 +96,7 @@ HEARTBEAT_SECONDS = 1200  # Progress heartbeat cadence.
 PREVIEW_CHARS = 240  # Preview snippet length for plaintext logging.
 AUTOSKIP_PROVEN = True  # Skip instances already proven in solve-proof history.
 AUTOSKIP_PROVEN_MIN_MATCH = SOLVE_MATCH_THRESHOLD  # Proven threshold for autoskip index.
-FORCE_RERUN_PROVEN = False  # Override autoskip and rerun proven instances.
+FORCE_RERUN_PROVEN = True  # Override autoskip and rerun proven instances.
 AVOID_REPEAT_FAIL = True  # Diversify search seed if same config failed previously.
 FAILED_RETRY_SEED_DELTA = 1  # Per-failure increment applied to search-seed offset.
 FAILED_RETRY_SEED_STRIDE = 104729  # Large stride multiplier to decorrelate retry seeds.
@@ -98,7 +105,7 @@ TEXT_OFFSETS = [0]  # Plaintext slice offset hints for fixture generation.
 KEY_SEEDS = [111]  # Baseline synthetic key seeds for this run mode.
 # Community defaults: run the full profile-defined matrix unless explicitly narrowed.
 KEY_SEEDS_OVERRIDE: List[int] | None = [111, 211, 311]  # Optional hard override for key-seed list.
-TIERS_REGEX_OVERRIDE: str | None = None  # Optional regex filter on tier names.
+TIERS_REGEX_OVERRIDE: str | None = r"^focus_p10_c10_l2376$"  # Narrow run to p10/c10 compare.
 TIERS_PERIOD_SWEEP: str = "p10_only"  # "none" | "p10_only" | "p13_only" (flip to p13_only for the next sweep)
 TIERS_MIN_COLUMNS: int | None = None  # Keep only tiers with columns >= this value (None disables).
 STAGE1_SUB_CANDIDATES = 16  # Default Stage-1 substitution candidates kept.
@@ -164,13 +171,21 @@ STAGE3_DYNAMIC_BANDS = [
     dict(name="far", max_gap=1e9, steps=7200, restarts=2, plateau_rounds=560, col_batch=128, inner_batch=128),
 ]
 
-SCORER_STAGE1 = dict(objective="pct.logp.win10", include_char=True, use_word_breaks=False, char_weights={1: 1.0}, wli_weights={})
+SCORER_STAGE1 = dict(
+    objective="pct.logp.win10",
+    include_char=True,
+    use_word_breaks=False,
+    char_weights={1: 1.0},
+    wli_weights={},
+    impl=SCORER_IMPL,
+)
 SCORER_STAGE1_HARD_RERANK = dict(
     objective="pct.logp.win10",
     include_char=True,
     use_word_breaks=False,
     char_weights={3: 0.2, 4: 0.8},
     wli_weights={},
+    impl=SCORER_IMPL,
 )
 SCORER_FULL = dict(
     objective="pct.logp.win10",
@@ -178,6 +193,7 @@ SCORER_FULL = dict(
     use_word_breaks=True,
     char_weights={},
     wli_weights={2: 0.3, 4: 0.7},
+    impl=SCORER_IMPL,
 )
 STAGE1_C1_USE_FULL_SCORER = False
 STAGE1_HARD_RERANK_ENABLED = True  # Re-rank stage1 archive with char34 (no WLI) on hard columns.
@@ -758,6 +774,12 @@ def _weights_text(weights: Dict[int, float]) -> str:
     return "{" + ",".join(parts) + "}"
 
 
+def _chunk_sequence(seq: Sequence[Any], chunk_size: int) -> Iterable[Sequence[Any]]:
+    chunk = max(1, int(chunk_size))
+    for lo in range(0, len(seq), chunk):
+        yield seq[lo : lo + chunk]
+
+
 def _select_stage3_band(gap_to_oracle: float) -> Dict[str, Any]:
     gap = float(gap_to_oracle)
     for band in STAGE3_DYNAMIC_BANDS:
@@ -967,6 +989,7 @@ def main() -> None:
     print(f"[colsub] setup: threshold={SOLVE_MATCH_THRESHOLD:.3f} stall_delta={STALL_DELTA:.4f} stall_limit={STALL_STAGE_LIMIT}", flush=True)
     print(
         "[colsub] setup: objective=pct.logp.win10 "
+        f"impl={getattr(SCORER_IMPL, 'value', SCORER_IMPL)} "
         f"stage1=(char1,wli_off{' | c1->char34+wli34' if STAGE1_C1_USE_FULL_SCORER else ''}) "
         "stage2/3=(char34+wli34,wli_on)",
         flush=True,
@@ -1333,6 +1356,7 @@ def main() -> None:
                     artifact_name = (
                         f"{tier.name}__text{int(text_id)}__seed{int(key_seed)}.json"
                     )
+                    final_dir.mkdir(parents=True, exist_ok=True)
                     write_json(final_dir / artifact_name, artifact_payload)
 
                     hist_row = dict(
@@ -1454,6 +1478,7 @@ def main() -> None:
                         char_weights=dict(STAGE2_FAST_CHAR_WEIGHTS),
                         wli_weights={},
                         encoding_dir=direction,
+                        impl=SCORER_IMPL,
                     )
                     scorer_stage2_fast_runtime = build_scorer(cfg_full, ScoringConfig(**scorer_stage2_fast))
                 oracle_s1, oracle_s1_raw, s1_obj = _oracle_score_for_stage(
@@ -1623,28 +1648,41 @@ def main() -> None:
                     sub_best = np.asarray(getattr(sol1, "key", []) or [], dtype=np.int16).reshape(-1)
                     sub_key_match_this = base._match_ratio(sub_best.tolist(), true_sub.tolist())
                     sub_candidates_this = _extract_top_keys(sol1, limit=stage1_sub_limit) or [sub_best.astype(int).tolist()]
-
+                    sub_eval_keys: List[List[int]] = []
                     for sub_key in sub_candidates_this:
                         sub_arr = np.asarray(sub_key, dtype=np.int16).reshape(-1)
                         if sub_arr.size != int(sub_len):
                             continue
-                        pt1 = np.asarray(sub_cipher.decrypt_single(ciphertext=ct_idx, key=sub_arr), dtype=np.uint8).reshape(-1)
-                        sc1 = float(scorer_stage1_runtime.score(pt1, s1_eval_wli))
-                        key_t = tuple(int(x) for x in sub_arr.tolist())
-                        sub_m = float(base._match_ratio(sub_arr.tolist(), true_sub.tolist()))
-                        prev = stage1_archive.get(key_t)
-                        if (prev is None) or (sc1 > float(prev.get("score", float("-inf")))):
-                            stage1_archive[key_t] = dict(
-                                sub_key=sub_arr.astype(int).tolist(),
-                                score=float(sc1),
-                                sub_key_match=float(sub_m),
-                                plaintext=pt1.astype(int).tolist(),
-                            )
-                        if sc1 > stage1_best_score:
-                            stage1_best_score = float(sc1)
-                            stage1_best_sub = sub_arr.astype(int).tolist()
-                            stage1_best_pt = pt1.astype(int).tolist()
-                            stage1_best_match = float(sub_m)
+                        sub_eval_keys.append(sub_arr.astype(int).tolist())
+                    if sub_eval_keys:
+                        pt1_batch, sc1_batch, _batch_stats = decrypt_and_score_keys_chunked(
+                            cipher=sub_cipher,
+                            ciphertext=ct_idx,
+                            keys=sub_eval_keys,
+                            scorer=scorer_stage1_runtime,
+                            wli=s1_eval_wli,
+                            chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                            require_batch=bool(REQUIRE_BATCH_SCORING),
+                        )
+                        for j, sub_key_vals in enumerate(sub_eval_keys):
+                            sub_arr = np.asarray(sub_key_vals, dtype=np.int16).reshape(-1)
+                            pt1 = np.asarray(pt1_batch[j], dtype=np.uint8).reshape(-1)
+                            sc1 = float(sc1_batch[j]) if j < int(sc1_batch.size) else float("nan")
+                            key_t = tuple(int(x) for x in sub_arr.tolist())
+                            sub_m = float(base._match_ratio(sub_arr.tolist(), true_sub.tolist()))
+                            prev = stage1_archive.get(key_t)
+                            if (prev is None) or (sc1 > float(prev.get("score", float("-inf")))):
+                                stage1_archive[key_t] = dict(
+                                    sub_key=sub_arr.astype(int).tolist(),
+                                    score=float(sc1),
+                                    sub_key_match=float(sub_m),
+                                    plaintext=pt1.astype(int).tolist(),
+                                )
+                            if sc1 > stage1_best_score:
+                                stage1_best_score = float(sc1)
+                                stage1_best_sub = sub_arr.astype(int).tolist()
+                                stage1_best_pt = pt1.astype(int).tolist()
+                                stage1_best_match = float(sub_m)
 
                     stages.append(
                         dict(
@@ -1698,13 +1736,27 @@ def main() -> None:
 
                 dt1 = float(time.time() - t_s1)
                 if stage1_hard_rerank_active and scorer_stage1_hard_runtime is not None and stage1_archive:
-                    reranked = 0
+                    rerank_entries: List[Dict[str, Any]] = []
+                    rerank_plaintexts: List[np.ndarray] = []
                     for entry in stage1_archive.values():
                         pt_entry = np.asarray(entry.get("plaintext", []), dtype=np.uint8).reshape(-1)
                         if pt_entry.size == 0:
                             continue
-                        entry["rerank_score"] = float(scorer_stage1_hard_runtime.score(pt_entry, None))
-                        reranked += 1
+                        rerank_entries.append(entry)
+                        rerank_plaintexts.append(pt_entry)
+                    reranked = 0
+                    if rerank_plaintexts:
+                        rerank_scores, _batch_stats = score_plaintexts_chunked(
+                            scorer=scorer_stage1_hard_runtime,
+                            plaintexts=rerank_plaintexts,
+                            wli=None,
+                            chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                            require_batch=bool(REQUIRE_BATCH_SCORING),
+                        )
+                        for idx, entry in enumerate(rerank_entries):
+                            if idx < int(rerank_scores.size):
+                                entry["rerank_score"] = float(rerank_scores[idx])
+                                reranked += 1
                     stage1_rerank_evals = int(reranked)
                     ev1 += int(reranked)
                     print(
@@ -1827,38 +1879,57 @@ def main() -> None:
                     )
                 )
                 if int(tier.columns) <= 1:
-                    for i, sub_key in enumerate(sub_candidates):
-                        sub_arr = np.asarray(sub_key, dtype=np.int16)
+                    identity_full_keys: List[List[int]] = []
+                    identity_sub_keys: List[np.ndarray] = []
+                    for sub_key in sub_candidates:
+                        sub_arr = np.asarray(sub_key, dtype=np.int16).reshape(-1)
+                        if sub_arr.size != int(sub_len):
+                            continue
                         full_key = np.concatenate([sub_arr, np.asarray([0], dtype=np.int16)], axis=0)
-                        pt2 = np.asarray(full_cipher.decrypt_single(ciphertext=ct_idx, key=full_key), dtype=np.uint8).reshape(-1)
-                        m2 = base._match_ratio(pt2.tolist(), pt_idx.tolist())
-                        sub_m = float(base._match_ratio(sub_arr.tolist(), true_sub.tolist()))
-                        tail_m = 1.0
-                        sc2 = float(scorer_full_runtime.score(pt2, wli))
-                        stage2_evals_total += 1
-                        stages.append(
-                            dict(
-                                tier=tier.name,
-                                text_id=int(text_id),
-                                key_seed=int(key_seed),
-                                stage=f"stage2_identity_attempt_{i+1}",
-                                score=sc2,
-                                match_ratio=float(m2),
+                        identity_sub_keys.append(sub_arr)
+                        identity_full_keys.append(full_key.astype(int).tolist())
+                    if identity_full_keys:
+                        pt2_batch, sc2_batch, _batch_stats = decrypt_and_score_keys_chunked(
+                            cipher=full_cipher,
+                            ciphertext=ct_idx,
+                            keys=identity_full_keys,
+                            scorer=scorer_full_runtime,
+                            wli=wli,
+                            chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                            require_batch=bool(REQUIRE_BATCH_SCORING),
+                        )
+                        for i, full_key_vals in enumerate(identity_full_keys):
+                            full_key = np.asarray(full_key_vals, dtype=np.int16).reshape(-1)
+                            sub_arr = np.asarray(identity_sub_keys[i], dtype=np.int16).reshape(-1)
+                            pt2 = np.asarray(pt2_batch[i], dtype=np.uint8).reshape(-1)
+                            m2 = base._match_ratio(pt2.tolist(), pt_idx.tolist())
+                            sub_m = float(base._match_ratio(sub_arr.tolist(), true_sub.tolist()))
+                            tail_m = 1.0
+                            sc2 = float(sc2_batch[i]) if i < int(sc2_batch.size) else float("nan")
+                            stage2_evals_total += 1
+                            stages.append(
+                                dict(
+                                    tier=tier.name,
+                                    text_id=int(text_id),
+                                    key_seed=int(key_seed),
+                                    stage=f"stage2_identity_attempt_{i+1}",
+                                    score=sc2,
+                                    match_ratio=float(m2),
+                                    sub_key_match=float(sub_m),
+                                    tail_key_match=float(tail_m),
+                                    seconds=0.0,
+                                    evals=0,
+                                )
+                            )
+                            _consider_stage2_candidate(
+                                full_key_arr=full_key,
+                                pt2_arr=pt2,
+                                match_val=float(m2),
+                                score_val=float(sc2),
+                                preview_label=f"stage2_identity_best_{i+1}",
                                 sub_key_match=float(sub_m),
                                 tail_key_match=float(tail_m),
-                                seconds=0.0,
-                                evals=0,
                             )
-                        )
-                        _consider_stage2_candidate(
-                            full_key_arr=full_key,
-                            pt2_arr=pt2,
-                            match_val=float(m2),
-                            score_val=float(sc2),
-                            preview_label=f"stage2_identity_best_{i+1}",
-                            sub_key_match=float(sub_m),
-                            tail_key_match=float(tail_m),
-                        )
                 elif int(tier.columns) <= int(STAGE2_EXACT_MAX_COLUMNS):
                     exact_subs = sub_candidates[: max(1, int(exact_sub_limit))]
                     exact_early_stop = False
@@ -1868,63 +1939,103 @@ def main() -> None:
                         pass1_evals = 0
                         pass2_evals = 0
                         shortlist_tails: List[Tuple[int, ...]] = []
+                        all_tails: List[Tuple[int, ...]] = [
+                            tuple(int(x) for x in tail) for tail in permutations(range(int(tier.columns)))
+                        ]
 
                         if bool(STAGE2_EXACT_TWO_PASS) and scorer_stage2_fast_runtime is not None:
                             pass1_ranked: List[Tuple[float, Tuple[int, ...]]] = []
-                            for tail in permutations(range(int(tier.columns))):
-                                col_key = np.asarray(tail, dtype=np.int16)
-                                full_key = np.concatenate([sub_arr, col_key], axis=0)
-                                pt2 = np.asarray(full_cipher.decrypt_single(ciphertext=ct_idx, key=full_key), dtype=np.uint8).reshape(-1)
-                                fast_sc = float(scorer_stage2_fast_runtime.score(pt2, None))
-                                pass1_ranked.append((fast_sc, tuple(int(x) for x in tail)))
-                                pass1_evals += 1
-                                stage2_evals_total += 1
-                                if bool(STAGE2_EXACT_EARLY_SOLVE_BREAK):
-                                    m2 = base._match_ratio(pt2.tolist(), pt_idx.tolist())
-                                    tail_m = float(base._match_ratio(col_key.tolist(), true_tail.tolist()))
-                                    if float(m2) >= float(SOLVE_MATCH_THRESHOLD):
-                                        sc2 = float(scorer_full_runtime.score(pt2, wli))
-                                        pass2_evals += 1
-                                        stage2_evals_total += 1
-                                        _consider_stage2_candidate(
-                                            full_key_arr=full_key,
-                                            pt2_arr=pt2,
-                                            match_val=float(m2),
-                                            score_val=float(sc2),
-                                            preview_label=f"stage2_exact_best_sub{i+1}",
-                                            sub_key_match=float(sub_m),
-                                            tail_key_match=float(tail_m),
-                                        )
-                                        exact_early_stop = True
-                                        break
+                            for tail_chunk in _chunk_sequence(all_tails, int(BATCH_EVAL_CHUNK_SIZE)):
+                                eval_keys = [
+                                    np.concatenate([sub_arr, np.asarray(tail, dtype=np.int16)], axis=0).astype(int).tolist()
+                                    for tail in tail_chunk
+                                ]
+                                pt_block, fast_block, _batch_stats = decrypt_and_score_keys_chunked(
+                                    cipher=full_cipher,
+                                    ciphertext=ct_idx,
+                                    keys=eval_keys,
+                                    scorer=scorer_stage2_fast_runtime,
+                                    wli=None,
+                                    chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                                    require_batch=bool(REQUIRE_BATCH_SCORING),
+                                )
+                                pass1_evals += int(len(eval_keys))
+                                stage2_evals_total += int(len(eval_keys))
+                                for j, tail in enumerate(tail_chunk):
+                                    pt2 = np.asarray(pt_block[j], dtype=np.uint8).reshape(-1)
+                                    fast_sc = float(fast_block[j]) if j < int(fast_block.size) else float("nan")
+                                    pass1_ranked.append((fast_sc, tuple(int(x) for x in tail)))
+                                    if bool(STAGE2_EXACT_EARLY_SOLVE_BREAK):
+                                        m2 = base._match_ratio(pt2.tolist(), pt_idx.tolist())
+                                        tail_m = float(base._match_ratio(list(tail), true_tail.tolist()))
+                                        if float(m2) >= float(SOLVE_MATCH_THRESHOLD):
+                                            full_key = np.asarray(eval_keys[j], dtype=np.int16).reshape(-1)
+                                            full_scores, _score_stats = score_plaintexts_chunked(
+                                                scorer=scorer_full_runtime,
+                                                plaintexts=[pt2],
+                                                wli=wli,
+                                                chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                                                require_batch=bool(REQUIRE_BATCH_SCORING),
+                                            )
+                                            sc2 = float(full_scores[0]) if full_scores.size > 0 else float("nan")
+                                            pass2_evals += 1
+                                            stage2_evals_total += 1
+                                            _consider_stage2_candidate(
+                                                full_key_arr=full_key,
+                                                pt2_arr=pt2,
+                                                match_val=float(m2),
+                                                score_val=float(sc2),
+                                                preview_label=f"stage2_exact_best_sub{i+1}",
+                                                sub_key_match=float(sub_m),
+                                                tail_key_match=float(tail_m),
+                                            )
+                                            exact_early_stop = True
+                                            break
+                                if exact_early_stop:
+                                    break
                             if not exact_early_stop:
                                 pass1_ranked.sort(key=lambda x: (x[0], x[1]), reverse=True)
                                 k_short = min(int(pass1_top_tails), len(pass1_ranked))
                                 shortlist_tails = [tail for _s, tail in pass1_ranked[:k_short]]
                         else:
-                            shortlist_tails = [tuple(int(x) for x in tail) for tail in permutations(range(int(tier.columns)))]
+                            shortlist_tails = list(all_tails)
 
                         if not exact_early_stop:
-                            for tail in shortlist_tails:
-                                col_key = np.asarray(tail, dtype=np.int16)
-                                full_key = np.concatenate([sub_arr, col_key], axis=0)
-                                pt2 = np.asarray(full_cipher.decrypt_single(ciphertext=ct_idx, key=full_key), dtype=np.uint8).reshape(-1)
-                                m2 = base._match_ratio(pt2.tolist(), pt_idx.tolist())
-                                tail_m = float(base._match_ratio(col_key.tolist(), true_tail.tolist()))
-                                sc2 = float(scorer_full_runtime.score(pt2, wli))
-                                pass2_evals += 1
-                                stage2_evals_total += 1
-                                _consider_stage2_candidate(
-                                    full_key_arr=full_key,
-                                    pt2_arr=pt2,
-                                    match_val=float(m2),
-                                    score_val=float(sc2),
-                                    preview_label=f"stage2_exact_best_sub{i+1}",
-                                    sub_key_match=float(sub_m),
-                                    tail_key_match=float(tail_m),
+                            for tail_chunk in _chunk_sequence(shortlist_tails, int(BATCH_EVAL_CHUNK_SIZE)):
+                                eval_keys = [
+                                    np.concatenate([sub_arr, np.asarray(tail, dtype=np.int16)], axis=0).astype(int).tolist()
+                                    for tail in tail_chunk
+                                ]
+                                pt_block, sc_block, _batch_stats = decrypt_and_score_keys_chunked(
+                                    cipher=full_cipher,
+                                    ciphertext=ct_idx,
+                                    keys=eval_keys,
+                                    scorer=scorer_full_runtime,
+                                    wli=wli,
+                                    chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                                    require_batch=bool(REQUIRE_BATCH_SCORING),
                                 )
-                                if bool(STAGE2_EXACT_EARLY_SOLVE_BREAK) and float(m2) >= float(SOLVE_MATCH_THRESHOLD):
-                                    exact_early_stop = True
+                                pass2_evals += int(len(eval_keys))
+                                stage2_evals_total += int(len(eval_keys))
+                                for j, tail in enumerate(tail_chunk):
+                                    full_key = np.asarray(eval_keys[j], dtype=np.int16).reshape(-1)
+                                    pt2 = np.asarray(pt_block[j], dtype=np.uint8).reshape(-1)
+                                    m2 = base._match_ratio(pt2.tolist(), pt_idx.tolist())
+                                    tail_m = float(base._match_ratio(list(tail), true_tail.tolist()))
+                                    sc2 = float(sc_block[j]) if j < int(sc_block.size) else float("nan")
+                                    _consider_stage2_candidate(
+                                        full_key_arr=full_key,
+                                        pt2_arr=pt2,
+                                        match_val=float(m2),
+                                        score_val=float(sc2),
+                                        preview_label=f"stage2_exact_best_sub{i+1}",
+                                        sub_key_match=float(sub_m),
+                                        tail_key_match=float(tail_m),
+                                    )
+                                    if bool(STAGE2_EXACT_EARLY_SOLVE_BREAK) and float(m2) >= float(SOLVE_MATCH_THRESHOLD):
+                                        exact_early_stop = True
+                                        break
+                                if exact_early_stop:
                                     break
                         stages.append(
                             dict(
@@ -2018,7 +2129,14 @@ def main() -> None:
                             )
                         )
                         tail_m = float(base._match_ratio(col_key.astype(int).tolist(), true_tail.tolist()))
-                        sc2 = float(scorer_full_runtime.score(pt2, wli))
+                        _judge_scores, _judge_stats = score_plaintexts_chunked(
+                            scorer=scorer_full_runtime,
+                            plaintexts=[pt2],
+                            wli=wli,
+                            chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                            require_batch=bool(REQUIRE_BATCH_SCORING),
+                        )
+                        sc2 = float(_judge_scores[0]) if _judge_scores.size > 0 else float("nan")
                         stage2_evals_total += 1
                         stages.append(
                             dict(
@@ -2404,6 +2522,7 @@ def main() -> None:
                 artifact_name = (
                     f"{tier.name}__text{int(text_id)}__seed{int(key_seed)}.json"
                 )
+                final_dir.mkdir(parents=True, exist_ok=True)
                 write_json(final_dir / artifact_name, artifact_payload)
 
                 hist_row = dict(
@@ -2457,19 +2576,28 @@ def main() -> None:
                             wli_data=[list(map(int, span)) for span in wli],
                         ),
                     )
-                    with solved_jsonl.open("a", encoding="utf-8") as f:
-                        f.write(json.dumps(solved_record, ensure_ascii=True) + "\n")
-                    solved_rows_written += 1
                     solved_file = (
                         proven_dir
                         / f"{inst_row['tier']}__text{int(inst_row['text_id'])}__seed{int(inst_row['key_seed'])}.json"
                     )
-                    solved_file.write_text(json.dumps(solved_record, indent=2), encoding="utf-8")
-                    print(
-                        f"[colsub] proven-solved-write tier={tier.name} text={text_id} key_seed={key_seed} "
-                        f"jsonl={solved_jsonl.relative_to(root)} file={solved_file.relative_to(root)}",
-                        flush=True,
-                    )
+                    try:
+                        solved_jsonl.parent.mkdir(parents=True, exist_ok=True)
+                        proven_dir.mkdir(parents=True, exist_ok=True)
+                        with solved_jsonl.open("a", encoding="utf-8") as f:
+                            f.write(json.dumps(solved_record, ensure_ascii=True) + "\n")
+                        solved_rows_written += 1
+                        write_json(solved_file, solved_record)
+                        print(
+                            f"[colsub] proven-solved-write tier={tier.name} text={text_id} key_seed={key_seed} "
+                            f"jsonl={solved_jsonl.relative_to(root)} file={solved_file.relative_to(root)}",
+                            flush=True,
+                        )
+                    except Exception as exc:
+                        print(
+                            f"[colsub] warn: proven-solved-write failed tier={tier.name} text={text_id} key_seed={key_seed} "
+                            f"err={type(exc).__name__}:{exc}",
+                            flush=True,
+                        )
 
                 done += 1
                 elapsed = time.time() - t0_all
@@ -2501,6 +2629,7 @@ def main() -> None:
             instances,
             key=lambda r: float(r.get("best_match_ratio", float("-inf"))),
         )
+        best_dir.mkdir(parents=True, exist_ok=True)
         write_json(best_dir / "best_instance.json", best_instance)
         (best_dir / "best_preview.txt").write_text(
             str(best_instance.get("preview_best_latin", "")),

@@ -21,7 +21,14 @@ from rune_decrypter_prime.scoring.windowing import (
     span_max,
 )
 from rune_decrypter_prime.core.types import (
-    Direction, SeMode, Channel, ObjectiveFamily, Stat, ObjectiveSpec,
+    Direction,
+    SeMode,
+    Channel,
+    ObjectiveFamily,
+    Stat,
+    ObjectiveSpec,
+    AvgWindowPolicy,
+    ensure_avg_window_policy,
 )
 
 
@@ -103,6 +110,9 @@ class RuneScorer(BaseScorer):
                 )
             if int(self.objective.win) != int(WIN_FIXED):
                 raise ValueError("pct/energy objectives only support win=10 in the current LM tables.")
+        self._avg_window_policy: AvgWindowPolicy = ensure_avg_window_policy(
+            _cfg_get(scorer_cfg, "avg_window_policy", AvgWindowPolicy.FIXED_WIN)
+        )
 
         # Channels
         self.include_char: bool = bool(_cfg_get(scorer_cfg, "include_char", True))
@@ -166,7 +176,9 @@ class RuneScorer(BaseScorer):
             self._rt = get_cached(**rt_kwargs)
         else:
             self._rt = LmPrimeRuntime(**rt_kwargs)
-        self._ecdf = ECDFCache(getattr(scorer_cfg, "model_root", None), prefer_float32=(acc_dt != "float64"))
+        self._ecdf_root = _cfg_get(scorer_cfg, "model_root", None)
+        self._ecdf_prefer_float32 = (acc_dt != "float64")
+        self._ecdf: ECDFCache | None = None
 
         # Optional Hamming backend (lazy import; skip if unavailable or disabled)
         self._hamming_backend = None
@@ -213,6 +225,12 @@ class RuneScorer(BaseScorer):
 
         # Telemetry invariants
         self._device_str = "cpu"
+        win_cfg = int(self.objective.win) if self.objective.win is not None else None
+        win_effective: Any = (
+            "full_text"
+            if (self.objective.family is ObjectiveFamily.AVG and self._avg_window_policy is AvgWindowPolicy.FULL_TEXT)
+            else win_cfg
+        )
         self._telemetry: Dict[str, Any] = {
             "impl": "numpy",
             "device": self._device_str,
@@ -220,12 +238,20 @@ class RuneScorer(BaseScorer):
             "acc_dtype": acc_dt,
             "dtype": self._dtype,
             "encoding_dir": self.direction,
+            "avg_window_policy": self._avg_window_policy.value,
+            "win_configured": win_cfg,
+            "win_effective": win_effective,
         }
         # Caches for WLI conversions/windows (bounded LRU)
         self._wli_cache_limit = 8
         self._wli_source_cache: "OrderedDict[int, _WliSourceCacheEntry]" = OrderedDict()
         self._wli_window_cache: "OrderedDict[Tuple[int, int], _WliWindowCacheEntry]" = OrderedDict()
         self._diagnostics_enabled: bool = bool(_cfg_get(scorer_cfg, "diagnostics_enabled", False))
+
+    def _ensure_ecdf(self) -> ECDFCache:
+        if self._ecdf is None:
+            self._ecdf = ECDFCache(self._ecdf_root, prefer_float32=self._ecdf_prefer_float32)
+        return self._ecdf
 
     def _build_aligned_windows(
         self,
@@ -367,6 +393,7 @@ class RuneScorer(BaseScorer):
             raise ValueError(f"Unsupported objective family: {fam}")
         if stat is None:
             raise ValueError("ObjectiveSpec.stat is required for PCT/ENERGY")
+        ecdf = self._ensure_ecdf()
 
         pt = _to_u8_1d(plaintext)
         W = int(self.objective.win or WIN_FIXED)
@@ -398,7 +425,7 @@ class RuneScorer(BaseScorer):
         # Short text: no windows
         if nwin == 0:
             pct_floor = float(self._ecdf_clamp_min)
-            energy_floor = float(self._ecdf.energy(np.asarray([pct_floor], dtype=acc_dtype))[0])
+            energy_floor = float(ecdf.energy(np.asarray([pct_floor], dtype=acc_dtype))[0])
             score_mean = energy_floor if want_energy else pct_floor
             score_std = 0.0
             hamming_total = None
@@ -441,6 +468,9 @@ class RuneScorer(BaseScorer):
                 n_windows=0,
                 **{
                     "window.win_ngrams": int(W),
+                    "window.win_configured": int(W),
+                    "window.win_effective": int(W),
+                    "window.win_ignored": False,
                     "window.se_mode": se_name,
                     "window.n_set": list(n_set),
                     "window.stride_runes": int(stride),
@@ -454,6 +484,7 @@ class RuneScorer(BaseScorer):
                     **({"stat.ngrams_interior": int(interior_eval)} if wise else {}),
                     "stat.mean_per_ngram_penalized": float(stat_penalized_mean),
                     "direction": dir_name,
+                    "avg_window_policy": self._avg_window_policy.value,
                     "objective.id": self._objective_id(stat_name, variant, W, n_set, dir_name, se_name),
                     "objective.label": self._objective_label(stat_name, variant, W, n_set, dir_name, se_name),
                 },
@@ -505,7 +536,7 @@ class RuneScorer(BaseScorer):
             stat_variant = avg_interior if wise else avg_total
 
             # ECDF lookup for chosen variant
-            self._ecdf.validate_clamp_range(
+            ecdf.validate_clamp_range(
                 model=model_name,
                 mode=dir_name,
                 pos=se_name,
@@ -515,8 +546,8 @@ class RuneScorer(BaseScorer):
                 clamp_min=self._ecdf_clamp_min,
                 clamp_max=self._ecdf_clamp_max,
             )
-            grid, q = self._ecdf.load(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name, win=int(W))
-            u = self._ecdf.interp_percentile(grid, q, np.asarray(stat_variant, dtype=acc_dtype))
+            grid, q = ecdf.load(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name, win=int(W))
+            u = ecdf.interp_percentile(grid, q, np.asarray(stat_variant, dtype=acc_dtype))
             u = np.clip(u, acc_dtype(self._ecdf_clamp_min), acc_dtype(self._ecdf_clamp_max))
             pct_perwin += acc_dtype(w) * u
 
@@ -526,20 +557,20 @@ class RuneScorer(BaseScorer):
                 f"pct_{stat_name}_{variant}": float(np.mean(u, dtype=np.float64)),
             }
 
-            asset_ids.append(self._ecdf.asset_id(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name, win=int(W)))
-            asset_fps.append(self._ecdf.meta_hash(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name, win=int(W)))
-            interp_dtypes.append(self._ecdf.interp_dtype(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name, win=int(W)))
+            asset_ids.append(ecdf.asset_id(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name, win=int(W)))
+            asset_fps.append(ecdf.meta_hash(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name, win=int(W)))
+            interp_dtypes.append(ecdf.interp_dtype(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name, win=int(W)))
             if self._diagnostics_enabled:
                 try:
                     import json as _json
-                    meta = self._ecdf.meta(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name, win=int(W))
+                    meta = ecdf.meta(model=model_name, mode=dir_name, pos=se_name, n=int(n), stat=stat_name, win=int(W))
                     meta_json_list.append(_json.dumps(meta, sort_keys=True))
                 except Exception:
                     pass
 
         pct_mean = float(np.mean(pct_perwin, dtype=np.float64))
         pct_std = float(np.std(pct_perwin, dtype=np.float64))
-        energy_perwin = self._ecdf.energy(pct_perwin)
+        energy_perwin = ecdf.energy(pct_perwin)
         energy_mean = float(np.mean(energy_perwin, dtype=np.float64))
         energy_std = float(np.std(energy_perwin, dtype=np.float64))
 
@@ -607,6 +638,9 @@ class RuneScorer(BaseScorer):
             n_windows=int(nwin),
             **{
                 "window.win_ngrams": int(W),
+                "window.win_configured": int(W),
+                "window.win_effective": int(W),
+                "window.win_ignored": False,
                 "window.se_mode": se_name,
                 "window.n_set": list(n_set),
                 "window.stride_runes": int(stride),
@@ -668,6 +702,8 @@ class RuneScorer(BaseScorer):
             raise ValueError("ObjectiveSpec.stat is required for avg objectives.")
         if self.objective.win is None:
             raise ValueError("ObjectiveSpec.win is required for avg objectives.")
+        if self._avg_window_policy is AvgWindowPolicy.FULL_TEXT:
+            return self._score_raw_avg_full_text(plaintext, wli_windows)
 
         pt = _to_u8_1d(plaintext)
         W = int(self.objective.win)
@@ -835,6 +871,7 @@ class RuneScorer(BaseScorer):
                 "stat.mean_per_ngram_interior.std": float(stat_interior_std),
                 "stat.mean_per_ngram_penalized": float(stat_penalized_mean),
                 "direction": dir_name,
+                "avg_window_policy": self._avg_window_policy.value,
                 "objective.id": self._objective_id(stat_name, variant, W, n_set, dir_name, se_name),
                 "objective.label": self._objective_label(stat_name, variant, W, n_set, dir_name, se_name),
             },
@@ -844,6 +881,223 @@ class RuneScorer(BaseScorer):
             objective_stats=objective,
         )
         return stat_penalized_mean
+
+    def _score_raw_avg_full_text(
+        self,
+        plaintext: Iterable[int],
+        wli_windows: Iterable[Tuple[int, int]] | None = None,
+    ) -> float:
+        stat = self.objective.stat
+        if stat is None:
+            raise ValueError("ObjectiveSpec.stat is required for avg objectives.")
+        if self.objective.win is None:
+            raise ValueError("ObjectiveSpec.win is required for avg objectives.")
+
+        pt = _to_u8_1d(plaintext)
+        W = int(self.objective.win)
+
+        wli = None
+        if wli_windows is not None and self.use_word_breaks:
+            wli = self._get_wli_array(wli_windows)
+
+        models = self._active_models()
+        dir_name = BaseScorer._dir_name(self.direction)
+        se_name = BaseScorer._se_name(self.se_mode)
+        wise = (se_name == "wise")
+        stat_name = stat.value
+        variant = "mean_per_ngram_interior" if wise else "mean_per_ngram_total"
+
+        if wise:
+            pt_full = np.empty((1, pt.shape[0] + 2), dtype=np.uint8)
+            pt_full[:, 0] = START_TAG
+            pt_full[:, -1] = END_TAG
+            pt_full[:, 1:-1] = pt
+            if wli is not None:
+                wli_full = np.zeros((1, wli.shape[0] + 2, 2), dtype=np.uint8)
+                wli_full[:, 1:-1, :] = wli
+            else:
+                wli_full = None
+            tags_injected = True
+        else:
+            pt_full = np.ascontiguousarray(pt.reshape(1, -1), dtype=np.uint8)
+            wli_full = (
+                np.ascontiguousarray(wli.reshape(1, wli.shape[0], 2), dtype=np.uint8)
+                if wli is not None
+                else None
+            )
+            tags_injected = False
+
+        valid: List[Tuple[Channel, int, float, int]] = []
+        skipped_short: Dict[str, int] = {}
+        L_full = int(pt_full.shape[1])
+        for ch, n, w in models:
+            ngrams = int(L_full - int(n) + 1)
+            if ngrams <= 0:
+                key = f"{ch.value}_n{int(n)}"
+                skipped_short[key] = int(ngrams)
+                continue
+            valid.append((ch, int(n), float(w), int(ngrams)))
+
+        if not valid:
+            n_set = sorted({int(n) for _, n, _, _ in valid})
+            self._stash_stats(
+                dtype=self._dtype,
+                impl="numpy",
+                device=self._device_str,
+                score_mean=0.0,
+                score_std=0.0,
+                n_windows=0,
+                **{
+                    "window.win_ngrams": int(W),
+                    "window.win_configured": int(W),
+                    "window.win_effective": "full_text",
+                    "window.win_ignored": True,
+                    "window.se_mode": se_name,
+                    "window.n_set": list(n_set),
+                    "window.stride_runes": int(self._stride),
+                    "window.L_n": {},
+                    "window.L_max": int(L_full),
+                    "window.n_windows": 0,
+                    "window.tags_injected": bool(tags_injected),
+                    "stat.name": stat_name,
+                    "stat.variant": variant,
+                    "stat.ngrams_total": 0,
+                    "stat.ngrams_total_by_model": {},
+                    "direction": dir_name,
+                    "avg_window_policy": self._avg_window_policy.value,
+                    "objective.id": self._objective_id(stat_name, variant, W, n_set, dir_name, se_name),
+                    "objective.label": self._objective_label(stat_name, variant, W, n_set, dir_name, se_name),
+                },
+                objective_stats={
+                    f"{stat_name}_mean_per_ngram_total": 0.0,
+                    f"{stat_name}_mean_per_ngram_interior": 0.0,
+                    f"{stat_name}_mean_per_ngram_penalized": 0.0,
+                    "penalty_hamming": 0.0,
+                    "components": {},
+                    "windows": {},
+                    "n_windows": 0,
+                    "score_mean": 0.0,
+                    "skipped_short_models": skipped_short,
+                },
+            )
+            return 0.0
+
+        total_w = float(sum(w for _, _, w, _ in valid))
+        valid = [(ch, n, (w / total_w), ngrams) for ch, n, w, ngrams in valid]
+        n_set = sorted({int(n) for _, n, _, _ in valid})
+
+        acc_dtype = self._acc_dtype
+        stat_total_mean = acc_dtype(0.0)
+        stat_interior_mean = acc_dtype(0.0)
+        components: Dict[str, Dict[str, float]] = {}
+        ngrams_by_model: Dict[str, int] = {}
+
+        for ch, n, w_norm, ngrams in valid:
+            if ch is Channel.CHAR:
+                logp_a, zsum_a, madsum_a = self._rt._score_batch_char(dir_name, se_name, int(n), pt_full)
+                label = f"char_n{int(n)}"
+            else:
+                if wli_full is None:
+                    continue
+                logp_a, zsum_a, madsum_a = self._rt._score_batch_wli(dir_name, se_name, int(n), pt_full, wli_full)
+                label = f"wli_n{int(n)}"
+
+            if stat is Stat.ZSUM:
+                avg_total_arr = zsum_a
+            elif stat is Stat.MADSUM:
+                avg_total_arr = madsum_a
+            else:
+                avg_total_arr = logp_a
+
+            avg_total = float(np.asarray(avg_total_arr, dtype=np.float64).reshape(-1)[0])
+            avg_interior = avg_total
+            stat_total_mean += acc_dtype(w_norm * avg_total)
+            stat_interior_mean += acc_dtype(w_norm * avg_interior)
+            ngrams_by_model[label] = int(ngrams)
+            components[label] = {
+                f"{stat_name}_mean_per_ngram_total": float(avg_total),
+                f"{stat_name}_mean_per_ngram_interior": float(avg_interior),
+                "ngram_count": int(ngrams),
+                "weight": float(w_norm),
+            }
+
+        stat_total_mean_f = float(stat_total_mean)
+        stat_interior_mean_f = float(stat_interior_mean)
+        stat_variant_mean = stat_interior_mean_f if wise else stat_total_mean_f
+        stat_variant_std = 0.0
+
+        hamming_total = None
+        hamming_avg = None
+        penalty_hamming = 0.0
+        if self._hamming_backend is not None and wli is not None:
+            try:
+                stats = self._hamming_backend.total_min_hd_stats(
+                    pt.tolist(),
+                    wli.tolist(),
+                    direction=self.direction,
+                    mode=self._hamming_direction_mode,
+                )
+                hamming_total = float(stats.get("total_hd", 0.0))
+                hamming_avg = float(stats.get("avg_hd_word", hamming_total))
+                penalty_hamming = float(-self._hamming_weight * hamming_avg)
+            except Exception:
+                hamming_total = None
+                hamming_avg = None
+
+        stat_penalized_mean = float(stat_variant_mean + penalty_hamming)
+        ngrams_ref = int(max(ngrams_by_model.values()) if ngrams_by_model else 0)
+
+        objective = {
+            f"{stat_name}_mean_per_ngram_total": float(stat_total_mean_f),
+            f"{stat_name}_mean_per_ngram_interior": float(stat_interior_mean_f),
+            f"{stat_name}_mean_per_ngram_penalized": float(stat_penalized_mean),
+            "penalty_hamming": float(penalty_hamming),
+            "components": components,
+            "windows": {"p10": float(stat_variant_mean), "p50": float(stat_variant_mean), "p90": float(stat_variant_mean)},
+            "n_windows": 1,
+            "score_mean": float(stat_penalized_mean),
+            "skipped_short_models": skipped_short,
+        }
+
+        self._stash_stats(
+            dtype=self._dtype,
+            impl="numpy",
+            device=self._device_str,
+            score_mean=float(stat_penalized_mean),
+            score_std=float(stat_variant_std),
+            n_windows=1,
+            **{
+                "window.win_ngrams": int(W),
+                "window.win_configured": int(W),
+                "window.win_effective": "full_text",
+                "window.win_ignored": True,
+                "window.se_mode": se_name,
+                "window.n_set": list(n_set),
+                "window.stride_runes": int(self._stride),
+                "window.L_n": {int(n): int(L_full) for _, n, _, _ in valid},
+                "window.L_max": int(L_full),
+                "window.n_windows": 1,
+                "window.tags_injected": bool(tags_injected),
+                "stat.name": stat_name,
+                "stat.variant": variant,
+                "stat.ngrams_total": int(ngrams_ref),
+                "stat.ngrams_total_by_model": {k: int(v) for k, v in ngrams_by_model.items()},
+                "stat.mean_per_ngram_total.mean": float(stat_total_mean_f),
+                "stat.mean_per_ngram_total.std": 0.0,
+                "stat.mean_per_ngram_interior.mean": float(stat_interior_mean_f),
+                "stat.mean_per_ngram_interior.std": 0.0,
+                "stat.mean_per_ngram_penalized": float(stat_penalized_mean),
+                "direction": dir_name,
+                "avg_window_policy": self._avg_window_policy.value,
+                "objective.id": self._objective_id(stat_name, variant, W, n_set, dir_name, se_name),
+                "objective.label": self._objective_label(stat_name, variant, W, n_set, dir_name, se_name),
+            },
+            hamming_total_hd=(hamming_total if hamming_total is not None else None),
+            hamming_avg_hd=(hamming_avg if hamming_avg is not None else None),
+            hamming_weight=self._hamming_weight,
+            objective_stats=objective,
+        )
+        return float(stat_penalized_mean)
 
     def set_hamming_progress(self, progress: float) -> None:
         """

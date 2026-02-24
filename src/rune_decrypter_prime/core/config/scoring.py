@@ -17,12 +17,14 @@ from rune_decrypter_prime.core.types import (
     ObjectiveFamily,
     Stat,
     ObjectiveSpec,
+    AvgWindowPolicy,
     ensure_direction,
     ensure_float_dtype,
     ensure_scorer_impl,
     ensure_se_mode,
     ensure_objective_family,
     ensure_stat,
+    ensure_avg_window_policy,
 )
 from rune_decrypter_prime.core.config.hard_crib import HardCribConfig, normalize_hard_crib_config
 
@@ -75,6 +77,7 @@ class ScoringConfig:
     acc_dtype: FloatDType | Literal["float32", "float64"] = "float64"
     dtype: FloatDType | Literal["float32", "float64"] | None = None
     objective: ObjectiveSpec = ObjectiveSpec(family=ObjectiveFamily.PCT,stat=Stat.LOGP,win=10)
+    avg_window_policy: AvgWindowPolicy | Literal["fixed_win", "full_text"] = AvgWindowPolicy.FIXED_WIN
     ecdf_clamp_min: float = 1e-6
     ecdf_clamp_max: float = 1.0 - 1e-6
     diagnostics_enabled: bool = False
@@ -98,6 +101,8 @@ class ScoringConfig:
             self.impl = ensure_scorer_impl(self.impl)
         if self.se_mode is not None:
             self.se_mode = ensure_se_mode(self.se_mode)
+        if self.avg_window_policy is not None:
+            self.avg_window_policy = ensure_avg_window_policy(self.avg_window_policy)
         if self.compute_dtype is not None:
             self.compute_dtype = ensure_float_dtype(self.compute_dtype)
         if self.acc_dtype is not None:
@@ -181,6 +186,11 @@ class ScoringConfig:
         out["stride"] = self.stride
         out["se_mode"] = self.se_mode
         out["objective"] = self.objective
+        out["avg_window_policy"] = (
+            self.avg_window_policy.value
+            if isinstance(self.avg_window_policy, AvgWindowPolicy)
+            else self.avg_window_policy
+        )
         #     {
         #     "family": self.objective.family.value if isinstance(self.objective.family, ObjectiveFamily) else self.objective.family,
         #     "stat": (self.objective.stat.value if isinstance(self.objective.stat, Stat) else self.objective.stat),

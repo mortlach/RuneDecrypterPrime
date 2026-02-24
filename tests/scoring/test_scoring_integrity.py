@@ -94,7 +94,10 @@ def test_ecdf_dtype_knob_is_real():
     require_full_lm_assets(models=("char",), modes=("ltr",), poses=("nose",), ns=(2,))
 
     scorer = _make_char_only_scorer(impl=ScorerImpl.NUMPY, dtype="float64")
-    prefer = getattr(getattr(scorer, "_ecdf", None), "_prefer_float32", None)
+    ecdf_obj = getattr(scorer, "_ecdf", None)
+    if ecdf_obj is None and hasattr(scorer, "_ensure_ecdf"):
+        ecdf_obj = scorer._ensure_ecdf()  # type: ignore[attr-defined]
+    prefer = getattr(ecdf_obj, "_prefer_float32", None)
     assert prefer is False
 
 

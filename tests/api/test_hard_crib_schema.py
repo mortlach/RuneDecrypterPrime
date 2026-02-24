@@ -15,6 +15,11 @@ def test_resolve_scorer_aliases_accepts_hard_crib_key():
     assert "hard_crib" in out
 
 
+def test_resolve_scorer_aliases_accepts_avg_window_policy_key():
+    out = resolve_scorer_aliases({"objective": "avg.logp.win20", "avg_window_policy": "full_text"})
+    assert out["avg_window_policy"] == "full_text"
+
+
 def test_scoring_config_normalizes_hard_crib_dict():
     cfg = ScoringConfig(
         hard_crib={
