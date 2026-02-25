@@ -150,10 +150,23 @@ def test_no_wli_scan_p5_p7_c1357_mode_matrix_and_scaling():
         assert no_wli_runner.STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE is False
         assert no_wli_runner.ORACLE_ASSIST_SELECTION is False
         assert no_wli_runner.STAGE3_CONTINUE_AFTER_SOLVE is False
-        assert no_wli_runner.STAGE3_PERIOD_INIT_MULT_BY_PERIOD == {7: 1.30}
-        assert no_wli_runner.STAGE3_PERIOD_STEP_MULT_BY_PERIOD == {7: 1.35}
-        assert no_wli_runner.STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD == {7: 1}
-        assert int(no_wli_runner.STAGE3_INIT_KEYS_CAP) == 160
+        assert int(no_wli_runner.STAGE12_ARCHIVE_KEEP) == 192
+        assert int(no_wli_runner.STAGE12_PROMOTE_TOP) == 96
+        assert no_wli_runner.STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS == {3: 24, 5: 24, 7: 24}
+        assert no_wli_runner.STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS == {3: 6, 5: 240, 7: 1536}
+        assert no_wli_runner.STAGE3_INITIAL_KEYS_BY_COLUMNS == {1: 48, 3: 72, 5: 128, 7: 160, 10: 128, 13: 128}
+        assert int(no_wli_runner.STAGE3_C1_INIT_KEYS) == 128
+        assert int(no_wli_runner.STAGE3_C1_PHASEA_STEPS) == 1800
+        assert int(no_wli_runner.STAGE3_C1_PHASEB_STEPS) == 6000
+        assert int(no_wli_runner.STAGE3_C1_PHASEB_TOP_N) == 32
+        assert int(no_wli_runner.STAGE3_PHASEB_TOP_N) == 24
+        assert float(no_wli_runner.STAGE3_PHASEB_GATE_DELTA_FLOOR) == pytest.approx(0.006)
+        assert float(no_wli_runner.STAGE3_PHASEB_GATE_END_GAIN_FLOOR) == pytest.approx(0.003)
+        assert int(no_wli_runner.STAGE3_PHASEB_CFG.get("slip_swaps", 0)) == 16
+        assert no_wli_runner.STAGE3_PERIOD_INIT_MULT_BY_PERIOD == {7: 1.55}
+        assert no_wli_runner.STAGE3_PERIOD_STEP_MULT_BY_PERIOD == {7: 1.85}
+        assert no_wli_runner.STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD == {7: 2}
+        assert int(no_wli_runner.STAGE3_INIT_KEYS_CAP) == 224
     finally:
         no_wli_runner.PIPELINE_RUN_MODE = old_mode
         no_wli_runner._apply_profile_defaults()
@@ -184,6 +197,15 @@ def test_no_wli_stage2_judge_pool_limit_for_avg_fulltext():
         no_wli_runner.PIPELINE_RUN_MODE = old_mode
         no_wli_runner._apply_profile_defaults()
         no_wli_runner._apply_run_mode()
+
+
+def test_no_wli_proven_autoskip_is_wired():
+    text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
+    assert "AUTOSKIP_PROVEN = True" in text
+    assert "FORCE_RERUN_PROVEN = False" in text
+    assert "_load_proven_solved_index(" in text
+    assert "status=\"skipped_proven\"" in text
+    assert "[pipeline_no_wli] setup: autoskip_proven=" in text
 
 
 def test_sub_then_col_scorer_impl_is_pinned():

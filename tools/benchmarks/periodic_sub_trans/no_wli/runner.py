@@ -83,6 +83,9 @@ STALL_DELTA = 0.002
 STALL_STAGE_LIMIT = 1
 HEARTBEAT_SECONDS = 900
 PREVIEW_CHARS = 240
+AUTOSKIP_PROVEN = True  # Skip fixtures already solved in flavor-specific solve_proof history.
+AUTOSKIP_PROVEN_MIN_MATCH = SOLVE_MATCH_THRESHOLD  # Minimum historical match to treat as proven.
+FORCE_RERUN_PROVEN = False  # If True, ignore proven autoskip and rerun all fixtures.
 
 TEXT_OFFSETS = [0]
 KEY_SEEDS = [111]
@@ -483,12 +486,14 @@ def _git_short() -> str:
 def _apply_run_mode() -> None:
     global PROFILE, HEARTBEAT_SECONDS, TIERS, TEXT_OFFSETS, KEY_SEEDS
     global STAGE2_PROMOTE_BY_STAGE3_JUDGE, STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE
+    global STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS, STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS
     global ORACLE_ASSIST_SELECTION
     global STAGE1_SEED_RESTARTS, STAGE1_SEED_TOTAL, STAGE1_SCOUT_MIN_STEPS
     global STAGE12_ARCHIVE_KEEP, STAGE12_PROMOTE_TOP
     global STAGE1_SCOUT_NO_IMPROVE_PATIENCE, STAGE1_SCOUT_MIN_NEW_ARCHIVE, STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS
     global STAGE3_INITIAL_KEYS, STAGE3_INITIAL_KEYS_BY_COLUMNS, STAGE3_DYNAMIC_BANDS
     global STAGE3_C1_INIT_KEYS, STAGE3_C1_PHASEA_STEPS, STAGE3_C1_PHASEB_STEPS, STAGE3_C1_PHASEB_TOP_N
+    global STAGE3_PHASEB_CFG, STAGE3_PHASEB_TOP_N, STAGE3_PHASEB_GATE_DELTA_FLOOR, STAGE3_PHASEB_GATE_END_GAIN_FLOOR
     global STAGE3_CONTINUE_AFTER_SOLVE
     global STAGE3_PERIOD_INIT_MULT_BY_PERIOD, STAGE3_PERIOD_STEP_MULT_BY_PERIOD
     global STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD, STAGE3_INIT_KEYS_CAP
@@ -538,29 +543,36 @@ def _apply_run_mode() -> None:
         STAGE1_SEED_RESTARTS = 192
         STAGE1_SEED_TOTAL = 512
         STAGE1_SCOUT_MIN_STEPS = 1800
-        STAGE12_ARCHIVE_KEEP = 128
-        STAGE12_PROMOTE_TOP = 64
+        STAGE12_ARCHIVE_KEEP = 192
+        STAGE12_PROMOTE_TOP = 96
+        STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS = {3: 24, 5: 24, 7: 24}
+        STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS = {3: 6, 5: 240, 7: 1536}
         STAGE1_SCOUT_NO_IMPROVE_PATIENCE = 3
         STAGE1_SCOUT_MIN_NEW_ARCHIVE = 1
         STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS = int(max(1, STAGE12_SCOUT_RUNS))
 
         # Stage-3 runtime reduced from longrun3x defaults, with modest period scaling.
         STAGE3_INITIAL_KEYS = 64
-        STAGE3_INITIAL_KEYS_BY_COLUMNS = {1: 48, 3: 72, 5: 96, 7: 112, 10: 128, 13: 128}
+        STAGE3_INITIAL_KEYS_BY_COLUMNS = {1: 48, 3: 72, 5: 128, 7: 160, 10: 128, 13: 128}
         STAGE3_DYNAMIC_BANDS = [
             dict(name="very_close", max_gap=0.010, steps=700, restarts=1, plateau_rounds=120, col_batch=96, inner_batch=128),
             dict(name="close", max_gap=0.030, steps=1200, restarts=1, plateau_rounds=180, col_batch=96, inner_batch=128),
             dict(name="mid", max_gap=0.080, steps=2200, restarts=2, plateau_rounds=280, col_batch=112, inner_batch=128),
             dict(name="far", max_gap=1e9, steps=3600, restarts=2, plateau_rounds=420, col_batch=112, inner_batch=128),
         ]
-        STAGE3_C1_INIT_KEYS = 64
-        STAGE3_C1_PHASEA_STEPS = 900
-        STAGE3_C1_PHASEB_STEPS = 3000
-        STAGE3_C1_PHASEB_TOP_N = 16
-        STAGE3_PERIOD_INIT_MULT_BY_PERIOD = {7: 1.30}
-        STAGE3_PERIOD_STEP_MULT_BY_PERIOD = {7: 1.35}
-        STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD = {7: 1}
-        STAGE3_INIT_KEYS_CAP = 160
+        STAGE3_C1_INIT_KEYS = 128
+        STAGE3_C1_PHASEA_STEPS = 1800
+        STAGE3_C1_PHASEB_STEPS = 6000
+        STAGE3_C1_PHASEB_TOP_N = 32
+        STAGE3_PHASEB_TOP_N = 24
+        STAGE3_PHASEB_GATE_DELTA_FLOOR = 0.006
+        STAGE3_PHASEB_GATE_END_GAIN_FLOOR = 0.003
+        STAGE3_PHASEB_CFG = dict(STAGE3_PHASEB_CFG)
+        STAGE3_PHASEB_CFG["slip_swaps"] = 16
+        STAGE3_PERIOD_INIT_MULT_BY_PERIOD = {7: 1.55}
+        STAGE3_PERIOD_STEP_MULT_BY_PERIOD = {7: 1.85}
+        STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD = {7: 2}
+        STAGE3_INIT_KEYS_CAP = 224
 
         TIERS[:] = [
             Tier("scan_p5_c1_l1000", 5, 1, 1000),
@@ -1051,6 +1063,47 @@ def _build_summary(tiers: Sequence[Tier], instances: Sequence[Dict[str, Any]]) -
     return summary
 
 
+def _load_proven_solved_index(path: Path, *, min_match: float) -> Dict[Tuple[str, int, int], Dict[str, Any]]:
+    out: Dict[Tuple[str, int, int], Dict[str, Any]] = {}
+    if not path.exists():
+        return out
+    try:
+        with path.open(newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if str(row.get("status", "")).strip().lower() != "solved":
+                    continue
+                fixture = str(row.get("fixture_id", "")).strip()
+                if not fixture:
+                    continue
+                try:
+                    text_id = int(str(row.get("text_id", "")).strip())
+                    key_seed = int(str(row.get("key_seed", "")).strip())
+                except Exception:
+                    continue
+                try:
+                    best_match = float(str(row.get("best_match_ratio", "nan")).strip())
+                except Exception:
+                    best_match = float("nan")
+                if not np.isfinite(best_match) or best_match < float(min_match):
+                    continue
+                ts = str(row.get("timestamp_utc", "")).strip()
+                key = (fixture, int(text_id), int(key_seed))
+                prev = out.get(key)
+                if (prev is None) or (ts >= str(prev.get("timestamp_utc", ""))):
+                    out[key] = dict(
+                        timestamp_utc=ts,
+                        run_id=str(row.get("run_id", "")).strip(),
+                        best_match_ratio=float(best_match),
+                        best_stage=str(row.get("best_stage", "")).strip(),
+                        total_seconds=str(row.get("total_seconds", "")).strip(),
+                        total_evals=str(row.get("total_evals", "")).strip(),
+                    )
+    except Exception:
+        return {}
+    return out
+
+
 def main() -> None:
     _apply_run_mode()
     direction_txt = str(ENCODING_DIR).strip().lower()
@@ -1072,6 +1125,12 @@ def main() -> None:
     final_dir.mkdir(parents=True, exist_ok=True)
     hist = root / "tools" / "benchmarks" / "solve_proof" / "proven_solve_pipeline_no_wli_log.csv"
     hist.parent.mkdir(parents=True, exist_ok=True)
+    autoskip_effective = bool(AUTOSKIP_PROVEN) and (not bool(FORCE_RERUN_PROVEN))
+    proven_index = (
+        _load_proven_solved_index(hist, min_match=float(AUTOSKIP_PROVEN_MIN_MATCH))
+        if autoskip_effective
+        else {}
+    )
     history_rows_written = 0
 
     run_config = dict(
@@ -1083,6 +1142,11 @@ def main() -> None:
         threshold=float(SOLVE_MATCH_THRESHOLD),
         stall_delta=float(STALL_DELTA),
         stall_stage_limit=int(STALL_STAGE_LIMIT),
+        autoskip_proven=bool(autoskip_effective),
+        autoskip_proven_requested=bool(AUTOSKIP_PROVEN),
+        force_rerun_proven=bool(FORCE_RERUN_PROVEN),
+        autoskip_proven_min_match=float(AUTOSKIP_PROVEN_MIN_MATCH),
+        autoskip_proven_known=int(len(proven_index)),
         oracle_assist_selection=bool(ORACLE_ASSIST_SELECTION),
         text_offsets=list(map(int, TEXT_OFFSETS)),
         key_seeds=list(map(int, KEY_SEEDS)),
@@ -1201,6 +1265,14 @@ def main() -> None:
         flush=True,
     )
     print(
+        "[pipeline_no_wli] setup: autoskip_proven="
+        f"{'on' if autoskip_effective else 'off'} "
+        f"(requested={'on' if AUTOSKIP_PROVEN else 'off'}, force_rerun={'on' if FORCE_RERUN_PROVEN else 'off'}) "
+        f"min_match={float(AUTOSKIP_PROVEN_MIN_MATCH):.3f} "
+        f"known={len(proven_index)} source={hist.relative_to(root)}",
+        flush=True,
+    )
+    print(
         f"[pipeline_no_wli] PROFILE_BANNER "
         f"NO_WLI_PIPELINE_PROFILE_ID={NO_WLI_PIPELINE_PROFILE_ID} "
         f"previous_default={NO_WLI_PIPELINE_PROFILE_ID_PREVIOUS_DEFAULT} "
@@ -1285,6 +1357,171 @@ def main() -> None:
             pt_idx, wli, offset_used = base._slice_word_aligned(pt_base, wli_base, length=tier.length, offset_hint=int(off))
             for key_seed in KEY_SEEDS:
                 t0_i = time.time()
+                proven_key = (str(tier.name), int(text_id), int(key_seed))
+                if bool(autoskip_effective) and (proven_key in proven_index):
+                    src = dict(proven_index.get(proven_key, {}))
+                    src_run = str(src.get("run_id", "") or "")
+                    src_ts = str(src.get("timestamp_utc", "") or "")
+                    src_match = float(src.get("best_match_ratio", float("nan")))
+                    src_stage = str(src.get("best_stage", "") or "proven_history")
+                    stop_reason = f"autoskip_proven:source_run={src_run}" if src_run else "autoskip_proven"
+                    preview_txt = f"[autoskip] source_run={src_run}" if src_run else "[autoskip] proven history"
+                    instances.append(
+                        dict(
+                            tier=tier.name,
+                            period=tier.period,
+                            columns=tier.columns,
+                            length=tier.length,
+                            text_id=int(text_id),
+                            key_seed=int(key_seed),
+                            offset_hint=int(off),
+                            offset_used=int(offset_used),
+                            status="skipped_proven",
+                            stop_reason=stop_reason,
+                            solve_threshold=float(SOLVE_MATCH_THRESHOLD),
+                            best_stage=src_stage,
+                            best_match_ratio=float(src_match if np.isfinite(src_match) else np.nan),
+                            stage1_sub_key_match=np.nan,
+                            stage2_match_ratio=np.nan,
+                            stage3_match_ratio=np.nan,
+                            stage2_gap_to_oracle=np.nan,
+                            stage3_band="autoskip",
+                            total_seconds=0.0,
+                            total_evals=0,
+                            preview_best_latin=preview_txt,
+                        )
+                    )
+                    stages.append(
+                        dict(
+                            tier=tier.name,
+                            text_id=int(text_id),
+                            key_seed=int(key_seed),
+                            stage="skip_proven",
+                            score=np.nan,
+                            match_ratio=float(src_match if np.isfinite(src_match) else np.nan),
+                            seconds=0.0,
+                            evals=0,
+                            source_run_id=src_run,
+                            source_timestamp=src_ts,
+                        )
+                    )
+
+                    artifact_payload = dict(
+                        tier=str(tier.name),
+                        profile_id=str(PROFILE),
+                        mode=str(PIPELINE_RUN_MODE),
+                        direction=str(direction.value),
+                        order=str(ORDER),
+                        alphabet_size=int(ALPHABET_SIZE),
+                        text_id=int(text_id),
+                        key_seed=int(key_seed),
+                        offset_hint=int(off),
+                        offset_used=int(offset_used),
+                        period=int(tier.period),
+                        columns=int(tier.columns),
+                        length=int(tier.length),
+                        status="skipped_proven",
+                        stop_reason=str(stop_reason),
+                        best_stage=str(src_stage),
+                        best_match_ratio=float(src_match if np.isfinite(src_match) else np.nan),
+                        best_score=float("nan"),
+                        oracle_scores=dict(stage1=float("nan"), stage2=float("nan"), stage3=float("nan")),
+                        score_minus_oracle=dict(stage1=float("nan"), stage2=float("nan"), stage3=float("nan")),
+                        solve_threshold=float(SOLVE_MATCH_THRESHOLD),
+                        ciphertext_idx=[],
+                        target_plaintext_idx=[],
+                        final_best_key_idx=[],
+                        final_best_plaintext_idx=[],
+                        stage2_topk=[],
+                        stage2_topk_has_best_match=0,
+                        stage2_diagnostics=dict(
+                            archive_entries=0,
+                            kept_entries=0,
+                            promoted_entries=0,
+                            score_match_spearman=float("nan"),
+                        ),
+                        stage3_topk=[],
+                        stage3_diagnostics=dict(
+                            init_target=0,
+                            init_actual=0,
+                            promoted_keys=0,
+                            gate_source="autoskip",
+                            continue_after_solve=bool(STAGE3_CONTINUE_AFTER_SOLVE),
+                            solve_hits=0,
+                            period_init_mult=1.0,
+                            period_step_mult=1.0,
+                            period_restart_bonus=0,
+                            phaseB_top_n_cfg=int(STAGE3_PHASEB_TOP_N),
+                            phaseB_gate_delta_cfg=float(STAGE3_PHASEB_GATE_DELTA_FLOOR),
+                            phaseB_gate_end_gain_cfg=float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR),
+                            phaseB_ran=0,
+                            phaseB_skipped=1,
+                            phaseB_top_n_used=0,
+                            phaseB_skip_reason="autoskip_proven",
+                            stage3_eval_count=0,
+                            c1_focus=int(1 if (int(tier.columns) <= 1 and bool(STAGE3_C1_FOCUS_ENABLED)) else 0),
+                        ),
+                    )
+                    artifact_name = f"{tier.name}__text{int(text_id)}__seed{int(key_seed)}.json"
+                    (final_dir / artifact_name).write_text(json.dumps(artifact_payload, indent=2), encoding="utf-8")
+
+                    summary_ckpt = _build_summary(TIERS, instances)
+                    (run_dir / "instances.json").write_text(json.dumps(instances, indent=2), encoding="utf-8")
+                    (run_dir / "stages.json").write_text(json.dumps(stages, indent=2), encoding="utf-8")
+                    (run_dir / "summary.json").write_text(json.dumps(summary_ckpt, indent=2), encoding="utf-8")
+                    _write_csv_rows(run_dir / "instances.csv", instances)
+                    _write_csv_rows(run_dir / "stages.csv", stages)
+
+                    hist_row = dict(
+                        timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                        run_id=run_dir.name,
+                        profile_id=PROFILE,
+                        fixture_id=str(tier.name),
+                        text_id=int(text_id),
+                        key_seed=int(key_seed),
+                        period=int(tier.period),
+                        columns=int(tier.columns),
+                        length=int(tier.length),
+                        status="skipped_proven",
+                        solve_threshold=float(SOLVE_MATCH_THRESHOLD),
+                        best_match_ratio=float(src_match if np.isfinite(src_match) else np.nan),
+                        best_stage=str(src_stage),
+                        stage1_sub_key_match=np.nan,
+                        stage2_match_ratio=np.nan,
+                        stage3_match_ratio=np.nan,
+                        total_seconds=0.0,
+                        total_evals=0,
+                        notes=str(stop_reason),
+                    )
+                    _append_csv_row(hist, hist_row)
+                    history_rows_written += 1
+
+                    if np.isfinite(float(src_match)) and float(src_match) > float(best_global["match"]):
+                        best_global.update(
+                            match=float(src_match),
+                            tier=str(tier.name),
+                            text_id=int(text_id),
+                            key_seed=int(key_seed),
+                            stage=str(src_stage),
+                            preview=str(preview_txt),
+                        )
+
+                    done += 1
+                    elapsed = time.time() - t0_all
+                    eta = (elapsed / float(done)) * float(total - done) if done else 0.0
+                    print(
+                        f"[pipeline_no_wli] skip-proven tier={tier.name} text={text_id} key_seed={key_seed} "
+                        f"source_run={src_run if src_run else 'unknown'} best_match={float(src_match):.3f}",
+                        flush=True,
+                    )
+                    print(
+                        f"[pipeline_no_wli] {done}/{total} tier={tier.name} status=skipped_proven "
+                        f"best_match={float(src_match):.3f} run=0.0s elapsed={base._format_seconds(elapsed)} "
+                        f"eta={base._format_seconds(eta)}",
+                        flush=True,
+                    )
+                    continue
+
                 key_len = int(tier.period * ALPHABET_SIZE + tier.columns)
                 rng = np.random.default_rng(int(key_seed))
                 keyops = PeriodicStructuredMatrixKeyOps(K=key_len, period=tier.period, A=ALPHABET_SIZE, columns=tier.columns)
