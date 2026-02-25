@@ -37,6 +37,23 @@ Edit constants at the top of `bench_span_hamming_nose_suite.py`, then run:
 python tools/benchmarks/scoring/span_hamming_nose/bench_span_hamming_nose_suite.py
 ```
 
+For hardcoded 2-process sharding (no CLI args), use:
+
+```powershell
+# Process A
+python tools/benchmarks/scoring/span_hamming_nose/run_span_hamming_nose_shard0.py
+
+# Process B
+python tools/benchmarks/scoring/span_hamming_nose/run_span_hamming_nose_shard1.py
+```
+
+These launchers pin:
+
+- `SHARD_STRATEGY = "book_hash_mod"`
+- `SHARD_COUNT = 2`
+- shard index `0` (A) and `1` (B)
+- `FORCE_DIRECTIONS = ["ltr"]`
+
 ## Outputs
 
 Each run writes to:
@@ -85,6 +102,11 @@ For `N` machines:
 2. Set `SHARD_COUNT = N` on all machines.
 3. Set unique `SHARD_INDEX` per machine (`0..N-1`).
 4. Keep separate run dirs per shard.
+
+Important:
+
+- If an existing run already started with `SHARD_COUNT = 1`, launching a new shard process will not be non-overlapping with that run.
+- For clean non-overlap, restart as shards from the beginning, or run the second process on a different direction (for example, `rtl`).
 
 Validation metadata is written in `run_config.json`:
 
