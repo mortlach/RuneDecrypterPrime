@@ -41,7 +41,6 @@ import subprocess
 import sys
 import time
 from itertools import permutations
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
@@ -75,10 +74,12 @@ from tools.benchmarks.periodic_sub_trans.common.batch_eval import (
 
 from tools.benchmarks.periodic_sub_trans.common import bench_solve_periodic_columnar_kaeding as base
 from tools.benchmarks.periodic_sub_trans.common.io_reports import (
-    write_csv_rows,
+    append_csv_row as _append_csv_row_common,
     write_json,
+    write_pipeline_snapshot_files,
 )
 from tools.benchmarks.periodic_sub_trans.common.paths import make_flavor_run_dir
+from tools.benchmarks.periodic_sub_trans.common.runner_types import Tier
 
 ALPHABET_SIZE = 29  # Rune alphabet size used by periodic substitution/key layout.
 ORDER = BenchmarkOrder.COL_THEN_SUB.value  # Cipher composition order benchmarked by this script.
@@ -223,15 +224,6 @@ SOLVER_STAGE3 = dict(
     pct_plateau_min_delta=1e-4, plateau_rounds=1800, plateau_min_delta=2e-4,
     delta_window=200, top_k=32, progress_pct=5, print_progress=True, seed=2026,
 )
-
-
-@dataclass(frozen=True)
-class Tier:
-    name: str
-    period: int
-    columns: int
-    length: int
-
 
 TIERS = [
     Tier("proof_p5_c1_l2376", 5, 1, 2376),
@@ -822,27 +814,7 @@ def _oracle_score_for_stage(
 
 
 def _append_csv_row(path: Path, row: Dict[str, Any]) -> None:
-    if not row:
-        return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fieldnames: List[str]
-    if path.exists() and path.stat().st_size > 0:
-        try:
-            with path.open(newline="", encoding="utf-8") as f:
-                reader = csv.reader(f)
-                header = next(reader, [])
-            fieldnames = [str(h) for h in header if str(h)]
-        except Exception:
-            fieldnames = [str(k) for k in row.keys()]
-    else:
-        fieldnames = [str(k) for k in row.keys()]
-    safe_row = {str(k): row.get(str(k), "") for k in fieldnames}
-    write_header = (not path.exists()) or path.stat().st_size == 0
-    with path.open("a", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-        if write_header:
-            w.writeheader()
-        w.writerow(safe_row)
+    _append_csv_row_common(path, row, merge_fieldnames=True)
 
 
 def _to_int_list(values: Sequence[int] | np.ndarray) -> List[int]:
@@ -1327,11 +1299,12 @@ def main() -> None:
                         best_global["preview"] = str(preview_txt)
 
                     summary_ckpt = _build_summary(TIERS, instances)
-                    write_json(run_dir / "instances.json", instances)
-                    write_json(run_dir / "stages.json", stages)
-                    write_json(run_dir / "summary.json", summary_ckpt)
-                    write_csv_rows(run_dir / "instances.csv", instances)
-                    write_csv_rows(run_dir / "stages.csv", stages)
+                    write_pipeline_snapshot_files(
+                        run_dir=run_dir,
+                        instances=instances,
+                        stages=stages,
+                        summary=summary_ckpt,
+                    )
 
                     stage_rows_instance = [
                         dict(s)
@@ -2502,11 +2475,12 @@ def main() -> None:
 
                 # Checkpoint per-instance so completed solves survive interruption/restarts.
                 summary_ckpt = _build_summary(TIERS, instances)
-                write_json(run_dir / "instances.json", instances)
-                write_json(run_dir / "stages.json", stages)
-                write_json(run_dir / "summary.json", summary_ckpt)
-                write_csv_rows(run_dir / "instances.csv", instances)
-                write_csv_rows(run_dir / "stages.csv", stages)
+                write_pipeline_snapshot_files(
+                    run_dir=run_dir,
+                    instances=instances,
+                    stages=stages,
+                    summary=summary_ckpt,
+                )
 
                 artifact_payload = dict(
                     profile=PROFILE,
@@ -2631,11 +2605,12 @@ def main() -> None:
 
     summary = _build_summary(TIERS, instances)
 
-    write_json(run_dir / "instances.json", instances)
-    write_json(run_dir / "stages.json", stages)
-    write_json(run_dir / "summary.json", summary)
-    write_csv_rows(run_dir / "instances.csv", instances)
-    write_csv_rows(run_dir / "stages.csv", stages)
+    write_pipeline_snapshot_files(
+        run_dir=run_dir,
+        instances=instances,
+        stages=stages,
+        summary=summary,
+    )
     if instances:
         best_instance = max(
             instances,

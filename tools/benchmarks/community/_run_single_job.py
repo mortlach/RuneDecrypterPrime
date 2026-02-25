@@ -26,6 +26,16 @@ from tools.benchmarks.periodic_sub_trans.common.core_enums import (
 )
 
 DEFAULT_LENGTH = 2376
+_ORDER_TO_RUNNER: Dict[str, Dict[str, str]] = {
+    BenchmarkOrder.COL_THEN_SUB.value: {
+        "module_name": "tools.benchmarks.periodic_sub_trans.col_then_sub.runner",
+        "flavor": "col_then_sub",
+    },
+    BenchmarkOrder.SUB_THEN_COL.value: {
+        "module_name": "tools.benchmarks.periodic_sub_trans.sub_then_col.runner",
+        "flavor": "sub_then_col",
+    },
+}
 
 
 def _find_fixture_length(campaign_config: dict[str, Any], *, text_fixture_id: str, repo_root: Path) -> int:
@@ -114,6 +124,13 @@ def _pick_run_dir(pre_dirs: set[Path], post_dirs: set[Path]) -> Path:
     if post_dirs:
         return sorted(post_dirs, key=lambda p: p.name)[-1]
     raise RuntimeError("no pipeline run directory found")
+
+
+def _list_flavor_run_dirs(*, output_root: Path, flavor: str) -> set[Path]:
+    base = output_root / "periodic_sub_trans" / str(flavor)
+    if not base.exists():
+        return set()
+    return {p for p in base.iterdir() if p.is_dir()}
 
 
 def _score_or_none(value: Any) -> float | None:
@@ -243,12 +260,11 @@ def run_single_job(
     repo_root: Path,
 ) -> dict[str, Any]:
     order = str(job["order"])
-    if order == BenchmarkOrder.COL_THEN_SUB.value:
-        module_name = "tools.benchmarks.periodic_sub_trans.col_then_sub.runner"
-    elif order == BenchmarkOrder.SUB_THEN_COL.value:
-        module_name = "tools.benchmarks.periodic_sub_trans.sub_then_col.runner"
-    else:
+    runner_spec = _ORDER_TO_RUNNER.get(order)
+    if runner_spec is None:
         raise ValueError(f"unsupported order: {order}")
+    module_name = str(runner_spec["module_name"])
+    flavor = str(runner_spec["flavor"])
 
     try:
         importlib.import_module("rune_decrypter_prime.scoring.language_model._fastlm")
@@ -267,11 +283,11 @@ def run_single_job(
 
     out_root = repo_root / "output" / "tools" / "benchmarks"
     out_root.mkdir(parents=True, exist_ok=True)
-    pre_dirs = {p for p in out_root.iterdir() if p.is_dir()}
+    pre_dirs = _list_flavor_run_dirs(output_root=out_root, flavor=flavor)
     start = time.time()
     pipeline_module.main()
     elapsed = float(time.time() - start)
-    post_dirs = {p for p in out_root.iterdir() if p.is_dir()}
+    post_dirs = _list_flavor_run_dirs(output_root=out_root, flavor=flavor)
     run_dir = _pick_run_dir(pre_dirs, post_dirs)
 
     instances_path = run_dir / "instances.json"

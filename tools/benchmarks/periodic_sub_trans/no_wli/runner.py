@@ -20,7 +20,6 @@ import subprocess
 import sys
 import time
 from itertools import permutations
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Sequence, Tuple
@@ -51,8 +50,15 @@ from tools.benchmarks.periodic_sub_trans.common.batch_eval import (
     score_plaintexts_chunked,
 )
 from tools.benchmarks.periodic_sub_trans.common.core_enums import BenchmarkOrder
+from tools.benchmarks.periodic_sub_trans.common.io_reports import (
+    append_csv_row as _append_csv_row_common,
+    write_csv_rows as _write_csv_rows_common,
+    write_json,
+    write_pipeline_snapshot_files,
+)
 from tools.benchmarks.config.no_wli_pipeline_profiles import get_no_wli_pipeline_profile
 from tools.benchmarks.periodic_sub_trans.common.paths import make_flavor_run_dir
+from tools.benchmarks.periodic_sub_trans.common.runner_types import Tier
 
 
 ALPHABET_SIZE = 29
@@ -316,15 +322,6 @@ SOLVER_STAGE3 = dict(
     print_progress=True,
     seed=2026,
 )
-
-
-@dataclass(frozen=True)
-class Tier:
-    name: str
-    period: int
-    columns: int
-    length: int
-
 
 TIERS: List[Tier] = [
     # Default set is overridden by run-mode.
@@ -1015,33 +1012,11 @@ def _oracle_score_for_stage(
 
 
 def _write_csv_rows(path: Path, rows: List[Dict[str, Any]]) -> None:
-    if not rows:
-        return
-    fieldnames: List[str] = []
-    seen: set[str] = set()
-    for row in rows:
-        for key in row.keys():
-            if key in seen:
-                continue
-            seen.add(key)
-            fieldnames.append(str(key))
-    with path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-        w.writeheader()
-        for row in rows:
-            w.writerow(row)
+    _write_csv_rows_common(path, rows)
 
 
 def _append_csv_row(path: Path, row: Dict[str, Any]) -> None:
-    if not row:
-        return
-    cols = [str(k) for k in row.keys()]
-    write_header = (not path.exists()) or path.stat().st_size == 0
-    with path.open("a", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
-        if write_header:
-            w.writeheader()
-        w.writerow(row)
+    _append_csv_row_common(path, row, merge_fieldnames=True)
 
 
 def _build_summary(tiers: Sequence[Tier], instances: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
@@ -1256,7 +1231,7 @@ def main() -> None:
             ),
         ),
     )
-    (run_dir / "run_config.json").write_text(json.dumps(run_config, indent=2), encoding="utf-8")
+    write_json(run_dir / "run_config.json", run_config)
 
     print(
         f"[pipeline_no_wli] setup: profile={PROFILE} mode={PIPELINE_RUN_MODE} "
@@ -1463,14 +1438,15 @@ def main() -> None:
                         ),
                     )
                     artifact_name = f"{tier.name}__text{int(text_id)}__seed{int(key_seed)}.json"
-                    (final_dir / artifact_name).write_text(json.dumps(artifact_payload, indent=2), encoding="utf-8")
+                    write_json(final_dir / artifact_name, artifact_payload)
 
                     summary_ckpt = _build_summary(TIERS, instances)
-                    (run_dir / "instances.json").write_text(json.dumps(instances, indent=2), encoding="utf-8")
-                    (run_dir / "stages.json").write_text(json.dumps(stages, indent=2), encoding="utf-8")
-                    (run_dir / "summary.json").write_text(json.dumps(summary_ckpt, indent=2), encoding="utf-8")
-                    _write_csv_rows(run_dir / "instances.csv", instances)
-                    _write_csv_rows(run_dir / "stages.csv", stages)
+                    write_pipeline_snapshot_files(
+                        run_dir=run_dir,
+                        instances=instances,
+                        stages=stages,
+                        summary=summary_ckpt,
+                    )
 
                     hist_row = dict(
                         timestamp_utc=datetime.now(timezone.utc).isoformat(),
@@ -3297,15 +3273,16 @@ def main() -> None:
                     ),
                 )
                 artifact_name = f"{tier.name}__text{int(text_id)}__seed{int(key_seed)}.json"
-                (final_dir / artifact_name).write_text(json.dumps(artifact_payload, indent=2), encoding="utf-8")
+                write_json(final_dir / artifact_name, artifact_payload)
 
                 # Per-instance checkpoint (crash-safe): preserve completed units immediately.
                 summary_ckpt = _build_summary(TIERS, instances)
-                (run_dir / "instances.json").write_text(json.dumps(instances, indent=2), encoding="utf-8")
-                (run_dir / "stages.json").write_text(json.dumps(stages, indent=2), encoding="utf-8")
-                (run_dir / "summary.json").write_text(json.dumps(summary_ckpt, indent=2), encoding="utf-8")
-                _write_csv_rows(run_dir / "instances.csv", instances)
-                _write_csv_rows(run_dir / "stages.csv", stages)
+                write_pipeline_snapshot_files(
+                    run_dir=run_dir,
+                    instances=instances,
+                    stages=stages,
+                    summary=summary_ckpt,
+                )
 
                 hist_row = dict(
                     timestamp_utc=datetime.now(timezone.utc).isoformat(),
@@ -3357,14 +3334,15 @@ def main() -> None:
 
     summary = _build_summary(TIERS, instances)
 
-    (run_dir / "instances.json").write_text(json.dumps(instances, indent=2), encoding="utf-8")
-    (run_dir / "stages.json").write_text(json.dumps(stages, indent=2), encoding="utf-8")
-    (run_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-    _write_csv_rows(run_dir / "instances.csv", instances)
-    _write_csv_rows(run_dir / "stages.csv", stages)
+    write_pipeline_snapshot_files(
+        run_dir=run_dir,
+        instances=instances,
+        stages=stages,
+        summary=summary,
+    )
     if instances:
         best_instance = max(instances, key=lambda r: float(r.get("best_match_ratio", float("-inf"))))
-        (best_dir / "best_instance.json").write_text(json.dumps(best_instance, indent=2), encoding="utf-8")
+        write_json(best_dir / "best_instance.json", best_instance)
         (best_dir / "best_preview.txt").write_text(str(best_instance.get("preview_best_latin", "")), encoding="utf-8")
 
     print(f"[pipeline_no_wli] completed in {base._format_seconds(time.time() - t0_all)}", flush=True)

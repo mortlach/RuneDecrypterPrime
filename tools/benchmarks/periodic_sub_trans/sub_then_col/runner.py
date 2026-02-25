@@ -20,7 +20,6 @@ import re
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Sequence, Tuple
@@ -52,7 +51,12 @@ from tools.benchmarks.periodic_sub_trans.common import bench_solve_periodic_colu
 from tools.benchmarks.periodic_sub_trans.common.batch_eval import (
     decrypt_and_score_keys_chunked,
 )
-from tools.benchmarks.periodic_sub_trans.common.io_reports import write_json
+from tools.benchmarks.periodic_sub_trans.common.io_reports import (
+    append_csv_row as _append_csv_row_common,
+    write_csv_rows as _write_csv_rows_common,
+    write_json,
+    write_pipeline_snapshot_files,
+)
 from tools.benchmarks.periodic_sub_trans.common.core_enums import (
     BenchmarkOrder,
     InstanceStatus,
@@ -61,6 +65,7 @@ from tools.benchmarks.periodic_sub_trans.common.core_enums import (
     StageABScorerProfile,
 )
 from tools.benchmarks.periodic_sub_trans.common.paths import make_flavor_run_dir
+from tools.benchmarks.periodic_sub_trans.common.runner_types import Tier
 
 ALPHABET_SIZE = 29
 ORDER = BenchmarkOrder.SUB_THEN_COL.value
@@ -196,15 +201,6 @@ STAGE3_INITIAL_KEYS_BY_COLUMNS = {3: 24, 5: 24, 7: 20, 10: 28, 13: 32}
 
 STAGE3_FULL_ENTRY_SCORE = 0.10
 STAGE3_PROBE_ENTRY_SCORE = 0.06
-
-
-@dataclass(frozen=True)
-class Tier:
-    name: str
-    period: int
-    columns: int
-    length: int
-
 
 TIERS = [
     Tier("subcol_p7_c1_l2376", 7, 1, 2376),
@@ -443,60 +439,11 @@ def _oracle_score_for_stage(
 
 
 def _write_csv_rows(path: Path, rows: List[Dict[str, Any]]) -> None:
-    if not rows:
-        return
-    fieldnames: List[str] = []
-    seen: set[str] = set()
-    for row in rows:
-        for key in row.keys():
-            if key in seen:
-                continue
-            seen.add(key)
-            fieldnames.append(str(key))
-    with path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-        w.writeheader()
-        for row in rows:
-            w.writerow(row)
+    _write_csv_rows_common(path, rows)
 
 
 def _append_csv_row(path: Path, row: Dict[str, Any]) -> None:
-    if not row:
-        return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    new_fields = [str(k) for k in row.keys()]
-    if (not path.exists()) or path.stat().st_size == 0:
-        with path.open("w", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=new_fields, extrasaction="ignore")
-            w.writeheader()
-            w.writerow(row)
-        return
-
-    with path.open(newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        old_fields = [str(k) for k in (reader.fieldnames or [])]
-        old_rows = []
-        for r in reader:
-            clean = {str(k): v for k, v in r.items() if k is not None}
-            old_rows.append(clean)
-
-    merged_fields = list(old_fields)
-    for k in new_fields:
-        if k not in merged_fields:
-            merged_fields.append(k)
-
-    if merged_fields == old_fields:
-        with path.open("a", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=merged_fields, extrasaction="ignore")
-            w.writerow(row)
-        return
-
-    with path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=merged_fields, extrasaction="ignore")
-        w.writeheader()
-        for r in old_rows:
-            w.writerow(r)
-        w.writerow(row)
+    _append_csv_row_common(path, row, merge_fieldnames=True)
 
 
 def _build_summary(tiers: Sequence[Tier], instances: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -709,7 +656,7 @@ def main() -> None:
         timestamp_utc=datetime.now(timezone.utc).isoformat(),
         git_short=_git_short(),
     )
-    (run_dir / "run_manifest.json").write_text(json.dumps(run_manifest, indent=2), encoding="utf-8")
+    write_json(run_dir / "run_manifest.json", run_manifest)
 
     for tier in TIERS:
         for text_id, off in enumerate(TEXT_OFFSETS):
@@ -1397,11 +1344,12 @@ def main() -> None:
                     best_global["preview"] = str(best_preview)
 
                 summary_ckpt = _build_summary(TIERS, instances)
-                (run_dir / "instances.json").write_text(json.dumps(instances, indent=2), encoding="utf-8")
-                (run_dir / "stages.json").write_text(json.dumps(stages, indent=2), encoding="utf-8")
-                (run_dir / "summary.json").write_text(json.dumps(summary_ckpt, indent=2), encoding="utf-8")
-                _write_csv_rows(run_dir / "instances.csv", instances)
-                _write_csv_rows(run_dir / "stages.csv", stages)
+                write_pipeline_snapshot_files(
+                    run_dir=run_dir,
+                    instances=instances,
+                    stages=stages,
+                    summary=summary_ckpt,
+                )
 
                 hist_row = dict(
                     timestamp_utc=datetime.now(timezone.utc).isoformat(),
@@ -1504,11 +1452,12 @@ def main() -> None:
 
     elapsed_total = time.time() - t0_all
     summary = _build_summary(TIERS, instances)
-    (run_dir / "instances.json").write_text(json.dumps(instances, indent=2), encoding="utf-8")
-    (run_dir / "stages.json").write_text(json.dumps(stages, indent=2), encoding="utf-8")
-    (run_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-    _write_csv_rows(run_dir / "instances.csv", instances)
-    _write_csv_rows(run_dir / "stages.csv", stages)
+    write_pipeline_snapshot_files(
+        run_dir=run_dir,
+        instances=instances,
+        stages=stages,
+        summary=summary,
+    )
     print(f"[subcol] completed in {_fmt_secs(elapsed_total)}", flush=True)
     print(f"[subcol] reports: {run_dir.relative_to(root)}", flush=True)
     print(

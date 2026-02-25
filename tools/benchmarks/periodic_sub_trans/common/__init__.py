@@ -7,6 +7,7 @@ from .core_enums import (
     PipelineRunMode,
     StageABScorerProfile,
 )
+from .runner_types import Tier
 
 __all__ = [
     "BenchmarkOrder",
@@ -14,5 +15,6 @@ __all__ = [
     "InstanceStopReason",
     "PipelineRunMode",
     "StageABScorerProfile",
+    "Tier",
 ]
 
