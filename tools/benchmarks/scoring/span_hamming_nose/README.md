@@ -13,6 +13,7 @@ The suite is config-driven. Do not pass CLI arguments to change behavior.
 - `bench_span_hamming_nose_suite.py`: main runner
 - `schema.py`: corpus discovery, NOSE token validation, stride planner
 - `report_span_hamming_nose_suite.py`: lightweight run report
+- `merge_span_hamming_nose_shards.py`: deterministic shard merge utility
 
 ## Default Campaign (Fast Calibration Pass)
 
@@ -99,6 +100,29 @@ Recommended process:
 3. Recompute `summary.csv` and `calibration.json` from merged samples.
 
 Do not average per-shard `summary.csv`/`calibration.json` directly.
+
+### Merge Script
+
+Configure `tools/benchmarks/scoring/span_hamming_nose/merge_span_hamming_nose_shards.py`:
+
+- `SHARD_RUN_DIRS` (explicit list), or
+- `SHARD_PARENT_DIR` + optional `SHARD_GROUP_PREFIX` (auto-discover latest shard set)
+
+Run:
+
+```powershell
+python tools/benchmarks/scoring/span_hamming_nose/merge_span_hamming_nose_shards.py
+```
+
+Merged output contains:
+
+- `run_config.json`
+- `plan.csv`
+- `book_manifest.csv`
+- `completed_rows.csv`
+- `summary.csv`
+- `calibration.json`
+- optional `samples.csv` (only if `WRITE_MERGED_SAMPLES=True`)
 
 ## Gotchas
 

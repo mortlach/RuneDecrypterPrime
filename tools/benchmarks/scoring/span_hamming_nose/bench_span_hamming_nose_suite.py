@@ -4,6 +4,7 @@ import csv
 import json
 import subprocess
 import sys
+import time
 from array import array
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -236,6 +237,18 @@ def _clear_outputs(paths: list[Path]) -> None:
     for path in paths:
         if path.exists():
             path.unlink()
+
+
+def _format_duration(seconds: float) -> str:
+    sec = int(max(0.0, float(seconds)))
+    h = sec // 3600
+    m = (sec % 3600) // 60
+    s = sec % 60
+    if h > 0:
+        return f"{h}h{m:02d}m{s:02d}s"
+    if m > 0:
+        return f"{m}m{s:02d}s"
+    return f"{s}s"
 
 
 def _completion_header() -> list[str]:
@@ -1048,10 +1061,11 @@ def run_suite(cfg: SuiteRunConfig) -> Path:
         partial_generators_by_row = {}
         convergence_rows = []
 
-    processed_real = int(
-        sum(len(vals) for vals in existing_real_by_bucket.values())
-    )
-    for bucket_key in sorted(by_bucket_book.keys()):
+    processed_real = int(sum(len(vals) for vals in existing_real_by_bucket.values()))
+    run_started = time.perf_counter()
+    total_real_rows_shard = int(len(plan_rows))
+    total_buckets = int(len(by_bucket_book))
+    for bucket_idx, bucket_key in enumerate(sorted(by_bucket_book.keys()), start=1):
         direction, length_bucket = bucket_key
         bucket_books_all = by_bucket_book[bucket_key]
         bucket_books: dict[str, list[PlanRow]] = {}
@@ -1060,9 +1074,20 @@ def run_suite(cfg: SuiteRunConfig) -> Path:
             if pending:
                 bucket_books[book_id] = pending
         if not bucket_books:
+            print(
+                f"[span_hamming_nose] bucket skip {bucket_idx}/{total_buckets} "
+                f"direction={direction} length={length_bucket} reason=already_completed",
+                flush=True,
+            )
             continue
 
         flat_rows = [row for book_id in sorted(bucket_books.keys()) for row in bucket_books[book_id]]
+        print(
+            f"[span_hamming_nose] bucket start {bucket_idx}/{total_buckets} "
+            f"direction={direction} length={length_bucket} "
+            f"pending_rows={len(flat_rows)} pending_books={len(bucket_books)}",
+            flush=True,
+        )
         book_batches = _bucket_book_batches(
             plan_rows=flat_rows,
             books_per_batch=cfg.books_per_batch,
@@ -1089,9 +1114,11 @@ def run_suite(cfg: SuiteRunConfig) -> Path:
                 batch_start_idx = int(prior.get("batch_idx", 0)) + 1
                 break
 
+        total_batches = int(len(book_batches) + batch_start_idx - 1)
         for batch_idx, book_ids in enumerate(book_batches, start=batch_start_idx):
             if cfg.enable_convergence and converged:
                 break
+            batch_started = time.perf_counter()
             planned_windows_batch = int(sum(len(bucket_books[book_id]) for book_id in book_ids))
             batch_real = 0
             for book_id in book_ids:
@@ -1180,6 +1207,23 @@ def run_suite(cfg: SuiteRunConfig) -> Path:
                     "converged": bool(converged),
                 }
             )
+            done_real_rows = int(len(completed_row_ids))
+            elapsed = time.perf_counter() - run_started
+            pct = (
+                100.0 * float(done_real_rows) / float(total_real_rows_shard)
+                if total_real_rows_shard > 0
+                else 0.0
+            )
+            print(
+                f"[span_hamming_nose] batch {batch_idx}/{total_batches} "
+                f"direction={direction} length={length_bucket} "
+                f"planned_windows={planned_windows_batch} real_batch={batch_real} "
+                f"real_total={len(real_scores)} stable={stable} patience={patience} "
+                f"progress={done_real_rows}/{total_real_rows_shard} ({pct:.1f}%) "
+                f"batch_time={_format_duration(time.perf_counter() - batch_started)} "
+                f"elapsed={_format_duration(elapsed)}",
+                flush=True,
+            )
             prev_mean = mean_now
             prev_std = std_now
 
@@ -1190,6 +1234,18 @@ def run_suite(cfg: SuiteRunConfig) -> Path:
                     convergence_csv_path=convergence_csv,
                     group_values=group_values,
                     convergence_rows=convergence_rows,
+                )
+                elapsed = time.perf_counter() - run_started
+                rate = (
+                    float(len(completed_row_ids)) / max(1e-9, elapsed)
+                    if elapsed > 0.0
+                    else 0.0
+                )
+                print(
+                    f"[span_hamming_nose] checkpoint "
+                    f"completed_rows={len(completed_row_ids)} rate_rows_per_sec={rate:.3f} "
+                    f"elapsed={_format_duration(elapsed)}",
+                    flush=True,
                 )
 
         print(
