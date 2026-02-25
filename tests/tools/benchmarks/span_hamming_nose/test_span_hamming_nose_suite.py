@@ -126,6 +126,7 @@ def test_score_window_sample_emits_span_and_char_fields() -> None:
         corrupt_pcts=[10, 20, 50],
         enable_char_baselines=True,
         char_baseline_scorers=fake_scorers,
+        write_detailed_sample_fields=False,
     )
 
     assert "span_raw" in sample

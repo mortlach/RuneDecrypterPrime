@@ -23,6 +23,7 @@ Current defaults in `bench_span_hamming_nose_suite.py` are tuned for practical r
 - `GENERATORS = ["REAL", "RAND_UNIGRAM", "SHUFFLE_UNIGRAM"]`
 - reduced `MAX_WINDOWS_PER_BOOK_BY_L`
 - `WRITE_SAMPLES_JSONL = False`
+- `WRITE_DETAILED_SAMPLE_FIELDS = False` (scalar sample rows only)
 - resume enabled
 - shard strategy: deterministic by book hash
 
@@ -52,6 +53,9 @@ Key files:
 - `summary.csv`: aggregated metrics
 - `calibration.json`: per-(direction,length) normalization refs
 - `convergence.csv`: batch convergence deltas
+
+When `WRITE_DETAILED_SAMPLE_FIELDS=False`, `samples.csv` contains compact scalar fields only.
+Enable it for debug runs if you need per-length arrays in each sample row.
 
 ## Crash Safety / Resume
 

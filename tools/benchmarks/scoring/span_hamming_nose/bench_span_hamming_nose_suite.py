@@ -41,6 +41,8 @@ from tools.benchmarks.scoring.span_hamming_nose.schema import (
     write_plan_csv,
 )
 
+REPO_ROOT = Path(__file__).resolve().parents[4]
+
 
 # ---------------------------------------------------------------------------
 # Config block (no CLI; edit constants here)
@@ -92,6 +94,7 @@ SPAN_MAX_INTERVALS_PER_START = 4
 SPAN_MIN_QUALITY_THRESHOLD = 1e-9
 
 WRITE_SAMPLES_JSONL = False
+WRITE_DETAILED_SAMPLE_FIELDS = False
 CHECKPOINT_EVERY = 5000
 
 # Crash-safe progress and multi-machine sharding.
@@ -131,6 +134,7 @@ class SuiteRunConfig:
     span_max_intervals_per_start: int
     span_min_quality_threshold: float
     write_samples_jsonl: bool
+    write_detailed_sample_fields: bool
     checkpoint_every: int
     resume_if_run_dir_exists: bool
     shard_count: int
@@ -140,8 +144,29 @@ class SuiteRunConfig:
 
 
 def _build_run_config() -> SuiteRunConfig:
+    tokenized_dir = Path(TOKENIZED_DIR).expanduser()
+    if not tokenized_dir.is_absolute():
+        tokenized_dir = (REPO_ROOT / tokenized_dir).resolve()
+    else:
+        tokenized_dir = tokenized_dir.resolve()
+
+    output_root = Path(OUTPUT_ROOT).expanduser()
+    if not output_root.is_absolute():
+        output_root = (REPO_ROOT / output_root).resolve()
+    else:
+        output_root = output_root.resolve()
+
+    run_dir = None
+    if RUN_DIR_OVERRIDE:
+        run_dir_path = Path(RUN_DIR_OVERRIDE).expanduser()
+        if not run_dir_path.is_absolute():
+            run_dir_path = (REPO_ROOT / run_dir_path).resolve()
+        else:
+            run_dir_path = run_dir_path.resolve()
+        run_dir = run_dir_path
+
     return SuiteRunConfig(
-        tokenized_dir=Path(TOKENIZED_DIR).expanduser().resolve(),
+        tokenized_dir=tokenized_dir,
         directions=[str(x).strip().lower() for x in DIRECTIONS],
         use_nose_only=bool(USE_NOSE_ONLY),
         length_buckets=[int(x) for x in LENGTH_BUCKETS],
@@ -159,8 +184,8 @@ def _build_run_config() -> SuiteRunConfig:
         books_per_batch=(int(BOOKS_PER_BATCH) if BOOKS_PER_BATCH is not None else None),
         enable_char_baselines=bool(ENABLE_CHAR_BASELINES),
         global_seed=int(GLOBAL_SEED),
-        output_root=Path(OUTPUT_ROOT).expanduser().resolve(),
-        run_dir=(Path(RUN_DIR_OVERRIDE).expanduser().resolve() if RUN_DIR_OVERRIDE else None),
+        output_root=output_root,
+        run_dir=run_dir,
         span_len_min=int(SPAN_LEN_MIN),
         span_len_max=int(SPAN_LEN_MAX),
         span_max_hd=int(SPAN_MAX_HD),
@@ -168,6 +193,7 @@ def _build_run_config() -> SuiteRunConfig:
         span_max_intervals_per_start=int(SPAN_MAX_INTERVALS_PER_START),
         span_min_quality_threshold=float(SPAN_MIN_QUALITY_THRESHOLD),
         write_samples_jsonl=bool(WRITE_SAMPLES_JSONL),
+        write_detailed_sample_fields=bool(WRITE_DETAILED_SAMPLE_FIELDS),
         checkpoint_every=int(CHECKPOINT_EVERY),
         resume_if_run_dir_exists=bool(RESUME_IF_RUN_DIR_EXISTS),
         shard_count=int(SHARD_COUNT),
@@ -424,7 +450,7 @@ def _write_book_manifest(
 
 
 def _sample_header() -> list[str]:
-    return [
+    header = [
         "sample_id",
         "row_id",
         "direction",
@@ -443,12 +469,6 @@ def _sample_header() -> list[str]:
         "n_chars",
         "chars_covered",
         "n_intervals_selected",
-        "length_bins",
-        "span_raw_by_len",
-        "coverage_by_len",
-        "quality_by_len",
-        "selected_intervals_by_len",
-        "chars_covered_by_len",
         "n_windows_total",
         "n_windows_scored",
         "n_candidates_considered",
@@ -458,6 +478,18 @@ def _sample_header() -> list[str]:
         "char3_score",
         "char4_score",
     ]
+    if WRITE_DETAILED_SAMPLE_FIELDS:
+        header.extend(
+            [
+                "length_bins",
+                "span_raw_by_len",
+                "coverage_by_len",
+                "quality_by_len",
+                "selected_intervals_by_len",
+                "chars_covered_by_len",
+            ]
+        )
+    return header
 
 
 def _summary_header() -> list[str]:
@@ -644,6 +676,7 @@ def score_window_sample(
     corrupt_pcts: Sequence[int],
     enable_char_baselines: bool,
     char_baseline_scorers: dict[tuple[str, int], Any],
+    write_detailed_sample_fields: bool,
 ) -> dict[str, Any]:
     seed_local = int(stable_int(global_seed, plan.row_id, generator) & 0x7FFFFFFF)
     rng = np.random.default_rng(seed_local)
@@ -669,7 +702,7 @@ def score_window_sample(
             "seed_local": seed_local,
         }
     )
-    return {
+    row = {
         "sample_id": sample_id,
         "row_id": plan.row_id,
         "direction": plan.direction,
@@ -688,12 +721,6 @@ def score_window_sample(
         "n_chars": int(stats.n_chars),
         "chars_covered": int(stats.chars_covered),
         "n_intervals_selected": int(stats.n_intervals_selected),
-        "length_bins": list(map(int, stats.length_bins)),
-        "span_raw_by_len": list(map(float, stats.span_raw_by_len)),
-        "coverage_by_len": list(map(float, stats.coverage_by_len)),
-        "quality_by_len": list(map(float, stats.quality_by_len)),
-        "selected_intervals_by_len": list(map(int, stats.selected_intervals_by_len)),
-        "chars_covered_by_len": list(map(int, stats.chars_covered_by_len)),
         "n_windows_total": int(stats.n_windows_total),
         "n_windows_scored": int(stats.n_windows_scored),
         "n_candidates_considered": int(stats.n_candidates_considered),
@@ -703,6 +730,18 @@ def score_window_sample(
         "char3_score": float(char_scores[3]),
         "char4_score": float(char_scores[4]),
     }
+    if write_detailed_sample_fields:
+        row.update(
+            {
+                "length_bins": list(map(int, stats.length_bins)),
+                "span_raw_by_len": list(map(float, stats.span_raw_by_len)),
+                "coverage_by_len": list(map(float, stats.coverage_by_len)),
+                "quality_by_len": list(map(float, stats.quality_by_len)),
+                "selected_intervals_by_len": list(map(int, stats.selected_intervals_by_len)),
+                "chars_covered_by_len": list(map(int, stats.chars_covered_by_len)),
+            }
+        )
+    return row
 
 
 def _bucket_book_batches(
@@ -992,6 +1031,7 @@ def run_suite(cfg: SuiteRunConfig) -> Path:
         "max_batches": int(cfg.max_batches),
         "books_per_batch": (int(cfg.books_per_batch) if cfg.books_per_batch else None),
         "enable_char_baselines": bool(cfg.enable_char_baselines),
+        "write_detailed_sample_fields": bool(cfg.write_detailed_sample_fields),
         "span_config": {
             "len_min": int(cfg.span_len_min),
             "len_max": int(cfg.span_len_max),
@@ -1145,6 +1185,7 @@ def run_suite(cfg: SuiteRunConfig) -> Path:
                             corrupt_pcts=cfg.corrupt_pcts,
                             enable_char_baselines=cfg.enable_char_baselines,
                             char_baseline_scorers=char_scorers,
+                            write_detailed_sample_fields=cfg.write_detailed_sample_fields,
                         )
                         _append_csv_row(samples_csv, _sample_header(), _sample_to_csv_row(row))
                         if cfg.write_samples_jsonl:
@@ -1272,7 +1313,8 @@ def main() -> int:
         f"length_buckets={cfg.length_buckets} generators={cfg.generators} "
         f"convergence={cfg.enable_convergence} "
         f"shard={cfg.shard_index}/{cfg.shard_count} strategy={cfg.shard_strategy} "
-        f"jsonl={cfg.write_samples_jsonl} resume={cfg.resume_if_run_dir_exists}",
+        f"jsonl={cfg.write_samples_jsonl} detailed={cfg.write_detailed_sample_fields} "
+        f"resume={cfg.resume_if_run_dir_exists}",
         flush=True,
     )
     run_dir = run_suite(cfg)

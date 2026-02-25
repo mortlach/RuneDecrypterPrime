@@ -22,10 +22,11 @@ if __package__ in (None, ""):
 
 from tools.benchmarks.scoring.span_hamming_nose.bench_span_hamming_nose_suite import (
     _build_calibration,
-    _sample_header,
     _write_summary_csv,
 )
 from tools.benchmarks.scoring.span_hamming_nose.schema import PlanRow, read_plan_csv, write_plan_csv
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 # ---------------------------------------------------------------------------
@@ -113,12 +114,33 @@ def _get_or_create_group_bucket(
 
 def _resolve_cfg() -> MergeConfig:
     explicit = [Path(p).expanduser().resolve() for p in SHARD_RUN_DIRS if str(p).strip()]
+    parent = Path(SHARD_PARENT_DIR).expanduser()
+    if not parent.is_absolute():
+        parent = (REPO_ROOT / parent).resolve()
+    else:
+        parent = parent.resolve()
+
+    out_root = Path(OUTPUT_ROOT).expanduser()
+    if not out_root.is_absolute():
+        out_root = (REPO_ROOT / out_root).resolve()
+    else:
+        out_root = out_root.resolve()
+
+    run_dir = None
+    if RUN_DIR_OVERRIDE:
+        run_path = Path(RUN_DIR_OVERRIDE).expanduser()
+        if not run_path.is_absolute():
+            run_path = (REPO_ROOT / run_path).resolve()
+        else:
+            run_path = run_path.resolve()
+        run_dir = run_path
+
     return MergeConfig(
         shard_run_dirs=explicit,
-        shard_parent_dir=Path(SHARD_PARENT_DIR).expanduser().resolve(),
+        shard_parent_dir=parent,
         shard_group_prefix=(str(SHARD_GROUP_PREFIX).strip() if SHARD_GROUP_PREFIX else None),
-        output_root=Path(OUTPUT_ROOT).expanduser().resolve(),
-        run_dir=(Path(RUN_DIR_OVERRIDE).expanduser().resolve() if RUN_DIR_OVERRIDE else None),
+        output_root=out_root,
+        run_dir=run_dir,
         write_merged_samples=bool(WRITE_MERGED_SAMPLES),
         dedupe_by_sample_id=bool(DEDUPE_BY_SAMPLE_ID),
     )
@@ -299,7 +321,33 @@ def _merge_samples(
     out_samples_path: Path | None,
     dedupe_by_sample_id: bool,
 ) -> tuple[dict[tuple[str, int, str], dict[str, array]], int]:
-    header_expected = _sample_header()
+    required_cols = {
+        "sample_id",
+        "row_id",
+        "direction",
+        "length_bucket",
+        "generator",
+        "span_raw",
+        "char1_score",
+        "char2_score",
+        "char3_score",
+        "char4_score",
+    }
+    merged_header: list[str] = []
+    for run_dir in shard_dirs:
+        samples_path = run_dir / "samples.csv"
+        if not samples_path.exists():
+            raise FileNotFoundError(f"Missing samples.csv in {run_dir}")
+        with samples_path.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle)
+            fields = list(reader.fieldnames or [])
+            missing = sorted(required_cols - set(fields))
+            if missing:
+                raise ValueError(f"samples.csv missing required columns in {run_dir}: {missing}")
+            for col in fields:
+                if col not in merged_header:
+                    merged_header.append(col)
+
     seen_sample_ids: set[str] = set()
     merged_rows = 0
     group_values: dict[tuple[str, int, str], dict[str, array]] = {}
@@ -309,12 +357,8 @@ def _merge_samples(
 
     for run_dir in shard_dirs:
         samples_path = run_dir / "samples.csv"
-        if not samples_path.exists():
-            raise FileNotFoundError(f"Missing samples.csv in {run_dir}")
         with samples_path.open("r", encoding="utf-8", newline="") as handle:
             reader = csv.DictReader(handle)
-            if reader.fieldnames != header_expected:
-                raise ValueError(f"samples.csv schema mismatch in {run_dir}")
             for row in reader:
                 sample_id = str(row.get("sample_id", "")).strip()
                 if dedupe_by_sample_id and sample_id:
@@ -337,8 +381,8 @@ def _merge_samples(
                 if out_samples_path is not None:
                     _append_csv_row(
                         out_samples_path,
-                        header_expected,
-                        {k: str(row.get(k, "")) for k in header_expected},
+                        merged_header,
+                        {k: str(row.get(k, "")) for k in merged_header},
                     )
 
     return group_values, merged_rows
