@@ -93,6 +93,18 @@ class ScoringConfig:
     hamming_max_hd: int = 1_000_000
     hamming_length_weights: Dict[int, float] = field(default_factory=dict)
     hamming_direction_mode: str = "match"  # "match" | "both"
+    # Optional span-hamming scorer component
+    span_hamming_enabled: bool = False
+    span_hamming_wordlist_dir: Path | None = None
+    span_hamming_weight: float = 0.0
+    span_hamming_len_min: int = 3
+    span_hamming_len_max: int = 14
+    span_hamming_max_hd: int = 2
+    span_hamming_max_candidates_per_window: int = 256
+    span_hamming_max_intervals_considered_per_start: int = 4
+    span_hamming_min_quality_threshold: float = 1e-9
+    span_hamming_debug_return_intervals: bool = False
+    span_hamming_require_selected: bool = True
 
     def __post_init__(self) -> None:
         if self.encoding_dir is not None:
@@ -128,11 +140,32 @@ class ScoringConfig:
 
         if isinstance(self.hamming_wordlist_dir, (str, bytes)):
             self.hamming_wordlist_dir = Path(self.hamming_wordlist_dir)
+        if isinstance(self.span_hamming_wordlist_dir, (str, bytes)):
+            self.span_hamming_wordlist_dir = Path(self.span_hamming_wordlist_dir)
         self.hamming_direction_mode = str(self.hamming_direction_mode or "match").lower()
         if self.hamming_direction_mode not in {"match", "both"}:
             raise ValueError("hamming_direction_mode must be 'match' or 'both'")
         self.hamming_ramp_start_frac = float(self.hamming_ramp_start_frac)
         self.hamming_ramp_end_frac = float(self.hamming_ramp_end_frac)
+        self.span_hamming_weight = float(self.span_hamming_weight)
+        self.span_hamming_len_min = int(self.span_hamming_len_min)
+        self.span_hamming_len_max = int(self.span_hamming_len_max)
+        self.span_hamming_max_hd = int(self.span_hamming_max_hd)
+        self.span_hamming_max_candidates_per_window = int(self.span_hamming_max_candidates_per_window)
+        self.span_hamming_max_intervals_considered_per_start = int(self.span_hamming_max_intervals_considered_per_start)
+        self.span_hamming_min_quality_threshold = float(self.span_hamming_min_quality_threshold)
+        if self.span_hamming_len_min < 1:
+            raise ValueError("span_hamming_len_min must be >= 1")
+        if self.span_hamming_len_max < self.span_hamming_len_min:
+            raise ValueError("span_hamming_len_max must be >= span_hamming_len_min")
+        if self.span_hamming_max_hd < 0:
+            raise ValueError("span_hamming_max_hd must be >= 0")
+        if self.span_hamming_max_candidates_per_window < 1:
+            raise ValueError("span_hamming_max_candidates_per_window must be >= 1")
+        if self.span_hamming_max_intervals_considered_per_start < 1:
+            raise ValueError("span_hamming_max_intervals_considered_per_start must be >= 1")
+        if not (0.0 <= self.span_hamming_min_quality_threshold <= 1.0):
+            raise ValueError("span_hamming_min_quality_threshold must be in [0,1]")
 
         obj = getattr(self, "objective", None)
         if isinstance(obj, ObjectiveSpec) and obj.family in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
@@ -219,6 +252,17 @@ class ScoringConfig:
         out["hamming_max_hd"] = self.hamming_max_hd
         out["hamming_length_weights"] = dict(self.hamming_length_weights or {})
         out["hamming_direction_mode"] = self.hamming_direction_mode
+        out["span_hamming_enabled"] = self.span_hamming_enabled
+        out["span_hamming_wordlist_dir"] = self.span_hamming_wordlist_dir
+        out["span_hamming_weight"] = self.span_hamming_weight
+        out["span_hamming_len_min"] = self.span_hamming_len_min
+        out["span_hamming_len_max"] = self.span_hamming_len_max
+        out["span_hamming_max_hd"] = self.span_hamming_max_hd
+        out["span_hamming_max_candidates_per_window"] = self.span_hamming_max_candidates_per_window
+        out["span_hamming_max_intervals_considered_per_start"] = self.span_hamming_max_intervals_considered_per_start
+        out["span_hamming_min_quality_threshold"] = self.span_hamming_min_quality_threshold
+        out["span_hamming_debug_return_intervals"] = self.span_hamming_debug_return_intervals
+        out["span_hamming_require_selected"] = self.span_hamming_require_selected
         return out
 
 

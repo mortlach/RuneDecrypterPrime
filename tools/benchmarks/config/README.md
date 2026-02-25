@@ -17,6 +17,11 @@ This folder contains typed configuration modules that benchmark scripts import.
     - `no_wli_a1_m34_b34_v1`
     - `no_wli_a34_m34_b34_v1`
   - Stage-2 pass1 shortlist defaults to char34, with deterministic char2 fallback when diversity collapses.
+- `span_hamming_nose_profiles.py`
+  - Defines deterministic profiles for the span-hamming NOSE benchmark suite.
+  - Profiles:
+    - `span_hamming_nose_v1`
+    - `span_hamming_nose_smoke_v1`
 
 ## Usage Pattern
 

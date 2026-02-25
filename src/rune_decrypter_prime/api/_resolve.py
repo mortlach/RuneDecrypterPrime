@@ -134,7 +134,12 @@ _CANON_SCORER_KEYS = {"model_root","smoothing","alpha","oov_policy","include_cha
                       "hamming_enabled","hamming_wordlist_dir","hamming_build_rtl",
                       "hamming_weight","hamming_weight_max","hamming_ramp_start_frac","hamming_ramp_end_frac",
                       "hamming_max_hd","hamming_length_weights",
-                      "hamming_direction_mode"}
+                      "hamming_direction_mode",
+                      "span_hamming_enabled","span_hamming_wordlist_dir","span_hamming_weight",
+                      "span_hamming_len_min","span_hamming_len_max","span_hamming_max_hd",
+                      "span_hamming_max_candidates_per_window","span_hamming_max_intervals_considered_per_start",
+                      "span_hamming_min_quality_threshold","span_hamming_debug_return_intervals",
+                      "span_hamming_require_selected"}
 
 def resolve_scorer_aliases(params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """Validate scorer params to canonical v1 keys; raise on unknown.
