@@ -58,7 +58,7 @@ from tools.benchmarks.periodic_sub_trans.common.paths import make_flavor_run_dir
 ALPHABET_SIZE = 29
 ORDER = BenchmarkOrder.COL_THEN_SUB.value  # keep v1 aligned with the proven pipeline; add both orders in later variants.
 PROFILE = "pipeline_no_wli_v1"
-PIPELINE_RUN_MODE = "focus_p5_c1_only"  # "full" | "focus_500_nowli" | "focus_p5_c1_only" | "smoke"
+PIPELINE_RUN_MODE = "scan_p5_p7_c1357"  # "full" | "focus_500_nowli" | "focus_p5_c1_only" | "scan_p5_p7_c1357" | "smoke"
 ENCODING_DIR = "ltr"  # "ltr" | "rtl"
 NO_WLI_PIPELINE_PROFILE_ID = "no_wli_a1_m4_b4_stage3avg_fulltext_longrun3x_v1"
 # Previous default kept in-file for one-line A/B rollback when needed.
@@ -74,6 +74,9 @@ REQUIRE_BATCH_SCORING = True  # Fail fast if scorer can't execute true batch pat
 STAGE2_PROMOTE_BY_STAGE3_JUDGE = True  # Bridge into Stage-3 objective basin before refine.
 STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE = True  # Use Stage-3 objective for entry-band selection.
 REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT = True  # Hard guard: avg.full_text scorers must never touch ECDF.
+# Benchmark control: when False, oracle match_ratio is telemetry-only and never used
+# for Stage-2/Stage-3 selection/ranking decisions.
+ORACLE_ASSIST_SELECTION = False
 
 SOLVE_MATCH_THRESHOLD = 0.90
 STALL_DELTA = 0.002
@@ -160,12 +163,21 @@ STAGE3_PHASEB_GATE_END_GAIN_FLOOR = 0.004
 
 # c1 fast-pass focus overrides (used to solve p5/c1 first without globally over-tuning all tiers).
 STAGE3_C1_FOCUS_ENABLED = True
-STAGE3_C1_INIT_KEYS = 192
-STAGE3_C1_PHASEA_STEPS = 2400
-STAGE3_C1_PHASEB_STEPS = 12000
-STAGE3_C1_PHASEB_TOP_N = 48
+STAGE3_C1_INIT_KEYS = 96
+STAGE3_C1_PHASEA_STEPS = 1200
+STAGE3_C1_PHASEB_STEPS = 6000
+STAGE3_C1_PHASEB_TOP_N = 24
 STAGE3_C1_PHASEB_GATE_DELTA_FLOOR = 0.010
 STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR = 0.006
+# Benchmark-only control: when Stage-3 finds a solved candidate, keep going
+# to collect additional solve hits (or stop immediately if set False).
+STAGE3_CONTINUE_AFTER_SOLVE = False
+
+# Optional period-aware Stage-3 scaling (used by scan modes to give p6/p7 modest extra time).
+STAGE3_PERIOD_INIT_MULT_BY_PERIOD: Dict[int, float] = {}
+STAGE3_PERIOD_STEP_MULT_BY_PERIOD: Dict[int, float] = {}
+STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD: Dict[int, int] = {}
+STAGE3_INIT_KEYS_CAP = 192
 
 _STAGE3_TWO_PHASE_ENABLED_DEFAULT = bool(STAGE3_TWO_PHASE_ENABLED)
 _STAGE3_PHASEA_CFG_DEFAULT = dict(STAGE3_PHASEA_CFG)
@@ -181,6 +193,12 @@ _STAGE3_C1_PHASEB_STEPS_DEFAULT = int(STAGE3_C1_PHASEB_STEPS)
 _STAGE3_C1_PHASEB_TOP_N_DEFAULT = int(STAGE3_C1_PHASEB_TOP_N)
 _STAGE3_C1_PHASEB_GATE_DELTA_FLOOR_DEFAULT = float(STAGE3_C1_PHASEB_GATE_DELTA_FLOOR)
 _STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR_DEFAULT = float(STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR)
+_STAGE3_CONTINUE_AFTER_SOLVE_DEFAULT = bool(STAGE3_CONTINUE_AFTER_SOLVE)
+_STAGE3_PERIOD_INIT_MULT_BY_PERIOD_DEFAULT = dict(STAGE3_PERIOD_INIT_MULT_BY_PERIOD)
+_STAGE3_PERIOD_STEP_MULT_BY_PERIOD_DEFAULT = dict(STAGE3_PERIOD_STEP_MULT_BY_PERIOD)
+_STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD_DEFAULT = dict(STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD)
+_STAGE3_INIT_KEYS_CAP_DEFAULT = int(STAGE3_INIT_KEYS_CAP)
+_ORACLE_ASSIST_SELECTION_DEFAULT = bool(ORACLE_ASSIST_SELECTION)
 
 # Scorers (char-only everywhere).
 SCORER_STAGE1 = dict(
@@ -333,6 +351,10 @@ def _apply_profile_defaults() -> None:
     global STAGE3_C1_FOCUS_ENABLED, STAGE3_C1_INIT_KEYS
     global STAGE3_C1_PHASEA_STEPS, STAGE3_C1_PHASEB_STEPS, STAGE3_C1_PHASEB_TOP_N
     global STAGE3_C1_PHASEB_GATE_DELTA_FLOOR, STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR
+    global STAGE3_CONTINUE_AFTER_SOLVE
+    global STAGE3_PERIOD_INIT_MULT_BY_PERIOD, STAGE3_PERIOD_STEP_MULT_BY_PERIOD
+    global STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD, STAGE3_INIT_KEYS_CAP
+    global ORACLE_ASSIST_SELECTION
 
     profile = get_no_wli_pipeline_profile(NO_WLI_PIPELINE_PROFILE_ID)
     PROFILE = str(profile.profile_id)
@@ -406,6 +428,12 @@ def _apply_profile_defaults() -> None:
     STAGE3_C1_PHASEB_TOP_N = int(_STAGE3_C1_PHASEB_TOP_N_DEFAULT)
     STAGE3_C1_PHASEB_GATE_DELTA_FLOOR = float(_STAGE3_C1_PHASEB_GATE_DELTA_FLOOR_DEFAULT)
     STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR = float(_STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR_DEFAULT)
+    STAGE3_CONTINUE_AFTER_SOLVE = bool(_STAGE3_CONTINUE_AFTER_SOLVE_DEFAULT)
+    STAGE3_PERIOD_INIT_MULT_BY_PERIOD = dict(_STAGE3_PERIOD_INIT_MULT_BY_PERIOD_DEFAULT)
+    STAGE3_PERIOD_STEP_MULT_BY_PERIOD = dict(_STAGE3_PERIOD_STEP_MULT_BY_PERIOD_DEFAULT)
+    STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD = dict(_STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD_DEFAULT)
+    STAGE3_INIT_KEYS_CAP = int(_STAGE3_INIT_KEYS_CAP_DEFAULT)
+    ORACLE_ASSIST_SELECTION = bool(_ORACLE_ASSIST_SELECTION_DEFAULT)
 
     if str(profile.profile_id) == NO_WLI_LONGRUN3X_PROFILE_ID:
         # Longrun profile default: safe local refinement first, then aggressive phase-B only for top-N.
@@ -451,6 +479,16 @@ def _git_short() -> str:
 
 def _apply_run_mode() -> None:
     global PROFILE, HEARTBEAT_SECONDS, TIERS, TEXT_OFFSETS, KEY_SEEDS
+    global STAGE2_PROMOTE_BY_STAGE3_JUDGE, STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE
+    global ORACLE_ASSIST_SELECTION
+    global STAGE1_SEED_RESTARTS, STAGE1_SEED_TOTAL, STAGE1_SCOUT_MIN_STEPS
+    global STAGE12_ARCHIVE_KEEP, STAGE12_PROMOTE_TOP
+    global STAGE1_SCOUT_NO_IMPROVE_PATIENCE, STAGE1_SCOUT_MIN_NEW_ARCHIVE, STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS
+    global STAGE3_INITIAL_KEYS, STAGE3_INITIAL_KEYS_BY_COLUMNS, STAGE3_DYNAMIC_BANDS
+    global STAGE3_C1_INIT_KEYS, STAGE3_C1_PHASEA_STEPS, STAGE3_C1_PHASEB_STEPS, STAGE3_C1_PHASEB_TOP_N
+    global STAGE3_CONTINUE_AFTER_SOLVE
+    global STAGE3_PERIOD_INIT_MULT_BY_PERIOD, STAGE3_PERIOD_STEP_MULT_BY_PERIOD
+    global STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD, STAGE3_INIT_KEYS_CAP
     if PIPELINE_RUN_MODE == "full":
         return
     if PIPELINE_RUN_MODE == "smoke":
@@ -458,6 +496,10 @@ def _apply_run_mode() -> None:
         HEARTBEAT_SECONDS = 300
         TEXT_OFFSETS[:] = [0]
         KEY_SEEDS[:] = [111]
+        STAGE2_PROMOTE_BY_STAGE3_JUDGE = True
+        STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE = True
+        ORACLE_ASSIST_SELECTION = bool(_ORACLE_ASSIST_SELECTION_DEFAULT)
+        STAGE3_CONTINUE_AFTER_SOLVE = bool(_STAGE3_CONTINUE_AFTER_SOLVE_DEFAULT)
         TIERS[:] = [
             Tier("smoke_p7_c5_l452", 7, 5, 452),
             Tier("smoke_p9_c7_l446", 9, 7, 446),
@@ -468,8 +510,68 @@ def _apply_run_mode() -> None:
         HEARTBEAT_SECONDS = 900
         TEXT_OFFSETS[:] = [0]
         KEY_SEEDS[:] = [111]
+        # Debug mode: keep Stage-2 ranking/entry independent from Stage-3 judge
+        # so score<->match diagnostics are not confounded by judge interleaving.
+        STAGE2_PROMOTE_BY_STAGE3_JUDGE = False
+        STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE = False
+        ORACLE_ASSIST_SELECTION = bool(_ORACLE_ASSIST_SELECTION_DEFAULT)
+        STAGE3_CONTINUE_AFTER_SOLVE = bool(_STAGE3_CONTINUE_AFTER_SOLVE_DEFAULT)
         TIERS[:] = [
-            Tier("focus_p5_c1_l452", 5, 1, 452),
+            Tier("focus_p5_c1_l1000", 5, 1, 1000),
+        ]
+        return
+    if PIPELINE_RUN_MODE == "scan_p5_p7_c1357":
+        PROFILE = f"{NO_WLI_PIPELINE_PROFILE_ID}__scan_p5p7_c1357"
+        HEARTBEAT_SECONDS = 900
+        TEXT_OFFSETS[:] = [0]
+        KEY_SEEDS[:] = [111]
+        # Keep Stage-2 promotion on its native objective in this scan mode.
+        STAGE2_PROMOTE_BY_STAGE3_JUDGE = False
+        STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE = False
+        ORACLE_ASSIST_SELECTION = False
+        STAGE3_CONTINUE_AFTER_SOLVE = False
+
+        # Moderate scout/bridge budgets: enough breadth, but well below longrun3x extremes.
+        STAGE1_SEED_RESTARTS = 192
+        STAGE1_SEED_TOTAL = 512
+        STAGE1_SCOUT_MIN_STEPS = 1800
+        STAGE12_ARCHIVE_KEEP = 128
+        STAGE12_PROMOTE_TOP = 64
+        STAGE1_SCOUT_NO_IMPROVE_PATIENCE = 3
+        STAGE1_SCOUT_MIN_NEW_ARCHIVE = 1
+        STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS = int(max(1, STAGE12_SCOUT_RUNS))
+
+        # Stage-3 runtime reduced from longrun3x defaults, with modest period scaling.
+        STAGE3_INITIAL_KEYS = 64
+        STAGE3_INITIAL_KEYS_BY_COLUMNS = {1: 48, 3: 72, 5: 96, 7: 112, 10: 128, 13: 128}
+        STAGE3_DYNAMIC_BANDS = [
+            dict(name="very_close", max_gap=0.010, steps=700, restarts=1, plateau_rounds=120, col_batch=96, inner_batch=128),
+            dict(name="close", max_gap=0.030, steps=1200, restarts=1, plateau_rounds=180, col_batch=96, inner_batch=128),
+            dict(name="mid", max_gap=0.080, steps=2200, restarts=2, plateau_rounds=280, col_batch=112, inner_batch=128),
+            dict(name="far", max_gap=1e9, steps=3600, restarts=2, plateau_rounds=420, col_batch=112, inner_batch=128),
+        ]
+        STAGE3_C1_INIT_KEYS = 64
+        STAGE3_C1_PHASEA_STEPS = 900
+        STAGE3_C1_PHASEB_STEPS = 3000
+        STAGE3_C1_PHASEB_TOP_N = 16
+        STAGE3_PERIOD_INIT_MULT_BY_PERIOD = {6: 1.15, 7: 1.30}
+        STAGE3_PERIOD_STEP_MULT_BY_PERIOD = {6: 1.20, 7: 1.35}
+        STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD = {7: 1}
+        STAGE3_INIT_KEYS_CAP = 160
+
+        TIERS[:] = [
+            Tier("scan_p5_c1_l1000", 5, 1, 1000),
+            Tier("scan_p5_c3_l1000", 5, 3, 1000),
+            Tier("scan_p5_c5_l1000", 5, 5, 1000),
+            Tier("scan_p5_c7_l1000", 5, 7, 1000),
+            Tier("scan_p6_c1_l1000", 6, 1, 1000),
+            Tier("scan_p6_c3_l1000", 6, 3, 1000),
+            Tier("scan_p6_c5_l1000", 6, 5, 1000),
+            Tier("scan_p6_c7_l1000", 6, 7, 1000),
+            Tier("scan_p7_c1_l1000", 7, 1, 1000),
+            Tier("scan_p7_c3_l1000", 7, 3, 1000),
+            Tier("scan_p7_c5_l1000", 7, 5, 1000),
+            Tier("scan_p7_c7_l1000", 7, 7, 1000),
         ]
         return
     if PIPELINE_RUN_MODE == "focus_500_nowli":
@@ -477,6 +579,10 @@ def _apply_run_mode() -> None:
         HEARTBEAT_SECONDS = 900
         TEXT_OFFSETS[:] = [0]
         KEY_SEEDS[:] = [111]
+        STAGE2_PROMOTE_BY_STAGE3_JUDGE = True
+        STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE = True
+        ORACLE_ASSIST_SELECTION = bool(_ORACLE_ASSIST_SELECTION_DEFAULT)
+        STAGE3_CONTINUE_AFTER_SOLVE = bool(_STAGE3_CONTINUE_AFTER_SOLVE_DEFAULT)
         # Curated runic-like set, explicitly starting with period-5 no-WLI tiers.
         TIERS[:] = [
             Tier("focus_p5_c1_l452", 5, 1, 452),
@@ -595,6 +701,101 @@ def _weights_text(weights: Dict[int, float]) -> str:
         return "{}"
     parts = [f"{int(k)}:{float(v):g}" for k, v in sorted(weights.items(), key=lambda kv: int(kv[0]))]
     return "{" + ",".join(parts) + "}"
+
+
+def _spearman_corr_safe(xs: Sequence[float], ys: Sequence[float]) -> float:
+    """Spearman rank correlation with average-tie ranks; returns NaN when undefined."""
+    if len(xs) != len(ys):
+        return float("nan")
+    n = int(len(xs))
+    if n < 2:
+        return float("nan")
+    x = np.asarray(xs, dtype=np.float64).reshape(-1)
+    y = np.asarray(ys, dtype=np.float64).reshape(-1)
+    mask = np.isfinite(x) & np.isfinite(y)
+    if int(np.sum(mask)) < 2:
+        return float("nan")
+    x = x[mask]
+    y = y[mask]
+
+    def _avg_tie_ranks(v: np.ndarray) -> np.ndarray:
+        order = np.argsort(v, kind="mergesort")
+        ranks = np.empty_like(order, dtype=np.float64)
+        i = 0
+        m = int(v.size)
+        while i < m:
+            j = i
+            while (j + 1) < m and v[order[j + 1]] == v[order[i]]:
+                j += 1
+            r = (float(i + j) / 2.0) + 1.0
+            ranks[order[i : j + 1]] = r
+            i = j + 1
+        return ranks
+
+    rx = _avg_tie_ranks(x)
+    ry = _avg_tie_ranks(y)
+    rx -= float(np.mean(rx))
+    ry -= float(np.mean(ry))
+    den = float(np.sqrt(np.sum(rx * rx)) * np.sqrt(np.sum(ry * ry)))
+    if den <= 0.0:
+        return float("nan")
+    return float(np.sum(rx * ry) / den)
+
+
+def _is_better_match_first(
+    cand_match: float,
+    cand_score: float,
+    best_match: float,
+    best_score: float,
+) -> bool:
+    """Choose better candidate by match first, score second (benchmark harness)."""
+    c_match_ok = bool(np.isfinite(cand_match))
+    b_match_ok = bool(np.isfinite(best_match))
+    if c_match_ok and b_match_ok:
+        if float(cand_match) > float(best_match):
+            return True
+        if float(cand_match) < float(best_match):
+            return False
+    elif c_match_ok and (not b_match_ok):
+        return True
+    elif (not c_match_ok) and b_match_ok:
+        return False
+
+    c_score_ok = bool(np.isfinite(cand_score))
+    b_score_ok = bool(np.isfinite(best_score))
+    if c_score_ok and b_score_ok:
+        return float(cand_score) > float(best_score)
+    if c_score_ok and (not b_score_ok):
+        return True
+    return False
+
+
+def _is_better_score_first(
+    cand_score: float,
+    cand_match: float,
+    best_score: float,
+    best_match: float,
+) -> bool:
+    """Choose better candidate by score first, match second (telemetry-only tie-break)."""
+    c_score_ok = bool(np.isfinite(cand_score))
+    b_score_ok = bool(np.isfinite(best_score))
+    if c_score_ok and b_score_ok:
+        if float(cand_score) > float(best_score):
+            return True
+        if float(cand_score) < float(best_score):
+            return False
+    elif c_score_ok and (not b_score_ok):
+        return True
+    elif (not c_score_ok) and b_score_ok:
+        return False
+
+    c_match_ok = bool(np.isfinite(cand_match))
+    b_match_ok = bool(np.isfinite(best_match))
+    if c_match_ok and b_match_ok:
+        return float(cand_match) > float(best_match)
+    if c_match_ok and (not b_match_ok):
+        return True
+    return False
 
 
 def _scorer_objective_summary(scorer_cfg: Dict[str, Any]) -> str:
@@ -820,6 +1021,37 @@ def _write_csv_rows(path: Path, rows: List[Dict[str, Any]]) -> None:
             w.writerow(row)
 
 
+def _append_csv_row(path: Path, row: Dict[str, Any]) -> None:
+    if not row:
+        return
+    cols = [str(k) for k in row.keys()]
+    write_header = (not path.exists()) or path.stat().st_size == 0
+    with path.open("a", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
+        if write_header:
+            w.writeheader()
+        w.writerow(row)
+
+
+def _build_summary(tiers: Sequence[Tier], instances: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+    summary: Dict[str, Any] = {"tiers": {}}
+    for t in tiers:
+        rs = [r for r in instances if str(r.get("tier", "")) == str(t.name)]
+        if not rs:
+            continue
+        arr = np.asarray([float(r.get("best_match_ratio", float("nan"))) for r in rs], dtype=np.float64)
+        arr = arr[np.isfinite(arr)]
+        if arr.size == 0:
+            continue
+        summary["tiers"][str(t.name)] = dict(
+            n=int(len(rs)),
+            solved_rate=float(np.mean(arr >= float(SOLVE_MATCH_THRESHOLD))),
+            best_match_p50=float(np.percentile(arr, 50)),
+            best_match_p90=float(np.percentile(arr, 90)),
+        )
+    return summary
+
+
 def main() -> None:
     _apply_run_mode()
     direction_txt = str(ENCODING_DIR).strip().lower()
@@ -839,6 +1071,9 @@ def main() -> None:
     best_dir.mkdir(parents=True, exist_ok=True)
     final_dir = run_dir / "final_instances"
     final_dir.mkdir(parents=True, exist_ok=True)
+    hist = root / "tools" / "benchmarks" / "solve_proof" / "proven_solve_pipeline_no_wli_log.csv"
+    hist.parent.mkdir(parents=True, exist_ok=True)
+    history_rows_written = 0
 
     run_config = dict(
         profile=PROFILE,
@@ -849,8 +1084,18 @@ def main() -> None:
         threshold=float(SOLVE_MATCH_THRESHOLD),
         stall_delta=float(STALL_DELTA),
         stall_stage_limit=int(STALL_STAGE_LIMIT),
+        oracle_assist_selection=bool(ORACLE_ASSIST_SELECTION),
         text_offsets=list(map(int, TEXT_OFFSETS)),
         key_seeds=list(map(int, KEY_SEEDS)),
+        tiers=[
+            dict(
+                name=str(t.name),
+                period=int(t.period),
+                columns=int(t.columns),
+                length=int(t.length),
+            )
+            for t in TIERS
+        ],
         artifacts=dict(
             final_best=True,
             stage2_topk=int(SAVE_STAGE2_TOPK),
@@ -921,9 +1166,16 @@ def main() -> None:
             solver=dict(SOLVER_STAGE3),
             init_keys=int(STAGE3_INITIAL_KEYS),
             init_by_columns={str(k): int(v) for k, v in STAGE3_INITIAL_KEYS_BY_COLUMNS.items()},
+            period_scaling=dict(
+                init_mult_by_period={str(k): float(v) for k, v in STAGE3_PERIOD_INIT_MULT_BY_PERIOD.items()},
+                step_mult_by_period={str(k): float(v) for k, v in STAGE3_PERIOD_STEP_MULT_BY_PERIOD.items()},
+                restart_bonus_by_period={str(k): int(v) for k, v in STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD.items()},
+                init_keys_cap=int(STAGE3_INIT_KEYS_CAP),
+            ),
             dynamic_bands=[dict(b) for b in STAGE3_DYNAMIC_BANDS],
             two_phase=dict(
                 enabled=bool(STAGE3_TWO_PHASE_ENABLED),
+                continue_after_solve=bool(STAGE3_CONTINUE_AFTER_SOLVE),
                 phase_a=dict(STAGE3_PHASEA_CFG),
                 phase_b=dict(STAGE3_PHASEB_CFG),
                 phase_b_top_n=int(STAGE3_PHASEB_TOP_N),
@@ -945,7 +1197,8 @@ def main() -> None:
 
     print(
         f"[pipeline_no_wli] setup: profile={PROFILE} mode={PIPELINE_RUN_MODE} "
-        f"direction={direction.value} order={ORDER} A={ALPHABET_SIZE}",
+        f"direction={direction.value} order={ORDER} A={ALPHABET_SIZE} "
+        f"oracle_assist_selection={1 if bool(ORACLE_ASSIST_SELECTION) else 0}",
         flush=True,
     )
     print(
@@ -986,6 +1239,10 @@ def main() -> None:
         f"stage1_sub_by_c={json.dumps({str(k): int(v) for k, v in STAGE1_SUB_CANDIDATES_BY_COLUMNS.items()}, separators=(',', ':'))} "
         f"stage3_init_keys={int(STAGE3_INITIAL_KEYS)} "
         f"stage3_init_by_c={json.dumps({str(k): int(v) for k, v in STAGE3_INITIAL_KEYS_BY_COLUMNS.items()}, separators=(',', ':'))} "
+        f"stage3_init_mult_by_p={json.dumps({str(k): float(v) for k, v in STAGE3_PERIOD_INIT_MULT_BY_PERIOD.items()}, separators=(',', ':'))} "
+        f"stage3_step_mult_by_p={json.dumps({str(k): float(v) for k, v in STAGE3_PERIOD_STEP_MULT_BY_PERIOD.items()}, separators=(',', ':'))} "
+        f"stage3_restart_bonus_by_p={json.dumps({str(k): int(v) for k, v in STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD.items()}, separators=(',', ':'))} "
+        f"stage3_init_cap={int(STAGE3_INIT_KEYS_CAP)} "
         f"stage2_exact_max_columns={int(STAGE2_EXACT_MAX_COLUMNS)} "
         f"stage2_exact_sub_candidates={int(STAGE2_EXACT_SUB_CANDIDATES)} "
         f"stage2_exact_sub_by_c={json.dumps({str(k): int(v) for k, v in STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS.items()}, separators=(',', ':'))} "
@@ -1001,6 +1258,7 @@ def main() -> None:
         f"phaseA={json.dumps(dict(STAGE3_PHASEA_CFG), separators=(',', ':'))} "
         f"phaseB={json.dumps(dict(STAGE3_PHASEB_CFG), separators=(',', ':'))} "
         f"phaseB_top_n={int(STAGE3_PHASEB_TOP_N)} "
+        f"continue_after_solve={1 if bool(STAGE3_CONTINUE_AFTER_SOLVE) else 0} "
         f"phaseB_gate=(delta={float(STAGE3_PHASEB_GATE_DELTA_FLOOR):.4f},"
         f"end_gain={float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR):.4f}) "
         f"c1_focus=(enabled={1 if bool(STAGE3_C1_FOCUS_ENABLED) else 0},"
@@ -1479,7 +1737,18 @@ def main() -> None:
                             plaintext=pt2_arr.astype(int).tolist(),
                             preview=_preview_latin(pt2_arr.tolist(), wli),
                         )
-                    if (match_val > best2_match) or (abs(match_val - best2_match) <= 1e-12 and score_val > best2_score):
+                    if bool(ORACLE_ASSIST_SELECTION):
+                        better = (match_val > best2_match) or (
+                            abs(match_val - best2_match) <= 1e-12 and score_val > best2_score
+                        )
+                    else:
+                        better = _is_better_score_first(
+                            cand_score=float(score_val),
+                            cand_match=float(match_val),
+                            best_score=float(best2_score),
+                            best_match=float(best2_match),
+                        )
+                    if better:
                         best2_match, best2_score = float(match_val), float(score_val)
                         best2_key = key_list
                         best2_pt = pt2_arr.astype(int).tolist()
@@ -1761,6 +2030,10 @@ def main() -> None:
                     )
 
                 stage2_all = list(stage2_archive.values())
+                stage2_score_match_spearman = _spearman_corr_safe(
+                    [float(e.get("score", float("nan"))) for e in stage2_all],
+                    [float(e.get("match", float("nan"))) for e in stage2_all],
+                )
                 stage2_ranked_by_score = sorted(
                     stage2_all,
                     key=lambda e: (float(e.get("score", float("-inf"))), float(e.get("match", float("-inf")))),
@@ -1805,7 +2078,7 @@ def main() -> None:
 
                 stage2_promoted: List[Dict[str, Any]] = []
                 stage2_promoted_seen: set[Tuple[int, ...]] = set()
-                stage2_promote_mode = "score_match_interleave"
+                stage2_promote_mode = "score_only"
 
                 def _push_promoted(entry: Dict[str, Any]) -> None:
                     key_vals = tuple(int(x) for x in entry.get("key", []))
@@ -1814,16 +2087,21 @@ def main() -> None:
                     stage2_promoted_seen.add(key_vals)
                     stage2_promoted.append(entry)
 
-                max_rank = max(len(stage2_kept_by_score), len(stage2_kept_by_match))
-                for r in range(max_rank):
-                    if len(stage2_promoted) >= int(stage2_promote_top):
-                        break
-                    if r < len(stage2_kept_by_score):
+                if bool(ORACLE_ASSIST_SELECTION):
+                    stage2_promote_mode = "score_match_interleave"
+                    max_rank = max(len(stage2_kept_by_score), len(stage2_kept_by_match))
+                    for r in range(max_rank):
+                        if len(stage2_promoted) >= int(stage2_promote_top):
+                            break
+                        if r < len(stage2_kept_by_score):
+                            _push_promoted(stage2_kept_by_score[r])
+                        if len(stage2_promoted) >= int(stage2_promote_top):
+                            break
+                        if r < len(stage2_kept_by_match):
+                            _push_promoted(stage2_kept_by_match[r])
+                else:
+                    for r in range(min(len(stage2_kept_by_score), int(stage2_promote_top))):
                         _push_promoted(stage2_kept_by_score[r])
-                    if len(stage2_promoted) >= int(stage2_promote_top):
-                        break
-                    if r < len(stage2_kept_by_match):
-                        _push_promoted(stage2_kept_by_match[r])
 
                 if (best2_key is None) and stage2_kept_by_score:
                     top = stage2_kept_by_score[0]
@@ -1974,6 +2252,7 @@ def main() -> None:
                     f"judge_pool={int(stage2_judge_pool_size)} promoted_by={stage2_promote_mode} "
                     f"best2_in_promoted={1 if stage2_best_in_promoted else 0} "
                     f"best2_in_stage2_topk={1 if stage2_topk_has_best_match else 0} "
+                    f"spearman_score_match={float(stage2_score_match_spearman) if np.isfinite(stage2_score_match_spearman) else float('nan'):.3f} "
                     f"top_score_mid_rank1={float(stage2_entry_score) if np.isfinite(stage2_entry_score) else float('nan'):.6f} "
                     f"top_score_judge_rank1={float(stage2_entry_score_judge) if np.isfinite(stage2_entry_score_judge) else float('nan'):.6f} "
                     f"top_match_ratio={float(best2_match) if np.isfinite(best2_match) else float('nan'):.3f}",
@@ -1995,6 +2274,10 @@ def main() -> None:
                 stage3_phaseB_top_n_cfg = 0
                 stage3_phaseB_gate_delta_cfg = float("nan")
                 stage3_phaseB_gate_end_gain_cfg = float("nan")
+                stage3_solve_hits = 0
+                stage3_period_init_mult = 1.0
+                stage3_period_step_mult = 1.0
+                stage3_period_restart_bonus = 0
                 if np.isfinite(best2_match) and best2_match >= SOLVE_MATCH_THRESHOLD:
                     stop_reason = "solved_stage2"
                 elif best2_key is not None:
@@ -2002,6 +2285,18 @@ def main() -> None:
                     c1_focus_enabled = bool(STAGE3_C1_FOCUS_ENABLED and int(tier.columns) <= 1)
                     init3_n_base = int(STAGE3_INITIAL_KEYS_BY_COLUMNS.get(int(tier.columns), STAGE3_INITIAL_KEYS))
                     init3_n = int(max(init3_n_base, int(STAGE3_C1_INIT_KEYS))) if c1_focus_enabled else int(init3_n_base)
+                    stage3_period_init_mult = float(
+                        max(0.10, float(STAGE3_PERIOD_INIT_MULT_BY_PERIOD.get(int(tier.period), 1.0)))
+                    )
+                    stage3_period_step_mult = float(
+                        max(0.10, float(STAGE3_PERIOD_STEP_MULT_BY_PERIOD.get(int(tier.period), 1.0)))
+                    )
+                    stage3_period_restart_bonus = int(
+                        max(0, int(STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD.get(int(tier.period), 0)))
+                    )
+                    init3_n = int(max(1, int(np.ceil(float(init3_n) * float(stage3_period_init_mult)))))
+                    if int(STAGE3_INIT_KEYS_CAP) > 0:
+                        init3_n = int(min(int(init3_n), int(STAGE3_INIT_KEYS_CAP)))
                     promoted_keys = _build_stage3_promoted_keys(
                         promoted_entries=stage2_promoted,
                         best_key=best2_key,
@@ -2079,13 +2374,23 @@ def main() -> None:
                         stage3_phaseB_top_n = int(max(int(stage3_phaseB_top_n), int(STAGE3_C1_PHASEB_TOP_N)))
                         stage3_phaseB_gate_delta = float(max(float(stage3_phaseB_gate_delta), float(STAGE3_C1_PHASEB_GATE_DELTA_FLOOR)))
                         stage3_phaseB_gate_end_gain = float(max(float(stage3_phaseB_gate_end_gain), float(STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR)))
+                    stage3_phaseA_cfg["steps"] = int(
+                        max(1, int(np.ceil(float(stage3_phaseA_cfg.get("steps", 0)) * float(stage3_period_step_mult))))
+                    )
+                    stage3_phaseB_cfg["steps"] = int(
+                        max(1, int(np.ceil(float(stage3_phaseB_cfg.get("steps", 0)) * float(stage3_period_step_mult))))
+                    )
+                    stage3_phaseB_top_n = int(max(1, int(stage3_phaseB_top_n) + int(stage3_period_restart_bonus)))
                     stage3_phaseB_top_n_cfg = int(stage3_phaseB_top_n)
                     stage3_phaseB_gate_delta_cfg = float(stage3_phaseB_gate_delta)
                     stage3_phaseB_gate_end_gain_cfg = float(stage3_phaseB_gate_end_gain)
+                    band_steps = int(band.get("steps", solver_stage3_cfg.get("steps", 0)))
+                    band_restarts = int(band.get("restarts", solver_stage3_cfg.get("restarts", 0)))
+                    band_plateau_rounds = int(band.get("plateau_rounds", solver_stage3_cfg.get("plateau_rounds", 0)))
                     solver_stage3_cfg.update(
-                        steps=int(band.get("steps", solver_stage3_cfg.get("steps", 0))),
-                        restarts=int(band.get("restarts", solver_stage3_cfg.get("restarts", 0))),
-                        plateau_rounds=int(band.get("plateau_rounds", solver_stage3_cfg.get("plateau_rounds", 0))),
+                        steps=int(max(1, int(np.ceil(float(band_steps) * float(stage3_period_step_mult))))),
+                        restarts=int(max(1, int(band_restarts) + int(stage3_period_restart_bonus))),
+                        plateau_rounds=int(max(1, int(np.ceil(float(band_plateau_rounds) * float(stage3_period_step_mult))))),
                         col_batch=int(band.get("col_batch", solver_stage3_cfg.get("col_batch", 0))),
                         inner_batch=int(band.get("inner_batch", solver_stage3_cfg.get("inner_batch", 0))),
                     )
@@ -2095,6 +2400,9 @@ def main() -> None:
                         f"entry_score_source={stage2_gate_source} "
                         f"init_keys={len(init3)} promoted_keys={len(promoted_keys)} "
                         f"init_target={int(init3_n)} c1_focus={1 if c1_focus_enabled else 0} "
+                        f"period_scale=(init={float(stage3_period_init_mult):.2f},"
+                        f"steps={float(stage3_period_step_mult):.2f},"
+                        f"restart_bonus={int(stage3_period_restart_bonus)}) "
                         f"stage2_best_match={float(best2_match):.3f} promoted_best_match={float(promoted_best_match):.3f} "
                         f"steps={solver_stage3_cfg.get('steps')} restarts={solver_stage3_cfg.get('restarts')} "
                         f"col_batch={solver_stage3_cfg.get('col_batch')} inner_batch={solver_stage3_cfg.get('inner_batch')} "
@@ -2107,6 +2415,7 @@ def main() -> None:
                             f"phaseA={json.dumps(dict(stage3_phaseA_cfg), separators=(',', ':'))} "
                             f"phaseB={json.dumps(dict(stage3_phaseB_cfg), separators=(',', ':'))} "
                             f"phaseB_top_n={int(stage3_phaseB_top_n)} "
+                            f"continue_after_solve={1 if bool(STAGE3_CONTINUE_AFTER_SOLVE) else 0} "
                             f"gate=(delta={float(stage3_phaseB_gate_delta):.4f},"
                             f"end_gain={float(stage3_phaseB_gate_end_gain):.4f})",
                             flush=True,
@@ -2123,6 +2432,7 @@ def main() -> None:
                     phaseA_best_delta = float("nan")
                     phaseA_best_start_score = float("nan")
                     phaseA_best_end_score = float("nan")
+                    phaseA_solved = False
                     phaseB_top_n_used = 0
                     phaseB_skipped = 0
                     phaseB_ran = 0
@@ -2253,6 +2563,8 @@ def main() -> None:
                             best3_key = k3_arr.astype(int).tolist()
                         best3_match = base._match_ratio(pt3.tolist(), pt_idx.tolist())
                         best3_score = float(getattr(sol3, "score", float("nan")))
+                        if np.isfinite(best3_match) and float(best3_match) >= float(SOLVE_MATCH_THRESHOLD):
+                            stage3_solve_hits = int(stage3_solve_hits) + 1
                         tele3 = (getattr(sol3, "meta", {}) or {}).get("telemetry", {})
                         kaeding3 = tele3.get("kaeding", {}) if isinstance(tele3, dict) else {}
                         mm = _extract_kaeding_metrics(kaeding3)
@@ -2272,6 +2584,7 @@ def main() -> None:
                         phaseA_cfg["seed_restarts"] = 0
 
                         phaseA_rows: List[Dict[str, Any]] = []
+                        phaseA_stop_on_solve = False
                         phaseA_seed_keys = [list(map(int, seed_key)) for seed_key in init3]
                         phaseA_start_pts, phaseA_start_scores, _phaseA_batch_stats = decrypt_and_score_keys_chunked(
                             cipher=full_cipher,
@@ -2350,6 +2663,16 @@ def main() -> None:
                                     metrics=mm_i,
                                 )
                             )
+                            if np.isfinite(end_match) and float(end_match) >= float(SOLVE_MATCH_THRESHOLD):
+                                stage3_solve_hits = int(stage3_solve_hits) + 1
+                                print(
+                                    f"[pipeline_no_wli] stage3-solve-hit tier={tier.name} text={text_id} "
+                                    f"key_seed={key_seed} phase=phaseA restart={int(restart_idx)} "
+                                    f"match={float(end_match):.3f} score={float(end_score):.6f}",
+                                    flush=True,
+                                )
+                                if not bool(STAGE3_CONTINUE_AFTER_SOLVE):
+                                    phaseA_stop_on_solve = True
                             stages.append(
                                 dict(
                                     tier=tier.name,
@@ -2373,6 +2696,8 @@ def main() -> None:
                                     accept_rate=float(mm_i["accept_rate"]),
                                 )
                             )
+                            if phaseA_stop_on_solve:
+                                break
 
                         phaseA_start_scores = [float(r["start_score"]) for r in phaseA_rows if np.isfinite(float(r["start_score"]))]
                         phaseA_end_scores = [float(r["end_score"]) for r in phaseA_rows if np.isfinite(float(r["end_score"]))]
@@ -2383,10 +2708,24 @@ def main() -> None:
 
                         # Keep best observed candidate from phase A as fallback/final.
                         if phaseA_rows:
-                            phaseA_best = max(
-                                phaseA_rows,
-                                key=lambda r: (float(r["end_score"]), float(r["end_match"]) if np.isfinite(float(r["end_match"])) else float("-inf")),
-                            )
+                            phaseA_best = phaseA_rows[0]
+                            for row in phaseA_rows[1:]:
+                                if bool(ORACLE_ASSIST_SELECTION):
+                                    better_phasea = _is_better_match_first(
+                                        float(row.get("end_match", float("nan"))),
+                                        float(row.get("end_score", float("nan"))),
+                                        float(phaseA_best.get("end_match", float("nan"))),
+                                        float(phaseA_best.get("end_score", float("nan"))),
+                                    )
+                                else:
+                                    better_phasea = _is_better_score_first(
+                                        float(row.get("end_score", float("nan"))),
+                                        float(row.get("end_match", float("nan"))),
+                                        float(phaseA_best.get("end_score", float("nan"))),
+                                        float(phaseA_best.get("end_match", float("nan"))),
+                                    )
+                                if better_phasea:
+                                    phaseA_best = row
                             best3_score = float(phaseA_best["end_score"])
                             best3_match = float(phaseA_best["end_match"]) if np.isfinite(float(phaseA_best["end_match"])) else float("nan")
                             best3_key = list(map(int, phaseA_best["end_key"]))
@@ -2399,16 +2738,19 @@ def main() -> None:
                             phase_attempts_total = int(mm_best["phase_attempts_total"])
                             phase_improves_total = int(mm_best["phase_improves_total"])
                             phase_best_delta_max = float(mm_best["phase_best_delta_max"])
+                            phaseA_solved = bool(np.isfinite(best3_match) and float(best3_match) >= float(SOLVE_MATCH_THRESHOLD))
 
                         gate_delta = float(stage3_phaseB_gate_delta)
                         gate_end_gain = float(stage3_phaseB_gate_end_gain)
-                        gate_skip = (
-                            np.isfinite(phaseA_best_delta)
-                            and np.isfinite(phaseA_best_start_score)
-                            and np.isfinite(phaseA_best_end_score)
-                            and (float(phaseA_best_delta) < gate_delta)
-                            and (float(phaseA_best_end_score) < float(phaseA_best_start_score) + gate_end_gain)
-                        )
+                        gate_skip = bool(phaseA_solved)
+                        if not gate_skip:
+                            gate_skip = (
+                                np.isfinite(phaseA_best_delta)
+                                and np.isfinite(phaseA_best_start_score)
+                                and np.isfinite(phaseA_best_end_score)
+                                and (float(phaseA_best_delta) < gate_delta)
+                                and (float(phaseA_best_end_score) < float(phaseA_best_start_score) + gate_end_gain)
+                            )
                         stages.append(
                             dict(
                                 tier=tier.name,
@@ -2418,6 +2760,7 @@ def main() -> None:
                                 phaseA_best_delta=float(phaseA_best_delta),
                                 phaseA_best_start_score=float(phaseA_best_start_score),
                                 phaseA_best_end_score=float(phaseA_best_end_score),
+                                phaseA_solved=int(1 if phaseA_solved else 0),
                                 gate_delta_floor=float(gate_delta),
                                 gate_end_gain_floor=float(gate_end_gain),
                                 phaseB_skipped=int(1 if gate_skip else 0),
@@ -2427,8 +2770,8 @@ def main() -> None:
 
                         if gate_skip:
                             phaseB_skipped = 1
-                            phaseB_skip_reason = "phaseA_low_progress"
-                            stop_reason = "stage3_phaseb_skipped"
+                            phaseB_skip_reason = "phaseA_solved" if phaseA_solved else "phaseA_low_progress"
+                            stop_reason = "solved_stage3" if phaseA_solved else "stage3_phaseb_skipped"
                         else:
                             top_n = max(1, int(stage3_phaseB_top_n))
                             ranked = sorted(
@@ -2486,6 +2829,14 @@ def main() -> None:
                                     best_b_key = k_b_arr.astype(int).tolist()
                                 best_b_score = float(getattr(sol_b, "score", float("nan")))
                                 best_b_match = float(base._match_ratio(pt_b.tolist(), pt_idx.tolist())) if pt_b.size > 0 else float("nan")
+                                if np.isfinite(best_b_match) and float(best_b_match) >= float(SOLVE_MATCH_THRESHOLD):
+                                    stage3_solve_hits = int(stage3_solve_hits) + 1
+                                    print(
+                                        f"[pipeline_no_wli] stage3-solve-hit tier={tier.name} text={text_id} "
+                                        f"key_seed={key_seed} phase=phaseB match={float(best_b_match):.3f} "
+                                        f"score={float(best_b_score):.6f}",
+                                        flush=True,
+                                    )
                                 tele_b = (getattr(sol_b, "meta", {}) or {}).get("telemetry", {})
                                 kaeding_b = tele_b.get("kaeding", {}) if isinstance(tele_b, dict) else {}
                                 mm_b = _extract_kaeding_metrics(kaeding_b)
@@ -2511,7 +2862,11 @@ def main() -> None:
                                     )
                                 )
 
-                                if np.isfinite(best_b_score) and (not np.isfinite(best3_score) or best_b_score > best3_score):
+                                if bool(ORACLE_ASSIST_SELECTION):
+                                    better_phaseb = _is_better_match_first(best_b_match, best_b_score, best3_match, best3_score)
+                                else:
+                                    better_phaseb = _is_better_score_first(best_b_score, best_b_match, best3_score, best3_match)
+                                if better_phaseb:
                                     best3_score = float(best_b_score)
                                     best3_match = float(best_b_match)
                                     best3_key = list(map(int, best_b_key))
@@ -2568,7 +2923,8 @@ def main() -> None:
                         f"[pipeline_no_wli] stage3-summary tier={tier.name} text={text_id} key_seed={key_seed} "
                         f"band={stage3_band_name} match={float(best3_match):.3f} score={float(best3_score):.6f} "
                         f"evals={ev3} two_phase={'on' if bool(STAGE3_TWO_PHASE_ENABLED) else 'off'} "
-                        f"phaseB_ran={int(phaseB_ran)} phaseB_skipped={int(phaseB_skipped)} stop={stop_reason}",
+                        f"phaseB_ran={int(phaseB_ran)} phaseB_skipped={int(phaseB_skipped)} "
+                        f"solve_hits={int(stage3_solve_hits)} stop={stop_reason}",
                         flush=True,
                     )
                 else:
@@ -2621,6 +2977,7 @@ def main() -> None:
                         preview_best_latin=str(preview_best),
                     )
                 )
+                inst_row = dict(instances[-1])
                 artifact_payload: Dict[str, Any] = dict(
                     tier=str(tier.name),
                     profile_id=str(PROFILE),
@@ -2640,6 +2997,28 @@ def main() -> None:
                     best_stage=str(best_stage),
                     best_match_ratio=float(best_match),
                     best_score=float(final_best_score),
+                    oracle_scores=dict(
+                        stage1=float(oracle_s1) if np.isfinite(oracle_s1) else float("nan"),
+                        stage2=float(oracle_s2) if np.isfinite(oracle_s2) else float("nan"),
+                        stage3=float(oracle_s3) if np.isfinite(oracle_s3) else float("nan"),
+                    ),
+                    score_minus_oracle=dict(
+                        stage1=(
+                            float(stage1_best_score - oracle_s1)
+                            if np.isfinite(stage1_best_score) and np.isfinite(oracle_s1)
+                            else float("nan")
+                        ),
+                        stage2=(
+                            float(best2_score - oracle_s2)
+                            if np.isfinite(best2_score) and np.isfinite(oracle_s2)
+                            else float("nan")
+                        ),
+                        stage3=(
+                            float(best3_score - oracle_s3)
+                            if np.isfinite(best3_score) and np.isfinite(oracle_s3)
+                            else float("nan")
+                        ),
+                    ),
                     solve_threshold=float(SOLVE_MATCH_THRESHOLD),
                     ciphertext_idx=np.asarray(ct_idx, dtype=np.uint8).astype(int).tolist(),
                     target_plaintext_idx=np.asarray(pt_idx, dtype=np.uint8).astype(int).tolist(),
@@ -2649,12 +3028,27 @@ def main() -> None:
                     ),
                     stage2_topk=stage2_topk_payload,
                     stage2_topk_has_best_match=int(1 if stage2_topk_has_best_match else 0),
+                    stage2_diagnostics=dict(
+                        archive_entries=int(len(stage2_archive)),
+                        kept_entries=int(len(stage2_ranked)),
+                        promoted_entries=int(len(stage2_promoted)),
+                        score_match_spearman=(
+                            float(stage2_score_match_spearman)
+                            if np.isfinite(stage2_score_match_spearman)
+                            else float("nan")
+                        ),
+                    ),
                     stage3_topk=(stage3_topk_payload if bool(SAVE_STAGE3_TOPK) else []),
                     stage3_diagnostics=dict(
                         init_target=int(stage3_init_target),
                         init_actual=int(stage3_init_actual),
                         promoted_keys=int(stage3_promoted_keys_count),
                         gate_source=str(stage3_gate_source),
+                        continue_after_solve=bool(STAGE3_CONTINUE_AFTER_SOLVE),
+                        solve_hits=int(stage3_solve_hits),
+                        period_init_mult=float(stage3_period_init_mult),
+                        period_step_mult=float(stage3_period_step_mult),
+                        period_restart_bonus=int(stage3_period_restart_bonus),
                         phaseB_top_n_cfg=int(stage3_phaseB_top_n_cfg),
                         phaseB_gate_delta_cfg=float(stage3_phaseB_gate_delta_cfg),
                         phaseB_gate_end_gain_cfg=float(stage3_phaseB_gate_end_gain_cfg),
@@ -2668,6 +3062,38 @@ def main() -> None:
                 )
                 artifact_name = f"{tier.name}__text{int(text_id)}__seed{int(key_seed)}.json"
                 (final_dir / artifact_name).write_text(json.dumps(artifact_payload, indent=2), encoding="utf-8")
+
+                # Per-instance checkpoint (crash-safe): preserve completed units immediately.
+                summary_ckpt = _build_summary(TIERS, instances)
+                (run_dir / "instances.json").write_text(json.dumps(instances, indent=2), encoding="utf-8")
+                (run_dir / "stages.json").write_text(json.dumps(stages, indent=2), encoding="utf-8")
+                (run_dir / "summary.json").write_text(json.dumps(summary_ckpt, indent=2), encoding="utf-8")
+                _write_csv_rows(run_dir / "instances.csv", instances)
+                _write_csv_rows(run_dir / "stages.csv", stages)
+
+                hist_row = dict(
+                    timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                    run_id=run_dir.name,
+                    profile_id=PROFILE,
+                    fixture_id=inst_row["tier"],
+                    text_id=inst_row["text_id"],
+                    key_seed=inst_row["key_seed"],
+                    period=inst_row["period"],
+                    columns=inst_row["columns"],
+                    length=inst_row["length"],
+                    status=inst_row["status"],
+                    solve_threshold=inst_row["solve_threshold"],
+                    best_match_ratio=inst_row["best_match_ratio"],
+                    best_stage=inst_row["best_stage"],
+                    stage1_sub_key_match=inst_row["stage1_sub_key_match"],
+                    stage2_match_ratio=inst_row["stage2_match_ratio"],
+                    stage3_match_ratio=inst_row["stage3_match_ratio"],
+                    total_seconds=inst_row["total_seconds"],
+                    total_evals=inst_row["total_evals"],
+                    notes=inst_row["stop_reason"],
+                )
+                _append_csv_row(hist, hist_row)
+                history_rows_written += 1
 
                 if best_match > float(best_global["match"]):
                     best_global.update(match=float(best_match), tier=str(tier.name), text_id=int(text_id), key_seed=int(key_seed), stage=str(best_stage), preview=str(preview_best))
@@ -2693,18 +3119,7 @@ def main() -> None:
                     )
                     last_hb = now
 
-    summary: Dict[str, Any] = {"tiers": {}}
-    for t in TIERS:
-        rs = [r for r in instances if r["tier"] == t.name]
-        if not rs:
-            continue
-        arr = np.asarray([float(r["best_match_ratio"]) for r in rs], dtype=np.float64)
-        summary["tiers"][t.name] = dict(
-            n=len(rs),
-            solved_rate=float(np.mean(arr >= SOLVE_MATCH_THRESHOLD)),
-            best_match_p50=float(np.percentile(arr, 50)),
-            best_match_p90=float(np.percentile(arr, 90)),
-        )
+    summary = _build_summary(TIERS, instances)
 
     (run_dir / "instances.json").write_text(json.dumps(instances, indent=2), encoding="utf-8")
     (run_dir / "stages.json").write_text(json.dumps(stages, indent=2), encoding="utf-8")
@@ -2716,48 +3131,11 @@ def main() -> None:
         (best_dir / "best_instance.json").write_text(json.dumps(best_instance, indent=2), encoding="utf-8")
         (best_dir / "best_preview.txt").write_text(str(best_instance.get("preview_best_latin", "")), encoding="utf-8")
 
-    hist = root / "tools" / "benchmarks" / "solve_proof" / "proven_solve_pipeline_no_wli_log.csv"
-    hist.parent.mkdir(parents=True, exist_ok=True)
-    hist_rows = []
-    now_iso = datetime.now(timezone.utc).isoformat()
-    for r in instances:
-        hist_rows.append(
-            dict(
-                timestamp_utc=now_iso,
-                run_id=run_dir.name,
-                profile_id=PROFILE,
-                fixture_id=r["tier"],
-                text_id=r["text_id"],
-                key_seed=r["key_seed"],
-                period=r["period"],
-                columns=r["columns"],
-                length=r["length"],
-                status=r["status"],
-                solve_threshold=r["solve_threshold"],
-                best_match_ratio=r["best_match_ratio"],
-                best_stage=r["best_stage"],
-                stage1_sub_key_match=r["stage1_sub_key_match"],
-                stage2_match_ratio=r["stage2_match_ratio"],
-                stage3_match_ratio=r["stage3_match_ratio"],
-                total_seconds=r["total_seconds"],
-                total_evals=r["total_evals"],
-                notes=r["stop_reason"],
-            )
-        )
-    if hist_rows:
-        cols = list(hist_rows[0].keys())
-        write_header = (not hist.exists()) or hist.stat().st_size == 0
-        with hist.open("a", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=cols)
-            if write_header:
-                w.writeheader()
-            w.writerows(hist_rows)
-
     print(f"[pipeline_no_wli] completed in {base._format_seconds(time.time() - t0_all)}", flush=True)
     print(f"[pipeline_no_wli] reports: {run_dir.relative_to(root)}", flush=True)
     print(f"[pipeline_no_wli] final_artifacts: {final_dir.relative_to(root)}", flush=True)
     print(f"[pipeline_no_wli] best: {(best_dir / 'best_instance.json').relative_to(root)}", flush=True)
-    print(f"[pipeline_no_wli] history: {hist.relative_to(root)} rows={len(hist_rows)}", flush=True)
+    print(f"[pipeline_no_wli] history: {hist.relative_to(root)} rows={int(history_rows_written)}", flush=True)
 
 
 if __name__ == "__main__":
