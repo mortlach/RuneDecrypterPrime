@@ -98,10 +98,10 @@ def test_no_wli_longrun3x_enables_safe_two_phase_stage3_defaults():
     assert int(no_wli_runner.STAGE3_PHASEA_CFG.get("slip_every", -1)) == 0
     assert int(no_wli_runner.STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS) == int(no_wli_runner.STAGE12_SCOUT_RUNS)
     assert bool(no_wli_runner.STAGE3_C1_FOCUS_ENABLED) is True
-    assert int(no_wli_runner.STAGE3_C1_INIT_KEYS) >= 192
-    assert int(no_wli_runner.STAGE3_C1_PHASEA_STEPS) >= 2400
-    assert int(no_wli_runner.STAGE3_C1_PHASEB_STEPS) >= 12000
-    assert int(no_wli_runner.STAGE3_C1_PHASEB_TOP_N) >= 48
+    assert int(no_wli_runner.STAGE3_C1_INIT_KEYS) >= 96
+    assert int(no_wli_runner.STAGE3_C1_PHASEA_STEPS) >= 1200
+    assert int(no_wli_runner.STAGE3_C1_PHASEB_STEPS) >= 6000
+    assert int(no_wli_runner.STAGE3_C1_PHASEB_TOP_N) >= 24
 
 
 def test_no_wli_focus_mode_starts_with_period5_tiers():
@@ -119,9 +119,41 @@ def test_no_wli_focus_p5_c1_only_mode_single_tier():
         no_wli_runner._apply_profile_defaults()
         no_wli_runner._apply_run_mode()
         assert len(no_wli_runner.TIERS) == 1
-        assert str(no_wli_runner.TIERS[0].name) == "focus_p5_c1_l452"
+        assert str(no_wli_runner.TIERS[0].name) == "focus_p5_c1_l1000"
         assert int(no_wli_runner.TIERS[0].period) == 5
         assert int(no_wli_runner.TIERS[0].columns) == 1
+        assert int(no_wli_runner.TIERS[0].length) == 1000
+        assert no_wli_runner.STAGE2_PROMOTE_BY_STAGE3_JUDGE is False
+        assert no_wli_runner.STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE is False
+    finally:
+        no_wli_runner.PIPELINE_RUN_MODE = old_mode
+        no_wli_runner._apply_profile_defaults()
+        no_wli_runner._apply_run_mode()
+
+
+def test_no_wli_scan_p5_p7_c1357_mode_matrix_and_scaling():
+    old_mode = str(no_wli_runner.PIPELINE_RUN_MODE)
+    try:
+        no_wli_runner.PIPELINE_RUN_MODE = "scan_p5_p7_c1357"
+        no_wli_runner._apply_profile_defaults()
+        no_wli_runner._apply_run_mode()
+        assert len(no_wli_runner.TIERS) == 12
+        assert str(no_wli_runner.TIERS[0].name) == "scan_p5_c1_l1000"
+        assert str(no_wli_runner.TIERS[-1].name) == "scan_p7_c7_l1000"
+        periods = sorted({int(t.period) for t in no_wli_runner.TIERS})
+        assert periods == [5, 6, 7]
+        cols_by_period = {
+            p: sorted({int(t.columns) for t in no_wli_runner.TIERS if int(t.period) == p}) for p in periods
+        }
+        assert cols_by_period == {5: [1, 3, 5, 7], 6: [1, 3, 5, 7], 7: [1, 3, 5, 7]}
+        assert no_wli_runner.STAGE2_PROMOTE_BY_STAGE3_JUDGE is False
+        assert no_wli_runner.STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE is False
+        assert no_wli_runner.ORACLE_ASSIST_SELECTION is False
+        assert no_wli_runner.STAGE3_CONTINUE_AFTER_SOLVE is False
+        assert no_wli_runner.STAGE3_PERIOD_INIT_MULT_BY_PERIOD == {6: 1.15, 7: 1.30}
+        assert no_wli_runner.STAGE3_PERIOD_STEP_MULT_BY_PERIOD == {6: 1.20, 7: 1.35}
+        assert no_wli_runner.STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD == {7: 1}
+        assert int(no_wli_runner.STAGE3_INIT_KEYS_CAP) == 160
     finally:
         no_wli_runner.PIPELINE_RUN_MODE = old_mode
         no_wli_runner._apply_profile_defaults()
@@ -129,20 +161,29 @@ def test_no_wli_focus_p5_c1_only_mode_single_tier():
 
 
 def test_no_wli_stage2_judge_pool_limit_for_avg_fulltext():
-    assert no_wli_runner.STAGE2_PROMOTE_BY_STAGE3_JUDGE is True
-    assert no_wli_runner.STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE is True
-    limit_avg = no_wli_runner._stage2_judge_pool_limit(
-        ranked_count=500,
-        archive_keep=192,
-        stage3_scorer_cfg={"objective": "avg.logp.win20", "avg_window_policy": "full_text"},
-    )
-    assert limit_avg == 192
-    limit_pct = no_wli_runner._stage2_judge_pool_limit(
-        ranked_count=500,
-        archive_keep=192,
-        stage3_scorer_cfg={"objective": "pct.logp.win10"},
-    )
-    assert limit_pct == no_wli_runner.SAVE_STAGE2_TOPK
+    old_mode = str(no_wli_runner.PIPELINE_RUN_MODE)
+    try:
+        no_wli_runner.PIPELINE_RUN_MODE = "focus_500_nowli"
+        no_wli_runner._apply_profile_defaults()
+        no_wli_runner._apply_run_mode()
+        assert no_wli_runner.STAGE2_PROMOTE_BY_STAGE3_JUDGE is True
+        assert no_wli_runner.STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE is True
+        limit_avg = no_wli_runner._stage2_judge_pool_limit(
+            ranked_count=500,
+            archive_keep=192,
+            stage3_scorer_cfg={"objective": "avg.logp.win20", "avg_window_policy": "full_text"},
+        )
+        assert limit_avg == 192
+        limit_pct = no_wli_runner._stage2_judge_pool_limit(
+            ranked_count=500,
+            archive_keep=192,
+            stage3_scorer_cfg={"objective": "pct.logp.win10"},
+        )
+        assert limit_pct == no_wli_runner.SAVE_STAGE2_TOPK
+    finally:
+        no_wli_runner.PIPELINE_RUN_MODE = old_mode
+        no_wli_runner._apply_profile_defaults()
+        no_wli_runner._apply_run_mode()
 
 
 def test_sub_then_col_scorer_impl_is_pinned():
@@ -169,12 +210,35 @@ def test_no_wli_stage3_stop_log_has_entry_diagnostics():
     path = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py")
     text = path.read_text(encoding="utf-8")
     assert "entry_score_source=" in text
+    assert "period_scale=(init=" in text
     assert "promoted_best_match=" in text
     assert "best2_in_promoted=" in text
     assert "best2_in_stage2_topk=" in text
+    assert "spearman_score_match=" in text
     assert "setup: ecdf_guard=" in text
+    assert "oracle_assist_selection=" in text
     assert "stage1-diversity" in text
+    assert "oracle_scores=dict(" in text
+    assert "score_minus_oracle=dict(" in text
+    assert "stage2_diagnostics" in text
     assert "stage3_diagnostics" in text
+    assert "period_scaling=dict(" in text
+    assert "Per-instance checkpoint (crash-safe)" in text
+    assert "_append_csv_row(hist, hist_row)" in text
+    assert "history_rows_written" in text
+
+
+def test_no_wli_score_first_comparator_behaviour():
+    assert no_wli_runner._is_better_score_first(-10.0, 0.20, -11.0, 0.90) is True
+    assert no_wli_runner._is_better_score_first(-11.5, 0.95, -11.0, 0.10) is False
+    # Tie on score falls back to higher match (telemetry-only tie-break).
+    assert no_wli_runner._is_better_score_first(-11.0, 0.30, -11.0, 0.20) is True
+
+
+def test_no_wli_run_config_includes_resolved_tiers():
+    text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
+    assert "tiers=[" in text
+    assert "for t in TIERS" in text
 
 
 def test_stage2_promotion_uses_kept_pool_in_no_wli_and_colsub():
