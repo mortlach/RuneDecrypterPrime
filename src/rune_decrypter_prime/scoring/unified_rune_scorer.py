@@ -88,9 +88,10 @@ class UnifiedRuneScorer:
         if hasattr(self._backend, "batch_score_with_raw"):
             try:
                 pct, raw = self._backend.batch_score_with_raw(pts, wlis)
-                return np.asarray(pct, dtype=self._out_dtype), np.asarray(raw, dtype=self._out_dtype)
-            except Exception:
-                pass
+            except NotImplementedError:
+                pct = np.asarray(self._backend.batch_score(pts, wlis), dtype=self._out_dtype)
+                return pct, pct.copy()
+            return np.asarray(pct, dtype=self._out_dtype), np.asarray(raw, dtype=self._out_dtype)
         pct = np.asarray(self._backend.batch_score(pts, wlis), dtype=self._out_dtype)
         return pct, pct.copy()
 
@@ -98,8 +99,9 @@ class UnifiedRuneScorer:
         if hasattr(self._backend, "score_with_raw"):
             try:
                 return self._backend.score_with_raw(plaintext, wli_windows)
-            except Exception:
-                pass
+            except NotImplementedError:
+                pct = float(self._backend.score(plaintext, wli_windows))
+                return pct, pct
         pct = float(self._backend.score(plaintext, wli_windows))
         return pct, pct
 
@@ -116,13 +118,18 @@ class UnifiedRuneScorer:
         if hasattr(self._backend, "to_text"):
             try:
                 return self._backend.to_text(plaintext)
-            except Exception:
+            except NotImplementedError:
                 pass
         # Fallback uses configured word-breaks if present
         wb = getattr(self.cfg_cipher, "wli_data", []) or []
         arr = np.asarray(plaintext, dtype=np.uint8).reshape(-1)
-        # TODO(docs): Confirm correct fallback helper (Runeglish vs RuneAlphabet).
-        return Runeglish.np_to_text(arr, wb)  # retain behaviour; name kept in comments
+        wli = None
+        try:
+            if len(wb) == int(arr.size):
+                wli = wb
+        except Exception:
+            wli = None
+        return Runeglish.to_rune_latin(arr.tolist(), wli)
 
     # ---------- Telemetry (no guessing) ----------
 

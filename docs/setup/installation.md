@@ -94,3 +94,4 @@ python install.py --help
 - Community benchmark v1.1 is CPU-only.
 - Benchmark behaviour must not depend on environment variables.
 - Use setup/preflight logs for troubleshooting when sharing failures.
+- Scorer/backend routing and expected failures are documented in `docs/setup/scorer_backend_selection.md`.

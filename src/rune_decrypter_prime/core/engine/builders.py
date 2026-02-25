@@ -1,13 +1,18 @@
 # rune_decrypter_prime/core/engine/builders.py
 from __future__ import annotations
-from typing import Any, Dict, Type
+from typing import Any, Mapping
 
 from rune_decrypter_prime.core.types import Device, ScorerImpl, ensure_device, ensure_scorer_impl
 from rune_decrypter_prime.backends.xp import select_backend
 from rune_decrypter_prime.ciphers import registry as cipher_registry
 
+def _cfg_get(cfg: Any, key: str, default: Any = None) -> Any:
+    if isinstance(cfg, Mapping):
+        return cfg.get(key, default)
+    return getattr(cfg, key, default)
+
 def build_cipher(cfg_cipher) -> Any:
-    name = getattr(cfg_cipher, "name", None)
+    name = _cfg_get(cfg_cipher, "name", None)
     if not name:
         raise ValueError("Cipher config must include a 'name' field")
     name = str(name).lower()
@@ -21,8 +26,8 @@ def build_cipher(cfg_cipher) -> Any:
     return cipher
 
 def build_scorer(c_cfg, s_cfg):
-    impl = ensure_scorer_impl(getattr(s_cfg, "impl", ScorerImpl.AUTO))
-    dev_raw = getattr(c_cfg, "device", Device.CPU)
+    impl = ensure_scorer_impl(_cfg_get(s_cfg, "impl", ScorerImpl.AUTO))
+    dev_raw = _cfg_get(c_cfg, "device", Device.CPU)
     device = ensure_device(dev_raw)
 
     # Resolve AUTO based on device
@@ -32,7 +37,10 @@ def build_scorer(c_cfg, s_cfg):
     # Enforce CUDA availability if requested
     if device is Device.CUDA:
         dev_name, _ = select_backend(Device.CUDA.value)
-        assert dev_name == Device.CUDA.value, f"Expected {Device.CUDA.value} backend, got {dev_name!r}"
+        if dev_name != Device.CUDA.value:
+            raise RuntimeError(
+                f"CUDA backend requested but unavailable (resolved backend={dev_name!r})"
+            )
 
     # Concrete implementations
     from rune_decrypter_prime.scoring.rune_scorer import RuneScorer

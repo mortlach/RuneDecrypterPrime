@@ -1,6 +1,6 @@
 # # ============================================================
 # # rune_decrypter_prime/scoring/torch_rune_scorer.py
-# # Torch backend for the normalised 'pct.logp.win10' objective
+# # Torch backend for scoring objectives
 # # ============================================================
 # """
 # torch_rune_scorer.py — Torch-based scorer for 'pct.logp.winK'
@@ -12,7 +12,7 @@
 #
 # Behavioral Guarantees
 # ---------------------
-# - Only the 'pct.logp' family is implemented; other objectives raise a clear error.
+# - Supports pct/energy (logp, win10) and avg.logp objectives.
 # - If the input length L < win, returns a constant floor value and records telemetry.
 # - Device-agnostic: tensors live on self.device; ECDF runs on CPU.
 # - Telemetry never raises; it’s best-effort.
@@ -86,15 +86,36 @@ def _as_lut_logp_float32_torch(logp, device: torch.device):
         t = t.to(torch.float32)
     return t
 
-def _xxh64_u32words_cpu(tokens_u32: torch.Tensor | np.ndarray) -> np.ndarray:
-    import numpy as np
+def _validate_u32_hash_input_cpu(tokens_u32: torch.Tensor | np.ndarray) -> np.ndarray:
+    arr: np.ndarray
     if isinstance(tokens_u32, torch.Tensor):
-        t = tokens_u32.detach().cpu().numpy().astype(np.uint32, copy=False)
+        arr = tokens_u32.detach().cpu().numpy()
     else:
-        t = tokens_u32
-    assert t.dtype == np.uint32 and t.ndim >= 1
+        arr = np.asarray(tokens_u32)
+    if arr.dtype != np.uint32:
+        raise ValueError(f"xxh64 cpu hash expects uint32 tokens, got dtype={arr.dtype}")
+    if arr.ndim < 1:
+        raise ValueError("xxh64 cpu hash expects rank >= 1 input")
+    n = int(arr.shape[-1])
+    if n not in (1, 2, 3, 4):
+        raise ValueError(f"xxh64 cpu hash expects n-gram width in [1..4], got n={n}")
+    return arr
+
+def _validate_u32_hash_input_device(tokens_u32: torch.Tensor) -> torch.Tensor:
+    if not isinstance(tokens_u32, torch.Tensor):
+        raise TypeError("xxh64 device hash expects a torch.Tensor input")
+    if tokens_u32.dtype != torch.uint32:
+        raise ValueError(f"xxh64 device hash expects torch.uint32 tokens, got dtype={tokens_u32.dtype}")
+    if tokens_u32.ndim < 1:
+        raise ValueError("xxh64 device hash expects rank >= 1 input")
+    n = int(tokens_u32.shape[-1])
+    if n not in (1, 2, 3, 4):
+        raise ValueError(f"xxh64 device hash expects n-gram width in [1..4], got n={n}")
+    return tokens_u32
+
+def _xxh64_u32words_cpu(tokens_u32: torch.Tensor | np.ndarray) -> np.ndarray:
+    t = _validate_u32_hash_input_cpu(tokens_u32)
     n = t.shape[-1]
-    assert n in (1, 2, 3, 4)
     u64 = np.uint64
 
     def rotl64(x: np.ndarray, r: int) -> np.ndarray:
@@ -126,9 +147,8 @@ def _xxh64_u32words_cpu(tokens_u32: torch.Tensor | np.ndarray) -> np.ndarray:
     return h
 
 def _xxh64_u32words_device(tokens_u32: torch.Tensor) -> torch.Tensor:
-    assert tokens_u32.dtype == torch.uint32
+    tokens_u32 = _validate_u32_hash_input_device(tokens_u32)
     n = tokens_u32.shape[-1]
-    assert n in (1, 2, 3, 4)
     device = tokens_u32.device
     try:
         P1 = torch.tensor(0x9E3779B185EBCA87, dtype=torch.uint64, device=device)
@@ -160,17 +180,63 @@ def _xxh64_u32words_device(tokens_u32: torch.Tensor) -> torch.Tensor:
         h ^= (h >> 32)
         return h.to(torch.int64)
     except Exception:
-        import numpy as np
         return torch.from_numpy(_xxh64_u32words_cpu(tokens_u32).view(np.int64)).to(device)
+
+def _lookup_logp_linear_probe(
+    h: torch.Tensor,
+    keys_i64: torch.Tensor,
+    logp_f32: torch.Tensor,
+    mask: int,
+    fallback_logp: float,
+    *,
+    max_probes: int = 1024,
+) -> tuple[torch.Tensor, int, bool]:
+    if max_probes <= 0:
+        raise ValueError("max_probes must be >= 1")
+    if h.dtype != torch.int64:
+        h = h.to(torch.int64)
+    if keys_i64.dtype != torch.int64:
+        raise ValueError(f"keys_i64 must be torch.int64, got {keys_i64.dtype}")
+    if logp_f32.dtype != torch.float32:
+        raise ValueError(f"logp_f32 must be torch.float32, got {logp_f32.dtype}")
+    if keys_i64.numel() == 0:
+        raise ValueError("keys_i64 must not be empty")
+    if mask < 0:
+        raise ValueError("mask must be >= 0")
+    if keys_i64.device != h.device or logp_f32.device != h.device:
+        raise ValueError("h, keys_i64, and logp_f32 must be on the same device")
+
+    idx = (h & torch.tensor(mask, dtype=keys_i64.dtype, device=h.device)).to(torch.long)
+    out = torch.full(h.shape, fill_value=float(fallback_logp), dtype=torch.float32, device=h.device)
+    found = torch.zeros(h.shape, dtype=torch.bool, device=h.device)
+    probe_exhausted = False
+
+    for _ in range(int(max_probes)):
+        k = keys_i64[idx]
+        is_empty = (k == 0)
+        is_match = (k == h)
+        take = (~found) & is_match
+        if bool(take.any()):
+            out[take] = logp_f32[idx[take]]
+            found[take] = True
+        cont = (~found) & (~is_empty)
+        if not bool(cont.any()):
+            break
+        idx[cont] = (idx[cont] + 1) & int(mask)
+    else:
+        probe_exhausted = bool(((~found) & (keys_i64[idx] != 0)).any().item())
+
+    unresolved = int((~found).sum().item())
+    return out, unresolved, probe_exhausted
 
 # ===================================================================
 
 class RuneScorerTorch(BaseScorer):
     """
-    Torch scorer for 'pct.logp.winK'. Behaviour matches NumPy runtime.
+    Torch scorer for pct/energy logp and avg.logp objectives.
     """
 
-    def __init__(self, cfg_cipher, scorer_cfg) -> None:
+    def __init__(self, cfg_cipher, scorer_cfg, tables: TablesProvider | None = None) -> None:
         # device
         device_req = str(_cfg_get(cfg_cipher, "device", "auto") or "auto")
         dev_name, _xp = select_backend(device_req)
@@ -318,7 +384,9 @@ class RuneScorerTorch(BaseScorer):
                 self._hamming_backend = None
 
         # tables provider + caches
-        self._prov: TablesProvider | None = None
+        self._prov: TablesProvider | None = (
+            tables if (tables is not None and hasattr(tables, "get_joint_table")) else None
+        )
         self._tables: Dict[Tuple[str, int], Dict[str, Any]] = {}
         self._loaded_device: torch.device | None = None
         self._ecdf_root = _cfg_get(scorer_cfg, "model_root", None)
@@ -560,6 +628,10 @@ class RuneScorerTorch(BaseScorer):
                 "avg_window_policy": self._avg_window_policy.value,
                 "objective.id": self._objective_id(stat_name, variant, W, n_set, self.direction.value, se_name),
                 "objective.label": self._objective_label(stat_name, variant, W, n_set, self.direction.value, se_name),
+                "lut.fallback_hits_total": 0,
+                "lut.probe_exhausted": False,
+                "lut.probe_exhausted_models": [],
+                "lut.max_probes": 1024,
             }
             if B == 1:
                 stats["score_mean"] = float(out[0])
@@ -610,8 +682,11 @@ class RuneScorerTorch(BaseScorer):
         asset_fps: list[str] = []
         interp_dtypes: list[str] = []
         meta_json_list: list[str] = []
+        lut_fallback_hits_total = 0
+        lut_probe_exhausted_models: list[str] = []
 
         for channel, n, w in models:
+            model_name = "char" if channel == "char" else "wli"
             toks = self._pack_char_ngram(pt_t, int(n)) if channel == "char" else (
                 self._pack_wli_ngram(pt_t, wli_t, int(n)) if wli_t is not None else None)
             if toks is None:
@@ -623,22 +698,12 @@ class RuneScorerTorch(BaseScorer):
             tbl = self._ensure_table(channel, int(n))
             keys_i64 = tbl["keys"]; logp_f32 = tbl["logp"]; mask = int(tbl["mask"])
             fb = float(tbl["stats"]["fallback_logp"])
-
-            idx = (h & torch.tensor(mask, dtype=keys_i64.dtype, device=self.device)).to(torch.long)
-            out = torch.full(h.shape, fill_value=fb, dtype=torch.float32, device=self.device)
-            found = torch.zeros(h.shape, dtype=torch.bool, device=self.device)
-            for _ in range(1024):
-                k = keys_i64[idx]
-                is_empty = (k == 0)
-                is_match = (k == h)
-                take = (~found) & is_match
-                if take.any():
-                    out[take] = logp_f32[idx[take]]
-                    found[take] = True
-                cont = (~found) & (~is_empty)
-                if not cont.any():
-                    break
-                idx[cont] = (idx[cont] + 1) & mask
+            out, unresolved, probe_exhausted = _lookup_logp_linear_probe(
+                h, keys_i64, logp_f32, mask, fb, max_probes=1024
+            )
+            lut_fallback_hits_total += int(unresolved)
+            if probe_exhausted:
+                lut_probe_exhausted_models.append(f"{model_name}_n{int(n)}")
 
             K = int(W)
             if K <= 0 or out.shape[1] < K:
@@ -670,7 +735,6 @@ class RuneScorerTorch(BaseScorer):
                     f"{stat_name}_mean_per_ngram_interior": float(np.mean(means_np)),
                 }
 
-            model_name = "char" if channel == "char" else "wli"
             asset_ids.append(ecdf.asset_id(model=model_name,
                                                  mode=self.direction.value,
                                                  pos=se_name,
@@ -798,6 +862,10 @@ class RuneScorerTorch(BaseScorer):
                     "ecdf.interp_dtype": interp_dtypes[0] if len(interp_dtypes) == 1 else interp_dtypes,
                     "ecdf.clamp_min": float(self._ecdf_clamp_min),
                     "ecdf.clamp_max": float(self._ecdf_clamp_max),
+                    "lut.fallback_hits_total": int(lut_fallback_hits_total),
+                    "lut.probe_exhausted": bool(lut_probe_exhausted_models),
+                    "lut.probe_exhausted_models": list(lut_probe_exhausted_models),
+                    "lut.max_probes": 1024,
                 }
             else:
                 self._last_stats = {
@@ -834,6 +902,10 @@ class RuneScorerTorch(BaseScorer):
                     "ecdf.interp_dtype": interp_dtypes[0] if len(interp_dtypes) == 1 else interp_dtypes,
                     "ecdf.clamp_min": float(self._ecdf_clamp_min),
                     "ecdf.clamp_max": float(self._ecdf_clamp_max),
+                    "lut.fallback_hits_total": int(lut_fallback_hits_total),
+                    "lut.probe_exhausted": bool(lut_probe_exhausted_models),
+                    "lut.probe_exhausted_models": list(lut_probe_exhausted_models),
+                    "lut.max_probes": 1024,
                 }
             if self._diagnostics_enabled and meta_json_list:
                 self._last_stats["ecdf.meta_json"] = meta_json_list
@@ -903,6 +975,10 @@ class RuneScorerTorch(BaseScorer):
                 "avg_window_policy": self._avg_window_policy.value,
                 "objective.id": self._objective_id(stat_name, "mean_per_ngram_total", W, [], self.direction.value, se_name),
                 "objective.label": self._objective_label(stat_name, "mean_per_ngram_total", W, [], self.direction.value, se_name),
+                "lut.fallback_hits_total": 0,
+                "lut.probe_exhausted": False,
+                "lut.probe_exhausted_models": [],
+                "lut.max_probes": 1024,
             }
             if B == 1:
                 stats.update(
@@ -947,8 +1023,11 @@ class RuneScorerTorch(BaseScorer):
         stat_total_mean_vec = np.zeros((B,), dtype=score_dtype)
         components = {} if B == 1 else None
         ngrams_by_model: Dict[str, int] = {}
+        lut_fallback_hits_total = 0
+        lut_probe_exhausted_models: list[str] = []
 
         for channel, n, w_norm, ngrams in active_models:
+            model_name = "char" if channel == "char" else "wli"
             toks = self._pack_char_ngram(pt_t, int(n)) if channel == "char" else (
                 self._pack_wli_ngram(pt_t, wli_t, int(n)) if wli_t is not None else None
             )
@@ -966,29 +1045,19 @@ class RuneScorerTorch(BaseScorer):
             logp_f32 = tbl["logp"]
             mask = int(tbl["mask"])
             fb = float(tbl["stats"]["fallback_logp"])
-
-            idx = (h & torch.tensor(mask, dtype=keys_i64.dtype, device=self.device)).to(torch.long)
-            out = torch.full(h.shape, fill_value=fb, dtype=torch.float32, device=self.device)
-            found = torch.zeros(h.shape, dtype=torch.bool, device=self.device)
-            for _ in range(1024):
-                k = keys_i64[idx]
-                is_empty = (k == 0)
-                is_match = (k == h)
-                take = (~found) & is_match
-                if take.any():
-                    out[take] = logp_f32[idx[take]]
-                    found[take] = True
-                cont = (~found) & (~is_empty)
-                if not cont.any():
-                    break
-                idx[cont] = (idx[cont] + 1) & mask
+            out, unresolved, probe_exhausted = _lookup_logp_linear_probe(
+                h, keys_i64, logp_f32, mask, fb, max_probes=1024
+            )
+            lut_fallback_hits_total += int(unresolved)
+            if probe_exhausted:
+                lut_probe_exhausted_models.append(f"{model_name}_n{int(n)}")
 
             out_np = np.asarray(out.detach().cpu().numpy(), dtype=score_dtype)
             out_np = np.asarray(apply_stat_transform("logp", out_np), dtype=score_dtype)
             mean_vec = np.asarray(out_np.mean(axis=1, dtype=score_dtype), dtype=score_dtype)
             stat_total_mean_vec += score_dtype(w_norm) * mean_vec
 
-            label = f"{'char' if channel == 'char' else 'wli'}_n{int(n)}"
+            label = f"{model_name}_n{int(n)}"
             ngrams_by_model[label] = int(ngrams)
             if components is not None:
                 components[label] = {
@@ -1077,6 +1146,10 @@ class RuneScorerTorch(BaseScorer):
                 "avg_window_policy": self._avg_window_policy.value,
                 "objective.id": self._objective_id(stat_name, "mean_per_ngram_total", W, n_set, self.direction.value, se_name),
                 "objective.label": self._objective_label(stat_name, "mean_per_ngram_total", W, n_set, self.direction.value, se_name),
+                "lut.fallback_hits_total": int(lut_fallback_hits_total),
+                "lut.probe_exhausted": bool(lut_probe_exhausted_models),
+                "lut.probe_exhausted_models": list(lut_probe_exhausted_models),
+                "lut.max_probes": 1024,
             }
         else:
             self._last_stats = {
@@ -1107,6 +1180,10 @@ class RuneScorerTorch(BaseScorer):
                 "avg_window_policy": self._avg_window_policy.value,
                 "objective.id": self._objective_id(stat_name, "mean_per_ngram_total", W, n_set, self.direction.value, se_name),
                 "objective.label": self._objective_label(stat_name, "mean_per_ngram_total", W, n_set, self.direction.value, se_name),
+                "lut.fallback_hits_total": int(lut_fallback_hits_total),
+                "lut.probe_exhausted": bool(lut_probe_exhausted_models),
+                "lut.probe_exhausted_models": list(lut_probe_exhausted_models),
+                "lut.max_probes": 1024,
             }
 
         _tstash(self._telemetry, **self._last_stats)
@@ -1168,6 +1245,10 @@ class RuneScorerTorch(BaseScorer):
                 "direction": self.direction.value,
                 "objective.id": self._objective_id(stat_name, variant, W, n_set, self.direction.value, se_name),
                 "objective.label": self._objective_label(stat_name, variant, W, n_set, self.direction.value, se_name),
+                "lut.fallback_hits_total": 0,
+                "lut.probe_exhausted": False,
+                "lut.probe_exhausted_models": [],
+                "lut.max_probes": 1024,
             }
             if B == 1:
                 stats["score_mean"] = float(out[0])
@@ -1201,8 +1282,11 @@ class RuneScorerTorch(BaseScorer):
         nwin = ((nwin_aligned - 1) // stride) + 1
         stat_total_mix = np.zeros((B, nwin), dtype=score_dtype)
         components = {} if B == 1 else None
+        lut_fallback_hits_total = 0
+        lut_probe_exhausted_models: list[str] = []
 
         for channel, n, w in models:
+            model_name = "char" if channel == "char" else "wli"
             toks = self._pack_char_ngram(pt_t, int(n)) if channel == "char" else (
                 self._pack_wli_ngram(pt_t, wli_t, int(n)) if wli_t is not None else None)
             if toks is None:
@@ -1214,22 +1298,12 @@ class RuneScorerTorch(BaseScorer):
             tbl = self._ensure_table(channel, int(n))
             keys_i64 = tbl["keys"]; logp_f32 = tbl["logp"]; mask = int(tbl["mask"])
             fb = float(tbl["stats"]["fallback_logp"])
-
-            idx = (h & torch.tensor(mask, dtype=keys_i64.dtype, device=self.device)).to(torch.long)
-            out = torch.full(h.shape, fill_value=fb, dtype=torch.float32, device=self.device)
-            found = torch.zeros(h.shape, dtype=torch.bool, device=self.device)
-            for _ in range(1024):
-                k = keys_i64[idx]
-                is_empty = (k == 0)
-                is_match = (k == h)
-                take = (~found) & is_match
-                if take.any():
-                    out[take] = logp_f32[idx[take]]
-                    found[take] = True
-                cont = (~found) & (~is_empty)
-                if not cont.any():
-                    break
-                idx[cont] = (idx[cont] + 1) & mask
+            out, unresolved, probe_exhausted = _lookup_logp_linear_probe(
+                h, keys_i64, logp_f32, mask, fb, max_probes=1024
+            )
+            lut_fallback_hits_total += int(unresolved)
+            if probe_exhausted:
+                lut_probe_exhausted_models.append(f"{model_name}_n{int(n)}")
 
             K = int(W)
             if K <= 0 or out.shape[1] < K:
@@ -1253,7 +1327,7 @@ class RuneScorerTorch(BaseScorer):
             means_np = np.asarray(means_np, dtype=score_dtype)
             stat_total_mix += score_dtype(w) * means_np
             if components is not None:
-                label = f"{'char' if channel == 'char' else 'wli'}_n{int(n)}"
+                label = f"{model_name}_n{int(n)}"
                 components[label] = {
                     f"{stat_name}_mean_per_ngram_total": float(np.mean(means_np)),
                     f"{stat_name}_mean_per_ngram_interior": float(np.mean(means_np)),
@@ -1345,6 +1419,10 @@ class RuneScorerTorch(BaseScorer):
                     "avg_window_policy": self._avg_window_policy.value,
                     "objective.id": self._objective_id(stat_name, variant, W, n_set, self.direction.value, se_name),
                     "objective.label": self._objective_label(stat_name, variant, W, n_set, self.direction.value, se_name),
+                    "lut.fallback_hits_total": int(lut_fallback_hits_total),
+                    "lut.probe_exhausted": bool(lut_probe_exhausted_models),
+                    "lut.probe_exhausted_models": list(lut_probe_exhausted_models),
+                    "lut.max_probes": 1024,
                 }
             else:
                 self._last_stats = {
@@ -1372,6 +1450,10 @@ class RuneScorerTorch(BaseScorer):
                     "avg_window_policy": self._avg_window_policy.value,
                     "objective.id": self._objective_id(stat_name, variant, W, n_set, self.direction.value, se_name),
                     "objective.label": self._objective_label(stat_name, variant, W, n_set, self.direction.value, se_name),
+                    "lut.fallback_hits_total": int(lut_fallback_hits_total),
+                    "lut.probe_exhausted": bool(lut_probe_exhausted_models),
+                    "lut.probe_exhausted_models": list(lut_probe_exhausted_models),
+                    "lut.max_probes": 1024,
                 }
             _tstash(self._telemetry, **self._last_stats)
         except Exception:
