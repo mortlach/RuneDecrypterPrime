@@ -137,21 +137,21 @@ def test_no_wli_scan_p5_p7_c1357_mode_matrix_and_scaling():
         no_wli_runner.PIPELINE_RUN_MODE = "scan_p5_p7_c1357"
         no_wli_runner._apply_profile_defaults()
         no_wli_runner._apply_run_mode()
-        assert len(no_wli_runner.TIERS) == 12
+        assert len(no_wli_runner.TIERS) == 8
         assert str(no_wli_runner.TIERS[0].name) == "scan_p5_c1_l1000"
         assert str(no_wli_runner.TIERS[-1].name) == "scan_p7_c7_l1000"
         periods = sorted({int(t.period) for t in no_wli_runner.TIERS})
-        assert periods == [5, 6, 7]
+        assert periods == [5, 7]
         cols_by_period = {
             p: sorted({int(t.columns) for t in no_wli_runner.TIERS if int(t.period) == p}) for p in periods
         }
-        assert cols_by_period == {5: [1, 3, 5, 7], 6: [1, 3, 5, 7], 7: [1, 3, 5, 7]}
+        assert cols_by_period == {5: [1, 3, 5, 7], 7: [1, 3, 5, 7]}
         assert no_wli_runner.STAGE2_PROMOTE_BY_STAGE3_JUDGE is False
         assert no_wli_runner.STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE is False
         assert no_wli_runner.ORACLE_ASSIST_SELECTION is False
         assert no_wli_runner.STAGE3_CONTINUE_AFTER_SOLVE is False
-        assert no_wli_runner.STAGE3_PERIOD_INIT_MULT_BY_PERIOD == {6: 1.15, 7: 1.30}
-        assert no_wli_runner.STAGE3_PERIOD_STEP_MULT_BY_PERIOD == {6: 1.20, 7: 1.35}
+        assert no_wli_runner.STAGE3_PERIOD_INIT_MULT_BY_PERIOD == {7: 1.30}
+        assert no_wli_runner.STAGE3_PERIOD_STEP_MULT_BY_PERIOD == {7: 1.35}
         assert no_wli_runner.STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD == {7: 1}
         assert int(no_wli_runner.STAGE3_INIT_KEYS_CAP) == 160
     finally:

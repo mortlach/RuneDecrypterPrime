@@ -39,7 +39,7 @@ def build_scorer(c_cfg, s_cfg):
         dev_name, _ = select_backend(Device.CUDA.value)
         if dev_name != Device.CUDA.value:
             raise RuntimeError(
-                f"CUDA backend requested but unavailable (resolved backend={dev_name!r})"
+                f"Requested accelerator is unavailable (resolved={dev_name!r})"
             )
 
     # Concrete implementations

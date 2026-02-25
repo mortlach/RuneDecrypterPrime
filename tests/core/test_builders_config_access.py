@@ -61,5 +61,5 @@ def test_build_scorer_auto_cpu_defaults_to_numpy(monkeypatch: pytest.MonkeyPatch
 
 def test_build_scorer_cuda_unavailable_raises_runtime_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(builders, "select_backend", lambda _req: ("cpu", object()))
-    with pytest.raises(RuntimeError, match="CUDA backend requested but unavailable"):
+    with pytest.raises(RuntimeError, match="Requested accelerator is unavailable"):
         builders.build_scorer({"device": "cuda"}, {"impl": "numpy"})

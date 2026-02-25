@@ -110,6 +110,7 @@ STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS = {10: 10, 13: 8}
 SAVE_STAGE2_TOPK = 12
 SAVE_STAGE3_TOPK = True
 SAVE_STAGE3_TOPK_LIMIT = 5
+STAGE3_PROGRESS_PCT = 20  # Stage-3 progress logging throttle (print every N%).
 
 STAGE1_SEED_RESTARTS = 96
 STAGE1_SEED_N_BLOCKS = 18
@@ -173,7 +174,7 @@ STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR = 0.006
 # to collect additional solve hits (or stop immediately if set False).
 STAGE3_CONTINUE_AFTER_SOLVE = False
 
-# Optional period-aware Stage-3 scaling (used by scan modes to give p6/p7 modest extra time).
+# Optional period-aware Stage-3 scaling (used by scan modes to give p7 modest extra time).
 STAGE3_PERIOD_INIT_MULT_BY_PERIOD: Dict[int, float] = {}
 STAGE3_PERIOD_STEP_MULT_BY_PERIOD: Dict[int, float] = {}
 STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD: Dict[int, int] = {}
@@ -308,7 +309,7 @@ SOLVER_STAGE3 = dict(
     plateau_min_delta=4e-4,
     delta_window=200,
     top_k=20,
-    progress_pct=1,
+    progress_pct=20,
     print_progress=True,
     seed=2026,
 )
@@ -415,6 +416,8 @@ def _apply_profile_defaults() -> None:
     SOLVER_STAGE1 = dict(profile.solver_stage1)
     SOLVER_STAGE2 = dict(profile.solver_stage2)
     SOLVER_STAGE3 = dict(profile.solver_stage3)
+    # Keep Stage-3 console output manageable across profiles.
+    SOLVER_STAGE3["progress_pct"] = int(max(1, STAGE3_PROGRESS_PCT))
     STAGE3_TWO_PHASE_ENABLED = bool(_STAGE3_TWO_PHASE_ENABLED_DEFAULT)
     STAGE3_PHASEA_CFG = dict(_STAGE3_PHASEA_CFG_DEFAULT)
     STAGE3_PHASEB_CFG = dict(_STAGE3_PHASEB_CFG_DEFAULT)
@@ -554,8 +557,8 @@ def _apply_run_mode() -> None:
         STAGE3_C1_PHASEA_STEPS = 900
         STAGE3_C1_PHASEB_STEPS = 3000
         STAGE3_C1_PHASEB_TOP_N = 16
-        STAGE3_PERIOD_INIT_MULT_BY_PERIOD = {6: 1.15, 7: 1.30}
-        STAGE3_PERIOD_STEP_MULT_BY_PERIOD = {6: 1.20, 7: 1.35}
+        STAGE3_PERIOD_INIT_MULT_BY_PERIOD = {7: 1.30}
+        STAGE3_PERIOD_STEP_MULT_BY_PERIOD = {7: 1.35}
         STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD = {7: 1}
         STAGE3_INIT_KEYS_CAP = 160
 
@@ -564,10 +567,6 @@ def _apply_run_mode() -> None:
             Tier("scan_p5_c3_l1000", 5, 3, 1000),
             Tier("scan_p5_c5_l1000", 5, 5, 1000),
             Tier("scan_p5_c7_l1000", 5, 7, 1000),
-            Tier("scan_p6_c1_l1000", 6, 1, 1000),
-            Tier("scan_p6_c3_l1000", 6, 3, 1000),
-            Tier("scan_p6_c5_l1000", 6, 5, 1000),
-            Tier("scan_p6_c7_l1000", 6, 7, 1000),
             Tier("scan_p7_c1_l1000", 7, 1, 1000),
             Tier("scan_p7_c3_l1000", 7, 3, 1000),
             Tier("scan_p7_c5_l1000", 7, 5, 1000),
