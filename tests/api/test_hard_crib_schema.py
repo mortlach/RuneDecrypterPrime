@@ -20,6 +20,19 @@ def test_resolve_scorer_aliases_accepts_avg_window_policy_key():
     assert out["avg_window_policy"] == "full_text"
 
 
+def test_resolve_scorer_aliases_accepts_span_hamming_keys():
+    out = resolve_scorer_aliases(
+        {
+            "span_hamming_enabled": True,
+            "span_hamming_weight": 0.25,
+            "span_hamming_len_min": 3,
+            "span_hamming_len_max": 12,
+        }
+    )
+    assert out["span_hamming_enabled"] is True
+    assert out["span_hamming_weight"] == 0.25
+
+
 def test_scoring_config_normalizes_hard_crib_dict():
     cfg = ScoringConfig(
         hard_crib={

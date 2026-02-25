@@ -383,6 +383,47 @@ class RuneScorerTorch(BaseScorer):
             except Exception:
                 self._hamming_backend = None
 
+        # Optional span-hamming backend (pure Python dictionary span matcher)
+        self._span_hamming_backend = None
+        self._span_hamming_weight = float(_cfg_get(scorer_cfg, "span_hamming_weight", 0.0) or 0.0)
+        self._span_hamming_enabled = bool(
+            _cfg_get(scorer_cfg, "span_hamming_enabled", False) or self._span_hamming_weight != 0.0
+        )
+        if self._span_hamming_enabled:
+            try:
+                from rune_decrypter_prime.scoring.span_hamming import SpanHammingBackend, SpanHammingConfig
+
+                span_cfg = SpanHammingConfig(
+                    len_min=int(_cfg_get(scorer_cfg, "span_hamming_len_min", 3)),
+                    len_max=int(_cfg_get(scorer_cfg, "span_hamming_len_max", 14)),
+                    max_hd=int(_cfg_get(scorer_cfg, "span_hamming_max_hd", 2)),
+                    max_candidates_per_window=int(
+                        _cfg_get(scorer_cfg, "span_hamming_max_candidates_per_window", 256)
+                    ),
+                    max_intervals_considered_per_start=int(
+                        _cfg_get(scorer_cfg, "span_hamming_max_intervals_considered_per_start", 4)
+                    ),
+                    min_quality_threshold=float(
+                        _cfg_get(scorer_cfg, "span_hamming_min_quality_threshold", 1e-9)
+                    ),
+                    debug_return_intervals=bool(
+                        _cfg_get(scorer_cfg, "span_hamming_debug_return_intervals", False)
+                    ),
+                )
+                wl_dir = _cfg_get(scorer_cfg, "span_hamming_wordlist_dir", None)
+                require_selected = bool(_cfg_get(scorer_cfg, "span_hamming_require_selected", True))
+                self._span_hamming_backend = SpanHammingBackend(
+                    config=span_cfg,
+                    wordlist_dir=wl_dir,
+                    require_selected=require_selected,
+                )
+            except Exception:
+                self._span_hamming_backend = None
+        self._telemetry["span_hamming_enabled"] = bool(
+            self._span_hamming_backend is not None and self._span_hamming_weight != 0.0
+        )
+        self._telemetry["span_hamming_weight"] = float(self._span_hamming_weight)
+
         # tables provider + caches
         self._prov: TablesProvider | None = (
             tables if (tables is not None and hasattr(tables, "get_joint_table")) else None
@@ -1467,6 +1508,96 @@ class RuneScorerTorch(BaseScorer):
 
         return stat_penalized_vec
 
+    def _apply_span_hamming_bonus_batch(self, scores: np.ndarray, pt_b: np.ndarray) -> np.ndarray:
+        backend = self._span_hamming_backend
+        weight = float(self._span_hamming_weight)
+        if backend is None or weight == 0.0:
+            return scores
+        if pt_b.ndim != 2 or scores.ndim != 1:
+            return scores
+        B = int(pt_b.shape[0])
+        if B == 0:
+            return scores
+
+        span_raw = np.zeros((B,), dtype=self._score_dtype)
+        span_cov = np.zeros((B,), dtype=self._score_dtype)
+        span_q = np.zeros((B,), dtype=self._score_dtype)
+        for i in range(B):
+            try:
+                stats = backend.score(pt_b[i].tolist())
+                span_raw[i] = float(stats.span_raw)
+                span_cov[i] = float(stats.coverage)
+                span_q[i] = float(stats.quality)
+            except Exception:
+                span_raw[i] = 0.0
+                span_cov[i] = 0.0
+                span_q[i] = 0.0
+
+        bonus = (weight * span_raw).astype(self._score_dtype, copy=False)
+        out = np.asarray(scores, dtype=self._score_dtype) + bonus
+
+        try:
+            raw = getattr(self, "_last_raw_batch", None)
+            if raw is not None:
+                raw_arr = np.asarray(raw, dtype=self._score_dtype).reshape(-1)
+                if raw_arr.shape[0] == B:
+                    self._last_raw_batch = raw_arr + bonus
+        except Exception:
+            pass
+
+        try:
+            stats = self._last_stats if isinstance(self._last_stats, dict) else {}
+            stats["span_hamming_bonus_batch"] = bonus.tolist()
+            stats["span_hamming_raw_batch"] = span_raw.tolist()
+            stats["span_hamming_coverage_batch"] = span_cov.tolist()
+            stats["span_hamming_quality_batch"] = span_q.tolist()
+            stats["span_hamming_weight"] = weight
+            stats["score_mean_base_batch"] = np.asarray(scores, dtype=self._score_dtype).tolist()
+            stats["score_mean_batch"] = out.tolist()
+            if B == 1:
+                base0 = float(scores[0])
+                bonus0 = float(bonus[0])
+                out0 = float(out[0])
+                stats["span_hamming_bonus"] = bonus0
+                stats["span_hamming_raw"] = float(span_raw[0])
+                stats["span_hamming_coverage"] = float(span_cov[0])
+                stats["span_hamming_quality"] = float(span_q[0])
+                stats["score_mean_base"] = base0
+                stats["score_mean"] = out0
+                if "stat.mean_per_ngram_penalized" in stats:
+                    stats["stat.mean_per_ngram_penalized"] = float(stats["stat.mean_per_ngram_penalized"]) + bonus0
+                obj = stats.get("objective_stats")
+                if isinstance(obj, dict):
+                    obj["span_hamming_bonus"] = bonus0
+                    obj["span_hamming_weight"] = weight
+                    obj["span_hamming_raw"] = float(span_raw[0])
+                    obj["span_hamming_coverage"] = float(span_cov[0])
+                    obj["span_hamming_quality"] = float(span_q[0])
+                    if "score_mean" in obj:
+                        obj["score_mean"] = float(obj["score_mean"]) + bonus0
+                    if "logp_mean_per_ngram_penalized" in obj:
+                        obj["logp_mean_per_ngram_penalized"] = float(obj["logp_mean_per_ngram_penalized"]) + bonus0
+                    stat_name = stats.get("stat.name")
+                    if isinstance(stat_name, str):
+                        key = f"{stat_name}_mean_per_ngram_penalized"
+                        if key in obj:
+                            obj[key] = float(obj[key]) + bonus0
+            self._last_stats = stats
+            _tstash(
+                self._telemetry,
+                span_hamming_weight=weight,
+                span_hamming_bonus_batch=bonus.tolist(),
+                span_hamming_raw_batch=span_raw.tolist(),
+                span_hamming_coverage_batch=span_cov.tolist(),
+                span_hamming_quality_batch=span_q.tolist(),
+                score_mean_batch=out.tolist(),
+                score_mean_base_batch=np.asarray(scores, dtype=self._score_dtype).tolist(),
+            )
+        except Exception:
+            pass
+
+        return out
+
     def set_hamming_progress(self, progress: float) -> None:
         """
         Optional hook for solvers: update the effective Hamming weight using a
@@ -1549,7 +1680,9 @@ class RuneScorerTorch(BaseScorer):
             if (wli_b[..., 0] > 63).any() or (wli_b[..., 1] > 63).any():
                 raise ValueError("WLI entries must be <= 63 for torch scorer")
 
-        return self._score_batch_impl(pt_b, wli_b).astype(np.float64, copy=False)
+        scores = self._score_batch_impl(pt_b, wli_b)
+        scores = self._apply_span_hamming_bonus_batch(scores, pt_b)
+        return scores.astype(np.float64, copy=False)
 
     def score(self, pt: Iterable[int], wli=None) -> float:
         return float(self.batch_score([np.asarray(pt, np.uint8)], wli)[0])

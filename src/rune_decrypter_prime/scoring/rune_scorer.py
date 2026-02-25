@@ -12,6 +12,7 @@ import warnings
 
 from rune_decrypter_prime.scoring.base_scorer import BaseScorer, WIN_FIXED
 from rune_decrypter_prime.scoring.language_model.language_model_prime_runtime import LmPrimeRuntime, ECDFCache
+from rune_decrypter_prime.utils.telemetry import stash as _tstash
 from rune_decrypter_prime.scoring.windowing import (
     START_TAG,
     END_TAG,
@@ -223,6 +224,48 @@ class RuneScorer(BaseScorer):
                 warnings.warn("Hamming backend unavailable; skipping Hamming scoring component", RuntimeWarning, stacklevel=2)
                 self._hamming_backend = None
 
+        # Optional span-hamming backend (pure Python dictionary span matcher)
+        self._span_hamming_backend = None
+        self._span_hamming_weight = float(_cfg_get(scorer_cfg, "span_hamming_weight", 0.0) or 0.0)
+        self._span_hamming_enabled = bool(
+            _cfg_get(scorer_cfg, "span_hamming_enabled", False) or self._span_hamming_weight != 0.0
+        )
+        if self._span_hamming_enabled:
+            try:
+                from rune_decrypter_prime.scoring.span_hamming import SpanHammingBackend, SpanHammingConfig
+
+                span_cfg = SpanHammingConfig(
+                    len_min=int(_cfg_get(scorer_cfg, "span_hamming_len_min", 3)),
+                    len_max=int(_cfg_get(scorer_cfg, "span_hamming_len_max", 14)),
+                    max_hd=int(_cfg_get(scorer_cfg, "span_hamming_max_hd", 2)),
+                    max_candidates_per_window=int(
+                        _cfg_get(scorer_cfg, "span_hamming_max_candidates_per_window", 256)
+                    ),
+                    max_intervals_considered_per_start=int(
+                        _cfg_get(scorer_cfg, "span_hamming_max_intervals_considered_per_start", 4)
+                    ),
+                    min_quality_threshold=float(
+                        _cfg_get(scorer_cfg, "span_hamming_min_quality_threshold", 1e-9)
+                    ),
+                    debug_return_intervals=bool(
+                        _cfg_get(scorer_cfg, "span_hamming_debug_return_intervals", False)
+                    ),
+                )
+                wl_dir = _cfg_get(scorer_cfg, "span_hamming_wordlist_dir", None)
+                require_selected = bool(_cfg_get(scorer_cfg, "span_hamming_require_selected", True))
+                self._span_hamming_backend = SpanHammingBackend(
+                    config=span_cfg,
+                    wordlist_dir=wl_dir,
+                    require_selected=require_selected,
+                )
+            except Exception:
+                warnings.warn(
+                    "Span-hamming backend unavailable; skipping span-hamming scoring component",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+                self._span_hamming_backend = None
+
         # Telemetry invariants
         self._device_str = "cpu"
         win_cfg = int(self.objective.win) if self.objective.win is not None else None
@@ -241,6 +284,8 @@ class RuneScorer(BaseScorer):
             "avg_window_policy": self._avg_window_policy.value,
             "win_configured": win_cfg,
             "win_effective": win_effective,
+            "span_hamming_enabled": bool(self._span_hamming_backend is not None and self._span_hamming_weight != 0.0),
+            "span_hamming_weight": float(self._span_hamming_weight),
         }
         # Caches for WLI conversions/windows (bounded LRU)
         self._wli_cache_limit = 8
@@ -367,27 +412,101 @@ class RuneScorer(BaseScorer):
 
         return pt_windows, wli_windows, span_map(n_set=n_set, W=W, se_mode=self.se_mode), nwin, tags_injected
 
+    def _apply_span_hamming_bonus(self, base_score: float, pt: np.ndarray) -> float:
+        """
+        Optionally augment final score with weighted span-hamming signal.
+        """
+        backend = self._span_hamming_backend
+        weight = float(self._span_hamming_weight)
+        if backend is None or weight == 0.0:
+            return float(base_score)
+        try:
+            span_stats = backend.score(pt.tolist())
+            span_raw = float(span_stats.span_raw)
+            span_cov = float(span_stats.coverage)
+            span_q = float(span_stats.quality)
+            span_bins = tuple(int(v) for v in getattr(span_stats, "length_bins", ()))
+            span_raw_by_len = tuple(float(v) for v in getattr(span_stats, "span_raw_by_len", ()))
+            span_cov_by_len = tuple(float(v) for v in getattr(span_stats, "coverage_by_len", ()))
+            span_q_by_len = tuple(float(v) for v in getattr(span_stats, "quality_by_len", ()))
+        except Exception:
+            return float(base_score)
+
+        bonus = float(weight * span_raw)
+        out = float(base_score + bonus)
+        stats = self.__dict__.setdefault("_last_stats", {})
+        if isinstance(stats, dict):
+            stats["span_hamming_raw"] = span_raw
+            stats["span_hamming_coverage"] = span_cov
+            stats["span_hamming_quality"] = span_q
+            stats["span_hamming_length_bins"] = span_bins
+            stats["span_hamming_raw_by_len"] = span_raw_by_len
+            stats["span_hamming_coverage_by_len"] = span_cov_by_len
+            stats["span_hamming_quality_by_len"] = span_q_by_len
+            stats["span_hamming_bonus"] = bonus
+            stats["span_hamming_weight"] = weight
+            stats["score_mean_base"] = float(base_score)
+            stats["score_mean"] = out
+            if "stat.mean_per_ngram_penalized" in stats:
+                stats["stat.mean_per_ngram_penalized"] = float(stats["stat.mean_per_ngram_penalized"]) + bonus
+            obj = stats.get("objective_stats")
+            if isinstance(obj, dict):
+                obj["span_hamming_raw"] = span_raw
+                obj["span_hamming_coverage"] = span_cov
+                obj["span_hamming_quality"] = span_q
+                obj["span_hamming_length_bins"] = span_bins
+                obj["span_hamming_raw_by_len"] = span_raw_by_len
+                obj["span_hamming_coverage_by_len"] = span_cov_by_len
+                obj["span_hamming_quality_by_len"] = span_q_by_len
+                obj["span_hamming_bonus"] = bonus
+                obj["span_hamming_weight"] = weight
+                if "score_mean" in obj:
+                    obj["score_mean"] = float(obj["score_mean"]) + bonus
+                if "logp_mean_per_ngram_penalized" in obj:
+                    obj["logp_mean_per_ngram_penalized"] = float(obj["logp_mean_per_ngram_penalized"]) + bonus
+                stat_name = stats.get("stat.name")
+                if isinstance(stat_name, str):
+                    key = f"{stat_name}_mean_per_ngram_penalized"
+                    if key in obj:
+                        obj[key] = float(obj[key]) + bonus
+        _tstash(
+            self._telemetry,
+            span_hamming_raw=span_raw,
+            span_hamming_coverage=span_cov,
+            span_hamming_quality=span_q,
+            span_hamming_length_bins=span_bins,
+            span_hamming_raw_by_len=span_raw_by_len,
+            span_hamming_coverage_by_len=span_cov_by_len,
+            span_hamming_quality_by_len=span_q_by_len,
+            span_hamming_bonus=bonus,
+            span_hamming_weight=weight,
+            score_mean=out,
+            score_mean_base=float(base_score),
+        )
+        return out
+
     # ---------------------------- public API ----------------------------
     def score(self, plaintext: Iterable[int], wli_windows: Iterable[Tuple[int, int]] | None = None) -> float:
         fam = self.objective.family
         stat = self.objective.stat
         want_energy = fam is ObjectiveFamily.ENERGY
+        pt_single = _to_u8_1d(plaintext)
 
         if self._requires_wli() and wli_windows is None:
             raise ValueError("WLI is required when use_word_breaks=True and WLI models are active")
 
         if fam is ObjectiveFamily.NEGLOGP:
             warnings.warn("Using legacy objective; consider migrating to PCT.*", DeprecationWarning, stacklevel=2)
-            out = float(self._score_legacy_scalar(plaintext, wli_windows))
+            out = float(self._score_legacy_scalar(pt_single, wli_windows))
             self._stash_stats(
                 dtype=self._dtype,
                 impl="numpy", device=self._device_str,
                 legacy_objective=True, score_mean=out, score_std=0.0, n_windows=1,
             )
-            return out
+            return self._apply_span_hamming_bonus(out, pt_single)
         if fam is ObjectiveFamily.AVG:
-            out = float(self._score_raw_avg(plaintext, wli_windows))
-            return out
+            out = float(self._score_raw_avg(pt_single, wli_windows))
+            return self._apply_span_hamming_bonus(out, pt_single)
 
         if fam not in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
             raise ValueError(f"Unsupported objective family: {fam}")
@@ -493,7 +612,7 @@ class RuneScorer(BaseScorer):
                 hamming_weight=self._hamming_weight,
                 objective_stats=objective,
             )
-            return float(score_mean)
+            return self._apply_span_hamming_bonus(float(score_mean), pt)
 
         pct_perwin = np.zeros((nwin,), dtype=acc_dtype)
         stat_total_perwin = np.zeros((nwin,), dtype=acc_dtype)
@@ -677,7 +796,7 @@ class RuneScorer(BaseScorer):
         if self._diagnostics_enabled and meta_json_list:
             self._stash_stats(**{"ecdf.meta_json": meta_json_list})
 
-        return float(score_mean)
+        return self._apply_span_hamming_bonus(float(score_mean), pt)
 
     def supports_raw(self) -> bool:
         return True
