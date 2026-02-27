@@ -21,7 +21,8 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 # Point at either a merged run directory OR a merged zip.
 # (If both are set, ZIP wins.)
 MERGED_ZIP_PATH: Path | None = None
-MERGED_RUN_DIR: Path | None = Path("output/tools/benchmarks/scoring/span_hamming_nose_suite_merged/20260226T154342Z__span_hamming_nose_suite_merged")  # e.g. Path("output/.../__span_hamming_nose_suite_merged")
+MERGED_RUN_ROOT: Path = Path("output/tools/benchmarks/scoring/span_hamming_nose_suite_merged")
+MERGED_RUN_DIR: Path | None = None  # e.g. Path("output/.../__span_hamming_nose_suite_merged")
 
 # Output folder for the generated assets (safe default: under output/).
 OUTPUT_ASSET_ROOT: Path = Path("output/tools/benchmarks/scoring/span_hamming_nose_assets_v1")
@@ -61,6 +62,9 @@ class SampleRow:
     length_bucket: int
     generator: str
     span_raw: float
+    char1_score: float
+    char2_score: float
+    char3_score: float
     char4_score: float
 
 
@@ -75,6 +79,20 @@ class CalibRefs:
     @property
     def valid(self) -> bool:
         return bool(self.denom > 0.0)
+
+
+def _group_rows(
+    rows: list[SampleRow],
+) -> dict[tuple[str, int, str], list[SampleRow]]:
+    grouped: dict[tuple[str, int, str], list[SampleRow]] = {}
+    for row in rows:
+        key = (row.direction, int(row.length_bucket), row.generator)
+        bucket = grouped.get(key)
+        if bucket is None:
+            bucket = []
+            grouped[key] = bucket
+        bucket.append(row)
+    return grouped
 
 
 def _resolve_repo_path(path_like: Path | str | None) -> Path | None:
@@ -108,14 +126,23 @@ def _load_run_dir() -> Path:
             raise ValueError(f"Expected exactly one folder in zip extract, found {len(dirs)}")
         return dirs[0].resolve()
 
-    if MERGED_RUN_DIR is None:
-        raise ValueError("Set MERGED_RUN_DIR or MERGED_ZIP_PATH in the config block.")
+    if MERGED_RUN_DIR is not None:
+        run_dir = _resolve_repo_path(MERGED_RUN_DIR)
+        assert run_dir is not None
+        if not run_dir.exists():
+            raise FileNotFoundError(f"MERGED_RUN_DIR not found: {run_dir}")
+        return run_dir
 
-    run_dir = _resolve_repo_path(MERGED_RUN_DIR)
-    assert run_dir is not None
-    if not run_dir.exists():
-        raise FileNotFoundError(f"MERGED_RUN_DIR not found: {run_dir}")
-    return run_dir
+    run_root = _resolve_repo_path(MERGED_RUN_ROOT)
+    assert run_root is not None
+    if not run_root.exists():
+        raise FileNotFoundError(f"MERGED_RUN_ROOT not found: {run_root}")
+    candidates = [
+        p for p in run_root.iterdir() if p.is_dir() and "__span_hamming_nose_suite_merged" in p.name
+    ]
+    if not candidates:
+        raise FileNotFoundError(f"No merged run directories found under: {run_root}")
+    return sorted(candidates, key=lambda p: p.name)[-1].resolve()
 
 
 def _read_samples(run_dir: Path) -> list[SampleRow]:
@@ -126,7 +153,16 @@ def _read_samples(run_dir: Path) -> list[SampleRow]:
     rows: list[SampleRow] = []
     with fp.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
-        required = {"direction", "length_bucket", "generator", "span_raw", "char4_score"}
+        required = {
+            "direction",
+            "length_bucket",
+            "generator",
+            "span_raw",
+            "char1_score",
+            "char2_score",
+            "char3_score",
+            "char4_score",
+        }
         fields = set(reader.fieldnames or [])
         missing = sorted(required - fields)
         if missing:
@@ -139,6 +175,9 @@ def _read_samples(run_dir: Path) -> list[SampleRow]:
                         length_bucket=int(row.get("length_bucket", 0)),
                         generator=str(row.get("generator", "")).strip().upper(),
                         span_raw=float(row.get("span_raw", "nan")),
+                        char1_score=float(row.get("char1_score", "nan")),
+                        char2_score=float(row.get("char2_score", "nan")),
+                        char3_score=float(row.get("char3_score", "nan")),
                         char4_score=float(row.get("char4_score", "nan")),
                     )
                 )
@@ -207,7 +246,7 @@ def _auc_binary(pos_scores: np.ndarray, neg_scores: np.ndarray) -> float:
     if pos.size == 0 or neg.size == 0:
         return float("nan")
 
-    # Mann–Whitney AUC with average ranks for ties.
+    # Mann-Whitney AUC with average ranks for ties.
     scores = np.concatenate([pos, neg])
     labels = np.concatenate([np.ones(pos.size, dtype=np.int8), np.zeros(neg.size, dtype=np.int8)])
 
@@ -264,6 +303,18 @@ def _sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _char_scores(rows: list[SampleRow], n: int) -> np.ndarray:
+    if int(n) == 1:
+        return np.asarray([r.char1_score for r in rows], dtype=np.float64)
+    if int(n) == 2:
+        return np.asarray([r.char2_score for r in rows], dtype=np.float64)
+    if int(n) == 3:
+        return np.asarray([r.char3_score for r in rows], dtype=np.float64)
+    if int(n) == 4:
+        return np.asarray([r.char4_score for r in rows], dtype=np.float64)
+    raise ValueError(f"Unsupported char n: {n}")
+
+
 # =============================================================================
 # Build
 # =============================================================================
@@ -272,6 +323,8 @@ def build_assets() -> None:
     run_dir = _load_run_dir()
     rows = _read_samples(run_dir)
     run_cfg = _read_run_config(run_dir)
+    grouped = _group_rows(rows)
+    bucket_keys = _bucket_keys(rows)
 
     neg = str(NEG_GENERATOR).strip().upper()
     if neg not in {r.generator for r in rows}:
@@ -285,39 +338,51 @@ def build_assets() -> None:
 
     # ---------- Combined calibration ----------
     cal_rows: list[dict[str, Any]] = []
-    for key in _bucket_keys(rows):
-        sub_real = [r for r in rows if r.direction == key.direction and r.length_bucket == key.length_bucket and r.generator == "REAL"]
-        sub_neg = [r for r in rows if r.direction == key.direction and r.length_bucket == key.length_bucket and r.generator == neg]
+    for key in bucket_keys:
+        sub_real = grouped.get((key.direction, int(key.length_bucket), "REAL"), [])
+        sub_neg = grouped.get((key.direction, int(key.length_bucket), neg), [])
 
         span_refs = _median_refs(
             np.asarray([r.span_raw for r in sub_real], dtype=np.float64),
             np.asarray([r.span_raw for r in sub_neg], dtype=np.float64),
         )
-        char4_refs = _median_refs(
-            np.asarray([r.char4_score for r in sub_real], dtype=np.float64),
-            np.asarray([r.char4_score for r in sub_neg], dtype=np.float64),
-        )
+        char_refs = {
+            int(n): _median_refs(
+                _char_scores(sub_real, int(n)),
+                _char_scores(sub_neg, int(n)),
+            )
+            for n in (1, 2, 3, 4)
+        }
 
-        cal_rows.append(
-            {
-                "direction": key.direction,
-                "length_bucket": key.length_bucket,
+        row = {
+            "direction": key.direction,
+            "length_bucket": key.length_bucket,
 
-                "span_real_ref": span_refs.real_ref,
-                "span_neg_ref": span_refs.neg_ref,
-                "span_denom": span_refs.denom,
-                "span_n_real": span_refs.n_real,
-                "span_n_neg": span_refs.n_neg,
-                "span_valid": bool(span_refs.valid),
+            "span_real_ref": span_refs.real_ref,
+            "span_neg_ref": span_refs.neg_ref,
+            "span_denom": span_refs.denom,
+            "span_n_real": span_refs.n_real,
+            "span_n_neg": span_refs.n_neg,
+            "span_valid": bool(span_refs.valid),
+        }
+        for n in (1, 2, 3, 4):
+            refs = char_refs[int(n)]
+            row[f"char{n}_real_ref"] = refs.real_ref
+            row[f"char{n}_neg_ref"] = refs.neg_ref
+            row[f"char{n}_denom"] = refs.denom
+            row[f"char{n}_n_real"] = refs.n_real
+            row[f"char{n}_n_neg"] = refs.n_neg
+            row[f"char{n}_valid"] = bool(refs.valid)
 
-                "char4_real_ref": char4_refs.real_ref,
-                "char4_neg_ref": char4_refs.neg_ref,
-                "char4_denom": char4_refs.denom,
-                "char4_n_real": char4_refs.n_real,
-                "char4_n_neg": char4_refs.n_neg,
-                "char4_valid": bool(char4_refs.valid),
-            }
-        )
+        cal_rows.append(row)
+
+    provenance = {
+        "suite_version": run_cfg.get("suite_version"),
+        "global_seed": run_cfg.get("global_seed"),
+        "corpus_list_hash": run_cfg.get("corpus_list_hash"),
+        "created_at_utc": run_cfg.get("created_at_utc"),
+    }
+    run_cfg_bytes = json.dumps(run_cfg, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
     combined_cal = {
         "version": "v1",
@@ -325,9 +390,11 @@ def build_assets() -> None:
         "source_run_dir": str(run_dir),
         "neg_generator": neg,
         "span_scope_label": str(SPAN_SCOPE_LABEL),
+        "provenance": provenance,
+        "source_run_config_sha256": _sha256_bytes(run_cfg_bytes),
         "notes": {
             "span_x_formula": "x_span = (span_raw - span_neg_ref) / span_denom  (unclamped)",
-            "char4_norm_formula": "char4_norm = clamp((char4_score - char4_neg_ref) / char4_denom, 0, 1)",
+            "char_norm_formula": "charN_norm = clamp((charN_score - charN_neg_ref) / charN_denom, 0, 1)",
             "span_norm_formula": "span_norm = clamp((span_raw - span_neg_ref) / span_denom, 0, 1)",
         },
         "rows": cal_rows,
@@ -348,7 +415,7 @@ def build_assets() -> None:
     }
 
     ecdf_audit: list[dict[str, Any]] = []
-    for key in _bucket_keys(rows):
+    for key in bucket_keys:
         row = cal_by_bucket[(key.direction, key.length_bucket)]
         if not bool(row["span_valid"]):
             continue
@@ -356,7 +423,7 @@ def build_assets() -> None:
         denom = float(row["span_denom"])
         neg_ref = float(row["span_neg_ref"])
 
-        sub_neg = [r for r in rows if r.direction == key.direction and r.length_bucket == key.length_bucket and r.generator == neg]
+        sub_neg = grouped.get((key.direction, int(key.length_bucket), neg), [])
         x = (
             np.asarray([r.span_raw for r in sub_neg], dtype=np.float64) - neg_ref
         ) / denom
@@ -413,19 +480,27 @@ def build_assets() -> None:
         global_seed = int(run_cfg.get("global_seed", 0))
         metrics_rows: list[dict[str, Any]] = []
 
-        for key in _bucket_keys(rows):
-            sub_real = [r for r in rows if r.direction == key.direction and r.length_bucket == key.length_bucket and r.generator == "REAL"]
-            sub_neg = [r for r in rows if r.direction == key.direction and r.length_bucket == key.length_bucket and r.generator == neg]
+        for key in bucket_keys:
+            sub_real = grouped.get((key.direction, int(key.length_bucket), "REAL"), [])
+            sub_neg = grouped.get((key.direction, int(key.length_bucket), neg), [])
             span_real = np.asarray([r.span_raw for r in sub_real], dtype=np.float64)
             span_neg = np.asarray([r.span_raw for r in sub_neg], dtype=np.float64)
-            char_real = np.asarray([r.char4_score for r in sub_real], dtype=np.float64)
-            char_neg = np.asarray([r.char4_score for r in sub_neg], dtype=np.float64)
+            char_real = {
+                int(n): _char_scores(sub_real, int(n))
+                for n in (1, 2, 3, 4)
+            }
+            char_neg = {
+                int(n): _char_scores(sub_neg, int(n))
+                for n in (1, 2, 3, 4)
+            }
 
             # Span raw AUC.
             auc_span_raw = _auc_binary(span_real, span_neg)
 
-            # Char4 AUC.
-            auc_char4 = _auc_binary(char_real, char_neg)
+            auc_char = {
+                int(n): _auc_binary(char_real[int(n)], char_neg[int(n)])
+                for n in (1, 2, 3, 4)
+            }
 
             row = {
                 "direction": key.direction,
@@ -434,7 +509,10 @@ def build_assets() -> None:
                 "n_real": int(len(span_real)),
                 "n_neg": int(len(span_neg)),
                 "auc_span_raw": float(auc_span_raw),
-                "auc_char4": float(auc_char4),
+                "auc_char1": float(auc_char[1]),
+                "auc_char2": float(auc_char[2]),
+                "auc_char3": float(auc_char[3]),
+                "auc_char4": float(auc_char[4]),
             }
 
             if BOOTSTRAP_ROUNDS > 0:
@@ -451,14 +529,15 @@ def build_assets() -> None:
                 )
                 row["auc_span_raw_ci"] = [float(lo), float(hi)]
 
-                lo, hi = _bootstrap_auc(
-                    rng,
-                    char_real,
-                    char_neg,
-                    rounds=int(BOOTSTRAP_ROUNDS),
-                    alpha=float(BOOTSTRAP_ALPHA),
-                )
-                row["auc_char4_ci"] = [float(lo), float(hi)]
+                for n in (1, 2, 3, 4):
+                    lo, hi = _bootstrap_auc(
+                        rng,
+                        char_real[int(n)],
+                        char_neg[int(n)],
+                        rounds=int(BOOTSTRAP_ROUNDS),
+                        alpha=float(BOOTSTRAP_ALPHA),
+                    )
+                    row[f"auc_char{n}_ci"] = [float(lo), float(hi)]
 
             metrics_rows.append(row)
 
@@ -467,6 +546,8 @@ def build_assets() -> None:
             "asset_kind": "span_hamming_nose_metrics",
             "source_run_dir": str(run_dir),
             "neg_generator": neg,
+            "provenance": provenance,
+            "source_run_config_sha256": _sha256_bytes(run_cfg_bytes),
             "bootstrap_rounds": int(BOOTSTRAP_ROUNDS),
             "bootstrap_alpha": float(BOOTSTRAP_ALPHA),
             "rows": metrics_rows,

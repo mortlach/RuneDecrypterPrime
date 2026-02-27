@@ -130,7 +130,8 @@ _CANON_SCORER_KEYS = {"model_root","smoothing","alpha","oov_policy","include_cha
                       "use_word_breaks","n_char","n_wli","win","se_mode","objective",
                       "weights","maximize","encoding_dir","char_weights","wli_weights",
                       "avg_window_policy",
-                      "impl","dtype","hard_crib",
+                      "impl","dtype","compute_dtype","acc_dtype","hard_crib",
+                      "stride","ecdf_clamp_min","ecdf_clamp_max","diagnostics_enabled",
                       "hamming_enabled","hamming_wordlist_dir","hamming_build_rtl",
                       "hamming_weight","hamming_weight_max","hamming_ramp_start_frac","hamming_ramp_end_frac",
                       "hamming_max_hd","hamming_length_weights",
@@ -139,7 +140,13 @@ _CANON_SCORER_KEYS = {"model_root","smoothing","alpha","oov_policy","include_cha
                       "span_hamming_len_min","span_hamming_len_max","span_hamming_max_hd",
                       "span_hamming_max_candidates_per_window","span_hamming_max_intervals_considered_per_start",
                       "span_hamming_min_quality_threshold","span_hamming_debug_return_intervals",
-                      "span_hamming_require_selected"}
+                      "span_hamming_require_selected",
+                      "span_hamming_mode","span_hamming_assets_dir","span_hamming_bucket_policy",
+                      "span_hamming_ecdf_clamp_min","span_hamming_ecdf_clamp_max",
+                      "span_hamming_combine_mode","span_hamming_weight_span","span_hamming_weight_char",
+                      "span_hamming_coverage_min","span_hamming_quality_min",
+                      "span_hamming_span_pct_min","span_hamming_char_pct_min",
+                      "span_hamming_gate_fail_policy","span_hamming_gate_score_floor"}
 
 def resolve_scorer_aliases(params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """Validate scorer params to canonical v1 keys; raise on unknown.

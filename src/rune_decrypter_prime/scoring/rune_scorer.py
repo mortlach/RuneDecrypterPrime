@@ -226,13 +226,64 @@ class RuneScorer(BaseScorer):
 
         # Optional span-hamming backend (pure Python dictionary span matcher)
         self._span_hamming_backend = None
+        self._span_hamming_assets = None
         self._span_hamming_weight = float(_cfg_get(scorer_cfg, "span_hamming_weight", 0.0) or 0.0)
-        self._span_hamming_enabled = bool(
-            _cfg_get(scorer_cfg, "span_hamming_enabled", False) or self._span_hamming_weight != 0.0
-        )
+        self._span_hamming_mode = str(_cfg_get(scorer_cfg, "span_hamming_mode", "off") or "off").strip().lower()
+        if self._span_hamming_mode not in {"off", "raw_bonus", "calibrated"}:
+            raise ValueError("span_hamming_mode must be one of: off, raw_bonus, calibrated")
+        legacy_enabled = bool(_cfg_get(scorer_cfg, "span_hamming_enabled", False) or self._span_hamming_weight != 0.0)
+        if self._span_hamming_mode == "off" and legacy_enabled:
+            self._span_hamming_mode = "raw_bonus"
+        self._span_hamming_enabled = (self._span_hamming_mode != "off")
+        self._span_hamming_assets_dir = _cfg_get(scorer_cfg, "span_hamming_assets_dir", None)
+        self._span_hamming_bucket_policy = str(
+            _cfg_get(scorer_cfg, "span_hamming_bucket_policy", "nearest_smaller_tie") or "nearest_smaller_tie"
+        ).strip().lower()
+        self._span_hamming_ecdf_clamp_min = _cfg_get(scorer_cfg, "span_hamming_ecdf_clamp_min", None)
+        self._span_hamming_ecdf_clamp_max = _cfg_get(scorer_cfg, "span_hamming_ecdf_clamp_max", None)
+        if self._span_hamming_ecdf_clamp_min is None:
+            self._span_hamming_ecdf_clamp_min = float(self._ecdf_clamp_min)
+        else:
+            self._span_hamming_ecdf_clamp_min = float(self._span_hamming_ecdf_clamp_min)
+        if self._span_hamming_ecdf_clamp_max is None:
+            self._span_hamming_ecdf_clamp_max = float(self._ecdf_clamp_max)
+        else:
+            self._span_hamming_ecdf_clamp_max = float(self._span_hamming_ecdf_clamp_max)
+        self._span_hamming_coverage_min = float(_cfg_get(scorer_cfg, "span_hamming_coverage_min", 0.0) or 0.0)
+        self._span_hamming_quality_min = float(_cfg_get(scorer_cfg, "span_hamming_quality_min", 0.0) or 0.0)
+        self._span_hamming_span_pct_min = _cfg_get(scorer_cfg, "span_hamming_span_pct_min", None)
+        if self._span_hamming_span_pct_min is not None:
+            self._span_hamming_span_pct_min = float(self._span_hamming_span_pct_min)
+        self._span_hamming_char_pct_min = _cfg_get(scorer_cfg, "span_hamming_char_pct_min", None)
+        if self._span_hamming_char_pct_min is not None:
+            self._span_hamming_char_pct_min = float(self._span_hamming_char_pct_min)
+        self._span_hamming_combine_mode = str(
+            _cfg_get(scorer_cfg, "span_hamming_combine_mode", "min") or "min"
+        ).strip().lower()
+        if self._span_hamming_combine_mode not in {"min", "weighted_sum"}:
+            raise ValueError("span_hamming_combine_mode must be one of: min, weighted_sum")
+        self._span_hamming_weight_span = float(_cfg_get(scorer_cfg, "span_hamming_weight_span", 1.0) or 0.0)
+        self._span_hamming_weight_char = float(_cfg_get(scorer_cfg, "span_hamming_weight_char", 0.0) or 0.0)
+        self._span_hamming_use_char_channel = False
+        self._span_hamming_gate_fail_policy = str(
+            _cfg_get(scorer_cfg, "span_hamming_gate_fail_policy", "score_floor") or "score_floor"
+        ).strip().lower()
+        self._span_hamming_gate_score_floor = _cfg_get(scorer_cfg, "span_hamming_gate_score_floor", None)
+        if self._span_hamming_gate_score_floor is not None:
+            self._span_hamming_gate_score_floor = float(self._span_hamming_gate_score_floor)
+        if not (0.0 < self._span_hamming_ecdf_clamp_min < self._span_hamming_ecdf_clamp_max < 1.0):
+            raise ValueError("span_hamming_ecdf_clamp_min/max must satisfy 0 < min < max < 1")
+        if self._span_hamming_bucket_policy != "nearest_smaller_tie":
+            raise ValueError("span_hamming_bucket_policy currently only supports 'nearest_smaller_tie'")
+        if self._span_hamming_gate_fail_policy != "score_floor":
+            raise ValueError("span_hamming_gate_fail_policy currently only supports 'score_floor'")
         if self._span_hamming_enabled:
             try:
-                from rune_decrypter_prime.scoring.span_hamming import SpanHammingBackend, SpanHammingConfig
+                from rune_decrypter_prime.scoring.span_hamming import (
+                    SpanCalibratedAssets,
+                    SpanHammingBackend,
+                    SpanHammingConfig,
+                )
 
                 span_cfg = SpanHammingConfig(
                     len_min=int(_cfg_get(scorer_cfg, "span_hamming_len_min", 3)),
@@ -258,7 +309,46 @@ class RuneScorer(BaseScorer):
                     wordlist_dir=wl_dir,
                     require_selected=require_selected,
                 )
+                if self._span_hamming_mode == "calibrated":
+                    fam = self.objective.family
+                    if fam not in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
+                        raise ValueError(
+                            "span_hamming_mode='calibrated' only supports ObjectiveFamily.PCT or ENERGY"
+                        )
+                    if self._span_hamming_assets_dir is None:
+                        raise ValueError(
+                            "span_hamming_assets_dir is required when span_hamming_mode='calibrated'"
+                        )
+                    self._span_hamming_assets = SpanCalibratedAssets.load(self._span_hamming_assets_dir)
+                    self._span_hamming_use_char_channel = bool(
+                        self._span_hamming_weight_char > 0.0
+                        or self._span_hamming_char_pct_min is not None
+                    )
+                    if self._span_hamming_use_char_channel and not self._calibrated_char_pct_available():
+                        raise ValueError(
+                            "calibrated span char channel requires char4-only base scorer "
+                            "(include_char=True, use_word_breaks=False, char_weights={4:1.0})"
+                        )
+                    if self._span_hamming_weight_span < 0.0 or self._span_hamming_weight_char < 0.0:
+                        raise ValueError("span_hamming_weight_span/char must be >= 0")
+                    if self._span_hamming_combine_mode == "weighted_sum":
+                        w_span = float(self._span_hamming_weight_span)
+                        w_char = float(self._span_hamming_weight_char if self._span_hamming_use_char_channel else 0.0)
+                        if (w_span + w_char) <= 0.0:
+                            raise ValueError(
+                                "weighted_sum combine requires positive total weight "
+                                "(span_hamming_weight_span + span_hamming_weight_char)"
+                            )
+                    if self._span_hamming_gate_score_floor is None:
+                        if fam is ObjectiveFamily.ENERGY:
+                            self._span_hamming_gate_score_floor = float(
+                                -np.log1p(-self._span_hamming_ecdf_clamp_min)
+                            )
+                        else:
+                            self._span_hamming_gate_score_floor = float(self._span_hamming_ecdf_clamp_min)
             except Exception:
+                if self._span_hamming_mode == "calibrated":
+                    raise
                 warnings.warn(
                     "Span-hamming backend unavailable; skipping span-hamming scoring component",
                     RuntimeWarning,
@@ -284,8 +374,22 @@ class RuneScorer(BaseScorer):
             "avg_window_policy": self._avg_window_policy.value,
             "win_configured": win_cfg,
             "win_effective": win_effective,
-            "span_hamming_enabled": bool(self._span_hamming_backend is not None and self._span_hamming_weight != 0.0),
+            "span_hamming_enabled": bool(
+                self._span_hamming_backend is not None
+                and (
+                    (self._span_hamming_mode == "raw_bonus" and self._span_hamming_weight != 0.0)
+                    or self._span_hamming_mode == "calibrated"
+                )
+            ),
+            "span_hamming_mode": self._span_hamming_mode,
             "span_hamming_weight": float(self._span_hamming_weight),
+            "span_hamming_combine_mode": self._span_hamming_combine_mode,
+            "span_hamming_weight_span": float(self._span_hamming_weight_span),
+            "span_hamming_weight_char": float(self._span_hamming_weight_char),
+            "span_hamming_use_char_channel": bool(self._span_hamming_use_char_channel),
+            "span_hamming_ecdf_clamp_min": float(self._span_hamming_ecdf_clamp_min),
+            "span_hamming_ecdf_clamp_max": float(self._span_hamming_ecdf_clamp_max),
+            "span_hamming_bucket_policy": self._span_hamming_bucket_policy,
         }
         # Caches for WLI conversions/windows (bounded LRU)
         self._wli_cache_limit = 8
@@ -412,10 +516,174 @@ class RuneScorer(BaseScorer):
 
         return pt_windows, wli_windows, span_map(n_set=n_set, W=W, se_mode=self.se_mode), nwin, tags_injected
 
+    def _calibrated_char_pct_available(self) -> bool:
+        try:
+            models = self._active_models()
+        except Exception:
+            return False
+        if len(models) != 1:
+            return False
+        ch, n, w = models[0]
+        return (ch is Channel.CHAR) and (int(n) == 4) and (abs(float(w) - 1.0) <= 1e-9)
+
+    def _score_base_channel_pct(self, pt: np.ndarray, wli_windows: Iterable[Tuple[int, int]] | None) -> tuple[float, float]:
+        prev_mode = self._span_hamming_mode
+        prev_enabled = self._span_hamming_enabled
+        self._span_hamming_mode = "off"
+        self._span_hamming_enabled = False
+        try:
+            base_score = float(self.score(pt, wli_windows))
+        finally:
+            self._span_hamming_mode = prev_mode
+            self._span_hamming_enabled = prev_enabled
+        fam = self.objective.family
+        if fam is ObjectiveFamily.ENERGY:
+            base_pct = float(-np.expm1(-base_score))
+        else:
+            base_pct = float(base_score)
+        base_pct = float(np.clip(base_pct, self._ecdf_clamp_min, self._ecdf_clamp_max))
+        return base_pct, base_score
+
+    def _score_span_hamming_calibrated(
+        self,
+        pt: np.ndarray,
+        wli_windows: Iterable[Tuple[int, int]] | None,
+    ) -> float:
+        backend = self._span_hamming_backend
+        assets = self._span_hamming_assets
+        if backend is None or assets is None:
+            raise ValueError("Calibrated span mode requires loaded span backend and assets")
+        try:
+            span_stats = backend.score(pt.tolist())
+            span_raw = float(span_stats.span_raw)
+            span_cov = float(span_stats.coverage)
+            span_q = float(span_stats.quality)
+            span_bins = tuple(int(v) for v in getattr(span_stats, "length_bins", ()))
+            span_raw_by_len = tuple(float(v) for v in getattr(span_stats, "span_raw_by_len", ()))
+            span_cov_by_len = tuple(float(v) for v in getattr(span_stats, "coverage_by_len", ()))
+            span_q_by_len = tuple(float(v) for v in getattr(span_stats, "quality_by_len", ()))
+        except Exception as exc:
+            raise ValueError(f"Span backend failed in calibrated mode: {exc}") from exc
+
+        bucket = assets.score_span_raw(
+            direction=BaseScorer._dir_name(self.direction),
+            text_length=int(pt.shape[0]),
+            span_raw=span_raw,
+            clamp_min=float(self._span_hamming_ecdf_clamp_min),
+            clamp_max=float(self._span_hamming_ecdf_clamp_max),
+        )
+
+        gate_reasons: list[str] = []
+        if span_cov < float(self._span_hamming_coverage_min):
+            gate_reasons.append("coverage_below_min")
+        if span_q < float(self._span_hamming_quality_min):
+            gate_reasons.append("quality_below_min")
+        if self._span_hamming_span_pct_min is not None and bucket.span_pct < float(self._span_hamming_span_pct_min):
+            gate_reasons.append("span_pct_below_min")
+        char_pct: float | None = None
+        char_score: float | None = None
+        if self._span_hamming_use_char_channel:
+            char_pct, char_score = self._score_base_channel_pct(pt=pt, wli_windows=wli_windows)
+            if self._span_hamming_char_pct_min is not None and char_pct < float(self._span_hamming_char_pct_min):
+                gate_reasons.append("char_pct_below_min")
+        gate_failed = bool(gate_reasons)
+
+        span_pct = float(bucket.span_pct)
+        combine_mode = str(self._span_hamming_combine_mode)
+        if char_pct is None:
+            combined_pct = span_pct
+        elif combine_mode == "min":
+            combined_pct = min(span_pct, char_pct)
+        else:
+            w_span = float(self._span_hamming_weight_span)
+            w_char = float(self._span_hamming_weight_char)
+            w_total = w_span + w_char
+            if w_total <= 0.0:
+                raise ValueError(
+                    "weighted_sum combine requires positive total weight "
+                    "(span_hamming_weight_span + span_hamming_weight_char)"
+                )
+            combined_pct = ((w_span * span_pct) + (w_char * char_pct)) / w_total
+        combined_pct = float(
+            np.clip(
+                combined_pct,
+                float(self._span_hamming_ecdf_clamp_min),
+                float(self._span_hamming_ecdf_clamp_max),
+            )
+        )
+        combined_energy = float(-np.log1p(-combined_pct))
+
+        fam = self.objective.family
+        if gate_failed:
+            score = float(self._span_hamming_gate_score_floor)
+        else:
+            score = float(combined_energy if fam is ObjectiveFamily.ENERGY else combined_pct)
+
+        objective_stats = {
+            "score_mean": float(score),
+            "score_std": 0.0,
+            "n_windows": 1,
+            "span_raw": float(span_raw),
+            "span_coverage": float(span_cov),
+            "span_quality": float(span_q),
+            "span_x": float(bucket.x_span),
+            "span_pct": float(bucket.span_pct),
+            "span_energy": float(bucket.span_energy),
+            "char_pct": (None if char_pct is None else float(char_pct)),
+            "char_score": (None if char_score is None else float(char_score)),
+            "combine_mode": combine_mode,
+            "combined_pct": float(combined_pct),
+            "combined_energy": float(combined_energy),
+            "span_bucket_length": int(bucket.length_bucket),
+            "span_bucket_direction": str(bucket.direction),
+            "gate_failed": bool(gate_failed),
+            "gate_reasons": list(gate_reasons),
+        }
+        self._stash_stats(
+            dtype=self._dtype,
+            impl="numpy",
+            device=self._device_str,
+            score_mean=float(score),
+            score_std=0.0,
+            n_windows=1,
+            objective_stats=objective_stats,
+            **{
+                "stat.name": "x_span",
+                "stat.variant": "span_full_text",
+                "stat.mean_per_ngram_penalized": float(span_raw),
+            },
+            span_hamming_mode="calibrated",
+            span_hamming_combine_mode=combine_mode,
+            span_hamming_weight_span=float(self._span_hamming_weight_span),
+            span_hamming_weight_char=float(self._span_hamming_weight_char),
+            span_hamming_use_char_channel=bool(self._span_hamming_use_char_channel),
+            span_hamming_raw=float(span_raw),
+            span_hamming_coverage=float(span_cov),
+            span_hamming_quality=float(span_q),
+            span_hamming_length_bins=span_bins,
+            span_hamming_raw_by_len=span_raw_by_len,
+            span_hamming_coverage_by_len=span_cov_by_len,
+            span_hamming_quality_by_len=span_q_by_len,
+            span_hamming_x=float(bucket.x_span),
+            span_hamming_pct=float(bucket.span_pct),
+            span_hamming_energy=float(bucket.span_energy),
+            span_hamming_char_pct=(None if char_pct is None else float(char_pct)),
+            span_hamming_char_score=(None if char_score is None else float(char_score)),
+            span_hamming_combined_pct=float(combined_pct),
+            span_hamming_combined_energy=float(combined_energy),
+            span_hamming_bucket_length=int(bucket.length_bucket),
+            span_hamming_gate_failed=bool(gate_failed),
+            span_hamming_gate_reasons=list(gate_reasons),
+            span_hamming_gate_score_floor=float(self._span_hamming_gate_score_floor),
+        )
+        return float(score)
+
     def _apply_span_hamming_bonus(self, base_score: float, pt: np.ndarray) -> float:
         """
         Optionally augment final score with weighted span-hamming signal.
         """
+        if self._span_hamming_mode != "raw_bonus":
+            return float(base_score)
         backend = self._span_hamming_backend
         weight = float(self._span_hamming_weight)
         if backend is None or weight == 0.0:
@@ -489,8 +757,16 @@ class RuneScorer(BaseScorer):
     def score(self, plaintext: Iterable[int], wli_windows: Iterable[Tuple[int, int]] | None = None) -> float:
         fam = self.objective.family
         stat = self.objective.stat
-        want_energy = fam is ObjectiveFamily.ENERGY
         pt_single = _to_u8_1d(plaintext)
+
+        if self._span_hamming_mode == "calibrated":
+            if fam not in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
+                raise ValueError(
+                    "span_hamming_mode='calibrated' only supports ObjectiveFamily.PCT or ENERGY"
+                )
+            return self._score_span_hamming_calibrated(pt_single, wli_windows)
+
+        want_energy = fam is ObjectiveFamily.ENERGY
 
         if self._requires_wli() and wli_windows is None:
             raise ValueError("WLI is required when use_word_breaks=True and WLI models are active")

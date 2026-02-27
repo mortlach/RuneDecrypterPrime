@@ -15,6 +15,7 @@ Default scorer schedule:
 import csv
 import hashlib
 import json
+import platform
 import re
 import subprocess
 import sys
@@ -83,6 +84,24 @@ REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT = True  # Hard guard: avg.full_text scorers mus
 # Benchmark control: when False, oracle match_ratio is telemetry-only and never used
 # for Stage-2/Stage-3 selection/ranking decisions.
 ORACLE_ASSIST_SELECTION = False
+
+# Deterministic scoring experiment profiles (A/B/C).
+# - off: keep profile-native scoring untouched.
+# - a_baseline: stage3 char4 pct baseline (no span calibration).
+# - b_min: stage3 char4 pct + calibrated span, combine=min.
+# - c_min_late: same as b_min but activates only after char_pct_min threshold.
+SCORING_EXPERIMENT_PROFILE = "a_baseline"  # off | a_baseline | b_min | c_min_late
+SCORING_EXPERIMENT_ENFORCE_LOCKS = True
+SCORING_EXPERIMENT_SPAN_ASSETS_DIR = Path("output/tools/benchmarks/scoring/span_hamming_nose_assets_v1")
+SCORING_EXPERIMENT_SPAN_COVERAGE_MIN = 0.05
+SCORING_EXPERIMENT_SPAN_QUALITY_MIN = 0.05
+SCORING_EXPERIMENT_C_CHAR_PCT_MIN = 0.70
+
+# Per-iteration tamper-evident audit chain (for crash/cancel-safe partial runs).
+AUDIT_HASH_CHAIN_ENABLED = True
+AUDIT_HASH_CHAIN_SEED = "0" * 64
+AUDIT_HASH_CHAIN_CSV = "iteration_audit_chain.csv"
+AUDIT_HASH_CHAIN_JSONL = "iteration_audit_chain.jsonl"
 
 SOLVE_MATCH_THRESHOLD = 0.90
 STALL_DELTA = 0.002
@@ -472,12 +491,257 @@ def _repo_root() -> Path:
     return _ROOT
 
 
+def _resolve_repo_path(path_like: Path | str | None) -> Path | None:
+    if path_like is None:
+        return None
+    p = Path(path_like).expanduser()
+    if not p.is_absolute():
+        p = (_repo_root() / p).resolve()
+    else:
+        p = p.resolve()
+    return p
+
+
 def _git_short() -> str:
     try:
         out = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=str(_repo_root()), stderr=subprocess.DEVNULL)
         return out.decode("utf-8", errors="replace").strip() or "nogit"
     except Exception:
         return "nogit"
+
+
+def _git_commit() -> str:
+    try:
+        out = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=str(_repo_root()), stderr=subprocess.DEVNULL)
+        return out.decode("utf-8", errors="replace").strip() or "nogit"
+    except Exception:
+        return "nogit"
+
+
+def _git_dirty() -> bool:
+    try:
+        out = subprocess.check_output(["git", "status", "--porcelain"], cwd=str(_repo_root()), stderr=subprocess.DEVNULL)
+        return bool(out.decode("utf-8", errors="replace").strip())
+    except Exception:
+        return False
+
+
+def _sanitize_jsonable(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(k): _sanitize_jsonable(v) for k, v in sorted(value.items(), key=lambda kv: str(kv[0]))}
+    if isinstance(value, (list, tuple)):
+        return [_sanitize_jsonable(v) for v in value]
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, (np.integer,)):
+        return int(value)
+    if isinstance(value, (np.floating,)):
+        v = float(value)
+        return v if np.isfinite(v) else None
+    if isinstance(value, float):
+        return value if np.isfinite(value) else None
+    return value
+
+
+def _canonical_json(value: Any) -> str:
+    return json.dumps(
+        _sanitize_jsonable(value),
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
+
+
+def _sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _hash_payload(payload: Dict[str, Any]) -> str:
+    return _sha256_text(_canonical_json(payload))
+
+
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _build_non_scoring_lock_payload() -> Dict[str, Any]:
+    return dict(
+        mode=str(PIPELINE_RUN_MODE),
+        direction=str(ENCODING_DIR),
+        order=str(ORDER),
+        alphabet_size=int(ALPHABET_SIZE),
+        solve_threshold=float(SOLVE_MATCH_THRESHOLD),
+        stall_delta=float(STALL_DELTA),
+        stall_stage_limit=int(STALL_STAGE_LIMIT),
+        text_offsets=[int(x) for x in TEXT_OFFSETS],
+        key_seeds=[int(x) for x in KEY_SEEDS],
+        tiers=[dict(name=str(t.name), period=int(t.period), columns=int(t.columns), length=int(t.length)) for t in TIERS],
+        stage1_search=dict(
+            seed_restarts=int(STAGE1_SEED_RESTARTS),
+            seed_n_blocks=int(STAGE1_SEED_N_BLOCKS),
+            seed_total=int(STAGE1_SEED_TOTAL),
+            seed_swaps=int(STAGE1_SEED_SWAPS),
+            scout_runs=int(STAGE12_SCOUT_RUNS),
+            archive_keep=int(STAGE12_ARCHIVE_KEEP),
+            promote_top=int(STAGE12_PROMOTE_TOP),
+            scout_step_scale=float(STAGE1_SCOUT_STEP_SCALE),
+            scout_restart_scale=float(STAGE1_SCOUT_RESTART_SCALE),
+            scout_min_steps=int(STAGE1_SCOUT_MIN_STEPS),
+            scout_min_restarts=int(STAGE1_SCOUT_MIN_RESTARTS),
+            scout_no_improve_delta=float(STAGE1_SCOUT_NO_IMPROVE_DELTA),
+            scout_no_improve_patience=int(STAGE1_SCOUT_NO_IMPROVE_PATIENCE),
+            scout_min_new_archive=int(STAGE1_SCOUT_MIN_NEW_ARCHIVE),
+            scout_early_stop_min_scouts=int(STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS),
+            sub_candidates=int(STAGE1_SUB_CANDIDATES),
+            sub_candidates_by_columns={str(k): int(v) for k, v in STAGE1_SUB_CANDIDATES_BY_COLUMNS.items()},
+        ),
+        stage2_search=dict(
+            exact_max_columns=int(STAGE2_EXACT_MAX_COLUMNS),
+            exact_sub_candidates=int(STAGE2_EXACT_SUB_CANDIDATES),
+            exact_sub_by_columns={str(k): int(v) for k, v in STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS.items()},
+            exact_two_pass=bool(STAGE2_EXACT_TWO_PASS),
+            exact_pass1_top_tails=int(STAGE2_EXACT_PASS1_TOP_TAILS),
+            exact_pass1_top_by_columns={str(k): int(v) for k, v in STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS.items()},
+            exact_early_solve_break=bool(STAGE2_EXACT_EARLY_SOLVE_BREAK),
+            hybrid_sub_candidates=int(STAGE2_HYBRID_SUB_CANDIDATES),
+            hybrid_sub_by_columns={str(k): int(v) for k, v in STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS.items()},
+            promote_by_stage3_judge=bool(STAGE2_PROMOTE_BY_STAGE3_JUDGE),
+            entry_band_by_stage3_judge=bool(STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE),
+        ),
+        stage3_search=dict(
+            solver=dict(SOLVER_STAGE3),
+            init_keys=int(STAGE3_INITIAL_KEYS),
+            init_by_columns={str(k): int(v) for k, v in STAGE3_INITIAL_KEYS_BY_COLUMNS.items()},
+            dynamic_bands=[dict(b) for b in STAGE3_DYNAMIC_BANDS],
+            two_phase_enabled=bool(STAGE3_TWO_PHASE_ENABLED),
+            phase_a=dict(STAGE3_PHASEA_CFG),
+            phase_b=dict(STAGE3_PHASEB_CFG),
+            phase_b_top_n=int(STAGE3_PHASEB_TOP_N),
+            phase_b_gate_delta=float(STAGE3_PHASEB_GATE_DELTA_FLOOR),
+            phase_b_gate_end_gain=float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR),
+            continue_after_solve=bool(STAGE3_CONTINUE_AFTER_SOLVE),
+            c1_focus_enabled=bool(STAGE3_C1_FOCUS_ENABLED),
+            c1_init_keys=int(STAGE3_C1_INIT_KEYS),
+            c1_phase_a_steps=int(STAGE3_C1_PHASEA_STEPS),
+            c1_phase_b_steps=int(STAGE3_C1_PHASEB_STEPS),
+            c1_phase_b_top_n=int(STAGE3_C1_PHASEB_TOP_N),
+            c1_gate_delta=float(STAGE3_C1_PHASEB_GATE_DELTA_FLOOR),
+            c1_gate_end_gain=float(STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR),
+            period_init_mult={str(k): float(v) for k, v in STAGE3_PERIOD_INIT_MULT_BY_PERIOD.items()},
+            period_step_mult={str(k): float(v) for k, v in STAGE3_PERIOD_STEP_MULT_BY_PERIOD.items()},
+            period_restart_bonus={str(k): int(v) for k, v in STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD.items()},
+            init_keys_cap=int(STAGE3_INIT_KEYS_CAP),
+        ),
+    )
+
+
+def _build_scoring_lock_payload() -> Dict[str, Any]:
+    return dict(
+        scorer_impl=str(getattr(SCORER_IMPL, "value", SCORER_IMPL)),
+        stage1_label=str(SCORER_STAGE1_LABEL),
+        stage2_label=str(SCORER_STAGE2_LABEL),
+        stage3_label=str(SCORER_STAGE3_LABEL),
+        stage1=dict(SCORER_STAGE1),
+        stage2=dict(SCORER_STAGE2),
+        stage3=dict(SCORER_FULL),
+        stage2_pass1_primary={str(k): float(v) for k, v in STAGE2_PASS1_PRIMARY_CHAR_WEIGHTS.items()},
+        stage2_pass1_fallback={str(k): float(v) for k, v in STAGE2_PASS1_FALLBACK_CHAR_WEIGHTS.items()},
+        oracle_assist_selection=bool(ORACLE_ASSIST_SELECTION),
+        require_no_ecdf_for_avg_fulltext=bool(REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT),
+    )
+
+
+def _stage3_char4_pct_baseline_cfg() -> Dict[str, Any]:
+    return dict(
+        objective="pct.logp.win10",
+        include_char=True,
+        use_word_breaks=False,
+        char_weights={4: 1.0},
+        wli_weights={},
+        impl=SCORER_IMPL,
+    )
+
+
+def _apply_scoring_experiment_profile() -> Dict[str, Any]:
+    """Apply deterministic A/B/C scoring experiment profile via hardcoded constants."""
+
+    global PROFILE, SCORER_STAGE3_LABEL, SCORER_FULL
+    profile = str(SCORING_EXPERIMENT_PROFILE).strip().lower()
+    if profile in {"", "off", "none"}:
+        return dict(profile="off", enabled=False, description="profile-native scoring")
+
+    pre_non_hash = _hash_payload(_build_non_scoring_lock_payload())
+    stage3_cfg = _stage3_char4_pct_baseline_cfg()
+    desc = ""
+    span_assets_dir: Path | None = None
+
+    if profile == "a_baseline":
+        SCORER_STAGE3_LABEL = "B_char4_pct_baseline"
+        stage3_cfg.update(
+            span_hamming_mode="off",
+            span_hamming_enabled=False,
+            span_hamming_weight=0.0,
+        )
+        desc = "char4 pct baseline (no span calibrated channel)"
+    elif profile in {"b_min", "c_min_late"}:
+        SCORER_STAGE3_LABEL = "B_char4_pct_span_min" if profile == "b_min" else "B_char4_pct_span_min_late"
+        span_assets_dir = _resolve_repo_path(SCORING_EXPERIMENT_SPAN_ASSETS_DIR)
+        if span_assets_dir is None:
+            raise ValueError("SCORING_EXPERIMENT_SPAN_ASSETS_DIR cannot be None")
+        calib_fp = span_assets_dir / "combined_calibration.json"
+        ecdf_root = span_assets_dir / "ecdf" / "span_x"
+        if not calib_fp.exists():
+            raise FileNotFoundError(f"Missing combined_calibration.json for span experiment: {calib_fp}")
+        if not ecdf_root.exists():
+            raise FileNotFoundError(f"Missing span ECDF root for span experiment: {ecdf_root}")
+        stage3_cfg.update(
+            span_hamming_enabled=True,
+            span_hamming_mode="calibrated",
+            span_hamming_assets_dir=str(span_assets_dir),
+            span_hamming_combine_mode="min",
+            span_hamming_weight_span=1.0,
+            span_hamming_weight_char=1.0,
+            span_hamming_coverage_min=float(SCORING_EXPERIMENT_SPAN_COVERAGE_MIN),
+            span_hamming_quality_min=float(SCORING_EXPERIMENT_SPAN_QUALITY_MIN),
+            span_hamming_gate_fail_policy="score_floor",
+        )
+        if profile == "c_min_late":
+            stage3_cfg["span_hamming_char_pct_min"] = float(SCORING_EXPERIMENT_C_CHAR_PCT_MIN)
+            desc = "char4 pct + calibrated span (min combine, late activation by char pct)"
+        else:
+            desc = "char4 pct + calibrated span (min combine)"
+    else:
+        raise ValueError(
+            f"Unsupported SCORING_EXPERIMENT_PROFILE={SCORING_EXPERIMENT_PROFILE!r}; "
+            "expected off|a_baseline|b_min|c_min_late"
+        )
+
+    SCORER_FULL = stage3_cfg
+    PROFILE = f"{PROFILE}__{profile}"
+
+    post_non_hash = _hash_payload(_build_non_scoring_lock_payload())
+    if bool(SCORING_EXPERIMENT_ENFORCE_LOCKS) and (pre_non_hash != post_non_hash):
+        raise RuntimeError(
+            "Scoring experiment changed non-scoring knobs; this violates locked A/B/C setup "
+            f"(before={pre_non_hash} after={post_non_hash})"
+        )
+
+    return dict(
+        profile=profile,
+        enabled=True,
+        description=desc,
+        span_assets_dir=(str(span_assets_dir) if span_assets_dir is not None else ""),
+        non_scoring_hash_before=pre_non_hash,
+        non_scoring_hash_after=post_non_hash,
+        scoring_hash=_hash_payload(_build_scoring_lock_payload()),
+    )
 
 
 def _apply_run_mode() -> None:
@@ -530,7 +794,8 @@ def _apply_run_mode() -> None:
         HEARTBEAT_SECONDS = 900
         TEXT_OFFSETS[:] = [0]
         KEY_SEEDS[:] = [111]
-        # Keep Stage-2 promotion on its native objective in this scan mode.
+        # Keep scan defaults judge-off for stable A/B reproducibility; automatic
+        # mismatch bridge still applies when Stage-2/3 objective families differ.
         STAGE2_PROMOTE_BY_STAGE3_JUDGE = False
         STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE = False
         ORACLE_ASSIST_SELECTION = False
@@ -552,10 +817,10 @@ def _apply_run_mode() -> None:
         STAGE3_INITIAL_KEYS = 64
         STAGE3_INITIAL_KEYS_BY_COLUMNS = {1: 48, 3: 72, 5: 128, 7: 160, 10: 128, 13: 128}
         STAGE3_DYNAMIC_BANDS = [
-            dict(name="very_close", max_gap=0.010, steps=700, restarts=1, plateau_rounds=120, col_batch=96, inner_batch=128),
-            dict(name="close", max_gap=0.030, steps=1200, restarts=1, plateau_rounds=180, col_batch=96, inner_batch=128),
-            dict(name="mid", max_gap=0.080, steps=2200, restarts=2, plateau_rounds=280, col_batch=112, inner_batch=128),
-            dict(name="far", max_gap=1e9, steps=3600, restarts=2, plateau_rounds=420, col_batch=112, inner_batch=128),
+            dict(name="very_close", max_gap=0.010, steps=500, restarts=1, plateau_rounds=100, col_batch=96, inner_batch=128),
+            dict(name="close", max_gap=0.030, steps=900, restarts=1, plateau_rounds=150, col_batch=96, inner_batch=128),
+            dict(name="mid", max_gap=0.080, steps=1500, restarts=1, plateau_rounds=220, col_batch=112, inner_batch=128),
+            dict(name="far", max_gap=1e9, steps=2400, restarts=2, plateau_rounds=320, col_batch=112, inner_batch=128),
         ]
         STAGE3_C1_INIT_KEYS = 128
         STAGE3_C1_PHASEA_STEPS = 1800
@@ -832,6 +1097,19 @@ def _is_avg_fulltext_scorer(scorer_cfg: Dict[str, Any]) -> bool:
     return obj.startswith("avg.logp") and policy == "full_text"
 
 
+def _objective_space_key(scorer_cfg: Dict[str, Any]) -> str:
+    """Coarse objective-space key for cross-stage score comparability checks."""
+
+    obj = str(scorer_cfg.get("objective", "")).strip().lower()
+    if obj.startswith("avg."):
+        return "avg"
+    if obj.startswith("pct.") or obj.startswith("energy."):
+        return "pct_energy"
+    if obj.startswith("neglogp"):
+        return "neglogp"
+    return obj.split(".", 1)[0] if obj else "unknown"
+
+
 def _effective_stage3_impl(scorer_cfg: Dict[str, Any]) -> str:
     if _is_avg_fulltext_scorer(scorer_cfg):
         return str(SCORER_STAGE3_IMPL_AVG_FULLTEXT)
@@ -842,15 +1120,30 @@ def _stage2_judge_pool_limit(
     *,
     ranked_count: int,
     archive_keep: int,
+    stage2_scorer_cfg: Dict[str, Any] | None = None,
     stage3_scorer_cfg: Dict[str, Any],
 ) -> int:
     ranked_n = max(0, int(ranked_count))
     if ranked_n <= 0:
         return 0
+    stage2_stage3_space_match = True
+    if stage2_scorer_cfg is not None:
+        stage2_stage3_space_match = (
+            _objective_space_key(dict(stage2_scorer_cfg))
+            == _objective_space_key(dict(stage3_scorer_cfg))
+        )
+    stage3_span_calibrated = (
+        str(stage3_scorer_cfg.get("span_hamming_mode", "off")).strip().lower() == "calibrated"
+    )
     if (not bool(STAGE2_PROMOTE_BY_STAGE3_JUDGE)) and (not bool(STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE)):
-        target = max(1, int(SAVE_STAGE2_TOPK))
+        # Even when judge is "off", keep a broad bridge pool if Stage-2 and Stage-3
+        # optimize different score families so diagnostics/banding are not rank-topK biased.
+        if not stage2_stage3_space_match:
+            target = max(1, int(archive_keep))
+        else:
+            target = max(1, int(SAVE_STAGE2_TOPK))
         return max(1, min(ranked_n, target))
-    if _is_avg_fulltext_scorer(stage3_scorer_cfg):
+    if _is_avg_fulltext_scorer(stage3_scorer_cfg) or stage3_span_calibrated or (not stage2_stage3_space_match):
         target = max(1, int(archive_keep))
     else:
         target = max(1, int(SAVE_STAGE2_TOPK))
@@ -1019,6 +1312,33 @@ def _append_csv_row(path: Path, row: Dict[str, Any]) -> None:
     _append_csv_row_common(path, row, merge_fieldnames=True)
 
 
+def _append_jsonl_row(path: Path, row: Dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(_sanitize_jsonable(row), sort_keys=True, ensure_ascii=True, allow_nan=False) + "\n")
+
+
+def _append_iteration_audit_row(
+    *,
+    audit_csv: Path,
+    audit_jsonl: Path,
+    prev_chain_hash: str,
+    payload: Dict[str, Any],
+) -> str:
+    clean_payload = _sanitize_jsonable(payload)
+    row_hash = _sha256_text(_canonical_json(clean_payload))
+    chain_hash = _sha256_text(f"{str(prev_chain_hash)}|{row_hash}")
+    row_out = dict(
+        **clean_payload,
+        row_hash=str(row_hash),
+        prev_chain_hash=str(prev_chain_hash),
+        chain_hash=str(chain_hash),
+    )
+    _append_csv_row(audit_csv, row_out)
+    _append_jsonl_row(audit_jsonl, row_out)
+    return str(chain_hash)
+
+
 def _build_summary(tiers: Sequence[Tier], instances: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     summary: Dict[str, Any] = {"tiers": {}}
     for t in tiers:
@@ -1081,6 +1401,7 @@ def _load_proven_solved_index(path: Path, *, min_match: float) -> Dict[Tuple[str
 
 def main() -> None:
     _apply_run_mode()
+    scoring_experiment_meta = _apply_scoring_experiment_profile()
     direction_txt = str(ENCODING_DIR).strip().lower()
     if direction_txt == "ltr":
         direction = Direction.LTR
@@ -1098,6 +1419,10 @@ def main() -> None:
     best_dir.mkdir(parents=True, exist_ok=True)
     final_dir = run_dir / "final_instances"
     final_dir.mkdir(parents=True, exist_ok=True)
+    audit_csv = run_dir / str(AUDIT_HASH_CHAIN_CSV)
+    audit_jsonl = run_dir / str(AUDIT_HASH_CHAIN_JSONL)
+    audit_prev_chain_hash = str(AUDIT_HASH_CHAIN_SEED)
+    audit_rows_written = 0
     hist = root / "tools" / "benchmarks" / "solve_proof" / "proven_solve_pipeline_no_wli_log.csv"
     hist.parent.mkdir(parents=True, exist_ok=True)
     autoskip_effective = bool(AUTOSKIP_PROVEN) and (not bool(FORCE_RERUN_PROVEN))
@@ -1111,6 +1436,7 @@ def main() -> None:
     run_config = dict(
         profile=PROFILE,
         mode=PIPELINE_RUN_MODE,
+        scoring_experiment=dict(scoring_experiment_meta),
         direction=direction.value,
         order=ORDER,
         alphabet_size=int(ALPHABET_SIZE),
@@ -1231,7 +1557,30 @@ def main() -> None:
             ),
         ),
     )
-    write_json(run_dir / "run_config.json", run_config)
+    run_config_path = run_dir / "run_config.json"
+    write_json(run_config_path, run_config)
+    non_scoring_lock_hash = _hash_payload(_build_non_scoring_lock_payload())
+    scoring_lock_hash = _hash_payload(_build_scoring_lock_payload())
+    run_config_payload_hash = _hash_payload(run_config)
+    run_config["lock_hashes"] = dict(
+        non_scoring=str(non_scoring_lock_hash),
+        scoring=str(scoring_lock_hash),
+        run_config_payload=str(run_config_payload_hash),
+    )
+    run_config["git"] = dict(short=str(_git_short()), commit=str(_git_commit()), dirty=int(1 if _git_dirty() else 0))
+    write_json(run_config_path, run_config)
+    run_config_hash = _sha256_file(run_config_path)
+
+    span_assets_dir = _resolve_repo_path(str(scoring_experiment_meta.get("span_assets_dir", "")).strip() or None)
+    span_combined_calibration_hash = ""
+    span_ecdf_audit_hash = ""
+    if span_assets_dir is not None and span_assets_dir.exists():
+        combined_fp = span_assets_dir / "combined_calibration.json"
+        ecdf_audit_fp = span_assets_dir / "ecdf_audit.json"
+        if combined_fp.exists():
+            span_combined_calibration_hash = _sha256_file(combined_fp)
+        if ecdf_audit_fp.exists():
+            span_ecdf_audit_hash = _sha256_file(ecdf_audit_fp)
 
     print(
         f"[pipeline_no_wli] setup: profile={PROFILE} mode={PIPELINE_RUN_MODE} "
@@ -1266,7 +1615,19 @@ def main() -> None:
     print(
         f"[pipeline_no_wli] setup: ecdf_guard="
         f"{'on' if bool(REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT) else 'off'} "
-        f"(avg_fulltext_required_for_all_stages={bool(REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT)})",
+        f"(enforce_no_ecdf_for_avg_fulltext={bool(REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT)})",
+        flush=True,
+    )
+    print(
+        f"[pipeline_no_wli] setup: scoring_experiment="
+        f"{str(scoring_experiment_meta.get('profile', 'off'))} "
+        f"enabled={1 if bool(scoring_experiment_meta.get('enabled', False)) else 0} "
+        f"desc=\"{str(scoring_experiment_meta.get('description', ''))}\"",
+        flush=True,
+    )
+    print(
+        f"[pipeline_no_wli] setup: lock_hashes non_scoring={non_scoring_lock_hash} "
+        f"scoring={scoring_lock_hash} run_config={run_config_hash}",
         flush=True,
     )
     print(
@@ -1318,6 +1679,7 @@ def main() -> None:
     )
     print(f"[pipeline_no_wli] setup: tiers={len(TIERS)} text_offsets={TEXT_OFFSETS} key_seeds={KEY_SEEDS}", flush=True)
     print(f"[pipeline_no_wli] reports: {run_dir.relative_to(root)}", flush=True)
+    print(f"[pipeline_no_wli] audit: csv={audit_csv.relative_to(root)} jsonl={audit_jsonl.relative_to(root)}", flush=True)
 
     stages: List[dict] = []
     instances: List[dict] = []
@@ -1325,6 +1687,89 @@ def main() -> None:
     done = 0
     t0_all = time.time()
     last_hb = float(t0_all)
+    status_counts: Dict[str, int] = {
+        "solved": 0,
+        "stalled": 0,
+        "unsolved": 0,
+        "skipped_proven": 0,
+    }
+    run_manifest_path = run_dir / "run_manifest.json"
+    run_manifest: Dict[str, Any] = dict(
+        kind="bench_solve_pipeline_no_wli",
+        version=2,
+        run_status="running",
+        run_id=str(run_dir.name),
+        generated_utc=datetime.now(timezone.utc).isoformat(),
+        updated_utc=datetime.now(timezone.utc).isoformat(),
+        completed_utc="",
+        profile_id=str(PROFILE),
+        mode=str(PIPELINE_RUN_MODE),
+        direction=str(direction.value),
+        order=str(ORDER),
+        runtime=dict(
+            python=str(sys.version.split()[0]),
+            platform=str(platform.platform()),
+        ),
+        git=dict(
+            short=str(_git_short()),
+            commit=str(_git_commit()),
+            dirty=int(1 if _git_dirty() else 0),
+        ),
+        scoring_experiment=dict(scoring_experiment_meta),
+        lock_hashes=dict(
+            non_scoring=str(non_scoring_lock_hash),
+            scoring=str(scoring_lock_hash),
+            run_config=str(run_config_hash),
+        ),
+        assets=dict(
+            span_assets_dir=(str(span_assets_dir) if span_assets_dir is not None else ""),
+            span_combined_calibration_sha256=str(span_combined_calibration_hash),
+            span_ecdf_audit_sha256=str(span_ecdf_audit_hash),
+        ),
+        paths=dict(
+            run_config=str(run_config_path.relative_to(root)),
+            history_log=str(hist.relative_to(root)),
+            final_instances=str(final_dir.relative_to(root)),
+            audit_chain_csv=str(audit_csv.relative_to(root)),
+            audit_chain_jsonl=str(audit_jsonl.relative_to(root)),
+        ),
+        audit=dict(
+            enabled=int(1 if bool(AUDIT_HASH_CHAIN_ENABLED) else 0),
+            chain_algorithm="sha256(prev_chain_hash|row_hash)",
+            chain_seed=str(AUDIT_HASH_CHAIN_SEED),
+        ),
+        progress=dict(
+            total_units=int(total),
+            done_units=0,
+            solved=0,
+            stalled=0,
+            unsolved=0,
+            skipped_proven=0,
+            history_rows_written=0,
+            audit_rows_written=0,
+            audit_last_chain_hash=str(audit_prev_chain_hash),
+        ),
+    )
+    write_json(run_manifest_path, run_manifest)
+
+    def _checkpoint_manifest(*, status_key: str) -> None:
+        sk = str(status_key)
+        if sk in status_counts:
+            status_counts[sk] = int(status_counts[sk]) + 1
+        run_manifest["updated_utc"] = datetime.now(timezone.utc).isoformat()
+        run_manifest["progress"] = dict(
+            total_units=int(total),
+            done_units=int(done),
+            solved=int(status_counts.get("solved", 0)),
+            stalled=int(status_counts.get("stalled", 0)),
+            unsolved=int(status_counts.get("unsolved", 0)),
+            skipped_proven=int(status_counts.get("skipped_proven", 0)),
+            history_rows_written=int(history_rows_written),
+            audit_rows_written=int(audit_rows_written),
+            audit_last_chain_hash=str(audit_prev_chain_hash),
+        )
+        write_json(run_manifest_path, run_manifest)
+
     best_global = {"match": float("-inf"), "tier": "", "text_id": -1, "key_seed": -1, "stage": "", "preview": ""}
 
     for tier in TIERS:
@@ -1438,7 +1883,8 @@ def main() -> None:
                         ),
                     )
                     artifact_name = f"{tier.name}__text{int(text_id)}__seed{int(key_seed)}.json"
-                    write_json(final_dir / artifact_name, artifact_payload)
+                    artifact_path = final_dir / artifact_name
+                    write_json(artifact_path, artifact_payload)
 
                     summary_ckpt = _build_summary(TIERS, instances)
                     write_pipeline_snapshot_files(
@@ -1471,6 +1917,30 @@ def main() -> None:
                     )
                     _append_csv_row(hist, hist_row)
                     history_rows_written += 1
+                    if bool(AUDIT_HASH_CHAIN_ENABLED):
+                        audit_prev_chain_hash = _append_iteration_audit_row(
+                            audit_csv=audit_csv,
+                            audit_jsonl=audit_jsonl,
+                            prev_chain_hash=str(audit_prev_chain_hash),
+                            payload=dict(
+                                timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                                iteration_index=int(done + 1),
+                                run_id=str(run_dir.name),
+                                fixture_id=str(tier.name),
+                                text_id=int(text_id),
+                                key_seed=int(key_seed),
+                                status="skipped_proven",
+                                best_stage=str(src_stage),
+                                best_match_ratio=float(src_match if np.isfinite(src_match) else np.nan),
+                                stop_reason=str(stop_reason),
+                                total_seconds=0.0,
+                                total_evals=0,
+                                history_row_hash=str(_hash_payload(hist_row)),
+                                artifact_relpath=str(artifact_path.relative_to(root)),
+                                artifact_sha256=str(_sha256_file(artifact_path)),
+                            ),
+                        )
+                        audit_rows_written += 1
 
                     if np.isfinite(float(src_match)) and float(src_match) > float(best_global["match"]):
                         best_global.update(
@@ -1483,6 +1953,7 @@ def main() -> None:
                         )
 
                     done += 1
+                    _checkpoint_manifest(status_key="skipped_proven")
                     elapsed = time.time() - t0_all
                     eta = (elapsed / float(done)) * float(total - done) if done else 0.0
                     print(
@@ -1536,18 +2007,6 @@ def main() -> None:
                 scorer_stage1 = dict(SCORER_STAGE1, encoding_dir=direction)
                 scorer_stage2 = dict(SCORER_STAGE2, encoding_dir=direction)
                 scorer_full = dict(SCORER_FULL, encoding_dir=direction)
-                if bool(REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT):
-                    scorer_gate = [
-                        ("stage1", scorer_stage1),
-                        ("stage2", scorer_stage2),
-                        ("stage3", scorer_full),
-                    ]
-                    non_fulltext = [lbl for lbl, cfg in scorer_gate if not _is_avg_fulltext_scorer(cfg)]
-                    if non_fulltext:
-                        raise RuntimeError(
-                            "[pipeline_no_wli] no-ECDF guard requires avg.logp full_text for all stages; "
-                            f"non_compliant={','.join(non_fulltext)} profile={NO_WLI_PIPELINE_PROFILE_ID}"
-                        )
                 scorer_stage1_runtime = build_scorer(cfg_sub, ScoringConfig(**scorer_stage1))
                 scorer_stage2_runtime = build_scorer(cfg_full, ScoringConfig(**scorer_stage2))
                 scorer_full_runtime = build_scorer(cfg_full, ScoringConfig(**scorer_full))
@@ -2331,6 +2790,7 @@ def main() -> None:
                 stage2_judge_pool_size = _stage2_judge_pool_limit(
                     ranked_count=len(stage2_ranked),
                     archive_keep=int(stage2_archive_keep),
+                    stage2_scorer_cfg=dict(scorer_stage2),
                     stage3_scorer_cfg=dict(SCORER_FULL),
                 )
                 stage2_judge_entries = stage2_ranked[: int(stage2_judge_pool_size)]
@@ -2358,7 +2818,11 @@ def main() -> None:
                 if (not np.isfinite(stage2_entry_score_judge)) and np.isfinite(stage2_entry_score):
                     stage2_entry_score_judge = float(stage2_entry_score)
 
-                if bool(STAGE2_PROMOTE_BY_STAGE3_JUDGE) and _is_avg_fulltext_scorer(SCORER_FULL) and stage2_judge_scores:
+                stage2_stage3_space_match = (
+                    _objective_space_key(dict(scorer_stage2))
+                    == _objective_space_key(dict(SCORER_FULL))
+                )
+                if bool(STAGE2_PROMOTE_BY_STAGE3_JUDGE) and stage2_judge_scores:
                     judged_entries: List[Dict[str, Any]] = []
                     for rank_idx, ent in enumerate(stage2_judge_entries, start=1):
                         judge_sc = float(stage2_judge_scores.get(int(rank_idx), float("nan")))
@@ -2397,6 +2861,31 @@ def main() -> None:
                             if r < len(by_match):
                                 _push_promoted(by_match[r])
                         stage2_promote_mode = "judge_match_interleave"
+                elif (not bool(STAGE2_PROMOTE_BY_STAGE3_JUDGE)) and (not stage2_stage3_space_match) and stage2_judge_scores:
+                    # Automatic bridge for mixed objective families (e.g. Stage-2 AVG,
+                    # Stage-3 PCT/span). Promote by Stage-3 judge to improve Stage-3 starts.
+                    judged_entries: List[Dict[str, Any]] = []
+                    for rank_idx, ent in enumerate(stage2_judge_entries, start=1):
+                        judge_sc = float(stage2_judge_scores.get(int(rank_idx), float("nan")))
+                        if not np.isfinite(judge_sc):
+                            continue
+                        enriched = dict(ent)
+                        enriched["judge_score"] = float(judge_sc)
+                        judged_entries.append(enriched)
+                    if judged_entries:
+                        by_judge = sorted(
+                            judged_entries,
+                            key=lambda e: (
+                                float(e.get("judge_score", float("-inf"))),
+                                float(e.get("score", float("-inf"))),
+                            ),
+                            reverse=True,
+                        )
+                        stage2_promoted = []
+                        stage2_promoted_seen = set()
+                        for r in range(min(len(by_judge), int(stage2_promote_top))):
+                            _push_promoted(by_judge[r])
+                        stage2_promote_mode = "judge_auto_bridge"
 
                 stage2_promoted, stage2_best_in_promoted = _ensure_best_entry_in_promoted(
                     promoted_entries=stage2_promoted,
@@ -2546,9 +3035,18 @@ def main() -> None:
 
                     solver_stage3_cfg = dict(SOLVER_STAGE3)
                     stage2_gate_source = "mid"
+                    stage2_stage3_space_match = (
+                        _objective_space_key(dict(scorer_stage2))
+                        == _objective_space_key(dict(scorer_full))
+                    )
                     if bool(STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE) and np.isfinite(stage2_entry_score_judge):
                         stage2_gate_score = float(stage2_entry_score_judge)
                         stage2_gate_source = "judge"
+                    elif (not stage2_stage3_space_match) and np.isfinite(stage2_entry_score_judge):
+                        # Prevent cross-family score subtraction (e.g. avg vs pct) from
+                        # forcing the wrong Stage-3 dynamic band.
+                        stage2_gate_score = float(stage2_entry_score_judge)
+                        stage2_gate_source = "judge_auto_mismatch"
                     else:
                         stage2_gate_score = float(stage2_entry_score)
                         stage2_gate_source = "mid"
@@ -3273,7 +3771,8 @@ def main() -> None:
                     ),
                 )
                 artifact_name = f"{tier.name}__text{int(text_id)}__seed{int(key_seed)}.json"
-                write_json(final_dir / artifact_name, artifact_payload)
+                artifact_path = final_dir / artifact_name
+                write_json(artifact_path, artifact_payload)
 
                 # Per-instance checkpoint (crash-safe): preserve completed units immediately.
                 summary_ckpt = _build_summary(TIERS, instances)
@@ -3307,11 +3806,36 @@ def main() -> None:
                 )
                 _append_csv_row(hist, hist_row)
                 history_rows_written += 1
+                if bool(AUDIT_HASH_CHAIN_ENABLED):
+                    audit_prev_chain_hash = _append_iteration_audit_row(
+                        audit_csv=audit_csv,
+                        audit_jsonl=audit_jsonl,
+                        prev_chain_hash=str(audit_prev_chain_hash),
+                        payload=dict(
+                            timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                            iteration_index=int(done + 1),
+                            run_id=str(run_dir.name),
+                            fixture_id=str(inst_row["tier"]),
+                            text_id=int(inst_row["text_id"]),
+                            key_seed=int(inst_row["key_seed"]),
+                            status=str(inst_row["status"]),
+                            best_stage=str(inst_row["best_stage"]),
+                            best_match_ratio=float(inst_row["best_match_ratio"]),
+                            stop_reason=str(inst_row["stop_reason"]),
+                            total_seconds=float(inst_row["total_seconds"]),
+                            total_evals=int(inst_row["total_evals"]),
+                            history_row_hash=str(_hash_payload(hist_row)),
+                            artifact_relpath=str(artifact_path.relative_to(root)),
+                            artifact_sha256=str(_sha256_file(artifact_path)),
+                        ),
+                    )
+                    audit_rows_written += 1
 
                 if best_match > float(best_global["match"]):
                     best_global.update(match=float(best_match), tier=str(tier.name), text_id=int(text_id), key_seed=int(key_seed), stage=str(best_stage), preview=str(preview_best))
 
                 done += 1
+                _checkpoint_manifest(status_key=str(status))
                 elapsed = time.time() - t0_all
                 eta = (elapsed / float(done)) * float(total - done) if done else 0.0
                 print(
@@ -3345,11 +3869,40 @@ def main() -> None:
         write_json(best_dir / "best_instance.json", best_instance)
         (best_dir / "best_preview.txt").write_text(str(best_instance.get("preview_best_latin", "")), encoding="utf-8")
 
-    print(f"[pipeline_no_wli] completed in {base._format_seconds(time.time() - t0_all)}", flush=True)
+    elapsed_total = float(time.time() - t0_all)
+    run_manifest["run_status"] = "completed"
+    run_manifest["updated_utc"] = datetime.now(timezone.utc).isoformat()
+    run_manifest["completed_utc"] = datetime.now(timezone.utc).isoformat()
+    run_manifest["elapsed_seconds"] = float(elapsed_total)
+    run_manifest["artifacts"] = dict(
+        summary_sha256=(_sha256_file(run_dir / "summary.json") if (run_dir / "summary.json").exists() else ""),
+        instances_sha256=(_sha256_file(run_dir / "instances.json") if (run_dir / "instances.json").exists() else ""),
+        stages_sha256=(_sha256_file(run_dir / "stages.json") if (run_dir / "stages.json").exists() else ""),
+    )
+    run_manifest["progress"] = dict(
+        total_units=int(total),
+        done_units=int(done),
+        solved=int(status_counts.get("solved", 0)),
+        stalled=int(status_counts.get("stalled", 0)),
+        unsolved=int(status_counts.get("unsolved", 0)),
+        skipped_proven=int(status_counts.get("skipped_proven", 0)),
+        history_rows_written=int(history_rows_written),
+        audit_rows_written=int(audit_rows_written),
+        audit_last_chain_hash=str(audit_prev_chain_hash),
+    )
+    write_json(run_manifest_path, run_manifest)
+
+    print(f"[pipeline_no_wli] completed in {base._format_seconds(elapsed_total)}", flush=True)
     print(f"[pipeline_no_wli] reports: {run_dir.relative_to(root)}", flush=True)
     print(f"[pipeline_no_wli] final_artifacts: {final_dir.relative_to(root)}", flush=True)
+    print(f"[pipeline_no_wli] manifest: {run_manifest_path.relative_to(root)}", flush=True)
     print(f"[pipeline_no_wli] best: {(best_dir / 'best_instance.json').relative_to(root)}", flush=True)
     print(f"[pipeline_no_wli] history: {hist.relative_to(root)} rows={int(history_rows_written)}", flush=True)
+    print(
+        f"[pipeline_no_wli] audit_chain: rows={int(audit_rows_written)} "
+        f"last_chain_hash={str(audit_prev_chain_hash)}",
+        flush=True,
+    )
 
 
 if __name__ == "__main__":

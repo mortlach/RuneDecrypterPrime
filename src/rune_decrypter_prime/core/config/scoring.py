@@ -105,6 +105,21 @@ class ScoringConfig:
     span_hamming_min_quality_threshold: float = 1e-9
     span_hamming_debug_return_intervals: bool = False
     span_hamming_require_selected: bool = True
+    # Calibrated span channel (source-driven; no CLI)
+    span_hamming_mode: str = "off"  # off | raw_bonus | calibrated
+    span_hamming_assets_dir: Path | None = None
+    span_hamming_bucket_policy: str = "nearest_smaller_tie"
+    span_hamming_ecdf_clamp_min: float | None = None
+    span_hamming_ecdf_clamp_max: float | None = None
+    span_hamming_combine_mode: str = "min"
+    span_hamming_weight_span: float = 1.0
+    span_hamming_weight_char: float = 0.0
+    span_hamming_coverage_min: float = 0.0
+    span_hamming_quality_min: float = 0.0
+    span_hamming_span_pct_min: float | None = None
+    span_hamming_char_pct_min: float | None = None
+    span_hamming_gate_fail_policy: str = "score_floor"
+    span_hamming_gate_score_floor: float | None = None
 
     def __post_init__(self) -> None:
         if self.encoding_dir is not None:
@@ -142,6 +157,8 @@ class ScoringConfig:
             self.hamming_wordlist_dir = Path(self.hamming_wordlist_dir)
         if isinstance(self.span_hamming_wordlist_dir, (str, bytes)):
             self.span_hamming_wordlist_dir = Path(self.span_hamming_wordlist_dir)
+        if isinstance(self.span_hamming_assets_dir, (str, bytes)):
+            self.span_hamming_assets_dir = Path(self.span_hamming_assets_dir)
         self.hamming_direction_mode = str(self.hamming_direction_mode or "match").lower()
         if self.hamming_direction_mode not in {"match", "both"}:
             raise ValueError("hamming_direction_mode must be 'match' or 'both'")
@@ -166,6 +183,47 @@ class ScoringConfig:
             raise ValueError("span_hamming_max_intervals_considered_per_start must be >= 1")
         if not (0.0 <= self.span_hamming_min_quality_threshold <= 1.0):
             raise ValueError("span_hamming_min_quality_threshold must be in [0,1]")
+        self.span_hamming_mode = str(self.span_hamming_mode or "off").strip().lower()
+        if self.span_hamming_mode not in {"off", "raw_bonus", "calibrated"}:
+            raise ValueError("span_hamming_mode must be one of: off, raw_bonus, calibrated")
+        self.span_hamming_bucket_policy = str(self.span_hamming_bucket_policy or "nearest_smaller_tie").strip().lower()
+        if self.span_hamming_bucket_policy != "nearest_smaller_tie":
+            raise ValueError("span_hamming_bucket_policy currently only supports 'nearest_smaller_tie'")
+        self.span_hamming_combine_mode = str(self.span_hamming_combine_mode or "min").strip().lower()
+        if self.span_hamming_combine_mode not in {"min", "weighted_sum"}:
+            raise ValueError("span_hamming_combine_mode must be one of: min, weighted_sum")
+        self.span_hamming_gate_fail_policy = str(self.span_hamming_gate_fail_policy or "score_floor").strip().lower()
+        if self.span_hamming_gate_fail_policy != "score_floor":
+            raise ValueError("span_hamming_gate_fail_policy currently only supports 'score_floor'")
+        self.span_hamming_weight_span = float(self.span_hamming_weight_span)
+        self.span_hamming_weight_char = float(self.span_hamming_weight_char)
+        self.span_hamming_coverage_min = float(self.span_hamming_coverage_min)
+        self.span_hamming_quality_min = float(self.span_hamming_quality_min)
+        if not (0.0 <= self.span_hamming_coverage_min <= 1.0):
+            raise ValueError("span_hamming_coverage_min must be in [0,1]")
+        if not (0.0 <= self.span_hamming_quality_min <= 1.0):
+            raise ValueError("span_hamming_quality_min must be in [0,1]")
+        if self.span_hamming_span_pct_min is not None:
+            self.span_hamming_span_pct_min = float(self.span_hamming_span_pct_min)
+            if not (0.0 <= self.span_hamming_span_pct_min <= 1.0):
+                raise ValueError("span_hamming_span_pct_min must be in [0,1]")
+        if self.span_hamming_char_pct_min is not None:
+            self.span_hamming_char_pct_min = float(self.span_hamming_char_pct_min)
+            if not (0.0 <= self.span_hamming_char_pct_min <= 1.0):
+                raise ValueError("span_hamming_char_pct_min must be in [0,1]")
+        if self.span_hamming_ecdf_clamp_min is not None:
+            self.span_hamming_ecdf_clamp_min = float(self.span_hamming_ecdf_clamp_min)
+            if not (0.0 < self.span_hamming_ecdf_clamp_min < 1.0):
+                raise ValueError("span_hamming_ecdf_clamp_min must be in (0,1)")
+        if self.span_hamming_ecdf_clamp_max is not None:
+            self.span_hamming_ecdf_clamp_max = float(self.span_hamming_ecdf_clamp_max)
+            if not (0.0 < self.span_hamming_ecdf_clamp_max < 1.0):
+                raise ValueError("span_hamming_ecdf_clamp_max must be in (0,1)")
+        if self.span_hamming_ecdf_clamp_min is not None and self.span_hamming_ecdf_clamp_max is not None:
+            if not (self.span_hamming_ecdf_clamp_min < self.span_hamming_ecdf_clamp_max):
+                raise ValueError("span_hamming_ecdf_clamp_min must be < span_hamming_ecdf_clamp_max")
+        if self.span_hamming_gate_score_floor is not None:
+            self.span_hamming_gate_score_floor = float(self.span_hamming_gate_score_floor)
 
         obj = getattr(self, "objective", None)
         if isinstance(obj, ObjectiveSpec) and obj.family in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
@@ -263,6 +321,20 @@ class ScoringConfig:
         out["span_hamming_min_quality_threshold"] = self.span_hamming_min_quality_threshold
         out["span_hamming_debug_return_intervals"] = self.span_hamming_debug_return_intervals
         out["span_hamming_require_selected"] = self.span_hamming_require_selected
+        out["span_hamming_mode"] = self.span_hamming_mode
+        out["span_hamming_assets_dir"] = self.span_hamming_assets_dir
+        out["span_hamming_bucket_policy"] = self.span_hamming_bucket_policy
+        out["span_hamming_ecdf_clamp_min"] = self.span_hamming_ecdf_clamp_min
+        out["span_hamming_ecdf_clamp_max"] = self.span_hamming_ecdf_clamp_max
+        out["span_hamming_combine_mode"] = self.span_hamming_combine_mode
+        out["span_hamming_weight_span"] = self.span_hamming_weight_span
+        out["span_hamming_weight_char"] = self.span_hamming_weight_char
+        out["span_hamming_coverage_min"] = self.span_hamming_coverage_min
+        out["span_hamming_quality_min"] = self.span_hamming_quality_min
+        out["span_hamming_span_pct_min"] = self.span_hamming_span_pct_min
+        out["span_hamming_char_pct_min"] = self.span_hamming_char_pct_min
+        out["span_hamming_gate_fail_policy"] = self.span_hamming_gate_fail_policy
+        out["span_hamming_gate_score_floor"] = self.span_hamming_gate_score_floor
         return out
 
 

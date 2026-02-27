@@ -57,7 +57,7 @@ class MergeConfig:
     run_dir: Path | None
     write_merged_samples: bool
     dedupe_by_sample_id: bool
-    require_full_shard_set: bool
+    require_full_shard_set: bool = True
 
 
 def _utc_now() -> str:
@@ -266,11 +266,8 @@ def _validate_compatible(run_cfgs: list[dict[str, Any]], *, require_full_shard_s
         if sig != base_sig:
             raise ValueError(f"Incompatible run_config signature at shard index {idx}")
 
-    if not bool(base_sig.get("enable_char_baselines", False)):
-        raise ValueError(
-            "Merge currently requires enable_char_baselines=True. "
-            "This merger builds summary/calibration paths that expect char1..char4 scores."
-        )
+    # Char baselines may be disabled in some suite runs; merger must still work
+    # for span-only outputs (char columns become NaN/empty in summaries).
 
     shard_count = run_cfgs[0].get("shard_count")
     if shard_count is not None:

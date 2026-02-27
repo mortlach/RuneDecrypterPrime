@@ -43,6 +43,8 @@ Hardcoded shard launchers are provided:
 
 - `run_span_hamming_nose_shard0.py`
 - `run_span_hamming_nose_shard1.py`
+- `run_span_hamming_nose_shard0_rtl.py`
+- `run_span_hamming_nose_shard1_rtl.py`
 
 Run in separate processes:
 
@@ -51,13 +53,28 @@ python tools/benchmarks/scoring/span_hamming_nose/run_span_hamming_nose_shard0.p
 python tools/benchmarks/scoring/span_hamming_nose/run_span_hamming_nose_shard1.py
 ```
 
-Both launchers pin:
+RTL pass:
+
+```powershell
+python tools/benchmarks/scoring/span_hamming_nose/run_span_hamming_nose_shard0_rtl.py
+python tools/benchmarks/scoring/span_hamming_nose/run_span_hamming_nose_shard1_rtl.py
+```
+
+LTR launchers pin:
 
 - `SHARD_STRATEGY = "book_hash_mod"`
 - `SHARD_COUNT = 2`
 - shard index `0` / `1` respectively
 - `RUN_DIR_OVERRIDE = None` (timestamped dirs)
 - `FORCE_DIRECTIONS = ["ltr"]`
+
+RTL launchers pin:
+
+- `SHARD_STRATEGY = "book_hash_mod"`
+- `SHARD_COUNT = 2`
+- shard index `0` / `1` respectively
+- `RUN_DIR_OVERRIDE = None` (timestamped dirs)
+- `FORCE_DIRECTIONS = ["rtl"]`
 
 Optional:
 
@@ -157,6 +174,31 @@ Merged output contains:
 - `summary.csv`
 - `calibration.json`
 - optional `samples.csv` (only if `WRITE_MERGED_SAMPLES=True`)
+
+## Runtime Handoff (No-WLI Pipeline)
+
+This suite produces calibration assets for runtime scorer integration.
+
+Build assets from merged run:
+
+```powershell
+python tools/benchmarks/scoring/span_hamming_nose/build_span_hamming_nose_assets_v1.py
+```
+
+Generate stats report from latest merged run:
+
+```powershell
+python tools/benchmarks/scoring/span_hamming_nose/report_span_hamming_nose_suite.py
+```
+
+Current runtime integration uses these assets in no-WLI Stage 3 experiment modes:
+
+- `a_baseline`: char4 pct baseline only
+- `b_min`: char4 pct + calibrated span-hamming (`min` combine)
+- `c_min_late`: same as `b_min`, with late activation by char pct threshold
+
+Runtime workflow doc:
+- `planning/span_hamming/no_wli_stage_scoring_workflow.md`
 
 ## Gotchas
 
