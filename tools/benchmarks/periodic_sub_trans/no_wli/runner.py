@@ -90,12 +90,13 @@ ORACLE_ASSIST_SELECTION = False
 # - a_baseline: stage3 char4 pct baseline (no span calibration).
 # - b_min: stage3 char4 pct + calibrated span, combine=min.
 # - c_min_late: same as b_min but activates only after char_pct_min threshold.
-SCORING_EXPERIMENT_PROFILE = "a_baseline"  # off | a_baseline | b_min | c_min_late
+SCORING_EXPERIMENT_PROFILE = "b_min"  # off | a_baseline | b_min | c_min_late
 SCORING_EXPERIMENT_ENFORCE_LOCKS = True
 SCORING_EXPERIMENT_SPAN_ASSETS_DIR = Path("output/tools/benchmarks/scoring/span_hamming_nose_assets_v1")
 SCORING_EXPERIMENT_SPAN_COVERAGE_MIN = 0.05
 SCORING_EXPERIMENT_SPAN_QUALITY_MIN = 0.05
 SCORING_EXPERIMENT_C_CHAR_PCT_MIN = 0.70
+ORACLE_STAGE3_FLOOR_GUARD_EPS = 1e-12
 
 # Per-iteration tamper-evident audit chain (for crash/cancel-safe partial runs).
 AUDIT_HASH_CHAIN_ENABLED = True
@@ -710,7 +711,7 @@ def _apply_scoring_experiment_profile() -> Dict[str, Any]:
             span_hamming_weight_char=1.0,
             span_hamming_coverage_min=float(SCORING_EXPERIMENT_SPAN_COVERAGE_MIN),
             span_hamming_quality_min=float(SCORING_EXPERIMENT_SPAN_QUALITY_MIN),
-            span_hamming_gate_fail_policy="score_floor",
+            span_hamming_gate_fail_policy=("char_only" if profile == "c_min_late" else "score_floor"),
         )
         if profile == "c_min_late":
             stage3_cfg["span_hamming_char_pct_min"] = float(SCORING_EXPERIMENT_C_CHAR_PCT_MIN)
@@ -2089,6 +2090,198 @@ def main() -> None:
                     f"score={oracle_s3:.6f} raw={oracle_s3_raw:.6f}",
                     flush=True,
                 )
+                stage3_objective_txt = str(scorer_full.get("objective", "") or "").strip().lower()
+                stage3_floor_guard_enabled = stage3_objective_txt.startswith("pct.") or stage3_objective_txt.startswith("energy.")
+                stage3_floor_threshold = float(
+                    scorer_full.get(
+                        "span_hamming_ecdf_clamp_min",
+                        scorer_full.get("ecdf_clamp_min", 1e-6),
+                    )
+                )
+                if (
+                    stage3_floor_guard_enabled
+                    and np.isfinite(float(stage3_floor_threshold))
+                    and np.isfinite(float(oracle_s3))
+                    and float(oracle_s3) <= float(stage3_floor_threshold) + float(ORACLE_STAGE3_FLOOR_GUARD_EPS)
+                ):
+                    stop_reason = (
+                        "oracle_floor_guard:"
+                        f"stage3_score={float(oracle_s3):.6f}:floor={float(stage3_floor_threshold):.6f}"
+                    )
+                    print(
+                        f"[pipeline_no_wli] oracle-floor-guard tier={tier.name} text={text_id} key_seed={key_seed} "
+                        f"stage3_oracle={float(oracle_s3):.6f} floor={float(stage3_floor_threshold):.6f} "
+                        "action=abort_tier",
+                        flush=True,
+                    )
+                    preview_txt = "[oracle-floor-guard] tier aborted before stage1"
+                    instances.append(
+                        dict(
+                            tier=tier.name,
+                            period=tier.period,
+                            columns=tier.columns,
+                            length=tier.length,
+                            text_id=int(text_id),
+                            key_seed=int(key_seed),
+                            offset_hint=int(off),
+                            offset_used=int(offset_used),
+                            status="stalled",
+                            stop_reason=str(stop_reason),
+                            solve_threshold=float(SOLVE_MATCH_THRESHOLD),
+                            best_stage="oracle_guard_fail",
+                            best_match_ratio=np.nan,
+                            stage1_sub_key_match=np.nan,
+                            stage2_match_ratio=np.nan,
+                            stage3_match_ratio=np.nan,
+                            stage2_gap_to_oracle=np.nan,
+                            stage3_band="oracle_guard_fail",
+                            total_seconds=0.0,
+                            total_evals=0,
+                            preview_best_latin=str(preview_txt),
+                        )
+                    )
+                    stages.append(
+                        dict(
+                            tier=tier.name,
+                            text_id=int(text_id),
+                            key_seed=int(key_seed),
+                            stage="oracle_guard_fail",
+                            score=float(oracle_s3),
+                            match_ratio=np.nan,
+                            seconds=0.0,
+                            evals=0,
+                            oracle_stage3_floor=float(stage3_floor_threshold),
+                        )
+                    )
+
+                    artifact_payload = dict(
+                        tier=str(tier.name),
+                        profile_id=str(PROFILE),
+                        mode=str(PIPELINE_RUN_MODE),
+                        direction=str(direction.value),
+                        order=str(ORDER),
+                        alphabet_size=int(ALPHABET_SIZE),
+                        text_id=int(text_id),
+                        key_seed=int(key_seed),
+                        offset_hint=int(off),
+                        offset_used=int(offset_used),
+                        period=int(tier.period),
+                        columns=int(tier.columns),
+                        length=int(tier.length),
+                        status="stalled",
+                        stop_reason=str(stop_reason),
+                        best_stage="oracle_guard_fail",
+                        best_match_ratio=float("nan"),
+                        best_score=float("nan"),
+                        oracle_scores=dict(stage1=float(oracle_s1), stage2=float(oracle_s2), stage3=float(oracle_s3)),
+                        score_minus_oracle=dict(stage1=float("nan"), stage2=float("nan"), stage3=float("nan")),
+                        solve_threshold=float(SOLVE_MATCH_THRESHOLD),
+                        ciphertext_idx=[int(x) for x in np.asarray(ct_idx, dtype=np.uint8).tolist()],
+                        target_plaintext_idx=[int(x) for x in np.asarray(pt_idx, dtype=np.uint8).tolist()],
+                        final_best_key_idx=[],
+                        final_best_plaintext_idx=[],
+                        stage2_topk=[],
+                        stage2_topk_has_best_match=0,
+                        stage2_diagnostics=dict(
+                            archive_entries=0,
+                            kept_entries=0,
+                            promoted_entries=0,
+                            score_match_spearman=float("nan"),
+                        ),
+                        stage3_topk=[],
+                        stage3_diagnostics=dict(
+                            init_target=0,
+                            init_actual=0,
+                            promoted_keys=0,
+                            gate_source="oracle_guard_fail",
+                            continue_after_solve=bool(STAGE3_CONTINUE_AFTER_SOLVE),
+                            solve_hits=0,
+                            period_init_mult=1.0,
+                            period_step_mult=1.0,
+                            period_restart_bonus=0,
+                            phaseB_top_n_cfg=int(STAGE3_PHASEB_TOP_N),
+                            phaseB_gate_delta_cfg=float(STAGE3_PHASEB_GATE_DELTA_FLOOR),
+                            phaseB_gate_end_gain_cfg=float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR),
+                            phaseB_ran=0,
+                            phaseB_skipped=1,
+                            phaseB_top_n_used=0,
+                            phaseB_skip_reason="oracle_guard_fail",
+                            stage3_eval_count=0,
+                            c1_focus=int(1 if (int(tier.columns) <= 1 and bool(STAGE3_C1_FOCUS_ENABLED)) else 0),
+                            oracle_floor_threshold=float(stage3_floor_threshold),
+                        ),
+                    )
+                    artifact_name = f"{tier.name}__text{int(text_id)}__seed{int(key_seed)}.json"
+                    artifact_path = final_dir / artifact_name
+                    write_json(artifact_path, artifact_payload)
+
+                    summary_ckpt = _build_summary(TIERS, instances)
+                    write_pipeline_snapshot_files(
+                        run_dir=run_dir,
+                        instances=instances,
+                        stages=stages,
+                        summary=summary_ckpt,
+                    )
+
+                    hist_row = dict(
+                        timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                        run_id=run_dir.name,
+                        profile_id=PROFILE,
+                        fixture_id=str(tier.name),
+                        text_id=int(text_id),
+                        key_seed=int(key_seed),
+                        period=int(tier.period),
+                        columns=int(tier.columns),
+                        length=int(tier.length),
+                        status="stalled",
+                        solve_threshold=float(SOLVE_MATCH_THRESHOLD),
+                        best_match_ratio=np.nan,
+                        best_stage="oracle_guard_fail",
+                        stage1_sub_key_match=np.nan,
+                        stage2_match_ratio=np.nan,
+                        stage3_match_ratio=np.nan,
+                        total_seconds=0.0,
+                        total_evals=0,
+                        notes=str(stop_reason),
+                    )
+                    _append_csv_row(hist, hist_row)
+                    history_rows_written += 1
+                    if bool(AUDIT_HASH_CHAIN_ENABLED):
+                        audit_prev_chain_hash = _append_iteration_audit_row(
+                            audit_csv=audit_csv,
+                            audit_jsonl=audit_jsonl,
+                            prev_chain_hash=str(audit_prev_chain_hash),
+                            payload=dict(
+                                timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                                iteration_index=int(done + 1),
+                                run_id=str(run_dir.name),
+                                fixture_id=str(tier.name),
+                                text_id=int(text_id),
+                                key_seed=int(key_seed),
+                                status="stalled",
+                                best_stage="oracle_guard_fail",
+                                best_match_ratio=float("nan"),
+                                stop_reason=str(stop_reason),
+                                total_seconds=0.0,
+                                total_evals=0,
+                                history_row_hash=str(_hash_payload(hist_row)),
+                                artifact_relpath=str(artifact_path.relative_to(root)),
+                                artifact_sha256=str(_sha256_file(artifact_path)),
+                            ),
+                        )
+                        audit_rows_written += 1
+
+                    done += 1
+                    _checkpoint_manifest(status_key="stalled")
+                    elapsed = time.time() - t0_all
+                    eta = (elapsed / float(done)) * float(total - done) if done else 0.0
+                    print(
+                        f"[pipeline_no_wli] {done}/{total} tier={tier.name} status=stalled "
+                        f"best_match=nan run=0.0s elapsed={base._format_seconds(elapsed)} "
+                        f"eta={base._format_seconds(eta)}",
+                        flush=True,
+                    )
+                    continue
 
                 if not np.array_equal(
                     np.asarray(full_cipher.decrypt_single(ciphertext=ct_idx, key=key_true), dtype=np.uint8),

@@ -193,8 +193,8 @@ class ScoringConfig:
         if self.span_hamming_combine_mode not in {"min", "weighted_sum"}:
             raise ValueError("span_hamming_combine_mode must be one of: min, weighted_sum")
         self.span_hamming_gate_fail_policy = str(self.span_hamming_gate_fail_policy or "score_floor").strip().lower()
-        if self.span_hamming_gate_fail_policy != "score_floor":
-            raise ValueError("span_hamming_gate_fail_policy currently only supports 'score_floor'")
+        if self.span_hamming_gate_fail_policy not in {"score_floor", "char_only"}:
+            raise ValueError("span_hamming_gate_fail_policy must be one of: score_floor, char_only")
         self.span_hamming_weight_span = float(self.span_hamming_weight_span)
         self.span_hamming_weight_char = float(self.span_hamming_weight_char)
         self.span_hamming_coverage_min = float(self.span_hamming_coverage_min)

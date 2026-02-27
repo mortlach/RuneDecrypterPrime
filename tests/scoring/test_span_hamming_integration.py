@@ -187,6 +187,7 @@ def test_torch_calibrated_span_batch_pct_mode(tmp_path: Path):
     scorer._span_hamming_weight_span = 1.0
     scorer._span_hamming_weight_char = 0.0
     scorer._span_hamming_use_char_channel = False
+    scorer._span_hamming_gate_fail_policy = "score_floor"
     scorer._span_hamming_gate_score_floor = 0.123
     scorer._last_stats = {}
     scorer._telemetry = {}
@@ -220,6 +221,7 @@ def test_torch_calibrated_span_batch_weighted_sum_and_char_gate(tmp_path: Path):
     scorer._span_hamming_weight_span = 1.0
     scorer._span_hamming_weight_char = 3.0
     scorer._span_hamming_use_char_channel = True
+    scorer._span_hamming_gate_fail_policy = "score_floor"
     scorer._span_hamming_gate_score_floor = 0.222
     scorer._last_stats = {}
     scorer._telemetry = {}
@@ -247,6 +249,17 @@ def test_torch_calibrated_span_batch_weighted_sum_and_char_gate(tmp_path: Path):
     stats_floor = scorer.last_stats()
     assert bool(stats_floor["span_hamming_gate_failed"]) is True
     assert "char_pct_below_min" in list(stats_floor["span_hamming_gate_reasons"])
+
+    scorer._span_hamming_gate_fail_policy = "char_only"
+    out_char_only = scorer._score_span_hamming_calibrated_batch(
+        np.asarray([list(range(20))], dtype=np.uint8),
+        None,
+    )
+    assert out_char_only.tolist() == pytest.approx([0.8], rel=0, abs=1e-12)
+    stats_char_only = scorer.last_stats()
+    assert bool(stats_char_only["span_hamming_gate_failed"]) is True
+    assert bool(stats_char_only["span_hamming_span_skipped"]) is True
+    assert str(stats_char_only["span_hamming_gate_fail_policy"]) == "char_only"
 
 
 def test_numpy_rune_scorer_calibrated_span_pct_mode(tmp_path: Path, monkeypatch):
@@ -389,6 +402,39 @@ def test_numpy_rune_scorer_calibrated_char_gate_floor(tmp_path: Path, monkeypatc
     stats = scorer.last_stats()
     assert bool(stats["span_hamming_gate_failed"]) is True
     assert "char_pct_below_min" in list(stats["span_hamming_gate_reasons"])
+
+
+def test_numpy_rune_scorer_calibrated_char_gate_char_only_fallback(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(rune_scorer, "LmPrimeRuntime", _StubRt)
+    monkeypatch.setattr(rune_scorer.RuneScorer, "_ensure_ecdf", _stub_ensure_ecdf)
+    assets_dir = _write_span_assets(tmp_path, length_bucket=3)
+    cfg = ScoringConfig(
+        objective=ObjectiveSpec(family=ObjectiveFamily.PCT, stat=Stat.LOGP, win=10),
+        include_char=True,
+        use_word_breaks=False,
+        char_weights={4: 1.0},
+        span_hamming_enabled=True,
+        span_hamming_mode="calibrated",
+        span_hamming_assets_dir=assets_dir,
+        span_hamming_combine_mode="min",
+        span_hamming_weight_char=1.0,
+        span_hamming_char_pct_min=0.9,
+        span_hamming_gate_fail_policy="char_only",
+        span_hamming_gate_score_floor=0.222,
+        span_hamming_coverage_min=0.0,
+        span_hamming_quality_min=0.0,
+        encoding_dir=Direction.LTR,
+    )
+    fake_cipher = type("C", (), {"device": "cpu"})
+    scorer = rune_scorer.RuneScorer(fake_cipher, cfg)
+    scorer._span_hamming_backend = _DummySpanBackend(raw=0.45, coverage=0.6, quality=0.7)
+
+    out = scorer.score(list(range(20)), None)
+    assert out == pytest.approx(0.8, rel=0, abs=1e-12)
+    stats = scorer.last_stats()
+    assert bool(stats["span_hamming_gate_failed"]) is True
+    assert bool(stats["span_hamming_span_skipped"]) is True
+    assert str(stats["span_hamming_gate_fail_policy"]) == "char_only"
 
 
 def test_numpy_rune_scorer_calibrated_rejects_char_channel_when_not_char4_only(tmp_path: Path, monkeypatch):

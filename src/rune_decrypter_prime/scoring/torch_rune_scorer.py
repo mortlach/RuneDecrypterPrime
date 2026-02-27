@@ -433,8 +433,8 @@ class RuneScorerTorch(BaseScorer):
             raise ValueError("span_hamming_ecdf_clamp_min/max must satisfy 0 < min < max < 1")
         if self._span_hamming_bucket_policy != "nearest_smaller_tie":
             raise ValueError("span_hamming_bucket_policy currently only supports 'nearest_smaller_tie'")
-        if self._span_hamming_gate_fail_policy != "score_floor":
-            raise ValueError("span_hamming_gate_fail_policy currently only supports 'score_floor'")
+        if self._span_hamming_gate_fail_policy not in {"score_floor", "char_only"}:
+            raise ValueError("span_hamming_gate_fail_policy must be one of: score_floor, char_only")
         self._span_hamming_enabled = (self._span_hamming_mode != "off")
         if self._span_hamming_enabled:
             try:
@@ -1674,9 +1674,24 @@ class RuneScorerTorch(BaseScorer):
         span_x = np.zeros((B,), dtype=score_dtype)
         span_pct = np.zeros((B,), dtype=score_dtype)
         span_energy = np.zeros((B,), dtype=score_dtype)
-        span_bucket = np.zeros((B,), dtype=np.int32)
+        span_bucket = np.full((B,), -1, dtype=np.int32)
         span_bucket_dir: list[str] = [""] * B
+        char_pct: np.ndarray | None = None
+        char_score: np.ndarray | None = None
+        if self._span_hamming_use_char_channel:
+            char_pct, char_score = self._score_base_channel_pct_batch(pt_b, wli_b)
+
+        skip_span_by_char = np.zeros((B,), dtype=np.bool_)
+        if char_pct is not None and self._span_hamming_char_pct_min is not None:
+            skip_span_by_char = np.asarray(
+                char_pct < float(self._span_hamming_char_pct_min),
+                dtype=np.bool_,
+            )
+
         for i in range(B):
+            if bool(skip_span_by_char[i]):
+                span_bucket_dir[i] = str(self.direction.value)
+                continue
             try:
                 stats = backend.score(pt_b[i].tolist())
                 span_raw_i = float(stats.span_raw)
@@ -1699,11 +1714,6 @@ class RuneScorerTorch(BaseScorer):
             span_energy[i] = score_dtype(float(bucket.span_energy))
             span_bucket[i] = int(bucket.length_bucket)
             span_bucket_dir[i] = str(bucket.direction)
-
-        char_pct: np.ndarray | None = None
-        char_score: np.ndarray | None = None
-        if self._span_hamming_use_char_channel:
-            char_pct, char_score = self._score_base_channel_pct_batch(pt_b, wli_b)
 
         if char_pct is None:
             combined_pct = span_pct.copy()
@@ -1728,6 +1738,10 @@ class RuneScorerTorch(BaseScorer):
         gate_failed = np.zeros((B,), dtype=np.bool_)
         gate_reasons_batch: list[list[str]] = [[] for _ in range(B)]
         for i in range(B):
+            if bool(skip_span_by_char[i]):
+                gate_failed[i] = True
+                gate_reasons_batch[i].append("char_pct_below_min")
+                continue
             if float(span_cov[i]) < float(self._span_hamming_coverage_min):
                 gate_failed[i] = True
                 gate_reasons_batch[i].append("coverage_below_min")
@@ -1749,9 +1763,13 @@ class RuneScorerTorch(BaseScorer):
             score_vec = combined_energy.copy()
         else:
             score_vec = combined_pct.copy()
+        gate_policy = str(self._span_hamming_gate_fail_policy)
         if bool(gate_failed.any()):
             score_vec = score_vec.copy()
-            score_vec[gate_failed] = score_dtype(float(self._span_hamming_gate_score_floor))
+            if gate_policy == "char_only" and char_score is not None:
+                score_vec[gate_failed] = np.asarray(char_score, dtype=score_dtype)[gate_failed]
+            else:
+                score_vec[gate_failed] = score_dtype(float(self._span_hamming_gate_score_floor))
 
         if B == 1:
             i = 0
@@ -1774,6 +1792,7 @@ class RuneScorerTorch(BaseScorer):
                 "span_bucket_direction": str(span_bucket_dir[i]),
                 "gate_failed": bool(gate_failed[i]),
                 "gate_reasons": list(gate_reasons_batch[i]),
+                "gate_fail_policy": gate_policy,
             }
             self._last_stats = {
                 "n_windows": 1,
@@ -1802,6 +1821,8 @@ class RuneScorerTorch(BaseScorer):
                 "span_hamming_gate_failed": bool(gate_failed[i]),
                 "span_hamming_gate_reasons": list(gate_reasons_batch[i]),
                 "span_hamming_gate_score_floor": float(self._span_hamming_gate_score_floor),
+                "span_hamming_span_skipped": bool(skip_span_by_char[i]),
+                "span_hamming_gate_fail_policy": gate_policy,
                 "objective_stats": objective,
             }
         else:
@@ -1833,6 +1854,8 @@ class RuneScorerTorch(BaseScorer):
                 "span_hamming_gate_failed_batch": gate_failed.astype(np.bool_, copy=False).tolist(),
                 "span_hamming_gate_reasons_batch": gate_reasons_batch,
                 "span_hamming_gate_score_floor": float(self._span_hamming_gate_score_floor),
+                "span_hamming_span_skipped_batch": skip_span_by_char.astype(np.bool_, copy=False).tolist(),
+                "span_hamming_gate_fail_policy": gate_policy,
             }
 
         _tstash(self._telemetry, **self._last_stats)
