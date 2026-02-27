@@ -37,23 +37,31 @@ Edit constants at the top of `bench_span_hamming_nose_suite.py`, then run:
 python tools/benchmarks/scoring/span_hamming_nose/bench_span_hamming_nose_suite.py
 ```
 
-For hardcoded 2-process sharding (no CLI args), use:
+### Quick Two-Shard Launchers
+
+Hardcoded shard launchers are provided:
+
+- `run_span_hamming_nose_shard0.py`
+- `run_span_hamming_nose_shard1.py`
+
+Run in separate processes:
 
 ```powershell
-# Process A
 python tools/benchmarks/scoring/span_hamming_nose/run_span_hamming_nose_shard0.py
-
-# Process B
 python tools/benchmarks/scoring/span_hamming_nose/run_span_hamming_nose_shard1.py
 ```
 
-These launchers pin:
+Both launchers pin:
 
 - `SHARD_STRATEGY = "book_hash_mod"`
 - `SHARD_COUNT = 2`
-- shard index `0` (A) and `1` (B)
+- shard index `0` / `1` respectively
+- `RUN_DIR_OVERRIDE = None` (timestamped dirs)
 - `FORCE_DIRECTIONS = ["ltr"]`
 
+Optional:
+
+- edit `FORCE_DIRECTIONS` in a launcher if you want RTL or mixed-direction runs.
 ## Outputs
 
 Each run writes to:

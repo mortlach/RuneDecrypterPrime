@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import re
 import sys
@@ -42,8 +43,9 @@ SHARD_GROUP_PREFIX: str | None = None
 OUTPUT_ROOT = Path("output/tools/benchmarks/scoring/span_hamming_nose_suite_merged")
 RUN_DIR_OVERRIDE: str | None = None
 
-WRITE_MERGED_SAMPLES = False
+WRITE_MERGED_SAMPLES = True
 DEDUPE_BY_SAMPLE_ID = True
+REQUIRE_FULL_SHARD_SET = True
 
 
 @dataclass(frozen=True)
@@ -55,6 +57,7 @@ class MergeConfig:
     run_dir: Path | None
     write_merged_samples: bool
     dedupe_by_sample_id: bool
+    require_full_shard_set: bool
 
 
 def _utc_now() -> str:
@@ -69,18 +72,27 @@ def _write_json(path: Path, payload: Any) -> None:
     )
 
 
-def _append_csv_row(path: Path, header: list[str], row: dict[str, str]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    exists = path.exists()
-    with path.open("a", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=header)
-        if not exists:
-            writer.writeheader()
-        writer.writerow(row)
-
-
-def _json_array(values: Any) -> str:
-    return json.dumps(values, separators=(",", ":"), ensure_ascii=True, allow_nan=False)
+def _corpus_books_signature(cfg_json: dict[str, Any]) -> str | None:
+    rows = cfg_json.get("resolved_books", []) or []
+    if not isinstance(rows, list) or not rows:
+        return None
+    items: list[tuple[str, str, int]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        book_id = str(row.get("book_id", "")).strip()
+        direction = str(row.get("direction", "")).strip().lower()
+        try:
+            n_tokens = int(row.get("n_tokens", 0))
+        except Exception:
+            n_tokens = 0
+        if not book_id:
+            continue
+        items.append((book_id, direction, n_tokens))
+    if not items:
+        return None
+    payload = json.dumps(sorted(items), separators=(",", ":"), ensure_ascii=True).encode("ascii")
+    return hashlib.sha256(payload).hexdigest()
 
 
 def _to_float(value: Any, default: float = float("nan")) -> float:
@@ -143,6 +155,7 @@ def _resolve_cfg() -> MergeConfig:
         run_dir=run_dir,
         write_merged_samples=bool(WRITE_MERGED_SAMPLES),
         dedupe_by_sample_id=bool(DEDUPE_BY_SAMPLE_ID),
+        require_full_shard_set=bool(REQUIRE_FULL_SHARD_SET),
     )
 
 
@@ -150,7 +163,8 @@ def _discover_latest_shard_dirs(parent: Path, group_prefix: str | None) -> list[
     if not parent.exists() or not parent.is_dir():
         raise FileNotFoundError(f"shard parent dir not found: {parent}")
     pat = re.compile(r"^(?P<base>.+)__shard(?P<idx>\d+)of(?P<count>\d+)$")
-    groups: dict[tuple[str, int], list[tuple[int, Path]]] = {}
+    groups_by_base: dict[tuple[str, int], list[tuple[int, Path]]] = {}
+    groups_by_sig: dict[tuple[int, str], dict[int, tuple[float, Path]]] = {}
     for child in parent.iterdir():
         if not child.is_dir():
             continue
@@ -162,14 +176,48 @@ def _discover_latest_shard_dirs(parent: Path, group_prefix: str | None) -> list[
             continue
         idx = int(m.group("idx"))
         count = int(m.group("count"))
-        groups.setdefault((base, count), []).append((idx, child.resolve()))
-    if not groups:
+        child_resolved = child.resolve()
+        groups_by_base.setdefault((base, count), []).append((idx, child_resolved))
+
+        # Prefer signature-based grouping so shards launched at different times
+        # (different timestamp prefixes) can still be paired deterministically.
+        cfg_path = child_resolved / "run_config.json"
+        if not cfg_path.exists():
+            continue
+        try:
+            cfg_json = json.loads(cfg_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        sig_key = json.dumps(_signature(cfg_json), sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+        gk = (count, sig_key)
+        slot = groups_by_sig.setdefault(gk, {})
+        mtime = child_resolved.stat().st_mtime
+        prev = slot.get(idx)
+        if prev is None or mtime > prev[0]:
+            slot[idx] = (mtime, child_resolved)
+
+    if not groups_by_base and not groups_by_sig:
         raise FileNotFoundError("No shard run dirs found for merge")
+
+    # 1) Best path: pick latest complete signature group.
+    complete_sig_groups: list[tuple[float, list[Path]]] = []
+    for (count, _sig), slot in groups_by_sig.items():
+        expected = set(range(int(count)))
+        if not expected.issubset(set(slot.keys())):
+            continue
+        members = [slot[i][1] for i in sorted(expected)]
+        newest = max(p.stat().st_mtime for p in members)
+        complete_sig_groups.append((newest, members))
+    if complete_sig_groups:
+        complete_sig_groups.sort(key=lambda item: item[0])
+        return complete_sig_groups[-1][1]
+
+    # 2) Backward-compatible fallback: latest base-group (may be partial).
     chosen_key = max(
-        groups.keys(),
-        key=lambda k: max(p.stat().st_mtime for _, p in groups[k]),
+        groups_by_base.keys(),
+        key=lambda k: max(p.stat().st_mtime for _, p in groups_by_base[k]),
     )
-    members = sorted(groups[chosen_key], key=lambda x: x[0])
+    members = sorted(groups_by_base[chosen_key], key=lambda x: x[0])
     return [p for _, p in members]
 
 
@@ -191,35 +239,42 @@ def _load_run_config(run_dir: Path) -> dict[str, Any]:
 
 
 def _signature(cfg_json: dict[str, Any]) -> dict[str, Any]:
-    keys = [
-        "suite_version",
-        "token_key",
-        "global_seed",
-        "tokenized_dir",
-        "directions",
-        "length_buckets",
-        "min_stride",
-        "stride_factor",
-        "max_windows_per_book_by_l",
-        "max_windows_fallback",
-        "generators",
-        "corrupt_pcts",
-        "enable_char_baselines",
-        "span_config",
-        "corpus_list_hash",
-    ]
-    return {k: cfg_json.get(k) for k in keys}
+    sig = {
+        "suite_version": cfg_json.get("suite_version"),
+        "token_key": cfg_json.get("token_key"),
+        "global_seed": cfg_json.get("global_seed"),
+        "directions": cfg_json.get("directions"),
+        "length_buckets": cfg_json.get("length_buckets"),
+        "min_stride": cfg_json.get("min_stride"),
+        "stride_factor": cfg_json.get("stride_factor"),
+        "max_windows_per_book_by_l": cfg_json.get("max_windows_per_book_by_l"),
+        "max_windows_fallback": cfg_json.get("max_windows_fallback"),
+        "generators": cfg_json.get("generators"),
+        "corrupt_pcts": cfg_json.get("corrupt_pcts"),
+        "enable_char_baselines": cfg_json.get("enable_char_baselines"),
+        "span_config": cfg_json.get("span_config"),
+        "plan_rows_all": cfg_json.get("plan_rows_all"),
+        "corpus_books_sig": _corpus_books_signature(cfg_json),
+    }
+    return sig
 
 
-def _validate_compatible(run_cfgs: list[dict[str, Any]]) -> None:
+def _validate_compatible(run_cfgs: list[dict[str, Any]], *, require_full_shard_set: bool) -> None:
     base_sig = _signature(run_cfgs[0])
     for idx, cfg in enumerate(run_cfgs[1:], start=1):
         sig = _signature(cfg)
         if sig != base_sig:
             raise ValueError(f"Incompatible run_config signature at shard index {idx}")
 
+    if not bool(base_sig.get("enable_char_baselines", False)):
+        raise ValueError(
+            "Merge currently requires enable_char_baselines=True. "
+            "This merger builds summary/calibration paths that expect char1..char4 scores."
+        )
+
     shard_count = run_cfgs[0].get("shard_count")
     if shard_count is not None:
+        target_count = int(shard_count)
         seen = sorted(
             {
                 int(cfg.get("shard_index"))
@@ -227,9 +282,16 @@ def _validate_compatible(run_cfgs: list[dict[str, Any]]) -> None:
                 if cfg.get("shard_index") is not None
             }
         )
-        expected = list(range(int(shard_count)))
-        if seen != expected[: len(seen)]:
-            raise ValueError(f"Shard index set is inconsistent. seen={seen}, expected_prefix={expected}")
+        expected = list(range(target_count))
+        if require_full_shard_set:
+            if len(run_cfgs) != target_count or seen != expected:
+                raise ValueError(
+                    f"Shard index set is incomplete/inconsistent. "
+                    f"seen={seen}, expected={expected}, provided_cfgs={len(run_cfgs)}"
+                )
+        else:
+            if seen != expected[: len(seen)]:
+                raise ValueError(f"Shard index set is inconsistent. seen={seen}, expected_prefix={expected}")
 
 
 def _merge_plan(shard_dirs: list[Path], out_path: Path) -> list[PlanRow]:
@@ -278,6 +340,43 @@ def _merge_completed_rows(shard_dirs: list[Path], out_path: Path) -> int:
                     seen.add(row_id)
                     writer.writerow({k: str(row.get(k, "")) for k in header})
     return len(seen)
+
+
+def _rewrite_completed_rows_to_merged_plan(
+    *,
+    completed_rows_path: Path,
+    merged_plan: list[PlanRow],
+) -> None:
+    if not completed_rows_path.exists():
+        return
+    by_row_id = {row.row_id: row for row in merged_plan}
+    header = ["row_idx", "row_id", "direction", "length_bucket", "book_id", "start", "completed_at_utc"]
+    rows_out: list[dict[str, str]] = []
+    with completed_rows_path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            row_id = str(row.get("row_id", "")).strip()
+            if not row_id:
+                continue
+            plan = by_row_id.get(row_id)
+            if plan is None:
+                continue
+            rows_out.append(
+                {
+                    "row_idx": str(int(plan.row_idx)),
+                    "row_id": row_id,
+                    "direction": str(plan.direction),
+                    "length_bucket": str(int(plan.length_bucket)),
+                    "book_id": str(plan.book_id),
+                    "start": str(int(plan.start)),
+                    "completed_at_utc": str(row.get("completed_at_utc", "")),
+                }
+            )
+    with completed_rows_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=header)
+        writer.writeheader()
+        for row in rows_out:
+            writer.writerow(row)
 
 
 def _merge_book_manifest(run_cfgs: list[dict[str, Any],], out_path: Path) -> int:
@@ -352,38 +451,43 @@ def _merge_samples(
     merged_rows = 0
     group_values: dict[tuple[str, int, str], dict[str, array]] = {}
 
+    out_handle = None
+    out_writer = None
     if out_samples_path is not None:
         out_samples_path.parent.mkdir(parents=True, exist_ok=True)
+        out_handle = out_samples_path.open("w", encoding="utf-8", newline="")
+        out_writer = csv.DictWriter(out_handle, fieldnames=merged_header)
+        out_writer.writeheader()
 
-    for run_dir in shard_dirs:
-        samples_path = run_dir / "samples.csv"
-        with samples_path.open("r", encoding="utf-8", newline="") as handle:
-            reader = csv.DictReader(handle)
-            for row in reader:
-                sample_id = str(row.get("sample_id", "")).strip()
-                if dedupe_by_sample_id and sample_id:
-                    if sample_id in seen_sample_ids:
-                        continue
-                    seen_sample_ids.add(sample_id)
+    try:
+        for run_dir in shard_dirs:
+            samples_path = run_dir / "samples.csv"
+            with samples_path.open("r", encoding="utf-8", newline="") as handle:
+                reader = csv.DictReader(handle)
+                for row in reader:
+                    sample_id = str(row.get("sample_id", "")).strip()
+                    if dedupe_by_sample_id and sample_id:
+                        if sample_id in seen_sample_ids:
+                            continue
+                        seen_sample_ids.add(sample_id)
 
-                direction = str(row.get("direction", "")).strip().lower()
-                length_bucket = int(row.get("length_bucket", 0))
-                generator = str(row.get("generator", "")).strip().upper()
-                gk = (direction, length_bucket, generator)
-                vals = _get_or_create_group_bucket(group_values, gk)
-                vals["span"].append(_to_float(row.get("span_raw")))
-                vals["char1"].append(_to_float(row.get("char1_score")))
-                vals["char2"].append(_to_float(row.get("char2_score")))
-                vals["char3"].append(_to_float(row.get("char3_score")))
-                vals["char4"].append(_to_float(row.get("char4_score")))
-                merged_rows += 1
+                    direction = str(row.get("direction", "")).strip().lower()
+                    length_bucket = int(row.get("length_bucket", 0))
+                    generator = str(row.get("generator", "")).strip().upper()
+                    gk = (direction, length_bucket, generator)
+                    vals = _get_or_create_group_bucket(group_values, gk)
+                    vals["span"].append(_to_float(row.get("span_raw")))
+                    vals["char1"].append(_to_float(row.get("char1_score")))
+                    vals["char2"].append(_to_float(row.get("char2_score")))
+                    vals["char3"].append(_to_float(row.get("char3_score")))
+                    vals["char4"].append(_to_float(row.get("char4_score")))
+                    merged_rows += 1
 
-                if out_samples_path is not None:
-                    _append_csv_row(
-                        out_samples_path,
-                        merged_header,
-                        {k: str(row.get(k, "")) for k in merged_header},
-                    )
+                    if out_writer is not None:
+                        out_writer.writerow({k: str(row.get(k, "")) for k in merged_header})
+    finally:
+        if out_handle is not None:
+            out_handle.close()
 
     return group_values, merged_rows
 
@@ -391,7 +495,7 @@ def _merge_samples(
 def run_merge(cfg: MergeConfig) -> Path:
     shard_dirs = _resolve_source_dirs(cfg)
     run_cfgs = [_load_run_config(d) for d in shard_dirs]
-    _validate_compatible(run_cfgs)
+    _validate_compatible(run_cfgs, require_full_shard_set=cfg.require_full_shard_set)
 
     if cfg.run_dir is not None:
         out_dir = cfg.run_dir
@@ -402,6 +506,10 @@ def run_merge(cfg: MergeConfig) -> Path:
 
     merged_plan = _merge_plan(shard_dirs, out_dir / "plan.csv")
     completed_count = _merge_completed_rows(shard_dirs, out_dir / "completed_rows.csv")
+    _rewrite_completed_rows_to_merged_plan(
+        completed_rows_path=out_dir / "completed_rows.csv",
+        merged_plan=merged_plan,
+    )
     book_count = _merge_book_manifest(run_cfgs, out_dir / "book_manifest.csv")
 
     merged_samples_path = (out_dir / "samples.csv") if cfg.write_merged_samples else None

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 
@@ -8,6 +9,19 @@ RUN_DIR_OVERRIDE: str | None = None
 RUN_ROOT = Path("output/tools/benchmarks/scoring/span_hamming_nose_suite")
 WRITE_REPORT_FILE = False
 REPORT_OUTPUT_PATH = Path("output/tools/benchmarks/scoring/span_hamming_nose_suite/report_latest.txt")
+
+
+def _extract_auc(row: dict) -> float | None:
+    for key in ("auc", "auc_real_vs_rand", "auc_span_raw_real_vs_rand"):
+        if key not in row:
+            continue
+        try:
+            value = float(row.get(key))
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(value):
+            return value
+    return None
 
 
 def build_report(run_dir: Path) -> str:
@@ -32,11 +46,13 @@ def build_report(run_dir: Path) -> str:
     lines.append(f"stable_rows={len(stable)}")
     lines.append(f"summary_csv_exists={summary_path.exists()}")
     for row in sorted(stable, key=lambda item: (item.get("direction", ""), int(item.get("length_bucket", 0)))):
+        auc_value = _extract_auc(row)
+        auc_text = "n/a" if auc_value is None else f"{auc_value:.4f}"
         lines.append(
-            "stable direction={direction} length={length_bucket} auc={auc:.4f} denom={denom:.6f}".format(
+            "stable direction={direction} length={length_bucket} auc={auc} denom={denom:.6f}".format(
                 direction=row.get("direction", ""),
                 length_bucket=int(row.get("length_bucket", 0)),
-                auc=float(row.get("auc", 0.0)),
+                auc=auc_text,
                 denom=float(row.get("denom", 0.0)),
             )
         )
@@ -49,7 +65,7 @@ def _resolve_latest_run_dir(root: Path) -> Path:
     candidates = [
         p
         for p in root.iterdir()
-        if p.is_dir() and p.name.endswith("__span_hamming_nose_suite")
+        if p.is_dir() and "__span_hamming_nose_suite" in p.name
     ]
     if not candidates:
         raise FileNotFoundError(f"No suite runs found under: {root}")
