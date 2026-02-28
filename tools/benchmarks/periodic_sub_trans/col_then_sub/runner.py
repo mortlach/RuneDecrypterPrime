@@ -663,6 +663,64 @@ def _apply_runtime_overrides() -> None:
         )
 
 
+def _apply_scorer_impl_override(impl: str) -> None:
+    """Keep scorer impl wiring consistent across this runner's scorer dicts."""
+    global SCORER_IMPL
+    resolved = str(impl).strip()
+    if not resolved:
+        return
+    SCORER_IMPL = resolved
+    for cfg in (SCORER_STAGE1, SCORER_STAGE1_HARD_RERANK, SCORER_FULL):
+        if isinstance(cfg, dict):
+            cfg["impl"] = resolved
+
+
+def configure_campaign_run(
+    *,
+    run_seed: int,
+    period: int,
+    columns: int,
+    length: int,
+    tier_name: str,
+    run_mode: str,
+    profile_name: str,
+    heartbeat_seconds: int,
+    autoskip_proven: bool,
+    force_rerun_proven: bool,
+    avoid_repeat_fail: bool,
+    text_offsets: Sequence[int],
+    tiers_regex_override: str | None,
+    scorer_impl: str | None = None,
+    scorer_stage3_impl_avg_fulltext: str | None = None,  # kept for cross-runner signature parity
+) -> None:
+    """Apply campaign job settings through one explicit runner entrypoint."""
+
+    del scorer_stage3_impl_avg_fulltext
+
+    global AUTOSKIP_PROVEN, FORCE_RERUN_PROVEN, AVOID_REPEAT_FAIL
+    global TIERS_REGEX_OVERRIDE, KEY_SEEDS_OVERRIDE, KEY_SEEDS, TEXT_OFFSETS
+    global PIPELINE_RUN_MODE, PROFILE, HEARTBEAT_SECONDS, TIERS
+
+    AUTOSKIP_PROVEN = bool(autoskip_proven)
+    FORCE_RERUN_PROVEN = bool(force_rerun_proven)
+    AVOID_REPEAT_FAIL = bool(avoid_repeat_fail)
+    TIERS_REGEX_OVERRIDE = (
+        None
+        if tiers_regex_override is None or str(tiers_regex_override).strip() == ""
+        else str(tiers_regex_override)
+    )
+    KEY_SEEDS_OVERRIDE = [int(run_seed)]
+    KEY_SEEDS = [int(run_seed)]
+    TEXT_OFFSETS = [int(x) for x in text_offsets]
+    PIPELINE_RUN_MODE = str(run_mode)
+    PROFILE = str(profile_name)
+    HEARTBEAT_SECONDS = int(heartbeat_seconds)
+    TIERS = [Tier(str(tier_name), int(period), int(columns), int(length))]
+
+    if scorer_impl is not None:
+        _apply_scorer_impl_override(str(scorer_impl))
+
+
 def _repo_root() -> Path:
     return _ROOT
 
@@ -811,10 +869,6 @@ def _oracle_score_for_stage(
     wli_arg = wli if use_wli else None
     score, raw = scorer.score_with_raw(pt_idx, wli_arg)
     return float(score), float(raw), _objective_text(getattr(s_cfg, "objective", None))
-
-
-def _append_csv_row(path: Path, row: Dict[str, Any]) -> None:
-    _append_csv_row_common(path, row, merge_fieldnames=True)
 
 
 def _to_int_list(values: Sequence[int] | np.ndarray) -> List[int]:
@@ -1362,7 +1416,7 @@ def main() -> None:
                             f"soff={int(search_seed_offset)}"
                         ),
                     )
-                    _append_csv_row(hist, hist_row)
+                    _append_csv_row_common(hist, hist_row, merge_fieldnames=True)
                     history_rows_written += 1
 
                     done += 1
@@ -2541,7 +2595,7 @@ def main() -> None:
                         f"soff={int(search_seed_offset)}"
                     ),
                 )
-                _append_csv_row(hist, hist_row)
+                _append_csv_row_common(hist, hist_row, merge_fieldnames=True)
                 history_rows_written += 1
 
                 if inst_row["status"] == "solved":

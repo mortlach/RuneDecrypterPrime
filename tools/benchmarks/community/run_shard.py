@@ -15,7 +15,16 @@ from jsonschema import Draft202012Validator
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from tools.benchmarks.community._campaign_common import load_json, read_jsonl, write_json
+from tools.benchmarks.community._campaign_common import (
+    INTEGRITY_CHAIN_GENESIS,
+    INTEGRITY_CHAIN_HASH,
+    INTEGRITY_CHAIN_VERSION,
+    build_result_integrity_row,
+    load_json,
+    read_jsonl,
+    verify_results_integrity,
+    write_json,
+)
 from tools.benchmarks.community.config import load_profile_catalog_from_dict
 from tools.benchmarks.community.setup_and_preflight import latest_setup_bundle_dir
 
@@ -63,6 +72,12 @@ def _load_existing_results(results_path: Path) -> list[dict[str, Any]]:
     if not results_path.exists():
         return []
     return read_jsonl(results_path)
+
+
+def _load_existing_integrity_rows(integrity_path: Path) -> list[dict[str, Any]]:
+    if not integrity_path.exists():
+        return []
+    return read_jsonl(integrity_path)
 
 
 def _copy_if_exists(src: Path, dst: Path) -> None:
@@ -270,14 +285,33 @@ def run_shard_bundle(
     run_bundle.mkdir(parents=True, exist_ok=True)
     run_log_path = run_bundle / "run.log"
     results_path = run_bundle / "results.jsonl"
+    results_integrity_path = run_bundle / "results_integrity.jsonl"
+
+    if not resume:
+        if results_path.exists():
+            results_path.unlink()
+        if results_integrity_path.exists():
+            results_integrity_path.unlink()
 
     existing_rows = _load_existing_results(results_path) if resume else []
+    existing_integrity_rows = _load_existing_integrity_rows(results_integrity_path) if resume else []
     completed_job_ids = {str(row.get("job_id")) for row in existing_rows}
     if existing_rows:
         for idx, row in enumerate(existing_rows):
             errors = sorted(result_validator.iter_errors(row), key=lambda item: item.path)
             if errors:
                 raise ValueError(f"existing results row {idx} invalid: {errors[0].message}")
+    if resume:
+        integrity_errors, chain_tail = verify_results_integrity(
+            result_rows=existing_rows,
+            integrity_rows=existing_integrity_rows,
+        )
+        if integrity_errors:
+            raise ValueError(
+                "existing results integrity invalid: " + "; ".join(integrity_errors[:3])
+            )
+    else:
+        chain_tail = INTEGRITY_CHAIN_GENESIS
 
     _copy_if_exists(campaign_config_path, run_bundle / "campaign_config_v1_1.json")
     _copy_if_exists(profile_catalog_path, run_bundle / "profile_catalog_v1_1.json")
@@ -303,12 +337,21 @@ def run_shard_bundle(
         "processed_jobs": 0,
         "resume_skips": 0,
         "result_rows_written": 0,
+        "results_integrity": {
+            "integrity_version": INTEGRITY_CHAIN_VERSION,
+            "hash_algorithm": INTEGRITY_CHAIN_HASH,
+            "genesis_hash": INTEGRITY_CHAIN_GENESIS,
+            "row_count": int(len(existing_rows)),
+            "final_chain_hash": str(chain_tail),
+        },
     }
     write_json(run_bundle / "run_meta.json", run_meta)
 
     processed = 0
     skips = 0
     rows_written = 0
+    next_row_index = int(len(existing_rows))
+    current_chain_hash = str(chain_tail)
     for job in jobs:
         if max_jobs is not None and processed >= int(max_jobs):
             break
@@ -336,13 +379,28 @@ def run_shard_bundle(
             errors2 = sorted(result_validator.iter_errors(row), key=lambda item: item.path)
             if errors2:
                 raise ValueError(f"unable to produce valid result row for job_id={job_id}: {errors2[0].message}")
+        integrity_row = build_result_integrity_row(
+            result_row=row,
+            row_index=next_row_index,
+            prev_chain_hash=current_chain_hash,
+        )
         _write_result_row(results_path, row)
+        _write_result_row(results_integrity_path, integrity_row)
         rows_written += 1
+        next_row_index += 1
+        current_chain_hash = str(integrity_row["chain_hash"])
         processed += 1
 
     run_meta["processed_jobs"] = int(processed)
     run_meta["resume_skips"] = int(skips)
     run_meta["result_rows_written"] = int(rows_written)
+    run_meta["results_integrity"] = {
+        "integrity_version": INTEGRITY_CHAIN_VERSION,
+        "hash_algorithm": INTEGRITY_CHAIN_HASH,
+        "genesis_hash": INTEGRITY_CHAIN_GENESIS,
+        "row_count": int(len(existing_rows) + rows_written),
+        "final_chain_hash": str(current_chain_hash),
+    }
     run_meta["finished_at_utc"] = _utc_now()
     write_json(run_bundle / "run_meta.json", run_meta)
     return run_meta

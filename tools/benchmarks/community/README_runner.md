@@ -56,6 +56,7 @@ Share the folder:
 
 It must contain:
 - results.jsonl
+- results_integrity.jsonl (per-row hash-chain sidecar)
 - run.log
 - run_meta.json
 - setup + preflight reports/logs

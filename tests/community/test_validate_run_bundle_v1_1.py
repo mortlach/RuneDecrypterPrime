@@ -6,6 +6,12 @@ from pathlib import Path
 import pytest
 
 from tools.benchmarks.community import validate_run_bundle as vrb
+from tools.benchmarks.community._campaign_common import (
+    INTEGRITY_CHAIN_GENESIS,
+    INTEGRITY_CHAIN_HASH,
+    INTEGRITY_CHAIN_VERSION,
+    build_results_integrity_rows,
+)
 
 pytestmark = pytest.mark.tier_a
 
@@ -76,6 +82,7 @@ def _make_bundle(tmp_path: Path, *, fastlm_present: bool) -> Path:
 
     manifest_row = _manifest_row(campaign_id=campaign_id, git_sha=git_sha)
     result_row = _result_row_from_manifest(manifest_row, fastlm_present=fastlm_present)
+    integrity_rows, final_chain_hash = build_results_integrity_rows([result_row])
 
     _write_json(
         bundle / "run_meta.json",
@@ -85,6 +92,13 @@ def _make_bundle(tmp_path: Path, *, fastlm_present: bool) -> Path:
             "git_sha": git_sha,
             "campaign_mode": True,
             "autoskip_proven_disabled": True,
+            "results_integrity": {
+                "integrity_version": INTEGRITY_CHAIN_VERSION,
+                "hash_algorithm": INTEGRITY_CHAIN_HASH,
+                "genesis_hash": INTEGRITY_CHAIN_GENESIS,
+                "row_count": 1,
+                "final_chain_hash": final_chain_hash,
+            },
             "finished_at_utc": "2026-02-19T00:00:00+00:00",
         },
     )
@@ -95,6 +109,7 @@ def _make_bundle(tmp_path: Path, *, fastlm_present: bool) -> Path:
     _write_json(bundle / "profile_catalog_v1_1.json", {"catalog_version": "v1.1", "profiles": [{"profile_id": "baseline_resume_v1_1"}]})
     _write_jsonl(bundle / "shard_manifest.jsonl", [manifest_row])
     _write_jsonl(bundle / "results.jsonl", [result_row])
+    _write_jsonl(bundle / "results_integrity.jsonl", integrity_rows)
     _write_json(bundle / "setup_report.json", {"ok": True})
     _write_json(bundle / "preflight_report.json", {"ok": True})
     (bundle / "setup.log").write_text("ok\n", encoding="utf-8")
@@ -127,3 +142,20 @@ def test_validate_run_bundle_rejects_fastlm_false(tmp_path: Path):
     )
     assert report["ok"] is False
     assert any("fastlm_present must be true" in msg for msg in report["errors"])
+
+
+def test_validate_run_bundle_rejects_tampered_results_row(tmp_path: Path):
+    bundle = _make_bundle(tmp_path, fastlm_present=True)
+    rows = [json.loads(line) for line in (bundle / "results.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert len(rows) == 1
+    rows[0]["best_match_ratio"] = 0.99
+    _write_jsonl(bundle / "results.jsonl", rows)
+    report = vrb.validate_run_bundle(
+        run_bundle_path=bundle,
+        manifest_schema_path=Path("tools/benchmarks/community/schemas/manifest_schema_v1_1.json"),
+        result_schema_path=Path("tools/benchmarks/community/schemas/result_schema_v1_1.json"),
+        expected_campaign_id="community-test",
+        expected_git_sha="7c346c2",
+    )
+    assert report["ok"] is False
+    assert any("integrity row 0 mismatch for row_hash" in msg for msg in report["errors"])

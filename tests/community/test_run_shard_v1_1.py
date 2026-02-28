@@ -107,10 +107,14 @@ def test_run_shard_writes_schema_valid_results(tmp_path: Path):
 
     run_bundle = Path(meta["run_bundle_path"])
     rows = read_jsonl(run_bundle / "results.jsonl")
+    integrity_rows = read_jsonl(run_bundle / "results_integrity.jsonl")
     assert len(rows) == 1
+    assert len(integrity_rows) == 1
     schema = _load_json(Path("tools/benchmarks/community/schemas/result_schema_v1_1.json"))
     validator = Draft202012Validator(schema)
     validator.validate(rows[0])
+    run_meta = _load_json(run_bundle / "run_meta.json")
+    assert run_meta["results_integrity"]["row_count"] == 1
 
 
 def test_run_shard_resume_skip_only(tmp_path: Path):

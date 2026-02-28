@@ -52,7 +52,6 @@ from tools.benchmarks.periodic_sub_trans.common.batch_eval import (
 from tools.benchmarks.periodic_sub_trans.common.core_enums import BenchmarkOrder
 from tools.benchmarks.periodic_sub_trans.common.io_reports import (
     append_csv_row as _append_csv_row_common,
-    write_csv_rows as _write_csv_rows_common,
     write_json,
     write_pipeline_snapshot_files,
 )
@@ -1011,14 +1010,6 @@ def _oracle_score_for_stage(
     return float(score), float(raw), _scorer_objective_summary(scorer_params)
 
 
-def _write_csv_rows(path: Path, rows: List[Dict[str, Any]]) -> None:
-    _write_csv_rows_common(path, rows)
-
-
-def _append_csv_row(path: Path, row: Dict[str, Any]) -> None:
-    _append_csv_row_common(path, row, merge_fieldnames=True)
-
-
 def _build_summary(tiers: Sequence[Tier], instances: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     summary: Dict[str, Any] = {"tiers": {}}
     for t in tiers:
@@ -1077,6 +1068,64 @@ def _load_proven_solved_index(path: Path, *, min_match: float) -> Dict[Tuple[str
     except Exception:
         return {}
     return out
+
+
+def _apply_scorer_impl_override(*, impl: str, stage3_impl_avg_fulltext: str | None = None) -> None:
+    """Keep scorer impl wiring consistent across stage scorer configs."""
+    global SCORER_IMPL, SCORER_STAGE3_IMPL_AVG_FULLTEXT
+    resolved = str(impl).strip()
+    if not resolved:
+        return
+    SCORER_IMPL = resolved
+    if stage3_impl_avg_fulltext is not None and str(stage3_impl_avg_fulltext).strip():
+        SCORER_STAGE3_IMPL_AVG_FULLTEXT = str(stage3_impl_avg_fulltext).strip()
+    if isinstance(SCORER_STAGE1, dict):
+        SCORER_STAGE1["impl"] = SCORER_IMPL
+    if isinstance(SCORER_STAGE2, dict):
+        SCORER_STAGE2["impl"] = SCORER_IMPL
+    if isinstance(SCORER_FULL, dict):
+        SCORER_FULL["impl"] = _effective_stage3_impl(SCORER_FULL)
+
+
+def configure_campaign_run(
+    *,
+    run_seed: int,
+    period: int,
+    columns: int,
+    length: int,
+    tier_name: str,
+    run_mode: str,
+    profile_name: str,
+    heartbeat_seconds: int,
+    autoskip_proven: bool,
+    force_rerun_proven: bool,
+    avoid_repeat_fail: bool,
+    text_offsets: Sequence[int],
+    tiers_regex_override: str | None,
+    scorer_impl: str | None = None,
+    scorer_stage3_impl_avg_fulltext: str | None = None,
+) -> None:
+    """Apply campaign job settings through one explicit runner entrypoint."""
+
+    del avoid_repeat_fail, tiers_regex_override
+
+    global AUTOSKIP_PROVEN, FORCE_RERUN_PROVEN
+    global TEXT_OFFSETS, KEY_SEEDS, PIPELINE_RUN_MODE, PROFILE, HEARTBEAT_SECONDS, TIERS
+
+    AUTOSKIP_PROVEN = bool(autoskip_proven)
+    FORCE_RERUN_PROVEN = bool(force_rerun_proven)
+    TEXT_OFFSETS[:] = [int(x) for x in text_offsets]
+    KEY_SEEDS[:] = [int(run_seed)]
+    PIPELINE_RUN_MODE = str(run_mode)
+    PROFILE = str(profile_name)
+    HEARTBEAT_SECONDS = int(heartbeat_seconds)
+    TIERS[:] = [Tier(str(tier_name), int(period), int(columns), int(length))]
+
+    if scorer_impl is not None:
+        _apply_scorer_impl_override(
+            impl=str(scorer_impl),
+            stage3_impl_avg_fulltext=scorer_stage3_impl_avg_fulltext,
+        )
 
 
 def main() -> None:
@@ -1469,7 +1518,7 @@ def main() -> None:
                         total_evals=0,
                         notes=str(stop_reason),
                     )
-                    _append_csv_row(hist, hist_row)
+                    _append_csv_row_common(hist, hist_row, merge_fieldnames=True)
                     history_rows_written += 1
 
                     if np.isfinite(float(src_match)) and float(src_match) > float(best_global["match"]):
@@ -3305,7 +3354,7 @@ def main() -> None:
                     total_evals=inst_row["total_evals"],
                     notes=inst_row["stop_reason"],
                 )
-                _append_csv_row(hist, hist_row)
+                _append_csv_row_common(hist, hist_row, merge_fieldnames=True)
                 history_rows_written += 1
 
                 if best_match > float(best_global["match"]):

@@ -1,4 +1,4 @@
-# Organiser Guide (v1.1)
+﻿# Organiser Guide (v1.1)
 
 This guide is for the person coordinating the campaign.
 
@@ -18,6 +18,7 @@ Run bundle validation against v1.1 requirements:
 - no duplicate job_id inside a bundle
 - CPU-only compliance fields present
 - status and stop_reason present and valid
+- results hash-chain integrity (`results_integrity.jsonl`) matches `results.jsonl` and `run_meta.json`
 
 Bundles that fail validation are rejected and must be rerun/fixed.
 
@@ -67,9 +68,10 @@ python tools/benchmarks/community/aggregate_results.py `
 ```
 
 ## Step 4: Publish campaign artefacts
-Publish a “campaign outputs bundle” containing:
+Publish a "campaign outputs bundle" containing:
 - campaign config and profile catalogue used
 - full manifest and shards
 - combined_results.jsonl (+ collisions.jsonl)
 - summary CSV outputs
 - a short notes/changelog file
+

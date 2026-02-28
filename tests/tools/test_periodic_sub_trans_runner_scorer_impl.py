@@ -215,6 +215,12 @@ def test_sub_then_col_scorer_impl_is_pinned():
         assert profile_cfg.get("impl") == sub_runner.SCORER_IMPL
 
 
+def test_runners_expose_campaign_config_entrypoint():
+    assert callable(getattr(col_runner, "configure_campaign_run", None))
+    assert callable(getattr(sub_runner, "configure_campaign_run", None))
+    assert callable(getattr(no_wli_runner, "configure_campaign_run", None))
+
+
 def test_periodic_sub_trans_runners_avoid_direct_scalar_scorer_calls():
     repo_root = Path(__file__).resolve().parents[2]
     runner_paths = [
@@ -246,7 +252,7 @@ def test_no_wli_stage3_stop_log_has_entry_diagnostics():
     assert "stage3_diagnostics" in text
     assert "period_scaling=dict(" in text
     assert "Per-instance checkpoint (crash-safe)" in text
-    assert "_append_csv_row(hist, hist_row)" in text
+    assert "_append_csv_row_common(hist, hist_row, merge_fieldnames=True)" in text
     assert "history_rows_written" in text
 
 

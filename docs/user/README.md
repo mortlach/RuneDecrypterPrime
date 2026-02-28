@@ -13,9 +13,12 @@ This section is the shortest path for running RuneDecrypterPrime without touchin
 - Tutorials (first run):
   - `python tutorials/v1/Start_Here.py`
 - Benchmarks (periodic substitution + transposition):
-  - `python tools/benchmarks/periodic_sub_trans/no_wli/runner.py`
-  - `python tools/benchmarks/periodic_sub_trans/col_then_sub/bench_solve_periodic_columnar_pipeline_col_then_sub.py`
-  - `python tools/benchmarks/periodic_sub_trans/sub_then_col/runner.py`
+  - `python tools/benchmarks/bench_solve_periodic_columnar_pipeline_no_wli.py`
+  - `python tools/benchmarks/bench_solve_periodic_columnar_pipeline_col_then_sub.py`
+  - `python tools/benchmarks/bench_solve_periodic_columnar_pipeline_sub_then_col.py`
+- Community campaign bundles:
+  - runner/organiser docs under `tools/benchmarks/community/`
+  - run bundles now include `results_integrity.jsonl` and are validated before combine
 
 ## Where outputs go
 

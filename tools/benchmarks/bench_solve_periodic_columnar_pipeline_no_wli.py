@@ -1,0 +1,9 @@
+from __future__ import annotations
+
+"""Legacy compatibility entrypoint for periodic_sub_trans no-WLI runner."""
+
+from tools.benchmarks.periodic_sub_trans.no_wli.runner import main
+
+
+if __name__ == "__main__":
+    main()

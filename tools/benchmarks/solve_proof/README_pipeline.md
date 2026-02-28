@@ -2,7 +2,7 @@
 
 Canonical entrypoint:
 
-- `tools/benchmarks/periodic_sub_trans/col_then_sub/bench_solve_periodic_columnar_pipeline_col_then_sub.py`
+- `tools/benchmarks/bench_solve_periodic_columnar_pipeline_col_then_sub.py`
 
 Implementation module:
 

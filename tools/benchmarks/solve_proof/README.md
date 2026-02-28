@@ -27,9 +27,9 @@ used by periodic substitution + transposition benchmark flavors.
 
 ## Canonical runners
 
-- `tools/benchmarks/periodic_sub_trans/col_then_sub/bench_solve_periodic_columnar_pipeline_col_then_sub.py`
-- `tools/benchmarks/periodic_sub_trans/sub_then_col/runner.py`
-- `tools/benchmarks/periodic_sub_trans/no_wli/runner.py`
+- `tools/benchmarks/bench_solve_periodic_columnar_pipeline_col_then_sub.py`
+- `tools/benchmarks/bench_solve_periodic_columnar_pipeline_sub_then_col.py`
+- `tools/benchmarks/bench_solve_periodic_columnar_pipeline_no_wli.py`
 
 ## Autoskip behavior
 
