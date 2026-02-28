@@ -146,10 +146,17 @@ def test_no_wli_scan_p5_p7_c1357_mode_matrix_and_scaling():
             p: sorted({int(t.columns) for t in no_wli_runner.TIERS if int(t.period) == p}) for p in periods
         }
         assert cols_by_period == {5: [1, 3, 5, 7], 7: [1, 3, 5, 7]}
+        assert str(no_wli_runner.SCORING_EXPERIMENT_PROFILE) == "c_min_late"
         assert no_wli_runner.STAGE2_PROMOTE_BY_STAGE3_JUDGE is False
         assert no_wli_runner.STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE is False
         assert no_wli_runner.ORACLE_ASSIST_SELECTION is False
         assert no_wli_runner.STAGE3_CONTINUE_AFTER_SOLVE is False
+        assert float(no_wli_runner.SCAN_TIER_TIME_CAP_SECONDS) == pytest.approx(600.0)
+        assert bool(no_wli_runner.SCAN_STAGE2_CONTINUE_TO_GATE) is True
+        assert float(no_wli_runner.SCAN_STAGE2_CONTINUE_CAP_SECONDS) == pytest.approx(900.0)
+        assert float(no_wli_runner.SCAN_STAGE3_MIN_STAGE2_MATCH) == pytest.approx(0.15)
+        assert float(no_wli_runner.SCAN_STAGE3_GATE_LOW_MATCH) == pytest.approx(0.15)
+        assert float(no_wli_runner.SCAN_STAGE3_GATE_HIGH_MATCH) == pytest.approx(0.22)
         assert int(no_wli_runner.STAGE12_ARCHIVE_KEEP) == 192
         assert int(no_wli_runner.STAGE12_PROMOTE_TOP) == 96
         assert no_wli_runner.STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS == {3: 24, 5: 24, 7: 24}
@@ -171,6 +178,109 @@ def test_no_wli_scan_p5_p7_c1357_mode_matrix_and_scaling():
         no_wli_runner.PIPELINE_RUN_MODE = old_mode
         no_wli_runner._apply_profile_defaults()
         no_wli_runner._apply_run_mode()
+
+
+def test_no_wli_mode_alias_and_intent_contract():
+    assert no_wli_runner._canonical_run_mode("scan_p5_p7_c1357") == "adaptive_scan_v1"
+    assert no_wli_runner._canonical_run_mode("adaptive_scan_v1") == "adaptive_scan_v1"
+    assert no_wli_runner._mode_intent("scan_fast_v1") == "scan"
+    assert no_wli_runner._mode_intent("adaptive_scan_v1") == "scan"
+    assert no_wli_runner._mode_intent("adaptive_focus_v1") == "focus"
+    assert bool(no_wli_runner._mode_stage3_can_skip("scan_fast_v1")) is True
+    assert bool(no_wli_runner._mode_stage3_can_skip("adaptive_scan_v1")) is True
+    assert bool(no_wli_runner._mode_stage3_can_skip("adaptive_focus_v1")) is False
+
+
+def test_no_wli_scan_fast_v1_mode_contract():
+    old_mode = str(no_wli_runner.PIPELINE_RUN_MODE)
+    try:
+        no_wli_runner.PIPELINE_RUN_MODE = "scan_fast_v1"
+        no_wli_runner._apply_profile_defaults()
+        no_wli_runner._apply_run_mode()
+        assert str(no_wli_runner.SCORING_EXPERIMENT_PROFILE) == "c_min_late"
+        assert bool(no_wli_runner.SCAN_STAGE2_CONTINUE_TO_GATE) is False
+        assert float(no_wli_runner.SCAN_STAGE2_CONTINUE_CAP_SECONDS) == pytest.approx(0.0)
+        assert float(no_wli_runner.SCAN_STAGE3_MIN_STAGE2_MATCH) == pytest.approx(0.18)
+        assert float(no_wli_runner.SCAN_STAGE3_GATE_LOW_MATCH) == pytest.approx(0.18)
+        assert float(no_wli_runner.SCAN_STAGE3_GATE_HIGH_MATCH) == pytest.approx(0.24)
+        assert float(no_wli_runner.SCAN_TIER_TIME_CAP_SECONDS) == pytest.approx(600.0)
+        assert len(no_wli_runner.TIERS) == 8
+    finally:
+        no_wli_runner.PIPELINE_RUN_MODE = old_mode
+        no_wli_runner._apply_profile_defaults()
+        no_wli_runner._apply_run_mode()
+
+
+def test_no_wli_adaptive_focus_v1_mode_contract():
+    old_mode = str(no_wli_runner.PIPELINE_RUN_MODE)
+    try:
+        no_wli_runner.PIPELINE_RUN_MODE = "adaptive_focus_v1"
+        no_wli_runner._apply_profile_defaults()
+        no_wli_runner._apply_run_mode()
+        assert str(no_wli_runner.SCORING_EXPERIMENT_PROFILE) == "c_min_late"
+        assert no_wli_runner.STAGE2_PROMOTE_BY_STAGE3_JUDGE is True
+        assert no_wli_runner.STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE is True
+        assert bool(no_wli_runner._mode_stage3_can_skip(no_wli_runner.PIPELINE_RUN_MODE)) is False
+        assert len(no_wli_runner.TIERS) == 8
+    finally:
+        no_wli_runner.PIPELINE_RUN_MODE = old_mode
+        no_wli_runner._apply_profile_defaults()
+        no_wli_runner._apply_run_mode()
+
+
+def test_no_wli_outcome_code_mapping_contract():
+    assert no_wli_runner._derive_outcome_code(status="skipped_proven", stop_reason="autoskip_proven") == "skipped_proven"
+    assert no_wli_runner._derive_outcome_code(status="solved", stop_reason="solved_stage3") == "solved"
+    assert no_wli_runner._derive_outcome_code(
+        status="unsolved",
+        stop_reason="scan_skip_stage3_stage2_cap_weak_stage2:best2_match=0.101:threshold=0.150",
+    ) == "stage2_cap"
+    assert no_wli_runner._derive_outcome_code(
+        status="unsolved",
+        stop_reason="scan_skip_stage3_weak_stage2:best2_match=0.101:threshold=0.150",
+    ) == "weak_stage2"
+    assert no_wli_runner._derive_outcome_code(
+        status="unsolved",
+        stop_reason="time_cap_before_stage3:elapsed=601.0:cap=600.0",
+    ) == "time_cap"
+    assert no_wli_runner._derive_outcome_code(status="stalled", stop_reason="stalled_no_improve") == "stalled_stage3"
+    assert no_wli_runner._derive_outcome_code(status="error", stop_reason="boom") == "crash"
+
+
+def test_no_wli_build_stage3_experiment_cfg_contract(tmp_path: Path):
+    assets = tmp_path / "span_assets"
+    ecdf_root = assets / "ecdf" / "span_x"
+    ecdf_root.mkdir(parents=True, exist_ok=True)
+    (assets / "combined_calibration.json").write_text("{}", encoding="utf-8")
+
+    cfg_a = no_wli_runner._build_stage3_experiment_cfg(
+        profile_name="a_baseline",
+        direction=no_wli_runner.Direction.LTR,
+        span_assets_dir=assets,
+    )
+    assert str(cfg_a.get("span_hamming_mode", "")) == "off"
+    assert bool(cfg_a.get("span_hamming_enabled", True)) is False
+
+    cfg_c = no_wli_runner._build_stage3_experiment_cfg(
+        profile_name="c_min_late",
+        direction=no_wli_runner.Direction.LTR,
+        span_assets_dir=assets,
+        char_pct_min_override=0.37,
+    )
+    assert str(cfg_c.get("span_hamming_mode", "")) == "calibrated"
+    assert str(cfg_c.get("span_hamming_gate_fail_policy", "")) == "char_only"
+    assert float(cfg_c.get("span_hamming_char_pct_min", 0.0)) == pytest.approx(0.37)
+
+
+def test_no_wli_adaptive_focus_source_has_phase_experiment_switch():
+    text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
+    assert "stage3_phaseA_experiment" in text
+    assert "stage3_phaseB_experiment" in text
+    assert "phaseA_experiment" in text
+    assert "phaseB_experiment" in text
+    assert "policy=phaseA_only" in text
+    assert "scan_stage3_gate_low_match" in text
+    assert "scan_stage3_gate_high_match" in text
 
 
 def test_no_wli_stage2_judge_pool_limit_for_avg_fulltext():
