@@ -9,6 +9,8 @@ class SpanHammingConfig:
     len_min: int = 3
     len_max: int = 14
     max_hd: int = 2
+    start_stride: int = 1
+    max_windows_total: int = 0  # 0 disables the cap
     overlap_policy: str = "non_overlapping"
     max_candidates_per_window: int = 256
     max_intervals_considered_per_start: int = 4
@@ -22,6 +24,10 @@ class SpanHammingConfig:
             raise ValueError("len_max must be >= len_min")
         if self.max_hd < 0:
             raise ValueError("max_hd must be >= 0")
+        if self.start_stride < 1:
+            raise ValueError("start_stride must be >= 1")
+        if self.max_windows_total < 0:
+            raise ValueError("max_windows_total must be >= 0")
         if self.overlap_policy != "non_overlapping":
             raise ValueError("only overlap_policy='non_overlapping' is supported")
         if self.max_candidates_per_window < 1:
@@ -65,4 +71,3 @@ class SpanHammingStats:
     n_candidates_considered: int
     n_candidates_pruned_cap: int
     selected_intervals: Tuple[SpanInterval, ...] = ()
-

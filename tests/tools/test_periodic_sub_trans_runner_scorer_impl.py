@@ -312,7 +312,7 @@ def test_no_wli_stage2_judge_pool_limit_for_avg_fulltext():
 def test_no_wli_proven_autoskip_is_wired():
     text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
     assert "AUTOSKIP_PROVEN = True" in text
-    assert "FORCE_RERUN_PROVEN = False" in text
+    assert "FORCE_RERUN_PROVEN = True" in text
     assert "_load_proven_solved_index(" in text
     assert "status=\"skipped_proven\"" in text
     assert "[pipeline_no_wli] setup: autoskip_proven=" in text
@@ -365,6 +365,31 @@ def test_no_wli_score_first_comparator_behaviour():
     assert no_wli_runner._is_better_score_first(-11.5, 0.95, -11.0, 0.10) is False
     # Tie on score falls back to higher match (telemetry-only tie-break).
     assert no_wli_runner._is_better_score_first(-11.0, 0.30, -11.0, 0.20) is True
+
+
+def test_no_wli_stage3_candidate_compare_preserves_solved_incumbent():
+    # Unsolved candidate cannot replace solved incumbent, even if score is higher.
+    assert (
+        no_wli_runner._is_better_stage3_candidate_preserving_solve(
+            cand_score=-9.5,
+            cand_match=0.25,
+            best_score=-10.1,
+            best_match=0.95,
+            score_first=True,
+        )
+        is False
+    )
+    # Solved candidate always upgrades an unsolved incumbent.
+    assert (
+        no_wli_runner._is_better_stage3_candidate_preserving_solve(
+            cand_score=-11.0,
+            cand_match=0.92,
+            best_score=-10.0,
+            best_match=0.40,
+            score_first=True,
+        )
+        is True
+    )
 
 
 def test_no_wli_run_config_includes_resolved_tiers():

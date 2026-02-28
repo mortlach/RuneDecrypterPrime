@@ -289,6 +289,8 @@ class RuneScorer(BaseScorer):
                     len_min=int(_cfg_get(scorer_cfg, "span_hamming_len_min", 3)),
                     len_max=int(_cfg_get(scorer_cfg, "span_hamming_len_max", 14)),
                     max_hd=int(_cfg_get(scorer_cfg, "span_hamming_max_hd", 2)),
+                    start_stride=int(_cfg_get(scorer_cfg, "span_hamming_start_stride", 1)),
+                    max_windows_total=int(_cfg_get(scorer_cfg, "span_hamming_max_windows_total", 0)),
                     max_candidates_per_window=int(
                         _cfg_get(scorer_cfg, "span_hamming_max_candidates_per_window", 256)
                     ),

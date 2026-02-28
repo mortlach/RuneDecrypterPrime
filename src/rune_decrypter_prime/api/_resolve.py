@@ -138,6 +138,7 @@ _CANON_SCORER_KEYS = {"model_root","smoothing","alpha","oov_policy","include_cha
                       "hamming_direction_mode",
                       "span_hamming_enabled","span_hamming_wordlist_dir","span_hamming_weight",
                       "span_hamming_len_min","span_hamming_len_max","span_hamming_max_hd",
+                      "span_hamming_start_stride","span_hamming_max_windows_total",
                       "span_hamming_max_candidates_per_window","span_hamming_max_intervals_considered_per_start",
                       "span_hamming_min_quality_threshold","span_hamming_debug_return_intervals",
                       "span_hamming_require_selected",

@@ -100,6 +100,8 @@ class ScoringConfig:
     span_hamming_len_min: int = 3
     span_hamming_len_max: int = 14
     span_hamming_max_hd: int = 2
+    span_hamming_start_stride: int = 1
+    span_hamming_max_windows_total: int = 0
     span_hamming_max_candidates_per_window: int = 256
     span_hamming_max_intervals_considered_per_start: int = 4
     span_hamming_min_quality_threshold: float = 1e-9
@@ -168,6 +170,8 @@ class ScoringConfig:
         self.span_hamming_len_min = int(self.span_hamming_len_min)
         self.span_hamming_len_max = int(self.span_hamming_len_max)
         self.span_hamming_max_hd = int(self.span_hamming_max_hd)
+        self.span_hamming_start_stride = int(self.span_hamming_start_stride)
+        self.span_hamming_max_windows_total = int(self.span_hamming_max_windows_total)
         self.span_hamming_max_candidates_per_window = int(self.span_hamming_max_candidates_per_window)
         self.span_hamming_max_intervals_considered_per_start = int(self.span_hamming_max_intervals_considered_per_start)
         self.span_hamming_min_quality_threshold = float(self.span_hamming_min_quality_threshold)
@@ -177,6 +181,10 @@ class ScoringConfig:
             raise ValueError("span_hamming_len_max must be >= span_hamming_len_min")
         if self.span_hamming_max_hd < 0:
             raise ValueError("span_hamming_max_hd must be >= 0")
+        if self.span_hamming_start_stride < 1:
+            raise ValueError("span_hamming_start_stride must be >= 1")
+        if self.span_hamming_max_windows_total < 0:
+            raise ValueError("span_hamming_max_windows_total must be >= 0")
         if self.span_hamming_max_candidates_per_window < 1:
             raise ValueError("span_hamming_max_candidates_per_window must be >= 1")
         if self.span_hamming_max_intervals_considered_per_start < 1:
@@ -316,6 +324,8 @@ class ScoringConfig:
         out["span_hamming_len_min"] = self.span_hamming_len_min
         out["span_hamming_len_max"] = self.span_hamming_len_max
         out["span_hamming_max_hd"] = self.span_hamming_max_hd
+        out["span_hamming_start_stride"] = self.span_hamming_start_stride
+        out["span_hamming_max_windows_total"] = self.span_hamming_max_windows_total
         out["span_hamming_max_candidates_per_window"] = self.span_hamming_max_candidates_per_window
         out["span_hamming_max_intervals_considered_per_start"] = self.span_hamming_max_intervals_considered_per_start
         out["span_hamming_min_quality_threshold"] = self.span_hamming_min_quality_threshold

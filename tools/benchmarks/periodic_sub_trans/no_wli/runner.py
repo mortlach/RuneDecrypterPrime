@@ -65,7 +65,8 @@ from tools.benchmarks.periodic_sub_trans.common.runner_types import Tier
 ALPHABET_SIZE = 29
 ORDER = BenchmarkOrder.COL_THEN_SUB.value  # keep v1 aligned with the proven pipeline; add both orders in later variants.
 PROFILE = "pipeline_no_wli_v1"
-PIPELINE_RUN_MODE = "adaptive_scan_v1"  # "full" | "focus_500_nowli" | "focus_p5_c1_only" | "scan_fast_v1" | "adaptive_scan_v1" | "adaptive_focus_v1" | "scan_p5_p7_c1357"(legacy alias) | "smoke"
+# Overnight solve-oriented run: no scan skip guards, Stage-3 always attempted.
+PIPELINE_RUN_MODE = "adaptive_focus_v1"  # "full" | "focus_500_nowli" | "focus_p5_c1_only" | "scan_fast_v1" | "adaptive_scan_v1" | "adaptive_focus_v1" | "scan_p5_p7_c1357"(legacy alias) | "smoke"
 ENCODING_DIR = "ltr"  # "ltr" | "rtl"
 NO_WLI_PIPELINE_PROFILE_ID = "no_wli_a1_m4_b4_stage3avg_fulltext_longrun3x_v1"
 # Previous default kept in-file for one-line A/B rollback when needed.
@@ -90,7 +91,7 @@ ORACLE_ASSIST_SELECTION = False
 # - a_baseline: stage3 char4 pct baseline (no span calibration).
 # - b_min: stage3 char4 pct + calibrated span, combine=min.
 # - c_min_late: same as b_min but activates only after char_pct_min threshold.
-SCORING_EXPERIMENT_PROFILE = "b_min"  # off | a_baseline | b_min | c_min_late
+SCORING_EXPERIMENT_PROFILE = "c_min_late"  # off | a_baseline | b_min | c_min_late
 SCORING_EXPERIMENT_ENFORCE_LOCKS = True
 SCORING_EXPERIMENT_SPAN_ASSETS_DIR = Path("output/tools/benchmarks/scoring/span_hamming_nose_assets_v1")
 SCORING_EXPERIMENT_SPAN_COVERAGE_MIN = 0.05
@@ -125,7 +126,7 @@ HEARTBEAT_SECONDS = 900
 PREVIEW_CHARS = 240
 AUTOSKIP_PROVEN = True  # Skip fixtures already solved in flavor-specific solve_proof history.
 AUTOSKIP_PROVEN_MIN_MATCH = SOLVE_MATCH_THRESHOLD  # Minimum historical match to treat as proven.
-FORCE_RERUN_PROVEN = False  # If True, ignore proven autoskip and rerun all fixtures.
+FORCE_RERUN_PROVEN = True  # If True, ignore proven autoskip and rerun all fixtures.
 
 TEXT_OFFSETS = [0]
 KEY_SEEDS = [111]
@@ -1041,11 +1042,15 @@ def _apply_run_mode() -> None:
             Tier("focus_p5_c1_l1000", 5, 1, 1000),
             Tier("focus_p5_c3_l1000", 5, 3, 1000),
             Tier("focus_p5_c5_l1000", 5, 5, 1000),
-            Tier("focus_p5_c7_l1000", 5, 7, 1000),
             Tier("focus_p7_c1_l1000", 7, 1, 1000),
             Tier("focus_p7_c3_l1000", 7, 3, 1000),
             Tier("focus_p7_c5_l1000", 7, 5, 1000),
             Tier("focus_p7_c7_l1000", 7, 7, 1000),
+            Tier("focus_p9_c1_l1000", 9, 1, 1000),
+            Tier("focus_p9_c3_l1000", 9, 3, 1000),
+            Tier("focus_p9_c5_l1000", 9, 5, 1000),
+            Tier("focus_p9_c7_l1000", 9, 7, 1000),
+            Tier("focus_p9_c9_l1000", 9, 9, 1000),
         ]
         return
     if mode == "focus_500_nowli":
@@ -1274,6 +1279,30 @@ def _is_better_score_first(
     if c_match_ok and (not b_match_ok):
         return True
     return False
+
+
+def _is_solved_match(match_ratio: float) -> bool:
+    return bool(np.isfinite(match_ratio) and float(match_ratio) >= float(SOLVE_MATCH_THRESHOLD))
+
+
+def _is_better_stage3_candidate_preserving_solve(
+    cand_score: float,
+    cand_match: float,
+    best_score: float,
+    best_match: float,
+    *,
+    score_first: bool,
+) -> bool:
+    """Stage-3 candidate comparison that never demotes a solved incumbent."""
+    cand_solved = _is_solved_match(cand_match)
+    best_solved = _is_solved_match(best_match)
+    if cand_solved and (not best_solved):
+        return True
+    if best_solved and (not cand_solved):
+        return False
+    if score_first:
+        return _is_better_score_first(cand_score, cand_match, best_score, best_match)
+    return _is_better_match_first(cand_match, cand_score, best_match, best_score)
 
 
 def _scorer_objective_summary(scorer_cfg: Dict[str, Any]) -> str:
@@ -4134,20 +4163,13 @@ def main() -> None:
                         if phaseA_rows:
                             phaseA_best = phaseA_rows[0]
                             for row in phaseA_rows[1:]:
-                                if bool(ORACLE_ASSIST_SELECTION):
-                                    better_phasea = _is_better_match_first(
-                                        float(row.get("end_match", float("nan"))),
-                                        float(row.get("end_score", float("nan"))),
-                                        float(phaseA_best.get("end_match", float("nan"))),
-                                        float(phaseA_best.get("end_score", float("nan"))),
-                                    )
-                                else:
-                                    better_phasea = _is_better_score_first(
-                                        float(row.get("end_score", float("nan"))),
-                                        float(row.get("end_match", float("nan"))),
-                                        float(phaseA_best.get("end_score", float("nan"))),
-                                        float(phaseA_best.get("end_match", float("nan"))),
-                                    )
+                                better_phasea = _is_better_stage3_candidate_preserving_solve(
+                                    float(row.get("end_score", float("nan"))),
+                                    float(row.get("end_match", float("nan"))),
+                                    float(phaseA_best.get("end_score", float("nan"))),
+                                    float(phaseA_best.get("end_match", float("nan"))),
+                                    score_first=(not bool(ORACLE_ASSIST_SELECTION)),
+                                )
                                 if better_phasea:
                                     phaseA_best = row
                             best3_score = float(phaseA_best["end_score"])
@@ -4297,10 +4319,13 @@ def main() -> None:
                                     )
                                 )
 
-                                if bool(ORACLE_ASSIST_SELECTION):
-                                    better_phaseb = _is_better_match_first(best_b_match, best_b_score, best3_match, best3_score)
-                                else:
-                                    better_phaseb = _is_better_score_first(best_b_score, best_b_match, best3_score, best3_match)
+                                better_phaseb = _is_better_stage3_candidate_preserving_solve(
+                                    float(best_b_score),
+                                    float(best_b_match),
+                                    float(best3_score),
+                                    float(best3_match),
+                                    score_first=(not bool(ORACLE_ASSIST_SELECTION)),
+                                )
                                 if better_phaseb:
                                     best3_score = float(best_b_score)
                                     best3_match = float(best_b_match)
