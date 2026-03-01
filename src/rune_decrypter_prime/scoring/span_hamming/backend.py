@@ -109,55 +109,81 @@ class SpanHammingBackend:
         )
 
     def score(self, text_idx: Sequence[int] | Iterable[int]) -> SpanHammingStats:
-        text = tuple(int(token) for token in text_idx)
+        if isinstance(text_idx, tuple):
+            text = text_idx
+        elif isinstance(text_idx, list):
+            text = text_idx
+        else:
+            text = tuple(int(token) for token in text_idx)
         n_chars = len(text)
         if n_chars == 0 or n_chars < self.config.len_min:
             return self._build_zero_stats(n_chars)
+
+        max_dist = int(self._max_dist)
+        max_candidates_per_window = int(self.config.max_candidates_per_window)
+        min_quality_threshold = float(self.config.min_quality_threshold)
+        length_bins = self.length_bins
+        index_by_len = self._index_by_len
+        max_intervals_per_start = int(self.config.max_intervals_considered_per_start)
+        start_stride = int(self.config.start_stride)
+        max_windows_total = int(self.config.max_windows_total)
+        hamming_distance_limited = _hamming_distance_limited
 
         intervals: List[SpanInterval] = []
         n_windows_total = 0
         n_windows_scored = 0
         n_candidates_considered = 0
         n_candidates_pruned_cap = 0
+        reached_window_cap = False
 
-        for start in range(n_chars):
+        for start in range(0, n_chars, start_stride):
             intervals_for_start: List[SpanInterval] = []
 
-            for length in self.length_bins:
+            for length in length_bins:
                 end = start + length
                 if end > n_chars:
                     continue
+                if max_windows_total > 0 and n_windows_total >= max_windows_total:
+                    reached_window_cap = True
+                    break
                 n_windows_total += 1
 
-                index = self._index_by_len.get(length)
+                index = index_by_len.get(length)
                 if index is None:
                     continue
 
                 window = text[start:end]
-                candidate_ids = index.candidate_word_ids(window)
+                candidate_ids, n_candidates_all = index.candidate_word_ids_capped(
+                    window,
+                    max_candidates=max_candidates_per_window,
+                )
                 if not candidate_ids:
                     continue
 
                 n_windows_scored += 1
-                n_candidates_considered += len(candidate_ids)
+                n_candidates = len(candidate_ids)
+                n_candidates_considered += n_candidates
+                if n_candidates_all > n_candidates:
+                    n_candidates_pruned_cap += n_candidates_all - n_candidates
 
-                scored_candidates = []
+                best_distance = max_dist
+                words = index.words
                 for word_id in candidate_ids:
-                    dict_word = index.words[word_id]
-                    distance = _hamming_distance_limited(window, dict_word, self._max_dist)
-                    clipped_distance = min(distance, self._max_dist)
-                    quality = 1.0 - (float(clipped_distance) / float(self._max_dist))
-                    weight = quality * float(length)
-                    scored_candidates.append((clipped_distance, -weight, word_id, quality, weight))
+                    dict_word = words[word_id]
+                    # Tighten the early-out bound as soon as we have a better
+                    # candidate; equal/worse distances can no longer improve.
+                    distance_limit = max(0, best_distance - 1)
+                    distance = hamming_distance_limited(window, dict_word, distance_limit)
+                    clipped_distance = min(distance, max_dist)
+                    if clipped_distance < best_distance:
+                        best_distance = clipped_distance
+                        if best_distance == 0:
+                            break
 
-                scored_candidates.sort()
-                if len(scored_candidates) > self.config.max_candidates_per_window:
-                    n_candidates_pruned_cap += len(scored_candidates) - self.config.max_candidates_per_window
-                    scored_candidates = scored_candidates[: self.config.max_candidates_per_window]
-
-                best_distance, _, _, best_quality, best_weight = scored_candidates[0]
-                if best_quality < self.config.min_quality_threshold:
+                best_quality = 1.0 - (float(best_distance) / float(max_dist))
+                if best_quality < min_quality_threshold:
                     continue
+                best_weight = best_quality * float(length)
                 intervals_for_start.append(
                     SpanInterval(
                         start=start,
@@ -169,11 +195,13 @@ class SpanHammingBackend:
                     )
                 )
 
-            if len(intervals_for_start) > self.config.max_intervals_considered_per_start:
+            if len(intervals_for_start) > max_intervals_per_start:
                 intervals_for_start.sort(key=lambda item: (-item.weight, item.end, item.start, -item.length))
-                intervals_for_start = intervals_for_start[: self.config.max_intervals_considered_per_start]
+                intervals_for_start = intervals_for_start[:max_intervals_per_start]
 
             intervals.extend(intervals_for_start)
+            if reached_window_cap:
+                break
 
         selected = select_non_overlapping(intervals)
         covered_chars = int(sum(item.length for item in selected))
@@ -184,10 +212,10 @@ class SpanHammingBackend:
         quality = sum_weight / float(max(1, covered_chars))
         span_raw = sum_weight / denom_n
 
-        len_to_index = {length: idx for idx, length in enumerate(self.length_bins)}
-        sum_weight_by_len = [0.0 for _ in self.length_bins]
-        covered_chars_by_len = [0 for _ in self.length_bins]
-        selected_intervals_by_len = [0 for _ in self.length_bins]
+        len_to_index = {length: idx for idx, length in enumerate(length_bins)}
+        sum_weight_by_len = [0.0 for _ in length_bins]
+        covered_chars_by_len = [0 for _ in length_bins]
+        selected_intervals_by_len = [0 for _ in length_bins]
 
         for item in selected:
             idx = len_to_index[item.length]
@@ -199,7 +227,7 @@ class SpanHammingBackend:
         coverage_by_len = tuple(float(chars) / denom_n for chars in covered_chars_by_len)
         quality_by_len = tuple(
             (sum_weight_by_len[idx] / float(max(1, covered_chars_by_len[idx])))
-            for idx in range(len(self.length_bins))
+            for idx in range(len(length_bins))
         )
 
         selected_intervals_debug = selected if self.config.debug_return_intervals else tuple()
@@ -210,7 +238,7 @@ class SpanHammingBackend:
             n_chars=n_chars,
             chars_covered=covered_chars,
             n_intervals_selected=len(selected),
-            length_bins=self.length_bins,
+            length_bins=length_bins,
             span_raw_by_len=span_raw_by_len,
             coverage_by_len=coverage_by_len,
             quality_by_len=quality_by_len,
@@ -222,4 +250,3 @@ class SpanHammingBackend:
             n_candidates_pruned_cap=n_candidates_pruned_cap,
             selected_intervals=selected_intervals_debug,
         )
-

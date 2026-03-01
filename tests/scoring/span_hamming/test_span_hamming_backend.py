@@ -12,6 +12,8 @@ def _build_backend(
     len_min: int,
     len_max: int,
     max_hd: int = 2,
+    start_stride: int = 1,
+    max_windows_total: int = 0,
     debug_return_intervals: bool = False,
     min_quality_threshold: float = 1e-9,
     max_candidates_per_window: int = 256,
@@ -21,6 +23,8 @@ def _build_backend(
         len_min=len_min,
         len_max=len_max,
         max_hd=max_hd,
+        start_stride=start_stride,
+        max_windows_total=max_windows_total,
         debug_return_intervals=debug_return_intervals,
         min_quality_threshold=min_quality_threshold,
         max_candidates_per_window=max_candidates_per_window,
@@ -177,6 +181,38 @@ def test_length_bins_deterministic_ordering():
     assert len(stats.quality_by_len) == 4
 
 
+def test_candidate_cap_is_enforced_and_tracked():
+    words = {
+        3: [
+            [0, 0, 1],
+            [0, 1, 0],
+            [1, 1, 1],  # exact match appears later in sorted word ID order
+        ]
+    }
+    text = [1, 1, 1]
+
+    backend_uncapped = _build_backend(
+        words,
+        len_min=3,
+        len_max=3,
+        max_hd=2,
+        max_candidates_per_window=64,
+    )
+    backend_capped = _build_backend(
+        words,
+        len_min=3,
+        len_max=3,
+        max_hd=2,
+        max_candidates_per_window=1,
+    )
+
+    stats_uncapped = backend_uncapped.score(text)
+    stats_capped = backend_capped.score(text)
+
+    assert stats_uncapped.span_raw > stats_capped.span_raw
+    assert stats_capped.n_candidates_pruned_cap > 0
+
+
 def test_fixed_shape_length_bins_even_with_zero_matches():
     backend = _build_backend(
         {3: [[1, 1, 1]]},
@@ -193,3 +229,46 @@ def test_fixed_shape_length_bins_even_with_zero_matches():
     assert stats.selected_intervals_by_len == (0, 0, 0)
     assert stats.chars_covered_by_len == (0, 0, 0)
 
+
+def test_start_stride_reduces_windows_scored_deterministically():
+    backend_stride1 = _build_backend(
+        {3: [[1, 2, 3]]},
+        len_min=3,
+        len_max=3,
+        start_stride=1,
+    )
+    backend_stride2 = _build_backend(
+        {3: [[1, 2, 3]]},
+        len_min=3,
+        len_max=3,
+        start_stride=2,
+    )
+    text = [1, 2, 3, 4, 5, 6]
+    stats1 = backend_stride1.score(text)
+    stats2 = backend_stride2.score(text)
+
+    assert stats1.n_windows_total == 4
+    assert stats2.n_windows_total == 2
+    assert stats2.n_windows_total < stats1.n_windows_total
+
+
+def test_max_windows_total_caps_processing():
+    backend_uncapped = _build_backend(
+        {3: [[1, 2, 3]]},
+        len_min=3,
+        len_max=3,
+        max_windows_total=0,
+    )
+    backend_capped = _build_backend(
+        {3: [[1, 2, 3]]},
+        len_min=3,
+        len_max=3,
+        max_windows_total=2,
+    )
+    text = [1, 2, 3, 4, 5, 6]
+    stats_uncapped = backend_uncapped.score(text)
+    stats_capped = backend_capped.score(text)
+
+    assert stats_uncapped.n_windows_total == 4
+    assert stats_capped.n_windows_total == 2
+    assert stats_capped.n_windows_scored <= stats_capped.n_windows_total

@@ -77,18 +77,67 @@ class LengthSplitIndex:
             buckets=buckets,
         )
 
-    def candidate_word_ids(self, window: Sequence[int]) -> Tuple[int, ...]:
+    def candidate_word_ids(
+        self,
+        window: Sequence[int],
+        *,
+        max_candidates: int | None = None,
+    ) -> Tuple[int, ...]:
+        ids = self._candidate_ids_set(window)
+        return self._finalize_candidate_ids(ids, max_candidates=max_candidates)
+
+    def candidate_word_ids_capped(
+        self,
+        window: Sequence[int],
+        *,
+        max_candidates: int,
+    ) -> Tuple[Tuple[int, ...], int]:
+        ids = self._candidate_ids_set(window)
+        all_count = len(ids)
+        return self._finalize_candidate_ids(ids, max_candidates=max_candidates), all_count
+
+    def _candidate_ids_set(self, window: Sequence[int]) -> set[int]:
         if self.n_parts == 0:
-            return tuple()
+            return set()
         if len(window) != self.length:
             raise ValueError("window length does not match index length")
 
-        window_tuple = tuple(int(x) for x in window)
         candidate_ids: set[int] = set()
-        for part_id, (start, end) in enumerate(self.part_slices):
+        buckets = self.buckets
+        part_slices = self.part_slices
+        if isinstance(window, tuple):
+            for part_id, (start, end) in enumerate(part_slices):
+                key = (part_id, window[start:end])
+                ids = buckets.get(key)
+                if ids:
+                    candidate_ids.update(ids)
+            return candidate_ids
+
+        if isinstance(window, list):
+            for part_id, (start, end) in enumerate(part_slices):
+                key = (part_id, tuple(window[start:end]))
+                ids = buckets.get(key)
+                if ids:
+                    candidate_ids.update(ids)
+            return candidate_ids
+
+        window_tuple = tuple(int(x) for x in window)
+        for part_id, (start, end) in enumerate(part_slices):
             key = (part_id, window_tuple[start:end])
-            ids = self.buckets.get(key)
+            ids = buckets.get(key)
             if ids:
                 candidate_ids.update(ids)
-        return tuple(sorted(candidate_ids))
+        return candidate_ids
 
+    @staticmethod
+    def _finalize_candidate_ids(candidate_ids: set[int], *, max_candidates: int | None) -> Tuple[int, ...]:
+        if max_candidates is None:
+            return tuple(sorted(candidate_ids))
+
+        cap = int(max_candidates)
+        if cap < 1:
+            raise ValueError("max_candidates must be >= 1 when provided")
+        ordered = sorted(candidate_ids)
+        if len(ordered) <= cap:
+            return tuple(ordered)
+        return tuple(ordered[:cap])

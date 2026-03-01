@@ -15,6 +15,7 @@ Default scorer schedule:
 import csv
 import hashlib
 import json
+import platform
 import re
 import subprocess
 import sys
@@ -52,6 +53,7 @@ from tools.benchmarks.periodic_sub_trans.common.batch_eval import (
 from tools.benchmarks.periodic_sub_trans.common.core_enums import BenchmarkOrder
 from tools.benchmarks.periodic_sub_trans.common.io_reports import (
     append_csv_row as _append_csv_row_common,
+    write_csv_rows as _write_csv_rows_common,
     write_json,
     write_pipeline_snapshot_files,
 )
@@ -63,7 +65,8 @@ from tools.benchmarks.periodic_sub_trans.common.runner_types import Tier
 ALPHABET_SIZE = 29
 ORDER = BenchmarkOrder.COL_THEN_SUB.value  # keep v1 aligned with the proven pipeline; add both orders in later variants.
 PROFILE = "pipeline_no_wli_v1"
-PIPELINE_RUN_MODE = "scan_p5_p7_c1357"  # "full" | "focus_500_nowli" | "focus_p5_c1_only" | "scan_p5_p7_c1357" | "smoke"
+# Overnight solve-oriented run: no scan skip guards, Stage-3 always attempted.
+PIPELINE_RUN_MODE = "adaptive_focus_v1_p7c3_only"  # "full" | "focus_500_nowli" | "focus_p5_c1_only" | "scan_fast_v1" | "adaptive_scan_v1" | "adaptive_focus_v1" | "adaptive_focus_v1_p7c3_only" | "scan_p5_p7_c1357"(legacy alias) | "smoke"
 ENCODING_DIR = "ltr"  # "ltr" | "rtl"
 NO_WLI_PIPELINE_PROFILE_ID = "no_wli_a1_m4_b4_stage3avg_fulltext_longrun3x_v1"
 # Previous default kept in-file for one-line A/B rollback when needed.
@@ -78,19 +81,59 @@ BATCH_EVAL_CHUNK_SIZE = 256  # Shared chunk size for decrypt+score batching in r
 REQUIRE_BATCH_SCORING = True  # Fail fast if scorer can't execute true batch path in perf profiles.
 STAGE2_PROMOTE_BY_STAGE3_JUDGE = True  # Bridge into Stage-3 objective basin before refine.
 STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE = True  # Use Stage-3 objective for entry-band selection.
+STAGE2_JUDGE_POLICY = "search_only"  # "search_only" | "stage3_judge"
 REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT = True  # Hard guard: avg.full_text scorers must never touch ECDF.
 # Benchmark control: when False, oracle match_ratio is telemetry-only and never used
 # for Stage-2/Stage-3 selection/ranking decisions.
 ORACLE_ASSIST_SELECTION = False
 
+# Deterministic scoring experiment profiles (A/B/C).
+# - off: keep profile-native scoring untouched.
+# - a_baseline: stage3 char4 pct baseline (no span calibration).
+# - b_min: stage3 char4 pct + calibrated span, combine=min.
+# - c_min_late: same as b_min but activates only after char_pct_min threshold.
+SCORING_EXPERIMENT_PROFILE = "c_min_late"  # off | a_baseline | b_min | c_min_late
+SCORING_EXPERIMENT_ENFORCE_LOCKS = True
+SCORING_EXPERIMENT_SPAN_ASSETS_DIR = Path("output/tools/benchmarks/scoring/span_hamming_nose_assets_v1")
+SCORING_EXPERIMENT_SPAN_COVERAGE_MIN = 0.05
+SCORING_EXPERIMENT_SPAN_QUALITY_MIN = 0.05
+SCORING_EXPERIMENT_C_CHAR_PCT_MIN = 0.70
+# Diagnostic override for c_min_late phase-B gate (set to a float like 0.05 for check-A runs).
+STAGE3_SPAN_CHAR_PCT_MIN_OVERRIDE = None
+ORACLE_STAGE3_FLOOR_GUARD_EPS = 1e-12
+# Scan-mode runtime controls (kept hardcoded for deterministic benchmarking).
+SCAN_TIER_TIME_CAP_SECONDS = 600.0  # 0 disables cap; applied before Stage-3.
+SCAN_STAGE3_GATE_LOW_MATCH = 0.15  # below low -> skip Stage-3 in scan.
+SCAN_STAGE3_GATE_HIGH_MATCH = 0.22  # [low, high) -> Phase-A only; >= high -> allow Phase-B.
+# Legacy alias kept for backward compatibility in logs/tests.
+SCAN_STAGE3_MIN_STAGE2_MATCH = float(SCAN_STAGE3_GATE_LOW_MATCH)
+SCAN_STAGE2_CONTINUE_TO_GATE = True  # Keep expanding Stage-2 work until gate/cap.
+SCAN_STAGE2_CONTINUE_CAP_SECONDS = 900.0  # 0 disables Stage-2 continuation cap.
+_SCAN_TIER_TIME_CAP_SECONDS_DEFAULT = float(SCAN_TIER_TIME_CAP_SECONDS)
+_SCAN_STAGE3_GATE_LOW_MATCH_DEFAULT = float(SCAN_STAGE3_GATE_LOW_MATCH)
+_SCAN_STAGE3_GATE_HIGH_MATCH_DEFAULT = float(max(SCAN_STAGE3_GATE_LOW_MATCH, SCAN_STAGE3_GATE_HIGH_MATCH))
+_SCAN_STAGE3_MIN_STAGE2_MATCH_DEFAULT = float(SCAN_STAGE3_GATE_LOW_MATCH)
+_SCAN_STAGE2_CONTINUE_TO_GATE_DEFAULT = bool(SCAN_STAGE2_CONTINUE_TO_GATE)
+_SCAN_STAGE2_CONTINUE_CAP_SECONDS_DEFAULT = float(SCAN_STAGE2_CONTINUE_CAP_SECONDS)
+
+# Per-iteration tamper-evident audit chain (for crash/cancel-safe partial runs).
+AUDIT_HASH_CHAIN_ENABLED = True
+AUDIT_HASH_CHAIN_SEED = "0" * 64
+AUDIT_HASH_CHAIN_CSV = "iteration_audit_chain.csv"
+AUDIT_HASH_CHAIN_JSONL = "iteration_audit_chain.jsonl"
+
 SOLVE_MATCH_THRESHOLD = 0.90
 STALL_DELTA = 0.002
 STALL_STAGE_LIMIT = 1
 HEARTBEAT_SECONDS = 900
+TIER_HEARTBEAT_SECONDS = 60
+STAGE3_HEARTBEAT_SECONDS = 30
+STAGE3_HEARTBEAT_MIN_STEP = 50
+STAGE3_HEARTBEAT_MIN_ELAPSED_SECONDS = 5.0
 PREVIEW_CHARS = 240
 AUTOSKIP_PROVEN = True  # Skip fixtures already solved in flavor-specific solve_proof history.
 AUTOSKIP_PROVEN_MIN_MATCH = SOLVE_MATCH_THRESHOLD  # Minimum historical match to treat as proven.
-FORCE_RERUN_PROVEN = False  # If True, ignore proven autoskip and rerun all fixtures.
+FORCE_RERUN_PROVEN = True  # If True, ignore proven autoskip and rerun all fixtures.
 
 TEXT_OFFSETS = [0]
 KEY_SEEDS = [111]
@@ -118,7 +161,8 @@ STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS = {10: 10, 13: 8}
 SAVE_STAGE2_TOPK = 12
 SAVE_STAGE3_TOPK = True
 SAVE_STAGE3_TOPK_LIMIT = 5
-STAGE3_PROGRESS_PCT = 20  # Stage-3 progress logging throttle (print every N%).
+KAEDING_PROGRESS_EVERY_PCT = 1  # Callback cadence for Stage-3 heartbeat (console spam disabled below).
+KAEDING_CONSOLE_PROGRESS = False
 
 STAGE1_SEED_RESTARTS = 96
 STAGE1_SEED_N_BLOCKS = 18
@@ -169,6 +213,15 @@ STAGE3_PHASEB_CFG: Dict[str, Any] = {
 STAGE3_PHASEB_TOP_N = 8
 STAGE3_PHASEB_GATE_DELTA_FLOOR = 0.008
 STAGE3_PHASEB_GATE_END_GAIN_FLOOR = 0.004
+# Explicit span-basin judge pool size (Phase-A endpoints scored by span judge before Phase-B seeding).
+# Tune manually for Check-A sweeps (e.g., 32 / 64 / 96).
+STAGE3_SPAN_BASIN_JUDGE_K = 32
+STAGE3_SPAN_BASIN_JUDGE_REQUIRE_SPAN_ACTIVE = True  # Basins without active span cannot win judge ranking.
+STAGE3_SPAN_BASIN_JUDGE_DEDUPE_BY_END_HASH = True  # Judge distinct basin endpoints only.
+STAGE3_SPAN_BASIN_JUDGE_TIE_EPS = 0.001  # Keep near-tie basins for Phase-B seeding.
+STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS = 16  # Near-tie expansion cap (applied as max(top_n, cap)).
+RUN_STAGE3_SPAN_BASIN_K_SWEEP = True
+STAGE3_SPAN_BASIN_K_SWEEP_VALUES = [32, 64, 96]
 
 # c1 fast-pass focus overrides (used to solve p5/c1 first without globally over-tuning all tiers).
 STAGE3_C1_FOCUS_ENABLED = True
@@ -355,6 +408,8 @@ def _apply_profile_defaults() -> None:
     global STAGE3_PERIOD_INIT_MULT_BY_PERIOD, STAGE3_PERIOD_STEP_MULT_BY_PERIOD
     global STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD, STAGE3_INIT_KEYS_CAP
     global ORACLE_ASSIST_SELECTION
+    global SCAN_TIER_TIME_CAP_SECONDS, SCAN_STAGE3_GATE_LOW_MATCH, SCAN_STAGE3_GATE_HIGH_MATCH, SCAN_STAGE3_MIN_STAGE2_MATCH
+    global SCAN_STAGE2_CONTINUE_TO_GATE, SCAN_STAGE2_CONTINUE_CAP_SECONDS
 
     profile = get_no_wli_pipeline_profile(NO_WLI_PIPELINE_PROFILE_ID)
     PROFILE = str(profile.profile_id)
@@ -415,8 +470,6 @@ def _apply_profile_defaults() -> None:
     SOLVER_STAGE1 = dict(profile.solver_stage1)
     SOLVER_STAGE2 = dict(profile.solver_stage2)
     SOLVER_STAGE3 = dict(profile.solver_stage3)
-    # Keep Stage-3 console output manageable across profiles.
-    SOLVER_STAGE3["progress_pct"] = int(max(1, STAGE3_PROGRESS_PCT))
     STAGE3_TWO_PHASE_ENABLED = bool(_STAGE3_TWO_PHASE_ENABLED_DEFAULT)
     STAGE3_PHASEA_CFG = dict(_STAGE3_PHASEA_CFG_DEFAULT)
     STAGE3_PHASEB_CFG = dict(_STAGE3_PHASEB_CFG_DEFAULT)
@@ -436,6 +489,12 @@ def _apply_profile_defaults() -> None:
     STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD = dict(_STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD_DEFAULT)
     STAGE3_INIT_KEYS_CAP = int(_STAGE3_INIT_KEYS_CAP_DEFAULT)
     ORACLE_ASSIST_SELECTION = bool(_ORACLE_ASSIST_SELECTION_DEFAULT)
+    SCAN_TIER_TIME_CAP_SECONDS = float(_SCAN_TIER_TIME_CAP_SECONDS_DEFAULT)
+    SCAN_STAGE3_GATE_LOW_MATCH = float(_SCAN_STAGE3_GATE_LOW_MATCH_DEFAULT)
+    SCAN_STAGE3_GATE_HIGH_MATCH = float(max(float(SCAN_STAGE3_GATE_LOW_MATCH), float(_SCAN_STAGE3_GATE_HIGH_MATCH_DEFAULT)))
+    SCAN_STAGE3_MIN_STAGE2_MATCH = float(SCAN_STAGE3_GATE_LOW_MATCH)
+    SCAN_STAGE2_CONTINUE_TO_GATE = bool(_SCAN_STAGE2_CONTINUE_TO_GATE_DEFAULT)
+    SCAN_STAGE2_CONTINUE_CAP_SECONDS = float(_SCAN_STAGE2_CONTINUE_CAP_SECONDS_DEFAULT)
 
     if str(profile.profile_id) == NO_WLI_LONGRUN3X_PROFILE_ID:
         # Longrun profile default: safe local refinement first, then aggressive phase-B only for top-N.
@@ -466,9 +525,38 @@ def _apply_profile_defaults() -> None:
         # Force full scout pass before early-stop can trigger.
         STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS = int(max(1, STAGE12_SCOUT_RUNS))
 
+    _apply_kaeding_progress_settings()
+
+
+def _apply_kaeding_progress_settings() -> None:
+    # Centralized Kaeding progress controls:
+    # - progress_pct controls callback/progress bucket cadence
+    # - print_progress controls solver-native console spam
+    pct = int(max(1, KAEDING_PROGRESS_EVERY_PCT))
+    print_progress = bool(KAEDING_CONSOLE_PROGRESS)
+    SOLVER_STAGE1["progress_pct"] = int(pct)
+    SOLVER_STAGE1["print_progress"] = bool(print_progress)
+    SOLVER_STAGE3["progress_pct"] = int(pct)
+    SOLVER_STAGE3["print_progress"] = bool(print_progress)
+    STAGE3_PHASEA_CFG["progress_pct"] = int(pct)
+    STAGE3_PHASEA_CFG["print_progress"] = bool(print_progress)
+    STAGE3_PHASEB_CFG["progress_pct"] = int(pct)
+    STAGE3_PHASEB_CFG["print_progress"] = bool(print_progress)
+
 
 def _repo_root() -> Path:
     return _ROOT
+
+
+def _resolve_repo_path(path_like: Path | str | None) -> Path | None:
+    if path_like is None:
+        return None
+    p = Path(path_like).expanduser()
+    if not p.is_absolute():
+        p = (_repo_root() / p).resolve()
+    else:
+        p = p.resolve()
+    return p
 
 
 def _git_short() -> str:
@@ -477,6 +565,391 @@ def _git_short() -> str:
         return out.decode("utf-8", errors="replace").strip() or "nogit"
     except Exception:
         return "nogit"
+
+
+def _git_commit() -> str:
+    try:
+        out = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=str(_repo_root()), stderr=subprocess.DEVNULL)
+        return out.decode("utf-8", errors="replace").strip() or "nogit"
+    except Exception:
+        return "nogit"
+
+
+def _git_dirty() -> bool:
+    try:
+        out = subprocess.check_output(["git", "status", "--porcelain"], cwd=str(_repo_root()), stderr=subprocess.DEVNULL)
+        return bool(out.decode("utf-8", errors="replace").strip())
+    except Exception:
+        return False
+
+
+def _sanitize_jsonable(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(k): _sanitize_jsonable(v) for k, v in sorted(value.items(), key=lambda kv: str(kv[0]))}
+    if isinstance(value, (list, tuple)):
+        return [_sanitize_jsonable(v) for v in value]
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, (np.integer,)):
+        return int(value)
+    if isinstance(value, (np.floating,)):
+        v = float(value)
+        return v if np.isfinite(v) else None
+    if isinstance(value, float):
+        return value if np.isfinite(value) else None
+    return value
+
+
+def _canonical_json(value: Any) -> str:
+    return json.dumps(
+        _sanitize_jsonable(value),
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
+
+
+def _sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _hash_payload(payload: Dict[str, Any]) -> str:
+    return _sha256_text(_canonical_json(payload))
+
+
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _build_non_scoring_lock_payload() -> Dict[str, Any]:
+    mode_raw = str(PIPELINE_RUN_MODE)
+    mode_canonical = str(_canonical_run_mode(mode_raw))
+    return dict(
+        mode=mode_canonical,
+        mode_raw=mode_raw,
+        mode_intent=str(_mode_intent(mode_raw)),
+        stage3_can_skip=bool(_mode_stage3_can_skip(mode_raw)),
+        direction=str(ENCODING_DIR),
+        order=str(ORDER),
+        alphabet_size=int(ALPHABET_SIZE),
+        solve_threshold=float(SOLVE_MATCH_THRESHOLD),
+        stall_delta=float(STALL_DELTA),
+        stall_stage_limit=int(STALL_STAGE_LIMIT),
+        scan_controls=dict(
+            tier_time_cap_seconds=float(SCAN_TIER_TIME_CAP_SECONDS),
+            stage2_continue_to_gate=bool(SCAN_STAGE2_CONTINUE_TO_GATE),
+            stage2_continue_cap_seconds=float(SCAN_STAGE2_CONTINUE_CAP_SECONDS),
+            stage3_gate_low_match=float(SCAN_STAGE3_GATE_LOW_MATCH),
+            stage3_gate_high_match=float(max(float(SCAN_STAGE3_GATE_LOW_MATCH), float(SCAN_STAGE3_GATE_HIGH_MATCH))),
+        ),
+        text_offsets=[int(x) for x in TEXT_OFFSETS],
+        key_seeds=[int(x) for x in KEY_SEEDS],
+        tiers=[dict(name=str(t.name), period=int(t.period), columns=int(t.columns), length=int(t.length)) for t in TIERS],
+        stage1_search=dict(
+            seed_restarts=int(STAGE1_SEED_RESTARTS),
+            seed_n_blocks=int(STAGE1_SEED_N_BLOCKS),
+            seed_total=int(STAGE1_SEED_TOTAL),
+            seed_swaps=int(STAGE1_SEED_SWAPS),
+            scout_runs=int(STAGE12_SCOUT_RUNS),
+            archive_keep=int(STAGE12_ARCHIVE_KEEP),
+            promote_top=int(STAGE12_PROMOTE_TOP),
+            scout_step_scale=float(STAGE1_SCOUT_STEP_SCALE),
+            scout_restart_scale=float(STAGE1_SCOUT_RESTART_SCALE),
+            scout_min_steps=int(STAGE1_SCOUT_MIN_STEPS),
+            scout_min_restarts=int(STAGE1_SCOUT_MIN_RESTARTS),
+            scout_no_improve_delta=float(STAGE1_SCOUT_NO_IMPROVE_DELTA),
+            scout_no_improve_patience=int(STAGE1_SCOUT_NO_IMPROVE_PATIENCE),
+            scout_min_new_archive=int(STAGE1_SCOUT_MIN_NEW_ARCHIVE),
+            scout_early_stop_min_scouts=int(STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS),
+            sub_candidates=int(STAGE1_SUB_CANDIDATES),
+            sub_candidates_by_columns={str(k): int(v) for k, v in STAGE1_SUB_CANDIDATES_BY_COLUMNS.items()},
+        ),
+        stage2_search=dict(
+            exact_max_columns=int(STAGE2_EXACT_MAX_COLUMNS),
+            exact_sub_candidates=int(STAGE2_EXACT_SUB_CANDIDATES),
+            exact_sub_by_columns={str(k): int(v) for k, v in STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS.items()},
+            exact_two_pass=bool(STAGE2_EXACT_TWO_PASS),
+            exact_pass1_top_tails=int(STAGE2_EXACT_PASS1_TOP_TAILS),
+            exact_pass1_top_by_columns={str(k): int(v) for k, v in STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS.items()},
+            exact_early_solve_break=bool(STAGE2_EXACT_EARLY_SOLVE_BREAK),
+            hybrid_sub_candidates=int(STAGE2_HYBRID_SUB_CANDIDATES),
+            hybrid_sub_by_columns={str(k): int(v) for k, v in STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS.items()},
+            judge_policy=str(STAGE2_JUDGE_POLICY),
+            promote_by_stage3_judge=bool(STAGE2_PROMOTE_BY_STAGE3_JUDGE),
+            entry_band_by_stage3_judge=bool(STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE),
+        ),
+        stage3_search=dict(
+            solver=dict(SOLVER_STAGE3),
+            init_keys=int(STAGE3_INITIAL_KEYS),
+            init_by_columns={str(k): int(v) for k, v in STAGE3_INITIAL_KEYS_BY_COLUMNS.items()},
+            span_basin_judge_k=int(STAGE3_SPAN_BASIN_JUDGE_K),
+            span_basin_judge_require_span_active=bool(STAGE3_SPAN_BASIN_JUDGE_REQUIRE_SPAN_ACTIVE),
+            span_basin_judge_dedupe_by_end_hash=bool(STAGE3_SPAN_BASIN_JUDGE_DEDUPE_BY_END_HASH),
+            span_basin_judge_tie_eps=float(STAGE3_SPAN_BASIN_JUDGE_TIE_EPS),
+            span_basin_judge_tie_max_seeds=int(STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS),
+            span_basin_judge_k_sweep=dict(
+                enabled=bool(RUN_STAGE3_SPAN_BASIN_K_SWEEP),
+                values=[int(v) for v in STAGE3_SPAN_BASIN_K_SWEEP_VALUES],
+            ),
+            dynamic_bands=[dict(b) for b in STAGE3_DYNAMIC_BANDS],
+            two_phase_enabled=bool(STAGE3_TWO_PHASE_ENABLED),
+            phase_a=dict(STAGE3_PHASEA_CFG),
+            phase_b=dict(STAGE3_PHASEB_CFG),
+            phase_b_top_n=int(STAGE3_PHASEB_TOP_N),
+            phase_b_gate_delta=float(STAGE3_PHASEB_GATE_DELTA_FLOOR),
+            phase_b_gate_end_gain=float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR),
+            continue_after_solve=bool(STAGE3_CONTINUE_AFTER_SOLVE),
+            c1_focus_enabled=bool(STAGE3_C1_FOCUS_ENABLED),
+            c1_init_keys=int(STAGE3_C1_INIT_KEYS),
+            c1_phase_a_steps=int(STAGE3_C1_PHASEA_STEPS),
+            c1_phase_b_steps=int(STAGE3_C1_PHASEB_STEPS),
+            c1_phase_b_top_n=int(STAGE3_C1_PHASEB_TOP_N),
+            c1_gate_delta=float(STAGE3_C1_PHASEB_GATE_DELTA_FLOOR),
+            c1_gate_end_gain=float(STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR),
+            period_init_mult={str(k): float(v) for k, v in STAGE3_PERIOD_INIT_MULT_BY_PERIOD.items()},
+            period_step_mult={str(k): float(v) for k, v in STAGE3_PERIOD_STEP_MULT_BY_PERIOD.items()},
+            period_restart_bonus={str(k): int(v) for k, v in STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD.items()},
+            init_keys_cap=int(STAGE3_INIT_KEYS_CAP),
+        ),
+        logging_controls=dict(
+            kaeding_progress_every_pct=int(KAEDING_PROGRESS_EVERY_PCT),
+            kaeding_console_progress=int(1 if bool(KAEDING_CONSOLE_PROGRESS) else 0),
+            tier_heartbeat_seconds=float(TIER_HEARTBEAT_SECONDS),
+            stage3_heartbeat_seconds=float(STAGE3_HEARTBEAT_SECONDS),
+            stage3_heartbeat_min_step=int(STAGE3_HEARTBEAT_MIN_STEP),
+            stage3_heartbeat_min_elapsed_seconds=float(STAGE3_HEARTBEAT_MIN_ELAPSED_SECONDS),
+        ),
+    )
+
+
+def _build_scoring_lock_payload() -> Dict[str, Any]:
+    return dict(
+        scorer_impl=str(getattr(SCORER_IMPL, "value", SCORER_IMPL)),
+        stage1_label=str(SCORER_STAGE1_LABEL),
+        stage2_label=str(SCORER_STAGE2_LABEL),
+        stage3_label=str(SCORER_STAGE3_LABEL),
+        stage1=dict(SCORER_STAGE1),
+        stage2=dict(SCORER_STAGE2),
+        stage3=dict(SCORER_FULL),
+        stage2_pass1_primary={str(k): float(v) for k, v in STAGE2_PASS1_PRIMARY_CHAR_WEIGHTS.items()},
+        stage2_pass1_fallback={str(k): float(v) for k, v in STAGE2_PASS1_FALLBACK_CHAR_WEIGHTS.items()},
+        oracle_assist_selection=bool(ORACLE_ASSIST_SELECTION),
+        require_no_ecdf_for_avg_fulltext=bool(REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT),
+        stage3_search_contract=dict(
+            objective=(
+                str(SCORER_STAGE2.get("objective", "avg.logp.win20"))
+                if str(SCORER_STAGE2.get("objective", "avg.logp.win20")).startswith("avg.")
+                else "avg.logp.win20"
+            ),
+            avg_window_policy="full_text",
+            char_weights={"4": 1.0},
+            span_hamming_enabled=False,
+            span_basin_judge_k=int(STAGE3_SPAN_BASIN_JUDGE_K),
+            span_basin_judge_require_span_active=bool(STAGE3_SPAN_BASIN_JUDGE_REQUIRE_SPAN_ACTIVE),
+            span_basin_judge_dedupe_by_end_hash=bool(STAGE3_SPAN_BASIN_JUDGE_DEDUPE_BY_END_HASH),
+            span_basin_judge_tie_eps=float(STAGE3_SPAN_BASIN_JUDGE_TIE_EPS),
+            span_basin_judge_tie_max_seeds=int(STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS),
+            span_basin_judge_k_sweep=dict(
+                enabled=bool(RUN_STAGE3_SPAN_BASIN_K_SWEEP),
+                values=[int(v) for v in STAGE3_SPAN_BASIN_K_SWEEP_VALUES],
+            ),
+        ),
+        stage3_span_char_pct_min_override=(
+            None
+            if STAGE3_SPAN_CHAR_PCT_MIN_OVERRIDE is None
+            else float(STAGE3_SPAN_CHAR_PCT_MIN_OVERRIDE)
+        ),
+    )
+
+
+def _stage3_char4_pct_baseline_cfg() -> Dict[str, Any]:
+    return dict(
+        objective="pct.logp.win10",
+        include_char=True,
+        use_word_breaks=False,
+        char_weights={4: 1.0},
+        wli_weights={},
+        impl=SCORER_IMPL,
+    )
+
+
+def _stage3_char4_avg_fulltext_search_cfg(*, direction: Direction) -> Dict[str, Any]:
+    """Stage-3 search scorer contract: avg/full_text char4, no span/ECDF."""
+    obj = str(SCORER_STAGE2.get("objective", "avg.logp.win20"))
+    if not obj.startswith("avg."):
+        obj = "avg.logp.win20"
+    return dict(
+        objective=str(obj),
+        include_char=True,
+        use_word_breaks=False,
+        char_weights={4: 1.0},
+        wli_weights={},
+        avg_window_policy="full_text",
+        impl=SCORER_STAGE3_IMPL_AVG_FULLTEXT,
+        encoding_dir=direction,
+        span_hamming_enabled=False,
+        span_hamming_mode="off",
+        span_hamming_weight=0.0,
+    )
+
+
+def _apply_scoring_experiment_profile() -> Dict[str, Any]:
+    """Apply deterministic A/B/C scoring experiment profile via hardcoded constants."""
+
+    global PROFILE, SCORER_STAGE3_LABEL, SCORER_FULL
+    profile = str(SCORING_EXPERIMENT_PROFILE).strip().lower()
+    if profile in {"", "off", "none"}:
+        return dict(profile="off", enabled=False, description="profile-native scoring")
+
+    pre_non_hash = _hash_payload(_build_non_scoring_lock_payload())
+    stage3_cfg = _stage3_char4_pct_baseline_cfg()
+    desc = ""
+    span_assets_dir: Path | None = None
+
+    if profile == "a_baseline":
+        SCORER_STAGE3_LABEL = "B_char4_pct_baseline"
+        stage3_cfg.update(
+            span_hamming_mode="off",
+            span_hamming_enabled=False,
+            span_hamming_weight=0.0,
+        )
+        desc = "char4 pct baseline (no span calibrated channel)"
+    elif profile in {"b_min", "c_min_late"}:
+        SCORER_STAGE3_LABEL = "B_char4_pct_span_min" if profile == "b_min" else "B_char4_pct_span_min_late"
+        span_assets_dir = _resolve_repo_path(SCORING_EXPERIMENT_SPAN_ASSETS_DIR)
+        if span_assets_dir is None:
+            raise ValueError("SCORING_EXPERIMENT_SPAN_ASSETS_DIR cannot be None")
+        calib_fp = span_assets_dir / "combined_calibration.json"
+        ecdf_root = span_assets_dir / "ecdf" / "span_x"
+        if not calib_fp.exists():
+            raise FileNotFoundError(f"Missing combined_calibration.json for span experiment: {calib_fp}")
+        if not ecdf_root.exists():
+            raise FileNotFoundError(f"Missing span ECDF root for span experiment: {ecdf_root}")
+        stage3_cfg.update(
+            span_hamming_enabled=True,
+            span_hamming_mode="calibrated",
+            span_hamming_assets_dir=str(span_assets_dir),
+            span_hamming_combine_mode="min",
+            span_hamming_weight_span=1.0,
+            span_hamming_weight_char=1.0,
+            span_hamming_coverage_min=float(SCORING_EXPERIMENT_SPAN_COVERAGE_MIN),
+            span_hamming_quality_min=float(SCORING_EXPERIMENT_SPAN_QUALITY_MIN),
+            span_hamming_gate_fail_policy=("char_only" if profile == "c_min_late" else "score_floor"),
+        )
+        if profile == "c_min_late":
+            stage3_cfg["span_hamming_char_pct_min"] = float(SCORING_EXPERIMENT_C_CHAR_PCT_MIN)
+            desc = "char4 pct + calibrated span (min combine, late activation by char pct)"
+        else:
+            desc = "char4 pct + calibrated span (min combine)"
+    else:
+        raise ValueError(
+            f"Unsupported SCORING_EXPERIMENT_PROFILE={SCORING_EXPERIMENT_PROFILE!r}; "
+            "expected off|a_baseline|b_min|c_min_late"
+        )
+
+    SCORER_FULL = stage3_cfg
+    PROFILE = f"{PROFILE}__{profile}"
+
+    post_non_hash = _hash_payload(_build_non_scoring_lock_payload())
+    if bool(SCORING_EXPERIMENT_ENFORCE_LOCKS) and (pre_non_hash != post_non_hash):
+        raise RuntimeError(
+            "Scoring experiment changed non-scoring knobs; this violates locked A/B/C setup "
+            f"(before={pre_non_hash} after={post_non_hash})"
+        )
+
+    return dict(
+        profile=profile,
+        enabled=True,
+        description=desc,
+        span_assets_dir=(str(span_assets_dir) if span_assets_dir is not None else ""),
+        non_scoring_hash_before=pre_non_hash,
+        non_scoring_hash_after=post_non_hash,
+        scoring_hash=_hash_payload(_build_scoring_lock_payload()),
+    )
+
+
+def _build_stage3_experiment_cfg(
+    *,
+    profile_name: str,
+    direction: Direction,
+    span_assets_dir: Path | None,
+    char_pct_min_override: float | None = None,
+    disable_char_pct_gate: bool = False,
+) -> Dict[str, Any]:
+    """Build per-stage3 scorer config without mutating global scoring experiment state."""
+    p = str(profile_name or "").strip().lower()
+    cfg = dict(_stage3_char4_pct_baseline_cfg(), encoding_dir=direction)
+    if p in {"", "off", "none", "a_baseline"}:
+        cfg.update(
+            span_hamming_mode="off",
+            span_hamming_enabled=False,
+            span_hamming_weight=0.0,
+        )
+        return cfg
+    if p not in {"b_min", "c_min_late"}:
+        raise ValueError(f"Unsupported stage3 experiment profile={profile_name!r}")
+    if span_assets_dir is None:
+        raise FileNotFoundError("span assets dir is required for stage3 span experiment")
+    calib_fp = span_assets_dir / "combined_calibration.json"
+    ecdf_root = span_assets_dir / "ecdf" / "span_x"
+    if not calib_fp.exists():
+        raise FileNotFoundError(f"Missing combined_calibration.json for stage3 span experiment: {calib_fp}")
+    if not ecdf_root.exists():
+        raise FileNotFoundError(f"Missing span ECDF root for stage3 span experiment: {ecdf_root}")
+    cfg.update(
+        span_hamming_enabled=True,
+        span_hamming_mode="calibrated",
+        span_hamming_assets_dir=str(span_assets_dir),
+        span_hamming_combine_mode="min",
+        span_hamming_weight_span=1.0,
+        span_hamming_weight_char=1.0,
+        span_hamming_coverage_min=float(SCORING_EXPERIMENT_SPAN_COVERAGE_MIN),
+        span_hamming_quality_min=float(SCORING_EXPERIMENT_SPAN_QUALITY_MIN),
+        span_hamming_gate_fail_policy=("char_only" if p == "c_min_late" else "score_floor"),
+    )
+    if p == "c_min_late":
+        if bool(disable_char_pct_gate):
+            cfg["span_hamming_gate_fail_policy"] = "score_floor"
+            return cfg
+        gate = (
+            float(char_pct_min_override)
+            if char_pct_min_override is not None
+            else float(SCORING_EXPERIMENT_C_CHAR_PCT_MIN)
+        )
+        cfg["span_hamming_char_pct_min"] = float(gate)
+    return cfg
+
+
+def _canonical_run_mode(mode: str | None) -> str:
+    """Normalize legacy aliases to stable mode IDs."""
+    m = str(mode or "").strip().lower()
+    if m == "scan_p5_p7_c1357":
+        return "adaptive_scan_v1"
+    return m
+
+
+def _mode_intent(mode: str | None) -> str:
+    m = _canonical_run_mode(mode)
+    if m in {"scan_fast_v1", "adaptive_scan_v1"}:
+        return "scan"
+    return "focus"
+
+
+def _mode_stage3_can_skip(mode: str | None) -> bool:
+    m = _canonical_run_mode(mode)
+    return bool(m in {"scan_fast_v1", "adaptive_scan_v1"})
+
+
+def _is_adaptive_focus_mode(mode: str | None) -> bool:
+    m = _canonical_run_mode(mode)
+    return bool(m in {"adaptive_focus_v1", "adaptive_focus_v1_p7c3_only"})
 
 
 def _apply_run_mode() -> None:
@@ -493,9 +966,13 @@ def _apply_run_mode() -> None:
     global STAGE3_CONTINUE_AFTER_SOLVE
     global STAGE3_PERIOD_INIT_MULT_BY_PERIOD, STAGE3_PERIOD_STEP_MULT_BY_PERIOD
     global STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD, STAGE3_INIT_KEYS_CAP
-    if PIPELINE_RUN_MODE == "full":
+    global SCORING_EXPERIMENT_PROFILE
+    global SCAN_TIER_TIME_CAP_SECONDS, SCAN_STAGE3_GATE_LOW_MATCH, SCAN_STAGE3_GATE_HIGH_MATCH, SCAN_STAGE3_MIN_STAGE2_MATCH
+    global SCAN_STAGE2_CONTINUE_TO_GATE, SCAN_STAGE2_CONTINUE_CAP_SECONDS
+    mode = _canonical_run_mode(PIPELINE_RUN_MODE)
+    if mode == "full":
         return
-    if PIPELINE_RUN_MODE == "smoke":
+    if mode == "smoke":
         PROFILE = f"{NO_WLI_PIPELINE_PROFILE_ID}__smoke"
         HEARTBEAT_SECONDS = 300
         TEXT_OFFSETS[:] = [0]
@@ -509,7 +986,7 @@ def _apply_run_mode() -> None:
             Tier("smoke_p9_c7_l446", 9, 7, 446),
         ]
         return
-    if PIPELINE_RUN_MODE == "focus_p5_c1_only":
+    if mode == "focus_p5_c1_only":
         PROFILE = f"{NO_WLI_PIPELINE_PROFILE_ID}__p5c1"
         HEARTBEAT_SECONDS = 900
         TEXT_OFFSETS[:] = [0]
@@ -524,12 +1001,74 @@ def _apply_run_mode() -> None:
             Tier("focus_p5_c1_l1000", 5, 1, 1000),
         ]
         return
-    if PIPELINE_RUN_MODE == "scan_p5_p7_c1357":
+    if mode == "scan_fast_v1":
+        PROFILE = f"{NO_WLI_PIPELINE_PROFILE_ID}__scan_fast_v1"
+        HEARTBEAT_SECONDS = 900
+        TEXT_OFFSETS[:] = [0]
+        KEY_SEEDS[:] = [111]
+        # Fast scan: keep span selective and keep Stage-2/3 budgets lower.
+        SCORING_EXPERIMENT_PROFILE = "c_min_late"
+        STAGE2_PROMOTE_BY_STAGE3_JUDGE = False
+        STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE = False
+        ORACLE_ASSIST_SELECTION = False
+        STAGE3_CONTINUE_AFTER_SOLVE = False
+        SCAN_TIER_TIME_CAP_SECONDS = 600.0
+        SCAN_STAGE2_CONTINUE_TO_GATE = False
+        SCAN_STAGE2_CONTINUE_CAP_SECONDS = 0.0
+        SCAN_STAGE3_GATE_LOW_MATCH = 0.18
+        SCAN_STAGE3_GATE_HIGH_MATCH = 0.24
+        SCAN_STAGE3_MIN_STAGE2_MATCH = float(SCAN_STAGE3_GATE_LOW_MATCH)
+
+        STAGE1_SEED_RESTARTS = 160
+        STAGE1_SEED_TOTAL = 448
+        STAGE1_SCOUT_MIN_STEPS = 1600
+        STAGE12_ARCHIVE_KEEP = 160
+        STAGE12_PROMOTE_TOP = 80
+        STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS = {3: 20, 5: 20, 7: 16}
+        STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS = {3: 6, 5: 180, 7: 1024}
+
+        STAGE3_INITIAL_KEYS = 48
+        STAGE3_INITIAL_KEYS_BY_COLUMNS = {1: 40, 3: 64, 5: 96, 7: 128, 10: 96, 13: 96}
+        STAGE3_DYNAMIC_BANDS = [
+            dict(name="very_close", max_gap=0.010, steps=400, restarts=1, plateau_rounds=80, col_batch=96, inner_batch=128),
+            dict(name="close", max_gap=0.030, steps=700, restarts=1, plateau_rounds=120, col_batch=96, inner_batch=128),
+            dict(name="mid", max_gap=0.080, steps=1100, restarts=1, plateau_rounds=180, col_batch=96, inner_batch=128),
+            dict(name="far", max_gap=1e9, steps=1800, restarts=1, plateau_rounds=240, col_batch=96, inner_batch=128),
+        ]
+        STAGE3_C1_INIT_KEYS = 96
+        STAGE3_C1_PHASEA_STEPS = 1200
+        STAGE3_C1_PHASEB_STEPS = 4200
+        STAGE3_C1_PHASEB_TOP_N = 24
+        STAGE3_PHASEB_TOP_N = 16
+        STAGE3_PHASEB_GATE_DELTA_FLOOR = 0.008
+        STAGE3_PHASEB_GATE_END_GAIN_FLOOR = 0.004
+        STAGE3_PHASEB_CFG = dict(STAGE3_PHASEB_CFG)
+        STAGE3_PHASEB_CFG["slip_swaps"] = 12
+        STAGE3_PERIOD_INIT_MULT_BY_PERIOD = {7: 1.35}
+        STAGE3_PERIOD_STEP_MULT_BY_PERIOD = {7: 1.55}
+        STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD = {7: 1}
+        STAGE3_INIT_KEYS_CAP = 192
+
+        TIERS[:] = [
+            Tier("scan_p5_c1_l1000", 5, 1, 1000),
+            Tier("scan_p5_c3_l1000", 5, 3, 1000),
+            Tier("scan_p5_c5_l1000", 5, 5, 1000),
+            Tier("scan_p5_c7_l1000", 5, 7, 1000),
+            Tier("scan_p7_c1_l1000", 7, 1, 1000),
+            Tier("scan_p7_c3_l1000", 7, 3, 1000),
+            Tier("scan_p7_c5_l1000", 7, 5, 1000),
+            Tier("scan_p7_c7_l1000", 7, 7, 1000),
+        ]
+        return
+    if mode == "adaptive_scan_v1":
         PROFILE = f"{NO_WLI_PIPELINE_PROFILE_ID}__scan_p5p7_c1357"
         HEARTBEAT_SECONDS = 900
         TEXT_OFFSETS[:] = [0]
         KEY_SEEDS[:] = [111]
-        # Keep Stage-2 promotion on its native objective in this scan mode.
+        # Scan prioritizes throughput: enable late span activation by default.
+        SCORING_EXPERIMENT_PROFILE = "c_min_late"
+        # Keep scan defaults judge-off for stable A/B reproducibility; automatic
+        # mismatch bridge still applies when Stage-2/3 objective families differ.
         STAGE2_PROMOTE_BY_STAGE3_JUDGE = False
         STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE = False
         ORACLE_ASSIST_SELECTION = False
@@ -551,10 +1090,10 @@ def _apply_run_mode() -> None:
         STAGE3_INITIAL_KEYS = 64
         STAGE3_INITIAL_KEYS_BY_COLUMNS = {1: 48, 3: 72, 5: 128, 7: 160, 10: 128, 13: 128}
         STAGE3_DYNAMIC_BANDS = [
-            dict(name="very_close", max_gap=0.010, steps=700, restarts=1, plateau_rounds=120, col_batch=96, inner_batch=128),
-            dict(name="close", max_gap=0.030, steps=1200, restarts=1, plateau_rounds=180, col_batch=96, inner_batch=128),
-            dict(name="mid", max_gap=0.080, steps=2200, restarts=2, plateau_rounds=280, col_batch=112, inner_batch=128),
-            dict(name="far", max_gap=1e9, steps=3600, restarts=2, plateau_rounds=420, col_batch=112, inner_batch=128),
+            dict(name="very_close", max_gap=0.010, steps=500, restarts=1, plateau_rounds=100, col_batch=96, inner_batch=128),
+            dict(name="close", max_gap=0.030, steps=900, restarts=1, plateau_rounds=150, col_batch=96, inner_batch=128),
+            dict(name="mid", max_gap=0.080, steps=1500, restarts=1, plateau_rounds=220, col_batch=112, inner_batch=128),
+            dict(name="far", max_gap=1e9, steps=2400, restarts=2, plateau_rounds=320, col_batch=112, inner_batch=128),
         ]
         STAGE3_C1_INIT_KEYS = 128
         STAGE3_C1_PHASEA_STEPS = 1800
@@ -569,6 +1108,12 @@ def _apply_run_mode() -> None:
         STAGE3_PERIOD_STEP_MULT_BY_PERIOD = {7: 1.85}
         STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD = {7: 2}
         STAGE3_INIT_KEYS_CAP = 224
+        SCAN_TIER_TIME_CAP_SECONDS = 600.0
+        SCAN_STAGE2_CONTINUE_TO_GATE = True
+        SCAN_STAGE2_CONTINUE_CAP_SECONDS = 900.0
+        SCAN_STAGE3_GATE_LOW_MATCH = 0.15
+        SCAN_STAGE3_GATE_HIGH_MATCH = 0.22
+        SCAN_STAGE3_MIN_STAGE2_MATCH = float(SCAN_STAGE3_GATE_LOW_MATCH)
 
         TIERS[:] = [
             Tier("scan_p5_c1_l1000", 5, 1, 1000),
@@ -581,7 +1126,36 @@ def _apply_run_mode() -> None:
             Tier("scan_p7_c7_l1000", 7, 7, 1000),
         ]
         return
-    if PIPELINE_RUN_MODE == "focus_500_nowli":
+    if mode in {"adaptive_focus_v1", "adaptive_focus_v1_p7c3_only"}:
+        PROFILE = (
+            f"{NO_WLI_PIPELINE_PROFILE_ID}__adaptive_focus_v1"
+            if mode == "adaptive_focus_v1"
+            else f"{NO_WLI_PIPELINE_PROFILE_ID}__adaptive_focus_v1_p7c3_only"
+        )
+        HEARTBEAT_SECONDS = 900
+        TEXT_OFFSETS[:] = [0]
+        KEY_SEEDS[:] = [111]
+        SCORING_EXPERIMENT_PROFILE = "c_min_late"
+        STAGE2_PROMOTE_BY_STAGE3_JUDGE = True
+        STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE = True
+        ORACLE_ASSIST_SELECTION = False
+        STAGE3_CONTINUE_AFTER_SOLVE = False
+        SCAN_TIER_TIME_CAP_SECONDS = 0.0
+        SCAN_STAGE2_CONTINUE_TO_GATE = False
+        SCAN_STAGE2_CONTINUE_CAP_SECONDS = 0.0
+        SCAN_STAGE3_GATE_LOW_MATCH = 0.0
+        SCAN_STAGE3_GATE_HIGH_MATCH = 0.0
+        SCAN_STAGE3_MIN_STAGE2_MATCH = 0.0
+        if mode == "adaptive_focus_v1_p7c3_only":
+            TIERS[:] = [Tier("focus_p7_c3_l1000", 7, 3, 1000)]
+        else:
+            # Hard-tier validation subset (Fix1 P1): run only the two difficult tiers.
+            TIERS[:] = [
+                Tier("focus_p7_c3_l1000", 7, 3, 1000),
+                Tier("focus_p7_c7_l1000", 7, 7, 1000),
+            ]
+        return
+    if mode == "focus_500_nowli":
         PROFILE = f"{NO_WLI_PIPELINE_PROFILE_ID}__focus500"
         HEARTBEAT_SECONDS = 900
         TEXT_OFFSETS[:] = [0]
@@ -605,6 +1179,10 @@ def _apply_run_mode() -> None:
             Tier("focus_p21_c7_l483", 21, 7, 483),
         ]
         return
+    raise ValueError(
+        f"Unsupported PIPELINE_RUN_MODE={PIPELINE_RUN_MODE!r} "
+        "(expected full|smoke|focus_p5_c1_only|focus_500_nowli|scan_fast_v1|adaptive_scan_v1|adaptive_focus_v1|adaptive_focus_v1_p7c3_only|scan_p5_p7_c1357[legacy_alias])"
+    )
 
 
 def _extract_top_keys(sol: Any, *, limit: int) -> List[List[int]]:
@@ -805,6 +1383,175 @@ def _is_better_score_first(
     return False
 
 
+def _is_solved_match(match_ratio: float) -> bool:
+    return bool(np.isfinite(match_ratio) and float(match_ratio) >= float(SOLVE_MATCH_THRESHOLD))
+
+
+def _is_better_stage3_candidate_preserving_solve(
+    cand_score: float,
+    cand_match: float,
+    best_score: float,
+    best_match: float,
+    *,
+    score_first: bool,
+) -> bool:
+    """Stage-3 candidate comparison that never demotes a solved incumbent."""
+    cand_solved = _is_solved_match(cand_match)
+    best_solved = _is_solved_match(best_match)
+    if cand_solved and (not best_solved):
+        return True
+    if best_solved and (not cand_solved):
+        return False
+    if score_first:
+        return _is_better_score_first(cand_score, cand_match, best_score, best_match)
+    return _is_better_match_first(cand_match, cand_score, best_match, best_score)
+
+
+def _as_nonneg_float(v: Any) -> float:
+    try:
+        f = float(v)
+    except Exception:
+        return 0.0
+    if not np.isfinite(f):
+        return 0.0
+    return float(max(0.0, f))
+
+
+def _span_counter_summary_from_obj(obj: Any) -> Dict[str, float]:
+    src = obj if isinstance(obj, dict) else {}
+    return dict(
+        total=_as_nonneg_float(src.get("span_hamming_eval_total", 0)),
+        active=_as_nonneg_float(src.get("span_hamming_eval_active", 0)),
+        skipped=_as_nonneg_float(src.get("span_hamming_eval_skipped_char_gate", 0)),
+        seconds_total=_as_nonneg_float(src.get("span_hamming_eval_seconds_total", 0.0)),
+        seconds_active=_as_nonneg_float(src.get("span_hamming_eval_active_seconds_total", 0.0)),
+    )
+
+
+def _span_counter_delta(*, before: Dict[str, float], after: Dict[str, float]) -> Dict[str, float]:
+    keys = ("total", "active", "skipped", "seconds_total", "seconds_active")
+    out: Dict[str, float] = {}
+    for k in keys:
+        out[k] = float(max(0.0, _as_nonneg_float(after.get(k, 0.0)) - _as_nonneg_float(before.get(k, 0.0))))
+    return out
+
+
+def _solution_span_counter_summary(sol: Any) -> Dict[str, float]:
+    """Read span-hamming counters from solver-result telemetry (inner-loop truth)."""
+    tele: Dict[str, Any] = {}
+    try:
+        meta = getattr(sol, "meta", {}) or {}
+        if isinstance(meta, dict):
+            t_obj = meta.get("telemetry", {})
+            if isinstance(t_obj, dict):
+                tele = dict(t_obj)
+    except Exception:
+        tele = {}
+    scorer_tele = tele.get("scorer", {}) if isinstance(tele.get("scorer", {}), dict) else {}
+    src = tele if "span_hamming_eval_total" in tele else scorer_tele
+    return _span_counter_summary_from_obj(src)
+
+
+def _scorer_span_counter_summary(scorer: Any) -> Dict[str, float]:
+    """Read cumulative span-hamming counters from a scorer runtime."""
+    tele: Dict[str, Any] = {}
+    try:
+        if hasattr(scorer, "telemetry") and callable(scorer.telemetry):
+            t_obj = scorer.telemetry()
+            if isinstance(t_obj, dict):
+                tele = dict(t_obj)
+    except Exception:
+        tele = {}
+    scorer_tele = tele.get("scorer", {}) if isinstance(tele.get("scorer", {}), dict) else {}
+    src = tele if "span_hamming_eval_total" in tele else scorer_tele
+    return _span_counter_summary_from_obj(src)
+
+
+def _fmt_finite_float(value: Any, *, digits: int = 6) -> str:
+    try:
+        f = float(value)
+    except Exception:
+        return "nan"
+    if not np.isfinite(f):
+        return "nan"
+    return f"{f:.{int(max(0, digits))}f}"
+
+
+def _stage3_progress_logging(
+    *,
+    tier_name: str,
+    text_id: int,
+    key_seed: int,
+    phase: str,
+    phase_steps: int,
+    phase_start_ts: float,
+    heartbeat_seconds: float,
+    heartbeat_state: Dict[str, Any] | None = None,
+    min_step: int = 0,
+    min_elapsed_seconds: float = 0.0,
+    evals_base: int = 0,
+    phaseA_done: int | None = None,
+    phaseA_total: int | None = None,
+) -> Dict[str, Any]:
+    """Return a lightweight progress callback config for Stage-3 heartbeat lines."""
+    heartbeat = float(max(1.0, heartbeat_seconds))
+    steps_planned = int(max(0, phase_steps))
+    t0 = float(phase_start_ts)
+    hb_state = heartbeat_state if isinstance(heartbeat_state, dict) else {}
+    if "last_emit_ts" not in hb_state:
+        hb_state["last_emit_ts"] = float("-inf")
+    min_step_i = int(max(0, min_step))
+    min_elapsed_s = float(max(0.0, min_elapsed_seconds))
+    evals_offset = int(max(0, int(evals_base)))
+
+    def _cb(payload: Dict[str, Any], _key_preview: List[int] | None = None) -> None:
+        now = float(time.time())
+        p = payload if isinstance(payload, dict) else {}
+        step_v = p.get("step", None)
+        pct_v = p.get("pct", None)
+        evals_v = p.get("evals", None)
+        step_i = int(step_v) if isinstance(step_v, (int, float)) else -1
+        elapsed_s = max(0.0, now - t0)
+        if step_i >= 0 and step_i < min_step_i and elapsed_s < min_elapsed_s:
+            return
+        if (now - float(hb_state.get("last_emit_ts", float("-inf")))) < heartbeat:
+            return
+        hb_state["last_emit_ts"] = now
+
+        step_txt = "n/a"
+        if step_i >= 0:
+            step_txt = f"{step_i}/{steps_planned}" if steps_planned > 0 else f"{step_i}"
+        pct_txt = f"{int(pct_v)}" if isinstance(pct_v, (int, float)) else "n/a"
+        evals_i = int(evals_v) if isinstance(evals_v, (int, float)) else -1
+        evals_txt = str(int(evals_offset + evals_i)) if evals_i >= 0 else "n/a"
+        elapsed_min = max(0.0, (now - t0) / 60.0)
+        best_pct = float(p.get("best_score", float("nan")))
+        best_raw = float(p.get("best_raw", float("nan")))
+        if np.isfinite(best_pct):
+            hb_state["best_pct"] = float(
+                max(float(hb_state.get("best_pct", float("-inf"))), float(best_pct))
+            )
+        if np.isfinite(best_raw):
+            hb_state["best_raw"] = float(
+                max(float(hb_state.get("best_raw", float("-inf"))), float(best_raw))
+            )
+        best_pct_txt = _fmt_finite_float(hb_state.get("best_pct", best_pct))
+        best_raw_txt = _fmt_finite_float(hb_state.get("best_raw", best_raw))
+        phase_txt = str(phase)
+        if phaseA_total is not None and int(phaseA_total) > 0:
+            done_v = int(max(0, int(phaseA_done if phaseA_done is not None else 0)))
+            total_v = int(max(1, int(phaseA_total)))
+            phase_txt = f"phaseA done={done_v}/{total_v}"
+        print(
+            f"[pipeline_no_wli] stage3-heartbeat tier={tier_name} text={int(text_id)} key_seed={int(key_seed)} "
+            f"phase={phase_txt} t={elapsed_min:.1f}m step={step_txt} pct={pct_txt} evals={evals_txt} "
+            f"best_search_avg={best_pct_txt} best_search_raw={best_raw_txt}",
+            flush=True,
+        )
+
+    return dict(progress_callback=_cb, log_interval=1)
+
+
 def _scorer_objective_summary(scorer_cfg: Dict[str, Any]) -> str:
     obj = str(scorer_cfg.get("objective", "unknown"))
     policy = scorer_cfg.get("avg_window_policy", None)
@@ -831,6 +1578,19 @@ def _is_avg_fulltext_scorer(scorer_cfg: Dict[str, Any]) -> bool:
     return obj.startswith("avg.logp") and policy == "full_text"
 
 
+def _objective_space_key(scorer_cfg: Dict[str, Any]) -> str:
+    """Coarse objective-space key for cross-stage score comparability checks."""
+
+    obj = str(scorer_cfg.get("objective", "")).strip().lower()
+    if obj.startswith("avg."):
+        return "avg"
+    if obj.startswith("pct.") or obj.startswith("energy."):
+        return "pct_energy"
+    if obj.startswith("neglogp"):
+        return "neglogp"
+    return obj.split(".", 1)[0] if obj else "unknown"
+
+
 def _effective_stage3_impl(scorer_cfg: Dict[str, Any]) -> str:
     if _is_avg_fulltext_scorer(scorer_cfg):
         return str(SCORER_STAGE3_IMPL_AVG_FULLTEXT)
@@ -841,15 +1601,30 @@ def _stage2_judge_pool_limit(
     *,
     ranked_count: int,
     archive_keep: int,
+    stage2_scorer_cfg: Dict[str, Any] | None = None,
     stage3_scorer_cfg: Dict[str, Any],
 ) -> int:
     ranked_n = max(0, int(ranked_count))
     if ranked_n <= 0:
         return 0
+    stage2_stage3_space_match = True
+    if stage2_scorer_cfg is not None:
+        stage2_stage3_space_match = (
+            _objective_space_key(dict(stage2_scorer_cfg))
+            == _objective_space_key(dict(stage3_scorer_cfg))
+        )
+    stage3_span_calibrated = (
+        str(stage3_scorer_cfg.get("span_hamming_mode", "off")).strip().lower() == "calibrated"
+    )
     if (not bool(STAGE2_PROMOTE_BY_STAGE3_JUDGE)) and (not bool(STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE)):
-        target = max(1, int(SAVE_STAGE2_TOPK))
+        # Even when judge is "off", keep a broad bridge pool if Stage-2 and Stage-3
+        # optimize different score families so diagnostics/banding are not rank-topK biased.
+        if not stage2_stage3_space_match:
+            target = max(1, int(archive_keep))
+        else:
+            target = max(1, int(SAVE_STAGE2_TOPK))
         return max(1, min(ranked_n, target))
-    if _is_avg_fulltext_scorer(stage3_scorer_cfg):
+    if _is_avg_fulltext_scorer(stage3_scorer_cfg) or stage3_span_calibrated or (not stage2_stage3_space_match):
         target = max(1, int(archive_keep))
     else:
         target = max(1, int(SAVE_STAGE2_TOPK))
@@ -956,6 +1731,7 @@ def _build_stage3_promoted_keys(
 
 
 _apply_profile_defaults()
+_RUN_STAGE3_SPAN_BASIN_K_SWEEP_ACTIVE = False
 
 
 def _tail_hamming(a: Sequence[int], b: Sequence[int]) -> int:
@@ -1010,6 +1786,61 @@ def _oracle_score_for_stage(
     return float(score), float(raw), _scorer_objective_summary(scorer_params)
 
 
+def _write_csv_rows(path: Path, rows: List[Dict[str, Any]]) -> None:
+    _write_csv_rows_common(path, rows)
+
+
+def _append_csv_row(path: Path, row: Dict[str, Any]) -> None:
+    _append_csv_row_common(path, row, merge_fieldnames=True)
+
+
+def _append_jsonl_row(path: Path, row: Dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(_sanitize_jsonable(row), sort_keys=True, ensure_ascii=True, allow_nan=False) + "\n")
+
+
+def _append_iteration_audit_row(
+    *,
+    audit_csv: Path,
+    audit_jsonl: Path,
+    prev_chain_hash: str,
+    payload: Dict[str, Any],
+) -> str:
+    clean_payload = _sanitize_jsonable(payload)
+    row_hash = _sha256_text(_canonical_json(clean_payload))
+    chain_hash = _sha256_text(f"{str(prev_chain_hash)}|{row_hash}")
+    row_out = dict(
+        **clean_payload,
+        row_hash=str(row_hash),
+        prev_chain_hash=str(prev_chain_hash),
+        chain_hash=str(chain_hash),
+    )
+    _append_csv_row(audit_csv, row_out)
+    _append_jsonl_row(audit_jsonl, row_out)
+    return str(chain_hash)
+
+
+def _derive_outcome_code(*, status: Any, stop_reason: Any) -> str:
+    s = str(status or "").strip().lower()
+    r = str(stop_reason or "").strip().lower()
+    if s == "skipped_proven" or ("autoskip_proven" in r):
+        return "skipped_proven"
+    if s == "solved":
+        return "solved"
+    if "time_cap" in r:
+        return "time_cap"
+    if "stage2_cap" in r:
+        return "stage2_cap"
+    if "weak_stage2" in r:
+        return "weak_stage2"
+    if s == "stalled" or "stalled_no_improve" in r:
+        return "stalled_stage3"
+    if s in {"error", "crash"}:
+        return "crash"
+    return "unsolved"
+
+
 def _build_summary(tiers: Sequence[Tier], instances: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     summary: Dict[str, Any] = {"tiers": {}}
     for t in tiers:
@@ -1020,11 +1851,24 @@ def _build_summary(tiers: Sequence[Tier], instances: Sequence[Dict[str, Any]]) -
         arr = arr[np.isfinite(arr)]
         if arr.size == 0:
             continue
+        outcome_counts: Dict[str, int] = {}
+        for row in rs:
+            code = str(
+                row.get(
+                    "outcome_code",
+                    _derive_outcome_code(
+                        status=row.get("status", ""),
+                        stop_reason=row.get("stop_reason", ""),
+                    ),
+                )
+            )
+            outcome_counts[code] = int(outcome_counts.get(code, 0) + 1)
         summary["tiers"][str(t.name)] = dict(
             n=int(len(rs)),
             solved_rate=float(np.mean(arr >= float(SOLVE_MATCH_THRESHOLD))),
             best_match_p50=float(np.percentile(arr, 50)),
             best_match_p90=float(np.percentile(arr, 90)),
+            outcome_counts={str(k): int(v) for k, v in sorted(outcome_counts.items(), key=lambda kv: kv[0])},
         )
     return summary
 
@@ -1070,66 +1914,46 @@ def _load_proven_solved_index(path: Path, *, min_match: float) -> Dict[Tuple[str
     return out
 
 
-def _apply_scorer_impl_override(*, impl: str, stage3_impl_avg_fulltext: str | None = None) -> None:
-    """Keep scorer impl wiring consistent across stage scorer configs."""
-    global SCORER_IMPL, SCORER_STAGE3_IMPL_AVG_FULLTEXT
-    resolved = str(impl).strip()
-    if not resolved:
-        return
-    SCORER_IMPL = resolved
-    if stage3_impl_avg_fulltext is not None and str(stage3_impl_avg_fulltext).strip():
-        SCORER_STAGE3_IMPL_AVG_FULLTEXT = str(stage3_impl_avg_fulltext).strip()
-    if isinstance(SCORER_STAGE1, dict):
-        SCORER_STAGE1["impl"] = SCORER_IMPL
-    if isinstance(SCORER_STAGE2, dict):
-        SCORER_STAGE2["impl"] = SCORER_IMPL
-    if isinstance(SCORER_FULL, dict):
-        SCORER_FULL["impl"] = _effective_stage3_impl(SCORER_FULL)
-
-
-def configure_campaign_run(
-    *,
-    run_seed: int,
-    period: int,
-    columns: int,
-    length: int,
-    tier_name: str,
-    run_mode: str,
-    profile_name: str,
-    heartbeat_seconds: int,
-    autoskip_proven: bool,
-    force_rerun_proven: bool,
-    avoid_repeat_fail: bool,
-    text_offsets: Sequence[int],
-    tiers_regex_override: str | None,
-    scorer_impl: str | None = None,
-    scorer_stage3_impl_avg_fulltext: str | None = None,
-) -> None:
-    """Apply campaign job settings through one explicit runner entrypoint."""
-
-    del avoid_repeat_fail, tiers_regex_override
-
-    global AUTOSKIP_PROVEN, FORCE_RERUN_PROVEN
-    global TEXT_OFFSETS, KEY_SEEDS, PIPELINE_RUN_MODE, PROFILE, HEARTBEAT_SECONDS, TIERS
-
-    AUTOSKIP_PROVEN = bool(autoskip_proven)
-    FORCE_RERUN_PROVEN = bool(force_rerun_proven)
-    TEXT_OFFSETS[:] = [int(x) for x in text_offsets]
-    KEY_SEEDS[:] = [int(run_seed)]
-    PIPELINE_RUN_MODE = str(run_mode)
-    PROFILE = str(profile_name)
-    HEARTBEAT_SECONDS = int(heartbeat_seconds)
-    TIERS[:] = [Tier(str(tier_name), int(period), int(columns), int(length))]
-
-    if scorer_impl is not None:
-        _apply_scorer_impl_override(
-            impl=str(scorer_impl),
-            stage3_impl_avg_fulltext=scorer_stage3_impl_avg_fulltext,
-        )
-
-
 def main() -> None:
+    global STAGE3_SPAN_BASIN_JUDGE_K, _RUN_STAGE3_SPAN_BASIN_K_SWEEP_ACTIVE
+    if bool(RUN_STAGE3_SPAN_BASIN_K_SWEEP) and (not bool(_RUN_STAGE3_SPAN_BASIN_K_SWEEP_ACTIVE)):
+        sweep_vals: List[int] = []
+        for raw_k in list(STAGE3_SPAN_BASIN_K_SWEEP_VALUES):
+            try:
+                k_i = int(raw_k)
+            except Exception:
+                continue
+            if k_i <= 0:
+                continue
+            if k_i not in sweep_vals:
+                sweep_vals.append(int(k_i))
+        if not sweep_vals:
+            raise ValueError(
+                "RUN_STAGE3_SPAN_BASIN_K_SWEEP enabled but STAGE3_SPAN_BASIN_K_SWEEP_VALUES is empty/invalid."
+            )
+        print(
+            f"[pipeline_no_wli] stage3-span-basin-k-sweep enabled=1 values={sweep_vals} "
+            f"mode={_canonical_run_mode(PIPELINE_RUN_MODE)}",
+            flush=True,
+        )
+        _RUN_STAGE3_SPAN_BASIN_K_SWEEP_ACTIVE = True
+        try:
+            for sweep_idx, k_i in enumerate(sweep_vals, start=1):
+                _apply_profile_defaults()
+                STAGE3_SPAN_BASIN_JUDGE_K = int(k_i)
+                print(
+                    f"[pipeline_no_wli] stage3-span-basin-k-sweep run={int(sweep_idx)}/{int(len(sweep_vals))} "
+                    f"k={int(STAGE3_SPAN_BASIN_JUDGE_K)}",
+                    flush=True,
+                )
+                main()
+        finally:
+            _RUN_STAGE3_SPAN_BASIN_K_SWEEP_ACTIVE = False
+        return
+
     _apply_run_mode()
+    _apply_kaeding_progress_settings()
+    scoring_experiment_meta = _apply_scoring_experiment_profile()
     direction_txt = str(ENCODING_DIR).strip().lower()
     if direction_txt == "ltr":
         direction = Direction.LTR
@@ -1147,6 +1971,10 @@ def main() -> None:
     best_dir.mkdir(parents=True, exist_ok=True)
     final_dir = run_dir / "final_instances"
     final_dir.mkdir(parents=True, exist_ok=True)
+    audit_csv = run_dir / str(AUDIT_HASH_CHAIN_CSV)
+    audit_jsonl = run_dir / str(AUDIT_HASH_CHAIN_JSONL)
+    audit_prev_chain_hash = str(AUDIT_HASH_CHAIN_SEED)
+    audit_rows_written = 0
     hist = root / "tools" / "benchmarks" / "solve_proof" / "proven_solve_pipeline_no_wli_log.csv"
     hist.parent.mkdir(parents=True, exist_ok=True)
     autoskip_effective = bool(AUTOSKIP_PROVEN) and (not bool(FORCE_RERUN_PROVEN))
@@ -1157,15 +1985,44 @@ def main() -> None:
     )
     history_rows_written = 0
 
+    mode_raw = str(PIPELINE_RUN_MODE)
+    mode_canonical = str(_canonical_run_mode(mode_raw))
+    mode_intent = str(_mode_intent(mode_raw))
+    stage3_can_skip = bool(_mode_stage3_can_skip(mode_raw))
+
     run_config = dict(
         profile=PROFILE,
-        mode=PIPELINE_RUN_MODE,
+        mode=mode_canonical,
+        mode_raw=mode_raw,
+        mode_intent=mode_intent,
+        stage3_can_skip=bool(stage3_can_skip),
+        stage3_phase_experiments=(
+            dict(
+                enabled=bool(_is_adaptive_focus_mode(mode_canonical)),
+                phaseA="a_baseline" if _is_adaptive_focus_mode(mode_canonical) else str(scoring_experiment_meta.get("profile", "off")),
+                phaseB="c_min_late" if _is_adaptive_focus_mode(mode_canonical) else str(scoring_experiment_meta.get("profile", "off")),
+                phaseB_char_pct_min_policy=(
+                    "oracle_minus_0.10_clamp_0.30_0.45_not_applied_explicit_basin_judge"
+                    if _is_adaptive_focus_mode(mode_canonical)
+                    else "static_config"
+                ),
+            )
+        ),
+        scoring_experiment=dict(scoring_experiment_meta),
         direction=direction.value,
         order=ORDER,
         alphabet_size=int(ALPHABET_SIZE),
         threshold=float(SOLVE_MATCH_THRESHOLD),
         stall_delta=float(STALL_DELTA),
         stall_stage_limit=int(STALL_STAGE_LIMIT),
+        scan_controls=dict(
+            tier_time_cap_seconds=float(SCAN_TIER_TIME_CAP_SECONDS),
+            stage2_continue_to_gate=bool(SCAN_STAGE2_CONTINUE_TO_GATE),
+            stage2_continue_cap_seconds=float(SCAN_STAGE2_CONTINUE_CAP_SECONDS),
+            stage3_gate_low_match=float(SCAN_STAGE3_GATE_LOW_MATCH),
+            stage3_gate_high_match=float(max(float(SCAN_STAGE3_GATE_LOW_MATCH), float(SCAN_STAGE3_GATE_HIGH_MATCH))),
+            stage3_min_stage2_match=float(SCAN_STAGE3_MIN_STAGE2_MATCH),
+        ),
         autoskip_proven=bool(autoskip_effective),
         autoskip_proven_requested=bool(AUTOSKIP_PROVEN),
         force_rerun_proven=bool(FORCE_RERUN_PROVEN),
@@ -1243,6 +2100,7 @@ def main() -> None:
                     if bool(STAGE2_PROMOTE_BY_STAGE3_JUDGE or STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE)
                     else "telemetry_only_topk"
                 ),
+                policy=str(STAGE2_JUDGE_POLICY),
                 topk_default=int(SAVE_STAGE2_TOPK),
                 promote_by_stage3_judge=bool(STAGE2_PROMOTE_BY_STAGE3_JUDGE),
                 entry_band_by_stage3_judge=bool(STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE),
@@ -1250,9 +2108,29 @@ def main() -> None:
         ),
         stage3=dict(
             scorer=dict(SCORER_FULL),
+            search_scorer=dict(
+                _stage3_char4_avg_fulltext_search_cfg(direction=direction),
+                encoding_dir=str(direction.value),
+            ),
+            judge_scorer=dict(SCORER_FULL),
+            contract=(
+                "Stage-3 Kaeding search optimizes avg/full_text char4 only (ECDF-free); "
+                "span-hamming is used only in explicit basin-judge ranking of Phase-A endpoints "
+                "before selecting Phase-B seeds."
+            ),
             solver=dict(SOLVER_STAGE3),
             init_keys=int(STAGE3_INITIAL_KEYS),
             init_by_columns={str(k): int(v) for k, v in STAGE3_INITIAL_KEYS_BY_COLUMNS.items()},
+            span_basin_judge=dict(
+                enabled=bool(True),
+                k=int(STAGE3_SPAN_BASIN_JUDGE_K),
+                require_span_active=bool(STAGE3_SPAN_BASIN_JUDGE_REQUIRE_SPAN_ACTIVE),
+                dedupe_by_end_hash=bool(STAGE3_SPAN_BASIN_JUDGE_DEDUPE_BY_END_HASH),
+                tie_eps=float(STAGE3_SPAN_BASIN_JUDGE_TIE_EPS),
+                tie_max_seeds=int(STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS),
+                disable_char_pct_gate=bool(True),
+                gate_fail_policy="score_floor",
+            ),
             period_scaling=dict(
                 init_mult_by_period={str(k): float(v) for k, v in STAGE3_PERIOD_INIT_MULT_BY_PERIOD.items()},
                 step_mult_by_period={str(k): float(v) for k, v in STAGE3_PERIOD_STEP_MULT_BY_PERIOD.items()},
@@ -1280,10 +2158,34 @@ def main() -> None:
             ),
         ),
     )
-    write_json(run_dir / "run_config.json", run_config)
+    run_config_path = run_dir / "run_config.json"
+    write_json(run_config_path, run_config)
+    non_scoring_lock_hash = _hash_payload(_build_non_scoring_lock_payload())
+    scoring_lock_hash = _hash_payload(_build_scoring_lock_payload())
+    run_config_payload_hash = _hash_payload(run_config)
+    run_config["lock_hashes"] = dict(
+        non_scoring=str(non_scoring_lock_hash),
+        scoring=str(scoring_lock_hash),
+        run_config_payload=str(run_config_payload_hash),
+    )
+    run_config["git"] = dict(short=str(_git_short()), commit=str(_git_commit()), dirty=int(1 if _git_dirty() else 0))
+    write_json(run_config_path, run_config)
+    run_config_hash = _sha256_file(run_config_path)
+
+    span_assets_dir = _resolve_repo_path(str(scoring_experiment_meta.get("span_assets_dir", "")).strip() or None)
+    span_combined_calibration_hash = ""
+    span_ecdf_audit_hash = ""
+    if span_assets_dir is not None and span_assets_dir.exists():
+        combined_fp = span_assets_dir / "combined_calibration.json"
+        ecdf_audit_fp = span_assets_dir / "ecdf_audit.json"
+        if combined_fp.exists():
+            span_combined_calibration_hash = _sha256_file(combined_fp)
+        if ecdf_audit_fp.exists():
+            span_ecdf_audit_hash = _sha256_file(ecdf_audit_fp)
 
     print(
-        f"[pipeline_no_wli] setup: profile={PROFILE} mode={PIPELINE_RUN_MODE} "
+        f"[pipeline_no_wli] setup: profile={PROFILE} mode={mode_canonical} raw_mode={mode_raw} "
+        f"mode_intent={mode_intent} stage3_can_skip={1 if bool(stage3_can_skip) else 0} "
         f"direction={direction.value} order={ORDER} A={ALPHABET_SIZE} "
         f"oracle_assist_selection={1 if bool(ORACLE_ASSIST_SELECTION) else 0}",
         flush=True,
@@ -1315,7 +2217,35 @@ def main() -> None:
     print(
         f"[pipeline_no_wli] setup: ecdf_guard="
         f"{'on' if bool(REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT) else 'off'} "
-        f"(avg_fulltext_required_for_all_stages={bool(REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT)})",
+        f"(enforce_no_ecdf_for_avg_fulltext={bool(REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT)})",
+        flush=True,
+    )
+    _stage3_search_cfg_preview = _stage3_char4_avg_fulltext_search_cfg(direction=direction)
+    print(
+        f"[pipeline_no_wli] setup: stage3-contract "
+        f"search=({_scorer_objective_summary(_stage3_search_cfg_preview)},ecdf_free=1,span=off) "
+        f"judge=({_scorer_objective_summary(SCORER_FULL)},span=calibrated) "
+        f"basin_judge_k={int(STAGE3_SPAN_BASIN_JUDGE_K)}",
+        flush=True,
+    )
+    print(
+        f"[pipeline_no_wli] setup: scoring_experiment="
+        f"{str(scoring_experiment_meta.get('profile', 'off'))} "
+        f"enabled={1 if bool(scoring_experiment_meta.get('enabled', False)) else 0} "
+        f"desc=\"{str(scoring_experiment_meta.get('description', ''))}\"",
+        flush=True,
+    )
+    print(
+        f"[pipeline_no_wli] setup: stage3_phase_experiments "
+        f"enabled={1 if bool(run_config.get('stage3_phase_experiments', {}).get('enabled', False)) else 0} "
+        f"phaseA={str(run_config.get('stage3_phase_experiments', {}).get('phaseA', 'off'))} "
+        f"phaseB={str(run_config.get('stage3_phase_experiments', {}).get('phaseB', 'off'))} "
+        f"phaseB_char_gate_policy={str(run_config.get('stage3_phase_experiments', {}).get('phaseB_char_pct_min_policy', 'static_config'))}",
+        flush=True,
+    )
+    print(
+        f"[pipeline_no_wli] setup: lock_hashes non_scoring={non_scoring_lock_hash} "
+        f"scoring={scoring_lock_hash} run_config={run_config_hash}",
         flush=True,
     )
     print(
@@ -1365,8 +2295,18 @@ def main() -> None:
         f"gate_end_gain={float(STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR):.4f})",
         flush=True,
     )
+    print(
+        f"[pipeline_no_wli] setup: scan_controls "
+        f"tier_time_cap_seconds={float(SCAN_TIER_TIME_CAP_SECONDS):.1f} "
+        f"stage2_continue_to_gate={1 if bool(SCAN_STAGE2_CONTINUE_TO_GATE) else 0} "
+        f"stage2_continue_cap_seconds={float(SCAN_STAGE2_CONTINUE_CAP_SECONDS):.1f} "
+        f"stage3_gate_low_match={float(SCAN_STAGE3_GATE_LOW_MATCH):.3f} "
+        f"stage3_gate_high_match={float(max(float(SCAN_STAGE3_GATE_LOW_MATCH), float(SCAN_STAGE3_GATE_HIGH_MATCH))):.3f}",
+        flush=True,
+    )
     print(f"[pipeline_no_wli] setup: tiers={len(TIERS)} text_offsets={TEXT_OFFSETS} key_seeds={KEY_SEEDS}", flush=True)
     print(f"[pipeline_no_wli] reports: {run_dir.relative_to(root)}", flush=True)
+    print(f"[pipeline_no_wli] audit: csv={audit_csv.relative_to(root)} jsonl={audit_jsonl.relative_to(root)}", flush=True)
 
     stages: List[dict] = []
     instances: List[dict] = []
@@ -1374,6 +2314,89 @@ def main() -> None:
     done = 0
     t0_all = time.time()
     last_hb = float(t0_all)
+    status_counts: Dict[str, int] = {
+        "solved": 0,
+        "stalled": 0,
+        "unsolved": 0,
+        "skipped_proven": 0,
+    }
+    run_manifest_path = run_dir / "run_manifest.json"
+    run_manifest: Dict[str, Any] = dict(
+        kind="bench_solve_pipeline_no_wli",
+        version=2,
+        run_status="running",
+        run_id=str(run_dir.name),
+        generated_utc=datetime.now(timezone.utc).isoformat(),
+        updated_utc=datetime.now(timezone.utc).isoformat(),
+        completed_utc="",
+        profile_id=str(PROFILE),
+        mode=str(_canonical_run_mode(PIPELINE_RUN_MODE)),
+        direction=str(direction.value),
+        order=str(ORDER),
+        runtime=dict(
+            python=str(sys.version.split()[0]),
+            platform=str(platform.platform()),
+        ),
+        git=dict(
+            short=str(_git_short()),
+            commit=str(_git_commit()),
+            dirty=int(1 if _git_dirty() else 0),
+        ),
+        scoring_experiment=dict(scoring_experiment_meta),
+        lock_hashes=dict(
+            non_scoring=str(non_scoring_lock_hash),
+            scoring=str(scoring_lock_hash),
+            run_config=str(run_config_hash),
+        ),
+        assets=dict(
+            span_assets_dir=(str(span_assets_dir) if span_assets_dir is not None else ""),
+            span_combined_calibration_sha256=str(span_combined_calibration_hash),
+            span_ecdf_audit_sha256=str(span_ecdf_audit_hash),
+        ),
+        paths=dict(
+            run_config=str(run_config_path.relative_to(root)),
+            history_log=str(hist.relative_to(root)),
+            final_instances=str(final_dir.relative_to(root)),
+            audit_chain_csv=str(audit_csv.relative_to(root)),
+            audit_chain_jsonl=str(audit_jsonl.relative_to(root)),
+        ),
+        audit=dict(
+            enabled=int(1 if bool(AUDIT_HASH_CHAIN_ENABLED) else 0),
+            chain_algorithm="sha256(prev_chain_hash|row_hash)",
+            chain_seed=str(AUDIT_HASH_CHAIN_SEED),
+        ),
+        progress=dict(
+            total_units=int(total),
+            done_units=0,
+            solved=0,
+            stalled=0,
+            unsolved=0,
+            skipped_proven=0,
+            history_rows_written=0,
+            audit_rows_written=0,
+            audit_last_chain_hash=str(audit_prev_chain_hash),
+        ),
+    )
+    write_json(run_manifest_path, run_manifest)
+
+    def _checkpoint_manifest(*, status_key: str) -> None:
+        sk = str(status_key)
+        if sk in status_counts:
+            status_counts[sk] = int(status_counts[sk]) + 1
+        run_manifest["updated_utc"] = datetime.now(timezone.utc).isoformat()
+        run_manifest["progress"] = dict(
+            total_units=int(total),
+            done_units=int(done),
+            solved=int(status_counts.get("solved", 0)),
+            stalled=int(status_counts.get("stalled", 0)),
+            unsolved=int(status_counts.get("unsolved", 0)),
+            skipped_proven=int(status_counts.get("skipped_proven", 0)),
+            history_rows_written=int(history_rows_written),
+            audit_rows_written=int(audit_rows_written),
+            audit_last_chain_hash=str(audit_prev_chain_hash),
+        )
+        write_json(run_manifest_path, run_manifest)
+
     best_global = {"match": float("-inf"), "tier": "", "text_id": -1, "key_seed": -1, "stage": "", "preview": ""}
 
     for tier in TIERS:
@@ -1389,6 +2412,7 @@ def main() -> None:
                     src_match = float(src.get("best_match_ratio", float("nan")))
                     src_stage = str(src.get("best_stage", "") or "proven_history")
                     stop_reason = f"autoskip_proven:source_run={src_run}" if src_run else "autoskip_proven"
+                    outcome_code = _derive_outcome_code(status="skipped_proven", stop_reason=stop_reason)
                     preview_txt = f"[autoskip] source_run={src_run}" if src_run else "[autoskip] proven history"
                     instances.append(
                         dict(
@@ -1413,6 +2437,7 @@ def main() -> None:
                             total_seconds=0.0,
                             total_evals=0,
                             preview_best_latin=preview_txt,
+                            outcome_code=str(outcome_code),
                         )
                     )
                     stages.append(
@@ -1433,7 +2458,7 @@ def main() -> None:
                     artifact_payload = dict(
                         tier=str(tier.name),
                         profile_id=str(PROFILE),
-                        mode=str(PIPELINE_RUN_MODE),
+                        mode=str(_canonical_run_mode(PIPELINE_RUN_MODE)),
                         direction=str(direction.value),
                         order=str(ORDER),
                         alphabet_size=int(ALPHABET_SIZE),
@@ -1446,6 +2471,7 @@ def main() -> None:
                         length=int(tier.length),
                         status="skipped_proven",
                         stop_reason=str(stop_reason),
+                        outcome_code=str(outcome_code),
                         best_stage=str(src_stage),
                         best_match_ratio=float(src_match if np.isfinite(src_match) else np.nan),
                         best_score=float("nan"),
@@ -1487,7 +2513,8 @@ def main() -> None:
                         ),
                     )
                     artifact_name = f"{tier.name}__text{int(text_id)}__seed{int(key_seed)}.json"
-                    write_json(final_dir / artifact_name, artifact_payload)
+                    artifact_path = final_dir / artifact_name
+                    write_json(artifact_path, artifact_payload)
 
                     summary_ckpt = _build_summary(TIERS, instances)
                     write_pipeline_snapshot_files(
@@ -1508,6 +2535,7 @@ def main() -> None:
                         columns=int(tier.columns),
                         length=int(tier.length),
                         status="skipped_proven",
+                        outcome_code=str(outcome_code),
                         solve_threshold=float(SOLVE_MATCH_THRESHOLD),
                         best_match_ratio=float(src_match if np.isfinite(src_match) else np.nan),
                         best_stage=str(src_stage),
@@ -1518,8 +2546,32 @@ def main() -> None:
                         total_evals=0,
                         notes=str(stop_reason),
                     )
-                    _append_csv_row_common(hist, hist_row, merge_fieldnames=True)
+                    _append_csv_row(hist, hist_row)
                     history_rows_written += 1
+                    if bool(AUDIT_HASH_CHAIN_ENABLED):
+                        audit_prev_chain_hash = _append_iteration_audit_row(
+                            audit_csv=audit_csv,
+                            audit_jsonl=audit_jsonl,
+                            prev_chain_hash=str(audit_prev_chain_hash),
+                            payload=dict(
+                                timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                                iteration_index=int(done + 1),
+                                run_id=str(run_dir.name),
+                                fixture_id=str(tier.name),
+                                text_id=int(text_id),
+                                key_seed=int(key_seed),
+                                status="skipped_proven",
+                                best_stage=str(src_stage),
+                                best_match_ratio=float(src_match if np.isfinite(src_match) else np.nan),
+                                stop_reason=str(stop_reason),
+                                total_seconds=0.0,
+                                total_evals=0,
+                                history_row_hash=str(_hash_payload(hist_row)),
+                                artifact_relpath=str(artifact_path.relative_to(root)),
+                                artifact_sha256=str(_sha256_file(artifact_path)),
+                            ),
+                        )
+                        audit_rows_written += 1
 
                     if np.isfinite(float(src_match)) and float(src_match) > float(best_global["match"]):
                         best_global.update(
@@ -1532,6 +2584,7 @@ def main() -> None:
                         )
 
                     done += 1
+                    _checkpoint_manifest(status_key="skipped_proven")
                     elapsed = time.time() - t0_all
                     eta = (elapsed / float(done)) * float(total - done) if done else 0.0
                     print(
@@ -1584,25 +2637,73 @@ def main() -> None:
 
                 scorer_stage1 = dict(SCORER_STAGE1, encoding_dir=direction)
                 scorer_stage2 = dict(SCORER_STAGE2, encoding_dir=direction)
-                scorer_full = dict(SCORER_FULL, encoding_dir=direction)
-                if bool(REQUIRE_NO_ECDF_FOR_AVG_FULLTEXT):
-                    scorer_gate = [
-                        ("stage1", scorer_stage1),
-                        ("stage2", scorer_stage2),
-                        ("stage3", scorer_full),
-                    ]
-                    non_fulltext = [lbl for lbl, cfg in scorer_gate if not _is_avg_fulltext_scorer(cfg)]
-                    if non_fulltext:
-                        raise RuntimeError(
-                            "[pipeline_no_wli] no-ECDF guard requires avg.logp full_text for all stages; "
-                            f"non_compliant={','.join(non_fulltext)} profile={NO_WLI_PIPELINE_PROFILE_ID}"
-                        )
+                mode_canonical_runtime = str(_canonical_run_mode(PIPELINE_RUN_MODE))
+                stage3_phase_switch_enabled = bool(
+                    _is_adaptive_focus_mode(mode_canonical_runtime) and bool(STAGE3_TWO_PHASE_ENABLED)
+                )
+                stage3_phaseA_experiment = str(scoring_experiment_meta.get("profile", "off") or "off").strip().lower()
+                stage3_phaseB_experiment = str(scoring_experiment_meta.get("profile", "off") or "off").strip().lower()
+                if bool(stage3_phase_switch_enabled):
+                    stage3_phaseA_experiment = "a_baseline"
+                    stage3_phaseB_experiment = "c_min_late"
+                # Stage-3 contract:
+                # - search scorer (Kaeding inner loop): avg/full_text char4, no span/ECDF
+                # - judge scorer (explicit basin ranking): calibrated span profile
+                scorer_stage3_search = _stage3_char4_avg_fulltext_search_cfg(direction=direction)
+                scorer_full = _build_stage3_experiment_cfg(
+                    profile_name=stage3_phaseB_experiment,
+                    direction=direction,
+                    span_assets_dir=span_assets_dir,
+                    disable_char_pct_gate=bool(stage3_phase_switch_enabled),
+                )
+                scorer_basin_judge = _build_stage3_experiment_cfg(
+                    profile_name=stage3_phaseB_experiment,
+                    direction=direction,
+                    span_assets_dir=span_assets_dir,
+                    disable_char_pct_gate=True,
+                )
+                scorer_stage3_phaseA = dict(scorer_stage3_search)
+                scorer_stage3_phaseB = dict(scorer_stage3_search)
                 scorer_stage1_runtime = build_scorer(cfg_sub, ScoringConfig(**scorer_stage1))
                 scorer_stage2_runtime = build_scorer(cfg_full, ScoringConfig(**scorer_stage2))
+                scorer_stage3_search_runtime = build_scorer(cfg_full, ScoringConfig(**scorer_stage3_search))
                 scorer_full_runtime = build_scorer(cfg_full, ScoringConfig(**scorer_full))
+                scorer_basin_judge_runtime = build_scorer(cfg_full, ScoringConfig(**scorer_basin_judge))
+                scorer_stage3_phaseA_runtime = scorer_stage3_search_runtime
+                stage2_judge_policy = str(STAGE2_JUDGE_POLICY).strip().lower()
+                if stage2_judge_policy not in {"search_only", "stage3_judge"}:
+                    raise ValueError(
+                        f"Unsupported STAGE2_JUDGE_POLICY={STAGE2_JUDGE_POLICY!r}; "
+                        "expected search_only|stage3_judge"
+                    )
+                if stage2_judge_policy == "search_only":
+                    scorer_stage2_judge_runtime = scorer_stage2_runtime
+                    scorer_stage2_judge_cfg = dict(scorer_stage2)
+                else:
+                    scorer_stage2_judge_runtime = scorer_full_runtime
+                    scorer_stage2_judge_cfg = dict(scorer_full)
                 _guard_no_ecdf_usage(scorer_runtime=scorer_stage1_runtime, scorer_cfg=scorer_stage1, stage_label="stage1")
                 _guard_no_ecdf_usage(scorer_runtime=scorer_stage2_runtime, scorer_cfg=scorer_stage2, stage_label="stage2")
-                _guard_no_ecdf_usage(scorer_runtime=scorer_full_runtime, scorer_cfg=scorer_full, stage_label="stage3")
+                _guard_no_ecdf_usage(
+                    scorer_runtime=scorer_stage3_search_runtime,
+                    scorer_cfg=scorer_stage3_search,
+                    stage_label="stage3_search",
+                )
+                _guard_no_ecdf_usage(
+                    scorer_runtime=scorer_stage2_judge_runtime,
+                    scorer_cfg=scorer_stage2_judge_cfg,
+                    stage_label="stage2_judge",
+                )
+                _guard_no_ecdf_usage(
+                    scorer_runtime=scorer_stage3_phaseA_runtime,
+                    scorer_cfg=scorer_stage3_phaseA,
+                    stage_label="stage3_phaseA",
+                )
+                _guard_no_ecdf_usage(
+                    scorer_runtime=scorer_basin_judge_runtime,
+                    scorer_cfg=scorer_basin_judge,
+                    stage_label="stage3_basin_judge",
+                )
                 scorer_stage2_pass1_primary_runtime = None
                 scorer_stage2_pass1_fallback_runtime = None
                 if int(tier.columns) <= int(STAGE2_EXACT_MAX_COLUMNS) and bool(STAGE2_EXACT_TWO_PASS):
@@ -1679,6 +2780,230 @@ def main() -> None:
                     f"score={oracle_s3:.6f} raw={oracle_s3_raw:.6f}",
                     flush=True,
                 )
+                print(
+                    f"[pipeline_no_wli] stage2-judge-policy tier={tier.name} text={text_id} key_seed={key_seed} "
+                    f"policy={stage2_judge_policy} objective={_scorer_objective_summary(scorer_stage2_judge_cfg)}",
+                    flush=True,
+                )
+                stage3_phaseB_char_pct_min_dynamic = float("nan")
+                stage3_phaseB_char_pct_min_source = "not_used_explicit_basin_judge"
+                if bool(stage3_phase_switch_enabled) and str(stage3_phaseB_experiment) == "c_min_late":
+                    if np.isfinite(float(oracle_s3)):
+                        stage3_phaseB_char_pct_min_dynamic = float(
+                            np.clip(float(oracle_s3) - 0.10, 0.30, 0.45)
+                        )
+                        stage3_phaseB_char_pct_min_source = "oracle_minus_0.10_clamp_0.30_0.45_not_applied"
+                    else:
+                        stage3_phaseB_char_pct_min_dynamic = float(SCORING_EXPERIMENT_C_CHAR_PCT_MIN)
+                        stage3_phaseB_char_pct_min_source = "profile_default_not_applied"
+                    if STAGE3_SPAN_CHAR_PCT_MIN_OVERRIDE is not None:
+                        stage3_phaseB_char_pct_min_dynamic = float(STAGE3_SPAN_CHAR_PCT_MIN_OVERRIDE)
+                        stage3_phaseB_char_pct_min_source = "diagnostic_override_not_applied"
+                    print(
+                        f"[pipeline_no_wli] stage3-phase-switch tier={tier.name} text={text_id} key_seed={key_seed} "
+                        f"phaseA_experiment={str(stage3_phaseA_experiment)} "
+                        f"phaseB_experiment={str(stage3_phaseB_experiment)} "
+                        f"phaseB_char_pct_min={float(stage3_phaseB_char_pct_min_dynamic):.6f} "
+                        f"source={stage3_phaseB_char_pct_min_source} "
+                        "applied_to_basin_judge=0",
+                        flush=True,
+                    )
+                stage3_objective_txt = str(scorer_full.get("objective", "") or "").strip().lower()
+                stage3_floor_guard_enabled = stage3_objective_txt.startswith("pct.") or stage3_objective_txt.startswith("energy.")
+                stage3_floor_threshold = float(
+                    scorer_full.get(
+                        "span_hamming_ecdf_clamp_min",
+                        scorer_full.get("ecdf_clamp_min", 1e-6),
+                    )
+                )
+                if (
+                    stage3_floor_guard_enabled
+                    and np.isfinite(float(stage3_floor_threshold))
+                    and np.isfinite(float(oracle_s3))
+                    and float(oracle_s3) <= float(stage3_floor_threshold) + float(ORACLE_STAGE3_FLOOR_GUARD_EPS)
+                ):
+                    stop_reason = (
+                        "oracle_floor_guard:"
+                        f"stage3_score={float(oracle_s3):.6f}:floor={float(stage3_floor_threshold):.6f}"
+                    )
+                    outcome_code = _derive_outcome_code(status="stalled", stop_reason=stop_reason)
+                    print(
+                        f"[pipeline_no_wli] oracle-floor-guard tier={tier.name} text={text_id} key_seed={key_seed} "
+                        f"stage3_oracle={float(oracle_s3):.6f} floor={float(stage3_floor_threshold):.6f} "
+                        "action=abort_tier",
+                        flush=True,
+                    )
+                    preview_txt = "[oracle-floor-guard] tier aborted before stage1"
+                    instances.append(
+                        dict(
+                            tier=tier.name,
+                            period=tier.period,
+                            columns=tier.columns,
+                            length=tier.length,
+                            text_id=int(text_id),
+                            key_seed=int(key_seed),
+                            offset_hint=int(off),
+                            offset_used=int(offset_used),
+                            status="stalled",
+                            stop_reason=str(stop_reason),
+                            solve_threshold=float(SOLVE_MATCH_THRESHOLD),
+                            best_stage="oracle_guard_fail",
+                            best_match_ratio=np.nan,
+                            stage1_sub_key_match=np.nan,
+                            stage2_match_ratio=np.nan,
+                            stage3_match_ratio=np.nan,
+                            stage2_gap_to_oracle=np.nan,
+                            stage3_band="oracle_guard_fail",
+                            total_seconds=0.0,
+                            total_evals=0,
+                            preview_best_latin=str(preview_txt),
+                            outcome_code=str(outcome_code),
+                        )
+                    )
+                    stages.append(
+                        dict(
+                            tier=tier.name,
+                            text_id=int(text_id),
+                            key_seed=int(key_seed),
+                            stage="oracle_guard_fail",
+                            score=float(oracle_s3),
+                            match_ratio=np.nan,
+                            seconds=0.0,
+                            evals=0,
+                            oracle_stage3_floor=float(stage3_floor_threshold),
+                        )
+                    )
+
+                    artifact_payload = dict(
+                        tier=str(tier.name),
+                        profile_id=str(PROFILE),
+                        mode=str(_canonical_run_mode(PIPELINE_RUN_MODE)),
+                        direction=str(direction.value),
+                        order=str(ORDER),
+                        alphabet_size=int(ALPHABET_SIZE),
+                        text_id=int(text_id),
+                        key_seed=int(key_seed),
+                        offset_hint=int(off),
+                        offset_used=int(offset_used),
+                        period=int(tier.period),
+                        columns=int(tier.columns),
+                        length=int(tier.length),
+                        status="stalled",
+                        stop_reason=str(stop_reason),
+                        outcome_code=str(outcome_code),
+                        best_stage="oracle_guard_fail",
+                        best_match_ratio=float("nan"),
+                        best_score=float("nan"),
+                        oracle_scores=dict(stage1=float(oracle_s1), stage2=float(oracle_s2), stage3=float(oracle_s3)),
+                        score_minus_oracle=dict(stage1=float("nan"), stage2=float("nan"), stage3=float("nan")),
+                        solve_threshold=float(SOLVE_MATCH_THRESHOLD),
+                        ciphertext_idx=[int(x) for x in np.asarray(ct_idx, dtype=np.uint8).tolist()],
+                        target_plaintext_idx=[int(x) for x in np.asarray(pt_idx, dtype=np.uint8).tolist()],
+                        final_best_key_idx=[],
+                        final_best_plaintext_idx=[],
+                        stage2_topk=[],
+                        stage2_topk_has_best_match=0,
+                        stage2_diagnostics=dict(
+                            archive_entries=0,
+                            kept_entries=0,
+                            promoted_entries=0,
+                            score_match_spearman=float("nan"),
+                        ),
+                        stage3_topk=[],
+                        stage3_diagnostics=dict(
+                            init_target=0,
+                            init_actual=0,
+                            promoted_keys=0,
+                            gate_source="oracle_guard_fail",
+                            continue_after_solve=bool(STAGE3_CONTINUE_AFTER_SOLVE),
+                            solve_hits=0,
+                            period_init_mult=1.0,
+                            period_step_mult=1.0,
+                            period_restart_bonus=0,
+                            phaseB_top_n_cfg=int(STAGE3_PHASEB_TOP_N),
+                            phaseB_gate_delta_cfg=float(STAGE3_PHASEB_GATE_DELTA_FLOOR),
+                            phaseB_gate_end_gain_cfg=float(STAGE3_PHASEB_GATE_END_GAIN_FLOOR),
+                            phaseB_ran=0,
+                            phaseB_skipped=1,
+                            phaseB_top_n_used=0,
+                            phaseB_skip_reason="oracle_guard_fail",
+                            stage3_eval_count=0,
+                            c1_focus=int(1 if (int(tier.columns) <= 1 and bool(STAGE3_C1_FOCUS_ENABLED)) else 0),
+                            oracle_floor_threshold=float(stage3_floor_threshold),
+                        ),
+                    )
+                    artifact_name = f"{tier.name}__text{int(text_id)}__seed{int(key_seed)}.json"
+                    artifact_path = final_dir / artifact_name
+                    write_json(artifact_path, artifact_payload)
+
+                    summary_ckpt = _build_summary(TIERS, instances)
+                    write_pipeline_snapshot_files(
+                        run_dir=run_dir,
+                        instances=instances,
+                        stages=stages,
+                        summary=summary_ckpt,
+                    )
+
+                    hist_row = dict(
+                        timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                        run_id=run_dir.name,
+                        profile_id=PROFILE,
+                        fixture_id=str(tier.name),
+                        text_id=int(text_id),
+                        key_seed=int(key_seed),
+                        period=int(tier.period),
+                        columns=int(tier.columns),
+                        length=int(tier.length),
+                        status="stalled",
+                        outcome_code=str(outcome_code),
+                        solve_threshold=float(SOLVE_MATCH_THRESHOLD),
+                        best_match_ratio=np.nan,
+                        best_stage="oracle_guard_fail",
+                        stage1_sub_key_match=np.nan,
+                        stage2_match_ratio=np.nan,
+                        stage3_match_ratio=np.nan,
+                        total_seconds=0.0,
+                        total_evals=0,
+                        notes=str(stop_reason),
+                    )
+                    _append_csv_row(hist, hist_row)
+                    history_rows_written += 1
+                    if bool(AUDIT_HASH_CHAIN_ENABLED):
+                        audit_prev_chain_hash = _append_iteration_audit_row(
+                            audit_csv=audit_csv,
+                            audit_jsonl=audit_jsonl,
+                            prev_chain_hash=str(audit_prev_chain_hash),
+                            payload=dict(
+                                timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                                iteration_index=int(done + 1),
+                                run_id=str(run_dir.name),
+                                fixture_id=str(tier.name),
+                                text_id=int(text_id),
+                                key_seed=int(key_seed),
+                                status="stalled",
+                                best_stage="oracle_guard_fail",
+                                best_match_ratio=float("nan"),
+                                stop_reason=str(stop_reason),
+                                total_seconds=0.0,
+                                total_evals=0,
+                                history_row_hash=str(_hash_payload(hist_row)),
+                                artifact_relpath=str(artifact_path.relative_to(root)),
+                                artifact_sha256=str(_sha256_file(artifact_path)),
+                            ),
+                        )
+                        audit_rows_written += 1
+
+                    done += 1
+                    _checkpoint_manifest(status_key="stalled")
+                    elapsed = time.time() - t0_all
+                    eta = (elapsed / float(done)) * float(total - done) if done else 0.0
+                    print(
+                        f"[pipeline_no_wli] {done}/{total} tier={tier.name} status=stalled "
+                        f"best_match=nan run=0.0s elapsed={base._format_seconds(elapsed)} "
+                        f"eta={base._format_seconds(eta)}",
+                        flush=True,
+                    )
+                    continue
 
                 if not np.array_equal(
                     np.asarray(full_cipher.decrypt_single(ciphertext=ct_idx, key=key_true), dtype=np.uint8),
@@ -1968,12 +3293,29 @@ def main() -> None:
                 stage2_promote_top = max(1, int(STAGE12_PROMOTE_TOP))
                 stage2_archive: Dict[Tuple[int, ...], Dict[str, Any]] = {}
                 stage2_entry_score = float("-inf")
+                stage2_started_t = float(time.time())
+                scan_mode_active_stage2 = bool(_mode_stage3_can_skip(PIPELINE_RUN_MODE))
+                stage2_continue_to_gate = bool(scan_mode_active_stage2 and bool(SCAN_STAGE2_CONTINUE_TO_GATE))
+                stage2_continue_gate_match = float(SCAN_STAGE3_GATE_LOW_MATCH)
+                stage2_continue_cap_seconds = float(SCAN_STAGE2_CONTINUE_CAP_SECONDS)
+                stage2_continue_stop_reason = ""
                 exact_sub_limit = int(STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS.get(int(tier.columns), STAGE2_EXACT_SUB_CANDIDATES))
                 pass1_top_tails = int(STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS.get(int(tier.columns), STAGE2_EXACT_PASS1_TOP_TAILS))
                 hybrid_sub_limit = int(
                     STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS.get(int(tier.columns), STAGE2_HYBRID_SUB_CANDIDATES)
                 )
                 tail_chunk = int(BATCH_EVAL_CHUNK_SIZE)
+
+                def _stage2_continuation_should_stop() -> Tuple[bool, str]:
+                    if not bool(stage2_continue_to_gate):
+                        return False, ""
+                    if np.isfinite(float(best2_match)) and float(best2_match) >= float(stage2_continue_gate_match):
+                        return True, "gate"
+                    if float(stage2_continue_cap_seconds) > 0.0:
+                        elapsed = float(time.time() - stage2_started_t)
+                        if elapsed >= float(stage2_continue_cap_seconds):
+                            return True, "cap"
+                    return False, ""
 
                 def _iter_tail_chunks(columns: int, chunk_size: int):
                     block: List[Tuple[int, ...]] = []
@@ -2052,7 +3394,8 @@ def main() -> None:
                         flush=True,
                     )
                 elif int(tier.columns) <= int(STAGE2_EXACT_MAX_COLUMNS):
-                    exact_subs = sub_candidates[: max(1, int(exact_sub_limit))]
+                    exact_sub_cap = int(len(sub_candidates)) if bool(stage2_continue_to_gate) else int(exact_sub_limit)
+                    exact_subs = sub_candidates[: max(1, int(exact_sub_cap))]
                     exact_early_stop = False
                     for i, sub_key in enumerate(exact_subs):
                         sub_arr = np.asarray(sub_key, dtype=np.int16)
@@ -2221,6 +3564,19 @@ def main() -> None:
                             )
                         )
                         if exact_early_stop:
+                            stage2_continue_stop_reason = "solve_threshold"
+                            break
+                        stop_now, stop_kind = _stage2_continuation_should_stop()
+                        if bool(stop_now):
+                            elapsed_now = float(time.time() - stage2_started_t)
+                            stage2_continue_stop_reason = str(stop_kind)
+                            print(
+                                f"[pipeline_no_wli] stage2-continue-stop tier={tier.name} text={text_id} key_seed={key_seed} "
+                                f"reason={str(stop_kind)} best_match={float(best2_match):.3f} "
+                                f"elapsed={float(elapsed_now):.1f}s gate={float(stage2_continue_gate_match):.3f} "
+                                f"cap={float(stage2_continue_cap_seconds):.1f}s",
+                                flush=True,
+                            )
                             break
                     print(
                         f"[pipeline_no_wli] stage2-summary tier={tier.name} text={text_id} key_seed={key_seed} "
@@ -2229,7 +3585,8 @@ def main() -> None:
                         flush=True,
                     )
                 else:
-                    hybrid_subs = sub_candidates[: max(1, int(hybrid_sub_limit))]
+                    hybrid_sub_cap = int(len(sub_candidates)) if bool(stage2_continue_to_gate) else int(hybrid_sub_limit)
+                    hybrid_subs = sub_candidates[: max(1, int(hybrid_sub_cap))]
                     for i, sub_key in enumerate(hybrid_subs):
                         t_s2 = time.time()
                         inter = sub_cipher.decrypt_single(ciphertext=ct_idx, key=np.asarray(sub_key, dtype=np.int16))
@@ -2240,7 +3597,7 @@ def main() -> None:
                             cipher=by_name.cipher("columnar", key_length=tier.columns),
                             key=KeySpec.permutation(len=tier.columns),
                             solver=SolverSpec.hybrid(**solver_stage2_cfg),
-                            scorer_params=scorer_full,
+                            scorer_params=scorer_stage2,
                             wli_data=[],
                             encoding_dir=direction,
                             telemetry_on=True,
@@ -2282,12 +3639,56 @@ def main() -> None:
                             score_val=float(sc2),
                             preview_label=f"stage2_best_attempt_{i+1}",
                         )
+                        stop_now, stop_kind = _stage2_continuation_should_stop()
+                        if bool(stop_now):
+                            elapsed_now = float(time.time() - stage2_started_t)
+                            stage2_continue_stop_reason = str(stop_kind)
+                            print(
+                                f"[pipeline_no_wli] stage2-continue-stop tier={tier.name} text={text_id} key_seed={key_seed} "
+                                f"reason={str(stop_kind)} best_match={float(best2_match):.3f} "
+                                f"elapsed={float(elapsed_now):.1f}s gate={float(stage2_continue_gate_match):.3f} "
+                                f"cap={float(stage2_continue_cap_seconds):.1f}s",
+                                flush=True,
+                            )
+                            break
                     print(
                         f"[pipeline_no_wli] stage2-summary tier={tier.name} text={text_id} key_seed={key_seed} "
                         f"mode=hybrid best_match_ratio={float(best2_match):.3f} "
                         f"best_score_at_best_match={float(best2_score):.6f} "
                         f"evals={int(stage2_evals_total)} sub_limit={int(hybrid_sub_limit)}",
                         flush=True,
+                    )
+
+                if bool(stage2_continue_to_gate):
+                    stage2_elapsed = float(time.time() - stage2_started_t)
+                    if not stage2_continue_stop_reason:
+                        if np.isfinite(float(best2_match)) and float(best2_match) >= float(stage2_continue_gate_match):
+                            stage2_continue_stop_reason = "gate"
+                        elif float(stage2_continue_cap_seconds) > 0.0 and stage2_elapsed >= float(stage2_continue_cap_seconds):
+                            stage2_continue_stop_reason = "cap"
+                        else:
+                            stage2_continue_stop_reason = "sub_candidates_exhausted"
+                    print(
+                        f"[pipeline_no_wli] stage2-continue-summary tier={tier.name} text={text_id} key_seed={key_seed} "
+                        f"reason={str(stage2_continue_stop_reason)} elapsed={float(stage2_elapsed):.1f}s "
+                        f"best_match={float(best2_match):.3f} gate={float(stage2_continue_gate_match):.3f} "
+                        f"cap={float(stage2_continue_cap_seconds):.1f}s",
+                        flush=True,
+                    )
+                    stages.append(
+                        dict(
+                            tier=tier.name,
+                            text_id=int(text_id),
+                            key_seed=int(key_seed),
+                            stage="stage2_continuation",
+                            score=float(best2_score if np.isfinite(best2_score) else np.nan),
+                            match_ratio=float(best2_match if np.isfinite(best2_match) else np.nan),
+                            seconds=round(float(stage2_elapsed), 3),
+                            evals=int(stage2_evals_total),
+                            reason=str(stage2_continue_stop_reason),
+                            gate=float(stage2_continue_gate_match),
+                            cap_seconds=float(stage2_continue_cap_seconds),
+                        )
                     )
 
                 stage2_all = list(stage2_archive.values())
@@ -2380,7 +3781,8 @@ def main() -> None:
                 stage2_judge_pool_size = _stage2_judge_pool_limit(
                     ranked_count=len(stage2_ranked),
                     archive_keep=int(stage2_archive_keep),
-                    stage3_scorer_cfg=dict(SCORER_FULL),
+                    stage2_scorer_cfg=dict(scorer_stage2),
+                    stage3_scorer_cfg=dict(scorer_stage2_judge_cfg),
                 )
                 stage2_judge_entries = stage2_ranked[: int(stage2_judge_pool_size)]
                 stage2_judge_plaintexts: List[np.ndarray] = []
@@ -2393,7 +3795,7 @@ def main() -> None:
                 stage2_judge_scores: Dict[int, float] = {}
                 if stage2_judge_plaintexts:
                     _judge_scores, _judge_stats = score_plaintexts_chunked(
-                        scorer=scorer_full_runtime,
+                        scorer=scorer_stage2_judge_runtime,
                         plaintexts=stage2_judge_plaintexts,
                         wli=None,
                         chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
@@ -2407,7 +3809,11 @@ def main() -> None:
                 if (not np.isfinite(stage2_entry_score_judge)) and np.isfinite(stage2_entry_score):
                     stage2_entry_score_judge = float(stage2_entry_score)
 
-                if bool(STAGE2_PROMOTE_BY_STAGE3_JUDGE) and _is_avg_fulltext_scorer(SCORER_FULL) and stage2_judge_scores:
+                stage2_stage3_space_match = (
+                    _objective_space_key(dict(scorer_stage2))
+                    == _objective_space_key(dict(scorer_stage2_judge_cfg))
+                )
+                if bool(STAGE2_PROMOTE_BY_STAGE3_JUDGE) and stage2_judge_scores:
                     judged_entries: List[Dict[str, Any]] = []
                     for rank_idx, ent in enumerate(stage2_judge_entries, start=1):
                         judge_sc = float(stage2_judge_scores.get(int(rank_idx), float("nan")))
@@ -2446,6 +3852,31 @@ def main() -> None:
                             if r < len(by_match):
                                 _push_promoted(by_match[r])
                         stage2_promote_mode = "judge_match_interleave"
+                elif (not bool(STAGE2_PROMOTE_BY_STAGE3_JUDGE)) and (not stage2_stage3_space_match) and stage2_judge_scores:
+                    # Automatic bridge for mixed objective families (e.g. Stage-2 AVG,
+                    # Stage-3 PCT/span). Promote by Stage-3 judge to improve Stage-3 starts.
+                    judged_entries: List[Dict[str, Any]] = []
+                    for rank_idx, ent in enumerate(stage2_judge_entries, start=1):
+                        judge_sc = float(stage2_judge_scores.get(int(rank_idx), float("nan")))
+                        if not np.isfinite(judge_sc):
+                            continue
+                        enriched = dict(ent)
+                        enriched["judge_score"] = float(judge_sc)
+                        judged_entries.append(enriched)
+                    if judged_entries:
+                        by_judge = sorted(
+                            judged_entries,
+                            key=lambda e: (
+                                float(e.get("judge_score", float("-inf"))),
+                                float(e.get("score", float("-inf"))),
+                            ),
+                            reverse=True,
+                        )
+                        stage2_promoted = []
+                        stage2_promoted_seen = set()
+                        for r in range(min(len(by_judge), int(stage2_promote_top))):
+                            _push_promoted(by_judge[r])
+                        stage2_promote_mode = "judge_auto_bridge"
 
                 stage2_promoted, stage2_best_in_promoted = _ensure_best_entry_in_promoted(
                     promoted_entries=stage2_promoted,
@@ -2539,8 +3970,133 @@ def main() -> None:
                 stage3_period_init_mult = 1.0
                 stage3_period_step_mult = 1.0
                 stage3_period_restart_bonus = 0
+                stage3_span_active_rate = 0.0
+                stage3_span_active_rate_source = "solver_run_telemetry_zero_total"
+                stage3_span_eval_total = 0.0
+                stage3_span_eval_active = 0.0
+                stage3_span_eval_skipped = 0.0
+                stage3_span_seconds_total = 0.0
+                stage3_span_seconds_active = 0.0
+                stage3_span_phaseA_eval_total = 0.0
+                stage3_span_phaseA_eval_active = 0.0
+                stage3_span_phaseA_eval_skipped = 0.0
+                stage3_span_phaseA_seconds_total = 0.0
+                stage3_span_phaseA_seconds_active = 0.0
+                stage3_span_full_eval_total = 0.0
+                stage3_span_full_eval_active = 0.0
+                stage3_span_full_eval_skipped = 0.0
+                stage3_span_full_seconds_total = 0.0
+                stage3_span_full_seconds_active = 0.0
+                stage3_span_basin_judge_k_cfg = int(max(1, int(STAGE3_SPAN_BASIN_JUDGE_K)))
+                stage3_span_basin_judge_k_used = 0
+                stage3_span_basin_judge_seconds = 0.0
+                stage3_basin_judge_span_calls_total = 0
+                stage3_basin_judge_span_calls_active = 0
+                stage3_basin_judge_span_calls_rejected_or_gated = 0
+                stage3_basin_judge_span_seconds_total = 0.0
+                stage3_basin_judge_unique_end_hash = 0
+                tier_elapsed_before_stage3 = float(time.time() - t0_i)
+                scan_mode_active = bool(_mode_stage3_can_skip(PIPELINE_RUN_MODE))
+                scan_time_cap_seconds = float(SCAN_TIER_TIME_CAP_SECONDS)
+                scan_stage3_gate_low_match = float(SCAN_STAGE3_GATE_LOW_MATCH)
+                scan_stage3_gate_high_match = float(max(float(SCAN_STAGE3_GATE_LOW_MATCH), float(SCAN_STAGE3_GATE_HIGH_MATCH)))
+                stage3_scan_phaseA_only = False
                 if np.isfinite(best2_match) and best2_match >= SOLVE_MATCH_THRESHOLD:
                     stop_reason = "solved_stage2"
+                elif (
+                    scan_mode_active
+                    and (scan_time_cap_seconds > 0.0)
+                    and (tier_elapsed_before_stage3 >= scan_time_cap_seconds)
+                ):
+                    stop_reason = (
+                        f"time_cap_before_stage3:"
+                        f"elapsed={float(tier_elapsed_before_stage3):.1f}:"
+                        f"cap={float(scan_time_cap_seconds):.1f}"
+                    )
+                    stage3_band_name = "time_cap"
+                    print(
+                        f"[pipeline_no_wli] stage3-skip tier={tier.name} text={text_id} key_seed={key_seed} "
+                        f"reason=time_cap elapsed={float(tier_elapsed_before_stage3):.1f}s "
+                        f"cap={float(scan_time_cap_seconds):.1f}s",
+                        flush=True,
+                    )
+                    stages.append(
+                        dict(
+                            tier=tier.name,
+                            text_id=int(text_id),
+                            key_seed=int(key_seed),
+                            stage="stage3_skipped",
+                            score=float("nan"),
+                            match_ratio=float("nan"),
+                            seconds=0.0,
+                            evals=0,
+                            reason="time_cap",
+                            elapsed_seconds=float(tier_elapsed_before_stage3),
+                            cap_seconds=float(scan_time_cap_seconds),
+                        )
+                    )
+                elif (
+                    scan_mode_active
+                    and np.isfinite(float(best2_match))
+                    and (float(best2_match) < float(scan_stage3_gate_low_match))
+                ):
+                    weak_reason = (
+                        "stage2_cap_weak_stage2"
+                        if (bool(stage2_continue_to_gate) and str(stage2_continue_stop_reason) == "cap")
+                        else "weak_stage2"
+                    )
+                    stop_reason = (
+                        f"scan_skip_stage3_{str(weak_reason)}:"
+                        f"best2_match={float(best2_match):.3f}:"
+                        f"threshold={float(scan_stage3_gate_low_match):.3f}"
+                    )
+                    stage3_band_name = "stage2_cap_skip" if str(weak_reason).startswith("stage2_cap") else "weak_stage2_skip"
+                    print(
+                        f"[pipeline_no_wli] stage3-skip tier={tier.name} text={text_id} key_seed={key_seed} "
+                        f"reason={str(weak_reason)} best2_match={float(best2_match):.3f} "
+                        f"threshold={float(scan_stage3_gate_low_match):.3f}",
+                        flush=True,
+                    )
+                    stages.append(
+                        dict(
+                            tier=tier.name,
+                            text_id=int(text_id),
+                            key_seed=int(key_seed),
+                            stage="stage3_skipped",
+                            score=float("nan"),
+                            match_ratio=float("nan"),
+                            seconds=0.0,
+                            evals=0,
+                            reason=str(weak_reason),
+                            best2_match=float(best2_match),
+                            threshold=float(scan_stage3_gate_low_match),
+                        )
+                    )
+                elif (
+                    scan_mode_active
+                    and np.isfinite(float(best2_match))
+                    and (float(best2_match) < float(scan_stage3_gate_high_match))
+                ):
+                    stage3_scan_phaseA_only = True
+                    print(
+                        f"[pipeline_no_wli] stage3-policy tier={tier.name} text={text_id} key_seed={key_seed} "
+                        f"policy=phaseA_only best2_match={float(best2_match):.3f} "
+                        f"gate_low={float(scan_stage3_gate_low_match):.3f} "
+                        f"gate_high={float(scan_stage3_gate_high_match):.3f}",
+                        flush=True,
+                    )
+                    stages.append(
+                        dict(
+                            tier=tier.name,
+                            text_id=int(text_id),
+                            key_seed=int(key_seed),
+                            stage="stage3_policy",
+                            policy="phaseA_only",
+                            best2_match=float(best2_match),
+                            gate_low=float(scan_stage3_gate_low_match),
+                            gate_high=float(scan_stage3_gate_high_match),
+                        )
+                    )
                 elif best2_key is not None:
                     t_s3 = time.time()
                     c1_focus_enabled = bool(STAGE3_C1_FOCUS_ENABLED and int(tier.columns) <= 1)
@@ -2595,9 +4151,18 @@ def main() -> None:
 
                     solver_stage3_cfg = dict(SOLVER_STAGE3)
                     stage2_gate_source = "mid"
+                    stage2_stage3_space_match = (
+                        _objective_space_key(dict(scorer_stage2))
+                        == _objective_space_key(dict(scorer_full))
+                    )
                     if bool(STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE) and np.isfinite(stage2_entry_score_judge):
                         stage2_gate_score = float(stage2_entry_score_judge)
                         stage2_gate_source = "judge"
+                    elif (not stage2_stage3_space_match) and np.isfinite(stage2_entry_score_judge):
+                        # Prevent cross-family score subtraction (e.g. avg vs pct) from
+                        # forcing the wrong Stage-3 dynamic band.
+                        stage2_gate_score = float(stage2_entry_score_judge)
+                        stage2_gate_source = "judge_auto_mismatch"
                     else:
                         stage2_gate_score = float(stage2_entry_score)
                         stage2_gate_source = "mid"
@@ -2676,11 +4241,20 @@ def main() -> None:
                             f"phaseA={json.dumps(dict(stage3_phaseA_cfg), separators=(',', ':'))} "
                             f"phaseB={json.dumps(dict(stage3_phaseB_cfg), separators=(',', ':'))} "
                             f"phaseB_top_n={int(stage3_phaseB_top_n)} "
+                            f"scan_phaseA_only={1 if bool(stage3_scan_phaseA_only) else 0} "
                             f"continue_after_solve={1 if bool(STAGE3_CONTINUE_AFTER_SOLVE) else 0} "
                             f"gate=(delta={float(stage3_phaseB_gate_delta):.4f},"
                             f"end_gain={float(stage3_phaseB_gate_end_gain):.4f})",
                             flush=True,
                         )
+                    print(
+                        f"[pipeline_no_wli] tier-heartbeat tier={tier.name} stage=stage3_start "
+                        f"text={text_id} key_seed={key_seed} elapsed={float(time.time() - t0_i):.1f}s "
+                        f"stage2_match={_fmt_finite_float(best2_match, digits=3)} "
+                        f"stage2_evals={int(stage2_evals_total)} "
+                        f"interval={float(TIER_HEARTBEAT_SECONDS):.0f}s",
+                        flush=True,
+                    )
                     dt3 = 0.0
                     ev3 = 0
                     slip_count = 0
@@ -2698,6 +4272,9 @@ def main() -> None:
                     phaseB_skipped = 0
                     phaseB_ran = 0
                     phaseB_skip_reason = ""
+                    stage3_hb_state: Dict[str, Any] = dict(last_emit_ts=float("-inf"))
+                    phaseA_total_runs = int(len(init3))
+                    stage3_phaseA_hb_state: Dict[str, Any] = dict(last_emit_ts=float("-inf"))
 
                     def _extract_kaeding_metrics(kaeding_obj: Any) -> Dict[str, float]:
                         if not isinstance(kaeding_obj, dict):
@@ -2802,14 +4379,67 @@ def main() -> None:
                                 )
                             )
 
+                    def _append_stage3_topk_from_phasea(rows: List[Dict[str, Any]]) -> None:
+                        if (not bool(SAVE_STAGE3_TOPK)) or (not rows):
+                            return
+                        ranked_rows = sorted(
+                            rows,
+                            key=lambda r: (
+                                float(r.get("end_score_pct", float("-inf"))),
+                                float(r.get("best_delta_pct", float("-inf"))),
+                                float(r.get("end_score_raw", float("-inf"))),
+                                -int(r.get("restart_idx", 0)),
+                            ),
+                            reverse=True,
+                        )
+                        used_keys: set[Tuple[int, ...]] = set()
+                        out_rank = 0
+                        for row in ranked_rows:
+                            key_list = list(map(int, row.get("end_key", [])))
+                            if len(key_list) != int(key_len):
+                                continue
+                            key_t = tuple(key_list)
+                            if key_t in used_keys:
+                                continue
+                            used_keys.add(key_t)
+                            out_rank += 1
+                            stage3_topk_payload.append(
+                                dict(
+                                    rank=int(out_rank),
+                                    score_raw=float(row.get("end_score_raw", float("nan"))),
+                                    score_pct=float(row.get("end_score_pct", float("nan"))),
+                                    score_judge=float(row.get("end_score_pct", float("nan"))),
+                                    match_ratio=float(row.get("end_match", float("nan"))),
+                                    key_idx=key_list,
+                                    plaintext_idx=list(map(int, row.get("end_plaintext", []))),
+                                    source="phaseA",
+                                )
+                            )
+                            if out_rank >= int(SAVE_STAGE3_TOPK_LIMIT):
+                                break
+
                     if not bool(STAGE3_TWO_PHASE_ENABLED):
                         t_run = time.time()
+                        stage3_logging_cfg = _stage3_progress_logging(
+                            tier_name=str(tier.name),
+                            text_id=int(text_id),
+                            key_seed=int(key_seed),
+                            phase="full",
+                            phase_steps=int(solver_stage3_cfg.get("steps", 0) or 0),
+                            phase_start_ts=float(t_run),
+                            heartbeat_seconds=float(STAGE3_HEARTBEAT_SECONDS),
+                            heartbeat_state=stage3_hb_state,
+                            min_step=int(STAGE3_HEARTBEAT_MIN_STEP),
+                            min_elapsed_seconds=float(STAGE3_HEARTBEAT_MIN_ELAPSED_SECONDS),
+                            evals_base=int(ev3),
+                        )
                         sol3 = run(
                             text=ct_idx.tolist(),
                             cipher=by_name.cipher("periodic_columnar", period=tier.period, columns=tier.columns, order=ORDER, alphabet_size=ALPHABET_SIZE),
                             key=KeySpec.periodic_columnar(period=tier.period, columns=tier.columns, alphabet_size=ALPHABET_SIZE),
                             solver=SolverSpec.kaeding(**solver_stage3_cfg),
-                            scorer_params=scorer_full,
+                            scorer_params=scorer_stage3_phaseB,
+                            logging=stage3_logging_cfg,
                             wli_data=[],
                             encoding_dir=direction,
                             telemetry_on=True,
@@ -2824,11 +4454,27 @@ def main() -> None:
                             best3_key = k3_arr.astype(int).tolist()
                         best3_match = base._match_ratio(pt3.tolist(), pt_idx.tolist())
                         best3_score = float(getattr(sol3, "score", float("nan")))
+                        if pt3.size > 0:
+                            _judge3_arr, _judge3_stats = score_plaintexts_chunked(
+                                scorer=scorer_full_runtime,
+                                plaintexts=[pt3],
+                                wli=None,
+                                chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                                require_batch=bool(REQUIRE_BATCH_SCORING),
+                            )
+                            if _judge3_arr.size > 0:
+                                best3_score = float(_judge3_arr[0])
                         if np.isfinite(best3_match) and float(best3_match) >= float(SOLVE_MATCH_THRESHOLD):
                             stage3_solve_hits = int(stage3_solve_hits) + 1
                         tele3 = (getattr(sol3, "meta", {}) or {}).get("telemetry", {})
                         kaeding3 = tele3.get("kaeding", {}) if isinstance(tele3, dict) else {}
                         mm = _extract_kaeding_metrics(kaeding3)
+                        span3 = _solution_span_counter_summary(sol3)
+                        stage3_span_full_eval_total += float(span3["total"])
+                        stage3_span_full_eval_active += float(span3["active"])
+                        stage3_span_full_eval_skipped += float(span3["skipped"])
+                        stage3_span_full_seconds_total += float(span3["seconds_total"])
+                        stage3_span_full_seconds_active += float(span3["seconds_active"])
                         slip_count = int(mm["slip_count"])
                         slip_accept_count = int(mm["slip_accept_count"])
                         slip_accept_rate = float(mm["slip_accept_rate"])
@@ -2851,7 +4497,7 @@ def main() -> None:
                             cipher=full_cipher,
                             ciphertext=ct_idx,
                             keys=phaseA_seed_keys,
-                            scorer=scorer_full_runtime,
+                            scorer=scorer_stage3_phaseA_runtime,
                             wli=None,
                             chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
                             require_batch=bool(REQUIRE_BATCH_SCORING),
@@ -2877,13 +4523,30 @@ def main() -> None:
                             cfg_i = dict(phaseA_cfg)
                             cfg_i["seed"] = int(base_seed + seed_offset)
 
+                            phaseA_evals_base = int(ev3)
                             t_run = time.time()
+                            stage3_phasea_logging_cfg = _stage3_progress_logging(
+                                tier_name=str(tier.name),
+                                text_id=int(text_id),
+                                key_seed=int(key_seed),
+                                phase="phaseA",
+                                phase_steps=int(cfg_i.get("steps", 0) or 0),
+                                phase_start_ts=float(t_run),
+                                heartbeat_seconds=float(STAGE3_HEARTBEAT_SECONDS),
+                                heartbeat_state=stage3_phaseA_hb_state,
+                                min_step=int(STAGE3_HEARTBEAT_MIN_STEP),
+                                min_elapsed_seconds=float(STAGE3_HEARTBEAT_MIN_ELAPSED_SECONDS),
+                                evals_base=int(phaseA_evals_base),
+                                phaseA_done=int(restart_idx),
+                                phaseA_total=int(phaseA_total_runs),
+                            )
                             sol_i = run(
                                 text=ct_idx.tolist(),
                                 cipher=by_name.cipher("periodic_columnar", period=tier.period, columns=tier.columns, order=ORDER, alphabet_size=ALPHABET_SIZE),
                                 key=KeySpec.periodic_columnar(period=tier.period, columns=tier.columns, alphabet_size=ALPHABET_SIZE),
                                 solver=SolverSpec.kaeding(**cfg_i),
-                                scorer_params=scorer_full,
+                                scorer_params=scorer_stage3_phaseA,
+                                logging=stage3_phasea_logging_cfg,
                                 wli_data=[],
                                 encoding_dir=direction,
                                 telemetry_on=True,
@@ -2901,13 +4564,18 @@ def main() -> None:
                             if k_i_arr.size == int(key_len):
                                 end_key_list = k_i_arr.astype(int).tolist()
                             end_hash = _key_hash16(end_key_list)
-                            end_score = float(getattr(sol_i, "score", float("nan")))
+                            end_score_raw = float(getattr(sol_i, "score", float("nan")))
                             end_match = float(base._match_ratio(pt_i.tolist(), pt_idx.tolist())) if pt_i.size > 0 else float("nan")
-                            best_delta = float(end_score - start_score) if np.isfinite(end_score) and np.isfinite(start_score) else float("nan")
 
                             tele_i = (getattr(sol_i, "meta", {}) or {}).get("telemetry", {})
                             kaeding_i = tele_i.get("kaeding", {}) if isinstance(tele_i, dict) else {}
                             mm_i = _extract_kaeding_metrics(kaeding_i)
+                            span_i = _solution_span_counter_summary(sol_i)
+                            stage3_span_phaseA_eval_total += float(span_i["total"])
+                            stage3_span_phaseA_eval_active += float(span_i["active"])
+                            stage3_span_phaseA_eval_skipped += float(span_i["skipped"])
+                            stage3_span_phaseA_seconds_total += float(span_i["seconds_total"])
+                            stage3_span_phaseA_seconds_active += float(span_i["seconds_active"])
 
                             phaseA_rows.append(
                                 dict(
@@ -2915,11 +4583,15 @@ def main() -> None:
                                     seed_offset=int(seed_offset),
                                     start_hash=str(start_hash),
                                     end_hash=str(end_hash),
-                                    start_score=float(start_score),
-                                    end_score=float(end_score),
-                                    best_delta=float(best_delta),
+                                    start_score_search=float(start_score),
+                                    start_score_pct=float("nan"),
+                                    end_score_raw=float(end_score_raw),
+                                    end_score_search=float(end_score_raw),
+                                    end_score_pct=float("nan"),
+                                    best_delta_pct=float("nan"),
                                     end_match=float(end_match),
                                     end_key=list(map(int, end_key_list)),
+                                    start_plaintext=start_pt.astype(int).tolist(),
                                     end_plaintext=pt_i.astype(int).tolist(),
                                     metrics=mm_i,
                                 )
@@ -2929,7 +4601,7 @@ def main() -> None:
                                 print(
                                     f"[pipeline_no_wli] stage3-solve-hit tier={tier.name} text={text_id} "
                                     f"key_seed={key_seed} phase=phaseA restart={int(restart_idx)} "
-                                    f"match={float(end_match):.3f} score={float(end_score):.6f}",
+                                    f"match={float(end_match):.3f} score_raw={float(end_score_raw):.6f}",
                                     flush=True,
                                 )
                                 if not bool(STAGE3_CONTINUE_AFTER_SOLVE):
@@ -2945,9 +4617,10 @@ def main() -> None:
                                     start_hash=str(start_hash),
                                     end_hash=str(end_hash),
                                     start_score=float(start_score),
-                                    end_score=float(end_score),
-                                    score=float(end_score),
-                                    best_delta=float(best_delta),
+                                    end_score_raw=float(end_score_raw),
+                                    end_score_pct=float("nan"),
+                                    score=float("nan"),
+                                    best_delta=float("nan"),
                                     match_ratio=float(end_match),
                                     seconds=round(dt_run, 3),
                                     evals=int(ev_i),
@@ -2960,9 +4633,153 @@ def main() -> None:
                             if phaseA_stop_on_solve:
                                 break
 
-                        phaseA_start_scores = [float(r["start_score"]) for r in phaseA_rows if np.isfinite(float(r["start_score"]))]
-                        phaseA_end_scores = [float(r["end_score"]) for r in phaseA_rows if np.isfinite(float(r["end_score"]))]
-                        phaseA_deltas = [float(r["best_delta"]) for r in phaseA_rows if np.isfinite(float(r["best_delta"]))]
+                        if phaseA_rows:
+                            phaseA_end_plaintexts = [
+                                np.asarray(r.get("end_plaintext", []), dtype=np.uint8).reshape(-1)
+                                for r in phaseA_rows
+                            ]
+                            phaseA_end_scores_search_arr, _phaseA_end_stats = score_plaintexts_chunked(
+                                scorer=scorer_stage3_search_runtime,
+                                plaintexts=phaseA_end_plaintexts,
+                                wli=None,
+                                chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                                require_batch=bool(REQUIRE_BATCH_SCORING),
+                            )
+                            for idx_r, row in enumerate(phaseA_rows):
+                                end_score_search = (
+                                    float(phaseA_end_scores_search_arr[idx_r])
+                                    if idx_r < int(phaseA_end_scores_search_arr.size)
+                                    else float("nan")
+                                )
+                                row["end_score_search"] = float(end_score_search)
+
+                            judge_ranked = sorted(
+                                enumerate(phaseA_rows),
+                                key=lambda it: (
+                                    float(it[1].get("end_score_search", float("-inf"))),
+                                    float(it[1].get("end_match", float("-inf"))),
+                                    float(it[1].get("end_score_raw", float("-inf"))),
+                                    -int(it[1].get("restart_idx", 0)),
+                                ),
+                                reverse=True,
+                            )
+                            judge_pool = list(judge_ranked)
+                            if bool(STAGE3_SPAN_BASIN_JUDGE_DEDUPE_BY_END_HASH):
+                                judge_pool = []
+                                seen_end_hash: set[str] = set()
+                                for row_idx, row in judge_ranked:
+                                    end_hash = str(row.get("end_hash", ""))
+                                    if end_hash in seen_end_hash:
+                                        continue
+                                    seen_end_hash.add(end_hash)
+                                    judge_pool.append((row_idx, row))
+                            stage3_span_basin_judge_k_used = int(
+                                max(0, min(int(stage3_span_basin_judge_k_cfg), len(judge_pool)))
+                            )
+                            judge_idx = [int(idx) for idx, _row in judge_pool[: int(stage3_span_basin_judge_k_used)]]
+                            stage3_basin_judge_unique_end_hash = int(
+                                len({str(phaseA_rows[idx].get("end_hash", "")) for idx in judge_idx})
+                            )
+                            if judge_idx:
+                                judge_end_plaintexts = [
+                                    np.asarray(phaseA_rows[idx].get("end_plaintext", []), dtype=np.uint8).reshape(-1)
+                                    for idx in judge_idx
+                                ]
+                                judge_start_plaintexts = [
+                                    np.asarray(phaseA_rows[idx].get("start_plaintext", []), dtype=np.uint8).reshape(-1)
+                                    for idx in judge_idx
+                                ]
+                                t_span_judge = float(time.time())
+                                for local_idx, row_idx in enumerate(judge_idx):
+                                    span_before = _scorer_span_counter_summary(scorer_basin_judge_runtime)
+                                    judge_end_scores_arr, _judge_end_stats = score_plaintexts_chunked(
+                                        scorer=scorer_basin_judge_runtime,
+                                        plaintexts=[judge_end_plaintexts[local_idx]],
+                                        wli=None,
+                                        chunk_size=1,
+                                        require_batch=bool(REQUIRE_BATCH_SCORING),
+                                    )
+                                    span_after = _scorer_span_counter_summary(scorer_basin_judge_runtime)
+                                    span_delta = _span_counter_delta(before=span_before, after=span_after)
+                                    call_total_i = int(round(float(span_delta.get("total", 0.0))))
+                                    call_active_i = int(round(float(span_delta.get("active", 0.0))))
+                                    call_rejected_i = int(max(0, call_total_i - call_active_i))
+                                    stage3_basin_judge_span_calls_total += int(max(0, call_total_i))
+                                    stage3_basin_judge_span_calls_active += int(max(0, call_active_i))
+                                    stage3_basin_judge_span_calls_rejected_or_gated += int(max(0, call_rejected_i))
+                                    stage3_basin_judge_span_seconds_total += float(
+                                        max(0.0, float(span_delta.get("seconds_total", 0.0)))
+                                    )
+                                    row = phaseA_rows[int(row_idx)]
+                                    end_score_pct = (
+                                        float(judge_end_scores_arr[0])
+                                        if int(judge_end_scores_arr.size) > 0
+                                        else float("nan")
+                                    )
+                                    span_active_for_row = bool(call_total_i > 0 and call_active_i > 0 and call_rejected_i <= 0)
+                                    if bool(STAGE3_SPAN_BASIN_JUDGE_REQUIRE_SPAN_ACTIVE) and (not span_active_for_row):
+                                        end_score_pct = float("-inf")
+                                        if int(call_total_i) <= 0:
+                                            stage3_basin_judge_span_calls_rejected_or_gated += 1
+                                    judge_start_scores_arr, _judge_start_stats = score_plaintexts_chunked(
+                                        scorer=scorer_basin_judge_runtime,
+                                        plaintexts=[judge_start_plaintexts[local_idx]],
+                                        wli=None,
+                                        chunk_size=1,
+                                        require_batch=bool(REQUIRE_BATCH_SCORING),
+                                    )
+                                    start_score_pct = (
+                                        float(judge_start_scores_arr[0])
+                                        if int(judge_start_scores_arr.size) > 0
+                                        else float("nan")
+                                    )
+                                    best_delta_pct = (
+                                        float(end_score_pct - start_score_pct)
+                                        if np.isfinite(end_score_pct) and np.isfinite(start_score_pct)
+                                        else float("nan")
+                                    )
+                                    row["start_score_pct"] = float(start_score_pct)
+                                    row["end_score_pct"] = float(end_score_pct)
+                                    row["best_delta_pct"] = float(best_delta_pct)
+                                    row["basin_judge_span_active"] = int(1 if span_active_for_row else 0)
+                                    row_metrics = row.get("metrics", {})
+                                    if isinstance(row_metrics, dict):
+                                        row_metrics["score_pct"] = float(end_score_pct)
+                                        row_metrics["score_search"] = float(row.get("end_score_search", float("nan")))
+                                        row_metrics["score_raw"] = float(row.get("end_score_raw", float("nan")))
+                                        row_metrics["basin_judge_span_active"] = int(1 if span_active_for_row else 0)
+                                    restart_stage_idx = int(row.get("restart_idx", -1))
+                                    for stage_row in reversed(stages):
+                                        if (
+                                            isinstance(stage_row, dict)
+                                            and str(stage_row.get("stage", "")) == "stage3_phaseA_restart"
+                                            and int(stage_row.get("restart_idx", -2)) == restart_stage_idx
+                                            and int(stage_row.get("text_id", -1)) == int(text_id)
+                                            and int(stage_row.get("key_seed", -1)) == int(key_seed)
+                                        ):
+                                            stage_row["start_score_pct"] = float(start_score_pct)
+                                            stage_row["end_score_pct"] = float(end_score_pct)
+                                            stage_row["score"] = float(end_score_pct)
+                                            stage_row["best_delta"] = float(best_delta_pct)
+                                            stage_row["end_score_search"] = float(row.get("end_score_search", float("nan")))
+                                            stage_row["basin_judge_span_active"] = int(1 if span_active_for_row else 0)
+                                            break
+                                stage3_span_basin_judge_seconds += max(0.0, float(time.time() - t_span_judge))
+                            print(
+                                f"[pipeline_no_wli] stage3-basin-judge tier={tier.name} text={text_id} key_seed={key_seed} "
+                                f"k={int(stage3_span_basin_judge_k_used)}/{int(stage3_span_basin_judge_k_cfg)} "
+                                f"basin_judge_unique_end_hash={int(stage3_basin_judge_unique_end_hash)} "
+                                f"basin_judge_span_calls_total={int(stage3_basin_judge_span_calls_total)} "
+                                f"basin_judge_span_calls_active={int(stage3_basin_judge_span_calls_active)} "
+                                f"basin_judge_span_calls_rejected_or_gated={int(stage3_basin_judge_span_calls_rejected_or_gated)} "
+                                f"basin_judge_span_seconds_total={float(stage3_basin_judge_span_seconds_total):.3f} "
+                                f"span_judge_wall_s={float(stage3_span_basin_judge_seconds):.3f}",
+                                flush=True,
+                            )
+
+                        phaseA_start_scores = [float(r["start_score_pct"]) for r in phaseA_rows if np.isfinite(float(r.get("start_score_pct", float("nan"))))]
+                        phaseA_end_scores = [float(r["end_score_pct"]) for r in phaseA_rows if np.isfinite(float(r["end_score_pct"]))]
+                        phaseA_deltas = [float(r["best_delta_pct"]) for r in phaseA_rows if np.isfinite(float(r["best_delta_pct"]))]
                         phaseA_best_start_score = float(max(phaseA_start_scores)) if phaseA_start_scores else float("nan")
                         phaseA_best_end_score = float(max(phaseA_end_scores)) if phaseA_end_scores else float("nan")
                         phaseA_best_delta = float(max(phaseA_deltas)) if phaseA_deltas else float("nan")
@@ -2971,23 +4788,16 @@ def main() -> None:
                         if phaseA_rows:
                             phaseA_best = phaseA_rows[0]
                             for row in phaseA_rows[1:]:
-                                if bool(ORACLE_ASSIST_SELECTION):
-                                    better_phasea = _is_better_match_first(
-                                        float(row.get("end_match", float("nan"))),
-                                        float(row.get("end_score", float("nan"))),
-                                        float(phaseA_best.get("end_match", float("nan"))),
-                                        float(phaseA_best.get("end_score", float("nan"))),
-                                    )
-                                else:
-                                    better_phasea = _is_better_score_first(
-                                        float(row.get("end_score", float("nan"))),
-                                        float(row.get("end_match", float("nan"))),
-                                        float(phaseA_best.get("end_score", float("nan"))),
-                                        float(phaseA_best.get("end_match", float("nan"))),
-                                    )
+                                better_phasea = _is_better_stage3_candidate_preserving_solve(
+                                    float(row.get("end_score_pct", float("nan"))),
+                                    float(row.get("end_match", float("nan"))),
+                                    float(phaseA_best.get("end_score_pct", float("nan"))),
+                                    float(phaseA_best.get("end_match", float("nan"))),
+                                    score_first=(not bool(ORACLE_ASSIST_SELECTION)),
+                                )
                                 if better_phasea:
                                     phaseA_best = row
-                            best3_score = float(phaseA_best["end_score"])
+                            best3_score = float(phaseA_best["end_score_pct"])
                             best3_match = float(phaseA_best["end_match"]) if np.isfinite(float(phaseA_best["end_match"])) else float("nan")
                             best3_key = list(map(int, phaseA_best["end_key"]))
                             pt3 = np.asarray(phaseA_best["end_plaintext"], dtype=np.uint8).reshape(-1)
@@ -3003,7 +4813,10 @@ def main() -> None:
 
                         gate_delta = float(stage3_phaseB_gate_delta)
                         gate_end_gain = float(stage3_phaseB_gate_end_gain)
-                        gate_skip = bool(phaseA_solved)
+                        phaseB_forced_skip_reason = "scan_phaseA_only" if bool(stage3_scan_phaseA_only) else ""
+                        gate_skip = bool(stage3_scan_phaseA_only)
+                        if not gate_skip:
+                            gate_skip = bool(phaseA_solved)
                         if not gate_skip:
                             gate_skip = (
                                 np.isfinite(phaseA_best_delta)
@@ -3018,28 +4831,61 @@ def main() -> None:
                                 text_id=int(text_id),
                                 key_seed=int(key_seed),
                                 stage="stage3_phaseB_gate",
+                                phaseA_experiment=str(stage3_phaseA_experiment),
+                                phaseB_experiment=str(stage3_phaseB_experiment),
                                 phaseA_best_delta=float(phaseA_best_delta),
                                 phaseA_best_start_score=float(phaseA_best_start_score),
                                 phaseA_best_end_score=float(phaseA_best_end_score),
+                                phaseA_best_end_score_raw=(
+                                    float(max([float(r.get("end_score_raw", float("nan"))) for r in phaseA_rows if np.isfinite(float(r.get("end_score_raw", float("nan"))))]))
+                                    if phaseA_rows
+                                    else float("nan")
+                                ),
                                 phaseA_solved=int(1 if phaseA_solved else 0),
                                 gate_delta_floor=float(gate_delta),
                                 gate_end_gain_floor=float(gate_end_gain),
                                 phaseB_skipped=int(1 if gate_skip else 0),
                                 phaseB_top_n=int(stage3_phaseB_top_n),
+                                span_basin_judge_k_cfg=int(stage3_span_basin_judge_k_cfg),
+                                span_basin_judge_k=int(stage3_span_basin_judge_k_used),
+                                span_basin_judge_seconds=float(stage3_span_basin_judge_seconds),
+                                basin_judge_span_calls_total=int(stage3_basin_judge_span_calls_total),
+                                basin_judge_span_calls_active=int(stage3_basin_judge_span_calls_active),
+                                basin_judge_span_calls_rejected_or_gated=int(stage3_basin_judge_span_calls_rejected_or_gated),
+                                basin_judge_span_seconds_total=float(stage3_basin_judge_span_seconds_total),
+                                basin_judge_unique_end_hash=int(stage3_basin_judge_unique_end_hash),
+                                phaseB_char_pct_min_dynamic=float(stage3_phaseB_char_pct_min_dynamic),
+                                phaseB_char_pct_min_source=str(stage3_phaseB_char_pct_min_source),
+                                scan_phaseA_only=int(1 if bool(stage3_scan_phaseA_only) else 0),
                             )
                         )
 
                         if gate_skip:
                             phaseB_skipped = 1
-                            phaseB_skip_reason = "phaseA_solved" if phaseA_solved else "phaseA_low_progress"
-                            stop_reason = "solved_stage3" if phaseA_solved else "stage3_phaseb_skipped"
+                            if bool(phaseB_forced_skip_reason):
+                                phaseB_skip_reason = str(phaseB_forced_skip_reason)
+                                stop_reason = "stage3_phaseb_skipped_scan_phaseA_only"
+                            else:
+                                phaseB_skip_reason = "phaseA_solved" if phaseA_solved else "phaseA_low_progress"
+                                stop_reason = "solved_stage3" if phaseA_solved else "stage3_phaseb_skipped"
+                            print(
+                                f"[pipeline_no_wli] stage3-phaseB-gate tier={tier.name} text={text_id} key_seed={key_seed} "
+                                f"start_pct={_fmt_finite_float(phaseA_best_start_score)} "
+                                f"end_pct={_fmt_finite_float(phaseA_best_end_score)} "
+                                f"delta_pct={_fmt_finite_float(phaseA_best_delta)} "
+                                f"gate=(delta>={float(gate_delta):.4f},end_gain>={float(gate_end_gain):.4f}) "
+                                f"phaseB_skipped=1 reason={phaseB_skip_reason} top_n={int(stage3_phaseB_top_n)}",
+                                flush=True,
+                            )
+                            _append_stage3_topk_from_phasea(phaseA_rows)
                         else:
                             top_n = max(1, int(stage3_phaseB_top_n))
                             ranked = sorted(
                                 phaseA_rows,
                                 key=lambda r: (
-                                    float(r["end_score"]),
-                                    float(r["best_delta"]) if np.isfinite(float(r["best_delta"])) else float("-inf"),
+                                    float(r.get("end_score_pct", float("-inf"))),
+                                    float(r.get("best_delta_pct", float("-inf"))),
+                                    float(r.get("end_score_raw", float("-inf"))),
                                     -int(r["restart_idx"]),
                                 ),
                                 reverse=True,
@@ -3052,12 +4898,46 @@ def main() -> None:
                                     continue
                                 seen_basin.add(basin_id)
                                 selected.append(row)
-                                if len(selected) >= top_n:
-                                    break
                             if not selected and ranked:
                                 selected = [ranked[0]]
+                            selected_top_n = list(selected[:top_n])
+                            tie_eps = float(max(0.0, float(STAGE3_SPAN_BASIN_JUDGE_TIE_EPS)))
+                            tie_cap = int(max(int(top_n), int(STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS)))
+                            tie_band: List[Dict[str, Any]] = []
+                            if selected and np.isfinite(float(selected[0].get("end_score_pct", float("nan")))):
+                                top_score = float(selected[0].get("end_score_pct", float("nan")))
+                                for row in selected:
+                                    row_score = float(row.get("end_score_pct", float("nan")))
+                                    if not np.isfinite(row_score):
+                                        continue
+                                    if float(top_score - row_score) <= float(tie_eps):
+                                        tie_band.append(row)
+                            selected = list(selected_top_n)
+                            phaseB_ready_reason = "passed"
+                            if len(tie_band) > len(selected_top_n):
+                                selected = list(tie_band[:tie_cap])
+                                phaseB_ready_reason = (
+                                    f"tie_band_eps={float(tie_eps):.4f}_"
+                                    f"n={int(len(tie_band))}_cap={int(tie_cap)}"
+                                )
                             phaseB_top_n_used = int(len(selected))
                             phaseB_ran = int(1 if selected else 0)
+                            if (not selected) and bool(selected_top_n):
+                                selected = [selected_top_n[0]]
+                                phaseB_top_n_used = int(len(selected))
+                                phaseB_ran = 1
+                                phaseB_ready_reason = "fallback_top1"
+                            elif not selected:
+                                phaseB_ready_reason = "selected_empty"
+                            print(
+                                f"[pipeline_no_wli] stage3-phaseB-gate tier={tier.name} text={text_id} key_seed={key_seed} "
+                                f"start_pct={_fmt_finite_float(phaseA_best_start_score)} "
+                                f"end_pct={_fmt_finite_float(phaseA_best_end_score)} "
+                                f"delta_pct={_fmt_finite_float(phaseA_best_delta)} "
+                                f"gate=(delta>={float(gate_delta):.4f},end_gain>={float(gate_end_gain):.4f}) "
+                                f"phaseB_ran={int(phaseB_ran)} reason={phaseB_ready_reason} top_n={int(phaseB_top_n_used)}",
+                                flush=True,
+                            )
                             if selected:
                                 phaseB_init = [list(map(int, row["end_key"])) for row in selected]
                                 phaseB_cfg = dict(solver_stage3_cfg)
@@ -3066,12 +4946,26 @@ def main() -> None:
                                 phaseB_cfg["seed_restarts"] = 0
                                 phaseB_cfg["seed"] = int(base_seed + 900001)
                                 t_run = time.time()
+                                stage3_phaseb_logging_cfg = _stage3_progress_logging(
+                                    tier_name=str(tier.name),
+                                    text_id=int(text_id),
+                                    key_seed=int(key_seed),
+                                    phase="phaseB",
+                                    phase_steps=int(phaseB_cfg.get("steps", 0) or 0),
+                                    phase_start_ts=float(t_run),
+                                    heartbeat_seconds=float(STAGE3_HEARTBEAT_SECONDS),
+                                    heartbeat_state=stage3_hb_state,
+                                    min_step=int(STAGE3_HEARTBEAT_MIN_STEP),
+                                    min_elapsed_seconds=float(STAGE3_HEARTBEAT_MIN_ELAPSED_SECONDS),
+                                    evals_base=int(ev3),
+                                )
                                 sol_b = run(
                                     text=ct_idx.tolist(),
                                     cipher=by_name.cipher("periodic_columnar", period=tier.period, columns=tier.columns, order=ORDER, alphabet_size=ALPHABET_SIZE),
                                     key=KeySpec.periodic_columnar(period=tier.period, columns=tier.columns, alphabet_size=ALPHABET_SIZE),
                                     solver=SolverSpec.kaeding(**phaseB_cfg),
-                                    scorer_params=scorer_full,
+                                    scorer_params=scorer_stage3_phaseB,
+                                    logging=stage3_phaseb_logging_cfg,
                                     wli_data=[],
                                     encoding_dir=direction,
                                     telemetry_on=True,
@@ -3089,6 +4983,16 @@ def main() -> None:
                                 if k_b_arr.size == int(key_len):
                                     best_b_key = k_b_arr.astype(int).tolist()
                                 best_b_score = float(getattr(sol_b, "score", float("nan")))
+                                if pt_b.size > 0:
+                                    _judge_b_arr, _judge_b_stats = score_plaintexts_chunked(
+                                        scorer=scorer_full_runtime,
+                                        plaintexts=[pt_b],
+                                        wli=None,
+                                        chunk_size=int(BATCH_EVAL_CHUNK_SIZE),
+                                        require_batch=bool(REQUIRE_BATCH_SCORING),
+                                    )
+                                    if _judge_b_arr.size > 0:
+                                        best_b_score = float(_judge_b_arr[0])
                                 best_b_match = float(base._match_ratio(pt_b.tolist(), pt_idx.tolist())) if pt_b.size > 0 else float("nan")
                                 if np.isfinite(best_b_match) and float(best_b_match) >= float(SOLVE_MATCH_THRESHOLD):
                                     stage3_solve_hits = int(stage3_solve_hits) + 1
@@ -3101,6 +5005,12 @@ def main() -> None:
                                 tele_b = (getattr(sol_b, "meta", {}) or {}).get("telemetry", {})
                                 kaeding_b = tele_b.get("kaeding", {}) if isinstance(tele_b, dict) else {}
                                 mm_b = _extract_kaeding_metrics(kaeding_b)
+                                span_b = _solution_span_counter_summary(sol_b)
+                                stage3_span_full_eval_total += float(span_b["total"])
+                                stage3_span_full_eval_active += float(span_b["active"])
+                                stage3_span_full_eval_skipped += float(span_b["skipped"])
+                                stage3_span_full_seconds_total += float(span_b["seconds_total"])
+                                stage3_span_full_seconds_active += float(span_b["seconds_active"])
 
                                 stages.append(
                                     dict(
@@ -3123,10 +5033,13 @@ def main() -> None:
                                     )
                                 )
 
-                                if bool(ORACLE_ASSIST_SELECTION):
-                                    better_phaseb = _is_better_match_first(best_b_match, best_b_score, best3_match, best3_score)
-                                else:
-                                    better_phaseb = _is_better_score_first(best_b_score, best_b_match, best3_score, best3_match)
+                                better_phaseb = _is_better_stage3_candidate_preserving_solve(
+                                    float(best_b_score),
+                                    float(best_b_match),
+                                    float(best3_score),
+                                    float(best3_match),
+                                    score_first=(not bool(ORACLE_ASSIST_SELECTION)),
+                                )
                                 if better_phaseb:
                                     best3_score = float(best_b_score)
                                     best3_match = float(best_b_match)
@@ -3140,15 +5053,17 @@ def main() -> None:
                                     phase_improves_total = int(mm_b["phase_improves_total"])
                                     phase_best_delta_max = float(mm_b["phase_best_delta_max"])
                                 _append_stage3_topk(kaeding_b)
-                    stages.append(
-                        dict(
-                            tier=tier.name,
-                            text_id=int(text_id),
-                            key_seed=int(key_seed),
-                            stage="stage3_full_refine",
-                            score=float(best3_score),
-                            match_ratio=float(best3_match),
-                            seconds=round(dt3, 3),
+                        stages.append(
+                            dict(
+                                tier=tier.name,
+                                text_id=int(text_id),
+                                key_seed=int(key_seed),
+                                stage="stage3_full_refine",
+                                phaseA_experiment=str(stage3_phaseA_experiment),
+                                phaseB_experiment=str(stage3_phaseB_experiment),
+                                score=float(best3_score),
+                                match_ratio=float(best3_match),
+                                seconds=round(dt3, 3),
                             evals=ev3,
                             stage3_band=stage3_band_name,
                             stage2_gap_to_oracle=float(stage2_gap_to_oracle),
@@ -3167,6 +5082,14 @@ def main() -> None:
                             phaseB_skipped=int(phaseB_skipped),
                             phaseB_skip_reason=str(phaseB_skip_reason),
                             phaseB_top_n_used=int(phaseB_top_n_used),
+                            span_basin_judge_k=int(stage3_span_basin_judge_k_used),
+                            span_basin_judge_k_cfg=int(stage3_span_basin_judge_k_cfg),
+                            span_basin_judge_seconds=float(stage3_span_basin_judge_seconds),
+                            basin_judge_span_calls_total=int(stage3_basin_judge_span_calls_total),
+                            basin_judge_span_calls_active=int(stage3_basin_judge_span_calls_active),
+                            basin_judge_span_calls_rejected_or_gated=int(stage3_basin_judge_span_calls_rejected_or_gated),
+                            basin_judge_span_seconds_total=float(stage3_basin_judge_span_seconds_total),
+                            basin_judge_unique_end_hash=int(stage3_basin_judge_unique_end_hash),
                         )
                     )
                     if pt3.size > 0:
@@ -3184,12 +5107,46 @@ def main() -> None:
                         f"[pipeline_no_wli] stage3-summary tier={tier.name} text={text_id} key_seed={key_seed} "
                         f"band={stage3_band_name} match={float(best3_match):.3f} score={float(best3_score):.6f} "
                         f"evals={ev3} two_phase={'on' if bool(STAGE3_TWO_PHASE_ENABLED) else 'off'} "
+                        f"phaseA_experiment={str(stage3_phaseA_experiment)} "
+                        f"phaseB_experiment={str(stage3_phaseB_experiment)} "
                         f"phaseB_ran={int(phaseB_ran)} phaseB_skipped={int(phaseB_skipped)} "
+                        f"span_basin_judge_k={int(stage3_span_basin_judge_k_used)} "
+                        f"span_basin_judge_s={float(stage3_span_basin_judge_seconds):.3f} "
+                        f"basin_judge_span_calls_total={int(stage3_basin_judge_span_calls_total)} "
+                        f"basin_judge_span_calls_active={int(stage3_basin_judge_span_calls_active)} "
+                        f"basin_judge_span_calls_rejected_or_gated={int(stage3_basin_judge_span_calls_rejected_or_gated)} "
                         f"solve_hits={int(stage3_solve_hits)} stop={stop_reason}",
                         flush=True,
                     )
                 else:
                     stop_reason = "no_stage2_candidate"
+
+                stage3_span_eval_total = float(stage3_span_phaseA_eval_total + stage3_span_full_eval_total)
+                stage3_span_eval_active = float(stage3_span_phaseA_eval_active + stage3_span_full_eval_active)
+                stage3_span_eval_skipped = float(stage3_span_phaseA_eval_skipped + stage3_span_full_eval_skipped)
+                stage3_span_seconds_total = float(stage3_span_phaseA_seconds_total + stage3_span_full_seconds_total)
+                stage3_span_seconds_active = float(stage3_span_phaseA_seconds_active + stage3_span_full_seconds_active)
+                if stage3_span_eval_total > 0.0:
+                    stage3_span_active_rate = float(stage3_span_eval_active / stage3_span_eval_total)
+                    stage3_span_active_rate_source = "solver_run_telemetry"
+                else:
+                    stage3_span_active_rate = 0.0
+                    stage3_span_active_rate_source = "solver_run_telemetry_zero_total"
+                print(
+                    f"[pipeline_no_wli] stage3-span tier={tier.name} text={text_id} key_seed={key_seed} "
+                    f"active={int(round(stage3_span_eval_active))}/{int(round(stage3_span_eval_total))} "
+                    f"skipped={int(round(stage3_span_eval_skipped))} "
+                    f"active_rate={float(stage3_span_active_rate):.3f} "
+                    f"span_seconds={float(stage3_span_seconds_total):.3f} "
+                    f"phaseA_calls={int(round(stage3_span_phaseA_eval_total))} "
+                    f"full_calls={int(round(stage3_span_full_eval_total))} "
+                    f"phaseA_basins_judged_by_span={int(stage3_span_basin_judge_k_used)} "
+                    f"span_judge_time_s={float(stage3_span_basin_judge_seconds):.3f} "
+                    f"basin_judge_span_calls_total={int(stage3_basin_judge_span_calls_total)} "
+                    f"basin_judge_span_calls_active={int(stage3_basin_judge_span_calls_active)} "
+                    f"basin_judge_span_calls_rejected_or_gated={int(stage3_basin_judge_span_calls_rejected_or_gated)}",
+                    flush=True,
+                )
 
                 best_match = max(float(best2_match if np.isfinite(best2_match) else 0.0), float(best3_match if np.isfinite(best3_match) else 0.0))
                 best_stage = "stage3_full_refine" if np.isfinite(best3_match) and best3_match >= best2_match else "stage2_search"
@@ -3233,16 +5190,24 @@ def main() -> None:
                         stage3_match_ratio=float(best3_match if np.isfinite(best3_match) else np.nan),
                         stage2_gap_to_oracle=float(stage2_gap_to_oracle),
                         stage3_band=str(stage3_band_name),
+                        basin_judge_span_calls_total=int(stage3_basin_judge_span_calls_total),
+                        basin_judge_span_calls_active=int(stage3_basin_judge_span_calls_active),
+                        basin_judge_span_calls_rejected_or_gated=int(stage3_basin_judge_span_calls_rejected_or_gated),
+                        basin_judge_span_seconds_total=float(stage3_basin_judge_span_seconds_total),
+                        basin_judge_unique_end_hash=int(stage3_basin_judge_unique_end_hash),
                         total_seconds=round(dt_i, 3),
                         total_evals=total_evals,
                         preview_best_latin=str(preview_best),
                     )
                 )
                 inst_row = dict(instances[-1])
+                outcome_code = _derive_outcome_code(status=status, stop_reason=stop_reason)
+                inst_row["outcome_code"] = str(outcome_code)
+                instances[-1]["outcome_code"] = str(outcome_code)
                 artifact_payload: Dict[str, Any] = dict(
                     tier=str(tier.name),
                     profile_id=str(PROFILE),
-                    mode=str(PIPELINE_RUN_MODE),
+                    mode=str(_canonical_run_mode(PIPELINE_RUN_MODE)),
                     direction=str(direction.value),
                     order=str(ORDER),
                     alphabet_size=int(ALPHABET_SIZE),
@@ -3255,6 +5220,7 @@ def main() -> None:
                     length=int(tier.length),
                     status=str(status),
                     stop_reason=str(stop_reason),
+                    outcome_code=str(outcome_code),
                     best_stage=str(best_stage),
                     best_match_ratio=float(best_match),
                     best_score=float(final_best_score),
@@ -3301,6 +5267,8 @@ def main() -> None:
                     ),
                     stage3_topk=(stage3_topk_payload if bool(SAVE_STAGE3_TOPK) else []),
                     stage3_diagnostics=dict(
+                        phaseA_experiment=str(stage3_phaseA_experiment),
+                        phaseB_experiment=str(stage3_phaseB_experiment),
                         init_target=int(stage3_init_target),
                         init_actual=int(stage3_init_actual),
                         promoted_keys=int(stage3_promoted_keys_count),
@@ -3317,12 +5285,46 @@ def main() -> None:
                         phaseB_skipped=int(phaseB_skipped) if "phaseB_skipped" in locals() else 0,
                         phaseB_top_n_used=int(phaseB_top_n_used) if "phaseB_top_n_used" in locals() else 0,
                         phaseB_skip_reason=str(phaseB_skip_reason) if "phaseB_skip_reason" in locals() else "",
+                        phaseB_char_pct_min_dynamic=float(stage3_phaseB_char_pct_min_dynamic),
+                        phaseB_char_pct_min_source=str(stage3_phaseB_char_pct_min_source),
+                        span_basin_judge_k_cfg=int(stage3_span_basin_judge_k_cfg),
+                        span_basin_judge_k=int(stage3_span_basin_judge_k_used),
+                        span_basin_judge_seconds=float(stage3_span_basin_judge_seconds),
+                        basin_judge_span_calls_total=int(stage3_basin_judge_span_calls_total),
+                        basin_judge_span_calls_active=int(stage3_basin_judge_span_calls_active),
+                        basin_judge_span_calls_rejected_or_gated=int(stage3_basin_judge_span_calls_rejected_or_gated),
+                        basin_judge_span_seconds_total=float(stage3_basin_judge_span_seconds_total),
+                        basin_judge_unique_end_hash=int(stage3_basin_judge_unique_end_hash),
+                        scan_stage3_gate_low_match=float(SCAN_STAGE3_GATE_LOW_MATCH),
+                        scan_stage3_gate_high_match=float(max(float(SCAN_STAGE3_GATE_LOW_MATCH), float(SCAN_STAGE3_GATE_HIGH_MATCH))),
+                        scan_phaseA_only=int(1 if bool(stage3_scan_phaseA_only) else 0),
+                        span_active_rate=float(stage3_span_active_rate),
+                        span_active_rate_source=str(stage3_span_active_rate_source),
+                        span_eval_total=float(stage3_span_eval_total),
+                        span_eval_active=float(stage3_span_eval_active),
+                        span_eval_skipped_char_gate=float(stage3_span_eval_skipped),
+                        span_calls_total=int(round(stage3_span_eval_total)),
+                        span_calls_active=int(round(stage3_span_eval_active)),
+                        span_calls_skipped_char_gate=int(round(stage3_span_eval_skipped)),
+                        span_seconds_total=float(stage3_span_seconds_total),
+                        span_seconds_active=float(stage3_span_seconds_active),
+                        span_phaseA_eval_total=float(stage3_span_phaseA_eval_total),
+                        span_phaseA_eval_active=float(stage3_span_phaseA_eval_active),
+                        span_phaseA_eval_skipped_char_gate=float(stage3_span_phaseA_eval_skipped),
+                        span_phaseA_seconds_total=float(stage3_span_phaseA_seconds_total),
+                        span_phaseA_seconds_active=float(stage3_span_phaseA_seconds_active),
+                        span_full_eval_total=float(stage3_span_full_eval_total),
+                        span_full_eval_active=float(stage3_span_full_eval_active),
+                        span_full_eval_skipped_char_gate=float(stage3_span_full_eval_skipped),
+                        span_full_seconds_total=float(stage3_span_full_seconds_total),
+                        span_full_seconds_active=float(stage3_span_full_seconds_active),
                         stage3_eval_count=int(ev3),
                         c1_focus=int(1 if (int(tier.columns) <= 1 and bool(STAGE3_C1_FOCUS_ENABLED)) else 0),
                     ),
                 )
                 artifact_name = f"{tier.name}__text{int(text_id)}__seed{int(key_seed)}.json"
-                write_json(final_dir / artifact_name, artifact_payload)
+                artifact_path = final_dir / artifact_name
+                write_json(artifact_path, artifact_payload)
 
                 # Per-instance checkpoint (crash-safe): preserve completed units immediately.
                 summary_ckpt = _build_summary(TIERS, instances)
@@ -3344,6 +5346,7 @@ def main() -> None:
                     columns=inst_row["columns"],
                     length=inst_row["length"],
                     status=inst_row["status"],
+                    outcome_code=inst_row["outcome_code"],
                     solve_threshold=inst_row["solve_threshold"],
                     best_match_ratio=inst_row["best_match_ratio"],
                     best_stage=inst_row["best_stage"],
@@ -3354,13 +5357,38 @@ def main() -> None:
                     total_evals=inst_row["total_evals"],
                     notes=inst_row["stop_reason"],
                 )
-                _append_csv_row_common(hist, hist_row, merge_fieldnames=True)
+                _append_csv_row(hist, hist_row)
                 history_rows_written += 1
+                if bool(AUDIT_HASH_CHAIN_ENABLED):
+                    audit_prev_chain_hash = _append_iteration_audit_row(
+                        audit_csv=audit_csv,
+                        audit_jsonl=audit_jsonl,
+                        prev_chain_hash=str(audit_prev_chain_hash),
+                        payload=dict(
+                            timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                            iteration_index=int(done + 1),
+                            run_id=str(run_dir.name),
+                            fixture_id=str(inst_row["tier"]),
+                            text_id=int(inst_row["text_id"]),
+                            key_seed=int(inst_row["key_seed"]),
+                            status=str(inst_row["status"]),
+                            best_stage=str(inst_row["best_stage"]),
+                            best_match_ratio=float(inst_row["best_match_ratio"]),
+                            stop_reason=str(inst_row["stop_reason"]),
+                            total_seconds=float(inst_row["total_seconds"]),
+                            total_evals=int(inst_row["total_evals"]),
+                            history_row_hash=str(_hash_payload(hist_row)),
+                            artifact_relpath=str(artifact_path.relative_to(root)),
+                            artifact_sha256=str(_sha256_file(artifact_path)),
+                        ),
+                    )
+                    audit_rows_written += 1
 
                 if best_match > float(best_global["match"]):
                     best_global.update(match=float(best_match), tier=str(tier.name), text_id=int(text_id), key_seed=int(key_seed), stage=str(best_stage), preview=str(preview_best))
 
                 done += 1
+                _checkpoint_manifest(status_key=str(status))
                 elapsed = time.time() - t0_all
                 eta = (elapsed / float(done)) * float(total - done) if done else 0.0
                 print(
@@ -3394,11 +5422,40 @@ def main() -> None:
         write_json(best_dir / "best_instance.json", best_instance)
         (best_dir / "best_preview.txt").write_text(str(best_instance.get("preview_best_latin", "")), encoding="utf-8")
 
-    print(f"[pipeline_no_wli] completed in {base._format_seconds(time.time() - t0_all)}", flush=True)
+    elapsed_total = float(time.time() - t0_all)
+    run_manifest["run_status"] = "completed"
+    run_manifest["updated_utc"] = datetime.now(timezone.utc).isoformat()
+    run_manifest["completed_utc"] = datetime.now(timezone.utc).isoformat()
+    run_manifest["elapsed_seconds"] = float(elapsed_total)
+    run_manifest["artifacts"] = dict(
+        summary_sha256=(_sha256_file(run_dir / "summary.json") if (run_dir / "summary.json").exists() else ""),
+        instances_sha256=(_sha256_file(run_dir / "instances.json") if (run_dir / "instances.json").exists() else ""),
+        stages_sha256=(_sha256_file(run_dir / "stages.json") if (run_dir / "stages.json").exists() else ""),
+    )
+    run_manifest["progress"] = dict(
+        total_units=int(total),
+        done_units=int(done),
+        solved=int(status_counts.get("solved", 0)),
+        stalled=int(status_counts.get("stalled", 0)),
+        unsolved=int(status_counts.get("unsolved", 0)),
+        skipped_proven=int(status_counts.get("skipped_proven", 0)),
+        history_rows_written=int(history_rows_written),
+        audit_rows_written=int(audit_rows_written),
+        audit_last_chain_hash=str(audit_prev_chain_hash),
+    )
+    write_json(run_manifest_path, run_manifest)
+
+    print(f"[pipeline_no_wli] completed in {base._format_seconds(elapsed_total)}", flush=True)
     print(f"[pipeline_no_wli] reports: {run_dir.relative_to(root)}", flush=True)
     print(f"[pipeline_no_wli] final_artifacts: {final_dir.relative_to(root)}", flush=True)
+    print(f"[pipeline_no_wli] manifest: {run_manifest_path.relative_to(root)}", flush=True)
     print(f"[pipeline_no_wli] best: {(best_dir / 'best_instance.json').relative_to(root)}", flush=True)
     print(f"[pipeline_no_wli] history: {hist.relative_to(root)} rows={int(history_rows_written)}", flush=True)
+    print(
+        f"[pipeline_no_wli] audit_chain: rows={int(audit_rows_written)} "
+        f"last_chain_hash={str(audit_prev_chain_hash)}",
+        flush=True,
+    )
 
 
 if __name__ == "__main__":
