@@ -378,7 +378,7 @@ def configure_campaign_run(
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return _ROOT
 
 
 def _git_short() -> str:

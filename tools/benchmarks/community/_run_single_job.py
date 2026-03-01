@@ -10,8 +10,18 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Dict
 
-if __package__ in (None, ""):
-    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_SRC_ROOT = _REPO_ROOT / "src"
+
+
+def _ensure_repo_import_paths() -> None:
+    for path in (_REPO_ROOT, _SRC_ROOT):
+        text = str(path)
+        if text not in sys.path:
+            sys.path.insert(0, text)
+
+
+_ensure_repo_import_paths()
 
 from tools.benchmarks.community._campaign_common import load_json, write_json
 from tools.benchmarks.community.config import (

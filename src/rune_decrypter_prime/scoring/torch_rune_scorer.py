@@ -1509,8 +1509,8 @@ class RuneScorerTorch(BaseScorer):
         return stat_penalized_vec
 
     def _apply_span_hamming_bonus_batch(self, scores: np.ndarray, pt_b: np.ndarray) -> np.ndarray:
-        backend = self._span_hamming_backend
-        weight = float(self._span_hamming_weight)
+        backend = getattr(self, "_span_hamming_backend", None)
+        weight = float(getattr(self, "_span_hamming_weight", 0.0))
         if backend is None or weight == 0.0:
             return scores
         if pt_b.ndim != 2 or scores.ndim != 1:

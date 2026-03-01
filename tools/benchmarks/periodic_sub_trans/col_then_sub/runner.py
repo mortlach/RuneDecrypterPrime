@@ -698,7 +698,8 @@ def configure_campaign_run(
     del scorer_stage3_impl_avg_fulltext
 
     global AUTOSKIP_PROVEN, FORCE_RERUN_PROVEN, AVOID_REPEAT_FAIL
-    global TIERS_REGEX_OVERRIDE, KEY_SEEDS_OVERRIDE, KEY_SEEDS, TEXT_OFFSETS
+    global TIERS_REGEX_OVERRIDE, TIERS_PERIOD_SWEEP, TIERS_MIN_COLUMNS
+    global KEY_SEEDS_OVERRIDE, KEY_SEEDS, TEXT_OFFSETS
     global PIPELINE_RUN_MODE, PROFILE, HEARTBEAT_SECONDS, TIERS
 
     AUTOSKIP_PROVEN = bool(autoskip_proven)
@@ -709,6 +710,10 @@ def configure_campaign_run(
         if tiers_regex_override is None or str(tiers_regex_override).strip() == ""
         else str(tiers_regex_override)
     )
+    # Campaign jobs pin one explicit (period, columns, length) tier.
+    # Disable local sweep/min-column filters so non-p10 cells are not dropped.
+    TIERS_PERIOD_SWEEP = "none"
+    TIERS_MIN_COLUMNS = None
     KEY_SEEDS_OVERRIDE = [int(run_seed)]
     KEY_SEEDS = [int(run_seed)]
     TEXT_OFFSETS = [int(x) for x in text_offsets]

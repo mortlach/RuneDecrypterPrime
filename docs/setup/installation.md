@@ -17,7 +17,10 @@ The bootstrap script handles:
 1. Virtual environment creation/use.
 2. Target dependency installation.
 3. Editable package install (`pip install -e .`).
-4. Setup + preflight for community benchmark readiness.
+4. Setup + preflight for community benchmark readiness:
+   - recombine packed assets,
+   - rebuild missing split LM joint tables (`*_part*.npz` -> `.bin.zst`) when needed,
+   - verify/build native extensions (`_fastlm`, `_hamming`).
 
 ## Prerequisites
 

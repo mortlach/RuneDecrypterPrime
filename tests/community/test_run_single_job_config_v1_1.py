@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
+import sys
 
 import pytest
 
@@ -137,6 +138,12 @@ def test_configure_module_for_campaign_disables_autoskip_and_applies_profile():
     assert module.TIERS[0].length == 1234
     assert module._cfg["tier_name"] == "community_col_then_sub_p10_c7_l1234"
     assert module._cfg["run_mode"] == "full"
+
+
+def test_run_single_job_helper_adds_src_import_path():
+    repo_root = Path(rsj.__file__).resolve().parents[3]
+    src_root = repo_root / "src"
+    assert str(src_root) in sys.path
 
 
 def test_configure_module_for_campaign_forces_numpy_scorer_impl():

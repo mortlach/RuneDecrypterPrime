@@ -24,9 +24,11 @@ What this does:
 2. Installs target-specific dependencies.
 3. Installs the repo in editable mode.
 4. Runs setup + preflight:
-   - recombine assets from `assets_packed/` into `assets/`
+   - recombine manifest assets from `assets_packed/` into `assets/`
+   - rebuild missing split LM joint tables (`*_part*.npz` -> `.bin.zst`) when available
    - build/verify `_fastlm`
-   - run CPU compliance checks
+   - build/verify `_hamming`
+   - run CPU preflight checks
    - write `benchmark_ready.json` on success
 
 Output artefacts:
@@ -41,10 +43,10 @@ python install.py --target runner --run-canary
 
 ## Install Targets
 
-- `runner`: shard execution contributors.
-- `organiser`: run-bundle validate/combine/aggregate.
-- `dev`: full development environment.
-- `ci-smoke`: lightweight CI checks.
+- `runner`: run community benchmark shards.
+- `organiser`: validate/combine/aggregate run bundles.
+- `dev`: local development (tests/lint/hooks).
+- `ci-smoke`: minimal CI smoke stack.
 
 Target requirement files live under `requirements/targets/`.
 
@@ -56,7 +58,7 @@ Use any of the thin wrappers if preferred:
 - `install.sh`
 - `install.bat`
 
-Each wrapper forwards arguments to `python install.py`.
+Each wrapper launches `install.py` for your platform.
 
 ## Community Benchmark Flow
 
@@ -79,6 +81,7 @@ High-level flow:
 - Python: 3.11+
 - Determinism is required for benchmark mode.
 - CPU-only scoring is required for v1.1 campaign compliance.
+- `setup_report.json` and `preflight_report.json` are the source of truth for install readiness.
 
 ## License
 
