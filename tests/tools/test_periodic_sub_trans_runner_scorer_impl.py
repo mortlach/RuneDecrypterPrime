@@ -105,11 +105,18 @@ def test_no_wli_longrun3x_enables_safe_two_phase_stage3_defaults():
 
 
 def test_no_wli_focus_mode_starts_with_period5_tiers():
-    no_wli_runner._apply_profile_defaults()
-    no_wli_runner._apply_run_mode()
-    assert no_wli_runner.TIERS
-    assert int(no_wli_runner.TIERS[0].period) == 5
-    assert int(no_wli_runner.TIERS[0].columns) == 1
+    old_mode = str(no_wli_runner.PIPELINE_RUN_MODE)
+    try:
+        no_wli_runner.PIPELINE_RUN_MODE = "focus_500_nowli"
+        no_wli_runner._apply_profile_defaults()
+        no_wli_runner._apply_run_mode()
+        assert no_wli_runner.TIERS
+        assert int(no_wli_runner.TIERS[0].period) == 5
+        assert int(no_wli_runner.TIERS[0].columns) == 1
+    finally:
+        no_wli_runner.PIPELINE_RUN_MODE = old_mode
+        no_wli_runner._apply_profile_defaults()
+        no_wli_runner._apply_run_mode()
 
 
 def test_no_wli_focus_p5_c1_only_mode_single_tier():
@@ -221,7 +228,27 @@ def test_no_wli_adaptive_focus_v1_mode_contract():
         assert no_wli_runner.STAGE2_PROMOTE_BY_STAGE3_JUDGE is True
         assert no_wli_runner.STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE is True
         assert bool(no_wli_runner._mode_stage3_can_skip(no_wli_runner.PIPELINE_RUN_MODE)) is False
-        assert len(no_wli_runner.TIERS) == 8
+        assert len(no_wli_runner.TIERS) == 2
+    finally:
+        no_wli_runner.PIPELINE_RUN_MODE = old_mode
+        no_wli_runner._apply_profile_defaults()
+        no_wli_runner._apply_run_mode()
+
+
+def test_no_wli_adaptive_focus_p7c3_only_mode_contract():
+    old_mode = str(no_wli_runner.PIPELINE_RUN_MODE)
+    try:
+        no_wli_runner.PIPELINE_RUN_MODE = "adaptive_focus_v1_p7c3_only"
+        no_wli_runner._apply_profile_defaults()
+        no_wli_runner._apply_run_mode()
+        assert str(no_wli_runner.SCORING_EXPERIMENT_PROFILE) == "c_min_late"
+        assert no_wli_runner.STAGE2_PROMOTE_BY_STAGE3_JUDGE is True
+        assert no_wli_runner.STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE is True
+        assert bool(no_wli_runner._mode_stage3_can_skip(no_wli_runner.PIPELINE_RUN_MODE)) is False
+        assert bool(no_wli_runner._is_adaptive_focus_mode(no_wli_runner.PIPELINE_RUN_MODE)) is True
+        assert str(no_wli_runner.STAGE2_JUDGE_POLICY) == "search_only"
+        assert len(no_wli_runner.TIERS) == 1
+        assert str(no_wli_runner.TIERS[0].name) == "focus_p7_c3_l1000"
     finally:
         no_wli_runner.PIPELINE_RUN_MODE = old_mode
         no_wli_runner._apply_profile_defaults()
@@ -281,6 +308,31 @@ def test_no_wli_adaptive_focus_source_has_phase_experiment_switch():
     assert "policy=phaseA_only" in text
     assert "scan_stage3_gate_low_match" in text
     assert "scan_stage3_gate_high_match" in text
+
+
+def test_no_wli_two_phase_gate_and_phaseb_selection_use_pct_space():
+    text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
+    assert "end_score_pct" in text
+    assert "best_delta_pct" in text
+    assert "Phase-A basins judged by span:" in text
+    assert "span_basin_judge_k_cfg" in text
+    assert "span_active_rate_source" in text
+
+
+def test_no_wli_stage3_search_contract_and_span_judge_path():
+    cfg = no_wli_runner._stage3_char4_avg_fulltext_search_cfg(direction=no_wli_runner.Direction.LTR)
+    assert str(cfg.get("objective", "")).startswith("avg.")
+    assert str(cfg.get("avg_window_policy", "")) == "full_text"
+    assert bool(cfg.get("span_hamming_enabled", True)) is False
+
+    text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
+    assert "_stage3_char4_avg_fulltext_search_cfg" in text
+    assert "scorer_stage3_search = _stage3_char4_avg_fulltext_search_cfg(direction=direction)" in text
+    assert "disable_char_pct_gate=bool(stage3_phase_switch_enabled)" in text
+    assert "Phase-A basins judged by span:" in text
+    assert "Span judge time:" in text
+    assert "STAGE2_JUDGE_POLICY = \"search_only\"" in text
+    assert "stage2-judge-policy" in text
 
 
 def test_no_wli_stage2_judge_pool_limit_for_avg_fulltext():

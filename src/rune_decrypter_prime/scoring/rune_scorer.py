@@ -8,6 +8,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Iterable, List, Sequence, Dict, Any, Optional, Tuple
 import numpy as np
+import time
 import warnings
 
 from rune_decrypter_prime.scoring.base_scorer import BaseScorer, WIN_FIXED
@@ -392,6 +393,11 @@ class RuneScorer(BaseScorer):
             "span_hamming_ecdf_clamp_min": float(self._span_hamming_ecdf_clamp_min),
             "span_hamming_ecdf_clamp_max": float(self._span_hamming_ecdf_clamp_max),
             "span_hamming_bucket_policy": self._span_hamming_bucket_policy,
+            "span_hamming_eval_total": 0,
+            "span_hamming_eval_active": 0,
+            "span_hamming_eval_skipped_char_gate": 0,
+            "span_hamming_eval_seconds_total": 0.0,
+            "span_hamming_eval_active_seconds_total": 0.0,
         }
         # Caches for WLI conversions/windows (bounded LRU)
         self._wli_cache_limit = 8
@@ -551,6 +557,32 @@ class RuneScorer(BaseScorer):
         pt: np.ndarray,
         wli_windows: Iterable[Tuple[int, int]] | None,
     ) -> float:
+        def _bump_span_eval(
+            *,
+            total: int,
+            active: int,
+            skipped: int,
+            seconds_total: float = 0.0,
+            seconds_active: float = 0.0,
+        ) -> None:
+            try:
+                prev_total = int(self._telemetry.get("span_hamming_eval_total", 0) or 0)
+                prev_active = int(self._telemetry.get("span_hamming_eval_active", 0) or 0)
+                prev_skipped = int(self._telemetry.get("span_hamming_eval_skipped_char_gate", 0) or 0)
+                prev_seconds_total = float(self._telemetry.get("span_hamming_eval_seconds_total", 0.0) or 0.0)
+                prev_seconds_active = float(self._telemetry.get("span_hamming_eval_active_seconds_total", 0.0) or 0.0)
+                self._telemetry["span_hamming_eval_total"] = int(prev_total + int(total))
+                self._telemetry["span_hamming_eval_active"] = int(prev_active + int(active))
+                self._telemetry["span_hamming_eval_skipped_char_gate"] = int(prev_skipped + int(skipped))
+                self._telemetry["span_hamming_eval_seconds_total"] = float(
+                    max(0.0, prev_seconds_total + float(seconds_total))
+                )
+                self._telemetry["span_hamming_eval_active_seconds_total"] = float(
+                    max(0.0, prev_seconds_active + float(seconds_active))
+                )
+            except Exception:
+                pass
+
         backend = self._span_hamming_backend
         assets = self._span_hamming_assets
         if backend is None or assets is None:
@@ -560,6 +592,7 @@ class RuneScorer(BaseScorer):
         if self._span_hamming_use_char_channel:
             char_pct, char_score = self._score_base_channel_pct(pt=pt, wli_windows=wli_windows)
             if self._span_hamming_char_pct_min is not None and char_pct < float(self._span_hamming_char_pct_min):
+                _bump_span_eval(total=1, active=0, skipped=1, seconds_total=0.0, seconds_active=0.0)
                 gate_reasons = ["char_pct_below_min"]
                 gate_policy = str(self._span_hamming_gate_fail_policy)
                 score = float(
@@ -631,8 +664,12 @@ class RuneScorer(BaseScorer):
                     span_hamming_gate_score_floor=float(self._span_hamming_gate_score_floor),
                     span_hamming_span_skipped=True,
                     span_hamming_gate_fail_policy=gate_policy,
+                    span_hamming_eval_total_batch=1,
+                    span_hamming_eval_active_batch=0,
+                    span_hamming_eval_skipped_char_gate_batch=1,
                 )
                 return float(score)
+        t_span = float(time.perf_counter())
         try:
             span_stats = backend.score(pt.tolist())
             span_raw = float(span_stats.span_raw)
@@ -643,7 +680,11 @@ class RuneScorer(BaseScorer):
             span_cov_by_len = tuple(float(v) for v in getattr(span_stats, "coverage_by_len", ()))
             span_q_by_len = tuple(float(v) for v in getattr(span_stats, "quality_by_len", ()))
         except Exception as exc:
+            dt_span = max(0.0, float(time.perf_counter() - t_span))
+            _bump_span_eval(total=1, active=1, skipped=0, seconds_total=dt_span, seconds_active=dt_span)
             raise ValueError(f"Span backend failed in calibrated mode: {exc}") from exc
+        dt_span = max(0.0, float(time.perf_counter() - t_span))
+        _bump_span_eval(total=1, active=1, skipped=0, seconds_total=dt_span, seconds_active=dt_span)
 
         bucket = assets.score_span_raw(
             direction=BaseScorer._dir_name(self.direction),
@@ -759,6 +800,9 @@ class RuneScorer(BaseScorer):
             span_hamming_gate_reasons=list(gate_reasons),
             span_hamming_gate_score_floor=float(self._span_hamming_gate_score_floor),
             span_hamming_gate_fail_policy=gate_policy,
+            span_hamming_eval_total_batch=1,
+            span_hamming_eval_active_batch=1,
+            span_hamming_eval_skipped_char_gate_batch=0,
         )
         return float(score)
 
@@ -772,6 +816,7 @@ class RuneScorer(BaseScorer):
         weight = float(self._span_hamming_weight)
         if backend is None or weight == 0.0:
             return float(base_score)
+        t_span = float(time.perf_counter())
         try:
             span_stats = backend.score(pt.tolist())
             span_raw = float(span_stats.span_raw)
@@ -782,7 +827,31 @@ class RuneScorer(BaseScorer):
             span_cov_by_len = tuple(float(v) for v in getattr(span_stats, "coverage_by_len", ()))
             span_q_by_len = tuple(float(v) for v in getattr(span_stats, "quality_by_len", ()))
         except Exception:
+            dt_span = max(0.0, float(time.perf_counter() - t_span))
+            try:
+                prev_total = int(self._telemetry.get("span_hamming_eval_total", 0) or 0)
+                prev_active = int(self._telemetry.get("span_hamming_eval_active", 0) or 0)
+                prev_seconds_total = float(self._telemetry.get("span_hamming_eval_seconds_total", 0.0) or 0.0)
+                prev_seconds_active = float(self._telemetry.get("span_hamming_eval_active_seconds_total", 0.0) or 0.0)
+                self._telemetry["span_hamming_eval_total"] = int(prev_total + 1)
+                self._telemetry["span_hamming_eval_active"] = int(prev_active + 1)
+                self._telemetry["span_hamming_eval_seconds_total"] = float(max(0.0, prev_seconds_total + dt_span))
+                self._telemetry["span_hamming_eval_active_seconds_total"] = float(max(0.0, prev_seconds_active + dt_span))
+            except Exception:
+                pass
             return float(base_score)
+        dt_span = max(0.0, float(time.perf_counter() - t_span))
+        try:
+            prev_total = int(self._telemetry.get("span_hamming_eval_total", 0) or 0)
+            prev_active = int(self._telemetry.get("span_hamming_eval_active", 0) or 0)
+            prev_seconds_total = float(self._telemetry.get("span_hamming_eval_seconds_total", 0.0) or 0.0)
+            prev_seconds_active = float(self._telemetry.get("span_hamming_eval_active_seconds_total", 0.0) or 0.0)
+            self._telemetry["span_hamming_eval_total"] = int(prev_total + 1)
+            self._telemetry["span_hamming_eval_active"] = int(prev_active + 1)
+            self._telemetry["span_hamming_eval_seconds_total"] = float(max(0.0, prev_seconds_total + dt_span))
+            self._telemetry["span_hamming_eval_active_seconds_total"] = float(max(0.0, prev_seconds_active + dt_span))
+        except Exception:
+            pass
 
         bonus = float(weight * span_raw)
         out = float(base_score + bonus)

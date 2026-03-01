@@ -5,6 +5,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional, Sequence, Tuple, Any
+import numpy as np
 
 from rune_decrypter_prime.core.config import CipherConfig, InterruptorConfig
 from rune_decrypter_prime.core.config.hard_crib import HardCribConfig, normalize_hard_crib_config
@@ -103,6 +104,11 @@ class DecryptionProblem:
         t.setdefault("score_batch_fallback_scalar", 0)
         t.setdefault("score_batch_with_raw_fallback_scalar", 0)
         t.setdefault("lm_load_time_s", 0)
+        t.setdefault("span_hamming_eval_total", 0)
+        t.setdefault("span_hamming_eval_active", 0)
+        t.setdefault("span_hamming_eval_skipped_char_gate", 0)
+        t.setdefault("span_hamming_eval_seconds_total", 0.0)
+        t.setdefault("span_hamming_eval_active_seconds_total", 0.0)
         t.setdefault("crib_enabled", False)
         t.setdefault("crib_mode", None)
         t.setdefault("crib_pass_total", 0)
@@ -616,6 +622,53 @@ class DecryptionProblem:
             out_raw[idx] = kept_raw[j]
         return out_pct, out_raw
 
+    def _sync_scorer_span_telemetry(self) -> None:
+        """
+        Mirror scorer span-hamming cumulative counters into problem telemetry.
+        This keeps run-level telemetry truthful for solver inner-loop diagnostics.
+        """
+        sc = getattr(self, "scorer", None)
+        if sc is None:
+            return
+        try:
+            sc_tel = (
+                sc.telemetry()
+                if callable(getattr(sc, "telemetry", None))
+                else getattr(sc, "telemetry", None)
+            )
+        except Exception:
+            sc_tel = None
+        if not isinstance(sc_tel, dict):
+            return
+
+        def _as_nonneg_int(v: Any) -> int:
+            try:
+                return int(max(0, int(v)))
+            except Exception:
+                return 0
+
+        def _as_nonneg_float(v: Any) -> float:
+            try:
+                f = float(v)
+            except Exception:
+                return 0.0
+            if not np.isfinite(f):
+                return 0.0
+            return float(max(0.0, f))
+
+        t = self.telemetry
+        t["span_hamming_eval_total"] = _as_nonneg_int(sc_tel.get("span_hamming_eval_total", 0))
+        t["span_hamming_eval_active"] = _as_nonneg_int(sc_tel.get("span_hamming_eval_active", 0))
+        t["span_hamming_eval_skipped_char_gate"] = _as_nonneg_int(
+            sc_tel.get("span_hamming_eval_skipped_char_gate", 0)
+        )
+        t["span_hamming_eval_seconds_total"] = _as_nonneg_float(
+            sc_tel.get("span_hamming_eval_seconds_total", 0.0)
+        )
+        t["span_hamming_eval_active_seconds_total"] = _as_nonneg_float(
+            sc_tel.get("span_hamming_eval_active_seconds_total", 0.0)
+        )
+
     def _ensure_key_batch_2d(self, keys: Any):
         """Normalise keys to contiguous KEY_DTYPE with shape [B, K] using the active xp backend."""
         target_dtype = getattr(self, "key_dtype", KEY_DTYPE)
@@ -694,6 +747,7 @@ class DecryptionProblem:
         self.telemetry.tokens_processed += int(cand_count) * N
         self.telemetry.evaluate_keys_calls += 1
         self.telemetry.candidates_evaluated += int(cand_count)
+        self._sync_scorer_span_telemetry()
 
         return to_numpy(scores)
 
@@ -759,6 +813,7 @@ class DecryptionProblem:
         self.telemetry.tokens_processed += int(cand_count) * N
         self.telemetry.evaluate_keys_calls += 1
         self.telemetry.candidates_evaluated += int(cand_count)
+        self._sync_scorer_span_telemetry()
 
         return to_numpy(scores_pct), to_numpy(scores_raw)
 

@@ -33,6 +33,7 @@
 from __future__ import annotations
 from typing import Iterable, Sequence, List, Dict, Any, Tuple, Mapping
 import numpy as np
+import time
 import torch
 
 from rune_decrypter_prime.scoring.unified_tables import (
@@ -527,6 +528,11 @@ class RuneScorerTorch(BaseScorer):
         self._telemetry["span_hamming_ecdf_clamp_min"] = float(self._span_hamming_ecdf_clamp_min)
         self._telemetry["span_hamming_ecdf_clamp_max"] = float(self._span_hamming_ecdf_clamp_max)
         self._telemetry["span_hamming_bucket_policy"] = self._span_hamming_bucket_policy
+        self._telemetry["span_hamming_eval_total"] = 0
+        self._telemetry["span_hamming_eval_active"] = 0
+        self._telemetry["span_hamming_eval_skipped_char_gate"] = 0
+        self._telemetry["span_hamming_eval_seconds_total"] = 0.0
+        self._telemetry["span_hamming_eval_active_seconds_total"] = 0.0
 
         # tables provider + caches
         self._prov: TablesProvider | None = (
@@ -1689,18 +1695,39 @@ class RuneScorerTorch(BaseScorer):
                 char_pct < float(self._span_hamming_char_pct_min),
                 dtype=np.bool_,
             )
+        eval_total = int(B)
+        eval_skipped_char_gate = int(np.count_nonzero(skip_span_by_char))
+        eval_active = int(max(0, eval_total - eval_skipped_char_gate))
+        prev_total = int(self._telemetry.get("span_hamming_eval_total", 0) or 0)
+        prev_active = int(self._telemetry.get("span_hamming_eval_active", 0) or 0)
+        prev_skipped = int(self._telemetry.get("span_hamming_eval_skipped_char_gate", 0) or 0)
+        self._telemetry["span_hamming_eval_total"] = int(prev_total + eval_total)
+        self._telemetry["span_hamming_eval_active"] = int(prev_active + eval_active)
+        self._telemetry["span_hamming_eval_skipped_char_gate"] = int(prev_skipped + eval_skipped_char_gate)
+
+        def _bump_span_seconds(delta_s: float) -> None:
+            dt = max(0.0, float(delta_s))
+            if dt <= 0.0:
+                return
+            prev_seconds_total = float(self._telemetry.get("span_hamming_eval_seconds_total", 0.0) or 0.0)
+            prev_seconds_active = float(self._telemetry.get("span_hamming_eval_active_seconds_total", 0.0) or 0.0)
+            self._telemetry["span_hamming_eval_seconds_total"] = float(max(0.0, prev_seconds_total + dt))
+            self._telemetry["span_hamming_eval_active_seconds_total"] = float(max(0.0, prev_seconds_active + dt))
 
         for i in range(B):
             if bool(skip_span_by_char[i]):
                 span_bucket_dir[i] = str(self.direction.value)
                 continue
+            t_span = float(time.perf_counter())
             try:
                 stats = backend.score(pt_b[i].tolist())
                 span_raw_i = float(stats.span_raw)
                 span_cov_i = float(stats.coverage)
                 span_q_i = float(stats.quality)
             except Exception as exc:
+                _bump_span_seconds(float(time.perf_counter() - t_span))
                 raise ValueError(f"Span backend failed in calibrated mode: {exc}") from exc
+            _bump_span_seconds(float(time.perf_counter() - t_span))
             bucket = assets.score_span_raw(
                 direction=str(self.direction.value),
                 text_length=int(pt_b.shape[1]),
@@ -1825,6 +1852,9 @@ class RuneScorerTorch(BaseScorer):
                 "span_hamming_gate_score_floor": float(self._span_hamming_gate_score_floor),
                 "span_hamming_span_skipped": bool(skip_span_by_char[i]),
                 "span_hamming_gate_fail_policy": gate_policy,
+                "span_hamming_eval_total_batch": int(eval_total),
+                "span_hamming_eval_active_batch": int(eval_active),
+                "span_hamming_eval_skipped_char_gate_batch": int(eval_skipped_char_gate),
                 "objective_stats": objective,
             }
         else:
@@ -1858,6 +1888,9 @@ class RuneScorerTorch(BaseScorer):
                 "span_hamming_gate_score_floor": float(self._span_hamming_gate_score_floor),
                 "span_hamming_span_skipped_batch": skip_span_by_char.astype(np.bool_, copy=False).tolist(),
                 "span_hamming_gate_fail_policy": gate_policy,
+                "span_hamming_eval_total_batch": int(eval_total),
+                "span_hamming_eval_active_batch": int(eval_active),
+                "span_hamming_eval_skipped_char_gate_batch": int(eval_skipped_char_gate),
             }
 
         _tstash(self._telemetry, **self._last_stats)
@@ -1881,10 +1914,17 @@ class RuneScorerTorch(BaseScorer):
         if B == 0:
             return scores
 
+        prev_total = int(self._telemetry.get("span_hamming_eval_total", 0) or 0)
+        prev_active = int(self._telemetry.get("span_hamming_eval_active", 0) or 0)
+        self._telemetry["span_hamming_eval_total"] = int(prev_total + B)
+        self._telemetry["span_hamming_eval_active"] = int(prev_active + B)
+
         span_raw = np.zeros((B,), dtype=self._score_dtype)
         span_cov = np.zeros((B,), dtype=self._score_dtype)
         span_q = np.zeros((B,), dtype=self._score_dtype)
+        span_seconds_total = 0.0
         for i in range(B):
+            t_span = float(time.perf_counter())
             try:
                 stats = backend.score(pt_b[i].tolist())
                 span_raw[i] = float(stats.span_raw)
@@ -1894,6 +1934,12 @@ class RuneScorerTorch(BaseScorer):
                 span_raw[i] = 0.0
                 span_cov[i] = 0.0
                 span_q[i] = 0.0
+            span_seconds_total += max(0.0, float(time.perf_counter() - t_span))
+
+        prev_seconds_total = float(self._telemetry.get("span_hamming_eval_seconds_total", 0.0) or 0.0)
+        prev_seconds_active = float(self._telemetry.get("span_hamming_eval_active_seconds_total", 0.0) or 0.0)
+        self._telemetry["span_hamming_eval_seconds_total"] = float(max(0.0, prev_seconds_total + span_seconds_total))
+        self._telemetry["span_hamming_eval_active_seconds_total"] = float(max(0.0, prev_seconds_active + span_seconds_total))
 
         bonus = (weight * span_raw).astype(self._score_dtype, copy=False)
         out = np.asarray(scores, dtype=self._score_dtype) + bonus
