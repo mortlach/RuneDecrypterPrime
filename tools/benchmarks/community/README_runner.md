@@ -6,7 +6,7 @@ This guide is for contributors running a shard.
 Run the repository bootstrap step:
 
 ```powershell
-python install.py --target runner
+python install.py
 ```
 
 It must produce:

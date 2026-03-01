@@ -2,7 +2,7 @@
 
 This file is retained for compatibility, but the canonical benchmark workflow is now:
 
-- `python install.py --target runner`
+- `python install.py`
 - `tools/benchmarks/community/README.md`
 
 ## Important

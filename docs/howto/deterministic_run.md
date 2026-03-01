@@ -3,10 +3,10 @@
 Audience: Hands-on
 Time: 3-5 minutes
 Outcome: Reproduce a seeded run and compare telemetry
-Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`)
+Prereqs: Python 3.11+, bootstrap complete (`python install.py`)
 
 ## Hands-on
-1. Follow the quickstart steps (virtualenv, `python install.py --target dev`).
+1. Follow the quickstart steps (virtualenv, `python install.py`).
 2. Run a tutorial with `--print-progress` and keep the default seed.
 3. Compare `output/tutorials/<run>/logs/app.jsonl` with another solver's run; `telemetry.run.seed` should match.
 
@@ -28,4 +28,5 @@ Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`)
 ## Troubleshooting
 - If seeds differ, re-check tutorial constants/config files (benchmark behavior should not depend on environment variables).
 - Use `docs/guides/troubleshooting.md` for a checklist.
+
 

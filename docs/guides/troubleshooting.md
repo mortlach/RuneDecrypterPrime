@@ -25,7 +25,7 @@ If any check fails, re-run the steps from `docs/setup/installation.md`.
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
 | `ModuleNotFoundError: rune_decrypter_prime` | venv not activated or IDE/editor not pointing at `src/` | Activate `.venv` and configure your editor to treat `src/` as the project root (or add `src/` to `PYTHONPATH`). |
-| `_fastlm` missing or fails to import | Build toolchain/extension not available on this machine | Re-run `python install.py --target runner` (or `--target dev`) and inspect `output/tools/benchmarks/community/setup_preflight/latest/setup_report.json`. |
+| `_fastlm` missing or fails to import | Build toolchain/extension not available on this machine | Re-run `python install.py` and inspect `output/tools/benchmarks/community/setup_preflight/latest/setup_report.json`. |
 | Tutorial prints zero progress | Solver config left at defaults | Set `print_progress=True` and keep `progress_pct=1` when teaching/demonstrating. |
 | Files end up outside `output/` | Commands run from the wrong directory | `cd` into the repo root and re-run; check `pwd`/`Get-Location`. All scripts should write under `output/<kind>/...`. |
 | Start_Here outputs differ between machines | Different seeds/directions/permutations | Compare `output/tutorials/.../logs/app.jsonl` → `telemetry.run`. Seeds and `text_encoding_direction` must match. |

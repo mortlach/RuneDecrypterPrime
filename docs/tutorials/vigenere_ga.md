@@ -5,7 +5,7 @@
 Audience: Hands-on
 Time: 5-10 minutes (CPU)
 Outcome: Recover plaintext, score >=0.55
-Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`)
+Prereqs: Python 3.11+, bootstrap complete (`python install.py`)
 
 ## What You Build
 - Decrypt a seeded Vigenere ciphertext using the GA solver.
@@ -50,4 +50,5 @@ Expected score: **=0.55** mono match on CPU.
 - Traces: `output/tutorials/<run>/trace/`
 - Artifacts (plaintext/key previews): `output/tutorials/<run>/artifacts/`
 - If telemetry is missing or folders appear outside `output/`, follow `docs/guides/troubleshooting.md`.
+
 

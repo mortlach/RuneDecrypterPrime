@@ -5,7 +5,7 @@ This guide is for the person coordinating the campaign.
 ## Environment setup
 
 ```powershell
-python install.py --target organiser
+python install.py
 ```
 
 ## Inputs

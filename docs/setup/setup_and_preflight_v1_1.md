@@ -5,18 +5,18 @@ This is the shared operator runbook for community benchmark setup.
 ## Run
 
 ```bash
-python install.py --target runner
+python install.py
 ```
 
 Windows alternative:
 
 ```powershell
-py -3.11 install.py --target runner
+py -3.11 install.py
 ```
 
 ## What success looks like
 
-`python install.py --target runner` should produce:
+`python install.py` should produce:
 
 - `output/tools/benchmarks/community/setup_preflight/latest/setup_report.json`
 - `output/tools/benchmarks/community/setup_preflight/latest/preflight_report.json`
@@ -42,3 +42,4 @@ Share:
 
 - Use `--skip-fastlm-build` only for debugging.
 - Benchmark submissions remain CPU-only for v1.1.
+- Install validation workflow/checklist: `docs/setup/install_validation.md`.

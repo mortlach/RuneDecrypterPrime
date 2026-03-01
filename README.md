@@ -9,13 +9,13 @@ bootstrap entrypoint.
 Use one command from repo root:
 
 ```bash
-python install.py --target runner
+python install.py
 ```
 
 Windows (if `python` alias is unavailable):
 
 ```powershell
-py -3.11 install.py --target runner
+py -3.11 install.py
 ```
 
 What this does:
@@ -35,10 +35,10 @@ Output artefacts:
 
 - `output/tools/benchmarks/community/setup_preflight/latest/`
 
-Optional: run a canary immediately after setup.
+Optional: run install smoke immediately after setup.
 
 ```bash
-python install.py --target runner --run-canary
+python tools/ci/install_smoke.py
 ```
 
 ## Install Targets
@@ -60,6 +60,16 @@ Use any of the thin wrappers if preferred:
 
 Each wrapper launches `install.py` for your platform.
 
+## Clean Install Smoke (VM/CI)
+
+For a no-argument, fresh-environment validation run:
+
+```bash
+python tools/ci/install_smoke.py
+```
+
+This runs the bootstrap install and verifies the expected setup/preflight artefacts and ready markers.
+
 ## Community Benchmark Flow
 
 Primary docs:
@@ -70,7 +80,7 @@ Primary docs:
 
 High-level flow:
 
-1. `python install.py --target runner`
+1. `python install.py`
 2. Generate manifest + shards.
 3. Run assigned shard.
 4. Share `run_bundle`.
