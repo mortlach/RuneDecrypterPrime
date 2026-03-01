@@ -1902,15 +1902,10 @@ class RuneScorerTorch(BaseScorer):
         return score_vec.astype(score_dtype, copy=False)
 
     def _apply_span_hamming_bonus_batch(self, scores: np.ndarray, pt_b: np.ndarray) -> np.ndarray:
-<<<<<<< HEAD
-        backend = getattr(self, "_span_hamming_backend", None)
-        weight = float(getattr(self, "_span_hamming_weight", 0.0))
-=======
         if str(getattr(self, "_span_hamming_mode", "off") or "off") != "raw_bonus":
             return scores
         backend = self._span_hamming_backend
         weight = float(self._span_hamming_weight)
->>>>>>> origin/experimental/span_hamming
         if backend is None or weight == 0.0:
             return scores
         if pt_b.ndim != 2 or scores.ndim != 1:
