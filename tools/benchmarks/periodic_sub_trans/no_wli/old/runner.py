@@ -219,10 +219,9 @@ STAGE3_SPAN_BASIN_JUDGE_K = 32
 STAGE3_SPAN_BASIN_JUDGE_REQUIRE_SPAN_ACTIVE = True  # Basins without active span cannot win judge ranking.
 STAGE3_SPAN_BASIN_JUDGE_DEDUPE_BY_END_HASH = True  # Judge distinct basin endpoints only.
 STAGE3_SPAN_BASIN_JUDGE_TIE_EPS = 0.001  # Keep near-tie basins for Phase-B seeding.
-# shoudl depend on siz eof  k,. highe rk hiher vlaue here
-STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS = 48  # Near-tie expansion cap (applied as max(top_n, cap)).
+STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS = 16  # Near-tie expansion cap (applied as max(top_n, cap)).
 RUN_STAGE3_SPAN_BASIN_K_SWEEP = True
-STAGE3_SPAN_BASIN_K_SWEEP_VALUES = [ 96]
+STAGE3_SPAN_BASIN_K_SWEEP_VALUES = [32, 64, 96]
 
 # c1 fast-pass focus overrides (used to solve p5/c1 first without globally over-tuning all tiers).
 STAGE3_C1_FOCUS_ENABLED = True
@@ -4901,16 +4900,6 @@ def main() -> None:
                                 selected.append(row)
                             if not selected and ranked:
                                 selected = [ranked[0]]
-                            # --- Basin-judge score diagnostics (deduped list, before tie handling) ---
-                            judge_top1 = float("nan")
-                            judge_top2 = float("nan")
-                            judge_margin = float("nan")
-                            if selected:
-                                judge_top1 = float(selected[0].get("end_score_pct", float("nan")))
-                                if len(selected) > 1:
-                                    judge_top2 = float(selected[1].get("end_score_pct", float("nan")))
-                                    if np.isfinite(judge_top1) and np.isfinite(judge_top2):
-                                        judge_margin = float(judge_top1 - judge_top2)
                             selected_top_n = list(selected[:top_n])
                             tie_eps = float(max(0.0, float(STAGE3_SPAN_BASIN_JUDGE_TIE_EPS)))
                             tie_cap = int(max(int(top_n), int(STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS)))
@@ -4940,33 +4929,15 @@ def main() -> None:
                                 phaseB_ready_reason = "fallback_top1"
                             elif not selected:
                                 phaseB_ready_reason = "selected_empty"
-                            tie_band_n = int(len(tie_band))
-                            selected_top_n_n = int(len(selected_top_n))
-                            selected_final_n = int(len(selected))
-                            tie_clipped = int(max(0, tie_band_n - int(tie_cap)))
-
                             print(
                                 f"[pipeline_no_wli] stage3-phaseB-gate tier={tier.name} text={text_id} key_seed={key_seed} "
                                 f"start_pct={_fmt_finite_float(phaseA_best_start_score)} "
                                 f"end_pct={_fmt_finite_float(phaseA_best_end_score)} "
                                 f"delta_pct={_fmt_finite_float(phaseA_best_delta)} "
                                 f"gate=(delta>={float(gate_delta):.4f},end_gain>={float(gate_end_gain):.4f}) "
-                                f"phaseB_ran={int(phaseB_ran)} reason={phaseB_ready_reason} top_n={int(phaseB_top_n_used)} "
-                                f"judge_top1={_fmt_finite_float(judge_top1)} judge_top2={_fmt_finite_float(judge_top2)} "
-                                f"judge_margin={_fmt_finite_float(judge_margin)} "
-                                f"tie_eps={float(tie_eps):.6f} tie_band={tie_band_n} tie_cap={int(tie_cap)} "
-                                f"tie_clipped={tie_clipped} selected_top_n={selected_top_n_n} selected_final={selected_final_n}",
+                                f"phaseB_ran={int(phaseB_ran)} reason={phaseB_ready_reason} top_n={int(phaseB_top_n_used)}",
                                 flush=True,
                             )
-                            # print(
-                            #     f"[pipeline_no_wli] stage3-phaseB-gate tier={tier.name} text={text_id} key_seed={key_seed} "
-                            #     f"start_pct={_fmt_finite_float(phaseA_best_start_score)} "
-                            #     f"end_pct={_fmt_finite_float(phaseA_best_end_score)} "
-                            #     f"delta_pct={_fmt_finite_float(phaseA_best_delta)} "
-                            #     f"gate=(delta>={float(gate_delta):.4f},end_gain>={float(gate_end_gain):.4f}) "
-                            #     f"phaseB_ran={int(phaseB_ran)} reason={phaseB_ready_reason} top_n={int(phaseB_top_n_used)}",
-                            #     flush=True,
-                            # )
                             if selected:
                                 phaseB_init = [list(map(int, row["end_key"])) for row in selected]
                                 phaseB_cfg = dict(solver_stage3_cfg)

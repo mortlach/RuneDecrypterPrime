@@ -15,6 +15,12 @@ Benchmark runners, fixtures, solve-proof logs, and community harness tools.
 - `python tools/benchmarks/bench_solve_periodic_columnar_pipeline_col_then_sub.py`
 - `python tools/benchmarks/bench_solve_periodic_columnar_pipeline_sub_then_col.py`
 
+## Utility entrypoints
+
+- `python tools/benchmarks/zip_src_nobloat.py`
+  - Creates a lightweight zip of `src/` preserving structure while excluding noise:
+    `data/`, `__pycache__/`, compiled extension artifacts, and large split/binary blobs.
+
 ## Flavor-local implementations (advanced)
 
 - `python tools/benchmarks/periodic_sub_trans/no_wli/runner.py`

@@ -258,3 +258,4 @@ src/rune_decrypter_prime/data/language_model/lmp/wli/rtl/wli29_joint_rtl_4_wise.
 /assets_packed/tokenized_pg
 AGENTS.md
 /tools/benchmarks/scoring/span_hamming_nose/output
+/tools/get_src_zip

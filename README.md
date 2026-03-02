@@ -86,6 +86,15 @@ High-level flow:
 4. Share `run_bundle`.
 5. Organiser validates, combines, and aggregates.
 
+## Lightweight Source Zip
+
+For a shareable, low-noise source bundle (preserves `src/` structure while excluding
+`data/`, caches, and compiled artifacts):
+
+```bash
+python tools/benchmarks/zip_src_nobloat.py
+```
+
 ## Development Notes
 
 - Python: 3.11+
