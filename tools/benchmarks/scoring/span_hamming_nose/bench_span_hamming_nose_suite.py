@@ -48,7 +48,7 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 # Config block (no CLI; edit constants here)
 # ---------------------------------------------------------------------------
 TOKENIZED_DIR = Path("assets_packed/tokenized_pg")
-DIRECTIONS = ["ltr"]
+DIRECTIONS = ["rtl"]
 USE_NOSE_ONLY = True
 
 LENGTH_BUCKETS = list(DEFAULT_LENGTH_BUCKETS)

@@ -1,0 +1,369 @@
+{
+  "asset_kind": "span_hamming_nose_metrics",
+  "bootstrap_alpha": 0.05,
+  "bootstrap_rounds": 300,
+  "neg_generator": "RAND_UNIGRAM",
+  "provenance": {
+    "corpus_list_hash": "652e76ac516e73b6128349ef548898eaebe4db0d39971f66620e968da56107b1",
+    "created_at_utc": "20260227T050233Z",
+    "global_seed": 12345,
+    "suite_version": "span_hamming_nose_v2"
+  },
+  "rows": [
+    {
+      "auc_char1": 0.48978770021516804,
+      "auc_char1_ci": [
+        0.4809457535246599,
+        0.49700595405399445
+      ],
+      "auc_char2": 0.9451060203886839,
+      "auc_char2_ci": [
+        0.9422337084305011,
+        0.9480562197285026
+      ],
+      "auc_char3": 0.990818756169414,
+      "auc_char3_ci": [
+        0.9894380289867725,
+        0.9919378338917981
+      ],
+      "auc_char4": 0.9969123336476596,
+      "auc_char4_ci": [
+        0.9963164080748934,
+        0.9974629374708017
+      ],
+      "auc_span_raw": 0.9728825036620777,
+      "auc_span_raw_ci": [
+        0.9709215703814413,
+        0.9750182298086895
+      ],
+      "direction": "ltr",
+      "length_bucket": 20,
+      "n_neg": 10210,
+      "n_real": 10210,
+      "neg_generator": "RAND_UNIGRAM"
+    },
+    {
+      "auc_char1": 0.4729938193144744,
+      "auc_char1_ci": [
+        0.4660568146062943,
+        0.4804770034946822
+      ],
+      "auc_char2": 0.9851860728808632,
+      "auc_char2_ci": [
+        0.9837419026592392,
+        0.986664195023987
+      ],
+      "auc_char3": 0.998499291566621,
+      "auc_char3_ci": [
+        0.9981933320446913,
+        0.9988227599931315
+      ],
+      "auc_char4": 0.9998358851963804,
+      "auc_char4_ci": [
+        0.999741432608656,
+        0.9999155237562606
+      ],
+      "auc_span_raw": 0.9993913324591032,
+      "auc_span_raw_ci": [
+        0.9991761985810228,
+        0.9995910350082163
+      ],
+      "direction": "ltr",
+      "length_bucket": 50,
+      "n_neg": 10210,
+      "n_real": 10210,
+      "neg_generator": "RAND_UNIGRAM"
+    },
+    {
+      "auc_char1": 0.47388964194347377,
+      "auc_char1_ci": [
+        0.46659355357722243,
+        0.4824313262988588
+      ],
+      "auc_char2": 0.9949656179315929,
+      "auc_char2_ci": [
+        0.9941336540218779,
+        0.9959525566155154
+      ],
+      "auc_char3": 0.9998160949308059,
+      "auc_char3_ci": [
+        0.999540848391833,
+        0.9999419229212343
+      ],
+      "auc_char4": 0.9999031512665468,
+      "auc_char4_ci": [
+        0.9997122753542361,
+        0.9999991314047225
+      ],
+      "auc_span_raw": 0.9998873586251381,
+      "auc_span_raw_ci": [
+        0.9997551047337256,
+        0.999983147235535
+      ],
+      "direction": "ltr",
+      "length_bucket": 100,
+      "n_neg": 10206,
+      "n_real": 10206,
+      "neg_generator": "RAND_UNIGRAM"
+    },
+    {
+      "auc_char1": 0.4527009564822765,
+      "auc_char1_ci": [
+        0.44495824928338057,
+        0.46190215324793465
+      ],
+      "auc_char2": 0.9968592143514019,
+      "auc_char2_ci": [
+        0.9959881745368363,
+        0.9978249008085139
+      ],
+      "auc_char3": 0.9998943764410022,
+      "auc_char3_ci": [
+        0.9996848650292994,
+        0.9999999497760318
+      ],
+      "auc_char4": 0.9999115887908002,
+      "auc_char4_ci": [
+        0.9997309242388294,
+        1.0
+      ],
+      "auc_span_raw": 0.999984958347135,
+      "auc_span_raw_ci": [
+        0.9999550740219572,
+        0.9999999493504049
+      ],
+      "direction": "ltr",
+      "length_bucket": 200,
+      "n_neg": 7664,
+      "n_real": 7664,
+      "neg_generator": "RAND_UNIGRAM"
+    },
+    {
+      "auc_char1": 0.4580616784774501,
+      "auc_char1_ci": [
+        0.4478917593756804,
+        0.47020137770437603
+      ],
+      "auc_char2": 0.9980132993149811,
+      "auc_char2_ci": [
+        0.9970437708138935,
+        0.998799085772987
+      ],
+      "auc_char3": 0.9999993606841362,
+      "auc_char3_ci": [
+        0.999997934876569,
+        1.0
+      ],
+      "auc_char4": 1.0,
+      "auc_char4_ci": [
+        1.0,
+        1.0
+      ],
+      "auc_span_raw": 0.999999973361839,
+      "auc_span_raw_ci": [
+        0.9999998934473561,
+        1.0
+      ],
+      "direction": "ltr",
+      "length_bucket": 300,
+      "n_neg": 6127,
+      "n_real": 6127,
+      "neg_generator": "RAND_UNIGRAM"
+    },
+    {
+      "auc_char1": 0.45364619257668803,
+      "auc_char1_ci": [
+        0.4435054146664924,
+        0.4653731810311474
+      ],
+      "auc_char2": 0.999402497181678,
+      "auc_char2_ci": [
+        0.9989107355202523,
+        0.9998296046963382
+      ],
+      "auc_char3": 1.0,
+      "auc_char3_ci": [
+        1.0,
+        1.0
+      ],
+      "auc_char4": 1.0,
+      "auc_char4_ci": [
+        1.0,
+        1.0
+      ],
+      "auc_span_raw": 0.9999999613716823,
+      "auc_span_raw_ci": [
+        0.9999997682300937,
+        1.0
+      ],
+      "direction": "ltr",
+      "length_bucket": 500,
+      "n_neg": 5088,
+      "n_real": 5088,
+      "neg_generator": "RAND_UNIGRAM"
+    },
+    {
+      "auc_char1": 0.46247155718411026,
+      "auc_char1_ci": [
+        0.45161008469023756,
+        0.4723813021427358
+      ],
+      "auc_char2": 0.9996470868014269,
+      "auc_char2_ci": [
+        0.9992652168215681,
+        0.9999476439612706
+      ],
+      "auc_char3": 1.0,
+      "auc_char3_ci": [
+        1.0,
+        1.0
+      ],
+      "auc_char4": 1.0,
+      "auc_char4_ci": [
+        1.0,
+        1.0
+      ],
+      "auc_span_raw": 1.0,
+      "auc_span_raw_ci": [
+        1.0,
+        1.0
+      ],
+      "direction": "ltr",
+      "length_bucket": 600,
+      "n_neg": 5075,
+      "n_real": 5075,
+      "neg_generator": "RAND_UNIGRAM"
+    },
+    {
+      "auc_char1": 0.4642694860346041,
+      "auc_char1_ci": [
+        0.4523260945727875,
+        0.47721416589822613
+      ],
+      "auc_char2": 0.9998146642723676,
+      "auc_char2_ci": [
+        0.9996411994345895,
+        0.9999524390909753
+      ],
+      "auc_char3": 1.0,
+      "auc_char3_ci": [
+        1.0,
+        1.0
+      ],
+      "auc_char4": 1.0,
+      "auc_char4_ci": [
+        1.0,
+        1.0
+      ],
+      "auc_span_raw": 1.0,
+      "auc_span_raw_ci": [
+        1.0,
+        1.0
+      ],
+      "direction": "ltr",
+      "length_bucket": 750,
+      "n_neg": 4060,
+      "n_real": 4060,
+      "neg_generator": "RAND_UNIGRAM"
+    },
+    {
+      "auc_char1": 0.4482080385618895,
+      "auc_char1_ci": [
+        0.4328673447021434,
+        0.4629263317273074
+      ],
+      "auc_char2": 0.9999961148015699,
+      "auc_char2_ci": [
+        0.9999892590451737,
+        0.9999998408147865
+      ],
+      "auc_char3": 1.0,
+      "auc_char3_ci": [
+        1.0,
+        1.0
+      ],
+      "auc_char4": 1.0,
+      "auc_char4_ci": [
+        1.0,
+        1.0
+      ],
+      "auc_span_raw": 1.0,
+      "auc_span_raw_ci": [
+        1.0,
+        1.0
+      ],
+      "direction": "ltr",
+      "length_bucket": 1000,
+      "n_neg": 3044,
+      "n_real": 3044,
+      "neg_generator": "RAND_UNIGRAM"
+    },
+    {
+      "auc_char1": 0.44113264710327693,
+      "auc_char1_ci": [
+        0.42401127879205464,
+        0.45992904983511934
+      ],
+      "auc_char2": 1.0,
+      "auc_char2_ci": [
+        1.0,
+        1.0
+      ],
+      "auc_char3": 1.0,
+      "auc_char3_ci": [
+        1.0,
+        1.0
+      ],
+      "auc_char4": 1.0,
+      "auc_char4_ci": [
+        1.0,
+        1.0
+      ],
+      "auc_span_raw": 1.0,
+      "auc_span_raw_ci": [
+        1.0,
+        1.0
+      ],
+      "direction": "ltr",
+      "length_bucket": 1500,
+      "n_neg": 2027,
+      "n_real": 2027,
+      "neg_generator": "RAND_UNIGRAM"
+    },
+    {
+      "auc_char1": 0.42359270575597213,
+      "auc_char1_ci": [
+        0.3993188184177803,
+        0.44615095717630293
+      ],
+      "auc_char2": 1.0,
+      "auc_char2_ci": [
+        1.0,
+        1.0
+      ],
+      "auc_char3": 1.0,
+      "auc_char3_ci": [
+        1.0,
+        1.0
+      ],
+      "auc_char4": 1.0,
+      "auc_char4_ci": [
+        1.0,
+        1.0
+      ],
+      "auc_span_raw": 1.0,
+      "auc_span_raw_ci": [
+        1.0,
+        1.0
+      ],
+      "direction": "ltr",
+      "length_bucket": 2400,
+      "n_neg": 1011,
+      "n_real": 1011,
+      "neg_generator": "RAND_UNIGRAM"
+    }
+  ],
+  "source_run_config_sha256": "88741702e131524e76bc4243471e0fe4bc7f69e6531bd1d2f41ac0bdc1b9712e",
+  "source_run_dir": "C:\\Users\\sjduk\\Documents\\GitHub\\cic\\RuneDecrypterPrime\\output\\tools\\benchmarks\\scoring\\span_hamming_nose_suite_merged\\20260227T050228Z__span_hamming_nose_suite_merged",
+  "version": "v1"
+}
