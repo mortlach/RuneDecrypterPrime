@@ -43,16 +43,32 @@ from rune_decrypter_prime.scoring.unified_tables import (
 from rune_decrypter_prime.scoring.language_model.language_model_prime_runtime import ECDFCache
 from rune_decrypter_prime.scoring.stat_transform import apply_stat_transform
 from rune_decrypter_prime.backends.xp import select_backend
-from rune_decrypter_prime.scoring.base_scorer import BaseScorer, normalize_objective as _norm_obj
+from rune_decrypter_prime.scoring.base_scorer import BaseScorer, normalize_objective as _norm_obj, parse_objective
+from rune_decrypter_prime.scoring.torch_backend.hash import (
+    as_lut_keys_int64_torch as _as_lut_keys_int64_torch,
+    as_lut_logp_float32_torch as _as_lut_logp_float32_torch,
+    lookup_logp_linear_probe as _lookup_logp_linear_probe,
+    xxh64_u32words_cpu as _xxh64_u32words_cpu,
+    xxh64_u32words_device as _xxh64_u32words_device,
+)
+from rune_decrypter_prime.scoring.torch_backend.packing import (
+    pack_char_ngram as _pack_char_ngram_tensor,
+    pack_wli_ngram as _pack_wli_ngram_tensor,
+)
 from rune_decrypter_prime.scoring.windowing import START_TAG, END_TAG
 from rune_decrypter_prime.utils.telemetry import stash as _tstash  # canonical helper  ✔
 from rune_decrypter_prime.core.types import (
     Direction,
     SeMode,
     AvgWindowPolicy,
+    ObjectiveFamily,
+    Stat,
+    ObjectiveSpec,
     ensure_direction,
     ensure_se_mode,
     ensure_avg_window_policy,
+    ensure_objective_family,
+    ensure_stat,
 )
 
 # --------------------------- small utils ---------------------------
@@ -70,165 +86,41 @@ def _cfg_get(cfg: Any, key: str, default: Any = None) -> Any:
     except Exception:
         return default
 
-def _as_lut_keys_int64_torch(keys_uint64, device: torch.device):
-    import numpy as np
-    if hasattr(keys_uint64, "dtype"):
-        if keys_uint64.dtype == np.uint64:
-            view_i64 = keys_uint64.view(np.int64)
-            return torch.as_tensor(view_i64, dtype=torch.int64, device=device)
-        if keys_uint64.dtype == np.int64:
-            return torch.as_tensor(keys_uint64, dtype=torch.int64, device=device)
-    t = torch.as_tensor(keys_uint64, device=device)
-    return t.to(torch.int64)
 
-def _as_lut_logp_float32_torch(logp, device: torch.device):
-    t = torch.as_tensor(logp, device=device)
-    if t.dtype != torch.float32:
-        t = t.to(torch.float32)
-    return t
-
-def _validate_u32_hash_input_cpu(tokens_u32: torch.Tensor | np.ndarray) -> np.ndarray:
-    arr: np.ndarray
-    if isinstance(tokens_u32, torch.Tensor):
-        arr = tokens_u32.detach().cpu().numpy()
+def _normalize_objective(value: Any, *, default_win: int) -> ObjectiveSpec:
+    if isinstance(value, ObjectiveSpec):
+        fam = ensure_objective_family(value.family)
+        stat = ensure_stat(value.stat) if value.stat is not None else None
+        win = int(value.win) if value.win is not None else None
+    elif isinstance(value, Mapping):
+        fam = ensure_objective_family(value.get("family", ObjectiveFamily.PCT))
+        stat_raw = value.get("stat")
+        stat = ensure_stat(stat_raw) if stat_raw is not None else None
+        win_raw = value.get("win")
+        win = int(win_raw) if win_raw is not None else None
+    elif isinstance(value, str):
+        fam_raw, stat_raw, win_raw = parse_objective(value)
+        fam = ensure_objective_family(fam_raw)
+        stat = ensure_stat(stat_raw) if stat_raw is not None else None
+        win = int(win_raw) if win_raw is not None else None
+    elif value is None:
+        fam = ObjectiveFamily.PCT
+        stat = Stat.LOGP
+        win = int(default_win)
     else:
-        arr = np.asarray(tokens_u32)
-    if arr.dtype != np.uint32:
-        raise ValueError(f"xxh64 cpu hash expects uint32 tokens, got dtype={arr.dtype}")
-    if arr.ndim < 1:
-        raise ValueError("xxh64 cpu hash expects rank >= 1 input")
-    n = int(arr.shape[-1])
-    if n not in (1, 2, 3, 4):
-        raise ValueError(f"xxh64 cpu hash expects n-gram width in [1..4], got n={n}")
-    return arr
+        raise TypeError("objective must be ObjectiveSpec | dict | str | None")
 
-def _validate_u32_hash_input_device(tokens_u32: torch.Tensor) -> torch.Tensor:
-    if not isinstance(tokens_u32, torch.Tensor):
-        raise TypeError("xxh64 device hash expects a torch.Tensor input")
-    if tokens_u32.dtype != torch.uint32:
-        raise ValueError(f"xxh64 device hash expects torch.uint32 tokens, got dtype={tokens_u32.dtype}")
-    if tokens_u32.ndim < 1:
-        raise ValueError("xxh64 device hash expects rank >= 1 input")
-    n = int(tokens_u32.shape[-1])
-    if n not in (1, 2, 3, 4):
-        raise ValueError(f"xxh64 device hash expects n-gram width in [1..4], got n={n}")
-    return tokens_u32
-
-def _xxh64_u32words_cpu(tokens_u32: torch.Tensor | np.ndarray) -> np.ndarray:
-    t = _validate_u32_hash_input_cpu(tokens_u32)
-    n = t.shape[-1]
-    u64 = np.uint64
-
-    def rotl64(x: np.ndarray, r: int) -> np.ndarray:
-        return ((x << r) | (x >> u64(64 - r))) & u64(0xFFFFFFFFFFFFFFFF)
-
-    P1 = u64(0x9E3779B185EBCA87); P2 = u64(0xC2B2AE3D27D4EB4F)
-    P3 = u64(0x165667B19E3779F9); P4 = u64(0x85EBCA77C2B2AE63); P5 = u64(0x27D4EB2F165667C5)
-    MASK64 = u64(0xFFFFFFFFFFFFFFFF)
-
-    total_len = u64(n * 4)
-    h = (P5 + total_len) & MASK64
-    t_u64 = t.astype(u64, copy=False)
-
-    pairs = n // 2
-    for i in range(pairs):
-        k1 = (t_u64[..., 2 * i] | (t_u64[..., 2 * i + 1] << u64(32))) & MASK64
-        k1 = (k1 * P2) & MASK64
-        k1 = rotl64(k1, 31); k1 = (k1 * P1) & MASK64
-        h ^= k1; h = (rotl64(h, 27) * P1 + P4) & MASK64
-
-    if n % 2 == 1:
-        k1 = (t_u64[..., -1] * P1) & MASK64
-        h ^= k1
-        h = (rotl64(h, 23) * P2 + P3) & MASK64
-
-    h ^= (h >> u64(33)); h = (h * P2) & MASK64
-    h ^= (h >> u64(29)); h = (h * P3) & MASK64
-    h ^= (h >> u64(32))
-    return h
-
-def _xxh64_u32words_device(tokens_u32: torch.Tensor) -> torch.Tensor:
-    tokens_u32 = _validate_u32_hash_input_device(tokens_u32)
-    n = tokens_u32.shape[-1]
-    device = tokens_u32.device
-    try:
-        P1 = torch.tensor(0x9E3779B185EBCA87, dtype=torch.uint64, device=device)
-        P2 = torch.tensor(0xC2B2AE3D27D4EB4F, dtype=torch.uint64, device=device)
-        P3 = torch.tensor(0x165667B19E3779F9, dtype=torch.uint64, device=device)
-        P4 = torch.tensor(0x85EBCA77C2B2AE63, dtype=torch.uint64, device=device)
-        P5 = torch.tensor(0x27D4EB2F165667C5, dtype=torch.uint64, device=device)
-        MASK64 = torch.tensor(0xFFFFFFFFFFFFFFFF, dtype=torch.uint64, device=device)
-
-        total_len = torch.tensor(n * 4, dtype=torch.uint64, device=device)
-        h = (P5 + total_len) & MASK64
-        t = tokens_u32.to(torch.uint64)
-        def _rotl(x, r): return ((x << r) | (x >> (64 - r))) & MASK64
-
-        pairs = n // 2
-        for i in range(pairs):
-            k1 = (t[..., 2 * i] | (t[..., 2 * i + 1] << 32)) & MASK64
-            k1 = (k1 * P2) & MASK64
-            k1 = _rotl(k1, 31) * P1 & MASK64
-            h ^= k1; h = (_rotl(h, 27) * P1 + P4) & MASK64
-
-        if n % 2 == 1:
-            k1 = (t[..., -1] * P1) & MASK64
-            h ^= k1
-            h = (_rotl(h, 23) * P2 + P3) & MASK64
-
-        h ^= (h >> 33); h = (h * P2) & MASK64
-        h ^= (h >> 29); h = (h * P3) & MASK64
-        h ^= (h >> 32)
-        return h.to(torch.int64)
-    except Exception:
-        return torch.from_numpy(_xxh64_u32words_cpu(tokens_u32).view(np.int64)).to(device)
-
-def _lookup_logp_linear_probe(
-    h: torch.Tensor,
-    keys_i64: torch.Tensor,
-    logp_f32: torch.Tensor,
-    mask: int,
-    fallback_logp: float,
-    *,
-    max_probes: int = 1024,
-) -> tuple[torch.Tensor, int, bool]:
-    if max_probes <= 0:
-        raise ValueError("max_probes must be >= 1")
-    if h.dtype != torch.int64:
-        h = h.to(torch.int64)
-    if keys_i64.dtype != torch.int64:
-        raise ValueError(f"keys_i64 must be torch.int64, got {keys_i64.dtype}")
-    if logp_f32.dtype != torch.float32:
-        raise ValueError(f"logp_f32 must be torch.float32, got {logp_f32.dtype}")
-    if keys_i64.numel() == 0:
-        raise ValueError("keys_i64 must not be empty")
-    if mask < 0:
-        raise ValueError("mask must be >= 0")
-    if keys_i64.device != h.device or logp_f32.device != h.device:
-        raise ValueError("h, keys_i64, and logp_f32 must be on the same device")
-
-    idx = (h & torch.tensor(mask, dtype=keys_i64.dtype, device=h.device)).to(torch.long)
-    out = torch.full(h.shape, fill_value=float(fallback_logp), dtype=torch.float32, device=h.device)
-    found = torch.zeros(h.shape, dtype=torch.bool, device=h.device)
-    probe_exhausted = False
-
-    for _ in range(int(max_probes)):
-        k = keys_i64[idx]
-        is_empty = (k == 0)
-        is_match = (k == h)
-        take = (~found) & is_match
-        if bool(take.any()):
-            out[take] = logp_f32[idx[take]]
-            found[take] = True
-        cont = (~found) & (~is_empty)
-        if not bool(cont.any()):
-            break
-        idx[cont] = (idx[cont] + 1) & int(mask)
-    else:
-        probe_exhausted = bool(((~found) & (keys_i64[idx] != 0)).any().item())
-
-    unresolved = int((~found).sum().item())
-    return out, unresolved, probe_exhausted
+    if fam in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
+        if stat is None:
+            stat = Stat.LOGP
+        if win is None:
+            win = int(default_win)
+    elif fam is ObjectiveFamily.AVG:
+        if stat is None:
+            stat = Stat.LOGP
+        if win is None:
+            win = int(default_win)
+    return ObjectiveSpec(family=fam, stat=stat, win=win)
 
 # ===================================================================
 
@@ -283,12 +175,11 @@ class RuneScorerTorch(BaseScorer):
         self.char_weights = _cfg_get(scorer_cfg, "char_weights", None)
         self.wli_weights  = _cfg_get(scorer_cfg, "wli_weights", None)
 
-        # objective (Enum-only in v1)
-        from rune_decrypter_prime.core.types import ObjectiveFamily, Stat, ObjectiveSpec
-        obj = _cfg_get(scorer_cfg, "objective", None)
-        if not (hasattr(obj, "family") and hasattr(obj, "stat")):
-            # No objective provided: build the v1 default Enum spec using current win
-            obj = ObjectiveSpec(ObjectiveFamily.PCT, Stat.LOGP, int(self.win))
+        # objective intake supports ObjectiveSpec | dict | str | None
+        obj = _normalize_objective(
+            _cfg_get(scorer_cfg, "objective", None),
+            default_win=int(self.win),
+        )
         if getattr(obj, "family", None) in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
             if getattr(obj, "stat", None) is None:
                 obj = ObjectiveSpec(getattr(obj, "family"), Stat.LOGP, getattr(obj, "win", None))
@@ -472,7 +363,6 @@ class RuneScorerTorch(BaseScorer):
                     require_selected=require_selected,
                 )
                 if self._span_hamming_mode == "calibrated":
-                    from rune_decrypter_prime.core.types import ObjectiveFamily
                     fam = getattr(self.objective, "family", None)
                     if fam not in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
                         raise ValueError(
@@ -686,19 +576,10 @@ class RuneScorerTorch(BaseScorer):
         return u.astype(score_dtype, copy=False)
 
     def _pack_char_ngram(self, pt_t: torch.Tensor, n: int) -> torch.Tensor:
-        B, L = pt_t.shape; s = pt_t.stride(); Wn = L - n + 1
-        return (pt_t.as_strided((B, Wn, n), (s[0], s[1], s[1])) & 0x1F).to(torch.uint32)
+        return _pack_char_ngram_tensor(pt_t, n)
 
     def _pack_wli_ngram(self, pt_t: torch.Tensor, wli_t: torch.Tensor, n: int) -> torch.Tensor:
-        B, L = pt_t.shape
-        s_pt = pt_t.stride(); s_w = wli_t.stride(); Wn = L - n + 1
-        pt_win = pt_t.as_strided((B, Wn, n), (s_pt[0], s_pt[1], s_pt[1]))
-        w_win  = wli_t.as_strided((B, Wn, n, 2), (s_w[0], s_w[1], s_w[1], s_w[2]))
-        rune = (pt_win & 0x1F).to(torch.int32)
-        pos  = (w_win[..., 0] & 0x3F).to(torch.int32)
-        ln   = (w_win[..., 1] & 0x3F).to(torch.int32)
-        toks = torch.stack([rune[..., i] | (pos[..., i] << 5) | (ln[..., i] << 11) for i in range(n)], dim=-1)
-        return toks.to(torch.uint32)
+        return _pack_wli_ngram_tensor(pt_t, wli_t, n)
 
     
     def _score_pct_logp_win(self, pt_b: np.ndarray, wli_b: np.ndarray | None) -> np.ndarray:

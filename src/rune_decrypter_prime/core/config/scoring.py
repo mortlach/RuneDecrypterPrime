@@ -273,7 +273,7 @@ class ScoringConfig:
 
     def asdict(self) -> Dict[str, Any]:
         out = asdict(self)
-        out["model_root"] = self.model_root
+        out["model_root"] = str(self.model_root) if isinstance(self.model_root, Path) else self.model_root
         out["smoothing"] = self.smoothing
         out["alpha"] = self.alpha
         out["oov_policy"] = self.oov_policy
@@ -283,23 +283,30 @@ class ScoringConfig:
         out["n_wli"] = self.n_wli
         out["win"] = self.win
         out["stride"] = self.stride
-        out["se_mode"] = self.se_mode
-        out["objective"] = self.objective
+        out["se_mode"] = self.se_mode.value if isinstance(self.se_mode, SeMode) else self.se_mode
+        out["objective"] = {
+            "family": (
+                self.objective.family.value
+                if isinstance(self.objective.family, ObjectiveFamily)
+                else self.objective.family
+            ),
+            "stat": (
+                self.objective.stat.value
+                if isinstance(self.objective.stat, Stat)
+                else self.objective.stat
+            ) if self.objective.stat is not None else None,
+            "win": (int(self.objective.win) if self.objective.win is not None else None),
+        }
         out["avg_window_policy"] = (
             self.avg_window_policy.value
             if isinstance(self.avg_window_policy, AvgWindowPolicy)
             else self.avg_window_policy
         )
-        #     {
-        #     "family": self.objective.family.value if isinstance(self.objective.family, ObjectiveFamily) else self.objective.family,
-        #     "stat": (self.objective.stat.value if isinstance(self.objective.stat, Stat) else self.objective.stat),
-        #     "win": self.objective.win,
-        # }
-        # out["weights"] = self.weights
         out["maximize"] = self.maximize
-        out["encoding_dir"] = self.encoding_dir
-        out["char_weights"] = self.char_weights
-        out["wli_weights"] = self.wli_weights
+        out["encoding_dir"] = self.encoding_dir.value if isinstance(self.encoding_dir, Direction) else self.encoding_dir
+        out["weights"] = [float(v) for v in tuple(self.weights or ())]
+        out["char_weights"] = {str(int(k)): float(v) for k, v in dict(self.char_weights or {}).items()}
+        out["wli_weights"] = {str(int(k)): float(v) for k, v in dict(self.wli_weights or {}).items()}
         out["impl"] = self.impl.value if isinstance(self.impl, ScorerImpl) else self.impl
         out["compute_dtype"] = self.compute_dtype.value if isinstance(self.compute_dtype, FloatDType) else self.compute_dtype
         out["acc_dtype"] = self.acc_dtype.value if isinstance(self.acc_dtype, FloatDType) else self.acc_dtype
@@ -309,17 +316,19 @@ class ScoringConfig:
         out["diagnostics_enabled"] = self.diagnostics_enabled
         out["hard_crib"] = self.hard_crib.asdict() if isinstance(self.hard_crib, HardCribConfig) else None
         out["hamming_enabled"] = self.hamming_enabled
-        out["hamming_wordlist_dir"] = self.hamming_wordlist_dir
+        out["hamming_wordlist_dir"] = str(self.hamming_wordlist_dir) if isinstance(self.hamming_wordlist_dir, Path) else self.hamming_wordlist_dir
         out["hamming_build_rtl"] = self.hamming_build_rtl
         out["hamming_weight"] = self.hamming_weight
         out["hamming_weight_max"] = self.hamming_weight_max
         out["hamming_ramp_start_frac"] = self.hamming_ramp_start_frac
         out["hamming_ramp_end_frac"] = self.hamming_ramp_end_frac
         out["hamming_max_hd"] = self.hamming_max_hd
-        out["hamming_length_weights"] = dict(self.hamming_length_weights or {})
+        out["hamming_length_weights"] = {
+            str(int(k)): float(v) for k, v in dict(self.hamming_length_weights or {}).items()
+        }
         out["hamming_direction_mode"] = self.hamming_direction_mode
         out["span_hamming_enabled"] = self.span_hamming_enabled
-        out["span_hamming_wordlist_dir"] = self.span_hamming_wordlist_dir
+        out["span_hamming_wordlist_dir"] = str(self.span_hamming_wordlist_dir) if isinstance(self.span_hamming_wordlist_dir, Path) else self.span_hamming_wordlist_dir
         out["span_hamming_weight"] = self.span_hamming_weight
         out["span_hamming_len_min"] = self.span_hamming_len_min
         out["span_hamming_len_max"] = self.span_hamming_len_max
@@ -332,7 +341,7 @@ class ScoringConfig:
         out["span_hamming_debug_return_intervals"] = self.span_hamming_debug_return_intervals
         out["span_hamming_require_selected"] = self.span_hamming_require_selected
         out["span_hamming_mode"] = self.span_hamming_mode
-        out["span_hamming_assets_dir"] = self.span_hamming_assets_dir
+        out["span_hamming_assets_dir"] = str(self.span_hamming_assets_dir) if isinstance(self.span_hamming_assets_dir, Path) else self.span_hamming_assets_dir
         out["span_hamming_bucket_policy"] = self.span_hamming_bucket_policy
         out["span_hamming_ecdf_clamp_min"] = self.span_hamming_ecdf_clamp_min
         out["span_hamming_ecdf_clamp_max"] = self.span_hamming_ecdf_clamp_max

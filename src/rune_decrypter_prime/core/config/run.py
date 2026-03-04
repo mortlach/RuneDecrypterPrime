@@ -83,7 +83,7 @@ class RunConfig:
         out = asdict(self)
         out["cipher"] = self.cipher.asdict() if hasattr(self.cipher, "asdict") else asdict(self.cipher)
         out["scorer_params"] = (
-            asdict(self.scorer_params) if isinstance(self.scorer_params, ScoringConfig) else self.scorer_params
+            self.scorer_params.asdict() if isinstance(self.scorer_params, ScoringConfig) else self.scorer_params
         )
         out["solver"] = self.solver.asdict() if hasattr(self.solver, "asdict") else asdict(self.solver)
         if isinstance(out.get("scorer_name"), ScorerName):

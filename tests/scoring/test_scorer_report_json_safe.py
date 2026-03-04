@@ -1,0 +1,44 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from rune_decrypter_prime.core.types import ObjectiveFamily, ObjectiveSpec, Stat
+from rune_decrypter_prime.scoring.scorer_report import ScorerReport
+
+
+pytestmark = pytest.mark.tier_a
+
+
+def test_scorer_report_to_json_dict_is_serialisable_and_primitive() -> None:
+    report = ScorerReport(
+        objective_str="pct.logp.win10",
+        objective_spec=ObjectiveSpec(family=ObjectiveFamily.PCT, stat=Stat.LOGP, win=10),
+        score=0.42,
+        raw_score=0.41,
+        telemetry={"impl": "numpy", "model_root": Path("data/lm"), "device": "cpu"},
+        metrics={"score_mean": 0.42, "score_std": 0.1},
+        cost_ms=12.5,
+        details={"top_ids": [1, 2, 3]},
+    )
+
+    payload = report.to_json_dict()
+    dumped = json.dumps(payload)
+
+    assert isinstance(payload["objective_spec"], dict)
+    assert payload["objective_spec"]["family"] == "pct"
+    assert payload["objective_spec"]["stat"] == "logp"
+    assert payload["objective_spec"]["win"] == 10
+    assert Path(payload["telemetry"]["model_root"]).as_posix() == "data/lm"
+
+
+def test_scorer_report_rejects_non_finite_numbers() -> None:
+    report = ScorerReport(
+        objective_str="pct.logp.win10",
+        objective_spec=ObjectiveSpec(family=ObjectiveFamily.PCT, stat=Stat.LOGP, win=10),
+        score=float("nan"),
+    )
+    with pytest.raises(ValueError, match="finite"):
+        report.to_json_dict()

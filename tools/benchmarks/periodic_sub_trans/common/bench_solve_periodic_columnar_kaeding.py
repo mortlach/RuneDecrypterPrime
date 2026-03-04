@@ -106,6 +106,7 @@ from rune_decrypter_prime.scoring.language_model.language_model_prime import Lan
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.seed_utils_periodic_columnar import SeedPlan, generate_seed_keys_periodic_columnar
 from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext_string
+from tools.benchmarks.periodic_sub_trans.common.scorer_sidecar import append_scorer_report_jsonl
 
 ALPHABET_SIZE = 29
 ORDER = "col_then_sub"
@@ -173,6 +174,10 @@ PIPELINE_STALL_STAGE_LIMIT = 2
 # Example:
 # RESUME_FROM_RUN_DIR = r"output/tools/benchmarks/20260213T062803Z__bench_solve__82e3c05"
 RESUME_FROM_RUN_DIR: str | None = None
+
+# Scorer sidecar reports (benchmark-only, no CLI).
+WRITE_SCORER_REPORT_SIDECAR = True
+SCORER_REPORT_SIDECAR_FILE = "scorer_reports.jsonl"
 
 
 @dataclass(frozen=True)
@@ -1230,6 +1235,7 @@ def _preflight_known_key_roundtrip(
     tier_name: str,
     text_id: int,
     key_seed: int,
+    scorer_report_jsonl: Path | None = None,
 ) -> dict:
     """
     Gate 0: prove this instance wiring before expensive search.
@@ -1249,9 +1255,11 @@ def _preflight_known_key_roundtrip(
             f"(tier={tier_name} text={text_id} key_seed={key_seed})"
         )
 
+    t_oracle_start = time.perf_counter()
     oracle_raw_full, oracle_pct, oracle_raw_native = _score_pt(
         pt_true_u8, raw_full_scorer=raw_full_scorer, pct_scorer=pct_scorer
     )
+    oracle_cost_ms = (time.perf_counter() - t_oracle_start) * 1000.0
     check_raw_full, check_pct, check_raw_native = _score_pt(
         pt_check_u8, raw_full_scorer=raw_full_scorer, pct_scorer=pct_scorer
     )
@@ -1264,6 +1272,22 @@ def _preflight_known_key_roundtrip(
             f"[bench_solve] preflight failure: known-key score drift "
             f"(tier={tier_name} text={text_id} key_seed={key_seed} "
             f"d_raw_full={d_raw_full:.3e} d_pct={d_pct:.3e} d_raw_native={d_raw_native:.3e})"
+        )
+
+    if scorer_report_jsonl is not None:
+        append_scorer_report_jsonl(
+            scorer_report_jsonl,
+            scorer=pct_scorer,
+            score=float(oracle_pct),
+            raw_score=float(oracle_raw_native),
+            cost_ms=float(oracle_cost_ms),
+            extra_metrics={"raw_fulltext_score": float(oracle_raw_full)},
+            context={
+                "event": "gate0_preflight_oracle",
+                "tier": str(tier_name),
+                "text_id": int(text_id),
+                "key_seed": int(key_seed),
+            },
         )
 
     return {
@@ -1745,6 +1769,9 @@ def main() -> None:
         done_solves = 0
         run_dir = _write_reports(rows=[], summary={"tiers": {}})
         completed = set()
+    scorer_report_jsonl = (
+        run_dir / str(SCORER_REPORT_SIDECAR_FILE) if bool(WRITE_SCORER_REPORT_SIDECAR) else None
+    )
     rows_start_idx_for_log = int(len(rows))
 
     rel = run_dir.relative_to(_repo_root())
@@ -1761,6 +1788,11 @@ def main() -> None:
     _write_run_manifest(run_dir, manifest)
     print(f"[bench_solve] Reports will be written to {rel}", flush=True)
     print(f"[bench_solve] Manifest written to {(run_dir / 'run_manifest.json').relative_to(_repo_root())}", flush=True)
+    if scorer_report_jsonl is not None:
+        print(
+            f"[bench_solve] scorer sidecar: {scorer_report_jsonl.relative_to(_repo_root())}",
+            flush=True,
+        )
     print(
         f"[bench_solve] Profile={BENCH_PROFILE} tiers={len(TIERS)} budgets={','.join(b.name for b in SOLVER_BUDGETS)} "
         f"text_offsets={TEXT_OFFSETS} key_seeds={KEY_SEEDS} modes={seed_modes}",
@@ -1829,6 +1861,7 @@ def main() -> None:
                     tier_name=tier.name,
                     text_id=int(text_id),
                     key_seed=int(key_seed),
+                    scorer_report_jsonl=scorer_report_jsonl,
                 )
                 print(
                     f"[bench_solve] gate0 ok tier={tier.name} text={text_id} key_seed={key_seed} "
