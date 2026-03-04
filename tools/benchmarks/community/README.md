@@ -7,6 +7,7 @@ This folder defines the community benchmark workflow for Rune Decrypter Prime.
 - One setup command for fresh clones.
 - CPU-only benchmark submissions.
 - Deterministic manifests, shards, and result rows.
+- Tamper-evident result bundles (row hash-chain validation).
 - Compact shareable run bundles.
 - Clear tuning layer under `config/`.
 
@@ -14,11 +15,16 @@ This folder defines the community benchmark workflow for Rune Decrypter Prime.
 
 1. Check out the campaign git SHA.
 2. Run setup and preflight:
-   - `python install.py --target runner`
-3. Optionally run canary:
-   - `python install.py --target runner --run-canary`
+   - `python install.py`
+3. Optionally run install smoke:
+   - `python tools/ci/install_smoke.py`
 4. Generate manifest and shard files.
 5. Run assigned shard and share the produced `run_bundle`.
+
+Run bundles now include:
+- `results.jsonl`
+- `results_integrity.jsonl`
+- `run_meta.json` integrity summary block (`results_integrity`)
 
 Setup artefacts are written to:
 

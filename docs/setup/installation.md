@@ -3,13 +3,13 @@
 This repo uses one cross-platform bootstrap entrypoint:
 
 ```bash
-python install.py --target runner
+python install.py
 ```
 
 Windows alternative:
 
 ```powershell
-py -3.11 install.py --target runner
+py -3.11 install.py
 ```
 
 The bootstrap script handles:
@@ -17,7 +17,10 @@ The bootstrap script handles:
 1. Virtual environment creation/use.
 2. Target dependency installation.
 3. Editable package install (`pip install -e .`).
-4. Setup + preflight for community benchmark readiness.
+4. Setup + preflight for community benchmark readiness:
+   - recombine packed assets,
+   - rebuild missing split LM joint tables (`*_part*.npz` -> `.bin.zst`) when needed,
+   - verify/build native extensions (`_fastlm`, `_hamming`).
 
 ## Prerequisites
 
@@ -41,44 +44,13 @@ Dependency files:
 
 ## Typical Commands
 
-### Runner node
+### Runner node (default)
 
 ```bash
-python install.py --target runner
+python install.py
 ```
 
-### Organiser node
-
-```bash
-python install.py --target organiser
-```
-
-### Development environment
-
-```bash
-python install.py --target dev
-```
-
-### Run canary after setup/preflight
-
-```bash
-python install.py --target runner --run-canary
-```
-
-## Optional Flags
-
-- `--no-venv`: use current interpreter directly.
-- `--venv .venv_custom`: set venv location.
-- `--recreate-venv`: recreate environment from scratch.
-- `--skip-fastlm-build`: verify `_fastlm` import only.
-- `--skip-preflight`: skip setup/preflight (not recommended for benchmark work).
-- `--requirements <path>`: use custom requirements file.
-
-See full options:
-
-```bash
-python install.py --help
-```
+Use this as the canonical operator path for clean-machine installs.
 
 ## Verify Installation
 
@@ -88,6 +60,25 @@ python install.py --help
    - `output/tools/benchmarks/community/setup_preflight/latest/benchmark_ready.json`
 2. Run a quick tutorial if desired:
    - `python tutorials/v1/Start_Here.py`
+
+## Clean VM / CI Smoke Validation
+
+Use the no-argument smoke runner:
+
+```bash
+python tools/ci/install_smoke.py
+```
+
+What it verifies:
+
+1. Bootstrap install succeeds from a clean environment.
+2. Setup/preflight artefacts exist under `output/tools/benchmarks/community/setup_preflight/latest/`.
+3. `benchmark_ready.json` reports `ready=true`.
+4. `preflight_report.json` reports `success=true`.
+
+GitHub workflow:
+
+- `.github/workflows/install-smoke.yml` (manual `workflow_dispatch`, Windows + Ubuntu fresh runners).
 
 ## Notes
 

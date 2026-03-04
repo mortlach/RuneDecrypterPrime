@@ -13,6 +13,10 @@ VALID_ORDERS: tuple[str, str] = (
     BenchmarkOrder.SUB_THEN_COL.value,
 )
 
+INTEGRITY_CHAIN_VERSION = "v1"
+INTEGRITY_CHAIN_HASH = "sha256"
+INTEGRITY_CHAIN_GENESIS = "RDP_COMMUNITY_RESULTS_CHAIN_V1"
+
 
 def _normalise_floats(value: Any) -> Any:
     if isinstance(value, float):
@@ -88,3 +92,110 @@ def resolve_orders(raw_orders: Sequence[str]) -> tuple[str, ...]:
         raise ValueError(f"unsupported order(s): {invalid}; allowed={list(VALID_ORDERS)}")
     # Canonical order independent of input list ordering.
     return tuple(order for order in VALID_ORDERS if order in requested)
+
+
+def build_result_integrity_row(
+    *,
+    result_row: dict[str, Any],
+    row_index: int,
+    prev_chain_hash: str,
+) -> dict[str, Any]:
+    idx = int(row_index)
+    if idx < 0:
+        raise ValueError(f"row_index must be >= 0, got {idx}")
+    prev = str(prev_chain_hash).strip()
+    if not prev:
+        raise ValueError("prev_chain_hash must be non-empty")
+
+    row_hash = sha256_hex_from_obj(result_row)
+    chain_hash = sha256_hex_from_obj(
+        {
+            "integrity_version": INTEGRITY_CHAIN_VERSION,
+            "row_index": idx,
+            "prev_chain_hash": prev,
+            "row_hash": row_hash,
+        }
+    )
+    return {
+        "integrity_version": INTEGRITY_CHAIN_VERSION,
+        "row_index": idx,
+        "job_id": str(result_row.get("job_id", "")),
+        "row_hash": row_hash,
+        "prev_chain_hash": prev,
+        "chain_hash": chain_hash,
+    }
+
+
+def build_results_integrity_rows(
+    result_rows: Sequence[dict[str, Any]],
+    *,
+    start_row_index: int = 0,
+    start_prev_chain_hash: str = INTEGRITY_CHAIN_GENESIS,
+) -> tuple[list[dict[str, Any]], str]:
+    idx = int(start_row_index)
+    if idx < 0:
+        raise ValueError(f"start_row_index must be >= 0, got {idx}")
+    prev = str(start_prev_chain_hash).strip()
+    if not prev:
+        raise ValueError("start_prev_chain_hash must be non-empty")
+
+    out: list[dict[str, Any]] = []
+    for row in result_rows:
+        entry = build_result_integrity_row(
+            result_row=row,
+            row_index=idx,
+            prev_chain_hash=prev,
+        )
+        out.append(entry)
+        idx += 1
+        prev = str(entry["chain_hash"])
+    return out, prev
+
+
+def verify_results_integrity(
+    *,
+    result_rows: Sequence[dict[str, Any]],
+    integrity_rows: Sequence[dict[str, Any]],
+    start_row_index: int = 0,
+    start_prev_chain_hash: str = INTEGRITY_CHAIN_GENESIS,
+) -> tuple[list[str], str]:
+    errors: list[str] = []
+    idx = int(start_row_index)
+    if idx < 0:
+        return ([f"start_row_index must be >= 0, got {idx}"], str(start_prev_chain_hash))
+    prev = str(start_prev_chain_hash).strip()
+    if not prev:
+        return (["start_prev_chain_hash must be non-empty"], str(start_prev_chain_hash))
+
+    if len(result_rows) != len(integrity_rows):
+        errors.append(
+            "integrity row count mismatch: "
+            f"results={len(result_rows)} integrity={len(integrity_rows)}"
+        )
+        return errors, prev
+
+    for offset, (row, entry) in enumerate(zip(result_rows, integrity_rows)):
+        if not isinstance(entry, dict):
+            errors.append(f"integrity row {offset} is not an object")
+            break
+
+        expected = build_result_integrity_row(
+            result_row=row,
+            row_index=idx,
+            prev_chain_hash=prev,
+        )
+
+        for key in ("integrity_version", "row_index", "job_id", "row_hash", "prev_chain_hash", "chain_hash"):
+            if entry.get(key) != expected.get(key):
+                errors.append(
+                    f"integrity row {offset} mismatch for {key}: "
+                    f"expected={expected.get(key)!r} got={entry.get(key)!r}"
+                )
+                break
+        if errors:
+            break
+
+        idx += 1
+        prev = str(expected["chain_hash"])
+
+    return errors, prev

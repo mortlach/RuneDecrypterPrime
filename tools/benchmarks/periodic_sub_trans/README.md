@@ -9,14 +9,28 @@ This package is the harmonized home for periodic substitution/transposition benc
 - `sub_then_col/`
 
 Primary entrypoints:
+- `python tools/benchmarks/bench_solve_periodic_columnar_pipeline_no_wli.py`
+- `python tools/benchmarks/bench_solve_periodic_columnar_pipeline_col_then_sub.py`
+- `python tools/benchmarks/bench_solve_periodic_columnar_pipeline_sub_then_col.py`
+
+Flavor-local implementations (advanced):
 - `python tools/benchmarks/periodic_sub_trans/no_wli/runner.py`
-- `python tools/benchmarks/periodic_sub_trans/col_then_sub/bench_solve_periodic_columnar_pipeline_col_then_sub.py`
+- `python tools/benchmarks/periodic_sub_trans/col_then_sub/runner.py`
 - `python tools/benchmarks/periodic_sub_trans/sub_then_col/runner.py`
 
 ## Shared code
 
 - `common/` for reusable benchmark infrastructure (paths, reports, artifacts, logging, telemetry projections).
 - `config/` for typed benchmark profile/config definitions.
+
+## Campaign integration contract
+
+For community campaign dispatch (`tools/benchmarks/community/_run_single_job.py`), each flavor runner exposes:
+
+- `configure_campaign_run(...)` to apply campaign job settings via one explicit entrypoint
+- flavor-scoped output under `output/tools/benchmarks/periodic_sub_trans/<flavor>/...`
+
+This keeps campaign orchestration deterministic and avoids per-runner ad-hoc global mutation.
 
 ## Output policy
 

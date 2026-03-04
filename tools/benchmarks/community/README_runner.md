@@ -6,7 +6,7 @@ This guide is for contributors running a shard.
 Run the repository bootstrap step:
 
 ```powershell
-python install.py --target runner
+python install.py
 ```
 
 It must produce:
@@ -56,6 +56,7 @@ Share the folder:
 
 It must contain:
 - results.jsonl
+- results_integrity.jsonl (per-row hash-chain sidecar)
 - run.log
 - run_meta.json
 - setup + preflight reports/logs

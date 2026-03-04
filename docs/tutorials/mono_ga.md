@@ -1,11 +1,11 @@
-# Tutorial: Monoalphabetic Substitution (GA)
+﻿# Tutorial: Monoalphabetic Substitution (GA)
 
 > Tracks: **Hands-on** - run `tutorials/v1/Tutorial_MonoSubstitution_GA.py`. **Expert** - tune GA presets and validate regressions.
 
-Audience: Hands‑on
+Audience: Handsâ€‘on
 Time: 8-12 minutes (CPU)
-Outcome: Recover plaintext, score ≥0.55
-Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`)
+Outcome: Recover plaintext, score â‰¥0.55
+Prereqs: Python 3.11+, bootstrap complete (`python install.py`)
 
 ## Goal & Requirements
 - Recover the mono substitution key using GA with no prior crib.
@@ -46,4 +46,5 @@ print(sol.best_plaintext, sol.score)
 - Logs: `output/tutorials/<run>/logs/app.jsonl`
 - Artifacts: plaintext/key preview in `output/tutorials/<run>/artifacts/`
 - If GA stalls below threshold, re-run the tutorial ensuring seeds/virtualenv are correct; see troubleshooting appendix for more tips.
+
 

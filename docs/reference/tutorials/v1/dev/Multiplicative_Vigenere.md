@@ -1,9 +1,10 @@
-# `tutorials/v1/dev/Multiplicative_Vigenere.py`
+﻿# `tutorials/v1/dev/Multiplicative_Vigenere.py`
 
-> Purpose: explore a multiplicative variant of Vigenère on the 29‑rune alphabet and evaluate recovery with GA/SA.
+> Purpose: explore a multiplicative variant of VigenÃ¨re on the 29â€‘rune alphabet and evaluate recovery with GA/SA.
 
-Audience: Hands‑on / Expert
+Audience: Handsâ€‘on / Expert
 Time: 6-10 minutes
 Outcome: Implement and recover a multiplicative key stream
-Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`)
+Prereqs: Python 3.11+, bootstrap complete (`python install.py`)
+
 

@@ -5,7 +5,7 @@
 Audience: Hands-on
 Time: 10-15 minutes (CPU)
 Outcome: Recover plaintext >=98% match, score >=0.62
-Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`)
+Prereqs: Python 3.11+, bootstrap complete (`python install.py`)
 
 ## What You Build
 - Solve a columnar transposition cipher using the Hybrid solver (beam warm start + SA polish).
@@ -56,4 +56,5 @@ Expected: **score >=0.62** and **match >=98%** against the reference plaintext. 
 - Spans: look for `solver_spans.hybrid` entries describing beam/GA/SA stages.
 - Artifacts: decrypted plaintext + key in `output/tutorials/<run>/artifacts/`.
 - For issues, follow `docs/guides/troubleshooting.md` (direction/permutation mismatches are the usual culprit).
+
 

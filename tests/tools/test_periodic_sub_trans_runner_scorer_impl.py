@@ -377,6 +377,73 @@ def test_sub_then_col_scorer_impl_is_pinned():
         assert profile_cfg.get("impl") == sub_runner.SCORER_IMPL
 
 
+def test_sub_then_col_repo_root_matches_repo_root():
+    repo_root = Path(__file__).resolve().parents[2]
+    assert sub_runner._repo_root() == repo_root
+
+
+def test_col_then_sub_campaign_config_disables_tier_sweep_filters():
+    old_state = dict(
+        tiers_period_sweep=str(col_runner.TIERS_PERIOD_SWEEP),
+        tiers_min_columns=col_runner.TIERS_MIN_COLUMNS,
+        tiers_regex_override=col_runner.TIERS_REGEX_OVERRIDE,
+        tiers=list(col_runner.TIERS),
+        run_mode=str(col_runner.PIPELINE_RUN_MODE),
+        profile=str(col_runner.PROFILE),
+        heartbeat=int(col_runner.HEARTBEAT_SECONDS),
+        key_seeds=list(col_runner.KEY_SEEDS),
+        key_seeds_override=None if col_runner.KEY_SEEDS_OVERRIDE is None else list(col_runner.KEY_SEEDS_OVERRIDE),
+        text_offsets=list(col_runner.TEXT_OFFSETS),
+    )
+    try:
+        col_runner.TIERS_PERIOD_SWEEP = "p10_only"
+        col_runner.TIERS_MIN_COLUMNS = 7
+        col_runner.configure_campaign_run(
+            run_seed=777,
+            period=11,
+            columns=3,
+            length=1234,
+            tier_name="community_col_then_sub_p11_c3_l1234",
+            run_mode="full",
+            profile_name="community_baseline_resume_v1_1",
+            heartbeat_seconds=3600,
+            autoskip_proven=False,
+            force_rerun_proven=True,
+            avoid_repeat_fail=False,
+            text_offsets=[0],
+            tiers_regex_override=None,
+            scorer_impl="numpy",
+        )
+        assert col_runner.TIERS_PERIOD_SWEEP == "none"
+        assert col_runner.TIERS_MIN_COLUMNS is None
+        col_runner._apply_run_mode()
+        col_runner._apply_runtime_overrides()
+        assert len(col_runner.TIERS) == 1
+        assert int(col_runner.TIERS[0].period) == 11
+        assert int(col_runner.TIERS[0].columns) == 3
+    finally:
+        col_runner.TIERS_PERIOD_SWEEP = old_state["tiers_period_sweep"]
+        col_runner.TIERS_MIN_COLUMNS = old_state["tiers_min_columns"]
+        col_runner.TIERS_REGEX_OVERRIDE = old_state["tiers_regex_override"]
+        col_runner.TIERS = list(old_state["tiers"])
+        col_runner.PIPELINE_RUN_MODE = old_state["run_mode"]
+        col_runner.PROFILE = old_state["profile"]
+        col_runner.HEARTBEAT_SECONDS = int(old_state["heartbeat"])
+        col_runner.KEY_SEEDS = list(old_state["key_seeds"])
+        col_runner.KEY_SEEDS_OVERRIDE = (
+            None
+            if old_state["key_seeds_override"] is None
+            else list(old_state["key_seeds_override"])
+        )
+        col_runner.TEXT_OFFSETS = list(old_state["text_offsets"])
+
+
+def test_runners_expose_campaign_config_entrypoint():
+    assert callable(getattr(col_runner, "configure_campaign_run", None))
+    assert callable(getattr(sub_runner, "configure_campaign_run", None))
+    assert callable(getattr(no_wli_runner, "configure_campaign_run", None))
+
+
 def test_periodic_sub_trans_runners_avoid_direct_scalar_scorer_calls():
     repo_root = Path(__file__).resolve().parents[2]
     runner_paths = [
@@ -408,7 +475,7 @@ def test_no_wli_stage3_stop_log_has_entry_diagnostics():
     assert "stage3_diagnostics" in text
     assert "period_scaling=dict(" in text
     assert "Per-instance checkpoint (crash-safe)" in text
-    assert "_append_csv_row(hist, hist_row)" in text
+    assert "_append_csv_row_common(hist, hist_row, merge_fieldnames=True)" in text
     assert "history_rows_written" in text
 
 

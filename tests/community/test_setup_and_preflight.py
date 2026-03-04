@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import io
 import json
+import struct
 from pathlib import Path
 
 import pytest
+import zstandard as zstd
 
 from tools.benchmarks.community import setup_and_preflight as sp
 
@@ -226,6 +228,106 @@ def test_ensure_fastlm_reports_missing_when_build_disabled(monkeypatch, tmp_path
     assert report["issues"]
 
 
+def test_ensure_hamming_reports_missing_when_build_disabled(monkeypatch, tmp_path: Path):
+    monkeypatch.setattr(sp, "_import_hamming", lambda _repo: (False, "missing"))
+    report = sp.ensure_hamming(tmp_path, allow_build=False, setup_log=io.StringIO())
+    assert report["hamming_present"] is False
+    assert report["build_attempted"] is False
+    assert report["issues"]
+
+
+def _read_joint_bin(path: Path):
+    comp = path.read_bytes()
+    import io
+
+    with zstd.ZstdDecompressor().stream_reader(io.BytesIO(comp)) as reader:
+        dec = reader.read()
+    buf = memoryview(dec)
+    off = 0
+    magic, _ver, lg_size, _zero, _mu, _sigma = struct.unpack_from("<4sBHIff", buf, off)
+    off += struct.calcsize("<4sBHIff")
+    table_size = 1 << lg_size
+    import numpy as np
+
+    keys = np.frombuffer(buf[off: off + 8 * table_size], dtype="<u8").copy()
+    off += 8 * table_size
+    logp = np.frombuffer(buf[off: off + 4 * table_size], dtype="<f4").copy()
+    off += 4 * table_size
+    cnts = np.frombuffer(buf[off: off + 8 * table_size], dtype="<u8").copy()
+    return magic, keys, logp, cnts
+
+
+def test_rebuild_split_joint_assets_rebuilds_missing_joint_bin(tmp_path: Path):
+    import numpy as np
+
+    lm_root = tmp_path / "src" / "rune_decrypter_prime" / "data" / "language_model" / "lmp"
+    target_dir = lm_root / "wli" / "ltr"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    index = {
+        "version": "v1",
+        "models": {
+            "wli": {
+                "n": [4],
+                "joint_pattern": "wli/%%MODE%%/wli29_joint_%%MODE%%_%%N%%_%%POS%%.bin.zst",
+            }
+        },
+    }
+    (lm_root / "index.json").write_text(json.dumps(index), encoding="utf-8")
+    # Mark the other expected combos as already present so this test only exercises
+    # split rebuild for ltr+nose.
+    (target_dir / "wli29_joint_ltr_4_wise.bin.zst").write_bytes(b"dummy")
+    rtl_dir = lm_root / "wli" / "rtl"
+    rtl_dir.mkdir(parents=True, exist_ok=True)
+    (rtl_dir / "wli29_joint_rtl_4_nose.bin.zst").write_bytes(b"dummy")
+    (rtl_dir / "wli29_joint_rtl_4_wise.bin.zst").write_bytes(b"dummy")
+
+    total = 8
+    lg_size = 3
+    keys_a = np.arange(0, 4, dtype=np.uint64)
+    logp_a = np.linspace(-4.0, -1.0, 4, dtype=np.float32)
+    cnts_a = np.arange(10, 14, dtype=np.uint64)
+    keys_b = np.arange(4, 8, dtype=np.uint64)
+    logp_b = np.linspace(-8.0, -5.0, 4, dtype=np.float32)
+    cnts_b = np.arange(20, 24, dtype=np.uint64)
+
+    np.savez(
+        target_dir / "wli29_joint_ltr_4_nose_part00000.npz",
+        keys=keys_a,
+        logp=logp_a,
+        cnts=cnts_a,
+        lg_size=np.asarray([lg_size], dtype=np.int32),
+        offset=np.asarray([0], dtype=np.int64),
+        total=np.asarray([total], dtype=np.int64),
+    )
+    np.savez(
+        target_dir / "wli29_joint_ltr_4_nose_part00001.npz",
+        keys=keys_b,
+        logp=logp_b,
+        cnts=cnts_b,
+        lg_size=np.asarray([lg_size], dtype=np.int32),
+        offset=np.asarray([4], dtype=np.int64),
+        total=np.asarray([total], dtype=np.int64),
+    )
+
+    out = sp.rebuild_split_joint_assets(
+        repo_root=tmp_path,
+        assets_root="assets",
+        setup_log=io.StringIO(),
+    )
+    assert out["issues"] == []
+    assert out["rebuilt_count"] >= 1
+
+    built = target_dir / "wli29_joint_ltr_4_nose.bin.zst"
+    assert built.exists()
+    magic, keys, logp, cnts = _read_joint_bin(built)
+    assert magic == b"WLI0"
+    assert keys.tolist() == list(range(8))
+    assert np.allclose(logp[:4], logp_a)
+    assert np.allclose(logp[4:], logp_b)
+    assert cnts[:4].tolist() == cnts_a.tolist()
+    assert cnts[4:].tolist() == cnts_b.tolist()
+
+
 def test_run_setup_and_preflight_writes_reports_and_ready_marker(monkeypatch, tmp_path: Path):
     manifest = {"assets_root": "assets", "packed_root": "assets_packed", "required_assets": [], "forward_links": []}
     (tmp_path / "assets_manifest_v1.json").write_text(json.dumps(manifest), encoding="utf-8")
@@ -237,6 +339,16 @@ def test_run_setup_and_preflight_writes_reports_and_ready_marker(monkeypatch, tm
         "ensure_fastlm",
         lambda *_args, **_kwargs: {
             "fastlm_present": True,
+            "build_attempted": False,
+            "build_succeeded": False,
+            "issues": [],
+        },
+    )
+    monkeypatch.setattr(
+        sp,
+        "ensure_hamming",
+        lambda *_args, **_kwargs: {
+            "hamming_present": True,
             "build_attempted": False,
             "build_succeeded": False,
             "issues": [],

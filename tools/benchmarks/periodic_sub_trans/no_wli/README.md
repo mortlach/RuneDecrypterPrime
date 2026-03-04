@@ -10,9 +10,12 @@ Runner for periodic substitution + transposition benchmarking without WLI featur
 
 Examples:
 
-- `python tools/benchmarks/periodic_sub_trans/no_wli/runner.py`
+- `python tools/benchmarks/bench_solve_periodic_columnar_pipeline_no_wli.py`
 - `python tools/benchmarks/periodic_sub_trans/no_wli/run_focus_p5_c1_c5.py`
 - `python tools/benchmarks/periodic_sub_trans/no_wli/run_focus_p5_c1_c5_a34.py`
+
+Campaign scope note:
+- `no_wli` is currently internal tuning scope and is not part of public community v1.1 manifest schema.
 
 ## Operator Model (Hardcoded Knobs)
 

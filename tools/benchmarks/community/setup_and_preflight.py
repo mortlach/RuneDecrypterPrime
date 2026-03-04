@@ -6,6 +6,7 @@ import importlib
 import json
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -26,6 +27,8 @@ SETUP_LATEST_DIRNAME = "latest"
 
 FASTLM_MODULE = "rune_decrypter_prime.scoring.language_model._fastlm"
 FASTLM_BUILD_SCRIPT = Path("src/rune_decrypter_prime/scoring/language_model/setup_fastlm.py")
+HAMMING_MODULE = "rune_decrypter_prime.scoring.hamming._hamming"
+HAMMING_BUILD_SCRIPT = Path("src/rune_decrypter_prime/scoring/hamming/setup_hamming.py")
 
 
 @dataclass(frozen=True)
@@ -122,6 +125,313 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: f.read(1024 * 1024), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def _joint_output_from_parts(joint_path: Path, *, setup_log) -> Dict[str, Any]:
+    if joint_path.name.endswith(".bin.zst"):
+        stem_name = joint_path.name[: -len(".bin.zst")]
+        stem_path = joint_path.with_name(stem_name)
+    else:
+        stem_path = joint_path.with_suffix("")
+    part_paths = sorted(stem_path.parent.glob(stem_path.name + "_part*.npz"))
+    if not part_paths:
+        return {
+            "ok": False,
+            "issues": [f"missing split parts for {joint_path.name}"],
+            "detail": {
+                "joint_path": str(joint_path),
+                "status": "missing_parts",
+                "parts": [],
+            },
+        }
+
+    # Lazy import: keep setup module import-light when split rebuild is not needed.
+    import numpy as np
+    import zstandard as zstd
+
+    metadata: List[Dict[str, Any]] = []
+    lg_size_val: int | None = None
+    total_val: int | None = None
+    intervals: List[Tuple[int, int]] = []
+    issues: List[str] = []
+
+    for part_path in part_paths:
+        with np.load(part_path, allow_pickle=False) as zf:
+            required = ("keys", "logp", "cnts", "lg_size", "offset", "total")
+            missing = [k for k in required if k not in zf]
+            if missing:
+                issues.append(f"{part_path}: missing arrays {missing}")
+                continue
+            keys = np.asarray(zf["keys"], dtype=np.uint64)
+            logp = np.asarray(zf["logp"], dtype=np.float32)
+            cnts = np.asarray(zf["cnts"], dtype=np.uint64)
+            lg_size = int(np.asarray(zf["lg_size"]).reshape(-1)[0])
+            offset = int(np.asarray(zf["offset"]).reshape(-1)[0])
+            total = int(np.asarray(zf["total"]).reshape(-1)[0])
+
+            if keys.shape != logp.shape or keys.shape != cnts.shape:
+                issues.append(f"{part_path}: keys/logp/cnts shape mismatch")
+                continue
+            if keys.ndim != 1:
+                issues.append(f"{part_path}: expected rank-1 arrays")
+                continue
+            if offset < 0 or total <= 0 or offset + int(keys.size) > total:
+                issues.append(f"{part_path}: invalid offset/total range")
+                continue
+
+            if lg_size_val is None:
+                lg_size_val = lg_size
+            elif lg_size != lg_size_val:
+                issues.append(f"{part_path}: lg_size mismatch {lg_size} != {lg_size_val}")
+                continue
+            if total_val is None:
+                total_val = total
+            elif total != total_val:
+                issues.append(f"{part_path}: total mismatch {total} != {total_val}")
+                continue
+
+            metadata.append(
+                {
+                    "part_path": part_path,
+                    "offset": offset,
+                    "count": int(keys.size),
+                }
+            )
+            intervals.append((offset, offset + int(keys.size)))
+
+    if issues:
+        return {
+            "ok": False,
+            "issues": issues,
+            "detail": {
+                "joint_path": str(joint_path),
+                "status": "invalid_parts",
+                "parts": [str(p) for p in part_paths],
+            },
+        }
+
+    if lg_size_val is None or total_val is None:
+        return {
+            "ok": False,
+            "issues": [f"{stem_path}: no usable split parts"],
+            "detail": {
+                "joint_path": str(joint_path),
+                "status": "invalid_parts",
+                "parts": [str(p) for p in part_paths],
+            },
+        }
+
+    if total_val != (1 << lg_size_val):
+        return {
+            "ok": False,
+            "issues": [f"{stem_path}: total={total_val} does not match 2^lg_size={1 << lg_size_val}"],
+            "detail": {
+                "joint_path": str(joint_path),
+                "status": "invalid_parts",
+                "parts": [str(p) for p in part_paths],
+            },
+        }
+
+    intervals.sort()
+    cursor = 0
+    for start, end in intervals:
+        if start != cursor:
+            return {
+                "ok": False,
+                "issues": [f"{stem_path}: split coverage gap/overlap at {cursor}->{start}"],
+                "detail": {
+                    "joint_path": str(joint_path),
+                    "status": "invalid_parts",
+                    "parts": [str(p) for p in part_paths],
+                },
+            }
+        cursor = end
+    if cursor != total_val:
+        return {
+            "ok": False,
+            "issues": [f"{stem_path}: split coverage incomplete end={cursor} total={total_val}"],
+            "detail": {
+                "joint_path": str(joint_path),
+                "status": "invalid_parts",
+                "parts": [str(p) for p in part_paths],
+            },
+        }
+
+    header_size = struct.calcsize("<4sBHIff")
+    keys_bytes = 8 * total_val
+    logp_bytes = 4 * total_val
+    cnts_bytes = 8 * total_val
+    uncompressed_size = header_size + keys_bytes + logp_bytes + cnts_bytes
+
+    joint_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_raw = joint_path.with_suffix(".bin.tmpraw")
+    tmp_out = joint_path.with_suffix(".bin.zst.tmp")
+    if tmp_raw.exists():
+        tmp_raw.unlink()
+    if tmp_out.exists():
+        tmp_out.unlink()
+
+    try:
+        with tmp_raw.open("w+b") as fh:
+            fh.write(struct.pack("<4sBHIff", b"WLI0", 1, int(lg_size_val), 0, 0.0, 1.0))
+            fh.truncate(uncompressed_size)
+
+            for item in metadata:
+                part_path = Path(item["part_path"])
+                offset = int(item["offset"])
+                with np.load(part_path, allow_pickle=False) as zf:
+                    keys = np.asarray(zf["keys"], dtype="<u8", order="C")
+                    logp = np.asarray(zf["logp"], dtype="<f4", order="C")
+                    cnts = np.asarray(zf["cnts"], dtype="<u8", order="C")
+                count = int(keys.size)
+                fh.seek(header_size + 8 * offset)
+                fh.write(keys.tobytes(order="C"))
+                fh.seek(header_size + keys_bytes + 4 * offset)
+                fh.write(logp.tobytes(order="C"))
+                fh.seek(header_size + keys_bytes + logp_bytes + 8 * offset)
+                fh.write(cnts.tobytes(order="C"))
+
+        cctx = zstd.ZstdCompressor(level=9)
+        with tmp_raw.open("rb") as src, tmp_out.open("wb") as dst:
+            with cctx.stream_writer(dst) as zf:
+                shutil.copyfileobj(src, zf, length=1024 * 1024)
+
+        os.replace(tmp_out, joint_path)
+    except Exception:
+        tmp_raw.unlink(missing_ok=True)
+        tmp_out.unlink(missing_ok=True)
+        raise
+    finally:
+        tmp_raw.unlink(missing_ok=True)
+
+    setup_log.write(
+        f"[joint-rebuild] built {joint_path} from {len(part_paths)} parts "
+        f"(total={total_val}, lg={lg_size_val})\n"
+    )
+    return {
+        "ok": True,
+        "issues": [],
+        "detail": {
+            "joint_path": str(joint_path),
+            "status": "rebuilt",
+            "parts_count": int(len(part_paths)),
+            "total_entries": int(total_val),
+            "lg_size": int(lg_size_val),
+            "sha256": _sha256_file(joint_path),
+        },
+    }
+
+
+def rebuild_split_joint_assets(
+    *,
+    repo_root: Path,
+    assets_root: str,
+    setup_log,
+) -> Dict[str, Any]:
+    """
+    Rebuild missing LM joint .bin.zst tables from local split *_part*.npz shards.
+
+    This is a fallback bridge for slimmed repositories where large joint bins
+    are omitted but split shards are present.
+    """
+    issues: List[str] = []
+    details: List[Dict[str, Any]] = []
+    rebuilt_count = 0
+    existing_count = 0
+
+    lm_roots: List[Path] = []
+    candidates = [
+        repo_root / assets_root / "language_model" / "lmp",
+        repo_root / "src" / "rune_decrypter_prime" / "data" / "language_model" / "lmp",
+    ]
+    seen: set[str] = set()
+    for cand in candidates:
+        resolved = cand.resolve()
+        key = str(resolved)
+        if key in seen:
+            continue
+        seen.add(key)
+        if resolved.exists():
+            lm_roots.append(resolved)
+
+    if not lm_roots:
+        return {
+            "issues": [],
+            "details": [],
+            "rebuilt_count": 0,
+            "existing_count": 0,
+        }
+
+    for lm_root in lm_roots:
+        idx_path = lm_root / "index.json"
+        if not idx_path.exists():
+            issues.append(f"missing LM index.json: {idx_path}")
+            details.append({"lm_root": str(lm_root), "status": "missing_index"})
+            continue
+        try:
+            idx = json.loads(idx_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            issues.append(f"failed to parse LM index: {idx_path}: {exc}")
+            details.append({"lm_root": str(lm_root), "status": "invalid_index", "error": str(exc)})
+            continue
+
+        models = idx.get("models")
+        if not isinstance(models, dict):
+            issues.append(f"LM index missing models object: {idx_path}")
+            details.append({"lm_root": str(lm_root), "status": "invalid_models"})
+            continue
+
+        for model_name, model_info in sorted(models.items()):
+            if not isinstance(model_info, dict):
+                continue
+            pattern = model_info.get("joint_pattern")
+            ns = model_info.get("n")
+            if not isinstance(pattern, str) or not pattern:
+                continue
+            if not isinstance(ns, list):
+                continue
+            for n_val in ns:
+                try:
+                    n_int = int(n_val)
+                except Exception:
+                    continue
+                for mode in ("ltr", "rtl"):
+                    for pos in ("nose", "wise"):
+                        rel = (
+                            pattern.replace("%%MODE%%", mode)
+                            .replace("%%POS%%", pos)
+                            .replace("%%N%%", str(n_int))
+                        )
+                        joint_path = lm_root / rel
+                        record: Dict[str, Any] = {
+                            "lm_root": str(lm_root),
+                            "model": str(model_name),
+                            "mode": mode,
+                            "se_mode": pos,
+                            "n": int(n_int),
+                            "joint_path": str(joint_path),
+                        }
+                        if joint_path.exists():
+                            existing_count += 1
+                            record["status"] = "already_present"
+                            details.append(record)
+                            continue
+                        out = _joint_output_from_parts(joint_path, setup_log=setup_log)
+                        if out["ok"]:
+                            rebuilt_count += 1
+                            record.update(out["detail"])
+                            details.append(record)
+                        else:
+                            record.update(out["detail"])
+                            details.append(record)
+                            issues.extend(str(x) for x in out["issues"])
+
+    return {
+        "issues": issues,
+        "details": details,
+        "rebuilt_count": int(rebuilt_count),
+        "existing_count": int(existing_count),
+    }
 
 
 def _ensure_import_paths(repo_root: Path) -> None:
@@ -497,6 +807,15 @@ def _import_fastlm(repo_root: Path) -> Tuple[bool, str]:
         return False, str(exc)
 
 
+def _import_hamming(repo_root: Path) -> Tuple[bool, str]:
+    _ensure_import_paths(repo_root)
+    try:
+        importlib.import_module(HAMMING_MODULE)
+        return True, ""
+    except Exception as exc:
+        return False, str(exc)
+
+
 def ensure_fastlm(repo_root: Path, *, allow_build: bool, setup_log) -> Dict[str, Any]:
     present, err = _import_fastlm(repo_root)
     build_attempted = False
@@ -571,6 +890,80 @@ def ensure_fastlm(repo_root: Path, *, allow_build: bool, setup_log) -> Dict[str,
     }
 
 
+def ensure_hamming(repo_root: Path, *, allow_build: bool, setup_log) -> Dict[str, Any]:
+    present, err = _import_hamming(repo_root)
+    build_attempted = False
+    build_succeeded = False
+    issues: List[str] = []
+
+    if present:
+        setup_log.write("[hamming] import ok\n")
+        return {
+            "hamming_present": True,
+            "build_attempted": False,
+            "build_succeeded": False,
+            "issues": [],
+        }
+
+    setup_log.write(f"[hamming] import failed: {err}\n")
+    if not allow_build:
+        issues.append("hamming unavailable and build disabled")
+        return {
+            "hamming_present": False,
+            "build_attempted": False,
+            "build_succeeded": False,
+            "issues": issues,
+        }
+
+    build_script = repo_root / HAMMING_BUILD_SCRIPT
+    if not build_script.exists():
+        issues.append(f"hamming build script missing: {build_script}")
+        return {
+            "hamming_present": False,
+            "build_attempted": False,
+            "build_succeeded": False,
+            "issues": issues,
+        }
+
+    build_attempted = True
+    setup_log.write(f"[hamming] building using {build_script}\n")
+    try:
+        result = subprocess.run(
+            [sys.executable, str(build_script)],
+            cwd=str(repo_root),
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.stdout:
+            setup_log.write(result.stdout)
+            if not result.stdout.endswith("\n"):
+                setup_log.write("\n")
+        if result.stderr:
+            setup_log.write(result.stderr)
+            if not result.stderr.endswith("\n"):
+                setup_log.write("\n")
+        if result.returncode != 0:
+            issues.append(f"hamming build failed with exit code {result.returncode}")
+    except Exception as exc:
+        issues.append(f"hamming build invocation failed: {exc}")
+
+    present_after, err_after = _import_hamming(repo_root)
+    if present_after:
+        build_succeeded = True
+        setup_log.write("[hamming] import ok after build\n")
+    else:
+        issues.append(f"hamming still unavailable after build: {err_after}")
+        setup_log.write(f"[hamming] still unavailable: {err_after}\n")
+
+    return {
+        "hamming_present": bool(present_after),
+        "build_attempted": bool(build_attempted),
+        "build_succeeded": bool(build_succeeded),
+        "issues": issues,
+    }
+
+
 def _run_tiny_scoring_probe(repo_root: Path, lm_root: Path) -> Tuple[bool, Dict[str, Any], str]:
     _ensure_import_paths(repo_root)
     try:
@@ -637,6 +1030,7 @@ def run_preflight(
     assets_root: str,
     required_assets: Sequence[RequiredAsset],
     fastlm_present: bool,
+    hamming_present: bool,
     preflight_log,
 ) -> Dict[str, Any]:
     issues: List[str] = []
@@ -682,6 +1076,15 @@ def run_preflight(
         checks.append({"name": "fastlm_present", "passed": False, "detail": msg})
         preflight_log.write(f"[check] fastlm_present ERROR {msg}\n")
 
+    if hamming_present:
+        checks.append({"name": "hamming_present", "passed": True})
+        preflight_log.write("[check] hamming_present ok\n")
+    else:
+        msg = "hamming module unavailable"
+        issues.append(msg)
+        checks.append({"name": "hamming_present", "passed": False, "detail": msg})
+        preflight_log.write(f"[check] hamming_present ERROR {msg}\n")
+
     # Tiny scoring probe (char+wli 3/4 path).
     if required_assets:
         lm_root = assets_base / "language_model" / "lmp"
@@ -710,6 +1113,7 @@ def run_preflight(
         "device": "cpu",
         "scoring_backend": "numpy",
         "fastlm_present": bool(fastlm_present),
+        "hamming_present": bool(hamming_present),
         "checks": checks,
         "issues": issues,
         "probe_details": probe_details if probe_ok else {},
@@ -778,12 +1182,25 @@ def run_setup_and_preflight(repo_root: Path, *, skip_fastlm_build: bool) -> int:
             )
             all_issues.extend(links_report["issues"])
 
+        split_rebuild_report = rebuild_split_joint_assets(
+            repo_root=repo_root,
+            assets_root=assets_root,
+            setup_log=setup_log,
+        )
+        all_issues.extend(split_rebuild_report["issues"])
+
         fastlm_report = ensure_fastlm(
             repo_root,
             allow_build=not bool(skip_fastlm_build),
             setup_log=setup_log,
         )
         all_issues.extend(fastlm_report["issues"])
+        hamming_report = ensure_hamming(
+            repo_root,
+            allow_build=True,
+            setup_log=setup_log,
+        )
+        all_issues.extend(hamming_report["issues"])
 
         setup_success = len(all_issues) == 0
         setup_report = {
@@ -799,12 +1216,18 @@ def run_setup_and_preflight(repo_root: Path, *, skip_fastlm_build: bool) -> int:
             "verified_assets_count": int(recombine_report["verified_assets_count"]),
             "already_valid_assets_count": int(recombine_report["already_valid_assets_count"]),
             "asset_details": recombine_report["details"],
+            "joint_assets_rebuilt_count": int(split_rebuild_report["rebuilt_count"]),
+            "joint_assets_existing_count": int(split_rebuild_report["existing_count"]),
+            "joint_asset_details": split_rebuild_report["details"],
             "created_links_count": int(links_report["created_links_count"]),
             "already_linked_count": int(links_report["already_linked_count"]),
             "link_details": links_report["details"],
             "fastlm_present": bool(fastlm_report["fastlm_present"]),
             "fastlm_build_attempted": bool(fastlm_report["build_attempted"]),
             "fastlm_build_succeeded": bool(fastlm_report["build_succeeded"]),
+            "hamming_present": bool(hamming_report["hamming_present"]),
+            "hamming_build_attempted": bool(hamming_report["build_attempted"]),
+            "hamming_build_succeeded": bool(hamming_report["build_succeeded"]),
             "issues": all_issues,
         }
         _atomic_write_json(setup_report_path, setup_report)
@@ -820,6 +1243,7 @@ def run_setup_and_preflight(repo_root: Path, *, skip_fastlm_build: bool) -> int:
             assets_root=assets_root,
             required_assets=required_assets,
             fastlm_present=bool(fastlm_report["fastlm_present"]),
+            hamming_present=bool(hamming_report["hamming_present"]),
             preflight_log=preflight_log,
         )
         preflight_report["run_dir"] = str(run_dir.relative_to(repo_root).as_posix())

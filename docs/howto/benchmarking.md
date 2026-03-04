@@ -1,9 +1,9 @@
-# How-To: Benchmark Solvers (CPU)
+﻿# How-To: Benchmark Solvers (CPU)
 
 Audience: Hands-on / Expert  
-Time: 3–6 minutes  
+Time: 3â€“6 minutes  
 Outcome: Run a deterministic benchmark and capture results under `output/tools/benchmarks/`.  
-Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`), CPU reference environment.
+Prereqs: Python 3.11+, bootstrap complete (`python install.py`), CPU reference environment.
 
 ---
 
@@ -19,14 +19,14 @@ Prereqs: Python 3.11+, bootstrap complete (`python install.py --target dev`), CP
 # From repo root
 python tools/benchmarks/analysis/benchmark_harness.py
 ```
-You’ll see a table in the console and a line like:
+Youâ€™ll see a table in the console and a line like:
 ```text
 [bench] Reports written to output/tools/benchmarks/20250101T120000Z__bench__abcd123
 ```
 
 ### Outputs
-- `results.csv` – columns: name, score, seconds.
-- `results.json` – same rows as JSON (easier to diff or feed into scripts).
+- `results.csv` â€“ columns: name, score, seconds.
+- `results.json` â€“ same rows as JSON (easier to diff or feed into scripts).
 
 Keep CPU-only runs for apples-to-apples comparisons across machines.
 
@@ -36,7 +36,7 @@ Keep CPU-only runs for apples-to-apples comparisons across machines.
 ```powershell
 python tools/benchmarks/analysis/compare_runs.py <old.json> <new.json>
 ```
-The script flags slowdowns >20 % so you can triage regressions quickly. Use the JSON files from the benchmark folders.
+The script flags slowdowns >20â€¯% so you can triage regressions quickly. Use the JSON files from the benchmark folders.
 
 ---
 
@@ -62,11 +62,12 @@ Outputs include `.prof` files, human-readable summaries, and JSON reports so you
 
 ## Tips
 - Keep seeds + budgets fixed so seconds stay within normal jitter.
-- If you’re testing CUDA/Torch changes, run a separate GPU-focused harness; keep this CPU suite stable for reference numbers.
-- When timings drift unexpectedly, inspect the benchmark folder’s `results.json` and rerun with `--top` profiling to see which functions changed.
+- If youâ€™re testing CUDA/Torch changes, run a separate GPU-focused harness; keep this CPU suite stable for reference numbers.
+- When timings drift unexpectedly, inspect the benchmark folderâ€™s `results.json` and rerun with `--top` profiling to see which functions changed.
 
 ---
 
 ## Related docs
-- `docs/guides/outputs.md` – explains the output tree (`output/tools/benchmarks/...`).
-- `docs/guides/solvers_deep.md` – deep dive into solver configs/patience knobs.
+- `docs/guides/outputs.md` â€“ explains the output tree (`output/tools/benchmarks/...`).
+- `docs/guides/solvers_deep.md` â€“ deep dive into solver configs/patience knobs.
+

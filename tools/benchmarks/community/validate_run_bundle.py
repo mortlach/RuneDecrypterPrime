@@ -11,7 +11,15 @@ from jsonschema import Draft202012Validator
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from tools.benchmarks.community._campaign_common import load_json, read_jsonl, write_json
+from tools.benchmarks.community._campaign_common import (
+    INTEGRITY_CHAIN_GENESIS,
+    INTEGRITY_CHAIN_HASH,
+    INTEGRITY_CHAIN_VERSION,
+    load_json,
+    read_jsonl,
+    verify_results_integrity,
+    write_json,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_MANIFEST_SCHEMA = REPO_ROOT / "tools" / "benchmarks" / "community" / "schemas" / "manifest_schema_v1_1.json"
@@ -27,6 +35,7 @@ REQUIRED_BUNDLE_FILES = (
     "profile_catalog_v1_1.json",
     "shard_manifest.jsonl",
     "results.jsonl",
+    "results_integrity.jsonl",
     "run.log",
 )
 
@@ -84,6 +93,7 @@ def validate_run_bundle(
     campaign_config = load_json(run_bundle_path / "campaign_config_v1_1.json")
     shard_rows = read_jsonl(run_bundle_path / "shard_manifest.jsonl")
     result_rows = read_jsonl(run_bundle_path / "results.jsonl")
+    integrity_rows = read_jsonl(run_bundle_path / "results_integrity.jsonl")
 
     campaign_id = str(campaign_config.get("campaign_id", "")).strip()
     git_sha = str(campaign_config.get("git_sha", "")).strip()
@@ -147,6 +157,45 @@ def validate_run_bundle(
     if len(result_rows) == 0:
         warnings.append("results.jsonl has zero rows")
 
+    integrity_errors, final_chain_hash = verify_results_integrity(
+        result_rows=result_rows,
+        integrity_rows=integrity_rows,
+    )
+    errors.extend(integrity_errors)
+
+    integrity_meta = run_meta.get("results_integrity")
+    if not isinstance(integrity_meta, dict):
+        errors.append("run_meta missing results_integrity block")
+    else:
+        if str(integrity_meta.get("integrity_version")) != INTEGRITY_CHAIN_VERSION:
+            errors.append(
+                "run_meta results_integrity.integrity_version mismatch: "
+                f"expected={INTEGRITY_CHAIN_VERSION}"
+            )
+        if str(integrity_meta.get("hash_algorithm")) != INTEGRITY_CHAIN_HASH:
+            errors.append(
+                "run_meta results_integrity.hash_algorithm mismatch: "
+                f"expected={INTEGRITY_CHAIN_HASH}"
+            )
+        if str(integrity_meta.get("genesis_hash")) != INTEGRITY_CHAIN_GENESIS:
+            errors.append(
+                "run_meta results_integrity.genesis_hash mismatch: "
+                f"expected={INTEGRITY_CHAIN_GENESIS}"
+            )
+        try:
+            meta_row_count = int(integrity_meta.get("row_count"))
+        except Exception:
+            meta_row_count = -1
+        if meta_row_count != len(result_rows):
+            errors.append(
+                "run_meta results_integrity.row_count mismatch: "
+                f"meta={meta_row_count} results={len(result_rows)}"
+            )
+        if str(integrity_meta.get("final_chain_hash")) != str(final_chain_hash):
+            errors.append(
+                "run_meta results_integrity.final_chain_hash mismatch with recomputed chain"
+            )
+
     report = {
         "ok": len(errors) == 0,
         "run_bundle_path": str(run_bundle_path),
@@ -156,6 +205,7 @@ def validate_run_bundle(
         "result_rows": len(result_rows),
         "unique_manifest_job_ids": len(manifest_job_ids),
         "unique_result_job_ids": len(result_job_ids),
+        "integrity_chain_hash": str(final_chain_hash),
         "errors": errors,
         "warnings": warnings,
     }

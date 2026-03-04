@@ -10,8 +10,18 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Dict
 
-if __package__ in (None, ""):
-    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_SRC_ROOT = _REPO_ROOT / "src"
+
+
+def _ensure_repo_import_paths() -> None:
+    for path in (_REPO_ROOT, _SRC_ROOT):
+        text = str(path)
+        if text not in sys.path:
+            sys.path.insert(0, text)
+
+
+_ensure_repo_import_paths()
 
 from tools.benchmarks.community._campaign_common import load_json, write_json
 from tools.benchmarks.community.config import (
@@ -26,14 +36,18 @@ from tools.benchmarks.periodic_sub_trans.common.core_enums import (
 )
 
 DEFAULT_LENGTH = 2376
+CAMPAIGN_DEVICE = "cpu"
+CAMPAIGN_SCORER_IMPL = "numpy"
 _ORDER_TO_RUNNER: Dict[str, Dict[str, str]] = {
     BenchmarkOrder.COL_THEN_SUB.value: {
         "module_name": "tools.benchmarks.periodic_sub_trans.col_then_sub.runner",
         "flavor": "col_then_sub",
+        "run_mode": PipelineRunMode.FULL.value,
     },
     BenchmarkOrder.SUB_THEN_COL.value: {
         "module_name": "tools.benchmarks.periodic_sub_trans.sub_then_col.runner",
         "flavor": "sub_then_col",
+        "run_mode": PipelineRunMode.FOCUS_SUB_THEN_COL.value,
     },
 }
 
@@ -65,12 +79,6 @@ def _find_fixture_length(campaign_config: dict[str, Any], *, text_fixture_id: st
                             return int(val)
     return DEFAULT_LENGTH
 
-
-def _apply_if_present(module: ModuleType, attr: str, value: Any) -> None:
-    if hasattr(module, attr):
-        setattr(module, attr, value)
-
-
 def _configure_module_for_campaign_job(
     *,
     module: ModuleType,
@@ -78,6 +86,7 @@ def _configure_module_for_campaign_job(
     campaign_config: dict[str, Any],
     profile_catalog: dict[str, Any],
     repo_root: Path,
+    runner_spec: dict[str, str] | None = None,
 ) -> None:
     order = str(job["order"])
     run_seed = int(job["run_seed"])
@@ -85,25 +94,12 @@ def _configure_module_for_campaign_job(
     columns = int(job["columns"])
     text_fixture_id = str(job["text_fixture_id"])
     profile_id = str(job["profile_id"])
-
-    _apply_if_present(module, "AUTOSKIP_PROVEN", False)
-    _apply_if_present(module, "FORCE_RERUN_PROVEN", True)
-    _apply_if_present(module, "AVOID_REPEAT_FAIL", False)
-    _apply_if_present(module, "TIERS_REGEX_OVERRIDE", None)
-    _apply_if_present(module, "KEY_SEEDS_OVERRIDE", [run_seed])
-    _apply_if_present(module, "KEY_SEEDS", [run_seed])
-    _apply_if_present(module, "TEXT_OFFSETS", [0])
-    _apply_if_present(
-        module,
-        "PIPELINE_RUN_MODE",
-        (
-            PipelineRunMode.FULL.value
-            if order == BenchmarkOrder.COL_THEN_SUB.value
-            else PipelineRunMode.FOCUS_SUB_THEN_COL.value
-        ),
-    )
-    _apply_if_present(module, "PROFILE", f"community_{profile_id}")
-    _apply_if_present(module, "HEARTBEAT_SECONDS", 3600)
+    resolved_runner = dict(runner_spec) if runner_spec is not None else _ORDER_TO_RUNNER.get(order)
+    if resolved_runner is None:
+        raise ValueError(f"unsupported order: {order}")
+    run_mode = str(resolved_runner["run_mode"])
+    profile_name = f"community_{profile_id}"
+    heartbeat_seconds = 3600
 
     profile_catalog_obj = load_profile_catalog_from_dict(profile_catalog)
     profile = profile_catalog_obj.get_profile(profile_id)
@@ -111,10 +107,29 @@ def _configure_module_for_campaign_job(
 
     length = _find_fixture_length(campaign_config, text_fixture_id=text_fixture_id, repo_root=repo_root)
     tier_name = f"community_{order}_p{period}_c{columns}_l{length}"
-    if not hasattr(module, "Tier"):
-        raise ValueError("pipeline module missing Tier dataclass")
-    tier_cls = getattr(module, "Tier")
-    _apply_if_present(module, "TIERS", [tier_cls(tier_name, period, columns, length)])
+
+    configure_fn = getattr(module, "configure_campaign_run", None)
+    if not callable(configure_fn):
+        raise ValueError(
+            "pipeline module missing configure_campaign_run(...) entrypoint"
+        )
+    configure_fn(
+        run_seed=int(run_seed),
+        period=int(period),
+        columns=int(columns),
+        length=int(length),
+        tier_name=str(tier_name),
+        run_mode=str(run_mode),
+        profile_name=str(profile_name),
+        heartbeat_seconds=int(heartbeat_seconds),
+        autoskip_proven=False,
+        force_rerun_proven=True,
+        avoid_repeat_fail=False,
+        text_offsets=[0],
+        tiers_regex_override=None,
+        scorer_impl=str(CAMPAIGN_SCORER_IMPL),
+        scorer_stage3_impl_avg_fulltext=str(CAMPAIGN_SCORER_IMPL),
+    )
 
 
 def _pick_run_dir(pre_dirs: set[Path], post_dirs: set[Path]) -> Path:
@@ -245,8 +260,8 @@ def _build_result_row(
         "stage2_best_score": stage2_best,
         "stage3_best_score": stage3_best,
         "output_run_dir": str(run_dir),
-        "device": "cpu",
-        "scoring_backend": "numpy",
+        "device": str(CAMPAIGN_DEVICE),
+        "scoring_backend": str(CAMPAIGN_SCORER_IMPL),
         "fastlm_present": bool(fastlm_present),
     }
     return row
@@ -279,6 +294,7 @@ def run_single_job(
         campaign_config=campaign_config,
         profile_catalog=profile_catalog,
         repo_root=repo_root,
+        runner_spec=runner_spec,
     )
 
     out_root = repo_root / "output" / "tools" / "benchmarks"

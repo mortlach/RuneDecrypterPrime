@@ -8,7 +8,13 @@ import pytest
 
 from tools.benchmarks.community import aggregate_results as ar
 from tools.benchmarks.community import combine_results as cr
-from tools.benchmarks.community._campaign_common import read_jsonl
+from tools.benchmarks.community._campaign_common import (
+    INTEGRITY_CHAIN_GENESIS,
+    INTEGRITY_CHAIN_HASH,
+    INTEGRITY_CHAIN_VERSION,
+    build_results_integrity_rows,
+    read_jsonl,
+)
 
 pytestmark = pytest.mark.tier_a
 
@@ -92,6 +98,7 @@ def _make_bundle(
 ) -> Path:
     bundle = root / name
     bundle.mkdir(parents=True, exist_ok=True)
+    integrity_rows, final_chain_hash = build_results_integrity_rows(result_rows)
     _write_json(
         bundle / "run_meta.json",
         {
@@ -100,6 +107,13 @@ def _make_bundle(
             "git_sha": git_sha,
             "campaign_mode": True,
             "autoskip_proven_disabled": True,
+            "results_integrity": {
+                "integrity_version": INTEGRITY_CHAIN_VERSION,
+                "hash_algorithm": INTEGRITY_CHAIN_HASH,
+                "genesis_hash": INTEGRITY_CHAIN_GENESIS,
+                "row_count": len(result_rows),
+                "final_chain_hash": final_chain_hash,
+            },
             "finished_at_utc": finished_at_utc,
         },
     )
@@ -110,6 +124,7 @@ def _make_bundle(
     _write_json(bundle / "profile_catalog_v1_1.json", {"catalog_version": "v1.1", "profiles": [{"profile_id": "baseline_resume_v1_1"}]})
     _write_jsonl(bundle / "shard_manifest.jsonl", manifest_rows)
     _write_jsonl(bundle / "results.jsonl", result_rows)
+    _write_jsonl(bundle / "results_integrity.jsonl", integrity_rows)
     _write_json(bundle / "setup_report.json", {"ok": True})
     _write_json(bundle / "preflight_report.json", {"ok": True})
     (bundle / "setup.log").write_text("ok\n", encoding="utf-8")

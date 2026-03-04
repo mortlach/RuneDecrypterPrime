@@ -9,13 +9,13 @@ bootstrap entrypoint.
 Use one command from repo root:
 
 ```bash
-python install.py --target runner
+python install.py
 ```
 
 Windows (if `python` alias is unavailable):
 
 ```powershell
-py -3.11 install.py --target runner
+py -3.11 install.py
 ```
 
 What this does:
@@ -24,27 +24,29 @@ What this does:
 2. Installs target-specific dependencies.
 3. Installs the repo in editable mode.
 4. Runs setup + preflight:
-   - recombine assets from `assets_packed/` into `assets/`
+   - recombine manifest assets from `assets_packed/` into `assets/`
+   - rebuild missing split LM joint tables (`*_part*.npz` -> `.bin.zst`) when available
    - build/verify `_fastlm`
-   - run CPU compliance checks
+   - build/verify `_hamming`
+   - run CPU preflight checks
    - write `benchmark_ready.json` on success
 
 Output artefacts:
 
 - `output/tools/benchmarks/community/setup_preflight/latest/`
 
-Optional: run a canary immediately after setup.
+Optional: run install smoke immediately after setup.
 
 ```bash
-python install.py --target runner --run-canary
+python tools/ci/install_smoke.py
 ```
 
 ## Install Targets
 
-- `runner`: shard execution contributors.
-- `organiser`: run-bundle validate/combine/aggregate.
-- `dev`: full development environment.
-- `ci-smoke`: lightweight CI checks.
+- `runner`: run community benchmark shards.
+- `organiser`: validate/combine/aggregate run bundles.
+- `dev`: local development (tests/lint/hooks).
+- `ci-smoke`: minimal CI smoke stack.
 
 Target requirement files live under `requirements/targets/`.
 
@@ -56,7 +58,17 @@ Use any of the thin wrappers if preferred:
 - `install.sh`
 - `install.bat`
 
-Each wrapper forwards arguments to `python install.py`.
+Each wrapper launches `install.py` for your platform.
+
+## Clean Install Smoke (VM/CI)
+
+For a no-argument, fresh-environment validation run:
+
+```bash
+python tools/ci/install_smoke.py
+```
+
+This runs the bootstrap install and verifies the expected setup/preflight artefacts and ready markers.
 
 ## Community Benchmark Flow
 
@@ -68,17 +80,27 @@ Primary docs:
 
 High-level flow:
 
-1. `python install.py --target runner`
+1. `python install.py`
 2. Generate manifest + shards.
 3. Run assigned shard.
 4. Share `run_bundle`.
 5. Organiser validates, combines, and aggregates.
+
+## Lightweight Source Zip
+
+For a shareable, low-noise source bundle (preserves `src/` structure while excluding
+`data/`, caches, and compiled artifacts):
+
+```bash
+python tools/benchmarks/zip_src_nobloat.py
+```
 
 ## Development Notes
 
 - Python: 3.11+
 - Determinism is required for benchmark mode.
 - CPU-only scoring is required for v1.1 campaign compliance.
+- `setup_report.json` and `preflight_report.json` are the source of truth for install readiness.
 
 ## License
 
