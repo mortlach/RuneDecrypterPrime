@@ -5,7 +5,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional, Sequence, Tuple, Any
-import numpy as np
+import math
 
 from rune_decrypter_prime.core.config import CipherConfig, InterruptorConfig
 from rune_decrypter_prime.core.config.hard_crib import HardCribConfig, normalize_hard_crib_config
@@ -652,7 +652,7 @@ class DecryptionProblem:
                 f = float(v)
             except Exception:
                 return 0.0
-            if not np.isfinite(f):
+            if not math.isfinite(f):
                 return 0.0
             return float(max(0.0, f))
 
@@ -1037,7 +1037,7 @@ class DecryptionProblem:
 
         return plains_out, scores_out, total_scored, score_time
 
-    def _prepare_candidate_inputs(self, keys_np: np.ndarray, *, interrupt_idx: Optional[Any] = None):
+    def _prepare_candidate_inputs(self, keys_np: Any, *, interrupt_idx: Optional[Any] = None):
         """Prepare core/transposed ciphertext + keys for candidates_for()."""
         cipher = self.cipher
         ct_arr = to_numpy(self.ciphertext).reshape(-1)
@@ -1103,7 +1103,7 @@ class DecryptionProblem:
         return ct_arr_u8, key_arr, None, int(ct_arr_u8.size)
 
     @staticmethod
-    def _enumerate_candidates(cands_row: np.ndarray, lens_row: np.ndarray, limit: int) -> np.ndarray:
+    def _enumerate_candidates(cands_row: Any, lens_row: Any, limit: int) -> Any:
         """Enumerate candidate plaintexts in core/transposed space with a hard cap."""
         lens_np = to_numpy(lens_row).reshape(-1)
         if limit <= 0:
@@ -1137,7 +1137,7 @@ class DecryptionProblem:
                 idx[pos] = 0
         return out
 
-    def _reassemble_plaintexts(self, plains_tr: np.ndarray, info, L_full: int) -> list[np.ndarray]:
+    def _reassemble_plaintexts(self, plains_tr: Any, info, L_full: int) -> list[Any]:
         """Undo text transposition and reinsert interruptors for candidate batches."""
         cipher = self.cipher
         if not hasattr(cipher, "_trans_mgr"):
@@ -1160,8 +1160,8 @@ class DecryptionProblem:
 
     def _resolve_candidates_for_key(
         self,
-        cands_row: np.ndarray,
-        lens_row: np.ndarray,
+        cands_row: Any,
+        lens_row: Any,
         info,
         *,
         L_full: int,
@@ -1185,8 +1185,8 @@ class DecryptionProblem:
 
     def _resolve_candidates_for_key_with_raw(
         self,
-        cands_row: np.ndarray,
-        lens_row: np.ndarray,
+        cands_row: Any,
+        lens_row: Any,
         info,
         *,
         L_full: int,
@@ -1216,7 +1216,7 @@ class DecryptionProblem:
         best_plain = to_numpy(plains_full[best_idx]).astype("uint8", copy=False).reshape(-1)
         return best_plain, float(pct_np[best_idx]), float(raw_np[best_idx]), int(len(plains_full)), sc_time
 
-    def resolve_plaintext(self, key: Any) -> Optional[np.ndarray]:
+    def resolve_plaintext(self, key: Any) -> Optional[Any]:
         """Resolve a key to a plaintext, honoring degeneracy settings if enabled."""
         cfg = self._degeneracy_cfg()
         key_np = to_numpy(key).astype(self.key_dtype, copy=False).reshape(1, -1)

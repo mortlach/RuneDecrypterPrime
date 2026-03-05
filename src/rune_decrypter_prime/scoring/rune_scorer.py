@@ -11,7 +11,10 @@ import numpy as np
 import time
 import warnings
 
-from rune_decrypter_prime.scoring.base_scorer import BaseScorer, WIN_FIXED, parse_objective
+from rune_decrypter_prime.scoring.base_scorer import BaseScorer, WIN_FIXED
+from rune_decrypter_prime.scoring.objective_normalize import (
+    normalize_objective_input as _normalize_objective,
+)
 from rune_decrypter_prime.scoring.language_model.language_model_prime_runtime import LmPrimeRuntime, ECDFCache
 from rune_decrypter_prime.utils.telemetry import stash as _tstash
 from rune_decrypter_prime.scoring.windowing import (
@@ -32,8 +35,6 @@ from rune_decrypter_prime.core.types import (
     AvgWindowPolicy,
     ensure_direction,
     ensure_se_mode,
-    ensure_objective_family,
-    ensure_stat,
     ensure_avg_window_policy,
 )
 
@@ -44,42 +45,6 @@ def _cfg_get(cfg: Any, key: str, default: Any = None) -> Any:
     if isinstance(cfg, dict):
         return cfg.get(key, default)
     return default
-
-
-def _normalize_objective(value: Any, *, default_win: int) -> ObjectiveSpec:
-    if isinstance(value, ObjectiveSpec):
-        fam = ensure_objective_family(value.family)
-        stat = ensure_stat(value.stat) if value.stat is not None else None
-        win = int(value.win) if value.win is not None else None
-    elif isinstance(value, dict):
-        fam = ensure_objective_family(value.get("family", ObjectiveFamily.PCT))
-        stat_raw = value.get("stat")
-        stat = ensure_stat(stat_raw) if stat_raw is not None else None
-        win_raw = value.get("win")
-        win = int(win_raw) if win_raw is not None else None
-    elif isinstance(value, str):
-        fam_raw, stat_raw, win_raw = parse_objective(value)
-        fam = ensure_objective_family(fam_raw)
-        stat = ensure_stat(stat_raw) if stat_raw is not None else None
-        win = int(win_raw) if win_raw is not None else None
-    elif value is None:
-        fam = ObjectiveFamily.PCT
-        stat = Stat.LOGP
-        win = int(default_win)
-    else:
-        raise TypeError("objective must be ObjectiveSpec | dict | str | None")
-
-    if fam in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
-        if stat is None:
-            stat = Stat.LOGP
-        if win is None:
-            win = int(default_win)
-    elif fam is ObjectiveFamily.AVG:
-        if stat is None:
-            stat = Stat.LOGP
-        if win is None:
-            win = int(default_win)
-    return ObjectiveSpec(family=fam, stat=stat, win=win)
 
 # --------------------------- dtype helpers ---------------------------
 _DEF_CLAMP_MIN = 1e-6

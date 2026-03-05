@@ -43,17 +43,22 @@ from rune_decrypter_prime.scoring.unified_tables import (
 from rune_decrypter_prime.scoring.language_model.language_model_prime_runtime import ECDFCache
 from rune_decrypter_prime.scoring.stat_transform import apply_stat_transform
 from rune_decrypter_prime.backends.xp import select_backend
-from rune_decrypter_prime.scoring.base_scorer import BaseScorer, normalize_objective as _norm_obj, parse_objective
+from rune_decrypter_prime.scoring.base_scorer import BaseScorer
+from rune_decrypter_prime.scoring.objective_normalize import (
+    normalize_objective_input as _normalize_objective,
+)
 from rune_decrypter_prime.scoring.torch_backend.hash import (
     as_lut_keys_int64_torch as _as_lut_keys_int64_torch,
     as_lut_logp_float32_torch as _as_lut_logp_float32_torch,
-    lookup_logp_linear_probe as _lookup_logp_linear_probe,
     xxh64_u32words_cpu as _xxh64_u32words_cpu,
     xxh64_u32words_device as _xxh64_u32words_device,
 )
 from rune_decrypter_prime.scoring.torch_backend.packing import (
     pack_char_ngram as _pack_char_ngram_tensor,
     pack_wli_ngram as _pack_wli_ngram_tensor,
+)
+from rune_decrypter_prime.scoring.torch_backend.probe import (
+    lookup_logp_linear_probe as _lookup_logp_linear_probe,
 )
 from rune_decrypter_prime.scoring.windowing import START_TAG, END_TAG
 from rune_decrypter_prime.utils.telemetry import stash as _tstash  # canonical helper  ✔
@@ -67,8 +72,6 @@ from rune_decrypter_prime.core.types import (
     ensure_direction,
     ensure_se_mode,
     ensure_avg_window_policy,
-    ensure_objective_family,
-    ensure_stat,
 )
 
 # --------------------------- small utils ---------------------------
@@ -85,42 +88,6 @@ def _cfg_get(cfg: Any, key: str, default: Any = None) -> Any:
         return getattr(cfg, key)
     except Exception:
         return default
-
-
-def _normalize_objective(value: Any, *, default_win: int) -> ObjectiveSpec:
-    if isinstance(value, ObjectiveSpec):
-        fam = ensure_objective_family(value.family)
-        stat = ensure_stat(value.stat) if value.stat is not None else None
-        win = int(value.win) if value.win is not None else None
-    elif isinstance(value, Mapping):
-        fam = ensure_objective_family(value.get("family", ObjectiveFamily.PCT))
-        stat_raw = value.get("stat")
-        stat = ensure_stat(stat_raw) if stat_raw is not None else None
-        win_raw = value.get("win")
-        win = int(win_raw) if win_raw is not None else None
-    elif isinstance(value, str):
-        fam_raw, stat_raw, win_raw = parse_objective(value)
-        fam = ensure_objective_family(fam_raw)
-        stat = ensure_stat(stat_raw) if stat_raw is not None else None
-        win = int(win_raw) if win_raw is not None else None
-    elif value is None:
-        fam = ObjectiveFamily.PCT
-        stat = Stat.LOGP
-        win = int(default_win)
-    else:
-        raise TypeError("objective must be ObjectiveSpec | dict | str | None")
-
-    if fam in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
-        if stat is None:
-            stat = Stat.LOGP
-        if win is None:
-            win = int(default_win)
-    elif fam is ObjectiveFamily.AVG:
-        if stat is None:
-            stat = Stat.LOGP
-        if win is None:
-            win = int(default_win)
-    return ObjectiveSpec(family=fam, stat=stat, win=win)
 
 # ===================================================================
 
