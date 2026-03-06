@@ -1,40 +1,64 @@
-"""
-Why: After PR9, core must not compare or store raw 'ltr'/'rtl'/'fwd'/'rev'. Only the Enum lives inside.
-Proves: Grep-style static check over selected core files, excluding the Enum value definitions.
-"""
-import pytest
+from __future__ import annotations
 
-pytest.skip(
-    "Magic direction token guardrail is deprecated after core/config split; "
-    "new modules intentionally emit canonical strings.",
-    allow_module_level=True,
-)
-
+import ast
 from pathlib import Path
-import re
 
-BANNED_PATTERNS = [r"\bfwd\b", r"\brev\b", r"['\"]ltr['\"]", r"['\"]rtl['\"]"]
-CORE_ALLOW = {
-    # limit to real core files present in repo
-    "rune_decrypter_prime/core/solver_engine.py",
-    "rune_decrypter_prime/core/config.py",
-    "rune_decrypter_prime/core/transpositions.py",
-#    "rune_decrypter_prime/core/telemetry_helpers.py",
-    "rune_decrypter_prime/core/rune_solver.py",
+import rune_decrypter_prime as rdp
+
+_ALLOWED = {
+    "core/types.py",  # Enum values + API-edge direction normalization aliases.
 }
-ENUM_FILE = "core/types.py"
+_BANNED = {"ltr", "rtl", "fwd", "rev"}
 
 
-def test_core_has_no_magic_direction_tokens():
-    root = Path(__file__).resolve().parents[2]  # repo root
-    offenders = []
-    for rel in CORE_ALLOW:
-        p = root / rel
-        text = p.read_text(encoding="utf-8", errors="ignore")
-        if rel == ENUM_FILE:
-            continue  # the Enum is allowed to define values
-        for pat in BANNED_PATTERNS:
-            for i, line in enumerate(text.splitlines(), start=1):
-                if re.search(pat, line):
-                    offenders.append(f"{rel}:{i}: {line.strip()}")
-    assert not offenders, "Magic direction tokens found in core:\n" + "\n".join(offenders)
+def _strip_docstrings(tree: ast.AST) -> ast.AST:
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            body = getattr(node, "body", None)
+            if not body:
+                continue
+            first = body[0]
+            if isinstance(first, ast.Expr) and isinstance(getattr(first, "value", None), ast.Constant):
+                if isinstance(first.value.value, str):
+                    body.pop(0)
+    return tree
+
+
+def _scan_tokens(py: Path) -> list[tuple[int, str]]:
+    src = py.read_text(encoding="utf-8", errors="ignore")
+    try:
+        tree = ast.parse(src, filename=str(py))
+    except SyntaxError:
+        return []
+    tree = _strip_docstrings(tree)
+
+    offenders: list[tuple[int, str]] = []
+
+    class V(ast.NodeVisitor):
+        def visit_Constant(self, node: ast.Constant) -> None:  # type: ignore[override]
+            if isinstance(node.value, str):
+                val = node.value.strip().lower()
+                if val in _BANNED:
+                    offenders.append((int(node.lineno), val))
+            self.generic_visit(node)
+
+    V().visit(tree)
+    return offenders
+
+
+def test_core_has_no_magic_direction_string_literals_outside_allowlist() -> None:
+    root = Path(rdp.__file__).resolve().parent
+    core = root / "core"
+    all_offenders: list[str] = []
+    for py in core.rglob("*.py"):
+        rel = py.relative_to(root).as_posix()
+        if rel in _ALLOWED:
+            continue
+        for lineno, token in _scan_tokens(py):
+            all_offenders.append(f"- {rel}:{lineno} token={token!r}")
+
+    assert not all_offenders, (
+        "Direction string literals are not allowed in core logic. "
+        "Use Direction enum internally and normalize only at core/types boundary.\n"
+        + "\n".join(all_offenders)
+    )

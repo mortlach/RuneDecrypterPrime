@@ -34,6 +34,9 @@ from tools.benchmarks.periodic_sub_trans.common.core_enums import (
     InstanceStopReason,
     PipelineRunMode,
 )
+from tools.benchmarks.periodic_sub_trans.common.scorer_schedule import (
+    parse_scorer_schedule,
+)
 
 DEFAULT_LENGTH = 2376
 CAMPAIGN_DEVICE = "cpu"
@@ -50,6 +53,13 @@ _ORDER_TO_RUNNER: Dict[str, Dict[str, str]] = {
         "run_mode": PipelineRunMode.FOCUS_SUB_THEN_COL.value,
     },
 }
+
+
+def _to_repo_rel_path(path: Path, *, repo_root: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(repo_root.resolve())).replace("\\", "/")
+    except Exception:
+        return str(path)
 
 
 def _find_fixture_length(campaign_config: dict[str, Any], *, text_fixture_id: str, repo_root: Path) -> int:
@@ -104,6 +114,7 @@ def _configure_module_for_campaign_job(
     profile_catalog_obj = load_profile_catalog_from_dict(profile_catalog)
     profile = profile_catalog_obj.get_profile(profile_id)
     apply_profile_overrides_to_pipeline_module(module, profile)
+    scorer_schedule = parse_scorer_schedule(profile.scorer_schedule)
 
     length = _find_fixture_length(campaign_config, text_fixture_id=text_fixture_id, repo_root=repo_root)
     tier_name = f"community_{order}_p{period}_c{columns}_l{length}"
@@ -129,6 +140,7 @@ def _configure_module_for_campaign_job(
         tiers_regex_override=None,
         scorer_impl=str(CAMPAIGN_SCORER_IMPL),
         scorer_stage3_impl_avg_fulltext=str(CAMPAIGN_SCORER_IMPL),
+        scorer_schedule=scorer_schedule.as_dict(),
     )
 
 
@@ -228,6 +240,7 @@ def _build_result_row(
     stages: list[dict[str, Any]],
     fastlm_present: bool,
     run_dir: Path,
+    repo_root: Path,
 ) -> dict[str, Any]:
     stage1_best, stage2_best, stage3_best = _extract_stage_best_scores(stages)
     mapped_status = _map_status(str(inst.get("status", "")))
@@ -259,7 +272,7 @@ def _build_result_row(
         "stage1_best_score": stage1_best,
         "stage2_best_score": stage2_best,
         "stage3_best_score": stage3_best,
-        "output_run_dir": str(run_dir),
+        "output_run_dir": _to_repo_rel_path(run_dir, repo_root=repo_root),
         "device": str(CAMPAIGN_DEVICE),
         "scoring_backend": str(CAMPAIGN_SCORER_IMPL),
         "fastlm_present": bool(fastlm_present),
@@ -318,7 +331,14 @@ def run_single_job(
         stages = []
 
     inst = instances[-1]
-    row = _build_result_row(job=job, inst=inst, stages=stages, fastlm_present=fastlm_present, run_dir=run_dir)
+    row = _build_result_row(
+        job=job,
+        inst=inst,
+        stages=stages,
+        fastlm_present=fastlm_present,
+        run_dir=run_dir,
+        repo_root=repo_root,
+    )
     row["total_seconds"] = float(max(float(row["total_seconds"]), elapsed))
     return row
 

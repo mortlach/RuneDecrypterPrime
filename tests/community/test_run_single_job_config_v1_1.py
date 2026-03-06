@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -8,6 +9,15 @@ import sys
 import pytest
 
 from tools.benchmarks.community import _run_single_job as rsj
+from tools.benchmarks.periodic_sub_trans.common.scorer_schedule import (
+    DEFAULT_SCORER_SCHEDULE,
+    SCHEDULE_EARLY_A_CHAR34,
+    SCHEDULE_EARLY_CHAR34_ONLY,
+    SCHEDULE_LATE_B_CHAR34,
+    SCHEDULE_LATE_CHAR34_ONLY,
+    SCHEDULE_MIDDLE_M_CHAR34,
+    SCHEDULE_MIDDLE_CHAR34_ONLY,
+)
 
 pytestmark = pytest.mark.tier_a
 
@@ -138,12 +148,47 @@ def test_configure_module_for_campaign_disables_autoskip_and_applies_profile():
     assert module.TIERS[0].length == 1234
     assert module._cfg["tier_name"] == "community_col_then_sub_p10_c7_l1234"
     assert module._cfg["run_mode"] == "full"
+    assert module._cfg["scorer_schedule"] == DEFAULT_SCORER_SCHEDULE.as_dict()
 
 
 def test_run_single_job_helper_adds_src_import_path():
     repo_root = Path(rsj.__file__).resolve().parents[3]
     src_root = repo_root / "src"
     assert str(src_root) in sys.path
+
+
+def test_run_single_job_result_paths_are_repo_relative():
+    repo_root = Path(rsj.__file__).resolve().parents[3]
+    run_dir = repo_root / "output" / "tools" / "benchmarks" / "periodic_sub_trans" / "col_then_sub" / "run_x"
+    row = rsj._build_result_row(
+        job={
+            "campaign_id": "cid",
+            "job_id": "jid",
+            "git_sha": "sha",
+            "text_fixture_id": "fixture_001",
+            "period": 7,
+            "columns": 3,
+            "order": "col_then_sub",
+            "profile_id": "baseline_resume_v1_1",
+            "run_seed": 111,
+            "replicate_idx": 0,
+            "config_fingerprint": "fp",
+        },
+        inst={
+            "status": "unsolved",
+            "stop_reason": "completed_pipeline",
+            "best_match_ratio": 0.5,
+            "best_stage": "stage2",
+            "total_seconds": 1.0,
+            "total_evals": 10,
+        },
+        stages=[],
+        fastlm_present=True,
+        run_dir=run_dir,
+        repo_root=repo_root,
+    )
+    assert str(row["output_run_dir"]).startswith("output/")
+    assert Path(str(row["output_run_dir"])).is_absolute() is False
 
 
 def test_configure_module_for_campaign_forces_numpy_scorer_impl():
@@ -285,3 +330,266 @@ def test_configure_module_for_campaign_uses_runner_config_entrypoint_when_availa
     assert cfg["force_rerun_proven"] is True
     assert cfg["scorer_impl"] == "numpy"
     assert cfg["scorer_stage3_impl_avg_fulltext"] == "numpy"
+    assert cfg["scorer_schedule"] == DEFAULT_SCORER_SCHEDULE.as_dict()
+
+
+def test_configure_module_for_campaign_forwards_profile_scorer_schedule():
+    calls: list[dict[str, object]] = []
+
+    class _Module:
+        def configure_campaign_run(self, **kwargs: object) -> None:
+            calls.append(dict(kwargs))
+
+    module = _Module()
+    job = {
+        "order": "col_then_sub",
+        "run_seed": 333,
+        "period": 10,
+        "columns": 7,
+        "text_fixture_id": "fixture_001",
+        "profile_id": "schedule_char34_only_v1_1",
+    }
+    campaign_config = {"fixtures": [{"text_fixture_id": "fixture_001", "length": 1234}]}
+    profile_catalog = {
+        "profiles": [
+            {
+                "profile_id": "schedule_char34_only_v1_1",
+                "scorer_schedule": {
+                    "early": SCHEDULE_EARLY_CHAR34_ONLY,
+                    "middle": SCHEDULE_MIDDLE_CHAR34_ONLY,
+                    "late": SCHEDULE_LATE_CHAR34_ONLY,
+                },
+                "overrides": {},
+            }
+        ]
+    }
+
+    rsj._configure_module_for_campaign_job(
+        module=module,  # type: ignore[arg-type]
+        job=job,
+        campaign_config=campaign_config,
+        profile_catalog=profile_catalog,
+        repo_root=Path.cwd(),
+    )
+
+    assert len(calls) == 1
+    assert calls[0]["scorer_schedule"] == {
+        "early": SCHEDULE_EARLY_CHAR34_ONLY,
+        "middle": SCHEDULE_MIDDLE_CHAR34_ONLY,
+        "late": SCHEDULE_LATE_CHAR34_ONLY,
+    }
+
+
+def test_configure_module_for_campaign_forwards_no_wli_style_schedule_ids():
+    calls: list[dict[str, object]] = []
+
+    class _Module:
+        def configure_campaign_run(self, **kwargs: object) -> None:
+            calls.append(dict(kwargs))
+
+    module = _Module()
+    job = {
+        "order": "col_then_sub",
+        "run_seed": 333,
+        "period": 10,
+        "columns": 7,
+        "text_fixture_id": "fixture_001",
+        "profile_id": "schedule_nowli_style_v1_1",
+    }
+    campaign_config = {"fixtures": [{"text_fixture_id": "fixture_001", "length": 1234}]}
+    profile_catalog = {
+        "profiles": [
+            {
+                "profile_id": "schedule_nowli_style_v1_1",
+                "scorer_schedule": {
+                    "early": SCHEDULE_EARLY_A_CHAR34,
+                    "middle": SCHEDULE_MIDDLE_M_CHAR34,
+                    "late": SCHEDULE_LATE_B_CHAR34,
+                },
+                "overrides": {},
+            }
+        ]
+    }
+
+    rsj._configure_module_for_campaign_job(
+        module=module,  # type: ignore[arg-type]
+        job=job,
+        campaign_config=campaign_config,
+        profile_catalog=profile_catalog,
+        repo_root=Path.cwd(),
+    )
+
+    assert len(calls) == 1
+    assert calls[0]["scorer_schedule"] == {
+        "early": SCHEDULE_EARLY_A_CHAR34,
+        "middle": SCHEDULE_MIDDLE_M_CHAR34,
+        "late": SCHEDULE_LATE_B_CHAR34,
+    }
+
+
+def test_community_adapter_dispatch_schedule_changes_col_then_sub_effective_path():
+    from tools.benchmarks.periodic_sub_trans.col_then_sub import runner as col_runner
+
+    old_state = dict(
+        autoskip=bool(col_runner.AUTOSKIP_PROVEN),
+        force_rerun=bool(col_runner.FORCE_RERUN_PROVEN),
+        avoid_repeat=bool(col_runner.AVOID_REPEAT_FAIL),
+        key_seeds=list(col_runner.KEY_SEEDS),
+        key_seeds_override=None
+        if col_runner.KEY_SEEDS_OVERRIDE is None
+        else list(col_runner.KEY_SEEDS_OVERRIDE),
+        text_offsets=list(col_runner.TEXT_OFFSETS),
+        run_mode=str(col_runner.PIPELINE_RUN_MODE),
+        profile=str(col_runner.PROFILE),
+        heartbeat=int(col_runner.HEARTBEAT_SECONDS),
+        tiers=list(col_runner.TIERS),
+        tiers_regex=col_runner.TIERS_REGEX_OVERRIDE,
+        tiers_period_sweep=str(col_runner.TIERS_PERIOD_SWEEP),
+        tiers_min_columns=col_runner.TIERS_MIN_COLUMNS,
+        scorer_stage1=copy.deepcopy(col_runner.SCORER_STAGE1),
+        scorer_stage1_hard=copy.deepcopy(col_runner.SCORER_STAGE1_HARD_RERANK),
+        scorer_full=copy.deepcopy(col_runner.SCORER_FULL),
+        scorer_impl=str(col_runner.SCORER_IMPL),
+    )
+
+    try:
+        job = {
+            "order": "col_then_sub",
+            "run_seed": 222,
+            "period": 10,
+            "columns": 7,
+            "text_fixture_id": "fixture_001",
+            "profile_id": "schedule_char34_only_v1_1",
+        }
+        campaign_config = {"fixtures": [{"text_fixture_id": "fixture_001", "length": 1234}]}
+        profile_catalog = {
+            "profiles": [
+                {
+                    "profile_id": "schedule_char34_only_v1_1",
+                    "scorer_schedule": {
+                        "early": SCHEDULE_EARLY_CHAR34_ONLY,
+                        "middle": SCHEDULE_MIDDLE_CHAR34_ONLY,
+                        "late": SCHEDULE_LATE_CHAR34_ONLY,
+                    },
+                    "overrides": {},
+                }
+            ]
+        }
+
+        rsj._configure_module_for_campaign_job(
+            module=col_runner,  # type: ignore[arg-type]
+            job=job,
+            campaign_config=campaign_config,
+            profile_catalog=profile_catalog,
+            repo_root=Path.cwd(),
+        )
+
+        assert dict(col_runner.SCORER_STAGE1.get("char_weights", {})) == {3: 0.2, 4: 0.8}
+        assert bool(col_runner.SCORER_STAGE1.get("use_word_breaks", True)) is False
+        assert dict(col_runner.SCORER_FULL.get("char_weights", {})) == {3: 0.2, 4: 0.8}
+        assert bool(col_runner.SCORER_FULL.get("use_word_breaks", True)) is False
+        assert dict(col_runner.SCORER_FULL.get("wli_weights", {})) == {}
+    finally:
+        col_runner.AUTOSKIP_PROVEN = bool(old_state["autoskip"])
+        col_runner.FORCE_RERUN_PROVEN = bool(old_state["force_rerun"])
+        col_runner.AVOID_REPEAT_FAIL = bool(old_state["avoid_repeat"])
+        col_runner.KEY_SEEDS = list(old_state["key_seeds"])
+        col_runner.KEY_SEEDS_OVERRIDE = (
+            None
+            if old_state["key_seeds_override"] is None
+            else list(old_state["key_seeds_override"])
+        )
+        col_runner.TEXT_OFFSETS = list(old_state["text_offsets"])
+        col_runner.PIPELINE_RUN_MODE = str(old_state["run_mode"])
+        col_runner.PROFILE = str(old_state["profile"])
+        col_runner.HEARTBEAT_SECONDS = int(old_state["heartbeat"])
+        col_runner.TIERS = list(old_state["tiers"])
+        col_runner.TIERS_REGEX_OVERRIDE = old_state["tiers_regex"]
+        col_runner.TIERS_PERIOD_SWEEP = str(old_state["tiers_period_sweep"])
+        col_runner.TIERS_MIN_COLUMNS = old_state["tiers_min_columns"]
+        col_runner.SCORER_STAGE1 = copy.deepcopy(old_state["scorer_stage1"])
+        col_runner.SCORER_STAGE1_HARD_RERANK = copy.deepcopy(old_state["scorer_stage1_hard"])
+        col_runner.SCORER_FULL = copy.deepcopy(old_state["scorer_full"])
+        col_runner.SCORER_IMPL = str(old_state["scorer_impl"])
+
+
+def test_community_adapter_dispatch_schedule_changes_sub_then_col_effective_path():
+    from tools.benchmarks.periodic_sub_trans.sub_then_col import runner as sub_runner
+
+    old_state = dict(
+        autoskip=bool(sub_runner.AUTOSKIP_PROVEN),
+        force_rerun=bool(sub_runner.FORCE_RERUN_PROVEN),
+        key_seeds=list(sub_runner.KEY_SEEDS),
+        key_seeds_override=None
+        if sub_runner.KEY_SEEDS_OVERRIDE is None
+        else list(sub_runner.KEY_SEEDS_OVERRIDE),
+        text_offsets=list(sub_runner.TEXT_OFFSETS),
+        run_mode=str(sub_runner.PIPELINE_RUN_MODE),
+        profile=str(sub_runner.PROFILE),
+        heartbeat=int(sub_runner.HEARTBEAT_SECONDS),
+        tiers=list(sub_runner.TIERS),
+        tiers_regex=sub_runner.TIERS_REGEX_OVERRIDE,
+        scorer_sub=copy.deepcopy(sub_runner.SCORER_SUB),
+        scorer_full=copy.deepcopy(sub_runner.SCORER_FULL),
+        scorer_profile=str(sub_runner.STAGEAB_SCORER_PROFILE),
+        scorer_profiles=copy.deepcopy(sub_runner.STAGEAB_SCORER_PROFILES),
+        scorer_impl=str(sub_runner.SCORER_IMPL),
+    )
+
+    try:
+        job = {
+            "order": "sub_then_col",
+            "run_seed": 222,
+            "period": 10,
+            "columns": 7,
+            "text_fixture_id": "fixture_001",
+            "profile_id": "schedule_char34_only_v1_1",
+        }
+        campaign_config = {"fixtures": [{"text_fixture_id": "fixture_001", "length": 1234}]}
+        profile_catalog = {
+            "profiles": [
+                {
+                    "profile_id": "schedule_char34_only_v1_1",
+                    "scorer_schedule": {
+                        "early": SCHEDULE_EARLY_CHAR34_ONLY,
+                        "middle": SCHEDULE_MIDDLE_CHAR34_ONLY,
+                        "late": SCHEDULE_LATE_CHAR34_ONLY,
+                    },
+                    "overrides": {},
+                }
+            ]
+        }
+
+        rsj._configure_module_for_campaign_job(
+            module=sub_runner,  # type: ignore[arg-type]
+            job=job,
+            campaign_config=campaign_config,
+            profile_catalog=profile_catalog,
+            repo_root=Path.cwd(),
+        )
+
+        assert str(sub_runner.STAGEAB_SCORER_PROFILE) == sub_runner.StageABScorerProfile.A_CHAR34.value
+        assert bool(sub_runner.SCORER_SUB.get("use_word_breaks", True)) is False
+        assert dict(sub_runner.SCORER_SUB.get("wli_weights", {})) == {}
+        assert bool(sub_runner.SCORER_FULL.get("use_word_breaks", True)) is False
+        assert dict(sub_runner.SCORER_FULL.get("wli_weights", {})) == {}
+    finally:
+        sub_runner.AUTOSKIP_PROVEN = bool(old_state["autoskip"])
+        sub_runner.FORCE_RERUN_PROVEN = bool(old_state["force_rerun"])
+        sub_runner.KEY_SEEDS = list(old_state["key_seeds"])
+        sub_runner.KEY_SEEDS_OVERRIDE = (
+            None
+            if old_state["key_seeds_override"] is None
+            else list(old_state["key_seeds_override"])
+        )
+        sub_runner.TEXT_OFFSETS = list(old_state["text_offsets"])
+        sub_runner.PIPELINE_RUN_MODE = str(old_state["run_mode"])
+        sub_runner.PROFILE = str(old_state["profile"])
+        sub_runner.HEARTBEAT_SECONDS = int(old_state["heartbeat"])
+        sub_runner.TIERS = list(old_state["tiers"])
+        sub_runner.TIERS_REGEX_OVERRIDE = old_state["tiers_regex"]
+        sub_runner.SCORER_SUB = copy.deepcopy(old_state["scorer_sub"])
+        sub_runner.SCORER_FULL = copy.deepcopy(old_state["scorer_full"])
+        sub_runner.STAGEAB_SCORER_PROFILE = str(old_state["scorer_profile"])
+        sub_runner.STAGEAB_SCORER_PROFILES = copy.deepcopy(old_state["scorer_profiles"])
+        sub_runner.SCORER_IMPL = str(old_state["scorer_impl"])

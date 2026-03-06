@@ -1,56 +1,63 @@
-# repo/tests/guardrails/test_core_no_direction_magic_tokens.py
-import pytest
+from __future__ import annotations
 
-pytest.skip(
-    "Legacy direction-token guardrail is deprecated; logging_config still embeds "
-    "fwd/rev strings for user-facing metadata and this check is no longer meaningful.",
-    allow_module_level=True,
-)
-
+import ast
 from pathlib import Path
-import re
+
 import rune_decrypter_prime as rdp
 
-# Disallow legacy direction tokens in CORE logic
-BANNED_WORDS = re.compile(r"\b(fwd|rev)\b", re.IGNORECASE)
-
-# Allow raw literals only where they define/emit canon values
-ALLOWLIST = {
-    "core/types.py",                 # Direction Enum carries "ltr"/"rtl" values
-    "core/telemetry_helpers.py",     # stringification / canonicalisation helpers
+_ALLOWED = {
+    "core/types.py",  # normalize_direction() keeps legacy API-edge aliases here only.
 }
+_BANNED = {"fwd", "rev"}
 
-def test_core_has_no_fwd_rev_tokens():
+
+def _strip_docstrings(tree: ast.AST) -> ast.AST:
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            body = getattr(node, "body", None)
+            if not body:
+                continue
+            first = body[0]
+            if isinstance(first, ast.Expr) and isinstance(getattr(first, "value", None), ast.Constant):
+                if isinstance(first.value.value, str):
+                    body.pop(0)
+    return tree
+
+
+def _scan_tokens(py: Path) -> list[tuple[int, str]]:
+    src = py.read_text(encoding="utf-8", errors="ignore")
+    try:
+        tree = ast.parse(src, filename=str(py))
+    except SyntaxError:
+        return []
+    tree = _strip_docstrings(tree)
+
+    offenders: list[tuple[int, str]] = []
+
+    class V(ast.NodeVisitor):
+        def visit_Constant(self, node: ast.Constant) -> None:  # type: ignore[override]
+            if isinstance(node.value, str):
+                val = node.value.strip().lower()
+                if val in _BANNED:
+                    offenders.append((int(node.lineno), val))
+            self.generic_visit(node)
+
+    V().visit(tree)
+    return offenders
+
+
+def test_core_has_no_legacy_fwd_rev_literals_outside_allowlist() -> None:
     root = Path(rdp.__file__).resolve().parent
     core = root / "core"
-    offenders = []
+    all_offenders: list[str] = []
     for py in core.rglob("*.py"):
         rel = py.relative_to(root).as_posix()
-        if rel in ALLOWLIST:
+        if rel in _ALLOWED:
             continue
-        text = py.read_text(encoding="utf-8", errors="ignore")
-        for m in BANNED_WORDS.finditer(text):
-            offenders.append((rel, m.group(0)))
-    assert not offenders, (
-        "Legacy direction tokens must not appear in core logic. "
-        "Use Direction Enum internally.\n" +
-        "\n".join(f"- {rel}: {tok!r}" for rel, tok in offenders)
-    )
+        for lineno, token in _scan_tokens(py):
+            all_offenders.append(f"- {rel}:{lineno} token={token!r}")
 
-def test_core_has_no_raw_ltr_rtl_literals_outside_allowlist():
-    root = Path(rdp.__file__).resolve().parent
-    core = root / "core"
-    offenders = []
-    for py in core.rglob("*.py"):
-        rel = py.relative_to(root).as_posix()
-        if rel in ALLOWLIST:
-            continue
-        text = py.read_text(encoding="utf-8", errors="ignore")
-        # Look for 'ltr' or 'rtl' as quoted literals (single or double quotes)
-        if re.search(r"(?<![A-Za-z0-9_])[\"']\s*(ltr|rtl)\s*[\"']", text):
-            offenders.append(rel)
-    assert not offenders, (
-        "Raw 'ltr'/'rtl' literals should not appear in core logic; "
-        "keep Enums in memory and only render in telemetry helpers.\n" +
-        "\n".join(f"- {rel}" for rel in offenders)
+    assert not all_offenders, (
+        "Legacy direction string literals ('fwd'/'rev') are not allowed in core logic.\n"
+        + "\n".join(all_offenders)
     )

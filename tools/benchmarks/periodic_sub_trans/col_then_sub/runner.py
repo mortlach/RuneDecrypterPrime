@@ -43,7 +43,7 @@ import time
 from itertools import permutations
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Sequence, Tuple
 
 import numpy as np
 
@@ -78,8 +78,14 @@ from tools.benchmarks.periodic_sub_trans.common.io_reports import (
     write_json,
     write_pipeline_snapshot_files,
 )
+from tools.benchmarks.periodic_sub_trans.common.campaign_run_config import (
+    build_campaign_run_config,
+)
 from tools.benchmarks.periodic_sub_trans.common.paths import make_flavor_run_dir
 from tools.benchmarks.periodic_sub_trans.common.runner_types import Tier
+from tools.benchmarks.periodic_sub_trans.common.scorer_schedule_apply import (
+    apply_col_then_sub_schedule,
+)
 
 ALPHABET_SIZE = 29  # Rune alphabet size used by periodic substitution/key layout.
 ORDER = BenchmarkOrder.COL_THEN_SUB.value  # Cipher composition order benchmarked by this script.
@@ -133,6 +139,7 @@ STAGE1_ORACLE_STOP_MARGIN = 0.005  # Margin added to Stage-1 oracle stop score.
 STAGE3_USE_ORACLE_GUIDE_STOP = False  # Enable Stage-3 oracle-guided stop score.
 STAGE3_ORACLE_STOP_MARGIN = 0.002  # Margin added to Stage-3 oracle stop score.
 STAGE3_ORACLE_STOP_RELAX_FRACTION = 0.0  # Relaxation of oracle stop score (fraction of |oracle|).
+ORACLE_MODE = "off"  # "off" | "benchmark_only"
 STAGE3_FULL_ENTRY_SCORE: float | None = None  # Full Stage-3 budget gate (None disables).
 STAGE3_FULL_ENTRY_SCORE_BY_COLUMNS: Dict[int, float] = {}  # Per-column overrides for full gate.
 STAGE3_PROBE_ENTRY_SCORE: float | None = None  # Probe/medium Stage-3 gate (None disables).
@@ -692,38 +699,57 @@ def configure_campaign_run(
     tiers_regex_override: str | None,
     scorer_impl: str | None = None,
     scorer_stage3_impl_avg_fulltext: str | None = None,  # kept for cross-runner signature parity
+    scorer_schedule: Mapping[str, Any] | None = None,
 ) -> None:
     """Apply campaign job settings through one explicit runner entrypoint."""
 
-    del scorer_stage3_impl_avg_fulltext
+    cfg = build_campaign_run_config(
+        run_seed=run_seed,
+        period=period,
+        columns=columns,
+        length=length,
+        tier_name=tier_name,
+        run_mode=run_mode,
+        profile_name=profile_name,
+        heartbeat_seconds=heartbeat_seconds,
+        autoskip_proven=autoskip_proven,
+        force_rerun_proven=force_rerun_proven,
+        avoid_repeat_fail=avoid_repeat_fail,
+        text_offsets=text_offsets,
+        tiers_regex_override=tiers_regex_override,
+        scorer_impl=scorer_impl,
+        scorer_stage3_impl_avg_fulltext=scorer_stage3_impl_avg_fulltext,
+        scorer_schedule=scorer_schedule,
+    )
 
     global AUTOSKIP_PROVEN, FORCE_RERUN_PROVEN, AVOID_REPEAT_FAIL
     global TIERS_REGEX_OVERRIDE, TIERS_PERIOD_SWEEP, TIERS_MIN_COLUMNS
     global KEY_SEEDS_OVERRIDE, KEY_SEEDS, TEXT_OFFSETS
     global PIPELINE_RUN_MODE, PROFILE, HEARTBEAT_SECONDS, TIERS
 
-    AUTOSKIP_PROVEN = bool(autoskip_proven)
-    FORCE_RERUN_PROVEN = bool(force_rerun_proven)
-    AVOID_REPEAT_FAIL = bool(avoid_repeat_fail)
-    TIERS_REGEX_OVERRIDE = (
-        None
-        if tiers_regex_override is None or str(tiers_regex_override).strip() == ""
-        else str(tiers_regex_override)
-    )
+    AUTOSKIP_PROVEN = bool(cfg.autoskip_proven)
+    FORCE_RERUN_PROVEN = bool(cfg.force_rerun_proven)
+    AVOID_REPEAT_FAIL = bool(cfg.avoid_repeat_fail)
+    TIERS_REGEX_OVERRIDE = cfg.tiers_regex_override
     # Campaign jobs pin one explicit (period, columns, length) tier.
     # Disable local sweep/min-column filters so non-p10 cells are not dropped.
     TIERS_PERIOD_SWEEP = "none"
     TIERS_MIN_COLUMNS = None
-    KEY_SEEDS_OVERRIDE = [int(run_seed)]
-    KEY_SEEDS = [int(run_seed)]
-    TEXT_OFFSETS = [int(x) for x in text_offsets]
-    PIPELINE_RUN_MODE = str(run_mode)
-    PROFILE = str(profile_name)
-    HEARTBEAT_SECONDS = int(heartbeat_seconds)
-    TIERS = [Tier(str(tier_name), int(period), int(columns), int(length))]
+    KEY_SEEDS_OVERRIDE = [int(cfg.run_seed)]
+    KEY_SEEDS = [int(cfg.run_seed)]
+    TEXT_OFFSETS = [int(x) for x in cfg.text_offsets]
+    PIPELINE_RUN_MODE = str(cfg.run_mode)
+    PROFILE = str(cfg.profile_name)
+    HEARTBEAT_SECONDS = int(cfg.heartbeat_seconds)
+    TIERS = [cfg.tier()]
 
-    if scorer_impl is not None:
-        _apply_scorer_impl_override(str(scorer_impl))
+    apply_col_then_sub_schedule(
+        scorer_schedule=cfg.scorer_schedule,
+        stage1_cfg=SCORER_STAGE1,
+        stage_full_cfg=SCORER_FULL,
+    )
+    if cfg.scorer_impl is not None:
+        _apply_scorer_impl_override(str(cfg.scorer_impl))
 
 
 def _repo_root() -> Path:
@@ -841,6 +867,20 @@ def _select_stage3_band(gap_to_oracle: float) -> Dict[str, Any]:
         if gap <= float(band.get("max_gap", 1e9)):
             return dict(band)
     return dict(STAGE3_DYNAMIC_BANDS[-1])
+
+
+def _select_stage3_default_band() -> Dict[str, Any]:
+    for band in STAGE3_DYNAMIC_BANDS:
+        if str(band.get("name", "")).strip().lower() == "mid":
+            return dict(band)
+    return dict(STAGE3_DYNAMIC_BANDS[-1])
+
+
+def _oracle_mode_normalized() -> str:
+    mode = str(ORACLE_MODE).strip().lower()
+    if mode == "benchmark_only":
+        return "benchmark_only"
+    return "off"
 
 
 def _stage3_full_entry_score(columns: int) -> float | None:
@@ -1001,6 +1041,15 @@ def main() -> None:
     _apply_run_mode()
     _apply_runtime_overrides()
     direction = Direction.LTR
+    oracle_mode = str(_oracle_mode_normalized())
+    oracle_decision_paths_enabled = bool(oracle_mode == "benchmark_only")
+    oracle_consulted_in_decisions = False
+
+    def _mark_oracle_decision_use() -> None:
+        nonlocal oracle_consulted_in_decisions
+        if bool(oracle_decision_paths_enabled):
+            oracle_consulted_in_decisions = True
+
     print("[colsub] bootstrap: checking LM assets...", flush=True)
     base._require_assets(direction, ns=(1, 3, 4), need_wli=True)
     pt_base, wli_base = base._encode_long_plaintext(direction)
@@ -1014,7 +1063,8 @@ def main() -> None:
 
     print(
         f"[colsub] setup: profile={PROFILE} mode={PIPELINE_RUN_MODE} "
-        f"direction={direction.value} order={ORDER} A={ALPHABET_SIZE}",
+        f"direction={direction.value} order={ORDER} A={ALPHABET_SIZE} "
+        f"oracle_mode={oracle_mode}",
         flush=True,
     )
     print(f"[colsub] setup: threshold={SOLVE_MATCH_THRESHOLD:.3f} stall_delta={STALL_DELTA:.4f} stall_limit={STALL_STAGE_LIMIT}", flush=True)
@@ -1031,6 +1081,7 @@ def main() -> None:
         f"stage3_plateau=(rounds={SOLVER_STAGE3.get('plateau_rounds')},delta={SOLVER_STAGE3.get('plateau_min_delta')}) "
         f"stage1_oracle_stop={'on' if STAGE1_USE_ORACLE_GUIDE_STOP else 'off'} "
         f"stage3_oracle_stop={'on' if STAGE3_USE_ORACLE_GUIDE_STOP else 'off'} "
+        f"oracle_decision_paths={'on' if oracle_decision_paths_enabled else 'off'} "
         f"stage3_oracle_relax={float(STAGE3_ORACLE_STOP_RELAX_FRACTION):.3f} "
         f"stage3_entry_full={STAGE3_FULL_ENTRY_SCORE if STAGE3_FULL_ENTRY_SCORE is not None else 'none'} "
         f"stage3_entry_full_by_c={json.dumps(STAGE3_FULL_ENTRY_SCORE_BY_COLUMNS, separators=(',', ':'))} "
@@ -1158,8 +1209,22 @@ def main() -> None:
         autoskip_proven_requested=bool(AUTOSKIP_PROVEN),
         force_rerun_proven=bool(FORCE_RERUN_PROVEN),
         autoskip_proven_min_match=float(AUTOSKIP_PROVEN_MIN_MATCH),
-        stage1_use_oracle_stop=bool(STAGE1_USE_ORACLE_GUIDE_STOP),
-        stage3_use_oracle_stop=bool(STAGE3_USE_ORACLE_GUIDE_STOP),
+        oracle_mode=str(oracle_mode),
+        oracle_consulted_in_decisions=bool(oracle_decision_paths_enabled),
+        stage1_use_oracle_stop_requested=bool(STAGE1_USE_ORACLE_GUIDE_STOP),
+        stage1_use_oracle_stop_effective=bool(
+            oracle_decision_paths_enabled and bool(STAGE1_USE_ORACLE_GUIDE_STOP)
+        ),
+        stage1_use_oracle_stop=bool(
+            oracle_decision_paths_enabled and bool(STAGE1_USE_ORACLE_GUIDE_STOP)
+        ),
+        stage3_use_oracle_stop_requested=bool(STAGE3_USE_ORACLE_GUIDE_STOP),
+        stage3_use_oracle_stop_effective=bool(
+            oracle_decision_paths_enabled and bool(STAGE3_USE_ORACLE_GUIDE_STOP)
+        ),
+        stage3_use_oracle_stop=bool(
+            oracle_decision_paths_enabled and bool(STAGE3_USE_ORACLE_GUIDE_STOP)
+        ),
         stage3_oracle_stop_relax=float(STAGE3_ORACLE_STOP_RELAX_FRACTION),
         stage3_full_entry_score=(None if STAGE3_FULL_ENTRY_SCORE is None else float(STAGE3_FULL_ENTRY_SCORE)),
         stage3_full_entry_by_c=dict(STAGE3_FULL_ENTRY_SCORE_BY_COLUMNS),
@@ -1191,6 +1256,9 @@ def main() -> None:
         stage1_c1_guards=dict(
             max_scouts=int(STAGE1_C1_MAX_SCOUTS),
             force_oracle_stop=bool(STAGE1_C1_FORCE_ORACLE_STOP),
+            force_oracle_stop_effective=bool(
+                oracle_decision_paths_enabled and bool(STAGE1_C1_FORCE_ORACLE_STOP)
+            ),
             oracle_stop_margin=float(STAGE1_C1_ORACLE_STOP_MARGIN),
             early_break_on_solved_match=bool(STAGE1_C1_EARLY_BREAK_ON_SOLVED_MATCH),
         ),
@@ -1324,6 +1392,8 @@ def main() -> None:
                             stage3_entry_full_score=np.nan,
                             stage3_entry_probe_score=np.nan,
                             stage3_band="autoskip",
+                            oracle_mode=str(oracle_mode),
+                            oracle_consulted_in_decisions=bool(oracle_consulted_in_decisions),
                             total_seconds=0.0,
                             total_evals=0,
                             preview_best_latin=preview_txt,
@@ -1375,6 +1445,8 @@ def main() -> None:
                     artifact_payload = dict(
                         profile=PROFILE,
                         mode=PIPELINE_RUN_MODE,
+                        oracle_mode=str(oracle_mode),
+                        oracle_consulted_in_decisions=bool(oracle_consulted_in_decisions),
                         config_fingerprint=str(config_fingerprint),
                         instance=inst_row,
                         stages=stage_rows_instance,
@@ -1557,14 +1629,18 @@ def main() -> None:
                 if int(tier.columns) == 1:
                     stage1_scout_runs = min(int(stage1_scout_runs), int(STAGE1_C1_MAX_SCOUTS))
                 stage1_oracle_guard = bool(
-                    STAGE1_USE_ORACLE_GUIDE_STOP
-                    or (
-                        bool(STAGE1_C1_FORCE_ORACLE_STOP)
-                        and int(tier.columns) == 1
-                        and bool(stage1_use_full)
+                    oracle_decision_paths_enabled
+                    and (
+                        STAGE1_USE_ORACLE_GUIDE_STOP
+                        or (
+                            bool(STAGE1_C1_FORCE_ORACLE_STOP)
+                            and int(tier.columns) == 1
+                            and bool(stage1_use_full)
+                        )
                     )
                 )
                 if stage1_oracle_guard:
+                    _mark_oracle_decision_use()
                     s1_margin = (
                         float(STAGE1_ORACLE_STOP_MARGIN)
                         if bool(STAGE1_USE_ORACLE_GUIDE_STOP)
@@ -2324,11 +2400,13 @@ def main() -> None:
                     solver_stage3_cfg = dict(SOLVER_STAGE3)
                     solver_stage3_cfg["seed"] = int(solver_stage3_cfg.get("seed", 2026)) + int(search_seed_shift)
                     stage2_gate_score = float(stage2_entry_score if np.isfinite(stage2_entry_score) else best2_score)
-                    if np.isfinite(stage2_gate_score) and np.isfinite(oracle_s23):
+                    if bool(oracle_decision_paths_enabled) and np.isfinite(stage2_gate_score) and np.isfinite(oracle_s23):
+                        _mark_oracle_decision_use()
                         stage2_gap_to_oracle = max(0.0, float(oracle_s23) - float(stage2_gate_score))
+                        band = _select_stage3_band(stage2_gap_to_oracle)
                     else:
-                        stage2_gap_to_oracle = float("inf")
-                    band = _select_stage3_band(stage2_gap_to_oracle)
+                        stage2_gap_to_oracle = float("nan")
+                        band = _select_stage3_default_band()
                     stage3_band_name = str(band.get("name", ""))
                     solver_stage3_cfg.update(
                         steps=int(band.get("steps", solver_stage3_cfg.get("steps", 0))),
@@ -2389,7 +2467,8 @@ def main() -> None:
                             inner_batch=min(int(solver_stage3_cfg.get("inner_batch", 0)), 128),
                         )
 
-                    if STAGE3_USE_ORACLE_GUIDE_STOP:
+                    if bool(oracle_decision_paths_enabled) and bool(STAGE3_USE_ORACLE_GUIDE_STOP):
+                        _mark_oracle_decision_use()
                         relax = max(0.0, min(0.95, float(STAGE3_ORACLE_STOP_RELAX_FRACTION)))
                         s3_stop = float(oracle_s23) - (abs(float(oracle_s23)) * relax) + float(STAGE3_ORACLE_STOP_MARGIN)
                         s3_stop = min(0.999999, float(s3_stop))
@@ -2510,6 +2589,8 @@ def main() -> None:
                         float(stage3_probe_entry_score) if stage3_probe_entry_score is not None else np.nan
                     ),
                     stage3_band=str(stage3_band_name),
+                    oracle_mode=str(oracle_mode),
+                    oracle_consulted_in_decisions=bool(oracle_consulted_in_decisions),
                     retry_attempt=int(repeat_attempt),
                     search_seed_offset=int(search_seed_offset),
                     config_fingerprint=str(config_fingerprint),
@@ -2544,6 +2625,8 @@ def main() -> None:
                 artifact_payload = dict(
                     profile=PROFILE,
                     mode=PIPELINE_RUN_MODE,
+                    oracle_mode=str(oracle_mode),
+                    oracle_consulted_in_decisions=bool(oracle_consulted_in_decisions),
                     config_fingerprint=str(config_fingerprint),
                     instance=inst_row,
                     stages=stage_rows_instance,

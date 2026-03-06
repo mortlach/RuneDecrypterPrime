@@ -7,12 +7,14 @@ Runner for periodic substitution + transposition benchmarking without WLI featur
 - `runner.py`: main no-WLI pipeline runner.
 - `run_focus_p5_c1_c5.py`: focused launcher (`period=5`, `columns=1..5`).
 - `run_focus_p5_c1_c5_a34.py`: focused launcher (`period=5`, `columns=1..5`, `A34->M34->B34`).
+- `run_fixture_matrix.py`: internal fixture-matrix launcher using community-style fixture config (no public campaign schema changes).
 
 Examples:
 
 - `python tools/benchmarks/bench_solve_periodic_columnar_pipeline_no_wli.py`
 - `python tools/benchmarks/periodic_sub_trans/no_wli/run_focus_p5_c1_c5.py`
 - `python tools/benchmarks/periodic_sub_trans/no_wli/run_focus_p5_c1_c5_a34.py`
+- `python tools/benchmarks/periodic_sub_trans/no_wli/run_fixture_matrix.py`
 
 Campaign scope note:
 - `no_wli` is currently internal tuning scope and is not part of public community v1.1 manifest schema.
@@ -38,7 +40,43 @@ Run modes are intent-driven contracts:
 - `scan_fast_v1`: triage only; Stage-3 may be skipped; finishes quickly; does not promise solves.
 - `adaptive_scan_v1`: triage-with-effort; can spend up to Stage-2 cap trying to earn Stage-3; Stage-3 may still be skipped.
 - `adaptive_focus_v1`: solve-oriented; Stage-3 is always attempted; no scan guardrails skip Stage-3.
+- `adaptive_fixture_v1`: internal solve-oriented mode for external fixture grids; keeps caller-provided tiers/seeds/offsets and still forces Stage-3 attempt (no scan skip path).
 - `scan_p5_p7_c1357`: legacy alias -> `adaptive_scan_v1`.
+
+## Internal Fixture Matrix Mode
+
+`run_fixture_matrix.py` is for internal no-WLI sweeps on community fixture files while keeping no-WLI out of public community manifest/order schemas.
+
+Edit hardcoded knobs in:
+
+- `CAMPAIGN_CONFIG_PATH`
+- `RUN_MODE` (recommended: `adaptive_fixture_v1`)
+- `SCHEDULE_COVERAGE_MODE` (`minimal_avg_ids`, `minimal_all_ids`, `cartesian_all`, `explicit`)
+- `SCORING_EXPERIMENT_PROFILES` (use `c_min_late` for span-hamming enabled phase-B path)
+- period/column overrides and run seeds
+- `FIXTURE_LENGTH_OVERRIDE` (set `1000` for shorter overnight runs)
+- `MAX_WALLCLOCK_SECONDS` (optional cap; default `None` means no hard time limit)
+- `REQUIRE_NO_WIN10_OBJECTIVES` (`True` enforces the no-win10 golden rule at launch build time)
+- `REQUIRE_FULL_TEXT_EFFECTIVE` (`True` enforces `avg_window_policy=full_text` on all stages)
+- `DISABLE_STAGE3_SPAN_BASIN_K_SWEEP` / `STAGE3_SPAN_BASIN_K_SWEEP_VALUES` for basin-judge K sweep control
+- `RESUME_SKIP_COMPLETED` (`True` skips jobs already checkpointed as completed)
+
+Interruption safety:
+- Progress is written after each completed job to:
+  - `fixture_matrix_run_state_latest.json`
+  - `fixture_matrix_run_events_latest.jsonl`
+- Re-running the launcher with `RESUME_SKIP_COMPLETED=True` continues from remaining jobs.
+
+Current overnight defaults in `run_fixture_matrix.py` are aligned to the best avg/full_text no-WLI path:
+- profile: `no_wli_a1_m4_b4_stage3avg_fulltext_longrun3x_v1`
+- schedule: `A_char2_avg_fulltext -> M_char4_avg_fulltext -> B_char4_avg_fulltext`
+- run mode: `adaptive_fixture_v1` (external tier grid preserved, adaptive phase-A/phase-B scoring path enabled)
+- scoring experiment: `c_min_late`
+- period ladder: `p5,p7,p9,p11,p13` with progressively wider odd-column sets
+
+Use `DRY_RUN_ONLY` to control execution:
+- `True`: plan-only (no runner execution)
+- `False`: execute jobs
 
 ## Scorer Routing
 

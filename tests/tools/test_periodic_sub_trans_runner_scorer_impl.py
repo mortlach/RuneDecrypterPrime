@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import re
 from pathlib import Path
 import inspect
@@ -9,7 +10,18 @@ import pytest
 from tools.benchmarks.config.no_wli_pipeline_profiles import get_no_wli_pipeline_profile
 from tools.benchmarks.periodic_sub_trans.col_then_sub import runner as col_runner
 from tools.benchmarks.periodic_sub_trans.no_wli import runner as no_wli_runner
+from tools.benchmarks.periodic_sub_trans.no_wli import runtime_config as no_wli_runtime_config
+from tools.benchmarks.periodic_sub_trans.no_wli import stage2_promotion as no_wli_stage2_promotion
+from tools.benchmarks.periodic_sub_trans.no_wli import stage3_band_policy as no_wli_stage3_band_policy
 from tools.benchmarks.periodic_sub_trans.sub_then_col import runner as sub_runner
+from tools.benchmarks.periodic_sub_trans.common.scorer_schedule import (
+    SCHEDULE_EARLY_A_CHAR34,
+    SCHEDULE_EARLY_CHAR34_ONLY,
+    SCHEDULE_LATE_B_CHAR34,
+    SCHEDULE_LATE_CHAR34_ONLY,
+    SCHEDULE_MIDDLE_M_CHAR34,
+    SCHEDULE_MIDDLE_CHAR34_ONLY,
+)
 from rune_decrypter_prime.solvers import solver_base as solver_base_mod
 
 
@@ -193,9 +205,151 @@ def test_no_wli_mode_alias_and_intent_contract():
     assert no_wli_runner._mode_intent("scan_fast_v1") == "scan"
     assert no_wli_runner._mode_intent("adaptive_scan_v1") == "scan"
     assert no_wli_runner._mode_intent("adaptive_focus_v1") == "focus"
+    assert no_wli_runner._mode_intent("adaptive_fixture_v1") == "focus"
     assert bool(no_wli_runner._mode_stage3_can_skip("scan_fast_v1")) is True
     assert bool(no_wli_runner._mode_stage3_can_skip("adaptive_scan_v1")) is True
     assert bool(no_wli_runner._mode_stage3_can_skip("adaptive_focus_v1")) is False
+    assert bool(no_wli_runner._mode_stage3_can_skip("adaptive_fixture_v1")) is False
+    assert bool(no_wli_runner._is_adaptive_focus_mode("adaptive_fixture_v1")) is True
+
+
+def test_no_wli_runtime_config_module_matches_runner_wrappers():
+    info = no_wli_runtime_config.build_run_mode_info("scan_p5_p7_c1357")
+    assert info.mode_raw == "scan_p5_p7_c1357"
+    assert info.mode_canonical == "adaptive_scan_v1"
+    assert info.intent == "scan"
+    assert info.stage3_can_skip is True
+    assert info.adaptive_focus is False
+    assert no_wli_runner._canonical_run_mode(info.mode_raw) == info.mode_canonical
+    assert no_wli_runner._mode_intent(info.mode_raw) == info.intent
+    assert no_wli_runner._mode_stage3_can_skip(info.mode_raw) is info.stage3_can_skip
+
+
+def test_no_wli_runtime_config_oracle_mode_normalization():
+    assert no_wli_runtime_config.normalize_oracle_mode("benchmark_only") == "benchmark_only"
+    assert no_wli_runtime_config.normalize_oracle_mode("off") == "off"
+    assert no_wli_runtime_config.normalize_oracle_mode("unexpected") == "off"
+
+
+def test_no_wli_runtime_config_tier_presets_cover_expected_modes():
+    assert no_wli_runtime_config.SMOKE_TIERS[0][0] == "smoke_p7_c5_l452"
+    assert no_wli_runtime_config.FOCUS_P5_C1_ONLY_TIERS[0][0] == "focus_p5_c1_l1000"
+    assert len(no_wli_runtime_config.SCAN_P5_P7_C1357_TIERS) == 8
+    assert no_wli_runtime_config.ADAPTIVE_FOCUS_P7C3_ONLY_TIERS[0][0] == "focus_p7_c3_l1000"
+
+
+def test_no_wli_runtime_config_build_mode_overrides_scan_fast():
+    out = no_wli_runtime_config.build_run_mode_overrides(
+        mode="scan_fast_v1",
+        pipeline_profile_id="pid",
+        oracle_assist_selection_default=True,
+        stage3_continue_after_solve_default=True,
+        stage12_scout_runs=6,
+        stage3_phaseb_cfg={"slip_swaps": 28, "steps": 1400},
+    )
+    assert str(out.get("PROFILE", "")) == "pid__scan_fast_v1"
+    assert int(out.get("STAGE12_ARCHIVE_KEEP", 0)) == 160
+    assert int(out.get("STAGE12_PROMOTE_TOP", 0)) == 80
+    assert int(out.get("STAGE3_PHASEB_CFG", {}).get("slip_swaps", 0)) == 12
+    assert len(list(out.get("TIERS", []))) == 8
+
+
+def test_no_wli_runtime_config_build_mode_overrides_full_is_empty():
+    out = no_wli_runtime_config.build_run_mode_overrides(
+        mode="full",
+        pipeline_profile_id="pid",
+        oracle_assist_selection_default=True,
+        stage3_continue_after_solve_default=True,
+        stage12_scout_runs=6,
+        stage3_phaseb_cfg={"slip_swaps": 28, "steps": 1400},
+    )
+    assert out == {}
+
+
+def test_no_wli_stage3_band_policy_default_and_oracle_paths():
+    bands = [
+        {"name": "very_close", "max_gap": 0.01},
+        {"name": "mid", "max_gap": 0.08},
+        {"name": "far", "max_gap": 1e9},
+    ]
+    gap_off, band_off, used_off = no_wli_stage3_band_policy.resolve_stage3_gap_and_band(
+        dynamic_bands=bands,
+        stage2_gate_score=0.5,
+        oracle_stage3_score=0.9,
+        oracle_decision_paths_enabled=False,
+    )
+    assert used_off is False
+    assert str(band_off.get("name")) == "mid"
+    assert gap_off != gap_off  # nan
+    gap_on, band_on, used_on = no_wli_stage3_band_policy.resolve_stage3_gap_and_band(
+        dynamic_bands=bands,
+        stage2_gate_score=0.5,
+        oracle_stage3_score=0.9,
+        oracle_decision_paths_enabled=True,
+    )
+    assert used_on is True
+    assert gap_on == pytest.approx(0.4)
+    assert str(band_on.get("name")) == "far"
+
+
+def test_no_wli_stage2_promotion_module_contract():
+    assert no_wli_stage2_promotion.is_better_score_first(
+        cand_score=-1.0,
+        cand_match=0.2,
+        best_score=-2.0,
+        best_match=0.9,
+    )
+    out = no_wli_stage2_promotion.build_stage3_promoted_keys(
+        promoted_entries=[{"key": [1, 2, 3]}, {"key": [1, 2, 3]}, {"key": [4, 5, 6]}],
+        best_key=[9, 9, 9],
+        key_len=3,
+    )
+    assert out[0] == [9, 9, 9]
+    assert out.count([1, 2, 3]) == 1
+
+
+def test_no_wli_adaptive_fixture_mode_preserves_external_grid():
+    old_state = dict(
+        mode=str(no_wli_runner.PIPELINE_RUN_MODE),
+        profile=str(no_wli_runner.PROFILE),
+        heartbeat=int(no_wli_runner.HEARTBEAT_SECONDS),
+        tiers=list(no_wli_runner.TIERS),
+        text_offsets=list(no_wli_runner.TEXT_OFFSETS),
+        key_seeds=list(no_wli_runner.KEY_SEEDS),
+        scoring_experiment=str(no_wli_runner.SCORING_EXPERIMENT_PROFILE),
+        promote=bool(no_wli_runner.STAGE2_PROMOTE_BY_STAGE3_JUDGE),
+        entry_band=bool(no_wli_runner.STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE),
+    )
+    try:
+        no_wli_runner.PIPELINE_RUN_MODE = "adaptive_fixture_v1"
+        no_wli_runner.TIERS[:] = [no_wli_runner.Tier("fixture_p11_c3_l1234", 11, 3, 1234)]
+        no_wli_runner.TEXT_OFFSETS[:] = [5]
+        no_wli_runner.KEY_SEEDS[:] = [777]
+        no_wli_runner.HEARTBEAT_SECONDS = 444
+        no_wli_runner.SCORING_EXPERIMENT_PROFILE = "off"
+        no_wli_runner._apply_run_mode()
+        assert len(no_wli_runner.TIERS) == 1
+        assert str(no_wli_runner.TIERS[0].name) == "fixture_p11_c3_l1234"
+        assert int(no_wli_runner.TIERS[0].period) == 11
+        assert int(no_wli_runner.TIERS[0].columns) == 3
+        assert int(no_wli_runner.TIERS[0].length) == 1234
+        assert no_wli_runner.TEXT_OFFSETS == [5]
+        assert no_wli_runner.KEY_SEEDS == [777]
+        assert int(no_wli_runner.HEARTBEAT_SECONDS) == 444
+        assert str(no_wli_runner.SCORING_EXPERIMENT_PROFILE) == "off"
+        assert no_wli_runner.STAGE2_PROMOTE_BY_STAGE3_JUDGE is True
+        assert no_wli_runner.STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE is True
+        assert bool(no_wli_runner._mode_stage3_can_skip(no_wli_runner.PIPELINE_RUN_MODE)) is False
+    finally:
+        no_wli_runner.PIPELINE_RUN_MODE = old_state["mode"]
+        no_wli_runner.PROFILE = old_state["profile"]
+        no_wli_runner.HEARTBEAT_SECONDS = int(old_state["heartbeat"])
+        no_wli_runner.TIERS[:] = list(old_state["tiers"])
+        no_wli_runner.TEXT_OFFSETS[:] = list(old_state["text_offsets"])
+        no_wli_runner.KEY_SEEDS[:] = list(old_state["key_seeds"])
+        no_wli_runner.SCORING_EXPERIMENT_PROFILE = old_state["scoring_experiment"]
+        no_wli_runner.STAGE2_PROMOTE_BY_STAGE3_JUDGE = bool(old_state["promote"])
+        no_wli_runner.STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE = bool(old_state["entry_band"])
 
 
 def test_no_wli_scan_fast_v1_mode_contract():
@@ -300,7 +454,28 @@ def test_no_wli_build_stage3_experiment_cfg_contract(tmp_path: Path):
 
 
 def test_no_wli_adaptive_focus_source_has_phase_experiment_switch():
-    text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
+    runner_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
+    policy_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/stage3_policy.py").read_text(encoding="utf-8")
+    runtime_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/iteration_runtime.py").read_text(
+        encoding="utf-8"
+    )
+    pre_stage3_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/iteration_pre_stage3.py").read_text(
+        encoding="utf-8"
+    )
+    matrix_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/iteration_matrix_flow.py").read_text(
+        encoding="utf-8"
+    )
+    text = (
+        runner_text
+        + "\n"
+        + policy_text
+        + "\n"
+        + runtime_text
+        + "\n"
+        + pre_stage3_text
+        + "\n"
+        + matrix_text
+    )
     assert "stage3_phaseA_experiment" in text
     assert "stage3_phaseB_experiment" in text
     assert "phaseA_experiment" in text
@@ -311,10 +486,19 @@ def test_no_wli_adaptive_focus_source_has_phase_experiment_switch():
 
 
 def test_no_wli_two_phase_gate_and_phaseb_selection_use_pct_space():
-    text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
+    runner_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(
+        encoding="utf-8"
+    )
+    two_phase_text = Path(
+        "tools/benchmarks/periodic_sub_trans/no_wli/stage3_two_phase.py"
+    ).read_text(encoding="utf-8")
+    span_summary_text = Path(
+        "tools/benchmarks/periodic_sub_trans/no_wli/stage3_span_summary.py"
+    ).read_text(encoding="utf-8")
+    text = runner_text + "\n" + two_phase_text + "\n" + span_summary_text
     assert "end_score_pct" in text
     assert "best_delta_pct" in text
-    assert "Phase-A basins judged by span:" in text
+    assert "phaseA_basins_judged_by_span=" in text
     assert "span_basin_judge_k_cfg" in text
     assert "span_active_rate_source" in text
 
@@ -325,12 +509,32 @@ def test_no_wli_stage3_search_contract_and_span_judge_path():
     assert str(cfg.get("avg_window_policy", "")) == "full_text"
     assert bool(cfg.get("span_hamming_enabled", True)) is False
 
-    text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
+    runner_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
+    runtime_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/iteration_runtime.py").read_text(encoding="utf-8")
+    oracle_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/oracle_precheck.py").read_text(encoding="utf-8")
+    bridge_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner_bridges.py").read_text(
+        encoding="utf-8"
+    )
+    span_summary_text = Path(
+        "tools/benchmarks/periodic_sub_trans/no_wli/stage3_span_summary.py"
+    ).read_text(encoding="utf-8")
+    text = (
+        runner_text
+        + "\n"
+        + bridge_text
+        + "\n"
+        + runtime_text
+        + "\n"
+        + oracle_text
+        + "\n"
+        + span_summary_text
+    )
     assert "_stage3_char4_avg_fulltext_search_cfg" in text
-    assert "scorer_stage3_search = _stage3_char4_avg_fulltext_search_cfg(direction=direction)" in text
-    assert "disable_char_pct_gate=bool(stage3_phase_switch_enabled)" in text
-    assert "Phase-A basins judged by span:" in text
-    assert "Span judge time:" in text
+    assert "stage3_search_cfg_fn=state[\"_stage3_char4_avg_fulltext_search_cfg\"]" in bridge_text
+    assert "scorer_stage3_search = stage3_search_cfg_fn(direction=direction)" in runtime_text
+    assert "disable_char_pct_gate=bool(stage3_phase_switch_enabled)" in runtime_text
+    assert "phaseA_basins_judged_by_span=" in text
+    assert "span_judge_time_s=" in text
     assert "STAGE2_JUDGE_POLICY = \"search_only\"" in text
     assert "stage2-judge-policy" in text
 
@@ -362,12 +566,21 @@ def test_no_wli_stage2_judge_pool_limit_for_avg_fulltext():
 
 
 def test_no_wli_proven_autoskip_is_wired():
-    text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
+    runner_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(
+        encoding="utf-8"
+    )
+    setup_logging_text = Path(
+        "tools/benchmarks/periodic_sub_trans/no_wli/setup_logging.py"
+    ).read_text(encoding="utf-8")
+    autoskip_text = Path(
+        "tools/benchmarks/periodic_sub_trans/no_wli/autoskip_proven.py"
+    ).read_text(encoding="utf-8")
+    text = runner_text + "\n" + setup_logging_text + "\n" + autoskip_text
     assert "AUTOSKIP_PROVEN = True" in text
     assert "FORCE_RERUN_PROVEN = True" in text
     assert "_load_proven_solved_index(" in text
     assert "status=\"skipped_proven\"" in text
-    assert "[pipeline_no_wli] setup: autoskip_proven=" in text
+    assert "setup: autoskip_proven=" in text
 
 
 def test_sub_then_col_scorer_impl_is_pinned():
@@ -438,6 +651,186 @@ def test_col_then_sub_campaign_config_disables_tier_sweep_filters():
         col_runner.TEXT_OFFSETS = list(old_state["text_offsets"])
 
 
+def test_col_then_sub_campaign_schedule_override_changes_effective_scorers():
+    old_state = dict(
+        run_mode=str(col_runner.PIPELINE_RUN_MODE),
+        profile=str(col_runner.PROFILE),
+        heartbeat=int(col_runner.HEARTBEAT_SECONDS),
+        key_seeds=list(col_runner.KEY_SEEDS),
+        key_seeds_override=None if col_runner.KEY_SEEDS_OVERRIDE is None else list(col_runner.KEY_SEEDS_OVERRIDE),
+        text_offsets=list(col_runner.TEXT_OFFSETS),
+        tiers=list(col_runner.TIERS),
+        tiers_regex_override=col_runner.TIERS_REGEX_OVERRIDE,
+        tiers_period_sweep=str(col_runner.TIERS_PERIOD_SWEEP),
+        tiers_min_columns=col_runner.TIERS_MIN_COLUMNS,
+        scorer_stage1=copy.deepcopy(col_runner.SCORER_STAGE1),
+        scorer_stage1_hard=copy.deepcopy(col_runner.SCORER_STAGE1_HARD_RERANK),
+        scorer_full=copy.deepcopy(col_runner.SCORER_FULL),
+        scorer_impl=str(col_runner.SCORER_IMPL),
+    )
+    try:
+        col_runner.configure_campaign_run(
+            run_seed=333,
+            period=10,
+            columns=7,
+            length=1234,
+            tier_name="community_col_then_sub_p10_c7_l1234",
+            run_mode="full",
+            profile_name="community_schedule_char34_only",
+            heartbeat_seconds=3600,
+            autoskip_proven=False,
+            force_rerun_proven=True,
+            avoid_repeat_fail=False,
+            text_offsets=[0],
+            tiers_regex_override=None,
+            scorer_impl="numpy",
+            scorer_schedule={
+                "early": SCHEDULE_EARLY_CHAR34_ONLY,
+                "middle": SCHEDULE_MIDDLE_CHAR34_ONLY,
+                "late": SCHEDULE_LATE_CHAR34_ONLY,
+            },
+        )
+        assert dict(col_runner.SCORER_STAGE1.get("char_weights", {})) == {3: 0.2, 4: 0.8}
+        assert bool(col_runner.SCORER_STAGE1.get("use_word_breaks", True)) is False
+        assert dict(col_runner.SCORER_FULL.get("char_weights", {})) == {3: 0.2, 4: 0.8}
+        assert bool(col_runner.SCORER_FULL.get("use_word_breaks", True)) is False
+        assert dict(col_runner.SCORER_FULL.get("wli_weights", {})) == {}
+        assert str(col_runner.SCORER_FULL.get("objective", "")) == "pct.logp.win10"
+    finally:
+        col_runner.PIPELINE_RUN_MODE = old_state["run_mode"]
+        col_runner.PROFILE = old_state["profile"]
+        col_runner.HEARTBEAT_SECONDS = int(old_state["heartbeat"])
+        col_runner.KEY_SEEDS = list(old_state["key_seeds"])
+        col_runner.KEY_SEEDS_OVERRIDE = (
+            None
+            if old_state["key_seeds_override"] is None
+            else list(old_state["key_seeds_override"])
+        )
+        col_runner.TEXT_OFFSETS = list(old_state["text_offsets"])
+        col_runner.TIERS = list(old_state["tiers"])
+        col_runner.TIERS_REGEX_OVERRIDE = old_state["tiers_regex_override"]
+        col_runner.TIERS_PERIOD_SWEEP = old_state["tiers_period_sweep"]
+        col_runner.TIERS_MIN_COLUMNS = old_state["tiers_min_columns"]
+        col_runner.SCORER_STAGE1 = copy.deepcopy(old_state["scorer_stage1"])
+        col_runner.SCORER_STAGE1_HARD_RERANK = copy.deepcopy(old_state["scorer_stage1_hard"])
+        col_runner.SCORER_FULL = copy.deepcopy(old_state["scorer_full"])
+        col_runner.SCORER_IMPL = old_state["scorer_impl"]
+
+
+def test_sub_then_col_campaign_schedule_override_changes_effective_scorers():
+    old_state = dict(
+        run_mode=str(sub_runner.PIPELINE_RUN_MODE),
+        profile=str(sub_runner.PROFILE),
+        heartbeat=int(sub_runner.HEARTBEAT_SECONDS),
+        key_seeds=list(sub_runner.KEY_SEEDS),
+        key_seeds_override=None if sub_runner.KEY_SEEDS_OVERRIDE is None else list(sub_runner.KEY_SEEDS_OVERRIDE),
+        text_offsets=list(sub_runner.TEXT_OFFSETS),
+        tiers=list(sub_runner.TIERS),
+        tiers_regex_override=sub_runner.TIERS_REGEX_OVERRIDE,
+        scorer_sub=copy.deepcopy(sub_runner.SCORER_SUB),
+        scorer_full=copy.deepcopy(sub_runner.SCORER_FULL),
+        scorer_profile=str(sub_runner.STAGEAB_SCORER_PROFILE),
+        scorer_profiles=copy.deepcopy(sub_runner.STAGEAB_SCORER_PROFILES),
+        scorer_impl=str(sub_runner.SCORER_IMPL),
+    )
+    try:
+        sub_runner.configure_campaign_run(
+            run_seed=444,
+            period=10,
+            columns=7,
+            length=1234,
+            tier_name="community_sub_then_col_p10_c7_l1234",
+            run_mode="focus_sub_then_col",
+            profile_name="community_schedule_char34_only",
+            heartbeat_seconds=3600,
+            autoskip_proven=False,
+            force_rerun_proven=True,
+            avoid_repeat_fail=False,
+            text_offsets=[0],
+            tiers_regex_override=None,
+            scorer_impl="numpy",
+            scorer_schedule={
+                "early": SCHEDULE_EARLY_CHAR34_ONLY,
+                "middle": SCHEDULE_MIDDLE_CHAR34_ONLY,
+                "late": SCHEDULE_LATE_CHAR34_ONLY,
+            },
+        )
+        assert str(sub_runner.STAGEAB_SCORER_PROFILE) == sub_runner.StageABScorerProfile.A_CHAR34.value
+        assert dict(sub_runner.SCORER_SUB.get("wli_weights", {})) == {}
+        assert bool(sub_runner.SCORER_SUB.get("use_word_breaks", True)) is False
+        assert dict(sub_runner.SCORER_FULL.get("wli_weights", {})) == {}
+        assert bool(sub_runner.SCORER_FULL.get("use_word_breaks", True)) is False
+        assert str(sub_runner.SCORER_FULL.get("objective", "")) == "pct.logp.win10"
+    finally:
+        sub_runner.PIPELINE_RUN_MODE = old_state["run_mode"]
+        sub_runner.PROFILE = old_state["profile"]
+        sub_runner.HEARTBEAT_SECONDS = int(old_state["heartbeat"])
+        sub_runner.KEY_SEEDS = list(old_state["key_seeds"])
+        sub_runner.KEY_SEEDS_OVERRIDE = (
+            None
+            if old_state["key_seeds_override"] is None
+            else list(old_state["key_seeds_override"])
+        )
+        sub_runner.TEXT_OFFSETS = list(old_state["text_offsets"])
+        sub_runner.TIERS = list(old_state["tiers"])
+        sub_runner.TIERS_REGEX_OVERRIDE = old_state["tiers_regex_override"]
+        sub_runner.SCORER_SUB = copy.deepcopy(old_state["scorer_sub"])
+        sub_runner.SCORER_FULL = copy.deepcopy(old_state["scorer_full"])
+        sub_runner.STAGEAB_SCORER_PROFILE = old_state["scorer_profile"]
+        sub_runner.STAGEAB_SCORER_PROFILES = copy.deepcopy(old_state["scorer_profiles"])
+        sub_runner.SCORER_IMPL = old_state["scorer_impl"]
+
+
+def test_no_wli_campaign_schedule_override_changes_effective_scorers():
+    old_mode = str(no_wli_runner.PIPELINE_RUN_MODE)
+    old_profile_id = str(no_wli_runner.NO_WLI_PIPELINE_PROFILE_ID)
+    old_impl = str(no_wli_runner.SCORER_IMPL)
+    old_stage3_impl = str(no_wli_runner.SCORER_STAGE3_IMPL_AVG_FULLTEXT)
+    try:
+        no_wli_runner.NO_WLI_PIPELINE_PROFILE_ID = old_profile_id
+        no_wli_runner.SCORER_IMPL = old_impl
+        no_wli_runner.SCORER_STAGE3_IMPL_AVG_FULLTEXT = old_stage3_impl
+        no_wli_runner._apply_profile_defaults()
+        no_wli_runner.configure_campaign_run(
+            run_seed=555,
+            period=7,
+            columns=3,
+            length=1000,
+            tier_name="community_no_wli_p7_c3_l1000",
+            run_mode="adaptive_focus_v1_p7c3_only",
+            profile_name=old_profile_id,
+            heartbeat_seconds=3600,
+            autoskip_proven=False,
+            force_rerun_proven=True,
+            avoid_repeat_fail=False,
+            text_offsets=[0],
+            tiers_regex_override=None,
+            scorer_impl="numpy",
+            scorer_stage3_impl_avg_fulltext="numpy",
+            scorer_schedule={
+                "early": SCHEDULE_EARLY_A_CHAR34,
+                "middle": SCHEDULE_MIDDLE_M_CHAR34,
+                "late": SCHEDULE_LATE_B_CHAR34,
+            },
+        )
+        assert str(no_wli_runner.SCORER_STAGE1_LABEL) == "A_char34"
+        assert str(no_wli_runner.SCORER_STAGE2_LABEL) == "M_char34"
+        assert str(no_wli_runner.SCORER_STAGE3_LABEL) == "B_char34"
+        assert dict(no_wli_runner.SCORER_STAGE1.get("char_weights", {})) == {3: 0.2, 4: 0.8}
+        assert dict(no_wli_runner.SCORER_STAGE2.get("char_weights", {})) == {3: 0.2, 4: 0.8}
+        assert dict(no_wli_runner.SCORER_FULL.get("char_weights", {})) == {3: 0.2, 4: 0.8}
+        assert bool(no_wli_runner.SCORER_FULL.get("use_word_breaks", True)) is False
+        assert dict(no_wli_runner.SCORER_FULL.get("wli_weights", {})) == {}
+        assert str(no_wli_runner.SCORER_FULL.get("objective", "")) == "pct.logp.win10"
+    finally:
+        no_wli_runner.NO_WLI_PIPELINE_PROFILE_ID = old_profile_id
+        no_wli_runner.PIPELINE_RUN_MODE = old_mode
+        no_wli_runner.SCORER_IMPL = old_impl
+        no_wli_runner.SCORER_STAGE3_IMPL_AVG_FULLTEXT = old_stage3_impl
+        no_wli_runner._apply_profile_defaults()
+        no_wli_runner._apply_run_mode()
+
+
 def test_runners_expose_campaign_config_entrypoint():
     assert callable(getattr(col_runner, "configure_campaign_run", None))
     assert callable(getattr(sub_runner, "configure_campaign_run", None))
@@ -458,8 +851,29 @@ def test_periodic_sub_trans_runners_avoid_direct_scalar_scorer_calls():
 
 
 def test_no_wli_stage3_stop_log_has_entry_diagnostics():
-    path = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py")
-    text = path.read_text(encoding="utf-8")
+    runner_path = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py")
+    setup_logging_path = Path(
+        "tools/benchmarks/periodic_sub_trans/no_wli/setup_logging.py"
+    )
+    stage3_flow_path = Path(
+        "tools/benchmarks/periodic_sub_trans/no_wli/stage3_iteration_flow.py"
+    )
+    stage1_path = Path("tools/benchmarks/periodic_sub_trans/no_wli/stage1_substitution.py")
+    stage2_path = Path("tools/benchmarks/periodic_sub_trans/no_wli/stage2_search.py")
+    commit_path = Path("tools/benchmarks/periodic_sub_trans/no_wli/stage_iteration_commit.py")
+    text = (
+        runner_path.read_text(encoding="utf-8")
+        + "\n"
+        + setup_logging_path.read_text(encoding="utf-8")
+        + "\n"
+        + stage1_path.read_text(encoding="utf-8")
+        + "\n"
+        + stage2_path.read_text(encoding="utf-8")
+        + "\n"
+        + stage3_flow_path.read_text(encoding="utf-8")
+        + "\n"
+        + commit_path.read_text(encoding="utf-8")
+    )
     assert "entry_score_source=" in text
     assert "period_scale=(init=" in text
     assert "promoted_best_match=" in text
@@ -475,7 +889,7 @@ def test_no_wli_stage3_stop_log_has_entry_diagnostics():
     assert "stage3_diagnostics" in text
     assert "period_scaling=dict(" in text
     assert "Per-instance checkpoint (crash-safe)" in text
-    assert "_append_csv_row_common(hist, hist_row, merge_fieldnames=True)" in text
+    assert "_append_csv_row_common(path, row, merge_fieldnames=True)" in text
     assert "history_rows_written" in text
 
 
@@ -517,8 +931,22 @@ def test_no_wli_run_config_includes_resolved_tiers():
     assert "for t in TIERS" in text
 
 
+def test_no_wli_run_outputs_use_repo_relative_span_asset_paths():
+    root = no_wli_runner._repo_root()
+    abs_assets = root / "output" / "tools" / "benchmarks" / "scoring" / "span_hamming_nose_assets_v1"
+    rel_assets = no_wli_runner._to_repo_rel_path(abs_assets, root=root)
+    assert not Path(rel_assets).is_absolute()
+    assert rel_assets.startswith("output/")
+
+    runner_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(
+        encoding="utf-8"
+    )
+    assert "_to_repo_rel_path(span_assets_dir, root=root)" in runner_text
+    assert "_scoring_meta_for_output(" in runner_text
+
+
 def test_stage2_promotion_uses_kept_pool_in_no_wli_and_colsub():
-    no_wli_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
+    no_wli_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/stage2_search.py").read_text(encoding="utf-8")
     colsub_text = Path("tools/benchmarks/periodic_sub_trans/col_then_sub/runner.py").read_text(encoding="utf-8")
     assert "stage2_kept_by_score = list(stage2_ranked)" in no_wli_text
     assert "stage2_kept_by_match = sorted(" in no_wli_text
@@ -529,9 +957,13 @@ def test_stage2_promotion_uses_kept_pool_in_no_wli_and_colsub():
 
 
 def test_stall_stage_limit_is_applied_in_stage3_stop_no_wli_and_colsub():
-    no_wli_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
+    no_wli_text = (
+        Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
+        + "\n"
+        + Path("tools/benchmarks/periodic_sub_trans/no_wli/stage3_iteration_flow.py").read_text(encoding="utf-8")
+    )
     colsub_text = Path("tools/benchmarks/periodic_sub_trans/col_then_sub/runner.py").read_text(encoding="utf-8")
-    assert 'stop_reason = "stalled_no_improve" if int(STALL_STAGE_LIMIT) <= 1 else "unsolved"' in no_wli_text
+    assert 'stop_reason = "stalled_no_improve" if int(stall_stage_limit) <= 1 else "unsolved"' in no_wli_text
     assert 'stop_reason = "stalled_no_improve" if int(STALL_STAGE_LIMIT) <= 1 else "unsolved"' in colsub_text
 
 
@@ -613,3 +1045,58 @@ def test_solver_progress_model_label_handles_avg_full_text():
     src = inspect.getsource(solver_base_mod.SolverBase._progress_model_label)
     assert "avg_window_policy" in src
     assert "full_text" in src
+
+
+def test_runner_oracle_mode_defaults_off():
+    assert str(col_runner.ORACLE_MODE) == "off"
+    assert str(sub_runner.ORACLE_MODE) == "off"
+    assert str(no_wli_runner.ORACLE_MODE) == "off"
+
+
+def test_no_wli_oracle_decision_paths_are_mode_gated_and_reported():
+    runner_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(
+        encoding="utf-8"
+    )
+    stage3_flow_text = Path(
+        "tools/benchmarks/periodic_sub_trans/no_wli/stage3_iteration_flow.py"
+    ).read_text(encoding="utf-8")
+    seeding_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/stage3_seeding.py").read_text(
+        encoding="utf-8"
+    )
+    two_phase_text = Path(
+        "tools/benchmarks/periodic_sub_trans/no_wli/stage3_two_phase.py"
+    ).read_text(encoding="utf-8")
+    text = runner_text + "\n" + stage3_flow_text + "\n" + seeding_text + "\n" + two_phase_text
+    assert 'ORACLE_MODE = "off"' in text
+    assert "oracle_mode=str(oracle_mode)" in text
+    assert "oracle_consulted_in_decisions" in text
+    assert "_resolve_stage3_gap_and_band_external" in text
+    assert "stage2_gap_to_oracle, band, oracle_used_for_stage3_band =" in text
+    assert 'oracle_used_for_stage3_band", False' in text
+    assert "score_first=(not bool(oracle_assist_selection_effective))" in text
+
+
+def test_col_then_sub_oracle_decision_paths_are_mode_gated_and_reported():
+    text = Path("tools/benchmarks/periodic_sub_trans/col_then_sub/runner.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'ORACLE_MODE = "off"' in text
+    assert "oracle_mode=str(oracle_mode)" in text
+    assert "oracle_consulted_in_decisions" in text
+    assert "stage1_oracle_guard = bool(" in text
+    assert "oracle_decision_paths_enabled" in text
+    assert (
+        "if bool(oracle_decision_paths_enabled) and np.isfinite(stage2_gate_score) and "
+        "np.isfinite(oracle_s23):" in text
+    )
+    assert "if bool(oracle_decision_paths_enabled) and bool(STAGE3_USE_ORACLE_GUIDE_STOP):" in text
+
+
+def test_sub_then_col_oracle_decision_paths_are_mode_gated_and_reported():
+    text = Path("tools/benchmarks/periodic_sub_trans/sub_then_col/runner.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'ORACLE_MODE = "off"' in text
+    assert "oracle_mode=str(oracle_mode)" in text
+    assert "oracle_consulted_in_decisions" in text
+    assert "if bool(oracle_decision_paths_enabled) and bool(STAGE3_USE_ORACLE_GUIDE_STOP):" in text

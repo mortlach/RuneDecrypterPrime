@@ -6,6 +6,9 @@ from types import ModuleType
 from typing import Any, Dict, Iterable, Mapping
 
 from tools.benchmarks.community._campaign_common import load_json
+from tools.benchmarks.periodic_sub_trans.common.scorer_schedule import (
+    validate_scorer_schedule_ids,
+)
 
 PIPELINE_DEFAULT = "PIPELINE_DEFAULT"
 DEFAULT_RANGES_PATH = Path(__file__).resolve().parent / "ranges_v1_1.json"
@@ -252,6 +255,10 @@ def load_profile_catalog_from_dict(
         scorer_schedule = item.get("scorer_schedule", {})
         if not isinstance(scorer_schedule, Mapping):
             raise ValueError(f"profile {profile_id} scorer_schedule must be object")
+        scorer_schedule_norm = validate_scorer_schedule_ids(
+            scorer_schedule,
+            require_all_keys=False,
+        )
         overrides = item.get("overrides", {})
         if not isinstance(overrides, Mapping):
             raise ValueError(f"profile {profile_id} overrides must be object")
@@ -259,7 +266,7 @@ def load_profile_catalog_from_dict(
         profiles_by_id[profile_id] = BenchmarkProfile(
             profile_id=profile_id,
             description=description,
-            scorer_schedule=dict(scorer_schedule),
+            scorer_schedule=scorer_schedule_norm.as_dict(),
             overrides=dict(overrides),
         )
 

@@ -22,7 +22,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, Sequence, Tuple
 
 import numpy as np
 
@@ -51,6 +51,9 @@ from tools.benchmarks.periodic_sub_trans.common import bench_solve_periodic_colu
 from tools.benchmarks.periodic_sub_trans.common.batch_eval import (
     decrypt_and_score_keys_chunked,
 )
+from tools.benchmarks.periodic_sub_trans.common.campaign_run_config import (
+    build_campaign_run_config,
+)
 from tools.benchmarks.periodic_sub_trans.common.io_reports import (
     append_csv_row as _append_csv_row_common,
     write_json,
@@ -65,6 +68,9 @@ from tools.benchmarks.periodic_sub_trans.common.core_enums import (
 )
 from tools.benchmarks.periodic_sub_trans.common.paths import make_flavor_run_dir
 from tools.benchmarks.periodic_sub_trans.common.runner_types import Tier
+from tools.benchmarks.periodic_sub_trans.common.scorer_schedule_apply import (
+    apply_sub_then_col_schedule,
+)
 
 ALPHABET_SIZE = 29
 ORDER = BenchmarkOrder.SUB_THEN_COL.value
@@ -179,6 +185,7 @@ SOLVER_FULL = dict(
 STAGE3_USE_ORACLE_GUIDE_STOP = True
 STAGE3_ORACLE_STOP_MARGIN = 0.0
 STAGE3_ORACLE_STOP_RELAX_FRACTION = 0.10
+ORACLE_MODE = "off"  # "off" | "benchmark_only"
 
 COL_EXACT_MAX_COLUMNS = 7
 COL_SAMPLE_SIZE = 6000
@@ -348,33 +355,55 @@ def configure_campaign_run(
     tiers_regex_override: str | None,
     scorer_impl: str | None = None,
     scorer_stage3_impl_avg_fulltext: str | None = None,  # kept for cross-runner signature parity
+    scorer_schedule: Mapping[str, Any] | None = None,
 ) -> None:
     """Apply campaign job settings through one explicit runner entrypoint."""
 
-    del scorer_stage3_impl_avg_fulltext
+    cfg = build_campaign_run_config(
+        run_seed=run_seed,
+        period=period,
+        columns=columns,
+        length=length,
+        tier_name=tier_name,
+        run_mode=run_mode,
+        profile_name=profile_name,
+        heartbeat_seconds=heartbeat_seconds,
+        autoskip_proven=autoskip_proven,
+        force_rerun_proven=force_rerun_proven,
+        avoid_repeat_fail=avoid_repeat_fail,
+        text_offsets=text_offsets,
+        tiers_regex_override=tiers_regex_override,
+        scorer_impl=scorer_impl,
+        scorer_stage3_impl_avg_fulltext=scorer_stage3_impl_avg_fulltext,
+        scorer_schedule=scorer_schedule,
+    )
 
     global AUTOSKIP_PROVEN, FORCE_RERUN_PROVEN, AVOID_REPEAT_FAIL
     global TIERS_REGEX_OVERRIDE, KEY_SEEDS_OVERRIDE, KEY_SEEDS, TEXT_OFFSETS
     global PIPELINE_RUN_MODE, PROFILE, HEARTBEAT_SECONDS, TIERS
+    global STAGEAB_SCORER_PROFILE
 
-    AUTOSKIP_PROVEN = bool(autoskip_proven)
-    FORCE_RERUN_PROVEN = bool(force_rerun_proven)
-    AVOID_REPEAT_FAIL = bool(avoid_repeat_fail)
-    TIERS_REGEX_OVERRIDE = (
-        None
-        if tiers_regex_override is None or str(tiers_regex_override).strip() == ""
-        else str(tiers_regex_override)
+    AUTOSKIP_PROVEN = bool(cfg.autoskip_proven)
+    FORCE_RERUN_PROVEN = bool(cfg.force_rerun_proven)
+    AVOID_REPEAT_FAIL = bool(cfg.avoid_repeat_fail)
+    TIERS_REGEX_OVERRIDE = cfg.tiers_regex_override
+    KEY_SEEDS_OVERRIDE = [int(cfg.run_seed)]
+    KEY_SEEDS = [int(cfg.run_seed)]
+    TEXT_OFFSETS = [int(x) for x in cfg.text_offsets]
+    PIPELINE_RUN_MODE = str(cfg.run_mode)
+    PROFILE = str(cfg.profile_name)
+    HEARTBEAT_SECONDS = int(cfg.heartbeat_seconds)
+    TIERS = [cfg.tier()]
+
+    STAGEAB_SCORER_PROFILE = apply_sub_then_col_schedule(
+        scorer_schedule=cfg.scorer_schedule,
+        stage_full_cfg=SCORER_FULL,
+        stageab_profile_default=StageABScorerProfile.A_CHAR34_WLI34.value,
+        stageab_profile_char34=StageABScorerProfile.A_CHAR34.value,
     )
-    KEY_SEEDS_OVERRIDE = [int(run_seed)]
-    KEY_SEEDS = [int(run_seed)]
-    TEXT_OFFSETS = [int(x) for x in text_offsets]
-    PIPELINE_RUN_MODE = str(run_mode)
-    PROFILE = str(profile_name)
-    HEARTBEAT_SECONDS = int(heartbeat_seconds)
-    TIERS = [Tier(str(tier_name), int(period), int(columns), int(length))]
-
-    if scorer_impl is not None:
-        _apply_scorer_impl_override(str(scorer_impl))
+    _resolve_stageab_scorer_profile()
+    if cfg.scorer_impl is not None:
+        _apply_scorer_impl_override(str(cfg.scorer_impl))
 
 
 def _repo_root() -> Path:
@@ -516,6 +545,13 @@ def _build_summary(tiers: Sequence[Tier], instances: List[Dict[str, Any]]) -> Di
     return summary
 
 
+def _oracle_mode_normalized() -> str:
+    mode = str(ORACLE_MODE).strip().lower()
+    if mode == "benchmark_only":
+        return "benchmark_only"
+    return "off"
+
+
 def _load_proven_solved_index(path: Path, *, min_match: float) -> Dict[Tuple[str, int, int], Dict[str, Any]]:
     out: Dict[Tuple[str, int, int], Dict[str, Any]] = {}
     if not path.exists():
@@ -580,6 +616,15 @@ def main() -> None:
     _resolve_stageab_scorer_profile()
     _apply_runtime_overrides()
     direction = Direction.LTR
+    oracle_mode = str(_oracle_mode_normalized())
+    oracle_decision_paths_enabled = bool(oracle_mode == "benchmark_only")
+    oracle_consulted_in_decisions = False
+
+    def _mark_oracle_decision_use() -> None:
+        nonlocal oracle_consulted_in_decisions
+        if bool(oracle_decision_paths_enabled):
+            oracle_consulted_in_decisions = True
+
     root = _repo_root()
 
     print("[subcol] bootstrap: checking LM assets...", flush=True)
@@ -606,7 +651,8 @@ def main() -> None:
     )
 
     print(
-        f"[subcol] setup: profile={PROFILE} mode={PIPELINE_RUN_MODE} direction={direction.value} order={ORDER} A={ALPHABET_SIZE}",
+        f"[subcol] setup: profile={PROFILE} mode={PIPELINE_RUN_MODE} direction={direction.value} order={ORDER} A={ALPHABET_SIZE} "
+        f"oracle_mode={oracle_mode}",
         flush=True,
     )
     print(
@@ -660,6 +706,8 @@ def main() -> None:
     run_manifest = dict(
         profile=PROFILE,
         mode=PIPELINE_RUN_MODE,
+        oracle_mode=str(oracle_mode),
+        oracle_consulted_in_decisions=bool(oracle_decision_paths_enabled),
         direction=str(direction.value),
         order=str(ORDER),
         alphabet_size=int(ALPHABET_SIZE),
@@ -696,7 +744,10 @@ def main() -> None:
             initial_keys_by_c=dict(STAGE3_INITIAL_KEYS_BY_COLUMNS),
             full_entry_score=(None if STAGE3_FULL_ENTRY_SCORE is None else float(STAGE3_FULL_ENTRY_SCORE)),
             probe_entry_score=(None if STAGE3_PROBE_ENTRY_SCORE is None else float(STAGE3_PROBE_ENTRY_SCORE)),
-            use_oracle_stop=bool(STAGE3_USE_ORACLE_GUIDE_STOP),
+            use_oracle_stop_requested=bool(STAGE3_USE_ORACLE_GUIDE_STOP),
+            use_oracle_stop=bool(
+                oracle_decision_paths_enabled and bool(STAGE3_USE_ORACLE_GUIDE_STOP)
+            ),
             oracle_stop_margin=float(STAGE3_ORACLE_STOP_MARGIN),
             oracle_relax=float(STAGE3_ORACLE_STOP_RELAX_FRACTION),
         ),
@@ -755,6 +806,10 @@ def main() -> None:
                             n_unique_tails_promoted_to_B=0,
                             n_unique_tails_promoted_to_C=0,
                             best_score_per_tail_top5="[]",
+                            oracle_mode=str(oracle_mode),
+                            oracle_consulted_in_decisions=bool(
+                                oracle_consulted_in_decisions
+                            ),
                             total_seconds=0.0,
                             total_evals=0,
                             preview_best_latin=preview_txt,
@@ -1229,7 +1284,8 @@ def main() -> None:
                             inner_batch=min(int(solver_full_cfg.get("inner_batch", 0)), 128),
                         )
 
-                    if STAGE3_USE_ORACLE_GUIDE_STOP:
+                    if bool(oracle_decision_paths_enabled) and bool(STAGE3_USE_ORACLE_GUIDE_STOP):
+                        _mark_oracle_decision_use()
                         relax = max(0.0, min(0.95, float(STAGE3_ORACLE_STOP_RELAX_FRACTION)))
                         s3_stop = float(oracle_full) - (abs(float(oracle_full)) * relax) + float(
                             STAGE3_ORACLE_STOP_MARGIN
@@ -1384,6 +1440,10 @@ def main() -> None:
                         best_score_per_tail_top5=str(best_score_per_tail_top5),
                         stage3_entry_mode=str(stage3_entry_mode),
                         stage3_band=str(stage3_band),
+                        oracle_mode=str(oracle_mode),
+                        oracle_consulted_in_decisions=bool(
+                            oracle_consulted_in_decisions
+                        ),
                         total_seconds=round(dt_i, 3),
                         total_evals=int(total_evals),
                         preview_best_latin=str(best_preview),
@@ -1450,6 +1510,10 @@ def main() -> None:
                         run_id=run_dir.name,
                         profile=PROFILE,
                         mode=PIPELINE_RUN_MODE,
+                        oracle_mode=str(oracle_mode),
+                        oracle_consulted_in_decisions=bool(
+                            oracle_consulted_in_decisions
+                        ),
                         stageab_scorer_profile=str(STAGEAB_SCORER_PROFILE),
                         config=run_manifest,
                         instance=dict(instances[-1]),
