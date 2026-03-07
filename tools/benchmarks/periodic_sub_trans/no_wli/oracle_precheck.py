@@ -4,6 +4,10 @@ from typing import Any, Callable, Dict, Mapping
 
 import numpy as np
 
+from tools.benchmarks.periodic_sub_trans.no_wli.oracle_policy import (
+    derive_stage3_phaseb_char_pct_min,
+)
+
 
 def evaluate_oracle_precheck(
     *,
@@ -81,20 +85,18 @@ def evaluate_oracle_precheck(
         flush=True,
     )
 
-    stage3_phaseB_char_pct_min_dynamic = float("nan")
-    stage3_phaseB_char_pct_min_source = "not_used_explicit_basin_judge"
-    if bool(stage3_phase_switch_enabled) and str(stage3_phaseB_experiment) == "c_min_late":
-        if np.isfinite(float(oracle_s3)):
-            stage3_phaseB_char_pct_min_dynamic = float(
-                np.clip(float(oracle_s3) - 0.10, 0.30, 0.45)
-            )
-            stage3_phaseB_char_pct_min_source = "oracle_minus_0.10_clamp_0.30_0.45_not_applied"
-        else:
-            stage3_phaseB_char_pct_min_dynamic = float(scoring_experiment_c_char_pct_min)
-            stage3_phaseB_char_pct_min_source = "profile_default_not_applied"
-        if stage3_span_char_pct_min_override is not None:
-            stage3_phaseB_char_pct_min_dynamic = float(stage3_span_char_pct_min_override)
-            stage3_phaseB_char_pct_min_source = "diagnostic_override_not_applied"
+    (
+        stage3_phaseB_char_pct_min_dynamic,
+        stage3_phaseB_char_pct_min_source,
+        stage3_phaseB_char_pct_min_emit,
+    ) = derive_stage3_phaseb_char_pct_min(
+        stage3_phase_switch_enabled=bool(stage3_phase_switch_enabled),
+        stage3_phaseb_experiment=str(stage3_phaseB_experiment),
+        oracle_s3=float(oracle_s3),
+        scoring_experiment_c_char_pct_min=float(scoring_experiment_c_char_pct_min),
+        stage3_span_char_pct_min_override=stage3_span_char_pct_min_override,
+    )
+    if bool(stage3_phaseB_char_pct_min_emit):
         print(
             f"{log_prefix} stage3-phase-switch tier={tier_name} text={int(text_id)} key_seed={int(key_seed)} "
             f"phaseA_experiment={str(stage3_phaseA_experiment)} "

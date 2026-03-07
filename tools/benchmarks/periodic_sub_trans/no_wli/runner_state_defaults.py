@@ -1,0 +1,144 @@
+from __future__ import annotations
+
+from copy import deepcopy
+from typing import Any, Mapping, MutableMapping
+
+
+def initialize_runtime_state(
+    *,
+    state: MutableMapping[str, Any],
+    default_scorer_stage1: Mapping[str, Any],
+    default_scorer_stage2: Mapping[str, Any],
+    default_scorer_full: Mapping[str, Any],
+    default_solver_stage1: Mapping[str, Any],
+    default_solver_stage2: Mapping[str, Any],
+    default_solver_stage3: Mapping[str, Any],
+    default_stage3_dynamic_bands: list[dict[str, Any]],
+    default_stage3_phasea_cfg: Mapping[str, Any],
+    default_stage3_phaseb_cfg: Mapping[str, Any],
+    default_tiers: list[tuple[str, int, int, int]],
+    tier_cls: type,
+) -> None:
+    state["SOLVE_MATCH_THRESHOLD"] = 0.90
+    state["STALL_DELTA"] = 0.002
+    state["STALL_STAGE_LIMIT"] = 1
+    state["HEARTBEAT_SECONDS"] = 900
+    state["TIER_HEARTBEAT_SECONDS"] = 60
+    state["STAGE3_HEARTBEAT_SECONDS"] = 30
+    state["STAGE3_HEARTBEAT_MIN_STEP"] = 50
+    state["STAGE3_HEARTBEAT_MIN_ELAPSED_SECONDS"] = 5.0
+    state["PREVIEW_CHARS"] = 240
+    state["AUTOSKIP_PROVEN"] = True
+    state["AUTOSKIP_PROVEN_MIN_MATCH"] = float(state["SOLVE_MATCH_THRESHOLD"])
+    state["FORCE_RERUN_PROVEN"] = True
+
+    state["TEXT_OFFSETS"] = [0]
+    state["KEY_SEEDS"] = [111]
+
+    state["STAGE1_SUB_CANDIDATES"] = 24
+    state["STAGE3_INITIAL_KEYS"] = 18
+
+    state["STAGE1_SUB_CANDIDATES_BY_COLUMNS"] = {1: 8, 3: 32, 5: 24, 7: 24, 10: 20, 13: 20}
+    state["STAGE3_INITIAL_KEYS_BY_COLUMNS"] = {1: 8, 3: 36, 5: 30, 7: 40, 10: 40, 13: 48}
+
+    state["STAGE2_EXACT_MAX_COLUMNS"] = 7
+    state["STAGE2_EXACT_SUB_CANDIDATES"] = 4
+    state["STAGE2_EXACT_TWO_PASS"] = True
+    state["STAGE2_EXACT_PASS1_TOP_TAILS"] = 160
+    state["STAGE2_EXACT_EARLY_SOLVE_BREAK"] = True
+    state["STAGE2_PASS1_PRIMARY_CHAR_WEIGHTS"] = {3: 0.2, 4: 0.8}
+    state["STAGE2_PASS1_FALLBACK_CHAR_WEIGHTS"] = {2: 1.0}
+    state["STAGE2_PASS1_DIVERSITY_MIN_HAMMING_FACTOR"] = 0.40
+    state["STAGE2_PASS1_DIVERSITY_MIN_FIRST_SYMBOLS"] = 3
+    state["STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS"] = {3: 24, 5: 12, 7: 12}
+    state["STAGE2_EXACT_PASS1_TOP_TAILS_BY_COLUMNS"] = {3: 6, 5: 120, 7: 768}
+    state["STAGE2_HYBRID_SUB_CANDIDATES"] = 10
+    state["STAGE2_HYBRID_SUB_CANDIDATES_BY_COLUMNS"] = {10: 10, 13: 8}
+
+    state["SAVE_STAGE2_TOPK"] = 12
+    state["SAVE_STAGE3_TOPK"] = True
+    state["SAVE_STAGE3_TOPK_LIMIT"] = 5
+    state["KAEDING_PROGRESS_EVERY_PCT"] = 1
+    state["KAEDING_CONSOLE_PROGRESS"] = False
+
+    state["STAGE1_SEED_RESTARTS"] = 96
+    state["STAGE1_SEED_N_BLOCKS"] = 18
+    state["STAGE1_SEED_TOTAL"] = 256
+    state["STAGE1_SEED_SWAPS"] = 3
+    state["STAGE12_SCOUT_RUNS"] = 6
+    state["STAGE12_ARCHIVE_KEEP"] = 48
+    state["STAGE12_PROMOTE_TOP"] = 24
+    state["STAGE1_SCOUT_STEP_SCALE"] = 0.28
+    state["STAGE1_SCOUT_RESTART_SCALE"] = 0.25
+    state["STAGE1_SCOUT_MIN_STEPS"] = 900
+    state["STAGE1_SCOUT_MIN_RESTARTS"] = 1
+    state["STAGE1_SCOUT_NO_IMPROVE_DELTA"] = 1e-6
+    state["STAGE1_SCOUT_NO_IMPROVE_PATIENCE"] = 1
+    state["STAGE1_SCOUT_MIN_NEW_ARCHIVE"] = 4
+    state["STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS"] = 2
+
+    state["STAGE3_DYNAMIC_BANDS"] = [dict(b) for b in default_stage3_dynamic_bands]
+    state["STAGE3_TWO_PHASE_ENABLED"] = False
+    state["STAGE3_PHASEA_CFG"] = deepcopy(default_stage3_phasea_cfg)
+    state["STAGE3_PHASEB_CFG"] = deepcopy(default_stage3_phaseb_cfg)
+    state["STAGE3_PHASEB_TOP_N"] = 8
+    state["STAGE3_PHASEB_GATE_DELTA_FLOOR"] = 0.008
+    state["STAGE3_PHASEB_GATE_END_GAIN_FLOOR"] = 0.004
+    state["STAGE3_SPAN_BASIN_JUDGE_K"] = 32
+    state["STAGE3_SPAN_BASIN_JUDGE_REQUIRE_SPAN_ACTIVE"] = True
+    state["STAGE3_SPAN_BASIN_JUDGE_DEDUPE_BY_END_HASH"] = True
+    state["STAGE3_SPAN_BASIN_JUDGE_TIE_EPS"] = 0.001
+    state["STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS"] = 48
+    state["RUN_STAGE3_SPAN_BASIN_K_SWEEP"] = True
+    state["STAGE3_SPAN_BASIN_K_SWEEP_VALUES"] = [96]
+
+    state["STAGE3_C1_FOCUS_ENABLED"] = True
+    state["STAGE3_C1_INIT_KEYS"] = 96
+    state["STAGE3_C1_PHASEA_STEPS"] = 1200
+    state["STAGE3_C1_PHASEB_STEPS"] = 6000
+    state["STAGE3_C1_PHASEB_TOP_N"] = 24
+    state["STAGE3_C1_PHASEB_GATE_DELTA_FLOOR"] = 0.010
+    state["STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR"] = 0.006
+    state["STAGE3_CONTINUE_AFTER_SOLVE"] = False
+
+    state["STAGE3_PERIOD_INIT_MULT_BY_PERIOD"] = {}
+    state["STAGE3_PERIOD_STEP_MULT_BY_PERIOD"] = {}
+    state["STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD"] = {}
+    state["STAGE3_INIT_KEYS_CAP"] = 192
+
+    state["_STAGE3_TWO_PHASE_ENABLED_DEFAULT"] = bool(state["STAGE3_TWO_PHASE_ENABLED"])
+    state["_STAGE3_PHASEA_CFG_DEFAULT"] = dict(state["STAGE3_PHASEA_CFG"])
+    state["_STAGE3_PHASEB_CFG_DEFAULT"] = dict(state["STAGE3_PHASEB_CFG"])
+    state["_STAGE3_PHASEB_TOP_N_DEFAULT"] = int(state["STAGE3_PHASEB_TOP_N"])
+    state["_STAGE3_PHASEB_GATE_DELTA_FLOOR_DEFAULT"] = float(state["STAGE3_PHASEB_GATE_DELTA_FLOOR"])
+    state["_STAGE3_PHASEB_GATE_END_GAIN_FLOOR_DEFAULT"] = float(state["STAGE3_PHASEB_GATE_END_GAIN_FLOOR"])
+    state["_STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS_DEFAULT"] = int(state["STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS"])
+    state["_STAGE3_C1_FOCUS_ENABLED_DEFAULT"] = bool(state["STAGE3_C1_FOCUS_ENABLED"])
+    state["_STAGE3_C1_INIT_KEYS_DEFAULT"] = int(state["STAGE3_C1_INIT_KEYS"])
+    state["_STAGE3_C1_PHASEA_STEPS_DEFAULT"] = int(state["STAGE3_C1_PHASEA_STEPS"])
+    state["_STAGE3_C1_PHASEB_STEPS_DEFAULT"] = int(state["STAGE3_C1_PHASEB_STEPS"])
+    state["_STAGE3_C1_PHASEB_TOP_N_DEFAULT"] = int(state["STAGE3_C1_PHASEB_TOP_N"])
+    state["_STAGE3_C1_PHASEB_GATE_DELTA_FLOOR_DEFAULT"] = float(state["STAGE3_C1_PHASEB_GATE_DELTA_FLOOR"])
+    state["_STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR_DEFAULT"] = float(state["STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR"])
+    state["_STAGE3_CONTINUE_AFTER_SOLVE_DEFAULT"] = bool(state["STAGE3_CONTINUE_AFTER_SOLVE"])
+    state["_STAGE3_PERIOD_INIT_MULT_BY_PERIOD_DEFAULT"] = dict(state["STAGE3_PERIOD_INIT_MULT_BY_PERIOD"])
+    state["_STAGE3_PERIOD_STEP_MULT_BY_PERIOD_DEFAULT"] = dict(state["STAGE3_PERIOD_STEP_MULT_BY_PERIOD"])
+    state["_STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD_DEFAULT"] = dict(state["STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD"])
+    state["_STAGE3_INIT_KEYS_CAP_DEFAULT"] = int(state["STAGE3_INIT_KEYS_CAP"])
+    state["_ORACLE_ASSIST_SELECTION_DEFAULT"] = bool(state["ORACLE_ASSIST_SELECTION"])
+
+    state["SCORER_STAGE1"] = deepcopy(default_scorer_stage1)
+    state["SCORER_STAGE2"] = deepcopy(default_scorer_stage2)
+    state["SCORER_FULL"] = deepcopy(default_scorer_full)
+    state["SCORER_STAGE1"]["impl"] = state["SCORER_IMPL"]
+    state["SCORER_STAGE2"]["impl"] = state["SCORER_IMPL"]
+    state["SCORER_FULL"]["impl"] = state["SCORER_IMPL"]
+
+    state["SOLVER_STAGE1"] = deepcopy(default_solver_stage1)
+    state["SOLVER_STAGE2"] = deepcopy(default_solver_stage2)
+    state["SOLVER_STAGE3"] = deepcopy(default_solver_stage3)
+
+    state["TIERS"] = [
+        tier_cls(str(name), int(period), int(columns), int(length))
+        for name, period, columns, length in default_tiers
+    ]

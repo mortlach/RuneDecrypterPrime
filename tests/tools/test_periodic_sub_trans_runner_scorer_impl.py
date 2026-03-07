@@ -569,16 +569,27 @@ def test_no_wli_proven_autoskip_is_wired():
     runner_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(
         encoding="utf-8"
     )
+    run_environment_text = Path(
+        "tools/benchmarks/periodic_sub_trans/no_wli/run_environment.py"
+    ).read_text(encoding="utf-8")
     setup_logging_text = Path(
         "tools/benchmarks/periodic_sub_trans/no_wli/setup_logging.py"
     ).read_text(encoding="utf-8")
     autoskip_text = Path(
         "tools/benchmarks/periodic_sub_trans/no_wli/autoskip_proven.py"
     ).read_text(encoding="utf-8")
-    text = runner_text + "\n" + setup_logging_text + "\n" + autoskip_text
+    text = (
+        runner_text
+        + "\n"
+        + run_environment_text
+        + "\n"
+        + setup_logging_text
+        + "\n"
+        + autoskip_text
+    )
     assert "AUTOSKIP_PROVEN = True" in text
     assert "FORCE_RERUN_PROVEN = True" in text
-    assert "_load_proven_solved_index(" in text
+    assert ("_load_proven_solved_index(" in text) or ("load_proven_index_fn(" in text)
     assert "status=\"skipped_proven\"" in text
     assert "setup: autoskip_proven=" in text
 
@@ -852,6 +863,9 @@ def test_periodic_sub_trans_runners_avoid_direct_scalar_scorer_calls():
 
 def test_no_wli_stage3_stop_log_has_entry_diagnostics():
     runner_path = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py")
+    run_config_builder_path = Path(
+        "tools/benchmarks/periodic_sub_trans/no_wli/run_config_builder.py"
+    )
     setup_logging_path = Path(
         "tools/benchmarks/periodic_sub_trans/no_wli/setup_logging.py"
     )
@@ -861,8 +875,11 @@ def test_no_wli_stage3_stop_log_has_entry_diagnostics():
     stage1_path = Path("tools/benchmarks/periodic_sub_trans/no_wli/stage1_substitution.py")
     stage2_path = Path("tools/benchmarks/periodic_sub_trans/no_wli/stage2_search.py")
     commit_path = Path("tools/benchmarks/periodic_sub_trans/no_wli/stage_iteration_commit.py")
+    bridges_path = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner_bridges.py")
     text = (
         runner_path.read_text(encoding="utf-8")
+        + "\n"
+        + run_config_builder_path.read_text(encoding="utf-8")
         + "\n"
         + setup_logging_path.read_text(encoding="utf-8")
         + "\n"
@@ -873,6 +890,8 @@ def test_no_wli_stage3_stop_log_has_entry_diagnostics():
         + stage3_flow_path.read_text(encoding="utf-8")
         + "\n"
         + commit_path.read_text(encoding="utf-8")
+        + "\n"
+        + bridges_path.read_text(encoding="utf-8")
     )
     assert "entry_score_source=" in text
     assert "period_scale=(init=" in text
@@ -889,7 +908,7 @@ def test_no_wli_stage3_stop_log_has_entry_diagnostics():
     assert "stage3_diagnostics" in text
     assert "period_scaling=dict(" in text
     assert "Per-instance checkpoint (crash-safe)" in text
-    assert "_append_csv_row_common(path, row, merge_fieldnames=True)" in text
+    assert ("_append_csv_row_common(" in text) or ("append_csv_row_common_fn=" in text)
     assert "history_rows_written" in text
 
 
@@ -926,9 +945,17 @@ def test_no_wli_stage3_candidate_compare_preserves_solved_incumbent():
 
 
 def test_no_wli_run_config_includes_resolved_tiers():
-    text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(encoding="utf-8")
+    text = (
+        Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(
+            encoding="utf-8"
+        )
+        + "\n"
+        + Path("tools/benchmarks/periodic_sub_trans/no_wli/run_config_builder.py").read_text(
+            encoding="utf-8"
+        )
+    )
     assert "tiers=[" in text
-    assert "for t in TIERS" in text
+    assert ("for t in TIERS" in text) or ('for t in state["TIERS"]' in text)
 
 
 def test_no_wli_run_outputs_use_repo_relative_span_asset_paths():
@@ -938,11 +965,24 @@ def test_no_wli_run_outputs_use_repo_relative_span_asset_paths():
     assert not Path(rel_assets).is_absolute()
     assert rel_assets.startswith("output/")
 
-    runner_text = Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(
-        encoding="utf-8"
+    text = (
+        Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(
+            encoding="utf-8"
+        )
+        + "\n"
+        + Path("tools/benchmarks/periodic_sub_trans/no_wli/run_startup.py").read_text(
+            encoding="utf-8"
+        )
+        + "\n"
+        + Path(
+            "tools/benchmarks/periodic_sub_trans/no_wli/run_manifest_setup.py"
+        ).read_text(encoding="utf-8")
     )
-    assert "_to_repo_rel_path(span_assets_dir, root=root)" in runner_text
-    assert "_scoring_meta_for_output(" in runner_text
+    assert (
+        "_to_repo_rel_path(span_assets_dir, root=root)" in text
+        or "to_repo_rel_path_fn(span_assets_dir, root)" in text
+    )
+    assert "_scoring_meta_for_output(" in text or "scoring_meta_for_output_fn(" in text
 
 
 def test_stage2_promotion_uses_kept_pool_in_no_wli_and_colsub():
@@ -1066,7 +1106,20 @@ def test_no_wli_oracle_decision_paths_are_mode_gated_and_reported():
     two_phase_text = Path(
         "tools/benchmarks/periodic_sub_trans/no_wli/stage3_two_phase.py"
     ).read_text(encoding="utf-8")
-    text = runner_text + "\n" + stage3_flow_text + "\n" + seeding_text + "\n" + two_phase_text
+    pipeline_exec_text = Path(
+        "tools/benchmarks/periodic_sub_trans/no_wli/run_pipeline_execution.py"
+    ).read_text(encoding="utf-8")
+    text = (
+        runner_text
+        + "\n"
+        + stage3_flow_text
+        + "\n"
+        + seeding_text
+        + "\n"
+        + two_phase_text
+        + "\n"
+        + pipeline_exec_text
+    )
     assert 'ORACLE_MODE = "off"' in text
     assert "oracle_mode=str(oracle_mode)" in text
     assert "oracle_consulted_in_decisions" in text
