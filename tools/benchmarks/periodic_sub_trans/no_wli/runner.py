@@ -127,6 +127,10 @@ from tools.benchmarks.periodic_sub_trans.no_wli.runner_state_init import (
 from tools.benchmarks.periodic_sub_trans.no_wli.runner_defaults import (
     apply_runner_defaults,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.order_dispatch import (
+    build_no_wli_order_dispatch_payload as _build_no_wli_order_dispatch_payload,
+    normalize_no_wli_order as _normalize_no_wli_order,
+)
 
 
 apply_runner_defaults(state=globals())
@@ -268,6 +272,7 @@ _oracle_mode_normalized = globals()["_oracle_mode_normalized"]
 _RUN_STAGE3_SPAN_BASIN_K_SWEEP_ACTIVE = bool(
     globals()["_RUN_STAGE3_SPAN_BASIN_K_SWEEP_ACTIVE"]
 )
+ORDER = _normalize_no_wli_order(str(ORDER))
 
 
 def main() -> None:
@@ -291,6 +296,8 @@ def main() -> None:
         apply_kaeding_progress_settings_fn=_apply_kaeding_progress_settings,
         apply_scoring_experiment_profile_fn=_apply_scoring_experiment_profile,
         build_run_config_fn=_build_run_config_external,
+        build_no_wli_order_dispatch_payload_fn=_build_no_wli_order_dispatch_payload,
+        normalize_no_wli_order_fn=_normalize_no_wli_order,
         persist_run_config_with_locks_fn=_persist_run_config_with_locks_external,
         resolve_repo_path_fn=_resolve_repo_path,
         stage3_search_cfg_fn=_stage3_char4_avg_fulltext_search_cfg,

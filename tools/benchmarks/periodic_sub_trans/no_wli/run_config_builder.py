@@ -23,6 +23,7 @@ def build_run_config(
     scorer_cfg_for_output_fn: Callable[..., Dict[str, Any]],
     stage3_search_cfg_fn: Callable[..., Dict[str, Any]],
     scoring_meta_for_output_fn: Callable[..., Dict[str, Any]],
+    build_no_wli_order_dispatch_payload_fn: Callable[..., Dict[str, Any]],
 ) -> Dict[str, Any]:
     return dict(
         profile=state["PROFILE"],
@@ -51,6 +52,7 @@ def build_run_config(
         scoring_experiment=scoring_meta_for_output_fn(dict(scoring_experiment_meta), root=root),
         direction=direction.value,
         order=state["ORDER"],
+        order_dispatch=build_no_wli_order_dispatch_payload_fn(order=state["ORDER"]),
         alphabet_size=int(state["ALPHABET_SIZE"]),
         threshold=float(state["SOLVE_MATCH_THRESHOLD"]),
         stall_delta=float(state["STALL_DELTA"]),
@@ -203,6 +205,22 @@ def build_run_config(
                 tie_max_seeds=int(state["STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS"]),
                 disable_char_pct_gate=bool(True),
                 gate_fail_policy="score_floor",
+            ),
+            span_aux=dict(
+                role=str(state.get("STAGE3_SPAN_AUX_ROLE", "off")),
+                scope=str(state.get("STAGE3_SPAN_AUX_SCOPE", "basin_rep")),
+                profile=str(state.get("STAGE3_SPAN_AUX_PROFILE", "lite")),
+                budget_ms=float(state.get("STAGE3_SPAN_AUX_BUDGET_MS", 0.0)),
+                two_pass_enabled=bool(state.get("STAGE3_SPAN_AUX_TWO_PASS", False)),
+                full_top_m=int(state.get("STAGE3_SPAN_AUX_FULL_TOP_M", 0)),
+                decision_role_enabled=bool(state.get("SPAN_DECISION_ROLE_ENABLED", False)),
+                reps_per_basin=int(state.get("SPAN_REPS_PER_BASIN", 1)),
+                selection_top_k=int(state.get("SPAN_SELECTION_TOP_K", 0)),
+                p90_call_ms=(
+                    float(state["SPAN_P90_CALL_MS"])
+                    if state.get("SPAN_P90_CALL_MS", None) is not None
+                    else None
+                ),
             ),
             period_scaling=dict(
                 init_mult_by_period={

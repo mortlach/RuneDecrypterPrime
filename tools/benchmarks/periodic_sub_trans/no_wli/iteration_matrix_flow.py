@@ -6,6 +6,9 @@ from typing import Any, Callable, Dict, List, Mapping, Sequence, Tuple
 
 import numpy as np
 
+from tools.benchmarks.periodic_sub_trans.no_wli.stage_engine_iteration_bridge import (
+    run_iteration_with_stage_engine,
+)
 
 @dataclass(frozen=True)
 class IterationMatrixConfig:
@@ -34,6 +37,16 @@ class IterationMatrixConfig:
     oracle_mode: str
     oracle_decision_paths_enabled: bool
     oracle_assist_selection_effective: bool
+    stage3_span_aux_role: str
+    stage3_span_aux_scope: str
+    stage3_span_aux_profile: str
+    stage3_span_aux_budget_ms: float
+    stage3_span_aux_two_pass: bool
+    stage3_span_aux_full_top_m: int
+    span_decision_role_enabled: bool
+    span_reps_per_basin: int
+    span_selection_top_k: int
+    span_p90_call_ms: float | None
 
 
 @dataclass(frozen=True)
@@ -68,6 +81,7 @@ class IterationMatrixFns:
     build_stage3_diagnostics_fn: Callable[..., Dict[str, Any]]
     finalize_iteration_and_commit_fn: Callable[..., Dict[str, Any]]
     safe_preview_latin_fn: Callable[[Any, Any], str]
+    stage_engine_trace_emit_fn: Callable[..., None]
 
 
 def run_iteration_matrix(
@@ -136,40 +150,21 @@ def run_iteration_matrix(
                     )
                     continue
 
-                pre_stage3 = fns.run_iteration_pre_stage3_fn(
+                stage_engine_result = run_iteration_with_stage_engine(
                     state=dict(locals()),
-                    stage1_label=str(config.stage1_label),
-                    stage2_label=str(config.stage2_label),
-                    stage3_label=str(config.stage3_label),
-                    stage3_continue_after_solve=bool(config.stage3_continue_after_solve),
-                    stage3_phaseb_top_n=int(config.stage3_phaseb_top_n),
-                    stage3_phaseb_gate_delta_floor=float(config.stage3_phaseb_gate_delta_floor),
-                    stage3_phaseb_gate_end_gain_floor=float(config.stage3_phaseb_gate_end_gain_floor),
-                    stage3_c1_focus_enabled=bool(config.stage3_c1_focus_enabled),
-                    stage3_span_char_pct_min_override=(
-                        float(config.stage3_span_char_pct_min_override)
-                        if config.stage3_span_char_pct_min_override is not None
-                        else None
-                    ),
-                    scoring_experiment_c_char_pct_min=float(config.scoring_experiment_c_char_pct_min),
-                    oracle_stage3_floor_guard_eps=float(config.oracle_stage3_floor_guard_eps),
-                    build_iteration_runtime_fn=fns.build_iteration_runtime_fn,
-                    evaluate_oracle_precheck_fn=fns.evaluate_oracle_precheck_fn,
-                    handle_oracle_floor_guard_if_triggered_fn=fns.handle_oracle_floor_guard_if_triggered_fn,
-                    run_stage12_pipeline_fn=fns.run_stage12_pipeline_fn,
-                    scorer_objective_summary_fn=fns.scorer_objective_summary_fn,
-                    oracle_score_for_stage_fn=fns.oracle_score_for_stage_fn,
-                    weights_text_fn=fns.weights_text_fn,
-                    mark_oracle_decision_use_fn=fns.mark_oracle_decision_use_fn,
-                    print_stage_preview_fn=fns.print_stage_preview_fn,
-                    build_oracle_floor_guard_result_fn=fns.build_oracle_floor_guard_result_fn,
-                    build_iteration_payloads_fn=fns.build_iteration_payloads_fn,
-                    derive_outcome_code_fn=fns.derive_outcome_code_fn,
-                    commit_iteration_with_checkpoint_fn=fns.commit_iteration_with_checkpoint_fn,
-                    run_stage1_substitution_fn=fns.run_stage1_substitution_fn,
-                    run_stage2_search_fn=fns.run_stage2_search_fn,
-                    finalize_stage2_archive_fn=fns.finalize_stage2_archive_fn,
+                    config=config,
+                    fns=fns,
+                    stage3_runtime_call_ctx=stage3_runtime_call_ctx,
+                    log_prefix=str(log_prefix),
                 )
+                for _evt in stage_engine_result.events:
+                    fns.stage_engine_trace_emit_fn(
+                        event=dict(_evt),
+                        tier_name=str(tier.name),
+                        text_id=int(text_id),
+                        key_seed=int(key_seed),
+                    )
+                pre_stage3 = dict(stage_engine_result.pre_stage3)
                 if bool(pre_stage3.get("continue_iteration", False)):
                     continue
 
@@ -215,30 +210,50 @@ def run_iteration_matrix(
                 stage2_topk_payload = list(pre_stage3["stage2_topk_payload"])
                 stage2_topk_has_best_match = bool(pre_stage3["stage2_topk_has_best_match"])
 
-                stage3_flow = fns.run_stage3_iteration_flow_fn(
-                    state=dict(locals()),
-                    stage3_runtime_call_ctx=stage3_runtime_call_ctx,
-                    stage3_two_phase_enabled=bool(config.stage3_two_phase_enabled),
-                    stage3_continue_after_solve=bool(config.stage3_continue_after_solve),
-                    stage3_phasea_cfg_default=dict(config.stage3_phasea_cfg_default),
-                    stage3_phaseb_cfg_default=dict(config.stage3_phaseb_cfg_default),
-                    stage3_phaseb_top_n_default=int(config.stage3_phaseb_top_n),
-                    stage3_phaseb_gate_delta_floor_default=float(config.stage3_phaseb_gate_delta_floor),
-                    stage3_phaseb_gate_end_gain_floor_default=float(config.stage3_phaseb_gate_end_gain_floor),
-                    solver_stage3_default_cfg=dict(config.solver_stage3_default_cfg),
-                    stage3_span_basin_judge_k=int(config.stage3_span_basin_judge_k),
-                    tier_heartbeat_seconds=float(config.tier_heartbeat_seconds),
-                    solve_match_threshold=float(config.solve_match_threshold),
-                    stall_delta=float(config.stall_delta),
-                    stall_stage_limit=int(config.stall_stage_limit),
-                    evaluate_stage3_entry_policy_fn=fns.evaluate_stage3_entry_policy_fn,
-                    prepare_stage3_refine_inputs_fn=fns.prepare_stage3_refine_inputs_fn,
-                    summarize_stage3_span_fn=fns.summarize_stage3_span_fn,
-                    mark_oracle_decision_use_fn=fns.mark_oracle_decision_use_fn,
-                    print_stage_preview_fn=fns.print_stage_preview_fn,
-                    fmt_finite_float_fn=fns.fmt_finite_float_fn,
-                    log_prefix=str(log_prefix),
-                )
+                stage3_flow = dict(stage_engine_result.stage3_flow)
+                if stage3_flow:
+                    fns.stage_engine_trace_emit_fn(
+                        event=dict(
+                            event="span_runtime_telemetry",
+                            stage_id="stage_c_refine",
+                            span_active_rate=float(stage3_flow.get("stage3_span_active_rate", 0.0)),
+                            span_active_rate_source=str(
+                                stage3_flow.get(
+                                    "stage3_span_active_rate_source",
+                                    "stage3_flow_missing",
+                                )
+                            ),
+                            span_eval_total=float(stage3_flow.get("stage3_span_eval_total", 0.0)),
+                            span_eval_active=float(stage3_flow.get("stage3_span_eval_active", 0.0)),
+                            span_eval_skipped=float(
+                                stage3_flow.get("stage3_span_eval_skipped", 0.0)
+                            ),
+                            span_seconds_total=float(
+                                stage3_flow.get("stage3_span_seconds_total", 0.0)
+                            ),
+                            span_seconds_active=float(
+                                stage3_flow.get("stage3_span_seconds_active", 0.0)
+                            ),
+                            basin_judge_span_calls_total=int(
+                                stage3_flow.get("stage3_basin_judge_span_calls_total", 0)
+                            ),
+                            basin_judge_span_calls_active=int(
+                                stage3_flow.get("stage3_basin_judge_span_calls_active", 0)
+                            ),
+                            basin_judge_span_calls_rejected_or_gated=int(
+                                stage3_flow.get(
+                                    "stage3_basin_judge_span_calls_rejected_or_gated",
+                                    0,
+                                )
+                            ),
+                            basin_judge_span_seconds_total=float(
+                                stage3_flow.get("stage3_basin_judge_span_seconds_total", 0.0)
+                            ),
+                        ),
+                        tier_name=str(tier.name),
+                        text_id=int(text_id),
+                        key_seed=int(key_seed),
+                    )
                 oracle_consulted_in_decisions = bool(
                     fns.get_oracle_consulted_in_decisions_fn()
                 )

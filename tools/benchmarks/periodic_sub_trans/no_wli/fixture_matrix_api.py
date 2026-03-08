@@ -185,6 +185,8 @@ def build_fixture_jobs(
     scorer_stage3_impl_avg_fulltext: str,
     scoring_experiment_profiles: Sequence[str],
     schedules: Sequence[Mapping[str, str]],
+    enable_span_ab_pair: bool = False,
+    span_ab_decision_role: str = "prune",
 ) -> list[NoWliFixtureJob]:
     return _build_fixture_jobs_impl(
         fixtures=fixtures,
@@ -198,6 +200,8 @@ def build_fixture_jobs(
         scorer_stage3_impl_avg_fulltext=scorer_stage3_impl_avg_fulltext,
         scoring_experiment_profiles=scoring_experiment_profiles,
         schedules=schedules,
+        enable_span_ab_pair=bool(enable_span_ab_pair),
+        span_ab_decision_role=str(span_ab_decision_role),
         unique_sorted_ints_fn=lambda xs: _unique_sorted_ints(tuple(int(x) for x in xs)),
         validate_scorer_schedule_ids_fn=validate_scorer_schedule_ids,
         validate_schedule_contract_fn=validate_schedule_contract,

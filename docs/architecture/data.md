@@ -7,6 +7,7 @@ Scorers consume plaintext rune indices and optional WLI pairs. WLI is a per-rune
 - English-tuned models for the 29-rune alphabet.  
 - CPU-first; Torch backend (if installed) is kept on CPU for parity.  
 - Deterministic across machines with fixed seed and inputs.
+- Canonical runtime LM assets live under `assets/language_model/lmp` (not `src/.../data`).
 
 **Example (shape)**
 ```python

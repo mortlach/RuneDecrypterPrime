@@ -960,10 +960,10 @@ def test_no_wli_run_config_includes_resolved_tiers():
 
 def test_no_wli_run_outputs_use_repo_relative_span_asset_paths():
     root = no_wli_runner._repo_root()
-    abs_assets = root / "output" / "tools" / "benchmarks" / "scoring" / "span_hamming_nose_assets_v1"
+    abs_assets = root / "assets" / "scoring" / "span_hamming_nose_assets_v1"
     rel_assets = no_wli_runner._to_repo_rel_path(abs_assets, root=root)
     assert not Path(rel_assets).is_absolute()
-    assert rel_assets.startswith("output/")
+    assert rel_assets.startswith("assets/")
 
     text = (
         Path("tools/benchmarks/periodic_sub_trans/no_wli/runner.py").read_text(

@@ -31,7 +31,16 @@ HEARTBEAT_SECONDS = 3600
 SCORER_IMPL = "numpy"
 SCORER_STAGE3_IMPL_AVG_FULLTEXT = "numpy"
 
+# Acceptance-harness preset for Phase-3 target:
+# - first N real fixtures from campaign config
+# - fixed fixture length override
+ENABLE_ACCEPTANCE_HARNESS_500X5 = False
+ACCEPTANCE_HARNESS_FIXTURE_COUNT = 5
+ACCEPTANCE_HARNESS_LENGTH = 500
+
 SCORING_EXPERIMENT_PROFILES = ("c_min_late",)
+ENABLE_SPAN_AB_PAIR = False
+SPAN_AB_DECISION_ROLE = "prune"
 
 SCHEDULE_COVERAGE_MODE = "explicit"
 EXPLICIT_SCHEDULES: tuple[dict[str, str], ...] = (

@@ -340,19 +340,9 @@ def rebuild_split_joint_assets(
     existing_count = 0
 
     lm_roots: List[Path] = []
-    candidates = [
-        repo_root / assets_root / "language_model" / "lmp",
-        repo_root / "src" / "rune_decrypter_prime" / "data" / "language_model" / "lmp",
-    ]
-    seen: set[str] = set()
-    for cand in candidates:
-        resolved = cand.resolve()
-        key = str(resolved)
-        if key in seen:
-            continue
-        seen.add(key)
-        if resolved.exists():
-            lm_roots.append(resolved)
+    canonical = (repo_root / assets_root / "language_model" / "lmp").resolve()
+    if canonical.exists():
+        lm_roots.append(canonical)
 
     if not lm_roots:
         return {

@@ -5,9 +5,13 @@ from pathlib import Path
 import pytest
 
 from tools.benchmarks.periodic_sub_trans.no_wli import runner as no_wli_runner
+from tools.benchmarks.periodic_sub_trans.no_wli.run_progress import checkpoint_manifest
 from tools.benchmarks.periodic_sub_trans.no_wli.run_manifest import (
     build_initial_run_manifest,
     update_run_manifest_progress,
+)
+from tools.benchmarks.periodic_sub_trans.no_wli.stage3_band_policy import (
+    resolve_stage3_gap_and_band,
 )
 
 
@@ -33,6 +37,7 @@ def test_run_config_separates_oracle_enabled_and_consulted() -> None:
         scorer_cfg_for_output_fn=no_wli_runner._scorer_cfg_for_output,
         stage3_search_cfg_fn=no_wli_runner._stage3_char4_avg_fulltext_search_cfg,
         scoring_meta_for_output_fn=no_wli_runner._scoring_meta_for_output,
+        build_no_wli_order_dispatch_payload_fn=no_wli_runner._build_no_wli_order_dispatch_payload,
     )
     assert cfg["oracle_mode"] == "benchmark_only"
     assert cfg["oracle_decision_paths_enabled"] is True
@@ -60,7 +65,7 @@ def test_run_manifest_preserves_oracle_enabled_when_consulted_flips() -> None:
         non_scoring_lock_hash="n",
         scoring_lock_hash="s",
         run_config_hash="r",
-        span_assets_dir="output/tools/benchmarks/scoring/assets",
+        span_assets_dir="assets/scoring/span_hamming_nose_assets_v1",
         span_combined_calibration_hash="",
         span_ecdf_audit_hash="",
         run_config_rel_path="output/tools/benchmarks/periodic_sub_trans/no_wli/example/run_config.json",
@@ -90,3 +95,66 @@ def test_run_manifest_preserves_oracle_enabled_when_consulted_flips() -> None:
     )
     assert manifest["oracle_decision_paths_enabled"] is True
     assert manifest["oracle_consulted_in_decisions"] is True
+
+
+def test_checkpoint_manifest_does_not_imply_consulted_from_enabled() -> None:
+    recorded: dict[str, bool] = {}
+
+    def _capture(**kwargs):
+        recorded["oracle_consulted_in_decisions"] = bool(
+            kwargs["oracle_consulted_in_decisions"]
+        )
+        return kwargs
+
+    progress = dict(
+        done=0,
+        total=10,
+        status_counts=dict(solved=0, stalled=0, unsolved=0, skipped_proven=0),
+        history_rows_written=0,
+        audit_rows_written=0,
+        audit_prev_chain_hash="0" * 64,
+    )
+    run_manifest = dict(oracle_decision_paths_enabled=True, oracle_consulted_in_decisions=False)
+
+    checkpoint_manifest(
+        progress=progress,
+        status_key="unsolved",
+        run_manifest=run_manifest,
+        oracle_consulted_in_decisions=False,
+        update_run_manifest_progress_fn=_capture,
+    )
+    assert recorded["oracle_consulted_in_decisions"] is False
+
+
+def test_stage3_band_policy_does_not_use_oracle_when_decision_paths_disabled() -> None:
+    dynamic_bands = [
+        {"name": "near", "max_gap": 0.02},
+        {"name": "mid", "max_gap": 0.10},
+        {"name": "far", "max_gap": 1e9},
+    ]
+    gap, band, used = resolve_stage3_gap_and_band(
+        dynamic_bands=dynamic_bands,
+        stage2_gate_score=0.80,
+        oracle_stage3_score=0.90,
+        oracle_decision_paths_enabled=False,
+    )
+    assert used is False
+    assert str(band.get("name")) == "mid"
+    assert gap != gap  # NaN
+
+
+def test_stage3_band_policy_uses_oracle_only_when_decision_paths_enabled() -> None:
+    dynamic_bands = [
+        {"name": "near", "max_gap": 0.02},
+        {"name": "mid", "max_gap": 0.10},
+        {"name": "far", "max_gap": 1e9},
+    ]
+    gap, band, used = resolve_stage3_gap_and_band(
+        dynamic_bands=dynamic_bands,
+        stage2_gate_score=0.80,
+        oracle_stage3_score=0.90,
+        oracle_decision_paths_enabled=True,
+    )
+    assert used is True
+    assert gap == pytest.approx(0.10)
+    assert str(band.get("name")) == "mid"

@@ -13,13 +13,26 @@ from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence, Iterable, Union, Dict, Tuple
 
 from rune_decrypter_prime.core.config import ScoringConfig
+from rune_decrypter_prime.data.asset_paths import resolve_assets_path, to_repo_relative
 
-# __file__ = .../rune_decrypter_prime/scoring/language_model/paths.py
-_PKG_ROOT = Path(__file__).resolve().parents[2]
-_PKG_LM_ROOT = _PKG_ROOT / "data" / "language_model"
+# __file__ = .../src/rune_decrypter_prime/scoring/language_model/paths.py
+_MODULE_PATH = Path(__file__).resolve()
 
 # Single source of truth for the built-in minimal model folder.
 _DEFAULT_LM_NAME = "lmp"
+_DEFAULT_LM_ASSETS_REL = Path("language_model")
+
+
+def _assets_lm_base() -> Path:
+    return resolve_assets_path(str(_DEFAULT_LM_ASSETS_REL), start=_MODULE_PATH)
+
+
+def _display_path(path: Path) -> str:
+    """
+    Prefer repository-relative path strings in user-facing messages
+    to avoid leaking machine-specific absolute paths.
+    """
+    return to_repo_relative(Path(path), start=_MODULE_PATH)
 
 
 def _coerce_model_root(value: Union[str, os.PathLike, Path, None]) -> Path:
@@ -28,8 +41,8 @@ def _coerce_model_root(value: Union[str, os.PathLike, Path, None]) -> Path:
     unless it is already an absolute path.
 
     Behaviour:
-      - None or empty string -> "<pkg>/data/language_model/lmp"
-      - Relative path        -> interpreted under "<pkg>/data/language_model"
+      - None or empty string -> "<repo>/assets/language_model/lmp"
+      - Relative path        -> interpreted under "<repo>/assets/language_model"
       - Absolute path        -> used as-is
     """
     # Default if value is None or empty string
@@ -38,7 +51,7 @@ def _coerce_model_root(value: Union[str, os.PathLike, Path, None]) -> Path:
 
     p = Path(value)
     if not p.is_absolute():
-        p = _PKG_LM_ROOT / p
+        p = _assets_lm_base() / p
     return p.resolve()
 
 
@@ -48,7 +61,7 @@ def resolve_lm_root(cfg: Union[ScoringConfig, Mapping[str, Any], None]) -> Path:
 
     Semantics:
       - None or empty config/model_root -> packaged default (_DEFAULT_LM_NAME).
-      - Relative str/path -> relative to <pkg>/data/language_model.
+      - Relative str/path -> relative to <repo>/assets/language_model.
       - Absolute path -> used as-is.
 
     Raises:
@@ -66,18 +79,19 @@ def resolve_lm_root(cfg: Union[ScoringConfig, Mapping[str, Any], None]) -> Path:
     root = _coerce_model_root(model_root)
 
     if not root.exists():
-        # Build a friendly error enumerating available packaged models
+        lm_base = _assets_lm_base()
+        # Build a friendly error enumerating available local asset models
         try:
-            options = [d.name for d in _PKG_LM_ROOT.iterdir() if d.is_dir()]
+            options = [d.name for d in lm_base.iterdir() if d.is_dir()]
             options.sort()
             available = ", ".join(options) if options else "(none)"
         except Exception:
             available = "(unavailable)"
 
         raise FileNotFoundError(
-            f"Language-model root not found at: {root}\n"
-            f"Requested: {model_root!r}; base: {_PKG_LM_ROOT}\n"
-            f"Available packaged models: {available}"
+            f"Language-model root not found at: {_display_path(root)}\n"
+            f"Requested: {model_root!r}; base: {_display_path(lm_base)}\n"
+            f"Available local asset models: {available}"
         )
 
     return root
@@ -108,8 +122,8 @@ def load_index(root: Path) -> LmIndex:
     except FileNotFoundError:
         # Keep this blunt and config-centric; no env/CLI mentioned.
         raise FileNotFoundError(
-            f"LM index.json not found at: {idx_path}\n"
-            f"(root was resolved from config to: {root})"
+            f"LM index.json not found at: {_display_path(idx_path)}\n"
+            f"(root was resolved from config to: {_display_path(root)})"
         ) from None
     except json.JSONDecodeError as e:
         raise ValueError(f"LM index.json is malformed at {idx_path}: {e}") from e
@@ -126,8 +140,8 @@ def load_index(root: Path) -> LmIndex:
 # --- Compatibility shims expected by language_model_prime.py ---
 
 def default_lm_root() -> Path:
-    """Package-relative default LM root. Keep this aligned with baseline."""
-    return (_PKG_LM_ROOT / _DEFAULT_LM_NAME).resolve()
+    """Repository assets-relative default LM root."""
+    return (_assets_lm_base() / _DEFAULT_LM_NAME).resolve()
 
 
 def expand_pattern(root: Path, pattern: Union[str, Iterable[str]], **subs) -> Path:

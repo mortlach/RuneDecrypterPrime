@@ -38,12 +38,19 @@ def run_tag(default: str = "nogit") -> str:
 
 def make_flavor_run_dir(*, flavor: str, run_prefix: str = "bench_solve_pipeline") -> Path:
     """Create a run directory under output/tools/benchmarks/periodic_sub_trans/<flavor>/."""
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     out = output_root() / "periodic_sub_trans" / str(flavor).strip()
     out.mkdir(parents=True, exist_ok=True)
-    run_dir = out / f"{stamp}__{run_prefix}__{run_tag()}"
-    run_dir.mkdir(parents=True, exist_ok=True)
-    return run_dir
+    base_name = f"{stamp}__{run_prefix}__{run_tag()}"
+    for n in range(0, 1000):
+        run_name = base_name if n == 0 else f"{base_name}__r{int(n)}"
+        run_dir = out / run_name
+        try:
+            run_dir.mkdir(parents=True, exist_ok=False)
+            return run_dir
+        except FileExistsError:
+            continue
+    raise RuntimeError(f"Unable to allocate unique run directory under {out}")
 
 
 def ensure_output_path_policy(path: Path) -> None:

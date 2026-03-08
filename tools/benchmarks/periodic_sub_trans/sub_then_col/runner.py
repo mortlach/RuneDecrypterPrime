@@ -68,8 +68,21 @@ from tools.benchmarks.periodic_sub_trans.common.core_enums import (
 )
 from tools.benchmarks.periodic_sub_trans.common.paths import make_flavor_run_dir
 from tools.benchmarks.periodic_sub_trans.common.runner_types import Tier
+from tools.benchmarks.periodic_sub_trans.common.pool import CandidatePool, CandidateRecord
 from tools.benchmarks.periodic_sub_trans.common.scorer_schedule_apply import (
     apply_sub_then_col_schedule,
+)
+from tools.benchmarks.periodic_sub_trans.sub_then_col.stage_engine_contract import (
+    build_sub_then_col_policy_spec,
+    build_sub_then_col_stage_specs,
+    write_stage_engine_contract_artifacts,
+)
+from tools.benchmarks.periodic_sub_trans.sub_then_col.stage_engine_iteration_bridge import (
+    SubThenColStageEngineFns,
+    run_iteration_with_stage_engine as run_stage_engine_iteration_bridge,
+)
+from tools.benchmarks.periodic_sub_trans.sub_then_col.stage_engine_trace import (
+    make_stage_engine_trace_emitter,
 )
 
 ALPHABET_SIZE = 29
@@ -599,6 +612,40 @@ def _stable_top_by_score(rows: List[Dict[str, Any]], k: int) -> List[Dict[str, A
     )[: int(k)]
 
 
+def _pool_stats_from_entries(
+    *,
+    ranked_entries: Sequence[Dict[str, Any]],
+    promoted_entries: Sequence[Dict[str, Any]],
+) -> Dict[str, int]:
+    def _to_pool(entries: Sequence[Dict[str, Any]]) -> CandidatePool:
+        rows: list[CandidateRecord] = []
+        for entry in entries:
+            key = tuple(int(x) for x in entry.get("key", []))
+            if not key:
+                continue
+            cand_id = "|".join(str(x) for x in key)
+            rows.append(
+                CandidateRecord.from_payload(
+                    candidate_id=str(cand_id),
+                    decision_score=float(entry.get("score", 0.0)),
+                    match_ratio=float(entry.get("match", 0.0)),
+                    payload=dict(entry),
+                )
+            )
+        return CandidatePool(rows)
+
+    ranked_pool = _to_pool(ranked_entries)
+    promoted_pool = _to_pool(promoted_entries)
+    return dict(
+        ranked_total=int(len(ranked_pool.candidates)),
+        ranked_deduped=int(len(ranked_pool.dedupe().candidates)),
+        ranked_basin_deduped=int(len(ranked_pool.dedupe_by_basin().candidates)),
+        promoted_total=int(len(promoted_pool.candidates)),
+        promoted_deduped=int(len(promoted_pool.dedupe().candidates)),
+        promoted_basin_deduped=int(len(promoted_pool.dedupe_by_basin().candidates)),
+    )
+
+
 def _fmt_secs(seconds: float) -> str:
     s = max(0.0, float(seconds))
     h = int(s // 3600.0)
@@ -707,7 +754,8 @@ def main() -> None:
         profile=PROFILE,
         mode=PIPELINE_RUN_MODE,
         oracle_mode=str(oracle_mode),
-        oracle_consulted_in_decisions=bool(oracle_decision_paths_enabled),
+        # Tracks realized behavior, not capability.
+        oracle_consulted_in_decisions=bool(oracle_consulted_in_decisions),
         direction=str(direction.value),
         order=str(ORDER),
         alphabet_size=int(ALPHABET_SIZE),
@@ -762,6 +810,20 @@ def main() -> None:
         git_short=_git_short(),
     )
     write_json(run_dir / "run_manifest.json", run_manifest)
+    contract_paths = write_stage_engine_contract_artifacts(
+        run_dir=run_dir,
+        state=globals(),
+        write_json_fn=write_json,
+    )
+    stage_engine_stage_specs = build_sub_then_col_stage_specs(state=globals())
+    stage_engine_policy = build_sub_then_col_policy_spec(state=globals())
+    print(
+        "[subcol] stage-engine-contract "
+        f"stage_specs={Path(contract_paths['stage_specs_path']).relative_to(root)} "
+        f"policy_spec={Path(contract_paths['policy_spec_path']).relative_to(root)}",
+        flush=True,
+    )
+    stage_engine_trace_emit = make_stage_engine_trace_emitter(run_dir=run_dir)
 
     for tier in TIERS:
         for text_id, off in enumerate(TEXT_OFFSETS):
@@ -977,6 +1039,12 @@ def main() -> None:
                 )
 
                 # Stage A: column probe
+                stage_engine_trace_emit(
+                    event=dict(event="stage_start", stage_id="stage_a_col_probe"),
+                    tier_name=tier.name,
+                    text_id=int(text_id),
+                    key_seed=int(key_seed),
+                )
                 t_probe = time.time()
                 probe_rows: List[Dict[str, Any]] = []
                 probe_evals = 0
@@ -1116,8 +1184,27 @@ def main() -> None:
                     f"unique_kept={n_unique_tails_kept}",
                     flush=True,
                 )
+                stage_engine_trace_emit(
+                    event=dict(
+                        event="stage_end",
+                        stage_id="stage_a_col_probe",
+                        out_pool_size=int(len(probe_rows)),
+                        evals=int(probe_evals),
+                        score=float(stage_probe_score if np.isfinite(stage_probe_score) else float("nan")),
+                        match_ratio=float(stage_probe_match if np.isfinite(stage_probe_match) else float("nan")),
+                    ),
+                    tier_name=tier.name,
+                    text_id=int(text_id),
+                    key_seed=int(key_seed),
+                )
 
                 # Stage B: substitution solve on top column candidates
+                stage_engine_trace_emit(
+                    event=dict(event="stage_start", stage_id="stage_b_sub_refine"),
+                    tier_name=tier.name,
+                    text_id=int(text_id),
+                    key_seed=int(key_seed),
+                )
                 t_sub = time.time()
                 stageB_rows: Dict[Tuple[int, ...], Dict[str, Any]] = {}
                 stageB_evals = 0
@@ -1195,6 +1282,16 @@ def main() -> None:
                     list(stageB_rows.values()),
                     int(STAGE3_INITIAL_KEYS_BY_COLUMNS.get(int(tier.columns), STAGE3_INITIAL_KEYS)),
                 )
+                stage3_init_n_for_pool = int(
+                    STAGE3_INITIAL_KEYS_BY_COLUMNS.get(int(tier.columns), STAGE3_INITIAL_KEYS)
+                )
+                stageB_promoted_preview = list(
+                    stageB_ranked[: max(1, int(stage3_init_n_for_pool // 2))]
+                )
+                stageB_pool_stats = _pool_stats_from_entries(
+                    ranked_entries=stageB_ranked,
+                    promoted_entries=stageB_promoted_preview,
+                )
                 dt_sub = float(time.time() - t_sub)
                 stage_sub_match = float(stageB_ranked[0]["match"]) if stageB_ranked else float("nan")
                 stage_sub_score = float(stageB_ranked[0]["score"]) if stageB_ranked else float("nan")
@@ -1224,17 +1321,100 @@ def main() -> None:
                         seconds=round(dt_sub, 3),
                         evals=int(stageB_evals),
                         candidates=int(len(stageB_ranked)),
+                        pool_ranked_basin_deduped=int(
+                            stageB_pool_stats.get("ranked_basin_deduped", 0)
+                        ),
+                        pool_promoted_basin_deduped=int(
+                            stageB_pool_stats.get("promoted_basin_deduped", 0)
+                        ),
                     )
                 )
                 print(
                     f"[subcol] stageB-summary tier={tier.name} text={text_id} key_seed={key_seed} "
                     f"candidates={len(stageB_ranked)} score={stage_sub_score:.6f} "
                     f"match={stage_sub_match:.3f} evals={stageB_evals} "
-                    f"tails_promoted_B={len(tails_promoted_to_B)}",
+                    f"tails_promoted_B={len(tails_promoted_to_B)} "
+                    f"pool_ranked_basin_deduped={int(stageB_pool_stats.get('ranked_basin_deduped', 0))} "
+                    f"pool_promoted_basin_deduped={int(stageB_pool_stats.get('promoted_basin_deduped', 0))}",
                     flush=True,
+                )
+                stage_engine_trace_emit(
+                    event=dict(
+                        event="stage_end",
+                        stage_id="stage_b_sub_refine",
+                        out_pool_size=int(len(stageB_ranked)),
+                        evals=int(stageB_evals),
+                        score=float(stage_sub_score if np.isfinite(stage_sub_score) else float("nan")),
+                        match_ratio=float(stage_sub_match if np.isfinite(stage_sub_match) else float("nan")),
+                        pool_ranked_basin_deduped=int(
+                            stageB_pool_stats.get("ranked_basin_deduped", 0)
+                        ),
+                        pool_promoted_basin_deduped=int(
+                            stageB_pool_stats.get("promoted_basin_deduped", 0)
+                        ),
+                    ),
+                    tier_name=tier.name,
+                    text_id=int(text_id),
+                    key_seed=int(key_seed),
                 )
 
                 # Stage C: full refine (optional if not solved in stage B)
+                stage_a_bridge_out = {
+                    "pool_candidates": [
+                        {
+                            "candidate_id": f"a:{idx}",
+                            "score": float(row.get("score", 0.0)),
+                            "match": float(row.get("match", 0.0)),
+                            "end_hash": ",".join(str(int(x)) for x in row.get("perm", [])),
+                        }
+                        for idx, row in enumerate(list(probe_rows)[:32])
+                    ]
+                }
+                stage_b_bridge_out = {
+                    "pool_candidates": [
+                        {
+                            "candidate_id": f"b:{idx}",
+                            "score": float(row.get("score", 0.0)),
+                            "match": float(row.get("match", 0.0)),
+                            "end_hash": ",".join(str(int(x)) for x in row.get("perm", [])),
+                        }
+                        for idx, row in enumerate(list(stageB_ranked)[:32])
+                    ],
+                    "skip_stage_c": bool(
+                        np.isfinite(stage_sub_match)
+                        and float(stage_sub_match) >= float(SOLVE_MATCH_THRESHOLD)
+                    ),
+                }
+                bridge_res = run_stage_engine_iteration_bridge(
+                    state={},
+                    stage_specs=stage_engine_stage_specs,
+                    fns=SubThenColStageEngineFns(
+                        run_stage_a_fn=lambda _state, out=stage_a_bridge_out: dict(out),
+                        run_stage_b_fn=lambda _state, _a, out=stage_b_bridge_out: dict(out),
+                        run_stage_c_fn=lambda _state, _a, _b: {"bridge_stage_c_called": True},
+                    ),
+                    policy=stage_engine_policy,
+                )
+                bridge_stage_ids = [
+                    str(evt.get("stage_id", ""))
+                    for evt in bridge_res.events
+                    if str(evt.get("event", "")) == "stage_end"
+                ]
+                if bridge_stage_ids[:2] != ["stage_a_col_probe", "stage_b_sub_refine"]:
+                    raise RuntimeError(
+                        f"[subcol] stage-engine bridge mismatch tier={tier.name} text={text_id} key_seed={key_seed}"
+                    )
+                stage_c_should_run = bool(bridge_res.stage_c)
+                if bool(stage_b_bridge_out.get("skip_stage_c", False)) and stage_c_should_run:
+                    raise RuntimeError(
+                        f"[subcol] stage-engine bridge skip mismatch tier={tier.name} text={text_id} key_seed={key_seed}"
+                    )
+                stage_engine_trace_emit(
+                    event=dict(event="stage_start", stage_id="stage_c_full_refine"),
+                    tier_name=tier.name,
+                    text_id=int(text_id),
+                    key_seed=int(key_seed),
+                )
                 best_full_match = float(stage_sub_match if np.isfinite(stage_sub_match) else float("-inf"))
                 best_full_score = float(stage_sub_score if np.isfinite(stage_sub_score) else float("-inf"))
                 best_stage = "stageB_sub_refine"
@@ -1243,7 +1423,7 @@ def main() -> None:
                 full_evals = 0
                 stage3_entry_mode = "none"
                 stage3_band = "none"
-                if np.isfinite(best_full_match) and best_full_match >= float(SOLVE_MATCH_THRESHOLD):
+                if not stage_c_should_run:
                     stop_reason = InstanceStopReason.SOLVED_STAGE_B.value
                 elif stageB_ranked:
                     entry_score = float(stageB_ranked[0]["score"])
@@ -1404,6 +1584,21 @@ def main() -> None:
                         stop_reason = InstanceStopReason.STALLED_NO_IMPROVE.value
                     else:
                         stop_reason = InstanceStopReason.COMPLETED_PIPELINE.value
+                stage_engine_trace_emit(
+                    event=dict(
+                        event="stage_end",
+                        stage_id="stage_c_full_refine",
+                        evals=int(full_evals),
+                        score=float(best_full_score if np.isfinite(best_full_score) else float("nan")),
+                        match_ratio=float(best_full_match if np.isfinite(best_full_match) else float("nan")),
+                        entry_mode=str(stage3_entry_mode),
+                        band=str(stage3_band),
+                        stop_reason=str(stop_reason),
+                    ),
+                    tier_name=tier.name,
+                    text_id=int(text_id),
+                    key_seed=int(key_seed),
+                )
 
                 status = InstanceStatus.SOLVED.value if best_full_match >= float(SOLVE_MATCH_THRESHOLD) else (
                     InstanceStatus.STALLED.value

@@ -17,6 +17,7 @@ def job_key(job: Any) -> str:
             str(job.schedule_early),
             str(job.schedule_middle),
             str(job.schedule_late),
+            str(getattr(job, "span_ab_case_id", "none")),
         )
     )
 
@@ -34,6 +35,8 @@ def build_fixture_jobs(
     scorer_stage3_impl_avg_fulltext: str,
     scoring_experiment_profiles: Sequence[str],
     schedules: Sequence[Mapping[str, str]],
+    enable_span_ab_pair: bool,
+    span_ab_decision_role: str,
     unique_sorted_ints_fn: Callable[[Sequence[int]], tuple[int, ...]],
     validate_scorer_schedule_ids_fn: Callable[..., Any],
     validate_schedule_contract_fn: Callable[..., None],
@@ -53,6 +56,35 @@ def build_fixture_jobs(
     if not offsets:
         raise ValueError("TEXT_OFFSETS resolved empty")
 
+    span_ab_role = str(span_ab_decision_role).strip().lower()
+    if span_ab_role not in {"prune", "gate", "combined", "judge"}:
+        span_ab_role = "prune"
+
+    def _append_job(*, base_kwargs: dict[str, Any]) -> None:
+        if not bool(enable_span_ab_pair):
+            jobs.append(
+                job_cls(
+                    **base_kwargs,
+                    span_ab_case_id="none",
+                    span_decision_role_enabled=False,
+                )
+            )
+            return
+        jobs.append(
+            job_cls(
+                **base_kwargs,
+                span_ab_case_id="span_shadow",
+                span_decision_role_enabled=False,
+            )
+        )
+        jobs.append(
+            job_cls(
+                **base_kwargs,
+                span_ab_case_id=f"span_{span_ab_role}",
+                span_decision_role_enabled=True,
+            )
+        )
+
     jobs: list[Any] = []
     validated_schedules: list[dict[str, str]] = []
     for schedule in schedules:
@@ -71,8 +103,8 @@ def build_fixture_jobs(
                 for run_seed in seeds:
                     for exp_profile in exp_profiles:
                         for schedule in validated_schedules:
-                            jobs.append(
-                                job_cls(
+                            _append_job(
+                                base_kwargs=dict(
                                     fixture_id=str(fixture.fixture_id),
                                     period=int(period),
                                     columns=int(column),
@@ -129,6 +161,16 @@ def apply_job(
         scorer_schedule=job.scorer_schedule(),
     )
     no_wli.SCORING_EXPERIMENT_PROFILE = str(job.scoring_experiment_profile)
+    no_wli.SPAN_DECISION_ROLE_ENABLED = bool(
+        getattr(job, "span_decision_role_enabled", False)
+    )
+    span_case_id = str(getattr(job, "span_ab_case_id", "none")).strip().lower()
+    if span_case_id in {"span_shadow", "shadow"}:
+        no_wli.STAGE3_SPAN_AUX_ROLE = "shadow"
+    elif span_case_id.startswith("span_"):
+        no_wli.STAGE3_SPAN_AUX_ROLE = span_case_id.split("span_", 1)[1] or "off"
+    else:
+        no_wli.STAGE3_SPAN_AUX_ROLE = "off"
 
 
 def run_job(

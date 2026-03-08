@@ -14,7 +14,7 @@ Outcome: Know how the Hamming component loads wordlists, computes penalties, plu
 ---
 
 ## Data source
-- Uses `raw1grams_XX.csv` (selected rows only) from `src/rune_decrypter_prime/data/hamming_raw_1g/` by default.
+- Uses `raw1grams_XX.csv` (selected rows only) from `assets/hamming_raw_1g/` by default.
 - Loader: `scoring/hamming/loader.py::load_raw1grams_wordlists(wordlist_dir=None, build_rtl=False, require_selected=True)`  
   returns `(wordlists_ltr, wordlists_rtl)` mapping `word_length -> [[rune_idx...]]`.
 - `WordCribConfig` helper: `data/wordlists/loaders.py::load_word_crib_config_from_raw1grams(...)` builds short-word dicts from the same source so CSP and Hamming stay consistent.

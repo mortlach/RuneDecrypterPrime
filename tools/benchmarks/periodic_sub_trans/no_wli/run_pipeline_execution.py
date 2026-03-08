@@ -49,6 +49,12 @@ from tools.benchmarks.periodic_sub_trans.no_wli.run_progress import (
 from tools.benchmarks.periodic_sub_trans.no_wli.run_summary import (
     derive_outcome_code,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.stage_engine_contract import (
+    write_stage_engine_contract_artifacts,
+)
+from tools.benchmarks.periodic_sub_trans.no_wli.stage_engine_trace import (
+    make_stage_engine_trace_emitter,
+)
 from tools.benchmarks.periodic_sub_trans.no_wli.runner_bridges import (
     build_iteration_payloads_bridge,
     build_iteration_runtime_bridge,
@@ -159,6 +165,14 @@ def execute_pipeline_from_startup(
     progress = run_state["progress"]
     run_manifest_path = run_state["run_manifest_path"]
     run_manifest = run_state["run_manifest"]
+
+    # Emit concrete StageSpec/PolicySpec artifacts for this run configuration.
+    write_stage_engine_contract_artifacts(
+        run_dir=run_dir,
+        state=state,
+        write_json_fn=state["write_json"],
+    )
+
     runner_state = state
     commit_iteration_outputs_fn = lambda **kwargs: state[
         "_commit_iteration_outputs_bridge_external"
@@ -204,6 +218,7 @@ def execute_pipeline_from_startup(
         build_stage3_diagnostics_fn=build_stage3_diagnostics,
         finalize_iteration_and_commit_fn=finalize_iteration_and_commit,
         safe_preview_latin_fn=state["base"]._safe_preview_latin,
+        stage_engine_trace_emit_fn=make_stage_engine_trace_emitter(run_dir=run_dir),
     )
     wiring = build_iteration_wiring(
         state=runner_state,

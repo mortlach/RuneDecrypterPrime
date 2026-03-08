@@ -5,11 +5,19 @@ from pathlib import Path
 from typing import Dict, Iterable, Sequence
 
 from rune_decrypter_prime.api.word_crib_config import WordCribConfig
+from rune_decrypter_prime.data.asset_paths import resolve_assets_path, to_repo_relative
 from rune_decrypter_prime.core.types import Direction, ensure_direction
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.scoring.hamming.loader import load_raw1grams_wordlists
 
-_DATA_DIR = Path(__file__).resolve().parent
+_DEFAULT_WORDLISTS_ASSETS_REL = Path("wordlists")
+
+
+def default_wordlists_dir() -> Path:
+    return resolve_assets_path(str(_DEFAULT_WORDLISTS_ASSETS_REL), start=Path(__file__))
+
+
+_DATA_DIR = default_wordlists_dir()
 
 
 def _normalize_direction(direction: Direction | str) -> Direction:
@@ -32,10 +40,13 @@ def load_short_word_csv(
     """
     Load a single short-word CSV file (latin_word, rune_word, rune_indices, weight)
     and return a {latin_word: weight} dictionary.
+    Defaults to assets/wordlists when base_dir is not provided.
     """
     path = (base_dir or _DATA_DIR) / f"short_words_{_slug_for(direction)}_len{int(length)}.csv"
     if not path.exists():
-        raise FileNotFoundError(f"Short-word list not found: {path}")
+        raise FileNotFoundError(
+            f"Short-word list not found: {to_repo_relative(path, start=Path(__file__))}"
+        )
     out: Dict[str, float] = {}
     with path.open("r", encoding="utf-8", newline="") as fh:
         reader = csv.DictReader(fh)

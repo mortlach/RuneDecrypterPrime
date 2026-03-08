@@ -14,6 +14,8 @@ from .maps_api import define_map, define_cipher, preview
 from rune_decrypter_prime.core.config import InterruptorConfig
 from .data_helpers import (
     get_lp_section,
+    load_lp_payload_from_locator,
+    load_lp_payload_from_partition_entry,
     load_lp_master_section,
     load_lp_master_transcript,
     load_lp_section,
@@ -37,6 +39,8 @@ __all__ = [
     "preview",
     "InterruptorConfig",
     "get_lp_section",
+    "load_lp_payload_from_locator",
+    "load_lp_payload_from_partition_entry",
     "load_lp_master_section",
     "load_lp_master_transcript",
     "load_lp_section",

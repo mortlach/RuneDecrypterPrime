@@ -21,7 +21,7 @@ Design notes
 - Inputs are rune-index arrays (`uint8`) plus optional WLI break matrices.
   Scorers use a fixed sliding window (`win=10`, stride=1) to produce percentile
   scores in `[0, 1]` that optimisers maximise.
-- Language-model tables live under `data/language_model/…` and are loaded via
+- Language-model tables live under `assets/language_model/…` and are loaded via
   `LmPrimeRuntime`. Building `_fastlm` is optional on Windows (prebuilt `.pyd`
   is included) but required on Linux/macOS for high-throughput loading.
 
@@ -30,7 +30,7 @@ Extending scoring
 1. **New backend:** follow the `RuneScorerTorch` template. Accept `cfg_cipher`
    and `cfg_scorer_params`, honour `Direction/SeMode`, and expose `telemetry()`
    plus `clear_wli_cache()`.
-2. **Language models:** update the `.npz` assets under `data/language_model/`
+2. **Language models:** update the `.npz` assets under `assets/language_model/`
    and regenerate the fast extension if needed. Run the backend parity tests in
    `tests/scoring/` to confirm NumPy and Torch agree within tolerance.
 3. **Objectives:** add them to `ObjectiveSpec` / `api/normalize.py`, then update

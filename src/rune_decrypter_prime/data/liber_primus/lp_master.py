@@ -6,11 +6,33 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Sequence, Tuple
 
+from rune_decrypter_prime.data.asset_paths import resolve_assets_path, to_repo_relative
 from rune_decrypter_prime.data.liber_primus.lp_data import LPSection, LP_DATA
+from rune_decrypter_prime.data.liber_primus.lp_registry import (
+    LPFragmentLocator,
+    LPPageRef,
+    LPPartitionEntry,
+    LPResolutionContext,
+    resolve_page_ref,
+    resolve_relative_index,
+)
+from rune_decrypter_prime.data.liber_primus.lp_routes import (
+    LPLineReadMode,
+    LPLineRuneSelector,
+    read_lines,
+)
 from rune_decrypter_prime.data.liber_primus.lp_transcript import LPTranscript
 from rune_decrypter_prime.utils.runeglish import Runeglish
 
-MASTER_TRANSCRIPT = Path(__file__).with_name("liber-primus__transcription--master.txt")
+_DEFAULT_LP_ASSETS_REL = Path("liber_primus")
+_MASTER_TRANSCRIPT_NAME = "liber-primus__transcription--master.txt"
+
+
+def default_master_transcript_path() -> Path:
+    return resolve_assets_path(str(_DEFAULT_LP_ASSETS_REL), _MASTER_TRANSCRIPT_NAME, start=Path(__file__))
+
+
+MASTER_TRANSCRIPT = default_master_transcript_path()
 CANON_PAGE_COUNT = 58
 CANON_SUFFIX = ".jpg"
 
@@ -72,7 +94,102 @@ class SectionMatch:
         return list(range(self.page_start, self.page_end + 1))
 
 
+def make_resolution_context(doc: LPTranscript) -> LPResolutionContext:
+    return LPResolutionContext(total_pages=len(doc.pages), canon_page_count=CANON_PAGE_COUNT)
+
+
+def resolve_typed_page_ref(doc: LPTranscript, page_ref: LPPageRef) -> int:
+    return resolve_page_ref(page_ref, context=make_resolution_context(doc))
+
+
+def page_view_from_ref(doc: LPTranscript, page_ref: LPPageRef):
+    return doc.page(resolve_typed_page_ref(doc, page_ref))
+
+
+def glyph_span_from_locator(doc: LPTranscript, locator: LPFragmentLocator):
+    page_view = page_view_from_ref(doc, locator.page_ref)
+
+    if locator.line is None:
+        if locator.word is not None or locator.word_end is not None:
+            raise ValueError("word selectors require locator.line")
+        return page_view.glyph_span()
+
+    lines = page_view.lines()
+    line_start_ix = resolve_relative_index(len(lines), locator.line)
+    line_end_ix = line_start_ix
+    if locator.line_end is not None:
+        line_end_ix = resolve_relative_index(len(lines), locator.line_end)
+    if line_end_ix < line_start_ix:
+        raise ValueError("line_end must be >= line")
+
+    selected_lines = lines[line_start_ix:line_end_ix + 1]
+    if not selected_lines:
+        return doc.glyph_span(0, 0)
+
+    if locator.word is None and locator.word_end is None:
+        g_start = selected_lines[0].rec.g_start
+        g_end = selected_lines[-1].rec.g_end
+        return doc.glyph_span(g_start, g_end - g_start)
+
+    if len(selected_lines) != 1:
+        raise ValueError("word selectors are supported only for a single selected line")
+
+    words = selected_lines[0].words()
+    word_start_ix = resolve_relative_index(len(words), locator.word if locator.word is not None else 0)
+    word_end_ix = word_start_ix
+    if locator.word_end is not None:
+        word_end_ix = resolve_relative_index(len(words), locator.word_end)
+    if word_end_ix < word_start_ix:
+        raise ValueError("word_end must be >= word")
+
+    selected_words = words[word_start_ix:word_end_ix + 1]
+    if not selected_words:
+        return doc.glyph_span(0, 0)
+    g_start = selected_words[0].rec.g_start
+    g_end = selected_words[-1].rec.g_end
+    return doc.glyph_span(g_start, g_end - g_start)
+
+
+def extract_locator_ct_wli(doc: LPTranscript, locator: LPFragmentLocator) -> tuple[list[int], list[list[int]]]:
+    return glyph_span_from_locator(doc, locator).ct_wli()
+
+
+def glyph_span_from_partition_entry(doc: LPTranscript, entry: LPPartitionEntry):
+    start_canon, end_canon = entry.canon_page_range()
+    start_page = page_view_from_ref(doc, LPPageRef.canon_page(start_canon))
+    end_page = page_view_from_ref(doc, LPPageRef.canon_page(end_canon))
+    return doc.glyph_span(start_page.rec.g_start, end_page.rec.g_end - start_page.rec.g_start)
+
+
+def extract_partition_entry_ct_wli(doc: LPTranscript, entry: LPPartitionEntry) -> tuple[list[int], list[list[int]]]:
+    return glyph_span_from_partition_entry(doc, entry).ct_wli()
+
+
+def route_locator_lines_text(
+    doc: LPTranscript,
+    locator: LPFragmentLocator,
+    *,
+    mode: LPLineReadMode,
+    selector: LPLineRuneSelector = LPLineRuneSelector.ALL,
+) -> str:
+    if locator.word is not None or locator.word_end is not None:
+        raise ValueError("route_locator_lines_text supports line/page locators only")
+    page_view = page_view_from_ref(doc, locator.page_ref)
+    lines = page_view.lines()
+    if locator.line is not None:
+        start_ix = resolve_relative_index(len(lines), locator.line)
+        end_ix = start_ix if locator.line_end is None else resolve_relative_index(len(lines), locator.line_end)
+        if end_ix < start_ix:
+            raise ValueError("line_end must be >= line")
+        lines = lines[start_ix:end_ix + 1]
+    line_text = [line.text(sep="") for line in lines]
+    return read_lines(line_text, mode=mode, selector=selector)
+
+
 def load_master_transcript(*, attach_catalogue: bool = True) -> LPTranscript:
+    if not MASTER_TRANSCRIPT.exists():
+        rel = to_repo_relative(MASTER_TRANSCRIPT, start=Path(__file__))
+        raise FileNotFoundError(f"Liber Primus master transcript not found: {rel}")
     doc = LPTranscript.from_file(MASTER_TRANSCRIPT)
     if attach_catalogue:
         attach_default_page_catalogue(doc)
@@ -258,9 +375,17 @@ __all__ = [
     "RuneWordIndex",
     "SectionMatch",
     "attach_default_page_catalogue",
+    "extract_locator_ct_wli",
+    "extract_partition_entry_ct_wli",
     "extract_section_ct_wli",
     "extract_section_ct_wli_by_id",
+    "glyph_span_from_locator",
+    "glyph_span_from_partition_entry",
     "load_master_transcript",
+    "make_resolution_context",
     "match_lp_section",
     "match_lp_sections",
+    "page_view_from_ref",
+    "resolve_typed_page_ref",
+    "route_locator_lines_text",
 ]

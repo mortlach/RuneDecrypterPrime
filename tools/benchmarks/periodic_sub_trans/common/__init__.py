@@ -38,6 +38,19 @@ from .scorer_schedule import (
     validate_scorer_schedule_ids,
 )
 from .runner_types import Tier
+from .stage_spec import (
+    SpanRole,
+    SpanScope,
+    SpanProfile,
+    ObjectiveRef,
+    AuxObjectiveBinding,
+    StageSpec,
+)
+from .policy_spec import AdaptivePolicySpec
+from .pool import CandidateRecord, CandidatePool
+from .stage_engine import StageEngine
+from .trace_writer import StageTraceWriter
+from .catalogs import ObjectiveCatalog, OperatorCatalog
 
 __all__ = [
     "BenchmarkOrder",
@@ -73,5 +86,18 @@ __all__ = [
     "parse_scorer_schedule",
     "validate_scorer_schedule_ids",
     "Tier",
+    "SpanRole",
+    "SpanScope",
+    "SpanProfile",
+    "ObjectiveRef",
+    "AuxObjectiveBinding",
+    "StageSpec",
+    "AdaptivePolicySpec",
+    "CandidateRecord",
+    "CandidatePool",
+    "StageEngine",
+    "StageTraceWriter",
+    "ObjectiveCatalog",
+    "OperatorCatalog",
 ]
 

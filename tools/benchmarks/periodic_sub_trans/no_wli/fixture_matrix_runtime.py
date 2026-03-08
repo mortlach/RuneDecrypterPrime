@@ -96,6 +96,24 @@ def run_jobs_with_checkpoints(
     wallclock_start = time.time()
     completed_this_session = 0
     stopped_early = False
+    span_ab_pairs: dict[str, dict[str, float]] = {}
+
+    def _span_ab_base_key(job: Any) -> str:
+        return "|".join(
+            (
+                str(getattr(job, "fixture_id", "")),
+                f"p{int(getattr(job, 'period', 0))}",
+                f"c{int(getattr(job, 'columns', 0))}",
+                f"l{int(getattr(job, 'length', 0))}",
+                f"seed{int(getattr(job, 'run_seed', 0))}",
+                str(getattr(job, "run_mode", "")),
+                str(getattr(job, "profile_id", "")),
+                str(getattr(job, "scoring_experiment_profile", "")),
+                str(getattr(job, "schedule_early", "")),
+                str(getattr(job, "schedule_middle", "")),
+                str(getattr(job, "schedule_late", "")),
+            )
+        )
     for idx, job in enumerate(selected_jobs, start=1):
         job_key = job_key_fn(job)
         if max_wallclock_seconds is not None:
@@ -127,6 +145,10 @@ def run_jobs_with_checkpoints(
                 total=int(len(selected_jobs)),
                 job_key=str(job_key),
                 job=job.as_dict(),
+                span_ab_case_id=str(getattr(job, "span_ab_case_id", "none")),
+                span_decision_role_enabled=bool(
+                    getattr(job, "span_decision_role_enabled", False)
+                ),
             ),
         )
         t0_job = time.time()
@@ -185,8 +207,36 @@ def run_jobs_with_checkpoints(
                 total=int(len(selected_jobs)),
                 job_key=str(job_key),
                 elapsed_seconds=float(job_elapsed),
+                span_ab_case_id=str(getattr(job, "span_ab_case_id", "none")),
+                span_decision_role_enabled=bool(
+                    getattr(job, "span_decision_role_enabled", False)
+                ),
             ),
         )
+        span_case_id = str(getattr(job, "span_ab_case_id", "none")).strip().lower()
+        if span_case_id in {"span_shadow", "span_prune", "span_gate", "span_combined", "span_judge"}:
+            base_key = _span_ab_base_key(job)
+            pair = span_ab_pairs.setdefault(base_key, {})
+            pair[span_case_id] = float(job_elapsed)
+            if "span_shadow" in pair and len(pair) >= 2:
+                decision_case_id = sorted(k for k in pair.keys() if k != "span_shadow")[0]
+                shadow_elapsed = float(pair["span_shadow"])
+                decision_elapsed = float(pair[decision_case_id])
+                append_event_row(
+                    path=run_events_path,
+                    row=dict(
+                        timestamp_utc=utc_now_iso(),
+                        event="span_ab_pair_delta",
+                        run_mode=str(run_mode),
+                        profile_id=str(profile_id),
+                        pair_key=str(base_key),
+                        shadow_case_id="span_shadow",
+                        decision_case_id=str(decision_case_id),
+                        shadow_elapsed_seconds=float(shadow_elapsed),
+                        decision_elapsed_seconds=float(decision_elapsed),
+                        delta_elapsed_seconds=float(decision_elapsed - shadow_elapsed),
+                    ),
+                )
         run_state_base.update(
             updated_utc=utc_now_iso(),
             completed_jobs=int(len(completed_job_keys)),

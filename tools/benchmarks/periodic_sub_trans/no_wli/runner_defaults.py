@@ -36,12 +36,22 @@ def apply_runner_defaults(*, state: MutableMapping[str, Any]) -> None:
             "SCORING_EXPERIMENT_PROFILE": "c_min_late",
             "SCORING_EXPERIMENT_ENFORCE_LOCKS": True,
             "SCORING_EXPERIMENT_SPAN_ASSETS_DIR": Path(
-                "output/tools/benchmarks/scoring/span_hamming_nose_assets_v1"
+                "assets/scoring/span_hamming_nose_assets_v1"
             ),
             "SCORING_EXPERIMENT_SPAN_COVERAGE_MIN": 0.05,
             "SCORING_EXPERIMENT_SPAN_QUALITY_MIN": 0.05,
             "SCORING_EXPERIMENT_C_CHAR_PCT_MIN": 0.70,
             "STAGE3_SPAN_CHAR_PCT_MIN_OVERRIDE": None,
+            "STAGE3_SPAN_AUX_ROLE": "off",
+            "STAGE3_SPAN_AUX_SCOPE": "basin_rep",
+            "STAGE3_SPAN_AUX_PROFILE": "lite",
+            "STAGE3_SPAN_AUX_BUDGET_MS": 0.0,
+            "STAGE3_SPAN_AUX_TWO_PASS": False,
+            "STAGE3_SPAN_AUX_FULL_TOP_M": 0,
+            "SPAN_DECISION_ROLE_ENABLED": False,
+            "SPAN_REPS_PER_BASIN": 1,
+            "SPAN_SELECTION_TOP_K": 0,
+            "SPAN_P90_CALL_MS": None,
             "ORACLE_STAGE3_FLOOR_GUARD_EPS": 1e-12,
             "SCAN_TIER_TIME_CAP_SECONDS": 600.0,
             "SCAN_STAGE3_GATE_LOW_MATCH": 0.15,

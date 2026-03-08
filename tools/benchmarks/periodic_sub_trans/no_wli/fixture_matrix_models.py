@@ -35,6 +35,8 @@ class NoWliFixtureJob:
     schedule_early: str
     schedule_middle: str
     schedule_late: str
+    span_ab_case_id: str = "none"
+    span_decision_role_enabled: bool = False
 
     def scorer_schedule(self) -> dict[str, str]:
         return {
@@ -63,6 +65,8 @@ class NoWliFixtureJob:
             "scorer_impl": str(self.scorer_impl),
             "scorer_stage3_impl_avg_fulltext": str(self.scorer_stage3_impl_avg_fulltext),
             "scoring_experiment_profile": str(self.scoring_experiment_profile),
+            "span_ab_case_id": str(self.span_ab_case_id),
+            "span_decision_role_enabled": bool(self.span_decision_role_enabled),
             "scorer_schedule": self.scorer_schedule(),
             "tier_name": self.tier_name(),
         }

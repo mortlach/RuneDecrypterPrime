@@ -12,6 +12,7 @@ from tools.benchmarks.periodic_sub_trans.common.batch_eval import (
     decrypt_and_score_keys_chunked,
     score_plaintexts_chunked,
 )
+from tools.benchmarks.periodic_sub_trans.common.pool import CandidatePool, CandidateRecord
 
 
 def spearman_corr_safe(xs: Sequence[float], ys: Sequence[float]) -> float:
@@ -805,6 +806,10 @@ def finalize_stage2_archive(
         if entry_key_tuple_fn(ent)
     }
     _ = stage2_promoted_seen
+    stage2_pool_stats = _pool_stats_from_entries(
+        ranked_entries=stage2_ranked,
+        promoted_entries=stage2_promoted,
+    )
 
     stage2_topk_payload: List[Dict[str, Any]] = []
     for rank_idx, ent in enumerate(stage2_kept_by_score[: int(save_stage2_topk)], start=1):
@@ -861,6 +866,8 @@ def finalize_stage2_archive(
         f"judge_pool={int(stage2_judge_pool_size)} promoted_by={stage2_promote_mode} "
         f"best2_in_promoted={1 if stage2_best_in_promoted else 0} "
         f"best2_in_stage2_topk={1 if stage2_topk_has_best_match else 0} "
+        f"pool_ranked_deduped={int(stage2_pool_stats.get('ranked_deduped', 0))} "
+        f"pool_promoted_deduped={int(stage2_pool_stats.get('promoted_deduped', 0))} "
         f"spearman_score_match={float(stage2_score_match_spearman) if np.isfinite(stage2_score_match_spearman) else float('nan'):.3f} "
         f"top_score_mid_rank1={float(stage2_entry_score) if np.isfinite(stage2_entry_score) else float('nan'):.6f} "
         f"top_score_judge_rank1={float(stage2_entry_score_judge) if np.isfinite(stage2_entry_score_judge) else float('nan'):.6f} "
@@ -881,4 +888,35 @@ def finalize_stage2_archive(
         stage2_stage3_space_match=bool(stage2_stage3_space_match),
         stage2_topk_payload=stage2_topk_payload,
         stage2_topk_has_best_match=bool(stage2_topk_has_best_match),
+        stage2_pool_stats=dict(stage2_pool_stats),
+    )
+
+
+def _pool_stats_from_entries(
+    *,
+    ranked_entries: Sequence[Dict[str, Any]],
+    promoted_entries: Sequence[Dict[str, Any]],
+) -> Dict[str, int]:
+    def _to_pool(entries: Sequence[Dict[str, Any]]) -> CandidatePool:
+        rows: list[CandidateRecord] = []
+        for idx, ent in enumerate(entries):
+            key_vals = tuple(int(x) for x in ent.get("key", []))
+            cand_id = ",".join(str(x) for x in key_vals) if key_vals else f"idx_{idx}"
+            rows.append(
+                CandidateRecord.from_payload(
+                    candidate_id=str(cand_id),
+                    decision_score=float(ent.get("score", float("-inf"))),
+                    match_ratio=float(ent.get("match", float("-inf"))),
+                    payload=dict(ent),
+                )
+            )
+        return CandidatePool(rows)
+
+    ranked_pool = _to_pool(ranked_entries)
+    promoted_pool = _to_pool(promoted_entries)
+    return dict(
+        ranked_total=int(len(ranked_pool.candidates)),
+        ranked_deduped=int(len(ranked_pool.dedupe().candidates)),
+        promoted_total=int(len(promoted_pool.candidates)),
+        promoted_deduped=int(len(promoted_pool.dedupe().candidates)),
     )

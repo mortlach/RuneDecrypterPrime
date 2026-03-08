@@ -21,6 +21,8 @@ def bootstrap_main_run(
     apply_kaeding_progress_settings_fn: Callable[[], None],
     apply_scoring_experiment_profile_fn: Callable[[], Dict[str, Any]],
     build_run_config_fn: Callable[..., Dict[str, Any]],
+    build_no_wli_order_dispatch_payload_fn: Callable[..., Dict[str, Any]],
+    normalize_no_wli_order_fn: Callable[[str | None], str],
     persist_run_config_with_locks_fn: Callable[..., Mapping[str, str]],
     resolve_repo_path_fn: Callable[[Path | str | None], Path | None],
     stage3_search_cfg_fn: Callable[..., Dict[str, Any]],
@@ -43,6 +45,8 @@ def bootstrap_main_run(
 ) -> Dict[str, Any]:
     apply_run_mode_fn()
     apply_kaeding_progress_settings_fn()
+    order_normalized = normalize_no_wli_order_fn(state.get("ORDER"))
+    state["ORDER"] = str(order_normalized)
     scoring_experiment_meta = dict(apply_scoring_experiment_profile_fn())
 
     env = prepare_run_environment_fn(
@@ -100,6 +104,7 @@ def bootstrap_main_run(
         scorer_cfg_for_output_fn=scorer_cfg_for_output_fn,
         stage3_search_cfg_fn=stage3_search_cfg_fn,
         scoring_meta_for_output_fn=scoring_meta_for_output_fn,
+        build_no_wli_order_dispatch_payload_fn=build_no_wli_order_dispatch_payload_fn,
     )
     run_config_path = run_dir / "run_config.json"
     run_config_meta = persist_run_config_with_locks_fn(

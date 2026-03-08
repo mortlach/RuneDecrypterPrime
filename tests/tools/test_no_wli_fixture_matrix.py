@@ -70,6 +70,38 @@ def test_build_fixture_jobs_dimensions():
         "middle": SCHEDULE_MIDDLE_M_CHAR12_AVG_FULLTEXT,
         "late": SCHEDULE_LATE_B_CHAR4_AVG_FULLTEXT,
     }
+    assert first.span_ab_case_id == "none"
+    assert first.span_decision_role_enabled is False
+
+
+def test_build_fixture_jobs_span_ab_pair_mode_doubles_jobs():
+    fixtures = [fixture_matrix.FixtureSpec(fixture_id="fixture_001", length=2376)]
+    period_columns = {7: (3,)}
+    schedules = [
+        {
+            "early": SCHEDULE_EARLY_A_CHAR1_AVG_FULLTEXT,
+            "middle": SCHEDULE_MIDDLE_M_CHAR12_AVG_FULLTEXT,
+            "late": SCHEDULE_LATE_B_CHAR4_AVG_FULLTEXT,
+        }
+    ]
+    jobs = fixture_matrix.build_fixture_jobs(
+        fixtures=fixtures,
+        period_columns=period_columns,
+        run_seeds=(111,),
+        run_mode="adaptive_fixture_v1",
+        profile_id="no_wli_a1_m4_b4_stage3avg_fulltext_longrun3x_v1",
+        heartbeat_seconds=3600,
+        text_offsets=(0,),
+        scorer_impl="numpy",
+        scorer_stage3_impl_avg_fulltext="numpy",
+        scoring_experiment_profiles=("off",),
+        schedules=schedules,
+        enable_span_ab_pair=True,
+        span_ab_decision_role="prune",
+    )
+    assert len(jobs) == 2
+    case_ids = {str(job.span_ab_case_id) for job in jobs}
+    assert case_ids == {"span_shadow", "span_prune"}
 
 
 def test_resolve_period_columns_from_grid():

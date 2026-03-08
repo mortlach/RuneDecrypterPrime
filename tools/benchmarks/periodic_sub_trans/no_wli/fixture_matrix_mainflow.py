@@ -4,6 +4,27 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, MutableMapping
 
 
+def _derive_acceptance_fixture_ids(
+    *,
+    campaign_config: Mapping[str, Any],
+    fixture_count: int,
+) -> tuple[str, ...]:
+    rows = campaign_config.get("fixtures", [])
+    if not isinstance(rows, list):
+        return ()
+    out: list[str] = []
+    for row in rows:
+        if not isinstance(row, Mapping):
+            continue
+        fxid = str(row.get("text_fixture_id", "")).strip()
+        if not fxid:
+            continue
+        out.append(fxid)
+        if len(out) >= int(max(0, fixture_count)):
+            break
+    return tuple(out)
+
+
 def run_mainflow(
     *,
     state: MutableMapping[str, Any],
@@ -27,11 +48,28 @@ def run_mainflow(
     if not isinstance(campaign_config, Mapping):
         raise ValueError(f"campaign config must be an object: {campaign_path}")
 
+    fixture_ids = state["FIXTURE_IDS"]
+    fixture_length_override = state["FIXTURE_LENGTH_OVERRIDE"]
+    acceptance_enabled = bool(state.get("ENABLE_ACCEPTANCE_HARNESS_500X5", False))
+    if acceptance_enabled:
+        if fixture_ids is None:
+            fixture_ids = _derive_acceptance_fixture_ids(
+                campaign_config=campaign_config,
+                fixture_count=int(state.get("ACCEPTANCE_HARNESS_FIXTURE_COUNT", 5)),
+            )
+        fixture_length_override = int(state.get("ACCEPTANCE_HARNESS_LENGTH", 500))
+        print_fn(
+            f"[no_wli_fixture_matrix] acceptance_harness=on "
+            f"fixtures={len(tuple(fixture_ids or ())) if fixture_ids is not None else 0} "
+            f"length={int(fixture_length_override)}",
+            flush=True,
+        )
+
     fixtures = load_fixture_specs_fn(
         campaign_config=campaign_config,
         repo_root=repo_root,
-        fixture_ids=state["FIXTURE_IDS"],
-        fixture_length_override=state["FIXTURE_LENGTH_OVERRIDE"],
+        fixture_ids=fixture_ids,
+        fixture_length_override=fixture_length_override,
     )
     period_columns = resolve_period_columns_fn(
         campaign_config=campaign_config,
@@ -55,6 +93,8 @@ def run_mainflow(
         scorer_stage3_impl_avg_fulltext=state["SCORER_STAGE3_IMPL_AVG_FULLTEXT"],
         scoring_experiment_profiles=state["SCORING_EXPERIMENT_PROFILES"],
         schedules=schedules,
+        enable_span_ab_pair=bool(state["ENABLE_SPAN_AB_PAIR"]),
+        span_ab_decision_role=str(state["SPAN_AB_DECISION_ROLE"]),
     )
     if state["MAX_JOBS"] is not None:
         jobs = jobs[: max(0, int(state["MAX_JOBS"]))]
@@ -69,6 +109,8 @@ def run_mainflow(
         fixtures=fixtures,
         jobs=jobs,
         scoring_experiment_profiles=state["SCORING_EXPERIMENT_PROFILES"],
+        enable_span_ab_pair=bool(state["ENABLE_SPAN_AB_PAIR"]),
+        span_ab_decision_role=str(state["SPAN_AB_DECISION_ROLE"]),
         require_no_win10_objectives=bool(state["REQUIRE_NO_WIN10_OBJECTIVES"]),
         require_full_text_effective=bool(state["REQUIRE_FULL_TEXT_EFFECTIVE"]),
         disable_stage3_span_basin_k_sweep=bool(state["DISABLE_STAGE3_SPAN_BASIN_K_SWEEP"]),
@@ -82,7 +124,7 @@ def run_mainflow(
         resume_skip_completed=bool(state["RESUME_SKIP_COMPLETED"]),
         run_state_path=state["RUN_STATE_PATH"],
         run_events_path=state["RUN_EVENTS_PATH"],
-        fixture_length_override=state["FIXTURE_LENGTH_OVERRIDE"],
+        fixture_length_override=fixture_length_override,
         period_columns=period_columns,
         resolve_path_fn=resolve_path_fn,
     )
@@ -111,6 +153,11 @@ def run_mainflow(
         profile_id=str(state["NO_WLI_PROFILE_ID"]),
         schedule_coverage_mode=str(state["SCHEDULE_COVERAGE_MODE"]),
         scoring_experiment_profiles=[str(x) for x in state["SCORING_EXPERIMENT_PROFILES"]],
+        acceptance_harness_enabled=bool(acceptance_enabled),
+        acceptance_harness_fixture_count=(
+            int(state.get("ACCEPTANCE_HARNESS_FIXTURE_COUNT", 5)) if acceptance_enabled else 0
+        ),
+        acceptance_harness_length=(int(fixture_length_override) if acceptance_enabled else 0),
     )
     run_jobs_with_checkpoints_fn(
         jobs=jobs,

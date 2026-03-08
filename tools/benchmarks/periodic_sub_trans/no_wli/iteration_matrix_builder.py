@@ -52,6 +52,20 @@ def build_iteration_matrix_config(
         oracle_mode=str(oracle_mode),
         oracle_decision_paths_enabled=bool(oracle_decision_paths_enabled),
         oracle_assist_selection_effective=bool(oracle_assist_selection_effective),
+        stage3_span_aux_role=str(state.get("STAGE3_SPAN_AUX_ROLE", "off")),
+        stage3_span_aux_scope=str(state.get("STAGE3_SPAN_AUX_SCOPE", "basin_rep")),
+        stage3_span_aux_profile=str(state.get("STAGE3_SPAN_AUX_PROFILE", "lite")),
+        stage3_span_aux_budget_ms=float(state.get("STAGE3_SPAN_AUX_BUDGET_MS", 0.0)),
+        stage3_span_aux_two_pass=bool(state.get("STAGE3_SPAN_AUX_TWO_PASS", False)),
+        stage3_span_aux_full_top_m=int(state.get("STAGE3_SPAN_AUX_FULL_TOP_M", 0)),
+        span_decision_role_enabled=bool(state.get("SPAN_DECISION_ROLE_ENABLED", False)),
+        span_reps_per_basin=int(state.get("SPAN_REPS_PER_BASIN", 1)),
+        span_selection_top_k=int(state.get("SPAN_SELECTION_TOP_K", 0)),
+        span_p90_call_ms=(
+            float(state["SPAN_P90_CALL_MS"])
+            if state.get("SPAN_P90_CALL_MS", None) is not None
+            else None
+        ),
     )
 
 
@@ -108,4 +122,7 @@ def build_iteration_matrix_fns(
         build_stage3_diagnostics_fn=handlers["build_stage3_diagnostics_fn"],
         finalize_iteration_and_commit_fn=handlers["finalize_iteration_and_commit_fn"],
         safe_preview_latin_fn=handlers["safe_preview_latin_fn"],
+        stage_engine_trace_emit_fn=handlers.get(
+            "stage_engine_trace_emit_fn", lambda **_: None
+        ),
     )

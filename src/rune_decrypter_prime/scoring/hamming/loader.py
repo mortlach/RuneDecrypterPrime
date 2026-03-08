@@ -5,13 +5,21 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
+from rune_decrypter_prime.data.asset_paths import resolve_assets_path, to_repo_relative
 from rune_decrypter_prime.utils.runeglish import Runeglish
 
 
 Wordlist = Dict[int, List[List[int]]]
 
-# Packaged default (copied raw1grams files live under rune_decrypter_prime/data/)
-_PACKAGE_DEFAULT_DIR = Path(__file__).resolve().parents[2] / "data" / "hamming_raw_1g"
+_DEFAULT_HAMMING_ASSETS_REL = Path("hamming_raw_1g")
+
+
+def _default_hamming_dir() -> Path:
+    return resolve_assets_path(str(_DEFAULT_HAMMING_ASSETS_REL), start=Path(__file__))
+
+
+# Canonical default raw1grams location.
+_PACKAGE_DEFAULT_DIR = _default_hamming_dir()
 
 
 def _normalize_dir(path: str | Path) -> Path:
@@ -59,7 +67,9 @@ def _load_cached(wordlist_dir: str, build_rtl: bool, require_selected: bool) -> 
     base = _normalize_dir(wordlist_dir)
     files = sorted(base.glob("raw1grams_*.csv"))
     if not files:
-        raise FileNotFoundError(f"No raw1grams_*.csv files found under {base}")
+        raise FileNotFoundError(
+            f"No raw1grams_*.csv files found under {to_repo_relative(base, start=Path(__file__))}"
+        )
 
     wordlists_ltr: Wordlist = {}
     wordlists_rtl: Wordlist = {} if build_rtl else {}
@@ -102,8 +112,7 @@ def load_raw1grams_wordlists(
     Returns (ltr_wordlists, rtl_wordlists | None), where each dict maps
     word length -> list of rune-index words.
 
-    If wordlist_dir is None, falls back to the packaged data at
-    `data/hamming_raw_1g/`.
+    If wordlist_dir is None, defaults to `assets/hamming_raw_1g/`.
     """
     base = wordlist_dir if wordlist_dir is not None else _PACKAGE_DEFAULT_DIR
     frozen_ltr, frozen_rtl = _load_cached(str(_normalize_dir(base)), build_rtl, require_selected)

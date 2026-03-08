@@ -52,7 +52,7 @@ def test_manifest_parsing_accepts_forward_links():
         "forward_links": [
             {
                 "link_relpath": "language_model/lmp",
-                "target_relpath": "src/rune_decrypter_prime/data/language_model/lmp",
+                "target_relpath": "assets/language_model/lmp_canonical",
             }
         ],
     }
@@ -61,7 +61,7 @@ def test_manifest_parsing_accepts_forward_links():
     assert links == [
         sp.ForwardLink(
             link_relpath="language_model/lmp",
-            target_relpath="src/rune_decrypter_prime/data/language_model/lmp",
+            target_relpath="assets/language_model/lmp_canonical",
         )
     ]
 
@@ -135,7 +135,7 @@ def test_recombine_required_assets_reports_hash_or_size_mismatch(tmp_path: Path)
 
 def test_apply_forward_links_calls_link_creation(monkeypatch, tmp_path: Path):
     repo_root = tmp_path
-    (repo_root / "src" / "rune_decrypter_prime" / "data" / "language_model" / "lmp").mkdir(parents=True, exist_ok=True)
+    (repo_root / "assets" / "language_model" / "lmp_canonical").mkdir(parents=True, exist_ok=True)
     created: list[tuple[Path, Path]] = []
 
     def fake_create_link(link_path: Path, target_path: Path) -> None:
@@ -152,7 +152,7 @@ def test_apply_forward_links_calls_link_creation(monkeypatch, tmp_path: Path):
         links=[
             sp.ForwardLink(
                 link_relpath="language_model/lmp",
-                target_relpath="src/rune_decrypter_prime/data/language_model/lmp",
+                target_relpath="assets/language_model/lmp_canonical",
             )
         ],
         setup_log=io.StringIO(),
@@ -164,7 +164,7 @@ def test_apply_forward_links_calls_link_creation(monkeypatch, tmp_path: Path):
 
 def test_apply_forward_links_accepts_existing_materialized_directory(tmp_path: Path):
     repo_root = tmp_path
-    target = repo_root / "src" / "rune_decrypter_prime" / "data" / "language_model" / "lmp"
+    target = repo_root / "assets" / "language_model" / "lmp_canonical"
     target.mkdir(parents=True, exist_ok=True)
     existing = repo_root / "assets" / "language_model" / "lmp"
     existing.mkdir(parents=True, exist_ok=True)
@@ -173,7 +173,7 @@ def test_apply_forward_links_accepts_existing_materialized_directory(tmp_path: P
     out = sp.apply_forward_links(
         repo_root=repo_root,
         assets_root="assets",
-        links=[sp.ForwardLink(link_relpath="language_model/lmp", target_relpath="src/rune_decrypter_prime/data/language_model/lmp")],
+        links=[sp.ForwardLink(link_relpath="language_model/lmp", target_relpath="assets/language_model/lmp_canonical")],
         setup_log=io.StringIO(),
     )
     assert out["issues"] == []
@@ -183,7 +183,7 @@ def test_apply_forward_links_accepts_existing_materialized_directory(tmp_path: P
 
 def test_apply_forward_links_replaces_stale_existing_path(monkeypatch, tmp_path: Path):
     repo_root = tmp_path
-    target = repo_root / "src" / "rune_decrypter_prime" / "data" / "language_model" / "lmp"
+    target = repo_root / "assets" / "language_model" / "lmp_canonical"
     target.mkdir(parents=True, exist_ok=True)
     stale = repo_root / "assets" / "language_model" / "lmp"
     stale.mkdir(parents=True, exist_ok=True)
@@ -199,7 +199,7 @@ def test_apply_forward_links_replaces_stale_existing_path(monkeypatch, tmp_path:
     out = sp.apply_forward_links(
         repo_root=repo_root,
         assets_root="assets",
-        links=[sp.ForwardLink(link_relpath="language_model/lmp", target_relpath="src/rune_decrypter_prime/data/language_model/lmp")],
+        links=[sp.ForwardLink(link_relpath="language_model/lmp", target_relpath="assets/language_model/lmp_canonical")],
         setup_log=io.StringIO(),
     )
     assert out["issues"] == []
@@ -260,7 +260,7 @@ def _read_joint_bin(path: Path):
 def test_rebuild_split_joint_assets_rebuilds_missing_joint_bin(tmp_path: Path):
     import numpy as np
 
-    lm_root = tmp_path / "src" / "rune_decrypter_prime" / "data" / "language_model" / "lmp"
+    lm_root = tmp_path / "assets" / "language_model" / "lmp"
     target_dir = lm_root / "wli" / "ltr"
     target_dir.mkdir(parents=True, exist_ok=True)
     index = {

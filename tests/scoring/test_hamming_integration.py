@@ -73,7 +73,7 @@ class _StubRt:
 def test_hamming_affects_rune_scorer(monkeypatch):
     # Use packaged wordlists; take a length-1 word so HD math is deterministic.
     wl_ltr, _ = load_raw1grams_wordlists()
-    assert wl_ltr and 1 in wl_ltr, "Packaged hamming wordlists should include length-1 entries"
+    assert wl_ltr and 1 in wl_ltr, "Default hamming wordlists should include length-1 entries"
     word = wl_ltr[1][0]
     pt = [word[0]] * 10
     wli = [[0, 1] for _ in range(len(pt))]
@@ -84,7 +84,7 @@ def test_hamming_affects_rune_scorer(monkeypatch):
     cfg = ScoringConfig(
         hamming_enabled=True,
         hamming_weight=1.0,
-        hamming_wordlist_dir=None,  # packaged default
+        hamming_wordlist_dir=None,  # default assets path
         encoding_dir=Direction.LTR,
     )
     fake_cipher = type("C", (), {"device": "cpu"})
@@ -112,7 +112,7 @@ def test_hamming_affects_rune_scorer(monkeypatch):
 @requires_ext
 def test_selected_vs_unselected_words_have_correct_hd(monkeypatch):
     base: Path = _PACKAGE_DEFAULT_DIR
-    assert base.exists(), "Packaged hamming_raw_1g data must exist"
+    assert base.exists(), "Default hamming_raw_1g assets must exist"
 
     wl_ltr, _ = load_raw1grams_wordlists()
     backend = HammingBackend(wl_ltr, None, max_hd=10)

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import csv
-from importlib import resources
 from pathlib import Path
 
 import pytest
 
 from rune_decrypter_prime.core.types import Direction
 from rune_decrypter_prime.data.wordlists.loaders import (
+    default_wordlists_dir,
     load_short_word_csv,
     load_word_crib_config_from_csv,
 )
@@ -37,7 +37,7 @@ def test_load_word_crib_config_from_csv():
 
 
 def test_short_word_csv_has_consistent_lengths():
-    base = resources.files("rune_decrypter_prime.data.wordlists")
+    base = default_wordlists_dir()
     for direction in ("ltr", "rtl"):
         for length in (1, 2, 3):
             path = base / f"short_words_{direction}_len{length}.csv"

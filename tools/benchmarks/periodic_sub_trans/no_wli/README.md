@@ -19,6 +19,10 @@ Examples:
 Campaign scope note:
 - `no_wli` is currently internal tuning scope and is not part of public community v1.1 manifest schema.
 
+Legacy snapshots:
+- Historical runner snapshots are kept under `tools/benchmarks/periodic_sub_trans/no_wli/old/`.
+- Active implementation surface is the top-level `no_wli/*.py` modules only.
+
 ## Operator Model (Hardcoded Knobs)
 
 No-WLI launchers use hardcoded constants (not CLI args). Change knobs in file:
@@ -167,3 +171,26 @@ Standard codes:
   - Cause: raw scoring path requested with unsupported objective.
 
 For broader scorer/backend policy, see `docs/setup/scorer_backend_selection.md`.
+
+## Stage Trace Quick Read
+
+Use `stage_engine_trace.jsonl` as the single ordered decision trace for each run.
+
+Key event types:
+
+- `stage_start`: stage boundary and aux-objective contract fields.
+- `stage_end`: stage boundary output and per-stage counters.
+- `error`: stage exception payload (if raised).
+- `span_budget_plan`: budget-derived span call plan (`calls_affordable`).
+- `span_eval_selection_plan`: planned span eval subset per scope (`candidate`, `topk`, `basin_rep`).
+- `span_shadow_counterfactual`: optional shadow callback payload for "what span would have done".
+
+Fields to watch first:
+
+- `stage_id`, `stage_index`, `event`
+- `in_pool_size`, `out_pool_size`
+- `span_calls_total`, `span_calls_active`, `span_calls_rejected_or_gated`
+- `span_seconds_total`, `span_active_rate`, `span_active_rate_source`
+- `aux_decision_influence` (must remain `false` for shadow-only scaffolding)
+
+Stage rows (`stages.csv`) remain the per-stage summary table; `stage_engine_trace.jsonl` is the event-level timeline.
