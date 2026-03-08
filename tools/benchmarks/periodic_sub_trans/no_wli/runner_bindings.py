@@ -36,6 +36,7 @@ from tools.benchmarks.periodic_sub_trans.no_wli.run_summary import (
 from tools.benchmarks.periodic_sub_trans.no_wli.runner_bridges import (
     append_stage3_topk_from_kaeding_bridge,
     append_stage3_topk_from_phasea_bridge,
+    commit_iteration_outputs_bridge,
     extract_kaeding_metrics_bridge,
 )
 from tools.benchmarks.periodic_sub_trans.no_wli.runner_utils import (
@@ -456,4 +457,7 @@ def install_runner_bindings(
             rows=rows,
             key_len=int(key_len),
         )
+    )
+    state["_commit_iteration_outputs_bridge_external"] = (
+        lambda **kwargs: commit_iteration_outputs_bridge(**kwargs)
     )

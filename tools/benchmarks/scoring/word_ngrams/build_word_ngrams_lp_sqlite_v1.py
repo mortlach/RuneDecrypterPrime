@@ -18,9 +18,9 @@ from rune_decrypter_prime.utils.runeglish import Runeglish  # noqa: E402
 
 
 # Edit constants here. No CLI.
-NGRAM_SOURCE_ROOT = Path(r"C:\path\to\google_ngrams_Version-20200217")
+NGRAM_SOURCE_ROOT = REPO_ROOT / "data" / "scoring" / "google_ngrams_Version-20200217"
 NGRAM_DIRS = {3: "3-grams", 4: "4-grams", 5: "5-grams"}
-OUTPUT_SQLITE = Path(r"C:\path\to\assets\word_ngrams_lp_v1.sqlite")
+OUTPUT_SQLITE = REPO_ROOT / "assets" / "scoring" / "word_ngrams" / "word_ngrams_lp_v1.sqlite"
 COMMIT_EVERY_ROWS = 200_000
 JOURNAL_MODE = "WAL"
 SYNCHRONOUS = "NORMAL"

@@ -33,6 +33,7 @@ from tools.benchmarks.periodic_sub_trans.common.campaign_run_config import (
 )
 from tools.benchmarks.periodic_sub_trans.common.io_reports import (
     append_csv_row as _append_csv_row_common,
+    write_pipeline_snapshot_files,
     write_csv_rows as _write_csv_rows_common,
     write_json,
 )
