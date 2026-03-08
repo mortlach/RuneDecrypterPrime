@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Mapping, Sequence
 
 
 def stage3_char4_pct_baseline_cfg(*, scorer_impl: str) -> Dict[str, Any]:
@@ -95,6 +95,38 @@ def build_stage3_experiment_cfg(
             else float(scoring_experiment_c_char_pct_min)
         )
         cfg["span_hamming_char_pct_min"] = float(gate)
+    return cfg
+
+
+def build_word_ngram_report_cfg(
+    *,
+    base_cfg: Mapping[str, Any],
+    direction: Any,
+    word_ngram_report_enabled: bool,
+    word_ngram_report_sqlite_path: Path | str | None,
+    word_ngram_report_alpha: float,
+    word_ngram_report_miss_logp: float,
+    word_ngram_report_min_positions: int,
+    word_ngram_report_prefix_total_thresholds: Sequence[int],
+    resolve_repo_path_fn: Callable[[Path | str | None], Path | None],
+) -> Dict[str, Any] | None:
+    if not bool(word_ngram_report_enabled):
+        return None
+    sqlite_path = resolve_repo_path_fn(word_ngram_report_sqlite_path)
+    if sqlite_path is None:
+        raise ValueError(
+            "WORD_NGRAM_REPORT_SQLITE_PATH must be set when WORD_NGRAM_REPORT_ENABLED=True"
+        )
+    cfg = dict(base_cfg)
+    cfg["encoding_dir"] = direction
+    cfg["word_ngram_judge_enabled"] = True
+    cfg["word_ngram_judge_sqlite_path"] = sqlite_path
+    cfg["word_ngram_judge_alpha"] = float(word_ngram_report_alpha)
+    cfg["word_ngram_judge_miss_logp"] = float(word_ngram_report_miss_logp)
+    cfg["word_ngram_judge_min_positions"] = int(word_ngram_report_min_positions)
+    cfg["word_ngram_judge_prefix_total_thresholds"] = tuple(
+        int(v) for v in word_ngram_report_prefix_total_thresholds
+    )
     return cfg
 
 

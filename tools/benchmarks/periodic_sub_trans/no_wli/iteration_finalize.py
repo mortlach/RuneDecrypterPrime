@@ -8,6 +8,9 @@ import numpy as np
 from tools.benchmarks.periodic_sub_trans.no_wli.iteration_outcome import (
     resolve_iteration_outcome,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.word_ngram_report import (
+    score_word_ngram_report_for_plaintext,
+)
 
 
 def finalize_iteration_and_commit(
@@ -59,6 +62,8 @@ def finalize_iteration_and_commit(
     instances: List[Dict[str, Any]],
     derive_outcome_code_fn: Callable[..., str],
     safe_preview_latin_fn: Callable[[Any, Any], str],
+    scorer_word_ngram_report_runtime: Any | None = None,
+    require_batch_scoring: bool = True,
 ) -> Dict[str, Any]:
     dt_i = float(time.time() - t0_i)
     iteration_outcome = resolve_iteration_outcome(
@@ -97,6 +102,12 @@ def finalize_iteration_and_commit(
     oracle_scores_payload = dict(iteration_outcome.get("oracle_scores_payload", {}))
     score_minus_oracle_payload = dict(
         iteration_outcome.get("score_minus_oracle_payload", {})
+    )
+    word_ngram_report = score_word_ngram_report_for_plaintext(
+        scorer_runtime=scorer_word_ngram_report_runtime,
+        plaintext_idx=final_best_plaintext_idx,
+        wli=wli,
+        require_batch_scoring=bool(require_batch_scoring),
     )
 
     inst_row, artifact_payload = build_iteration_payloads_fn(
@@ -142,6 +153,21 @@ def finalize_iteration_and_commit(
         stage3_topk_payload=stage3_topk_payload,
         stage3_diagnostics=stage3_diagnostics,
     )
+    inst_row.update(
+        word_ngram_judge_active=bool(word_ngram_report.get("word_ngram_judge_active", False)),
+        word_ngram_judge_n_positions=int(
+            word_ngram_report.get("word_ngram_judge_n_positions", 0) or 0
+        ),
+        word_ngram_judge_report_xent=word_ngram_report.get("word_ngram_judge_report_xent"),
+        word_ngram_judge_trust_score=word_ngram_report.get("word_ngram_judge_trust_score"),
+        word_ngram_judge_trust_tier=str(
+            word_ngram_report.get("word_ngram_judge_trust_tier", "") or ""
+        ),
+        word_ngram_judge_inactive_reason=str(
+            word_ngram_report.get("word_ngram_judge_inactive_reason", "") or ""
+        ),
+    )
+    artifact_payload["word_ngram_report"] = dict(word_ngram_report)
     instances.append(dict(inst_row))
     commit_iteration_with_checkpoint_fn(
         inst_row=inst_row,

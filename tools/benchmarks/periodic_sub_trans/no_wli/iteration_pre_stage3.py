@@ -84,6 +84,10 @@ def run_iteration_pre_stage3(
     scorer_stage3_search_runtime = iteration_runtime["scorer_stage3_search_runtime"]
     scorer_full_runtime = iteration_runtime["scorer_full_runtime"]
     scorer_basin_judge_runtime = iteration_runtime["scorer_basin_judge_runtime"]
+    scorer_word_ngram_report_runtime = iteration_runtime.get(
+        "scorer_word_ngram_report_runtime",
+        None,
+    )
     scorer_stage3_phaseA_runtime = iteration_runtime["scorer_stage3_phaseA_runtime"]
     stage2_judge_policy = str(iteration_runtime["stage2_judge_policy"])
     scorer_stage2_judge_runtime = iteration_runtime["scorer_stage2_judge_runtime"]
@@ -208,6 +212,7 @@ def run_iteration_pre_stage3(
         scorer_stage3_phaseB=dict(scorer_stage3_phaseB),
         scorer_stage3_search_runtime=scorer_stage3_search_runtime,
         scorer_basin_judge_runtime=scorer_basin_judge_runtime,
+        scorer_word_ngram_report_runtime=scorer_word_ngram_report_runtime,
         scorer_full_runtime=scorer_full_runtime,
         scorer_stage3_phaseA_runtime=scorer_stage3_phaseA_runtime,
         oracle_s1=float(oracle_s1),

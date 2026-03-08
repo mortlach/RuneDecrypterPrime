@@ -206,6 +206,22 @@ def build_run_config(
                 disable_char_pct_gate=bool(True),
                 gate_fail_policy="score_floor",
             ),
+            word_ngram_report=dict(
+                enabled=bool(state.get("WORD_NGRAM_REPORT_ENABLED", False)),
+                sqlite_path=str(state.get("WORD_NGRAM_REPORT_SQLITE_PATH") or ""),
+                alpha=float(state.get("WORD_NGRAM_REPORT_ALPHA", 0.4)),
+                miss_logp=float(state.get("WORD_NGRAM_REPORT_MISS_LOGP", -20.0)),
+                min_positions=int(state.get("WORD_NGRAM_REPORT_MIN_POSITIONS", 12)),
+                prefix_total_thresholds=[
+                    int(v)
+                    for v in state.get(
+                        "WORD_NGRAM_REPORT_PREFIX_TOTAL_THRESHOLDS",
+                        (1, 10, 100),
+                    )
+                ],
+                report_only=bool(True),
+                decision_influence=bool(False),
+            ),
             span_aux=dict(
                 role=str(state.get("STAGE3_SPAN_AUX_ROLE", "off")),
                 scope=str(state.get("STAGE3_SPAN_AUX_SCOPE", "basin_rep")),

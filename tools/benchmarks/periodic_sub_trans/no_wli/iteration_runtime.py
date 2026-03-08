@@ -40,6 +40,7 @@ def build_iteration_runtime(
     is_adaptive_focus_mode_fn: Callable[[str | None], bool],
     stage3_search_cfg_fn: Callable[..., Dict[str, Any]],
     build_stage3_experiment_cfg_fn: Callable[..., Dict[str, Any]],
+    build_word_ngram_report_cfg_fn: Callable[..., Dict[str, Any] | None],
     guard_no_ecdf_usage_fn: Callable[..., None],
 ) -> Dict[str, Any]:
     key_len = int(int(tier_period) * int(alphabet_size) + int(tier_columns))
@@ -123,6 +124,16 @@ def build_iteration_runtime(
     scorer_stage3_search_runtime = build_scorer(cfg_full, ScoringConfig(**scorer_stage3_search))
     scorer_full_runtime = build_scorer(cfg_full, ScoringConfig(**scorer_full))
     scorer_basin_judge_runtime = build_scorer(cfg_full, ScoringConfig(**scorer_basin_judge))
+    scorer_word_ngram_report_runtime = None
+    scorer_word_ngram_report_cfg = build_word_ngram_report_cfg_fn(
+        base_cfg=dict(scorer_basin_judge),
+        direction=direction,
+    )
+    if scorer_word_ngram_report_cfg is not None:
+        scorer_word_ngram_report_runtime = build_scorer(
+            cfg_full,
+            ScoringConfig(**scorer_word_ngram_report_cfg),
+        )
     scorer_stage3_phaseA_runtime = scorer_stage3_search_runtime
 
     stage2_judge_policy = str(stage2_judge_policy_value).strip().lower()
@@ -168,6 +179,12 @@ def build_iteration_runtime(
         scorer_cfg=scorer_basin_judge,
         stage_label="stage3_basin_judge",
     )
+    if scorer_word_ngram_report_runtime is not None:
+        guard_no_ecdf_usage_fn(
+            scorer_runtime=scorer_word_ngram_report_runtime,
+            scorer_cfg=scorer_word_ngram_report_cfg,
+            stage_label="word_ngram_report",
+        )
 
     scorer_stage2_pass1_primary_runtime = None
     scorer_stage2_pass1_fallback_runtime = None
@@ -247,6 +264,7 @@ def build_iteration_runtime(
         scorer_stage3_search_runtime=scorer_stage3_search_runtime,
         scorer_full_runtime=scorer_full_runtime,
         scorer_basin_judge_runtime=scorer_basin_judge_runtime,
+        scorer_word_ngram_report_runtime=scorer_word_ngram_report_runtime,
         scorer_stage3_phaseA_runtime=scorer_stage3_phaseA_runtime,
         stage2_judge_policy=str(stage2_judge_policy),
         scorer_stage2_judge_runtime=scorer_stage2_judge_runtime,

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Tuple
 
 import numpy as np
+from rune_decrypter_prime.core.hamming_dictionary_policy import ensure_hamming_dictionary_policy
 
 
 def _decode_meta_json(raw: Any) -> dict[str, Any]:
@@ -71,11 +72,14 @@ class SpanCalibratedAssets:
         self,
         calibration_rows: Dict[Tuple[str, int], SpanCalibrationRow],
         ecdf_rows: Dict[Tuple[str, int], Tuple[np.ndarray, np.ndarray]],
+        *,
+        dictionary_policy: str | None = None,
     ) -> None:
         if not calibration_rows:
             raise ValueError("No calibration rows loaded")
         self._calibration_rows = calibration_rows
         self._ecdf_rows = ecdf_rows
+        self.dictionary_policy = dictionary_policy
         by_dir: Dict[str, set[int]] = {}
         for direction, length_bucket in self._calibration_rows:
             by_dir.setdefault(direction, set()).add(length_bucket)
@@ -99,6 +103,11 @@ class SpanCalibratedAssets:
         cal_rows_raw = cal_raw.get("rows")
         if not isinstance(cal_rows_raw, list):
             raise ValueError("combined_calibration.json must contain list field 'rows'")
+
+        dictionary_policy = None
+        raw_policy = cal_raw.get("dictionary_policy", cal_raw.get("hamming_dictionary_policy"))
+        if raw_policy is not None:
+            dictionary_policy = ensure_hamming_dictionary_policy(raw_policy).value
 
         calibration_rows: Dict[Tuple[str, int], SpanCalibrationRow] = {}
         for row in cal_rows_raw:
@@ -170,7 +179,11 @@ class SpanCalibratedAssets:
             if row.span_valid and row.span_denom > 0.0 and key not in ecdf_rows:
                 raise ValueError(f"Missing span ECDF for valid calibration bucket: {key}")
 
-        return cls(calibration_rows=calibration_rows, ecdf_rows=ecdf_rows)
+        return cls(
+            calibration_rows=calibration_rows,
+            ecdf_rows=ecdf_rows,
+            dictionary_policy=dictionary_policy,
+        )
 
     def available_directions(self) -> Tuple[str, ...]:
         return tuple(sorted(self._length_buckets_by_direction))
@@ -203,7 +216,30 @@ class SpanCalibratedAssets:
         if not (0.0 < float(clamp_min) < float(clamp_max) < 1.0):
             raise ValueError("clamp_min/clamp_max must satisfy 0 < min < max < 1")
         bucket = self.select_bucket(dir_norm, int(text_length))
+        return self.score_span_raw_in_bucket(
+            direction=dir_norm,
+            length_bucket=int(bucket),
+            span_raw=span_raw,
+            clamp_min=clamp_min,
+            clamp_max=clamp_max,
+        )
+
+    def score_span_raw_in_bucket(
+        self,
+        *,
+        direction: str,
+        length_bucket: int,
+        span_raw: float,
+        clamp_min: float,
+        clamp_max: float,
+    ) -> SpanBucketScore:
+        dir_norm = str(direction).strip().lower()
+        if not (0.0 < float(clamp_min) < float(clamp_max) < 1.0):
+            raise ValueError("clamp_min/clamp_max must satisfy 0 < min < max < 1")
+        bucket = int(length_bucket)
         key = (dir_norm, bucket)
+        if key not in self._calibration_rows:
+            raise KeyError(f"No calibration bucket for direction={dir_norm}, length_bucket={bucket}")
         row = self._calibration_rows[key]
         if not row.span_valid or not (row.span_denom > 0.0):
             raise ValueError(f"Invalid span calibration bucket: {key}")

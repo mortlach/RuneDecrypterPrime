@@ -130,6 +130,8 @@ def finalize_iteration_post_stage3(
         stage2_diagnostics=stage2_diagnostics,
         stage3_topk_payload=state["stage3_topk_payload"],
         stage3_diagnostics=stage3_diagnostics,
+        scorer_word_ngram_report_runtime=state.get("scorer_word_ngram_report_runtime"),
+        require_batch_scoring=bool(state.get("REQUIRE_BATCH_SCORING", True)),
         build_iteration_payloads_fn=build_iteration_payloads_fn,
         commit_iteration_with_checkpoint_fn=commit_iteration_with_checkpoint_fn,
         instances=state["instances"],

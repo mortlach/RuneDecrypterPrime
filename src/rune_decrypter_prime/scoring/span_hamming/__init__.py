@@ -11,6 +11,10 @@ from rune_decrypter_prime.scoring.span_hamming.calibrated_assets import (
     SpanCalibrationRow,
     SpanBucketScore,
 )
+from rune_decrypter_prime.scoring.span_hamming.lm_assets_v2 import (
+    LmBucketScore,
+    SpanHammingLmAssetsV2,
+)
 
 __all__ = [
     "SpanHammingBackend",
@@ -20,4 +24,6 @@ __all__ = [
     "SpanCalibratedAssets",
     "SpanCalibrationRow",
     "SpanBucketScore",
+    "SpanHammingLmAssetsV2",
+    "LmBucketScore",
 ]

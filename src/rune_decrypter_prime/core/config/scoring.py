@@ -27,6 +27,10 @@ from rune_decrypter_prime.core.types import (
     ensure_avg_window_policy,
 )
 from rune_decrypter_prime.core.config.hard_crib import HardCribConfig, normalize_hard_crib_config
+from rune_decrypter_prime.core.hamming_dictionary_policy import (
+    HammingDictionaryPolicy,
+    ensure_hamming_dictionary_policy,
+)
 
 
 def _objective_from_string(spec: str) -> ObjectiveSpec:
@@ -84,6 +88,8 @@ class ScoringConfig:
     hard_crib: Optional[HardCribConfig | Dict[str, Any]] = None
     # Optional Hamming scorer component
     hamming_enabled: bool = False
+    hamming_dictionary_policy: HammingDictionaryPolicy | str = HammingDictionaryPolicy.NORMAL
+    hamming_dictionary_policy_root: Path | None = None
     hamming_wordlist_dir: Path | None = None
     hamming_build_rtl: bool = False
     hamming_weight: float | None = None
@@ -110,6 +116,8 @@ class ScoringConfig:
     # Calibrated span channel (source-driven; no CLI)
     span_hamming_mode: str = "off"  # off | raw_bonus | calibrated
     span_hamming_assets_dir: Path | None = None
+    span_hamming_assets_dictionary_policy: HammingDictionaryPolicy | str | None = None
+    span_hamming_allow_dictionary_policy_mismatch: bool = False
     span_hamming_bucket_policy: str = "nearest_smaller_tie"
     span_hamming_ecdf_clamp_min: float | None = None
     span_hamming_ecdf_clamp_max: float | None = None
@@ -122,6 +130,18 @@ class ScoringConfig:
     span_hamming_char_pct_min: float | None = None
     span_hamming_gate_fail_policy: str = "score_floor"
     span_hamming_gate_score_floor: float | None = None
+    # Optional LM/profile extension over calibrated span.
+    span_hamming_lm_assets_json: Path | None = None
+    span_hamming_lm_profile_source: str = "span_raw_by_len"
+    span_hamming_lm_tail_start_index: int = 5
+    span_hamming_lm_weight: float = 0.0
+    # Optional word-ngram judge side-channel (report-only in slice 1).
+    word_ngram_judge_enabled: bool = False
+    word_ngram_judge_sqlite_path: Path | None = None
+    word_ngram_judge_alpha: float = 0.4
+    word_ngram_judge_miss_logp: float = -20.0
+    word_ngram_judge_min_positions: int = 12
+    word_ngram_judge_prefix_total_thresholds: Tuple[int, ...] = (1, 10, 100)
 
     def __post_init__(self) -> None:
         if self.encoding_dir is not None:
@@ -157,10 +177,16 @@ class ScoringConfig:
 
         if isinstance(self.hamming_wordlist_dir, (str, bytes)):
             self.hamming_wordlist_dir = Path(self.hamming_wordlist_dir)
+        if isinstance(self.hamming_dictionary_policy_root, (str, bytes)):
+            self.hamming_dictionary_policy_root = Path(self.hamming_dictionary_policy_root)
         if isinstance(self.span_hamming_wordlist_dir, (str, bytes)):
             self.span_hamming_wordlist_dir = Path(self.span_hamming_wordlist_dir)
         if isinstance(self.span_hamming_assets_dir, (str, bytes)):
             self.span_hamming_assets_dir = Path(self.span_hamming_assets_dir)
+        if isinstance(self.span_hamming_lm_assets_json, (str, bytes)):
+            self.span_hamming_lm_assets_json = Path(self.span_hamming_lm_assets_json)
+        if isinstance(self.word_ngram_judge_sqlite_path, (str, bytes)):
+            self.word_ngram_judge_sqlite_path = Path(self.word_ngram_judge_sqlite_path)
         self.hamming_direction_mode = str(self.hamming_direction_mode or "match").lower()
         if self.hamming_direction_mode not in {"match", "both"}:
             raise ValueError("hamming_direction_mode must be 'match' or 'both'")
@@ -194,6 +220,10 @@ class ScoringConfig:
         self.span_hamming_mode = str(self.span_hamming_mode or "off").strip().lower()
         if self.span_hamming_mode not in {"off", "raw_bonus", "calibrated"}:
             raise ValueError("span_hamming_mode must be one of: off, raw_bonus, calibrated")
+        if self.span_hamming_assets_dictionary_policy is not None:
+            self.span_hamming_assets_dictionary_policy = ensure_hamming_dictionary_policy(
+                self.span_hamming_assets_dictionary_policy
+            )
         self.span_hamming_bucket_policy = str(self.span_hamming_bucket_policy or "nearest_smaller_tie").strip().lower()
         if self.span_hamming_bucket_policy != "nearest_smaller_tie":
             raise ValueError("span_hamming_bucket_policy currently only supports 'nearest_smaller_tie'")
@@ -232,6 +262,40 @@ class ScoringConfig:
                 raise ValueError("span_hamming_ecdf_clamp_min must be < span_hamming_ecdf_clamp_max")
         if self.span_hamming_gate_score_floor is not None:
             self.span_hamming_gate_score_floor = float(self.span_hamming_gate_score_floor)
+        self.span_hamming_lm_profile_source = str(
+            self.span_hamming_lm_profile_source or "span_raw_by_len"
+        ).strip()
+        if self.span_hamming_lm_profile_source not in {"span_raw_by_len", "chars_covered_by_len"}:
+            raise ValueError(
+                "span_hamming_lm_profile_source must be one of: span_raw_by_len, chars_covered_by_len"
+            )
+        self.span_hamming_lm_tail_start_index = int(self.span_hamming_lm_tail_start_index)
+        if self.span_hamming_lm_tail_start_index < 0:
+            raise ValueError("span_hamming_lm_tail_start_index must be >= 0")
+        self.span_hamming_lm_weight = float(self.span_hamming_lm_weight)
+        if self.span_hamming_lm_weight != 0.0 and self.span_hamming_lm_assets_json is None:
+            raise ValueError(
+                "span_hamming_lm_assets_json is required when span_hamming_lm_weight is non-zero"
+            )
+        self.word_ngram_judge_enabled = bool(self.word_ngram_judge_enabled)
+        self.word_ngram_judge_alpha = float(self.word_ngram_judge_alpha)
+        if not (0.0 < self.word_ngram_judge_alpha <= 1.0):
+            raise ValueError("word_ngram_judge_alpha must be in (0,1]")
+        self.word_ngram_judge_miss_logp = float(self.word_ngram_judge_miss_logp)
+        self.word_ngram_judge_min_positions = int(self.word_ngram_judge_min_positions)
+        if self.word_ngram_judge_min_positions < 0:
+            raise ValueError("word_ngram_judge_min_positions must be >= 0")
+        self.word_ngram_judge_prefix_total_thresholds = tuple(
+            int(v) for v in self.word_ngram_judge_prefix_total_thresholds
+        )
+        if any(int(v) < 0 for v in self.word_ngram_judge_prefix_total_thresholds):
+            raise ValueError("word_ngram_judge_prefix_total_thresholds must be >= 0")
+        if self.word_ngram_judge_enabled and self.word_ngram_judge_sqlite_path is None:
+            raise ValueError(
+                "word_ngram_judge_sqlite_path is required when word_ngram_judge_enabled is true"
+            )
+        if self.hamming_dictionary_policy is not None:
+            self.hamming_dictionary_policy = ensure_hamming_dictionary_policy(self.hamming_dictionary_policy)
 
         obj = getattr(self, "objective", None)
         if isinstance(obj, ObjectiveSpec) and obj.family in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
@@ -316,6 +380,16 @@ class ScoringConfig:
         out["diagnostics_enabled"] = self.diagnostics_enabled
         out["hard_crib"] = self.hard_crib.asdict() if isinstance(self.hard_crib, HardCribConfig) else None
         out["hamming_enabled"] = self.hamming_enabled
+        out["hamming_dictionary_policy"] = (
+            self.hamming_dictionary_policy.value
+            if isinstance(self.hamming_dictionary_policy, HammingDictionaryPolicy)
+            else self.hamming_dictionary_policy
+        )
+        out["hamming_dictionary_policy_root"] = (
+            str(self.hamming_dictionary_policy_root)
+            if isinstance(self.hamming_dictionary_policy_root, Path)
+            else self.hamming_dictionary_policy_root
+        )
         out["hamming_wordlist_dir"] = str(self.hamming_wordlist_dir) if isinstance(self.hamming_wordlist_dir, Path) else self.hamming_wordlist_dir
         out["hamming_build_rtl"] = self.hamming_build_rtl
         out["hamming_weight"] = self.hamming_weight
@@ -342,6 +416,14 @@ class ScoringConfig:
         out["span_hamming_require_selected"] = self.span_hamming_require_selected
         out["span_hamming_mode"] = self.span_hamming_mode
         out["span_hamming_assets_dir"] = str(self.span_hamming_assets_dir) if isinstance(self.span_hamming_assets_dir, Path) else self.span_hamming_assets_dir
+        out["span_hamming_assets_dictionary_policy"] = (
+            self.span_hamming_assets_dictionary_policy.value
+            if isinstance(self.span_hamming_assets_dictionary_policy, HammingDictionaryPolicy)
+            else self.span_hamming_assets_dictionary_policy
+        )
+        out["span_hamming_allow_dictionary_policy_mismatch"] = bool(
+            self.span_hamming_allow_dictionary_policy_mismatch
+        )
         out["span_hamming_bucket_policy"] = self.span_hamming_bucket_policy
         out["span_hamming_ecdf_clamp_min"] = self.span_hamming_ecdf_clamp_min
         out["span_hamming_ecdf_clamp_max"] = self.span_hamming_ecdf_clamp_max
@@ -354,6 +436,26 @@ class ScoringConfig:
         out["span_hamming_char_pct_min"] = self.span_hamming_char_pct_min
         out["span_hamming_gate_fail_policy"] = self.span_hamming_gate_fail_policy
         out["span_hamming_gate_score_floor"] = self.span_hamming_gate_score_floor
+        out["span_hamming_lm_assets_json"] = (
+            str(self.span_hamming_lm_assets_json)
+            if isinstance(self.span_hamming_lm_assets_json, Path)
+            else self.span_hamming_lm_assets_json
+        )
+        out["span_hamming_lm_profile_source"] = self.span_hamming_lm_profile_source
+        out["span_hamming_lm_tail_start_index"] = self.span_hamming_lm_tail_start_index
+        out["span_hamming_lm_weight"] = self.span_hamming_lm_weight
+        out["word_ngram_judge_enabled"] = bool(self.word_ngram_judge_enabled)
+        out["word_ngram_judge_sqlite_path"] = (
+            str(self.word_ngram_judge_sqlite_path)
+            if isinstance(self.word_ngram_judge_sqlite_path, Path)
+            else self.word_ngram_judge_sqlite_path
+        )
+        out["word_ngram_judge_alpha"] = self.word_ngram_judge_alpha
+        out["word_ngram_judge_miss_logp"] = self.word_ngram_judge_miss_logp
+        out["word_ngram_judge_min_positions"] = self.word_ngram_judge_min_positions
+        out["word_ngram_judge_prefix_total_thresholds"] = [
+            int(v) for v in tuple(self.word_ngram_judge_prefix_total_thresholds)
+        ]
         return out
 
 

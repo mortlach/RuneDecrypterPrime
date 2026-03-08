@@ -41,6 +41,13 @@ def apply_runner_defaults(*, state: MutableMapping[str, Any]) -> None:
             "SCORING_EXPERIMENT_SPAN_COVERAGE_MIN": 0.05,
             "SCORING_EXPERIMENT_SPAN_QUALITY_MIN": 0.05,
             "SCORING_EXPERIMENT_C_CHAR_PCT_MIN": 0.70,
+            # Report-only word-ngram side-channel.
+            "WORD_NGRAM_REPORT_ENABLED": False,
+            "WORD_NGRAM_REPORT_SQLITE_PATH": None,
+            "WORD_NGRAM_REPORT_ALPHA": 0.4,
+            "WORD_NGRAM_REPORT_MISS_LOGP": -20.0,
+            "WORD_NGRAM_REPORT_MIN_POSITIONS": 12,
+            "WORD_NGRAM_REPORT_PREFIX_TOTAL_THRESHOLDS": (1, 10, 100),
             "STAGE3_SPAN_CHAR_PCT_MIN_OVERRIDE": None,
             "STAGE3_SPAN_AUX_ROLE": "off",
             "STAGE3_SPAN_AUX_SCOPE": "basin_rep",

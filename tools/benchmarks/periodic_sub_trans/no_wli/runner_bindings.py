@@ -50,6 +50,7 @@ from tools.benchmarks.periodic_sub_trans.no_wli.runner_utils import (
 from tools.benchmarks.periodic_sub_trans.no_wli.scoring_experiment_config import (
     apply_scoring_experiment_profile,
     build_stage3_experiment_cfg,
+    build_word_ngram_report_cfg,
     stage3_char4_avg_fulltext_search_cfg,
     stage3_char4_pct_baseline_cfg,
 )
@@ -204,6 +205,21 @@ def install_runner_bindings(
                 ),
                 baseline_cfg=state["_stage3_char4_pct_baseline_cfg"](),
             )
+        )
+    )
+    state["_build_word_ngram_report_cfg"] = (
+        lambda *, base_cfg, direction: build_word_ngram_report_cfg(
+            base_cfg=dict(base_cfg),
+            direction=direction,
+            word_ngram_report_enabled=bool(state["WORD_NGRAM_REPORT_ENABLED"]),
+            word_ngram_report_sqlite_path=state["WORD_NGRAM_REPORT_SQLITE_PATH"],
+            word_ngram_report_alpha=float(state["WORD_NGRAM_REPORT_ALPHA"]),
+            word_ngram_report_miss_logp=float(state["WORD_NGRAM_REPORT_MISS_LOGP"]),
+            word_ngram_report_min_positions=int(state["WORD_NGRAM_REPORT_MIN_POSITIONS"]),
+            word_ngram_report_prefix_total_thresholds=tuple(
+                int(v) for v in state["WORD_NGRAM_REPORT_PREFIX_TOTAL_THRESHOLDS"]
+            ),
+            resolve_repo_path_fn=state["_resolve_repo_path"],
         )
     )
 

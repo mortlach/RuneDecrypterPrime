@@ -80,6 +80,7 @@ def build_iteration_runtime_bridge(
         is_adaptive_focus_mode_fn=state["_is_adaptive_focus_mode"],
         stage3_search_cfg_fn=state["_stage3_char4_avg_fulltext_search_cfg"],
         build_stage3_experiment_cfg_fn=state["_build_stage3_experiment_cfg"],
+        build_word_ngram_report_cfg_fn=state["_build_word_ngram_report_cfg"],
         guard_no_ecdf_usage_fn=state["_guard_no_ecdf_usage"],
     )
 

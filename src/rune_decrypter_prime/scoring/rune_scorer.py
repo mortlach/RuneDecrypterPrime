@@ -37,6 +37,7 @@ from rune_decrypter_prime.core.types import (
     ensure_se_mode,
     ensure_avg_window_policy,
 )
+from rune_decrypter_prime.scoring.word_ngrams import RuneTokenWordNgramJudgeRuntime
 
 
 def _cfg_get(cfg: Any, key: str, default: Any = None) -> Any:
@@ -201,6 +202,9 @@ class RuneScorer(BaseScorer):
         self._hamming_max_hd: int = int(_cfg_get(scorer_cfg, "hamming_max_hd", 2 ** 31 - 1))
         self._hamming_direction_mode: str = str(_cfg_get(scorer_cfg, "hamming_direction_mode", "match") or "match").lower()
         self._hamming_enabled: bool = bool(_cfg_get(scorer_cfg, "hamming_enabled", False) or self._hamming_weight != 0.0)
+        self._hamming_dictionary_policy = _cfg_get(scorer_cfg, "hamming_dictionary_policy", None)
+        self._hamming_dictionary_policy_root = _cfg_get(scorer_cfg, "hamming_dictionary_policy_root", None)
+        self._hamming_wordlist_dir_resolved = None
         self._hamming_length_weights = None
         try:
             lw = _cfg_get(scorer_cfg, "hamming_length_weights")
@@ -211,10 +215,16 @@ class RuneScorer(BaseScorer):
 
         if self._hamming_enabled:
             try:
+                from rune_decrypter_prime.scoring.hamming.dictionary_assets import choose_hamming_dictionary_wordlist_dir
                 from rune_decrypter_prime.scoring.hamming.loader import load_raw1grams_wordlists
                 from rune_decrypter_prime.scoring.hamming.backend import HammingBackend
 
-                wl_dir = _cfg_get(scorer_cfg, "hamming_wordlist_dir")
+                wl_dir = choose_hamming_dictionary_wordlist_dir(
+                    explicit_wordlist_dir=_cfg_get(scorer_cfg, "hamming_wordlist_dir"),
+                    policy=self._hamming_dictionary_policy,
+                    policy_root=self._hamming_dictionary_policy_root,
+                )
+                self._hamming_wordlist_dir_resolved = wl_dir
                 build_rtl = bool(_cfg_get(scorer_cfg, "hamming_build_rtl", False))
                 wl_ltr, wl_rtl = load_raw1grams_wordlists(wl_dir, build_rtl=build_rtl)
                 self._hamming_backend = HammingBackend(
@@ -239,6 +249,16 @@ class RuneScorer(BaseScorer):
             self._span_hamming_mode = "raw_bonus"
         self._span_hamming_enabled = (self._span_hamming_mode != "off")
         self._span_hamming_assets_dir = _cfg_get(scorer_cfg, "span_hamming_assets_dir", None)
+        self._span_hamming_assets_dictionary_policy = _cfg_get(
+            scorer_cfg, "span_hamming_assets_dictionary_policy", None
+        )
+        self._span_hamming_allow_dictionary_policy_mismatch = bool(
+            _cfg_get(scorer_cfg, "span_hamming_allow_dictionary_policy_mismatch", False)
+        )
+        self._span_hamming_wordlist_dir_resolved = None
+        self._span_hamming_dictionary_policy = None
+        self._span_hamming_dictionary_policy_match = None
+        self._span_hamming_dictionary_policy_note = None
         self._span_hamming_bucket_policy = str(
             _cfg_get(scorer_cfg, "span_hamming_bucket_policy", "nearest_smaller_tie") or "nearest_smaller_tie"
         ).strip().lower()
@@ -274,6 +294,36 @@ class RuneScorer(BaseScorer):
         self._span_hamming_gate_score_floor = _cfg_get(scorer_cfg, "span_hamming_gate_score_floor", None)
         if self._span_hamming_gate_score_floor is not None:
             self._span_hamming_gate_score_floor = float(self._span_hamming_gate_score_floor)
+        self._span_hamming_lm_assets = None
+        self._span_hamming_lm_assets_json = _cfg_get(scorer_cfg, "span_hamming_lm_assets_json", None)
+        self._span_hamming_lm_profile_source = str(
+            _cfg_get(scorer_cfg, "span_hamming_lm_profile_source", "span_raw_by_len") or "span_raw_by_len"
+        ).strip()
+        self._span_hamming_lm_tail_start_index = int(
+            _cfg_get(scorer_cfg, "span_hamming_lm_tail_start_index", 5) or 0
+        )
+        self._span_hamming_lm_weight = float(_cfg_get(scorer_cfg, "span_hamming_lm_weight", 0.0) or 0.0)
+        self._word_ngram_judge_enabled = bool(_cfg_get(scorer_cfg, "word_ngram_judge_enabled", False))
+        self._word_ngram_judge_sqlite_path = _cfg_get(scorer_cfg, "word_ngram_judge_sqlite_path", None)
+        self._word_ngram_judge_alpha = float(_cfg_get(scorer_cfg, "word_ngram_judge_alpha", 0.4) or 0.4)
+        self._word_ngram_judge_miss_logp = float(_cfg_get(scorer_cfg, "word_ngram_judge_miss_logp", -20.0) or -20.0)
+        self._word_ngram_judge_min_positions = int(
+            _cfg_get(scorer_cfg, "word_ngram_judge_min_positions", 12) or 0
+        )
+        self._word_ngram_judge_prefix_total_thresholds = tuple(
+            int(v)
+            for v in (_cfg_get(scorer_cfg, "word_ngram_judge_prefix_total_thresholds", (1, 10, 100)) or (1, 10, 100))
+        )
+        self._word_ngram_judge = None
+        self._word_ngram_judge_forced_debug_intervals = False
+        if self._word_ngram_judge_enabled:
+            self._word_ngram_judge = RuneTokenWordNgramJudgeRuntime.open_sqlite(
+                self._word_ngram_judge_sqlite_path,
+                alpha=float(self._word_ngram_judge_alpha),
+                miss_logp=float(self._word_ngram_judge_miss_logp),
+                min_positions=int(self._word_ngram_judge_min_positions),
+                prefix_total_thresholds=self._word_ngram_judge_prefix_total_thresholds,
+            )
         if not (0.0 < self._span_hamming_ecdf_clamp_min < self._span_hamming_ecdf_clamp_max < 1.0):
             raise ValueError("span_hamming_ecdf_clamp_min/max must satisfy 0 < min < max < 1")
         if self._span_hamming_bucket_policy != "nearest_smaller_tie":
@@ -282,11 +332,21 @@ class RuneScorer(BaseScorer):
             raise ValueError("span_hamming_gate_fail_policy must be one of: score_floor, char_only")
         if self._span_hamming_enabled:
             try:
+                from rune_decrypter_prime.core.hamming_dictionary_policy import ensure_hamming_dictionary_policy
+                from rune_decrypter_prime.scoring.hamming.dictionary_assets import choose_hamming_dictionary_wordlist_dir
                 from rune_decrypter_prime.scoring.span_hamming import (
                     SpanCalibratedAssets,
                     SpanHammingBackend,
                     SpanHammingConfig,
+                    SpanHammingLmAssetsV2,
                 )
+
+                debug_return_intervals = bool(
+                    _cfg_get(scorer_cfg, "span_hamming_debug_return_intervals", False)
+                )
+                if self._word_ngram_judge is not None and not debug_return_intervals:
+                    debug_return_intervals = True
+                    self._word_ngram_judge_forced_debug_intervals = True
 
                 span_cfg = SpanHammingConfig(
                     len_min=int(_cfg_get(scorer_cfg, "span_hamming_len_min", 3)),
@@ -303,11 +363,21 @@ class RuneScorer(BaseScorer):
                     min_quality_threshold=float(
                         _cfg_get(scorer_cfg, "span_hamming_min_quality_threshold", 1e-9)
                     ),
-                    debug_return_intervals=bool(
-                        _cfg_get(scorer_cfg, "span_hamming_debug_return_intervals", False)
-                    ),
+                    debug_return_intervals=debug_return_intervals,
                 )
-                wl_dir = _cfg_get(scorer_cfg, "span_hamming_wordlist_dir", None)
+                explicit_span_wl_dir = _cfg_get(scorer_cfg, "span_hamming_wordlist_dir", None)
+                wl_dir = choose_hamming_dictionary_wordlist_dir(
+                    explicit_wordlist_dir=explicit_span_wl_dir,
+                    policy=self._hamming_dictionary_policy,
+                    policy_root=self._hamming_dictionary_policy_root,
+                )
+                self._span_hamming_wordlist_dir_resolved = wl_dir
+                if explicit_span_wl_dir is None and self._hamming_dictionary_policy is not None:
+                    self._span_hamming_dictionary_policy = str(
+                        getattr(self._hamming_dictionary_policy, "value", self._hamming_dictionary_policy)
+                    )
+                elif explicit_span_wl_dir is not None:
+                    self._span_hamming_dictionary_policy_note = "explicit_span_hamming_wordlist_dir"
                 require_selected = bool(_cfg_get(scorer_cfg, "span_hamming_require_selected", True))
                 self._span_hamming_backend = SpanHammingBackend(
                     config=span_cfg,
@@ -325,6 +395,53 @@ class RuneScorer(BaseScorer):
                             "span_hamming_assets_dir is required when span_hamming_mode='calibrated'"
                         )
                     self._span_hamming_assets = SpanCalibratedAssets.load(self._span_hamming_assets_dir)
+                    assets_policy = self._span_hamming_assets_dictionary_policy
+                    if assets_policy is None:
+                        assets_policy = getattr(self._span_hamming_assets, "dictionary_policy", None)
+                    if assets_policy is not None:
+                        assets_policy = ensure_hamming_dictionary_policy(assets_policy).value
+                    self._span_hamming_assets_dictionary_policy = assets_policy
+                    active_policy = self._span_hamming_dictionary_policy
+                    if active_policy is None:
+                        if self._span_hamming_allow_dictionary_policy_mismatch:
+                            self._span_hamming_dictionary_policy_match = None
+                            self._span_hamming_dictionary_policy_note = "custom_wordlist_dir_unverified_allowed"
+                        else:
+                            raise ValueError(
+                                "calibrated span-hamming with explicit span_hamming_wordlist_dir requires "
+                                "span_hamming_allow_dictionary_policy_mismatch=True"
+                            )
+                    elif assets_policy is None:
+                        if str(active_policy) == "normal":
+                            self._span_hamming_dictionary_policy_match = True
+                            self._span_hamming_dictionary_policy_note = "legacy_assets_assumed_normal"
+                        elif self._span_hamming_allow_dictionary_policy_mismatch:
+                            self._span_hamming_dictionary_policy_match = None
+                            self._span_hamming_dictionary_policy_note = (
+                                "assets_policy_unspecified_nondefault_dictionary_allowed"
+                            )
+                        else:
+                            raise ValueError(
+                                "calibrated span-hamming with non-default dictionary policy requires "
+                                "span_hamming_assets_dictionary_policy metadata or explicit override"
+                            )
+                    elif str(active_policy) == str(assets_policy):
+                        self._span_hamming_dictionary_policy_match = True
+                        self._span_hamming_dictionary_policy_note = "policy_match"
+                    elif self._span_hamming_allow_dictionary_policy_mismatch:
+                        self._span_hamming_dictionary_policy_match = False
+                        self._span_hamming_dictionary_policy_note = "policy_mismatch_allowed"
+                    else:
+                        raise ValueError(
+                            "calibrated span-hamming dictionary policy mismatch: "
+                            f"active={active_policy} assets={assets_policy}"
+                        )
+                    if self._span_hamming_lm_assets_json is not None:
+                        self._span_hamming_lm_assets = SpanHammingLmAssetsV2.load(self._span_hamming_lm_assets_json)
+                        if self._span_hamming_lm_tail_start_index >= int(self._span_hamming_lm_assets.profile_vector_length):
+                            raise ValueError(
+                                "span_hamming_lm_tail_start_index must be < profile_vector_length in LM assets"
+                            )
                     self._span_hamming_use_char_channel = bool(
                         self._span_hamming_weight_char > 0.0
                         or self._span_hamming_char_pct_min is not None
@@ -379,6 +496,14 @@ class RuneScorer(BaseScorer):
             "avg_window_policy": self._avg_window_policy.value,
             "win_configured": win_cfg,
             "win_effective": win_effective,
+            "hamming_dictionary_policy": (
+                str(getattr(self._hamming_dictionary_policy, "value", self._hamming_dictionary_policy))
+                if self._hamming_dictionary_policy is not None
+                else None
+            ),
+            "hamming_wordlist_dir": (
+                str(self._hamming_wordlist_dir_resolved) if self._hamming_wordlist_dir_resolved is not None else None
+            ),
             "span_hamming_enabled": bool(
                 self._span_hamming_backend is not None
                 and (
@@ -386,7 +511,19 @@ class RuneScorer(BaseScorer):
                     or self._span_hamming_mode == "calibrated"
                 )
             ),
+            "span_hamming_wordlist_dir": (
+                str(self._span_hamming_wordlist_dir_resolved)
+                if self._span_hamming_wordlist_dir_resolved is not None
+                else None
+            ),
+            "span_hamming_dictionary_policy": self._span_hamming_dictionary_policy,
             "span_hamming_mode": self._span_hamming_mode,
+            "span_hamming_assets_dir": (
+                str(self._span_hamming_assets_dir) if self._span_hamming_assets_dir is not None else None
+            ),
+            "span_hamming_assets_dictionary_policy": self._span_hamming_assets_dictionary_policy,
+            "span_hamming_dictionary_policy_match": self._span_hamming_dictionary_policy_match,
+            "span_hamming_dictionary_policy_note": self._span_hamming_dictionary_policy_note,
             "span_hamming_weight": float(self._span_hamming_weight),
             "span_hamming_combine_mode": self._span_hamming_combine_mode,
             "span_hamming_weight_span": float(self._span_hamming_weight_span),
@@ -400,6 +537,13 @@ class RuneScorer(BaseScorer):
             "span_hamming_eval_skipped_char_gate": 0,
             "span_hamming_eval_seconds_total": 0.0,
             "span_hamming_eval_active_seconds_total": 0.0,
+            "word_ngram_judge_enabled": bool(self._word_ngram_judge is not None),
+            "word_ngram_judge_sqlite_path": (
+                str(self._word_ngram_judge_sqlite_path) if self._word_ngram_judge_sqlite_path is not None else None
+            ),
+            "word_ngram_judge_min_positions": int(self._word_ngram_judge_min_positions),
+            "word_ngram_judge_prefix_total_thresholds": tuple(self._word_ngram_judge_prefix_total_thresholds),
+            "word_ngram_judge_forced_debug_intervals": bool(self._word_ngram_judge_forced_debug_intervals),
         }
         # Caches for WLI conversions/windows (bounded LRU)
         self._wli_cache_limit = 8
@@ -411,6 +555,59 @@ class RuneScorer(BaseScorer):
         if self._ecdf is None:
             self._ecdf = ECDFCache(self._ecdf_root, prefer_float32=self._ecdf_prefer_float32)
         return self._ecdf
+
+    def _score_word_ngram_signal(self, *, pt: np.ndarray, span_stats: Any) -> dict[str, Any]:
+        judge = getattr(self, "_word_ngram_judge", None)
+        if judge is None:
+            return {
+                "word_ngram_judge_available": False,
+                "word_ngram_judge_active": False,
+                "word_ngram_judge_inactive_reason": "disabled",
+            }
+        intervals = tuple(getattr(span_stats, "selected_intervals", ()) or ())
+        if not intervals:
+            return {
+                "word_ngram_judge_available": True,
+                "word_ngram_judge_active": False,
+                "word_ngram_judge_inactive_reason": "no_selected_intervals",
+                "word_ngram_judge_exact_word_count": 0,
+                "word_ngram_judge_segment_count": 0,
+                "word_ngram_judge_n_positions": 0,
+                "word_ngram_judge_trust_score": 0.0,
+                "word_ngram_judge_trust_tier": "inactive",
+            }
+        report = judge.score_candidate(
+            text_idx=pt.tolist(),
+            selected_intervals=intervals,
+            direction=self.direction,
+        )
+        return {
+            "word_ngram_judge_available": bool(report.available),
+            "word_ngram_judge_active": bool(report.active),
+            "word_ngram_judge_inactive_reason": report.inactive_reason,
+            "word_ngram_judge_exact_word_count": int(report.exact_word_count),
+            "word_ngram_judge_segment_count": int(report.segment_count),
+            "word_ngram_judge_xent_3": report.xent_3,
+            "word_ngram_judge_backoff_xent": report.xent_backoff_5_4_3,
+            "word_ngram_judge_n_positions": int(report.n_positions),
+            "word_ngram_judge_miss_rate": report.miss_rate,
+            "word_ngram_judge_used5_rate": report.used5_rate,
+            "word_ngram_judge_used4_rate": report.used4_rate,
+            "word_ngram_judge_used3_rate": report.used3_rate,
+            "word_ngram_judge_prefix_total_mean": float(report.prefix_total_mean),
+            "word_ngram_judge_prefix_total_min": float(report.prefix_total_min),
+            "word_ngram_judge_prefix_total_ge_1_rate": float(report.prefix_total_ge_1_rate),
+            "word_ngram_judge_prefix_total_ge_10_rate": float(report.prefix_total_ge_10_rate),
+            "word_ngram_judge_prefix_total_ge_100_rate": float(report.prefix_total_ge_100_rate),
+            "word_ngram_judge_trust_score": float(report.trust_score),
+            "word_ngram_judge_trust_tier": str(report.trust_tier),
+            "word_ngram_judge_report_xent": (
+                None if not report.active else report.xent_3
+            ),
+            "word_ngram_judge_report_backoff_xent": (
+                None if not report.active else report.xent_backoff_5_4_3
+            ),
+        }
 
     def _build_aligned_windows(
         self,
@@ -589,11 +786,16 @@ class RuneScorer(BaseScorer):
         assets = self._span_hamming_assets
         if backend is None or assets is None:
             raise ValueError("Calibrated span mode requires loaded span backend and assets")
+        lm_assets = self._span_hamming_lm_assets
         char_pct: float | None = None
         char_score: float | None = None
         if self._span_hamming_use_char_channel:
             char_pct, char_score = self._score_base_channel_pct(pt=pt, wli_windows=wli_windows)
-            if self._span_hamming_char_pct_min is not None and char_pct < float(self._span_hamming_char_pct_min):
+            if (
+                lm_assets is None
+                and self._span_hamming_char_pct_min is not None
+                and char_pct < float(self._span_hamming_char_pct_min)
+            ):
                 _bump_span_eval(total=1, active=0, skipped=1, seconds_total=0.0, seconds_active=0.0)
                 gate_reasons = ["char_pct_below_min"]
                 gate_policy = str(self._span_hamming_gate_fail_policy)
@@ -669,6 +871,11 @@ class RuneScorer(BaseScorer):
                     span_hamming_eval_total_batch=1,
                     span_hamming_eval_active_batch=0,
                     span_hamming_eval_skipped_char_gate_batch=1,
+                    span_lm_enabled=False,
+                    span_lm_applied_to_score=False,
+                    word_ngram_judge_available=bool(self._word_ngram_judge is not None),
+                    word_ngram_judge_active=False,
+                    word_ngram_judge_inactive_reason="span_skipped_char_gate",
                 )
                 return float(score)
         t_span = float(time.perf_counter())
@@ -688,13 +895,30 @@ class RuneScorer(BaseScorer):
         dt_span = max(0.0, float(time.perf_counter() - t_span))
         _bump_span_eval(total=1, active=1, skipped=0, seconds_total=dt_span, seconds_active=dt_span)
 
-        bucket = assets.score_span_raw(
+        selected_bucket = assets.select_bucket(
             direction=BaseScorer._dir_name(self.direction),
             text_length=int(pt.shape[0]),
+        )
+        bucket = assets.score_span_raw_in_bucket(
+            direction=BaseScorer._dir_name(self.direction),
+            length_bucket=int(selected_bucket),
             span_raw=span_raw,
             clamp_min=float(self._span_hamming_ecdf_clamp_min),
             clamp_max=float(self._span_hamming_ecdf_clamp_max),
         )
+
+        lm_score = None
+        if lm_assets is not None:
+            lm_score = lm_assets.score_profile_margin_l1_in_bucket(
+                stats=span_stats,
+                direction=BaseScorer._dir_name(self.direction),
+                length_bucket=int(selected_bucket),
+                clamp_min=float(self._span_hamming_ecdf_clamp_min),
+                clamp_max=float(self._span_hamming_ecdf_clamp_max),
+                profile_source=str(self._span_hamming_lm_profile_source),
+                tail_start_index=int(self._span_hamming_lm_tail_start_index),
+            )
+        word_ngram_stats = self._score_word_ngram_signal(pt=pt, span_stats=span_stats)
 
         gate_reasons: list[str] = []
         if span_cov < float(self._span_hamming_coverage_min):
@@ -703,6 +927,13 @@ class RuneScorer(BaseScorer):
             gate_reasons.append("quality_below_min")
         if self._span_hamming_span_pct_min is not None and bucket.span_pct < float(self._span_hamming_span_pct_min):
             gate_reasons.append("span_pct_below_min")
+        if (
+            self._span_hamming_use_char_channel
+            and char_pct is not None
+            and self._span_hamming_char_pct_min is not None
+            and char_pct < float(self._span_hamming_char_pct_min)
+        ):
+            gate_reasons.append("char_pct_below_min")
         if self._span_hamming_use_char_channel and char_pct is None:
             char_pct, char_score = self._score_base_channel_pct(pt=pt, wli_windows=wli_windows)
             if self._span_hamming_char_pct_min is not None and char_pct < float(self._span_hamming_char_pct_min):
@@ -733,6 +964,22 @@ class RuneScorer(BaseScorer):
             )
         )
         combined_energy = float(-np.log1p(-combined_pct))
+        span_energy_base = float(combined_energy)
+        profile_energy = float(lm_score.profile_margin_l1_energy) if lm_score is not None else 0.0
+        lm_applied_to_score = bool((lm_score is not None) and not gate_failed)
+        span_energy_total = (
+            float(span_energy_base + float(self._span_hamming_lm_weight) * profile_energy)
+            if lm_applied_to_score
+            else float(span_energy_base)
+        )
+        pct_total = float(1.0 - np.exp(-span_energy_total))
+        pct_total = float(
+            np.clip(
+                pct_total,
+                float(self._span_hamming_ecdf_clamp_min),
+                float(self._span_hamming_ecdf_clamp_max),
+            )
+        )
 
         fam = self.objective.family
         gate_policy = str(self._span_hamming_gate_fail_policy)
@@ -742,7 +989,7 @@ class RuneScorer(BaseScorer):
             else:
                 score = float(self._span_hamming_gate_score_floor)
         else:
-            score = float(combined_energy if fam is ObjectiveFamily.ENERGY else combined_pct)
+            score = float(span_energy_total if fam is ObjectiveFamily.ENERGY else pct_total)
 
         objective_stats = {
             "score_mean": float(score),
@@ -759,11 +1006,19 @@ class RuneScorer(BaseScorer):
             "combine_mode": combine_mode,
             "combined_pct": float(combined_pct),
             "combined_energy": float(combined_energy),
+            "span_energy_base": float(span_energy_base),
+            "span_energy_total": float(span_energy_total),
+            "span_pct_total": float(pct_total),
             "span_bucket_length": int(bucket.length_bucket),
             "span_bucket_direction": str(bucket.direction),
             "gate_failed": bool(gate_failed),
             "gate_reasons": list(gate_reasons),
             "gate_fail_policy": gate_policy,
+            "span_lm_enabled": bool(lm_score is not None),
+            "span_lm_applied_to_score": bool(lm_applied_to_score),
+            "word_ngram_judge_active": bool(word_ngram_stats.get("word_ngram_judge_active", False)),
+            "word_ngram_judge_report_xent": word_ngram_stats.get("word_ngram_judge_report_xent"),
+            "word_ngram_judge_trust_tier": word_ngram_stats.get("word_ngram_judge_trust_tier"),
         }
         self._stash_stats(
             dtype=self._dtype,
@@ -805,6 +1060,44 @@ class RuneScorer(BaseScorer):
             span_hamming_eval_total_batch=1,
             span_hamming_eval_active_batch=1,
             span_hamming_eval_skipped_char_gate_batch=0,
+            span_lm_enabled=bool(lm_score is not None),
+            span_lm_applied_to_score=bool(lm_applied_to_score),
+            span_lm_profile_source=(
+                None if lm_score is None else str(self._span_hamming_lm_profile_source)
+            ),
+            span_lm_tail_start_index=(
+                None if lm_score is None else int(self._span_hamming_lm_tail_start_index)
+            ),
+            span_lm_tail_start_index_used_for_score=False,
+            span_lm_weight=float(self._span_hamming_lm_weight),
+            span_lm_length_bucket=(
+                None if lm_score is None else int(lm_score.length_bucket)
+            ),
+            span_lm_profile_margin_l1_raw=(
+                None if lm_score is None else float(lm_score.profile_margin_l1_raw)
+            ),
+            span_lm_profile_margin_l1_pct_noise=(
+                None if lm_score is None else float(lm_score.profile_margin_l1_pct_noise)
+            ),
+            span_lm_profile_margin_l1_pct_real=(
+                None if lm_score is None else lm_score.profile_margin_l1_pct_real
+            ),
+            span_lm_profile_energy=(
+                None if lm_score is None else float(lm_score.profile_margin_l1_energy)
+            ),
+            span_lm_mean_bin_index_raw=(
+                None if lm_score is None else float(lm_score.mean_bin_index_raw)
+            ),
+            span_lm_mean_bin_length_raw=(
+                None if lm_score is None else float(lm_score.mean_bin_length_raw)
+            ),
+            span_lm_tail_mass_raw=(
+                None if lm_score is None else float(lm_score.tail_mass_raw)
+            ),
+            span_energy_base=float(span_energy_base),
+            span_energy_total=float(span_energy_total),
+            span_pct_total=float(pct_total),
+            **word_ngram_stats,
         )
         return float(score)
 
@@ -857,6 +1150,7 @@ class RuneScorer(BaseScorer):
 
         bonus = float(weight * span_raw)
         out = float(base_score + bonus)
+        word_ngram_stats = self._score_word_ngram_signal(pt=pt, span_stats=span_stats)
         stats = self.__dict__.setdefault("_last_stats", {})
         if isinstance(stats, dict):
             stats["span_hamming_raw"] = span_raw
@@ -868,6 +1162,7 @@ class RuneScorer(BaseScorer):
             stats["span_hamming_quality_by_len"] = span_q_by_len
             stats["span_hamming_bonus"] = bonus
             stats["span_hamming_weight"] = weight
+            stats.update(word_ngram_stats)
             stats["score_mean_base"] = float(base_score)
             stats["score_mean"] = out
             if "stat.mean_per_ngram_penalized" in stats:
@@ -905,6 +1200,7 @@ class RuneScorer(BaseScorer):
             span_hamming_weight=weight,
             score_mean=out,
             score_mean_base=float(base_score),
+            **word_ngram_stats,
         )
         return out
 

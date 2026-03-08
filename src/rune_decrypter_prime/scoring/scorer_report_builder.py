@@ -76,6 +76,61 @@ def _safe_float_metrics(value: Any) -> dict[str, float]:
     return out
 
 
+def _section_from_prefix(data: Mapping[str, Any], prefix: str) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for k, v in data.items():
+        key = str(k)
+        if key.startswith(prefix):
+            out[key[len(prefix):]] = v
+    return out
+
+
+def _derived_details_from_telemetry(telemetry: Mapping[str, Any]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+
+    span_hamming = _section_from_prefix(telemetry, "span_hamming_")
+    if span_hamming:
+        out["span_hamming"] = span_hamming
+
+    word_ngrams = _section_from_prefix(telemetry, "word_ngram_judge_")
+    if word_ngrams:
+        out["word_ngrams"] = word_ngrams
+
+    span_lm = _section_from_prefix(telemetry, "span_lm_")
+    if span_lm:
+        out["span_lm"] = span_lm
+
+    hamming_dictionary: dict[str, Any] = {}
+    for key in (
+        "hamming_dictionary_policy",
+        "span_hamming_dictionary_policy",
+        "span_hamming_assets_dictionary_policy",
+        "span_hamming_dictionary_policy_match",
+        "span_hamming_dictionary_policy_note",
+    ):
+        if key in telemetry:
+            hamming_dictionary[key] = telemetry[key]
+    if hamming_dictionary:
+        out["hamming_dictionary"] = hamming_dictionary
+
+    return out
+
+
+def _merge_detail_sections(
+    base: Mapping[str, Any],
+    extra: Mapping[str, Any],
+) -> dict[str, Any]:
+    out = _safe_mapping(base)
+    for key, value in _safe_mapping(extra).items():
+        if key in out and isinstance(out[key], Mapping) and isinstance(value, Mapping):
+            merged = dict(out[key])
+            merged.update(dict(value))
+            out[key] = merged
+        else:
+            out[key] = value
+    return out
+
+
 def build_scorer_report(
     *,
     scorer: Any,
@@ -105,7 +160,8 @@ def build_scorer_report(
         pass
     metrics.update(_safe_float_metrics(extra_metrics or {}))
 
-    details = _safe_mapping(extra_details or {})
+    derived_details = _derived_details_from_telemetry(telemetry)
+    details = _merge_detail_sections(derived_details, _safe_mapping(extra_details or {}))
     return ScorerReport(
         objective_str=str(objective_str or ""),
         objective_spec=objective_spec,
@@ -116,4 +172,3 @@ def build_scorer_report(
         cost_ms=(float(cost_ms) if cost_ms is not None else None),
         details=details,
     )
-
