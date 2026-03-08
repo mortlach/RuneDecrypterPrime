@@ -9,6 +9,8 @@ from jsonschema.exceptions import ValidationError
 
 pytestmark = pytest.mark.tier_a
 
+_ROOT = Path(__file__).resolve().parents[2]
+
 
 def _load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -100,7 +102,7 @@ def test_result_schema_loads_and_validates():
 
 @pytest.mark.parametrize(
     "path",
-    sorted(Path("tools/benchmarks/community/examples").glob("*.json")),
+    sorted((_ROOT / "tools" / "benchmarks" / "community" / "examples").glob("*.json")),
 )
 def test_example_json_files_parse(path: Path):
     _load_json(path)
