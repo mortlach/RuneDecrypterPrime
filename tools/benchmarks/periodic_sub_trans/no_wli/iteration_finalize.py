@@ -10,6 +10,7 @@ from tools.benchmarks.periodic_sub_trans.no_wli.iteration_outcome import (
 )
 from tools.benchmarks.periodic_sub_trans.no_wli.word_ngram_report import (
     score_word_ngram_report_for_plaintext,
+    score_word_ngram_report_for_topk_rows,
 )
 
 
@@ -109,6 +110,18 @@ def finalize_iteration_and_commit(
         wli=wli,
         require_batch_scoring=bool(require_batch_scoring),
     )
+    stage2_topk_word_ngram_report = score_word_ngram_report_for_topk_rows(
+        scorer_runtime=scorer_word_ngram_report_runtime,
+        topk_rows=stage2_topk_payload,
+        wli=wli,
+        require_batch_scoring=bool(require_batch_scoring),
+    )
+    stage3_topk_word_ngram_report = score_word_ngram_report_for_topk_rows(
+        scorer_runtime=scorer_word_ngram_report_runtime,
+        topk_rows=stage3_topk_payload,
+        wli=wli,
+        require_batch_scoring=bool(require_batch_scoring),
+    )
 
     inst_row, artifact_payload = build_iteration_payloads_fn(
         tier=tier,
@@ -168,6 +181,8 @@ def finalize_iteration_and_commit(
         ),
     )
     artifact_payload["word_ngram_report"] = dict(word_ngram_report)
+    artifact_payload["stage2_topk_word_ngram_report"] = list(stage2_topk_word_ngram_report)
+    artifact_payload["stage3_topk_word_ngram_report"] = list(stage3_topk_word_ngram_report)
     instances.append(dict(inst_row))
     commit_iteration_with_checkpoint_fn(
         inst_row=inst_row,

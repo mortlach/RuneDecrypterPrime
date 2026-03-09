@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Sequence
+from typing import Any, Dict, List, Mapping, Sequence
 
 import numpy as np
 
+from rune_decrypter_prime.scoring.scorer_report_builder import build_scorer_report
 from tools.benchmarks.periodic_sub_trans.common.batch_eval import score_plaintexts_chunked
 
 
@@ -116,7 +117,7 @@ def score_word_ngram_report_for_plaintext(
             word_ngram_judge_active=False,
             word_ngram_judge_inactive_reason="empty_plaintext",
         )
-    score_plaintexts_chunked(
+    score_arr, _stats = score_plaintexts_chunked(
         scorer=scorer_runtime,
         plaintexts=[pt],
         wli=wli,
@@ -131,4 +132,53 @@ def score_word_ngram_report_for_plaintext(
                 stats_obj = dict(last)
     except Exception:
         stats_obj = {}
-    return extract_word_ngram_report_fields(stats_obj)
+    payload = extract_word_ngram_report_fields(stats_obj)
+    details_word_ngrams = {
+        str(k)[len("word_ngram_judge_") :]: v
+        for k, v in payload.items()
+        if str(k).startswith("word_ngram_judge_")
+    }
+    try:
+        report = build_scorer_report(
+            scorer=scorer_runtime,
+            objective_str=str(getattr(scorer_runtime, "objective", "") or ""),
+            score=float(score_arr[0]) if int(score_arr.size) > 0 else 0.0,
+            raw_score=float(score_arr[0]) if int(score_arr.size) > 0 else None,
+            extra_details={"word_ngrams": details_word_ngrams},
+        )
+        payload["scorer_report"] = report.to_json_dict()
+    except Exception:
+        pass
+    return payload
+
+
+def score_word_ngram_report_for_topk_rows(
+    *,
+    scorer_runtime: Any,
+    topk_rows: Sequence[Mapping[str, Any]] | None,
+    wli: Any,
+    require_batch_scoring: bool,
+) -> List[Dict[str, Any]]:
+    if scorer_runtime is None:
+        return []
+    if not topk_rows:
+        return []
+    out: List[Dict[str, Any]] = []
+    for row_idx, row_obj in enumerate(topk_rows, start=1):
+        row = dict(row_obj) if isinstance(row_obj, Mapping) else {}
+        if not row:
+            continue
+        report = score_word_ngram_report_for_plaintext(
+            scorer_runtime=scorer_runtime,
+            plaintext_idx=row.get("plaintext_idx"),
+            wli=wli,
+            require_batch_scoring=bool(require_batch_scoring),
+        )
+        result_row: Dict[str, Any] = dict(rank=int(row.get("rank", row_idx)))
+        if "tag" in row:
+            result_row["tag"] = str(row.get("tag", "") or "")
+        if "source" in row:
+            result_row["source"] = str(row.get("source", "") or "")
+        result_row["word_ngram_report"] = dict(report)
+        out.append(result_row)
+    return out

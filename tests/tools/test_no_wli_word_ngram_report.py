@@ -60,7 +60,7 @@ def test_score_word_ngram_report_for_plaintext_uses_last_stats(
         observed["require_batch"] = bool(kwargs.get("require_batch", False))
         observed["chunk_size"] = int(kwargs.get("chunk_size", -1))
         observed["n"] = len(list(kwargs.get("plaintexts", [])))
-        return np.asarray([0.0], dtype=np.float32), {}
+        return np.asarray([2.5], dtype=np.float32), {}
 
     class _FakeScorer:
         def last_stats(self):
@@ -85,3 +85,50 @@ def test_score_word_ngram_report_for_plaintext_uses_last_stats(
     assert int(out.get("word_ngram_judge_n_positions", 0)) == 13
     assert float(out.get("word_ngram_judge_report_xent", 0.0)) == pytest.approx(1.234)
     assert str(out.get("word_ngram_judge_trust_tier", "")) == "medium"
+    scorer_report = dict(out.get("scorer_report", {}))
+    assert float(scorer_report.get("score", 0.0)) == pytest.approx(2.5)
+    details = dict(scorer_report.get("details", {}))
+    word_ngrams = dict(details.get("word_ngrams", {}))
+    assert str(word_ngrams.get("trust_tier", "")) == "medium"
+
+
+def test_score_word_ngram_report_for_topk_rows_scores_each_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed_plaintexts: list[list[int]] = []
+
+    def _fake_score_plaintexts_chunked(**kwargs):
+        plaintexts = list(kwargs.get("plaintexts", []))
+        pt = np.asarray(plaintexts[0], dtype=np.uint8).reshape(-1)
+        observed_plaintexts.append(pt.astype(int).tolist())
+        scorer = kwargs.get("scorer")
+        setattr(scorer, "_last_n_positions", int(pt.size))
+        return np.asarray([0.0], dtype=np.float32), {}
+
+    class _FakeScorer:
+        _last_n_positions = 0
+
+        def last_stats(self):
+            return {
+                "word_ngram_judge_available": True,
+                "word_ngram_judge_active": True,
+                "word_ngram_judge_n_positions": int(self._last_n_positions),
+                "word_ngram_judge_trust_tier": "low",
+            }
+
+    monkeypatch.setattr(report_mod, "score_plaintexts_chunked", _fake_score_plaintexts_chunked)
+    out = report_mod.score_word_ngram_report_for_topk_rows(
+        scorer_runtime=_FakeScorer(),
+        topk_rows=[
+            {"rank": 1, "plaintext_idx": [1, 2, 3]},
+            {"rank": 2, "plaintext_idx": [1, 2, 3, 4], "tag": "best_match_injected"},
+        ],
+        wli=[],
+        require_batch_scoring=True,
+    )
+    assert observed_plaintexts == [[1, 2, 3], [1, 2, 3, 4]]
+    assert [int(row.get("rank", -1)) for row in out] == [1, 2]
+    assert str(out[1].get("tag", "")) == "best_match_injected"
+    assert int(out[0]["word_ngram_report"].get("word_ngram_judge_n_positions", 0)) == 3
+    assert int(out[1]["word_ngram_report"].get("word_ngram_judge_n_positions", 0)) == 4
+    assert "scorer_report" in dict(out[0].get("word_ngram_report", {}))

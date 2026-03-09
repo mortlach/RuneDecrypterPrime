@@ -1,0 +1,71 @@
+{
+  "files": [
+    {
+      "grid_max": 1.8571428571404072,
+      "grid_min": -1.1428571428510186,
+      "meta_sha256": "0ae3ec8416b6cad84d6caae141fe034447236bc9fcfc6e682a3b1f6f38649d7a",
+      "path": "ecdf/span_x/rtl_nose_span_lb20_fulltext_x_span.npz"
+    },
+    {
+      "grid_max": 1.0,
+      "grid_min": -0.7368421052585872,
+      "meta_sha256": "adcd036b81ad52915ec9165830c0fbf8936e888378e0b9c7b190b63500c5317d",
+      "path": "ecdf/span_x/rtl_nose_span_lb50_fulltext_x_span.npz"
+    },
+    {
+      "grid_max": 0.6749999999966256,
+      "grid_min": -0.47499999999512466,
+      "meta_sha256": "3c23f23a6a3b2826cd22af74552145780dab1c4922c805ad5d6ed4a9a3a0ae21",
+      "path": "ecdf/span_x/rtl_nose_span_lb100_fulltext_x_span.npz"
+    },
+    {
+      "grid_max": 0.39506172839259296,
+      "grid_min": -0.3456790123481476,
+      "meta_sha256": "e6b893e5833a96e3cba11b1c181cf49054cb007683274a6aad3cd1eb9f74ebb9",
+      "path": "ecdf/span_x/rtl_nose_span_lb200_fulltext_x_span.npz"
+    },
+    {
+      "grid_max": 0.3305785123944812,
+      "grid_min": -0.32231404958536347,
+      "meta_sha256": "2faad8ff7fb2ddc85a8434d2c5e59281721e0968611765b1dab543aa620c00f5",
+      "path": "ecdf/span_x/rtl_nose_span_lb300_fulltext_x_span.npz"
+    },
+    {
+      "grid_max": 0.27586206896373394,
+      "grid_min": -0.21182266010150624,
+      "meta_sha256": "5406d3300d5cc5ca88965638fcf575ab2c9377a5b45f2c47bdf58bf7280ce973",
+      "path": "ecdf/span_x/rtl_nose_span_lb500_fulltext_x_span.npz"
+    },
+    {
+      "grid_max": 0.2263374485629628,
+      "grid_min": -0.19341563785925972,
+      "meta_sha256": "aabd32ba5a2efc5b898ac1778720b40dba04a8e9e36e1a0742c38e29149785bd",
+      "path": "ecdf/span_x/rtl_nose_span_lb600_fulltext_x_span.npz"
+    },
+    {
+      "grid_max": 0.2072368421054337,
+      "grid_min": -0.2171052631630075,
+      "meta_sha256": "8cda66bf4d7a09afae6359c7db420a6fe1ad3bc85912b3d64e9e0102176d4d2d",
+      "path": "ecdf/span_x/rtl_nose_span_lb750_fulltext_x_span.npz"
+    },
+    {
+      "grid_max": 0.14496314495894352,
+      "grid_min": -0.13513513514071318,
+      "meta_sha256": "62624bf786b900213fec1a01fab2e92327fc2f111e7618d892b0c8da7f5677e1",
+      "path": "ecdf/span_x/rtl_nose_span_lb1000_fulltext_x_span.npz"
+    },
+    {
+      "grid_max": 0.12438625204644187,
+      "grid_min": -0.13420621931074583,
+      "meta_sha256": "e23a38d5b184e0e5346b4b2ba3af19c750d3a3c8badbcc7d9101ec767aa3218f",
+      "path": "ecdf/span_x/rtl_nose_span_lb1500_fulltext_x_span.npz"
+    },
+    {
+      "grid_max": 0.0870010235376439,
+      "grid_min": -0.10133060388978969,
+      "meta_sha256": "4e2ba616994005a53ac82c49dc238537e64d6869454b23cf7bfa0ca1547840d0",
+      "path": "ecdf/span_x/rtl_nose_span_lb2400_fulltext_x_span.npz"
+    }
+  ],
+  "version": "v1"
+}

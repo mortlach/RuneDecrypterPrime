@@ -8,8 +8,28 @@ from rune_decrypter_prime.core.types import ScorerImpl
 from tools.benchmarks.periodic_sub_trans.common.core_enums import BenchmarkOrder
 
 
+def _discover_word_ngram_sqlite_path(*, repo_root: Path | None = None) -> Path | None:
+    root = Path(repo_root) if repo_root is not None else Path(__file__).resolve().parents[4]
+    candidates: list[Path] = []
+    direct = Path("assets/scoring/word_ngrams_tokenized64_phase2_v1.sqlite")
+    if (root / direct).exists():
+        candidates.append(direct)
+    packed = Path("assets_packed/word_ngrams_tokenized64_phase2_v1.sqlite")
+    if (root / packed).exists():
+        candidates.append(packed)
+    output_root = root / "output/tools/benchmarks/scoring/word_ngrams_sqlite_assets"
+    if output_root.exists():
+        for fp in output_root.glob("**/word_ngrams_tokenized64_phase2_v1.sqlite"):
+            if fp.exists():
+                candidates.append(fp.relative_to(root))
+    if not candidates:
+        return None
+    return max(candidates, key=lambda p: (root / p).stat().st_mtime)
+
+
 def apply_runner_defaults(*, state: MutableMapping[str, Any]) -> None:
     """Populate top-level runner configuration defaults."""
+    word_ngram_sqlite_path = _discover_word_ngram_sqlite_path()
     state.update(
         {
             "ALPHABET_SIZE": 29,
@@ -42,8 +62,8 @@ def apply_runner_defaults(*, state: MutableMapping[str, Any]) -> None:
             "SCORING_EXPERIMENT_SPAN_QUALITY_MIN": 0.05,
             "SCORING_EXPERIMENT_C_CHAR_PCT_MIN": 0.70,
             # Report-only word-ngram side-channel.
-            "WORD_NGRAM_REPORT_ENABLED": False,
-            "WORD_NGRAM_REPORT_SQLITE_PATH": None,
+            "WORD_NGRAM_REPORT_ENABLED": bool(word_ngram_sqlite_path is not None),
+            "WORD_NGRAM_REPORT_SQLITE_PATH": word_ngram_sqlite_path,
             "WORD_NGRAM_REPORT_ALPHA": 0.4,
             "WORD_NGRAM_REPORT_MISS_LOGP": -20.0,
             "WORD_NGRAM_REPORT_MIN_POSITIONS": 12,
