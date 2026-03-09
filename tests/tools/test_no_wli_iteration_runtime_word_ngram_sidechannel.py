@@ -40,7 +40,7 @@ class _FakeSubCipher:
         return np.asarray(ciphertext, dtype=np.uint8).reshape(-1)
 
 
-def test_word_ngram_report_cfg_uses_search_base_not_basin_judge(
+def test_word_ngram_report_cfg_uses_span_capable_basin_judge_base(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(runtime_mod, "PeriodicStructuredMatrixKeyOps", _FakeKeyOps)
@@ -116,6 +116,5 @@ def test_word_ngram_report_cfg_uses_search_base_not_basin_judge(
     )
 
     base_cfg = dict(captured.get("base_cfg", {}))
-    assert str(base_cfg.get("objective", "")) == "avg.logp.win20"
-    assert bool(base_cfg.get("span_hamming_enabled", False)) is False
-    assert str(base_cfg.get("span_hamming_mode", "")) != "calibrated"
+    assert bool(base_cfg.get("span_hamming_enabled", False)) is True
+    assert str(base_cfg.get("span_hamming_mode", "")) == "calibrated"

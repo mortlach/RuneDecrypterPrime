@@ -840,7 +840,7 @@ def finalize_stage2_archive(
             best2_judge = float("nan")
             if best2_pt_arr.size > 0:
                 _judge_arr, _judge_stats = score_plaintexts_chunked(
-                    scorer=scorer_full_runtime,
+                    scorer=scorer_stage2_judge_runtime,
                     plaintexts=[best2_pt_arr],
                     wli=None,
                     chunk_size=1,

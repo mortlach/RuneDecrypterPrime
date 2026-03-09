@@ -126,7 +126,7 @@ def build_iteration_runtime(
     scorer_basin_judge_runtime = build_scorer(cfg_full, ScoringConfig(**scorer_basin_judge))
     scorer_word_ngram_report_runtime = None
     scorer_word_ngram_report_cfg = build_word_ngram_report_cfg_fn(
-        base_cfg=dict(scorer_stage3_search),
+        base_cfg=dict(scorer_basin_judge),
         direction=direction,
     )
     if scorer_word_ngram_report_cfg is not None:

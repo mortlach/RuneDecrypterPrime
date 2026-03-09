@@ -139,9 +139,11 @@ def score_word_ngram_report_for_plaintext(
         if str(k).startswith("word_ngram_judge_")
     }
     try:
+        objective_raw = getattr(scorer_runtime, "objective", None)
+        objective_str = objective_raw if isinstance(objective_raw, str) else ""
         report = build_scorer_report(
             scorer=scorer_runtime,
-            objective_str=str(getattr(scorer_runtime, "objective", "") or ""),
+            objective_str=str(objective_str or ""),
             score=float(score_arr[0]) if int(score_arr.size) > 0 else 0.0,
             raw_score=float(score_arr[0]) if int(score_arr.size) > 0 else None,
             extra_details={"word_ngrams": details_word_ngrams},

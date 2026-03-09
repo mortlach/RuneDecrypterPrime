@@ -14,13 +14,11 @@ FIXTURE_IDS: tuple[str, ...] | None = None
 FIXTURE_LENGTH_OVERRIDE: int | None = 1000
 
 USE_CAMPAIGN_GRID = False
-PERIODS_OVERRIDE: tuple[int, ...] | None = (5, 7, 9, 11, 13)
+PERIODS_OVERRIDE: tuple[int, ...] | None = (9, 11, 13)
 COLUMNS_OVERRIDE_BY_PERIOD: dict[int, tuple[int, ...]] = {
-    5: (1, 3),
-    7: (1, 3, 5),
     9: (1, 3, 5, 7),
     11: (1, 3, 5, 7, 9),
-    13: (1, 3, 5, 7, 9, 11, 13),
+    13: (1, 3, 5, 7, 9),
 }
 
 RUN_MODE = "adaptive_fixture_v1"
@@ -28,8 +26,8 @@ NO_WLI_PROFILE_ID = "no_wli_a1_m4_b4_stage3avg_fulltext_longrun3x_v1"
 RUN_SEEDS = (111,)
 TEXT_OFFSETS = (0,)
 HEARTBEAT_SECONDS = 3600
-SCORER_IMPL = "numpy"
-SCORER_STAGE3_IMPL_AVG_FULLTEXT = "numpy"
+SCORER_IMPL = "torch"
+SCORER_STAGE3_IMPL_AVG_FULLTEXT = "torch"
 
 # Acceptance-harness preset for Phase-3 target:
 # - first N real fixtures from campaign config
@@ -58,7 +56,8 @@ STAGE3_SPAN_BASIN_K_SWEEP_VALUES: tuple[int, ...] = (96,)
 DRY_RUN_ONLY = False
 STOP_ON_ERROR = True
 MAX_JOBS: int | None = None
-MAX_WALLCLOCK_SECONDS: float | None = None
+# Target roughly one-day campaign budget; runner checkpoints allow resume.
+MAX_WALLCLOCK_SECONDS: float | None = 20.0 * 3600.0
 
 RUN_STATE_PATH = Path(
     "output/tools/benchmarks/periodic_sub_trans/no_wli/fixture_matrix_run_state_latest.json"

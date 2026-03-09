@@ -26,7 +26,7 @@ def to_repo_rel_path(path_like: Path | str | None, *, root: Path) -> str:
     raw = Path(path_like).expanduser()
     root_resolved = root.resolve()
     try:
-        p = raw.resolve()
+        p = (root_resolved / raw).resolve() if not raw.is_absolute() else raw.resolve()
         return str(p.relative_to(root_resolved)).replace("\\", "/")
     except Exception:
         if not raw.is_absolute():

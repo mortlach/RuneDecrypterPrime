@@ -132,3 +132,26 @@ def test_score_word_ngram_report_for_topk_rows_scores_each_row(
     assert int(out[0]["word_ngram_report"].get("word_ngram_judge_n_positions", 0)) == 3
     assert int(out[1]["word_ngram_report"].get("word_ngram_judge_n_positions", 0)) == 4
     assert "scorer_report" in dict(out[0].get("word_ngram_report", {}))
+
+
+def test_score_word_ngram_report_builds_scorer_report_when_objective_is_non_string(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _fake_score_plaintexts_chunked(**kwargs):
+        _ = kwargs
+        return np.asarray([1.0], dtype=np.float32), {}
+
+    class _FakeScorer:
+        objective = object()
+
+        def last_stats(self):
+            return {"word_ngram_judge_available": True}
+
+    monkeypatch.setattr(report_mod, "score_plaintexts_chunked", _fake_score_plaintexts_chunked)
+    out = report_mod.score_word_ngram_report_for_plaintext(
+        scorer_runtime=_FakeScorer(),
+        plaintext_idx=[1, 2, 3],
+        wli=[],
+        require_batch_scoring=True,
+    )
+    assert "scorer_report" in out
