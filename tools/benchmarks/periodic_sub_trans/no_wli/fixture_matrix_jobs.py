@@ -3,6 +3,39 @@ from __future__ import annotations
 from typing import Any, Callable, Mapping, Sequence
 
 
+def _sync_stage3_two_phase_defaults_from_live_state(*, no_wli: Any) -> None:
+    """Keep profile-reset defaults aligned with current live Stage-3 two-phase config.
+
+    The stage3-span-basin-k sweep wrapper reapplies profile defaults before each
+    sweep run. Without syncing these shadow defaults, fixture-matrix forced
+    two-phase settings are reverted back to runner hardcoded defaults.
+    """
+    if hasattr(no_wli, "_STAGE3_TWO_PHASE_ENABLED_DEFAULT"):
+        no_wli._STAGE3_TWO_PHASE_ENABLED_DEFAULT = bool(  # type: ignore[attr-defined]
+            no_wli.STAGE3_TWO_PHASE_ENABLED
+        )
+    if hasattr(no_wli, "_STAGE3_PHASEA_CFG_DEFAULT"):
+        no_wli._STAGE3_PHASEA_CFG_DEFAULT = {  # type: ignore[attr-defined]
+            str(k): int(v) for k, v in dict(no_wli.STAGE3_PHASEA_CFG).items()
+        }
+    if hasattr(no_wli, "_STAGE3_PHASEB_CFG_DEFAULT"):
+        no_wli._STAGE3_PHASEB_CFG_DEFAULT = {  # type: ignore[attr-defined]
+            str(k): int(v) for k, v in dict(no_wli.STAGE3_PHASEB_CFG).items()
+        }
+    if hasattr(no_wli, "_STAGE3_PHASEB_TOP_N_DEFAULT"):
+        no_wli._STAGE3_PHASEB_TOP_N_DEFAULT = int(  # type: ignore[attr-defined]
+            no_wli.STAGE3_PHASEB_TOP_N
+        )
+    if hasattr(no_wli, "_STAGE3_PHASEB_GATE_DELTA_FLOOR_DEFAULT"):
+        no_wli._STAGE3_PHASEB_GATE_DELTA_FLOOR_DEFAULT = float(  # type: ignore[attr-defined]
+            no_wli.STAGE3_PHASEB_GATE_DELTA_FLOOR
+        )
+    if hasattr(no_wli, "_STAGE3_PHASEB_GATE_END_GAIN_FLOOR_DEFAULT"):
+        no_wli._STAGE3_PHASEB_GATE_END_GAIN_FLOOR_DEFAULT = float(  # type: ignore[attr-defined]
+            no_wli.STAGE3_PHASEB_GATE_END_GAIN_FLOOR
+        )
+
+
 def job_key(job: Any) -> str:
     return "|".join(
         (
@@ -97,7 +130,8 @@ def build_fixture_jobs(
         validated_schedules.append(resolved)
 
     for fixture in fixtures:
-        for period in sorted(int(k) for k in period_columns.keys()):
+        # Preserve caller-specified period order (for example p13-first campaigns).
+        for period in tuple(int(k) for k in period_columns.keys()):
             columns = unique_sorted_ints_fn(tuple(int(x) for x in period_columns[period]))
             for column in columns:
                 for run_seed in seeds:
@@ -133,6 +167,12 @@ def apply_job(
     no_wli: Any,
     disable_stage3_span_basin_k_sweep: bool,
     stage3_span_basin_k_sweep_values: Sequence[int],
+    force_stage3_two_phase: bool = False,
+    force_stage3_phasea_cfg: Mapping[str, Any] | None = None,
+    force_stage3_phaseb_cfg: Mapping[str, Any] | None = None,
+    force_stage3_phaseb_top_n: int | None = None,
+    force_stage3_phaseb_gate_delta_floor: float | None = None,
+    force_stage3_phaseb_gate_end_gain_floor: float | None = None,
 ) -> None:
     if bool(disable_stage3_span_basin_k_sweep):
         no_wli.RUN_STAGE3_SPAN_BASIN_K_SWEEP = False
@@ -161,6 +201,27 @@ def apply_job(
         scorer_schedule=job.scorer_schedule(),
     )
     no_wli.SCORING_EXPERIMENT_PROFILE = str(job.scoring_experiment_profile)
+    if bool(force_stage3_two_phase):
+        no_wli.STAGE3_TWO_PHASE_ENABLED = True
+        if force_stage3_phasea_cfg is not None:
+            no_wli.STAGE3_PHASEA_CFG = {
+                str(k): int(v) for k, v in dict(force_stage3_phasea_cfg).items()
+            }
+        if force_stage3_phaseb_cfg is not None:
+            no_wli.STAGE3_PHASEB_CFG = {
+                str(k): int(v) for k, v in dict(force_stage3_phaseb_cfg).items()
+            }
+        if force_stage3_phaseb_top_n is not None:
+            no_wli.STAGE3_PHASEB_TOP_N = int(force_stage3_phaseb_top_n)
+        if force_stage3_phaseb_gate_delta_floor is not None:
+            no_wli.STAGE3_PHASEB_GATE_DELTA_FLOOR = float(
+                force_stage3_phaseb_gate_delta_floor
+            )
+        if force_stage3_phaseb_gate_end_gain_floor is not None:
+            no_wli.STAGE3_PHASEB_GATE_END_GAIN_FLOOR = float(
+                force_stage3_phaseb_gate_end_gain_floor
+            )
+    _sync_stage3_two_phase_defaults_from_live_state(no_wli=no_wli)
     no_wli.SPAN_DECISION_ROLE_ENABLED = bool(
         getattr(job, "span_decision_role_enabled", False)
     )

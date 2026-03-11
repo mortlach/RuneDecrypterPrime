@@ -37,8 +37,10 @@ def maybe_run_stage3_span_basin_k_sweep(
     )
     state["_RUN_STAGE3_SPAN_BASIN_K_SWEEP_ACTIVE"] = True
     try:
+        should_reset_profile_per_sweep = len(sweep_vals) > 1
         for sweep_idx, k_i in enumerate(sweep_vals, start=1):
-            apply_profile_defaults_fn()
+            if should_reset_profile_per_sweep:
+                apply_profile_defaults_fn()
             state["STAGE3_SPAN_BASIN_JUDGE_K"] = int(k_i)
             print(
                 f"[pipeline_no_wli] stage3-span-basin-k-sweep "

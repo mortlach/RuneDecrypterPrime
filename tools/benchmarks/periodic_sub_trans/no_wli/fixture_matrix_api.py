@@ -26,6 +26,12 @@ from tools.benchmarks.periodic_sub_trans.common.scorer_schedule_apply import (
 from tools.benchmarks.periodic_sub_trans.no_wli import runner as no_wli
 from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_config import (
     DISABLE_STAGE3_SPAN_BASIN_K_SWEEP,
+    FORCE_STAGE3_PHASEA_CFG,
+    FORCE_STAGE3_PHASEB_CFG,
+    FORCE_STAGE3_PHASEB_GATE_DELTA_FLOOR,
+    FORCE_STAGE3_PHASEB_GATE_END_GAIN_FLOOR,
+    FORCE_STAGE3_PHASEB_TOP_N,
+    FORCE_STAGE3_TWO_PHASE,
     REQUIRE_FULL_TEXT_EFFECTIVE,
     REQUIRE_NO_WIN10_OBJECTIVES,
     STAGE3_SPAN_BASIN_K_SWEEP_VALUES,
@@ -215,6 +221,14 @@ def apply_job(job: NoWliFixtureJob) -> None:
         no_wli=no_wli,
         disable_stage3_span_basin_k_sweep=bool(DISABLE_STAGE3_SPAN_BASIN_K_SWEEP),
         stage3_span_basin_k_sweep_values=STAGE3_SPAN_BASIN_K_SWEEP_VALUES,
+        force_stage3_two_phase=bool(FORCE_STAGE3_TWO_PHASE),
+        force_stage3_phasea_cfg=dict(FORCE_STAGE3_PHASEA_CFG),
+        force_stage3_phaseb_cfg=dict(FORCE_STAGE3_PHASEB_CFG),
+        force_stage3_phaseb_top_n=int(FORCE_STAGE3_PHASEB_TOP_N),
+        force_stage3_phaseb_gate_delta_floor=float(FORCE_STAGE3_PHASEB_GATE_DELTA_FLOOR),
+        force_stage3_phaseb_gate_end_gain_floor=float(
+            FORCE_STAGE3_PHASEB_GATE_END_GAIN_FLOOR
+        ),
     )
 
 

@@ -115,7 +115,16 @@ def resolve_period_columns(
     columns_max = int(grid.get("columns_max", 0) or 0)
 
     if periods_override is not None:
-        periods = unique_sorted_ints_fn(int(x) for x in periods_override)
+        # Preserve explicit caller ordering (for example p13-first campaigns).
+        seen_periods: set[int] = set()
+        ordered_periods: list[int] = []
+        for raw in periods_override:
+            period = int(raw)
+            if period in seen_periods:
+                continue
+            seen_periods.add(period)
+            ordered_periods.append(period)
+        periods = tuple(ordered_periods)
     elif use_campaign_grid:
         if period_min <= 0 or period_max < period_min:
             raise ValueError("campaign grid period_min/period_max are invalid")
