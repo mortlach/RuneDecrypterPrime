@@ -37,6 +37,8 @@ def build_plan_payload(
     require_full_text_effective: bool,
     disable_stage3_span_basin_k_sweep: bool,
     stage3_span_basin_k_sweep_values: Sequence[int],
+    stage3_tuning_preset_ids: Sequence[str],
+    stage3_tuning_presets: Mapping[str, Mapping[str, Any]] | None,
     dry_run_only: bool,
     max_wallclock_seconds: float | None,
     resume_skip_completed: bool,
@@ -63,6 +65,12 @@ def build_plan_payload(
         "require_full_text_effective": bool(require_full_text_effective),
         "disable_stage3_span_basin_k_sweep": bool(disable_stage3_span_basin_k_sweep),
         "stage3_span_basin_k_sweep_values": [int(x) for x in stage3_span_basin_k_sweep_values],
+        "stage3_tuning_preset_ids": [str(x) for x in stage3_tuning_preset_ids],
+        "stage3_tuning_presets": {
+            str(k): dict(v)
+            for k, v in dict(stage3_tuning_presets or {}).items()
+            if isinstance(v, Mapping)
+        },
         "dry_run_only": bool(dry_run_only),
         "max_wallclock_seconds": (
             None if max_wallclock_seconds is None else float(max_wallclock_seconds)

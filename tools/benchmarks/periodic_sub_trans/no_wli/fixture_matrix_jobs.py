@@ -47,6 +47,7 @@ def job_key(job: Any) -> str:
             str(job.run_mode),
             str(job.profile_id),
             str(job.scoring_experiment_profile),
+            str(getattr(job, "stage3_tuning_preset_id", "base")),
             str(job.schedule_early),
             str(job.schedule_middle),
             str(job.schedule_late),
@@ -68,6 +69,7 @@ def build_fixture_jobs(
     scorer_stage3_impl_avg_fulltext: str,
     scoring_experiment_profiles: Sequence[str],
     schedules: Sequence[Mapping[str, str]],
+    stage3_tuning_preset_ids: Sequence[str] = ("base",),
     enable_span_ab_pair: bool,
     span_ab_decision_role: str,
     unique_sorted_ints_fn: Callable[[Sequence[int]], tuple[int, ...]],
@@ -84,6 +86,16 @@ def build_fixture_jobs(
     ]
     if not exp_profiles:
         raise ValueError("SCORING_EXPERIMENT_PROFILES resolved empty")
+    tuning_preset_ids: list[str] = []
+    seen_tuning_preset_ids: set[str] = set()
+    for raw_id in stage3_tuning_preset_ids:
+        preset_id = str(raw_id).strip().lower()
+        if not preset_id or preset_id in seen_tuning_preset_ids:
+            continue
+        seen_tuning_preset_ids.add(preset_id)
+        tuning_preset_ids.append(preset_id)
+    if not tuning_preset_ids:
+        tuning_preset_ids = ["base"]
 
     offsets = tuple(int(x) for x in text_offsets)
     if not offsets:
@@ -93,11 +105,12 @@ def build_fixture_jobs(
     if span_ab_role not in {"prune", "gate", "combined", "judge"}:
         span_ab_role = "prune"
 
-    def _append_job(*, base_kwargs: dict[str, Any]) -> None:
+    def _append_job(*, base_kwargs: dict[str, Any], stage3_tuning_preset_id: str) -> None:
         if not bool(enable_span_ab_pair):
             jobs.append(
                 job_cls(
                     **base_kwargs,
+                    stage3_tuning_preset_id=str(stage3_tuning_preset_id),
                     span_ab_case_id="none",
                     span_decision_role_enabled=False,
                 )
@@ -106,6 +119,7 @@ def build_fixture_jobs(
         jobs.append(
             job_cls(
                 **base_kwargs,
+                stage3_tuning_preset_id=str(stage3_tuning_preset_id),
                 span_ab_case_id="span_shadow",
                 span_decision_role_enabled=False,
             )
@@ -113,6 +127,7 @@ def build_fixture_jobs(
         jobs.append(
             job_cls(
                 **base_kwargs,
+                stage3_tuning_preset_id=str(stage3_tuning_preset_id),
                 span_ab_case_id=f"span_{span_ab_role}",
                 span_decision_role_enabled=True,
             )
@@ -136,28 +151,30 @@ def build_fixture_jobs(
             for column in columns:
                 for run_seed in seeds:
                     for exp_profile in exp_profiles:
-                        for schedule in validated_schedules:
-                            _append_job(
-                                base_kwargs=dict(
-                                    fixture_id=str(fixture.fixture_id),
-                                    period=int(period),
-                                    columns=int(column),
-                                    length=int(fixture.length),
-                                    run_seed=int(run_seed),
-                                    run_mode=str(run_mode),
-                                    profile_id=str(profile_id),
-                                    heartbeat_seconds=int(heartbeat_seconds),
-                                    text_offsets=offsets,
-                                    scorer_impl=str(scorer_impl),
-                                    scorer_stage3_impl_avg_fulltext=str(
-                                        scorer_stage3_impl_avg_fulltext
+                        for tuning_preset_id in tuning_preset_ids:
+                            for schedule in validated_schedules:
+                                _append_job(
+                                    base_kwargs=dict(
+                                        fixture_id=str(fixture.fixture_id),
+                                        period=int(period),
+                                        columns=int(column),
+                                        length=int(fixture.length),
+                                        run_seed=int(run_seed),
+                                        run_mode=str(run_mode),
+                                        profile_id=str(profile_id),
+                                        heartbeat_seconds=int(heartbeat_seconds),
+                                        text_offsets=offsets,
+                                        scorer_impl=str(scorer_impl),
+                                        scorer_stage3_impl_avg_fulltext=str(
+                                            scorer_stage3_impl_avg_fulltext
+                                        ),
+                                        scoring_experiment_profile=str(exp_profile),
+                                        schedule_early=str(schedule["early"]),
+                                        schedule_middle=str(schedule["middle"]),
+                                        schedule_late=str(schedule["late"]),
                                     ),
-                                    scoring_experiment_profile=str(exp_profile),
-                                    schedule_early=str(schedule["early"]),
-                                    schedule_middle=str(schedule["middle"]),
-                                    schedule_late=str(schedule["late"]),
+                                    stage3_tuning_preset_id=str(tuning_preset_id),
                                 )
-                            )
     return jobs
 
 
@@ -173,6 +190,11 @@ def apply_job(
     force_stage3_phaseb_top_n: int | None = None,
     force_stage3_phaseb_gate_delta_floor: float | None = None,
     force_stage3_phaseb_gate_end_gain_floor: float | None = None,
+    force_word_ngram_decision_influence: bool | None = None,
+    force_stage3_initial_keys: int | None = None,
+    force_stage3_initial_keys_by_columns: Mapping[str, Any] | None = None,
+    force_stage12_promote_top: int | None = None,
+    force_stage3_span_basin_judge_tie_max_seeds: int | None = None,
 ) -> None:
     if bool(disable_stage3_span_basin_k_sweep):
         no_wli.RUN_STAGE3_SPAN_BASIN_K_SWEEP = False
@@ -201,6 +223,26 @@ def apply_job(
         scorer_schedule=job.scorer_schedule(),
     )
     no_wli.SCORING_EXPERIMENT_PROFILE = str(job.scoring_experiment_profile)
+    if force_word_ngram_decision_influence is not None:
+        no_wli.WORD_NGRAM_REPORT_DECISION_INFLUENCE = bool(
+            force_word_ngram_decision_influence
+        )
+    if force_stage3_initial_keys is not None:
+        no_wli.STAGE3_INITIAL_KEYS = int(max(1, int(force_stage3_initial_keys)))
+    if force_stage3_initial_keys_by_columns is not None:
+        merged_init_by_columns = {
+            int(k): int(v)
+            for k, v in dict(no_wli.STAGE3_INITIAL_KEYS_BY_COLUMNS).items()
+        }
+        for k, v in dict(force_stage3_initial_keys_by_columns).items():
+            merged_init_by_columns[int(k)] = int(max(1, int(v)))
+        no_wli.STAGE3_INITIAL_KEYS_BY_COLUMNS = merged_init_by_columns
+    if force_stage12_promote_top is not None:
+        no_wli.STAGE12_PROMOTE_TOP = int(max(1, int(force_stage12_promote_top)))
+    if force_stage3_span_basin_judge_tie_max_seeds is not None:
+        no_wli.STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS = int(
+            max(1, int(force_stage3_span_basin_judge_tie_max_seeds))
+        )
     if bool(force_stage3_two_phase):
         no_wli.STAGE3_TWO_PHASE_ENABLED = True
         if force_stage3_phasea_cfg is not None:

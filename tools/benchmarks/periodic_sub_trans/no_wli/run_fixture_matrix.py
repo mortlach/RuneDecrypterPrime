@@ -38,6 +38,7 @@ from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_api import (
     build_fixture_jobs,
     build_schedule_matrix,
     load_fixture_specs,
+    resolve_stage3_tuning_preset_ids,
     resolve_period_columns,
     resolve_stage_objectives_for_schedule,
     run_job,
@@ -71,6 +72,9 @@ from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_config import (
     REQUIRE_FULL_TEXT_EFFECTIVE,
     DISABLE_STAGE3_SPAN_BASIN_K_SWEEP,
     STAGE3_SPAN_BASIN_K_SWEEP_VALUES,
+    ENABLE_STAGE3_TUNING_PRESET_MATRIX,
+    STAGE3_TUNING_PRESET_IDS as _STAGE3_TUNING_PRESET_IDS_RAW,
+    STAGE3_TUNING_PRESETS,
     DRY_RUN_ONLY,
     STOP_ON_ERROR,
     MAX_JOBS,
@@ -93,6 +97,14 @@ def validate_schedule_contract(*, profile_id: str, schedule: dict[str, str]) -> 
         resolve_stage_objectives_for_schedule_fn=resolve_stage_objectives_for_schedule,
         require_no_win10_objectives=bool(REQUIRE_NO_WIN10_OBJECTIVES),
         require_full_text_effective=bool(REQUIRE_FULL_TEXT_EFFECTIVE),
+    )
+
+
+# Keep the resolved preset IDs as a stable top-level constant for mainflow state.
+STAGE3_TUNING_PRESET_IDS = resolve_stage3_tuning_preset_ids()
+if not STAGE3_TUNING_PRESET_IDS:
+    STAGE3_TUNING_PRESET_IDS = tuple(
+        str(x).strip().lower() for x in _STAGE3_TUNING_PRESET_IDS_RAW if str(x).strip()
     )
 
 

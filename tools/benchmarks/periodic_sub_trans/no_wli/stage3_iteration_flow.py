@@ -62,6 +62,10 @@ def run_stage3_iteration_flow(
     scorer_stage3_phaseA_runtime = state["scorer_stage3_phaseA_runtime"]
     scorer_stage3_search_runtime = state["scorer_stage3_search_runtime"]
     scorer_basin_judge_runtime = state["scorer_basin_judge_runtime"]
+    scorer_word_ngram_report_runtime = state.get(
+        "scorer_word_ngram_report_runtime",
+        None,
+    )
     scorer_full_runtime = state["scorer_full_runtime"]
     full_cipher = state["full_cipher"]
     stage2_evals_total = int(state["stage2_evals_total"])
@@ -117,6 +121,8 @@ def run_stage3_iteration_flow(
     stage3_basin_judge_span_calls_rejected_or_gated = 0
     stage3_basin_judge_span_seconds_total = 0.0
     stage3_basin_judge_unique_end_hash = 0
+    stage3_word_ngram_rows_scored = 0
+    stage3_word_ngram_rows_active = 0
     stage3_scan_phaseA_only = False
 
     tier_elapsed_before_stage3 = float(time.time() - t0_i)
@@ -322,6 +328,7 @@ def run_stage3_iteration_flow(
                 stage_rows=phase_stage_rows,
                 scorer_stage3_search_runtime=scorer_stage3_search_runtime,
                 scorer_basin_judge_runtime=scorer_basin_judge_runtime,
+                scorer_word_ngram_report_runtime=scorer_word_ngram_report_runtime,
                 scorer_full_runtime=scorer_full_runtime,
                 scorer_stage3_phaseB=dict(scorer_stage3_phaseB),
                 solver_stage3_cfg=dict(solver_stage3_cfg),
@@ -374,6 +381,18 @@ def run_stage3_iteration_flow(
             )
             stage3_basin_judge_unique_end_hash = int(
                 two_phase_followup.get("stage3_basin_judge_unique_end_hash", stage3_basin_judge_unique_end_hash)
+            )
+            stage3_word_ngram_rows_scored = int(
+                two_phase_followup.get(
+                    "stage3_word_ngram_rows_scored",
+                    stage3_word_ngram_rows_scored,
+                )
+            )
+            stage3_word_ngram_rows_active = int(
+                two_phase_followup.get(
+                    "stage3_word_ngram_rows_active",
+                    stage3_word_ngram_rows_active,
+                )
             )
             best3_score = float(two_phase_followup.get("best3_score", best3_score))
             best3_match = float(two_phase_followup.get("best3_match", best3_match))
@@ -477,6 +496,8 @@ def run_stage3_iteration_flow(
         stage3_basin_judge_span_calls_rejected_or_gated=int(stage3_basin_judge_span_calls_rejected_or_gated),
         stage3_basin_judge_span_seconds_total=float(stage3_basin_judge_span_seconds_total),
         stage3_basin_judge_unique_end_hash=int(stage3_basin_judge_unique_end_hash),
+        stage3_word_ngram_rows_scored=int(stage3_word_ngram_rows_scored),
+        stage3_word_ngram_rows_active=int(stage3_word_ngram_rows_active),
         phaseB_ran=int(phaseB_ran),
         phaseB_skipped=int(phaseB_skipped),
         phaseB_top_n_used=int(phaseB_top_n_used),

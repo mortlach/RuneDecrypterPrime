@@ -601,6 +601,9 @@ def build_stage3_runtime_call_context_bridge(
         ),
         stage3_span_basin_judge_tie_eps=float(state["STAGE3_SPAN_BASIN_JUDGE_TIE_EPS"]),
         stage3_span_basin_judge_tie_max_seeds=int(state["STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS"]),
+        stage3_word_ngram_decision_influence=bool(
+            state.get("WORD_NGRAM_REPORT_DECISION_INFLUENCE", False)
+        ),
         extract_kaeding_metrics_fn=state["_extract_kaeding_metrics"],
         solution_span_counter_summary_fn=state["_solution_span_counter_summary"],
         stage3_progress_logging_fn=state["_stage3_progress_logging"],

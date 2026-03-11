@@ -68,6 +68,7 @@ def apply_runner_defaults(*, state: MutableMapping[str, Any]) -> None:
             "WORD_NGRAM_REPORT_MISS_LOGP": -20.0,
             "WORD_NGRAM_REPORT_MIN_POSITIONS": 12,
             "WORD_NGRAM_REPORT_PREFIX_TOTAL_THRESHOLDS": (1, 10, 100),
+            "WORD_NGRAM_REPORT_DECISION_INFLUENCE": False,
             "STAGE3_SPAN_CHAR_PCT_MIN_OVERRIDE": None,
             "STAGE3_SPAN_AUX_ROLE": "off",
             "STAGE3_SPAN_AUX_SCOPE": "basin_rep",

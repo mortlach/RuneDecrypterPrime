@@ -31,6 +31,7 @@ class Stage3RuntimeCallContext:
     stage3_span_basin_judge_dedupe_by_end_hash: bool
     stage3_span_basin_judge_tie_eps: float
     stage3_span_basin_judge_tie_max_seeds: int
+    stage3_word_ngram_decision_influence: bool
     extract_kaeding_metrics_fn: Callable[[Any], Dict[str, float]]
     solution_span_counter_summary_fn: Callable[[Any], Dict[str, float]]
     stage3_progress_logging_fn: Callable[..., Dict[str, Any]]
@@ -171,6 +172,7 @@ def run_stage3_two_phase_followup_call(
     stage_rows: List[Dict[str, Any]],
     scorer_stage3_search_runtime: Any,
     scorer_basin_judge_runtime: Any,
+    scorer_word_ngram_report_runtime: Any | None,
     scorer_full_runtime: Any,
     scorer_stage3_phaseB: Dict[str, Any],
     solver_stage3_cfg: Dict[str, Any],
@@ -208,6 +210,7 @@ def run_stage3_two_phase_followup_call(
         stage_rows=stage_rows,
         scorer_stage3_search_runtime=scorer_stage3_search_runtime,
         scorer_basin_judge_runtime=scorer_basin_judge_runtime,
+        scorer_word_ngram_report_runtime=scorer_word_ngram_report_runtime,
         scorer_full_runtime=scorer_full_runtime,
         scorer_stage3_phaseB=dict(scorer_stage3_phaseB),
         solver_stage3_cfg=dict(solver_stage3_cfg),
@@ -225,6 +228,9 @@ def run_stage3_two_phase_followup_call(
         ),
         stage3_span_basin_judge_tie_eps=float(ctx.stage3_span_basin_judge_tie_eps),
         stage3_span_basin_judge_tie_max_seeds=int(ctx.stage3_span_basin_judge_tie_max_seeds),
+        stage3_word_ngram_decision_influence=bool(
+            ctx.stage3_word_ngram_decision_influence
+        ),
         batch_eval_chunk_size=int(ctx.batch_eval_chunk_size),
         require_batch_scoring=bool(ctx.require_batch_scoring),
         base_seed=int(base_seed),

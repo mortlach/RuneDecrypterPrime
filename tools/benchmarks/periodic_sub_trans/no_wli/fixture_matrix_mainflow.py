@@ -92,6 +92,7 @@ def run_mainflow(
         scorer_impl=state["SCORER_IMPL"],
         scorer_stage3_impl_avg_fulltext=state["SCORER_STAGE3_IMPL_AVG_FULLTEXT"],
         scoring_experiment_profiles=state["SCORING_EXPERIMENT_PROFILES"],
+        stage3_tuning_preset_ids=state.get("STAGE3_TUNING_PRESET_IDS", ("base",)),
         schedules=schedules,
         enable_span_ab_pair=bool(state["ENABLE_SPAN_AB_PAIR"]),
         span_ab_decision_role=str(state["SPAN_AB_DECISION_ROLE"]),
@@ -115,6 +116,8 @@ def run_mainflow(
         require_full_text_effective=bool(state["REQUIRE_FULL_TEXT_EFFECTIVE"]),
         disable_stage3_span_basin_k_sweep=bool(state["DISABLE_STAGE3_SPAN_BASIN_K_SWEEP"]),
         stage3_span_basin_k_sweep_values=state["STAGE3_SPAN_BASIN_K_SWEEP_VALUES"],
+        stage3_tuning_preset_ids=state.get("STAGE3_TUNING_PRESET_IDS", ("base",)),
+        stage3_tuning_presets=state.get("STAGE3_TUNING_PRESETS", {}),
         dry_run_only=bool(state["DRY_RUN_ONLY"]),
         max_wallclock_seconds=(
             None

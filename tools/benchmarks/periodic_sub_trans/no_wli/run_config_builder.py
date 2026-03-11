@@ -189,7 +189,8 @@ def build_run_config(
             contract=(
                 "Stage-3 Kaeding search optimizes avg/full_text char4 only (ECDF-free); "
                 "span-hamming is used only in explicit basin-judge ranking of Phase-A endpoints "
-                "before selecting Phase-B seeds."
+                "before selecting Phase-B seeds; word-ngram can optionally influence "
+                "Phase-B seed tie-breaks when enabled."
             ),
             solver=dict(state["SOLVER_STAGE3"]),
             init_keys=int(state["STAGE3_INITIAL_KEYS"]),
@@ -219,8 +220,14 @@ def build_run_config(
                         (1, 10, 100),
                     )
                 ],
-                report_only=bool(True),
-                decision_influence=bool(False),
+                report_only=bool(
+                    not bool(
+                        state.get("WORD_NGRAM_REPORT_DECISION_INFLUENCE", False)
+                    )
+                ),
+                decision_influence=bool(
+                    state.get("WORD_NGRAM_REPORT_DECISION_INFLUENCE", False)
+                ),
             ),
             span_aux=dict(
                 role=str(state.get("STAGE3_SPAN_AUX_ROLE", "off")),

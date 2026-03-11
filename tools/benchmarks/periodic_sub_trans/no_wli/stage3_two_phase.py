@@ -35,6 +35,7 @@ def run_stage3_two_phase_followup(
     stage_rows: List[Dict[str, Any]],
     scorer_stage3_search_runtime: Any,
     scorer_basin_judge_runtime: Any,
+    scorer_word_ngram_report_runtime: Any | None,
     scorer_full_runtime: Any,
     scorer_stage3_phaseB: Dict[str, Any],
     solver_stage3_cfg: Dict[str, Any],
@@ -48,6 +49,7 @@ def run_stage3_two_phase_followup(
     stage3_span_basin_judge_dedupe_by_end_hash: bool,
     stage3_span_basin_judge_tie_eps: float,
     stage3_span_basin_judge_tie_max_seeds: int,
+    stage3_word_ngram_decision_influence: bool,
     batch_eval_chunk_size: int,
     require_batch_scoring: bool,
     base_seed: int,
@@ -109,6 +111,8 @@ def run_stage3_two_phase_followup(
     stage3_basin_judge_span_calls_rejected_or_gated = 0
     stage3_basin_judge_span_seconds_total = 0.0
     stage3_basin_judge_unique_end_hash = 0
+    stage3_word_ngram_rows_scored = 0
+    stage3_word_ngram_rows_active = 0
 
     if phaseA_rows:
         phaseA_end_plaintexts = [
@@ -227,6 +231,52 @@ def run_stage3_two_phase_followup(
                 row["end_score_pct"] = float(end_score_pct)
                 row["best_delta_pct"] = float(best_delta_pct)
                 row["basin_judge_span_active"] = int(1 if span_active_for_row else 0)
+                row["word_ngram_judge_active"] = int(0)
+                row["word_ngram_report_xent"] = float("nan")
+                row["word_ngram_trust_score"] = float("nan")
+                if bool(stage3_word_ngram_decision_influence) and (
+                    scorer_word_ngram_report_runtime is not None
+                ):
+                    _word_ngram_scores_arr, _word_ngram_stats = score_plaintexts_chunked(
+                        scorer=scorer_word_ngram_report_runtime,
+                        plaintexts=[judge_end_plaintexts[local_idx]],
+                        wli=None,
+                        chunk_size=1,
+                        require_batch=bool(require_batch_scoring),
+                    )
+                    _ = _word_ngram_scores_arr, _word_ngram_stats
+                    word_ngram_last_stats: dict[str, Any] = {}
+                    try:
+                        if hasattr(scorer_word_ngram_report_runtime, "last_stats") and callable(
+                            scorer_word_ngram_report_runtime.last_stats
+                        ):
+                            maybe_stats = scorer_word_ngram_report_runtime.last_stats()
+                            if isinstance(maybe_stats, dict):
+                                word_ngram_last_stats = dict(maybe_stats)
+                    except Exception:
+                        word_ngram_last_stats = {}
+                    word_ngram_active = bool(
+                        word_ngram_last_stats.get("word_ngram_judge_active", False)
+                    )
+                    word_ngram_report_xent = word_ngram_last_stats.get(
+                        "word_ngram_judge_report_xent", None
+                    )
+                    word_ngram_trust_score = word_ngram_last_stats.get(
+                        "word_ngram_judge_trust_score", None
+                    )
+                    row["word_ngram_judge_active"] = int(1 if word_ngram_active else 0)
+                    row["word_ngram_report_xent"] = (
+                        float(word_ngram_report_xent)
+                        if word_ngram_report_xent is not None
+                        else float("nan")
+                    )
+                    row["word_ngram_trust_score"] = (
+                        float(word_ngram_trust_score)
+                        if word_ngram_trust_score is not None
+                        else float("nan")
+                    )
+                    stage3_word_ngram_rows_scored += 1
+                    stage3_word_ngram_rows_active += int(1 if word_ngram_active else 0)
                 row_metrics = row.get("metrics", {})
                 if isinstance(row_metrics, dict):
                     row_metrics["score_pct"] = float(end_score_pct)
@@ -238,6 +288,15 @@ def run_stage3_two_phase_followup(
                     )
                     row_metrics["basin_judge_span_active"] = int(
                         1 if span_active_for_row else 0
+                    )
+                    row_metrics["word_ngram_judge_active"] = int(
+                        row.get("word_ngram_judge_active", 0)
+                    )
+                    row_metrics["word_ngram_report_xent"] = float(
+                        row.get("word_ngram_report_xent", float("nan"))
+                    )
+                    row_metrics["word_ngram_trust_score"] = float(
+                        row.get("word_ngram_trust_score", float("nan"))
                     )
                 restart_stage_idx = int(row.get("restart_idx", -1))
                 for stage_row in reversed(stage_rows):
@@ -257,6 +316,15 @@ def run_stage3_two_phase_followup(
                         )
                         stage_row["basin_judge_span_active"] = int(
                             1 if span_active_for_row else 0
+                        )
+                        stage_row["word_ngram_judge_active"] = int(
+                            row.get("word_ngram_judge_active", 0)
+                        )
+                        stage_row["word_ngram_report_xent"] = float(
+                            row.get("word_ngram_report_xent", float("nan"))
+                        )
+                        stage_row["word_ngram_trust_score"] = float(
+                            row.get("word_ngram_trust_score", float("nan"))
                         )
                         break
             stage3_span_basin_judge_seconds += max(0.0, float(time.time() - t_span_judge))
@@ -384,6 +452,11 @@ def run_stage3_two_phase_followup(
             ),
             basin_judge_span_seconds_total=float(stage3_basin_judge_span_seconds_total),
             basin_judge_unique_end_hash=int(stage3_basin_judge_unique_end_hash),
+            word_ngram_decision_influence=int(
+                1 if bool(stage3_word_ngram_decision_influence) else 0
+            ),
+            word_ngram_rows_scored=int(stage3_word_ngram_rows_scored),
+            word_ngram_rows_active=int(stage3_word_ngram_rows_active),
             phaseB_char_pct_min_dynamic=float(stage3_phaseB_char_pct_min_dynamic),
             phaseB_char_pct_min_source=str(stage3_phaseB_char_pct_min_source),
             scan_phaseA_only=int(1 if bool(stage3_scan_phaseA_only) else 0),
@@ -450,6 +523,8 @@ def run_stage3_two_phase_followup(
                 stage3_basin_judge_span_seconds_total
             ),
             stage3_basin_judge_unique_end_hash=int(stage3_basin_judge_unique_end_hash),
+            stage3_word_ngram_rows_scored=int(stage3_word_ngram_rows_scored),
+            stage3_word_ngram_rows_active=int(stage3_word_ngram_rows_active),
             stage3_span_full_eval_total=float(stage3_span_full_eval_total),
             stage3_span_full_eval_active=float(stage3_span_full_eval_active),
             stage3_span_full_eval_skipped=float(stage3_span_full_eval_skipped),
@@ -458,16 +533,35 @@ def run_stage3_two_phase_followup(
         )
 
     top_n = max(1, int(stage3_phaseB_top_n))
-    ranked = sorted(
-        phaseA_rows,
-        key=lambda r: (
-            float(r.get("end_score_pct", float("-inf"))),
-            float(r.get("best_delta_pct", float("-inf"))),
-            float(r.get("end_score_raw", float("-inf"))),
-            -int(r["restart_idx"]),
-        ),
-        reverse=True,
-    )
+
+    def _phaseb_rank_key(row: Dict[str, Any]) -> tuple[float, ...]:
+        end_score_pct = float(row.get("end_score_pct", float("-inf")))
+        best_delta_pct = float(row.get("best_delta_pct", float("-inf")))
+        end_score_raw = float(row.get("end_score_raw", float("-inf")))
+        restart_key = float(-int(row.get("restart_idx", 0)))
+        if not bool(stage3_word_ngram_decision_influence):
+            return (end_score_pct, best_delta_pct, end_score_raw, restart_key)
+        word_ngram_active = float(1 if bool(row.get("word_ngram_judge_active", 0)) else 0)
+        word_ngram_trust = float(row.get("word_ngram_trust_score", float("-inf")))
+        if not np.isfinite(word_ngram_trust):
+            word_ngram_trust = float("-inf")
+        word_ngram_report_xent = float(row.get("word_ngram_report_xent", float("nan")))
+        word_ngram_report_xent_sort = (
+            float(-word_ngram_report_xent)
+            if np.isfinite(word_ngram_report_xent)
+            else float("-inf")
+        )
+        return (
+            end_score_pct,
+            word_ngram_active,
+            word_ngram_trust,
+            word_ngram_report_xent_sort,
+            best_delta_pct,
+            end_score_raw,
+            restart_key,
+        )
+
+    ranked = sorted(phaseA_rows, key=_phaseb_rank_key, reverse=True)
     selected: List[Dict[str, Any]] = []
     seen_basin: set[Tuple[str, str]] = set()
     for row in ranked:
@@ -532,6 +626,8 @@ def run_stage3_two_phase_followup(
         f"judge_top1={fmt_finite_float_fn(judge_top1)} "
         f"judge_top2={fmt_finite_float_fn(judge_top2)} "
         f"judge_margin={fmt_finite_float_fn(judge_margin)} "
+        f"word_ngram_influence={1 if bool(stage3_word_ngram_decision_influence) else 0} "
+        f"word_ngram_active_rows={int(stage3_word_ngram_rows_active)}/{int(stage3_word_ngram_rows_scored)} "
         f"tie_eps={float(tie_eps):.6f} tie_band={tie_band_n} tie_cap={int(tie_cap)} "
         f"tie_clipped={tie_clipped} selected_top_n={selected_top_n_n} "
         f"selected_final={selected_final_n}",
@@ -713,6 +809,8 @@ def run_stage3_two_phase_followup(
             stage3_basin_judge_span_seconds_total
         ),
         stage3_basin_judge_unique_end_hash=int(stage3_basin_judge_unique_end_hash),
+        stage3_word_ngram_rows_scored=int(stage3_word_ngram_rows_scored),
+        stage3_word_ngram_rows_active=int(stage3_word_ngram_rows_active),
         stage3_span_full_eval_total=float(stage3_span_full_eval_total),
         stage3_span_full_eval_active=float(stage3_span_full_eval_active),
         stage3_span_full_eval_skipped=float(stage3_span_full_eval_skipped),

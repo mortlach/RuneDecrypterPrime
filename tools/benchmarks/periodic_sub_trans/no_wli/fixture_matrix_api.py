@@ -26,6 +26,7 @@ from tools.benchmarks.periodic_sub_trans.common.scorer_schedule_apply import (
 from tools.benchmarks.periodic_sub_trans.no_wli import runner as no_wli
 from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_config import (
     DISABLE_STAGE3_SPAN_BASIN_K_SWEEP,
+    ENABLE_STAGE3_TUNING_PRESET_MATRIX,
     FORCE_STAGE3_PHASEA_CFG,
     FORCE_STAGE3_PHASEB_CFG,
     FORCE_STAGE3_PHASEB_GATE_DELTA_FLOOR,
@@ -34,6 +35,8 @@ from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_config import (
     FORCE_STAGE3_TWO_PHASE,
     REQUIRE_FULL_TEXT_EFFECTIVE,
     REQUIRE_NO_WIN10_OBJECTIVES,
+    STAGE3_TUNING_PRESET_IDS,
+    STAGE3_TUNING_PRESETS,
     STAGE3_SPAN_BASIN_K_SWEEP_VALUES,
 )
 from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_inputs import (
@@ -191,6 +194,7 @@ def build_fixture_jobs(
     scorer_stage3_impl_avg_fulltext: str,
     scoring_experiment_profiles: Sequence[str],
     schedules: Sequence[Mapping[str, str]],
+    stage3_tuning_preset_ids: Sequence[str] = ("base",),
     enable_span_ab_pair: bool = False,
     span_ab_decision_role: str = "prune",
 ) -> list[NoWliFixtureJob]:
@@ -205,6 +209,7 @@ def build_fixture_jobs(
         scorer_impl=scorer_impl,
         scorer_stage3_impl_avg_fulltext=scorer_stage3_impl_avg_fulltext,
         scoring_experiment_profiles=scoring_experiment_profiles,
+        stage3_tuning_preset_ids=stage3_tuning_preset_ids,
         schedules=schedules,
         enable_span_ab_pair=bool(enable_span_ab_pair),
         span_ab_decision_role=str(span_ab_decision_role),
@@ -215,20 +220,145 @@ def build_fixture_jobs(
     )
 
 
+def resolve_stage3_tuning_preset_ids() -> tuple[str, ...]:
+    if not bool(ENABLE_STAGE3_TUNING_PRESET_MATRIX):
+        return ("base",)
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in STAGE3_TUNING_PRESET_IDS:
+        preset_id = str(raw).strip().lower()
+        if not preset_id or preset_id in seen:
+            continue
+        seen.add(preset_id)
+        out.append(preset_id)
+    if not out:
+        return ("base",)
+    return tuple(out)
+
+
+def _resolve_stage3_tuning_overrides_for_job(
+    job: NoWliFixtureJob,
+) -> dict[str, Any]:
+    preset_id = str(getattr(job, "stage3_tuning_preset_id", "base")).strip().lower()
+    raw_presets = (
+        STAGE3_TUNING_PRESETS if isinstance(STAGE3_TUNING_PRESETS, Mapping) else {}
+    )
+    raw_preset = raw_presets.get(preset_id, {})
+    preset = raw_preset if isinstance(raw_preset, Mapping) else {}
+
+    span_basin_values = tuple(int(x) for x in STAGE3_SPAN_BASIN_K_SWEEP_VALUES)
+    if "stage3_span_basin_k_sweep_values" in preset:
+        try:
+            parsed = tuple(int(x) for x in list(preset["stage3_span_basin_k_sweep_values"]))
+            if parsed:
+                span_basin_values = parsed
+        except Exception:
+            pass
+
+    phasea_cfg = dict(FORCE_STAGE3_PHASEA_CFG)
+    raw_phasea_cfg = preset.get("force_stage3_phasea_cfg")
+    if isinstance(raw_phasea_cfg, Mapping):
+        phasea_cfg.update({str(k): int(v) for k, v in raw_phasea_cfg.items()})
+
+    phaseb_cfg = dict(FORCE_STAGE3_PHASEB_CFG)
+    raw_phaseb_cfg = preset.get("force_stage3_phaseb_cfg")
+    if isinstance(raw_phaseb_cfg, Mapping):
+        phaseb_cfg.update({str(k): int(v) for k, v in raw_phaseb_cfg.items()})
+
+    force_word_ngram_decision_influence = preset.get(
+        "force_word_ngram_decision_influence", None
+    )
+    if force_word_ngram_decision_influence is not None:
+        force_word_ngram_decision_influence = bool(force_word_ngram_decision_influence)
+
+    force_stage3_initial_keys = preset.get("force_stage3_initial_keys", None)
+    if force_stage3_initial_keys is not None:
+        force_stage3_initial_keys = int(force_stage3_initial_keys)
+
+    force_stage3_initial_keys_by_columns: dict[int, int] | None = None
+    raw_init_by_columns = preset.get("force_stage3_initial_keys_by_columns", None)
+    if isinstance(raw_init_by_columns, Mapping):
+        force_stage3_initial_keys_by_columns = {
+            int(k): int(v) for k, v in raw_init_by_columns.items()
+        }
+
+    force_stage12_promote_top = preset.get("force_stage12_promote_top", None)
+    if force_stage12_promote_top is not None:
+        force_stage12_promote_top = int(force_stage12_promote_top)
+
+    force_stage3_span_basin_judge_tie_max_seeds = preset.get(
+        "force_stage3_span_basin_judge_tie_max_seeds", None
+    )
+    if force_stage3_span_basin_judge_tie_max_seeds is not None:
+        force_stage3_span_basin_judge_tie_max_seeds = int(
+            force_stage3_span_basin_judge_tie_max_seeds
+        )
+
+    return dict(
+        disable_stage3_span_basin_k_sweep=bool(DISABLE_STAGE3_SPAN_BASIN_K_SWEEP),
+        stage3_span_basin_k_sweep_values=span_basin_values,
+        force_stage3_two_phase=bool(
+            preset.get("force_stage3_two_phase", FORCE_STAGE3_TWO_PHASE)
+        ),
+        force_stage3_phasea_cfg=phasea_cfg,
+        force_stage3_phaseb_cfg=phaseb_cfg,
+        force_stage3_phaseb_top_n=int(
+            preset.get("force_stage3_phaseb_top_n", FORCE_STAGE3_PHASEB_TOP_N)
+        ),
+        force_stage3_phaseb_gate_delta_floor=float(
+            preset.get(
+                "force_stage3_phaseb_gate_delta_floor",
+                FORCE_STAGE3_PHASEB_GATE_DELTA_FLOOR,
+            )
+        ),
+        force_stage3_phaseb_gate_end_gain_floor=float(
+            preset.get(
+                "force_stage3_phaseb_gate_end_gain_floor",
+                FORCE_STAGE3_PHASEB_GATE_END_GAIN_FLOOR,
+            )
+        ),
+        force_word_ngram_decision_influence=force_word_ngram_decision_influence,
+        force_stage3_initial_keys=force_stage3_initial_keys,
+        force_stage3_initial_keys_by_columns=force_stage3_initial_keys_by_columns,
+        force_stage12_promote_top=force_stage12_promote_top,
+        force_stage3_span_basin_judge_tie_max_seeds=(
+            force_stage3_span_basin_judge_tie_max_seeds
+        ),
+    )
+
+
 def apply_job(job: NoWliFixtureJob) -> None:
+    stage3_tuning_overrides = _resolve_stage3_tuning_overrides_for_job(job)
     _apply_job_impl(
         job=job,
         no_wli=no_wli,
-        disable_stage3_span_basin_k_sweep=bool(DISABLE_STAGE3_SPAN_BASIN_K_SWEEP),
-        stage3_span_basin_k_sweep_values=STAGE3_SPAN_BASIN_K_SWEEP_VALUES,
-        force_stage3_two_phase=bool(FORCE_STAGE3_TWO_PHASE),
-        force_stage3_phasea_cfg=dict(FORCE_STAGE3_PHASEA_CFG),
-        force_stage3_phaseb_cfg=dict(FORCE_STAGE3_PHASEB_CFG),
-        force_stage3_phaseb_top_n=int(FORCE_STAGE3_PHASEB_TOP_N),
-        force_stage3_phaseb_gate_delta_floor=float(FORCE_STAGE3_PHASEB_GATE_DELTA_FLOOR),
-        force_stage3_phaseb_gate_end_gain_floor=float(
-            FORCE_STAGE3_PHASEB_GATE_END_GAIN_FLOOR
+        disable_stage3_span_basin_k_sweep=bool(
+            stage3_tuning_overrides["disable_stage3_span_basin_k_sweep"]
         ),
+        stage3_span_basin_k_sweep_values=tuple(
+            int(x) for x in stage3_tuning_overrides["stage3_span_basin_k_sweep_values"]
+        ),
+        force_stage3_two_phase=bool(stage3_tuning_overrides["force_stage3_two_phase"]),
+        force_stage3_phasea_cfg=dict(stage3_tuning_overrides["force_stage3_phasea_cfg"]),
+        force_stage3_phaseb_cfg=dict(stage3_tuning_overrides["force_stage3_phaseb_cfg"]),
+        force_stage3_phaseb_top_n=int(stage3_tuning_overrides["force_stage3_phaseb_top_n"]),
+        force_stage3_phaseb_gate_delta_floor=float(
+            stage3_tuning_overrides["force_stage3_phaseb_gate_delta_floor"]
+        ),
+        force_stage3_phaseb_gate_end_gain_floor=float(
+            stage3_tuning_overrides["force_stage3_phaseb_gate_end_gain_floor"]
+        ),
+        force_word_ngram_decision_influence=stage3_tuning_overrides[
+            "force_word_ngram_decision_influence"
+        ],
+        force_stage3_initial_keys=stage3_tuning_overrides["force_stage3_initial_keys"],
+        force_stage3_initial_keys_by_columns=stage3_tuning_overrides[
+            "force_stage3_initial_keys_by_columns"
+        ],
+        force_stage12_promote_top=stage3_tuning_overrides["force_stage12_promote_top"],
+        force_stage3_span_basin_judge_tie_max_seeds=stage3_tuning_overrides[
+            "force_stage3_span_basin_judge_tie_max_seeds"
+        ],
     )
 
 
