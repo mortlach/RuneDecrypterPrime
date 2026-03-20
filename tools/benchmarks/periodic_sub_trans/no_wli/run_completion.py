@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,13 +43,28 @@ def finalize_run_outputs(
     )
 
     if instances:
-        best_instance = max(
+        best_instance_row = max(
             instances,
             key=lambda r: float(r.get("best_match_ratio", float("-inf"))),
         )
+        best_instance = dict(best_instance_row)
+        artifact_name = (
+            f"{best_instance_row['tier']}__text{int(best_instance_row['text_id'])}"
+            f"__seed{int(best_instance_row['key_seed'])}.json"
+        )
+        artifact_path = final_dir / artifact_name
+        if artifact_path.exists():
+            try:
+                artifact_payload = json.loads(artifact_path.read_text(encoding="utf-8"))
+            except Exception:
+                artifact_payload = None
+            if isinstance(artifact_payload, dict):
+                merged_best = dict(best_instance_row)
+                merged_best.update(artifact_payload)
+                best_instance = merged_best
         write_json_fn(best_dir / "best_instance.json", dict(best_instance))
         (best_dir / "best_preview.txt").write_text(
-            str(best_instance.get("preview_best_latin", "")),
+            str(best_instance_row.get("preview_best_latin", "")),
             encoding="utf-8",
         )
 

@@ -35,6 +35,9 @@ from tools.benchmarks.periodic_sub_trans.no_wli.stage_iteration_commit import (
 from tools.benchmarks.periodic_sub_trans.no_wli.stage3_runtime_calls import (
     Stage3RuntimeCallContext,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.phasec_rescue_checkpoint import (
+    build_phasec_start_checkpoint_path,
+)
 from tools.benchmarks.periodic_sub_trans.no_wli.stage3_topk import (
     append_stage3_topk_from_kaeding as _append_stage3_topk_from_kaeding_external,
     append_stage3_topk_from_phasea as _append_stage3_topk_from_phasea_external,
@@ -559,6 +562,7 @@ def append_stage3_topk_from_kaeding_bridge(
         require_batch_scoring=bool(state["REQUIRE_BATCH_SCORING"]),
         match_ratio_fn=lambda a, b: float(base_mod._match_ratio(list(a), list(b))),
         target_plaintext=np.asarray(target_plaintext, dtype=np.uint8),
+        key_hash_fn=state["_key_hash16"],
     )
 
 
@@ -581,6 +585,7 @@ def append_stage3_topk_from_phasea_bridge(
 def build_stage3_runtime_call_context_bridge(
     *,
     state: Mapping[str, Any],
+    run_dir: Path | None = None,
 ) -> Stage3RuntimeCallContext:
     base_mod = state["base"]
     return Stage3RuntimeCallContext(
@@ -604,6 +609,13 @@ def build_stage3_runtime_call_context_bridge(
         stage3_word_ngram_decision_influence=bool(
             state.get("WORD_NGRAM_REPORT_DECISION_INFLUENCE", False)
         ),
+        stage3_phasec_enabled=bool(state.get("STAGE3_PHASEC_ENABLED", False)),
+        stage3_phasec_cfg=dict(state.get("STAGE3_PHASEC_CFG", {})),
+        stage3_phasec_start_keys=int(state.get("STAGE3_PHASEC_START_KEYS", 0)),
+        stage3_phasec_seed_offset=int(state.get("STAGE3_PHASEC_SEED_OFFSET", 0)),
+        stage3_phasec_word_ngram_tiebreak=bool(
+            state.get("STAGE3_PHASEC_WORD_NGRAM_TIEBREAK", False)
+        ),
         extract_kaeding_metrics_fn=state["_extract_kaeding_metrics"],
         solution_span_counter_summary_fn=state["_solution_span_counter_summary"],
         stage3_progress_logging_fn=state["_stage3_progress_logging"],
@@ -617,5 +629,11 @@ def build_stage3_runtime_call_context_bridge(
         scorer_span_counter_summary_fn=state["_scorer_span_counter_summary"],
         span_counter_delta_fn=state["_span_counter_delta"],
         fmt_finite_float_fn=state["_fmt_finite_float"],
+        phasec_start_checkpoint_path=(
+            build_phasec_start_checkpoint_path(run_dir=Path(run_dir))
+            if run_dir is not None
+            else None
+        ),
+        append_jsonl_row_fn=state.get("_append_jsonl_row"),
         log_prefix="[pipeline_no_wli]",
     )

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 
@@ -56,7 +58,7 @@ def test_finalize_writes_topk_word_ngram_reports(monkeypatch: pytest.MonkeyPatch
         captured["status_key"] = str(status_key)
 
     finalize_mod.finalize_iteration_and_commit(
-        tier=None,
+        tier=SimpleNamespace(period=1, columns=1),
         text_id=1,
         key_seed=2,
         off=0,
@@ -93,6 +95,7 @@ def test_finalize_writes_topk_word_ngram_reports(monkeypatch: pytest.MonkeyPatch
         sub_key_match=0.0,
         ct_idx=np.asarray([1, 2, 3], dtype=np.uint8),
         pt_idx=np.asarray([1, 2, 3], dtype=np.uint8),
+        target_key_idx=[1, 1, 1],
         stage2_topk_payload=[{"rank": 1, "plaintext_idx": [1, 2, 3]}],
         stage2_topk_has_best_match=True,
         stage2_diagnostics={},
@@ -108,8 +111,13 @@ def test_finalize_writes_topk_word_ngram_reports(monkeypatch: pytest.MonkeyPatch
     )
 
     artifact_payload = dict(captured.get("artifact_payload", {}))
+    inst_row = dict(captured.get("inst_row", {}))
     assert "word_ngram_report" in artifact_payload
     assert "stage2_topk_word_ngram_report" in artifact_payload
     assert "stage3_topk_word_ngram_report" in artifact_payload
+    assert artifact_payload["target_key_idx"] == [1, 1, 1]
+    assert bool(artifact_payload["truth_diagnostics"]["available"]) is True
+    assert int(artifact_payload["truth_diagnostics"]["key_hamming_total"]) == 2
+    assert int(inst_row["truth_key_hamming_total"]) == 2
     assert len(list(artifact_payload["stage2_topk_word_ngram_report"])) == 1
     assert len(list(artifact_payload["stage3_topk_word_ngram_report"])) == 1

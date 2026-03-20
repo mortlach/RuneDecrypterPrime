@@ -222,6 +222,7 @@ def execute_pipeline_from_startup(
     )
     wiring = build_iteration_wiring(
         state=runner_state,
+        run_dir=run_dir,
         oracle_mode=str(oracle_mode),
         oracle_decision_paths_enabled=bool(oracle_decision_paths_enabled),
         oracle_assist_selection_effective=bool(oracle_assist_selection_effective),

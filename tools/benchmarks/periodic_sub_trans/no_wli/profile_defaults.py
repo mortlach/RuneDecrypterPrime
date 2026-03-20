@@ -87,6 +87,13 @@ def apply_profile_defaults_from_profile(
     state["STAGE3_PHASEB_GATE_END_GAIN_FLOOR"] = float(
         state["_STAGE3_PHASEB_GATE_END_GAIN_FLOOR_DEFAULT"]
     )
+    state["STAGE3_PHASEC_ENABLED"] = bool(state["_STAGE3_PHASEC_ENABLED_DEFAULT"])
+    state["STAGE3_PHASEC_CFG"] = dict(state["_STAGE3_PHASEC_CFG_DEFAULT"])
+    state["STAGE3_PHASEC_START_KEYS"] = int(state["_STAGE3_PHASEC_START_KEYS_DEFAULT"])
+    state["STAGE3_PHASEC_SEED_OFFSET"] = int(state["_STAGE3_PHASEC_SEED_OFFSET_DEFAULT"])
+    state["STAGE3_PHASEC_WORD_NGRAM_TIEBREAK"] = bool(
+        state["_STAGE3_PHASEC_WORD_NGRAM_TIEBREAK_DEFAULT"]
+    )
     state["STAGE3_C1_FOCUS_ENABLED"] = bool(state["_STAGE3_C1_FOCUS_ENABLED_DEFAULT"])
     state["STAGE3_C1_INIT_KEYS"] = int(state["_STAGE3_C1_INIT_KEYS_DEFAULT"])
     state["STAGE3_C1_PHASEA_STEPS"] = int(state["_STAGE3_C1_PHASEA_STEPS_DEFAULT"])

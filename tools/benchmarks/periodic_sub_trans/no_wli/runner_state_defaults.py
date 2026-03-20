@@ -27,7 +27,8 @@ def initialize_runtime_state(
     state["STAGE3_HEARTBEAT_SECONDS"] = 30
     state["STAGE3_HEARTBEAT_MIN_STEP"] = 50
     state["STAGE3_HEARTBEAT_MIN_ELAPSED_SECONDS"] = 5.0
-    state["PREVIEW_CHARS"] = 240
+    # Use a longer preview so near-solve artifacts are easier to inspect mid-run.
+    state["PREVIEW_CHARS"] = 480
     state["AUTOSKIP_PROVEN"] = True
     state["AUTOSKIP_PROVEN_MIN_MATCH"] = float(state["SOLVE_MATCH_THRESHOLD"])
     state["FORCE_RERUN_PROVEN"] = True
@@ -84,6 +85,15 @@ def initialize_runtime_state(
     state["STAGE3_PHASEB_TOP_N"] = 8
     state["STAGE3_PHASEB_GATE_DELTA_FLOOR"] = 0.008
     state["STAGE3_PHASEB_GATE_END_GAIN_FLOOR"] = 0.004
+    state["STAGE3_PHASEC_ENABLED"] = True
+    state["STAGE3_PHASEC_CFG"] = {
+        "steps": 32,
+        "proposals_per_step": 24,
+        "three_cycle_prob": 0.15,
+    }
+    state["STAGE3_PHASEC_START_KEYS"] = 12
+    state["STAGE3_PHASEC_SEED_OFFSET"] = 1200003
+    state["STAGE3_PHASEC_WORD_NGRAM_TIEBREAK"] = True
     state["STAGE3_SPAN_BASIN_JUDGE_K"] = 32
     state["STAGE3_SPAN_BASIN_JUDGE_REQUIRE_SPAN_ACTIVE"] = True
     state["STAGE3_SPAN_BASIN_JUDGE_DEDUPE_BY_END_HASH"] = True
@@ -112,6 +122,13 @@ def initialize_runtime_state(
     state["_STAGE3_PHASEB_TOP_N_DEFAULT"] = int(state["STAGE3_PHASEB_TOP_N"])
     state["_STAGE3_PHASEB_GATE_DELTA_FLOOR_DEFAULT"] = float(state["STAGE3_PHASEB_GATE_DELTA_FLOOR"])
     state["_STAGE3_PHASEB_GATE_END_GAIN_FLOOR_DEFAULT"] = float(state["STAGE3_PHASEB_GATE_END_GAIN_FLOOR"])
+    state["_STAGE3_PHASEC_ENABLED_DEFAULT"] = bool(state["STAGE3_PHASEC_ENABLED"])
+    state["_STAGE3_PHASEC_CFG_DEFAULT"] = dict(state["STAGE3_PHASEC_CFG"])
+    state["_STAGE3_PHASEC_START_KEYS_DEFAULT"] = int(state["STAGE3_PHASEC_START_KEYS"])
+    state["_STAGE3_PHASEC_SEED_OFFSET_DEFAULT"] = int(state["STAGE3_PHASEC_SEED_OFFSET"])
+    state["_STAGE3_PHASEC_WORD_NGRAM_TIEBREAK_DEFAULT"] = bool(
+        state["STAGE3_PHASEC_WORD_NGRAM_TIEBREAK"]
+    )
     state["_STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS_DEFAULT"] = int(state["STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS"])
     state["_STAGE3_C1_FOCUS_ENABLED_DEFAULT"] = bool(state["STAGE3_C1_FOCUS_ENABLED"])
     state["_STAGE3_C1_INIT_KEYS_DEFAULT"] = int(state["STAGE3_C1_INIT_KEYS"])

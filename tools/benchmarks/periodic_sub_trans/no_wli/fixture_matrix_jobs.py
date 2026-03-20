@@ -34,6 +34,26 @@ def _sync_stage3_two_phase_defaults_from_live_state(*, no_wli: Any) -> None:
         no_wli._STAGE3_PHASEB_GATE_END_GAIN_FLOOR_DEFAULT = float(  # type: ignore[attr-defined]
             no_wli.STAGE3_PHASEB_GATE_END_GAIN_FLOOR
         )
+    if hasattr(no_wli, "_STAGE3_PHASEC_ENABLED_DEFAULT"):
+        no_wli._STAGE3_PHASEC_ENABLED_DEFAULT = bool(  # type: ignore[attr-defined]
+            no_wli.STAGE3_PHASEC_ENABLED
+        )
+    if hasattr(no_wli, "_STAGE3_PHASEC_CFG_DEFAULT"):
+        no_wli._STAGE3_PHASEC_CFG_DEFAULT = {  # type: ignore[attr-defined]
+            str(k): v for k, v in dict(no_wli.STAGE3_PHASEC_CFG).items()
+        }
+    if hasattr(no_wli, "_STAGE3_PHASEC_START_KEYS_DEFAULT"):
+        no_wli._STAGE3_PHASEC_START_KEYS_DEFAULT = int(  # type: ignore[attr-defined]
+            no_wli.STAGE3_PHASEC_START_KEYS
+        )
+    if hasattr(no_wli, "_STAGE3_PHASEC_SEED_OFFSET_DEFAULT"):
+        no_wli._STAGE3_PHASEC_SEED_OFFSET_DEFAULT = int(  # type: ignore[attr-defined]
+            no_wli.STAGE3_PHASEC_SEED_OFFSET
+        )
+    if hasattr(no_wli, "_STAGE3_PHASEC_WORD_NGRAM_TIEBREAK_DEFAULT"):
+        no_wli._STAGE3_PHASEC_WORD_NGRAM_TIEBREAK_DEFAULT = bool(  # type: ignore[attr-defined]
+            no_wli.STAGE3_PHASEC_WORD_NGRAM_TIEBREAK
+        )
 
 
 def job_key(job: Any) -> str:
@@ -77,7 +97,15 @@ def build_fixture_jobs(
     validate_schedule_contract_fn: Callable[..., None],
     job_cls: type,
 ) -> list[Any]:
-    seeds = unique_sorted_ints_fn(tuple(int(x) for x in run_seeds))
+    # Preserve caller-provided seed order so campaigns can prioritize known hot seeds.
+    seeds: list[int] = []
+    seen_seed: set[int] = set()
+    for raw_seed in run_seeds:
+        seed_i = int(raw_seed)
+        if seed_i in seen_seed:
+            continue
+        seen_seed.add(seed_i)
+        seeds.append(seed_i)
     if not seeds:
         raise ValueError("RUN_SEEDS resolved empty")
 
@@ -190,11 +218,21 @@ def apply_job(
     force_stage3_phaseb_top_n: int | None = None,
     force_stage3_phaseb_gate_delta_floor: float | None = None,
     force_stage3_phaseb_gate_end_gain_floor: float | None = None,
+    force_stage3_phasec_enabled: bool | None = None,
+    force_stage3_phasec_cfg: Mapping[str, Any] | None = None,
+    force_stage3_phasec_start_keys: int | None = None,
+    force_stage3_phasec_seed_offset: int | None = None,
+    force_stage3_phasec_word_ngram_tiebreak: bool | None = None,
+    force_stage1_seed_restarts: int | None = None,
+    force_stage1_seed_total: int | None = None,
+    force_stage1_scout_min_steps: int | None = None,
+    force_stage12_archive_keep: int | None = None,
     force_word_ngram_decision_influence: bool | None = None,
     force_stage3_initial_keys: int | None = None,
     force_stage3_initial_keys_by_columns: Mapping[str, Any] | None = None,
     force_stage12_promote_top: int | None = None,
     force_stage3_span_basin_judge_tie_max_seeds: int | None = None,
+    force_word_ngram_report_min_positions: int | None = None,
 ) -> None:
     if bool(disable_stage3_span_basin_k_sweep):
         no_wli.RUN_STAGE3_SPAN_BASIN_K_SWEEP = False
@@ -223,9 +261,33 @@ def apply_job(
         scorer_schedule=job.scorer_schedule(),
     )
     no_wli.SCORING_EXPERIMENT_PROFILE = str(job.scoring_experiment_profile)
+    if force_stage3_phasec_enabled is not None:
+        no_wli.STAGE3_PHASEC_ENABLED = bool(force_stage3_phasec_enabled)
+    if force_stage3_phasec_cfg is not None:
+        no_wli.STAGE3_PHASEC_CFG = dict(force_stage3_phasec_cfg)
+    if force_stage3_phasec_start_keys is not None:
+        no_wli.STAGE3_PHASEC_START_KEYS = int(max(1, int(force_stage3_phasec_start_keys)))
+    if force_stage3_phasec_seed_offset is not None:
+        no_wli.STAGE3_PHASEC_SEED_OFFSET = int(force_stage3_phasec_seed_offset)
+    if force_stage3_phasec_word_ngram_tiebreak is not None:
+        no_wli.STAGE3_PHASEC_WORD_NGRAM_TIEBREAK = bool(
+            force_stage3_phasec_word_ngram_tiebreak
+        )
+    if force_stage1_seed_restarts is not None:
+        no_wli.STAGE1_SEED_RESTARTS = int(max(1, int(force_stage1_seed_restarts)))
+    if force_stage1_seed_total is not None:
+        no_wli.STAGE1_SEED_TOTAL = int(max(1, int(force_stage1_seed_total)))
+    if force_stage1_scout_min_steps is not None:
+        no_wli.STAGE1_SCOUT_MIN_STEPS = int(max(1, int(force_stage1_scout_min_steps)))
+    if force_stage12_archive_keep is not None:
+        no_wli.STAGE12_ARCHIVE_KEEP = int(max(1, int(force_stage12_archive_keep)))
     if force_word_ngram_decision_influence is not None:
         no_wli.WORD_NGRAM_REPORT_DECISION_INFLUENCE = bool(
             force_word_ngram_decision_influence
+        )
+    if force_word_ngram_report_min_positions is not None:
+        no_wli.WORD_NGRAM_REPORT_MIN_POSITIONS = int(
+            max(1, int(force_word_ngram_report_min_positions))
         )
     if force_stage3_initial_keys is not None:
         no_wli.STAGE3_INITIAL_KEYS = int(max(1, int(force_stage3_initial_keys)))

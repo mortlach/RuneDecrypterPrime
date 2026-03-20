@@ -204,6 +204,7 @@ def run_iteration_pre_stage3(
     return dict(
         continue_iteration=False,
         key_len=int(key_len),
+        key_true=np.asarray(key_true, dtype=np.int16).copy(),
         full_cipher=full_cipher,
         ct_idx=np.asarray(ct_idx, dtype=np.uint8),
         scorer_stage2=dict(scorer_stage2),

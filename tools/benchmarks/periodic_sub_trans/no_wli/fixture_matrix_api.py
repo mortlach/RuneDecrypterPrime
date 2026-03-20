@@ -270,6 +270,13 @@ def _resolve_stage3_tuning_overrides_for_job(
     )
     if force_word_ngram_decision_influence is not None:
         force_word_ngram_decision_influence = bool(force_word_ngram_decision_influence)
+    force_word_ngram_report_min_positions = preset.get(
+        "force_word_ngram_report_min_positions", None
+    )
+    if force_word_ngram_report_min_positions is not None:
+        force_word_ngram_report_min_positions = int(
+            force_word_ngram_report_min_positions
+        )
 
     force_stage3_initial_keys = preset.get("force_stage3_initial_keys", None)
     if force_stage3_initial_keys is not None:
@@ -293,6 +300,39 @@ def _resolve_stage3_tuning_overrides_for_job(
         force_stage3_span_basin_judge_tie_max_seeds = int(
             force_stage3_span_basin_judge_tie_max_seeds
         )
+    force_stage1_seed_restarts = preset.get("force_stage1_seed_restarts", None)
+    if force_stage1_seed_restarts is not None:
+        force_stage1_seed_restarts = int(force_stage1_seed_restarts)
+    force_stage1_seed_total = preset.get("force_stage1_seed_total", None)
+    if force_stage1_seed_total is not None:
+        force_stage1_seed_total = int(force_stage1_seed_total)
+    force_stage1_scout_min_steps = preset.get("force_stage1_scout_min_steps", None)
+    if force_stage1_scout_min_steps is not None:
+        force_stage1_scout_min_steps = int(force_stage1_scout_min_steps)
+    force_stage12_archive_keep = preset.get("force_stage12_archive_keep", None)
+    if force_stage12_archive_keep is not None:
+        force_stage12_archive_keep = int(force_stage12_archive_keep)
+    force_stage3_phasec_enabled = preset.get("force_stage3_phasec_enabled", None)
+    if force_stage3_phasec_enabled is not None:
+        force_stage3_phasec_enabled = bool(force_stage3_phasec_enabled)
+    force_stage3_phasec_start_keys = preset.get("force_stage3_phasec_start_keys", None)
+    if force_stage3_phasec_start_keys is not None:
+        force_stage3_phasec_start_keys = int(force_stage3_phasec_start_keys)
+    force_stage3_phasec_seed_offset = preset.get("force_stage3_phasec_seed_offset", None)
+    if force_stage3_phasec_seed_offset is not None:
+        force_stage3_phasec_seed_offset = int(force_stage3_phasec_seed_offset)
+    force_stage3_phasec_word_ngram_tiebreak = preset.get(
+        "force_stage3_phasec_word_ngram_tiebreak",
+        None,
+    )
+    if force_stage3_phasec_word_ngram_tiebreak is not None:
+        force_stage3_phasec_word_ngram_tiebreak = bool(
+            force_stage3_phasec_word_ngram_tiebreak
+        )
+    force_stage3_phasec_cfg: dict[str, Any] | None = None
+    raw_phasec_cfg = preset.get("force_stage3_phasec_cfg", None)
+    if isinstance(raw_phasec_cfg, Mapping):
+        force_stage3_phasec_cfg = dict(raw_phasec_cfg)
 
     return dict(
         disable_stage3_span_basin_k_sweep=bool(DISABLE_STAGE3_SPAN_BASIN_K_SWEEP),
@@ -318,12 +358,22 @@ def _resolve_stage3_tuning_overrides_for_job(
             )
         ),
         force_word_ngram_decision_influence=force_word_ngram_decision_influence,
+        force_word_ngram_report_min_positions=force_word_ngram_report_min_positions,
         force_stage3_initial_keys=force_stage3_initial_keys,
         force_stage3_initial_keys_by_columns=force_stage3_initial_keys_by_columns,
         force_stage12_promote_top=force_stage12_promote_top,
         force_stage3_span_basin_judge_tie_max_seeds=(
             force_stage3_span_basin_judge_tie_max_seeds
         ),
+        force_stage3_phasec_enabled=force_stage3_phasec_enabled,
+        force_stage3_phasec_cfg=force_stage3_phasec_cfg,
+        force_stage3_phasec_start_keys=force_stage3_phasec_start_keys,
+        force_stage3_phasec_seed_offset=force_stage3_phasec_seed_offset,
+        force_stage3_phasec_word_ngram_tiebreak=force_stage3_phasec_word_ngram_tiebreak,
+        force_stage1_seed_restarts=force_stage1_seed_restarts,
+        force_stage1_seed_total=force_stage1_seed_total,
+        force_stage1_scout_min_steps=force_stage1_scout_min_steps,
+        force_stage12_archive_keep=force_stage12_archive_keep,
     )
 
 
@@ -351,6 +401,9 @@ def apply_job(job: NoWliFixtureJob) -> None:
         force_word_ngram_decision_influence=stage3_tuning_overrides[
             "force_word_ngram_decision_influence"
         ],
+        force_word_ngram_report_min_positions=stage3_tuning_overrides[
+            "force_word_ngram_report_min_positions"
+        ],
         force_stage3_initial_keys=stage3_tuning_overrides["force_stage3_initial_keys"],
         force_stage3_initial_keys_by_columns=stage3_tuning_overrides[
             "force_stage3_initial_keys_by_columns"
@@ -358,6 +411,29 @@ def apply_job(job: NoWliFixtureJob) -> None:
         force_stage12_promote_top=stage3_tuning_overrides["force_stage12_promote_top"],
         force_stage3_span_basin_judge_tie_max_seeds=stage3_tuning_overrides[
             "force_stage3_span_basin_judge_tie_max_seeds"
+        ],
+        force_stage3_phasec_enabled=stage3_tuning_overrides[
+            "force_stage3_phasec_enabled"
+        ],
+        force_stage3_phasec_cfg=stage3_tuning_overrides["force_stage3_phasec_cfg"],
+        force_stage3_phasec_start_keys=stage3_tuning_overrides[
+            "force_stage3_phasec_start_keys"
+        ],
+        force_stage3_phasec_seed_offset=stage3_tuning_overrides[
+            "force_stage3_phasec_seed_offset"
+        ],
+        force_stage3_phasec_word_ngram_tiebreak=stage3_tuning_overrides[
+            "force_stage3_phasec_word_ngram_tiebreak"
+        ],
+        force_stage1_seed_restarts=stage3_tuning_overrides[
+            "force_stage1_seed_restarts"
+        ],
+        force_stage1_seed_total=stage3_tuning_overrides["force_stage1_seed_total"],
+        force_stage1_scout_min_steps=stage3_tuning_overrides[
+            "force_stage1_scout_min_steps"
+        ],
+        force_stage12_archive_keep=stage3_tuning_overrides[
+            "force_stage12_archive_keep"
         ],
     )
 

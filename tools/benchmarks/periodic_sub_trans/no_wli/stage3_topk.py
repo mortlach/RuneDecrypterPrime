@@ -21,6 +21,7 @@ def append_stage3_topk_from_kaeding(
     require_batch_scoring: bool,
     match_ratio_fn: Callable[[Sequence[int], Sequence[int]], float],
     target_plaintext: np.ndarray,
+    key_hash_fn: Callable[[Sequence[int]], str] | None = None,
 ) -> None:
     if (not bool(save_enabled)) or (not isinstance(kaeding_obj, dict)):
         return
@@ -69,6 +70,12 @@ def append_stage3_topk_from_kaeding(
                 match_ratio=float(match_ratio_fn(pt_k.tolist(), target_plaintext.tolist())),
                 key_idx=key_list,
                 plaintext_idx=pt_k.astype(int).tolist(),
+                end_hash=(
+                    str(key_hash_fn(key_list))
+                    if callable(key_hash_fn)
+                    else ""
+                ),
+                source="phaseB_topk",
             )
         )
 
@@ -113,7 +120,9 @@ def append_stage3_topk_from_phasea(
                 match_ratio=float(row.get("end_match", float("nan"))),
                 key_idx=key_list,
                 plaintext_idx=list(map(int, row.get("end_plaintext", []))),
-                source="phaseA",
+                start_hash=str(row.get("start_hash", "")),
+                end_hash=str(row.get("end_hash", "")),
+                source="phaseA_topk",
             )
         )
         if out_rank >= int(save_limit):

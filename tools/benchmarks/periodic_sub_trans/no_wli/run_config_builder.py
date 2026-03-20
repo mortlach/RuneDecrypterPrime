@@ -269,6 +269,15 @@ def build_run_config(
                 phase_b_top_n=int(state["STAGE3_PHASEB_TOP_N"]),
                 gate_delta_floor=float(state["STAGE3_PHASEB_GATE_DELTA_FLOOR"]),
                 gate_end_gain_floor=float(state["STAGE3_PHASEB_GATE_END_GAIN_FLOOR"]),
+                phase_c=dict(
+                    enabled=bool(state.get("STAGE3_PHASEC_ENABLED", False)),
+                    cfg=dict(state.get("STAGE3_PHASEC_CFG", {})),
+                    start_keys=int(state.get("STAGE3_PHASEC_START_KEYS", 0)),
+                    seed_offset=int(state.get("STAGE3_PHASEC_SEED_OFFSET", 0)),
+                    word_ngram_tiebreak=bool(
+                        state.get("STAGE3_PHASEC_WORD_NGRAM_TIEBREAK", False)
+                    ),
+                ),
             ),
             c1_focus=dict(
                 enabled=bool(state["STAGE3_C1_FOCUS_ENABLED"]),

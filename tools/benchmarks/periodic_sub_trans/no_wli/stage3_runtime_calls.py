@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Sequence
 
 import numpy as np
@@ -32,6 +33,11 @@ class Stage3RuntimeCallContext:
     stage3_span_basin_judge_tie_eps: float
     stage3_span_basin_judge_tie_max_seeds: int
     stage3_word_ngram_decision_influence: bool
+    stage3_phasec_enabled: bool
+    stage3_phasec_cfg: Dict[str, Any]
+    stage3_phasec_start_keys: int
+    stage3_phasec_seed_offset: int
+    stage3_phasec_word_ngram_tiebreak: bool
     extract_kaeding_metrics_fn: Callable[[Any], Dict[str, float]]
     solution_span_counter_summary_fn: Callable[[Any], Dict[str, float]]
     stage3_progress_logging_fn: Callable[..., Dict[str, Any]]
@@ -43,6 +49,8 @@ class Stage3RuntimeCallContext:
     scorer_span_counter_summary_fn: Callable[[Any], Dict[str, float]]
     span_counter_delta_fn: Callable[..., Dict[str, float]]
     fmt_finite_float_fn: Callable[..., str]
+    phasec_start_checkpoint_path: Path | None = None
+    append_jsonl_row_fn: Callable[[Path, Dict[str, Any]], None] | None = None
     log_prefix: str = "[pipeline_no_wli]"
 
 
@@ -231,6 +239,11 @@ def run_stage3_two_phase_followup_call(
         stage3_word_ngram_decision_influence=bool(
             ctx.stage3_word_ngram_decision_influence
         ),
+        stage3_phasec_enabled=bool(ctx.stage3_phasec_enabled),
+        stage3_phasec_cfg=dict(ctx.stage3_phasec_cfg),
+        stage3_phasec_start_keys=int(ctx.stage3_phasec_start_keys),
+        stage3_phasec_seed_offset=int(ctx.stage3_phasec_seed_offset),
+        stage3_phasec_word_ngram_tiebreak=bool(ctx.stage3_phasec_word_ngram_tiebreak),
         batch_eval_chunk_size=int(ctx.batch_eval_chunk_size),
         require_batch_scoring=bool(ctx.require_batch_scoring),
         base_seed=int(base_seed),
@@ -251,5 +264,8 @@ def run_stage3_two_phase_followup_call(
         span_counter_delta_fn=ctx.span_counter_delta_fn,
         stage3_progress_logging_fn=ctx.stage3_progress_logging_fn,
         fmt_finite_float_fn=ctx.fmt_finite_float_fn,
+        phasec_start_checkpoint_path=ctx.phasec_start_checkpoint_path,
+        append_jsonl_row_fn=ctx.append_jsonl_row_fn,
+        key_hash_fn=ctx.key_hash_fn,
         log_prefix=str(ctx.log_prefix),
     )

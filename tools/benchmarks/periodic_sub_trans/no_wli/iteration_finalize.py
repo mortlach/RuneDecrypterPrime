@@ -8,6 +8,9 @@ import numpy as np
 from tools.benchmarks.periodic_sub_trans.no_wli.iteration_outcome import (
     resolve_iteration_outcome,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.truth_diagnostics import (
+    build_fixture_truth_diagnostics,
+)
 from tools.benchmarks.periodic_sub_trans.no_wli.word_ngram_report import (
     score_word_ngram_report_for_plaintext,
     score_word_ngram_report_for_topk_rows,
@@ -53,6 +56,7 @@ def finalize_iteration_and_commit(
     sub_key_match: float,
     ct_idx: np.ndarray,
     pt_idx: np.ndarray,
+    target_key_idx: Sequence[int] | None,
     stage2_topk_payload: List[Dict[str, Any]],
     stage2_topk_has_best_match: bool,
     stage2_diagnostics: Dict[str, Any],
@@ -122,6 +126,20 @@ def finalize_iteration_and_commit(
         wli=wli,
         require_batch_scoring=bool(require_batch_scoring),
     )
+    target_key_list = (
+        np.asarray(target_key_idx, dtype=np.int16).astype(int).reshape(-1).tolist()
+        if target_key_idx is not None
+        else []
+    )
+    truth_diagnostics = build_fixture_truth_diagnostics(
+        target_key_idx=target_key_list,
+        final_best_key_idx=final_best_key_idx,
+        target_plaintext_idx=np.asarray(pt_idx, dtype=np.uint8),
+        final_best_plaintext_idx=final_best_plaintext_idx,
+        period=int(getattr(tier, "period", 0) or 0),
+        columns=int(getattr(tier, "columns", 0) or 0),
+        stage3_topk_rows=stage3_topk_payload,
+    )
 
     inst_row, artifact_payload = build_iteration_payloads_fn(
         tier=tier,
@@ -179,7 +197,23 @@ def finalize_iteration_and_commit(
         word_ngram_judge_inactive_reason=str(
             word_ngram_report.get("word_ngram_judge_inactive_reason", "") or ""
         ),
+        truth_diagnostics_available=bool(truth_diagnostics.get("available", False)),
+        truth_key_hamming_total=truth_diagnostics.get("key_hamming_total"),
+        truth_key_hamming_substitution=truth_diagnostics.get("key_hamming_substitution"),
+        truth_key_hamming_columns=truth_diagnostics.get("key_hamming_columns"),
+        truth_worst_substitution_slice=truth_diagnostics.get("worst_substitution_slice"),
+        truth_worst_substitution_slice_mismatches=truth_diagnostics.get(
+            "worst_substitution_slice_mismatches"
+        ),
+        truth_worst_plaintext_period_residue=truth_diagnostics.get(
+            "worst_plaintext_period_residue"
+        ),
+        truth_worst_plaintext_period_residue_match_ratio=truth_diagnostics.get(
+            "worst_plaintext_period_residue_match_ratio"
+        ),
     )
+    artifact_payload["target_key_idx"] = list(target_key_list)
+    artifact_payload["truth_diagnostics"] = dict(truth_diagnostics)
     artifact_payload["word_ngram_report"] = dict(word_ngram_report)
     artifact_payload["stage2_topk_word_ngram_report"] = list(stage2_topk_word_ngram_report)
     artifact_payload["stage3_topk_word_ngram_report"] = list(stage3_topk_word_ngram_report)

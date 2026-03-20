@@ -84,6 +84,11 @@ def emit_setup_logging(
     stage3_continue_after_solve: bool,
     stage3_phaseb_gate_delta_floor: float,
     stage3_phaseb_gate_end_gain_floor: float,
+    stage3_phasec_enabled: bool = False,
+    stage3_phasec_cfg: dict[str, object] | None = None,
+    stage3_phasec_start_keys: int = 0,
+    stage3_phasec_seed_offset: int = 0,
+    stage3_phasec_word_ngram_tiebreak: bool = False,
     stage3_c1_focus_enabled: bool,
     stage3_c1_init_keys: int,
     stage3_c1_phasea_steps: int,
@@ -208,6 +213,11 @@ def emit_setup_logging(
         f"continue_after_solve={1 if bool(stage3_continue_after_solve) else 0} "
         f"phaseB_gate=(delta={float(stage3_phaseb_gate_delta_floor):.4f},"
         f"end_gain={float(stage3_phaseb_gate_end_gain_floor):.4f}) "
+        f"phaseC=(enabled={1 if bool(stage3_phasec_enabled) else 0},"
+        f"start_keys={int(stage3_phasec_start_keys)},"
+        f"seed_offset={int(stage3_phasec_seed_offset)},"
+        f"word_ngram_tiebreak={1 if bool(stage3_phasec_word_ngram_tiebreak) else 0},"
+        f"cfg={json.dumps(dict(stage3_phasec_cfg or {}), separators=(',', ':'))}) "
         f"c1_focus=(enabled={1 if bool(stage3_c1_focus_enabled) else 0},"
         f"init_keys={int(stage3_c1_init_keys)},"
         f"phaseA_steps={int(stage3_c1_phasea_steps)},"

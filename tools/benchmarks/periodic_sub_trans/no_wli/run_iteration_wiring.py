@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Callable, Dict, Mapping
 
 
 def build_iteration_wiring(
     *,
     state: Mapping[str, Any],
+    run_dir: Path,
     oracle_mode: str,
     oracle_decision_paths_enabled: bool,
     oracle_assist_selection_effective: bool,
@@ -57,7 +59,8 @@ def build_iteration_wiring(
         state=runner_state, **kwargs
     )
     stage3_runtime_call_ctx = build_stage3_runtime_call_context_bridge_fn(
-        state=runner_state
+        state=runner_state,
+        run_dir=run_dir,
     )
     iteration_config = build_iteration_matrix_config_fn(
         state=runner_state,

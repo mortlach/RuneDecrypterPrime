@@ -46,6 +46,13 @@ def finalize_iteration_post_stage3(
         phaseB_skipped=int(state.get("phaseB_skipped", 0)),
         phaseB_top_n_used=int(state.get("phaseB_top_n_used", 0)),
         phaseB_skip_reason=str(state.get("phaseB_skip_reason", "")),
+        phaseB_selected_unique_end_hash=int(
+            state.get("phaseB_selected_unique_end_hash", 0)
+        ),
+        phaseB_topk_saved_count=int(state.get("phaseB_topk_saved_count", 0)),
+        phaseB_topk_saved_unique_end_hash=int(
+            state.get("phaseB_topk_saved_unique_end_hash", 0)
+        ),
         phaseB_char_pct_min_dynamic=float(state["stage3_phaseB_char_pct_min_dynamic"]),
         phaseB_char_pct_min_source=str(state["stage3_phaseB_char_pct_min_source"]),
         span_basin_judge_k_cfg=int(state["stage3_span_basin_judge_k_cfg"]),
@@ -84,6 +91,146 @@ def finalize_iteration_post_stage3(
             if (int(state["tier"].columns) <= 1 and bool(stage3_c1_focus_enabled))
             else 0
         ),
+        phaseC_enabled_cfg=int(state.get("phaseC_enabled_cfg", 0)),
+        phaseC_enabled_effective=int(state.get("phaseC_enabled_effective", 0)),
+        phaseC_ran=int(state.get("phaseC_ran", 0)),
+        phaseC_start_keys_used=int(state.get("phaseC_start_keys_used", 0)),
+        phaseC_steps_cfg=int(state.get("phaseC_steps_cfg", 0)),
+        phaseC_proposals_per_step_cfg=int(
+            state.get("phaseC_proposals_per_step_cfg", 0)
+        ),
+        phaseC_lexical_min_match_cfg=float(
+            state.get("phaseC_lexical_min_match_cfg", float("nan"))
+        ),
+        phaseC_evals=int(state.get("phaseC_evals", 0)),
+        phaseC_accepts=int(state.get("phaseC_accepts", 0)),
+        phaseC_improves=int(state.get("phaseC_improves", 0)),
+        phaseC_rescue_enabled_cfg=int(state.get("phaseC_rescue_enabled_cfg", 0)),
+        phaseC_rescue_ran=int(state.get("phaseC_rescue_ran", 0)),
+        phaseC_rescue_starts_attempted=int(
+            state.get("phaseC_rescue_starts_attempted", 0)
+        ),
+        phaseC_rescue_applied_starts=int(
+            state.get("phaseC_rescue_applied_starts", 0)
+        ),
+        phaseC_rescue_target_mode_cfg=str(
+            state.get("phaseC_rescue_target_mode_cfg", "slice_probe")
+        ),
+        phaseC_rescue_selector_mode_cfg=str(
+            state.get(
+                "phaseC_rescue_selector_mode_cfg",
+                "rescue_shallow_then_search",
+            )
+        ),
+        phaseC_rescue_candidates_cfg=int(
+            state.get("phaseC_rescue_candidates_cfg", 0)
+        ),
+        phaseC_rescue_slip_swaps_cfg=int(
+            state.get("phaseC_rescue_slip_swaps_cfg", 0)
+        ),
+        phaseC_rescue_mini_search_steps_cfg=int(
+            state.get("phaseC_rescue_mini_search_steps_cfg", 0)
+        ),
+        phaseC_rescue_mini_search_beam_width_cfg=int(
+            state.get("phaseC_rescue_mini_search_beam_width_cfg", 0)
+        ),
+        phaseC_rescue_mini_search_top_symbols_cfg=int(
+            state.get("phaseC_rescue_mini_search_top_symbols_cfg", 0)
+        ),
+        phaseC_rescue_mini_search_keep_all_rows_cfg=int(
+            state.get("phaseC_rescue_mini_search_keep_all_rows_cfg", 0)
+        ),
+        phaseC_rescue_polish_steps_cfg=int(
+            state.get("phaseC_rescue_polish_steps_cfg", 0)
+        ),
+        phaseC_rescue_probe_evals=int(state.get("phaseC_rescue_probe_evals", 0)),
+        phaseC_rescue_evals=int(state.get("phaseC_rescue_evals", 0)),
+        phaseC_rescue_mini_search_evals=int(
+            state.get("phaseC_rescue_mini_search_evals", 0)
+        ),
+        phaseC_rescue_anchor_enabled_cfg=int(
+            state.get("phaseC_rescue_anchor_enabled_cfg", 0)
+        ),
+        phaseC_rescue_phaseb_topk_min_rank_cfg=int(
+            state.get("phaseC_rescue_phaseb_topk_min_rank_cfg", 2)
+        ),
+        phaseC_rescue_max_starts_cfg=int(
+            state.get("phaseC_rescue_max_starts_cfg", 0)
+        ),
+        phaseC_rescue_eligible_starts=int(
+            state.get("phaseC_rescue_eligible_starts", 0)
+        ),
+        phaseC_rescue_search_score_max_drop_cfg=float(
+            state.get("phaseC_rescue_search_score_max_drop_cfg", 0.0)
+        ),
+        phaseC_rescue_guard_search_evals=int(
+            state.get("phaseC_rescue_guard_search_evals", 0)
+        ),
+        phaseC_rescue_guard_search_passes=int(
+            state.get("phaseC_rescue_guard_search_passes", 0)
+        ),
+        phaseC_rescue_guard_search_rejects=int(
+            state.get("phaseC_rescue_guard_search_rejects", 0)
+        ),
+        phaseC_rescue_lexical_requests=int(
+            state.get("phaseC_rescue_lexical_requests", 0)
+        ),
+        phaseC_rescue_lexical_cache_hits=int(
+            state.get("phaseC_rescue_lexical_cache_hits", 0)
+        ),
+        phaseC_rescue_lexical_cache_misses=int(
+            state.get("phaseC_rescue_lexical_cache_misses", 0)
+        ),
+        phaseC_rescue_lexical_tiebreak_decisions=int(
+            state.get("phaseC_rescue_lexical_tiebreak_decisions", 0)
+        ),
+        phaseC_rescue_lexical_budget_skips=int(
+            state.get("phaseC_rescue_lexical_budget_skips", 0)
+        ),
+        phaseC_rescue_lexical_threshold_skips=int(
+            state.get("phaseC_rescue_lexical_threshold_skips", 0)
+        ),
+        phaseC_lexical_requests=int(state.get("phaseC_lexical_requests", 0)),
+        phaseC_lexical_cache_hits=int(state.get("phaseC_lexical_cache_hits", 0)),
+        phaseC_lexical_cache_misses=int(state.get("phaseC_lexical_cache_misses", 0)),
+        phaseC_lexical_tiebreak_decisions=int(
+            state.get("phaseC_lexical_tiebreak_decisions", 0)
+        ),
+        phaseC_lexical_budget_skips=int(state.get("phaseC_lexical_budget_skips", 0)),
+        phaseC_lexical_threshold_skips=int(
+            state.get("phaseC_lexical_threshold_skips", 0)
+        ),
+        phaseC_candidate_pool_count=int(state.get("phaseC_candidate_pool_count", 0)),
+        phaseC_candidate_pool_unique_keys=int(
+            state.get("phaseC_candidate_pool_unique_keys", 0)
+        ),
+        phaseC_candidate_pool_unique_end_hash=int(
+            state.get("phaseC_candidate_pool_unique_end_hash", 0)
+        ),
+        phaseC_candidate_pool_source_counts=dict(
+            state.get("phaseC_candidate_pool_source_counts", {})
+        ),
+        phaseC_start_source_counts=dict(state.get("phaseC_start_source_counts", {})),
+        phaseC_start_unique_end_hash=int(
+            state.get("phaseC_start_unique_end_hash", 0)
+        ),
+        phaseC_improved_best=int(state.get("phaseC_improved_best", 0)),
+        phaseC_checkpoint_jsonl_name=str(
+            state.get("phaseC_checkpoint_jsonl_name", "")
+        ),
+        phaseC_checkpoint_rows_written=int(
+            state.get("phaseC_checkpoint_rows_written", 0)
+        ),
+        phaseC_anchor_lane_starts=int(state.get("phaseC_anchor_lane_starts", 0)),
+        phaseC_challenger_lane_starts=int(
+            state.get("phaseC_challenger_lane_starts", 0)
+        ),
+        phaseC_challenger_overtook_anchor_count=int(
+            state.get("phaseC_challenger_overtook_anchor_count", 0)
+        ),
+        phaseC_final_winner_lane=str(state.get("phaseC_final_winner_lane", "")),
+        phaseC_final_winner_source=str(state.get("phaseC_final_winner_source", "")),
+        phaseC_start_summaries=list(state.get("phaseC_start_summaries", [])),
     )
     finalize_iteration_and_commit_fn(
         tier=state["tier"],
@@ -125,6 +272,7 @@ def finalize_iteration_post_stage3(
         sub_key_match=float(state["sub_key_match"]),
         ct_idx=np.asarray(state["ct_idx"], dtype=np.uint8),
         pt_idx=np.asarray(state["pt_idx"], dtype=np.uint8),
+        target_key_idx=state.get("key_true"),
         stage2_topk_payload=state["stage2_topk_payload"],
         stage2_topk_has_best_match=bool(state["stage2_topk_has_best_match"]),
         stage2_diagnostics=stage2_diagnostics,

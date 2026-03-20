@@ -118,3 +118,56 @@ def test_apply_job_sets_span_decision_role_controls() -> None:
     assert calls, "configure_campaign_run should be called"
     assert no_wli.SPAN_DECISION_ROLE_ENABLED is True
     assert no_wli.STAGE3_SPAN_AUX_ROLE == "prune"
+
+
+def test_apply_job_sets_conservative_early_overrides() -> None:
+    calls: list[dict[str, object]] = []
+    no_wli = SimpleNamespace(
+        RUN_STAGE3_SPAN_BASIN_K_SWEEP=True,
+        STAGE3_SPAN_BASIN_K_SWEEP_VALUES=[96],
+        STAGE3_SPAN_BASIN_JUDGE_K=96,
+        SPAN_DECISION_ROLE_ENABLED=False,
+        STAGE3_SPAN_AUX_ROLE="off",
+        SCORING_EXPERIMENT_PROFILE="off",
+        STAGE1_SEED_RESTARTS=96,
+        STAGE1_SEED_TOTAL=256,
+        STAGE1_SCOUT_MIN_STEPS=900,
+        STAGE12_ARCHIVE_KEEP=192,
+    )
+    no_wli.configure_campaign_run = lambda **kwargs: calls.append(dict(kwargs))
+    job = SimpleNamespace(
+        run_seed=111,
+        period=9,
+        columns=3,
+        length=1000,
+        run_mode="adaptive_fixture_v1",
+        profile_id="no_wli_a1_m4_b4_stage3avg_fulltext_longrun3x_v1",
+        heartbeat_seconds=3600,
+        text_offsets=(0,),
+        scorer_impl="torch",
+        scorer_stage3_impl_avg_fulltext="torch",
+        scoring_experiment_profile="c_min_late",
+        span_ab_case_id="none",
+        span_decision_role_enabled=False,
+        tier_name=lambda: "fixture_fixture_001_p9_c3_l1000",
+        scorer_schedule=lambda: {
+            "early": "a_char1_avg_fulltext",
+            "middle": "m_char12_avg_fulltext",
+            "late": "b_char4_avg_fulltext",
+        },
+    )
+    apply_job(
+        job=job,
+        no_wli=no_wli,
+        disable_stage3_span_basin_k_sweep=False,
+        stage3_span_basin_k_sweep_values=(96,),
+        force_stage1_seed_restarts=88,
+        force_stage1_seed_total=224,
+        force_stage1_scout_min_steps=850,
+        force_stage12_archive_keep=160,
+    )
+    assert calls, "configure_campaign_run should be called"
+    assert int(no_wli.STAGE1_SEED_RESTARTS) == 88
+    assert int(no_wli.STAGE1_SEED_TOTAL) == 224
+    assert int(no_wli.STAGE1_SCOUT_MIN_STEPS) == 850
+    assert int(no_wli.STAGE12_ARCHIVE_KEEP) == 160
