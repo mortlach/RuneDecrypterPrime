@@ -33,6 +33,12 @@ from tools.benchmarks.periodic_sub_trans.no_wli.phasec_rescue_selector import (
     score_sort_key,
     select_guard_passing_row,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.family_views import (
+    cluster_family_ids,
+    family_view_distance,
+    find_family_view,
+    rows_share_family,
+)
 
 
 def _approx_phase_eval_budget(
@@ -166,6 +172,10 @@ def run_stage3_two_phase_followup(
     phasec_start_checkpoint_path: Path | None = None,
     append_jsonl_row_fn: Callable[[Path, Dict[str, Any]], None] | None = None,
     key_hash_fn: Callable[[Sequence[int]], str] | None = None,
+    stage3_phasec_start_policy: str = "source_order",
+    stage3_phaseb_family_preservation_policy: str = "off",
+    stage3_phaseb_family_view_id: str = "prefix_hamming_le_24",
+    stage3_phaseb_family_reserved_slots: int = 0,
     log_prefix: str = "[pipeline_no_wli]",
 ) -> Dict[str, Any]:
     best3_match = float("nan")
@@ -219,6 +229,24 @@ def run_stage3_two_phase_followup(
     phaseC_enabled_effective = 0
     phaseC_ran = 0
     phaseC_start_keys_used = 0
+    phaseB_family_preservation_policy_cfg = str(
+        stage3_phaseb_family_preservation_policy
+    ).strip().lower()
+    if not phaseB_family_preservation_policy_cfg:
+        phaseB_family_preservation_policy_cfg = "off"
+    phaseB_family_view_id_cfg = str(stage3_phaseb_family_view_id).strip().lower()
+    if not phaseB_family_view_id_cfg:
+        phaseB_family_view_id_cfg = "prefix_hamming_le_24"
+    phaseB_family_reserved_slots_cfg = int(max(0, int(stage3_phaseb_family_reserved_slots)))
+    phaseB_family_count_in_top_band = 0
+    phaseB_family_preserved_count = 0
+    phaseB_family_reservation_applied = 0
+    phaseB_downstream_selected_count = 0
+    phaseB_downstream_selected_unique_end_hash = 0
+    phaseB_downstream_selected_summaries: List[Dict[str, Any]] = []
+    phaseC_start_policy_cfg = str(stage3_phasec_start_policy).strip().lower()
+    if not phaseC_start_policy_cfg:
+        phaseC_start_policy_cfg = "source_order"
     phaseC_steps_cfg = 0
     phaseC_proposals_per_step_cfg = 0
     phaseC_evals = 0
@@ -238,6 +266,15 @@ def run_stage3_two_phase_followup(
     phaseC_candidate_pool_source_counts: Dict[str, int] = {}
     phaseC_start_source_counts: Dict[str, int] = {}
     phaseC_start_unique_end_hash = 0
+    phaseC_novel_view_id = ""
+    phaseC_anchor_candidate_hash = ""
+    phaseC_candidate_pool_eligible_novel_count = 0
+    phaseC_candidate_pool_eligible_novel_row_count = 0
+    phaseC_candidate_pool_eligible_novel_source_counts: Dict[str, int] = {}
+    phaseC_start_eligible_novel_count = 0
+    phaseC_selected_novel_challenger_count = 0
+    phaseC_eligible_novel_not_selected_count = 0
+    phaseC_selected_novel_challenger_hashes: List[str] = []
     phaseC_improved_best = 0
     phaseC_rescue_enabled_cfg = 0
     phaseC_rescue_ran = 0
@@ -306,6 +343,476 @@ def run_stage3_two_phase_followup(
                 continue
             counts[source] = int(counts.get(source, 0)) + 1
         return counts
+
+    def _append_unique_start_row(
+        *,
+        out_rows: List[Dict[str, Any]],
+        seen_starts: set[tuple[int, ...]],
+        candidate_row: Mapping[str, Any],
+        selection_bucket: str = "legacy_fill",
+        selected_by_novel_policy: bool = False,
+        eligible_novel_challenger: bool = False,
+        novelty_distance_to_anchor: int | None = None,
+        novelty_min_distance_to_selected_challenger: int | None = None,
+    ) -> bool:
+        candidate_key_t = tuple(map(int, candidate_row.get("key", [])))
+        if candidate_key_t in seen_starts:
+            return False
+        seen_starts.add(candidate_key_t)
+        row = dict(candidate_row)
+        row["selection_bucket"] = str(selection_bucket)
+        row["selected_by_novel_policy"] = int(1 if bool(selected_by_novel_policy) else 0)
+        row["eligible_novel_challenger"] = int(
+            1 if bool(eligible_novel_challenger) else 0
+        )
+        row["novelty_distance_to_anchor"] = (
+            int(novelty_distance_to_anchor)
+            if novelty_distance_to_anchor is not None
+            else None
+        )
+        row["novelty_min_distance_to_selected_challenger"] = (
+            int(novelty_min_distance_to_selected_challenger)
+            if novelty_min_distance_to_selected_challenger is not None
+            else None
+        )
+        out_rows.append(row)
+        return True
+
+    def _build_phasec_start_records(
+        *,
+        candidate_pool_records: Sequence[Dict[str, Any]],
+        candidate_buckets: Mapping[str, List[Dict[str, Any]]],
+        phasec_best_source: str,
+        phasec_start_policy: str,
+        stage3_phasec_start_keys: int,
+    ) -> Dict[str, Any]:
+        start_limit = int(max(0, int(stage3_phasec_start_keys)))
+        novelty_view_id = "prefix_hamming_le_24"
+        novelty_view = find_family_view(novelty_view_id)
+        anchor_candidate_hash = ""
+        eligible_novel_rows: List[Dict[str, Any]] = []
+        eligible_novel_hashes: set[str] = set()
+        eligible_novel_source_counts: Dict[str, int] = {}
+        selected_novel_hashes: List[str] = []
+        selected_start_novel_hashes: set[str] = set()
+
+        def _row_is_anchor(
+            row: Mapping[str, Any],
+            *,
+            anchor_row: Mapping[str, Any],
+        ) -> bool:
+            row_hash = str(row.get("candidate_hash", ""))
+            anchor_hash = str(anchor_row.get("candidate_hash", ""))
+            if row_hash and anchor_hash and row_hash == anchor_hash:
+                return True
+            row_key = tuple(map(int, row.get("key", [])))
+            anchor_key = tuple(map(int, anchor_row.get("key", [])))
+            return bool(row_key and anchor_key and row_key == anchor_key)
+
+        def _novelty_distance(
+            lhs: Mapping[str, Any],
+            rhs: Mapping[str, Any],
+        ) -> int | None:
+            if novelty_view is None:
+                return None
+            return family_view_distance(
+                lhs,
+                rhs,
+                family_view=novelty_view,
+                columns=int(max(1, int(tier_columns))),
+            )
+
+        def _is_eligible_novel(
+            row: Mapping[str, Any],
+            *,
+            anchor_row: Mapping[str, Any],
+            selected_novel_rows: Sequence[Mapping[str, Any]] | None = None,
+        ) -> tuple[bool, int | None, int | None]:
+            if novelty_view is None:
+                return False, None, None
+            if _row_is_anchor(row, anchor_row=anchor_row):
+                return False, None, None
+            row_hash = str(row.get("candidate_hash", ""))
+            anchor_hash = str(anchor_row.get("candidate_hash", ""))
+            if row_hash and anchor_hash and row_hash == anchor_hash:
+                return False, None, None
+            same_family_vs_anchor = rows_share_family(
+                row,
+                anchor_row,
+                family_view=novelty_view,
+                columns=int(max(1, int(tier_columns))),
+            )
+            distance_to_anchor = _novelty_distance(row, anchor_row)
+            if same_family_vs_anchor is not False:
+                return False, distance_to_anchor, None
+            min_distance_to_selected: int | None = None
+            for selected_row in list(selected_novel_rows or []):
+                row_same_hash = str(row.get("candidate_hash", ""))
+                selected_hash = str(selected_row.get("candidate_hash", ""))
+                if row_same_hash and selected_hash and row_same_hash == selected_hash:
+                    return False, distance_to_anchor, min_distance_to_selected
+                same_family_vs_selected = rows_share_family(
+                    row,
+                    selected_row,
+                    family_view=novelty_view,
+                    columns=int(max(1, int(tier_columns))),
+                )
+                distance_vs_selected = _novelty_distance(row, selected_row)
+                if distance_vs_selected is not None:
+                    if min_distance_to_selected is None:
+                        min_distance_to_selected = int(distance_vs_selected)
+                    else:
+                        min_distance_to_selected = int(
+                            min(int(min_distance_to_selected), int(distance_vs_selected))
+                        )
+                if same_family_vs_selected is not False:
+                    return False, distance_to_anchor, min_distance_to_selected
+            return True, distance_to_anchor, min_distance_to_selected
+
+        def _legacy_fill(
+            *,
+            out_rows: List[Dict[str, Any]],
+            seen_starts: set[tuple[int, ...]],
+            source_names: Sequence[str],
+            anchor_row: Mapping[str, Any] | None,
+        ) -> None:
+            for source_name in source_names:
+                for bucket_row in candidate_buckets.get(str(source_name), []):
+                    eligible_novel = False
+                    distance_to_anchor: int | None = None
+                    if anchor_row is not None:
+                        eligible_novel, distance_to_anchor, _ = _is_eligible_novel(
+                            bucket_row,
+                            anchor_row=anchor_row,
+                        )
+                    _append_unique_start_row(
+                        out_rows=out_rows,
+                        seen_starts=seen_starts,
+                        candidate_row=bucket_row,
+                        selection_bucket="legacy_fill",
+                        selected_by_novel_policy=False,
+                        eligible_novel_challenger=bool(eligible_novel),
+                        novelty_distance_to_anchor=distance_to_anchor,
+                        novelty_min_distance_to_selected_challenger=None,
+                    )
+                    if len(out_rows) >= start_limit:
+                        break
+                if len(out_rows) >= start_limit:
+                    break
+
+        if start_limit <= 0:
+            return dict(
+                rows=[],
+                novelty_view_id=novelty_view_id,
+                anchor_candidate_hash="",
+                candidate_pool_eligible_novel_count=0,
+                candidate_pool_eligible_novel_row_count=0,
+                candidate_pool_eligible_novel_source_counts={},
+                start_eligible_novel_count=0,
+                selected_novel_challenger_count=0,
+                eligible_novel_not_selected_count=0,
+                selected_novel_challenger_hashes=[],
+            )
+        policy = str(phasec_start_policy).strip().lower()
+        start_records: List[Dict[str, Any]] = []
+        seen_starts: set[tuple[int, ...]] = set()
+        anchor_row: Dict[str, Any] | None = None
+        for anchor_row in candidate_buckets.get(str(phasec_best_source), []):
+            if _append_unique_start_row(
+                out_rows=start_records,
+                seen_starts=seen_starts,
+                candidate_row=anchor_row,
+                selection_bucket="anchor",
+            ):
+                anchor_row = dict(start_records[-1])
+                anchor_candidate_hash = str(anchor_row.get("candidate_hash", ""))
+                break
+        if anchor_row is not None:
+            for pool_row in candidate_pool_records:
+                eligible_novel, distance_to_anchor, _ = _is_eligible_novel(
+                    pool_row,
+                    anchor_row=anchor_row,
+                )
+                if not eligible_novel:
+                    continue
+                eligible_novel_rows.append(
+                    dict(
+                        dict(pool_row),
+                        novelty_distance_to_anchor=(
+                            int(distance_to_anchor)
+                            if distance_to_anchor is not None
+                            else None
+                        ),
+                    )
+                )
+                row_hash = str(pool_row.get("candidate_hash", ""))
+                if row_hash:
+                    eligible_novel_hashes.add(row_hash)
+                source_name = str(pool_row.get("source", "")).strip()
+                if source_name:
+                    eligible_novel_source_counts[source_name] = int(
+                        eligible_novel_source_counts.get(source_name, 0)
+                    ) + 1
+        if len(start_records) >= start_limit:
+            return dict(
+                rows=start_records,
+                novelty_view_id=novelty_view_id,
+                anchor_candidate_hash=str(anchor_candidate_hash),
+                candidate_pool_eligible_novel_count=int(len(eligible_novel_hashes)),
+                candidate_pool_eligible_novel_row_count=int(len(eligible_novel_rows)),
+                candidate_pool_eligible_novel_source_counts=dict(
+                    eligible_novel_source_counts
+                ),
+                start_eligible_novel_count=0,
+                selected_novel_challenger_count=0,
+                eligible_novel_not_selected_count=int(len(eligible_novel_hashes)),
+                selected_novel_challenger_hashes=[],
+            )
+        if policy == "source_order":
+            _legacy_fill(
+                out_rows=start_records,
+                seen_starts=seen_starts,
+                source_names=("phaseB_topk", "phaseA_selected"),
+                anchor_row=anchor_row,
+            )
+        elif policy == "balanced_sources_v1":
+            source_order = ("phaseB_topk", "phaseA_selected")
+            source_offsets = {str(source_name): 0 for source_name in source_order}
+            while len(start_records) < start_limit:
+                progressed = False
+                for source_name in source_order:
+                    bucket = candidate_buckets.get(str(source_name), [])
+                    offset = int(source_offsets[str(source_name)])
+                    while offset < len(bucket):
+                        bucket_row = bucket[offset]
+                        offset += 1
+                        eligible_novel = False
+                        distance_to_anchor: int | None = None
+                        if anchor_row is not None:
+                            eligible_novel, distance_to_anchor, _ = _is_eligible_novel(
+                                bucket_row,
+                                anchor_row=anchor_row,
+                            )
+                        if _append_unique_start_row(
+                            out_rows=start_records,
+                            seen_starts=seen_starts,
+                            candidate_row=bucket_row,
+                            selection_bucket="balanced_fill",
+                            selected_by_novel_policy=False,
+                            eligible_novel_challenger=bool(eligible_novel),
+                            novelty_distance_to_anchor=distance_to_anchor,
+                            novelty_min_distance_to_selected_challenger=None,
+                        ):
+                            progressed = True
+                            break
+                    source_offsets[str(source_name)] = int(offset)
+                    if len(start_records) >= start_limit:
+                        break
+                if not progressed:
+                    break
+        elif policy == "novel_challenger_v1":
+            reserved_limit = int(max(0, min(int(start_limit - len(start_records)), 2)))
+            selected_novel_rows: List[Dict[str, Any]] = []
+            if anchor_row is not None and reserved_limit > 0:
+                for pool_row in candidate_pool_records:
+                    eligible_novel, distance_to_anchor, min_distance_to_selected = _is_eligible_novel(
+                        pool_row,
+                        anchor_row=anchor_row,
+                        selected_novel_rows=selected_novel_rows,
+                    )
+                    if not eligible_novel:
+                        continue
+                    if _append_unique_start_row(
+                        out_rows=start_records,
+                        seen_starts=seen_starts,
+                        candidate_row=pool_row,
+                        selection_bucket="novel_reserved",
+                        selected_by_novel_policy=True,
+                        eligible_novel_challenger=True,
+                        novelty_distance_to_anchor=distance_to_anchor,
+                        novelty_min_distance_to_selected_challenger=min_distance_to_selected,
+                    ):
+                        selected_row = dict(start_records[-1])
+                        selected_novel_rows.append(selected_row)
+                        selected_hash = str(selected_row.get("candidate_hash", ""))
+                        if selected_hash:
+                            selected_novel_hashes.append(selected_hash)
+                        if len(selected_novel_rows) >= reserved_limit:
+                            break
+            _legacy_fill(
+                out_rows=start_records,
+                seen_starts=seen_starts,
+                source_names=("phaseB_topk", "phaseA_selected"),
+                anchor_row=anchor_row,
+            )
+        else:
+            raise ValueError(f"Unknown Phase-C start policy: {phasec_start_policy}")
+        start_eligible_novel_hashes = {
+            str(row.get("candidate_hash", ""))
+            for row in start_records
+            if int(row.get("eligible_novel_challenger", 0)) == 1
+            and str(row.get("candidate_hash", ""))
+        }
+        return dict(
+            rows=start_records,
+            novelty_view_id=novelty_view_id,
+            anchor_candidate_hash=str(anchor_candidate_hash),
+            candidate_pool_eligible_novel_count=int(len(eligible_novel_hashes)),
+            candidate_pool_eligible_novel_row_count=int(len(eligible_novel_rows)),
+            candidate_pool_eligible_novel_source_counts=dict(
+                eligible_novel_source_counts
+            ),
+            start_eligible_novel_count=int(len(start_eligible_novel_hashes)),
+            selected_novel_challenger_count=int(len(set(selected_novel_hashes))),
+            eligible_novel_not_selected_count=int(
+                max(0, len(eligible_novel_hashes) - len(start_eligible_novel_hashes))
+            ),
+            selected_novel_challenger_hashes=list(dict.fromkeys(selected_novel_hashes)),
+        )
+
+    def _preserve_phaseb_rows_for_downstream(
+        *,
+        ranked_rows: Sequence[Mapping[str, Any]],
+        selected_rows: Sequence[Mapping[str, Any]],
+        family_preservation_policy: str,
+        family_view_id: str,
+        family_reserved_slots: int,
+    ) -> Dict[str, Any]:
+        target_count = int(len(selected_rows))
+        if target_count <= 0:
+            return dict(
+                rows=[],
+                family_count_in_top_band=0,
+                family_preserved_count=0,
+                reservation_applied=0,
+                downstream_selected_unique_end_hash=0,
+                summaries=[],
+            )
+
+        view = find_family_view(str(family_view_id))
+        annotated_rows: List[Dict[str, Any]] = []
+        for rank, row in enumerate(ranked_rows, start=1):
+            end_key = list(map(int, row.get("end_key", [])))
+            annotated_rows.append(
+                dict(
+                    row_id=f"phaseb_ranked:{int(rank)}",
+                    phaseb_rank=int(rank),
+                    key_idx=end_key,
+                    candidate_hash=_candidate_hash(
+                        key_vals=end_key,
+                        existing_hash=str(row.get("end_hash", "")),
+                    ),
+                    original_row=dict(row),
+                )
+            )
+
+        if not annotated_rows:
+            return dict(
+                rows=[dict(row) for row in selected_rows],
+                family_count_in_top_band=0,
+                family_preserved_count=0,
+                reservation_applied=0,
+                downstream_selected_unique_end_hash=int(
+                    len({str(row.get("end_hash", "")) for row in selected_rows})
+                ),
+                summaries=[],
+            )
+
+        family_assignments: Dict[str, str] = {}
+        if view is not None:
+            family_assignments, _ = cluster_family_ids(
+                annotated_rows,
+                family_view=view,
+                columns=int(tier_columns),
+            )
+        top_band_rows = list(annotated_rows[:target_count])
+        family_count_in_top_band = int(
+            len(
+                {
+                    str(family_assignments[str(row["row_id"])])
+                    for row in top_band_rows
+                    if str(row["row_id"]) in family_assignments
+                }
+            )
+        )
+
+        policy = str(family_preservation_policy).strip().lower()
+        if policy == "off":
+            preserved_rows = list(top_band_rows)
+            reservation_applied = 0
+        elif policy != "reserve_by_family_v1":
+            raise ValueError(
+                f"Unknown Phase-B family preservation policy: {family_preservation_policy}"
+            )
+        else:
+            if view is None:
+                raise ValueError(
+                    f"Unknown Phase-B family view id: {family_view_id}"
+                )
+            reserved_slots = int(max(0, int(family_reserved_slots)))
+            preserved_rows = []
+            preserved_row_ids: set[str] = set()
+            preserved_family_ids: set[str] = set()
+            reservation_applied = 0
+
+            top_row = annotated_rows[0]
+            preserved_rows.append(top_row)
+            preserved_row_ids.add(str(top_row["row_id"]))
+            top_family_id = family_assignments.get(str(top_row["row_id"]))
+            if top_family_id is not None:
+                preserved_family_ids.add(str(top_family_id))
+
+            if reserved_slots > 0:
+                for row in annotated_rows[1:]:
+                    if int(len(preserved_rows)) >= int(1 + reserved_slots):
+                        break
+                    family_id = family_assignments.get(str(row["row_id"]))
+                    if family_id is None:
+                        continue
+                    family_id_s = str(family_id)
+                    if family_id_s in preserved_family_ids:
+                        continue
+                    preserved_rows.append(row)
+                    preserved_row_ids.add(str(row["row_id"]))
+                    preserved_family_ids.add(family_id_s)
+                    reservation_applied = 1
+
+            for row in annotated_rows:
+                if int(len(preserved_rows)) >= int(target_count):
+                    break
+                row_id = str(row["row_id"])
+                if row_id in preserved_row_ids:
+                    continue
+                preserved_rows.append(row)
+                preserved_row_ids.add(row_id)
+
+        preserved_rows = list(preserved_rows[:target_count])
+        preserved_families = {
+            str(family_assignments[str(row["row_id"])])
+            for row in preserved_rows
+            if str(row["row_id"]) in family_assignments
+        }
+        summaries: List[Dict[str, Any]] = []
+        for downstream_rank, row in enumerate(preserved_rows, start=1):
+            row_id = str(row["row_id"])
+            summaries.append(
+                dict(
+                    downstream_rank=int(downstream_rank),
+                    phaseb_rank=int(row["phaseb_rank"]),
+                    end_hash=str(row["candidate_hash"]),
+                    family_id=str(family_assignments.get(row_id, "")),
+                )
+            )
+        return dict(
+            rows=[dict(row["original_row"]) for row in preserved_rows],
+            family_count_in_top_band=int(family_count_in_top_band),
+            family_preserved_count=int(len(preserved_families)),
+            reservation_applied=int(reservation_applied),
+            downstream_selected_unique_end_hash=int(
+                len({str(row["candidate_hash"]) for row in preserved_rows})
+            ),
+            summaries=summaries,
+        )
 
     if phaseA_rows:
         phaseA_end_plaintexts = [
@@ -704,7 +1211,22 @@ def run_stage3_two_phase_followup(
             phaseB_skipped=int(phaseB_skipped),
             phaseB_skip_reason=str(phaseB_skip_reason),
             phaseB_top_n_used=int(phaseB_top_n_used),
+            phaseB_family_preservation_policy=str(
+                phaseB_family_preservation_policy_cfg
+            ),
+            phaseB_family_view_id=str(phaseB_family_view_id_cfg),
+            phaseB_family_reserved_slots=int(phaseB_family_reserved_slots_cfg),
+            phaseB_family_count_in_top_band=int(phaseB_family_count_in_top_band),
+            phaseB_family_preserved_count=int(phaseB_family_preserved_count),
+            phaseB_family_reservation_applied=int(phaseB_family_reservation_applied),
             phaseB_selected_unique_end_hash=int(phaseB_selected_unique_end_hash),
+            phaseB_downstream_selected_count=int(phaseB_downstream_selected_count),
+            phaseB_downstream_selected_unique_end_hash=int(
+                phaseB_downstream_selected_unique_end_hash
+            ),
+            phaseB_downstream_selected_summaries=[
+                dict(row) for row in phaseB_downstream_selected_summaries
+            ],
             phaseB_topk_saved_count=int(phaseB_topk_saved_count),
             phaseB_topk_saved_unique_end_hash=int(phaseB_topk_saved_unique_end_hash),
             phaseC_enabled_cfg=int(1 if bool(phaseC_enabled_cfg) else 0),
@@ -798,6 +1320,7 @@ def run_stage3_two_phase_followup(
             judge_top2 = float(selected[1].get("end_score_pct", float("nan")))
             if np.isfinite(judge_top1) and np.isfinite(judge_top2):
                 judge_margin = float(judge_top1 - judge_top2)
+    phaseB_ranked_unique_rows = list(selected)
     selected_top_n = list(selected[:top_n])
     tie_eps = float(max(0.0, float(stage3_span_basin_judge_tie_eps)))
     tie_cap = int(max(int(top_n), int(stage3_span_basin_judge_tie_max_seeds)))
@@ -843,6 +1366,31 @@ def run_stage3_two_phase_followup(
             }
         )
     )
+    phaseA_selected_rows = list(selected)
+    phaseB_family_preservation = _preserve_phaseb_rows_for_downstream(
+        ranked_rows=phaseB_ranked_unique_rows,
+        selected_rows=phaseA_selected_rows,
+        family_preservation_policy=str(phaseB_family_preservation_policy_cfg),
+        family_view_id=str(phaseB_family_view_id_cfg),
+        family_reserved_slots=int(phaseB_family_reserved_slots_cfg),
+    )
+    phaseA_selected_rows = list(phaseB_family_preservation["rows"])
+    phaseB_family_count_in_top_band = int(
+        phaseB_family_preservation["family_count_in_top_band"]
+    )
+    phaseB_family_preserved_count = int(
+        phaseB_family_preservation["family_preserved_count"]
+    )
+    phaseB_family_reservation_applied = int(
+        phaseB_family_preservation["reservation_applied"]
+    )
+    phaseB_downstream_selected_count = int(len(phaseA_selected_rows))
+    phaseB_downstream_selected_unique_end_hash = int(
+        phaseB_family_preservation["downstream_selected_unique_end_hash"]
+    )
+    phaseB_downstream_selected_summaries = list(
+        phaseB_family_preservation["summaries"]
+    )
 
     print(
         f"{log_prefix} stage3-phaseB-gate tier={tier_name} text={text_id} key_seed={key_seed} "
@@ -861,6 +1409,18 @@ def run_stage3_two_phase_followup(
         f"tie_clipped={tie_clipped} selected_top_n={selected_top_n_n} "
         f"selected_final={selected_final_n} "
         f"selected_unique_end_hash={int(phaseB_selected_unique_end_hash)}",
+        flush=True,
+    )
+    print(
+        f"{log_prefix} stage3-phaseB-family tier={tier_name} text={text_id} key_seed={key_seed} "
+        f"policy={phaseB_family_preservation_policy_cfg} "
+        f"view={phaseB_family_view_id_cfg} "
+        f"reserved_slots={int(phaseB_family_reserved_slots_cfg)} "
+        f"top_band_families={int(phaseB_family_count_in_top_band)} "
+        f"preserved_families={int(phaseB_family_preserved_count)} "
+        f"applied={int(phaseB_family_reservation_applied)} "
+        f"downstream_selected={int(phaseB_downstream_selected_count)} "
+        f"downstream_unique_end_hash={int(phaseB_downstream_selected_unique_end_hash)}",
         flush=True,
     )
 
@@ -1695,7 +2255,7 @@ def run_stage3_two_phase_followup(
                 key_vals=topk_row.get("key_idx", []),
                 existing_hash=str(topk_row.get("end_hash", "")),
             )
-        for selected_rank, row in enumerate(selected, start=1):
+        for selected_rank, row in enumerate(phaseA_selected_rows, start=1):
             _append_phasec_candidate(
                 source="phaseA_selected",
                 source_rank=int(selected_rank),
@@ -1721,28 +2281,65 @@ def run_stage3_two_phase_followup(
         )
         phaseC_candidate_pool_source_counts = _count_source_rows(candidate_pool_records)
 
-        start_records: List[Dict[str, Any]] = []
-        seen_starts: set[tuple[int, ...]] = set()
-        # For the bounded hard-case proof lane, the useful challengers come from
-        # Phase-B top-k. Keep the anchor first, then consume those challengers
-        # before Phase-A tails so the run reaches the strong rescue lanes earlier.
-        for source_name in (
-            str(phasec_best_source),
-            "phaseB_topk",
-            "phaseA_selected",
-        ):
-            bucket = candidate_buckets.get(str(source_name), [])
-            for bucket_row in bucket:
-                candidate_row = dict(bucket_row)
-                candidate_key_t = tuple(map(int, candidate_row.get("key", [])))
-                if candidate_key_t in seen_starts:
-                    continue
-                seen_starts.add(candidate_key_t)
-                start_records.append(candidate_row)
-                if len(start_records) >= int(stage3_phasec_start_keys):
-                    break
-            if len(start_records) >= int(stage3_phasec_start_keys):
-                break
+        start_selection = _build_phasec_start_records(
+            candidate_pool_records=candidate_pool_records,
+            candidate_buckets=candidate_buckets,
+            phasec_best_source=str(phasec_best_source),
+            phasec_start_policy=str(phaseC_start_policy_cfg),
+            stage3_phasec_start_keys=int(stage3_phasec_start_keys),
+        )
+        start_records = list(start_selection.get("rows", []))
+        phaseC_novel_view_id = str(
+            start_selection.get("novelty_view_id", phaseC_novel_view_id)
+        )
+        phaseC_anchor_candidate_hash = str(
+            start_selection.get(
+                "anchor_candidate_hash",
+                phaseC_anchor_candidate_hash,
+            )
+        )
+        phaseC_candidate_pool_eligible_novel_count = int(
+            start_selection.get(
+                "candidate_pool_eligible_novel_count",
+                phaseC_candidate_pool_eligible_novel_count,
+            )
+        )
+        phaseC_candidate_pool_eligible_novel_row_count = int(
+            start_selection.get(
+                "candidate_pool_eligible_novel_row_count",
+                phaseC_candidate_pool_eligible_novel_row_count,
+            )
+        )
+        phaseC_candidate_pool_eligible_novel_source_counts = dict(
+            start_selection.get(
+                "candidate_pool_eligible_novel_source_counts",
+                phaseC_candidate_pool_eligible_novel_source_counts,
+            )
+        )
+        phaseC_start_eligible_novel_count = int(
+            start_selection.get(
+                "start_eligible_novel_count",
+                phaseC_start_eligible_novel_count,
+            )
+        )
+        phaseC_selected_novel_challenger_count = int(
+            start_selection.get(
+                "selected_novel_challenger_count",
+                phaseC_selected_novel_challenger_count,
+            )
+        )
+        phaseC_eligible_novel_not_selected_count = int(
+            start_selection.get(
+                "eligible_novel_not_selected_count",
+                phaseC_eligible_novel_not_selected_count,
+            )
+        )
+        phaseC_selected_novel_challenger_hashes = list(
+            start_selection.get(
+                "selected_novel_challenger_hashes",
+                phaseC_selected_novel_challenger_hashes,
+            )
+        )
 
         if start_records:
             phaseC_ran = 1
@@ -1862,9 +2459,18 @@ def run_stage3_two_phase_followup(
                 f"candidate_pool_unique_keys={int(phaseC_candidate_pool_unique_keys)} "
                 f"candidate_pool_unique_end_hash={int(phaseC_candidate_pool_unique_end_hash)} "
                 f"candidate_pool_sources={phaseC_candidate_pool_source_counts} "
+                f"eligible_novel_pool={int(phaseC_candidate_pool_eligible_novel_count)} "
+                f"eligible_novel_rows={int(phaseC_candidate_pool_eligible_novel_row_count)} "
+                f"eligible_novel_sources={phaseC_candidate_pool_eligible_novel_source_counts} "
                 f"start_keys={int(phaseC_start_keys_used)} "
                 f"start_unique_end_hash={int(phaseC_start_unique_end_hash)} "
+                f"start_policy={phaseC_start_policy_cfg} "
+                f"novel_view={phaseC_novel_view_id or 'off'} "
+                f"anchor_candidate_hash={phaseC_anchor_candidate_hash or 'off'} "
                 f"start_sources={phaseC_start_source_counts} "
+                f"start_eligible_novel={int(phaseC_start_eligible_novel_count)} "
+                f"selected_novel={int(phaseC_selected_novel_challenger_count)} "
+                f"eligible_novel_not_selected={int(phaseC_eligible_novel_not_selected_count)} "
                 f"steps={int(phaseC_steps_cfg)} total_steps={int(phaseC_total_steps)} "
                 f"proposals_per_step={int(phaseC_proposals_per_step_cfg)} "
                 f"rescue_enabled={int(phaseC_rescue_effective)} "
@@ -2549,6 +3155,42 @@ def run_stage3_two_phase_followup(
                     source=str(start_source),
                     source_rank=int(start_source_rank),
                     candidate_hash=str(start_candidate_hash),
+                    init_key_idx=list(map(int, start_key)),
+                    init_plaintext_idx=list(
+                        map(
+                            int,
+                            np.asarray(cur_pt, dtype=np.uint8).reshape(-1).tolist(),
+                        )
+                    ),
+                    final_key_idx=list(map(int, local_best_key)),
+                    final_plaintext_idx=list(
+                        map(
+                            int,
+                            np.asarray(local_best_pt, dtype=np.uint8).reshape(-1).tolist(),
+                        )
+                    ),
+                    selection_bucket=str(
+                        start_row.get("selection_bucket", "legacy_fill")
+                    ),
+                    selected_by_novel_policy=int(
+                        start_row.get("selected_by_novel_policy", 0) or 0
+                    ),
+                    eligible_novel_challenger=int(
+                        start_row.get("eligible_novel_challenger", 0) or 0
+                    ),
+                    novelty_distance_to_anchor=(
+                        int(start_row["novelty_distance_to_anchor"])
+                        if start_row.get("novelty_distance_to_anchor") is not None
+                        else None
+                    ),
+                    novelty_min_distance_to_selected_challenger=(
+                        int(start_row["novelty_min_distance_to_selected_challenger"])
+                        if start_row.get(
+                            "novelty_min_distance_to_selected_challenger"
+                        )
+                        is not None
+                        else None
+                    ),
                     init_match=float(init_match_start),
                     init_score=float(init_score_start),
                     init_search_score=(
@@ -2756,6 +3398,7 @@ def run_stage3_two_phase_followup(
                     stage="stage3_phaseC",
                     phaseC_enabled=int(1 if bool(phaseC_enabled_cfg) else 0),
                     phaseC_start_keys_used=int(phaseC_start_keys_used),
+                    phaseC_start_policy=str(phaseC_start_policy_cfg),
                     phaseC_candidate_pool_count=int(phaseC_candidate_pool_count),
                     phaseC_candidate_pool_unique_keys=int(phaseC_candidate_pool_unique_keys),
                     phaseC_candidate_pool_unique_end_hash=int(
@@ -2765,7 +3408,30 @@ def run_stage3_two_phase_followup(
                     phaseC_candidate_pool_source_counts=dict(
                         phaseC_candidate_pool_source_counts
                     ),
+                    phaseC_novel_view_id=str(phaseC_novel_view_id),
+                    phaseC_anchor_candidate_hash=str(phaseC_anchor_candidate_hash),
+                    phaseC_candidate_pool_eligible_novel_count=int(
+                        phaseC_candidate_pool_eligible_novel_count
+                    ),
+                    phaseC_candidate_pool_eligible_novel_row_count=int(
+                        phaseC_candidate_pool_eligible_novel_row_count
+                    ),
+                    phaseC_candidate_pool_eligible_novel_source_counts=dict(
+                        phaseC_candidate_pool_eligible_novel_source_counts
+                    ),
                     phaseC_start_source_counts=dict(phaseC_start_source_counts),
+                    phaseC_start_eligible_novel_count=int(
+                        phaseC_start_eligible_novel_count
+                    ),
+                    phaseC_selected_novel_challenger_count=int(
+                        phaseC_selected_novel_challenger_count
+                    ),
+                    phaseC_eligible_novel_not_selected_count=int(
+                        phaseC_eligible_novel_not_selected_count
+                    ),
+                    phaseC_selected_novel_challenger_hashes=list(
+                        phaseC_selected_novel_challenger_hashes
+                    ),
                     phaseC_steps=int(phaseC_steps_cfg),
                     phaseC_proposals_per_step=int(phaseC_proposals_per_step_cfg),
                     phaseC_lexical_min_match=float(phaseC_lexical_min_match_cfg),
@@ -2873,6 +3539,11 @@ def run_stage3_two_phase_followup(
                 f"enabled={int(phaseC_enabled_effective)} start_keys={int(phaseC_start_keys_used)} "
                 f"candidate_pool={int(phaseC_candidate_pool_count)} "
                 f"candidate_pool_unique_end_hash={int(phaseC_candidate_pool_unique_end_hash)} "
+                f"start_policy={phaseC_start_policy_cfg} "
+                f"novel_view={phaseC_novel_view_id or 'off'} "
+                f"eligible_novel_pool={int(phaseC_candidate_pool_eligible_novel_count)} "
+                f"selected_novel={int(phaseC_selected_novel_challenger_count)} "
+                f"eligible_novel_not_selected={int(phaseC_eligible_novel_not_selected_count)} "
                 f"start_sources={phaseC_start_source_counts} "
                 f"improved_best={int(phaseC_improved_best)} "
                 f"steps={int(phaseC_steps_cfg)} proposals_per_step={int(phaseC_proposals_per_step_cfg)} "
@@ -2931,13 +3602,27 @@ def run_stage3_two_phase_followup(
         phaseB_skipped=int(phaseB_skipped),
         phaseB_skip_reason=str(phaseB_skip_reason),
         phaseB_top_n_used=int(phaseB_top_n_used),
+        phaseB_family_preservation_policy=str(phaseB_family_preservation_policy_cfg),
+        phaseB_family_view_id=str(phaseB_family_view_id_cfg),
+        phaseB_family_reserved_slots=int(phaseB_family_reserved_slots_cfg),
+        phaseB_family_count_in_top_band=int(phaseB_family_count_in_top_band),
+        phaseB_family_preserved_count=int(phaseB_family_preserved_count),
+        phaseB_family_reservation_applied=int(phaseB_family_reservation_applied),
         phaseB_selected_unique_end_hash=int(phaseB_selected_unique_end_hash),
+        phaseB_downstream_selected_count=int(phaseB_downstream_selected_count),
+        phaseB_downstream_selected_unique_end_hash=int(
+            phaseB_downstream_selected_unique_end_hash
+        ),
+        phaseB_downstream_selected_summaries=[
+            dict(row) for row in phaseB_downstream_selected_summaries
+        ],
         phaseB_topk_saved_count=int(phaseB_topk_saved_count),
         phaseB_topk_saved_unique_end_hash=int(phaseB_topk_saved_unique_end_hash),
         phaseC_enabled_cfg=int(1 if bool(phaseC_enabled_cfg) else 0),
         phaseC_enabled_effective=int(phaseC_enabled_effective),
         phaseC_ran=int(phaseC_ran),
         phaseC_start_keys_used=int(phaseC_start_keys_used),
+        phaseC_start_policy=str(phaseC_start_policy_cfg),
         phaseC_steps_cfg=int(phaseC_steps_cfg),
         phaseC_proposals_per_step_cfg=int(phaseC_proposals_per_step_cfg),
         phaseC_lexical_min_match_cfg=float(phaseC_lexical_min_match_cfg),
@@ -3002,8 +3687,29 @@ def run_stage3_two_phase_followup(
             phaseC_candidate_pool_unique_end_hash
         ),
         phaseC_candidate_pool_source_counts=dict(phaseC_candidate_pool_source_counts),
+        phaseC_novel_view_id=str(phaseC_novel_view_id),
+        phaseC_anchor_candidate_hash=str(phaseC_anchor_candidate_hash),
+        phaseC_candidate_pool_eligible_novel_count=int(
+            phaseC_candidate_pool_eligible_novel_count
+        ),
+        phaseC_candidate_pool_eligible_novel_row_count=int(
+            phaseC_candidate_pool_eligible_novel_row_count
+        ),
+        phaseC_candidate_pool_eligible_novel_source_counts=dict(
+            phaseC_candidate_pool_eligible_novel_source_counts
+        ),
         phaseC_start_source_counts=dict(phaseC_start_source_counts),
         phaseC_start_unique_end_hash=int(phaseC_start_unique_end_hash),
+        phaseC_start_eligible_novel_count=int(phaseC_start_eligible_novel_count),
+        phaseC_selected_novel_challenger_count=int(
+            phaseC_selected_novel_challenger_count
+        ),
+        phaseC_eligible_novel_not_selected_count=int(
+            phaseC_eligible_novel_not_selected_count
+        ),
+        phaseC_selected_novel_challenger_hashes=list(
+            phaseC_selected_novel_challenger_hashes
+        ),
         phaseC_improved_best=int(phaseC_improved_best),
         phaseC_checkpoint_jsonl_name=str(phaseC_checkpoint_jsonl_name),
         phaseC_checkpoint_rows_written=int(phaseC_checkpoint_rows_written),

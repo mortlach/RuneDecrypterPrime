@@ -89,6 +89,8 @@ def emit_setup_logging(
     stage3_phasec_start_keys: int = 0,
     stage3_phasec_seed_offset: int = 0,
     stage3_phasec_word_ngram_tiebreak: bool = False,
+    stage35_enabled: bool = False,
+    stage35_cfg: dict[str, object] | None = None,
     stage3_c1_focus_enabled: bool,
     stage3_c1_init_keys: int,
     stage3_c1_phasea_steps: int,
@@ -218,6 +220,8 @@ def emit_setup_logging(
         f"seed_offset={int(stage3_phasec_seed_offset)},"
         f"word_ngram_tiebreak={1 if bool(stage3_phasec_word_ngram_tiebreak) else 0},"
         f"cfg={json.dumps(dict(stage3_phasec_cfg or {}), separators=(',', ':'))}) "
+        f"stage35=(enabled={1 if bool(stage35_enabled) else 0},"
+        f"cfg={json.dumps(dict(stage35_cfg or {}), separators=(',', ':'))}) "
         f"c1_focus=(enabled={1 if bool(stage3_c1_focus_enabled) else 0},"
         f"init_keys={int(stage3_c1_init_keys)},"
         f"phaseA_steps={int(stage3_c1_phasea_steps)},"

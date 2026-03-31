@@ -5,6 +5,108 @@ from typing import Any, Callable, Dict, List, Mapping, Sequence
 import numpy as np
 
 
+_STAGE3_ENTRY_POLICY_LEGACY = "legacy_fixed_budget"
+_STAGE3_ENTRY_POLICY_CONSTANT_LOCAL_DEPTH = "constant_local_depth"
+_STAGE3_ENTRY_POLICY_VALUES = {
+    _STAGE3_ENTRY_POLICY_LEGACY,
+    _STAGE3_ENTRY_POLICY_CONSTANT_LOCAL_DEPTH,
+}
+
+
+def _normalize_stage3_entry_policy(
+    *,
+    policy_raw: Any,
+    mutations_per_promoted_raw: Any,
+) -> tuple[str, int]:
+    policy = str(policy_raw or _STAGE3_ENTRY_POLICY_LEGACY).strip().lower()
+    if policy not in _STAGE3_ENTRY_POLICY_VALUES:
+        raise ValueError(f"unknown stage3 entry allocation policy: {policy}")
+    mutations_per_promoted = int(mutations_per_promoted_raw)
+    return policy, int(max(1, mutations_per_promoted))
+
+
+def _dedupe_truncate_keys(
+    *,
+    keys: Sequence[Sequence[int]],
+    key_limit: int,
+) -> List[List[int]]:
+    out: List[List[int]] = []
+    seen: set[tuple[int, ...]] = set()
+    for key_vals in keys:
+        key_t = tuple(int(x) for x in key_vals)
+        if key_t in seen:
+            continue
+        seen.add(key_t)
+        out.append(list(map(int, key_vals)))
+        if len(out) >= int(key_limit):
+            break
+    return out
+
+
+def _build_stage3_init_keys_legacy(
+    *,
+    promoted_keys: Sequence[Sequence[int]],
+    init3_n: int,
+    tier_period: int,
+    tier_columns: int,
+    key_seed: int,
+    mutate_full_key_fn: Callable[..., List[List[int]]],
+) -> tuple[List[List[int]], int]:
+    per_seed = max(
+        1,
+        int(np.ceil(float(init3_n) / float(max(1, len(promoted_keys))))),
+    )
+    init3_all: List[List[int]] = []
+    for j, seed_key in enumerate(promoted_keys):
+        init3_all.append(list(map(int, seed_key)))
+        init3_all.extend(
+            mutate_full_key_fn(
+                seed_key,
+                period=int(tier_period),
+                columns=int(tier_columns),
+                seed=7000 + int(key_seed) + 97 * int(j),
+                n=int(per_seed),
+            )
+        )
+    return (
+        _dedupe_truncate_keys(keys=init3_all, key_limit=int(init3_n)),
+        int(per_seed),
+    )
+
+
+def _build_stage3_init_keys_constant_local_depth(
+    *,
+    promoted_keys: Sequence[Sequence[int]],
+    init3_n: int,
+    tier_period: int,
+    tier_columns: int,
+    key_seed: int,
+    mutate_full_key_fn: Callable[..., List[List[int]]],
+    mutations_per_promoted: int,
+) -> List[List[int]]:
+    init3_all: List[List[int]] = [list(map(int, seed_key)) for seed_key in promoted_keys]
+    mutation_batches: List[List[List[int]]] = []
+    for j, seed_key in enumerate(promoted_keys):
+        mutation_batches.append(
+            [
+                list(map(int, key_vals))
+                for key_vals in mutate_full_key_fn(
+                    seed_key,
+                    period=int(tier_period),
+                    columns=int(tier_columns),
+                    seed=7000 + int(key_seed) + 97 * int(j),
+                    n=int(mutations_per_promoted),
+                )
+            ]
+        )
+    for round_idx in range(int(mutations_per_promoted)):
+        for batch in mutation_batches:
+            if round_idx >= len(batch):
+                continue
+            init3_all.append(list(map(int, batch[round_idx])))
+    return _dedupe_truncate_keys(keys=init3_all, key_limit=int(init3_n))
+
+
 def prepare_stage3_refine_inputs(
     *,
     tier_period: int,
@@ -40,7 +142,9 @@ def prepare_stage3_refine_inputs(
     stage3_c1_phaseb_top_n: int,
     stage3_c1_phaseb_gate_delta_floor: float,
     stage3_c1_phaseb_gate_end_gain_floor: float,
-    solver_stage3_cfg: Mapping[str, Any],
+    solver_stage3_cfg: Dict[str, Any],
+    stage3_entry_allocation_policy: str,
+    stage3_entry_mutations_per_promoted: int,
     build_stage3_promoted_keys_fn: Callable[..., List[List[int]]],
     mutate_full_key_fn: Callable[..., List[List[int]]],
     objective_space_key_fn: Callable[[Dict[str, Any]], str],
@@ -60,8 +164,11 @@ def prepare_stage3_refine_inputs(
     )
     init3_n = int(max(1, int(np.ceil(float(init3_n) * float(stage3_period_init_mult))))
     )
-    if int(stage3_init_keys_cap) > 0:
-        init3_n = int(min(int(init3_n), int(stage3_init_keys_cap)))
+    stage3_entry_policy, stage3_entry_mutations_per_promoted = _normalize_stage3_entry_policy(
+        policy_raw=stage3_entry_allocation_policy,
+        mutations_per_promoted_raw=stage3_entry_mutations_per_promoted,
+    )
+    stage3_entry_base_budget = int(init3_n)
 
     promoted_keys = build_stage3_promoted_keys_fn(
         promoted_entries=stage2_promoted,
@@ -71,29 +178,44 @@ def prepare_stage3_refine_inputs(
     if not promoted_keys:
         promoted_keys = [list(map(int, best2_key))]
 
-    per_seed = max(1, int(np.ceil(float(init3_n) / float(len(promoted_keys)))))
-    init3_all: List[List[int]] = []
-    for j, seed_key in enumerate(promoted_keys):
-        init3_all.append(list(map(int, seed_key)))
-        init3_all.extend(
-            mutate_full_key_fn(
-                seed_key,
-                period=int(tier_period),
-                columns=int(tier_columns),
-                seed=7000 + int(key_seed) + 97 * int(j),
-                n=per_seed,
+    stage3_entry_target_before_cap = int(stage3_entry_base_budget)
+    if stage3_entry_policy == _STAGE3_ENTRY_POLICY_CONSTANT_LOCAL_DEPTH:
+        stage3_entry_target_before_cap = int(
+            max(
+                int(stage3_entry_base_budget),
+                int(len(promoted_keys))
+                * (1 + int(stage3_entry_mutations_per_promoted)),
             )
         )
-    init3: List[List[int]] = []
-    seen_init: set[tuple[int, ...]] = set()
-    for k in init3_all:
-        kt = tuple(int(x) for x in k)
-        if kt in seen_init:
-            continue
-        seen_init.add(kt)
-        init3.append(list(map(int, k)))
-        if len(init3) >= int(init3_n):
-            break
+    init3_n = int(stage3_entry_target_before_cap)
+    stage3_entry_cap = int(stage3_init_keys_cap)
+    if int(stage3_entry_cap) > 0:
+        init3_n = int(min(int(init3_n), int(stage3_entry_cap)))
+    stage3_entry_cap_applied = bool(
+        int(stage3_entry_cap) > 0
+        and int(init3_n) < int(stage3_entry_target_before_cap)
+    )
+
+    if stage3_entry_policy == _STAGE3_ENTRY_POLICY_LEGACY:
+        init3, stage3_entry_mutation_calls_per_promoted = _build_stage3_init_keys_legacy(
+            promoted_keys=promoted_keys,
+            init3_n=int(init3_n),
+            tier_period=int(tier_period),
+            tier_columns=int(tier_columns),
+            key_seed=int(key_seed),
+            mutate_full_key_fn=mutate_full_key_fn,
+        )
+    else:
+        init3 = _build_stage3_init_keys_constant_local_depth(
+            promoted_keys=promoted_keys,
+            init3_n=int(init3_n),
+            tier_period=int(tier_period),
+            tier_columns=int(tier_columns),
+            key_seed=int(key_seed),
+            mutate_full_key_fn=mutate_full_key_fn,
+            mutations_per_promoted=int(stage3_entry_mutations_per_promoted),
+        )
+        stage3_entry_mutation_calls_per_promoted = int(stage3_entry_mutations_per_promoted)
 
     stage2_stage3_space_match = (
         objective_space_key_fn(dict(scorer_stage2))
@@ -175,6 +297,15 @@ def prepare_stage3_refine_inputs(
         init3=init3,
         promoted_keys=[list(map(int, k)) for k in promoted_keys],
         stage3_promoted_keys_count=int(len(promoted_keys)),
+        stage3_entry_allocation_policy=str(stage3_entry_policy),
+        stage3_entry_base_budget=int(stage3_entry_base_budget),
+        stage3_entry_target_before_cap=int(stage3_entry_target_before_cap),
+        stage3_entry_cap=int(stage3_entry_cap),
+        stage3_entry_cap_applied=bool(stage3_entry_cap_applied),
+        stage3_entry_mutations_per_promoted_cfg=int(stage3_entry_mutations_per_promoted),
+        stage3_entry_mutation_calls_per_promoted=int(
+            stage3_entry_mutation_calls_per_promoted
+        ),
         stage3_period_init_mult=float(stage3_period_init_mult),
         stage3_period_step_mult=float(stage3_period_step_mult),
         stage3_period_restart_bonus=int(stage3_period_restart_bonus),

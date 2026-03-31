@@ -18,6 +18,29 @@ def _objective_from_label(*, label: str, family: str = "char_ngram") -> Objectiv
     )
 
 
+def _build_profile_stage_spec_state(
+    *,
+    state: Mapping[str, Any],
+    profile_id: str,
+) -> dict[str, Any]:
+    profile = get_no_wli_pipeline_profile(str(profile_id))
+    stage_spec_state: dict[str, Any] = {
+        "SCORER_STAGE1_LABEL": str(profile.scorer_schedule.stage1_label),
+        "SCORER_STAGE2_LABEL": str(profile.scorer_schedule.stage2_label),
+        "SCORER_STAGE3_LABEL": str(profile.scorer_schedule.stage3_label),
+        "STAGE12_ARCHIVE_KEEP": int(profile.stage12_archive_keep),
+        "STAGE12_PROMOTE_TOP": int(profile.stage12_promote_top),
+    }
+    for key in (
+        "STAGE2_ARCHIVE_KEEP",
+        "STAGE2_PROMOTE_TOP",
+        "SAVE_STAGE3_TOPK_LIMIT",
+    ):
+        if key in state:
+            stage_spec_state[key] = state[key]
+    return stage_spec_state
+
+
 def build_no_wli_stage_specs(*, state: Mapping[str, Any]) -> list[StageSpec]:
     stage1_label = str(state.get("SCORER_STAGE1_LABEL", "A_char1"))
     stage2_label = str(state.get("SCORER_STAGE2_LABEL", "M_char12"))
@@ -58,14 +81,12 @@ def build_no_wli_stage_specs_from_profile(
     profile_id: str,
     state: Mapping[str, Any],
 ) -> list[StageSpec]:
-    profile = get_no_wli_pipeline_profile(str(profile_id))
-    profile_state = dict(state)
-    profile_state["SCORER_STAGE1_LABEL"] = str(profile.scorer_schedule.stage1_label)
-    profile_state["SCORER_STAGE2_LABEL"] = str(profile.scorer_schedule.stage2_label)
-    profile_state["SCORER_STAGE3_LABEL"] = str(profile.scorer_schedule.stage3_label)
-    profile_state["STAGE12_ARCHIVE_KEEP"] = int(profile.stage12_archive_keep)
-    profile_state["STAGE12_PROMOTE_TOP"] = int(profile.stage12_promote_top)
-    return build_no_wli_stage_specs(state=profile_state)
+    return build_no_wli_stage_specs(
+        state=_build_profile_stage_spec_state(
+            state=state,
+            profile_id=str(profile_id),
+        )
+    )
 
 
 def build_no_wli_policy_spec(*, state: Mapping[str, Any]) -> AdaptivePolicySpec:

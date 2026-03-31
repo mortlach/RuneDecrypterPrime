@@ -38,6 +38,10 @@ class Stage3RuntimeCallContext:
     stage3_phasec_start_keys: int
     stage3_phasec_seed_offset: int
     stage3_phasec_word_ngram_tiebreak: bool
+    stage3_phaseb_family_preservation_policy: str
+    stage3_phaseb_family_view_id: str
+    stage3_phaseb_family_reserved_slots: int
+    stage3_phasec_start_policy: str
     extract_kaeding_metrics_fn: Callable[[Any], Dict[str, float]]
     solution_span_counter_summary_fn: Callable[[Any], Dict[str, float]]
     stage3_progress_logging_fn: Callable[..., Dict[str, Any]]
@@ -244,6 +248,12 @@ def run_stage3_two_phase_followup_call(
         stage3_phasec_start_keys=int(ctx.stage3_phasec_start_keys),
         stage3_phasec_seed_offset=int(ctx.stage3_phasec_seed_offset),
         stage3_phasec_word_ngram_tiebreak=bool(ctx.stage3_phasec_word_ngram_tiebreak),
+        stage3_phaseb_family_preservation_policy=str(
+            ctx.stage3_phaseb_family_preservation_policy
+        ),
+        stage3_phaseb_family_view_id=str(ctx.stage3_phaseb_family_view_id),
+        stage3_phaseb_family_reserved_slots=int(ctx.stage3_phaseb_family_reserved_slots),
+        stage3_phasec_start_policy=str(ctx.stage3_phasec_start_policy),
         batch_eval_chunk_size=int(ctx.batch_eval_chunk_size),
         require_batch_scoring=bool(ctx.require_batch_scoring),
         base_seed=int(base_seed),

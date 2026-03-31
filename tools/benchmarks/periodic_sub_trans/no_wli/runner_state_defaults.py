@@ -13,6 +13,12 @@ def initialize_runtime_state(
     default_solver_stage1: Mapping[str, Any],
     default_solver_stage2: Mapping[str, Any],
     default_solver_stage3: Mapping[str, Any],
+    default_stage3_entry_allocation_policy: str,
+    default_stage3_entry_mutations_per_promoted: int,
+    default_stage3_phaseb_family_preservation_policy: str,
+    default_stage3_phaseb_family_view_id: str,
+    default_stage3_phaseb_family_reserved_slots: int,
+    default_stage3_phasec_start_policy: str,
     default_stage3_dynamic_bands: list[dict[str, Any]],
     default_stage3_phasea_cfg: Mapping[str, Any],
     default_stage3_phaseb_cfg: Mapping[str, Any],
@@ -59,6 +65,7 @@ def initialize_runtime_state(
     state["SAVE_STAGE2_TOPK"] = 12
     state["SAVE_STAGE3_TOPK"] = True
     state["SAVE_STAGE3_TOPK_LIMIT"] = 5
+    state["SAVE_RESUME_HANDOFFS"] = True
     state["KAEDING_PROGRESS_EVERY_PCT"] = 1
     state["KAEDING_CONSOLE_PROGRESS"] = False
 
@@ -85,6 +92,13 @@ def initialize_runtime_state(
     state["STAGE3_PHASEB_TOP_N"] = 8
     state["STAGE3_PHASEB_GATE_DELTA_FLOOR"] = 0.008
     state["STAGE3_PHASEB_GATE_END_GAIN_FLOOR"] = 0.004
+    state["STAGE3_PHASEB_FAMILY_PRESERVATION_POLICY"] = str(
+        default_stage3_phaseb_family_preservation_policy
+    )
+    state["STAGE3_PHASEB_FAMILY_VIEW_ID"] = str(default_stage3_phaseb_family_view_id)
+    state["STAGE3_PHASEB_FAMILY_RESERVED_SLOTS"] = int(
+        max(0, int(default_stage3_phaseb_family_reserved_slots))
+    )
     state["STAGE3_PHASEC_ENABLED"] = True
     state["STAGE3_PHASEC_CFG"] = {
         "steps": 32,
@@ -94,6 +108,21 @@ def initialize_runtime_state(
     state["STAGE3_PHASEC_START_KEYS"] = 12
     state["STAGE3_PHASEC_SEED_OFFSET"] = 1200003
     state["STAGE3_PHASEC_WORD_NGRAM_TIEBREAK"] = True
+    state["STAGE3_PHASEC_START_POLICY"] = str(default_stage3_phasec_start_policy)
+    state["STAGE35_ENABLED"] = False
+    state["STAGE35_CFG"] = {
+        "seed_keep": 4,
+        "beam_width": 4,
+        "archive_keep": 16,
+        "rounds": 3,
+        "mini_search_steps": 2,
+        "mini_search_beam_width": 3,
+        "mini_search_top_symbols": 10,
+        "mini_search_final_keep": 2,
+        "mini_search_keep_all_rows": 0,
+        "accept_score_min_gain": 0,
+        "accept_search_score_max_drop": 0,
+    }
     state["STAGE3_SPAN_BASIN_JUDGE_K"] = 32
     state["STAGE3_SPAN_BASIN_JUDGE_REQUIRE_SPAN_ACTIVE"] = True
     state["STAGE3_SPAN_BASIN_JUDGE_DEDUPE_BY_END_HASH"] = True
@@ -110,6 +139,12 @@ def initialize_runtime_state(
     state["STAGE3_C1_PHASEB_GATE_DELTA_FLOOR"] = 0.010
     state["STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR"] = 0.006
     state["STAGE3_CONTINUE_AFTER_SOLVE"] = False
+    state["STAGE3_ENTRY_ALLOCATION_POLICY"] = str(
+        default_stage3_entry_allocation_policy
+    )
+    state["STAGE3_ENTRY_MUTATIONS_PER_PROMOTED"] = int(
+        max(1, int(default_stage3_entry_mutations_per_promoted))
+    )
 
     state["STAGE3_PERIOD_INIT_MULT_BY_PERIOD"] = {}
     state["STAGE3_PERIOD_STEP_MULT_BY_PERIOD"] = {}
@@ -122,12 +157,32 @@ def initialize_runtime_state(
     state["_STAGE3_PHASEB_TOP_N_DEFAULT"] = int(state["STAGE3_PHASEB_TOP_N"])
     state["_STAGE3_PHASEB_GATE_DELTA_FLOOR_DEFAULT"] = float(state["STAGE3_PHASEB_GATE_DELTA_FLOOR"])
     state["_STAGE3_PHASEB_GATE_END_GAIN_FLOOR_DEFAULT"] = float(state["STAGE3_PHASEB_GATE_END_GAIN_FLOOR"])
+    state["_STAGE3_PHASEB_FAMILY_PRESERVATION_POLICY_DEFAULT"] = str(
+        state["STAGE3_PHASEB_FAMILY_PRESERVATION_POLICY"]
+    )
+    state["_STAGE3_PHASEB_FAMILY_VIEW_ID_DEFAULT"] = str(
+        state["STAGE3_PHASEB_FAMILY_VIEW_ID"]
+    )
+    state["_STAGE3_PHASEB_FAMILY_RESERVED_SLOTS_DEFAULT"] = int(
+        state["STAGE3_PHASEB_FAMILY_RESERVED_SLOTS"]
+    )
     state["_STAGE3_PHASEC_ENABLED_DEFAULT"] = bool(state["STAGE3_PHASEC_ENABLED"])
     state["_STAGE3_PHASEC_CFG_DEFAULT"] = dict(state["STAGE3_PHASEC_CFG"])
     state["_STAGE3_PHASEC_START_KEYS_DEFAULT"] = int(state["STAGE3_PHASEC_START_KEYS"])
     state["_STAGE3_PHASEC_SEED_OFFSET_DEFAULT"] = int(state["STAGE3_PHASEC_SEED_OFFSET"])
     state["_STAGE3_PHASEC_WORD_NGRAM_TIEBREAK_DEFAULT"] = bool(
         state["STAGE3_PHASEC_WORD_NGRAM_TIEBREAK"]
+    )
+    state["_STAGE3_PHASEC_START_POLICY_DEFAULT"] = str(
+        state["STAGE3_PHASEC_START_POLICY"]
+    )
+    state["_STAGE35_ENABLED_DEFAULT"] = bool(state["STAGE35_ENABLED"])
+    state["_STAGE35_CFG_DEFAULT"] = dict(state["STAGE35_CFG"])
+    state["_STAGE3_SPAN_BASIN_JUDGE_TIE_EPS_DEFAULT"] = float(
+        state["STAGE3_SPAN_BASIN_JUDGE_TIE_EPS"]
+    )
+    state["_STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS_DEFAULT"] = int(
+        state["STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS"]
     )
     state["_STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS_DEFAULT"] = int(state["STAGE1_SCOUT_EARLY_STOP_MIN_SCOUTS"])
     state["_STAGE3_C1_FOCUS_ENABLED_DEFAULT"] = bool(state["STAGE3_C1_FOCUS_ENABLED"])
@@ -138,6 +193,12 @@ def initialize_runtime_state(
     state["_STAGE3_C1_PHASEB_GATE_DELTA_FLOOR_DEFAULT"] = float(state["STAGE3_C1_PHASEB_GATE_DELTA_FLOOR"])
     state["_STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR_DEFAULT"] = float(state["STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR"])
     state["_STAGE3_CONTINUE_AFTER_SOLVE_DEFAULT"] = bool(state["STAGE3_CONTINUE_AFTER_SOLVE"])
+    state["_STAGE3_ENTRY_ALLOCATION_POLICY_DEFAULT"] = str(
+        state["STAGE3_ENTRY_ALLOCATION_POLICY"]
+    )
+    state["_STAGE3_ENTRY_MUTATIONS_PER_PROMOTED_DEFAULT"] = int(
+        state["STAGE3_ENTRY_MUTATIONS_PER_PROMOTED"]
+    )
     state["_STAGE3_PERIOD_INIT_MULT_BY_PERIOD_DEFAULT"] = dict(state["STAGE3_PERIOD_INIT_MULT_BY_PERIOD"])
     state["_STAGE3_PERIOD_STEP_MULT_BY_PERIOD_DEFAULT"] = dict(state["STAGE3_PERIOD_STEP_MULT_BY_PERIOD"])
     state["_STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD_DEFAULT"] = dict(state["STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD"])

@@ -38,6 +38,9 @@ from tools.benchmarks.periodic_sub_trans.no_wli.stage3_runtime_calls import (
 from tools.benchmarks.periodic_sub_trans.no_wli.phasec_rescue_checkpoint import (
     build_phasec_start_checkpoint_path,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.resume_handoff_artifacts import (
+    write_resume_handoff_artifacts,
+)
 from tools.benchmarks.periodic_sub_trans.no_wli.stage3_topk import (
     append_stage3_topk_from_kaeding as _append_stage3_topk_from_kaeding_external,
     append_stage3_topk_from_phasea as _append_stage3_topk_from_phasea_external,
@@ -45,8 +48,6 @@ from tools.benchmarks.periodic_sub_trans.no_wli.stage3_topk import (
 from tools.benchmarks.periodic_sub_trans.no_wli.stage3_metrics import (
     extract_kaeding_metrics as _extract_kaeding_metrics_external,
 )
-
-
 def build_iteration_runtime_bridge(
     *,
     state: Mapping[str, Any],
@@ -364,6 +365,10 @@ def prepare_stage3_refine_inputs_bridge(
         stage3_c1_phaseb_gate_delta_floor=float(state["STAGE3_C1_PHASEB_GATE_DELTA_FLOOR"]),
         stage3_c1_phaseb_gate_end_gain_floor=float(state["STAGE3_C1_PHASEB_GATE_END_GAIN_FLOOR"]),
         solver_stage3_cfg=dict(state["SOLVER_STAGE3"]),
+        stage3_entry_allocation_policy=str(state["STAGE3_ENTRY_ALLOCATION_POLICY"]),
+        stage3_entry_mutations_per_promoted=int(
+            state["STAGE3_ENTRY_MUTATIONS_PER_PROMOTED"]
+        ),
         build_stage3_promoted_keys_fn=lambda promoted_entries, best_key, key_len: state["_build_stage3_promoted_keys"](
             promoted_entries=promoted_entries,
             best_key=best_key,
@@ -421,6 +426,8 @@ def build_iteration_payloads_bridge(
     stage2_diagnostics: Dict[str, Any],
     stage3_topk_payload: List[Dict[str, Any]],
     stage3_diagnostics: Dict[str, Any],
+    stage35_archive_rows: List[Dict[str, Any]] | None = None,
+    stage35_seed_rows: List[Dict[str, Any]] | None = None,
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     return _build_iteration_payloads_external(
         tier_name=str(tier.name),
@@ -471,6 +478,8 @@ def build_iteration_payloads_bridge(
         stage2_diagnostics=stage2_diagnostics,
         stage3_topk=(stage3_topk_payload if bool(state["SAVE_STAGE3_TOPK"]) else []),
         stage3_diagnostics=stage3_diagnostics,
+        stage35_archive=stage35_archive_rows,
+        stage35_seed_rows=stage35_seed_rows,
     )
 
 
@@ -499,8 +508,7 @@ def commit_iteration_outputs_bridge(
     audit_jsonl: Path,
     audit_prev_chain_hash: str,
 ) -> Dict[str, Any]:
-    base_mod = state["base"]
-    return _commit_iteration_outputs_external(
+    out = _commit_iteration_outputs_external(
         run_dir=run_dir,
         final_dir=final_dir,
         root=root,
@@ -529,8 +537,23 @@ def commit_iteration_outputs_bridge(
         append_iteration_audit_row_fn=state["_append_iteration_audit_row"],
         hash_payload_fn=state["_hash_payload"],
         sha256_file_fn=state["_sha256_file"],
-        format_seconds_fn=lambda seconds: base_mod._format_seconds(float(seconds)),
+        format_seconds_fn=lambda seconds: state["_format_seconds"](float(seconds)),
     )
+    if bool(state["SAVE_RESUME_HANDOFFS"]):
+        artifact_name = (
+            f"{inst_row['tier']}__text{int(inst_row['text_id'])}__seed{int(inst_row['key_seed'])}.json"
+        )
+        write_resume_handoff_artifacts(
+            run_dir=run_dir,
+            root=root,
+            artifact_path=final_dir / artifact_name,
+            artifact_payload=artifact_payload,
+            run_config_path=run_dir / "run_config.json",
+            write_json_fn=state["write_json"],
+            live_stage2_resume=state.get("stage2_resume_live"),
+            live_stage3_prep=state.get("stage3_prep_live"),
+        )
+    return out
 
 
 def extract_kaeding_metrics_bridge(*, kaeding_obj: Any) -> Dict[str, float]:
@@ -607,15 +630,23 @@ def build_stage3_runtime_call_context_bridge(
         stage3_span_basin_judge_tie_eps=float(state["STAGE3_SPAN_BASIN_JUDGE_TIE_EPS"]),
         stage3_span_basin_judge_tie_max_seeds=int(state["STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS"]),
         stage3_word_ngram_decision_influence=bool(
-            state.get("WORD_NGRAM_REPORT_DECISION_INFLUENCE", False)
+            state["WORD_NGRAM_REPORT_DECISION_INFLUENCE"]
         ),
-        stage3_phasec_enabled=bool(state.get("STAGE3_PHASEC_ENABLED", False)),
-        stage3_phasec_cfg=dict(state.get("STAGE3_PHASEC_CFG", {})),
-        stage3_phasec_start_keys=int(state.get("STAGE3_PHASEC_START_KEYS", 0)),
-        stage3_phasec_seed_offset=int(state.get("STAGE3_PHASEC_SEED_OFFSET", 0)),
+        stage3_phasec_enabled=bool(state["STAGE3_PHASEC_ENABLED"]),
+        stage3_phasec_cfg=dict(state["STAGE3_PHASEC_CFG"]),
+        stage3_phasec_start_keys=int(state["STAGE3_PHASEC_START_KEYS"]),
+        stage3_phasec_seed_offset=int(state["STAGE3_PHASEC_SEED_OFFSET"]),
         stage3_phasec_word_ngram_tiebreak=bool(
-            state.get("STAGE3_PHASEC_WORD_NGRAM_TIEBREAK", False)
+            state["STAGE3_PHASEC_WORD_NGRAM_TIEBREAK"]
         ),
+        stage3_phaseb_family_preservation_policy=str(
+            state["STAGE3_PHASEB_FAMILY_PRESERVATION_POLICY"]
+        ),
+        stage3_phaseb_family_view_id=str(state["STAGE3_PHASEB_FAMILY_VIEW_ID"]),
+        stage3_phaseb_family_reserved_slots=int(
+            state["STAGE3_PHASEB_FAMILY_RESERVED_SLOTS"]
+        ),
+        stage3_phasec_start_policy=str(state["STAGE3_PHASEC_START_POLICY"]),
         extract_kaeding_metrics_fn=state["_extract_kaeding_metrics"],
         solution_span_counter_summary_fn=state["_solution_span_counter_summary"],
         stage3_progress_logging_fn=state["_stage3_progress_logging"],

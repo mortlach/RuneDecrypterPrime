@@ -130,13 +130,15 @@ def build_setup_logging_payload(
         stage3_phaseb_gate_end_gain_floor=float(
             state["STAGE3_PHASEB_GATE_END_GAIN_FLOOR"]
         ),
-        stage3_phasec_enabled=bool(state.get("STAGE3_PHASEC_ENABLED", False)),
-        stage3_phasec_cfg=dict(state.get("STAGE3_PHASEC_CFG", {})),
-        stage3_phasec_start_keys=int(state.get("STAGE3_PHASEC_START_KEYS", 0)),
-        stage3_phasec_seed_offset=int(state.get("STAGE3_PHASEC_SEED_OFFSET", 0)),
+        stage3_phasec_enabled=bool(state["STAGE3_PHASEC_ENABLED"]),
+        stage3_phasec_cfg=dict(state["STAGE3_PHASEC_CFG"]),
+        stage3_phasec_start_keys=int(state["STAGE3_PHASEC_START_KEYS"]),
+        stage3_phasec_seed_offset=int(state["STAGE3_PHASEC_SEED_OFFSET"]),
         stage3_phasec_word_ngram_tiebreak=bool(
-            state.get("STAGE3_PHASEC_WORD_NGRAM_TIEBREAK", False)
+            state["STAGE3_PHASEC_WORD_NGRAM_TIEBREAK"]
         ),
+        stage35_enabled=bool(state["STAGE35_ENABLED"]),
+        stage35_cfg=dict(state["STAGE35_CFG"]),
         stage3_c1_focus_enabled=bool(state["STAGE3_C1_FOCUS_ENABLED"]),
         stage3_c1_init_keys=int(state["STAGE3_C1_INIT_KEYS"]),
         stage3_c1_phasea_steps=int(state["STAGE3_C1_PHASEA_STEPS"]),

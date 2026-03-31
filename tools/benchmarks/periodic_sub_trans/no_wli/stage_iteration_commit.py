@@ -55,7 +55,7 @@ def commit_iteration_outputs(
     hist_row = dict(
         timestamp_utc=datetime.now(timezone.utc).isoformat(),
         run_id=run_dir.name,
-        profile_id=artifact_payload.get("profile_id", ""),
+        profile_id=artifact_payload["profile_id"],
         fixture_id=inst_row["tier"],
         text_id=inst_row["text_id"],
         key_seed=inst_row["key_seed"],
@@ -102,14 +102,14 @@ def commit_iteration_outputs(
         )
         audit_rows_written = int(audit_rows_written) + 1
 
-    if float(inst_row.get("best_match_ratio", float("-inf"))) > float(best_global.get("match", float("-inf"))):
+    if float(inst_row["best_match_ratio"]) > float(best_global["match"]):
         best_global.update(
-            match=float(inst_row.get("best_match_ratio", float("nan"))),
-            tier=str(inst_row.get("tier", "")),
-            text_id=int(inst_row.get("text_id", -1)),
-            key_seed=int(inst_row.get("key_seed", -1)),
-            stage=str(inst_row.get("best_stage", "")),
-            preview=str(inst_row.get("preview_best_latin", "")),
+            match=float(inst_row["best_match_ratio"]),
+            tier=str(inst_row["tier"]),
+            text_id=int(inst_row["text_id"]),
+            key_seed=int(inst_row["key_seed"]),
+            stage=str(inst_row["best_stage"]),
+            preview=str(inst_row["preview_best_latin"]),
         )
 
     done = int(done) + 1
@@ -122,7 +122,7 @@ def commit_iteration_outputs(
         f"elapsed={format_seconds_fn(elapsed)} eta={format_seconds_fn(eta)}",
         flush=True,
     )
-    preview_best = str(inst_row.get("preview_best_latin", ""))
+    preview_best = str(inst_row["preview_best_latin"])
     if preview_best:
         print(
             f"{log_prefix} best-instance-preview tier={inst_row['tier']} text={inst_row['text_id']} "

@@ -16,6 +16,9 @@ from tools.benchmarks.periodic_sub_trans.common.stage_spec import (
     SpanScope,
     StageSpec,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.stage3_runtime_state_contract import (
+    extract_stage3_runtime_config_state,
+)
 
 
 @dataclass(frozen=True)
@@ -23,6 +26,126 @@ class IterationStageEngineResult:
     pre_stage3: Dict[str, Any]
     stage3_flow: Dict[str, Any]
     events: list[Dict[str, Any]]
+
+
+_PRE_STAGE3_STATE_KEYS = (
+    "tier",
+    "text_id",
+    "key_seed",
+    "off",
+    "offset_used",
+    "pt_idx",
+    "wli",
+    "direction",
+    "span_assets_dir",
+    "scoring_experiment_meta",
+    "oracle_mode",
+    "oracle_consulted_in_decisions",
+    "oracle_decision_paths_enabled",
+    "oracle_assist_selection_effective",
+    "stages",
+    "instances",
+)
+
+_STAGE3_BASE_STATE_KEYS = (
+    "tier",
+    "text_id",
+    "key_seed",
+    "t0_i",
+    "pt_idx",
+    "wli",
+    "direction",
+    "oracle_decision_paths_enabled",
+    "oracle_assist_selection_effective",
+    "stages",
+)
+
+def _select_state_keys(
+    *,
+    state: Mapping[str, Any],
+    keys: tuple[str, ...],
+) -> Dict[str, Any]:
+    return {key: state[key] for key in keys}
+
+
+def _build_pre_stage3_state(
+    *,
+    state: Mapping[str, Any],
+) -> Dict[str, Any]:
+    selected = _select_state_keys(state=state, keys=_PRE_STAGE3_STATE_KEYS)
+    selected["pt_idx"] = np.asarray(selected["pt_idx"], dtype=np.uint8)
+    selected["scoring_experiment_meta"] = dict(selected["scoring_experiment_meta"])
+    return selected
+
+
+def _build_stage3_state(
+    *,
+    state: Mapping[str, Any],
+    pre_stage3_out: Mapping[str, Any],
+    config: Any,
+) -> Dict[str, Any]:
+    stage3_state = _select_state_keys(state=state, keys=_STAGE3_BASE_STATE_KEYS)
+    stage3_state.update(extract_stage3_runtime_config_state(state=state))
+    stage3_state["pt_idx"] = np.asarray(stage3_state["pt_idx"], dtype=np.uint8)
+    stage3_state["STAGE35_ENABLED"] = bool(
+        state.get(
+            "STAGE35_ENABLED",
+            getattr(config, "stage35_enabled", False),
+        )
+    )
+    stage3_state["STAGE35_CFG"] = dict(
+        state.get(
+            "STAGE35_CFG",
+            getattr(config, "stage35_cfg", {}),
+        )
+        or {}
+    )
+    stage3_state["key_len"] = int(pre_stage3_out["key_len"])
+    stage3_state["full_cipher"] = pre_stage3_out["full_cipher"]
+    stage3_state["ct_idx"] = np.asarray(pre_stage3_out["ct_idx"], dtype=np.uint8)
+    stage3_state["scorer_stage2"] = dict(pre_stage3_out["scorer_stage2"])
+    stage3_state["scorer_full"] = dict(pre_stage3_out["scorer_full"])
+    stage3_state["scorer_stage3_phaseA"] = dict(pre_stage3_out["scorer_stage3_phaseA"])
+    stage3_state["scorer_stage3_phaseB"] = dict(pre_stage3_out["scorer_stage3_phaseB"])
+    stage3_state["scorer_stage3_search_runtime"] = pre_stage3_out["scorer_stage3_search_runtime"]
+    stage3_state["scorer_basin_judge_runtime"] = pre_stage3_out["scorer_basin_judge_runtime"]
+    stage3_state["scorer_full_runtime"] = pre_stage3_out["scorer_full_runtime"]
+    stage3_state["scorer_stage3_phaseA_runtime"] = pre_stage3_out["scorer_stage3_phaseA_runtime"]
+    stage3_state["scorer_word_ngram_report_runtime"] = pre_stage3_out.get(
+        "scorer_word_ngram_report_runtime",
+        None,
+    )
+    stage3_state["oracle_s1"] = float(pre_stage3_out["oracle_s1"])
+    stage3_state["oracle_s2"] = float(pre_stage3_out["oracle_s2"])
+    stage3_state["oracle_s3"] = float(pre_stage3_out["oracle_s3"])
+    stage3_state["stage3_phaseA_experiment"] = str(pre_stage3_out["stage3_phaseA_experiment"])
+    stage3_state["stage3_phaseB_experiment"] = str(pre_stage3_out["stage3_phaseB_experiment"])
+    stage3_state["stage3_phaseB_char_pct_min_dynamic"] = float(
+        pre_stage3_out["stage3_phaseB_char_pct_min_dynamic"]
+    )
+    stage3_state["stage3_phaseB_char_pct_min_source"] = str(
+        pre_stage3_out["stage3_phaseB_char_pct_min_source"]
+    )
+    stage3_state["sub_key_match"] = float(pre_stage3_out["sub_key_match"])
+    stage3_state["stage1_best_score"] = float(pre_stage3_out["stage1_best_score"])
+    stage3_state["ev1"] = int(pre_stage3_out["ev1"])
+    stage3_state["best2_match"] = float(pre_stage3_out["best2_match"])
+    stage3_state["best2_score"] = float(pre_stage3_out["best2_score"])
+    stage3_state["best2_key"] = pre_stage3_out["best2_key"]
+    stage3_state["best2_pt"] = pre_stage3_out["best2_pt"]
+    stage3_state["best2_preview"] = str(pre_stage3_out["best2_preview"])
+    stage3_state["stage2_evals_total"] = int(pre_stage3_out["stage2_evals_total"])
+    stage3_state["stage2_archive"] = dict(pre_stage3_out["stage2_archive"])
+    stage3_state["stage2_continue_to_gate"] = bool(pre_stage3_out["stage2_continue_to_gate"])
+    stage3_state["stage2_continue_stop_reason"] = str(pre_stage3_out["stage2_continue_stop_reason"])
+    stage3_state["stage2_ranked"] = list(pre_stage3_out["stage2_ranked"])
+    stage3_state["stage2_promoted"] = list(pre_stage3_out["stage2_promoted"])
+    stage3_state["stage2_entry_score"] = float(pre_stage3_out["stage2_entry_score"])
+    stage3_state["stage2_entry_score_judge"] = float(pre_stage3_out["stage2_entry_score_judge"])
+    stage3_state["stage2_score_match_spearman"] = float(pre_stage3_out["stage2_score_match_spearman"])
+    stage3_state["stage2_topk_payload"] = list(pre_stage3_out["stage2_topk_payload"])
+    stage3_state["stage2_topk_has_best_match"] = bool(pre_stage3_out["stage2_topk_has_best_match"])
+    return stage3_state
 
 
 def _validate_stage_engine_fns(fns: Any) -> None:
@@ -188,7 +311,7 @@ def run_iteration_with_stage_engine(
         nonlocal pre_stage3_out, stage3_flow_out
         if str(stage.stage_id) == "stage_ab_pre_stage3":
             pre_stage3_out = fns.run_iteration_pre_stage3_fn(
-                state=dict(state),
+                state=_build_pre_stage3_state(state=state),
                 stage1_label=str(config.stage1_label),
                 stage2_label=str(config.stage2_label),
                 stage3_label=str(config.stage3_label),
@@ -227,49 +350,11 @@ def run_iteration_with_stage_engine(
             stage3_flow_out = {}
             return CandidatePool([])
 
-        stage3_state = dict(state)
-        stage3_state.update(dict(pre_stage3_out))
-        stage3_state["key_len"] = int(pre_stage3_out["key_len"])
-        stage3_state["full_cipher"] = pre_stage3_out["full_cipher"]
-        stage3_state["ct_idx"] = np.asarray(pre_stage3_out["ct_idx"], dtype=np.uint8)
-        stage3_state["scorer_stage2"] = dict(pre_stage3_out["scorer_stage2"])
-        stage3_state["scorer_full"] = dict(pre_stage3_out["scorer_full"])
-        stage3_state["scorer_stage3_phaseA"] = dict(pre_stage3_out["scorer_stage3_phaseA"])
-        stage3_state["scorer_stage3_phaseB"] = dict(pre_stage3_out["scorer_stage3_phaseB"])
-        stage3_state["scorer_stage3_search_runtime"] = pre_stage3_out["scorer_stage3_search_runtime"]
-        stage3_state["scorer_basin_judge_runtime"] = pre_stage3_out["scorer_basin_judge_runtime"]
-        stage3_state["scorer_full_runtime"] = pre_stage3_out["scorer_full_runtime"]
-        stage3_state["scorer_stage3_phaseA_runtime"] = pre_stage3_out["scorer_stage3_phaseA_runtime"]
-        stage3_state["oracle_s1"] = float(pre_stage3_out["oracle_s1"])
-        stage3_state["oracle_s2"] = float(pre_stage3_out["oracle_s2"])
-        stage3_state["oracle_s3"] = float(pre_stage3_out["oracle_s3"])
-        stage3_state["stage3_phaseA_experiment"] = str(pre_stage3_out["stage3_phaseA_experiment"])
-        stage3_state["stage3_phaseB_experiment"] = str(pre_stage3_out["stage3_phaseB_experiment"])
-        stage3_state["stage3_phaseB_char_pct_min_dynamic"] = float(
-            pre_stage3_out["stage3_phaseB_char_pct_min_dynamic"]
+        stage3_state = _build_stage3_state(
+            state=state,
+            pre_stage3_out=pre_stage3_out,
+            config=config,
         )
-        stage3_state["stage3_phaseB_char_pct_min_source"] = str(
-            pre_stage3_out["stage3_phaseB_char_pct_min_source"]
-        )
-        stage3_state["sub_key_match"] = float(pre_stage3_out["sub_key_match"])
-        stage3_state["stage1_best_score"] = float(pre_stage3_out["stage1_best_score"])
-        stage3_state["ev1"] = int(pre_stage3_out["ev1"])
-        stage3_state["best2_match"] = float(pre_stage3_out["best2_match"])
-        stage3_state["best2_score"] = float(pre_stage3_out["best2_score"])
-        stage3_state["best2_key"] = pre_stage3_out["best2_key"]
-        stage3_state["best2_pt"] = pre_stage3_out["best2_pt"]
-        stage3_state["best2_preview"] = str(pre_stage3_out["best2_preview"])
-        stage3_state["stage2_evals_total"] = int(pre_stage3_out["stage2_evals_total"])
-        stage3_state["stage2_archive"] = dict(pre_stage3_out["stage2_archive"])
-        stage3_state["stage2_continue_to_gate"] = bool(pre_stage3_out["stage2_continue_to_gate"])
-        stage3_state["stage2_continue_stop_reason"] = str(pre_stage3_out["stage2_continue_stop_reason"])
-        stage3_state["stage2_ranked"] = list(pre_stage3_out["stage2_ranked"])
-        stage3_state["stage2_promoted"] = list(pre_stage3_out["stage2_promoted"])
-        stage3_state["stage2_entry_score"] = float(pre_stage3_out["stage2_entry_score"])
-        stage3_state["stage2_entry_score_judge"] = float(pre_stage3_out["stage2_entry_score_judge"])
-        stage3_state["stage2_score_match_spearman"] = float(pre_stage3_out["stage2_score_match_spearman"])
-        stage3_state["stage2_topk_payload"] = list(pre_stage3_out["stage2_topk_payload"])
-        stage3_state["stage2_topk_has_best_match"] = bool(pre_stage3_out["stage2_topk_has_best_match"])
 
         aux_two_pass_enabled = bool(getattr(config, "stage3_span_aux_two_pass", False))
         effective_two_phase_enabled = bool(config.stage3_two_phase_enabled) or bool(

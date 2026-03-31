@@ -1,6 +1,131 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, List, Mapping, Tuple
+
+
+@dataclass(frozen=True)
+class IterationPersistencePayload:
+    target_key_idx: List[int]
+    truth_diagnostics: Dict[str, Any]
+    word_ngram_report: Dict[str, Any]
+    stage2_topk_word_ngram_report: List[Dict[str, Any]]
+    stage3_topk_word_ngram_report: List[Dict[str, Any]]
+    stage35_archive_rows: List[Dict[str, Any]]
+    stage35_seed_rows: List[Dict[str, Any]]
+    stage3_diagnostics: Dict[str, Any]
+
+    @classmethod
+    def build(
+        cls,
+        *,
+        target_key_idx: List[int] | None,
+        truth_diagnostics: Mapping[str, Any] | None,
+        word_ngram_report: Mapping[str, Any] | None,
+        stage2_topk_word_ngram_report: List[Mapping[str, Any]] | None,
+        stage3_topk_word_ngram_report: List[Mapping[str, Any]] | None,
+        stage35_archive_rows: List[Mapping[str, Any]] | None,
+        stage35_seed_rows: List[Mapping[str, Any]] | None,
+        stage3_diagnostics: Mapping[str, Any] | None,
+    ) -> "IterationPersistencePayload":
+        return cls(
+            target_key_idx=list(map(int, list(target_key_idx or []))),
+            truth_diagnostics=dict(truth_diagnostics or {}),
+            word_ngram_report=dict(word_ngram_report or {}),
+            stage2_topk_word_ngram_report=[
+                dict(row) for row in list(stage2_topk_word_ngram_report or [])
+            ],
+            stage3_topk_word_ngram_report=[
+                dict(row) for row in list(stage3_topk_word_ngram_report or [])
+            ],
+            stage35_archive_rows=[
+                dict(row) for row in list(stage35_archive_rows or [])
+            ],
+            stage35_seed_rows=[dict(row) for row in list(stage35_seed_rows or [])],
+            stage3_diagnostics=dict(stage3_diagnostics or {}),
+        )
+
+    def instance_fields(self) -> Dict[str, Any]:
+        return dict(
+            word_ngram_judge_active=bool(
+                self.word_ngram_report.get("word_ngram_judge_active", False)
+            ),
+            word_ngram_judge_n_positions=int(
+                self.word_ngram_report.get("word_ngram_judge_n_positions", 0) or 0
+            ),
+            word_ngram_judge_report_xent=self.word_ngram_report.get(
+                "word_ngram_judge_report_xent"
+            ),
+            word_ngram_judge_trust_score=self.word_ngram_report.get(
+                "word_ngram_judge_trust_score"
+            ),
+            word_ngram_judge_trust_tier=str(
+                self.word_ngram_report.get("word_ngram_judge_trust_tier", "") or ""
+            ),
+            word_ngram_judge_inactive_reason=str(
+                self.word_ngram_report.get("word_ngram_judge_inactive_reason", "") or ""
+            ),
+            truth_diagnostics_available=bool(
+                self.truth_diagnostics.get("available", False)
+            ),
+            truth_key_hamming_total=self.truth_diagnostics.get("key_hamming_total"),
+            truth_key_hamming_substitution=self.truth_diagnostics.get(
+                "key_hamming_substitution"
+            ),
+            truth_key_hamming_columns=self.truth_diagnostics.get("key_hamming_columns"),
+            truth_worst_substitution_slice=self.truth_diagnostics.get(
+                "worst_substitution_slice"
+            ),
+            truth_worst_substitution_slice_mismatches=self.truth_diagnostics.get(
+                "worst_substitution_slice_mismatches"
+            ),
+            truth_worst_plaintext_period_residue=self.truth_diagnostics.get(
+                "worst_plaintext_period_residue"
+            ),
+            truth_worst_plaintext_period_residue_match_ratio=self.truth_diagnostics.get(
+                "worst_plaintext_period_residue_match_ratio"
+            ),
+            stage35_requested_cfg=int(
+                self.stage3_diagnostics.get("stage35_requested_cfg", 0)
+            ),
+            stage35_proof_valid=int(
+                self.stage3_diagnostics.get("stage35_proof_valid", 0)
+            ),
+            stage35_proof_invalid_reason=str(
+                self.stage3_diagnostics.get("stage35_proof_invalid_reason", "")
+            ),
+            stage35_selected=bool(self.stage3_diagnostics.get("stage35_selected", 0)),
+            stage35_archive_count=int(
+                self.stage3_diagnostics.get("stage35_archive_count", 0)
+            ),
+            stage35_rounds_completed=int(
+                self.stage3_diagnostics.get("stage35_rounds_completed", 0)
+            ),
+        )
+
+    def artifact_fields(self) -> Dict[str, Any]:
+        return dict(
+            stage35_requested_cfg=int(
+                self.stage3_diagnostics.get("stage35_requested_cfg", 0)
+            ),
+            stage35_proof_valid=int(
+                self.stage3_diagnostics.get("stage35_proof_valid", 0)
+            ),
+            stage35_proof_invalid_reason=str(
+                self.stage3_diagnostics.get("stage35_proof_invalid_reason", "")
+            ),
+            target_key_idx=list(self.target_key_idx),
+            truth_diagnostics=dict(self.truth_diagnostics),
+            word_ngram_report=dict(self.word_ngram_report),
+            stage2_topk_word_ngram_report=[
+                dict(row) for row in self.stage2_topk_word_ngram_report
+            ],
+            stage3_topk_word_ngram_report=[
+                dict(row) for row in self.stage3_topk_word_ngram_report
+            ],
+            stage35_archive=[dict(row) for row in self.stage35_archive_rows],
+            stage35_seed_rows=[dict(row) for row in self.stage35_seed_rows],
+        )
 
 
 def build_iteration_payloads(
@@ -51,6 +176,8 @@ def build_iteration_payloads(
     stage2_diagnostics: Dict[str, Any],
     stage3_topk: List[Dict[str, Any]],
     stage3_diagnostics: Dict[str, Any],
+    stage35_archive: List[Dict[str, Any]] | None = None,
+    stage35_seed_rows: List[Dict[str, Any]] | None = None,
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     instance_row: Dict[str, Any] = dict(
         tier=str(tier_name),
@@ -118,5 +245,7 @@ def build_iteration_payloads(
         stage2_diagnostics=dict(stage2_diagnostics),
         stage3_topk=list(stage3_topk),
         stage3_diagnostics=dict(stage3_diagnostics),
+        stage35_archive=[dict(row) for row in list(stage35_archive or [])],
+        stage35_seed_rows=[dict(row) for row in list(stage35_seed_rows or [])],
     )
     return instance_row, artifact_payload
