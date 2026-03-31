@@ -4,6 +4,10 @@ from typing import Any, Callable, Dict, Mapping, Sequence
 
 import numpy as np
 
+from tools.benchmarks.periodic_sub_trans.no_wli.phasec_truth_reporting import (
+    build_phasec_truth_reporting,
+)
+
 
 def resolve_iteration_outcome(
     *,
@@ -22,6 +26,11 @@ def resolve_iteration_outcome(
     best3_score: float,
     best3_key: Sequence[int] | None,
     pt3: np.ndarray,
+    target_plaintext_idx: Sequence[int] | None = None,
+    stage35_selected: bool = False,
+    stage35_best_score: float = float("nan"),
+    stage35_best_key: Sequence[int] | None = None,
+    stage35_best_plaintext_idx: Sequence[int] | None = None,
     wli: Sequence[Sequence[int]],
     stage1_best_score: float,
     oracle_s1: float,
@@ -30,6 +39,24 @@ def resolve_iteration_outcome(
     derive_outcome_code_fn: Callable[..., str],
     safe_preview_latin_fn: Callable[[Any, Any], str],
 ) -> Dict[str, Any]:
+    target_pt = (
+        np.asarray(target_plaintext_idx, dtype=np.uint8).reshape(-1)
+        if target_plaintext_idx is not None
+        else np.asarray([], dtype=np.uint8)
+    )
+    stage35_pt = np.asarray(
+        stage35_best_plaintext_idx if stage35_best_plaintext_idx is not None else [],
+        dtype=np.uint8,
+    ).reshape(-1)
+    stage35_match = float("nan")
+    if (
+        bool(stage35_selected)
+        and int(stage35_pt.size) > 0
+        and int(target_pt.size) > 0
+        and int(stage35_pt.size) == int(target_pt.size)
+    ):
+        stage35_match = float(np.mean(stage35_pt == target_pt))
+
     best_match = max(
         float(best2_match if np.isfinite(best2_match) else 0.0),
         float(best3_match if np.isfinite(best3_match) else 0.0),
@@ -39,6 +66,10 @@ def resolve_iteration_outcome(
         if np.isfinite(best3_match) and best3_match >= best2_match
         else "stage2_search"
     )
+    if bool(stage35_selected) and stage35_best_key is not None and int(stage35_pt.size) > 0:
+        best_stage = "stage35_substitution_only"
+        if np.isfinite(stage35_match):
+            best_match = float(stage35_match)
     status = (
         "solved"
         if best_match >= float(solve_match_threshold)
@@ -49,7 +80,15 @@ def resolve_iteration_outcome(
     final_best_key_idx: list[int] | None = None
     final_best_plaintext_idx: list[int] | None = None
     final_best_score = float("nan")
-    if best_stage == "stage3_full_refine" and int(pt3.size) > 0 and best3_key is not None:
+    if (
+        best_stage == "stage35_substitution_only"
+        and stage35_best_key is not None
+        and int(stage35_pt.size) > 0
+    ):
+        final_best_key_idx = list(map(int, stage35_best_key))
+        final_best_plaintext_idx = stage35_pt.astype(int).tolist()
+        final_best_score = float(stage35_best_score)
+    elif best_stage == "stage3_full_refine" and int(pt3.size) > 0 and best3_key is not None:
         final_best_key_idx = list(map(int, best3_key))
         final_best_plaintext_idx = np.asarray(pt3, dtype=np.uint8).astype(int).tolist()
         final_best_score = float(best3_score)
@@ -58,7 +97,9 @@ def resolve_iteration_outcome(
         final_best_plaintext_idx = list(map(int, best2_pt))
         final_best_score = float(best2_score)
 
-    if best_stage == "stage3_full_refine" and int(pt3.size) > 0:
+    if best_stage == "stage35_substitution_only" and int(stage35_pt.size) > 0:
+        preview_best = str(safe_preview_latin_fn(stage35_pt, wli))
+    elif best_stage == "stage3_full_refine" and int(pt3.size) > 0:
         preview_best = str(safe_preview_latin_fn(np.asarray(pt3, dtype=np.uint8), wli))
     elif str(best2_preview):
         preview_best = str(best2_preview)
@@ -149,7 +190,15 @@ def build_stage3_diagnostics(
     phaseB_skipped: int,
     phaseB_top_n_used: int,
     phaseB_skip_reason: str,
+    phaseB_family_preservation_policy: str = "off",
+    phaseB_family_view_id: str = "prefix_hamming_le_24",
+    phaseB_family_reserved_slots: int = 0,
+    phaseB_family_count_in_top_band: int = 0,
+    phaseB_family_preserved_count: int = 0,
+    phaseB_family_reservation_applied: int = 0,
     phaseB_selected_unique_end_hash: int = 0,
+    phaseB_downstream_selected_count: int = 0,
+    phaseB_downstream_selected_unique_end_hash: int = 0,
     phaseB_topk_saved_count: int = 0,
     phaseB_topk_saved_unique_end_hash: int = 0,
     phaseB_char_pct_min_dynamic: float,
@@ -188,6 +237,7 @@ def build_stage3_diagnostics(
     phaseC_enabled_effective: int = 0,
     phaseC_ran: int = 0,
     phaseC_start_keys_used: int = 0,
+    phaseC_start_policy: str = "source_order",
     phaseC_steps_cfg: int = 0,
     phaseC_proposals_per_step_cfg: int = 0,
     phaseC_lexical_min_match_cfg: float = float("nan"),
@@ -234,8 +284,17 @@ def build_stage3_diagnostics(
     phaseC_candidate_pool_unique_keys: int = 0,
     phaseC_candidate_pool_unique_end_hash: int = 0,
     phaseC_candidate_pool_source_counts: Mapping[str, Any] | None = None,
+    phaseC_novel_view_id: str = "",
+    phaseC_anchor_candidate_hash: str = "",
+    phaseC_candidate_pool_eligible_novel_count: int = 0,
+    phaseC_candidate_pool_eligible_novel_row_count: int = 0,
+    phaseC_candidate_pool_eligible_novel_source_counts: Mapping[str, Any] | None = None,
     phaseC_start_source_counts: Mapping[str, Any] | None = None,
     phaseC_start_unique_end_hash: int = 0,
+    phaseC_start_eligible_novel_count: int = 0,
+    phaseC_selected_novel_challenger_count: int = 0,
+    phaseC_eligible_novel_not_selected_count: int = 0,
+    phaseC_selected_novel_challenger_hashes: Sequence[str] | None = None,
     phaseC_improved_best: int = 0,
     phaseC_checkpoint_jsonl_name: str = "",
     phaseC_checkpoint_rows_written: int = 0,
@@ -245,8 +304,44 @@ def build_stage3_diagnostics(
     phaseC_final_winner_lane: str = "",
     phaseC_final_winner_source: str = "",
     phaseC_start_summaries: Sequence[Mapping[str, Any]] | None = None,
+    stage35_requested_cfg: int = 0,
+    stage35_enabled_cfg: int = 0,
+    stage35_ran: int = 0,
+    stage35_proof_valid: int = 0,
+    stage35_proof_invalid_reason: str = "",
+    stage35_selected: int = 0,
+    stage35_seed_count: int = 0,
+    stage35_tail_mismatch_count: int = 0,
+    stage35_seed_source_counts: Mapping[str, Any] | None = None,
+    stage35_archive_count: int = 0,
+    stage35_rounds_completed: int = 0,
+    stage35_evals: int = 0,
+    stage35_runtime_seconds: float = 0.0,
+    stage35_archive_unique_keys: int = 0,
+    stage35_archive_unique_seed_sources: int = 0,
+    stage35_archive_unique_target_slices: int = 0,
+    stage35_archive_mean_substitution_hamming: float = 0.0,
+    stage35_archive_max_substitution_hamming: int = 0,
+    stage35_baseline_search_score: float = float("nan"),
+    stage35_accept_score_min_gain_cfg: float = 0.0,
+    stage35_accept_search_score_max_drop_cfg: float = 0.0,
+    stage35_accept_passed: int = 0,
+    stage35_accept_reason: str = "",
+    stage35_mini_search_keep_all_rows_cfg: int = 0,
+    stage35_mini_search_collected_rows: int = 0,
+    stage35_mini_search_rows_kept: int = 0,
+    stage35_best_score: float = float("nan"),
+    stage35_best_search_score: float = float("nan"),
+    stage35_best_seed_source: str = "",
+    stage35_best_stage3_source: str = "",
+    stage35_best_lane: str = "",
+    stage35_best_source_rank: int = 0,
+    stage35_best_target_slice: int | None = None,
+    stage35_best_depth: int = 0,
+    stage35_best_move_type: str = "",
+    stage35_best_candidate_hash: str = "",
 ) -> Dict[str, Any]:
-    return dict(
+    out = dict(
         phaseA_experiment=str(phaseA_experiment),
         phaseB_experiment=str(phaseB_experiment),
         init_target=int(init_target),
@@ -265,7 +360,17 @@ def build_stage3_diagnostics(
         phaseB_skipped=int(phaseB_skipped),
         phaseB_top_n_used=int(phaseB_top_n_used),
         phaseB_skip_reason=str(phaseB_skip_reason),
+        phaseB_family_preservation_policy=str(phaseB_family_preservation_policy),
+        phaseB_family_view_id=str(phaseB_family_view_id),
+        phaseB_family_reserved_slots=int(phaseB_family_reserved_slots),
+        phaseB_family_count_in_top_band=int(phaseB_family_count_in_top_band),
+        phaseB_family_preserved_count=int(phaseB_family_preserved_count),
+        phaseB_family_reservation_applied=int(phaseB_family_reservation_applied),
         phaseB_selected_unique_end_hash=int(phaseB_selected_unique_end_hash),
+        phaseB_downstream_selected_count=int(phaseB_downstream_selected_count),
+        phaseB_downstream_selected_unique_end_hash=int(
+            phaseB_downstream_selected_unique_end_hash
+        ),
         phaseB_topk_saved_count=int(phaseB_topk_saved_count),
         phaseB_topk_saved_unique_end_hash=int(phaseB_topk_saved_unique_end_hash),
         phaseB_char_pct_min_dynamic=float(phaseB_char_pct_min_dynamic),
@@ -309,6 +414,7 @@ def build_stage3_diagnostics(
         phaseC_enabled_effective=int(phaseC_enabled_effective),
         phaseC_ran=int(phaseC_ran),
         phaseC_start_keys_used=int(phaseC_start_keys_used),
+        phaseC_start_policy=str(phaseC_start_policy),
         phaseC_steps_cfg=int(phaseC_steps_cfg),
         phaseC_proposals_per_step_cfg=int(phaseC_proposals_per_step_cfg),
         phaseC_lexical_min_match_cfg=float(phaseC_lexical_min_match_cfg),
@@ -371,8 +477,29 @@ def build_stage3_diagnostics(
         phaseC_candidate_pool_unique_keys=int(phaseC_candidate_pool_unique_keys),
         phaseC_candidate_pool_unique_end_hash=int(phaseC_candidate_pool_unique_end_hash),
         phaseC_candidate_pool_source_counts=dict(phaseC_candidate_pool_source_counts or {}),
+        phaseC_novel_view_id=str(phaseC_novel_view_id),
+        phaseC_anchor_candidate_hash=str(phaseC_anchor_candidate_hash),
+        phaseC_candidate_pool_eligible_novel_count=int(
+            phaseC_candidate_pool_eligible_novel_count
+        ),
+        phaseC_candidate_pool_eligible_novel_row_count=int(
+            phaseC_candidate_pool_eligible_novel_row_count
+        ),
+        phaseC_candidate_pool_eligible_novel_source_counts=dict(
+            phaseC_candidate_pool_eligible_novel_source_counts or {}
+        ),
         phaseC_start_source_counts=dict(phaseC_start_source_counts or {}),
         phaseC_start_unique_end_hash=int(phaseC_start_unique_end_hash),
+        phaseC_start_eligible_novel_count=int(phaseC_start_eligible_novel_count),
+        phaseC_selected_novel_challenger_count=int(
+            phaseC_selected_novel_challenger_count
+        ),
+        phaseC_eligible_novel_not_selected_count=int(
+            phaseC_eligible_novel_not_selected_count
+        ),
+        phaseC_selected_novel_challenger_hashes=[
+            str(x) for x in list(phaseC_selected_novel_challenger_hashes or [])
+        ],
         phaseC_improved_best=int(phaseC_improved_best),
         phaseC_checkpoint_jsonl_name=str(phaseC_checkpoint_jsonl_name),
         phaseC_checkpoint_rows_written=int(phaseC_checkpoint_rows_written),
@@ -386,4 +513,64 @@ def build_stage3_diagnostics(
         phaseC_start_summaries=[
             dict(row) for row in list(phaseC_start_summaries or [])
         ],
+        stage35_requested_cfg=int(stage35_requested_cfg),
+        stage35_enabled_cfg=int(stage35_enabled_cfg),
+        stage35_ran=int(stage35_ran),
+        stage35_proof_valid=int(stage35_proof_valid),
+        stage35_proof_invalid_reason=str(stage35_proof_invalid_reason),
+        stage35_selected=int(stage35_selected),
+        stage35_seed_count=int(stage35_seed_count),
+        stage35_tail_mismatch_count=int(stage35_tail_mismatch_count),
+        stage35_seed_source_counts=dict(stage35_seed_source_counts or {}),
+        stage35_archive_count=int(stage35_archive_count),
+        stage35_rounds_completed=int(stage35_rounds_completed),
+        stage35_evals=int(stage35_evals),
+        stage35_runtime_seconds=float(stage35_runtime_seconds),
+        stage35_archive_unique_keys=int(stage35_archive_unique_keys),
+        stage35_archive_unique_seed_sources=int(
+            stage35_archive_unique_seed_sources
+        ),
+        stage35_archive_unique_target_slices=int(
+            stage35_archive_unique_target_slices
+        ),
+        stage35_archive_mean_substitution_hamming=float(
+            stage35_archive_mean_substitution_hamming
+        ),
+        stage35_archive_max_substitution_hamming=int(
+            stage35_archive_max_substitution_hamming
+        ),
+        stage35_baseline_search_score=float(stage35_baseline_search_score),
+        stage35_accept_score_min_gain_cfg=float(stage35_accept_score_min_gain_cfg),
+        stage35_accept_search_score_max_drop_cfg=float(
+            stage35_accept_search_score_max_drop_cfg
+        ),
+        stage35_accept_passed=int(stage35_accept_passed),
+        stage35_accept_reason=str(stage35_accept_reason),
+        stage35_mini_search_keep_all_rows_cfg=int(
+            stage35_mini_search_keep_all_rows_cfg
+        ),
+        stage35_mini_search_collected_rows=int(stage35_mini_search_collected_rows),
+        stage35_mini_search_rows_kept=int(stage35_mini_search_rows_kept),
+        stage35_best_score=float(stage35_best_score),
+        stage35_best_search_score=float(stage35_best_search_score),
+        stage35_best_seed_source=str(stage35_best_seed_source),
+        stage35_best_stage3_source=str(stage35_best_stage3_source),
+        stage35_best_lane=str(stage35_best_lane),
+        stage35_best_source_rank=int(stage35_best_source_rank),
+        stage35_best_target_slice=(
+            int(stage35_best_target_slice)
+            if stage35_best_target_slice is not None
+            else None
+        ),
+        stage35_best_depth=int(stage35_best_depth),
+        stage35_best_move_type=str(stage35_best_move_type),
+        stage35_best_candidate_hash=str(stage35_best_candidate_hash),
     )
+    out.update(
+        build_phasec_truth_reporting(
+            phasec_start_summaries=list(phaseC_start_summaries or []),
+            phasec_final_winner_lane=str(phaseC_final_winner_lane),
+            phasec_final_winner_source=str(phaseC_final_winner_source),
+        )
+    )
+    return out

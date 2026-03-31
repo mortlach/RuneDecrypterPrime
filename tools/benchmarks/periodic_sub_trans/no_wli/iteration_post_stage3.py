@@ -4,6 +4,13 @@ from typing import Any, Callable, Dict, Mapping
 
 import numpy as np
 
+from tools.benchmarks.periodic_sub_trans.no_wli.commit_bridge_state import (
+    extract_commit_bridge_state,
+)
+from tools.benchmarks.periodic_sub_trans.no_wli.phasec_diagnostics_contract import (
+    require_phasec_diagnostics_contract,
+)
+
 
 def finalize_iteration_post_stage3(
     *,
@@ -21,6 +28,10 @@ def finalize_iteration_post_stage3(
     derive_outcome_code_fn: Callable[..., str],
     safe_preview_latin_fn: Callable[[Any, Any], str],
 ) -> None:
+    require_phasec_diagnostics_contract(
+        state,
+        context="iteration_post_stage3.state",
+    )
     stage2_diagnostics = build_stage2_diagnostics_fn(
         stage2_archive=state["stage2_archive"],
         stage2_ranked=state["stage2_ranked"],
@@ -46,8 +57,32 @@ def finalize_iteration_post_stage3(
         phaseB_skipped=int(state.get("phaseB_skipped", 0)),
         phaseB_top_n_used=int(state.get("phaseB_top_n_used", 0)),
         phaseB_skip_reason=str(state.get("phaseB_skip_reason", "")),
+        phaseB_family_preservation_policy=str(
+            state.get("phaseB_family_preservation_policy", "off")
+        ),
+        phaseB_family_view_id=str(
+            state.get("phaseB_family_view_id", "prefix_hamming_le_24")
+        ),
+        phaseB_family_reserved_slots=int(
+            state.get("phaseB_family_reserved_slots", 0)
+        ),
+        phaseB_family_count_in_top_band=int(
+            state.get("phaseB_family_count_in_top_band", 0)
+        ),
+        phaseB_family_preserved_count=int(
+            state.get("phaseB_family_preserved_count", 0)
+        ),
+        phaseB_family_reservation_applied=int(
+            state.get("phaseB_family_reservation_applied", 0)
+        ),
         phaseB_selected_unique_end_hash=int(
             state.get("phaseB_selected_unique_end_hash", 0)
+        ),
+        phaseB_downstream_selected_count=int(
+            state.get("phaseB_downstream_selected_count", 0)
+        ),
+        phaseB_downstream_selected_unique_end_hash=int(
+            state.get("phaseB_downstream_selected_unique_end_hash", 0)
         ),
         phaseB_topk_saved_count=int(state.get("phaseB_topk_saved_count", 0)),
         phaseB_topk_saved_unique_end_hash=int(
@@ -95,6 +130,7 @@ def finalize_iteration_post_stage3(
         phaseC_enabled_effective=int(state.get("phaseC_enabled_effective", 0)),
         phaseC_ran=int(state.get("phaseC_ran", 0)),
         phaseC_start_keys_used=int(state.get("phaseC_start_keys_used", 0)),
+        phaseC_start_policy=str(state.get("phaseC_start_policy", "source_order")),
         phaseC_steps_cfg=int(state.get("phaseC_steps_cfg", 0)),
         phaseC_proposals_per_step_cfg=int(
             state.get("phaseC_proposals_per_step_cfg", 0)
@@ -210,9 +246,34 @@ def finalize_iteration_post_stage3(
         phaseC_candidate_pool_source_counts=dict(
             state.get("phaseC_candidate_pool_source_counts", {})
         ),
+        phaseC_novel_view_id=str(state.get("phaseC_novel_view_id", "")),
+        phaseC_anchor_candidate_hash=str(
+            state.get("phaseC_anchor_candidate_hash", "")
+        ),
+        phaseC_candidate_pool_eligible_novel_count=int(
+            state.get("phaseC_candidate_pool_eligible_novel_count", 0)
+        ),
+        phaseC_candidate_pool_eligible_novel_row_count=int(
+            state.get("phaseC_candidate_pool_eligible_novel_row_count", 0)
+        ),
+        phaseC_candidate_pool_eligible_novel_source_counts=dict(
+            state.get("phaseC_candidate_pool_eligible_novel_source_counts", {})
+        ),
         phaseC_start_source_counts=dict(state.get("phaseC_start_source_counts", {})),
         phaseC_start_unique_end_hash=int(
             state.get("phaseC_start_unique_end_hash", 0)
+        ),
+        phaseC_start_eligible_novel_count=int(
+            state.get("phaseC_start_eligible_novel_count", 0)
+        ),
+        phaseC_selected_novel_challenger_count=int(
+            state.get("phaseC_selected_novel_challenger_count", 0)
+        ),
+        phaseC_eligible_novel_not_selected_count=int(
+            state.get("phaseC_eligible_novel_not_selected_count", 0)
+        ),
+        phaseC_selected_novel_challenger_hashes=list(
+            state.get("phaseC_selected_novel_challenger_hashes", [])
         ),
         phaseC_improved_best=int(state.get("phaseC_improved_best", 0)),
         phaseC_checkpoint_jsonl_name=str(
@@ -231,6 +292,76 @@ def finalize_iteration_post_stage3(
         phaseC_final_winner_lane=str(state.get("phaseC_final_winner_lane", "")),
         phaseC_final_winner_source=str(state.get("phaseC_final_winner_source", "")),
         phaseC_start_summaries=list(state.get("phaseC_start_summaries", [])),
+        stage35_requested_cfg=int(state.get("stage35_requested_cfg", 0)),
+        stage35_enabled_cfg=int(state.get("stage35_enabled_cfg", 0)),
+        stage35_ran=int(state.get("stage35_ran", 0)),
+        stage35_proof_valid=int(state.get("stage35_proof_valid", 0)),
+        stage35_proof_invalid_reason=str(
+            state.get("stage35_proof_invalid_reason", "")
+        ),
+        stage35_selected=int(state.get("stage35_selected", 0)),
+        stage35_seed_count=int(state.get("stage35_seed_count", 0)),
+        stage35_tail_mismatch_count=int(
+            state.get("stage35_tail_mismatch_count", 0)
+        ),
+        stage35_seed_source_counts=dict(
+            state.get("stage35_seed_source_counts", {})
+        ),
+        stage35_archive_count=int(state.get("stage35_archive_count", 0)),
+        stage35_rounds_completed=int(state.get("stage35_rounds_completed", 0)),
+        stage35_evals=int(state.get("stage35_evals", 0)),
+        stage35_runtime_seconds=float(state.get("stage35_runtime_seconds", 0.0)),
+        stage35_archive_unique_keys=int(
+            state.get("stage35_archive_unique_keys", 0)
+        ),
+        stage35_archive_unique_seed_sources=int(
+            state.get("stage35_archive_unique_seed_sources", 0)
+        ),
+        stage35_archive_unique_target_slices=int(
+            state.get("stage35_archive_unique_target_slices", 0)
+        ),
+        stage35_archive_mean_substitution_hamming=float(
+            state.get("stage35_archive_mean_substitution_hamming", 0.0)
+        ),
+        stage35_archive_max_substitution_hamming=int(
+            state.get("stage35_archive_max_substitution_hamming", 0)
+        ),
+        stage35_baseline_search_score=float(
+            state.get("stage35_baseline_search_score", float("nan"))
+        ),
+        stage35_accept_score_min_gain_cfg=float(
+            state.get("stage35_accept_score_min_gain_cfg", 0.0)
+        ),
+        stage35_accept_search_score_max_drop_cfg=float(
+            state.get("stage35_accept_search_score_max_drop_cfg", 0.0)
+        ),
+        stage35_accept_passed=int(state.get("stage35_accept_passed", 0)),
+        stage35_accept_reason=str(state.get("stage35_accept_reason", "")),
+        stage35_mini_search_keep_all_rows_cfg=int(
+            state.get("stage35_mini_search_keep_all_rows_cfg", 0)
+        ),
+        stage35_mini_search_collected_rows=int(
+            state.get("stage35_mini_search_collected_rows", 0)
+        ),
+        stage35_mini_search_rows_kept=int(
+            state.get("stage35_mini_search_rows_kept", 0)
+        ),
+        stage35_best_score=float(state.get("stage35_best_score", float("nan"))),
+        stage35_best_search_score=float(
+            state.get("stage35_best_search_score", float("nan"))
+        ),
+        stage35_best_seed_source=str(state.get("stage35_best_seed_source", "")),
+        stage35_best_stage3_source=str(
+            state.get("stage35_best_stage3_source", "")
+        ),
+        stage35_best_lane=str(state.get("stage35_best_lane", "")),
+        stage35_best_source_rank=int(state.get("stage35_best_source_rank", 0)),
+        stage35_best_target_slice=state.get("stage35_best_target_slice", None),
+        stage35_best_depth=int(state.get("stage35_best_depth", 0)),
+        stage35_best_move_type=str(state.get("stage35_best_move_type", "")),
+        stage35_best_candidate_hash=str(
+            state.get("stage35_best_candidate_hash", "")
+        ),
     )
     finalize_iteration_and_commit_fn(
         tier=state["tier"],
@@ -278,11 +409,18 @@ def finalize_iteration_post_stage3(
         stage2_diagnostics=stage2_diagnostics,
         stage3_topk_payload=state["stage3_topk_payload"],
         stage3_diagnostics=stage3_diagnostics,
+        stage35_selected=bool(state.get("stage35_selected", 0)),
+        stage35_best_score=float(state.get("stage35_best_score", float("nan"))),
+        stage35_best_key=state.get("stage35_best_key", None),
+        stage35_best_plaintext_idx=state.get("stage35_best_plaintext_idx", None),
+        stage35_archive_rows=list(state.get("stage35_archive_rows", [])),
+        stage35_seed_rows=list(state.get("stage35_seed_rows", [])),
         scorer_word_ngram_report_runtime=state.get("scorer_word_ngram_report_runtime"),
-        require_batch_scoring=bool(state.get("REQUIRE_BATCH_SCORING", True)),
+        require_batch_scoring=bool(state["REQUIRE_BATCH_SCORING"]),
         build_iteration_payloads_fn=build_iteration_payloads_fn,
         commit_iteration_with_checkpoint_fn=commit_iteration_with_checkpoint_fn,
         instances=state["instances"],
         derive_outcome_code_fn=derive_outcome_code_fn,
         safe_preview_latin_fn=safe_preview_latin_fn,
+        bridge_state=extract_commit_bridge_state(iteration_state=state),
     )
