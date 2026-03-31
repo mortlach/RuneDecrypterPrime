@@ -49,6 +49,7 @@ def apply_run_mode_overrides(
     _assign("STAGE3_PHASEC_START_KEYS", int)
     _assign("STAGE3_PHASEC_SEED_OFFSET", int)
     _assign("STAGE3_PHASEC_WORD_NGRAM_TIEBREAK", bool)
+    _assign("STAGE35_ENABLED", bool)
     _assign("STAGE3_INIT_KEYS_CAP", int)
 
     if "TEXT_OFFSETS" in overrides:
@@ -78,6 +79,8 @@ def apply_run_mode_overrides(
         state["STAGE3_PHASEB_CFG"] = dict(overrides["STAGE3_PHASEB_CFG"])
     if "STAGE3_PHASEC_CFG" in overrides:
         state["STAGE3_PHASEC_CFG"] = dict(overrides["STAGE3_PHASEC_CFG"])
+    if "STAGE35_CFG" in overrides:
+        state["STAGE35_CFG"] = dict(overrides["STAGE35_CFG"])
     if "STAGE3_PERIOD_INIT_MULT_BY_PERIOD" in overrides:
         state["STAGE3_PERIOD_INIT_MULT_BY_PERIOD"] = {
             int(k): float(v)

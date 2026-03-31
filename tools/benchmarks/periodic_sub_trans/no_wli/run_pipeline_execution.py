@@ -77,9 +77,23 @@ from tools.benchmarks.periodic_sub_trans.no_wli.stage3_span_summary import (
 from tools.benchmarks.periodic_sub_trans.no_wli.iteration_finalize import (
     finalize_iteration_and_commit,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.commit_bridge_state import (
+    resolve_commit_bridge_state,
+)
 from tools.benchmarks.periodic_sub_trans.no_wli.autoskip_proven import (
     handle_autoskip_proven_iteration,
 )
+
+
+def _resolve_commit_bridge_state(
+    *,
+    runner_state: Mapping[str, Any],
+    bridge_state: Mapping[str, Any] | None,
+) -> Mapping[str, Any]:
+    return resolve_commit_bridge_state(
+        runner_state=runner_state,
+        bridge_state=bridge_state,
+    )
 
 
 def execute_pipeline_from_startup(
@@ -176,7 +190,13 @@ def execute_pipeline_from_startup(
     runner_state = state
     commit_iteration_outputs_fn = lambda **kwargs: state[
         "_commit_iteration_outputs_bridge_external"
-    ](state=runner_state, **kwargs)
+    ](
+        state=_resolve_commit_bridge_state(
+            runner_state=runner_state,
+            bridge_state=kwargs.pop("bridge_state", None),
+        ),
+        **kwargs,
+    )
 
     def _get_oracle_consulted_in_decisions() -> bool:
         return bool(oracle_consulted_in_decisions)

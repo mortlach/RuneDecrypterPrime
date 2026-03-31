@@ -45,7 +45,7 @@ def finalize_run_outputs(
     if instances:
         best_instance_row = max(
             instances,
-            key=lambda r: float(r.get("best_match_ratio", float("-inf"))),
+            key=lambda r: float(r["best_match_ratio"]),
         )
         best_instance = dict(best_instance_row)
         artifact_name = (
@@ -64,7 +64,7 @@ def finalize_run_outputs(
                 best_instance = merged_best
         write_json_fn(best_dir / "best_instance.json", dict(best_instance))
         (best_dir / "best_preview.txt").write_text(
-            str(best_instance_row.get("preview_best_latin", "")),
+            str(best_instance_row["preview_best_latin"]),
             encoding="utf-8",
         )
 
@@ -96,10 +96,10 @@ def finalize_run_outputs(
     run_manifest["progress"] = dict(
         total_units=int(total),
         done_units=int(done),
-        solved=int(status_counts.get("solved", 0)),
-        stalled=int(status_counts.get("stalled", 0)),
-        unsolved=int(status_counts.get("unsolved", 0)),
-        skipped_proven=int(status_counts.get("skipped_proven", 0)),
+        solved=int(status_counts["solved"]),
+        stalled=int(status_counts["stalled"]),
+        unsolved=int(status_counts["unsolved"]),
+        skipped_proven=int(status_counts["skipped_proven"]),
         history_rows_written=int(history_rows_written),
         audit_rows_written=int(audit_rows_written),
         audit_last_chain_hash=str(audit_prev_chain_hash),

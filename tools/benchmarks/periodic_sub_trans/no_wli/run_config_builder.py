@@ -97,6 +97,7 @@ def build_run_config(
             stage2_topk=int(state["SAVE_STAGE2_TOPK"]),
             stage3_topk_enabled=bool(state["SAVE_STAGE3_TOPK"]),
             stage3_topk=int(state["SAVE_STAGE3_TOPK_LIMIT"]),
+            resume_handoffs_enabled=bool(state["SAVE_RESUME_HANDOFFS"]),
         ),
         scorer_schedule=dict(
             stage1=str(state["SCORER_STAGE1_LABEL"]),
@@ -193,6 +194,12 @@ def build_run_config(
                 "Phase-B seed tie-breaks when enabled."
             ),
             solver=dict(state["SOLVER_STAGE3"]),
+            entry=dict(
+                allocation_policy=str(state["STAGE3_ENTRY_ALLOCATION_POLICY"]),
+                mutations_per_promoted=int(
+                    state["STAGE3_ENTRY_MUTATIONS_PER_PROMOTED"]
+                ),
+            ),
             init_keys=int(state["STAGE3_INITIAL_KEYS"]),
             init_by_columns={
                 str(k): int(v) for k, v in state["STAGE3_INITIAL_KEYS_BY_COLUMNS"].items()
@@ -208,40 +215,32 @@ def build_run_config(
                 gate_fail_policy="score_floor",
             ),
             word_ngram_report=dict(
-                enabled=bool(state.get("WORD_NGRAM_REPORT_ENABLED", False)),
-                sqlite_path=str(state.get("WORD_NGRAM_REPORT_SQLITE_PATH") or ""),
-                alpha=float(state.get("WORD_NGRAM_REPORT_ALPHA", 0.4)),
-                miss_logp=float(state.get("WORD_NGRAM_REPORT_MISS_LOGP", -20.0)),
-                min_positions=int(state.get("WORD_NGRAM_REPORT_MIN_POSITIONS", 12)),
+                enabled=bool(state["WORD_NGRAM_REPORT_ENABLED"]),
+                sqlite_path=str(state["WORD_NGRAM_REPORT_SQLITE_PATH"] or ""),
+                alpha=float(state["WORD_NGRAM_REPORT_ALPHA"]),
+                miss_logp=float(state["WORD_NGRAM_REPORT_MISS_LOGP"]),
+                min_positions=int(state["WORD_NGRAM_REPORT_MIN_POSITIONS"]),
                 prefix_total_thresholds=[
-                    int(v)
-                    for v in state.get(
-                        "WORD_NGRAM_REPORT_PREFIX_TOTAL_THRESHOLDS",
-                        (1, 10, 100),
-                    )
+                    int(v) for v in state["WORD_NGRAM_REPORT_PREFIX_TOTAL_THRESHOLDS"]
                 ],
                 report_only=bool(
-                    not bool(
-                        state.get("WORD_NGRAM_REPORT_DECISION_INFLUENCE", False)
-                    )
+                    not bool(state["WORD_NGRAM_REPORT_DECISION_INFLUENCE"])
                 ),
-                decision_influence=bool(
-                    state.get("WORD_NGRAM_REPORT_DECISION_INFLUENCE", False)
-                ),
+                decision_influence=bool(state["WORD_NGRAM_REPORT_DECISION_INFLUENCE"]),
             ),
             span_aux=dict(
-                role=str(state.get("STAGE3_SPAN_AUX_ROLE", "off")),
-                scope=str(state.get("STAGE3_SPAN_AUX_SCOPE", "basin_rep")),
-                profile=str(state.get("STAGE3_SPAN_AUX_PROFILE", "lite")),
-                budget_ms=float(state.get("STAGE3_SPAN_AUX_BUDGET_MS", 0.0)),
-                two_pass_enabled=bool(state.get("STAGE3_SPAN_AUX_TWO_PASS", False)),
-                full_top_m=int(state.get("STAGE3_SPAN_AUX_FULL_TOP_M", 0)),
-                decision_role_enabled=bool(state.get("SPAN_DECISION_ROLE_ENABLED", False)),
-                reps_per_basin=int(state.get("SPAN_REPS_PER_BASIN", 1)),
-                selection_top_k=int(state.get("SPAN_SELECTION_TOP_K", 0)),
+                role=str(state["STAGE3_SPAN_AUX_ROLE"]),
+                scope=str(state["STAGE3_SPAN_AUX_SCOPE"]),
+                profile=str(state["STAGE3_SPAN_AUX_PROFILE"]),
+                budget_ms=float(state["STAGE3_SPAN_AUX_BUDGET_MS"]),
+                two_pass_enabled=bool(state["STAGE3_SPAN_AUX_TWO_PASS"]),
+                full_top_m=int(state["STAGE3_SPAN_AUX_FULL_TOP_M"]),
+                decision_role_enabled=bool(state["SPAN_DECISION_ROLE_ENABLED"]),
+                reps_per_basin=int(state["SPAN_REPS_PER_BASIN"]),
+                selection_top_k=int(state["SPAN_SELECTION_TOP_K"]),
                 p90_call_ms=(
                     float(state["SPAN_P90_CALL_MS"])
-                    if state.get("SPAN_P90_CALL_MS", None) is not None
+                    if state["SPAN_P90_CALL_MS"] is not None
                     else None
                 ),
             ),
@@ -269,14 +268,29 @@ def build_run_config(
                 phase_b_top_n=int(state["STAGE3_PHASEB_TOP_N"]),
                 gate_delta_floor=float(state["STAGE3_PHASEB_GATE_DELTA_FLOOR"]),
                 gate_end_gain_floor=float(state["STAGE3_PHASEB_GATE_END_GAIN_FLOOR"]),
+                family_preservation=dict(
+                    policy=str(state["STAGE3_PHASEB_FAMILY_PRESERVATION_POLICY"]),
+                    family_view_id=str(state["STAGE3_PHASEB_FAMILY_VIEW_ID"]),
+                    reserved_slots=int(state["STAGE3_PHASEB_FAMILY_RESERVED_SLOTS"]),
+                ),
                 phase_c=dict(
-                    enabled=bool(state.get("STAGE3_PHASEC_ENABLED", False)),
-                    cfg=dict(state.get("STAGE3_PHASEC_CFG", {})),
-                    start_keys=int(state.get("STAGE3_PHASEC_START_KEYS", 0)),
-                    seed_offset=int(state.get("STAGE3_PHASEC_SEED_OFFSET", 0)),
+                    enabled=bool(state["STAGE3_PHASEC_ENABLED"]),
+                    cfg=dict(state["STAGE3_PHASEC_CFG"]),
+                    start_keys=int(state["STAGE3_PHASEC_START_KEYS"]),
+                    seed_offset=int(state["STAGE3_PHASEC_SEED_OFFSET"]),
                     word_ngram_tiebreak=bool(
-                        state.get("STAGE3_PHASEC_WORD_NGRAM_TIEBREAK", False)
+                        state["STAGE3_PHASEC_WORD_NGRAM_TIEBREAK"]
                     ),
+                    start_policy=str(state["STAGE3_PHASEC_START_POLICY"]),
+                ),
+            ),
+            stage35=dict(
+                enabled=bool(state["STAGE35_ENABLED"]),
+                cfg=dict(state["STAGE35_CFG"]),
+                contract=(
+                    "Frozen-columns substitution-only late solver. "
+                    "Live ranking may use only score/search/depth/seed-priority signals; "
+                    "truth is offline-eval only."
                 ),
             ),
             c1_focus=dict(

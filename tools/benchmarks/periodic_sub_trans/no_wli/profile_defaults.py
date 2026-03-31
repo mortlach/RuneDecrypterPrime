@@ -3,6 +3,47 @@ from __future__ import annotations
 from typing import Any, Callable, Dict, MutableMapping
 
 
+_STAGE3_ENTRY_POLICY_KEY = "entry_allocation_policy"
+_STAGE3_ENTRY_MUTATIONS_KEY = "entry_mutations_per_promoted"
+
+
+def _split_stage3_entry_settings(
+    *,
+    solver_stage3_cfg: Dict[str, Any],
+    default_policy: str,
+    default_mutations_per_promoted: int,
+) -> tuple[Dict[str, Any], str, int]:
+    clean_solver_stage3 = {
+        str(k): v
+        for k, v in dict(solver_stage3_cfg).items()
+        if str(k)
+        not in {
+            _STAGE3_ENTRY_POLICY_KEY,
+            _STAGE3_ENTRY_MUTATIONS_KEY,
+        }
+    }
+    policy = str(
+        dict(solver_stage3_cfg).get(
+            _STAGE3_ENTRY_POLICY_KEY,
+            default_policy,
+        )
+    ).strip().lower()
+    if not policy:
+        policy = str(default_policy).strip().lower()
+    mutations_per_promoted = int(
+        max(
+            1,
+            int(
+                dict(solver_stage3_cfg).get(
+                    _STAGE3_ENTRY_MUTATIONS_KEY,
+                    default_mutations_per_promoted,
+                )
+            ),
+        )
+    )
+    return clean_solver_stage3, str(policy), int(mutations_per_promoted)
+
+
 def apply_profile_defaults_from_profile(
     *,
     state: MutableMapping[str, Any],
@@ -76,7 +117,18 @@ def apply_profile_defaults_from_profile(
     state["STAGE3_DYNAMIC_BANDS"] = [dict(x) for x in profile.stage3_dynamic_bands]
     state["SOLVER_STAGE1"] = dict(profile.solver_stage1)
     state["SOLVER_STAGE2"] = dict(profile.solver_stage2)
-    state["SOLVER_STAGE3"] = dict(profile.solver_stage3)
+    stage3_solver_clean, stage3_entry_policy, stage3_entry_mutations = (
+        _split_stage3_entry_settings(
+            solver_stage3_cfg=dict(profile.solver_stage3),
+            default_policy=str(state["STAGE3_ENTRY_ALLOCATION_POLICY"]),
+            default_mutations_per_promoted=int(
+                state["STAGE3_ENTRY_MUTATIONS_PER_PROMOTED"]
+            ),
+        )
+    )
+    state["SOLVER_STAGE3"] = stage3_solver_clean
+    state["STAGE3_ENTRY_ALLOCATION_POLICY"] = str(stage3_entry_policy)
+    state["STAGE3_ENTRY_MUTATIONS_PER_PROMOTED"] = int(stage3_entry_mutations)
     state["STAGE3_TWO_PHASE_ENABLED"] = bool(state["_STAGE3_TWO_PHASE_ENABLED_DEFAULT"])
     state["STAGE3_PHASEA_CFG"] = dict(state["_STAGE3_PHASEA_CFG_DEFAULT"])
     state["STAGE3_PHASEB_CFG"] = dict(state["_STAGE3_PHASEB_CFG_DEFAULT"])
@@ -87,12 +139,32 @@ def apply_profile_defaults_from_profile(
     state["STAGE3_PHASEB_GATE_END_GAIN_FLOOR"] = float(
         state["_STAGE3_PHASEB_GATE_END_GAIN_FLOOR_DEFAULT"]
     )
+    state["STAGE3_PHASEB_FAMILY_PRESERVATION_POLICY"] = str(
+        state["_STAGE3_PHASEB_FAMILY_PRESERVATION_POLICY_DEFAULT"]
+    )
+    state["STAGE3_PHASEB_FAMILY_VIEW_ID"] = str(
+        state["_STAGE3_PHASEB_FAMILY_VIEW_ID_DEFAULT"]
+    )
+    state["STAGE3_PHASEB_FAMILY_RESERVED_SLOTS"] = int(
+        state["_STAGE3_PHASEB_FAMILY_RESERVED_SLOTS_DEFAULT"]
+    )
     state["STAGE3_PHASEC_ENABLED"] = bool(state["_STAGE3_PHASEC_ENABLED_DEFAULT"])
     state["STAGE3_PHASEC_CFG"] = dict(state["_STAGE3_PHASEC_CFG_DEFAULT"])
     state["STAGE3_PHASEC_START_KEYS"] = int(state["_STAGE3_PHASEC_START_KEYS_DEFAULT"])
     state["STAGE3_PHASEC_SEED_OFFSET"] = int(state["_STAGE3_PHASEC_SEED_OFFSET_DEFAULT"])
     state["STAGE3_PHASEC_WORD_NGRAM_TIEBREAK"] = bool(
         state["_STAGE3_PHASEC_WORD_NGRAM_TIEBREAK_DEFAULT"]
+    )
+    state["STAGE3_PHASEC_START_POLICY"] = str(
+        state["_STAGE3_PHASEC_START_POLICY_DEFAULT"]
+    )
+    state["STAGE35_ENABLED"] = bool(state["_STAGE35_ENABLED_DEFAULT"])
+    state["STAGE35_CFG"] = dict(state["_STAGE35_CFG_DEFAULT"])
+    state["STAGE3_SPAN_BASIN_JUDGE_TIE_EPS"] = float(
+        state["_STAGE3_SPAN_BASIN_JUDGE_TIE_EPS_DEFAULT"]
+    )
+    state["STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS"] = int(
+        state["_STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS_DEFAULT"]
     )
     state["STAGE3_C1_FOCUS_ENABLED"] = bool(state["_STAGE3_C1_FOCUS_ENABLED_DEFAULT"])
     state["STAGE3_C1_INIT_KEYS"] = int(state["_STAGE3_C1_INIT_KEYS_DEFAULT"])

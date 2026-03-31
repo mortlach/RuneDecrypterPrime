@@ -36,24 +36,16 @@ def build_summary(
 ) -> Dict[str, Any]:
     summary: Dict[str, Any] = {"tiers": {}}
     for t in tiers:
-        rs = [r for r in instances if str(r.get("tier", "")) == str(t.name)]
+        rs = [r for r in instances if str(r["tier"]) == str(t.name)]
         if not rs:
             continue
-        arr = np.asarray([float(r.get("best_match_ratio", float("nan"))) for r in rs], dtype=np.float64)
+        arr = np.asarray([float(r["best_match_ratio"]) for r in rs], dtype=np.float64)
         arr = arr[np.isfinite(arr)]
         if arr.size == 0:
             continue
         outcome_counts: Dict[str, int] = {}
         for row in rs:
-            code = str(
-                row.get(
-                    "outcome_code",
-                    derive_outcome_code_fn(
-                        status=row.get("status", ""),
-                        stop_reason=row.get("stop_reason", ""),
-                    ),
-                )
-            )
+            code = str(row["outcome_code"])
             outcome_counts[code] = int(outcome_counts.get(code, 0) + 1)
         summary["tiers"][str(t.name)] = dict(
             n=int(len(rs)),

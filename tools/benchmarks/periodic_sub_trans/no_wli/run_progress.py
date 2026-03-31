@@ -38,10 +38,11 @@ def checkpoint_manifest(
     update_run_manifest_progress_fn: Callable[..., Mapping[str, Any]],
 ) -> None:
     sk = str(status_key)
-    status_counts = dict(progress.get("status_counts", {}))
-    if sk in status_counts:
-        status_counts[sk] = int(status_counts[sk]) + 1
-        progress["status_counts"] = status_counts
+    status_counts = dict(progress["status_counts"])
+    if sk not in status_counts:
+        raise KeyError(f"unknown status_key: {sk}")
+    status_counts[sk] = int(status_counts[sk]) + 1
+    progress["status_counts"] = status_counts
     update_run_manifest_progress_fn(
         run_manifest=run_manifest,
         done_units=int(progress["done"]),
@@ -74,6 +75,7 @@ def commit_iteration_with_checkpoint(
     stages: List[Dict[str, Any]],
     inst_row: Dict[str, Any],
     artifact_payload: Dict[str, Any],
+    bridge_state: Mapping[str, Any] | None,
     heartbeat_seconds: float,
     audit_enabled: bool,
     audit_csv: Any,
@@ -89,6 +91,7 @@ def commit_iteration_with_checkpoint(
         stages=stages,
         inst_row=dict(inst_row),
         artifact_payload=artifact_payload,
+        bridge_state=bridge_state,
         done=int(progress["done"]),
         total=int(progress["total"]),
         t0_all=float(progress["t0_all"]),

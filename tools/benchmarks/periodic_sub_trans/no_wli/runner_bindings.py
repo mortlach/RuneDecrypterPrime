@@ -244,6 +244,9 @@ def install_runner_bindings(
             limit=int(state["PREVIEW_CHARS"]),
         )
     )
+    state["_format_seconds"] = lambda seconds: str(
+        base_module._format_seconds(float(seconds))
+    )
     state["_print_stage_preview"] = (
         lambda *, label, pt, wli, match_ratio=None: print_stage_preview(
             label=str(label),

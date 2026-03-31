@@ -91,6 +91,12 @@ def build_non_scoring_lock_payload(
         ),
         stage3_search=dict(
             solver=dict(state["SOLVER_STAGE3"]),
+            entry=dict(
+                allocation_policy=str(state["STAGE3_ENTRY_ALLOCATION_POLICY"]),
+                mutations_per_promoted=int(
+                    state["STAGE3_ENTRY_MUTATIONS_PER_PROMOTED"]
+                ),
+            ),
             init_keys=int(state["STAGE3_INITIAL_KEYS"]),
             init_by_columns={
                 str(k): int(v) for k, v in state["STAGE3_INITIAL_KEYS_BY_COLUMNS"].items()
@@ -117,6 +123,21 @@ def build_non_scoring_lock_payload(
             phase_b_top_n=int(state["STAGE3_PHASEB_TOP_N"]),
             phase_b_gate_delta=float(state["STAGE3_PHASEB_GATE_DELTA_FLOOR"]),
             phase_b_gate_end_gain=float(state["STAGE3_PHASEB_GATE_END_GAIN_FLOOR"]),
+            phase_b_family_preservation=dict(
+                policy=str(state["STAGE3_PHASEB_FAMILY_PRESERVATION_POLICY"]),
+                family_view_id=str(state["STAGE3_PHASEB_FAMILY_VIEW_ID"]),
+                reserved_slots=int(state["STAGE3_PHASEB_FAMILY_RESERVED_SLOTS"]),
+            ),
+            phase_c=dict(
+                enabled=bool(state["STAGE3_PHASEC_ENABLED"]),
+                cfg=dict(state["STAGE3_PHASEC_CFG"]),
+                start_keys=int(state["STAGE3_PHASEC_START_KEYS"]),
+                seed_offset=int(state["STAGE3_PHASEC_SEED_OFFSET"]),
+                word_ngram_tiebreak=bool(
+                    state["STAGE3_PHASEC_WORD_NGRAM_TIEBREAK"]
+                ),
+                start_policy=str(state["STAGE3_PHASEC_START_POLICY"]),
+            ),
             continue_after_solve=bool(state["STAGE3_CONTINUE_AFTER_SOLVE"]),
             c1_focus_enabled=bool(state["STAGE3_C1_FOCUS_ENABLED"]),
             c1_init_keys=int(state["STAGE3_C1_INIT_KEYS"]),

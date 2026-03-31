@@ -45,10 +45,21 @@ from tools.benchmarks.periodic_sub_trans.no_wli.scoring_experiment_config import
 from tools.benchmarks.periodic_sub_trans.no_wli.word_ngram_report import (
     extract_word_ngram_report_fields,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.build_output_catalog import (
+    refresh_catalog_safely,
+)
 
 
 RUN_LABEL = "profile_word_ngram_tiebreak_v1"
-OUTPUT_ROOT = Path("output/tools/benchmarks/periodic_sub_trans/no_wli/word_ngram_tiebreak_profile")
+OUTPUT_ROOT = (
+    REPO_ROOT
+    / "output"
+    / "tools"
+    / "benchmarks"
+    / "periodic_sub_trans"
+    / "no_wli"
+    / "word_ngram_tiebreak_profile"
+)
 PREFERRED_FINAL_INSTANCE = Path(
     "output/tools/benchmarks/periodic_sub_trans/no_wli/"
     "20260311T145832806343Z__bench_solve_pipeline_no_wli__638b3f0/"
@@ -629,6 +640,7 @@ def main() -> None:
         f"candidates_per_second={float(best_batch['candidates_per_second']):.2f}",
         flush=True,
     )
+    refresh_catalog_safely(print_fn=print)
 
 
 if __name__ == "__main__":

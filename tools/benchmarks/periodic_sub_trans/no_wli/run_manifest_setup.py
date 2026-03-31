@@ -141,6 +141,7 @@ def build_commit_iteration_callback(
         inst_row: Dict[str, Any],
         artifact_payload: Dict[str, Any],
         status_key: str,
+        bridge_state: Mapping[str, Any] | None = None,
     ) -> None:
         commit_iteration_with_checkpoint_fn(
             progress=progress,
@@ -160,6 +161,7 @@ def build_commit_iteration_callback(
             stages=stages,
             inst_row=dict(inst_row),
             artifact_payload=artifact_payload,
+            bridge_state=bridge_state,
             heartbeat_seconds=float(heartbeat_seconds),
             audit_enabled=bool(audit_enabled),
             audit_csv=audit_csv,

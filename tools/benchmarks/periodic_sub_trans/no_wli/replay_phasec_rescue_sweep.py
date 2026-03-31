@@ -58,10 +58,21 @@ from tools.benchmarks.periodic_sub_trans.no_wli.word_ngram_report import (
     extract_word_ngram_report_fields,
     score_word_ngram_report_for_plaintext,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.build_output_catalog import (
+    refresh_catalog_safely,
+)
 
 
 RUN_LABEL = "phasec_rescue_replay_v5"
-OUTPUT_ROOT = Path("output/tools/benchmarks/periodic_sub_trans/no_wli/phasec_rescue_replay")
+OUTPUT_ROOT = (
+    REPO_ROOT
+    / "output"
+    / "tools"
+    / "benchmarks"
+    / "periodic_sub_trans"
+    / "no_wli"
+    / "phasec_rescue_replay"
+)
 FINAL_INSTANCE_GLOBS = slice_signal_mod.FINAL_INSTANCE_GLOBS
 MAX_ARTIFACTS: int | None = None
 ANALYSIS_BATCH_CHUNK_SIZE = slice_signal_mod.ANALYSIS_BATCH_CHUNK_SIZE
@@ -227,6 +238,11 @@ def _build_stage3_scorer_runtime(
     )
     if not scorer_cfg and str(scorer_key) != "scorer":
         scorer_cfg = dict(stage3_cfg.get("scorer") or {})
+    span_assets_dir = _resolve_repo_path(
+        scorer_cfg.get("span_hamming_assets_dir", None)
+    )
+    if span_assets_dir is not None:
+        scorer_cfg["span_hamming_assets_dir"] = str(span_assets_dir)
     direction = Direction(str(artifact.get("direction", "ltr")))
     cfg_full = CipherConfig(
         name="periodic_columnar",
@@ -272,6 +288,11 @@ def _build_stage3_word_ngram_report_runtime(
         if isinstance(stage3_cfg, Mapping)
         else {}
     )
+    span_assets_dir = _resolve_repo_path(
+        base_cfg.get("span_hamming_assets_dir", None)
+    )
+    if span_assets_dir is not None:
+        base_cfg["span_hamming_assets_dir"] = str(span_assets_dir)
     direction = Direction(str(artifact.get("direction", "ltr")))
     scorer_cfg = build_word_ngram_report_cfg(
         base_cfg=base_cfg,
@@ -1901,6 +1922,7 @@ def main() -> None:
         ),
         flush=True,
     )
+    refresh_catalog_safely(print_fn=print)
 
 
 if __name__ == "__main__":
