@@ -52,20 +52,24 @@ def build_iteration_matrix_config(
         oracle_mode=str(oracle_mode),
         oracle_decision_paths_enabled=bool(oracle_decision_paths_enabled),
         oracle_assist_selection_effective=bool(oracle_assist_selection_effective),
-        stage3_span_aux_role=str(state.get("STAGE3_SPAN_AUX_ROLE", "off")),
-        stage3_span_aux_scope=str(state.get("STAGE3_SPAN_AUX_SCOPE", "basin_rep")),
-        stage3_span_aux_profile=str(state.get("STAGE3_SPAN_AUX_PROFILE", "lite")),
-        stage3_span_aux_budget_ms=float(state.get("STAGE3_SPAN_AUX_BUDGET_MS", 0.0)),
-        stage3_span_aux_two_pass=bool(state.get("STAGE3_SPAN_AUX_TWO_PASS", False)),
-        stage3_span_aux_full_top_m=int(state.get("STAGE3_SPAN_AUX_FULL_TOP_M", 0)),
-        span_decision_role_enabled=bool(state.get("SPAN_DECISION_ROLE_ENABLED", False)),
-        span_reps_per_basin=int(state.get("SPAN_REPS_PER_BASIN", 1)),
-        span_selection_top_k=int(state.get("SPAN_SELECTION_TOP_K", 0)),
+        stage3_span_aux_role=str(state["STAGE3_SPAN_AUX_ROLE"]),
+        stage3_span_aux_scope=str(state["STAGE3_SPAN_AUX_SCOPE"]),
+        stage3_span_aux_profile=str(state["STAGE3_SPAN_AUX_PROFILE"]),
+        stage3_span_aux_budget_ms=float(state["STAGE3_SPAN_AUX_BUDGET_MS"]),
+        stage3_span_aux_two_pass=bool(state["STAGE3_SPAN_AUX_TWO_PASS"]),
+        stage3_span_aux_full_top_m=int(state["STAGE3_SPAN_AUX_FULL_TOP_M"]),
+        span_decision_role_enabled=bool(state["SPAN_DECISION_ROLE_ENABLED"]),
+        span_reps_per_basin=int(state["SPAN_REPS_PER_BASIN"]),
+        span_selection_top_k=int(state["SPAN_SELECTION_TOP_K"]),
         span_p90_call_ms=(
             float(state["SPAN_P90_CALL_MS"])
-            if state.get("SPAN_P90_CALL_MS", None) is not None
+            if state["SPAN_P90_CALL_MS"] is not None
             else None
         ),
+        stage3_phasec_start_policy=str(state["STAGE3_PHASEC_START_POLICY"]),
+        stage35_enabled=bool(state["STAGE35_ENABLED"]),
+        stage35_cfg=dict(state["STAGE35_CFG"]),
+        require_batch_scoring=bool(state["REQUIRE_BATCH_SCORING"]),
     )
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import hashlib
 import json
 from pathlib import Path
 import time
@@ -27,6 +28,17 @@ def append_event_row(*, path: Path, row: Mapping[str, Any]) -> None:
             json.dumps(dict(row), sort_keys=True, separators=(",", ":"), ensure_ascii=True)
         )
         handle.write("\n")
+
+
+def planned_job_keys_signature(*, job_keys: Sequence[str]) -> str:
+    normalized = [str(x) for x in job_keys]
+    payload = json.dumps(
+        normalized,
+        sort_keys=False,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 def run_jobs_with_checkpoints(
@@ -59,11 +71,50 @@ def run_jobs_with_checkpoints(
         print_fn("[no_wli_fixture_matrix] dry-run complete (no runner executions)", flush=True)
         return
 
+    plan_job_keys_in_order = [str(job_key_fn(job)) for job in jobs]
+    if len(plan_job_keys_in_order) != len(set(plan_job_keys_in_order)):
+        raise ValueError("fixture-matrix plan contains duplicate job keys")
+    planned_job_count = int(len(plan_job_keys_in_order))
+    planned_job_keys_sig = planned_job_keys_signature(job_keys=plan_job_keys_in_order)
+    expected_experiment_run_id = str(
+        base_state_fields.get("experiment_run_id", "")
+    ).strip()
+
+    if planned_job_count != int(plan_job_count):
+        raise ValueError(
+            "fixture-matrix plan_job_count does not match materialized job count"
+        )
+
     run_state = load_run_state(path=run_state_path, load_json_fn=load_json_fn)
+
+    existing_experiment_run_id = str(run_state.get("experiment_run_id", "")).strip()
+    existing_planned_job_keys_sig = str(
+        run_state.get("planned_job_keys_signature", "")
+    ).strip()
+    if run_state:
+        if expected_experiment_run_id:
+            if not existing_experiment_run_id:
+                raise ValueError(
+                    "run_state missing experiment_run_id; rotate stale control files"
+                )
+            if existing_experiment_run_id != expected_experiment_run_id:
+                raise ValueError(
+                    "run_state experiment_run_id mismatch: "
+                    f"expected {expected_experiment_run_id} got {existing_experiment_run_id}"
+                )
+        if not existing_planned_job_keys_sig:
+            raise ValueError(
+                "run_state missing planned_job_keys_signature; rotate stale control files"
+            )
+        if existing_planned_job_keys_sig != planned_job_keys_sig:
+            raise ValueError(
+                "run_state planned_job_keys_signature mismatch; rotate stale control files"
+            )
+
     completed_job_keys: set[str] = {
         str(x) for x in run_state.get("completed_job_keys", []) if str(x).strip()
     }
-    plan_job_keys = {job_key_fn(job) for job in jobs}
+    plan_job_keys = set(plan_job_keys_in_order)
     completed_job_keys.intersection_update(plan_job_keys)
     selected_jobs = (
         [job for job in jobs if job_key_fn(job) not in completed_job_keys]
@@ -84,14 +135,22 @@ def run_jobs_with_checkpoints(
         run_mode=str(run_mode),
         profile_id=str(profile_id),
         total_jobs=int(plan_job_count),
+        planned_job_count=int(planned_job_count),
+        planned_job_keys_signature=str(planned_job_keys_sig),
         remaining_jobs=int(len(selected_jobs)),
         skipped_precompleted=int(skipped_precompleted),
         completed_jobs=int(len(completed_job_keys)),
         completed_job_keys=sorted(completed_job_keys),
         stopped_early=0,
-        run_state_version="v1",
+        run_state_version="v2",
     )
     write_json_fn(run_state_path, run_state_base)
+
+    event_common = (
+        {}
+        if not expected_experiment_run_id
+        else {"experiment_run_id": str(expected_experiment_run_id)}
+    )
 
     wallclock_start = time.time()
     completed_this_session = 0
@@ -137,6 +196,7 @@ def run_jobs_with_checkpoints(
         append_event_row(
             path=run_events_path,
             row=dict(
+                event_common,
                 timestamp_utc=utc_now_iso(),
                 event="job_started",
                 run_mode=str(run_mode),
@@ -163,6 +223,7 @@ def run_jobs_with_checkpoints(
             append_event_row(
                 path=run_events_path,
                 row=dict(
+                    event_common,
                     timestamp_utc=utc_now_iso(),
                     event="job_error",
                     run_mode=str(run_mode),
@@ -199,6 +260,7 @@ def run_jobs_with_checkpoints(
         append_event_row(
             path=run_events_path,
             row=dict(
+                event_common,
                 timestamp_utc=utc_now_iso(),
                 event="job_completed",
                 run_mode=str(run_mode),
@@ -225,6 +287,7 @@ def run_jobs_with_checkpoints(
                 append_event_row(
                     path=run_events_path,
                     row=dict(
+                        event_common,
                         timestamp_utc=utc_now_iso(),
                         event="span_ab_pair_delta",
                         run_mode=str(run_mode),

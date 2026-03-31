@@ -7,6 +7,9 @@ from tools.benchmarks.periodic_sub_trans.common.scorer_schedule import (
     SCHEDULE_LATE_B_CHAR4_AVG_FULLTEXT,
     SCHEDULE_MIDDLE_M_CHAR12_AVG_FULLTEXT,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_models import (
+    MatrixControlFiles,
+)
 
 
 CAMPAIGN_CONFIG_PATH = Path("tools/benchmarks/community/examples/campaign_config_v1_1.json")
@@ -21,11 +24,13 @@ COLUMNS_OVERRIDE_BY_PERIOD: dict[int, tuple[int, ...]] = {
 
 RUN_MODE = "adaptive_fixture_v1"
 NO_WLI_PROFILE_ID = "no_wli_a1_m12_b34_stage3avg_fulltext_v1"
-# Bounded long run:
-# - strongest seed only (511)
-# - one hard-case preset, not the full matrix
-# - keep the live rescue lane, but restore wider Phase-B challenger carry-through
-RUN_SEEDS = (511,)
+# Fresh replay-capture follow-up:
+# - keep the same `seed411` widened-late vs novel-start compare that produced
+#   the clearest late-stage disagreement frontier
+# - do not mutate the science question; use this run to obtain one replay-ready
+#   post-hardening frontier with full Phase-C key/plaintext capture
+# - keep p9/c3 only and retain the same two-job structure for comparability
+RUN_SEEDS = (411,)
 TEXT_OFFSETS = (0,)
 HEARTBEAT_SECONDS = 180
 SCORER_IMPL = "torch"
@@ -82,17 +87,406 @@ FORCE_STAGE3_PHASEB_CFG: dict[str, int] = {
 FORCE_STAGE3_PHASEB_TOP_N = 24
 FORCE_STAGE3_PHASEB_GATE_DELTA_FLOOR = 0.006
 FORCE_STAGE3_PHASEB_GATE_END_GAIN_FLOOR = 0.003
+FORCE_STAGE3_SPAN_BASIN_JUDGE_TIE_EPS = 0.001
 
-# Optional Stage-3 preset matrix for targeted p9/c3 tuning.
-# One bounded long-run lane:
-# - keep the live rescue mechanism from the proven offline lane
-# - avoid the over-deep Phase-B collapse that starved rescue in v21
-# - widen Phase-B seed carry-through instead of deepening the winner basin further
+# Optional Stage-3 preset matrix for targeted p9/c3 work.
+# Current short comparison lane:
+# - control: widened-late baseline (`phase_b_top_n = 32`) with legacy start fill
+# - candidate: same widened-late pool, but start-selection-only
+#   `novel_challenger_v1`
+# - replay purpose: generate one fresh post-hardening late frontier with the
+#   same known disagreement shape, now including replay-capture material
 ENABLE_STAGE3_TUNING_PRESET_MATRIX = True
 STAGE3_TUNING_PRESET_IDS: tuple[str, ...] = (
-    "lexical_phasec_rescue_wide_8h",
+    "stage3_phaseb_width_probe_p9",
+    "stage3_phasec_novel_challenger_p9",
 )
 STAGE3_TUNING_PRESETS: dict[str, dict[str, object]] = {
+    "stage3_recovery_p9_8h": {
+        "force_stage1_seed_restarts": 88,
+        "force_stage1_seed_total": 224,
+        "force_stage1_scout_min_steps": 850,
+        "force_stage12_archive_keep": 160,
+        "force_word_ngram_decision_influence": True,
+        "force_word_ngram_report_min_positions": 6,
+        "force_stage12_promote_top": 160,
+        "force_stage3_initial_keys": 64,
+        "force_stage3_initial_keys_by_columns": {3: 64},
+        "force_stage3_span_basin_judge_tie_max_seeds": 64,
+        "force_stage3_phasea_cfg": {
+            "steps": 800,
+            "restarts": 1,
+            "inner_batch": 96,
+            "col_every": 0,
+            "col_batch": 0,
+            "slip_every": 0,
+            "slip_swaps": 0,
+            "stall_slip_limit": 0,
+            "progress_pct": 1,
+            "print_progress": False,
+        },
+        "force_stage3_phaseb_top_n": 8,
+        "force_stage3_phaseb_cfg": {
+            "steps": 2200,
+            "inner_batch": 128,
+            "col_every": 1,
+            "col_batch": 96,
+            "slip_every": 70,
+            "stall_rounds": 240,
+            "stall_slip_limit": 8,
+            "slip_swaps": 28,
+            "progress_pct": 1,
+            "print_progress": True,
+        },
+        "force_stage3_phaseb_gate_delta_floor": 0.003,
+        "force_stage3_phaseb_gate_end_gain_floor": 0.001,
+        "force_stage3_phasec_enabled": True,
+        "force_stage3_phasec_start_keys": 6,
+        "force_stage3_phasec_word_ngram_tiebreak": True,
+        "force_stage3_phasec_cfg": {
+            "steps": 96,
+            "proposals_per_step": 16,
+            "three_cycle_prob": 0.2,
+            "lexical_min_match": 0.72,
+            "lexical_match_tie_eps": 0.01,
+            "lexical_score_tie_eps": 0.002,
+            "lexical_max_calls": 128,
+        },
+        "force_stage35_enabled": False,
+        "stage3_span_basin_k_sweep_values": (64,),
+    },
+    "stage3_preserve_tieband_probe_p9": {
+        "force_stage1_seed_restarts": 88,
+        "force_stage1_seed_total": 224,
+        "force_stage1_scout_min_steps": 850,
+        "force_stage12_archive_keep": 160,
+        "force_word_ngram_decision_influence": True,
+        "force_word_ngram_report_min_positions": 6,
+        "force_stage12_promote_top": 160,
+        "force_stage3_initial_keys": 64,
+        "force_stage3_initial_keys_by_columns": {3: 64},
+        "force_stage3_span_basin_judge_tie_eps": 0.005,
+        "force_stage3_span_basin_judge_tie_max_seeds": 16,
+        "force_stage3_phasea_cfg": {
+            "steps": 800,
+            "restarts": 1,
+            "inner_batch": 96,
+            "col_every": 0,
+            "col_batch": 0,
+            "slip_every": 0,
+            "slip_swaps": 0,
+            "stall_slip_limit": 0,
+            "progress_pct": 1,
+            "print_progress": False,
+        },
+        "force_stage3_phaseb_top_n": 8,
+        "force_stage3_phaseb_cfg": {
+            "steps": 2200,
+            "inner_batch": 128,
+            "col_every": 1,
+            "col_batch": 96,
+            "slip_every": 70,
+            "stall_rounds": 240,
+            "stall_slip_limit": 8,
+            "slip_swaps": 28,
+            "progress_pct": 1,
+            "print_progress": True,
+        },
+        "force_stage3_phaseb_gate_delta_floor": 0.003,
+        "force_stage3_phaseb_gate_end_gain_floor": 0.001,
+        "force_stage3_phasec_enabled": True,
+        "force_stage3_phasec_start_keys": 6,
+        "force_stage3_phasec_word_ngram_tiebreak": True,
+        "force_stage3_phasec_cfg": {
+            "steps": 96,
+            "proposals_per_step": 16,
+            "three_cycle_prob": 0.2,
+            "lexical_min_match": 0.72,
+            "lexical_match_tie_eps": 0.01,
+            "lexical_score_tie_eps": 0.002,
+            "lexical_max_calls": 128,
+        },
+        "force_stage35_enabled": False,
+        "stage3_span_basin_k_sweep_values": (64,),
+    },
+    "stage3_phasec_start_balanced_p9": {
+        "force_stage1_seed_restarts": 88,
+        "force_stage1_seed_total": 224,
+        "force_stage1_scout_min_steps": 850,
+        "force_stage12_archive_keep": 160,
+        "force_word_ngram_decision_influence": True,
+        "force_word_ngram_report_min_positions": 6,
+        "force_stage12_promote_top": 160,
+        "force_stage3_initial_keys": 64,
+        "force_stage3_initial_keys_by_columns": {3: 64},
+        "force_stage3_span_basin_judge_tie_eps": 0.005,
+        "force_stage3_span_basin_judge_tie_max_seeds": 16,
+        "force_stage3_phasea_cfg": {
+            "steps": 800,
+            "restarts": 1,
+            "inner_batch": 96,
+            "col_every": 0,
+            "col_batch": 0,
+            "slip_every": 0,
+            "slip_swaps": 0,
+            "stall_slip_limit": 0,
+            "progress_pct": 1,
+            "print_progress": False,
+        },
+        "force_stage3_phaseb_top_n": 8,
+        "force_stage3_phaseb_cfg": {
+            "steps": 2200,
+            "inner_batch": 128,
+            "col_every": 1,
+            "col_batch": 96,
+            "slip_every": 70,
+            "stall_rounds": 240,
+            "stall_slip_limit": 8,
+            "slip_swaps": 28,
+            "progress_pct": 1,
+            "print_progress": True,
+        },
+        "force_stage3_phaseb_gate_delta_floor": 0.003,
+        "force_stage3_phaseb_gate_end_gain_floor": 0.001,
+        "force_stage3_phasec_enabled": True,
+        "force_stage3_phasec_start_keys": 6,
+        "force_stage3_phasec_word_ngram_tiebreak": True,
+        "force_stage3_phasec_start_policy": "balanced_sources_v1",
+        "force_stage3_phasec_cfg": {
+            "steps": 96,
+            "proposals_per_step": 16,
+            "three_cycle_prob": 0.2,
+            "lexical_min_match": 0.72,
+            "lexical_match_tie_eps": 0.01,
+            "lexical_score_tie_eps": 0.002,
+            "lexical_max_calls": 128,
+        },
+        "force_stage35_enabled": False,
+        "stage3_span_basin_k_sweep_values": (64,),
+    },
+    "stage3_phaseb_family_preserve_p9": {
+        "force_stage1_seed_restarts": 88,
+        "force_stage1_seed_total": 224,
+        "force_stage1_scout_min_steps": 850,
+        "force_stage12_archive_keep": 160,
+        "force_word_ngram_decision_influence": True,
+        "force_word_ngram_report_min_positions": 6,
+        "force_stage12_promote_top": 160,
+        "force_stage3_initial_keys": 64,
+        "force_stage3_initial_keys_by_columns": {3: 64},
+        "force_stage3_span_basin_judge_tie_eps": 0.005,
+        "force_stage3_span_basin_judge_tie_max_seeds": 16,
+        "force_stage3_phasea_cfg": {
+            "steps": 800,
+            "restarts": 1,
+            "inner_batch": 96,
+            "col_every": 0,
+            "col_batch": 0,
+            "slip_every": 0,
+            "slip_swaps": 0,
+            "stall_slip_limit": 0,
+            "progress_pct": 1,
+            "print_progress": False,
+        },
+        "force_stage3_phaseb_top_n": 8,
+        "force_stage3_phaseb_cfg": {
+            "steps": 2200,
+            "inner_batch": 128,
+            "col_every": 1,
+            "col_batch": 96,
+            "slip_every": 70,
+            "stall_rounds": 240,
+            "stall_slip_limit": 8,
+            "slip_swaps": 28,
+            "progress_pct": 1,
+            "print_progress": True,
+        },
+        "force_stage3_phaseb_gate_delta_floor": 0.003,
+        "force_stage3_phaseb_gate_end_gain_floor": 0.001,
+        "force_stage3_phaseb_family_preservation_policy": "reserve_by_family_v1",
+        "force_stage3_phaseb_family_view_id": "prefix_hamming_le_24",
+        "force_stage3_phaseb_family_reserved_slots": 2,
+        "force_stage3_phasec_enabled": True,
+        "force_stage3_phasec_start_keys": 6,
+        "force_stage3_phasec_word_ngram_tiebreak": True,
+        "force_stage3_phasec_cfg": {
+            "steps": 96,
+            "proposals_per_step": 16,
+            "three_cycle_prob": 0.2,
+            "lexical_min_match": 0.72,
+            "lexical_match_tie_eps": 0.01,
+            "lexical_score_tie_eps": 0.002,
+            "lexical_max_calls": 128,
+        },
+        "force_stage35_enabled": False,
+        "stage3_span_basin_k_sweep_values": (64,),
+    },
+    "stage3_phaseb_width_probe_p9": {
+        "force_stage1_seed_restarts": 88,
+        "force_stage1_seed_total": 224,
+        "force_stage1_scout_min_steps": 850,
+        "force_stage12_archive_keep": 160,
+        "force_word_ngram_decision_influence": True,
+        "force_word_ngram_report_min_positions": 6,
+        "force_stage12_promote_top": 160,
+        "force_stage3_initial_keys": 64,
+        "force_stage3_initial_keys_by_columns": {3: 64},
+        "force_stage3_span_basin_judge_tie_eps": 0.005,
+        "force_stage3_span_basin_judge_tie_max_seeds": 16,
+        "force_stage3_phasea_cfg": {
+            "steps": 800,
+            "restarts": 1,
+            "inner_batch": 96,
+            "col_every": 0,
+            "col_batch": 0,
+            "slip_every": 0,
+            "slip_swaps": 0,
+            "stall_slip_limit": 0,
+            "progress_pct": 1,
+            "print_progress": False,
+        },
+        "force_stage3_phaseb_top_n": 32,
+        "force_stage3_phaseb_cfg": {
+            "steps": 2200,
+            "inner_batch": 128,
+            "col_every": 1,
+            "col_batch": 96,
+            "slip_every": 70,
+            "stall_rounds": 240,
+            "stall_slip_limit": 8,
+            "slip_swaps": 28,
+            "progress_pct": 1,
+            "print_progress": True,
+        },
+        "force_stage3_phaseb_gate_delta_floor": 0.003,
+        "force_stage3_phaseb_gate_end_gain_floor": 0.001,
+        "force_stage3_phasec_enabled": True,
+        "force_stage3_phasec_start_keys": 6,
+        "force_stage3_phasec_word_ngram_tiebreak": True,
+        "force_stage3_phasec_cfg": {
+            "steps": 96,
+            "proposals_per_step": 16,
+            "three_cycle_prob": 0.2,
+            "lexical_min_match": 0.72,
+            "lexical_match_tie_eps": 0.01,
+            "lexical_score_tie_eps": 0.002,
+            "lexical_max_calls": 128,
+        },
+        "force_stage35_enabled": False,
+        "stage3_span_basin_k_sweep_values": (64,),
+    },
+    "stage3_phasec_novel_challenger_p9": {
+        "force_stage1_seed_restarts": 88,
+        "force_stage1_seed_total": 224,
+        "force_stage1_scout_min_steps": 850,
+        "force_stage12_archive_keep": 160,
+        "force_word_ngram_decision_influence": True,
+        "force_word_ngram_report_min_positions": 6,
+        "force_stage12_promote_top": 160,
+        "force_stage3_initial_keys": 64,
+        "force_stage3_initial_keys_by_columns": {3: 64},
+        "force_stage3_span_basin_judge_tie_eps": 0.005,
+        "force_stage3_span_basin_judge_tie_max_seeds": 16,
+        "force_stage3_phasea_cfg": {
+            "steps": 800,
+            "restarts": 1,
+            "inner_batch": 96,
+            "col_every": 0,
+            "col_batch": 0,
+            "slip_every": 0,
+            "slip_swaps": 0,
+            "stall_slip_limit": 0,
+            "progress_pct": 1,
+            "print_progress": False,
+        },
+        "force_stage3_phaseb_top_n": 32,
+        "force_stage3_phaseb_cfg": {
+            "steps": 2200,
+            "inner_batch": 128,
+            "col_every": 1,
+            "col_batch": 96,
+            "slip_every": 70,
+            "stall_rounds": 240,
+            "stall_slip_limit": 8,
+            "slip_swaps": 28,
+            "progress_pct": 1,
+            "print_progress": True,
+        },
+        "force_stage3_phaseb_gate_delta_floor": 0.003,
+        "force_stage3_phaseb_gate_end_gain_floor": 0.001,
+        "force_stage3_phasec_enabled": True,
+        "force_stage3_phasec_start_keys": 6,
+        "force_stage3_phasec_word_ngram_tiebreak": True,
+        "force_stage3_phasec_start_policy": "novel_challenger_v1",
+        "force_stage3_phasec_cfg": {
+            "steps": 96,
+            "proposals_per_step": 16,
+            "three_cycle_prob": 0.2,
+            "lexical_min_match": 0.72,
+            "lexical_match_tie_eps": 0.01,
+            "lexical_score_tie_eps": 0.002,
+            "lexical_max_calls": 128,
+        },
+        "force_stage35_enabled": False,
+        "stage3_span_basin_k_sweep_values": (64,),
+    },
+    "stage3_entry_const_local_depth_p9": {
+        "force_stage1_seed_restarts": 88,
+        "force_stage1_seed_total": 224,
+        "force_stage1_scout_min_steps": 850,
+        "force_stage12_archive_keep": 160,
+        "force_word_ngram_decision_influence": True,
+        "force_word_ngram_report_min_positions": 6,
+        "force_stage12_promote_top": 160,
+        "force_stage3_initial_keys": 64,
+        "force_stage3_initial_keys_by_columns": {3: 64},
+        "force_stage3_init_keys_cap": 288,
+        "force_stage3_entry_allocation_policy": "constant_local_depth",
+        "force_stage3_entry_mutations_per_promoted": 1,
+        "force_stage3_span_basin_judge_tie_eps": 0.005,
+        "force_stage3_span_basin_judge_tie_max_seeds": 16,
+        "force_stage3_phasea_cfg": {
+            "steps": 800,
+            "restarts": 1,
+            "inner_batch": 96,
+            "col_every": 0,
+            "col_batch": 0,
+            "slip_every": 0,
+            "slip_swaps": 0,
+            "stall_slip_limit": 0,
+            "progress_pct": 1,
+            "print_progress": False,
+        },
+        "force_stage3_phaseb_top_n": 8,
+        "force_stage3_phaseb_cfg": {
+            "steps": 2200,
+            "inner_batch": 128,
+            "col_every": 1,
+            "col_batch": 96,
+            "slip_every": 70,
+            "stall_rounds": 240,
+            "stall_slip_limit": 8,
+            "slip_swaps": 28,
+            "progress_pct": 1,
+            "print_progress": True,
+        },
+        "force_stage3_phaseb_gate_delta_floor": 0.003,
+        "force_stage3_phaseb_gate_end_gain_floor": 0.001,
+        "force_stage3_phasec_enabled": True,
+        "force_stage3_phasec_start_keys": 6,
+        "force_stage3_phasec_word_ngram_tiebreak": True,
+        "force_stage3_phasec_cfg": {
+            "steps": 96,
+            "proposals_per_step": 16,
+            "three_cycle_prob": 0.2,
+            "lexical_min_match": 0.72,
+            "lexical_match_tie_eps": 0.01,
+            "lexical_score_tie_eps": 0.002,
+            "lexical_max_calls": 128,
+        },
+        "force_stage35_enabled": False,
+        "stage3_span_basin_k_sweep_values": (64,),
+    },
     "base": {},
     "lexical_phasec_diagcheck": {
         "force_stage1_seed_restarts": 24,
@@ -476,7 +870,7 @@ STAGE3_TUNING_PRESETS: dict[str, dict[str, object]] = {
         },
         "stage3_span_basin_k_sweep_values": (128,),
     },
-    "lexical_phasec_rescue_wide_8h": {
+    "stage35_proof_p9_8h": {
         "force_stage1_seed_restarts": 88,
         "force_stage1_seed_total": 224,
         "force_stage1_scout_min_steps": 850,
@@ -484,11 +878,11 @@ STAGE3_TUNING_PRESETS: dict[str, dict[str, object]] = {
         "force_word_ngram_decision_influence": True,
         "force_word_ngram_report_min_positions": 6,
         "force_stage12_promote_top": 160,
-        "force_stage3_initial_keys": 128,
-        "force_stage3_initial_keys_by_columns": {3: 128},
-        "force_stage3_span_basin_judge_tie_max_seeds": 128,
+        "force_stage3_initial_keys": 64,
+        "force_stage3_initial_keys_by_columns": {3: 64},
+        "force_stage3_span_basin_judge_tie_max_seeds": 64,
         "force_stage3_phasea_cfg": {
-            "steps": 1000,
+            "steps": 800,
             "restarts": 1,
             "inner_batch": 96,
             "col_every": 0,
@@ -499,48 +893,48 @@ STAGE3_TUNING_PRESETS: dict[str, dict[str, object]] = {
             "progress_pct": 1,
             "print_progress": False,
         },
-        "force_stage3_phaseb_top_n": 32,
+        "force_stage3_phaseb_top_n": 8,
         "force_stage3_phaseb_cfg": {
-            "steps": 3200,
+            "steps": 2200,
             "inner_batch": 128,
             "col_every": 1,
-            "col_batch": 112,
+            "col_batch": 96,
             "slip_every": 70,
-            "stall_rounds": 320,
+            "stall_rounds": 240,
             "stall_slip_limit": 8,
             "slip_swaps": 28,
             "progress_pct": 1,
             "print_progress": True,
         },
-        "force_stage3_phaseb_gate_delta_floor": 0.004,
-        "force_stage3_phaseb_gate_end_gain_floor": 0.002,
+        "force_stage3_phaseb_gate_delta_floor": 0.003,
+        "force_stage3_phaseb_gate_end_gain_floor": 0.001,
         "force_stage3_phasec_enabled": True,
-        "force_stage3_phasec_start_keys": 5,
+        "force_stage3_phasec_start_keys": 6,
         "force_stage3_phasec_word_ngram_tiebreak": True,
         "force_stage3_phasec_cfg": {
-            "steps": 64,
-            "proposals_per_step": 20,
+            "steps": 96,
+            "proposals_per_step": 16,
             "three_cycle_prob": 0.2,
-            "lexical_min_match": 0.68,
+            "lexical_min_match": 0.72,
             "lexical_match_tie_eps": 0.01,
             "lexical_score_tie_eps": 0.002,
-            "lexical_max_calls": 160,
-            "rescue_enabled": True,
-            "rescue_target_mode": "slice_probe",
-            "rescue_selector_mode": "rescue_shallow_then_search",
-            "rescue_candidates": 10,
-            "rescue_slip_swaps": 8,
-            "rescue_anchor_enabled": False,
-            "rescue_phaseb_topk_min_rank": 2,
-            "rescue_max_starts": 4,
-            "rescue_search_score_max_drop": 0.35,
-            "rescue_mini_search_steps": 2,
-            "rescue_mini_search_beam_width": 4,
-            "rescue_mini_search_top_symbols": 10,
-            "rescue_mini_search_keep_all_rows": True,
-            "rescue_polish_steps": 144,
+            "lexical_max_calls": 128,
         },
-        "stage3_span_basin_k_sweep_values": (128,),
+        "force_stage35_enabled": True,
+        "force_stage35_cfg": {
+            "seed_keep": 4,
+            "beam_width": 4,
+            "archive_keep": 16,
+            "rounds": 3,
+            "mini_search_steps": 2,
+            "mini_search_beam_width": 3,
+            "mini_search_top_symbols": 10,
+            "mini_search_final_keep": 2,
+            "mini_search_keep_all_rows": 1,
+            "accept_score_min_gain": 0,
+            "accept_search_score_max_drop": 0,
+        },
+        "stage3_span_basin_k_sweep_values": (64,),
     },
     "lexical_tie_break_short": {
         "force_stage1_seed_restarts": 88,
@@ -869,20 +1263,21 @@ STAGE3_TUNING_PRESETS: dict[str, dict[str, object]] = {
     },
 }
 DRY_RUN_ONLY = False
-STOP_ON_ERROR = True
-# With 1 fixture x 1 period x 1 columns x 1 seed x 1 preset x 1 schedule = 1 job.
-MAX_JOBS: int | None = 1
-MAX_WALLCLOCK_SECONDS: float | None = 8.0 * 3600.0
+STOP_ON_ERROR = False
+# With 1 fixture x 1 period x 1 columns x 1 seed x 2 presets x 1 schedule = 2 jobs.
+# `MAX_JOBS` is a total-job truncation, not just a parallelism control.
+MAX_JOBS: int | None = 2
+MAX_WALLCLOCK_SECONDS: float | None = 8.0 * 60.0 * 60.0
 
-RUN_STATE_PATH = Path(
-    "output/tools/benchmarks/periodic_sub_trans/no_wli/fixture_matrix_run_state_tune_v26_p9c3_rescue_wide_8h.json"
+CONTROL_FILES_BASE_DIR = Path("output/tools/benchmarks/periodic_sub_trans/no_wli")
+EXPERIMENT_RUN_ID = "tune_v46_p9c3_seed411_novel_start_replay_capture_2job"
+MATRIX_CONTROL_FILES = MatrixControlFiles.for_experiment(
+    experiment_run_id=EXPERIMENT_RUN_ID,
+    base_dir=CONTROL_FILES_BASE_DIR,
 )
-RUN_EVENTS_PATH = Path(
-    "output/tools/benchmarks/periodic_sub_trans/no_wli/fixture_matrix_run_events_tune_v26_p9c3_rescue_wide_8h.jsonl"
-)
+RUN_STATE_PATH = MATRIX_CONTROL_FILES.run_state_path
+RUN_EVENTS_PATH = MATRIX_CONTROL_FILES.run_events_path
 RESUME_SKIP_COMPLETED = True
 
-PLAN_OUTPUT_PATH = Path(
-    "output/tools/benchmarks/periodic_sub_trans/no_wli/fixture_matrix_plan_tune_v26_p9c3_rescue_wide_8h.json"
-)
+PLAN_OUTPUT_PATH = MATRIX_CONTROL_FILES.plan_output_path
 WRITE_PLAN_JSON = True

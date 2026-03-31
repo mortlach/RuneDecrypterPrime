@@ -32,6 +32,7 @@ from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_config import (
     FORCE_STAGE3_PHASEB_GATE_DELTA_FLOOR,
     FORCE_STAGE3_PHASEB_GATE_END_GAIN_FLOOR,
     FORCE_STAGE3_PHASEB_TOP_N,
+    FORCE_STAGE3_SPAN_BASIN_JUDGE_TIE_EPS,
     FORCE_STAGE3_TWO_PHASE,
     REQUIRE_FULL_TEXT_EFFECTIVE,
     REQUIRE_NO_WIN10_OBJECTIVES,
@@ -54,6 +55,7 @@ from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_jobs import (
 from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_models import (
     FixtureSpec,
     NoWliFixtureJob,
+    Stage3TuningPreset,
 )
 from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_plan import (
     resolve_path as _resolve_path_impl,
@@ -223,12 +225,15 @@ def build_fixture_jobs(
 def resolve_stage3_tuning_preset_ids() -> tuple[str, ...]:
     if not bool(ENABLE_STAGE3_TUNING_PRESET_MATRIX):
         return ("base",)
+    normalized_presets = resolve_stage3_tuning_presets()
     out: list[str] = []
     seen: set[str] = set()
     for raw in STAGE3_TUNING_PRESET_IDS:
         preset_id = str(raw).strip().lower()
         if not preset_id or preset_id in seen:
             continue
+        if preset_id != "base" and preset_id not in normalized_presets:
+            raise KeyError(f"unknown stage3 tuning preset id: {preset_id}")
         seen.add(preset_id)
         out.append(preset_id)
     if not out:
@@ -236,15 +241,39 @@ def resolve_stage3_tuning_preset_ids() -> tuple[str, ...]:
     return tuple(out)
 
 
-def _resolve_stage3_tuning_overrides_for_job(
-    job: NoWliFixtureJob,
-) -> dict[str, Any]:
-    preset_id = str(getattr(job, "stage3_tuning_preset_id", "base")).strip().lower()
+def resolve_stage3_tuning_presets() -> dict[str, Stage3TuningPreset]:
     raw_presets = (
         STAGE3_TUNING_PRESETS if isinstance(STAGE3_TUNING_PRESETS, Mapping) else {}
     )
-    raw_preset = raw_presets.get(preset_id, {})
-    preset = raw_preset if isinstance(raw_preset, Mapping) else {}
+    out: dict[str, Stage3TuningPreset] = {}
+    for raw_key, raw_value in raw_presets.items():
+        preset_id = str(raw_key).strip().lower()
+        if not preset_id:
+            continue
+        out[preset_id] = Stage3TuningPreset.from_mapping(
+            preset_id=preset_id,
+            raw=raw_value,
+        )
+    return out
+
+
+def _resolve_stage3_tuning_preset_for_job(job: NoWliFixtureJob) -> Stage3TuningPreset:
+    preset_id = str(getattr(job, "stage3_tuning_preset_id", "base")).strip().lower()
+    if not preset_id:
+        preset_id = "base"
+    if preset_id == "base":
+        return Stage3TuningPreset(preset_id="base")
+    normalized_presets = resolve_stage3_tuning_presets()
+    try:
+        return normalized_presets[preset_id]
+    except KeyError as exc:
+        raise KeyError(f"unknown stage3 tuning preset id: {preset_id}") from exc
+
+
+def _resolve_stage3_tuning_overrides_for_job(
+    job: NoWliFixtureJob,
+) -> dict[str, Any]:
+    preset = _resolve_stage3_tuning_preset_for_job(job).as_dict()
 
     span_basin_values = tuple(int(x) for x in STAGE3_SPAN_BASIN_K_SWEEP_VALUES)
     if "stage3_span_basin_k_sweep_values" in preset:
@@ -288,6 +317,39 @@ def _resolve_stage3_tuning_overrides_for_job(
         force_stage3_initial_keys_by_columns = {
             int(k): int(v) for k, v in raw_init_by_columns.items()
         }
+    force_stage3_init_keys_cap = preset.get("force_stage3_init_keys_cap", None)
+    if force_stage3_init_keys_cap is not None:
+        force_stage3_init_keys_cap = int(force_stage3_init_keys_cap)
+    force_stage3_entry_allocation_policy = preset.get(
+        "force_stage3_entry_allocation_policy", None
+    )
+    if force_stage3_entry_allocation_policy is not None:
+        force_stage3_entry_allocation_policy = str(
+            force_stage3_entry_allocation_policy
+        ).strip().lower()
+    force_stage3_entry_mutations_per_promoted = preset.get(
+        "force_stage3_entry_mutations_per_promoted", None
+    )
+    if force_stage3_entry_mutations_per_promoted is not None:
+        force_stage3_entry_mutations_per_promoted = int(
+            force_stage3_entry_mutations_per_promoted
+        )
+    force_solver_stage3_overrides: dict[str, Any] | None = None
+    raw_solver_stage3_overrides = preset.get("force_solver_stage3_overrides", None)
+    if isinstance(raw_solver_stage3_overrides, Mapping):
+        force_solver_stage3_overrides = {
+            str(k): v for k, v in raw_solver_stage3_overrides.items()
+        }
+        if "entry_allocation_policy" in force_solver_stage3_overrides:
+            force_stage3_entry_allocation_policy = str(
+                force_solver_stage3_overrides.pop("entry_allocation_policy")
+            ).strip().lower()
+        if "entry_mutations_per_promoted" in force_solver_stage3_overrides:
+            force_stage3_entry_mutations_per_promoted = int(
+                force_solver_stage3_overrides.pop("entry_mutations_per_promoted")
+            )
+        if not force_solver_stage3_overrides:
+            force_solver_stage3_overrides = None
 
     force_stage12_promote_top = preset.get("force_stage12_promote_top", None)
     if force_stage12_promote_top is not None:
@@ -300,6 +362,13 @@ def _resolve_stage3_tuning_overrides_for_job(
         force_stage3_span_basin_judge_tie_max_seeds = int(
             force_stage3_span_basin_judge_tie_max_seeds
         )
+    force_stage3_span_basin_judge_tie_eps = preset.get(
+        "force_stage3_span_basin_judge_tie_eps",
+        FORCE_STAGE3_SPAN_BASIN_JUDGE_TIE_EPS,
+    )
+    force_stage3_span_basin_judge_tie_eps = float(
+        force_stage3_span_basin_judge_tie_eps
+    )
     force_stage1_seed_restarts = preset.get("force_stage1_seed_restarts", None)
     if force_stage1_seed_restarts is not None:
         force_stage1_seed_restarts = int(force_stage1_seed_restarts)
@@ -329,6 +398,45 @@ def _resolve_stage3_tuning_overrides_for_job(
         force_stage3_phasec_word_ngram_tiebreak = bool(
             force_stage3_phasec_word_ngram_tiebreak
         )
+    force_stage3_phasec_start_policy = preset.get(
+        "force_stage3_phasec_start_policy",
+        None,
+    )
+    if force_stage3_phasec_start_policy is not None:
+        force_stage3_phasec_start_policy = str(
+            force_stage3_phasec_start_policy
+        ).strip().lower()
+    force_stage3_phaseb_family_preservation_policy = preset.get(
+        "force_stage3_phaseb_family_preservation_policy",
+        None,
+    )
+    if force_stage3_phaseb_family_preservation_policy is not None:
+        force_stage3_phaseb_family_preservation_policy = str(
+            force_stage3_phaseb_family_preservation_policy
+        ).strip().lower()
+    force_stage3_phaseb_family_view_id = preset.get(
+        "force_stage3_phaseb_family_view_id",
+        None,
+    )
+    if force_stage3_phaseb_family_view_id is not None:
+        force_stage3_phaseb_family_view_id = str(
+            force_stage3_phaseb_family_view_id
+        ).strip().lower()
+    force_stage3_phaseb_family_reserved_slots = preset.get(
+        "force_stage3_phaseb_family_reserved_slots",
+        None,
+    )
+    if force_stage3_phaseb_family_reserved_slots is not None:
+        force_stage3_phaseb_family_reserved_slots = int(
+            force_stage3_phaseb_family_reserved_slots
+        )
+    force_stage35_enabled = preset.get("force_stage35_enabled", None)
+    if force_stage35_enabled is not None:
+        force_stage35_enabled = bool(force_stage35_enabled)
+    force_stage35_cfg: dict[str, Any] | None = None
+    raw_stage35_cfg = preset.get("force_stage35_cfg", None)
+    if isinstance(raw_stage35_cfg, Mapping):
+        force_stage35_cfg = dict(raw_stage35_cfg)
     force_stage3_phasec_cfg: dict[str, Any] | None = None
     raw_phasec_cfg = preset.get("force_stage3_phasec_cfg", None)
     if isinstance(raw_phasec_cfg, Mapping):
@@ -357,11 +465,25 @@ def _resolve_stage3_tuning_overrides_for_job(
                 FORCE_STAGE3_PHASEB_GATE_END_GAIN_FLOOR,
             )
         ),
+        force_stage3_phaseb_family_preservation_policy=(
+            force_stage3_phaseb_family_preservation_policy
+        ),
+        force_stage3_phaseb_family_view_id=force_stage3_phaseb_family_view_id,
+        force_stage3_phaseb_family_reserved_slots=(
+            force_stage3_phaseb_family_reserved_slots
+        ),
         force_word_ngram_decision_influence=force_word_ngram_decision_influence,
         force_word_ngram_report_min_positions=force_word_ngram_report_min_positions,
         force_stage3_initial_keys=force_stage3_initial_keys,
         force_stage3_initial_keys_by_columns=force_stage3_initial_keys_by_columns,
+        force_stage3_init_keys_cap=force_stage3_init_keys_cap,
+        force_stage3_entry_allocation_policy=force_stage3_entry_allocation_policy,
+        force_stage3_entry_mutations_per_promoted=force_stage3_entry_mutations_per_promoted,
+        force_solver_stage3_overrides=force_solver_stage3_overrides,
         force_stage12_promote_top=force_stage12_promote_top,
+        force_stage3_span_basin_judge_tie_eps=(
+            force_stage3_span_basin_judge_tie_eps
+        ),
         force_stage3_span_basin_judge_tie_max_seeds=(
             force_stage3_span_basin_judge_tie_max_seeds
         ),
@@ -370,6 +492,9 @@ def _resolve_stage3_tuning_overrides_for_job(
         force_stage3_phasec_start_keys=force_stage3_phasec_start_keys,
         force_stage3_phasec_seed_offset=force_stage3_phasec_seed_offset,
         force_stage3_phasec_word_ngram_tiebreak=force_stage3_phasec_word_ngram_tiebreak,
+        force_stage3_phasec_start_policy=force_stage3_phasec_start_policy,
+        force_stage35_enabled=force_stage35_enabled,
+        force_stage35_cfg=force_stage35_cfg,
         force_stage1_seed_restarts=force_stage1_seed_restarts,
         force_stage1_seed_total=force_stage1_seed_total,
         force_stage1_scout_min_steps=force_stage1_scout_min_steps,
@@ -398,6 +523,15 @@ def apply_job(job: NoWliFixtureJob) -> None:
         force_stage3_phaseb_gate_end_gain_floor=float(
             stage3_tuning_overrides["force_stage3_phaseb_gate_end_gain_floor"]
         ),
+        force_stage3_phaseb_family_preservation_policy=stage3_tuning_overrides[
+            "force_stage3_phaseb_family_preservation_policy"
+        ],
+        force_stage3_phaseb_family_view_id=stage3_tuning_overrides[
+            "force_stage3_phaseb_family_view_id"
+        ],
+        force_stage3_phaseb_family_reserved_slots=stage3_tuning_overrides[
+            "force_stage3_phaseb_family_reserved_slots"
+        ],
         force_word_ngram_decision_influence=stage3_tuning_overrides[
             "force_word_ngram_decision_influence"
         ],
@@ -408,7 +542,22 @@ def apply_job(job: NoWliFixtureJob) -> None:
         force_stage3_initial_keys_by_columns=stage3_tuning_overrides[
             "force_stage3_initial_keys_by_columns"
         ],
+        force_stage3_init_keys_cap=stage3_tuning_overrides[
+            "force_stage3_init_keys_cap"
+        ],
+        force_stage3_entry_allocation_policy=stage3_tuning_overrides[
+            "force_stage3_entry_allocation_policy"
+        ],
+        force_stage3_entry_mutations_per_promoted=stage3_tuning_overrides[
+            "force_stage3_entry_mutations_per_promoted"
+        ],
+        force_solver_stage3_overrides=stage3_tuning_overrides[
+            "force_solver_stage3_overrides"
+        ],
         force_stage12_promote_top=stage3_tuning_overrides["force_stage12_promote_top"],
+        force_stage3_span_basin_judge_tie_eps=stage3_tuning_overrides[
+            "force_stage3_span_basin_judge_tie_eps"
+        ],
         force_stage3_span_basin_judge_tie_max_seeds=stage3_tuning_overrides[
             "force_stage3_span_basin_judge_tie_max_seeds"
         ],
@@ -425,6 +574,11 @@ def apply_job(job: NoWliFixtureJob) -> None:
         force_stage3_phasec_word_ngram_tiebreak=stage3_tuning_overrides[
             "force_stage3_phasec_word_ngram_tiebreak"
         ],
+        force_stage3_phasec_start_policy=stage3_tuning_overrides[
+            "force_stage3_phasec_start_policy"
+        ],
+        force_stage35_enabled=stage3_tuning_overrides["force_stage35_enabled"],
+        force_stage35_cfg=stage3_tuning_overrides["force_stage35_cfg"],
         force_stage1_seed_restarts=stage3_tuning_overrides[
             "force_stage1_seed_restarts"
         ],

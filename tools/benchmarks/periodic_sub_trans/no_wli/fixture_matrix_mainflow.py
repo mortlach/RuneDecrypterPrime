@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Callable, Mapping, MutableMapping
+from typing import Any, Callable, Mapping
+
+from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_runtime import (
+    planned_job_keys_signature,
+)
 
 
 def _derive_acceptance_fixture_ids(
@@ -27,7 +31,7 @@ def _derive_acceptance_fixture_ids(
 
 def run_mainflow(
     *,
-    state: MutableMapping[str, Any],
+    state: Mapping[str, Any],
     repo_root: Path,
     resolve_path_fn: Callable[[Path], Path],
     load_json_fn: Callable[[Path], Any],
@@ -41,6 +45,7 @@ def run_mainflow(
     load_run_state_fn: Callable[[Path], dict[str, Any]],
     job_key_fn: Callable[[Any], str],
     run_job_fn: Callable[[Any], None],
+    runtime_preflight_fn: Callable[..., Mapping[str, Any]] | None,
     print_fn: Callable[..., None],
 ) -> None:
     campaign_path = resolve_path_fn(Path(state["CAMPAIGN_CONFIG_PATH"]))
@@ -99,6 +104,8 @@ def run_mainflow(
     )
     if state["MAX_JOBS"] is not None:
         jobs = jobs[: max(0, int(state["MAX_JOBS"]))]
+    plan_job_keys_in_order = [str(job_key_fn(job)) for job in jobs]
+    plan_job_keys_sig = planned_job_keys_signature(job_keys=plan_job_keys_in_order)
 
     plan_payload = build_plan_payload_fn(
         repo_root=repo_root,
@@ -125,6 +132,8 @@ def run_mainflow(
             else float(state["MAX_WALLCLOCK_SECONDS"])
         ),
         resume_skip_completed=bool(state["RESUME_SKIP_COMPLETED"]),
+        experiment_run_id=str(state["EXPERIMENT_RUN_ID"]),
+        planned_job_keys_signature=str(plan_job_keys_sig),
         run_state_path=state["RUN_STATE_PATH"],
         run_events_path=state["RUN_EVENTS_PATH"],
         fixture_length_override=fixture_length_override,
@@ -146,14 +155,65 @@ def run_mainflow(
         print_fn("[no_wli_fixture_matrix] dry-run complete (no runner executions)", flush=True)
         return
 
+    runtime_preflight: dict[str, Any] = {}
+    if runtime_preflight_fn is not None:
+        runtime_preflight = dict(
+            runtime_preflight_fn(
+                scorer_impl=str(state["SCORER_IMPL"]),
+                scorer_stage3_impl_avg_fulltext=str(
+                    state["SCORER_STAGE3_IMPL_AVG_FULLTEXT"]
+                ),
+            )
+        )
+        if runtime_preflight:
+            print_fn(
+                "[no_wli_fixture_matrix] runtime_preflight "
+                f"status={str(runtime_preflight.get('status', 'unknown'))} "
+                f"required={int(bool(runtime_preflight.get('required', False)))} "
+                f"cuda_available={int(bool(runtime_preflight.get('cuda_available', False)))} "
+                f"cuda_smoke_ok={int(bool(runtime_preflight.get('cuda_smoke_ok', False)))}",
+                flush=True,
+            )
+
     run_state_path = resolve_path_fn(Path(state["RUN_STATE_PATH"]))
     run_events_path = resolve_path_fn(Path(state["RUN_EVENTS_PATH"]))
+    if str(runtime_preflight.get("status", "")).strip().lower() == "failed":
+        preflight_error = str(runtime_preflight.get("error") or "runtime preflight failed")
+        write_json_fn(
+            run_state_path,
+            dict(
+                started_utc=str(state["_utc_now_iso"]()),
+                updated_utc=str(state["_utc_now_iso"]()),
+                run_mode=str(state["RUN_MODE"]),
+                profile_id=str(state["NO_WLI_PROFILE_ID"]),
+                experiment_run_id=str(state["EXPERIMENT_RUN_ID"]),
+                planned_job_count=int(len(plan_job_keys_in_order)),
+                planned_job_keys_signature=str(plan_job_keys_sig),
+                total_jobs=int(plan_payload["job_count"]),
+                remaining_jobs=int(len(jobs)),
+                completed_jobs=0,
+                completed_job_keys=[],
+                skipped_precompleted=0,
+                stopped_early=1,
+                run_state_version="v2",
+                runtime_preflight=dict(runtime_preflight),
+                last_error=dict(
+                    index=0,
+                    job_key="<runtime_preflight>",
+                    error_type=str(runtime_preflight.get("error_type") or "RuntimeError"),
+                    error=preflight_error,
+                ),
+            ),
+        )
+        raise RuntimeError(f"runtime preflight failed: {preflight_error}")
+
     run_state = load_run_state_fn(run_state_path)
     run_state_base: dict[str, Any] = dict(
         started_utc=str(run_state.get("started_utc") or state["_utc_now_iso"]()),
         campaign_config_path=str(campaign_path),
         run_mode=str(state["RUN_MODE"]),
         profile_id=str(state["NO_WLI_PROFILE_ID"]),
+        experiment_run_id=str(state["EXPERIMENT_RUN_ID"]),
         schedule_coverage_mode=str(state["SCHEDULE_COVERAGE_MODE"]),
         scoring_experiment_profiles=[str(x) for x in state["SCORING_EXPERIMENT_PROFILES"]],
         acceptance_harness_enabled=bool(acceptance_enabled),
@@ -161,6 +221,7 @@ def run_mainflow(
             int(state.get("ACCEPTANCE_HARNESS_FIXTURE_COUNT", 5)) if acceptance_enabled else 0
         ),
         acceptance_harness_length=(int(fixture_length_override) if acceptance_enabled else 0),
+        runtime_preflight=dict(runtime_preflight),
     )
     run_jobs_with_checkpoints_fn(
         jobs=jobs,

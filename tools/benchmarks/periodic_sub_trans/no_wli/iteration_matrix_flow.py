@@ -9,6 +9,9 @@ import numpy as np
 from tools.benchmarks.periodic_sub_trans.no_wli.stage_engine_iteration_bridge import (
     run_iteration_with_stage_engine,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.stage3_runtime_state_contract import (
+    build_stage3_runtime_config_state,
+)
 
 @dataclass(frozen=True)
 class IterationMatrixConfig:
@@ -47,6 +50,10 @@ class IterationMatrixConfig:
     span_reps_per_basin: int
     span_selection_top_k: int
     span_p90_call_ms: float | None
+    stage3_phasec_start_policy: str
+    stage35_enabled: bool
+    stage35_cfg: Dict[str, Any]
+    require_batch_scoring: bool
 
 
 @dataclass(frozen=True)
@@ -82,6 +89,91 @@ class IterationMatrixFns:
     finalize_iteration_and_commit_fn: Callable[..., Dict[str, Any]]
     safe_preview_latin_fn: Callable[[Any, Any], str]
     stage_engine_trace_emit_fn: Callable[..., None]
+
+
+def _build_stage_engine_iteration_state(
+    *,
+    tier: Any,
+    text_id: int,
+    key_seed: int,
+    off: int,
+    offset_used: int,
+    pt_idx: np.ndarray,
+    wli: Sequence[Sequence[int]],
+    direction: Any,
+    span_assets_dir: Any,
+    scoring_experiment_meta: Mapping[str, Any],
+    oracle_mode: str,
+    oracle_consulted_in_decisions: bool,
+    oracle_decision_paths_enabled: bool,
+    oracle_assist_selection_effective: bool,
+    stages: List[Dict[str, Any]],
+    instances: List[Dict[str, Any]],
+    t0_i: float,
+    config: IterationMatrixConfig,
+) -> Dict[str, Any]:
+    return dict(
+        tier=tier,
+        text_id=int(text_id),
+        key_seed=int(key_seed),
+        off=int(off),
+        offset_used=int(offset_used),
+        pt_idx=np.asarray(pt_idx, dtype=np.uint8),
+        wli=wli,
+        direction=direction,
+        span_assets_dir=span_assets_dir,
+        scoring_experiment_meta=dict(scoring_experiment_meta),
+        oracle_mode=str(oracle_mode),
+        oracle_consulted_in_decisions=bool(oracle_consulted_in_decisions),
+        oracle_decision_paths_enabled=bool(oracle_decision_paths_enabled),
+        oracle_assist_selection_effective=bool(oracle_assist_selection_effective),
+        stages=stages,
+        instances=instances,
+        t0_i=float(t0_i),
+        **build_stage3_runtime_config_state(
+            stage3_phasec_start_policy=str(config.stage3_phasec_start_policy),
+        ),
+        STAGE35_ENABLED=bool(config.stage35_enabled),
+        STAGE35_CFG=dict(config.stage35_cfg),
+    )
+
+
+def _build_finalize_iteration_state(
+    *,
+    tier: Any,
+    text_id: int,
+    key_seed: int,
+    off: int,
+    offset_used: int,
+    t0_i: float,
+    wli: Sequence[Sequence[int]],
+    stages: List[Dict[str, Any]],
+    instances: List[Dict[str, Any]],
+    oracle_mode: str,
+    oracle_consulted_in_decisions: bool,
+    pt_idx: np.ndarray,
+    config: IterationMatrixConfig,
+    pre_stage3: Mapping[str, Any],
+    stage3_flow: Mapping[str, Any],
+) -> Dict[str, Any]:
+    state = dict(
+        tier=tier,
+        text_id=int(text_id),
+        key_seed=int(key_seed),
+        off=int(off),
+        offset_used=int(offset_used),
+        t0_i=float(t0_i),
+        wli=wli,
+        stages=stages,
+        instances=instances,
+        oracle_mode=str(oracle_mode),
+        oracle_consulted_in_decisions=bool(oracle_consulted_in_decisions),
+        pt_idx=np.asarray(pt_idx, dtype=np.uint8),
+        REQUIRE_BATCH_SCORING=bool(config.require_batch_scoring),
+    )
+    state.update(dict(pre_stage3))
+    state.update(dict(stage3_flow))
+    return state
 
 
 def run_iteration_matrix(
@@ -150,8 +242,34 @@ def run_iteration_matrix(
                     )
                     continue
 
+                stage_engine_state = _build_stage_engine_iteration_state(
+                    tier=tier,
+                    text_id=int(text_id),
+                    key_seed=int(key_seed),
+                    off=int(off),
+                    offset_used=int(offset_used),
+                    pt_idx=np.asarray(pt_idx, dtype=np.uint8),
+                    wli=wli,
+                    direction=direction,
+                    span_assets_dir=span_assets_dir,
+                    scoring_experiment_meta=scoring_experiment_meta,
+                    oracle_mode=str(oracle_mode),
+                    oracle_consulted_in_decisions=bool(
+                        oracle_consulted_in_decisions
+                    ),
+                    oracle_decision_paths_enabled=bool(
+                        oracle_decision_paths_enabled
+                    ),
+                    oracle_assist_selection_effective=bool(
+                        oracle_assist_selection_effective
+                    ),
+                    stages=stages,
+                    instances=instances,
+                    t0_i=float(t0_i),
+                    config=config,
+                )
                 stage_engine_result = run_iteration_with_stage_engine(
-                    state=dict(locals()),
+                    state=stage_engine_state,
                     config=config,
                     fns=fns,
                     stage3_runtime_call_ctx=stage3_runtime_call_ctx,
@@ -257,9 +375,25 @@ def run_iteration_matrix(
                 oracle_consulted_in_decisions = bool(
                     fns.get_oracle_consulted_in_decisions_fn()
                 )
-                iteration_state = dict(locals())
-                iteration_state.update(dict(pre_stage3))
-                iteration_state.update(dict(stage3_flow))
+                iteration_state = _build_finalize_iteration_state(
+                    tier=tier,
+                    text_id=int(text_id),
+                    key_seed=int(key_seed),
+                    off=int(off),
+                    offset_used=int(offset_used),
+                    t0_i=float(t0_i),
+                    wli=wli,
+                    stages=stages,
+                    instances=instances,
+                    oracle_mode=str(oracle_mode),
+                    oracle_consulted_in_decisions=bool(
+                        oracle_consulted_in_decisions
+                    ),
+                    pt_idx=np.asarray(pt_idx, dtype=np.uint8),
+                    config=config,
+                    pre_stage3=pre_stage3,
+                    stage3_flow=stage3_flow,
+                )
 
                 fns.finalize_iteration_post_stage3_fn(
                     state=iteration_state,

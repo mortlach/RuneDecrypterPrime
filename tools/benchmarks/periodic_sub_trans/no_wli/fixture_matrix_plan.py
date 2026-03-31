@@ -42,6 +42,8 @@ def build_plan_payload(
     dry_run_only: bool,
     max_wallclock_seconds: float | None,
     resume_skip_completed: bool,
+    experiment_run_id: str,
+    planned_job_keys_signature: str,
     run_state_path: Path,
     run_events_path: Path,
     fixture_length_override: int | None,
@@ -76,6 +78,8 @@ def build_plan_payload(
             None if max_wallclock_seconds is None else float(max_wallclock_seconds)
         ),
         "resume_skip_completed": bool(resume_skip_completed),
+        "experiment_run_id": str(experiment_run_id),
+        "planned_job_keys_signature": str(planned_job_keys_signature),
         "run_state_path": _to_repo_rel(run_state_abs, repo_root=repo_root),
         "run_events_path": _to_repo_rel(run_events_abs, repo_root=repo_root),
         "fixture_length_override": (

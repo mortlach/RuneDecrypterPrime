@@ -3,6 +3,17 @@ from __future__ import annotations
 from typing import Any, Callable, Mapping, Sequence
 
 
+def _normalize_stage35_cfg(cfg: Mapping[str, Any]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for k, v in dict(cfg).items():
+        key = str(k)
+        if key in {"accept_score_min_gain", "accept_search_score_max_drop"}:
+            out[key] = float(v)
+        else:
+            out[key] = int(v)
+    return out
+
+
 def _sync_stage3_two_phase_defaults_from_live_state(*, no_wli: Any) -> None:
     """Keep profile-reset defaults aligned with current live Stage-3 two-phase config.
 
@@ -34,6 +45,18 @@ def _sync_stage3_two_phase_defaults_from_live_state(*, no_wli: Any) -> None:
         no_wli._STAGE3_PHASEB_GATE_END_GAIN_FLOOR_DEFAULT = float(  # type: ignore[attr-defined]
             no_wli.STAGE3_PHASEB_GATE_END_GAIN_FLOOR
         )
+    if hasattr(no_wli, "_STAGE3_PHASEB_FAMILY_PRESERVATION_POLICY_DEFAULT"):
+        no_wli._STAGE3_PHASEB_FAMILY_PRESERVATION_POLICY_DEFAULT = str(  # type: ignore[attr-defined]
+            no_wli.STAGE3_PHASEB_FAMILY_PRESERVATION_POLICY
+        )
+    if hasattr(no_wli, "_STAGE3_PHASEB_FAMILY_VIEW_ID_DEFAULT"):
+        no_wli._STAGE3_PHASEB_FAMILY_VIEW_ID_DEFAULT = str(  # type: ignore[attr-defined]
+            no_wli.STAGE3_PHASEB_FAMILY_VIEW_ID
+        )
+    if hasattr(no_wli, "_STAGE3_PHASEB_FAMILY_RESERVED_SLOTS_DEFAULT"):
+        no_wli._STAGE3_PHASEB_FAMILY_RESERVED_SLOTS_DEFAULT = int(  # type: ignore[attr-defined]
+            no_wli.STAGE3_PHASEB_FAMILY_RESERVED_SLOTS
+        )
     if hasattr(no_wli, "_STAGE3_PHASEC_ENABLED_DEFAULT"):
         no_wli._STAGE3_PHASEC_ENABLED_DEFAULT = bool(  # type: ignore[attr-defined]
             no_wli.STAGE3_PHASEC_ENABLED
@@ -53,6 +76,34 @@ def _sync_stage3_two_phase_defaults_from_live_state(*, no_wli: Any) -> None:
     if hasattr(no_wli, "_STAGE3_PHASEC_WORD_NGRAM_TIEBREAK_DEFAULT"):
         no_wli._STAGE3_PHASEC_WORD_NGRAM_TIEBREAK_DEFAULT = bool(  # type: ignore[attr-defined]
             no_wli.STAGE3_PHASEC_WORD_NGRAM_TIEBREAK
+        )
+    if hasattr(no_wli, "_STAGE3_PHASEC_START_POLICY_DEFAULT"):
+        no_wli._STAGE3_PHASEC_START_POLICY_DEFAULT = str(  # type: ignore[attr-defined]
+            no_wli.STAGE3_PHASEC_START_POLICY
+        )
+    if hasattr(no_wli, "_STAGE35_ENABLED_DEFAULT"):
+        no_wli._STAGE35_ENABLED_DEFAULT = bool(  # type: ignore[attr-defined]
+            no_wli.STAGE35_ENABLED
+        )
+    if hasattr(no_wli, "_STAGE35_CFG_DEFAULT"):
+        no_wli._STAGE35_CFG_DEFAULT = {  # type: ignore[attr-defined]
+            str(k): v for k, v in _normalize_stage35_cfg(dict(no_wli.STAGE35_CFG)).items()
+        }
+    if hasattr(no_wli, "_STAGE3_ENTRY_ALLOCATION_POLICY_DEFAULT"):
+        no_wli._STAGE3_ENTRY_ALLOCATION_POLICY_DEFAULT = str(  # type: ignore[attr-defined]
+            no_wli.STAGE3_ENTRY_ALLOCATION_POLICY
+        )
+    if hasattr(no_wli, "_STAGE3_ENTRY_MUTATIONS_PER_PROMOTED_DEFAULT"):
+        no_wli._STAGE3_ENTRY_MUTATIONS_PER_PROMOTED_DEFAULT = int(  # type: ignore[attr-defined]
+            no_wli.STAGE3_ENTRY_MUTATIONS_PER_PROMOTED
+        )
+    if hasattr(no_wli, "_STAGE3_SPAN_BASIN_JUDGE_TIE_EPS_DEFAULT"):
+        no_wli._STAGE3_SPAN_BASIN_JUDGE_TIE_EPS_DEFAULT = float(  # type: ignore[attr-defined]
+            no_wli.STAGE3_SPAN_BASIN_JUDGE_TIE_EPS
+        )
+    if hasattr(no_wli, "_STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS_DEFAULT"):
+        no_wli._STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS_DEFAULT = int(  # type: ignore[attr-defined]
+            no_wli.STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS
         )
 
 
@@ -218,11 +269,17 @@ def apply_job(
     force_stage3_phaseb_top_n: int | None = None,
     force_stage3_phaseb_gate_delta_floor: float | None = None,
     force_stage3_phaseb_gate_end_gain_floor: float | None = None,
+    force_stage3_phaseb_family_preservation_policy: str | None = None,
+    force_stage3_phaseb_family_view_id: str | None = None,
+    force_stage3_phaseb_family_reserved_slots: int | None = None,
     force_stage3_phasec_enabled: bool | None = None,
     force_stage3_phasec_cfg: Mapping[str, Any] | None = None,
     force_stage3_phasec_start_keys: int | None = None,
     force_stage3_phasec_seed_offset: int | None = None,
     force_stage3_phasec_word_ngram_tiebreak: bool | None = None,
+    force_stage3_phasec_start_policy: str | None = None,
+    force_stage35_enabled: bool | None = None,
+    force_stage35_cfg: Mapping[str, Any] | None = None,
     force_stage1_seed_restarts: int | None = None,
     force_stage1_seed_total: int | None = None,
     force_stage1_scout_min_steps: int | None = None,
@@ -230,7 +287,12 @@ def apply_job(
     force_word_ngram_decision_influence: bool | None = None,
     force_stage3_initial_keys: int | None = None,
     force_stage3_initial_keys_by_columns: Mapping[str, Any] | None = None,
+    force_stage3_init_keys_cap: int | None = None,
+    force_stage3_entry_allocation_policy: str | None = None,
+    force_stage3_entry_mutations_per_promoted: int | None = None,
+    force_solver_stage3_overrides: Mapping[str, Any] | None = None,
     force_stage12_promote_top: int | None = None,
+    force_stage3_span_basin_judge_tie_eps: float | None = None,
     force_stage3_span_basin_judge_tie_max_seeds: int | None = None,
     force_word_ngram_report_min_positions: int | None = None,
 ) -> None:
@@ -263,6 +325,18 @@ def apply_job(
     no_wli.SCORING_EXPERIMENT_PROFILE = str(job.scoring_experiment_profile)
     if force_stage3_phasec_enabled is not None:
         no_wli.STAGE3_PHASEC_ENABLED = bool(force_stage3_phasec_enabled)
+    if force_stage3_phaseb_family_preservation_policy is not None:
+        no_wli.STAGE3_PHASEB_FAMILY_PRESERVATION_POLICY = str(
+            force_stage3_phaseb_family_preservation_policy
+        ).strip().lower()
+    if force_stage3_phaseb_family_view_id is not None:
+        no_wli.STAGE3_PHASEB_FAMILY_VIEW_ID = str(
+            force_stage3_phaseb_family_view_id
+        ).strip().lower()
+    if force_stage3_phaseb_family_reserved_slots is not None:
+        no_wli.STAGE3_PHASEB_FAMILY_RESERVED_SLOTS = int(
+            max(0, int(force_stage3_phaseb_family_reserved_slots))
+        )
     if force_stage3_phasec_cfg is not None:
         no_wli.STAGE3_PHASEC_CFG = dict(force_stage3_phasec_cfg)
     if force_stage3_phasec_start_keys is not None:
@@ -273,6 +347,14 @@ def apply_job(
         no_wli.STAGE3_PHASEC_WORD_NGRAM_TIEBREAK = bool(
             force_stage3_phasec_word_ngram_tiebreak
         )
+    if force_stage3_phasec_start_policy is not None:
+        no_wli.STAGE3_PHASEC_START_POLICY = str(
+            force_stage3_phasec_start_policy
+        ).strip().lower()
+    if force_stage35_enabled is not None:
+        no_wli.STAGE35_ENABLED = bool(force_stage35_enabled)
+    if force_stage35_cfg is not None:
+        no_wli.STAGE35_CFG = _normalize_stage35_cfg(dict(force_stage35_cfg))
     if force_stage1_seed_restarts is not None:
         no_wli.STAGE1_SEED_RESTARTS = int(max(1, int(force_stage1_seed_restarts)))
     if force_stage1_seed_total is not None:
@@ -299,8 +381,36 @@ def apply_job(
         for k, v in dict(force_stage3_initial_keys_by_columns).items():
             merged_init_by_columns[int(k)] = int(max(1, int(v)))
         no_wli.STAGE3_INITIAL_KEYS_BY_COLUMNS = merged_init_by_columns
+    if force_stage3_init_keys_cap is not None:
+        no_wli.STAGE3_INIT_KEYS_CAP = int(max(0, int(force_stage3_init_keys_cap)))
+    if force_stage3_entry_allocation_policy is not None:
+        no_wli.STAGE3_ENTRY_ALLOCATION_POLICY = str(
+            force_stage3_entry_allocation_policy
+        ).strip().lower()
+    if force_stage3_entry_mutations_per_promoted is not None:
+        no_wli.STAGE3_ENTRY_MUTATIONS_PER_PROMOTED = int(
+            max(1, int(force_stage3_entry_mutations_per_promoted))
+        )
+    if force_solver_stage3_overrides is not None:
+        merged_solver_stage3 = {
+            str(k): v for k, v in dict(no_wli.SOLVER_STAGE3).items()
+        }
+        for k, v in dict(force_solver_stage3_overrides).items():
+            key = str(k)
+            if key == "entry_allocation_policy":
+                no_wli.STAGE3_ENTRY_ALLOCATION_POLICY = str(v).strip().lower()
+                continue
+            if key == "entry_mutations_per_promoted":
+                no_wli.STAGE3_ENTRY_MUTATIONS_PER_PROMOTED = int(max(1, int(v)))
+                continue
+            merged_solver_stage3[key] = v
+        no_wli.SOLVER_STAGE3 = merged_solver_stage3
     if force_stage12_promote_top is not None:
         no_wli.STAGE12_PROMOTE_TOP = int(max(1, int(force_stage12_promote_top)))
+    if force_stage3_span_basin_judge_tie_eps is not None:
+        no_wli.STAGE3_SPAN_BASIN_JUDGE_TIE_EPS = float(
+            max(0.0, float(force_stage3_span_basin_judge_tie_eps))
+        )
     if force_stage3_span_basin_judge_tie_max_seeds is not None:
         no_wli.STAGE3_SPAN_BASIN_JUDGE_TIE_MAX_SEEDS = int(
             max(1, int(force_stage3_span_basin_judge_tie_max_seeds))
