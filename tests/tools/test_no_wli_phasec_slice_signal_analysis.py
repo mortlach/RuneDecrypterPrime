@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+from pathlib import Path
 
 from tools.benchmarks.periodic_sub_trans.no_wli import (
     analyze_phasec_slice_signals as analysis_mod,
@@ -157,3 +158,49 @@ def test_phasec_slice_signal_analysis_summarizes_score_match_drift() -> None:
     assert int(summary["lexical_requests_positive_count"]) == 1
     assert int(summary["rescue_attempted_count"]) == 2
     assert int(summary["rescue_applied_count"]) == 1
+
+
+def test_phasec_slice_signal_scorer_runtime_resolves_repo_relative_span_assets_dir(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    captured: dict[str, object] = {}
+    fake_repo_root = tmp_path
+    expected_assets = fake_repo_root / "assets" / "scoring" / "span_hamming_nose_assets_v1"
+
+    monkeypatch.setattr(analysis_mod, "REPO_ROOT", fake_repo_root)
+
+    def _fake_build_scorer(cipher_cfg, scoring_cfg):
+        captured["cipher_cfg"] = cipher_cfg
+        captured["scoring_cfg"] = scoring_cfg
+        return "slice_signal_runtime"
+
+    monkeypatch.setattr(analysis_mod, "build_scorer", _fake_build_scorer)
+
+    out = analysis_mod._build_scorer_runtime(
+        artifact={
+            "period": 9,
+            "columns": 3,
+            "alphabet_size": 29,
+            "order": "col_then_sub",
+            "direction": "ltr",
+        },
+        run_config={
+            "stage3": {
+                "scorer": {
+                    "objective": "pct.logp.win10",
+                    "impl": "torch",
+                    "include_char": True,
+                    "use_word_breaks": False,
+                    "char_weights": {"4": 1.0},
+                    "wli_weights": {},
+                    "span_hamming_enabled": True,
+                    "span_hamming_mode": "calibrated",
+                    "span_hamming_assets_dir": "assets/scoring/span_hamming_nose_assets_v1",
+                }
+            }
+        },
+    )
+
+    assert out == "slice_signal_runtime"
+    assert str(captured["scoring_cfg"].span_hamming_assets_dir) == str(expected_assets)

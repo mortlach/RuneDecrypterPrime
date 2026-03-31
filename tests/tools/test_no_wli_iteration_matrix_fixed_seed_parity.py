@@ -7,6 +7,9 @@ from typing import Any
 import numpy as np
 import pytest
 
+from tools.benchmarks.periodic_sub_trans.no_wli.iteration_matrix_builder import (
+    build_iteration_matrix_config,
+)
 from tools.benchmarks.periodic_sub_trans.no_wli.iteration_matrix_flow import (
     IterationMatrixConfig,
     IterationMatrixFns,
@@ -54,7 +57,61 @@ def _config() -> IterationMatrixConfig:
         span_reps_per_basin=1,
         span_selection_top_k=0,
         span_p90_call_ms=None,
+        stage3_phasec_start_policy="source_order",
+        stage35_enabled=False,
+        stage35_cfg={},
+        require_batch_scoring=True,
     )
+
+
+def test_build_iteration_matrix_config_forwards_phasec_start_policy() -> None:
+    state = {
+        "SCORER_STAGE1_LABEL": "A_char1",
+        "SCORER_STAGE2_LABEL": "M_char12",
+        "SCORER_STAGE3_LABEL": "B_char34",
+        "STAGE3_CONTINUE_AFTER_SOLVE": False,
+        "STAGE3_PHASEB_TOP_N": 8,
+        "STAGE3_PHASEB_GATE_DELTA_FLOOR": 0.01,
+        "STAGE3_PHASEB_GATE_END_GAIN_FLOOR": 0.01,
+        "STAGE3_C1_FOCUS_ENABLED": False,
+        "STAGE3_SPAN_CHAR_PCT_MIN_OVERRIDE": None,
+        "SCORING_EXPERIMENT_C_CHAR_PCT_MIN": 0.35,
+        "ORACLE_STAGE3_FLOOR_GUARD_EPS": 1e-4,
+        "STAGE3_TWO_PHASE_ENABLED": False,
+        "STAGE3_PHASEA_CFG": {},
+        "STAGE3_PHASEB_CFG": {},
+        "SOLVER_STAGE3": {},
+        "STAGE3_SPAN_BASIN_JUDGE_K": 8,
+        "TIER_HEARTBEAT_SECONDS": 30.0,
+        "SOLVE_MATCH_THRESHOLD": 0.95,
+        "STALL_DELTA": 1e-6,
+        "STALL_STAGE_LIMIT": 2,
+        "SCAN_STAGE3_GATE_LOW_MATCH": 0.15,
+        "SCAN_STAGE3_GATE_HIGH_MATCH": 0.22,
+        "STAGE3_SPAN_AUX_ROLE": "off",
+        "STAGE3_SPAN_AUX_SCOPE": "basin_rep",
+        "STAGE3_SPAN_AUX_PROFILE": "lite",
+        "STAGE3_SPAN_AUX_BUDGET_MS": 0.0,
+        "STAGE3_SPAN_AUX_TWO_PASS": False,
+        "STAGE3_SPAN_AUX_FULL_TOP_M": 0,
+        "SPAN_DECISION_ROLE_ENABLED": False,
+        "SPAN_REPS_PER_BASIN": 1,
+        "SPAN_SELECTION_TOP_K": 0,
+        "SPAN_P90_CALL_MS": None,
+        "STAGE3_PHASEC_START_POLICY": "novel_challenger_v1",
+        "STAGE35_ENABLED": False,
+        "STAGE35_CFG": {},
+        "REQUIRE_BATCH_SCORING": True,
+    }
+
+    cfg = build_iteration_matrix_config(
+        state=state,
+        oracle_mode="off",
+        oracle_decision_paths_enabled=False,
+        oracle_assist_selection_effective=False,
+    )
+
+    assert cfg.stage3_phasec_start_policy == "novel_challenger_v1"
 
 
 def _build_fns(*, event_sink: list[dict[str, Any]] | None = None) -> IterationMatrixFns:
@@ -273,3 +330,179 @@ def test_no_wli_iteration_matrix_emits_span_runtime_telemetry_event() -> None:
     assert float(evt["span_eval_active"]) == 5.0
     assert int(evt["basin_judge_span_calls_total"]) == 4
     assert str(evt["span_active_rate_source"]) == "solver_run_telemetry"
+
+
+def test_no_wli_iteration_matrix_forwards_stage35_cfg_into_stage3_state() -> None:
+    cfg = replace(
+        _config(),
+        stage35_enabled=True,
+        stage35_cfg={"rounds": 3, "beam_width": 4},
+    )
+    observed: dict[str, object] = {}
+
+    def _run_stage3(**kwargs):
+        st = kwargs["state"]
+        observed["stage35_enabled"] = bool(st.get("STAGE35_ENABLED", False))
+        observed["stage35_cfg"] = dict(st.get("STAGE35_CFG", {}))
+        return {
+            "best3_match": 0.1,
+            "best3_score": -1.0,
+            "best_stage": "stage3_refine",
+            "status": "unsolved",
+            "stop_reason": "completed_pipeline",
+            "stage3_span_active_rate": 0.5,
+            "stage3_span_active_rate_source": "solver_run_telemetry",
+            "stage3_span_eval_total": 10.0,
+            "stage3_span_eval_active": 5.0,
+            "stage3_span_eval_skipped": 5.0,
+            "stage3_span_seconds_total": 0.25,
+            "stage3_span_seconds_active": 0.10,
+            "stage3_basin_judge_span_calls_total": 4,
+            "stage3_basin_judge_span_calls_active": 3,
+            "stage3_basin_judge_span_calls_rejected_or_gated": 1,
+            "stage3_basin_judge_span_seconds_total": 0.05,
+        }
+
+    fns = _build_fns()
+    fns = replace(fns, run_stage3_iteration_flow_fn=_run_stage3)
+    run_iteration_matrix(
+        tiers=[SimpleNamespace(name="fixture_p7_c3_l200", period=7, columns=3, length=200)],
+        text_offsets=[0],
+        key_seeds=[4242],
+        pt_base=list(range(400)),
+        wli_base=[(i, i + 1) for i in range(20)],
+        direction=SimpleNamespace(value="ltr"),
+        span_assets_dir=None,
+        scoring_experiment_meta={"profile": "off"},
+        autoskip_effective=False,
+        proven_index={},
+        instances=[],
+        stages=[],
+        stage3_runtime_call_ctx=SimpleNamespace(),
+        config=cfg,
+        fns=fns,
+    )
+
+    assert observed["stage35_enabled"] is True
+    assert observed["stage35_cfg"] == {"rounds": 3, "beam_width": 4}
+
+
+def test_no_wli_iteration_matrix_forwards_stage3_phasec_start_policy_into_stage3_state() -> None:
+    cfg = replace(
+        _config(),
+        stage3_phasec_start_policy="novel_challenger_v1",
+    )
+    observed: dict[str, object] = {}
+
+    def _run_stage3(**kwargs):
+        st = kwargs["state"]
+        observed["phasec_start_policy"] = str(st["STAGE3_PHASEC_START_POLICY"])
+        return {
+            "best3_match": 0.1,
+            "best3_score": -1.0,
+            "best_stage": "stage3_refine",
+            "status": "unsolved",
+            "stop_reason": "completed_pipeline",
+            "stage3_span_active_rate": 0.5,
+            "stage3_span_active_rate_source": "solver_run_telemetry",
+            "stage3_span_eval_total": 10.0,
+            "stage3_span_eval_active": 5.0,
+            "stage3_span_eval_skipped": 5.0,
+            "stage3_span_seconds_total": 0.25,
+            "stage3_span_seconds_active": 0.10,
+            "stage3_basin_judge_span_calls_total": 4,
+            "stage3_basin_judge_span_calls_active": 3,
+            "stage3_basin_judge_span_calls_rejected_or_gated": 1,
+            "stage3_basin_judge_span_seconds_total": 0.05,
+        }
+
+    fns = _build_fns()
+    fns = replace(fns, run_stage3_iteration_flow_fn=_run_stage3)
+    run_iteration_matrix(
+        tiers=[SimpleNamespace(name="fixture_p7_c3_l200", period=7, columns=3, length=200)],
+        text_offsets=[0],
+        key_seeds=[4242],
+        pt_base=list(range(400)),
+        wli_base=[(i, i + 1) for i in range(20)],
+        direction=SimpleNamespace(value="ltr"),
+        span_assets_dir=None,
+        scoring_experiment_meta={"profile": "off"},
+        autoskip_effective=False,
+        proven_index={},
+        instances=[],
+        stages=[],
+        stage3_runtime_call_ctx=SimpleNamespace(),
+        config=cfg,
+        fns=fns,
+    )
+
+    assert observed["phasec_start_policy"] == "novel_challenger_v1"
+
+
+def test_no_wli_iteration_matrix_filters_stage_engine_state_to_explicit_contract() -> None:
+    observed: dict[str, object] = {}
+
+    def _run_pre(**kwargs):
+        state = kwargs["state"]
+        observed["keys"] = set(state.keys())
+        observed["scoring_experiment_meta"] = dict(state["scoring_experiment_meta"])
+        return {"continue_iteration": True}
+
+    fns = _build_fns()
+    fns = replace(fns, run_iteration_pre_stage3_fn=_run_pre)
+    run_iteration_matrix(
+        tiers=[SimpleNamespace(name="fixture_p7_c3_l200", period=7, columns=3, length=200)],
+        text_offsets=[0],
+        key_seeds=[4242],
+        pt_base=list(range(400)),
+        wli_base=[(i, i + 1) for i in range(20)],
+        direction=SimpleNamespace(value="ltr"),
+        span_assets_dir=None,
+        scoring_experiment_meta={"profile": "off"},
+        autoskip_effective=False,
+        proven_index={},
+        instances=[],
+        stages=[],
+        stage3_runtime_call_ctx=SimpleNamespace(),
+        config=_config(),
+        fns=fns,
+    )
+
+    keys = observed["keys"]
+    assert "config" not in keys
+    assert "fns" not in keys
+    assert "stage3_runtime_call_ctx" not in keys
+    assert "pt_base" not in keys
+    assert "wli_base" not in keys
+    assert observed["scoring_experiment_meta"] == {"profile": "off"}
+
+
+def test_no_wli_iteration_matrix_propagates_require_batch_scoring_to_finalize_state() -> None:
+    observed: dict[str, object] = {}
+
+    def _finalize_post_stage3(**kwargs):
+        observed["require_batch_scoring"] = bool(
+            kwargs["state"]["REQUIRE_BATCH_SCORING"]
+        )
+
+    fns = _build_fns()
+    fns = replace(fns, finalize_iteration_post_stage3_fn=_finalize_post_stage3)
+    run_iteration_matrix(
+        tiers=[SimpleNamespace(name="fixture_p7_c3_l200", period=7, columns=3, length=200)],
+        text_offsets=[0],
+        key_seeds=[4242],
+        pt_base=list(range(400)),
+        wli_base=[(i, i + 1) for i in range(20)],
+        direction=SimpleNamespace(value="ltr"),
+        span_assets_dir=None,
+        scoring_experiment_meta={"profile": "off"},
+        autoskip_effective=False,
+        proven_index={},
+        instances=[],
+        stages=[],
+        stage3_runtime_call_ctx=SimpleNamespace(),
+        config=replace(_config(), require_batch_scoring=False),
+        fns=fns,
+    )
+
+    assert observed["require_batch_scoring"] is False

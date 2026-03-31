@@ -88,3 +88,40 @@ def test_finalize_run_outputs_prefers_full_artifact_for_best_instance(
     assert best_instance["truth_diagnostics"]["available"] is True
     assert best_instance["stage3_diagnostics"]["phaseC_start_summaries"][0]["start_idx"] == 1
     assert best_instance["stage3_topk"][0]["rank"] == 1
+
+
+def test_finalize_run_outputs_rejects_missing_status_counts(tmp_path: Path) -> None:
+    root = tmp_path
+    run_dir = root / "output" / "run"
+    final_dir = run_dir / "final_instances"
+    best_dir = run_dir / "best"
+    hist_path = root / "history.csv"
+    run_manifest_path = run_dir / "run_manifest.json"
+    hist_path.write_text("", encoding="utf-8")
+
+    with pytest.raises(KeyError, match="skipped_proven"):
+        finalize_run_outputs(
+            run_dir=run_dir,
+            final_dir=final_dir,
+            best_dir=best_dir,
+            root=root,
+            hist_path=hist_path,
+            t0_all=0.0,
+            oracle_consulted_in_decisions=False,
+            total=1,
+            done=1,
+            status_counts={"solved": 0, "stalled": 0, "unsolved": 1},
+            history_rows_written=1,
+            audit_rows_written=0,
+            audit_prev_chain_hash="",
+            tiers=[],
+            instances=[],
+            stages=[],
+            run_manifest={},
+            run_manifest_path=run_manifest_path,
+            write_json_fn=_write_json,
+            write_pipeline_snapshot_files_fn=lambda **kwargs: None,
+            build_summary_fn=lambda _tiers, _instances: {"count": len(_instances)},
+            sha256_file_fn=lambda _path: "sha256",
+            format_seconds_fn=lambda seconds: f"{seconds:.1f}s",
+        )

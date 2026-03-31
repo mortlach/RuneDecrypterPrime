@@ -126,6 +126,26 @@ def test_checkpoint_manifest_does_not_imply_consulted_from_enabled() -> None:
     assert recorded["oracle_consulted_in_decisions"] is False
 
 
+def test_checkpoint_manifest_rejects_unknown_status_key() -> None:
+    progress = dict(
+        done=0,
+        total=10,
+        status_counts=dict(solved=0, stalled=0, unsolved=0, skipped_proven=0),
+        history_rows_written=0,
+        audit_rows_written=0,
+        audit_prev_chain_hash="0" * 64,
+    )
+
+    with pytest.raises(KeyError, match="unknown status_key: invalid_status"):
+        checkpoint_manifest(
+            progress=progress,
+            status_key="invalid_status",
+            run_manifest={},
+            oracle_consulted_in_decisions=False,
+            update_run_manifest_progress_fn=lambda **kwargs: kwargs,
+        )
+
+
 def test_stage3_band_policy_does_not_use_oracle_when_decision_paths_disabled() -> None:
     dynamic_bands = [
         {"name": "near", "max_gap": 0.02},

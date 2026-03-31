@@ -52,3 +52,85 @@ def test_no_wli_run_config_includes_stage3_span_aux_block() -> None:
     assert aux["reps_per_basin"] == 2
     assert aux["selection_top_k"] == 16
     assert aux["p90_call_ms"] == pytest.approx(3.0)
+
+
+def test_no_wli_run_config_requires_stage3_span_aux_keys() -> None:
+    state = dict(no_wli_runner.__dict__)
+    del state["STAGE3_SPAN_AUX_ROLE"]
+
+    with pytest.raises(KeyError, match="STAGE3_SPAN_AUX_ROLE"):
+        no_wli_runner._build_run_config_external(
+            state=state,
+            mode_canonical="adaptive_focus_v1",
+            mode_raw="adaptive_focus_v1",
+            mode_intent="focus",
+            stage3_can_skip=False,
+            scoring_experiment_meta={"profile": "off", "enabled": False},
+            root=no_wli_runner._repo_root(),
+            direction=no_wli_runner.Direction.LTR,
+            autoskip_effective=False,
+            proven_known=0,
+            oracle_mode="off",
+            oracle_decision_paths_enabled=False,
+            oracle_assist_selection_effective=False,
+            is_adaptive_focus_mode_fn=no_wli_runner._is_adaptive_focus_mode,
+            scorer_cfg_for_output_fn=no_wli_runner._scorer_cfg_for_output,
+            stage3_search_cfg_fn=no_wli_runner._stage3_char4_avg_fulltext_search_cfg,
+            scoring_meta_for_output_fn=no_wli_runner._scoring_meta_for_output,
+            build_no_wli_order_dispatch_payload_fn=no_wli_runner._build_no_wli_order_dispatch_payload,
+        )
+
+
+def test_no_wli_run_config_requires_stage3_phasec_keys() -> None:
+    state = dict(no_wli_runner.__dict__)
+    del state["STAGE3_PHASEC_CFG"]
+
+    with pytest.raises(KeyError, match="STAGE3_PHASEC_CFG"):
+        no_wli_runner._build_run_config_external(
+            state=state,
+            mode_canonical="adaptive_focus_v1",
+            mode_raw="adaptive_focus_v1",
+            mode_intent="focus",
+            stage3_can_skip=False,
+            scoring_experiment_meta={"profile": "off", "enabled": False},
+            root=no_wli_runner._repo_root(),
+            direction=no_wli_runner.Direction.LTR,
+            autoskip_effective=False,
+            proven_known=0,
+            oracle_mode="off",
+            oracle_decision_paths_enabled=False,
+            oracle_assist_selection_effective=False,
+            is_adaptive_focus_mode_fn=no_wli_runner._is_adaptive_focus_mode,
+            scorer_cfg_for_output_fn=no_wli_runner._scorer_cfg_for_output,
+            stage3_search_cfg_fn=no_wli_runner._stage3_char4_avg_fulltext_search_cfg,
+            scoring_meta_for_output_fn=no_wli_runner._scoring_meta_for_output,
+            build_no_wli_order_dispatch_payload_fn=no_wli_runner._build_no_wli_order_dispatch_payload,
+        )
+
+
+def test_no_wli_run_config_includes_stage3_phasec_start_policy() -> None:
+    state = dict(no_wli_runner.__dict__)
+    state["STAGE3_PHASEC_START_POLICY"] = "balanced_sources_v1"
+
+    cfg = no_wli_runner._build_run_config_external(
+        state=state,
+        mode_canonical="adaptive_focus_v1",
+        mode_raw="adaptive_focus_v1",
+        mode_intent="focus",
+        stage3_can_skip=False,
+        scoring_experiment_meta={"profile": "off", "enabled": False},
+        root=no_wli_runner._repo_root(),
+        direction=no_wli_runner.Direction.LTR,
+        autoskip_effective=False,
+        proven_known=0,
+        oracle_mode="off",
+        oracle_decision_paths_enabled=False,
+        oracle_assist_selection_effective=False,
+        is_adaptive_focus_mode_fn=no_wli_runner._is_adaptive_focus_mode,
+        scorer_cfg_for_output_fn=no_wli_runner._scorer_cfg_for_output,
+        stage3_search_cfg_fn=no_wli_runner._stage3_char4_avg_fulltext_search_cfg,
+        scoring_meta_for_output_fn=no_wli_runner._scoring_meta_for_output,
+        build_no_wli_order_dispatch_payload_fn=no_wli_runner._build_no_wli_order_dispatch_payload,
+    )
+
+    assert str(cfg["stage3"]["two_phase"]["phase_c"]["start_policy"]) == "balanced_sources_v1"

@@ -47,6 +47,7 @@ def _base_state() -> dict[str, Any]:
         "RESUME_SKIP_COMPLETED": True,
         "STOP_ON_ERROR": True,
         "MAX_WALLCLOCK_SECONDS": None,
+        "EXPERIMENT_RUN_ID": "test_fixture_matrix_mainflow",
         "_utc_now_iso": lambda: "2026-03-07T00:00:00Z",
         "ENABLE_ACCEPTANCE_HARNESS_500X5": False,
         "ACCEPTANCE_HARNESS_FIXTURE_COUNT": 5,
@@ -101,6 +102,7 @@ def test_run_mainflow_acceptance_harness_sets_fixture_ids_and_length() -> None:
         load_run_state_fn=lambda _p: {},
         job_key_fn=lambda _job: "k",
         run_job_fn=lambda _job: None,
+        runtime_preflight_fn=lambda **_kwargs: {},
         print_fn=lambda *_args, **_kwargs: None,
     )
 
@@ -141,8 +143,62 @@ def test_run_mainflow_acceptance_harness_respects_explicit_fixture_ids() -> None
         load_run_state_fn=lambda _p: {},
         job_key_fn=lambda _job: "k",
         run_job_fn=lambda _job: None,
+        runtime_preflight_fn=lambda **_kwargs: {},
         print_fn=lambda *_args, **_kwargs: None,
     )
 
     assert captured["fixture_ids"] == ("fixture_custom",)
     assert int(captured["fixture_length_override"]) == 500
+
+
+def test_run_mainflow_aborts_on_failed_runtime_preflight() -> None:
+    state = _base_state()
+    state["DRY_RUN_ONLY"] = False
+    writes: list[dict[str, Any]] = []
+    run_jobs_called = False
+
+    def _write_json(_path: Path, payload) -> None:
+        writes.append(dict(payload))
+
+    def _run_jobs(**_kwargs) -> None:
+        nonlocal run_jobs_called
+        run_jobs_called = True
+
+    with pytest.raises(RuntimeError, match="runtime preflight failed"):
+        run_mainflow(
+            state=state,
+            repo_root=Path("."),
+            resolve_path_fn=lambda p: p,
+            load_json_fn=lambda _p: {
+                "fixtures": [{"text_fixture_id": "fixture_001"}]
+            },
+            write_json_fn=_write_json,
+            load_fixture_specs_fn=lambda **_kwargs: [],
+            resolve_period_columns_fn=lambda **_kwargs: {7: (1,)},
+            build_schedule_matrix_fn=lambda **_kwargs: [
+                {"early": "a", "middle": "m", "late": "b"}
+            ],
+            build_fixture_jobs_fn=lambda **_kwargs: ["job_1"],
+            build_plan_payload_fn=lambda **_kwargs: {"job_count": 1},
+            run_jobs_with_checkpoints_fn=_run_jobs,
+            load_run_state_fn=lambda _p: {},
+            job_key_fn=lambda _job: "k",
+            run_job_fn=lambda _job: None,
+            runtime_preflight_fn=lambda **_kwargs: {
+                "required": True,
+                "status": "failed",
+                "cuda_available": True,
+                "cuda_smoke_ok": False,
+                "error_type": "AcceleratorError",
+                "error": "CUDA error: unknown error",
+            },
+            print_fn=lambda *_args, **_kwargs: None,
+        )
+
+    assert run_jobs_called is False
+    assert writes, "run state should be written before aborting"
+    last = writes[-1]
+    assert int(last["stopped_early"]) == 1
+    assert str(last["experiment_run_id"]) == str(state["EXPERIMENT_RUN_ID"])
+    assert str(last["last_error"]["job_key"]) == "<runtime_preflight>"
+    assert str(last["runtime_preflight"]["status"]) == "failed"
