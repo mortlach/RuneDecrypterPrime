@@ -48,6 +48,29 @@ def _config() -> SimpleNamespace:
     )
 
 
+def _base_state() -> dict[str, object]:
+    return {
+        "tier": SimpleNamespace(name="t"),
+        "text_id": 0,
+        "key_seed": 211,
+        "off": 0,
+        "offset_used": 0,
+        "pt_idx": np.asarray([1, 2, 3], dtype=np.uint8),
+        "wli": [],
+        "direction": SimpleNamespace(value="ltr"),
+        "span_assets_dir": None,
+        "scoring_experiment_meta": {"profile": "off"},
+        "oracle_mode": "off",
+        "oracle_consulted_in_decisions": False,
+        "oracle_decision_paths_enabled": False,
+        "oracle_assist_selection_effective": False,
+        "stages": [],
+        "instances": [],
+        "t0_i": 0.0,
+        "STAGE3_PHASEC_START_POLICY": "source_order",
+    }
+
+
 def test_iteration_bridge_skips_stage3_when_pre_requests_continue() -> None:
     called = {"stage3": 0}
 
@@ -76,7 +99,7 @@ def test_iteration_bridge_skips_stage3_when_pre_requests_continue() -> None:
         fmt_finite_float_fn=lambda *_: "",
     )
     out = run_iteration_with_stage_engine(
-        state={"x": 1},
+        state=_base_state(),
         config=_config(),
         fns=fns,
         stage3_runtime_call_ctx=SimpleNamespace(),
@@ -168,13 +191,107 @@ def test_iteration_bridge_runs_stage3_with_pre_outputs() -> None:
         fmt_finite_float_fn=lambda *_: "",
     )
     out = run_iteration_with_stage_engine(
-        state={"tier": SimpleNamespace(name="t")},
+        state=_base_state(),
         config=_config(),
         fns=fns,
         stage3_runtime_call_ctx=SimpleNamespace(),
     )
     assert called["stage3"] == 1
     assert out.stage3_flow["best3_match"] == 0.5
+
+
+def test_iteration_bridge_filters_unrelated_outer_state_keys_from_stage3_state() -> None:
+    pre = {
+        "continue_iteration": False,
+        "key_len": 10,
+        "full_cipher": object(),
+        "ct_idx": np.asarray([1, 2, 3], dtype=np.uint8),
+        "scorer_stage2": {},
+        "scorer_full": {},
+        "scorer_stage3_phaseA": {},
+        "scorer_stage3_phaseB": {},
+        "scorer_stage3_search_runtime": object(),
+        "scorer_basin_judge_runtime": object(),
+        "scorer_full_runtime": object(),
+        "scorer_stage3_phaseA_runtime": object(),
+        "oracle_s1": 0.1,
+        "oracle_s2": 0.2,
+        "oracle_s3": 0.3,
+        "stage3_phaseA_experiment": "off",
+        "stage3_phaseB_experiment": "off",
+        "stage3_phaseB_char_pct_min_dynamic": 0.35,
+        "stage3_phaseB_char_pct_min_source": "static",
+        "sub_key_match": 0.0,
+        "stage1_best_score": 0.0,
+        "ev1": 1,
+        "best2_match": 0.1,
+        "best2_score": 0.2,
+        "best2_key": [1, 2],
+        "best2_pt": [1, 2, 3],
+        "best2_preview": "x",
+        "stage2_evals_total": 5,
+        "stage2_archive": {},
+        "stage2_continue_to_gate": False,
+        "stage2_continue_stop_reason": "",
+        "stage2_ranked": [],
+        "stage2_promoted": [],
+        "stage2_entry_score": 0.2,
+        "stage2_entry_score_judge": 0.2,
+        "stage2_score_match_spearman": 0.0,
+        "stage2_topk_payload": [],
+        "stage2_topk_has_best_match": False,
+    }
+    observed: dict[str, object] = {}
+
+    def _stage3(**kwargs):
+        st = kwargs["state"]
+        observed["keys"] = set(st.keys())
+        observed["stage35_enabled"] = bool(st["STAGE35_ENABLED"])
+        observed["stage35_cfg"] = dict(st["STAGE35_CFG"])
+        observed["phasec_start_policy"] = str(st["STAGE3_PHASEC_START_POLICY"])
+        return {"best3_match": 0.1}
+
+    fns = SimpleNamespace(
+        run_iteration_pre_stage3_fn=lambda **_: dict(pre),
+        run_stage3_iteration_flow_fn=_stage3,
+        build_iteration_runtime_fn=lambda **_: {},
+        evaluate_oracle_precheck_fn=lambda **_: {},
+        handle_oracle_floor_guard_if_triggered_fn=lambda **_: False,
+        run_stage12_pipeline_fn=lambda **_: {},
+        scorer_objective_summary_fn=lambda *_: "",
+        oracle_score_for_stage_fn=lambda **_: 0.0,
+        weights_text_fn=lambda *_: "",
+        mark_oracle_decision_use_fn=lambda: None,
+        print_stage_preview_fn=lambda **_: None,
+        build_oracle_floor_guard_result_fn=lambda **_: {},
+        build_iteration_payloads_fn=lambda **_: ({}, {}),
+        derive_outcome_code_fn=lambda **_: "ok",
+        commit_iteration_with_checkpoint_fn=lambda **_: None,
+        run_stage1_substitution_fn=lambda **_: {},
+        run_stage2_search_fn=lambda **_: {},
+        finalize_stage2_archive_fn=lambda **_: {},
+        evaluate_stage3_entry_policy_fn=lambda **_: {},
+        prepare_stage3_refine_inputs_fn=lambda **_: {},
+        summarize_stage3_span_fn=lambda **_: {},
+        fmt_finite_float_fn=lambda *_: "",
+    )
+    _ = run_iteration_with_stage_engine(
+        state={
+            **_base_state(),
+            "STAGE3_PHASEC_START_POLICY": "novel_challenger_v1",
+            "write_json": object(),
+            "base": object(),
+        },
+        config=SimpleNamespace(**{**_config().__dict__, "stage35_enabled": False, "stage35_cfg": {}}),
+        fns=fns,
+        stage3_runtime_call_ctx=SimpleNamespace(),
+    )
+
+    assert "write_json" not in observed["keys"]
+    assert "base" not in observed["keys"]
+    assert observed["stage35_enabled"] is False
+    assert observed["stage35_cfg"] == {}
+    assert observed["phasec_start_policy"] == "novel_challenger_v1"
 
 
 def test_iteration_bridge_emits_shadow_counterfactual_payload_from_no_wli_topk() -> None:
@@ -253,7 +370,7 @@ def test_iteration_bridge_emits_shadow_counterfactual_payload_from_no_wli_topk()
         fmt_finite_float_fn=lambda *_: "",
     )
     out = run_iteration_with_stage_engine(
-        state={"tier": SimpleNamespace(name="t")},
+        state=_base_state(),
         config=SimpleNamespace(
             **{
                 **_config().__dict__,
@@ -310,7 +427,7 @@ def test_iteration_bridge_stage3_span_aux_emits_engine_events() -> None:
         fmt_finite_float_fn=lambda *_: "",
     )
     out = run_iteration_with_stage_engine(
-        state={},
+        state=_base_state(),
         config=cfg,
         fns=fns,
         stage3_runtime_call_ctx=SimpleNamespace(),
@@ -329,7 +446,7 @@ def test_iteration_bridge_validates_required_function_contract() -> None:
     )
     with pytest.raises(TypeError, match="run_stage3_iteration_flow_fn"):
         run_iteration_with_stage_engine(
-            state={},
+            state=_base_state(),
             config=_config(),
             fns=fns,
             stage3_runtime_call_ctx=SimpleNamespace(),
@@ -416,7 +533,7 @@ def test_iteration_bridge_two_pass_aux_controls_stage3_two_phase_and_topn() -> N
         fmt_finite_float_fn=lambda *_: "",
     )
     _ = run_iteration_with_stage_engine(
-        state={"tier": SimpleNamespace(name="t")},
+        state=_base_state(),
         config=cfg,
         fns=fns,
         stage3_runtime_call_ctx=SimpleNamespace(),

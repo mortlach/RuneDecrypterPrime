@@ -28,10 +28,21 @@ from tools.benchmarks.periodic_sub_trans.common.batch_eval import (
     decrypt_and_score_keys_chunked,
     score_plaintexts_chunked,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.build_output_catalog import (
+    refresh_catalog_safely,
+)
 
 
 RUN_LABEL = "phasec_slice_signal_analysis_v1"
-OUTPUT_ROOT = Path("output/tools/benchmarks/periodic_sub_trans/no_wli/phasec_slice_signal_analysis")
+OUTPUT_ROOT = (
+    REPO_ROOT
+    / "output"
+    / "tools"
+    / "benchmarks"
+    / "periodic_sub_trans"
+    / "no_wli"
+    / "phasec_slice_signal_analysis"
+)
 FINAL_INSTANCE_GLOBS: tuple[str, ...] = (
     "output/tools/benchmarks/periodic_sub_trans/no_wli/*/final_instances/"
     "fixture_fixture_001_p9_c3_l1000__text0__seed511.json",
@@ -66,6 +77,15 @@ def _repo_rel(path: Path) -> str:
         return str(path.resolve().relative_to(REPO_ROOT.resolve()))
     except Exception:
         return str(path)
+
+
+def _resolve_repo_path(path_like: Path | str | None) -> Path | None:
+    if path_like is None:
+        return None
+    path = Path(path_like)
+    if path.is_absolute():
+        return path
+    return (REPO_ROOT / path).resolve()
 
 
 def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
@@ -143,6 +163,11 @@ def _build_scorer_runtime(
 ) -> Any:
     stage3_cfg = dict(((run_config.get("stage3") or {}) if isinstance(run_config, Mapping) else {}))
     scorer_cfg = dict((stage3_cfg.get("scorer") or {}) if isinstance(stage3_cfg, Mapping) else {})
+    span_assets_dir = _resolve_repo_path(
+        scorer_cfg.get("span_hamming_assets_dir", None)
+    )
+    if span_assets_dir is not None:
+        scorer_cfg["span_hamming_assets_dir"] = str(span_assets_dir)
     direction = Direction(str(artifact.get("direction", "ltr")))
     cfg_full = CipherConfig(
         name="periodic_columnar",
@@ -886,6 +911,7 @@ def main() -> None:
             f"warnings={len(warnings)} first_warning={warnings[0]}",
             flush=True,
         )
+    refresh_catalog_safely(print_fn=print)
 
 
 if __name__ == "__main__":

@@ -894,6 +894,9 @@ def test_no_wli_stage3_stop_log_has_entry_diagnostics():
         + bridges_path.read_text(encoding="utf-8")
     )
     assert "entry_score_source=" in text
+    assert "entry_policy=" in text
+    assert "entry_target_before_cap=" in text
+    assert "entry_mutation_calls_per_promoted=" in text
     assert "period_scale=(init=" in text
     assert "promoted_best_match=" in text
     assert "best2_in_promoted=" in text

@@ -49,6 +49,23 @@ def test_build_no_wli_stage_specs_from_longrun_profile_pins_avg_fulltext_labels(
     assert specs[2].search_objective.objective_id == "B_char4_avg_fulltext"
 
 
+def test_build_no_wli_stage_specs_from_profile_preserves_only_needed_overrides() -> None:
+    specs = build_no_wli_stage_specs_from_profile(
+        profile_id="no_wli_a1_m4_b4_stage3avg_fulltext_longrun3x_v1",
+        state={
+            "STAGE2_ARCHIVE_KEEP": 777,
+            "STAGE2_PROMOTE_TOP": 333,
+            "SAVE_STAGE3_TOPK_LIMIT": 21,
+            "UNRELATED": object(),
+        },
+    )
+
+    assert specs[0].pool_keep > 0
+    assert specs[1].pool_keep == 777
+    assert specs[1].promote_top == 333
+    assert specs[2].pool_keep == 21
+
+
 def test_write_stage_engine_contract_artifacts(tmp_path: Path) -> None:
     written: dict[str, object] = {}
 

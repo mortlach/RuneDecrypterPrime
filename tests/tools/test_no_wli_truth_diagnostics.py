@@ -5,6 +5,9 @@ import pytest
 from tools.benchmarks.periodic_sub_trans.no_wli.iteration_outcome import (
     build_stage3_diagnostics,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.phasec_truth_reporting import (
+    build_phasec_truth_reporting,
+)
 from tools.benchmarks.periodic_sub_trans.no_wli.truth_diagnostics import (
     build_fixture_truth_diagnostics,
 )
@@ -94,7 +97,15 @@ def test_build_stage3_diagnostics_keeps_phasec_start_summaries() -> None:
         phaseB_skipped=0,
         phaseB_top_n_used=8,
         phaseB_skip_reason="",
+        phaseB_family_preservation_policy="reserve_by_family_v1",
+        phaseB_family_view_id="prefix_hamming_le_24",
+        phaseB_family_reserved_slots=2,
+        phaseB_family_count_in_top_band=3,
+        phaseB_family_preserved_count=2,
+        phaseB_family_reservation_applied=1,
         phaseB_selected_unique_end_hash=5,
+        phaseB_downstream_selected_count=8,
+        phaseB_downstream_selected_unique_end_hash=4,
         phaseB_topk_saved_count=4,
         phaseB_topk_saved_unique_end_hash=3,
         phaseB_char_pct_min_dynamic=0.4,
@@ -160,12 +171,22 @@ def test_build_stage3_diagnostics_keeps_phasec_start_summaries() -> None:
         phaseC_rescue_lexical_tiebreak_decisions=1,
         phaseC_rescue_lexical_budget_skips=0,
         phaseC_rescue_lexical_threshold_skips=1,
+        phaseC_start_policy="novel_challenger_v1",
         phaseC_candidate_pool_count=6,
         phaseC_candidate_pool_unique_keys=5,
         phaseC_candidate_pool_unique_end_hash=4,
         phaseC_candidate_pool_source_counts={"stage3_best_phaseB": 1, "phaseB_topk": 3},
+        phaseC_novel_view_id="prefix_hamming_le_24",
+        phaseC_anchor_candidate_hash="anchor-hash",
+        phaseC_candidate_pool_eligible_novel_count=3,
+        phaseC_candidate_pool_eligible_novel_row_count=4,
+        phaseC_candidate_pool_eligible_novel_source_counts={"phaseA_selected": 3},
         phaseC_start_source_counts={"stage3_best_phaseB": 1, "phaseB_topk": 1},
         phaseC_start_unique_end_hash=2,
+        phaseC_start_eligible_novel_count=2,
+        phaseC_selected_novel_challenger_count=2,
+        phaseC_eligible_novel_not_selected_count=1,
+        phaseC_selected_novel_challenger_hashes=["novel-a", "novel-b"],
         phaseC_improved_best=1,
         phaseC_checkpoint_jsonl_name="phasec_start_checkpoints.jsonl",
         phaseC_checkpoint_rows_written=2,
@@ -178,15 +199,110 @@ def test_build_stage3_diagnostics_keeps_phasec_start_summaries() -> None:
             {
                 "start_idx": 1,
                 "lane": "anchor",
+                "source": "stage3_best_phaseB",
+                "source_rank": 1,
+                "selection_bucket": "anchor",
+                "selected_by_novel_policy": 0,
+                "eligible_novel_challenger": 0,
+                "novelty_distance_to_anchor": None,
+                "novelty_min_distance_to_selected_challenger": None,
+                "candidate_hash": "anchor-hash",
+                "init_key_idx": [1, 2],
+                "init_plaintext_idx": [3, 4],
+                "final_key_idx": [5, 6],
+                "final_plaintext_idx": [7, 8],
                 "init_match": 0.75,
                 "final_match": 0.76,
+                "init_score": 0.90,
+                "final_score": 0.91,
+                "became_global_best": 1,
+            },
+            {
+                "start_idx": 2,
+                "lane": "challenger",
+                "source": "phaseB_topk",
+                "source_rank": 2,
+                "selection_bucket": "novel_reserved",
+                "selected_by_novel_policy": 1,
+                "eligible_novel_challenger": 1,
+                "novelty_distance_to_anchor": 8,
+                "novelty_min_distance_to_selected_challenger": None,
+                "candidate_hash": "novel-a",
+                "init_key_idx": [9, 10],
+                "init_plaintext_idx": [11, 12],
+                "final_key_idx": [13, 14],
+                "final_plaintext_idx": [15, 16],
+                "init_match": 0.82,
+                "final_match": 0.89,
+                "init_score": 0.82,
+                "final_score": 0.83,
+                "became_global_best": 0,
             }
         ],
+        stage35_requested_cfg=1,
+        stage35_enabled_cfg=1,
+        stage35_ran=1,
+        stage35_proof_valid=1,
+        stage35_proof_invalid_reason="",
+        stage35_selected=1,
+        stage35_seed_count=4,
+        stage35_tail_mismatch_count=1,
+        stage35_seed_source_counts={"final_best": 1, "phasec_phaseb_challenger": 2},
+        stage35_archive_count=6,
+        stage35_rounds_completed=3,
+        stage35_evals=42,
+        stage35_runtime_seconds=1.25,
+        stage35_archive_unique_keys=6,
+        stage35_archive_unique_seed_sources=2,
+        stage35_archive_unique_target_slices=2,
+        stage35_archive_mean_substitution_hamming=3.5,
+        stage35_archive_max_substitution_hamming=7,
+        stage35_baseline_search_score=0.21,
+        stage35_accept_score_min_gain_cfg=0.0,
+        stage35_accept_search_score_max_drop_cfg=0.0,
+        stage35_accept_passed=1,
+        stage35_accept_reason="accepted",
+        stage35_mini_search_keep_all_rows_cfg=1,
+        stage35_mini_search_collected_rows=18,
+        stage35_mini_search_rows_kept=12,
+        stage35_best_score=0.31,
+        stage35_best_search_score=0.22,
+        stage35_best_seed_source="phasec_phaseb_challenger",
+        stage35_best_stage3_source="phaseB_topk",
+        stage35_best_lane="challenger",
+        stage35_best_source_rank=3,
+        stage35_best_target_slice=1,
+        stage35_best_depth=2,
+        stage35_best_move_type="slice_local_mini_search",
+        stage35_best_candidate_hash="abc123",
     )
 
-    assert len(list(out["phaseC_start_summaries"])) == 1
+    assert len(list(out["phaseC_start_summaries"])) == 2
     assert int(out["phaseC_start_summaries"][0]["start_idx"]) == 1
+    assert str(out["phaseC_start_policy"]) == "novel_challenger_v1"
+    assert str(out["phaseC_novel_view_id"]) == "prefix_hamming_le_24"
+    assert str(out["phaseC_anchor_candidate_hash"]) == "anchor-hash"
+    assert int(out["phaseC_candidate_pool_eligible_novel_count"]) == 3
+    assert int(out["phaseC_candidate_pool_eligible_novel_row_count"]) == 4
+    assert dict(out["phaseC_candidate_pool_eligible_novel_source_counts"]) == {
+        "phaseA_selected": 3
+    }
+    assert int(out["phaseC_start_eligible_novel_count"]) == 2
+    assert int(out["phaseC_selected_novel_challenger_count"]) == 2
+    assert int(out["phaseC_eligible_novel_not_selected_count"]) == 1
+    assert list(out["phaseC_selected_novel_challenger_hashes"]) == [
+        "novel-a",
+        "novel-b",
+    ]
+    assert str(out["phaseB_family_preservation_policy"]) == "reserve_by_family_v1"
+    assert str(out["phaseB_family_view_id"]) == "prefix_hamming_le_24"
+    assert int(out["phaseB_family_reserved_slots"]) == 2
+    assert int(out["phaseB_family_count_in_top_band"]) == 3
+    assert int(out["phaseB_family_preserved_count"]) == 2
+    assert int(out["phaseB_family_reservation_applied"]) == 1
     assert int(out["phaseB_selected_unique_end_hash"]) == 5
+    assert int(out["phaseB_downstream_selected_count"]) == 8
+    assert int(out["phaseB_downstream_selected_unique_end_hash"]) == 4
     assert int(out["phaseB_topk_saved_count"]) == 4
     assert int(out["phaseC_candidate_pool_unique_keys"]) == 5
     assert float(out["phaseC_lexical_min_match_cfg"]) == pytest.approx(0.68)
@@ -226,3 +342,96 @@ def test_build_stage3_diagnostics_keeps_phasec_start_summaries() -> None:
     assert int(out["phaseC_challenger_overtook_anchor_count"]) == 1
     assert str(out["phaseC_final_winner_lane"]) == "challenger"
     assert str(out["phaseC_final_winner_source"]) == "phaseB_topk"
+    assert int(out["phaseC_truth_reporting_available"]) == 1
+    assert str(out["phaseC_score_selected_winner_summary"]["candidate_hash"]) == "anchor-hash"
+    assert str(out["phaseC_best_truth_start_summary"]["candidate_hash"]) == "novel-a"
+    assert str(out["phaseC_best_truth_challenger_summary"]["candidate_hash"]) == "novel-a"
+    assert int(out["phaseC_truth_disagreement_summary"]["winner_and_best_truth_differ"]) == 1
+    assert float(
+        out["phaseC_truth_disagreement_summary"]["truth_gap_best_truth_challenger_vs_winner"]
+    ) == pytest.approx(0.13)
+    assert float(
+        out["phaseC_truth_disagreement_summary"]["score_gap_best_truth_challenger_vs_winner"]
+    ) == pytest.approx(-0.08)
+    assert int(out["stage35_requested_cfg"]) == 1
+    assert int(out["stage35_enabled_cfg"]) == 1
+    assert int(out["stage35_ran"]) == 1
+    assert int(out["stage35_proof_valid"]) == 1
+    assert str(out["stage35_proof_invalid_reason"]) == ""
+    assert int(out["stage35_selected"]) == 1
+    assert int(out["stage35_seed_count"]) == 4
+    assert int(out["stage35_tail_mismatch_count"]) == 1
+    assert dict(out["stage35_seed_source_counts"]) == {
+        "final_best": 1,
+        "phasec_phaseb_challenger": 2,
+    }
+    assert int(out["stage35_archive_count"]) == 6
+    assert int(out["stage35_rounds_completed"]) == 3
+    assert int(out["stage35_evals"]) == 42
+    assert float(out["stage35_runtime_seconds"]) == pytest.approx(1.25)
+    assert int(out["stage35_archive_unique_keys"]) == 6
+    assert int(out["stage35_archive_unique_seed_sources"]) == 2
+    assert int(out["stage35_archive_unique_target_slices"]) == 2
+    assert float(out["stage35_archive_mean_substitution_hamming"]) == pytest.approx(3.5)
+    assert int(out["stage35_archive_max_substitution_hamming"]) == 7
+    assert float(out["stage35_baseline_search_score"]) == pytest.approx(0.21)
+    assert float(out["stage35_accept_score_min_gain_cfg"]) == pytest.approx(0.0)
+    assert float(out["stage35_accept_search_score_max_drop_cfg"]) == pytest.approx(0.0)
+    assert int(out["stage35_accept_passed"]) == 1
+    assert str(out["stage35_accept_reason"]) == "accepted"
+    assert int(out["stage35_mini_search_keep_all_rows_cfg"]) == 1
+    assert int(out["stage35_mini_search_collected_rows"]) == 18
+    assert int(out["stage35_mini_search_rows_kept"]) == 12
+    assert float(out["stage35_best_score"]) == pytest.approx(0.31)
+    assert float(out["stage35_best_search_score"]) == pytest.approx(0.22)
+    assert str(out["stage35_best_seed_source"]) == "phasec_phaseb_challenger"
+    assert str(out["stage35_best_stage3_source"]) == "phaseB_topk"
+    assert str(out["stage35_best_lane"]) == "challenger"
+    assert int(out["stage35_best_source_rank"]) == 3
+    assert int(out["stage35_best_target_slice"]) == 1
+    assert int(out["stage35_best_depth"]) == 2
+    assert str(out["stage35_best_move_type"]) == "slice_local_mini_search"
+    assert str(out["stage35_best_candidate_hash"]) == "abc123"
+
+
+def test_build_phasec_truth_reporting_surfaces_score_vs_truth_disagreement() -> None:
+    out = build_phasec_truth_reporting(
+        phasec_final_winner_lane="anchor",
+        phasec_final_winner_source="stage3_best_phaseB",
+        phasec_start_summaries=[
+            {
+                "start_idx": 1,
+                "lane": "anchor",
+                "source": "stage3_best_phaseB",
+                "candidate_hash": "anchor-hash",
+                "selection_bucket": "anchor",
+                "selected_by_novel_policy": 0,
+                "final_match": 0.039,
+                "final_score": 0.1910166735,
+                "became_global_best": 1,
+            },
+            {
+                "start_idx": 2,
+                "lane": "challenger",
+                "source": "phaseA_selected",
+                "candidate_hash": "truth-hash",
+                "selection_bucket": "novel_reserved",
+                "selected_by_novel_policy": 1,
+                "final_match": 0.418,
+                "final_score": 0.1728454286,
+                "became_global_best": 0,
+            },
+        ],
+    )
+
+    assert int(out["phaseC_truth_reporting_available"]) == 1
+    assert str(out["phaseC_score_selected_winner_summary"]["candidate_hash"]) == "anchor-hash"
+    assert str(out["phaseC_best_truth_start_summary"]["candidate_hash"]) == "truth-hash"
+    assert str(out["phaseC_best_truth_challenger_summary"]["candidate_hash"]) == "truth-hash"
+    assert int(out["phaseC_truth_disagreement_summary"]["winner_and_best_truth_differ"]) == 1
+    assert float(
+        out["phaseC_truth_disagreement_summary"]["truth_gap_best_truth_challenger_vs_winner"]
+    ) == pytest.approx(0.379)
+    assert float(
+        out["phaseC_truth_disagreement_summary"]["score_gap_best_truth_challenger_vs_winner"]
+    ) == pytest.approx(-0.0181712449)

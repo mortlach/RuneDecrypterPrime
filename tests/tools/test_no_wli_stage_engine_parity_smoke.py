@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 
 from tools.benchmarks.periodic_sub_trans.no_wli.stage_engine_iteration_bridge import (
@@ -45,6 +46,28 @@ def _config() -> SimpleNamespace:
         span_selection_top_k=0,
         span_p90_call_ms=None,
     )
+
+
+def _base_state() -> dict[str, object]:
+    return {
+        "tier": SimpleNamespace(name="t"),
+        "text_id": 0,
+        "key_seed": 211,
+        "off": 0,
+        "offset_used": 0,
+        "pt_idx": np.asarray([1, 2, 3], dtype=np.uint8),
+        "wli": [],
+        "direction": SimpleNamespace(value="ltr"),
+        "span_assets_dir": None,
+        "scoring_experiment_meta": {"profile": "off"},
+        "oracle_mode": "off",
+        "oracle_consulted_in_decisions": False,
+        "oracle_decision_paths_enabled": False,
+        "oracle_assist_selection_effective": False,
+        "stages": [],
+        "instances": [],
+        "t0_i": 0.0,
+    }
 
 
 def test_no_wli_iteration_bridge_parity_smoke() -> None:
@@ -121,11 +144,10 @@ def test_no_wli_iteration_bridge_parity_smoke() -> None:
         fmt_finite_float_fn=lambda *_: "",
     )
     out = run_iteration_with_stage_engine(
-        state={"tier": "x"},
+        state=_base_state(),
         config=_config(),
         fns=fns,
         stage3_runtime_call_ctx=SimpleNamespace(),
     )
     assert out.pre_stage3 == pre_out
     assert out.stage3_flow == legacy_stage3
-
