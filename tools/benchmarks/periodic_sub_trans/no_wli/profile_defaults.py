@@ -159,6 +159,9 @@ def apply_profile_defaults_from_profile(
         state["_STAGE3_PHASEC_START_POLICY_DEFAULT"]
     )
     state["STAGE35_ENABLED"] = bool(state["_STAGE35_ENABLED_DEFAULT"])
+    state["STAGE35_BASELINE_SELECTOR"] = str(
+        state["_STAGE35_BASELINE_SELECTOR_DEFAULT"]
+    )
     state["STAGE35_CFG"] = dict(state["_STAGE35_CFG_DEFAULT"])
     state["STAGE3_SPAN_BASIN_JUDGE_TIE_EPS"] = float(
         state["_STAGE3_SPAN_BASIN_JUDGE_TIE_EPS_DEFAULT"]

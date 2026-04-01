@@ -6,6 +6,9 @@ import math
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Sequence
 
+from tools.benchmarks.periodic_sub_trans.no_wli.phasec_frontier_rows import (
+    load_phasec_frontier_rows,
+)
 from tools.benchmarks.periodic_sub_trans.no_wli.phasec_truth_reporting import (
     build_phasec_truth_reporting,
 )
@@ -17,8 +20,12 @@ def build_phasec_truth_gap_row(
     artifact: Mapping[str, Any],
 ) -> Dict[str, Any] | None:
     stage3_diag = dict(artifact.get("stage3_diagnostics", {}) or {})
+    frontier_rows = load_phasec_frontier_rows(
+        artifact_path=artifact_path,
+        artifact=artifact,
+    )
     reporting = build_phasec_truth_reporting(
-        phasec_start_summaries=list(stage3_diag.get("phaseC_start_summaries", []) or []),
+        phasec_start_summaries=list(frontier_rows),
         phasec_final_winner_lane=str(stage3_diag.get("phaseC_final_winner_lane", "") or ""),
         phasec_final_winner_source=str(stage3_diag.get("phaseC_final_winner_source", "") or ""),
     )

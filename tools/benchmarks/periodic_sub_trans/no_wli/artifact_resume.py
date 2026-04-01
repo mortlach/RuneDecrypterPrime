@@ -58,6 +58,9 @@ from tools.benchmarks.periodic_sub_trans.no_wli.stage3_topk import (
     append_stage3_topk_from_kaeding,
     append_stage3_topk_from_phasea,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.phasec_frontier_rows import (
+    load_phasec_frontier_rows,
+)
 from tools.benchmarks.periodic_sub_trans.no_wli.stage35_substitution_solver import (
     DEFAULT_STAGE35_SOLVER_CFG,
     run_stage35_live_followup,
@@ -649,6 +652,10 @@ def run_stage35_resume_from_artifact(
 ) -> dict[str, Any]:
     artifact = dict(case.artifact)
     run_config = _deep_merge_mapping(dict(case.run_config), run_config_override)
+    phasec_frontier_rows = load_phasec_frontier_rows(
+        artifact_path=case.artifact_path,
+        artifact=artifact,
+    )
     stage35_cfg = dict(
         (_stage35_cfg(run_config).get("cfg") or DEFAULT_STAGE35_SOLVER_CFG)
     )
@@ -666,13 +673,7 @@ def run_stage35_resume_from_artifact(
         ),
         baseline_score=float(artifact.get("best_score", float("nan"))),
         stage3_topk_rows=list(artifact.get("stage3_topk", []) or []),
-        phasec_start_summaries=list(
-            dict(artifact.get("stage3_diagnostics", {}) or {}).get(
-                "phaseC_start_summaries",
-                [],
-            )
-            or []
-        ),
+        phasec_start_summaries=list(phasec_frontier_rows),
         phasec_final_winner_lane=str(
             dict(artifact.get("stage3_diagnostics", {}) or {}).get(
                 "phaseC_final_winner_lane",
@@ -712,6 +713,103 @@ def run_stage35_resume_from_artifact(
         run_config_relpath=_repo_rel(case.run_config_path),
         run_config_override=dict(run_config_override or {}),
         baseline_best_match_ratio=float(artifact.get("best_match_ratio", float("nan"))),
+        resume_best_match_ratio=float(resume_match),
+        resume_best_score=float(out.get("best_score", float("nan"))),
+        stage35_cfg=dict(stage35_cfg),
+        stage35=dict(out),
+    )
+
+
+def run_stage35_from_selected_trial_row(
+    case: phasec_replay_mod.ArtifactCase,
+    *,
+    selected_row: Mapping[str, Any],
+    stage35_cfg_override: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    artifact = dict(case.artifact)
+    run_config = dict(case.run_config)
+    phasec_frontier_rows = load_phasec_frontier_rows(
+        artifact_path=case.artifact_path,
+        artifact=artifact,
+    )
+    stage35_cfg = dict(
+        (_stage35_cfg(run_config).get("cfg") or DEFAULT_STAGE35_SOLVER_CFG)
+    )
+    if stage35_cfg_override is not None:
+        stage35_cfg.update({str(k): v for k, v in dict(stage35_cfg_override).items()})
+
+    baseline_key = list(map(int, selected_row.get("final_key_idx", []) or []))
+    baseline_plaintext_idx = list(
+        map(int, selected_row.get("final_plaintext_idx", []) or [])
+    )
+    if not baseline_key:
+        raise ValueError("Selected trial row is missing final_key_idx")
+    if not baseline_plaintext_idx:
+        raise ValueError("Selected trial row is missing final_plaintext_idx")
+    baseline_score = float(selected_row.get("final_score", float("nan")))
+    baseline_truth_match = _truth_match_ratio(
+        baseline_plaintext_idx,
+        artifact.get("target_plaintext_idx", []) or [],
+    )
+
+    out = run_stage35_live_followup(
+        period=int(artifact.get("period", 0) or 0),
+        columns=int(artifact.get("columns", 0) or 0),
+        alphabet_size=int(artifact.get("alphabet_size", 0) or 0),
+        ciphertext_idx=np.asarray(artifact.get("ciphertext_idx", []), dtype=np.uint8).reshape(-1),
+        baseline_key=list(baseline_key),
+        baseline_plaintext_idx=list(baseline_plaintext_idx),
+        baseline_score=float(baseline_score),
+        stage3_topk_rows=list(artifact.get("stage3_topk", []) or []),
+        phasec_start_summaries=list(phasec_frontier_rows),
+        phasec_final_winner_lane=str(
+            dict(artifact.get("stage3_diagnostics", {}) or {}).get(
+                "phaseC_final_winner_lane",
+                "",
+            )
+            or ""
+        ),
+        phasec_final_winner_source=str(
+            dict(artifact.get("stage3_diagnostics", {}) or {}).get(
+                "phaseC_final_winner_source",
+                "",
+            )
+            or ""
+        ),
+        cipher=phasec_replay_mod._build_cipher(artifact),
+        scorer_full=phasec_replay_mod._build_stage3_scorer_runtime(
+            artifact=artifact,
+            run_config=run_config,
+            scorer_key="scorer",
+        ),
+        scorer_search=phasec_replay_mod._build_stage3_scorer_runtime(
+            artifact=artifact,
+            run_config=run_config,
+            scorer_key="search_scorer",
+        ),
+        cfg=stage35_cfg,
+        chunk_size=int(DEFAULT_BATCH_EVAL_CHUNK_SIZE),
+        require_batch=bool(DEFAULT_REQUIRE_BATCH_SCORING),
+    )
+    resume_match = _truth_match_ratio(
+        out.get("best_plaintext_idx", []) or [],
+        artifact.get("target_plaintext_idx", []) or [],
+    )
+    return dict(
+        mode="selected_stage3_to_stage35",
+        artifact_relpath=_repo_rel(case.artifact_path),
+        run_config_relpath=_repo_rel(case.run_config_path),
+        selector=str(selected_row.get("selector", "") or ""),
+        fixture_id=str(selected_row.get("fixture_id", "") or ""),
+        fixture_label=str(selected_row.get("fixture_label", "") or ""),
+        selected_candidate_hash=str(selected_row.get("candidate_hash", "") or ""),
+        selected_candidate_source=str(selected_row.get("source", "") or ""),
+        selected_candidate_lane=str(selected_row.get("lane", "") or ""),
+        selected_candidate_final_score=float(baseline_score),
+        selected_candidate_final_match=float(baseline_truth_match),
+        replay_material_complete=int(
+            selected_row.get("replay_material_complete", 0) or 0
+        ),
         resume_best_match_ratio=float(resume_match),
         resume_best_score=float(out.get("best_score", float("nan"))),
         stage35_cfg=dict(stage35_cfg),

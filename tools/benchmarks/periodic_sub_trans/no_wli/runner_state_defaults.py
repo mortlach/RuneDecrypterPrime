@@ -19,6 +19,7 @@ def initialize_runtime_state(
     default_stage3_phaseb_family_view_id: str,
     default_stage3_phaseb_family_reserved_slots: int,
     default_stage3_phasec_start_policy: str,
+    default_stage35_baseline_selector: str,
     default_stage3_dynamic_bands: list[dict[str, Any]],
     default_stage3_phasea_cfg: Mapping[str, Any],
     default_stage3_phaseb_cfg: Mapping[str, Any],
@@ -110,6 +111,7 @@ def initialize_runtime_state(
     state["STAGE3_PHASEC_WORD_NGRAM_TIEBREAK"] = True
     state["STAGE3_PHASEC_START_POLICY"] = str(default_stage3_phasec_start_policy)
     state["STAGE35_ENABLED"] = False
+    state["STAGE35_BASELINE_SELECTOR"] = str(default_stage35_baseline_selector)
     state["STAGE35_CFG"] = {
         "seed_keep": 4,
         "beam_width": 4,
@@ -177,6 +179,9 @@ def initialize_runtime_state(
         state["STAGE3_PHASEC_START_POLICY"]
     )
     state["_STAGE35_ENABLED_DEFAULT"] = bool(state["STAGE35_ENABLED"])
+    state["_STAGE35_BASELINE_SELECTOR_DEFAULT"] = str(
+        state["STAGE35_BASELINE_SELECTOR"]
+    )
     state["_STAGE35_CFG_DEFAULT"] = dict(state["STAGE35_CFG"])
     state["_STAGE3_SPAN_BASIN_JUDGE_TIE_EPS_DEFAULT"] = float(
         state["STAGE3_SPAN_BASIN_JUDGE_TIE_EPS"]

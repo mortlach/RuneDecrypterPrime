@@ -335,6 +335,48 @@ def test_build_replay_starts_infers_anchor_without_lane_field() -> None:
     assert any("inferred anchor summary" in warning for warning in warnings)
 
 
+def test_build_replay_starts_falls_back_to_checkpoint_rows(tmp_path: Path) -> None:
+    run_dir = tmp_path / "output" / "tools" / "benchmarks" / "periodic_sub_trans" / "no_wli" / "example"
+    final_dir = run_dir / "final_instances"
+    final_dir.mkdir(parents=True)
+    checkpoint_path = run_dir / "phasec_start_checkpoints.jsonl"
+    checkpoint_path.write_text(
+        "\n".join(
+            [
+                '{"start_idx": 1, "lane": "anchor", "source": "stage3_best_phaseB", "source_rank": 1, "candidate_hash": "h1", "init_match": 0.60, "init_score": 1.0, "init_search_score": 0.4}',
+                '{"start_idx": 2, "lane": "challenger", "source": "phaseB_topk", "source_rank": 2, "candidate_hash": "h2", "init_match": 0.50, "init_score": 0.8, "init_search_score": 0.3}',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    case = replay_mod.ArtifactCase(
+        artifact_path=final_dir / "final.json",
+        run_dir=run_dir,
+        run_config_path=run_dir / "run_config.json",
+        artifact={
+            "stage3_topk": [
+                {"rank": 1, "source": "phaseB_topk", "end_hash": "h1", "key_idx": [0, 1, 2, 0, 1, 2, 0], "plaintext_idx": [0, 0]},
+                {"rank": 2, "source": "phaseB_topk", "end_hash": "h2", "key_idx": [1, 0, 2, 0, 1, 2, 0], "plaintext_idx": [1, 0]},
+            ],
+            "stage3_diagnostics": {
+                "phaseC_checkpoint_jsonl_name": "phasec_start_checkpoints.jsonl",
+                "phaseC_start_summaries": [],
+            },
+        },
+        run_config={},
+    )
+
+    out = replay_mod.build_replay_starts(case)
+
+    anchor = out["anchor_start"]
+    challengers = list(out["challenger_starts"])
+    assert anchor is not None
+    assert str(anchor.candidate_hash) == "h1"
+    assert len(challengers) == 1
+    assert str(challengers[0].candidate_hash) == "h2"
+
+
 def test_replay_rescue_for_start_sweeps_guard_threshold() -> None:
     base_key = [0, 1, 2, 0, 1, 2, 0]
     start = replay_mod.ReplayStart(

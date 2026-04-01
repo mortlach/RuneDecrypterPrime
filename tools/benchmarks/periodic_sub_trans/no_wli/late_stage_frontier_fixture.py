@@ -4,9 +4,15 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Mapping, Sequence
 
+from tools.benchmarks.periodic_sub_trans.no_wli.phasec_frontier_rows import (
+    load_phasec_frontier_rows_with_source,
+)
 from tools.benchmarks.periodic_sub_trans.no_wli.phasec_truth_reporting import (
     build_phasec_truth_reporting,
 )
+
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 def _as_int_list(value: Any) -> list[int]:
@@ -16,6 +22,16 @@ def _as_int_list(value: Any) -> list[int]:
         return [int(v) for v in list(value)]
     except Exception:
         return []
+
+
+def _repo_rel_or_str(path_like: Any) -> str:
+    if path_like in (None, ""):
+        return ""
+    path = Path(path_like)
+    try:
+        return path.resolve().relative_to(REPO_ROOT).as_posix()
+    except Exception:
+        return str(path).replace("\\", "/")
 
 
 def _normalize_frontier_candidate(row_obj: Mapping[str, Any]) -> Dict[str, Any]:
@@ -65,9 +81,13 @@ def build_late_stage_frontier_fixture(
 ) -> Dict[str, Any]:
     artifact_obj = dict(artifact or {})
     stage3_diag = dict(artifact_obj.get("stage3_diagnostics", {}) or {})
+    frontier_payload = load_phasec_frontier_rows_with_source(
+        artifact_path=artifact_path,
+        artifact=artifact_obj,
+    )
     candidate_rows = [
         _normalize_frontier_candidate(row)
-        for row in list(stage3_diag.get("phaseC_start_summaries", []) or [])
+        for row in list(frontier_payload.get("rows", []) or [])
         if isinstance(row, Mapping)
     ]
     reporting = build_phasec_truth_reporting(
@@ -88,7 +108,7 @@ def build_late_stage_frontier_fixture(
     )
     return dict(
         fixture_id=str(fixture_id),
-        source_artifact_path=str(artifact_path).replace("\\", "/"),
+        source_artifact_path=_repo_rel_or_str(artifact_path),
         run_id=str(artifact_path.parents[1].name),
         tier=str(artifact_obj.get("tier", "") or ""),
         text_id=int(artifact_obj.get("text_id", 0) or 0),
@@ -100,6 +120,10 @@ def build_late_stage_frontier_fixture(
         best_match_ratio=artifact_obj.get("best_match_ratio"),
         stage3_match_ratio=artifact_obj.get("stage3_match_ratio"),
         phasec_start_policy=str(stage3_diag.get("phaseC_start_policy", "") or ""),
+        phasec_frontier_row_source=str(frontier_payload.get("source", "") or ""),
+        phasec_checkpoint_path=_repo_rel_or_str(
+            frontier_payload.get("checkpoint_path", "") or ""
+        ),
         phaseb_top_n_used=int(stage3_diag.get("phaseB_top_n_used", 0) or 0),
         target_plaintext_idx=_as_int_list(artifact_obj.get("target_plaintext_idx", [])),
         ciphertext_idx=_as_int_list(artifact_obj.get("ciphertext_idx", [])),

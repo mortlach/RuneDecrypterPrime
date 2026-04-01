@@ -61,6 +61,9 @@ from tools.benchmarks.periodic_sub_trans.no_wli.word_ngram_report import (
 from tools.benchmarks.periodic_sub_trans.no_wli.build_output_catalog import (
     refresh_catalog_safely,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.phasec_frontier_rows import (
+    load_phasec_frontier_rows,
+)
 
 
 RUN_LABEL = "phasec_rescue_replay_v5"
@@ -975,10 +978,12 @@ def _select_probe_candidate(
 
 def build_replay_starts(case: ArtifactCase) -> dict[str, Any]:
     artifact = dict(case.artifact)
-    stage3_diag = dict(artifact.get("stage3_diagnostics", {}) or {})
     artifact_relpath = _repo_rel(case.artifact_path)
     run_id = str(case.run_dir.name)
-    summaries = list(stage3_diag.get("phaseC_start_summaries", []) or [])
+    summaries = load_phasec_frontier_rows(
+        artifact_path=case.artifact_path,
+        artifact=artifact,
+    )
     topk_rows = list(artifact.get("stage3_topk", []) or [])
     by_hash: dict[str, dict[str, Any]] = {}
     by_rank: dict[int, dict[str, Any]] = {}

@@ -79,6 +79,7 @@ def apply_runner_defaults(*, state: MutableMapping[str, Any]) -> None:
             "STAGE3_PHASEC_SEED_OFFSET": 1200003,
             "STAGE3_PHASEC_WORD_NGRAM_TIEBREAK": True,
             "STAGE35_ENABLED": False,
+            "STAGE35_BASELINE_SELECTOR": "legacy",
             "STAGE35_CFG": {
                 "seed_keep": 4,
                 "beam_width": 4,

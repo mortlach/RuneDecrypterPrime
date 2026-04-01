@@ -50,6 +50,7 @@ def apply_run_mode_overrides(
     _assign("STAGE3_PHASEC_SEED_OFFSET", int)
     _assign("STAGE3_PHASEC_WORD_NGRAM_TIEBREAK", bool)
     _assign("STAGE35_ENABLED", bool)
+    _assign("STAGE35_BASELINE_SELECTOR", str)
     _assign("STAGE3_INIT_KEYS_CAP", int)
 
     if "TEXT_OFFSETS" in overrides:

@@ -85,6 +85,10 @@ def _sync_stage3_two_phase_defaults_from_live_state(*, no_wli: Any) -> None:
         no_wli._STAGE35_ENABLED_DEFAULT = bool(  # type: ignore[attr-defined]
             no_wli.STAGE35_ENABLED
         )
+    if hasattr(no_wli, "_STAGE35_BASELINE_SELECTOR_DEFAULT"):
+        no_wli._STAGE35_BASELINE_SELECTOR_DEFAULT = str(  # type: ignore[attr-defined]
+            no_wli.STAGE35_BASELINE_SELECTOR
+        )
     if hasattr(no_wli, "_STAGE35_CFG_DEFAULT"):
         no_wli._STAGE35_CFG_DEFAULT = {  # type: ignore[attr-defined]
             str(k): v for k, v in _normalize_stage35_cfg(dict(no_wli.STAGE35_CFG)).items()
@@ -279,6 +283,7 @@ def apply_job(
     force_stage3_phasec_word_ngram_tiebreak: bool | None = None,
     force_stage3_phasec_start_policy: str | None = None,
     force_stage35_enabled: bool | None = None,
+    force_stage35_baseline_selector: str | None = None,
     force_stage35_cfg: Mapping[str, Any] | None = None,
     force_stage1_seed_restarts: int | None = None,
     force_stage1_seed_total: int | None = None,
@@ -353,6 +358,10 @@ def apply_job(
         ).strip().lower()
     if force_stage35_enabled is not None:
         no_wli.STAGE35_ENABLED = bool(force_stage35_enabled)
+    if force_stage35_baseline_selector is not None:
+        no_wli.STAGE35_BASELINE_SELECTOR = str(
+            force_stage35_baseline_selector
+        ).strip().lower()
     if force_stage35_cfg is not None:
         no_wli.STAGE35_CFG = _normalize_stage35_cfg(dict(force_stage35_cfg))
     if force_stage1_seed_restarts is not None:

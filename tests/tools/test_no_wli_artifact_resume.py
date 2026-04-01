@@ -278,6 +278,129 @@ def test_run_stage35_resume_from_artifact_reuses_saved_late_state(
     assert len(captured["phasec_start_summaries"]) == 1
 
 
+def test_run_stage35_resume_from_artifact_uses_checkpoint_fallback(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    case = _toy_case(tmp_path)
+    checkpoint_path = case.run_dir / "phasec_start_checkpoints.jsonl"
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    checkpoint_path.write_text(
+        json.dumps(
+            {
+                "start_idx": 1,
+                "lane": "anchor",
+                "source": "stage3_best_phaseB",
+                "source_rank": 1,
+                "candidate_hash": "h1",
+                "init_match": 4.0 / 6.0,
+                "final_match": 4.0 / 6.0,
+                "init_score": 4.0,
+                "final_score": 4.0,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    case = phasec_replay_mod.ArtifactCase(
+        artifact_path=case.artifact_path,
+        run_dir=case.run_dir,
+        run_config_path=case.run_config_path,
+        artifact=dict(
+            case.artifact,
+            stage3_diagnostics=dict(
+                case.artifact["stage3_diagnostics"],
+                phaseC_checkpoint_jsonl_name="phasec_start_checkpoints.jsonl",
+                phaseC_start_summaries=[],
+            ),
+        ),
+        run_config=case.run_config,
+    )
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(resume_mod.phasec_replay_mod, "_build_cipher", lambda artifact: "cipher")
+    monkeypatch.setattr(
+        resume_mod.phasec_replay_mod,
+        "_build_stage3_scorer_runtime",
+        lambda artifact, run_config, scorer_key: f"scorer:{scorer_key}",
+    )
+    monkeypatch.setattr(
+        resume_mod,
+        "run_stage35_live_followup",
+        lambda **kwargs: captured.update(kwargs) or {
+            "best_plaintext_idx": [0, 1, 2, 0, 1, 2],
+            "best_score": 6.0,
+            "archive_rows": [],
+            "seed_rows_scored": [],
+        },
+    )
+
+    resume_mod.run_stage35_resume_from_artifact(case)
+
+    assert len(captured["phasec_start_summaries"]) == 1
+    assert str(captured["phasec_start_summaries"][0]["candidate_hash"]) == "h1"
+
+
+def test_run_stage35_from_selected_trial_row_uses_selected_baseline(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    case = _toy_case(tmp_path)
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(resume_mod.phasec_replay_mod, "_build_cipher", lambda artifact: "cipher")
+    monkeypatch.setattr(
+        resume_mod.phasec_replay_mod,
+        "_build_stage3_scorer_runtime",
+        lambda artifact, run_config, scorer_key: f"scorer:{scorer_key}",
+    )
+
+    def _fake_run_stage35_live_followup(**kwargs):
+        captured.update(kwargs)
+        return {
+            "selected": 1,
+            "accept_reason": "accepted",
+            "best_candidate_hash": "best-hash",
+            "best_plaintext_idx": [0, 1, 2, 0, 1, 2],
+            "best_score": 7.0,
+            "archive_count": 2,
+            "seed_count": 2,
+            "rounds_completed": 1,
+            "evals": 4,
+            "runtime_seconds": 0.5,
+        }
+
+    monkeypatch.setattr(
+        resume_mod,
+        "run_stage35_live_followup",
+        _fake_run_stage35_live_followup,
+    )
+
+    out = resume_mod.run_stage35_from_selected_trial_row(
+        case,
+        selected_row={
+            "selector": "score_plus_novelty",
+            "fixture_id": "demo_fixture",
+            "fixture_label": "control",
+            "candidate_hash": "trial-hash",
+            "source": "phaseA_selected",
+            "lane": "challenger",
+            "final_score": 5.0,
+            "final_key_idx": [0, 1, 2, 0, 1, 2, 0],
+            "final_plaintext_idx": [0, 1, 2, 0, 1, 2],
+            "replay_material_complete": 1,
+        },
+    )
+
+    assert out["mode"] == "selected_stage3_to_stage35"
+    assert out["selector"] == "score_plus_novelty"
+    assert out["selected_candidate_hash"] == "trial-hash"
+    assert out["resume_best_score"] == 7.0
+    assert out["stage35"]["accept_reason"] == "accepted"
+    assert captured["baseline_key"] == [0, 1, 2, 0, 1, 2, 0]
+    assert captured["baseline_plaintext_idx"] == [0, 1, 2, 0, 1, 2]
+
+
 def test_run_stage3_resume_from_artifact_calls_stage3_flow_with_reconstructed_handoff(
     monkeypatch,
     tmp_path: Path,
