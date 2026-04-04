@@ -61,6 +61,10 @@ from tools.benchmarks.periodic_sub_trans.no_wli.stage3_topk import (
 from tools.benchmarks.periodic_sub_trans.no_wli.phasec_frontier_rows import (
     load_phasec_frontier_rows,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.late_stage_selector_core import (
+    normalize_stage35_baseline_selector,
+    select_phasec_score_winner_row,
+)
 from tools.benchmarks.periodic_sub_trans.no_wli.stage35_substitution_solver import (
     DEFAULT_STAGE35_SOLVER_CFG,
     run_stage35_live_followup,
@@ -649,6 +653,7 @@ def run_stage35_resume_from_artifact(
     *,
     run_config_override: Mapping[str, Any] | None = None,
     stage35_cfg_override: Mapping[str, Any] | None = None,
+    batch_eval_chunk_size: int | None = None,
 ) -> dict[str, Any]:
     artifact = dict(case.artifact)
     run_config = _deep_merge_mapping(dict(case.run_config), run_config_override)
@@ -700,7 +705,7 @@ def run_stage35_resume_from_artifact(
             scorer_key="search_scorer",
         ),
         cfg=stage35_cfg,
-        chunk_size=int(DEFAULT_BATCH_EVAL_CHUNK_SIZE),
+        chunk_size=int(batch_eval_chunk_size or DEFAULT_BATCH_EVAL_CHUNK_SIZE),
         require_batch=bool(DEFAULT_REQUIRE_BATCH_SCORING),
     )
     resume_match = _truth_match_ratio(
@@ -725,6 +730,8 @@ def run_stage35_from_selected_trial_row(
     *,
     selected_row: Mapping[str, Any],
     stage35_cfg_override: Mapping[str, Any] | None = None,
+    batch_eval_chunk_size: int | None = None,
+    output_dir: Path | None = None,
 ) -> dict[str, Any]:
     artifact = dict(case.artifact)
     run_config = dict(case.run_config)
@@ -751,6 +758,34 @@ def run_stage35_from_selected_trial_row(
         baseline_plaintext_idx,
         artifact.get("target_plaintext_idx", []) or [],
     )
+    baseline_selector = normalize_stage35_baseline_selector(
+        str(selected_row.get("selector", "") or "legacy")
+    )
+    phasec_score_winner_summary_row = select_phasec_score_winner_row(
+        phasec_start_summaries=list(phasec_frontier_rows),
+        best3_key=list(map(int, artifact.get("final_best_key_idx", []) or [])),
+        phasec_final_winner_lane=str(
+            dict(artifact.get("stage3_diagnostics", {}) or {}).get(
+                "phaseC_final_winner_lane",
+                "",
+            )
+            or ""
+        ),
+        phasec_final_winner_source=str(
+            dict(artifact.get("stage3_diagnostics", {}) or {}).get(
+                "phaseC_final_winner_source",
+                "",
+            )
+            or ""
+        ),
+    )
+    partial_state_path: Path | None = None
+    progress_jsonl_path: Path | None = None
+    if output_dir is not None:
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        partial_state_path = output_dir / "stage35_partial_state.json"
+        progress_jsonl_path = output_dir / "stage35_progress.jsonl"
 
     out = run_stage35_live_followup(
         period=int(artifact.get("period", 0) or 0),
@@ -760,6 +795,9 @@ def run_stage35_from_selected_trial_row(
         baseline_key=list(baseline_key),
         baseline_plaintext_idx=list(baseline_plaintext_idx),
         baseline_score=float(baseline_score),
+        baseline_selector=str(baseline_selector),
+        baseline_summary_row=dict(selected_row),
+        phasec_score_winner_summary_row=dict(phasec_score_winner_summary_row),
         stage3_topk_rows=list(artifact.get("stage3_topk", []) or []),
         phasec_start_summaries=list(phasec_frontier_rows),
         phasec_final_winner_lane=str(
@@ -788,8 +826,23 @@ def run_stage35_from_selected_trial_row(
             scorer_key="search_scorer",
         ),
         cfg=stage35_cfg,
-        chunk_size=int(DEFAULT_BATCH_EVAL_CHUNK_SIZE),
+        chunk_size=int(batch_eval_chunk_size or DEFAULT_BATCH_EVAL_CHUNK_SIZE),
         require_batch=bool(DEFAULT_REQUIRE_BATCH_SCORING),
+        partial_state_path=partial_state_path,
+        progress_jsonl_path=progress_jsonl_path,
+        append_jsonl_row_fn=lambda path, row: append_jsonl_row(
+            path=path,
+            row=row,
+            sanitize_jsonable_fn=sanitize_jsonable,
+        ),
+    )
+    partial_state_name = str(
+        out.get("partial_state_path_name", "")
+        or (partial_state_path.name if partial_state_path is not None else "")
+    )
+    progress_jsonl_name = str(
+        out.get("progress_jsonl_path_name", "")
+        or (progress_jsonl_path.name if progress_jsonl_path is not None else "")
     )
     resume_match = _truth_match_ratio(
         out.get("best_plaintext_idx", []) or [],
@@ -809,6 +862,21 @@ def run_stage35_from_selected_trial_row(
         selected_candidate_final_match=float(baseline_truth_match),
         replay_material_complete=int(
             selected_row.get("replay_material_complete", 0) or 0
+        ),
+        output_dir_relpath=(
+            _repo_rel(output_dir) if output_dir is not None else ""
+        ),
+        stage35_partial_state_relpath=(
+            _repo_rel(output_dir / partial_state_name)
+            if output_dir is not None
+            and partial_state_name
+            else ""
+        ),
+        stage35_progress_jsonl_relpath=(
+            _repo_rel(output_dir / progress_jsonl_name)
+            if output_dir is not None
+            and progress_jsonl_name
+            else ""
         ),
         resume_best_match_ratio=float(resume_match),
         resume_best_score=float(out.get("best_score", float("nan"))),
@@ -1098,7 +1166,7 @@ def write_resume_bundle(payload: Mapping[str, Any], *, output_dir: Path) -> None
             output_dir / "outcome.json",
             dict(payload.get("outcome", {}) or {}),
         )
-    elif mode == "stage3_to_stage35":
+    elif mode in {"stage3_to_stage35", "selected_stage3_to_stage35"}:
         stage35_payload = dict(payload.get("stage35", {}) or {})
         _write_json(output_dir / "stage35_summary.json", stage35_payload)
         _write_json(
@@ -1109,3 +1177,36 @@ def write_resume_bundle(payload: Mapping[str, Any], *, output_dir: Path) -> None
             output_dir / "stage35_seed_rows.json",
             dict(seed_rows_scored=list(stage35_payload.get("seed_rows_scored", []) or [])),
         )
+        if mode == "selected_stage3_to_stage35":
+            _write_json(
+                output_dir / "selected_trial_row_summary.json",
+                dict(
+                    selector=str(payload.get("selector", "") or ""),
+                    fixture_id=str(payload.get("fixture_id", "") or ""),
+                    fixture_label=str(payload.get("fixture_label", "") or ""),
+                    selected_candidate_hash=str(
+                        payload.get("selected_candidate_hash", "") or ""
+                    ),
+                    selected_candidate_source=str(
+                        payload.get("selected_candidate_source", "") or ""
+                    ),
+                    selected_candidate_lane=str(
+                        payload.get("selected_candidate_lane", "") or ""
+                    ),
+                    selected_candidate_final_score=float(
+                        payload.get("selected_candidate_final_score", float("nan"))
+                    ),
+                    selected_candidate_final_match=float(
+                        payload.get("selected_candidate_final_match", float("nan"))
+                    ),
+                    replay_material_complete=int(
+                        payload.get("replay_material_complete", 0) or 0
+                    ),
+                    stage35_partial_state_relpath=str(
+                        payload.get("stage35_partial_state_relpath", "") or ""
+                    ),
+                    stage35_progress_jsonl_relpath=str(
+                        payload.get("stage35_progress_jsonl_relpath", "") or ""
+                    ),
+                ),
+            )

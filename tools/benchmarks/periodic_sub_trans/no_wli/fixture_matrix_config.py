@@ -25,11 +25,10 @@ COLUMNS_OVERRIDE_BY_PERIOD: dict[int, tuple[int, ...]] = {
 RUN_MODE = "adaptive_fixture_v1"
 NO_WLI_PROFILE_ID = "no_wli_a1_m12_b34_stage3avg_fulltext_v1"
 # Fresh replay-capture follow-up:
-# - keep the same `seed411` widened-late vs novel-start compare that produced
+# - the default lane still targets the `seed411` widened-late case that produced
 #   the clearest late-stage disagreement frontier
-# - do not mutate the science question; use this run to obtain one replay-ready
-#   post-hardening frontier with full Phase-C key/plaintext capture
-# - keep p9/c3 only and retain the same two-job structure for comparability
+# - the small frozen-ladder mode below deliberately widens this to a compact
+#   p5/p9 control slice without changing Stage 3.5 semantics
 RUN_SEEDS = (411,)
 TEXT_OFFSETS = (0,)
 HEARTBEAT_SECONDS = 180
@@ -90,17 +89,115 @@ FORCE_STAGE3_PHASEB_GATE_END_GAIN_FLOOR = 0.003
 FORCE_STAGE3_SPAN_BASIN_JUDGE_TIE_EPS = 0.001
 
 # Optional Stage-3 preset matrix for targeted p9/c3 work.
-# Current short comparison lane:
-# - control: widened-late baseline (`phase_b_top_n = 32`) with legacy start fill
-# - candidate: same widened-late pool, but start-selection-only
-#   `novel_challenger_v1`
-# - replay purpose: generate one fresh post-hardening late frontier with the
-#   same known disagreement shape, now including replay-capture material
+# Current Stage 3.5 baseline-selector lane:
+# - keep the widened-late `seed411` frontier shape that produced the replay-ready
+#   disagreement and continuation win
+# - turn Stage 3.5 on
+# - vary only which already-explored Phase-C row becomes the Stage 3.5 baseline
+# - do not change upstream search, Phase-C start policy, or Stage 3.5 search
+#   semantics
 ENABLE_STAGE3_TUNING_PRESET_MATRIX = True
-STAGE3_TUNING_PRESET_IDS: tuple[str, ...] = (
-    "stage3_phaseb_width_probe_p9",
-    "stage3_phasec_novel_challenger_p9",
+STAGE35_BASELINE_SELECTOR_COMPARE_MODE = "candidate_family_overnight"
+STAGE35_BASELINE_SELECTOR_CANARY_PRESET_IDS: tuple[str, ...] = (
+    "stage35_baseline_legacy_canary_p9",
+    "stage35_baseline_score_plus_novelty_canary_p9",
 )
+STAGE35_BASELINE_SELECTOR_OVERNIGHT_PRESET_IDS: tuple[str, ...] = (
+    "stage35_baseline_legacy_live_p9",
+    "stage35_baseline_score_plus_novelty_live_p9",
+)
+STAGE35_BASELINE_SELECTOR_SINGLE_PRESET_IDS: tuple[str, ...] = (
+    "stage35_baseline_score_plus_novelty_live_bounded_p9",
+)
+STAGE35_BASELINE_SELECTOR_LADDER_PRESET_IDS: tuple[str, ...] = (
+    "stage35_baseline_score_plus_novelty_live_bounded_p9",
+)
+if STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "canary":
+    STAGE3_TUNING_PRESET_IDS: tuple[str, ...] = (
+        STAGE35_BASELINE_SELECTOR_CANARY_PRESET_IDS
+    )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "overnight":
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_OVERNIGHT_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single":
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_SINGLE_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p5":
+    PERIODS_OVERRIDE = (5,)
+    COLUMNS_OVERRIDE_BY_PERIOD = {
+        5: (1,),
+    }
+    RUN_SEEDS = (511,)
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_SINGLE_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p7":
+    PERIODS_OVERRIDE = (7,)
+    COLUMNS_OVERRIDE_BY_PERIOD = {
+        7: (1,),
+    }
+    RUN_SEEDS = (411,)
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_SINGLE_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_ladder_small":
+    PERIODS_OVERRIDE = (5, 9)
+    COLUMNS_OVERRIDE_BY_PERIOD = {
+        5: (1,),
+        9: (1, 3),
+    }
+    RUN_SEEDS = (611, 711)
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_LADDER_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_family_overnight":
+    PERIODS_OVERRIDE = (7, 9)
+    COLUMNS_OVERRIDE_BY_PERIOD = {
+        7: (1,),
+        9: (3,),
+    }
+    RUN_SEEDS = (411, 611)
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_LADDER_PRESET_IDS
+else:
+    raise ValueError(
+        "unsupported STAGE35_BASELINE_SELECTOR_COMPARE_MODE; "
+        "expected 'canary', 'overnight', 'candidate_single', "
+        "'candidate_single_p5', 'candidate_single_p7', "
+        "'candidate_ladder_small', or 'candidate_family_overnight'"
+    )
+STAGE35_BASELINE_SELECTOR_SHARED_CFG: dict[str, int] = {
+    "seed_keep": 4,
+    "beam_width": 4,
+    "archive_keep": 16,
+    "rounds": 3,
+    "mini_search_steps": 2,
+    "mini_search_beam_width": 3,
+    "mini_search_top_symbols": 10,
+    "mini_search_final_keep": 2,
+    "mini_search_keep_all_rows": 1,
+    "accept_score_min_gain": 0,
+    "accept_search_score_max_drop": 0,
+}
+STAGE35_BASELINE_SELECTOR_BOUNDED_LIVE_CFG: dict[str, int | float] = {
+    "seed_keep": 2,
+    "beam_width": 1,
+    "archive_keep": 12,
+    "rounds": 1,
+    "mini_search_steps": 1,
+    "mini_search_beam_width": 2,
+    "mini_search_top_symbols": 10,
+    "mini_search_final_keep": 2,
+    "mini_search_keep_all_rows": 0,
+    "accept_score_min_gain": 0,
+    "accept_search_score_max_drop": 0,
+    "max_runtime_seconds": 14400.0,
+    "partial_dump_preview_rows": 3,
+}
+STAGE35_BASELINE_SELECTOR_CANARY_CFG: dict[str, int] = {
+    "seed_keep": 2,
+    "beam_width": 2,
+    "archive_keep": 6,
+    "rounds": 1,
+    "mini_search_steps": 1,
+    "mini_search_beam_width": 2,
+    "mini_search_top_symbols": 6,
+    "mini_search_final_keep": 1,
+    "mini_search_keep_all_rows": 0,
+    "accept_score_min_gain": 0,
+    "accept_search_score_max_drop": 0,
+}
 STAGE3_TUNING_PRESETS: dict[str, dict[str, object]] = {
     "stage3_recovery_p9_8h": {
         "force_stage1_seed_restarts": 88,
@@ -936,6 +1033,286 @@ STAGE3_TUNING_PRESETS: dict[str, dict[str, object]] = {
         },
         "stage3_span_basin_k_sweep_values": (64,),
     },
+    "stage35_baseline_legacy_canary_p9": {
+        "force_stage1_seed_restarts": 44,
+        "force_stage1_seed_total": 112,
+        "force_stage1_scout_min_steps": 425,
+        "force_stage12_archive_keep": 96,
+        "force_word_ngram_decision_influence": True,
+        "force_word_ngram_report_min_positions": 6,
+        "force_stage12_promote_top": 96,
+        "force_stage3_initial_keys": 64,
+        "force_stage3_initial_keys_by_columns": {3: 64},
+        "force_stage3_span_basin_judge_tie_eps": 0.005,
+        "force_stage3_span_basin_judge_tie_max_seeds": 16,
+        "force_stage3_phasea_cfg": {
+            "steps": 200,
+            "restarts": 1,
+            "inner_batch": 96,
+            "col_every": 0,
+            "col_batch": 0,
+            "slip_every": 0,
+            "slip_swaps": 0,
+            "stall_slip_limit": 0,
+            "progress_pct": 1,
+            "print_progress": False,
+        },
+        "force_stage3_phaseb_top_n": 16,
+        "force_stage3_phaseb_cfg": {
+            "steps": 400,
+            "inner_batch": 128,
+            "col_every": 1,
+            "col_batch": 96,
+            "slip_every": 70,
+            "stall_rounds": 80,
+            "stall_slip_limit": 8,
+            "slip_swaps": 28,
+            "progress_pct": 1,
+            "print_progress": True,
+        },
+        "force_stage3_phaseb_gate_delta_floor": 0.003,
+        "force_stage3_phaseb_gate_end_gain_floor": 0.001,
+        "force_stage3_phasec_enabled": True,
+        "force_stage3_phasec_start_keys": 4,
+        "force_stage3_phasec_word_ngram_tiebreak": True,
+        "force_stage3_phasec_cfg": {
+            "steps": 24,
+            "proposals_per_step": 8,
+            "three_cycle_prob": 0.2,
+            "lexical_min_match": 0.72,
+            "lexical_match_tie_eps": 0.01,
+            "lexical_score_tie_eps": 0.002,
+            "lexical_max_calls": 48,
+        },
+        "force_stage35_enabled": True,
+        "force_stage35_baseline_selector": "legacy",
+        "force_stage35_cfg": dict(STAGE35_BASELINE_SELECTOR_CANARY_CFG),
+        "stage3_span_basin_k_sweep_values": (64,),
+    },
+    "stage35_baseline_score_plus_novelty_canary_p9": {
+        "force_stage1_seed_restarts": 44,
+        "force_stage1_seed_total": 112,
+        "force_stage1_scout_min_steps": 425,
+        "force_stage12_archive_keep": 96,
+        "force_word_ngram_decision_influence": True,
+        "force_word_ngram_report_min_positions": 6,
+        "force_stage12_promote_top": 96,
+        "force_stage3_initial_keys": 64,
+        "force_stage3_initial_keys_by_columns": {3: 64},
+        "force_stage3_span_basin_judge_tie_eps": 0.005,
+        "force_stage3_span_basin_judge_tie_max_seeds": 16,
+        "force_stage3_phasea_cfg": {
+            "steps": 200,
+            "restarts": 1,
+            "inner_batch": 96,
+            "col_every": 0,
+            "col_batch": 0,
+            "slip_every": 0,
+            "slip_swaps": 0,
+            "stall_slip_limit": 0,
+            "progress_pct": 1,
+            "print_progress": False,
+        },
+        "force_stage3_phaseb_top_n": 16,
+        "force_stage3_phaseb_cfg": {
+            "steps": 400,
+            "inner_batch": 128,
+            "col_every": 1,
+            "col_batch": 96,
+            "slip_every": 70,
+            "stall_rounds": 80,
+            "stall_slip_limit": 8,
+            "slip_swaps": 28,
+            "progress_pct": 1,
+            "print_progress": True,
+        },
+        "force_stage3_phaseb_gate_delta_floor": 0.003,
+        "force_stage3_phaseb_gate_end_gain_floor": 0.001,
+        "force_stage3_phasec_enabled": True,
+        "force_stage3_phasec_start_keys": 4,
+        "force_stage3_phasec_word_ngram_tiebreak": True,
+        "force_stage3_phasec_cfg": {
+            "steps": 24,
+            "proposals_per_step": 8,
+            "three_cycle_prob": 0.2,
+            "lexical_min_match": 0.72,
+            "lexical_match_tie_eps": 0.01,
+            "lexical_score_tie_eps": 0.002,
+            "lexical_max_calls": 48,
+        },
+        "force_stage35_enabled": True,
+        "force_stage35_baseline_selector": "score_plus_novelty",
+        "force_stage35_cfg": dict(STAGE35_BASELINE_SELECTOR_CANARY_CFG),
+        "stage3_span_basin_k_sweep_values": (64,),
+    },
+    "stage35_baseline_legacy_live_p9": {
+        "force_stage1_seed_restarts": 88,
+        "force_stage1_seed_total": 224,
+        "force_stage1_scout_min_steps": 850,
+        "force_stage12_archive_keep": 160,
+        "force_word_ngram_decision_influence": True,
+        "force_word_ngram_report_min_positions": 6,
+        "force_stage12_promote_top": 160,
+        "force_stage3_initial_keys": 64,
+        "force_stage3_initial_keys_by_columns": {3: 64},
+        "force_stage3_span_basin_judge_tie_eps": 0.005,
+        "force_stage3_span_basin_judge_tie_max_seeds": 16,
+        "force_stage3_phasea_cfg": {
+            "steps": 800,
+            "restarts": 1,
+            "inner_batch": 96,
+            "col_every": 0,
+            "col_batch": 0,
+            "slip_every": 0,
+            "slip_swaps": 0,
+            "stall_slip_limit": 0,
+            "progress_pct": 1,
+            "print_progress": False,
+        },
+        "force_stage3_phaseb_top_n": 32,
+        "force_stage3_phaseb_cfg": {
+            "steps": 2200,
+            "inner_batch": 128,
+            "col_every": 1,
+            "col_batch": 96,
+            "slip_every": 70,
+            "stall_rounds": 240,
+            "stall_slip_limit": 8,
+            "slip_swaps": 28,
+            "progress_pct": 1,
+            "print_progress": True,
+        },
+        "force_stage3_phaseb_gate_delta_floor": 0.003,
+        "force_stage3_phaseb_gate_end_gain_floor": 0.001,
+        "force_stage3_phasec_enabled": True,
+        "force_stage3_phasec_start_keys": 6,
+        "force_stage3_phasec_word_ngram_tiebreak": True,
+        "force_stage3_phasec_cfg": {
+            "steps": 96,
+            "proposals_per_step": 16,
+            "three_cycle_prob": 0.2,
+            "lexical_min_match": 0.72,
+            "lexical_match_tie_eps": 0.01,
+            "lexical_score_tie_eps": 0.002,
+            "lexical_max_calls": 128,
+        },
+        "force_stage35_enabled": True,
+        "force_stage35_baseline_selector": "legacy",
+        "force_stage35_cfg": dict(STAGE35_BASELINE_SELECTOR_SHARED_CFG),
+        "stage3_span_basin_k_sweep_values": (64,),
+    },
+    "stage35_baseline_score_plus_novelty_live_p9": {
+        "force_stage1_seed_restarts": 88,
+        "force_stage1_seed_total": 224,
+        "force_stage1_scout_min_steps": 850,
+        "force_stage12_archive_keep": 160,
+        "force_word_ngram_decision_influence": True,
+        "force_word_ngram_report_min_positions": 6,
+        "force_stage12_promote_top": 160,
+        "force_stage3_initial_keys": 64,
+        "force_stage3_initial_keys_by_columns": {3: 64},
+        "force_stage3_span_basin_judge_tie_eps": 0.005,
+        "force_stage3_span_basin_judge_tie_max_seeds": 16,
+        "force_stage3_phasea_cfg": {
+            "steps": 800,
+            "restarts": 1,
+            "inner_batch": 96,
+            "col_every": 0,
+            "col_batch": 0,
+            "slip_every": 0,
+            "slip_swaps": 0,
+            "stall_slip_limit": 0,
+            "progress_pct": 1,
+            "print_progress": False,
+        },
+        "force_stage3_phaseb_top_n": 32,
+        "force_stage3_phaseb_cfg": {
+            "steps": 2200,
+            "inner_batch": 128,
+            "col_every": 1,
+            "col_batch": 96,
+            "slip_every": 70,
+            "stall_rounds": 240,
+            "stall_slip_limit": 8,
+            "slip_swaps": 28,
+            "progress_pct": 1,
+            "print_progress": True,
+        },
+        "force_stage3_phaseb_gate_delta_floor": 0.003,
+        "force_stage3_phaseb_gate_end_gain_floor": 0.001,
+        "force_stage3_phasec_enabled": True,
+        "force_stage3_phasec_start_keys": 6,
+        "force_stage3_phasec_word_ngram_tiebreak": True,
+        "force_stage3_phasec_cfg": {
+            "steps": 96,
+            "proposals_per_step": 16,
+            "three_cycle_prob": 0.2,
+            "lexical_min_match": 0.72,
+            "lexical_match_tie_eps": 0.01,
+            "lexical_score_tie_eps": 0.002,
+            "lexical_max_calls": 128,
+        },
+        "force_stage35_enabled": True,
+        "force_stage35_baseline_selector": "score_plus_novelty",
+        "force_stage35_cfg": dict(STAGE35_BASELINE_SELECTOR_SHARED_CFG),
+        "stage3_span_basin_k_sweep_values": (64,),
+    },
+    "stage35_baseline_score_plus_novelty_live_bounded_p9": {
+        "force_stage1_seed_restarts": 88,
+        "force_stage1_seed_total": 224,
+        "force_stage1_scout_min_steps": 850,
+        "force_stage12_archive_keep": 160,
+        "force_word_ngram_decision_influence": True,
+        "force_word_ngram_report_min_positions": 6,
+        "force_stage12_promote_top": 160,
+        "force_stage3_initial_keys": 64,
+        "force_stage3_initial_keys_by_columns": {3: 64},
+        "force_stage3_span_basin_judge_tie_eps": 0.005,
+        "force_stage3_span_basin_judge_tie_max_seeds": 16,
+        "force_stage3_phasea_cfg": {
+            "steps": 800,
+            "restarts": 1,
+            "inner_batch": 96,
+            "col_every": 0,
+            "col_batch": 0,
+            "slip_every": 0,
+            "slip_swaps": 0,
+            "stall_slip_limit": 0,
+            "progress_pct": 1,
+            "print_progress": False,
+        },
+        "force_stage3_phaseb_top_n": 32,
+        "force_stage3_phaseb_cfg": {
+            "steps": 2200,
+            "inner_batch": 128,
+            "col_every": 1,
+            "col_batch": 96,
+            "slip_every": 70,
+            "stall_rounds": 240,
+            "stall_slip_limit": 8,
+            "slip_swaps": 28,
+            "progress_pct": 1,
+            "print_progress": True,
+        },
+        "force_stage3_phaseb_gate_delta_floor": 0.003,
+        "force_stage3_phaseb_gate_end_gain_floor": 0.001,
+        "force_stage3_phasec_enabled": True,
+        "force_stage3_phasec_start_keys": 6,
+        "force_stage3_phasec_word_ngram_tiebreak": True,
+        "force_stage3_phasec_cfg": {
+            "steps": 96,
+            "proposals_per_step": 16,
+            "three_cycle_prob": 0.2,
+            "lexical_min_match": 0.72,
+            "lexical_match_tie_eps": 0.01,
+            "lexical_score_tie_eps": 0.002,
+            "lexical_max_calls": 128,
+        },
+        "force_stage35_enabled": True,
+        "force_stage35_baseline_selector": "score_plus_novelty",
+        "force_stage35_cfg": dict(STAGE35_BASELINE_SELECTOR_BOUNDED_LIVE_CFG),
+        "stage3_span_basin_k_sweep_values": (64,),
+    },
     "lexical_tie_break_short": {
         "force_stage1_seed_restarts": 88,
         "force_stage1_seed_total": 224,
@@ -1264,13 +1641,62 @@ STAGE3_TUNING_PRESETS: dict[str, dict[str, object]] = {
 }
 DRY_RUN_ONLY = False
 STOP_ON_ERROR = False
-# With 1 fixture x 1 period x 1 columns x 1 seed x 2 presets x 1 schedule = 2 jobs.
 # `MAX_JOBS` is a total-job truncation, not just a parallelism control.
-MAX_JOBS: int | None = 2
-MAX_WALLCLOCK_SECONDS: float | None = 8.0 * 60.0 * 60.0
+if STAGE35_BASELINE_SELECTOR_COMPARE_MODE in {
+    "candidate_single",
+    "candidate_single_p5",
+    "candidate_single_p7",
+}:
+    MAX_JOBS: int | None = 1
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_ladder_small":
+    MAX_JOBS = 6
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_family_overnight":
+    MAX_JOBS = 4
+else:
+    # With 1 fixture x 1 period x 1 columns x 1 seed x 2 presets x 1 schedule = 2 jobs.
+    MAX_JOBS = 2
+if STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "canary":
+    MAX_WALLCLOCK_SECONDS: float | None = 2.0 * 60.0 * 60.0
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE in {
+    "candidate_single",
+    "candidate_single_p5",
+    "candidate_single_p7",
+}:
+    MAX_WALLCLOCK_SECONDS = 8.0 * 60.0 * 60.0
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_ladder_small":
+    MAX_WALLCLOCK_SECONDS = 8.0 * 60.0 * 60.0
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_family_overnight":
+    MAX_WALLCLOCK_SECONDS = 12.0 * 60.0 * 60.0
+else:
+    MAX_WALLCLOCK_SECONDS = 8.0 * 60.0 * 60.0
 
 CONTROL_FILES_BASE_DIR = Path("output/tools/benchmarks/periodic_sub_trans/no_wli")
-EXPERIMENT_RUN_ID = "tune_v46_p9c3_seed411_novel_start_replay_capture_2job"
+if STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "canary":
+    EXPERIMENT_RUN_ID = "tune_v49_p9c3_seed411_stage35_baseline_selector_canary_reduced_2job"
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single":
+    EXPERIMENT_RUN_ID = (
+        "tune_v57_p9c3_seed411_stage35_baseline_selector_candidate_live_bounded_single_1job"
+    )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p5":
+    EXPERIMENT_RUN_ID = (
+        "tune_v60_p5c1_seed511_stage35_baseline_selector_candidate_live_bounded_space_map_v1_shadow_stop_v2_single_1job"
+    )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p7":
+    EXPERIMENT_RUN_ID = (
+        "tune_v55_p7c1_seed411_stage35_baseline_selector_candidate_live_bounded_single_1job"
+    )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_ladder_small":
+    EXPERIMENT_RUN_ID = (
+        "tune_v59_ladder_small_seed611_711_stage35_baseline_selector_candidate_live_bounded_space_map_v1_6job"
+    )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_family_overnight":
+    EXPERIMENT_RUN_ID = (
+        "tune_v61_family_overnight_p7c1_p9c3_seed411_611_stage35_baseline_selector_candidate_live_bounded_space_map_v1_4job"
+    )
+else:
+    EXPERIMENT_RUN_ID = (
+        "tune_v48_p9c3_seed411_stage35_baseline_selector_live_compare_2job"
+    )
 MATRIX_CONTROL_FILES = MatrixControlFiles.for_experiment(
     experiment_run_id=EXPERIMENT_RUN_ID,
     base_dir=CONTROL_FILES_BASE_DIR,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 
-from tools.benchmarks.periodic_sub_trans.no_wli.audit_selector_ladder import (
+from tools.benchmarks.periodic_sub_trans.no_wli.analysis.audit_selector_ladder import (
     analyze_stage3_topk_rows,
     summarize_case,
     summarize_tier,

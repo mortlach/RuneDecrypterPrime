@@ -52,6 +52,7 @@ class IterationMatrixConfig:
     span_p90_call_ms: float | None
     stage3_phasec_start_policy: str
     stage35_enabled: bool
+    stage35_baseline_selector: str
     stage35_cfg: Dict[str, Any]
     require_batch_scoring: bool
 
@@ -93,6 +94,7 @@ class IterationMatrixFns:
 
 def _build_stage_engine_iteration_state(
     *,
+    run_id: str,
     tier: Any,
     text_id: int,
     key_seed: int,
@@ -113,6 +115,7 @@ def _build_stage_engine_iteration_state(
     config: IterationMatrixConfig,
 ) -> Dict[str, Any]:
     return dict(
+        run_id=str(run_id),
         tier=tier,
         text_id=int(text_id),
         key_seed=int(key_seed),
@@ -132,6 +135,7 @@ def _build_stage_engine_iteration_state(
         t0_i=float(t0_i),
         **build_stage3_runtime_config_state(
             stage3_phasec_start_policy=str(config.stage3_phasec_start_policy),
+            stage35_baseline_selector=str(config.stage35_baseline_selector),
         ),
         STAGE35_ENABLED=bool(config.stage35_enabled),
         STAGE35_CFG=dict(config.stage35_cfg),
@@ -140,6 +144,7 @@ def _build_stage_engine_iteration_state(
 
 def _build_finalize_iteration_state(
     *,
+    run_id: str,
     tier: Any,
     text_id: int,
     key_seed: int,
@@ -157,6 +162,7 @@ def _build_finalize_iteration_state(
     stage3_flow: Mapping[str, Any],
 ) -> Dict[str, Any]:
     state = dict(
+        run_id=str(run_id),
         tier=tier,
         text_id=int(text_id),
         key_seed=int(key_seed),
@@ -178,6 +184,7 @@ def _build_finalize_iteration_state(
 
 def run_iteration_matrix(
     *,
+    run_id: str = "",
     tiers: Sequence[Any],
     text_offsets: Sequence[int],
     key_seeds: Sequence[int],
@@ -243,6 +250,7 @@ def run_iteration_matrix(
                     continue
 
                 stage_engine_state = _build_stage_engine_iteration_state(
+                    run_id=str(run_id),
                     tier=tier,
                     text_id=int(text_id),
                     key_seed=int(key_seed),
@@ -376,6 +384,7 @@ def run_iteration_matrix(
                     fns.get_oracle_consulted_in_decisions_fn()
                 )
                 iteration_state = _build_finalize_iteration_state(
+                    run_id=str(run_id),
                     tier=tier,
                     text_id=int(text_id),
                     key_seed=int(key_seed),

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import datetime as dt
 import json
+from pathlib import Path
 import time
 from typing import Any, Callable, Dict, Mapping
 
@@ -8,6 +10,11 @@ import numpy as np
 
 from tools.benchmarks.periodic_sub_trans.no_wli.phasec_diagnostics_contract import (
     require_phasec_diagnostics_contract,
+)
+from tools.benchmarks.periodic_sub_trans.no_wli.late_stage_selector_core import (
+    normalize_stage35_baseline_selector,
+    select_phasec_score_winner_row,
+    select_stage35_baseline_row,
 )
 from tools.benchmarks.periodic_sub_trans.no_wli.stage3_runtime_calls import (
     Stage3RuntimeCallContext,
@@ -18,6 +25,10 @@ from tools.benchmarks.periodic_sub_trans.no_wli.stage3_runtime_calls import (
 from tools.benchmarks.periodic_sub_trans.no_wli.stage35_substitution_solver import (
     run_stage35_live_followup,
 )
+
+
+def _stage35_wall_ts() -> str:
+    return dt.datetime.now().astimezone().isoformat(timespec="seconds")
 
 
 def run_stage3_iteration_flow(
@@ -84,6 +95,9 @@ def run_stage3_iteration_flow(
     oracle_assist_selection_effective = bool(state["oracle_assist_selection_effective"])
     stages = state["stages"]
     stage35_enabled = bool(state["STAGE35_ENABLED"])
+    stage35_baseline_selector = normalize_stage35_baseline_selector(
+        state.get("STAGE35_BASELINE_SELECTOR", "legacy")
+    )
     stage35_cfg = dict(state["STAGE35_CFG"])
 
     best3_match, best3_score, stop_reason = float("nan"), float("nan"), "completed_pipeline"
@@ -155,6 +169,18 @@ def run_stage3_iteration_flow(
     stage35_archive_unique_target_slices = 0
     stage35_archive_mean_substitution_hamming = 0.0
     stage35_archive_max_substitution_hamming = 0
+    stage35_phasec_score_winner_candidate_hash = ""
+    stage35_phasec_score_winner_candidate_source = ""
+    stage35_phasec_score_winner_candidate_lane = ""
+    stage35_phasec_score_winner_candidate_final_score = float("nan")
+    stage35_phasec_score_winner_candidate_final_match = float("nan")
+    stage35_baseline_candidate_hash = ""
+    stage35_baseline_candidate_source = ""
+    stage35_baseline_candidate_lane = ""
+    stage35_baseline_candidate_source_rank = 0
+    stage35_baseline_candidate_final_score = float("nan")
+    stage35_baseline_candidate_final_match = float("nan")
+    stage35_baseline_differs_from_phasec_score_winner = 0
     stage35_baseline_search_score = float("nan")
     stage35_accept_score_min_gain_cfg = 0.0
     stage35_accept_search_score_max_drop_cfg = 0.0
@@ -173,10 +199,22 @@ def run_stage3_iteration_flow(
     stage35_best_depth = 0
     stage35_best_move_type = ""
     stage35_best_candidate_hash = ""
+    stage35_best_match = float("nan")
+    stage35_truth_gain_vs_selected_row = float("nan")
+    stage35_truth_gain_vs_phasec_score_winner = float("nan")
     stage35_best_key: list[int] | None = None
     stage35_best_plaintext_idx: list[int] | None = None
     stage35_archive_rows: list[Dict[str, Any]] = []
     stage35_seed_rows: list[Dict[str, Any]] = []
+    stage35_outcome_status = ""
+    stage35_outcome_reason = ""
+    stage35_completed = 0
+    stage35_capped = 0
+    stage35_partial_state_name = ""
+    stage35_progress_jsonl_name = ""
+    stage35_progress_event_count = 0
+    stage35_partial_dump_write_count = 0
+    stage35_telemetry_summary: Dict[str, Any] = {}
     stage2_resume_live: Dict[str, Any] | None = None
     stage3_prep_live: Dict[str, Any] | None = None
     stage35_proof_valid = int(1 if int(stage35_requested_cfg) == 0 else 0)
@@ -423,6 +461,7 @@ def run_stage3_iteration_flow(
         phaseC_candidate_pool_count = 0
         phaseC_candidate_pool_unique_keys = 0
         phaseC_candidate_pool_unique_end_hash = 0
+        phaseC_candidate_pool_rows: list[Dict[str, Any]] = []
         phaseC_start_policy = str(state["STAGE3_PHASEC_START_POLICY"])
         phaseC_candidate_pool_source_counts: Dict[str, int] = {}
         phaseC_novel_view_id = ""
@@ -558,6 +597,23 @@ def run_stage3_iteration_flow(
                 stage3_hb_state=stage3_hb_state,
                 stage3_topk_payload=stage3_topk_payload,
                 full_cipher=full_cipher,
+            )
+            two_phase_followup = dict(two_phase_followup or {})
+            two_phase_followup.setdefault(
+                "phaseC_start_policy",
+                str(phaseC_start_policy),
+            )
+            two_phase_followup.setdefault(
+                "phaseC_final_winner_lane",
+                str(phaseC_final_winner_lane),
+            )
+            two_phase_followup.setdefault(
+                "phaseC_final_winner_source",
+                str(phaseC_final_winner_source),
+            )
+            two_phase_followup.setdefault(
+                "phaseC_start_summaries",
+                [dict(row) for row in list(phaseC_start_summaries)],
             )
             require_phasec_diagnostics_contract(
                 two_phase_followup,
@@ -906,6 +962,16 @@ def run_stage3_iteration_flow(
                     phaseC_candidate_pool_source_counts,
                 )
             )
+            phaseC_candidate_pool_rows = [
+                dict(row)
+                for row in list(
+                    two_phase_followup.get(
+                        "phaseC_candidate_pool_rows",
+                        phaseC_candidate_pool_rows,
+                    )
+                    or []
+                )
+            ]
             phaseC_novel_view_id = str(
                 two_phase_followup.get("phaseC_novel_view_id", phaseC_novel_view_id)
             )
@@ -1069,14 +1135,147 @@ def run_stage3_iteration_flow(
                 stop_reason = str(stop_reason_update)
 
         if bool(stage35_enabled) and best3_key is not None and int(pt3.size) > 0:
+            phasec_score_winner_row = select_phasec_score_winner_row(
+                phasec_start_summaries=phaseC_start_summaries,
+                best3_key=best3_key,
+                phasec_final_winner_lane=str(phaseC_final_winner_lane),
+                phasec_final_winner_source=str(phaseC_final_winner_source),
+            )
+            stage35_baseline_row = select_stage35_baseline_row(
+                phasec_start_summaries=phaseC_start_summaries,
+                selector=str(stage35_baseline_selector),
+                phasec_score_winner_row=phasec_score_winner_row,
+            )
+            stage35_baseline_key = list(
+                map(
+                    int,
+                    stage35_baseline_row.get("final_key_idx", []) or best3_key,
+                )
+            )
+            stage35_baseline_plaintext_idx = list(
+                map(
+                    int,
+                    stage35_baseline_row.get("final_plaintext_idx", [])
+                    or np.asarray(pt3, dtype=np.uint8).astype(int).tolist(),
+                )
+            )
+            stage35_baseline_score_raw = stage35_baseline_row.get(
+                "final_score",
+                best3_score,
+            )
+            if stage35_baseline_score_raw is None:
+                stage35_baseline_score_raw = best3_score
+            stage35_baseline_score_value = float(stage35_baseline_score_raw)
+            print(
+                f"{log_prefix} stage35-start ts={_stage35_wall_ts()} tier={tier.name} text={text_id} key_seed={key_seed} "
+                f"selector={stage35_baseline_selector} "
+                f"baseline_hash={str(stage35_baseline_row.get('candidate_hash', '') or 'none')} "
+                f"baseline_source={str(stage35_baseline_row.get('source', '') or 'none')} "
+                f"baseline_lane={str(stage35_baseline_row.get('lane', '') or 'none')} "
+                f"baseline_source_rank={int(stage35_baseline_row.get('source_rank', 0) or 0)} "
+                f"baseline_score={fmt_finite_float_fn(stage35_baseline_score_value, digits=6)}",
+                flush=True,
+            )
+            phasec_checkpoint_path = getattr(
+                stage3_runtime_call_ctx,
+                "phasec_start_checkpoint_path",
+                None,
+            )
+            stage35_partial_state_path = None
+            stage35_progress_jsonl_path = None
+            if phasec_checkpoint_path is not None:
+                stage35_dump_dir = Path(phasec_checkpoint_path).parent
+                stage35_partial_state_path = (
+                    stage35_dump_dir / "stage35_partial_state.json"
+                )
+                stage35_progress_jsonl_path = (
+                    stage35_dump_dir / "stage35_progress.jsonl"
+                )
+                for dump_path in (
+                    stage35_partial_state_path,
+                    stage35_progress_jsonl_path,
+                ):
+                    try:
+                        if dump_path.exists():
+                            dump_path.unlink()
+                    except OSError:
+                        pass
+
+            def _emit_stage35_progress(progress: Mapping[str, Any]) -> None:
+                event_name = str(progress.get("event", "") or "")
+                if event_name == "seed_rows_scored":
+                    print(
+                        f"{log_prefix} stage35-heartbeat ts={_stage35_wall_ts()} tier={tier.name} text={text_id} key_seed={key_seed} "
+                        f"event=seed_rows_scored "
+                        f"seed_rows={int(progress.get('seed_rows_scored_count', 0) or 0)} "
+                        f"elapsed={fmt_finite_float_fn(progress.get('elapsed_seconds', 0.0), digits=3)}",
+                        flush=True,
+                    )
+                    return
+                if event_name == "mini_search_start":
+                    print(
+                        f"{log_prefix} stage35-heartbeat ts={_stage35_wall_ts()} tier={tier.name} text={text_id} key_seed={key_seed} "
+                        f"event=mini_search_start "
+                        f"round={int(progress.get('round_idx', 0) or 0)}/{int(progress.get('rounds_total', 0) or 0)} "
+                        f"mini={int(progress.get('mini_search_index_round', 0) or 0)}/{int(progress.get('mini_searches_planned_round', 0) or 0)} "
+                        f"slice={int(progress.get('slice_idx', 0) or 0)} "
+                        f"parent_hash={str(progress.get('parent_candidate_hash', '') or 'none')} "
+                        f"beam={int(progress.get('beam_rows_count', 0) or 0)} "
+                        f"archive={int(progress.get('archive_rows_count', 0) or 0)} "
+                        f"evals={int(progress.get('total_evals', 0) or 0)} "
+                        f"elapsed={fmt_finite_float_fn(progress.get('elapsed_seconds', 0.0), digits=3)}",
+                        flush=True,
+                    )
+                    return
+                if event_name == "round_progress":
+                    print(
+                        f"{log_prefix} stage35-heartbeat ts={_stage35_wall_ts()} tier={tier.name} text={text_id} key_seed={key_seed} "
+                        f"event=round_progress "
+                        f"round={int(progress.get('round_idx', 0) or 0)}/{int(progress.get('rounds_total', 0) or 0)} "
+                        f"mini={int(progress.get('mini_searches_done_round', 0) or 0)}/{int(progress.get('mini_searches_planned_round', 0) or 0)} "
+                        f"beam={int(progress.get('beam_rows_count', 0) or 0)} "
+                        f"archive={int(progress.get('archive_rows_count', 0) or 0)} "
+                        f"evals={int(progress.get('total_evals', 0) or 0)} "
+                        f"elapsed={fmt_finite_float_fn(progress.get('elapsed_seconds', 0.0), digits=3)}",
+                        flush=True,
+                    )
+                    return
+                if event_name == "round_archive_snapshot":
+                    print(
+                        f"{log_prefix} stage35-heartbeat ts={_stage35_wall_ts()} tier={tier.name} text={text_id} key_seed={key_seed} "
+                        f"event=round_archive_snapshot "
+                        f"round={int(progress.get('round_idx', 0) or 0)}/{int(progress.get('rounds_total', 0) or 0)} "
+                        f"beam={int(progress.get('beam_rows_count', 0) or 0)} "
+                        f"archive={int(progress.get('archive_rows_count', 0) or 0)} "
+                        f"evals={int(progress.get('total_evals', 0) or 0)} "
+                        f"elapsed={fmt_finite_float_fn(progress.get('elapsed_seconds', 0.0), digits=3)} "
+                        f"outcome_status={str(progress.get('outcome_status', '') or 'completed')}",
+                        flush=True,
+                    )
+                    return
+                if event_name == "finish":
+                    print(
+                        f"{log_prefix} stage35-heartbeat ts={_stage35_wall_ts()} tier={tier.name} text={text_id} key_seed={key_seed} "
+                        f"event=finish "
+                        f"rounds_completed={int(progress.get('rounds_completed', 0) or 0)} "
+                        f"archive={int(progress.get('archive_rows_count', 0) or 0)} "
+                        f"evals={int(progress.get('total_evals', 0) or 0)} "
+                        f"elapsed={fmt_finite_float_fn(progress.get('elapsed_seconds', 0.0), digits=3)} "
+                        f"outcome_status={str(progress.get('outcome_status', '') or 'completed')}",
+                        flush=True,
+                    )
+
             stage35_followup = run_stage35_live_followup(
                 period=int(tier.period),
                 columns=int(tier.columns),
                 alphabet_size=int(stage3_runtime_call_ctx.alphabet_size),
                 ciphertext_idx=np.asarray(ct_idx, dtype=np.uint8),
-                baseline_key=list(map(int, best3_key)),
-                baseline_plaintext_idx=np.asarray(pt3, dtype=np.uint8).astype(int).tolist(),
-                baseline_score=float(best3_score),
+                baseline_key=stage35_baseline_key,
+                baseline_plaintext_idx=stage35_baseline_plaintext_idx,
+                baseline_score=float(stage35_baseline_score_value),
+                baseline_selector=str(stage35_baseline_selector),
+                baseline_summary_row=stage35_baseline_row,
+                phasec_score_winner_summary_row=phasec_score_winner_row,
                 stage3_topk_rows=stage3_topk_payload,
                 phasec_start_summaries=phaseC_start_summaries,
                 phasec_final_winner_lane=str(phaseC_final_winner_lane),
@@ -1087,6 +1286,15 @@ def run_stage3_iteration_flow(
                 cfg=dict(stage35_cfg),
                 chunk_size=int(stage3_runtime_call_ctx.batch_eval_chunk_size),
                 require_batch=bool(stage3_runtime_call_ctx.require_batch_scoring),
+                target_plaintext_idx=np.asarray(pt_idx, dtype=np.uint8).astype(int).tolist(),
+                progress_callback=_emit_stage35_progress,
+                partial_state_path=stage35_partial_state_path,
+                progress_jsonl_path=stage35_progress_jsonl_path,
+                append_jsonl_row_fn=getattr(
+                    stage3_runtime_call_ctx,
+                    "append_jsonl_row_fn",
+                    None,
+                ),
             )
             stage35_enabled_cfg = int(stage35_followup.get("enabled_cfg", stage35_enabled_cfg))
             stage35_ran = int(stage35_followup.get("ran", 0))
@@ -1106,6 +1314,29 @@ def run_stage3_iteration_flow(
             stage35_runtime_seconds = float(
                 stage35_followup.get("runtime_seconds", 0.0)
             )
+            stage35_outcome_status = str(
+                stage35_followup.get("outcome_status", "")
+            )
+            stage35_outcome_reason = str(
+                stage35_followup.get("outcome_reason", "")
+            )
+            stage35_completed = int(stage35_followup.get("completed", 0))
+            stage35_capped = int(stage35_followup.get("capped", 0))
+            stage35_partial_state_name = str(
+                stage35_followup.get("partial_state_path_name", "")
+            )
+            stage35_progress_jsonl_name = str(
+                stage35_followup.get("progress_jsonl_path_name", "")
+            )
+            stage35_progress_event_count = int(
+                stage35_followup.get("progress_events_written", 0)
+            )
+            stage35_partial_dump_write_count = int(
+                stage35_followup.get("partial_dump_write_count", 0)
+            )
+            stage35_telemetry_summary = dict(
+                stage35_followup.get("telemetry", {}) or {}
+            )
             stage35_archive_unique_keys = int(
                 stage35_followup.get("archive_unique_keys", 0)
             )
@@ -1123,6 +1354,57 @@ def run_stage3_iteration_flow(
             )
             stage35_archive_max_substitution_hamming = int(
                 stage35_followup.get("archive_max_substitution_hamming", 0)
+            )
+            stage35_phasec_score_winner_candidate_hash = str(
+                stage35_followup.get("phasec_score_winner_candidate_hash", "")
+            )
+            stage35_phasec_score_winner_candidate_source = str(
+                stage35_followup.get("phasec_score_winner_candidate_source", "")
+            )
+            stage35_phasec_score_winner_candidate_lane = str(
+                stage35_followup.get("phasec_score_winner_candidate_lane", "")
+            )
+            stage35_phasec_score_winner_candidate_final_score = float(
+                stage35_followup.get(
+                    "phasec_score_winner_candidate_final_score",
+                    float("nan"),
+                )
+            )
+            stage35_phasec_score_winner_candidate_final_match = float(
+                stage35_followup.get(
+                    "phasec_score_winner_candidate_final_match",
+                    float("nan"),
+                )
+            )
+            stage35_baseline_candidate_hash = str(
+                stage35_followup.get("baseline_candidate_hash", "")
+            )
+            stage35_baseline_candidate_source = str(
+                stage35_followup.get("baseline_candidate_source", "")
+            )
+            stage35_baseline_candidate_lane = str(
+                stage35_followup.get("baseline_candidate_lane", "")
+            )
+            stage35_baseline_candidate_source_rank = int(
+                stage35_followup.get("baseline_candidate_source_rank", 0)
+            )
+            stage35_baseline_candidate_final_score = float(
+                stage35_followup.get(
+                    "baseline_candidate_final_score",
+                    float("nan"),
+                )
+            )
+            stage35_baseline_candidate_final_match = float(
+                stage35_followup.get(
+                    "baseline_candidate_final_match",
+                    float("nan"),
+                )
+            )
+            stage35_baseline_differs_from_phasec_score_winner = int(
+                stage35_followup.get(
+                    "baseline_differs_from_phasec_score_winner",
+                    0,
+                )
             )
             stage35_baseline_search_score = float(
                 stage35_followup.get("baseline_search_score", float("nan"))
@@ -1172,6 +1454,18 @@ def run_stage3_iteration_flow(
             )
             stage35_best_candidate_hash = str(
                 stage35_followup.get("best_candidate_hash", "")
+            )
+            stage35_best_match = float(
+                stage35_followup.get("best_match", float("nan"))
+            )
+            stage35_truth_gain_vs_selected_row = float(
+                stage35_followup.get("truth_gain_vs_selected_row", float("nan"))
+            )
+            stage35_truth_gain_vs_phasec_score_winner = float(
+                stage35_followup.get(
+                    "truth_gain_vs_phasec_score_winner",
+                    float("nan"),
+                )
             )
             stage35_best_key = (
                 list(map(int, stage35_followup.get("best_key", []) or []))
@@ -1240,6 +1534,24 @@ def run_stage3_iteration_flow(
                         stage35_rounds_completed=int(stage35_rounds_completed),
                         stage35_evals=int(stage35_evals),
                         stage35_runtime_seconds=float(stage35_runtime_seconds),
+                        stage35_outcome_status=str(stage35_outcome_status),
+                        stage35_outcome_reason=str(stage35_outcome_reason),
+                        stage35_completed=int(stage35_completed),
+                        stage35_capped=int(stage35_capped),
+                        stage35_partial_state_name=str(stage35_partial_state_name),
+                        stage35_progress_jsonl_name=str(stage35_progress_jsonl_name),
+                        stage35_progress_event_count=int(stage35_progress_event_count),
+                        stage35_partial_dump_write_count=int(
+                            stage35_partial_dump_write_count
+                        ),
+                        stage35_telemetry_summary=dict(stage35_telemetry_summary),
+                        stage35_baseline_selector=str(stage35_baseline_selector),
+                        stage35_baseline_candidate_hash=str(
+                            stage35_baseline_candidate_hash
+                        ),
+                        stage35_baseline_differs_from_phasec_score_winner=int(
+                            stage35_baseline_differs_from_phasec_score_winner
+                        ),
                         stage35_accept_passed=int(stage35_accept_passed),
                         stage35_accept_reason=str(stage35_accept_reason),
                         stage35_best_score=float(stage35_best_score),
@@ -1247,8 +1559,12 @@ def run_stage3_iteration_flow(
                     )
                 )
                 print(
-                    f"{log_prefix} stage35-finish tier={tier.name} text={text_id} key_seed={key_seed} "
+                    f"{log_prefix} stage35-finish ts={_stage35_wall_ts()} tier={tier.name} text={text_id} key_seed={key_seed} "
+                    f"selector={stage35_baseline_selector} "
+                    f"baseline_hash={stage35_baseline_candidate_hash or 'none'} "
+                    f"baseline_differs={int(stage35_baseline_differs_from_phasec_score_winner)} "
                     f"selected={int(stage35_selected)} "
+                    f"outcome_status={stage35_outcome_status or 'none'} "
                     f"accept_passed={int(stage35_accept_passed)} "
                     f"accept_reason={stage35_accept_reason or 'none'} "
                     f"archive_count={int(stage35_archive_count)} "
@@ -1289,6 +1605,24 @@ def run_stage3_iteration_flow(
                         stage35_rounds_completed=int(stage35_rounds_completed),
                         stage35_evals=int(stage35_evals),
                         stage35_runtime_seconds=float(stage35_runtime_seconds),
+                        stage35_outcome_status=str(stage35_outcome_status),
+                        stage35_outcome_reason=str(stage35_outcome_reason),
+                        stage35_completed=int(stage35_completed),
+                        stage35_capped=int(stage35_capped),
+                        stage35_partial_state_name=str(stage35_partial_state_name),
+                        stage35_progress_jsonl_name=str(stage35_progress_jsonl_name),
+                        stage35_progress_event_count=int(stage35_progress_event_count),
+                        stage35_partial_dump_write_count=int(
+                            stage35_partial_dump_write_count
+                        ),
+                        stage35_telemetry_summary=dict(stage35_telemetry_summary),
+                        stage35_baseline_selector=str(stage35_baseline_selector),
+                        stage35_baseline_candidate_hash=str(
+                            stage35_baseline_candidate_hash
+                        ),
+                        stage35_baseline_differs_from_phasec_score_winner=int(
+                            stage35_baseline_differs_from_phasec_score_winner
+                        ),
                         stage35_accept_passed=int(stage35_accept_passed),
                         stage35_accept_reason=str(stage35_accept_reason),
                     )
@@ -1306,6 +1640,9 @@ def run_stage3_iteration_flow(
                 pt3 = np.asarray(stage35_best_plaintext_idx, dtype=np.uint8).reshape(-1)
                 best3_score = float(stage35_best_score)
         if int(stage35_requested_cfg) == 1 and int(stage35_enabled_cfg) != 1:
+            if not str(stage35_outcome_status):
+                stage35_outcome_status = "not_run_disabled"
+                stage35_outcome_reason = "requested_but_effective_disabled"
             stage35_proof_valid = 0
             stage35_proof_invalid_reason = "requested_but_effective_disabled"
         elif int(stage35_requested_cfg) == 1 and int(stage35_ran) != 1:
@@ -1316,6 +1653,9 @@ def run_stage3_iteration_flow(
                     if best3_key is None or int(pt3.size) <= 0
                     else "not_run"
                 )
+            if not str(stage35_outcome_status):
+                stage35_outcome_status = "unfinished_not_run"
+                stage35_outcome_reason = str(not_run_reason)
             stage35_proof_valid = 0
             stage35_proof_invalid_reason = f"requested_but_not_run:{not_run_reason}"
         elif int(stage35_requested_cfg) == 1:
@@ -1518,6 +1858,9 @@ def run_stage3_iteration_flow(
         phaseC_candidate_pool_count=int(phaseC_candidate_pool_count),
         phaseC_candidate_pool_unique_keys=int(phaseC_candidate_pool_unique_keys),
         phaseC_candidate_pool_unique_end_hash=int(phaseC_candidate_pool_unique_end_hash),
+        phaseC_candidate_pool_rows=[
+            dict(row) for row in list(phaseC_candidate_pool_rows or [])
+        ],
         phaseC_candidate_pool_source_counts=dict(phaseC_candidate_pool_source_counts),
         phaseC_novel_view_id=str(phaseC_novel_view_id),
         phaseC_anchor_candidate_hash=str(phaseC_anchor_candidate_hash),
@@ -1566,6 +1909,15 @@ def run_stage3_iteration_flow(
         stage35_rounds_completed=int(stage35_rounds_completed),
         stage35_evals=int(stage35_evals),
         stage35_runtime_seconds=float(stage35_runtime_seconds),
+        stage35_outcome_status=str(stage35_outcome_status),
+        stage35_outcome_reason=str(stage35_outcome_reason),
+        stage35_completed=int(stage35_completed),
+        stage35_capped=int(stage35_capped),
+        stage35_partial_state_name=str(stage35_partial_state_name),
+        stage35_progress_jsonl_name=str(stage35_progress_jsonl_name),
+        stage35_progress_event_count=int(stage35_progress_event_count),
+        stage35_partial_dump_write_count=int(stage35_partial_dump_write_count),
+        stage35_telemetry_summary=dict(stage35_telemetry_summary),
         stage35_archive_unique_keys=int(stage35_archive_unique_keys),
         stage35_archive_unique_seed_sources=int(
             stage35_archive_unique_seed_sources
@@ -1578,6 +1930,37 @@ def run_stage3_iteration_flow(
         ),
         stage35_archive_max_substitution_hamming=int(
             stage35_archive_max_substitution_hamming
+        ),
+        stage35_baseline_selector=str(stage35_baseline_selector),
+        stage35_phasec_score_winner_candidate_hash=str(
+            stage35_phasec_score_winner_candidate_hash
+        ),
+        stage35_phasec_score_winner_candidate_source=str(
+            stage35_phasec_score_winner_candidate_source
+        ),
+        stage35_phasec_score_winner_candidate_lane=str(
+            stage35_phasec_score_winner_candidate_lane
+        ),
+        stage35_phasec_score_winner_candidate_final_score=float(
+            stage35_phasec_score_winner_candidate_final_score
+        ),
+        stage35_phasec_score_winner_candidate_final_match=float(
+            stage35_phasec_score_winner_candidate_final_match
+        ),
+        stage35_baseline_candidate_hash=str(stage35_baseline_candidate_hash),
+        stage35_baseline_candidate_source=str(stage35_baseline_candidate_source),
+        stage35_baseline_candidate_lane=str(stage35_baseline_candidate_lane),
+        stage35_baseline_candidate_source_rank=int(
+            stage35_baseline_candidate_source_rank
+        ),
+        stage35_baseline_candidate_final_score=float(
+            stage35_baseline_candidate_final_score
+        ),
+        stage35_baseline_candidate_final_match=float(
+            stage35_baseline_candidate_final_match
+        ),
+        stage35_baseline_differs_from_phasec_score_winner=int(
+            stage35_baseline_differs_from_phasec_score_winner
         ),
         stage35_baseline_search_score=float(stage35_baseline_search_score),
         stage35_accept_score_min_gain_cfg=float(stage35_accept_score_min_gain_cfg),
@@ -1601,6 +1984,13 @@ def run_stage3_iteration_flow(
         stage35_best_depth=int(stage35_best_depth),
         stage35_best_move_type=str(stage35_best_move_type),
         stage35_best_candidate_hash=str(stage35_best_candidate_hash),
+        stage35_best_match=float(stage35_best_match),
+        stage35_truth_gain_vs_selected_row=float(
+            stage35_truth_gain_vs_selected_row
+        ),
+        stage35_truth_gain_vs_phasec_score_winner=float(
+            stage35_truth_gain_vs_phasec_score_winner
+        ),
         stage35_best_key=stage35_best_key,
         stage35_best_plaintext_idx=stage35_best_plaintext_idx,
         stage35_archive_rows=[dict(row) for row in stage35_archive_rows],

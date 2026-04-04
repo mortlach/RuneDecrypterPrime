@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.benchmarks.periodic_sub_trans.no_wli import (
+from tools.benchmarks.periodic_sub_trans.no_wli.analysis import (
     audit_partial_state_signal as audit_mod,
 )
 

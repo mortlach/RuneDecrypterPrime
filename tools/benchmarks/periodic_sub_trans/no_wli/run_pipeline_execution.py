@@ -188,6 +188,7 @@ def execute_pipeline_from_startup(
     )
 
     runner_state = state
+    runner_state["run_id"] = str(run_dir.name)
     commit_iteration_outputs_fn = lambda **kwargs: state[
         "_commit_iteration_outputs_bridge_external"
     ](
@@ -272,6 +273,7 @@ def execute_pipeline_from_startup(
     iteration_fns = wiring["iteration_fns"]
 
     run_iteration_matrix(
+        run_id=str(run_dir.name),
         tiers=state["TIERS"],
         text_offsets=state["TEXT_OFFSETS"],
         key_seeds=state["KEY_SEEDS"],

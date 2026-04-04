@@ -7,7 +7,11 @@ def _normalize_stage35_cfg(cfg: Mapping[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for k, v in dict(cfg).items():
         key = str(k)
-        if key in {"accept_score_min_gain", "accept_search_score_max_drop"}:
+        if key in {
+            "accept_score_min_gain",
+            "accept_search_score_max_drop",
+            "max_runtime_seconds",
+        }:
             out[key] = float(v)
         else:
             out[key] = int(v)

@@ -5,7 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from tools.benchmarks.periodic_sub_trans.no_wli import build_output_catalog as cat_mod
+from tools.benchmarks.periodic_sub_trans.no_wli.analysis import (
+    build_output_catalog as cat_mod,
+)
 
 
 pytestmark = pytest.mark.tier_a

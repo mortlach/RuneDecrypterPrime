@@ -29,6 +29,17 @@ def _derive_acceptance_fixture_ids(
     return tuple(out)
 
 
+def _repo_relative_path_str(*, path: Path, repo_root: Path) -> str:
+    path_obj = Path(path)
+    try:
+        return str(path_obj.resolve().relative_to(Path(repo_root).resolve())).replace(
+            "\\",
+            "/",
+        )
+    except ValueError:
+        return str(path_obj).replace("\\", "/")
+
+
 def run_mainflow(
     *,
     state: Mapping[str, Any],
@@ -210,7 +221,10 @@ def run_mainflow(
     run_state = load_run_state_fn(run_state_path)
     run_state_base: dict[str, Any] = dict(
         started_utc=str(run_state.get("started_utc") or state["_utc_now_iso"]()),
-        campaign_config_path=str(campaign_path),
+        campaign_config_path=_repo_relative_path_str(
+            path=campaign_path,
+            repo_root=repo_root,
+        ),
         run_mode=str(state["RUN_MODE"]),
         profile_id=str(state["NO_WLI_PROFILE_ID"]),
         experiment_run_id=str(state["EXPERIMENT_RUN_ID"]),

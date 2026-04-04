@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Any, Callable, Mapping, Sequence
 
 import numpy as np
@@ -37,6 +38,7 @@ def run_slice_local_mini_search(
     keep_all_rows: bool,
     score_key_rows_fn: Callable[[Sequence[Sequence[int]]], Sequence[Mapping[str, Any]]],
 ) -> dict[str, Any]:
+    t0 = time.perf_counter()
     active_positions = target_slice_active_positions(
         ciphertext_idx=np.asarray(ciphertext_idx, dtype=np.uint8).reshape(-1),
         period=int(period),
@@ -81,14 +83,23 @@ def run_slice_local_mini_search(
             )
         )
     beam_width_i = int(max(1, int(beam_width)))
+    ranking_seconds = 0.0
+    t_rank_seed = time.perf_counter()
     frontier = rank_rows(seed_rows, limit=int(beam_width_i))
+    ranking_seconds += float(time.perf_counter() - t_rank_seed)
     collected: dict[tuple[int, ...], dict[str, Any]] = {}
     seen: set[tuple[int, ...]] = {
         tuple(map(int, row.get("key", []) or [])) for row in frontier
     }
     total_evals = 0
     expanded_steps = 0
+    generation_seconds = 0.0
+    scoring_seconds = 0.0
+    proposals_generated_total = 0
+    duplicate_proposals_skipped_total = 0
+    rows_scored_total = 0
     for step_idx in range(1, int(max(0, int(steps))) + 1):
+        t_gen = time.perf_counter()
         proposals: list[list[int]] = []
         proposal_meta: list[dict[str, Any]] = []
         for parent in frontier:
@@ -104,6 +115,7 @@ def run_slice_local_mini_search(
                     )
                     cand_t = tuple(map(int, cand))
                     if cand_t in seen:
+                        duplicate_proposals_skipped_total += 1
                         continue
                     seen.add(cand_t)
                     proposals.append(list(cand))
@@ -118,11 +130,16 @@ def run_slice_local_mini_search(
                             mini_search_step=int(step_idx),
                         )
                     )
+        generation_seconds += float(time.perf_counter() - t_gen)
         if not proposals:
             break
         expanded_steps = int(step_idx)
+        proposals_generated_total += int(len(proposals))
         total_evals += int(len(proposals))
+        t_score = time.perf_counter()
         step_rows = [dict(row) for row in score_key_rows_fn(proposals)]
+        scoring_seconds += float(time.perf_counter() - t_score)
+        rows_scored_total += int(len(step_rows))
         enriched_rows: list[dict[str, Any]] = []
         for row_idx, base_row in enumerate(step_rows):
             meta = proposal_meta[row_idx]
@@ -138,14 +155,17 @@ def run_slice_local_mini_search(
                     mini_search_active_position_count=int(len(active_positions)),
                 )
             )
+        t_rank_step = time.perf_counter()
         for row in enriched_rows:
             key_t = tuple(map(int, row.get("key", []) or []))
             prev = collected.get(key_t, None)
             if prev is None or landing_sort_key(row) < landing_sort_key(prev):
                 collected[key_t] = dict(row)
         frontier = rank_rows(enriched_rows, limit=int(beam_width_i))
+        ranking_seconds += float(time.perf_counter() - t_rank_step)
         if not frontier:
             break
+    t_rank_final = time.perf_counter()
     collected_rows = sorted(
         (dict(row) for row in collected.values()),
         key=landing_sort_key,
@@ -157,6 +177,8 @@ def run_slice_local_mini_search(
             collected_rows,
             limit=int(max(1, int(final_keep))),
         )
+    ranking_seconds += float(time.perf_counter() - t_rank_final)
+    total_seconds = float(time.perf_counter() - t0)
     return dict(
         rows=ranked_rows,
         collected_rows=collected_rows,
@@ -165,4 +187,16 @@ def run_slice_local_mini_search(
         expanded_steps=int(expanded_steps),
         active_positions=list(map(int, active_positions)),
         seed_count=int(len(seed_rows)),
+        telemetry=dict(
+            total_seconds=float(total_seconds),
+            generation_seconds=float(generation_seconds),
+            scoring_seconds=float(scoring_seconds),
+            ranking_seconds=float(ranking_seconds),
+            proposals_generated=int(proposals_generated_total),
+            duplicate_proposals_skipped=int(duplicate_proposals_skipped_total),
+            rows_scored=int(rows_scored_total),
+            rows_kept=int(len(ranked_rows)),
+            active_position_count=int(len(active_positions)),
+            beam_width=int(beam_width_i),
+        ),
     )

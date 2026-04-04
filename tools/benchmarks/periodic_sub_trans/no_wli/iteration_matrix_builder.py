@@ -68,6 +68,7 @@ def build_iteration_matrix_config(
         ),
         stage3_phasec_start_policy=str(state["STAGE3_PHASEC_START_POLICY"]),
         stage35_enabled=bool(state["STAGE35_ENABLED"]),
+        stage35_baseline_selector=str(state["STAGE35_BASELINE_SELECTOR"]),
         stage35_cfg=dict(state["STAGE35_CFG"]),
         require_batch_scoring=bool(state["REQUIRE_BATCH_SCORING"]),
     )

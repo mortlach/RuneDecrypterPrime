@@ -137,10 +137,32 @@ def _no_wli_cfg() -> SimpleNamespace:
 
 
 def test_no_wli_iteration_bridge_fixed_seed_parity() -> None:
-    state = {"seed": 333}
+    state = {
+        "seed": 333,
+        "tier": SimpleNamespace(name="fixture_fixture_001_p9_c3_l1000", period=9, columns=3),
+        "text_id": 0,
+        "key_seed": 333,
+        "off": 0,
+        "offset_used": 0,
+        "pt_idx": [1, 2, 3],
+        "wli": {},
+        "direction": "ltr",
+        "span_assets_dir": "",
+        "scoring_experiment_meta": {},
+        "oracle_mode": "off",
+        "oracle_consulted_in_decisions": False,
+        "oracle_decision_paths_enabled": False,
+        "oracle_assist_selection_effective": False,
+        "stages": [],
+        "instances": [],
+        "t0_i": 0.0,
+        "STAGE3_PHASEC_START_POLICY": "source_order",
+        "STAGE35_BASELINE_SELECTOR": "legacy",
+    }
 
     def _pre(**kwargs):
-        seed = int(kwargs["state"]["seed"])
+        state_payload = kwargs["state"]
+        seed = int(state_payload.get("seed", state_payload["key_seed"]))
         rng = np.random.default_rng(seed)
         key = [int(x) for x in rng.integers(0, 29, size=5)]
         score = float(rng.normal())

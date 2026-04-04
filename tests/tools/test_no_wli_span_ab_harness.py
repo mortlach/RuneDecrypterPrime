@@ -9,7 +9,7 @@ from tools.benchmarks.periodic_sub_trans.common.stage_spec import (
     SpanScope,
     StageSpec,
 )
-from tools.benchmarks.periodic_sub_trans.no_wli.span_ab_harness import (
+from tools.benchmarks.periodic_sub_trans.no_wli.runs.span_ab_harness import (
     build_span_shadow_vs_decision_cases,
     case_ids,
 )
@@ -53,4 +53,3 @@ def test_build_span_shadow_vs_decision_cases() -> None:
     assert shadow_case.stage_specs[1].aux_objectives[0].role == SpanRole.SHADOW
     assert decision_case.stage_specs[1].aux_objectives[0].role == SpanRole.PRUNE
     assert case_ids((shadow_case, decision_case)) == ["span_shadow", "span_prune"]
-

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from tools.benchmarks.periodic_sub_trans.no_wli import analyze_basin_regression as mod
+from tools.benchmarks.periodic_sub_trans.no_wli.analysis import (
+    analyze_basin_regression as mod,
+)
 
 
 pytestmark = pytest.mark.tier_a

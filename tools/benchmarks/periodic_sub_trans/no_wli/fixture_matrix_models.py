@@ -142,6 +142,7 @@ class Stage3TuningPreset:
     force_stage3_phasec_start_policy: str | None = None
     force_stage3_phasec_cfg: dict[str, Any] | None = None
     force_stage35_enabled: bool | None = None
+    force_stage35_baseline_selector: str | None = None
     force_stage35_cfg: dict[str, Any] | None = None
     stage3_span_basin_k_sweep_values: tuple[int, ...] | None = None
 
@@ -299,6 +300,9 @@ class Stage3TuningPreset:
             ),
             force_stage3_phasec_cfg=_opt_dict_str_any("force_stage3_phasec_cfg"),
             force_stage35_enabled=_opt_bool("force_stage35_enabled"),
+            force_stage35_baseline_selector=_opt_str(
+                "force_stage35_baseline_selector"
+            ),
             force_stage35_cfg=_opt_dict_str_any("force_stage35_cfg"),
             stage3_span_basin_k_sweep_values=_opt_tuple_int(
                 "stage3_span_basin_k_sweep_values"
@@ -417,6 +421,10 @@ class Stage3TuningPreset:
             ),
         )
         _set("force_stage35_enabled", self.force_stage35_enabled)
+        _set(
+            "force_stage35_baseline_selector",
+            self.force_stage35_baseline_selector,
+        )
         _set(
             "force_stage35_cfg",
             (

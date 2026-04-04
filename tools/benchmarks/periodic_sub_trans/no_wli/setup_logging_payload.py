@@ -138,6 +138,7 @@ def build_setup_logging_payload(
             state["STAGE3_PHASEC_WORD_NGRAM_TIEBREAK"]
         ),
         stage35_enabled=bool(state["STAGE35_ENABLED"]),
+        stage35_baseline_selector=str(state["STAGE35_BASELINE_SELECTOR"]),
         stage35_cfg=dict(state["STAGE35_CFG"]),
         stage3_c1_focus_enabled=bool(state["STAGE3_C1_FOCUS_ENABLED"]),
         stage3_c1_init_keys=int(state["STAGE3_C1_INIT_KEYS"]),

@@ -286,6 +286,7 @@ def build_run_config(
             ),
             stage35=dict(
                 enabled=bool(state["STAGE35_ENABLED"]),
+                baseline_selector=str(state["STAGE35_BASELINE_SELECTOR"]),
                 cfg=dict(state["STAGE35_CFG"]),
                 contract=(
                     "Frozen-columns substitution-only late solver. "

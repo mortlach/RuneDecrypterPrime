@@ -68,6 +68,7 @@ def _base_state() -> dict[str, object]:
         "instances": [],
         "t0_i": 0.0,
         "STAGE3_PHASEC_START_POLICY": "source_order",
+        "STAGE35_BASELINE_SELECTOR": "legacy",
     }
 
 

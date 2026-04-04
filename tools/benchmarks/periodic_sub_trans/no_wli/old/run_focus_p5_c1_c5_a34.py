@@ -9,7 +9,9 @@ _ROOT = Path(__file__).resolve().parents[4]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from tools.benchmarks.periodic_sub_trans.no_wli import run_focus_p5_c1_c5 as base_run
+from tools.benchmarks.periodic_sub_trans.no_wli.runs import (
+    run_focus_p5_c1_c5 as base_run,
+)
 
 
 def main() -> None:

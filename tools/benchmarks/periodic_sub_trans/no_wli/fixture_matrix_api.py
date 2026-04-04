@@ -433,6 +433,13 @@ def _resolve_stage3_tuning_overrides_for_job(
     force_stage35_enabled = preset.get("force_stage35_enabled", None)
     if force_stage35_enabled is not None:
         force_stage35_enabled = bool(force_stage35_enabled)
+    force_stage35_baseline_selector = preset.get(
+        "force_stage35_baseline_selector", None
+    )
+    if force_stage35_baseline_selector is not None:
+        force_stage35_baseline_selector = str(
+            force_stage35_baseline_selector
+        ).strip().lower()
     force_stage35_cfg: dict[str, Any] | None = None
     raw_stage35_cfg = preset.get("force_stage35_cfg", None)
     if isinstance(raw_stage35_cfg, Mapping):
@@ -494,6 +501,7 @@ def _resolve_stage3_tuning_overrides_for_job(
         force_stage3_phasec_word_ngram_tiebreak=force_stage3_phasec_word_ngram_tiebreak,
         force_stage3_phasec_start_policy=force_stage3_phasec_start_policy,
         force_stage35_enabled=force_stage35_enabled,
+        force_stage35_baseline_selector=force_stage35_baseline_selector,
         force_stage35_cfg=force_stage35_cfg,
         force_stage1_seed_restarts=force_stage1_seed_restarts,
         force_stage1_seed_total=force_stage1_seed_total,
@@ -578,6 +586,9 @@ def apply_job(job: NoWliFixtureJob) -> None:
             "force_stage3_phasec_start_policy"
         ],
         force_stage35_enabled=stage3_tuning_overrides["force_stage35_enabled"],
+        force_stage35_baseline_selector=stage3_tuning_overrides[
+            "force_stage35_baseline_selector"
+        ],
         force_stage35_cfg=stage3_tuning_overrides["force_stage35_cfg"],
         force_stage1_seed_restarts=stage3_tuning_overrides[
             "force_stage1_seed_restarts"

@@ -59,6 +59,7 @@ def _config() -> IterationMatrixConfig:
         span_p90_call_ms=None,
         stage3_phasec_start_policy="source_order",
         stage35_enabled=False,
+        stage35_baseline_selector="legacy",
         stage35_cfg={},
         require_batch_scoring=True,
     )
@@ -100,6 +101,7 @@ def test_build_iteration_matrix_config_forwards_phasec_start_policy() -> None:
         "SPAN_P90_CALL_MS": None,
         "STAGE3_PHASEC_START_POLICY": "novel_challenger_v1",
         "STAGE35_ENABLED": False,
+        "STAGE35_BASELINE_SELECTOR": "score_plus_novelty",
         "STAGE35_CFG": {},
         "REQUIRE_BATCH_SCORING": True,
     }
@@ -112,6 +114,7 @@ def test_build_iteration_matrix_config_forwards_phasec_start_policy() -> None:
     )
 
     assert cfg.stage3_phasec_start_policy == "novel_challenger_v1"
+    assert cfg.stage35_baseline_selector == "score_plus_novelty"
 
 
 def _build_fns(*, event_sink: list[dict[str, Any]] | None = None) -> IterationMatrixFns:
@@ -387,6 +390,61 @@ def test_no_wli_iteration_matrix_forwards_stage35_cfg_into_stage3_state() -> Non
     assert observed["stage35_cfg"] == {"rounds": 3, "beam_width": 4}
 
 
+def test_no_wli_iteration_matrix_forwards_stage35_baseline_selector_into_stage3_state() -> None:
+    cfg = replace(
+        _config(),
+        stage35_enabled=True,
+        stage35_baseline_selector="score_plus_novelty",
+    )
+    observed: dict[str, object] = {}
+
+    def _run_stage3(**kwargs):
+        st = kwargs["state"]
+        observed["stage35_baseline_selector"] = str(
+            st["STAGE35_BASELINE_SELECTOR"]
+        )
+        return {
+            "best3_match": 0.1,
+            "best3_score": -1.0,
+            "best_stage": "stage3_refine",
+            "status": "unsolved",
+            "stop_reason": "completed_pipeline",
+            "stage3_span_active_rate": 0.5,
+            "stage3_span_active_rate_source": "solver_run_telemetry",
+            "stage3_span_eval_total": 10.0,
+            "stage3_span_eval_active": 5.0,
+            "stage3_span_eval_skipped": 5.0,
+            "stage3_span_seconds_total": 0.25,
+            "stage3_span_seconds_active": 0.10,
+            "stage3_basin_judge_span_calls_total": 4,
+            "stage3_basin_judge_span_calls_active": 3,
+            "stage3_basin_judge_span_calls_rejected_or_gated": 1,
+            "stage3_basin_judge_span_seconds_total": 0.05,
+        }
+
+    fns = _build_fns()
+    fns = replace(fns, run_stage3_iteration_flow_fn=_run_stage3)
+    run_iteration_matrix(
+        tiers=[SimpleNamespace(name="fixture_p7_c3_l200", period=7, columns=3, length=200)],
+        text_offsets=[0],
+        key_seeds=[4242],
+        pt_base=list(range(400)),
+        wli_base=[(i, i + 1) for i in range(20)],
+        direction=SimpleNamespace(value="ltr"),
+        span_assets_dir=None,
+        scoring_experiment_meta={"profile": "off"},
+        autoskip_effective=False,
+        proven_index={},
+        instances=[],
+        stages=[],
+        stage3_runtime_call_ctx=SimpleNamespace(),
+        config=cfg,
+        fns=fns,
+    )
+
+    assert observed["stage35_baseline_selector"] == "score_plus_novelty"
+
+
 def test_no_wli_iteration_matrix_forwards_stage3_phasec_start_policy_into_stage3_state() -> None:
     cfg = replace(
         _config(),
@@ -506,3 +564,33 @@ def test_no_wli_iteration_matrix_propagates_require_batch_scoring_to_finalize_st
     )
 
     assert observed["require_batch_scoring"] is False
+
+
+def test_no_wli_iteration_matrix_propagates_run_id_to_finalize_state() -> None:
+    observed: dict[str, object] = {}
+
+    def _finalize_post_stage3(**kwargs):
+        observed["run_id"] = str(kwargs["state"].get("run_id", ""))
+
+    fns = _build_fns()
+    fns = replace(fns, finalize_iteration_post_stage3_fn=_finalize_post_stage3)
+    run_iteration_matrix(
+        run_id="test_run_001",
+        tiers=[SimpleNamespace(name="fixture_p7_c3_l200", period=7, columns=3, length=200)],
+        text_offsets=[0],
+        key_seeds=[4242],
+        pt_base=list(range(400)),
+        wli_base=[(i, i + 1) for i in range(20)],
+        direction=SimpleNamespace(value="ltr"),
+        span_assets_dir=None,
+        scoring_experiment_meta={"profile": "off"},
+        autoskip_effective=False,
+        proven_index={},
+        instances=[],
+        stages=[],
+        stage3_runtime_call_ctx=SimpleNamespace(),
+        config=_config(),
+        fns=fns,
+    )
+
+    assert observed["run_id"] == "test_run_001"

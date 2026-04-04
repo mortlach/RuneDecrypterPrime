@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from pathlib import Path
 
-from tools.benchmarks.periodic_sub_trans.no_wli import (
+from tools.benchmarks.periodic_sub_trans.no_wli.analysis import (
     analyze_phasec_slice_signals as analysis_mod,
 )
 

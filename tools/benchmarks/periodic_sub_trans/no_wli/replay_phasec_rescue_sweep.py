@@ -28,7 +28,7 @@ from tools.benchmarks.periodic_sub_trans.common.batch_eval import (
     decrypt_and_score_keys_chunked,
     score_plaintexts_chunked,
 )
-from tools.benchmarks.periodic_sub_trans.no_wli import (
+from tools.benchmarks.periodic_sub_trans.no_wli.analysis import (
     analyze_phasec_slice_signals as slice_signal_mod,
 )
 from tools.benchmarks.periodic_sub_trans.no_wli.phasec_rescue_candidates import (
@@ -58,7 +58,7 @@ from tools.benchmarks.periodic_sub_trans.no_wli.word_ngram_report import (
     extract_word_ngram_report_fields,
     score_word_ngram_report_for_plaintext,
 )
-from tools.benchmarks.periodic_sub_trans.no_wli.build_output_catalog import (
+from tools.benchmarks.periodic_sub_trans.no_wli.analysis.build_output_catalog import (
     refresh_catalog_safely,
 )
 from tools.benchmarks.periodic_sub_trans.no_wli.phasec_frontier_rows import (
@@ -291,6 +291,17 @@ def _build_stage3_word_ngram_report_runtime(
         if isinstance(stage3_cfg, Mapping)
         else {}
     )
+    span_basin_cfg = dict(
+        (stage3_cfg.get("span_basin_judge") or {})
+        if isinstance(stage3_cfg, Mapping)
+        else {}
+    )
+    if bool(span_basin_cfg.get("disable_char_pct_gate", False)):
+        base_cfg["span_hamming_char_pct_min"] = None
+    if "gate_fail_policy" in span_basin_cfg:
+        base_cfg["span_hamming_gate_fail_policy"] = str(
+            span_basin_cfg.get("gate_fail_policy", "score_floor") or "score_floor"
+        )
     span_assets_dir = _resolve_repo_path(
         base_cfg.get("span_hamming_assets_dir", None)
     )

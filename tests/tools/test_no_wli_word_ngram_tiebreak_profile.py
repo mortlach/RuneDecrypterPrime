@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tools.benchmarks.periodic_sub_trans.no_wli import (
+from tools.benchmarks.periodic_sub_trans.no_wli.analysis import (
     profile_word_ngram_tiebreak as profile_mod,
 )
 

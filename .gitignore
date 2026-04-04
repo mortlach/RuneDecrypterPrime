@@ -198,6 +198,8 @@ cython_debug/
 output/*
 !output/README.md
 tools/out/
+tools/benchmarks/periodic_sub_trans/no_wli/output/
+tools/benchmarks/periodic_sub_trans/no_wli/old/output_legacy_nested/
 setup.log
 preflight.log
 setup_report.json

@@ -91,7 +91,7 @@ from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_config import (
     PLAN_OUTPUT_PATH,
     WRITE_PLAN_JSON,
 )
-from tools.benchmarks.periodic_sub_trans.no_wli.build_output_catalog import (
+from tools.benchmarks.periodic_sub_trans.no_wli.analysis.build_output_catalog import (
     refresh_catalog_safely,
 )
 from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_schedule import (

@@ -138,6 +138,11 @@ def build_non_scoring_lock_payload(
                 ),
                 start_policy=str(state["STAGE3_PHASEC_START_POLICY"]),
             ),
+            stage35=dict(
+                enabled=bool(state["STAGE35_ENABLED"]),
+                baseline_selector=str(state["STAGE35_BASELINE_SELECTOR"]),
+                cfg=dict(state["STAGE35_CFG"]),
+            ),
             continue_after_solve=bool(state["STAGE3_CONTINUE_AFTER_SOLVE"]),
             c1_focus_enabled=bool(state["STAGE3_C1_FOCUS_ENABLED"]),
             c1_init_keys=int(state["STAGE3_C1_INIT_KEYS"]),

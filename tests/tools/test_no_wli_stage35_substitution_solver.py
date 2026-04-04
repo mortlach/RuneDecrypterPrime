@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -263,17 +264,224 @@ def test_stage35_solver_can_improve_archive_above_mock_baseline() -> None:
     assert int(out["evals"]) > 0
 
 
+def test_stage35_solver_emits_progress_events() -> None:
+    artifact = _mock_artifact()
+    seed_archive = archive_mod.build_stage35_seed_archive(artifact)
+    target = list(artifact["target_plaintext_idx"])
+    events: list[dict[str, object]] = []
+
+    out = solver_mod.solve_stage35_substitution_only(
+        ciphertext_idx=np.asarray(artifact["ciphertext_idx"], dtype=np.uint8),
+        seed_rows=list(seed_archive["seed_rows"]),
+        period=int(artifact["period"]),
+        alphabet_size=int(artifact["alphabet_size"]),
+        cipher=_SlicePermutationCipher(period=2, alphabet_size=3),
+        scorer_full=_PositionalMatchScorer(target=target),
+        scorer_search=_SearchSupportScorer(target=target),
+        cfg=dict(
+            solver_mod.DEFAULT_STAGE35_SOLVER_CFG,
+            rounds=2,
+            beam_width=3,
+            archive_keep=8,
+            seed_keep=3,
+            mini_search_beam_width=2,
+            mini_search_final_keep=1,
+            mini_search_keep_all_rows=0,
+        ),
+        chunk_size=64,
+        require_batch=True,
+        fixed_tail=list(seed_archive["frozen_tail"]),
+        progress_callback=lambda payload: events.append(dict(payload)),
+    )
+
+    assert int(out["evals"]) > 0
+    event_names = [str(event.get("event", "")) for event in events]
+    assert "seed_rows_scored" in event_names
+    assert "mini_search_start" in event_names
+    assert "round_progress" in event_names
+    assert "round_archive_snapshot" in event_names
+    assert event_names[-1] == "finish"
+    archive_snapshot_event = next(
+        dict(event)
+        for event in events
+        if str(event.get("event", "")) == "round_archive_snapshot"
+    )
+    assert isinstance(list(archive_snapshot_event.get("archive_preview_rows", [])), list)
+    finish_event = dict(events[-1])
+    assert str(finish_event["outcome_status"]) == "completed"
+    assert int(finish_event["completed"]) == 1
+    assert int(finish_event["capped"]) == 0
+    telemetry_summary = dict(finish_event.get("telemetry_summary", {}) or {})
+    assert int(telemetry_summary.get("mini_search_count", 0) or 0) >= 1
+    assert float(telemetry_summary.get("row_scoring_seconds", 0.0) or 0.0) >= 0.0
+
+
+def test_stage35_solver_reports_capped_eval_outcome() -> None:
+    artifact = _mock_artifact()
+    seed_archive = archive_mod.build_stage35_seed_archive(artifact)
+    target = list(artifact["target_plaintext_idx"])
+    events: list[dict[str, object]] = []
+
+    out = solver_mod.solve_stage35_substitution_only(
+        ciphertext_idx=np.asarray(artifact["ciphertext_idx"], dtype=np.uint8),
+        seed_rows=list(seed_archive["seed_rows"]),
+        period=int(artifact["period"]),
+        alphabet_size=int(artifact["alphabet_size"]),
+        cipher=_SlicePermutationCipher(period=2, alphabet_size=3),
+        scorer_full=_PositionalMatchScorer(target=target),
+        scorer_search=_SearchSupportScorer(target=target),
+        cfg=dict(
+            solver_mod.DEFAULT_STAGE35_SOLVER_CFG,
+            rounds=2,
+            beam_width=3,
+            archive_keep=8,
+            seed_keep=3,
+            mini_search_beam_width=2,
+            mini_search_final_keep=1,
+            mini_search_keep_all_rows=0,
+            max_evals=1,
+        ),
+        chunk_size=64,
+        require_batch=True,
+        fixed_tail=list(seed_archive["frozen_tail"]),
+        progress_callback=lambda payload: events.append(dict(payload)),
+    )
+
+    assert str(out["outcome_status"]) == "capped_evals"
+    assert str(out["outcome_reason"]) == "max_evals"
+    assert int(out["completed"]) == 0
+    assert int(out["capped"]) == 1
+    assert int(out["evals"]) >= 1
+    finish_event = dict(events[-1])
+    assert str(finish_event["event"]) == "finish"
+    assert str(finish_event["outcome_status"]) == "capped_evals"
+    assert int(finish_event["completed"]) == 0
+    assert int(finish_event["capped"]) == 1
+
+
+def test_stage35_solver_reports_internal_telemetry() -> None:
+    artifact = _mock_artifact()
+    seed_archive = archive_mod.build_stage35_seed_archive(artifact)
+    target = list(artifact["target_plaintext_idx"])
+
+    out = solver_mod.solve_stage35_substitution_only(
+        ciphertext_idx=np.asarray(artifact["ciphertext_idx"], dtype=np.uint8),
+        seed_rows=list(seed_archive["seed_rows"]),
+        period=int(artifact["period"]),
+        alphabet_size=int(artifact["alphabet_size"]),
+        cipher=_SlicePermutationCipher(period=2, alphabet_size=3),
+        scorer_full=_PositionalMatchScorer(target=target),
+        scorer_search=_SearchSupportScorer(target=target),
+        cfg=dict(
+            solver_mod.DEFAULT_STAGE35_SOLVER_CFG,
+            rounds=2,
+            beam_width=3,
+            archive_keep=8,
+            seed_keep=3,
+            mini_search_beam_width=2,
+            mini_search_final_keep=1,
+            mini_search_keep_all_rows=0,
+        ),
+        chunk_size=64,
+        require_batch=True,
+        fixed_tail=list(seed_archive["frozen_tail"]),
+    )
+
+    telemetry = dict(out["telemetry"])
+    assert int(telemetry["mini_search_count"]) >= 1
+    assert float(telemetry["row_scoring_seconds"]) > 0.0
+    assert float(telemetry["batch_score_seconds"]) >= 0.0
+    assert int(telemetry["row_scoring_keys_total"]) >= int(len(seed_archive["seed_rows"]))
+    assert float(telemetry["average_batch_size"]) > 0.0
+    assert isinstance(list(telemetry["mini_search_summaries"]), list)
+    assert list(telemetry["mini_search_summaries"])
+    first_mini = dict(list(telemetry["mini_search_summaries"])[0])
+    assert int(first_mini["proposals_generated"]) >= 0
+    assert int(first_mini["archive_candidate_pool_size_after_mini"]) >= int(
+        first_mini["archive_size_before_round"]
+    )
+    assert float(first_mini["total_seconds"]) >= 0.0
+
+
+def test_stage35_scoring_callback_dedupes_normalized_keys_and_preserves_row_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    telemetry = solver_mod._empty_solver_telemetry()
+    calls: list[list[list[int]]] = []
+
+    def _fake_score_rows_for_keys(**kwargs):
+        key_rows = [list(map(int, key_vals)) for key_vals in list(kwargs["keys"])]
+        calls.append(list(key_rows))
+        return [
+            {
+                "key": list(key_vals),
+                "key_idx": list(key_vals),
+                "pt": [int(sum(key_vals))],
+                "plaintext_idx": [int(sum(key_vals))],
+                "score": float(sum(key_vals)),
+                "search_score": float(sum(key_vals)) - 0.5,
+                "candidate_hash": f"hash-{sum(key_vals)}",
+            }
+            for key_vals in key_rows
+        ]
+
+    monkeypatch.setattr(solver_mod, "_score_rows_for_keys", _fake_score_rows_for_keys)
+    score_key_rows_fn = solver_mod._scoring_callback(
+        ciphertext_idx=np.asarray([0, 1], dtype=np.uint8),
+        cipher=object(),
+        scorer_full=object(),
+        scorer_search=object(),
+        chunk_size=64,
+        require_batch=True,
+        fixed_tail=[8, 9],
+        prefix_len=3,
+        telemetry=telemetry,
+    )
+
+    rows = [
+        dict(row)
+        for row in score_key_rows_fn(
+            [
+                [1, 2, 3, 4, 5],
+                [1, 2, 3, 6, 7],
+                [2, 3, 4, 4, 5],
+            ]
+        )
+    ]
+
+    assert calls == [[[1, 2, 3, 8, 9], [2, 3, 4, 8, 9]]]
+    assert [list(row["key_idx"]) for row in rows] == [
+        [1, 2, 3, 8, 9],
+        [1, 2, 3, 8, 9],
+        [2, 3, 4, 8, 9],
+    ]
+    assert [str(row["candidate_hash"]) for row in rows] == [
+        "hash-23",
+        "hash-23",
+        "hash-26",
+    ]
+    assert int(telemetry["row_scoring_input_keys_total"]) == 3
+    assert int(telemetry["row_scoring_normalized_unique_keys_total"]) == 2
+    assert int(telemetry["row_scoring_normalized_duplicate_keys_total"]) == 1
+
+
 def test_stage35_live_followup_selects_better_candidate_without_truth_fields() -> None:
     artifact = _mock_artifact()
     target = list(artifact["target_plaintext_idx"])
+    phasec_rows = list(artifact["stage3_diagnostics"]["phaseC_start_summaries"])
+    baseline_summary_row = dict(phasec_rows[1])
+    phasec_score_winner_summary_row = dict(phasec_rows[0])
     out = solver_mod.run_stage35_live_followup(
         period=int(artifact["period"]),
         columns=int(artifact["columns"]),
         alphabet_size=int(artifact["alphabet_size"]),
         ciphertext_idx=np.asarray(artifact["ciphertext_idx"], dtype=np.uint8),
-        baseline_key=list(artifact["final_best_key_idx"]),
-        baseline_plaintext_idx=[0, 1, 2, 1, 0, 2],
-        baseline_score=4.0,
+        baseline_key=list(artifact["stage3_topk"][1]["key_idx"]),
+        baseline_plaintext_idx=list(artifact["stage3_topk"][1]["plaintext_idx"]),
+        baseline_score=float(artifact["stage3_diagnostics"]["phaseC_start_summaries"][1]["final_score"]),
+        baseline_selector="score_plus_novelty",
+        baseline_summary_row=baseline_summary_row,
+        phasec_score_winner_summary_row=phasec_score_winner_summary_row,
         stage3_topk_rows=list(artifact["stage3_topk"]),
         phasec_start_summaries=list(
             artifact["stage3_diagnostics"]["phaseC_start_summaries"]
@@ -298,6 +506,7 @@ def test_stage35_live_followup_selects_better_candidate_without_truth_fields() -
         ),
         chunk_size=64,
         require_batch=True,
+        target_plaintext_idx=list(target),
     )
 
     assert int(out["enabled_cfg"]) == 1
@@ -306,9 +515,415 @@ def test_stage35_live_followup_selects_better_candidate_without_truth_fields() -
     assert int(out["seed_count"]) >= 3
     assert int(out["archive_count"]) >= 1
     assert float(out["best_score"]) > 4.0
-    assert all(int(row["key_idx"][-1]) == 0 for row in list(out["archive_rows"]))
+    assert str(out["baseline_selector"]) == "score_plus_novelty"
+    assert str(out["baseline_candidate_hash"]) == "h2"
+    assert str(out["baseline_candidate_source"]) == "phaseB_topk"
+    assert str(out["baseline_candidate_lane"]) == "challenger"
+    assert int(out["baseline_differs_from_phasec_score_winner"]) == 1
+    assert str(out["phasec_score_winner_candidate_hash"]) == "h1"
+    assert float(out["best_match"]) > float(out["baseline_candidate_final_match"])
+    assert float(out["truth_gain_vs_selected_row"]) > 0.0
+    assert float(out["truth_gain_vs_phasec_score_winner"]) > 0.0
+    assert list(out["archive_rows"])
     assert all("truth_match" not in row for row in list(out["archive_rows"]))
     assert int(out["archive_rows"][0]["archive_rank"]) == 1
+    telemetry = dict(out["telemetry"])
+    assert float(telemetry["baseline_search_score_seconds"]) >= 0.0
+    assert float(telemetry["accept_check_seconds"]) >= 0.0
+    assert int(telemetry["mini_search_count"]) >= 1
+
+
+def test_stage35_live_followup_persists_partial_state_and_progress_files(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    artifact = _mock_artifact()
+    target = list(artifact["target_plaintext_idx"])
+    partial_state_path = tmp_path / "stage35_partial_state.json"
+    progress_jsonl_path = tmp_path / "stage35_progress.jsonl"
+    appended_rows: list[dict[str, object]] = []
+
+    def _append_jsonl_row(path: Path, row: dict[str, object]) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(row, sort_keys=True) + "\n")
+        appended_rows.append(dict(row))
+
+    def _fake_solve_stage35_substitution_only(**kwargs):
+        progress_callback = kwargs["progress_callback"]
+        progress_callback(
+            dict(
+                event="seed_rows_scored",
+                seed_rows_scored_count=2,
+                elapsed_seconds=0.1,
+            )
+        )
+        progress_callback(
+            dict(
+                event="round_archive_snapshot",
+                round_idx=1,
+                rounds_total=1,
+                beam_rows_count=1,
+                archive_rows_count=1,
+                total_evals=7,
+                elapsed_seconds=0.2,
+                outcome_status="completed",
+                outcome_reason="",
+                archive_preview_rows=[
+                    {
+                        "candidate_hash": "candidate-other",
+                        "seed_source": "phasec_phaseb_challenger",
+                        "stage3_source": "phaseB_topk",
+                        "lane": "challenger",
+                        "source_rank": 2,
+                        "depth": 1,
+                        "target_slice": 1,
+                        "move_type": "slice_local_mini_search",
+                        "score": 5.0,
+                        "search_score": 4.0,
+                    }
+                ],
+            )
+        )
+        progress_callback(
+            dict(
+                event="finish",
+                rounds_completed=1,
+                archive_rows_count=1,
+                total_evals=7,
+                elapsed_seconds=0.3,
+                outcome_status="completed",
+                outcome_reason="",
+                completed=1,
+                capped=0,
+                telemetry_summary={
+                    "mini_search_count": 1,
+                    "row_scoring_seconds": 0.02,
+                    "archive_update_seconds": 0.0,
+                },
+            )
+        )
+        return dict(
+            archive_rows=[
+                dict(
+                    key_idx=[0, 1, 2, 0, 1, 2, 0],
+                    plaintext_idx=list(target),
+                    score=6.0,
+                    search_score=5.0,
+                    candidate_hash="candidate-other",
+                    seed_source="phasec_phaseb_challenger",
+                    stage3_source="phaseB_topk",
+                    lane="challenger",
+                    source_rank=2,
+                    target_slice=1,
+                    depth=1,
+                    move_type="slice_local_mini_search",
+                )
+            ],
+            seed_rows_scored=[
+                dict(
+                    key_idx=list(artifact["final_best_key_idx"]),
+                    plaintext_idx=[0, 1, 2, 1, 0, 2],
+                    score=4.0,
+                    search_score=3.0,
+                    candidate_hash="h1",
+                )
+            ],
+            evals=7,
+            rounds_completed=1,
+            runtime_seconds=0.3,
+            outcome_status="completed",
+            outcome_reason="",
+            completed=1,
+            capped=0,
+            diversity=dict(
+                unique_keys=1,
+                unique_seed_sources=1,
+                unique_target_slices=1,
+                mean_substitution_hamming=1.0,
+                max_substitution_hamming=1,
+            ),
+            mini_search_keep_all_rows_cfg=1,
+            mini_search_collected_rows=4,
+            mini_search_rows_kept=1,
+            telemetry=dict(
+                solver_mod._empty_solver_telemetry(),
+                mini_search_count=1,
+            ),
+        )
+
+    monkeypatch.setattr(
+        solver_mod,
+        "solve_stage35_substitution_only",
+        _fake_solve_stage35_substitution_only,
+    )
+
+    out = solver_mod.run_stage35_live_followup(
+        period=int(artifact["period"]),
+        columns=int(artifact["columns"]),
+        alphabet_size=int(artifact["alphabet_size"]),
+        ciphertext_idx=np.asarray(artifact["ciphertext_idx"], dtype=np.uint8),
+        baseline_key=list(artifact["final_best_key_idx"]),
+        baseline_plaintext_idx=[0, 1, 2, 1, 0, 2],
+        baseline_score=4.0,
+        stage3_topk_rows=list(artifact["stage3_topk"]),
+        phasec_start_summaries=list(
+            artifact["stage3_diagnostics"]["phaseC_start_summaries"]
+        ),
+        phasec_final_winner_lane=str(
+            artifact["stage3_diagnostics"]["phaseC_final_winner_lane"]
+        ),
+        phasec_final_winner_source=str(
+            artifact["stage3_diagnostics"]["phaseC_final_winner_source"]
+        ),
+        cipher=_SlicePermutationCipher(period=2, alphabet_size=3),
+        scorer_full=_PositionalMatchScorer(target=target),
+        scorer_search=_SearchSupportScorer(target=target),
+        cfg=dict(solver_mod.DEFAULT_STAGE35_SOLVER_CFG),
+        chunk_size=64,
+        require_batch=True,
+        target_plaintext_idx=list(target),
+        partial_state_path=partial_state_path,
+        progress_jsonl_path=progress_jsonl_path,
+        append_jsonl_row_fn=_append_jsonl_row,
+    )
+
+    assert partial_state_path.is_file()
+    assert progress_jsonl_path.is_file()
+    assert str(out["partial_state_path_name"]) == "stage35_partial_state.json"
+    assert str(out["progress_jsonl_path_name"]) == "stage35_progress.jsonl"
+    assert int(out["progress_events_written"]) == 4
+    assert int(out["partial_dump_write_count"]) == 4
+    partial_state = json.loads(partial_state_path.read_text(encoding="utf-8"))
+    assert str(partial_state["event"]) == "followup_finish"
+    assert str(partial_state["outcome_status"]) == "completed"
+    progress_rows = [
+        json.loads(line)
+        for line in progress_jsonl_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert [str(row["event"]) for row in progress_rows] == [
+        "seed_rows_scored",
+        "round_archive_snapshot",
+        "finish",
+        "followup_finish",
+    ]
+    assert all(str(row.get("ts", "")) for row in progress_rows)
+    assert str(progress_rows[-1]["accept_reason"]) == "accepted"
+    assert len(appended_rows) == 4
+
+
+def test_stage3_iteration_flow_uses_score_plus_novelty_stage35_baseline_selector(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_phasea_restarts(**kwargs):
+        _ = kwargs
+        return {
+            "phaseA_rows": [],
+            "stage_rows": [],
+            "stage3_solve_hits_delta": 0,
+            "dt3_delta": 0.0,
+            "ev3_delta": 0,
+            "span_phaseA_eval_total": 0.0,
+            "span_phaseA_eval_active": 0.0,
+            "span_phaseA_eval_skipped": 0.0,
+            "span_phaseA_seconds_total": 0.0,
+            "span_phaseA_seconds_active": 0.0,
+        }
+
+    def _fake_two_phase_followup(**kwargs):
+        _ = kwargs
+        return {
+            "stage_rows": [],
+            "dt3_delta": 0.01,
+            "ev3_delta": 5,
+            "stage3_solve_hits_delta": 0,
+            "best3_match": 0.039,
+            "best3_score": 0.19101667350788198,
+            "best3_key": [7, 3, 14, 14, 14, 2, 11],
+            "pt3": np.asarray([1, 2, 3, 4], dtype=np.uint8),
+                "phaseC_enabled_cfg": 1,
+                "phaseC_enabled_effective": 1,
+                "phaseC_ran": 1,
+                "phaseC_start_keys_used": 2,
+                "phaseC_start_policy": "source_order",
+                "phaseC_candidate_pool_count": 2,
+                "phaseC_candidate_pool_unique_keys": 2,
+                "phaseC_candidate_pool_unique_end_hash": 2,
+                "phaseC_candidate_pool_source_counts": {
+                    "stage3_best_phaseB": 1,
+                    "phaseB_topk": 1,
+                },
+                "phaseC_start_source_counts": {
+                    "stage3_best_phaseB": 1,
+                    "phaseB_topk": 1,
+                },
+                "phaseC_start_unique_end_hash": 2,
+                "phaseC_checkpoint_jsonl_name": "phasec_start_checkpoints.jsonl",
+                "phaseC_checkpoint_rows_written": 2,
+                "phaseC_final_winner_lane": "anchor",
+                "phaseC_final_winner_source": "stage3_best_phaseB",
+                "phaseC_start_summaries": [
+                    {
+                        "start_idx": 1,
+                        "lane": "anchor",
+                        "source": "stage3_best_phaseB",
+                        "source_rank": 1,
+                        "candidate_hash": "73eee2bf84b7c07f",
+                        "init_key_idx": [7, 3, 14, 14, 14, 2, 11],
+                        "init_plaintext_idx": [1, 2, 3, 4],
+                        "final_key_idx": [7, 3, 14, 14, 14, 2, 11],
+                        "final_plaintext_idx": [1, 2, 3, 4],
+                        "final_score": 0.19101667350788198,
+                        "final_match": 0.039,
+                        "score_gain": 0.001,
+                    "eligible_novel_challenger": 0,
+                    "novelty_distance_to_anchor": 0,
+                },
+                    {
+                        "start_idx": 2,
+                        "lane": "challenger",
+                        "source": "phaseB_topk",
+                        "source_rank": 2,
+                        "candidate_hash": "9002ee09917e5a0d",
+                        "init_key_idx": [9, 1, 12, 4, 5, 6, 11],
+                        "init_plaintext_idx": [1, 2, 3, 5],
+                        "final_key_idx": [9, 1, 12, 4, 5, 6, 11],
+                        "final_plaintext_idx": [1, 2, 3, 5],
+                        "final_score": 0.17284542866740327,
+                    "final_match": 0.418,
+                    "score_gain": 0.02,
+                    "eligible_novel_challenger": 1,
+                    "novelty_distance_to_anchor": 164,
+                },
+            ],
+        }
+
+    def _fake_stage35_followup(**kwargs):
+        captured.update(kwargs)
+        return {
+            "enabled_cfg": 1,
+            "ran": 0,
+            "selected": 0,
+            "accept_reason": "no_seed_rows",
+        }
+
+    monkeypatch.setattr(flow_mod, "run_stage3_phasea_restarts_call", _fake_phasea_restarts)
+    monkeypatch.setattr(flow_mod, "run_stage3_two_phase_followup_call", _fake_two_phase_followup)
+    monkeypatch.setattr(flow_mod, "run_stage35_live_followup", _fake_stage35_followup)
+
+    flow_mod.run_stage3_iteration_flow(
+        state={
+            "tier": SimpleNamespace(
+                name="fixture_fixture_001_p9_c3_l1000",
+                period=2,
+                columns=1,
+            ),
+            "text_id": 0,
+            "key_seed": 411,
+            "t0_i": 0.0,
+            "key_len": 7,
+            "best2_match": 0.039,
+            "best2_key": [7, 3, 14, 14, 14, 2, 11],
+            "stage2_promoted": [],
+            "stage2_entry_score": 0.19,
+            "stage2_entry_score_judge": 0.19,
+            "scorer_stage2": {},
+            "scorer_full": {},
+            "oracle_s3": 0.0,
+            "oracle_decision_paths_enabled": False,
+            "ct_idx": np.asarray([0, 0, 0, 0], dtype=np.uint8),
+            "pt_idx": np.asarray([1, 2, 3, 4], dtype=np.uint8),
+            "wli": [],
+            "direction": None,
+            "scorer_stage3_phaseA": {},
+            "scorer_stage3_phaseB": {},
+            "scorer_stage3_phaseA_runtime": object(),
+            "scorer_stage3_search_runtime": _SearchSupportScorer(target=[1, 2, 3, 4]),
+            "scorer_basin_judge_runtime": _SearchSupportScorer(target=[1, 2, 3, 4]),
+            "scorer_full_runtime": _PositionalMatchScorer(target=[1, 2, 3, 4]),
+            "full_cipher": _SlicePermutationCipher(period=2, alphabet_size=3),
+            "stage2_evals_total": 5,
+            "stage2_continue_to_gate": False,
+            "stage2_continue_stop_reason": "",
+            "stage3_phaseA_experiment": "a_baseline",
+            "stage3_phaseB_experiment": "c_min_late",
+            "stage3_phaseB_char_pct_min_dynamic": 0.35,
+            "stage3_phaseB_char_pct_min_source": "static",
+            "oracle_assist_selection_effective": False,
+            "stages": [],
+            "STAGE3_PHASEC_START_POLICY": "source_order",
+            "STAGE35_ENABLED": True,
+            "STAGE35_BASELINE_SELECTOR": "score_plus_novelty",
+            "STAGE35_CFG": {},
+        },
+        stage3_runtime_call_ctx=SimpleNamespace(
+            alphabet_size=3,
+            batch_eval_chunk_size=64,
+            require_batch_scoring=True,
+        ),
+        stage3_two_phase_enabled=True,
+        stage3_continue_after_solve=False,
+        stage3_phasea_cfg_default={},
+        stage3_phaseb_cfg_default={},
+        stage3_phaseb_top_n_default=8,
+        stage3_phaseb_gate_delta_floor_default=0.01,
+        stage3_phaseb_gate_end_gain_floor_default=0.01,
+        solver_stage3_default_cfg={},
+        stage3_span_basin_judge_k=8,
+        tier_heartbeat_seconds=30.0,
+        solve_match_threshold=0.95,
+        stall_delta=1e-6,
+        stall_stage_limit=2,
+        evaluate_stage3_entry_policy_fn=lambda **kwargs: {
+            "policy_branch": "continue",
+            "stage3_band_name": "test",
+            "stage3_scan_phaseA_only": False,
+        },
+        prepare_stage3_refine_inputs_fn=lambda **kwargs: {
+            "c1_focus_enabled": False,
+            "init3_n": 1,
+            "init3": [[7, 3, 14, 14, 14, 2, 11]],
+            "promoted_keys": [],
+            "stage3_promoted_keys_count": 0,
+            "stage3_period_init_mult": 1.0,
+            "stage3_period_step_mult": 1.0,
+            "stage3_period_restart_bonus": 0,
+            "stage2_gap_to_oracle": 0.0,
+            "stage2_gate_score": 0.19,
+            "stage2_gate_source": "test",
+            "promoted_best_match": 0.039,
+            "oracle_used_for_stage3_band": False,
+            "stage3_band_name": "test",
+            "stage3_phaseA_cfg": {},
+            "stage3_phaseB_cfg": {},
+            "stage3_phaseB_top_n": 8,
+            "stage3_phaseB_gate_delta": 0.01,
+            "stage3_phaseB_gate_end_gain": 0.01,
+            "solver_stage3_cfg": {},
+        },
+        summarize_stage3_span_fn=lambda **kwargs: {
+            "span_eval_total": 0.0,
+            "span_eval_active": 0.0,
+            "span_eval_skipped": 0.0,
+            "span_seconds_total": 0.0,
+            "span_seconds_active": 0.0,
+            "span_active_rate": 0.0,
+            "span_active_rate_source": "test",
+        },
+        mark_oracle_decision_use_fn=lambda: None,
+        print_stage_preview_fn=lambda **kwargs: None,
+        fmt_finite_float_fn=lambda v, digits=3: f"{float(v):.{int(digits)}f}"
+        if np.isfinite(v)
+        else "nan",
+    )
+
+    assert str(captured["baseline_selector"]) == "score_plus_novelty"
+    assert str(captured["baseline_summary_row"]["candidate_hash"]) == "9002ee09917e5a0d"
+    assert str(captured["phasec_score_winner_summary_row"]["candidate_hash"]) == "73eee2bf84b7c07f"
+    assert list(captured["baseline_key"]) == [9, 1, 12, 4, 5, 6, 11]
 
 
 def test_stage35_live_followup_ignores_oracle_match_fields_in_seed_selection() -> None:

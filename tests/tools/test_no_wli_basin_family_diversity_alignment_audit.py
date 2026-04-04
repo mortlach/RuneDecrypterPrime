@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.benchmarks.periodic_sub_trans.no_wli import (
+from tools.benchmarks.periodic_sub_trans.no_wli.analysis import (
     audit_basin_family_diversity_alignment as audit_mod,
 )
 

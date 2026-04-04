@@ -390,6 +390,7 @@ def test_run_stage35_from_selected_trial_row_uses_selected_baseline(
             "final_plaintext_idx": [0, 1, 2, 0, 1, 2],
             "replay_material_complete": 1,
         },
+        output_dir=tmp_path / "bounded_case",
     )
 
     assert out["mode"] == "selected_stage3_to_stage35"
@@ -399,6 +400,69 @@ def test_run_stage35_from_selected_trial_row_uses_selected_baseline(
     assert out["stage35"]["accept_reason"] == "accepted"
     assert captured["baseline_key"] == [0, 1, 2, 0, 1, 2, 0]
     assert captured["baseline_plaintext_idx"] == [0, 1, 2, 0, 1, 2]
+    assert str(captured["baseline_selector"]) == "score_plus_novelty"
+    assert str(captured["baseline_summary_row"]["candidate_hash"]) == "trial-hash"
+    assert str(captured["phasec_score_winner_summary_row"]["candidate_hash"]) == "h1"
+    assert str(captured["partial_state_path"]).replace("\\", "/").endswith(
+        "bounded_case/stage35_partial_state.json"
+    )
+    assert str(captured["progress_jsonl_path"]).replace("\\", "/").endswith(
+        "bounded_case/stage35_progress.jsonl"
+    )
+    assert callable(captured["append_jsonl_row_fn"])
+    assert str(out["output_dir_relpath"]).replace("\\", "/").endswith("bounded_case")
+    assert str(out["stage35_partial_state_relpath"]).replace("\\", "/").endswith(
+        "bounded_case/stage35_partial_state.json"
+    )
+    assert str(out["stage35_progress_jsonl_relpath"]).replace("\\", "/").endswith(
+        "bounded_case/stage35_progress.jsonl"
+    )
+
+
+def test_write_resume_bundle_writes_selected_stage35_selected_row_summary(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "selected_stage35_bundle"
+    payload = {
+        "mode": "selected_stage3_to_stage35",
+        "selector": "score_plus_novelty",
+        "fixture_id": "demo_fixture",
+        "fixture_label": "candidate",
+        "selected_candidate_hash": "trial-hash",
+        "selected_candidate_source": "phaseA_selected",
+        "selected_candidate_lane": "challenger",
+        "selected_candidate_final_score": 0.172845,
+        "selected_candidate_final_match": 0.418,
+        "replay_material_complete": 1,
+        "stage35_partial_state_relpath": (
+            "output/tools/benchmarks/periodic_sub_trans/no_wli/"
+            "stage35_replay_bounded_baseline/mock/cases/candidate__score_plus_novelty/"
+            "stage35_partial_state.json"
+        ),
+        "stage35_progress_jsonl_relpath": (
+            "output/tools/benchmarks/periodic_sub_trans/no_wli/"
+            "stage35_replay_bounded_baseline/mock/cases/candidate__score_plus_novelty/"
+            "stage35_progress.jsonl"
+        ),
+        "stage35": {
+            "archive_rows": [{"candidate_hash": "best-hash"}],
+            "seed_rows_scored": [{"candidate_hash": "seed-hash"}],
+        },
+    }
+
+    resume_mod.write_resume_bundle(payload, output_dir=output_dir)
+
+    selected_summary = json.loads(
+        (output_dir / "selected_trial_row_summary.json").read_text(encoding="utf-8")
+    )
+    assert selected_summary["selector"] == "score_plus_novelty"
+    assert selected_summary["selected_candidate_hash"] == "trial-hash"
+    assert str(selected_summary["stage35_partial_state_relpath"]).endswith(
+        "stage35_partial_state.json"
+    )
+    assert str(selected_summary["stage35_progress_jsonl_relpath"]).endswith(
+        "stage35_progress.jsonl"
+    )
 
 
 def test_run_stage3_resume_from_artifact_calls_stage3_flow_with_reconstructed_handoff(
@@ -879,6 +943,12 @@ def test_build_stage3_word_ngram_report_runtime_resolves_repo_relative_paths(
                 "span_hamming_enabled": True,
                 "span_hamming_mode": "calibrated",
                 "span_hamming_assets_dir": "assets/scoring/span_hamming_nose_assets_v1",
+                "span_hamming_char_pct_min": 0.7,
+                "span_hamming_gate_fail_policy": "char_only",
+            },
+            "span_basin_judge": {
+                "disable_char_pct_gate": True,
+                "gate_fail_policy": "score_floor",
             },
             "word_ngram_report": {
                 "enabled": True,
@@ -899,3 +969,5 @@ def test_build_stage3_word_ngram_report_runtime_resolves_repo_relative_paths(
     assert out == "word_ngram_runtime"
     assert str(captured["scoring_cfg"].span_hamming_assets_dir) == str(expected_assets)
     assert str(captured["scoring_cfg"].word_ngram_judge_sqlite_path) == str(expected_sqlite)
+    assert captured["scoring_cfg"].span_hamming_char_pct_min is None
+    assert str(captured["scoring_cfg"].span_hamming_gate_fail_policy) == "score_floor"

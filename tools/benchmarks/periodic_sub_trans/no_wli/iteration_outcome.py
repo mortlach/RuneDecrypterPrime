@@ -283,6 +283,7 @@ def build_stage3_diagnostics(
     phaseC_candidate_pool_count: int = 0,
     phaseC_candidate_pool_unique_keys: int = 0,
     phaseC_candidate_pool_unique_end_hash: int = 0,
+    phaseC_candidate_pool_rows: Sequence[Mapping[str, Any]] | None = None,
     phaseC_candidate_pool_source_counts: Mapping[str, Any] | None = None,
     phaseC_novel_view_id: str = "",
     phaseC_anchor_candidate_hash: str = "",
@@ -317,11 +318,33 @@ def build_stage3_diagnostics(
     stage35_rounds_completed: int = 0,
     stage35_evals: int = 0,
     stage35_runtime_seconds: float = 0.0,
+    stage35_outcome_status: str = "",
+    stage35_outcome_reason: str = "",
+    stage35_completed: int = 0,
+    stage35_capped: int = 0,
+    stage35_partial_state_name: str = "",
+    stage35_progress_jsonl_name: str = "",
+    stage35_progress_event_count: int = 0,
+    stage35_partial_dump_write_count: int = 0,
+    stage35_telemetry_summary: Mapping[str, Any] | None = None,
     stage35_archive_unique_keys: int = 0,
     stage35_archive_unique_seed_sources: int = 0,
     stage35_archive_unique_target_slices: int = 0,
     stage35_archive_mean_substitution_hamming: float = 0.0,
     stage35_archive_max_substitution_hamming: int = 0,
+    stage35_baseline_selector: str = "legacy",
+    stage35_phasec_score_winner_candidate_hash: str = "",
+    stage35_phasec_score_winner_candidate_source: str = "",
+    stage35_phasec_score_winner_candidate_lane: str = "",
+    stage35_phasec_score_winner_candidate_final_score: float = float("nan"),
+    stage35_phasec_score_winner_candidate_final_match: float = float("nan"),
+    stage35_baseline_candidate_hash: str = "",
+    stage35_baseline_candidate_source: str = "",
+    stage35_baseline_candidate_lane: str = "",
+    stage35_baseline_candidate_source_rank: int = 0,
+    stage35_baseline_candidate_final_score: float = float("nan"),
+    stage35_baseline_candidate_final_match: float = float("nan"),
+    stage35_baseline_differs_from_phasec_score_winner: int = 0,
     stage35_baseline_search_score: float = float("nan"),
     stage35_accept_score_min_gain_cfg: float = 0.0,
     stage35_accept_search_score_max_drop_cfg: float = 0.0,
@@ -340,6 +363,9 @@ def build_stage3_diagnostics(
     stage35_best_depth: int = 0,
     stage35_best_move_type: str = "",
     stage35_best_candidate_hash: str = "",
+    stage35_best_match: float = float("nan"),
+    stage35_truth_gain_vs_selected_row: float = float("nan"),
+    stage35_truth_gain_vs_phasec_score_winner: float = float("nan"),
 ) -> Dict[str, Any]:
     out = dict(
         phaseA_experiment=str(phaseA_experiment),
@@ -476,6 +502,9 @@ def build_stage3_diagnostics(
         phaseC_candidate_pool_count=int(phaseC_candidate_pool_count),
         phaseC_candidate_pool_unique_keys=int(phaseC_candidate_pool_unique_keys),
         phaseC_candidate_pool_unique_end_hash=int(phaseC_candidate_pool_unique_end_hash),
+        phaseC_candidate_pool_rows=[
+            dict(row) for row in list(phaseC_candidate_pool_rows or [])
+        ],
         phaseC_candidate_pool_source_counts=dict(phaseC_candidate_pool_source_counts or {}),
         phaseC_novel_view_id=str(phaseC_novel_view_id),
         phaseC_anchor_candidate_hash=str(phaseC_anchor_candidate_hash),
@@ -526,6 +555,15 @@ def build_stage3_diagnostics(
         stage35_rounds_completed=int(stage35_rounds_completed),
         stage35_evals=int(stage35_evals),
         stage35_runtime_seconds=float(stage35_runtime_seconds),
+        stage35_outcome_status=str(stage35_outcome_status),
+        stage35_outcome_reason=str(stage35_outcome_reason),
+        stage35_completed=int(stage35_completed),
+        stage35_capped=int(stage35_capped),
+        stage35_partial_state_name=str(stage35_partial_state_name),
+        stage35_progress_jsonl_name=str(stage35_progress_jsonl_name),
+        stage35_progress_event_count=int(stage35_progress_event_count),
+        stage35_partial_dump_write_count=int(stage35_partial_dump_write_count),
+        stage35_telemetry_summary=dict(stage35_telemetry_summary or {}),
         stage35_archive_unique_keys=int(stage35_archive_unique_keys),
         stage35_archive_unique_seed_sources=int(
             stage35_archive_unique_seed_sources
@@ -538,6 +576,37 @@ def build_stage3_diagnostics(
         ),
         stage35_archive_max_substitution_hamming=int(
             stage35_archive_max_substitution_hamming
+        ),
+        stage35_baseline_selector=str(stage35_baseline_selector),
+        stage35_phasec_score_winner_candidate_hash=str(
+            stage35_phasec_score_winner_candidate_hash
+        ),
+        stage35_phasec_score_winner_candidate_source=str(
+            stage35_phasec_score_winner_candidate_source
+        ),
+        stage35_phasec_score_winner_candidate_lane=str(
+            stage35_phasec_score_winner_candidate_lane
+        ),
+        stage35_phasec_score_winner_candidate_final_score=float(
+            stage35_phasec_score_winner_candidate_final_score
+        ),
+        stage35_phasec_score_winner_candidate_final_match=float(
+            stage35_phasec_score_winner_candidate_final_match
+        ),
+        stage35_baseline_candidate_hash=str(stage35_baseline_candidate_hash),
+        stage35_baseline_candidate_source=str(stage35_baseline_candidate_source),
+        stage35_baseline_candidate_lane=str(stage35_baseline_candidate_lane),
+        stage35_baseline_candidate_source_rank=int(
+            stage35_baseline_candidate_source_rank
+        ),
+        stage35_baseline_candidate_final_score=float(
+            stage35_baseline_candidate_final_score
+        ),
+        stage35_baseline_candidate_final_match=float(
+            stage35_baseline_candidate_final_match
+        ),
+        stage35_baseline_differs_from_phasec_score_winner=int(
+            stage35_baseline_differs_from_phasec_score_winner
         ),
         stage35_baseline_search_score=float(stage35_baseline_search_score),
         stage35_accept_score_min_gain_cfg=float(stage35_accept_score_min_gain_cfg),
@@ -565,6 +634,11 @@ def build_stage3_diagnostics(
         stage35_best_depth=int(stage35_best_depth),
         stage35_best_move_type=str(stage35_best_move_type),
         stage35_best_candidate_hash=str(stage35_best_candidate_hash),
+        stage35_best_match=float(stage35_best_match),
+        stage35_truth_gain_vs_selected_row=float(stage35_truth_gain_vs_selected_row),
+        stage35_truth_gain_vs_phasec_score_winner=float(
+            stage35_truth_gain_vs_phasec_score_winner
+        ),
     )
     out.update(
         build_phasec_truth_reporting(

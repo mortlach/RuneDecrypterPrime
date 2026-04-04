@@ -20,6 +20,10 @@ Benchmark runners, fixtures, solve-proof logs, and community harness tools.
 - `python tools/benchmarks/zip_src_nobloat.py`
   - Creates a lightweight zip of `src/` preserving structure while excluding noise:
     `data/`, `__pycache__/`, compiled extension artifacts, and large split/binary blobs.
+- `python tools/get_src_extended_review_bundle.py`
+  - Creates a reviewer bundle with source, benchmark pipeline code,
+    `planning/working/`, and No-WLI output artifacts, while excluding caches,
+    large binary blobs, and old nested review-pack folders.
 - `python tools/benchmarks/tidy_output_root.py`
   - Moves loose root-level timestamped benchmark output folders into canonical output homes,
     writes `output/tools/benchmarks/root_tidy_manifest.json`, and updates

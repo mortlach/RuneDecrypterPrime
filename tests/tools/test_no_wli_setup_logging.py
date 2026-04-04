@@ -12,3 +12,4 @@ def test_emit_setup_logging_accepts_phasec_fields() -> None:
     assert "stage3_phasec_start_keys" in params
     assert "stage3_phasec_seed_offset" in params
     assert "stage3_phasec_word_ngram_tiebreak" in params
+    assert "stage35_baseline_selector" in params

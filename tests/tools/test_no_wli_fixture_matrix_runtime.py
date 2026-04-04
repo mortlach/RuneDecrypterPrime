@@ -8,6 +8,12 @@ import pytest
 
 from tools.benchmarks.community._campaign_common import load_json
 from tools.benchmarks.periodic_sub_trans.no_wli import fixture_matrix_api as fixture_api
+from tools.benchmarks.periodic_sub_trans.no_wli import (
+    fixture_matrix_config as fixture_matrix_config_mod,
+)
+from tools.benchmarks.periodic_sub_trans.no_wli import (
+    fixture_matrix_mainflow as fixture_mainflow_mod,
+)
 from tools.benchmarks.periodic_sub_trans.no_wli import run_fixture_matrix as run_matrix_mod
 from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_jobs import apply_job
 from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_runtime import (
@@ -80,7 +86,10 @@ def test_runtime_emits_span_ab_pair_delta_event(tmp_path: Path) -> None:
     assert isinstance(delta["delta_elapsed_seconds"], float)
 
 
-def test_current_fixture_matrix_config_materializes_two_job_seed411_novel_start_compare() -> None:
+def test_current_fixture_matrix_config_materializes_expected_seed411_stage35_selector_lane_set() -> None:
+    compare_mode = str(
+        fixture_matrix_config_mod.STAGE35_BASELINE_SELECTOR_COMPARE_MODE
+    )
     repo_root = Path.cwd()
     campaign_path = run_matrix_mod._resolve_path(
         path_like=run_matrix_mod.CAMPAIGN_CONFIG_PATH,
@@ -122,13 +131,117 @@ def test_current_fixture_matrix_config_materializes_two_job_seed411_novel_start_
     if run_matrix_mod.MAX_JOBS is not None:
         jobs = jobs[: max(0, int(run_matrix_mod.MAX_JOBS))]
 
-    assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (411,)
-    assert int(run_matrix_mod.MAX_JOBS) == 2
-    assert [int(job.run_seed) for job in jobs] == [411, 411]
-    assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
-        "stage3_phaseb_width_probe_p9",
-        "stage3_phasec_novel_challenger_p9",
-    ]
+    if compare_mode == "candidate_ladder_small":
+        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (611, 711)
+        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (5, 9)
+        assert {
+            int(period): tuple(int(c) for c in columns)
+            for period, columns in dict(
+                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
+            ).items()
+        } == {
+            5: (1,),
+            9: (1, 3),
+        }
+        assert int(run_matrix_mod.MAX_JOBS) == 6
+    elif compare_mode == "candidate_family_overnight":
+        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (411, 611)
+        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (7, 9)
+        assert {
+            int(period): tuple(int(c) for c in columns)
+            for period, columns in dict(
+                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
+            ).items()
+        } == {
+            7: (1,),
+            9: (3,),
+        }
+        assert int(run_matrix_mod.MAX_JOBS) == 4
+    elif compare_mode == "candidate_single_p5":
+        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (511,)
+        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (5,)
+        assert {
+            int(period): tuple(int(c) for c in columns)
+            for period, columns in dict(
+                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
+            ).items()
+        } == {
+            5: (1,),
+        }
+        assert int(run_matrix_mod.MAX_JOBS) == 1
+    elif compare_mode == "candidate_single_p7":
+        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (411,)
+        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (7,)
+        assert {
+            int(period): tuple(int(c) for c in columns)
+            for period, columns in dict(
+                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
+            ).items()
+        } == {
+            7: (1,),
+        }
+        assert int(run_matrix_mod.MAX_JOBS) == 1
+    else:
+        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (411,)
+        assert int(run_matrix_mod.MAX_JOBS) in {1, 2}
+        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
+        assert {
+            int(period): tuple(int(c) for c in columns)
+            for period, columns in dict(
+                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
+            ).items()
+        } == {
+            9: (3,),
+        }
+    preset_ids = tuple(str(x) for x in run_matrix_mod.STAGE3_TUNING_PRESET_IDS)
+    assert preset_ids in {
+        (
+            "stage35_baseline_legacy_canary_p9",
+            "stage35_baseline_score_plus_novelty_canary_p9",
+        ),
+        (
+            "stage35_baseline_legacy_live_p9",
+            "stage35_baseline_score_plus_novelty_live_p9",
+        ),
+        ("stage35_baseline_score_plus_novelty_live_p9",),
+        ("stage35_baseline_score_plus_novelty_live_bounded_p9",),
+    }
+    if compare_mode == "candidate_ladder_small":
+        assert len(jobs) == 6
+        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
+            "stage35_baseline_score_plus_novelty_live_bounded_p9",
+        ] * 6
+        assert [int(job.period) for job in jobs] == [5, 5, 9, 9, 9, 9]
+        assert [int(job.columns) for job in jobs] == [1, 1, 1, 1, 3, 3]
+        assert [int(job.run_seed) for job in jobs] == [611, 711, 611, 711, 611, 711]
+    elif compare_mode == "candidate_family_overnight":
+        assert len(jobs) == 4
+        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
+            "stage35_baseline_score_plus_novelty_live_bounded_p9",
+        ] * 4
+        assert [int(job.period) for job in jobs] == [7, 7, 9, 9]
+        assert [int(job.columns) for job in jobs] == [1, 1, 3, 3]
+        assert [int(job.run_seed) for job in jobs] == [411, 611, 411, 611]
+    elif compare_mode == "candidate_single_p5":
+        assert len(jobs) == 1
+        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
+            "stage35_baseline_score_plus_novelty_live_bounded_p9",
+        ]
+        assert [int(job.period) for job in jobs] == [5]
+        assert [int(job.columns) for job in jobs] == [1]
+        assert [int(job.run_seed) for job in jobs] == [511]
+    elif compare_mode == "candidate_single_p7":
+        assert len(jobs) == 1
+        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
+            "stage35_baseline_score_plus_novelty_live_bounded_p9",
+        ]
+        assert [int(job.period) for job in jobs] == [7]
+        assert [int(job.columns) for job in jobs] == [1]
+        assert [int(job.run_seed) for job in jobs] == [411]
+    else:
+        expected_presets = list(preset_ids)
+        assert [int(job.run_seed) for job in jobs] == [411] * len(expected_presets)
+        assert [str(job.stage3_tuning_preset_id) for job in jobs] == expected_presets
 
 
 def test_current_fixture_matrix_control_files_are_derived_from_experiment_id() -> None:
@@ -138,9 +251,55 @@ def test_current_fixture_matrix_control_files_are_derived_from_experiment_id() -
     assert run_matrix_mod.RUN_EVENTS_PATH == run_matrix_mod.MATRIX_CONTROL_FILES.run_events_path
     assert run_matrix_mod.PLAN_OUTPUT_PATH == run_matrix_mod.MATRIX_CONTROL_FILES.plan_output_path
     assert experiment_run_id.startswith("tune_v")
-    assert "seed411" in experiment_run_id
-    assert "novel_start" in experiment_run_id
-    assert "2job" in experiment_run_id
+    assert "stage35_baseline_selector" in experiment_run_id
+    preset_ids = tuple(str(x) for x in run_matrix_mod.STAGE3_TUNING_PRESET_IDS)
+    compare_mode = str(
+        fixture_matrix_config_mod.STAGE35_BASELINE_SELECTOR_COMPARE_MODE
+    )
+    if compare_mode == "candidate_ladder_small":
+        assert "ladder_small" in experiment_run_id
+        assert "6job" in experiment_run_id
+        assert "candidate_live_bounded" in experiment_run_id
+    elif compare_mode == "candidate_family_overnight":
+        assert "family_overnight" in experiment_run_id
+        assert "seed411_611" in experiment_run_id
+        assert "4job" in experiment_run_id
+        assert "candidate_live_bounded" in experiment_run_id
+    elif compare_mode == "candidate_single_p5":
+        assert "p5c1" in experiment_run_id
+        assert "seed511" in experiment_run_id
+        assert "1job" in experiment_run_id
+        assert "candidate_live_bounded" in experiment_run_id
+    elif compare_mode == "candidate_single_p7":
+        assert "p7c1" in experiment_run_id
+        assert "seed411" in experiment_run_id
+        assert "1job" in experiment_run_id
+        assert "candidate_live_bounded" in experiment_run_id
+    else:
+        assert "seed411" in experiment_run_id
+    if compare_mode == "candidate_ladder_small":
+        assert preset_ids == ("stage35_baseline_score_plus_novelty_live_bounded_p9",)
+    elif compare_mode == "candidate_family_overnight":
+        assert preset_ids == ("stage35_baseline_score_plus_novelty_live_bounded_p9",)
+    elif compare_mode == "candidate_single_p5":
+        assert preset_ids == ("stage35_baseline_score_plus_novelty_live_bounded_p9",)
+    elif compare_mode == "candidate_single_p7":
+        assert preset_ids == ("stage35_baseline_score_plus_novelty_live_bounded_p9",)
+    elif preset_ids == (
+        "stage35_baseline_legacy_canary_p9",
+        "stage35_baseline_score_plus_novelty_canary_p9",
+    ):
+        assert "2job" in experiment_run_id
+        assert "canary" in experiment_run_id
+    elif preset_ids in {
+        ("stage35_baseline_score_plus_novelty_live_p9",),
+        ("stage35_baseline_score_plus_novelty_live_bounded_p9",),
+    }:
+        assert "1job" in experiment_run_id
+        assert "candidate_live" in experiment_run_id
+    else:
+        assert "2job" in experiment_run_id
+        assert "live_compare" in experiment_run_id
 
 
 def test_build_matrix_mainflow_state_is_narrow_and_explicit() -> None:
@@ -154,11 +313,38 @@ def test_build_matrix_mainflow_state_is_narrow_and_explicit() -> None:
     assert state["RUN_STATE_PATH"] == run_matrix_mod.RUN_STATE_PATH
     assert state["RUN_EVENTS_PATH"] == run_matrix_mod.RUN_EVENTS_PATH
     assert state["PLAN_OUTPUT_PATH"] == run_matrix_mod.PLAN_OUTPUT_PATH
-    assert tuple(int(x) for x in state["RUN_SEEDS"]) == (411,)
-    assert tuple(str(x) for x in state["STAGE3_TUNING_PRESET_IDS"]) == (
-        "stage3_phaseb_width_probe_p9",
-        "stage3_phasec_novel_challenger_p9",
+    compare_mode = str(
+        fixture_matrix_config_mod.STAGE35_BASELINE_SELECTOR_COMPARE_MODE
     )
+    if compare_mode == "candidate_ladder_small":
+        assert tuple(int(x) for x in state["RUN_SEEDS"]) == (611, 711)
+    elif compare_mode == "candidate_family_overnight":
+        assert tuple(int(x) for x in state["RUN_SEEDS"]) == (411, 611)
+    elif compare_mode == "candidate_single_p5":
+        assert tuple(int(x) for x in state["RUN_SEEDS"]) == (511,)
+    elif compare_mode == "candidate_single_p7":
+        assert tuple(int(x) for x in state["RUN_SEEDS"]) == (411,)
+    else:
+        assert tuple(int(x) for x in state["RUN_SEEDS"]) == (411,)
+    expected_presets = tuple(str(x) for x in run_matrix_mod.STAGE3_TUNING_PRESET_IDS)
+    assert tuple(str(x) for x in state["STAGE3_TUNING_PRESET_IDS"]) == expected_presets
+    if compare_mode == "candidate_single_p5":
+        assert tuple(int(x) for x in state["PERIODS_OVERRIDE"] or ()) == (5,)
+    elif compare_mode == "candidate_single_p7":
+        assert tuple(int(x) for x in state["PERIODS_OVERRIDE"] or ()) == (7,)
+    elif compare_mode == "candidate_family_overnight":
+        assert tuple(int(x) for x in state["PERIODS_OVERRIDE"] or ()) == (7, 9)
+
+
+def test_fixture_matrix_run_state_campaign_config_path_is_repo_relative() -> None:
+    repo_root = Path.cwd()
+    rel_path = fixture_mainflow_mod._repo_relative_path_str(
+        path=repo_root / "tools/benchmarks/community/examples/campaign_config_v1_1.json",
+        repo_root=repo_root,
+    )
+
+    assert rel_path == "tools/benchmarks/community/examples/campaign_config_v1_1.json"
+    assert not Path(rel_path).is_absolute()
 
 
 def test_apply_job_sets_span_decision_role_controls() -> None:
@@ -356,6 +542,102 @@ def test_apply_job_sets_stage3_phasec_start_policy_override() -> None:
     assert str(no_wli.STAGE3_PHASEC_START_POLICY) == "balanced_sources_v1"
 
 
+def test_apply_job_sets_stage35_baseline_selector_override() -> None:
+    calls: list[dict[str, object]] = []
+    no_wli = SimpleNamespace(
+        RUN_STAGE3_SPAN_BASIN_K_SWEEP=True,
+        STAGE3_SPAN_BASIN_K_SWEEP_VALUES=[96],
+        STAGE3_SPAN_BASIN_JUDGE_K=96,
+        SPAN_DECISION_ROLE_ENABLED=False,
+        STAGE3_SPAN_AUX_ROLE="off",
+        SCORING_EXPERIMENT_PROFILE="off",
+        STAGE35_BASELINE_SELECTOR="legacy",
+    )
+    no_wli.configure_campaign_run = lambda **kwargs: calls.append(dict(kwargs))
+    job = SimpleNamespace(
+        run_seed=411,
+        period=9,
+        columns=3,
+        length=1000,
+        run_mode="adaptive_fixture_v1",
+        profile_id="no_wli_a1_m12_b34_stage3avg_fulltext_v1",
+        heartbeat_seconds=180,
+        text_offsets=(0,),
+        scorer_impl="torch",
+        scorer_stage3_impl_avg_fulltext="torch",
+        scoring_experiment_profile="c_min_late",
+        span_ab_case_id="none",
+        span_decision_role_enabled=False,
+        tier_name=lambda: "fixture_fixture_001_p9_c3_l1000",
+        scorer_schedule=lambda: {
+            "early": "a_char1_avg_fulltext",
+            "middle": "m_char12_avg_fulltext",
+            "late": "b_char4_avg_fulltext",
+        },
+    )
+    apply_job(
+        job=job,
+        no_wli=no_wli,
+        disable_stage3_span_basin_k_sweep=False,
+        stage3_span_basin_k_sweep_values=(64,),
+        force_stage35_baseline_selector="score_plus_novelty",
+    )
+    assert calls, "configure_campaign_run should be called"
+    assert str(no_wli.STAGE35_BASELINE_SELECTOR) == "score_plus_novelty"
+
+
+def test_apply_job_preserves_stage35_runtime_cap_as_float() -> None:
+    calls: list[dict[str, object]] = []
+    no_wli = SimpleNamespace(
+        RUN_STAGE3_SPAN_BASIN_K_SWEEP=True,
+        STAGE3_SPAN_BASIN_K_SWEEP_VALUES=[96],
+        STAGE3_SPAN_BASIN_JUDGE_K=96,
+        SPAN_DECISION_ROLE_ENABLED=False,
+        STAGE3_SPAN_AUX_ROLE="off",
+        SCORING_EXPERIMENT_PROFILE="off",
+        STAGE35_CFG={},
+    )
+    no_wli.configure_campaign_run = lambda **kwargs: calls.append(dict(kwargs))
+    job = SimpleNamespace(
+        run_seed=411,
+        period=9,
+        columns=3,
+        length=1000,
+        run_mode="adaptive_fixture_v1",
+        profile_id="no_wli_a1_m12_b34_stage3avg_fulltext_v1",
+        heartbeat_seconds=180,
+        text_offsets=(0,),
+        scorer_impl="torch",
+        scorer_stage3_impl_avg_fulltext="torch",
+        scoring_experiment_profile="c_min_late",
+        span_ab_case_id="none",
+        span_decision_role_enabled=False,
+        tier_name=lambda: "fixture_fixture_001_p9_c3_l1000",
+        scorer_schedule=lambda: {
+            "early": "a_char1_avg_fulltext",
+            "middle": "m_char12_avg_fulltext",
+            "late": "b_char4_avg_fulltext",
+        },
+    )
+    apply_job(
+        job=job,
+        no_wli=no_wli,
+        disable_stage3_span_basin_k_sweep=False,
+        stage3_span_basin_k_sweep_values=(64,),
+        force_stage35_cfg={
+            "seed_keep": 2,
+            "beam_width": 1,
+            "max_runtime_seconds": 12.5,
+        },
+    )
+    assert calls, "configure_campaign_run should be called"
+    assert dict(no_wli.STAGE35_CFG) == {
+        "seed_keep": 2,
+        "beam_width": 1,
+        "max_runtime_seconds": pytest.approx(12.5),
+    }
+
+
 def test_apply_job_sets_stage3_phaseb_family_preservation_override() -> None:
     calls: list[dict[str, object]] = []
     no_wli = SimpleNamespace(
@@ -523,6 +805,82 @@ def test_fixture_matrix_api_forwards_stage35_proof_overrides(
         "mini_search_top_symbols": 10,
         "mini_search_final_keep": 2,
         "mini_search_keep_all_rows": 1,
+        "accept_score_min_gain": 0,
+        "accept_search_score_max_drop": 0,
+    }
+
+
+def test_fixture_matrix_api_forwards_stage35_baseline_selector_compare_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_apply_job_impl(**kwargs) -> None:
+        captured.update(kwargs)
+
+    monkeypatch.setattr(fixture_api, "_apply_job_impl", _fake_apply_job_impl)
+
+    job = SimpleNamespace(
+        fixture_id="fixture_001",
+        period=9,
+        columns=3,
+        length=1000,
+        run_seed=411,
+        run_mode="adaptive_fixture_v1",
+        profile_id="no_wli_a1_m12_b34_stage3avg_fulltext_v1",
+        heartbeat_seconds=180,
+        text_offsets=(0,),
+        scorer_impl="torch",
+        scorer_stage3_impl_avg_fulltext="torch",
+        scoring_experiment_profile="c_min_late",
+        schedule_early="a_char1_avg_fulltext",
+        schedule_middle="m_char12_avg_fulltext",
+        schedule_late="b_char4_avg_fulltext",
+        stage3_tuning_preset_id="stage35_baseline_score_plus_novelty_canary_p9",
+        span_ab_case_id="none",
+        span_decision_role_enabled=False,
+        tier_name=lambda: "fixture_fixture_001_p9_c3_l1000",
+        scorer_schedule=lambda: {
+            "early": "a_char1_avg_fulltext",
+            "middle": "m_char12_avg_fulltext",
+            "late": "b_char4_avg_fulltext",
+        },
+    )
+
+    overrides = fixture_api._resolve_stage3_tuning_overrides_for_job(job)
+    assert int(overrides["force_stage3_phaseb_top_n"]) == 16
+    assert int(overrides["force_stage3_phasec_start_keys"]) == 4
+    assert bool(overrides["force_stage35_enabled"]) is True
+    assert str(overrides["force_stage35_baseline_selector"]) == "score_plus_novelty"
+    assert dict(overrides["force_stage35_cfg"]) == {
+        "seed_keep": 2,
+        "beam_width": 2,
+        "archive_keep": 6,
+        "rounds": 1,
+        "mini_search_steps": 1,
+        "mini_search_beam_width": 2,
+        "mini_search_top_symbols": 6,
+        "mini_search_final_keep": 1,
+        "mini_search_keep_all_rows": 0,
+        "accept_score_min_gain": 0,
+        "accept_search_score_max_drop": 0,
+    }
+
+    fixture_api.apply_job(job)
+
+    assert int(captured["force_stage3_phaseb_top_n"]) == 16
+    assert bool(captured["force_stage35_enabled"]) is True
+    assert str(captured["force_stage35_baseline_selector"]) == "score_plus_novelty"
+    assert dict(captured["force_stage35_cfg"]) == {
+        "seed_keep": 2,
+        "beam_width": 2,
+        "archive_keep": 6,
+        "rounds": 1,
+        "mini_search_steps": 1,
+        "mini_search_beam_width": 2,
+        "mini_search_top_symbols": 6,
+        "mini_search_final_keep": 1,
+        "mini_search_keep_all_rows": 0,
         "accept_score_min_gain": 0,
         "accept_search_score_max_drop": 0,
     }

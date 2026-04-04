@@ -5,15 +5,15 @@ Runner for periodic substitution + transposition benchmarking without WLI featur
 ## Entrypoints
 
 - `runner.py`: main no-WLI pipeline runner.
-- `run_focus_p5_c1_c5.py`: focused launcher (`period=5`, `columns=1..5`).
-- `run_focus_p5_c1_c5_a34.py`: focused launcher (`period=5`, `columns=1..5`, `A34->M34->B34`).
+- `runs/run_focus_p5_c1_c5.py`: focused launcher (`period=5`, `columns=1..5`).
+- `runs/run_focus_p5_c1_c5_a34.py`: focused launcher (`period=5`, `columns=1..5`, `A34->M34->B34`).
 - `run_fixture_matrix.py`: internal fixture-matrix launcher using community-style fixture config (no public campaign schema changes).
 
 Examples:
 
 - `python tools/benchmarks/bench_solve_periodic_columnar_pipeline_no_wli.py`
-- `python tools/benchmarks/periodic_sub_trans/no_wli/run_focus_p5_c1_c5.py`
-- `python tools/benchmarks/periodic_sub_trans/no_wli/run_focus_p5_c1_c5_a34.py`
+- `python tools/benchmarks/periodic_sub_trans/no_wli/runs/run_focus_p5_c1_c5.py`
+- `python tools/benchmarks/periodic_sub_trans/no_wli/runs/run_focus_p5_c1_c5_a34.py`
 - `python tools/benchmarks/periodic_sub_trans/no_wli/run_fixture_matrix.py`
 
 Campaign scope note:
@@ -21,15 +21,26 @@ Campaign scope note:
 
 Legacy snapshots:
 - Historical runner snapshots are kept under `tools/benchmarks/periodic_sub_trans/no_wli/old/`.
-- Active implementation surface is the top-level `no_wli/*.py` modules only.
+- The stale nested package-local output archive was removed because its
+  mirrored `tools/benchmarks/...` subpaths caused Windows path-length failures
+  in Git tooling.
+- Active generated artifacts belong under
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/`; package-local
+  `tools/benchmarks/periodic_sub_trans/no_wli/output/` and
+  `tools/benchmarks/periodic_sub_trans/no_wli/old/output_legacy_nested/` are
+  intentionally ignored.
+- Active implementation surface is split into:
+  - top-level `no_wli/*.py` solver/runtime modules
+  - `no_wli/analysis/*.py` audit/export/profile tooling
+  - `no_wli/runs/*.py` standalone launchers/harnesses
 
 ## Operator Model (Hardcoded Knobs)
 
 No-WLI launchers use hardcoded constants (not CLI args). Change knobs in file:
 
 - `tools/benchmarks/periodic_sub_trans/no_wli/runner.py`
-- `tools/benchmarks/periodic_sub_trans/no_wli/run_focus_p5_c1_c5.py`
-- `tools/benchmarks/periodic_sub_trans/no_wli/run_focus_p5_c1_c5_a34.py`
+- `tools/benchmarks/periodic_sub_trans/no_wli/runs/run_focus_p5_c1_c5.py`
+- `tools/benchmarks/periodic_sub_trans/no_wli/runs/run_focus_p5_c1_c5_a34.py`
 
 Key selectors in `runner.py`:
 

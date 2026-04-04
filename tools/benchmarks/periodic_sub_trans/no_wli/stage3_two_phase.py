@@ -39,6 +39,16 @@ from tools.benchmarks.periodic_sub_trans.no_wli.family_views import (
     find_family_view,
     rows_share_family,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.shadow_stop_v1 import (
+    build_shadow_stop_v1_state,
+    update_shadow_stop_v1_state,
+)
+
+
+PHASEC_SHADOW_STOP_V1_PLATEAU_STEPS = 16
+PHASEC_SHADOW_STOP_V1_HIGH_SCORE_FLOOR = 0.45
+PHASEC_SHADOW_STOP_V1_HIGH_SCORE_STABLE_STEPS = 4
+PHASEC_SHADOW_STOP_V1_SCORE_IMPROVE_EPS = 1.0e-6
 
 
 def _approx_phase_eval_budget(
@@ -263,6 +273,7 @@ def run_stage3_two_phase_followup(
     phaseC_candidate_pool_count = 0
     phaseC_candidate_pool_unique_keys = 0
     phaseC_candidate_pool_unique_end_hash = 0
+    phaseC_candidate_pool_rows: List[Dict[str, Any]] = []
     phaseC_candidate_pool_source_counts: Dict[str, int] = {}
     phaseC_start_source_counts: Dict[str, int] = {}
     phaseC_start_unique_end_hash = 0
@@ -390,6 +401,22 @@ def run_stage3_two_phase_followup(
         novelty_view_id = "prefix_hamming_le_24"
         novelty_view = find_family_view(novelty_view_id)
         anchor_candidate_hash = ""
+        candidate_pool_rows = [
+            dict(
+                dict(row),
+                eligible_novel_challenger=int(
+                    row.get("eligible_novel_challenger", 0) or 0
+                ),
+                novelty_distance_to_anchor=row.get(
+                    "novelty_distance_to_anchor",
+                    None,
+                ),
+                selected_by_phasec_start=int(
+                    row.get("selected_by_phasec_start", 0) or 0
+                ),
+            )
+            for row in list(candidate_pool_records or [])
+        ]
         eligible_novel_rows: List[Dict[str, Any]] = []
         eligible_novel_hashes: set[str] = set()
         eligible_novel_source_counts: Dict[str, int] = {}
@@ -503,6 +530,7 @@ def run_stage3_two_phase_followup(
         if start_limit <= 0:
             return dict(
                 rows=[],
+                candidate_pool_rows=[dict(row) for row in candidate_pool_rows],
                 novelty_view_id=novelty_view_id,
                 anchor_candidate_hash="",
                 candidate_pool_eligible_novel_count=0,
@@ -528,10 +556,24 @@ def run_stage3_two_phase_followup(
                 anchor_candidate_hash = str(anchor_row.get("candidate_hash", ""))
                 break
         if anchor_row is not None:
+            candidate_pool_rows = []
             for pool_row in candidate_pool_records:
                 eligible_novel, distance_to_anchor, _ = _is_eligible_novel(
                     pool_row,
                     anchor_row=anchor_row,
+                )
+                candidate_pool_rows.append(
+                    dict(
+                        dict(pool_row),
+                        eligible_novel_challenger=int(
+                            1 if bool(eligible_novel) else 0
+                        ),
+                        novelty_distance_to_anchor=(
+                            int(distance_to_anchor)
+                            if distance_to_anchor is not None
+                            else None
+                        ),
+                    )
                 )
                 if not eligible_novel:
                     continue
@@ -554,8 +596,24 @@ def run_stage3_two_phase_followup(
                         eligible_novel_source_counts.get(source_name, 0)
                     ) + 1
         if len(start_records) >= start_limit:
+            selected_start_hashes = {
+                str(row.get("candidate_hash", ""))
+                for row in start_records
+                if str(row.get("candidate_hash", ""))
+            }
             return dict(
                 rows=start_records,
+                candidate_pool_rows=[
+                    dict(
+                        row,
+                        selected_by_phasec_start=int(
+                            1
+                            if str(row.get("candidate_hash", "")) in selected_start_hashes
+                            else 0
+                        ),
+                    )
+                    for row in candidate_pool_rows
+                ],
                 novelty_view_id=novelty_view_id,
                 anchor_candidate_hash=str(anchor_candidate_hash),
                 candidate_pool_eligible_novel_count=int(len(eligible_novel_hashes)),
@@ -653,8 +711,24 @@ def run_stage3_two_phase_followup(
             if int(row.get("eligible_novel_challenger", 0)) == 1
             and str(row.get("candidate_hash", ""))
         }
+        selected_start_hashes = {
+            str(row.get("candidate_hash", ""))
+            for row in start_records
+            if str(row.get("candidate_hash", ""))
+        }
         return dict(
             rows=start_records,
+            candidate_pool_rows=[
+                dict(
+                    row,
+                    selected_by_phasec_start=int(
+                        1
+                        if str(row.get("candidate_hash", "")) in selected_start_hashes
+                        else 0
+                    ),
+                )
+                for row in candidate_pool_rows
+            ],
             novelty_view_id=novelty_view_id,
             anchor_candidate_hash=str(anchor_candidate_hash),
             candidate_pool_eligible_novel_count=int(len(eligible_novel_hashes)),
@@ -2289,6 +2363,10 @@ def run_stage3_two_phase_followup(
             stage3_phasec_start_keys=int(stage3_phasec_start_keys),
         )
         start_records = list(start_selection.get("rows", []))
+        phaseC_candidate_pool_rows = [
+            dict(row)
+            for row in list(start_selection.get("candidate_pool_rows", []) or [])
+        ]
         phaseC_novel_view_id = str(
             start_selection.get("novelty_view_id", phaseC_novel_view_id)
         )
@@ -2609,8 +2687,22 @@ def run_stage3_two_phase_followup(
                 start_lexical_threshold_skip_before = int(
                     phaseC_lexical_threshold_skips
                 )
+                start_evals_before = int(phaseC_evals)
                 init_match_start = float(local_best_match)
                 init_score_start = float(local_best_score)
+                phasec_shadow_stop_v1_state = build_shadow_stop_v1_state(
+                    phase_name="phaseC",
+                    plateau_work_units=int(PHASEC_SHADOW_STOP_V1_PLATEAU_STEPS),
+                    high_score_floor=float(PHASEC_SHADOW_STOP_V1_HIGH_SCORE_FLOOR),
+                    high_score_stable_work_units=int(
+                        PHASEC_SHADOW_STOP_V1_HIGH_SCORE_STABLE_STEPS
+                    ),
+                    score_improve_eps=float(
+                        PHASEC_SHADOW_STOP_V1_SCORE_IMPROVE_EPS
+                    ),
+                    initial_score=float(local_best_score),
+                    initial_match=float(local_best_match),
+                )
                 rescue_attempted = 0
                 rescue_target_slice: int | None = None
                 rescue_slice_reason = ""
@@ -3057,6 +3149,19 @@ def run_stage3_two_phase_followup(
                             local_best_score = float(cur_score)
                             local_best_match = float(cur_match)
                             phaseC_improves += 1
+                    phasec_shadow_stop_v1_state = update_shadow_stop_v1_state(
+                        phasec_shadow_stop_v1_state,
+                        work_unit=int(_step + 1),
+                        evals_done=int(int(phaseC_evals) - int(start_evals_before)),
+                        best_score=float(local_best_score),
+                        best_match=float(local_best_match),
+                        progress_counter=int(
+                            int(phaseC_improves) - int(start_improves_before)
+                        ),
+                        novelty_counter=int(
+                            int(phaseC_accepts) - int(start_accepts_before)
+                        ),
+                    )
                     now_phasec = float(time.time())
                     if (
                         (now_phasec - float(phaseC_last_hb)) >= float(phaseC_progress_interval_s)
@@ -3079,7 +3184,9 @@ def run_stage3_two_phase_followup(
                             f"lex_miss={int(phaseC_lexical_cache_misses)} "
                             f"lex_tie={int(phaseC_lexical_tiebreak_decisions)} "
                             f"best_match={fmt_finite_float_fn(local_best_match, digits=3)} "
-                            f"best_score={fmt_finite_float_fn(local_best_score, digits=6)}",
+                            f"best_score={fmt_finite_float_fn(local_best_score, digits=6)} "
+                            f"shadow_plateau={int(phasec_shadow_stop_v1_state.get('plateau_would_stop', 0) or 0)} "
+                            f"shadow_high_score={int(phasec_shadow_stop_v1_state.get('high_score_would_stop', 0) or 0)}",
                             flush=True,
                         )
 
@@ -3331,6 +3438,7 @@ def run_stage3_two_phase_followup(
                     ),
                     overtook_anchor=int(overtook_anchor),
                     became_global_best=int(1 if bool(better_than_global) else 0),
+                    shadow_stop_v1=dict(phasec_shadow_stop_v1_state),
                 )
                 phaseC_start_summaries.append(dict(start_summary_row))
                 phaseC_checkpoint_rows_written += int(
@@ -3369,7 +3477,9 @@ def run_stage3_two_phase_followup(
                     f"lex_threshold_skip_delta={int(int(phaseC_lexical_threshold_skips) - int(start_lexical_threshold_skip_before))} "
                     f"rescue_polish_steps={int(rescue_polish_steps_used)} "
                     f"overtook_anchor={int(overtook_anchor)} "
-                    f"became_global_best={int(1 if bool(better_than_global) else 0)}",
+                    f"became_global_best={int(1 if bool(better_than_global) else 0)} "
+                    f"shadow_plateau={int(phasec_shadow_stop_v1_state.get('plateau_would_stop', 0) or 0)} "
+                    f"shadow_high_score={int(phasec_shadow_stop_v1_state.get('high_score_would_stop', 0) or 0)}",
                     flush=True,
                 )
 
@@ -3687,6 +3797,9 @@ def run_stage3_two_phase_followup(
             phaseC_candidate_pool_unique_end_hash
         ),
         phaseC_candidate_pool_source_counts=dict(phaseC_candidate_pool_source_counts),
+        phaseC_candidate_pool_rows=[
+            dict(row) for row in list(phaseC_candidate_pool_rows or [])
+        ],
         phaseC_novel_view_id=str(phaseC_novel_view_id),
         phaseC_anchor_candidate_hash=str(phaseC_anchor_candidate_hash),
         phaseC_candidate_pool_eligible_novel_count=int(

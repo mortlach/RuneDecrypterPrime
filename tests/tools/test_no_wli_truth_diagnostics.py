@@ -252,6 +252,14 @@ def test_build_stage3_diagnostics_keeps_phasec_start_summaries() -> None:
         stage35_rounds_completed=3,
         stage35_evals=42,
         stage35_runtime_seconds=1.25,
+        stage35_partial_state_name="stage35_partial_state.json",
+        stage35_progress_jsonl_name="stage35_progress.jsonl",
+        stage35_progress_event_count=16,
+        stage35_partial_dump_write_count=4,
+        stage35_telemetry_summary={
+            "row_scoring_seconds": 12.5,
+            "mini_search_count": 9,
+        },
         stage35_archive_unique_keys=6,
         stage35_archive_unique_seed_sources=2,
         stage35_archive_unique_target_slices=2,
@@ -369,6 +377,14 @@ def test_build_stage3_diagnostics_keeps_phasec_start_summaries() -> None:
     assert int(out["stage35_rounds_completed"]) == 3
     assert int(out["stage35_evals"]) == 42
     assert float(out["stage35_runtime_seconds"]) == pytest.approx(1.25)
+    assert str(out["stage35_partial_state_name"]) == "stage35_partial_state.json"
+    assert str(out["stage35_progress_jsonl_name"]) == "stage35_progress.jsonl"
+    assert int(out["stage35_progress_event_count"]) == 16
+    assert int(out["stage35_partial_dump_write_count"]) == 4
+    assert dict(out["stage35_telemetry_summary"]) == {
+        "mini_search_count": 9,
+        "row_scoring_seconds": 12.5,
+    }
     assert int(out["stage35_archive_unique_keys"]) == 6
     assert int(out["stage35_archive_unique_seed_sources"]) == 2
     assert int(out["stage35_archive_unique_target_slices"]) == 2

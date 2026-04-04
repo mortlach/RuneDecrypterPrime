@@ -25,7 +25,7 @@ from tools.benchmarks.periodic_sub_trans.no_wli.stage35_substitution_solver impo
     DEFAULT_STAGE35_SOLVER_CFG,
     solve_stage35_substitution_only,
 )
-from tools.benchmarks.periodic_sub_trans.no_wli.build_output_catalog import (
+from tools.benchmarks.periodic_sub_trans.no_wli.analysis.build_output_catalog import (
     refresh_catalog_safely,
 )
 

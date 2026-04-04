@@ -10,6 +10,9 @@ from tools.benchmarks.periodic_sub_trans.no_wli.commit_bridge_state import (
 from tools.benchmarks.periodic_sub_trans.no_wli.phasec_diagnostics_contract import (
     require_phasec_diagnostics_contract,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.partial_state_space_map import (
+    build_late_space_map_payload,
+)
 
 
 def finalize_iteration_post_stage3(
@@ -243,6 +246,9 @@ def finalize_iteration_post_stage3(
         phaseC_candidate_pool_unique_end_hash=int(
             state.get("phaseC_candidate_pool_unique_end_hash", 0)
         ),
+        phaseC_candidate_pool_rows=list(
+            state.get("phaseC_candidate_pool_rows", []) or []
+        ),
         phaseC_candidate_pool_source_counts=dict(
             state.get("phaseC_candidate_pool_source_counts", {})
         ),
@@ -311,6 +317,25 @@ def finalize_iteration_post_stage3(
         stage35_rounds_completed=int(state.get("stage35_rounds_completed", 0)),
         stage35_evals=int(state.get("stage35_evals", 0)),
         stage35_runtime_seconds=float(state.get("stage35_runtime_seconds", 0.0)),
+        stage35_outcome_status=str(state.get("stage35_outcome_status", "")),
+        stage35_outcome_reason=str(state.get("stage35_outcome_reason", "")),
+        stage35_completed=int(state.get("stage35_completed", 0)),
+        stage35_capped=int(state.get("stage35_capped", 0)),
+        stage35_partial_state_name=str(
+            state.get("stage35_partial_state_name", "")
+        ),
+        stage35_progress_jsonl_name=str(
+            state.get("stage35_progress_jsonl_name", "")
+        ),
+        stage35_progress_event_count=int(
+            state.get("stage35_progress_event_count", 0)
+        ),
+        stage35_partial_dump_write_count=int(
+            state.get("stage35_partial_dump_write_count", 0)
+        ),
+        stage35_telemetry_summary=dict(
+            state.get("stage35_telemetry_summary", {}) or {}
+        ),
         stage35_archive_unique_keys=int(
             state.get("stage35_archive_unique_keys", 0)
         ),
@@ -325,6 +350,45 @@ def finalize_iteration_post_stage3(
         ),
         stage35_archive_max_substitution_hamming=int(
             state.get("stage35_archive_max_substitution_hamming", 0)
+        ),
+        stage35_baseline_selector=str(
+            state.get("stage35_baseline_selector", "legacy")
+        ),
+        stage35_phasec_score_winner_candidate_hash=str(
+            state.get("stage35_phasec_score_winner_candidate_hash", "")
+        ),
+        stage35_phasec_score_winner_candidate_source=str(
+            state.get("stage35_phasec_score_winner_candidate_source", "")
+        ),
+        stage35_phasec_score_winner_candidate_lane=str(
+            state.get("stage35_phasec_score_winner_candidate_lane", "")
+        ),
+        stage35_phasec_score_winner_candidate_final_score=float(
+            state.get("stage35_phasec_score_winner_candidate_final_score", float("nan"))
+        ),
+        stage35_phasec_score_winner_candidate_final_match=float(
+            state.get("stage35_phasec_score_winner_candidate_final_match", float("nan"))
+        ),
+        stage35_baseline_candidate_hash=str(
+            state.get("stage35_baseline_candidate_hash", "")
+        ),
+        stage35_baseline_candidate_source=str(
+            state.get("stage35_baseline_candidate_source", "")
+        ),
+        stage35_baseline_candidate_lane=str(
+            state.get("stage35_baseline_candidate_lane", "")
+        ),
+        stage35_baseline_candidate_source_rank=int(
+            state.get("stage35_baseline_candidate_source_rank", 0)
+        ),
+        stage35_baseline_candidate_final_score=float(
+            state.get("stage35_baseline_candidate_final_score", float("nan"))
+        ),
+        stage35_baseline_candidate_final_match=float(
+            state.get("stage35_baseline_candidate_final_match", float("nan"))
+        ),
+        stage35_baseline_differs_from_phasec_score_winner=int(
+            state.get("stage35_baseline_differs_from_phasec_score_winner", 0)
         ),
         stage35_baseline_search_score=float(
             state.get("stage35_baseline_search_score", float("nan"))
@@ -362,6 +426,25 @@ def finalize_iteration_post_stage3(
         stage35_best_candidate_hash=str(
             state.get("stage35_best_candidate_hash", "")
         ),
+        stage35_best_match=float(state.get("stage35_best_match", float("nan"))),
+        stage35_truth_gain_vs_selected_row=float(
+            state.get("stage35_truth_gain_vs_selected_row", float("nan"))
+        ),
+        stage35_truth_gain_vs_phasec_score_winner=float(
+            state.get("stage35_truth_gain_vs_phasec_score_winner", float("nan"))
+        ),
+    )
+    stage3_diagnostics["space_map_v1"] = build_late_space_map_payload(
+        run_id=str(state.get("run_id", "") or ""),
+        tier_name=str(state["tier"].name),
+        text_id=int(state["text_id"]),
+        key_seed=int(state["key_seed"]),
+        columns=int(state["tier"].columns),
+        stage3_diagnostics=stage3_diagnostics,
+        stage2_promoted_rows=list(state.get("stage2_promoted", [])),
+        stage3_prep_live=dict(state.get("stage3_prep_live", {}) or {}),
+        stage35_seed_rows=list(state.get("stage35_seed_rows", [])),
+        stage35_archive_rows=list(state.get("stage35_archive_rows", [])),
     )
     finalize_iteration_and_commit_fn(
         tier=state["tier"],
