@@ -17,7 +17,7 @@ SRC_ROOT = REPO_ROOT / "src"
 TEST_ROOT = REPO_ROOT / "tests"
 TOOLS_BENCHMARK_ROOT = REPO_ROOT / "tools" / "benchmarks"
 TOOLS_GET_SRC_ZIP_ROOT = REPO_ROOT / "tools" / "get_src_zip"
-PLANNING_WORKING_ROOT = REPO_ROOT / "planning" / "working"
+PLANNING_WORKING_ROOT = REPO_ROOT / "planning" / "no_wli"
 NO_WLI_OUTPUT_ROOT = (
     REPO_ROOT
     / "output"

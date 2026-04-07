@@ -1134,7 +1134,25 @@ def run_stage3_iteration_flow(
             if stop_reason_update:
                 stop_reason = str(stop_reason_update)
 
-        if bool(stage35_enabled) and best3_key is not None and int(pt3.size) > 0:
+        stage35_skip_solved_before_start = bool(
+            bool(stage35_enabled)
+            and not bool(stage3_continue_after_solve)
+            and np.isfinite(best3_match)
+            and float(best3_match) >= float(solve_match_threshold)
+        )
+        if stage35_skip_solved_before_start:
+            stage35_outcome_status = "not_run_solved_stage3"
+            stage35_outcome_reason = "continue_after_solve_disabled"
+            stage35_accept_reason = "solved_before_stage35"
+            stage35_proof_valid = int(1)
+            stage35_proof_invalid_reason = ""
+            print(
+                f"{log_prefix} stage35-skip tier={tier.name} text={text_id} key_seed={key_seed} "
+                f"reason=solved_before_stage35 best_match={fmt_finite_float_fn(best3_match, digits=3)} "
+                f"threshold={float(solve_match_threshold):.3f} continue_after_solve=0",
+                flush=True,
+            )
+        elif bool(stage35_enabled) and best3_key is not None and int(pt3.size) > 0:
             phasec_score_winner_row = select_phasec_score_winner_row(
                 phasec_start_summaries=phaseC_start_summaries,
                 best3_key=best3_key,
@@ -1639,7 +1657,13 @@ def run_stage3_iteration_flow(
                 best3_key = list(map(int, stage35_best_key))
                 pt3 = np.asarray(stage35_best_plaintext_idx, dtype=np.uint8).reshape(-1)
                 best3_score = float(stage35_best_score)
-        if int(stage35_requested_cfg) == 1 and int(stage35_enabled_cfg) != 1:
+        if bool(stage35_skip_solved_before_start):
+            if not str(stage35_outcome_status):
+                stage35_outcome_status = "not_run_solved_stage3"
+                stage35_outcome_reason = "continue_after_solve_disabled"
+            stage35_proof_valid = 1
+            stage35_proof_invalid_reason = ""
+        elif int(stage35_requested_cfg) == 1 and int(stage35_enabled_cfg) != 1:
             if not str(stage35_outcome_status):
                 stage35_outcome_status = "not_run_disabled"
                 stage35_outcome_reason = "requested_but_effective_disabled"

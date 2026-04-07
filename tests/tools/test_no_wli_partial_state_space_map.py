@@ -248,6 +248,9 @@ def test_build_late_space_map_payload_maps_phasec_and_stage35_rows() -> None:
     assert phasec_pool["row_count"] == 3
     assert phasec_pool["pool_status"] == "available"
     assert phasec_pool["selected_row_count"] == 2
+    assert phasec_pool["review_primary_row_count"] == 2
+    assert phasec_pool["review_primary_row_count_kind"] == "selected_row_count"
+    assert phasec_pool["review_primary_relation"] == "selected_vs_available"
     assert phasec_pool["selected_family_count"] == 1
     assert phasec_pool["top_band_family_count"] == 1
     assert phasec_pool["selected_pairwise_distance_min"] == 2.0 / 3.0
@@ -259,15 +262,25 @@ def test_build_late_space_map_payload_maps_phasec_and_stage35_rows() -> None:
     assert phasec_start_pool["pool_status"] == "available"
     assert phasec_start_pool["eligible_row_count"] == 1
     assert phasec_start_pool["selected_row_count"] == 2
+    assert phasec_start_pool["review_primary_row_count"] == 2
+    assert phasec_start_pool["review_primary_row_count_kind"] == "selected_row_count"
+    assert phasec_start_pool["review_primary_relation"] == "selected_vs_available"
     assert phasec_start_pool["family_view_id"] == "prefix_hamming_le_24"
     assert phasec_start_pool["anchor_candidate_hash"] == "anchor_hash"
     assert phasec_start_pool["selected_pairwise_distance_min"] == 2.0 / 3.0
     assert phasec_start_pool["selected_pairwise_distance_mean"] == 2.0 / 3.0
 
     stage35_seed_pool = pool_rows[4]
+    assert stage35_seed_pool["selected_row_count"] == 1
     assert stage35_seed_pool["next_stage_started_count"] == 1
     assert stage35_seed_pool["next_stage_admitted_count"] == 1
     assert stage35_seed_pool["next_stage_rejected_count"] == 0
+    assert stage35_seed_pool["review_primary_row_count"] == 1
+    assert (
+        stage35_seed_pool["review_primary_row_count_kind"]
+        == "next_stage_started_count"
+    )
+    assert stage35_seed_pool["review_primary_relation"] == "started_vs_available"
     assert stage35_seed_pool["best_continued_candidate_hash"] == "continued_hash"
     assert stage35_seed_pool["best_continued_score"] == 0.18
     assert stage35_seed_pool["best_continued_match"] == 0.49

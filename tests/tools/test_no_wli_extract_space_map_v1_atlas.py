@@ -78,6 +78,9 @@ def _write_artifact(path: Path) -> None:
                         "row_count": 1,
                         "eligible_row_count": 1,
                         "selected_row_count": 1,
+                        "review_primary_row_count": 1,
+                        "review_primary_row_count_kind": "selected_row_count",
+                        "review_primary_relation": "selected_vs_available",
                         "family_count": 1,
                         "largest_family_share": 1.0,
                         "unique_candidate_hash_count": 1,
@@ -95,6 +98,9 @@ def _write_artifact(path: Path) -> None:
                         "row_count": 1,
                         "eligible_row_count": 1,
                         "selected_row_count": 1,
+                        "review_primary_row_count": 1,
+                        "review_primary_row_count_kind": "selected_row_count",
+                        "review_primary_relation": "selected_vs_available",
                         "family_count": 1,
                         "largest_family_share": 1.0,
                         "unique_candidate_hash_count": 1,
@@ -179,6 +185,9 @@ def test_extract_rows_for_artifact_emits_row_pool_transition_and_run_tables(
         "single_hill_pool",
         "single_hill_pool",
     ]
+    assert pool_rows[0]["review_primary_row_count"] == 1
+    assert pool_rows[0]["review_primary_row_count_kind"] == "selected_row_count"
+    assert pool_rows[0]["review_primary_relation"] == "selected_vs_available"
     assert {
         row["transition_type"] for row in transition_rows
     } == {"parent_to_candidate", "candidate_to_continued_best"}

@@ -584,6 +584,134 @@ def test_stage3_phaseb_plan_and_finish_logging(
     assert "evals=123" in out
 
 
+def test_stage3_two_phase_skips_phasec_after_solved_phasea_when_continue_disabled(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    target_pt = np.asarray([0, 1, 2, 0], dtype=np.uint8)
+    solved_key = [0, 1, 2, 0, 1, 2, 0]
+    phasea_rows = [
+        dict(
+            start_hash="s0",
+            end_hash="e0",
+            restart_idx=0,
+            start_key=list(solved_key),
+            end_key=list(solved_key),
+            start_plaintext=target_pt.astype(int).tolist(),
+            end_plaintext=target_pt.astype(int).tolist(),
+            end_match=1.0,
+            end_score_pct=4.0,
+            end_score_raw=4.0,
+            best_delta_pct=0.0,
+            metrics=dict(
+                slip_count=0,
+                slip_accept_count=0,
+                slip_accept_rate=float("nan"),
+                accept_rate=float("nan"),
+                phase_attempts_total=0,
+                phase_improves_total=0,
+                phase_best_delta_max=float("nan"),
+            ),
+        )
+    ]
+
+    out = phase2_mod.run_stage3_two_phase_followup(
+        tier_name="fixture_fixture_001_p2_c1_l4",
+        tier_period=2,
+        tier_columns=1,
+        text_id=0,
+        key_seed=411,
+        key_len=7,
+        ct_idx=np.asarray([0, 0, 0, 0], dtype=np.uint8),
+        pt_idx=target_pt,
+        order="col_then_sub",
+        alphabet_size=3,
+        direction=None,
+        solve_match_threshold=0.9,
+        stage3_continue_after_solve=False,
+        oracle_assist_selection_effective=False,
+        stage3_phaseA_experiment="a_baseline",
+        stage3_phaseB_experiment="c_min_late",
+        stage3_phaseB_char_pct_min_dynamic=0.4,
+        stage3_phaseB_char_pct_min_source="test",
+        phaseA_rows=phasea_rows,
+        stage_rows=[],
+        scorer_stage3_search_runtime=_ConstantScorer(),
+        scorer_basin_judge_runtime=_ConstantScorer(),
+        scorer_word_ngram_report_runtime=None,
+        scorer_full_runtime=_ConstantScorer(),
+        scorer_stage3_phaseB={},
+        solver_stage3_cfg={"steps": 8, "restarts": 1, "col_batch": 4, "inner_batch": 8},
+        stage3_phaseB_cfg={"steps": 8, "inner_batch": 8, "col_every": 0, "col_batch": 0},
+        stage3_phaseB_top_n=1,
+        stage3_phaseB_gate_delta=-1.0,
+        stage3_phaseB_gate_end_gain=-1.0,
+        stage3_scan_phaseA_only=False,
+        stage3_span_basin_judge_k_cfg=1,
+        stage3_span_basin_judge_require_span_active=False,
+        stage3_span_basin_judge_dedupe_by_end_hash=True,
+        stage3_span_basin_judge_tie_eps=0.0,
+        stage3_span_basin_judge_tie_max_seeds=4,
+        stage3_word_ngram_decision_influence=False,
+        stage3_phasec_enabled=True,
+        stage3_phasec_cfg={"steps": 16, "proposals_per_step": 16, "three_cycle_prob": 0.0},
+        stage3_phasec_start_keys=1,
+        stage3_phasec_seed_offset=0,
+        stage3_phasec_word_ngram_tiebreak=False,
+        batch_eval_chunk_size=32,
+        require_batch_scoring=True,
+        base_seed=2026,
+        ev3_base=0,
+        stage3_heartbeat_seconds=30.0,
+        stage3_heartbeat_min_step=50,
+        stage3_heartbeat_min_elapsed_seconds=5.0,
+        stage3_hb_state={"last_emit_ts": float("-inf")},
+        stage3_topk_payload=[],
+        full_cipher=_DummyCipher(),
+        append_stage3_topk_from_phasea_fn=lambda **kwargs: None,
+        append_stage3_topk_from_kaeding_fn=lambda **kwargs: None,
+        is_better_stage3_candidate_preserving_solve_fn=_is_better,
+        match_ratio_fn=_match_ratio,
+        extract_kaeding_metrics_fn=lambda _obj: dict(
+            slip_count=0,
+            slip_accept_count=0,
+            slip_accept_rate=float("nan"),
+            accept_rate=float("nan"),
+            phase_attempts_total=0,
+            phase_improves_total=0,
+            phase_best_delta_max=float("nan"),
+        ),
+        solution_span_counter_summary_fn=lambda _obj: dict(
+            total=0.0,
+            active=0.0,
+            skipped=0.0,
+            seconds_total=0.0,
+            seconds_active=0.0,
+        ),
+        scorer_span_counter_summary_fn=lambda _obj: dict(
+            total=0.0,
+            active=0.0,
+            skipped=0.0,
+            seconds_total=0.0,
+            seconds_active=0.0,
+        ),
+        span_counter_delta_fn=lambda **kwargs: dict(total=0.0, active=0.0, seconds_total=0.0),
+        stage3_progress_logging_fn=lambda **kwargs: {},
+        fmt_finite_float_fn=lambda v, digits=3: f"{float(v):.{int(digits)}f}"
+        if np.isfinite(v)
+        else "nan",
+    )
+
+    assert int(out["phaseB_skipped"]) == 1
+    assert str(out["phaseB_skip_reason"]) == "phaseA_solved"
+    assert int(out["phaseC_enabled_effective"]) == 0
+    assert int(out["phaseC_ran"]) == 0
+    assert str(out["stop_reason_update"]) == "solved_stage3"
+    assert float(out["best3_match"]) == pytest.approx(1.0)
+    text = capsys.readouterr().out
+    assert "stage3-phaseB-gate" in text
+    assert "reason=phaseA_solved" in text
+
+
 def test_stage3_phasec_lexical_budget_cap(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

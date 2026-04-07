@@ -61,18 +61,26 @@ future stop-policy research?
 When the trigger fires on fixture runs, how much stage/runtime work might have
 been saved by earlier inspection or stopping?
 
-## Scope of the first run panel
+## Current harness-backed panel
 
-Use a very small, heterogeneous panel first.
+Use one small, modern solved-control-plus-hard-seed panel.
 
-Required categories:
+Current hardcoded cases:
 
-1. one solved easy/medium control
-   - ideally fresh `p5` or `p7`
-2. one hard `411` live success / Stage 3.5 win
-3. one hard non-solved or non-dominant-family `p9` case
+1. solved control: `p5/c1 seed511`
+2. selector-sensitive hard win: `p9/c3 seed411`
+3. selector-neutral hard win: `p9/c3 seed611`
+4. selector-neutral hard win: `p9/c3 seed711`
+5. selector-sensitive reject / no-lift: `p9/c3 seed811`
+6. selector-neutral reject / no-lift: `p9/c3 seed911`
+7. selector-neutral hard win: `p9/c3 seed1011`
+8. selector-neutral hard win: `p9/c3 seed1111`
+9. selector-neutral reject / no-lift: `p9/c3 seed1211`
 
-This is enough to test separation without pretending broad generality.
+This is still intentionally small, but it is now wide enough that the stop
+notes can stay harness-backed rather than partly manual, while also checking
+whether family-aware stability distinguishes different hard-seed shapes rather
+than only the `411` family.
 
 ## Recommended execution order
 
@@ -89,6 +97,7 @@ Run the extractor on the small panel and verify:
 Success criterion:
 
 - `row_scores.jsonl` is complete enough to inspect by eye
+- the nine targeted artifacts are the ones actually analyzed
 
 ### Phase B. Dump-trigger sweep
 
@@ -100,7 +109,8 @@ Run the full threshold grid and inspect:
 
 Success criterion:
 
-- at least one rule looks promising on the small panel
+- at least one dump rule fires on both hard wins and the solved control
+- reject / no-lift cases fire less often than wins
 - false positives are understandable, not chaotic
 
 ### Phase C. Stability stop sweep
@@ -113,7 +123,9 @@ Enable only the family-stability stop proxy and inspect:
 Success criterion:
 
 - at least one stability rule has zero false stops on solved controls
-- and still catches the hard success case
+- and still catches `seed411` plus at least one non-`411` hard win
+- selector-sensitive reject and selector-neutral reject do not look equally
+  stop-worthy
 
 ### Phase D. Read savings proxy carefully
 
@@ -162,9 +174,10 @@ Success criterion:
 
 Only if all are true:
 
-- at least one dump rule looks useful on the small panel
+- at least one dump rule looks useful on the harness-backed panel
 - at least one stability rule has zero false stops on the solved control
-- the hard success case is caught by a plausible rule
+- the hard `411` success plus at least one non-`411` hard win are caught by a
+  plausible rule
 - data gaps are manageable and explicit
 
 ### Pause and improve data/telemetry first

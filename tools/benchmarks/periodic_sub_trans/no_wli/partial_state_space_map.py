@@ -540,6 +540,9 @@ def build_pool_summary_row(
     ]
     pairwise_summary = _pairwise_key_distance_summary(selected_rows)
     row_count = int(len(row_dicts))
+    selected_row_count = int(
+        sum(1 for row in row_dicts if _safe_int(row.get("selected", 1), 1) == 1)
+    )
     return dict(
         record_version=str(SPACE_MAP_RECORD_VERSION),
         run_id=_safe_str(run_id),
@@ -566,9 +569,10 @@ def build_pool_summary_row(
                 == 1
             )
         ),
-        selected_row_count=int(
-            sum(1 for row in row_dicts if _safe_int(row.get("selected", 1), 1) == 1)
-        ),
+        selected_row_count=int(selected_row_count),
+        review_primary_row_count=int(selected_row_count),
+        review_primary_row_count_kind="selected_row_count",
+        review_primary_relation="selected_vs_available",
         unique_candidate_hash_count=int(
             len({_candidate_hash_for_row(row) for row in row_dicts if _candidate_hash_for_row(row)})
         ),
@@ -1018,6 +1022,11 @@ def build_late_space_map_payload(
     stage35_seed_summary["best_continued_match"] = _safe_float(
         stage3_diag.get("stage35_best_match", float("nan"))
     )
+    stage35_seed_summary["review_primary_row_count"] = int(len(seed_rows))
+    stage35_seed_summary["review_primary_row_count_kind"] = (
+        "next_stage_started_count"
+    )
+    stage35_seed_summary["review_primary_relation"] = "started_vs_available"
     return dict(
         record_version=str(SPACE_MAP_RECORD_VERSION),
         run_id=_safe_str(run_id),

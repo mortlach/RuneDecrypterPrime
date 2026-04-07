@@ -51,7 +51,106 @@ OUTPUT_BASE_DIR = (
 MAX_ARTIFACTS = 24
 ONLY_REQUIRE_SPACE_MAP_V1 = False
 PANEL_FILTERS = ()
-ANALYSIS_MODE = 'score_panel_v1'
+ANALYSIS_MODE = 'family_panel_v1'
+FAMILY_PANEL_TARGETS = (
+    dict(
+        label='solved_control_p5_seed511',
+        period=5,
+        columns=1,
+        key_seed=511,
+        min_best_match=0.999,
+        require_space_map_v1=False,
+    ),
+    dict(
+        label='selector_sensitive_win_seed411',
+        period=9,
+        columns=3,
+        key_seed=411,
+        min_best_match=0.45,
+        require_best_stage='stage35_substitution_only',
+        require_stage35_accept_reason='accepted',
+        require_baseline_differs=1,
+        require_space_map_v1=True,
+    ),
+    dict(
+        label='selector_neutral_win_seed611',
+        period=9,
+        columns=3,
+        key_seed=611,
+        min_best_match=0.60,
+        require_best_stage='stage35_substitution_only',
+        require_stage35_accept_reason='accepted',
+        require_baseline_differs=0,
+        require_space_map_v1=True,
+    ),
+    dict(
+        label='selector_neutral_win_seed711',
+        period=9,
+        columns=3,
+        key_seed=711,
+        min_best_match=0.70,
+        require_best_stage='stage35_substitution_only',
+        require_stage35_accept_reason='accepted',
+        require_baseline_differs=0,
+        require_space_map_v1=True,
+    ),
+    dict(
+        label='selector_sensitive_reject_seed811',
+        period=9,
+        columns=3,
+        key_seed=811,
+        max_best_match=0.60,
+        require_best_stage='stage3_full_refine',
+        require_stage35_accept_reason='search_score_drop_guard_failed',
+        require_baseline_differs=1,
+        require_space_map_v1=True,
+    ),
+    dict(
+        label='selector_neutral_reject_seed911',
+        period=9,
+        columns=3,
+        key_seed=911,
+        max_best_match=0.30,
+        require_best_stage='stage2_search',
+        require_stage35_accept_reason='search_score_drop_guard_failed',
+        require_baseline_differs=0,
+        require_space_map_v1=True,
+    ),
+    dict(
+        label='selector_neutral_win_seed1011',
+        period=9,
+        columns=3,
+        key_seed=1011,
+        min_best_match=0.70,
+        require_best_stage='stage35_substitution_only',
+        require_stage35_accept_reason='accepted',
+        require_baseline_differs=0,
+        require_space_map_v1=True,
+    ),
+    dict(
+        label='selector_neutral_win_seed1111',
+        period=9,
+        columns=3,
+        key_seed=1111,
+        min_best_match=0.50,
+        require_best_stage='stage35_substitution_only',
+        require_stage35_accept_reason='accepted',
+        require_baseline_differs=0,
+        require_space_map_v1=True,
+    ),
+    dict(
+        label='selector_neutral_reject_seed1211',
+        period=9,
+        columns=3,
+        key_seed=1211,
+        max_best_match=0.35,
+        require_best_stage='stage3_full_refine',
+        require_stage35_accept_reason='search_score_drop_guard_failed',
+        require_baseline_differs=0,
+        require_baseline_source='phaseA_selected',
+        require_space_map_v1=True,
+    ),
+)
 SCORE_PANEL_MATCH_BANDS = (
     dict(name='solved_or_near_perfect', min_match=0.999, max_match=1.001, target_count=6),
     dict(name='near_solved_high_quality', min_match=0.85, max_match=0.999, target_count=6),
@@ -67,6 +166,19 @@ SCORE_PANEL_STAGE_BOUNDARIES = (
 )
 SCORE_PANEL_MAX_ROWS_PER_BOUNDARY = 2
 SCORE_PANEL_DISABLE_FAMILY_STOP = True
+FAMILY_PANEL_STAGE_BOUNDARIES = (
+    'phaseC_pool',
+    'phaseC_start',
+    'stage35_seed',
+    'stage35_archive',
+)
+FAMILY_PANEL_MAX_ROWS_PER_BOUNDARY = 3
+LATE_FAMILY_PERSISTENCE_BOUNDARIES = (
+    'phaseC_start',
+    'stage35_seed',
+    'stage35_archive',
+)
+LATE_FAMILY_PERSISTENCE_MIN_BOUNDARIES = 2
 ROW_BOUNDARY_ORDER = {
     'stage2_promoted': 1,
     'stage2_topk': 2,
@@ -82,6 +194,9 @@ REPORT_XENT_CEILINGS = (24.0, 18.0, 12.0)
 RIVAL_MARGIN_FLOORS = (0.00, 0.02, 0.05)
 FAMILY_SUPPORT_FLOORS = (1, 2)
 BOUNDARY_STABILITY_COUNTS = (1, 2, 3)
+FAMILY_PANEL_BOUNDARY_STABILITY_COUNTS = (2, 3)
+CONTINUATION_SEARCH_UPLIFT_FLOORS = (0.15,)
+CONTINUATION_RULE_STAGE_BOUNDARY = 'stage35_archive'
 SOLVED_MATCH_THRESHOLD = 0.999
 REQUIRE_BATCH_SCORING = True
 BATCH_CHUNK_SIZE = 256
@@ -175,6 +290,67 @@ def _artifact_matches_panel(artifact: Mapping[str, Any]) -> bool:
     return any(period == int(f.get('period', -1)) and columns == int(f.get('columns', -1)) for f in PANEL_FILTERS)
 
 
+def _artifact_matches_target(
+    artifact: Mapping[str, Any],
+    *,
+    target_cfg: Mapping[str, Any],
+) -> bool:
+    artifact_d = dict(artifact)
+    stage3_diag = dict(artifact_d.get('stage3_diagnostics', {}) or {})
+    space_map = dict(stage3_diag.get('space_map_v1', {}) or {})
+    if _safe_int(artifact_d.get('period', 0), 0) != _safe_int(target_cfg.get('period', -1), -1):
+        return False
+    if _safe_int(artifact_d.get('columns', 0), 0) != _safe_int(target_cfg.get('columns', -1), -1):
+        return False
+    if _safe_int(artifact_d.get('key_seed', 0), 0) != _safe_int(target_cfg.get('key_seed', -1), -1):
+        return False
+    if bool(target_cfg.get('require_space_map_v1', False)) and not space_map:
+        return False
+    best_match = _safe_float(artifact_d.get('best_match_ratio', float('nan')))
+    min_best_match = _safe_float(target_cfg.get('min_best_match', float('nan')))
+    max_best_match = _safe_float(target_cfg.get('max_best_match', float('nan')))
+    if _is_finite(min_best_match) and (not _is_finite(best_match) or float(best_match) < float(min_best_match)):
+        return False
+    if _is_finite(max_best_match) and (not _is_finite(best_match) or float(best_match) > float(max_best_match)):
+        return False
+    required_best_stage = _safe_str(target_cfg.get('require_best_stage', ''))
+    if required_best_stage and _safe_str(artifact_d.get('best_stage', '')) != required_best_stage:
+        return False
+    required_accept_reason = _safe_str(target_cfg.get('require_stage35_accept_reason', ''))
+    if required_accept_reason and _safe_str(stage3_diag.get('stage35_accept_reason', '')) != required_accept_reason:
+        return False
+    if 'require_baseline_differs' in dict(target_cfg):
+        if _safe_int(stage3_diag.get('stage35_baseline_differs_from_phasec_score_winner', 0), 0) != _safe_int(
+            target_cfg.get('require_baseline_differs', 0), 0
+        ):
+            return False
+    required_baseline_source = _safe_str(target_cfg.get('require_baseline_source', ''))
+    if required_baseline_source and _safe_str(stage3_diag.get('stage35_baseline_candidate_source', '')) != required_baseline_source:
+        return False
+    return True
+
+
+def _discover_family_panel_paths(paths: Sequence[Path]) -> list[Path]:
+    selected: list[Path] = []
+    used_paths: set[Path] = set()
+    for target_cfg in list(FAMILY_PANEL_TARGETS or []):
+        chosen: Path | None = None
+        for path in paths:
+            if path in used_paths:
+                continue
+            try:
+                artifact = _read_json(path)
+            except Exception:
+                continue
+            if _artifact_matches_target(artifact, target_cfg=target_cfg):
+                chosen = path
+                break
+        if chosen is not None:
+            selected.append(chosen)
+            used_paths.add(chosen)
+    return selected
+
+
 def _score_panel_band_name(artifact: Mapping[str, Any]) -> str:
     match_value = _safe_float(artifact.get('best_match_ratio', float('nan')))
     if not _is_finite(match_value):
@@ -197,6 +373,8 @@ def discover_artifact_paths() -> list[Path]:
         ),
         reverse=True,
     )
+    if str(ANALYSIS_MODE) == 'family_panel_v1':
+        return _discover_family_panel_paths(paths)
     out: list[Path] = []
     band_counts = {
         _safe_str(dict(band_cfg).get('name', '')): 0
@@ -441,6 +619,23 @@ def collect_candidate_rows(artifact: Mapping[str, Any]) -> list[dict[str, Any]]:
             capped_rows.extend(
                 grouped.get(str(boundary_name), [])[
                     : int(max(1, int(SCORE_PANEL_MAX_ROWS_PER_BOUNDARY)))
+                ]
+            )
+        out_rows = capped_rows
+    elif str(ANALYSIS_MODE) == 'family_panel_v1':
+        out_rows = [
+            dict(row)
+            for row in out_rows
+            if _safe_str(dict(row).get('stage_boundary', '')) in set(FAMILY_PANEL_STAGE_BOUNDARIES)
+        ]
+        grouped = defaultdict(list)
+        for row in sorted(out_rows, key=_boundary_sort_key):
+            grouped[_safe_str(dict(row).get('stage_boundary', ''))].append(dict(row))
+        capped_rows = []
+        for boundary_name in FAMILY_PANEL_STAGE_BOUNDARIES:
+            capped_rows.extend(
+                grouped.get(str(boundary_name), [])[
+                    : int(max(1, int(FAMILY_PANEL_MAX_ROWS_PER_BOUNDARY)))
                 ]
             )
         out_rows = capped_rows
@@ -705,7 +900,131 @@ def _anchor_margin(row: Mapping[str, Any], rows_in_pool: Sequence[Mapping[str, A
     return float('nan')
 
 
-def _qualifies_dump(row: Mapping[str, Any], rows_in_pool: Sequence[Mapping[str, Any]], trust_floor: float, xent_ceiling: float, rival_margin_floor: float, family_support_floor: int) -> tuple[bool, dict[str, Any]]:
+def _late_family_persistence_metrics(
+    row: Mapping[str, Any],
+    artifact_rows: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    row_d = dict(row)
+    family_id = _safe_str(row_d.get('family_id', ''))
+    if not family_id:
+        return dict(
+            shadow_late_family_persistence_count=0,
+            shadow_late_family_persistence_boundaries=[],
+            shadow_late_family_persistence_pass=0,
+            shadow_late_family_reaches_archive=0,
+            shadow_late_family_first_boundary='',
+            shadow_late_family_last_boundary='',
+        )
+    boundary_hits: list[tuple[int, str]] = []
+    seen: set[str] = set()
+    for candidate in sorted([dict(r) for r in artifact_rows], key=_boundary_sort_key):
+        if _safe_str(candidate.get('family_id', '')) != family_id:
+            continue
+        boundary_name = _safe_str(candidate.get('stage_boundary', ''))
+        if boundary_name not in set(LATE_FAMILY_PERSISTENCE_BOUNDARIES):
+            continue
+        if boundary_name in seen:
+            continue
+        seen.add(boundary_name)
+        boundary_hits.append((_boundary_sort_key(candidate)[0], boundary_name))
+    boundary_names = [name for _, name in sorted(boundary_hits, key=lambda x: x[0])]
+    persistence_count = int(len(boundary_names))
+    return dict(
+        shadow_late_family_persistence_count=persistence_count,
+        shadow_late_family_persistence_boundaries=list(boundary_names),
+        shadow_late_family_persistence_pass=int(
+            persistence_count >= int(LATE_FAMILY_PERSISTENCE_MIN_BOUNDARIES)
+        ),
+        shadow_late_family_reaches_archive=int('stage35_archive' in set(boundary_names)),
+        shadow_late_family_first_boundary=_safe_str(boundary_names[0] if boundary_names else ''),
+        shadow_late_family_last_boundary=_safe_str(boundary_names[-1] if boundary_names else ''),
+    )
+
+
+def _best_family_boundary_axis(
+    artifact_rows: Sequence[Mapping[str, Any]],
+    family_id: str,
+    boundary_name: str,
+    axis_name: str,
+) -> float:
+    vals: list[float] = []
+    for row in artifact_rows:
+        row_d = dict(row)
+        if _safe_str(row_d.get('family_id', '')) != str(family_id):
+            continue
+        if _safe_str(row_d.get('stage_boundary', '')) != str(boundary_name):
+            continue
+        val = _safe_float(row_d.get(axis_name, float('nan')))
+        if _is_finite(val):
+            vals.append(float(val))
+    return max(vals) if vals else float('nan')
+
+
+def _late_family_continuation_metrics(
+    row: Mapping[str, Any],
+    artifact_rows: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    row_d = dict(row)
+    family_id = _safe_str(row_d.get('family_id', ''))
+    current_boundary = _safe_str(row_d.get('stage_boundary', ''))
+    if not family_id:
+        return dict(
+            shadow_late_family_phasec_search_score=float('nan'),
+            shadow_late_family_current_boundary_best_search_score=float('nan'),
+            shadow_late_family_search_uplift=float('nan'),
+            shadow_late_family_phasec_full_score=float('nan'),
+            shadow_late_family_current_boundary_best_full_score=float('nan'),
+            shadow_late_family_full_uplift=float('nan'),
+        )
+    phasec_search = _best_family_boundary_axis(
+        artifact_rows,
+        family_id,
+        'phaseC_start',
+        'replay_search_score',
+    )
+    current_search = _best_family_boundary_axis(
+        artifact_rows,
+        family_id,
+        current_boundary,
+        'replay_search_score',
+    )
+    phasec_full = _best_family_boundary_axis(
+        artifact_rows,
+        family_id,
+        'phaseC_start',
+        'replay_full_score',
+    )
+    current_full = _best_family_boundary_axis(
+        artifact_rows,
+        family_id,
+        current_boundary,
+        'replay_full_score',
+    )
+    search_uplift = float('nan')
+    if _is_finite(phasec_search) and _is_finite(current_search):
+        search_uplift = float(current_search) - float(phasec_search)
+    full_uplift = float('nan')
+    if _is_finite(phasec_full) and _is_finite(current_full):
+        full_uplift = float(current_full) - float(phasec_full)
+    return dict(
+        shadow_late_family_phasec_search_score=float(phasec_search),
+        shadow_late_family_current_boundary_best_search_score=float(current_search),
+        shadow_late_family_search_uplift=float(search_uplift),
+        shadow_late_family_phasec_full_score=float(phasec_full),
+        shadow_late_family_current_boundary_best_full_score=float(current_full),
+        shadow_late_family_full_uplift=float(full_uplift),
+    )
+
+
+def _diagnostic_dump_metrics(
+    row: Mapping[str, Any],
+    rows_in_pool: Sequence[Mapping[str, Any]],
+    *,
+    trust_floor: float,
+    xent_ceiling: float,
+    rival_margin_floor: float,
+    family_support_floor: int,
+) -> dict[str, Any]:
     row_d = dict(row)
     trust = _safe_float(row_d.get('replay_word_ngram_trust_score', float('nan')))
     xent = _safe_float(row_d.get('replay_word_ngram_report_xent', float('nan')))
@@ -713,7 +1032,60 @@ def _qualifies_dump(row: Mapping[str, Any], rows_in_pool: Sequence[Mapping[str, 
     family_id = _safe_str(row_d.get('family_id', ''))
     axis_name, rival_margin = _best_rival_margin(row_d, rows_in_pool)
     anchor_margin = _anchor_margin(row_d, rows_in_pool)
-    support_count = _family_support_count(rows_in_pool, family_id, float(trust_floor), float(xent_ceiling))
+    support_count = _family_support_count(
+        rows_in_pool,
+        family_id,
+        float(trust_floor),
+        float(xent_ceiling),
+    )
+    blockers: list[str] = []
+    if not active:
+        blockers.append('word_ngram_inactive')
+    if not _is_finite(trust):
+        blockers.append('missing_trust')
+    elif float(trust) < float(trust_floor):
+        blockers.append('trust_below_floor')
+    if not _is_finite(xent):
+        blockers.append('missing_xent')
+    elif float(xent) > float(xent_ceiling):
+        blockers.append('xent_above_ceiling')
+    if support_count < int(family_support_floor):
+        blockers.append('family_support_below_floor')
+    if _is_finite(rival_margin) and float(rival_margin) < float(rival_margin_floor):
+        blockers.append('rival_margin_below_floor')
+    return dict(
+        shadow_primary_axis=axis_name,
+        shadow_anchor_margin=float(anchor_margin),
+        shadow_best_rival_family_margin=float(rival_margin),
+        shadow_family_support_count=int(support_count),
+        shadow_diag_trust_floor=float(trust_floor),
+        shadow_diag_xent_ceiling=float(xent_ceiling),
+        shadow_diag_rival_margin_floor=float(rival_margin_floor),
+        shadow_diag_family_support_floor=int(family_support_floor),
+        shadow_diag_word_ngram_active=int(active),
+        shadow_diag_trust_pass=int(_is_finite(trust) and float(trust) >= float(trust_floor)),
+        shadow_diag_xent_pass=int(_is_finite(xent) and float(xent) <= float(xent_ceiling)),
+        shadow_diag_rival_margin_pass=int((not _is_finite(rival_margin)) or float(rival_margin) >= float(rival_margin_floor)),
+        shadow_diag_family_support_pass=int(support_count >= int(family_support_floor)),
+        shadow_diag_blockers=sorted(set(str(blocker) for blocker in blockers)),
+    )
+
+
+def _qualifies_dump(row: Mapping[str, Any], rows_in_pool: Sequence[Mapping[str, Any]], trust_floor: float, xent_ceiling: float, rival_margin_floor: float, family_support_floor: int) -> tuple[bool, dict[str, Any]]:
+    row_d = dict(row)
+    trust = _safe_float(row_d.get('replay_word_ngram_trust_score', float('nan')))
+    xent = _safe_float(row_d.get('replay_word_ngram_report_xent', float('nan')))
+    active = bool(row_d.get('replay_word_ngram_active', False))
+    metrics = _diagnostic_dump_metrics(
+        row,
+        rows_in_pool,
+        trust_floor=float(trust_floor),
+        xent_ceiling=float(xent_ceiling),
+        rival_margin_floor=float(rival_margin_floor),
+        family_support_floor=int(family_support_floor),
+    )
+    rival_margin = _safe_float(metrics.get('shadow_best_rival_family_margin', float('nan')))
+    support_count = _safe_int(metrics.get('shadow_family_support_count', 0), 0)
     if str(ANALYSIS_MODE) == 'score_panel_v1':
         ok = bool(
             active
@@ -724,29 +1096,58 @@ def _qualifies_dump(row: Mapping[str, Any], rows_in_pool: Sequence[Mapping[str, 
         )
     else:
         ok = bool(
-        active
-        and _is_finite(trust)
-        and float(trust) >= float(trust_floor)
-        and _is_finite(xent)
-        and float(xent) <= float(xent_ceiling)
-        and support_count >= int(family_support_floor)
-        and (not _is_finite(rival_margin) or float(rival_margin) >= float(rival_margin_floor))
+            active
+            and _is_finite(trust)
+            and float(trust) >= float(trust_floor)
+            and _is_finite(xent)
+            and float(xent) <= float(xent_ceiling)
+            and support_count >= int(family_support_floor)
+            and (not _is_finite(rival_margin) or float(rival_margin) >= float(rival_margin_floor))
         )
-    return ok, dict(
-        shadow_primary_axis=axis_name,
-        shadow_anchor_margin=float(anchor_margin),
-        shadow_best_rival_family_margin=float(rival_margin),
-        shadow_family_support_count=int(support_count),
+    return ok, dict(metrics)
+
+
+def _qualifies_continuation_dump(
+    row: Mapping[str, Any],
+    artifact_rows: Sequence[Mapping[str, Any]],
+    *,
+    search_uplift_floor: float,
+) -> tuple[bool, dict[str, Any]]:
+    metrics = _late_family_continuation_metrics(row, artifact_rows)
+    boundary_name = _safe_str(dict(row).get('stage_boundary', ''))
+    search_uplift = _safe_float(metrics.get('shadow_late_family_search_uplift', float('nan')))
+    ok = bool(
+        boundary_name == str(CONTINUATION_RULE_STAGE_BOUNDARY)
+        and _is_finite(search_uplift)
+        and float(search_uplift) >= float(search_uplift_floor)
     )
+    return ok, dict(metrics)
 
 
 def _annotate_shadow_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     grouped = _group_rows_by_pool(rows)
     out_rows = [dict(row) for row in rows]
+    by_artifact: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in out_rows:
+        by_artifact[_safe_str(row.get('artifact_path', ''))].append(dict(row))
+    diagnostic_trust_floor = float(min(TRUST_SCORE_FLOORS))
+    diagnostic_xent_ceiling = float(max(REPORT_XENT_CEILINGS))
+    diagnostic_rival_margin_floor = float(min(RIVAL_MARGIN_FLOORS))
+    diagnostic_family_support_floor = int(min(FAMILY_SUPPORT_FLOORS))
     for idx, row in enumerate(out_rows):
         rows_in_pool = grouped.get((_safe_str(row.get('artifact_path', '')), _safe_str(row.get('stage_boundary', ''))), [])
+        artifact_rows = by_artifact.get(_safe_str(row.get('artifact_path', '')), [])
         best_dump = None
-        metrics_out: dict[str, Any] = {}
+        metrics_out: dict[str, Any] = _diagnostic_dump_metrics(
+            row,
+            rows_in_pool,
+            trust_floor=diagnostic_trust_floor,
+            xent_ceiling=diagnostic_xent_ceiling,
+            rival_margin_floor=diagnostic_rival_margin_floor,
+            family_support_floor=diagnostic_family_support_floor,
+        )
+        metrics_out.update(_late_family_persistence_metrics(row, artifact_rows))
+        metrics_out.update(_late_family_continuation_metrics(row, artifact_rows))
         for trust_floor in TRUST_SCORE_FLOORS:
             for xent_ceiling in REPORT_XENT_CEILINGS:
                 for rival_margin_floor in RIVAL_MARGIN_FLOORS:
@@ -761,7 +1162,7 @@ def _annotate_shadow_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                         )
                         if ok:
                             best_dump = f'trust{trust_floor:.2f}_xent{xent_ceiling:.2f}_margin{rival_margin_floor:.2f}_support{int(family_support_floor)}'
-                            metrics_out = dict(metrics)
+                            metrics_out = dict(metrics_out, **metrics)
                             break
                     if best_dump:
                         break
@@ -769,6 +1170,17 @@ def _annotate_shadow_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     break
             if best_dump:
                 break
+        if best_dump is None and str(ANALYSIS_MODE) == 'family_panel_v1':
+            for search_uplift_floor in CONTINUATION_SEARCH_UPLIFT_FLOORS:
+                ok, metrics = _qualifies_continuation_dump(
+                    row,
+                    artifact_rows,
+                    search_uplift_floor=float(search_uplift_floor),
+                )
+                if ok:
+                    best_dump = f'archive_search_uplift{search_uplift_floor:.2f}'
+                    metrics_out = dict(metrics_out, **metrics)
+                    break
         out_rows[idx] = dict(
             row,
             **metrics_out,
@@ -787,6 +1199,11 @@ def _annotate_stability(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for row in rows_sorted:
         by_artifact[_safe_str(row.get('artifact_path', ''))].append(row)
     out_rows: list[dict[str, Any]] = []
+    thresholds = (
+        FAMILY_PANEL_BOUNDARY_STABILITY_COUNTS
+        if str(ANALYSIS_MODE) == 'family_panel_v1'
+        else BOUNDARY_STABILITY_COUNTS
+    )
     for artifact_path, artifact_rows in by_artifact.items():
         family_boundary_hits: dict[str, list[tuple[int, int, dict[str, Any]]]] = defaultdict(list)
         for row in artifact_rows:
@@ -807,7 +1224,7 @@ def _annotate_stability(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 uniq_boundaries.append((boundary_order, stage_rank, row))
             best_threshold = 0
             best_row: dict[str, Any] | None = None
-            for threshold in sorted(BOUNDARY_STABILITY_COUNTS, reverse=True):
+            for threshold in sorted(thresholds, reverse=True):
                 if len(uniq_boundaries) >= int(threshold):
                     best_threshold = int(threshold)
                     best_row = dict(uniq_boundaries[int(threshold) - 1][2])

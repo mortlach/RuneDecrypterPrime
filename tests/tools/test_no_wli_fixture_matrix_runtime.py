@@ -181,6 +181,102 @@ def test_current_fixture_matrix_config_materializes_expected_seed411_stage35_sel
             7: (1,),
         }
         assert int(run_matrix_mod.MAX_JOBS) == 1
+    elif compare_mode == "candidate_single_p9_seed611":
+        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (611,)
+        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
+        assert {
+            int(period): tuple(int(c) for c in columns)
+            for period, columns in dict(
+                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
+            ).items()
+        } == {
+            9: (3,),
+        }
+        assert int(run_matrix_mod.MAX_JOBS) == 1
+    elif compare_mode == "candidate_single_p9_seed711":
+        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (711,)
+        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
+        assert {
+            int(period): tuple(int(c) for c in columns)
+            for period, columns in dict(
+                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
+            ).items()
+        } == {
+            9: (3,),
+        }
+        assert int(run_matrix_mod.MAX_JOBS) == 1
+    elif compare_mode == "candidate_single_p9_seed811":
+        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (811,)
+        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
+        assert {
+            int(period): tuple(int(c) for c in columns)
+            for period, columns in dict(
+                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
+            ).items()
+        } == {
+            9: (3,),
+        }
+        assert int(run_matrix_mod.MAX_JOBS) == 1
+    elif compare_mode == "candidate_single_p9_seed911":
+        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (911,)
+        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
+        assert {
+            int(period): tuple(int(c) for c in columns)
+            for period, columns in dict(
+                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
+            ).items()
+        } == {
+            9: (3,),
+        }
+        assert int(run_matrix_mod.MAX_JOBS) == 1
+    elif compare_mode == "candidate_single_p9_seed1011":
+        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (1011,)
+        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
+        assert {
+            int(period): tuple(int(c) for c in columns)
+            for period, columns in dict(
+                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
+            ).items()
+        } == {
+            9: (3,),
+        }
+        assert int(run_matrix_mod.MAX_JOBS) == 1
+    elif compare_mode == "candidate_pair_p9_seed1111_1211":
+        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (1111, 1211)
+        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
+        assert {
+            int(period): tuple(int(c) for c in columns)
+            for period, columns in dict(
+                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
+            ).items()
+        } == {
+            9: (3,),
+        }
+        assert int(run_matrix_mod.MAX_JOBS) == 2
+    elif compare_mode == "candidate_triple_p9_seed1311_1411_1511":
+        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (1311, 1411, 1511)
+        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
+        assert {
+            int(period): tuple(int(c) for c in columns)
+            for period, columns in dict(
+                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
+            ).items()
+        } == {
+            9: (3,),
+        }
+        assert int(run_matrix_mod.MAX_JOBS) == 3
+    elif compare_mode == "candidate_single_p9_seed611_legacy":
+        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (611,)
+        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
+        assert {
+            int(period): tuple(int(c) for c in columns)
+            for period, columns in dict(
+                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
+            ).items()
+        } == {
+            9: (3,),
+        }
+        assert int(run_matrix_mod.MAX_JOBS) == 1
     else:
         assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (411,)
         assert int(run_matrix_mod.MAX_JOBS) in {1, 2}
@@ -205,6 +301,7 @@ def test_current_fixture_matrix_config_materializes_expected_seed411_stage35_sel
         ),
         ("stage35_baseline_score_plus_novelty_live_p9",),
         ("stage35_baseline_score_plus_novelty_live_bounded_p9",),
+        ("stage35_baseline_legacy_live_bounded_p9",),
     }
     if compare_mode == "candidate_ladder_small":
         assert len(jobs) == 6
@@ -238,6 +335,73 @@ def test_current_fixture_matrix_config_materializes_expected_seed411_stage35_sel
         assert [int(job.period) for job in jobs] == [7]
         assert [int(job.columns) for job in jobs] == [1]
         assert [int(job.run_seed) for job in jobs] == [411]
+    elif compare_mode == "candidate_single_p9_seed611":
+        assert len(jobs) == 1
+        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
+            "stage35_baseline_score_plus_novelty_live_bounded_p9",
+        ]
+        assert [int(job.period) for job in jobs] == [9]
+        assert [int(job.columns) for job in jobs] == [3]
+        assert [int(job.run_seed) for job in jobs] == [611]
+    elif compare_mode == "candidate_single_p9_seed711":
+        assert len(jobs) == 1
+        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
+            "stage35_baseline_score_plus_novelty_live_bounded_p9",
+        ]
+        assert [int(job.period) for job in jobs] == [9]
+        assert [int(job.columns) for job in jobs] == [3]
+        assert [int(job.run_seed) for job in jobs] == [711]
+    elif compare_mode == "candidate_single_p9_seed811":
+        assert len(jobs) == 1
+        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
+            "stage35_baseline_score_plus_novelty_live_bounded_p9",
+        ]
+        assert [int(job.period) for job in jobs] == [9]
+        assert [int(job.columns) for job in jobs] == [3]
+        assert [int(job.run_seed) for job in jobs] == [811]
+    elif compare_mode == "candidate_single_p9_seed911":
+        assert len(jobs) == 1
+        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
+            "stage35_baseline_score_plus_novelty_live_bounded_p9",
+        ]
+        assert [int(job.period) for job in jobs] == [9]
+        assert [int(job.columns) for job in jobs] == [3]
+        assert [int(job.run_seed) for job in jobs] == [911]
+    elif compare_mode == "candidate_single_p9_seed1011":
+        assert len(jobs) == 1
+        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
+            "stage35_baseline_score_plus_novelty_live_bounded_p9",
+        ]
+        assert [int(job.period) for job in jobs] == [9]
+        assert [int(job.columns) for job in jobs] == [3]
+        assert [int(job.run_seed) for job in jobs] == [1011]
+    elif compare_mode == "candidate_pair_p9_seed1111_1211":
+        assert len(jobs) == 2
+        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
+            "stage35_baseline_score_plus_novelty_live_bounded_p9",
+            "stage35_baseline_score_plus_novelty_live_bounded_p9",
+        ]
+        assert [int(job.period) for job in jobs] == [9, 9]
+        assert [int(job.columns) for job in jobs] == [3, 3]
+        assert [int(job.run_seed) for job in jobs] == [1111, 1211]
+    elif compare_mode == "candidate_triple_p9_seed1311_1411_1511":
+        assert len(jobs) == 3
+        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
+            "stage35_baseline_score_plus_novelty_live_bounded_p9",
+            "stage35_baseline_score_plus_novelty_live_bounded_p9",
+            "stage35_baseline_score_plus_novelty_live_bounded_p9",
+        ]
+        assert [int(job.period) for job in jobs] == [9, 9, 9]
+        assert [int(job.columns) for job in jobs] == [3, 3, 3]
+        assert [int(job.run_seed) for job in jobs] == [1311, 1411, 1511]
+    elif compare_mode == "candidate_single_p9_seed611_legacy":
+        assert len(jobs) == 1
+        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
+            "stage35_baseline_legacy_live_bounded_p9",
+        ]
+        assert [int(job.period) for job in jobs] == [9]
+        assert [int(job.columns) for job in jobs] == [3]
+        assert [int(job.run_seed) for job in jobs] == [611]
     else:
         expected_presets = list(preset_ids)
         assert [int(job.run_seed) for job in jobs] == [411] * len(expected_presets)
@@ -275,6 +439,55 @@ def test_current_fixture_matrix_control_files_are_derived_from_experiment_id() -
         assert "seed411" in experiment_run_id
         assert "1job" in experiment_run_id
         assert "candidate_live_bounded" in experiment_run_id
+    elif compare_mode == "candidate_single_p9_seed611":
+        assert "p9c3" in experiment_run_id
+        assert "seed611" in experiment_run_id
+        assert "1job" in experiment_run_id
+        assert "candidate_live_bounded" in experiment_run_id
+        assert "space_map_v1" in experiment_run_id
+    elif compare_mode == "candidate_single_p9_seed711":
+        assert "p9c3" in experiment_run_id
+        assert "seed711" in experiment_run_id
+        assert "1job" in experiment_run_id
+        assert "candidate_live_bounded" in experiment_run_id
+        assert "space_map_v1" in experiment_run_id
+    elif compare_mode == "candidate_single_p9_seed811":
+        assert "p9c3" in experiment_run_id
+        assert "seed811" in experiment_run_id
+        assert "1job" in experiment_run_id
+        assert "candidate_live_bounded" in experiment_run_id
+        assert "space_map_v1" in experiment_run_id
+    elif compare_mode == "candidate_single_p9_seed911":
+        assert "p9c3" in experiment_run_id
+        assert "seed911" in experiment_run_id
+        assert "1job" in experiment_run_id
+        assert "candidate_live_bounded" in experiment_run_id
+        assert "space_map_v1" in experiment_run_id
+    elif compare_mode == "candidate_single_p9_seed1011":
+        assert "p9c3" in experiment_run_id
+        assert "seed1011" in experiment_run_id
+        assert "1job" in experiment_run_id
+        assert "candidate_live_bounded" in experiment_run_id
+        assert "space_map_v1" in experiment_run_id
+    elif compare_mode == "candidate_pair_p9_seed1111_1211":
+        assert "p9c3" in experiment_run_id
+        assert "seed1111_1211" in experiment_run_id
+        assert "2job" in experiment_run_id
+        assert "candidate_live_bounded" in experiment_run_id
+        assert "space_map_v1" in experiment_run_id
+    elif compare_mode == "candidate_triple_p9_seed1311_1411_1511":
+        assert "p9c3" in experiment_run_id
+        assert "seed1311_1411_1511" in experiment_run_id
+        assert "3job" in experiment_run_id
+        assert "candidate_live_bounded" in experiment_run_id
+        assert "space_map_v1" in experiment_run_id
+    elif compare_mode == "candidate_single_p9_seed611_legacy":
+        assert "p9c3" in experiment_run_id
+        assert "seed611" in experiment_run_id
+        assert "1job" in experiment_run_id
+        assert "legacy_control" in experiment_run_id
+        assert "live_bounded" in experiment_run_id
+        assert "space_map_v1" in experiment_run_id
     else:
         assert "seed411" in experiment_run_id
     if compare_mode == "candidate_ladder_small":
@@ -285,6 +498,22 @@ def test_current_fixture_matrix_control_files_are_derived_from_experiment_id() -
         assert preset_ids == ("stage35_baseline_score_plus_novelty_live_bounded_p9",)
     elif compare_mode == "candidate_single_p7":
         assert preset_ids == ("stage35_baseline_score_plus_novelty_live_bounded_p9",)
+    elif compare_mode == "candidate_single_p9_seed611":
+        assert preset_ids == ("stage35_baseline_score_plus_novelty_live_bounded_p9",)
+    elif compare_mode == "candidate_single_p9_seed711":
+        assert preset_ids == ("stage35_baseline_score_plus_novelty_live_bounded_p9",)
+    elif compare_mode == "candidate_single_p9_seed811":
+        assert preset_ids == ("stage35_baseline_score_plus_novelty_live_bounded_p9",)
+    elif compare_mode == "candidate_single_p9_seed911":
+        assert preset_ids == ("stage35_baseline_score_plus_novelty_live_bounded_p9",)
+    elif compare_mode == "candidate_single_p9_seed1011":
+        assert preset_ids == ("stage35_baseline_score_plus_novelty_live_bounded_p9",)
+    elif compare_mode == "candidate_pair_p9_seed1111_1211":
+        assert preset_ids == ("stage35_baseline_score_plus_novelty_live_bounded_p9",)
+    elif compare_mode == "candidate_triple_p9_seed1311_1411_1511":
+        assert preset_ids == ("stage35_baseline_score_plus_novelty_live_bounded_p9",)
+    elif compare_mode == "candidate_single_p9_seed611_legacy":
+        assert preset_ids == ("stage35_baseline_legacy_live_bounded_p9",)
     elif preset_ids == (
         "stage35_baseline_legacy_canary_p9",
         "stage35_baseline_score_plus_novelty_canary_p9",
@@ -324,6 +553,22 @@ def test_build_matrix_mainflow_state_is_narrow_and_explicit() -> None:
         assert tuple(int(x) for x in state["RUN_SEEDS"]) == (511,)
     elif compare_mode == "candidate_single_p7":
         assert tuple(int(x) for x in state["RUN_SEEDS"]) == (411,)
+    elif compare_mode == "candidate_single_p9_seed611":
+        assert tuple(int(x) for x in state["RUN_SEEDS"]) == (611,)
+    elif compare_mode == "candidate_single_p9_seed711":
+        assert tuple(int(x) for x in state["RUN_SEEDS"]) == (711,)
+    elif compare_mode == "candidate_single_p9_seed811":
+        assert tuple(int(x) for x in state["RUN_SEEDS"]) == (811,)
+    elif compare_mode == "candidate_single_p9_seed911":
+        assert tuple(int(x) for x in state["RUN_SEEDS"]) == (911,)
+    elif compare_mode == "candidate_single_p9_seed1011":
+        assert tuple(int(x) for x in state["RUN_SEEDS"]) == (1011,)
+    elif compare_mode == "candidate_pair_p9_seed1111_1211":
+        assert tuple(int(x) for x in state["RUN_SEEDS"]) == (1111, 1211)
+    elif compare_mode == "candidate_triple_p9_seed1311_1411_1511":
+        assert tuple(int(x) for x in state["RUN_SEEDS"]) == (1311, 1411, 1511)
+    elif compare_mode == "candidate_single_p9_seed611_legacy":
+        assert tuple(int(x) for x in state["RUN_SEEDS"]) == (611,)
     else:
         assert tuple(int(x) for x in state["RUN_SEEDS"]) == (411,)
     expected_presets = tuple(str(x) for x in run_matrix_mod.STAGE3_TUNING_PRESET_IDS)
@@ -332,6 +577,20 @@ def test_build_matrix_mainflow_state_is_narrow_and_explicit() -> None:
         assert tuple(int(x) for x in state["PERIODS_OVERRIDE"] or ()) == (5,)
     elif compare_mode == "candidate_single_p7":
         assert tuple(int(x) for x in state["PERIODS_OVERRIDE"] or ()) == (7,)
+    elif compare_mode == "candidate_single_p9_seed611":
+        assert tuple(int(x) for x in state["PERIODS_OVERRIDE"] or ()) == (9,)
+    elif compare_mode == "candidate_single_p9_seed711":
+        assert tuple(int(x) for x in state["PERIODS_OVERRIDE"] or ()) == (9,)
+    elif compare_mode == "candidate_single_p9_seed811":
+        assert tuple(int(x) for x in state["PERIODS_OVERRIDE"] or ()) == (9,)
+    elif compare_mode == "candidate_single_p9_seed911":
+        assert tuple(int(x) for x in state["PERIODS_OVERRIDE"] or ()) == (9,)
+    elif compare_mode == "candidate_single_p9_seed1011":
+        assert tuple(int(x) for x in state["PERIODS_OVERRIDE"] or ()) == (9,)
+    elif compare_mode == "candidate_pair_p9_seed1111_1211":
+        assert tuple(int(x) for x in state["PERIODS_OVERRIDE"] or ()) == (9,)
+    elif compare_mode == "candidate_single_p9_seed611_legacy":
+        assert tuple(int(x) for x in state["PERIODS_OVERRIDE"] or ()) == (9,)
     elif compare_mode == "candidate_family_overnight":
         assert tuple(int(x) for x in state["PERIODS_OVERRIDE"] or ()) == (7, 9)
 

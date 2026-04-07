@@ -415,6 +415,16 @@ def _build_pool_atlas_row(
         row_count=_safe_int(row_d.get("row_count", 0), 0),
         eligible_row_count=_safe_int(row_d.get("eligible_row_count", 0), 0),
         selected_row_count=_safe_int(row_d.get("selected_row_count", 0), 0),
+        review_primary_row_count=_safe_int(
+            row_d.get("review_primary_row_count", 0),
+            0,
+        ),
+        review_primary_row_count_kind=_safe_str(
+            row_d.get("review_primary_row_count_kind", "")
+        ),
+        review_primary_relation=_safe_str(
+            row_d.get("review_primary_relation", "")
+        ),
         family_count=_safe_int(row_d.get("family_count", 0), 0),
         largest_family_share=_safe_float(
             row_d.get("largest_family_share", float("nan"))

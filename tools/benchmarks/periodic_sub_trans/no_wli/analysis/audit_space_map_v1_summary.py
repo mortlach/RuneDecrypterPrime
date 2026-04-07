@@ -64,6 +64,15 @@ def _space_map_rows_for_artifact(path: Path) -> list[dict[str, Any]]:
                 row_count=int(row.get("row_count", 0) or 0),
                 eligible_row_count=int(row.get("eligible_row_count", 0) or 0),
                 selected_row_count=int(row.get("selected_row_count", 0) or 0),
+                review_primary_row_count=int(
+                    row.get("review_primary_row_count", 0) or 0
+                ),
+                review_primary_row_count_kind=str(
+                    row.get("review_primary_row_count_kind", "") or ""
+                ),
+                review_primary_relation=str(
+                    row.get("review_primary_relation", "") or ""
+                ),
                 family_count=int(row.get("family_count", 0) or 0),
                 largest_family_share=float(
                     row.get("largest_family_share", float("nan"))

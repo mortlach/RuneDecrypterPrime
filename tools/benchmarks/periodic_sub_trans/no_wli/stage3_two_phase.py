@@ -186,6 +186,7 @@ def run_stage3_two_phase_followup(
     stage3_phaseb_family_preservation_policy: str = "off",
     stage3_phaseb_family_view_id: str = "prefix_hamming_le_24",
     stage3_phaseb_family_reserved_slots: int = 0,
+    stage3_continue_after_solve: bool = True,
     log_prefix: str = "[pipeline_no_wli]",
 ) -> Dict[str, Any]:
     best3_match = float("nan")
@@ -1179,7 +1180,7 @@ def run_stage3_two_phase_followup(
     )
     gate_skip = bool(stage3_scan_phaseA_only)
     if not gate_skip:
-        gate_skip = bool(phaseA_solved)
+        gate_skip = bool(phaseA_solved) and not bool(stage3_continue_after_solve)
     if not gate_skip:
         gate_skip = (
             np.isfinite(phaseA_best_delta)
@@ -1785,6 +1786,22 @@ def run_stage3_two_phase_followup(
         and int(stage3_phasec_start_keys) > 0
         and int(sub_len) > 1
     )
+    phasec_skip_solved_before_start = bool(
+        int(phaseC_enabled_effective) == 1
+        and not bool(stage3_continue_after_solve)
+        and np.isfinite(best3_match)
+        and float(best3_match) >= float(solve_match_threshold)
+    )
+    if phasec_skip_solved_before_start:
+        phaseC_enabled_effective = 0
+        if not str(stop_reason_update).strip():
+            stop_reason_update = "solved_stage3"
+        print(
+            f"{log_prefix} stage3-phaseC-skip tier={tier_name} text={text_id} key_seed={key_seed} "
+            f"reason=solved_before_phaseC best_match={fmt_finite_float_fn(best3_match, digits=3)} "
+            f"threshold={float(solve_match_threshold):.3f} continue_after_solve=0",
+            flush=True,
+        )
     phaseC_rescue_effective = int(
         bool(phaseC_rescue_enabled_cfg)
         and int(phaseC_rescue_candidates_cfg) > 0

@@ -97,7 +97,7 @@ FORCE_STAGE3_SPAN_BASIN_JUDGE_TIE_EPS = 0.001
 # - do not change upstream search, Phase-C start policy, or Stage 3.5 search
 #   semantics
 ENABLE_STAGE3_TUNING_PRESET_MATRIX = True
-STAGE35_BASELINE_SELECTOR_COMPARE_MODE = "candidate_family_overnight"
+STAGE35_BASELINE_SELECTOR_COMPARE_MODE = "candidate_triple_p9_seed1311_1411_1511"
 STAGE35_BASELINE_SELECTOR_CANARY_PRESET_IDS: tuple[str, ...] = (
     "stage35_baseline_legacy_canary_p9",
     "stage35_baseline_score_plus_novelty_canary_p9",
@@ -108,6 +108,9 @@ STAGE35_BASELINE_SELECTOR_OVERNIGHT_PRESET_IDS: tuple[str, ...] = (
 )
 STAGE35_BASELINE_SELECTOR_SINGLE_PRESET_IDS: tuple[str, ...] = (
     "stage35_baseline_score_plus_novelty_live_bounded_p9",
+)
+STAGE35_BASELINE_SELECTOR_SINGLE_LEGACY_PRESET_IDS: tuple[str, ...] = (
+    "stage35_baseline_legacy_live_bounded_p9",
 )
 STAGE35_BASELINE_SELECTOR_LADDER_PRESET_IDS: tuple[str, ...] = (
     "stage35_baseline_score_plus_novelty_live_bounded_p9",
@@ -120,6 +123,62 @@ elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "overnight":
     STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_OVERNIGHT_PRESET_IDS
 elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single":
     STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_SINGLE_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p9_seed611":
+    PERIODS_OVERRIDE = (9,)
+    COLUMNS_OVERRIDE_BY_PERIOD = {
+        9: (3,),
+    }
+    RUN_SEEDS = (611,)
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_SINGLE_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p9_seed711":
+    PERIODS_OVERRIDE = (9,)
+    COLUMNS_OVERRIDE_BY_PERIOD = {
+        9: (3,),
+    }
+    RUN_SEEDS = (711,)
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_SINGLE_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p9_seed811":
+    PERIODS_OVERRIDE = (9,)
+    COLUMNS_OVERRIDE_BY_PERIOD = {
+        9: (3,),
+    }
+    RUN_SEEDS = (811,)
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_SINGLE_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p9_seed911":
+    PERIODS_OVERRIDE = (9,)
+    COLUMNS_OVERRIDE_BY_PERIOD = {
+        9: (3,),
+    }
+    RUN_SEEDS = (911,)
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_SINGLE_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p9_seed1011":
+    PERIODS_OVERRIDE = (9,)
+    COLUMNS_OVERRIDE_BY_PERIOD = {
+        9: (3,),
+    }
+    RUN_SEEDS = (1011,)
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_SINGLE_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_pair_p9_seed1111_1211":
+    PERIODS_OVERRIDE = (9,)
+    COLUMNS_OVERRIDE_BY_PERIOD = {
+        9: (3,),
+    }
+    RUN_SEEDS = (1111, 1211)
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_SINGLE_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_triple_p9_seed1311_1411_1511":
+    PERIODS_OVERRIDE = (9,)
+    COLUMNS_OVERRIDE_BY_PERIOD = {
+        9: (3,),
+    }
+    RUN_SEEDS = (1311, 1411, 1511)
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_SINGLE_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p9_seed611_legacy":
+    PERIODS_OVERRIDE = (9,)
+    COLUMNS_OVERRIDE_BY_PERIOD = {
+        9: (3,),
+    }
+    RUN_SEEDS = (611,)
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_SINGLE_LEGACY_PRESET_IDS
 elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p5":
     PERIODS_OVERRIDE = (5,)
     COLUMNS_OVERRIDE_BY_PERIOD = {
@@ -154,8 +213,15 @@ else:
     raise ValueError(
         "unsupported STAGE35_BASELINE_SELECTOR_COMPARE_MODE; "
         "expected 'canary', 'overnight', 'candidate_single', "
-        "'candidate_single_p5', 'candidate_single_p7', "
-        "'candidate_ladder_small', or 'candidate_family_overnight'"
+        "'candidate_single_p9_seed611', 'candidate_single_p9_seed711', "
+        "'candidate_single_p9_seed811', 'candidate_single_p9_seed911', "
+        "'candidate_single_p9_seed1011', "
+        "'candidate_pair_p9_seed1111_1211', "
+        "'candidate_triple_p9_seed1311_1411_1511', "
+        "'candidate_single_p9_seed611_legacy', "
+        "'candidate_single_p5', "
+        "'candidate_single_p7', 'candidate_ladder_small', or "
+        "'candidate_family_overnight'"
     )
 STAGE35_BASELINE_SELECTOR_SHARED_CFG: dict[str, int] = {
     "seed_keep": 4,
@@ -1313,6 +1379,62 @@ STAGE3_TUNING_PRESETS: dict[str, dict[str, object]] = {
         "force_stage35_cfg": dict(STAGE35_BASELINE_SELECTOR_BOUNDED_LIVE_CFG),
         "stage3_span_basin_k_sweep_values": (64,),
     },
+    "stage35_baseline_legacy_live_bounded_p9": {
+        "force_stage1_seed_restarts": 88,
+        "force_stage1_seed_total": 224,
+        "force_stage1_scout_min_steps": 850,
+        "force_stage12_archive_keep": 160,
+        "force_word_ngram_decision_influence": True,
+        "force_word_ngram_report_min_positions": 6,
+        "force_stage12_promote_top": 160,
+        "force_stage3_initial_keys": 64,
+        "force_stage3_initial_keys_by_columns": {3: 64},
+        "force_stage3_span_basin_judge_tie_eps": 0.005,
+        "force_stage3_span_basin_judge_tie_max_seeds": 16,
+        "force_stage3_phasea_cfg": {
+            "steps": 800,
+            "restarts": 1,
+            "inner_batch": 96,
+            "col_every": 0,
+            "col_batch": 0,
+            "slip_every": 0,
+            "slip_swaps": 0,
+            "stall_slip_limit": 0,
+            "progress_pct": 1,
+            "print_progress": False,
+        },
+        "force_stage3_phaseb_top_n": 32,
+        "force_stage3_phaseb_cfg": {
+            "steps": 2200,
+            "inner_batch": 128,
+            "col_every": 1,
+            "col_batch": 96,
+            "slip_every": 70,
+            "stall_rounds": 240,
+            "stall_slip_limit": 8,
+            "slip_swaps": 28,
+            "progress_pct": 1,
+            "print_progress": True,
+        },
+        "force_stage3_phaseb_gate_delta_floor": 0.003,
+        "force_stage3_phaseb_gate_end_gain_floor": 0.001,
+        "force_stage3_phasec_enabled": True,
+        "force_stage3_phasec_start_keys": 6,
+        "force_stage3_phasec_word_ngram_tiebreak": True,
+        "force_stage3_phasec_cfg": {
+            "steps": 96,
+            "proposals_per_step": 16,
+            "three_cycle_prob": 0.2,
+            "lexical_min_match": 0.72,
+            "lexical_match_tie_eps": 0.01,
+            "lexical_score_tie_eps": 0.002,
+            "lexical_max_calls": 128,
+        },
+        "force_stage35_enabled": True,
+        "force_stage35_baseline_selector": "legacy",
+        "force_stage35_cfg": dict(STAGE35_BASELINE_SELECTOR_BOUNDED_LIVE_CFG),
+        "stage3_span_basin_k_sweep_values": (64,),
+    },
     "lexical_tie_break_short": {
         "force_stage1_seed_restarts": 88,
         "force_stage1_seed_total": 224,
@@ -1644,10 +1766,27 @@ STOP_ON_ERROR = False
 # `MAX_JOBS` is a total-job truncation, not just a parallelism control.
 if STAGE35_BASELINE_SELECTOR_COMPARE_MODE in {
     "candidate_single",
+    "candidate_single_p9_seed611",
+    "candidate_single_p9_seed711",
+    "candidate_single_p9_seed811",
+    "candidate_single_p9_seed911",
+    "candidate_single_p9_seed1011",
+    "candidate_pair_p9_seed1111_1211",
+    "candidate_triple_p9_seed1311_1411_1511",
+    "candidate_single_p9_seed611_legacy",
     "candidate_single_p5",
     "candidate_single_p7",
 }:
-    MAX_JOBS: int | None = 1
+    MAX_JOBS: int | None = (
+        3
+        if STAGE35_BASELINE_SELECTOR_COMPARE_MODE
+        == "candidate_triple_p9_seed1311_1411_1511"
+        else
+        2
+        if STAGE35_BASELINE_SELECTOR_COMPARE_MODE
+        == "candidate_pair_p9_seed1111_1211"
+        else 1
+    )
 elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_ladder_small":
     MAX_JOBS = 6
 elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_family_overnight":
@@ -1659,10 +1798,23 @@ if STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "canary":
     MAX_WALLCLOCK_SECONDS: float | None = 2.0 * 60.0 * 60.0
 elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE in {
     "candidate_single",
+    "candidate_single_p9_seed611",
+    "candidate_single_p9_seed711",
+    "candidate_single_p9_seed811",
+    "candidate_single_p9_seed911",
+    "candidate_single_p9_seed1011",
+    "candidate_pair_p9_seed1111_1211",
+    "candidate_triple_p9_seed1311_1411_1511",
+    "candidate_single_p9_seed611_legacy",
     "candidate_single_p5",
     "candidate_single_p7",
 }:
-    MAX_WALLCLOCK_SECONDS = 8.0 * 60.0 * 60.0
+    MAX_WALLCLOCK_SECONDS = (
+        12.0 * 60.0 * 60.0
+        if STAGE35_BASELINE_SELECTOR_COMPARE_MODE
+        == "candidate_triple_p9_seed1311_1411_1511"
+        else 8.0 * 60.0 * 60.0
+    )
 elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_ladder_small":
     MAX_WALLCLOCK_SECONDS = 8.0 * 60.0 * 60.0
 elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_family_overnight":
@@ -1676,6 +1828,38 @@ if STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "canary":
 elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single":
     EXPERIMENT_RUN_ID = (
         "tune_v57_p9c3_seed411_stage35_baseline_selector_candidate_live_bounded_single_1job"
+    )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p9_seed611":
+    EXPERIMENT_RUN_ID = (
+        "tune_v62_p9c3_seed611_stage35_baseline_selector_candidate_live_bounded_space_map_v1_single_1job"
+    )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p9_seed711":
+    EXPERIMENT_RUN_ID = (
+        "tune_v64_p9c3_seed711_stage35_baseline_selector_candidate_live_bounded_space_map_v1_single_1job"
+    )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p9_seed811":
+    EXPERIMENT_RUN_ID = (
+        "tune_v65_p9c3_seed811_stage35_baseline_selector_candidate_live_bounded_space_map_v1_single_1job"
+    )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p9_seed911":
+    EXPERIMENT_RUN_ID = (
+        "tune_v66_p9c3_seed911_stage35_baseline_selector_candidate_live_bounded_space_map_v1_single_1job"
+    )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p9_seed1011":
+    EXPERIMENT_RUN_ID = (
+        "tune_v67_p9c3_seed1011_stage35_baseline_selector_candidate_live_bounded_space_map_v1_single_1job"
+    )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_pair_p9_seed1111_1211":
+    EXPERIMENT_RUN_ID = (
+        "tune_v68_p9c3_seed1111_1211_stage35_baseline_selector_candidate_live_bounded_space_map_v1_2job"
+    )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_triple_p9_seed1311_1411_1511":
+    EXPERIMENT_RUN_ID = (
+        "tune_v69_p9c3_seed1311_1411_1511_stage35_baseline_selector_candidate_live_bounded_space_map_v1_3job"
+    )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p9_seed611_legacy":
+    EXPERIMENT_RUN_ID = (
+        "tune_v63_p9c3_seed611_stage35_baseline_selector_legacy_control_live_bounded_space_map_v1_single_1job"
     )
 elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_single_p5":
     EXPERIMENT_RUN_ID = (

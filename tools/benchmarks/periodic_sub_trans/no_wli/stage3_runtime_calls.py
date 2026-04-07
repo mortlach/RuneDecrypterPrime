@@ -213,6 +213,7 @@ def run_stage3_two_phase_followup_call(
         alphabet_size=int(ctx.alphabet_size),
         direction=direction,
         solve_match_threshold=float(ctx.solve_match_threshold),
+        stage3_continue_after_solve=bool(ctx.stage3_continue_after_solve),
         oracle_assist_selection_effective=bool(oracle_assist_selection_effective),
         stage3_phaseA_experiment=str(stage3_phaseA_experiment),
         stage3_phaseB_experiment=str(stage3_phaseB_experiment),

@@ -926,6 +926,186 @@ def test_stage3_iteration_flow_uses_score_plus_novelty_stage35_baseline_selector
     assert list(captured["baseline_key"]) == [9, 1, 12, 4, 5, 6, 11]
 
 
+def test_stage3_iteration_flow_skips_stage35_after_solved_stage3_when_continue_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _fake_phasea_restarts(**kwargs):
+        _ = kwargs
+        return {
+            "phaseA_rows": [],
+            "stage_rows": [],
+            "stage3_solve_hits_delta": 0,
+            "dt3_delta": 0.0,
+            "ev3_delta": 0,
+            "span_phaseA_eval_total": 0.0,
+            "span_phaseA_eval_active": 0.0,
+            "span_phaseA_eval_skipped": 0.0,
+            "span_phaseA_seconds_total": 0.0,
+            "span_phaseA_seconds_active": 0.0,
+        }
+
+    def _fake_two_phase_followup(**kwargs):
+        _ = kwargs
+        return {
+            "stage_rows": [],
+            "dt3_delta": 0.01,
+            "ev3_delta": 5,
+            "stage3_solve_hits_delta": 1,
+            "stop_reason_update": "solved_stage3",
+            "best3_match": 1.0,
+            "best3_score": 4.0,
+            "best3_key": [7, 3, 14, 14, 14, 2, 11],
+            "pt3": np.asarray([1, 2, 3, 4], dtype=np.uint8),
+            "phaseC_enabled_cfg": 1,
+            "phaseC_enabled_effective": 0,
+            "phaseC_ran": 0,
+            "phaseC_start_keys_used": 0,
+            "phaseC_start_policy": "source_order",
+            "phaseC_candidate_pool_count": 0,
+            "phaseC_candidate_pool_unique_keys": 0,
+            "phaseC_candidate_pool_unique_end_hash": 0,
+            "phaseC_candidate_pool_source_counts": {},
+            "phaseC_start_source_counts": {},
+            "phaseC_start_unique_end_hash": 0,
+            "phaseC_checkpoint_jsonl_name": "",
+            "phaseC_checkpoint_rows_written": 0,
+            "phaseC_final_winner_lane": "",
+            "phaseC_final_winner_source": "",
+            "phaseC_start_summaries": [],
+        }
+
+    def _fail_stage35_followup(**kwargs):
+        raise AssertionError(f"stage35 should not run after solved stage3: {kwargs!r}")
+
+    monkeypatch.setattr(
+        flow_mod,
+        "run_stage3_phasea_restarts_call",
+        _fake_phasea_restarts,
+    )
+    monkeypatch.setattr(
+        flow_mod,
+        "run_stage3_two_phase_followup_call",
+        _fake_two_phase_followup,
+    )
+    monkeypatch.setattr(flow_mod, "run_stage35_live_followup", _fail_stage35_followup)
+
+    out = flow_mod.run_stage3_iteration_flow(
+        state={
+            "tier": SimpleNamespace(
+                name="fixture_fixture_001_p7_c1_l1000",
+                period=7,
+                columns=1,
+            ),
+            "text_id": 0,
+            "key_seed": 411,
+            "t0_i": 0.0,
+            "key_len": 7,
+            "best2_match": 0.8,
+            "best2_key": [7, 3, 14, 14, 14, 2, 11],
+            "best2_score": 3.0,
+            "best2_pt": [1, 2, 3, 4],
+            "best2_preview": "abcd",
+            "stage2_promoted": [],
+            "stage2_entry_score": 3.0,
+            "stage2_entry_score_judge": 3.0,
+            "scorer_stage2": {},
+            "scorer_full": {},
+            "oracle_s3": 0.0,
+            "oracle_decision_paths_enabled": False,
+            "ct_idx": np.asarray([0, 0, 0, 0], dtype=np.uint8),
+            "pt_idx": np.asarray([1, 2, 3, 4], dtype=np.uint8),
+            "wli": [],
+            "direction": None,
+            "scorer_stage3_phaseA": {},
+            "scorer_stage3_phaseB": {},
+            "scorer_stage3_phaseA_runtime": object(),
+            "scorer_stage3_search_runtime": _SearchSupportScorer(target=[1, 2, 3, 4]),
+            "scorer_basin_judge_runtime": _SearchSupportScorer(target=[1, 2, 3, 4]),
+            "scorer_full_runtime": _PositionalMatchScorer(target=[1, 2, 3, 4]),
+            "full_cipher": _SlicePermutationCipher(period=2, alphabet_size=3),
+            "stage2_evals_total": 5,
+            "stage2_continue_to_gate": False,
+            "stage2_continue_stop_reason": "",
+            "stage3_phaseA_experiment": "a_baseline",
+            "stage3_phaseB_experiment": "c_min_late",
+            "stage3_phaseB_char_pct_min_dynamic": 0.35,
+            "stage3_phaseB_char_pct_min_source": "static",
+            "oracle_assist_selection_effective": False,
+            "stages": [],
+            "STAGE3_PHASEC_START_POLICY": "source_order",
+            "STAGE35_ENABLED": True,
+            "STAGE35_BASELINE_SELECTOR": "score_plus_novelty",
+            "STAGE35_CFG": {},
+        },
+        stage3_runtime_call_ctx=SimpleNamespace(
+            alphabet_size=3,
+            batch_eval_chunk_size=64,
+            require_batch_scoring=True,
+        ),
+        stage3_two_phase_enabled=True,
+        stage3_continue_after_solve=False,
+        stage3_phasea_cfg_default={},
+        stage3_phaseb_cfg_default={},
+        stage3_phaseb_top_n_default=8,
+        stage3_phaseb_gate_delta_floor_default=0.01,
+        stage3_phaseb_gate_end_gain_floor_default=0.01,
+        solver_stage3_default_cfg={},
+        stage3_span_basin_judge_k=8,
+        tier_heartbeat_seconds=30.0,
+        solve_match_threshold=0.95,
+        stall_delta=1e-6,
+        stall_stage_limit=2,
+        evaluate_stage3_entry_policy_fn=lambda **kwargs: {
+            "policy_branch": "continue",
+            "stage3_band_name": "test",
+            "stage3_scan_phaseA_only": False,
+        },
+        prepare_stage3_refine_inputs_fn=lambda **kwargs: {
+            "c1_focus_enabled": False,
+            "init3_n": 1,
+            "init3": [[7, 3, 14, 14, 14, 2, 11]],
+            "promoted_keys": [],
+            "stage3_promoted_keys_count": 0,
+            "stage3_period_init_mult": 1.0,
+            "stage3_period_step_mult": 1.0,
+            "stage3_period_restart_bonus": 0,
+            "stage2_gap_to_oracle": 0.0,
+            "stage2_gate_score": 3.0,
+            "stage2_gate_source": "test",
+            "promoted_best_match": 0.8,
+            "oracle_used_for_stage3_band": False,
+            "stage3_band_name": "test",
+            "stage3_phaseA_cfg": {},
+            "stage3_phaseB_cfg": {},
+            "stage3_phaseB_top_n": 8,
+            "stage3_phaseB_gate_delta": 0.01,
+            "stage3_phaseB_gate_end_gain": 0.01,
+            "solver_stage3_cfg": {},
+        },
+        summarize_stage3_span_fn=lambda **kwargs: {
+            "span_eval_total": 0.0,
+            "span_eval_active": 0.0,
+            "span_eval_skipped": 0.0,
+            "span_seconds_total": 0.0,
+            "span_seconds_active": 0.0,
+            "span_active_rate": 0.0,
+            "span_active_rate_source": "test",
+        },
+        mark_oracle_decision_use_fn=lambda: None,
+        print_stage_preview_fn=lambda **kwargs: None,
+        fmt_finite_float_fn=lambda v, digits=3: f"{float(v):.{int(digits)}f}"
+        if np.isfinite(v)
+        else "nan",
+    )
+
+    assert str(out["stop_reason"]) == "solved_stage3"
+    assert int(out["stage35_ran"]) == 0
+    assert int(out["stage35_proof_valid"]) == 1
+    assert str(out["stage35_outcome_status"]) == "not_run_solved_stage3"
+    assert str(out["stage35_outcome_reason"]) == "continue_after_solve_disabled"
+    assert str(out["stage35_accept_reason"]) == "solved_before_stage35"
+
+
 def test_stage35_live_followup_ignores_oracle_match_fields_in_seed_selection() -> None:
     artifact = _mock_artifact()
     target = list(artifact["target_plaintext_idx"])

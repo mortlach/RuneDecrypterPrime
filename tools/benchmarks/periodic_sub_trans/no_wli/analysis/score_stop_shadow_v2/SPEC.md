@@ -20,6 +20,14 @@ This remains a **science-only** slice.
 All outcomes are analysis labels only.
 No live solver behaviour changes in this slice.
 
+The current implemented dump layer is now:
+
+1. a trust-led dump rule for cleaner high-trust late wins
+2. a narrow archive-only same-family search-uplift fallback for rescue-style
+   late wins
+
+Stop remains separate and shadow-only.
+
 ## Core change from v1
 
 `v1` was row-first.
@@ -225,6 +233,18 @@ These must be labelled as replay-derived.
 - `shadow_first_trigger_stage_boundary`
 - `shadow_first_trigger_stage_rank`
 - `shadow_false_stop_label`
+- `shadow_late_family_persistence_count`
+- `shadow_late_family_persistence_boundaries`
+- `shadow_late_family_persistence_pass`
+- `shadow_late_family_reaches_archive`
+- `shadow_late_family_first_boundary`
+- `shadow_late_family_last_boundary`
+- `shadow_late_family_phasec_search_score`
+- `shadow_late_family_current_boundary_best_search_score`
+- `shadow_late_family_search_uplift`
+- `shadow_late_family_phasec_full_score`
+- `shadow_late_family_current_boundary_best_full_score`
+- `shadow_late_family_full_uplift`
 
 ## Minimum run-level output schema
 
@@ -310,6 +330,23 @@ A row/family may trigger `would_stop` only when all are true:
 
 This is the first hard-stop proxy to test.
 
+### 2b. Archive-only continuation fallback
+
+This is a dump-only widening axis, not a stop rule.
+
+A row may trigger `would_dump` when all are true:
+
+- boundary is `stage35_archive`
+- same-family `replay_search_score` at `stage35_archive` is materially better
+  than the same family's `phaseC_start` baseline
+- uplift exceeds a conservative floor
+
+Intent:
+
+- catch rescue-style late wins like `411` without lowering the global trust
+  floor
+- avoid waking reject cases that merely look cleaner at one row
+
 ### 3. Plateau rule deferred
 
 Do not promote a plateau proxy in this first implementation.
@@ -345,10 +382,13 @@ The first implementation should write:
 - `data_gap_report.json`
 - optional `summary.md`
 
-## Current score-panel mode
+## Current analysis modes
 
-The extractor currently has a bounded `score_panel_v1` mode for the first
-score-only calibration pass.
+The extractor currently has two bounded offline modes.
+
+### `score_panel_v1`
+
+This is the broader score-only calibration pass.
 
 Scope:
 
@@ -373,6 +413,54 @@ Reason:
   examples
 - family-aware stability is a second track and should not be mixed into this
   first score-only panel
+
+### `family_panel_v1`
+
+This is the current small modern family-aware calibration pass.
+
+Scope:
+
+- exactly five fresh fixture artifacts are selected by hardcoded
+  period/column/seed/outcome predicates
+- only late mapped boundaries are replay-scored:
+  - `phaseC_pool`
+  - `phaseC_start`
+  - `stage35_seed`
+  - `stage35_archive`
+- rows are capped per boundary so this remains a short modern-panel read
+- `would_dump` uses active word-ngram trust/xent plus family support and
+  rival-family margin
+- `would_stop` stays shadow-only and requires repeated family support across at
+  least two late boundaries
+- non-firing rows still persist their base diagnostic metrics and blocker flags
+  so misses can be compared directly against hits without rerunning ad hoc
+  scripts
+- late-family persistence diagnostics are also persisted for all rows:
+  - boundary count across `phaseC_start -> stage35_seed -> stage35_archive`
+  - boundary list
+  - whether the family reaches archive
+
+Current intended harness-backed family panel:
+
+- solved control: `p5/c1 seed511`
+- selector-sensitive hard win: `p9/c3 seed411`
+- selector-neutral hard wins:
+  - `p9/c3 seed611`
+  - `p9/c3 seed711`
+  - `p9/c3 seed1011`
+  - `p9/c3 seed1111`
+- selector-sensitive reject / no-lift: `p9/c3 seed811`
+- selector-neutral rejects / no-lift:
+  - `p9/c3 seed911`
+  - `p9/c3 seed1211`
+
+Reason:
+
+- this is still a small modern panel, but it is now broad enough that
+  hard-seed stop claims can stay harness-backed rather than partly manual
+- it keeps the question narrow:
+  - is there a useful late-family dump signal?
+  - does a much stricter multi-boundary stop proxy stay conservative?
 
 ## First hardcoded threshold grid
 
