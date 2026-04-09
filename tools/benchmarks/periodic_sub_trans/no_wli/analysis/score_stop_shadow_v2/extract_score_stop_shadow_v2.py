@@ -52,7 +52,7 @@ MAX_ARTIFACTS = 24
 ONLY_REQUIRE_SPACE_MAP_V1 = False
 PANEL_FILTERS = ()
 ANALYSIS_MODE = 'family_panel_v1'
-FAMILY_PANEL_TARGETS = (
+CORE_PANEL_TARGETS = (
     dict(
         label='solved_control_p5_seed511',
         period=5,
@@ -151,6 +151,42 @@ FAMILY_PANEL_TARGETS = (
         require_space_map_v1=True,
     ),
 )
+PRESSURE_PANEL_TARGETS = (
+    dict(
+        label='selector_neutral_pressure_reject_seed1311',
+        period=9,
+        columns=3,
+        key_seed=1311,
+        max_best_match=0.60,
+        require_best_stage='stage3_full_refine',
+        require_stage35_accept_reason='search_score_drop_guard_failed',
+        require_baseline_differs=0,
+        require_space_map_v1=True,
+    ),
+    dict(
+        label='selector_neutral_pressure_reject_seed1411',
+        period=9,
+        columns=3,
+        key_seed=1411,
+        max_best_match=0.35,
+        require_best_stage='stage3_full_refine',
+        require_stage35_accept_reason='search_score_drop_guard_failed',
+        require_baseline_differs=0,
+        require_space_map_v1=True,
+    ),
+    dict(
+        label='selector_neutral_pressure_reject_seed1511',
+        period=9,
+        columns=3,
+        key_seed=1511,
+        max_best_match=0.65,
+        require_best_stage='stage3_full_refine',
+        require_stage35_accept_reason='search_score_drop_guard_failed',
+        require_baseline_differs=0,
+        require_space_map_v1=True,
+    ),
+)
+FAMILY_PANEL_TARGETS = CORE_PANEL_TARGETS
 SCORE_PANEL_MATCH_BANDS = (
     dict(name='solved_or_near_perfect', min_match=0.999, max_match=1.001, target_count=6),
     dict(name='near_solved_high_quality', min_match=0.85, max_match=0.999, target_count=6),
@@ -200,6 +236,7 @@ CONTINUATION_RULE_STAGE_BOUNDARY = 'stage35_archive'
 SOLVED_MATCH_THRESHOLD = 0.999
 REQUIRE_BATCH_SCORING = True
 BATCH_CHUNK_SIZE = 256
+CASE_EXPLANATION_TARGET_SEEDS = (1111, 1311, 1411)
 
 
 def _safe_int(value: Any, default: int = 0) -> int:
@@ -236,6 +273,53 @@ def _finite_mean(values: Sequence[Any]) -> float:
     if not finite_values:
         return float('nan')
     return float(np.mean(np.asarray(finite_values, dtype=np.float64)))
+
+
+def _iter_dump_threshold_rules() -> Iterable[dict[str, Any]]:
+    for trust_floor in TRUST_SCORE_FLOORS:
+        for xent_ceiling in REPORT_XENT_CEILINGS:
+            for rival_margin_floor in RIVAL_MARGIN_FLOORS:
+                for family_support_floor in FAMILY_SUPPORT_FLOORS:
+                    yield dict(
+                        rule_family='trust_dump',
+                        trust_floor=float(trust_floor),
+                        xent_ceiling=float(xent_ceiling),
+                        rival_margin_floor=float(rival_margin_floor),
+                        family_support_floor=int(family_support_floor),
+                        rule_id=(
+                            f'trust{float(trust_floor):.2f}_'
+                            f'xent{float(xent_ceiling):.2f}_'
+                            f'margin{float(rival_margin_floor):.2f}_'
+                            f'support{int(family_support_floor)}'
+                        ),
+                    )
+
+
+def _iter_continuation_rules() -> Iterable[dict[str, Any]]:
+    for search_uplift_floor in CONTINUATION_SEARCH_UPLIFT_FLOORS:
+        yield dict(
+            rule_family='continuation_archive',
+            search_uplift_floor=float(search_uplift_floor),
+            rule_id=f'archive_search_uplift{float(search_uplift_floor):.2f}',
+        )
+
+
+def _margin_at_least(actual: Any, floor: float) -> float:
+    value = _safe_float(actual)
+    if not _is_finite(value):
+        return float('nan')
+    return float(value) - float(floor)
+
+
+def _margin_at_most(actual: Any, ceiling: float) -> float:
+    value = _safe_float(actual)
+    if not _is_finite(value):
+        return float('nan')
+    return float(ceiling) - float(value)
+
+
+def _margin_count_at_least(actual: Any, floor: int) -> int:
+    return int(_safe_int(actual, 0) - int(floor))
 
 
 def _repo_relpath(path: Path) -> str:
@@ -330,11 +414,29 @@ def _artifact_matches_target(
     return True
 
 
-def _discover_family_panel_paths(paths: Sequence[Path]) -> list[Path]:
-    selected: list[Path] = []
+def _iter_review_target_cfgs() -> Iterable[dict[str, Any]]:
+    for order, target_cfg in enumerate(list(CORE_PANEL_TARGETS or [])):
+        yield dict(
+            dict(target_cfg),
+            target_panel_name='core',
+            target_panel_role='benchmark',
+            target_order=int(order),
+        )
+    for order, target_cfg in enumerate(list(PRESSURE_PANEL_TARGETS or [])):
+        yield dict(
+            dict(target_cfg),
+            target_panel_name='pressure',
+            target_panel_role='falsification',
+            target_order=int(order),
+        )
+
+
+def _discover_review_targets(paths: Sequence[Path]) -> list[dict[str, Any]]:
+    selected: list[dict[str, Any]] = []
     used_paths: set[Path] = set()
-    for target_cfg in list(FAMILY_PANEL_TARGETS or []):
+    for target_cfg in _iter_review_target_cfgs():
         chosen: Path | None = None
+        chosen_artifact: dict[str, Any] | None = None
         for path in paths:
             if path in used_paths:
                 continue
@@ -344,11 +446,53 @@ def _discover_family_panel_paths(paths: Sequence[Path]) -> list[Path]:
                 continue
             if _artifact_matches_target(artifact, target_cfg=target_cfg):
                 chosen = path
+                chosen_artifact = artifact
                 break
         if chosen is not None:
-            selected.append(chosen)
+            selected.append(
+                dict(
+                    artifact_path=chosen,
+                    artifact=chosen_artifact or {},
+                    target_cfg=dict(target_cfg),
+                    target_panel_name=_safe_str(target_cfg.get('target_panel_name', '')),
+                    target_panel_role=_safe_str(target_cfg.get('target_panel_role', '')),
+                    target_label=_safe_str(target_cfg.get('label', '')),
+                    target_order=_safe_int(target_cfg.get('target_order', 0), 0),
+                )
+            )
             used_paths.add(chosen)
     return selected
+
+
+def _discover_family_panel_paths(paths: Sequence[Path]) -> list[Path]:
+    return [Path(dict(target).get('artifact_path')) for target in _discover_review_targets(paths)]
+
+
+def discover_review_targets() -> list[dict[str, Any]]:
+    paths = sorted(
+        REPO_ROOT.glob(FINAL_INSTANCE_GLOB),
+        key=lambda path: (
+            str(path.parents[1].name),
+            str(path.name),
+        ),
+        reverse=True,
+    )
+    if str(ANALYSIS_MODE) == 'family_panel_v1':
+        return _discover_review_targets(paths)
+    out: list[dict[str, Any]] = []
+    for order, path in enumerate(list(discover_artifact_paths() or [])):
+        out.append(
+            dict(
+                artifact_path=Path(path),
+                artifact={},
+                target_cfg={},
+                target_panel_name='score_panel',
+                target_panel_role='sampling',
+                target_label='',
+                target_order=int(order),
+            )
+        )
+    return out
 
 
 def _score_panel_band_name(artifact: Mapping[str, Any]) -> str:
@@ -1071,7 +1215,49 @@ def _diagnostic_dump_metrics(
     )
 
 
-def _qualifies_dump(row: Mapping[str, Any], rows_in_pool: Sequence[Mapping[str, Any]], trust_floor: float, xent_ceiling: float, rival_margin_floor: float, family_support_floor: int) -> tuple[bool, dict[str, Any]]:
+def _negative_deficit(values: Sequence[Any]) -> float:
+    deficits = [abs(float(value)) for value in list(values or []) if _is_finite(value) and float(value) < 0.0]
+    if not deficits:
+        return 0.0
+    return float(sum(deficits))
+
+
+def _worst_negative_margin(values: Sequence[Any]) -> float:
+    deficits = [abs(float(value)) for value in list(values or []) if _is_finite(value) and float(value) < 0.0]
+    if not deficits:
+        return 0.0
+    return float(max(deficits))
+
+
+def _primary_blocker_from_metrics(
+    blocker_pairs: Sequence[tuple[str, Any]],
+    blockers: Sequence[str],
+) -> str:
+    blockers_set = {str(blocker) for blocker in list(blockers or [])}
+    best_name = ''
+    best_value = float('-inf')
+    for name, value in list(blocker_pairs or []):
+        if str(name) not in blockers_set:
+            continue
+        if not _is_finite(value):
+            return str(name)
+        if float(value) > best_value:
+            best_value = float(value)
+            best_name = str(name)
+    if best_name:
+        return best_name
+    return _safe_str(list(blockers or [''])[0] if list(blockers or []) else '')
+
+
+def _evaluate_dump_rule(
+    row: Mapping[str, Any],
+    rows_in_pool: Sequence[Mapping[str, Any]],
+    *,
+    trust_floor: float,
+    xent_ceiling: float,
+    rival_margin_floor: float,
+    family_support_floor: int,
+) -> dict[str, Any]:
     row_d = dict(row)
     trust = _safe_float(row_d.get('replay_word_ngram_trust_score', float('nan')))
     xent = _safe_float(row_d.get('replay_word_ngram_report_xent', float('nan')))
@@ -1104,7 +1290,59 @@ def _qualifies_dump(row: Mapping[str, Any], rows_in_pool: Sequence[Mapping[str, 
             and support_count >= int(family_support_floor)
             and (not _is_finite(rival_margin) or float(rival_margin) >= float(rival_margin_floor))
         )
-    return ok, dict(metrics)
+    trust_margin = _margin_at_least(trust, float(trust_floor))
+    xent_margin = _margin_at_most(xent, float(xent_ceiling))
+    rival_margin_margin = (
+        float('nan')
+        if not _is_finite(rival_margin)
+        else _margin_at_least(rival_margin, float(rival_margin_floor))
+    )
+    family_support_margin = float(_margin_count_at_least(support_count, int(family_support_floor)))
+    blockers = list(metrics.get('shadow_diag_blockers', []) or [])
+    primary_blocker = _primary_blocker_from_metrics(
+        [
+            ('trust_below_floor', -trust_margin),
+            ('xent_above_ceiling', -xent_margin),
+            ('family_support_below_floor', -family_support_margin),
+            ('rival_margin_below_floor', -rival_margin_margin),
+            ('word_ngram_inactive', float('inf')),
+            ('missing_trust', float('inf')),
+            ('missing_xent', float('inf')),
+        ],
+        blockers,
+    )
+    return dict(
+        metrics,
+        rule_family='trust_dump',
+        rule_id=(
+            f'trust{float(trust_floor):.2f}_'
+            f'xent{float(xent_ceiling):.2f}_'
+            f'margin{float(rival_margin_floor):.2f}_'
+            f'support{int(family_support_floor)}'
+        ),
+        **{'pass': int(ok)},
+        trust_floor=float(trust_floor),
+        xent_ceiling=float(xent_ceiling),
+        rival_margin_floor=float(rival_margin_floor),
+        family_support_floor=int(family_support_floor),
+        shadow_margin_trust=float(trust_margin),
+        shadow_margin_xent=float(xent_margin),
+        shadow_margin_rival_margin=float(rival_margin_margin),
+        shadow_margin_family_support=float(family_support_margin),
+        shadow_margin_archive_search_uplift=float('nan'),
+        failed_gate_count=int(len(blockers)),
+        worst_negative_margin=float(
+            _worst_negative_margin(
+                [trust_margin, xent_margin, rival_margin_margin, family_support_margin]
+            )
+        ),
+        total_negative_deficit=float(
+            _negative_deficit(
+                [trust_margin, xent_margin, rival_margin_margin, family_support_margin]
+            )
+        ),
+        primary_blocker=str(primary_blocker),
+    )
 
 
 def _qualifies_continuation_dump(
@@ -1113,15 +1351,144 @@ def _qualifies_continuation_dump(
     *,
     search_uplift_floor: float,
 ) -> tuple[bool, dict[str, Any]]:
+    eval_out = _evaluate_continuation_rule(
+        row,
+        artifact_rows,
+        search_uplift_floor=search_uplift_floor,
+    )
+    return bool(int(eval_out.get('pass', 0) or 0) == 1), dict(eval_out)
+
+
+def _evaluate_continuation_rule(
+    row: Mapping[str, Any],
+    artifact_rows: Sequence[Mapping[str, Any]],
+    *,
+    search_uplift_floor: float,
+) -> dict[str, Any]:
     metrics = _late_family_continuation_metrics(row, artifact_rows)
     boundary_name = _safe_str(dict(row).get('stage_boundary', ''))
     search_uplift = _safe_float(metrics.get('shadow_late_family_search_uplift', float('nan')))
+    blockers: list[str] = []
+    if boundary_name != str(CONTINUATION_RULE_STAGE_BOUNDARY):
+        blockers.append('not_archive_boundary')
+    elif not _is_finite(search_uplift):
+        blockers.append('missing_search_uplift')
+    elif float(search_uplift) < float(search_uplift_floor):
+        blockers.append('archive_search_uplift_below_floor')
     ok = bool(
         boundary_name == str(CONTINUATION_RULE_STAGE_BOUNDARY)
         and _is_finite(search_uplift)
         and float(search_uplift) >= float(search_uplift_floor)
     )
-    return ok, dict(metrics)
+    uplift_margin = (
+        float('nan')
+        if not _is_finite(search_uplift)
+        else _margin_at_least(search_uplift, float(search_uplift_floor))
+    )
+    primary_blocker = _primary_blocker_from_metrics(
+        [
+            ('archive_search_uplift_below_floor', -uplift_margin),
+            ('not_archive_boundary', float('inf')),
+            ('missing_search_uplift', float('inf')),
+        ],
+        blockers,
+    )
+    return dict(
+        metrics,
+        rule_family='continuation_archive',
+        rule_id=f'archive_search_uplift{float(search_uplift_floor):.2f}',
+        **{'pass': int(ok)},
+        search_uplift_floor=float(search_uplift_floor),
+        shadow_margin_trust=float('nan'),
+        shadow_margin_xent=float('nan'),
+        shadow_margin_rival_margin=float('nan'),
+        shadow_margin_family_support=float('nan'),
+        shadow_margin_archive_search_uplift=float(uplift_margin),
+        shadow_diag_blockers=sorted(set(str(blocker) for blocker in blockers)),
+        failed_gate_count=int(len(blockers)),
+        worst_negative_margin=float(_worst_negative_margin([uplift_margin])),
+        total_negative_deficit=float(_negative_deficit([uplift_margin])),
+        primary_blocker=str(primary_blocker),
+    )
+
+
+def _build_threshold_matrix_rows_for_row(
+    row: Mapping[str, Any],
+    rows_in_pool: Sequence[Mapping[str, Any]],
+    artifact_rows: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    row_d = dict(row)
+    threshold_rows: list[dict[str, Any]] = []
+    for rule_cfg in _iter_dump_threshold_rules():
+        threshold_rows.append(
+            dict(
+                artifact_path=_safe_str(row_d.get('artifact_path', '')),
+                run_id=_safe_str(row_d.get('run_id', '')),
+                target_panel_name=_safe_str(row_d.get('target_panel_name', '')),
+                target_panel_role=_safe_str(row_d.get('target_panel_role', '')),
+                target_label=_safe_str(row_d.get('target_label', '')),
+                target_order=_safe_int(row_d.get('target_order', 0), 0),
+                key_seed=_safe_int(row_d.get('key_seed', 0), 0),
+                stage_boundary=_safe_str(row_d.get('stage_boundary', '')),
+                stage_rank=_safe_int(row_d.get('stage_rank', 0), 0),
+                candidate_hash=_safe_str(row_d.get('candidate_hash', '')),
+                family_id=_safe_str(row_d.get('family_id', '')),
+                is_first_firing_rule=0,
+                **_evaluate_dump_rule(
+                    row_d,
+                    rows_in_pool,
+                    trust_floor=float(rule_cfg.get('trust_floor', float('nan'))),
+                    xent_ceiling=float(rule_cfg.get('xent_ceiling', float('nan'))),
+                    rival_margin_floor=float(rule_cfg.get('rival_margin_floor', float('nan'))),
+                    family_support_floor=int(rule_cfg.get('family_support_floor', 0)),
+                ),
+            )
+        )
+    if str(ANALYSIS_MODE) == 'family_panel_v1':
+        for rule_cfg in _iter_continuation_rules():
+            threshold_rows.append(
+                dict(
+                    artifact_path=_safe_str(row_d.get('artifact_path', '')),
+                    run_id=_safe_str(row_d.get('run_id', '')),
+                    target_panel_name=_safe_str(row_d.get('target_panel_name', '')),
+                    target_panel_role=_safe_str(row_d.get('target_panel_role', '')),
+                    target_label=_safe_str(row_d.get('target_label', '')),
+                    target_order=_safe_int(row_d.get('target_order', 0), 0),
+                    key_seed=_safe_int(row_d.get('key_seed', 0), 0),
+                    stage_boundary=_safe_str(row_d.get('stage_boundary', '')),
+                    stage_rank=_safe_int(row_d.get('stage_rank', 0), 0),
+                    candidate_hash=_safe_str(row_d.get('candidate_hash', '')),
+                    family_id=_safe_str(row_d.get('family_id', '')),
+                    is_first_firing_rule=0,
+                    **_evaluate_continuation_rule(
+                        row_d,
+                        artifact_rows,
+                        search_uplift_floor=float(rule_cfg.get('search_uplift_floor', float('nan'))),
+                    ),
+                )
+            )
+    return threshold_rows
+
+
+def _pick_nearest_pass_rule(
+    threshold_rows: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    failed_rows = [
+        dict(row)
+        for row in list(threshold_rows or [])
+        if int(dict(row).get('pass', 0) or 0) == 0
+    ]
+    if not failed_rows:
+        return {}
+    failed_rows.sort(
+        key=lambda row: (
+            _safe_int(row.get('failed_gate_count', 999999), 999999),
+            _safe_float(row.get('worst_negative_margin', float('inf'))),
+            _safe_float(row.get('total_negative_deficit', float('inf'))),
+            _safe_str(row.get('rule_id', '')),
+        )
+    )
+    return failed_rows[0]
 
 
 def _annotate_shadow_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1148,39 +1515,69 @@ def _annotate_shadow_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         )
         metrics_out.update(_late_family_persistence_metrics(row, artifact_rows))
         metrics_out.update(_late_family_continuation_metrics(row, artifact_rows))
-        for trust_floor in TRUST_SCORE_FLOORS:
-            for xent_ceiling in REPORT_XENT_CEILINGS:
-                for rival_margin_floor in RIVAL_MARGIN_FLOORS:
-                    for family_support_floor in FAMILY_SUPPORT_FLOORS:
-                        ok, metrics = _qualifies_dump(
-                            row,
-                            rows_in_pool,
-                            trust_floor=float(trust_floor),
-                            xent_ceiling=float(xent_ceiling),
-                            rival_margin_floor=float(rival_margin_floor),
-                            family_support_floor=int(family_support_floor),
-                        )
-                        if ok:
-                            best_dump = f'trust{trust_floor:.2f}_xent{xent_ceiling:.2f}_margin{rival_margin_floor:.2f}_support{int(family_support_floor)}'
-                            metrics_out = dict(metrics_out, **metrics)
-                            break
-                    if best_dump:
-                        break
-                if best_dump:
-                    break
-            if best_dump:
+        threshold_rows = _build_threshold_matrix_rows_for_row(row, rows_in_pool, artifact_rows)
+        selected_rule_row: dict[str, Any] = {}
+        for threshold_row in threshold_rows:
+            threshold_row_d = dict(threshold_row)
+            if _safe_str(threshold_row_d.get('rule_family', '')) == 'continuation_archive':
+                continue
+            if int(threshold_row_d.get('pass', 0) or 0) == 1:
+                best_dump = _safe_str(threshold_row_d.get('rule_id', ''))
+                selected_rule_row = dict(threshold_row_d)
                 break
         if best_dump is None and str(ANALYSIS_MODE) == 'family_panel_v1':
-            for search_uplift_floor in CONTINUATION_SEARCH_UPLIFT_FLOORS:
-                ok, metrics = _qualifies_continuation_dump(
-                    row,
-                    artifact_rows,
-                    search_uplift_floor=float(search_uplift_floor),
-                )
-                if ok:
-                    best_dump = f'archive_search_uplift{search_uplift_floor:.2f}'
-                    metrics_out = dict(metrics_out, **metrics)
+            for threshold_row in threshold_rows:
+                threshold_row_d = dict(threshold_row)
+                if _safe_str(threshold_row_d.get('rule_family', '')) != 'continuation_archive':
+                    continue
+                if int(threshold_row_d.get('pass', 0) or 0) == 1:
+                    best_dump = _safe_str(threshold_row_d.get('rule_id', ''))
+                    selected_rule_row = dict(threshold_row_d)
                     break
+        for threshold_row in threshold_rows:
+            threshold_row['is_first_firing_rule'] = int(
+                bool(best_dump) and _safe_str(dict(threshold_row).get('rule_id', '')) == str(best_dump)
+            )
+        nearest_rule = _pick_nearest_pass_rule(threshold_rows)
+        margin_row = dict(selected_rule_row) if selected_rule_row else dict(nearest_rule)
+        nearest_pass_deficit = _safe_float(nearest_rule.get('worst_negative_margin', float('nan')))
+        nearest_pass_signed_margin = (
+            float('nan')
+            if not _is_finite(nearest_pass_deficit)
+            else -abs(float(nearest_pass_deficit))
+        )
+        metrics_out = dict(
+            metrics_out,
+            shadow_margin_rule_id=_safe_str(margin_row.get('rule_id', '')),
+            shadow_margin_rule_kind=('selected' if selected_rule_row else 'nearest'),
+            shadow_margin_trust=_safe_float(margin_row.get('shadow_margin_trust', float('nan'))),
+            shadow_margin_xent=_safe_float(margin_row.get('shadow_margin_xent', float('nan'))),
+            shadow_margin_rival_margin=_safe_float(margin_row.get('shadow_margin_rival_margin', float('nan'))),
+            shadow_margin_family_support=_safe_float(margin_row.get('shadow_margin_family_support', float('nan'))),
+            shadow_margin_archive_search_uplift=_safe_float(
+                margin_row.get('shadow_margin_archive_search_uplift', float('nan'))
+            ),
+            shadow_nearest_pass_rule_id=(
+                '' if selected_rule_row else _safe_str(nearest_rule.get('rule_id', ''))
+            ),
+            shadow_nearest_pass_blocker=(
+                '' if selected_rule_row else _safe_str(nearest_rule.get('primary_blocker', ''))
+            ),
+            shadow_nearest_pass_margin=(
+                float('nan')
+                if selected_rule_row
+                else float(nearest_pass_signed_margin)
+            ),
+            shadow_nearest_pass_deficit=(
+                float('nan')
+                if selected_rule_row
+                else float(nearest_pass_deficit)
+            ),
+            shadow_gate_fail_count=(
+                0 if selected_rule_row else _safe_int(nearest_rule.get('failed_gate_count', 0), 0)
+            ),
+            _shadow_threshold_matrix_rows=[dict(threshold_row) for threshold_row in threshold_rows],
+        )
         out_rows[idx] = dict(
             row,
             **metrics_out,
@@ -1254,6 +1651,14 @@ def _annotate_stability(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out_rows
 
 
+def _strip_private_analysis_fields(row: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        str(k): v
+        for k, v in dict(row).items()
+        if not str(k).startswith('_shadow_')
+    }
+
+
 def _label_false_stop(run_row: Mapping[str, Any], artifact: Mapping[str, Any]) -> str:
     run_d = dict(run_row)
     artifact_d = dict(artifact)
@@ -1298,7 +1703,16 @@ def _estimate_saved_evals_proxy(artifact: Mapping[str, Any], stop_boundary: str)
     return float('nan')
 
 
-def build_run_shadow_summary(artifact_path: Path, artifact: Mapping[str, Any], rows: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+def build_run_shadow_summary(
+    artifact_path: Path,
+    artifact: Mapping[str, Any],
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    target_panel_name: str = '',
+    target_panel_role: str = '',
+    target_label: str = '',
+    target_order: int = 0,
+) -> list[dict[str, Any]]:
     rows_sorted = sorted([dict(r) for r in rows], key=_boundary_sort_key)
     by_rule: dict[tuple[str, int], list[dict[str, Any]]] = defaultdict(list)
     for row in rows_sorted:
@@ -1337,6 +1751,10 @@ def build_run_shadow_summary(artifact_path: Path, artifact: Mapping[str, Any], r
         summary = dict(
             run_id=_safe_str(dict(artifact.get('stage3_diagnostics', {}) or {}).get('space_map_v1', {}).get('run_id', '')),
             artifact_path=_repo_relpath(artifact_path),
+            target_panel_name=_safe_str(target_panel_name),
+            target_panel_role=_safe_str(target_panel_role),
+            target_label=_safe_str(target_label),
+            target_order=_safe_int(target_order, 0),
             tier_name=_safe_str(artifact.get('tier', artifact.get('tier_name', ''))),
             text_id=_safe_int(artifact.get('text_id', 0), 0),
             key_seed=_safe_int(artifact.get('key_seed', 0), 0),
@@ -1366,6 +1784,10 @@ def build_run_shadow_summary(artifact_path: Path, artifact: Mapping[str, Any], r
             dict(
                 run_id=_safe_str(dict(artifact.get('stage3_diagnostics', {}) or {}).get('space_map_v1', {}).get('run_id', '')),
                 artifact_path=_repo_relpath(artifact_path),
+                target_panel_name=_safe_str(target_panel_name),
+                target_panel_role=_safe_str(target_panel_role),
+                target_label=_safe_str(target_label),
+                target_order=_safe_int(target_order, 0),
                 tier_name=_safe_str(artifact.get('tier', artifact.get('tier_name', ''))),
                 text_id=_safe_int(artifact.get('text_id', 0), 0),
                 key_seed=_safe_int(artifact.get('key_seed', 0), 0),
@@ -1393,11 +1815,24 @@ def build_run_shadow_summary(artifact_path: Path, artifact: Mapping[str, Any], r
     return summaries
 
 
-def _flatten_row(artifact_path: Path, artifact: Mapping[str, Any], row: Mapping[str, Any]) -> dict[str, Any]:
+def _flatten_row(
+    artifact_path: Path,
+    artifact: Mapping[str, Any],
+    row: Mapping[str, Any],
+    *,
+    target_panel_name: str = '',
+    target_panel_role: str = '',
+    target_label: str = '',
+    target_order: int = 0,
+) -> dict[str, Any]:
     row_d = dict(row)
     return dict(
         run_id=_safe_str(dict(artifact.get('stage3_diagnostics', {}) or {}).get('space_map_v1', {}).get('run_id', '')),
         artifact_path=_repo_relpath(artifact_path),
+        target_panel_name=_safe_str(target_panel_name),
+        target_panel_role=_safe_str(target_panel_role),
+        target_label=_safe_str(target_label),
+        target_order=_safe_int(target_order, 0),
         tier_name=_safe_str(artifact.get('tier', artifact.get('tier_name', ''))),
         text_id=_safe_int(artifact.get('text_id', 0), 0),
         key_seed=_safe_int(artifact.get('key_seed', 0), 0),
@@ -1440,11 +1875,42 @@ def _flatten_row(artifact_path: Path, artifact: Mapping[str, Any], row: Mapping[
     )
 
 
-def analyze_artifact(artifact_path: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    artifact = _read_json(artifact_path)
+def analyze_artifact(review_target: Mapping[str, Any] | Path) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+]:
+    if isinstance(review_target, Mapping):
+        review_d = dict(review_target)
+        artifact_path = Path(review_d.get('artifact_path'))
+        artifact = dict(review_d.get('artifact') or {})
+        if not artifact:
+            artifact = _read_json(artifact_path)
+        target_panel_name = _safe_str(review_d.get('target_panel_name', ''))
+        target_panel_role = _safe_str(review_d.get('target_panel_role', ''))
+        target_label = _safe_str(review_d.get('target_label', ''))
+        target_order = _safe_int(review_d.get('target_order', 0), 0)
+    else:
+        artifact_path = Path(review_target)
+        artifact = _read_json(artifact_path)
+        target_panel_name = ''
+        target_panel_role = ''
+        target_label = ''
+        target_order = 0
     run_config_path = artifact_path.parents[1] / 'run_config.json'
     run_config = _read_json(run_config_path) if run_config_path.exists() else {}
-    rows = [_flatten_row(artifact_path, artifact, row) for row in collect_candidate_rows(artifact)]
+    rows = [
+        _flatten_row(
+            artifact_path,
+            artifact,
+            row,
+            target_panel_name=target_panel_name,
+            target_panel_role=target_panel_role,
+            target_label=target_label,
+            target_order=target_order,
+        )
+        for row in collect_candidate_rows(artifact)
+    ]
     ctx = ReplayContext(artifact_path, artifact, run_config)
     rescored_rows: list[dict[str, Any]] = []
     for row in rows:
@@ -1452,8 +1918,27 @@ def analyze_artifact(artifact_path: Path) -> tuple[list[dict[str, Any]], list[di
     rescored_rows = _annotate_shadow_rows(rescored_rows)
     if not bool(SCORE_PANEL_DISABLE_FAMILY_STOP):
         rescored_rows = _annotate_stability(rescored_rows)
-    run_rows = build_run_shadow_summary(artifact_path, artifact, rescored_rows)
-    return rescored_rows, run_rows
+    threshold_rows: list[dict[str, Any]] = []
+    public_row_rows: list[dict[str, Any]] = []
+    for row in rescored_rows:
+        row_d = dict(row)
+        public_row_rows.append(_strip_private_analysis_fields(row_d))
+        threshold_rows.extend(
+            [
+                _strip_private_analysis_fields(dict(threshold_row))
+                for threshold_row in list(row_d.get('_shadow_threshold_matrix_rows', []) or [])
+            ]
+        )
+    run_rows = build_run_shadow_summary(
+        artifact_path,
+        artifact,
+        public_row_rows,
+        target_panel_name=target_panel_name,
+        target_panel_role=target_panel_role,
+        target_label=target_label,
+        target_order=target_order,
+    )
+    return public_row_rows, run_rows, threshold_rows
 
 
 def build_threshold_sweep_summary(run_rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
@@ -1488,6 +1973,339 @@ def build_threshold_sweep_summary(run_rows: Sequence[Mapping[str, Any]]) -> dict
         generated_utc=dt.datetime.now(dt.timezone.utc).isoformat(),
         run_rule_rows=summary_rows,
     )
+
+
+def build_threshold_matrix_summary(threshold_rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for row in list(threshold_rows or []):
+        row_d = dict(row)
+        grouped[
+            (
+                _safe_str(row_d.get('target_panel_name', '')),
+                _safe_str(row_d.get('rule_id', '')),
+            )
+        ].append(row_d)
+    summary_rows: list[dict[str, Any]] = []
+    for (panel_name, rule_id), members in sorted(grouped.items()):
+        summary_rows.append(
+            dict(
+                target_panel_name=panel_name,
+                rule_id=rule_id,
+                row_count=len(members),
+                pass_count=sum(int(dict(m).get('pass', 0) or 0) for m in members),
+                first_hit_count=sum(int(dict(m).get('is_first_firing_rule', 0) or 0) for m in members),
+                nearest_miss_count=sum(
+                    1
+                    for m in members
+                    if int(dict(m).get('pass', 0) or 0) == 0
+                    and _safe_int(dict(m).get('failed_gate_count', 0), 0) > 0
+                ),
+                mean_total_negative_deficit=_finite_mean(
+                    [_safe_float(dict(m).get('total_negative_deficit', float('nan'))) for m in members]
+                ),
+            )
+        )
+    return dict(
+        generated_utc=dt.datetime.now(dt.timezone.utc).isoformat(),
+        threshold_rule_rows=summary_rows,
+    )
+
+
+def _select_case_explanation_rows(
+    run_rows: Sequence[Mapping[str, Any]],
+    row_rows: Sequence[Mapping[str, Any]],
+    threshold_rows: Sequence[Mapping[str, Any]],
+) -> dict[int, dict[str, Any]]:
+    out: dict[int, dict[str, Any]] = {}
+    for seed in list(CASE_EXPLANATION_TARGET_SEEDS or []):
+        out[int(seed)] = dict(
+            key_seed=int(seed),
+            run_row={},
+            row_rows=[],
+            threshold_rows=[],
+        )
+    for row in list(run_rows or []):
+        row_d = dict(row)
+        seed = _safe_int(row_d.get('key_seed', 0), 0)
+        if seed in out and not out[seed].get('run_row'):
+            out[seed]['run_row'] = row_d
+    for row in list(row_rows or []):
+        row_d = dict(row)
+        seed = _safe_int(row_d.get('key_seed', 0), 0)
+        if seed in out:
+            out[seed]['row_rows'].append(row_d)
+    for row in list(threshold_rows or []):
+        row_d = dict(row)
+        seed = _safe_int(row_d.get('key_seed', 0), 0)
+        if seed in out:
+            out[seed]['threshold_rows'].append(row_d)
+    return out
+
+
+def _pick_best_row_by_metric(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    metric_key: str,
+    require_stage_boundary: str | None = None,
+) -> dict[str, Any]:
+    candidates: list[dict[str, Any]] = []
+    for row in list(rows or []):
+        row_d = dict(row)
+        if require_stage_boundary and _safe_str(row_d.get('stage_boundary', '')) != str(require_stage_boundary):
+            continue
+        metric_value = _safe_float(row_d.get(metric_key, float('nan')))
+        if not _is_finite(metric_value):
+            continue
+        candidates.append(row_d)
+    if not candidates:
+        return {}
+    candidates.sort(
+        key=lambda row: (
+            -float(_safe_float(dict(row).get(metric_key, float('nan')))),
+            -_boundary_sort_key(row)[0],
+            _safe_int(dict(row).get('stage_rank', 0), 0),
+            _safe_str(dict(row).get('candidate_hash', '')),
+        )
+    )
+    return candidates[0]
+
+
+def _pick_best_archive_row_by_uplift(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    return _pick_best_row_by_metric(
+        rows,
+        metric_key='shadow_late_family_search_uplift',
+        require_stage_boundary=CONTINUATION_RULE_STAGE_BOUNDARY,
+    )
+
+
+def _pick_current_firing_row(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    candidates = [
+        dict(row)
+        for row in list(rows or [])
+        if int(dict(row).get('shadow_high_score_would_dump', 0) or 0) == 1
+    ]
+    if not candidates:
+        return {}
+    candidates.sort(
+        key=lambda row: (
+            -_boundary_sort_key(row)[0],
+            -float(_safe_float(dict(row).get('replay_truth_match', float('-inf')))),
+            _safe_int(dict(row).get('stage_rank', 0), 0),
+            _safe_str(dict(row).get('candidate_hash', '')),
+        )
+    )
+    return candidates[0]
+
+
+def _same_nonempty_family(left: Mapping[str, Any], right: Mapping[str, Any]) -> int:
+    left_family = _safe_str(dict(left).get('family_id', ''))
+    right_family = _safe_str(dict(right).get('family_id', ''))
+    return int(bool(left_family) and bool(right_family) and left_family == right_family)
+
+
+def _same_nonempty_family_id(left_family: Any, right_family: Any) -> int:
+    left = _safe_str(left_family)
+    right = _safe_str(right_family)
+    return int(bool(left) and bool(right) and left == right)
+
+
+def _case_metric_fields(prefix: str, row: Mapping[str, Any]) -> dict[str, Any]:
+    row_d = dict(row or {})
+    return {
+        f'{prefix}_candidate_hash': _safe_str(row_d.get('candidate_hash', '')),
+        f'{prefix}_stage_boundary': _safe_str(row_d.get('stage_boundary', '')),
+        f'{prefix}_family_id': _safe_str(row_d.get('family_id', '')),
+        f'{prefix}_match': _safe_float(row_d.get('replay_truth_match', float('nan'))),
+        f'{prefix}_trust': _safe_float(row_d.get('replay_word_ngram_trust_score', float('nan'))),
+        f'{prefix}_xent': _safe_float(row_d.get('replay_word_ngram_report_xent', float('nan'))),
+        f'{prefix}_family_support': _safe_int(row_d.get('shadow_family_support_count', 0), 0),
+        f'{prefix}_rival_margin': _safe_float(row_d.get('shadow_best_rival_family_margin', float('nan'))),
+        f'{prefix}_persistence_count': _safe_int(row_d.get('shadow_late_family_persistence_count', 0), 0),
+        f'{prefix}_archive_search_uplift': _safe_float(
+            row_d.get('shadow_late_family_search_uplift', float('nan'))
+        ),
+    }
+
+
+def _label_case_explanation(case_row: Mapping[str, Any]) -> tuple[str, str, str]:
+    row_d = dict(case_row)
+    would_dump = _safe_int(row_d.get('would_dump', 0), 0)
+    run_type = _safe_str(row_d.get('run_type', ''))
+    rule_id = _safe_str(row_d.get('shadow_rule_id', ''))
+    best_truth_trust = _safe_float(row_d.get('best_truth_trust', float('nan')))
+    best_truth_support = _safe_int(row_d.get('best_truth_family_support', 0), 0)
+    best_truth_uplift = _safe_float(row_d.get('best_truth_archive_search_uplift', float('nan')))
+    current_firing_match = _safe_float(row_d.get('current_firing_match', float('nan')))
+    best_truth_match = _safe_float(row_d.get('best_truth_match', float('nan')))
+    if (
+        would_dump == 0
+        and run_type == 'stage35_live_win'
+        and (_is_finite(best_truth_trust) and float(best_truth_trust) < float(min(TRUST_SCORE_FLOORS)))
+        and best_truth_support <= 0
+        and (not _is_finite(best_truth_uplift) or float(best_truth_uplift) <= 0.0)
+    ):
+        return (
+            'accepted_miss_outside_current_model',
+            'mixed',
+            'truth_row_not_trust_led',
+        )
+    if would_dump == 1 and rule_id.startswith('trust'):
+        return (
+            'trust_false_fire',
+            'trust',
+            'trust_rule_admits_weak_family',
+        )
+    if would_dump == 1 and rule_id.startswith('archive_search_uplift'):
+        primary = 'archive_rule_prefers_low_truth_uplift'
+        if _is_finite(current_firing_match) and _is_finite(best_truth_match):
+            if _same_nonempty_family_id(
+                row_d.get('current_firing_family_id', ''),
+                row_d.get('best_truth_family_id', ''),
+            ):
+                primary = 'same_family_different_boundary'
+            elif float(current_firing_match) + 1e-9 < float(best_truth_match):
+                primary = 'archive_rule_prefers_low_truth_uplift'
+        return (
+            'archive_false_fire',
+            'archive_uplift',
+            primary,
+        )
+    return ('ambiguous', 'none', 'different_family_disagreement')
+
+
+def build_case_explanations(
+    run_rows: Sequence[Mapping[str, Any]],
+    row_rows: Sequence[Mapping[str, Any]],
+    threshold_rows: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    selected = _select_case_explanation_rows(run_rows, row_rows, threshold_rows)
+    out_rows: list[dict[str, Any]] = []
+    for seed in list(CASE_EXPLANATION_TARGET_SEEDS or []):
+        case = dict(selected.get(int(seed), {}) or {})
+        run_row = dict(case.get('run_row') or {})
+        if not run_row:
+            continue
+        case_rows = [dict(row) for row in list(case.get('row_rows', []) or [])]
+        best_truth = _pick_best_row_by_metric(case_rows, metric_key='replay_truth_match')
+        best_trust = _pick_best_row_by_metric(case_rows, metric_key='replay_word_ngram_trust_score')
+        best_uplift = _pick_best_row_by_metric(case_rows, metric_key='shadow_late_family_search_uplift')
+        best_archive_uplift = _pick_best_archive_row_by_uplift(case_rows)
+        current_firing = _pick_current_firing_row(case_rows)
+        case_row = dict(
+            key_seed=_safe_int(run_row.get('key_seed', 0), 0),
+            target_panel_name=_safe_str(run_row.get('target_panel_name', '')),
+            target_panel_role=_safe_str(run_row.get('target_panel_role', '')),
+            run_type=_safe_str(run_row.get('run_type', '')),
+            would_dump=_safe_int(run_row.get('would_dump', 0), 0),
+            would_stop=_safe_int(run_row.get('would_stop', 0), 0),
+            shadow_rule_id=_safe_str(run_row.get('shadow_rule_id', '')),
+            **_case_metric_fields('best_truth', best_truth),
+            best_truth_nearest_pass_rule_id=_safe_str(best_truth.get('shadow_nearest_pass_rule_id', '')),
+            best_truth_nearest_pass_blocker=_safe_str(best_truth.get('shadow_nearest_pass_blocker', '')),
+            best_truth_nearest_pass_margin=_safe_float(best_truth.get('shadow_nearest_pass_margin', float('nan'))),
+            best_truth_nearest_pass_deficit=_safe_float(best_truth.get('shadow_nearest_pass_deficit', float('nan'))),
+            **_case_metric_fields('best_trust', best_trust),
+            **_case_metric_fields('best_uplift', best_uplift),
+            **_case_metric_fields('best_archive_uplift', best_archive_uplift),
+            **_case_metric_fields('current_firing', current_firing),
+            truth_equals_trust_family=_same_nonempty_family(best_truth, best_trust),
+            truth_equals_uplift_family=_same_nonempty_family(best_truth, best_uplift),
+            truth_equals_firing_family=_same_nonempty_family(best_truth, current_firing),
+            trust_equals_firing_family=_same_nonempty_family(best_trust, current_firing),
+            uplift_equals_firing_family=_same_nonempty_family(best_uplift, current_firing),
+        )
+        shape_label, axis_label, primary_explanation = _label_case_explanation(case_row)
+        case_row.update(
+            case_shape_label=shape_label,
+            decision_axis_label=axis_label,
+            primary_explanation=primary_explanation,
+        )
+        out_rows.append(case_row)
+    return out_rows
+
+
+def build_case_explanation_summary(
+    case_rows: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    shape_counts: Counter[str] = Counter()
+    axis_counts: Counter[str] = Counter()
+    seeds_by_shape: dict[str, list[int]] = defaultdict(list)
+    seeds_by_axis: dict[str, list[int]] = defaultdict(list)
+    for row in list(case_rows or []):
+        row_d = dict(row)
+        shape = _safe_str(row_d.get('case_shape_label', ''))
+        axis = _safe_str(row_d.get('decision_axis_label', ''))
+        seed = _safe_int(row_d.get('key_seed', 0), 0)
+        shape_counts[shape] += 1
+        axis_counts[axis] += 1
+        seeds_by_shape[shape].append(seed)
+        seeds_by_axis[axis].append(seed)
+    return dict(
+        generated_utc=dt.datetime.now(dt.timezone.utc).isoformat(),
+        target_seed_count=len(list(case_rows or [])),
+        shape_counts=dict(sorted(shape_counts.items())),
+        decision_axis_counts=dict(sorted(axis_counts.items())),
+        seeds_by_shape={key: sorted(values) for key, values in sorted(seeds_by_shape.items())},
+        seeds_by_decision_axis={key: sorted(values) for key, values in sorted(seeds_by_axis.items())},
+    )
+
+
+def write_case_explanations_markdown(
+    output_dir: Path,
+    case_rows: Sequence[Mapping[str, Any]],
+) -> None:
+    lines = [
+        '# case_explanations',
+        '',
+    ]
+    for row in sorted(
+        [dict(r) for r in list(case_rows or [])],
+        key=lambda row: _safe_int(row.get('key_seed', 0), 0),
+    ):
+        seed = _safe_int(row.get('key_seed', 0), 0)
+        lines.extend(
+            [
+                f'## seed{seed}',
+                '',
+                f'- panel: `{_safe_str(row.get("target_panel_name", ""))}`',
+                f'- verdict: `dump={_safe_int(row.get("would_dump", 0), 0)}` `stop={_safe_int(row.get("would_stop", 0), 0)}`',
+                f'- rule: `{_safe_str(row.get("shadow_rule_id", ""))}`',
+                '',
+                '| view | boundary | family | truth | trust | xent | support | rival | persistence | uplift |',
+                '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+            ]
+        )
+        for prefix, label in (
+            ('best_truth', 'best_truth'),
+            ('best_trust', 'best_trust'),
+            ('best_uplift', 'best_uplift'),
+            ('best_archive_uplift', 'best_archive_uplift'),
+            ('current_firing', 'current_firing'),
+        ):
+            lines.append(
+                '| {label} | {boundary} | {family} | {truth:.3f} | {trust:.3f} | {xent:.3f} | {support} | {rival:.3f} | {persist} | {uplift:.3f} |'.format(
+                    label=label,
+                    boundary=_safe_str(row.get(f'{prefix}_stage_boundary', '')),
+                    family=_safe_str(row.get(f'{prefix}_family_id', '')),
+                    truth=_safe_float(row.get(f'{prefix}_match', float('nan'))),
+                    trust=_safe_float(row.get(f'{prefix}_trust', float('nan'))),
+                    xent=_safe_float(row.get(f'{prefix}_xent', float('nan'))),
+                    support=_safe_int(row.get(f'{prefix}_family_support', 0), 0),
+                    rival=_safe_float(row.get(f'{prefix}_rival_margin', float('nan'))),
+                    persist=_safe_int(row.get(f'{prefix}_persistence_count', 0), 0),
+                    uplift=_safe_float(row.get(f'{prefix}_archive_search_uplift', float('nan'))),
+                )
+            )
+        lines.extend(
+            [
+                '',
+                f'- current rule action: `{_safe_str(row.get("shadow_rule_id", "")) or "no_dump"}`',
+                f'- best-truth nearest miss: `{_safe_str(row.get("best_truth_nearest_pass_rule_id", ""))}` blocker=`{_safe_str(row.get("best_truth_nearest_pass_blocker", ""))}` signed_margin=`{_safe_float(row.get("best_truth_nearest_pass_margin", float("nan"))):.3f}` deficit=`{_safe_float(row.get("best_truth_nearest_pass_deficit", float("nan"))):.3f}`',
+                f'- interpretation: `{_safe_str(row.get("case_shape_label", ""))}` / `{_safe_str(row.get("decision_axis_label", ""))}` / `{_safe_str(row.get("primary_explanation", ""))}`',
+                '',
+            ]
+        )
+    (output_dir / 'case_explanations.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
 
 def build_data_gap_report(row_rows: Sequence[Mapping[str, Any]], run_rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
@@ -1530,6 +2348,45 @@ def write_summary_markdown(output_dir: Path, run_rows: Sequence[Mapping[str, Any
                 saved=_safe_float(dict(row).get('mean_saved_runtime_seconds_proxy', float('nan'))),
             )
         )
+    panel_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in list(run_rows or []):
+        panel_groups[_safe_str(dict(row).get('target_panel_name', ''))].append(dict(row))
+    for panel_name, heading in (('core', 'Core benchmark panel'), ('pressure', 'Pressure falsification panel')):
+        members = list(panel_groups.get(panel_name, []) or [])
+        if not members:
+            continue
+        lines.extend([
+            '',
+            f'## {heading}',
+            '',
+            '| seed | run type | dump | stop | rule |',
+            '| --- | --- | ---: | ---: | --- |',
+        ])
+        for row in sorted(
+            members,
+            key=lambda member: (
+                _safe_int(dict(member).get('target_order', 0), 0),
+                _safe_int(dict(member).get('key_seed', 0), 0),
+            ),
+        ):
+            row_d = dict(row)
+            lines.append(
+                '| {seed} | {run_type} | {dump} | {stop} | {rule} |'.format(
+                    seed=_safe_int(row_d.get('key_seed', 0), 0),
+                    run_type=_safe_str(row_d.get('run_type', '')),
+                    dump=_safe_int(row_d.get('would_dump', 0), 0),
+                    stop=_safe_int(row_d.get('would_stop', 0), 0),
+                    rule=_safe_str(row_d.get('shadow_rule_id', '')),
+                )
+            )
+    if panel_groups.get('core') and panel_groups.get('pressure'):
+        lines.extend([
+            '',
+            '## Combined caution note',
+            '',
+            '- core benchmark panel remains the continuity benchmark',
+            '- pressure panel is adversarial falsification pressure, not continuity',
+        ])
     lines.extend(['', '## Row data-gap counts', ''])
     for key, value in sorted(dict(gap_report).get('row_gap_counts', {}).items()):
         lines.append(f'- `{key}`: `{int(value)}`')
@@ -1538,17 +2395,24 @@ def write_summary_markdown(output_dir: Path, run_rows: Sequence[Mapping[str, Any
 
 def main() -> None:
     output_dir = OUTPUT_BASE_DIR / f'{_utc_label()}__score_stop_shadow_v2'
-    artifact_paths = discover_artifact_paths()
+    review_targets = discover_review_targets()
     all_row_rows: list[dict[str, Any]] = []
     all_run_rows: list[dict[str, Any]] = []
-    for artifact_path in artifact_paths:
+    all_threshold_rows: list[dict[str, Any]] = []
+    for review_target in review_targets:
+        review_d = dict(review_target)
+        artifact_path = Path(review_d.get('artifact_path'))
         try:
-            row_rows, run_rows = analyze_artifact(artifact_path)
+            row_rows, run_rows, threshold_rows = analyze_artifact(review_target)
         except Exception as exc:
             all_run_rows.append(
                 dict(
                     run_id='',
                     artifact_path=_repo_relpath(artifact_path),
+                    target_panel_name=_safe_str(review_d.get('target_panel_name', '')),
+                    target_panel_role=_safe_str(review_d.get('target_panel_role', '')),
+                    target_label=_safe_str(review_d.get('target_label', '')),
+                    target_order=_safe_int(review_d.get('target_order', 0), 0),
                     tier_name='',
                     text_id=0,
                     key_seed=0,
@@ -1576,19 +2440,29 @@ def main() -> None:
             continue
         all_row_rows.extend(row_rows)
         all_run_rows.extend(run_rows)
+        all_threshold_rows.extend(threshold_rows)
 
     sweep_summary = build_threshold_sweep_summary(all_run_rows)
+    threshold_matrix_summary = build_threshold_matrix_summary(all_threshold_rows)
+    case_rows = build_case_explanations(all_run_rows, all_row_rows, all_threshold_rows)
+    case_summary = build_case_explanation_summary(case_rows)
     gap_report = build_data_gap_report(all_row_rows, all_run_rows)
 
     _write_jsonl(output_dir / 'row_scores.jsonl', all_row_rows)
+    _write_jsonl(output_dir / 'gate_margin_rows.jsonl', all_row_rows)
     _write_jsonl(output_dir / 'run_shadow_summary.jsonl', all_run_rows)
+    _write_jsonl(output_dir / 'threshold_matrix_rows.jsonl', all_threshold_rows)
+    _write_jsonl(output_dir / 'case_explanations.jsonl', case_rows)
     _write_json(output_dir / 'threshold_sweep_summary.json', sweep_summary)
+    _write_json(output_dir / 'threshold_matrix_summary.json', threshold_matrix_summary)
+    _write_json(output_dir / 'case_explanation_summary.json', case_summary)
     _write_json(output_dir / 'data_gap_report.json', gap_report)
     write_summary_markdown(output_dir, all_run_rows, sweep_summary, gap_report)
+    write_case_explanations_markdown(output_dir, case_rows)
 
     print(
         '[score_stop_shadow_v2] '
-        + f'artifacts={int(len(artifact_paths))} '
+        + f'artifacts={int(len(review_targets))} '
         + f'rows={int(len(all_row_rows))} '
         + f'runs={int(len(all_run_rows))} '
         + f'output={_repo_relpath(output_dir)}',
