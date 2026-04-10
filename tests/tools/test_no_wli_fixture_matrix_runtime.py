@@ -195,7 +195,8 @@ def test_checked_in_fixture_matrix_defaults_keep_fixed_canary_off() -> None:
     assert str(run_matrix_mod.INSTANCE_INPUT_MODE) == "generated"
     assert (
         str(fixture_matrix_config_mod.STAGE35_BASELINE_SELECTOR_COMPARE_MODE)
-        != "fixed_instance_canary"
+        .startswith("fixed_instance_")
+        is False
     )
 
 
@@ -233,6 +234,85 @@ def test_fixed_panel_v1_long_manifest_materializes_expected_20_jobs() -> None:
     assert str(panel.panel_id) == "p9_c3_solver_panel_v1"
     assert [int(x) for x in panel.search_seeds] == [7001, 7002, 7003, 7004, 7005]
     assert len(jobs) == 20
+
+
+def test_fixed_handoff_and_deferred_manifests_materialize_exact_job_slices() -> None:
+    repo_root = Path.cwd()
+    fixture_dir = run_matrix_mod._resolve_path(
+        path_like="tools/benchmarks/periodic_sub_trans/no_wli/fixed_instances",
+        repo_root=repo_root,
+    )
+    fixed_spec_map = load_fixed_instance_spec_map(fixture_dir=fixture_dir)
+    schedules = run_matrix_mod.build_schedule_matrix(
+        mode=str(run_matrix_mod.SCHEDULE_COVERAGE_MODE),
+        explicit_schedules=run_matrix_mod.EXPLICIT_SCHEDULES,
+    )
+
+    def _jobs_for_manifest(rel_path: str) -> list[SimpleNamespace]:
+        panel_path = run_matrix_mod._resolve_path(
+            path_like=rel_path,
+            repo_root=repo_root,
+        )
+        panel = load_fixed_cipher_panel_spec(panel_path)
+        fixtures = [fixed_spec_map[str(x)] for x in panel.instance_fixture_ids]
+        return run_matrix_mod.build_fixed_instance_jobs(
+            fixed_instance_specs=fixtures,
+            search_seeds=panel.search_seeds,
+            run_mode=run_matrix_mod.RUN_MODE,
+            profile_id=run_matrix_mod.NO_WLI_PROFILE_ID,
+            heartbeat_seconds=int(run_matrix_mod.HEARTBEAT_SECONDS),
+            scorer_impl=run_matrix_mod.SCORER_IMPL,
+            scorer_stage3_impl_avg_fulltext=run_matrix_mod.SCORER_STAGE3_IMPL_AVG_FULLTEXT,
+            scoring_experiment_profiles=run_matrix_mod.SCORING_EXPERIMENT_PROFILES,
+            stage3_tuning_preset_ids=("stage35_baseline_score_plus_novelty_live_bounded_p9",),
+            schedules=schedules,
+            enable_span_ab_pair=False,
+            span_ab_decision_role=str(run_matrix_mod.SPAN_AB_DECISION_ROLE),
+        )
+
+    jobs04_05 = _jobs_for_manifest(
+        "tools/benchmarks/periodic_sub_trans/no_wli/fixed_instance_panels/p9_c3_solver_panel_v1_jobs04_05.json"
+    )
+    assert [
+        (str(job.instance_fixture_id), int(job.search_seed))
+        for job in jobs04_05
+    ] == [
+        ("fixture_001__p9_c3_l1000__text0__seed611", 7004),
+        ("fixture_001__p9_c3_l1000__text0__seed611", 7005),
+    ]
+
+    jobs06_10 = _jobs_for_manifest(
+        "tools/benchmarks/periodic_sub_trans/no_wli/fixed_instance_panels/p9_c3_solver_panel_v1_jobs06_10.json"
+    )
+    assert [
+        (str(job.instance_fixture_id), int(job.search_seed))
+        for job in jobs06_10
+    ] == [
+        ("fixture_001__p9_c3_l1000__text0__seed1111", 7001),
+        ("fixture_001__p9_c3_l1000__text0__seed1111", 7002),
+        ("fixture_001__p9_c3_l1000__text0__seed1111", 7003),
+        ("fixture_001__p9_c3_l1000__text0__seed1111", 7004),
+        ("fixture_001__p9_c3_l1000__text0__seed1111", 7005),
+    ]
+
+    jobs11_20 = _jobs_for_manifest(
+        "tools/benchmarks/periodic_sub_trans/no_wli/fixed_instance_panels/p9_c3_solver_panel_v1_jobs11_20.json"
+    )
+    assert len(jobs11_20) == 10
+    assert [
+        (str(job.instance_fixture_id), int(job.search_seed))
+        for job in jobs11_20[:2]
+    ] == [
+        ("fixture_001__p9_c3_l1000__text0__seed1411", 7001),
+        ("fixture_001__p9_c3_l1000__text0__seed1411", 7002),
+    ]
+    assert [
+        (str(job.instance_fixture_id), int(job.search_seed))
+        for job in jobs11_20[-2:]
+    ] == [
+        ("fixture_001__p9_c3_l1000__text0__seed1511", 7004),
+        ("fixture_001__p9_c3_l1000__text0__seed1511", 7005),
+    ]
 
 
 def test_current_fixture_matrix_control_files_are_derived_from_experiment_id() -> None:

@@ -1,0 +1,15 @@
+{
+  "panel_schema_version": "no_wli_fixed_instance_panel_v1",
+  "panel_id": "p9_c3_solver_panel_v1_jobs04_05",
+  "instance_fixture_ids": [
+    "fixture_001__p9_c3_l1000__text0__seed611"
+  ],
+  "search_seeds": [
+    7004,
+    7005
+  ],
+  "notes": [
+    "Exact v71 handoff slice for original jobs 4-5 only.",
+    "Keeps the frozen seed611 instance and only the remaining search seeds after local completion of jobs 1-3."
+  ]
+}

@@ -15,18 +15,40 @@ from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_models import (
 CAMPAIGN_CONFIG_PATH = Path("tools/benchmarks/community/examples/campaign_config_v1_1.json")
 FIXTURE_IDS: tuple[str, ...] | None = None
 FIXTURE_LENGTH_OVERRIDE: int | None = 1000
-FIXED_INSTANCE_EXECUTION_PROFILE = "panel_v1_long"
+FIXED_INSTANCE_EXECUTION_PROFILE = "off"
 DEFAULT_GENERATED_COMPARE_MODE = "candidate_single_p5"
+_FIXED_INSTANCE_ACTIVE_PROFILES = {
+    "canary",
+    "panel_v1_long",
+    "panel_v1_jobs04_05",
+    "panel_v1_jobs06_10",
+    "panel_v1_jobs11_20",
+}
 INSTANCE_INPUT_MODE = (
     "fixed_ciphertext"
-    if FIXED_INSTANCE_EXECUTION_PROFILE in {"canary", "panel_v1_long"}
+    if FIXED_INSTANCE_EXECUTION_PROFILE in _FIXED_INSTANCE_ACTIVE_PROFILES
     else "generated"
 )
-FIXED_INSTANCE_PANEL_PATH = Path(
-    "tools/benchmarks/periodic_sub_trans/no_wli/fixed_instance_panels/p9_c3_solver_panel_canary_v1.json"
-    if FIXED_INSTANCE_EXECUTION_PROFILE == "canary"
-    else "tools/benchmarks/periodic_sub_trans/no_wli/fixed_instance_panels/p9_c3_solver_panel_v1.json"
-)
+if FIXED_INSTANCE_EXECUTION_PROFILE == "canary":
+    FIXED_INSTANCE_PANEL_PATH = Path(
+        "tools/benchmarks/periodic_sub_trans/no_wli/fixed_instance_panels/p9_c3_solver_panel_canary_v1.json"
+    )
+elif FIXED_INSTANCE_EXECUTION_PROFILE == "panel_v1_jobs04_05":
+    FIXED_INSTANCE_PANEL_PATH = Path(
+        "tools/benchmarks/periodic_sub_trans/no_wli/fixed_instance_panels/p9_c3_solver_panel_v1_jobs04_05.json"
+    )
+elif FIXED_INSTANCE_EXECUTION_PROFILE == "panel_v1_jobs06_10":
+    FIXED_INSTANCE_PANEL_PATH = Path(
+        "tools/benchmarks/periodic_sub_trans/no_wli/fixed_instance_panels/p9_c3_solver_panel_v1_jobs06_10.json"
+    )
+elif FIXED_INSTANCE_EXECUTION_PROFILE == "panel_v1_jobs11_20":
+    FIXED_INSTANCE_PANEL_PATH = Path(
+        "tools/benchmarks/periodic_sub_trans/no_wli/fixed_instance_panels/p9_c3_solver_panel_v1_jobs11_20.json"
+    )
+else:
+    FIXED_INSTANCE_PANEL_PATH = Path(
+        "tools/benchmarks/periodic_sub_trans/no_wli/fixed_instance_panels/p9_c3_solver_panel_v1.json"
+    )
 FIXED_INSTANCE_FIXTURE_DIR = Path(
     "tools/benchmarks/periodic_sub_trans/no_wli/fixed_instances"
 )
@@ -115,6 +137,12 @@ ENABLE_STAGE3_TUNING_PRESET_MATRIX = True
 STAGE35_BASELINE_SELECTOR_COMPARE_MODE = (
     "fixed_instance_canary"
     if FIXED_INSTANCE_EXECUTION_PROFILE == "canary"
+    else "fixed_instance_panel_v1_jobs04_05"
+    if FIXED_INSTANCE_EXECUTION_PROFILE == "panel_v1_jobs04_05"
+    else "fixed_instance_panel_v1_jobs06_10"
+    if FIXED_INSTANCE_EXECUTION_PROFILE == "panel_v1_jobs06_10"
+    else "fixed_instance_panel_v1_jobs11_20"
+    if FIXED_INSTANCE_EXECUTION_PROFILE == "panel_v1_jobs11_20"
     else "fixed_instance_panel_v1_long"
     if FIXED_INSTANCE_EXECUTION_PROFILE == "panel_v1_long"
     else str(DEFAULT_GENERATED_COMPARE_MODE)
@@ -243,6 +271,27 @@ elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_canary":
     }
     RUN_SEEDS = (611,)
     STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_FIXED_INSTANCE_CANARY_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_jobs04_05":
+    PERIODS_OVERRIDE = (9,)
+    COLUMNS_OVERRIDE_BY_PERIOD = {
+        9: (3,),
+    }
+    RUN_SEEDS = (611,)
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_FIXED_INSTANCE_LONG_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_jobs06_10":
+    PERIODS_OVERRIDE = (9,)
+    COLUMNS_OVERRIDE_BY_PERIOD = {
+        9: (3,),
+    }
+    RUN_SEEDS = (1111,)
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_FIXED_INSTANCE_LONG_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_jobs11_20":
+    PERIODS_OVERRIDE = (9,)
+    COLUMNS_OVERRIDE_BY_PERIOD = {
+        9: (3,),
+    }
+    RUN_SEEDS = (1411, 1511)
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_FIXED_INSTANCE_LONG_PRESET_IDS
 elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_long":
     PERIODS_OVERRIDE = (9,)
     COLUMNS_OVERRIDE_BY_PERIOD = {
@@ -262,7 +311,10 @@ else:
         "'candidate_single_p9_seed611_legacy', "
         "'candidate_single_p5', "
         "'candidate_single_p7', 'candidate_ladder_small', "
-        "'candidate_family_overnight', 'fixed_instance_canary', or "
+        "'candidate_family_overnight', 'fixed_instance_canary', "
+        "'fixed_instance_panel_v1_jobs04_05', "
+        "'fixed_instance_panel_v1_jobs06_10', "
+        "'fixed_instance_panel_v1_jobs11_20', or "
         "'fixed_instance_panel_v1_long'"
     )
 STAGE35_BASELINE_SELECTOR_SHARED_CFG: dict[str, int] = {
@@ -1819,11 +1871,20 @@ if STAGE35_BASELINE_SELECTOR_COMPARE_MODE in {
     "candidate_single_p5",
     "candidate_single_p7",
     "fixed_instance_canary",
+    "fixed_instance_panel_v1_jobs04_05",
+    "fixed_instance_panel_v1_jobs06_10",
+    "fixed_instance_panel_v1_jobs11_20",
     "fixed_instance_panel_v1_long",
 }:
     MAX_JOBS: int | None = (
         20
         if STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_long"
+        else 10
+        if STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_jobs11_20"
+        else 5
+        if STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_jobs06_10"
+        else 2
+        if STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_jobs04_05"
         else
         3
         if STAGE35_BASELINE_SELECTOR_COMPARE_MODE
@@ -1856,11 +1917,20 @@ elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE in {
     "candidate_single_p5",
     "candidate_single_p7",
     "fixed_instance_canary",
+    "fixed_instance_panel_v1_jobs04_05",
+    "fixed_instance_panel_v1_jobs06_10",
+    "fixed_instance_panel_v1_jobs11_20",
     "fixed_instance_panel_v1_long",
 }:
     MAX_WALLCLOCK_SECONDS = (
         24.0 * 60.0 * 60.0
         if STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_long"
+        else 72.0 * 60.0 * 60.0
+        if STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_jobs11_20"
+        else 48.0 * 60.0 * 60.0
+        if STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_jobs06_10"
+        else 18.0 * 60.0 * 60.0
+        if STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_jobs04_05"
         else
         2.0 * 60.0 * 60.0
         if STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_canary"
@@ -1935,6 +2005,18 @@ elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_family_overnight":
 elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_canary":
     EXPERIMENT_RUN_ID = (
         "tune_v70_fixed_p9c3_fixture611_search7001_stage35_baseline_selector_score_plus_novelty_canary_1job"
+    )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_jobs04_05":
+    EXPERIMENT_RUN_ID = (
+        "tune_v72a_fixed_p9c3_jobs04_05_fixture611_search7004_7005_stage35_baseline_selector_score_plus_novelty_live_bounded_2job"
+    )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_jobs06_10":
+    EXPERIMENT_RUN_ID = (
+        "tune_v72b_fixed_p9c3_jobs06_10_fixture1111_search7001_7005_stage35_baseline_selector_score_plus_novelty_live_bounded_5job"
+    )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_jobs11_20":
+    EXPERIMENT_RUN_ID = (
+        "tune_v73_fixed_p9c3_jobs11_20_fixture1411_1511_search7001_7005_stage35_baseline_selector_score_plus_novelty_live_bounded_10job"
     )
 elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_long":
     EXPERIMENT_RUN_ID = (
