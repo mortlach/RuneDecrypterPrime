@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 
@@ -15,6 +15,21 @@ from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_models import (
 CAMPAIGN_CONFIG_PATH = Path("tools/benchmarks/community/examples/campaign_config_v1_1.json")
 FIXTURE_IDS: tuple[str, ...] | None = None
 FIXTURE_LENGTH_OVERRIDE: int | None = 1000
+FIXED_INSTANCE_EXECUTION_PROFILE = "panel_v1_long"
+DEFAULT_GENERATED_COMPARE_MODE = "candidate_single_p5"
+INSTANCE_INPUT_MODE = (
+    "fixed_ciphertext"
+    if FIXED_INSTANCE_EXECUTION_PROFILE in {"canary", "panel_v1_long"}
+    else "generated"
+)
+FIXED_INSTANCE_PANEL_PATH = Path(
+    "tools/benchmarks/periodic_sub_trans/no_wli/fixed_instance_panels/p9_c3_solver_panel_canary_v1.json"
+    if FIXED_INSTANCE_EXECUTION_PROFILE == "canary"
+    else "tools/benchmarks/periodic_sub_trans/no_wli/fixed_instance_panels/p9_c3_solver_panel_v1.json"
+)
+FIXED_INSTANCE_FIXTURE_DIR = Path(
+    "tools/benchmarks/periodic_sub_trans/no_wli/fixed_instances"
+)
 
 USE_CAMPAIGN_GRID = False
 PERIODS_OVERRIDE: tuple[int, ...] | None = (9,)
@@ -97,7 +112,13 @@ FORCE_STAGE3_SPAN_BASIN_JUDGE_TIE_EPS = 0.001
 # - do not change upstream search, Phase-C start policy, or Stage 3.5 search
 #   semantics
 ENABLE_STAGE3_TUNING_PRESET_MATRIX = True
-STAGE35_BASELINE_SELECTOR_COMPARE_MODE = "candidate_triple_p9_seed1311_1411_1511"
+STAGE35_BASELINE_SELECTOR_COMPARE_MODE = (
+    "fixed_instance_canary"
+    if FIXED_INSTANCE_EXECUTION_PROFILE == "canary"
+    else "fixed_instance_panel_v1_long"
+    if FIXED_INSTANCE_EXECUTION_PROFILE == "panel_v1_long"
+    else str(DEFAULT_GENERATED_COMPARE_MODE)
+)
 STAGE35_BASELINE_SELECTOR_CANARY_PRESET_IDS: tuple[str, ...] = (
     "stage35_baseline_legacy_canary_p9",
     "stage35_baseline_score_plus_novelty_canary_p9",
@@ -107,6 +128,12 @@ STAGE35_BASELINE_SELECTOR_OVERNIGHT_PRESET_IDS: tuple[str, ...] = (
     "stage35_baseline_score_plus_novelty_live_p9",
 )
 STAGE35_BASELINE_SELECTOR_SINGLE_PRESET_IDS: tuple[str, ...] = (
+    "stage35_baseline_score_plus_novelty_live_bounded_p9",
+)
+STAGE35_BASELINE_SELECTOR_FIXED_INSTANCE_CANARY_PRESET_IDS: tuple[str, ...] = (
+    "stage35_baseline_score_plus_novelty_canary_p9",
+)
+STAGE35_BASELINE_SELECTOR_FIXED_INSTANCE_LONG_PRESET_IDS: tuple[str, ...] = (
     "stage35_baseline_score_plus_novelty_live_bounded_p9",
 )
 STAGE35_BASELINE_SELECTOR_SINGLE_LEGACY_PRESET_IDS: tuple[str, ...] = (
@@ -209,6 +236,20 @@ elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_family_overnight":
     }
     RUN_SEEDS = (411, 611)
     STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_LADDER_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_canary":
+    PERIODS_OVERRIDE = (9,)
+    COLUMNS_OVERRIDE_BY_PERIOD = {
+        9: (3,),
+    }
+    RUN_SEEDS = (611,)
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_FIXED_INSTANCE_CANARY_PRESET_IDS
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_long":
+    PERIODS_OVERRIDE = (9,)
+    COLUMNS_OVERRIDE_BY_PERIOD = {
+        9: (3,),
+    }
+    RUN_SEEDS = (611, 1111, 1411, 1511)
+    STAGE3_TUNING_PRESET_IDS = STAGE35_BASELINE_SELECTOR_FIXED_INSTANCE_LONG_PRESET_IDS
 else:
     raise ValueError(
         "unsupported STAGE35_BASELINE_SELECTOR_COMPARE_MODE; "
@@ -220,8 +261,9 @@ else:
         "'candidate_triple_p9_seed1311_1411_1511', "
         "'candidate_single_p9_seed611_legacy', "
         "'candidate_single_p5', "
-        "'candidate_single_p7', 'candidate_ladder_small', or "
-        "'candidate_family_overnight'"
+        "'candidate_single_p7', 'candidate_ladder_small', "
+        "'candidate_family_overnight', 'fixed_instance_canary', or "
+        "'fixed_instance_panel_v1_long'"
     )
 STAGE35_BASELINE_SELECTOR_SHARED_CFG: dict[str, int] = {
     "seed_keep": 4,
@@ -1776,8 +1818,13 @@ if STAGE35_BASELINE_SELECTOR_COMPARE_MODE in {
     "candidate_single_p9_seed611_legacy",
     "candidate_single_p5",
     "candidate_single_p7",
+    "fixed_instance_canary",
+    "fixed_instance_panel_v1_long",
 }:
     MAX_JOBS: int | None = (
+        20
+        if STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_long"
+        else
         3
         if STAGE35_BASELINE_SELECTOR_COMPARE_MODE
         == "candidate_triple_p9_seed1311_1411_1511"
@@ -1808,8 +1855,16 @@ elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE in {
     "candidate_single_p9_seed611_legacy",
     "candidate_single_p5",
     "candidate_single_p7",
+    "fixed_instance_canary",
+    "fixed_instance_panel_v1_long",
 }:
     MAX_WALLCLOCK_SECONDS = (
+        24.0 * 60.0 * 60.0
+        if STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_long"
+        else
+        2.0 * 60.0 * 60.0
+        if STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_canary"
+        else
         12.0 * 60.0 * 60.0
         if STAGE35_BASELINE_SELECTOR_COMPARE_MODE
         == "candidate_triple_p9_seed1311_1411_1511"
@@ -1877,6 +1932,14 @@ elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "candidate_family_overnight":
     EXPERIMENT_RUN_ID = (
         "tune_v61_family_overnight_p7c1_p9c3_seed411_611_stage35_baseline_selector_candidate_live_bounded_space_map_v1_4job"
     )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_canary":
+    EXPERIMENT_RUN_ID = (
+        "tune_v70_fixed_p9c3_fixture611_search7001_stage35_baseline_selector_score_plus_novelty_canary_1job"
+    )
+elif STAGE35_BASELINE_SELECTOR_COMPARE_MODE == "fixed_instance_panel_v1_long":
+    EXPERIMENT_RUN_ID = (
+        "tune_v71_fixed_p9c3_panelv1_search7001_7005_stage35_baseline_selector_score_plus_novelty_live_bounded_20job"
+    )
 else:
     EXPERIMENT_RUN_ID = (
         "tune_v48_p9c3_seed411_stage35_baseline_selector_live_compare_2job"
@@ -1891,3 +1954,4 @@ RESUME_SKIP_COMPLETED = True
 
 PLAN_OUTPUT_PATH = MATRIX_CONTROL_FILES.plan_output_path
 WRITE_PLAN_JSON = True
+

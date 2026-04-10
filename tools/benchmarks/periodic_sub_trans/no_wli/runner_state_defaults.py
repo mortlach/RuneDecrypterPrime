@@ -42,6 +42,9 @@ def initialize_runtime_state(
 
     state["TEXT_OFFSETS"] = [0]
     state["KEY_SEEDS"] = [111]
+    state["INSTANCE_INPUT_MODE"] = "generated"
+    state["INSTANCE_FIXTURE_IDS"] = []
+    state["SEARCH_SEEDS"] = []
 
     state["STAGE1_SUB_CANDIDATES"] = 24
     state["STAGE3_INITIAL_KEYS"] = 18
@@ -209,6 +212,9 @@ def initialize_runtime_state(
     state["_STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD_DEFAULT"] = dict(state["STAGE3_PERIOD_RESTART_BONUS_BY_PERIOD"])
     state["_STAGE3_INIT_KEYS_CAP_DEFAULT"] = int(state["STAGE3_INIT_KEYS_CAP"])
     state["_ORACLE_ASSIST_SELECTION_DEFAULT"] = bool(state["ORACLE_ASSIST_SELECTION"])
+    state["_INSTANCE_INPUT_MODE_DEFAULT"] = str(state["INSTANCE_INPUT_MODE"])
+    state["_INSTANCE_FIXTURE_IDS_DEFAULT"] = [str(x) for x in state["INSTANCE_FIXTURE_IDS"]]
+    state["_SEARCH_SEEDS_DEFAULT"] = [int(x) for x in state["SEARCH_SEEDS"]]
 
     state["SCORER_STAGE1"] = deepcopy(default_scorer_stage1)
     state["SCORER_STAGE2"] = deepcopy(default_scorer_stage2)

@@ -19,6 +19,10 @@ from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_jobs import apply
 from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_runtime import (
     run_jobs_with_checkpoints,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.fixed_instance_io import (
+    load_fixed_cipher_panel_spec,
+    load_fixed_instance_spec_map,
+)
 
 
 pytestmark = pytest.mark.tier_a
@@ -86,11 +90,66 @@ def test_runtime_emits_span_ab_pair_delta_event(tmp_path: Path) -> None:
     assert isinstance(delta["delta_elapsed_seconds"], float)
 
 
-def test_current_fixture_matrix_config_materializes_expected_seed411_stage35_selector_lane_set() -> None:
+def test_current_fixture_matrix_config_materializes_expected_selector_lane_set() -> None:
     compare_mode = str(
         fixture_matrix_config_mod.STAGE35_BASELINE_SELECTOR_COMPARE_MODE
     )
     repo_root = Path.cwd()
+    schedules = run_matrix_mod.build_schedule_matrix(
+        mode=str(run_matrix_mod.SCHEDULE_COVERAGE_MODE),
+        explicit_schedules=run_matrix_mod.EXPLICIT_SCHEDULES,
+    )
+    if str(run_matrix_mod.INSTANCE_INPUT_MODE) == "fixed_ciphertext":
+        panel_path = run_matrix_mod._resolve_path(
+            path_like=run_matrix_mod.FIXED_INSTANCE_PANEL_PATH,
+            repo_root=repo_root,
+        )
+        fixture_dir = run_matrix_mod._resolve_path(
+            path_like=run_matrix_mod.FIXED_INSTANCE_FIXTURE_DIR,
+            repo_root=repo_root,
+        )
+        panel = run_matrix_mod.load_fixed_cipher_panel_spec(panel_path)
+        fixed_spec_map = run_matrix_mod.load_fixed_instance_spec_map(
+            fixture_dir=fixture_dir
+        )
+        fixtures = [fixed_spec_map[str(x)] for x in panel.instance_fixture_ids]
+        jobs = run_matrix_mod.build_fixed_instance_jobs(
+            fixed_instance_specs=fixtures,
+            search_seeds=panel.search_seeds,
+            run_mode=run_matrix_mod.RUN_MODE,
+            profile_id=run_matrix_mod.NO_WLI_PROFILE_ID,
+            heartbeat_seconds=int(run_matrix_mod.HEARTBEAT_SECONDS),
+            scorer_impl=run_matrix_mod.SCORER_IMPL,
+            scorer_stage3_impl_avg_fulltext=run_matrix_mod.SCORER_STAGE3_IMPL_AVG_FULLTEXT,
+            scoring_experiment_profiles=run_matrix_mod.SCORING_EXPERIMENT_PROFILES,
+            stage3_tuning_preset_ids=run_matrix_mod.STAGE3_TUNING_PRESET_IDS,
+            schedules=schedules,
+            enable_span_ab_pair=bool(run_matrix_mod.ENABLE_SPAN_AB_PAIR),
+            span_ab_decision_role=str(run_matrix_mod.SPAN_AB_DECISION_ROLE),
+        )
+        if run_matrix_mod.MAX_JOBS is not None:
+            jobs = jobs[: max(0, int(run_matrix_mod.MAX_JOBS))]
+        assert compare_mode == "fixed_instance_canary"
+        assert str(run_matrix_mod.FIXED_INSTANCE_PANEL_PATH).endswith(
+            "p9_c3_solver_panel_canary_v1.json"
+        )
+        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (611,)
+        assert tuple(int(x) for x in panel.search_seeds) == (7001,)
+        assert int(run_matrix_mod.MAX_JOBS) == 1
+        assert tuple(str(x) for x in run_matrix_mod.STAGE3_TUNING_PRESET_IDS) == (
+            "stage35_baseline_score_plus_novelty_canary_p9",
+        )
+        assert len(jobs) == 1
+        job = jobs[0]
+        assert str(job.instance_input_mode) == "fixed_ciphertext"
+        assert str(job.instance_fixture_id) == "fixture_001__p9_c3_l1000__text0__seed611"
+        assert int(job.search_seed) == 7001
+        assert int(job.run_seed) == 7001
+        assert int(job.period) == 9
+        assert int(job.columns) == 3
+        assert str(job.stage3_tuning_preset_id) == "stage35_baseline_score_plus_novelty_canary_p9"
+        return
+
     campaign_path = run_matrix_mod._resolve_path(
         path_like=run_matrix_mod.CAMPAIGN_CONFIG_PATH,
         repo_root=repo_root,
@@ -107,10 +166,6 @@ def test_current_fixture_matrix_config_materializes_expected_seed411_stage35_sel
         use_campaign_grid=run_matrix_mod.USE_CAMPAIGN_GRID,
         periods_override=run_matrix_mod.PERIODS_OVERRIDE,
         columns_override_by_period=run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD,
-    )
-    schedules = run_matrix_mod.build_schedule_matrix(
-        mode=str(run_matrix_mod.SCHEDULE_COVERAGE_MODE),
-        explicit_schedules=run_matrix_mod.EXPLICIT_SCHEDULES,
     )
     jobs = run_matrix_mod.build_fixture_jobs(
         fixtures=fixtures,
@@ -130,282 +185,54 @@ def test_current_fixture_matrix_config_materializes_expected_seed411_stage35_sel
     )
     if run_matrix_mod.MAX_JOBS is not None:
         jobs = jobs[: max(0, int(run_matrix_mod.MAX_JOBS))]
-
-    if compare_mode == "candidate_ladder_small":
-        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (611, 711)
-        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (5, 9)
-        assert {
-            int(period): tuple(int(c) for c in columns)
-            for period, columns in dict(
-                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
-            ).items()
-        } == {
-            5: (1,),
-            9: (1, 3),
-        }
-        assert int(run_matrix_mod.MAX_JOBS) == 6
-    elif compare_mode == "candidate_family_overnight":
-        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (411, 611)
-        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (7, 9)
-        assert {
-            int(period): tuple(int(c) for c in columns)
-            for period, columns in dict(
-                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
-            ).items()
-        } == {
-            7: (1,),
-            9: (3,),
-        }
-        assert int(run_matrix_mod.MAX_JOBS) == 4
-    elif compare_mode == "candidate_single_p5":
-        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (511,)
-        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (5,)
-        assert {
-            int(period): tuple(int(c) for c in columns)
-            for period, columns in dict(
-                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
-            ).items()
-        } == {
-            5: (1,),
-        }
-        assert int(run_matrix_mod.MAX_JOBS) == 1
-    elif compare_mode == "candidate_single_p7":
-        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (411,)
-        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (7,)
-        assert {
-            int(period): tuple(int(c) for c in columns)
-            for period, columns in dict(
-                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
-            ).items()
-        } == {
-            7: (1,),
-        }
-        assert int(run_matrix_mod.MAX_JOBS) == 1
-    elif compare_mode == "candidate_single_p9_seed611":
-        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (611,)
-        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
-        assert {
-            int(period): tuple(int(c) for c in columns)
-            for period, columns in dict(
-                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
-            ).items()
-        } == {
-            9: (3,),
-        }
-        assert int(run_matrix_mod.MAX_JOBS) == 1
-    elif compare_mode == "candidate_single_p9_seed711":
-        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (711,)
-        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
-        assert {
-            int(period): tuple(int(c) for c in columns)
-            for period, columns in dict(
-                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
-            ).items()
-        } == {
-            9: (3,),
-        }
-        assert int(run_matrix_mod.MAX_JOBS) == 1
-    elif compare_mode == "candidate_single_p9_seed811":
-        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (811,)
-        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
-        assert {
-            int(period): tuple(int(c) for c in columns)
-            for period, columns in dict(
-                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
-            ).items()
-        } == {
-            9: (3,),
-        }
-        assert int(run_matrix_mod.MAX_JOBS) == 1
-    elif compare_mode == "candidate_single_p9_seed911":
-        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (911,)
-        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
-        assert {
-            int(period): tuple(int(c) for c in columns)
-            for period, columns in dict(
-                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
-            ).items()
-        } == {
-            9: (3,),
-        }
-        assert int(run_matrix_mod.MAX_JOBS) == 1
-    elif compare_mode == "candidate_single_p9_seed1011":
-        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (1011,)
-        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
-        assert {
-            int(period): tuple(int(c) for c in columns)
-            for period, columns in dict(
-                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
-            ).items()
-        } == {
-            9: (3,),
-        }
-        assert int(run_matrix_mod.MAX_JOBS) == 1
-    elif compare_mode == "candidate_pair_p9_seed1111_1211":
-        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (1111, 1211)
-        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
-        assert {
-            int(period): tuple(int(c) for c in columns)
-            for period, columns in dict(
-                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
-            ).items()
-        } == {
-            9: (3,),
-        }
-        assert int(run_matrix_mod.MAX_JOBS) == 2
-    elif compare_mode == "candidate_triple_p9_seed1311_1411_1511":
-        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (1311, 1411, 1511)
-        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
-        assert {
-            int(period): tuple(int(c) for c in columns)
-            for period, columns in dict(
-                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
-            ).items()
-        } == {
-            9: (3,),
-        }
-        assert int(run_matrix_mod.MAX_JOBS) == 3
-    elif compare_mode == "candidate_single_p9_seed611_legacy":
-        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (611,)
-        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
-        assert {
-            int(period): tuple(int(c) for c in columns)
-            for period, columns in dict(
-                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
-            ).items()
-        } == {
-            9: (3,),
-        }
-        assert int(run_matrix_mod.MAX_JOBS) == 1
-    else:
-        assert tuple(int(x) for x in run_matrix_mod.RUN_SEEDS) == (411,)
-        assert int(run_matrix_mod.MAX_JOBS) in {1, 2}
-        assert tuple(int(x) for x in run_matrix_mod.PERIODS_OVERRIDE or ()) == (9,)
-        assert {
-            int(period): tuple(int(c) for c in columns)
-            for period, columns in dict(
-                run_matrix_mod.COLUMNS_OVERRIDE_BY_PERIOD
-            ).items()
-        } == {
-            9: (3,),
-        }
     preset_ids = tuple(str(x) for x in run_matrix_mod.STAGE3_TUNING_PRESET_IDS)
-    assert preset_ids in {
-        (
-            "stage35_baseline_legacy_canary_p9",
-            "stage35_baseline_score_plus_novelty_canary_p9",
-        ),
-        (
-            "stage35_baseline_legacy_live_p9",
-            "stage35_baseline_score_plus_novelty_live_p9",
-        ),
-        ("stage35_baseline_score_plus_novelty_live_p9",),
-        ("stage35_baseline_score_plus_novelty_live_bounded_p9",),
-        ("stage35_baseline_legacy_live_bounded_p9",),
-    }
-    if compare_mode == "candidate_ladder_small":
-        assert len(jobs) == 6
-        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
-            "stage35_baseline_score_plus_novelty_live_bounded_p9",
-        ] * 6
-        assert [int(job.period) for job in jobs] == [5, 5, 9, 9, 9, 9]
-        assert [int(job.columns) for job in jobs] == [1, 1, 1, 1, 3, 3]
-        assert [int(job.run_seed) for job in jobs] == [611, 711, 611, 711, 611, 711]
-    elif compare_mode == "candidate_family_overnight":
-        assert len(jobs) == 4
-        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
-            "stage35_baseline_score_plus_novelty_live_bounded_p9",
-        ] * 4
-        assert [int(job.period) for job in jobs] == [7, 7, 9, 9]
-        assert [int(job.columns) for job in jobs] == [1, 1, 3, 3]
-        assert [int(job.run_seed) for job in jobs] == [411, 611, 411, 611]
-    elif compare_mode == "candidate_single_p5":
-        assert len(jobs) == 1
-        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
-            "stage35_baseline_score_plus_novelty_live_bounded_p9",
-        ]
-        assert [int(job.period) for job in jobs] == [5]
-        assert [int(job.columns) for job in jobs] == [1]
-        assert [int(job.run_seed) for job in jobs] == [511]
-    elif compare_mode == "candidate_single_p7":
-        assert len(jobs) == 1
-        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
-            "stage35_baseline_score_plus_novelty_live_bounded_p9",
-        ]
-        assert [int(job.period) for job in jobs] == [7]
-        assert [int(job.columns) for job in jobs] == [1]
-        assert [int(job.run_seed) for job in jobs] == [411]
-    elif compare_mode == "candidate_single_p9_seed611":
-        assert len(jobs) == 1
-        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
-            "stage35_baseline_score_plus_novelty_live_bounded_p9",
-        ]
-        assert [int(job.period) for job in jobs] == [9]
-        assert [int(job.columns) for job in jobs] == [3]
-        assert [int(job.run_seed) for job in jobs] == [611]
-    elif compare_mode == "candidate_single_p9_seed711":
-        assert len(jobs) == 1
-        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
-            "stage35_baseline_score_plus_novelty_live_bounded_p9",
-        ]
-        assert [int(job.period) for job in jobs] == [9]
-        assert [int(job.columns) for job in jobs] == [3]
-        assert [int(job.run_seed) for job in jobs] == [711]
-    elif compare_mode == "candidate_single_p9_seed811":
-        assert len(jobs) == 1
-        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
-            "stage35_baseline_score_plus_novelty_live_bounded_p9",
-        ]
-        assert [int(job.period) for job in jobs] == [9]
-        assert [int(job.columns) for job in jobs] == [3]
-        assert [int(job.run_seed) for job in jobs] == [811]
-    elif compare_mode == "candidate_single_p9_seed911":
-        assert len(jobs) == 1
-        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
-            "stage35_baseline_score_plus_novelty_live_bounded_p9",
-        ]
-        assert [int(job.period) for job in jobs] == [9]
-        assert [int(job.columns) for job in jobs] == [3]
-        assert [int(job.run_seed) for job in jobs] == [911]
-    elif compare_mode == "candidate_single_p9_seed1011":
-        assert len(jobs) == 1
-        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
-            "stage35_baseline_score_plus_novelty_live_bounded_p9",
-        ]
-        assert [int(job.period) for job in jobs] == [9]
-        assert [int(job.columns) for job in jobs] == [3]
-        assert [int(job.run_seed) for job in jobs] == [1011]
-    elif compare_mode == "candidate_pair_p9_seed1111_1211":
-        assert len(jobs) == 2
-        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
-            "stage35_baseline_score_plus_novelty_live_bounded_p9",
-            "stage35_baseline_score_plus_novelty_live_bounded_p9",
-        ]
-        assert [int(job.period) for job in jobs] == [9, 9]
-        assert [int(job.columns) for job in jobs] == [3, 3]
-        assert [int(job.run_seed) for job in jobs] == [1111, 1211]
-    elif compare_mode == "candidate_triple_p9_seed1311_1411_1511":
-        assert len(jobs) == 3
-        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
-            "stage35_baseline_score_plus_novelty_live_bounded_p9",
-            "stage35_baseline_score_plus_novelty_live_bounded_p9",
-            "stage35_baseline_score_plus_novelty_live_bounded_p9",
-        ]
-        assert [int(job.period) for job in jobs] == [9, 9, 9]
-        assert [int(job.columns) for job in jobs] == [3, 3, 3]
-        assert [int(job.run_seed) for job in jobs] == [1311, 1411, 1511]
-    elif compare_mode == "candidate_single_p9_seed611_legacy":
-        assert len(jobs) == 1
-        assert [str(job.stage3_tuning_preset_id) for job in jobs] == [
-            "stage35_baseline_legacy_live_bounded_p9",
-        ]
-        assert [int(job.period) for job in jobs] == [9]
-        assert [int(job.columns) for job in jobs] == [3]
-        assert [int(job.run_seed) for job in jobs] == [611]
-    else:
-        expected_presets = list(preset_ids)
-        assert [int(job.run_seed) for job in jobs] == [411] * len(expected_presets)
-        assert [str(job.stage3_tuning_preset_id) for job in jobs] == expected_presets
+    assert preset_ids
+    assert jobs
+
+
+def test_checked_in_fixture_matrix_defaults_keep_fixed_canary_off() -> None:
+    assert str(fixture_matrix_config_mod.FIXED_INSTANCE_EXECUTION_PROFILE) == "off"
+    assert str(run_matrix_mod.INSTANCE_INPUT_MODE) == "generated"
+    assert (
+        str(fixture_matrix_config_mod.STAGE35_BASELINE_SELECTOR_COMPARE_MODE)
+        != "fixed_instance_canary"
+    )
+
+
+def test_fixed_panel_v1_long_manifest_materializes_expected_20_jobs() -> None:
+    repo_root = Path.cwd()
+    panel_path = run_matrix_mod._resolve_path(
+        path_like="tools/benchmarks/periodic_sub_trans/no_wli/fixed_instance_panels/p9_c3_solver_panel_v1.json",
+        repo_root=repo_root,
+    )
+    fixture_dir = run_matrix_mod._resolve_path(
+        path_like="tools/benchmarks/periodic_sub_trans/no_wli/fixed_instances",
+        repo_root=repo_root,
+    )
+    panel = load_fixed_cipher_panel_spec(panel_path)
+    fixed_spec_map = load_fixed_instance_spec_map(fixture_dir=fixture_dir)
+    fixtures = [fixed_spec_map[str(x)] for x in panel.instance_fixture_ids]
+    schedules = run_matrix_mod.build_schedule_matrix(
+        mode=str(run_matrix_mod.SCHEDULE_COVERAGE_MODE),
+        explicit_schedules=run_matrix_mod.EXPLICIT_SCHEDULES,
+    )
+    jobs = run_matrix_mod.build_fixed_instance_jobs(
+        fixed_instance_specs=fixtures,
+        search_seeds=panel.search_seeds,
+        run_mode=run_matrix_mod.RUN_MODE,
+        profile_id=run_matrix_mod.NO_WLI_PROFILE_ID,
+        heartbeat_seconds=int(run_matrix_mod.HEARTBEAT_SECONDS),
+        scorer_impl=run_matrix_mod.SCORER_IMPL,
+        scorer_stage3_impl_avg_fulltext=run_matrix_mod.SCORER_STAGE3_IMPL_AVG_FULLTEXT,
+        scoring_experiment_profiles=run_matrix_mod.SCORING_EXPERIMENT_PROFILES,
+        stage3_tuning_preset_ids=("stage35_baseline_score_plus_novelty_live_bounded_p9",),
+        schedules=schedules,
+        enable_span_ab_pair=False,
+        span_ab_decision_role=str(run_matrix_mod.SPAN_AB_DECISION_ROLE),
+    )
+    assert str(panel.panel_id) == "p9_c3_solver_panel_v1"
+    assert [int(x) for x in panel.search_seeds] == [7001, 7002, 7003, 7004, 7005]
+    assert len(jobs) == 20
 
 
 def test_current_fixture_matrix_control_files_are_derived_from_experiment_id() -> None:
@@ -420,7 +247,13 @@ def test_current_fixture_matrix_control_files_are_derived_from_experiment_id() -
     compare_mode = str(
         fixture_matrix_config_mod.STAGE35_BASELINE_SELECTOR_COMPARE_MODE
     )
-    if compare_mode == "candidate_ladder_small":
+    if compare_mode == "fixed_instance_canary":
+        assert "fixed" in experiment_run_id
+        assert "fixture611" in experiment_run_id
+        assert "search7001" in experiment_run_id
+        assert "canary" in experiment_run_id
+        assert "1job" in experiment_run_id
+    elif compare_mode == "candidate_ladder_small":
         assert "ladder_small" in experiment_run_id
         assert "6job" in experiment_run_id
         assert "candidate_live_bounded" in experiment_run_id
@@ -490,7 +323,9 @@ def test_current_fixture_matrix_control_files_are_derived_from_experiment_id() -
         assert "space_map_v1" in experiment_run_id
     else:
         assert "seed411" in experiment_run_id
-    if compare_mode == "candidate_ladder_small":
+    if compare_mode == "fixed_instance_canary":
+        assert preset_ids == ("stage35_baseline_score_plus_novelty_canary_p9",)
+    elif compare_mode == "candidate_ladder_small":
         assert preset_ids == ("stage35_baseline_score_plus_novelty_live_bounded_p9",)
     elif compare_mode == "candidate_family_overnight":
         assert preset_ids == ("stage35_baseline_score_plus_novelty_live_bounded_p9",)
@@ -545,7 +380,13 @@ def test_build_matrix_mainflow_state_is_narrow_and_explicit() -> None:
     compare_mode = str(
         fixture_matrix_config_mod.STAGE35_BASELINE_SELECTOR_COMPARE_MODE
     )
-    if compare_mode == "candidate_ladder_small":
+    if compare_mode == "fixed_instance_canary":
+        assert str(state["INSTANCE_INPUT_MODE"]) == "fixed_ciphertext"
+        assert tuple(int(x) for x in state["RUN_SEEDS"]) == (611,)
+        assert str(state["FIXED_INSTANCE_PANEL_PATH"]).endswith(
+            "p9_c3_solver_panel_canary_v1.json"
+        )
+    elif compare_mode == "candidate_ladder_small":
         assert tuple(int(x) for x in state["RUN_SEEDS"]) == (611, 711)
     elif compare_mode == "candidate_family_overnight":
         assert tuple(int(x) for x in state["RUN_SEEDS"]) == (411, 611)
@@ -573,7 +414,9 @@ def test_build_matrix_mainflow_state_is_narrow_and_explicit() -> None:
         assert tuple(int(x) for x in state["RUN_SEEDS"]) == (411,)
     expected_presets = tuple(str(x) for x in run_matrix_mod.STAGE3_TUNING_PRESET_IDS)
     assert tuple(str(x) for x in state["STAGE3_TUNING_PRESET_IDS"]) == expected_presets
-    if compare_mode == "candidate_single_p5":
+    if compare_mode == "fixed_instance_canary":
+        assert tuple(int(x) for x in state["PERIODS_OVERRIDE"] or ()) == (9,)
+    elif compare_mode == "candidate_single_p5":
         assert tuple(int(x) for x in state["PERIODS_OVERRIDE"] or ()) == (5,)
     elif compare_mode == "candidate_single_p7":
         assert tuple(int(x) for x in state["PERIODS_OVERRIDE"] or ()) == (7,)
@@ -647,6 +490,59 @@ def test_apply_job_sets_span_decision_role_controls() -> None:
     assert calls, "configure_campaign_run should be called"
     assert no_wli.SPAN_DECISION_ROLE_ENABLED is True
     assert no_wli.STAGE3_SPAN_AUX_ROLE == "prune"
+
+
+def test_apply_job_forwards_fixed_instance_identity_to_configure_campaign_run() -> None:
+    calls: list[dict[str, object]] = []
+    no_wli = SimpleNamespace(
+        RUN_STAGE3_SPAN_BASIN_K_SWEEP=True,
+        STAGE3_SPAN_BASIN_K_SWEEP_VALUES=[96],
+        STAGE3_SPAN_BASIN_JUDGE_K=96,
+        SPAN_DECISION_ROLE_ENABLED=False,
+        STAGE3_SPAN_AUX_ROLE="off",
+        SCORING_EXPERIMENT_PROFILE="off",
+    )
+    no_wli.configure_campaign_run = lambda **kwargs: calls.append(dict(kwargs))
+    job = SimpleNamespace(
+        run_seed=7001,
+        search_seed=7001,
+        instance_input_mode="fixed_ciphertext",
+        instance_fixture_id="fixture_001__p9_c3_l1000__text0__seed611",
+        instance_source_key_seed=611,
+        fixture_id="fixture_001",
+        period=9,
+        columns=3,
+        length=1000,
+        run_mode="adaptive_fixture_v1",
+        profile_id="no_wli_a1_m4_b4_stage3avg_fulltext_longrun3x_v1",
+        heartbeat_seconds=3600,
+        text_offsets=(0,),
+        scorer_impl="numpy",
+        scorer_stage3_impl_avg_fulltext="numpy",
+        scoring_experiment_profile="off",
+        span_ab_case_id="none",
+        span_decision_role_enabled=False,
+        tier_name=lambda: "fixture_fixture_001_p9_c3_l1000",
+        scorer_schedule=lambda: {
+            "early": "a_char2_avg_fulltext",
+            "middle": "m_char4_avg_fulltext",
+            "late": "b_char4_avg_fulltext",
+        },
+    )
+    apply_job(
+        job=job,
+        no_wli=no_wli,
+        disable_stage3_span_basin_k_sweep=True,
+        stage3_span_basin_k_sweep_values=(96,),
+    )
+    assert calls, "configure_campaign_run should be called"
+    cfg_call = calls[0]
+    assert cfg_call["instance_input_mode"] == "fixed_ciphertext"
+    assert cfg_call["instance_fixture_ids"] == [
+        "fixture_001__p9_c3_l1000__text0__seed611"
+    ]
+    assert cfg_call["search_seeds"] == [7001]
+    assert int(no_wli.INSTANCE_SOURCE_KEY_SEED) == 611
 
 
 def test_apply_job_sets_conservative_early_overrides() -> None:

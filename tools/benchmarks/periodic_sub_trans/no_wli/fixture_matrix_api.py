@@ -48,6 +48,7 @@ from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_inputs import (
 )
 from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_jobs import (
     apply_job as _apply_job_impl,
+    build_fixed_instance_jobs as _build_fixed_instance_jobs_impl,
     build_fixture_jobs as _build_fixture_jobs_impl,
     job_key as _job_key_impl,
     run_job as _run_job_impl,
@@ -216,6 +217,40 @@ def build_fixture_jobs(
         enable_span_ab_pair=bool(enable_span_ab_pair),
         span_ab_decision_role=str(span_ab_decision_role),
         unique_sorted_ints_fn=lambda xs: _unique_sorted_ints(tuple(int(x) for x in xs)),
+        validate_scorer_schedule_ids_fn=validate_scorer_schedule_ids,
+        validate_schedule_contract_fn=validate_schedule_contract,
+        job_cls=NoWliFixtureJob,
+    )
+
+
+def build_fixed_instance_jobs(
+    *,
+    fixed_instance_specs: Sequence[Any],
+    search_seeds: Sequence[int],
+    run_mode: str,
+    profile_id: str,
+    heartbeat_seconds: int,
+    scorer_impl: str,
+    scorer_stage3_impl_avg_fulltext: str,
+    scoring_experiment_profiles: Sequence[str],
+    schedules: Sequence[Mapping[str, str]],
+    stage3_tuning_preset_ids: Sequence[str] = ("base",),
+    enable_span_ab_pair: bool = False,
+    span_ab_decision_role: str = "prune",
+) -> list[NoWliFixtureJob]:
+    return _build_fixed_instance_jobs_impl(
+        fixed_instance_specs=fixed_instance_specs,
+        search_seeds=search_seeds,
+        run_mode=run_mode,
+        profile_id=profile_id,
+        heartbeat_seconds=heartbeat_seconds,
+        scorer_impl=scorer_impl,
+        scorer_stage3_impl_avg_fulltext=scorer_stage3_impl_avg_fulltext,
+        scoring_experiment_profiles=scoring_experiment_profiles,
+        schedules=schedules,
+        stage3_tuning_preset_ids=stage3_tuning_preset_ids,
+        enable_span_ab_pair=bool(enable_span_ab_pair),
+        span_ab_decision_role=str(span_ab_decision_role),
         validate_scorer_schedule_ids_fn=validate_scorer_schedule_ids,
         validate_schedule_contract_fn=validate_schedule_contract,
         job_cls=NoWliFixtureJob,

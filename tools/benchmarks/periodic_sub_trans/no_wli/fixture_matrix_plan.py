@@ -25,6 +25,7 @@ def build_plan_payload(
     repo_root: Path,
     campaign_path: Path,
     run_mode: str,
+    instance_input_mode: str,
     profile_id: str,
     schedule_coverage_mode: str,
     schedules: Sequence[Mapping[str, Any]],
@@ -47,6 +48,9 @@ def build_plan_payload(
     run_state_path: Path,
     run_events_path: Path,
     fixture_length_override: int | None,
+    fixed_instance_panel_path: Path | str | None,
+    fixed_instance_panel_id: str | None,
+    fixed_instance_search_seeds: Sequence[int] | None,
     period_columns: Mapping[int, Sequence[int]],
     resolve_path_fn: Callable[[Path], Path],
 ) -> dict[str, Any]:
@@ -55,6 +59,7 @@ def build_plan_payload(
     return {
         "campaign_config_path": _to_repo_rel(campaign_path, repo_root=repo_root),
         "run_mode": str(run_mode),
+        "instance_input_mode": str(instance_input_mode),
         "profile_id": str(profile_id),
         "schedule_coverage_mode": str(schedule_coverage_mode),
         "schedule_count": int(len(schedules)),
@@ -84,6 +89,19 @@ def build_plan_payload(
         "run_events_path": _to_repo_rel(run_events_abs, repo_root=repo_root),
         "fixture_length_override": (
             None if fixture_length_override is None else int(fixture_length_override)
+        ),
+        "fixed_instance_panel_path": (
+            None
+            if fixed_instance_panel_path is None
+            else _to_repo_rel(resolve_path_fn(Path(fixed_instance_panel_path)), repo_root=repo_root)
+        ),
+        "fixed_instance_panel_id": (
+            None if fixed_instance_panel_id is None else str(fixed_instance_panel_id)
+        ),
+        "fixed_instance_search_seeds": (
+            []
+            if fixed_instance_search_seeds is None
+            else [int(x) for x in fixed_instance_search_seeds]
         ),
         "fixtures": [fx.as_dict() for fx in fixtures],
         "period_columns": {str(k): [int(c) for c in v] for k, v in period_columns.items()},

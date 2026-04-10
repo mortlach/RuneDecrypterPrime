@@ -17,6 +17,9 @@ from tools.benchmarks.periodic_sub_trans.no_wli import (
     stage3_iteration_flow as stage3_flow_mod,
 )
 from tools.benchmarks.periodic_sub_trans.no_wli.path_hash_utils import sanitize_jsonable
+from tools.benchmarks.periodic_sub_trans.no_wli.iteration_identity import (
+    normalize_instance_input_mode,
+)
 from tools.benchmarks.periodic_sub_trans.no_wli.iteration_outcome import (
     resolve_iteration_outcome,
 )
@@ -298,6 +301,39 @@ def _phaseb_char_pct_min_source(run_config: Mapping[str, Any]) -> str:
     if policy:
         return policy
     return "stage3.scorer.span_hamming_char_pct_min"
+
+
+def _artifact_identity_fields(artifact: Mapping[str, Any]) -> dict[str, Any]:
+    key_seed = int(artifact.get("key_seed", 0) or 0)
+    mode = normalize_instance_input_mode(
+        str(artifact.get("instance_input_mode", "generated") or "generated")
+    )
+    instance_fixture_id = str(artifact.get("instance_fixture_id", "") or "").strip()
+    instance_source_key_seed_raw = artifact.get("instance_source_key_seed", None)
+    search_seed_raw = artifact.get("search_seed", None)
+    if mode == "fixed_ciphertext":
+        if not instance_fixture_id:
+            raise ValueError(
+                "fixed_ciphertext artifact missing instance_fixture_id"
+            )
+        if instance_source_key_seed_raw is None:
+            raise ValueError(
+                "fixed_ciphertext artifact missing instance_source_key_seed"
+            )
+        if search_seed_raw is None:
+            raise ValueError(
+                "fixed_ciphertext artifact missing search_seed"
+            )
+    return dict(
+        instance_input_mode=str(mode),
+        instance_fixture_id=str(instance_fixture_id),
+        instance_source_key_seed=int(
+            instance_source_key_seed_raw
+            if instance_source_key_seed_raw is not None
+            else key_seed
+        ),
+        search_seed=int(search_seed_raw if search_seed_raw is not None else key_seed),
+    )
 
 
 def load_artifact_case(*, artifact_path: Path | str) -> phasec_replay_mod.ArtifactCase:
@@ -716,6 +752,7 @@ def run_stage35_resume_from_artifact(
         mode="stage3_to_stage35",
         artifact_relpath=_repo_rel(case.artifact_path),
         run_config_relpath=_repo_rel(case.run_config_path),
+        **_artifact_identity_fields(artifact),
         run_config_override=dict(run_config_override or {}),
         baseline_best_match_ratio=float(artifact.get("best_match_ratio", float("nan"))),
         resume_best_match_ratio=float(resume_match),
@@ -852,6 +889,7 @@ def run_stage35_from_selected_trial_row(
         mode="selected_stage3_to_stage35",
         artifact_relpath=_repo_rel(case.artifact_path),
         run_config_relpath=_repo_rel(case.run_config_path),
+        **_artifact_identity_fields(artifact),
         selector=str(selected_row.get("selector", "") or ""),
         fixture_id=str(selected_row.get("fixture_id", "") or ""),
         fixture_label=str(selected_row.get("fixture_label", "") or ""),
@@ -1119,6 +1157,7 @@ def run_stage3_resume_from_artifact(
         mode="stage2_to_stage3",
         artifact_relpath=_repo_rel(case.artifact_path),
         run_config_relpath=_repo_rel(case.run_config_path),
+        **_artifact_identity_fields(artifact),
         output_dir=_repo_rel(output_dir),
         run_config_override=dict(run_config_override or {}),
         resume_source=str(prep_payload.get("resume_source", "")),
@@ -1178,9 +1217,11 @@ def write_resume_bundle(payload: Mapping[str, Any], *, output_dir: Path) -> None
             dict(seed_rows_scored=list(stage35_payload.get("seed_rows_scored", []) or [])),
         )
         if mode == "selected_stage3_to_stage35":
+            identity_fields = _artifact_identity_fields(payload)
             _write_json(
                 output_dir / "selected_trial_row_summary.json",
                 dict(
+                    **identity_fields,
                     selector=str(payload.get("selector", "") or ""),
                     fixture_id=str(payload.get("fixture_id", "") or ""),
                     fixture_label=str(payload.get("fixture_label", "") or ""),

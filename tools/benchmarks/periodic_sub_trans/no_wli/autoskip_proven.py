@@ -10,6 +10,10 @@ def handle_autoskip_proven_iteration(
     tier: Any,
     text_id: int,
     key_seed: int,
+    instance_input_mode: str = "generated",
+    instance_fixture_id: str = "",
+    instance_source_key_seed: int | None = None,
+    search_seed: int | None = None,
     off: int,
     offset_used: int,
     source_row: Dict[str, Any],
@@ -46,6 +50,14 @@ def handle_autoskip_proven_iteration(
             tier=tier.name,
             text_id=int(text_id),
             key_seed=int(key_seed),
+            instance_input_mode=str(instance_input_mode),
+            instance_fixture_id=str(instance_fixture_id),
+            instance_source_key_seed=(
+                int(instance_source_key_seed)
+                if instance_source_key_seed is not None
+                else int(key_seed)
+            ),
+            search_seed=int(search_seed if search_seed is not None else key_seed),
             stage="skip_proven",
             score=np.nan,
             match_ratio=float(src_match if np.isfinite(src_match) else np.nan),
@@ -126,13 +138,26 @@ def handle_autoskip_proven_iteration(
         stage2_diagnostics=stage2_diagnostics,
         stage3_topk_payload=[],
         stage3_diagnostics=stage3_diagnostics,
+        instance_input_mode=str(instance_input_mode),
+        instance_fixture_id=str(instance_fixture_id),
+        instance_source_key_seed=instance_source_key_seed,
+        search_seed=search_seed,
     )
     instances.append(dict(inst_row))
-    print(
-        f"{log_prefix} skip-proven tier={tier.name} text={text_id} key_seed={key_seed} "
-        f"source_run={src_run if src_run else 'unknown'} best_match={float(src_match):.3f}",
-        flush=True,
-    )
+    if str(instance_input_mode) == "fixed_ciphertext":
+        print(
+            f"{log_prefix} skip-proven fixture={instance_fixture_id} search_seed="
+            f"{int(search_seed if search_seed is not None else key_seed)} "
+            f"source_run={src_run if src_run else 'unknown'} "
+            f"best_match={float(src_match):.3f}",
+            flush=True,
+        )
+    else:
+        print(
+            f"{log_prefix} skip-proven tier={tier.name} text={text_id} key_seed={key_seed} "
+            f"source_run={src_run if src_run else 'unknown'} best_match={float(src_match):.3f}",
+            flush=True,
+        )
     commit_iteration_with_checkpoint_fn(
         inst_row=inst_row,
         artifact_payload=artifact_payload,

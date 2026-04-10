@@ -12,6 +12,10 @@ from tools.benchmarks.periodic_sub_trans.no_wli.stage_engine_iteration_bridge im
 from tools.benchmarks.periodic_sub_trans.no_wli.stage3_runtime_state_contract import (
     build_stage3_runtime_config_state,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.iteration_identity import (
+    build_proven_solved_key,
+    normalize_instance_input_mode,
+)
 
 @dataclass(frozen=True)
 class IterationMatrixConfig:
@@ -92,6 +96,12 @@ class IterationMatrixFns:
     stage_engine_trace_emit_fn: Callable[..., None]
 
 
+def _fixed_spec_field(spec: Any, key: str) -> Any:
+    if isinstance(spec, Mapping):
+        return spec[key]
+    return getattr(spec, key)
+
+
 def _build_stage_engine_iteration_state(
     *,
     run_id: str,
@@ -113,8 +123,13 @@ def _build_stage_engine_iteration_state(
     instances: List[Dict[str, Any]],
     t0_i: float,
     config: IterationMatrixConfig,
+    instance_input_mode: str,
+    fixed_instance_spec: Any | None = None,
+    instance_fixture_id: str = "",
+    instance_source_key_seed: int | None = None,
+    search_seed: int | None = None,
 ) -> Dict[str, Any]:
-    return dict(
+    state = dict(
         run_id=str(run_id),
         tier=tier,
         text_id=int(text_id),
@@ -140,6 +155,16 @@ def _build_stage_engine_iteration_state(
         STAGE35_ENABLED=bool(config.stage35_enabled),
         STAGE35_CFG=dict(config.stage35_cfg),
     )
+    state["instance_input_mode"] = str(instance_input_mode)
+    if fixed_instance_spec is not None:
+        state["fixed_instance_spec"] = fixed_instance_spec
+    if instance_fixture_id:
+        state["instance_fixture_id"] = str(instance_fixture_id)
+    if instance_source_key_seed is not None:
+        state["instance_source_key_seed"] = int(instance_source_key_seed)
+    if search_seed is not None:
+        state["search_seed"] = int(search_seed)
+    return state
 
 
 def _build_finalize_iteration_state(
@@ -160,6 +185,10 @@ def _build_finalize_iteration_state(
     config: IterationMatrixConfig,
     pre_stage3: Mapping[str, Any],
     stage3_flow: Mapping[str, Any],
+    instance_input_mode: str,
+    instance_fixture_id: str = "",
+    instance_source_key_seed: int | None = None,
+    search_seed: int | None = None,
 ) -> Dict[str, Any]:
     state = dict(
         run_id=str(run_id),
@@ -176,7 +205,14 @@ def _build_finalize_iteration_state(
         oracle_consulted_in_decisions=bool(oracle_consulted_in_decisions),
         pt_idx=np.asarray(pt_idx, dtype=np.uint8),
         REQUIRE_BATCH_SCORING=bool(config.require_batch_scoring),
+        instance_input_mode=str(instance_input_mode),
     )
+    if instance_fixture_id:
+        state["instance_fixture_id"] = str(instance_fixture_id)
+    if instance_source_key_seed is not None:
+        state["instance_source_key_seed"] = int(instance_source_key_seed)
+    if search_seed is not None:
+        state["search_seed"] = int(search_seed)
     state.update(dict(pre_stage3))
     state.update(dict(stage3_flow))
     return state
@@ -194,228 +230,348 @@ def run_iteration_matrix(
     span_assets_dir: Any,
     scoring_experiment_meta: Dict[str, Any],
     autoskip_effective: bool,
-    proven_index: Mapping[Tuple[str, int, int], Dict[str, Any]],
+    proven_index: Mapping[Tuple[Any, ...], Dict[str, Any]],
     instances: List[Dict[str, Any]],
     stages: List[Dict[str, Any]],
     stage3_runtime_call_ctx: Any,
     config: IterationMatrixConfig,
     fns: IterationMatrixFns,
     log_prefix: str = "[pipeline_no_wli]",
+    instance_input_mode: str = "generated",
+    fixed_instance_specs: Sequence[Any] | None = None,
+    search_seeds: Sequence[int] | None = None,
 ) -> None:
+    mode = normalize_instance_input_mode(instance_input_mode)
+
     for tier in tiers:
-        for text_id, off in enumerate(text_offsets):
-            pt_idx, wli, offset_used = fns.slice_word_aligned_fn(
-                pt_base,
-                wli_base,
-                length=tier.length,
-                offset_hint=int(off),
-            )
-            for key_seed in key_seeds:
-                t0_i = float(time.time())
-                proven_key = (str(tier.name), int(text_id), int(key_seed))
-                oracle_mode = str(config.oracle_mode)
-                oracle_decision_paths_enabled = bool(
-                    config.oracle_decision_paths_enabled
+        iteration_inputs: list[dict[str, Any]] = []
+        if mode == "generated":
+            for text_id, off in enumerate(text_offsets):
+                pt_idx, wli, offset_used = fns.slice_word_aligned_fn(
+                    pt_base,
+                    wli_base,
+                    length=tier.length,
+                    offset_hint=int(off),
                 )
-                oracle_assist_selection_effective = bool(
-                    config.oracle_assist_selection_effective
+                for key_seed in key_seeds:
+                    iteration_inputs.append(
+                        dict(
+                            text_id=int(text_id),
+                            off=int(off),
+                            offset_used=int(offset_used),
+                            pt_idx=np.asarray(pt_idx, dtype=np.uint8),
+                            wli=wli,
+                            key_seed=int(key_seed),
+                            search_seed=int(key_seed),
+                            fixed_instance_spec=None,
+                            instance_fixture_id="",
+                            instance_source_key_seed=None,
+                        )
+                    )
+        else:
+            if fixed_instance_specs is None:
+                raise ValueError(
+                    "fixed_instance_specs is required for fixed_ciphertext mode"
                 )
-                oracle_consulted_in_decisions = bool(
-                    fns.get_oracle_consulted_in_decisions_fn()
-                )
-                if bool(autoskip_effective) and (proven_key in proven_index):
-                    fns.handle_autoskip_proven_iteration_fn(
-                        tier=tier,
-                        text_id=int(text_id),
-                        key_seed=int(key_seed),
-                        off=int(off),
-                        offset_used=int(offset_used),
-                        source_row=dict(proven_index.get(proven_key, {})),
-                        stage3_continue_after_solve=bool(config.stage3_continue_after_solve),
-                        stage3_phaseb_top_n=int(config.stage3_phaseb_top_n),
-                        stage3_phaseb_gate_delta_floor=float(config.stage3_phaseb_gate_delta_floor),
-                        stage3_phaseb_gate_end_gain_floor=float(config.stage3_phaseb_gate_end_gain_floor),
-                        stage3_c1_focus_enabled=bool(config.stage3_c1_focus_enabled),
-                        oracle_mode=str(oracle_mode),
-                        oracle_consulted_in_decisions=bool(
-                            oracle_consulted_in_decisions
-                        ),
-                        build_iteration_payloads_fn=fns.build_iteration_payloads_fn,
-                        derive_outcome_code_fn=fns.derive_outcome_code_fn,
-                        commit_iteration_with_checkpoint_fn=fns.commit_iteration_with_checkpoint_fn,
-                        instances=instances,
-                        stages=stages,
-                        log_prefix=str(log_prefix),
+            if search_seeds is None:
+                raise ValueError("search_seeds is required for fixed_ciphertext mode")
+            matching_specs: list[Any] = []
+            skipped_specs: list[str] = []
+            for spec in fixed_instance_specs:
+                mismatch_reasons: list[str] = []
+                if int(_fixed_spec_field(spec, "period")) != int(tier.period):
+                    mismatch_reasons.append(
+                        f"period spec={int(_fixed_spec_field(spec, 'period'))} tier={int(tier.period)}"
+                    )
+                if int(_fixed_spec_field(spec, "columns")) != int(tier.columns):
+                    mismatch_reasons.append(
+                        f"columns spec={int(_fixed_spec_field(spec, 'columns'))} tier={int(tier.columns)}"
+                    )
+                if int(_fixed_spec_field(spec, "length")) != int(tier.length):
+                    mismatch_reasons.append(
+                        f"length spec={int(_fixed_spec_field(spec, 'length'))} tier={int(tier.length)}"
+                    )
+                if mismatch_reasons:
+                    skipped_specs.append(
+                        f"{str(_fixed_spec_field(spec, 'instance_fixture_id'))}: "
+                        + ", ".join(mismatch_reasons)
                     )
                     continue
+                matching_specs.append(spec)
+            if not matching_specs:
+                details = "; ".join(skipped_specs) if skipped_specs else "no fixed specs provided"
+                raise ValueError(
+                    f"No fixed instance specs matched tier {str(tier.name)} "
+                    f"(p{int(tier.period)} c{int(tier.columns)} l{int(tier.length)}): {details}"
+                )
+            for spec in matching_specs:
+                pt_idx = np.asarray(
+                    _fixed_spec_field(spec, "target_plaintext_idx"),
+                    dtype=np.uint8,
+                ).reshape(-1)
+                wli = [
+                    [int(a), int(b)]
+                    for a, b in _fixed_spec_field(spec, "target_wli")
+                ]
+                for search_seed_value in search_seeds:
+                    iteration_inputs.append(
+                        dict(
+                            text_id=int(_fixed_spec_field(spec, "text_id")),
+                            off=int(_fixed_spec_field(spec, "offset_used")),
+                            offset_used=int(_fixed_spec_field(spec, "offset_used")),
+                            pt_idx=pt_idx.copy(),
+                            wli=wli,
+                            key_seed=int(search_seed_value),
+                            search_seed=int(search_seed_value),
+                            fixed_instance_spec=spec,
+                            instance_fixture_id=str(
+                                _fixed_spec_field(spec, "instance_fixture_id")
+                            ),
+                            instance_source_key_seed=int(
+                                _fixed_spec_field(spec, "source_key_seed")
+                            ),
+                        )
+                    )
 
-                stage_engine_state = _build_stage_engine_iteration_state(
-                    run_id=str(run_id),
+        for iteration_input in iteration_inputs:
+            text_id = int(iteration_input["text_id"])
+            off = int(iteration_input["off"])
+            offset_used = int(iteration_input["offset_used"])
+            pt_idx = np.asarray(iteration_input["pt_idx"], dtype=np.uint8)
+            wli = iteration_input["wli"]
+            key_seed = int(iteration_input["key_seed"])
+            search_seed_value = int(iteration_input["search_seed"])
+            fixed_instance_spec = iteration_input["fixed_instance_spec"]
+            instance_fixture_id = str(iteration_input["instance_fixture_id"])
+            instance_source_key_seed = iteration_input["instance_source_key_seed"]
+            if instance_source_key_seed is not None:
+                instance_source_key_seed = int(instance_source_key_seed)
+
+            t0_i = float(time.time())
+            proven_key = build_proven_solved_key(
+                tier_name=str(tier.name),
+                text_id=int(text_id),
+                key_seed=int(key_seed),
+                instance_input_mode=str(mode),
+                instance_fixture_id=str(instance_fixture_id),
+                search_seed=int(search_seed_value),
+            )
+            oracle_mode = str(config.oracle_mode)
+            oracle_decision_paths_enabled = bool(
+                config.oracle_decision_paths_enabled
+            )
+            oracle_assist_selection_effective = bool(
+                config.oracle_assist_selection_effective
+            )
+            oracle_consulted_in_decisions = bool(
+                fns.get_oracle_consulted_in_decisions_fn()
+            )
+            if bool(autoskip_effective) and (proven_key in proven_index):
+                fns.handle_autoskip_proven_iteration_fn(
                     tier=tier,
                     text_id=int(text_id),
                     key_seed=int(key_seed),
+                    instance_input_mode=str(mode),
+                    instance_fixture_id=str(instance_fixture_id),
+                    instance_source_key_seed=instance_source_key_seed,
+                    search_seed=int(search_seed_value),
                     off=int(off),
                     offset_used=int(offset_used),
-                    pt_idx=np.asarray(pt_idx, dtype=np.uint8),
-                    wli=wli,
-                    direction=direction,
-                    span_assets_dir=span_assets_dir,
-                    scoring_experiment_meta=scoring_experiment_meta,
+                    source_row=dict(proven_index.get(proven_key, {})),
+                    stage3_continue_after_solve=bool(config.stage3_continue_after_solve),
+                    stage3_phaseb_top_n=int(config.stage3_phaseb_top_n),
+                    stage3_phaseb_gate_delta_floor=float(config.stage3_phaseb_gate_delta_floor),
+                    stage3_phaseb_gate_end_gain_floor=float(config.stage3_phaseb_gate_end_gain_floor),
+                    stage3_c1_focus_enabled=bool(config.stage3_c1_focus_enabled),
                     oracle_mode=str(oracle_mode),
                     oracle_consulted_in_decisions=bool(
                         oracle_consulted_in_decisions
                     ),
-                    oracle_decision_paths_enabled=bool(
-                        oracle_decision_paths_enabled
-                    ),
-                    oracle_assist_selection_effective=bool(
-                        oracle_assist_selection_effective
-                    ),
-                    stages=stages,
+                    build_iteration_payloads_fn=fns.build_iteration_payloads_fn,
+                    derive_outcome_code_fn=fns.derive_outcome_code_fn,
+                    commit_iteration_with_checkpoint_fn=fns.commit_iteration_with_checkpoint_fn,
                     instances=instances,
-                    t0_i=float(t0_i),
-                    config=config,
-                )
-                stage_engine_result = run_iteration_with_stage_engine(
-                    state=stage_engine_state,
-                    config=config,
-                    fns=fns,
-                    stage3_runtime_call_ctx=stage3_runtime_call_ctx,
+                    stages=stages,
                     log_prefix=str(log_prefix),
                 )
-                for _evt in stage_engine_result.events:
-                    fns.stage_engine_trace_emit_fn(
-                        event=dict(_evt),
-                        tier_name=str(tier.name),
-                        text_id=int(text_id),
-                        key_seed=int(key_seed),
-                    )
-                pre_stage3 = dict(stage_engine_result.pre_stage3)
-                if bool(pre_stage3.get("continue_iteration", False)):
-                    continue
+                continue
 
-                key_len = int(pre_stage3["key_len"])
-                full_cipher = pre_stage3["full_cipher"]
-                ct_idx = np.asarray(pre_stage3["ct_idx"], dtype=np.uint8)
-                scorer_stage2 = dict(pre_stage3["scorer_stage2"])
-                scorer_full = dict(pre_stage3["scorer_full"])
-                scorer_stage3_phaseA = dict(pre_stage3["scorer_stage3_phaseA"])
-                scorer_stage3_phaseB = dict(pre_stage3["scorer_stage3_phaseB"])
-                scorer_stage3_search_runtime = pre_stage3["scorer_stage3_search_runtime"]
-                scorer_basin_judge_runtime = pre_stage3["scorer_basin_judge_runtime"]
-                scorer_full_runtime = pre_stage3["scorer_full_runtime"]
-                scorer_stage3_phaseA_runtime = pre_stage3["scorer_stage3_phaseA_runtime"]
-                oracle_s1 = float(pre_stage3["oracle_s1"])
-                oracle_s2 = float(pre_stage3["oracle_s2"])
-                oracle_s3 = float(pre_stage3["oracle_s3"])
-                stage3_phaseA_experiment = str(pre_stage3["stage3_phaseA_experiment"])
-                stage3_phaseB_experiment = str(pre_stage3["stage3_phaseB_experiment"])
-                stage3_phaseB_char_pct_min_dynamic = float(
-                    pre_stage3["stage3_phaseB_char_pct_min_dynamic"]
-                )
-                stage3_phaseB_char_pct_min_source = str(
-                    pre_stage3["stage3_phaseB_char_pct_min_source"]
-                )
-                sub_key_match = float(pre_stage3["sub_key_match"])
-                stage1_best_score = float(pre_stage3["stage1_best_score"])
-                ev1 = int(pre_stage3["ev1"])
-                best2_match = float(pre_stage3["best2_match"])
-                best2_score = float(pre_stage3["best2_score"])
-                best2_key = pre_stage3["best2_key"]
-                best2_pt = pre_stage3["best2_pt"]
-                best2_preview = str(pre_stage3["best2_preview"])
-                stage2_evals_total = int(pre_stage3["stage2_evals_total"])
-                stage2_archive = dict(pre_stage3["stage2_archive"])
-                stage2_continue_to_gate = bool(pre_stage3["stage2_continue_to_gate"])
-                stage2_continue_stop_reason = str(pre_stage3["stage2_continue_stop_reason"])
-                stage2_ranked = list(pre_stage3["stage2_ranked"])
-                stage2_promoted = list(pre_stage3["stage2_promoted"])
-                stage2_entry_score = float(pre_stage3["stage2_entry_score"])
-                stage2_entry_score_judge = float(pre_stage3["stage2_entry_score_judge"])
-                stage2_score_match_spearman = float(pre_stage3["stage2_score_match_spearman"])
-                stage2_topk_payload = list(pre_stage3["stage2_topk_payload"])
-                stage2_topk_has_best_match = bool(pre_stage3["stage2_topk_has_best_match"])
-
-                stage3_flow = dict(stage_engine_result.stage3_flow)
-                if stage3_flow:
-                    fns.stage_engine_trace_emit_fn(
-                        event=dict(
-                            event="span_runtime_telemetry",
-                            stage_id="stage_c_refine",
-                            span_active_rate=float(stage3_flow.get("stage3_span_active_rate", 0.0)),
-                            span_active_rate_source=str(
-                                stage3_flow.get(
-                                    "stage3_span_active_rate_source",
-                                    "stage3_flow_missing",
-                                )
-                            ),
-                            span_eval_total=float(stage3_flow.get("stage3_span_eval_total", 0.0)),
-                            span_eval_active=float(stage3_flow.get("stage3_span_eval_active", 0.0)),
-                            span_eval_skipped=float(
-                                stage3_flow.get("stage3_span_eval_skipped", 0.0)
-                            ),
-                            span_seconds_total=float(
-                                stage3_flow.get("stage3_span_seconds_total", 0.0)
-                            ),
-                            span_seconds_active=float(
-                                stage3_flow.get("stage3_span_seconds_active", 0.0)
-                            ),
-                            basin_judge_span_calls_total=int(
-                                stage3_flow.get("stage3_basin_judge_span_calls_total", 0)
-                            ),
-                            basin_judge_span_calls_active=int(
-                                stage3_flow.get("stage3_basin_judge_span_calls_active", 0)
-                            ),
-                            basin_judge_span_calls_rejected_or_gated=int(
-                                stage3_flow.get(
-                                    "stage3_basin_judge_span_calls_rejected_or_gated",
-                                    0,
-                                )
-                            ),
-                            basin_judge_span_seconds_total=float(
-                                stage3_flow.get("stage3_basin_judge_span_seconds_total", 0.0)
-                            ),
-                        ),
-                        tier_name=str(tier.name),
-                        text_id=int(text_id),
-                        key_seed=int(key_seed),
-                    )
-                oracle_consulted_in_decisions = bool(
-                    fns.get_oracle_consulted_in_decisions_fn()
-                )
-                iteration_state = _build_finalize_iteration_state(
-                    run_id=str(run_id),
-                    tier=tier,
+            stage_engine_state = _build_stage_engine_iteration_state(
+                run_id=str(run_id),
+                tier=tier,
+                text_id=int(text_id),
+                key_seed=int(key_seed),
+                off=int(off),
+                offset_used=int(offset_used),
+                pt_idx=np.asarray(pt_idx, dtype=np.uint8),
+                wli=wli,
+                direction=direction,
+                span_assets_dir=span_assets_dir,
+                scoring_experiment_meta=scoring_experiment_meta,
+                oracle_mode=str(oracle_mode),
+                oracle_consulted_in_decisions=bool(
+                    oracle_consulted_in_decisions
+                ),
+                oracle_decision_paths_enabled=bool(
+                    oracle_decision_paths_enabled
+                ),
+                oracle_assist_selection_effective=bool(
+                    oracle_assist_selection_effective
+                ),
+                stages=stages,
+                instances=instances,
+                t0_i=float(t0_i),
+                config=config,
+                instance_input_mode=str(mode),
+                fixed_instance_spec=fixed_instance_spec,
+                instance_fixture_id=str(instance_fixture_id),
+                instance_source_key_seed=instance_source_key_seed,
+                search_seed=int(search_seed_value),
+            )
+            stage_engine_result = run_iteration_with_stage_engine(
+                state=stage_engine_state,
+                config=config,
+                fns=fns,
+                stage3_runtime_call_ctx=stage3_runtime_call_ctx,
+                log_prefix=str(log_prefix),
+            )
+            for _evt in stage_engine_result.events:
+                fns.stage_engine_trace_emit_fn(
+                    event=dict(_evt),
+                    tier_name=str(tier.name),
                     text_id=int(text_id),
                     key_seed=int(key_seed),
-                    off=int(off),
-                    offset_used=int(offset_used),
-                    t0_i=float(t0_i),
-                    wli=wli,
-                    stages=stages,
-                    instances=instances,
-                    oracle_mode=str(oracle_mode),
-                    oracle_consulted_in_decisions=bool(
-                        oracle_consulted_in_decisions
-                    ),
-                    pt_idx=np.asarray(pt_idx, dtype=np.uint8),
-                    config=config,
-                    pre_stage3=pre_stage3,
-                    stage3_flow=stage3_flow,
                 )
+            pre_stage3 = dict(stage_engine_result.pre_stage3)
+            if bool(pre_stage3.get("continue_iteration", False)):
+                continue
 
-                fns.finalize_iteration_post_stage3_fn(
-                    state=iteration_state,
-                    stage3_continue_after_solve=bool(config.stage3_continue_after_solve),
-                    scan_stage3_gate_low_match=float(config.scan_stage3_gate_low_match),
-                    scan_stage3_gate_high_match=float(config.scan_stage3_gate_high_match),
-                    stage3_c1_focus_enabled=bool(config.stage3_c1_focus_enabled),
-                    solve_match_threshold=float(config.solve_match_threshold),
-                    build_stage2_diagnostics_fn=fns.build_stage2_diagnostics_fn,
-                    build_stage3_diagnostics_fn=fns.build_stage3_diagnostics_fn,
-                    finalize_iteration_and_commit_fn=fns.finalize_iteration_and_commit_fn,
-                    build_iteration_payloads_fn=fns.build_iteration_payloads_fn,
-                    commit_iteration_with_checkpoint_fn=fns.commit_iteration_with_checkpoint_fn,
-                    derive_outcome_code_fn=fns.derive_outcome_code_fn,
-                    safe_preview_latin_fn=fns.safe_preview_latin_fn,
+            key_len = int(pre_stage3["key_len"])
+            full_cipher = pre_stage3["full_cipher"]
+            ct_idx = np.asarray(pre_stage3["ct_idx"], dtype=np.uint8)
+            scorer_stage2 = dict(pre_stage3["scorer_stage2"])
+            scorer_full = dict(pre_stage3["scorer_full"])
+            scorer_stage3_phaseA = dict(pre_stage3["scorer_stage3_phaseA"])
+            scorer_stage3_phaseB = dict(pre_stage3["scorer_stage3_phaseB"])
+            scorer_stage3_search_runtime = pre_stage3["scorer_stage3_search_runtime"]
+            scorer_basin_judge_runtime = pre_stage3["scorer_basin_judge_runtime"]
+            scorer_full_runtime = pre_stage3["scorer_full_runtime"]
+            scorer_stage3_phaseA_runtime = pre_stage3["scorer_stage3_phaseA_runtime"]
+            oracle_s1 = float(pre_stage3["oracle_s1"])
+            oracle_s2 = float(pre_stage3["oracle_s2"])
+            oracle_s3 = float(pre_stage3["oracle_s3"])
+            stage3_phaseA_experiment = str(pre_stage3["stage3_phaseA_experiment"])
+            stage3_phaseB_experiment = str(pre_stage3["stage3_phaseB_experiment"])
+            stage3_phaseB_char_pct_min_dynamic = float(
+                pre_stage3["stage3_phaseB_char_pct_min_dynamic"]
+            )
+            stage3_phaseB_char_pct_min_source = str(
+                pre_stage3["stage3_phaseB_char_pct_min_source"]
+            )
+            sub_key_match = float(pre_stage3["sub_key_match"])
+            stage1_best_score = float(pre_stage3["stage1_best_score"])
+            ev1 = int(pre_stage3["ev1"])
+            best2_match = float(pre_stage3["best2_match"])
+            best2_score = float(pre_stage3["best2_score"])
+            best2_key = pre_stage3["best2_key"]
+            best2_pt = pre_stage3["best2_pt"]
+            best2_preview = str(pre_stage3["best2_preview"])
+            stage2_evals_total = int(pre_stage3["stage2_evals_total"])
+            stage2_archive = dict(pre_stage3["stage2_archive"])
+            stage2_continue_to_gate = bool(pre_stage3["stage2_continue_to_gate"])
+            stage2_continue_stop_reason = str(pre_stage3["stage2_continue_stop_reason"])
+            stage2_ranked = list(pre_stage3["stage2_ranked"])
+            stage2_promoted = list(pre_stage3["stage2_promoted"])
+            stage2_entry_score = float(pre_stage3["stage2_entry_score"])
+            stage2_entry_score_judge = float(pre_stage3["stage2_entry_score_judge"])
+            stage2_score_match_spearman = float(pre_stage3["stage2_score_match_spearman"])
+            stage2_topk_payload = list(pre_stage3["stage2_topk_payload"])
+            stage2_topk_has_best_match = bool(pre_stage3["stage2_topk_has_best_match"])
+
+            stage3_flow = dict(stage_engine_result.stage3_flow)
+            if stage3_flow:
+                fns.stage_engine_trace_emit_fn(
+                    event=dict(
+                        event="span_runtime_telemetry",
+                        stage_id="stage_c_refine",
+                        span_active_rate=float(stage3_flow.get("stage3_span_active_rate", 0.0)),
+                        span_active_rate_source=str(
+                            stage3_flow.get(
+                                "stage3_span_active_rate_source",
+                                "stage3_flow_missing",
+                            )
+                        ),
+                        span_eval_total=float(stage3_flow.get("stage3_span_eval_total", 0.0)),
+                        span_eval_active=float(stage3_flow.get("stage3_span_eval_active", 0.0)),
+                        span_eval_skipped=float(
+                            stage3_flow.get("stage3_span_eval_skipped", 0.0)
+                        ),
+                        span_seconds_total=float(
+                            stage3_flow.get("stage3_span_seconds_total", 0.0)
+                        ),
+                        span_seconds_active=float(
+                            stage3_flow.get("stage3_span_seconds_active", 0.0)
+                        ),
+                        basin_judge_span_calls_total=int(
+                            stage3_flow.get("stage3_basin_judge_span_calls_total", 0)
+                        ),
+                        basin_judge_span_calls_active=int(
+                            stage3_flow.get("stage3_basin_judge_span_calls_active", 0)
+                        ),
+                        basin_judge_span_calls_rejected_or_gated=int(
+                            stage3_flow.get(
+                                "stage3_basin_judge_span_calls_rejected_or_gated",
+                                0,
+                            )
+                        ),
+                        basin_judge_span_seconds_total=float(
+                            stage3_flow.get("stage3_basin_judge_span_seconds_total", 0.0)
+                        ),
+                    ),
+                    tier_name=str(tier.name),
+                    text_id=int(text_id),
+                    key_seed=int(key_seed),
                 )
+            oracle_consulted_in_decisions = bool(
+                fns.get_oracle_consulted_in_decisions_fn()
+            )
+            iteration_state = _build_finalize_iteration_state(
+                run_id=str(run_id),
+                tier=tier,
+                text_id=int(text_id),
+                key_seed=int(key_seed),
+                off=int(off),
+                offset_used=int(offset_used),
+                t0_i=float(t0_i),
+                wli=wli,
+                stages=stages,
+                instances=instances,
+                oracle_mode=str(oracle_mode),
+                oracle_consulted_in_decisions=bool(
+                    oracle_consulted_in_decisions
+                ),
+                pt_idx=np.asarray(pt_idx, dtype=np.uint8),
+                config=config,
+                pre_stage3=pre_stage3,
+                stage3_flow=stage3_flow,
+                instance_input_mode=str(mode),
+                instance_fixture_id=str(instance_fixture_id),
+                instance_source_key_seed=instance_source_key_seed,
+                search_seed=int(search_seed_value),
+            )
+
+            fns.finalize_iteration_post_stage3_fn(
+                state=iteration_state,
+                stage3_continue_after_solve=bool(config.stage3_continue_after_solve),
+                scan_stage3_gate_low_match=float(config.scan_stage3_gate_low_match),
+                scan_stage3_gate_high_match=float(config.scan_stage3_gate_high_match),
+                stage3_c1_focus_enabled=bool(config.stage3_c1_focus_enabled),
+                solve_match_threshold=float(config.solve_match_threshold),
+                build_stage2_diagnostics_fn=fns.build_stage2_diagnostics_fn,
+                build_stage3_diagnostics_fn=fns.build_stage3_diagnostics_fn,
+                finalize_iteration_and_commit_fn=fns.finalize_iteration_and_commit_fn,
+                build_iteration_payloads_fn=fns.build_iteration_payloads_fn,
+                commit_iteration_with_checkpoint_fn=fns.commit_iteration_with_checkpoint_fn,
+                derive_outcome_code_fn=fns.derive_outcome_code_fn,
+                safe_preview_latin_fn=fns.safe_preview_latin_fn,
+            )

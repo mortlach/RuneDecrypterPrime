@@ -6,6 +6,10 @@ from typing import Any, Callable, Dict, Mapping, Sequence, Tuple
 
 import numpy as np
 
+from tools.benchmarks.periodic_sub_trans.no_wli.iteration_identity import (
+    build_proven_solved_key_from_row,
+)
+
 
 def derive_outcome_code(*, status: Any, stop_reason: Any) -> str:
     s = str(status or "").strip().lower()
@@ -57,8 +61,8 @@ def build_summary(
     return summary
 
 
-def load_proven_solved_index(path: Path, *, min_match: float) -> Dict[Tuple[str, int, int], Dict[str, Any]]:
-    out: Dict[Tuple[str, int, int], Dict[str, Any]] = {}
+def load_proven_solved_index(path: Path, *, min_match: float) -> Dict[Tuple[Any, ...], Dict[str, Any]]:
+    out: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
     if not path.exists():
         return out
     try:
@@ -67,14 +71,6 @@ def load_proven_solved_index(path: Path, *, min_match: float) -> Dict[Tuple[str,
             for row in reader:
                 if str(row.get("status", "")).strip().lower() != "solved":
                     continue
-                fixture = str(row.get("fixture_id", "")).strip()
-                if not fixture:
-                    continue
-                try:
-                    text_id = int(str(row.get("text_id", "")).strip())
-                    key_seed = int(str(row.get("key_seed", "")).strip())
-                except Exception:
-                    continue
                 try:
                     best_match = float(str(row.get("best_match_ratio", "nan")).strip())
                 except Exception:
@@ -82,12 +78,25 @@ def load_proven_solved_index(path: Path, *, min_match: float) -> Dict[Tuple[str,
                 if not np.isfinite(best_match) or best_match < float(min_match):
                     continue
                 ts = str(row.get("timestamp_utc", "")).strip()
-                key = (fixture, int(text_id), int(key_seed))
+                try:
+                    key = build_proven_solved_key_from_row(row)
+                except Exception:
+                    continue
                 prev = out.get(key)
                 if (prev is None) or (ts >= str(prev.get("timestamp_utc", ""))):
                     out[key] = dict(
                         timestamp_utc=ts,
                         run_id=str(row.get("run_id", "")).strip(),
+                        instance_input_mode=str(
+                            row.get("instance_input_mode", "generated") or "generated"
+                        ),
+                        instance_fixture_id=str(
+                            row.get("instance_fixture_id", "") or ""
+                        ).strip(),
+                        instance_source_key_seed=str(
+                            row.get("instance_source_key_seed", "")
+                        ).strip(),
+                        search_seed=str(row.get("search_seed", "")).strip(),
                         best_match_ratio=float(best_match),
                         best_stage=str(row.get("best_stage", "")).strip(),
                         total_seconds=str(row.get("total_seconds", "")).strip(),

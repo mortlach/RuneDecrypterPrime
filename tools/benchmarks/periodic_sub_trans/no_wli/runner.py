@@ -217,6 +217,9 @@ def configure_campaign_run(
     scorer_impl: str | None = None,
     scorer_stage3_impl_avg_fulltext: str | None = None,
     scorer_schedule: Mapping[str, Any] | None = None,
+    instance_input_mode: str = "generated",
+    instance_fixture_ids: Sequence[str] | None = None,
+    search_seeds: Sequence[int] | None = None,
 ) -> None:
     _configure_campaign_run_entrypoint(
         state=globals(),
@@ -236,6 +239,9 @@ def configure_campaign_run(
         scorer_impl=scorer_impl,
         scorer_stage3_impl_avg_fulltext=scorer_stage3_impl_avg_fulltext,
         scorer_schedule=scorer_schedule,
+        instance_input_mode=str(instance_input_mode),
+        instance_fixture_ids=instance_fixture_ids,
+        search_seeds=search_seeds,
         build_campaign_run_config_fn=build_campaign_run_config,
         apply_campaign_run_config_fn=_apply_campaign_run_config_external,
         get_profile_fn=get_no_wli_pipeline_profile,

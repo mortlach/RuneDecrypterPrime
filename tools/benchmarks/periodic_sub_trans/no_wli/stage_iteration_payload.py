@@ -3,6 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Tuple
 
+from tools.benchmarks.periodic_sub_trans.no_wli.iteration_identity import (
+    build_iteration_identity_fields,
+)
+
 
 @dataclass(frozen=True)
 class IterationPersistencePayload:
@@ -178,7 +182,20 @@ def build_iteration_payloads(
     stage3_diagnostics: Dict[str, Any],
     stage35_archive: List[Dict[str, Any]] | None = None,
     stage35_seed_rows: List[Dict[str, Any]] | None = None,
+    instance_input_mode: str = "generated",
+    instance_fixture_id: str = "",
+    instance_source_key_seed: int | None = None,
+    search_seed: int | None = None,
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    identity = build_iteration_identity_fields(
+        tier_name=str(tier_name),
+        text_id=int(text_id),
+        key_seed=int(key_seed),
+        instance_input_mode=str(instance_input_mode),
+        instance_fixture_id=str(instance_fixture_id),
+        instance_source_key_seed=instance_source_key_seed,
+        search_seed=search_seed,
+    )
     instance_row: Dict[str, Any] = dict(
         tier=str(tier_name),
         period=int(period),
@@ -186,6 +203,10 @@ def build_iteration_payloads(
         length=int(length),
         text_id=int(text_id),
         key_seed=int(key_seed),
+        instance_input_mode=str(identity["instance_input_mode"]),
+        instance_fixture_id=str(identity["instance_fixture_id"]),
+        instance_source_key_seed=int(identity["instance_source_key_seed"]),
+        search_seed=int(identity["search_seed"]),
         offset_hint=int(offset_hint),
         offset_used=int(offset_used),
         status=str(status),
@@ -222,6 +243,10 @@ def build_iteration_payloads(
         alphabet_size=int(alphabet_size),
         text_id=int(text_id),
         key_seed=int(key_seed),
+        instance_input_mode=str(identity["instance_input_mode"]),
+        instance_fixture_id=str(identity["instance_fixture_id"]),
+        instance_source_key_seed=int(identity["instance_source_key_seed"]),
+        search_seed=int(identity["search_seed"]),
         offset_hint=int(offset_hint),
         offset_used=int(offset_used),
         period=int(period),

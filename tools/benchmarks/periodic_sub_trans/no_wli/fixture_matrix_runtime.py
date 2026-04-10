@@ -158,13 +158,25 @@ def run_jobs_with_checkpoints(
     span_ab_pairs: dict[str, dict[str, float]] = {}
 
     def _span_ab_base_key(job: Any) -> str:
+        instance_input_mode = str(
+            getattr(job, "instance_input_mode", "generated")
+        ).strip().lower()
         return "|".join(
             (
-                str(getattr(job, "fixture_id", "")),
+                str(instance_input_mode or "generated"),
+                (
+                    str(getattr(job, "instance_fixture_id", ""))
+                    if instance_input_mode == "fixed_ciphertext"
+                    else str(getattr(job, "fixture_id", ""))
+                ),
                 f"p{int(getattr(job, 'period', 0))}",
                 f"c{int(getattr(job, 'columns', 0))}",
                 f"l{int(getattr(job, 'length', 0))}",
-                f"seed{int(getattr(job, 'run_seed', 0))}",
+                (
+                    f"search{int(getattr(job, 'search_seed', 0))}"
+                    if instance_input_mode == "fixed_ciphertext"
+                    else f"seed{int(getattr(job, 'run_seed', 0))}"
+                ),
                 str(getattr(job, "run_mode", "")),
                 str(getattr(job, "profile_id", "")),
                 str(getattr(job, "scoring_experiment_profile", "")),
@@ -175,6 +187,15 @@ def run_jobs_with_checkpoints(
         )
     for idx, job in enumerate(selected_jobs, start=1):
         job_key = job_key_fn(job)
+        instance_input_mode = str(
+            getattr(job, "instance_input_mode", "generated")
+        ).strip().lower()
+        identity_txt = (
+            f"fixture={str(getattr(job, 'instance_fixture_id', ''))} "
+            f"search_seed={int(getattr(job, 'search_seed', 0))}"
+            if instance_input_mode == "fixed_ciphertext"
+            else f"fixture={job.fixture_id} seed={job.run_seed}"
+        )
         if max_wallclock_seconds is not None:
             elapsed = float(time.time() - wallclock_start)
             if elapsed >= float(max_wallclock_seconds):
@@ -188,7 +209,7 @@ def run_jobs_with_checkpoints(
                 break
         print_fn(
             f"[no_wli_fixture_matrix] run {idx}/{len(selected_jobs)} "
-            f"fixture={job.fixture_id} p={job.period} c={job.columns} seed={job.run_seed} "
+            f"{identity_txt} p={job.period} c={job.columns} "
             f"exp={job.scoring_experiment_profile} "
             f"schedule=({job.schedule_early},{job.schedule_middle},{job.schedule_late})",
             flush=True,
@@ -216,8 +237,8 @@ def run_jobs_with_checkpoints(
             run_job_fn(job)
         except Exception as exc:
             print_fn(
-                f"[no_wli_fixture_matrix] error fixture={job.fixture_id} p={job.period} c={job.columns} "
-                f"seed={job.run_seed} err={type(exc).__name__}:{exc}",
+                f"[no_wli_fixture_matrix] error {identity_txt} p={job.period} c={job.columns} "
+                f"err={type(exc).__name__}:{exc}",
                 flush=True,
             )
             append_event_row(

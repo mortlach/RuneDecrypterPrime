@@ -17,6 +17,7 @@ def apply_run_mode_overrides(
             state[name] = cast(overrides[name])
 
     _assign("PROFILE", str)
+    _assign("INSTANCE_INPUT_MODE", str)
     _assign("HEARTBEAT_SECONDS", int)
     _assign("STAGE2_PROMOTE_BY_STAGE3_JUDGE", bool)
     _assign("STAGE2_ENTRY_BAND_BY_STAGE3_JUDGE", bool)
@@ -57,6 +58,10 @@ def apply_run_mode_overrides(
         state["TEXT_OFFSETS"][:] = [int(x) for x in list(overrides["TEXT_OFFSETS"])]
     if "KEY_SEEDS" in overrides:
         state["KEY_SEEDS"][:] = [int(x) for x in list(overrides["KEY_SEEDS"])]
+    if "INSTANCE_FIXTURE_IDS" in overrides:
+        state["INSTANCE_FIXTURE_IDS"][:] = [str(x) for x in list(overrides["INSTANCE_FIXTURE_IDS"])]
+    if "SEARCH_SEEDS" in overrides:
+        state["SEARCH_SEEDS"][:] = [int(x) for x in list(overrides["SEARCH_SEEDS"])]
     if "STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS" in overrides:
         state["STAGE2_EXACT_SUB_CANDIDATES_BY_COLUMNS"] = {
             int(k): int(v)

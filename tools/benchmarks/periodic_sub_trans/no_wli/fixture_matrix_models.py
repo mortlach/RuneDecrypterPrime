@@ -39,6 +39,10 @@ class NoWliFixtureJob:
     stage3_tuning_preset_id: str = "base"
     span_ab_case_id: str = "none"
     span_decision_role_enabled: bool = False
+    instance_input_mode: str = "generated"
+    instance_fixture_id: str = ""
+    instance_source_key_seed: int | None = None
+    search_seed: int | None = None
 
     def scorer_schedule(self) -> dict[str, str]:
         return {
@@ -70,6 +74,16 @@ class NoWliFixtureJob:
             "stage3_tuning_preset_id": str(self.stage3_tuning_preset_id),
             "span_ab_case_id": str(self.span_ab_case_id),
             "span_decision_role_enabled": bool(self.span_decision_role_enabled),
+            "instance_input_mode": str(self.instance_input_mode),
+            "instance_fixture_id": str(self.instance_fixture_id),
+            "instance_source_key_seed": (
+                None
+                if self.instance_source_key_seed is None
+                else int(self.instance_source_key_seed)
+            ),
+            "search_seed": (
+                None if self.search_seed is None else int(self.search_seed)
+            ),
             "scorer_schedule": self.scorer_schedule(),
             "tier_name": self.tier_name(),
         }
@@ -442,6 +456,9 @@ class FixtureMatrixMainflowConfig:
     campaign_config_path: Path
     fixture_ids: tuple[str, ...] | None
     fixture_length_override: int | None
+    instance_input_mode: str
+    fixed_instance_panel_path: Path | None
+    fixed_instance_fixture_dir: Path | None
     use_campaign_grid: bool
     periods_override: tuple[int, ...] | None
     columns_override_by_period: dict[int, tuple[int, ...]]
@@ -483,6 +500,17 @@ class FixtureMatrixMainflowConfig:
             "CAMPAIGN_CONFIG_PATH": Path(self.campaign_config_path),
             "FIXTURE_IDS": self.fixture_ids,
             "FIXTURE_LENGTH_OVERRIDE": self.fixture_length_override,
+            "INSTANCE_INPUT_MODE": str(self.instance_input_mode),
+            "FIXED_INSTANCE_PANEL_PATH": (
+                None
+                if self.fixed_instance_panel_path is None
+                else Path(self.fixed_instance_panel_path)
+            ),
+            "FIXED_INSTANCE_FIXTURE_DIR": (
+                None
+                if self.fixed_instance_fixture_dir is None
+                else Path(self.fixed_instance_fixture_dir)
+            ),
             "USE_CAMPAIGN_GRID": bool(self.use_campaign_grid),
             "PERIODS_OVERRIDE": self.periods_override,
             "COLUMNS_OVERRIDE_BY_PERIOD": {

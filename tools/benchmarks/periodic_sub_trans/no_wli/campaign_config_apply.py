@@ -44,7 +44,16 @@ def apply_campaign_run_config(
     state["PROFILE"] = str(cfg.profile_name)
     state["HEARTBEAT_SECONDS"] = int(cfg.heartbeat_seconds)
     state["TEXT_OFFSETS"][:] = [int(x) for x in cfg.text_offsets]
-    state["KEY_SEEDS"][:] = [int(cfg.run_seed)]
+    instance_input_mode = str(getattr(cfg, "instance_input_mode", "generated")).strip().lower()
+    state["INSTANCE_INPUT_MODE"] = str(instance_input_mode or "generated")
+    state["INSTANCE_FIXTURE_IDS"][:] = [
+        str(x) for x in getattr(cfg, "instance_fixture_ids", ())
+    ]
+    state["SEARCH_SEEDS"][:] = [int(x) for x in getattr(cfg, "search_seeds", ())]
+    if state["INSTANCE_INPUT_MODE"] == "fixed_ciphertext":
+        state["KEY_SEEDS"][:] = []
+    else:
+        state["KEY_SEEDS"][:] = [int(cfg.run_seed)]
     state["TIERS"][:] = [cfg.tier()]
 
     profile_id = str(cfg.profile_name or "").strip()
@@ -58,7 +67,17 @@ def apply_campaign_run_config(
             apply_profile_defaults_fn()
             state["TIERS"][:] = [cfg.tier()]
             state["TEXT_OFFSETS"][:] = [int(x) for x in cfg.text_offsets]
-            state["KEY_SEEDS"][:] = [int(cfg.run_seed)]
+            state["INSTANCE_INPUT_MODE"] = str(instance_input_mode or "generated")
+            state["INSTANCE_FIXTURE_IDS"][:] = [
+                str(x) for x in getattr(cfg, "instance_fixture_ids", ())
+            ]
+            state["SEARCH_SEEDS"][:] = [
+                int(x) for x in getattr(cfg, "search_seeds", ())
+            ]
+            if state["INSTANCE_INPUT_MODE"] == "fixed_ciphertext":
+                state["KEY_SEEDS"][:] = []
+            else:
+                state["KEY_SEEDS"][:] = [int(cfg.run_seed)]
             state["PIPELINE_RUN_MODE"] = str(cfg.run_mode)
             state["HEARTBEAT_SECONDS"] = int(cfg.heartbeat_seconds)
 

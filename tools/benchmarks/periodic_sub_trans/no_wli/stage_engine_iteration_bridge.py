@@ -47,6 +47,14 @@ _PRE_STAGE3_STATE_KEYS = (
     "instances",
 )
 
+_OPTIONAL_PRE_STAGE3_STATE_KEYS = (
+    "instance_input_mode",
+    "fixed_instance_spec",
+    "instance_fixture_id",
+    "instance_source_key_seed",
+    "search_seed",
+)
+
 _STAGE3_BASE_STATE_KEYS = (
     "tier",
     "text_id",
@@ -73,6 +81,9 @@ def _build_pre_stage3_state(
     state: Mapping[str, Any],
 ) -> Dict[str, Any]:
     selected = _select_state_keys(state=state, keys=_PRE_STAGE3_STATE_KEYS)
+    for key in _OPTIONAL_PRE_STAGE3_STATE_KEYS:
+        if key in state:
+            selected[key] = state[key]
     selected["pt_idx"] = np.asarray(selected["pt_idx"], dtype=np.uint8)
     selected["scoring_experiment_meta"] = dict(selected["scoring_experiment_meta"])
     return selected

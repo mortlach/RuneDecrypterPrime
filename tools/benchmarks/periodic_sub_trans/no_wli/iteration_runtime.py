@@ -13,6 +13,61 @@ from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rune_decrypter_prime.core.types import Device
 from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
+from tools.benchmarks.periodic_sub_trans.no_wli.fixed_instance_io import (
+    validate_fixed_instance_payload,
+)
+from tools.benchmarks.periodic_sub_trans.no_wli.fixed_instance_models import (
+    FixedCipherInstanceSpec,
+)
+
+
+def _coerce_fixed_instance_spec(
+    fixed_instance_spec: FixedCipherInstanceSpec | Mapping[str, Any] | None,
+) -> FixedCipherInstanceSpec:
+    if fixed_instance_spec is None:
+        raise ValueError(
+            "fixed_instance_spec is required when INSTANCE_INPUT_MODE='fixed_ciphertext'"
+        )
+    if isinstance(fixed_instance_spec, FixedCipherInstanceSpec):
+        return fixed_instance_spec
+    return validate_fixed_instance_payload(
+        dict(fixed_instance_spec),
+        source="iteration_runtime.fixed_instance_spec",
+    )
+
+
+def _build_cipher_configs(
+    *,
+    tier_period: int,
+    tier_columns: int,
+    alphabet_size: int,
+    order: str,
+    direction: Direction,
+) -> tuple[int, CipherConfig, CipherConfig]:
+    key_len = int(int(tier_period) * int(alphabet_size) + int(tier_columns))
+    cfg_full = CipherConfig(
+        name="periodic_columnar",
+        ciphertext=[],
+        period=int(tier_period),
+        columns=int(tier_columns),
+        alphabet_size=int(alphabet_size),
+        key_length=int(key_len),
+        order=str(order),
+        encoding_dir=direction,
+        wli_data=[],
+        device=Device.CPU,
+    )
+    cfg_sub = CipherConfig(
+        name="periodic_substitution",
+        ciphertext=[],
+        period=int(tier_period),
+        alphabet_size=int(alphabet_size),
+        key_length=int(tier_period) * int(alphabet_size),
+        encoding_dir=direction,
+        wli_data=[],
+        device=Device.CPU,
+    )
+    return int(key_len), cfg_full, cfg_sub
 
 
 def build_iteration_runtime(
@@ -42,45 +97,109 @@ def build_iteration_runtime(
     build_stage3_experiment_cfg_fn: Callable[..., Dict[str, Any]],
     build_word_ngram_report_cfg_fn: Callable[..., Dict[str, Any] | None],
     guard_no_ecdf_usage_fn: Callable[..., None],
+    instance_input_mode: str = "generated",
+    fixed_instance_spec: FixedCipherInstanceSpec | Mapping[str, Any] | None = None,
+    search_seed: int | None = None,
 ) -> Dict[str, Any]:
-    key_len = int(int(tier_period) * int(alphabet_size) + int(tier_columns))
-    rng = np.random.default_rng(int(key_seed))
-    keyops = PeriodicStructuredMatrixKeyOps(
-        K=int(key_len),
-        period=int(tier_period),
-        A=int(alphabet_size),
-        columns=int(tier_columns),
-    )
-    key_true = keyops.random(rng).astype(np.int16, copy=False)
+    mode = str(instance_input_mode).strip().lower()
+    pt_idx_runtime = np.asarray(pt_idx, dtype=np.uint8).reshape(-1)
+    wli_runtime: list[list[int]] | None = None
+    instance_fixture_id = ""
+    instance_source_key_seed = int(key_seed)
+    search_seed_value = int(search_seed if search_seed is not None else key_seed)
 
-    cfg_full = CipherConfig(
-        name="periodic_columnar",
-        ciphertext=[],
-        period=int(tier_period),
-        columns=int(tier_columns),
-        alphabet_size=int(alphabet_size),
-        key_length=int(key_len),
-        order=str(order),
-        encoding_dir=direction,
-        wli_data=[],
-        device=Device.CPU,
-    )
-    cfg_sub = CipherConfig(
-        name="periodic_substitution",
-        ciphertext=[],
-        period=int(tier_period),
-        alphabet_size=int(alphabet_size),
-        key_length=int(tier_period) * int(alphabet_size),
-        encoding_dir=direction,
-        wli_data=[],
-        device=Device.CPU,
-    )
-    full_cipher = PeriodicColumnarCipher(cfg_full)
-    sub_cipher = PeriodicSubstitutionCipher(cfg_sub)
-    ct_idx = full_cipher.encrypt_single(
-        plaintext=np.asarray(pt_idx, dtype=np.uint8),
-        key=key_true,
-    )
+    if mode == "generated":
+        key_len, cfg_full, cfg_sub = _build_cipher_configs(
+            tier_period=int(tier_period),
+            tier_columns=int(tier_columns),
+            alphabet_size=int(alphabet_size),
+            order=str(order),
+            direction=direction,
+        )
+        rng = np.random.default_rng(int(key_seed))
+        keyops = PeriodicStructuredMatrixKeyOps(
+            K=int(key_len),
+            period=int(tier_period),
+            A=int(alphabet_size),
+            columns=int(tier_columns),
+        )
+        key_true = keyops.random(rng).astype(np.int16, copy=False)
+        full_cipher = PeriodicColumnarCipher(cfg_full)
+        sub_cipher = PeriodicSubstitutionCipher(cfg_sub)
+        ct_idx = full_cipher.encrypt_single(
+            plaintext=np.asarray(pt_idx_runtime, dtype=np.uint8),
+            key=key_true,
+        )
+    elif mode == "fixed_ciphertext":
+        spec = _coerce_fixed_instance_spec(fixed_instance_spec)
+        spec_direction = Direction(str(spec.direction))
+        if int(spec.period) != int(tier_period):
+            raise ValueError(
+                f"Fixed instance period mismatch: spec={spec.period} tier={tier_period}"
+            )
+        if int(spec.columns) != int(tier_columns):
+            raise ValueError(
+                f"Fixed instance columns mismatch: spec={spec.columns} tier={tier_columns}"
+            )
+        if int(spec.alphabet_size) != int(alphabet_size):
+            raise ValueError(
+                "Fixed instance alphabet_size mismatch: "
+                f"spec={spec.alphabet_size} runtime={alphabet_size}"
+            )
+        if str(spec.order) != str(order):
+            raise ValueError(
+                f"Fixed instance order mismatch: spec={spec.order!r} runtime={order!r}"
+            )
+        if spec_direction != direction:
+            raise ValueError(
+                "Fixed instance direction mismatch: "
+                f"spec={spec.direction!r} runtime={direction.value!r}"
+            )
+        if not np.array_equal(
+            pt_idx_runtime,
+            np.asarray(spec.target_plaintext_idx, dtype=np.uint8),
+        ):
+            raise ValueError(
+                "Fixed instance target_plaintext_idx does not match runtime pt_idx"
+            )
+        key_len, cfg_full, cfg_sub = _build_cipher_configs(
+            tier_period=int(spec.period),
+            tier_columns=int(spec.columns),
+            alphabet_size=int(spec.alphabet_size),
+            order=str(spec.order),
+            direction=spec_direction,
+        )
+        key_true = np.asarray(spec.true_key_idx, dtype=np.int16).reshape(-1)
+        full_cipher = PeriodicColumnarCipher(cfg_full)
+        sub_cipher = PeriodicSubstitutionCipher(cfg_sub)
+        pt_idx_runtime = np.asarray(spec.target_plaintext_idx, dtype=np.uint8).reshape(-1)
+        ct_idx = np.asarray(spec.ciphertext_idx, dtype=np.uint8).reshape(-1)
+        wli_runtime = [[int(a), int(b)] for a, b in spec.target_wli]
+        instance_fixture_id = str(spec.instance_fixture_id)
+        instance_source_key_seed = int(spec.source_key_seed)
+        roundtrip_plaintext = np.asarray(
+            full_cipher.decrypt_single(ciphertext=ct_idx, key=key_true),
+            dtype=np.uint8,
+        ).reshape(-1)
+        if not np.array_equal(roundtrip_plaintext, pt_idx_runtime):
+            raise RuntimeError(
+                "Fixed instance roundtrip failed: decrypt(ciphertext,true_key) "
+                "did not match stored target_plaintext_idx"
+            )
+        calc_ct_idx = np.asarray(
+            full_cipher.encrypt_single(plaintext=pt_idx_runtime, key=key_true),
+            dtype=np.uint8,
+        ).reshape(-1)
+        if not np.array_equal(calc_ct_idx, ct_idx):
+            raise RuntimeError(
+                "Fixed instance roundtrip failed: encrypt(target_plaintext_idx,true_key) "
+                "did not match stored ciphertext_idx"
+            )
+    else:
+        raise ValueError(
+            f"Unsupported INSTANCE_INPUT_MODE={instance_input_mode!r}; "
+            "expected generated|fixed_ciphertext"
+        )
 
     sub_len = int(int(tier_period) * int(alphabet_size))
     true_sub = key_true[:sub_len].astype(np.int16, copy=False)
@@ -239,6 +358,10 @@ def build_iteration_runtime(
             )
 
     return dict(
+        instance_input_mode=str(mode),
+        instance_fixture_id=str(instance_fixture_id),
+        instance_source_key_seed=int(instance_source_key_seed),
+        search_seed=int(search_seed_value),
         key_len=int(key_len),
         key_true=key_true,
         cfg_full=cfg_full,
@@ -246,6 +369,8 @@ def build_iteration_runtime(
         full_cipher=full_cipher,
         sub_cipher=sub_cipher,
         ct_idx=ct_idx,
+        pt_idx=np.asarray(pt_idx_runtime, dtype=np.uint8).copy(),
+        wli=(list(wli_runtime) if wli_runtime is not None else None),
         sub_len=int(sub_len),
         true_sub=true_sub,
         pt_stage1_oracle=pt_stage1_oracle,

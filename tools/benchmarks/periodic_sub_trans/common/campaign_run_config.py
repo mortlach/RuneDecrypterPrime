@@ -41,6 +41,9 @@ class CampaignRunConfig:
     scorer_impl: str | None
     scorer_stage3_impl_avg_fulltext: str | None
     scorer_schedule: dict[str, Any] | None
+    instance_input_mode: str
+    instance_fixture_ids: tuple[str, ...]
+    search_seeds: tuple[int, ...]
 
     def tier(self) -> Tier:
         return Tier(
@@ -69,6 +72,9 @@ def build_campaign_run_config(
     scorer_impl: str | None = None,
     scorer_stage3_impl_avg_fulltext: str | None = None,
     scorer_schedule: Mapping[str, Any] | None = None,
+    instance_input_mode: str = "generated",
+    instance_fixture_ids: Sequence[str] | None = None,
+    search_seeds: Sequence[int] | None = None,
 ) -> CampaignRunConfig:
     return CampaignRunConfig(
         run_seed=int(run_seed),
@@ -89,5 +95,9 @@ def build_campaign_run_config(
             scorer_stage3_impl_avg_fulltext
         ),
         scorer_schedule=_normalize_optional_mapping(scorer_schedule),
+        instance_input_mode=str(instance_input_mode).strip().lower() or "generated",
+        instance_fixture_ids=tuple(
+            str(x) for x in (instance_fixture_ids or ()) if str(x).strip()
+        ),
+        search_seeds=tuple(int(x) for x in (search_seeds or ())),
     )
-

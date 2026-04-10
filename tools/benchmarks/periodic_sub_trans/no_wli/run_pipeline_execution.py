@@ -83,6 +83,9 @@ from tools.benchmarks.periodic_sub_trans.no_wli.commit_bridge_state import (
 from tools.benchmarks.periodic_sub_trans.no_wli.autoskip_proven import (
     handle_autoskip_proven_iteration,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.fixed_instance_io import (
+    load_fixed_instance_spec,
+)
 
 
 def _resolve_commit_bridge_state(
@@ -127,6 +130,31 @@ def execute_pipeline_from_startup(
     span_combined_calibration_hash = str(startup["span_combined_calibration_hash"])
     span_ecdf_audit_hash = str(startup["span_ecdf_audit_hash"])
     span_assets_rel_path = str(startup["span_assets_rel_path"])
+    instance_input_mode = str(state.get("INSTANCE_INPUT_MODE", "generated")).strip().lower()
+    fixed_instance_specs: list[Any] | None = None
+    search_seeds: list[int] | None = None
+    if instance_input_mode == "fixed_ciphertext":
+        root = startup["root"]
+        fixture_ids = [
+            str(x).strip() for x in state.get("INSTANCE_FIXTURE_IDS", ()) if str(x).strip()
+        ]
+        if not fixture_ids:
+            raise ValueError("fixed_ciphertext mode requires INSTANCE_FIXTURE_IDS")
+        search_seeds = [int(x) for x in state.get("SEARCH_SEEDS", ())]
+        if not search_seeds:
+            raise ValueError("fixed_ciphertext mode requires SEARCH_SEEDS")
+        fixed_dir = (
+            root
+            / "tools"
+            / "benchmarks"
+            / "periodic_sub_trans"
+            / "no_wli"
+            / "fixed_instances"
+        )
+        fixed_instance_specs = [
+            load_fixed_instance_spec(fixed_dir / f"{fixture_id}.json")
+            for fixture_id in fixture_ids
+        ]
 
     def _mark_oracle_decision_use() -> None:
         nonlocal oracle_consulted_in_decisions
@@ -289,6 +317,9 @@ def execute_pipeline_from_startup(
         stage3_runtime_call_ctx=stage3_runtime_call_ctx,
         config=iteration_config,
         fns=iteration_fns,
+        instance_input_mode=str(instance_input_mode or "generated"),
+        fixed_instance_specs=fixed_instance_specs,
+        search_seeds=search_seeds,
         log_prefix="[pipeline_no_wli]",
     )
 

@@ -48,6 +48,9 @@ from tools.benchmarks.periodic_sub_trans.no_wli.stage3_topk import (
 from tools.benchmarks.periodic_sub_trans.no_wli.stage3_metrics import (
     extract_kaeding_metrics as _extract_kaeding_metrics_external,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.iteration_identity import (
+    build_iteration_identity_fields_from_row,
+)
 def build_iteration_runtime_bridge(
     *,
     state: Mapping[str, Any],
@@ -57,6 +60,9 @@ def build_iteration_runtime_bridge(
     direction: Direction,
     span_assets_dir: Path,
     scoring_experiment_meta: Mapping[str, Any],
+    instance_input_mode: str = "generated",
+    fixed_instance_spec: Mapping[str, Any] | None = None,
+    search_seed: int | None = None,
 ) -> Dict[str, Any]:
     return _build_iteration_runtime_external(
         tier_period=int(tier.period),
@@ -86,6 +92,9 @@ def build_iteration_runtime_bridge(
         build_stage3_experiment_cfg_fn=state["_build_stage3_experiment_cfg"],
         build_word_ngram_report_cfg_fn=state["_build_word_ngram_report_cfg"],
         guard_no_ecdf_usage_fn=state["_guard_no_ecdf_usage"],
+        instance_input_mode=str(instance_input_mode),
+        fixed_instance_spec=fixed_instance_spec,
+        search_seed=(int(search_seed) if search_seed is not None else None),
     )
 
 
@@ -428,6 +437,10 @@ def build_iteration_payloads_bridge(
     stage3_diagnostics: Dict[str, Any],
     stage35_archive_rows: List[Dict[str, Any]] | None = None,
     stage35_seed_rows: List[Dict[str, Any]] | None = None,
+    instance_input_mode: str = "generated",
+    instance_fixture_id: str = "",
+    instance_source_key_seed: int | None = None,
+    search_seed: int | None = None,
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     return _build_iteration_payloads_external(
         tier_name=str(tier.name),
@@ -480,6 +493,10 @@ def build_iteration_payloads_bridge(
         stage3_diagnostics=stage3_diagnostics,
         stage35_archive=stage35_archive_rows,
         stage35_seed_rows=stage35_seed_rows,
+        instance_input_mode=str(instance_input_mode),
+        instance_fixture_id=str(instance_fixture_id),
+        instance_source_key_seed=instance_source_key_seed,
+        search_seed=search_seed,
     )
 
 
@@ -540,8 +557,8 @@ def commit_iteration_outputs_bridge(
         format_seconds_fn=lambda seconds: state["_format_seconds"](float(seconds)),
     )
     if bool(state["SAVE_RESUME_HANDOFFS"]):
-        artifact_name = (
-            f"{inst_row['tier']}__text{int(inst_row['text_id'])}__seed{int(inst_row['key_seed'])}.json"
+        artifact_name = str(
+            build_iteration_identity_fields_from_row(inst_row)["artifact_basename"]
         )
         write_resume_handoff_artifacts(
             run_dir=run_dir,

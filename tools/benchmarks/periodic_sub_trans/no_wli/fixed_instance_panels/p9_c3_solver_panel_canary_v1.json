@@ -1,0 +1,14 @@
+{
+  "panel_schema_version": "no_wli_fixed_instance_panel_v1",
+  "panel_id": "p9_c3_solver_panel_canary_v1",
+  "instance_fixture_ids": [
+    "fixture_001__p9_c3_l1000__text0__seed611"
+  ],
+  "search_seeds": [
+    7001
+  ],
+  "notes": [
+    "One-job fixed-instance canary panel for the first real fixture-matrix execution path.",
+    "Uses the exported seed611 frozen instance and one solver search seed."
+  ]
+}

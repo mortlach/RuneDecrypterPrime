@@ -500,6 +500,18 @@ def finalize_iteration_post_stage3(
         stage35_seed_rows=list(state.get("stage35_seed_rows", [])),
         scorer_word_ngram_report_runtime=state.get("scorer_word_ngram_report_runtime"),
         require_batch_scoring=bool(state["REQUIRE_BATCH_SCORING"]),
+        instance_input_mode=str(state.get("instance_input_mode", "generated")),
+        instance_fixture_id=str(state.get("instance_fixture_id", "") or ""),
+        instance_source_key_seed=(
+            int(state["instance_source_key_seed"])
+            if state.get("instance_source_key_seed", None) is not None
+            else None
+        ),
+        search_seed=(
+            int(state["search_seed"])
+            if state.get("search_seed", None) is not None
+            else None
+        ),
         build_iteration_payloads_fn=build_iteration_payloads_fn,
         commit_iteration_with_checkpoint_fn=commit_iteration_with_checkpoint_fn,
         instances=state["instances"],

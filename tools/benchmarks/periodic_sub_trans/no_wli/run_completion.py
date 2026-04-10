@@ -6,6 +6,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, Sequence
 
+from tools.benchmarks.periodic_sub_trans.no_wli.iteration_identity import (
+    build_iteration_identity_fields_from_row,
+)
+
 
 def finalize_run_outputs(
     *,
@@ -48,9 +52,10 @@ def finalize_run_outputs(
             key=lambda r: float(r["best_match_ratio"]),
         )
         best_instance = dict(best_instance_row)
-        artifact_name = (
-            f"{best_instance_row['tier']}__text{int(best_instance_row['text_id'])}"
-            f"__seed{int(best_instance_row['key_seed'])}.json"
+        artifact_name = str(
+            build_iteration_identity_fields_from_row(best_instance_row)[
+                "artifact_basename"
+            ]
         )
         artifact_path = final_dir / artifact_name
         if artifact_path.exists():

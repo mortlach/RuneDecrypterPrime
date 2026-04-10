@@ -53,6 +53,9 @@ def configure_campaign_run(
     scorer_impl: str | None,
     scorer_stage3_impl_avg_fulltext: str | None,
     scorer_schedule: Mapping[str, Any] | None,
+    instance_input_mode: str = "generated",
+    instance_fixture_ids: Sequence[str] | None = None,
+    search_seeds: Sequence[int] | None = None,
     build_campaign_run_config_fn: Callable[..., Any],
     apply_campaign_run_config_fn: Callable[..., None],
     get_profile_fn: Callable[[str], Any],
@@ -77,6 +80,9 @@ def configure_campaign_run(
         scorer_impl=scorer_impl,
         scorer_stage3_impl_avg_fulltext=scorer_stage3_impl_avg_fulltext,
         scorer_schedule=scorer_schedule,
+        instance_input_mode=str(instance_input_mode),
+        instance_fixture_ids=instance_fixture_ids,
+        search_seeds=search_seeds,
     )
     apply_campaign_run_config_fn(
         state=state,

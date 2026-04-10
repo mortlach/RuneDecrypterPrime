@@ -35,18 +35,23 @@ from tools.benchmarks.periodic_sub_trans.no_wli.runtime_preflight import (
     run_runtime_preflight,
 )
 from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_api import (
+    build_fixed_instance_jobs,
     _job_key,
     _load_run_state,
     _resolve_path,
     _utc_now_iso,
-    build_fixture_jobs,
     build_schedule_matrix,
+    build_fixture_jobs,
     load_fixture_specs,
     resolve_stage3_tuning_preset_ids,
     resolve_stage3_tuning_presets,
     resolve_period_columns,
     resolve_stage_objectives_for_schedule,
     run_job,
+)
+from tools.benchmarks.periodic_sub_trans.no_wli.fixed_instance_io import (
+    load_fixed_cipher_panel_spec,
+    load_fixed_instance_spec_map,
 )
 from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_models import (
     FixtureSpec,
@@ -56,6 +61,9 @@ from tools.benchmarks.periodic_sub_trans.no_wli.fixture_matrix_config import (
     CAMPAIGN_CONFIG_PATH,
     FIXTURE_IDS,
     FIXTURE_LENGTH_OVERRIDE,
+    FIXED_INSTANCE_FIXTURE_DIR,
+    FIXED_INSTANCE_PANEL_PATH,
+    INSTANCE_INPUT_MODE,
     USE_CAMPAIGN_GRID,
     PERIODS_OVERRIDE,
     COLUMNS_OVERRIDE_BY_PERIOD,
@@ -129,6 +137,9 @@ def build_matrix_mainflow_config() -> FixtureMatrixMainflowConfig:
             if FIXTURE_LENGTH_OVERRIDE is None
             else int(FIXTURE_LENGTH_OVERRIDE)
         ),
+        instance_input_mode=str(INSTANCE_INPUT_MODE),
+        fixed_instance_panel_path=Path(FIXED_INSTANCE_PANEL_PATH),
+        fixed_instance_fixture_dir=Path(FIXED_INSTANCE_FIXTURE_DIR),
         use_campaign_grid=bool(USE_CAMPAIGN_GRID),
         periods_override=(
             None
@@ -197,9 +208,12 @@ def main() -> None:
         load_json_fn=load_json,
         write_json_fn=write_json,
         load_fixture_specs_fn=load_fixture_specs,
+        load_fixed_cipher_panel_spec_fn=load_fixed_cipher_panel_spec,
+        load_fixed_instance_spec_map_fn=load_fixed_instance_spec_map,
         resolve_period_columns_fn=resolve_period_columns,
         build_schedule_matrix_fn=build_schedule_matrix,
         build_fixture_jobs_fn=build_fixture_jobs,
+        build_fixed_instance_jobs_fn=build_fixed_instance_jobs,
         build_plan_payload_fn=_build_plan_payload_impl,
         run_jobs_with_checkpoints_fn=run_jobs_with_checkpoints,
         load_run_state_fn=_load_run_state,

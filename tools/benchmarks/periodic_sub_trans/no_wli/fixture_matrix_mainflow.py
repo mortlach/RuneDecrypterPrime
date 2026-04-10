@@ -48,9 +48,12 @@ def run_mainflow(
     load_json_fn: Callable[[Path], Any],
     write_json_fn: Callable[[Path, Mapping[str, Any]], None],
     load_fixture_specs_fn: Callable[..., list[Any]],
+    load_fixed_cipher_panel_spec_fn: Callable[[Path], Any],
+    load_fixed_instance_spec_map_fn: Callable[..., dict[str, Any]],
     resolve_period_columns_fn: Callable[..., dict[int, tuple[int, ...]]],
     build_schedule_matrix_fn: Callable[..., list[dict[str, str]]],
     build_fixture_jobs_fn: Callable[..., list[Any]],
+    build_fixed_instance_jobs_fn: Callable[..., list[Any]],
     build_plan_payload_fn: Callable[..., dict[str, Any]],
     run_jobs_with_checkpoints_fn: Callable[..., None],
     load_run_state_fn: Callable[[Path], dict[str, Any]],
@@ -60,14 +63,22 @@ def run_mainflow(
     print_fn: Callable[..., None],
 ) -> None:
     campaign_path = resolve_path_fn(Path(state["CAMPAIGN_CONFIG_PATH"]))
-    campaign_config = load_json_fn(campaign_path)
-    if not isinstance(campaign_config, Mapping):
-        raise ValueError(f"campaign config must be an object: {campaign_path}")
+    instance_input_mode = str(state.get("INSTANCE_INPUT_MODE", "generated")).strip().lower()
 
     fixture_ids = state["FIXTURE_IDS"]
     fixture_length_override = state["FIXTURE_LENGTH_OVERRIDE"]
     acceptance_enabled = bool(state.get("ENABLE_ACCEPTANCE_HARNESS_500X5", False))
+    if acceptance_enabled and instance_input_mode == "fixed_ciphertext":
+        raise ValueError("acceptance harness is not supported in fixed_ciphertext mode")
+    campaign_config: Mapping[str, Any] | None = None
+    if acceptance_enabled or instance_input_mode != "fixed_ciphertext":
+        loaded_campaign_config = load_json_fn(campaign_path)
+        if not isinstance(loaded_campaign_config, Mapping):
+            raise ValueError(f"campaign config must be an object: {campaign_path}")
+        campaign_config = loaded_campaign_config
     if acceptance_enabled:
+        if campaign_config is None:
+            raise ValueError("campaign config must be loaded when acceptance harness is enabled")
         if fixture_ids is None:
             fixture_ids = _derive_acceptance_fixture_ids(
                 campaign_config=campaign_config,
@@ -81,38 +92,84 @@ def run_mainflow(
             flush=True,
         )
 
-    fixtures = load_fixture_specs_fn(
-        campaign_config=campaign_config,
-        repo_root=repo_root,
-        fixture_ids=fixture_ids,
-        fixture_length_override=fixture_length_override,
-    )
-    period_columns = resolve_period_columns_fn(
-        campaign_config=campaign_config,
-        use_campaign_grid=bool(state["USE_CAMPAIGN_GRID"]),
-        periods_override=state["PERIODS_OVERRIDE"],
-        columns_override_by_period=state["COLUMNS_OVERRIDE_BY_PERIOD"],
-    )
+    fixed_panel_spec = None
+    if instance_input_mode == "fixed_ciphertext":
+        panel_path = resolve_path_fn(Path(state["FIXED_INSTANCE_PANEL_PATH"]))
+        fixture_dir = resolve_path_fn(Path(state["FIXED_INSTANCE_FIXTURE_DIR"]))
+        fixed_panel_spec = load_fixed_cipher_panel_spec_fn(panel_path)
+        fixed_spec_map = load_fixed_instance_spec_map_fn(fixture_dir=fixture_dir)
+        fixed_specs: list[Any] = []
+        for fixture_id in fixed_panel_spec.instance_fixture_ids:
+            try:
+                fixed_specs.append(fixed_spec_map[str(fixture_id)])
+            except KeyError as exc:
+                raise KeyError(
+                    f"fixed instance fixture missing from fixture dir: {fixture_id}"
+                ) from exc
+        fixtures = list(fixed_specs)
+        period_columns = {
+            int(getattr(spec, "period")): tuple(
+                sorted(
+                    {
+                        int(getattr(row, "columns"))
+                        for row in fixed_specs
+                        if int(getattr(row, "period")) == int(getattr(spec, "period"))
+                    }
+                )
+            )
+            for spec in fixed_specs
+        }
+    else:
+        if campaign_config is None:
+            raise ValueError("campaign config must be loaded for generated mode")
+        fixtures = load_fixture_specs_fn(
+            campaign_config=campaign_config,
+            repo_root=repo_root,
+            fixture_ids=fixture_ids,
+            fixture_length_override=fixture_length_override,
+        )
+        period_columns = resolve_period_columns_fn(
+            campaign_config=campaign_config,
+            use_campaign_grid=bool(state["USE_CAMPAIGN_GRID"]),
+            periods_override=state["PERIODS_OVERRIDE"],
+            columns_override_by_period=state["COLUMNS_OVERRIDE_BY_PERIOD"],
+        )
     schedules = build_schedule_matrix_fn(
         mode=str(state["SCHEDULE_COVERAGE_MODE"]),
         explicit_schedules=state["EXPLICIT_SCHEDULES"],
     )
-    jobs = build_fixture_jobs_fn(
-        fixtures=fixtures,
-        period_columns=period_columns,
-        run_seeds=state["RUN_SEEDS"],
-        run_mode=state["RUN_MODE"],
-        profile_id=state["NO_WLI_PROFILE_ID"],
-        heartbeat_seconds=int(state["HEARTBEAT_SECONDS"]),
-        text_offsets=state["TEXT_OFFSETS"],
-        scorer_impl=state["SCORER_IMPL"],
-        scorer_stage3_impl_avg_fulltext=state["SCORER_STAGE3_IMPL_AVG_FULLTEXT"],
-        scoring_experiment_profiles=state["SCORING_EXPERIMENT_PROFILES"],
-        stage3_tuning_preset_ids=state.get("STAGE3_TUNING_PRESET_IDS", ("base",)),
-        schedules=schedules,
-        enable_span_ab_pair=bool(state["ENABLE_SPAN_AB_PAIR"]),
-        span_ab_decision_role=str(state["SPAN_AB_DECISION_ROLE"]),
-    )
+    if instance_input_mode == "fixed_ciphertext":
+        jobs = build_fixed_instance_jobs_fn(
+            fixed_instance_specs=fixtures,
+            search_seeds=fixed_panel_spec.search_seeds,
+            run_mode=state["RUN_MODE"],
+            profile_id=state["NO_WLI_PROFILE_ID"],
+            heartbeat_seconds=int(state["HEARTBEAT_SECONDS"]),
+            scorer_impl=state["SCORER_IMPL"],
+            scorer_stage3_impl_avg_fulltext=state["SCORER_STAGE3_IMPL_AVG_FULLTEXT"],
+            scoring_experiment_profiles=state["SCORING_EXPERIMENT_PROFILES"],
+            stage3_tuning_preset_ids=state.get("STAGE3_TUNING_PRESET_IDS", ("base",)),
+            schedules=schedules,
+            enable_span_ab_pair=bool(state["ENABLE_SPAN_AB_PAIR"]),
+            span_ab_decision_role=str(state["SPAN_AB_DECISION_ROLE"]),
+        )
+    else:
+        jobs = build_fixture_jobs_fn(
+            fixtures=fixtures,
+            period_columns=period_columns,
+            run_seeds=state["RUN_SEEDS"],
+            run_mode=state["RUN_MODE"],
+            profile_id=state["NO_WLI_PROFILE_ID"],
+            heartbeat_seconds=int(state["HEARTBEAT_SECONDS"]),
+            text_offsets=state["TEXT_OFFSETS"],
+            scorer_impl=state["SCORER_IMPL"],
+            scorer_stage3_impl_avg_fulltext=state["SCORER_STAGE3_IMPL_AVG_FULLTEXT"],
+            scoring_experiment_profiles=state["SCORING_EXPERIMENT_PROFILES"],
+            stage3_tuning_preset_ids=state.get("STAGE3_TUNING_PRESET_IDS", ("base",)),
+            schedules=schedules,
+            enable_span_ab_pair=bool(state["ENABLE_SPAN_AB_PAIR"]),
+            span_ab_decision_role=str(state["SPAN_AB_DECISION_ROLE"]),
+        )
     if state["MAX_JOBS"] is not None:
         jobs = jobs[: max(0, int(state["MAX_JOBS"]))]
     plan_job_keys_in_order = [str(job_key_fn(job)) for job in jobs]
@@ -122,6 +179,7 @@ def run_mainflow(
         repo_root=repo_root,
         campaign_path=campaign_path,
         run_mode=str(state["RUN_MODE"]),
+        instance_input_mode=str(instance_input_mode),
         profile_id=str(state["NO_WLI_PROFILE_ID"]),
         schedule_coverage_mode=str(state["SCHEDULE_COVERAGE_MODE"]),
         schedules=schedules,
@@ -148,6 +206,21 @@ def run_mainflow(
         run_state_path=state["RUN_STATE_PATH"],
         run_events_path=state["RUN_EVENTS_PATH"],
         fixture_length_override=fixture_length_override,
+        fixed_instance_panel_path=(
+            None
+            if fixed_panel_spec is None
+            else state["FIXED_INSTANCE_PANEL_PATH"]
+        ),
+        fixed_instance_panel_id=(
+            None
+            if fixed_panel_spec is None
+            else str(getattr(fixed_panel_spec, "panel_id", ""))
+        ),
+        fixed_instance_search_seeds=(
+            []
+            if fixed_panel_spec is None
+            else [int(x) for x in fixed_panel_spec.search_seeds]
+        ),
         period_columns=period_columns,
         resolve_path_fn=resolve_path_fn,
     )
@@ -224,6 +297,20 @@ def run_mainflow(
         campaign_config_path=_repo_relative_path_str(
             path=campaign_path,
             repo_root=repo_root,
+        ),
+        instance_input_mode=str(instance_input_mode),
+        fixed_instance_panel_path=(
+            None
+            if fixed_panel_spec is None
+            else _repo_relative_path_str(
+                path=resolve_path_fn(Path(state["FIXED_INSTANCE_PANEL_PATH"])),
+                repo_root=repo_root,
+            )
+        ),
+        fixed_instance_panel_id=(
+            None
+            if fixed_panel_spec is None
+            else str(getattr(fixed_panel_spec, "panel_id", ""))
         ),
         run_mode=str(state["RUN_MODE"]),
         profile_id=str(state["NO_WLI_PROFILE_ID"]),

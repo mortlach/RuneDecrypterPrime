@@ -10,6 +10,10 @@ def build_oracle_floor_guard_result(
     tier: Any,
     text_id: int,
     key_seed: int,
+    instance_input_mode: str = "generated",
+    instance_fixture_id: str = "",
+    instance_source_key_seed: int | None = None,
+    search_seed: int | None = None,
     off: int,
     offset_used: int,
     stop_reason: str,
@@ -34,6 +38,14 @@ def build_oracle_floor_guard_result(
         tier=tier.name,
         text_id=int(text_id),
         key_seed=int(key_seed),
+        instance_input_mode=str(instance_input_mode),
+        instance_fixture_id=str(instance_fixture_id),
+        instance_source_key_seed=(
+            int(instance_source_key_seed)
+            if instance_source_key_seed is not None
+            else int(key_seed)
+        ),
+        search_seed=int(search_seed if search_seed is not None else key_seed),
         stage="oracle_guard_fail",
         score=float(oracle_s3),
         match_ratio=np.nan,
@@ -110,6 +122,10 @@ def build_oracle_floor_guard_result(
         stage2_diagnostics=stage2_diagnostics,
         stage3_topk_payload=[],
         stage3_diagnostics=stage3_diagnostics,
+        instance_input_mode=str(instance_input_mode),
+        instance_fixture_id=str(instance_fixture_id),
+        instance_source_key_seed=instance_source_key_seed,
+        search_seed=search_seed,
     )
     return dict(
         preview_txt=str(preview_txt),

@@ -71,6 +71,10 @@ def finalize_iteration_and_commit(
     derive_outcome_code_fn: Callable[..., str],
     safe_preview_latin_fn: Callable[[Any, Any], str],
     bridge_state: Dict[str, Any] | None = None,
+    instance_input_mode: str = "generated",
+    instance_fixture_id: str = "",
+    instance_source_key_seed: int | None = None,
+    search_seed: int | None = None,
     stage35_selected: bool = False,
     stage35_best_score: float = float("nan"),
     stage35_best_key: Sequence[int] | None = None,
@@ -200,6 +204,10 @@ def finalize_iteration_and_commit(
         stage3_diagnostics=stage3_diagnostics,
         stage35_archive_rows=stage35_archive_rows,
         stage35_seed_rows=stage35_seed_rows,
+        instance_input_mode=str(instance_input_mode),
+        instance_fixture_id=str(instance_fixture_id),
+        instance_source_key_seed=instance_source_key_seed,
+        search_seed=search_seed,
     )
     persistence_payload = IterationPersistencePayload.build(
         target_key_idx=target_key_list,

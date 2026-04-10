@@ -116,13 +116,27 @@ def _sync_stage3_two_phase_defaults_from_live_state(*, no_wli: Any) -> None:
 
 
 def job_key(job: Any) -> str:
+    instance_input_mode = str(
+        getattr(job, "instance_input_mode", "generated")
+    ).strip().lower()
+    seed_part = (
+        f"search{int(getattr(job, 'search_seed', 0))}"
+        if instance_input_mode == "fixed_ciphertext"
+        else f"seed{int(getattr(job, 'run_seed', 0))}"
+    )
+    identity_part = (
+        str(getattr(job, "instance_fixture_id", ""))
+        if instance_input_mode == "fixed_ciphertext"
+        else str(job.fixture_id)
+    )
     return "|".join(
         (
-            str(job.fixture_id),
+            str(instance_input_mode or "generated"),
+            identity_part,
             f"p{int(job.period)}",
             f"c{int(job.columns)}",
             f"l{int(job.length)}",
-            f"seed{int(job.run_seed)}",
+            seed_part,
             str(job.run_mode),
             str(job.profile_id),
             str(job.scoring_experiment_profile),
@@ -256,12 +270,153 @@ def build_fixture_jobs(
                                             scorer_stage3_impl_avg_fulltext
                                         ),
                                         scoring_experiment_profile=str(exp_profile),
+                                        instance_input_mode="generated",
+                                        instance_fixture_id="",
+                                        instance_source_key_seed=None,
+                                        search_seed=None,
                                         schedule_early=str(schedule["early"]),
                                         schedule_middle=str(schedule["middle"]),
                                         schedule_late=str(schedule["late"]),
                                     ),
                                     stage3_tuning_preset_id=str(tuning_preset_id),
                                 )
+    return jobs
+
+
+def build_fixed_instance_jobs(
+    *,
+    fixed_instance_specs: Sequence[Any],
+    search_seeds: Sequence[int],
+    run_mode: str,
+    profile_id: str,
+    heartbeat_seconds: int,
+    scorer_impl: str,
+    scorer_stage3_impl_avg_fulltext: str,
+    scoring_experiment_profiles: Sequence[str],
+    schedules: Sequence[Mapping[str, str]],
+    stage3_tuning_preset_ids: Sequence[str] = ("base",),
+    enable_span_ab_pair: bool,
+    span_ab_decision_role: str,
+    validate_scorer_schedule_ids_fn: Callable[..., Any],
+    validate_schedule_contract_fn: Callable[..., None],
+    job_cls: type,
+) -> list[Any]:
+    seeds: list[int] = []
+    seen_seed: set[int] = set()
+    for raw_seed in search_seeds:
+        seed_i = int(raw_seed)
+        if seed_i in seen_seed:
+            continue
+        seen_seed.add(seed_i)
+        seeds.append(seed_i)
+    if not seeds:
+        raise ValueError("SEARCH_SEEDS resolved empty")
+
+    exp_profiles = [
+        str(x).strip().lower() for x in scoring_experiment_profiles if str(x).strip()
+    ]
+    if not exp_profiles:
+        raise ValueError("SCORING_EXPERIMENT_PROFILES resolved empty")
+
+    tuning_preset_ids: list[str] = []
+    seen_tuning_preset_ids: set[str] = set()
+    for raw_id in stage3_tuning_preset_ids:
+        preset_id = str(raw_id).strip().lower()
+        if not preset_id or preset_id in seen_tuning_preset_ids:
+            continue
+        seen_tuning_preset_ids.add(preset_id)
+        tuning_preset_ids.append(preset_id)
+    if not tuning_preset_ids:
+        tuning_preset_ids = ["base"]
+
+    span_ab_role = str(span_ab_decision_role).strip().lower()
+    if span_ab_role not in {"prune", "gate", "combined", "judge"}:
+        span_ab_role = "prune"
+
+    def _append_job(*, base_kwargs: dict[str, Any], stage3_tuning_preset_id: str) -> None:
+        if not bool(enable_span_ab_pair):
+            jobs.append(
+                job_cls(
+                    **base_kwargs,
+                    stage3_tuning_preset_id=str(stage3_tuning_preset_id),
+                    span_ab_case_id="none",
+                    span_decision_role_enabled=False,
+                )
+            )
+            return
+        jobs.append(
+            job_cls(
+                **base_kwargs,
+                stage3_tuning_preset_id=str(stage3_tuning_preset_id),
+                span_ab_case_id="span_shadow",
+                span_decision_role_enabled=False,
+            )
+        )
+        jobs.append(
+            job_cls(
+                **base_kwargs,
+                stage3_tuning_preset_id=str(stage3_tuning_preset_id),
+                span_ab_case_id=f"span_{span_ab_role}",
+                span_decision_role_enabled=True,
+            )
+        )
+
+    jobs: list[Any] = []
+    validated_schedules: list[dict[str, str]] = []
+    for schedule in schedules:
+        norm = validate_scorer_schedule_ids_fn(schedule, require_all_keys=True)
+        resolved = dict(early=str(norm.early), middle=str(norm.middle), late=str(norm.late))
+        validate_schedule_contract_fn(
+            profile_id=str(profile_id),
+            schedule=resolved,
+        )
+        validated_schedules.append(resolved)
+
+    for spec in fixed_instance_specs:
+        source_fixture_id = str(getattr(spec, "source_fixture_id", "")).strip()
+        if not source_fixture_id:
+            raise ValueError("fixed instance spec missing source_fixture_id")
+        instance_fixture_id = str(getattr(spec, "instance_fixture_id", "")).strip()
+        if not instance_fixture_id:
+            raise ValueError("fixed instance spec missing instance_fixture_id")
+        source_key_seed = int(getattr(spec, "source_key_seed"))
+        period = int(getattr(spec, "period"))
+        columns = int(getattr(spec, "columns"))
+        length = int(getattr(spec, "length"))
+        offset_used = int(getattr(spec, "offset_used", 0))
+        for search_seed in seeds:
+            for exp_profile in exp_profiles:
+                for tuning_preset_id in tuning_preset_ids:
+                    for schedule in validated_schedules:
+                        _append_job(
+                            base_kwargs=dict(
+                                fixture_id=str(source_fixture_id),
+                                period=period,
+                                columns=columns,
+                                length=length,
+                                # Compatibility mirror for older runner/config plumbing.
+                                # In fixed mode the real solver RNG identity is search_seed.
+                                run_seed=int(search_seed),
+                                run_mode=str(run_mode),
+                                profile_id=str(profile_id),
+                                heartbeat_seconds=int(heartbeat_seconds),
+                                # Provenance only in fixed mode; no plaintext re-slicing occurs.
+                                text_offsets=(offset_used,),
+                                scorer_impl=str(scorer_impl),
+                                scorer_stage3_impl_avg_fulltext=str(
+                                    scorer_stage3_impl_avg_fulltext
+                                ),
+                                scoring_experiment_profile=str(exp_profile),
+                                instance_input_mode="fixed_ciphertext",
+                                instance_fixture_id=str(instance_fixture_id),
+                                instance_source_key_seed=int(source_key_seed),
+                                search_seed=int(search_seed),
+                                schedule_early=str(schedule["early"]),
+                                schedule_middle=str(schedule["middle"]),
+                                schedule_late=str(schedule["late"]),
+                            ),
+                            stage3_tuning_preset_id=str(tuning_preset_id),
+                        )
     return jobs
 
 
@@ -305,6 +460,12 @@ def apply_job(
     force_stage3_span_basin_judge_tie_max_seeds: int | None = None,
     force_word_ngram_report_min_positions: int | None = None,
 ) -> None:
+    instance_input_mode = str(
+        getattr(job, "instance_input_mode", "generated")
+    ).strip().lower() or "generated"
+    instance_fixture_id = str(getattr(job, "instance_fixture_id", "")).strip()
+    search_seed = getattr(job, "search_seed", None)
+    instance_source_key_seed = getattr(job, "instance_source_key_seed", None)
     if bool(disable_stage3_span_basin_k_sweep):
         no_wli.RUN_STAGE3_SPAN_BASIN_K_SWEEP = False
     else:
@@ -330,7 +491,24 @@ def apply_job(
         scorer_impl=str(job.scorer_impl),
         scorer_stage3_impl_avg_fulltext=str(job.scorer_stage3_impl_avg_fulltext),
         scorer_schedule=job.scorer_schedule(),
+        instance_input_mode=str(instance_input_mode),
+        instance_fixture_ids=(
+            [str(instance_fixture_id)]
+            if instance_input_mode == "fixed_ciphertext" and instance_fixture_id
+            else []
+        ),
+        search_seeds=(
+            [int(search_seed)]
+            if instance_input_mode == "fixed_ciphertext" and search_seed is not None
+            else []
+        ),
     )
+    if instance_input_mode == "fixed_ciphertext":
+        no_wli.INSTANCE_SOURCE_KEY_SEED = (
+            None
+            if instance_source_key_seed is None
+            else int(instance_source_key_seed)
+        )
     no_wli.SCORING_EXPERIMENT_PROFILE = str(job.scoring_experiment_profile)
     if force_stage3_phasec_enabled is not None:
         no_wli.STAGE3_PHASEC_ENABLED = bool(force_stage3_phasec_enabled)

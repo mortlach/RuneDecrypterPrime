@@ -4,6 +4,30 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, MutableMapping
 
 
+def _build_instance_input_config(
+    state: Mapping[str, Any],
+) -> dict[str, Any]:
+    instance_input_mode = str(state["INSTANCE_INPUT_MODE"])
+    if instance_input_mode == "generated":
+        return dict(
+            instance_input_mode=instance_input_mode,
+            instance_fixture_ids=[],
+            search_seeds=[],
+            generated_key_seeds=list(map(int, state["KEY_SEEDS"])),
+        )
+    if instance_input_mode == "fixed_ciphertext":
+        return dict(
+            instance_input_mode=instance_input_mode,
+            instance_fixture_ids=[str(x) for x in state["INSTANCE_FIXTURE_IDS"]],
+            search_seeds=list(map(int, state["SEARCH_SEEDS"])),
+            generated_key_seeds=[],
+        )
+    raise ValueError(
+        f"Unsupported INSTANCE_INPUT_MODE={instance_input_mode!r}; "
+        "expected generated|fixed_ciphertext"
+    )
+
+
 def build_run_config(
     *,
     state: MutableMapping[str, Any],
@@ -25,6 +49,7 @@ def build_run_config(
     scoring_meta_for_output_fn: Callable[..., Dict[str, Any]],
     build_no_wli_order_dispatch_payload_fn: Callable[..., Dict[str, Any]],
 ) -> Dict[str, Any]:
+    instance_input_cfg = _build_instance_input_config(state)
     return dict(
         profile=state["PROFILE"],
         mode=str(mode_canonical),
@@ -82,7 +107,10 @@ def build_run_config(
         # Run config is startup-time intent/config, not post-run behavior.
         oracle_consulted_in_decisions=False,
         text_offsets=list(map(int, state["TEXT_OFFSETS"])),
-        key_seeds=list(map(int, state["KEY_SEEDS"])),
+        instance_input_mode=str(instance_input_cfg["instance_input_mode"]),
+        instance_fixture_ids=list(instance_input_cfg["instance_fixture_ids"]),
+        search_seeds=list(instance_input_cfg["search_seeds"]),
+        generated_key_seeds=list(instance_input_cfg["generated_key_seeds"]),
         tiers=[
             dict(
                 name=str(t.name),

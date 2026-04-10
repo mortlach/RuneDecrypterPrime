@@ -5,6 +5,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Sequence
 
+from tools.benchmarks.periodic_sub_trans.no_wli.iteration_identity import (
+    build_iteration_identity_fields_from_row,
+)
+
 
 def commit_iteration_outputs(
     *,
@@ -39,7 +43,8 @@ def commit_iteration_outputs(
     format_seconds_fn: Callable[[float], str],
     log_prefix: str = "[pipeline_no_wli]",
 ) -> Dict[str, Any]:
-    artifact_name = f"{inst_row['tier']}__text{int(inst_row['text_id'])}__seed{int(inst_row['key_seed'])}.json"
+    identity = build_iteration_identity_fields_from_row(inst_row)
+    artifact_name = str(identity["artifact_basename"])
     artifact_path = final_dir / artifact_name
     write_json_fn(artifact_path, artifact_payload)
 
@@ -56,9 +61,13 @@ def commit_iteration_outputs(
         timestamp_utc=datetime.now(timezone.utc).isoformat(),
         run_id=run_dir.name,
         profile_id=artifact_payload["profile_id"],
-        fixture_id=inst_row["tier"],
+        fixture_id=str(identity["history_fixture_id"]),
         text_id=inst_row["text_id"],
         key_seed=inst_row["key_seed"],
+        instance_input_mode=str(identity["instance_input_mode"]),
+        instance_fixture_id=str(identity["instance_fixture_id"]),
+        instance_source_key_seed=int(identity["instance_source_key_seed"]),
+        search_seed=int(identity["search_seed"]),
         period=inst_row["period"],
         columns=inst_row["columns"],
         length=inst_row["length"],
@@ -86,9 +95,13 @@ def commit_iteration_outputs(
                 timestamp_utc=datetime.now(timezone.utc).isoformat(),
                 iteration_index=int(done + 1),
                 run_id=str(run_dir.name),
-                fixture_id=str(inst_row["tier"]),
+                fixture_id=str(identity["history_fixture_id"]),
                 text_id=int(inst_row["text_id"]),
                 key_seed=int(inst_row["key_seed"]),
+                instance_input_mode=str(identity["instance_input_mode"]),
+                instance_fixture_id=str(identity["instance_fixture_id"]),
+                instance_source_key_seed=int(identity["instance_source_key_seed"]),
+                search_seed=int(identity["search_seed"]),
                 status=str(inst_row["status"]),
                 best_stage=str(inst_row["best_stage"]),
                 best_match_ratio=float(inst_row["best_match_ratio"]),
@@ -124,11 +137,18 @@ def commit_iteration_outputs(
     )
     preview_best = str(inst_row["preview_best_latin"])
     if preview_best:
-        print(
-            f"{log_prefix} best-instance-preview tier={inst_row['tier']} text={inst_row['text_id']} "
-            f"key_seed={inst_row['key_seed']} text=\"{preview_best}\"",
-            flush=True,
-        )
+        if str(identity["instance_input_mode"]) == "fixed_ciphertext":
+            print(
+                f"{log_prefix} best-instance-preview fixture={identity['instance_fixture_id']} "
+                f"search_seed={identity['search_seed']} text=\"{preview_best}\"",
+                flush=True,
+            )
+        else:
+            print(
+                f"{log_prefix} best-instance-preview tier={inst_row['tier']} text={inst_row['text_id']} "
+                f"key_seed={inst_row['key_seed']} text=\"{preview_best}\"",
+                flush=True,
+            )
 
     now = float(time.time())
     if (now - float(last_hb)) >= float(heartbeat_seconds):

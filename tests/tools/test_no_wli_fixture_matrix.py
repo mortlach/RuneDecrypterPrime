@@ -12,6 +12,9 @@ from tools.benchmarks.periodic_sub_trans.common.scorer_schedule import (
     SCHEDULE_MIDDLE_M_CHAR12_AVG_FULLTEXT,
 )
 from tools.benchmarks.periodic_sub_trans.no_wli import run_fixture_matrix as fixture_matrix
+from tools.benchmarks.periodic_sub_trans.no_wli.fixed_instance_models import (
+    FixedCipherInstanceSpec,
+)
 
 
 pytestmark = pytest.mark.tier_a
@@ -102,6 +105,47 @@ def test_build_fixture_jobs_span_ab_pair_mode_doubles_jobs():
     assert len(jobs) == 2
     case_ids = {str(job.span_ab_case_id) for job in jobs}
     assert case_ids == {"span_shadow", "span_prune"}
+
+
+def test_build_fixed_instance_jobs_dimensions_and_identity():
+    specs = [
+        FixedCipherInstanceSpec(
+            instance_fixture_id="fixture_001__p9_c3_l1000__text0__seed611",
+            source_fixture_id="fixture_001",
+            source_key_seed=611,
+            offset_used=0,
+            period=9,
+            columns=3,
+            length=1000,
+        )
+    ]
+    schedules = [
+        {
+            "early": SCHEDULE_EARLY_A_CHAR1_AVG_FULLTEXT,
+            "middle": SCHEDULE_MIDDLE_M_CHAR12_AVG_FULLTEXT,
+            "late": SCHEDULE_LATE_B_CHAR4_AVG_FULLTEXT,
+        }
+    ]
+    jobs = fixture_matrix.build_fixed_instance_jobs(
+        fixed_instance_specs=specs,
+        search_seeds=(7001, 7002),
+        run_mode="adaptive_fixture_v1",
+        profile_id="no_wli_a1_m4_b4_stage3avg_fulltext_longrun3x_v1",
+        heartbeat_seconds=3600,
+        scorer_impl="numpy",
+        scorer_stage3_impl_avg_fulltext="numpy",
+        scoring_experiment_profiles=("off",),
+        schedules=schedules,
+    )
+    assert len(jobs) == 2
+    assert [int(job.run_seed) for job in jobs] == [7001, 7002]
+    assert [int(job.search_seed) for job in jobs] == [7001, 7002]
+    assert all(str(job.instance_input_mode) == "fixed_ciphertext" for job in jobs)
+    assert all(
+        str(job.instance_fixture_id) == "fixture_001__p9_c3_l1000__text0__seed611"
+        for job in jobs
+    )
+    assert all(int(job.instance_source_key_seed) == 611 for job in jobs)
 
 
 def test_resolve_period_columns_from_grid():

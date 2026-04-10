@@ -39,6 +39,13 @@ def run_iteration_pre_stage3(
     tier = state["tier"]
     text_id = int(state["text_id"])
     key_seed = int(state["key_seed"])
+    instance_input_mode = str(state.get("instance_input_mode", "generated"))
+    fixed_instance_spec = state.get("fixed_instance_spec", None)
+    instance_fixture_id = str(state.get("instance_fixture_id", "") or "")
+    instance_source_key_seed = int(
+        state.get("instance_source_key_seed", key_seed)
+    )
+    search_seed = int(state.get("search_seed", key_seed))
     off = int(state["off"])
     offset_used = int(state["offset_used"])
     pt_idx = np.asarray(state["pt_idx"], dtype=np.uint8)
@@ -60,7 +67,27 @@ def run_iteration_pre_stage3(
         direction=direction,
         span_assets_dir=span_assets_dir,
         scoring_experiment_meta=scoring_experiment_meta,
+        instance_input_mode=str(instance_input_mode),
+        fixed_instance_spec=fixed_instance_spec,
+        search_seed=int(search_seed),
     )
+    instance_input_mode = str(
+        iteration_runtime.get("instance_input_mode", instance_input_mode)
+    )
+    instance_fixture_id = str(
+        iteration_runtime.get("instance_fixture_id", instance_fixture_id) or ""
+    )
+    instance_source_key_seed = int(
+        iteration_runtime.get(
+            "instance_source_key_seed",
+            instance_source_key_seed,
+        )
+    )
+    search_seed = int(iteration_runtime.get("search_seed", search_seed))
+    pt_idx = np.asarray(iteration_runtime.get("pt_idx", pt_idx), dtype=np.uint8)
+    runtime_wli = iteration_runtime.get("wli", None)
+    if runtime_wli is not None:
+        wli = runtime_wli
     key_len = int(iteration_runtime["key_len"])
     key_true = np.asarray(iteration_runtime["key_true"], dtype=np.int16)
     cfg_full = iteration_runtime["cfg_full"]
@@ -102,7 +129,7 @@ def run_iteration_pre_stage3(
     oracle_pre = evaluate_oracle_precheck_fn(
         tier_name=str(tier.name),
         text_id=int(text_id),
-        key_seed=int(key_seed),
+        key_seed=int(search_seed),
         pt_stage1_oracle=np.asarray(pt_stage1_oracle, dtype=np.uint8),
         pt_idx=np.asarray(pt_idx, dtype=np.uint8),
         cfg_sub=cfg_sub,
@@ -141,7 +168,11 @@ def run_iteration_pre_stage3(
         oracle_pre=dict(oracle_pre),
         tier=tier,
         text_id=int(text_id),
-        key_seed=int(key_seed),
+        key_seed=int(search_seed),
+        instance_input_mode=str(instance_input_mode),
+        instance_fixture_id=str(instance_fixture_id),
+        instance_source_key_seed=int(instance_source_key_seed),
+        search_seed=int(search_seed),
         off=int(off),
         offset_used=int(offset_used),
         ct_idx=np.asarray(ct_idx, dtype=np.uint8),
@@ -168,14 +199,14 @@ def run_iteration_pre_stage3(
         np.asarray(pt_idx, dtype=np.uint8),
     ):
         raise RuntimeError(
-            f"[pipeline_no_wli] gate0 roundtrip failed tier={tier.name} text={text_id} key_seed={key_seed}"
+            f"[pipeline_no_wli] gate0 roundtrip failed tier={tier.name} text={text_id} key_seed={search_seed}"
         )
     print_stage_preview_fn(label="oracle", pt=pt_idx.tolist(), wli=wli, match_ratio=1.0)
 
     stage12 = run_stage12_pipeline_fn(
         tier=tier,
         text_id=int(text_id),
-        key_seed=int(key_seed),
+        key_seed=int(search_seed),
         ct_idx=np.asarray(ct_idx, dtype=np.uint8),
         pt_idx=np.asarray(pt_idx, dtype=np.uint8),
         true_sub=np.asarray(true_sub, dtype=np.int16),
@@ -203,6 +234,10 @@ def run_iteration_pre_stage3(
 
     return dict(
         continue_iteration=False,
+        instance_input_mode=str(instance_input_mode),
+        instance_fixture_id=str(instance_fixture_id),
+        instance_source_key_seed=int(instance_source_key_seed),
+        search_seed=int(search_seed),
         key_len=int(key_len),
         key_true=np.asarray(key_true, dtype=np.int16).copy(),
         full_cipher=full_cipher,
