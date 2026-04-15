@@ -27,7 +27,7 @@ from tests.scoring.span_hamming.nowli_hard_cases import load_nowli_hard_cases_v1
 
 POLICY_ASSET_ROOT = (
     REPO_ROOT
-    / "planning/working/rdp_hamming_dictionary_policy_bundle_v2"
+    / "planning_old/working/rdp_hamming_dictionary_policy_bundle_v2"
     / "rdp_hamming_dictionary_policy_bundle_v2/data/policy_assets"
 )
 OUTPUT_ROOT = REPO_ROOT / "output/tools/benchmarks/scoring/hamming_dictionary_policy_phase_c_v1"

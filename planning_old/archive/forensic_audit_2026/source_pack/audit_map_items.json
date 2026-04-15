@@ -1,0 +1,472 @@
+[
+  {
+    "id": "PDF-Q01",
+    "title": "Canonical WLI Format",
+    "ref": "PDF p15 l32-l35"
+  },
+  {
+    "id": "PDF-Q02",
+    "title": "Span vs Pos Usage",
+    "ref": "PDF p15 l36 \u2013 p16 l2"
+  },
+  {
+    "id": "PDF-Q03",
+    "title": "Permutation semantics with interruptors",
+    "ref": "PDF p16 l3-l7"
+  },
+  {
+    "id": "PDF-Q04",
+    "title": "Objective direction handling",
+    "ref": "PDF p16 l8-l11"
+  },
+  {
+    "id": "PDF-Q05",
+    "title": "Score dtype policy",
+    "ref": "PDF p16 l12-l16"
+  },
+  {
+    "id": "PDF-Q06",
+    "title": "Language model cache isolation",
+    "ref": "PDF p16 l17-l20"
+  },
+  {
+    "id": "PDF-Q07",
+    "title": "user_map3 key representation",
+    "ref": "PDF p16 l21-l25"
+  },
+  {
+    "id": "PDF-Q08",
+    "title": "Beam parameters source of truth",
+    "ref": "PDF p16 l26-l28"
+  },
+  {
+    "id": "PDF-01",
+    "title": "Objective Direction Misalignment (NEGLOGP vs Maximize",
+    "ref": "PDF p01 l13-l40"
+  },
+  {
+    "id": "PDF-02",
+    "title": "Floating-Point Precision",
+    "ref": "PDF p02 l1-l24"
+  },
+  {
+    "id": "PDF-03",
+    "title": "WLI Model Activation Without WLI Data (Missing-Data Handling",
+    "ref": "PDF p02 l25 \u2013 p03 l13"
+  },
+  {
+    "id": "PDF-04",
+    "title": "Language Model Smoothing Cache Contamination",
+    "ref": "PDF p03 l14 \u2013 p04 l3"
+  },
+  {
+    "id": "PDF-05",
+    "title": "Inconsistent Determinism Defaults",
+    "ref": "PDF p04 l4-l20"
+  },
+  {
+    "id": "PDF-06",
+    "title": "Silent Seed Key Replacement on Normalization Failure",
+    "ref": "PDF p04 l21 \u2013 p05 l6"
+  },
+  {
+    "id": "PDF-07",
+    "title": "Beam Expansion Parameter Mismatch (API vs Solver Implementation",
+    "ref": "PDF p05 l7-l51"
+  },
+  {
+    "id": "PDF-08",
+    "title": "Composite Key Length and Variable-Interruptor Handling",
+    "ref": "PDF p06 l1 \u2013 p07 l17"
+  },
+  {
+    "id": "PDF-09",
+    "title": "WLI Semantic Mismatch (Start/End vs Pos/Len",
+    "ref": "PDF p07 l18 \u2013 p08 l14"
+  },
+  {
+    "id": "PDF-10",
+    "title": "WLI Span Conversion Glitch on Multi-Word Input",
+    "ref": "PDF p08 l15 \u2013 p09 l12"
+  },
+  {
+    "id": "PDF-11",
+    "title": "Permutation Length Reported in Wrong Terms",
+    "ref": "PDF p09 l13-l41"
+  },
+  {
+    "id": "PDF-12",
+    "title": "English Plaintext Input Ignores Specified Encoding Direction",
+    "ref": "PDF p10 l1 \u2013 p11 l6"
+  },
+  {
+    "id": "PDF-13",
+    "title": "Collapsed Key Space for user_map3 (Affine Cipher",
+    "ref": "PDF p11 l7-l50"
+  },
+  {
+    "id": "PDF-T01",
+    "title": "WLI Invariant Canary",
+    "ref": "PDF p13 l10-l16"
+  },
+  {
+    "id": "PDF-T02",
+    "title": "WLI vs Runeglish Parity",
+    "ref": "PDF p13 l17-l22"
+  },
+  {
+    "id": "PDF-T03",
+    "title": "WLI Permutation Alignment",
+    "ref": "PDF p13 l23-l28"
+  },
+  {
+    "id": "PDF-T04",
+    "title": "Objective Direction Canary",
+    "ref": "PDF p13 l29-l34"
+  },
+  {
+    "id": "PDF-T05",
+    "title": "Score Precision Near-Tie",
+    "ref": "PDF p13 l35 \u2013 p14 l3"
+  },
+  {
+    "id": "PDF-T06",
+    "title": "WLI Missing-Data Guard",
+    "ref": "PDF p14 l4-l11"
+  },
+  {
+    "id": "PDF-T07",
+    "title": "Legacy vs Main Determinism",
+    "ref": "PDF p14 l12-l17"
+  },
+  {
+    "id": "PDF-T08",
+    "title": "Seed Replacement Detection",
+    "ref": "PDF p14 l18-l24"
+  },
+  {
+    "id": "PDF-T09",
+    "title": "test_interruptor_permutation.py",
+    "ref": "PDF p14 l25-l31"
+  },
+  {
+    "id": "PDF-T10",
+    "title": "Variable Interruptor Count Guard",
+    "ref": "PDF p14 l32-l37"
+  },
+  {
+    "id": "PDF-T11",
+    "title": "Telemetry Permutation Reporting",
+    "ref": "PDF p14 l38 \u2013 p15 l2"
+  },
+  {
+    "id": "PDF-T12",
+    "title": "Encoding Direction Consistency",
+    "ref": "PDF p15 l3-l10"
+  },
+  {
+    "id": "PDF-T13",
+    "title": "LM Cache Isolation",
+    "ref": "PDF p15 l11-l17"
+  },
+  {
+    "id": "PDF-T14",
+    "title": "User Map3 Full-Domain Test",
+    "ref": "PDF p15 l18-l45"
+  },
+  {
+    "id": "BH-B01",
+    "title": "WLI is two different things (and it leaks across boundaries",
+    "ref": "BH L1669-L1728"
+  },
+  {
+    "id": "BH-B02",
+    "title": "Interruptors + text permutation: alignment traps",
+    "ref": "BH L1729-L1785"
+  },
+  {
+    "id": "BH-B03",
+    "title": "Periodic substitution + columnar + interruptors: round-trip invariants",
+    "ref": "BH L1786-L1825"
+  },
+  {
+    "id": "BH-B04",
+    "title": "Scoring integrity (dtype honesty, batch/scalar honesty",
+    "ref": "BH L1826-L2296"
+  },
+  {
+    "id": "BH-S01",
+    "title": "Interruptor symbols are always fixed from the ciphertext (and interrupt_sym is effectively unused",
+    "ref": "BH L2307-L2354"
+  },
+  {
+    "id": "BH-S02",
+    "title": "Pool-mode interruptor search forces CompositeKeyOps (key contains interrupt positions), but scoring/WLI metadata stays global and static",
+    "ref": "BH L2355-L2417"
+  },
+  {
+    "id": "BH-S03",
+    "title": "initial_text_permutation_indices is applied after interruptor removal and requires fixed core text length \u2014 variable interruptor count will crash",
+    "ref": "BH L2418-L2471"
+  },
+  {
+    "id": "BH-S04",
+    "title": "InterruptorConfig exists, but key parts of it are not actually enforced/used (danger: \u201cconfig looks supported\u201d but behaviour is different",
+    "ref": "BH L2472-L2560"
+  },
+  {
+    "id": "BH-F2.1",
+    "title": "Window span maths is centralised and mostly consistent (good), but relies on a \u201clength means X\u201d contract",
+    "ref": "BH L2561-L2600"
+  },
+  {
+    "id": "BH-F2.2",
+    "title": "NumPy backend implements WISE by injecting tags per window, and NOSE forbids boundary tags",
+    "ref": "BH L2601-L2644"
+  },
+  {
+    "id": "BH-F2.3",
+    "title": "Torch backend does not support WISE at all, and its token handling differs",
+    "ref": "BH L2645-L2693"
+  },
+  {
+    "id": "BH-F2.4",
+    "title": "Short-text (\u201cno windows\u201d) behaviour differs between NumPy and Torch when Hamming/WLI is enabled",
+    "ref": "BH L2694-L2745"
+  },
+  {
+    "id": "BH-F2.5",
+    "title": "WISE \u201cinterior mean\u201d naming/semantics look inconsistent (even before we discuss enabling WISE",
+    "ref": "BH L2746-L2842"
+  },
+  {
+    "id": "BH-F3.1",
+    "title": "Global LM table cache is writable and is expected to be mutated in-place (run-order hazard",
+    "ref": "BH L2855-L2898"
+  },
+  {
+    "id": "BH-F3.2",
+    "title": "Runtime cache keys include smoothing, but the underlying global bin cache does not (isolation is leaky",
+    "ref": "BH L2899-L2933"
+  },
+  {
+    "id": "BH-F3.3",
+    "title": "ECDF cache selection ignores window size (win), despite Bucket/meta carrying it (hidden assumption: W fixed",
+    "ref": "BH L2934-L2988"
+  },
+  {
+    "id": "BH-F3.4",
+    "title": "Cached arrays are returned by reference (accidental mutation can corrupt later results",
+    "ref": "BH L2989-L3020"
+  },
+  {
+    "id": "BH-F3.5",
+    "title": "ECDF float32 \u201cworking buffers\u201d selection is not fully validated (q32 can lose strict increase",
+    "ref": "BH L3021-L3095"
+  },
+  {
+    "id": "BH-S05",
+    "title": "device\u201d semantics are inconsistent across core vs backend selection",
+    "ref": "BH L3099-L3142"
+  },
+  {
+    "id": "BH-S06",
+    "title": "core runtime can materialise ciphertext as CUDA arrays even though ciphers are NumPy-only",
+    "ref": "BH L3143-L3177"
+  },
+  {
+    "id": "BH-S07",
+    "title": "Score dtype \u201cfloat64\u201d is mostly a wrapper; ordering is still determined by float32 scorers",
+    "ref": "BH L3178-L3213"
+  },
+  {
+    "id": "BH-S08",
+    "title": "UnifiedRuneScorer ignores the ScoringConfig.dtype intent and hard-codes float32 semantics",
+    "ref": "BH L3214-L3246"
+  },
+  {
+    "id": "BH-S09",
+    "title": "Key dtype story is inconsistent (docs say uint8; core uses int16; ciphers sometimes enforce uint8",
+    "ref": "BH L3247-L3347"
+  },
+  {
+    "id": "BH-S10",
+    "title": "SolverBase early-stop state has two competing implementations + doc drift",
+    "ref": "BH L3350-L3399"
+  },
+  {
+    "id": "BH-S11",
+    "title": "Improvement threshold documentation says \u201c\u2265\u201d but code uses strict",
+    "ref": "BH L3400-L3430"
+  },
+  {
+    "id": "BH-S12",
+    "title": "Tie-handling in top-K selection is not stable; ties can create cross-run drift",
+    "ref": "BH L3431-L3475"
+  },
+  {
+    "id": "BH-S13",
+    "title": "SA acceptance and \u201cbest update\u201d are consistent, but there is an unused knob",
+    "ref": "BH L3476-L3512"
+  },
+  {
+    "id": "BH-S14",
+    "title": "Kaeding plateau logic can override plateau based on pct improvements, but telemetry state can become inconsistent",
+    "ref": "BH L3513-L3594"
+  },
+  {
+    "id": "BH-S15",
+    "title": "KeyOps verb registry + capability truthfulness (base class",
+    "ref": "BH L3599-L3636"
+  },
+  {
+    "id": "BH-S16",
+    "title": "RNG API consistency (Generator vs RandomState) inside KeyOps",
+    "ref": "BH L3637-L3662"
+  },
+  {
+    "id": "BH-S17",
+    "title": "GA recombination path can crash for KeyOps that don\u2019t override recombine",
+    "ref": "BH L3663-L3693"
+  },
+  {
+    "id": "BH-S18",
+    "title": "CompositeKeyOps interruptor mutation locality (repair steps can amplify a \u201csmall\u201d move",
+    "ref": "BH L3694-L3746"
+  },
+  {
+    "id": "BH-S19",
+    "title": "Repair to permutation\u201d normalisation can conceal upstream key corruption",
+    "ref": "BH L3747-L3834"
+  },
+  {
+    "id": "BH-S20",
+    "title": "Periodic substitution key validity is assumed (not enforced) \u2014 encryption can silently go wrong",
+    "ref": "BH L3835-L3883"
+  },
+  {
+    "id": "BH-S21",
+    "title": "Columnar transposition core logic looks internally consistent for edge lengths (but batch semantics are \u201cbroadcast plaintext",
+    "ref": "BH L3884-L3936"
+  },
+  {
+    "id": "BH-S22",
+    "title": "Pipeline \u201cmod_keys\u201d can hide invalid substitution keys by wrapping (worth deciding explicitly",
+    "ref": "BH L3937-L4008"
+  },
+  {
+    "id": "BH-S23",
+    "title": "Cipher pipeline composition (interruptors + text transposition/permutation + core cipher",
+    "ref": "BH L4010-L4072"
+  },
+  {
+    "id": "BH-S24",
+    "title": "TranspositionManager \u201cperm\u201d mode (invertibility + determinism",
+    "ref": "BH L4073-L4128"
+  },
+  {
+    "id": "BH-S25",
+    "title": "PeriodicColumnarCipher core correctness (periodic substitution + columnar transposition",
+    "ref": "BH L4129-L4216"
+  },
+  {
+    "id": "BH-S26",
+    "title": "Columnar transposition remainder handling (edge lengths",
+    "ref": "BH L4217-L4257"
+  },
+  {
+    "id": "BH-S27",
+    "title": "Interruptors + initial_text_permutation_indices interaction (length coupling",
+    "ref": "BH L4258-L4341"
+  },
+  {
+    "id": "BH-8A",
+    "title": "Seed normalisation and \u201cdefault determinism",
+    "ref": "BH L4344-L4385"
+  },
+  {
+    "id": "BH-8B",
+    "title": "initial_text_permutation_indices normalisation exists but is not used",
+    "ref": "BH L4386-L4429"
+  },
+  {
+    "id": "BH-8C",
+    "title": "Ciphertext index coercion can silently wrap invalid values",
+    "ref": "BH L4430-L4468"
+  },
+  {
+    "id": "BH-8D",
+    "title": "Scorer param normalisation has keys that the \u201cstrict\u201d validator will reject",
+    "ref": "BH L4469-L4513"
+  },
+  {
+    "id": "BH-8E",
+    "title": "Legacy win\u201d is silently swallowed / conditionally merged into objective",
+    "ref": "BH L4514-L4548"
+  },
+  {
+    "id": "BH-8F",
+    "title": "WLI is structurally \u201calways there\u201d in core configs, and scoring defaults heavily weight it",
+    "ref": "BH L4549-L4608"
+  },
+  {
+    "id": "BH-8G",
+    "title": "Interruptor config precedence can silently override user intent",
+    "ref": "BH L4609-L4696"
+  },
+  {
+    "id": "BH-S28",
+    "title": "initial_text_permutation_indices normalisation / validation",
+    "ref": "BH L4697-L4739"
+  },
+  {
+    "id": "BH-S29",
+    "title": "Solver span duration is computed from mixed clocks",
+    "ref": "BH L4740-L4780"
+  },
+  {
+    "id": "BH-S30",
+    "title": "eval_keys\u201d / \u201ceval_batches\u201d counters exist but are never updated",
+    "ref": "BH L4781-L4812"
+  },
+  {
+    "id": "BH-S31",
+    "title": "Run envelope fields use setdefault and can go stale if a problem is reused",
+    "ref": "BH L4813-L4847"
+  },
+  {
+    "id": "BH-S32",
+    "title": "Telemetry attachment uses setdefault and claims \u201cshallow copy\u201d but still shares references",
+    "ref": "BH L4848-L4879"
+  },
+  {
+    "id": "BH-S33",
+    "title": "Engine records scorer impl/dtype via optional methods, so telemetry can be \u201cunknown\u201d even when known",
+    "ref": "BH L4880-L4950"
+  },
+  {
+    "id": "BH-10A",
+    "title": "Engine seed propagation (good, but note what it guarantees",
+    "ref": "BH L4953-L4980"
+  },
+  {
+    "id": "BH-10B",
+    "title": "Legacy build_optimizer() uses entropy RNG (high-risk footgun",
+    "ref": "BH L4981-L5005"
+  },
+  {
+    "id": "BH-10C",
+    "title": "Hybrid phase RNG derivation depends on internal RNG state shape (brittle",
+    "ref": "BH L5006-L5040"
+  },
+  {
+    "id": "BH-10D",
+    "title": "Entropy RNG fallback in SolverBase seed normalisation (should not exist in a strict-deterministic framework",
+    "ref": "BH L5041-L5070"
+  },
+  {
+    "id": "BH-10E",
+    "title": "Torch determinism knobs are set globally (good intent, but device parity still needs explicit tests",
+    "ref": "BH L5071-L5285"
+  }
+]

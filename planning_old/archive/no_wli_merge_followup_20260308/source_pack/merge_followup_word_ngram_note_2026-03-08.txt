@@ -1,0 +1,28 @@
+Agree with original dev comments on that run: solve quality is good, but it did not validate word-ngram telemetry because it was disabled.
+
+Current state now:
+- `tools/benchmarks/periodic_sub_trans/no_wli/runner_defaults.py` auto-enables word-ngram report when SQLite exists.
+- It auto-fills SQLite path from local repo data.
+- Verified in runtime defaults:
+  - `WORD_NGRAM_REPORT_ENABLED=True`
+  - `WORD_NGRAM_REPORT_SQLITE_PATH=output\tools\benchmarks\scoring\word_ngrams_sqlite_assets\20260308T024914Z__build_word_ngram_sqlite_asset_phase2_v1\word_ngrams_tokenized64_phase2_v1.sqlite`
+- Logged this issue in `planning/review/merge_issue_log_2026-03-08.md` as a tracked merge behavior item.
+
+About your mentioned file:
+- I cannot see `planning/review/merge_review_followup_network_2026-03-08.md` in this local tree.
+- If needed, copy it into this repo path and I’ll fold it in directly.
+
+Next step to close validation loop:
+1. Rerun the same narrow slice.
+2. Check `run_config.json` shows `stage3.word_ngram_report.enabled=true`.
+3. Check final artifact JSON has non-empty:
+- `word_ngram_report`
+- `stage2_topk_word_ngram_report`
+- `stage3_topk_word_ngram_report`
+- embedded `scorer_report.score` values
+
+Status:
+- Done: code + defaults + tests + issue log
+- In progress: waiting on rerun with telemetry on
+- Todo: one end-to-end artifact validation run
+- Next reasoning effort: medium-high (interpret telemetry usefulness, not plumbing)

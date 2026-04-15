@@ -1,0 +1,208 @@
+[
+  {
+    "id": "PDF-T01",
+    "title": "WLI Invariant Canary",
+    "ref": "PDF p13 l10-l16",
+    "tests": [
+      "test_wli_invariants"
+    ],
+    "files": [
+      "tests/api/test_wli_invariants.py"
+    ],
+    "first": "WLI Invariant Canary  \u2013  File: tests/api/test_wli_invariants.py  \u2013  Scenario:  Call the high-"
+  },
+  {
+    "id": "PDF-T02",
+    "title": "WLI vs Runeglish Parity",
+    "ref": "PDF p13 l17-l22",
+    "tests": [
+      "test_wli_parity"
+    ],
+    "files": [
+      "tests/api/test_wli_parity.py"
+    ],
+    "first": "WLI  vs  Runeglish  Parity  \u2013  File: tests/api/test_wli_parity.py  \u2013  Scenario:  For  random"
+  },
+  {
+    "id": "PDF-T03",
+    "title": "WLI Permutation Alignment",
+    "ref": "PDF p13 l23-l28",
+    "tests": [
+      "test_permutation_wli"
+    ],
+    "files": [
+      "tests/core/test_permutation_wli.py"
+    ],
+    "first": "WLI  Permutation  Alignment  \u2013  File: tests/core/test_permutation_wli.py  \u2013  Scenario:"
+  },
+  {
+    "id": "PDF-T04",
+    "title": "Objective Direction Canary",
+    "ref": "PDF p13 l29-l34",
+    "tests": [
+      "test_objective_direction"
+    ],
+    "files": [
+      "tests/solver/test_objective_direction.py"
+    ],
+    "first": "Objective Direction Canary  \u2013 File: tests/solver/test_objective_direction.py  \u2013 Scenario:"
+  },
+  {
+    "id": "PDF-T05",
+    "title": "Score Precision Near-Tie",
+    "ref": "PDF p13 l35 \u2013 p14 l3",
+    "tests": [],
+    "files": [],
+    "first": ""
+  },
+  {
+    "id": "PDF-T06",
+    "title": "WLI Missing-Data Guard",
+    "ref": "PDF p14 l4-l11",
+    "tests": [
+      "test_wli_missing"
+    ],
+    "files": [
+      "tests/scoring/test_wli_missing.py"
+    ],
+    "first": "WLI Missing-Data Guard  \u2013 File: tests/scoring/test_wli_missing.py  \u2013 Scenario:  Configure a"
+  },
+  {
+    "id": "PDF-T07",
+    "title": "Legacy vs Main Determinism",
+    "ref": "PDF p14 l12-l17",
+    "tests": [
+      "test_determinism"
+    ],
+    "files": [
+      "tests/solver/test_determinism.py"
+    ],
+    "first": "Legacy vs Main Determinism  \u2013  File: tests/solver/test_determinism.py  \u2013  Scenario:  Run a"
+  },
+  {
+    "id": "PDF-T08",
+    "title": "Seed Replacement Detection",
+    "ref": "PDF p14 l18-l24",
+    "tests": [
+      "test_seed_validation"
+    ],
+    "files": [
+      "tests/solver/test_seed_validation.py"
+    ],
+    "first": "Seed Replacement Detection  \u2013 File: tests/solver/test_seed_validation.py  \u2013 Scenario:  For"
+  },
+  {
+    "id": "PDF-T09",
+    "title": "test_interruptor_permutation.py",
+    "ref": "PDF p14 l25-l31",
+    "tests": [
+      "test_interruptor_permutation"
+    ],
+    "files": [],
+    "first": "test_interruptor_permutation.py  \u2013 Scenario:  (a) Configure a cipher with a known interruptor"
+  },
+  {
+    "id": "PDF-T10",
+    "title": "Variable Interruptor Count Guard",
+    "ref": "PDF p14 l32-l37",
+    "tests": [
+      "test_variable_interruptors"
+    ],
+    "files": [
+      "tests/core/test_variable_interruptors.py"
+    ],
+    "first": "Variable  Interruptor  Count  Guard  \u2013  File: tests/core/test_variable_interruptors.py  \u2013"
+  },
+  {
+    "id": "PDF-T11",
+    "title": "Telemetry Permutation Reporting",
+    "ref": "PDF p14 l38 \u2013 p15 l2",
+    "tests": [],
+    "files": [],
+    "first": ""
+  },
+  {
+    "id": "PDF-T12",
+    "title": "Encoding Direction Consistency",
+    "ref": "PDF p15 l3-l10",
+    "tests": [
+      "test_encoding_direction"
+    ],
+    "files": [
+      "tests/api/test_encoding_direction.py"
+    ],
+    "first": "Encoding Direction Consistency  \u2013 File: tests/api/test_encoding_direction.py  \u2013 Scenario:"
+  },
+  {
+    "id": "PDF-T13",
+    "title": "LM Cache Isolation",
+    "ref": "PDF p15 l11-l17",
+    "tests": [
+      "test_lm_smoothing"
+    ],
+    "files": [
+      "tests/scoring/test_lm_smoothing.py"
+    ],
+    "first": "LM  Cache  Isolation  \u2013  File: tests/scoring/test_lm_smoothing.py  \u2013  Scenario:  Load  a"
+  },
+  {
+    "id": "PDF-T14",
+    "title": "User Map3 Full-Domain Test",
+    "ref": "PDF p15 l18-l45",
+    "tests": [
+      "test_user_map3_domain"
+    ],
+    "files": [
+      "tests/ciphers/test_user_map3_domain.py"
+    ],
+    "first": "User Map3 Full-Domain Test  \u2013  File: tests/ciphers/test_user_map3_domain.py  \u2013  Scenario:"
+  },
+  {
+    "id": "BH-B01",
+    "title": "WLI is two different things (and it leaks across boundaries",
+    "ref": "BH L1669-L1728",
+    "tests": [
+      "test_wli_config_contract_is_consistent_with_hamming",
+      "test_wli_string_path_contract_poslen",
+      "test_wli_uint8_overflow_guard"
+    ],
+    "files": [],
+    "first": "Block 1 \u2014 WLI is two different things (and it leaks across boundaries)"
+  },
+  {
+    "id": "BH-B02",
+    "title": "Interruptors + text permutation: alignment traps",
+    "ref": "BH L1729-L1785",
+    "tests": [
+      "test_interruptor_remove_insert_roundtrip",
+      "test_interruptor_remove_then_text_permutation_then_inverse_roundtrip",
+      "test_wli_alignment_under_text_permutation"
+    ],
+    "files": [],
+    "first": "Block 2 \u2014 Interruptors + text permutation: alignment traps"
+  },
+  {
+    "id": "BH-B03",
+    "title": "Periodic substitution + columnar + interruptors: round-trip invariants",
+    "ref": "BH L1786-L1825",
+    "tests": [
+      "test_composed_cipher_with_interruptors_roundtrip",
+      "test_periodic_columnar_roundtrip_lengths_not_multiple_of_columns",
+      "test_periodic_substitution_encrypt_decrypt_roundtrip_random"
+    ],
+    "files": [],
+    "first": "Block 3 \u2014 Periodic substitution + columnar + interruptors: round-trip invariants"
+  },
+  {
+    "id": "BH-B04",
+    "title": "Scoring integrity (dtype honesty, batch/scalar honesty",
+    "ref": "BH L1826-L2296",
+    "tests": [
+      "test_batch_vs_scalar_ordering_near_ties",
+      "test_ecdf_dtype_knob_is_real",
+      "test_numpy_vs_torch_ranking_parity_fixed_candidates"
+    ],
+    "files": [],
+    "first": "Block 4 \u2014 Scoring integrity (dtype honesty, batch/scalar honesty)"
+  }
+]

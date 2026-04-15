@@ -17,7 +17,7 @@ SRC_ROOT = REPO_ROOT / "src"
 TEST_ROOT = REPO_ROOT / "tests"
 TOOLS_BENCHMARK_ROOT = REPO_ROOT / "tools" / "benchmarks"
 TOOLS_GET_SRC_ZIP_ROOT = REPO_ROOT / "tools" / "get_src_zip"
-PLANNING_WORKING_ROOT = REPO_ROOT / "planning" / "no_wli"
+PLANNING_WORKING_ROOT = REPO_ROOT / "planning" / "projects" / "no_wli"
 NO_WLI_OUTPUT_ROOT = (
     REPO_ROOT
     / "output"
@@ -267,7 +267,7 @@ def _default_root_specs(
         ),
         BundleRootSpec(
             scan_root=planning_working_root,
-            root_label="planning/working",
+            root_label="planning/projects/no_wli",
             excluded_dir_names=frozenset(COMMON_EXCLUDED_DIR_NAMES),
             excluded_dir_prefixes=PLANNING_EXCLUDED_DIR_PREFIXES,
         ),

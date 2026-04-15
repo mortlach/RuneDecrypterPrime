@@ -1,4 +1,4 @@
-# Benchmarks Folder
+﻿# Benchmarks Folder
 
 Benchmark runners, fixtures, solve-proof logs, and community harness tools.
 
@@ -22,7 +22,7 @@ Benchmark runners, fixtures, solve-proof logs, and community harness tools.
     `data/`, `__pycache__/`, compiled extension artifacts, and large split/binary blobs.
 - `python tools/get_src_extended_review_bundle.py`
   - Creates a reviewer bundle with source, benchmark pipeline code,
-    `planning/working/`, and No-WLI output artifacts, while excluding caches,
+    `planning/projects/no_wli/`, and No-WLI output artifacts, while excluding caches,
     large binary blobs, and old nested review-pack folders.
 - `python tools/benchmarks/tidy_output_root.py`
   - Moves loose root-level timestamped benchmark output folders into canonical output homes,
@@ -47,3 +47,4 @@ Canonical top-level output roots under `output/tools/benchmarks/` are:
 - `analysis/`
 
 Loose timestamped root-level folders should be tidied into those roots rather than left directly under `output/tools/benchmarks/`.
+

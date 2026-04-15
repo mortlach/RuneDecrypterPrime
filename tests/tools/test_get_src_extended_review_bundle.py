@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 from zipfile import ZipFile
@@ -23,7 +23,7 @@ def test_make_get_src_extended_review_bundle_includes_review_inputs_without_bloa
     test_root = repo_root / "tests"
     benchmark_root = repo_root / "tools" / "benchmarks"
     tools_get_src_zip_root = repo_root / "tools" / "get_src_zip"
-    planning_working_root = repo_root / "planning" / "working"
+    planning_working_root = repo_root / "planning" / "projects" / "no_wli"
     no_wli_output_root = (
         repo_root
         / "output"
@@ -94,7 +94,7 @@ def test_make_get_src_extended_review_bundle_includes_review_inputs_without_bloa
     assert "tools/benchmarks/README.md" in names
     assert "tools/benchmarks/periodic_sub_trans/no_wli/runner.py" in names
     assert "tools/get_src_zip/get_src_extended.py" in names
-    assert "planning/working/no_wli_science_run_log_2026-03-26.md" in names
+    assert "planning/projects/no_wli/no_wli_science_run_log_2026-03-26.md" in names
     assert "output/tools/benchmarks/periodic_sub_trans/no_wli/fixture_matrix_run_state_demo.json" in names
     assert (
         "output/tools/benchmarks/periodic_sub_trans/no_wli/20260403T000000Z__bench_solve_pipeline_no_wli__demo/final_instances/fixture_fixture_001_p5_c1_l1000__text0__seed511.json"
@@ -108,7 +108,8 @@ def test_make_get_src_extended_review_bundle_includes_review_inputs_without_bloa
     assert "src/rune_decrypter_prime/data/huge.bin" not in names
     assert "tools/benchmarks/other/skip.py" not in names
     assert (
-        "planning/working/no_wli_external_review_pack_2026-03-30/nested.txt"
+        "planning/projects/no_wli/no_wli_external_review_pack_2026-03-30/nested.txt"
         not in names
     )
     assert "output/tools/benchmarks/periodic_sub_trans/no_wli/skip.zip" not in names
+

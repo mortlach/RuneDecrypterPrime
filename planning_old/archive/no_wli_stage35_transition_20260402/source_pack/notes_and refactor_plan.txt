@@ -1,0 +1,915 @@
+I did the deep cross-check you asked for against three things:
+
+* the new March 19 source snapshot, which contains 649 included files across `src`, `tests`, and the benchmark subdirs `community`, `periodic_sub_trans`, and `scoring` 
+* the attached agent log / pasted chat transcript, which records what was changed and why across v21, v22, and v23 
+* the shared output bundle, including the finished earlier artefacts and the later partial v22/v23 logs
+
+## My overall judgement
+
+**Yes, I think you are now doing this in basically the right way.**
+The work has moved from “try knobs and hope” to a much better loop:
+
+1. observe a concrete failure
+2. isolate it offline
+3. test one narrow mechanism
+4. only then wire it into live runs
+
+That is the right scientific method for this kind of hard search problem.
+
+But there is one big caveat:
+
+**the run discipline is still weaker than the algorithm discipline.**
+
+You are now reasoning much better about the solver itself, but the live-run infrastructure is still costing you too much:
+
+* runs are long
+* some runs were killed before completion
+* some decisions were made from partial stdout rather than completed final artefacts
+* v22 and v23, in the shared output zip, do not have finished `final_instances` artefacts, so they are evidence, but not the strongest kind of evidence
+
+So my short verdict is:
+
+* **algorithmically:** much better
+* **experimentally:** better, but still too fragile
+
+---
+
+## Stage-by-stage: how I think progress actually happened
+
+### 1. The early “preserve more late candidates” work was real progress
+
+The older finished wide artefact already showed that widening the late-stage pool helped structurally:
+
+* `phaseC_candidate_pool_count = 30`
+* `phaseC_candidate_pool_unique_end_hash = 29`
+* `phaseC_start_source_counts = {"stage3_best_phaseB": 1, "phaseB_topk": 4, "phaseA_selected": 3}`
+* `phaseC_improved_best = 1` 
+
+That means the solver stopped collapsing quite so brutally before Phase-C.
+
+But the same artefact also showed why that was **not enough**:
+
+* final `best_match_ratio` still only reached `0.644`
+* columns were already correct, with `truth_key_hamming_columns = 0`
+* substitution was still badly wrong, with `truth_key_hamming_substitution = 137` and worst slice mismatches still `26` 
+
+So this stage was not wasted. It answered a real question:
+
+> “Is the main problem just late-stage diversity collapse?”
+> and the answer was:
+> “Partly, but not fully.”
+
+### 2. The score-alignment problem was real, and you caught it
+
+That same older wide artefact already showed a subtle but important problem:
+
+* some starts improved **score** while getting worse in **truth match**
+* for example `start_idx = 4` went from `0.640` to `0.637` in match while score rose to `0.268644...`
+* `start_idx = 6` went from `0.640` to `0.639` while score rose to `0.265677...`
+* `start_idx = 8` went from `0.633` to `0.630` while score rose to `0.265156...`
+
+That is not just a nuisance. It is one of the core reasons this family is hard:
+the late-stage judge can reward moves that look better numerically while actually drifting away from the true substitution.
+
+So the later offline replay work was not overkill. It was exactly the right response to that evidence.
+
+### 3. The offline replay harness was the right pivot
+
+This was one of the best decisions in the whole sequence.
+
+The replay harness explicitly reconstructs:
+
+* the anchor from the saved artefact
+* challenger starts only from `phaseB_topk`
+* and only for `source_rank >= 2`
+
+That is good design, because it stops you spending another eight hours just to answer a one-hour question like:
+
+* is the slice chooser wrong?
+* is the guard too strict?
+* is the landing generator too weak?
+* is the selector choosing the wrong candidate from a decent pool?
+
+That shift — from live guessing to offline diagnosis — is the single biggest sign that you are now approaching this correctly.
+
+### 4. The live v21 patch was sensible, but the run starved rescue upstream
+
+The agent log says the v21 live patch did four sensible things:
+
+* live rescue switched from the old slip-only landing to the offline-proven slice-local mini-search
+* rescue became rank-aware
+* rescue used the shallow-first selector
+* rescued challengers got a deeper rescue-only polish budget 
+
+That was the right live patch to try.
+
+But the same log also shows the finished v21 run failed for a very specific reason:
+Phase-C never got rescue-capable `phaseB_topk` challengers to work on, because the candidate pool collapsed upstream. The agent explicitly calls out `stage3_topk_count` effectively collapsing to `1`, leaving rescue with no eligible `phaseB_topk` challenger lane. 
+
+That is a useful failure.
+It means the rescue code was not disproved; it was starved.
+
+### 5. The partial v22 evidence is the first really encouraging live sign
+
+This is where I think the work becomes genuinely promising.
+
+The agent log says the partial v22 stdout showed:
+
+* a rescued challenger on `start_idx = 6`, `source_rank = 4`
+* `best_match = 0.647`
+* `overtook_anchor = 1`
+  before the run was killed by the shell timeout 
+
+That matters a lot, because it lines up with what was already hiding in the older wide artefact:
+`start_idx = 6`, `source_rank = 4` was already one of the interesting `phaseB_topk` challengers there, even though ordinary shallow Phase-C polish did not help it at the time. 
+
+So the story hangs together:
+
+* older wide run: this challenger family exists, but the old selector/polish does not exploit it
+* offline replay: this family can be rescued and can beat the anchor
+* partial v22 live run: once the live run actually reaches that lane, it really does overtake anchor
+
+That is the strongest sign of real progress so far.
+
+### 6. v23 is still not a finished result in the shared bundle
+
+This is the one place I want to be careful.
+
+The v23 change itself is clear in the log:
+it keeps the same rescue lane as v22, but trims `phaseC_start_keys` down to `8` because the useful rescued challenger had already appeared by start 8 in v22.
+
+That is a sensible runtime trim.
+
+But in the shared output zip I inspected, v23 does **not** include a finished final artefact. It includes:
+
+* the run config
+* state/event files
+* stdout/stderr logs
+* but no `final_instances/*.json` for the v23 `nogit` run
+
+So v23 is still **suggestive**, not definitive.
+
+---
+
+## Are you doing this right?
+
+### What you are doing right
+
+You are doing several things well now:
+
+**1. You are finding real bugs and real design mistakes, not just tuning numbers.**
+The work has uncovered both implementation problems and algorithm problems.
+
+**2. You are isolating failure modes one at a time.**
+That is exactly what you need for hard cryptanalytic search.
+
+**3. You are treating tests as part of the design, not decoration.**
+The agent log repeatedly shows `py_compile` and focused pytest runs being used as part of each step. 
+
+**4. You are no longer trusting a single top candidate too early.**
+That was a major weakness before.
+
+### What you are not doing well enough yet
+
+There are three things I think need tightening.
+
+#### A. Too many decisions still depend on partial runs
+
+v22 produced useful information, but it was still killed before completion.
+That is survivable once or twice, but not as a steady method.
+
+#### B. Your live-run infrastructure is still too brittle
+
+A solver this slow needs one of:
+
+* reliable unattended launching
+* checkpointing
+* or resumable late-stage snapshots
+
+Without that, every eight-hour run is too fragile.
+
+#### C. The branch still carries too much “diagnostic baggage”
+
+The lexical path is still basically dead in the shared artefacts:
+the earlier wide artefact shows lexical requests at zero while threshold skips stay high. 
+
+So right now lexical is mostly clutter in this branch.
+You need to either:
+
+* deliberately turn it off for this line of work,
+* or deliberately make it part of a specific experiment.
+
+---
+
+## What I think you could do better
+
+### 1. Make completed artefacts, not stdout, the source of truth
+
+This is the biggest practical improvement.
+
+For long runs, every Phase-C start should emit a small checkpoint row with:
+
+* start index
+* source / source rank
+* rescue attempted / applied
+* init match / final match
+* init score / final score
+* whether it overtook anchor
+
+That way, even if the shell dies, you still get a usable completed trail.
+
+### 2. Add one exact deterministic integration test for the “winning challenger lane”
+
+At the moment the tests described in the log are good, but they are still mostly about:
+
+* diagnostics
+* eligibility
+* selector plumbing
+* rescue-specific polish budget 
+
+What I would add now is one integration-style test that proves this exact property:
+
+> when a later `phaseB_topk` challenger survives, rescue can overtake the anchor and remain the selected winner after the rescue-only polish budget.
+
+That would lock in the key lesson from the v22 partial run.
+
+### 3. Surface the challenger-preservation contract explicitly
+
+The v21 failure happened because rescue starved upstream.
+That means the solver now has an important new contract:
+
+> rescue only works if enough meaningful `phaseB_topk` challengers survive into Phase-C.
+
+That contract should be explicit in:
+
+* config
+* diagnostics
+* and tests
+
+At the moment it is still too implicit.
+
+### 4. Stop carrying lexical as a half-alive idea in this branch
+
+Either:
+
+* disable it in this rescue branch so it stops polluting interpretation,
+  or
+* make a dedicated lexical experiment later
+
+But do not keep it sitting there doing nothing while making logs harder to read.
+
+### 5. Use runtime budgeting from measured logs, not judgement alone
+
+The v23 trim was sensible, but it was still based on a human reading of the partial v22 log:
+the useful lane appeared by start 8, so they clipped `phaseC_start_keys` to 8.
+
+That is reasonable, but the better version is:
+
+* estimate cost per Phase-C start from the prior run
+* compute a budgeted maximum start count automatically
+* refuse to launch if the predicted wallclock is too high
+
+---
+
+## What is the best path I can think of for solving real problems?
+
+I would treat this as a staged programme.
+
+### Stage 1: finish one real p9 case cleanly
+
+Do not broaden again yet.
+
+Goal:
+
+* one **completed** live run
+* one hard case
+* one seed
+* one preset
+* final artefact written cleanly
+
+Success criterion:
+
+* rescued challenger overtakes anchor in the final artefact
+* best match goes clearly above the old `0.644` ceiling
+* ideally into the high `0.64x` or `0.65x+` range with a completed file, not just stdout
+
+### Stage 2: add resumable late-stage checkpoints
+
+Before more long runs, make interrupted runs analyzable.
+
+This is not glamorous, but it will save you days.
+
+### Stage 3: create a tiny p9 acceptance set
+
+Once one p9 case works cleanly, choose maybe:
+
+* 3 to 5 hard p9 cases
+* fixed seeds
+* fixed text offsets
+
+Then require any new rescue/selector change to help on that mini-set before wider scaling.
+
+### Stage 4: only then go to higher period
+
+Period 13 should not be treated as “more compute”.
+
+It should be treated as:
+
+> “do we now trust the late-stage preservation + rescue + selection machinery enough to expose it to a harder landscape?”
+
+At the moment, I do **not** think you are ready for period 13 live campaigns yet.
+But I do think you are now building the right machinery for it.
+
+---
+
+## The single most important technical point
+
+If I had to condense the whole review into one sentence, it would be this:
+
+**The project is no longer mainly about making stronger rescue moves; it is about preserving the right challenger family long enough for rescue to act, and then selecting it correctly after rescue.**
+
+That is the real lesson of the whole sequence.
+
+The evidence for that is very consistent:
+
+* older wide run: multiple `phaseB_topk` challengers existed, but score-led Phase-C often preferred the wrong ones
+* offline replay: rescue could generate better landings from challenger starts and eventually identified a useful shallow rescue lane 
+* live v21: rescue starved because challengers did not survive to Phase-C 
+* partial v22: once the useful later challenger was actually rescued live, it overtook anchor and pushed best match above the old ceiling in-flight 
+
+That is real progress.
+
+---
+
+## Final view
+
+So, after reading the agent comments, checking the March 19 source, and comparing with the outputs:
+
+**I think you are doing this broadly right now.**
+Not perfectly, and not efficiently enough yet, but **right**.
+
+My confidence is in this order:
+
+* **high** that the offline replay / selector / rescue analysis has been the correct move
+* **medium-high** that the live rescue lane is now pointing at something real
+* **medium** that the next completed live p9 run can break the current ceiling cleanly
+* **low** that you should broaden to bigger campaigns or higher periods just yet
+
+The best next move is not a brand-new solver idea.
+It is:
+
+1. get one fully completed live p9 rescue run written cleanly to final artefact
+2. add robust checkpointing so partial runs stop wasting evidence
+3. then build a tiny acceptance set before scaling out
+
+That is the best path I can see to solving real problems from here.
+
+
+Yes. Here is a concrete **refactor plan + implementation plan** aimed at an agent.
+
+I am **not** proposing a broad rewrite.
+I am proposing a focused refactor that does three things:
+
+1. makes the late-stage rescue path **shared** between offline replay and live runs
+2. makes long runs **safer and more inspectable**
+3. keeps the solver work aimed at **real hard cases**, not just prettier diagnostics
+
+---
+
+# 1. What this plan is trying to achieve
+
+## Main goal
+
+Turn the current late-stage rescue work into a clean, testable, shared path that can:
+
+* preserve useful challenger families
+* apply rescue to the right challengers
+* choose the right rescue landing
+* survive long runs without losing evidence
+* scale from period 9 testbeds toward harder periods later
+
+## Current facts this plan is based on
+
+These are the important things already learned:
+
+* The old late-stage path collapsed too early into one bad family.
+* Preserving more late-stage diversity helped, but was **not enough**.
+* The old slice-target proxy was wrong.
+* The old rescue landing was too weak.
+* The replay harness showed the **move generator** can now produce useful better-truth rescue landings.
+* The replay harness then showed the **selector** was choosing the wrong landing.
+* The later replay work showed a **later challenger lane** can beat the old final winner if:
+
+  * it is not pruned away
+  * it gets rescued
+  * it gets a deeper local polish budget
+* The live path is still too fragile because long runs can finish late or die without leaving the right final evidence.
+
+That means the right next step is **not** “search harder everywhere”.
+It is:
+
+* preserve the right challengers
+* rescue them with the offline-proven mechanism
+* choose the right landing
+* checkpoint what happened
+
+---
+
+# 2. Refactor direction
+
+## Core idea
+
+Split the current big Phase-C logic into a few small, shared function groups, so that:
+
+* **offline replay** and **live Phase-C** use the **same rescue engine**
+* selector experiments happen offline first
+* live runs become a narrow proof step, not the main place to debug ideas
+
+## Do not do these things
+
+* Do **not** rewrite the whole Stage-3 pipeline.
+* Do **not** invent a heavy OO framework.
+* Do **not** build separate live and replay rescue logic.
+* Do **not** add more half-used lexical logic in this branch.
+* Do **not** keep relying on stdout as the only proof of what happened.
+
+---
+
+# 3. Target architecture
+
+Keep it simple and function-based.
+
+## A. Shared rescue engine
+
+Create one small shared rescue layer that both replay and live call.
+
+Suggested module split:
+
+* `phasec_rescue_candidates.py`
+
+  * build rescue-eligible starts
+  * enforce challenger/anchor rules
+  * apply rank-aware budgeting
+* `phasec_rescue_mini_search.py`
+
+  * slice-local mini-search
+  * deterministic beam
+  * keep-all-rows option
+* `phasec_rescue_selector.py`
+
+  * selector modes
+  * baseline
+  * top-score-then-search
+  * rescue-shallow-then-search
+  * future selector experiments
+* `phasec_rescue_polish.py`
+
+  * rescue-specific post-landing local polish
+  * ordinary polish vs rescue-only deeper polish
+* `phasec_rescue_checkpoint.py`
+
+  * write compact per-start checkpoint rows
+  * readable even if full run dies
+
+These should be plain functions, not a class-heavy design.
+
+## B. Thin live wiring
+
+`stage3_two_phase.py` should stop owning all rescue details directly.
+
+It should mostly:
+
+* build Phase-C starts
+* call the shared rescue engine for challenger starts
+* call ordinary polish for anchor / plain challengers
+* collect diagnostics
+* choose final best
+
+## C. Thin replay wiring
+
+`replay_phasec_rescue_sweep.py` should stop having bespoke copies of rescue logic.
+
+It should:
+
+* load saved starts
+* call the same shared rescue engine
+* vary selector mode / guard threshold / replay-only truth scoring
+* compare results
+
+## D. Checkpointable diagnostics
+
+Every Phase-C start should emit a small record with:
+
+* start index
+* source
+* source rank
+* lane
+* rescue eligible / attempted / applied
+* selector mode
+* landing type
+* init match / final match
+* init score / final score
+* anchor overtake flag
+* rescue polish steps used
+
+This must go to a durable file during the run, not only into the final instance.
+
+---
+
+# 4. Concrete repo touchpoints
+
+## Files to refactor, not rewrite
+
+Main current files:
+
+* `tools/benchmarks/periodic_sub_trans/no_wli/stage3_two_phase.py`
+* `tools/benchmarks/periodic_sub_trans/no_wli/stage3_iteration_flow.py`
+* `tools/benchmarks/periodic_sub_trans/no_wli/iteration_post_stage3.py`
+* `tools/benchmarks/periodic_sub_trans/no_wli/iteration_outcome.py`
+* `tools/benchmarks/periodic_sub_trans/no_wli/replay_phasec_rescue_sweep.py`
+* `tools/benchmarks/periodic_sub_trans/no_wli/fixture_matrix_config.py`
+
+## New small helper modules to add
+
+Under the same `no_wli` folder:
+
+* `phasec_rescue_candidates.py`
+* `phasec_rescue_mini_search.py`
+* `phasec_rescue_selector.py`
+* `phasec_rescue_polish.py`
+* `phasec_rescue_checkpoint.py`
+
+## Tests to expand
+
+* `tests/tools/test_no_wli_stage3_phasec.py`
+* `tests/tools/test_no_wli_phasec_rescue_replay.py`
+* add one new integration-style test:
+
+  * later challenger survives
+  * rescue is applied
+  * rescue can overtake anchor
+  * rescue-specific polish budget is used
+  * final selected lane is challenger
+
+---
+
+# 5. Implementation plan for the agent
+
+## Phase 0 — lock down facts
+
+Before changing code, the agent must confirm these current repo facts:
+
+1. Where live rescue eligibility is built now.
+2. Where rescue landing generation happens now.
+3. Where selector choice happens now.
+4. Where final Phase-C winner is chosen now.
+5. Where final diagnostics are assembled now.
+6. Where replay duplicates live rescue logic instead of sharing it.
+
+Output required:
+
+* short repo facts list
+* exact functions
+* exact files
+* exact existing diagnostics fields
+
+## Phase 1 — extract shared rescue core
+
+Goal:
+move rescue mechanics out of `stage3_two_phase.py` and `replay_phasec_rescue_sweep.py` into shared helper functions.
+
+Implement:
+
+* rescue-eligible start builder
+* slice-local mini-search
+* rescue landing selector
+* rescue-only polish helper
+
+Guardrail:
+
+* no behaviour change yet
+* just extraction plus tests
+
+Acceptance:
+
+* existing replay tests still pass
+* existing live Phase-C tests still pass
+
+## Phase 2 — add durable per-start checkpoints
+
+Goal:
+make long runs analyzable even if interrupted.
+
+Implement:
+
+* one JSONL or CSV checkpoint file written during Phase-C
+* one row per completed start
+* append-only
+* safe if process stops early
+
+Use it in live runs only.
+
+Acceptance:
+
+* interrupted or partial run still leaves usable Phase-C evidence
+* final artefact and checkpoint agree on finished starts
+
+## Phase 3 — unify replay and live on the shared rescue engine
+
+Goal:
+offline replay and live code stop drifting apart.
+
+Implement:
+
+* replay calls shared rescue functions
+* live calls shared rescue functions
+* replay keeps truth-only comparison outside the shared core
+
+Acceptance:
+
+* replay still reproduces prior selector comparisons
+* live tests still pass
+* no duplicate mini-search / selector code left behind
+
+## Phase 4 — make challenger preservation an explicit contract
+
+Goal:
+stop starving rescue upstream without noticing.
+
+Implement:
+
+* explicit diagnostics for:
+
+  * how many `phaseB_topk` challengers reached Phase-C
+  * which source ranks survived
+  * how many were rescue-eligible
+  * how many were skipped by budget
+* explicit config for:
+
+  * max rescue starts
+  * rescue candidate source policy
+  * rank-aware inclusion rule
+
+Acceptance:
+
+* v21-style starvation becomes obvious in diagnostics
+* tests prove later challengers are not silently dropped by encounter order
+
+## Phase 5 — live proof run path
+
+Goal:
+make one narrow live proof path, not a wide campaign.
+
+Implement:
+
+* one dedicated proof preset
+* one seed
+* one hard case
+* rescue enabled
+* rescue-only deeper polish
+* checkpointing on
+* no unnecessary parallel variants
+
+Acceptance:
+
+* completed final artefact exists
+* checkpoint file exists
+* rescued challenger lane is visible in saved artefacts
+* no decision relies only on stdout
+
+## Phase 6 — acceptance mini-set
+
+Goal:
+stop judging progress from one lucky or unlucky run.
+
+Implement:
+
+* small fixed hard-case mini-set, maybe 3 to 5 cases
+* fixed seeds and offsets
+* one evaluation script that summarises:
+
+  * best match
+  * challenger overtakes
+  * rescue applied count
+  * final winner lane
+  * runtime
+
+Acceptance:
+
+* any new selector / rescue change must beat baseline on the mini-set before scaling out
+
+---
+
+# 6. Best path to solving real problems
+
+This is what I think the real path is.
+
+## Near term
+
+Use period 9 as the testbed to make the late-stage machinery reliable.
+
+That means:
+
+* preserve useful challengers
+* rescue later challengers, not just the first seen ones
+* use the offline-proven selector
+* give rescued challengers their own deeper polish budget
+* checkpoint everything important
+
+## Medium term
+
+Once one hard p9 case is solved cleanly with a completed final artefact:
+
+* make a mini acceptance set
+* make replay the gate before live changes
+* stop launching broad matrices unless the replay and mini-set say it is justified
+
+## Later
+
+Only after that should you push upward in period.
+
+Period 13 should be treated as:
+
+* a test of whether the late-stage rescue/selection design is mature
+  not
+* a bigger version of the current run
+
+---
+
+# 7. What could be done better right now
+
+## A. Stop relying on stdout for major conclusions
+
+Anything important should be recoverable from:
+
+* checkpoint rows
+* final instance
+* run summary
+
+## B. Make the replay/live parity a first-class rule
+
+Right now, too much insight is still coming from replay-only logic and then hand-wiring it into live.
+
+The rule should be:
+
+* one shared rescue engine
+* replay varies selector and truth analysis around that engine
+* live uses the chosen engine, not a cousin of it
+
+## C. Trim dead branches from this line of work
+
+Lexical is still mostly dead in this rescue branch.
+Either:
+
+* turn it off in the proof preset
+  or
+* put it in a separate branch of experiments later
+
+## D. Make rescue budgeting explicit
+
+Do not let “first N starts encountered” decide too much.
+Budget should be rank-aware and visible.
+
+---
+
+# 8. Agent-ready implementation prompt
+
+You can give this directly to an agent:
+
+```text
+You are working in the RuneDecrypterPrime repo.
+
+Your task is a narrow refactor and implementation pass for the no-WLI periodic substitution-transposition Stage-3 / Phase-C rescue path.
+
+This is NOT a broad rewrite.
+This is NOT a tidy-up pass.
+This is a focused refactor to make the late-stage rescue path shared, testable, and safe for long runs.
+
+Main goals:
+1. Share rescue logic between offline replay and live Phase-C.
+2. Add durable per-start Phase-C checkpoints.
+3. Preserve and rescue meaningful challenger starts without silent starvation.
+4. Keep the offline replay harness as the gate before broad live runs.
+
+Non-negotiable rules:
+- Read the actual repo files first.
+- No guessing.
+- No silent feature dropping.
+- No reduction in determinism.
+- No class-heavy redesign.
+- Keep it function-based and surgical.
+- Do not remove existing diagnostics; add to them.
+- Do not rely on stdout as the only source of truth.
+
+Current repo areas to inspect first:
+- tools/benchmarks/periodic_sub_trans/no_wli/stage3_two_phase.py
+- tools/benchmarks/periodic_sub_trans/no_wli/stage3_iteration_flow.py
+- tools/benchmarks/periodic_sub_trans/no_wli/iteration_post_stage3.py
+- tools/benchmarks/periodic_sub_trans/no_wli/iteration_outcome.py
+- tools/benchmarks/periodic_sub_trans/no_wli/replay_phasec_rescue_sweep.py
+- tools/benchmarks/periodic_sub_trans/no_wli/fixture_matrix_config.py
+- tests/tools/test_no_wli_stage3_phasec.py
+- tests/tools/test_no_wli_phasec_rescue_replay.py
+
+Implement in phases:
+
+Phase 0:
+- produce repo facts:
+  - where rescue eligibility is built
+  - where rescue landing generation happens
+  - where selector choice happens
+  - where final Phase-C winner is chosen
+  - where replay duplicates live rescue logic
+
+Phase 1:
+- extract shared rescue helpers into small new modules:
+  - phasec_rescue_candidates.py
+  - phasec_rescue_mini_search.py
+  - phasec_rescue_selector.py
+  - phasec_rescue_polish.py
+- keep behaviour unchanged during extraction
+
+Phase 2:
+- add durable per-start Phase-C checkpoint writing
+- one append-only JSONL or CSV row per completed start
+- include:
+  - start_idx
+  - source
+  - source_rank
+  - lane
+  - rescue_eligible
+  - rescue_attempted
+  - rescue_applied
+  - selector_mode
+  - landing_type
+  - match_init
+  - match_final
+  - score_init
+  - score_final
+  - overtook_anchor
+  - rescue_polish_steps_used
+
+Phase 3:
+- make replay_phasec_rescue_sweep.py call the shared rescue helpers
+- keep truth-only replay analysis outside the shared core
+
+Phase 4:
+- add explicit challenger-preservation diagnostics:
+  - phaseB_topk challengers reaching Phase-C
+  - rescue-eligible challengers
+  - challengers skipped by rescue budget
+  - surviving source ranks
+- make rescue budgeting rank-aware and explicit
+
+Phase 5:
+- prepare one bounded proof preset:
+  - one hard case
+  - one seed
+  - rescue enabled
+  - rescue-only deeper polish
+  - checkpointing enabled
+- do not broaden to a matrix yet
+
+Tests required:
+- existing tests must still pass
+- add one integration-style test proving:
+  - later phaseB_topk challenger can survive
+  - rescue is applied
+  - rescue-specific polish budget is used
+  - challenger can overtake anchor
+  - final winner lane becomes challenger
+
+Deliverable format:
+1. Repo facts
+2. Proposed file changes
+3. Copy-paste function bodies or exact replacement blocks
+4. Tests added/updated
+5. New diagnostics fields
+6. Risks and guardrails
+7. Exact bounded proof preset to run next
+
+Success criteria:
+- live and replay share the same rescue engine
+- partial runs leave usable checkpoint evidence
+- challenger starvation is visible in diagnostics
+- bounded proof run path is ready without relying on stdout
+```
+
+---
+
+# 9. My bottom-line recommendation
+
+Yes — I think this is the right time to do a **small structural refactor**.
+
+Not because the code is ugly.
+
+Because the current bottleneck is now:
+
+* preserving the right challenger family
+* rescuing it with the same logic offline and live
+* choosing it correctly
+* and not losing the evidence if a long run stops early
+
+That is exactly the sort of thing worth refactoring now.
+
+If you want, I can turn this into a shorter “phase checklist” version that reads more like a project task list than an agent brief.

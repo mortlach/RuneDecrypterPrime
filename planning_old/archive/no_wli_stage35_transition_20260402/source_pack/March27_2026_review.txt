@@ -1,0 +1,1097 @@
+## File 1 of 2 — Main review and strategy document
+
+### Title
+
+**No-WLI periodic substitution + transposition: current strategic review, failure-mode model, and next science studies**
+
+### Purpose
+
+This document is meant to close the current review stage and give the dev team a contained, evidence-based account of where the programme stands, what now looks strongest or weakest, what broad mistakes to avoid, and what the next science studies should be. It is not a meeting note, not a local run postmortem, and not a broad tidy-up plan. That matches the original review brief, which asked for a wide but critical review of the real problem, current strategy, tools, overfitting risk, and the most credible path toward harder general solves. 
+
+## 1. Executive judgement
+
+The project is **promising but not yet robust**.
+
+It has clearly shown that the current RDP-based no-WLI pipeline can reach genuinely informative basins on the present hard anchor. The strategic reviews describe best observed `p9/c3/l1000` behaviour around `0.77`, which is strong enough to count as real partial recovery rather than noise. At the same time, those same reviews also show that the current branch suffered a Stage-3 basin regression and that a previous Stage-3.5 proof attempt was invalid as a proof because the requested stage did not actually run.  
+
+So the right top-level reading is not:
+
+* “the tools are fundamentally broken”
+  and not:
+* “we are almost there, just tune harder”.
+
+It is:
+
+* the current toolset is good enough in principle,
+* the present bottleneck is still mostly **Stage-3-side search and basin handling**,
+* and the next progress is more likely to come from fixing **how promising basin families are entered, preserved, and actually exploited** than from another late rescue tweak. 
+
+## 2. Long-term goal and current alignment
+
+The long-term goal remains the right one:
+
+* first push **period up** to about `p13` at `l1000`,
+* then push **length down** toward `l500`. 
+
+The current strategy is **broadly aligned** with that goal, but only if we interpret the present `p9/c3/l1000` work correctly. The current hard-anchor work should be treated as a **bridge study**, not as an end in itself. Its job is to expose the real weak-seed failure modes, tighten the methodology, and identify changes that are likely to generalise upward in period. If the work turns into endless local tuning on `p9`, it becomes misaligned with the real target. The deeper reviews explicitly warn against that kind of drift and argue for a benchmark ladder with controls, bridge families, and target families rather than one heroic benchmark.
+
+## 3. What is now strongly established
+
+Several things now look solid enough to treat as current working truth.
+
+The first is that the main bottleneck is **not** broad engineering mess. The original wide reviews already argued that the main current regression sits inside Stage-3 basin generation rather than Stage-2 candidate quality or a totally inverted scorer stack.   The code-and-artefact review performed after that is consistent with this.
+
+The second is that the active avg/full-text no-WLI profile is already fairly broad **on paper**. The uploaded profile definition confirms that `no_wli_a1_m12_b34_stage3avg_fulltext_v1` uses `stage3_initial_keys = 64`, `stage12_archive_keep = 192`, `stage12_promote_top = 96`, and `solver_stage3.use_raw_score = True`. So the issue is not simply that Stage 3 was left narrow by default.
+
+The third is that weak seeds do **not** all fail in the same way. The current planning state already splits them: `seed211_current_preserve` is treated mainly as `good_family_absent`, while `seed411_current_preserve` is treated mainly as `good_family_undervalued`, with an optional secondary `good_family_absent`. That split fits the later code review well. `211` looks mainly like “the run never gets close enough to the right family”, while `411` looks more like “something better may exist, but downstream selection/ranking does not back it enough.” 
+
+The fourth is that the current Stage-3.5 path is **not** the main next lever. The strategy reviews already said that late rescue is not the right central workstream until Stage-3 basin quality is stronger. The later code review still points in the same direction. 
+
+## 4. The current failure-mode model
+
+At this point, the broad optimisation issue is best described as a **multi-stage premature-convergence problem**.
+
+In plain English, the current system seems able to generate **some** useful variation, but it often turns that into **too little exploitable variation** before the right family has enough depth to prove itself.
+
+The clearest current model is this:
+
+### A. Hidden Stage-3 entry compression
+
+Upstream promotion can become much broader than the actual Stage-3 entry budget. In the reviewed weak-seed evidence, `seed211` showed a much larger promoted set than actual Stage-3 entry count. That is exactly the kind of hidden breadth–depth coupling that can make “preserve more” fail to help: the system keeps more things nominally alive upstream, but then spreads too little real Stage-3 search over too many promoted seeds. This is still one of the clearest concrete findings from the review.
+
+### B. Phase-B family collapse
+
+The current path still looks row-ranked first, not family-protected first. It sorts rows by score key, dedupes exact start/end hashes, keeps top rows, widens locally, and then moves on. What it does **not** yet do strongly is protect a few genuinely different basin families before global score fill. That means a few near-duplicate rows from one favoured family can crowd out a temporarily under-scored but better family.
+
+### C. Phase-C start-set source-order bias
+
+This is the most subtle and important code-level issue found in the review. The Phase-C candidate pool is assembled from `stage3_best`, then `phaseB_topk`, then `phaseA_selected`, and the actual Phase-C starts are then taken in that same source order until the start budget is full. That means the pipeline may preserve **nominal variety** in the candidate pool longer than it preserves **exploitable variety** in the actual explored start set. So even when some broader variety exists, the starts that are truly explored can still be dominated by already-favoured sources.
+
+Taken together, those three effects form a coherent picture:
+
+* the pipeline is not empty of signal,
+* but it may be compressing and biasing the search too early.
+
+## 5. What this is **not**
+
+It is important to say explicitly what the review does **not** currently support.
+
+It does **not** support the claim that the main problem is “bad code everywhere”.
+
+It does **not** support the claim that the scorer stack is fundamentally useless. The strategic reviews already said the selector/scorer behaviour looks “useful but imperfect” rather than globally broken, and the later review did not overturn that. 
+
+It does **not** support casually undoing the old raw-search / judge-split design. The current runtime and profile structure suggest that raw-search versus later judged reporting/ranking is an old deliberate design choice. It may still cap robustness, but it does not look like the clearest recent regression by itself. The current profile explicitly sets `solver_stage3.use_raw_score = True`, which at minimum shows that the raw-search choice is intentional in the active Stage-3 profile.
+
+And it does **not** support treating another Stage-3.5 or lexical tweak as the main next move.
+
+## 6. Silent-drift and evidence-quality risks
+
+One thing the dev document needs to say plainly is that some of the risk here is not just search strategy but **silent drift between intended and actual evidence paths**.
+
+Three forms matter.
+
+First, **profile intent versus local runtime override**. The current profile is broad on paper, but local fixture-matrix presets can still change several things at once, including entry size, tie-band width, shortlist sizes, and gate thresholds. That makes some runs useful as reconnaissance rather than clean one-variable tests.
+
+Second, **nominal preserved variety versus actually exploited variety**. The code path itself can allow variety to survive in the abstract while still shrinking the truly explored path into a much narrower set.
+
+Third, **live state versus replay-preserved state**. This matters especially for `seed411`, where replay evidence was explicitly based on a `fallback_artifact` rather than a richer live Stage-3 bundle. That means some replay conclusions are about the **reduced preserved state**, not the fullest live state. So some replay-derived conclusions should be treated as medium-confidence rather than high-confidence. 
+
+This does not invalidate the tooling. It just means the document should separate:
+
+* live-run evidence,
+* replay evidence,
+* and inference.
+
+## 7. Broader optimisation framing
+
+The outside optimisation and decipherment literature broadly supports the kind of problem we now seem to have.
+
+The strategic reviews already drew on external work to argue that the jump to `p13/l1000` and especially `p13/l500` is **not incremental**, because the effective per-phase evidence shrinks with `L/p`, short-range models become less discriminative, and stronger search plus stronger priors become necessary.
+
+That maps neatly onto the current code review. The current issue does not look like one silly bug. It looks much more like a classic exploration problem:
+
+* rugged landscape,
+* deceptive local basins,
+* useful late signal,
+* but poor robust early family handling.
+
+That is exactly the kind of problem where hidden breadth–depth coupling and premature convergence matter.
+
+## 8. What the current review stage now supports doing next
+
+The next stage should be **science studies**, not a broad rewrite and not another vague tuning loop.
+
+The first studies should each test one specific failure mode.
+
+### Study 1 — constant local-depth Stage-3 entry
+
+Hypothesis:
+wider upstream promotion is starving per-family Stage-3 search depth.
+
+Intervention:
+when the promoted set grows, scale the Stage-3 entry budget so that mutation/search depth per promoted family stays roughly constant.
+
+Why this comes first:
+it directly targets the clearest concrete compression finding, and it is a large enough change to move signal without changing the overall scoring philosophy.
+
+### Study 2 — family-aware Phase-B preservation
+
+Hypothesis:
+promising alternative families are being collapsed too early by row-ranked selection.
+
+Intervention:
+reserve part of the Phase-B shortlist for distinct families before global score fill.
+
+Why this comes second:
+it directly targets the family-collapse story and matches the newer basin-family audit direction.
+
+### Study 3 — family-aware or source-balanced Phase-C start selection
+
+Hypothesis:
+the candidate pool contains more useful variety than the actual explored start set.
+
+Intervention:
+stop `stage3_best` plus Phase-B top rows from consuming almost the whole Phase-C start budget by default.
+
+Why this comes third:
+it directly targets the most subtle hidden squeeze found in the review.
+
+These three look much better motivated than:
+
+* another lexical tweak,
+* another Stage-3.5 variant,
+* or a blunt “one score everywhere” intervention.
+
+## 9. What should **not** happen next
+
+The document should be explicit here.
+
+Do not launch a broad tidy-up/refactor as the main next stage. The original review brief already said solve-first, with tactical refactor only where it directly helps the solve programme. 
+
+Do not treat another late rescue idea as the main path forward.
+
+Do not continue weak-seed work in a way that becomes seed-specific polishing without a clear hypothesis tied to the `p13` goal.
+
+Do not start claiming readiness for `p13/l1000`, let alone `p13/l500`, until the current hard-anchor work is clearly being used as a bridge and not as an end in itself. The deeper reviews are very clear that `p13/l1000` needs stronger basin generation plus stronger later discrimination, and `p13/l500` likely needs even stronger global search and stronger priors.
+
+## 10. Confidence and uncertainty
+
+### High confidence
+
+* The main near-term bottleneck is still Stage-3-side search handling rather than general engineering mess. 
+* The active Stage-3 profile is already broad on paper, so the issue is not simply missing broadness in the profile definition.
+* Weak seeds do not all fail in the same way. 
+* The next studies should target entry compression, family collapse, and start-set bias rather than more late rescue.
+
+### Medium confidence
+
+* `seed411` replay evidence underestimates what the live run may have contained, because of replay-state limitations. 
+* The exact relative importance of gate effects versus Phase-C start bias still deserves one final cross-check, but both are clearly secondary to the broader “premature convergence / exploitable variety loss” picture.
+
+### Lower confidence
+
+* The precise best way to define family views and family regret for live policy use. The current audit looks good enough as a diagnostic tool, but it should not yet be treated as solver ground truth.
+
+## 11. Bottom line
+
+The current review stage is strong enough to close.
+
+The clearest current broad story is:
+
+* the project is still promising,
+* the tools are still good enough in principle,
+* the current failure is mainly **not** broad engineering failure,
+* and the next useful work is a small number of targeted science studies aimed at:
+
+  * hidden Stage-3 entry compression,
+  * Phase-B family collapse,
+  * and Phase-C start-set bias.
+
+That is the right bridge from current `p9/c3/l1000` hard-anchor work toward the real longer-term goal:
+
+* **push period up first**
+* then **push length down**. 
+
+
+## File 2 of 2 — Technical appendix / implementation-oriented note
+
+### Title
+
+**Technical appendix: code-path findings, likely rewrite points, and experiment implementation guidance for no-WLI periodic sub+trans**
+
+### Purpose
+
+This appendix is for developers who will cross-check the current review against the actual repo and artefacts. It is meant to be read alongside the main strategy document.
+
+It does four things:
+
+* records the main code paths reviewed
+* separates **verified findings** from **plausible but still provisional mechanism claims**
+* identifies the smallest rewrite surfaces likely needed for the next science studies
+* gives implementation guidance for those studies without pretending we are ready for patching today
+
+This document is intentionally solve-first. That is consistent with the working rules in the supplied review prompt: determinism matters, contracts must be explicit, tests are the ground truth, and broad refactor should not outrank evidence-backed progress. 
+
+## 1. Source inventory and evidence scope
+
+The current no-bloat source snapshot contains **709 included files**, covering `src`, `tests`, and the benchmark subtrees `community`, `periodic_sub_trans`, and `scoring`. 
+
+Important limitation: the no-bloat snapshot likely excludes some heavy assets and calibration artefacts, so any end-to-end claim about stronger LM or scorer calibration should still be treated as partial until those assets are available. The deeper review already said this explicitly. 
+
+The most important profile file is now present as a standalone upload, which closes the biggest uncertainty from the earlier review stage:
+
+* `no_wli_pipeline_profiles.py`
+
+That file confirms the current active avg/full-text profile is already fairly broad upstream in principle. In particular, `no_wli_a1_m12_b34_stage3avg_fulltext_v1` uses:
+
+* `stage3_initial_keys = 64`
+* `stage12_archive_keep = 192`
+* `stage12_promote_top = 96`
+* `solver_stage3.use_raw_score = True`  
+
+So the current problem is **not** simply “Stage 3 was never made broad”.
+
+## 2. Strategic conclusions this appendix assumes
+
+This appendix assumes the high-level conclusions already established in the main review:
+
+* the project is promising but not yet robust
+* the main current bottleneck is still Stage-3-side basin generation and family handling, not broad engineering mess
+* the real long-term goal is period up first (`p13/l1000`), then length down (`p13/l500`)
+* weak seeds do not all fail the same way
+* the next useful work is targeted science studies, not another broad tidy-up or another Stage-3.5-led push   
+
+This is also consistent with the roadmap in the deeper reviews, which puts basin recovery and structured-move upgrades ahead of heavier `p13/l500` method families like parallel tempering, beam-style incremental decipherment, or latent-structure models.  
+
+## 3. Main code paths reviewed
+
+The following paths were reviewed directly from the uploaded zip snapshot and should be treated as the main implementation surfaces for the next studies.
+
+### Profile and runtime wiring
+
+* `tools/benchmarks/config/no_wli_pipeline_profiles.py`
+* `tools/benchmarks/periodic_sub_trans/no_wli/iteration_runtime.py`
+* `tools/benchmarks/periodic_sub_trans/no_wli/fixture_matrix_config.py`
+
+### Stage-3 entry and two-phase flow
+
+* `tools/benchmarks/periodic_sub_trans/no_wli/stage3_seeding.py`
+* `tools/benchmarks/periodic_sub_trans/no_wli/stage3_two_phase.py`
+* `tools/benchmarks/periodic_sub_trans/no_wli/stage3_topk.py`
+
+### Diagnostics and classification tooling
+
+* `tools/benchmarks/periodic_sub_trans/no_wli/audit_partial_state_signal.py`
+* `tools/benchmarks/periodic_sub_trans/no_wli/audit_basin_family_diversity_alignment.py`
+
+### Supporting implementation context
+
+* `src/rune_decrypter_prime/solvers/kaeding_periodic_structured.py`
+* `src/rune_decrypter_prime/scoring/rune_scorer.py`
+
+The last two were reviewed mainly to confirm search/scoring roles and to avoid wrongly reclassifying an old deliberate design choice as a new bug.
+
+## 4. Verified technical findings
+
+### 4.1 Stage-3 is broad on paper, but can still be compressed badly in practice
+
+The profile file confirms that the active avg/full-text profile is already quite broad upstream. 
+
+But the live weak-seed evidence in the current working plan still reports a concrete example of Stage-3 entry compression:
+
+* `stage2_promoted_from_topk_count = 144`
+* `stage3_init3_count = 64` for `seed211_current_preserve` 
+
+This is a strong indication that broader upstream promotion can still be squeezed into a much smaller actual Stage-3 entry budget.
+
+### 4.2 Weak seeds are split by failure mode
+
+The current planning state now explicitly distinguishes:
+
+* `seed211_current_preserve` → primary `good_family_absent`
+* `seed411_current_preserve` → primary `good_family_undervalued`, optional secondary `good_family_absent` 
+
+That split matches the code/evidence review well and should be preserved. It is one of the best reasons **not** to force one single weak-seed story.
+
+### 4.3 The active compare on `seed411` is not a clean single-variable test
+
+From direct source inspection of `fixture_matrix_config.py`, the live compare is between:
+
+* `stage3_preserve_tieband_probe_p9`
+* `lexical_phasec_rescue_wide_finish`
+
+This candidate does **not** only widen one thing. It changes:
+
+* Stage-3 entry size
+* tie-band preservation width
+* Phase-B shortlist width
+* Phase-C / rescue breadth
+* and also gate thresholds
+
+So any result from that compare should be read as reconnaissance, not as a clean scientific proof of one hypothesis.
+
+### 4.4 Phase-C start construction itself is likely part of the squeeze
+
+From direct source inspection of `stage3_two_phase.py`, the Phase-C candidate pool is built from:
+
+1. `stage3_best`
+2. `phaseB_topk`
+3. `phaseA_selected`
+
+Then the actual starts are filled in that same source order until the start budget is full.
+
+This means the system can preserve more **nominal** variety in the candidate pool than it preserves **exploitable** variety in the actual explored starts.
+
+This is now one of the strongest subtle code-level concerns in the whole review.
+
+### 4.5 The replay evidence for `seed411` is second-tier evidence
+
+The current plan explicitly says that the `seed411` replay used `fallback_artifact` rather than a richer live Stage-3 bundle. 
+
+So replay-based conclusions for `411` should be treated as:
+
+* useful,
+* but weaker than direct live evidence.
+
+This should be stated plainly in any future review or experiment note.
+
+## 5. Provisional but plausible mechanism claims
+
+These are **not** proven facts. They are the best current mechanism-level readings of the code and evidence.
+
+### H1 — hidden breadth–depth coupling at Stage-3 entry
+
+In `stage3_seeding.py`, the Stage-3 entry budget is spread across however many promoted keys survive upstream. In practice this means wider upstream preservation can reduce mutation depth per promoted family unless the entry budget scales with it.
+
+This is the strongest current explanation for why “preserve more” can fail to help `seed211`.
+
+### H2 — Phase-B is still too row-ranked, not family-aware enough
+
+In `stage3_two_phase.py`, Phase-B selection still operates primarily over ranked rows with exact-hash dedupe and local widening, rather than explicitly protecting distinct families before global fill.
+
+This is the strongest current explanation for why `seed411` can plausibly have a better downstream family but still fail to back it enough.
+
+### H3 — Phase-C start-set bias is likely turning nominal variety into too little explored variety
+
+Even when the candidate pool contains broader material, the current source-order fill can still bias the actual starts toward already-favoured sources.
+
+This is the strongest current subtle bottleneck after Stage-3 entry compression.
+
+### H4 — gate/admission effects matter, but are probably not the leading issue
+
+The gate still matters, and some current candidates are stricter there. But after reviewing the code carefully, I would now put gate effects behind:
+
+* entry compression
+* family collapse
+* and Phase-C start bias
+
+### H5 — raw-search / judge-split is an old deliberate design choice
+
+The profile file explicitly keeps `use_raw_score = True` for Stage-3 solve in the current active profile. 
+
+So even if the raw-search / judged-ranking split caps robustness, it should **not** be treated as “obviously the wrong old decision” without much stronger evidence than we currently have.
+
+## 6. What to cross-check before changing anything
+
+This section is for the dev team.
+
+Before anyone changes code, I would want each of these cross-checked directly in the repo and artefacts.
+
+### A. Stage-3 entry compression on weak seeds
+
+Cross-check:
+
+* the exact live handoff counts for `stage2_promoted_from_topk_count`
+* the corresponding `stage3_init3_count`
+* how many promoted rows are actually distinct enough to matter
+
+Goal:
+
+* verify that the breadth–depth squeeze is real on the seeds we care about, not only numerically true but behaviourally important
+
+### B. Phase-B row collapse
+
+Cross-check:
+
+* how many unique Phase-B rows and families survive
+* whether one saved Stage-3 row really reflects real collapse rather than save-path artefacts
+
+Goal:
+
+* confirm how much the shortlist is collapsing before family-level protection
+
+### C. Phase-C candidate pool vs actual starts
+
+Cross-check:
+
+* source composition of the candidate pool
+* source composition of the actual starts
+* how often Phase-A-selected families get shut out by source-order filling
+
+Goal:
+
+* verify that the actual explored starts are narrower than the nominal candidate pool in the way the review suggests
+
+### D. Replay vs live evidence quality
+
+Cross-check:
+
+* which runs have rich live bundles
+* which runs only have fallback-artifact replay inputs
+* which conclusions depend mostly on reduced preserved state
+
+Goal:
+
+* keep evidence grades honest
+
+## 7. Targeted rewrite candidates
+
+These are **not** broad refactors. They are the smallest likely rewrite surfaces to make the next science studies easy and safe to implement.
+
+### Rewrite candidate 1 — Stage-3 entry policy extraction
+
+Likely file:
+
+* `tools/benchmarks/periodic_sub_trans/no_wli/stage3_seeding.py`
+
+Reason:
+The current entry-allocation logic is where the hidden breadth–depth coupling lives. If we want to test constant local-depth entry, the code will be easier and safer to change if the entry-allocation policy is isolated explicitly rather than buried in one path.
+
+What to avoid:
+
+* do not rewrite the whole Stage-3 interface
+* do not introduce generic abstractions not needed for the experiments
+
+### Rewrite candidate 2 — family-aware shortlist helper for Phase-B
+
+Likely file:
+
+* `tools/benchmarks/periodic_sub_trans/no_wli/stage3_two_phase.py`
+
+Reason:
+If we want to test family-aware preservation, it is better to add one explicit shortlist construction helper than to scatter family logic across multiple ranking blocks.
+
+What to avoid:
+
+* do not change the whole Phase-B architecture at once
+* do not silently change ranking semantics without tests
+
+### Rewrite candidate 3 — Phase-C start-construction helper
+
+Likely file:
+
+* `tools/benchmarks/periodic_sub_trans/no_wli/stage3_two_phase.py`
+
+Reason:
+The current source-order fill is a clear hidden policy. If we want to test source-balanced or family-balanced start selection, that policy should be made explicit in a helper so we can compare variants cleanly.
+
+What to avoid:
+
+* do not mix this with broader Phase-C rescue rewrites
+* keep it to start selection only
+
+## 8. Recommended next science studies and likely code surfaces
+
+### Study 1 — constant local-depth Stage-3 entry
+
+**Hypothesis**
+Wider upstream promotion is starving per-family Stage-3 search depth.
+
+**Minimal implementation surface**
+
+* `tools/benchmarks/periodic_sub_trans/no_wli/stage3_seeding.py`
+* perhaps a small configuration hook in `fixture_matrix_config.py`
+
+**What to change**
+
+* when promoted-set size rises, keep a roughly fixed minimum mutation/search depth per promoted family rather than spreading a fixed `init3_n` across a wider upstream set
+
+**Why this is first**
+
+* strongest concrete evidence
+* cleanest intervention
+* large enough to move signal
+* does not require touching the scorer philosophy
+
+### Study 2 — family-aware Phase-B preservation
+
+**Hypothesis**
+Promising families are being collapsed too early by row-ranked selection.
+
+**Minimal implementation surface**
+
+* `tools/benchmarks/periodic_sub_trans/no_wli/stage3_two_phase.py`
+* potentially reuse ideas from `audit_basin_family_diversity_alignment.py` as a research-only family view
+
+**What to change**
+
+* reserve part of the Phase-B shortlist for distinct families before global score fill
+
+**Why this is second**
+
+* directly tests the row-collapse problem
+* aligns with the latest weak-seed split
+* uses the new audit direction without turning the audit itself into ground truth
+
+### Study 3 — family-aware or source-balanced Phase-C start selection
+
+**Hypothesis**
+The candidate pool contains more useful variety than the actual explored start set.
+
+**Minimal implementation surface**
+
+* `tools/benchmarks/periodic_sub_trans/no_wli/stage3_two_phase.py`
+
+**What to change**
+
+* stop `stage3_best` plus Phase-B top rows from consuming almost the whole Phase-C start budget by default
+* test a source-balanced or family-balanced fill rule
+
+**Why this is third**
+
+* this is the most subtle issue
+* likely easier to interpret after Studies 1 and 2
+* may help weak seeds that are closer to `411` than `211`
+
+## 9. Tests and diagnostics that should accompany those studies
+
+The review prompt is explicit that determinism and tests come first, and that any behavioural change should be locked with a focused test. 
+
+So each science study should come with a small test set.
+
+### For Study 1
+
+* deterministic Stage-3 entry-allocation test
+* fixed promoted-set size → fixed per-family depth test
+* regression test that old policy is still selectable if needed
+
+### For Study 2
+
+* deterministic family view / grouping test for the chosen family-preservation rule
+* selected-vs-available shortlist summary test
+* no silent change to ranking order outside the new family-preservation branch
+
+### For Study 3
+
+* deterministic start-source allocation test
+* source-balanced or family-balanced fill test
+* regression test that current source-order fill is still reproducible behind a named policy
+
+### Diagnostics
+
+For all studies, standardise:
+
+* entry-family counts
+* shortlist family counts
+* candidate-pool source composition
+* start-set source composition
+* and final selected-family regret where truth is available
+
+Those diagnostics should be kept **research-facing**, not yet solver-facing.
+
+## 10. What not to rewrite yet
+
+This should be explicit in the appendix.
+
+Do **not** rewrite:
+
+* the broad scorer architecture
+* the whole Stage-3/Phase-C pipeline
+* the Stage-3.5 path
+* or the general RDP interface
+
+Do **not** use this as an excuse for a broad refactor.
+
+The original brief said solve-first, and the deeper reviews already said that the main current blocker is basin generation and method design, not broad code neatness.  
+
+## 11. Evidence-quality caveats
+
+The dev team should keep these in mind while cross-checking.
+
+* Some important current findings are based on **live evidence** and should be treated as strongest.
+* Some are based on **replay from reduced preserved state** and should be treated as weaker.
+* The family-diversity/alignment audit looks good enough as a diagnostic tool, but it is still a **heuristic interpretation layer**, not direct ground truth.
+* The no-bloat snapshot excludes some heavy assets, so stronger-prior or LM-related conclusions remain incomplete until those assets are available. 
+
+## 12. Bottom line
+
+This appendix supports a fairly simple practical conclusion.
+
+The next likely gains are **not** broad architecture gains and **not** another late rescue tweak.
+
+They are more likely to come from fixing how the pipeline turns upstream variation into actual explored families:
+
+* at Stage-3 entry,
+* at Phase-B shortlist construction,
+* and at Phase-C start selection.
+
+That is the clearest code-level interpretation of the current evidence.
+
+
+Below is the consolidated experiment brief.
+
+# No-WLI periodic sub+trans: first targeted science studies
+
+## Purpose
+
+This brief turns the current review into a small number of controlled studies. The goal is not to “tune harder”. The goal is to test the strongest current hypotheses about why hard `p9/c3/l1000` seeds still fail, and to do so in a way that is informative for the longer-term target of pushing period upward before pushing text length downward.
+
+The broad strategic view is already stable enough: the project is promising, the main current blocker is still Stage-3-side basin generation and family handling rather than general engineering mess, and weak seeds do not all fail the same way. The next work should therefore be a small number of high-signal experiments, not more open-ended tweaking.
+
+## Scope
+
+This brief covers the first three studies only.
+
+It assumes the current review conclusions remain the working model:
+
+* the active Stage-3 profile is already fairly broad on paper
+* `seed211` mainly looks like a “good family absent” case
+* `seed411` mainly looks like a “good family undervalued” case, with some uncertainty because replay evidence is weaker than live evidence
+* the strongest current suspects are:
+
+  * Stage-3 entry-budget dilution
+  * Phase-B family collapse
+  * Phase-C start-set source-order bias
+
+It does **not** assume any broad scorer rewrite, Stage-3.5 redesign, or major repo refactor.
+
+## General rules for all studies
+
+Each study should follow the same structure.
+
+Before coding:
+
+* write the exact hypothesis in one sentence
+* list the exact files to touch
+* state what is expected to improve
+* state what would count as “no effect”
+* state what result would contradict the hypothesis
+
+During implementation:
+
+* keep changes narrow
+* keep old behaviour available behind an explicit policy or switch
+* do not silently change baseline semantics
+* add tests before running long jobs where practical
+
+During evaluation:
+
+* use a fixed seed set
+* keep budgets explicit
+* compare against a named baseline
+* record both live behaviour and any replay limitations
+* report not just final best match, but intermediate family and start-set diagnostics
+
+For now, use the hard weak-seed set only:
+
+* strong references:
+
+  * `seed511` recovery
+  * `seed511` Stage-3.5 proof
+* weak current and stronger historical references:
+
+  * `seed211` current preserve
+  * older stronger `seed211`
+  * `seed411` current preserve
+  * older stronger `seed411`
+
+Controls can be added later if needed, but they are not required for the first pass.
+
+## Study 1 — constant local-depth Stage-3 entry
+
+### Hypothesis
+
+When the promoted Stage-2 set gets wider, the current Stage-3 entry policy spreads a fixed entry budget across too many promoted rows. This reduces effective search depth per family and contributes to “good family absent” failures, especially on `seed211`.
+
+### Why this study comes first
+
+This is the clearest concrete compression finding in the whole review. The working evidence already shows a live case where Stage-2 promoted count is much larger than the actual Stage-3 entry count. That makes this a strong first science study rather than a speculative tweak.
+
+### Main code surfaces
+
+Primary:
+
+* `tools/benchmarks/periodic_sub_trans/no_wli/stage3_seeding.py`
+
+Likely supporting config:
+
+* `tools/benchmarks/periodic_sub_trans/no_wli/fixture_matrix_config.py`
+
+Possibly one small plumbing helper if needed:
+
+* `tools/benchmarks/periodic_sub_trans/no_wli/iteration_runtime.py`
+
+### Current behaviour to preserve as baseline
+
+The current policy effectively:
+
+* gathers promoted keys,
+* uses a fixed `init3_n`,
+* allocates roughly `ceil(init3_n / promoted_count)` descendants per promoted row,
+* then dedupes and truncates back to `init3_n`.
+
+That current policy must remain selectable as the baseline.
+
+### Proposed intervention
+
+Add an alternative Stage-3 entry policy that keeps a roughly fixed minimum local depth per promoted family.
+
+In plain English:
+
+* if more promoted families are carried forward,
+* do **not** let that automatically starve each one of descendants.
+
+There are two acceptable ways to do this.
+
+Option A:
+
+* scale `init3_n` with promoted-family count, up to a capped maximum
+
+Option B:
+
+* keep `init3_n` fixed for the baseline policy, but add a second policy with:
+
+  * a minimum descendants-per-promoted-family target
+  * then cap total entry count only after that allocation
+
+For the first study, Option B is cleaner because it makes the intervention more explicit.
+
+### Minimal implementation recommendation
+
+Add an explicit Stage-3 entry allocation mode, for example:
+
+* `legacy_fixed_budget`
+* `constant_local_depth`
+
+Do not generalise further than needed.
+
+### Tests
+
+Add focused tests around:
+
+* deterministic allocation for a fixed promoted set
+* correct per-family descendant allocation under the new mode
+* preservation of legacy behaviour under the baseline mode
+* no silent over-allocation beyond the configured cap
+
+These should be new targeted tests, not broad integration rewrites.
+
+### Required diagnostics
+
+For each run, emit:
+
+* promoted row count
+* promoted family count if available
+* Stage-3 entry count
+* descendants per promoted row summary
+* unique Stage-3 entry families if available
+* final Stage-3 best match
+* Phase-B reached or not
+
+### Primary readout
+
+The main question is:
+
+* does the new entry policy materially improve weak-seed basin reach without changing the rest of the pipeline?
+
+For `seed211`, the main success signal would be:
+
+* a stronger Stage-3 family emerges at all
+* or Stage-3 top-k quality improves materially over baseline
+
+### Stop conditions
+
+Treat the study as not supported if:
+
+* Stage-3 family quality does not improve
+* or improvements appear only on one seed and not in the weak-set pattern
+* or the intervention mostly just inflates cost without improving Stage-3 reach
+
+Treat it as contradicted if:
+
+* the wider local-depth policy consistently makes weak seeds worse
+* or clearly damages already-strong cases
+
+## Study 2 — family-aware Phase-B preservation
+
+### Hypothesis
+
+The current Phase-B path is too row-ranked and not family-protective enough. Promising alternative families are being collapsed too early, especially on cases like `seed411` where something better may exist but is not trusted enough downstream.
+
+### Why this study comes second
+
+This is the strongest current explanation for the “good family undervalued” story. It is also more targeted than a vague “preserve more diversity” change because it focuses on preserving distinct families before global score fill.
+
+### Main code surfaces
+
+Primary:
+
+* `tools/benchmarks/periodic_sub_trans/no_wli/stage3_two_phase.py`
+
+Possibly diagnostics reuse:
+
+* `tools/benchmarks/periodic_sub_trans/no_wli/audit_basin_family_diversity_alignment.py`
+
+Only if needed:
+
+* `tools/benchmarks/periodic_sub_trans/no_wli/stage3_topk.py`
+
+### Current behaviour to preserve as baseline
+
+The current Phase-B path:
+
+* ranks rows by a mixed key
+* dedupes by exact `(start_hash, end_hash)`
+* keeps top rows
+* optionally widens around the same score band
+* then moves on
+
+That path must remain selectable as the baseline.
+
+### Proposed intervention
+
+Add a family-aware shortlist mode for Phase-B.
+
+The simplest first version should:
+
+* define families using one fixed family view only
+* keep a small guaranteed quota for distinct families before full global score fill
+
+Do **not** try to optimise every family-view option at once.
+
+### Family view for pass 1
+
+Use one deliberately simple family grouping rule for the live experiment. For example:
+
+* exact tail identity
+  or
+* one fixed near-tail Hamming rule
+
+Do not use multiple views in the live policy for the first study.
+
+The broader audit can continue using richer views, but the live experiment needs one simple, stable rule.
+
+### Minimal implementation recommendation
+
+Add a shortlist mode such as:
+
+* `score_only`
+* `family_guarded`
+
+Under `family_guarded`, the algorithm should:
+
+1. sort by the existing baseline ranking key
+2. keep the best row from each family until a reserved family quota is filled
+3. then fill remaining slots by the legacy global ranking rule
+
+That gives a clean comparison and avoids broad architectural change.
+
+### Tests
+
+Add focused tests for:
+
+* deterministic family grouping under the chosen live family view
+* guaranteed one-best-per-family behaviour for the reserved quota
+* no silent behaviour drift when `score_only` baseline mode is selected
+* exact shortlist size preservation
+
+### Required diagnostics
+
+For each run, emit:
+
+* Phase-B row count before shortlist
+* family count before shortlist
+* selected row count
+* selected family count
+* selected-vs-available top-band family fraction
+* best family truth where truth is available
+* selected family truth where truth is available
+* family regret
+
+### Primary readout
+
+The main question is:
+
+* does protecting distinct families in Phase-B improve downstream weak-seed outcomes, especially in the `411`-like failure mode?
+
+Success looks like:
+
+* stronger downstream families survive into Phase-C
+* selected-family truth improves
+* or final match improves with a believable family-level story
+
+### Stop conditions
+
+Treat the study as not supported if:
+
+* preserving families does not change Phase-C start composition
+* or final results stay the same despite higher family counts
+* or costs rise sharply with no better downstream family behaviour
+
+Treat it as contradicted if:
+
+* family-aware preservation consistently harms strong runs or collapses the shortlist quality
+
+## Study 3 — family-aware or source-balanced Phase-C start selection
+
+### Hypothesis
+
+The current Phase-C candidate pool contains more useful variety than the actual explored start set. The source-order fill rule is biasing the starts toward already-favoured rows and leaving too little room for alternative families to be genuinely explored.
+
+### Why this study comes third
+
+This is the most subtle of the three issues. It is well motivated by the code review, but it is easiest to interpret after testing Stage-3 entry depth and Phase-B family protection first.
+
+### Main code surfaces
+
+Primary:
+
+* `tools/benchmarks/periodic_sub_trans/no_wli/stage3_two_phase.py`
+
+Possibly only a helper extraction is needed.
+
+### Current behaviour to preserve as baseline
+
+The baseline Phase-C start path:
+
+* builds a candidate pool from
+
+  * `stage3_best`
+  * then `phaseB_topk`
+  * then `phaseA_selected`
+* then fills actual starts in that same source order until the start budget is full
+
+This baseline path must remain selectable.
+
+### Proposed intervention
+
+Add a new start-fill policy that is either:
+
+* source-balanced
+  or
+* family-aware
+
+For pass 1, source-balanced may be the simplest:
+
+* reserve at least one start from each source bucket where available before full fill
+
+For a second pass, family-aware starts may be stronger:
+
+* reserve starts for distinct families, not just source buckets
+
+### Minimal implementation recommendation
+
+Add an explicit Phase-C start policy, for example:
+
+* `source_order_legacy`
+* `source_balanced`
+
+Keep the first intervention as close to the current implementation as possible.
+
+### Tests
+
+Add focused tests for:
+
+* deterministic source-balanced fill
+* correct total start count
+* no silent drift under legacy mode
+* behaviour with missing source buckets
+
+### Required diagnostics
+
+For each run, emit:
+
+* candidate-pool source composition
+* actual start source composition
+* candidate-pool family count
+* start-set family count
+* best candidate-pool truth
+* best start-set truth
+* whether better candidate-pool families were excluded from starts
+
+### Primary readout
+
+The main question is:
+
+* does widening the actual explored start set, rather than just the candidate pool, improve weak-seed outcomes?
+
+Success looks like:
+
+* start-set diversity becomes meaningfully larger than before
+* better candidate-pool families actually get explored
+* weak-seed outcomes improve without large semantic side effects
+
+### Stop conditions
+
+Treat the study as not supported if:
+
+* source-balanced starts barely change the actual explored family mix
+* or the candidate pool itself was already too poor for this to matter
+* or costs rise with no downstream benefit
+
+Treat it as contradicted if:
+
+* changing start selection hurts strong cases without helping weak ones
+
+## Evidence-quality rules for all three studies
+
+This is important.
+
+For every result, separate:
+
+* **live-run evidence**
+* **resume/replay evidence**
+* **inference**
+
+Do not let replay-based conclusions outrank live evidence on seeds like `411` where replay inputs were reduced or fallback-based.
+
+Also separate:
+
+* **nominal variety**
+  from
+* **exploited variety**
+
+That distinction is central to this whole brief.
+
+## What not to do during this study round
+
+Do not:
+
+* launch another Stage-3.5-led push
+* do broad lexical tweaking
+* switch the whole Stage-3 stack to one score
+* do broad refactor in parallel
+* launch a large `p11/p13` campaign before the first studies settle
+
+Those would dilute the current signal.
+
+## Recommended order
+
+I would run them in this order:
+
+1. **Study 1 — constant local-depth Stage-3 entry**
+2. **Study 2 — family-aware Phase-B preservation**
+3. **Study 3 — family-aware or source-balanced Phase-C start selection**
+
+And I would only greenlight Study 3 immediately if the dev cross-check agrees that the Phase-C start bias is easy enough to isolate cleanly.
+
+## Suggested document use
+
+This brief should be used as:
+
+* the basis for dev cross-check
+* the basis for any implementation plan
+* and the checkpoint against which new changes are judged
+
+If a proposed code change does not map clearly to one of these hypotheses, it probably should not be in the next round.
+
+
+
+
+
+
+
+
+
+
+

@@ -1,7 +1,7 @@
-# Seed Family Triage Shadow v1
+﻿# Seed Family Triage Shadow v1
 
 Authoritative contract:
-- `planning/no_wli/30_analysis_specs/no_wli_seed_family_triage_shadow_v1_spec_2026-04-08.md`
+- `planning/projects/no_wli/30_analysis_specs/no_wli_seed_family_triage_shadow_v1_spec_2026-04-08.md`
 
 This branch is a frozen-input, offline-only shadow triage and budget-allocation study.
 
@@ -23,3 +23,4 @@ Non-goals:
 - no stop-policy promotion
 - no seed-set widening
 - no family reclustering
+

@@ -1,0 +1,145 @@
+RDP LP Registry/API Review + Integration Plan
+Date: 2026-03-07 (America/Los_Angeles)
+Source reviewed: planning/completed/lp_domain/review_bundle
+Status: Closed review record (implemented)
+
+Planning cleanup completed first
+- Archived completed/historical working docs into planning/old:
+  - nowli_imrpovements_refactor_for_benchcamp_review.txt
+  - phased_plan_review.txt
+  - phased_plan_execution_sync_20260306.txt
+  - phased_plan_execution_sync_20260306_p3_oracle.txt
+  - scorign_refactor_plan.txt
+- Kept active in planning/working:
+  - phased_plan.txt
+  - nowli_imrpovements_refactor_for_benchcamp.txt
+  - data_refactor_plan_assets_migration_draft.txt
+
+Review verdict
+- Direction is strong and compatible with RDP goals.
+- The proposal should be integrated incrementally as an adapter layer over current LPTranscript/lp_master, not as a replacement rewrite.
+- Main integration target: typed page/partition/locator API with strict core typing and optional UI token parsing.
+
+What already aligns with current RDP
+1) Typed page refs and partition enums are the right direction.
+- Evidence:
+  - planning/completed/lp_domain/review_bundle/src/rune_decrypter_prime/data/liber_primus/lp_registry_v1.py:51
+  - planning/completed/lp_domain/review_bundle/src/rune_decrypter_prime/data/liber_primus/lp_registry_v1.py:111
+
+2) Retrieval-then-traversal model matches existing GlyphSpan pipeline.
+- Evidence:
+  - src/rune_decrypter_prime/data/liber_primus/lp_transcript.py:98
+  - src/rune_decrypter_prime/data/liber_primus/lp_transcript.py:106
+  - src/rune_decrypter_prime/data/liber_primus/lp_transcript.py:144
+
+3) Canon page model is already present and stable in current code.
+- Evidence:
+  - src/rune_decrypter_prime/data/liber_primus/lp_transcript.py:340
+  - src/rune_decrypter_prime/data/liber_primus/lp_transcript.py:363
+  - src/rune_decrypter_prime/data/liber_primus/lp_master.py:84
+
+4) Section split infrastructure already exists and can host registry partitions.
+- Evidence:
+  - src/rune_decrypter_prime/data/liber_primus/lp_transcript.py:390
+  - src/rune_decrypter_prime/data/liber_primus/lp_transcript.py:461
+
+Key integration gaps to close
+1) Duplicate surface risk
+- Bundle adds new parallel APIs (`lp_registry_v1`, `lp_route_v1`, `lp_ui_parse_v1`) but current public helpers already expose LP extraction.
+- Need one canonical public import path to avoid split usage.
+- Evidence:
+  - src/rune_decrypter_prime/api/data_helpers.py:47
+  - src/rune_decrypter_prime/api/data_helpers.py:59
+
+2) Enum serialization determinism
+- Bundle enums use `auto()`. For persisted outputs/telemetry, explicit stable string values are safer.
+- Evidence:
+  - planning/completed/lp_domain/review_bundle/src/rune_decrypter_prime/data/liber_primus/lp_registry_v1.py:9
+  - planning/completed/lp_domain/review_bundle/src/rune_decrypter_prime/data/liber_primus/lp_route_v1.py:8
+
+3) Registry not yet connected to LPTranscript methods
+- Bundle has standalone resolver/context and registry objects, but current transcript object is where page/split operations live.
+- Integration should add transcript adapter methods rather than force callers to pass context everywhere.
+- Evidence:
+  - planning/completed/lp_domain/review_bundle/src/rune_decrypter_prime/data/liber_primus/lp_registry_v1.py:153
+  - src/rune_decrypter_prime/data/liber_primus/lp_transcript.py:340
+
+4) Draft bundle carries cache artefacts
+- `.pytest_cache` and `__pycache__` appear in draft bundle; do not import those into real source.
+
+Recommended integration approach (RDP-safe)
+Phase LP0 - Add typed core objects (no behavior change)
+- Add to real repo (non-_v1 names):
+  - src/rune_decrypter_prime/data/liber_primus/lp_registry.py
+  - src/rune_decrypter_prime/data/liber_primus/lp_routes.py
+  - src/rune_decrypter_prime/data/liber_primus/lp_ui_parse.py
+- Keep these pure types/helpers first; no existing caller breakage.
+
+Phase LP1 - Bridge into LPTranscript/lp_master
+- Add adapter methods in LPTranscript and/or lp_master:
+  - resolve_page_ref(page_ref)
+  - resolve_fragment(locator)
+  - resolve_partition_entry(scheme, ordinal)
+- Implement by delegating to existing page/split/glyph_span operations.
+- Keep current APIs working:
+  - load_master_transcript
+  - extract_section_ct_wli_by_id
+
+Phase LP2 - Public API exposure
+- Extend `src/rune_decrypter_prime/data/liber_primus/__init__.py` to export typed LP API.
+- Keep old helpers available but document preferred typed path.
+
+Phase LP3 - Solved-page example workflows
+- Add solved-page example retrieval scripts/tests using typed refs:
+  - canon page refs
+  - bound book refs
+  - section + page intersection
+  - route reads (LTR/RTL/boustrophedon/spiral)
+
+Phase LP4 - Deprecation cleanup
+- After adoption, deprecate string-heavy ad hoc entrypoints where duplicated.
+- Keep compatibility shims with explicit warnings for one cycle.
+
+Minimal first implementation contract
+- Core typed refs only:
+  - LPPageRef
+  - LPFragmentLocator
+  - LPBuiltInPageScheme
+  - LPBuiltInPartitionScheme
+  - LPSectionOrdinal
+- UI parser only in `lp_ui_parse.py`:
+  - parse_page_token('54.jpg') -> canon page
+  - parse_page_token('page 54') -> bound book page
+- Route helpers remain post-retrieval only.
+
+Tests required to merge LP0/LP1
+1) Typed page ref resolution parity with existing canon mapping.
+- Compare against current:
+  - doc.page_by_canon("54.jpg")
+  - new resolver path
+
+2) Fragment locator parity with existing GlyphSpan outputs.
+- `ct_wli()` equality checks.
+
+3) Partition parity.
+- Red-rune and side-art partition entries resolve to expected canon ranges.
+
+4) UI parse boundary tests.
+- Ensure strict separation:
+  - core rejects raw tokens
+  - UI parser accepts expected friendly tokens
+
+5) Backward compatibility tests.
+- Existing LP tests still pass unchanged:
+  - tests/data/test_lp_master_transcript.py
+  - tests/data/test_lp_transcript_sections.py
+  - tests/data/test_lp_transcript_word_spans.py
+
+Notes for implementation discipline
+- No CLI options for this integration stream; keep hardcoded config/constants where needed.
+- Keep persisted/logged paths repo-relative.
+- Keep typed core APIs free of ambiguous raw string modes.
+
+Close-out note
+- Review recommendations were applied in the LP0-LP5 implementation stream.
+- This document is retained as historical review evidence.

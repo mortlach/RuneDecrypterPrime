@@ -1,0 +1,39 @@
+RDP Phased Plan - Execution Sync
+Date: 2026-03-06 (America/Los_Angeles)
+
+Scope completed in this pass (no_wli campaign refactor stream)
+
+1) Matrix API cleanup - DONE
+- run_fixture_matrix kept as thin entrypoint + compatibility exports.
+- fixture_matrix_api remains the reusable implementation surface.
+- compatibility with existing tests preserved.
+
+2) runner.py orchestrator simplification - DONE
+- Extracted runner defaults to:
+  tools/benchmarks/periodic_sub_trans/no_wli/runner_defaults.py
+- runner.py remains orchestration + entrypoints + wiring.
+- Explicit guard literals retained in runner.py for source-based tests.
+
+3) Privacy/path hardening - DONE
+- path_hash_utils.to_repo_rel_path now redacts external absolute paths as "<external>".
+- fixture matrix plan payload paths are emitted as repo-relative (or "<external>" fallback), not absolute machine paths.
+- Added test:
+  tests/tools/test_no_wli_path_privacy.py
+
+4) Guardrail behavior verification - DONE
+- Core direction-token guardrails executed and passing:
+  tests/guardrails/test_core_no_direction_magic_tokens.py
+  tests/guardrails/test_core_no_magic_direction_tokens.py
+- API direction behavior test passing:
+  tests/api/test_encoding_direction.py
+
+5) Full test-suite validation + status sync - DONE
+- Full suite run result:
+  683 passed, 16 skipped, 11 warnings
+- Environment note:
+  jsonschema was installed in the active interpreter to unblock community schema tests.
+
+Remaining high-level refactor items (next stream)
+- Continue StageEngine/StageSpec integration phases per phased_plan.txt.
+- Tighten Oracle separation gate (P3) across all production decision paths.
+- Integrate incoming span-hamming extension branch into extracted no_wli modules.
