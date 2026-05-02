@@ -1,0 +1,14 @@
+{
+  "panel_schema_version": "no_wli_fixed_instance_panel_v1",
+  "panel_id": "p9_c3_solver_panel_1111_search7004_v1",
+  "instance_fixture_ids": [
+    "fixture_001__p9_c3_l1000__text0__seed1111"
+  ],
+  "search_seeds": [
+    7004
+  ],
+  "notes": [
+    "One-cell fixed-panel slice for the bounded Stage-3 entry allocation canary.",
+    "Single case and seed so the runtime session ends in a scientifically complete two-job compare."
+  ]
+}

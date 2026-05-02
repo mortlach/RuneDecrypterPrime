@@ -55,6 +55,10 @@ class Stage3RuntimeCallContext:
     fmt_finite_float_fn: Callable[..., str]
     phasec_start_checkpoint_path: Path | None = None
     append_jsonl_row_fn: Callable[[Path, Dict[str, Any]], None] | None = None
+    persist_phasea_gate_snapshot_fn: Callable[[Dict[str, Any]], None] | None = None
+    phasea_provisional_checkpoint_counts: Sequence[int] | None = None
+    build_phasea_provisional_gate_snapshot_fn: Callable[..., Dict[str, Any]] | None = None
+    persist_phasea_provisional_gate_snapshot_fn: Callable[[Dict[str, Any]], None] | None = None
     log_prefix: str = "[pipeline_no_wli]"
 
 
@@ -159,6 +163,9 @@ def run_stage3_phasea_restarts_call(
         stage3_progress_logging_fn=ctx.stage3_progress_logging_fn,
         match_ratio_fn=ctx.match_ratio_fn,
         key_hash_fn=ctx.key_hash_fn,
+        phasea_provisional_checkpoint_counts=ctx.phasea_provisional_checkpoint_counts,
+        build_phasea_provisional_gate_snapshot_fn=ctx.build_phasea_provisional_gate_snapshot_fn,
+        persist_phasea_provisional_gate_snapshot_fn=ctx.persist_phasea_provisional_gate_snapshot_fn,
         log_prefix=str(ctx.log_prefix),
     )
 
@@ -277,6 +284,7 @@ def run_stage3_two_phase_followup_call(
         fmt_finite_float_fn=ctx.fmt_finite_float_fn,
         phasec_start_checkpoint_path=ctx.phasec_start_checkpoint_path,
         append_jsonl_row_fn=ctx.append_jsonl_row_fn,
+        persist_phasea_gate_snapshot_fn=ctx.persist_phasea_gate_snapshot_fn,
         key_hash_fn=ctx.key_hash_fn,
         log_prefix=str(ctx.log_prefix),
     )

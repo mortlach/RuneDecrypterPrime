@@ -1254,6 +1254,215 @@ def test_stage35_live_followup_requires_acceptance_guard_before_selection(
     assert str(out["accept_reason"]) == "score_gain_guard_failed"
 
 
+def test_stage35_live_followup_can_select_lower_guard_passing_archive_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    artifact = _mock_artifact()
+    target = list(artifact["target_plaintext_idx"])
+
+    def _fake_solve_stage35_substitution_only(**kwargs):
+        _ = kwargs
+        return dict(
+            archive_rows=[
+                dict(
+                    key_idx=[1, 0, 2, 0, 1, 2, 0],
+                    plaintext_idx=list(target),
+                    score=4.2004,
+                    search_score=3.79,
+                    candidate_hash="candidate-top-search-fail",
+                    seed_source="phasec_phaseb_challenger",
+                    stage3_source="phaseB_topk",
+                    lane="challenger",
+                    source_rank=2,
+                    target_slice=1,
+                    depth=1,
+                    move_type="slice_local_mini_search",
+                ),
+                dict(
+                    key_idx=[0, 1, 2, 0, 1, 2, 0],
+                    plaintext_idx=list(target),
+                    score=4.2004 - (0.5 * phasec_replay_mod.REPLAY_SELECTOR_TOP_SCORE_BAND_EPS),
+                    search_score=3.81,
+                    candidate_hash="candidate-lower-guard-pass",
+                    seed_source="phasec_phaseb_challenger",
+                    stage3_source="phaseB_topk",
+                    lane="challenger",
+                    source_rank=3,
+                    target_slice=2,
+                    depth=1,
+                    move_type="slice_local_mini_search",
+                ),
+            ],
+            seed_rows_scored=[
+                dict(
+                    key_idx=list(artifact["final_best_key_idx"]),
+                    checkpoint_final_match=float("nan"),
+                )
+            ],
+            evals=2,
+            rounds_completed=1,
+            runtime_seconds=0.01,
+            diversity=dict(
+                unique_keys=2,
+                unique_seed_sources=1,
+                unique_target_slices=2,
+                mean_substitution_hamming=1.0,
+                max_substitution_hamming=1,
+            ),
+            mini_search_keep_all_rows_cfg=1,
+            mini_search_collected_rows=8,
+            mini_search_rows_kept=2,
+        )
+
+    monkeypatch.setattr(
+        solver_mod,
+        "solve_stage35_substitution_only",
+        _fake_solve_stage35_substitution_only,
+    )
+
+    out = solver_mod.run_stage35_live_followup(
+        period=int(artifact["period"]),
+        columns=int(artifact["columns"]),
+        alphabet_size=int(artifact["alphabet_size"]),
+        ciphertext_idx=np.asarray(artifact["ciphertext_idx"], dtype=np.uint8),
+        baseline_key=list(artifact["final_best_key_idx"]),
+        baseline_plaintext_idx=[0, 1, 2, 1, 0, 2],
+        baseline_score=4.0,
+        stage3_topk_rows=list(artifact["stage3_topk"]),
+        phasec_start_summaries=list(
+            artifact["stage3_diagnostics"]["phaseC_start_summaries"]
+        ),
+        phasec_final_winner_lane=str(
+            artifact["stage3_diagnostics"]["phaseC_final_winner_lane"]
+        ),
+        phasec_final_winner_source=str(
+            artifact["stage3_diagnostics"]["phaseC_final_winner_source"]
+        ),
+        cipher=_SlicePermutationCipher(period=2, alphabet_size=3),
+        scorer_full=_PositionalMatchScorer(target=target),
+        scorer_search=_SearchSupportScorer(target=target),
+        cfg=dict(
+            solver_mod.DEFAULT_STAGE35_SOLVER_CFG,
+            accept_guard_passing_selector_mode="top_score_then_search",
+            accept_guard_passing_score_band_eps=phasec_replay_mod.REPLAY_SELECTOR_TOP_SCORE_BAND_EPS,
+        ),
+        chunk_size=64,
+        require_batch=True,
+        target_plaintext_idx=list(target),
+    )
+
+    assert int(out["selected"]) == 1
+    assert int(out["accept_passed"]) == 1
+    assert str(out["accept_reason"]) == "accepted_via_guard_passing_selector"
+    assert str(out["best_candidate_hash"]) == "candidate-lower-guard-pass"
+    assert int(out["selected_archive_rank"]) == 2
+    assert int(out["selected_via_guard_passing_selector"]) == 1
+    assert str(out["accept_guard_passing_selector_mode_cfg"]) == "top_score_then_search"
+    assert float(out["best_search_score"]) == pytest.approx(3.81)
+    assert str(out["archive_rows"][0]["candidate_hash"]) == "candidate-top-search-fail"
+
+
+def test_stage35_live_followup_default_mode_keeps_top_row_search_guard_reject(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    artifact = _mock_artifact()
+    target = list(artifact["target_plaintext_idx"])
+
+    def _fake_solve_stage35_substitution_only(**kwargs):
+        _ = kwargs
+        return dict(
+            archive_rows=[
+                dict(
+                    key_idx=[1, 0, 2, 0, 1, 2, 0],
+                    plaintext_idx=list(target),
+                    score=4.2004,
+                    search_score=3.79,
+                    candidate_hash="candidate-top-search-fail",
+                    seed_source="phasec_phaseb_challenger",
+                    stage3_source="phaseB_topk",
+                    lane="challenger",
+                    source_rank=2,
+                    target_slice=1,
+                    depth=1,
+                    move_type="slice_local_mini_search",
+                ),
+                dict(
+                    key_idx=[0, 1, 2, 0, 1, 2, 0],
+                    plaintext_idx=list(target),
+                    score=4.2004 - (0.5 * phasec_replay_mod.REPLAY_SELECTOR_TOP_SCORE_BAND_EPS),
+                    search_score=3.81,
+                    candidate_hash="candidate-lower-guard-pass",
+                    seed_source="phasec_phaseb_challenger",
+                    stage3_source="phaseB_topk",
+                    lane="challenger",
+                    source_rank=3,
+                    target_slice=2,
+                    depth=1,
+                    move_type="slice_local_mini_search",
+                ),
+            ],
+            seed_rows_scored=[
+                dict(
+                    key_idx=list(artifact["final_best_key_idx"]),
+                    checkpoint_final_match=float("nan"),
+                )
+            ],
+            evals=2,
+            rounds_completed=1,
+            runtime_seconds=0.01,
+            diversity=dict(
+                unique_keys=2,
+                unique_seed_sources=1,
+                unique_target_slices=2,
+                mean_substitution_hamming=1.0,
+                max_substitution_hamming=1,
+            ),
+            mini_search_keep_all_rows_cfg=1,
+            mini_search_collected_rows=8,
+            mini_search_rows_kept=2,
+        )
+
+    monkeypatch.setattr(
+        solver_mod,
+        "solve_stage35_substitution_only",
+        _fake_solve_stage35_substitution_only,
+    )
+
+    out = solver_mod.run_stage35_live_followup(
+        period=int(artifact["period"]),
+        columns=int(artifact["columns"]),
+        alphabet_size=int(artifact["alphabet_size"]),
+        ciphertext_idx=np.asarray(artifact["ciphertext_idx"], dtype=np.uint8),
+        baseline_key=list(artifact["final_best_key_idx"]),
+        baseline_plaintext_idx=[0, 1, 2, 1, 0, 2],
+        baseline_score=4.0,
+        stage3_topk_rows=list(artifact["stage3_topk"]),
+        phasec_start_summaries=list(
+            artifact["stage3_diagnostics"]["phaseC_start_summaries"]
+        ),
+        phasec_final_winner_lane=str(
+            artifact["stage3_diagnostics"]["phaseC_final_winner_lane"]
+        ),
+        phasec_final_winner_source=str(
+            artifact["stage3_diagnostics"]["phaseC_final_winner_source"]
+        ),
+        cipher=_SlicePermutationCipher(period=2, alphabet_size=3),
+        scorer_full=_PositionalMatchScorer(target=target),
+        scorer_search=_SearchSupportScorer(target=target),
+        cfg=dict(solver_mod.DEFAULT_STAGE35_SOLVER_CFG),
+        chunk_size=64,
+        require_batch=True,
+        target_plaintext_idx=list(target),
+    )
+
+    assert int(out["selected"]) == 0
+    assert int(out["accept_passed"]) == 0
+    assert str(out["accept_reason"]) == "search_score_drop_guard_failed"
+    assert str(out["best_candidate_hash"]) == "candidate-top-search-fail"
+    assert int(out["selected_archive_rank"]) == 1
+    assert int(out["selected_via_guard_passing_selector"]) == 0
+
+
 def test_stage3_iteration_flow_marks_requested_stage35_not_run_as_invalid(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1434,6 +1643,274 @@ def test_stage3_iteration_flow_marks_requested_stage35_not_run_as_invalid(
     assert str(out["stage35_proof_invalid_reason"]) == "requested_but_not_run:no_seed_rows"
 
 
+def test_stage3_iteration_flow_and_outcome_keep_stage3_final_when_selected_stage35_is_weaker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _fake_phasea_restarts(**kwargs):
+        _ = kwargs
+        return {
+            "phaseA_rows": [],
+            "stage_rows": [],
+            "stage3_solve_hits_delta": 0,
+            "dt3_delta": 0.0,
+            "ev3_delta": 0,
+            "span_phaseA_eval_total": 0.0,
+            "span_phaseA_eval_active": 0.0,
+            "span_phaseA_eval_skipped": 0.0,
+            "span_phaseA_seconds_total": 0.0,
+            "span_phaseA_seconds_active": 0.0,
+        }
+
+    def _fake_two_phase_followup(**kwargs):
+        _ = kwargs
+        return {
+            "stage_rows": [],
+            "dt3_delta": 0.01,
+            "ev3_delta": 5,
+            "stage3_solve_hits_delta": 0,
+            "best3_match": 0.75,
+            "best3_score": 4.0,
+            "best3_key": [0, 1, 2, 0, 1, 2, 0],
+            "pt3": np.asarray([0, 1, 2, 0], dtype=np.uint8),
+            "phaseC_enabled_cfg": 1,
+            "phaseC_enabled_effective": 1,
+            "phaseC_ran": 1,
+            "phaseC_start_keys_used": 2,
+            "phaseC_start_policy": "source_order",
+            "phaseC_candidate_pool_count": 2,
+            "phaseC_candidate_pool_unique_keys": 2,
+            "phaseC_candidate_pool_unique_end_hash": 2,
+            "phaseC_candidate_pool_source_counts": {
+                "stage3_best_phaseB": 1,
+                "phaseB_topk": 1,
+            },
+            "phaseC_start_source_counts": {
+                "stage3_best_phaseB": 1,
+                "phaseB_topk": 1,
+            },
+            "phaseC_start_unique_end_hash": 2,
+            "phaseC_checkpoint_jsonl_name": "",
+            "phaseC_checkpoint_rows_written": 0,
+            "phaseC_final_winner_lane": "anchor",
+            "phaseC_final_winner_source": "stage3_best_phaseB",
+            "phaseC_start_summaries": [
+                {
+                    "start_idx": 1,
+                    "lane": "anchor",
+                    "source": "stage3_best_phaseB",
+                    "source_rank": 1,
+                    "candidate_hash": "stage3-anchor",
+                    "init_key_idx": [0, 1, 2, 0, 1, 2, 0],
+                    "init_plaintext_idx": [0, 1, 0, 0],
+                    "final_key_idx": [0, 1, 2, 0, 1, 2, 0],
+                    "final_plaintext_idx": [0, 1, 2, 0],
+                    "final_score": 4.0,
+                    "final_match": 0.75,
+                }
+            ],
+        }
+
+    def _fake_stage35_followup(**kwargs):
+        _ = kwargs
+        return {
+            "enabled_cfg": 1,
+            "ran": 1,
+            "selected": 1,
+            "seed_count": 2,
+            "tail_mismatch_count": 0,
+            "seed_source_counts": {"phasec_phaseb_challenger": 1},
+            "archive_count": 2,
+            "rounds_completed": 1,
+            "evals": 4,
+            "runtime_seconds": 0.1,
+            "archive_unique_keys": 2,
+            "archive_unique_seed_sources": 1,
+            "archive_unique_target_slices": 2,
+            "archive_mean_substitution_hamming": 1.0,
+            "archive_max_substitution_hamming": 1,
+            "baseline_selector": "score_plus_novelty",
+            "baseline_candidate_hash": "stage3-anchor",
+            "baseline_candidate_source": "stage3_best_phaseB",
+            "baseline_candidate_lane": "anchor",
+            "baseline_candidate_source_rank": 1,
+            "baseline_candidate_final_score": 4.0,
+            "baseline_candidate_final_match": 0.75,
+            "baseline_differs_from_phasec_score_winner": 0,
+            "baseline_search_score": 1.0,
+            "accept_score_min_gain_cfg": 0.0,
+            "accept_search_score_max_drop_cfg": 0.0,
+            "accept_passed": 1,
+            "accept_reason": "accepted",
+            "mini_search_keep_all_rows_cfg": 1,
+            "mini_search_collected_rows": 2,
+            "mini_search_rows_kept": 2,
+            "best_score": 4.1,
+            "best_search_score": 1.1,
+            "best_seed_source": "phasec_phaseb_challenger",
+            "best_stage3_source": "phaseB_topk",
+            "best_lane": "challenger",
+            "best_source_rank": 2,
+            "best_target_slice": 1,
+            "best_depth": 1,
+            "best_move_type": "slice_local_mini_search",
+            "best_candidate_hash": "stage35-weaker",
+            "best_match": 0.5,
+            "truth_gain_vs_selected_row": -0.25,
+            "truth_gain_vs_phasec_score_winner": -0.25,
+            "best_key": [2, 1, 0, 0, 1, 2, 0],
+            "best_plaintext_idx": [0, 0, 2, 1],
+            "archive_rows": [],
+            "seed_rows_scored": [],
+        }
+
+    monkeypatch.setattr(flow_mod, "run_stage3_phasea_restarts_call", _fake_phasea_restarts)
+    monkeypatch.setattr(flow_mod, "run_stage3_two_phase_followup_call", _fake_two_phase_followup)
+    monkeypatch.setattr(flow_mod, "run_stage35_live_followup", _fake_stage35_followup)
+
+    flow = flow_mod.run_stage3_iteration_flow(
+        state={
+            "tier": SimpleNamespace(name="fixture_fixture_001_p9_c3_l1000", period=2, columns=1),
+            "text_id": 0,
+            "key_seed": 611,
+            "t0_i": 0.0,
+            "key_len": 7,
+            "best2_match": 0.60,
+            "best2_score": 3.0,
+            "best2_key": [0, 1, 2, 0, 1, 2, 0],
+            "best2_pt": [0, 1, 0, 0],
+            "best2_preview": "abca",
+            "stage2_promoted": [],
+            "stage2_entry_score": 3.0,
+            "stage2_entry_score_judge": 3.0,
+            "scorer_stage2": {},
+            "scorer_full": {},
+            "oracle_s3": 0.0,
+            "oracle_decision_paths_enabled": False,
+            "ct_idx": np.asarray([0, 0, 0, 0], dtype=np.uint8),
+            "pt_idx": np.asarray([0, 1, 2, 0], dtype=np.uint8),
+            "wli": [],
+            "direction": None,
+            "scorer_stage3_phaseA": {},
+            "scorer_stage3_phaseB": {},
+            "scorer_stage3_phaseA_runtime": object(),
+            "scorer_stage3_search_runtime": _SearchSupportScorer(target=[0, 1, 2, 0]),
+            "scorer_basin_judge_runtime": _SearchSupportScorer(target=[0, 1, 2, 0]),
+            "scorer_full_runtime": _PositionalMatchScorer(target=[0, 1, 2, 0]),
+            "full_cipher": _SlicePermutationCipher(period=2, alphabet_size=3),
+            "stage2_evals_total": 5,
+            "stage2_continue_to_gate": False,
+            "stage2_continue_stop_reason": "",
+            "stage3_phaseA_experiment": "a_baseline",
+            "stage3_phaseB_experiment": "c_min_late",
+            "stage3_phaseB_char_pct_min_dynamic": 0.35,
+            "stage3_phaseB_char_pct_min_source": "static",
+            "oracle_assist_selection_effective": False,
+            "stages": [],
+            "STAGE3_PHASEC_START_POLICY": "source_order",
+            "STAGE35_ENABLED": True,
+            "STAGE35_CFG": {},
+        },
+        stage3_runtime_call_ctx=SimpleNamespace(
+            alphabet_size=3,
+            batch_eval_chunk_size=64,
+            require_batch_scoring=True,
+        ),
+        stage3_two_phase_enabled=True,
+        stage3_continue_after_solve=False,
+        stage3_phasea_cfg_default={},
+        stage3_phaseb_cfg_default={},
+        stage3_phaseb_top_n_default=8,
+        stage3_phaseb_gate_delta_floor_default=0.01,
+        stage3_phaseb_gate_end_gain_floor_default=0.01,
+        solver_stage3_default_cfg={},
+        stage3_span_basin_judge_k=8,
+        tier_heartbeat_seconds=30.0,
+        solve_match_threshold=0.95,
+        stall_delta=1e-6,
+        stall_stage_limit=2,
+        evaluate_stage3_entry_policy_fn=lambda **kwargs: {
+            "policy_branch": "continue",
+            "stage3_band_name": "test",
+            "stage3_scan_phaseA_only": False,
+        },
+        prepare_stage3_refine_inputs_fn=lambda **kwargs: {
+            "c1_focus_enabled": False,
+            "init3_n": 1,
+            "init3": [[0, 1, 2, 0, 1, 2, 0]],
+            "promoted_keys": [],
+            "stage3_promoted_keys_count": 0,
+            "stage3_period_init_mult": 1.0,
+            "stage3_period_step_mult": 1.0,
+            "stage3_period_restart_bonus": 0,
+            "stage2_gap_to_oracle": 0.0,
+            "stage2_gate_score": 3.0,
+            "stage2_gate_source": "test",
+            "promoted_best_match": 0.60,
+            "oracle_used_for_stage3_band": False,
+            "stage3_band_name": "test",
+            "stage3_phaseA_cfg": {},
+            "stage3_phaseB_cfg": {},
+            "stage3_phaseB_top_n": 8,
+            "stage3_phaseB_gate_delta": 0.01,
+            "stage3_phaseB_gate_end_gain": 0.01,
+            "solver_stage3_cfg": {},
+        },
+        summarize_stage3_span_fn=lambda **kwargs: {
+            "span_eval_total": 0.0,
+            "span_eval_active": 0.0,
+            "span_eval_skipped": 0.0,
+            "span_seconds_total": 0.0,
+            "span_seconds_active": 0.0,
+            "span_active_rate": 0.0,
+            "span_active_rate_source": "test",
+        },
+        mark_oracle_decision_use_fn=lambda: None,
+        print_stage_preview_fn=lambda **kwargs: None,
+        fmt_finite_float_fn=lambda v, digits=3: f"{float(v):.{int(digits)}f}"
+        if np.isfinite(v)
+        else "nan",
+        log_prefix="[test]",
+    )
+
+    assert int(flow["stage35_selected"]) == 1
+    assert float(flow["best3_match"]) == pytest.approx(0.75)
+    assert float(flow["stage35_best_match"]) == pytest.approx(0.5)
+
+    outcome = outcome_mod.resolve_iteration_outcome(
+        stop_reason=str(flow["stop_reason"]),
+        solve_match_threshold=0.95,
+        dt_i=1.0,
+        ev1=0,
+        stage2_evals_total=5,
+        ev3=int(flow["ev3"]),
+        best2_match=0.60,
+        best2_score=3.0,
+        best2_key=[0, 1, 2, 0, 1, 2, 0],
+        best2_pt=[0, 1, 0, 0],
+        best2_preview="abca",
+        best3_match=float(flow["best3_match"]),
+        best3_score=float(flow["best3_score"]),
+        best3_key=flow["best3_key"],
+        pt3=np.asarray(flow["pt3"], dtype=np.uint8),
+        target_plaintext_idx=[0, 1, 2, 0],
+        stage35_selected=bool(flow["stage35_selected"]),
+        stage35_best_score=float(flow["stage35_best_score"]),
+        stage35_best_key=flow["stage35_best_key"],
+        stage35_best_plaintext_idx=flow["stage35_best_plaintext_idx"],
+        wli=[],
+        stage1_best_score=0.0,
+        oracle_s1=0.0,
+        oracle_s2=0.0,
+        oracle_s3=0.0,
+        derive_outcome_code_fn=lambda **_: "ok",
+        safe_preview_latin_fn=lambda pt, _wli: "".join(chr(int(x) + 65) for x in pt),
+    )
+
+    assert str(outcome["best_stage"]) == "stage3_full_refine"
+    assert int(outcome["stage35_used_for_final_best"]) == 0
+    assert float(outcome["best_match"]) == pytest.approx(0.75)
+
+
 def test_stage3_iteration_flow_propagates_phaseb_family_preservation_fields(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1476,8 +1953,32 @@ def test_stage3_iteration_flow_propagates_phaseb_family_preservation_fields(
             "phaseB_selected_unique_end_hash": 8,
             "phaseB_downstream_selected_count": 8,
             "phaseB_downstream_selected_unique_end_hash": 7,
+            "phaseB_downstream_selected_summaries": [
+                {
+                    "downstream_rank": 1,
+                    "phaseb_rank": 1,
+                    "end_hash": "downstream-a",
+                    "family_id": "f0",
+                },
+                {
+                    "downstream_rank": 2,
+                    "phaseb_rank": 3,
+                    "end_hash": "downstream-b",
+                    "family_id": "f1",
+                },
+            ],
             "phaseB_topk_saved_count": 1,
             "phaseB_topk_saved_unique_end_hash": 1,
+            "phaseB_topk_saved_summaries": [
+                {
+                    "saved_rank": 1,
+                    "stage3_topk_rank": 1,
+                    "candidate_hash": "topk-a",
+                    "end_hash": "topk-a",
+                    "source": "phaseB_topk",
+                    "match_ratio": 0.64,
+                }
+            ],
             "phaseC_candidate_pool_count": 10,
             "phaseC_candidate_pool_unique_keys": 8,
             "phaseC_candidate_pool_unique_end_hash": 8,
@@ -1619,6 +2120,13 @@ def test_stage3_iteration_flow_propagates_phaseb_family_preservation_fields(
     assert int(out["phaseB_family_reservation_applied"]) == 1
     assert int(out["phaseB_downstream_selected_count"]) == 8
     assert int(out["phaseB_downstream_selected_unique_end_hash"]) == 7
+    assert [str(row["end_hash"]) for row in out["phaseB_downstream_selected_summaries"]] == [
+        "downstream-a",
+        "downstream-b",
+    ]
+    assert [str(row["candidate_hash"]) for row in out["phaseB_topk_saved_summaries"]] == [
+        "topk-a",
+    ]
 
 
 def test_stage35_replay_case_reports_win_against_baseline(monkeypatch) -> None:
@@ -1738,9 +2246,87 @@ def test_resolve_iteration_outcome_can_report_stage35_selected_result() -> None:
     )
 
     assert str(out["best_stage"]) == "stage35_substitution_only"
+    assert int(out["stage35_match_available"]) == 1
+    assert int(out["stage35_used_for_final_best"]) == 1
     assert float(out["best_match"]) == pytest.approx(1.0)
     assert list(out["final_best_key_idx"]) == [7, 8, 9]
     assert list(out["final_best_plaintext_idx"]) == [0, 1, 2]
+
+
+def test_resolve_iteration_outcome_keeps_stronger_stage3_when_stage35_is_weaker() -> None:
+    out = outcome_mod.resolve_iteration_outcome(
+        stop_reason="unsolved",
+        solve_match_threshold=0.90,
+        dt_i=1.0,
+        ev1=1,
+        stage2_evals_total=2,
+        ev3=3,
+        best2_match=0.60,
+        best2_score=0.1,
+        best2_key=[1, 2, 3],
+        best2_pt=[0, 0, 0],
+        best2_preview="old",
+        best3_match=2.0 / 3.0,
+        best3_score=0.2,
+        best3_key=[4, 5, 6],
+        pt3=np.asarray([0, 1, 0], dtype=np.uint8),
+        target_plaintext_idx=[0, 1, 2],
+        stage35_selected=True,
+        stage35_best_score=0.3,
+        stage35_best_key=[7, 8, 9],
+        stage35_best_plaintext_idx=[0, 0, 1],
+        wli=[],
+        stage1_best_score=0.0,
+        oracle_s1=0.0,
+        oracle_s2=0.0,
+        oracle_s3=0.0,
+        derive_outcome_code_fn=lambda **_: "ok",
+        safe_preview_latin_fn=lambda pt, _wli: "".join(chr(int(x) + 65) for x in pt),
+    )
+
+    assert str(out["best_stage"]) == "stage3_full_refine"
+    assert int(out["stage35_match_available"]) == 1
+    assert int(out["stage35_used_for_final_best"]) == 0
+    assert float(out["best_match"]) == pytest.approx(2.0 / 3.0)
+    assert list(out["final_best_key_idx"]) == [4, 5, 6]
+    assert list(out["final_best_plaintext_idx"]) == [0, 1, 0]
+
+
+def test_resolve_iteration_outcome_keeps_stage3_when_stage35_match_is_unavailable() -> None:
+    out = outcome_mod.resolve_iteration_outcome(
+        stop_reason="unsolved",
+        solve_match_threshold=0.90,
+        dt_i=1.0,
+        ev1=1,
+        stage2_evals_total=2,
+        ev3=3,
+        best2_match=0.60,
+        best2_score=0.1,
+        best2_key=[1, 2, 3],
+        best2_pt=[0, 0, 0],
+        best2_preview="old",
+        best3_match=2.0 / 3.0,
+        best3_score=0.2,
+        best3_key=[4, 5, 6],
+        pt3=np.asarray([0, 1, 0], dtype=np.uint8),
+        target_plaintext_idx=None,
+        stage35_selected=True,
+        stage35_best_score=0.3,
+        stage35_best_key=[7, 8, 9],
+        stage35_best_plaintext_idx=[0, 0, 1],
+        wli=[],
+        stage1_best_score=0.0,
+        oracle_s1=0.0,
+        oracle_s2=0.0,
+        oracle_s3=0.0,
+        derive_outcome_code_fn=lambda **_: "ok",
+        safe_preview_latin_fn=lambda pt, _wli: "".join(chr(int(x) + 65) for x in pt),
+    )
+
+    assert str(out["best_stage"]) == "stage3_full_refine"
+    assert int(out["stage35_match_available"]) == 0
+    assert int(out["stage35_used_for_final_best"]) == 0
+    assert float(out["best_match"]) == pytest.approx(2.0 / 3.0)
 
 
 def test_stage35_replay_summary_counts_wins_losses_and_ties() -> None:

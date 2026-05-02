@@ -1,0 +1,17 @@
+{
+  "panel_schema_version": "no_wli_fixed_instance_panel_v1",
+  "panel_id": "p9_c3_solver_panel_primary_trio_search7002_7004_v1",
+  "instance_fixture_ids": [
+    "fixture_001__p9_c3_l1000__text0__seed611",
+    "fixture_001__p9_c3_l1000__text0__seed1111",
+    "fixture_001__p9_c3_l1000__text0__seed1511"
+  ],
+  "search_seeds": [
+    7002,
+    7004
+  ],
+  "notes": [
+    "Primary-trio fixed-panel slice for the Phase-B challenger supply study.",
+    "Uses common retained search seeds 7002 and 7004 so the runtime batch stays explicit and bounded."
+  ]
+}

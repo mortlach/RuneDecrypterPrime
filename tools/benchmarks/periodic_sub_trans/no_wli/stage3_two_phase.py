@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import threading
 import time
-from typing import Any, Callable, Dict, List, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Sequence, Tuple
 
 import numpy as np
 
@@ -49,6 +49,375 @@ PHASEC_SHADOW_STOP_V1_PLATEAU_STEPS = 16
 PHASEC_SHADOW_STOP_V1_HIGH_SCORE_FLOOR = 0.45
 PHASEC_SHADOW_STOP_V1_HIGH_SCORE_STABLE_STEPS = 4
 PHASEC_SHADOW_STOP_V1_SCORE_IMPROVE_EPS = 1.0e-6
+
+
+def build_phasea_gate_snapshot(
+    *,
+    tier_name: str,
+    text_id: int,
+    key_seed: int,
+    phaseA_rows: Sequence[Dict[str, Any]],
+    phaseA_selected_rows: Sequence[Dict[str, Any]],
+    gate_delta: float,
+    gate_end_gain: float,
+    phaseB_ran: int,
+    phaseB_ready_reason: str,
+    phaseB_top_n_used: int,
+    phaseB_selected_unique_end_hash: int,
+    phaseB_family_preservation_policy: str,
+    phaseB_family_view_id: str,
+    phaseB_family_reserved_slots: int,
+    phaseB_family_count_in_top_band: int,
+    phaseB_family_preserved_count: int,
+    phaseB_family_reservation_applied: int,
+    phaseB_downstream_selected_count: int,
+    phaseB_downstream_selected_unique_end_hash: int,
+) -> Dict[str, Any]:
+    selected_rows = [dict(row) for row in list(phaseA_selected_rows or [])]
+    rank1_row = dict(selected_rows[0]) if selected_rows else {}
+
+    def _finite_metric(row: Mapping[str, Any], key: str) -> float:
+        try:
+            value = float(row.get(key, float("nan")))
+        except (TypeError, ValueError):
+            return float("nan")
+        return value if np.isfinite(value) else float("-inf")
+
+    def _metric_with_fallback(row: Mapping[str, Any], *keys: str) -> float:
+        for key in keys:
+            value = _finite_metric(row, key)
+            if np.isfinite(value):
+                return value
+        return float("-inf")
+
+    best_phasea_init = (
+        dict(
+            max(
+                selected_rows,
+                key=lambda row: _metric_with_fallback(row, "init_match", "end_match", "match"),
+            )
+        )
+        if selected_rows
+        else {}
+    )
+    best_phasea_final = (
+        dict(
+            max(
+                selected_rows,
+                key=lambda row: _metric_with_fallback(
+                    row,
+                    "final_match",
+                    "end_match",
+                    "match",
+                ),
+            )
+        )
+        if selected_rows
+        else {}
+    )
+
+    def _row_match(row: Mapping[str, Any], *keys: str) -> float:
+        for key in keys:
+            try:
+                value = float(row.get(key, float("nan")))
+            except (TypeError, ValueError):
+                continue
+            if np.isfinite(value):
+                return value
+        return float("nan")
+
+    def _row_int(row: Mapping[str, Any], *keys: str, default: int = 0) -> int:
+        for key in keys:
+            if key not in row:
+                continue
+            raw_value = row.get(key)
+            if raw_value in (None, ""):
+                continue
+            try:
+                value = int(raw_value)
+            except (TypeError, ValueError):
+                continue
+            return value
+        return int(default)
+
+    def _row_str(row: Mapping[str, Any], *keys: str) -> str:
+        for key in keys:
+            value = str(row.get(key, "") or "")
+            if value:
+                return value
+        return ""
+
+    def _row_hash(row: Mapping[str, Any]) -> str:
+        return str(
+            row.get(
+                "end_hash",
+                row.get(
+                    "candidate_hash",
+                    row.get("start_hash", ""),
+                ),
+            )
+            or ""
+        )
+
+    def _plateau_flag(row: Mapping[str, Any]) -> int:
+        shadow_stop = dict(row.get("shadow_stop_v1", {}) or {})
+        try:
+            return int(shadow_stop.get("plateau_would_stop", 0) or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    return dict(
+        tier_name=str(tier_name),
+        text_id=int(text_id),
+        key_seed=int(key_seed),
+        phaseA_rows_scored=int(len(list(phaseA_rows or []))),
+        phaseA_selected_count=int(len(selected_rows)),
+        phaseA_rank1_source=_row_str(rank1_row, "source", "selection_bucket"),
+        phaseA_rank1_source_rank=_row_int(
+            rank1_row,
+            "source_rank",
+            "phaseb_rank",
+            default=1,
+        ),
+        phaseA_rank1_candidate_hash=_row_hash(rank1_row),
+        phaseA_rank1_init_match=_row_match(rank1_row, "init_match", "end_match", "match"),
+        phaseA_rank1_final_match=_row_match(rank1_row, "final_match", "end_match", "match"),
+        phaseA_rank1_score_gain=_row_match(rank1_row, "score_gain", "best_delta_pct"),
+        phaseA_rank1_plateau_would_stop=_plateau_flag(rank1_row),
+        phaseA_best_init_match=_row_match(
+            best_phasea_init,
+            "init_match",
+            "end_match",
+            "match",
+        ),
+        phaseA_best_init_source_rank=_row_int(
+            best_phasea_init,
+            "source_rank",
+            "phaseb_rank",
+            default=0,
+        ),
+        phaseA_best_init_candidate_hash=_row_hash(best_phasea_init),
+        phaseA_best_final_match=_row_match(
+            best_phasea_final,
+            "final_match",
+            "end_match",
+            "match",
+        ),
+        phaseA_best_final_source_rank=_row_int(
+            best_phasea_final,
+            "source_rank",
+            "phaseb_rank",
+            default=0,
+        ),
+        phaseA_best_final_candidate_hash=_row_hash(best_phasea_final),
+        phaseB_ran=int(phaseB_ran),
+        phaseB_ready_reason=str(phaseB_ready_reason),
+        phaseB_top_n_used=int(phaseB_top_n_used),
+        phaseB_selected_unique_end_hash=int(phaseB_selected_unique_end_hash),
+        phaseB_gate_delta_cfg=float(gate_delta),
+        phaseB_gate_end_gain_cfg=float(gate_end_gain),
+        phaseB_family_preservation_policy=str(phaseB_family_preservation_policy),
+        phaseB_family_view_id=str(phaseB_family_view_id),
+        phaseB_family_reserved_slots=int(phaseB_family_reserved_slots),
+        phaseB_family_count_in_top_band=int(phaseB_family_count_in_top_band),
+        phaseB_family_preserved_count=int(phaseB_family_preserved_count),
+        phaseB_family_reservation_applied=int(phaseB_family_reservation_applied),
+        phaseB_downstream_selected_count=int(phaseB_downstream_selected_count),
+        phaseB_downstream_selected_unique_end_hash=int(
+            phaseB_downstream_selected_unique_end_hash
+        ),
+    )
+
+
+def _phaseb_rank_key_for_gate_snapshot(
+    row: Mapping[str, Any],
+    *,
+    stage3_word_ngram_decision_influence: bool,
+) -> tuple[float, ...]:
+    end_score_pct = float(row.get("end_score_pct", float("-inf")))
+    best_delta_pct = float(row.get("best_delta_pct", float("-inf")))
+    end_score_raw = float(row.get("end_score_raw", float("-inf")))
+    restart_key = float(-int(row.get("restart_idx", 0)))
+    if not bool(stage3_word_ngram_decision_influence):
+        return (end_score_pct, best_delta_pct, end_score_raw, restart_key)
+    word_ngram_active = float(1 if bool(row.get("word_ngram_judge_active", 0)) else 0)
+    word_ngram_trust = float(row.get("word_ngram_trust_score", float("-inf")))
+    if not np.isfinite(word_ngram_trust):
+        word_ngram_trust = float("-inf")
+    word_ngram_report_xent = float(row.get("word_ngram_report_xent", float("nan")))
+    word_ngram_report_xent_sort = (
+        float(-word_ngram_report_xent)
+        if np.isfinite(word_ngram_report_xent)
+        else float("-inf")
+    )
+    return (
+        end_score_pct,
+        word_ngram_active,
+        word_ngram_trust,
+        word_ngram_report_xent_sort,
+        best_delta_pct,
+        end_score_raw,
+        restart_key,
+    )
+
+
+def build_phasea_provisional_gate_snapshot(
+    *,
+    tier_name: str,
+    text_id: int,
+    key_seed: int,
+    key_len: int,
+    phaseA_rows: Sequence[Dict[str, Any]],
+    phaseA_checkpoint_restart_count: int,
+    phaseA_checkpoint_restart_total: int,
+    phaseA_checkpoint_elapsed_seconds: float,
+    stage3_phaseB_top_n: int,
+    stage3_span_basin_judge_tie_eps: float,
+    stage3_span_basin_judge_tie_max_seeds: int,
+    stage3_word_ngram_decision_influence: bool,
+    phaseB_family_preservation_policy: str,
+    phaseB_family_view_id: str,
+    phaseB_family_reserved_slots: int,
+    gate_delta: float,
+    gate_end_gain: float,
+) -> Dict[str, Any]:
+    rows = [dict(row) for row in list(phaseA_rows or [])]
+    if not rows:
+        return {}
+
+    def _snapshot_candidate_hash(row: Mapping[str, Any]) -> str:
+        existing_hash = str(row.get("end_hash", "") or "")
+        if existing_hash:
+            return existing_hash
+        end_key = list(map(int, row.get("end_key", [])))
+        return ",".join(str(value) for value in end_key)
+
+    def _fallback_phaseb_family_preservation(
+        ranked_rows: Sequence[Dict[str, Any]],
+        selected_rows: Sequence[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        selected_out = [dict(row) for row in list(selected_rows or [])]
+        unique_end_hash = int(
+            len(
+                {
+                    _snapshot_candidate_hash(row)
+                    for row in selected_out
+                    if len(list(map(int, row.get("end_key", [])))) == int(key_len)
+                }
+            )
+        )
+        return dict(
+            rows=selected_out,
+            family_count_in_top_band=int(len(list(ranked_rows or []))),
+            family_preserved_count=int(len(selected_out)),
+            reservation_applied=0,
+            downstream_selected_unique_end_hash=int(unique_end_hash),
+        )
+
+    top_n = max(1, int(stage3_phaseB_top_n))
+    tie_eps = float(max(0.0, float(stage3_span_basin_judge_tie_eps)))
+    tie_cap = int(max(int(top_n), int(stage3_span_basin_judge_tie_max_seeds)))
+    ranked = sorted(
+        rows,
+        key=lambda row: _phaseb_rank_key_for_gate_snapshot(
+            row,
+            stage3_word_ngram_decision_influence=bool(
+                stage3_word_ngram_decision_influence
+            ),
+        ),
+        reverse=True,
+    )
+    ranked_unique_rows: List[Dict[str, Any]] = []
+    seen_basin: set[Tuple[str, str]] = set()
+    for row in ranked:
+        basin_id = (str(row.get("start_hash", "")), str(row.get("end_hash", "")))
+        if basin_id in seen_basin:
+            continue
+        seen_basin.add(basin_id)
+        ranked_unique_rows.append(dict(row))
+    selected_top_n = list(ranked_unique_rows[:top_n])
+    tie_band: List[Dict[str, Any]] = []
+    if ranked_unique_rows and np.isfinite(
+        float(ranked_unique_rows[0].get("end_score_pct", float("nan")))
+    ):
+        top_score = float(ranked_unique_rows[0].get("end_score_pct", float("nan")))
+        for row in ranked_unique_rows:
+            row_score = float(row.get("end_score_pct", float("nan")))
+            if not np.isfinite(row_score):
+                continue
+            if float(top_score - row_score) <= float(tie_eps):
+                tie_band.append(dict(row))
+    selected_rows = list(selected_top_n)
+    phaseB_ready_reason = "passed"
+    if len(tie_band) > len(selected_top_n):
+        selected_rows = list(tie_band[:tie_cap])
+        phaseB_ready_reason = (
+            f"tie_band_eps={float(tie_eps):.4f}_"
+            f"n={int(len(tie_band))}_cap={int(tie_cap)}"
+        )
+    phaseB_top_n_used = int(len(selected_rows))
+    phaseB_ran = int(1 if selected_rows else 0)
+    if (not selected_rows) and bool(selected_top_n):
+        selected_rows = [dict(selected_top_n[0])]
+        phaseB_top_n_used = int(len(selected_rows))
+        phaseB_ran = 1
+        phaseB_ready_reason = "fallback_top1"
+    elif not selected_rows:
+        phaseB_ready_reason = "selected_empty"
+    phaseB_selected_unique_end_hash = int(
+        len(
+            {
+                _snapshot_candidate_hash(row)
+                for row in selected_rows
+                if len(list(map(int, row.get("end_key", [])))) == int(key_len)
+            }
+        )
+    )
+    phaseB_family_preservation = _fallback_phaseb_family_preservation(
+        ranked_rows=ranked_unique_rows,
+        selected_rows=selected_rows,
+    )
+    downstream_rows = [dict(row) for row in list(phaseB_family_preservation["rows"])]
+    snapshot = build_phasea_gate_snapshot(
+        tier_name=str(tier_name),
+        text_id=int(text_id),
+        key_seed=int(key_seed),
+        phaseA_rows=rows,
+        phaseA_selected_rows=downstream_rows,
+        gate_delta=float(gate_delta),
+        gate_end_gain=float(gate_end_gain),
+        phaseB_ran=int(phaseB_ran),
+        phaseB_ready_reason=str(phaseB_ready_reason),
+        phaseB_top_n_used=int(phaseB_top_n_used),
+        phaseB_selected_unique_end_hash=int(phaseB_selected_unique_end_hash),
+        phaseB_family_preservation_policy=str(phaseB_family_preservation_policy),
+        phaseB_family_view_id=str(phaseB_family_view_id),
+        phaseB_family_reserved_slots=int(phaseB_family_reserved_slots),
+        phaseB_family_count_in_top_band=int(
+            phaseB_family_preservation["family_count_in_top_band"]
+        ),
+        phaseB_family_preserved_count=int(
+            phaseB_family_preservation["family_preserved_count"]
+        ),
+        phaseB_family_reservation_applied=int(
+            phaseB_family_preservation["reservation_applied"]
+        ),
+        phaseB_downstream_selected_count=int(len(downstream_rows)),
+        phaseB_downstream_selected_unique_end_hash=int(
+            phaseB_family_preservation["downstream_selected_unique_end_hash"]
+        ),
+    )
+    checkpoint_fraction = (
+        float(phaseA_checkpoint_restart_count) / float(max(1, phaseA_checkpoint_restart_total))
+    )
+    snapshot.update(
+        event="stage3_phasea_provisional_gate_snapshot",
+        phaseA_checkpoint_restart_count=int(phaseA_checkpoint_restart_count),
+        phaseA_checkpoint_restart_total=int(phaseA_checkpoint_restart_total),
+        phaseA_checkpoint_fraction=float(checkpoint_fraction),
+        phaseA_checkpoint_elapsed_seconds=float(phaseA_checkpoint_elapsed_seconds),
+    )
+    return snapshot
 
 
 def _approx_phase_eval_budget(
@@ -181,6 +550,7 @@ def run_stage3_two_phase_followup(
     fmt_finite_float_fn: Callable[..., str],
     phasec_start_checkpoint_path: Path | None = None,
     append_jsonl_row_fn: Callable[[Path, Dict[str, Any]], None] | None = None,
+    persist_phasea_gate_snapshot_fn: Callable[[Dict[str, Any]], None] | None = None,
     key_hash_fn: Callable[[Sequence[int]], str] | None = None,
     stage3_phasec_start_policy: str = "source_order",
     stage3_phaseb_family_preservation_policy: str = "off",
@@ -221,6 +591,7 @@ def run_stage3_two_phase_followup(
     phaseB_topk_saved_count = 0
     phaseB_topk_saved_unique_end_hash = 0
     phaseB_topk_rows: List[Dict[str, Any]] = []
+    phaseB_topk_saved_summaries: List[Dict[str, Any]] = []
 
     stage3_span_full_eval_total = 0.0
     stage3_span_full_eval_active = 0.0
@@ -363,6 +734,8 @@ def run_stage3_two_phase_followup(
         candidate_row: Mapping[str, Any],
         selection_bucket: str = "legacy_fill",
         selected_by_novel_policy: bool = False,
+        selected_by_anchor_family_policy: bool = False,
+        selected_by_phaseb_topk_anchor_policy: bool = False,
         eligible_novel_challenger: bool = False,
         novelty_distance_to_anchor: int | None = None,
         novelty_min_distance_to_selected_challenger: int | None = None,
@@ -374,6 +747,12 @@ def run_stage3_two_phase_followup(
         row = dict(candidate_row)
         row["selection_bucket"] = str(selection_bucket)
         row["selected_by_novel_policy"] = int(1 if bool(selected_by_novel_policy) else 0)
+        row["selected_by_anchor_family_policy"] = int(
+            1 if bool(selected_by_anchor_family_policy) else 0
+        )
+        row["selected_by_phaseb_topk_anchor_policy"] = int(
+            1 if bool(selected_by_phaseb_topk_anchor_policy) else 0
+        )
         row["eligible_novel_challenger"] = int(
             1 if bool(eligible_novel_challenger) else 0
         )
@@ -411,6 +790,12 @@ def run_stage3_two_phase_followup(
                 novelty_distance_to_anchor=row.get(
                     "novelty_distance_to_anchor",
                     None,
+                ),
+                selected_by_anchor_family_policy=int(
+                    row.get("selected_by_anchor_family_policy", 0) or 0
+                ),
+                selected_by_phaseb_topk_anchor_policy=int(
+                    row.get("selected_by_phaseb_topk_anchor_policy", 0) or 0
                 ),
                 selected_by_phasec_start=int(
                     row.get("selected_by_phasec_start", 0) or 0
@@ -496,6 +881,24 @@ def run_stage3_two_phase_followup(
                 if same_family_vs_selected is not False:
                     return False, distance_to_anchor, min_distance_to_selected
             return True, distance_to_anchor, min_distance_to_selected
+
+        def _is_anchor_family_match(
+            row: Mapping[str, Any],
+            *,
+            anchor_row: Mapping[str, Any],
+        ) -> tuple[bool, int | None]:
+            if novelty_view is None:
+                return False, None
+            if _row_is_anchor(row, anchor_row=anchor_row):
+                return False, None
+            distance_to_anchor = _novelty_distance(row, anchor_row)
+            same_family_vs_anchor = rows_share_family(
+                row,
+                anchor_row,
+                family_view=novelty_view,
+                columns=int(max(1, int(tier_columns))),
+            )
+            return bool(same_family_vs_anchor is True), distance_to_anchor
 
         def _legacy_fill(
             *,
@@ -704,6 +1107,73 @@ def run_stage3_two_phase_followup(
                 source_names=("phaseB_topk", "phaseA_selected"),
                 anchor_row=anchor_row,
             )
+        elif policy == "anchor_family_reserved_v1":
+            reserved_limit = int(max(0, min(int(start_limit - len(start_records)), 2)))
+            reserved_count = 0
+            if anchor_row is not None and reserved_limit > 0:
+                for pool_row in candidate_pool_records:
+                    same_family, distance_to_anchor = _is_anchor_family_match(
+                        pool_row,
+                        anchor_row=anchor_row,
+                    )
+                    if not same_family:
+                        continue
+                    if _append_unique_start_row(
+                        out_rows=start_records,
+                        seen_starts=seen_starts,
+                        candidate_row=pool_row,
+                        selection_bucket="anchor_family_reserved",
+                        selected_by_novel_policy=False,
+                        selected_by_anchor_family_policy=True,
+                        eligible_novel_challenger=False,
+                        novelty_distance_to_anchor=distance_to_anchor,
+                        novelty_min_distance_to_selected_challenger=None,
+                    ):
+                        reserved_count += 1
+                        if reserved_count >= reserved_limit:
+                            break
+            _legacy_fill(
+                out_rows=start_records,
+                seen_starts=seen_starts,
+                source_names=("phaseB_topk", "phaseA_selected"),
+                anchor_row=anchor_row,
+            )
+        elif policy == "phaseb_topk_anchor_swap_v1":
+            topk_anchor_row: Dict[str, Any] | None = None
+            for pool_row in candidate_buckets.get("phaseB_topk", []):
+                pool_hash = str(pool_row.get("candidate_hash", "") or "")
+                anchor_hash = str(anchor_row.get("candidate_hash", "") or "")
+                if pool_hash and anchor_hash and pool_hash == anchor_hash:
+                    continue
+                topk_anchor_row = dict(pool_row)
+                break
+            if anchor_row is not None and topk_anchor_row is not None:
+                start_records = []
+                seen_starts = set()
+                _append_unique_start_row(
+                    out_rows=start_records,
+                    seen_starts=seen_starts,
+                    candidate_row=topk_anchor_row,
+                    selection_bucket="phaseb_topk_anchor",
+                    selected_by_novel_policy=False,
+                    selected_by_anchor_family_policy=False,
+                    selected_by_phaseb_topk_anchor_policy=True,
+                )
+                _append_unique_start_row(
+                    out_rows=start_records,
+                    seen_starts=seen_starts,
+                    candidate_row=anchor_row,
+                    selection_bucket="anchor_demoted",
+                    selected_by_novel_policy=False,
+                    selected_by_anchor_family_policy=False,
+                    selected_by_phaseb_topk_anchor_policy=False,
+                )
+            _legacy_fill(
+                out_rows=start_records,
+                seen_starts=seen_starts,
+                source_names=("phaseB_topk", "phaseA_selected"),
+                anchor_row=anchor_row,
+            )
         else:
             raise ValueError(f"Unknown Phase-C start policy: {phasec_start_policy}")
         start_eligible_novel_hashes = {
@@ -815,7 +1285,7 @@ def run_stage3_two_phase_followup(
         if policy == "off":
             preserved_rows = list(top_band_rows)
             reservation_applied = 0
-        elif policy != "reserve_by_family_v1":
+        elif policy not in {"reserve_by_family_v1", "reinforce_top_family_v1"}:
             raise ValueError(
                 f"Unknown Phase-B family preservation policy: {family_preservation_policy}"
             )
@@ -838,19 +1308,38 @@ def run_stage3_two_phase_followup(
                 preserved_family_ids.add(str(top_family_id))
 
             if reserved_slots > 0:
-                for row in annotated_rows[1:]:
-                    if int(len(preserved_rows)) >= int(1 + reserved_slots):
-                        break
-                    family_id = family_assignments.get(str(row["row_id"]))
-                    if family_id is None:
-                        continue
-                    family_id_s = str(family_id)
-                    if family_id_s in preserved_family_ids:
-                        continue
-                    preserved_rows.append(row)
-                    preserved_row_ids.add(str(row["row_id"]))
-                    preserved_family_ids.add(family_id_s)
-                    reservation_applied = 1
+                if policy == "reserve_by_family_v1":
+                    for row in annotated_rows[1:]:
+                        if int(len(preserved_rows)) >= int(1 + reserved_slots):
+                            break
+                        family_id = family_assignments.get(str(row["row_id"]))
+                        if family_id is None:
+                            continue
+                        family_id_s = str(family_id)
+                        if family_id_s in preserved_family_ids:
+                            continue
+                        preserved_rows.append(row)
+                        preserved_row_ids.add(str(row["row_id"]))
+                        preserved_family_ids.add(family_id_s)
+                        reservation_applied = 1
+                else:
+                    top_family_id_s = str(top_family_id) if top_family_id is not None else ""
+                    for row in annotated_rows[1:]:
+                        if int(len(preserved_rows)) >= int(1 + reserved_slots):
+                            break
+                        family_id = family_assignments.get(str(row["row_id"]))
+                        if family_id is None:
+                            continue
+                        family_id_s = str(family_id)
+                        if not top_family_id_s or family_id_s != top_family_id_s:
+                            continue
+                        row_id = str(row["row_id"])
+                        if row_id in preserved_row_ids:
+                            continue
+                        preserved_rows.append(row)
+                        preserved_row_ids.add(row_id)
+                        preserved_family_ids.add(family_id_s)
+                        reservation_applied = 1
 
             for row in annotated_rows:
                 if int(len(preserved_rows)) >= int(target_count):
@@ -1498,6 +1987,38 @@ def run_stage3_two_phase_followup(
         f"downstream_unique_end_hash={int(phaseB_downstream_selected_unique_end_hash)}",
         flush=True,
     )
+    if callable(persist_phasea_gate_snapshot_fn):
+        persist_phasea_gate_snapshot_fn(
+            build_phasea_gate_snapshot(
+                tier_name=str(tier_name),
+                text_id=int(text_id),
+                key_seed=int(key_seed),
+                phaseA_rows=phaseA_rows,
+                phaseA_selected_rows=phaseA_selected_rows,
+                gate_delta=float(gate_delta),
+                gate_end_gain=float(gate_end_gain),
+                phaseB_ran=int(phaseB_ran),
+                phaseB_ready_reason=str(phaseB_ready_reason),
+                phaseB_top_n_used=int(phaseB_top_n_used),
+                phaseB_selected_unique_end_hash=int(phaseB_selected_unique_end_hash),
+                phaseB_family_preservation_policy=str(
+                    phaseB_family_preservation_policy_cfg
+                ),
+                phaseB_family_view_id=str(phaseB_family_view_id_cfg),
+                phaseB_family_reserved_slots=int(phaseB_family_reserved_slots_cfg),
+                phaseB_family_count_in_top_band=int(phaseB_family_count_in_top_band),
+                phaseB_family_preserved_count=int(phaseB_family_preserved_count),
+                phaseB_family_reservation_applied=int(
+                    phaseB_family_reservation_applied
+                ),
+                phaseB_downstream_selected_count=int(
+                    phaseB_downstream_selected_count
+                ),
+                phaseB_downstream_selected_unique_end_hash=int(
+                    phaseB_downstream_selected_unique_end_hash
+                ),
+            )
+        )
 
     if selected:
         phaseB_init = [list(map(int, row["end_key"])) for row in selected]
@@ -1654,6 +2175,23 @@ def run_stage3_two_phase_followup(
                 }
             )
         )
+        phaseB_topk_saved_summaries = []
+        for saved_rank, row in enumerate(phaseB_topk_rows, start=1):
+            end_key = list(map(int, row.get("key_idx", [])))
+            candidate_hash = _candidate_hash(
+                key_vals=end_key,
+                existing_hash=str(row.get("end_hash", "")),
+            )
+            phaseB_topk_saved_summaries.append(
+                dict(
+                    saved_rank=int(saved_rank),
+                    stage3_topk_rank=int(row.get("rank", saved_rank) or saved_rank),
+                    candidate_hash=str(candidate_hash),
+                    end_hash=str(candidate_hash),
+                    source=str(row.get("source", "") or ""),
+                    match_ratio=float(row.get("match_ratio", float("nan"))),
+                )
+            )
 
         stage_rows.append(
             dict(
@@ -3299,6 +3837,15 @@ def run_stage3_two_phase_followup(
                     selected_by_novel_policy=int(
                         start_row.get("selected_by_novel_policy", 0) or 0
                     ),
+                    selected_by_anchor_family_policy=int(
+                        start_row.get("selected_by_anchor_family_policy", 0) or 0
+                    ),
+                    selected_by_phaseb_topk_anchor_policy=int(
+                        start_row.get(
+                            "selected_by_phaseb_topk_anchor_policy", 0
+                        )
+                        or 0
+                    ),
                     eligible_novel_challenger=int(
                         start_row.get("eligible_novel_challenger", 0) or 0
                     ),
@@ -3745,6 +4292,9 @@ def run_stage3_two_phase_followup(
         ],
         phaseB_topk_saved_count=int(phaseB_topk_saved_count),
         phaseB_topk_saved_unique_end_hash=int(phaseB_topk_saved_unique_end_hash),
+        phaseB_topk_saved_summaries=[
+            dict(row) for row in phaseB_topk_saved_summaries
+        ],
         phaseC_enabled_cfg=int(1 if bool(phaseC_enabled_cfg) else 0),
         phaseC_enabled_effective=int(phaseC_enabled_effective),
         phaseC_ran=int(phaseC_ran),

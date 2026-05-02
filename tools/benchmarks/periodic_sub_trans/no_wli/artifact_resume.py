@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import json
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 import numpy as np
 
@@ -15,6 +15,7 @@ from rune_decrypter_prime.api import Direction
 from tools.benchmarks.periodic_sub_trans.no_wli import (
     replay_phasec_rescue_sweep as phasec_replay_mod,
     stage3_iteration_flow as stage3_flow_mod,
+    stage3_two_phase as stage3_phase2_mod,
 )
 from tools.benchmarks.periodic_sub_trans.no_wli.path_hash_utils import sanitize_jsonable
 from tools.benchmarks.periodic_sub_trans.no_wli.iteration_identity import (
@@ -83,6 +84,11 @@ DEFAULT_STAGE3_HEARTBEAT_MIN_STEP = 50
 DEFAULT_STAGE3_HEARTBEAT_MIN_ELAPSED_SECONDS = 5.0
 DEFAULT_BATCH_EVAL_CHUNK_SIZE = 256
 DEFAULT_REQUIRE_BATCH_SCORING = True
+STAGE3_RESUME_STATUS_JSON_NAME = "stage3_resume_status.json"
+STAGE3_RESUME_PROGRESS_JSONL_NAME = "stage3_resume_progress.jsonl"
+PHASEA_GATE_SNAPSHOT_JSON_NAME = "phasea_gate_snapshot.json"
+PHASEA_PROVISIONAL_GATE_SNAPSHOTS_JSONL_NAME = "phasea_provisional_gate_snapshots.jsonl"
+DEFAULT_PHASEA_PROVISIONAL_CHECKPOINT_COUNTS = (16, 32, 48, 64)
 
 
 @dataclass(frozen=True)
@@ -98,6 +104,19 @@ class Stage2ResumeInputs:
     stage2_topk_row_count: int
     stage2_promote_top_cfg: int
     stage2_promoted_from_topk_count: int
+
+
+class PhaseAGateActionSignal(RuntimeError):
+    def __init__(
+        self,
+        *,
+        snapshot: Mapping[str, Any],
+        decision: Mapping[str, Any],
+    ) -> None:
+        self.snapshot = dict(snapshot or {})
+        self.decision = dict(decision or {})
+        action_reason = str(self.decision.get("action_reason", "") or "phasea_gate_action")
+        super().__init__(action_reason)
 
 
 def _coerce_stage2_resume_inputs(raw: Mapping[str, Any]) -> Stage2ResumeInputs:
@@ -128,8 +147,19 @@ def _repo_rel(path: Path) -> str:
     return phasec_replay_mod._repo_rel(path)
 
 
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def _load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _safe_float(value: Any) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float("nan")
 
 
 def _deep_merge_mapping(
@@ -193,6 +223,17 @@ def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
         json.dumps(_jsonify(sanitize_jsonable(dict(payload))), indent=2, sort_keys=True),
         encoding="utf-8",
     )
+
+
+def _write_resume_status(
+    *,
+    path: Path,
+    status_state: dict[str, Any],
+    **updates: Any,
+) -> None:
+    status_state.update({str(k): v for k, v in dict(updates).items()})
+    status_state["updated_at_utc"] = _utc_now_iso()
+    _write_json(path, status_state)
 
 
 def _truth_match_ratio(
@@ -680,6 +721,9 @@ def _build_stage3_runtime_call_context(
             row=row,
             sanitize_jsonable_fn=sanitize_jsonable,
         ),
+        phasea_provisional_checkpoint_counts=None,
+        build_phasea_provisional_gate_snapshot_fn=None,
+        persist_phasea_provisional_gate_snapshot_fn=None,
         log_prefix="[artifact_resume]",
     )
 
@@ -923,6 +967,163 @@ def run_stage35_from_selected_trial_row(
     )
 
 
+def _build_resume_stage3_progress_logger(
+    *,
+    progress_jsonl_path: Path,
+    status_path: Path,
+    status_state: dict[str, Any],
+) -> Any:
+    def _wrapped_stage3_progress_logging(**kwargs: Any) -> dict[str, Any]:
+        base_out = stage3_progress_logging(**kwargs)
+        progress_callback = base_out.get("progress_callback", None)
+        if not callable(progress_callback):
+            return dict(base_out)
+
+        heartbeat_state = kwargs.get("heartbeat_state", None)
+        phase_start_ts = float(kwargs.get("phase_start_ts", time.time()) or time.time())
+        phase = str(kwargs.get("phase", "") or "")
+        tier_name = str(kwargs.get("tier_name", "") or "")
+        text_id = int(kwargs.get("text_id", 0) or 0)
+        key_seed = int(kwargs.get("key_seed", 0) or 0)
+        phase_steps = int(kwargs.get("phase_steps", 0) or 0)
+        evals_base = int(kwargs.get("evals_base", 0) or 0)
+        phasea_done = kwargs.get("phaseA_done", None)
+        phasea_total = kwargs.get("phaseA_total", None)
+
+        def _persisting_progress_callback(
+            payload: dict[str, Any],
+            key_preview: list[int] | None = None,
+        ) -> None:
+            last_emit_before = None
+            if isinstance(heartbeat_state, dict):
+                last_emit_before = heartbeat_state.get("last_emit_ts", None)
+            progress_callback(payload, key_preview)
+            last_emit_after = None
+            if isinstance(heartbeat_state, dict):
+                last_emit_after = heartbeat_state.get("last_emit_ts", None)
+            if last_emit_after == last_emit_before:
+                return
+            elapsed_seconds = float(max(0.0, time.time() - phase_start_ts))
+            step_value = payload.get("step", None)
+            pct_value = payload.get("pct", None)
+            evals_value = payload.get("evals", None)
+            best_search_avg = None
+            best_search_raw = None
+            if isinstance(heartbeat_state, dict):
+                best_search_avg = heartbeat_state.get("best_pct", None)
+                best_search_raw = heartbeat_state.get("best_raw", None)
+            row = dict(
+                event="stage3_heartbeat",
+                ts_utc=_utc_now_iso(),
+                phase=str(phase),
+                tier_name=str(tier_name),
+                text_id=int(text_id),
+                key_seed=int(key_seed),
+                elapsed_seconds=float(elapsed_seconds),
+                phase_steps=int(phase_steps),
+                step=(int(step_value) if isinstance(step_value, (int, float)) else None),
+                pct=(float(pct_value) if isinstance(pct_value, (int, float)) else None),
+                evals_total=(
+                    int(evals_base) + int(evals_value)
+                    if isinstance(evals_value, (int, float))
+                    else None
+                ),
+                best_search_avg=best_search_avg,
+                best_search_raw=best_search_raw,
+                phaseA_done=(
+                    int(phasea_done) if isinstance(phasea_done, (int, float)) else None
+                ),
+                phaseA_total=(
+                    int(phasea_total) if isinstance(phasea_total, (int, float)) else None
+                ),
+            )
+            append_jsonl_row(
+                path=progress_jsonl_path,
+                row=row,
+                sanitize_jsonable_fn=sanitize_jsonable,
+            )
+            status_state["heartbeat_count"] = int(status_state.get("heartbeat_count", 0) or 0) + 1
+            _write_resume_status(
+                path=status_path,
+                status_state=status_state,
+                status="running",
+                event="stage3_heartbeat",
+                latest_heartbeat=dict(row),
+            )
+
+        return dict(base_out, progress_callback=_persisting_progress_callback)
+
+    return _wrapped_stage3_progress_logging
+
+
+def _build_resume_phasea_gate_snapshot_persister(
+    *,
+    snapshot_path: Path,
+    progress_jsonl_path: Path,
+    status_path: Path,
+    status_state: dict[str, Any],
+) -> Any:
+    def _persist_phasea_gate_snapshot(snapshot: Mapping[str, Any]) -> None:
+        row = dict(snapshot or {})
+        row.update(
+            event="stage3_phasea_gate_snapshot",
+            ts_utc=_utc_now_iso(),
+        )
+        _write_json(snapshot_path, row)
+        append_jsonl_row(
+            path=progress_jsonl_path,
+            row=row,
+            sanitize_jsonable_fn=sanitize_jsonable,
+        )
+        _write_resume_status(
+            path=status_path,
+            status_state=status_state,
+            status="running",
+            event="stage3_phasea_gate_snapshot",
+            phasea_gate_snapshot_written=1,
+            latest_phasea_gate_snapshot=dict(row),
+        )
+
+    return _persist_phasea_gate_snapshot
+
+
+def _build_resume_phasea_provisional_gate_snapshot_persister(
+    *,
+    snapshots_jsonl_path: Path,
+    progress_jsonl_path: Path,
+    status_path: Path,
+    status_state: dict[str, Any],
+) -> Any:
+    def _persist_phasea_provisional_gate_snapshot(snapshot: Mapping[str, Any]) -> None:
+        row = dict(snapshot or {})
+        row.setdefault("event", "stage3_phasea_provisional_gate_snapshot")
+        row.setdefault("ts_utc", _utc_now_iso())
+        append_jsonl_row(
+            path=snapshots_jsonl_path,
+            row=row,
+            sanitize_jsonable_fn=sanitize_jsonable,
+        )
+        append_jsonl_row(
+            path=progress_jsonl_path,
+            row=row,
+            sanitize_jsonable_fn=sanitize_jsonable,
+        )
+        checkpoint_count = int(
+            status_state.get("phasea_provisional_gate_checkpoint_count", 0) or 0
+        ) + 1
+        _write_resume_status(
+            path=status_path,
+            status_state=status_state,
+            status="running",
+            event="stage3_phasea_provisional_gate_snapshot",
+            phasea_provisional_gate_snapshot_written=1,
+            phasea_provisional_gate_checkpoint_count=int(checkpoint_count),
+            latest_phasea_provisional_gate_snapshot=dict(row),
+        )
+
+    return _persist_phasea_provisional_gate_snapshot
+
+
 def run_stage3_resume_from_artifact(
     case: phasec_replay_mod.ArtifactCase,
     *,
@@ -930,7 +1131,19 @@ def run_stage3_resume_from_artifact(
     run_config_override: Mapping[str, Any] | None = None,
     enable_stage35: bool | None = None,
     stage35_cfg_override: Mapping[str, Any] | None = None,
+    stage2_resume_override: Mapping[str, Any] | Stage2ResumeInputs | None = None,
+    stage3_prep_override: Mapping[str, Any] | None = None,
+    resume_source_override: str | None = None,
+    phasea_provisional_gate_action_decider: Callable[
+        [Mapping[str, Any]], Mapping[str, Any] | None
+    ]
+    | None = None,
+    phasea_gate_action_decider: Callable[
+        [Mapping[str, Any]], Mapping[str, Any] | None
+    ]
+    | None = None,
 ) -> dict[str, Any]:
+    output_dir.mkdir(parents=True, exist_ok=True)
     artifact = dict(case.artifact)
     run_config = _deep_merge_mapping(dict(case.run_config), run_config_override)
     prep_payload = prepare_stage3_resume_inputs_from_case(
@@ -940,6 +1153,27 @@ def run_stage3_resume_from_artifact(
     )
     stage2_resume = prep_payload["stage2_resume"]
     stage3_prep = dict(prep_payload["stage3_prep"])
+    resume_source = str(prep_payload.get("resume_source", ""))
+    if stage2_resume_override is not None:
+        if isinstance(stage2_resume_override, Stage2ResumeInputs):
+            stage2_resume = stage2_resume_override
+        else:
+            stage2_resume = _coerce_stage2_resume_inputs(stage2_resume_override)
+        if stage3_prep_override is None:
+            stage3_prep = _build_stage3_prep_from_stage2_resume(
+                resume=stage2_resume,
+                artifact=artifact,
+                run_config=run_config,
+            )
+            resume_source = "override_stage2_resume_rebuilt_prep"
+        else:
+            stage3_prep = dict(stage3_prep_override)
+            resume_source = "override_stage2_resume_and_stage3_prep"
+    elif stage3_prep_override is not None:
+        stage3_prep = dict(stage3_prep_override)
+        resume_source = "override_stage3_prep"
+    if resume_source_override is not None:
+        resume_source = str(resume_source_override)
     stage3_cfg = _stage3_cfg(run_config)
     phase_experiments_cfg = _phase_experiments_cfg(run_config)
     two_phase_cfg = _two_phase_cfg(run_config)
@@ -992,134 +1226,449 @@ def run_stage3_resume_from_artifact(
         run_config,
         output_dir=output_dir,
     )
+    progress_jsonl_path = output_dir / STAGE3_RESUME_PROGRESS_JSONL_NAME
+    status_path = output_dir / STAGE3_RESUME_STATUS_JSON_NAME
+    phasea_gate_snapshot_path = output_dir / PHASEA_GATE_SNAPSHOT_JSON_NAME
+    phasea_provisional_gate_snapshots_path = (
+        output_dir / PHASEA_PROVISIONAL_GATE_SNAPSHOTS_JSONL_NAME
+    )
+    phasec_checkpoint_path = None
+    if isinstance(stage3_ctx, Stage3RuntimeCallContext):
+        phasec_checkpoint_path = stage3_ctx.phasec_start_checkpoint_path
+    status_state: dict[str, Any] = dict(
+        status="running",
+        event="stage3_resume_started",
+        started_at_utc=_utc_now_iso(),
+        artifact_relpath=_repo_rel(case.artifact_path),
+        run_config_relpath=_repo_rel(case.run_config_path),
+        output_dir_relpath=_repo_rel(output_dir),
+        resume_source=str(resume_source),
+        stage35_enabled_effective=int(1 if bool(effective_stage35_enabled) else 0),
+        stage3_resume_progress_jsonl_relpath=_repo_rel(progress_jsonl_path),
+        stage3_resume_status_json_relpath=_repo_rel(status_path),
+        phasea_gate_snapshot_json_relpath=_repo_rel(phasea_gate_snapshot_path),
+        phasea_provisional_gate_snapshots_jsonl_relpath=_repo_rel(
+            phasea_provisional_gate_snapshots_path
+        ),
+        phasec_start_checkpoint_relpath=(
+            _repo_rel(phasec_checkpoint_path)
+            if phasec_checkpoint_path is not None
+            else ""
+        ),
+        stage2_resume_relpath=_repo_rel(output_dir / "stage2_resume.json"),
+        stage3_prep_relpath=_repo_rel(output_dir / "stage3_prep.json"),
+        phasea_gate_snapshot_written=0,
+        phasea_provisional_gate_snapshot_written=0,
+        phasea_provisional_gate_checkpoint_count=0,
+        phasea_gate_action_decision_written=0,
+        phasea_gate_action_applied=0,
+        heartbeat_count=0,
+        latest_heartbeat={},
+        latest_phasea_gate_snapshot={},
+        latest_phasea_provisional_gate_snapshot={},
+        latest_phasea_gate_action_decision={},
+        latest_phasea_gate_action_applied={},
+    )
+    _write_json(output_dir / "stage2_resume.json", dict(stage2_resume.__dict__))
+    _write_json(output_dir / "stage3_prep.json", dict(stage3_prep))
+    append_jsonl_row(
+        path=progress_jsonl_path,
+        row=dict(
+            event="stage3_resume_started",
+            ts_utc=_utc_now_iso(),
+            artifact_relpath=_repo_rel(case.artifact_path),
+            run_config_relpath=_repo_rel(case.run_config_path),
+            output_dir_relpath=_repo_rel(output_dir),
+            resume_source=str(resume_source),
+        ),
+        sanitize_jsonable_fn=sanitize_jsonable,
+    )
+    _write_resume_status(
+        path=status_path,
+        status_state=status_state,
+    )
+    if isinstance(stage3_ctx, Stage3RuntimeCallContext):
+        phasea_gate_snapshot_persister = _build_resume_phasea_gate_snapshot_persister(
+            snapshot_path=phasea_gate_snapshot_path,
+            progress_jsonl_path=progress_jsonl_path,
+            status_path=status_path,
+            status_state=status_state,
+        )
+        phasea_provisional_gate_snapshot_persister = (
+            _build_resume_phasea_provisional_gate_snapshot_persister(
+                snapshots_jsonl_path=phasea_provisional_gate_snapshots_path,
+                progress_jsonl_path=progress_jsonl_path,
+                status_path=status_path,
+                status_state=status_state,
+            )
+        )
+
+        def _maybe_apply_phasea_gate_action(
+            *,
+            snapshot: Mapping[str, Any],
+            action_decider: Callable[[Mapping[str, Any]], Mapping[str, Any] | None]
+            | None,
+            gate_surface: str,
+        ) -> None:
+            if not callable(action_decider):
+                return
+            decision = dict(action_decider(dict(snapshot)) or {})
+            if not decision:
+                return
+            decision_row = dict(decision)
+            decision_row.setdefault("gate_surface", str(gate_surface))
+            for field_name in (
+                "phaseA_checkpoint_restart_count",
+                "phaseA_checkpoint_restart_total",
+                "phaseA_checkpoint_elapsed_seconds",
+                "phaseA_checkpoint_fraction",
+                "phaseA_rank1_init_match",
+                "phaseA_best_init_match",
+            ):
+                if field_name in snapshot and field_name not in decision_row:
+                    decision_row[field_name] = snapshot.get(field_name)
+            decision_row.update(
+                event="stage3_phasea_gate_action_decision",
+                ts_utc=_utc_now_iso(),
+            )
+            append_jsonl_row(
+                path=progress_jsonl_path,
+                row=decision_row,
+                sanitize_jsonable_fn=sanitize_jsonable,
+            )
+            _write_resume_status(
+                path=status_path,
+                status_state=status_state,
+                status="running",
+                event="stage3_phasea_gate_action_decision",
+                phasea_gate_action_decision_written=1,
+                latest_phasea_gate_action_decision=dict(decision_row),
+            )
+            if not bool(decision.get("action_stop_now", False)):
+                return
+            applied_row = dict(decision_row)
+            applied_row["event"] = "stage3_phasea_gate_action_applied"
+            applied_row["ts_utc"] = _utc_now_iso()
+            append_jsonl_row(
+                path=progress_jsonl_path,
+                row=applied_row,
+                sanitize_jsonable_fn=sanitize_jsonable,
+            )
+            _write_resume_status(
+                path=status_path,
+                status_state=status_state,
+                status="running",
+                event="stage3_phasea_gate_action_applied",
+                phasea_gate_action_decision_written=1,
+                phasea_gate_action_applied=1,
+                latest_phasea_gate_action_decision=dict(decision_row),
+                latest_phasea_gate_action_applied=dict(applied_row),
+            )
+            raise PhaseAGateActionSignal(
+                snapshot=dict(snapshot),
+                decision=dict(applied_row),
+            )
+
+        def _persist_phasea_provisional_gate_snapshot_with_action(
+            snapshot: Mapping[str, Any],
+        ) -> None:
+            phasea_provisional_gate_snapshot_persister(snapshot)
+            _maybe_apply_phasea_gate_action(
+                snapshot=snapshot,
+                action_decider=phasea_provisional_gate_action_decider,
+                gate_surface="provisional_checkpoint",
+            )
+
+        def _persist_phasea_gate_snapshot_with_action(snapshot: Mapping[str, Any]) -> None:
+            phasea_gate_snapshot_persister(snapshot)
+            _maybe_apply_phasea_gate_action(
+                snapshot=snapshot,
+                action_decider=phasea_gate_action_decider,
+                gate_surface="late_snapshot",
+            )
+
+        stage3_ctx = replace(
+            stage3_ctx,
+            stage3_progress_logging_fn=_build_resume_stage3_progress_logger(
+                progress_jsonl_path=progress_jsonl_path,
+                status_path=status_path,
+                status_state=status_state,
+            ),
+            phasea_provisional_checkpoint_counts=DEFAULT_PHASEA_PROVISIONAL_CHECKPOINT_COUNTS,
+            build_phasea_provisional_gate_snapshot_fn=lambda **kwargs: (
+                stage3_phase2_mod.build_phasea_provisional_gate_snapshot(
+                    stage3_phaseB_top_n=int(two_phase_cfg.get("phase_b_top_n", 1) or 1),
+                    stage3_span_basin_judge_tie_eps=float(
+                        _span_basin_cfg(run_config).get("tie_eps", 0.0) or 0.0
+                    ),
+                    stage3_span_basin_judge_tie_max_seeds=int(
+                        _span_basin_cfg(run_config).get("tie_max_seeds", 0) or 0
+                    ),
+                    stage3_word_ngram_decision_influence=bool(
+                        dict(
+                            (_stage3_cfg(run_config).get("word_ngram_report") or {})
+                        ).get(
+                            "decision_influence",
+                            False,
+                        )
+                    ),
+                    phaseB_family_preservation_policy=str(
+                        stage3_ctx.stage3_phaseb_family_preservation_policy
+                    ),
+                    phaseB_family_view_id=str(stage3_ctx.stage3_phaseb_family_view_id),
+                    phaseB_family_reserved_slots=int(
+                        stage3_ctx.stage3_phaseb_family_reserved_slots
+                    ),
+                    gate_delta=float(
+                        two_phase_cfg.get("gate_delta_floor", 0.0) or 0.0
+                    ),
+                    gate_end_gain=float(
+                        two_phase_cfg.get("gate_end_gain_floor", 0.0) or 0.0
+                    ),
+                    **kwargs,
+                )
+            ),
+            persist_phasea_provisional_gate_snapshot_fn=(
+                _persist_phasea_provisional_gate_snapshot_with_action
+            ),
+            persist_phasea_gate_snapshot_fn=_persist_phasea_gate_snapshot_with_action,
+        )
 
     flow_start = time.time()
-    flow = stage3_flow_mod.run_stage3_iteration_flow(
-        state=dict(
-            tier=tier,
-            text_id=int(artifact.get("text_id", 0) or 0),
-            key_seed=int(artifact.get("key_seed", 0) or 0),
-            t0_i=float(flow_start),
-            key_len=int(len(stage2_resume.best2_key)),
-            best2_match=float(stage2_resume.best2_match),
-            best2_key=list(stage2_resume.best2_key),
-            stage2_promoted=[dict(row) for row in list(stage2_resume.stage2_promoted)],
-            stage2_entry_score=float(stage2_resume.stage2_entry_score),
-            stage2_entry_score_judge=float(stage2_resume.stage2_entry_score_judge),
-            scorer_stage2=_resolve_repo_relative_scorer_cfg(
-                (_stage2_cfg(run_config).get("scorer") or {})
+    try:
+        flow = stage3_flow_mod.run_stage3_iteration_flow(
+            state=dict(
+                tier=tier,
+                text_id=int(artifact.get("text_id", 0) or 0),
+                key_seed=int(artifact.get("key_seed", 0) or 0),
+                t0_i=float(flow_start),
+                key_len=int(len(stage2_resume.best2_key)),
+                best2_match=float(stage2_resume.best2_match),
+                best2_key=list(stage2_resume.best2_key),
+                stage2_promoted=[dict(row) for row in list(stage2_resume.stage2_promoted)],
+                stage2_entry_score=float(stage2_resume.stage2_entry_score),
+                stage2_entry_score_judge=float(stage2_resume.stage2_entry_score_judge),
+                scorer_stage2=_resolve_repo_relative_scorer_cfg(
+                    (_stage2_cfg(run_config).get("scorer") or {})
+                ),
+                scorer_full=_resolve_repo_relative_scorer_cfg(
+                    (stage3_cfg.get("scorer") or {})
+                ),
+                oracle_s3=float(
+                    (artifact.get("oracle_scores", {}) or {}).get("stage3", float("nan"))
+                ),
+                oracle_decision_paths_enabled=bool(
+                    run_config.get("oracle_decision_paths_enabled", False)
+                ),
+                ct_idx=np.asarray(artifact.get("ciphertext_idx", []), dtype=np.uint8).reshape(-1),
+                pt_idx=target_plaintext_idx,
+                wli=[],
+                direction=direction,
+                scorer_stage3_phaseA=_resolve_repo_relative_scorer_cfg(
+                    stage3_cfg.get("search_scorer") or stage3_cfg.get("scorer") or {}
+                ),
+                scorer_stage3_phaseB=_resolve_repo_relative_scorer_cfg(
+                    stage3_cfg.get("scorer") or {}
+                ),
+                scorer_stage3_phaseA_runtime=scorer_search_runtime,
+                scorer_stage3_search_runtime=scorer_search_runtime,
+                scorer_basin_judge_runtime=scorer_judge_runtime,
+                scorer_word_ngram_report_runtime=scorer_word_ngram_report_runtime,
+                scorer_full_runtime=scorer_full_runtime,
+                full_cipher=full_cipher,
+                stage2_evals_total=int(stage2_resume.stage2_topk_row_count),
+                stage2_continue_to_gate=False,
+                stage2_continue_stop_reason="",
+                stage3_phaseA_experiment=str(phase_experiments_cfg.get("phaseA", "resume")),
+                stage3_phaseB_experiment=str(phase_experiments_cfg.get("phaseB", "resume")),
+                stage3_phaseB_char_pct_min_dynamic=float(
+                    _phaseb_char_pct_min_dynamic(run_config)
+                ),
+                stage3_phaseB_char_pct_min_source=str(
+                    _phaseb_char_pct_min_source(run_config)
+                ),
+                oracle_assist_selection_effective=bool(
+                    run_config.get("oracle_assist_selection_effective", False)
+                ),
+                stages=[],
+                STAGE3_PHASEC_START_POLICY=str(
+                    (_phasec_cfg(run_config).get("start_policy", "source_order") or "source_order")
+                ).strip().lower(),
+                STAGE35_ENABLED=bool(effective_stage35_enabled),
+                STAGE35_CFG=dict(stage35_cfg),
             ),
-            scorer_full=_resolve_repo_relative_scorer_cfg(
-                (stage3_cfg.get("scorer") or {})
+            stage3_runtime_call_ctx=stage3_ctx,
+            stage3_two_phase_enabled=bool(two_phase_cfg.get("enabled", False)),
+            stage3_continue_after_solve=bool(two_phase_cfg.get("continue_after_solve", False)),
+            stage3_phasea_cfg_default=dict(two_phase_cfg.get("phase_a") or {}),
+            stage3_phaseb_cfg_default=dict(two_phase_cfg.get("phase_b") or {}),
+            stage3_phaseb_top_n_default=int(two_phase_cfg.get("phase_b_top_n", 1) or 1),
+            stage3_phaseb_gate_delta_floor_default=float(
+                two_phase_cfg.get("gate_delta_floor", 0.0) or 0.0
             ),
-            oracle_s3=float(
-                (artifact.get("oracle_scores", {}) or {}).get("stage3", float("nan"))
+            stage3_phaseb_gate_end_gain_floor_default=float(
+                two_phase_cfg.get("gate_end_gain_floor", 0.0) or 0.0
             ),
-            oracle_decision_paths_enabled=bool(
-                run_config.get("oracle_decision_paths_enabled", False)
+            solver_stage3_default_cfg=dict(stage3_cfg.get("solver") or {}),
+            stage3_span_basin_judge_k=int(
+                _span_basin_cfg(run_config).get("k", 0) or 0
             ),
-            ct_idx=np.asarray(artifact.get("ciphertext_idx", []), dtype=np.uint8).reshape(-1),
-            pt_idx=target_plaintext_idx,
-            wli=[],
-            direction=direction,
-            scorer_stage3_phaseA=_resolve_repo_relative_scorer_cfg(
-                stage3_cfg.get("search_scorer") or stage3_cfg.get("scorer") or {}
-            ),
-            scorer_stage3_phaseB=_resolve_repo_relative_scorer_cfg(
-                stage3_cfg.get("scorer") or {}
-            ),
-            scorer_stage3_phaseA_runtime=scorer_search_runtime,
-            scorer_stage3_search_runtime=scorer_search_runtime,
-            scorer_basin_judge_runtime=scorer_judge_runtime,
-            scorer_word_ngram_report_runtime=scorer_word_ngram_report_runtime,
-            scorer_full_runtime=scorer_full_runtime,
-            full_cipher=full_cipher,
-            stage2_evals_total=int(stage2_resume.stage2_topk_row_count),
-            stage2_continue_to_gate=False,
-            stage2_continue_stop_reason="",
-            stage3_phaseA_experiment=str(phase_experiments_cfg.get("phaseA", "resume")),
-            stage3_phaseB_experiment=str(phase_experiments_cfg.get("phaseB", "resume")),
-            stage3_phaseB_char_pct_min_dynamic=float(
-                _phaseb_char_pct_min_dynamic(run_config)
-            ),
-            stage3_phaseB_char_pct_min_source=str(
-                _phaseb_char_pct_min_source(run_config)
-            ),
-            oracle_assist_selection_effective=bool(
-                run_config.get("oracle_assist_selection_effective", False)
-            ),
-            stages=[],
-            STAGE35_ENABLED=bool(effective_stage35_enabled),
-            STAGE35_CFG=dict(stage35_cfg),
-        ),
-        stage3_runtime_call_ctx=stage3_ctx,
-        stage3_two_phase_enabled=bool(two_phase_cfg.get("enabled", False)),
-        stage3_continue_after_solve=bool(two_phase_cfg.get("continue_after_solve", False)),
-        stage3_phasea_cfg_default=dict(two_phase_cfg.get("phase_a") or {}),
-        stage3_phaseb_cfg_default=dict(two_phase_cfg.get("phase_b") or {}),
-        stage3_phaseb_top_n_default=int(two_phase_cfg.get("phase_b_top_n", 1) or 1),
-        stage3_phaseb_gate_delta_floor_default=float(
-            two_phase_cfg.get("gate_delta_floor", 0.0) or 0.0
-        ),
-        stage3_phaseb_gate_end_gain_floor_default=float(
-            two_phase_cfg.get("gate_end_gain_floor", 0.0) or 0.0
-        ),
-        solver_stage3_default_cfg=dict(stage3_cfg.get("solver") or {}),
-        stage3_span_basin_judge_k=int(
-            _span_basin_cfg(run_config).get("k", 0) or 0
-        ),
-        tier_heartbeat_seconds=float(DEFAULT_TIER_HEARTBEAT_SECONDS),
-        solve_match_threshold=float(run_config.get("threshold", 0.9) or 0.9),
-        stall_delta=float(run_config.get("stall_delta", 0.0) or 0.0),
-        stall_stage_limit=int(run_config.get("stall_stage_limit", 1) or 1),
-        evaluate_stage3_entry_policy_fn=lambda **kwargs: evaluate_stage3_entry_policy(
-            tier_name=str(kwargs["tier"].name),
-            text_id=int(kwargs["text_id"]),
-            key_seed=int(kwargs["key_seed"]),
-            best2_match=float(kwargs["best2_match"]),
+            tier_heartbeat_seconds=float(DEFAULT_TIER_HEARTBEAT_SECONDS),
             solve_match_threshold=float(run_config.get("threshold", 0.9) or 0.9),
-            scan_mode_active=bool(run_config.get("stage3_can_skip", False)),
-            scan_time_cap_seconds=float(
-                scan_controls_cfg.get("tier_time_cap_seconds", 0.0) or 0.0
+            stall_delta=float(run_config.get("stall_delta", 0.0) or 0.0),
+            stall_stage_limit=int(run_config.get("stall_stage_limit", 1) or 1),
+            evaluate_stage3_entry_policy_fn=lambda **kwargs: evaluate_stage3_entry_policy(
+                tier_name=str(kwargs["tier"].name),
+                text_id=int(kwargs["text_id"]),
+                key_seed=int(kwargs["key_seed"]),
+                best2_match=float(kwargs["best2_match"]),
+                solve_match_threshold=float(run_config.get("threshold", 0.9) or 0.9),
+                scan_mode_active=bool(run_config.get("stage3_can_skip", False)),
+                scan_time_cap_seconds=float(
+                    scan_controls_cfg.get("tier_time_cap_seconds", 0.0) or 0.0
+                ),
+                tier_elapsed_before_stage3=float(kwargs["tier_elapsed_before_stage3"]),
+                scan_stage3_gate_low_match=float(
+                    scan_controls_cfg.get("stage3_gate_low_match", 0.0) or 0.0
+                ),
+                scan_stage3_gate_high_match=float(
+                    scan_controls_cfg.get("stage3_gate_high_match", 0.0) or 0.0
+                ),
+                stage2_continue_to_gate=bool(kwargs["stage2_continue_to_gate"]),
+                stage2_continue_stop_reason=str(kwargs["stage2_continue_stop_reason"]),
+                stages=kwargs["stages"],
+                log_prefix="[artifact_resume]",
             ),
-            tier_elapsed_before_stage3=float(kwargs["tier_elapsed_before_stage3"]),
-            scan_stage3_gate_low_match=float(
-                scan_controls_cfg.get("stage3_gate_low_match", 0.0) or 0.0
-            ),
-            scan_stage3_gate_high_match=float(
-                scan_controls_cfg.get("stage3_gate_high_match", 0.0) or 0.0
-            ),
-            stage2_continue_to_gate=bool(kwargs["stage2_continue_to_gate"]),
-            stage2_continue_stop_reason=str(kwargs["stage2_continue_stop_reason"]),
-            stages=kwargs["stages"],
+            prepare_stage3_refine_inputs_fn=lambda **_kwargs: dict(stage3_prep),
+            summarize_stage3_span_fn=summarize_stage3_span,
+            mark_oracle_decision_use_fn=lambda: None,
+            print_stage_preview_fn=lambda **_kwargs: None,
+            fmt_finite_float_fn=fmt_finite_float,
             log_prefix="[artifact_resume]",
-        ),
-        prepare_stage3_refine_inputs_fn=lambda **_kwargs: dict(stage3_prep),
-        summarize_stage3_span_fn=summarize_stage3_span,
-        mark_oracle_decision_use_fn=lambda: None,
-        print_stage_preview_fn=lambda **_kwargs: None,
-        fmt_finite_float_fn=fmt_finite_float,
-        log_prefix="[artifact_resume]",
-    )
+        )
+    except PhaseAGateActionSignal as exc:
+        dt_i = float(max(0.0, time.time() - flow_start))
+        artifact_best_stage = str(artifact.get("best_stage", "") or "")
+        artifact_best_match = _safe_float(artifact.get("best_match_ratio"))
+        artifact_best_score = _safe_float(artifact.get("best_score"))
+        phasea_gate_action = dict(exc.decision)
+        phasea_gate_snapshot = dict(exc.snapshot)
+        resume_best_stage = str(
+            phasea_gate_action.get("resume_best_stage", "") or artifact_best_stage
+        )
+        resume_best_match_ratio = _safe_float(
+            phasea_gate_action.get("resume_best_match_ratio")
+        )
+        if not np.isfinite(resume_best_match_ratio):
+            resume_best_match_ratio = float(artifact_best_match)
+        resume_best_score = _safe_float(phasea_gate_action.get("resume_best_score"))
+        if not np.isfinite(resume_best_score):
+            resume_best_score = float(artifact_best_score)
+        flow = dict(
+            stop_reason="phasea_gate_action_stop",
+            phasea_gate_snapshot=dict(phasea_gate_snapshot),
+            phasea_gate_action=dict(phasea_gate_action),
+            phasea_gate_action_applied=1,
+            best3_match=float(resume_best_match_ratio),
+            best3_score=float(resume_best_score),
+            best3_key=None,
+            pt3=[],
+            ev3=0,
+            stage35_selected=0,
+        )
+        outcome = dict(
+            best_stage=str(resume_best_stage),
+            best_match=float(resume_best_match_ratio),
+            final_best_score=float(resume_best_score),
+            stop_reason="phasea_gate_action_stop",
+            phasea_gate_action_applied=1,
+            phasea_gate_action=dict(phasea_gate_action),
+        )
+        append_jsonl_row(
+            path=progress_jsonl_path,
+            row=dict(
+                event="stage3_resume_finished_phasea_gate_action",
+                ts_utc=_utc_now_iso(),
+                elapsed_seconds=float(dt_i),
+                stop_reason="phasea_gate_action_stop",
+                resume_best_stage=str(resume_best_stage),
+                resume_best_match_ratio=float(resume_best_match_ratio),
+                resume_best_score=float(resume_best_score),
+                phasea_gate_action=dict(phasea_gate_action),
+            ),
+            sanitize_jsonable_fn=sanitize_jsonable,
+        )
+        _write_resume_status(
+            path=status_path,
+            status_state=status_state,
+            status="completed",
+            event="stage3_resume_finished_phasea_gate_action",
+            flow_elapsed_seconds=float(dt_i),
+            stop_reason="phasea_gate_action_stop",
+            resume_best_stage=str(resume_best_stage),
+            resume_best_match_ratio=float(resume_best_match_ratio),
+            resume_best_score=float(resume_best_score),
+            phasea_gate_action_decision_written=1,
+            phasea_gate_action_applied=1,
+            latest_phasea_gate_action_applied=dict(phasea_gate_action),
+        )
+        return dict(
+            mode="stage2_to_stage3",
+            artifact_relpath=_repo_rel(case.artifact_path),
+            run_config_relpath=_repo_rel(case.run_config_path),
+            **_artifact_identity_fields(artifact),
+            output_dir=_repo_rel(output_dir),
+            run_config_override=dict(run_config_override or {}),
+            resume_source=str(resume_source),
+            bundle_dir_relpath=str(prep_payload.get("bundle_dir_relpath", "") or ""),
+            stage3_resume_status_json_relpath=_repo_rel(status_path),
+            stage3_resume_progress_jsonl_relpath=_repo_rel(progress_jsonl_path),
+            phasea_provisional_gate_snapshots_jsonl_relpath=_repo_rel(
+                phasea_provisional_gate_snapshots_path
+            ),
+            phasec_start_checkpoint_relpath=(
+                _repo_rel(phasec_checkpoint_path)
+                if phasec_checkpoint_path is not None
+                else ""
+            ),
+            phasea_gate_snapshot_json_relpath=_repo_rel(phasea_gate_snapshot_path),
+            stage2_resume=dict(stage2_resume.__dict__),
+            stage3_prep=dict(stage3_prep),
+            stage3_flow=_jsonify(flow),
+            outcome=_jsonify(outcome),
+            stage35_enabled_effective=int(1 if bool(effective_stage35_enabled) else 0),
+            stage35_cfg=dict(stage35_cfg),
+            resume_best_stage=str(resume_best_stage),
+            resume_best_match_ratio=float(resume_best_match_ratio),
+            resume_best_score=float(resume_best_score),
+            phasea_gate_action_applied=1,
+            phasea_gate_action=dict(phasea_gate_action),
+        )
+    except BaseException as exc:
+        append_jsonl_row(
+            path=progress_jsonl_path,
+            row=dict(
+                event="stage3_resume_failed",
+                ts_utc=_utc_now_iso(),
+                error_type=str(type(exc).__name__),
+                error_message=str(exc),
+                elapsed_seconds=float(max(0.0, time.time() - flow_start)),
+            ),
+            sanitize_jsonable_fn=sanitize_jsonable,
+        )
+        _write_resume_status(
+            path=status_path,
+            status_state=status_state,
+            status="failed",
+            event="stage3_resume_failed",
+            error_type=str(type(exc).__name__),
+            error_message=str(exc),
+            flow_elapsed_seconds=float(max(0.0, time.time() - flow_start)),
+        )
+        raise
 
     dt_i = float(time.time() - float(flow_start))
     pt3 = np.asarray(flow.get("pt3", []), dtype=np.uint8).reshape(-1)
-    if int(flow.get("stage35_selected", 0) or 0) == 1:
-        resume_best_stage = "stage35_substitution_only"
-        resume_best_match_ratio = _truth_match_ratio(
-            flow.get("stage35_best_plaintext_idx", []) or [],
-            target_plaintext_idx,
-        )
-        resume_best_score = float(flow.get("stage35_best_score", float("nan")))
-    elif flow.get("best3_key") is not None and int(pt3.size) > 0:
-        resume_best_stage = "stage3_full_refine"
-        resume_best_match_ratio = float(flow.get("best3_match", float("nan")))
-        resume_best_score = float(flow.get("best3_score", float("nan")))
-    else:
-        resume_best_stage = "no_stage3_candidate"
-        resume_best_match_ratio = float("nan")
-        resume_best_score = float("nan")
-
     outcome = dict(
         resolve_iteration_outcome(
             stop_reason=str(flow.get("stop_reason", "")),
@@ -1153,6 +1702,33 @@ def run_stage3_resume_from_artifact(
             safe_preview_latin_fn=_safe_preview_ascii,
         )
     )
+    resume_best_stage = str(outcome.get("best_stage", "") or "")
+    resume_best_match_ratio = float(outcome.get("best_match", float("nan")))
+    resume_best_score = float(outcome.get("final_best_score", float("nan")))
+    append_jsonl_row(
+        path=progress_jsonl_path,
+        row=dict(
+            event="stage3_resume_finished",
+            ts_utc=_utc_now_iso(),
+            elapsed_seconds=float(dt_i),
+            stop_reason=str(flow.get("stop_reason", "")),
+            resume_best_stage=str(resume_best_stage),
+            resume_best_match_ratio=float(resume_best_match_ratio),
+            resume_best_score=float(resume_best_score),
+        ),
+        sanitize_jsonable_fn=sanitize_jsonable,
+    )
+    _write_resume_status(
+        path=status_path,
+        status_state=status_state,
+        status="completed",
+        event="stage3_resume_finished",
+        flow_elapsed_seconds=float(dt_i),
+        stop_reason=str(flow.get("stop_reason", "")),
+        resume_best_stage=str(resume_best_stage),
+        resume_best_match_ratio=float(resume_best_match_ratio),
+        resume_best_score=float(resume_best_score),
+    )
     return dict(
         mode="stage2_to_stage3",
         artifact_relpath=_repo_rel(case.artifact_path),
@@ -1160,8 +1736,19 @@ def run_stage3_resume_from_artifact(
         **_artifact_identity_fields(artifact),
         output_dir=_repo_rel(output_dir),
         run_config_override=dict(run_config_override or {}),
-        resume_source=str(prep_payload.get("resume_source", "")),
+        resume_source=str(resume_source),
         bundle_dir_relpath=str(prep_payload.get("bundle_dir_relpath", "") or ""),
+        stage3_resume_status_json_relpath=_repo_rel(status_path),
+        stage3_resume_progress_jsonl_relpath=_repo_rel(progress_jsonl_path),
+        phasea_provisional_gate_snapshots_jsonl_relpath=_repo_rel(
+            phasea_provisional_gate_snapshots_path
+        ),
+        phasec_start_checkpoint_relpath=(
+            _repo_rel(phasec_checkpoint_path)
+            if phasec_checkpoint_path is not None
+            else ""
+        ),
+        phasea_gate_snapshot_json_relpath=_repo_rel(phasea_gate_snapshot_path),
         stage2_resume=dict(stage2_resume.__dict__),
         stage3_prep=dict(stage3_prep),
         stage3_flow=_jsonify(flow),

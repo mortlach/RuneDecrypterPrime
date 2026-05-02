@@ -44,6 +44,9 @@ def run_stage3_phasea_restarts(
     stage3_progress_logging_fn: Callable[..., Dict[str, Any]],
     match_ratio_fn: Callable[[Sequence[int], Sequence[int]], float],
     key_hash_fn: Callable[[Sequence[int]], str],
+    phasea_provisional_checkpoint_counts: Sequence[int] | None = None,
+    build_phasea_provisional_gate_snapshot_fn: Callable[..., Dict[str, Any]] | None = None,
+    persist_phasea_provisional_gate_snapshot_fn: Callable[[Dict[str, Any]], None] | None = None,
     log_prefix: str = "[pipeline_no_wli]",
 ) -> Dict[str, Any]:
     phaseA_rows: List[Dict[str, Any]] = []
@@ -68,6 +71,13 @@ def run_stage3_phasea_restarts(
         wli=None,
         chunk_size=int(batch_eval_chunk_size),
         require_batch=bool(require_batch_scoring),
+    )
+    checkpoint_counts = sorted(
+        {
+            int(value)
+            for value in list(phasea_provisional_checkpoint_counts or [])
+            if int(value) > 0
+        }
     )
     for restart_idx, seed_key in enumerate(init3):
         seed_key_arr = np.asarray(seed_key, dtype=np.int16).reshape(-1)
@@ -185,6 +195,25 @@ def run_stage3_phasea_restarts(
                 metrics=mm_i,
             )
         )
+        completed_restarts = int(len(phaseA_rows))
+        if (
+            checkpoint_counts
+            and completed_restarts in checkpoint_counts
+            and callable(build_phasea_provisional_gate_snapshot_fn)
+            and callable(persist_phasea_provisional_gate_snapshot_fn)
+        ):
+            checkpoint_snapshot = build_phasea_provisional_gate_snapshot_fn(
+                tier_name=str(tier_name),
+                text_id=int(text_id),
+                key_seed=int(key_seed),
+                key_len=int(key_len),
+                phaseA_rows=[dict(row) for row in phaseA_rows],
+                phaseA_checkpoint_restart_count=int(completed_restarts),
+                phaseA_checkpoint_restart_total=int(phaseA_total_runs),
+                phaseA_checkpoint_elapsed_seconds=float(dt3_delta),
+            )
+            if checkpoint_snapshot:
+                persist_phasea_provisional_gate_snapshot_fn(dict(checkpoint_snapshot))
         if np.isfinite(end_match) and float(end_match) >= float(solve_match_threshold):
             stage3_solve_hits_delta = int(stage3_solve_hits_delta) + 1
             print(

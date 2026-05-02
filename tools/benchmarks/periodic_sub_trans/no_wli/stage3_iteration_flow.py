@@ -409,9 +409,11 @@ def run_stage3_iteration_flow(
         phaseB_family_reservation_applied = 0
         phaseB_selected_unique_end_hash = 0
         phaseB_downstream_selected_count = 0
+        phaseB_downstream_selected_summaries: list[Dict[str, Any]] = []
         phaseB_downstream_selected_unique_end_hash = 0
         phaseB_topk_saved_count = 0
         phaseB_topk_saved_unique_end_hash = 0
+        phaseB_topk_saved_summaries: list[Dict[str, Any]] = []
         phaseC_enabled_cfg = 0
         phaseC_enabled_effective = 0
         phaseC_ran = 0
@@ -687,6 +689,16 @@ def run_stage3_iteration_flow(
                     phaseB_downstream_selected_unique_end_hash,
                 )
             )
+            phaseB_downstream_selected_summaries = [
+                dict(row)
+                for row in list(
+                    two_phase_followup.get(
+                        "phaseB_downstream_selected_summaries",
+                        phaseB_downstream_selected_summaries,
+                    )
+                    or []
+                )
+            ]
             phaseB_topk_saved_count = int(
                 two_phase_followup.get("phaseB_topk_saved_count", phaseB_topk_saved_count)
             )
@@ -696,6 +708,16 @@ def run_stage3_iteration_flow(
                     phaseB_topk_saved_unique_end_hash,
                 )
             )
+            phaseB_topk_saved_summaries = [
+                dict(row)
+                for row in list(
+                    two_phase_followup.get(
+                        "phaseB_topk_saved_summaries",
+                        phaseB_topk_saved_summaries,
+                    )
+                    or []
+                )
+            ]
             phaseC_enabled_cfg = int(
                 two_phase_followup.get("phaseC_enabled_cfg", phaseC_enabled_cfg)
             )
@@ -1653,10 +1675,6 @@ def run_stage3_iteration_flow(
                     f"invalid_reason={stage35_proof_invalid_reason or 'none'}",
                     flush=True,
                 )
-            if int(stage35_selected) == 1 and stage35_best_key is not None and stage35_best_plaintext_idx is not None:
-                best3_key = list(map(int, stage35_best_key))
-                pt3 = np.asarray(stage35_best_plaintext_idx, dtype=np.uint8).reshape(-1)
-                best3_score = float(stage35_best_score)
         if bool(stage35_skip_solved_before_start):
             if not str(stage35_outcome_status):
                 stage35_outcome_status = "not_run_solved_stage3"
@@ -1686,20 +1704,25 @@ def run_stage3_iteration_flow(
             stage35_proof_valid = 1
             stage35_proof_invalid_reason = ""
 
-        if pt3.size > 0:
+        preview_pt = np.asarray(pt3, dtype=np.uint8).reshape(-1)
+        preview_match_ratio: float | None = float(best3_match)
+        if (
+            int(stage35_selected) == 1
+            and stage35_best_plaintext_idx is not None
+            and int(len(stage35_best_plaintext_idx)) > 0
+        ):
+            preview_pt = np.asarray(stage35_best_plaintext_idx, dtype=np.uint8).reshape(-1)
+            preview_match_ratio = None
+        if preview_pt.size > 0:
             print_stage_preview_fn(
                 label=(
                     "stage35_substitution_only"
                     if int(stage35_selected) == 1
                     else "stage3_full_refine"
                 ),
-                pt=pt3.tolist(),
+                pt=preview_pt.tolist(),
                 wli=wli,
-                match_ratio=(
-                    None
-                    if int(stage35_selected) == 1
-                    else float(best3_match)
-                ),
+                match_ratio=preview_match_ratio,
             )
         if np.isfinite(best3_match) and best3_match >= solve_match_threshold:
             stop_reason = "solved_stage3"
@@ -1811,11 +1834,17 @@ def run_stage3_iteration_flow(
         phaseB_family_reservation_applied=int(phaseB_family_reservation_applied),
         phaseB_selected_unique_end_hash=int(phaseB_selected_unique_end_hash),
         phaseB_downstream_selected_count=int(phaseB_downstream_selected_count),
+        phaseB_downstream_selected_summaries=[
+            dict(row) for row in list(phaseB_downstream_selected_summaries or [])
+        ],
         phaseB_downstream_selected_unique_end_hash=int(
             phaseB_downstream_selected_unique_end_hash
         ),
         phaseB_topk_saved_count=int(phaseB_topk_saved_count),
         phaseB_topk_saved_unique_end_hash=int(phaseB_topk_saved_unique_end_hash),
+        phaseB_topk_saved_summaries=[
+            dict(row) for row in list(phaseB_topk_saved_summaries or [])
+        ],
         phaseC_enabled_cfg=int(phaseC_enabled_cfg),
         phaseC_enabled_effective=int(phaseC_enabled_effective),
         phaseC_ran=int(phaseC_ran),

@@ -66,7 +66,16 @@ def resolve_iteration_outcome(
         if np.isfinite(best3_match) and best3_match >= best2_match
         else "stage2_search"
     )
-    if bool(stage35_selected) and stage35_best_key is not None and int(stage35_pt.size) > 0:
+    stage35_has_candidate = (
+        bool(stage35_selected)
+        and stage35_best_key is not None
+        and int(stage35_pt.size) > 0
+    )
+    use_stage35_as_final_best = False
+    if stage35_has_candidate and np.isfinite(stage35_match):
+        if not np.isfinite(best_match) or float(stage35_match) >= float(best_match):
+            use_stage35_as_final_best = True
+    if use_stage35_as_final_best:
         best_stage = "stage35_substitution_only"
         if np.isfinite(stage35_match):
             best_match = float(stage35_match)
@@ -138,6 +147,8 @@ def resolve_iteration_outcome(
     return dict(
         best_match=float(best_match),
         best_stage=str(best_stage),
+        stage35_match_available=int(np.isfinite(stage35_match)),
+        stage35_used_for_final_best=int(use_stage35_as_final_best),
         status=str(status),
         dt_i=float(dt_i),
         total_evals=int(total_evals),

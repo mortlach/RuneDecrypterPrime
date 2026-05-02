@@ -156,3 +156,19 @@ def test_stage3_phasec_start_policy_canary_keeps_novel_runtime_contract_explicit
         expected_start_policy="novel_challenger_v1",
         expected_phaseb_top_n=32,
     )
+
+
+def test_stage3_phasec_start_policy_canary_keeps_anchor_family_runtime_contract_explicit() -> None:
+    _assert_phasec_start_policy_contract(
+        preset_id="stage3_phasec_anchor_family_reserved_p9",
+        expected_start_policy="anchor_family_reserved_v1",
+        expected_phaseb_top_n=32,
+    )
+
+
+def test_stage3_phasec_start_policy_canary_keeps_phaseb_topk_anchor_swap_runtime_contract_explicit() -> None:
+    _assert_phasec_start_policy_contract(
+        preset_id="stage3_phasec_phaseb_topk_anchor_swap_p9",
+        expected_start_policy="phaseb_topk_anchor_swap_v1",
+        expected_phaseb_top_n=32,
+    )

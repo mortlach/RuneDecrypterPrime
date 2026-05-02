@@ -61,6 +61,14 @@ def _sync_stage3_two_phase_defaults_from_live_state(*, no_wli: Any) -> None:
         no_wli._STAGE3_PHASEB_FAMILY_RESERVED_SLOTS_DEFAULT = int(  # type: ignore[attr-defined]
             no_wli.STAGE3_PHASEB_FAMILY_RESERVED_SLOTS
         )
+    if hasattr(no_wli, "_SAVE_STAGE3_TOPK_DEFAULT"):
+        no_wli._SAVE_STAGE3_TOPK_DEFAULT = bool(  # type: ignore[attr-defined]
+            no_wli.SAVE_STAGE3_TOPK
+        )
+    if hasattr(no_wli, "_SAVE_STAGE3_TOPK_LIMIT_DEFAULT"):
+        no_wli._SAVE_STAGE3_TOPK_LIMIT_DEFAULT = int(  # type: ignore[attr-defined]
+            no_wli.SAVE_STAGE3_TOPK_LIMIT
+        )
     if hasattr(no_wli, "_STAGE3_PHASEC_ENABLED_DEFAULT"):
         no_wli._STAGE3_PHASEC_ENABLED_DEFAULT = bool(  # type: ignore[attr-defined]
             no_wli.STAGE3_PHASEC_ENABLED
@@ -430,6 +438,7 @@ def apply_job(
     force_stage3_phasea_cfg: Mapping[str, Any] | None = None,
     force_stage3_phaseb_cfg: Mapping[str, Any] | None = None,
     force_stage3_phaseb_top_n: int | None = None,
+    force_stage3_topk_limit: int | None = None,
     force_stage3_phaseb_gate_delta_floor: float | None = None,
     force_stage3_phaseb_gate_end_gain_floor: float | None = None,
     force_stage3_phaseb_family_preservation_policy: str | None = None,
@@ -554,6 +563,10 @@ def apply_job(
         no_wli.STAGE1_SCOUT_MIN_STEPS = int(max(1, int(force_stage1_scout_min_steps)))
     if force_stage12_archive_keep is not None:
         no_wli.STAGE12_ARCHIVE_KEEP = int(max(1, int(force_stage12_archive_keep)))
+    if force_stage3_topk_limit is not None:
+        topk_limit = int(max(0, int(force_stage3_topk_limit)))
+        no_wli.SAVE_STAGE3_TOPK = bool(topk_limit > 0)
+        no_wli.SAVE_STAGE3_TOPK_LIMIT = int(topk_limit)
     if force_word_ngram_decision_influence is not None:
         no_wli.WORD_NGRAM_REPORT_DECISION_INFLUENCE = bool(
             force_word_ngram_decision_influence

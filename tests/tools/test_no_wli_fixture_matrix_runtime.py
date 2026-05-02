@@ -90,6 +90,39 @@ def test_runtime_emits_span_ab_pair_delta_event(tmp_path: Path) -> None:
     assert isinstance(delta["delta_elapsed_seconds"], float)
 
 
+def test_runtime_progress_prints_elapsed_and_eta(tmp_path: Path) -> None:
+    run_state = tmp_path / "state.json"
+    run_events = tmp_path / "events.jsonl"
+    messages: list[str] = []
+
+    run_jobs_with_checkpoints(
+        jobs=[_job("none", False)],
+        run_mode="adaptive_fixture_v1",
+        profile_id="no_wli_a1_m4_b4_stage3avg_fulltext_longrun3x_v1",
+        dry_run_only=False,
+        stop_on_error=True,
+        max_wallclock_seconds=None,
+        resume_skip_completed=True,
+        run_state_path=run_state,
+        run_events_path=run_events,
+        plan_job_count=1,
+        base_state_fields={"experiment_run_id": "exp_progress"},
+        write_json_fn=lambda path, payload: path.write_text(
+            json.dumps(payload, sort_keys=True),
+            encoding="utf-8",
+        ),
+        job_key_fn=lambda job: "progress_job",
+        run_job_fn=lambda _job: None,
+        print_fn=lambda *args, **kwargs: messages.append(" ".join(str(x) for x in args)),
+        load_json_fn=lambda path: json.loads(path.read_text(encoding="utf-8")),
+    )
+
+    joined = "\n".join(messages)
+    assert "completed 1/1" in joined
+    assert "elapsed=" in joined
+    assert "eta=" in joined
+
+
 def test_current_fixture_matrix_config_materializes_expected_selector_lane_set() -> None:
     compare_mode = str(
         fixture_matrix_config_mod.STAGE35_BASELINE_SELECTOR_COMPARE_MODE
@@ -678,6 +711,52 @@ def test_apply_job_sets_conservative_early_overrides() -> None:
     assert int(no_wli.STAGE12_ARCHIVE_KEEP) == 160
 
 
+def test_apply_job_sets_stage3_topk_limit_override() -> None:
+    calls: list[dict[str, object]] = []
+    no_wli = SimpleNamespace(
+        RUN_STAGE3_SPAN_BASIN_K_SWEEP=True,
+        STAGE3_SPAN_BASIN_K_SWEEP_VALUES=[96],
+        STAGE3_SPAN_BASIN_JUDGE_K=96,
+        SPAN_DECISION_ROLE_ENABLED=False,
+        STAGE3_SPAN_AUX_ROLE="off",
+        SCORING_EXPERIMENT_PROFILE="off",
+        SAVE_STAGE3_TOPK=True,
+        SAVE_STAGE3_TOPK_LIMIT=5,
+    )
+    no_wli.configure_campaign_run = lambda **kwargs: calls.append(dict(kwargs))
+    job = SimpleNamespace(
+        run_seed=111,
+        period=9,
+        columns=3,
+        length=1000,
+        run_mode="adaptive_fixture_v1",
+        profile_id="no_wli_a1_m12_b34_stage3avg_fulltext_v1",
+        heartbeat_seconds=180,
+        text_offsets=(0,),
+        scorer_impl="torch",
+        scorer_stage3_impl_avg_fulltext="torch",
+        scoring_experiment_profile="c_min_late",
+        span_ab_case_id="none",
+        span_decision_role_enabled=False,
+        tier_name=lambda: "fixture_fixture_001_p9_c3_l1000",
+        scorer_schedule=lambda: {
+            "early": "a_char1_avg_fulltext",
+            "middle": "m_char12_avg_fulltext",
+            "late": "b_char4_avg_fulltext",
+        },
+    )
+    apply_job(
+        job=job,
+        no_wli=no_wli,
+        disable_stage3_span_basin_k_sweep=False,
+        stage3_span_basin_k_sweep_values=(64,),
+        force_stage3_topk_limit=64,
+    )
+    assert calls, "configure_campaign_run should be called"
+    assert bool(no_wli.SAVE_STAGE3_TOPK) is True
+    assert int(no_wli.SAVE_STAGE3_TOPK_LIMIT) == 64
+
+
 def test_apply_job_sets_stage3_entry_policy_overrides() -> None:
     calls: list[dict[str, object]] = []
     no_wli = SimpleNamespace(
@@ -1212,6 +1291,63 @@ def test_fixture_matrix_api_forwards_stage3_recovery_overrides(
         "lexical_max_calls": 128,
     }
     assert bool(captured["force_stage35_enabled"]) is False
+
+
+def test_fixture_matrix_api_forwards_stage3_topk_limit_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_apply_job_impl(**kwargs) -> None:
+        captured.update(kwargs)
+
+    monkeypatch.setattr(fixture_api, "_apply_job_impl", _fake_apply_job_impl)
+    monkeypatch.setattr(
+        fixture_api,
+        "STAGE3_TUNING_PRESETS",
+        {
+            "phaseb_supply_probe_p9": {
+                "force_stage3_phaseb_top_n": 24,
+                "force_stage3_topk_limit": 64,
+            }
+        },
+    )
+
+    job = SimpleNamespace(
+        fixture_id="fixture_001",
+        period=9,
+        columns=3,
+        length=1000,
+        run_seed=611,
+        run_mode="adaptive_fixture_v1",
+        profile_id="no_wli_a1_m12_b34_stage3avg_fulltext_v1",
+        heartbeat_seconds=180,
+        text_offsets=(0,),
+        scorer_impl="torch",
+        scorer_stage3_impl_avg_fulltext="torch",
+        scoring_experiment_profile="c_min_late",
+        schedule_early="a_char1_avg_fulltext",
+        schedule_middle="m_char12_avg_fulltext",
+        schedule_late="b_char4_avg_fulltext",
+        stage3_tuning_preset_id="phaseb_supply_probe_p9",
+        span_ab_case_id="none",
+        span_decision_role_enabled=False,
+        tier_name=lambda: "fixture_fixture_001_p9_c3_l1000",
+        scorer_schedule=lambda: {
+            "early": "a_char1_avg_fulltext",
+            "middle": "m_char12_avg_fulltext",
+            "late": "b_char4_avg_fulltext",
+        },
+    )
+
+    overrides = fixture_api._resolve_stage3_tuning_overrides_for_job(job)
+    assert int(overrides["force_stage3_phaseb_top_n"]) == 24
+    assert int(overrides["force_stage3_topk_limit"]) == 64
+
+    fixture_api.apply_job(job)
+
+    assert int(captured["force_stage3_phaseb_top_n"]) == 24
+    assert int(captured["force_stage3_topk_limit"]) == 64
 
 
 def test_fixture_matrix_api_forwards_stage3_preserve_tieband_probe_overrides(

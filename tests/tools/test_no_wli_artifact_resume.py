@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import time
 
 import numpy as np
 
@@ -536,6 +537,67 @@ def test_run_stage3_resume_from_artifact_calls_stage3_flow_with_reconstructed_ha
     assert out["resume_best_score"] == 3.5
 
 
+def test_run_stage3_resume_from_artifact_keeps_stronger_stage3_outcome_when_stage35_is_weaker(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    case = _toy_case(tmp_path)
+
+    monkeypatch.setattr(
+        resume_mod,
+        "prepare_stage3_refine_inputs",
+        lambda **kwargs: {"init3": [[1, 2, 3]], "resume_marker": "ok"},
+    )
+    monkeypatch.setattr(resume_mod.phasec_replay_mod, "_build_cipher", lambda artifact: "cipher")
+    monkeypatch.setattr(
+        resume_mod.phasec_replay_mod,
+        "_build_stage3_scorer_runtime",
+        lambda artifact, run_config, scorer_key: f"scorer:{scorer_key}",
+    )
+    monkeypatch.setattr(
+        resume_mod.phasec_replay_mod,
+        "_build_stage3_word_ngram_report_runtime",
+        lambda artifact, run_config: "word_ngram",
+    )
+    monkeypatch.setattr(
+        resume_mod,
+        "_build_stage3_runtime_call_context",
+        lambda artifact, run_config, output_dir: "stage3_ctx",
+    )
+
+    def _fake_run_stage3_iteration_flow(**kwargs):
+        return {
+            "stop_reason": "complete",
+            "ev3": 17,
+            "best3_match": 0.5,
+            "best3_score": 3.5,
+            "best3_key": [0, 1, 2, 0, 1, 2, 0],
+            "pt3": np.asarray([0, 1, 2, 0, 1, 1], dtype=np.uint8),
+            "stage35_selected": 1,
+            "stage35_best_score": 3.6,
+            "stage35_best_key": [0, 1, 2, 0, 1, 2, 1],
+            "stage35_best_plaintext_idx": [2, 0, 1, 0, 1, 1],
+        }
+
+    monkeypatch.setattr(
+        resume_mod.stage3_flow_mod,
+        "run_stage3_iteration_flow",
+        _fake_run_stage3_iteration_flow,
+    )
+
+    out = resume_mod.run_stage3_resume_from_artifact(
+        case,
+        output_dir=tmp_path / "resume_output",
+        enable_stage35=True,
+    )
+
+    assert out["resume_best_stage"] == "stage3_full_refine"
+    assert out["resume_best_match_ratio"] == 0.5
+    assert out["resume_best_score"] == 3.5
+    assert int(out["outcome"]["stage35_used_for_final_best"]) == 0
+    assert int(out["stage3_flow"]["stage35_selected"]) == 1
+
+
 def test_run_stage3_resume_from_artifact_applies_run_config_override(
     monkeypatch,
     tmp_path: Path,
@@ -699,9 +761,323 @@ def test_run_stage3_resume_from_artifact_resolves_repo_relative_scorer_cfgs_befo
         str(flow_captured["scorer_stage3_phaseA"]["span_hamming_assets_dir"])
         == str(expected_assets)
     )
+
+
+def test_run_stage3_resume_from_artifact_persists_live_status_and_progress(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    case = _toy_case(tmp_path)
+
+    monkeypatch.setattr(
+        resume_mod,
+        "prepare_stage3_refine_inputs",
+        lambda **kwargs: {"init3": [[1, 2, 3]], "resume_marker": "ok"},
+    )
+    monkeypatch.setattr(resume_mod.phasec_replay_mod, "_build_cipher", lambda artifact: "cipher")
+    monkeypatch.setattr(
+        resume_mod.phasec_replay_mod,
+        "_build_stage3_scorer_runtime",
+        lambda artifact, run_config, scorer_key: f"scorer:{scorer_key}",
+    )
+    monkeypatch.setattr(
+        resume_mod.phasec_replay_mod,
+        "_build_stage3_word_ngram_report_runtime",
+        lambda artifact, run_config: "word_ngram",
+    )
+
+    def _fake_run_stage3_iteration_flow(**kwargs):
+        ctx = kwargs["stage3_runtime_call_ctx"]
+        ctx.persist_phasea_gate_snapshot_fn(
+            {
+                "tier_name": "toy_tier",
+                "text_id": 0,
+                "key_seed": 511,
+                "phaseA_selected_count": 2,
+                "phaseA_rank1_init_match": 0.415,
+                "phaseA_best_init_match": 0.415,
+                "phaseA_best_final_match": 0.432,
+                "phaseB_ran": 1,
+                "phaseB_ready_reason": "passed",
+            }
+        )
+        log_cfg = ctx.stage3_progress_logging_fn(
+            tier_name="toy_tier",
+            text_id=0,
+            key_seed=511,
+            phase="phaseA",
+            phase_steps=8,
+            phase_start_ts=time.time() - 10.0,
+            heartbeat_seconds=1.0,
+            heartbeat_state={},
+            min_step=0,
+            min_elapsed_seconds=0.0,
+            evals_base=0,
+        )
+        log_cfg["progress_callback"](
+            {
+                "step": 3,
+                "pct": 37,
+                "evals": 12,
+                "best_score": 0.123,
+                "best_raw": 1.23,
+            }
+        )
+        return {
+            "stop_reason": "complete",
+            "ev3": 17,
+            "best3_match": 0.5,
+            "best3_score": 3.5,
+            "best3_key": [0, 1, 2, 0, 1, 2, 0],
+            "pt3": np.asarray([0, 1, 2, 0, 1, 1], dtype=np.uint8),
+            "stage35_selected": 0,
+        }
+
+    monkeypatch.setattr(
+        resume_mod.stage3_flow_mod,
+        "run_stage3_iteration_flow",
+        _fake_run_stage3_iteration_flow,
+    )
+
+    output_dir = tmp_path / "resume_output"
+    out = resume_mod.run_stage3_resume_from_artifact(
+        case,
+        output_dir=output_dir,
+        enable_stage35=False,
+    )
+
+    status_path = output_dir / resume_mod.STAGE3_RESUME_STATUS_JSON_NAME
+    progress_path = output_dir / resume_mod.STAGE3_RESUME_PROGRESS_JSONL_NAME
+    phasea_gate_snapshot_path = output_dir / resume_mod.PHASEA_GATE_SNAPSHOT_JSON_NAME
+    assert status_path.is_file()
+    assert progress_path.is_file()
+    assert phasea_gate_snapshot_path.is_file()
+    assert (output_dir / "stage2_resume.json").is_file()
+    assert (output_dir / "stage3_prep.json").is_file()
+    status = json.loads(status_path.read_text(encoding="utf-8"))
+    assert status["status"] == "completed"
+    assert int(status["heartbeat_count"]) >= 1
+    assert str(status["latest_heartbeat"]["phase"]) == "phaseA"
+    assert int(status["phasea_gate_snapshot_written"]) == 1
+    assert float(status["latest_phasea_gate_snapshot"]["phaseA_rank1_init_match"]) == 0.415
+    rows = [
+        json.loads(line)
+        for line in progress_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert rows[0]["event"] == "stage3_resume_started"
+    assert any(str(row.get("event")) == "stage3_phasea_gate_snapshot" for row in rows)
+    assert any(str(row.get("event")) == "stage3_heartbeat" for row in rows)
+    assert rows[-1]["event"] == "stage3_resume_finished"
+    phasea_gate_snapshot = json.loads(phasea_gate_snapshot_path.read_text(encoding="utf-8"))
+    assert float(phasea_gate_snapshot["phaseA_rank1_init_match"]) == 0.415
+    assert str(phasea_gate_snapshot["event"]) == "stage3_phasea_gate_snapshot"
+    assert str(out["stage3_resume_status_json_relpath"]).endswith(
+        resume_mod.STAGE3_RESUME_STATUS_JSON_NAME
+    )
+    assert str(out["stage3_resume_progress_jsonl_relpath"]).endswith(
+        resume_mod.STAGE3_RESUME_PROGRESS_JSONL_NAME
+    )
+    assert str(out["phasea_gate_snapshot_json_relpath"]).endswith(
+        resume_mod.PHASEA_GATE_SNAPSHOT_JSON_NAME
+    )
+
+
+def test_run_stage3_resume_from_artifact_applies_phasea_gate_action_stop(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    case = _toy_case(tmp_path)
+
+    monkeypatch.setattr(
+        resume_mod,
+        "prepare_stage3_refine_inputs",
+        lambda **kwargs: {"init3": [[1, 2, 3]], "resume_marker": "ok"},
+    )
+    monkeypatch.setattr(resume_mod.phasec_replay_mod, "_build_cipher", lambda artifact: "cipher")
+    monkeypatch.setattr(
+        resume_mod.phasec_replay_mod,
+        "_build_stage3_scorer_runtime",
+        lambda artifact, run_config, scorer_key: f"scorer:{scorer_key}",
+    )
+    monkeypatch.setattr(
+        resume_mod.phasec_replay_mod,
+        "_build_stage3_word_ngram_report_runtime",
+        lambda artifact, run_config: "word_ngram",
+    )
+
+    def _fake_run_stage3_iteration_flow(**kwargs):
+        ctx = kwargs["stage3_runtime_call_ctx"]
+        ctx.persist_phasea_gate_snapshot_fn(
+            {
+                "tier_name": "toy_tier",
+                "text_id": 0,
+                "key_seed": 511,
+                "phaseA_selected_count": 2,
+                "phaseA_rank1_init_match": 0.254,
+                "phaseA_best_init_match": 0.254,
+                "phaseA_best_final_match": 0.261,
+                "phaseB_ran": 1,
+                "phaseB_ready_reason": "passed",
+            }
+        )
+        raise AssertionError("phasea gate action should have stopped the replay")
+
+    monkeypatch.setattr(
+        resume_mod.stage3_flow_mod,
+        "run_stage3_iteration_flow",
+        _fake_run_stage3_iteration_flow,
+    )
+
+    output_dir = tmp_path / "resume_output"
+    out = resume_mod.run_stage3_resume_from_artifact(
+        case,
+        output_dir=output_dir,
+        enable_stage35=False,
+        phasea_gate_action_decider=lambda snapshot: {
+            "action_contract_id": "phasea_rank1_gate_both_v1",
+            "action_contract_mode": "fallback_and_early_stop",
+            "gate_verdict": "filter",
+            "action_reason": "gate_filter_below_threshold",
+            "action_stop_now": 1,
+            "resume_best_stage": "artifact_baseline_fallback",
+            "resume_best_match_ratio": float(case.artifact["best_match_ratio"]),
+        },
+    )
+
+    status = json.loads(
+        (output_dir / resume_mod.STAGE3_RESUME_STATUS_JSON_NAME).read_text(
+            encoding="utf-8"
+        )
+    )
+    progress_rows = [
+        json.loads(line)
+        for line in (
+            output_dir / resume_mod.STAGE3_RESUME_PROGRESS_JSONL_NAME
+        ).read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+    assert out["resume_best_stage"] == "artifact_baseline_fallback"
+    assert out["resume_best_match_ratio"] == case.artifact["best_match_ratio"]
+    assert int(out["phasea_gate_action_applied"]) == 1
+    assert status["status"] == "completed"
+    assert str(status["event"]) == "stage3_resume_finished_phasea_gate_action"
+    assert int(status["phasea_gate_action_applied"]) == 1
+    assert str(status["latest_phasea_gate_action_applied"]["gate_verdict"]) == "filter"
+    assert any(
+        str(row.get("event")) == "stage3_phasea_gate_action_decision"
+        for row in progress_rows
+    )
+    assert any(
+        str(row.get("event")) == "stage3_phasea_gate_action_applied"
+        for row in progress_rows
+    )
+    assert str(progress_rows[-1]["event"]) == "stage3_resume_finished_phasea_gate_action"
+
+
+def test_run_stage3_resume_from_artifact_applies_provisional_phasea_gate_action_stop(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    case = _toy_case(tmp_path)
+
+    monkeypatch.setattr(
+        resume_mod,
+        "prepare_stage3_refine_inputs",
+        lambda **kwargs: {"init3": [[1, 2, 3]], "resume_marker": "ok"},
+    )
+    monkeypatch.setattr(resume_mod.phasec_replay_mod, "_build_cipher", lambda artifact: "cipher")
+    monkeypatch.setattr(
+        resume_mod.phasec_replay_mod,
+        "_build_stage3_scorer_runtime",
+        lambda artifact, run_config, scorer_key: f"scorer:{scorer_key}",
+    )
+    monkeypatch.setattr(
+        resume_mod.phasec_replay_mod,
+        "_build_stage3_word_ngram_report_runtime",
+        lambda artifact, run_config: "word_ngram",
+    )
+
+    def _fake_run_stage3_iteration_flow(**kwargs):
+        ctx = kwargs["stage3_runtime_call_ctx"]
+        ctx.persist_phasea_provisional_gate_snapshot_fn(
+            {
+                "tier_name": "toy_tier",
+                "text_id": 0,
+                "key_seed": 511,
+                "phaseA_checkpoint_restart_count": 16,
+                "phaseA_checkpoint_restart_total": 64,
+                "phaseA_checkpoint_elapsed_seconds": 12.5,
+                "phaseA_checkpoint_fraction": 0.25,
+                "phaseA_selected_count": 16,
+                "phaseA_rank1_init_match": 0.243,
+                "phaseA_best_init_match": 0.378,
+                "phaseA_best_final_match": 0.378,
+                "phaseB_ran": 1,
+                "phaseB_ready_reason": "passed",
+            }
+        )
+        raise AssertionError("provisional phasea gate action should have stopped the replay")
+
+    monkeypatch.setattr(
+        resume_mod.stage3_flow_mod,
+        "run_stage3_iteration_flow",
+        _fake_run_stage3_iteration_flow,
+    )
+
+    output_dir = tmp_path / "resume_output"
+    out = resume_mod.run_stage3_resume_from_artifact(
+        case,
+        output_dir=output_dir,
+        enable_stage35=False,
+        phasea_provisional_gate_action_decider=lambda snapshot: {
+            "action_contract_id": "phasea_checkpoint_refined_both_v1",
+            "action_contract_mode": "fallback_and_early_stop",
+            "gate_verdict": "filter",
+            "action_reason": "provisional_gate_filter",
+            "action_stop_now": 1,
+            "resume_best_stage": "artifact_baseline_fallback",
+            "resume_best_match_ratio": float(case.artifact["best_match_ratio"]),
+        },
+    )
+
+    status = json.loads(
+        (output_dir / resume_mod.STAGE3_RESUME_STATUS_JSON_NAME).read_text(
+            encoding="utf-8"
+        )
+    )
+    progress_rows = [
+        json.loads(line)
+        for line in (
+            output_dir / resume_mod.STAGE3_RESUME_PROGRESS_JSONL_NAME
+        ).read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+    assert out["resume_best_stage"] == "artifact_baseline_fallback"
+    assert out["resume_best_match_ratio"] == case.artifact["best_match_ratio"]
+    assert int(out["phasea_gate_action_applied"]) == 1
+    assert status["status"] == "completed"
+    assert str(status["event"]) == "stage3_resume_finished_phasea_gate_action"
+    assert int(status["phasea_gate_action_applied"]) == 1
     assert (
-        str(flow_captured["scorer_stage3_phaseB"]["span_hamming_assets_dir"])
-        == str(expected_assets)
+        str(status["latest_phasea_gate_action_applied"]["gate_surface"])
+        == "provisional_checkpoint"
+    )
+    assert (
+        int(status["latest_phasea_gate_action_applied"]["phaseA_checkpoint_restart_count"])
+        == 16
+    )
+    assert any(
+        str(row.get("event")) == "stage3_phasea_gate_action_decision"
+        and str(row.get("gate_surface")) == "provisional_checkpoint"
+        for row in progress_rows
+    )
+    assert any(
+        str(row.get("event")) == "stage3_phasea_gate_action_applied"
+        and str(row.get("gate_surface")) == "provisional_checkpoint"
+        for row in progress_rows
     )
 
 
@@ -854,6 +1230,87 @@ def test_run_stage3_resume_from_artifact_prefers_saved_live_bundle(
         "resume_handoffs/toy"
     )
     assert out["stage3_prep"]["resume_marker"] == "saved_live_bundle"
+
+
+def test_run_stage3_resume_from_artifact_accepts_explicit_handoff_override(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    case = _toy_case(tmp_path)
+    state_captured: dict[str, object] = {}
+
+    monkeypatch.setattr(
+        resume_mod,
+        "prepare_stage3_refine_inputs",
+        lambda **kwargs: {"init3": [[1, 2, 3]], "resume_marker": "unused"},
+    )
+    monkeypatch.setattr(resume_mod.phasec_replay_mod, "_build_cipher", lambda artifact: "cipher")
+    monkeypatch.setattr(
+        resume_mod.phasec_replay_mod,
+        "_build_stage3_scorer_runtime",
+        lambda artifact, run_config, scorer_key: f"scorer:{scorer_key}",
+    )
+    monkeypatch.setattr(
+        resume_mod.phasec_replay_mod,
+        "_build_stage3_word_ngram_report_runtime",
+        lambda artifact, run_config: "word_ngram",
+    )
+    monkeypatch.setattr(
+        resume_mod,
+        "_build_stage3_runtime_call_context",
+        lambda artifact, run_config, output_dir: "stage3_ctx",
+    )
+
+    def _fake_run_stage3_iteration_flow(**kwargs):
+        state_captured.update(dict(kwargs["state"]))
+        return {
+            "stop_reason": "complete",
+            "ev3": 1,
+            "best3_match": 0.4,
+            "best3_score": 2.0,
+            "best3_key": [9, 9, 9],
+            "pt3": np.asarray([0, 1, 2, 0, 1, 1], dtype=np.uint8),
+            "stage35_selected": 0,
+        }
+
+    monkeypatch.setattr(
+        resume_mod.stage3_flow_mod,
+        "run_stage3_iteration_flow",
+        _fake_run_stage3_iteration_flow,
+    )
+
+    out = resume_mod.run_stage3_resume_from_artifact(
+        case,
+        output_dir=tmp_path / "resume_output",
+        enable_stage35=False,
+        stage2_resume_override={
+            "best2_key": [9, 9, 9],
+            "best2_pt": [1, 2, 3],
+            "best2_score": 7.5,
+            "best2_match": 0.75,
+            "best2_preview": "override",
+            "stage2_promoted": [
+                {
+                    "key": [9, 9, 9],
+                    "plaintext": [1, 2, 3],
+                    "score": 7.5,
+                    "match": 0.75,
+                }
+            ],
+            "stage2_entry_score": 7.5,
+            "stage2_entry_score_judge": 7.6,
+            "stage2_topk_row_count": 3,
+            "stage2_promote_top_cfg": 5,
+            "stage2_promoted_from_topk_count": 1,
+        },
+        stage3_prep_override={"init3": [[9, 9, 9]], "resume_marker": "override"},
+        resume_source_override="selector_override",
+    )
+
+    assert state_captured["best2_key"] == [9, 9, 9]
+    assert len(list(state_captured["stage2_promoted"])) == 1
+    assert out["resume_source"] == "selector_override"
+    assert out["stage3_prep"]["resume_marker"] == "override"
 
 
 def test_build_stage3_scorer_runtime_resolves_repo_relative_span_assets_dir(

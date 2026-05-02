@@ -13,6 +13,172 @@ from tools.benchmarks.periodic_sub_trans.no_wli import stage3_two_phase as phase
 pytestmark = pytest.mark.tier_a
 
 
+def test_build_phasea_gate_snapshot_summarizes_rank1_and_family_state() -> None:
+    snapshot = phase2_mod.build_phasea_gate_snapshot(
+        tier_name="fixture_fixture_001_p9_c3_l1000",
+        text_id=0,
+        key_seed=7004,
+        phaseA_rows=[
+            {"end_hash": "h0"},
+            {"end_hash": "h1"},
+            {"end_hash": "h2"},
+        ],
+        phaseA_selected_rows=[
+            {
+                "source": "phaseA_selected",
+                "source_rank": 1,
+                "end_hash": "h1",
+                "init_match": 0.415,
+                "final_match": 0.432,
+                "score_gain": 0.012,
+                "shadow_stop_v1": {"plateau_would_stop": 0},
+            },
+            {
+                "source": "phaseA_selected",
+                "source_rank": 2,
+                "end_hash": "h2",
+                "init_match": 0.490,
+                "final_match": 0.476,
+                "score_gain": 0.008,
+                "shadow_stop_v1": {"plateau_would_stop": 1},
+            },
+        ],
+        gate_delta=0.003,
+        gate_end_gain=0.001,
+        phaseB_ran=1,
+        phaseB_ready_reason="passed",
+        phaseB_top_n_used=2,
+        phaseB_selected_unique_end_hash=2,
+        phaseB_family_preservation_policy="selected_family_low_edge_eps_0p016_v1",
+        phaseB_family_view_id="prefix_hamming_le_24",
+        phaseB_family_reserved_slots=1,
+        phaseB_family_count_in_top_band=2,
+        phaseB_family_preserved_count=1,
+        phaseB_family_reservation_applied=1,
+        phaseB_downstream_selected_count=3,
+        phaseB_downstream_selected_unique_end_hash=3,
+    )
+
+    assert snapshot["tier_name"] == "fixture_fixture_001_p9_c3_l1000"
+    assert int(snapshot["phaseA_rows_scored"]) == 3
+    assert int(snapshot["phaseA_selected_count"]) == 2
+    assert float(snapshot["phaseA_rank1_init_match"]) == pytest.approx(0.415)
+    assert float(snapshot["phaseA_rank1_final_match"]) == pytest.approx(0.432)
+    assert int(snapshot["phaseA_rank1_plateau_would_stop"]) == 0
+    assert float(snapshot["phaseA_best_init_match"]) == pytest.approx(0.490)
+    assert int(snapshot["phaseA_best_init_source_rank"]) == 2
+    assert float(snapshot["phaseA_best_final_match"]) == pytest.approx(0.476)
+    assert int(snapshot["phaseA_best_final_source_rank"]) == 2
+    assert str(snapshot["phaseB_ready_reason"]) == "passed"
+    assert int(snapshot["phaseB_family_reservation_applied"]) == 1
+    assert int(snapshot["phaseB_downstream_selected_count"]) == 3
+
+
+def test_build_phasea_gate_snapshot_backfills_from_phasea_row_schema() -> None:
+    snapshot = phase2_mod.build_phasea_gate_snapshot(
+        tier_name="fixture_fixture_001_p9_c3_l1000",
+        text_id=0,
+        key_seed=7004,
+        phaseA_rows=[
+            {"end_hash": "h0"},
+            {"end_hash": "h1"},
+        ],
+        phaseA_selected_rows=[
+            {
+                "phaseb_rank": 1,
+                "selection_bucket": "legacy_fill",
+                "candidate_hash": "h1",
+                "end_match": 0.415,
+                "best_delta_pct": 0.005,
+                "shadow_stop_v1": {"plateau_would_stop": 1},
+            },
+            {
+                "phaseb_rank": 2,
+                "candidate_hash": "h2",
+                "end_match": 0.490,
+                "best_delta_pct": 0.003,
+                "shadow_stop_v1": {"plateau_would_stop": 0},
+            },
+        ],
+        gate_delta=0.003,
+        gate_end_gain=0.001,
+        phaseB_ran=1,
+        phaseB_ready_reason="passed",
+        phaseB_top_n_used=2,
+        phaseB_selected_unique_end_hash=2,
+        phaseB_family_preservation_policy="off",
+        phaseB_family_view_id="prefix_hamming_le_24",
+        phaseB_family_reserved_slots=0,
+        phaseB_family_count_in_top_band=2,
+        phaseB_family_preserved_count=2,
+        phaseB_family_reservation_applied=0,
+        phaseB_downstream_selected_count=2,
+        phaseB_downstream_selected_unique_end_hash=2,
+    )
+
+    assert str(snapshot["phaseA_rank1_source"]) == "legacy_fill"
+    assert int(snapshot["phaseA_rank1_source_rank"]) == 1
+    assert float(snapshot["phaseA_rank1_init_match"]) == pytest.approx(0.415)
+    assert float(snapshot["phaseA_rank1_final_match"]) == pytest.approx(0.415)
+    assert float(snapshot["phaseA_rank1_score_gain"]) == pytest.approx(0.005)
+    assert int(snapshot["phaseA_rank1_plateau_would_stop"]) == 1
+    assert float(snapshot["phaseA_best_init_match"]) == pytest.approx(0.490)
+    assert float(snapshot["phaseA_best_final_match"]) == pytest.approx(0.490)
+    assert int(snapshot["phaseA_best_init_source_rank"]) == 2
+    assert int(snapshot["phaseA_best_final_source_rank"]) == 2
+
+
+def test_build_phasea_provisional_gate_snapshot_emits_checkpoint_fields() -> None:
+    snapshot = phase2_mod.build_phasea_provisional_gate_snapshot(
+        tier_name="fixture_fixture_001_p9_c3_l1000",
+        text_id=0,
+        key_seed=7002,
+        key_len=4,
+        phaseA_rows=[
+            {
+                "restart_idx": 0,
+                "start_hash": "s0",
+                "end_hash": "h0",
+                "end_key": [0, 1, 2, 3],
+                "end_score_pct": 0.289,
+                "best_delta_pct": 0.004,
+                "end_score_raw": 0.1,
+                "end_match": 0.289,
+            },
+            {
+                "restart_idx": 1,
+                "start_hash": "s1",
+                "end_hash": "h1",
+                "end_key": [3, 2, 1, 0],
+                "end_score_pct": 0.309,
+                "best_delta_pct": 0.003,
+                "end_score_raw": 0.09,
+                "end_match": 0.309,
+            },
+        ],
+        phaseA_checkpoint_restart_count=16,
+        phaseA_checkpoint_restart_total=64,
+        phaseA_checkpoint_elapsed_seconds=320.0,
+        stage3_phaseB_top_n=1,
+        stage3_span_basin_judge_tie_eps=0.0,
+        stage3_span_basin_judge_tie_max_seeds=1,
+        stage3_word_ngram_decision_influence=False,
+        phaseB_family_preservation_policy="off",
+        phaseB_family_view_id="prefix_hamming_le_24",
+        phaseB_family_reserved_slots=0,
+        gate_delta=0.003,
+        gate_end_gain=0.001,
+    )
+
+    assert str(snapshot["event"]) == "stage3_phasea_provisional_gate_snapshot"
+    assert int(snapshot["phaseA_checkpoint_restart_count"]) == 16
+    assert int(snapshot["phaseA_checkpoint_restart_total"]) == 64
+    assert float(snapshot["phaseA_checkpoint_fraction"]) == pytest.approx(0.25)
+    assert float(snapshot["phaseA_checkpoint_elapsed_seconds"]) == pytest.approx(320.0)
+    assert float(snapshot["phaseA_rank1_init_match"]) == pytest.approx(0.309)
+    assert float(snapshot["phaseA_best_final_match"]) == pytest.approx(0.309)
+
+
 def test_no_wli_run_config_includes_stage3_phasec_block() -> None:
     state = dict(no_wli_runner.__dict__)
     state["STAGE3_PHASEC_ENABLED"] = True
@@ -2559,6 +2725,497 @@ def test_stage3_phasec_novel_challenger_policy_forces_distinct_challengers_from_
     assert "selected_novel=2" in text
 
 
+def test_stage3_phasec_anchor_family_reserved_policy_pulls_same_family_starts_from_pool(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def _fake_run(**kwargs):
+        init_keys = list(kwargs.get("initial_keys", []))
+        key = list(map(int, init_keys[0])) if init_keys else ([0] * 30)
+        return SimpleNamespace(
+            plaintext_idx=[0, 0, 0],
+            key=key,
+            score=0.0,
+            meta={"work": {"evals": 4}, "telemetry": {"kaeding": {}}},
+        )
+
+    monkeypatch.setattr(phase2_mod, "run", _fake_run)
+
+    def _rows_share_family(lhs, rhs, **_kwargs):
+        lhs_hash = str(lhs.get("candidate_hash", "") or lhs.get("end_hash", ""))
+        rhs_hash = str(rhs.get("candidate_hash", "") or rhs.get("end_hash", ""))
+        if rhs_hash == "h-0,0,0,0,0,0" and lhs_hash in {
+            "anchor_family_seed",
+            "anchor_family_same1",
+            "anchor_family_same2",
+        }:
+            return True
+        return False
+
+    monkeypatch.setattr(phase2_mod, "rows_share_family", _rows_share_family)
+
+    empty_metrics = {
+        "slip_count": 0,
+        "slip_accept_count": 0,
+        "slip_accept_rate": float("nan"),
+        "accept_rate": float("nan"),
+        "phase_attempts_total": 0,
+        "phase_improves_total": 0,
+        "phase_best_delta_max": float("nan"),
+    }
+    key_anchor = ([1] * 26) + ([0] * 4)
+    key_same_1 = ([0] + ([1] * 25) + ([0] * 4))
+    key_same_2 = ([1, 0] + ([1] * 24) + ([0] * 4))
+    key_far_1 = [0] * 30
+    key_far_2 = ([2] * 26) + ([0] * 4)
+    phasea_rows = [
+        dict(
+            start_hash="sa",
+            end_hash="anchor_family_seed",
+            end_key=list(key_anchor),
+            end_plaintext=[0, 1, 2, 0],
+            start_score_pct=0.10,
+            end_score_pct=0.95,
+            end_match=0.10,
+            best_delta_pct=0.85,
+            end_score_raw=0.11,
+            restart_idx=0,
+            metrics=dict(empty_metrics),
+        ),
+        dict(
+            start_hash="sb",
+            end_hash="anchor_family_same1",
+            end_key=list(key_same_1),
+            end_plaintext=[0, 1, 2, 0],
+            start_score_pct=0.10,
+            end_score_pct=0.90,
+            end_match=0.10,
+            best_delta_pct=0.80,
+            end_score_raw=0.10,
+            restart_idx=1,
+            metrics=dict(empty_metrics),
+        ),
+        dict(
+            start_hash="sc",
+            end_hash="anchor_family_same2",
+            end_key=list(key_same_2),
+            end_plaintext=[0, 1, 2, 0],
+            start_score_pct=0.10,
+            end_score_pct=0.89,
+            end_match=0.10,
+            best_delta_pct=0.79,
+            end_score_raw=0.09,
+            restart_idx=2,
+            metrics=dict(empty_metrics),
+        ),
+        dict(
+            start_hash="sd",
+            end_hash="far1",
+            end_key=list(key_far_1),
+            end_plaintext=[0, 1, 2, 0],
+            start_score_pct=0.10,
+            end_score_pct=0.88,
+            end_match=0.10,
+            best_delta_pct=0.78,
+            end_score_raw=0.08,
+            restart_idx=3,
+            metrics=dict(empty_metrics),
+        ),
+    ]
+    injected_topk = [
+        dict(
+            rank=1,
+            key_idx=list(key_far_1),
+            plaintext_idx=[0, 1, 2, 0],
+            end_hash="tail1",
+            source="phaseB_topk",
+        ),
+        dict(
+            rank=2,
+            key_idx=list(key_far_2),
+            plaintext_idx=[0, 1, 2, 0],
+            end_hash="tail2",
+            source="phaseB_topk",
+        ),
+    ]
+
+    def _append_phaseb_topk(**kwargs) -> None:
+        payload = kwargs["payload"]
+        for row in injected_topk:
+            payload.append(dict(row))
+
+    common_kwargs = dict(
+        tier_name="fixture_fixture_001_p3_c1_l3",
+        tier_period=3,
+        tier_columns=1,
+        text_id=0,
+        key_seed=411,
+        key_len=30,
+        ct_idx=np.asarray([0, 0, 0], dtype=np.uint8),
+        pt_idx=np.asarray([0, 0, 0], dtype=np.uint8),
+        order="col_then_sub",
+        alphabet_size=10,
+        direction=no_wli_runner.Direction.LTR,
+        solve_match_threshold=0.9,
+        oracle_assist_selection_effective=False,
+        stage3_phaseA_experiment="a_baseline",
+        stage3_phaseB_experiment="c_min_late",
+        stage3_phaseB_char_pct_min_dynamic=0.4,
+        stage3_phaseB_char_pct_min_source="test",
+        phaseA_rows=phasea_rows,
+        stage_rows=[],
+        scorer_stage3_search_runtime=_ConstantScorer(),
+        scorer_basin_judge_runtime=_ConstantScorer(),
+        scorer_word_ngram_report_runtime=None,
+        scorer_full_runtime=_ConstantScorer(),
+        scorer_stage3_phaseB={},
+        solver_stage3_cfg={"steps": 4, "restarts": 1, "col_batch": 4, "inner_batch": 8},
+        stage3_phaseB_cfg={"steps": 4, "inner_batch": 8, "col_every": 0, "col_batch": 0},
+        stage3_phaseB_top_n=32,
+        stage3_phaseB_gate_delta=-1.0,
+        stage3_phaseB_gate_end_gain=-1.0,
+        stage3_scan_phaseA_only=False,
+        stage3_span_basin_judge_k_cfg=3,
+        stage3_span_basin_judge_require_span_active=False,
+        stage3_span_basin_judge_dedupe_by_end_hash=True,
+        stage3_span_basin_judge_tie_eps=0.0,
+        stage3_span_basin_judge_tie_max_seeds=8,
+        stage3_word_ngram_decision_influence=False,
+        stage3_phasec_enabled=True,
+        stage3_phasec_cfg={"steps": 2, "proposals_per_step": 2, "three_cycle_prob": 0.0},
+        stage3_phasec_start_keys=4,
+        stage3_phasec_seed_offset=0,
+        stage3_phasec_word_ngram_tiebreak=False,
+        batch_eval_chunk_size=32,
+        require_batch_scoring=True,
+        base_seed=2026,
+        ev3_base=0,
+        stage3_heartbeat_seconds=30.0,
+        stage3_heartbeat_min_step=50,
+        stage3_heartbeat_min_elapsed_seconds=5.0,
+        stage3_hb_state={"last_emit_ts": float("-inf")},
+        stage3_topk_payload=[],
+        full_cipher=_SliceChangeCipher(
+            base_key=list(key_anchor),
+            period=3,
+            alphabet_size=10,
+        ),
+        append_stage3_topk_from_phasea_fn=lambda **kwargs: None,
+        append_stage3_topk_from_kaeding_fn=_append_phaseb_topk,
+        is_better_stage3_candidate_preserving_solve_fn=_is_better,
+        match_ratio_fn=_match_ratio,
+        extract_kaeding_metrics_fn=lambda _obj: dict(empty_metrics),
+        solution_span_counter_summary_fn=lambda _obj: dict(
+            total=0.0,
+            active=0.0,
+            skipped=0.0,
+            seconds_total=0.0,
+            seconds_active=0.0,
+        ),
+        scorer_span_counter_summary_fn=lambda _obj: dict(
+            total=0.0,
+            active=0.0,
+            skipped=0.0,
+            seconds_total=0.0,
+            seconds_active=0.0,
+        ),
+        span_counter_delta_fn=lambda **kwargs: dict(total=0.0, active=0.0, seconds_total=0.0),
+        stage3_progress_logging_fn=lambda **kwargs: {},
+        fmt_finite_float_fn=lambda v, digits=3: f"{float(v):.{int(digits)}f}"
+        if np.isfinite(v)
+        else "nan",
+        key_hash_fn=lambda key_vals: f"h-{','.join(str(int(v)) for v in key_vals[:6])}",
+    )
+
+    control = phase2_mod.run_stage3_two_phase_followup(
+        **common_kwargs,
+        stage3_phasec_start_policy="source_order",
+        stage3_phaseb_family_preservation_policy="off",
+        stage3_phaseb_family_view_id="prefix_hamming_le_24",
+        stage3_phaseb_family_reserved_slots=0,
+    )
+    candidate = phase2_mod.run_stage3_two_phase_followup(
+        **common_kwargs,
+        stage3_phasec_start_policy="anchor_family_reserved_v1",
+        stage3_phaseb_family_preservation_policy="off",
+        stage3_phaseb_family_view_id="prefix_hamming_le_24",
+        stage3_phaseb_family_reserved_slots=0,
+    )
+
+    assert str(control["phaseC_start_policy"]) == "source_order"
+    assert str(candidate["phaseC_start_policy"]) == "anchor_family_reserved_v1"
+    control_summaries = [dict(row) for row in control["phaseC_start_summaries"]]
+    candidate_summaries = [dict(row) for row in candidate["phaseC_start_summaries"]]
+    assert str(control_summaries[0]["candidate_hash"]) == str(
+        candidate_summaries[0]["candidate_hash"]
+    )
+    assert [str(row["candidate_hash"]) for row in control_summaries[1:]] == [
+        "tail2",
+        "anchor_family_seed",
+        "anchor_family_same1",
+    ]
+    assert [str(row["selection_bucket"]) for row in candidate_summaries] == [
+        "anchor",
+        "anchor_family_reserved",
+        "anchor_family_reserved",
+        "legacy_fill",
+    ]
+    assert [str(row["source"]) for row in candidate_summaries[1:3]] == [
+        "phaseA_selected",
+        "phaseA_selected",
+    ]
+    assert {
+        str(row["candidate_hash"]) for row in candidate_summaries[1:3]
+    } == {
+        "anchor_family_seed",
+        "anchor_family_same1",
+    }
+    assert str(candidate_summaries[3]["candidate_hash"]) == "tail2"
+    assert [str(row["selection_bucket"]) for row in candidate_summaries] == [
+        "anchor",
+        "anchor_family_reserved",
+        "anchor_family_reserved",
+        "legacy_fill",
+    ]
+    assert [int(row["selected_by_anchor_family_policy"]) for row in candidate_summaries] == [
+        0,
+        1,
+        1,
+        0,
+    ]
+    assert [int(row["selected_by_novel_policy"]) for row in candidate_summaries] == [
+        0,
+        0,
+        0,
+        0,
+    ]
+    text = capsys.readouterr().out
+    assert "start_policy=anchor_family_reserved_v1" in text
+
+
+def test_stage3_phasec_phaseb_topk_anchor_swap_policy_moves_first_topk_row_into_anchor_lane(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def _fake_run(**kwargs):
+        init_keys = list(kwargs.get("initial_keys", []))
+        key = list(map(int, init_keys[0])) if init_keys else ([0] * 30)
+        return SimpleNamespace(
+            plaintext_idx=[0, 0, 0],
+            key=key,
+            score=0.0,
+            meta={"work": {"evals": 4}, "telemetry": {"kaeding": {}}},
+        )
+
+    monkeypatch.setattr(phase2_mod, "run", _fake_run)
+
+    empty_metrics = {
+        "slip_count": 0,
+        "slip_accept_count": 0,
+        "slip_accept_rate": float("nan"),
+        "accept_rate": float("nan"),
+        "phase_attempts_total": 0,
+        "phase_improves_total": 0,
+        "phase_best_delta_max": float("nan"),
+    }
+    key_anchor = [0] * 30
+    key_phasea_1 = ([1] * 29) + [0]
+    key_phasea_2 = ([2] * 29) + [0]
+    key_topk_1 = ([3] * 29) + [0]
+    key_topk_2 = ([4] * 29) + [0]
+    phasea_rows = [
+        dict(
+            start_hash="sa",
+            end_hash="anchor",
+            end_key=list(key_anchor),
+            end_plaintext=[0, 1, 2, 0],
+            start_score_pct=0.10,
+            end_score_pct=0.95,
+            end_match=0.10,
+            best_delta_pct=0.85,
+            end_score_raw=0.11,
+            restart_idx=0,
+            metrics=dict(empty_metrics),
+        ),
+        dict(
+            start_hash="sb",
+            end_hash="phasea1",
+            end_key=list(key_phasea_1),
+            end_plaintext=[0, 1, 2, 0],
+            start_score_pct=0.10,
+            end_score_pct=0.90,
+            end_match=0.10,
+            best_delta_pct=0.80,
+            end_score_raw=0.10,
+            restart_idx=1,
+            metrics=dict(empty_metrics),
+        ),
+        dict(
+            start_hash="sc",
+            end_hash="phasea2",
+            end_key=list(key_phasea_2),
+            end_plaintext=[0, 1, 2, 0],
+            start_score_pct=0.10,
+            end_score_pct=0.89,
+            end_match=0.10,
+            best_delta_pct=0.79,
+            end_score_raw=0.09,
+            restart_idx=2,
+            metrics=dict(empty_metrics),
+        ),
+    ]
+    injected_topk = [
+        dict(
+            rank=1,
+            key_idx=list(key_topk_1),
+            plaintext_idx=[0, 1, 2, 0],
+            end_hash="topk1",
+            source="phaseB_topk",
+        ),
+        dict(
+            rank=2,
+            key_idx=list(key_topk_2),
+            plaintext_idx=[0, 1, 2, 0],
+            end_hash="topk2",
+            source="phaseB_topk",
+        ),
+    ]
+
+    def _append_phaseb_topk(**kwargs) -> None:
+        payload = kwargs["payload"]
+        for row in injected_topk:
+            payload.append(dict(row))
+
+    common_kwargs = dict(
+        tier_name="fixture_fixture_001_p3_c1_l3",
+        tier_period=3,
+        tier_columns=1,
+        text_id=0,
+        key_seed=411,
+        key_len=30,
+        ct_idx=np.asarray([0, 0, 0], dtype=np.uint8),
+        pt_idx=np.asarray([0, 0, 0], dtype=np.uint8),
+        order="col_then_sub",
+        alphabet_size=10,
+        direction=no_wli_runner.Direction.LTR,
+        solve_match_threshold=0.9,
+        oracle_assist_selection_effective=False,
+        stage3_phaseA_experiment="a_baseline",
+        stage3_phaseB_experiment="c_min_late",
+        stage3_phaseB_char_pct_min_dynamic=0.4,
+        stage3_phaseB_char_pct_min_source="test",
+        phaseA_rows=phasea_rows,
+        stage_rows=[],
+        scorer_stage3_search_runtime=_ConstantScorer(),
+        scorer_basin_judge_runtime=_ConstantScorer(),
+        scorer_word_ngram_report_runtime=None,
+        scorer_full_runtime=_ConstantScorer(),
+        scorer_stage3_phaseB={},
+        solver_stage3_cfg={"steps": 4, "restarts": 1, "col_batch": 4, "inner_batch": 8},
+        stage3_phaseB_cfg={"steps": 4, "inner_batch": 8, "col_every": 0, "col_batch": 0},
+        stage3_phaseB_top_n=32,
+        stage3_phaseB_gate_delta=-1.0,
+        stage3_phaseB_gate_end_gain=-1.0,
+        stage3_scan_phaseA_only=False,
+        stage3_span_basin_judge_k_cfg=3,
+        stage3_span_basin_judge_require_span_active=False,
+        stage3_span_basin_judge_dedupe_by_end_hash=True,
+        stage3_span_basin_judge_tie_eps=0.0,
+        stage3_span_basin_judge_tie_max_seeds=8,
+        stage3_word_ngram_decision_influence=False,
+        stage3_phasec_enabled=True,
+        stage3_phasec_cfg={"steps": 2, "proposals_per_step": 2, "three_cycle_prob": 0.0},
+        stage3_phasec_start_keys=4,
+        stage3_phasec_seed_offset=0,
+        stage3_phasec_word_ngram_tiebreak=False,
+        batch_eval_chunk_size=32,
+        require_batch_scoring=True,
+        base_seed=2026,
+        ev3_base=0,
+        stage3_heartbeat_seconds=30.0,
+        stage3_heartbeat_min_step=50,
+        stage3_heartbeat_min_elapsed_seconds=5.0,
+        stage3_hb_state={"last_emit_ts": float("-inf")},
+        stage3_topk_payload=[],
+        full_cipher=_SliceChangeCipher(
+            base_key=list(key_anchor),
+            period=3,
+            alphabet_size=10,
+        ),
+        append_stage3_topk_from_phasea_fn=lambda **kwargs: None,
+        append_stage3_topk_from_kaeding_fn=_append_phaseb_topk,
+        is_better_stage3_candidate_preserving_solve_fn=_is_better,
+        match_ratio_fn=_match_ratio,
+        extract_kaeding_metrics_fn=lambda _obj: dict(empty_metrics),
+        solution_span_counter_summary_fn=lambda _obj: dict(
+            total=0.0,
+            active=0.0,
+            skipped=0.0,
+            seconds_total=0.0,
+            seconds_active=0.0,
+        ),
+        scorer_span_counter_summary_fn=lambda _obj: dict(
+            total=0.0,
+            active=0.0,
+            skipped=0.0,
+            seconds_total=0.0,
+            seconds_active=0.0,
+        ),
+        span_counter_delta_fn=lambda **kwargs: dict(total=0.0, active=0.0, seconds_total=0.0),
+        stage3_progress_logging_fn=lambda **kwargs: {},
+        fmt_finite_float_fn=lambda v, digits=3: f"{float(v):.{int(digits)}f}"
+        if np.isfinite(v)
+        else "nan",
+        key_hash_fn=lambda key_vals: f"h-{','.join(str(int(v)) for v in key_vals[:6])}",
+    )
+
+    control = phase2_mod.run_stage3_two_phase_followup(
+        **common_kwargs,
+        stage3_phasec_start_policy="source_order",
+        stage3_phaseb_family_preservation_policy="off",
+        stage3_phaseb_family_view_id="prefix_hamming_le_24",
+        stage3_phaseb_family_reserved_slots=0,
+    )
+    candidate = phase2_mod.run_stage3_two_phase_followup(
+        **common_kwargs,
+        stage3_phasec_start_policy="phaseb_topk_anchor_swap_v1",
+        stage3_phaseb_family_preservation_policy="off",
+        stage3_phaseb_family_view_id="prefix_hamming_le_24",
+        stage3_phaseb_family_reserved_slots=0,
+    )
+
+    assert str(control["phaseC_start_policy"]) == "source_order"
+    assert str(candidate["phaseC_start_policy"]) == "phaseb_topk_anchor_swap_v1"
+    control_summaries = [dict(row) for row in control["phaseC_start_summaries"]]
+    candidate_summaries = [dict(row) for row in candidate["phaseC_start_summaries"]]
+    assert [str(row["candidate_hash"]) for row in control_summaries] == [
+        "h-0,0,0,0,0,0",
+        "topk1",
+        "topk2",
+        "phasea1",
+    ]
+    assert [str(row["candidate_hash"]) for row in candidate_summaries] == [
+        "topk1",
+        "h-0,0,0,0,0,0",
+        "topk2",
+        "phasea1",
+    ]
+    assert [str(row["selection_bucket"]) for row in candidate_summaries] == [
+        "phaseb_topk_anchor",
+        "anchor_demoted",
+        "legacy_fill",
+        "legacy_fill",
+    ]
+    assert [int(row["selected_by_phaseb_topk_anchor_policy"]) for row in candidate_summaries] == [
+        1,
+        0,
+        0,
+        0,
+    ]
+    text = capsys.readouterr().out
+    assert "start_policy=phaseb_topk_anchor_swap_v1" in text
+
+
 def test_stage3_phaseb_family_preservation_changes_only_downstream_carry_forward(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -2753,6 +3410,206 @@ def test_stage3_phaseb_family_preservation_changes_only_downstream_carry_forward
     text = capsys.readouterr().out
     assert "stage3-phaseB-family" in text
     assert "policy=reserve_by_family_v1" in text
+
+
+def test_stage3_phaseb_top_family_reinforcement_can_reallocate_downstream_budget(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def _fake_run(**kwargs):
+        init_keys = list(kwargs.get("initial_keys", []))
+        key = list(map(int, init_keys[0])) if init_keys else ([0] * 30)
+        return SimpleNamespace(
+            plaintext_idx=[0, 1, 2, 0],
+            key=key,
+            score=0.0,
+            meta={"work": {"evals": 4}, "telemetry": {"kaeding": {}}},
+        )
+
+    monkeypatch.setattr(phase2_mod, "run", _fake_run)
+
+    empty_metrics = {
+        "slip_count": 0,
+        "slip_accept_count": 0,
+        "slip_accept_rate": float("nan"),
+        "accept_rate": float("nan"),
+        "phase_attempts_total": 0,
+        "phase_improves_total": 0,
+        "phase_best_delta_max": float("nan"),
+    }
+    key_a0 = [0] * 30
+    key_a1 = ([1] + ([0] * 29))
+    key_b0 = ([1] * 26) + ([0] * 4)
+    phasea_rows = [
+        dict(
+            start_hash="s1",
+            end_hash="e1",
+            end_key=list(key_a0),
+            end_plaintext=[0, 1, 2, 0],
+            start_score_pct=0.10,
+            end_score_pct=0.90,
+            end_match=0.10,
+            best_delta_pct=0.80,
+            end_score_raw=0.11,
+            restart_idx=0,
+            metrics=dict(empty_metrics),
+        ),
+        dict(
+            start_hash="s2",
+            end_hash="e2",
+            end_key=list(key_b0),
+            end_plaintext=[0, 1, 2, 0],
+            start_score_pct=0.10,
+            end_score_pct=0.89,
+            end_match=0.10,
+            best_delta_pct=0.79,
+            end_score_raw=0.10,
+            restart_idx=1,
+            metrics=dict(empty_metrics),
+        ),
+        dict(
+            start_hash="s3",
+            end_hash="e3",
+            end_key=list(key_a1),
+            end_plaintext=[0, 1, 2, 0],
+            start_score_pct=0.10,
+            end_score_pct=0.88,
+            end_match=0.10,
+            best_delta_pct=0.78,
+            end_score_raw=0.09,
+            restart_idx=2,
+            metrics=dict(empty_metrics),
+        ),
+    ]
+
+    common_kwargs = dict(
+        tier_name="fixture_fixture_001_p9_c3_l1000",
+        tier_period=9,
+        tier_columns=3,
+        text_id=0,
+        key_seed=411,
+        key_len=30,
+        ct_idx=np.asarray([0, 1, 2, 0], dtype=np.uint8),
+        pt_idx=np.asarray([0, 1, 2, 0], dtype=np.uint8),
+        order="col_then_sub",
+        alphabet_size=29,
+        direction=no_wli_runner.Direction.LTR,
+        solve_match_threshold=0.9,
+        oracle_assist_selection_effective=False,
+        stage3_phaseA_experiment="a_baseline",
+        stage3_phaseB_experiment="c_min_late",
+        stage3_phaseB_char_pct_min_dynamic=0.4,
+        stage3_phaseB_char_pct_min_source="test",
+        phaseA_rows=phasea_rows,
+        stage_rows=[],
+        scorer_stage3_search_runtime=_ConstantScorer(),
+        scorer_basin_judge_runtime=_ConstantScorer(),
+        scorer_word_ngram_report_runtime=None,
+        scorer_full_runtime=_ConstantScorer(),
+        scorer_stage3_phaseB={},
+        solver_stage3_cfg={"steps": 4, "restarts": 1, "col_batch": 4, "inner_batch": 8},
+        stage3_phaseB_cfg={"steps": 4, "inner_batch": 8, "col_every": 0, "col_batch": 0},
+        stage3_phaseB_top_n=2,
+        stage3_phaseB_gate_delta=-1.0,
+        stage3_phaseB_gate_end_gain=-1.0,
+        stage3_scan_phaseA_only=False,
+        stage3_span_basin_judge_k_cfg=3,
+        stage3_span_basin_judge_require_span_active=False,
+        stage3_span_basin_judge_dedupe_by_end_hash=True,
+        stage3_span_basin_judge_tie_eps=0.0,
+        stage3_span_basin_judge_tie_max_seeds=2,
+        stage3_word_ngram_decision_influence=False,
+        stage3_phasec_enabled=False,
+        stage3_phasec_cfg={"steps": 2, "proposals_per_step": 2, "three_cycle_prob": 0.0},
+        stage3_phasec_start_keys=0,
+        stage3_phasec_seed_offset=0,
+        stage3_phasec_word_ngram_tiebreak=False,
+        batch_eval_chunk_size=32,
+        require_batch_scoring=True,
+        base_seed=2026,
+        ev3_base=0,
+        stage3_heartbeat_seconds=30.0,
+        stage3_heartbeat_min_step=50,
+        stage3_heartbeat_min_elapsed_seconds=5.0,
+        stage3_hb_state={"last_emit_ts": float("-inf")},
+        stage3_topk_payload=[],
+        full_cipher=_DummyCipher(),
+        append_stage3_topk_from_phasea_fn=lambda **kwargs: None,
+        append_stage3_topk_from_kaeding_fn=lambda **kwargs: None,
+        is_better_stage3_candidate_preserving_solve_fn=_is_better,
+        match_ratio_fn=_match_ratio,
+        extract_kaeding_metrics_fn=lambda _obj: dict(
+            slip_count=0,
+            slip_accept_count=0,
+            slip_accept_rate=float("nan"),
+            accept_rate=float("nan"),
+            phase_attempts_total=0,
+            phase_improves_total=0,
+            phase_best_delta_max=float("nan"),
+        ),
+        solution_span_counter_summary_fn=lambda _obj: dict(
+            total=0.0,
+            active=0.0,
+            skipped=0.0,
+            seconds_total=0.0,
+            seconds_active=0.0,
+        ),
+        scorer_span_counter_summary_fn=lambda _obj: dict(
+            total=0.0,
+            active=0.0,
+            skipped=0.0,
+            seconds_total=0.0,
+            seconds_active=0.0,
+        ),
+        span_counter_delta_fn=lambda **kwargs: dict(total=0.0, active=0.0, seconds_total=0.0),
+        stage3_progress_logging_fn=lambda **kwargs: {},
+        fmt_finite_float_fn=lambda v, digits=3: f"{float(v):.{int(digits)}f}"
+        if np.isfinite(v)
+        else "nan",
+        key_hash_fn=lambda key_vals: f"h-{','.join(str(int(v)) for v in key_vals[:6])}",
+        stage3_phasec_start_policy="source_order",
+    )
+
+    control = phase2_mod.run_stage3_two_phase_followup(
+        **common_kwargs,
+        stage3_phaseb_family_preservation_policy="off",
+        stage3_phaseb_family_view_id="prefix_hamming_le_24",
+        stage3_phaseb_family_reserved_slots=1,
+    )
+    candidate = phase2_mod.run_stage3_two_phase_followup(
+        **common_kwargs,
+        stage3_phaseb_family_preservation_policy="reinforce_top_family_v1",
+        stage3_phaseb_family_view_id="prefix_hamming_le_24",
+        stage3_phaseb_family_reserved_slots=1,
+    )
+
+    assert int(control["phaseB_top_n_used"]) == 2
+    assert int(candidate["phaseB_top_n_used"]) == 2
+    assert int(control["phaseB_selected_unique_end_hash"]) == 2
+    assert int(candidate["phaseB_selected_unique_end_hash"]) == 2
+    assert int(control["phaseB_family_count_in_top_band"]) == 2
+    assert int(candidate["phaseB_family_count_in_top_band"]) == 2
+    assert int(control["phaseB_family_preserved_count"]) == 2
+    assert int(candidate["phaseB_family_preserved_count"]) == 1
+    assert int(control["phaseB_family_reservation_applied"]) == 0
+    assert int(candidate["phaseB_family_reservation_applied"]) == 1
+    assert [int(row["phaseb_rank"]) for row in control["phaseB_downstream_selected_summaries"]] == [
+        1,
+        2,
+    ]
+    assert [int(row["phaseb_rank"]) for row in candidate["phaseB_downstream_selected_summaries"]] == [
+        1,
+        3,
+    ]
+    assert [str(row["family_id"]) for row in candidate["phaseB_downstream_selected_summaries"]] == [
+        "f0",
+        "f0",
+    ]
+    assert int(candidate["phaseB_downstream_selected_count"]) == 2
+    assert int(candidate["phaseB_downstream_selected_unique_end_hash"]) == 2
+    text = capsys.readouterr().out
+    assert "stage3-phaseB-family" in text
+    assert "policy=reinforce_top_family_v1" in text
 
 
 def test_stage3_phasec_lexical_threshold_can_engage_below_old_default(

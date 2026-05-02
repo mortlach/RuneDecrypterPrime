@@ -53,6 +53,7 @@ def test_stage3_tuning_preset_from_mapping_normalizes_types() -> None:
         preset_id="Stage3_PhaseB_Width_Probe_P9",
         raw={
             "force_stage3_phaseb_top_n": "32",
+            "force_stage3_topk_limit": "64",
             "force_stage3_initial_keys_by_columns": {"3": "64"},
             "force_stage3_phasec_start_policy": "Balanced_Sources_V1",
             "stage3_span_basin_k_sweep_values": ["64", 96],
@@ -61,10 +62,12 @@ def test_stage3_tuning_preset_from_mapping_normalizes_types() -> None:
 
     assert str(preset.preset_id) == "stage3_phaseb_width_probe_p9"
     assert int(preset.force_stage3_phaseb_top_n) == 32
+    assert int(preset.force_stage3_topk_limit) == 64
     assert preset.force_stage3_initial_keys_by_columns == {3: 64}
     assert str(preset.force_stage3_phasec_start_policy) == "balanced_sources_v1"
     assert preset.stage3_span_basin_k_sweep_values == (64, 96)
     assert preset.as_dict()["force_stage3_phaseb_top_n"] == 32
+    assert preset.as_dict()["force_stage3_topk_limit"] == 64
 
 
 def test_resolve_stage3_tuning_presets_rejects_unknown_fields(

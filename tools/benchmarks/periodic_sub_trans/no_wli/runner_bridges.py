@@ -683,5 +683,8 @@ def build_stage3_runtime_call_context_bridge(
             else None
         ),
         append_jsonl_row_fn=state.get("_append_jsonl_row"),
+        phasea_provisional_checkpoint_counts=None,
+        build_phasea_provisional_gate_snapshot_fn=None,
+        persist_phasea_provisional_gate_snapshot_fn=None,
         log_prefix="[pipeline_no_wli]",
     )

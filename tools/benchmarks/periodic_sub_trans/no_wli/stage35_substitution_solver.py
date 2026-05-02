@@ -15,6 +15,9 @@ from tools.benchmarks.periodic_sub_trans.common.batch_eval import (
 from tools.benchmarks.periodic_sub_trans.no_wli.phasec_rescue_search import (
     run_slice_local_mini_search,
 )
+from tools.benchmarks.periodic_sub_trans.no_wli.phasec_rescue_selector import (
+    select_guard_passing_row,
+)
 from tools.benchmarks.periodic_sub_trans.no_wli.stage35_candidate_archive import (
     apply_frozen_columns_tail,
     build_stage35_seed_archive,
@@ -50,6 +53,8 @@ DEFAULT_STAGE35_SOLVER_CFG: dict[str, Any] = {
     "mini_search_keep_all_rows": 0,
     "accept_score_min_gain": 0,
     "accept_search_score_max_drop": 0,
+    "accept_guard_passing_selector_mode": "off",
+    "accept_guard_passing_score_band_eps": 0.001,
 }
 
 
@@ -103,9 +108,12 @@ def _int_cfg(cfg: Mapping[str, Any] | None) -> dict[str, Any]:
         if str(key) in {
             "accept_score_min_gain",
             "accept_search_score_max_drop",
+            "accept_guard_passing_score_band_eps",
             "max_runtime_seconds",
         }:
             out[str(key)] = float(value)
+        elif str(key) in {"accept_guard_passing_selector_mode"}:
+            out[str(key)] = str(value)
         else:
             out[str(key)] = int(value)
     return out
@@ -1095,6 +1103,12 @@ def run_stage35_live_followup(
     accept_search_score_max_drop = float(
         raw_cfg.get("accept_search_score_max_drop", 0.0) or 0.0
     )
+    accept_guard_passing_selector_mode = str(
+        raw_cfg.get("accept_guard_passing_selector_mode", "off") or "off"
+    ).strip().lower()
+    accept_guard_passing_score_band_eps = float(
+        raw_cfg.get("accept_guard_passing_score_band_eps", 0.001) or 0.001
+    )
     partial_dump_preview_rows = int(
         max(1, int(raw_cfg.get("partial_dump_preview_rows", 3) or 3))
     )
@@ -1398,6 +1412,35 @@ def run_stage35_live_followup(
         plaintext_idx=top_pt,
         target_plaintext_idx=target_plaintext_idx,
     )
+    selected_row = dict(top_row)
+    selected_archive_rank = int(top_row.get("archive_rank", 0) or 0)
+    selected_via_guard_passing_selector = 0
+
+    def _row_passes_acceptance_guards(row_obj: Mapping[str, Any]) -> bool:
+        row_key = list(
+            map(int, row_obj.get("key_idx", baseline_key_list) or baseline_key_list)
+        )
+        row_hash = str(
+            row_obj.get("candidate_hash", "") or stable_key_hash(row_key)
+        )
+        row_score = float(row_obj.get("score", float("nan")))
+        row_search_score = float(row_obj.get("search_score", float("nan")))
+        if str(row_hash) == str(baseline_hash):
+            return False
+        if not _finite_gt_with_margin(
+            lhs=float(row_score),
+            rhs=float(baseline_score),
+            margin=float(accept_score_min_gain),
+        ):
+            return False
+        if not _finite_gte_with_margin(
+            lhs=float(row_search_score),
+            rhs=float(baseline_search_score),
+            margin=float(accept_search_score_max_drop),
+        ):
+            return False
+        return True
+
     t_accept = time.perf_counter()
     accept_passed = 0
     accept_reason = "no_archive_rows"
@@ -1420,8 +1463,56 @@ def run_stage35_live_followup(
     else:
         accept_passed = 1
         accept_reason = "accepted"
+    if (
+        int(accept_passed) == 0
+        and str(accept_guard_passing_selector_mode) != "off"
+        and archive_rows
+    ):
+        passing_rows = [
+            dict(row)
+            for row in archive_rows
+            if _row_passes_acceptance_guards(row)
+        ]
+        chosen_row = select_guard_passing_row(
+            passing_rows=passing_rows,
+            selector_mode=str(accept_guard_passing_selector_mode),
+            current_score=float(baseline_score),
+            current_search_score=float(baseline_search_score),
+            score_band_eps=float(accept_guard_passing_score_band_eps),
+        )
+        if chosen_row is not None:
+            selected_row = dict(chosen_row)
+            selected_archive_rank = int(selected_row.get("archive_rank", 0) or 0)
+            selected_via_guard_passing_selector = int(
+                1 if int(selected_archive_rank) != int(top_row.get("archive_rank", 0) or 0) else 0
+            )
+            accept_passed = 1
+            accept_reason = (
+                "accepted_via_guard_passing_selector"
+                if int(selected_via_guard_passing_selector) == 1
+                else "accepted"
+            )
     accept_check_seconds = float(time.perf_counter() - t_accept)
     selected = int(int(accept_passed) == 1)
+    accepted_row = dict(selected_row) if int(accept_passed) == 1 else dict(top_row)
+    accepted_key = list(
+        map(int, accepted_row.get("key_idx", baseline_key_list) or baseline_key_list)
+    )
+    accepted_pt = list(
+        map(
+            int,
+            accepted_row.get("plaintext_idx", baseline_pt_list) or baseline_pt_list,
+        )
+    )
+    accepted_hash = str(
+        accepted_row.get("candidate_hash", "") or stable_key_hash(accepted_key)
+    )
+    accepted_score = float(accepted_row.get("score", baseline_score))
+    accepted_search_score = float(accepted_row.get("search_score", float("nan")))
+    accepted_match = _truth_match_ratio(
+        plaintext_idx=accepted_pt,
+        target_plaintext_idx=target_plaintext_idx,
+    )
     final_payload = dict(
         event="followup_finish",
         ts=_progress_ts(),
@@ -1429,8 +1520,13 @@ def run_stage35_live_followup(
         baseline_candidate_hash=str(baseline_hash),
         baseline_candidate_source=str(baseline_source),
         baseline_candidate_lane=str(baseline_lane),
+        accept_guard_passing_selector_mode=str(accept_guard_passing_selector_mode),
+        accept_guard_passing_score_band_eps=float(accept_guard_passing_score_band_eps),
         accept_passed=int(accept_passed),
         accept_reason=str(accept_reason),
+        selected_archive_rank=int(selected_archive_rank),
+        selected_via_guard_passing_selector=int(selected_via_guard_passing_selector),
+        selected_candidate_hash=str(accepted_hash),
         outcome_status=str(solver_out.get("outcome_status", "completed") or "completed"),
         outcome_reason=str(solver_out.get("outcome_reason", "") or ""),
         completed=int(solver_out.get("completed", 0) or 0),
@@ -1498,31 +1594,37 @@ def run_stage35_live_followup(
         baseline_search_score=float(baseline_search_score),
         accept_score_min_gain_cfg=float(accept_score_min_gain),
         accept_search_score_max_drop_cfg=float(accept_search_score_max_drop),
+        accept_guard_passing_selector_mode_cfg=str(accept_guard_passing_selector_mode),
+        accept_guard_passing_score_band_eps_cfg=float(
+            accept_guard_passing_score_band_eps
+        ),
         accept_passed=int(accept_passed),
         accept_reason=str(accept_reason),
-        best_match=float(top_match),
+        selected_archive_rank=int(selected_archive_rank),
+        selected_via_guard_passing_selector=int(selected_via_guard_passing_selector),
+        best_match=float(accepted_match),
         truth_gain_vs_selected_row=(
-            float(top_match - baseline_final_match)
-            if np.isfinite(top_match) and np.isfinite(baseline_final_match)
+            float(accepted_match - baseline_final_match)
+            if np.isfinite(accepted_match) and np.isfinite(baseline_final_match)
             else float("nan")
         ),
         truth_gain_vs_phasec_score_winner=(
-            float(top_match - phasec_score_winner_final_match)
-            if np.isfinite(top_match) and np.isfinite(phasec_score_winner_final_match)
+            float(accepted_match - phasec_score_winner_final_match)
+            if np.isfinite(accepted_match) and np.isfinite(phasec_score_winner_final_match)
             else float("nan")
         ),
-        best_key=list(top_key),
-        best_plaintext_idx=list(top_pt),
-        best_score=float(top_score),
-        best_search_score=float(top_search_score),
-        best_candidate_hash=str(top_hash),
-        best_seed_source=str(top_row.get("seed_source", "") or ""),
-        best_stage3_source=str(top_row.get("stage3_source", "") or ""),
-        best_lane=str(top_row.get("lane", "") or ""),
-        best_source_rank=int(top_row.get("source_rank", 0) or 0),
-        best_target_slice=top_row.get("target_slice", None),
-        best_depth=int(top_row.get("depth", 0) or 0),
-        best_move_type=str(top_row.get("move_type", "") or ""),
+        best_key=list(accepted_key),
+        best_plaintext_idx=list(accepted_pt),
+        best_score=float(accepted_score),
+        best_search_score=float(accepted_search_score),
+        best_candidate_hash=str(accepted_hash),
+        best_seed_source=str(accepted_row.get("seed_source", "") or ""),
+        best_stage3_source=str(accepted_row.get("stage3_source", "") or ""),
+        best_lane=str(accepted_row.get("lane", "") or ""),
+        best_source_rank=int(accepted_row.get("source_rank", 0) or 0),
+        best_target_slice=accepted_row.get("target_slice", None),
+        best_depth=int(accepted_row.get("depth", 0) or 0),
+        best_move_type=str(accepted_row.get("move_type", "") or ""),
         archive_rows=archive_rows,
         seed_rows_scored=seed_rows_scored,
         mini_search_keep_all_rows_cfg=int(

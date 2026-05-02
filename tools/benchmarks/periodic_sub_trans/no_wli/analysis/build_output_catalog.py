@@ -7,8 +7,17 @@ from pathlib import Path
 from typing import Any
 
 
-SOURCE_ROOT = Path("output/tools/benchmarks/periodic_sub_trans/no_wli")
-CATALOG_ROOT = Path("output/tools/benchmarks/periodic_sub_trans/no_wli_catalog")
+def _find_repo_root() -> Path:
+    here = Path(__file__).resolve()
+    for parent in [here] + list(here.parents):
+        if (parent / "src").exists() and (parent / "tools").exists():
+            return parent
+    raise RuntimeError("Could not locate repo root from build_output_catalog.py")
+
+
+REPO_ROOT = _find_repo_root()
+SOURCE_ROOT = REPO_ROOT / "output" / "tools" / "benchmarks" / "periodic_sub_trans" / "no_wli"
+CATALOG_ROOT = REPO_ROOT / "output" / "tools" / "benchmarks" / "periodic_sub_trans" / "no_wli_catalog"
 
 RUN_PREFIX = "__bench_solve_pipeline_no_wli__"
 SPECIAL_ANALYSIS_DIRS = (
@@ -32,7 +41,10 @@ def _iso_utc_from_stat(path: Path) -> str:
 
 
 def _rel(path: Path) -> str:
-    return str(path).replace("\\", "/")
+    try:
+        return str(path.resolve().relative_to(REPO_ROOT.resolve())).replace("\\", "/")
+    except Exception:
+        return str(path).replace("\\", "/")
 
 
 def _count_jsonl_rows(path: Path) -> int:
@@ -67,6 +79,8 @@ def _artifact_seed(data: dict[str, Any]) -> int | None:
 
 def _build_run_manifest() -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
+    if not SOURCE_ROOT.exists():
+        return rows
     for run_dir in sorted(
         (
             child
@@ -116,6 +130,8 @@ def _build_run_manifest() -> list[dict[str, Any]]:
 
 def _build_special_manifest() -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
+    if not SOURCE_ROOT.exists():
+        return rows
     for name in SPECIAL_ANALYSIS_DIRS:
         base = SOURCE_ROOT / name
         if not base.exists():
@@ -136,6 +152,8 @@ def _build_special_manifest() -> list[dict[str, Any]]:
 
 def _build_state_manifest() -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
+    if not SOURCE_ROOT.exists():
+        return rows
     for child in sorted(SOURCE_ROOT.iterdir(), key=lambda p: p.name):
         if child.is_dir():
             continue

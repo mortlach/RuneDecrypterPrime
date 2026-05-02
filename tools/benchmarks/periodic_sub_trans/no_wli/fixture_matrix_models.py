@@ -143,6 +143,7 @@ class Stage3TuningPreset:
     force_stage3_two_phase: bool | None = None
     force_stage3_phasea_cfg: dict[str, int] | None = None
     force_stage3_phaseb_top_n: int | None = None
+    force_stage3_topk_limit: int | None = None
     force_stage3_phaseb_cfg: dict[str, int] | None = None
     force_stage3_phaseb_gate_delta_floor: float | None = None
     force_stage3_phaseb_gate_end_gain_floor: float | None = None
@@ -283,6 +284,7 @@ class Stage3TuningPreset:
             force_stage3_two_phase=_opt_bool("force_stage3_two_phase"),
             force_stage3_phasea_cfg=_opt_dict_str_int("force_stage3_phasea_cfg"),
             force_stage3_phaseb_top_n=_opt_int("force_stage3_phaseb_top_n"),
+            force_stage3_topk_limit=_opt_int("force_stage3_topk_limit"),
             force_stage3_phaseb_cfg=_opt_dict_str_int("force_stage3_phaseb_cfg"),
             force_stage3_phaseb_gate_delta_floor=_opt_float(
                 "force_stage3_phaseb_gate_delta_floor"
@@ -390,6 +392,7 @@ class Stage3TuningPreset:
             ),
         )
         _set("force_stage3_phaseb_top_n", self.force_stage3_phaseb_top_n)
+        _set("force_stage3_topk_limit", self.force_stage3_topk_limit)
         _set(
             "force_stage3_phaseb_cfg",
             (

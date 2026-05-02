@@ -416,6 +416,9 @@ def _resolve_stage3_tuning_overrides_for_job(
     force_stage12_archive_keep = preset.get("force_stage12_archive_keep", None)
     if force_stage12_archive_keep is not None:
         force_stage12_archive_keep = int(force_stage12_archive_keep)
+    force_stage3_topk_limit = preset.get("force_stage3_topk_limit", None)
+    if force_stage3_topk_limit is not None:
+        force_stage3_topk_limit = int(force_stage3_topk_limit)
     force_stage3_phasec_enabled = preset.get("force_stage3_phasec_enabled", None)
     if force_stage3_phasec_enabled is not None:
         force_stage3_phasec_enabled = bool(force_stage3_phasec_enabled)
@@ -495,6 +498,7 @@ def _resolve_stage3_tuning_overrides_for_job(
         force_stage3_phaseb_top_n=int(
             preset.get("force_stage3_phaseb_top_n", FORCE_STAGE3_PHASEB_TOP_N)
         ),
+        force_stage3_topk_limit=force_stage3_topk_limit,
         force_stage3_phaseb_gate_delta_floor=float(
             preset.get(
                 "force_stage3_phaseb_gate_delta_floor",
@@ -560,6 +564,7 @@ def apply_job(job: NoWliFixtureJob) -> None:
         force_stage3_phasea_cfg=dict(stage3_tuning_overrides["force_stage3_phasea_cfg"]),
         force_stage3_phaseb_cfg=dict(stage3_tuning_overrides["force_stage3_phaseb_cfg"]),
         force_stage3_phaseb_top_n=int(stage3_tuning_overrides["force_stage3_phaseb_top_n"]),
+        force_stage3_topk_limit=stage3_tuning_overrides["force_stage3_topk_limit"],
         force_stage3_phaseb_gate_delta_floor=float(
             stage3_tuning_overrides["force_stage3_phaseb_gate_delta_floor"]
         ),

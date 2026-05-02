@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 from pathlib import Path
 import time
 from typing import Any, Callable, Mapping, MutableMapping, Sequence
@@ -39,6 +40,16 @@ def planned_job_keys_signature(*, job_keys: Sequence[str]) -> str:
         ensure_ascii=True,
     ).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+
+def _format_duration(seconds: float) -> str:
+    if not math.isfinite(seconds) or seconds < 0.0:
+        return "na"
+    total_seconds = int(round(seconds))
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    secs = total_seconds % 60
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
 def run_jobs_with_checkpoints(
@@ -211,7 +222,8 @@ def run_jobs_with_checkpoints(
             f"[no_wli_fixture_matrix] run {idx}/{len(selected_jobs)} "
             f"{identity_txt} p={job.period} c={job.columns} "
             f"exp={job.scoring_experiment_profile} "
-            f"schedule=({job.schedule_early},{job.schedule_middle},{job.schedule_late})",
+            f"schedule=({job.schedule_early},{job.schedule_middle},{job.schedule_late}) "
+            f"elapsed={_format_duration(float(time.time() - wallclock_start))}",
             flush=True,
         )
         append_event_row(
@@ -278,6 +290,13 @@ def run_jobs_with_checkpoints(
         completed_job_keys.add(str(job_key))
         completed_this_session += 1
         job_elapsed = float(time.time() - t0_job)
+        total_elapsed = float(time.time() - wallclock_start)
+        remaining_jobs = int(max(0, len(selected_jobs) - idx))
+        eta_seconds = (
+            (total_elapsed / completed_this_session) * remaining_jobs
+            if completed_this_session > 0
+            else float("nan")
+        )
         append_event_row(
             path=run_events_path,
             row=dict(
@@ -295,6 +314,13 @@ def run_jobs_with_checkpoints(
                     getattr(job, "span_decision_role_enabled", False)
                 ),
             ),
+        )
+        print_fn(
+            f"[no_wli_fixture_matrix] completed {idx}/{len(selected_jobs)} "
+            f"{identity_txt} job_elapsed={_format_duration(job_elapsed)} "
+            f"elapsed={_format_duration(total_elapsed)} "
+            f"eta={_format_duration(eta_seconds)}",
+            flush=True,
         )
         span_case_id = str(getattr(job, "span_ab_case_id", "none")).strip().lower()
         if span_case_id in {"span_shadow", "span_prune", "span_gate", "span_combined", "span_judge"}:
@@ -330,7 +356,7 @@ def run_jobs_with_checkpoints(
                 job_key=str(job_key),
                 elapsed_seconds=float(job_elapsed),
             ),
-            remaining_jobs=int(max(0, len(selected_jobs) - idx)),
+            remaining_jobs=int(remaining_jobs),
         )
         write_json_fn(run_state_path, run_state_base)
 

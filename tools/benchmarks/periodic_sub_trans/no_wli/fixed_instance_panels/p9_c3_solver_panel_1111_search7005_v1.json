@@ -1,0 +1,14 @@
+{
+  "panel_schema_version": "no_wli_fixed_instance_panel_v1",
+  "panel_id": "p9_c3_solver_panel_1111_search7005_v1",
+  "instance_fixture_ids": [
+    "fixture_001__p9_c3_l1000__text0__seed1111"
+  ],
+  "search_seeds": [
+    7005
+  ],
+  "notes": [
+    "One-cell fixed-panel slice for the second Stage-3 entry allocation compare.",
+    "Single case and seed so the overnight follow-on stays an independently complete two-job compare."
+  ]
+}
