@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 """
 PhaseB Runeberg NOSE damaged-text span-Hamming ladder prototype v1.
@@ -29,10 +29,9 @@ Writes streaming CSVs plus rolling timing/statistics to OUTPUT_DIR.
 
 Notes
 -----
-This prototype deliberately uses NOSE only, source-word bounded chunks of up to
-500 tokens, PhaseA14 selected dictionaries, and an explicitly named HD ladder
-profile. Staged modes are FWD only unless their hardcoded mode settings say
-otherwise.
+This prototype deliberately uses NOSE only, both fwd and rev, source-word
+bounded chunks of up to 500 tokens, PhaseA14 selected dictionaries, and the
+full v0.3 enabled HD ladder.
 """
 
 import csv
@@ -44,7 +43,7 @@ import os
 import platform
 import sys
 import time
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from statistics import mean
@@ -57,23 +56,20 @@ import numpy as np
 # CONFIG: edit here, run from IDE
 # =============================================================================
 
-RUN_LABEL = "stage0_fwd_full_canary"
-RUN_MODE = "stage0_fwd_full_canary"  # "stage0_fwd_full_canary", "stage1_fwd_full_1k", "smoke", "timing_pilot", "medium_summary_50", "medium_summary_500", "medium_summary_1000", "pilot", "full".
-BOOK_ORDER = "forward"  # "forward" or "reverse"; deterministic traversal of complete books.
+RUN_LABEL = "phaseB_runeberg_nose_damage_ladder_reverse_books_v1"
+RUN_MODE = "medium_summary_50"  # "smoke", "timing_pilot", "medium_summary_50", "medium_summary_500", "medium_summary_1000", "pilot", "full".
+BOOK_ORDER = "reverse"  # "forward" or "reverse"; deterministic traversal of complete books.
 BOOK_SKIP = 0
 BOOK_LIST_FILE_REL = ""  # Optional repo-relative text file, one book name per line.
-CHUNK_START_INDEX = 0
 VERBOSE_ROLLING_SUMMARY_MODES = ("smoke",)
 FORCE_VERBOSE_ROLLING_SUMMARY = False
 WRITE_RAW_FEATURE_ROWS_MODES = ("smoke", "timing_pilot", "pilot")
-WRITE_FEATURE_HISTOGRAMS_MODES = ("stage0_fwd_full_canary", "stage1_fwd_full_1k", "medium_summary_50", "medium_summary_500", "medium_summary_1000", "full")
-WRITE_FEATURE_QUANTILES_MODES = ("stage0_fwd_full_canary", "stage1_fwd_full_1k", "medium_summary_50", "medium_summary_500", "medium_summary_1000", "full")
+WRITE_FEATURE_HISTOGRAMS_MODES = ("medium_summary_50", "medium_summary_500", "medium_summary_1000", "full")
+WRITE_FEATURE_QUANTILES_MODES = ("medium_summary_50", "medium_summary_500", "medium_summary_1000", "full")
 FEATURE_HISTOGRAMS_NAME = "feature_histograms.csv.gz"
 FEATURE_QUANTILES_NAME = "feature_quantiles.csv.gz"
 DAMAGED_VS_NULL_SUMMARY_NAME = "damaged_vs_null_summary.csv"
 DAMAGED_VS_NULL_BY_VIEW_NAME = "damaged_vs_null_by_view.csv.gz"
-CONVERGENCE_SUMMARY_NAME = "convergence_summary.csv"
-DICTIONARY_HASH_MANIFEST_NAME = "dictionary_hash_manifest.csv"
 EXCLUDE_BOOKS = (
     "1-0.txt",
     "10004.txt",
@@ -83,14 +79,10 @@ EXCLUDE_BOOKS = (
 TOKENIZED_ROOT_REL = "../language_model_prime/lmprime_out/tokenized"
 OUTPUT_DIR_REL = (
     "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"
-    "stage0_fwd_full_canary"
+    "phaseB_runeberg_nose_damage_ladder_reverse_books_v1"
 )
 
 DIRECTIONS = ("fwd", "rev")
-DIRECTIONS_BY_MODE = {
-    "stage0_fwd_full_canary": ("fwd",),
-    "stage1_fwd_full_1k": ("fwd",),
-}
 CHUNK_MAX_TOKENS = 500
 CHUNK_SIZE = CHUNK_MAX_TOKENS  # Backward-compatible alias for tests/helpers.
 GLOBAL_SEED = 20260507
@@ -98,15 +90,11 @@ DEFAULT_START_ASSUMPTION = "unknown_start"
 SOURCE_START_ASSUMPTION = "assumed_word_start"
 SCORE_REGIONS = ("full", "first_half", "second_half")
 SCORE_REGIONS_BY_MODE = {
-    "stage0_fwd_full_canary": ("full",),
-    "stage1_fwd_full_1k": ("full",),
     "medium_summary_50": ("first_half", "second_half"),
     "medium_summary_500": ("first_half", "second_half"),
     "medium_summary_1000": ("first_half", "second_half"),
 }
 START_VIEW_SHIFTS_BY_MODE = {
-    "stage0_fwd_full_canary": (0,),
-    "stage1_fwd_full_1k": (0,),
     "smoke": (0, 3, 7, 11),
     "timing_pilot": (0, 3, 7, 11),
     "medium_summary_50": (0, 3, 7, 11),
@@ -137,10 +125,9 @@ HISTOGRAM_BINS = (
 )
 QUANTILE_LEVELS = (0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99)
 
-# Named staged ladder. Do not change without changing LADDER_PROFILE.
-LADDER_PROFILE = "v0_3_plus_long_relaxed_v2"
+# Full v0.3 enabled ladder. Do not narrow this to a winning length/HD.
 SPAN_LENGTHS = tuple(range(1, 15))
-BASELINE_V0_3_MAX_HD_BY_LENGTH = {
+MAX_HD_BY_LENGTH = {
     1: 0,
     2: 0,
     3: 1,
@@ -156,26 +143,6 @@ BASELINE_V0_3_MAX_HD_BY_LENGTH = {
     13: 5,
     14: 5,
 }
-MAX_HD_BY_LENGTH = {
-    1: 0,
-    2: 0,
-    3: 1,
-    4: 1,
-    5: 1,
-    6: 2,
-    7: 3,
-    8: 3,
-    9: 4,
-    10: 4,
-    11: 5,
-    12: 5,
-    13: 6,
-    14: 6,
-}
-BASELINE_V0_3_RUNG_COUNT = sum(max_hd + 1 for max_hd in BASELINE_V0_3_MAX_HD_BY_LENGTH.values())
-TOTAL_LADDER_RUNG_COUNT = sum(max_hd + 1 for max_hd in MAX_HD_BY_LENGTH.values())
-EXTRA_EXPERIMENTAL_RUNG_COUNT = TOTAL_LADDER_RUNG_COUNT - BASELINE_V0_3_RUNG_COUNT
-CONVERGENCE_CHUNK_THRESHOLDS = (100, 250, 500, 1000)
 
 # Fingerprint mode only: 0 means uncapped in the fast backend.
 FINGERPRINT_MAX_CANDIDATES_PER_WINDOW = 0
@@ -196,56 +163,6 @@ DICTIONARY_SPECS = (
 
 # Presets. Keep smoke small by default.
 MODE_LIMITS = {
-    "stage0_fwd_full_canary": {
-        "num_clean_chunks": 25,
-        "max_books": 510,
-        "chunks_per_book_direction": 0,
-        "damage_repeats_per_chunk": 1,
-        "damage_levels": (0.20, 0.30, 0.40, 0.50, 0.60),
-        "include_damage_models": (
-            "independent_substitution",
-            "frequency_matched_global",
-            "frequency_matched_book",
-            "word_local_substitution",
-            "burst_substitution",
-            "lane_period_substitution",
-        ),
-        "include_null_models": (
-            "uniform_random",
-            "global_frequency_random",
-            "within_chunk_shuffle",
-            "block_shuffle_10",
-            "block_shuffle_25",
-            "block_shuffle_50",
-        ),
-        "checkpoint_every_samples": 100,
-        "checkpoint_every_seconds": 300.0,
-    },
-    "stage1_fwd_full_1k": {
-        "num_clean_chunks": 1000,
-        "max_books": 510,
-        "chunks_per_book_direction": 0,
-        "damage_repeats_per_chunk": 1,
-        "damage_levels": (0.20, 0.30, 0.40, 0.50, 0.60),
-        "include_damage_models": (
-            "independent_substitution",
-            "frequency_matched_global",
-            "frequency_matched_book",
-            "word_local_substitution",
-            "burst_substitution",
-            "lane_period_substitution",
-        ),
-        "include_null_models": (
-            "uniform_random",
-            "global_frequency_random",
-            "within_chunk_shuffle",
-            "block_shuffle_10",
-            "block_shuffle_25",
-            "block_shuffle_50",
-        ),
-        "checkpoint_every_samples": 250,
-        "checkpoint_every_seconds": 300.0,
-    },
     "smoke": {
         "max_books": 2,
         "chunks_per_book_direction": 2,
@@ -482,7 +399,6 @@ class CleanChunk:
     tokens: tuple[int, ...]
     wli: tuple[tuple[int, int], ...]
     source_start_assumption: str = SOURCE_START_ASSUMPTION
-    corpus_chunk_index: int = 0
 
     @property
     def chunk_id(self) -> str:
@@ -691,22 +607,6 @@ def score_regions_for_mode(run_mode: str) -> tuple[str, ...]:
     return tuple(SCORE_REGIONS_BY_MODE.get(run_mode, SCORE_REGIONS))
 
 
-def active_hd_by_length() -> dict[int, list[int]]:
-    return {length: list(range(MAX_HD_BY_LENGTH[length] + 1)) for length in SPAN_LENGTHS}
-
-
-def ladder_profile_payload() -> dict[str, Any]:
-    return {
-        "ladder_profile": LADDER_PROFILE,
-        "active_span_lengths": list(SPAN_LENGTHS),
-        "active_hd_by_length": active_hd_by_length(),
-        "baseline_v0_3_max_hd_by_length": dict(BASELINE_V0_3_MAX_HD_BY_LENGTH),
-        "baseline_v0_3_rung_count": BASELINE_V0_3_RUNG_COUNT,
-        "extra_experimental_rung_count": EXTRA_EXPERIMENTAL_RUNG_COUNT,
-        "total_rung_count": TOTAL_LADDER_RUNG_COUNT,
-    }
-
-
 def write_raw_feature_rows_enabled(run_mode: str = RUN_MODE) -> bool:
     return run_mode in WRITE_RAW_FEATURE_ROWS_MODES
 
@@ -719,18 +619,13 @@ def write_feature_quantiles_enabled(run_mode: str = RUN_MODE) -> bool:
     return run_mode in WRITE_FEATURE_QUANTILES_MODES
 
 
-def num_clean_chunks_for_limits(
-    limits: Mapping[str, Any],
-    actual_clean_chunks: int | None = None,
-    *,
-    run_mode: str = RUN_MODE,
-) -> int:
+def num_clean_chunks_for_limits(limits: Mapping[str, Any], actual_clean_chunks: int | None = None) -> int:
     configured = int(limits.get("num_clean_chunks", 0) or 0)
     if configured > 0:
         return configured if actual_clean_chunks is None else min(configured, int(actual_clean_chunks))
     if actual_clean_chunks is not None:
         return int(actual_clean_chunks)
-    return nominal_clean_chunk_count_for_limits(limits, run_mode=run_mode)
+    return nominal_clean_chunk_count_for_limits(limits)
 
 
 # =============================================================================
@@ -784,10 +679,6 @@ def complete_books_from_rows(rows: Sequence[tuple[str, str, Path]]) -> list[str]
         by_book.setdefault(book, set()).add(direction)
     required = set(DIRECTIONS)
     return sorted(book for book, seen in by_book.items() if required.issubset(seen))
-
-
-def directions_for_mode(run_mode: str = RUN_MODE) -> tuple[str, ...]:
-    return tuple(DIRECTIONS_BY_MODE.get(run_mode, DIRECTIONS))
 
 
 def _read_book_list_file(path: Path) -> list[str]:
@@ -936,7 +827,6 @@ def build_clean_chunks(book_dir: TokenizedBookDirection, *, chunks_per_book_dire
                 book=book_dir.book,
                 direction=book_dir.direction,
                 chunk_index=idx,
-                corpus_chunk_index=0,
                 chunk_start=start,
                 chunk_end=end,
                 tokens=tuple(int(x) for x in book_dir.tokens[start:end]),
@@ -1289,7 +1179,7 @@ def build_backend(spec: DictionarySpec) -> FastSpanHammingBackend:
     cfg = SpanHammingConfig(
         len_min=min(SPAN_LENGTHS),
         len_max=max(SPAN_LENGTHS),
-        max_hd=max(MAX_HD_BY_LENGTH.values()),
+        max_hd=2,  # required by constructor; fingerprint mode bins independently.
         max_candidates_per_window=1024,
         debug_return_intervals=False,
     )
@@ -1369,7 +1259,6 @@ def fingerprint_rows_for_sample(
                         "direction": sample.clean_chunk.direction,
                         "chunk_id": sample.clean_chunk.chunk_id,
                         "chunk_index": sample.clean_chunk.chunk_index,
-                        "corpus_chunk_index": sample.clean_chunk.corpus_chunk_index,
                         "chunk_start": sample.clean_chunk.chunk_start,
                         "chunk_end": sample.clean_chunk.chunk_end,
                         "source_kind": sample.source_kind,
@@ -1400,7 +1289,6 @@ def fingerprint_rows_for_sample(
                         "fingerprint_scope": "raw_hamming_counts",
                         "fast_backend_hd_policy": str(payload.get("hd_max_policy", "length_minus_one")),
                         "enabled_ladder_only": 1,
-                        "ladder_profile": LADDER_PROFILE,
                         "cap": int(payload.get("cap", FINGERPRINT_MAX_CANDIDATES_PER_WINDOW) or 0),
                         "is_uncapped": int(bool(payload.get("is_uncapped", FINGERPRINT_MAX_CANDIDATES_PER_WINDOW == 0))),
                     }
@@ -1419,8 +1307,6 @@ SAMPLE_FIELDS = [
     "book",
     "direction",
     "chunk_id",
-    "corpus_chunk_index",
-    "chunk_start_index_config",
     "source_kind",
     "damage_model",
     "damage_level",
@@ -1443,7 +1329,6 @@ FEATURE_FIELDS = [
     "direction",
     "chunk_id",
     "chunk_index",
-    "corpus_chunk_index",
     "chunk_start",
     "chunk_end",
     "source_kind",
@@ -1457,7 +1342,6 @@ FEATURE_FIELDS = [
     "score_region",
     "score_token_count",
     "dictionary_cut",
-    "ladder_profile",
     "span_length",
     "hd",
     "window_count",
@@ -1475,7 +1359,6 @@ FEATURE_FIELDS = [
     "fingerprint_scope",
     "fast_backend_hd_policy",
     "enabled_ladder_only",
-    "ladder_profile",
     "cap",
     "is_uncapped",
 ]
@@ -1537,7 +1420,6 @@ ROLLING_FIELDS = [
     "start_shift",
     "score_region",
     "dictionary_cut",
-    "ladder_profile",
     "span_length",
     "hd",
     "feature_name",
@@ -1582,7 +1464,6 @@ FEATURE_HISTOGRAM_FIELDS = [
     "start_shift",
     "score_region",
     "dictionary_cut",
-    "ladder_profile",
     "span_length",
     "hd",
     "feature_name",
@@ -1600,7 +1481,6 @@ FEATURE_QUANTILE_FIELDS = [
     "start_shift",
     "score_region",
     "dictionary_cut",
-    "ladder_profile",
     "span_length",
     "hd",
     "feature_name",
@@ -1613,7 +1493,6 @@ DAMAGED_VS_NULL_FIELDS = [
     "damage_level",
     "null_model",
     "dictionary_cut",
-    "ladder_profile",
     "span_length",
     "hd",
     "feature_name",
@@ -1632,43 +1511,6 @@ DAMAGED_VS_NULL_BY_VIEW_FIELDS = [
     "start_shift",
     "score_region",
     *DAMAGED_VS_NULL_FIELDS,
-]
-
-CONVERGENCE_FIELDS = [
-    "checkpoint_index",
-    "created_utc",
-    "threshold_chunks",
-    "actual_chunks_seen",
-    "direction",
-    "score_region",
-    "start_shift",
-    "dictionary_cut",
-    "ladder_profile",
-    "span_length",
-    "hd",
-    "feature_name",
-    "damage_model",
-    "damage_level",
-    "null_model",
-    "n_chunks",
-    "n_samples",
-    "damaged_mean",
-    "null_mean",
-    "effect",
-    "ci95_low",
-    "ci95_high",
-    "relative_change_from_previous_checkpoint",
-    "sign_stability",
-    "provisional_status",
-]
-
-DICTIONARY_HASH_FIELDS = [
-    "dictionary_cut",
-    "dictionary_path",
-    "file_name",
-    "span_length",
-    "sha256",
-    "file_bytes",
 ]
 
 
@@ -1706,8 +1548,6 @@ def _sample_row(sample: Sample) -> dict[str, Any]:
         "book": sample.clean_chunk.book,
         "direction": sample.clean_chunk.direction,
         "chunk_id": sample.clean_chunk.chunk_id,
-        "corpus_chunk_index": sample.clean_chunk.corpus_chunk_index,
-        "chunk_start_index_config": CHUNK_START_INDEX,
         "source_kind": sample.source_kind,
         "damage_model": sample.damage_model,
         "damage_level": sample.damage_level,
@@ -1762,7 +1602,6 @@ def _feature_stat_key_to_extra(key: tuple[Any, ...]) -> dict[str, Any]:
         "start_shift": start_shift,
         "score_region": score_region,
         "dictionary_cut": dictionary_cut,
-        "ladder_profile": LADDER_PROFILE,
         "span_length": span_length,
         "hd": hd,
         "feature_name": feature_name,
@@ -1947,7 +1786,6 @@ def damaged_vs_null_summary_rows(
                         "damage_level": damage_level,
                         "null_model": null_model,
                         "dictionary_cut": dictionary_cut,
-                        "ladder_profile": LADDER_PROFILE,
                         "span_length": span_length,
                         "hd": hd,
                         "feature_name": feature_name,
@@ -1973,135 +1811,6 @@ def top_damaged_vs_null_rows(
     allowed = set(feature_names) if feature_names is not None else None
     filtered = [row for row in rows if allowed is None or str(row["feature_name"]) in allowed]
     return sorted(filtered, key=lambda row: abs(float(row["cohen_d"])), reverse=True)[:limit]
-
-
-def dictionary_hash_manifest_rows(dictionary_specs: Sequence[DictionarySpec]) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    for spec in dictionary_specs:
-        dictionary_dir = REPO_ROOT / spec.dictionary_path
-        for length in SPAN_LENGTHS:
-            path = dictionary_dir / f"raw1grams_{length:02d}.csv"
-            if not path.exists():
-                raise FileNotFoundError(f"Dictionary file missing: {_repo_rel(path)}")
-            rows.append(
-                {
-                    "dictionary_cut": spec.dictionary_cut,
-                    "dictionary_path": spec.dictionary_path,
-                    "file_name": path.name,
-                    "span_length": length,
-                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-                    "file_bytes": path.stat().st_size,
-                }
-            )
-    return rows
-
-
-def _mean_diff_ci95(damaged_stddev: float, damaged_count: int, null_stddev: float, null_count: int) -> float:
-    damaged_var = (damaged_stddev * damaged_stddev) / float(max(1, damaged_count))
-    null_var = (null_stddev * null_stddev) / float(max(1, null_count))
-    return 1.96 * math.sqrt(max(0.0, damaged_var + null_var))
-
-
-def _relative_effect_change(previous: float | None, current: float) -> str:
-    if previous is None:
-        return ""
-    if abs(previous) <= 1e-12:
-        return "" if abs(current) <= 1e-12 else "inf"
-    return f"{(current - previous) / abs(previous):.12g}"
-
-
-def _effect_sign(value: float) -> int:
-    if value > 1e-12:
-        return 1
-    if value < -1e-12:
-        return -1
-    return 0
-
-
-def _provisional_status(effect: float, sign_stability: str) -> str:
-    abs_effect = abs(effect)
-    if abs_effect < 0.05:
-        return "converged_noisy"
-    if abs_effect >= 0.20 and sign_stability in {"same", "initial"}:
-        return "converged_positive"
-    if sign_stability == "changed":
-        return "needs_more_data"
-    return "active"
-
-
-def convergence_summary_rows(
-    *,
-    checkpoint_index: int,
-    created_utc: str,
-    threshold_chunks: int,
-    actual_chunks_seen: int,
-    stats: Mapping[tuple[Any, ...], RunningStat],
-    previous_effects: Mapping[tuple[Any, ...], float],
-) -> tuple[list[dict[str, Any]], dict[tuple[Any, ...], float]]:
-    current_effects: dict[tuple[Any, ...], float] = {}
-    rows: list[dict[str, Any]] = []
-    for row in damaged_vs_null_summary_rows(stats, include_view=True):
-        effect = float(row["cohen_d"])
-        mean_diff = float(row["mean_diff"])
-        damaged_count = int(row["damaged_count"])
-        null_count = int(row["null_count"])
-        ci = _mean_diff_ci95(
-            float(row["damaged_stddev"]),
-            damaged_count,
-            float(row["null_stddev"]),
-            null_count,
-        )
-        key = (
-            row["direction"],
-            row["score_region"],
-            int(row["start_shift"]),
-            row["dictionary_cut"],
-            row["ladder_profile"],
-            int(row["span_length"]),
-            int(row["hd"]),
-            row["feature_name"],
-            row["damage_model"],
-            row["damage_level"],
-            row["null_model"],
-        )
-        previous = previous_effects.get(key)
-        if previous is None:
-            sign_stability = "initial"
-        elif _effect_sign(previous) == _effect_sign(effect):
-            sign_stability = "same"
-        else:
-            sign_stability = "changed"
-        current_effects[key] = effect
-        rows.append(
-            {
-                "checkpoint_index": checkpoint_index,
-                "created_utc": created_utc,
-                "threshold_chunks": threshold_chunks,
-                "actual_chunks_seen": actual_chunks_seen,
-                "direction": row["direction"],
-                "score_region": row["score_region"],
-                "start_shift": row["start_shift"],
-                "dictionary_cut": row["dictionary_cut"],
-                "ladder_profile": row["ladder_profile"],
-                "span_length": row["span_length"],
-                "hd": row["hd"],
-                "feature_name": row["feature_name"],
-                "damage_model": row["damage_model"],
-                "damage_level": row["damage_level"],
-                "null_model": row["null_model"],
-                "n_chunks": actual_chunks_seen,
-                "n_samples": damaged_count + null_count,
-                "damaged_mean": row["damaged_mean"],
-                "null_mean": row["null_mean"],
-                "effect": f"{effect:.12g}",
-                "ci95_low": f"{mean_diff - ci:.12g}",
-                "ci95_high": f"{mean_diff + ci:.12g}",
-                "relative_change_from_previous_checkpoint": _relative_effect_change(previous, effect),
-                "sign_stability": sign_stability,
-                "provisional_status": _provisional_status(effect, sign_stability),
-            }
-        )
-    return rows, current_effects
 
 
 def _estimate_remaining(samples_done: int, estimated_total_samples: int, speeds: Sequence[float]) -> tuple[float, float, float]:
@@ -2210,22 +1919,18 @@ def _config_payload(tokenized_root: Path, output_dir: Path) -> dict[str, Any]:
         "book_order": BOOK_ORDER,
         "book_skip": BOOK_SKIP,
         "book_list_file": BOOK_LIST_FILE_REL,
-        "chunk_start_index": CHUNK_START_INDEX,
         "exclude_books": list(EXCLUDE_BOOKS),
         "tokenized_root": _repo_rel(tokenized_root),
         "output_dir": _repo_rel(output_dir),
-        "directions": list(directions_for_mode(RUN_MODE)),
-        "all_available_directions": list(DIRECTIONS),
+        "directions": list(DIRECTIONS),
         "chunk_max_tokens": CHUNK_MAX_TOKENS,
         "num_clean_chunks_configured": int(_mode_limits().get("num_clean_chunks", 0) or 0),
-        "num_clean_chunks_this_run_configured": int(_mode_limits().get("num_clean_chunks", 0) or 0),
         "global_seed": GLOBAL_SEED,
         "default_start_assumption": DEFAULT_START_ASSUMPTION,
         "source_start_assumption": SOURCE_START_ASSUMPTION,
         "score_regions": list(score_regions_for_mode(RUN_MODE)),
         "all_available_score_regions": list(SCORE_REGIONS),
         "start_view_shifts": list(start_view_shifts_for_mode(RUN_MODE)),
-        **ladder_profile_payload(),
         "span_lengths": list(SPAN_LENGTHS),
         "max_hd_by_length": MAX_HD_BY_LENGTH,
         "fingerprint_max_candidates_per_window": FINGERPRINT_MAX_CANDIDATES_PER_WINDOW,
@@ -2310,11 +2015,11 @@ def estimate_output_shape(
     }
 
 
-def nominal_clean_chunk_count_for_limits(limits: Mapping[str, Any], *, run_mode: str = RUN_MODE) -> int:
+def nominal_clean_chunk_count_for_limits(limits: Mapping[str, Any]) -> int:
     configured = int(limits.get("num_clean_chunks", 0) or 0)
     if configured > 0:
         return configured
-    return int(limits["max_books"]) * len(directions_for_mode(run_mode)) * int(limits["chunks_per_book_direction"])
+    return int(limits["max_books"]) * len(DIRECTIONS) * int(limits["chunks_per_book_direction"])
 
 
 def _file_size(path: Path) -> int:
@@ -2356,7 +2061,7 @@ def _projected_run_estimates(
     mode_projections: dict[str, dict[str, Any]] = {}
     samples_per_second = samples_done / max(1e-9, elapsed_s)
     feature_rows_per_second = feature_rows_done / max(1e-9, elapsed_s)
-    for mode_name in ("stage0_fwd_full_canary", "stage1_fwd_full_1k", "medium_summary_500", "medium_summary_1000", "full"):
+    for mode_name in ("medium_summary_500", "medium_summary_1000", "full"):
         mode_limits = MODE_LIMITS[mode_name]
         mode_chunks = num_clean_chunks_for_limits(mode_limits)
         mode_shape = estimate_output_shape(
@@ -2425,8 +2130,6 @@ def run_once() -> dict[str, Any]:
         FEATURE_QUANTILES_NAME,
         DAMAGED_VS_NULL_SUMMARY_NAME,
         DAMAGED_VS_NULL_BY_VIEW_NAME,
-        CONVERGENCE_SUMMARY_NAME,
-        DICTIONARY_HASH_MANIFEST_NAME,
     ):
         stale_path = output_dir / stale_name
         if stale_path.exists():
@@ -2462,8 +2165,6 @@ def run_once() -> dict[str, Any]:
             "elapsed_s": 0.0,
             "estimated_remaining_s_median": 0.0,
             "feature_rows_done": 0,
-            "chunk_start_index": CHUNK_START_INDEX,
-            "num_clean_chunks_this_run_configured": int(limits.get("num_clean_chunks", 0) or 0),
             "updated_at_utc": started_utc,
         },
     )
@@ -2473,7 +2174,6 @@ def run_once() -> dict[str, Any]:
         (output_dir / "sample_rows.csv", SAMPLE_FIELDS),
         (output_dir / "timing_checkpoints.csv", TIMING_FIELDS),
         (output_dir / "final_feature_summary.csv", ROLLING_FIELDS),
-        (output_dir / CONVERGENCE_SUMMARY_NAME, CONVERGENCE_FIELDS),
     ):
         _write_csv_header(path, fields)
     if write_raw_feature_rows_enabled(RUN_MODE):
@@ -2484,11 +2184,10 @@ def run_once() -> dict[str, Any]:
     discovered = discover_tokenized_files(tokenized_root)
     selected_books = select_books(discovered, max_books=int(limits["max_books"]))
     rows_by_book_direction = {(book, direction): path for book, direction, path in discovered}
-    active_directions = directions_for_mode(RUN_MODE)
     selected_rows = [
         (book, direction, rows_by_book_direction[(book, direction)])
         for book in selected_books
-        for direction in active_directions
+        for direction in DIRECTIONS
         if (book, direction) in rows_by_book_direction
     ]
     if not selected_rows:
@@ -2507,25 +2206,13 @@ def run_once() -> dict[str, Any]:
     global_probs = _empirical_probs(global_token_pool)
     book_probs_by_key = {(row.book, row.direction): _empirical_probs(row.tokens) for row in loaded}
 
-    num_clean_chunks_target = int(limits.get("num_clean_chunks", 0) or 0)
-    chunk_start_index = max(0, int(CHUNK_START_INDEX))
-    chunk_stop_index = chunk_start_index + num_clean_chunks_target if num_clean_chunks_target > 0 else None
     clean_chunks: list[CleanChunk] = []
-    corpus_chunk_index = 0
-    stop_reached = False
     for book_dir in loaded:
         chunks = build_clean_chunks(book_dir, chunks_per_book_direction=int(limits["chunks_per_book_direction"]))
-        for chunk in chunks:
-            if corpus_chunk_index >= chunk_start_index and (
-                chunk_stop_index is None or corpus_chunk_index < chunk_stop_index
-            ):
-                clean_chunks.append(replace(chunk, corpus_chunk_index=corpus_chunk_index))
-            corpus_chunk_index += 1
-            if chunk_stop_index is not None and corpus_chunk_index >= chunk_stop_index:
-                stop_reached = True
-                break
-        if stop_reached:
-            break
+        clean_chunks.extend(chunks)
+    num_clean_chunks_target = int(limits.get("num_clean_chunks", 0) or 0)
+    if num_clean_chunks_target > 0 and len(clean_chunks) > num_clean_chunks_target:
+        clean_chunks = clean_chunks[:num_clean_chunks_target]
     input_manifest_rows = input_manifest_rows_for_used_chunks(loaded, clean_chunks)
     _append_csv_rows(output_dir / "input_manifest.csv", input_manifest_rows, INPUT_MANIFEST_FIELDS)
 
@@ -2540,16 +2227,7 @@ def run_once() -> dict[str, Any]:
         run_mode=RUN_MODE,
     )
 
-    first_chunk_id = clean_chunks[0].chunk_id if clean_chunks else ""
-    last_chunk_id = clean_chunks[-1].chunk_id if clean_chunks else ""
-    next_chunk_start_index = chunk_start_index + len(clean_chunks)
-
     dictionary_specs = [DictionarySpec(**spec) for spec in DICTIONARY_SPECS]
-    _write_csv_rows(
-        output_dir / DICTIONARY_HASH_MANIFEST_NAME,
-        dictionary_hash_manifest_rows(dictionary_specs),
-        DICTIONARY_HASH_FIELDS,
-    )
     backends: dict[str, FastSpanHammingBackend] = {}
     backend_build_ms: dict[str, float] = {}
     for spec in dictionary_specs:
@@ -2574,8 +2252,6 @@ def run_once() -> dict[str, Any]:
     books_seen: set[str] = set()
     directions_seen: set[str] = set()
     chunks_seen: set[str] = set()
-    convergence_previous_effects: dict[tuple[Any, ...], float] = {}
-    convergence_written_thresholds: set[int] = set()
 
     def write_checkpoint(force: bool = False) -> None:
         nonlocal checkpoint_index, last_checkpoint_at
@@ -2641,12 +2317,6 @@ def run_once() -> dict[str, Any]:
                 "elapsed_s": elapsed,
                 "estimated_remaining_s_median": remain_med,
                 "feature_rows_done": feature_rows_done,
-                "chunk_start_index": chunk_start_index,
-                "num_clean_chunks_this_run": len(clean_chunks),
-                "actual_chunks_used": len(chunks_seen),
-                "first_chunk_id": first_chunk_id,
-                "last_chunk_id": last_chunk_id,
-                "next_chunk_start_index": next_chunk_start_index,
                 "updated_at_utc": created,
             },
         )
@@ -2654,27 +2324,6 @@ def run_once() -> dict[str, Any]:
         print(
             f"[{RUN_LABEL}] checkpoint {checkpoint_index}: samples={samples_done}/{estimated_total} "
             f"elapsed={elapsed:.1f}s median_eta={remain_med:.1f}s rows={feature_rows_done}",
-            flush=True,
-        )
-
-    def write_convergence_checkpoint(threshold_chunks: int) -> None:
-        nonlocal convergence_previous_effects
-        if threshold_chunks in convergence_written_thresholds:
-            return
-        created = _utc_now()
-        rows, convergence_previous_effects = convergence_summary_rows(
-            checkpoint_index=checkpoint_index,
-            created_utc=created,
-            threshold_chunks=threshold_chunks,
-            actual_chunks_seen=len(chunks_seen),
-            stats=feature_stats,
-            previous_effects=convergence_previous_effects,
-        )
-        _append_csv_rows(output_dir / CONVERGENCE_SUMMARY_NAME, rows, CONVERGENCE_FIELDS)
-        convergence_written_thresholds.add(threshold_chunks)
-        print(
-            f"[{RUN_LABEL}] convergence threshold={threshold_chunks} "
-            f"chunks_seen={len(chunks_seen)} rows={len(rows)}",
             flush=True,
         )
 
@@ -2719,13 +2368,8 @@ def run_once() -> dict[str, Any]:
             if len(recent_sample_ms) > 200:
                 recent_sample_ms = recent_sample_ms[-200:]
             write_checkpoint(force=False)
-        for threshold in CONVERGENCE_CHUNK_THRESHOLDS:
-            if len(chunks_seen) >= threshold:
-                write_convergence_checkpoint(threshold)
 
     write_checkpoint(force=True)
-    if len(chunks_seen) and len(chunks_seen) not in convergence_written_thresholds:
-        write_convergence_checkpoint(len(chunks_seen))
     final_created = _utc_now()
     final_rows = rolling_summary_rows(checkpoint_index=checkpoint_index, created_utc=final_created, stats=feature_stats)
     _append_csv_rows(output_dir / "final_feature_summary.csv", final_rows, ROLLING_FIELDS)
@@ -2766,19 +2410,11 @@ def run_once() -> dict[str, Any]:
         "run_mode": RUN_MODE,
         "book_order": BOOK_ORDER,
         "book_list_file": BOOK_LIST_FILE_REL,
-        "directions": list(active_directions),
         "books_selected": len(selected_books),
         "actual_books_used": actual_books_used,
         "actual_book_directions_used": actual_book_directions_used,
         "actual_chunks_used": len(clean_chunks),
         "clean_chunks": len(clean_chunks),
-        "chunk_start_index": chunk_start_index,
-        "CHUNK_START_INDEX": chunk_start_index,
-        "NUM_CLEAN_CHUNKS_THIS_RUN": len(clean_chunks),
-        "num_clean_chunks_this_run_configured": int(limits.get("num_clean_chunks", 0) or 0),
-        "first_chunk_id": first_chunk_id,
-        "last_chunk_id": last_chunk_id,
-        "next_chunk_start_index": next_chunk_start_index,
         "estimated_total_samples": estimated_total,
         "estimated_output_shape": output_shape,
         "samples_done": samples_done,
@@ -2793,7 +2429,6 @@ def run_once() -> dict[str, Any]:
         "write_raw_feature_rows": write_raw_feature_rows_enabled(RUN_MODE),
         "write_feature_histograms": write_feature_histograms_enabled(RUN_MODE),
         "write_feature_quantiles": write_feature_quantiles_enabled(RUN_MODE),
-        **ladder_profile_payload(),
         "output_estimates": output_estimates,
         "dictionary_cuts": [spec.dictionary_cut for spec in dictionary_specs],
         "output_dir": _repo_rel(output_dir),
@@ -2801,9 +2436,8 @@ def run_once() -> dict[str, Any]:
         "caveats": [
             "prototype report-only benchmark",
             "NOSE only; WISE deliberately excluded",
-            "staged modes are FWD-only unless their hardcoded mode settings say otherwise",
-            "feature extraction receives token streams only and scans all offsets",
-            f"uses fast raw fingerprint counts then filters to ladder profile {LADDER_PROFILE}",
+            "fwd and rev kept separate in rows and summaries",
+            "uses fast raw fingerprint counts then filters to v0.3 enabled ladder",
             "does not alter production scorer weights",
         ],
         "files": {
@@ -2818,8 +2452,6 @@ def run_once() -> dict[str, Any]:
             "feature_quantiles": _repo_rel(output_dir / FEATURE_QUANTILES_NAME) if write_feature_quantiles_enabled(RUN_MODE) else "",
             "damaged_vs_null_summary": _repo_rel(output_dir / DAMAGED_VS_NULL_SUMMARY_NAME),
             "damaged_vs_null_by_view": _repo_rel(output_dir / DAMAGED_VS_NULL_BY_VIEW_NAME),
-            "convergence_summary": _repo_rel(output_dir / CONVERGENCE_SUMMARY_NAME),
-            "dictionary_hash_manifest": _repo_rel(output_dir / DICTIONARY_HASH_MANIFEST_NAME),
         },
     }
     _safe_json_write(output_dir / "final_summary.json", summary)
@@ -2851,21 +2483,11 @@ def run_once() -> dict[str, Any]:
             "",
             "- Report-only prototype; no production scorer change.",
             f"- mode: `{RUN_MODE}`",
-            f"- directions: `{', '.join(active_directions)}`",
             f"- CHUNK_MAX_TOKENS: `{CHUNK_MAX_TOKENS}`",
-            f"- CHUNK_START_INDEX: `{chunk_start_index}`",
             f"- NUM_CLEAN_CHUNKS_THIS_RUN: `{len(clean_chunks)}`",
-            f"- next_chunk_start_index: `{next_chunk_start_index}`",
-            f"- first chunk: `{first_chunk_id}`",
-            f"- last chunk: `{last_chunk_id}`",
             f"- BOOK_LIST_FILE_REL: `{BOOK_LIST_FILE_REL}`",
             f"- actual books used: `{actual_books_used}`",
             f"- actual book/directions used: `{actual_book_directions_used}`",
-            f"- LADDER_PROFILE: `{LADDER_PROFILE}`",
-            f"- baseline v0.3 rungs: `{BASELINE_V0_3_RUNG_COUNT}`",
-            f"- extra experimental rungs: `{EXTRA_EXPERIMENTAL_RUNG_COUNT}`",
-            f"- total ladder rungs: `{TOTAL_LADDER_RUNG_COUNT}`",
-            f"- active HD by length: `{json.dumps(active_hd_by_length(), sort_keys=True)}`",
             f"- samples: `{samples_done}`",
             f"- feature rows: `{feature_rows_done}`",
             f"- elapsed seconds: `{elapsed_s:.2f}`",
@@ -2933,13 +2555,11 @@ def run_once() -> dict[str, Any]:
             f"- `{FEATURE_QUANTILES_NAME}`" if write_feature_quantiles_enabled(RUN_MODE) else f"- `{FEATURE_QUANTILES_NAME}` omitted by run mode",
             f"- `{DAMAGED_VS_NULL_SUMMARY_NAME}`",
             f"- `{DAMAGED_VS_NULL_BY_VIEW_NAME}`",
-            f"- `{CONVERGENCE_SUMMARY_NAME}`",
-            f"- `{DICTIONARY_HASH_MANIFEST_NAME}`",
             "",
             "## Caveats",
             "",
-            "- Convergence status is descriptive/report-only; it does not change the run while executing.",
-            "- Quantiles are derived from histogram bins and should be recomputed from merged histograms for combined staged reports.",
+            "- This is the first prototype layout, intended for smoke and timing pilot runs.",
+            "- Feature summaries are descriptive; final damaged-vs-null comparison logic can be tightened after the smoke output shape is approved.",
         ]
     ) + "\n"
     (output_dir / "readout.md").write_text(readout, encoding="utf-8")
@@ -2954,12 +2574,6 @@ def run_once() -> dict[str, Any]:
             "checkpoint_index": checkpoint_index,
             "elapsed_s": elapsed_s,
             "estimated_remaining_s_median": 0.0,
-            "chunk_start_index": chunk_start_index,
-            "num_clean_chunks_this_run": len(clean_chunks),
-            "actual_chunks_used": len(clean_chunks),
-            "first_chunk_id": first_chunk_id,
-            "last_chunk_id": last_chunk_id,
-            "next_chunk_start_index": next_chunk_start_index,
             "updated_at_utc": _utc_now(),
         },
     )
@@ -2973,3 +2587,4 @@ def run_once() -> dict[str, Any]:
 
 if __name__ == "__main__":
     run_once()
+
