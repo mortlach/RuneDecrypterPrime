@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -90,6 +91,45 @@ def test_stage_engine_emits_trace_and_shapes_pool(tmp_path: Path) -> None:
     assert len(lines) == 2
     assert '"event":"stage_start"' in lines[0]
     assert '"event":"stage_end"' in lines[1]
+
+
+def test_stage_trace_writer_path_payloads_are_trace_root_relative(tmp_path: Path) -> None:
+    trace_file = tmp_path / "trace" / "stage_engine_trace.jsonl"
+    writer = StageTraceWriter(trace_file)
+    artifact = tmp_path / "trace" / "artifacts" / "stage_a.json"
+
+    writer.append(
+        {
+            "event": "artifact",
+            "path": artifact,
+            "nested": {"paths": [artifact]},
+        }
+    )
+
+    row = json.loads(trace_file.read_text(encoding="utf-8"))
+    assert row["path"] == "artifacts/stage_a.json"
+    assert row["nested"]["paths"] == ["artifacts/stage_a.json"]
+
+
+def test_stage_trace_writer_relative_path_payloads_are_preserved(tmp_path: Path) -> None:
+    trace_file = tmp_path / "trace" / "stage_engine_trace.jsonl"
+    writer = StageTraceWriter(trace_file)
+
+    writer.append({"event": "artifact", "path": Path("artifacts/stage_a.json")})
+
+    row = json.loads(trace_file.read_text(encoding="utf-8"))
+    assert row["path"] == "artifacts/stage_a.json"
+
+
+def test_stage_trace_writer_external_path_payloads_are_redacted(tmp_path: Path) -> None:
+    trace_file = tmp_path / "trace" / "stage_engine_trace.jsonl"
+    writer = StageTraceWriter(trace_file)
+    external_path = tmp_path / "outside-trace-root.json"
+
+    writer.append({"event": "artifact", "path": external_path})
+
+    row = json.loads(trace_file.read_text(encoding="utf-8"))
+    assert row["path"] == "<external>"
 
 
 def test_stage_engine_emits_error_event_before_raising(tmp_path: Path) -> None:

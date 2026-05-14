@@ -181,3 +181,21 @@ def test_normalize_logging_cfg_filters_and_normalizes_paths(tmp_path):
     assert cfg.verbose is False
     assert cfg.out_root == str(tmp_path)
 
+
+def test_normalize_logging_cfg_accepts_portable_output_and_redact_identity():
+    cfg = normalize_logging_cfg(
+        {
+            "portable_output": True,
+            "redact_identity": True,
+        }
+    )
+
+    assert cfg.portable_output is True
+    assert cfg.redact_identity is True
+
+
+def test_normalize_logging_cfg_does_not_alias_portable_to_portable_output():
+    cfg = normalize_logging_cfg({"portable": True})
+
+    assert cfg.portable_output is False
+

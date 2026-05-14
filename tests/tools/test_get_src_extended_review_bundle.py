@@ -15,7 +15,7 @@ def _write(path: Path, content: str = "x\n") -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def test_make_get_src_extended_review_bundle_includes_review_inputs_without_bloat(
+def test_make_get_src_extended_review_bundle_defaults_to_rdp_v1_without_no_wli_output(
     tmp_path: Path,
 ) -> None:
     repo_root = tmp_path
@@ -23,7 +23,8 @@ def test_make_get_src_extended_review_bundle_includes_review_inputs_without_bloa
     test_root = repo_root / "tests"
     benchmark_root = repo_root / "tools" / "benchmarks"
     tools_get_src_zip_root = repo_root / "tools" / "get_src_zip"
-    planning_working_root = repo_root / "planning" / "projects" / "no_wli"
+    planning_rdp_v1_root = repo_root / "planning" / "projects" / "rdp_v1"
+    planning_no_wli_root = repo_root / "planning" / "projects" / "no_wli"
     no_wli_output_root = (
         repo_root
         / "output"
@@ -41,12 +42,16 @@ def test_make_get_src_extended_review_bundle_includes_review_inputs_without_bloa
     _write(src_root / "rune_decrypter_prime" / "data" / "huge.bin", "NOPE")
     _write(test_root / "tools" / "test_core.py", "def test_ok():\n    pass\n")
     _write(benchmark_root / "README.md", "# bench\n")
+    _write(benchmark_root / "periodic_sub_trans" / "common" / "trace_writer.py", "# trace\n")
     _write(benchmark_root / "periodic_sub_trans" / "no_wli" / "runner.py", "# run\n")
+    _write(benchmark_root / "periodic_sub_trans" / "no_wli" / "stage_engine_trace.py", "# trace\n")
     _write(benchmark_root / "other" / "skip.py", "# skip\n")
     _write(tools_get_src_zip_root / "get_src_extended.py", "# old tool\n")
-    _write(planning_working_root / "no_wli_science_run_log_2026-03-26.md", "# log\n")
+    _write(planning_rdp_v1_root / "20_active_plans" / "ACTIVE_TODO_v0_2.md", "# todo\n")
+    _write(planning_rdp_v1_root / "90_review_pack" / "nested.txt", "NOPE\n")
+    _write(planning_no_wli_root / "no_wli_science_run_log_2026-03-26.md", "# log\n")
     _write(
-        planning_working_root
+        planning_no_wli_root
         / "no_wli_external_review_pack_2026-03-30"
         / "nested.txt",
         "NOPE\n",
@@ -68,7 +73,8 @@ def test_make_get_src_extended_review_bundle_includes_review_inputs_without_bloa
         test_root=test_root,
         benchmark_root=benchmark_root,
         tools_get_src_zip_root=tools_get_src_zip_root,
-        planning_working_root=planning_working_root,
+        planning_rdp_v1_root=planning_rdp_v1_root,
+        planning_no_wli_root=planning_no_wli_root,
         no_wli_output_root=no_wli_output_root,
         output_root=zip_path.parent,
         zip_path_override=zip_path,
@@ -80,7 +86,8 @@ def test_make_get_src_extended_review_bundle_includes_review_inputs_without_bloa
     )
 
     assert zip_path.exists()
-    assert int(summary["included_files_count"]) >= 9
+    assert summary["bundle_profile"] == "rdp_v1"
+    assert int(summary["included_files_count"]) >= 8
     assert int(summary["excluded_entries_count"]) >= 3
 
     with ZipFile(zip_path, "r") as zf:
@@ -92,24 +99,93 @@ def test_make_get_src_extended_review_bundle_includes_review_inputs_without_bloa
     assert "src/rune_decrypter_prime/core.py" in names
     assert "tests/tools/test_core.py" in names
     assert "tools/benchmarks/README.md" in names
-    assert "tools/benchmarks/periodic_sub_trans/no_wli/runner.py" in names
+    assert "tools/benchmarks/periodic_sub_trans/common/trace_writer.py" in names
+    assert "tools/benchmarks/periodic_sub_trans/no_wli/stage_engine_trace.py" in names
     assert "tools/get_src_zip/get_src_extended.py" in names
-    assert "planning/projects/no_wli/no_wli_science_run_log_2026-03-26.md" in names
-    assert "output/tools/benchmarks/periodic_sub_trans/no_wli/fixture_matrix_run_state_demo.json" in names
+    assert "planning/projects/rdp_v1/20_active_plans/ACTIVE_TODO_v0_2.md" in names
+
+    assert "src/rune_decrypter_prime/data/huge.bin" not in names
+    assert "tools/benchmarks/periodic_sub_trans/no_wli/runner.py" not in names
+    assert "tools/benchmarks/other/skip.py" not in names
+    assert "planning/projects/rdp_v1/90_review_pack/nested.txt" not in names
+    assert "planning/projects/no_wli/no_wli_science_run_log_2026-03-26.md" not in names
+    assert "output/tools/benchmarks/periodic_sub_trans/no_wli/fixture_matrix_run_state_demo.json" not in names
     assert (
         "output/tools/benchmarks/periodic_sub_trans/no_wli/20260403T000000Z__bench_solve_pipeline_no_wli__demo/final_instances/fixture_fixture_001_p5_c1_l1000__text0__seed511.json"
-        in names
+        not in names
     )
     assert (
         "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/space_map_v1_atlas/summary.json"
-        in names
+        not in names
     )
-
-    assert "src/rune_decrypter_prime/data/huge.bin" not in names
-    assert "tools/benchmarks/other/skip.py" not in names
     assert (
         "planning/projects/no_wli/no_wli_external_review_pack_2026-03-30/nested.txt"
         not in names
     )
     assert "output/tools/benchmarks/periodic_sub_trans/no_wli/skip.zip" not in names
+
+
+def test_make_get_src_extended_review_bundle_can_include_no_wli_full_evidence(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path
+    src_root = repo_root / "src"
+    test_root = repo_root / "tests"
+    benchmark_root = repo_root / "tools" / "benchmarks"
+    tools_get_src_zip_root = repo_root / "tools" / "get_src_zip"
+    planning_rdp_v1_root = repo_root / "planning" / "projects" / "rdp_v1"
+    planning_no_wli_root = repo_root / "planning" / "projects" / "no_wli"
+    no_wli_output_root = (
+        repo_root
+        / "output"
+        / "tools"
+        / "benchmarks"
+        / "periodic_sub_trans"
+        / "no_wli"
+    )
+    zip_path = repo_root / "output" / "tools" / "bundle" / "review.zip"
+
+    _write(repo_root / "AGENTS.md", "# rules\n")
+    _write(repo_root / "README.md", "# readme\n")
+    _write(src_root / "rune_decrypter_prime" / "core.py", "print('ok')\n")
+    _write(test_root / "tools" / "test_core.py", "def test_ok():\n    pass\n")
+    _write(benchmark_root / "periodic_sub_trans" / "no_wli" / "runner.py", "# run\n")
+    _write(tools_get_src_zip_root / "get_src_extended.py", "# old tool\n")
+    _write(planning_rdp_v1_root / "20_active_plans" / "ACTIVE_TODO_v0_2.md", "# todo\n")
+    _write(planning_no_wli_root / "no_wli_science_run_log_2026-03-26.md", "# log\n")
+    _write(no_wli_output_root / "fixture_matrix_run_state_demo.json", "{}\n")
+    _write(
+        no_wli_output_root
+        / "analysis"
+        / "space_map_v1_atlas"
+        / "summary.json",
+        "{}\n",
+    )
+
+    summary = bundle_mod.make_get_src_extended_review_bundle(
+        repo_root=repo_root,
+        bundle_profile="no_wli_full_evidence",
+        src_root=src_root,
+        test_root=test_root,
+        benchmark_root=benchmark_root,
+        tools_get_src_zip_root=tools_get_src_zip_root,
+        planning_rdp_v1_root=planning_rdp_v1_root,
+        planning_no_wli_root=planning_no_wli_root,
+        no_wli_output_root=no_wli_output_root,
+        output_root=zip_path.parent,
+        zip_path_override=zip_path,
+        root_files=(
+            repo_root / "AGENTS.md",
+            repo_root / "README.md",
+        ),
+    )
+
+    assert summary["bundle_profile"] == "no_wli_full_evidence"
+    with ZipFile(zip_path, "r") as zf:
+        names = set(zf.namelist())
+
+    assert "planning/projects/no_wli/no_wli_science_run_log_2026-03-26.md" in names
+    assert "output/tools/benchmarks/periodic_sub_trans/no_wli/fixture_matrix_run_state_demo.json" in names
+    assert "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/space_map_v1_atlas/summary.json" in names
+    assert "planning/projects/rdp_v1/20_active_plans/ACTIVE_TODO_v0_2.md" not in names
 

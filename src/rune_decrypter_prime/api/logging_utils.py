@@ -22,6 +22,8 @@ def normalize_logging_cfg(logging: Any) -> CoreLoggingConfig:
             "run_kind",
             "label",
             "fixed_run_dir",
+            "redact_identity",
+            "portable_output",
         }
         filtered = {k: v for k, v in cfg.items() if k in allowed}
         for path_key in ("out_root", "repo_root", "fixed_run_dir"):
