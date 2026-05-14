@@ -57,8 +57,8 @@ import numpy as np
 # CONFIG: edit here, run from IDE
 # =============================================================================
 
-RUN_LABEL = "stage0_fwd_full_canary"
-RUN_MODE = "stage0_fwd_full_canary"  # "stage0_fwd_full_canary", "stage1_fwd_full_1k", "smoke", "timing_pilot", "medium_summary_50", "medium_summary_500", "medium_summary_1000", "pilot", "full".
+RUN_LABEL = "stage1_fwd_full_1k_pc_a"
+RUN_MODE = "stage1_fwd_full_1k"  # "stage0_fwd_full_canary", "stage1_fwd_full_1k", "smoke", "timing_pilot", "medium_summary_50", "medium_summary_500", "medium_summary_1000", "pilot", "full".
 BOOK_ORDER = "forward"  # "forward" or "reverse"; deterministic traversal of complete books.
 BOOK_SKIP = 0
 BOOK_LIST_FILE_REL = ""  # Optional repo-relative text file, one book name per line.
@@ -83,7 +83,7 @@ EXCLUDE_BOOKS = (
 TOKENIZED_ROOT_REL = "../language_model_prime/lmprime_out/tokenized"
 OUTPUT_DIR_REL = (
     "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"
-    "stage0_fwd_full_canary"
+    "stage1_fwd_full_1k_pc_a"
 )
 
 DIRECTIONS = ("fwd", "rev")
@@ -222,7 +222,7 @@ MODE_LIMITS = {
         "checkpoint_every_seconds": 300.0,
     },
     "stage1_fwd_full_1k": {
-        "num_clean_chunks": 1000,
+        "num_clean_chunks": 500,
         "max_books": 510,
         "chunks_per_book_direction": 0,
         "damage_repeats_per_chunk": 1,
