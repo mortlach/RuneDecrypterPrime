@@ -81,6 +81,7 @@ def main() -> None:
     log_path = runner._resolve_from_repo_root(LOG_REL)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("a", encoding="utf-8") as log_fh:
+
         old_stdout = sys.stdout
         old_stderr = sys.stderr
         try:
@@ -96,6 +97,7 @@ def main() -> None:
         finally:
             sys.stdout = old_stdout
             sys.stderr = old_stderr
+
 
 
 if __name__ == "__main__":

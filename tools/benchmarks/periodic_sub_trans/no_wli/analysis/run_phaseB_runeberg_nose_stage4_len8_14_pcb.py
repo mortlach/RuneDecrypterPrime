@@ -13,20 +13,20 @@ from tools.benchmarks.periodic_sub_trans.no_wli.analysis import (
 )
 
 
-RUN_LABEL = "stage2_fwd_full_len2_14_pc_a"
-RUN_MODE = "stage2_fwd_full_len2_14"
-CHUNK_START_INDEX = 1000
-NUM_CLEAN_CHUNKS_THIS_RUN = 4200
+RUN_LABEL = "stage4_fwd_full_len8_14_pcb"
+RUN_MODE = "stage4_fwd_full_len8_14_pcb"
+CHUNK_START_INDEX = 22400
+NUM_CLEAN_CHUNKS_THIS_RUN = 12000
 OUTPUT_DIR_REL = (
     "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"
-    "stage2_fwd_full_len2_14_pc_a"
+    "stage4_fwd_full_len8_14_pcb"
 )
 LOG_REL = (
     "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/logs/"
-    "stage2_fwd_full_len2_14_pc_a.log"
+    "stage4_fwd_full_len8_14_pcb.log"
 )
-LADDER_PROFILE = "v0_3_plus_long_relaxed_v2_len2_14"
-ACTIVE_SPAN_LENGTHS = tuple(range(2, 15))
+LADDER_PROFILE = "v0_3_plus_long_relaxed_v2_len8_14"
+ACTIVE_SPAN_LENGTHS = tuple(range(8, 15))
 
 
 class Tee:
@@ -81,23 +81,15 @@ def main() -> None:
     log_path = runner._resolve_from_repo_root(LOG_REL)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("a", encoding="utf-8") as log_fh:
-
-        old_stdout = sys.stdout
-        old_stderr = sys.stderr
-        try:
-            sys.stdout = Tee(sys.__stdout__, log_fh)
-            sys.stderr = Tee(sys.__stderr__, log_fh)
-            print(
-                f"[{RUN_LABEL}] configured CHUNK_START_INDEX={CHUNK_START_INDEX} "
-                f"NUM_CLEAN_CHUNKS_THIS_RUN={NUM_CLEAN_CHUNKS_THIS_RUN} "
-                f"LADDER_PROFILE={LADDER_PROFILE} active_lengths={ACTIVE_SPAN_LENGTHS}",
-                flush=True,
-            )
-            runner.run_once()
-        finally:
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
-
+        sys.stdout = Tee(sys.__stdout__, log_fh)
+        sys.stderr = Tee(sys.__stderr__, log_fh)
+        print(
+            f"[{RUN_LABEL}] configured CHUNK_START_INDEX={CHUNK_START_INDEX} "
+            f"NUM_CLEAN_CHUNKS_THIS_RUN={NUM_CLEAN_CHUNKS_THIS_RUN} "
+            f"LADDER_PROFILE={LADDER_PROFILE} active_lengths={ACTIVE_SPAN_LENGTHS}",
+            flush=True,
+        )
+        runner.run_once()
 
 
 if __name__ == "__main__":
