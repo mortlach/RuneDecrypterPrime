@@ -1,9 +1,10 @@
 from __future__ import annotations
-from typing import Any, Dict, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence
 from types import SimpleNamespace
 import numpy as np
 
 from rune_decrypter_prime.core.types import Device, Direction, SolverName, KEY_DTYPE
+from rune_decrypter_prime.core.config.logging_config import LoggingConfig, init_logging
 from rune_decrypter_prime.api.fastpaths import maybe_known_key_fastpath
 from rune_decrypter_prime.api.pipeline_helpers import finalize_solution, coerce_wli_for_config
 from rune_decrypter_prime.api.wrappers.registry import build_cipher_config
@@ -22,7 +23,9 @@ def execute_run(
     solver,   # SolverConfig-like
     scoring,  # ScoringConfig-like
     scorer_name: str,
-    logging: Optional[Dict[str, Any]],
+    logging_config: Optional[LoggingConfig],
+    logging_runtime: Mapping[str, Any],
+    initialize_logging: bool,
     telemetry_on: bool,
     device: Device,
     encoding_dir: Direction,
@@ -33,6 +36,9 @@ def execute_run(
     interruptors_pool: Optional[Sequence[int]],
     interruptors_max: Optional[int],
 ):
+    if initialize_logging and logging_config is not None:
+        init_logging(logging_config)
+
     # 0) Known-key fast path
     fast = maybe_known_key_fastpath(
         cipher=cipher,
@@ -42,7 +48,7 @@ def execute_run(
         device=device,
         scoring=scoring,
         scorer_name=scorer_name,
-        logging=logging,
+        logging_runtime=logging_runtime,
         encoding_dir=encoding_dir,
         telemetry_on=telemetry_on,
     )
@@ -76,10 +82,9 @@ def execute_run(
     instance = ProblemInstance.materialise(spec)
 
     progress_cb = None
-    if isinstance(logging, dict):
-        cb = logging.get("progress_callback")
-        if callable(cb):
-            progress_cb = cb
+    cb = logging_runtime.get("progress_callback")
+    if callable(cb):
+        progress_cb = cb
     if progress_cb is not None:
         tele = getattr(instance.problem, "telemetry", None)
         if tele is None:
@@ -93,11 +98,10 @@ def execute_run(
     # 3) EngineConfig + run
     solver_kind: SolverName = normalize_optimizer_name(solver.name)
     log_int = 50
-    if isinstance(logging, dict):
-        try:
-            log_int = int(logging.get("log_interval", 50))
-        except Exception:
-            pass
+    try:
+        log_int = int(logging_runtime.get("log_interval", 50))
+    except Exception:
+        pass
 
     # Ensure a deterministic default when seed is not supplied
     effective_seed = getattr(solver, "seed", None)

@@ -22,6 +22,11 @@ from rune_decrypter_prime.core.config.logging_config import (
     init_logging,
     get_run_dir,
 )
+from rune_decrypter_prime.io.artifact_policy import (
+    artifact_json_value,
+    artifact_path,
+    portable_exception_message,
+)
 
 _TZ = ZoneInfo("America/Los_Angeles") if ZoneInfo else None
 _lock = threading.Lock()
@@ -81,7 +86,7 @@ class RunLogger:
         """
         if is_dataclass(obj):
             obj = asdict(obj)  # type: ignore[assignment]
-        rec = dict(obj)
+        rec = artifact_json_value(dict(obj), root=self._run_dir)
         rec.setdefault("ts", _ts())
         line = json.dumps(rec, ensure_ascii=False)
         with _lock:
@@ -100,15 +105,34 @@ class RunLogger:
         func = str(obj.get("func", "trace"))
         text = str(obj.get("trace", ""))
         safe = "".join(ch for ch in func if ch.isalnum() or ch in "-_")[:80] or "trace"
-        fname = f"{safe}__{_dt.datetime.now().strftime('%H%M%S')}.txt"
-        path = (self._run_dir / "trace" / fname).resolve()
+        stem = f"{safe}__{_dt.datetime.now().strftime('%H%M%S')}"
+        path = (self._run_dir / "trace" / f"{stem}.txt").resolve()
+        suffix = 1
+        while path.exists():
+            path = (self._run_dir / "trace" / f"{stem}__{suffix:03d}.txt").resolve()
+            suffix += 1
         _ensure_dir(path.parent)
         try:
             path.write_text(text, encoding="utf-8")
-            self.log_event({"type": "trace_written", "func": func, "path": str(path)})
+            self.log_event(
+                {
+                    "type": "trace_written",
+                    "func": func,
+                    "path": artifact_path(path, root=self._run_dir),
+                }
+            )
             return path
         except Exception as e:
-            self.log_event({"type": "trace_error", "func": func, "error": str(e)})
+            error_message, error_details_redacted = portable_exception_message(e)
+            self.log_event(
+                {
+                    "type": "trace_error",
+                    "func": func,
+                    "error_type": type(e).__name__,
+                    "error_message": error_message,
+                    "error_details_redacted": error_details_redacted,
+                }
+            )
             return None
 
 

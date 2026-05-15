@@ -5,11 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
-def _json_default(obj: Any) -> Any:
-    if isinstance(obj, Path):
-        return obj.as_posix()
-    raise TypeError(f"Unsupported JSON type: {type(obj).__name__}")
+from rune_decrypter_prime.io.artifact_policy import artifact_json_value
 
 
 @dataclass
@@ -18,7 +14,8 @@ class StageTraceWriter:
 
     def append(self, event: dict[str, Any]) -> None:
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
-        payload = dict(event)
+        trace_root = self.output_path.parent.resolve()
+        payload = artifact_json_value(dict(event), root=trace_root)
         with self.output_path.open("a", encoding="utf-8") as fh:
             fh.write(
                 json.dumps(
@@ -26,7 +23,6 @@ class StageTraceWriter:
                     ensure_ascii=False,
                     sort_keys=True,
                     separators=(",", ":"),
-                    default=_json_default,
                 )
                 + "\n"
             )

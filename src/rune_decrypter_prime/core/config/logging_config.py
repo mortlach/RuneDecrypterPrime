@@ -48,6 +48,7 @@ class LoggingConfig:
     label: Optional[str] = None
     fixed_run_dir: Optional[str] = None
     redact_identity: bool = False
+    portable_output: bool = False
 
 # ----------------------------
 # Module state & simple accessors
@@ -141,6 +142,10 @@ def _relativize_path(path: Path, base: Path) -> str:
             return path.name
 
 
+def _effective_redact_identity(cfg: LoggingConfig) -> bool:
+    return bool(cfg.redact_identity or cfg.portable_output)
+
+
 def _collect_versions() -> Dict[str, Any]:
     """
     Minimal version map for telemetry. Extend here centrally if needed.
@@ -196,11 +201,12 @@ def _write_meta(
     Writes META.json into the run directory with stable, machine-readable keys.
     Includes both new contract keys and legacy fields for back-compat.
     """
+    identity_redacted = _effective_redact_identity(cfg)
     meta: Dict[str, Any] = {
         # Legacy/previously observed fields (kept to avoid breaking readers)
         "created": timestamp,
-        "user": None if cfg.redact_identity else getpass.getuser(),
-        "host": None if cfg.redact_identity else socket.gethostname(),
+        "user": None if identity_redacted else getpass.getuser(),
+        "host": None if identity_redacted else socket.gethostname(),
         "repo_root": ".",
         "out_root": _relativize_path(out_root, repo_root),
         "run_kind": cfg.run_kind,
@@ -208,6 +214,8 @@ def _write_meta(
         "verbose": cfg.verbose,
         "print_progress": cfg.print_progress,
         "write_jsonl": cfg.write_jsonl,
+        "portable_output": bool(cfg.portable_output),
+        "identity_redacted": identity_redacted,
         "pid": os.getpid(),
         "python": {
             "executable": Path(os.sys.executable).name,

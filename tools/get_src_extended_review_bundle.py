@@ -17,7 +17,8 @@ SRC_ROOT = REPO_ROOT / "src"
 TEST_ROOT = REPO_ROOT / "tests"
 TOOLS_BENCHMARK_ROOT = REPO_ROOT / "tools" / "benchmarks"
 TOOLS_GET_SRC_ZIP_ROOT = REPO_ROOT / "tools" / "get_src_zip"
-PLANNING_WORKING_ROOT = REPO_ROOT / "planning" / "projects" / "no_wli"
+PLANNING_RDP_V1_ROOT = REPO_ROOT / "planning" / "projects" / "rdp_v1"
+PLANNING_NO_WLI_ROOT = REPO_ROOT / "planning" / "projects" / "no_wli"
 NO_WLI_OUTPUT_ROOT = (
     REPO_ROOT
     / "output"
@@ -35,8 +36,14 @@ ROOT_FILES: tuple[Path, ...] = (
 
 OUTPUT_ROOT = REPO_ROOT / "output" / "tools" / "get_src_extended_review_bundle"
 
+BUNDLE_PROFILE = "rdp_v1"
+VALID_BUNDLE_PROFILES = {
+    "rdp_v1",
+    "no_wli_full_evidence",
+}
+
 USE_TIMESTAMPED_NAME = True
-ZIP_STEM = "get_src_extended_review_bundle"
+ZIP_STEM = f"get_src_extended_review_bundle__{BUNDLE_PROFILE}"
 STATIC_ZIP_NAME = "get_src_extended_review_bundle.zip"
 WRITE_SUMMARY_JSON = True
 
@@ -99,6 +106,13 @@ COMMON_EXCLUDED_FILE_NAMES = {
 }
 COMMON_EXCLUDED_FILE_GLOBS = {
     "*.bin.zst",
+}
+
+RDP_V1_PLANNING_EXCLUDED_DIR_PREFIXES = (
+    "rdp_v1_output_privacy_review_pack_",
+)
+RDP_V1_PLANNING_EXCLUDED_DIR_NAMES = COMMON_EXCLUDED_DIR_NAMES | {
+    "90_review_pack",
 }
 
 
@@ -168,6 +182,27 @@ def _make_benchmark_include_path(
     return _include_benchmark_path
 
 
+def _make_rdp_v1_benchmark_include_path(
+    benchmark_root: Path,
+) -> Callable[[Path], bool]:
+    allowed_exact = {
+        Path("README.md"),
+        Path("periodic_sub_trans/common/trace_writer.py"),
+        Path("periodic_sub_trans/col_then_sub/stage_engine_trace.py"),
+        Path("periodic_sub_trans/sub_then_col/stage_engine_trace.py"),
+        Path("periodic_sub_trans/no_wli/stage_engine_trace.py"),
+    }
+
+    def _include_rdp_v1_benchmark_path(path: Path) -> bool:
+        try:
+            rel = path.relative_to(benchmark_root)
+        except ValueError:
+            return False
+        return rel in allowed_exact
+
+    return _include_rdp_v1_benchmark_path
+
+
 def _collect_single_file(
     *,
     repo_root: Path,
@@ -235,14 +270,19 @@ def collect_files_from_root(
 def _default_root_specs(
     *,
     repo_root: Path,
+    bundle_profile: str,
     src_root: Path,
     test_root: Path,
     benchmark_root: Path,
     tools_get_src_zip_root: Path,
-    planning_working_root: Path,
+    planning_rdp_v1_root: Path,
+    planning_no_wli_root: Path,
     no_wli_output_root: Path,
     root_files: Iterable[Path],
 ) -> tuple[BundleRootSpec, ...]:
+    if bundle_profile not in VALID_BUNDLE_PROFILES:
+        raise ValueError(f"unsupported bundle profile: {bundle_profile}")
+
     specs = [
         BundleRootSpec(
             scan_root=src_root,
@@ -255,28 +295,50 @@ def _default_root_specs(
             excluded_dir_names=frozenset(COMMON_EXCLUDED_DIR_NAMES),
         ),
         BundleRootSpec(
-            scan_root=benchmark_root,
-            root_label="tools/benchmarks",
-            excluded_dir_names=frozenset(CODE_EXCLUDED_DIR_NAMES),
-            include_path=_make_benchmark_include_path(benchmark_root),
-        ),
-        BundleRootSpec(
             scan_root=tools_get_src_zip_root,
             root_label="tools/get_src_zip",
             excluded_dir_names=frozenset(CODE_EXCLUDED_DIR_NAMES),
         ),
-        BundleRootSpec(
-            scan_root=planning_working_root,
-            root_label="planning/projects/no_wli",
-            excluded_dir_names=frozenset(COMMON_EXCLUDED_DIR_NAMES),
-            excluded_dir_prefixes=PLANNING_EXCLUDED_DIR_PREFIXES,
-        ),
-        BundleRootSpec(
-            scan_root=no_wli_output_root,
-            root_label="output/tools/benchmarks/periodic_sub_trans/no_wli",
-            excluded_dir_names=frozenset(COMMON_EXCLUDED_DIR_NAMES),
-        ),
     ]
+    if bundle_profile == "rdp_v1":
+        specs.extend(
+            [
+                BundleRootSpec(
+                    scan_root=benchmark_root,
+                    root_label="tools/benchmarks",
+                    excluded_dir_names=frozenset(CODE_EXCLUDED_DIR_NAMES),
+                    include_path=_make_rdp_v1_benchmark_include_path(benchmark_root),
+                ),
+                BundleRootSpec(
+                    scan_root=planning_rdp_v1_root,
+                    root_label="planning/projects/rdp_v1",
+                    excluded_dir_names=frozenset(RDP_V1_PLANNING_EXCLUDED_DIR_NAMES),
+                    excluded_dir_prefixes=RDP_V1_PLANNING_EXCLUDED_DIR_PREFIXES,
+                ),
+            ]
+        )
+    elif bundle_profile == "no_wli_full_evidence":
+        specs.extend(
+            [
+                BundleRootSpec(
+                    scan_root=benchmark_root,
+                    root_label="tools/benchmarks",
+                    excluded_dir_names=frozenset(CODE_EXCLUDED_DIR_NAMES),
+                    include_path=_make_benchmark_include_path(benchmark_root),
+                ),
+                BundleRootSpec(
+                    scan_root=planning_no_wli_root,
+                    root_label="planning/projects/no_wli",
+                    excluded_dir_names=frozenset(COMMON_EXCLUDED_DIR_NAMES),
+                    excluded_dir_prefixes=PLANNING_EXCLUDED_DIR_PREFIXES,
+                ),
+                BundleRootSpec(
+                    scan_root=no_wli_output_root,
+                    root_label="output/tools/benchmarks/periodic_sub_trans/no_wli",
+                    excluded_dir_names=frozenset(COMMON_EXCLUDED_DIR_NAMES),
+                ),
+            ]
+        )
     specs.extend(
         BundleRootSpec(
             scan_root=file_path,
@@ -291,11 +353,13 @@ def _default_root_specs(
 def collect_review_bundle_files(
     *,
     repo_root: Path = REPO_ROOT,
+    bundle_profile: str = BUNDLE_PROFILE,
     src_root: Path = SRC_ROOT,
     test_root: Path = TEST_ROOT,
     benchmark_root: Path = TOOLS_BENCHMARK_ROOT,
     tools_get_src_zip_root: Path = TOOLS_GET_SRC_ZIP_ROOT,
-    planning_working_root: Path = PLANNING_WORKING_ROOT,
+    planning_rdp_v1_root: Path = PLANNING_RDP_V1_ROOT,
+    planning_no_wli_root: Path = PLANNING_NO_WLI_ROOT,
     no_wli_output_root: Path = NO_WLI_OUTPUT_ROOT,
     root_files: Sequence[Path] = ROOT_FILES,
 ) -> tuple[list[Path], list[str], list[dict[str, object]]]:
@@ -306,11 +370,13 @@ def collect_review_bundle_files(
 
     specs = _default_root_specs(
         repo_root=repo_root,
+        bundle_profile=bundle_profile,
         src_root=src_root,
         test_root=test_root,
         benchmark_root=benchmark_root,
         tools_get_src_zip_root=tools_get_src_zip_root,
-        planning_working_root=planning_working_root,
+        planning_rdp_v1_root=planning_rdp_v1_root,
+        planning_no_wli_root=planning_no_wli_root,
         no_wli_output_root=no_wli_output_root,
         root_files=root_files,
     )
@@ -340,11 +406,13 @@ def collect_review_bundle_files(
 def make_get_src_extended_review_bundle(
     *,
     repo_root: Path = REPO_ROOT,
+    bundle_profile: str = BUNDLE_PROFILE,
     src_root: Path = SRC_ROOT,
     test_root: Path = TEST_ROOT,
     benchmark_root: Path = TOOLS_BENCHMARK_ROOT,
     tools_get_src_zip_root: Path = TOOLS_GET_SRC_ZIP_ROOT,
-    planning_working_root: Path = PLANNING_WORKING_ROOT,
+    planning_rdp_v1_root: Path = PLANNING_RDP_V1_ROOT,
+    planning_no_wli_root: Path = PLANNING_NO_WLI_ROOT,
     no_wli_output_root: Path = NO_WLI_OUTPUT_ROOT,
     output_root: Path = OUTPUT_ROOT,
     zip_path_override: Path | None = None,
@@ -353,11 +421,13 @@ def make_get_src_extended_review_bundle(
     output_root.mkdir(parents=True, exist_ok=True)
     included, excluded, root_summaries = collect_review_bundle_files(
         repo_root=repo_root,
+        bundle_profile=bundle_profile,
         src_root=src_root,
         test_root=test_root,
         benchmark_root=benchmark_root,
         tools_get_src_zip_root=tools_get_src_zip_root,
-        planning_working_root=planning_working_root,
+        planning_rdp_v1_root=planning_rdp_v1_root,
+        planning_no_wli_root=planning_no_wli_root,
         no_wli_output_root=no_wli_output_root,
         root_files=root_files,
     )
@@ -374,6 +444,7 @@ def make_get_src_extended_review_bundle(
 
     summary: dict[str, object] = {
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "bundle_profile": bundle_profile,
         "repo_root": ".",
         "zip_path": _to_repo_rel(zip_path, repo_root),
         "included_files_count": int(len(included)),

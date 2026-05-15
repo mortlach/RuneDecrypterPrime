@@ -31,7 +31,7 @@ def test_scorer_report_to_json_dict_is_serialisable_and_primitive() -> None:
     assert payload["objective_spec"]["family"] == "pct"
     assert payload["objective_spec"]["stat"] == "logp"
     assert payload["objective_spec"]["win"] == 10
-    assert Path(payload["telemetry"]["model_root"]).as_posix() == "data/lm"
+    assert payload["telemetry"]["model_root"] == "data/lm"
 
 
 def test_scorer_report_rejects_non_finite_numbers() -> None:
@@ -41,4 +41,28 @@ def test_scorer_report_rejects_non_finite_numbers() -> None:
         score=float("nan"),
     )
     with pytest.raises(ValueError, match="finite"):
+        report.to_json_dict()
+
+
+def test_scorer_report_rejects_absolute_path_payload(tmp_path) -> None:
+    report = ScorerReport(
+        objective_str="pct.logp.win10",
+        objective_spec=ObjectiveSpec(family=ObjectiveFamily.PCT, stat=Stat.LOGP, win=10),
+        score=0.42,
+        telemetry={"model_root": tmp_path / "lm"},
+    )
+
+    with pytest.raises(ValueError, match="absolute Path"):
+        report.to_json_dict()
+
+
+def test_scorer_report_rejects_nested_absolute_path_payload(tmp_path) -> None:
+    report = ScorerReport(
+        objective_str="pct.logp.win10",
+        objective_spec=ObjectiveSpec(family=ObjectiveFamily.PCT, stat=Stat.LOGP, win=10),
+        score=0.42,
+        details={"models": [{"root": tmp_path / "lm"}]},
+    )
+
+    with pytest.raises(ValueError, match="absolute Path"):
         report.to_json_dict()
