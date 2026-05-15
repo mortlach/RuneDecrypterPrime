@@ -27,6 +27,14 @@ def _finite_float(value: Any, *, field_name: str) -> float:
     return out
 
 
+def _json_key(value: Any) -> str:
+    if isinstance(value, Path):
+        if value.is_absolute():
+            raise ValueError("report payload contains absolute Path")
+        return value.as_posix()
+    return str(value)
+
+
 def _to_json_primitive(value: Any, *, max_items: int = 64, depth: int = 0) -> Any:
     if isinstance(value, Path):
         if value.is_absolute():
@@ -49,7 +57,7 @@ def _to_json_primitive(value: Any, *, max_items: int = 64, depth: int = 0) -> An
         for idx, (k, v) in enumerate(value.items()):
             if idx >= max_items:
                 break
-            out[str(k)] = _to_json_primitive(v, max_items=max_items, depth=depth + 1)
+            out[_json_key(k)] = _to_json_primitive(v, max_items=max_items, depth=depth + 1)
         return out
     if isinstance(value, (list, tuple)):
         vals = list(value)[:max_items]
@@ -83,7 +91,8 @@ class ScorerReport:
 
         metrics: dict[str, float] = {}
         for k, v in dict(self.metrics or {}).items():
-            metrics[str(k)] = _finite_float(v, field_name=f"metrics.{k}")
+            key = _json_key(k)
+            metrics[key] = _finite_float(v, field_name=f"metrics.{key}")
 
         return {
             "objective_str": str(self.objective_str),

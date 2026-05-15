@@ -66,3 +66,53 @@ def test_scorer_report_rejects_nested_absolute_path_payload(tmp_path) -> None:
 
     with pytest.raises(ValueError, match="absolute Path"):
         report.to_json_dict()
+
+
+def test_scorer_report_allows_relative_path_mapping_key() -> None:
+    report = ScorerReport(
+        objective_str="pct.logp.win10",
+        objective_spec=ObjectiveSpec(family=ObjectiveFamily.PCT, stat=Stat.LOGP, win=10),
+        score=0.42,
+        telemetry={Path("data/lm"): "model"},
+    )
+
+    payload = report.to_json_dict()
+
+    assert payload["telemetry"]["data/lm"] == "model"
+
+
+def test_scorer_report_rejects_absolute_path_mapping_key(tmp_path) -> None:
+    report = ScorerReport(
+        objective_str="pct.logp.win10",
+        objective_spec=ObjectiveSpec(family=ObjectiveFamily.PCT, stat=Stat.LOGP, win=10),
+        score=0.42,
+        details={tmp_path / "lm": "model"},
+    )
+
+    with pytest.raises(ValueError, match="absolute Path"):
+        report.to_json_dict()
+
+
+def test_scorer_report_allows_relative_path_metric_key() -> None:
+    report = ScorerReport(
+        objective_str="pct.logp.win10",
+        objective_spec=ObjectiveSpec(family=ObjectiveFamily.PCT, stat=Stat.LOGP, win=10),
+        score=0.42,
+        metrics={Path("data/score"): 1.0},
+    )
+
+    payload = report.to_json_dict()
+
+    assert payload["metrics"]["data/score"] == 1.0
+
+
+def test_scorer_report_rejects_absolute_path_metric_key(tmp_path) -> None:
+    report = ScorerReport(
+        objective_str="pct.logp.win10",
+        objective_spec=ObjectiveSpec(family=ObjectiveFamily.PCT, stat=Stat.LOGP, win=10),
+        score=0.42,
+        metrics={tmp_path / "score": 1.0},
+    )
+
+    with pytest.raises(ValueError, match="absolute Path"):
+        report.to_json_dict()
