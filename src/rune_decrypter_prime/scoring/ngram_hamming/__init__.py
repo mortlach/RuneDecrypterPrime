@@ -11,6 +11,10 @@ from rune_decrypter_prime.scoring.ngram_hamming.reference import (
     parse_word_token_ids,
     scan_chunk_reference,
 )
+from rune_decrypter_prime.scoring.ngram_hamming.fast_backend import (
+    fast_ngram_hamming_available,
+    scan_chunk_fast,
+)
 
 __all__ = [
     "PhraseEntry",
@@ -22,4 +26,6 @@ __all__ = [
     "validate_candidate_tokens",
     "parse_word_token_ids",
     "scan_chunk_reference",
+    "fast_ngram_hamming_available",
+    "scan_chunk_fast",
 ]

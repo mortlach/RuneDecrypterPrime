@@ -154,6 +154,7 @@ def build_damage_manifest() -> dict[str, Any]:
         )
 
     reference_configs = load_reference_configs()
+    reference_config_exists_count = sum(1 for row in reference_configs if row.get("exists"))
     reference_levels_ok = all(
         all(level in row.get("damage_levels", []) for level in REQUIRED_DAMAGE_LEVELS)
         for row in reference_configs
@@ -164,11 +165,12 @@ def build_damage_manifest() -> dict[str, Any]:
         for row in reference_configs
         if row.get("exists")
     )
+    reference_configs_ok = reference_config_exists_count > 0 and reference_levels_ok and reference_models_ok
 
     manifest = {
         "run_label": RUN_LABEL,
         "created_utc": datetime.now(timezone.utc).isoformat(),
-        "status": "pass" if full_like_modes and reference_levels_ok and reference_models_ok else "blocked",
+        "status": "pass" if full_like_modes and reference_configs_ok else "blocked",
         "source_file_path": SOURCE_SCRIPT_REL,
         "source_exists": True,
         "damage_generation_source": "run_phaseB_runeberg_nose_damage_ladder_v1",
@@ -176,6 +178,8 @@ def build_damage_manifest() -> dict[str, Any]:
         "required_damage_models": list(REQUIRED_DAMAGE_MODELS),
         "damage_levels_verified": bool(full_like_modes and reference_levels_ok),
         "damage_models_verified": bool(full_like_modes and reference_models_ok),
+        "reference_config_exists_count": reference_config_exists_count,
+        "reference_configs_required": True,
         "global_seed": constants.get("GLOBAL_SEED"),
         "seed_policy": "stable blake2b seed from GLOBAL_SEED and sample_id_base",
         "seed_function": {
@@ -207,7 +211,7 @@ def build_damage_manifest() -> dict[str, Any]:
         "damage_models": damage_models,
         "modes_covering_required_levels_and_models": full_like_modes,
         "reference_configs": reference_configs,
-        "blocked_reason": "" if full_like_modes and reference_levels_ok and reference_models_ok else "required damage levels/models not verified in source modes or reference configs",
+        "blocked_reason": "" if full_like_modes and reference_configs_ok else "required damage levels/models not verified in source modes or reference configs",
     }
     return manifest
 
