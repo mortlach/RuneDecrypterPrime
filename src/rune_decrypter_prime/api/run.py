@@ -6,6 +6,7 @@ import numpy as np
 from rune_decrypter_prime.core.types import Device, Direction
 from rune_decrypter_prime.api.pipeline import execute_run
 from rune_decrypter_prime.api.specs import CipherSpec, KeySpec, SolverSpec
+from rune_decrypter_prime.api.logging_utils import _route_logging_input
 from rune_decrypter_prime.api.normalize import (
     normalize_ciphertext,
     to_indices,
@@ -17,7 +18,7 @@ from rune_decrypter_prime.api.normalize import (
     normalize_text_permutation,
 )
 from rune_decrypter_prime.api._resolve import resolve_scorer_aliases
-from rune_decrypter_prime.core.config import ScoringConfig, SolverConfig, InterruptorConfig
+from rune_decrypter_prime.core.config import ScoringConfig, SolverConfig, InterruptorConfig, LoggingConfig
 
 
 class RunAPI:
@@ -40,7 +41,7 @@ class RunAPI:
         device: Optional[Union[str, Device]] = Device.CPU,
         scorer: str = "rune",
         scorer_params: Optional[Dict[str, Any]] = None,
-        logging: Optional[Dict[str, Any]] = None,
+        logging: Optional[Union[Dict[str, Any], LoggingConfig]] = None,
         wli_data: Optional[Sequence[Sequence[int]]] = None,
         force_no_wli: Optional[bool] = None,
         initial_keys: Optional[List[List[int]]] = None,
@@ -95,6 +96,7 @@ class RunAPI:
         opt = normalize_optimizer_spec({"name": solver.name, **solver.params})
         opt_name = opt.pop("name")
         solver_cfg = SolverConfig(name=opt_name, params=opt, seed=solver.seed)
+        logging_route = _route_logging_input(logging)
 
         # Delegate to the execution pipeline
         return execute_run(
@@ -105,7 +107,9 @@ class RunAPI:
             solver=solver_cfg,
             scoring=scoring_cfg,
             scorer_name=scorer,
-            logging=logging,
+            logging_config=logging_route.config,
+            logging_runtime=logging_route.runtime_controls,
+            initialize_logging=logging_route.initialize_output,
             telemetry_on=telemetry_on,
             device=device,
             encoding_dir=encoding_dir,

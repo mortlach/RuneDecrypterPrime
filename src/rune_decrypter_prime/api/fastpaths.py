@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence
 import numpy as np
 
 from types import SimpleNamespace
@@ -21,7 +21,7 @@ def maybe_known_key_fastpath(
     device,
     scoring,
     scorer_name: str,
-    logging: Optional[Dict[str, Any]],
+    logging_runtime: Mapping[str, Any],
     encoding_dir: Direction,
     telemetry_on: bool,
 ):
@@ -68,11 +68,10 @@ def maybe_known_key_fastpath(
     instance = ProblemInstance.materialise(spec)
 
     log_interval = 50
-    if isinstance(logging, dict):
-        try:
-            log_interval = int(logging.get("log_interval", log_interval))
-        except Exception:
-            pass
+    try:
+        log_interval = int(logging_runtime.get("log_interval", log_interval))
+    except Exception:
+        pass
 
     eng_cfg = EngineConfig(
         solver=SolverName.BEAM,

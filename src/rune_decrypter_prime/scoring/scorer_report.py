@@ -28,6 +28,10 @@ def _finite_float(value: Any, *, field_name: str) -> float:
 
 
 def _to_json_primitive(value: Any, *, max_items: int = 64, depth: int = 0) -> Any:
+    if isinstance(value, Path):
+        if value.is_absolute():
+            raise ValueError("report payload contains absolute Path")
+        return value.as_posix()
     if depth > 6:
         return str(value)
     if value is None or isinstance(value, (str, bool, int)):
@@ -38,8 +42,6 @@ def _to_json_primitive(value: Any, *, max_items: int = 64, depth: int = 0) -> An
         return float(value)
     if isinstance(value, Enum):
         return getattr(value, "value", str(value))
-    if isinstance(value, Path):
-        return str(value)
     if isinstance(value, ObjectiveSpec):
         return _objective_spec_to_dict(value)
     if isinstance(value, Mapping):
