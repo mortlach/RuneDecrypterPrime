@@ -1,7 +1,10 @@
 # rune_decrypter_prime/api/__init__.py
 
 from .run import RunAPI, run
+from .run_result import RunResult
 from .specs import CipherSpec, SolverSpec, KeySpec
+from .run_spec import RawTextInput, NormalizedInput, SourceInputRef, RunSpec
+from .solver_report import SolverReport
 from .wrappers.by_name import by_name, cipher_instance
 from .normalize import (
     Direction,
@@ -26,9 +29,15 @@ from .data_helpers import (
 __all__ = [
     "RunAPI",
     "run",
+    "RunResult",
     "CipherSpec",
     "SolverSpec",
     "KeySpec",
+    "RawTextInput",
+    "NormalizedInput",
+    "SourceInputRef",
+    "RunSpec",
+    "SolverReport",
     "Direction",
     "normalize_ciphertext",
     "normalize_encoding_dir",
@@ -46,5 +55,5 @@ __all__ = [
     "load_lp_section",
     "load_lp_section_inputs",
     "by_name",
-    "cipher_instance"
+    "cipher_instance",
 ]

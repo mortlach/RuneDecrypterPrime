@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional, Sequence, Tuple
 
-from rune_decrypter_prime.data.asset_paths import resolve_assets_path, to_repo_relative
+from rune_decrypter_prime.data.asset_paths import (
+    find_repo_root,
+    resolve_assets_path,
+    to_repo_relative,
+)
 from rune_decrypter_prime.data.liber_primus.lp_data import LPSection, LP_DATA
 from rune_decrypter_prime.data.liber_primus.lp_registry import (
     LPFragmentLocator,
@@ -26,6 +32,7 @@ from rune_decrypter_prime.utils.runeglish import Runeglish
 
 _DEFAULT_LP_ASSETS_REL = Path("liber_primus")
 _MASTER_TRANSCRIPT_NAME = "liber-primus__transcription--master.txt"
+MASTER_TRANSCRIPT_ASSET_ID = "liber_primus.master_transcript"
 
 
 def default_master_transcript_path() -> Path:
@@ -35,6 +42,44 @@ def default_master_transcript_path() -> Path:
 MASTER_TRANSCRIPT = default_master_transcript_path()
 CANON_PAGE_COUNT = 58
 CANON_SUFFIX = ".jpg"
+
+
+def master_transcript_asset_identity() -> dict[str, str]:
+    asset_id, asset_version = _cached_master_transcript_asset_identity()
+    return {
+        "asset_id": asset_id,
+        "asset_version": asset_version,
+    }
+
+
+@lru_cache(maxsize=1)
+def _cached_master_transcript_asset_identity() -> tuple[str, str]:
+    root = find_repo_root(Path(__file__))
+    manifest_path = root / "assets_manifest_v1.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    rows = manifest.get("required_assets")
+    if not isinstance(rows, list):
+        raise RuntimeError("assets_manifest_v1.json required_assets must be a list")
+    matches = [
+        row
+        for row in rows
+        if isinstance(row, dict) and row.get("asset_id") == MASTER_TRANSCRIPT_ASSET_ID
+    ]
+    if len(matches) != 1:
+        raise RuntimeError(_master_transcript_manifest_error("expected exactly one manifest row"))
+    row = matches[0]
+    asset_version = row.get("asset_version")
+    if not isinstance(asset_version, str) or not asset_version:
+        raise RuntimeError(_master_transcript_manifest_error("asset_version must be defined"))
+    if row.get("version_scheme") != "sha256":
+        raise RuntimeError(_master_transcript_manifest_error("version_scheme must be 'sha256'"))
+    if row.get("sha256") != asset_version:
+        raise RuntimeError(_master_transcript_manifest_error("asset_version must match sha256"))
+    return MASTER_TRANSCRIPT_ASSET_ID, asset_version
+
+
+def _master_transcript_manifest_error(detail: str) -> str:
+    return f"Manifest row for asset_id={MASTER_TRANSCRIPT_ASSET_ID!r}: {detail}"
 
 
 @dataclass(frozen=True)

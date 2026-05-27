@@ -39,3 +39,29 @@ def test_repo_tidy_flags_root_runtime_artifacts() -> None:
     issues = _check_tree_policy([Path("setup.log"), Path("setup_report.json")])
     assert issues
     assert any(issue.path == "setup.log" for issue in issues)
+
+
+def test_absolute_path_sweep_distinguishes_local_and_fixture_surfaces(tmp_path: Path) -> None:
+    windows_root = "c:" + "\\Python"
+    unix_private = "/" + "home/name/private"
+    tmp_private = "/" + "tmp/private"
+    windows_private = "C:" + "\\Users\\name\\private.txt"
+
+    (tmp_path / "AGENTS.md").write_text(f"Python is likely at {windows_root}\n", encoding="utf-8")
+    (tmp_path / "planning").mkdir()
+    (tmp_path / "planning" / "note.md").write_text(f"local {unix_private} note\n", encoding="utf-8")
+    (tmp_path / "tests" / "scoring").mkdir(parents=True)
+    (tmp_path / "tests" / "test_artifact_policy.py").write_text(
+        f'RuntimeError("cannot write {unix_private}/secret.txt")\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "tests" / "scoring" / "test_retained_state_plaintext_rescore.py").write_text(
+        f'Path("{tmp_private}")\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "leak.py").write_text(f'PATH = r"{windows_private}"\n', encoding="utf-8")
+
+    result = run_sweep(tmp_path)
+
+    assert [issue.path for issue in result.absolute_path_issues] == ["src/leak.py"]

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -124,6 +126,28 @@ def test_candidate_representation_must_be_plaintext_idx() -> None:
 def test_source_ref_is_not_accepted_by_first_dataclass() -> None:
     with pytest.raises(TypeError):
         PlaintextRetainedCandidate([1], source_ref="lp")  # type: ignore[call-arg]
+
+
+def test_candidate_rejects_path_metadata_fields() -> None:
+    with pytest.raises(TypeError, match="candidate_id"):
+        PlaintextRetainedCandidate([1], candidate_id=Path("/tmp/private"))
+
+    with pytest.raises(TypeError, match="alphabet"):
+        PlaintextRetainedCandidate([1], alphabet=Path("/tmp/private"))
+
+    with pytest.raises(TypeError, match="tokenization"):
+        PlaintextRetainedCandidate([1], tokenization=Path("/tmp/private"))
+
+
+def test_candidate_metadata_fields_must_be_strings() -> None:
+    with pytest.raises(TypeError, match="alphabet"):
+        PlaintextRetainedCandidate([1], alphabet=123)
+
+    with pytest.raises(TypeError, match="tokenization"):
+        PlaintextRetainedCandidate([1], tokenization=123)
+
+    with pytest.raises(TypeError, match="candidate_id"):
+        PlaintextRetainedCandidate([1], candidate_id=123)
 
 
 def test_score_plaintext_candidate_calls_scorer_with_plaintext_and_wli() -> None:

@@ -49,6 +49,14 @@ class LoggingConfig:
     fixed_run_dir: Optional[str] = None
     redact_identity: bool = False
     portable_output: bool = False
+    write_solver_report: bool = False
+    write_run_artifacts_manifest: bool = False
+
+    def __post_init__(self) -> None:
+        if type(self.write_solver_report) is not bool:
+            raise TypeError("write_solver_report must be a bool")
+        if type(self.write_run_artifacts_manifest) is not bool:
+            raise TypeError("write_run_artifacts_manifest must be a bool")
 
 # ----------------------------
 # Module state & simple accessors

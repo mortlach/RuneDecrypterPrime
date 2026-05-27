@@ -28,9 +28,7 @@ from typing import Iterable, Iterator, Mapping, Sequence
 
 # Set this only when running the script from an unpacked patch folder rather than
 # from its final location inside the repo. Leave as None for normal repo runs.
-REPO_ROOT_OVERRIDE: Path | None = Path(r"C:\Users\sjduk\Documents\GitHub\cic\RuneDecrypterPrime")
-# This explicit repo root is deliberate for local PyCharm runs from an unpacked/nested patch folder.
-# Change it only if the real RuneDecrypterPrime checkout moves.
+REPO_ROOT_OVERRIDE: Path | None = None
 
 
 def find_repo_root(start: Path) -> Path:
@@ -61,7 +59,7 @@ RUN_LABEL = "phaseB_filtered_ngram_index_v1"
 RUN_MODE = "full"  # "sample" or "full"
 
 # Root is optional. Paths below may be absolute or relative to REPO_ROOT.
-RAW_NGRAM_ROOT = Path(r"C:\Users\sjduk\Documents\google_ngrams_Version-20200217")
+RAW_NGRAM_ROOT = Path("data/scoring/google_ngrams_Version-20200217")
 
 # Use explicit per-order files for the five-file layout. Example:
 # RAW_NGRAM_FILES_BY_ORDER = {
@@ -104,7 +102,7 @@ OUTPUT_ROOT = Path(
 )
 CREATE_TIMESTAMPED_RUN_DIR = True
 
-# Safety limits for first PyCharm runs. FULL mode ignores SAMPLE_LINE_LIMIT_PER_ORDER.
+# Safety limits for first local runs. FULL mode ignores SAMPLE_LINE_LIMIT_PER_ORDER.
 SAMPLE_LINE_LIMIT_PER_ORDER = 25_000
 PROGRESS_EVERY_LINES = 250_000
 

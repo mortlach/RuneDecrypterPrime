@@ -46,6 +46,20 @@ def test_manifest_parsing_accepts_required_assets_contract(tmp_path: Path):
     assert assets[0].parts == ("lm/sample.bin.part001", "lm/sample.bin.part002")
 
 
+def test_repo_asset_manifest_required_assets_parse_cleanly():
+    manifest_path = Path(__file__).resolve().parents[2] / "assets_manifest_v1.json"
+
+    raw, read_issues = sp._read_manifest(manifest_path)
+    assets, parse_issues = sp._parse_required_assets(raw)
+
+    assert read_issues == []
+    assert parse_issues == []
+    assert any(
+        asset.final_relpath == "liber_primus/liber-primus__transcription--master.txt"
+        for asset in assets
+    )
+
+
 def test_manifest_parsing_accepts_forward_links():
     manifest = {
         "required_assets": [],

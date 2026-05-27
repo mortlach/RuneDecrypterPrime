@@ -38,7 +38,7 @@ The raw source file name is preserved in the `source_file` column and in `raw_ng
 For the five-file local layout, set:
 
 ```python
-RAW_NGRAM_ROOT = Path(r"C:\Users\sjduk\Documents\google_ngrams_Version-20200217")
+RAW_NGRAM_ROOT = Path("data/scoring/google_ngrams_Version-20200217")
 RAW_NGRAM_FILES_BY_ORDER = {
     1: [Path("1grams.txt")],
     2: [Path("2grams.txt")],

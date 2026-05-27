@@ -7,6 +7,7 @@ from rune_decrypter_prime.data.liber_primus.lp_master import (
     extract_locator_ct_wli,
     extract_partition_entry_ct_wli,
     glyph_span_from_partition_entry,
+    master_transcript_asset_identity,
     page_view_from_ref,
 )
 from rune_decrypter_prime.data.liber_primus.lp_registry import LPFragmentLocator, LPPageRef, LPPartitionEntry
@@ -35,6 +36,15 @@ class LPSolverPayload:
         }
 
 
+def _source_metadata(source_kind: str) -> dict[str, str]:
+    metadata = master_transcript_asset_identity()
+    return {
+        "source_kind": source_kind,
+        "asset_id": metadata["asset_id"],
+        "asset_version": metadata["asset_version"],
+    }
+
+
 def payload_from_locator(
     doc: LPTranscript,
     locator: LPFragmentLocator,
@@ -50,6 +60,7 @@ def payload_from_locator(
         ct_idx, wli = extract_locator_ct_wli(doc, locator)
         metadata = {
             "source": "locator",
+            **_source_metadata("liber_primus.locator"),
             "page_scheme": locator.page_ref.scheme.value,
             "page_number": locator.page_ref.number,
             "line": locator.line,
@@ -74,6 +85,7 @@ def payload_from_locator(
     ct_idx, wli = _ct_wli_from_rune_text(routed_text)
     metadata = {
         "source": "locator",
+        **_source_metadata("liber_primus.locator"),
         "page_scheme": locator.page_ref.scheme.value,
         "page_number": locator.page_ref.number,
         "line": locator.line,
@@ -95,6 +107,7 @@ def payload_from_partition_entry(
         ct_idx, wli = extract_partition_entry_ct_wli(doc, entry)
         metadata = {
             "source": "partition",
+            **_source_metadata("liber_primus.partition"),
             "partition_scheme": entry.scheme.value,
             "partition_ordinal": entry.ordinal.render(),
             "canon_start": entry.start_page.number,
@@ -109,6 +122,7 @@ def payload_from_partition_entry(
     ct_idx, wli = intersected.ct_wli()
     metadata = {
         "source": "partition",
+        **_source_metadata("liber_primus.partition"),
         "partition_scheme": entry.scheme.value,
         "partition_ordinal": entry.ordinal.render(),
         "canon_start": entry.start_page.number,

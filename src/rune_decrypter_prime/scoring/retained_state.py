@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Iterable, Literal, Mapping
 
 import numpy as np
@@ -71,6 +72,18 @@ def _normalize_wli(
     return tuple(out)
 
 
+def _metadata_str(value: Any, *, field_name: str, allow_none: bool = False) -> str | None:
+    if value is None:
+        if allow_none:
+            return None
+        raise TypeError(f"{field_name} must be a string")
+    if isinstance(value, Path):
+        raise TypeError(f"{field_name} must be a string, not Path")
+    if not isinstance(value, str):
+        raise TypeError(f"{field_name} must be a string")
+    return value
+
+
 @dataclass(frozen=True, slots=True, init=False)
 class PlaintextRetainedCandidate:
     candidate_representation: Literal["plaintext_idx"]
@@ -99,10 +112,14 @@ class PlaintextRetainedCandidate:
         object.__setattr__(self, "candidate_representation", "plaintext_idx")
         object.__setattr__(self, "plaintext_idx", pt)
         object.__setattr__(self, "wli", norm_wli)
-        object.__setattr__(self, "alphabet", str(alphabet))
+        object.__setattr__(self, "alphabet", _metadata_str(alphabet, field_name="alphabet"))
         object.__setattr__(self, "direction", ensure_direction(direction))
-        object.__setattr__(self, "tokenization", str(tokenization))
-        object.__setattr__(self, "candidate_id", None if candidate_id is None else str(candidate_id))
+        object.__setattr__(self, "tokenization", _metadata_str(tokenization, field_name="tokenization"))
+        object.__setattr__(
+            self,
+            "candidate_id",
+            _metadata_str(candidate_id, field_name="candidate_id", allow_none=True),
+        )
 
 
 def score_plaintext_candidate(

@@ -7,6 +7,18 @@
   ],
   "assets_root": "assets",
   "packed_root": "assets_packed",
-  "required_assets": [],
+  "required_assets": [
+    {
+      "asset_id": "liber_primus.master_transcript",
+      "asset_version": "105f1c68cecde03df1e66982d3021ab31d7f49ee975ca109d1a1924cbcafc99c",
+      "version_scheme": "sha256",
+      "final_relpath": "liber_primus/liber-primus__transcription--master.txt",
+      "sha256": "105f1c68cecde03df1e66982d3021ab31d7f49ee975ca109d1a1924cbcafc99c",
+      "size_bytes": 55485,
+      "parts": [
+        "liber_primus/liber-primus__transcription--master.txt.part001"
+      ]
+    }
+  ],
   "forward_links": []
 }

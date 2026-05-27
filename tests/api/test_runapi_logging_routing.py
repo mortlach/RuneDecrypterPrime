@@ -5,6 +5,7 @@ import json
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 
 from rune_decrypter_prime.api import CipherSpec, Direction, KeySpec, RunAPI, SolverSpec
 from rune_decrypter_prime.api import pipeline
@@ -65,6 +66,8 @@ def test_runapi_logging_display_only_keys_do_not_initialize(monkeypatch):
         {"write_jsonl": False},
         {"portable_output": False},
         {"redact_identity": False},
+        {"write_solver_report": False},
+        {"write_run_artifacts_manifest": False},
         {"portable": True},
     ):
         captured = _runapi_logging_route(monkeypatch, logging)
@@ -89,6 +92,18 @@ def test_runapi_logging_explicit_durable_dict_initializes(monkeypatch, tmp_path)
     assert captured["logging_config"].run_kind == "tests"
     assert captured["logging_runtime"] == {"log_interval": 9}
     assert captured["initialize_logging"] is True
+
+
+@pytest.mark.parametrize("value", [1, 0, "true"])
+def test_runapi_logging_rejects_non_bool_write_solver_report(monkeypatch, value):
+    with pytest.raises(TypeError, match="write_solver_report"):
+        _runapi_logging_route(monkeypatch, {"write_solver_report": value})
+
+
+@pytest.mark.parametrize("value", [1, 0, "true"])
+def test_runapi_logging_rejects_non_bool_write_run_artifacts_manifest(monkeypatch, value):
+    with pytest.raises(TypeError, match="write_run_artifacts_manifest"):
+        _runapi_logging_route(monkeypatch, {"write_run_artifacts_manifest": value})
 
 
 def test_runapi_logging_config_instance_initializes(monkeypatch, tmp_path):

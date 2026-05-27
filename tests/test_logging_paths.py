@@ -82,6 +82,8 @@ def test_logging_config_default_identity_behavior_is_unchanged():
         assert meta["user"] is not None
         assert meta["host"] is not None
         assert snap["portable_output"] is False
+        assert snap["write_solver_report"] is False
+        assert snap["write_run_artifacts_manifest"] is False
     finally:
         logging_config._PATHS.clear()
         logging_config._PATHS.update(prev_paths)

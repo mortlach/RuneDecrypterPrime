@@ -7,7 +7,14 @@ from rune_decrypter_prime.core.config.logging_config import LoggingConfig as Cor
 
 _RUNTIME_LOGGING_KEYS = {"progress_callback", "log_interval"}
 _DURABLE_OUTPUT_PATH_KEYS = {"out_root", "fixed_run_dir", "repo_root", "run_kind", "label"}
-_DURABLE_OUTPUT_TRUE_KEYS = {"portable_output", "redact_identity", "write_jsonl"}
+_DURABLE_OUTPUT_TRUE_KEYS = {
+    "portable_output",
+    "redact_identity",
+    "write_jsonl",
+    "write_solver_report",
+    "write_run_artifacts_manifest",
+}
+_STRICT_BOOL_KEYS = {"write_solver_report", "write_run_artifacts_manifest"}
 
 
 @dataclass(frozen=True)
@@ -36,8 +43,11 @@ def normalize_logging_cfg(logging: Any) -> CoreLoggingConfig:
             "fixed_run_dir",
             "redact_identity",
             "portable_output",
+            "write_solver_report",
+            "write_run_artifacts_manifest",
         }
         filtered = {k: v for k, v in cfg.items() if k in allowed}
+        _validate_strict_bool_keys(filtered)
         for path_key in ("out_root", "repo_root", "fixed_run_dir"):
             value = filtered.get(path_key)
             if value is not None and not isinstance(value, str):
@@ -53,10 +63,17 @@ def normalize_logging_cfg(logging: Any) -> CoreLoggingConfig:
 
 
 def _dict_requests_durable_output(logging: dict[str, Any]) -> bool:
+    _validate_strict_bool_keys(logging)
     for key in _DURABLE_OUTPUT_PATH_KEYS:
         if key in logging and logging[key] is not None:
             return True
     return any(bool(logging.get(key)) for key in _DURABLE_OUTPUT_TRUE_KEYS)
+
+
+def _validate_strict_bool_keys(logging: dict[str, Any]) -> None:
+    for key in _STRICT_BOOL_KEYS:
+        if key in logging and type(logging[key]) is not bool:
+            raise TypeError(f"{key} must be a bool")
 
 
 def _route_logging_input(logging: Any) -> _LoggingRoute:

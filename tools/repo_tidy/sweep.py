@@ -52,6 +52,17 @@ IGNORED_TOP_DIRS = {
     "output",
 }
 
+LOCAL_ONLY_ROOT_FILES = {
+    # Agent/dev-ops context; local-only like planning/ and not distributable RDP content.
+    "AGENTS.md",
+}
+
+ABSOLUTE_PATH_FIXTURE_FILES = {
+    # Named privacy/redaction tests deliberately contain machine-path examples.
+    Path("tests/test_artifact_policy.py"),
+    Path("tests/scoring/test_retained_state_plaintext_rescore.py"),
+}
+
 TEXT_SUFFIXES = {
     ".py",
     ".md",
@@ -105,6 +116,8 @@ def _iter_repo_files(repo_root: Path) -> List[Path]:
         if child.name in IGNORED_TOP_DIRS:
             continue
         if child.is_file():
+            if child.name in LOCAL_ONLY_ROOT_FILES:
+                continue
             files.append(child.relative_to(repo_root))
             continue
         if not child.is_dir():
@@ -248,6 +261,8 @@ def _is_text_candidate(path: Path) -> bool:
 def _check_absolute_paths(repo_root: Path, paths: Iterable[Path]) -> List[SweepIssue]:
     issues: List[SweepIssue] = []
     for rel_path in paths:
+        if rel_path in ABSOLUTE_PATH_FIXTURE_FILES:
+            continue
         if not _is_text_candidate(rel_path):
             continue
         full_path = repo_root / rel_path

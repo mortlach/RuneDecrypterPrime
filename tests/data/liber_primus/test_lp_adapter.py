@@ -23,6 +23,10 @@ from rune_decrypter_prime.data.liber_primus.lp_routes import (
 
 pytestmark = pytest.mark.tier_a
 
+LP_MASTER_TRANSCRIPT_SHA256 = (
+    "105f1c68cecde03df1e66982d3021ab31d7f49ee975ca109d1a1924cbcafc99c"
+)
+
 
 def test_payload_from_locator_matches_direct_ct_wli() -> None:
     doc = load_master_transcript(attach_catalogue=True)
@@ -32,6 +36,9 @@ def test_payload_from_locator_matches_direct_ct_wli() -> None:
     assert payload.ct_idx == ct_direct
     assert payload.wli == wli_direct
     assert payload.metadata["route"] == "none"
+    assert payload.metadata["source_kind"] == "liber_primus.locator"
+    assert payload.metadata["asset_id"] == "liber_primus.master_transcript"
+    assert payload.metadata["asset_version"] == LP_MASTER_TRANSCRIPT_SHA256
 
 
 def test_payload_from_partition_entry_matches_direct_ct_wli() -> None:
@@ -42,6 +49,9 @@ def test_payload_from_partition_entry_matches_direct_ct_wli() -> None:
     assert payload.ct_idx == ct_direct
     assert payload.wli == wli_direct
     assert payload.metadata["partition_ordinal"] == "1"
+    assert payload.metadata["source_kind"] == "liber_primus.partition"
+    assert payload.metadata["asset_id"] == "liber_primus.master_transcript"
+    assert payload.metadata["asset_version"] == LP_MASTER_TRANSCRIPT_SHA256
 
 
 def test_payload_from_partition_entry_page_intersection_is_deterministic() -> None:
