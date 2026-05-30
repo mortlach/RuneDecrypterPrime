@@ -43,6 +43,9 @@ static core::PhraseProfile parse_profile(const py::dict& row) {
         profile.has_normalised_hd_ceiling = true;
         profile.normalised_hd_ceiling = py::cast<double>(row["normalised_hd_ceiling"]);
     }
+    if (row.contains("exact_match_word_lengths")) {
+        profile.exact_match_word_lengths = py::cast<std::vector<int>>(row["exact_match_word_lengths"]);
+    }
     return profile;
 }
 

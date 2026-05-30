@@ -15,6 +15,15 @@ from rune_decrypter_prime.scoring.ngram_hamming.fast_backend import (
     fast_ngram_hamming_available,
     scan_chunk_fast,
 )
+from rune_decrypter_prime.scoring.ngram_hamming.bridge import (
+    NgramProfileSpec,
+    PhraseCluster,
+    bridge_profile_specs,
+    canonical_profile_specs,
+    cluster_hits_overlap_touch,
+    profile_manifest_hash,
+    profile_manifest_rows,
+)
 
 __all__ = [
     "PhraseEntry",
@@ -28,4 +37,11 @@ __all__ = [
     "scan_chunk_reference",
     "fast_ngram_hamming_available",
     "scan_chunk_fast",
+    "NgramProfileSpec",
+    "PhraseCluster",
+    "bridge_profile_specs",
+    "canonical_profile_specs",
+    "cluster_hits_overlap_touch",
+    "profile_manifest_hash",
+    "profile_manifest_rows",
 ]

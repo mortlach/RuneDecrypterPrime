@@ -154,6 +154,69 @@ def test_fast_backend_rejects_below_min_length() -> None:
     _assert_parity([1, 2], [_entry("short", ((1,), (2,)))], _profile(min_phrase_token_length=3))
 
 
+def test_fast_backend_matches_len8_profiles_scan_the_full_phrase() -> None:
+    entry = _entry("long_phrase", ((1, 2, 3, 4), (5, 6, 7, 8), (9, 10, 11)))
+    tokens = [1, 2, 3, 4, 5, 6, 7, 8, 20, 21, 22]
+    p2 = _profile(
+        profile_id="P2_conservative_len8_hd2",
+        orders=(3,),
+        min_phrase_token_length=8,
+        max_total_phrase_hd=2,
+        max_word_hd=1,
+    )
+    p3 = _profile(
+        profile_id="P3_word_shape_guarded_len8_hd2",
+        orders=(3,),
+        min_phrase_token_length=8,
+        max_total_phrase_hd=2,
+        max_word_hd=1,
+        exact_match_word_lengths=(1, 2),
+    )
+
+    _assert_parity(tokens, [entry], p2)
+    _assert_parity(tokens, [entry], p3)
+    assert _fast_payload(tokens, [entry], p2)["phrase_hits"] == []
+    assert _fast_payload(tokens, [entry], p3)["phrase_hits"] == []
+
+
+def test_fast_backend_matches_all_candidate_offsets() -> None:
+    entry = _entry("offset_phrase", ((9, 9, 9), (8, 8, 8), (7, 7)))
+    tokens = [1, 2, 3, 9, 9, 9, 8, 8, 8, 7, 7, 4]
+    profile = _profile(orders=(3,), min_phrase_token_length=8, max_total_phrase_hd=0, max_word_hd=0)
+
+    _assert_parity(tokens, [entry], profile)
+    payload = _fast_payload(tokens, [entry], profile)
+
+    assert payload["candidate_start_offsets_considered"] == len(tokens)
+    assert payload["phrase_hits"][0]["hit_start"] == 3
+    assert payload["phrase_hits"][0]["hit_end"] == 11
+
+
+def test_fast_backend_matches_p3_short_word_exact_guard() -> None:
+    entry = _entry("short_word_guard", ((1, 2), (3, 4, 5), (6, 7, 8)))
+    tokens = [1, 9, 3, 4, 5, 6, 7, 8]
+    p2 = _profile(
+        profile_id="P2_conservative_len8_hd2",
+        orders=(3,),
+        min_phrase_token_length=8,
+        max_total_phrase_hd=2,
+        max_word_hd=1,
+    )
+    p3 = _profile(
+        profile_id="P3_word_shape_guarded_len8_hd2",
+        orders=(3,),
+        min_phrase_token_length=8,
+        max_total_phrase_hd=2,
+        max_word_hd=1,
+        exact_match_word_lengths=(1, 2),
+    )
+
+    _assert_parity(tokens, [entry], p2)
+    _assert_parity(tokens, [entry], p3)
+    assert len(_fast_payload(tokens, [entry], p2)["phrase_hits"]) == 1
+    assert _fast_payload(tokens, [entry], p3)["phrase_hits"] == []
+
+
 def test_fast_backend_rejects_total_hd() -> None:
     _assert_parity([9, 8, 7], [_entry("p1", ((1, 2), (3,)))], _profile(max_total_phrase_hd=2, max_word_hd=2))
 

@@ -20,6 +20,7 @@ import json
 import math
 import re
 import sys
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -228,6 +229,17 @@ def utc_label() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
+def format_duration(seconds: float | None) -> str:
+    if seconds is None or seconds < 0:
+        return "unknown"
+    total = int(seconds)
+    minutes, sec = divmod(total, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"{hours}h{minutes:02d}m{sec:02d}s"
+    return f"{minutes}m{sec:02d}s"
+
+
 def resolve_path(path_like: Path | str, *, repo_root: Path, base: Path | None = None) -> Path:
     p = Path(path_like).expanduser()
     if p.is_absolute():
@@ -296,7 +308,9 @@ def jsonable_config(config: BuildConfig) -> dict[str, object]:
         "enabled_orders": [int(v) for v in config.enabled_orders],
         "enabled_cuts": list(config.enabled_cuts),
         "enabled_directions": list(config.enabled_directions),
-        "sample_line_limit_per_order": int(config.sample_line_limit_per_order),
+        "sample_line_limit_per_order": (
+            None if config.sample_line_limit_per_order is None else int(config.sample_line_limit_per_order)
+        ),
         "require_plain_lowercase_words": bool(config.require_plain_lowercase_words),
         "aggregate_duplicate_rune_keys": bool(config.aggregate_duplicate_rune_keys),
         "word_sep_byte": int(WORD_SEP_BYTE),
@@ -508,12 +522,17 @@ def scan_sources_for_order(
 
     max_lines = None if config.run_mode == "full" else int(config.sample_line_limit_per_order)
     total_lines_for_order = 0
+    total_files = len(paths)
+    total_bytes = sum(int(path.stat().st_size) for path in paths if path.exists())
+    completed_bytes = 0
+    order_started = time.monotonic()
 
-    for fp in paths:
+    for file_index, fp in enumerate(paths, start=1):
         if not fp.exists():
             raise FileNotFoundError(f"N-gram source file not found: {fp}")
         stat = SourceStats(n=int(n), source_file=str(fp), bytes_total=int(fp.stat().st_size))
         source_stats.append(stat)
+        file_started = time.monotonic()
         with fp.open("r", encoding="utf-8", errors="replace") as fh:
             for line in fh:
                 if max_lines is not None and total_lines_for_order >= max_lines:
@@ -563,7 +582,29 @@ def scan_sources_for_order(
                         out_stat.count_sum += int(parsed.count)
 
                 if config.progress_every_lines > 0 and total_lines_for_order % int(config.progress_every_lines) == 0:
-                    print(f"[{RUN_LABEL}] n={n} lines={total_lines_for_order:,} file={fp.name}", flush=True)
+                    elapsed = time.monotonic() - order_started
+                    completed_fraction = completed_bytes / total_bytes if total_bytes else 0.0
+                    eta = (elapsed / completed_fraction - elapsed) if completed_fraction > 0 else None
+                    line_rate = total_lines_for_order / elapsed if elapsed > 0 else 0.0
+                    print(
+                        f"[{RUN_LABEL}] n={n} files_completed={file_index - 1}/{total_files} "
+                        f"completed_bytes={completed_bytes:,}/{total_bytes:,} "
+                        f"lines={total_lines_for_order:,} current_file={fp.name} "
+                        f"elapsed={format_duration(elapsed)} eta_by_completed_bytes={format_duration(eta)} "
+                        f"lines_per_sec={line_rate:,.1f}",
+                        flush=True,
+                    )
+        completed_bytes += stat.bytes_total
+        elapsed = time.monotonic() - order_started
+        completed_fraction = completed_bytes / total_bytes if total_bytes else 0.0
+        eta = (elapsed / completed_fraction - elapsed) if completed_fraction > 0 else None
+        print(
+            f"[{RUN_LABEL}] n={n} files_completed={file_index}/{total_files} "
+            f"completed_bytes={completed_bytes:,}/{total_bytes:,} "
+            f"file_elapsed={format_duration(time.monotonic() - file_started)} "
+            f"elapsed={format_duration(elapsed)} eta_by_completed_bytes={format_duration(eta)}",
+            flush=True,
+        )
         if max_lines is not None and total_lines_for_order >= max_lines:
             break
 
@@ -750,7 +791,11 @@ def build_filtered_ngram_indexes(config: BuildConfig) -> Path:
     write_filtered_summary(out_dir / "filtered_ngram_summary.csv", all_output_stats)
     write_readout(out_dir / "readout.md", config=config, output_stats=all_output_stats, dictionary_sets=dictionary_sets)
 
-    print(f"[{RUN_LABEL}] wrote: {out_dir}", flush=True)
+    try:
+        display_out_dir = out_dir.resolve().relative_to(config.repo_root.resolve()).as_posix()
+    except ValueError:
+        display_out_dir = str(out_dir)
+    print(f"[{RUN_LABEL}] wrote: {display_out_dir}", flush=True)
     return out_dir
 
 

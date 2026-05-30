@@ -19,6 +19,7 @@ struct PhraseProfile {
     int max_word_hd = 0;
     bool has_normalised_hd_ceiling = false;
     double normalised_hd_ceiling = 0.0;
+    std::vector<int> exact_match_word_lengths;
 };
 
 struct PhraseEntry {
@@ -146,6 +147,9 @@ inline bool verify_phrase_at_start(
             return false;
         }
         int distance = hamming_at(tokens, offset, word);
+        if (contains_int(profile.exact_match_word_lengths, static_cast<int>(word.size())) && distance != 0) {
+            return false;
+        }
         if (distance > profile.max_word_hd) {
             return false;
         }
