@@ -1,0 +1,126 @@
+[
+  {
+    "test": "test_beam_knobs_effect",
+    "files": [
+      "tests/solvers/test_beam_knobs_effect.py"
+    ],
+    "exists": [
+      "false"
+    ]
+  },
+  {
+    "test": "test_determinism_canary",
+    "files": [
+      "tests/smoke/test_determinism_canary.py"
+    ],
+    "exists": [
+      "true"
+    ]
+  },
+  {
+    "test": "test_ecdf_",
+    "files": [],
+    "exists": []
+  },
+  {
+    "test": "test_keyops_mutation_locality_distribution",
+    "files": [],
+    "exists": []
+  },
+  {
+    "test": "test_keyops_mutation_preserves_invariants",
+    "files": [],
+    "exists": []
+  },
+  {
+    "test": "test_lm_cache_isolation",
+    "files": [
+      "tests/scoring/test_lm_cache_isolation.py"
+    ],
+    "exists": [
+      "false"
+    ]
+  },
+  {
+    "test": "test_objective_direction_guard",
+    "files": [
+      "tests/contracts/test_objective_direction_guard.py"
+    ],
+    "exists": [
+      "false"
+    ]
+  },
+  {
+    "test": "test_permutation_space_interruptors",
+    "files": [
+      "tests/contracts/test_permutation_space_interruptors.py"
+    ],
+    "exists": [
+      "false"
+    ]
+  },
+  {
+    "test": "test_runapi_determinism",
+    "files": [
+      "tests/smoke/test_runapi_determinism.py"
+    ],
+    "exists": [
+      "true"
+    ]
+  },
+  {
+    "test": "test_score_ranking_parity_numpy_vs_torch",
+    "files": [],
+    "exists": []
+  },
+  {
+    "test": "test_score_ranking_parity_scalar_vs_batch",
+    "files": [],
+    "exists": []
+  },
+  {
+    "test": "test_scorer_pct_edges_and_clamps",
+    "files": [
+      "tests/scoring/test_scorer_pct_edges_and_clamps.py"
+    ],
+    "exists": [
+      "true"
+    ]
+  },
+  {
+    "test": "test_seed_validation_strict",
+    "files": [
+      "tests/solvers/test_seed_validation_strict.py"
+    ],
+    "exists": [
+      "false"
+    ]
+  },
+  {
+    "test": "test_windowing_spans",
+    "files": [
+      "tests/scoring/test_windowing_spans.py"
+    ],
+    "exists": [
+      "true"
+    ]
+  },
+  {
+    "test": "test_wli_invariants_string_path",
+    "files": [
+      "tests/contracts/test_wli_invariants_string_path.py"
+    ],
+    "exists": [
+      "false"
+    ]
+  },
+  {
+    "test": "test_wli_parity_runeglish",
+    "files": [
+      "tests/contracts/test_wli_parity_runeglish.py"
+    ],
+    "exists": [
+      "false"
+    ]
+  }
+]

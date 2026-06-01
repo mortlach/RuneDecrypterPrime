@@ -74,6 +74,70 @@ def test_phrase_min_length_rule() -> None:
     assert len(result.phrase_hits) == 0
 
 
+def test_len8_profiles_scan_the_full_phrase_not_first_eight_tokens() -> None:
+    entry = _entry("long_phrase", ((1, 2, 3, 4), (5, 6, 7, 8), (9, 10, 11)))
+    tokens = [1, 2, 3, 4, 5, 6, 7, 8, 20, 21, 22]
+    p2 = _profile(
+        profile_id="P2_conservative_len8_hd2",
+        orders=(3,),
+        min_phrase_token_length=8,
+        max_total_phrase_hd=2,
+        max_word_hd=1,
+    )
+    p3 = _profile(
+        profile_id="P3_word_shape_guarded_len8_hd2",
+        orders=(3,),
+        min_phrase_token_length=8,
+        max_total_phrase_hd=2,
+        max_word_hd=1,
+        exact_match_word_lengths=(1, 2),
+    )
+
+    assert scan_chunk_reference(tokens, [entry], p2).phrase_hits == ()
+    assert scan_chunk_reference(tokens, [entry], p3).phrase_hits == ()
+
+
+def test_scan_considers_every_candidate_token_offset() -> None:
+    entry = _entry("offset_phrase", ((9, 9, 9), (8, 8, 8), (7, 7)))
+    tokens = [1, 2, 3, 9, 9, 9, 8, 8, 8, 7, 7, 4]
+    profile = _profile(orders=(3,), min_phrase_token_length=8, max_total_phrase_hd=0, max_word_hd=0)
+
+    result = scan_chunk_reference(tokens, [entry], profile)
+
+    assert result.candidate_start_offsets_considered == len(tokens)
+    assert len(result.phrase_hits) == 1
+    assert result.phrase_hits[0].hit_start == 3
+    assert result.phrase_hits[0].hit_end == 11
+
+
+def test_p3_rejects_mismatch_in_short_words() -> None:
+    entry = _entry("short_word_guard", ((1, 2), (3, 4, 5), (6, 7, 8)))
+    tokens = [1, 9, 3, 4, 5, 6, 7, 8]
+    p2 = _profile(
+        profile_id="P2_conservative_len8_hd2",
+        orders=(3,),
+        min_phrase_token_length=8,
+        max_total_phrase_hd=2,
+        max_word_hd=1,
+    )
+    p3 = _profile(
+        profile_id="P3_word_shape_guarded_len8_hd2",
+        orders=(3,),
+        min_phrase_token_length=8,
+        max_total_phrase_hd=2,
+        max_word_hd=1,
+        exact_match_word_lengths=(1, 2),
+    )
+
+    p2_result = scan_chunk_reference(tokens, [entry], p2)
+    p3_result = scan_chunk_reference(tokens, [entry], p3)
+
+    assert len(p2_result.phrase_hits) == 1
+    assert p2_result.phrase_hits[0].word_lengths == (2, 3, 3)
+    assert p2_result.phrase_hits[0].word_hds == (1, 0, 0)
+    assert p3_result.phrase_hits == ()
+
+
 def test_total_phrase_hd_rule() -> None:
     entry = _entry("p1", ((1, 2), (3,)))
 

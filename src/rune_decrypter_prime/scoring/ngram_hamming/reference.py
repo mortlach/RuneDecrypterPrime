@@ -18,6 +18,7 @@ class PhraseProfile:
     max_total_phrase_hd: int
     max_word_hd: int
     normalised_hd_ceiling: float | None = None
+    exact_match_word_lengths: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -220,6 +221,8 @@ def verify_phrase_at_start(
         if end > len(tokens):
             return None
         distance = hamming(tokens[offset:end], word)
+        if len(word) in profile.exact_match_word_lengths and distance != 0:
+            return None
         if distance > profile.max_word_hd:
             return None
         word_hds.append(distance)

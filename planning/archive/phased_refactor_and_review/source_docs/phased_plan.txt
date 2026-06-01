@@ -1,0 +1,767 @@
+# RDP Phased Refactor Plan
+
+## Uniform campaign runner surface, no-WLI first, contract-safe delivery
+
+**Date:** 2026-03-02 (America/Los_Angeles)
+**Last synced:** 2026-03-04 (America/Los_Angeles)
+**Scope:** Strategy + campaign refactor in benchmark layer. No install/packaging work.
+
+---
+
+## 0) Summary
+
+We will deliver the long-term target (“one runner surface, one stage/pool engine, staged adaptivity, span-hamming integrated”) as a **phased roadmap** with strict compatibility gates.
+
+Key idea:
+
+* **Prove the framework on no-WLI first** (harder problem; 500-char target on 5 real texts).
+* Keep the **public v1.1 community benchmark contract unchanged** while we iterate internally.
+* Introduce a **separate internal schema/version** for no-WLI and wider flavour/cipher space.
+* Implement StageSpec/AdaptivePolicySpec first in the **tools/benchmarks layer**, not in the core engine.
+* Treat “rich ScorerResult everywhere” as **phased**: sidecar telemetry first, runtime adoption later.
+
+---
+
+## 1) Contracts
+
+### Track A — Public community benchmark v1.1 (unchanged)
+
+**Hard contract:**
+
+* Manifest/results JSONL row schemas remain unchanged.
+* Public restrictions remain (CPU/NumPy compliance etc.).
+* Dispatch remains limited to existing supported `order` values.
+* No public enum widening (no overloading order for no-WLI).
+
+**Allowed changes:**
+
+* Internal implementation refactors that still produce identical v1.1 bundles.
+* Additional *sidecar* artefacts (extra files) as long as:
+
+  * they do not change v1.1 required rows
+  * they don’t break validation
+
+### Track B — Internal extended campaign (new schema/version)
+
+**Purpose:**
+
+* Express no-WLI flavour, periodic_sub, richer stage specs, span roles/budgets, and future WLI catalogue.
+
+**Hard contract:**
+
+* New schema/version with an explicit `flavour` (or equivalent).
+* Internal dispatcher supports expanded flavour space.
+* Promotion to Track A is gated and deliberate.
+
+**Important rule:**
+
+* Do not overload existing public enums; internal schema introduces explicit fields.
+
+---
+
+## 2) Architecture boundaries (near-term)
+
+### “StageEngine” definition for this plan
+
+In this wave, “StageEngine” means:
+
+* a **benchmark-layer stage/pool engine** that orchestrates:
+
+  * stages
+  * candidate pools
+  * pruning/diversity
+  * telemetry
+  * adaptive decisions
+
+It is **not** a rewrite of `src/.../core/engine`.
+
+### Where implementation lives
+
+* StageSpec/AdaptivePolicySpec and shared orchestration live in:
+
+  * `tools/benchmarks/periodic_sub_trans/common/...` (or equivalent)
+* Existing flavour runners become thin wrappers around shared orchestration.
+
+---
+
+## 3) Guiding rules (non-negotiable)
+
+1. **No forks**: no separate pipelines per cipher kind; cipher differences expressed as operator schedules in spec.
+2. **Score-space correctness**: pool-collapsing decisions must use declared decision score spaces (no silent mixing).
+3. **Span-hamming is budgeted**: every use has scope/cadence/budget, with cost accounting.
+4. **Shadow mode first**: span evaluates and logs before it can influence decisions.
+5. **Oracle separation**: benchmark-only oracle annotations allowed; production decision paths must be oracle-free.
+6. **Determinism**: canonical JSON + SHA-256 fingerprints; seeded randomness only.
+
+---
+
+## 4) Preconditions (must be closed or explicitly guarded)
+
+These are “gates” before we call the refactor implementation-ready.
+
+### Gate P1 — scorer_schedule plumbing complete
+
+If StageSpec depends on objective-catalog control, then the code must actually apply scorer schedules.
+
+**Pass condition (all required):**
+
+* One shared scorer schedule DTO exists and is the single internal representation of scoring schedule selection.
+* All affected runners/adapters map `profile/config -> DTO -> effective scoring path` using the same DTO semantics.
+* Tests prove that changing scorer_schedule changes the effective scoring path in:
+  * community campaign adapter dispatch
+  * periodic_sub_trans col_then_sub
+  * periodic_sub_trans sub_then_col
+  * periodic_sub_trans no_wli (internal scope is acceptable)
+* Gate evidence includes test artefacts (not only logging statements).
+
+### Gate P2 — no-WLI torch AVG/full_text stability
+
+There is an open crash/stability gate.
+
+**Pass condition (either):**
+
+* (a) the crash is closed and reproducible stability is proven, or
+* (b) a tested fallback/guard policy exists (and is logged) that keeps runs usable.
+
+### Gate P3 — oracle / production decision separation
+
+Benchmark flows may still compute oracle metrics.
+
+Production decision paths are explicitly defined as:
+
+1. stop score / stop condition evaluation
+2. candidate prune/promote decisions (including tie-band expansion)
+3. winner selection
+
+Rule:
+
+* When `oracle_mode=off` (production), oracle inputs MUST NOT be consulted by any production decision path.
+* Oracle metrics may still be computed and logged as evaluation-only fields, but MUST NOT affect stop/prune/promote/winner decisions.
+
+Required trace fields (oracle separation proof):
+
+* `oracle_mode`: `off|benchmark_only`
+* `oracle_consulted_in_decisions`: boolean
+
+**Pass condition:** if `oracle_mode=off`, trace evidence shows `oracle_consulted_in_decisions=false` and code structure enforces the same rule for all production decision paths.
+
+---
+
+## 5) Phased plan
+
+### Phase 0 — Contract safety and plumbing
+
+**Goal:** make later work safe and meaningful.
+
+**Deliverables**
+
+* Track A: public v1.1 unchanged; validation still passes.
+* Close P1 scorer_schedule plumbing *or* explicitly declare it out-of-scope with a replacement mechanism.
+* Implement explicit oracle separation in runners/logging (benchmark-only vs production).
+* Close P2 torch AVG/full_text stability gate or implement tested fallback/guard.
+
+**Acceptance criteria**
+
+* Public v1.1 run bundle generation and validation remain green.
+* scorer_schedule is either functional and provably applied, or a documented alternative is adopted.
+* no-WLI runs have a clear “torch stability” status: stable or guarded (never ambiguous).
+
+---
+
+### Phase 1 — Structural cleanup: make runners configurable and extract shared utilities
+
+**Goal:** reduce coupling and enable shared stage orchestration.
+
+**Deliverables**
+
+* Replace mutable globals in each flavour runner with a typed “RunnerConfig” object.
+* Extract shared non-algorithmic utilities into `periodic_sub_trans/common`:
+
+  * deterministic ID/fingerprint helpers
+  * snapshot writers for instances/stages/summary
+  * consistent telemetry field naming
+  * pool container type (candidate list + basin labels + dedupe helpers)
+
+**Acceptance criteria**
+
+* No change in baseline behaviour for col→sub and sub→col when using extracted utilities.
+* Outputs remain comparable and validation continues to pass.
+* No new CLI-driven tuning surfaces; workflows remain run-file driven.
+
+---
+
+### Phase 2 — StageSpec + AdaptivePolicySpec in benchmark layer (framework introduction)
+
+**Goal:** introduce the stage/pool engine without rewriting solver internals.
+
+**Deliverables**
+
+* Define `StageSpec` and `AdaptivePolicySpec` (benchmark layer).
+* Implement a StageEngine that:
+
+  * runs a list of stages
+  * maintains a pool
+  * applies prune/diversity/tie-band rules
+  * records stage telemetry and decision trace
+* Port **col→sub** and **sub→col** runners to use StageEngine orchestration while preserving their current search shapes.
+
+**Acceptance criteria**
+
+* For col→sub and sub→col:
+
+  * StageEngine-driven runs match baseline outcomes within agreed tolerances.
+  * Stage-level telemetry exists and is consistent.
+* StageEngine is demonstrably “one engine” across those two flavours (spec changes only).
+
+---
+
+### Phase 3 — no-WLI integration into the same framework (no-WLI first-class)
+
+**Goal:** use the framework on the harder no-WLI problem.
+
+**Deliverables**
+
+* Add no-WLI flavour as a StageEngine-usable configuration:
+
+  * either as a third wrapper runner that calls StageEngine, or
+  * as an internal dispatch flavour in Track B (if ready)
+  * add an internal-only `configure_campaign_run(...)` entrypoint in no_wli runner, aligned with other flavours; it may enforce one canonical order with explicit config errors for unsupported orders
+* Make the “no-WLI 500-char target” the primary acceptance metric:
+
+  * 5 real texts, tracked solve rate vs time/cost.
+* Keep all solver inner loops numeric (no invasive scoring API changes yet).
+
+**Acceptance criteria**
+
+Phase 3 Acceptance (revised; order capability aligned)
+
+* Required in Phase 3:
+  * One canonical no-WLI order path is runnable under StageSpec/PolicySpec with uniform stage telemetry and trace outputs.
+  * The previously proven p7 ~1000-char path is representable as a concrete StageSpec list under that canonical order.
+  * no-WLI span-hamming shadow mode can run on that canonical order and produces cost + counterfactual telemetry.
+* Not required in Phase 3:
+  * Supporting both no-WLI orders (`col_then_sub` and `sub_then_col`) under unified dispatch.
+* Deferred to Phase 5 (Track B dispatch):
+  * Both no-WLI orders supported under a unified internal dispatcher/schema.
+
+---
+
+### Phase 4 — Span-hamming standardisation: shadow mode → decision roles
+
+**Goal:** incorporate span-hamming “fully”, safely, and measurably.
+
+**Deliverables**
+
+* Span roles become first-class in StageSpec:
+
+  * off/shadow/prune/gate/combined/judge
+* Shadow mode instrumentation includes:
+
+  * deterministic selection of evaluated candidates
+  * cost accounting (calls/time percentiles)
+  * prune-point counterfactuals (“what span would have done”)
+* Add “budgeted span evaluation” primitives:
+
+  * scope (basin reps preferred)
+  * cadence (every N / plateau / ambiguity)
+  * two-pass lite→full option
+* After shadow success, enable at least one decision-role pathway in no-WLI:
+
+  * Stage B span-prune and/or Stage C gated span usage.
+
+**Acceptance criteria**
+
+* Shadow mode success checklist is met:
+
+  * deterministic
+  * provenance unambiguous
+  * cost accounting consistent
+  * counterfactual prune-point fields present
+* Turning span from shadow→prune changes decisions only when enabled in spec.
+* Span cost is visible per stage; runs can be tuned rationally.
+
+---
+
+### Phase 5 — Track B internal extended campaign schema + dispatch
+
+**Goal:** unify expanded flavour space without touching public v1.1.
+
+**Deliverables**
+
+* Introduce `internal_campaign_schema_vNext` with explicit:
+
+  * `flavour` (no_wli vs wli)
+  * `cipher_family` (including periodic_sub)
+  * richer StageSpec catalog references
+* Add internal dispatcher that can run:
+
+  * no-WLI periodic_sub / col→sub / sub→col
+  * WLI catalogue later (defined, not necessarily implemented first)
+* Ensure internal results can still be collated and audited similarly to v1.1.
+
+**Acceptance criteria**
+
+* Track B runs are reproducible and collatable with stable IDs and outputs.
+* No changes required to Track A v1.1 validation pipeline.
+* Internal schema can represent the “500-char no-WLI push” and sweep curated option sets.
+* Both no-WLI orders (`col_then_sub` and `sub_then_col`) are supported under a unified internal dispatcher/schema.
+
+---
+
+### Phase 6 — ScorerResult evolution (sidecar → optional API → pervasive)
+
+**Goal:** move towards richer scoring outputs without breaking solver loops.
+
+**Deliverables**
+
+* Phase 6.1: structured scorer sidecar outputs (ScoreBundle/ScorerResult) for:
+
+  * survivors/top-k per stage
+  * basin representatives
+  * final winners
+* Phase 6.2: optional API exposure (opt-in) for new components
+* Phase 6.3: pervasive runtime adoption only after compatibility wrappers exist and performance impact is understood
+
+**Acceptance criteria**
+
+* Existing tutorial/solver flows remain functional without modification.
+* Sidecar outputs are stable and enable deeper offline analysis.
+* Any runtime adoption is gated by performance and compatibility tests.
+
+---
+
+## 6) Global acceptance criteria (what “success” means overall)
+
+### Minimum success (end of Phase 4)
+
+* One StageEngine orchestrates at least col→sub and sub→col in benchmark layer.
+* no-WLI is first-class under StageSpec/AdaptivePolicySpec.
+* Span-hamming is integrated with shadow mode and cost accounting, and can be promoted to decision roles safely.
+* Public v1.1 remains unchanged and valid.
+
+### Target success (end of Phase 5)
+
+* Internal Track B campaign can dispatch expanded flavour/cipher space (including periodic_sub).
+* The no-WLI 500-char target on 5 real texts is the main benchmark loop producing tuning evidence.
+* Community benchmark sweeps can sample curated strategy/scoring options with comparable telemetry.
+
+---
+
+## 7) Explicit risks and mitigations
+
+1. **More trials → more wrong-but-good basins**
+   Mitigation: basin-aware pruning, tie-band rules, independent judge signals (span) and cost-aware adaptivity.
+
+2. **Span-hamming cost dominates runtime**
+   Mitigation: strict budgets, basin-rep scope, cadence, two-pass lite→full, shadow-first evidence.
+
+3. **Score-space confusion undermines decisions**
+   Mitigation: explicit objective identity (normalisation + window policy), decision score space declared, provenance logged.
+
+4. **Refactor breaks public v1.1**
+   Mitigation: two-track contract; Track A unchanged; Track B for expansion.
+
+---
+
+## 8) What we are deliberately leaving open (by design)
+
+* Span-hamming’s role in WLI mode (allowed option, off by default).
+* The “canonical” adaptive scaling rule (to be discovered; use curated policy menu).
+* The “best” span integration pattern (judge/prune/gate/combined), explored via benchmark sampling after shadow.
+
+---
+
+
+
+
+## Appendix: Phase 2–4 implementation checklists
+
+These are written as **file-level, actionable checklists** for the refactor wave, consistent with the phased plan. They are deliberately conservative: no core engine rewrite, no public v1.1 schema changes, no invasive scorer API breaks.
+
+---
+
+# Phase 2 checklist
+
+## StageSpec + AdaptivePolicySpec in benchmark layer
+
+### P2.1 Define the spec types (benchmark layer)
+
+**Goal:** introduce StageSpec/AdaptivePolicySpec as typed objects that can be instantiated from config without touching core engine.
+
+* [ ] Create `tools/benchmarks/periodic_sub_trans/common/stage_spec.py`
+
+  * `StageSpec`
+  * `AuxObjectiveBinding`
+  * `StageBudget`
+  * `PrunePolicy`
+  * `DiversityPolicy`
+  * `PlateauPolicy`
+  * `TelemetryRequirements`
+* [ ] Create `tools/benchmarks/periodic_sub_trans/common/policy_spec.py`
+
+  * `AdaptivePolicySpec`
+  * `ScalingPolicySpec` (menu-based; IDs only for now)
+* [ ] Create `tools/benchmarks/periodic_sub_trans/common/catalogs.py`
+
+  * `ObjectiveCatalog` (IDs → scorer factory + identity/provenance)
+  * `OperatorCatalog` (IDs → operator functions / move schedules)
+* [ ] Ensure these specs can be created from existing runner/profile config patterns without adding new CLI knobs.
+
+**Acceptance checks**
+
+* [ ] Specs can be instantiated deterministically from a dict and round-tripped to canonical JSON for hashing.
+* [ ] Unsupported operators/objectives cause a config error early (no silent no-ops).
+
+---
+
+### P2.2 Implement StageEngine skeleton (benchmark layer)
+
+**Goal:** orchestrate “stage loop + pool + pruning + telemetry” while preserving existing flavour behaviour.
+
+* [ ] Create `tools/benchmarks/periodic_sub_trans/common/stage_engine.py`
+
+  * `StageEngine.run(spec, problem, seed) -> RunArtifacts`
+  * stage execution loop:
+
+    * initialise pool from seeds
+    * run stage search loop (delegated to existing flavour-specific search functions)
+    * apply prune/diversity/tie-band rules
+    * emit stage summary + decision trace
+* [ ] Create `tools/benchmarks/periodic_sub_trans/common/pool.py`
+
+  * `Candidate` (candidate_id, basin_id, score_bundle pointer/summary)
+  * `CandidatePool` (list + basin index + dedupe)
+  * helpers:
+
+    * `dedupe_before_prune`
+    * `cap_per_basin`
+    * tie-band expansion
+
+**Acceptance checks**
+
+* [ ] StageEngine can run with “Stage A only” and produce stage telemetry.
+* [ ] Pool pruning produces deterministic results given the same seed/spec.
+
+---
+
+### P2.3 Port col_then_sub and sub_then_col to StageEngine orchestration
+
+**Goal:** keep solver logic stable but move orchestration into shared code.
+
+* [ ] In `tools/benchmarks/periodic_sub_trans/col_then_sub/runner.py`
+
+  * wrap existing stage loops into functions callable by StageEngine, e.g.:
+
+    * `run_discovery_stage(...)`
+    * `run_promotion_stage(...)`
+    * `run_refinement_stage(...)`
+  * replace the existing “main orchestration” with:
+
+    * build StageSpec list (or map existing profile into StageSpecs)
+    * call StageEngine
+* [ ] Repeat for `tools/benchmarks/periodic_sub_trans/sub_then_col/runner.py`
+* [ ] Keep existing output artefacts (instances/stages/summary) identical where possible.
+
+**Acceptance checks**
+
+* [ ] For a fixed seed and a known small test case, outputs match baseline within tolerances.
+* [ ] Existing unit tests and benchmark smoke tests still pass.
+
+---
+
+### P2.4 Telemetry wiring (minimal but uniform)
+
+**Goal:** produce a uniform stage-row + trace stream without changing public v1.1 result rows.
+
+* [ ] Add `trace.jsonl` writer in `periodic_sub_trans/common/io.py` (or similar)
+
+  * `stage_start`, `stage_end`, `policy_decision`, `prune_applied`, `error`
+* [ ] Ensure stage rows include:
+
+  * pool in/out
+  * basin_count, dup_rate, domination_ratio
+  * score stats (best/median/spread/margin)
+  * budget used
+  * stage wall time
+* [ ] Make filenames include unique run/job identifiers (avoid second-resolution timestamp collisions).
+
+**Acceptance checks**
+
+* [ ] Trace is readable without code context (stage_id, rule_id, what changed).
+* [ ] No changes required to public v1.1 `results.jsonl` row schema.
+
+---
+
+# Phase 3 checklist
+
+## no-WLI first-class under StageSpec/PolicySpec
+
+### P3.1 Introduce a no-WLI flavour wrapper that calls StageEngine
+
+**Goal:** no-WLI uses the same orchestration framework, even if dispatch remains internal.
+
+* [ ] Create/modify `tools/benchmarks/periodic_sub_trans/no_wli/runner.py`
+
+  * expose stage functions compatible with StageEngine (same shape as col/sub runners)
+  * replace internal orchestration with StageEngine (as far as realistic)
+* [ ] Add explicit “flavour routing” only in internal tools (do not touch public community dispatch yet).
+
+**Acceptance checks**
+
+* [ ] The known p7 ~1000-char success path can be expressed as a concrete StageSpec list.
+* [ ] no-WLI produces the same core artefacts as other flavours (stage rows + trace + instance summary).
+
+---
+
+### P3.2 Basin identity and diversity rules become explicit and shared
+
+**Goal:** stop “more seeds = worse” via deterministic diversity controls.
+
+* [ ] Define basin/dedupe keys in one place (common module)
+
+  * initial default: `end_hash` basin key
+* [ ] Ensure dedupe happens before K and max-per-basin enforcement is applied consistently.
+
+**Acceptance checks**
+
+* [ ] Doubling seeds increases basin_count but does not explode duplicates retained.
+* [ ] Pruning decisions are stable and auditable.
+
+---
+
+### P3.3 Oracle separation enforcement
+
+**Goal:** benchmark-only oracle use is clearly separated from production decisions.
+
+* [ ] Add an explicit flag in spec/config:
+
+  * `oracle_mode: off|benchmark_only`
+* [ ] Define production decision paths explicitly in spec/code:
+
+  * stop score / stop condition evaluation
+  * candidate prune/promote decisions (including tie-band expansion)
+  * winner selection
+* [ ] Ensure any oracle metrics are written as:
+
+  * evaluation fields only
+  * not referenced by production decision code paths (enforced by code structure)
+* [ ] Emit required trace fields for proof:
+
+  * `oracle_mode`
+  * `oracle_consulted_in_decisions`
+
+**Acceptance checks**
+
+* [ ] If `oracle_mode=off`, trace proves `oracle_consulted_in_decisions=false`.
+* [ ] Production mode decisions (stop/prune/promote/winner) are oracle-free by code structure and tests.
+* [ ] Benchmark-only mode may log oracle evaluation fields, but they do not influence production decisions.
+
+---
+
+# Phase 4 checklist
+
+## Span-hamming: shadow mode → decision roles (budgeted, measurable)
+
+### P4.1 Span roles become first-class in StageSpec
+
+**Goal:** make span integration explicit and enforceable.
+
+* [ ] Extend `AuxObjectiveBinding` to include:
+
+  * `role`: off/shadow/prune/gate/combined/judge
+  * `eval_scope`: basin_reps/top_k_global/all
+  * `cadence`: once_end/every_n_rounds/on_plateau/on_ambiguity
+  * `budget_ms` / `budget_calls`
+  * `span_profile`: lite/full
+  * optional two-pass policy (lite→full)
+
+**Acceptance checks**
+
+* [ ] StageEngine enforces: role=shadow cannot affect pruning/winner selection.
+* [ ] Missing budgets for span when enabled cause config error (or explicit fallback).
+
+---
+
+### P4.2 Standardise span cost telemetry (stage + instance)
+
+**Goal:** cost accounting is consistent and sums correctly.
+
+* [ ] Ensure span scorer evaluation returns cost info (or is timed centrally):
+
+  * wall_ms per call
+  * calls total
+  * active/rejected/gated counts (when relevant)
+* [ ] Add required counters to:
+
+  * stage rows
+  * instance summary
+  * diagnostics.json
+
+**Acceptance checks**
+
+* [ ] `span_seconds_total` equals sum(per-event wall_ms) within tolerance.
+* [ ] `span_active_rate` is always numeric (no NaN), even when span disabled/shadowed.
+
+---
+
+### P4.3 Shadow counterfactuals at prune points
+
+**Goal:** “what span would have done” is visible without manual diffing.
+
+* [ ] In StageEngine prune step, when span role=shadow:
+
+  * compute span ranking for the evaluated subset
+  * log:
+
+    * shadow_span_winner_id
+    * shadow_span_changed_winner
+    * shadow_span_rank_of_actual_winner
+    * overlap metrics (keep/drop sets, bounded lists)
+* [ ] Write these to:
+
+  * trace.jsonl as `span_shadow_counterfactual` event
+  * stage summary row (minimal fields)
+
+**Acceptance checks**
+
+* [ ] Reviewers can read trace and understand whether span would have changed promotion.
+* [ ] Counterfactual fields are present only when applicable and are bounded in size.
+
+---
+
+### P4.4 Budgeted evaluation scope (basin reps first)
+
+**Goal:** span is “fully incorporated” without runaway cost.
+
+* [ ] Implement evaluation selection policies:
+
+  * default: 1–2 reps per basin
+  * tie-band expansion for ambiguous cases (bounded)
+* [ ] Implement budget clamp:
+
+  * convert budget_ms into calls_affordable using measured p90 call time
+  * stop evaluating once budget hit
+* [ ] Implement two-pass:
+
+  * lite on broad set
+  * full on top-M or tie band
+
+**Acceptance checks**
+
+* [ ] Increasing seeds increases span calls roughly with basin_count until budget clamps.
+* [ ] Span never evaluates unboundedly; budget-hit is logged explicitly.
+
+---
+
+### P4.5 Promote span from shadow to decision role (after shadow success)
+
+**Goal:** span actually affects outcomes only after proven safe.
+
+* [ ] Define “shadow success” checklist in code/tests:
+
+  * determinism
+  * provenance present
+  * cost accounting consistent
+  * counterfactuals emitted
+* [ ] Enable at least one decision-role pathway in no-WLI:
+
+  * Stage B span-prune (basin selection), or
+  * Stage C gated span usage
+* [ ] Add a small A/B benchmark harness:
+
+  * same seeds/spec with span=shadow vs span=prune
+  * report: decision changes + cost delta + solve outcome delta (benchmark-only)
+
+**Acceptance checks**
+
+* [ ] Turning span decision role on/off changes behaviour only through spec, not code forks.
+* [ ] Cost/benefit is measurable per stage and per run.
+
+---
+
+## Notes on what this deliberately does NOT do (in Phase 2–4)
+
+* No public v1.1 schema change.
+* No core engine rewrite.
+* No pervasive runtime API change for scoring returns (that is Phase 6).
+* No new CLI-heavy tuning surface (keep run-file controls and configs consistent with existing workflows).
+
+---
+
+
+Hard sequencing rule:
+
+* Phase 2+ implementation work MUST NOT begin until cross-cutting gates P1/P2/P3 are marked DONE with linked evidence (tests + artefacts).
+
+Tracker convention:
+
+* Every Phase 2 row has `Status=BLOCKED` until gates P1/P2/P3 are DONE.
+* Each gate row must link to tests and a small run artefact proving closure.
+
+Gate evidence sync (2026-03-07):
+
+* Gate P1 status: DONE.
+* Evidence (code): tools/benchmarks/periodic_sub_trans/common/scorer_schedule.py, tools/benchmarks/periodic_sub_trans/common/scorer_schedule_apply.py, tools/benchmarks/community/_run_single_job.py.
+* Evidence (tests run 2026-03-04): tests/tools/test_periodic_sub_trans_scorer_schedule_apply.py, tests/tools/test_periodic_sub_trans_runner_scorer_impl.py, tests/community/test_run_single_job_config_v1_1.py.
+* Gate P2 status: DONE (guarded).
+* Evidence (policy): fixture-matrix long-run path pins SCORER_IMPL=numpy and SCORER_STAGE3_IMPL_AVG_FULLTEXT=numpy in tools/benchmarks/periodic_sub_trans/no_wli/run_fixture_matrix.py.
+* Evidence (tests run 2026-03-04): tests/scoring/test_torch_avg_fulltext_stability.py, tests/tools/test_no_wli_stage3_torch_avg_fulltext_crash_repro.py (manual repro test intentionally skipped unless explicitly enabled).
+* Gate P3 status: DONE.
+* Evidence (implemented): `oracle_consulted_in_decisions` is no longer derived from `oracle_decision_paths_enabled` in `col_then_sub` / `sub_then_col` startup manifests; no-WLI run config keeps consulted=false at startup intent.
+* Evidence (tests run 2026-03-07):
+  * `tests/tools/test_no_wli_oracle_contract.py`
+  * `tests/tools/test_oracle_consulted_contract_all_runners.py`
+  * `tests/tools/test_oracle_off_decision_path_guards.py`
+  * `tests/tools/test_periodic_sub_trans_runner_scorer_impl.py`
+* Closure scope: stop/prune/promote/winner decision-path guards verified under `oracle_mode=off` contract.
+
+Here’s the **Implementation Tracker table** (Phase × Deliverable × File(s) × Status × Notes). It’s written so you can paste it into a planning doc or Confluence and update it during review.
+
+---
+
+# Implementation Tracker
+
+## RDP phased refactor (Phase 2–5)
+
+**Status legend:** `TODO` | `IN PROGRESS` | `BLOCKED` | `DONE`
+**Blocked-on:** reference to prerequisite or decision.
+
+| Phase         | Deliverable                                                       | Files / Modules (primary touchpoints)                                               | Status  | Notes / Blocked-on                                                                 |
+| ------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------- |
+| P2            | Define StageSpec types                                            | `tools/benchmarks/periodic_sub_trans/common/stage_spec.py`                          | DONE    | StageSpec/ObjectiveRef/AuxObjectiveBinding now enforce typed validation (non-empty IDs, non-negative caps/budgets, promote-top guard) with deterministic serialization and tests in `tests/tools/test_periodic_sub_trans_spec_validation.py` |
+| P2            | Define AdaptivePolicySpec types                                   | `tools/benchmarks/periodic_sub_trans/common/policy_spec.py`                         | DONE    | AdaptivePolicySpec now enforces validation (`policy_id`, non-negative tie-band/top-k, positive scale factors), deterministic JSON ordering, and round-trip tests in `tests/tools/test_periodic_sub_trans_spec_validation.py` |
+| P2            | Objective/Operator catalog scaffolding                            | `tools/benchmarks/periodic_sub_trans/common/catalogs.py`                            | DONE    | Catalog API now supports registration, deterministic ID listing, objective-ref lookup, and StageSpec objective validation with tests in `tests/tools/test_periodic_sub_trans_catalogs.py` |
+| P2            | Pool container + diversity helpers                                | `tools/benchmarks/periodic_sub_trans/common/pool.py`                                | DONE    | Shared pool now provides candidate-id dedupe, basin dedupe, basin cap, top promotion, and shared basin ID construction (`basin_id_from_payload` / `CandidateRecord.from_payload`) with scaffold + pool-stat tests |
+| P2            | StageEngine skeleton                                              | `tools/benchmarks/periodic_sub_trans/common/stage_engine.py`                        | DONE    | Stage loop + pool shaping + trace events + error-event emission are implemented and covered by scaffold tests (`test_stage_engine_scaffold.py`) |
+| P2            | Trace writer (decision trace JSONL)                               | `tools/benchmarks/periodic_sub_trans/common/io.py` (or new `trace_writer.py`)       | DONE    | Deterministic JSONL writer in `common/trace_writer.py` with StageEngine emissions wired across no_wli/col_then_sub/sub_then_col and covered by `test_no_wli_stage_engine_trace.py`, `test_sub_then_col_stage_engine_trace.py`, `test_col_then_sub_stage_engine_trace.py` |
+| P2            | Port col→sub runner to StageEngine orchestration                  | `tools/benchmarks/periodic_sub_trans/col_then_sub/runner.py`                        | DONE    | Promoted from replay validation to primary StageEngine gating in main path: bridge now runs before Stage-C and controls run/skip semantics via stage outputs, with fail-fast checks for stage ordering and skip consistency; coverage: `tests/tools/test_periodic_sub_trans_runner_fixed_seed_parity.py`, `tests/tools/test_col_then_sub_stage_engine_iteration_bridge.py`, `tests/tools/test_periodic_sub_trans_stage_engine_fixed_seed_parity.py` |
+| P2            | Port sub→col runner to StageEngine orchestration                  | `tools/benchmarks/periodic_sub_trans/sub_then_col/runner.py`                        | DONE    | Promoted from replay validation to primary StageEngine gating in main path: bridge now runs before Stage-C and controls run/skip semantics via stage outputs, with fail-fast checks for stage ordering and skip consistency; coverage: `tests/tools/test_periodic_sub_trans_runner_fixed_seed_parity.py`, `tests/tools/test_sub_then_col_stage_engine_iteration_bridge.py`, `tests/tools/test_periodic_sub_trans_stage_engine_fixed_seed_parity.py` |
+| P2            | Baseline parity checks for col?sub and sub?col                    | `tests/tools/...` (new) + existing benchmark tests                                  | DONE    | Added deterministic runner-level fixed-seed parity tests that execute each public runner main path twice with stable mocked internals and assert identical summaries: `tests/tools/test_periodic_sub_trans_runner_fixed_seed_parity.py` (sub_then_col + col_then_sub); bridge-level fixed-seed parity coverage remains in `test_periodic_sub_trans_stage_engine_fixed_seed_parity.py` |
+| P2            | Output filenames made collision-safe                              | `tools/benchmarks/periodic_sub_trans/common/...`                                    | DONE    | `make_flavor_run_dir` now uses microsecond stamp with explicit collision fallback suffix (`__rN`) and is covered by `tests/tools/test_periodic_sub_trans_paths.py` |
+| P3            | no-WLI runner exposes StageEngine-compatible stage functions      | `tools/benchmarks/periodic_sub_trans/no_wli/runner.py` + `no_wli/stage_engine_iteration_bridge.py` | DONE    | StageEngine bridge now enforces an explicit callable function contract (`_validate_stage_engine_fns`) for no_wli stage functions and runs stage execution through that validated surface |
+| P3            | no-WLI orchestration moved under StageEngine (as far as feasible) | `tools/benchmarks/periodic_sub_trans/no_wli/iteration_matrix_flow.py` + common engine | DONE    | no_wli iteration orchestration now runs through StageEngine bridge for pre-stage3 + stage3 with persisted StageEngine trace events, runtime span telemetry events, and fixed-seed parity coverage at bridge + iteration-matrix levels |
+| P3            | no-WLI internal configure_campaign_run entrypoint added           | `tools/benchmarks/periodic_sub_trans/no_wli/runner.py`                              | DONE    | Entry point exists and is exercised by tests: `tests/tools/test_periodic_sub_trans_runner_scorer_impl.py`, `tests/community/test_run_single_job_config_v1_1.py` |
+| P3            | Basin identity standardised (shared basin/dedupe key)             | `tools/benchmarks/periodic_sub_trans/common/pool.py` + flavour runners              | DONE    | Shared basin resolver landed (`basin_id_from_payload`, `CandidateRecord.from_payload`) and is now consumed in no_wli, col_then_sub, and sub_then_col pool-stat callsites; dedicated tests added (`test_no_wli_stage2_pool_stats.py`, `test_col_then_sub_stage2_pool_stats.py`, `test_sub_then_col_stage2_pool_stats.py`) |
+| P3            | Diversity rules applied uniformly across flavours                 | common `pool.py` + StageEngine prune                                                | DONE    | `dedupe_by_basin` is now exercised in bridge-driven execution paths for col_then_sub and sub_then_col via stage pool payloads, with StageEngine stage-end pool-size assertions and parity suites remaining green |
+| P3            | Oracle separation flag + enforcement                              | `tools/benchmarks/periodic_sub_trans/*/runner.py` + common policy                   | DONE    | Consulted-vs-enabled contract fixed; stop/prune/promote/winner guard proof tests added |
+| P3            | Represent p7 ~1000-char success path as concrete StageSpecs       | `tools/benchmarks/periodic_sub_trans/no_wli/stage_engine_contract.py` + run artifacts (`stage_specs.json`, `policy_spec.json`) | DONE    | Concrete StageSpec/PolicySpec artifacts are emitted per run; profile-pinned builder now validates long-run p7 path labels (`A_char2_avg_fulltext -> M_char4_avg_fulltext -> B_char4_avg_fulltext`) via `build_no_wli_stage_specs_from_profile(...)` and `tests/tools/test_no_wli_stage_engine_contract.py` |
+| P3            | Primary acceptance harness for no-WLI 500-char / 5 real texts     | internal bench script/config                                                        | DONE    | Fixture-matrix now has an explicit config-gated acceptance harness preset (`ENABLE_ACCEPTANCE_HARNESS_500X5`, first-N fixture selection, fixed 500-char override) implemented in `fixture_matrix_mainflow.py` + `fixture_matrix_config.py`; behaviour and fixture/length selection contract covered by `tests/tools/test_no_wli_fixture_matrix_mainflow.py` with fixture matrix suites still green |
+| P4            | Span roles added to AuxObjectiveBinding                           | `common/stage_spec.py`                                                              | DONE    | `AuxObjectiveBinding` now carries typed role/scope/span_profile + cadence/budget invariants (enabled roles require positive cadence+budget), with roundtrip/fallback validation in `tests/tools/test_periodic_sub_trans_spec_validation.py`; StageEngine stage_start now emits explicit aux shadow non-influence contract (`aux_decision_influence=false`) and this is covered by `tests/tools/test_stage_engine_scaffold.py` |
+| P4            | Span cost instrumentation standardised                            | span scorer callsite(s) + StageEngine                                               | DONE    | StageEngine zero-safe counters remain standardized, and no_wli runner flow now emits real stage3 span runtime telemetry (`span_runtime_telemetry`) sourced from stage3 callsite metrics (eval counts, active/skipped, seconds, basin-judge span calls) into the StageEngine trace stream |
+| P4            | Shadow counterfactual events at prune points                      | StageEngine prune step + trace writer                                               | DONE    | no_wli StageEngine bridge now wires real shadow counterfactual payloads for stage-C (`shadow_span_winner_id`, rank-of-actual-winner, keep/drop ID lists, topk sizes) via the shared `span_shadow_counterfactual` hook and test coverage |
+| P4            | Budget clamp logic for span evaluation                            | StageEngine + policy helpers                                                        | DONE    | StageEngine now enforces hard budget clamp on span selection plans using `calls_affordable` (derived from `budget_ms` and `span_p90_call_ms`), emits clamp metadata on `span_eval_selection_plan`, and this is exercised through no_wli StageEngine bridge paths |
+| P4            | Basin-rep evaluation selection (default)                          | StageEngine + pool helpers                                                          | DONE    | Shared basin-representative selection now includes policy-driven ambiguity expansion (`AdaptivePolicySpec.ambiguity_expand_top_k`) and emits explicit `ambiguity_expand_top_k` in `span_eval_selection_plan`; no_wli bridge now maps selection policy into StageEngine context/spec path |
+| P4            | Two-pass span support (lite?full)                                 | span binding + StageEngine evaluator                                                | DONE    | Aux two-pass knobs now drive real no_wli stage3 execution controls: `stage3_span_aux_two_pass` enables stage3 two-phase runtime, and `stage3_span_aux_full_top_m` maps into phase-B top-N; plus StageEngine `span_two_pass_plan` telemetry remains emitted |
+| P4            | Shadow success checklist encoded as tests                         | `tests/tools/...` (new)                                                             | DONE    | Shadow checklist now includes runner-level no_wli assertions through `iteration_matrix_flow` (span budget/selection/two-pass events + stage_c shadow non-influence fields), in addition to StageEngine scaffold checks |
+| P4            | Promote span from shadow?decision role (spec-controlled)          | StageEngine + policy                                                                | DONE    | StageEngine decision-role gate is now wired through no_wli fixture-matrix job policy controls (`span_ab_case_id`, `span_decision_role_enabled`) with `apply_job` toggling `STAGE3_SPAN_AUX_ROLE`/`SPAN_DECISION_ROLE_ENABLED`; covered by `test_no_wli_fixture_matrix_runtime.py` + A/B fixture tests |
+| P4            | A/B harness: span shadow vs span decision                         | internal benchmark config                                                           | DONE    | Fixture-matrix launcher now supports paired span A/B jobs (`ENABLE_SPAN_AB_PAIR`) with per-job span case metadata and emits `span_ab_pair_delta` outcome/cost events in run-events JSONL; covered by `tests/tools/test_no_wli_fixture_matrix.py` and `tests/tools/test_no_wli_fixture_matrix_runtime.py` |
+| P4            | Documentation: �How to read trace + stage rows�                   | `tools/benchmarks/periodic_sub_trans/no_wli/README.md` (or new doc)                 | DONE    | Added concise �Stage Trace Quick Read� section documenting event types, key fields, and how trace JSONL relates to stage rows |
+| P5            | Both no-WLI orders supported under unified Track B dispatcher     | internal schema/dispatch + no_wli specs                                             | DONE    | Added unified no_wli internal order dispatcher module (`no_wli/order_dispatch.py`) with explicit support for `col_then_sub` and `sub_then_col`, startup order normalization/validation, and run_config `order_dispatch` schema payload; covered by `tests/tools/test_no_wli_order_dispatch.py` |
+| Cross-cutting | Gate P1: scorer_schedule plumbing completed                       | community adapter + all three flavour runners                                       | DONE    | Shared DTO + apply layer in place; mapping/behaviour covered by `test_periodic_sub_trans_scorer_schedule_apply.py`, `test_periodic_sub_trans_runner_scorer_impl.py`, `test_run_single_job_config_v1_1.py` |
+| Cross-cutting | Preconditions: torch AVG/full-text crash gate closed or guarded   | `planning/...` + `tests/tools/test_no_wli_stage3_torch_avg_fulltext_crash_repro.py` | DONE    | Guarded closure: torch stability tests green and matrix path uses explicit numpy fallback for long-run safety; manual native repro remains opt-in |
+| Cross-cutting | Gate P3: oracle separation in production decisions                | all three runners + StageEngine trace                                               | DONE    | Covered by oracle contract + decision-path guard tests; `oracle_mode=off` prevents oracle decision-path usage |
+
+---
+
+
+

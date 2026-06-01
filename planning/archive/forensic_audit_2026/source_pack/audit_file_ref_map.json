@@ -1,0 +1,279 @@
+{
+  "solvers/beam.py": [
+    "src/rune_decrypter_prime/solvers/beam.py"
+  ],
+  "telemetry/pipeline.py": [
+    "src/rune_decrypter_prime/telemetry/pipeline.py"
+  ],
+  "core/runtime.py": [
+    "src/rune_decrypter_prime/core/problem/runtime.py",
+    "legacy/rune_decrypter_prime/core/problem/runtime.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/core/problem/runtime.py"
+  ],
+  "tests/api/test_wli_invariants.py": [],
+  "tests/api/test_wli_parity.py": [],
+  "tests/core/test_permutation_wli.py": [],
+  "tests/solver/test_objective_direction.py": [],
+  "tests/scoring/test_wli_missing.py": [],
+  "tests/solver/test_determinism.py": [],
+  "tests/solver/test_seed_validation.py": [],
+  "tests/core/test_variable_interruptors.py": [],
+  "tests/api/test_encoding_direction.py": [],
+  "tests/scoring/test_lm_smoothing.py": [],
+  "tests/ciphers/test_user_map3_domain.py": [],
+  "api/normalize.py": [
+    "src/rune_decrypter_prime/api/normalize.py"
+  ],
+  "core/config/cipher.py": [
+    "src/rune_decrypter_prime/core/config/cipher.py"
+  ],
+  "scoring/hamming/Hamming.h": [
+    "src/rune_decrypter_prime/scoring/hamming/Hamming.h"
+  ],
+  "scoring/rune_scorer.py": [
+    "src/rune_decrypter_prime/scoring/rune_scorer.py"
+  ],
+  "ciphers/ciphers_pipeline.py": [
+    "src/rune_decrypter_prime/ciphers/ciphers_pipeline.py"
+  ],
+  "utils/interrupter.py": [
+    "src/rune_decrypter_prime/utils/interrupter.py"
+  ],
+  "ciphers/periodic_columnar_cipher.py": [
+    "src/rune_decrypter_prime/ciphers/periodic_columnar_cipher.py"
+  ],
+  "ciphers/periodic_substitution_cipher.py": [
+    "src/rune_decrypter_prime/ciphers/periodic_substitution_cipher.py"
+  ],
+  "rune_decrypter_prime/ciphers/ciphers_pipeline.py": [
+    "src/rune_decrypter_prime/ciphers/ciphers_pipeline.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/ciphers/ciphers_pipeline.py"
+  ],
+  "rune_decrypter_prime/core/problem/runtime.py": [
+    "src/rune_decrypter_prime/core/problem/runtime.py",
+    "legacy/rune_decrypter_prime/core/problem/runtime.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/core/problem/runtime.py"
+  ],
+  "rune_decrypter_prime/utils/interrupter.py": [
+    "src/rune_decrypter_prime/utils/interrupter.py",
+    "legacy/rune_decrypter_prime/utils/interrupter.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/utils/interrupter.py"
+  ],
+  "rune_decrypter_prime/keyops/composite.py": [
+    "src/rune_decrypter_prime/keyops/composite.py"
+  ],
+  "rune_decrypter_prime/utils/transposition.py": [
+    "src/rune_decrypter_prime/utils/transposition.py",
+    "legacy/rune_decrypter_prime/utils/transposition.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/utils/transposition.py"
+  ],
+  "rune_decrypter_prime/core/config/interruptor.py": [
+    "src/rune_decrypter_prime/core/config/interruptor.py"
+  ],
+  "rune_decrypter_prime/scoring/language_model/language_model_prime_runtime.py": [
+    "src/rune_decrypter_prime/scoring/language_model/language_model_prime_runtime.py",
+    "legacy/rune_decrypter_prime/scoring/language_model/language_model_prime_runtime.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/scoring/language_model/language_model_prime_runtime.py"
+  ],
+  "rune_decrypter_prime/scoring/rune_scorer.py": [
+    "src/rune_decrypter_prime/scoring/rune_scorer.py",
+    "legacy/rune_decrypter_prime/scoring/rune_scorer.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/scoring/rune_scorer.py"
+  ],
+  "rune_decrypter_prime/scoring/torch_rune_scorer.py": [
+    "src/rune_decrypter_prime/scoring/torch_rune_scorer.py",
+    "legacy/rune_decrypter_prime/scoring/torch_rune_scorer.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/scoring/torch_rune_scorer.py"
+  ],
+  "rune_decrypter_prime/scoring/windowing.py": [
+    "src/rune_decrypter_prime/scoring/windowing.py"
+  ],
+  "scoring/language_model/language_model_prime.py": [
+    "src/rune_decrypter_prime/scoring/language_model/language_model_prime.py"
+  ],
+  "scoring/language_model/language_model_prime_runtime.py": [
+    "src/rune_decrypter_prime/scoring/language_model/language_model_prime_runtime.py"
+  ],
+  "backends/xp.py": [
+    "src/rune_decrypter_prime/backends/xp.py"
+  ],
+  "core/problem/runtime.py": [
+    "src/rune_decrypter_prime/core/problem/runtime.py"
+  ],
+  "core/types.py": [
+    "src/rune_decrypter_prime/core/types.py"
+  ],
+  "scoring/unified_rune_scorer.py": [
+    "src/rune_decrypter_prime/scoring/unified_rune_scorer.py"
+  ],
+  "audit_pack_extract/src/rune_decrypter_prime/solvers/beam.py": [
+    "src/rune_decrypter_prime/solvers/beam.py",
+    "legacy/rune_decrypter_prime/new_solver/beam.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/solvers/beam.py"
+  ],
+  "audit_pack_extract/src/rune_decrypter_prime/solvers/ga.py": [
+    "src/rune_decrypter_prime/solvers/ga.py",
+    "legacy/rune_decrypter_prime/new_solver/ga.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/solvers/ga.py"
+  ],
+  "audit_pack_extract/src/rune_decrypter_prime/solvers/hybrid.py": [
+    "src/rune_decrypter_prime/solvers/hybrid.py",
+    "legacy/rune_decrypter_prime/new_solver/hybrid.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/solvers/hybrid.py"
+  ],
+  "audit_pack_extract/src/rune_decrypter_prime/solvers/kaeding_periodic_structured.py": [
+    "src/rune_decrypter_prime/solvers/kaeding_periodic_structured.py"
+  ],
+  "audit_pack_extract/src/rune_decrypter_prime/solvers/sa.py": [
+    "src/rune_decrypter_prime/solvers/sa.py",
+    "legacy/rune_decrypter_prime/new_solver/sa.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/solvers/sa.py"
+  ],
+  "audit_pack_extract/src/rune_decrypter_prime/solvers/solver_base.py": [
+    "src/rune_decrypter_prime/solvers/solver_base.py",
+    "legacy/rune_decrypter_prime/new_solver/solver_base.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/solvers/solver_base.py"
+  ],
+  "ciphers/columnar_transposition_cipher.py": [
+    "src/rune_decrypter_prime/ciphers/columnar_transposition_cipher.py"
+  ],
+  "keyops/permutation_ops.py": [
+    "src/rune_decrypter_prime/keyops/permutation_ops.py"
+  ],
+  "src/rune_decrypter_prime/solvers/solver_base.py": [
+    "src/rune_decrypter_prime/solvers/solver_base.py"
+  ],
+  "src/rune_decrypter_prime/solvers/beam.py": [
+    "src/rune_decrypter_prime/solvers/beam.py"
+  ],
+  "src/rune_decrypter_prime/solvers/ga.py": [
+    "src/rune_decrypter_prime/solvers/ga.py"
+  ],
+  "src/rune_decrypter_prime/solvers/sa.py": [
+    "src/rune_decrypter_prime/solvers/sa.py"
+  ],
+  "src/rune_decrypter_prime/solvers/kaeding_periodic_structured.py": [
+    "src/rune_decrypter_prime/solvers/kaeding_periodic_structured.py"
+  ],
+  "Copy/keyops/base_keyops.py": [
+    "src/rune_decrypter_prime/keyops/base_keyops.py",
+    "legacy/rune_decrypter_prime/keyops/base_keyops.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/keyops/base_keyops.py"
+  ],
+  "Copy/io/rng.py": [
+    "src/rune_decrypter_prime/io/rng.py",
+    "legacy/rune_decrypter_prime/io/rng.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/io/rng.py"
+  ],
+  "Copy/solvers/ga.py": [
+    "src/rune_decrypter_prime/solvers/ga.py",
+    "legacy/rune_decrypter_prime/new_solver/ga.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/solvers/ga.py"
+  ],
+  "Copy/keyops/composite.py": [
+    "src/rune_decrypter_prime/keyops/composite.py"
+  ],
+  "Copy/keyops/permutation_ops.py": [
+    "src/rune_decrypter_prime/keyops/permutation_ops.py",
+    "legacy/rune_decrypter_prime/keyops/permutation_ops.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/keyops/permutation_ops.py"
+  ],
+  "rune_decrypter_prime/ciphers/periodic_substitution_cipher.py": [
+    "src/rune_decrypter_prime/ciphers/periodic_substitution_cipher.py"
+  ],
+  "rune_decrypter_prime/ciphers/columnar_transposition_cipher.py": [
+    "src/rune_decrypter_prime/ciphers/columnar_transposition_cipher.py",
+    "legacy/rune_decrypter_prime/ciphers/columnar_transposition_cipher.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/ciphers/columnar_transposition_cipher.py"
+  ],
+  "rune_decrypter_prime/ciphers/periodic_columnar_cipher.py": [
+    "src/rune_decrypter_prime/ciphers/periodic_columnar_cipher.py"
+  ],
+  "utils/transposition.py": [
+    "src/rune_decrypter_prime/utils/transposition.py"
+  ],
+  "Copy/api/pipeline.py": [
+    "src/rune_decrypter_prime/api/pipeline.py",
+    "src/rune_decrypter_prime/telemetry/pipeline.py",
+    "legacy/rune_decrypter_prime/api/pipeline.py",
+    "legacy/rune_decrypter_prime/ciphers/pipeline.py",
+    "legacy/rune_decrypter_prime/telemetry/pipeline.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/api/pipeline.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/telemetry/pipeline.py"
+  ],
+  "Copy/core/config/run.py": [
+    "src/rune_decrypter_prime/api/run.py",
+    "src/rune_decrypter_prime/core/config/run.py",
+    "legacy/rune_decrypter_prime/api/run.py",
+    "legacy/rune_decrypter_prime/core/config/run.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/api/run.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/core/config/run.py"
+  ],
+  "Copy/core/engine/engine.py": [
+    "src/rune_decrypter_prime/core/engine/engine.py",
+    "legacy/rune_decrypter_prime/core/engine/engine.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/core/engine/engine.py"
+  ],
+  "Copy/api/normalize.py": [
+    "src/rune_decrypter_prime/api/normalize.py",
+    "legacy/rune_decrypter_prime/api/normalize.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/api/normalize.py"
+  ],
+  "Copy/core/problem/instance.py": [
+    "src/rune_decrypter_prime/core/problem/instance.py",
+    "legacy/rune_decrypter_prime/core/problem/instance.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/core/problem/instance.py"
+  ],
+  "Copy/core/problem/runtime.py": [
+    "src/rune_decrypter_prime/core/problem/runtime.py",
+    "legacy/rune_decrypter_prime/core/problem/runtime.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/core/problem/runtime.py"
+  ],
+  "Copy/api/_resolve.py": [
+    "src/rune_decrypter_prime/api/_resolve.py",
+    "legacy/rune_decrypter_prime/api/_resolve.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/api/_resolve.py"
+  ],
+  "Copy/core/config/scoring.py": [
+    "src/rune_decrypter_prime/core/config/scoring.py",
+    "legacy/rune_decrypter_prime/core/config/scoring.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/core/config/scoring.py"
+  ],
+  "Copy/core/config/cipher.py": [
+    "src/rune_decrypter_prime/core/config/cipher.py",
+    "legacy/rune_decrypter_prime/core/config/cipher.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/core/config/cipher.py"
+  ],
+  "core/problem/instance.py": [
+    "src/rune_decrypter_prime/core/problem/instance.py"
+  ],
+  "solvers/solver_base.py": [
+    "src/rune_decrypter_prime/solvers/solver_base.py"
+  ],
+  "telemetry/events.py": [
+    "src/rune_decrypter_prime/telemetry/events.py"
+  ],
+  "core/engine/engine.py": [
+    "src/rune_decrypter_prime/core/engine/engine.py"
+  ],
+  "rune_decrypter_prime/core/engine/engine.py": [
+    "src/rune_decrypter_prime/core/engine/engine.py",
+    "legacy/rune_decrypter_prime/core/engine/engine.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/core/engine/engine.py"
+  ],
+  "rune_decrypter_prime/core/solver_engine.py": [
+    "src/rune_decrypter_prime/core/solver_engine.py",
+    "legacy/rune_decrypter_prime/core/solver_engine.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/core/solver_engine.py"
+  ],
+  "rune_decrypter_prime/solvers/hybrid.py": [
+    "src/rune_decrypter_prime/solvers/hybrid.py",
+    "legacy/rune_decrypter_prime/new_solver/hybrid.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/solvers/hybrid.py"
+  ],
+  "rune_decrypter_prime/solvers/solver_base.py": [
+    "src/rune_decrypter_prime/solvers/solver_base.py",
+    "legacy/rune_decrypter_prime/new_solver/solver_base.py",
+    "src/output/share/2025-11-17T08-15-02-0800__share__rune-decrypter/src_20251117_081511_share/repo/rune_decrypter_prime/solvers/solver_base.py"
+  ]
+}

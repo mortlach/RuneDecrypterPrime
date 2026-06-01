@@ -221,6 +221,16 @@ bigram_research/
 legacy/
 planning/*
 !planning/README.md
+planning/**/*.zip
+planning/**/*.pdf
+planning/**/*.gz
+planning/**/*.log
+planning/**/*.pid
+planning/**/*.pyc
+planning/**/*.xlsx
+planning/temp_files/
+planning/**/outputs/
+planning/**/canary_output/
 solving/*
 !solving/README.md
 RuneDecrypterPrime-test-0.2/
@@ -239,6 +249,10 @@ docs/DOCS_PLAN_IMPLEMENTATION2.md
 
 # Local build scratch
 src/build_tmp_hamming
+build_tmp_span_hamming_fast/
+build_tmp_ngram_hamming_fast/
+build_lib_ngram_hamming_fast/
+rdp_patch_s1g_fast_fingerprint_plus_runner_v4/
 
 # Large local LM binaries (kept outside git)
 src/rune_decrypter_prime/data/language_model/lmp/char/rtl/char29_joint_rtl_4_wise.bin.zst

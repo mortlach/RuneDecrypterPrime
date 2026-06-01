@@ -1,0 +1,43 @@
+{
+  "total_tests": 28,
+  "assigned_tests": {
+    "BH-B01": [
+      "test_wli_config_contract_is_consistent_with_hamming",
+      "test_wli_string_path_contract_poslen",
+      "test_wli_uint8_overflow_guard"
+    ],
+    "BH-B02": [
+      "test_interruptor_remove_insert_roundtrip",
+      "test_interruptor_remove_then_text_permutation_then_inverse_roundtrip",
+      "test_wli_alignment_under_text_permutation"
+    ],
+    "BH-B03": [
+      "test_composed_cipher_with_interruptors_roundtrip",
+      "test_periodic_columnar_roundtrip_lengths_not_multiple_of_columns",
+      "test_periodic_substitution_encrypt_decrypt_roundtrip_random"
+    ],
+    "BH-B04": [
+      "test_batch_vs_scalar_ordering_near_ties",
+      "test_ecdf_dtype_knob_is_real",
+      "test_numpy_vs_torch_ranking_parity_fixed_candidates"
+    ]
+  },
+  "unassigned": [
+    "test_beam_knobs_effect",
+    "test_determinism_canary",
+    "test_ecdf_",
+    "test_keyops_mutation_locality_distribution",
+    "test_keyops_mutation_preserves_invariants",
+    "test_lm_cache_isolation",
+    "test_objective_direction_guard",
+    "test_permutation_space_interruptors",
+    "test_runapi_determinism",
+    "test_score_ranking_parity_numpy_vs_torch",
+    "test_score_ranking_parity_scalar_vs_batch",
+    "test_scorer_pct_edges_and_clamps",
+    "test_seed_validation_strict",
+    "test_windowing_spans",
+    "test_wli_invariants_string_path",
+    "test_wli_parity_runeglish"
+  ]
+}

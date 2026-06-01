@@ -18,6 +18,8 @@ def test_damage_source_manifest_is_required_and_verified() -> None:
     assert manifest["status"] == "pass"
     assert manifest["damage_levels_verified"] is True
     assert manifest["damage_models_verified"] is True
+    assert manifest["reference_configs_required"] is True
+    assert manifest["reference_config_exists_count"] > 0
     assert manifest["no_new_damage_model_required"] is True
     for level in ("0.20", "0.30", "0.40", "0.50"):
         assert level in manifest["required_damage_levels"]

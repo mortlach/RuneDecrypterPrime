@@ -1,0 +1,46 @@
+**Findings**
+1. The no-WLI integration still scores the word-ngram judge only on the **final best plaintext**, not on competing basins or promoted candidates, so it does not yet support the tuning question you actually care about. The integration point is [iteration_finalize.py](tools\benchmarks\periodic_sub_trans\no_wli\iteration_finalize.py:106), where `score_word_ngram_report_for_plaintext(...)` is called only on `final_best_plaintext_idx`. That is fine for reporting, but it means the merged branch still cannot tell you whether the judge improves Stage 2/3 ordering across plausible candidates.
+
+2. The report-side word-ngram runtime is still **coupled to the strict basin-judge span configuration**, so its behavior is not an independent side-channel yet. In [iteration_runtime.py](tools\benchmarks\periodic_sub_trans\no_wli\iteration_runtime.py:128), the word-ngram report scorer is built from `base_cfg=dict(scorer_basin_judge)`. And [scoring_experiment_config.py](tools\benchmarks\periodic_sub_trans\no_wli\scoring_experiment_config.py) only layers word-ngram settings on top of that base config. Practically, this means strict span-gate semantics can dominate what you later interpret as “word-ngram review behavior.” That matches the earlier live-run symptom where a broader near-miss was rejected upstream by span-gate logic rather than by the word-ngram false-high logic.
+
+3. `ScorerReport` exists but is **not actually used in the no-WLI path**, so telemetry is still hand-plumbed and narrow. The builder is present at [scorer_report_builder.py](src\rune_decrypter_prime\scoring\scorer_report_builder.py:134), but the no-WLI path instead manually extracts a fixed subset in [word_ngram_report.py](tools\benchmarks\periodic_sub_trans\no_wli\word_ngram_report.py:10) and copies only a few fields into `inst_row` in [iteration_finalize.py](tools\benchmarks\periodic_sub_trans\no_wli\iteration_finalize.py:156). That is a maintainability risk: future scorer telemetry additions will not automatically appear in campaign artefacts, and this merged branch can drift from the scorer surface again.
+
+**Assessment**
+The merge is directionally good. The scoring and telemetry work is present, and the no-WLI path is not broken. But this is still **report wiring**, not yet the holistic tuning surface you need.
+
+What is good:
+1. Word-ngram judge config and scorer integration are present in scorer/config paths.
+2. no-WLI final artefacts do capture the word-ngram report payload.
+3. The refactor is far enough along that tuning on this branch makes sense.
+
+What is not done yet:
+1. Candidate-level or basin-level word-ngram telemetry during ranking/promotion.
+2. Independent interpretation of the word-ngram signal apart from strict basin-judge span policy.
+3. Unified report surface via `ScorerReport`.
+
+**Recommendation**
+1. Use this merged branch for tuning, but be explicit that the current word-ngram integration is **final-best report-only**.
+2. Before trying to tune promotion logic, add word-ngram reporting at the **candidate/top-K level** you actually want to compare.
+3. Decouple the report-only word-ngram runtime from the strict basin-judge base config if you want to interpret its signal independently.
+4. Once the runner surface stabilizes, switch no-WLI reporting over to `ScorerReport` so telemetry stops being manually curated field-by-field.
+
+**Answer to your main question**
+Yes, the merged branch is good enough to continue on.  
+No, I would not call the no-WLI scoring/telemetry integration “finished” yet.  
+The main gap is that it still does not surface the judge where tuning decisions actually happen.
+
+**Plan status**
+- `done`: review of merged branch scoring/telemetry integration
+- `in progress`: 0
+- `todo`: 3
+  1. candidate/top-K level judge reporting
+  2. decouple report-only word-ngram runtime from strict basin-judge config
+  3. adopt `ScorerReport` once runner/report surfaces settle
+
+**Reasoning required for next steps**
+1. Candidate/top-K integration: `high`
+- this is where tuning value appears or disappears
+2. Decoupling side-channel semantics: `high`
+- easy to misread the signal if span-gate behavior stays bundled into it
+3. `ScorerReport` adoption: `medium-high`
+- mostly integration discipline, but worth doing only once the surfaces stop moving

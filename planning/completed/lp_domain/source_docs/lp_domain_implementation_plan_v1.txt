@@ -1,0 +1,159 @@
+RDP Liber Primus Domain Implementation Plan v1
+Date: 2026-03-07 (America/Los_Angeles)
+Status: Completed implementation record (LP0-LP5 DONE)
+Depends on: planning/working/lp_domain_spec_v1.txt
+
+Plan goal
+- Implement LP typed domain layer as an adapter over existing LP foundation.
+- Keep current LP APIs stable while introducing canonical typed APIs.
+- Prepare clean bridge into RDP solving examples for solved pages and sections.
+
+Guiding constraints
+- No rewrite of `lp_transcript.py` core parsing in phase 1.
+- No CLI expansion for helper scripts.
+- No absolute path leakage in persisted outputs/logs.
+- Typed core only; UI token parsing remains in `lp_ui_parse.py`.
+
+Phase LP0 - Boundary lock and API contracts
+Deliverables
+- Freeze module boundaries and naming:
+  - `lp_registry.py`, `lp_routes.py`, `lp_ui_parse.py`, `lp_adapter.py`
+- Freeze typed enums/dataclasses with explicit string values.
+- Freeze adapter output schema (`ct_idx`, `wli`, metadata).
+
+Acceptance
+- Spec reviewed and approved.
+- No code changes required for LP0 completion.
+
+Phase LP1 - Typed core objects (additive)
+Files to add
+- `src/rune_decrypter_prime/data/liber_primus/lp_registry.py`
+- `src/rune_decrypter_prime/data/liber_primus/lp_routes.py`
+- `src/rune_decrypter_prime/data/liber_primus/lp_ui_parse.py`
+
+Work
+- Port `lp_registry_review_bundle` concepts to real modules with explicit enum values.
+- Keep implementations self-contained and independent from solver modules.
+- Add `__all__` exports for typed LP objects.
+
+Tests to add
+- `tests/data/liber_primus/test_lp_registry.py`
+- `tests/data/liber_primus/test_lp_routes.py`
+- `tests/data/liber_primus/test_lp_ui_parse.py`
+
+Acceptance
+- New tests pass.
+- Existing LP tests still pass unchanged.
+
+Phase LP2 - Bridge into existing LPTranscript/lp_master
+Files to touch
+- `src/rune_decrypter_prime/data/liber_primus/lp_master.py`
+- `src/rune_decrypter_prime/data/liber_primus/lp_transcript.py` (minimal adapters only)
+
+Work
+- Add adapter helpers:
+  - resolve typed page refs using existing catalogue mapping.
+  - resolve typed locators to existing span/view objects.
+  - resolve partition entries via existing split/span APIs.
+- Keep existing methods untouched and functional.
+
+Tests to add/extend
+- `tests/data/test_lp_master_transcript.py` parity checks:
+  - typed resolver vs `page_by_canon`
+  - typed locator -> span `ct_wli` parity
+
+Acceptance
+- Typed and legacy retrieval produce identical `ct_idx/wli` on same targets.
+- LP2 parity minimum coverage includes:
+  - direct canon page resolution
+  - line slice within a page
+  - one built-in partition entry resolution
+  - one routed extraction path (retrieval then route)
+
+Phase LP3 - Adapter boundary for solver inputs
+Files to add
+- `src/rune_decrypter_prime/data/liber_primus/lp_adapter.py`
+
+Work
+- Implement thin conversion APIs:
+  - from typed locator + route to solver payload
+  - from partition entry + optional intersection page ref(s) to solver payload
+- Include deterministic metadata payload for reproducibility.
+
+Tests
+- `tests/data/liber_primus/test_lp_adapter.py`
+
+Acceptance
+- Adapter outputs deterministic and parity-checked with direct span extraction.
+- LP3 deterministic/parity coverage includes:
+  - canon page fragment to payload
+  - partition-derived fragment to payload
+  - section/page intersection payload
+  - one spiral route and one line-selector route case
+
+Phase LP4 - Canonical public surface + compatibility shims
+Files to touch
+- `src/rune_decrypter_prime/data/liber_primus/__init__.py`
+- `src/rune_decrypter_prime/api/data_helpers.py`
+
+Work
+- Export typed LP APIs from package root.
+- Keep old helper functions, but route internals through typed/adapted surface where safe.
+- Mark duplicated legacy paths for future deprecation cycle.
+
+Acceptance
+- Existing imports still work.
+- New preferred typed imports documented and tested.
+
+Phase LP5 - Solved-page and section example workflows
+Files to add/touch
+- LP docs and examples under `docs/` and/or `src/.../liber_primus/`.
+- Optional benchmark examples using adapter outputs.
+
+Work
+- Add examples for:
+  - solved page retrieval by typed refs
+  - section retrieval (red-rune / side-art)
+  - intersections (section n canon pages)
+  - route variants (LTR/RTL/boustro/spiral)
+
+Acceptance
+- Example tests/smokes pass.
+- Workflows produce stable, reproducible outputs.
+
+Implementation tracker
+Legend: TODO | IN_PROGRESS | BLOCKED | DONE
+
+- LP0 Boundary/spec sign-off: DONE
+- LP1 Typed core modules added: DONE
+- LP2 Transcript/master adapters: DONE
+- LP3 Solver payload adapter: DONE
+- LP4 Public surface + compatibility layer: DONE
+- LP5 Solved-page/section examples: DONE
+
+Risk register
+1) Parallel surface drift
+- Risk: duplicate APIs diverge.
+- Mitigation: one canonical typed surface + shims only.
+
+2) Enum persistence drift
+- Risk: unstable persisted names.
+- Mitigation: explicit string enum values.
+
+3) Hidden behavior changes in transcript parsing
+- Risk: parity regressions.
+- Mitigation: no parser rewrites in LP1/LP2; parity tests mandatory.
+
+4) Over-coupling into solver core
+- Risk: LP concerns leak into core.
+- Mitigation: keep LP domain in `data/liber_primus`; solver receives only adapter payloads.
+
+Definition of done (for this plan)
+- Typed LP domain layer exists in repo and is primary documented surface.
+- Existing LP usage paths remain functional (compatibility preserved).
+- LP adapter produces deterministic solver payloads for typed locators/partitions/routes.
+- Solved-page and section examples are runnable and tested.
+
+Completion note
+- All tracker phases LP0-LP5 are marked DONE.
+- This plan has transitioned from active execution plan to archival execution record.
