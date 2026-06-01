@@ -1,0 +1,228 @@
+Here is the next piece: a first filled pass of the support-to-test map, followed by the blunt scope answer.
+
+First real support-to-test rows
+
+These rows are the highest-value ones to pin first because the docs make them load-bearing: one public RunSpec path, ScorerReport, future SolverReport, formal rescoring/reconstruction, first-class campaign wrapping, shared output/privacy, LP support, and clear failure for unsupported combinations. The charter says the matrix must say which capabilities are guaranteed and how unsupported combinations fail, and that it should be proven by tests. The handbook then says the support matrix is binding for planning/tests and that slices are not done until support-matrix cells are protected by tests.
+
+support_matrix_test_map — first filled rows
+Matrix row	Capability column	Cell meaning	Relevant support meaning	Current tests	Coverage type	Gap?	Follow-up task
+All first-class families	one public run/front door	Yes	Supported runs should go through one shared public run path rather than rival solve-description languages	tests/api/test_normalize.py, tests/api/test_normalize_direction.py, tests/api/test_normalize_impl_and_optimizer.py, tests/api/test_runapi_text_permutation.py, tests/api/test_wli_invariants.py, tests/api_contract/test_normalize_direction_accepts_enum_and_string.py, tests/api_contract/test_pipeline_block_direction_canonical.py, tests/ui_normalize/test_config_normalizers.py, tests/ui_normalize/test_text_permutation.py, tests/smoke/test_runapi_determinism.py	positive proof, contract proof	partial	write front-door inventory and minimum RunSpec note; add explicit “no second surface” guardrails
+First-class families	clear failure for unsupported combinations	Yes	Unsupported combinations should fail clearly and consistently	tests/api_contract/test_pipeline_block_direction_canonical.py, tests/api_contract/test_normalize_direction_accepts_enum_and_string.py, direction/enum guardrails under tests/guardrails/	contract proof, negative proof	partial	add explicit unsupported-combination rows once support wording is frozen
+First-class families	ScorerReport	Yes	Shared scorer report should exist on supported paths where promised	tests/scoring/test_scorer_report_builder.py, tests/scoring/test_scorer_report_json_safe.py, relevant no-WLI report tests such as tests/tools/test_no_wli_word_ngram_report.py, tests/tools/test_no_wli_iteration_finalize_word_ngram.py	positive proof, contract proof, parity proof	partial	freeze minimum ScorerReport fields and add projection-consistency tests
+First-class families	SolverReport	Yes	Narrow stable solver report should be available where promised	no obvious current direct proof in repo inventory	gap	yes	define minimum SolverReport, land it, then add direct construction + campaign-integration tests
+First-class families	formal rescoring / reconstruction	Yes	Enough retained state should exist to reconstruct/rescore supported solve paths	indirect parity evidence in no-WLI/campaign tests; no clear frozen direct contract proof yet	parity proof only	yes	write retained-state contract, then add reconstruction/rescoring tests
+Periodic substitution with transposition	campaign wrapping	Yes	This flagship family should be supportable inside the first-class campaign surface	tests/community/test_campaign_schemas_v1_1.py, tests/community/test_run_shard_v1_1.py, tests/community/test_run_single_job_config_v1_1.py, tests/tools/test_periodic_sub_trans_stage_engine_fixed_seed_parity.py, tests/tools/test_periodic_sub_trans_stage_engine_parity_smoke.py, tests/tools/test_no_wli_stage_engine_contract.py, tests/tools/test_no_wli_stage_engine_parity_smoke.py	positive proof, parity proof	partial	promote outer/inner campaign distinction into contract tests, not just tool-local parity
+Periodic substitution with transposition	stage progression / survivor carry-forward / retries	Yes	Serious staged campaign behaviour is part of the supported flagship path	tests/tools/test_no_wli_stage_engine_contract.py, tests/tools/test_no_wli_stage_engine_iteration_bridge.py, tests/tools/test_no_wli_fixture_matrix_mainflow.py, tests/tools/test_periodic_sub_trans_runner_fixed_seed_parity.py	parity proof	partial	add first-class campaign façade tests once outer contract is frozen
+First-class families	shared output/privacy rules	Yes	Portable outputs should obey one privacy-safe shared policy	tests/test_logging_paths.py, tests/tools/test_no_wli_path_privacy.py, tests/tools/test_periodic_sub_trans_paths.py	contract proof, negative proof	partial	inventory current writers, define shared contract, then add guardrails against local-writer drift
+LP support	first-class LP problem-source support	Yes	LP helpers and problem sources are first-class and should use shared contracts honestly	tests/data/liber_primus/test_lp_adapter.py, tests/data/liber_primus/test_lp_public_surface.py, tests/data/liber_primus/test_lp_registry.py, tests/data/liber_primus/test_lp_routes.py, tests/data/liber_primus/test_lp_workflows_smoke.py, tests/guardrails/test_data_defaults_use_assets.py, tests/api/test_lp_api_typed_helpers.py	positive proof, parity proof	partial	add explicit contract tests once RunSpec convergence is defined
+Tutorials/examples	tutorials use the real supported system	Yes	Tutorials should exercise real shared contracts, not a toy layer	some indirect evidence in tutorial/API tests, including tests/tutorials/test_crib_drag_api.py and API/LP tests	parity proof only	yes	add explicit tutorial-honesty row once front-door inventory is written
+Device-aware execution	CUDA where relevant	Where relevant	CUDA is first-class only where the family/path honestly supports it	tests/scoring/test_backend_selection_and_parity.py, tests/scoring/test_score_parity_torch.py, tests/scoring/test_unified_scorer_contract_torch.py, related runtime/scoring tests	positive proof	partial	support matrix needs exact row-by-row meaning; add negative proof for irrelevant/unsupported cases
+Core/report/output governance	no local output owner / no campaign-local scorer truth	Not supported	Local rival policy owners must not become supported behaviour	current proof is mostly handbook/guardrail intent; some path tests exist, but not enough direct anti-drift proof	gap	yes	add explicit guardrail tests for second writer / local scorer truth / second front door
+What this tells us
+
+The good news is that the repo already has a lot of parity proof and some contract proof in the right places. The weak areas are exactly the ones the docs already identify as unfinished convergence work:
+
+SolverReport
+
+formal rescoring/reconstruction minimum
+
+explicit support-cell meanings
+
+explicit unsupported-combination proof
+
+campaign contract proof above the current tool-local parity layer
+
+anti-drift proof against second surfaces and local policy owners
+
+That is actually a healthy result. It means the remaining work is mainly hardening and formalisation, not discovering huge missing capability. That is exactly the refactor plan’s judgement: RDP is in a finishing-phase convergence programme, blocked more by ownership/contracts/report surfaces/output policy/campaign formalisation than by missing capability.
+
+How much more is honestly left?
+
+Bluntly:
+
+To be successful at review and controlled handoff
+
+Not that much more.
+
+You are now close.
+
+The minimum remaining document/control work is:
+
+freeze the support-matrix cell meanings as a real maintained note
+
+turn the support-to-test map into a real maintained file and fill the first important rows
+
+make the findings register real
+
+put the workflow pack into the planning area as live files
+
+split the ADR starter pack into individual ADR files or decide to keep one pack temporarily
+
+do one human review pass in a fixed order
+
+That is maybe a few focused days of careful editing and cross-checking, not months.
+
+To be successful at the actual refactor
+
+Still a substantial amount.
+
+The docs are already telling the truth here: the hard part is not writing the plan, it is landing the convergence carefully without damaging the flagship LP/no-WLI attack behaviour. The biggest workstreams are still:
+
+run/front-door convergence
+
+scoring/report/rescoring hardening
+
+output/privacy convergence
+
+first-class campaign façade and ownership lift
+
+proof pass on support, reconstruction, and flagship campaign path
+
+So for real implementation success, there is still a lot of work left.
+
+What matters most now
+
+You do not need many more clever ideas.
+
+You need:
+
+fewer missing control files
+
+clearer support semantics
+
+clearer proof mapping
+
+and then disciplined execution
+
+That is the honest answer.
+
+What “successful” should mean
+
+I would define success in two levels.
+
+Level 1 — successful review pack
+
+You have:
+
+charter
+
+campaign spec
+
+refactor plan
+
+handbook
+
+support matrix
+
+implementation plan
+
+task register
+
+workflow pack
+
+current-code mapping note
+
+support-cell meanings
+
+support-to-test map
+
+findings register
+
+At that point the pack is tight enough to govern work.
+
+Level 2 — successful implementation
+
+You also have:
+
+front-door inventory and minimum RunSpec
+
+minimum ScorerReport frozen
+
+minimum SolverReport landed
+
+rescoring/reconstruction retained-state rule frozen
+
+output/privacy owner inventory and shared contract
+
+first governed campaign façade
+
+proof pass on support matrix, campaign progression, output/privacy, and flagship LP path
+
+That is the real finish line.
+
+How to keep the workflow tightly controlled
+
+This is the key part.
+
+The handbook already gives you the right ideas: read-first order, no silent support reduction, no second config surface, no local output owner, no campaign-local scorer contract, parity before tidiness, and support-matrix cells protected by tests.
+
+To make that real, I would enforce these seven hard rules:
+
+1. No task without a task card
+
+No code work starts unless the task card names:
+
+contract affected
+
+parity source
+
+likely files
+
+related tests
+
+non-goals
+
+acceptance checks
+
+2. No task without the read-first order
+
+Every contributor or agent must read:
+CURRENT_PHASE → handbook → ADRs → ACTIVE_TODO → support matrix → relevant tests → relevant code.
+
+3. No support reduction without explicit sign-off
+
+If a change weakens a support promise, that is architectural and must be escalated. The handbook says this plainly.
+
+4. No major tree churn before behaviour is protected
+
+No broad campaigns/ relocation or rename-cleanup passes before:
+
+mapping note is done
+
+support meaning is frozen
+
+guardrails exist
+
+façade plan exists
+
+5. Every slice must pass entry, review, and done gates
+
+Not optional.
+That is how you stop “small tidy refactors” from mutating architecture.
+
+6. One live board, one live risk register, one findings register
+
+Do not let chat be the tracker.
+Use:
+
+ACTIVE_TODO.md
+
+CURRENT_RISKS.md
+
+findings_register.csv
+
+7. Stable truth must move upward
+
+If something becomes stable, promote it out of private notes into:
+
+charter
+
+campaign spec
+
+implementation plan
+
+ADR
+
+tests
+
+Private notes support truth. They should not become the only truth. The handbook says exactly that.

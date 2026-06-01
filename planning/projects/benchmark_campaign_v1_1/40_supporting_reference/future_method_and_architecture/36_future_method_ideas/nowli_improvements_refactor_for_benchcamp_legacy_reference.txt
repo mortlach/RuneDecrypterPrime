@@ -1,0 +1,837 @@
+RDP Uniform Campaign Runner and Stage Engine Spec
+No-WLI first, span-hamming integrated, WLI as an objective catalogue extension
+Status
+
+Draft spec for review.
+
+0. Intent
+
+We are refactoring RuneDecrypterPrime (RDP) around the solving strategy so that RDP has:
+
+One campaign runner
+
+One stage engine
+
+One adaptive policy interface
+
+…and this single framework can run the same staged adaptive pipeline across:
+
+Scoring modes:
+
+no-WLI (hard mode; primary focus)
+
+WLI (extension mode; “same engine, different objective catalogue”)
+
+Cipher families / orders:
+
+periodic substitution only
+
+columnar then periodic substitution (col→sub)
+
+periodic substitution then columnar (sub→col)
+
+Community benchmark campaigns that sweep a curated set of parameter choices to map solved vs difficulty, and produce tuning guidance.
+
+This refactor is about turning a working idea into a clean product:
+
+staged adaptivity works,
+
+now we make it robust, configurable, testable, and comparable.
+
+1. Scope
+In scope (this refactor)
+
+[Critical]
+
+no-WLI staged strategy: stages, objectives, gates, adaptivity, selection rules
+
+span-hamming as a first-class part of the no-WLI pipeline (with cost discipline)
+
+unified runner logic across cipher families, expressed only via spec changes
+
+benchmark-first telemetry and artefacts for tuning and evidence
+
+[Important]
+5) define WLI mode clearly as the same engine with a different objective catalogue
+6) introduce a first-class scoring output object (structured scorer results) used pervasively across RDP
+
+Out of scope
+
+[Critical]
+
+installation/setup/packaging and general repo hygiene
+
+separate per-cipher “runner codepaths”
+
+relying on oracle metrics for production decisions
+
+2. What is already true (and what we are now optimising)
+
+[Critical]
+
+A no-WLI adaptive staged strategy can solve Kaeding-level targets at ~1000 chars (e.g. period-7 class). Therefore staged adaptivity works.
+
+[Critical]
+
+The new goal is dramatically better no-WLI solve performance at short texts by integrating span-hamming into the pipeline, aiming for ~500 chars on five real no-WLI puzzle texts.
+
+3. Terms and core objects
+Candidate
+
+A candidate is a solver state plus metadata:
+
+candidate_id (stable, deterministic identifier)
+
+cipher_state (opaque to the StageEngine; manipulated by operators)
+
+score_bundle (primary + aux scorer results)
+
+stage_meta (what stage produced it, budgets used, etc.)
+
+basin_id / cluster_id (for diversity control and basin-aware selection)
+
+Pool
+
+A pool is an ordered set of Candidates plus pool telemetry:
+
+score distributions
+
+basin counts, duplicate rate, domination ratio
+
+per-stage decision trace
+
+Stage
+
+A stage is a spec-defined step that:
+
+runs a search loop using a primary objective
+
+optionally evaluates auxiliary objectives (span, judges, gates) with explicit roles
+
+enforces budgets and pool caps
+
+outputs a new pool, telemetry, and decisions
+
+Campaign
+
+A campaign is a set of runs over:
+
+problem instances
+
+cipher parameter sets
+
+strategy specs (stages + policies)
+
+scoring mode/objective catalogue
+
+4. Non-negotiable design philosophy
+One runner, one engine
+
+[Critical]
+Cipher differences are expressed as operator schedules and cipher configuration, not separate runners.
+
+Separate search from selection
+
+[Critical]
+Search uses a fast “search score”; pruning/promotion/winner selection uses an explicit “decision score space”. Mixing score spaces silently is forbidden.
+
+Span-hamming is a scarce resource
+
+[Critical]
+Span must be:
+
+budgeted,
+
+measured,
+
+and integrated via explicit roles (including shadow mode).
+
+Benchmarking is a product requirement
+
+[Critical]
+Telemetry and outputs must be uniform across modes and ciphers so benchmarking is comparable and evidence-based.
+
+Determinism and auditability
+
+[Critical]
+A run must be reproducible and explainable:
+
+deterministic IDs
+
+explicit decision trace
+
+stable output structure
+
+5. Staged pipeline model (A/B/C/D)
+
+Each stage is described by a StageSpec (see §8).
+
+Stage A — Discovery (cheap, wide)
+
+Goal: explore many seeds cheaply; discover promising basins.
+Default no-WLI objective: char n-grams AVG / full_text (Kaeding-like behaviour).
+Operator schedule: depends on cipher family (data-driven weights).
+Output: large pool + basin labels + plateau/stall stats.
+
+Span in Stage A:
+
+default role is off or very limited shadow (spot checks only).
+
+Stage A should not become span-dominated.
+
+Stage B — Promotion (narrowing, basin-aware)
+
+Goal: shrink the pool without losing the right basin.
+Default no-WLI objective: stronger char AVG/full_text objective than Stage A.
+Must: diversity enforcement (basin caps; dedupe).
+Span integration: begins here.
+
+Span in Stage B:
+
+Shadow first (compute + log; no effect on selection).
+
+After shadow is proven, span becomes eligible to serve as:
+
+prune (basin selection signal)
+
+gate (trigger escalation/tie-band expansion)
+
+Stage C — Refinement (deep, expensive per survivor)
+
+Goal: converge within the best basins.
+Default no-WLI objective: strongest char AVG/full_text objective available.
+Span integration options: gate and/or combined decision scoring, typically late-activated.
+WLI mode: uses WLI n-gram objectives from the start (see §6).
+
+Stage D — Judge (explicit, auditable)
+
+Goal: final selection, disagreement visibility, confidence signals.
+Span can be used as a judge in no-WLI; in WLI it remains a selectable option (placeholder).
+
+6. Scoring modes and objectives
+6.1 Objective identity is explicit
+
+Every objective must declare:
+
+objective_id
+
+family: char_ngram | wli_ngram | span_hamming | …
+
+normalisation: avg | pct_ecdf | energy_ecdf
+
+window_policy: full_text or winN
+
+calibration_id (required if ECDF-backed)
+
+scorer_version / backend_id (provenance)
+
+[Critical]
+The StageEngine must treat (family, normalisation, window_policy, calibration_id) as part of the objective’s identity. If an objective cannot be satisfied (e.g. ECDF missing), it is a config error unless the spec explicitly provides a fallback.
+
+6.2 Default no-WLI policy (based on current evidence)
+
+[Critical]
+
+Default char objectives for Kaeding-style no-WLI solving are AVG / full_text.
+
+ECDF objectives remain an optional family (configurable), and will appear as pre-defined choices in benchmark sweeps, but are not the default.
+
+6.3 Span-hamming policy
+
+[Critical]
+Span is a separate metric family intended to judge text quality in no-WLI without WLI segmentation.
+
+It is typically window/span-based by nature.
+
+It may also have calibrated outputs (pct/energy) depending on available tables.
+
+6.4 WLI mode definition (extension)
+
+[Critical]
+WLI mode is the same StageEngine with a different objective catalogue:
+
+When WLI is allowed, WLI n-gram objectives are used from Stage A onward as the default scoring path.
+
+Span in WLI:
+
+Placeholder: span remains available as an option (off by default) for pathological/gamed cases; this is not decided yet.
+
+7. Span-hamming integration model
+7.1 Span roles
+
+A stage may include span as an auxiliary objective with one of these roles:
+
+off: not evaluated
+
+shadow: evaluated and logged only; must not affect decisions
+
+prune: used for pruning/promotion decisions
+
+gate: used for stage transitions / objective changes / tie-band expansion
+
+combined: contributes to the decision score (only when explicitly enabled)
+
+judge: final selection / confidence scoring
+
+[Critical]
+Shadow mode must be a first-class option in spec and must be enforced by the StageEngine (not by convention).
+
+7.2 Cost discipline (mandatory when span != off)
+
+Each stage enabling span must specify:
+
+hard budget: span_budget_ms and/or span_budget_calls
+
+evaluation scope:
+
+basin_reps (preferred)
+
+top_k_global
+
+evaluation cadence:
+
+every_n_rounds
+
+on_plateau
+
+on_ambiguity
+
+span profile:
+
+lite and/or full (pre-defined profiles)
+
+optional two-pass policy:
+
+run lite broadly, then full on top-M or tie-band
+
+[Critical]
+No stage may evaluate span without a budget and a scope. “Unlimited span” is forbidden.
+
+7.3 Shadow mode success criteria
+
+Shadow mode is “successful” when:
+
+Correctness (hard gates)
+[Critical]
+
+deterministic: same spec/seed produces identical “which candidates were span-scored”, same scores (within tolerance), same counters
+
+provenance is unambiguous (stage, role, profile, config id, calibration ids, effective parameters)
+
+cost accounting is consistent (call counts and wall time sums match event logs)
+
+Clarity (hard gate for reviewability)
+[Critical]
+
+counterfactual fields exist at prune points showing what span would have changed (see §10.3)
+
+Value (evidence threshold, not perfection)
+[Important]
+
+in ambiguous cases (small margins / tied basins), span shows meaningful separation often enough to justify promotion to decision role, at acceptable cost
+
+Until shadow success criteria are met, span may not influence pruning/promotion/winner selection.
+
+8. Spec structure
+8.1 CampaignSpec (typed)
+
+[Critical]
+A CampaignSpec must express:
+
+Identity and reproducibility
+
+campaign_id
+
+spec_version
+
+deterministic seed policy:
+
+master_seed
+
+per-run seed derivation rules (documented and stable)
+
+Problem space
+
+list of problem instances (text, metadata, known answer optional for benchmark only)
+
+Cipher family and parameter space
+
+cipher_family: periodic_sub | col_then_sub | sub_then_col
+
+cipher_params (fixed or sweep):
+
+alphabet_id
+
+direction
+
+period, columns, etc. (depending on family)
+
+campaign sweep definition (predefined choice sets; see §12)
+
+Scoring mode
+
+scoring_mode: no_wli | wli
+
+Objective catalogue
+
+objectives: {objective_id: ObjectiveSpec}
+
+Operator catalogue
+
+operators: {operator_id: OperatorSpec}
+
+Strategy
+
+stages: [StageSpec]
+
+adaptive_policy: AdaptivePolicySpec
+
+Outputs
+
+telemetry_spec: TelemetrySpec
+
+output_spec: OutputSpec (what artefacts to write, and where)
+
+8.2 ObjectiveSpec
+
+[Critical]
+
+objective_id
+
+family
+
+normalisation
+
+window_policy
+
+calibration_id (required if ECDF-backed)
+
+params (objective-specific knobs)
+
+provenance: backend_id, scorer_version
+
+8.3 OperatorSpec
+
+[Critical]
+
+operator_id
+
+supported_cipher_families
+
+params (operator knobs)
+
+deterministic behaviour requirements (no hidden randomness outside seed policy)
+
+8.4 StageSpec
+
+[Critical]
+Each stage defines:
+
+Identity
+
+stage_id
+
+purpose: discovery | promotion | refinement | judge
+
+Primary objective (search score)
+
+primary_objective_id
+
+Aux objectives
+
+list of:
+
+objective_id
+
+role: shadow|prune|gate|combined|judge|telemetry
+
+budget and scope (for expensive objectives like span)
+
+Operator schedule
+
+operator_schedule: [{operator_id, weight}]
+
+must validate against cipher family (unsupported operator is a config error)
+
+Budgets
+
+choose a strict budget unit per stage (one of):
+
+rounds
+
+eval_calls
+
+wall_ms
+
+budget_value
+
+per-objective aux budgets (especially span)
+
+Pool controls
+
+pool_in_cap
+
+pool_out_cap
+
+prune_policy_id (e.g. topk, basin_topk, tie_band_topk, pareto_prune)
+
+Diversity controls
+
+basin_key_id (how to cluster)
+
+dedupe_key_id (near-duplicate detection)
+
+max_per_basin
+
+tie-band settings:
+
+tie_eps
+
+tie_cap
+
+Plateau / stall
+
+stall_delta_min
+
+stall_rounds
+
+plateau_actions (e.g. “shake operators”, “resample seeds”, “escalate objective”)
+
+Telemetry requirements
+
+list of required fields / counters to emit for this stage (see §10)
+
+8.5 AdaptivePolicySpec
+
+[Critical]
+
+policy_id
+
+params
+
+must be implementable as a pure function:
+
+input: stage telemetry + spec
+
+output: decisions (keep counts, resampling, objective/role changes, operator schedule tweaks, stop)
+
+9. StageEngine behaviour (normative)
+9.1 Validation
+
+[Critical]
+Before running:
+
+every stage’s operators are supported by cipher_family
+
+objectives are satisfiable (e.g. ECDF requirements met if requested)
+
+span budgets/scopes exist if span role != off
+
+decision score space is explicit for prune/promotion/winner selection
+
+9.2 Execution loop (conceptual)
+
+For each stage:
+
+select inputs to stage (respect pool_in_cap, dedupe policy, basin caps)
+
+run search loop using:
+
+operator schedule
+
+primary objective
+
+stage budget
+
+evaluate aux objectives according to:
+
+role
+
+cadence
+
+scope
+
+budgets
+
+compute stage telemetry (required fields)
+
+call AdaptivePolicy → apply decisions:
+
+prune rules
+
+tie-band expansion
+
+resample / reseed
+
+shake / operator mix shift
+
+objective escalation
+
+span role promotion (shadow→prune/gate) only if allowed by spec and criteria
+
+snapshot outputs (pool summary, decision trace, optional candidate bundles)
+
+pass survivors to next stage
+
+9.3 Score-space rule
+
+[Critical]
+
+The StageEngine may use any scalar for the search loop (primary objective).
+
+Any pool-collapsing decision (prune/promote/winner selection) must use a declared decision score derived from explicit objective outputs, not raw mixed units.
+
+Raw scores may be logged, but must not silently drive decisions.
+
+10. Telemetry and artefacts
+10.1 First-class scoring output object
+
+[Critical]
+Introduce a pervasive scoring result object used across RDP.
+
+ScorerResult (minimum fields)
+
+identity/provenance:
+
+objective_id, family, normalisation, window_policy, calibration_id, backend_id, scorer_version
+
+scalar:
+
+score (for ordering within that objective)
+
+metrics:
+
+metrics: {name: float} (bounded, named)
+
+cost:
+
+wall_ms, eval_calls, chars_scanned (or proxy), cache_hit (optional)
+
+ScoreBundle
+
+primary: ScorerResult
+
+aux: {objective_id: ScorerResult}
+
+[Important]
+To keep artefacts bounded, full ScoreBundles need not be stored for every candidate; the OutputSpec must declare retention policy (e.g. store for survivors + basin reps + top-k only).
+
+10.2 Required stage telemetry fields
+
+[Critical]
+Per stage, emit at least:
+
+pool: pool_in, pool_out
+
+basins: basin_count, dup_rate, domination_ratio, max_per_basin_hit
+
+scores: min/median/p90/max, spread, margin
+
+plateau: improve_rate, stall_flags, budget_used
+
+decisions: rule IDs fired + parameters changed
+
+span (when enabled): span_calls_total, span_wall_ms_total, p50/p90/p99_call_ms, span_active_rate (numeric)
+
+10.3 Shadow counterfactual fields (prune points)
+
+[Critical]
+At any prune/promotion decision point, when span role is shadow, log:
+
+shadow_span_evaluated_count
+
+shadow_span_top_ids (bounded list)
+
+shadow_span_winner_id
+
+shadow_span_changed_winner: bool (compared to actual selection)
+
+shadow_span_rank_of_actual_winner
+
+shadow_span_would_keep_ids (bounded)
+
+shadow_span_would_drop_ids (bounded)
+
+shadow_span_overlap_with_actual_keep (size or fraction)
+
+These make shadow mode self-explanatory without manual diffing.
+
+10.4 Output artefacts
+
+[Critical]
+Outputs must support:
+
+campaign aggregation (compact row per run)
+
+deep debugging (trace)
+
+offline analysis (top-k score bundles)
+
+Recommended artefact set:
+
+results.jsonl: compact run summary row (stable schema)
+
+trace.jsonl: stage summaries + decision trace events
+
+pools/: optional snapshots of top candidates per stage (bounded)
+
+diagnostics.json: end-of-run counters and configuration hashes
+
+Oracle metrics (benchmark only) must be isolated and never required for production behaviour.
+
+11. Adaptive budgets and scaling
+
+[Critical]
+There is no canonical scaling rule yet. The community benchmark will discover it.
+
+Therefore the framework must support:
+
+explicit scaling policy choices as named presets
+
+a bounded set of parameters per policy
+
+policies that scale span checks by basins and ambiguity, not a single “trials” scalar
+
+11.1 Predefined scaling policy menu (initial)
+
+[Important]
+Provide a curated menu such as:
+
+basin_reps_v1
+
+checks target: basins * reps_per_basin
+
+clamp by calls_affordable from measured p90 call time and stage budget
+
+basin_reps_tieband_v1
+
+as above, but increases reps_per_basin when margins are small / tie-band expands
+
+topk_global_v1
+
+evaluate span only on global top-k (cheapest integration; likely weaker)
+
+The benchmark may sample from this menu, not invent arbitrary rules.
+
+12. Community benchmark integration
+
+[Critical]
+Benchmarking must:
+
+sweep only from pre-defined choice sets (curated)
+
+produce comparable telemetry across runs
+
+12.1 Choice sets to sample (examples)
+
+objectives:
+
+AVG/full_text char objectives (default)
+
+ECDF objectives as optional variants
+
+span roles:
+
+off, shadow, prune, gate, combined, judge (with safety rules)
+
+span profiles:
+
+lite/full/two-pass
+
+scaling policies:
+
+the menu in §11.1
+
+tie-band settings:
+
+small set of tie_eps/tie_cap options
+
+operator schedules:
+
+small set of stage templates per cipher family
+
+13. Default strategy templates (starting point)
+
+These are templates, not hard-coded behaviour.
+
+13.1 no-WLI default template (for 500-char push)
+
+Stage A: char AVG/full_text; span off (or rare shadow probes)
+
+Stage B: char AVG/full_text; span shadow on basin reps; strong diversity enforcement
+
+Stage C: char AVG/full_text; span gate/combined available, typically late-activated
+
+Stage D: span judge optional (no-WLI)
+
+13.2 Operator schedule templates (by cipher family)
+
+[Important]
+Provide pre-defined stage schedules such as:
+
+periodic_sub:
+
+A: SUB 1.0
+
+B: SUB 1.0
+
+C: SUB 1.0
+
+col→sub:
+
+A: COL 0.85, SUB 0.15
+
+B: COL 0.55, SUB 0.45
+
+C: COL 0.50, SUB 0.50 (or adaptive)
+
+sub→col:
+
+A: SUB 0.85, COL 0.15
+
+B: SUB 0.55, COL 0.45
+
+C: SUB 0.50, COL 0.50 (or adaptive)
+
+These are spec-controlled and benchmarked, not frozen.
+
+14. Acceptance criteria (final)
+
+[Critical]
+
+One runner + one StageEngine runs:
+
+no-WLI periodic_sub
+
+no-WLI col→sub
+
+no-WLI sub→col
+by changing only the CampaignSpec.
+
+[Critical]
+2) The known p7 ~1000-char no-WLI success path is representable as one concrete CampaignSpec.
+
+[Critical]
+3) No-WLI 500-char target becomes the primary acceptance objective (five real puzzle texts).
+
+[Critical]
+4) Span integration is real and measurable:
+
+shadow role works and emits counterfactuals
+
+cost telemetry is present and consistent
+
+span can be promoted to decision roles via spec choices (after shadow success)
+
+[Important]
+5) WLI mode is defined as “same engine, different objective catalogue”, with implementation/testing following no-WLI success.
+
+15. What is explicitly left as placeholders
+
+[Important]
+
+Whether span-hamming is ever needed in WLI mode (allowed option; off by default).
+
+The “best” adaptive scaling rule (to be discovered via benchmark; we provide a curated menu).
+
+The “best” span combination rule (judge vs prune vs gate vs combined; benchmark explores a curated set).

@@ -231,6 +231,12 @@ planning/**/*.xlsx
 planning/temp_files/
 planning/**/outputs/
 planning/**/canary_output/
+planning/**/95_evidence_snapshots/
+planning/**/50_completed_job_runs/
+planning/**/*review_pack*/
+planning/**/*review_pack*.zip
+*review_pack*/
+*review_pack*.zip
 solving/*
 !solving/README.md
 RuneDecrypterPrime-test-0.2/

@@ -1,0 +1,151 @@
+{
+  "version": 1,
+  "fixture_version": "fixtures_periodic_columnar_v1",
+  "updated_utc": "",
+  "rows": [
+    {
+      "fixture_id": "p5_c1_l400",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    },
+    {
+      "fixture_id": "p5_c5_l400",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    },
+    {
+      "fixture_id": "p5_c9_l800",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    },
+    {
+      "fixture_id": "p10_c1_l800",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    },
+    {
+      "fixture_id": "p10_c7_l1200",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    },
+    {
+      "fixture_id": "p10_c10_l1200",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    },
+    {
+      "fixture_id": "p13_c1_l1200",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    },
+    {
+      "fixture_id": "p13_c9_l1200",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    },
+    {
+      "fixture_id": "p13_c13_l1200",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    },
+    {
+      "fixture_id": "p5_c1_l2376",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    },
+    {
+      "fixture_id": "p5_c5_l2376",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    },
+    {
+      "fixture_id": "p5_c9_l2376",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    },
+    {
+      "fixture_id": "p10_c1_l2376",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    },
+    {
+      "fixture_id": "p10_c7_l2376",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    },
+    {
+      "fixture_id": "p10_c10_l2376",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    },
+    {
+      "fixture_id": "p13_c1_l2376",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    },
+    {
+      "fixture_id": "p13_c9_l2376",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    },
+    {
+      "fixture_id": "p13_c13_l2376",
+      "status": "unknown",
+      "best_match_ratio_seen": null,
+      "bestk_match_ratio_seen": null,
+      "best_run_id": "",
+      "notes": ""
+    }
+  ]
+}

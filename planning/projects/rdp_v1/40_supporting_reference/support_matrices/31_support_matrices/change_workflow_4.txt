@@ -1,0 +1,836 @@
+change_workflow
+required workflow for maintainers and agents during v1 controlled convergence
+
+Date: 2026-03-11
+
+1. Purpose
+
+This file defines the working method for code and planning changes during the v1 controlled convergence phase.
+
+It exists to stop:
+
+guesswork
+
+silent support reduction
+
+local convenience hacks becoming architecture
+
+large structural churn before parity is protected
+
+agents freelancing from partial context
+
+This workflow applies to:
+
+maintainers
+
+agents
+
+reviewers
+
+anyone proposing non-trivial changes to the refactor areas
+
+2. Read-first order
+
+Before proposing or making any non-trivial change, read in this order:
+
+CURRENT_PHASE.md
+
+maintainer handbook
+
+relevant ADRs
+
+ACTIVE_TODO.md
+
+support matrix and capability notes
+
+relevant tests
+
+relevant code
+
+If this order is not followed, the change should be treated as higher risk by default.
+
+3. First questions before touching code
+
+Every change proposal must answer these questions before implementation begins:
+
+What contract is affected?
+
+Is this boundary, core, campaign, output/privacy, LP/data, tutorial, or tool?
+
+What is the parity source here?
+
+Which tests currently protect the intended behaviour?
+
+Does this create a second surface or duplicate policy owner?
+
+Does this weaken LP/no-WLI capability, even slightly?
+
+Is this a real simplification, or only short-term wiring?
+
+Is an ADR already in place for this area?
+
+Is a temporary bridge needed, and if so what removes it later?
+
+If one of these is unknown, write that it is unknown and open a mapping or clarification task first.
+
+Do not guess.
+
+4. Required workflow for every non-trivial change
+Step 1 — classify the change
+
+Pick one primary category:
+
+correctness bug
+
+contract hardening
+
+convergence cleanup
+
+architectural change
+
+new feature
+
+experiment
+
+documentation alignment
+
+release hygiene
+
+Step 2 — fill a task card
+
+Use the task template before implementation begins.
+
+Step 3 — identify parity source
+
+Name which of these governs the intended behaviour:
+
+charter
+
+campaign spec
+
+support matrix
+
+implementation plan
+
+handbook
+
+current code and tests as parity evidence where docs are abstract
+
+Step 4 — identify test protection
+
+List:
+
+tests that already protect the behaviour
+
+tests that need to be added
+
+tests that may need updating
+
+Step 5 — decide whether a bridge is needed
+
+If a temporary bridge is needed, write:
+
+why it exists
+
+what parity it protects
+
+what tests cover it
+
+what removes it
+
+what makes it dangerous if it lingers
+
+Step 6 — implement the smallest safe slice
+
+Prefer the smallest slice that:
+
+preserves behaviour
+
+improves convergence
+
+keeps the architecture honest
+
+avoids premature tree churn
+
+Step 7 — close the slice properly
+
+A slice is not done when the code compiles.
+A slice is done only when the slice-definition-of-done checks are met.
+
+5. What must not happen during this phase
+
+Do not:
+
+quietly narrow support promises because the code is awkward
+
+create a second public run/config surface
+
+create a campaign-local scoring truth
+
+create a local output/privacy owner
+
+bury important behaviour inside tutorials or tools
+
+move the tree first and “fix behaviour later”
+
+replace real parity with guessed parity
+
+flatten serious staged behaviour into a toy façade
+
+leave temporary shims without an exit note
+
+If a proposed change does one of these, it should normally be rejected or sent back for redesign.
+
+6. What to do when a change feels “small”
+
+Many refactor mistakes happen because a change is described as small.
+
+If a change affects any of the following, it is not “small” just because the code diff is short:
+
+public run/front-door meaning
+
+support promises
+
+scorer or solver report shape
+
+output/privacy rules
+
+campaign progression or selection rules
+
+rescoring or reconstruction
+
+LP/no-WLI flagship behaviour
+
+In those cases, still use the full workflow.
+
+7. How to choose slice size
+
+Choose slices that are:
+
+easy to review
+
+easy to test
+
+easy to roll back
+
+tied to one clear contract or one clear risk
+
+Avoid slices that:
+
+change run/front-door, reporting, and campaigns all at once
+
+mix real architecture work with broad rename cleanup
+
+move files before behaviour is protected
+
+force reviewers to reconstruct intent from code alone
+
+Good slice shape:
+
+one contract
+
+one main risk
+
+one clear parity source
+
+one clear set of affected files
+
+one explicit acceptance set
+
+8. Review expectations
+
+Every review should check:
+
+Was the read-first order followed?
+
+Is the contract affected clearly named?
+
+Is the parity source clearly named?
+
+Are tests adequate for the promised behaviour?
+
+Is there hidden support reduction?
+
+Is there a second surface being introduced?
+
+Is there output/privacy drift?
+
+Is there campaign-local policy leaking into shared architecture?
+
+Is there a bridge, and if so does it have an exit?
+
+Review is not just about code style.
+Review is mainly about behavioural honesty and architectural direction.
+
+9. Escalation rule
+
+Escalate before implementation if any of these are true:
+
+the change appears to weaken support
+
+the change would create a second public surface
+
+the parity source is unclear
+
+the relevant tests are unclear
+
+the change affects flagship LP/no-WLI behaviour
+
+the change affects output/privacy rules
+
+the change crosses multiple workstreams at once
+
+In those cases, stop and write a short note or ADR update first.
+
+10. Temporary bridge rule
+
+A temporary bridge is allowed only if all of the following are written down:
+
+what gap it bridges
+
+why it is safer than immediate convergence
+
+what exact parity it protects
+
+what tests cover it
+
+what removes it later
+
+what the failure mode is if it remains too long
+
+A bridge without an exit note is not acceptable.
+
+11. Documentation update rule
+
+When a stable truth changes, update the right level of document.
+
+Use this rough rule:
+
+charter: only for true governance-level changes
+
+campaign spec: campaign contract or ownership changes
+
+implementation plan: landing order or workstream structure changes
+
+handbook/workflow pack: behaviour and process changes
+
+ADRs: stable decisions that should stop re-argument
+
+ACTIVE_TODO / CURRENT_PHASE / CURRENT_RISKS: live execution state
+
+Do not let private planning notes become the only place a stable rule exists.
+
+12. Final rule
+
+When in doubt:
+
+preserve parity
+
+protect tests
+
+avoid guessing
+
+avoid second surfaces
+
+avoid early tree churn
+
+write the decision down
+
+task_template
+required template for non-trivial v1 convergence tasks
+
+Date: 2026-03-11
+
+Use this template for any non-trivial implementation, refactor, or contract-hardening task.
+
+Copy and fill it in before starting work.
+
+Task card
+
+ID
+T-___
+
+Title
+[Short, clear title]
+
+Status
+not started / in progress / blocked / ready for review / done
+
+Priority
+P0 critical / P1 high / P2 medium / P3 later
+
+Category
+correctness bug / contract hardening / convergence cleanup / architectural change / new feature / experiment / documentation alignment / release hygiene
+
+Owner
+[person / maintainer / agent]
+
+Purpose
+[One short paragraph explaining why this task exists]
+
+Contract affected
+[boundary / core / run front door / scoring / solver reporting / campaigns / output/privacy / LP/data / tutorials / other]
+
+Why now
+[Why this task belongs in the current phase]
+
+Parity source
+[List the documents, tests, and code that define the intended behaviour here]
+
+Likely files
+
+[file path]
+
+[file path]
+
+[file path]
+
+Related tests already present
+
+[test path]
+
+[test path]
+
+[test path]
+
+Tests to add or update
+
+[test path or test intent]
+
+[test path or test intent]
+
+Rules affected
+
+[rule]
+
+[rule]
+
+[rule]
+
+Non-goals
+
+[what this task is explicitly not doing]
+
+[what this task is explicitly not doing]
+
+Main risks
+
+[risk]
+
+[risk]
+
+[risk]
+
+Temporary bridge needed?
+yes / no
+
+If yes, bridge note
+
+why bridge is needed
+
+what parity it protects
+
+what tests cover it
+
+what removes it later
+
+what makes it dangerous if left in place
+
+Acceptance checks
+
+[check]
+
+[check]
+
+[check]
+
+Definition of done
+
+code change complete
+
+relevant tests pass
+
+no hidden support reduction
+
+no second surface introduced
+
+relevant docs/notes updated
+
+exit note present for any bridge
+
+Reviewer focus
+
+[what reviewer should check most carefully]
+
+Notes
+[Any short extra notes]
+
+Short example
+
+ID
+T-008
+
+Title
+Stabilise minimum ScorerReport
+
+Status
+not started
+
+Priority
+P1 high
+
+Category
+contract hardening
+
+Owner
+maintainer
+
+Purpose
+Reduce drift between shared scorer reporting and local campaign projections, especially in no-WLI reporting paths.
+
+Contract affected
+scoring / reporting
+
+Why now
+Report convergence is a cross-cutting prerequisite for clean campaign summary and reconstruction work.
+
+Parity source
+
+governance charter
+
+implementation plan
+
+current scoring tests
+
+current no-WLI report behaviour where docs are still abstract
+
+Likely files
+
+src/rune_decrypter_prime/scoring/scorer_report.py
+
+src/rune_decrypter_prime/scoring/scorer_report_builder.py
+
+tools/benchmarks/periodic_sub_trans/no_wli/word_ngram_report.py
+
+tools/benchmarks/periodic_sub_trans/no_wli/iteration_finalize.py
+
+Related tests already present
+
+relevant tests/scoring/*
+
+relevant tests/tools/*
+
+Tests to add or update
+
+projection consistency tests
+
+minimum-field contract tests
+
+Rules affected
+
+keep ScorerReport
+
+no campaign-local scorer truth
+
+preserve reconstruction path
+
+Non-goals
+
+full campaign summary redesign
+
+broad no-WLI cleanup
+
+Main risks
+
+subtle runner-local dependencies
+
+field drift hidden in row projections
+
+Temporary bridge needed?
+no
+
+Acceptance checks
+
+minimum fields are written down
+
+shared report truth is clearer
+
+no-WLI projections do not silently diverge
+
+Definition of done
+
+code and tests updated
+
+no hidden support reduction
+
+no second report surface introduced
+
+Reviewer focus
+
+minimum-field honesty
+
+avoidance of local copied truth
+
+implementation_slice_gates
+required gates and definition-of-done for v1 convergence slices
+
+Date: 2026-03-11
+
+1. Purpose
+
+This file defines the minimum gates a slice must pass before it can be:
+
+started
+
+reviewed
+
+marked done
+
+The point is to stop “small” refactor slices from quietly changing important behaviour.
+
+2. Entry gates before implementation starts
+
+A slice should not start until all relevant entry gates are met.
+
+Gate E1 — task card exists
+
+There is a filled task card with:
+
+purpose
+
+contract affected
+
+parity source
+
+likely files
+
+related tests
+
+acceptance checks
+
+non-goals
+
+Gate E2 — parity source is named
+
+The slice clearly states what defines the intended behaviour.
+
+Gate E3 — test position is clear
+
+The slice states:
+
+what tests already exist
+
+what tests need to be added or updated
+
+what behaviour is not yet well protected
+
+Gate E4 — second-surface check passed
+
+The slice has explicitly considered whether it would:
+
+create a second public run surface
+
+create a second output/privacy owner
+
+create a campaign-local scorer or solver truth
+
+create a tutorial-only path that bypasses real contracts
+
+Gate E5 — bridge rule checked
+
+If a bridge is needed, the bridge note exists and has an exit condition.
+
+Gate E6 — slice size is sane
+
+The slice is narrow enough to review properly and does not mix:
+
+public run/front-door convergence
+
+report contract changes
+
+campaign formalisation
+
+broad file-tree moves
+all in one go
+
+3. Special gates for sensitive slice types
+3.1 Public run/front-door slices
+
+Must additionally show:
+
+current front-door surface inventory
+
+why this slice does not create a second public run language
+
+how unsupported combinations fail clearly
+
+3.2 Report/rescoring slices
+
+Must additionally show:
+
+minimum contract being protected or added
+
+relationship to campaign summaries
+
+relationship to reconstruction/rescoring
+
+3.3 Output/privacy slices
+
+Must additionally show:
+
+which current writers/policy owners are affected
+
+how portability/privacy is preserved
+
+how path leakage is prevented
+
+3.4 Campaign slices
+
+Must additionally show:
+
+whether they affect outer campaign contract, inner stage engine, or both
+
+what flagship LP/no-WLI behaviour is being protected
+
+why this slice does not flatten serious campaign substance
+
+3.5 LP/assets slices
+
+Must additionally show:
+
+what counts as logical asset identity
+
+whether LP helpers still use shared contracts honestly
+
+whether the slice changes source/runtime/output assumptions
+
+4. Review gates
+
+Before a slice is marked ready for review, check all relevant review gates.
+
+Gate R1 — tests are present and meaningful
+
+Tests are not merely updated to follow the code.
+They actually protect the intended behaviour.
+
+Gate R2 — no hidden support reduction
+
+The slice has not narrowed support promises by stealth.
+
+Gate R3 — no second surface introduced
+
+The slice has not created a rival public contract or policy owner.
+
+Gate R4 — parity still honest
+
+The slice still matches the named parity source, or has an explicit approved behaviour change note.
+
+Gate R5 — documentation note updated where needed
+
+If the slice changes a stable truth, the right document level has been updated:
+
+ADR
+
+implementation plan
+
+handbook/workflow note
+
+active TODO/risk/phase file
+
+Gate R6 — temporary bridge still justified
+
+If a bridge exists, it is still necessary and still has a removal path.
+
+5. Definition of done
+
+A slice is done only when all relevant done gates are met.
+
+Gate D1 — intended behaviour preserved or explicitly approved as changed
+
+There is no accidental behaviour drift.
+
+Gate D2 — support/test proof preserved
+
+Support-matrix meaning remains honest for the affected area.
+
+Gate D3 — no absolute-path leakage or local output-policy drift
+
+For slices affecting outputs, privacy and portability are still correct.
+
+Gate D4 — no campaign-local truth owner added
+
+Campaigns may project or summarise, but must not invent detached scoring/solver truth.
+
+Gate D5 — no second public surface remains
+
+Temporary bridges, if any, have not turned into settled duplicate architecture.
+
+Gate D6 — parity note updated if source of truth moved
+
+If the intended behaviour now lives somewhere else, that is written down.
+
+Gate D7 — next-step or cleanup note exists
+
+If the slice leaves temporary debt, the follow-on work is explicitly recorded.
+
+6. Automatic stop conditions
+
+Stop and escalate before continuing if any of these happen:
+
+you cannot identify the parity source
+
+you cannot identify the relevant tests
+
+the change seems to reduce support
+
+the change seems to affect flagship LP/no-WLI capability
+
+the change seems to require a second public surface
+
+the change mixes façade work with broad tree churn
+
+the change requires guessing file ownership or current behaviour
+
+Do not push through these conditions by instinct.
+
+7. Review checklist summary
+
+Use this short checklist in reviews:
+
+task card present?
+
+parity source named?
+
+tests meaningful?
+
+second-surface check passed?
+
+support reduction avoided?
+
+flagship behaviour protected?
+
+output/privacy preserved?
+
+bridge justified and temporary?
+
+docs/notes updated?
+
+next step recorded?
+
+If two or more answers are “unclear”, the slice is not ready.
+
+8. Final rule
+
+A neat refactor diff is not enough.
+
+For this phase, a good slice is one that is:
+
+behaviourally honest
+
+evidence-based
+
+test-backed
+
+narrow enough to review
+
+and aligned with the target architecture without taking shortcuts

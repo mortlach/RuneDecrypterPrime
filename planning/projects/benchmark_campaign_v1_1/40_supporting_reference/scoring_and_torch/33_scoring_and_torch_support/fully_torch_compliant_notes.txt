@@ -1,0 +1,368 @@
+Fully Torch-Compliant RDP Notes
+Date: 2026-02-23
+Owner: planning draft for implementation
+
+Status
+- Reference deep-dive notes.
+- Active decision/gate tracking is now in:
+  20_active_plans/scoring_paths_torch_compliance_v1_plan.md
+
+Purpose
+- Define a concrete, evidence-based plan to make RuneDecrypterPrime Torch/GPU compliant end-to-end.
+- Scope includes API input handling, runtime evaluation, cipher/decrypt path, scoring path, and benchmark runners.
+- Goal is not only "Torch scorer exists", but "entire pipeline can consume Torch inputs and execute without silent NumPy fallbacks in Torch profiles".
+
+Non-goals (for this document)
+- No code changes in this note.
+- No speculative claims about speedups without profiler evidence.
+- No change to objective semantics (pct/energy win=10 lock remains unchanged).
+
+----------------------------------------------------------------------
+1) Current State (verified)
+----------------------------------------------------------------------
+
+1.1 API boundary is NumPy-centric
+- `RunAPI.run` normalizes text via `to_indices` / `normalize_ciphertext` and scorer params via strict alias resolution:
+  - `src/rune_decrypter_prime/api/run.py:78`
+  - `src/rune_decrypter_prime/api/run.py:81`
+  - `src/rune_decrypter_prime/api/run.py:90`
+- `to_indices` and `normalize_ciphertext` currently coerce into NumPy arrays:
+  - `src/rune_decrypter_prime/api/normalize.py:212`
+  - `src/rune_decrypter_prime/api/normalize.py:309`
+- Scorer param keys are strictly validated (includes `avg_window_policy`):
+  - `src/rune_decrypter_prime/api/_resolve.py:139`
+
+Impact:
+- API currently does not expose a true Torch-native input contract.
+- Torch tensors as first-class input are not explicitly modeled at the API layer.
+
+1.2 Runtime is backend-aware but still returns NumPy and can fallback to scalar
+- Batch fallback counters are present and updated:
+  - `src/rune_decrypter_prime/core/problem/runtime.py:103`
+  - `src/rune_decrypter_prime/core/problem/runtime.py:104`
+  - `src/rune_decrypter_prime/core/problem/runtime.py:507`
+  - `src/rune_decrypter_prime/core/problem/runtime.py:568`
+- Key batch normalization exists:
+  - `src/rune_decrypter_prime/core/problem/runtime.py:619`
+- `evaluate_keys` and `evaluate_keys_with_raw` return NumPy (hard conversion):
+  - `src/rune_decrypter_prime/core/problem/runtime.py:698`
+  - `src/rune_decrypter_prime/core/problem/runtime.py:763`
+
+Impact:
+- Runtime still hard-exits to NumPy at key interfaces, which blocks full Torch-native execution.
+- Scalar fallback paths are still possible unless explicitly guarded.
+
+1.3 Scoring backend selection exists, but AUTO policy is device-only
+- AUTO maps to Torch only when device is CUDA:
+  - `src/rune_decrypter_prime/core/engine/builders.py:29`
+  - `src/rune_decrypter_prime/core/engine/builders.py:30`
+- Unified scorer facade still normalizes outputs via NumPy arrays:
+  - `src/rune_decrypter_prime/scoring/unified_rune_scorer.py:85`
+  - `src/rune_decrypter_prime/scoring/unified_rune_scorer.py:94`
+
+Impact:
+- AUTO does not consider workload capabilities or stability flags.
+- Unified path is not yet a full native-tensor handoff boundary.
+
+1.4 Cipher path is mostly NumPy
+- Periodic substitution/core kernels are NumPy:
+  - `src/rune_decrypter_prime/ciphers/periodic_substitution_cipher.py:138`
+  - `src/rune_decrypter_prime/ciphers/periodic_substitution_cipher.py:147`
+- Periodic columnar/core kernels are NumPy:
+  - `src/rune_decrypter_prime/ciphers/periodic_columnar_cipher.py:200`
+  - `src/rune_decrypter_prime/ciphers/periodic_columnar_cipher.py:219`
+- Pipeline mixin normalizes through NumPy coercion:
+  - `src/rune_decrypter_prime/ciphers/ciphers_pipeline.py:357`
+  - `src/rune_decrypter_prime/ciphers/ciphers_pipeline.py:366`
+- Vigenere has a Torch branch, but converts results back to NumPy:
+  - `src/rune_decrypter_prime/ciphers/vigenere_cipher.py:159`
+  - `src/rune_decrypter_prime/ciphers/vigenere_cipher.py:166`
+  - `src/rune_decrypter_prime/ciphers/vigenere_cipher.py:182`
+  - `src/rune_decrypter_prime/ciphers/vigenere_cipher.py:189`
+
+Impact:
+- Decrypt side is the largest structural blocker for full GPU path in periodic_sub_trans pipelines.
+
+1.5 Solver stack is NumPy-first
+- Base/KAEDING/GA/SA/Beam/Hybrid rely on NumPy arrays and NumPy RNG:
+  - `src/rune_decrypter_prime/solvers/solver_base.py:152`
+  - `src/rune_decrypter_prime/solvers/solver_base.py:213`
+  - `src/rune_decrypter_prime/solvers/kaeding_periodic_structured.py:41`
+  - `src/rune_decrypter_prime/solvers/kaeding_periodic_structured.py:61`
+  - `src/rune_decrypter_prime/solvers/kaeding_periodic_structured.py:188`
+
+Impact:
+- Even with Torch scorer, search/control loops stay NumPy/CPU unless explicitly ported.
+
+1.6 Benchmark runner state currently mixed and stability-constrained
+- no-WLI runner currently keeps scoring consistent as NumPy across stages:
+  - `tools/benchmarks/periodic_sub_trans/no_wli/runner.py:69`
+  - `tools/benchmarks/periodic_sub_trans/no_wli/runner.py:70`
+- Stage-3 Torch AVG full-text crash is documented as active risk:
+  - `40_supporting_reference/scoring_and_torch/33_scoring_and_torch_support/no_wli_stage3_torch_avg_fulltext_crash_report_2026-02-23.md`
+
+Impact:
+- Full Torch integration cannot be enabled globally until Torch AVG full-text crash path is fixed and gated.
+
+----------------------------------------------------------------------
+2) Existing Test Coverage We Can Build On
+----------------------------------------------------------------------
+
+- Runtime batch fallback counter tests:
+  - `tests/core/test_runtime_batch_fallback_counters.py`
+- AVG ECDF separation and NumPy/Torch parity tests:
+  - `tests/scoring/test_avg_ecdf_runtime_separation.py`
+- Torch batch API shape validation for NumPy inputs:
+  - `tests/scoring/test_torch_batch_score_numpy_input.py`
+- CUDA smoke path at Stage-2 level:
+  - `tests/smoke/test_cuda_solver.py`
+- Manual crash repro scaffold for Stage-3 Torch AVG full-text:
+  - `tests/tools/test_no_wli_stage3_torch_avg_fulltext_crash_repro.py`
+  - `tools/benchmarks/periodic_sub_trans/no_wli/repro_stage3_torch_avg_fulltext_access_violation.py`
+
+Gap:
+- No end-to-end contract test that proves "Torch input -> no host fallback -> deterministic solve parity".
+
+----------------------------------------------------------------------
+3) Definition of "Fully Torch-Compliant"
+----------------------------------------------------------------------
+
+Level T0 (current-ish)
+- Torch scorer can run on CUDA.
+- Pipeline still accepts/returns mostly NumPy.
+- Ciphers/solvers can remain CPU/NumPy.
+
+Level T1 (input-compliant)
+- API accepts Torch tensors for ciphertext and optional WLI.
+- Inputs can remain on device through scoring path when solver requests Torch profile.
+
+Level T2 (runtime-compliant)
+- Runtime/decrypt/score path supports native tensors without forced `to_numpy` at evaluate boundaries.
+- Fallback counters are zero in Torch perf profiles.
+
+Level T3 (pipeline-compliant)
+- Periodic_sub_trans core pipelines (col_then_sub, sub_then_col, no_wli) execute decrypt+score batches with Torch scorer and no scalar fallback.
+- Bench runners can enforce Torch profile with hard fail on fallback.
+
+Level T4 (full-engine compliant)
+- Core solver loops support backend-native arrays (or explicit solver partition where CPU-only pieces are intentional and measured).
+- End-to-end Torch profile is deterministic and stable on CUDA across target workloads.
+
+Target for "full integration" should be at least T3 before declaring success.
+
+----------------------------------------------------------------------
+4) Blockers and Risks
+----------------------------------------------------------------------
+
+Blocker A: Torch AVG full-text native crash (Windows access violation 0xC0000005)
+- Already observed and documented in:
+  - `40_supporting_reference/scoring_and_torch/33_scoring_and_torch_support/no_wli_stage3_torch_avg_fulltext_crash_report_2026-02-23.md`
+- Must be resolved or hard-gated before broad Torch rollout in no-WLI/stage3 paths.
+
+Blocker B: Forced NumPy conversion at runtime interface
+- `evaluate_keys*` return NumPy currently:
+  - `src/rune_decrypter_prime/core/problem/runtime.py:698`
+  - `src/rune_decrypter_prime/core/problem/runtime.py:763`
+
+Blocker C: Periodic ciphers lack Torch kernels
+- Periodic substitution/columnar kernels are NumPy-only.
+
+Risk D: Objective mismatch and backend mismatch in staged pipelines
+- If stages mix backend/objective families without controlled bridge ranking, solve quality can degrade while telemetry still "looks active".
+
+Risk E: Determinism drift across devices/dtypes
+- Need strict seed and dtype policy per profile to avoid false regressions.
+
+----------------------------------------------------------------------
+5) Proposed Implementation Plan (phased)
+----------------------------------------------------------------------
+
+Phase 0: Stabilize Torch AVG full-text crash path (must-do first)
+Goal:
+- Make Torch AVG full-text path safe for repeated benchmark runs.
+
+Work:
+1) Keep and use minimal repro script as deterministic gate.
+2) Add internal defensive checks around hash/probe path in Torch scorer full-text code.
+3) Compare per-batch outputs vs NumPy at identical inputs before/after risky sections.
+4) Add optional debug telemetry counters for probe overflow / invalid index conditions.
+
+Files:
+- `src/rune_decrypter_prime/scoring/torch_rune_scorer.py`
+- `tools/benchmarks/periodic_sub_trans/no_wli/repro_stage3_torch_avg_fulltext_access_violation.py`
+- `tests/tools/test_no_wli_stage3_torch_avg_fulltext_crash_repro.py`
+
+Exit gate:
+- Repro script no longer exits with `-1073741819`.
+- Existing AVG parity tests remain green.
+
+
+Phase 1: API Torch-input contract (T1)
+Goal:
+- Allow `RunAPI.run` to accept Torch tensors (CPU/CUDA) for `text` and optional WLI tuple path.
+
+Work:
+1) Extend normalization helpers to detect torch tensors safely and convert via backend-aware path.
+2) Preserve existing strict validation (`[0..28]`, contiguity, WLI shape) for Torch inputs.
+3) Keep backward compatibility for strings/lists/NumPy.
+
+Files:
+- `src/rune_decrypter_prime/api/normalize.py`
+- `src/rune_decrypter_prime/api/run.py`
+- `src/rune_decrypter_prime/api/wrappers/registry.py`
+
+Tests to add:
+- `tests/api/test_runapi_torch_input.py`:
+  - rank-1/rank-2 torch tensor input accepted.
+  - cuda tensor path accepted when CUDA is available.
+  - invalid token range still rejected.
+
+
+Phase 2: Runtime native-output option and fallback hardening (T2)
+Goal:
+- Stop forcing NumPy at `evaluate_keys` boundaries when running Torch-native profiles.
+
+Work:
+1) Add optional mode flag: `return_backend_scores` or equivalent config-level contract.
+2) Keep current default behavior (NumPy return) for compatibility.
+3) In Torch profiles, avoid `to_numpy` round-trip until solver explicitly needs host data.
+4) Promote fallback counters from telemetry-only to enforceable guard in perf profiles.
+
+Files:
+- `src/rune_decrypter_prime/core/problem/runtime.py`
+- `src/rune_decrypter_prime/core/config/scoring.py` (if contract flag is config-driven)
+- `src/rune_decrypter_prime/core/engine/builders.py` (profile-aware AUTO hardening)
+
+Tests to add:
+- `tests/core/test_runtime_torch_native_scores.py`
+- `tests/core/test_runtime_batch_fallback_enforced.py`
+
+
+Phase 3: Periodic cipher Torch kernels (critical for full pipeline)
+Goal:
+- Enable periodic_substitution and periodic_columnar decrypt/encrypt batch ops on Torch device.
+
+Work:
+1) Introduce backend-specific kernel helpers (CPU NumPy + Torch implementation).
+2) Reuse Vigenere pattern, but avoid unconditional `.cpu().numpy()` output in core path.
+3) Keep `CipherPipelineMixin` contract stable while introducing backend-aware branch.
+4) Add correctness parity tests against NumPy for fixed seeds and known keys.
+
+Files:
+- `src/rune_decrypter_prime/ciphers/periodic_substitution_cipher.py`
+- `src/rune_decrypter_prime/ciphers/periodic_columnar_cipher.py`
+- `src/rune_decrypter_prime/ciphers/ciphers_pipeline.py`
+- (optional helper) `src/rune_decrypter_prime/ciphers/_torch_kernels.py`
+
+Tests to add:
+- `tests/ciphers/test_periodic_substitution_torch_parity.py`
+- `tests/ciphers/test_periodic_columnar_torch_parity.py`
+- `tests/ciphers/test_cipher_pipeline_backend_parity.py`
+
+
+Phase 4: Solver/backend boundary strategy (T3 -> T4)
+Goal:
+- Decide and implement stable solver path for Torch-native profiles.
+
+Recommended strategy (incremental):
+1) Keep solver control flow CPU/NumPy initially, but make decrypt+score hot path backend-native.
+2) Add explicit boundary metrics (host-device copy counts/time) to quantify overhead.
+3) Only then evaluate solver-internal tensorization for KAEDING hot loops.
+
+Why:
+- Full solver tensorization is high complexity and high regression risk.
+- Biggest speed wins are usually from decrypt+score batch kernels first.
+
+Files (initial):
+- `src/rune_decrypter_prime/solvers/solver_base.py`
+- `src/rune_decrypter_prime/solvers/kaeding_periodic_structured.py`
+
+Tests to add:
+- `tests/solvers/test_kaeding_torch_profile_no_scalar_fallback.py`
+- `tests/smoke/test_periodic_sub_trans_cuda_smoke.py`
+
+
+Phase 5: Benchmark runner unification and policy
+Goal:
+- Remove ad-hoc per-stage backend drift in benchmark runners.
+
+Work:
+1) Add profile-level backend policy: `all_stages_same_impl=true/false`.
+2) Enforce `REQUIRE_BATCH_SCORING` + zero-fallback counters for perf profiles.
+3) Ensure stage objective bridging uses stage-appropriate scorer consistently.
+
+Files:
+- `tools/benchmarks/periodic_sub_trans/no_wli/runner.py`
+- `tools/benchmarks/periodic_sub_trans/col_then_sub/runner.py`
+- `tools/benchmarks/periodic_sub_trans/sub_then_col/runner.py`
+- `tools/benchmarks/config/no_wli_pipeline_profiles.py`
+
+Tests:
+- targeted integration tests under `tests/tools/` to verify runner configuration contracts.
+
+----------------------------------------------------------------------
+6) Test and Acceptance Matrix
+----------------------------------------------------------------------
+
+Required before claiming "fully Torch-compliant" for periodic_sub_trans:
+
+A) Correctness parity
+- NumPy vs Torch parity on periodic_substitution and periodic_columnar decrypt outputs.
+- NumPy vs Torch scoring parity for pct.logp.win10 and avg.logp.full_text.
+
+B) Stability
+- No native crash in Torch AVG full-text repro across repeated iterations.
+
+C) Performance path integrity
+- In Torch perf profiles:
+  - `score_batch_fallback_scalar == 0`
+  - `score_batch_with_raw_fallback_scalar == 0`
+- Validate via telemetry counters already present in runtime.
+
+D) API contract
+- `RunAPI` accepts Torch input tensors and rejects malformed tensors with clear errors.
+
+E) End-to-end smoke
+- CUDA smoke runs complete for at least one periodic_sub_trans profile with deterministic seed.
+
+----------------------------------------------------------------------
+7) Suggested Work Order (practical)
+----------------------------------------------------------------------
+
+1) Phase 0 (crash fix) first.
+2) Phase 1 + Phase 2 boundary changes (Torch input + runtime return mode).
+3) Phase 3 periodic cipher kernels (largest unlock for full pipeline).
+4) Phase 5 runner policy cleanup.
+5) Phase 4 deeper solver tensorization only if profiling still shows solver-side bottleneck.
+
+This order minimizes risk and avoids broad refactors before the crash path is stable.
+
+----------------------------------------------------------------------
+8) Proposed Deliverables
+----------------------------------------------------------------------
+
+Deliverable D1: Torch crash closure package
+- Crash repro green + guard tests + short incident closure note.
+
+Deliverable D2: Torch input/API package
+- API accepts torch tensors with strict validation.
+
+Deliverable D3: Periodic cipher Torch package
+- Torch kernels + parity tests + runtime integration.
+
+Deliverable D4: Runner compliance package
+- All periodic_sub_trans perf runners enforce no scalar fallback and consistent stage impl policy.
+
+Deliverable D5: Full profile report
+- One benchmark report comparing NumPy vs Torch profiles with fallback counters and solve quality.
+
+----------------------------------------------------------------------
+9) Open Decisions (must resolve before coding sprint)
+----------------------------------------------------------------------
+
+1) Do we require solver-internal tensorization for v1 "full torch", or is CPU control flow + Torch decrypt/score acceptable?
+2) Should `ScorerImpl.AUTO` stay device-only, or become profile/capability-aware once crash gate is in place?
+3) For public API, do we expose explicit `torch` input types in docs now, or keep as "accepted array-like" until all backends are stable?
+
+Current recommendation:
+- Accept CPU-control + Torch-hotpath as v1 full integration target (T3), then iterate to T4 only if profiling justifies complexity.

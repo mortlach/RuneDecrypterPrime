@@ -1,0 +1,219 @@
+Reviewed the pre-C++ contract pack. **I would approve this gate and move to the independent C++ backend, with synthetic parity tests only as the next step.**
+
+I checked the ZIP structure and contents directly:
+
+```text id="2t7k32"
+entry_count = 31
+has_backslash = False
+source files included = yes
+tests included = yes
+generated outputs included = yes
+```
+
+I also ran local checks on the included files:
+
+```text id="zpagup"
+py_compile on included source/test files: pass
+reference matcher tests: 14 passed
+```
+
+I did not rerun the asset-builder/tool integration tests from the pack because the full repo asset tree is not included in the review ZIP. The pack’s own verification summary reports:
+
+```text id="7xkru3"
+29 passed in 54.18s
+asset validation: pass
+phrase index: pass
+reference smoke: pass, 0.876s
+phrase entries: 196680
+core FWD invalid rows: 0
+```
+
+## Verdict
+
+```text id="7mqaij"
+Pack-level review: pass
+Source-level review: pass
+Pre-C++ contract gate: pass
+Next step: independent C++ backend + synthetic parity tests only
+```
+
+No C++ work should use real benchmark data yet, except after parity is locked.
+
+## Review answers
+
+### 1. Does direction-aware `PhraseProfile` satisfy the FWD/REV non-mixing rule?
+
+Yes.
+
+`PhraseProfile` now includes `direction`, and `profile_allows_entry()` requires:
+
+```python
+entry.direction == profile.direction
+```
+
+The wrong-direction test is present and checks that a REV entry is not considered under an FWD profile. This fixes the previous contract gap.
+
+### 2. Are strict `rune_lengths` and candidate-token validation acceptable?
+
+Yes.
+
+The current rules are good and should be mirrored exactly in C++:
+
+```text id="7xu8fp"
+candidate tokens:
+- non-empty
+- ints only
+- no bool
+- no float
+- no string
+- token range 0..28
+
+rune_lengths:
+- JSON list of ints
+- no bool
+- no float
+- no string
+- positive only
+```
+
+This is now a clear contract rather than a loose parser.
+
+### 3. Is core-FWD invalid-row blocking strong enough?
+
+Yes for the pre-C++ gate.
+
+The builder now records:
+
+```text id="t2csn0"
+core_fwd_invalid_row_count
+invalid_rows_block_core_fwd
+```
+
+and the generated manifest reports:
+
+```text id="0zuu8b"
+core FWD invalid rows: 0
+status: pass
+```
+
+That is enough to start backend work.
+
+One small future tightening: the damage audit uses reference configs, and in this pack they do exist and pass. The audit code would be stronger if it explicitly required at least one reference config to exist, rather than relying on `all(...)` over existing rows. This is **not blocking**, because the generated manifest shows both reference configs exist.
+
+### 4. Are `sum_count`, `max_count`, and `max_log_count` right?
+
+Yes.
+
+The phrase-index rows now expose:
+
+```text id="xmwnpr"
+count
+sum_count
+max_count
+log_count
+max_log_count
+phrase_count
+duplicate_row_count
+```
+
+That is enough for the next stage. The sample assets currently have zero duplicate rows, but the metadata is now ready for full assets.
+
+### 5. Should the next step be C++ backend plus synthetic parity tests only?
+
+Yes.
+
+The correct next slice is:
+
+```text id="y7z4ul"
+independent C++ backend
+synthetic parity tests against Python reference
+no real pilot yet
+no hard-pair report yet
+no production weighting
+```
+
+## Checks that look especially good
+
+The profile-eligibility summary is now useful. It shows that the core FWD sample phrase counts are:
+
+```text id="z9eysy"
+normal FWD 2–4: 39890
+strict FWD 2–4: 22862
+combined FWD core: 62752
+```
+
+It also shows an important design fact: for the current sample assets, phrase token lengths are already long for orders 2–4:
+
+```text id="9j4po5"
+2-grams: length 11
+3-grams: length 14
+4-grams: length 21
+```
+
+So P1 and P2 do not differ much by phrase-length eligibility in these assets; they will mainly differ by HD rules at scan time. That is fine, but worth remembering when interpreting later results.
+
+The reference smoke is correctly labelled as a bounded smoke, not a real pilot:
+
+```text id="vxes9o"
+backend_impl: python_reference
+broad_python_pilot: false
+entry_limit: 2000
+elapsed: 0.876s
+```
+
+That is exactly the right use of the slow reference path.
+
+## One non-blocking amendment before committing C++ work
+
+Add this small test or audit assertion when convenient:
+
+```text id="eutx93"
+damage audit must require at least one reference config to exist
+```
+
+Reason: the current output is fine, but the code’s `all(...)` checks would pass vacuously if no reference configs existed. Since both reference configs exist in this pack, this is a hardening point, not a blocker.
+
+## C++ slice I would approve next
+
+Keep it very narrow:
+
+```text id="x9g1k4"
+C++ Slice 1: synthetic exact parity only
+
+Scope:
+- in-memory phrase entries
+- one candidate token sequence
+- one PhraseProfile
+- exact same fields as Python ReferenceScanResult
+- no asset loading
+- no real candidate files
+- no benchmark runner
+- no optimisation beyond simple loops
+
+Parity cases:
+- exact hit
+- one damaged word
+- multiple damaged words
+- wrong direction rejected
+- wrong cut rejected
+- below min length rejected
+- total HD rejected
+- max word HD rejected
+- normalised HD ceiling rejected
+- multiple phrases at same offset
+- debug example limit does not alter aggregate scores
+- invalid candidate tokens rejected before scanning
+```
+
+Then only after that:
+
+```text id="u2d9ey"
+C++ Slice 2:
+load JSONL phrase entries and match Python on a tiny real-index smoke
+```
+
+## Bottom line
+
+This gate passes. The implementation is now aligned with the approved design: exact profile-driven scoring, direction-safe, strict token parsing, no hit caps, explicit duplicate metadata, and bounded Python smoke only.
+
+I would now proceed to the independent C++ backend, but keep the first C++ slice synthetic and parity-only.

@@ -1,0 +1,529 @@
+The real implementation programme
+
+I would structure the implementation plan into these workstreams.
+
+WS0 — planning and control pack
+
+This is not code-first. It is the operating system for the refactor.
+
+Goal
+Turn the handbook into an enforced workflow, so agents stop freelancing.
+
+Main outputs
+
+planning/working/CURRENT_PHASE.md
+
+planning/working/ACTIVE_TODO.md
+
+planning/working/CURRENT_RISKS.md
+
+planning/decisions/ADR-0001 to ADR-0010
+
+planning/agents/change_workflow.md
+
+planning/agents/task_template.md
+
+planning/agents/implementation_slice_gates.md
+
+planning/architecture/current_code_mapping_note.md
+
+Effort
+Small to medium.
+
+Why
+Not many files, but it is high leverage. Without it, the code work will drift.
+
+WS1 — support matrix lock-down and test meaning
+
+The matrix is already close, but it is still more like a promise sheet than an enforcement sheet.
+
+Goal
+Turn the support matrix into something that directly drives tests and failure rules.
+
+Main outputs
+
+final support matrix wording
+
+one short “cell interpretation” note
+
+mapping from matrix cells to test families
+
+Important point
+Your current matrix is intentionally ambitious: the three first-class families all say Yes or Where relevant for transforms, transposition, interrupters, CPU, CUDA where relevant, n-gram, span-hamming, ScorerReport, SolverReport, formal rescoring, campaign wrapping, and LP problem sources. That is fine as target-state governance, but the implementation plan must say clearly that this is the v1 promise to converge toward, not a claim that every one of those is already fully landed in uniform form today. 
+
+rdp_v1_governance_charter_v3_ow…
+
+Effort
+Small to medium.
+
+WS2 — one run contract / front door
+
+This is the RunSpec workstream.
+
+Current repo reality
+There is no actual RunSpec type yet. The current surface is a mixture of RunAPI, CipherSpec, KeySpec, SolverSpec, API normalisation, and RunConfig.
+
+Goal
+Converge that into one serialisable public run contract and one canonical entrypoint.
+
+Repo hotspots
+
+src/rune_decrypter_prime/api/run.py
+
+src/rune_decrypter_prime/api/specs.py
+
+src/rune_decrypter_prime/api/normalize.py
+
+src/rune_decrypter_prime/core/config/run.py
+
+src/rune_decrypter_prime/core/problem/*
+
+tests/api/*
+
+tests/api_contract/*
+
+tests/ui_normalize/*
+
+Effort
+Large.
+
+Why
+About 50 files / ~7k lines in the likely impact zone, plus it touches public meaning.
+
+Key risk
+Agents may be tempted to create a second run language or leave the old one half-alive. The handbook explicitly forbids that.
+
+WS3 — scoring, reports, and formal rescoring
+
+This is where your current no-WLI tuning work naturally belongs.
+
+Current repo reality
+ScorerReport exists in core. SolverReport does not appear to exist yet as a real source type. Formal rescoring is governed in docs, but not yet visibly converged as a first-class stable contract. In no-WLI, scorer-side reporting still has some manually curated field copying, even though a report builder exists.
+
+Goal
+One generic scoring story, one structured scorer report story, one narrow stable solver report, and a reliable rescoring/reconstruction path.
+
+Repo hotspots
+
+src/rune_decrypter_prime/scoring/*
+
+tools/benchmarks/periodic_sub_trans/no_wli/word_ngram_report.py
+
+tools/benchmarks/periodic_sub_trans/no_wli/iteration_finalize.py
+
+tests/scoring/*
+
+tests/tools/test_no_wli_*
+
+related telemetry/report tests
+
+Effort
+Large.
+
+Why
+Roughly 97 files / ~18k lines in the likely impact zone, and this is both architecture-critical and parity-sensitive.
+
+Important note for your current work
+The kind of no-WLI tuning you mentioned — for example promoting ngram_word_score from review-only to a real phase-B gate — fits here as a behaviour correction inside the governed scoring/campaign space, not as a reason to rewrite the refactor plan. So your current changes are compatible with the plan, provided they still follow the same anti-drift rules.
+
+WS4 — one output / privacy / artefact-writing owner
+
+This is smaller than campaigns, but very important to stabilise early.
+
+Current repo reality
+Output and privacy logic is still spread across core logging config, run logging, benchmark report writers, trace writers, and path helpers.
+
+Goal
+One shared output/privacy owner, used by campaigns and runs alike.
+
+Repo hotspots
+
+src/rune_decrypter_prime/io/*
+
+src/rune_decrypter_prime/core/config/logging_config.py
+
+tools/benchmarks/periodic_sub_trans/common/io_reports.py
+
+tools/benchmarks/periodic_sub_trans/common/trace_writer.py
+
+tools/benchmarks/periodic_sub_trans/common/paths.py
+
+tools/benchmarks/community/_campaign_common.py
+
+tests/test_logging_paths.py
+
+tests/tools/test_no_wli_path_privacy.py
+
+tests/tools/test_periodic_sub_trans_paths.py
+
+Effort
+Medium.
+
+Why
+Smaller file count, but it is cross-cutting and easy to drift.
+
+Key reason to do it early
+The handbook and charter are very strong here: one output/privacy owner, no local writers, no absolute path leakage.
+
+WS5 — first-class campaign surface
+
+This is the biggest and riskiest workstream.
+
+Current repo reality
+You effectively have two campaign surfaces already:
+
+an outer community config/schema/bundle/sharding surface
+
+an inner stage-engine/stage-spec/policy-engine surface
+plus a large no-WLI orchestration mass around them
+
+The campaign spec already recognises exactly this and says it should be treated as extraction and formalisation rather than zero-to-one invention.
+
+Goal
+Create one governed campaign surface that preserves the real LP attack workflows and then gradually moves architecture toward first-class ownership instead of leaving it in tools/.
+
+Repo hotspots
+
+tools/benchmarks/community/*
+
+tools/benchmarks/periodic_sub_trans/common/*
+
+tools/benchmarks/periodic_sub_trans/no_wli/*
+
+tools/benchmarks/periodic_sub_trans/sub_then_col/*
+
+tools/benchmarks/periodic_sub_trans/col_then_sub/*
+
+tests/community/*
+
+a large chunk of tests/tools/*
+
+Effort
+Very large.
+
+Why
+This is by far the biggest concentration: about 226 files / ~60k lines in the main impact zone, with the no-WLI runner area alone being huge.
+
+Key warning
+Do not start this by moving files into campaigns/.
+Start it by:
+
+mapping the current surfaces,
+
+freezing contract tests,
+
+introducing façade/adapter surfaces,
+
+only then regrouping ownership.
+
+That matches the handbook and refactor plan: parity before tidiness, and no big structural moves first.
+
+WS6 — LP domain and asset governance
+
+This is not the hardest stream, but it is essential for v1 honesty.
+
+Current repo reality
+The LP domain support is already real, and asset path handling exists. The manifest/governance side is still thinner than the charter wants.
+
+Goal
+Make LP and assets fully governed: logical asset IDs, manifest rules, clear source/runtime split, and stable LP problem-source interfaces.
+
+Repo hotspots
+
+assets_manifest_v1.json
+
+src/rune_decrypter_prime/data/asset_paths.py
+
+src/rune_decrypter_prime/data/liber_primus/*
+
+relevant tests under tests/data/* and guardrails
+
+Effort
+Medium.
+
+Why
+Moderate file count, but important conceptual clean-up.
+
+WS7 — repo ownership and de-shimming
+
+This is the regrouping pass, not the first pass.
+
+Goal
+Once contracts are stable, move long-term architecture toward its intended ownership:
+
+strict solving/core area
+
+first-class campaigns/
+
+first-class LP/domain module
+
+tools auxiliary again
+
+Effort
+Medium to large.
+
+Why
+The physical moves are not the hard part. The danger is doing them too early and breaking parity.
+
+WS8 — proof pass
+
+This is the final acceptance layer.
+
+Goal
+Prove the support matrix, the run/report/output story, and the flagship LP campaign path.
+
+Proof areas
+
+support-matrix contract proof
+
+campaign progression and reconstruction proof
+
+ScorerReport and SolverReport proof
+
+rescoring/reconstruction proof
+
+output/privacy proof
+
+flagship LP campaign proof
+
+Effort
+Medium.
+
+Why
+Less design work, more disciplined proof work.
+
+Relative effort summary
+Workstream	Relative effort	Risk
+WS0 planning/control pack	Medium	High leverage
+WS1 support matrix lock-down	Medium	Medium
+WS2 run contract / front door	Large	High
+WS3 scoring / reports / rescoring	Large	High
+WS4 output / privacy / artefacts	Medium	High
+WS5 campaign surface	Very large	Very high
+WS6 LP / assets	Medium	Medium
+WS7 repo ownership / de-shimming	Medium-large	High if early
+WS8 proof pass	Medium	Essential
+The landing order I would actually use
+
+I would make the implementation plan say this, plainly:
+
+Phase A — control pack and mapping
+
+Do this first.
+
+create CURRENT_PHASE, ACTIVE_TODO, ADRs, workflow pack
+
+write the current-code mapping note
+
+write the workstream touchpoint tables
+
+Phase B — guardrails and support proof scaffolding
+
+Before any major refactor:
+
+freeze matrix wording
+
+map matrix cells to tests
+
+add missing guardrails where behaviour is important but poorly protected
+
+Phase C — output/privacy and report contract stabilisation
+
+Do these before big campaign extraction:
+
+one output/privacy owner
+
+ScorerReport contract tightening
+
+SolverReport minimum contract landing
+
+formal rescoring retained-state contract
+
+Phase D — RunSpec/front-door convergence
+
+introduce real RunSpec
+
+adapt tutorials, API use, and campaign-generated runs to it
+
+keep boundary forgiving, core strict
+
+Phase E — campaign formalisation without tree churn
+
+create the first governed campaign façade
+
+widen StageSpec / wrap AdaptivePolicySpec
+
+keep serious LP stage behaviour
+
+do not yet do broad repo moves
+
+Phase F — campaign ownership lift
+
+move stable campaign architecture toward first-class ownership
+
+reduce runner-local duplication
+
+shrink tools/ to genuinely auxiliary code
+
+Phase G — LP/assets alignment and release-proof pass
+
+finalise asset governance
+
+proof runs
+
+docs/test alignment
+
+release checklist
+
+That order is almost exactly what the handbook and refactor plan already imply; it just needs to be written in repo-aware form.
+
+What I would add or tighten in the current docs
+
+I would not rewrite them heavily now. I would make these targeted additions:
+
+In the charter
+
+Add one plain sentence that the support matrix is the target first-release support promise, not a claim that all support is already uniformly converged in today’s repo state.
+
+In the campaign spec
+
+Add one explicit note that the current code has:
+
+an outer community config/schema surface
+
+an inner stage-engine/policy surface
+and both must be preserved during convergence.
+
+In the handbook
+
+Promote the current private workflow layout from “recommended” to “required for the refactor phase”.
+
+In the implementation plan
+
+Make the current-code mapping note a mandatory first deliverable, not just a gate.
+
+The agent workflow I would lock in
+
+This is the behaviour system I think agents should be forced to follow.
+
+Before any real task
+
+Read, in this order:
+
+CURRENT_PHASE.md
+
+handbook
+
+ADRs
+
+ACTIVE_TODO.md
+
+support matrix / capability notes
+
+relevant tests
+
+relevant code
+
+That is already the handbook rule and should become the non-negotiable workflow. 
+
+maintainer_handbook_v2
+
+Every task must start with a small task card
+
+Fields:
+
+title
+
+change class
+
+purpose
+
+contract touched
+
+affected files
+
+parity source
+
+tests to add/update
+
+success criteria
+
+non-goals
+
+temporary bridge note if any
+
+Every task must answer these questions
+
+what contract is affected?
+
+does this create a second surface?
+
+does this weaken LP capability?
+
+is this benchmark-local policy leaking into core?
+
+what tests protect the behaviour?
+
+is current code the parity source here?
+
+Again, this is already in the handbook and should be copied into the real workflow pack.
+
+Slice definition of done
+
+No slice is done until it proves:
+
+intended behaviour preserved
+
+support cells protected by tests
+
+no absolute-path leakage
+
+shared writer/output rules used
+
+no second config surface
+
+no campaign-local scorer contract
+
+rescoring/reconstruction preserved where relevant
+
+reports still emitted on agreed contract
+
+That also comes straight from the handbook and is exactly right. 
+
+maintainer_handbook_v2
+
+My blunt summary
+
+The smoothest route is:
+
+do not shrink the plan
+do not start with file moves
+do not let agents work from prose alone
+
+Instead:
+
+turn the handbook into a real workflow pack,
+
+write the current-code mapping note,
+
+freeze support-matrix test meaning,
+
+stabilise output/report/reconstruction contracts,
+
+converge the run front door,
+
+only then lift campaigns into first-class ownership.
+
+That gives you a refactor that is controlled, proof-based, and much less likely to “simplify” away serious LP behaviour.
+
+The next thing I can do is write the actual screen-ready implementation plan text in full, with:
+
+named phases
+
+exact workstreams
+
+task-gate wording
+
+file touchpoint tables
+
+and the agent workflow section integrated so it reads as one self-contained plan.

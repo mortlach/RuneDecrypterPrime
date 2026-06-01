@@ -1,0 +1,527 @@
+support_matrix_cell_meanings
+required interpretation note for v1 support-matrix review and test use
+
+Date: 2026-03-11
+
+1. Purpose
+
+This note defines what the support-matrix cell labels mean for:
+
+review
+
+planning
+
+testing
+
+clear-failure behaviour
+
+It exists so that the matrix is not read as vague aspiration.
+
+The support matrix is binding for planning and tests. It should be proved by the test stack rather than treated as a loose intent note. Unsupported combinations must fail clearly and consistently. 
+
+rdp_v1_governance_charter_v3_ow…
+
+ 
+
+maintainer_handbook_v2
+
+2. Scope
+
+This note applies to matrix cells that describe:
+
+first-class solving families
+
+cross-cutting capabilities
+
+campaign wrapping
+
+report availability
+
+rescoring/reconstruction promises
+
+LP/domain support where included in the matrix
+
+device-aware support where relevant
+
+It does not replace the charter or support matrix itself.
+It tells reviewers and implementers how to read the cell labels.
+
+3. Core interpretation rule
+
+A support cell is a public-support meaning, not merely a description of what happened to work in one test or one old tool path.
+
+A support cell should answer:
+
+is this combination part of the supported v1 promise?
+
+if yes, how strong is that promise?
+
+if no, how should it fail?
+
+The matrix must not be narrowed just because the current code is awkward. Support reduction is architectural and needs explicit approval. 
+
+maintainer_handbook_v2
+
+4. Cell meanings
+4.1 Yes
+
+Meaning
+This capability or combination is part of the supported v1 promise for the relevant family or surface.
+
+Review meaning
+
+reviewers should assume users are allowed to rely on it
+
+absence of tests is a defect
+
+unclear behaviour should be treated as a gap to close, not as permission to weaken support
+
+Implementation meaning
+
+the shared contract should support it honestly
+
+the supported path should use normal shared architecture, not side-door hacks
+
+outputs, reports, and validation should behave consistently with the rest of the supported system
+
+Test meaning
+
+needs at least one direct positive proof path
+
+should usually also have at least one negative test around invalid or unsupported neighbouring combinations
+
+if the promise is cross-cutting, proof should normally exist in more than one relevant family unless “where relevant” applies instead
+
+Failure meaning
+
+ordinary supported usage should not fail unexpectedly
+
+if a boundary input is malformed, failure should still be clear and consistent
+
+4.2 Where relevant
+
+Meaning
+This capability is part of the supported v1 promise only where the capability has honest semantic meaning for that family or surface.
+
+This label exists to avoid fake universality.
+
+Examples of the kind of thing this is meant for:
+
+interrupters where the family/problem really has interrupter meaning
+
+transposition handling where transposition is part of the attack model
+
+CUDA where the implementation path genuinely benefits and supports it
+
+campaign wrapping where the family is intended to participate in first-class campaign orchestration
+
+Review meaning
+
+reviewers should ask “relevant to what?”
+
+the matrix or nearby capability notes should make the relevance rule plain enough to review
+
+“where relevant” must not become a vagueness loophole
+
+Implementation meaning
+
+support must exist on the shared path for cases that really fall inside the relevance rule
+
+irrelevant cases should fail clearly or be excluded cleanly
+
+do not fake support for meaningless cases just to make the matrix look neat
+
+Test meaning
+
+needs at least one positive test for a clearly relevant case
+
+needs at least one clear-failure or clear-exclusion test for an irrelevant case where confusion is plausible
+
+relevance notes should be linked in the support-to-test map
+
+Failure meaning
+
+irrelevant combinations should fail clearly and consistently or be rejected at validation time
+
+they should not wander into undefined local behaviour
+
+4.3 Limited
+
+Meaning
+This capability is intentionally supported only in a narrower, explicitly bounded way in v1.
+
+This is still a support promise, but a limited one.
+
+Review meaning
+
+the limit must be named
+
+the limit should be intentional, not accidental folklore
+
+reviewers should ask whether the limit is a real owner choice or just unfinished convergence
+
+Implementation meaning
+
+the bounded supported slice must be honest and stable
+
+code should reject or clearly fail outside the stated bounds
+
+local “sometimes works” behaviour outside the bound is not part of the promise
+
+Test meaning
+
+needs at least one positive test proving the supported limited slice
+
+needs at least one negative test proving behaviour outside the limited slice fails clearly or is rejected
+
+the limit should be described in one short note, not hidden inside test names only
+
+Failure meaning
+
+outside the limited slice, failure must be clear and consistent
+
+no accidental half-support should be implied
+
+4.4 Not supported
+
+Meaning
+This capability or combination is not part of the supported v1 promise.
+
+Review meaning
+
+reviewers should not require positive implementation proof for it
+
+but they should require clear failure, rejection, or clear exclusion where users could reasonably try it
+
+Implementation meaning
+
+no side-door local success path should be mistaken for support
+
+unsupported combinations should fail clearly and consistently
+
+boundary validation should prefer explicit rejection over mysterious downstream behaviour
+
+Test meaning
+
+needs negative coverage where confusion is plausible
+
+the point of the test is not to prove the feature works
+
+the point is to prove failure is honest
+
+Failure meaning
+
+rejection or failure should be clear, stable, and explainable
+
+unsupported should not mean random
+
+5. Additional reading rules
+5.1 A tutorial or old test does not automatically upgrade support
+
+The charter is explicit that the presence of a tutorial or old test does not by itself make something part of the v1 public support promise. 
+
+rdp_v1_governance_charter_v3_ow…
+
+5.2 “Works in tools” is not enough
+
+If something only works through benchmark-local or tool-local behaviour, that does not automatically mean it is part of the shared supported path. Important architecture should not quietly remain owned by tools/. 
+
+maintainer_handbook_v2
+
+5.3 Support should follow shared contracts
+
+A cell marked supported should normally imply support through the shared contracts:
+
+one public run/front door where relevant
+
+shared scorer/solver reporting where promised
+
+shared output/privacy rules
+
+shared campaign wrapping where promised
+
+6. Required notes beside the matrix
+
+The matrix should be accompanied by short notes covering:
+
+what counts as a first-class solving family
+
+what counts as a cross-cutting capability
+
+what “where relevant” means for each ambiguous column
+
+what “limited” means where used
+
+how unsupported combinations fail
+
+These notes should stay short.
+They exist to make the matrix reviewable and testable.
+
+7. Minimum review checklist for matrix rows
+
+For each important row, ask:
+
+is the family/support meaning clear?
+
+does each non-empty cell mean Yes, Where relevant, Limited, or Not supported in a concrete way?
+
+do relevant cases have proof or an obvious path to proof?
+
+do unsupported or irrelevant neighbouring cases fail clearly?
+
+is there any cell that is really hiding uncertainty rather than expressing a decision?
+
+If yes, rewrite the cell or add a note.
+
+8. Default interpretation for ambiguity
+
+If a cell is ambiguous:
+
+do not quietly weaken support
+
+do not assume broad universal support either
+
+mark it for owner clarification
+
+keep parity behaviour protected until wording is settled
+
+That follows the current governance direction: preserve capability first, then converge the wording and proof honestly. 
+
+maintainer_handbook_v2
+
+support_matrix_test_map
+starter skeleton for proving the v1 support story
+
+Date: 2026-03-11
+
+1. Purpose
+
+This file maps support-matrix promises to test evidence.
+
+The goal is to make support proof explicit rather than folkloric.
+
+The handbook says the support matrix is binding for planning and tests, and slice definition-of-done requires support-matrix cells to be protected by tests. The refactor plan also says the proof pass should explicitly cover the first-class support matrix. 
+
+maintainer_handbook_v2
+
+ 
+
+rdp_v1_refactor_plan_v2_owner_r…
+
+2. How to use this file
+
+For each important support promise:
+
+state the promise
+
+name the matrix row/column
+
+classify the support meaning
+
+name the current tests if any
+
+say whether coverage is positive proof, negative proof, or both
+
+mark gaps honestly
+
+create follow-up tasks where coverage is missing
+
+This file is allowed to say “gap”.
+It must not pretend a promise is proved when it is not.
+
+3. Coverage types
+
+Use these labels:
+
+positive proof = proves a supported case works
+
+negative proof = proves an unsupported or irrelevant case fails clearly
+
+contract proof = proves validation/report/output/reconstruction contract behaviour
+
+parity proof = proves important real behaviour is preserved
+
+gap = no adequate current proof
+
+4. Table skeleton
+Matrix row	Capability column	Cell meaning	Relevant support meaning	Current tests	Coverage type	Gap?	Follow-up task
+periodic substitution	ScorerReport	Yes	shared scorer report available on supported path				
+periodic substitution with transposition	campaign wrapping	Yes	first-class campaign path supported				
+monoalphabetic substitution	CUDA	Where relevant / Limited / Not supported	clarify exact meaning				
+periodic substitution with transposition	reconstruction	Yes	enough information preserved to reconstruct supported solve path				
+
+Fill this row by row.
+
+5. Suggested first mapping areas
+
+Start with the highest-value promises first.
+
+5.1 Public run/front door
+
+Map support proof for:
+
+one public run path
+
+boundary validation
+
+clear failure for unsupported combinations
+
+tutorials and campaign-generated runs using the real supported system
+
+Likely current test areas
+
+tests/api/
+
+tests/api_contract/
+
+tests/ui_normalize/
+
+Questions
+
+what currently proves the front door?
+
+what proves clear failure?
+
+what is still only parity evidence rather than contract proof?
+
+5.2 Scoring and reports
+
+Map support proof for:
+
+ScorerReport availability where promised
+
+future SolverReport availability where promised
+
+report consistency between shared truth and campaign projections
+
+formal rescoring or reconstruction retained-state behaviour where promised
+
+Likely current test areas
+
+tests/scoring/
+
+tests/telemetry/
+
+relevant tests/tools/
+
+relevant tests/community/
+
+Questions
+
+what is already proved in shared scoring?
+
+where are report projections only indirectly tested?
+
+what future tests will be needed once SolverReport lands?
+
+5.3 Campaign wrapping and progression
+
+Map support proof for:
+
+campaign wrapping for supported flagship families
+
+stage progression
+
+survivor carry-forward
+
+retries/rescoring where promised
+
+campaign summary and reconstruction minimum
+
+Likely current test areas
+
+tests/community/
+
+relevant tests/tools/
+
+Questions
+
+what is already covered by current no-WLI/stage-engine tests?
+
+what is still only tool-local parity evidence?
+
+which promises need new first-class contract tests later?
+
+5.4 Output/privacy
+
+Map support proof for:
+
+no absolute paths in portable outputs
+
+shared writer/privacy rules
+
+consistent structured output behaviour
+
+trace and event behaviour where promised
+
+Likely current test areas
+
+tests/test_logging_paths.py
+
+privacy/path tests under tests/tools/
+
+Questions
+
+what is genuinely shared today?
+
+what is only locally protected?
+
+where are gaps in negative/failure proof?
+
+5.5 LP/domain and tutorial honesty
+
+Map support proof for:
+
+first-class LP support where promised
+
+tutorials using the real supported system
+
+extension or problem-source paths using the shared contracts where promised
+
+Likely current test areas
+
+tests/data/
+
+tests/guardrails/
+
+tutorial regression tests if present
+
+Questions
+
+what proves LP support on the shared path?
+
+what is only legacy/tutorial presence rather than support proof?
+
+6. Minimum completion rule
+
+This file is good enough to control work only when:
+
+every major first-class support promise has at least a first-pass row
+
+major gaps are visible
+
+unsupported-combination behaviour is represented, not ignored
+
+current parity evidence is clearly distinguished from true contract proof
+
+7. Suggested first rows to fill
+
+Start with these:
+
+first-class solving family support rows from the charter
+
+cross-cutting ScorerReport
+
+future SolverReport
+
+formal rescoring/reconstruction
+
+campaign wrapping for the flagship LP-oriented path
+
+output/privacy portability
+
+LP problem-source honesty
+
+clear failure for unsupported combinations
+
+The charter, campaign spec, and refactor plan all make those areas load-bearing for v1.

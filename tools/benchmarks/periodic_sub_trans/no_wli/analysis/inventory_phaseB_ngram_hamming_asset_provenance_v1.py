@@ -5,7 +5,7 @@ import hashlib
 import json
 import sys
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Iterable
 
 
@@ -49,6 +49,11 @@ def ensure_under_repo(path: Path) -> None:
 
 def repo_rel(path: Path) -> str:
     return path.resolve().relative_to(REPO_ROOT.resolve()).as_posix()
+
+
+def is_absolute_path_text(value: Any) -> bool:
+    text = str(value)
+    return PureWindowsPath(text).is_absolute() or PurePosixPath(text).is_absolute()
 
 
 def read_json(rel_path: str) -> Any:
@@ -188,8 +193,6 @@ def build_inventory() -> dict[str, Any]:
             if row["run_label"] == "phaseB_ngram_hamming_balanced_readout_v1"
         }
     )
-    raw_ngram_root = str(filtered_config.get("raw_ngram_root", ""))
-    raw_ngram_root_path = Path(raw_ngram_root) if raw_ngram_root else Path()
     manifest = {
         "run_label": RUN_LABEL,
         "created_utc": datetime.now(timezone.utc).isoformat(),
@@ -205,8 +208,10 @@ def build_inventory() -> dict[str, Any]:
             "enabled_directions": filtered_config.get("enabled_directions"),
             "enabled_orders": filtered_config.get("enabled_orders"),
             "dictionary_manifest": dictionary_manifest,
-            "raw_ngram_root_recorded_as_absolute": raw_ngram_root_path.is_absolute(),
-            "raw_ngram_root_name": raw_ngram_root_path.name,
+            "raw_ngram_root_recorded_as_absolute": is_absolute_path_text(
+                filtered_config.get("raw_ngram_root", "")
+            ),
+            "raw_ngram_root_name": Path(str(filtered_config.get("raw_ngram_root", ""))).name,
         },
         "asset_validation": {
             "manifest_path": f"{ASSET_VALIDATION_REL}/ngram_hamming_asset_manifest.json",

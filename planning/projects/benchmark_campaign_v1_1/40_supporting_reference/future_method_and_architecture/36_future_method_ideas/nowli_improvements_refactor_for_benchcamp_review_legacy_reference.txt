@@ -1,0 +1,166 @@
+RDP Proposal Review
+Target reviewed: planning/working/nowli_imrpovements_refactor_for_benchcamp.txt
+Review date: 2026-03-02 (America/Los_Angeles)
+
+Summary verdict
+- Directionally strong, but not implementation-ready as written.
+- Alignment with current repo and active plans: partial.
+- Main issue: the proposal mixes a good long-term architecture target with changes that conflict with locked v1.1 campaign contracts and current scorer/runtime interfaces.
+
+What is strongly aligned
+1) Determinism, auditability, and telemetry-first philosophy are aligned.
+Evidence:
+- docs/guides/philosophy.md:16-19
+- tools/benchmarks/community/run_shard.py:524-527, 644-649, 665-666
+- tools/benchmarks/community/validate_run_bundle.py:37-38, 160-168, 194-196
+
+2) "One campaign runner surface" aligns with current direction.
+Evidence:
+- tools/benchmarks/community/_run_single_job.py:82-132
+- tools/benchmarks/periodic_sub_trans/README.md:26-33
+- planning/drafts/BENCH_CAMPAIGN_CLEANUP_PLAN_2026-02-25.md:185
+
+3) No-WLI focus and span-hamming cost/accounting emphasis align with existing no_wli runner behavior.
+Evidence:
+- tools/benchmarks/periodic_sub_trans/no_wli/runner.py:88, 95, 218-223
+- tools/benchmarks/periodic_sub_trans/no_wli/runner.py:5319-5349
+- tools/benchmarks/periodic_sub_trans/no_wli/README.md:58-78
+
+4) Explicit scorer provenance and objective identity are partially present already.
+Evidence:
+- src/rune_decrypter_prime/scoring/rune_scorer.py:1035-1038
+- src/rune_decrypter_prime/scoring/torch_rune_scorer.py:622-640, 779-782
+- src/rune_decrypter_prime/core/types.py:241-250
+
+Critical disagreements / gaps
+1) Public campaign contract conflict (no-WLI + WLI expansion in same track).
+Why this matters:
+- Your proposal treats no-WLI-first campaign unification as immediate; current v1.1 public contract explicitly excludes that.
+Evidence:
+- tools/benchmarks/community/schemas/manifest_schema_v1_1.json:37-52 (period 7..13, order enum only col_then_sub/sub_then_col)
+- tools/benchmarks/community/schemas/result_schema_v1_1.json:150-160 (device cpu, backend numpy)
+- tools/benchmarks/periodic_sub_trans/no_wli/README.md:17-18 (no_wli is internal scope)
+- planning/drafts/campaign_spec_v1_1.md:21-27
+- planning/drafts/community_benchmark_unified_plan_v1_1.md:47
+
+Better alternative within RDP goals:
+- Keep public v1.1 unchanged.
+- Add a separate internal campaign schema/version for no-WLI/wider flavor space.
+- Promote into public schema only after gates close.
+
+2) "One StageEngine" is not near-term compatible with current architecture boundaries.
+Why this matters:
+- Core engine is a Stage-2 solver orchestrator, not a benchmark stage/pool engine.
+- Flavor runners contain materially different stage search shapes today.
+Evidence:
+- src/rune_decrypter_prime/core/engine/engine.py:3, 21, 152-157
+- tools/benchmarks/periodic_sub_trans/col_then_sub/runner.py:4-19
+- tools/benchmarks/periodic_sub_trans/sub_then_col/runner.py:6-12
+- tools/benchmarks/periodic_sub_trans/no_wli/runner.py:5-12
+- planning/drafts/benchmarks_periodic_sub_trans_refactor_plan.md:12-14 (explicitly structural, not algorithm rewrite)
+
+Better alternative:
+- Implement StageSpec/PolicySpec in tools/benchmarks layer first (not in core engine).
+- Extract shared orchestration into periodic_sub_trans/common (the exact direction already tracked in W2).
+
+3) "First-class ScorerResult object used pervasively across RDP" is too invasive right now.
+Why this matters:
+- Scorer contract and solver runtime currently depend on scalar/array returns and tuple raw APIs.
+Evidence:
+- src/rune_decrypter_prime/scoring/base_scorer.py:75-89, 98-116
+- src/rune_decrypter_prime/core/problem/runtime.py:563-572, 582-590
+- src/rune_decrypter_prime/core/engine/engine.py:129-135 (scorer meta is lightweight telemetry map)
+
+Better alternative:
+- Add an optional structured scorer sidecar in telemetry/output first.
+- Keep numeric score interfaces stable for solver loops in this refactor.
+- Migrate callsites incrementally only after compatibility wrappers exist.
+
+4) The proposal assumes campaign dispatch across all target flavors, but current dispatch is intentionally limited.
+Evidence:
+- tools/benchmarks/community/_run_single_job.py:41-51 (only col_then_sub/sub_then_col)
+- tools/benchmarks/periodic_sub_trans/no_wli/runner.py:66 (currently pinned to COL_THEN_SUB)
+- tools/benchmarks/periodic_sub_trans/common/core_enums.py:6-8 (BenchmarkOrder has only two values)
+- Search result: no `configure_campaign_run` in tools/benchmarks/periodic_sub_trans/no_wli/runner.py (only present in col_then_sub/sub_then_col runners).
+
+Better alternative:
+- If no_wli enters campaign dispatch, add explicit flavor routing and a no_wli runner entrypoint contract first.
+- Do not overload existing order enum.
+
+Important disagreements / risks
+5) Scorer-schedule governance is not fully wired today, but proposal depends on objective-catalog control.
+Evidence:
+- tools/benchmarks/community/profile_catalog_v1_1.json:4-10, 22-26
+- tools/benchmarks/community/config/profile_config.py:293-341 (overrides applied; scorer_schedule not applied)
+- planning/drafts/BENCH_CAMPAIGN_CLEANUP_PLAN_2026-02-25.md:79-85
+
+Recommendation:
+- Close scorer_schedule application gap before introducing richer StageSpec catalog semantics.
+
+6) no-WLI Torch full-text AVG stability gate is still open in active planning.
+Evidence:
+- planning/drafts/scoring_paths_torch_compliance_v1_plan.md:98-113, 132-134
+- tests/tools/test_no_wli_stage3_torch_avg_fulltext_crash_repro.py:13-16, 36
+- tools/benchmarks/periodic_sub_trans/no_wli/runner.py:69, 71, 79 (default mode/profile/impl are torch-oriented)
+
+Recommendation:
+- Keep explicit fallback/guard strategy in acceptance criteria until S2 closure is objective and repeatable.
+
+7) "No oracle for production decisions" needs stricter wording, because benchmark flows still contain oracle-guided controls.
+Evidence:
+- tools/benchmarks/periodic_sub_trans/col_then_sub/runner.py:131-135
+- tools/benchmarks/periodic_sub_trans/sub_then_col/runner.py:179-181
+- tools/benchmarks/periodic_sub_trans/no_wli/runner.py:3753-3765, 3344-3347
+
+Recommendation:
+- Split policy in spec:
+  - benchmark-only oracle annotations/guards allowed,
+  - production decision paths must remain oracle-free.
+
+8) The proposal's "one runner" target matches repo direction, but current implementation still has high global-mutation coupling.
+Evidence:
+- tools/benchmarks/periodic_sub_trans/no_wli/runner.py:385-412, 956-971
+- tools/benchmarks/periodic_sub_trans/col_then_sub/runner.py:700-723
+- tools/benchmarks/periodic_sub_trans/sub_then_col/runner.py:356-374
+- File sizes show coupling surface remains large: no_wli runner 5212 lines, col_then_sub 2565 lines, sub_then_col 1428 lines.
+
+Recommendation:
+- First replace mutable globals with typed runner config objects.
+- Then extract shared stage loop orchestration.
+
+Cross-check notes against "other planned improvements"
+- This proposal is closest to the long-term direction in:
+  - planning/drafts/BENCH_CAMPAIGN_CLEANUP_PLAN_2026-02-25.md (W2/W3)
+  - planning/drafts/benchmarks_periodic_sub_trans_refactor_plan.md
+- But current active plans intentionally keep:
+  - public v1.1 schema strict and narrow,
+  - solver logic stable during structural cleanup,
+  - no-WLI campaign promotion gated behind scoring/crash milestones.
+
+Concrete revisions I recommend for your proposal text
+1) Add an explicit two-track contract:
+- Track A (public v1.1): unchanged schema/compliance.
+- Track B (internal no_wli/wli extension): new schema version + explicit flavor field.
+
+2) Scope the StageEngine refactor to benchmark layer first:
+- StageSpec/AdaptivePolicySpec in tools/benchmarks/periodic_sub_trans/common.
+- Core engine unchanged in this wave.
+
+3) Reframe ScorerResult as phased:
+- Phase 1: structured telemetry/output sidecar.
+- Phase 2: optional API exposure.
+- Phase 3: pervasive runtime adoption (only after compatibility gates).
+
+4) Add preconditions before acceptance criteria:
+- scorer_schedule plumbing complete,
+- no_wli campaign dispatch entrypoint added (if needed),
+- S2 crash gate closed or fallback policy locked and tested.
+
+5) Keep hardcoded run-file controls for operator workflows (repo rule-aligned), and avoid introducing CLI-arg driven tuning in this wave.
+Evidence:
+- tools/benchmarks/periodic_sub_trans/no_wli/README.md:22
+
+Final judgment
+- Keep the proposal direction.
+- Convert it into a phased architecture RFC with strict compatibility gates.
+- Do not approve as a single-wave implementation plan yet; approve as a vNext roadmap after the above scope corrections.

@@ -1,0 +1,864 @@
+# RDP v1 governance charter
+
+## Status
+
+Draft 2, owner aligned.
+
+## Purpose
+
+This document defines the governing rules, boundaries, support promises, and design intent for RuneDecrypterPrime (RDP) v1.
+
+Its job is to stop design drift.
+
+It is not an implementation plan. It is the written statement of what v1 is meant to be, what belongs in it, what rules future changes must obey, and how to decide disputes when code, tests, memory, and intent do not all line up.
+
+---
+
+## 1. Source-of-truth order
+
+When there is a disagreement about what RDP v1 is meant to do, the order of truth is:
+
+1. the latest explicit owner design decision
+2. the private maintainer handbook, ADRs, and rules of engagement
+3. existing repo contracts and tests
+4. interpretation of current code and structure
+
+This means code reading alone must never quietly overrule explicit design intent.
+
+It also means design intent must be written down quickly enough that the team is not forced to keep recovering it from memory.
+
+---
+
+## 2. What RDP v1 is
+
+RDP v1 is a rune-solving framework.
+
+By this, we mean a software system for defining rune-based cipher problems, running solving methods against them, scoring results, and producing reproducible outputs.
+
+The main use case is the *Liber Primus*. That is the main reason the project exists. However, RDP is not meant to be hard-wired only to the *Liber Primus*. It should also support other rune-cipher work that fits the same general model.
+
+RDP v1 is meant to help both:
+
+* people learning and exploring the problem
+* advanced users doing serious research and large search campaigns
+
+RDP v1 should be reproducible, extensible, privacy-safe, and simple enough to use without weakening the core design.
+
+---
+
+## 3. Main v1 product direction
+
+RDP v1 should support serious solving work on the *Liber Primus*, while also allowing users to define and run their own rune-cipher methods inside the same framework.
+
+That means v1 is not just a fixed solver for one built-in puzzle. It is also a framework that should let users plug in their own:
+
+* ciphers
+* key families or key operations
+* scoring combinations
+* problem definitions
+* campaign components
+
+Those additions should fit the normal RDP contracts. Users should not need to bypass the framework in order to extend it.
+
+---
+
+## 4. Definitions
+
+These terms are used in a specific way in this document.
+
+### Core
+
+The **core** is the strict solving engine and the main typed contracts.
+
+By typed contracts, we mean the fixed structured objects and rules the rest of the system must follow. Core owns the main solving model, scoring model, reports, output rules, rescoring rules, and other shared behaviour.
+
+Core should not guess what the user meant. It should receive normalised, valid inputs in fixed typed form.
+
+### Boundary
+
+A **boundary** is the layer where outside input is converted into strict core objects.
+
+Examples include:
+
+* API input
+* config files
+* tutorial or example convenience inputs
+* helper layers around *Liber Primus* loading
+
+The boundary layer owns the public config shape and normalisation. This is where more forgiving handling is allowed.
+
+### Campaign
+
+A **campaign** is a higher-level research workflow that wraps one or more core runs.
+
+Campaigns may do things like:
+
+* staged solving
+* parameter sweeps
+* retries with changed settings
+* telemetry review
+* report comparison
+* broader search planning
+
+Core solves. Campaigns orchestrate.
+
+### Tutorial
+
+A **tutorial** is a teaching path through real supported RDP behaviour.
+
+A tutorial is not a toy system with weaker guarantees. If something appears in the v1 tutorial surface, it should use the real supported system.
+
+### Method
+
+A **method** is a supported solving pattern inside RDP. A method is broader than just a cipher name. It includes the problem shape, solver behaviour, scoring use, feature support, and expected workflow around that family of problems.
+
+### Solving family
+
+A **solving family** is a first-class built-in family of supported solving behaviour in v1.
+
+Examples may include things like monoalphabetic substitution, periodic substitution, and periodic substitution with transposition.
+
+### Cross-cutting capability
+
+A **cross-cutting capability** is a first-class supported capability that may apply across more than one solving family.
+
+Examples include:
+
+* interrupters
+* transposition or text permutation
+* text transforms
+* CUDA or device-aware execution
+* rescoring
+* ScorerReport
+* SolverReport
+* campaign wrapping
+
+Solving families and cross-cutting capabilities are different kinds of support promise and should not be casually mixed.
+
+### Transform
+
+A **transform** is a defined change to how text is ordered or interpreted, such as canonical reading order, boustrophedon-style order, or another route-like rearrangement.
+
+### Rescoring
+
+**Rescoring** means taking saved results or saved run state and applying different scorers or score settings later, without repeating the whole search from scratch.
+
+---
+
+## 5. Public front door
+
+RDP v1 should have one true public run entrypoint: a typed **RunSpec**.
+
+By RunSpec, we mean the main structured object that says what problem is being solved, with which method, with which settings, scorers, outputs, and options.
+
+The API or boundary layer owns the public config shape and normalisation around this interface.
+
+Core owns the canonical fixed typed interface that boundary inputs must become.
+
+Everything else should layer on top of that, including:
+
+* tutorials
+* *Liber Primus* helpers
+* campaigns
+* examples
+* convenience loaders
+* file-based config entrypoints such as JSON or YAML where used
+
+This keeps the system coherent.
+
+Presence of a config-file front door does not create a second solving architecture. It is a boundary representation of the same run contract.
+
+---
+
+## 6. Core versus campaign split
+
+The split for v1 is:
+
+### Core owns
+
+* the fixed typed run contract
+* run-and-solve behaviour
+* strict solving contracts
+* scoring capabilities
+* report objects
+* shared output and privacy rules
+* shared asset access rules
+* rescoring support
+
+### Boundary/API owns
+
+* public config shape
+* parsing and normalisation
+* conversion from forgiving public inputs into strict typed core objects
+
+### Campaigns own
+
+* staged solving strategies
+* broader search plans
+* retries and iteration
+* parameter sweeps
+* campaign-level telemetry review
+* comparison across runs
+* adaptive policy for now
+
+By adaptive policy, we mean decisions such as:
+
+* that stage failed, so increase the number of seeds and try again
+* run a lighter scorer first, then re-run survivors with a heavier scorer
+
+That sort of higher-level decision belongs in campaigns for v1.
+
+Campaigns must wrap core runs. They must not become a second solving architecture.
+
+In practice, campaigns may define templates, ranges, sweep dimensions, staged plans, or randomised policy choices that generate concrete run specs for actual solve stages.
+
+---
+
+## 7. Liber Primus is first-class
+
+The *Liber Primus* interface is a first-class supported part of RDP v1.
+
+It is not an optional extra.
+
+It should support at least:
+
+* loading *Liber Primus* text cleanly
+* targeting sections cleanly
+* extracting text in canonical reading order
+* applying defined reading or transform rules where needed
+
+By canonical reading order, we mean the normal agreed order in which the text should be read for a given interpretation.
+
+The *Liber Primus* module does not have to live inside the strict core package. However, it must be treated as a first-class supported domain module.
+
+---
+
+## 8. Support philosophy
+
+RDP v1 should not have a second-rate tutorial layer or second-rate example layer.
+
+Anything explicitly included in the v1 surface is meant to be first-class and supported.
+
+That means the important design question is not:
+
+* is this experimental or supported?
+
+It is:
+
+* is this actually included in v1?
+
+Things may still exist in the repo outside the v1 promise, but they should not be mistaken for part of the v1 contract.
+
+Tutorials are teaching paths through the real supported system.
+
+Presence in the repo does not by itself make something part of the v1 contract. Promotion into the v1 contract must be explicit.
+
+---
+
+## 9. Included v1 direction
+
+Based on the current owner decisions, the included v1 direction is:
+
+* one typed RunSpec front door
+* strict core solving contracts
+* API-owned public config shape and normalisation
+* core scoring with a generic scorer interface
+* n-gram scoring
+* span-hamming with words
+* ScorerReport
+* SolverReport
+* built-in rescoring support
+* first-class *Liber Primus* support
+* reading-order and text-transform handling
+* transposition support
+* interrupter support
+* device-aware mixed CPU/CUDA support
+* campaigns wrapping core runs
+* staged solving workflows
+* first-class tutorials based on real supported features
+* plug-and-play extension for new ciphers, key families, scorers, problems, and campaign components
+* shared output and privacy rules
+* shared asset handling
+
+This list may still need precise naming and final release cut-down, but it is the current design direction.
+
+---
+
+## 10. Built-in solving families for the first release
+
+The recommended built-in solving families for the first release are:
+
+1. monoalphabetic substitution
+2. periodic substitution
+3. periodic substitution with transposition
+4. interrupter-bearing variants of the above where relevant
+5. typed key-family driven solving
+
+These are solving families.
+
+The following are treated as first-class **cross-cutting capabilities**, not separate solving families in the same sense:
+
+* reading-order handling
+* text-transform handling
+* transposition of text before cipher application where relevant
+* device-aware execution
+* rescoring
+* ScorerReport
+* SolverReport
+* campaign wrapping
+
+The campaign layer should also include built-in support for these workflow families:
+
+1. staged multi-pass solving workflows
+2. parameter sweep workflows
+3. rescoring workflows
+4. campaign-level iterative retry workflows
+
+The project should support clean extension to additional ciphers, key families, scorers, problems, and campaign components without needing to rewrite the framework.
+
+---
+
+## 11. Device support
+
+CUDA is a first-class v1 capability where relevant.
+
+This does not mean every line of code must run on the GPU. It means:
+
+* the system should work properly in a real mixed CPU/GPU environment
+* GPU-backed scoring or compute should be usable as a normal option where sensible
+* included methods should not be designed in a way that blocks device use for no good reason
+
+CPU-only behaviour is still acceptable where GPU use is not sensible.
+
+The practical goal is that the real supported v1 workflows should work properly on the CUDA machine the project already uses.
+
+---
+
+## 12. Extension is first-class
+
+RDP v1 should support plug-and-play extension.
+
+Users should be able to add new:
+
+* ciphers
+* key families or key operations
+* scorers
+* problems or problem sources
+* campaign components
+
+and have them work through the normal framework.
+
+This should not require side-door hacks or one-off wiring.
+
+New first-class additions must fit the same shared contracts used by the built-in system.
+
+Extension points must be explicit, documented, and fit the same shared contracts as built-in components.
+
+---
+
+## 13. Anti-drift rules
+
+These are the internal engineering rules that should guide implementation even when old code already exists.
+
+### 13.1 Core is strict
+
+Core is strict. Forgiveness lives only in explicit normalisation layers at the boundary.
+
+### 13.2 Enums and typed objects in core
+
+Core should use enums and typed objects, not loose strings.
+
+An enum is a fixed named set of allowed values rather than free-form text.
+
+### 13.3 No magic strings in core
+
+Core should not rely on ad hoc string values with hidden meaning.
+
+### 13.4 No silent behaviour changes
+
+No changes to defaults, ordering, filtering, scoring behaviour, path handling, privacy rules, or output meaning should happen quietly.
+
+If behaviour changes, it should be made clear in code, tests, and notes.
+
+### 13.5 No bypass hacks
+
+No feature-specific hacks should bypass shared contracts.
+
+### 13.6 No campaign policy leaking into core
+
+Benchmark or campaign behaviour should not quietly become core behaviour unless that is an explicit design decision.
+
+### 13.7 Shared output rules
+
+Output writing should use one shared writer and one shared rule set across the repo where possible.
+
+### 13.8 Tests and contracts first
+
+Meaningful tests and clear contracts should come before structural tidy-up.
+
+### 13.9 Avoid shim layers
+
+Do not add shim layers unless there is a clear purpose and a likely removal path.
+
+A shim is a compatibility layer added mainly to bridge old and new behaviour.
+
+### 13.10 New first-class features must fit the pattern
+
+Do not bolt new major features on sideways. They should fit the common system pattern.
+
+---
+
+## 14. Scoring and reporting governance
+
+### 14.1 Scoring is core
+
+Scoring in RDP v1 is a core capability.
+
+It is not just for research reports, and it is not just a campaign convenience. Scorers are real supported solving tools.
+
+They may be used:
+
+* as main solving scores
+* for staged solving
+* for candidate filtering
+* for later rescoring and comparison
+* for reporting and summaries
+
+### 14.2 Included core scoring capabilities
+
+At minimum, v1 should include:
+
+* n-gram scoring
+* span-hamming with words
+
+These should be properly implemented, maintained, data-backed, and tested.
+
+### 14.3 One generic scoring interface
+
+Core should provide one generic scoring interface.
+
+That means one common way for the system to call scorers, collect their results, and combine them, even if the internal details of each scorer differ.
+
+### 14.4 Search score versus report score
+
+There is not a hard wall between a score used during solving and a score shown in a report. The same metric may be used for both.
+
+However, they still play different roles:
+
+* a search score helps the solver decide what to keep, reject, or rank
+* a report score helps explain or summarise what happened
+
+Core should support both roles without splitting them into unrelated systems.
+
+### 14.5 Practical use of heavier scorers
+
+In principle, solvers should be able to use the included core scorers directly.
+
+In practice, some heavier scorers may be especially useful in campaign stages for selecting promising keys, filtering survivors, reranking results, or later rescoring.
+
+That does not make them non-core. It means campaign policy may often be the best place to apply them.
+
+### 14.6 ScorerReport
+
+ScorerReport is a stable core concept.
+
+It should support both candidate-level detail and higher-level summaries.
+
+### 14.7 SolverReport
+
+SolverReport is a stable core concept.
+
+It is the smallest stable run summary that lets the user understand what was run, how it was run, what mattered, what came out, and why it stopped.
+
+#### Minimum required schema for SolverReport
+
+The minimum required fields are:
+
+* `run_id`
+* `report_version`
+* `problem_source_kind`
+* `problem_id`
+* `method_kind`
+* `cipher_kind`
+* `seed`
+* `determinism_mode`
+* `core_version`
+* `asset_versions`
+* `key_kind` or equivalent key-family summary
+* `scorer_summary`
+* `feature_flags`
+* `transform_summary`
+* `status`
+* `stop_reason`
+* `best_result_summary`
+* `stage_summaries` where staging exists
+* `runtime_summary`
+* `work_summary`
+* `artifact_refs`
+
+`artifact_refs` must be logical or relative references only, never absolute paths.
+
+The minimum schema should not require full traces, full candidate lists, raw machine data, or absolute paths.
+
+`stage_summaries` may be omitted when staging is not relevant, or represented in a consistent empty form if the final schema chooses that pattern, but the rule must be explicit and tested.
+
+---
+
+## 15. Formal rescoring governance
+
+Formal rescoring is part of v1.
+
+The system should retain enough state to reconstruct and rescore results later in a reliable way.
+
+### Minimum retained state for formal rescoring
+
+The minimum retained state is:
+
+* `ciphertext` or canonical input text actually used
+* `cipher_kind`
+* `method_kind`
+* full `key_state`
+* `alphabet_version` or alphabet id
+* `transform_state`
+* `interrupter_state` where relevant
+* `normalisation_version` if normalisation affects reconstruction
+* `candidate_id` or result id
+* `run_id`
+* `core_version`
+* logical asset ids or versions needed to interpret the reconstructed text correctly
+
+### Reconstruction rule
+
+Retain the smallest state that guarantees deterministic reconstruction of the candidate text for later rescoring.
+
+If deterministic reconstruction is not guaranteed, store the candidate text explicitly.
+
+---
+
+## 16. Campaign framework governance
+
+The campaign framework should be a thin, real orchestration layer over core runs.
+
+It must not become a second solver system.
+
+### 16.1 Campaign definition
+
+A campaign should define:
+
+* a campaign id
+* a campaign kind
+* one or more stages
+* the run specs to execute or the run-spec templates from which concrete run specs will be generated
+* the policy for moving from one stage to the next
+
+### 16.2 Stage definition
+
+Each stage should define:
+
+* input source for that stage
+* run spec or run-spec template
+* sweep dimensions, ranges, or randomised choices if any
+* selection rule for what advances
+* output artefact policy
+* optional rescore step
+* optional stop condition
+
+### 16.3 Campaign runner capabilities
+
+The generic campaign framework should support:
+
+* execute one stage
+* execute staged sequences
+* fan out a parameter sweep
+* collect stage results
+* apply selection rules
+* carry survivors or selected results into the next stage
+* emit campaign-level summaries and telemetry views
+* stop, fail, or continue in a structured way
+
+### 16.4 Campaign-level outputs
+
+A campaign should emit:
+
+* campaign summary
+* stage summaries
+* linked run reports
+* comparison summaries
+* telemetry summaries
+* clear logical artefact references
+
+### 16.5 Campaign policy hooks
+
+The campaign layer should own decisions like:
+
+* retry with more seeds
+* retry with a different scorer mix
+* rescore survivors with a heavier scorer
+* widen or narrow a sweep
+* stop after poor yield
+
+### 16.6 Out of scope for the generic campaign framework
+
+The generic campaign framework should not allow or depend on:
+
+* a second config language unrelated to the core RunSpec
+* campaign-local output-writing rules
+* campaign-specific scorer contracts
+* deeply magical adaptive logic
+* arbitrary parallel side-door architecture
+
+---
+
+## 17. Output and privacy contract
+
+Portable outputs must be privacy-safe by default.
+
+### 17.1 Absolute paths
+
+Absolute paths must not appear in portable outputs.
+
+### 17.2 Redaction
+
+Redaction is on by default.
+
+Redaction means removing or hiding machine-local or identifying information that should not be shared.
+
+### 17.3 Console output
+
+Console output must follow the same privacy rules as structured files, because users often copy and paste console output.
+
+### 17.4 JSONL event streams
+
+JSONL event streams should contain portable, structured, privacy-safe run facts.
+
+JSONL means one JSON object per line, used as a structured event log.
+
+They must not become a dumping ground for local machine state.
+
+### 17.5 Traces
+
+Detailed traces should not be part of the normal default output contract unless explicitly enabled.
+
+A trace is a step-by-step internal record of the run, such as iteration history or fine-grained solver decisions.
+
+### 17.6 Output location
+
+All normal run artefacts should live under repo-root `output/` with one shared folder policy.
+
+The layout should be predictable and portable, not tied to the user’s machine layout.
+
+### 17.7 Ownership of output rules
+
+Core owns the shared artefact-writing logic, redaction rules, and path policy.
+
+Campaigns and runners may choose what to emit, but they must use the shared writer.
+
+---
+
+## 18. Repo shape governance
+
+The intended repo shape for v1 is:
+
+### Strict solving area
+
+A strict solving area for the typed solving contracts, scoring, reports, output rules, and shared logic.
+
+The exact final name of this area is still open.
+
+### `campaigns/`
+
+A first-class top-level area.
+
+This should include:
+
+* a generic campaign framework
+* specific campaign implementations built on that framework
+
+### Liber Primus domain module
+
+A first-class *Liber Primus* module, even if it is not physically inside the strict solving package.
+
+### Tutorials and examples
+
+A first-class teaching surface, clearly separate from machine-readable problem definitions.
+
+This should include re-solving solved *Liber Primus* pages as teaching material.
+
+### `tools/`
+
+Auxiliary only.
+
+Important architecture should not quietly live in `tools/`.
+
+---
+
+## 19. Asset and data governance
+
+RDP v1 should distinguish clearly between different kinds of data.
+
+### 19.1 Repo asset sources
+
+These are the compact, portable, versioned source forms stored in the repo where sensible.
+
+Examples include:
+
+* compressed language data
+* compressed scoring tables
+* *Liber Primus* metadata
+* manifests
+* small dictionaries
+* source corpora or build inputs
+
+### 19.2 Installed or materialised runtime assets
+
+These are the unpacked or built forms used locally at runtime under `assets/`.
+
+Examples include:
+
+* unpacked databases
+* SQLite files
+* expanded tables
+* processed lookup structures
+
+### 19.3 Small packaged data
+
+Some smaller data may be small enough to ship directly with the code without a special build step.
+
+Examples include:
+
+* small *Liber Primus* metadata files
+* tiny example fixtures
+* schema defaults
+
+### 19.4 Folder rule
+
+Recommended folder rule:
+
+#### In repo
+
+* compact source assets kept in a dedicated asset-source area
+* manifests kept alongside those source assets or in a clearly linked manifest area
+* genuinely small packaged data may live inside the relevant module if that is the cleanest place
+
+#### At runtime
+
+* `assets/` for installed or materialised usable assets
+* `output/` for run outputs only
+* never mix generated output and installed assets
+
+### 19.5 Manifest rule
+
+Every significant asset set should have a manifest with at least:
+
+* `asset_id`
+* `asset_kind`
+* `asset_version`
+* `source_format`
+* `materialised_format`
+* `build_or_unpack_rule`
+* `logical_role`
+* `integrity_info`
+* `compatibility_info`
+* `human_description`
+
+Where relevant, manifests may also include privacy notes.
+
+### 19.6 Runtime rule
+
+Core and campaigns should refer to assets by logical id and version, not by hard-coded local path assumptions.
+
+### 19.7 Install and build rule
+
+Materialising assets into `assets/` should be done by shared asset logic, not ad hoc per tool.
+
+---
+
+## 20. Testing and correctness expectations
+
+For first-class v1 features, tests should prove more than just no crashes.
+
+The expected standard is:
+
+* no crashes on valid inputs
+* clear behaviour on invalid inputs
+* deterministic results where expected
+* monotonicity or ordering checks where the method requires them
+* asset and schema checks
+* stable loading and retrieval behaviour
+* a small number of known-value or known-order tests on real examples where sensible
+
+This applies especially to scoring assets and models.
+
+### 20.1 Feature-support matrix
+
+V1 should have an explicit feature-support matrix for first-class solving families and cross-cutting capabilities.
+
+That matrix should say, in a checkable form:
+
+* which solving families are first-class
+* which cross-cutting capabilities are guaranteed
+* where support is universal
+* where support is only relevant in some families
+* where a limitation is intentional
+* how unsupported combinations fail clearly and consistently
+
+The test stack should eventually prove that matrix, not just local behaviour in isolated modules.
+
+V1 needs both:
+
+* solve-proof
+* contract-proof
+
+---
+
+## 21. Change control for v1
+
+A change should be treated as architectural if it alters:
+
+* the public RunSpec meaning
+* the API normalisation contract
+* the core versus campaign boundary
+* the meaning of a first-class solving family
+* the support promise for a cross-cutting capability
+* the output or privacy contract
+* the scorer or report contracts
+* the asset reference model
+
+Architectural changes must be made explicit in writing and must not be smuggled in through convenient local code edits.
+
+---
+
+## 22. Out of scope for v1 by default
+
+Unless explicitly promoted into the v1 contract, the following are out of scope by default:
+
+* arbitrary non-rune alphabets as a guaranteed domain
+* every classical cipher family as a guaranteed built-in family
+* campaign-specific output conventions
+* hidden benchmark-local policy inside core
+* backwards-compatibility shim layers without a clear removal path
+* deeply magical adaptive self-tuning inside core
+* accidental support promises based only on old code presence
+
+---
+
+## 23. Immediate open items still needing final lock-down
+
+The following still need final owner sign-off in precise implementation terms:
+
+* exact naming and file layout for the strict solving area
+* exact final built-in solving-family names for the first release
+* exact field shapes for `best_result_summary`, `runtime_summary`, and `work_summary`
+* exact asset-source folder names and manifest file locations
+* exact first-release cut of campaign APIs and data structures
+* exact support declaration mechanism for the feature-support matrix
+* exact schema choice for config-file encodings at the boundary where JSON or YAML are used
+
+These are not unresolved in principle. They still need precise final wording and schema decisions.
+
+---
+
+## 24. Short summary
+
+RDP v1 is a rune-solving framework whose main purpose is serious *Liber Primus* work, while also supporting clean extension to other rune-cipher problems. The API or boundary layer owns the public config shape and normalisation. Core owns the fixed typed solving interface, scoring, reports, rescoring, outputs, and shared contracts. Campaigns wrap core runs and handle staged research workflows. *Liber Primus* support is first-class. CUDA is first-class where sensible. Tutorials use the real supported system. Anything included in v1 is meant to be genuinely supported, not treated as a toy.
+

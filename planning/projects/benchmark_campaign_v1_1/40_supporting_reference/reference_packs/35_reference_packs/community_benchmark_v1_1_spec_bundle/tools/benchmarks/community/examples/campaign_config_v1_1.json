@@ -1,0 +1,34 @@
+{
+  "campaign_spec_version": "v1.1",
+  "campaign_id": "COMMUNITY_BENCH_V1_1_PLACEHOLDER",
+  "git_sha": "PUT_GIT_SHA_HERE",
+  "campaign_seed": 123456789,
+  "fixtures": [
+    {
+      "text_fixture_id": "fixture_001",
+      "path": "tools/benchmarks/community/fixtures/fixture_001.json",
+      "notes": "Replace with real fixture(s) used for the campaign."
+    }
+  ],
+  "grid": {
+    "period_min": 7,
+    "period_max": 13,
+    "columns_min": 1,
+    "columns_max": 13,
+    "orders": [
+      "col_then_sub",
+      "sub_then_col"
+    ]
+  },
+  "sampling_policy": "full_grid",
+  "replicates_per_cell": 3,
+  "required_backend": "cpu_numpy_fastlm",
+  "caps": {
+    "max_seconds_per_job": 1800,
+    "max_total_evals_per_job": null
+  },
+  "notes": [
+    "All jobs and shards must be deterministically generated from campaign_seed + inputs.",
+    "No environment variables control benchmark behaviour."
+  ]
+}

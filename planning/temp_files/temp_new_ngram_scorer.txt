@@ -1,0 +1,716 @@
+
+# Spec Draft — True Filtered N-Gram Coherence Scorer v1
+
+# Superseded draft note
+
+This temp draft has been integrated into the active planning surface at:
+
+```text
+planning/projects/no_wli/20_active_plans/phaseB_filtered_ngram_hard_pair_report_v1_plan_2026-05-14.md
+```
+
+Use the active plan above as the current source of truth. This temp file is
+retained only as draft provenance.
+
+## Purpose
+
+Build a **true report-only coherence scorer** using the filtered n-gram lists that have now been created from the current strict and normal word lists and encoded in FWD and REV forms.
+
+The goal is to test whether ordered phrase evidence improves no-WLI hard-pair ranking beyond:
+
+```text
+current scorer
+span-Hamming Panel A / S5
+normal length 7 HD2 exact_count_norm
+simple coherence proxy v1
+```
+
+This is still **report-only**. Do not change production scorer weights, defaults, or ranking policy.
+
+## Core idea
+
+Span-Hamming tells us:
+
+```text
+Does this candidate contain local word-like material?
+```
+
+The n-gram coherence scorer should tell us:
+
+```text
+Does this candidate contain ordered phrase-like material?
+```
+
+The previous coherence proxy showed that order/coherence helps suppress span-Hamming breaks. Now we want to replace or strengthen that proxy using real filtered n-gram evidence.
+
+## Non-negotiable constraints
+
+```text
+FWD and REV must never be combined into one calibration or scoring surface.
+First hard-pair report should be FWD only.
+Use NOSE/no-WLI candidate tokens.
+Do not assume word boundaries in candidate text.
+Do not change production scoring.
+Keep all score definitions explicit and auditable.
+Use strict and normal n-gram lists separately.
+Record exactly which filtered n-gram list versions were used.
+```
+
+## Available input assumption
+
+Assume we now have filtered n-gram assets:
+
+output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_filtered_ngram_index_v1/20260514T044954Z__phaseB_filtered_ngram_index_v1
+
+```text
+strict 2-grams, 3-grams, 4-grams, maybe 5-grams
+normal 2-grams, 3-grams, 4-grams, maybe 5-grams
+FWD-encoded phrase token sequences
+REV-encoded phrase token sequences
+frequency/count/log-count metadata if available
+```
+
+If 5-grams are not yet built, v1 should run with 2–4 and leave 5-gram fields as absent/disabled, not guessed.
+
+---
+
+# Phase 1 — Validate filtered n-gram assets
+
+## Goal
+
+Before scoring candidates, prove the filtered n-gram tables are sane.
+
+## Script
+
+```text
+validate_phaseB_filtered_ngram_assets_v1.py
+```
+
+## Inputs
+
+```text
+filtered strict/normal n-gram tables
+FWD encoded n-gram tables
+REV encoded n-gram tables
+strict/normal dictionary hash manifests
+```
+
+## Checks
+
+For each:
+
+```text
+direction: fwd, rev
+dictionary cut: strict, normal
+ngram order: 2, 3, 4, optional 5
+```
+
+check:
+
+```text
+row count
+unique phrase count
+unique encoded token-sequence count
+duplicate phrase rows
+duplicate encoded-token rows
+min/median/max phrase word count
+min/median/max encoded rune-token length
+frequency/log-frequency quantiles
+top phrases by count/frequency
+invalid token values
+empty encoded sequences
+phrases containing words outside the declared strict/normal list
+```
+
+## Required outputs
+
+```text
+ngram_asset_validation_summary.json
+ngram_asset_counts_by_order.csv
+ngram_asset_token_length_quantiles.csv
+ngram_asset_top_examples.csv
+ngram_asset_duplicate_report.csv
+dictionary_cut_hash_manifest.csv
+readout.md
+```
+
+## Pass condition
+
+The validation must answer:
+
+```text
+Are the strict/normal filtered n-gram assets internally consistent?
+Are FWD/REV encoded lists present and separate?
+How many usable phrases exist by order and dictionary cut?
+Are the normal and strict sets meaningfully different?
+```
+
+No hard-pair scoring until this passes.
+
+---
+
+# Phase 2 — Build a no-WLI exact phrase scanner
+
+## Goal
+
+Implement the first true n-gram coherence extractor.
+
+For v1, use exact encoded phrase scanning:
+
+```text
+candidate rune stream
+scan all offsets
+look for exact encoded n-gram phrase token sequences
+```
+
+No word boundaries are assumed.
+
+## Important limitation
+
+This mode can match phrase token sequences across accidental boundaries. That is acceptable for v1 **only if** all results are evaluated against hard pairs and null/bad candidates. It must not be interpreted as true word-segmented phrase evidence.
+
+## Script / module
+
+Prefer reusable core code plus a report runner:
+
+```text
+filtered_ngram_phrase_scanner_v1.py
+run_phaseB_filtered_ngram_hard_pair_report_v1.py
+```
+
+## Candidate input
+
+Use the same resolved hard-pair candidate token streams already used by the hard-pair road tests.
+
+Expected input set:
+
+```text
+2594 historical hard pairs
+604 resolved candidate token streams
+FWD token streams
+```
+
+## Scanning features
+
+For each candidate chunk and each n-gram table:
+
+```text
+dictionary_cut: strict, normal
+ngram_order: 2, 3, 4, optional 5
+direction: fwd
+```
+
+compute:
+
+```text
+hit_count
+unique_hit_count
+weighted_hit_sum
+log_weighted_hit_sum
+max_log_weight
+top_k_log_weight_sum
+longest_encoded_phrase_hit
+total_hit_token_coverage
+hit_density_per_500
+mean_hit_length_tokens
+max_hit_length_tokens
+top_hit_phrases
+```
+
+Also compute overlap-aware features:
+
+```text
+nonoverlap_hit_count
+nonoverlap_weighted_hit_sum
+nonoverlap_token_coverage
+```
+
+This matters because common phrases may overlap heavily.
+
+## Weighting modes
+
+For each table, compute at least:
+
+```text
+unweighted
+log_count_weighted
+rank_weighted if available
+binary_presence
+```
+
+If raw frequency/count metadata is not available, use unweighted and binary only, and record that clearly.
+
+## Required output
+
+```text
+candidate_ngram_feature_rows.csv.gz
+candidate_ngram_top_hits.jsonl.gz
+candidate_ngram_chunk_summary.csv
+readout.md
+```
+
+Candidate feature rows should include:
+
+```text
+candidate_id
+chunk_id
+direction
+dictionary_cut
+ngram_order
+weighting_mode
+feature_name
+feature_value
+hit_count
+unique_hit_count
+token_count
+```
+
+Top-hit records should include enough for inspection:
+
+```text
+candidate_id
+chunk_id
+dictionary_cut
+ngram_order
+phrase_text
+encoded_token_length
+hit_start
+hit_end
+raw_count_or_weight
+```
+
+---
+
+# Phase 3 — Hard-pair report for true n-gram coherence
+
+## Goal
+
+Evaluate whether true filtered n-gram evidence improves hard-pair ranking.
+
+## Script
+
+```text
+run_phaseB_filtered_ngram_hard_pair_report_v1.py
+```
+
+## Required score families
+
+Build several transparent n-gram score families.
+
+### N0 — Current scorer baseline
+
+Use existing current-score preference for comparison.
+
+### N1 — Normal 2-gram exact coherence
+
+```text
+normal cut
+2-grams
+log-weighted or unweighted hits
+```
+
+### N2 — Normal 3-gram exact coherence
+
+```text
+normal cut
+3-grams
+```
+
+### N3 — Normal 4-gram exact coherence
+
+```text
+normal cut
+4-grams
+```
+
+### N4 — Normal 2–4 combined
+
+Balanced average of N1–N3, with caps so 2-grams do not dominate.
+
+### N5 — Strict 2–4 combined
+
+Same as N4 but strict only.
+
+### N6 — Normal + strict precision support
+
+Normal combined coherence plus a smaller strict support term.
+
+### N7 — Longest phrase / highest-order hit
+
+Rewards candidates with 3/4/5-gram hits, not just many 2-gram hits.
+
+### N8 — Coverage score
+
+Uses non-overlapping hit coverage over the 500-token candidate chunk.
+
+### N9 — Repetition-aware n-gram coherence
+
+Positive n-gram hit evidence minus repeated-fragment penalty.
+
+### N10 — Span-Hamming support plus n-gram coherence
+
+Combine fixed report-only span-Hamming support with true n-gram coherence:
+
+```text
+normal length 7 HD2 exact_count_norm support
++ filtered n-gram coherence
+```
+
+### N11 — S5 span-Hamming plus n-gram coherence
+
+Use the previous S5 support signal plus n-gram coherence.
+
+### N12 — Current-margin support policy
+
+Use n-gram coherence only when current-score margin is small.
+
+### N13 — Conservative support policy
+
+Only override or flag when n-gram + span support margin is above a high threshold.
+
+## Pairwise evaluation
+
+For each score family, compute:
+
+```text
+n_pairs
+truth_better_preference_count
+truth_better_preference_rate
+95% CI
+rescues
+breaks
+net_rescues
+mean_gap
+median_gap
+gap_q05
+gap_q25
+gap_q75
+gap_q95
+```
+
+Also split by:
+
+```text
+current scorer correct
+current scorer misranked
+candidate label if available
+candidate source family if available
+```
+
+## Margin sweep
+
+For each score family:
+
+```text
+threshold
+applied_count
+rescues
+breaks
+net
+precision_of_applied_overrides
+misrank_recall
+```
+
+Suggested thresholds:
+
+```text
+0.0, 0.01, 0.025, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.75, 1.00, 1.50, 2.00
+```
+
+## Correlation report
+
+Compute correlations with:
+
+```text
+current score margin
+Panel A margin
+S5 margin
+normal length 7 HD2 exact support margin
+coherence_proxy_v1 margin
+C7 proxy-combined margin
+```
+
+This tells us whether true n-gram evidence adds independent shape or only repeats the existing scorer.
+
+## Required outputs
+
+```text
+config.json
+input_manifest.json
+ngram_asset_manifest.json
+score_definition_manifest.json
+candidate_ngram_feature_rows.csv.gz
+candidate_ngram_chunk_summary.csv
+candidate_ngram_top_hits.jsonl.gz
+score_family_pairwise_summary.csv
+score_family_margin_sweep.csv
+pairwise_score_gaps.csv.gz
+ngram_order_summary.csv
+dictionary_cut_summary.csv
+weighting_mode_summary.csv
+correlation_summary.csv
+top_ngram_rescues.csv
+top_ngram_breaks.csv
+top_ngram_false_positives.csv
+top_ngram_false_negatives.csv
+readout.md
+```
+
+## Readout questions
+
+`readout.md` must answer:
+
+```text
+Do true filtered n-grams beat the simple coherence proxy?
+Which n-gram order helps most: 2, 3, 4, optional 5?
+Does strict add precision?
+Does normal dominate?
+Do long/higher-order hits suppress span-Hamming breaks?
+Does n-gram coherence preserve span-Hamming rescues?
+Is the evidence independent of the current scorer?
+Can any conservative support policy give positive net rescues with low breaks?
+```
+
+---
+
+# Phase 4 — Compare true n-gram coherence against proxy coherence
+
+## Goal
+
+Directly compare the new filtered n-gram scorer with the previous proxy coherence report.
+
+## Required comparisons
+
+Use the same 2,594 hard pairs and compare:
+
+```text
+coherence_proxy_v1
+C7_len7_hd2_exact_support_plus_coherence
+C8_span_plus_coherence_conservative
+best true n-gram-only score
+best true n-gram + span support score
+best conservative true n-gram support score
+```
+
+## Output
+
+```text
+proxy_vs_filtered_ngram_comparison.csv
+```
+
+Rows:
+
+```text
+score_name
+truth_preference
+rescues
+breaks
+net
+applied_count
+correlation_with_current
+correlation_with_panelA
+correlation_with_S5
+```
+
+## Decision point
+
+If true filtered n-grams outperform the proxy or match it with clearer interpretation, promote them.
+
+If proxy coherence still wins, keep proxy as a practical support feature and use filtered n-grams as diagnostic evidence.
+
+---
+
+# Phase 5 — Held-out / source-family split simulation
+
+## Goal
+
+Avoid overfitting to the 2,594 hard pairs.
+
+## Split options
+
+Prefer source/run-family split if possible:
+
+```text
+train/source families
+holdout/source families
+```
+
+If that is not available, use deterministic pair split:
+
+```text
+development split
+holdout split
+```
+
+## Test
+
+Do not fit many free weights. Instead:
+
+```text
+choose score families on development
+report final performance on holdout
+```
+
+Required outputs:
+
+```text
+split_manifest.csv
+score_family_pairwise_summary_by_split.csv
+score_family_margin_sweep_by_split.csv
+readout_holdout.md
+```
+
+## Success criterion
+
+A result is promising only if positive net rescue behaviour survives the holdout split.
+
+---
+
+# Phase 6 — Candidate inspection pack
+
+Only after the best n-gram/combined score is identified, build the human inspection pack.
+
+Focus inspection on:
+
+```text
+largest true n-gram rescues
+largest true n-gram breaks
+bad candidates still passing n-gram + span support
+good candidates rejected by n-gram + span support
+cases where proxy coherence and true n-gram disagree
+```
+
+This is better than inspecting the old Panel A cases, because it looks at the current best evidence layer.
+
+---
+
+# Phase 7 — Possible report-only scorer update package
+
+Only after the hard-pair and split reports are reviewed, prepare a scorer update package.
+
+This still should not change production defaults.
+
+The package should propose:
+
+```text
+current scorer baseline
+span-Hamming support signal
+filtered n-gram coherence signal
+combined report-only score
+known failure modes
+recommended thresholds if any
+```
+
+No production change until the combined scorer is validated on held-out or fresh candidates.
+
+---
+
+# Implementation notes
+
+## Efficient index structure
+
+For exact no-WLI scanning, use an index keyed by first token and length, or similar:
+
+```text
+encoded_token_length
+first_token
+token_tuple
+metadata list
+```
+
+For each candidate chunk:
+
+```text
+for start offset:
+  for candidate phrase length:
+    check token slice in index
+```
+
+Avoid brute-force comparing every phrase to every offset.
+
+## Duplicate encoded phrases
+
+Different word n-grams may encode to the same token sequence. Preserve metadata:
+
+```text
+encoded_sequence
+list of phrase_text variants
+max frequency
+sum frequency
+dictionary_cut
+ngram_order
+```
+
+Feature extraction should count encoded hits consistently and record whether phrase multiplicity is used.
+
+## Frequency weighting
+
+Use log weighting first:
+
+```text
+log_weight = log1p(raw_count)
+```
+
+Also compute unweighted features.
+
+Do not let ultra-common 2-grams dominate. Use caps or per-order normalisation.
+
+## Per-order normalisation
+
+Each n-gram order should have its own normalisation before combined scoring.
+
+Example:
+
+```text
+score_2gram_norm
+score_3gram_norm
+score_4gram_norm
+```
+
+Then combine:
+
+```text
+combined = mean(capped order scores)
+```
+
+Do not simply sum all hits across orders.
+
+## FWD/REV separation
+
+Even though assets include FWD and REV, this v1 hard-pair report should use FWD only unless the candidate corpus is explicitly REV.
+
+If REV is tested later, it must have its own report and calibration surface.
+
+---
+
+# Questions before implementation
+
+Please answer these before coding the full report:
+
+1. Which n-gram orders are currently available: 2, 3, 4, and/or 5?
+2. Do filtered n-gram rows include raw counts/frequencies?
+3. Are the strict and normal filtered n-gram sets content-distinct?
+4. Are FWD and REV encoded lists both available, and are they stored separately?
+5. Is the hard-pair candidate token corpus definitely FWD?
+6. Can we reuse the existing hard-pair pair labels and current-score margins directly?
+7. Are candidate token lengths close to 500, or do we need chunk aggregation?
+8. Are duplicate encoded n-gram sequences common?
+9. Do we already have top-hit text/rune rendering utilities?
+10. Should v1 include 5-grams if they exist, or keep 5-grams as a separate stress pass?
+
+## My recommendation for v1
+
+Use:
+
+```text
+FWD only
+orders 2, 3, 4
+strict and normal
+exact encoded phrase scanning
+unweighted and log-count weighted features
+per-order capped combined scores
+hard-pair rescue/break evaluation
+comparison against proxy coherence and span-Hamming support
+```
+
+If 5-grams are already available and not too large, include them as a separate score family, but do not let them complicate v1.

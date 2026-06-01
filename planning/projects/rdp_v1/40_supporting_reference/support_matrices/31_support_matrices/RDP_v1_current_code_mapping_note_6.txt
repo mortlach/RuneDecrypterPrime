@@ -1,0 +1,994 @@
+RDP v1 current-code mapping note
+filled owner-review draft from uploaded repo state
+
+Date: 2026-03-11
+
+1. Purpose
+
+This note maps the current repo surfaces into the target v1 ownership model.
+
+It is the bridge between:
+
+the owner-reviewed governance
+
+the current repo state
+
+the first real implementation slices
+
+It exists to stop guessing.
+
+The refactor plan says implementation planning should not begin until there is an explicit mapping from existing campaign code into the formal target surfaces, including files touched, current owner or de facto owner, target owner, known risks, and required test gates. 
+
+rdp_v1_refactor_plan_v2_owner_r…
+
+The handbook also makes the rule explicit: current code is parity evidence where docs are abstract, but no one is allowed to trim support promises because the current code is messy. 
+
+maintainer_handbook_v2
+
+2. Reading of the current repo at a glance
+
+The uploaded repo strongly supports the current governing story.
+
+It does not look mainly blocked by missing raw capability.
+It looks blocked by incomplete convergence of:
+
+run/front-door ownership
+
+report ownership
+
+campaign ownership
+
+output/privacy ownership
+
+LP/assets governance
+
+and the workflow discipline needed to move these safely
+
+That matches the current charter, campaign spec, refactor plan, and handbook. 
+
+rdp_v1_governance_charter_v3_ow…
+
+ 
+
+rdp_v1_refactor_plan_v2_owner_r…
+
+In particular:
+
+there is a real API/boundary surface already
+
+there is a real core config/scoring/report surface already
+
+there is a real outer campaign surface already
+
+there is a real inner stage-engine surface already
+
+there is a fragmented output/privacy surface already
+
+there is a real LP/domain + asset surface already
+
+So this really is an extraction/convergence job, not zero-to-one invention. That is exactly how the campaign spec describes it. 
+
+rdp_v1_campaign_spec_v1_owner_r…
+
+3. Area map summary table
+Area	Current files / clusters	Current owner or de facto owner	Target owner	Parity source	First safe slice
+Run/front door	src/rune_decrypter_prime/api/*, src/rune_decrypter_prime/core/config/run.py	mixed boundary + core-config	boundary + one real public run contract	API tests, normalize tests, current RunAPI behaviour	write front-door inventory and minimum RunSpec note before code changes
+Scoring/report	src/rune_decrypter_prime/scoring/*, no-WLI report projection files	core scoring + runner-local projection glue	core reports	scoring tests + no-WLI report tests	freeze minimum ScorerReport and projection rules first
+Outer campaign	tools/benchmarks/community/*	community benchmark tooling, but already functioning as outer campaign boundary	first-class campaigns/ outer layer	community schema and run-shard tests	formalise minimum outer CampaignSpec from current config/schema shape
+Inner campaign/stage engine	tools/benchmarks/periodic_sub_trans/common/*, runner-specific folders	periodic-sub/trans shared tooling with real inner architecture	first-class campaigns/ inner stage/policy/engine layer	stage-engine tests, no-WLI parity tests	widen mapping note and contract note before moving files
+Output/privacy	src/.../logging_config.py, src/.../run_logger.py, benchmark writers, trace/path helpers	fragmented	one shared output/privacy owner	logging/path/privacy tests	inventory all writers and define shared contract first
+LP/assets	src/rune_decrypter_prime/data/asset_paths.py, src/.../liber_primus/*, assets_manifest_v1.json	data/domain layer with some runtime-path policy in code	data/problem-sources/assets governed by shared contracts	LP/data/guardrail tests	freeze asset/path rules and LP shared-contract boundary first
+4. Run/front-door area
+Current purpose
+
+This is the present public-ish boundary for running solves.
+
+It already owns:
+
+friendly entrypoints
+
+user-facing spec objects
+
+normalisation of loose user input
+
+conversion toward stricter config/runtime forms
+
+That matches the handbook’s intended boundary role. 
+
+maintainer_handbook_v2
+
+Current files
+
+Main current files:
+
+src/rune_decrypter_prime/api/run.py
+
+src/rune_decrypter_prime/api/specs.py
+
+src/rune_decrypter_prime/api/normalize.py
+
+src/rune_decrypter_prime/api/api.py
+
+src/rune_decrypter_prime/api/pipeline.py
+
+src/rune_decrypter_prime/api/_resolve.py
+
+src/rune_decrypter_prime/core/config/run.py
+
+related config files under src/rune_decrypter_prime/core/config/
+
+What is visibly there now
+
+From the uploaded code:
+
+api/run.py defines RunAPI as the high-level entrypoint and a free run(...) wrapper.
+
+api/specs.py defines CipherSpec, KeySpec, and SolverSpec as declarative front-door objects.
+
+api/normalize.py contains a large amount of boundary normalisation and validation.
+
+core/config/run.py defines RunConfig, which is closer to a strict internal config bundle than a true public RunSpec.
+
+So the present shape is:
+
+a real boundary layer exists
+
+a real strict-ish config object exists
+
+but there is not yet one explicit serialisable public RunSpec type
+
+That fits the charter and handbook, which both say one public RunSpec is the target, not the already-landed reality. 
+
+rdp_v1_governance_charter_v3_ow…
+
+ 
+
+maintainer_handbook_v2
+
+Current owner / de facto owner
+
+Mixed boundary + core-config
+
+This is not yet one clean owner surface:
+
+boundary logic lives under api/
+
+some strict config meaning lives under core/config/
+
+pipeline execution is already being orchestrated across them
+
+Target owner
+
+Boundary layer + one public run contract
+
+The target is clear from the charter and handbook:
+
+boundary owns forgiving input shape and normalisation
+
+one canonical serialisable public run contract exists
+
+everything layers on top of it: API use, direct runs, tutorials, LP helpers, and campaign-generated runs 
+
+rdp_v1_governance_charter_v3_ow…
+
+ 
+
+maintainer_handbook_v2
+
+Parity source
+
+Current parity is mainly protected by:
+
+tests/api/test_normalize.py
+
+tests/api/test_normalize_direction.py
+
+tests/api/test_normalize_impl_and_optimizer.py
+
+tests/api/test_runapi_text_permutation.py
+
+tests/api/test_wli_invariants.py
+
+tests/api/test_wli_parity.py
+
+tests/api_contract/test_normalize_direction_accepts_enum_and_string.py
+
+tests/api_contract/test_pipeline_block_direction_canonical.py
+
+tests/ui_normalize/test_config_normalizers.py
+
+tests/ui_normalize/test_text_permutation.py
+
+tests/smoke/test_runapi_determinism.py
+
+Main risks
+
+a second public run language appears during transition
+
+RunAPI and RunConfig drift apart instead of converging
+
+campaign-generated runs later bypass the same validation path
+
+tutorials or LP helpers quietly use a side door
+
+The handbook explicitly warns against second config surfaces and tutorial/tool side doors. 
+
+maintainer_handbook_v2
+
+First safe slice
+
+Front-door inventory + minimum RunSpec note
+
+Do not start by rewriting code.
+
+The first safe slice here is:
+
+write the current front-door inventory
+
+write the minimum RunSpec contract note
+
+map which existing RunAPI / specs.py / RunConfig fields converge into it
+
+add or tighten guardrails against second-surface drift
+
+That matches the refactor plan’s required order. 
+
+rdp_v1_refactor_plan_v2_owner_r…
+
+5. Scoring/report area
+Current purpose
+
+This area owns scoring runtime and the shared scorer-side reporting surface.
+
+It already has a substantial shared scoring implementation, including:
+
+hamming/scoring backends
+
+LM/scoring layers
+
+word-ngram scoring
+
+unified scorer support
+
+ScorerReport
+
+ScorerReportBuilder
+
+This matches the charter’s statement that scoring and typed reports are core responsibilities. 
+
+rdp_v1_governance_charter_v3_ow…
+
+Current files
+
+Main current files:
+
+src/rune_decrypter_prime/scoring/scorer_report.py
+
+src/rune_decrypter_prime/scoring/scorer_report_builder.py
+
+src/rune_decrypter_prime/scoring/*
+
+src/rune_decrypter_prime/scoring/word_ngrams/*
+
+no-WLI runner-local projection files:
+
+tools/benchmarks/periodic_sub_trans/no_wli/word_ngram_report.py
+
+tools/benchmarks/periodic_sub_trans/no_wli/iteration_finalize.py
+
+What is visibly there now
+
+From the repo:
+
+ScorerReport is a real shared core type.
+
+ScorerReportBuilder is real.
+
+no-WLI still has runner-local reporting/projection code that consumes shared report data and writes campaign/iteration-level fields.
+
+I do not see a landed SolverReport surface in the same way.
+
+So the current state is:
+
+ScorerReport is real
+
+SolverReport is still more target-state than current-state
+
+report projection/convergence is incomplete
+
+That lines up with the handbook’s current target wording: keep ScorerReport, add a narrow stable SolverReport, and build campaign summary from telemetry plus run/scorer/solver reports. 
+
+maintainer_handbook_v2
+
+Current owner / de facto owner
+
+Core scoring + runner-local projection glue
+
+The scoring truth is mainly core-owned.
+Some report projection and campaign-facing shaping is still runner-local.
+
+Target owner
+
+Core reports
+
+The target owner is clear:
+
+shared scorer report lives in core
+
+narrow solver report lives in core
+
+campaign summaries build from shared reports and telemetry, not from detached rival truth stores 
+
+maintainer_handbook_v2
+
+ 
+
+rdp_v1_campaign_spec_v1_owner_r…
+
+Parity source
+
+Current parity is protected by:
+
+tests/scoring/test_scorer_report_builder.py
+
+tests/scoring/test_scorer_report_json_safe.py
+
+broad tests/scoring/*
+
+tests/tools/test_no_wli_word_ngram_report.py
+
+tests/tools/test_no_wli_iteration_finalize_word_ngram.py
+
+tests/tools/test_no_wli_iteration_runtime_word_ngram_sidechannel.py
+
+no-WLI stage-engine and runtime tests where report side effects matter
+
+Main risks
+
+local report projection drifts from shared ScorerReport truth
+
+SolverReport becomes too wide or never lands cleanly
+
+campaign summaries later depend on copied fields instead of shared report contracts
+
+rescoring/reconstruction minimum is not frozen soon enough
+
+First safe slice
+
+Freeze minimum ScorerReport and projection boundaries first
+
+The first safe slice here is:
+
+write the minimum promised ScorerReport fields
+
+identify all current projection sites that reshape scorer truth
+
+add consistency tests around those projections
+
+only then define minimum SolverReport
+
+That is the safest route because the campaign spec explicitly wants campaign summary to build from telemetry, ScorerReport, SolverReport, and stage outputs, not from detached rival truth. 
+
+rdp_v1_campaign_spec_v1_owner_r…
+
+6. Outer campaign area
+Current purpose
+
+This is already a real outer campaign/config/sharding/bundle surface.
+
+It is not just a random tool pile.
+
+It already includes:
+
+campaign config examples
+
+schemas
+
+manifest generation
+
+shard running
+
+result combination
+
+preflight/setup
+
+bundle validation
+
+Current files
+
+Main current files:
+
+tools/benchmarks/community/examples/campaign_config_v1_1.json
+
+tools/benchmarks/community/generate_manifest.py
+
+tools/benchmarks/community/run_shard.py
+
+tools/benchmarks/community/_run_single_job.py
+
+tools/benchmarks/community/_campaign_common.py
+
+tools/benchmarks/community/schemas/manifest_schema_v1_1.json
+
+tools/benchmarks/community/schemas/result_schema_v1_1.json
+
+related config/profile files under tools/benchmarks/community/config/
+
+What is visibly there now
+
+This area already acts like the seed of an outer CampaignSpec.
+
+The campaign spec explicitly says the current community example config already shows part of the outer CampaignSpec shape and should be kept and generalised, not discarded. 
+
+rdp_v1_campaign_spec_v1_owner_r…
+
+That is exactly what the repo shows.
+
+Current owner / de facto owner
+
+Community benchmark tooling, but already de facto outer campaign boundary
+
+In physical repo shape it still lives under tools/.
+In architectural meaning it is already more than a mere tool.
+
+Target owner
+
+First-class campaigns/ outer layer
+
+The charter and handbook are very clear:
+
+campaigns are first-class
+
+they sit above core runs
+
+important architecture must not quietly remain in tools/ 
+
+rdp_v1_governance_charter_v3_ow…
+
+ 
+
+maintainer_handbook_v2
+
+Parity source
+
+Current parity is protected mainly by:
+
+tests/community/test_campaign_schemas_v1_1.py
+
+tests/community/test_manifest_generation_v1_1.py
+
+tests/community/test_manifest_sharding_v1_1.py
+
+tests/community/test_run_shard_v1_1.py
+
+tests/community/test_run_single_job_config_v1_1.py
+
+tests/community/test_validate_run_bundle_v1_1.py
+
+tests/community/test_setup_and_preflight.py
+
+tests/community/test_combine_and_aggregate_v1_1.py
+
+Main risks
+
+outer campaign config gets treated as disposable tooling and lost
+
+schema meaning gets split from the eventual governed outer campaign contract
+
+bundle/result logic becomes a side-door contract outside the future campaign surface
+
+early package moves happen before behaviour is frozen
+
+First safe slice
+
+Formalise minimum outer CampaignSpec from current config/schema shape
+
+The first safe slice here is:
+
+inventory the current outer config/schema fields
+
+write the minimum outer CampaignSpec note
+
+map which current schema/config pieces become formal fields
+
+keep community tests as contract/parity protection while ownership is still in tools/
+
+Do not start by relocating files.
+
+7. Inner campaign / stage-engine area
+Current purpose
+
+This is the real staged campaign execution core for periodic substitution/transposition work, especially the no-WLI path.
+
+It already owns:
+
+stage specification
+
+inner policy specification
+
+stage execution/sequencing
+
+pool shaping
+
+scorer scheduling
+
+path helpers
+
+runner-specific orchestration in no-WLI / sub-then-col / col-then-sub folders
+
+Current files
+
+Main current files:
+
+tools/benchmarks/periodic_sub_trans/common/stage_spec.py
+
+tools/benchmarks/periodic_sub_trans/common/policy_spec.py
+
+tools/benchmarks/periodic_sub_trans/common/stage_engine.py
+
+tools/benchmarks/periodic_sub_trans/common/campaign_run_config.py
+
+tools/benchmarks/periodic_sub_trans/common/runner_types.py
+
+tools/benchmarks/periodic_sub_trans/common/scorer_schedule.py
+
+tools/benchmarks/periodic_sub_trans/common/scorer_schedule_apply.py
+
+runner-local areas:
+
+tools/benchmarks/periodic_sub_trans/no_wli/*
+
+tools/benchmarks/periodic_sub_trans/sub_then_col/*
+
+tools/benchmarks/periodic_sub_trans/col_then_sub/*
+
+What is visibly there now
+
+This area is not thin glue. It already has real substance.
+
+The campaign spec says:
+
+current StageSpec already contains real stage substance and should be widened, not replaced
+
+current AdaptivePolicySpec is a real inner policy slice and should be wrapped inside broader PolicySpec
+
+current StageEngine is a strong starting point to keep and narrow/formalise 
+
+rdp_v1_campaign_spec_v1_owner_r…
+
+ 
+
+rdp_v1_campaign_spec_v1_owner_r…
+
+The repo strongly confirms that reading.
+
+Current owner / de facto owner
+
+Periodic-sub/trans shared tooling with real inner campaign architecture
+
+Physically this is still under tools/benchmarks/periodic_sub_trans/common/.
+Architecturally it is already the embryo of the inner campaign engine.
+
+Target owner
+
+First-class campaigns/ inner stage/policy/engine layer
+
+Target shape from docs:
+
+campaigns remain above core runs
+
+inner stage/policy/engine become first-class campaign architecture
+
+runner-local plumbing stays local only where it is truly local 
+
+maintainer_handbook_v2
+
+Parity source
+
+This is one of the strongest parity-protected areas in the repo:
+
+Generic/runner tests:
+
+tests/tools/test_periodic_sub_trans_spec_validation.py
+
+tests/tools/test_periodic_sub_trans_campaign_run_config.py
+
+tests/tools/test_periodic_sub_trans_stage_engine_fixed_seed_parity.py
+
+tests/tools/test_periodic_sub_trans_stage_engine_parity_smoke.py
+
+tests/tools/test_periodic_sub_trans_runner_fixed_seed_parity.py
+
+tests/tools/test_periodic_sub_trans_runner_scorer_impl.py
+
+Runner-specific parity:
+
+tests/tools/test_no_wli_stage_engine_contract.py
+
+tests/tools/test_no_wli_stage_engine_iteration_bridge.py
+
+tests/tools/test_no_wli_stage_engine_parity_smoke.py
+
+tests/tools/test_no_wli_stage_engine_trace.py
+
+tests/tools/test_no_wli_fixture_matrix.py
+
+tests/tools/test_no_wli_fixture_matrix_mainflow.py
+
+tests/tools/test_no_wli_iteration_matrix_fixed_seed_parity.py
+
+tests/tools/test_no_wli_runner_bindings_commit_bridge.py
+
+tests/tools/test_col_then_sub_stage_engine_contract.py
+
+tests/tools/test_sub_then_col_stage_engine_contract.py
+
+Main risks
+
+outer and inner campaign surfaces get blurred
+
+stage/policy substance gets flattened during formalisation
+
+no-WLI complexity gets “simplified” into weaker behaviour
+
+broad tree moves happen before façade and parity gates exist
+
+runner-local assumptions leak into generic campaign core
+
+The handbook explicitly warns against collapsing serious campaign behaviour into toy wrappers and against big-bang tree moves before parity is protected. 
+
+maintainer_handbook_v2
+
+ 
+
+maintainer_handbook_v2
+
+First safe slice
+
+Write the inner campaign mapping and first governed façade note before code movement
+
+The first safe slice here is:
+
+explicitly separate generic inner stage/policy/engine pieces from runner-local plumbing
+
+write widened StageSpec / broader PolicySpec notes
+
+define what a first governed façade would wrap
+
+keep no-WLI as the first proving consumer
+
+do not relocate packages yet
+
+This is the single highest-risk area and needs the most discipline.
+
+8. Output/privacy area
+Current purpose
+
+This area currently mixes:
+
+shared logging/run-dir policy
+
+structured run logging
+
+benchmark JSON/CSV helpers
+
+trace writing
+
+benchmark path helpers
+
+There is real functionality here, but ownership is fragmented.
+
+Current files
+
+Main current files:
+
+src/rune_decrypter_prime/core/config/logging_config.py
+
+src/rune_decrypter_prime/io/run_logger.py
+
+tools/benchmarks/periodic_sub_trans/common/io_reports.py
+
+tools/benchmarks/periodic_sub_trans/common/trace_writer.py
+
+tools/benchmarks/periodic_sub_trans/common/paths.py
+
+community output helpers embedded in:
+
+tools/benchmarks/community/_campaign_common.py
+
+tools/benchmarks/community/run_shard.py
+
+What is visibly there now
+
+From the uploaded repo:
+
+logging_config.py already tries to define shared run-dir/logging policy
+
+run_logger.py is a minimal structured run logger
+
+_campaign_common.py already contains canonical-JSON/hash-like logic
+
+benchmark common files still own JSON/CSV writers, trace writing, and output paths
+
+path and output policy are therefore not yet truly centralised
+
+That is exactly the convergence target the handbook identifies: one output/privacy owner covering JSON, JSONL, canonical JSON, path redaction, identity redaction, trace placement, telemetry placement, and artefact reference policy. 
+
+maintainer_handbook_v2
+
+Current owner / de facto owner
+
+Fragmented
+
+At present:
+
+some ownership lives in core config/io
+
+some ownership lives in campaign/benchmark common code
+
+some portable-output semantics are embedded in community tooling
+
+Target owner
+
+One shared output/privacy owner
+
+The charter is unambiguous:
+
+portable outputs must be privacy-safe by default
+
+absolute paths must not appear in portable outputs
+
+output location should be under repo-root output/
+
+core owns shared artefact-writing logic, redaction rules, and path policy
+
+campaigns choose what to emit, but must use the shared writer 
+
+rdp_v1_governance_charter_v3_ow…
+
+Parity source
+
+Current parity is protected by:
+
+tests/test_logging_paths.py
+
+tests/tools/test_no_wli_path_privacy.py
+
+tests/tools/test_periodic_sub_trans_paths.py
+
+community bundle/validation tests where structured output shape matters
+
+any trace-path tests in stage-engine/no-WLI areas
+
+Main risks
+
+path privacy still depends on local conventions
+
+writers diverge silently
+
+portable structured output rules are not truly shared
+
+trace outputs can drift outside the future privacy contract
+
+community canonical JSON and benchmark JSON writers remain separate forever
+
+The handbook’s enforcement map explicitly marks one output/privacy owner as currently missing and path privacy as still only partial. 
+
+maintainer_handbook_v2
+
+First safe slice
+
+Inventory all current writer/policy owners and define the shared contract first
+
+Do not start by moving writer code.
+
+The first safe slice here is:
+
+inventory every writer/path/privacy owner
+
+define the shared output/privacy contract
+
+add guardrails for path leakage and local-writer drift
+
+only then converge code toward one owner
+
+9. LP/assets area
+Current purpose
+
+This area already provides:
+
+repo-root asset resolution
+
+LP transcript/master helpers
+
+LP registry / page schemes / routes / adapters
+
+machine-readable LP problem-source support
+
+LP payload generation for solver-facing use
+
+Current files
+
+Main current files:
+
+assets_manifest_v1.json
+
+src/rune_decrypter_prime/data/asset_paths.py
+
+src/rune_decrypter_prime/data/liber_primus/lp_master.py
+
+src/rune_decrypter_prime/data/liber_primus/lp_adapter.py
+
+src/rune_decrypter_prime/data/liber_primus/lp_registry.py
+
+src/rune_decrypter_prime/data/liber_primus/lp_routes.py
+
+src/rune_decrypter_prime/data/liber_primus/lp_transcript.py
+
+related LP/data helpers under src/rune_decrypter_prime/data/
+
+What is visibly there now
+
+This area is more mature than a mere placeholder.
+
+From the uploaded repo:
+
+asset_paths.py already defines repo-root discovery and assets/ resolution.
+
+assets_manifest_v1.json already states that final assets live under ./assets/ and that runtime location is assets-only.
+
+lp_master.py uses resolve_assets_path(...) and to_repo_relative(...).
+
+lp_adapter.py already produces solver payloads with ct_idx, wli, and metadata.
+
+lp_registry.py and lp_routes.py are already structured typed LP-domain machinery.
+
+This fits the charter’s LP/domain and asset direction very well:
+
+LP is first-class
+
+assets/problem-sources/fixtures should be clearly split
+
+core and campaigns should use logical asset references rather than brittle local path assumptions 
+
+rdp_v1_governance_charter_v3_ow…
+
+ 
+
+maintainer_handbook_v2
+
+Current owner / de facto owner
+
+Data/domain layer with some runtime-path policy already present
+
+This is relatively coherent already compared with the campaign/output areas.
+
+Target owner
+
+Data/problem-sources/assets governed by shared contracts
+
+The handbook’s target ownership split is:
+
+problem sources own LP page/locator-backed sources and source metadata
+
+assets/resources own packaged asset-location policy, manifests, metadata, and materialisation logic 
+
+maintainer_handbook_v2
+
+Parity source
+
+Current parity is protected by:
+
+tests/data/liber_primus/test_lp_adapter.py
+
+tests/data/liber_primus/test_lp_public_surface.py
+
+tests/data/liber_primus/test_lp_registry.py
+
+tests/data/liber_primus/test_lp_routes.py
+
+tests/data/liber_primus/test_lp_ui_parse.py
+
+tests/data/liber_primus/test_lp_workflows_smoke.py
+
+tests/data/test_lp_master_transcript.py
+
+tests/data/test_lp_transcript_sections.py
+
+tests/data/test_lp_transcript_word_spans.py
+
+tests/guardrails/test_data_defaults_use_assets.py
+
+Main risks
+
+LP helpers become a side-door bypassing the shared run/campaign contracts
+
+asset manifests remain too thin compared with final charter expectations
+
+local path assumptions creep back in outside asset_paths.py
+
+tutorial/demo LP flows diverge from real supported paths
+
+First safe slice
+
+Freeze asset/path rules and LP shared-contract boundary first
+
+The first safe slice here is:
+
+write the asset/path governance note against current real code
+
+define what counts as logical asset identity for v1
+
+state clearly how LP problem-source helpers must consume the shared run/campaign contracts
+
+keep LP tests as parity gates while the rest of the architecture converges
+
+10. What this mapping now makes clear
+
+This filled mapping note sharpens five important points.
+
+10.1 The repo already has real outer and inner campaign layers
+
+That distinction is not theoretical.
+It is physically present in the code.
+
+So any implementation plan that talks about “campaigns” as one single blob is too vague.
+
+10.2 RunSpec convergence is a real convergence task, not a blank-slate design
+
+Today’s public-ish surface is:
+
+RunAPI
+
+CipherSpec
+
+KeySpec
+
+SolverSpec
+
+normalisers
+
+RunConfig
+
+The job is to converge these honestly, not invent an abstract replacement detached from present usage.
+
+10.3 Reporting is half converged, not fully converged
+
+ScorerReport is real.
+SolverReport still needs a real landing.
+Runner-local projection logic still exists.
+
+10.4 Output/privacy is one of the least converged cross-cutting areas
+
+The docs are right to treat it as an early workstream.
+
+10.5 LP/data is comparatively strong and should be treated as a parity anchor
+
+The LP/domain and asset path surface is already more first-class than some other areas.
+That makes it useful as a stabilising anchor during the refactor, not as a secondary cleanup concern.
+
+11. Recommended first-safe work order from this mapping
+
+Given the actual repo state, the safest next sequence is:
+
+freeze this mapping note into the planning area
+
+freeze support-matrix cell meanings
+
+fill support-to-test map using the test clusters listed above
+
+inventory output/privacy owners
+
+freeze minimum ScorerReport and projection boundaries
+
+inventory current front-door surfaces
+
+only then start RunSpec and campaign façade slices
+
+That order matches the refactor plan’s required sequence and the handbook’s anti-drift rules. 
+
+rdp_v1_refactor_plan_v2_owner_r…
+
+ 
+
+maintainer_handbook_v2

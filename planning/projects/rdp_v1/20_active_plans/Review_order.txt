@@ -1,0 +1,376 @@
+Review order
+
+Do it in this order.
+
+Pass 1 — freeze the owner truth
+
+Review these first, in order:
+
+Governance charter
+
+Campaign spec
+
+Support matrix
+
+Refactor plan
+
+Why this order:
+
+the charter is the owner-level source of truth for boundaries, RunSpec, campaigns, support-matrix rule, output/privacy, assets, and proof standard 
+
+rdp_v1_governance_charter_v3_ow…
+
+the campaign spec is the main missing contract extracted from real code and is supposed to formalise outer CampaignSpec, widened StageSpec, broader PolicySpec, reconstruction, and shared writer/privacy rules
+
+the support matrix must state what is guaranteed, what is “where relevant”, what is limited, and how unsupported combinations fail clearly and consistently 
+
+rdp_v1_governance_charter_v3_ow…
+
+the refactor plan is explicitly the last governance-level pass before implementation planning, and says the remaining lock-down items are small and specific: campaign spec wording, refactor plan wording, and support-matrix wording/test intent
+
+What to check in Pass 1:
+
+no contradictions between charter and campaign spec
+
+support matrix matches the charter exactly
+
+refactor plan really follows the charter/spec, rather than reinterpreting them
+
+Pass 2 — review the execution-control pack
+
+Then review these:
+
+Maintainer handbook
+
+Implementation plan
+
+change_workflow
+
+implementation_slice_gates
+
+task_template
+
+ADR starter pack
+
+CURRENT_PHASE
+
+CURRENT_RISKS
+
+ACTIVE_TODO
+
+support-matrix cell meanings
+
+support-to-test map
+
+findings register
+
+Why this order:
+
+the handbook already defines the read-first order, the private planning layout, the ADR set, the required task fields, the anti-drift rules, and the slice definition-of-done
+
+once that is accepted, the rest of the workflow pack becomes “how we enforce it”, not fresh design
+
+What to check in Pass 2:
+
+no workflow file contradicts the handbook
+
+no task/gate file weakens the handbook’s anti-drift rules
+
+CURRENT_PHASE and ACTIVE_TODO are practical, not waffle
+
+the support-to-test map distinguishes contract proof from parity proof
+
+Pass 3 — review the bridge to code
+
+Then review:
+
+current-code mapping note
+
+support-to-test map filled rows
+
+findings register
+
+collated programme if you create it
+
+Why:
+
+the refactor plan makes the current-code mapping note a pre-implementation gate
+
+the whole point is to stop guessing which files and tests really own which behaviours
+
+What to edit in each document
+Governance charter
+
+Only edit if one of these is unclear:
+
+first-class solving families
+
+cross-cutting capability list
+
+one RunSpec
+
+output/privacy ownership
+
+asset governance
+
+proof standard
+
+This should stay owner-level and stable. It should not become implementation prose.
+
+Campaign spec
+
+Edit for:
+
+minimum outer CampaignSpec
+
+minimum StageSpec
+
+minimum broader PolicySpec
+
+retained-state / reconstruction minimum
+
+campaign outputs
+
+exact relationship to shared writer/privacy rules
+
+explicit preservation of real stage substance and adaptive policy blocks from current code
+
+Support matrix
+
+Edit for:
+
+exact cell wording
+
+“where relevant” meaning
+
+any “limited” cells
+
+unsupported-combination failure meaning
+
+This is a small but important owner decision area. The charter explicitly says the matrix must say what is guaranteed and how unsupported combinations fail clearly. 
+
+rdp_v1_governance_charter_v3_ow…
+
+Refactor plan
+
+Edit for:
+
+whether the workstream set still feels right
+
+whether the pre-implementation gates are exactly right
+
+whether the landing order is right
+
+whether “what not to do now” is strong enough
+
+This should stay the transition document from governance to implementation.
+
+Handbook
+
+Edit mainly for tone and strictness, not architecture:
+
+are the guardrails strict enough?
+
+is the read-first order right?
+
+are the anti-shortcut rules strong enough?
+
+is the planning layout right?
+
+are the ADR suggestions right?
+
+are the slice done checks right?
+
+Decisions I think you need to make
+
+These are the real owner decisions still worth making now.
+
+Decision 1 — how exact should the support matrix be in v1?
+
+You need to decide whether each key cell is:
+
+Yes
+
+Where relevant
+
+Limited
+
+Not supported
+
+The charter explicitly says the matrix must distinguish those meanings. 
+
+rdp_v1_governance_charter_v3_ow…
+
+This is probably the most important remaining owner decision.
+
+Decision 2 — how narrow is the first-release SolverReport?
+
+The docs are aligned that ScorerReport stays and a narrow stable SolverReport should exist, but the exact minimum still needs locking.
+
+You do not need full final class design now.
+You do need the minimum promise.
+
+Decision 3 — what is the exact minimum retained state for formal rescoring/reconstruction?
+
+Both the campaign spec and refactor plan are clear that reconstruction must be possible and that campaign summary should build from telemetry plus reports, not replace them. But the exact retained minimum still needs owner sign-off.
+
+Decision 4 — how strong do you want the first-release campaign framework promise to be?
+
+The campaign spec already says the framework should support:
+
+full grids
+
+targeted sweeps
+
+stage narrowing
+
+survivor carry-forward
+
+retry
+
+formal rescoring
+
+reservoir-like batching patterns
+
+What you may still want to decide is whether all of those are part of the public first-release promise, or whether some are “framework-supported but not guaranteed across all first-release campaign variants”.
+
+Decision 5 — do you want individual ADR files now, or one ADR pack temporarily?
+
+The handbook recommends lightweight ADRs as separate files with a standard shape.
+
+This is a process decision, not an architecture decision, but it affects workflow discipline.
+
+Decision 6 — do you want the private planning layout adopted exactly as the handbook suggests?
+
+The handbook suggests a concrete folder layout under planning/working, planning/review, planning/decisions, planning/architecture, planning/agents, and planning/release.
+
+You should decide whether to:
+
+adopt it basically as written
+
+or trim it slightly
+
+My view: adopt it nearly as written.
+
+Decision 7 — what counts as owner sign-off versus maintainer discretion?
+
+The handbook already says support reduction is architectural and needs explicit written owner sign-off. 
+
+maintainer_handbook_v2
+
+It would help to decide this explicitly:
+
+Owner sign-off required for:
+
+support reduction
+
+weakening LP/no-WLI capability
+
+second-surface exceptions
+
+narrowing campaign seriousness
+
+output/privacy contract weakening
+
+Maintainer discretion allowed for:
+
+internal naming
+
+exact package names
+
+small bridge mechanics with exit notes
+
+minor contract-preserving cleanups
+
+Decision 8 — what is the review acceptance bar for “ready to implement”?
+
+The refactor plan already gives the gates:
+
+document freeze
+
+support wording freeze
+
+current-code mapping note
+
+anti-drift guardrails 
+
+rdp_v1_refactor_plan_v2_owner_r…
+
+You should explicitly say whether all four are required before any implementation starts.
+My recommendation: yes.
+
+What I do not think you need to decide now
+
+You do not need to decide now:
+
+final detailed package names
+
+final internal class names
+
+exact final campaign-summary analysis space
+
+advanced long-term generator/search helper design
+
+The campaign spec explicitly leaves those flexible for implementation planning or later evolution. 
+
+rdp_v1_campaign_spec_v1_owner_r…
+
+That is good. Keep those out of the owner-review bottleneck.
+
+Tight-control workflow: simplest version
+
+If you want the workflow tightly controlled, I would make it this simple.
+
+Before any code task
+
+Require:
+
+task card
+
+parity source named
+
+related tests named
+
+second-surface check
+
+bridge note if needed
+
+This is directly aligned with the handbook’s task-field and guardrail rules.
+
+During work
+
+Require:
+
+small slices
+
+TODO status updated
+
+no hidden side contracts
+
+no public-contract widening casually
+
+parity notes kept honest 
+
+maintainer_handbook_v2
+
+Before marking done
+
+Require:
+
+intended behaviour preserved or explicitly approved as changed
+
+support-matrix cells protected by tests
+
+no new absolute-path leakage
+
+no second config surface
+
+no campaign-local scorer contract
+
+reconstruction/rescoring preserved where relevant
+
+tutorials still run if relevant
+
+any temporary shim has an exit note
+
+That is already enough to make the workflow tight, as long as you actually enforce it.

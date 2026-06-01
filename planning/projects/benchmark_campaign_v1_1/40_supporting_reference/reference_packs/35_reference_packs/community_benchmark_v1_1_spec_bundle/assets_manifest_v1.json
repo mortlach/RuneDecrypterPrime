@@ -1,0 +1,21 @@
+{
+  "manifest_version": "v1.1",
+  "notes": [
+    "Final assets live under ./assets/ (generated locally).",
+    "Packed parts live under ./assets_packed/ (tracked).",
+    "Setup recombines parts and verifies sha256 + size."
+  ],
+  "assets_root": "assets",
+  "packed_root": "assets_packed",
+  "required_assets": [
+    {
+      "final_relpath": "language_model/lmp/rtl/rtl_nose_char_n3_win10_logp.npz",
+      "sha256": "PUT_SHA256_HERE",
+      "size_bytes": 0,
+      "parts": [
+        "language_model/lmp/rtl/rtl_nose_char_n3_win10_logp.npz.part001",
+        "language_model/lmp/rtl/rtl_nose_char_n3_win10_logp.npz.part002"
+      ]
+    }
+  ]
+}

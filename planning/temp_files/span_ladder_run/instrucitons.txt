@@ -1,0 +1,290 @@
+Dev note — PhaseB Runeberg NOSE damage ladder prototype
+Purpose
+
+Please wire in and smoke-test:
+
+tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_runeberg_nose_damage_ladder_v1.py
+
+This is a report-only Phase B benchmark. It must not change scorer weights, production scorer defaults, or dictionary policy.
+
+The aim is to test whether PhaseA14 span-Hamming evidence survives across many Runeberg book chunks, controlled damage models, and null models. We are deliberately not optimising around the previous len6 HD<=2 result. The v0.3 plan says Phase B should generate the full strict/normal length/HD ladder, run positive/bad/null corpora, report observed/null/excess/lift, and only then decide useful/noisy rungs.
+
+Important contract
+
+Use:
+
+NOSE only
+both fwd and rev
+500 rune-token chunks
+PhaseA14 strict + normal selected dictionaries
+full v0.3 enabled HD ladder
+fast raw fingerprint counts
+report-only outputs
+
+Do not use:
+
+WISE
+LMPrime score files
+old dictionaries
+production scorer changes
+the accidentally uploaded npz examples
+
+The existing parser saves tokenised book files as tokenized/<book>_<dir>.npz, and stores the required NOSE arrays as pt_nose_data and wli_nose_data. The parser loader also expects the same keys when reusing tokenised files.
+
+Expected local inputs
+
+The script currently expects these relative paths from the repo root:
+
+lmprime_out/tokenized/
+assets/hamming_dictionary_policies_phaseA_v0_14/
+
+Each selected book must have both files:
+
+<book>_fwd.npz
+<book>_rev.npz
+
+If only one direction exists, the script should skip that book. That is intentional.
+
+First run
+
+Leave this at the top:
+
+RUN_MODE = "smoke"
+
+Do not start with pilot or full.
+
+Smoke mode should be tiny:
+
+2 books
+2 chunks per book/direction
+fwd + rev
+1 repeat per chunk
+small damage/null suite
+full ladder still enabled
+
+Expected output folder:
+
+output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/
+  phaseB_runeberg_nose_damage_ladder_v1/
+
+Expected files:
+
+config.json
+run_manifest.json
+run_state.json
+input_manifest.csv
+sample_rows.csv
+feature_rows.csv
+timing_checkpoints.csv
+rolling_feature_summary.csv
+final_feature_summary.csv
+final_summary.json
+readout.md
+To-do list
+1. Place the script
+
+Put the script at:
+
+tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_runeberg_nose_damage_ladder_v1.py
+
+Keep it IDE-run only. No CLI/argparse.
+
+2. Check imports
+
+Confirm these imports resolve in the actual repo:
+
+from rune_decrypter_prime.scoring.span_hamming.fast_backend import (
+    FastSpanHammingBackend,
+    fast_span_hamming_available,
+)
+from rune_decrypter_prime.scoring.span_hamming.types import SpanHammingConfig
+
+If the names differ, stop and inspect the real files. Do not guess replacement names.
+
+3. Check fast backend availability
+
+The script requires the optional fast span-Hamming extension.
+
+Smoke run should fail clearly if:
+
+fast_span_hamming_available() == False
+
+If it fails here, build/fix the backend before changing benchmark logic.
+
+4. Check tokenised input shape
+
+For at least one selected fwd and one selected rev file, verify:
+
+pt_nose_data exists
+wli_nose_data exists
+pt_nose_data contains only 0..28
+wli_nose_data length is even
+wli_nose_data.reshape(-1, 2) has same row count as pt_nose_data
+
+This must be checked before trusting any scoring output.
+
+5. Check fwd/rev pairing
+
+Confirm input_manifest.csv only includes books that have both directions.
+
+Expected behaviour:
+
+book A fwd exists + rev exists -> included
+book B fwd only -> excluded
+book C rev only -> excluded
+6. Check smoke output row counts
+
+After smoke, inspect:
+
+final_summary.json
+sample_rows.csv
+feature_rows.csv
+
+Basic expected shape:
+
+samples_done > 0
+feature_rows_done > 0
+dictionary cuts include strict and normal
+directions include fwd and rev
+source kinds include clean, damaged, null
+
+Feature rows should include both:
+
+phaseA14_strict_selected
+phaseA14_normal_selected
+7. Check full ladder coverage
+
+Confirm feature_rows.csv includes the v0.3 enabled ladder:
+
+1:  HD0
+2:  HD0
+3:  HD0, HD1
+4:  HD0, HD1
+5:  HD0, HD1
+6:  HD0, HD1, HD2
+7:  HD0, HD1, HD2
+8:  HD0, HD1, HD2, HD3
+9:  HD0, HD1, HD2, HD3
+10: HD0, HD1, HD2, HD3, HD4
+11: HD0, HD1, HD2, HD3, HD4
+12: HD0, HD1, HD2, HD3, HD4, HD5
+13: HD0, HD1, HD2, HD3, HD4, HD5
+14: HD0, HD1, HD2, HD3, HD4, HD5
+
+Do not narrow this to len6. Earlier results suggested len6 was promising, but the handoff explicitly warned not to treat it as the answer before broader checks.
+
+8. Check damage/null determinism
+
+Run the script twice in smoke mode after clearing or moving the output folder.
+
+The same config should produce the same:
+
+selected books
+selected chunks
+sample_id values
+sample seeds
+sample token outputs
+feature summaries
+
+The project rules require deterministic behaviour and tests as ground truth.
+
+9. Check timing fields
+
+Inspect:
+
+timing_checkpoints.csv
+final_summary.json
+readout.md
+
+Must contain enough timing information to estimate:
+
+samples/sec
+feature rows/sec
+recent sample time
+estimated remaining time
+elapsed time
+
+This is essential before running pilot or full.
+
+10. Check pruning/cap fields
+
+Inspect feature_rows.csv:
+
+n_candidates_considered
+n_candidates_pruned_cap
+candidate_cap_pruned_rate
+cap
+is_uncapped
+
+Expected for this run:
+
+cap = 0
+is_uncapped = true
+candidate_cap_pruned_rate should be 0 or very near 0
+
+If pruning appears, stop and inspect the fast backend fingerprint mode.
+
+11. Check output is report-only
+
+Confirm no files under production scorer config, dictionary assets, or runtime defaults are modified.
+
+This benchmark should only write under:
+
+output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/
+  phaseB_runeberg_nose_damage_ladder_v1/
+12. Add focused tests
+
+Add a small test file after the smoke run works.
+
+Suggested test path:
+
+tests/tools/test_phaseB_runeberg_nose_damage_ladder_v1.py
+
+Minimum tests:
+
+test_complete_books_requires_fwd_and_rev
+test_load_tokenized_nose_rejects_missing_arrays
+test_load_tokenized_nose_rejects_token_wli_length_mismatch
+test_damage_functions_are_deterministic
+test_damage_functions_preserve_length_and_token_range
+test_full_ladder_matches_v0_3
+test_estimate_total_samples_matches_mode_config
+13. Only then run pilot
+
+After smoke and tests pass, change:
+
+RUN_MODE = "pilot"
+
+Pilot purpose:
+
+measure runtime
+check rolling summaries
+estimate full-run size
+check whether feature means/CI widths are beginning to stabilise
+
+Do not run full until the pilot readout gives a credible time estimate.
+
+Things to watch
+
+The script currently uses FINGERPRINT_MAX_CANDIDATES_PER_WINDOW = 0, intended as uncapped fingerprint mode. Cross-check that the backend really interprets 0 as uncapped in the current source.
+
+The script uses max_hd=2 in SpanHammingConfig only because the constructor requires it; fingerprint mode should bin HD independently. Cross-check this against the backend implementation.
+
+The rolling summaries are descriptive. They are useful for smoke/pilot timing and sanity checks, but they are not yet the final damaged-vs-null decision table.
+
+Success criteria for smoke
+
+Smoke is successful only if:
+
+1. no crash
+2. fwd and rev both appear
+3. strict and normal both appear
+4. clean, damaged, and null samples all appear
+5. full ladder rows appear
+6. timing checkpoints are written
+7. final summary is written
+8. candidate cap pruning is zero
+9. rerunning with same config is deterministic
+10. no production scorer files change
+
+After that, the next step is a pilot run, not a scorer change.

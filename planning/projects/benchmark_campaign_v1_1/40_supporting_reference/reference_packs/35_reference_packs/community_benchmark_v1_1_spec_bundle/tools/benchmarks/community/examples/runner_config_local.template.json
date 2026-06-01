@@ -1,0 +1,7 @@
+{
+  "runner_id": "your_name_or_alias",
+  "shard_path": "PATH/TO/manifest_shard_00.jsonl",
+  "output_root": "output/tools/benchmarks/community",
+  "resume": true,
+  "max_jobs": null
+}

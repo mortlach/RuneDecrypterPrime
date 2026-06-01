@@ -1,0 +1,1018 @@
+# RDP No-WLI N-Gram Phrase Coherence Scorer
+
+## Coordinated Discussion Spec After Research and Early Implementation Results
+
+Status: discussion draft
+Purpose: align dev, research, and active data work before the next scorer tranche
+Scope: no-WLI n-gram phrase-coherence scoring after word/span-Hamming
+Production status: no production scoring change approved
+
+---
+
+## 1. One-sentence direction
+
+We should integrate the deep-research scoring architecture into the active RDP no-WLI plan, while treating the current order-2 evidence only as the first simple slice we happened to run, not as proof that order-2 is the final scorer direction.
+
+The coordinated direction is:
+
+```text
+research-led architecture
+implementation-tested machinery
+evidence-gated profile promotion
+no production scoring change yet
+```
+
+---
+
+## 2. What this spec is trying to fix
+
+There is a risk of two bad interpretations.
+
+Bad interpretation 1:
+
+```text
+Order-2 produced the first visible signal, so order-2 is the scorer direction.
+```
+
+That is wrong. Order-2 was run first because it was simpler and cheaper. It has not been fairly compared with full order-3, order-4, or order-5 evidence.
+
+Bad interpretation 2:
+
+```text
+Research says 3/4-grams should be central, so ignore the order-2 evidence.
+```
+
+That is also wrong. The order-2 signal is still useful. It tells us the matcher, assets, thresholds, and candidate strata are producing real evidence somewhere. It should be inspected, but not promoted.
+
+Correct interpretation:
+
+```text
+Order-2 is an early instrumentation and evidence lead.
+Order-3 is the first serious phrase-coherence test.
+Order-4 is the expected stronger confirmation test.
+Order-5 remains optional and probably diagnostic.
+```
+
+---
+
+## 3. Current state
+
+### 3.1 Infrastructure readiness
+
+The project is no longer just at planning stage.
+
+Current implementation status, as understood for discussion:
+
+* Python reference matcher exists.
+* C++ fast backend exists.
+* Synthetic parity has passed.
+* Tiny real-index smoke passed with no Python fallback.
+* Exact no-cap pilot passed.
+* Bounded expansion passed.
+* Balanced readout exists.
+* Sample-index all-candidate matrix exists, with caveats.
+* Resumable full raw shard build exists.
+* Current full raw work is focused on FWD normal/strict order 2 and order 3.
+
+This is good engineering progress.
+
+But infrastructure readiness is not the same as scorer readiness.
+
+### 3.2 Scientific readiness
+
+The current evidence is not yet sufficient for a production scorer.
+
+Current evidence should be treated as:
+
+```text
+candidate-comparability evidence
+implementation/parity evidence
+early signal discovery evidence
+not controlled damage-ladder proof
+not full raw/provenance-grade proof
+not production ranking proof
+```
+
+### 3.3 Key empirical observations so far
+
+Observed so far:
+
+* Exact joined n-gram scanning was effectively null.
+* This supports moving away from exact joined phrase scanning.
+* Word-structured Hamming is the right semantic direction.
+* The first non-zero useful signal so far was normal/order-2/P1-P2 style evidence.
+* P1/P2 were almost redundant in the balanced slice.
+* Raw P2 separated selected strata, but it was not safe as a standalone pairwise scorer.
+* Direct additive combination with the current score was unsafe.
+* Panel-rescue known-better candidates had zero P2 hits in the tested slice.
+* Order-3 full raw assets are still not fully interpreted.
+* Order-4 has not yet been run in this tranche.
+
+Therefore:
+
+```text
+Order-2 is active so far.
+Order-2 is not promoted.
+Order-3 and order-4 remain the expected better phrase-coherence evidence.
+```
+
+---
+
+## 4. Research-led architecture to preserve
+
+The deep-research outcome should now govern the scorer direction.
+
+The v1 semantic model remains:
+
+```text
+exact word-structured phrase Hamming
+```
+
+The scorer should ask:
+
+```text
+Do local word-like spans line up into plausible ordered phrase evidence?
+```
+
+It should not merely ask:
+
+```text
+How many n-gram hits did we get?
+```
+
+### 4.1 Core rules
+
+Preserve these rules:
+
+* phrase evidence is positive support only;
+* absence of phrase hits is not a penalty;
+* FWD and REV must not be silently mixed;
+* normal and strict cuts must remain separate;
+* all eligible hits for a declared profile are counted exactly;
+* no hit caps;
+* no top-k;
+* no silent Python fallback;
+* no silent profile narrowing;
+* no direct additive score fusion;
+* no production scorer change yet.
+
+### 4.2 Phrase identity
+
+Canonical phrase identity is structured:
+
+```text
+direction
+dictionary_cut
+ngram_order
+canonical word_token_ids
+```
+
+Flattened token IDs may be used for scanning, but not as the only identity.
+
+This matters because two phrases can share a flattened token sequence while having different word boundaries.
+
+### 4.3 Why word-structured Hamming
+
+The scorer compares each phrase word by word.
+
+For a phrase with word lengths:
+
+```text
+L1, L2, L3, ...
+```
+
+and a candidate start offset `s`, compare:
+
+```text
+candidate[s : s+L1]                       against word 1
+candidate[s+L1 : s+L1+L2]                 against word 2
+candidate[s+L1+L2 : s+L1+L2+L3]           against word 3
+...
+```
+
+The scorer records:
+
+```text
+word_hds
+total_phrase_hd
+max_word_hd
+phrase_token_length
+normalised_phrase_hd
+exact_flag
+```
+
+This keeps phrase evidence interpretable.
+
+---
+
+## 5. Handling variable n-gram order and phrase length
+
+A key design point is that “n-gram order” and “phrase token length” are not the same thing.
+
+### 5.1 N-gram order
+
+Order means number of words:
+
+```text
+order 2 = two-word phrase
+order 3 = three-word phrase
+order 4 = four-word phrase
+order 5 = five-word phrase
+```
+
+Expected roles:
+
+```text
+order 2:
+  easiest to hit
+  most likely to produce accidental support
+  useful for instrumentation and coverage checks
+  risky as score-bearing evidence
+
+order 3:
+  likely best centre of gravity
+  stronger phrase-coherence evidence
+  should be the first serious scorer test once full assets are ready
+
+order 4:
+  stronger confirmation
+  sparser
+  likely useful for high-confidence support or bounded override later
+
+order 5:
+  very sparse
+  useful when present
+  diagnostic unless surprisingly active
+```
+
+### 5.2 Phrase token length
+
+A two-word phrase can be short or long.
+
+Examples:
+
+```text
+order 2, short token length:
+  short word + short word
+
+order 2, long token length:
+  long word + long word
+
+order 3, short token length:
+  three short words
+
+order 3, long token length:
+  three longer words
+```
+
+Therefore the scorer should never judge phrase strength by order alone.
+
+Every profile should include:
+
+```text
+order set
+cut set
+minimum phrase token length
+maximum total HD
+maximum word HD
+score-bearing or diagnostic role
+```
+
+### 5.3 Why minimum token length matters
+
+Short phrases are easier to hit by chance.
+
+So even inside the same order, we need token-length gates.
+
+For example:
+
+```text
+order 2, token length 5, HD <= 2
+```
+
+is much weaker than:
+
+```text
+order 2, token length 12, HD <= 1
+```
+
+The proposed scorer therefore handles variable phrase length through explicit profile thresholds, not one global rule.
+
+### 5.4 Why max-word-HD matters
+
+A total phrase HD cap is not enough.
+
+For example, a phrase could have total HD 2, but both mismatches could sit in the same short word. That may be less convincing than two mild word-level mismatches spread across the phrase.
+
+So profiles should use both:
+
+```text
+max_total_phrase_hd
+max_word_hd
+```
+
+This is the main reason to keep the scorer word-structured.
+
+### 5.5 Normalised HD
+
+The scorer should record:
+
+```text
+normalised_phrase_hd = total_phrase_hd / phrase_token_length
+```
+
+But normalised HD should be diagnostic or tie-break metadata, not the primary v1 gate.
+
+Reason:
+
+A low average mismatch rate can hide one badly damaged word.
+
+---
+
+## 6. Counts and log-counts
+
+The phrase assets include count and log-count metadata.
+
+These should be preserved in hit records and summaries.
+
+For v1 discussion:
+
+```text
+count/log_count = diagnostic only
+```
+
+They should not be score-bearing yet.
+
+Reason:
+
+* high-frequency phrases can be generic;
+* raw frequency can reward common phrase-like noise;
+* count weighting requires stable full assets;
+* count weighting also requires smoothing/back-off choices;
+* sample-mode assets can make count interpretation unreliable.
+
+Possible later use:
+
+```text
+weak tie-break only
+full-asset mode only
+clipped weighting only
+after hard-pair and null evidence
+```
+
+No count/log-count weighting should enter the next non-production scorer slice.
+
+---
+
+## 7. Cluster-based evidence
+
+Raw hit count must not be the score.
+
+Earlier feature work showed that high-volume local/repeated structure can create many apparent rescues while causing too many breaks.
+
+Therefore the next scorer should use cluster support.
+
+### 7.1 v1 cluster definition
+
+For discussion, use this simple deterministic definition:
+
+```text
+A phrase coherence cluster is a connected component of score-bearing or diagnostic phrase-hit intervals whose flattened token intervals overlap or touch.
+```
+
+For a hit with start `s` and phrase token length `L`, define:
+
+```text
+interval = [s, s + L)
+```
+
+Two hits belong to the same cluster if:
+
+```text
+next.start <= current_cluster_end
+```
+
+A new cluster begins only if:
+
+```text
+next.start > current_cluster_end
+```
+
+This is strict enough to collapse local repeated-hit bursts, but does not introduce a new gap parameter.
+
+### 7.2 Cluster rule for scoring
+
+For any profile family:
+
+```text
+raw_hit_count = diagnostic
+cluster_count = possible support unit
+```
+
+Within one cluster:
+
+```text
+each profile family contributes at most one support unit
+```
+
+This prevents one local noisy region from generating many score-bearing units.
+
+### 7.3 Cluster diagnostics
+
+Every diagnostic pack should include:
+
+```text
+raw_hit_count
+cluster_count
+exact_hit_count
+exact_cluster_count
+unique_phrase_id_count
+unique_start_count
+hit_to_cluster_ratio
+top_phrase_share
+best_hit_signature
+```
+
+A profile that has high raw hits but low cluster diversity should be treated cautiously.
+
+---
+
+## 8. Exact hits
+
+Exact hits should be visible, but should not become a separate profile ladder yet.
+
+Recommended fields:
+
+```text
+exact_hit_count_by_profile
+exact_cluster_count_by_profile
+exact_hit_count_global
+exact_cluster_count_global
+best_exact_hit_signature
+```
+
+Exact hits are useful audit/control evidence.
+
+They should not cause profile explosion in the next discussion slice.
+
+---
+
+## 9. Proposed coordinated profile strategy
+
+This spec separates:
+
+```text
+current instrumentation profiles
+near-term order-2/order-3 bridge profiles
+later intended 3/4 scorer profiles
+```
+
+This avoids treating order-2 as final while still using the work already done.
+
+---
+
+## 10. Stage A: current data-plane completion
+
+Continue current data-plane work:
+
+```text
+FWD only
+normal and strict
+order 2
+order 3
+full raw shard build
+provenance review
+no production scoring
+```
+
+This is independent of the final scoring decision.
+
+Do not expand to order 4 until order-2/order-3 provenance is summarised and reviewed.
+
+Do not call current order-2 results final scorer evidence.
+
+---
+
+## 11. Stage B: order-2/order-3 research-architecture bridge
+
+Once order-3 full raw assets are available and reviewed, build a report-only diagnostic pack over order 2 and order 3.
+
+Purpose:
+
+```text
+test the research architecture on available data
+inspect whether order-2 survives anti-inflation checks
+test whether order-3 becomes the expected central phrase signal
+avoid raw additive fusion
+```
+
+### 11.1 Bridge profile families
+
+The bridge should be discussion/probe only.
+
+Possible bridge profiles:
+
+```text
+O2_soft:
+  orders: 2
+  cuts: normal, strict separately
+  min phrase token length: 7
+  max total HD: 2
+  max word HD: 2
+  role: diagnostic only
+  purpose: inspect the currently active order-2 shape
+
+O2_conservative:
+  orders: 2
+  cuts: normal, strict separately
+  min phrase token length: 8 or 10
+  max total HD: 2
+  max word HD: 1
+  role: diagnostic / possible bridge support only
+  purpose: test whether longer/tighter order-2 survives with less inflation
+
+O3_soft:
+  orders: 3
+  cuts: normal, strict separately
+  min phrase token length: 7
+  max total HD: 2
+  max word HD: 2
+  role: diagnostic
+  purpose: comparable soft order-3 view
+
+O3_conservative:
+  orders: 3
+  cuts: normal, strict separately
+  min phrase token length: 8
+  max total HD: 2
+  max word HD: 1
+  role: first serious central candidate
+  purpose: test whether order-3 gives cleaner phrase-coherence evidence
+```
+
+The exact thresholds can be discussed, but the bridge should keep the comparison fair:
+
+```text
+order 2 and order 3 both get soft and conservative views
+normal and strict remain separate
+raw hits remain diagnostic
+cluster fields are central
+```
+
+### 11.2 Bridge outputs
+
+For each candidate, chunk, order, cut, and profile, emit:
+
+```text
+raw_hit_count
+cluster_count
+exact_hit_count
+exact_cluster_count
+unique_phrase_id_count
+unique_start_count
+hit_to_cluster_ratio
+top_phrase_share
+best_hit_signature
+count/log_count summaries diagnostic only
+```
+
+For each hard pair, emit:
+
+```text
+baseline winner
+expected better candidate
+phrase tuple comparison
+order-2 tuple
+order-3 tuple
+normal tuple
+strict tuple
+rescue/break/no-change label
+first differing support component
+winner/loser cluster summaries
+panel-rescue flag
+null-lift summary if available
+```
+
+### 11.3 Bridge comparison questions
+
+The bridge should answer:
+
+```text
+Does order-3 become active with full raw assets?
+Does order-3 give fewer but cleaner clusters than order-2?
+Does order-2 remain useful after clustering?
+Does order-2 inflate raw hits without cluster diversity?
+Does strict order-2 or strict order-3 behave better than normal?
+Are panel-rescue candidates still zero-hit?
+Are there candidate chunks with local word evidence but no phrase opportunity?
+Does any support survive matched null checks?
+```
+
+---
+
+## 12. Stage C: intended 3/4 phrase-coherence scorer
+
+Do not implement this as production scoring yet.
+
+This is the intended research-led direction after order-3 is fairly assessed and order-4 assets are sized/reviewed.
+
+Candidate intended profiles:
+
+```text
+N3C:
+  order: 3
+  cut: normal
+  min phrase token length: 8
+  max total HD: 2
+  max word HD: 1
+  role: main normal coverage
+
+S3W:
+  order: 3
+  cut: strict
+  min phrase token length: 7
+  max total HD: 2
+  max word HD: 2
+  role: strict trigram confirmation
+
+N4L:
+  order: 4
+  cut: normal
+  min phrase token length: 10
+  max total HD: 3
+  max word HD: 2
+  role: longer normal confirmation
+
+S34C:
+  orders: 3, 4
+  cut: strict
+  min phrase token length: discussion item, probably 8 or 10
+  max total HD: 2
+  max word HD: 1
+  role: highest-precision confirmation
+```
+
+Discussion point:
+
+```text
+S34C min length 8 vs 10 remains a real design decision.
+```
+
+The stricter version:
+
+```text
+min length 10
+```
+
+keeps S34C clearly long-confirmation.
+
+The broader version:
+
+```text
+min length 8
+```
+
+gives more coverage but needs stricter null/concentration review.
+
+Do not silently choose one. Record the decision.
+
+---
+
+## 13. Stage D: order-5
+
+Order-5 should remain optional and diagnostic unless order-3/order-4 evidence shows that higher-order phrase islands survive often enough.
+
+Possible order-5 diagnostic:
+
+```text
+F5D:
+  order: 5
+  cuts: normal, strict separately
+  min phrase token length: 12
+  max total HD: 3
+  max word HD: 2
+  role: sparse high-confidence diagnostic
+```
+
+Order-5 hits, if present, should be reported clearly, but absence should mean nothing.
+
+---
+
+## 14. Matched nulls
+
+Random token nulls are not enough because the scorer runs after word/span-Hamming.
+
+The nulls should preserve local word-like evidence while breaking phrase coherence.
+
+First matched nulls to discuss:
+
+```text
+offset_permute_null:
+  preserve real local support spans
+  permute their offsets or order
+  destroy true adjacency and phrase order
+
+window_collage_null:
+  stitch local support windows from comparable candidates
+  preserve local word-like evidence
+  destroy candidate-specific phrase continuity
+
+periodic_decoy_null:
+  preserve repeated local structure pressure
+  stress-test inflation from repeated phrase-like fragments
+```
+
+These should be deterministic, seeded through run manifests, and report-only at first.
+
+Null diagnostics:
+
+```text
+real_vs_null_cluster_lift
+real_vs_null_exact_cluster_lift
+raw_hit_inflation
+hit_to_cluster_ratio
+top_phrase_share
+support tuple flips
+```
+
+---
+
+## 15. Panel-rescue zero-hit audit
+
+The panel-rescue zero-hit result is a warning, not a blocker by itself.
+
+Run a bounded audit.
+
+Questions:
+
+```text
+Did panel-rescue candidates have local word/span-Hamming hits?
+Were those hits near each other?
+Were they in candidate chunks scanned by the n-gram scorer?
+Did available phrase assets contain matching word-length opportunities?
+Were candidate spans too damaged for contiguous phrase Hamming?
+Were the rescues local lexical evidence without phrase continuity?
+Would order-3 or order-4 plausibly help?
+```
+
+Outputs:
+
+```text
+candidate id
+chunk id
+local word/span hit summary
+nearby phrase opportunities
+order-2 hit summary
+order-3 hit summary if available
+asset coverage note
+likely no-hit reason
+```
+
+Keep this audit small and explanatory.
+
+---
+
+## 16. Promotion gates
+
+No profile is promoted because it has hits.
+
+A profile can only move forward if it passes evidence gates.
+
+Required gates:
+
+```text
+exact all-hit accounting passes
+deterministic rerun passes
+normal/strict separation preserved
+FWD/REV separation preserved
+no silent fallback
+positive net rescues
+low or zero breaks
+support adds evidence beyond current word/span score
+support survives matched null checks
+no concentration failure
+no domination by one phrase or one local region
+```
+
+Concentration checks:
+
+```text
+top_phrase_share
+hit_to_cluster_ratio
+single-cluster domination
+unique_phrase_id_count
+unique_start_count
+```
+
+Order-2 has an extra burden:
+
+```text
+because order-2 is shorter and easier to inflate,
+it must pass stricter concentration/null checks before it gets any scoring role.
+```
+
+---
+
+## 17. Offline decision modes
+
+Any decision logic remains offline.
+
+Modes:
+
+```text
+report_only:
+  compute phrase evidence
+  do not change ranking
+
+tie_break:
+  phrase tuple may resolve predeclared close or tied baseline cases only
+
+bounded_override:
+  phrase tuple may override only under strict, predeclared, high-confidence conditions
+
+direct_additive:
+  forbidden for this tranche
+```
+
+Current production ranking remains unchanged.
+
+---
+
+## 18. Proposed next artefacts
+
+### Artefact 1: full raw order-2/order-3 provenance summary
+
+Purpose:
+
+```text
+finish and verify the data plane
+```
+
+Contents:
+
+```text
+asset counts by order/cut
+shard manifest summary
+pass/fail shard status
+source coverage
+normal/strict counts
+phrase length distributions
+count/log_count availability
+provenance hashes
+known limitations
+```
+
+### Artefact 2: order-2/order-3 cluster diagnostic pack
+
+Purpose:
+
+```text
+test research architecture on the first available orders
+```
+
+Contents:
+
+```text
+soft and conservative profiles for order 2 and order 3
+cluster summaries
+raw-vs-cluster diagnostics
+exact-hit diagnostics
+normal/strict split
+known-better/known-worse separation
+panel-rescue zero-hit check
+candidate-level summaries
+pair-level ledger
+```
+
+### Artefact 3: matched null pilot
+
+Purpose:
+
+```text
+test whether phrase support survives false-local-evidence controls
+```
+
+Contents:
+
+```text
+offset_permute_null
+window_collage_null
+periodic_decoy_null
+real-vs-null lift
+support tuple flips
+concentration comparison
+```
+
+### Artefact 4: order-4 sizing and expansion decision
+
+Only after order-2/order-3 provenance and diagnostics are reviewed.
+
+Questions:
+
+```text
+How large are order-4 assets?
+What runtime is expected?
+Is strict/normal order-4 tractable?
+Do we need only normal first?
+Do we need strict first?
+Which profiles should be run?
+```
+
+---
+
+## 19. Red lines
+
+Do not:
+
+```text
+treat order-2 as final scorer direction
+call sample/probe evidence full raw evidence
+call candidate-comparability evidence controlled damage-ladder proof
+add P2 directly to the current score
+use raw hit count as the score
+merge normal and strict silently
+mix FWD and REV silently
+use count/log_count weighting in v1
+promote order-2 before null/concentration checks
+start production scoring changes
+start broad order-4/order-5 expansion without sizing/review
+hide fallback or dropped hits
+```
+
+Do:
+
+```text
+finish current full raw order-2/order-3 work
+review provenance before interpretation
+compare order 2 and order 3 fairly
+use cluster diagnostics
+keep exact hits visible
+keep counts/log-counts diagnostic
+preserve all-hit accounting
+keep Python/C++ parity explicit
+record manifests
+run matched nulls before promotion
+make every scorer decision inspectable
+```
+
+---
+
+## 20. Open discussion questions for dev
+
+1. Do we agree that order-2 was run first mainly because it was simplest, not because it was expected to be best?
+
+2. Do we agree that order-3 should be the first serious phrase-coherence test once full raw assets are ready?
+
+3. Should the next diagnostic pack compare order-2 and order-3 with matched soft and conservative profiles?
+
+4. Should the bridge use overlap-or-touch clustering exactly as proposed?
+
+5. Should normal and strict both be present for every bridge profile, or should strict be delayed until normal behaviour is understood?
+
+6. Should P1 and P2 both remain in the bridge, given their current redundancy, or should P1 become audit-only?
+
+7. What is the exact definition of “panel-rescue zero-hit audit” and how small should that audit be?
+
+8. What minimum null work is required before saying any order-2 evidence is useful?
+
+9. What is the threshold for starting order-4 sizing?
+
+10. Should S34C use min token length 8 or 10 when we reach the intended 3/4 scorer stage?
+
+11. Do we need a controlled 20/30/40/50 damage-ladder run before any profile can be promoted?
+
+12. What should be the first review pack that closes this discussion phase?
+
+---
+
+## 21. Recommended position
+
+The recommended coordinated position is:
+
+```text
+Continue current full raw order-2/order-3 data work.
+
+Do not treat order-2 as scientifically promoted.
+
+Adopt the deep-research architecture as the scorer design:
+  word-structured phrase Hamming,
+  explicit profiles,
+  cluster support,
+  normal/strict separation,
+  positive-only support,
+  no raw additive score.
+
+After order-3 full raw assets are available,
+build a report-only order-2/order-3 cluster diagnostic pack.
+
+Use that pack to decide:
+  whether order-3 becomes the active centre,
+  whether order-2 remains diagnostic,
+  whether order-2 has any narrow support role,
+  whether order-4 should be sized next,
+  whether matched nulls show real lift.
+
+Keep production scoring unchanged.
+```
+
+This keeps what we have already learned without letting early order-2 work silently define the final scorer.

@@ -1,0 +1,252 @@
+Spec: Key generator for Periodic-then-Columnar cipher (29-rune alphabet) using RDP assets
+
+Below is a detailed spec you can implement cleanly next. It’s written to match RDP’s philosophy: deterministic, auditable, uses LMPrime assets, and can be tested.
+
+0) Scope and non-goals
+
+Goal: Given ciphertext indices ct_idx (runes 0–28), produce a ranked pool of candidate full keys for the integrated cipher:
+
+periodic substitution blocks (ct→pt permutations) for each phase,
+
+plus column permutation tail (a permutation of 0..columns-1).
+
+Cipher shape: Alphabet size A=29, period P, columns C, order ∈ {col_then_sub, sub_then_col}.
+
+Non-goals (for the generator):
+
+It does not need to return the exact true key always.
+
+It does not need to fully solve in the generator stage.
+
+It must produce a useful pool for downstream refinement.
+
+1) Inputs / outputs / invariants
+Inputs
+
+ct_idx: np.ndarray[uint8], shape (L,).
+
+period P: int
+
+columns C: int
+
+alphabet_size A: int = 29
+
+order: str (explicit; no defaults)
+
+direction: Direction (RTL/LTR; explicit)
+
+seed: int (for determinism)
+
+scoring: ScoringPlan describing which LMPrime assets to use (char n-grams, optional WLI).
+
+Output
+
+keys: list[list[int]], length n_keys.
+
+Each key is flat length P*A + C and matches the cipher contract:
+
+for each phase r, block key[r*A:(r+1)*A] is a permutation of 0..A-1 (ct→pt).
+
+tail key[P*A: P*A + C] is a permutation of 0..C-1.
+
+Determinism requirement
+
+Given same inputs, same RDP assets, and same seed → same output list.
+
+Performance requirement
+
+Should run in a few seconds for tutorial/test-sized instances. “Real solves” can be slower but should scale.
+
+2) Scoring strategy (RDP assets)
+
+The generator must use RDP’s scorers. Do not create new language models.
+
+2.1 Char-only seed score (mandatory)
+
+For early search, use LMPrime character n-grams only, typically:
+
+n = 3 and 4 (or 2/3/4 if you want more stability for short text)
+
+objective: whatever your project standard is (pct.logp.win10 etc.)
+
+no word breaks, no WLI in this stage.
+
+Reason: seed-stage needs a smooth landscape and should not demand correct word segmentation.
+
+2.2 Optional later-stage score (optional)
+
+Once candidates are near a basin, optionally re-rank with:
+
+char n-grams + WLI, and possibly word breaks,
+
+but only for final ranking, not for inner-loop SA steps unless you can afford it.
+
+2.3 “Build scorer once” invariant
+
+The scoring subsystem must be built once and reused. Never call wrappers that rebuild scorers per evaluation inside the search loop.
+
+3) Key generator architecture
+
+Think of it as 3 stages:
+
+Stage A: Cheap deterministic initial pool (no scoring)
+
+Produce a structured set of candidate keys that cover plausible basins.
+
+A1: Block seeds
+For order="col_then_sub":
+
+For each phase r:
+
+compute ciphertext phase slice ct[r::P]
+
+compute frequency counts of symbols
+
+build a base ct→pt permutation by aligning ciphertext symbol ranks with LM unigram pt ranks (LMPrime unigram stats)
+
+add jitter variants by performing small swaps (within the permutation).
+
+Keep n_block_seeds per phase.
+
+For order="sub_then_col":
+
+periodic phase structure is destroyed; phase slicing isn’t meaningful.
+
+fall back to:
+
+global frequency seed repeated across phases,
+
+plus random but constrained variants.
+But: spec should explicitly flag this as weaker, and tests should confirm it behaves as expected.
+
+A2: Tail seeds
+
+Always include identity tail.
+
+Include near-identity permutations (few swaps).
+
+Include a handful of fully random permutations.
+
+Do not brute-force C! except in tiny C cases and only behind an explicit flag.
+
+A3: Start keys
+Form start keys by combining:
+
+1 block seed choice per phase,
+
+1 tail seed choice.
+Keep a small set n_starts of deterministic start keys.
+
+This stage is meant to be cheap and predictable.
+
+Stage B: Score-guided refinement (core of the generator)
+
+Given a fast char-only score function, run a local-search strategy to raise seed quality.
+
+Recommended “bespoke” approach:
+
+B1: Coordinate SA
+Alternate:
+
+tail-only moves (swap two tail elements),
+
+block-only moves (swap images of two ciphertext symbols within one phase block),
+
+repeat for rounds.
+
+This is what you prototyped.
+
+B2: Guided block moves (important)
+Instead of uniform swaps within a block:
+
+bias swaps toward ciphertext symbols that appear often in that phase.
+
+because changing mappings for rare symbols barely affects plaintext.
+This improves efficiency by focusing on “high impact” positions.
+
+B3: Multi-start
+Run the refinement from multiple starts.
+Keep best candidates from each start.
+
+B4: Caching
+Cache scores for keys seen during search (bytes of key array → score). Deterministic.
+
+B5: Diversity preservation
+When returning the pool:
+
+do not return near-duplicates only.
+
+enforce uniqueness (bytewise key equality).
+
+optionally enforce diversity by Hamming distance threshold within tail and/or blocks (can be later).
+
+Stage C: Final ranking + packaging
+
+Combine all refined candidates + some unrefined starts.
+
+Optionally rerank top-K using heavier scoring (char+WLI), but only once at the end.
+
+Return n_keys keys.
+
+4) Correctness checks inside generator
+
+For every key emitted:
+
+verify each block is a permutation of 0..A-1.
+
+verify tail is a permutation of 0..C-1.
+
+verify length is P*A + C.
+
+If any fails, raise immediately. Do not “fix up” silently.
+
+5) Test plan (what you should have in repo)
+
+You need tests that check both plumbing and quality.
+
+5.1 Contract tests (fast, no LM)
+
+generated keys have correct length
+
+blocks and tail are valid permutations
+
+deterministic output for fixed seed
+
+These are pure unit tests; should run instantly.
+
+5.2 Quality tests (LMPrime char-only) — what you just ran
+
+On a fixed known instance:
+
+compute oracle score from true plaintext (or from decrypting with true key)
+
+compute random baseline (same number of random keys)
+
+assert best seed beats random by a fraction of gap.
+
+Important: pick a threshold that reflects “seed generator”, not “full solve”.
+
+If it passes at 0.7 gap routinely, you’re basically doing a solve.
+
+For a seed generator spec, you might choose 0.05–0.20 gap depending on difficulty and runtime budget.
+
+5.3 “Hard instance” regression test
+
+You need at least one case where:
+
+random is very low,
+
+oracle is high,
+
+seeds improve but do not trivially solve.
+This prevents you from accidentally depending on an “easy” fixture.
+
+5.4 Order mismatch test
+
+A test that ensures:
+
+generator refuses to run if order is missing / defaulted,
+
+or at least asserts that cipher order == seed order.
+
+Given how often this bites, bake it in.

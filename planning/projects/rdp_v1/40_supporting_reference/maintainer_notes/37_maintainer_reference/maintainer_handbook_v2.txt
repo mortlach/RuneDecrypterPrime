@@ -1,0 +1,721 @@
+# RDP Private Maintainer Handbook
+
+## Status
+Owner-review draft for internal use in the private gitignored planning area.
+
+---
+
+# 1. Purpose
+
+This handbook exists to stop RDP drifting while the project moves through the v1 convergence and hardening phase.
+
+RDP is no longer mainly in a broad feature-invention phase. The project now has a strong owner-led direction. The work is to converge the code, contracts, outputs, reports, campaigns, and tests onto that direction without losing real capability.
+
+This handbook is private because it may include:
+- maintainer workflow rules
+- internal engineering judgement
+- active risks
+- agent guardrails
+- parity rules and implementation discipline
+- draft operational policies not yet written into public-safe docs
+
+Private notes must support public truth, not replace it.
+
+---
+
+# 2. Current phase
+
+RDP is in a **capability-preserving convergence refactor**.
+
+That means:
+- preserve the effective capability of the intended flagship LP attack
+- preserve the selected v1 solving families, cross-cutting capabilities, and campaign behaviours
+- simplify structure, ownership, naming, abstraction, wiring, packaging, and repo shape
+- do not simplify by silently dropping prototyped required behaviour
+- do not short-wire things to hit a short-term goal if that creates long-term contract drift
+
+A shorter implementation plan does **not** mean the work got smaller in substance.
+It is shorter because the governing truth is now split across:
+- governance charter
+- campaign spec
+- support matrix
+- implementation plan
+- this handbook
+
+The implementation plan should mostly describe landing order, parity, tests, and proof gates. It should not try to repeat the whole architecture argument every time.
+
+---
+
+# 3. Source-of-truth order
+
+When there is tension between documents, use this order.
+
+1. Owner-reviewed governance charter
+2. Owner-reviewed campaign spec
+3. Owner-reviewed support matrix and capability notes
+4. Owner-reviewed convergence / implementation plan
+5. This handbook
+6. Existing code and benchmark behaviour, used as parity evidence where docs are abstract
+7. Old notes, chat fragments, and temporary planning scraps
+
+Important:
+- Existing code is evidence, not the final governor.
+- Existing benchmark LP behaviour is the temporary parity source when the new docs are abstract, unless that behaviour conflicts with the charter or support matrix.
+- No one is allowed to trim a support promise by arguing that current code is messy.
+
+---
+
+# 4. Non-negotiable current-phase constraints
+
+## HC-001: Preserve flagship LP capability
+The v1 convergence work must preserve the effective capability of the intended flagship LP attack.
+
+The selected v1 solving families, cross-cutting capabilities, and campaign behaviours were chosen because they are needed for that real attack surface.
+
+## HC-002: No shortcut simplification
+Do not simplify by:
+- dropping prototyped required behaviour
+- narrowing the support matrix for convenience
+- weakening campaign seriousness to get a neater design
+- removing LP attack expressiveness
+- pushing important behaviour into hidden local wrappers
+
+## HC-003: No short-term wiring that becomes long-term architecture
+Do not "just wire it in for now" unless:
+- the temporary status is explicit
+- the exit path is written down
+- the affected tests are known
+- the change does not create a second hidden contract
+
+## HC-004: Parity before tidiness
+Protect behaviour first.
+Then improve structure.
+Do not do big-bang tree moves or neatness passes before parity and guardrail tests exist.
+
+## HC-005: Treat support reduction as architectural
+Any reduction in:
+- first-class solving-family meaning
+- cross-cutting capability promise
+- campaign capability promise
+- public run contract meaning
+- output/report/reconstruction contract
+
+is an architectural change and requires explicit written owner sign-off.
+
+---
+
+# 5. Rules of engagement
+
+These are the default engineering rules for work on RDP.
+
+## ROE-001: Core is strict, boundary is forgiving
+- Core types, configs, and runtime contracts should be strict.
+- Boundary layers may accept friendlier inputs and normalise them.
+- Do not let boundary forgiveness leak into core internals.
+
+## ROE-002: Enums in core, not magic strings
+- Core runtime logic should use enums or similarly strict typed values.
+- Strings may appear at API/config boundaries, then must be normalised.
+- New raw string policy tokens in core need strong justification.
+
+## ROE-003: Tests lock behaviour before structural refactor
+- If a behaviour is intended and non-trivial, write or tighten tests first.
+- Do not rely on memory or chat history to preserve behaviour.
+
+## ROE-004: No silent drift in persisted outputs
+- Persisted files must follow one clear artifact/output/privacy policy.
+- No absolute paths in persisted outputs unless explicitly permitted.
+- No hidden output destinations.
+
+## ROE-005: One owner per policy
+Examples:
+- one owner for output/privacy policy
+- one owner for telemetry emission contract
+- one owner for artifact hashing/canonical JSON rules
+- one owner for top-level run spec
+
+If multiple modules own the same policy, drift is likely.
+
+## ROE-006: No new module-global orchestration in core flows
+- Prefer explicit state objects/config objects over globals-style choreography.
+- Temporary bridge code is acceptable only with an exit plan.
+
+## ROE-007: No benchmark-local policy leaking into core without review
+- Core should support reusable solving capability.
+- Campaign- or benchmark-specific policy should live above core unless truly general.
+
+## ROE-008: Compatibility shims need an explicit removal plan
+If a shim is introduced or retained, document:
+- why it exists
+- who still depends on it
+- when it can be removed
+
+## ROE-009: Public docs, private notes, and real behaviour must be kept aligned
+- Private notes may be richer.
+- Public docs may be simpler.
+- Tests and code must reflect the actual truth.
+
+## ROE-010: Small, measured refactor slices
+- Prefer controlled, test-backed phases.
+- Avoid giant rewrites unless there is no safer path.
+
+## ROE-011: Preserve attack capability, do not trim it for neatness
+- If a feature is prototyped, required, and selected into the v1 support promise, it is not available to be quietly dropped.
+- Neater implementation is good.
+- Weaker capability is not an acceptable trade unless explicitly approved.
+
+## ROE-012: No duplicate public surfaces
+- Do not create a second solve-description language beside the real run contract.
+- Do not create campaign-local scorer contracts.
+- Do not create local output-writer systems.
+- Do not create a second-rate tutorial layer.
+
+## ROE-013: Prefer named policy blocks over switch piles
+- Replace copied dicts, override piles, and switches-on-switches with named, documented policy blocks.
+- Keep the real behaviour.
+- Simplify the shape used to express it.
+
+## ROE-014: Tutorials use the real supported system
+- Tutorials are regression consumers of the real system.
+- They are not a toy surface.
+- They are not the main architecture driver.
+
+## ROE-015: Campaigns must remain serious
+- Campaign extraction must preserve real staged attack capability.
+- Do not reduce campaigns to shallow wrappers just to get a prettier design.
+
+---
+
+# 6. Architectural intent
+
+This section is the short maintainers' map of what each layer is for.
+
+## 6.1 Core library
+Owns:
+- the fixed typed run contract
+- ciphers
+- key families / key operations
+- solver engine and solver interfaces
+- strict runtime configs
+- strict core types and enums
+- scoring capabilities
+- report objects
+- rescoring support
+- shared output and privacy rules
+- shared asset access rules
+
+Should not own:
+- benchmark-local policy
+- campaign-specific orchestration policy
+- private helper scripts
+- personal maintenance logic
+
+## 6.2 API / boundary layer
+Owns:
+- friendly entrypoints
+- config parsing and validation
+- boundary normalisation from JSON/YAML/UI input into strict core types
+- conversion from user-friendly forms into the real run contract
+
+Should not own:
+- hidden policy defaults that bypass core contracts
+- large amounts of campaign-specific wiring
+- side-door solve languages
+
+## 6.3 Problem sources
+Owns:
+- LP page/locator-backed sources
+- solved-page fixtures
+- reusable machine-readable problem definitions
+- source metadata and labels
+
+## 6.4 Assets / resources
+Owns:
+- packaged asset-location policy
+- portable asset manifests
+- lightweight metadata
+- shared materialisation logic
+
+## 6.5 Campaigns
+Owns:
+- staged solving strategies
+- broader search plans
+- retries and bounded iteration
+- parameter sweeps
+- survivor carry-forward
+- campaign-level telemetry review
+- comparison across runs
+- campaign-level policy hooks
+- campaign summaries and stage summaries
+
+Campaigns wrap core runs.
+They must not become a second solving architecture.
+
+## 6.6 Tutorials
+Owns:
+- human-facing examples
+- learning material
+- worked solves
+- small demonstration configs
+
+Should not become the hidden source of truth for runtime behaviour.
+
+## 6.7 Tools
+Owns only:
+- genuinely auxiliary scripts
+- private helper utilities
+- temporary conversion or maintenance scripts
+
+If tests, schemas, docs, outputs, or workflows depend on something as a stable surface, it is probably not really a tool anymore.
+
+---
+
+# 7. Current v1 convergence targets
+
+## 7.1 Canonical run/config runner
+RDP should have one serialisable public run/config contract and one canonical run entrypoint.
+
+Everything layers on top of that, including:
+- direct runs
+- tutorials
+- API use
+- LP helpers
+- campaign-generated runs
+- file-based config entrypoints where used
+
+## 7.2 Typed reports
+- keep `ScorerReport`
+- add a narrow stable `SolverReport`
+- reports are compact typed summaries
+- telemetry remains the detailed event stream
+- campaign summary is a higher-level analysis object built from telemetry and run/scorer/solver reports
+
+## 7.3 One output/privacy owner
+Need one shared owner for:
+- JSON writing
+- JSONL writing
+- canonical JSON for hashing
+- path redaction
+- identity redaction
+- trace placement
+- telemetry dump placement
+- artifact reference policy
+
+## 7.4 First-class campaign surface
+Campaign architecture should move toward a first-class `campaigns/` area.
+Important architecture should not quietly live in `tools/`.
+
+## 7.5 Support-matrix proof
+The support matrix is binding for planning and tests.
+It should be proved by the test stack, not treated as a vague intent note.
+
+---
+
+# 8. Agent and maintainer guardrails
+
+## 8.1 Read-first order before any real task
+Read in this order:
+1. current phase note
+2. this handbook
+3. relevant ADRs / decisions
+4. current active TODO / phase brief
+5. support matrix and related capability notes if relevant
+6. relevant tests
+7. relevant code
+
+## 8.2 Questions to answer before proposing a change
+- What contract is affected?
+- Is this core, boundary, campaign, tutorial, or tool?
+- What tests currently protect intended behaviour?
+- Is the current code the parity source here?
+- Does this create a second surface or duplicate policy owner?
+- Does this weaken LP capability, even slightly?
+- Is this a true simplification, or just short-term wiring?
+- Does an ADR already exist?
+
+## 8.3 Things agents must not do
+- quietly drop support promises because the current code is messy
+- create a second config surface beside the real run contract
+- add benchmark-local policy to core for convenience
+- add a local output writer or local path policy
+- widen or change defaults silently
+- hide behaviour inside tutorials or tools
+- replace real parity with guessed parity
+- collapse serious campaign behaviour into toy wrappers
+- keep shim layers indefinitely
+
+## 8.4 When a temporary bridge is allowed
+A temporary bridge is allowed only if all of these are written down:
+- why it exists
+- what parity it protects
+- which tests cover it
+- what removes it later
+- what would make it dangerous if it lived too long
+
+---
+
+# 9. Slice definition-of-done
+
+No implementation slice is done until these are checked where relevant:
+- intended behaviour preserved or explicitly changed with approval
+- support-matrix cells protected by tests
+- no new absolute-path leakage
+- shared writer/output rules used
+- no second config surface introduced
+- no campaign-local scorer contract introduced
+- reconstruction or rescoring path preserved where relevant
+- reports still emitted on the agreed contract
+- tutorials still run if they depend on the changed surface
+- temporary shims have an exit note
+- parity note updated if the source of truth moved
+
+---
+
+# 10. Private planning folder workflow
+
+## 10.1 Recommended private planning layout
+
+```text
+planning/
+  working/
+    ACTIVE_TODO.md
+    CURRENT_PHASE.md
+    CURRENT_RISKS.md
+    INBOX.md
+
+  review/
+    v1_review/
+    findings_register.csv
+    collated_programme.md
+
+  decisions/
+    ADR-0001-*.md
+    ADR-0002-*.md
+
+  architecture/
+    target_architecture.md
+    boundaries.md
+    anti_drift_policies.md
+
+  agents/
+    maintainer_handbook.md
+    change_workflow.md
+    task_template.md
+    review_template.md
+    implementation_slice_gates.md
+
+  release/
+    v1_release_gate.md
+    packaging_checklist.md
+    docs_alignment_checklist.md
+	
+	
+10.2 CURRENT_PHASE.md should say plainly
+
+which phase the repo is in
+
+what the primary acceptance target is
+
+what the biggest current risks are
+
+what must not be weakened during the phase
+
+10.3 ACTIVE_TODO.md should not become a junk drawer
+
+Each active item should link to:
+
+rationale
+
+owner
+
+affected rules
+
+required tests
+
+status
+
+non-goals
+
+11. Decision register
+
+Use lightweight ADRs.
+
+Each decision record should include:
+
+ID
+
+title
+
+date
+
+status
+
+decision owner
+
+context
+
+decision
+
+alternatives considered
+
+consequences
+
+linked rules/tests/files
+
+Suggested active ADR set
+
+ADR-0001: Core is strict, boundary is forgiving
+
+ADR-0002: Core uses enums, not magic strings
+
+ADR-0003: Campaigns become first-class top-level surface
+
+ADR-0004: Introduce first-class RunSpec / config runner
+
+ADR-0005: One artifact/output/privacy owner
+
+ADR-0006: No-WLI stays first-class under common outer run/job model
+
+ADR-0007: Keep ScorerReport, add narrow SolverReport
+
+ADR-0008: Split data into assets/problem_sources/fixtures clearly
+
+ADR-0009: Support matrix is binding for planning and tests
+
+ADR-0010: Preserve flagship LP capability during v1 convergence
+
+12. Change workflow for humans and agents
+12.1 Change classes
+
+Every task should be labelled as one of:
+
+correctness bug
+
+contract hardening
+
+convergence cleanup
+
+architectural change
+
+new feature
+
+experiment
+
+documentation alignment
+
+release hygiene
+
+12.2 Required task fields
+
+Every real task should include:
+
+title
+
+purpose
+
+category
+
+owner
+
+files likely touched
+
+rules affected
+
+tests to add or update
+
+success criteria
+
+non-goals
+
+rollback or safety notes
+
+12.3 During implementation
+
+prefer small slices
+
+update task status as you go
+
+do not create hidden side contracts
+
+do not widen public contract casually
+
+note any architecture decision that changed
+
+keep parity notes honest
+
+12.4 After implementation
+
+check relevant tests
+
+update ADR if needed
+
+update public-safe docs if behaviour changed
+
+update private planning note if next phase changed
+
+mark TODO item done only when the actual acceptance criteria are met
+
+13. Anti-drift policies to enforce
+Policy family A: Type and contract discipline
+
+core uses enums and strict types
+
+boundary may parse strings
+
+no raw string policy tokens added to core without review
+
+no Enum | str in core storage unless there is an explicit reason
+
+Policy family B: Output and privacy discipline
+
+no absolute paths in persisted outputs
+
+no raw identity leakage in persisted logs
+
+all output writers go through one owner
+
+telemetry mirrors obey the same privacy rules
+
+Policy family C: Repo structure discipline
+
+first-class product surfaces do not live under tools
+
+old snapshots move out of active package space
+
+temporary shims are marked and tracked
+
+campaign architecture moves toward first-class ownership only after parity is protected
+
+Policy family D: Runtime discipline
+
+no new module-global orchestration
+
+stop reasons come from one canonical contract
+
+solver/scorer summary reports are typed
+
+reconstruction guarantees are explicit
+
+Policy family E: Campaign discipline
+
+campaigns remain serious enough for the real LP attack
+
+stages, sweeps, retries, survivor flow, rescoring, and telemetry are not optional niceties
+
+explicit policy hooks are preferred over hidden control flow
+
+campaign summary is analysis over run/scorer/solver evidence, not a replacement for them
+
+Policy family F: Review discipline
+
+tests first for behaviour-preserving refactor
+
+ADR for non-trivial architecture changes
+
+TODO items link to rules and tests
+
+parity claims are evidence-backed
+
+14. Enforcement map
+
+Every important rule should have at least one enforcement mechanism.
+
+Rule	Enforcement type	Current status	Notes
+Core strict, boundary forgiving	guardrail tests + review checklist	partial	needs stronger config cleanup
+Enums in core	guardrail tests + type review	partial	some core config still accepts strings
+No absolute persisted paths	tests + shared writer policy	partial	path privacy still needs convergence
+One artifact/output owner	code structure + tests	missing	major convergence target
+Preserve LP capability	parity gates + acceptance tests + review rule	missing	must be explicit in current phase
+No second config surface	review checklist + schema ownership	partial	risk during runner convergence
+Campaigns stay first-class	repo-shape plan + campaign tests	partial	avoid hiding architecture in tools
+Tutorials use real system	regression tests + review rule	partial	keep supported but not architecture-leading
+15. Templates
+15.1 Task template
+
+# Task: <title>
+
+## Purpose
+
+## Category
+- correctness bug / convergence cleanup / architectural change / new feature / etc.
+
+## Why now
+
+## Rules affected
+- ROE-...
+
+## Likely files
+
+## Tests to add or update
+
+## Success criteria
+
+## Non-goals
+
+## Risks
+
+## Status
+- planned / in progress / review / done
+
+
+# ADR-XXXX: <title>
+
+## Status
+
+## Context
+
+## Decision
+
+## Alternatives considered
+
+## Consequences
+
+## Linked rules/tests/files
+
+# Review note: <topic>
+
+## Scope
+
+## Evidence
+
+## Findings
+
+## Contract risks
+
+## Determinism/privacy risks
+
+## Recommended action
+
+## Priority
+- must-fix / should-fix / later
+
+16. Immediate practical recommendations
+
+Require agents to read this handbook before major work.
+
+Put the source-of-truth order at the top of the active phase note.
+
+Add an implementation-slice gate checklist as a separate private file if needed.
+
+Keep parity notes for the flagship LP campaign honest and current.
+
+Do not let private workflow notes become the only place where architecture truth lives.
+
+Mirror stable public-safe parts into public docs and tests as the architecture converges.
+
+17. Final note
+
+This handbook is not meant to add bureaucracy.
+It is meant to protect coherence while RDP grows into a long-term serious project.
+
+The more RDP becomes:
+
+usable by many kinds of solvers
+
+suitable for difficult research problems
+
+able to support campaigns and APIs and GUIs
+
+dependent on shared outputs, reports, and testable contracts
+
+...the more important it becomes that the project has explicit internal rules, clear boundaries, and a workflow that prevents shortcut drift.	
