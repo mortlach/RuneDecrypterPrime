@@ -1,0 +1,87 @@
+{
+  "aggregate_rows": 1115443486,
+  "asset_mode": "full",
+  "blocked_reasons": [],
+  "completed_shards": 1118,
+  "created_utc": "2026-06-01T00:05:49.984832+00:00",
+  "dictionary_kept_rows": 1116955075,
+  "distribution_derivation": "source_file_name_word_length_partition_contract",
+  "failed_shards": 0,
+  "full_raw_ngram_rebuild_confirmed": true,
+  "length_partition_parsed_aggregate_rows": 1115443486,
+  "length_partition_parsed_dictionary_kept_rows": 1116955075,
+  "length_partition_parsed_output_files": 1728,
+  "length_partition_source_aggregate_rows": 1115443486,
+  "length_partition_source_dictionary_kept_rows": 1116955075,
+  "length_partition_source_output_files": 2236,
+  "length_partition_unparsed_aggregate_rows": 0,
+  "length_partition_unparsed_dictionary_kept_rows": 0,
+  "length_partition_unparsed_output_files": 508,
+  "missing_output_files": 0,
+  "missing_required_output_combo_rows": [],
+  "missing_required_output_combos": 0,
+  "missing_shards": 0,
+  "output_count_by_order_cut_direction": [
+    {
+      "dictionary_cut": "normal",
+      "direction": "fwd",
+      "ngram_order": 2,
+      "row_count": 200
+    },
+    {
+      "dictionary_cut": "strict",
+      "direction": "fwd",
+      "ngram_order": 2,
+      "row_count": 200
+    },
+    {
+      "dictionary_cut": "normal",
+      "direction": "fwd",
+      "ngram_order": 3,
+      "row_count": 918
+    },
+    {
+      "dictionary_cut": "strict",
+      "direction": "fwd",
+      "ngram_order": 3,
+      "row_count": 918
+    }
+  ],
+  "output_files": 2236,
+  "phrase_length_distribution_present": true,
+  "phrase_length_distribution_rows": 98,
+  "required_cuts": [
+    "normal",
+    "strict"
+  ],
+  "required_directions": [
+    "fwd"
+  ],
+  "required_orders": [
+    2,
+    3
+  ],
+  "run_label": "phaseB_ngram_hamming_full_raw_asset_shard_provenance_v1",
+  "run_root": "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_ngram_hamming_full_raw_asset_shards_v1/20260530T120414Z__phaseB_ngram_hamming_full_raw_asset_shards_v1",
+  "sample_line_limit_per_order": null,
+  "sample_line_limit_per_order_present": false,
+  "shard_count_by_order": [
+    {
+      "ngram_order": 2,
+      "row_count": 200
+    },
+    {
+      "ngram_order": 3,
+      "row_count": 918
+    }
+  ],
+  "source_bytes_completed": 21114123555,
+  "source_bytes_completed_fraction": 1.0,
+  "source_bytes_total": 21114123555,
+  "source_lines_seen": 915406536,
+  "source_valid_format_rows": 884859378,
+  "status": "pass",
+  "total_shards": 1118,
+  "word_length_distribution_present": true,
+  "word_length_distribution_rows": 140
+}
