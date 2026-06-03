@@ -4,6 +4,101 @@
 
 Lane 1 is now accepted as the full raw order-2/order-3 FWD normal/strict language-asset foundation.
 
+## Runtime asset prep gate - 2026-06-01
+
+The accepted Lane 1 full raw shard payload is provenance/rebuild input.
+
+The accepted small git-facing asset index lives at:
+
+- `assets/ngram_hamming/phaseB_full_raw_v1`
+
+The old `phrase_index_v1` is sample-mode and must not be used as the final
+runtime phrase lookup asset.
+
+The next runtime path is:
+
+1. full raw local payload validation
+2. compact full raw phrase lookup asset
+3. fast runtime index
+4. Lane 2 diagnostic rerun using the new asset source
+
+The fast runtime index is grouped `.npz` by direction/order/cut/phrase length
+and word-length shape. Counts/log-counts remain diagnostic arrays only and are
+not score weights.
+
+Current build gate:
+
+- Local and DJ-MINI full raw payload validation status: `pass`.
+- Monolithic compact build attempt on DJ-MINI was stopped during the first
+  `fwd/order=2/cut=normal` group after early throughput projected beyond the
+  declared `12h` watchdog.
+- That monolithic partial compact output was removed.
+- Partitioned DuckDB compact build is now the accepted compact strategy, with
+  `DUCKDB_PARTITION_SOURCE_FILES = 5`.
+- The first persisted compact group completed:
+  `direction=fwd/order=2/cut=normal`, `100,107,793` rows after dedup,
+  `0` duplicate identities, `6338.39s` elapsed.
+- The resumed build completed the second compact group:
+  `direction=fwd/order=2/cut=strict`, `34,812,511` rows after dedup,
+  `2061.6s` elapsed.
+- The active compact group after that checkpoint is
+  `direction=fwd/order=3/cut=normal`.
+- The resumed DJ-MINI compact launch uses that completed group as a timing
+  anchor and must skip it rather than rebuilding it:
+  `planning/projects/no_wli/60_launch_scripts/djmini_phaseB_full_raw_compact_lookup_resume_36h_2026-06-01.ps1`.
+- Resume log:
+  `planning/projects/no_wli/50_console_and_watch_logs/djmini_full_raw_compact_lookup_duckdb_partitioned5_resume_36h_2026-06-01.log`.
+- Declared resume budget is `129600s`; stop condition is
+  `finish_or_operator_stop_at_wallclock_budget`.
+- The next gate after compact completion is compact validation, then fast
+  runtime `.npz` index build and validation. Lane 2 must remain blocked until
+  the fast runtime index validates.
+- The prepared post-compact launcher is:
+  `planning/projects/no_wli/60_launch_scripts/djmini_phaseB_post_compact_to_review_gate_2026-06-01.ps1`.
+  It runs only after compact completion and hard-stops on the first failed
+  validation/build/rerun/review-pack gate.
+- 2026-06-01 correction: the asset build is local-only from this checkpoint.
+  Completed order-2 compact outputs were copied back from DJ-MINI into the
+  local repo and hash-verified. The active local launcher is:
+  `planning/projects/no_wli/60_launch_scripts/local_phaseB_full_raw_compact_lookup_resume_36h_2026-06-01.ps1`.
+- Local compact log:
+  `planning/projects/no_wli/50_console_and_watch_logs/local_full_raw_compact_lookup_duckdb_partitioned5_resume_36h_2026-06-01.log`.
+- If local disk fills, stop and tidy local storage; do not silently fall back
+  to DJ-MINI.
+- 2026-06-02 local compact lookup completion:
+  - compact asset status: `built`
+  - total rows before dedup: `1,115,443,486`
+  - total rows after dedup: `1,115,443,486`
+  - duplicate identity count: `0`
+  - no sample asset used
+  - no old `phrase_index_v1` used
+  - no production scorer change
+- The lack of dedup shrink is now explicit evidence: the compact lookup is a
+  canonical, sorted, validated runtime-prep table, not a materially smaller
+  semantic phrase inventory.
+- Next local gates:
+  1. compact lookup validation
+  2. fast runtime grouped `.npz` index build
+  3. fast runtime index validation
+  4. Lane 2 diagnostic rerun using `ASSET_SOURCE_MODE = "fast_runtime_index"`
+  5. review-pack build
+- Local post-compact gate launcher:
+  `planning/projects/no_wli/60_launch_scripts/local_phaseB_post_compact_to_review_gate_2026-06-02.ps1`.
+- 2026-06-02 runtime-index preflight:
+  - A read-only compact canary showed common phrase-length/word-shape groups
+    can be a large fraction of the compact file.
+  - The fast runtime index builder now writes deterministic bounded chunks:
+    `MAX_RUNTIME_ROWS_PER_FILE = 1,000,000`.
+  - The runtime validation gate enforces this cap and total row-count
+    agreement before Lane 2 can load the runtime index.
+  - Focused tests passed for compact validation, runtime index build/validate,
+    and Lane 2 diagnostic loading.
+
+This work does not approve production scoring.
+This work does not approve broad candidate scans.
+This work does not promote order 2 to score-bearing.
+This work does not reject order 4 or order 5.
+
 The next phase is **Lane 2 gated diagnostic scoring evidence**.
 
 Do not treat this as production scoring. Do not change production ranking. Do not promote bridge profiles into canonical scorer profiles. The aim is to generate controlled evidence that tells us whether the n-gram Hamming phrase-coherence scorer is worth carrying forward into report-only scoring, then later into tie-break or bounded-override evaluation.

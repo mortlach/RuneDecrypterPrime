@@ -2382,6 +2382,121 @@ Do not auto-discover a latest bundle.
 
 Lane 1 is closed for the order-2/order-3 FWD normal/strict language asset tranche.
 
+## Lane 2 runtime asset preparation - 2026-06-01
+
+The accepted Lane 1 full raw shard payload is provenance/rebuild input.
+
+The accepted small git-facing asset index lives at:
+
+- `assets/ngram_hamming/phaseB_full_raw_v1`
+
+The old `phrase_index_v1` is sample-mode and must not be used as the final
+runtime phrase lookup asset.
+
+The next runtime path is:
+
+1. full raw local payload validation
+2. compact full raw phrase lookup asset
+3. fast runtime index
+4. Lane 2 diagnostic rerun using the new asset source
+
+Active command-free automation surfaces:
+
+- local payload validator:
+  - `tools/benchmarks/periodic_sub_trans/no_wli/analysis/validate_phaseB_ngram_hamming_full_raw_local_payload_copy_v1.py`
+- compact lookup builder:
+  - `tools/benchmarks/periodic_sub_trans/no_wli/analysis/build_phaseB_ngram_hamming_full_raw_compact_phrase_lookup_asset_v1.py`
+- compact lookup validator:
+  - `tools/benchmarks/periodic_sub_trans/no_wli/analysis/validate_phaseB_ngram_hamming_full_raw_compact_phrase_lookup_asset_v1.py`
+- fast runtime index builder:
+  - `tools/benchmarks/periodic_sub_trans/no_wli/analysis/build_phaseB_ngram_hamming_fast_runtime_lookup_index_v1.py`
+- fast runtime index validator:
+  - `tools/benchmarks/periodic_sub_trans/no_wli/analysis/validate_phaseB_ngram_hamming_fast_runtime_lookup_index_v1.py`
+
+Current DJ-MINI validation log:
+
+- `planning/projects/no_wli/50_console_and_watch_logs/djmini_full_raw_local_payload_validation_2026-06-01.log`
+
+Current compact-build state:
+
+- DJ-MINI full payload validation completed `pass`.
+- The first monolithic compact build attempt was stopped during the first
+  `fwd/order=2/cut=normal` group because observed throughput projected beyond
+  the declared `12h` watchdog budget. That partial output was removed.
+- The current accepted compact strategy is the partitioned DuckDB builder with
+  `DUCKDB_PARTITION_SOURCE_FILES = 5`.
+- The first completed compact group is
+  `direction=fwd/order=2/cut=normal`, with `100,107,793` rows after dedup,
+  `0` duplicate identities, and `6338.39s` elapsed.
+- The resumed build completed the second compact group,
+  `direction=fwd/order=2/cut=strict`, with `34,812,511` rows after dedup and
+  `2061.6s` elapsed.
+- The active compact group after that checkpoint is
+  `direction=fwd/order=3/cut=normal`.
+- The current DJ-MINI resume launch is:
+  `planning/projects/no_wli/60_launch_scripts/djmini_phaseB_full_raw_compact_lookup_resume_36h_2026-06-01.ps1`.
+- The current DJ-MINI resume log is:
+  `planning/projects/no_wli/50_console_and_watch_logs/djmini_full_raw_compact_lookup_duckdb_partitioned5_resume_36h_2026-06-01.log`.
+- This resumed build has a declared `129600s` budget and stop condition
+  `finish_or_operator_stop_at_wallclock_budget`.
+- After compact build completion, run the compact validator before building the
+  fast runtime `.npz` index. Do not run Lane 2 from full raw shards or the old
+  sample `phrase_index_v1`.
+- The prepared post-compact hard-stop launcher is:
+  `planning/projects/no_wli/60_launch_scripts/djmini_phaseB_post_compact_to_review_gate_2026-06-01.ps1`.
+- It runs compact validation, fast runtime index build, runtime validation,
+  Lane 2 diagnostic rerun, and review-pack build in that order. It stops on the
+  first failed gate and logs to:
+  `planning/projects/no_wli/50_console_and_watch_logs/djmini_phaseB_post_compact_to_review_gate_2026-06-01.log`.
+- 2026-06-01 correction: DJ-MINI is no longer the active build target.
+  Completed order-2 compact outputs were copied into the local repo and
+  hash-verified. Continue asset building locally only unless explicitly
+  redirected.
+- Current local compact launcher:
+  `planning/projects/no_wli/60_launch_scripts/local_phaseB_full_raw_compact_lookup_resume_36h_2026-06-01.ps1`.
+- Current local compact log:
+  `planning/projects/no_wli/50_console_and_watch_logs/local_full_raw_compact_lookup_duckdb_partitioned5_resume_36h_2026-06-01.log`.
+- If local disk fills, stop and tidy local storage; do not silently resume on
+  DJ-MINI.
+- 2026-06-02 local compact lookup build completed:
+  - status: `built`
+  - exit code: `0`
+  - elapsed seconds: `95412`
+  - local free space at finish: `172.09 GB`
+  - row count after dedup: `1,115,443,486`
+  - duplicate identity count: `0`
+- Completed compact group sizes:
+  - `fwd/order=2/cut=normal`: `100,107,793` rows, `7,231,028,751` bytes.
+  - `fwd/order=2/cut=strict`: `34,812,511` rows, `2,551,739,985` bytes.
+  - `fwd/order=3/cut=normal`: `614,144,142` rows, `43,573,129,550` bytes.
+  - `fwd/order=3/cut=strict`: `366,379,040` rows, `26,084,568,434` bytes.
+- The compact build did not collapse normal/strict, did not use the old
+  `phrase_index_v1`, did not use a sample asset, and did not change production
+  scoring.
+- The next local gate launcher is:
+  `planning/projects/no_wli/60_launch_scripts/local_phaseB_post_compact_to_review_gate_2026-06-02.ps1`.
+- It must stop on the first failed gate. The intended order is:
+  compact validation, fast runtime `.npz` index build, runtime validation,
+  Lane 2 diagnostic rerun, then review-pack build.
+- 2026-06-02 preflight: common compact row shapes can be very large, so the
+  fast runtime index builder is chunked at `1,000,000` rows per `.npz` file.
+  Do not revert this to whole-group buffering unless a replacement memory
+  bound is added and tested.
+- Runtime validation must enforce the chunk cap and row-count match before the
+  Lane 2 diagnostic runner is allowed to load `ASSET_SOURCE_MODE =
+  "fast_runtime_index"`.
+- Compact validation must report progress during both hash and row-validation
+  passes. A one-line-per-file validator is not acceptable for these multi-GB
+  compact files.
+- Compact validation must stay memory-bounded. Use sorted-adjacency duplicate
+  checks for compact rows; do not retain all phrase IDs or identities in memory
+  for the full local asset.
+
+This work does not approve production scoring.
+This work does not approve broad candidate scans.
+This work does not promote order 2 to score-bearing.
+This work does not reject order 4 or order 5.
+
 Lane 2 may now run a small post-review diagnostic microbatch.
 
 This is not production scoring.

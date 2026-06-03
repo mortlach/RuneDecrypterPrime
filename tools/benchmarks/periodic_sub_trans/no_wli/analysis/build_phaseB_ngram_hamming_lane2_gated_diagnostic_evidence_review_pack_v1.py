@@ -59,6 +59,7 @@ SOURCE_FILES_REL = (
     "src/rune_decrypter_prime/scoring/ngram_hamming/bridge.py",
     "src/rune_decrypter_prime/scoring/ngram_hamming/fast_backend.py",
     "src/rune_decrypter_prime/scoring/ngram_hamming/__init__.py",
+    "tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_ngram_hamming_bridge_lane2_synthetic_contract_smoke_v1.py",
     "tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_ngram_hamming_lane2_gated_diagnostic_evidence_v1.py",
     "tools/benchmarks/periodic_sub_trans/no_wli/analysis/build_phaseB_ngram_hamming_lane2_gated_diagnostic_evidence_review_pack_v1.py",
 )

@@ -704,6 +704,56 @@ The bridge diagnostic pack comes after that review passes.
 
 Lane 1 is closed for the order-2/order-3 FWD normal/strict language asset tranche.
 
+## Runtime asset prep gate - 2026-06-01
+
+The accepted Lane 1 full raw shard payload is provenance/rebuild input.
+
+The accepted small git-facing asset index lives at:
+
+- `assets/ngram_hamming/phaseB_full_raw_v1`
+
+The old `phrase_index_v1` is sample-mode and must not be used as the final
+runtime phrase lookup asset.
+
+The next runtime path is:
+
+1. full raw local payload validation
+2. compact full raw phrase lookup asset
+3. fast runtime index
+4. Lane 2 diagnostic rerun using the new asset source
+
+The fast runtime index is grouped `.npz` by direction/order/cut/phrase length
+and word-length shape. Counts/log-counts remain diagnostic arrays only and are
+not score weights.
+
+Current build gate:
+
+- Local and DJ-MINI full raw payload validation status: `pass`.
+- Monolithic compact build attempt on DJ-MINI was stopped during the first
+  `fwd/order=2/cut=normal` group after early throughput projected beyond the
+  declared `12h` watchdog.
+- Partial compact output was removed.
+- 2026-06-02 update: the compact build was resumed locally with partitioned
+  DuckDB work and completed with status `built`.
+- Compact lookup manifest:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_ngram_hamming_full_raw_compact_phrase_lookup_asset_v1/compact_asset_manifest.json`.
+- Total compact rows before dedup: `1,115,443,486`.
+- Total compact rows after dedup: `1,115,443,486`.
+- Duplicate identity count: `0`.
+- Completed compact group sizes:
+  - `fwd/order=2/cut=normal`: `100,107,793` rows, `7,231,028,751` bytes.
+  - `fwd/order=2/cut=strict`: `34,812,511` rows, `2,551,739,985` bytes.
+  - `fwd/order=3/cut=normal`: `614,144,142` rows, `43,573,129,550` bytes.
+  - `fwd/order=3/cut=strict`: `366,379,040` rows, `26,084,568,434` bytes.
+- Next gate is compact validation, then the grouped fast runtime `.npz` index.
+  Lane 2 must not use raw shards or the old sample `phrase_index_v1` as its
+  runtime source.
+
+This work does not approve production scoring.
+This work does not approve broad candidate scans.
+This work does not promote order 2 to score-bearing.
+This work does not reject order 4 or order 5.
+
 Lane 2 may now run a small post-review diagnostic microbatch.
 
 This is not production scoring.

@@ -2244,6 +2244,118 @@ Completed result:
 
 Lane 1 is closed for the order-2/order-3 FWD normal/strict language asset tranche.
 
+## Lane 2 runtime asset preparation - 2026-06-01
+
+The accepted Lane 1 full raw shard payload is provenance/rebuild input.
+
+The accepted small git-facing asset index lives at:
+
+- `assets/ngram_hamming/phaseB_full_raw_v1`
+
+The old `phrase_index_v1` is sample-mode and must not be used as the final
+runtime phrase lookup asset.
+
+The next runtime path is:
+
+1. full raw local payload validation
+2. compact full raw phrase lookup asset
+3. fast runtime index
+4. Lane 2 diagnostic rerun using the new asset source
+
+Current implementation status:
+
+- local full raw payload validation script exists and the local copy validated
+  `pass` with `2236 / 2236` payload files checked, `0` missing files,
+  `0` hash mismatches, and `0` byte-count mismatches.
+- compact full raw phrase lookup builder and validator exist with focused
+  synthetic tests.
+- fast runtime index builder and validator now use grouped `.npz` files by
+  direction/order/cut/phrase length/word length shape, not the old
+  sample-mode phrase index.
+- Lane 2 now blocks unless the requested `fast_runtime_index` exists and
+  validates; it does not silently fall back to `phrase_index_v1` or raw shards.
+- DJ-MINI full payload validation is running from the remote repo copy with log:
+  `planning/projects/no_wli/50_console_and_watch_logs/djmini_full_raw_local_payload_validation_2026-06-01.log`
+- DJ-MINI full payload validation completed `pass` with `2236 / 2236`
+  payload files checked and zero missing/hash/byte mismatches.
+- The first monolithic compact build attempt was stopped during the first
+  `fwd/order=2/cut=normal` group after early throughput projected the full
+  `1,115,443,486`-row aggregation beyond the declared `12h` watchdog budget.
+  Partial compact output was removed. The next implementation step is a
+  bounded or partitioned compact-build strategy with extractable partial state,
+  not a silent day-long monolithic run.
+- A partitioned DuckDB compact build with `5` source files per partition
+  completed the first persisted group:
+  `direction=fwd/order=2/cut=normal`.
+  It wrote `100,107,793` compact rows, found `0` duplicate identities, and
+  took `6338.39s`.
+- The resumed compact build has also completed:
+  `direction=fwd/order=2/cut=strict`.
+  It wrote `34,812,511` compact rows after dedup and took `2061.6s`.
+- Current active compact group is `direction=fwd/order=3/cut=normal`.
+- That completed group is retained and is the timing anchor for the resumed
+  build. The resumed DJ-MINI launch is:
+  `planning/projects/no_wli/60_launch_scripts/djmini_phaseB_full_raw_compact_lookup_resume_36h_2026-06-01.ps1`.
+- The resumed build log is:
+  `planning/projects/no_wli/50_console_and_watch_logs/djmini_full_raw_compact_lookup_duckdb_partitioned5_resume_36h_2026-06-01.log`.
+- The resumed build has a declared `129600s` budget and stop condition
+  `finish_or_operator_stop_at_wallclock_budget`. It must continue to emit
+  partition-level progress and must not silently restart completed groups.
+- The post-compact follow-on launcher is prepared but must only be run after
+  compact completion:
+  `planning/projects/no_wli/60_launch_scripts/djmini_phaseB_post_compact_to_review_gate_2026-06-01.ps1`.
+  It stops on the first failed gate across compact validation, fast runtime
+  index build, runtime validation, Lane 2 rerun, and review-pack build.
+- 2026-06-01 local-build correction: DJ-MINI is not the active asset build
+  target. Completed order-2 compact artifacts were copied back into the local
+  repo and hash-verified against their complete markers:
+  `direction=fwd/order=2/cut=normal` and
+  `direction=fwd/order=2/cut=strict`.
+- The active compact build now runs from the local repo and writes local output:
+  `planning/projects/no_wli/60_launch_scripts/local_phaseB_full_raw_compact_lookup_resume_36h_2026-06-01.ps1`.
+- Local launch log:
+  `planning/projects/no_wli/50_console_and_watch_logs/local_full_raw_compact_lookup_duckdb_partitioned5_resume_36h_2026-06-01.log`.
+- Local free space at launch was about `36.51 GB`; if the local disk fills,
+  stop and tidy local storage rather than falling back to DJ-MINI.
+- 2026-06-02 compact lookup completion: the local compact build finished with
+  status `built`, exit code `0`, and total elapsed `95412s`.
+- Compact lookup manifest:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_ngram_hamming_full_raw_compact_phrase_lookup_asset_v1/compact_asset_manifest.json`.
+- Total compact rows before dedup: `1,115,443,486`.
+- Total compact rows after dedup: `1,115,443,486`.
+- Duplicate identity count: `0`.
+- Completed compact group sizes:
+  - `fwd/order=2/cut=normal`: `100,107,793` rows, `7,231,028,751` bytes.
+  - `fwd/order=2/cut=strict`: `34,812,511` rows, `2,551,739,985` bytes.
+  - `fwd/order=3/cut=normal`: `614,144,142` rows, `43,573,129,550` bytes.
+  - `fwd/order=3/cut=strict`: `366,379,040` rows, `26,084,568,434` bytes.
+- The compact builder removed temporary partition CSVs; only group completion
+  marker JSON files remain under the compact `work/` directory.
+- Next local gate launcher:
+  `planning/projects/no_wli/60_launch_scripts/local_phaseB_post_compact_to_review_gate_2026-06-02.ps1`.
+  It runs compact validation, fast runtime index build, runtime validation,
+  Lane 2 diagnostic rerun, and review-pack build in order.
+- 2026-06-02 runtime-index preflight: the fast runtime `.npz` builder now
+  writes bounded chunks with `MAX_RUNTIME_ROWS_PER_FILE = 1,000,000`.
+  This avoids holding very large phrase-length/word-shape groups in memory.
+  The runtime validator enforces that cap before Lane 2 can use the index.
+- Focused tests passed after the chunking update:
+  `tests/tools/test_phaseB_ngram_hamming_fast_runtime_lookup_index_v1.py`,
+  `tests/tools/test_phaseB_ngram_hamming_full_raw_compact_phrase_lookup_asset_validation_v1.py`,
+  and `tests/tools/test_phaseB_ngram_hamming_lane2_gated_diagnostic_evidence_v1.py`.
+- Compact validation now also reports hash-pass progress every `512 MiB`;
+  the original gate launch was stopped before completion because that hash
+  pass was too silent for a long validation run.
+- Compact validation duplicate checks are now constant-memory: because compact
+  rows are deterministically sorted by the canonical identity fields, duplicate
+  phrase IDs and canonical identities are checked by adjacency rather than by
+  retaining billion-row seen sets.
+
+This work does not approve production scoring.
+This work does not approve broad candidate scans.
+This work does not promote order 2 to score-bearing.
+This work does not reject order 4 or order 5.
+
 Lane 2 may now run a small post-review diagnostic microbatch.
 
 This is not production scoring.

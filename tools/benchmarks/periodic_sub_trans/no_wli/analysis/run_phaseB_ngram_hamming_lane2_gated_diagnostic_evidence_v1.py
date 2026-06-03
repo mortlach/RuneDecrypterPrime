@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
+import numpy as np
+
 
 SCRIPT_PATH = Path(__file__).resolve()
 REPO_ROOT = SCRIPT_PATH.parents[5]
@@ -46,6 +48,20 @@ OUTPUT_DIR_REL = (
 )
 ASSET_HOME_REL = "assets/ngram_hamming/phaseB_full_raw_v1"
 LANE1_ASSET_ID = "phaseB_ngram_hamming_full_raw_v1"
+ASSET_SOURCE_MODE = "fast_runtime_index"
+COMPACT_ASSET_ID = "phaseB_ngram_hamming_full_raw_compact_lookup_v1"
+RUNTIME_INDEX_ASSET_ID = "phaseB_ngram_hamming_full_raw_fast_runtime_index_v1"
+RUNTIME_INDEX_MANIFEST_REL = (
+    "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"
+    "phaseB_ngram_hamming_fast_runtime_lookup_index_v1/runtime_index_manifest.json"
+)
+RUNTIME_INDEX_VALIDATION_MANIFEST_REL = (
+    "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"
+    "phaseB_ngram_hamming_fast_runtime_lookup_index_validation_v1/validation_manifest.json"
+)
+ALLOW_SAMPLE_ASSET = False
+ALLOW_RAW_SHARD_RUNTIME = False
+ALLOW_PRODUCTION_SCORER_CHANGE = False
 PROFILE_IDS = (
     "BR_O2_soft",
     "BR_O2_len8_conservative",
@@ -54,9 +70,19 @@ PROFILE_IDS = (
     "BR_O3_conservative",
 )
 CLUSTER_SCOPE_ALL = "all_profiles_diagnostic"
-CLUSTER_SCOPE_SCORE = "score_candidate_view"
+CLUSTER_SCOPE_BLOCKED = "blocked_bridge_candidate_view"
+CLUSTER_SCOPE_CANONICAL = "canonical_score_candidate_view"
 ALPHABET_SIZE = 29
-MAX_ASSET_ROWS_PER_ORDER_CUT = 3
+MAX_ASSET_ROWS_PER_ORDER_CUT = 32
+MAX_PAYLOAD_FILES_PER_ORDER_CUT = 12
+TARGET_CLEAN_POSITIVE_PASSAGES = 24
+PHRASE_ENTRIES_PER_POSITIVE = 4
+DAMAGE_TIERS = (0.20, 0.35, 0.50)
+MATCHED_NULL_FAMILIES = (
+    "matched_random_same_length",
+    "matched_shuffle_same_tokens",
+    "matched_wordlike_wrong_order",
+)
 HIT_SAMPLE_LIMIT = 200
 RUN_SCOPE = "post_review_microbatch"
 RUN_AUTHORITY = "diagnostic_only"
@@ -180,10 +206,123 @@ def deterministic_damage(
     return tuple(token_list), manifest
 
 
+def load_fast_runtime_index_entries() -> tuple[PhraseEntry, ...]:
+    manifest_path = REPO_ROOT / RUNTIME_INDEX_MANIFEST_REL
+    validation_path = REPO_ROOT / RUNTIME_INDEX_VALIDATION_MANIFEST_REL
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"missing fast runtime index manifest required for Lane 2 rerun: {RUNTIME_INDEX_MANIFEST_REL}")
+    if not validation_path.is_file():
+        raise FileNotFoundError(
+            f"missing fast runtime index validation manifest required for Lane 2 rerun: {RUNTIME_INDEX_VALIDATION_MANIFEST_REL}"
+        )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    validation = json.loads(validation_path.read_text(encoding="utf-8"))
+    blocked: list[str] = []
+    if manifest.get("asset_id") != RUNTIME_INDEX_ASSET_ID:
+        blocked.append("fast runtime index asset id mismatch")
+    if manifest.get("asset_status") != "built":
+        blocked.append("fast runtime index asset status is not built")
+    if manifest.get("source_compact_asset_id") != COMPACT_ASSET_ID:
+        blocked.append("fast runtime index compact source id mismatch")
+    if validation.get("status") != "pass":
+        blocked.append("fast runtime index validation status is not pass")
+    if manifest.get("production_scorer_change") is not ALLOW_PRODUCTION_SCORER_CHANGE:
+        blocked.append("fast runtime index manifest changed production scorer")
+    if manifest.get("sample_asset_used") is not False or manifest.get("old_phrase_index_v1_used") is not False:
+        blocked.append("fast runtime index used sample or old phrase_index source")
+    if manifest.get("full_raw_shards_used_directly_as_runtime") is not False:
+        blocked.append("fast runtime index used full raw shards directly as runtime")
+    if blocked:
+        raise RuntimeError("fast runtime index is not eligible for Lane 2 rerun: " + "; ".join(blocked))
+    entries = load_fast_runtime_entries_from_manifest(manifest)
+    if not entries:
+        raise RuntimeError("no fast runtime index phrase entries were loaded for Lane 2 diagnostic evidence")
+    return tuple(entries)
+
+
+def split_words(flat_tokens: Sequence[int], word_lens: Sequence[int]) -> tuple[tuple[int, ...], ...]:
+    out: list[tuple[int, ...]] = []
+    offset = 0
+    for length in word_lens:
+        end = offset + int(length)
+        out.append(tuple(int(token) for token in flat_tokens[offset:end]))
+        offset = end
+    if offset != len(flat_tokens):
+        raise ValueError("runtime index word lengths do not cover the phrase token length")
+    return tuple(out)
+
+
+def load_fast_runtime_entries_from_manifest(manifest: Mapping[str, Any]) -> tuple[PhraseEntry, ...]:
+    entries_by_group: dict[tuple[int, str], list[PhraseEntry]] = {(order, cut): [] for order in (2, 3) for cut in ("normal", "strict")}
+    for file_row in sorted(
+        manifest.get("files", []),
+        key=lambda row: (
+            str(row.get("direction", "")),
+            str(row.get("dictionary_cut", "")),
+            int(row.get("ngram_order", 0)),
+            int(row.get("phrase_token_length", 0)),
+            str(row.get("word_token_lengths", "")),
+            str(row.get("path", "")),
+        ),
+    ):
+        order = int(file_row.get("ngram_order", -1))
+        cut = str(file_row.get("dictionary_cut", ""))
+        key = (order, cut)
+        if key not in entries_by_group or len(entries_by_group[key]) >= MAX_ASSET_ROWS_PER_ORDER_CUT:
+            continue
+        path = REPO_ROOT / str(file_row.get("path", ""))
+        if not path.is_file():
+            raise FileNotFoundError(f"fast runtime index file is missing: {file_row.get('path', '')}")
+        with np.load(path, allow_pickle=False) as data:
+            rune_tokens = data["rune_tokens"]
+            phrase_ids = data["phrase_id"]
+            word_lens = tuple(int(item) for item in data["word_token_lengths"].tolist())
+            for idx in range(rune_tokens.shape[0]):
+                if len(entries_by_group[key]) >= MAX_ASSET_ROWS_PER_ORDER_CUT:
+                    break
+                tokens = tuple(int(token) for token in rune_tokens[idx].tolist())
+                entries_by_group[key].append(
+                    PhraseEntry(
+                        phrase_id=str(phrase_ids[idx]),
+                        direction=str(file_row.get("direction", "")),
+                        dictionary_cut=cut,
+                        ngram_order=order,
+                        word_token_ids=split_words(tokens, word_lens),
+                        rune_token_ids=tokens,
+                        count=0.0,
+                        log_count=0.0,
+                        phrase_count=1,
+                    )
+                )
+    return tuple(entry for group in entries_by_group.values() for entry in group)
+
+
 def load_lane1_asset_entries() -> tuple[PhraseEntry, ...]:
     manifest_path = REPO_ROOT / ASSET_HOME_REL / "asset_manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    selected_rows = selected_lane1_payload_rows(manifest)
+    missing = [str(row["path"]) for row in selected_rows if not (REPO_ROOT / str(row["path"])).is_file()]
+    if missing:
+        preview = "\n".join(f"- {path}" for path in missing[:20])
+        more = f"\n- ... {len(missing) - 20} more" if len(missing) > 20 else ""
+        raise FileNotFoundError(
+            "missing Lane 1 payload files required for Lane 2 diagnostic evidence rerun:\n"
+            f"{preview}{more}\n"
+            "Copy these ignored shard payloads from DJ-MINI or another retained asset store, "
+            "or do not rerun the evidence pack."
+        )
     entries: list[PhraseEntry] = []
+    for file_row in selected_rows:
+        order = int(file_row["ngram_order"])
+        cut = str(file_row["dictionary_cut"])
+        entries.extend(read_phrase_entries_from_payload(str(file_row["path"]), MAX_ASSET_ROWS_PER_ORDER_CUT - count_entries(entries, order, cut)))
+    if not entries:
+        raise RuntimeError("no Lane 1 phrase entries were loaded for diagnostic evidence")
+    return tuple(entries)
+
+
+def selected_lane1_payload_rows(manifest: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    selected: list[Mapping[str, Any]] = []
     for order in (2, 3):
         for cut in ("normal", "strict"):
             files = [
@@ -194,13 +333,9 @@ def load_lane1_asset_entries() -> tuple[PhraseEntry, ...]:
                 and row.get("direction") == "fwd"
                 and int(row.get("aggregate_rows", 0)) > 0
             ]
-            for file_row in sorted(files, key=lambda row: (int(row.get("bytes", 0)), str(row.get("path", "")))):
-                entries.extend(read_phrase_entries_from_payload(file_row["path"], MAX_ASSET_ROWS_PER_ORDER_CUT - count_entries(entries, order, cut)))
-                if count_entries(entries, order, cut) >= MAX_ASSET_ROWS_PER_ORDER_CUT:
-                    break
-    if not entries:
-        raise RuntimeError("no Lane 1 phrase entries were loaded for diagnostic evidence")
-    return tuple(entries)
+            for file_row in sorted(files, key=lambda row: (int(row.get("bytes", 0)), str(row.get("path", ""))))[:MAX_PAYLOAD_FILES_PER_ORDER_CUT]:
+                selected.append(file_row)
+    return selected
 
 
 def count_entries(entries: Sequence[PhraseEntry], order: int, cut: str) -> int:
@@ -236,76 +371,105 @@ def base_positive_tokens(entries: Sequence[PhraseEntry]) -> tuple[int, ...]:
     return tuple(tokens)
 
 
+def positive_phrase_groups(entries: Sequence[PhraseEntry]) -> tuple[tuple[PhraseEntry, ...], ...]:
+    selected = tuple(sorted(entries, key=lambda entry: (entry.ngram_order, entry.dictionary_cut, entry.phrase_id)))
+    if not selected:
+        return ()
+    clean_count = min(TARGET_CLEAN_POSITIVE_PASSAGES, max(1, len(selected)))
+    groups: list[tuple[PhraseEntry, ...]] = []
+    for idx in range(clean_count):
+        start = (idx * PHRASE_ENTRIES_PER_POSITIVE) % len(selected)
+        group = tuple(selected[(start + offset) % len(selected)] for offset in range(PHRASE_ENTRIES_PER_POSITIVE))
+        groups.append(group)
+    return tuple(groups)
+
+
+def positive_tokens_from_entries(entries: Sequence[PhraseEntry], *, passage_index: int) -> tuple[int, ...]:
+    tokens: list[int] = []
+    for idx, entry in enumerate(entries):
+        tokens.extend(entry.rune_token_ids)
+        tokens.extend(separator_tokens(passage_index * 100 + idx))
+    return tuple(tokens)
+
+
 def build_eval_cases(entries: Sequence[PhraseEntry]) -> tuple[EvalCase, ...]:
-    base_tokens = base_positive_tokens(entries)
-    cases: list[EvalCase] = [
-        EvalCase(
-            candidate_id="positive_clean_000",
+    groups = positive_phrase_groups(entries)
+    cases: list[EvalCase] = []
+    positive_cases: list[EvalCase] = []
+    for idx, group in enumerate(groups):
+        clean_tokens = positive_tokens_from_entries(group, passage_index=idx)
+        clean_case = EvalCase(
+            candidate_id=f"positive_clean_{idx:03d}",
             case_family="positive_clean",
             damage_rate=0.0,
             damage_mode="none",
-            seed=0,
-            tokens=base_tokens,
-            source_case_id="asset_phrase_sample_000",
+            seed=idx,
+            tokens=clean_tokens,
+            source_case_id=f"asset_phrase_sample_{idx:03d}",
             expected_role="positive",
             source_kind="generated_from_permanent_lane1_asset_tokens",
         )
-    ]
-    for rate, seed in ((0.20, 202620), (0.35, 202635), (0.50, 202650)):
-        damaged, manifest = deterministic_damage(base_tokens, damage_rate=rate, seed=seed)
-        cases.append(
-            EvalCase(
-                candidate_id=f"positive_damaged_{int(rate * 100):02d}_000",
+        cases.append(clean_case)
+        positive_cases.append(clean_case)
+        for rate in DAMAGE_TIERS:
+            seed = 202600 + idx * 100 + int(rate * 100)
+            damaged, manifest = deterministic_damage(clean_tokens, damage_rate=rate, seed=seed)
+            damaged_case = EvalCase(
+                candidate_id=f"positive_damaged_{int(rate * 100):02d}_{idx:03d}",
                 case_family=f"positive_damaged_{int(rate * 100):02d}",
                 damage_rate=rate,
                 damage_mode="substitute",
                 seed=seed,
                 tokens=damaged,
-                source_case_id="positive_clean_000",
+                source_case_id=clean_case.candidate_id,
                 expected_role="positive",
                 source_kind="generated_from_permanent_lane1_asset_tokens",
                 damage_positions_sha256=manifest["damage_positions_sha256"],
             )
-        )
-    for rate in (0.0, 0.20, 0.35, 0.50):
-        seed_base = int(300000 + rate * 1000)
-        cases.extend(
-            (
-                EvalCase(
-                    candidate_id=f"matched_random_same_length_{int(rate * 100):02d}_000",
-                    case_family="matched_random_same_length",
-                    damage_rate=rate,
-                    damage_mode="matched_null",
-                    seed=seed_base,
-                    tokens=random_tokens_same_length(len(base_tokens), seed=seed_base),
-                    source_case_id=f"positive_rate_{rate:.2f}",
-                    expected_role="null",
-                    source_kind="synthetic_matched_null",
-                ),
-                EvalCase(
-                    candidate_id=f"matched_shuffle_same_tokens_{int(rate * 100):02d}_000",
-                    case_family="matched_shuffle_same_tokens",
-                    damage_rate=rate,
-                    damage_mode="matched_null",
-                    seed=seed_base + 1,
-                    tokens=shuffled_tokens(base_tokens, seed=seed_base + 1),
-                    source_case_id=f"positive_rate_{rate:.2f}",
-                    expected_role="null",
-                    source_kind="synthetic_matched_null",
-                ),
-                EvalCase(
-                    candidate_id=f"matched_wordlike_wrong_order_{int(rate * 100):02d}_000",
-                    case_family="matched_wordlike_wrong_order",
-                    damage_rate=rate,
-                    damage_mode="matched_null",
-                    seed=seed_base + 2,
-                    tokens=wrong_order_tokens(entries),
-                    source_case_id=f"positive_rate_{rate:.2f}",
-                    expected_role="null",
-                    source_kind="synthetic_matched_null",
-                ),
+            cases.append(damaged_case)
+            positive_cases.append(damaged_case)
+    for idx, source_case in enumerate(positive_cases):
+        seed_base = 300000 + idx * 10 + int(source_case.damage_rate * 100)
+        cases.append(
+            EvalCase(
+                candidate_id=f"matched_random_same_length_{int(source_case.damage_rate * 100):02d}_{idx:03d}",
+                case_family="matched_random_same_length",
+                damage_rate=source_case.damage_rate,
+                damage_mode="matched_null",
+                seed=seed_base,
+                tokens=random_tokens_same_length(len(source_case.tokens), seed=seed_base),
+                source_case_id=source_case.candidate_id,
+                expected_role="null",
+                source_kind="synthetic_matched_null",
             )
         )
+        cases.append(
+            EvalCase(
+                candidate_id=f"matched_shuffle_same_tokens_{int(source_case.damage_rate * 100):02d}_{idx:03d}",
+                case_family="matched_shuffle_same_tokens",
+                damage_rate=source_case.damage_rate,
+                damage_mode="matched_null",
+                seed=seed_base + 1,
+                tokens=shuffled_tokens(source_case.tokens, seed=seed_base + 1),
+                source_case_id=source_case.candidate_id,
+                expected_role="null",
+                source_kind="synthetic_matched_null",
+            )
+        )
+        cases.append(
+            EvalCase(
+                candidate_id=f"matched_wordlike_wrong_order_{int(source_case.damage_rate * 100):02d}_{idx:03d}",
+                case_family="matched_wordlike_wrong_order",
+                damage_rate=source_case.damage_rate,
+                damage_mode="matched_null",
+                seed=seed_base + 2,
+                tokens=wrong_order_tokens_for_length(source_case.tokens),
+                source_case_id=source_case.candidate_id,
+                expected_role="null",
+                source_kind="synthetic_matched_null",
+            )
+        )
+    base_tokens = base_positive_tokens(entries)
     cases.extend(
         (
             EvalCase(
@@ -378,6 +542,14 @@ def wrong_order_tokens(entries: Sequence[PhraseEntry]) -> tuple[int, ...]:
     return tuple(tokens)
 
 
+def wrong_order_tokens_for_length(tokens: Sequence[int]) -> tuple[int, ...]:
+    chunks = [tuple(tokens[idx: idx + 3]) for idx in range(0, len(tokens), 3)]
+    out: list[int] = []
+    for chunk in reversed(chunks):
+        out.extend(reversed(chunk))
+    return tuple(out[:len(tokens)])
+
+
 def hard_negative_tokens(length: int) -> tuple[int, ...]:
     pattern = (0, 4, 8, 12, 16, 20, 24, 3, 7, 11, 15, 19, 23, 27)
     return tuple(pattern[idx % len(pattern)] for idx in range(length))
@@ -445,11 +617,25 @@ def scan_cases(
 def clusters_for_hits(
     hits: Sequence[PhraseHit],
     specs: Sequence[NgramProfileSpec],
-) -> tuple[tuple[Any, ...], tuple[Any, ...]]:
+) -> tuple[tuple[Any, ...], tuple[Any, ...], tuple[Any, ...]]:
     score_ids = score_candidate_profile_ids(specs)
     all_clusters = cluster_hits_overlap_touch(hits, cluster_scope=CLUSTER_SCOPE_ALL)
-    score_clusters = cluster_hits_overlap_touch(hits, cluster_scope=CLUSTER_SCOPE_SCORE, allowed_profile_ids=score_ids)
-    return all_clusters, score_clusters
+    blocked_clusters = cluster_hits_overlap_touch(hits, cluster_scope=CLUSTER_SCOPE_BLOCKED, allowed_profile_ids=score_ids)
+    canonical_clusters = cluster_hits_overlap_touch(
+        (hit for hit in hits if canonical_score_candidate_key(hit) is not None),
+        cluster_scope=CLUSTER_SCOPE_CANONICAL,
+    )
+    return all_clusters, blocked_clusters, canonical_clusters
+
+
+def hit_summary_key(hit: PhraseHit) -> tuple[str, str, str, int]:
+    return (hit.candidate_id, hit.profile_id, hit.dictionary_cut, hit.ngram_order)
+
+
+def canonical_score_candidate_key(hit: PhraseHit) -> tuple[str, str, int] | None:
+    if hit.profile_id == "BR_O3_conservative" and hit.dictionary_cut == "normal" and hit.ngram_order == 3:
+        return (hit.profile_id, hit.dictionary_cut, hit.ngram_order)
+    return None
 
 
 def summary_rows_for_scope(
@@ -459,28 +645,36 @@ def summary_rows_for_scope(
     clusters: Sequence[Any],
     specs: Sequence[NgramProfileSpec],
     cluster_scope: str,
-    score_only: bool,
+    allowed_profile_ids: set[str] | None = None,
+    allowed_profile_cut_orders: set[tuple[str, str, int]] | None = None,
 ) -> list[dict[str, Any]]:
-    score_ids = score_candidate_profile_ids(specs)
-    allowed_specs = [spec for spec in specs if not score_only or spec.profile_id in score_ids]
+    def allowed(profile_id: str, cut: str, order: int) -> bool:
+        if allowed_profile_ids is not None and profile_id not in allowed_profile_ids:
+            return False
+        if allowed_profile_cut_orders is not None and (profile_id, cut, order) not in allowed_profile_cut_orders:
+            return False
+        return True
+
     hit_groups: dict[tuple[str, str, str, int], list[PhraseHit]] = defaultdict(list)
     for hit in hits:
-        if score_only and hit.profile_id not in score_ids:
+        if not allowed(hit.profile_id, hit.dictionary_cut, hit.ngram_order):
             continue
-        hit_groups[(hit.candidate_id, hit.profile_id, hit.dictionary_cut, hit.ngram_order)].append(hit)
+        hit_groups[hit_summary_key(hit)].append(hit)
     cluster_groups: dict[tuple[str, str, str, int], list[Any]] = defaultdict(list)
     for cluster in clusters:
         for key in {
-            (hit.candidate_id, hit.profile_id, hit.dictionary_cut, hit.ngram_order)
+            hit_summary_key(hit)
             for hit in cluster.hits
-            if not score_only or hit.profile_id in score_ids
+            if allowed(hit.profile_id, hit.dictionary_cut, hit.ngram_order)
         }:
             cluster_groups[key].append(cluster)
     rows: list[dict[str, Any]] = []
     for case in cases:
-        for spec in allowed_specs:
+        for spec in specs:
             for cut in spec.cuts:
                 for order in spec.orders:
+                    if not allowed(spec.profile_id, cut, order):
+                        continue
                     key = (case.candidate_id, spec.profile_id, cut, order)
                     group_hits = hit_groups.get(key, [])
                     group_clusters = cluster_groups.get(key, [])
@@ -502,7 +696,17 @@ def candidate_profile_summary_row(
     phrase_counter = Counter(hit.phrase_id for hit in hits)
     start_counter = Counter(hit.hit_start for hit in hits)
     exact_hit_count = sum(1 for hit in hits if hit.total_phrase_hd == 0)
-    exact_cluster_count = sum(1 for cluster in clusters if any(hit.total_phrase_hd == 0 for hit in cluster.hits))
+    row_key = (case.candidate_id, spec.profile_id, cut, order)
+    matching_cluster_hit_counts = [
+        sum(1 for hit in cluster.hits if hit_summary_key(hit) == row_key)
+        for cluster in clusters
+    ]
+    exact_cluster_count = sum(
+        1
+        for cluster in clusters
+        if any(hit.total_phrase_hd == 0 and hit_summary_key(hit) == row_key for hit in cluster.hits)
+    )
+    top_5_cluster_hit_count = sum(sorted(matching_cluster_hit_counts, reverse=True)[:5])
     return {
         "candidate_id": case.candidate_id,
         "case_family": case.case_family,
@@ -520,7 +724,8 @@ def candidate_profile_summary_row(
         "exact_cluster_count": exact_cluster_count,
         "hit_count": raw_hit_count,
         "exact_hit_count": exact_hit_count,
-        "dominant_cluster_hit_fraction": max((cluster.raw_hit_count for cluster in clusters), default=0) / raw_hit_count if raw_hit_count else 0.0,
+        "dominant_cluster_hit_fraction": max(matching_cluster_hit_counts, default=0) / raw_hit_count if raw_hit_count else 0.0,
+        "top_5_cluster_hit_fraction": top_5_cluster_hit_count / raw_hit_count if raw_hit_count else 0.0,
         "dominant_phrase_hit_fraction": max(phrase_counter.values(), default=0) / raw_hit_count if raw_hit_count else 0.0,
         "distinct_phrase_count": len(phrase_counter),
         "distinct_start_count": len(start_counter),
@@ -566,26 +771,35 @@ def build_summary_rows(
     cases: Sequence[EvalCase],
     hits: Sequence[PhraseHit],
     specs: Sequence[NgramProfileSpec],
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
-    all_clusters, score_clusters = clusters_for_hits(hits, specs)
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    all_clusters, blocked_clusters, canonical_clusters = clusters_for_hits(hits, specs)
+    score_ids = score_candidate_profile_ids(specs)
+    canonical_keys = {("BR_O3_conservative", "normal", 3)}
     all_rows = summary_rows_for_scope(
         cases=cases,
         hits=hits,
         clusters=all_clusters,
         specs=specs,
         cluster_scope=CLUSTER_SCOPE_ALL,
-        score_only=False,
     )
-    score_rows = summary_rows_for_scope(
+    blocked_rows = summary_rows_for_scope(
         cases=cases,
         hits=hits,
-        clusters=score_clusters,
+        clusters=blocked_clusters,
         specs=specs,
-        cluster_scope=CLUSTER_SCOPE_SCORE,
-        score_only=True,
+        cluster_scope=CLUSTER_SCOPE_BLOCKED,
+        allowed_profile_ids=score_ids,
     )
-    cluster_rows = cluster_summary_rows((*all_clusters, *score_clusters), run_id=RUN_LABEL)
-    return all_rows, score_rows, cluster_rows
+    canonical_rows = summary_rows_for_scope(
+        cases=cases,
+        hits=hits,
+        clusters=canonical_clusters,
+        specs=specs,
+        cluster_scope=CLUSTER_SCOPE_CANONICAL,
+        allowed_profile_cut_orders=canonical_keys,
+    )
+    cluster_rows = cluster_summary_rows((*all_clusters, *blocked_clusters, *canonical_clusters), run_id=RUN_LABEL)
+    return all_rows, blocked_rows, canonical_rows, cluster_rows
 
 
 def concentration_rows(summary_rows: Sequence[Mapping[str, Any]], hits: Sequence[PhraseHit]) -> list[dict[str, Any]]:
@@ -615,7 +829,7 @@ def concentration_rows(summary_rows: Sequence[Mapping[str, Any]], hits: Sequence
                 "dominant_cluster_hit_fraction": row["dominant_cluster_hit_fraction"],
                 "dominant_start_hit_fraction": max(start_counter.values(), default=0) / hit_count if hit_count else 0.0,
                 "top_5_phrase_hit_fraction": top5_phrase / hit_count if hit_count else 0.0,
-                "top_5_cluster_hit_fraction": row["dominant_cluster_hit_fraction"],
+                "top_5_cluster_hit_fraction": row["top_5_cluster_hit_fraction"],
                 "warning_flags": json.dumps(flags, separators=(",", ":")),
             }
         )
@@ -770,6 +984,11 @@ def sampled_hit_rows(hits: Sequence[PhraseHit], case_by_id: Mapping[str, EvalCas
 
 
 def corpus_manifest(cases: Sequence[EvalCase], entries: Sequence[PhraseEntry]) -> dict[str, Any]:
+    positive_cases = [case for case in cases if case.expected_role == "positive"]
+    clean_positive_cases = [case for case in positive_cases if case.case_family == "positive_clean"]
+    null_cases = [case for case in cases if case.expected_role == "null"]
+    nulls_by_source = Counter(case.source_case_id for case in null_cases)
+    positive_ids = {case.candidate_id for case in positive_cases}
     return {
         "phase": RUN_LABEL,
         "corpus_status": "generated",
@@ -780,9 +999,28 @@ def corpus_manifest(cases: Sequence[EvalCase], entries: Sequence[PhraseEntry]) -
         "private_local_text_committed": False,
         "uses_permanent_lane1_asset": True,
         "lane1_asset_id": LANE1_ASSET_ID,
+        "asset_source_mode": ASSET_SOURCE_MODE,
+        "compact_asset_id": COMPACT_ASSET_ID,
+        "runtime_index_asset_id": RUNTIME_INDEX_ASSET_ID,
+        "old_phrase_index_v1_used": False,
+        "sample_asset_used": False,
+        "full_raw_shards_used_directly_as_runtime": False,
         "case_count": len(cases),
+        "positive_case_count": len(positive_cases),
+        "positive_clean_case_count": len(clean_positive_cases),
+        "matched_null_case_count": len(null_cases),
+        "target_clean_positive_passages": TARGET_CLEAN_POSITIVE_PASSAGES,
+        "phrase_entries_per_positive": PHRASE_ENTRIES_PER_POSITIVE,
+        "damage_tiers": list(DAMAGE_TIERS),
+        "matched_null_families": list(MATCHED_NULL_FAMILIES),
+        "minimum_matched_nulls_per_positive": min((nulls_by_source[candidate_id] for candidate_id in positive_ids), default=0),
         "case_families": sorted({case.case_family for case in cases}),
         "phrase_entry_count": len(entries),
+        "phrase_entry_count_by_order_cut": {
+            f"{order}_{cut}": count_entries(entries, order, cut)
+            for order in (2, 3)
+            for cut in ("normal", "strict")
+        },
         "orders": sorted({entry.ngram_order for entry in entries}),
         "cuts": sorted({entry.dictionary_cut for entry in entries}),
     }
@@ -808,6 +1046,15 @@ def run_manifest(
         "controlled_eval_corpus_scan_started": CONTROLLED_EVAL_CORPUS_SCAN_STARTED,
         "uses_permanent_lane1_asset": True,
         "lane1_asset_id": LANE1_ASSET_ID,
+        "source_lane1_asset_id": LANE1_ASSET_ID,
+        "asset_source_mode": ASSET_SOURCE_MODE,
+        "compact_asset_id": COMPACT_ASSET_ID,
+        "runtime_index_asset_id": RUNTIME_INDEX_ASSET_ID,
+        "runtime_index_manifest": RUNTIME_INDEX_MANIFEST_REL,
+        "runtime_index_validation_manifest": RUNTIME_INDEX_VALIDATION_MANIFEST_REL,
+        "old_phrase_index_v1_used": False,
+        "sample_asset_used": False,
+        "full_raw_shards_used_directly_as_runtime": False,
         "asset_home": ASSET_HOME_REL,
         "orders": [2, 3],
         "cuts": ["normal", "strict"],
@@ -828,7 +1075,20 @@ def run_manifest(
         "profile_manifest_hash": profile_manifest_hash(specs),
         "profile_count": len(specs),
         "case_count": len(cases),
+        "positive_clean_case_count": sum(1 for case in cases if case.case_family == "positive_clean"),
+        "positive_case_count": sum(1 for case in cases if case.expected_role == "positive"),
+        "matched_null_case_count": sum(1 for case in cases if case.expected_role == "null"),
+        "target_clean_positive_passages": TARGET_CLEAN_POSITIVE_PASSAGES,
+        "damage_tiers": list(DAMAGE_TIERS),
+        "matched_null_families": list(MATCHED_NULL_FAMILIES),
+        "phrase_entry_source": "fast_runtime_index_bounded_diagnostic_selection",
+        "phrase_entry_selection_cap_per_order_cut": MAX_ASSET_ROWS_PER_ORDER_CUT,
         "phrase_entry_count": len(entries),
+        "phrase_entry_count_by_order_cut": {
+            f"{order}_{cut}": count_entries(entries, order, cut)
+            for order in (2, 3)
+            for cut in ("normal", "strict")
+        },
         "raw_hit_count": len(hits),
         "hit_rows_are_sampled": len(hits) > HIT_SAMPLE_LIMIT,
         "hit_sample_limit": HIT_SAMPLE_LIMIT,
@@ -841,7 +1101,7 @@ def write_readout(path: Path, manifest: Mapping[str, Any], null_rows: Sequence[M
         row
         for row in null_rows
         if int(row["ngram_order"]) == 3
-        and str(row["cluster_scope"]) == CLUSTER_SCOPE_SCORE
+        and str(row["cluster_scope"]) == CLUSTER_SCOPE_CANONICAL
         and str(row["cut"]) == "normal"
     ]
     best_lift = max((float(row["lift_cluster_count"]) for row in order3_lifts), default=0.0)
@@ -858,11 +1118,17 @@ def write_readout(path: Path, manifest: Mapping[str, Any], null_rows: Sequence[M
         f"- broad candidate scan started: `{manifest['broad_candidate_scan_started']}`",
         f"- production scorer change: `{manifest['production_scorer_change']}`",
         f"- Lane 1 asset id: `{manifest['lane1_asset_id']}`",
+        f"- asset source mode: `{manifest['asset_source_mode']}`",
+        f"- compact asset id: `{manifest['compact_asset_id']}`",
+        f"- runtime index asset id: `{manifest['runtime_index_asset_id']}`",
         f"- profile count: `{manifest['profile_count']}`",
         f"- case count: `{manifest['case_count']}`",
+        f"- clean positive passages: `{manifest['positive_clean_case_count']}`",
+        f"- positive cases including damage tiers: `{manifest['positive_case_count']}`",
+        f"- matched null cases: `{manifest['matched_null_case_count']}`",
         f"- phrase entry count: `{manifest['phrase_entry_count']}`",
         f"- raw hit count: `{manifest['raw_hit_count']}`",
-        f"- best normal order-3 score-view cluster lift in this microbatch: `{best_lift}`",
+        f"- best normal order-3 canonical score-candidate-view cluster lift in this microbatch: `{best_lift}`",
         "",
         "This is controlled diagnostic evidence only. It does not approve production",
         "ranking changes, broad candidate scans, order-2 score authority, or any claim",
@@ -878,11 +1144,11 @@ def run_lane2_gated_diagnostic_evidence(
     selected_output_dir = output_dir or (REPO_ROOT / OUTPUT_DIR_REL)
     specs = selected_profile_specs()
     validate_profile_specs_for_lane2(specs)
-    entries = tuple(phrase_entries) if phrase_entries is not None else load_lane1_asset_entries()
+    entries = tuple(phrase_entries) if phrase_entries is not None else load_fast_runtime_index_entries()
     cases = build_eval_cases(entries)
     hits, scan_rows = scan_cases(cases, entries, specs)
-    all_summary_rows, score_summary_rows, cluster_rows = build_summary_rows(cases, hits, specs)
-    combined_summary_rows = [*all_summary_rows, *score_summary_rows]
+    all_summary_rows, blocked_summary_rows, canonical_summary_rows, cluster_rows = build_summary_rows(cases, hits, specs)
+    combined_summary_rows = [*all_summary_rows, *blocked_summary_rows, *canonical_summary_rows]
     concentration = concentration_rows(combined_summary_rows, hits)
     null_rows = null_comparison_rows(combined_summary_rows)
     damage_rows = damage_tier_summary_rows(combined_summary_rows)

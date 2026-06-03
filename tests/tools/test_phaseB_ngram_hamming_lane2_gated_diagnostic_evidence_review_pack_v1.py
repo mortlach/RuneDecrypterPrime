@@ -80,6 +80,10 @@ def test_review_pack_enforces_safe_state_and_includes_source_closure(tmp_path: P
     assert "src/rune_decrypter_prime/scoring/ngram_hamming/reference.py" in pack.SOURCE_FILES_REL
     assert "src/rune_decrypter_prime/scoring/ngram_hamming/fast_backend.py" in pack.SOURCE_FILES_REL
     assert "src/rune_decrypter_prime/scoring/ngram_hamming/bridge.py" in pack.SOURCE_FILES_REL
+    assert (
+        "tools/benchmarks/periodic_sub_trans/no_wli/analysis/"
+        "run_phaseB_ngram_hamming_bridge_lane2_synthetic_contract_smoke_v1.py"
+    ) in pack.SOURCE_FILES_REL
 
 
 def test_review_pack_blocks_if_real_scan_or_production_change_is_present(tmp_path: Path, monkeypatch) -> None:
@@ -113,4 +117,11 @@ def test_review_pack_zip_is_self_contained_for_listed_files(tmp_path: Path, monk
         names = set(archive.namelist())
     assert manifest["entry_count"] > 0
     assert any(name.endswith("30_source/src/rune_decrypter_prime/scoring/ngram_hamming/reference.py") for name in names)
+    assert any(
+        name.endswith(
+            "30_source/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"
+            "run_phaseB_ngram_hamming_bridge_lane2_synthetic_contract_smoke_v1.py"
+        )
+        for name in names
+    )
     assert any(name.endswith("50_asset_index/assets/ngram_hamming/phaseB_full_raw_v1/asset_manifest.json") for name in names)
