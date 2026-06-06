@@ -15109,6 +15109,69 @@ Preflight:
 - Still not approved: all-`734` expansion, score-bearing use, production
   scoring/ranking changes, raw-hit authority, or simple-cluster authority.
 
+## 2026-06-06 - Strict O3 anchored-region quickcheck
+
+- Integrated report-only quickcheck:
+  `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_failed_decryption_n3c_strict_320_anchor_lens_quickcheck_v1.py`
+- Output:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_strict_320_anchor_lens_quickcheck_v1/`
+- Inputs:
+  - strict-320 hit manifest:
+    `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_strict_320_corrected_consolidated_evidence_v1/hit_file_manifest_rows.csv`
+  - unique semantic pairs:
+    `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_strict_320_corrected_consolidated_evidence_v1/unique_semantic_pairwise_gold_n3c_report_rows.csv`
+  - `20` strict hit CSV files, `6,415,767` hit rows
+- Runtime: `156.9s`
+- Output rows:
+  - candidate summaries: `1,882`
+  - selected anchor regions: `34,337`
+  - pairwise rows: `2,284`
+  - margin threshold rows: `64`
+- Focused tests:
+  `C:\Python\Python311\python.exe -m pytest tests/tools/test_phaseB_n3c_strict_320_anchor_lens_quickcheck_v1.py -q`
+  -> `4 passed`
+- First decision table highlights:
+  - `hd0_len8`: all-pair break rate `0.254237`, roughly raw-hit baseline
+  - `hd0_len10`: all covered-pair break rate `0.202062`; at margin `20`,
+    `251` covered pairs, `227` agree, `24` break, break rate `0.095618`
+  - `hd0_len12`: `22` covered pairs, `0` breaks, but coverage is small
+  - `hd_le1_len12`: broad all-pair break rate `0.276956`, worse than raw-hit
+  - `hd_le2_len12`: broad all-pair break rate `0.361017`, clearly worse
+- Interpretation: anchored exact O3 has a promising margin-gated region,
+  especially `hd0_len10`. HD<=1/HD<=2 broad support should stay telemetry-only
+  or constrained to already selected exact anchor regions. This remains
+  report-only and does not approve score-bearing use.
+
+## 2026-06-06 - Strict O3 anchor joint-rule sweep
+
+- Integrated report-only joint sweep:
+  `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_failed_decryption_n3c_strict_320_anchor_joint_rule_sweep_v1.py`
+- Output:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_strict_320_anchor_joint_rule_sweep_v1/`
+- Input:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_strict_320_anchor_lens_quickcheck_v1/candidate_anchor_pairwise_rows.csv`
+- Input pairwise rows: `2,284`
+- Unique semantic pairs: `590`
+- Output rows:
+  - joint rule summaries: `14`
+  - conflict rows: `48`
+- Focused tests:
+  `C:\Python\Python311\python.exe -m pytest tests/tools/test_phaseB_n3c_strict_320_anchor_lens_quickcheck_v1.py tests/tools/test_phaseB_n3c_strict_320_anchor_joint_rule_sweep_v1.py -q`
+  -> `8 passed`
+- Rule summary highlights:
+  - `hd0_len10_m10`: `401` covered, `62` break, break rate `0.154613`
+  - `hd0_len10_m20`: `251` covered, `24` break, break rate `0.095618`
+  - `hd0_len10_m30`: `162` covered, `1` break, break rate `0.006173`
+  - `hd0_len10_m50`: `87` covered, `0` break, break rate `0.000000`
+  - `hd0_len10_m20__hd_le1_len12_agree_required`: `147` covered,
+    `1` break, break rate `0.006803`
+- Conflict readout: secondary conflicts were sparse and did not identify the
+  main break-risk region in this pass. The stronger signal is primary
+  `hd0_len10` margin, with `hd_le1_len12` agreement useful as a narrower
+  confirmation lens.
+- This remains conditional break-risk telemetry only, not calibrated
+  correctness probability and not production scoring/ranking authority.
+
 ## 2026-06-06 - S3 strict full80 completed, consolidated, compared, and packed
 
 - Visible serial S3 strict runner completed all five buckets and reached

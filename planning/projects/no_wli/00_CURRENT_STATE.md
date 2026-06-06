@@ -2819,3 +2819,60 @@ Strict 320 all-data review pack:
   - full hit CSVs remain external and are represented by path, row count,
     byte count, SHA-256, and sampled rows
 
+Strict O3 anchored-region quickcheck:
+
+- integrated script:
+  `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_failed_decryption_n3c_strict_320_anchor_lens_quickcheck_v1.py`
+- output:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_strict_320_anchor_lens_quickcheck_v1/`
+- input: existing strict-320 `20` hit CSV files, `6,415,767` rows
+- runtime: `156.9s`
+- output rows:
+  - candidate summaries: `1,882`
+  - selected anchor regions: `34,337`
+  - pairwise rows: `2,284`
+  - margin threshold rows: `64`
+- focused tests:
+  `C:\Python\Python311\python.exe -m pytest tests/tools/test_phaseB_n3c_strict_320_anchor_lens_quickcheck_v1.py -q`
+  -> `4 passed`
+- first decision readout:
+  - `hd0_len10` at margin `20`: `251` covered pairs, `227` agree,
+    `24` break, break rate `0.095618`
+  - `hd0_len12`: `22` covered pairs, `0` breaks at all-pair threshold,
+    but coverage is small
+  - `hd_le2_len12` is worse than raw-hit baseline at broad coverage:
+    `213` breaks from `590` covered pairs, break rate `0.361017`
+
+Interpretation: HD0 anchored O3 is promising at length/margin gates, especially
+`hd0_len10`; broad HD<=2 support should not be promoted as a raw score channel.
+This remains report-only and does not approve production scoring or ranking.
+
+Strict O3 anchor joint-rule sweep:
+
+- integrated script:
+  `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_failed_decryption_n3c_strict_320_anchor_joint_rule_sweep_v1.py`
+- output:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_strict_320_anchor_joint_rule_sweep_v1/`
+- input: existing anchor quickcheck pairwise output, `2,284` rows over `590`
+  unique semantic pairs
+- output rows:
+  - joint rule summaries: `14`
+  - conflict rows: `48`
+- focused tests:
+  `C:\Python\Python311\python.exe -m pytest tests/tools/test_phaseB_n3c_strict_320_anchor_lens_quickcheck_v1.py tests/tools/test_phaseB_n3c_strict_320_anchor_joint_rule_sweep_v1.py -q`
+  -> `8 passed`
+- first decision readout:
+  - `hd0_len10_m20`: `251` covered, `227` agree, `24` break,
+    break rate `0.095618`
+  - `hd0_len10_m30`: `162` covered, `161` agree, `1` break,
+    break rate `0.006173`
+  - `hd0_len10_m50`: `87` covered, `87` agree, `0` break,
+    break rate `0.000000`
+  - `hd0_len10_m20__hd_le1_len12_agree_required`: `147` covered,
+    `146` agree, `1` break, break rate `0.006803`
+
+Interpretation: the main signal is primary `hd0_len10` margin strength, not a
+secondary-conflict filter. `hd_le1_len12` agreement can form a narrower
+confirmation lens, while broad HD support still remains report-only and
+telemetry-only.
+
