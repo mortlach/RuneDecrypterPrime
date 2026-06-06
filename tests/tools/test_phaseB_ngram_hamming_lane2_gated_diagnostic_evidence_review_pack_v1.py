@@ -49,8 +49,13 @@ def seed_required_files(root: Path) -> None:
             "lane1_asset_id": "phaseB_ngram_hamming_full_raw_v1",
             "phrase_entry_count": 4,
             "raw_hit_count": 10,
+            "evidence_status": "diagnostic_evidence_ready_for_review",
+            "selection_contract_status": "pass",
+            "opportunity_contract_status": "pass",
         },
     )
+    write_json(root / pack.COMPACT_VALIDATION_DIR_REL / "validation_manifest.json", {"status": "pass"})
+    write_json(root / pack.RUNTIME_VALIDATION_DIR_REL / "validation_manifest.json", {"status": "pass"})
     write_json(evidence / "corpus_manifest.json", {"case_count": 8, "case_families": ["positive_clean"]})
     for rel in pack.COMPONENT_FILES_REL:
         path = root / rel
@@ -75,8 +80,13 @@ def test_review_pack_enforces_safe_state_and_includes_source_closure(tmp_path: P
 
     assert manifest["status"] == "packed_review_ready"
     assert manifest["safe_state"] is True
+    assert manifest["contract_state"] is True
     assert manifest["missing_files"] == []
     assert manifest["backslash_entries"] == 0
+    assert manifest["zip_size_bytes"] <= pack.MAX_ZIP_BYTES
+    assert all("local_phaseB_post_compact_to_review_gate_2026-06-02.log" not in rel for rel in pack.CONTEXT_FILES_REL)
+    assert manifest["developer_test_result"] == pack.DEVELOPER_TEST_RESULT
+    assert manifest["portable_test_result"] == pack.PORTABLE_TEST_RESULT
     assert "src/rune_decrypter_prime/scoring/ngram_hamming/reference.py" in pack.SOURCE_FILES_REL
     assert "src/rune_decrypter_prime/scoring/ngram_hamming/fast_backend.py" in pack.SOURCE_FILES_REL
     assert "src/rune_decrypter_prime/scoring/ngram_hamming/bridge.py" in pack.SOURCE_FILES_REL
@@ -101,6 +111,24 @@ def test_review_pack_blocks_if_real_scan_or_production_change_is_present(tmp_pat
 
     assert manifest["status"] == "packed_with_blocks"
     assert manifest["safe_state"] is False
+
+
+def test_review_pack_blocks_if_selection_contract_is_not_pass(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(pack, "REPO_ROOT", tmp_path)
+    seed_required_files(tmp_path)
+    run_manifest = tmp_path / pack.EVIDENCE_DIR_REL / "run_manifest.json"
+    payload = json.loads(run_manifest.read_text(encoding="utf-8"))
+    payload["evidence_status"] = "blocked_configuration"
+    payload["selection_contract_status"] = "blocked"
+    write_json(run_manifest, payload)
+
+    manifest = pack.build_lane2_gated_diagnostic_evidence_review_pack(
+        pack_dir=tmp_path / "planning/projects/no_wli/40_review_summaries/pack",
+        zip_path=tmp_path / "planning/projects/no_wli/40_review_summaries/pack.zip",
+    )
+
+    assert manifest["status"] == "packed_with_blocks"
+    assert manifest["contract_state"] is False
 
 
 def test_review_pack_zip_is_self_contained_for_listed_files(tmp_path: Path, monkeypatch) -> None:

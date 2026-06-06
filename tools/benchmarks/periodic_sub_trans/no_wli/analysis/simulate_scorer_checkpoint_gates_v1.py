@@ -13,8 +13,7 @@ from typing import Any, Iterable
 RUN_LABEL = "scorer_checkpoint_gate_simulation_v1"
 
 S1_PAIR_ROWS = (
-    "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"
-    "historical_pairwise_rescore_v1/historical_pairwise_rescore_pairs.csv"
+    "assets/evaluation_corpora/failed_decryptions/historical_partial_solves_v1/source/historical_pairwise_rescore_v1/historical_pairwise_rescore_pairs.csv"
 )
 S1B_CANDIDATE_FEATURES = (
     "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"

@@ -22,12 +22,10 @@ from typing import Any, Iterable, Mapping, Sequence
 RUN_LABEL = "span_hamming_500_pattern_examples_v1"
 
 PAIR_ROWS_REL = (
-    "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"
-    "historical_pairwise_rescore_v1/historical_pairwise_rescore_pairs.csv"
+    "assets/evaluation_corpora/failed_decryptions/historical_partial_solves_v1/source/historical_pairwise_rescore_v1/historical_pairwise_rescore_pairs.csv"
 )
 UNIQUE_PARTIAL_ROWS_REL = (
-    "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"
-    "historical_partial_text_review_v1/unique_partial_text_rows.csv"
+    "assets/evaluation_corpora/failed_decryptions/historical_partial_solves_v1/source/historical_partial_text_review_v1/unique_partial_text_rows.csv"
 )
 CANDIDATE_FEATURES_REL = (
     "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"

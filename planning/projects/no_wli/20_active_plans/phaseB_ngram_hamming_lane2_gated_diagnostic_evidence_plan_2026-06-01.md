@@ -93,6 +93,25 @@ Current build gate:
     agreement before Lane 2 can load the runtime index.
   - Focused tests passed for compact validation, runtime index build/validate,
     and Lane 2 diagnostic loading.
+- 2026-06-03 completed asset/runtime gates:
+  - compact validation passed all `4` compact files and `1,115,443,486` rows
+    with `0` failures
+  - fast runtime index built `2,222` bounded `.npz` chunks covering
+    `1,115,443,486` rows
+  - runtime index validation passed with `0` failures
+  - compact/runtime assets are accepted for the next corrected Lane 2 rerun
+- 2026-06-03 Lane 2 diagnostic review block:
+  - first fast-runtime diagnostic rerun completed with `388` cases and `0`
+    hits, and the review pack correctly reported `packed_with_blocks`
+  - this is not evidence of absent language signal
+  - the bounded loader selected only phrase length `3` for order 2 and phrase
+    length `5` for order 3
+  - every selected bridge profile requires minimum phrase length `7`, `8`, or
+    `10`, so every scan considered `0` eligible phrase entries
+  - fix bounded selection to provide explicit eligible coverage per active
+    profile/order/cut, add fail-closed zero-eligibility assertions, rerun Lane
+    2 only, and rebuild the review pack
+  - do not rebuild compact or runtime assets for this correction
 
 This work does not approve production scoring.
 This work does not approve broad candidate scans.
@@ -803,3 +822,67 @@ E. Stop or redesign if positives and nulls do not separate.
 ```
 
 No production scoring decision should be made at that review unless the evidence is unexpectedly strong and the production safety machinery has also been built and reviewed.
+
+## 2026-06-03 implementation and review handoff
+
+The required selection-contract correction is complete.
+
+```text
+profile-aware selection buckets: 10/10 pass
+selected runtime entries: 144
+selection contract: pass
+opportunity contract: pass
+Lane 2 evidence status: diagnostic_evidence_ready_for_review
+controlled cases: 580
+raw diagnostic hits: 1576
+review pack: packed_review_ready
+```
+
+The review pack now contains the current compact/runtime manifests and
+validation reports, the full post-compact gate log, selection manifests,
+current evidence, builders, validators, and focused tests. It has no missing
+files and does not depend on the stale earlier Lane 1 closure pack.
+
+The canonical order-3 normal candidate separates clean and `20%` damaged
+positives from matched nulls in this controlled microbatch. Separation weakens
+at `35%` damage and is absent at `50%` damage. This is sufficient for review,
+not for production approval.
+
+## 2026-06-03 comprehensive external review pack
+
+The current external pack is rebuilt under a unique filename to prevent the
+older blocked pack from being reviewed again:
+
+`planning/projects/no_wli/40_review_summaries/phaseB_ngram_hamming_lane2_gated_diagnostic_evidence_selection_fixed_review_pack_2026-06-03.zip`
+
+It contains the exact `144` selected phrase-entry inputs, all `1,576` hit rows,
+all controlled corpus rows and summaries, relevant Python/C++ source, builders,
+validators, compact/runtime manifests and validation evidence, retained gate
+log, planning context, and the complete included test closure. The included
+test closure passes `81` tests.
+
+The builder enforces a hard compressed-size limit of `50,000,000` bytes. Full
+compact/runtime payloads remain omitted because they total roughly `150 GB`;
+their manifests, hashes, validations, and the exact bounded data consumed by
+Lane 2 are included instead.
+
+## 2026-06-03 post-review next gate
+
+The accepted external-review actions are complete:
+
+```text
+current pack hygiene cleanup: complete
+Lane 2B length/shape-stratified microbatch: complete
+isolated N3C-normal report-only telemetry contract: complete
+order-4 sizing/readiness assessment: complete
+production rank effect: none
+order-4 full build approval: false
+relevant test closure: 92 passed
+```
+
+Next review pack:
+
+`planning/projects/no_wli/40_review_summaries/phaseB_ngram_hamming_lane2b_stratified_telemetry_order4_sizing_review_pack_2026-06-03.zip`
+
+Stop here pending review. Do not connect telemetry to ranking or launch the
+order-4 full compact build.

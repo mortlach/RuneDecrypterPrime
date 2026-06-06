@@ -24,8 +24,7 @@ from typing import Any, Callable, Iterable, Mapping, Sequence
 RUN_LABEL = "span_hamming_500_robust_composite_space_v1"
 
 PAIR_ROWS_REL = (
-    "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"
-    "historical_pairwise_rescore_v1/historical_pairwise_rescore_pairs.csv"
+    "assets/evaluation_corpora/failed_decryptions/historical_partial_solves_v1/source/historical_pairwise_rescore_v1/historical_pairwise_rescore_pairs.csv"
 )
 JOINED_FEATURES_REL = (
     "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"

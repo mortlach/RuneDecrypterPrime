@@ -36,6 +36,14 @@ from rune_decrypter_prime.scoring.ngram_hamming.bridge import (
     validate_zero_hit_audit_row,
     zero_hit_audit_row,
 )
+from rune_decrypter_prime.scoring.ngram_hamming.report_only_telemetry import (
+    N3CNormalReportTelemetryConfig,
+    REPORT_AUTHORITY,
+    REPORT_DETAILS_KEY,
+    build_n3c_normal_report_telemetry,
+    merge_n3c_normal_report_details,
+    n3c_normal_report_profile,
+)
 
 __all__ = [
     "PhraseEntry",
@@ -68,4 +76,10 @@ __all__ = [
     "validate_pair_ledger_row",
     "validate_zero_hit_audit_row",
     "zero_hit_audit_row",
+    "N3CNormalReportTelemetryConfig",
+    "REPORT_AUTHORITY",
+    "REPORT_DETAILS_KEY",
+    "build_n3c_normal_report_telemetry",
+    "merge_n3c_normal_report_details",
+    "n3c_normal_report_profile",
 ]

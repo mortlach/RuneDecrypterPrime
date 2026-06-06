@@ -2491,13 +2491,221 @@ Current compact-build state:
 - Compact validation must stay memory-bounded. Use sorted-adjacency duplicate
   checks for compact rows; do not retain all phrase IDs or identities in memory
   for the full local asset.
+- 2026-06-03 asset/runtime gate result:
+  - compact validation passed all `1,115,443,486` rows with `0` failures
+  - runtime index built `2,222` bounded `.npz` chunks covering all
+    `1,115,443,486` rows
+  - runtime index validation passed with `0` failures
+  - these completed asset gates do not need to be rerun for the current Lane 2
+    diagnostic-selection correction
+- Current Lane 2 review block:
+  - the bounded runtime loader filled each order/cut cap from the shortest
+    runtime groups
+  - selected order-2 entries were all phrase length `3`; selected order-3
+    entries were all phrase length `5`
+  - every active profile requires minimum phrase length `7`, `8`, or `10`
+  - the resulting `0` hits are invalid evidence because every scan considered
+    `0` eligible phrase entries
+- Before the next Lane 2 rerun:
+  - select eligible entries per profile/order/cut or otherwise ensure coverage
+    above every active profile minimum
+  - emit selected phrase-length coverage in the run manifest/readout
+  - hard-stop if any active profile/order/cut has zero eligible entries
+  - rerun only Lane 2 diagnostic evidence and review-pack build after tests pass
+
+## Current review gate
+
+- The profile-aware Lane 2 rerun is complete; do not rerun compact validation
+  or rebuild the runtime index for this review.
+- Lane 2 evidence status: `diagnostic_evidence_ready_for_review`.
+- Selection and opportunity contracts: `pass`.
+- Review pack status: `packed_review_ready`.
+- Current review pack:
+  `planning/projects/no_wli/40_review_summaries/phaseB_ngram_hamming_lane2_gated_diagnostic_evidence_selection_fixed_review_pack_2026-06-03.zip`
+- Do not upload the superseded `2026-06-01.zip`; it caused the external
+  reviewer to receive the older blocked evidence state.
+- The current pack builder enforces a hard `50,000,000`-byte compressed-size
+  limit and includes the exact bounded Lane 2 input data plus complete hit
+  evidence.
+- The next action is full review of the diagnostic evidence.
+- Keep production ranking, profile thresholds, score authority, normal/strict
+  separation, and cluster scope semantics unchanged until that review decides
+  the next branch.
+
+## Approved post-review work
+
+- First clean the current external pack and evidence wording; do not rebuild
+  compact or runtime assets.
+- Then run a separate Lane 2B stratified diagnostic microbatch. Do not
+  overwrite or reinterpret the accepted Lane 2 selection-fixed evidence.
+- Implement only isolated, opt-in N3C-normal-equivalent report telemetry with
+  no production rank effect.
+- Start order-4 sizing/planning only; do not start a full order-4 build without
+  a declared size/runtime budget and separate approval.
+
+## Current post-review gate
+
+- Lane 2B stratified evidence was accepted by external review.
+- The isolated N3C-normal report telemetry contract is implemented and wired
+  into retained-candidate reports and scorer-report JSONL exports only.
+- The report wiring remains opt-in, runs after scoring, and has test coverage
+  proving candidate scores and ordering are unchanged.
+- Review-pack packaging closure is complete:
+  - full relevant repo verification: `107 passed`
+  - focused verification: `35 passed`
+  - fresh extracted portable subset: `81 passed, 15 skipped`
+  - full-repo-dependent included tests are explicitly identified
+- Do not launch the order-4 full compact build. Its current retained compact
+  work is about `72.12 GB` at only `50/800` partitions; establish a bounded
+  temporary-storage strategy first.
+- Machine-readable order-4 readiness/hold evidence:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_ngram_hamming_order4_build_readiness_hold_v1/`
+- Stop at the current review gate:
+  `planning/projects/no_wli/40_review_summaries/phaseB_ngram_hamming_report_wiring_order4_readiness_packaging_closed_review_pack_2026-06-04.zip`
+- Never send the superseded ambiguous old filename again:
+  `planning/projects/no_wli/40_review_summaries/phaseB_ngram_hamming_report_wiring_order4_readiness_review_pack_2026-06-04.zip`
+- Do not connect the report-only telemetry contract to solver/ranking behavior
+  or resume order-4 compaction without separate review approval.
 
 This work does not approve production scoring.
+
+## Failed-decryption fixture tranche
+
+- Inventory and fixture recovery are complete and validated.
+- Use:
+  `assets/evaluation_corpora/failed_decryptions/historical_partial_solves_v1/fixture/phaseB_failed_decryption_retained_candidate_fixture_v1/`
+- Current fixture: `40` trials, `734` candidates/chunks, `2,594` pairs.
+- Candidate ranks are not present in the recovered sources; do not invent them.
+- Matched-null generation is blocked until an upstream anchor manifest exists.
+- The bounded N3C-normal report-only telemetry run is complete:
+  - `734/734` candidates
+  - `2,594` offline pair comparisons
+  - `48` selected Lane 2B phrase entries
+  - full fast runtime index queried: `false`
+  - zero hits and `2,594` report-only pair ties
+  - scores and baseline ordering preserved
+  - production rank effect `none`
+- Treat this as a bounded wiring canary only. The zero-hit result does not
+  assess full-runtime N3C coverage.
+- Next action: review the fixture and bounded-canary outputs, then decide
+  whether to implement and size a full-fast-runtime fixture query.
+- Readiness assessment now blocks the naive scan: the eligible N3C-normal
+  scope exceeds `500 million` phrase rows and `100 trillion` raw
+  phrase-position checks.
+- Implement a candidate-keyed Hamming-neighbour query, then run one small,
+  timed, independently complete full-group canary.
+- Do not launch an unsized broad scan or widen into ranking/order-4
+  integration.
+- First length-aware canary complete:
+  - `40` candidates, one per trial
+  - `5` rare-shape full runtime groups across all length buckets
+  - `250` verified N3C hits and `92` verified clusters
+  - `1,023` N3C groups explicitly unsearched
+  - order-2 seeded regions missed `163` N3C hits and `40` N3C clusters
+- Order 2 is approved only as query priority for the next study, never as a
+  candidate-region filter.
+- Next implementation gate: memory-bounded partition index plus peak-memory
+  telemetry before medium/common shape groups or an `80`-candidate diverse
+  microbatch.
+- Do not build the review pack yet; the current study covers only rare shapes
+  and one candidate stratum.
+- Memory-bounded medium-shape evidence now covers `80` candidates and all five
+  length buckets:
+  - `11,783` verified hits
+  - `2,830` verified clusters
+  - about `599.4 MB` peak memory
+  - about `366.5` seconds total
+- The medium microbatch is fail-closed at `blocked_budget_exceeded`: its
+  `10-11` group took about `181.656` seconds against the declared `180`-second
+  group limit.
+- The vectorized exact verifier resolved the `10-11` budget block while
+  preserving exact semantics.
+- The requested first stratified query-planning study is complete:
+  - `40` complete groups: `2` rare, `3` medium, and `3` common in each of five
+    length buckets
+  - `80` retained candidates
+  - `195,975` verified hits and `20,481` clusters
+  - about `718.4 MB` peak memory
+  - consolidated status `review_gate_ready`
+- Current consolidated evidence:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_stratified_query_study_summary_v1/`
+- Stop at external review before wider/full N3C, score-bearing integration, or
+  any use of order 2 as a filter.
+- Send only:
+  `planning/projects/no_wli/40_review_summaries/phaseB_failed_decryption_n3c_stratified_query_portable_closed_review_pack_2026-06-04.zip`
+- Fresh extracted portable scope: `13 passed` without `PYTHONPATH`.
+- External review accepted this pack and approved a complete full-runtime N3C
+  query over the same `80` candidates only.
+- Full-80 run boundaries:
+  - runner:
+    `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_failed_decryption_n3c_full80_query_evidence_v1.py`
+  - output:
+    `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_full80_query_evidence_v1/`
+  - scope: `1,028` chunks, `702` logical groups, `613,280,613` phrase rows,
+    `80` candidates
+  - intended wallclock budget: `12,600` seconds
+  - memory ceiling: `2,048 MB`
+  - emit global candidate clusters, pairwise gold ledger, full hit HD fields,
+    and logical-group/chunk accounting
+- First monolithic full-80 attempt stopped after `3/1,028` chunks because the
+  first chunks projected beyond the declared budget. Do not resume it as a
+  monolithic run by inertia.
+- Current execution step is the independently complete `8-9` bucket budget
+  anchor:
+  `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_failed_decryption_n3c_full80_bucket_8_9_query_evidence_v1.py`
+  with output:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_full80_bucket_8_9_query_evidence_v1/`
+  and a `3,600` second cap.
+- Completed bucket anchors:
+  - `8-9`: pass, `2,384.875s`, `1,373,314` hits, `291` global candidate clusters
+  - `10-11`: pass, `2,177.859s`, `258,892` hits, `1,451` global candidate clusters
+- Pairwise report-only ledgers still show break risk for simple hit/cluster
+  counts. Do not promote scoring.
+- Next visible run:
+  `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_failed_decryption_n3c_full80_bucket_12_14_query_evidence_v1.py`
+  with output:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_full80_bucket_12_14_query_evidence_v1/`
+  and a `7,200` second cap.
+- User approved running all remaining buckets as visible independently complete
+  serial jobs. Stop condition: if any bucket exits nonzero, do not launch the
+  next bucket. Remaining scopes:
+  - `12-14`: `272` chunks, `143` logical groups, `195,100,675` phrase rows,
+    cap `7,200s`
+  - `15-17`: `317` chunks, `181` logical groups, `212,748,370` phrase rows,
+    cap `7,200s`
+  - `18+`: `293` chunks, `272` logical groups, `133,301,790` phrase rows,
+    cap `5,400s`
+- Visible serial run completed all remaining buckets:
+  - `12-14`: `33,439` hits, `1,632` bucket-local global clusters,
+    `4,542.6s`
+  - `15-17`: `1,922` hits, `314` bucket-local global clusters, `3,202.8s`
+  - `18+`: `150` hits, `41` bucket-local global clusters, `2,329.8s`
+- Full approved chunk scope is now covered by bucket outputs. Do not interpret
+  the bucket cluster counts by summing them; recompute global candidate
+  clusters across all bucket hit rows.
+- Consolidated full80 evidence and review pack are complete:
+  - consolidated evidence:
+    `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_full80_consolidated_evidence_v1/`
+  - review pack:
+    `planning/projects/no_wli/40_review_summaries/phaseB_failed_decryption_n3c_full80_consolidated_packaging_closed_review_pack_2026-06-05.zip`
+  - entries: `91`
+  - ZIP size: `806,518` bytes, under `50 MB`
+  - backslash ZIP entries: `0`
+  - extracted portable smoke: `2 passed`
+  - superseded same-day full80 review-pack variants without the
+    `packaging_closed` name were removed after validation.
+- Stop at external review. Do not expand to all `734` candidates and do not
+  design score-bearing use until this pack is reviewed.
+- Hold the full `734`-candidate fixture until the full-80 run is reviewed.
+- Score-bearing use remains not approved.
+- Preserve baseline scores and ordering exactly.
+- Do not use fixture telemetry to prune, select, tie-break, override, or change
+  production ranking.
 This work does not approve broad candidate scans.
 This work does not promote order 2 to score-bearing.
 This work does not reject order 4 or order 5.
 
-Lane 2 may now run a small post-review diagnostic microbatch.
+Lane 2B has run a small post-review diagnostic microbatch and is stopped at review.
 
 This is not production scoring.
 
@@ -2531,4 +2739,99 @@ Current command-free repo automation targets:
   - `tools/benchmarks/periodic_sub_trans/no_wli/analysis/build_phaseB_ngram_hamming_lane2_gated_diagnostic_evidence_review_pack_v1.py`
 - review pack target:
   - `planning/projects/no_wli/40_review_summaries/phaseB_ngram_hamming_lane2_gated_diagnostic_evidence_review_pack_2026-06-01.zip`
+
+## 2026-06-05 v2 active runbook: corrected normal then S3 strict
+
+Authoritative handoff:
+
+`planning/temp_files/n3c_normal_correction_strict_full80_v2/00_authoritative_v2_handoff.md`
+
+The previous normal full80 pack is superseded for corrected-normal reference
+use. Do not treat its exact-span component count as an exact-containing
+ordinary cluster count, and do not treat raw pair rows as independent
+scientific pairs.
+
+Corrected normal reference is complete:
+
+- output:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_normal_full80_corrected_consolidated_evidence_v1/`
+- pack:
+  `planning/projects/no_wli/40_review_summaries/phaseB_failed_decryption_n3c_normal_full80_corrected_consolidated_review_pack_2026-06-05.zip`
+- portable extracted tests: `8 passed`
+- ordinary global clusters: `275`
+- exact-containing global clusters: `225`
+- raw pair rows: `16`
+- unique semantic pairs: `8`
+
+S3 strict full80 scripts:
+
+- `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_failed_decryption_n3c_strict_full80_bucket_8_9_query_evidence_v1.py`
+- `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_failed_decryption_n3c_strict_full80_bucket_10_11_query_evidence_v1.py`
+- `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_failed_decryption_n3c_strict_full80_bucket_12_14_query_evidence_v1.py`
+- `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_failed_decryption_n3c_strict_full80_bucket_15_17_query_evidence_v1.py`
+- `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_failed_decryption_n3c_strict_full80_bucket_18_plus_query_evidence_v1.py`
+
+Run sequentially in visible PowerShell windows with repo-relative tee logs.
+Budgets:
+
+- `8-9`: `3,600s`
+- `10-11`: `7,200s`
+- `12-14`: `7,200s`
+- `15-17`: `7,200s`
+- `18+`: `5,400s`
+
+Stop condition: if any strict bucket exits nonzero, do not launch the next
+bucket. Do not use hidden PowerShell for these long runs. Do not expand to all
+`734` candidates or change scoring/ranking authority.
+
+S3 strict run completion:
+
+- all five strict buckets completed
+- strict consolidated evidence:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_strict_full80_corrected_consolidated_evidence_v1/`
+- strict-vs-normal comparison:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_strict_vs_normal_full80_comparison_v1/`
+- review pack:
+  `planning/projects/no_wli/40_review_summaries/phaseB_failed_decryption_n3c_strict_vs_normal_full80_review_pack_2026-06-06.zip`
+- pack validation: fresh extracted portable tests `11 passed`
+
+Current stop: main external review. Do not launch all-`734`, score-bearing,
+or production-ranking work before review.
+
+## 2026-06-06 current stop: strict 320 all-data review
+
+The selected-80 strict review pack has been superseded as the main review
+bundle by the strict 320 all-data review pack.
+
+- all `20` strict bucket outputs are complete
+- combined strict 320 evidence:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_strict_320_corrected_consolidated_evidence_v1/`
+- review pack:
+  `planning/projects/no_wli/40_review_summaries/phaseB_failed_decryption_n3c_strict_320_all_data_review_pack_2026-06-06.zip`
+- pack contents:
+  - corrected normal evidence
+  - original selected-80 strict evidence
+  - selected-80 strict-vs-normal comparison
+  - strict 320 consolidation
+  - all 20 strict bucket summaries/manifests
+  - runtime logs
+  - hit-file row counts, byte counts, SHA-256 hashes, and sampled hit rows
+- pack facts:
+  - entries: `199`
+  - ZIP size: `1,135,215` bytes
+  - fresh extracted portable tests: `13 passed`
+
+Strict 320 headline results:
+
+- candidates: `320`
+- phrase rows queried: `1,462,064,928`
+- verified hits: `6,415,767`
+- global candidate clusters: `1,115`
+- exact-containing global candidate clusters: `893`
+- unique semantic pairs: `590`
+- rescue-capable unique semantic pairs: `0`
+
+Current stop remains external review. Do not launch all-`734`, score-bearing,
+production-ranking, raw-hit-authority, or simple-cluster-authority work before
+review.
 

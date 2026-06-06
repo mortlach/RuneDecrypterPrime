@@ -14936,3 +14936,237 @@ Preflight:
   - passed
 
 
+## 2026-06-04 - Failed-decryption N3C stratified query study reached review gate
+
+- Implemented an exact memory-bounded sorted-block query path and vectorized
+  full-phrase N3C verification.
+- The vectorized verifier preserved exact semantics and reduced the isolated
+  `10-11` medium-group runtime from about `181.656s` to about `18.9s`.
+- Completed the requested `2 rare + 3 medium + 3 common` query study in every
+  length bucket over `80` retained candidates.
+- Consolidated result:
+  - status: `review_gate_ready`
+  - complete groups: `40`
+  - verified hits: `195,975`
+  - verified clusters: `20,481`
+  - summed group runtime: about `510.7s`
+  - peak memory: about `718.4 MB`
+- Hit yield by bucket was `175,004`, `20,526`, `444`, `1`, and `0`.
+- This remains partial stratified evidence. It does not approve full N3C,
+  production scoring/ranking, or order-2 filtering.
+- Next gate: external review.
+- Final sendable pack:
+  `planning/projects/no_wli/40_review_summaries/phaseB_failed_decryption_n3c_stratified_query_portable_closed_review_pack_2026-06-04.zip`
+- Fresh extracted portable pack verification: `13 passed` without
+  `PYTHONPATH`.
+
+## 2026-06-04 - External review accepted N3C stratified query pack
+
+- Verdict accepted the exact sorted-block/vectorized query path, memory/runtime
+  behaviour, and partial stratified study.
+- Order 2 as a hard filter was rejected; it remains priority-only.
+- Wider N3C querying was approved only for the same `80`-candidate sample.
+- Full `734`-candidate fixture, score-bearing use, production scoring, and
+  production ranking remain not approved.
+- Required corrections recorded and implemented for the next runner:
+  - logical groups are no longer individual runtime chunks
+  - global candidate clusters are computed after combining all N3C hits
+  - pairwise/gold report-only ledger is emitted
+  - hit records include HD fields and exact flag
+  - runtime manifests are tracked for the next pack
+- Full-80 runner:
+  `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_failed_decryption_n3c_full80_query_evidence_v1.py`
+
+## 2026-06-04 - Full80 monolithic launch stopped and rescoped
+
+- Launched the approved full-80 runner in a separate PowerShell process with
+  repo-relative tee logging.
+- Stopped after `3/1,028` chunks because the first chunks projected beyond the
+  declared `12,600` second budget.
+- Preserved partial output:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_full80_query_evidence_v1/`
+- Rescoped to an independently complete full `8-9` bucket budget anchor:
+  `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_failed_decryption_n3c_full80_bucket_8_9_query_evidence_v1.py`
+
+## 2026-06-05 - Full80 bucket anchors 8-9 and 10-11 completed
+
+- `8-9` completed in `2,384.875s`: `41` chunks, `39` logical groups,
+  `1,373,314` hits, `291` global candidate clusters.
+- `10-11` completed in `2,177.859s`: `105` chunks, `67` logical groups,
+  `258,892` hits, `1,451` global candidate clusters.
+- Both passed budget and memory gates.
+- Pairwise report-only ledgers still show break risk for simple hit and simple
+  cluster counts, so no score-bearing promotion is supported.
+- Prepared next visible bucket runner for `12-14`.
+
+## 2026-06-05 - Remaining full80 N3C bucket runs completed
+
+- Visible serial runner completed:
+  - `12-14`: `272` chunks, `143` logical groups, `33,439` hits,
+    `1,632` bucket-local global clusters, `4,542.6s`
+  - `15-17`: `317` chunks, `181` logical groups, `1,922` hits,
+    `314` bucket-local global clusters, `3,202.8s`
+  - `18+`: `293` chunks, `272` logical groups, `150` hits,
+    `41` bucket-local global clusters, `2,329.8s`
+- All approved full80 N3C chunks are now covered by bucket outputs.
+- Next step is consolidation across bucket hit rows, not more runtime.
+
+## 2026-06-05 - Full80 N3C consolidation and review pack
+
+- Consolidated all five bucket outputs into:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_full80_consolidated_evidence_v1/`
+- Full selected-80 N3C coverage:
+  - `1,028` chunks
+  - `702` logical groups
+  - `613,280,613` phrase rows
+  - `1,667,717` verified hits
+  - true all-bucket global candidate clusters: `275`
+  - exact global candidate clusters: `1,648`
+- Pairwise in-sample labelled ledger:
+  - hit count: `4` agree / `12` break
+  - global cluster count: `4` agree / `10` break / `2` tie
+  - exact global cluster count: `6` agree / `10` break
+- Built packaging-closed review pack:
+  `planning/projects/no_wli/40_review_summaries/phaseB_failed_decryption_n3c_full80_consolidated_packaging_closed_review_pack_2026-06-05.zip`
+- Final ZIP facts:
+  - entries: `91`
+  - size: `806,518` bytes
+  - backslash entries: `0`
+  - under `50 MB`: `true`
+- Fresh extracted consolidated portable smoke: `2 passed`.
+- Removed superseded same-day full80 review-pack variants without the
+  `packaging_closed` name to prevent another stale-pack send.
+- Conclusion remains report-only: no score-bearing use, no production scoring,
+  no production ranking, and no `734`-candidate expansion until external
+  review.
+
+## 2026-06-05 - v2 correction gate and S3 strict setup
+
+- Read authoritative v2 handoff:
+  `planning/temp_files/n3c_normal_correction_strict_full80_v2/00_authoritative_v2_handoff.md`
+- Implemented corrected annotated cluster aggregation:
+  ordinary clusters are built from all hit spans, then annotated with
+  `has_exact` and exact-hit counts.
+- Implemented semantic pair identity:
+  `trial_id + sorted(candidate_a_id, candidate_b_id)`.
+- Rebuilt corrected normal consolidation from existing normal bucket hit files:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_normal_full80_corrected_consolidated_evidence_v1/`
+- No normal query rerun occurred.
+- Corrected normal results:
+  - verified hits: `1,667,717`
+  - ordinary global candidate clusters: `275`
+  - corrected exact-containing global candidate clusters: `225`
+  - raw pair rows: `16`
+  - unique semantic pairs: `8`
+  - rescue-capable unique semantic pairs: `0`
+- Built corrected normal review pack:
+  `planning/projects/no_wli/40_review_summaries/phaseB_failed_decryption_n3c_normal_full80_corrected_consolidated_review_pack_2026-06-05.zip`
+- Corrected pack facts:
+  - entries: `60`
+  - size: `344,857` bytes
+  - fresh extracted portable tests: `8 passed`
+- Added explicit S3 strict RunSpec selection and resume identity guard.
+- S3 strict locked inventory test passes:
+  `815` chunks, `702` logical groups, `365,516,232` phrase rows.
+- Added five explicit strict full80 bucket scripts with approved budgets.
+- Focused correction test set: `26 passed`.
+- Next action: launch S3 strict buckets sequentially in visible PowerShell
+  windows with repo-relative tee logs. Stop on first nonzero exit.
+- Still not approved: all-`734` expansion, score-bearing use, production
+  scoring/ranking changes.
+
+## 2026-06-06 - Strict 320 all-data pack completed
+
+- Completed the missing `remaining_batch_03` tail buckets:
+  - `15-17`: `205` chunks, `677` hits, runtime `3,166.1s`
+  - `18+`: `272` chunks, `1` hit, runtime `2,880.0s`
+- All strict bucket outputs are now complete:
+  - original selected 80: `5` buckets
+  - remaining batch 01: `5` buckets
+  - remaining batch 02: `5` buckets
+  - remaining batch 03: `5` buckets
+- Built combined strict 320 corrected consolidation:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_strict_320_corrected_consolidated_evidence_v1/`
+- Combined strict 320 results:
+  - candidates: `320`
+  - bucket outputs: `20`
+  - phrase rows queried: `1,462,064,928`
+  - verified hits: `6,415,767`
+  - global candidate clusters: `1,115`
+  - exact-containing global candidate clusters: `893`
+  - unique semantic pairs: `590`
+  - rescue-capable unique semantic pairs: `0`
+  - summed bucket runtime: `51,880.5s`
+- Built all-data review pack:
+  `planning/projects/no_wli/40_review_summaries/phaseB_failed_decryption_n3c_strict_320_all_data_review_pack_2026-06-06.zip`
+- Pack facts:
+  - entries: `199`
+  - size: `1,135,215` bytes
+  - fresh extracted portable tests: `13 passed`
+- This pack includes corrected normal evidence, original selected-80
+  strict-vs-normal comparison, strict 320 consolidation, all 20 strict bucket
+  summaries/manifests, runtime logs, hit-file hashes, and sampled hit rows.
+- Still not approved: all-`734` expansion, score-bearing use, production
+  scoring/ranking changes, raw-hit authority, or simple-cluster authority.
+
+## 2026-06-06 - S3 strict full80 completed, consolidated, compared, and packed
+
+- Visible serial S3 strict runner completed all five buckets and reached
+  `finished_utc`.
+- Strict consolidated output:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_strict_full80_corrected_consolidated_evidence_v1/`
+- Strict scope:
+  - chunks: `815`
+  - logical groups: `702`
+  - phrase rows: `365,516,232`
+  - verified hits: `1,546,511`
+  - global candidate clusters: `308`
+  - exact-containing global candidate clusters: `249`
+  - summed bucket runtime: `8,902.7s`
+- Matched strict-vs-normal comparison:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_strict_vs_normal_full80_comparison_v1/`
+- Comparison headline:
+  - strict retained `59.6%` of normal phrase rows
+  - strict retained `92.7%` of normal verified hits
+  - strict used `60.8%` of the normal summed bucket runtime
+  - normal -> strict global clusters: `275` -> `308`
+  - normal -> strict exact-containing clusters: `225` -> `249`
+- Built main review pack:
+  `planning/projects/no_wli/40_review_summaries/phaseB_failed_decryption_n3c_strict_vs_normal_full80_review_pack_2026-06-06.zip`
+- Pack facts:
+  - entries: `114`
+  - size: `511,716` bytes
+  - fresh extracted portable tests: `11 passed`
+- Stop at main external review. Still not approved: all-`734` expansion,
+  score-bearing use, production scoring/ranking changes, raw-hit authority, or
+  simple-cluster authority.
+
+## 2026-06-06 - Overnight strict extension batches 1-3 launched
+
+- Based on the completed strict selected-80 runtime, planned three additional
+  80-candidate strict batches from the remaining fixture candidates.
+- Candidate canary:
+  - extra candidates: `240`
+  - unique extra candidates: `240`
+  - overlap with original selected 80: `0`
+- Runtime estimate:
+  - reference strict selected-80 summed runtime: `8,902.7s`
+  - planned batches: `3`
+  - estimated total: `26,708.1s`
+  - intended overnight budget: `36,000s`
+- Visible launcher:
+  `tools/benchmarks/periodic_sub_trans/no_wli/analysis/launch_phaseB_failed_decryption_n3c_strict_full80_remaining_batches_1_3_visible_v1.ps1`
+- Serial runner:
+  `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_failed_decryption_n3c_strict_full80_remaining_batches_1_3_serial_v1.py`
+- Log:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_strict_full80_remaining_batches_1_3_serial_v1/strict_full80_remaining_batches_1_3_2026-06-06.log`
+- Five-minute monitor status:
+  - running batch: `remaining_batch_01`
+  - running bucket: `8-9`
+  - progress: `9/41` chunks
+  - hits so far: `448,681`
+  - peak memory so far: `361.1 MB`
+  - no crash or traceback observed
+- Stop condition remains first nonzero bucket exit or wallclock budget reached.
+- Still not approved: all-`734` expansion, score-bearing use, production
+  scoring/ranking changes.

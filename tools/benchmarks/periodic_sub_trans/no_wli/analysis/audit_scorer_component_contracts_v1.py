@@ -13,8 +13,7 @@ from typing import Any, Mapping, Sequence
 RUN_LABEL = "scorer_component_contract_audit_v1"
 BENCHMARK_MIN_TOKEN_LENGTH = 500
 S1_PAIR_ROWS_REL = (
-    "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"
-    "historical_pairwise_rescore_v1/historical_pairwise_rescore_pairs.csv"
+    "assets/evaluation_corpora/failed_decryptions/historical_partial_solves_v1/source/historical_pairwise_rescore_v1/historical_pairwise_rescore_pairs.csv"
 )
 S1B_CANDIDATE_FEATURES_REL = (
     "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"

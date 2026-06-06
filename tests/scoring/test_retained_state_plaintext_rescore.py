@@ -10,6 +10,11 @@ from rune_decrypter_prime.scoring.retained_state import (
     PlaintextRetainedCandidate,
     score_plaintext_candidate,
 )
+from rune_decrypter_prime.scoring.ngram_hamming.reference import PhraseHit
+from rune_decrypter_prime.scoring.ngram_hamming.report_only_telemetry import (
+    N3CNormalReportTelemetryConfig,
+    REPORT_DETAILS_KEY,
+)
 from rune_decrypter_prime.scoring.scorer_report import ScorerReport
 
 
@@ -32,6 +37,44 @@ class _RecordingScorer:
 
     def last_stats(self):
         return {"n_windows": 1.0}
+
+
+class _CandidateValueScorer(_RecordingScorer):
+    def score(self, plaintext, wli=None) -> float:
+        self.calls.append((tuple(plaintext), None if wli is None else tuple(tuple(row) for row in wli)))
+        return float(sum(plaintext))
+
+
+def _report_hit(candidate_id: str) -> PhraseHit:
+    return PhraseHit(
+        candidate_id=candidate_id,
+        chunk_id="chunk-a",
+        damage_level="none",
+        profile_id="BR_O3_conservative",
+        ngram_order=3,
+        dictionary_cut="normal",
+        phrase_id="phrase-a",
+        phrase_count=1,
+        phrase_log_count=0.0,
+        phrase_token_length=8,
+        word_lengths=(1, 3, 4),
+        word_hds=(0, 0, 0),
+        total_phrase_hd=0,
+        max_word_hd=0,
+        mean_word_hd=0.0,
+        normalised_phrase_hd=0.0,
+        hit_start=2,
+        hit_end=10,
+    )
+
+
+def _enabled_report_config() -> N3CNormalReportTelemetryConfig:
+    return N3CNormalReportTelemetryConfig(
+        enabled=True,
+        runtime_index_asset_id="runtime-v1",
+        compact_asset_id="compact-v1",
+        runtime_validation_status="pass",
+    )
 
 
 def test_candidate_copies_mutable_plaintext_input_into_tuple() -> None:
@@ -168,3 +211,54 @@ def test_score_plaintext_candidate_does_not_require_solver_or_cipher_material() 
     report = score_plaintext_candidate(candidate, scorer)
 
     assert report.to_json_dict()["score"] == pytest.approx(0.75)
+
+
+def test_report_only_telemetry_does_not_change_candidate_scores_or_ordering() -> None:
+    candidates = (
+        PlaintextRetainedCandidate([2, 2], candidate_id="candidate-low"),
+        PlaintextRetainedCandidate([4, 4], candidate_id="candidate-high"),
+    )
+    scorer = _CandidateValueScorer()
+    baseline = [score_plaintext_candidate(candidate, scorer) for candidate in candidates]
+    with_telemetry = [
+        score_plaintext_candidate(
+            candidate,
+            scorer,
+            n3c_normal_hits=(_report_hit(candidate.candidate_id or ""),),
+            n3c_normal_report_config=_enabled_report_config(),
+        )
+        for candidate in candidates
+    ]
+
+    assert [report.score for report in with_telemetry] == [report.score for report in baseline]
+    assert sorted(range(2), key=lambda idx: baseline[idx].score, reverse=True) == [1, 0]
+    assert sorted(range(2), key=lambda idx: with_telemetry[idx].score, reverse=True) == [1, 0]
+    assert REPORT_DETAILS_KEY not in baseline[0].details
+    assert with_telemetry[0].details[REPORT_DETAILS_KEY]["production_rank_effect"] == "none"
+
+
+def test_report_only_telemetry_changes_only_reserved_report_detail_section() -> None:
+    candidate = PlaintextRetainedCandidate([2, 4, 6], candidate_id="candidate-a")
+    scorer = _CandidateValueScorer()
+    baseline = score_plaintext_candidate(candidate, scorer).to_json_dict()
+    with_telemetry = score_plaintext_candidate(
+        candidate,
+        scorer,
+        n3c_normal_hits=(_report_hit("candidate-a"),),
+        n3c_normal_report_config=_enabled_report_config(),
+    ).to_json_dict()
+
+    telemetry = with_telemetry["details"].pop(REPORT_DETAILS_KEY)
+
+    assert telemetry["report_authority"] == "report_only_telemetry"
+    assert telemetry["production_rank_effect"] == "none"
+    assert with_telemetry == baseline
+
+
+def test_report_only_telemetry_requires_candidate_id() -> None:
+    with pytest.raises(ValueError, match="candidate_id"):
+        score_plaintext_candidate(
+            PlaintextRetainedCandidate([1]),
+            _RecordingScorer(),
+            n3c_normal_report_config=_enabled_report_config(),
+        )

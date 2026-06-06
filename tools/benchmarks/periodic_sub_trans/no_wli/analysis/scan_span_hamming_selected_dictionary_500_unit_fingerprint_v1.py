@@ -44,12 +44,10 @@ RUN_MODE = "parity_smoke"
 #   "full"
 
 S1_PAIR_ROWS_REL = (
-    "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"
-    "historical_pairwise_rescore_v1/historical_pairwise_rescore_pairs.csv"
+    "assets/evaluation_corpora/failed_decryptions/historical_partial_solves_v1/source/historical_pairwise_rescore_v1/historical_pairwise_rescore_pairs.csv"
 )
 UNIQUE_PARTIAL_ROWS_REL = (
-    "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"
-    "historical_partial_text_review_v1/unique_partial_text_rows.csv"
+    "assets/evaluation_corpora/failed_decryptions/historical_partial_solves_v1/source/historical_partial_text_review_v1/unique_partial_text_rows.csv"
 )
 OUTPUT_DIR_REL = (
     "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"

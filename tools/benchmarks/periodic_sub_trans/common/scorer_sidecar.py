@@ -3,9 +3,14 @@ from __future__ import annotations
 import json
 from enum import Enum
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 from rune_decrypter_prime.core.types import ObjectiveSpec
+from rune_decrypter_prime.scoring.ngram_hamming.reference import PhraseHit
+from rune_decrypter_prime.scoring.ngram_hamming.report_only_telemetry import (
+    N3CNormalReportTelemetryConfig,
+    merge_n3c_normal_report_details,
+)
 from rune_decrypter_prime.scoring.scorer_report_builder import build_scorer_report
 
 
@@ -63,8 +68,19 @@ def append_scorer_report_jsonl(
     extra_metrics: Mapping[str, float] | None = None,
     extra_details: Mapping[str, Any] | None = None,
     context: Mapping[str, Any] | None = None,
+    n3c_normal_candidate_id: str | None = None,
+    n3c_normal_hits: Iterable[PhraseHit] | None = None,
+    n3c_normal_report_config: N3CNormalReportTelemetryConfig | None = None,
 ) -> dict[str, Any]:
     objective_text = _objective_string_from_scorer(scorer, objective_str)
+    report_details = extra_details
+    if n3c_normal_report_config is not None:
+        report_details = merge_n3c_normal_report_details(
+            extra_details=extra_details,
+            candidate_id=n3c_normal_candidate_id or "",
+            hits=n3c_normal_hits or (),
+            config=n3c_normal_report_config,
+        )
     report = build_scorer_report(
         scorer=scorer,
         objective_str=objective_text,
@@ -72,7 +88,7 @@ def append_scorer_report_jsonl(
         raw_score=(None if raw_score is None else float(raw_score)),
         cost_ms=(None if cost_ms is None else float(cost_ms)),
         extra_metrics=extra_metrics,
-        extra_details=extra_details,
+        extra_details=report_details,
     )
     row: dict[str, Any] = {"report": report.to_json_dict()}
     if context:

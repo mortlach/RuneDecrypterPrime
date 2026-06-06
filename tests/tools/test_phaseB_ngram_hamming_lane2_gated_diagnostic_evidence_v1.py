@@ -110,15 +110,24 @@ def test_lane2_diagnostic_evidence_writes_required_outputs_and_safe_manifest(tmp
     assert manifest["sample_asset_used"] is False
     assert manifest["full_raw_shards_used_directly_as_runtime"] is False
     assert manifest["phrase_entry_source"] == "fast_runtime_index_bounded_diagnostic_selection"
-    assert manifest["positive_clean_case_count"] == len(fixture_entries())
+    assert manifest["positive_clean_case_count"] == 8
+    assert manifest["selection_contract_status"] == "blocked"
+    assert manifest["evidence_status"] == "blocked_configuration"
     assert manifest["matched_null_families"] == list(diag.MATCHED_NULL_FAMILIES)
     for name in (
         "run_manifest.json",
         "corpus_manifest.json",
         "profile_manifest_rows.csv",
+        "selection_manifest.json",
+        "selection_manifest_rows.csv",
         "candidate_profile_summary_rows.csv",
         "candidate_cluster_summary_rows.csv",
         "sampled_hit_rows.csv",
+        "full_hit_rows.csv",
+        "selected_phrase_entries.jsonl",
+        "positive_cases.jsonl",
+        "boundary_cases.jsonl",
+        "diagnostic_cases.jsonl",
         "null_comparison_rows.csv",
         "concentration_rows.csv",
         "damage_tier_summary_rows.csv",
@@ -150,6 +159,19 @@ def test_lane2_diagnostic_outputs_keep_scopes_and_nulls_separate(tmp_path: Path,
     assert any(row["matched_null_case_count"] != "0" for row in null_rows)
     assert any("order2_support_diagnostic_only" in row["warning_flags"] for row in concentration_rows)
     assert all(row["cut"] in {"normal", "strict"} for row in summary_rows)
+    assert all(
+        row["profile_id"] == row["source_profile_id"]
+        and row["ngram_order"] == row["source_order"]
+        and row["cut"] == row["source_cut"]
+        for row in summary_rows
+        if row["expected_role"] in {"positive", "null"}
+    )
+    assert {row["threshold_status"] for row in null_rows} <= {
+        "usable",
+        "fragile_zero_positive_present",
+        "no_separation",
+    }
+    assert all(0.0 <= float(row["positive_nonzero_rate"]) <= 1.0 for row in null_rows)
 
 
 def test_lane2_corpus_has_matched_nulls_for_each_positive(tmp_path: Path, monkeypatch) -> None:
@@ -170,7 +192,7 @@ def test_lane2_corpus_has_matched_nulls_for_each_positive(tmp_path: Path, monkey
     for row in null_rows:
         nulls_by_source.setdefault(str(row["source_case_id"]), []).append(row)
 
-    assert manifest["positive_clean_case_count"] == len(fixture_entries())
+    assert manifest["positive_clean_case_count"] == 8
     assert manifest["minimum_matched_nulls_per_positive"] == len(diag.MATCHED_NULL_FAMILIES)
     for row in positive_rows:
         matched = nulls_by_source[str(row["candidate_id"])]
@@ -214,7 +236,7 @@ def test_lane2_asset_loader_reports_missing_payload_paths(tmp_path: Path, monkey
         raise AssertionError("expected missing Lane 1 payload failure")
 
 
-def test_lane2_default_loader_requires_valid_fast_runtime_index(tmp_path: Path, monkeypatch) -> None:
+def test_lane2_default_loader_fails_closed_when_profile_buckets_are_missing(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(diag, "REPO_ROOT", tmp_path)
     npz_rel = (
         "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/"
@@ -269,12 +291,62 @@ def test_lane2_default_loader_requires_valid_fast_runtime_index(tmp_path: Path, 
     validation_path.parent.mkdir(parents=True, exist_ok=True)
     validation_path.write_text(json.dumps({"status": "pass"}) + "\n", encoding="utf-8")
 
-    entries = diag.load_fast_runtime_index_entries()
+    try:
+        diag.load_fast_runtime_index_entries()
+    except RuntimeError as exc:
+        assert "profile-aware selection blocked" in str(exc)
+        assert "BR_O2_len10_long/2/normal" in str(exc)
+    else:
+        raise AssertionError("expected incomplete runtime selection to fail closed")
 
-    assert len(entries) == 1
-    assert entries[0].phrase_id == "runtime-a"
-    assert entries[0].count == 0.0
-    assert entries[0].log_count == 0.0
+
+def test_profile_aware_selector_records_exact_membership_and_length_ranges(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(diag, "REPO_ROOT", tmp_path)
+    file_rows = []
+    for idx, length in enumerate((7, 8, 10, 11)):
+        rel = f"runtime/o2-normal-{length}.npz"
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tokens = np.asarray([list(range(1, length + 1))], dtype=np.uint8)
+        np.savez_compressed(
+            path,
+            rune_tokens=tokens,
+            phrase_id=np.asarray([f"phrase-{length}"], dtype=np.str_),
+            word_token_lengths=np.asarray([length // 2, length - length // 2], dtype=np.int16),
+        )
+        file_rows.append(
+            {
+                "path": rel,
+                "direction": "fwd",
+                "dictionary_cut": "normal",
+                "ngram_order": 2,
+                "phrase_token_length": length,
+                "word_token_lengths": json.dumps([length // 2, length - length // 2]),
+                "phrase_count": 1,
+            }
+        )
+    spec = next(spec for spec in diag.selected_profile_specs() if spec.profile_id == "BR_O2_len10_long")
+
+    entries, rows = diag.select_fast_runtime_entries_from_manifest({"files": file_rows}, (spec,))
+
+    assert {entry.phrase_id for entry in entries} == {"phrase-10", "phrase-11"}
+    assert json.loads(rows[0]["selected_phrase_ids"]) == ["phrase-10", "phrase-11"]
+    assert rows[0]["selected_phrase_token_length_min"] == 10
+    assert rows[0]["selected_phrase_token_length_max"] == 11
+    assert rows[0]["selection_status"] == "blocked"
+    assert rows[0]["blocked_reason"] == "selected_entry_count is below minimum required"
+
+
+def test_profile_positive_groups_use_only_exact_selected_membership() -> None:
+    entries = fixture_entries()
+    spec = next(spec for spec in diag.selected_profile_specs() if spec.profile_id == "BR_O2_soft")
+    selection_rows = diag.selection_rows_from_entries(entries, (spec,))
+    normal_row = next(row for row in selection_rows if row["cut"] == "normal")
+    normal_row["selected_phrase_ids"] = json.dumps([])
+
+    groups = diag.profile_positive_groups(entries, (spec,), selection_rows)
+
+    assert {cut for _spec, _order, cut, _entries in groups} == {"strict"}
 
 
 def test_per_profile_cluster_fractions_ignore_other_profiles_in_same_cluster() -> None:
@@ -383,3 +455,28 @@ def test_lane2_corpus_records_damage_manifest_fields(tmp_path: Path, monkeypatch
         assert row["damaged_token_count"] > 0
         assert row["damage_positions_sha256"]
         assert row["source_case_id"]
+
+
+def test_lane2_manifest_distinguishes_full_and_sampled_hit_rows(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(diag, "REPO_ROOT", tmp_path)
+
+    manifest = diag.run_lane2_gated_diagnostic_evidence(output_dir=tmp_path / "out", phrase_entries=fixture_entries())
+
+    assert manifest["full_hit_rows_present"] is True
+    assert manifest["full_hit_row_count"] == manifest["raw_hit_count"]
+    assert manifest["sampled_hit_rows_present"] is True
+    assert manifest["sampled_hit_row_count"] <= manifest["sampled_hit_row_limit"]
+    assert "hit_rows_are_sampled" not in manifest
+
+
+def test_lane2_exports_complete_and_boundary_case_views(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(diag, "REPO_ROOT", tmp_path)
+    output_dir = tmp_path / "out"
+
+    manifest = diag.run_lane2_gated_diagnostic_evidence(output_dir=output_dir, phrase_entries=fixture_entries())
+    diagnostic_rows = (output_dir / "diagnostic_cases.jsonl").read_text(encoding="utf-8").splitlines()
+    boundary_rows = [json.loads(line) for line in (output_dir / "boundary_cases.jsonl").read_text(encoding="utf-8").splitlines()]
+
+    assert len(diagnostic_rows) == manifest["case_count"]
+    assert len(boundary_rows) == 3
+    assert all(row["expected_role"] == "boundary" for row in boundary_rows)

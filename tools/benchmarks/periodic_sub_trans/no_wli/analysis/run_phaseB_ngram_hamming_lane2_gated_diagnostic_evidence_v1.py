@@ -74,6 +74,9 @@ CLUSTER_SCOPE_BLOCKED = "blocked_bridge_candidate_view"
 CLUSTER_SCOPE_CANONICAL = "canonical_score_candidate_view"
 ALPHABET_SIZE = 29
 MAX_ASSET_ROWS_PER_ORDER_CUT = 32
+PREFERRED_ENTRIES_PER_PROFILE_BUCKET = 16
+MINIMUM_ENTRIES_PER_PROFILE_BUCKET = 4
+PROFILE_ENTRY_TARGET_OVERRIDES = {"BR_O2_len10_long": 8}
 MAX_PAYLOAD_FILES_PER_ORDER_CUT = 12
 TARGET_CLEAN_POSITIVE_PASSAGES = 24
 PHRASE_ENTRIES_PER_POSITIVE = 4
@@ -104,6 +107,9 @@ class EvalCase:
     expected_role: str
     source_kind: str
     damage_positions_sha256: str = ""
+    source_profile_id: str = ""
+    source_order: int = 0
+    source_cut: str = ""
 
 
 def repo_rel(path: Path) -> str:
@@ -207,6 +213,28 @@ def deterministic_damage(
 
 
 def load_fast_runtime_index_entries() -> tuple[PhraseEntry, ...]:
+    entries, _selection_rows = load_fast_runtime_index_selection(selected_profile_specs())
+    return entries
+
+
+def load_fast_runtime_index_selection(
+    specs: Sequence[NgramProfileSpec],
+) -> tuple[tuple[PhraseEntry, ...], list[dict[str, Any]]]:
+    manifest = validated_fast_runtime_manifest()
+    entries, selection_rows = select_fast_runtime_entries_from_manifest(manifest, specs)
+    if not entries:
+        raise RuntimeError("no fast runtime index phrase entries were loaded for Lane 2 diagnostic evidence")
+    blocked_rows = [row for row in selection_rows if row["selection_status"] == "blocked"]
+    if blocked_rows:
+        reasons = "; ".join(
+            f"{row['profile_id']}/{row['ngram_order']}/{row['cut']}: {row['blocked_reason']}"
+            for row in blocked_rows
+        )
+        raise RuntimeError("fast runtime profile-aware selection blocked: " + reasons)
+    return tuple(entries), selection_rows
+
+
+def validated_fast_runtime_manifest() -> dict[str, Any]:
     manifest_path = REPO_ROOT / RUNTIME_INDEX_MANIFEST_REL
     validation_path = REPO_ROOT / RUNTIME_INDEX_VALIDATION_MANIFEST_REL
     if not manifest_path.is_file():
@@ -234,10 +262,7 @@ def load_fast_runtime_index_entries() -> tuple[PhraseEntry, ...]:
         blocked.append("fast runtime index used full raw shards directly as runtime")
     if blocked:
         raise RuntimeError("fast runtime index is not eligible for Lane 2 rerun: " + "; ".join(blocked))
-    entries = load_fast_runtime_entries_from_manifest(manifest)
-    if not entries:
-        raise RuntimeError("no fast runtime index phrase entries were loaded for Lane 2 diagnostic evidence")
-    return tuple(entries)
+    return manifest
 
 
 def split_words(flat_tokens: Sequence[int], word_lens: Sequence[int]) -> tuple[tuple[int, ...], ...]:
@@ -252,49 +277,162 @@ def split_words(flat_tokens: Sequence[int], word_lens: Sequence[int]) -> tuple[t
     return tuple(out)
 
 
-def load_fast_runtime_entries_from_manifest(manifest: Mapping[str, Any]) -> tuple[PhraseEntry, ...]:
-    entries_by_group: dict[tuple[int, str], list[PhraseEntry]] = {(order, cut): [] for order in (2, 3) for cut in ("normal", "strict")}
-    for file_row in sorted(
-        manifest.get("files", []),
-        key=lambda row: (
-            str(row.get("direction", "")),
-            str(row.get("dictionary_cut", "")),
-            int(row.get("ngram_order", 0)),
-            int(row.get("phrase_token_length", 0)),
-            str(row.get("word_token_lengths", "")),
-            str(row.get("path", "")),
-        ),
-    ):
-        order = int(file_row.get("ngram_order", -1))
-        cut = str(file_row.get("dictionary_cut", ""))
-        key = (order, cut)
-        if key not in entries_by_group or len(entries_by_group[key]) >= MAX_ASSET_ROWS_PER_ORDER_CUT:
-            continue
-        path = REPO_ROOT / str(file_row.get("path", ""))
-        if not path.is_file():
-            raise FileNotFoundError(f"fast runtime index file is missing: {file_row.get('path', '')}")
-        with np.load(path, allow_pickle=False) as data:
-            rune_tokens = data["rune_tokens"]
-            phrase_ids = data["phrase_id"]
-            word_lens = tuple(int(item) for item in data["word_token_lengths"].tolist())
-            for idx in range(rune_tokens.shape[0]):
-                if len(entries_by_group[key]) >= MAX_ASSET_ROWS_PER_ORDER_CUT:
-                    break
-                tokens = tuple(int(token) for token in rune_tokens[idx].tolist())
-                entries_by_group[key].append(
-                    PhraseEntry(
-                        phrase_id=str(phrase_ids[idx]),
-                        direction=str(file_row.get("direction", "")),
-                        dictionary_cut=cut,
-                        ngram_order=order,
-                        word_token_ids=split_words(tokens, word_lens),
-                        rune_token_ids=tokens,
-                        count=0.0,
-                        log_count=0.0,
-                        phrase_count=1,
-                    )
+def selection_target(spec: NgramProfileSpec) -> int:
+    return PROFILE_ENTRY_TARGET_OVERRIDES.get(spec.profile_id, PREFERRED_ENTRIES_PER_PROFILE_BUCKET)
+
+
+def read_runtime_file_entries(file_row: Mapping[str, Any], limit: int) -> list[PhraseEntry]:
+    if limit <= 0:
+        return []
+    order = int(file_row.get("ngram_order", -1))
+    cut = str(file_row.get("dictionary_cut", ""))
+    path = REPO_ROOT / str(file_row.get("path", ""))
+    if not path.is_file():
+        raise FileNotFoundError(f"fast runtime index file is missing: {file_row.get('path', '')}")
+    out: list[PhraseEntry] = []
+    with np.load(path, allow_pickle=False) as data:
+        rune_tokens = data["rune_tokens"]
+        phrase_ids = data["phrase_id"]
+        word_lens = tuple(int(item) for item in data["word_token_lengths"].tolist())
+        for idx in range(min(rune_tokens.shape[0], limit)):
+            tokens = tuple(int(token) for token in rune_tokens[idx].tolist())
+            out.append(
+                PhraseEntry(
+                    phrase_id=str(phrase_ids[idx]),
+                    direction=str(file_row.get("direction", "")),
+                    dictionary_cut=cut,
+                    ngram_order=order,
+                    word_token_ids=split_words(tokens, word_lens),
+                    rune_token_ids=tokens,
+                    count=0.0,
+                    log_count=0.0,
+                    phrase_count=1,
                 )
-    return tuple(entry for group in entries_by_group.values() for entry in group)
+            )
+    return out
+
+
+def select_fast_runtime_entries_from_manifest(
+    manifest: Mapping[str, Any],
+    specs: Sequence[NgramProfileSpec],
+) -> tuple[tuple[PhraseEntry, ...], list[dict[str, Any]]]:
+    files = list(manifest.get("files", []))
+    selected_by_id: dict[tuple[int, str, str], PhraseEntry] = {}
+    selection_rows: list[dict[str, Any]] = []
+    for spec in specs:
+        for order in spec.orders:
+            for cut in spec.cuts:
+                eligible_files = sorted(
+                    (
+                        row for row in files
+                        if str(row.get("direction", "")) == spec.direction
+                        and int(row.get("ngram_order", -1)) == order
+                        and str(row.get("dictionary_cut", "")) == cut
+                        and int(row.get("phrase_token_length", 0)) >= spec.min_phrase_token_length
+                    ),
+                    key=lambda row: (
+                        int(row.get("phrase_token_length", 0)),
+                        str(row.get("word_token_lengths", "")),
+                        str(row.get("path", "")),
+                    ),
+                )
+                eligible_seen = sum(max(1, int(row.get("phrase_count", 0))) for row in eligible_files)
+                requested = selection_target(spec)
+                bucket: list[PhraseEntry] = []
+                for file_row in eligible_files:
+                    bucket.extend(read_runtime_file_entries(file_row, requested - len(bucket)))
+                    if len(bucket) >= requested:
+                        break
+                for entry in bucket:
+                    selected_by_id[(entry.ngram_order, entry.dictionary_cut, entry.phrase_id)] = entry
+                lengths = [entry.phrase_token_length for entry in bucket]
+                shapes = sorted({entry.word_lengths for entry in bucket})
+                blocked_reason = ""
+                if eligible_seen == 0:
+                    blocked_reason = "eligible_entry_count_seen is zero"
+                elif len(bucket) < MINIMUM_ENTRIES_PER_PROFILE_BUCKET:
+                    blocked_reason = "selected_entry_count is below minimum required"
+                elif lengths and min(lengths) < spec.min_phrase_token_length:
+                    blocked_reason = "selected phrase length is below profile minimum"
+                status = "blocked" if blocked_reason else ("selected" if len(bucket) >= requested else "partial_but_allowed")
+                selection_rows.append(
+                    {
+                        "profile_id": spec.profile_id,
+                        "profile_origin": spec.profile_origin,
+                        "canonical_profile_id": spec.canonical_profile_id,
+                        "parameter_status": spec.parameter_status,
+                        "score_authority": spec.score_authority,
+                        "direction": spec.direction,
+                        "cut": cut,
+                        "ngram_order": order,
+                        "min_phrase_token_length": spec.min_phrase_token_length,
+                        "max_total_phrase_hd": spec.max_total_phrase_hd,
+                        "max_word_hd": spec.max_word_hd,
+                        "eligible_entry_count_seen": eligible_seen,
+                        "requested_entry_count": requested,
+                        "minimum_required_entry_count": MINIMUM_ENTRIES_PER_PROFILE_BUCKET,
+                        "selected_entry_count": len(bucket),
+                        "selected_phrase_token_length_min": min(lengths) if lengths else "",
+                        "selected_phrase_token_length_max": max(lengths) if lengths else "",
+                        "selected_word_length_shapes": json.dumps([list(shape) for shape in shapes], separators=(",", ":")),
+                        "selected_phrase_ids": json.dumps([entry.phrase_id for entry in bucket], separators=(",", ":")),
+                        "selection_status": status,
+                        "blocked_reason": blocked_reason,
+                    }
+                )
+    return tuple(
+        sorted(selected_by_id.values(), key=lambda entry: (entry.ngram_order, entry.dictionary_cut, entry.phrase_id))
+    ), selection_rows
+
+
+def selection_rows_from_entries(
+    entries: Sequence[PhraseEntry],
+    specs: Sequence[NgramProfileSpec],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for spec in specs:
+        for order in spec.orders:
+            for cut in spec.cuts:
+                bucket = [
+                    entry for entry in entries
+                    if entry.direction == spec.direction
+                    and entry.ngram_order == order
+                    and entry.dictionary_cut == cut
+                    and entry.phrase_token_length >= spec.min_phrase_token_length
+                ]
+                lengths = [entry.phrase_token_length for entry in bucket]
+                shapes = sorted({entry.word_lengths for entry in bucket})
+                rows.append(
+                    {
+                        "profile_id": spec.profile_id,
+                        "profile_origin": spec.profile_origin,
+                        "canonical_profile_id": spec.canonical_profile_id,
+                        "parameter_status": spec.parameter_status,
+                        "score_authority": spec.score_authority,
+                        "direction": spec.direction,
+                        "cut": cut,
+                        "ngram_order": order,
+                        "min_phrase_token_length": spec.min_phrase_token_length,
+                        "max_total_phrase_hd": spec.max_total_phrase_hd,
+                        "max_word_hd": spec.max_word_hd,
+                        "eligible_entry_count_seen": len(bucket),
+                        "requested_entry_count": len(bucket),
+                        "minimum_required_entry_count": 1,
+                        "selected_entry_count": len(bucket),
+                        "selected_phrase_token_length_min": min(lengths) if lengths else "",
+                        "selected_phrase_token_length_max": max(lengths) if lengths else "",
+                        "selected_word_length_shapes": json.dumps([list(shape) for shape in shapes], separators=(",", ":")),
+                        "selected_phrase_ids": json.dumps([entry.phrase_id for entry in bucket], separators=(",", ":")),
+                        "selection_status": "selected" if bucket else "blocked",
+                        "blocked_reason": "" if bucket else "eligible_entry_count_seen is zero",
+                    }
+                )
+    return rows
+
+
+def load_fast_runtime_entries_from_manifest(manifest: Mapping[str, Any]) -> tuple[PhraseEntry, ...]:
+    entries, _selection_rows = select_fast_runtime_entries_from_manifest(manifest, selected_profile_specs())
+    return entries
 
 
 def load_lane1_asset_entries() -> tuple[PhraseEntry, ...]:
@@ -371,16 +509,49 @@ def base_positive_tokens(entries: Sequence[PhraseEntry]) -> tuple[int, ...]:
     return tuple(tokens)
 
 
-def positive_phrase_groups(entries: Sequence[PhraseEntry]) -> tuple[tuple[PhraseEntry, ...], ...]:
-    selected = tuple(sorted(entries, key=lambda entry: (entry.ngram_order, entry.dictionary_cut, entry.phrase_id)))
-    if not selected:
-        return ()
-    clean_count = min(TARGET_CLEAN_POSITIVE_PASSAGES, max(1, len(selected)))
-    groups: list[tuple[PhraseEntry, ...]] = []
-    for idx in range(clean_count):
-        start = (idx * PHRASE_ENTRIES_PER_POSITIVE) % len(selected)
-        group = tuple(selected[(start + offset) % len(selected)] for offset in range(PHRASE_ENTRIES_PER_POSITIVE))
-        groups.append(group)
+def profile_positive_groups(
+    entries: Sequence[PhraseEntry],
+    specs: Sequence[NgramProfileSpec],
+    selection_rows: Sequence[Mapping[str, Any]] | None = None,
+) -> tuple[tuple[NgramProfileSpec, int, str, tuple[PhraseEntry, ...]], ...]:
+    entries_by_id = {
+        (entry.ngram_order, entry.dictionary_cut, entry.phrase_id): entry
+        for entry in entries
+    }
+    selected_ids_by_bucket = {
+        (str(row["profile_id"]), int(row["ngram_order"]), str(row["cut"])): tuple(json.loads(str(row["selected_phrase_ids"])))
+        for row in selection_rows or ()
+    }
+    groups: list[tuple[NgramProfileSpec, int, str, tuple[PhraseEntry, ...]]] = []
+    for spec in specs:
+        for order in spec.orders:
+            for cut in spec.cuts:
+                selected_ids = selected_ids_by_bucket.get((spec.profile_id, order, cut))
+                if selected_ids is None:
+                    eligible = tuple(
+                        sorted(
+                            (
+                                entry for entry in entries
+                                if entry.direction == spec.direction
+                                and entry.ngram_order == order
+                                and entry.dictionary_cut == cut
+                                and entry.phrase_token_length >= spec.min_phrase_token_length
+                            ),
+                            key=lambda entry: entry.phrase_id,
+                        )
+                    )
+                else:
+                    eligible = tuple(
+                        entries_by_id[(order, cut, phrase_id)]
+                        for phrase_id in selected_ids
+                        if (order, cut, phrase_id) in entries_by_id
+                    )
+                if not eligible:
+                    continue
+                for start in range(0, len(eligible), PHRASE_ENTRIES_PER_POSITIVE):
+                    group = eligible[start:start + PHRASE_ENTRIES_PER_POSITIVE]
+                    if group:
+                        groups.append((spec, order, cut, group))
     return tuple(groups)
 
 
@@ -392,15 +563,20 @@ def positive_tokens_from_entries(entries: Sequence[PhraseEntry], *, passage_inde
     return tuple(tokens)
 
 
-def build_eval_cases(entries: Sequence[PhraseEntry]) -> tuple[EvalCase, ...]:
-    groups = positive_phrase_groups(entries)
+def build_eval_cases(
+    entries: Sequence[PhraseEntry],
+    specs: Sequence[NgramProfileSpec] | None = None,
+    selection_rows: Sequence[Mapping[str, Any]] | None = None,
+) -> tuple[EvalCase, ...]:
+    selected_specs = tuple(specs) if specs is not None else selected_profile_specs()
+    groups = profile_positive_groups(entries, selected_specs, selection_rows)
     cases: list[EvalCase] = []
     positive_cases: list[EvalCase] = []
-    for idx, group in enumerate(groups):
+    for idx, (spec, order, cut, group) in enumerate(groups):
         clean_tokens = positive_tokens_from_entries(group, passage_index=idx)
         clean_case = EvalCase(
-            candidate_id=f"positive_clean_{idx:03d}",
-            case_family="positive_clean",
+            candidate_id=f"positive_clean_{spec.profile_id}_{order}_{cut}_{idx:03d}",
+            case_family=f"positive_clean_{spec.profile_id}",
             damage_rate=0.0,
             damage_mode="none",
             seed=idx,
@@ -408,6 +584,9 @@ def build_eval_cases(entries: Sequence[PhraseEntry]) -> tuple[EvalCase, ...]:
             source_case_id=f"asset_phrase_sample_{idx:03d}",
             expected_role="positive",
             source_kind="generated_from_permanent_lane1_asset_tokens",
+            source_profile_id=spec.profile_id,
+            source_order=order,
+            source_cut=cut,
         )
         cases.append(clean_case)
         positive_cases.append(clean_case)
@@ -415,8 +594,8 @@ def build_eval_cases(entries: Sequence[PhraseEntry]) -> tuple[EvalCase, ...]:
             seed = 202600 + idx * 100 + int(rate * 100)
             damaged, manifest = deterministic_damage(clean_tokens, damage_rate=rate, seed=seed)
             damaged_case = EvalCase(
-                candidate_id=f"positive_damaged_{int(rate * 100):02d}_{idx:03d}",
-                case_family=f"positive_damaged_{int(rate * 100):02d}",
+                candidate_id=f"positive_damaged_{int(rate * 100):02d}_{spec.profile_id}_{order}_{cut}_{idx:03d}",
+                case_family=f"positive_damaged_{int(rate * 100):02d}_{spec.profile_id}",
                 damage_rate=rate,
                 damage_mode="substitute",
                 seed=seed,
@@ -425,6 +604,9 @@ def build_eval_cases(entries: Sequence[PhraseEntry]) -> tuple[EvalCase, ...]:
                 expected_role="positive",
                 source_kind="generated_from_permanent_lane1_asset_tokens",
                 damage_positions_sha256=manifest["damage_positions_sha256"],
+                source_profile_id=spec.profile_id,
+                source_order=order,
+                source_cut=cut,
             )
             cases.append(damaged_case)
             positive_cases.append(damaged_case)
@@ -441,6 +623,9 @@ def build_eval_cases(entries: Sequence[PhraseEntry]) -> tuple[EvalCase, ...]:
                 source_case_id=source_case.candidate_id,
                 expected_role="null",
                 source_kind="synthetic_matched_null",
+                source_profile_id=source_case.source_profile_id,
+                source_order=source_case.source_order,
+                source_cut=source_case.source_cut,
             )
         )
         cases.append(
@@ -454,6 +639,9 @@ def build_eval_cases(entries: Sequence[PhraseEntry]) -> tuple[EvalCase, ...]:
                 source_case_id=source_case.candidate_id,
                 expected_role="null",
                 source_kind="synthetic_matched_null",
+                source_profile_id=source_case.source_profile_id,
+                source_order=source_case.source_order,
+                source_cut=source_case.source_cut,
             )
         )
         cases.append(
@@ -467,6 +655,9 @@ def build_eval_cases(entries: Sequence[PhraseEntry]) -> tuple[EvalCase, ...]:
                 source_case_id=source_case.candidate_id,
                 expected_role="null",
                 source_kind="synthetic_matched_null",
+                source_profile_id=source_case.source_profile_id,
+                source_order=source_case.source_order,
+                source_cut=source_case.source_cut,
             )
         )
     base_tokens = base_positive_tokens(entries)
@@ -569,6 +760,9 @@ def case_row(case: EvalCase) -> dict[str, Any]:
         "source_case_id": case.source_case_id,
         "expected_role": case.expected_role,
         "source_kind": case.source_kind,
+        "source_profile_id": case.source_profile_id,
+        "source_order": case.source_order,
+        "source_cut": case.source_cut,
         "token_ids": list(case.tokens),
     }
 
@@ -609,6 +803,9 @@ def scan_cases(
                             "phrase_verification_passes": result.phrase_verification_passes,
                             "opportunity_count": result.opportunity_count,
                             "positive_start_offset_count": result.positive_start_offset_count,
+                            "source_profile_id": case.source_profile_id,
+                            "source_order": case.source_order,
+                            "source_cut": case.source_cut,
                         }
                     )
     return hits, scan_rows
@@ -675,6 +872,12 @@ def summary_rows_for_scope(
                 for order in spec.orders:
                     if not allowed(spec.profile_id, cut, order):
                         continue
+                    if case.expected_role in {"positive", "null"} and (
+                        case.source_profile_id != spec.profile_id
+                        or case.source_order != order
+                        or case.source_cut != cut
+                    ):
+                        continue
                     key = (case.candidate_id, spec.profile_id, cut, order)
                     group_hits = hit_groups.get(key, [])
                     group_clusters = cluster_groups.get(key, [])
@@ -711,6 +914,10 @@ def candidate_profile_summary_row(
         "candidate_id": case.candidate_id,
         "case_family": case.case_family,
         "damage_rate": case.damage_rate,
+        "expected_role": case.expected_role,
+        "source_profile_id": case.source_profile_id,
+        "source_order": case.source_order,
+        "source_cut": case.source_cut,
         "profile_id": spec.profile_id,
         "profile_origin": spec.profile_origin,
         "canonical_profile_id": spec.canonical_profile_id,
@@ -879,6 +1086,14 @@ def null_comparison_rows(rows: Sequence[Mapping[str, Any]]) -> list[dict[str, An
         pos_hit = [float(row["hit_count"]) for row in pos]
         null_hit = [float(row["hit_count"]) for row in nul]
         threshold = min(pos_cluster) if pos_cluster else 0.0
+        positive_nonzero_case_count = sum(1 for value in pos_cluster if value > 0)
+        positive_zero_case_count = len(pos_cluster) - positive_nonzero_case_count
+        if not pos_cluster or median(pos_cluster) == 0:
+            threshold_status = "no_separation"
+        elif threshold <= 0:
+            threshold_status = "fragile_zero_positive_present"
+        else:
+            threshold_status = "usable"
         out.append(
             {
                 "damage_rate": damage_rate,
@@ -895,6 +1110,11 @@ def null_comparison_rows(rows: Sequence[Mapping[str, Any]]) -> list[dict[str, An
                 "null_exact_cluster_count_median": median(null_exact_cluster),
                 "positive_hit_count_median": median(pos_hit),
                 "null_hit_count_median": median(null_hit),
+                "positive_min_cluster_count": min(pos_cluster) if pos_cluster else 0.0,
+                "positive_nonzero_case_count": positive_nonzero_case_count,
+                "positive_zero_case_count": positive_zero_case_count,
+                "positive_nonzero_rate": positive_nonzero_case_count / len(pos_cluster) if pos_cluster else 0.0,
+                "threshold_status": threshold_status,
                 "lift_cluster_count": lift(median(pos_cluster), median(null_cluster)),
                 "lift_exact_cluster_count": lift(median(pos_exact_cluster), median(null_exact_cluster)),
                 "overlap_rate": overlap_rate(pos_cluster, null_cluster),
@@ -956,9 +1176,27 @@ def damage_tier_summary_rows(rows: Sequence[Mapping[str, Any]]) -> list[dict[str
     return out
 
 
-def sampled_hit_rows(hits: Sequence[PhraseHit], case_by_id: Mapping[str, EvalCase]) -> list[dict[str, Any]]:
+def hit_rows(
+    hits: Sequence[PhraseHit],
+    case_by_id: Mapping[str, EvalCase],
+    *,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    for hit in sorted(hits, key=lambda item: (item.candidate_id, item.profile_id, item.dictionary_cut, item.ngram_order, item.hit_start, item.phrase_id))[:HIT_SAMPLE_LIMIT]:
+    selected_hits = sorted(
+        hits,
+        key=lambda item: (
+            item.candidate_id,
+            item.profile_id,
+            item.dictionary_cut,
+            item.ngram_order,
+            item.hit_start,
+            item.phrase_id,
+        ),
+    )
+    if limit is not None:
+        selected_hits = selected_hits[:limit]
+    for hit in selected_hits:
         case = case_by_id[hit.candidate_id]
         rows.append(
             {
@@ -983,11 +1221,29 @@ def sampled_hit_rows(hits: Sequence[PhraseHit], case_by_id: Mapping[str, EvalCas
     return rows
 
 
+def phrase_entry_row(entry: PhraseEntry) -> dict[str, Any]:
+    return {
+        "phrase_id": entry.phrase_id,
+        "direction": entry.direction,
+        "dictionary_cut": entry.dictionary_cut,
+        "ngram_order": entry.ngram_order,
+        "word_token_ids": [list(word) for word in entry.word_token_ids],
+        "rune_token_ids": list(entry.rune_token_ids),
+        "phrase_token_length": entry.phrase_token_length,
+        "word_lengths": list(entry.word_lengths),
+        "count": entry.count,
+        "log_count": entry.log_count,
+        "phrase_count": entry.phrase_count,
+    }
+
+
 def corpus_manifest(cases: Sequence[EvalCase], entries: Sequence[PhraseEntry]) -> dict[str, Any]:
     positive_cases = [case for case in cases if case.expected_role == "positive"]
-    clean_positive_cases = [case for case in positive_cases if case.case_family == "positive_clean"]
+    clean_positive_cases = [case for case in positive_cases if case.case_family.startswith("positive_clean")]
     null_cases = [case for case in cases if case.expected_role == "null"]
-    nulls_by_source = Counter(case.source_case_id for case in null_cases)
+    matched_null_cases = [case for case in null_cases if case.case_family.startswith("matched_")]
+    hard_negative_cases = [case for case in null_cases if case.case_family.startswith("hard_negative_")]
+    nulls_by_source = Counter(case.source_case_id for case in matched_null_cases)
     positive_ids = {case.candidate_id for case in positive_cases}
     return {
         "phase": RUN_LABEL,
@@ -1008,7 +1264,8 @@ def corpus_manifest(cases: Sequence[EvalCase], entries: Sequence[PhraseEntry]) -
         "case_count": len(cases),
         "positive_case_count": len(positive_cases),
         "positive_clean_case_count": len(clean_positive_cases),
-        "matched_null_case_count": len(null_cases),
+        "matched_null_case_count": len(matched_null_cases),
+        "hard_negative_case_count": len(hard_negative_cases),
         "target_clean_positive_passages": TARGET_CLEAN_POSITIVE_PASSAGES,
         "phrase_entries_per_positive": PHRASE_ENTRIES_PER_POSITIVE,
         "damage_tiers": list(DAMAGE_TIERS),
@@ -1033,7 +1290,11 @@ def run_manifest(
     specs: Sequence[NgramProfileSpec],
     hits: Sequence[PhraseHit],
     output_dir: Path,
+    selection_rows: Sequence[Mapping[str, Any]],
+    opportunity_block_reasons: Sequence[str],
 ) -> dict[str, Any]:
+    selection_blocked = any(str(row.get("selection_status", "")) == "blocked" for row in selection_rows)
+    evidence_status = "blocked_configuration" if selection_blocked or opportunity_block_reasons else "diagnostic_evidence_ready_for_review"
     return {
         "phase": RUN_LABEL,
         "run_label": RUN_LABEL,
@@ -1075,9 +1336,16 @@ def run_manifest(
         "profile_manifest_hash": profile_manifest_hash(specs),
         "profile_count": len(specs),
         "case_count": len(cases),
-        "positive_clean_case_count": sum(1 for case in cases if case.case_family == "positive_clean"),
+        "evidence_status": evidence_status,
+        "selection_contract_status": "blocked" if selection_blocked else "pass",
+        "opportunity_contract_status": "blocked" if opportunity_block_reasons else "pass",
+        "opportunity_block_reasons": list(opportunity_block_reasons),
+        "selection_bucket_count": len(selection_rows),
+        "selection_strategy": sorted({str(row.get("selection_strategy", "profile_minimum_eligible")) for row in selection_rows}),
+        "positive_clean_case_count": sum(1 for case in cases if case.case_family.startswith("positive_clean")),
         "positive_case_count": sum(1 for case in cases if case.expected_role == "positive"),
-        "matched_null_case_count": sum(1 for case in cases if case.expected_role == "null"),
+        "matched_null_case_count": sum(1 for case in cases if case.case_family.startswith("matched_")),
+        "hard_negative_case_count": sum(1 for case in cases if case.case_family.startswith("hard_negative_")),
         "target_clean_positive_passages": TARGET_CLEAN_POSITIVE_PASSAGES,
         "damage_tiers": list(DAMAGE_TIERS),
         "matched_null_families": list(MATCHED_NULL_FAMILIES),
@@ -1090,8 +1358,11 @@ def run_manifest(
             for cut in ("normal", "strict")
         },
         "raw_hit_count": len(hits),
-        "hit_rows_are_sampled": len(hits) > HIT_SAMPLE_LIMIT,
-        "hit_sample_limit": HIT_SAMPLE_LIMIT,
+        "full_hit_rows_present": True,
+        "full_hit_row_count": len(hits),
+        "sampled_hit_rows_present": True,
+        "sampled_hit_row_count": min(len(hits), HIT_SAMPLE_LIMIT),
+        "sampled_hit_row_limit": HIT_SAMPLE_LIMIT,
     }
 
 
@@ -1108,7 +1379,7 @@ def write_readout(path: Path, manifest: Mapping[str, Any], null_rows: Sequence[M
     lines = [
         "# Phase B Lane 2 Gated Diagnostic Scoring Evidence v1",
         "",
-        f"Status: `diagnostic_evidence_ready_for_review`",
+        f"Status: `{manifest['evidence_status']}`",
         "",
         f"- phase: `{manifest['phase']}`",
         f"- run scope: `{manifest['run_scope']}`",
@@ -1128,6 +1399,8 @@ def write_readout(path: Path, manifest: Mapping[str, Any], null_rows: Sequence[M
         f"- matched null cases: `{manifest['matched_null_case_count']}`",
         f"- phrase entry count: `{manifest['phrase_entry_count']}`",
         f"- raw hit count: `{manifest['raw_hit_count']}`",
+        f"- selection contract status: `{manifest['selection_contract_status']}`",
+        f"- opportunity contract status: `{manifest['opportunity_contract_status']}`",
         f"- best normal order-3 canonical score-candidate-view cluster lift in this microbatch: `{best_lift}`",
         "",
         "This is controlled diagnostic evidence only. It does not approve production",
@@ -1137,39 +1410,99 @@ def write_readout(path: Path, manifest: Mapping[str, Any], null_rows: Sequence[M
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def opportunity_contract_block_reasons(
+    cases: Sequence[EvalCase],
+    scan_rows: Sequence[Mapping[str, Any]],
+    selection_rows: Sequence[Mapping[str, Any]],
+) -> list[str]:
+    clean_ids = {case.candidate_id for case in cases if case.case_family.startswith("positive_clean")}
+    reasons: list[str] = []
+    for selection in selection_rows:
+        profile_id = str(selection["profile_id"])
+        order = int(selection["ngram_order"])
+        cut = str(selection["cut"])
+        matching = [
+            row for row in scan_rows
+            if str(row.get("candidate_id", "")) in clean_ids
+            and str(row.get("source_profile_id", "")) == profile_id
+            and int(row.get("source_order", -1)) == order
+            and str(row.get("source_cut", "")) == cut
+            and str(row.get("profile_id", "")) == profile_id
+            and int(row.get("ngram_order", -1)) == order
+            and str(row.get("cut", "")) == cut
+        ]
+        opportunities = sum(int(row.get("opportunity_count", 0)) for row in matching)
+        if opportunities == 0:
+            reasons.append(f"{profile_id}/{order}/{cut} has zero clean-positive opportunity")
+    return reasons
+
+
 def run_lane2_gated_diagnostic_evidence(
     output_dir: Path | None = None,
     phrase_entries: Sequence[PhraseEntry] | None = None,
+    provided_selection_rows: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     selected_output_dir = output_dir or (REPO_ROOT / OUTPUT_DIR_REL)
     specs = selected_profile_specs()
     validate_profile_specs_for_lane2(specs)
-    entries = tuple(phrase_entries) if phrase_entries is not None else load_fast_runtime_index_entries()
-    cases = build_eval_cases(entries)
+    if phrase_entries is None:
+        entries, selection_rows = load_fast_runtime_index_selection(specs)
+    else:
+        entries = tuple(phrase_entries)
+        selection_rows = (
+            list(provided_selection_rows)
+            if provided_selection_rows is not None
+            else selection_rows_from_entries(entries, specs)
+        )
+    cases = build_eval_cases(entries, specs, selection_rows)
     hits, scan_rows = scan_cases(cases, entries, specs)
+    opportunity_blocks = opportunity_contract_block_reasons(cases, scan_rows, selection_rows)
     all_summary_rows, blocked_summary_rows, canonical_summary_rows, cluster_rows = build_summary_rows(cases, hits, specs)
     combined_summary_rows = [*all_summary_rows, *blocked_summary_rows, *canonical_summary_rows]
     concentration = concentration_rows(combined_summary_rows, hits)
     null_rows = null_comparison_rows(combined_summary_rows)
     damage_rows = damage_tier_summary_rows(combined_summary_rows)
     case_by_id = {case.candidate_id: case for case in cases}
-    manifest = run_manifest(cases=cases, entries=entries, specs=specs, hits=hits, output_dir=selected_output_dir)
+    manifest = run_manifest(
+        cases=cases,
+        entries=entries,
+        specs=specs,
+        hits=hits,
+        output_dir=selected_output_dir,
+        selection_rows=selection_rows,
+        opportunity_block_reasons=opportunity_blocks,
+    )
 
     write_json(selected_output_dir / "run_manifest.json", manifest)
     write_json(selected_output_dir / "corpus_manifest.json", corpus_manifest(cases, entries))
+    write_jsonl(selected_output_dir / "selected_phrase_entries.jsonl", (phrase_entry_row(entry) for entry in entries))
+    write_jsonl(selected_output_dir / "diagnostic_cases.jsonl", (case_row(case) for case in cases))
+    write_jsonl(selected_output_dir / "boundary_cases.jsonl", (case_row(case) for case in cases if case.expected_role == "boundary"))
+    write_jsonl(selected_output_dir / "positive_cases.jsonl", (case_row(case) for case in cases if case.expected_role == "positive"))
     write_jsonl(selected_output_dir / "positive_passages.jsonl", (case_row(case) for case in cases if case.expected_role == "positive"))
     write_jsonl(selected_output_dir / "null_passages.jsonl", (case_row(case) for case in cases if case.expected_role == "null"))
     write_jsonl(selected_output_dir / "damaged_cases.jsonl", (case_row(case) for case in cases if case.damage_mode == "substitute"))
     write_csv(selected_output_dir / "profile_manifest_rows.csv", profile_manifest_rows(specs))
+    write_csv(selected_output_dir / "selection_manifest_rows.csv", list(selection_rows))
+    write_json(
+        selected_output_dir / "selection_manifest.json",
+        {
+            "status": manifest["selection_contract_status"],
+            "bucket_count": len(selection_rows),
+            "blocked_bucket_count": sum(1 for row in selection_rows if row["selection_status"] == "blocked"),
+            "rows": list(selection_rows),
+        },
+    )
     write_csv(selected_output_dir / "candidate_profile_summary_rows.csv", combined_summary_rows)
     write_csv(selected_output_dir / "candidate_cluster_summary_rows.csv", cluster_rows)
-    write_csv(selected_output_dir / "sampled_hit_rows.csv", sampled_hit_rows(hits, case_by_id))
+    write_csv(selected_output_dir / "sampled_hit_rows.csv", hit_rows(hits, case_by_id, limit=HIT_SAMPLE_LIMIT))
+    write_csv(selected_output_dir / "full_hit_rows.csv", hit_rows(hits, case_by_id))
     write_csv(selected_output_dir / "null_comparison_rows.csv", null_rows)
     write_csv(selected_output_dir / "concentration_rows.csv", concentration)
     write_csv(selected_output_dir / "damage_tier_summary_rows.csv", damage_rows)
     write_csv(selected_output_dir / "scan_diagnostic_rows.csv", scan_rows)
     write_readout(selected_output_dir / "review_readout.md", manifest, null_rows)
-    print(f"[{RUN_LABEL}] status=diagnostic_evidence_ready_for_review")
+    print(f"[{RUN_LABEL}] status={manifest['evidence_status']}")
     print(f"[{RUN_LABEL}] output_dir={manifest['output_dir']}")
     print(f"[{RUN_LABEL}] cases={manifest['case_count']} hits={manifest['raw_hit_count']}")
     return manifest

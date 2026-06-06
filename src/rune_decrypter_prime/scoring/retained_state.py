@@ -9,6 +9,11 @@ import numpy as np
 from rune_decrypter_prime.core.types import Direction, ensure_direction
 from rune_decrypter_prime.scoring.scorer_report import ScorerReport
 from rune_decrypter_prime.scoring.scorer_report_builder import build_scorer_report
+from rune_decrypter_prime.scoring.ngram_hamming.reference import PhraseHit
+from rune_decrypter_prime.scoring.ngram_hamming.report_only_telemetry import (
+    N3CNormalReportTelemetryConfig,
+    merge_n3c_normal_report_details,
+)
 
 
 def _int_token(value: Any, *, field_name: str) -> int:
@@ -131,6 +136,8 @@ def score_plaintext_candidate(
     cost_ms: float | None = None,
     extra_metrics: Mapping[str, float] | None = None,
     extra_details: Mapping[str, Any] | None = None,
+    n3c_normal_hits: Iterable[PhraseHit] | None = None,
+    n3c_normal_report_config: N3CNormalReportTelemetryConfig | None = None,
 ) -> ScorerReport:
     if not isinstance(candidate, PlaintextRetainedCandidate):
         raise TypeError("candidate must be a PlaintextRetainedCandidate")
@@ -138,6 +145,14 @@ def score_plaintext_candidate(
         raise TypeError("scorer must provide score(plaintext, wli)")
 
     score = float(scorer.score(candidate.plaintext_idx, candidate.wli))
+    report_details = extra_details
+    if n3c_normal_report_config is not None:
+        report_details = merge_n3c_normal_report_details(
+            extra_details=extra_details,
+            candidate_id=candidate.candidate_id or "",
+            hits=n3c_normal_hits or (),
+            config=n3c_normal_report_config,
+        )
     return build_scorer_report(
         scorer=scorer,
         objective_str=objective_str,
@@ -145,5 +160,5 @@ def score_plaintext_candidate(
         raw_score=raw_score,
         cost_ms=cost_ms,
         extra_metrics=extra_metrics,
-        extra_details=extra_details,
+        extra_details=report_details,
     )

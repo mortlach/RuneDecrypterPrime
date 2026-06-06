@@ -9,6 +9,12 @@ from rune_decrypter_prime.ciphers.periodic_columnar_cipher import PeriodicColumn
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.types import Device, Direction
 from rune_decrypter_prime.core.types import ObjectiveFamily, ObjectiveSpec, Stat
+from rune_decrypter_prime.scoring.ngram_hamming.reference import PhraseHit
+from rune_decrypter_prime.scoring.ngram_hamming.report_only_telemetry import (
+    N3CNormalReportTelemetryConfig,
+    REPORT_DETAILS_KEY,
+)
+from tools.benchmarks.periodic_sub_trans.common.scorer_sidecar import append_scorer_report_jsonl
 from tools.benchmarks.periodic_sub_trans.common.bench_solve_periodic_columnar_kaeding import (
     _preflight_known_key_roundtrip,
 )
@@ -90,3 +96,45 @@ def test_preflight_sidecar_writes_jsonl_report(tmp_path: Path) -> None:
     assert row["report"]["objective_spec"]["stat"] == "logp"
     assert row["report"]["objective_spec"]["win"] == 10
     assert row["context"]["event"] == "gate0_preflight_oracle"
+
+
+def test_sidecar_exports_opt_in_report_only_telemetry_without_changing_score(tmp_path: Path) -> None:
+    hit = PhraseHit(
+        candidate_id="candidate-a",
+        chunk_id="chunk-a",
+        damage_level="none",
+        profile_id="BR_O3_conservative",
+        ngram_order=3,
+        dictionary_cut="normal",
+        phrase_id="phrase-a",
+        phrase_count=1,
+        phrase_log_count=0.0,
+        phrase_token_length=8,
+        word_lengths=(1, 3, 4),
+        word_hds=(0, 0, 0),
+        total_phrase_hd=0,
+        max_word_hd=0,
+        mean_word_hd=0.0,
+        normalised_phrase_hd=0.0,
+        hit_start=2,
+        hit_end=10,
+    )
+    expected_score = 12.5
+    row = append_scorer_report_jsonl(
+        tmp_path / "scorer_reports.jsonl",
+        scorer=_FakePctScorerWithTelemetry(),
+        score=expected_score,
+        n3c_normal_candidate_id="candidate-a",
+        n3c_normal_hits=(hit,),
+        n3c_normal_report_config=N3CNormalReportTelemetryConfig(
+            enabled=True,
+            runtime_index_asset_id="runtime-v1",
+            compact_asset_id="compact-v1",
+            runtime_validation_status="pass",
+        ),
+    )
+
+    assert row["report"]["score"] == expected_score
+    telemetry = row["report"]["details"][REPORT_DETAILS_KEY]
+    assert telemetry["hit_count"] == 1
+    assert telemetry["production_rank_effect"] == "none"
