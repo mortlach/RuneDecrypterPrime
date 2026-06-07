@@ -15172,6 +15172,280 @@ Preflight:
 - This remains conditional break-risk telemetry only, not calibrated
   correctness probability and not production scoring/ranking authority.
 
+## 2026-06-06 - Strict O3 anchor damage calibration pack integrated
+
+- Integrated dev pack from:
+  `C:\Users\sjduk\Downloads\strict_o3_anchor_damage_calibration_dev_pack_v1\strict_o3_anchor_damage_calibration_dev_pack_v1`
+- Integrated reference modules:
+  - `tools/benchmarks/periodic_sub_trans/no_wli/analysis/strict_o3_anchor_reference_v1.py`
+  - `tools/benchmarks/periodic_sub_trans/no_wli/analysis/damage_models_reference_v1.py`
+- Integrated runners:
+  - `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_failed_decryption_n3c_strict_320_long_hit_floor_profile_v1.py`
+  - `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_strict_o3_anchor_known_damage_calibration_v1.py`
+- Design docs copied to:
+  `planning/projects/no_wli/35_design/strict_o3_anchor_damage_calibration_dev_pack_v1/`
+- Tests:
+  `C:\Python\Python311\python.exe -m pytest tests/tools/strict_o3_anchor_damage_calibration_dev_pack_v1 tests/tools/test_phaseB_n3c_strict_320_long_hit_floor_profile_v1.py -q`
+  -> `8 passed`
+- Ran long-hit floor profile over full strict-320 hit manifest:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_failed_decryption_n3c_strict_320_long_hit_floor_profile_v1/`
+- Inputs:
+  - hit files: `20`
+  - hit rows: `6,415,767`
+  - candidate groups: `320`
+  - pair rows: `590`
+- Margin-abstention highlights:
+  - `HD0_L10_nonoverlap_basic`, margin `5`: `355` agree, `25` break,
+    `210` tie, break rate `0.042373`
+  - `HD0_L10_nonoverlap_basic`, margin `10`: `193` agree, `0` break,
+    `397` tie
+  - `HD0_L12_nonoverlap_basic`, margin `0`: `573` agree, `17` break,
+    break rate `0.028814`
+  - `HD0_L12_nonoverlap_basic`, margin `5`: `130` agree, `0` break,
+    `460` tie
+- Wrote known-damage calibration skeleton manifest:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_strict_o3_anchor_known_damage_calibration_v1/known_damage_calibration_manifest.json`
+- Calibration samples are not yet runnable because the required hook
+  `hit_generator(sample_id, tokens) -> list[HitRow]` still needs to be wired to
+  the repo strict O3/N3C hit-row generator.
+- Authority remains report-only. No production scoring/ranking change is
+  approved.
+
+## 2026-06-07 - Strict O3 known-damage canary completed and packed
+
+- Runner:
+  `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_strict_o3_anchor_known_damage_calibration_canary_v1.py`
+- Launcher:
+  `tools/benchmarks/periodic_sub_trans/no_wli/analysis/launch_phaseB_strict_o3_anchor_known_damage_calibration_canary_visible_v1.ps1`
+- Output:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_strict_o3_anchor_known_damage_calibration_canary_v1/`
+- Scope:
+  - clean FWD chunks: `3`
+  - generated samples: `57`
+  - samples per clean chunk: `19`
+  - strict O3 runtime chunks: `774/774`
+  - hit rows: `51,297`
+  - elapsed seconds: `4,907.75`
+  - peak memory: `676.67 MB`
+  - exit code: `0`
+- Outputs:
+  - `calibration_clean_chunk_rows.csv`
+  - `calibration_sample_rows.csv`
+  - `known_damage_anchor_summary_rows.csv`
+  - `known_damage_anchor_region_rows.csv`
+  - `known_damage_runtime_chunk_rows.csv`
+  - `known_damage_vs_null_summary_rows.csv`
+  - `known_damage_calibration_manifest.json`
+- Focused tests:
+  `C:\Python\Python311\python.exe -m pytest tests/tools/strict_o3_anchor_damage_calibration_dev_pack_v1 tests/tools/test_phaseB_n3c_strict_320_long_hit_floor_profile_v1.py tests/tools/test_phaseB_strict_o3_anchor_known_damage_calibration_canary_v1.py tests/tools/test_phaseB_n3c_strict_320_anchor_lens_quickcheck_v1.py tests/tools/test_phaseB_n3c_strict_320_anchor_joint_rule_sweep_v1.py -q`
+  -> `20 passed`
+- First readout:
+  - `HD0_L10` clean mean selected weight: `62.1`
+  - `HD0_L10` uniform random mean selected weight: `0.0`
+  - `HD0_L10` global-frequency random mean selected weight: `0.0`
+  - `HD0_L10` within-chunk shuffle mean selected weight: `0.0`
+  - `HD0_L10` block shuffle 50 mean selected weight: `53.1`
+- Built review pack:
+  `planning/projects/no_wli/40_review_summaries/phaseB_strict_o3_anchor_damage_calibration_canary_review_pack_2026-06-07.zip`
+- Pack facts:
+  - entries: `46`
+  - ZIP size: `449,430` bytes
+  - backslash entries: `0`
+  - full hit CSV payloads embedded: `false`
+- Interpretation: the end-to-end FWD known-damage pipeline works and is now
+  ready for review. Random nulls collapse to zero anchor evidence, while block
+  shuffles preserve strong local anchor evidence; larger pilots should treat
+  block shuffles as hard local-order controls, not ordinary nulls.
+- Authority remains report-only. No production scoring/ranking change is
+  approved.
+
+## 2026-06-07 - Strict O3 known-damage canary audit applied and v2 completed
+
+- External audit verdict: do not use the completed v1 canary for long-run
+  calibration decisions.
+- Audit reasons:
+  - nominal damage calls did not guarantee requested global changed fraction;
+    `word_local_substitution` and `lane_period_substitution` were especially
+    misleading under the old labels
+  - grouped summaries collapsed `0.30` and `0.50`
+  - `null` was an unsafe CSV label for downstream pandas defaults
+  - `HD1_L12` and `HD2_L15` names implied exact-HD bands although code used
+    `hd <= max_hd`
+  - phrase-rarity weighting was not active because generated hit rows did not
+    populate `phrase_count`
+- Code patched:
+  - added target-actual damage generation in
+    `tools/benchmarks/periodic_sub_trans/no_wli/analysis/damage_models_reference_v1.py`
+  - updated canary output phase to
+    `phaseB_strict_o3_anchor_known_damage_calibration_canary_v2`
+  - v2 uses 2 clean FWD chunks, 38 samples, target-actual damage tolerance
+    `0.01`, source kinds `clean`/`damaged`/`ordinary_null`/
+    `hard_local_order_control`, and lenses `HD0_L10`, `HD0_L12`,
+    `HDle1_L12`, `HDle2_L15`
+  - grouped summaries now keep requested damage level separate and emit mean,
+    stddev, stderr, ci95, median, p10, p90, min, and max for selected score,
+    longest selected phrase length, and actual changed fraction
+  - review pack builder now targets v2 and states that v1 is superseded for
+    calibration decisions
+- Preflight checks:
+  - `C:\Python\Python311\python.exe -m pytest tests/tools/strict_o3_anchor_damage_calibration_dev_pack_v1/test_damage_models_reference_v1.py -q`
+    -> `2 passed`
+  - `py_compile` on patched canary and damage reference -> passed
+  - sample-builder preflight -> `2` chunks, `38` samples, max target miss
+    `0.0008032128514056103`
+- Visible v2 canary:
+  `tools/benchmarks/periodic_sub_trans/no_wli/analysis/launch_phaseB_strict_o3_anchor_known_damage_calibration_canary_visible_v1.ps1`
+- Log:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_strict_o3_anchor_known_damage_calibration_canary_v2/known_damage_calibration_canary_v2_2026-06-07.log`
+- Completed status:
+  - status: `known_damage_canary_complete`
+  - clean chunks: `2`
+  - samples: `38`
+  - runtime chunks: `774/774`
+  - hit rows: `25,586`
+  - elapsed seconds: `4,510.59`
+  - peak memory: `673.33 MB`
+  - exit code: `0`
+- Output/accounting:
+  - sample rows: `38`
+  - damaged sample rows: `24`
+  - max damage-rate miss: `0.0008032128514056103`
+  - failed damage contracts: `0`
+  - anchor summary rows: `152`
+  - selected anchor region rows: `481`
+  - runtime rows: `774`
+  - runtime verified-hit sum: `25,586`
+- Focused tests:
+  `C:\Python\Python311\python.exe -m pytest tests/tools/strict_o3_anchor_damage_calibration_dev_pack_v1 tests/tools/test_phaseB_strict_o3_anchor_known_damage_calibration_canary_v1.py -q`
+  -> `11 passed`
+- First v2 readout:
+  - ordinary nulls (`uniform_random`, `global_frequency_random`,
+    `within_chunk_shuffle`) produced zero selected anchor score for tested
+    lenses
+  - hard local-order controls (`block_shuffle_10`, `block_shuffle_25`,
+    `block_shuffle_50`) retained nonzero/strong anchor signal
+  - at `HD0_L10`, clean mean selected weight was `68.4`; block shuffle 50 was
+    `60.225`; uniform/global/within-chunk random were `0.0`
+  - at `HD0_L10`, burst damage retained substantial anchors: `35.475` at
+    `0.30`, `21.825` at `0.50`; most random/frequency/lane high-damage models
+    collapsed toward zero
+- Gate: do not launch long calibration until the v2 review pack is built and
+  reviewed.
+- Built v2 review pack:
+  `planning/projects/no_wli/40_review_summaries/phaseB_strict_o3_anchor_damage_calibration_canary_v2_review_pack_2026-06-07.zip`
+- Pack facts:
+  - status: `packed_review_ready`
+  - entries: `46`
+  - ZIP size: `444,488` bytes
+  - backslash entries: `0`
+  - full hit CSV payloads embedded: `false`
+  - key files verified present: `00_start_here.md`,
+    `02_authority_and_limits.md`,
+    `30_outputs/known_damage_canary/known_damage_calibration_manifest.json`,
+    `30_outputs/known_damage_canary/known_damage_vs_null_summary_rows.csv`,
+    `50_source/tools/benchmarks/periodic_sub_trans/no_wli/analysis/damage_models_reference_v1.py`,
+    `40_tests/tests/tools/test_phaseB_strict_o3_anchor_known_damage_calibration_canary_v1.py`,
+    `PACK_BUILD_SUMMARY.json`
+- Gate updated: send only the v2 pack for review; do not launch long
+  calibration until review feedback is incorporated.
+
+## 2026-06-07 - Strict O3 damage calibration v2-fix handoff incorporated
+
+- Copied handoff pack from:
+  `C:\Users\sjduk\Downloads\strict_o3_damage_calibration_v2_fix_dev_handoff_pack_2026-06-07`
+- Repo-local handoff copy:
+  `planning/projects/no_wli/35_design/strict_o3_damage_calibration_v2_fix_dev_handoff_pack_2026-06-07/`
+- Excluded copied cache artefacts: `.pytest_cache`, `__pycache__`
+- Handoff verdict: v2 fixed actual changed fraction but still risked
+  flattening structured model shape; do not run long calibration yet.
+- Added source:
+  - `tools/benchmarks/periodic_sub_trans/no_wli/analysis/damage_models_reference_v2.py`
+  - `tools/benchmarks/periodic_sub_trans/no_wli/analysis/summary_grouping_reference_v2.py`
+  - `tools/benchmarks/periodic_sub_trans/no_wli/analysis/runtime_projection_reference_v2.py`
+- Added tests:
+  - `tests/tools/test_phaseB_strict_o3_damage_models_reference_v2.py`
+  - `tests/tools/test_phaseB_strict_o3_summary_grouping_reference_v2.py`
+  - `tests/tools/test_phaseB_strict_o3_runtime_projection_reference_v2.py`
+- Patched canary to write:
+  `phaseB_strict_o3_anchor_known_damage_calibration_canary_v2_fix`
+- v2-fix canary changes:
+  - structured `DamageResult` generation for damaged samples
+  - sample rows include `damage_shape` and serialized
+    `damage_shape_metadata`
+  - runtime chunk rows include `direction` and `run_spec_direction`
+  - manifest records `structured_damage_shape_contract`
+  - runtime projections are emitted to
+    `known_damage_runtime_projection_rows.csv`
+  - review pack builder now targets v2-fix and includes the new reference
+    modules/tests
+- Cheap checks:
+  - patched modules/scripts compile: passed
+  - handoff reference tests:
+    `C:\Python\Python311\python.exe -m pytest tests\tools\test_phaseB_strict_o3_damage_models_reference_v2.py tests\tools\test_phaseB_strict_o3_summary_grouping_reference_v2.py tests\tools\test_phaseB_strict_o3_runtime_projection_reference_v2.py -q`
+    -> `9 passed`
+  - sample-builder preflight: `2` chunks, `38` samples, max target miss
+    `0.0008032128514056103`, shape families present:
+    `burst_exact_count`, `frequency_matched_exact_positions`,
+    `independent_exact_positions`, `lane_period_exact_count`,
+    `word_local_exact_count`
+- Visible v2-fix canary:
+  `tools/benchmarks/periodic_sub_trans/no_wli/analysis/launch_phaseB_strict_o3_anchor_known_damage_calibration_canary_visible_v1.ps1`
+- Log:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_strict_o3_anchor_known_damage_calibration_canary_v2_fix/known_damage_calibration_canary_v2_fix_2026-06-07.log`
+- Completed status:
+  - status: `known_damage_canary_complete`
+  - runtime chunks: `774/774`
+  - samples: `38`
+  - hit rows: `28,994`
+  - elapsed seconds: `1,907.55`
+  - peak memory: `675.75 MB`
+  - exit code: `0`
+- Accounting:
+  - sample rows: `38`
+  - damaged rows: `24`
+  - max target miss: `0.0008032128514056103`
+  - failed damage contracts: `0`
+  - shape counts: `burst_exact_count=4`,
+    `frequency_matched_exact_positions=8`,
+    `independent_exact_positions=4`,
+    `lane_period_exact_count=4`, `word_local_exact_count=4`
+  - runtime rows: `774`
+  - runtime verified-hit sum: `28,994`
+  - runtime directions: `fwd`
+  - anchor summary rows: `152`
+  - selected anchor region rows: `561`
+  - group summary rows: `76`
+- Runtime projections from v2-fix canary throughput:
+  - stageA `10` chunks current profile: `2.65h`
+  - stageB `25` chunks current profile: `6.62h`
+  - stageC `50` chunks current profile: `13.25h`
+  - wide `50` chunks / `109` samples per chunk: `76.0h`
+  - wide `500` chunks / `109` samples per chunk: `31.66d`
+- Focused tests:
+  `C:\Python\Python311\python.exe -m pytest tests/tools/strict_o3_anchor_damage_calibration_dev_pack_v1 tests/tools/test_phaseB_strict_o3_damage_models_reference_v2.py tests/tools/test_phaseB_strict_o3_summary_grouping_reference_v2.py tests/tools/test_phaseB_strict_o3_runtime_projection_reference_v2.py tests/tools/test_phaseB_strict_o3_anchor_known_damage_calibration_canary_v1.py -q`
+  -> `20 passed`
+- Built v2-fix review pack:
+  `planning/projects/no_wli/40_review_summaries/phaseB_strict_o3_anchor_damage_calibration_canary_v2_fix_review_pack_2026-06-07.zip`
+- Pack facts:
+  - status: `packed_review_ready`
+  - entries: `53`
+  - ZIP size: `459,405` bytes
+  - backslash entries: `0`
+  - full hit CSV payloads embedded: `false`
+  - key files verified present: `00_start_here.md`,
+    `02_authority_and_limits.md`,
+    `30_outputs/known_damage_canary/known_damage_calibration_manifest.json`,
+    `30_outputs/known_damage_canary/known_damage_runtime_projection_rows.csv`,
+    `30_outputs/known_damage_canary/known_damage_vs_null_summary_rows.csv`,
+    `50_source/tools/benchmarks/periodic_sub_trans/no_wli/analysis/damage_models_reference_v2.py`,
+    `50_source/tools/benchmarks/periodic_sub_trans/no_wli/analysis/summary_grouping_reference_v2.py`,
+    `50_source/tools/benchmarks/periodic_sub_trans/no_wli/analysis/runtime_projection_reference_v2.py`,
+    `40_tests/tests/tools/test_phaseB_strict_o3_damage_models_reference_v2.py`,
+    `40_tests/tests/tools/test_phaseB_strict_o3_anchor_known_damage_calibration_canary_v1.py`,
+    `PACK_BUILD_SUMMARY.json`
+- Gate: send the v2-fix review pack. Long calibration remains blocked until
+  v2-fix review is clean.
+
 ## 2026-06-06 - S3 strict full80 completed, consolidated, compared, and packed
 
 - Visible serial S3 strict runner completed all five buckets and reached
