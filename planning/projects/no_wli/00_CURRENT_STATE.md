@@ -1,5 +1,68 @@
 # Current state
 
+## 2026-06-07 strict O3/O4 joint diagnostic run
+
+Current active run:
+
+- `phaseB_strict_o3_o4_fwd_initial_joint_diagnostic_v1`
+- mode: `bounded_8h_8_clean_chunks`
+- status: launched in visible PowerShell after smoke and resume smoke passed
+- log:
+  `planning/projects/no_wli/50_console_and_watch_logs/phaseB_strict_o3_o4_fwd_initial_joint_diagnostic_bounded_8h_2026-06-07.log`
+- output:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_strict_o3_o4_fwd_initial_joint_diagnostic_v1/`
+
+Scope is strict/FWD only:
+
+- O3 strict FWD runtime
+- O4 strict FWD runtime
+- no normal O4 assets copied or used
+- no REV rows
+- no production scorer or ranking authority
+
+Prelaunch checks completed:
+
+- strict O4 runtime copied locally from DJ-MINI minimal strict runtime slice
+- strict O4 local validation:
+  - status: `pass`
+  - checked files: `1716`
+  - failures: `0`
+  - validation output:
+    `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_strict_o4_fwd_runtime_authority_local_validation_v1/`
+- O3/O4 integration dev pack copied to:
+  `planning/projects/no_wli/35_design/o3_o4_initial_integration_scoring_dev_pack_2026-06-07/`
+- common contract tests:
+  `16 passed`
+- shared smoke run:
+  - samples: `13`
+  - O3 summary rows: `52`
+  - O4 summary rows: `13`
+  - joint rows: `13`
+  - failed/incomplete rows: `0`
+  - FWD-only confirmed
+- resume smoke:
+  - status: `pass`
+  - committed sample skipped
+  - attempted-without-summary sample retried
+  - incomplete part rebuilt
+  - duplicate summary commits: `false`
+
+Launch note:
+
+- first bounded launcher attempt was stopped because only wrapper headers were
+  visible in the log and runner progress was not yet emitted
+- runner was patched to print O3 group progress and O4 sample progress with
+  elapsed time and ETA
+- corrected visible run start observed:
+  `stage=o3_scan groups=1/774 samples=296`
+
+Next gate:
+
+- when this bounded run exits, collate outputs and build the O3/O4 initial
+  integration review pack before any 25/50/more-chunk run
+- do not tune, broaden, switch to REV, change O4 group scope, or promote score
+  authority during this run
+
 ## 2026-05-30 n-gram scorer canon/bridge update
 
 The discussion draft in
@@ -3143,4 +3206,41 @@ Strict O3 damage calibration v2-fix handoff incorporated:
 
 Next step: send the v2-fix review pack. Long calibration remains blocked until
 v2-fix review is clean.
+
+O4 strict runtime asset transfer from DJ-MINI started:
+
+- DJ-MINI root:
+  `\\DJ-MINI\Users\sjduk\Documents\GitHub\cic\RuneDecrypterPrime`
+- local root:
+  `C:\Users\sjduk\OneDrive\Documents\github\RuneDecrypterPrime`
+- transfer decision: strict-only O4 runtime payload, not normal runtime and not
+  compact/rebuild artefacts
+- reason: current O4 bridge is strict/FWD/order-4 confirmation only; strict
+  runtime is about `26.225 GB`, while full O4 runtime is about `60.802 GB` and
+  compact/rebuild artefacts add about `78.773 GB`
+- local free space before transfer: about `100 GB`
+- already copied small O4 files:
+  - `runtime_index_manifest.json`
+  - `phaseB_ngram_hamming_order4_fwd_nose_fast_runtime_lookup_index_validation_v1/`
+  - `phaseB_ngram_hamming_order4_fwd_nose_compact_phrase_lookup_asset_validation_v1/`
+  - `validate_phaseB_ngram_hamming_order4_fwd_nose_fast_runtime_lookup_index_v1.py`
+  - `phaseB_strict_o4_fwd_bridge_reference_v1.py`
+  - `phaseB_target_actual_damage_models_v1.py`
+  - `run_phaseB_strict_o4_fwd_nose_bridge_damage_ladder_canary_v2.py`
+  - `build_phaseB_strict_o4_fwd_bridge_diagnostic_v2_review_pack.py`
+- visible copy launcher:
+  `planning/projects/no_wli/60_launch_scripts/copy_o4_strict_runtime_from_djmini_2026-06-07.ps1`
+- copy log:
+  `planning/projects/no_wli/50_console_and_watch_logs/copy_o4_strict_runtime_from_djmini_2026-06-07.log`
+- copy scope:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_ngram_hamming_order4_fwd_nose_fast_runtime_lookup_index_v1/runtime_index/direction=fwd/order=4/cut=strict/`
+- expected strict payload:
+  - files: `3,432`
+  - bytes: `28,158,351,935`
+- note: robocopy progress text may appear garbled when read from the log due to
+  console encoding, but the visible PowerShell shows live progress and the
+  launcher writes plain-text start/final summary lines.
+
+Next step after copy completion: verify local strict file count/bytes, run an
+O4 strict-only authority/hash spot check, then wire the common O3/O4 framework.
 

@@ -15349,6 +15349,75 @@ Preflight:
 - Gate updated: send only the v2 pack for review; do not launch long
   calibration until review feedback is incorporated.
 
+## 2026-06-07 - Strict O3/O4 initial joint diagnostic launched
+
+- User direction: proceed with strict-only O3/O4 integrated scoring diagnostic;
+  do not copy or use normal O4 assets for this pass.
+- Copied O3/O4 integration dev pack from:
+  `C:\Users\sjduk\Downloads\o3_o4_initial_integration_scoring_dev_pack_2026-06-07\o3_o4_initial_integration_scoring_dev_pack_2026-06-07`
+- Repo-local design copy:
+  `planning/projects/no_wli/35_design/o3_o4_initial_integration_scoring_dev_pack_2026-06-07/`
+- Copied minimal strict O4 runtime slice from DJ-MINI:
+  `\\DJ-MINI\Users\sjduk\Documents\GitHub\cic\RuneDecrypterPrime`
+- Local strict O4 runtime:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_ngram_hamming_order4_fwd_nose_fast_runtime_lookup_index_v1/runtime_index/direction=fwd/order=4/cut=strict/`
+- Strict O4 runtime validation:
+  - output:
+    `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_strict_o4_fwd_runtime_authority_local_validation_v1/`
+  - status: `pass`
+  - checked files: `1716`
+  - failure count: `0`
+  - scope: `strict_fwd_order4_runtime_only`
+- Added common O3/O4 integration support modules under:
+  `tools/benchmarks/periodic_sub_trans/no_wli/analysis/common/`
+- Added/ported contract tests under:
+  `tests/tools/`
+- Contract verification:
+  `C:\Python\Python311\python.exe -m pytest tests\tools\test_phaseB_common_asset_authority_v1.py tests\tools\test_phaseB_common_resume_runner_v1.py tests\tools\test_phaseB_damage_levels_contract_v1.py tests\tools\test_phaseB_joint_feature_contract_v1.py tests\tools\test_phaseB_joint_rule_grid_reference_v1.py -q`
+  -> `16 passed`
+- Added shared strict O3/O4 diagnostic runner:
+  `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_strict_o3_o4_fwd_joint_diagnostic_v1.py`
+- Added resume smoke:
+  `tools/benchmarks/periodic_sub_trans/no_wli/analysis/run_phaseB_strict_o3_o4_fwd_joint_resume_smoke_v1.py`
+- Smoke result:
+  - samples: `13`
+  - O3 rows: `52`
+  - O4 rows: `13`
+  - joint rows: `13`
+  - failed rows: `0`
+  - incomplete rows: `0`
+  - direction: `fwd`
+  - dictionary cut: `strict`
+- Resume smoke result:
+  - status: `pass`
+  - committed samples skipped
+  - attempted-without-summary sample retried
+  - incomplete part rebuilt
+  - duplicate summary commits: `false`
+- First bounded launcher attempt was stopped because the runner did not emit
+  live progress beyond wrapper headers.
+- Patched runner progress output:
+  - O3 scan prints completed runtime groups, elapsed seconds, ETA
+  - O4 scan prints completed samples, elapsed seconds, ETA
+- Visible bounded launcher:
+  `planning/projects/no_wli/60_launch_scripts/phaseB_strict_o3_o4_fwd_initial_joint_diagnostic_bounded_8h_launch_2026-06-07.ps1`
+- Visible run log:
+  `planning/projects/no_wli/50_console_and_watch_logs/phaseB_strict_o3_o4_fwd_initial_joint_diagnostic_bounded_8h_2026-06-07.log`
+- Corrected launch observed:
+  `stage=o3_scan groups=1/774 samples=296`
+- Run mode:
+  `bounded_8h_8_clean_chunks`
+- Intended wallclock:
+  `28800` seconds
+- Stop condition:
+  `complete_or_process_exit`
+- Output:
+  `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_strict_o3_o4_fwd_initial_joint_diagnostic_v1/`
+- Gate remains: build review pack after this bounded run completes before any
+  longer 25/50/more-chunk run. Still not approved: production scoring/ranking,
+  REV data, normal O4 scope, mixed-scope O4 rows, broad bridge scan, or
+  score-authority promotion.
+
 ## 2026-06-07 - Strict O3 damage calibration v2-fix handoff incorporated
 
 - Copied handoff pack from:
