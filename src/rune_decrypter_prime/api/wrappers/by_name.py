@@ -480,6 +480,153 @@ class by_name:
         )
         return spec, key
 
+    @staticmethod
+    def _scheduled_stream_lookup(
+        *,
+        streams,
+        schedule: str = "overlay",
+        operation: str = "add",
+        mask=None,
+        alphabet_size: int | None = None,
+        default_key: bool = False,
+        **kwargs: Any,
+    ):
+        """Generic scheduled stream lookup wrapper.
+
+        This is the public wrapper for the real engine cipher. Preset aliases
+        below only build this same wrapper with convenient defaults.
+        """
+        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+
+        A = int(alphabet_size) if alphabet_size is not None else _pull_N(kwargs)
+        spec = CipherSpec._wrapper(
+            name="scheduled_stream_lookup",
+            core_name="scheduled_stream_lookup",
+            N=A,
+        )
+        spec.extra["streams"] = list(streams)
+        spec.extra["schedule"] = str(schedule)
+        spec.extra["operation"] = str(operation)
+        spec.extra["alphabet_size"] = A
+        if mask is not None:
+            spec.extra["mask"] = list(mask)
+
+        # Preserve scheduled-stream knobs instead of silently dropping them.
+        for field in (
+            "degeneracy", "per_pos_limit", "resolver_limit", "lookup",
+            "alternating_start", "a_start", "b_start", "a_end", "b_end",
+        ):
+            if field in kwargs and kwargs[field] is not None:
+                spec.extra[field] = kwargs[field]
+
+        key_length = sum(
+            int(s.get("period", 0))
+            for s in spec.extra["streams"]
+            if isinstance(s, dict) and str(s.get("kind", "")).lower() == "periodic"
+        )
+        key = KeySpec.repeat(len=key_length) if default_key else None
+        return spec, key
+
+    @staticmethod
+    def _periodic_plus_primes(
+        *,
+        period: int = 13,
+        prime_offset: int = 0,
+        alphabet_size: int | None = None,
+        default_key: bool = False,
+        **kwargs: Any,
+    ):
+        """Preset alias: unknown periodic stream plus generated prime stream."""
+        streams = [
+            {"name": "A", "kind": "periodic", "period": int(period)},
+            {"name": "P", "kind": "primes", "offset": int(prime_offset)},
+        ]
+        return by_name._scheduled_stream_lookup(
+            streams=streams,
+            schedule="overlay",
+            operation="add",
+            alphabet_size=alphabet_size,
+            default_key=default_key,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _periodic_plus_sequence(
+        *,
+        period: int = 13,
+        sequence=None,
+        alphabet_size: int | None = None,
+        default_key: bool = False,
+        **kwargs: Any,
+    ):
+        """Preset alias: unknown periodic stream plus caller-supplied sequence."""
+        if sequence is None:
+            raise ValueError("periodic_plus_sequence requires sequence=[...]")
+        streams = [
+            {"name": "A", "kind": "periodic", "period": int(period)},
+            {"name": "S", "kind": "sequence", "values": [int(v) for v in sequence]},
+        ]
+        return by_name._scheduled_stream_lookup(
+            streams=streams,
+            schedule="overlay",
+            operation="add",
+            alphabet_size=alphabet_size,
+            default_key=default_key,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _two_period_vigenere(
+        *,
+        period_a: int = 13,
+        period_b: int = 31,
+        alphabet_size: int | None = None,
+        schedule: str = "overlay",
+        mask=None,
+        default_key: bool = False,
+        **kwargs: Any,
+    ):
+        """Preset alias: two unknown periodic streams combined additively."""
+        streams = [
+            {"name": "A", "kind": "periodic", "period": int(period_a)},
+            {"name": "B", "kind": "periodic", "period": int(period_b)},
+        ]
+        return by_name._scheduled_stream_lookup(
+            streams=streams,
+            schedule=schedule,
+            operation="add",
+            mask=mask,
+            alphabet_size=alphabet_size,
+            default_key=default_key,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _two_period_arithmetic(
+        *,
+        period_a: int = 13,
+        period_b: int = 31,
+        alphabet_size: int | None = None,
+        operation: str = "add_sub",
+        schedule: str = "overlay",
+        mask=None,
+        default_key: bool = False,
+        **kwargs: Any,
+    ):
+        """Preset alias: two unknown periodic streams with selectable arithmetic."""
+        streams = [
+            {"name": "A", "kind": "periodic", "period": int(period_a)},
+            {"name": "B", "kind": "periodic", "period": int(period_b)},
+        ]
+        return by_name._scheduled_stream_lookup(
+            streams=streams,
+            schedule=schedule,
+            operation=operation,
+            mask=mask,
+            alphabet_size=alphabet_size,
+            default_key=default_key,
+            **kwargs,
+        )
 
     _REG: Dict[str, Callable[..., Tuple["CipherSpec", "KeySpec | tuple[KeySpec, KeySpec] | None"]]] = {
         "vigenere": _vigenere.__func__,
@@ -500,4 +647,9 @@ class by_name:
         "periodic_substitution": _periodic_substitution.__func__,
         "periodic_columnar": _periodic_columnar.__func__,
         "hill": _hill.__func__,
+        "scheduled_stream_lookup": _scheduled_stream_lookup.__func__,
+        "periodic_plus_sequence": _periodic_plus_sequence.__func__,
+        "periodic_plus_primes": _periodic_plus_primes.__func__,
+        "two_period_vigenere": _two_period_vigenere.__func__,
+        "two_period_arithmetic": _two_period_arithmetic.__func__,
     }

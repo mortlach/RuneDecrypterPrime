@@ -7,7 +7,10 @@ from rune_decrypter_prime.core.config import CipherConfig
 from rune_decrypter_prime.core.types import Device, Direction, KeyOpsFamily
 from rune_decrypter_prime.api.api_utils import expect_key_plan, resolve_cipher_kind, resolve_key_length
 from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
-
+from rune_decrypter_prime.ciphers.scheduled_stream_lookup_cipher import (
+    solved_key_length_for_streams,
+    validate_schedule_for_streams,
+)
 
 def build_cipher_config(
     *,
@@ -459,6 +462,76 @@ def _build_autokey_wrapper(
     setattr(cfg, "alphabet_size", alphabet)
     return cfg
 
+def _build_scheduled_stream_lookup_wrapper(
+    *,
+    cipher: CipherSpec,
+    key: KeySpec,
+    ct: np.ndarray,
+    wli: Optional[Sequence[Sequence[int]]],
+    device: Device,
+    encoding_dir: Direction,
+    initial_text_permutation_indices: Optional[Sequence[int]],
+    interruptors: Optional[object],
+    interruptors_exact: Optional[Sequence[int]],
+    interruptors_pool: Optional[Sequence[int]],
+    interruptors_max: Optional[int],
+) -> CipherConfig:
+    key_spec = expect_key_plan(
+        key,
+        "repeat",
+        "scheduled_stream_lookup requires KeySpec.repeat(len=K)",
+    )
+    extras = getattr(cipher, "extra", {}) or {}
+    streams = extras.get("streams")
+    if streams is None:
+        raise ValueError("scheduled_stream_lookup wrapper requires streams")
+
+    schedule = validate_schedule_for_streams(extras.get("schedule", "overlay"), streams)
+    expected = solved_key_length_for_streams(streams)
+    supplied = int(key_spec.params.get("len", 0) or 0)
+    if supplied != expected:
+        raise ValueError(f"scheduled_stream_lookup requires key length {expected}, got {supplied}")
+
+    alphabet_size = int(extras.get("alphabet_size", getattr(cipher, "N", 29)) or 29)
+
+    cfg = CipherConfig(
+        ciphertext=ct,
+        wli_data=wli,
+        key_length=expected,
+        keyops_family=KeyOpsFamily.VECTOR,
+        keyops_hints={"mod": alphabet_size},
+        alphabet_size=alphabet_size,
+        encoding_dir=encoding_dir,
+        initial_text_permutation_indices=initial_text_permutation_indices,
+        device=device,
+        name="scheduled_stream_lookup",
+        interruptors_cfg=interruptors,
+        interruptors_exact=None if interruptors_exact is None else list(interruptors_exact),
+        interruptors_pool=None if interruptors_pool is None else list(interruptors_pool),
+        interruptors_max=None if interruptors_max is None else int(interruptors_max),
+    )
+
+    setattr(cfg, "spec", cipher)
+    cfg.streams = streams
+    cfg.schedule = schedule
+
+    for field in (
+        "operation",
+        "mask",
+        "alternating_start",
+        "a_start",
+        "b_start",
+        "a_end",
+        "b_end",
+        "degeneracy",
+        "per_pos_limit",
+        "resolver_limit",
+        "lookup",
+    ):
+        if field in extras:
+            setattr(cfg, field, extras[field])
+
+    return cfg
 
 _WRAPPER_BUILDERS = {
     "vigenere": _build_vigenere_wrapper,
@@ -471,4 +544,5 @@ _WRAPPER_BUILDERS = {
     "hill-2x2": _build_hill_wrapper,
     "railfence": _build_railfence_wrapper,
     "autokey": _build_autokey_wrapper,
+    "scheduled_stream_lookup": _build_scheduled_stream_lookup_wrapper,
 }

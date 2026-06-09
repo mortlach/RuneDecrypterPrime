@@ -18,3 +18,4 @@ from rune_decrypter_prime.ciphers.periodic_substitution_cipher import PeriodicSu
 from rune_decrypter_prime.ciphers.periodic_columnar_cipher import PeriodicColumnarCipher
 from rune_decrypter_prime.ciphers.railfence_cipher import RailFenceCipher
 from rune_decrypter_prime.ciphers.autokey_cipher import AutokeyCipher
+from rune_decrypter_prime.ciphers.scheduled_stream_lookup_cipher import ScheduledStreamLookupCipher
