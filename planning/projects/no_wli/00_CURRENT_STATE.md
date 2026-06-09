@@ -6,7 +6,7 @@ Current active run:
 
 - `phaseB_strict_o3_o4_fwd_initial_joint_diagnostic_v1`
 - mode: `bounded_8h_8_clean_chunks`
-- status: launched in visible PowerShell after smoke and resume smoke passed
+- status: complete and packed for review
 - log:
   `planning/projects/no_wli/50_console_and_watch_logs/phaseB_strict_o3_o4_fwd_initial_joint_diagnostic_bounded_8h_2026-06-07.log`
 - output:
@@ -47,14 +47,37 @@ Prelaunch checks completed:
   - incomplete part rebuilt
   - duplicate summary commits: `false`
 
+Completion and review pack:
+
+- final run status: `complete`
+- exit code: `0`
+- elapsed seconds: `36722.2`
+- intended wallclock seconds: `28800`
+- peak memory MB: `20902.8`
+- sample rows: `296`
+- O3 summary rows: `1184`
+- O4 summary rows: `296`
+- joint feature rows: `296`
+- failed sample rows: `0`
+- incomplete sample rows: `0`
+- ordinary null rows: `24`, O3 nonzero `0`, O4 nonzero `0`, strong confirm `0`
+- hard local-order control rows: `24`, O3 nonzero `24`, O4 nonzero `15`,
+  strong confirm `14`
+- review pack:
+  `planning/projects/no_wli/40_review_summaries/phaseB_strict_o3_o4_fwd_initial_joint_diagnostic_review_pack_2026-06-08.zip`
+- pack status: `packed_review_ready`
+- pack entries: `47`
+- pack size bytes: `101911`
+- backslash entries: `0`
+- ZIP integrity check: `pass`
+- focused contract tests after pack integration: `16 passed`
+
 Launch note:
 
 - first bounded launcher attempt was stopped because only wrapper headers were
   visible in the log and runner progress was not yet emitted
 - runner was patched to print O3 group progress and O4 sample progress with
   elapsed time and ETA
-- corrected visible run start observed:
-  `stage=o3_scan groups=1/774 samples=296`
 
 Next gate:
 

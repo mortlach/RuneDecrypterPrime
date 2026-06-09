@@ -71,7 +71,7 @@ from tools.benchmarks.periodic_sub_trans.no_wli.analysis.strict_o3_anchor_refere
 )
 
 
-RUN_LABEL = "phaseB_strict_o3_o4_fwd_initial_joint_diagnostic_v1"
+RUN_LABEL = "phaseB_strict_o3_o4_fwd_initial_joint_diagnostic_quick_next_book_v1"
 RUN_MODE = "bounded_8h_8_clean_chunks"  # "smoke_1_clean_chunk" or "bounded_8h_8_clean_chunks"
 OUTPUT_DIR = REPO_ROOT / "output/tools/benchmarks/periodic_sub_trans/no_wli/analysis" / RUN_LABEL
 TOKENIZED_ROOT = REPO_ROOT / "assets/tokenized_pg"
@@ -86,7 +86,7 @@ PRODUCTION_SCORER_CHANGE = False
 REQUIRE_FWD_ONLY = True
 FORCE_RESTART = True
 CHUNK_MAX_TOKENS = 500
-EXCLUDE_BOOKS = {"1-0.txt", "10004.txt"}
+EXCLUDE_BOOKS = {"1-0.txt", "10004.txt", "10001.txt"}
 MAX_TOTAL_PHRASE_HD = 2
 O3_MIN_PHRASE_LENGTH = 10
 O4_MIN_PHRASE_LENGTH = 10
@@ -197,16 +197,29 @@ def append_csv(path: Path, row: Mapping[str, Any], fields: Sequence[str]) -> Non
         writer.writerow(dict(row))
 
 
+def normalise_book_label(book: str) -> str:
+    return book.removesuffix(".txt")
+
+
+def is_excluded_book(book: str) -> bool:
+    book_stem = normalise_book_label(book)
+    excluded_stems = {normalise_book_label(value) for value in EXCLUDE_BOOKS}
+    return book_stem in excluded_stems
+
 def load_clean_chunks(limit: int) -> list[dict[str, Any]]:
     chunks: list[dict[str, Any]] = []
     for path in sorted(TOKENIZED_ROOT.glob("*_fwd.npz")):
         book = path.name.removesuffix("_fwd.npz")
-        if book in EXCLUDE_BOOKS:
+        if is_excluded_book(book):
             continue
         with np.load(path, allow_pickle=False) as data:
             tokens = np.asarray(data["pt_nose_data"], dtype=np.uint8)
             wli = np.asarray(data["wli_nose_data"], dtype=np.uint8).reshape(-1, 2)
         for chunk_index, (start, end) in enumerate(source_word_chunks_for_wli(wli, max_tokens=CHUNK_MAX_TOKENS)):
+            print(
+                f"[{RUN_LABEL}] selected chunk book={book} chunk_index={chunk_index} start={start} end={end}",
+                flush=True,
+            )
             chunks.append(
                 {
                     "chunk_id": f"{book}|fwd|chunk_{chunk_index:06d}|{start}_{end}",

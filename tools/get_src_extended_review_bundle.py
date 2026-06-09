@@ -15,6 +15,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 SRC_ROOT = REPO_ROOT / "src"
 TEST_ROOT = REPO_ROOT / "tests"
+TUTORIALS_ROOT = REPO_ROOT / "tutorials"
+
 TOOLS_BENCHMARK_ROOT = REPO_ROOT / "tools" / "benchmarks"
 TOOLS_GET_SRC_ZIP_ROOT = REPO_ROOT / "tools" / "get_src_zip"
 PLANNING_RDP_V1_ROOT = REPO_ROOT / "planning" / "projects" / "rdp_v1"

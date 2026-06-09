@@ -15413,9 +15413,52 @@ Preflight:
   `complete_or_process_exit`
 - Output:
   `output/tools/benchmarks/periodic_sub_trans/no_wli/analysis/phaseB_strict_o3_o4_fwd_initial_joint_diagnostic_v1/`
-- Gate remains: build review pack after this bounded run completes before any
-  longer 25/50/more-chunk run. Still not approved: production scoring/ranking,
-  REV data, normal O4 scope, mixed-scope O4 rows, broad bridge scan, or
+- Completed result:
+  - status: `complete`
+  - exit code: `0`
+  - finished UTC: `2026-06-08T02:47:20.781226+00:00`
+  - elapsed seconds: `36722.2`
+  - peak memory MB: `20902.8`
+  - sample rows: `296`
+  - O3 summary rows: `1184`
+  - O4 summary rows: `296`
+  - joint feature rows: `296`
+  - failed sample rows: `0`
+  - incomplete sample rows: `0`
+- Joint rule readout:
+  - `strong_confirm`: rows `72`, O3 nonzero `72`, O4 nonzero `72`,
+    strong confirm `72`
+  - `local_anchor_present`: rows `38`, O3 nonzero `38`, O4 nonzero `21`,
+    strong confirm `0`
+  - `weak_confirm`: rows `34`, O3 nonzero `34`, O4 nonzero `6`,
+    strong confirm `0`
+  - `neutral`: rows `152`, O3 nonzero `55`, O4 nonzero `7`,
+    strong confirm `0`
+- Null/control readout:
+  - ordinary null rows: `24`, O3 nonzero `0`, O4 nonzero `0`,
+    strong confirm `0`
+  - hard local-order control rows: `24`, O3 nonzero `24`,
+    O4 nonzero `15`, strong confirm `14`
+- Runtime projection from completed run:
+  - `296` samples in `10.20h`
+  - observed seconds per sample: `124.06`
+- Built review pack:
+  `planning/projects/no_wli/40_review_summaries/phaseB_strict_o3_o4_fwd_initial_joint_diagnostic_review_pack_2026-06-08.zip`
+- Pack facts:
+  - status: `packed_review_ready`
+  - entries: `47`
+  - size: `101,911` bytes
+  - backslash entries: `0`
+  - ZIP integrity check: `pass`
+  - embedded output row counts:
+    `sample_rows=296`, `sample_o3_summary_rows=1184`,
+    `sample_o4_summary_rows=296`, `joint_feature_rows=296`
+- Focused contract tests after pack integration:
+  `C:\Python\Python311\python.exe -m pytest tests\tools\test_phaseB_common_asset_authority_v1.py tests\tools\test_phaseB_common_resume_runner_v1.py tests\tools\test_phaseB_damage_levels_contract_v1.py tests\tools\test_phaseB_joint_feature_contract_v1.py tests\tools\test_phaseB_joint_rule_grid_reference_v1.py -q`
+  -> `16 passed`
+- Gate remains: external review of this bounded-run pack before any longer
+  25/50/more-chunk run. Still not approved: production scoring/ranking, REV
+  data, normal O4 scope, mixed-scope O4 rows, broad bridge scan, or
   score-authority promotion.
 
 ## 2026-06-07 - Strict O3 damage calibration v2-fix handoff incorporated
