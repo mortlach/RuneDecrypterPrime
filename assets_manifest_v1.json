@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "assets_root": "assets",
+  "packed_root": "assets",
+  "required_assets": [
+    {
+      "asset_id": "liber_primus.master_transcript",
+      "asset_version": "105f1c68cecde03df1e66982d3021ab31d7f49ee975ca109d1a1924cbcafc99c",
+      "version_scheme": "sha256",
+      "sha256": "105f1c68cecde03df1e66982d3021ab31d7f49ee975ca109d1a1924cbcafc99c",
+      "size_bytes": 55485,
+      "final_relpath": "liber_primus/liber-primus__transcription--master.txt",
+      "parts": ["liber_primus/liber-primus__transcription--master.txt.part001"],
+      "required_for": ["builtin_data_contracts", "liber_primus_source_resolution"],
+      "policy": "required_small_release_asset"
+    }
+  ],
+  "optional_external_assets": [
+    {
+      "asset_id": "span_hamming.full_raw_phaseB",
+      "path": "ngram_hamming/phaseB_full_raw_v1",
+      "policy": "external_optional_not_v1_production"
+    },
+    {
+      "asset_id": "ngram_hamming.phaseB_filtered_index",
+      "path": "ngram_hamming/phaseB_filtered_ngram_index_v1_checked_patch.zip",
+      "policy": "external_optional_not_v1_production"
+    }
+  ]
+}

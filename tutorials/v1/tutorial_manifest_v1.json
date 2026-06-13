@@ -1,0 +1,448 @@
+{
+  "schema": "rdp_tutorial_manifest.v1",
+  "asset_profile_default": "lm2_baseline",
+  "description": "Tutorial gate manifest for the pure V1.0.0 release tree. Labels are release-runner policy, not core solver contracts.",
+  "gate_definitions": {
+    "v1_smoke": "Fast, stable tutorial run on every release check.",
+    "v1_release": "Normal V1 release tutorial; should pass under lm2_baseline.",
+    "v1_extended": "Valid V1 tutorial but slower; run for fuller confidence.",
+    "v1_showcase_near_solve": "Public demo where exact recovery is not required; near-solve quality must be reported.",
+    "v1_slow_demo": "Working demo that is too slow for the default release gate.",
+    "optional_lm3": "Valid tutorial that requires 3-gram language-model assets beyond lm2_baseline.",
+    "broken_contract_fix_needed": "Tutorial or helper has an API mismatch; exclude until fixed.",
+    "wrapper_script_fix_needed": "Wrapper/import script issue; exclude until fixed.",
+    "remove_from_pure_release": "Unwanted in pure release tree; remove only after explicit review."
+  },
+  "asset_profiles": {
+    "lm2_baseline": {
+      "description": "Minimal useful release profile with 1/2-gram LM assets.",
+      "default": true
+    },
+    "lm3_extended": {
+      "description": "Optional profile for tutorials that explicitly require 3-gram LM assets.",
+      "default": false
+    }
+  },
+  "tutorials": [
+    {
+      "path": "Start_Here.py",
+      "title": "Start here: Vigenere wrapper and general-map beam solve",
+      "cipher_family": "vigenere",
+      "tutorial_kind": "intro_real_solve",
+      "gate": "v1_smoke",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "process_success",
+      "min_match_ratio": null,
+      "observed_lm2_baseline": {
+        "match_ratio": null,
+        "score_time_s": null,
+        "tokens": null
+      },
+      "uses_oracle_stop_score": false,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Basic first tutorial; uses lm2 char/WLI order-2 scorer."
+    },
+    {
+      "path": "Tutorial_Autokey.py",
+      "title": "Autokey solve",
+      "cipher_family": "autokey",
+      "tutorial_kind": "real_solve",
+      "gate": "v1_smoke",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "min_match_ratio",
+      "min_match_ratio": 1.0,
+      "observed_lm2_baseline": {
+        "match_ratio": 1.0,
+        "score_time_s": 0.626,
+        "tokens": 41410
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Fast exact solve under lm2_baseline; includes no-crib and crib-assisted runs."
+    },
+    {
+      "path": "Tutorial_Railfence.py",
+      "title": "Railfence beam solve",
+      "cipher_family": "railfence",
+      "tutorial_kind": "real_solve",
+      "gate": "v1_smoke",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "min_match_ratio",
+      "min_match_ratio": 1.0,
+      "observed_lm2_baseline": {
+        "match_ratio": 1.0,
+        "score_time_s": 0.127,
+        "tokens": 86043
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Fast exact solve under lm2_baseline."
+    },
+    {
+      "path": "Tutorial_Vigenere_Interruptors.py",
+      "title": "Vigenere with exact interruptors",
+      "cipher_family": "vigenere_interruptors",
+      "tutorial_kind": "known_key_or_tiny_search",
+      "gate": "v1_smoke",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "min_match_ratio",
+      "min_match_ratio": 1.0,
+      "observed_lm2_baseline": {
+        "match_ratio": 1.0,
+        "score_time_s": 0.0,
+        "tokens": 20
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Tiny exact-position interruptor example."
+    },
+    {
+      "path": "Tutorial_ColumnarTransposition.py",
+      "title": "Columnar transposition",
+      "cipher_family": "columnar_transposition",
+      "tutorial_kind": "real_solve",
+      "gate": "v1_release",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "min_match_ratio",
+      "min_match_ratio": 1.0,
+      "observed_lm2_baseline": {
+        "match_ratio": 1.0,
+        "score_time_s": 3.546,
+        "tokens": 2422921
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Good release tutorial; exact recovery under lm2_baseline."
+    },
+    {
+      "path": "Tutorial_Vigenere_GeneralMap.py",
+      "title": "Vigenere via General Map API",
+      "cipher_family": "vigenere",
+      "tutorial_kind": "general_map_real_solve",
+      "gate": "v1_release",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "min_match_ratio",
+      "min_match_ratio": 1.0,
+      "observed_lm2_baseline": {
+        "match_ratio": 1.0,
+        "score_time_s": 6.477,
+        "tokens": 2199708
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Shows user-defined/general-map path."
+    },
+    {
+      "path": "Tutorial_Vigenere_Interruptors_Solve.py",
+      "title": "Vigenere interruptor solver search",
+      "cipher_family": "vigenere_interruptors",
+      "tutorial_kind": "real_solve",
+      "gate": "v1_release",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "min_match_ratio",
+      "min_match_ratio": 1.0,
+      "observed_lm2_baseline": {
+        "match_ratio": 1.0,
+        "score_time_s": 1.933,
+        "tokens": 112308
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Small but real interruptor search example."
+    },
+    {
+      "path": "Tutorial_MonoSubstitution_GA.py",
+      "title": "Mono-substitution GA",
+      "cipher_family": "mono_substitution",
+      "tutorial_kind": "real_solve",
+      "gate": "v1_release",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "min_match_ratio",
+      "min_match_ratio": 0.97,
+      "observed_lm2_baseline": {
+        "match_ratio": 0.981,
+        "score_time_s": 21.492,
+        "tokens": 8228953
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Keep one mono-substitution tutorial in V1.0.0; standard entry-level cipher. GA is the fastest mono option in current run."
+    },
+    {
+      "path": "Tutorial_Repeating_multiply.py",
+      "title": "Repeating multiply mod 29",
+      "cipher_family": "custom_map_repeating_multiply",
+      "tutorial_kind": "custom_map_real_solve",
+      "gate": "v1_extended",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "min_match_ratio",
+      "min_match_ratio": 1.0,
+      "observed_lm2_baseline": {
+        "match_ratio": 1.0,
+        "score_time_s": 28.755,
+        "tokens": 4807185
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Good extended custom-map demo."
+    },
+    {
+      "path": "Tutorial_MonoSubstitution_HYBRID.py",
+      "title": "Mono-substitution hybrid",
+      "cipher_family": "mono_substitution",
+      "tutorial_kind": "real_solve",
+      "gate": "v1_extended",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "min_match_ratio",
+      "min_match_ratio": 0.995,
+      "observed_lm2_baseline": {
+        "match_ratio": 0.998,
+        "score_time_s": 52.583,
+        "tokens": 8543197
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Higher quality mono result than GA, but slower."
+    },
+    {
+      "path": "Tutorial_Vigenere_Interruptors_NonTrivial.py",
+      "title": "Vigenere interruptors non-trivial",
+      "cipher_family": "vigenere_interruptors",
+      "tutorial_kind": "real_solve",
+      "gate": "v1_extended",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "min_match_ratio",
+      "min_match_ratio": 1.0,
+      "observed_lm2_baseline": {
+        "match_ratio": 1.0,
+        "score_time_s": 21.966,
+        "tokens": 7658130
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Longer interruptor example; good extended check."
+    },
+    {
+      "path": "Tutorial_ScheduledStreamLookup_RealSolve_P13Primes.py",
+      "title": "ScheduledStreamLookup P13 plus generated primes",
+      "cipher_family": "scheduled_stream_lookup",
+      "tutorial_kind": "real_solve",
+      "gate": "v1_extended",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "min_match_ratio",
+      "min_match_ratio": 1.0,
+      "observed_lm2_baseline": {
+        "match_ratio": 1.0,
+        "score_time_s": 53.678,
+        "tokens": 4604124
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Exact real key-recovery tutorial under lm2_baseline."
+    },
+    {
+      "path": "Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py",
+      "title": "ScheduledStreamLookup P13 plus supplied sequence",
+      "cipher_family": "scheduled_stream_lookup",
+      "tutorial_kind": "real_solve",
+      "gate": "v1_extended",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "min_match_ratio",
+      "min_match_ratio": 1.0,
+      "observed_lm2_baseline": {
+        "match_ratio": 1.0,
+        "score_time_s": 53.039,
+        "tokens": 4604124
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Exact real key-recovery tutorial under lm2_baseline."
+    },
+    {
+      "path": "Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py",
+      "title": "ScheduledStreamLookup segmented P13/P31/P13 near-solve showcase",
+      "cipher_family": "scheduled_stream_lookup",
+      "tutorial_kind": "showcase_near_solve",
+      "gate": "v1_showcase_near_solve",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "near_solve_min_match",
+      "min_match_ratio": 0.9,
+      "observed_lm2_baseline": {
+        "match_ratio": 0.901,
+        "score_time_s": 304.223,
+        "tokens": 26138357
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Keep. It shows near-solve power and that partial plaintext recovery can still be useful. Exact recovery is not required under lm2_baseline."
+    },
+    {
+      "path": "Tutorial_MonoSubstitution_SA.py",
+      "title": "Mono-substitution simulated annealing",
+      "cipher_family": "mono_substitution",
+      "tutorial_kind": "real_solve",
+      "gate": "v1_slow_demo",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "min_match_ratio",
+      "min_match_ratio": 0.995,
+      "observed_lm2_baseline": {
+        "match_ratio": 0.999,
+        "score_time_s": 137.708,
+        "tokens": 21691683
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Works but slow; not default release gate."
+    },
+    {
+      "path": "Tutorial_PeriodicColumnar.py",
+      "title": "Periodic columnar",
+      "cipher_family": "periodic_columnar",
+      "tutorial_kind": "real_solve",
+      "gate": "optional_lm3",
+      "required_asset_profile": "lm3_extended",
+      "expected_under_lm2_baseline": "skip",
+      "acceptance_kind": "requires_asset_profile",
+      "min_match_ratio": null,
+      "observed_lm2_baseline": {
+        "match_ratio": null,
+        "score_time_s": null,
+        "tokens": null
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active_optional",
+      "notes": "Fails under lm2_baseline because it requests char n=3 LM table, e.g. char29_joint_rtl_3_nose.bin.zst."
+    },
+    {
+      "path": "Tutorial_PeriodicColumnar_Simple_P7_ColThenSub.py",
+      "title": "Periodic columnar simple P7 col-then-sub",
+      "cipher_family": "periodic_columnar",
+      "tutorial_kind": "real_solve",
+      "gate": "optional_lm3",
+      "required_asset_profile": "lm3_extended",
+      "expected_under_lm2_baseline": "skip",
+      "acceptance_kind": "requires_asset_profile",
+      "min_match_ratio": null,
+      "observed_lm2_baseline": {
+        "match_ratio": null,
+        "score_time_s": null,
+        "tokens": null
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active_optional",
+      "notes": "Fails under lm2_baseline because it directly scores char n=3/n=4."
+    },
+    {
+      "path": "Tutorial_PeriodicSubstitution.py",
+      "title": "Periodic substitution",
+      "cipher_family": "periodic_substitution",
+      "tutorial_kind": "real_solve",
+      "gate": "optional_lm3",
+      "required_asset_profile": "lm3_extended",
+      "expected_under_lm2_baseline": "skip",
+      "acceptance_kind": "requires_asset_profile",
+      "min_match_ratio": null,
+      "observed_lm2_baseline": {
+        "match_ratio": null,
+        "score_time_s": null,
+        "tokens": null
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active_optional",
+      "notes": "Fails under lm2_baseline because it requests char n=3 LM table."
+    },
+    {
+      "path": "Tutorial_PeriodicSubstitution_Simple_P7.py",
+      "title": "Periodic substitution simple P7",
+      "cipher_family": "periodic_substitution",
+      "tutorial_kind": "real_solve",
+      "gate": "optional_lm3",
+      "required_asset_profile": "lm3_extended",
+      "expected_under_lm2_baseline": "skip",
+      "acceptance_kind": "requires_asset_profile",
+      "min_match_ratio": null,
+      "observed_lm2_baseline": {
+        "match_ratio": null,
+        "score_time_s": null,
+        "tokens": null
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active_optional",
+      "notes": "Fails under lm2_baseline because it requests char n=3 LM table."
+    },
+    {
+      "path": "Tutorial_PeriodicColumnar_Simple_P7_SubThenCol.py",
+      "title": "Periodic columnar simple P7 sub-then-col",
+      "cipher_family": "periodic_columnar",
+      "tutorial_kind": "contract_fix_needed",
+      "gate": "broken_contract_fix_needed",
+      "required_asset_profile": "unknown",
+      "expected_under_lm2_baseline": "skip",
+      "acceptance_kind": "blocked_known_issue",
+      "min_match_ratio": null,
+      "observed_lm2_baseline": {
+        "match_ratio": null,
+        "score_time_s": null,
+        "tokens": null
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "known_broken",
+      "notes": "Current failure: make_true_periodic_columnar_key() got unexpected keyword argument 'order'."
+    },
+    {
+      "path": "Tutorial_ScheduledStreamLookup.py",
+      "title": "ScheduledStreamLookup wrapper script",
+      "cipher_family": "scheduled_stream_lookup",
+      "tutorial_kind": "wrapper_script",
+      "gate": "wrapper_script_fix_needed",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "skip",
+      "acceptance_kind": "blocked_known_issue",
+      "min_match_ratio": null,
+      "observed_lm2_baseline": {
+        "match_ratio": null,
+        "score_time_s": null,
+        "tokens": null
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "known_broken",
+      "notes": "Current failure: imports Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence by module name from runpy context. Use direct real-solve scripts instead until wrapper is fixed."
+    }
+  ]
+}
