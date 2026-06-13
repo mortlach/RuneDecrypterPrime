@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from rune_decrypter_prime.core.types import Device, Direction, SolverName, KEY_DTYPE
+from rune_decrypter_prime.core.config import ScoringConfig, SolverConfig
 from rune_decrypter_prime.core.config.logging_config import LoggingConfig, init_logging
 from rune_decrypter_prime.api.fastpaths import maybe_known_key_fastpath
 from rune_decrypter_prime.api.pipeline_helpers import finalize_solution, coerce_wli_for_config
@@ -20,8 +21,8 @@ def execute_run(
     wli: Optional[Sequence[Sequence[int]]],
     cipher,
     key,
-    solver,   # SolverConfig-like
-    scoring,  # ScoringConfig-like
+    solver: SolverConfig,
+    scoring: ScoringConfig,
     scorer_name: str,
     logging_config: Optional[LoggingConfig],
     logging_runtime: Mapping[str, Any],

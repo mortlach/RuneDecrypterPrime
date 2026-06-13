@@ -59,7 +59,7 @@ class ProblemInstance:
         # 3) Build a minimal, stable pipeline snapshot
         perm_indices = _indices_from_perm(spec.input_permutation, n) if spec.input_permutation is not None else None
         # Ensure WLI schema: list of (int, int) pairs or None
-        wli = getattr(spec.cipher_cfg, "wli_data", None)
+        wli = spec.cipher_cfg.wli_data
         if wli is not None:
             if not (isinstance(wli, (list, tuple)) and all(
                     isinstance(p, (list, tuple)) and len(p) == 2 and

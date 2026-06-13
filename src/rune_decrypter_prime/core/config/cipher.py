@@ -2,7 +2,6 @@
 # rune_decrypter_prime/core/config/cipher.py
 # ============================================================
 from __future__ import annotations
-from __future__ import annotations
 from dataclasses import dataclass, asdict, field
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Literal
 
@@ -24,6 +23,10 @@ class CipherConfig:
     key_length: Optional[int]
     keyops_family: Optional[KeyOpsFamily | str] = None
     keyops_hints: Optional[Dict[str, Any]] = None
+    # Optional cipher-family specification object for typed plugin contracts.
+    # This is not a general config escape hatch: runtime code may use it only
+    # when a cipher plugin defines and documents a concrete spec object.
+    spec: Optional[Any] = None
     alphabet_size: Optional[int] = None
     period: Optional[int] = None
     columns: Optional[int] = None
@@ -41,7 +44,6 @@ class CipherConfig:
     interruptors_pool: Optional[List[int]] = None
     interruptors_max: Optional[int] = None
     transposition_search_modes: Optional[List[str]] = None
-    # meh
     name: str = "vigenere"
     def __post_init__(self) -> None:
         if self.device is not None:

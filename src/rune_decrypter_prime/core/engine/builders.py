@@ -1,20 +1,29 @@
 # rune_decrypter_prime/core/engine/builders.py
 from __future__ import annotations
-from typing import Any, Mapping
+from typing import Any
 
+from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.types import Device, ScorerImpl, ensure_device, ensure_scorer_impl
 from rune_decrypter_prime.backends.xp import select_backend
 from rune_decrypter_prime.ciphers import registry as cipher_registry
 
 
-def _cfg_get(cfg: Any, key: str, default: Any = None) -> Any:
-    if isinstance(cfg, Mapping):
-        return cfg.get(key, default)
-    return getattr(cfg, key, default)
+def _require_cipher_config(cfg_cipher: CipherConfig) -> CipherConfig:
+    if not isinstance(cfg_cipher, CipherConfig):
+        raise TypeError(f"cfg_cipher must be CipherConfig, got {type(cfg_cipher).__name__}")
+    return cfg_cipher
 
 
-def build_cipher(cfg_cipher) -> Any:
-    name = _cfg_get(cfg_cipher, "name", None)
+def _require_scoring_config(s_cfg: ScoringConfig) -> ScoringConfig:
+    if not isinstance(s_cfg, ScoringConfig):
+        raise TypeError(f"s_cfg must be ScoringConfig, got {type(s_cfg).__name__}")
+    return s_cfg
+
+
+def build_cipher(cfg_cipher: CipherConfig) -> Any:
+    cfg_cipher = _require_cipher_config(cfg_cipher)
+    name = cfg_cipher.name
     if not name:
         raise ValueError("Cipher config must include a 'name' field")
     name = str(name).lower()
@@ -28,10 +37,12 @@ def build_cipher(cfg_cipher) -> Any:
     return cipher
 
 
-def build_scorer(c_cfg, s_cfg):
-    impl = ensure_scorer_impl(_cfg_get(s_cfg, "impl", ScorerImpl.AUTO))
-    dev_raw = _cfg_get(c_cfg, "device", Device.CPU)
-    device = ensure_device(dev_raw)
+def build_scorer(c_cfg: CipherConfig, s_cfg: ScoringConfig):
+    c_cfg = _require_cipher_config(c_cfg)
+    s_cfg = _require_scoring_config(s_cfg)
+
+    impl = ensure_scorer_impl(s_cfg.impl)
+    device = ensure_device(c_cfg.device or Device.CPU)
 
     # Resolve AUTO based on device.
     if impl is ScorerImpl.AUTO:

@@ -8,7 +8,9 @@ from typing import Any, Dict, Optional
 
 import numpy as np
 
-from rune_decrypter_prime.core.config import RunConfig, Solution, SolverConfig
+from rune_decrypter_prime.core.config.run import RunConfig
+from rune_decrypter_prime.core.config.solution import Solution
+from rune_decrypter_prime.core.config.solver import SolverConfig
 from rune_decrypter_prime.core.engine.builders import build_cipher, build_scorer
 from rune_decrypter_prime.core.engine import EngineConfig, solve as engine_solve
 from rune_decrypter_prime.core.problem import ProblemInstance, ProblemSpec
@@ -42,28 +44,22 @@ class _LegacyOptimizerAdapter:
         return self._solver.solve()
 
 
-def _solver_kind_from_cfg(cfg: Any) -> SolverName:
-    if isinstance(cfg, SolverConfig):
-        return cfg.kind
-    if hasattr(cfg, "kind"):
-        return ensure_solver_name(getattr(cfg, "kind"))
-    return ensure_solver_name(getattr(cfg, "name", SolverName.BEAM))
+def _solver_kind_from_cfg(cfg: SolverConfig) -> SolverName:
+    if not isinstance(cfg, SolverConfig):
+        raise TypeError(f"optimizer_cfg must be SolverConfig, got {type(cfg).__name__}")
+    return cfg.kind
 
 
-def build_optimizer(problem, optimizer_cfg, *, rng=None):
+def build_optimizer(problem, optimizer_cfg: SolverConfig, *, rng=None):
     """
     Legacy helper used by tests and tutorials. Returns an object that exposes
     .search() but internally delegates to the new solver classes.
+
+    Core callers must pass a canonical SolverConfig. User-facing dicts are
+    normalised before this boundary.
     """
     kind = _solver_kind_from_cfg(optimizer_cfg)
-    params = {}
-    if isinstance(optimizer_cfg, SolverConfig):
-        params.update(optimizer_cfg.params)
-    else:
-        params.update(getattr(optimizer_cfg, "params", {}) or {})
-        if isinstance(optimizer_cfg, dict):
-            params.update(optimizer_cfg)
-    params = dict(params)
+    params = dict(optimizer_cfg.params)
 
     verbose = bool(params.pop("verbose", True))
     log_interval = int(params.pop("log_interval", 50))
@@ -100,7 +96,7 @@ class RuneSolverEngine:
 
     def __init__(self, cfg: RunConfig):
         self.cfg = cfg
-        self._telemetry_on = bool(getattr(cfg, "enable_telemetry", True))
+        self._telemetry_on = bool(cfg.enable_telemetry)
         materialised = self._materialise_problem(cfg)
         self.instance = materialised.instance
         self.direction = materialised.direction
@@ -109,19 +105,19 @@ class RuneSolverEngine:
         self.scorer = self.problem.scorer
 
     def _materialise_problem(self, cfg: RunConfig) -> _Materialised:
-        direction = ensure_direction(getattr(cfg.cipher, "encoding_dir", Direction.LTR))
+        direction = ensure_direction(cfg.cipher.encoding_dir)
         spec = ProblemSpec(
             text="",
             text_encoding_direction=direction,
             cipher_cfg=cfg.cipher,
             scorer_params=cfg.scorer_params,
-            input_permutation=getattr(cfg.cipher, "initial_text_permutation_indices", None),
+            input_permutation=cfg.cipher.initial_text_permutation_indices,
         )
         instance = ProblemInstance.materialise(spec)
         return _Materialised(instance=instance, direction=direction)
 
     def _seed_keys(self) -> Optional[np.ndarray]:
-        keys = getattr(self.cfg.cipher, "initial_keys", None)
+        keys = self.cfg.cipher.initial_keys
         if keys is None:
             return None
         arr = np.asarray(keys, dtype=KEY_DTYPE)
@@ -151,7 +147,7 @@ class RuneSolverEngine:
             self.problem,
             solution,
             ciphertext=np.asarray(self.cfg.cipher.ciphertext),
-            wli=getattr(self.cfg.cipher, "wli_data", None),
+            wli=self.cfg.cipher.wli_data,
             cipher=self.cfg.cipher,
             encoding_dir=self.direction,
             cfg=self.cfg,

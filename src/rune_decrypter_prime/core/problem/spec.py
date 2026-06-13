@@ -4,28 +4,37 @@
 # ============================================================
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Any, Optional, Sequence
+from typing import Optional, Sequence
 
+from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.types import Direction, ensure_direction
+
 
 @dataclass(slots=True)
 class ProblemSpec:
     """
     Declarative description of a decryption run.
-    This is intentionally *thin*: it carries only what's needed to
-    materialise a runtime ProblemInstance without any global state.
+
+    Core receives canonical config objects only. Dicts and config-like
+    objects must be normalised before this boundary.
     """
     # Ciphertext / pipeline orientation
     text: str
-    text_encoding_direction: Direction = Direction.LTR
 
     # Config objects from the API layer (already normalised)
-    cipher_cfg: Any = None           # e.g., CipherConfig
-    scorer_params: Any = None        # score/runtime params (impl, dtype, etc.)
+    cipher_cfg: CipherConfig
+    scorer_params: ScoringConfig
+
+    text_encoding_direction: Direction = Direction.LTR
 
     # Optional fixed input permutation (indices over text), else identity.
     input_permutation: Optional[Sequence[int]] = None
 
-    def __post_init__(self):
-        # Enforce Enums in core
+    def __post_init__(self) -> None:
+        # Enforce Enums and canonical config objects in core.
         self.text_encoding_direction = ensure_direction(self.text_encoding_direction)
+        if not isinstance(self.cipher_cfg, CipherConfig):
+            raise TypeError(f"cipher_cfg must be CipherConfig, got {type(self.cipher_cfg).__name__}")
+        if not isinstance(self.scorer_params, ScoringConfig):
+            raise TypeError(f"scorer_params must be ScoringConfig, got {type(self.scorer_params).__name__}")

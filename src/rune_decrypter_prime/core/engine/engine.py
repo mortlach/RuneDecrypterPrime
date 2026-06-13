@@ -119,9 +119,9 @@ def _scorer_meta(problem: Any, spec: ProblemInstance) -> Dict[str, str]:
     scorer_params = getattr(spec, "spec", None)
     scorer_params = getattr(scorer_params, "scorer_params", None)
     if (impl in (None, "unknown")) and scorer_params is not None:
-        impl = scorer_params.get("impl") if isinstance(scorer_params, dict) else getattr(scorer_params, "impl", None)
+        impl = getattr(scorer_params, "impl", None)
     if (dtype in (None, "unknown")) and scorer_params is not None:
-        dtype = scorer_params.get("dtype") if isinstance(scorer_params, dict) else getattr(scorer_params, "dtype", None)
+        dtype = getattr(scorer_params, "dtype", None)
 
     impl = getattr(impl, "value", impl) if impl is not None else None
     device = getattr(device, "value", device) if device is not None else None
@@ -166,7 +166,7 @@ def solve(instance: ProblemInstance, engine_cfg: EngineConfig):
     # Solvers already emit their own solver_start/progress/solver_end spans.
     # The run_start/run_end here are just a light envelope for the *whole* run.
     try:
-        dev_raw = getattr(getattr(instance.problem, "c_cfg", None), "device", Device.CPU)
+        dev_raw = instance.problem.c_cfg.device or Device.CPU
         dev = to_canonical_device_str(ensure_device(dev_raw))
     except Exception:
         dev = "cpu"

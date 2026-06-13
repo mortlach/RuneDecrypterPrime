@@ -7,7 +7,9 @@ from dataclasses import dataclass, field
 from typing import Optional, Sequence, Tuple, Any
 import math
 
-from rune_decrypter_prime.core.config import CipherConfig, InterruptorConfig
+from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rune_decrypter_prime.core.config.interruptor import InterruptorConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.config.hard_crib import HardCribConfig, normalize_hard_crib_config
 from rune_decrypter_prime.telemetry.bag import TelemetryBag
 from rune_decrypter_prime.core.telemetry import _Timer
@@ -53,7 +55,7 @@ class DecryptionProblem:
     cipher: object
     scorer: object
     c_cfg: CipherConfig
-    s_cfg: Any = None
+    s_cfg: ScoringConfig
 
     # ---- fields initialised in __post_init__ ----
     keyops: Any = field(init=False, repr=False)
@@ -75,6 +77,12 @@ class DecryptionProblem:
     # Lifecycle
     # =========================================================
     def __post_init__(self):
+        # Core runtime receives typed canonical config objects only.
+        if not isinstance(self.c_cfg, CipherConfig):
+            raise TypeError(f"c_cfg must be CipherConfig, got {type(self.c_cfg).__name__}")
+        if not isinstance(self.s_cfg, ScoringConfig):
+            raise TypeError(f"s_cfg must be ScoringConfig, got {type(self.s_cfg).__name__}")
+
         # Ensure TelemetryBag
         if not isinstance(self.telemetry, TelemetryBag):
             self.telemetry = TelemetryBag(dict(self.telemetry) if isinstance(self.telemetry, dict) else {})
@@ -82,14 +90,11 @@ class DecryptionProblem:
         t = self.telemetry  # shorthand
 
         # Seed canonical telemetry keys (harmless if later overwritten by engine/scorer)
-        dev_kind = ensure_device(getattr(self.c_cfg, "device", Device.CPU))
+        dev_kind = ensure_device(self.c_cfg.device or Device.CPU)
         t.setdefault("device", to_canonical_device_str(dev_kind))
-        try:
-            enc_dir = getattr(self.c_cfg, "encoding_dir", None)
-            if enc_dir is not None and hasattr(enc_dir, "value"):
-                t.setdefault("direction", enc_dir.value)
-        except Exception:
-            pass
+        enc_dir = self.c_cfg.encoding_dir
+        if enc_dir is not None and hasattr(enc_dir, "value"):
+            t.setdefault("direction", enc_dir.value)
 
         # Timers/counters
         t.setdefault("decrypt_time_s", 0.0)
@@ -118,12 +123,6 @@ class DecryptionProblem:
         t.setdefault("crib_reject_global_len", 0)
         t.setdefault("crib_all_rejected_batches", 0)
 
-        # Normalise config
-        if isinstance(self.c_cfg, dict):
-            self.c_cfg = CipherConfig(**self.c_cfg)
-        if not isinstance(self.c_cfg, CipherConfig):
-            raise TypeError(f"c_cfg must be CipherConfig, got {type(self.c_cfg)}")
-
         # Backend handle
         if self.xp is None:
             req = device_request_str(dev_kind)  # "cpu" or "cuda"
@@ -131,7 +130,7 @@ class DecryptionProblem:
 
         # Bind ciphertext / WLI / key_length
         self.ciphertext = self.xp.asarray(self.c_cfg.ciphertext, dtype=self.xp.uint8)
-        raw_wli = getattr(self.c_cfg, "wli_data", None)
+        raw_wli = self.c_cfg.wli_data
         if raw_wli is None or (hasattr(raw_wli, "__len__") and len(raw_wli) == 0):
             self.wli_data = None
         else:
@@ -171,14 +170,14 @@ class DecryptionProblem:
             K = int(kl() if callable(kl) else kl) if kl is not None else None
         if K is None and self.key_length is not None:
             K = int(self.key_length)
-        test_key = getattr(self.c_cfg, "test_key", None)
+        test_key = self.c_cfg.test_key
         if K is None and test_key is not None:
             K = int(len(test_key))
         if K is None or K <= 0:
             raise ValueError("Fixed key length required (cipher.key_length / config.key_length / test_key)")
 
         # --- resolve family ---
-        family = getattr(self.cipher, "keyops_family", None) or getattr(self.c_cfg, "keyops_family", None)
+        family = getattr(self.cipher, "keyops_family", None) or self.c_cfg.keyops_family
         if not family:
             family = "vector" if getattr(self.cipher, "is_vector_key", False) else "perm"
         core_family = family
@@ -247,7 +246,7 @@ class DecryptionProblem:
         return out
 
     def _interruptor_cfg(self) -> Optional[InterruptorConfig]:
-        cfg = getattr(self.c_cfg, "interruptors_cfg", None)
+        cfg = self.c_cfg.interruptors_cfg
         return cfg if isinstance(cfg, InterruptorConfig) else None
 
     def _normalize_interrupt_idx(self, idx):
@@ -269,10 +268,10 @@ class DecryptionProblem:
                 return cfg.exact
             return None
 
-        exact = getattr(self.c_cfg, "interruptors_exact", None)
+        exact = self.c_cfg.interruptors_exact
         if exact is not None:
             return exact
-        legacy = getattr(self.c_cfg, "interruptors", None)
+        legacy = self.c_cfg.interruptors
         if legacy is not None:
             return legacy
         return None
@@ -287,10 +286,10 @@ class DecryptionProblem:
             except Exception:
                 return False
 
-        if getattr(self.c_cfg, "interruptors_exact", None) is not None:
+        if self.c_cfg.interruptors_exact is not None:
             return False
-        pool = getattr(self.c_cfg, "interruptors_pool", None)
-        max_n = getattr(self.c_cfg, "interruptors_max", None)
+        pool = self.c_cfg.interruptors_pool
+        max_n = self.c_cfg.interruptors_max
         if pool is None or max_n is None:
             return False
         try:
@@ -340,13 +339,7 @@ class DecryptionProblem:
         return keys_np, None
 
     def _resolve_hard_crib_cfg(self) -> Optional[HardCribConfig]:
-        raw = None
-        s_cfg = getattr(self, "s_cfg", None)
-        if s_cfg is not None:
-            if isinstance(s_cfg, dict):
-                raw = s_cfg.get("hard_crib")
-            else:
-                raw = getattr(s_cfg, "hard_crib", None)
+        raw = self.s_cfg.hard_crib
         return normalize_hard_crib_config(raw)
 
     @staticmethod
@@ -713,7 +706,7 @@ class DecryptionProblem:
 
         # Telemetry device/dtype initialisation (once)
         if getattr(self.telemetry, "device", "unknown") == "unknown" or getattr(self.telemetry, "dtype", "unknown") == "unknown":
-            dev_kind = ensure_device(getattr(self.c_cfg, "device", Device.CPU))
+            dev_kind = ensure_device(self.c_cfg.device or Device.CPU)
             dtype = getattr(self.scorer, "dtype", None) or "float32"
             self.telemetry.device = to_canonical_device_str(dev_kind)
             self.telemetry.dtype = str(dtype)
@@ -769,7 +762,7 @@ class DecryptionProblem:
 
         # Telemetry device/dtype initialisation (once)
         if getattr(self.telemetry, "device", "unknown") == "unknown" or getattr(self.telemetry, "dtype", "unknown") == "unknown":
-            dev_kind = ensure_device(getattr(self.c_cfg, "device", Device.CPU))
+            dev_kind = ensure_device(self.c_cfg.device or Device.CPU)
             dtype = getattr(self.scorer, "dtype", None) or "float32"
             self.telemetry.device = to_canonical_device_str(dev_kind)
             self.telemetry.dtype = str(dtype)
@@ -919,7 +912,7 @@ class DecryptionProblem:
 
     def _degeneracy_cfg(self) -> Optional[dict]:
         """Return degeneracy config if enabled and supported by the cipher."""
-        spec = getattr(self.c_cfg, "spec", None)
+        spec = self.c_cfg.spec
         if spec is None:
             return None
         deg = str(getattr(spec, "degeneracy", "forbid") or "forbid").strip().lower()
@@ -1269,7 +1262,7 @@ class DecryptionProblem:
         for name in ("alphabet_size", "A", "N", "mod", "modulus"):
             v = getattr(self.cipher, name, None)
             if v is None:
-                v = getattr(self.c_cfg, name, None)
+                v = self.c_cfg.alphabet_size if name in {"A", "N", "mod", "modulus", "alphabet_size"} else None
             if v is not None:
                 try:
                     hints["A"] = int(v)
@@ -1280,7 +1273,7 @@ class DecryptionProblem:
         extra = getattr(self.cipher, "keyops_hints", None)
         if isinstance(extra, dict):
             hints.update(extra)
-        extra2 = getattr(self.c_cfg, "keyops_hints", None)
+        extra2 = self.c_cfg.keyops_hints
         if isinstance(extra2, dict):
             hints.update(extra2)
 
@@ -1302,10 +1295,10 @@ class DecryptionProblem:
             hints["interruptors_search_strategy"] = strategy.value
             hints["interruptors_bruteforce_max"] = int(cfg.bruteforce_max or 0)
         else:
-            pool = getattr(self.c_cfg, "interruptors_pool", None)
+            pool = self.c_cfg.interruptors_pool
             if pool is not None:
                 hints["interruptors_pool"] = list(pool)
-            max_n = getattr(self.c_cfg, "interruptors_max", None)
+            max_n = self.c_cfg.interruptors_max
             if max_n is not None:
                 hints["interruptors_max"] = int(max_n)
 
