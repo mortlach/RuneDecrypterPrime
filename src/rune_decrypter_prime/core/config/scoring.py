@@ -27,6 +27,7 @@ from rune_decrypter_prime.core.types import (
     ensure_avg_window_policy,
 )
 from rune_decrypter_prime.core.config.hard_crib import HardCribConfig, normalize_hard_crib_config
+from rune_decrypter_prime.core.component_contracts import ScorerLaneName
 from rune_decrypter_prime.core.hamming_dictionary_policy import (
     HammingDictionaryPolicy,
     ensure_hamming_dictionary_policy,
@@ -334,6 +335,37 @@ class ScoringConfig:
         if not bool(self.maximize):
             raise ValueError("maximize must be True; objectives are defined as higher-is-better")
         self.maximize = True
+
+    def requested_scorer_lanes(self) -> tuple[ScorerLaneName, ...]:
+        """Return optional scorer lanes explicitly requested by this config.
+
+        This method is configuration-only. It must not import scorer backends,
+        read assets, construct scorer objects, or change runtime scoring.
+        """
+        lanes: list[ScorerLaneName] = []
+
+        hamming_weight = self.hamming_weight
+        if bool(self.hamming_enabled) or (
+            hamming_weight is not None and float(hamming_weight) != 0.0
+        ):
+            lanes.append(ScorerLaneName.HAMMING)
+
+        span_mode = str(self.span_hamming_mode or "off").strip().lower()
+        raw_span_requested = (
+            span_mode == "raw_bonus"
+            or bool(self.span_hamming_enabled)
+            or float(self.span_hamming_weight) != 0.0
+        )
+
+        if span_mode == "calibrated":
+            lanes.append(ScorerLaneName.SPAN_HAMMING_CALIBRATED)
+        elif raw_span_requested:
+            lanes.append(ScorerLaneName.SPAN_HAMMING_RAW)
+
+        if bool(self.word_ngram_judge_enabled):
+            lanes.append(ScorerLaneName.WORD_NGRAM_JUDGE_REPORT_ONLY)
+
+        return tuple(lanes)
 
     def asdict(self) -> Dict[str, Any]:
         out = asdict(self)
