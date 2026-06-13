@@ -8,7 +8,7 @@ from pathlib import Path
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.types import Direction
 from rune_decrypter_prime.scoring import rune_scorer
-from rune_decrypter_prime.scoring.hamming.loader import load_raw1grams_wordlists, _PACKAGE_DEFAULT_DIR
+from rune_decrypter_prime.scoring.hamming.loader import default_hamming_dir, load_raw1grams_wordlists
 from rune_decrypter_prime.scoring.hamming.backend import HammingBackend
 from rune_decrypter_prime.utils.runeglish import Runeglish
 
@@ -111,7 +111,7 @@ def test_hamming_affects_rune_scorer(monkeypatch):
 
 @requires_ext
 def test_selected_vs_unselected_words_have_correct_hd(monkeypatch):
-    base: Path = _PACKAGE_DEFAULT_DIR
+    base: Path = default_hamming_dir()
     assert base.exists(), "Default hamming_raw_1g assets must exist"
 
     wl_ltr, _ = load_raw1grams_wordlists()

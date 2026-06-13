@@ -12,9 +12,10 @@ import datetime as _dt
 import threading
 
 try:
-    from zoneinfo import ZoneInfo
-except Exception:
-    ZoneInfo = None  # pragma: no cover
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+except Exception:  # pragma: no cover
+    ZoneInfo = None  # type: ignore[assignment]
+    ZoneInfoNotFoundError = Exception  # type: ignore[assignment]
 
 # Importing here avoids circulars (core.logging_config does not import us)
 from rune_decrypter_prime.core.config.logging_config import (
@@ -28,7 +29,17 @@ from rune_decrypter_prime.io.artifact_policy import (
     portable_exception_message,
 )
 
-_TZ = ZoneInfo("America/Los_Angeles") if ZoneInfo else None
+
+def _load_log_timezone():
+    if ZoneInfo is None:
+        return None
+    try:
+        return ZoneInfo("America/Los_Angeles")
+    except ZoneInfoNotFoundError:
+        return _dt.timezone.utc
+
+
+_TZ = _load_log_timezone()
 _lock = threading.Lock()
 _singleton: Optional["RunLogger"] = None
 

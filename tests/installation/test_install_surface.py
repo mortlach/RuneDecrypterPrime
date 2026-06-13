@@ -1,0 +1,42 @@
+from __future__ import annotations
+
+import tomllib
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_root_installer_does_not_import_removed_benchmark_bootstrap() -> None:
+    text = (ROOT / "install.py").read_text(encoding="utf-8")
+    assert "tools.benchmarks.community" not in text
+    assert "install_smoke.py" not in text
+
+
+def test_root_setup_builds_native_extensions_from_present_sources() -> None:
+    text = (ROOT / "setup.py").read_text(encoding="utf-8")
+    assert "rune_decrypter_prime.scoring.language_model._fastlm" in text
+    assert "rune_decrypter_prime.scoring.hamming._hamming" in text
+    assert "rune_decrypter_prime.scoring.span_hamming._span_hamming_fast" in text
+
+
+def test_root_setup_uses_relative_extension_sources_for_editable_builds() -> None:
+    text = (ROOT / "setup.py").read_text(encoding="utf-8")
+    assert "relative_to(ROOT.resolve()).as_posix()" in text
+    assert "sources=[_rel(path) for path in sources]" in text
+    assert "sources=[str(path) for path in sources]" not in text
+
+
+def test_pyproject_build_requires_pybind11_for_isolated_builds() -> None:
+    text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert "pybind11" in text.split("[project]", 1)[0]
+
+
+def test_pyproject_declares_required_runtime_dependencies() -> None:
+    data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    dependency_names = {
+        str(item).split(";", 1)[0].strip().split("[", 1)[0].split(">", 1)[0].split("<", 1)[0].split("=", 1)[0].strip().lower()
+        for item in data["project"]["dependencies"]
+    }
+
+    assert {"numpy", "zstandard", "tzdata"} <= dependency_names

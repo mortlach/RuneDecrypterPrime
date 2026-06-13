@@ -14,9 +14,14 @@ from rune_decrypter_prime.core.types import (
     Stat,
 )
 from rune_decrypter_prime.scoring.rune_scorer import RuneScorer
-from rune_decrypter_prime.scoring.torch_rune_scorer import RuneScorerTorch
 from tests.scoring._helpers.lm_test_guard import require_full_lm_assets
 
+
+torch_scorer_module = pytest.importorskip(
+    "rune_decrypter_prime.scoring.torch_rune_scorer",
+    reason="Torch backend required for Torch scorer tests",
+)
+RuneScorerTorch = torch_scorer_module.RuneScorerTorch
 
 pytestmark = pytest.mark.tier_a
 
@@ -47,7 +52,6 @@ def _avg_fulltext_cfg(*, impl: ScorerImpl, win: int = 20) -> ScoringConfig:
 
 @pytest.mark.parametrize("length", [4, 40, 96, 240])
 def test_torch_avg_fulltext_matches_numpy_across_lengths(length: int) -> None:
-    pytest.importorskip("torch")
     require_full_lm_assets(
         models=("char",),
         modes=("ltr",),
@@ -71,7 +75,6 @@ def test_torch_avg_fulltext_matches_numpy_across_lengths(length: int) -> None:
 
 
 def test_torch_avg_fulltext_is_repeatable_and_reports_lookup_diagnostics() -> None:
-    pytest.importorskip("torch")
     require_full_lm_assets(
         models=("char",),
         modes=("ltr",),

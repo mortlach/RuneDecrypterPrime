@@ -1,3 +1,34 @@
+Metadata-Version: 2.4
+Name: rune-decrypter-prime
+Version: 1.0.0
+Summary: Deterministic, solving toolkit for a 29-rune alphabet.
+Author: mortlach
+Project-URL: Homepage, https://github.com/mortlach/RuneDecrypterPrime
+Project-URL: Documentation, https://github.com/mortlach/RuneDecrypterPrime/tree/main/docs
+Project-URL: Issues, https://github.com/mortlach/RuneDecrypterPrime/issues
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+License-File: LICENSE_MIT.txt
+Requires-Dist: numpy>=1.26
+Requires-Dist: zstandard>=0.22
+Provides-Extra: community-runner
+Requires-Dist: jsonschema>=4.23.0; extra == "community-runner"
+Requires-Dist: pybind11>=2.13.0; extra == "community-runner"
+Provides-Extra: community-organiser
+Requires-Dist: jsonschema>=4.23.0; extra == "community-organiser"
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: ruff>=0.5.0; extra == "dev"
+Requires-Dist: pre-commit>=3.0; extra == "dev"
+Requires-Dist: jsonschema>=4.23.0; extra == "dev"
+Provides-Extra: test
+Requires-Dist: pytest>=8.0; extra == "test"
+Requires-Dist: jsonschema>=4.23.0; extra == "test"
+Dynamic: license-file
+
 # Rune Decrypter Prime
 
 Rune Decrypter Prime (RDP) is a deterministic cryptanalysis toolkit for a 29-rune alphabet.

@@ -11,10 +11,17 @@ from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.types import Direction, ObjectiveFamily, ObjectiveSpec, Stat
 from rune_decrypter_prime.scoring import rune_scorer
 from rune_decrypter_prime.scoring.span_hamming.calibrated_assets import SpanCalibratedAssets
-from rune_decrypter_prime.scoring.torch_rune_scorer import RuneScorerTorch
 
 
 pytestmark = pytest.mark.tier_a
+
+
+def _make_torch_scorer():
+    module = pytest.importorskip(
+        "rune_decrypter_prime.scoring.torch_rune_scorer",
+        reason="Torch backend required for Torch span-hamming tests",
+    )
+    return object.__new__(module.RuneScorerTorch)
 
 
 class _StubECDF:
@@ -150,7 +157,7 @@ def test_numpy_rune_scorer_applies_span_bonus(monkeypatch):
 
 
 def test_torch_span_bonus_batch_adjusts_score_and_raw():
-    scorer = object.__new__(RuneScorerTorch)
+    scorer = _make_torch_scorer()
     scorer._span_hamming_mode = "raw_bonus"
     scorer._span_hamming_backend = _DummySpanBackend(raw=0.2)
     scorer._span_hamming_weight = 1.5
@@ -171,7 +178,7 @@ def test_torch_span_bonus_batch_adjusts_score_and_raw():
 
 def test_torch_calibrated_span_batch_pct_mode(tmp_path: Path):
     assets_dir = _write_span_assets(tmp_path, length_bucket=3)
-    scorer = object.__new__(RuneScorerTorch)
+    scorer = _make_torch_scorer()
     scorer.objective = ObjectiveSpec(family=ObjectiveFamily.PCT, stat=Stat.LOGP, win=10)
     scorer.direction = Direction.LTR
     scorer._score_dtype = np.float64
@@ -205,7 +212,7 @@ def test_torch_calibrated_span_batch_pct_mode(tmp_path: Path):
 
 def test_torch_calibrated_span_batch_weighted_sum_and_char_gate(tmp_path: Path):
     assets_dir = _write_span_assets(tmp_path, length_bucket=3)
-    scorer = object.__new__(RuneScorerTorch)
+    scorer = _make_torch_scorer()
     scorer.objective = ObjectiveSpec(family=ObjectiveFamily.PCT, stat=Stat.LOGP, win=10)
     scorer.direction = Direction.LTR
     scorer._score_dtype = np.float64

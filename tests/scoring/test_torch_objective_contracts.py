@@ -6,8 +6,13 @@ import numpy as np
 import pytest
 
 from rune_decrypter_prime.core.types import ObjectiveFamily, ObjectiveSpec, Stat
-from rune_decrypter_prime.scoring.torch_rune_scorer import RuneScorerTorch
 
+
+torch_scorer_module = pytest.importorskip(
+    "rune_decrypter_prime.scoring.torch_rune_scorer",
+    reason="Torch backend required for Torch scorer tests",
+)
+RuneScorerTorch = torch_scorer_module.RuneScorerTorch
 
 pytestmark = pytest.mark.tier_a
 

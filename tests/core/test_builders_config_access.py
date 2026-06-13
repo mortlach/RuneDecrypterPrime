@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+import types
 from types import SimpleNamespace
 
 import pytest
@@ -31,12 +33,14 @@ class _DummyUnified:
 
 def _patch_scorer_classes(monkeypatch: pytest.MonkeyPatch) -> None:
     import rune_decrypter_prime.scoring.rune_scorer as rs
-    import rune_decrypter_prime.scoring.torch_rune_scorer as trs
     import rune_decrypter_prime.scoring.unified_rune_scorer as us
 
+    torch_module = types.ModuleType("rune_decrypter_prime.scoring.torch_rune_scorer")
+    torch_module.RuneScorerTorch = _DummyTorch
+
     monkeypatch.setattr(rs, "RuneScorer", _DummyNumpy)
-    monkeypatch.setattr(trs, "RuneScorerTorch", _DummyTorch)
     monkeypatch.setattr(us, "UnifiedRuneScorer", _DummyUnified)
+    monkeypatch.setitem(sys.modules, "rune_decrypter_prime.scoring.torch_rune_scorer", torch_module)
 
 
 def test_build_scorer_reads_impl_from_dict(monkeypatch: pytest.MonkeyPatch) -> None:

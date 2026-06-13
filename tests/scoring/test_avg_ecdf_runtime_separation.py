@@ -91,7 +91,10 @@ def test_numpy_avg_does_not_call_ecdf_path(monkeypatch) -> None:
 
 
 def test_torch_avg_does_not_construct_or_call_ecdf(monkeypatch) -> None:
-    from rune_decrypter_prime.scoring import torch_rune_scorer as trs
+    trs = pytest.importorskip(
+        "rune_decrypter_prime.scoring.torch_rune_scorer",
+        reason="Torch backend required for Torch AVG scorer tests",
+    )
 
     class _FailECDF:
         def __init__(self, *args, **kwargs):

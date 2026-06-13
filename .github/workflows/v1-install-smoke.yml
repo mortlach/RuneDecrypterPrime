@@ -1,29 +1,24 @@
-name: V1 CI Smoke
+name: V1 Install Smoke
 
 on:
   push:
     branches:
       - main
-      - "prelease/v1.0.0_*"
-      - "prerelease/v1.0.0_*"
+      - "prelease/**"
   pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
-  v1-ci-smoke:
-    name: v1-ci-smoke (${{ matrix.os }})
+  v1-install-smoke:
+    name: v1-install-smoke (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
-
     strategy:
       fail-fast: false
       matrix:
         os:
           - windows-latest
           - ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,5 +28,5 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Run clean installer
+      - name: Run V1 clean installer
         run: python install.py

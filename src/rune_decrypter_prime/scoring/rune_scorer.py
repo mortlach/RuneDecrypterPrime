@@ -37,7 +37,6 @@ from rune_decrypter_prime.core.types import (
     ensure_se_mode,
     ensure_avg_window_policy,
 )
-from rune_decrypter_prime.scoring.word_ngrams import RuneTokenWordNgramJudgeRuntime
 
 
 def _cfg_get(cfg: Any, key: str, default: Any = None) -> Any:
@@ -317,6 +316,16 @@ class RuneScorer(BaseScorer):
         self._word_ngram_judge = None
         self._word_ngram_judge_forced_debug_intervals = False
         if self._word_ngram_judge_enabled:
+            try:
+                from rune_decrypter_prime.scoring.word_ngrams import RuneTokenWordNgramJudgeRuntime
+            except ModuleNotFoundError as exc:
+                raise RuntimeError(
+                    "word_ngram_judge_enabled=True, but the experimental word-ngram "
+                    "judge module is not present in this V1 release build. "
+                    "Disable word_ngram_judge_enabled or install the experimental "
+                    "ngram tooling branch."
+                ) from exc
+
             self._word_ngram_judge = RuneTokenWordNgramJudgeRuntime.open_sqlite(
                 self._word_ngram_judge_sqlite_path,
                 alpha=float(self._word_ngram_judge_alpha),

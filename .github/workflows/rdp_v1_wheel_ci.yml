@@ -1,0 +1,102 @@
+name: RDP V1 wheel CI
+
+on:
+  push:
+    branches:
+      - main
+      - ScheduledStreamLookup
+      - "prelease/**"
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - main
+      - ScheduledStreamLookup
+      - "prelease/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-wheels:
+    name: wheel CI / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
+      CIBW_BUILD: "cp311-*"
+      CIBW_ARCHS: "auto64"
+      CIBW_SKIP: "*-musllinux_*"
+      CIBW_TEST_REQUIRES: "pytest jsonschema"
+      CIBW_TEST_COMMAND: >-
+        python -c "import rune_decrypter_prime;
+        import rune_decrypter_prime.scoring.language_model._fastlm;
+        import rune_decrypter_prime.scoring.hamming._hamming;
+        import rune_decrypter_prime.scoring.span_hamming._span_hamming_fast;
+        print('wheel native imports passed')"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python for cibuildwheel driver
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install cibuildwheel
+        run: python -m pip install cibuildwheel
+
+      - name: Build CPython 3.11 wheels
+        shell: python
+        run: |
+          from pathlib import Path
+          import subprocess
+          import sys
+
+          log_dir = Path("output") / "wheel_logs"
+          log_dir.mkdir(parents=True, exist_ok=True)
+          log_path = log_dir / "cibuildwheel-${{ matrix.os }}.log"
+
+          cmd = [sys.executable, "-m", "cibuildwheel", "--output-dir", "wheelhouse"]
+          proc = subprocess.run(
+              cmd,
+              stdout=subprocess.PIPE,
+              stderr=subprocess.STDOUT,
+          )
+          output = proc.stdout or b""
+          log_path.write_bytes(output)
+
+          # Do not use print(output.decode(...)) here. On Windows GitHub runners,
+          # sys.stdout may still be backed by cp1252 even when the process output
+          # contains UTF-8 symbols from cibuildwheel. Writing bytes avoids the
+          # UnicodeEncodeError and preserves the real cibuildwheel result.
+          sys.stdout.buffer.write(output)
+          sys.stdout.buffer.flush()
+
+          raise SystemExit(proc.returncode)
+
+      - name: Upload wheel build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rdp-v1-wheel-build-log-${{ matrix.os }}
+          path: output/wheel_logs/*.log
+          if-no-files-found: warn
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rdp-v1-wheelhouse-${{ matrix.os }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error

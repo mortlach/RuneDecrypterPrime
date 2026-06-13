@@ -6,8 +6,12 @@ import pytest
 
 pytestmark = pytest.mark.tier_a
 torch = pytest.importorskip("torch")
+_torch_scorer = pytest.importorskip(
+    "rune_decrypter_prime.scoring.torch_rune_scorer",
+    reason="Torch scorer probe-loop tests require the optional Torch backend",
+)
 
-from rune_decrypter_prime.scoring.torch_rune_scorer import _lookup_logp_linear_probe  # noqa: E402
+_lookup_logp_linear_probe = _torch_scorer._lookup_logp_linear_probe
 
 
 def test_probe_lookup_finds_matches_without_fallback() -> None:

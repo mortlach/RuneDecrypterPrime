@@ -1,6 +1,5 @@
-
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=68", "wheel", "pybind11>=2.13.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -13,6 +12,7 @@ requires-python = ">=3.11"
 dependencies = [
   "numpy>=1.26",
   "zstandard>=0.22",
+  "tzdata>=2024.1",
 ]
 classifiers = [
   "Programming Language :: Python :: 3",
@@ -46,4 +46,4 @@ Issues = "https://github.com/mortlach/RuneDecrypterPrime/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["rune_decrypter_prime*","rdp*"]
+include = ["rune_decrypter_prime*", "rdp*"]

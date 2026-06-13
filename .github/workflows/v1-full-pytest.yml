@@ -1,0 +1,59 @@
+name: V1 Full Pytest
+
+on:
+  workflow_dispatch:
+    inputs:
+      os:
+        description: "Runner OS"
+        required: true
+        default: "windows-latest"
+        type: choice
+        options:
+          - windows-latest
+          - ubuntu-latest
+      run_release_tutorials:
+        description: "Run tutorial release profile after pytest"
+        required: true
+        default: true
+        type: boolean
+      run_scheduled_stream_real_solves:
+        description: "Run quick ScheduledStreamLookup real solves after pytest"
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  v1-full-pytest:
+    name: v1-full-pytest (${{ inputs.os }})
+    runs-on: ${{ inputs.os }}
+    timeout-minutes: 150
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package
+        run: python -m pip install -e ".[test]"
+
+      - name: Check native runtime module
+        run: python -c "import rune_decrypter_prime.scoring.language_model._fastlm; print('fastlm ok')"
+
+      - name: Run full selected pytest suite
+        run: python -m pytest -q -p no:cacheprovider tests
+
+      - name: Run tutorial release profile
+        if: ${{ inputs.run_release_tutorials }}
+        run: python tutorials/v1/run_all.py
+
+      - name: Run ScheduledStreamLookup real solve P13 plus primes
+        if: ${{ inputs.run_scheduled_stream_real_solves }}
+        run: python tutorials/v1/Tutorial_ScheduledStreamLookup_RealSolve_P13Primes.py
+
+      - name: Run ScheduledStreamLookup real solve P13 plus supplied sequence
+        if: ${{ inputs.run_scheduled_stream_real_solves }}
+        run: python tutorials/v1/Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py

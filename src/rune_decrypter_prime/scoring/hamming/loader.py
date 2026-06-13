@@ -14,12 +14,15 @@ Wordlist = Dict[int, List[List[int]]]
 _DEFAULT_HAMMING_ASSETS_REL = Path("hamming_raw_1g")
 
 
-def _default_hamming_dir() -> Path:
+def default_hamming_dir() -> Path:
+    """
+    Resolve the default hamming raw-1g asset directory.
+
+    This is intentionally a function, not an import-time constant, so installed
+    wheels can import the hamming package/native extension without requiring a
+    repository checkout or asset manifest next to site-packages.
+    """
     return resolve_assets_path(str(_DEFAULT_HAMMING_ASSETS_REL), start=Path(__file__))
-
-
-# Canonical default raw1grams location.
-_PACKAGE_DEFAULT_DIR = _default_hamming_dir()
 
 
 def _normalize_dir(path: str | Path) -> Path:
@@ -94,7 +97,7 @@ def _load_cached(wordlist_dir: str, build_rtl: bool, require_selected: bool) -> 
                         if rtl_list:
                             wordlists_rtl.setdefault(len(rtl_list), []).append(rtl_list)
                     except Exception:
-                        # Fallback: reverse the LTR indices to keep coverage
+                        # Fallback: reverse the LTR indices to keep coverage.
                         wordlists_rtl.setdefault(ln, []).append(list(reversed(rune_indices)))
 
     return _freeze_wordlists(wordlists_ltr), _freeze_wordlists(wordlists_rtl if build_rtl else None)
@@ -114,6 +117,6 @@ def load_raw1grams_wordlists(
 
     If wordlist_dir is None, defaults to `assets/hamming_raw_1g/`.
     """
-    base = wordlist_dir if wordlist_dir is not None else _PACKAGE_DEFAULT_DIR
+    base = wordlist_dir if wordlist_dir is not None else default_hamming_dir()
     frozen_ltr, frozen_rtl = _load_cached(str(_normalize_dir(base)), build_rtl, require_selected)
     return _thaw_wordlists(frozen_ltr), _thaw_wordlists(frozen_rtl)

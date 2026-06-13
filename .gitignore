@@ -1,12 +1,35 @@
+# Python cache/build outputs
 __pycache__/
 *.py[cod]
 *.pyd
 *.so
+
+# Native build scratch outputs
 build_tmp_fastlm/
 build_lib_fastlm/
 src/build_tmp_fastlm/
 src/build_lib_fastlm/
+
+# Python packaging outputs
+build/
+dist/
+*.egg-info/
+src/*.egg-info/
+
+# Test/runtime outputs
 output/
 .pytest_cache/
+.coverage
+htmlcov/
+
+# Local virtual environments
+.venv/
+venv/
+env/
+
+# IDE/local workspace files
+/.idea/
 .idea/workspace.xml
-/.idea
+
+# Wheel build outputs
+wheelhouse/

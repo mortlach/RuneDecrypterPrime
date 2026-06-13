@@ -1,0 +1,6 @@
+include pyproject.toml
+include setup.py
+
+recursive-include src/rune_decrypter_prime/scoring/language_model *.cpp *.hpp *.h
+recursive-include src/rune_decrypter_prime/scoring/hamming *.cpp *.hpp *.h
+recursive-include src/rune_decrypter_prime/scoring/span_hamming *.cpp *.hpp *.h
