@@ -4,16 +4,17 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from rune_decrypter_prime.core.config import CipherConfig, ScoringConfig
+from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rune_decrypter_prime.core.types import Device, Direction, ObjectiveFamily, ObjectiveSpec, SeMode, Stat
 
 from tests.scoring._helpers.lm_test_guard import require_full_lm_assets
 
 
-def _mk_cipher_cfg(length: int) -> dict:
+def _mk_cipher_cfg(length: int) -> CipherConfig:
     ct = list(range(length))
-    return CipherConfig(ciphertext=ct, wli_data=[], key_length=None, device=Device.CPU, encoding_dir=Direction.LTR).asdict()
+    return CipherConfig(ciphertext=ct, wli_data=[], key_length=None, device=Device.CPU, encoding_dir=Direction.LTR)
 
 
 def _mk_pct_scorer(*, ecdf_clamp_min: float | None = None, ecdf_clamp_max: float | None = None) -> object:
@@ -27,12 +28,9 @@ def _mk_pct_scorer(*, ecdf_clamp_min: float | None = None, ecdf_clamp_max: float
         char_weights={2: 1.0},
         wli_weights={},
         dtype="float32",
-    ).asdict()
-
-    if ecdf_clamp_min is not None:
-        s["ecdf_clamp_min"] = float(ecdf_clamp_min)
-    if ecdf_clamp_max is not None:
-        s["ecdf_clamp_max"] = float(ecdf_clamp_max)
+        ecdf_clamp_min=ecdf_clamp_min if ecdf_clamp_min is not None else 1e-6,
+        ecdf_clamp_max=ecdf_clamp_max if ecdf_clamp_max is not None else 1.0 - 1e-6,
+    )
 
     return build_scorer(_mk_cipher_cfg(1000), s)
 

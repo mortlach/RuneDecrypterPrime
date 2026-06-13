@@ -4,9 +4,10 @@ import numpy as np
 import pytest
 
 from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
-from rune_decrypter_prime.core.config import CipherConfig
+from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.problem import DecryptionProblem
-from rune_decrypter_prime.core.types import Direction, KEY_DTYPE
+from rune_decrypter_prime.core.types import Direction
 from rune_decrypter_prime.solvers.sa import SASolver
 
 
@@ -29,7 +30,7 @@ def test_sa_elitism_rejected():
         encoding_dir=Direction.LTR,
     )
     cipher = RuneVigenereCipher(cfg)
-    problem = DecryptionProblem(cipher=cipher, scorer=_ZeroScorer(), c_cfg=cfg)
+    problem = DecryptionProblem(cipher=cipher, scorer=_ZeroScorer(), c_cfg=cfg, s_cfg=ScoringConfig())
 
     rng = np.random.default_rng(0)
     with pytest.raises(ValueError, match="sa_elitism"):

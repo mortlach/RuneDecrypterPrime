@@ -10,7 +10,22 @@ import pytest
 from rune_decrypter_prime.api import CipherSpec, Direction, KeySpec, RunAPI, SolverSpec
 from rune_decrypter_prime.api import pipeline
 from rune_decrypter_prime.core.config import logging_config
+from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.logging_config import LoggingConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rune_decrypter_prime.core.config.solver import SolverConfig
+from rune_decrypter_prime.core.types import Device
+
+
+def _minimal_cipher_config() -> CipherConfig:
+    return CipherConfig(
+        ciphertext=np.asarray([0], dtype=np.uint8),
+        wli_data=None,
+        key_length=1,
+        name="vigenere",
+        device=Device.CPU,
+        encoding_dir=Direction.LTR,
+    )
 
 
 def _runapi_logging_route(monkeypatch, logging):
@@ -131,16 +146,16 @@ def _execute_run_for_logging(monkeypatch, *, logging_runtime, initialize_logging
     return pipeline.execute_run(
         ciphertext=np.array([0], dtype=np.uint8),
         wli=None,
-        cipher=object(),
-        key=object(),
-        solver=SimpleNamespace(name="beam", params={}, seed=1),
-        scoring=object(),
+        cipher=CipherSpec.periodic_substitution(period=1),
+        key=KeySpec.repeat(len=1),
+        solver=SolverConfig(name="beam", params={}, seed=1),
+        scoring=ScoringConfig(),
         scorer_name="rune",
         logging_config=logging_config,
         logging_runtime=logging_runtime,
         initialize_logging=initialize_logging,
         telemetry_on=False,
-        device=object(),
+        device=Device.CPU,
         encoding_dir=Direction.LTR,
         initial_keys=None,
         initial_text_permutation_indices=None,
@@ -220,7 +235,7 @@ def test_execute_run_preserves_normal_path_runtime_controls(monkeypatch):
     )
 
     monkeypatch.setattr(pipeline, "maybe_known_key_fastpath", lambda **_kwargs: None)
-    monkeypatch.setattr(pipeline, "build_cipher_config", lambda **_kwargs: object())
+    monkeypatch.setattr(pipeline, "build_cipher_config", lambda **_kwargs: _minimal_cipher_config())
     monkeypatch.setattr(
         pipeline.ProblemInstance,
         "materialise",

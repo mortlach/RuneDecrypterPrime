@@ -3,7 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from rune_decrypter_prime.core.config import CipherConfig
+from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
 from rune_decrypter_prime.core.types import Direction, KEY_DTYPE
@@ -40,7 +41,7 @@ def _run_permutation_wli_check():
     )
     cipher = RuneVigenereCipher(cfg)
     scorer = _AssertWliScorer(ct, wli)
-    problem = DecryptionProblem(cipher=cipher, scorer=scorer, c_cfg=cfg)
+    problem = DecryptionProblem(cipher=cipher, scorer=scorer, c_cfg=cfg, s_cfg=ScoringConfig())
 
     key = np.array([0], dtype=KEY_DTYPE)
     _ = problem.evaluate_keys(key)

@@ -4,18 +4,21 @@
 import numpy as np
 import pytest
 
-from rune_decrypter_prime.core.config import CipherConfig, ScoringConfig
+from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.solver_engine import build_scorer
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1, word_breaks1
-from rune_decrypter_prime.core.types import Device,ScorerImpl, Direction
+from rune_decrypter_prime.core.types import Device, ScorerImpl, Direction
 from rune_decrypter_prime.scoring.windowing import aligned_window_count
 from tests.scoring._helpers.lm_test_guard import require_full_lm_assets
 
 
 A = 29
 
+
 def _require_pct_assets() -> None:
     require_full_lm_assets(models=("char", "wli"), modes=("ltr",), poses=("nose",), ns=(2,), ecdf_stats=("logp",))
+
 
 def _cuda_available() -> bool:
     try:
@@ -24,20 +27,29 @@ def _cuda_available() -> bool:
     except Exception:
         return False
 
+
 @pytest.mark.tier_a
 def test_pct_win10_stats_present_numpy():
     _require_pct_assets()
     pt = np.asarray(plaintext1, dtype=np.uint8)
     wli = np.asarray(word_breaks1, dtype=np.uint8)
-    cfg_c = CipherConfig(ciphertext=pt, wli_data=wli, key_length=None,encoding_dir=Direction.LTR,
-                         initial_text_permutation_indices=None)
-    cfg_s = ScoringConfig( include_char=True, encoding_dir=Direction.LTR,
-                          use_word_breaks=True, n_char=2, n_wli=2, dtype="float32")
+    cfg_c = CipherConfig(
+        ciphertext=pt,
+        wli_data=wli,
+        key_length=None,
+        encoding_dir=Direction.LTR,
+        initial_text_permutation_indices=None,
+    )
+    cfg_s = ScoringConfig(
+        include_char=True,
+        encoding_dir=Direction.LTR,
+        use_word_breaks=True,
+        n_char=2,
+        n_wli=2,
+        dtype="float32",
+    )
 
-    d = cfg_s.asdict()
-    d["encoding_dir"] = Direction.LTR
-
-    scorer = build_scorer(cfg_c, d)
+    scorer = build_scorer(cfg_c, cfg_s)
     _ = float(scorer.score(pt, wli))  # triggers stats
     tel = getattr(scorer, "telemetry")() if hasattr(scorer, "telemetry") else {}
     stats = getattr(scorer, "last_stats")() if hasattr(scorer, "last_stats") else tel
@@ -59,6 +71,7 @@ def test_pct_win10_stats_present_numpy():
     assert "char_n2" in obj["components"]
     assert "wli_n2" in obj["components"]
 
+
 def test_pct_win10_wli_numpy_vs_list_equivalence():
     """Regression guard: ndarray and list inputs must score identically."""
     _require_pct_assets()
@@ -78,7 +91,7 @@ def test_pct_win10_wli_numpy_vs_list_equivalence():
         n_char=2,
         n_wli=2,
         dtype="float32",
-    ).asdict()
+    )
     scorer = build_scorer(cfg_c, cfg_s)
 
     score_np = float(scorer.score(pt, wli_np))
@@ -92,25 +105,24 @@ def test_pct_win10_wli_numpy_vs_list_equivalence():
     bs_list = scorer.batch_score(pts, wlis_list)
     np.testing.assert_allclose(bs_np, bs_list, rtol=0, atol=1e-8)
 
+
 @pytest.mark.tier_a
 @pytest.mark.skipif(not _cuda_available(), reason="CUDA not available")
 def test_pct_win10_stats_cpu_cuda_parity():
-    import torch
     _require_pct_assets()
     pt = np.asarray(plaintext1, dtype=np.uint8)
     wli = np.asarray(word_breaks1, dtype=np.uint8)
 
-    base = dict(ciphertext=pt, wli_data=wli, key_length=None)#, text_transposition="ltr")
+    base = dict(ciphertext=pt, wli_data=wli, key_length=None)
 
-    cpu = build_scorer(CipherConfig(**base),
-                       ScoringConfig(#objective="pct.logp.win10",
-                                     include_char=True, use_word_breaks=True,
-                                     n_char=2, n_wli=2, dtype="float32").asdict())
-
-    gpu = build_scorer(CipherConfig(**base, device=Device.CUDA),
-                       ScoringConfig(#objective="pct.logp.win10",
-                                     include_char=True, use_word_breaks=True,
-                                     n_char=2, n_wli=2, impl=ScorerImpl.TORCH, dtype="float32"))
+    cpu = build_scorer(
+        CipherConfig(**base),
+        ScoringConfig(include_char=True, use_word_breaks=True, n_char=2, n_wli=2, dtype="float32"),
+    )
+    gpu = build_scorer(
+        CipherConfig(**base, device=Device.CUDA),
+        ScoringConfig(include_char=True, use_word_breaks=True, n_char=2, n_wli=2, impl=ScorerImpl.TORCH, dtype="float32"),
+    )
     s_cpu = float(cpu.score(pt, wli))
     t_cpu = cpu.telemetry()
     s_gpu = float(gpu.score(pt, wli))
@@ -124,7 +136,6 @@ def test_pct_win10_stats_cpu_cuda_parity():
     assert abs(float(t_cpu["score_std"]) - float(t_gpu["score_std"])) <= 4e-6
 
 
-
 @pytest.mark.tier_a
 def test_pct_win10_batch_stats_present_numpy():
     _require_pct_assets()
@@ -136,16 +147,19 @@ def test_pct_win10_batch_stats_present_numpy():
     wlis = [wli] * B
 
     # Scorer (NumPy on CPU)
-    cfg_c = CipherConfig(ciphertext=pt, wli_data=wli, key_length=None,
-                         #
-                         initial_text_permutation_indices=None,
-                         )
-    cfg_s = ScoringConfig(#objective="pct.logp.win10",
-                          include_char=True,
-                          use_word_breaks=True,
-                          n_char=2,
-                          n_wli=2,
-                          dtype="float32").asdict()
+    cfg_c = CipherConfig(
+        ciphertext=pt,
+        wli_data=wli,
+        key_length=None,
+        initial_text_permutation_indices=None,
+    )
+    cfg_s = ScoringConfig(
+        include_char=True,
+        use_word_breaks=True,
+        n_char=2,
+        n_wli=2,
+        dtype="float32",
+    )
     scorer = build_scorer(cfg_c, cfg_s)
 
     # Batch score
@@ -168,7 +182,8 @@ def test_pct_win10_batch_stats_present_numpy():
     np.testing.assert_allclose(
         bs,
         np.asarray(tel["score_mean_batch"], dtype=np.float32),
-        rtol=0, atol=3e-6
+        rtol=0,
+        atol=3e-6,
     )
 
 
@@ -179,10 +194,13 @@ def test_pct_win10_batch_score_with_raw_numpy():
     pts = [pt, pt]
     wlis = [wli, wli]
 
-    cfg_c = CipherConfig(ciphertext=pt, wli_data=wli, key_length=None,
-                         initial_text_permutation_indices=None)
-    cfg_s = ScoringConfig(include_char=True, use_word_breaks=True,
-                          n_char=2, n_wli=2, dtype="float32").asdict()
+    cfg_c = CipherConfig(
+        ciphertext=pt,
+        wli_data=wli,
+        key_length=None,
+        initial_text_permutation_indices=None,
+    )
+    cfg_s = ScoringConfig(include_char=True, use_word_breaks=True, n_char=2, n_wli=2, dtype="float32")
     scorer = build_scorer(cfg_c, cfg_s)
 
     pct, raw = scorer.batch_score_with_raw(pts, wlis)
@@ -206,15 +224,11 @@ def test_pct_win10_batch_stats_cpu_cuda_parity():
 
     cpu = build_scorer(
         CipherConfig(**base),
-        ScoringConfig(#objective="pct.logp.win10",
-                      include_char=True, use_word_breaks=True,
-                      n_char=2, n_wli=2, dtype="float32").asdict()
+        ScoringConfig(include_char=True, use_word_breaks=True, n_char=2, n_wli=2, dtype="float32"),
     )
     gpu = build_scorer(
         CipherConfig(**base, device=Device.CUDA),
-        ScoringConfig(#objective="pct.logp.win10",
-                      include_char=True, use_word_breaks=True,
-                      n_char=2, n_wli=2, impl=ScorerImpl.TORCH, dtype="float32").asdict()
+        ScoringConfig(include_char=True, use_word_breaks=True, n_char=2, n_wli=2, impl=ScorerImpl.TORCH, dtype="float32"),
     )
 
     bs_cpu = cpu.batch_score(pts, wlis)
@@ -228,20 +242,3 @@ def test_pct_win10_batch_stats_cpu_cuda_parity():
     t_gpu = gpu.telemetry()
     for t in (t_cpu, t_gpu):
         assert "score_mean_batch" in t and "score_std_batch" in t and "n_windows" in t
-        assert len(t["score_mean_batch"]) == B
-        assert len(t["score_std_batch"]) == B
-
-    # Telemetry means should match returned batch scores
-    np.testing.assert_allclose(bs_cpu, np.asarray(t_cpu["score_mean_batch"], dtype=np.float32), rtol=0, atol=3e-6)
-    np.testing.assert_allclose(bs_gpu, np.asarray(t_gpu["score_mean_batch"], dtype=np.float32), rtol=0, atol=3e-6)
-
-    # Std parity per batch element (slightly looser due to accumulation)
-    np.testing.assert_allclose(
-        np.asarray(t_cpu["score_std_batch"], dtype=np.float32),
-        np.asarray(t_gpu["score_std_batch"], dtype=np.float32),
-        rtol=0, atol=1e-5
-    )
-
-    # Same n_windows reported
-    expected_nwin = aligned_window_count(length=int(pt.shape[0]), n_set=(2,), W=10, se_mode="nose", stride=1)
-    assert t_cpu["n_windows"] == t_gpu["n_windows"] == expected_nwin

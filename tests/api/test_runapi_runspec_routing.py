@@ -11,7 +11,10 @@ from rune_decrypter_prime.api.run import RunAPI
 from rune_decrypter_prime.api.run_spec import NormalizedInput, RawTextInput, RunSpec, SourceInputRef
 from rune_decrypter_prime.api.source_resolution import ResolvedSourceInput
 from rune_decrypter_prime.api.specs import CipherSpec, KeySpec, SolverSpec
+from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.logging_config import LoggingConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rune_decrypter_prime.core.config.solver import SolverConfig
 from rune_decrypter_prime.core.types import Device, Direction
 from rune_decrypter_prime.data.liber_primus.lp_master import MASTER_TRANSCRIPT_ASSET_ID
 
@@ -55,6 +58,17 @@ def _valid_locator_ref() -> dict[str, object]:
         "word_end": None,
         "route_kind": "none",
     }
+
+
+def _minimal_cipher_config() -> CipherConfig:
+    return CipherConfig(
+        ciphertext=np.asarray([0], dtype=np.uint8),
+        wli_data=None,
+        key_length=1,
+        name="vigenere",
+        device=Device.CPU,
+        encoding_dir=Direction.RTL,
+    )
 
 
 def test_existing_runapi_text_path_still_routes_to_execute_run(monkeypatch) -> None:
@@ -290,7 +304,7 @@ def test_runspec_ordinary_solver_omitted_seed_still_uses_effective_seed_zero(mon
     )
 
     monkeypatch.setattr(pipeline, "maybe_known_key_fastpath", lambda **_kwargs: None)
-    monkeypatch.setattr(pipeline, "build_cipher_config", lambda **_kwargs: object())
+    monkeypatch.setattr(pipeline, "build_cipher_config", lambda **_kwargs: _minimal_cipher_config())
     monkeypatch.setattr(
         pipeline.ProblemInstance,
         "materialise",
@@ -307,16 +321,16 @@ def test_runspec_ordinary_solver_omitted_seed_still_uses_effective_seed_zero(mon
     result = pipeline.execute_run(
         ciphertext=np.array([0], dtype=np.uint8),
         wli=None,
-        cipher=object(),
-        key=object(),
-        solver=SimpleNamespace(name="beam", params={}, seed=None),
-        scoring=object(),
+        cipher=CipherSpec.periodic_substitution(period=1),
+        key=KeySpec.repeat(len=1),
+        solver=SolverConfig(name="beam", params={}, seed=None),
+        scoring=ScoringConfig(),
         scorer_name="rune",
         logging_config=None,
         logging_runtime={},
         initialize_logging=False,
         telemetry_on=False,
-        device=object(),
+        device=Device.CPU,
         encoding_dir=Direction.RTL,
         initial_keys=None,
         initial_text_permutation_indices=None,
@@ -355,8 +369,8 @@ def test_runspec_known_key_fastpath_still_uses_seed_none(monkeypatch) -> None:
         key=KeySpec.const(value=0),
         ciphertext=np.array([0], dtype=np.uint8),
         wli=None,
-        device=object(),
-        scoring=object(),
+        device=Device.CPU,
+        scoring=ScoringConfig(),
         scorer_name="rune",
         logging_runtime={},
         encoding_dir=Direction.RTL,

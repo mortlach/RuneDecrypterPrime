@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from rune_decrypter_prime.core.config import CipherConfig, InterruptorConfig
+from rune_decrypter_prime.core.config import CipherConfig, InterruptorConfig, ScoringConfig
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
 from rune_decrypter_prime.core.types import Direction, KEY_DTYPE
 from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
@@ -29,7 +29,7 @@ def test_interruptors_exact_are_reinserted():
     )
 
     cipher = RuneVigenereCipher(cfg)
-    problem = DecryptionProblem(cipher=cipher, scorer=ZeroScorer(), c_cfg=cfg)
+    problem = DecryptionProblem(cipher=cipher, scorer=ZeroScorer(), c_cfg=cfg, s_cfg=ScoringConfig())
 
     key = np.array([1], dtype=KEY_DTYPE)
     pt = problem.resolve_plaintext(key)
@@ -52,7 +52,7 @@ def test_interruptor_symbols_fixed_from_ciphertext():
     )
 
     cipher = RuneVigenereCipher(cfg)
-    problem = DecryptionProblem(cipher=cipher, scorer=ZeroScorer(), c_cfg=cfg)
+    problem = DecryptionProblem(cipher=cipher, scorer=ZeroScorer(), c_cfg=cfg, s_cfg=ScoringConfig())
 
     key = np.array([3], dtype=KEY_DTYPE)
     pt = problem.resolve_plaintext(key)

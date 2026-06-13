@@ -3,7 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from rune_decrypter_prime.core.config import CipherConfig
+from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
 from rune_decrypter_prime.ciphers.columnar_transposition_cipher import ColumnarTranspositionCipher
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
@@ -30,7 +31,7 @@ def _make_problem():
         encoding_dir=Direction.LTR,
     )
     cipher = RuneVigenereCipher(cfg)
-    return DecryptionProblem(cipher=cipher, scorer=_ZeroScorer(), c_cfg=cfg)
+    return DecryptionProblem(cipher=cipher, scorer=_ZeroScorer(), c_cfg=cfg, s_cfg=ScoringConfig())
 
 
 def _make_perm_problem():
@@ -44,7 +45,7 @@ def _make_perm_problem():
         encoding_dir=Direction.LTR,
     )
     cipher = ColumnarTranspositionCipher(cfg)
-    return DecryptionProblem(cipher=cipher, scorer=_ZeroScorer(), c_cfg=cfg)
+    return DecryptionProblem(cipher=cipher, scorer=_ZeroScorer(), c_cfg=cfg, s_cfg=ScoringConfig())
 
 
 def test_seed_validation():

@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.types import Direction, ObjectiveFamily, ObjectiveSpec, Stat
 from rune_decrypter_prime.scoring import rune_scorer
@@ -22,6 +23,10 @@ def _make_torch_scorer():
         reason="Torch backend required for Torch span-hamming tests",
     )
     return object.__new__(module.RuneScorerTorch)
+
+
+def _cipher_config() -> CipherConfig:
+    return CipherConfig(ciphertext=[], wli_data=[], key_length=None, encoding_dir=Direction.LTR)
 
 
 class _StubECDF:
@@ -143,8 +148,7 @@ def test_numpy_rune_scorer_applies_span_bonus(monkeypatch):
         span_hamming_weight=0.5,
         encoding_dir=Direction.LTR,
     )
-    fake_cipher = type("C", (), {"device": "cpu"})
-    scorer = rune_scorer.RuneScorer(fake_cipher, cfg)
+    scorer = rune_scorer.RuneScorer(_cipher_config(), cfg)
     scorer._span_hamming_backend = _DummySpanBackend(raw=0.4)
     scorer._span_hamming_weight = 0.5
 
@@ -283,8 +287,7 @@ def test_numpy_rune_scorer_calibrated_span_pct_mode(tmp_path: Path, monkeypatch)
         span_hamming_quality_min=0.0,
         encoding_dir=Direction.LTR,
     )
-    fake_cipher = type("C", (), {"device": "cpu"})
-    scorer = rune_scorer.RuneScorer(fake_cipher, cfg)
+    scorer = rune_scorer.RuneScorer(_cipher_config(), cfg)
     scorer._span_hamming_backend = _DummySpanBackend(raw=0.45, coverage=0.6, quality=0.7)
 
     out = scorer.score([1, 2, 3], None)
@@ -310,8 +313,7 @@ def test_numpy_rune_scorer_calibrated_span_gate_floor(tmp_path: Path, monkeypatc
         span_hamming_gate_score_floor=0.123,
         encoding_dir=Direction.LTR,
     )
-    fake_cipher = type("C", (), {"device": "cpu"})
-    scorer = rune_scorer.RuneScorer(fake_cipher, cfg)
+    scorer = rune_scorer.RuneScorer(_cipher_config(), cfg)
     scorer._span_hamming_backend = _DummySpanBackend(raw=0.45, coverage=0.6, quality=0.7)
 
     out = scorer.score([1, 2, 3], None)
@@ -337,8 +339,7 @@ def test_numpy_rune_scorer_calibrated_min_combine_with_char_pct(tmp_path: Path, 
         span_hamming_quality_min=0.0,
         encoding_dir=Direction.LTR,
     )
-    fake_cipher = type("C", (), {"device": "cpu"})
-    scorer = rune_scorer.RuneScorer(fake_cipher, cfg)
+    scorer = rune_scorer.RuneScorer(_cipher_config(), cfg)
     scorer._span_hamming_backend = _DummySpanBackend(raw=0.45, coverage=0.6, quality=0.7)
 
     out = scorer.score(list(range(20)), None)
@@ -369,8 +370,7 @@ def test_numpy_rune_scorer_calibrated_weighted_sum_combine_with_char_pct(tmp_pat
         span_hamming_quality_min=0.0,
         encoding_dir=Direction.LTR,
     )
-    fake_cipher = type("C", (), {"device": "cpu"})
-    scorer = rune_scorer.RuneScorer(fake_cipher, cfg)
+    scorer = rune_scorer.RuneScorer(_cipher_config(), cfg)
     scorer._span_hamming_backend = _DummySpanBackend(raw=0.45, coverage=0.6, quality=0.7)
 
     out = scorer.score(list(range(20)), None)
@@ -400,8 +400,7 @@ def test_numpy_rune_scorer_calibrated_char_gate_floor(tmp_path: Path, monkeypatc
         span_hamming_quality_min=0.0,
         encoding_dir=Direction.LTR,
     )
-    fake_cipher = type("C", (), {"device": "cpu"})
-    scorer = rune_scorer.RuneScorer(fake_cipher, cfg)
+    scorer = rune_scorer.RuneScorer(_cipher_config(), cfg)
     scorer._span_hamming_backend = _DummySpanBackend(raw=0.45, coverage=0.6, quality=0.7)
 
     out = scorer.score(list(range(20)), None)
@@ -432,8 +431,7 @@ def test_numpy_rune_scorer_calibrated_char_gate_char_only_fallback(tmp_path: Pat
         span_hamming_quality_min=0.0,
         encoding_dir=Direction.LTR,
     )
-    fake_cipher = type("C", (), {"device": "cpu"})
-    scorer = rune_scorer.RuneScorer(fake_cipher, cfg)
+    scorer = rune_scorer.RuneScorer(_cipher_config(), cfg)
     scorer._span_hamming_backend = _DummySpanBackend(raw=0.45, coverage=0.6, quality=0.7)
 
     out = scorer.score(list(range(20)), None)
@@ -458,9 +456,8 @@ def test_numpy_rune_scorer_calibrated_rejects_char_channel_when_not_char4_only(t
         span_hamming_weight_char=1.0,
         encoding_dir=Direction.LTR,
     )
-    fake_cipher = type("C", (), {"device": "cpu"})
     with pytest.raises(ValueError, match="char4-only base scorer"):
-        _ = rune_scorer.RuneScorer(fake_cipher, cfg)
+        _ = rune_scorer.RuneScorer(_cipher_config(), cfg)
 
 
 def test_numpy_rune_scorer_calibrated_rejects_avg_objective(tmp_path: Path, monkeypatch):
@@ -475,6 +472,5 @@ def test_numpy_rune_scorer_calibrated_rejects_avg_objective(tmp_path: Path, monk
         span_hamming_assets_dir=assets_dir,
         encoding_dir=Direction.LTR,
     )
-    fake_cipher = type("C", (), {"device": "cpu"})
     with pytest.raises(ValueError, match="only supports ObjectiveFamily.PCT or ENERGY"):
-        _ = rune_scorer.RuneScorer(fake_cipher, cfg)
+        _ = rune_scorer.RuneScorer(_cipher_config(), cfg)

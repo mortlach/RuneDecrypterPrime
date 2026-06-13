@@ -3,7 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from rune_decrypter_prime.core.config import CipherConfig, ScoringConfig
+from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rune_decrypter_prime.core.types import (
     Device,
@@ -35,17 +36,17 @@ class _StubLmRuntime:
         return vals, vals, vals
 
 
-def _cipher_cfg(length: int = 48, *, device: Device = Device.CPU):
+def _cipher_cfg(length: int = 48, *, device: Device = Device.CPU) -> CipherConfig:
     return CipherConfig(
         ciphertext=[0] * int(length),
         wli_data=[],
         key_length=None,
         device=device,
         encoding_dir=Direction.LTR,
-    ).asdict()
+    )
 
 
-def _avg_cfg(*, impl: ScorerImpl, n_char: int = 1, win: int = 10):
+def _avg_cfg(*, impl: ScorerImpl, n_char: int = 1, win: int = 10) -> ScoringConfig:
     return ScoringConfig(
         objective=ObjectiveSpec(family=ObjectiveFamily.AVG, stat=Stat.LOGP, win=int(win)),
         se_mode=SeMode.NOSE,
@@ -57,7 +58,7 @@ def _avg_cfg(*, impl: ScorerImpl, n_char: int = 1, win: int = 10):
         avg_window_policy="full_text",
         impl=impl,
         dtype="float32",
-    ).asdict()
+    )
 
 
 def test_numpy_avg_works_when_ecdf_constructor_would_fail(monkeypatch) -> None:
@@ -165,7 +166,7 @@ def test_avg_fulltext_mixed_order_ngram_counts() -> None:
         avg_window_policy="full_text",
         impl=ScorerImpl.NUMPY,
         dtype="float32",
-    ).asdict()
+    )
     scorer = build_scorer(_cipher_cfg(length=length), cfg)
     pt = np.arange(length, dtype=np.uint8) % 29
     _ = float(scorer.score(pt, None))

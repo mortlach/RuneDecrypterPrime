@@ -5,7 +5,7 @@ import pytest
 
 from rune_decrypter_prime.api import define_map
 from rune_decrypter_prime.ciphers.generic_map_cipher import GenericMapCipher
-from rune_decrypter_prime.core.config import CipherConfig, InterruptorConfig
+from rune_decrypter_prime.core.config import CipherConfig, InterruptorConfig, ScoringConfig
 from rune_decrypter_prime.core.problem import DecryptionProblem
 from rune_decrypter_prime.core.types import Direction, Device, KeyOpsFamily, KEY_DTYPE
 
@@ -69,7 +69,7 @@ def test_interruptor_positions_are_part_of_key_search():
     cipher = GenericMapCipher(cfg)
 
     scorer = _ExactMatchScorer(plaintext)
-    problem = DecryptionProblem(cipher=cipher, scorer=scorer, c_cfg=cfg)
+    problem = DecryptionProblem(cipher=cipher, scorer=scorer, c_cfg=cfg, s_cfg=ScoringConfig())
     assert problem.keyops.caps.traits.get("family") == KeyOpsFamily.COMPOSITE
 
     key_good = np.concatenate([key_core.astype(KEY_DTYPE), np.array(sorted(interruptors), dtype=KEY_DTYPE)])
@@ -127,7 +127,7 @@ def test_interruptor_pool_allows_variable_count_with_sentinel():
     cipher = GenericMapCipher(cfg)
 
     scorer = _ExactMatchScorer(plaintext)
-    problem = DecryptionProblem(cipher=cipher, scorer=scorer, c_cfg=cfg)
+    problem = DecryptionProblem(cipher=cipher, scorer=scorer, c_cfg=cfg, s_cfg=ScoringConfig())
 
     key_good = np.concatenate(
         [
@@ -188,7 +188,7 @@ def test_interruptor_pool_variable_count_with_full_text_perm():
     cipher = GenericMapCipher(cfg)
 
     scorer = _ExactMatchScorer(plaintext)
-    problem = DecryptionProblem(cipher=cipher, scorer=scorer, c_cfg=cfg)
+    problem = DecryptionProblem(cipher=cipher, scorer=scorer, c_cfg=cfg, s_cfg=ScoringConfig())
 
     key_less = np.concatenate(
         [

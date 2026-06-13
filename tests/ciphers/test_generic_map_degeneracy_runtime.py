@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from rune_decrypter_prime.api.specs import CipherSpec
-from rune_decrypter_prime.core.config import CipherConfig
+from rune_decrypter_prime.core.config import CipherConfig, ScoringConfig
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
 from rune_decrypter_prime.core.types import Direction, KEY_DTYPE
 from rune_decrypter_prime.ciphers.generic_map_cipher import GenericMapCipher
@@ -39,7 +39,7 @@ def _build_problem(table: np.ndarray, ct: np.ndarray) -> DecryptionProblem:
     )
     setattr(cfg, "spec", spec)
     cipher = GenericMapCipher(cfg)
-    return DecryptionProblem(cipher=cipher, scorer=SumScorer(), c_cfg=cfg)
+    return DecryptionProblem(cipher=cipher, scorer=SumScorer(), c_cfg=cfg, s_cfg=ScoringConfig())
 
 
 def _build_table() -> np.ndarray:

@@ -4,7 +4,9 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from rune_decrypter_prime.core.config import CipherConfig, InterruptorConfig
+from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rune_decrypter_prime.core.config.interruptor import InterruptorConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.ciphers.generic_map_cipher import GenericMapCipher
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
 
@@ -36,7 +38,7 @@ def _build_problem_with_pool_wli():
     setattr(cfg, "spec", spec)
     cipher = GenericMapCipher(cfg)
 
-    return DecryptionProblem(cipher=cipher, scorer=_ZeroScorer(), c_cfg=cfg), ct
+    return DecryptionProblem(cipher=cipher, scorer=_ZeroScorer(), c_cfg=cfg, s_cfg=ScoringConfig()), ct
 
 
 def test_interruptor_pool_allows_wli_alignment():

@@ -6,7 +6,8 @@ import numpy as np
 import pytest
 
 from rune_decrypter_prime.ciphers.periodic_substitution_cipher import PeriodicSubstitutionCipher
-from rune_decrypter_prime.core.config import CipherConfig
+from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
 from rune_decrypter_prime.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
 
@@ -47,7 +48,12 @@ class _SeedMetricProblem:
             alphabet_size=alphabet_size,
             keyops_hints={"period": period, "A": alphabet_size},
         )
-        base = DecryptionProblem(cipher=PeriodicSubstitutionCipher(cfg), scorer=_NoopScorer(), c_cfg=cfg)
+        base = DecryptionProblem(
+            cipher=PeriodicSubstitutionCipher(cfg),
+            scorer=_NoopScorer(),
+            c_cfg=cfg,
+            s_cfg=ScoringConfig(),
+        )
         self.keyops = base.keyops
         self.cipher = base.cipher
         self.ciphertext = base.ciphertext

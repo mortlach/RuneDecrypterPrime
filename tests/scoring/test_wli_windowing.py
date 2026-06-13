@@ -1,5 +1,6 @@
 import numpy as np
 
+from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.types import Direction
 from rune_decrypter_prime.scoring import rune_scorer
@@ -13,7 +14,8 @@ class _StubRt:
 def test_wli_window_axis_order_is_L_by_2(monkeypatch):
     monkeypatch.setattr(rune_scorer, "LmPrimeRuntime", _StubRt)
     cfg = ScoringConfig(encoding_dir=Direction.LTR)
-    scorer = rune_scorer.RuneScorer(type("C", (), {"device": "cpu"}), cfg)
+    c_cfg = CipherConfig(ciphertext=[], wli_data=[], key_length=None, encoding_dir=Direction.LTR)
+    scorer = rune_scorer.RuneScorer(c_cfg, cfg)
 
     pt = np.arange(15, dtype=np.uint8)
     wli = np.stack(

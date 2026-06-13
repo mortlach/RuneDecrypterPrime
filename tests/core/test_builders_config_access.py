@@ -4,10 +4,13 @@ import sys
 import types
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 
+from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine import builders
-from rune_decrypter_prime.core.types import ScorerImpl
+from rune_decrypter_prime.core.types import Device, ScorerImpl
 
 
 pytestmark = pytest.mark.tier_a
@@ -31,39 +34,65 @@ class _DummyUnified:
         self.s_cfg = s_cfg
 
 
+def _cipher_cfg(*, device: Device = Device.CPU) -> CipherConfig:
+    return CipherConfig(
+        ciphertext=np.asarray([0], dtype=np.uint8),
+        wli_data=None,
+        key_length=None,
+        device=device,
+    )
+
+
 def _patch_scorer_classes(monkeypatch: pytest.MonkeyPatch) -> None:
-    import rune_decrypter_prime.scoring.rune_scorer as rs
-    import rune_decrypter_prime.scoring.unified_rune_scorer as us
+    numpy_module = types.ModuleType("rune_decrypter_prime.scoring.rune_scorer")
+    numpy_module.RuneScorer = _DummyNumpy
 
     torch_module = types.ModuleType("rune_decrypter_prime.scoring.torch_rune_scorer")
     torch_module.RuneScorerTorch = _DummyTorch
 
-    monkeypatch.setattr(rs, "RuneScorer", _DummyNumpy)
-    monkeypatch.setattr(us, "UnifiedRuneScorer", _DummyUnified)
+    unified_module = types.ModuleType("rune_decrypter_prime.scoring.unified_rune_scorer")
+    unified_module.UnifiedRuneScorer = _DummyUnified
+
+    monkeypatch.setitem(sys.modules, "rune_decrypter_prime.scoring.rune_scorer", numpy_module)
     monkeypatch.setitem(sys.modules, "rune_decrypter_prime.scoring.torch_rune_scorer", torch_module)
+    monkeypatch.setitem(sys.modules, "rune_decrypter_prime.scoring.unified_rune_scorer", unified_module)
 
 
-def test_build_scorer_reads_impl_from_dict(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_scorer_reads_impl_from_scoring_config(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_scorer_classes(monkeypatch)
-    scorer = builders.build_scorer({"device": "cpu"}, {"impl": "torch"})
+    scorer = builders.build_scorer(_cipher_cfg(), ScoringConfig(impl=ScorerImpl.TORCH))
     assert isinstance(scorer, _DummyTorch)
 
 
-def test_build_scorer_reads_impl_from_object(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_scorer_reads_unified_impl_from_scoring_config(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_scorer_classes(monkeypatch)
-    c_cfg = SimpleNamespace(device="cpu")
-    s_cfg = SimpleNamespace(impl=ScorerImpl.UNIFIED)
-    scorer = builders.build_scorer(c_cfg, s_cfg)
+    scorer = builders.build_scorer(_cipher_cfg(), ScoringConfig(impl=ScorerImpl.UNIFIED))
     assert isinstance(scorer, _DummyUnified)
+
+
+def test_build_scorer_rejects_dict_configs() -> None:
+    with pytest.raises(TypeError, match="cfg_cipher must be CipherConfig"):
+        builders.build_scorer({"device": "cpu"}, ScoringConfig())  # type: ignore[arg-type]
+
+    with pytest.raises(TypeError, match="s_cfg must be ScoringConfig"):
+        builders.build_scorer(_cipher_cfg(), {"impl": "numpy"})  # type: ignore[arg-type]
+
+
+def test_build_scorer_rejects_object_config_bags() -> None:
+    with pytest.raises(TypeError, match="cfg_cipher must be CipherConfig"):
+        builders.build_scorer(SimpleNamespace(device="cpu"), ScoringConfig())  # type: ignore[arg-type]
+
+    with pytest.raises(TypeError, match="s_cfg must be ScoringConfig"):
+        builders.build_scorer(_cipher_cfg(), SimpleNamespace(impl=ScorerImpl.UNIFIED))  # type: ignore[arg-type]
 
 
 def test_build_scorer_auto_cpu_defaults_to_numpy(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_scorer_classes(monkeypatch)
-    scorer = builders.build_scorer({"device": "cpu"}, {"impl": "auto"})
+    scorer = builders.build_scorer(_cipher_cfg(device=Device.CPU), ScoringConfig(impl=ScorerImpl.AUTO))
     assert isinstance(scorer, _DummyNumpy)
 
 
 def test_build_scorer_cuda_unavailable_raises_runtime_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(builders, "select_backend", lambda _req: ("cpu", object()))
     with pytest.raises(RuntimeError, match="Requested accelerator is unavailable"):
-        builders.build_scorer({"device": "cuda"}, {"impl": "numpy"})
+        builders.build_scorer(_cipher_cfg(device=Device.CUDA), ScoringConfig(impl=ScorerImpl.NUMPY))

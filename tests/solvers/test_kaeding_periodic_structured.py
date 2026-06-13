@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
 
-from rune_decrypter_prime.core.config import CipherConfig
+from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
 from rune_decrypter_prime.ciphers.periodic_substitution_cipher import PeriodicSubstitutionCipher
 from rune_decrypter_prime.ciphers.substitution_cipher import SubstitutionCipher
@@ -37,7 +38,7 @@ def _make_periodic_problem(period: int = 2, A: int = 5):
         keyops_hints={"period": period, "A": A},
     )
     cipher = PeriodicSubstitutionCipher(cfg)
-    return DecryptionProblem(cipher=cipher, scorer=ZeroScorer(), c_cfg=cfg)
+    return DecryptionProblem(cipher=cipher, scorer=ZeroScorer(), c_cfg=cfg, s_cfg=ScoringConfig())
 
 
 def test_kaeding_emits_progress_fields():
@@ -64,7 +65,7 @@ def test_kaeding_rejects_non_structured_keyops():
         alphabet_size=3,
     )
     cipher = SubstitutionCipher(cfg)
-    problem = DecryptionProblem(cipher=cipher, scorer=ZeroScorer(), c_cfg=cfg)
+    problem = DecryptionProblem(cipher=cipher, scorer=ZeroScorer(), c_cfg=cfg, s_cfg=ScoringConfig())
     solver = KaedingPeriodicStructuredSolver(
         problem,
         opt_cfg={"steps": 1, "restarts": 1, "inner_batch": 2},

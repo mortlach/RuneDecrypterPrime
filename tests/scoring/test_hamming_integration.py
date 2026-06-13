@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 from pathlib import Path
 
+from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.types import Direction
 from rune_decrypter_prime.scoring import rune_scorer
@@ -69,6 +70,10 @@ class _StubRt:
         return zeros, zeros, zeros
 
 
+def _cipher_config() -> CipherConfig:
+    return CipherConfig(ciphertext=[], wli_data=[], key_length=None, encoding_dir=Direction.LTR)
+
+
 @requires_ext
 def test_hamming_affects_rune_scorer(monkeypatch):
     # Use packaged wordlists; take a length-1 word so HD math is deterministic.
@@ -87,8 +92,7 @@ def test_hamming_affects_rune_scorer(monkeypatch):
         hamming_wordlist_dir=None,  # default assets path
         encoding_dir=Direction.LTR,
     )
-    fake_cipher = type("C", (), {"device": "cpu"})
-    scorer = rune_scorer.RuneScorer(fake_cipher, cfg)
+    scorer = rune_scorer.RuneScorer(_cipher_config(), cfg)
     assert scorer._hamming_backend is not None, "Hamming backend should be initialised"
 
     # Exact match -> hamming_total=0, score is the LM floor (1e-6).
@@ -177,8 +181,7 @@ def test_selected_vs_unselected_words_have_correct_hd(monkeypatch):
         hamming_weight=1.0,
         encoding_dir=Direction.LTR,
     )
-    fake_cipher = type("C", (), {"device": "cpu"})
-    scorer = rune_scorer.RuneScorer(fake_cipher, cfg)
+    scorer = rune_scorer.RuneScorer(_cipher_config(), cfg)
     assert scorer._hamming_backend is not None
 
     pct_sel, raw_sel = scorer.score_with_raw(sel_pt, wli)

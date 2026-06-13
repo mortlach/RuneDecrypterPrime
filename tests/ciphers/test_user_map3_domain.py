@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from rune_decrypter_prime.core.config import CipherConfig
+from rune_decrypter_prime.core.config import CipherConfig, ScoringConfig
 from rune_decrypter_prime.ciphers.generic_map_cipher import GenericMapCipher
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
 
@@ -33,7 +33,7 @@ def test_user_map3_domain():
     setattr(cfg, "spec", spec)
 
     cipher = GenericMapCipher(cfg)
-    problem = DecryptionProblem(cipher=cipher, scorer=_ZeroScorer(), c_cfg=cfg)
+    problem = DecryptionProblem(cipher=cipher, scorer=_ZeroScorer(), c_cfg=cfg, s_cfg=ScoringConfig())
 
     keyops = problem.keyops
     mod = getattr(keyops, "mod", getattr(getattr(keyops, "caps", None), "traits", {}).get("mod", None))

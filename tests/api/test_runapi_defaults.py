@@ -1,12 +1,26 @@
 from __future__ import annotations
 
 import importlib
-from types import SimpleNamespace
 
 import numpy as np
 
 from rune_decrypter_prime.api import CipherSpec, Direction, KeySpec, RunAPI, SolverSpec
 from rune_decrypter_prime.api import fastpaths, pipeline
+from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rune_decrypter_prime.core.config.solver import SolverConfig
+from rune_decrypter_prime.core.types import Device
+
+
+def _minimal_cipher_config() -> CipherConfig:
+    return CipherConfig(
+        ciphertext=np.asarray([0], dtype=np.uint8),
+        wli_data=None,
+        key_length=1,
+        name="vigenere",
+        device=Device.CPU,
+        encoding_dir=Direction.RTL,
+    )
 
 
 def test_runapi_omitted_encoding_dir_uses_public_rtl_default(monkeypatch):
@@ -34,13 +48,13 @@ def test_runapi_omitted_encoding_dir_uses_public_rtl_default(monkeypatch):
 
 def test_execute_run_omitted_ordinary_solver_seed_uses_effective_seed_zero(monkeypatch):
     captured = {}
-    fake_instance = SimpleNamespace(
-        problem=SimpleNamespace(telemetry=None),
-        pipeline_block="pipeline",
-    )
+    fake_instance = type("FakeInstance", (), {
+        "problem": type("FakeProblem", (), {"telemetry": None})(),
+        "pipeline_block": "pipeline",
+    })()
 
     monkeypatch.setattr(pipeline, "maybe_known_key_fastpath", lambda **_kwargs: None)
-    monkeypatch.setattr(pipeline, "build_cipher_config", lambda **_kwargs: object())
+    monkeypatch.setattr(pipeline, "build_cipher_config", lambda **_kwargs: _minimal_cipher_config())
     monkeypatch.setattr(
         pipeline.ProblemInstance,
         "materialise",
@@ -61,16 +75,16 @@ def test_execute_run_omitted_ordinary_solver_seed_uses_effective_seed_zero(monke
     result = pipeline.execute_run(
         ciphertext=np.array([0], dtype=np.uint8),
         wli=None,
-        cipher=object(),
-        key=object(),
-        solver=SimpleNamespace(name="beam", params={}, seed=None),
-        scoring=object(),
+        cipher=CipherSpec.periodic_substitution(period=1),
+        key=KeySpec.repeat(len=1),
+        solver=SolverConfig(name="beam", params={}, seed=None),
+        scoring=ScoringConfig(),
         scorer_name="rune",
         logging_config=None,
         logging_runtime={},
         initialize_logging=False,
         telemetry_on=False,
-        device=object(),
+        device=Device.CPU,
         encoding_dir=Direction.RTL,
         initial_keys=None,
         initial_text_permutation_indices=None,
@@ -89,7 +103,7 @@ def test_known_key_fastpath_uses_no_effective_seed_for_non_random_path(monkeypat
     import rune_decrypter_prime.core.problem as core_problem
 
     captured = {}
-    fake_instance = SimpleNamespace(problem=SimpleNamespace(), pipeline_block="pipeline")
+    fake_instance = type("FakeInstance", (), {"problem": object(), "pipeline_block": "pipeline"})()
 
     monkeypatch.setattr(
         core_problem.ProblemInstance,
@@ -113,8 +127,8 @@ def test_known_key_fastpath_uses_no_effective_seed_for_non_random_path(monkeypat
         key=KeySpec.const(value=0),
         ciphertext=np.array([0], dtype=np.uint8),
         wli=None,
-        device=object(),
-        scoring=object(),
+        device=Device.CPU,
+        scoring=ScoringConfig(),
         scorer_name="rune",
         logging_runtime={},
         encoding_dir=Direction.RTL,
