@@ -1,88 +1,150 @@
 # Installation
 
-This repo uses one cross-platform bootstrap entrypoint:
+This page is the simple V1 install path.
 
-```bash
+All paths below are relative to the repository root.
+
+## Requirements
+
+- Python 3.11+
+- A normal C/C++ build toolchain if native extensions need to be built locally
+- Git is recommended, but not part of the Python package itself
+
+## Simple install
+
+Run this from the repository root:
+
+```text
 python install.py
 ```
 
-Windows alternative:
+On Windows you can also use:
 
-```powershell
-py -3.11 install.py
+```text
+install.bat
 ```
 
-The bootstrap script handles:
+The installer is deliberately conservative. It:
 
-1. Virtual environment creation/use.
-2. Target dependency installation.
-3. Editable package install (`pip install -e .`).
-4. Setup + preflight for community benchmark readiness:
-   - recombine packed assets,
-   - rebuild missing split LM joint tables (`*_part*.npz` -> `.bin.zst`) when needed,
-   - verify/build native extensions (`_fastlm`, `_hamming`).
+1. checks the Python version
+2. installs the package in editable mode with test extras
+3. checks required V1 asset sentinels
+4. checks required native imports
+5. runs compact V1 smoke tests
 
-## Prerequisites
+Installer logs are written under:
 
-1. Python 3.11 (64-bit).
-2. Git (recommended).
-3. C/C++ build tools if `_fastlm` must be rebuilt locally.
-
-## Install Targets
-
-- `runner`: run community benchmark shards.
-- `organiser`: validate/combine/aggregate shared run bundles.
-- `dev`: local development (tests/lint/hooks).
-- `ci-smoke`: minimal smoke test stack.
-
-Dependency files:
-
-- `requirements/targets/runner.txt`
-- `requirements/targets/organiser.txt`
-- `requirements/targets/dev.txt`
-- `requirements/targets/ci-smoke.txt`
-
-## Typical Commands
-
-### Runner node (default)
-
-```bash
-python install.py
+```text
+output/install_logs/
 ```
 
-Use this as the canonical operator path for clean-machine installs.
+To show successful command output while debugging, set this before running the
+installer:
 
-## Verify Installation
-
-1. Check setup artefacts:
-   - `output/tools/benchmarks/community/setup_preflight/latest/setup_report.json`
-   - `output/tools/benchmarks/community/setup_preflight/latest/preflight_report.json`
-   - `output/tools/benchmarks/community/setup_preflight/latest/benchmark_ready.json`
-2. Run a quick tutorial if desired:
-   - `python tutorials/v1/Start_Here.py`
-
-## Clean VM / CI Smoke Validation
-
-Use the no-argument smoke runner:
-
-```bash
-python tools/ci/install_smoke.py
+```text
+RDP_INSTALL_VERBOSE=1
 ```
 
-What it verifies:
+The installer does not silently upgrade build tools for you. If pip, setuptools,
+or wheel are too old, upgrade them deliberately and rerun the installer.
 
-1. Bootstrap install succeeds from a clean environment.
-2. Setup/preflight artefacts exist under `output/tools/benchmarks/community/setup_preflight/latest/`.
-3. `benchmark_ready.json` reports `ready=true`.
-4. `preflight_report.json` reports `success=true`.
+## Run the V1 tutorial gate
 
-GitHub workflow:
+After install:
 
-- `.github/workflows/install-smoke.yml` (manual `workflow_dispatch`, Windows + Ubuntu fresh runners).
+```text
+python tutorials/v1/run_all.py
+```
 
-## Notes
+The runner defaults to the V1 release profile.
 
-- Community benchmark v1.1 is CPU-only.
-- Benchmark behaviour must not depend on environment variables.
-- Use setup/preflight logs for troubleshooting when sharing failures.
-- Scorer/backend routing and expected failures are documented in `docs/setup/scorer_backend_selection.md`.
+The runner settings are at the top of:
+
+```text
+tutorials/v1/run_all.py
+```
+
+Useful settings:
+
+```text
+GATE_PROFILE = "release"
+ASSET_PROFILE = "lm2_baseline"
+ECHO_OUTPUT = False
+```
+
+To print full tutorial output for users, change:
+
+```text
+ECHO_OUTPUT = True
+```
+
+Then run:
+
+```text
+python tutorials/v1/run_all.py
+```
+
+Generated tutorial output is written under:
+
+```text
+output/
+```
+
+## Run all tests after a manual install
+
+For the full expert test gate:
+
+```text
+python -m pytest -q -p no:cacheprovider
+```
+
+This is the same broad pytest command used by full CI.
+
+## CI gates used for V1
+
+The repository has three useful gates:
+
+1. Full CI
+
+   ```text
+   .github/workflows/rdp_v1_full_ci.yml
+   ```
+
+   Runs install, full pytest, and the V1 release tutorial runner on Windows and
+   Ubuntu.
+
+2. Wheel CI
+
+   ```text
+   .github/workflows/rdp_v1_wheel_ci.yml
+   ```
+
+   Builds CPython 3.11 wheels on Windows and Ubuntu, installs them in a wheel
+   test environment, checks native imports, and uploads wheel artifacts.
+
+3. Install smoke
+
+   ```text
+   .github/workflows/install-smoke.yml
+   ```
+
+   Runs the clean installer path on Windows and Ubuntu.
+
+## Manual install notes
+
+For normal development, prefer `python install.py`.
+
+If you need to debug the package install manually, the core editable install is:
+
+```text
+python -m pip install -e ".[test]"
+```
+
+Then run:
+
+```text
+python -m pytest -q -p no:cacheprovider tests/contracts
+python tutorials/v1/run_all.py
+```
+
+Use the full pytest command above before promoting a branch.
