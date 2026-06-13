@@ -1,4 +1,5 @@
 LICENSE_MIT.txt
+MANIFEST.in
 README.md
 pyproject.toml
 setup.py
@@ -151,7 +152,10 @@ src/rune_decrypter_prime/scoring/unified_rune_scorer.py
 src/rune_decrypter_prime/scoring/unified_tables.py
 src/rune_decrypter_prime/scoring/windowing.py
 src/rune_decrypter_prime/scoring/hamming/Flat2DArray.cpp
+src/rune_decrypter_prime/scoring/hamming/Flat2DArray.h
 src/rune_decrypter_prime/scoring/hamming/Hamming.cpp
+src/rune_decrypter_prime/scoring/hamming/Hamming.h
+src/rune_decrypter_prime/scoring/hamming/Types.h
 src/rune_decrypter_prime/scoring/hamming/__init__.py
 src/rune_decrypter_prime/scoring/hamming/anneal.py
 src/rune_decrypter_prime/scoring/hamming/backend.py
@@ -172,6 +176,7 @@ src/rune_decrypter_prime/scoring/ngram_hamming/fast_backend.py
 src/rune_decrypter_prime/scoring/ngram_hamming/reference.py
 src/rune_decrypter_prime/scoring/ngram_hamming/report_only_telemetry.py
 src/rune_decrypter_prime/scoring/ngram_hamming/setup_ngram_hamming_fast.py
+src/rune_decrypter_prime/scoring/span_hamming/FastSpanHamming.h
 src/rune_decrypter_prime/scoring/span_hamming/__init__.py
 src/rune_decrypter_prime/scoring/span_hamming/backend.py
 src/rune_decrypter_prime/scoring/span_hamming/calibrated_assets.py

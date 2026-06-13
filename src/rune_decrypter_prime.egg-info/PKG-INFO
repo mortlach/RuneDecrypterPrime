@@ -14,6 +14,7 @@ Description-Content-Type: text/markdown
 License-File: LICENSE_MIT.txt
 Requires-Dist: numpy>=1.26
 Requires-Dist: zstandard>=0.22
+Requires-Dist: tzdata>=2024.1
 Provides-Extra: community-runner
 Requires-Dist: jsonschema>=4.23.0; extra == "community-runner"
 Requires-Dist: pybind11>=2.13.0; extra == "community-runner"
@@ -31,86 +32,70 @@ Dynamic: license-file
 
 # Rune Decrypter Prime
 
-Rune Decrypter Prime (RDP) is a deterministic cryptanalysis toolkit for a 29-rune alphabet.
+Rune Decrypter Prime (RDP) is a deterministic cryptanalysis toolkit for a
+29-rune alphabet.
 
-This prerelease branch is focused on the V1 clean release surface: core API, solver/cipher/scorer contracts, Span-Hamming, ScheduledStreamLookup, traceable reports, and tutorial gates.
+The project is built around small, testable parts: ciphers, key schedules,
+scorers, solvers, tutorial runs, and reports. The aim is to make decryption
+experiments repeatable rather than mysterious.
 
-## V1 clean install
+This branch is the V1 pre-release surface. It focuses on:
 
-From the repository root, run:
+- a clean Python install path
+- ScheduledStreamLookup cipher support
+- Span-Hamming support
+- deterministic tutorials
+- traceable solver/scorer reports
+- Windows and Ubuntu CI proof
+- wheel builds with native extension import checks
 
-```bash
+## Start here
+
+For most users:
+
+1. Install: [`docs/setup/installation.md`](docs/setup/installation.md)
+2. Run the V1 tutorials: [`docs/guides/quickstart.md`](docs/guides/quickstart.md)
+3. Read the project overview: [`docs/README.md`](docs/README.md)
+
+The shortest install check is:
+
+```text
 python install.py
 ```
 
-On Windows, the wrapper is:
+On Windows, this wrapper is also available:
 
-```powershell
+```text
 install.bat
 ```
 
-or:
-
-```powershell
-py -3.11 install.py
-```
-
-The installer is intentionally conservative:
-
-1. verifies Python 3.11+
-2. installs the package in editable mode with test extras
-3. checks required V1 asset sentinels
-4. runs a non-native V1 smoke pytest subset
-5. checks native runtime modules required by scorer-backed tutorial smoke
-6. runs the native ScheduledStreamLookup pipeline smoke subset
-
-The installer does **not** upgrade pip automatically. If package installation fails with a likely pip/build-tooling issue, an interactive terminal may ask whether to upgrade pip and retry once. In non-interactive environments it fails loudly and leaves pip unchanged.
-
-Set this only when debugging install output:
-
-```bash
-RDP_INSTALL_VERBOSE=1
-```
-
-## Native runtime note
-
-Scorer-backed real solves require the native language-model runtime module:
+## Common paths
 
 ```text
-rune_decrypter_prime.scoring.language_model._fastlm
+src/rune_decrypter_prime/   package source
+tutorials/v1/               V1 tutorial scripts and tutorial runner
+tests/                      pytest test suite
+docs/                       user, setup, architecture, and test notes
+assets/                     small V1 asset baseline
+output/                     generated logs and test/tutorial output
 ```
 
-If the installer reports that this module is missing and no supported native build hook is present, the Python package has installed, but the release tree is not yet ready for real-solve/tutorial use. Add the minimal V1 native source/build hook and rerun the installer.
+`output/` is local runtime output and should not be committed.
 
-## Test gates
+## Main docs
 
-The normal selected V1 pytest gate is:
+- [`docs/README.md`](docs/README.md) - project overview and architecture links
+- [`docs/setup/installation.md`](docs/setup/installation.md) - simple install, tutorial run, and expert test commands
+- [`docs/setup/building.md`](docs/setup/building.md) - wheel/native build notes
+- [`docs/guides/quickstart.md`](docs/guides/quickstart.md) - first tutorial run
+- [`docs/guides/troubleshooting.md`](docs/guides/troubleshooting.md) - common failures
+- [`docs/tests/overview.md`](docs/tests/overview.md) - test-suite overview
+- [`docs/release_contracts/v1/README.md`](docs/release_contracts/v1/README.md) - required V1 release-contract data
 
-```bash
-python -m pytest -q -p no:cacheprovider tests
-```
+## Developer notes
 
-The tutorial release gate is:
+Python 3.11+ is the supported target for V1.
 
-```bash
-python tutorials/v1/run_all.py
-```
-
-The tutorial runner defaults to the release profile. Other profiles are configured at the top of `tutorials/v1/run_all.py`.
-
-## CI
-
-The GitHub workflow `V1 CI Smoke` is intended to run on push/PR and exercise the install path plus never-drift V1 smoke checks.
-
-The workflow `V1 Full Pytest` is manual and runs the full selected pytest suite. Use it before promoting a prerelease branch.
-
-## Development notes
-
-- Python: 3.11+
-- Public artefacts should avoid absolute local paths.
-- Generated local outputs such as `output/`, `.pytest_cache/`, `__pycache__/`, and `*.pyc` should not be committed.
-- Experimental n-gram Hamming campaign work and broad benchmark tooling are not part of the V1 production release surface.
-
-## License
-
-MIT (see `LICENSE_MIT.txt`).
+The public V1 boundary is intentionally narrow. Experimental n-gram Hamming
+campaign work, large benchmark runs, and save/restore solver state are not part
+of the V1 production surface.

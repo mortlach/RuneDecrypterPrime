@@ -1,5 +1,6 @@
 numpy>=1.26
 zstandard>=0.22
+tzdata>=2024.1
 
 [community-organiser]
 jsonschema>=4.23.0

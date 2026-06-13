@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SCOPE_LOCK_JSON = REPO_ROOT / "docs" / "v1_traceability" / "v1_scope_lock.json"
+SCOPE_LOCK_JSON = REPO_ROOT / "docs" / "release_contracts" / "v1" / "v1_scope_lock.json"
 
 
 def _scope() -> dict[str, object]:

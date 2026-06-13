@@ -58,7 +58,7 @@ output/                     generated logs and test/tutorial output
 - [`docs/guides/quickstart.md`](docs/guides/quickstart.md) - first tutorial run
 - [`docs/guides/troubleshooting.md`](docs/guides/troubleshooting.md) - common failures
 - [`docs/tests/overview.md`](docs/tests/overview.md) - test-suite overview
-- [`docs/v1_traceability/README.md`](docs/v1_traceability/README.md) - compact V1 traceability evidence
+- [`docs/release_contracts/v1/README.md`](docs/release_contracts/v1/README.md) - required V1 release-contract data
 
 ## Developer notes
 

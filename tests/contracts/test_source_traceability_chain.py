@@ -5,7 +5,13 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TRACEABILITY_CSV = REPO_ROOT / "docs" / "v1_traceability" / "final_source_to_wp_decision_target_test_chain.csv"
+TRACEABILITY_CSV = (
+    REPO_ROOT
+    / "docs"
+    / "release_contracts"
+    / "v1"
+    / "final_source_to_wp_decision_target_test_chain.csv"
+)
 REQUIRED_COLUMNS = {
     "source_id",
     "source_material",

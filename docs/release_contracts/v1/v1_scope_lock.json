@@ -1,0 +1,45 @@
+{
+  "forbidden_v1_behaviour": [
+    "requested scoring lane warning-and-silent-drop",
+    "new n-gram Hamming rank effect in V1",
+    "sample n-gram assets treated as V1 authority",
+    "full resume/checkpoint solving promised as V1",
+    "absolute paths in public artifact manifests"
+  ],
+  "not_v1_production": {
+    "full_save_restore_solving": {
+      "allowed_only_if": "documented as experimental/unsupported/future work",
+      "status": "roadmap"
+    },
+    "huge_ngram_assets": {
+      "allowed_only_if": "not required as V1 runtime artifacts",
+      "status": "experimental"
+    },
+    "new_ngram_hamming_scoring": {
+      "allowed_only_if": "production_rank_effect is none and integration mode is report_only_no_rank_effect",
+      "status": "experimental_report_only"
+    }
+  },
+  "schema": "rdp_v1_scope_lock.v1",
+  "scope_date": "2026-06-10",
+  "source_handoff": "rdp_v1_final_integrated_handoff_post_crosscheck_2026-06-10",
+  "v1_included": {
+    "artifact_agreement": {
+      "rule": "reviewable run artifacts must be listed with stable relative paths and explicit kind",
+      "status": "v1_core"
+    },
+    "scheduled_stream_lookup": {
+      "rule": "canonical V1 cipher family for scheduled stream/key lookup work",
+      "status": "v1_core"
+    },
+    "scorer_capability_status": {
+      "rule": "requested/effective lane state must be typed and reportable",
+      "status": "v1_core"
+    },
+    "span_hamming": {
+      "rank_effect": "production_when_requested",
+      "rule": "requested span-Hamming must run, block, or use explicit reported fallback; it must not silently disappear",
+      "status": "v1_optional"
+    }
+  }
+}

@@ -58,7 +58,7 @@ Architecture:
 Testing and traceability:
 
 - [`tests/overview.md`](tests/overview.md)
-- [`v1_traceability/README.md`](v1_traceability/README.md)
+- [`release_contracts/v1/README.md`](release_contracts/v1/README.md)
 
 Build and packaging:
 
