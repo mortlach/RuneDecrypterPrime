@@ -8,3 +8,4 @@ src/build_tmp_fastlm/
 src/build_lib_fastlm/
 output/
 .pytest_cache/
+.idea/workspace.xml
