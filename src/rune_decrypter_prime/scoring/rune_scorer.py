@@ -70,6 +70,11 @@ class RuneScorer(_LegacyRuneScorer):
                 super().__init__(cfg_cipher, scorer_cfg)
         except RequestedLaneUnavailableError:
             raise
+        except ValueError:
+            # Calibrated span-Hamming uses ValueError for deterministic config
+            # validation, e.g. unsupported objective family or invalid char
+            # channel setup. Preserve those API-visible validation errors.
+            raise
         except Exception as exc:
             if ScorerLaneName.SPAN_HAMMING_CALIBRATED in requested:
                 issue = issue_from_exception(
