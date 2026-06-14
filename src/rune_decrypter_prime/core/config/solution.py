@@ -1,28 +1,72 @@
+# ============================================================
+# rune_decrypter_prime/core/config.py
+# Unified dataclasses for cipher/scorer/solver/run configs.
+# ============================================================
+
 from __future__ import annotations
-
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence
 
-import numpy as np
+from rune_decrypter_prime.core.types import (
+    Device,
+    SolverName,
+    ScorerImpl,
+    Direction,
+    ensure_device,
+    ensure_direction,
+    ensure_solver_name,
+    ensure_scorer_impl,
+)
 
-from rune_decrypter_prime.core.types import Device, Direction, SolverName, ensure_device, ensure_direction, ensure_solver_name
 
 
-@dataclass
+
+@dataclass(slots=True)
 class Solution:
-    key: Union[Sequence[int], np.ndarray, None] = None
-    plaintext: Union[str, Sequence[int], np.ndarray, None] = None
-    score: float = float("-inf")
+    """Container for a solver’s best output.
+    Required on construct: (key, plaintext, score).
+    Engine populates the convenience + context fields before returning to API.
+    """
+    # Required
+    key: Any
+    plaintext: Any
+    score: float
+
+    # Optional context / flags
+    has_wli: Optional[bool] = None
     meta: Dict[str, Any] = field(default_factory=dict)
 
-    # Canonical config-ish metadata
-    device: Device = Device.CPU
-    direction: Direction = Direction.FWD
-    solver_name: Optional[SolverName] = None
-
-    # Common decoded forms
+    # Convenience (safe views for tutorials/UIs)
+    plaintext_str: str = ""                 # always a real str by the time API returns
     plaintext_idx: List[int] = field(default_factory=list)
-    plaintext_str: str = ""
+    plaintext_rune: str = ""
+    plaintext_rune_nospace: str = ""
+    plaintext_latin: str = ""
+    plaintext_latin_nospace: str = ""
+    wli: Optional[Sequence[Sequence[int]]] = None
+    ciphertext_idx: List[int] = field(default_factory=list)
+    ciphertext_rune: str = ""
+    ciphertext_rune_nospace: str = ""
+    ciphertext_latin: str = ""
+    ciphertext_latin_nospace: str = ""
+    alphabet: str = "runic-29"
+    alphabet_size: int = 29
+
+    # -------- v1 standardised context (add-only, optional) --------
+    device: Device = Device.CPU             # v1 surface
+    cipher_name: str = ""
+    solver_name: Optional[SolverName] = None
+    scorer_impl: Optional[ScorerImpl] = None
+    scorer_n_char: int = 0
+    scorer_n_wli: int = 0
+    direction: Direction = Direction.LTR
+    pipeline: Dict[str, Any] = field(default_factory=lambda: {
+        "text_encoding_direction": Direction.LTR,
+        "input_permutation": {"kind": "none", "length": 0, "hash": ""},
+    })
+
+    # Optimisation sense
+    maximize: bool = True
 
     # Progress summary
     step: int = 0
@@ -35,45 +79,33 @@ class Solution:
     decrypt_time_s: float = 0.0
     score_time_s: float = 0.0
 
-    # Termination & extras.  Public reports classify these through
-    # rune_decrypter_prime.api.stop_reason_contract rather than relying on this
-    # comment as the source of truth.
+    # Termination & extras. Public reports classify stop reasons through
+    # rune_decrypter_prime.api.stop_reason_contract; keep the schema there.
     stop_reason: Optional[str] = None
     extras: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         # Trigger enum normalisation for constructor arguments.
-        self.device = ensure_device(self.device)
-        self.direction = ensure_direction(self.direction)
+        self.device = self.device
+        self.direction = self.direction
         if self.solver_name:
-            self.solver_name = ensure_solver_name(self.solver_name)
+            self.solver_name = self.solver_name
+        if self.scorer_impl:
+            self.scorer_impl = self.scorer_impl
 
-        # Normalise key to plain list if ndarray-like.
-        if isinstance(self.key, np.ndarray):
-            self.key = self.key.reshape(-1).astype(int).tolist()
-        elif self.key is not None:
-            self.key = [int(x) for x in self.key]
-
-        # Normalise plaintext convenience forms.
-        if isinstance(self.plaintext, str):
-            self.plaintext_str = self.plaintext
-        elif isinstance(self.plaintext, np.ndarray):
-            flat = self.plaintext.reshape(-1).astype(int).tolist()
-            self.plaintext_idx = flat
-            if not self.plaintext_str:
-                self.plaintext_str = "".join(map(str, flat))
-        elif self.plaintext is not None:
-            try:
-                flat = [int(x) for x in self.plaintext]
-                self.plaintext_idx = flat
-                if not self.plaintext_str:
-                    self.plaintext_str = "".join(map(str, flat))
-            except Exception:
-                # Keep arbitrary plaintext payloads as repr text only.
-                if not self.plaintext_str:
-                    self.plaintext_str = str(self.plaintext)
-
-        if self.meta is None:
-            self.meta = {}
-        if self.extras is None:
-            self.extras = {}
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name == "device" and value is not None:
+            value = ensure_device(value)
+        elif name == "direction" and value is not None:
+            value = ensure_direction(value)
+        elif name == "solver_name":
+            if not value:
+                value = None
+            else:
+                value = ensure_solver_name(value)
+        elif name == "scorer_impl":
+            if not value:
+                value = None
+            else:
+                value = ensure_scorer_impl(value)
+        object.__setattr__(self, name, value)
