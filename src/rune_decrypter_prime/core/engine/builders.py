@@ -51,6 +51,16 @@ def _scorer_capability_target(scorer: Any) -> Any:
     return backend if backend is not None else scorer
 
 
+def _ensure_capability_report_method(obj: Any) -> None:
+    if callable(getattr(obj, "capability_report", None)):
+        return
+
+    def capability_report(self: Any):
+        return self._capability_report
+
+    setattr(obj, "capability_report", MethodType(capability_report, obj))
+
+
 def _attach_scorer_capability_report(scorer: Any, s_cfg: ScoringConfig) -> Any:
     target = _scorer_capability_target(scorer)
 
@@ -70,13 +80,12 @@ def _attach_scorer_capability_report(scorer: Any, s_cfg: ScoringConfig) -> Any:
             word_ngram_judge=getattr(target, "_word_ngram_judge", None),
         )
 
-    setattr(scorer, "_capability_report", report)
+    setattr(target, "_capability_report", report)
+    _ensure_capability_report_method(target)
 
-    if not callable(getattr(scorer, "capability_report", None)):
-        def capability_report(self: Any):
-            return self._capability_report
-
-        setattr(scorer, "capability_report", MethodType(capability_report, scorer))
+    if scorer is not target:
+        setattr(scorer, "_capability_report", report)
+        _ensure_capability_report_method(scorer)
 
     raise_if_requested_lane_blocked(report)
     return scorer
