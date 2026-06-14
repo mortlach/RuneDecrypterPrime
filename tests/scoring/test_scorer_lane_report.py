@@ -138,7 +138,7 @@ def test_requested_word_ngram_runtime_is_report_only_even_when_available(tmp_pat
     )
 
     lane = _lane_by_name(report, ScorerLaneName.WORD_NGRAM_JUDGE_REPORT_ONLY)
-    assert lane.effective_state is EffectiveState.ACTIVE
+    assert lane.effective_state is EffectiveState.REPORT_ONLY
     assert lane.rank_effect is RankEffect.REPORT_ONLY
     assert lane.fallback_policy is FallbackPolicy.REPORT_ONLY
     report.raise_if_blocked()
