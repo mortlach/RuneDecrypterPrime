@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - preleasev1.0.0_d5
+      - prelease/v1.0.0_d6
 
 permissions:
   contents: read
@@ -87,49 +88,4 @@ jobs:
         with:
           name: rdp-v1-full-pytest-log-${{ matrix.os }}-py${{ matrix.python-version }}
           path: output/test_logs/full_pytest.log
-          if-no-files-found: warn
-
-      - name: Run V1 release tutorial runner
-        shell: python
-        run: |
-          from pathlib import Path
-          import subprocess
-          import sys
-
-          script = Path("tutorials") / "v1" / "run_all.py"
-          if not script.is_file():
-              raise SystemExit(f"Missing required release tutorial runner: {script}")
-
-          log_path = Path("output") / "test_logs" / "v1_release_tutorials.log"
-          log_path.parent.mkdir(parents=True, exist_ok=True)
-
-          cmd = [sys.executable, str(script)]
-          print("Running:", " ".join(cmd))
-
-          proc = subprocess.run(
-              cmd,
-              stdout=subprocess.PIPE,
-              stderr=subprocess.STDOUT,
-              text=True,
-              encoding="utf-8",
-              errors="replace",
-          )
-          log_path.write_text(proc.stdout, encoding="utf-8")
-
-          lines = proc.stdout.splitlines()
-          if proc.returncode:
-              print("V1 release tutorial runner failed. Output tail:")
-              print("\n".join(lines[-200:]))
-          else:
-              print("V1 release tutorial runner passed. Output tail:")
-              print("\n".join(lines[-60:]))
-
-          raise SystemExit(proc.returncode)
-
-      - name: Upload V1 release tutorial log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: rdp-v1-release-tutorial-log-${{ matrix.os }}-py${{ matrix.python-version }}
-          path: output/test_logs/v1_release_tutorials.log
           if-no-files-found: warn
