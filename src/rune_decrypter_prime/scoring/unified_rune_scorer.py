@@ -5,6 +5,7 @@ import numpy as np
 
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.backends.xp import select_backend
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.types import Device
 
 class UnifiedRuneScorer:
@@ -20,6 +21,7 @@ class UnifiedRuneScorer:
       • batch_score(pts: Sequence[Iterable[int]], wlis) -> np.ndarray
       • to_text(pt: Iterable[int]) -> str
       • telemetry() -> {"impl": "...", "device": "...", "dtype": "float32|float64", ...}
+      • capability_report() -> ScorerCapabilityReport
     """
 
     def __init__(self, cfg_cipher, cfg_scorer_params, tables: Any | None = None):
@@ -130,6 +132,36 @@ class UnifiedRuneScorer:
         except Exception:
             wli = None
         return Runeglish.to_rune_latin(arr.tolist(), wli)
+
+    def capability_report(self):
+        native_report = getattr(self._backend, "capability_report", None)
+        if callable(native_report):
+            report = native_report()
+            self._capability_report = report
+            return report
+
+        if not isinstance(self.cfg_scorer, ScoringConfig):
+            raise TypeError(
+                f"cfg_scorer must be ScoringConfig for capability reporting, "
+                f"got {type(self.cfg_scorer).__name__}"
+            )
+
+        from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
+
+        span_hamming_backend = getattr(self._backend, "_span_hamming_backend", None)
+        span_hamming_mode = str(
+            getattr(self._backend, "_span_hamming_mode", "off") or "off"
+        ).strip().lower()
+        report = build_scorer_lane_report(
+            self.cfg_scorer,
+            hamming_backend=getattr(self._backend, "_hamming_backend", None),
+            span_hamming_backend=span_hamming_backend if span_hamming_mode == "raw_bonus" else None,
+            calibrated_assets=getattr(self._backend, "_span_hamming_assets", None),
+            word_ngram_judge=getattr(self._backend, "_word_ngram_judge", None),
+        )
+        self._capability_report = report
+        setattr(self._backend, "_capability_report", report)
+        return report
 
     # ---------- Telemetry (no guessing) ----------
 
