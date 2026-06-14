@@ -38,6 +38,14 @@ test = [
   "pytest>=8.0",
   "jsonschema>=4.23.0",
 ]
+torch = [
+  "torch",
+]
+test-torch = [
+  "pytest>=8.0",
+  "jsonschema>=4.23.0",
+  "torch",
+]
 
 [project.urls]
 Homepage = "https://github.com/mortlach/RuneDecrypterPrime"
@@ -47,3 +55,8 @@ Issues = "https://github.com/mortlach/RuneDecrypterPrime/issues"
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["rune_decrypter_prime*", "rdp*"]
+
+[tool.pytest.ini_options]
+markers = [
+  "torch: tests that require the optional Torch runtime; skipped when torch is unavailable",
+]
