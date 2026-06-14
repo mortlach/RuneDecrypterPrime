@@ -137,3 +137,4 @@ def test_unified_facade_attaches_backend_capability_report_to_public_scorer(monk
 
     assert lane.effective_state is EffectiveState.ACTIVE
     assert scorer.capability_report() is scorer._capability_report
+    assert scorer._backend.capability_report() is scorer._capability_report
