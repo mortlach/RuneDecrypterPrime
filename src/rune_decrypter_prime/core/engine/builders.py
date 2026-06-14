@@ -75,9 +75,13 @@ def _attach_scorer_capability_report(scorer: Any, s_cfg: ScoringConfig) -> Any:
         report = build_scorer_lane_report(
             s_cfg,
             hamming_backend=getattr(target, "_hamming_backend", None),
+            hamming_issue=getattr(target, "_hamming_issue", None),
             span_hamming_backend=span_hamming_backend if span_hamming_mode == "raw_bonus" else None,
+            span_hamming_issue=getattr(target, "_span_hamming_issue", None),
             calibrated_assets=getattr(target, "_span_hamming_assets", None),
+            calibrated_issue=getattr(target, "_calibrated_issue", None),
             word_ngram_judge=getattr(target, "_word_ngram_judge", None),
+            word_ngram_issue=getattr(target, "_word_ngram_issue", None),
         )
 
     setattr(target, "_capability_report", report)
