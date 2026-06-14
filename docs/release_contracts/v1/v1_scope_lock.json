@@ -4,7 +4,10 @@
     "new n-gram Hamming rank effect in V1",
     "sample n-gram assets treated as V1 authority",
     "full resume/checkpoint solving promised as V1",
-    "absolute paths in public artifact manifests"
+    "absolute paths in public artifact manifests",
+    "explicit TORCH request silently falls back to NumPy",
+    "fixed scheduled-stream values treated as text characters",
+    "dynamic stop reasons left outside the V1 stop schema"
   ],
   "not_v1_production": {
     "full_save_restore_solving": {
@@ -28,18 +31,34 @@
       "rule": "reviewable run artifacts must be listed with stable relative paths and explicit kind",
       "status": "v1_core"
     },
+    "optional_torch_runtime": {
+      "rule": "Torch is a supported optional V1 scorer runtime; normal CI may skip runtime tests, but explicit TORCH requests must use Torch or raise a clear error",
+      "status": "v1_optional"
+    },
+    "release_full_proof_gate": {
+      "rule": "manual full-proof workflow runs install smoke, full pytest, and V1 tutorials on Windows and Ubuntu",
+      "status": "v1_release_gate"
+    },
     "scheduled_stream_lookup": {
-      "rule": "canonical V1 cipher family for scheduled stream/key lookup work",
+      "rule": "canonical V1 cipher family for scheduled stream/key lookup work; stream values, schedules, degeneracy, and anchors must be explicit",
       "status": "v1_core"
     },
     "scorer_capability_status": {
-      "rule": "requested/effective lane state must be typed and reportable",
+      "rule": "requested/effective lane state must be typed and reportable through public scorer and backend/facade boundaries",
       "status": "v1_core"
     },
     "span_hamming": {
       "rank_effect": "production_when_requested",
       "rule": "requested span-Hamming must run, block, or use explicit reported fallback; it must not silently disappear",
       "status": "v1_optional"
+    },
+    "stop_reason_schema": {
+      "rule": "solver stop reasons are reported through stable V1 categories, including emitted aliases and dynamic budget families",
+      "status": "v1_core"
+    },
+    "typed_builder_config_boundary": {
+      "rule": "public builders require typed CipherConfig and ScoringConfig objects; compatibility shims must not bypass the boundary",
+      "status": "v1_core"
     }
   }
 }
