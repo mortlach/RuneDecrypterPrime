@@ -39,6 +39,20 @@ class DiagnosticField(StrEnum):
     MESSAGE = "message"
 
 
+class ScorerTelemetryPrefix(StrEnum):
+    SPAN_HAMMING = "span_hamming_"
+    WORD_NGRAM_JUDGE = "word_ngram_judge_"
+    SPAN_LM = "span_lm_"
+
+
+class ScorerTelemetryKey(StrEnum):
+    HAMMING_DICTIONARY_POLICY = "hamming_dictionary_policy"
+    SPAN_HAMMING_DICTIONARY_POLICY = "span_hamming_dictionary_policy"
+    SPAN_HAMMING_ASSETS_DICTIONARY_POLICY = "span_hamming_assets_dictionary_policy"
+    SPAN_HAMMING_DICTIONARY_POLICY_MATCH = "span_hamming_dictionary_policy_match"
+    SPAN_HAMMING_DICTIONARY_POLICY_NOTE = "span_hamming_dictionary_policy_note"
+
+
 REPORT_BUILDER_DIAGNOSTICS_KEY = ScorerReportDetailKey.REPORT_BUILDER_DIAGNOSTICS.value
 
 RESERVED_DETAIL_KEYS = frozenset(key.value for key in ScorerReportDetailKey)
@@ -119,28 +133,22 @@ def _section_from_prefix(data: Mapping[str, Any], prefix: str) -> dict[str, Any]
 def _derived_details_from_telemetry(telemetry: Mapping[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
 
-    span_hamming = _section_from_prefix(telemetry, "span_hamming_")
+    span_hamming = _section_from_prefix(telemetry, ScorerTelemetryPrefix.SPAN_HAMMING.value)
     if span_hamming:
         out[ScorerReportDetailKey.SPAN_HAMMING.value] = span_hamming
 
-    word_ngrams = _section_from_prefix(telemetry, "word_ngram_judge_")
+    word_ngrams = _section_from_prefix(telemetry, ScorerTelemetryPrefix.WORD_NGRAM_JUDGE.value)
     if word_ngrams:
         out[ScorerReportDetailKey.WORD_NGRAMS.value] = word_ngrams
 
-    span_lm = _section_from_prefix(telemetry, "span_lm_")
+    span_lm = _section_from_prefix(telemetry, ScorerTelemetryPrefix.SPAN_LM.value)
     if span_lm:
         out[ScorerReportDetailKey.SPAN_LM.value] = span_lm
 
     hamming_dictionary: dict[str, Any] = {}
-    for key in (
-        "hamming_dictionary_policy",
-        "span_hamming_dictionary_policy",
-        "span_hamming_assets_dictionary_policy",
-        "span_hamming_dictionary_policy_match",
-        "span_hamming_dictionary_policy_note",
-    ):
-        if key in telemetry:
-            hamming_dictionary[key] = telemetry[key]
+    for key in ScorerTelemetryKey:
+        if key.value in telemetry:
+            hamming_dictionary[key.value] = telemetry[key.value]
     if hamming_dictionary:
         out[ScorerReportDetailKey.HAMMING_DICTIONARY.value] = hamming_dictionary
 
