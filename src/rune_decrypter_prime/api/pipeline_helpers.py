@@ -35,6 +35,8 @@ def finalize_solution(
         except Exception:
             pass
 
+    _attach_scorer_lanes_to_meta(res, problem)
+
     try:
         res.wli = wli
     except Exception:
@@ -61,6 +63,25 @@ def finalize_solution(
             pass
 
     return res
+
+
+def _attach_scorer_lanes_to_meta(res, problem) -> None:
+    scorer = getattr(problem, "scorer", None)
+    capability_report = getattr(scorer, "capability_report", None)
+    if not callable(capability_report):
+        return
+    try:
+        report = capability_report()
+        to_json_dict = getattr(report, "to_json_dict", None)
+        payload = to_json_dict() if callable(to_json_dict) else report
+        if not isinstance(payload, dict):
+            return
+        if not hasattr(res, "meta") or res.meta is None:
+            res.meta = {}
+        if isinstance(res.meta, dict):
+            res.meta["scorer_lanes"] = payload
+    except Exception:
+        return
 
 
 def ensure_plaintext_rune(res, *, ciphertext=None, wli=None, cipher=None, encoding_dir=Direction.RTL):
@@ -191,8 +212,9 @@ def ensure_plaintext_rune(res, *, ciphertext=None, wli=None, cipher=None, encodi
 
         ct_latin_nospace = _latin_from_idx(ct_idx_list)
 
-        res.ciphertext_rune_nospace = ct_rune_nospace
+        res.ciphertext_idx = ct_idx_list
         res.ciphertext_rune = ct_rune
+        res.ciphertext_rune_nospace = ct_rune_nospace
         res.ciphertext_latin = ct_latin
         res.ciphertext_latin_nospace = ct_latin_nospace
     else:
