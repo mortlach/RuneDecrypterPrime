@@ -3,7 +3,9 @@ from __future__ import annotations
 import pytest
 
 from rune_decrypter_prime.api.solver_report import (
+    ExecutionRoute,
     OracleUse,
+    SolverParamKey,
     SolverReportDetailKey,
     SolverReportDetailsVersion,
     TruthDataPolicy,
@@ -16,12 +18,33 @@ def test_solver_report_contract_labels_are_enum_backed() -> None:
     assert SolverReportDetailKey.ORACLE_USE.value == "oracle_use"
     assert SolverReportDetailKey.TRUTH_DATA_POLICY.value == "truth_data_policy"
     assert SolverReportDetailKey.REPRODUCIBILITY.value == "reproducibility"
+    assert ExecutionRoute.KNOWN_KEY_FASTPATH.value == "known_key_fastpath"
+    assert SolverParamKey.TEST_KEY.value == "test_key"
     assert OracleUse.NONE.value == "none"
     assert OracleUse.TEST_KEY.value == "test_key"
     assert OracleUse.KNOWN_KEY_FASTPATH.value == "known_key_fastpath"
     assert TruthDataPolicy.NONE.value == "none"
     assert TruthDataPolicy.REPORTED_TEST_OR_TUTORIAL_ONLY.value == "reported_test_or_tutorial_only"
     assert SolverReportDetailsVersion.V1.value == "api_solver_report_details.v1"
+
+
+def test_execution_route_and_solver_param_keys_are_separate_label_domains() -> None:
+    report = build_solver_report(
+        solver_name="beam",
+        requested_seed=None,
+        effective_seed=None,
+        normalized_params={"beam_width": 1},
+        details={SolverReportDetailKey.EXECUTION_ROUTE.value: ExecutionRoute.KNOWN_KEY_FASTPATH.value},
+    )
+    assert report.to_json_dict()["details"]["oracle_use"] == OracleUse.KNOWN_KEY_FASTPATH.value
+
+    report = build_solver_report(
+        solver_name="beam",
+        requested_seed=None,
+        effective_seed=0,
+        normalized_params={"beam_width": 4, SolverParamKey.TEST_KEY.value: [1, 2, 3]},
+    )
+    assert report.to_json_dict()["details"]["oracle_use"] == OracleUse.TEST_KEY.value
 
 
 def test_solver_report_json_detail_strings_remain_stable() -> None:
