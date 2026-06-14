@@ -101,7 +101,7 @@ def test_unified_rune_scorer_rejects_dict_cipher_cfg_before_backend_load() -> No
 
 
 def test_unified_rune_scorer_rejects_dict_scorer_cfg_before_backend_load() -> None:
-    with pytest.raises(TypeError, match="cfg_scorer_params must be ScoringConfig"):
+    with pytest.raises(TypeError, match="cfg_scorer must be ScoringConfig"):
         UnifiedRuneScorer(_cipher_config(), {})  # type: ignore[arg-type]
 
 

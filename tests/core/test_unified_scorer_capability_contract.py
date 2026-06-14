@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import sys
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
+
+import pytest
 
 from rune_decrypter_prime.core.component_contracts import (
     CapabilityIssue,
@@ -59,6 +61,17 @@ def _issue(code: str) -> CapabilityIssue:
         status=CapabilityStatus.UNAVAILABLE,
         source="hamming",
     )
+
+
+def test_unified_scorer_requires_typed_config_objects() -> None:
+    with pytest.raises(TypeError, match="CipherConfig"):
+        UnifiedRuneScorer(SimpleNamespace(ciphertext=[0, 1, 2, 3]), ScoringConfig())
+
+    with pytest.raises(TypeError, match="ScoringConfig"):
+        UnifiedRuneScorer(_cipher_cfg(), {"hamming_enabled": True})
+
+    with pytest.raises(TypeError, match="ScoringConfig"):
+        UnifiedRuneScorer(_cipher_cfg(), SimpleNamespace(hamming_enabled=True))
 
 
 def test_unified_scorer_reports_missing_backend_lane_without_builder(monkeypatch) -> None:
