@@ -12,13 +12,20 @@ def _workflow_text() -> str:
     return WORKFLOW.read_text(encoding="utf-8")
 
 
-def test_v1_full_proof_workflow_is_manual_release_gate() -> None:
+def test_v1_full_proof_workflow_is_manually_runnable_release_gate() -> None:
     text = _workflow_text()
 
     assert "workflow_dispatch:" in text
     assert "windows-latest" in text
     assert "ubuntu-latest" in text
     assert '"3.11"' in text
+
+
+def test_v1_full_proof_workflow_may_run_on_active_prelease_pushes() -> None:
+    text = _workflow_text()
+
+    assert "push:" in text
+    assert "prelease/v1.0.0_d6" in text
 
 
 def test_v1_full_proof_workflow_runs_install_pytest_and_tutorials() -> None:
