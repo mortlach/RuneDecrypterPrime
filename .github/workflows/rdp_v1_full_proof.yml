@@ -6,6 +6,7 @@ on:
     branches:
       - preleasev1.0.0_d5
       - prelease/v1.0.0_d6
+      - prelease/v1.0.0_d7
 
 permissions:
   contents: read
