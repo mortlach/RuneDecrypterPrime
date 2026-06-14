@@ -41,8 +41,54 @@ def test_lane_status_is_json_safe() -> None:
 
     payload = lane.to_json_dict()
     assert payload["lane"] == "hamming"
+    assert payload["request_state"] == "requested"
     assert payload["effective_state"] == "blocked"
+    assert payload["rank_effect"] == "production"
+    assert payload["fallback_policy"] == "block"
     json.dumps(payload)
+
+
+def test_scorer_lane_names_are_stable() -> None:
+    assert tuple(lane.value for lane in ScorerLaneName) == (
+        "lm_char_wli",
+        "hamming",
+        "span_hamming_raw",
+        "span_hamming_calibrated",
+        "word_ngram_judge_report_only",
+        "ngram_hamming_experimental_report_only",
+    )
+
+
+def test_rank_effect_values_are_stable() -> None:
+    assert tuple(effect.value for effect in RankEffect) == (
+        "production",
+        "report_only",
+        "none",
+    )
+
+
+def test_request_and_effective_state_values_are_stable() -> None:
+    assert tuple(state.value for state in RequestState) == (
+        "not_requested",
+        "requested",
+        "required",
+    )
+    assert tuple(state.value for state in EffectiveState) == (
+        "inactive",
+        "active",
+        "blocked",
+        "fallback_reported",
+        "report_only",
+    )
+
+
+def test_fallback_policy_values_are_stable() -> None:
+    assert tuple(policy.value for policy in FallbackPolicy) == (
+        "block",
+        "explicit_reported_fallback",
+        "report_only",
+        "disabled",
+    )
 
 
 def test_raw_string_enum_values_are_rejected() -> None:
@@ -52,6 +98,17 @@ def test_raw_string_enum_values_are_rejected() -> None:
             request_state=RequestState.REQUESTED,
             effective_state=EffectiveState.ACTIVE,
             rank_effect=RankEffect.PRODUCTION,
+            fallback_policy=FallbackPolicy.BLOCK,
+        )
+
+
+def test_raw_string_rank_effect_is_rejected() -> None:
+    with pytest.raises(TypeError):
+        LaneStatus(  # type: ignore[arg-type]
+            lane=ScorerLaneName.HAMMING,
+            request_state=RequestState.REQUESTED,
+            effective_state=EffectiveState.ACTIVE,
+            rank_effect="production",
             fallback_policy=FallbackPolicy.BLOCK,
         )
 
