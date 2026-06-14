@@ -20,6 +20,13 @@ from rune_decrypter_prime.scoring.rune_scorer_impl import *  # noqa: F401,F403
 from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
 
 
+WORD_NGRAM_JUDGE_UNAVAILABLE_MESSAGE = (
+    "word_ngram_judge_enabled=True, but the experimental word-ngram "
+    "judge module is not present in this V1 release build. "
+    "Disable word_ngram_judge_enabled or install the experimental "
+    "ngram tooling branch."
+)
+
 _LegacyRuneScorer = _impl.RuneScorer
 
 
