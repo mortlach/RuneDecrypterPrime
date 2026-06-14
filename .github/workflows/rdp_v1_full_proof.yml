@@ -55,7 +55,7 @@ jobs:
           log_path = Path("output") / "test_logs" / "full_pytest.log"
           log_path.parent.mkdir(parents=True, exist_ok=True)
 
-          cmd = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests"]
+          cmd = [sys.executable, "-m", "pytest", "-q", "-ra", "-p", "no:cacheprovider", "tests"]
           print("Running:", " ".join(cmd))
 
           proc = subprocess.run(
