@@ -3,9 +3,16 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Literal
+from typing import Iterable
 
-Classification = Literal["candidate", "not_candidate", "needs_review"]
+from rune_decrypter_prime.api.artifact_agreement import (
+    assert_manifest_row_allowed_v1,
+    agreement_manifest_row_by_kind_v1,
+    validate_artifact_relpath,
+    validate_classification as _validate_classification,
+)
+
+Classification = str
 
 MANIFEST_RELPATH = "artifacts/run_artifacts_manifest.json"
 
@@ -84,46 +91,34 @@ def _build_v1_rows(
     solver_report_relpath = "artifacts/solver_report.json"
     solver_report_path = run_root / solver_report_relpath
     rows: list[RunArtifactManifestRow] = [
-        RunArtifactManifestRow(
-            relpath="META.json",
-            artifact_kind="run_meta",
-            required=True,
-            present=True,
-            portable_classification="candidate",
-            export_classification="candidate",
-            notes="privacy-sensitive run metadata",
-        ),
-        RunArtifactManifestRow(
-            relpath="config/logging.json",
-            artifact_kind="logging_config",
-            required=True,
-            present=True,
-            portable_classification="candidate",
-            export_classification="candidate",
-            notes="privacy-sensitive logging configuration snapshot",
-        ),
+        _row_from_agreement("run_meta", present=True),
+        _row_from_agreement("logging_config", present=True),
     ]
 
     if include_solver_report:
         if not solver_report_path.is_file():
             raise FileNotFoundError("required artifact is missing: artifacts/solver_report.json")
-        rows.append(_solver_report_row(present=True))
+        rows.append(_row_from_agreement("solver_report", present=True))
     elif solver_report_path.is_file():
-        rows.append(_solver_report_row(present=True))
+        rows.append(_row_from_agreement("solver_report", present=True))
 
     _validate_unique_rows(rows)
+    _validate_rows_match_agreement(rows)
     return tuple(rows)
 
 
-def _solver_report_row(*, present: bool) -> RunArtifactManifestRow:
+def _row_from_agreement(artifact_kind: str, *, present: bool) -> RunArtifactManifestRow:
+    agreement = agreement_manifest_row_by_kind_v1().get(artifact_kind)
+    if agreement is None:
+        raise ValueError(f"artifact kind is not in the V1 manifest agreement: {artifact_kind}")
     return RunArtifactManifestRow(
-        relpath="artifacts/solver_report.json",
-        artifact_kind="solver_report",
-        required=False,
+        relpath=agreement.relpath,
+        artifact_kind=agreement.artifact_kind,
+        required=agreement.required,
         present=present,
-        portable_classification="candidate",
-        export_classification="candidate",
-        notes="stable-readable SolverReport sidecar",
+        portable_classification=agreement.portable_classification,
+        export_classification=agreement.export_classification,
+        notes=agreement.notes,
     )
 
 
@@ -148,22 +143,18 @@ def _validate_unique_rows(rows: Iterable[RunArtifactManifestRow]) -> None:
         artifact_kinds.add(row.artifact_kind)
 
 
+def _validate_rows_match_agreement(rows: Iterable[RunArtifactManifestRow]) -> None:
+    for row in rows:
+        assert_manifest_row_allowed_v1(
+            relpath=row.relpath,
+            artifact_kind=row.artifact_kind,
+            portable_classification=row.portable_classification,
+            export_classification=row.export_classification,
+        )
+
+
 def _validate_relpath(relpath: str) -> None:
-    if not isinstance(relpath, str) or not relpath:
-        raise ValueError("relpath must be a non-empty string")
-    if "\\" in relpath:
-        raise ValueError("relpath must use POSIX separators")
-    if relpath.startswith("/"):
-        raise ValueError("relpath must be run-relative and stay under run_dir")
-    path = Path(relpath)
-    if path.is_absolute() or ".." in path.parts:
-        raise ValueError("relpath must be run-relative and stay under run_dir")
-
-
-def _validate_classification(value: str, field_name: str) -> None:
-    allowed = {"candidate", "not_candidate", "needs_review"}
-    if value not in allowed:
-        raise ValueError(f"{field_name} must be one of {sorted(allowed)}")
+    validate_artifact_relpath(relpath)
 
 
 __all__ = [
