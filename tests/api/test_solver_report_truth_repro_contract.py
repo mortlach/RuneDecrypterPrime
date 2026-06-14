@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import importlib
 
+import pytest
+
 
 def _build_report(**kwargs):
     module = importlib.import_module("rune_decrypter_prime.api.solver_report")
@@ -57,14 +59,18 @@ def test_known_key_fastpath_is_reported_and_existing_details_survive() -> None:
     assert payload["details"]["scorer_lanes"] == {"lanes": []}
 
 
-def test_existing_oracle_details_are_not_overwritten() -> None:
-    report = _build_report(
-        solver_name="beam",
-        requested_seed=None,
-        effective_seed=0,
-        normalized_params={"beam_width": 4},
-        details={"oracle_use": "custom", "truth_data_policy": "custom_policy"},
-    )
-
-    assert report.details["oracle_use"] == "custom"
-    assert report.details["truth_data_policy"] == "custom_policy"
+@pytest.mark.parametrize(
+    "reserved_key",
+    ["report_contract", "oracle_use", "truth_data_policy", "reproducibility"],
+)
+def test_caller_details_cannot_overwrite_generated_solver_report_contract_sections(
+    reserved_key: str,
+) -> None:
+    with pytest.raises(ValueError, match=reserved_key):
+        _build_report(
+            solver_name="beam",
+            requested_seed=None,
+            effective_seed=0,
+            normalized_params={"beam_width": 4},
+            details={reserved_key: "caller supplied"},
+        )
