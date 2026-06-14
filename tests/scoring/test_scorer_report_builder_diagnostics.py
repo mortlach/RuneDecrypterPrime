@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from rune_decrypter_prime.scoring.scorer_report_builder import build_scorer_report
 
 
@@ -65,3 +67,20 @@ def test_last_stats_failure_is_explicit_and_extra_metrics_still_survive() -> Non
             "message": "stats unavailable",
         }
     }
+
+
+def test_report_builder_diagnostics_cannot_be_masked_by_extra_details() -> None:
+    with pytest.raises(ValueError, match="report_builder_diagnostics"):
+        build_scorer_report(
+            scorer=_TelemetryFailureScorer(),
+            objective_str="pct.logp.win10",
+            score=10.0,
+            extra_details={
+                "report_builder_diagnostics": {
+                    "telemetry_error": {
+                        "type": "RuntimeError",
+                        "message": "caller masked diagnostic",
+                    }
+                }
+            },
+        )
