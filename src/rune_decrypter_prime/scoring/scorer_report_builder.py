@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from enum import StrEnum
 from typing import Any, Mapping
 
 from rune_decrypter_prime.core.types import (
@@ -13,21 +14,35 @@ from rune_decrypter_prime.core.types import (
 from rune_decrypter_prime.scoring.base_scorer import parse_objective
 from rune_decrypter_prime.scoring.scorer_report import ScorerReport
 
-REPORT_BUILDER_DIAGNOSTICS_KEY = "report_builder_diagnostics"
 
-RESERVED_DETAIL_KEYS = frozenset({
-    "hamming_dictionary",
-    "span_hamming",
-    "span_lm",
-    "word_ngrams",
-    "scorer_lanes",
-    "stop_reason",
-    "stop_category",
-    "oracle_use",
-    "truth_data_policy",
-    "report_contract",
-    REPORT_BUILDER_DIAGNOSTICS_KEY,
-})
+class ScorerReportDetailKey(StrEnum):
+    HAMMING_DICTIONARY = "hamming_dictionary"
+    SPAN_HAMMING = "span_hamming"
+    SPAN_LM = "span_lm"
+    WORD_NGRAMS = "word_ngrams"
+    SCORER_LANES = "scorer_lanes"
+    STOP_REASON = "stop_reason"
+    STOP_CATEGORY = "stop_category"
+    ORACLE_USE = "oracle_use"
+    TRUTH_DATA_POLICY = "truth_data_policy"
+    REPORT_CONTRACT = "report_contract"
+    REPORT_BUILDER_DIAGNOSTICS = "report_builder_diagnostics"
+
+
+class ReportBuilderDiagnosticKey(StrEnum):
+    TELEMETRY_ERROR = "telemetry_error"
+    LAST_STATS_ERROR = "last_stats_error"
+
+
+class DiagnosticField(StrEnum):
+    TYPE = "type"
+    MESSAGE = "message"
+
+
+REPORT_BUILDER_DIAGNOSTICS_KEY = ScorerReportDetailKey.REPORT_BUILDER_DIAGNOSTICS.value
+
+RESERVED_DETAIL_KEYS = frozenset(key.value for key in ScorerReportDetailKey)
+CALLER_FORBIDDEN_DETAIL_KEYS = frozenset({ScorerReportDetailKey.REPORT_BUILDER_DIAGNOSTICS.value})
 
 
 def _objective_spec_from_any(value: Any, *, fallback_win: int = 10) -> ObjectiveSpec:
@@ -106,15 +121,15 @@ def _derived_details_from_telemetry(telemetry: Mapping[str, Any]) -> dict[str, A
 
     span_hamming = _section_from_prefix(telemetry, "span_hamming_")
     if span_hamming:
-        out["span_hamming"] = span_hamming
+        out[ScorerReportDetailKey.SPAN_HAMMING.value] = span_hamming
 
     word_ngrams = _section_from_prefix(telemetry, "word_ngram_judge_")
     if word_ngrams:
-        out["word_ngrams"] = word_ngrams
+        out[ScorerReportDetailKey.WORD_NGRAMS.value] = word_ngrams
 
     span_lm = _section_from_prefix(telemetry, "span_lm_")
     if span_lm:
-        out["span_lm"] = span_lm
+        out[ScorerReportDetailKey.SPAN_LM.value] = span_lm
 
     hamming_dictionary: dict[str, Any] = {}
     for key in (
@@ -127,7 +142,7 @@ def _derived_details_from_telemetry(telemetry: Mapping[str, Any]) -> dict[str, A
         if key in telemetry:
             hamming_dictionary[key] = telemetry[key]
     if hamming_dictionary:
-        out["hamming_dictionary"] = hamming_dictionary
+        out[ScorerReportDetailKey.HAMMING_DICTIONARY.value] = hamming_dictionary
 
     return out
 
@@ -138,6 +153,8 @@ def _merge_detail_sections(
 ) -> dict[str, Any]:
     out = _safe_mapping(base)
     for key, value in _safe_mapping(extra).items():
+        if key in CALLER_FORBIDDEN_DETAIL_KEYS:
+            raise ValueError(f"extra_details cannot supply generated report detail section: {key}")
         if key in out and key in RESERVED_DETAIL_KEYS:
             raise ValueError(f"extra_details cannot overwrite generated report detail section: {key}")
         if key in out and isinstance(out[key], Mapping) and isinstance(value, Mapping):
@@ -151,8 +168,8 @@ def _merge_detail_sections(
 
 def _exception_diagnostic(exc: Exception) -> dict[str, str]:
     return {
-        "type": type(exc).__name__,
-        "message": str(exc),
+        DiagnosticField.TYPE.value: type(exc).__name__,
+        DiagnosticField.MESSAGE.value: str(exc),
     }
 
 
@@ -176,7 +193,7 @@ def build_scorer_report(
         if hasattr(scorer, "telemetry") and callable(scorer.telemetry):
             telemetry = _safe_mapping(scorer.telemetry())
     except Exception as exc:  # pragma: no cover - exact exception type is scorer-defined
-        diagnostics["telemetry_error"] = _exception_diagnostic(exc)
+        diagnostics[ReportBuilderDiagnosticKey.TELEMETRY_ERROR.value] = _exception_diagnostic(exc)
         telemetry = {}
 
     metrics: dict[str, float] = {}
@@ -184,12 +201,12 @@ def build_scorer_report(
         if hasattr(scorer, "last_stats") and callable(scorer.last_stats):
             metrics.update(_safe_float_metrics(scorer.last_stats()))
     except Exception as exc:  # pragma: no cover - exact exception type is scorer-defined
-        diagnostics["last_stats_error"] = _exception_diagnostic(exc)
+        diagnostics[ReportBuilderDiagnosticKey.LAST_STATS_ERROR.value] = _exception_diagnostic(exc)
     metrics.update(_safe_float_metrics(extra_metrics or {}))
 
     derived_details = _derived_details_from_telemetry(telemetry)
     if diagnostics:
-        derived_details[REPORT_BUILDER_DIAGNOSTICS_KEY] = diagnostics
+        derived_details[ScorerReportDetailKey.REPORT_BUILDER_DIAGNOSTICS.value] = diagnostics
     details = _merge_detail_sections(derived_details, _safe_mapping(extra_details or {}))
     return ScorerReport(
         objective_str=str(objective_str or ""),
