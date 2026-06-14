@@ -39,23 +39,37 @@ def build_cipher(cfg_cipher: CipherConfig) -> Any:
     return cipher
 
 
-def _attach_numpy_scorer_capability_report(scorer: Any, s_cfg: ScoringConfig) -> Any:
-    native_report = getattr(scorer, "capability_report", None)
+def _scorer_capability_target(scorer: Any) -> Any:
+    """Return the object that owns scorer-lane runtime observations.
+
+    Most scorers expose optional lane state directly.  Façade scorers such as
+    UnifiedRuneScorer keep the actual runtime on ``_backend``.  The public
+    scorer still receives the attached report, but observations should come
+    from the runtime object so requested lanes cannot disappear behind a façade.
+    """
+    backend = getattr(scorer, "_backend", None)
+    return backend if backend is not None else scorer
+
+
+def _attach_scorer_capability_report(scorer: Any, s_cfg: ScoringConfig) -> Any:
+    target = _scorer_capability_target(scorer)
+
+    native_report = getattr(target, "capability_report", None)
     if callable(native_report):
         report = native_report()
-        setattr(scorer, "_capability_report", report)
-        raise_if_requested_lane_blocked(report)
-        return scorer
+    else:
+        from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
 
-    from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
+        span_hamming_backend = getattr(target, "_span_hamming_backend", None)
+        span_hamming_mode = str(getattr(target, "_span_hamming_mode", "off") or "off").strip().lower()
+        report = build_scorer_lane_report(
+            s_cfg,
+            hamming_backend=getattr(target, "_hamming_backend", None),
+            span_hamming_backend=span_hamming_backend if span_hamming_mode == "raw_bonus" else None,
+            calibrated_assets=getattr(target, "_span_hamming_assets", None),
+            word_ngram_judge=getattr(target, "_word_ngram_judge", None),
+        )
 
-    report = build_scorer_lane_report(
-        s_cfg,
-        hamming_backend=getattr(scorer, "_hamming_backend", None),
-        span_hamming_backend=getattr(scorer, "_span_hamming_backend", None),
-        calibrated_assets=getattr(scorer, "_span_hamming_assets", None),
-        word_ngram_judge=getattr(scorer, "_word_ngram_judge", None),
-    )
     setattr(scorer, "_capability_report", report)
 
     if not callable(getattr(scorer, "capability_report", None)):
@@ -91,7 +105,7 @@ def build_scorer(c_cfg: CipherConfig, s_cfg: ScoringConfig):
         from rune_decrypter_prime.scoring.rune_scorer import RuneScorer
 
         scorer = RuneScorer(c_cfg, s_cfg)
-        return _attach_numpy_scorer_capability_report(scorer, s_cfg)
+        return _attach_scorer_capability_report(scorer, s_cfg)
 
     if impl is ScorerImpl.TORCH:
         try:
@@ -108,11 +122,13 @@ def build_scorer(c_cfg: CipherConfig, s_cfg: ScoringConfig):
                 ) from exc
             raise
 
-        return RuneScorerTorch(c_cfg, s_cfg)
+        scorer = RuneScorerTorch(c_cfg, s_cfg)
+        return _attach_scorer_capability_report(scorer, s_cfg)
 
     if impl is ScorerImpl.UNIFIED:
         from rune_decrypter_prime.scoring.unified_rune_scorer import UnifiedRuneScorer
 
-        return UnifiedRuneScorer(c_cfg, s_cfg)
+        scorer = UnifiedRuneScorer(c_cfg, s_cfg)
+        return _attach_scorer_capability_report(scorer, s_cfg)
 
     raise ValueError(f"Unknown scorer impl: {impl!r}")
