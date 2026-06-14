@@ -13,6 +13,19 @@ from rune_decrypter_prime.core.types import (
 from rune_decrypter_prime.scoring.base_scorer import parse_objective
 from rune_decrypter_prime.scoring.scorer_report import ScorerReport
 
+RESERVED_DETAIL_KEYS = frozenset({
+    "hamming_dictionary",
+    "span_hamming",
+    "span_lm",
+    "word_ngrams",
+    "scorer_lanes",
+    "stop_reason",
+    "stop_category",
+    "oracle_use",
+    "truth_data_policy",
+    "report_contract",
+})
+
 
 def _objective_spec_from_any(value: Any, *, fallback_win: int = 10) -> ObjectiveSpec:
     if isinstance(value, ObjectiveSpec):
@@ -122,6 +135,8 @@ def _merge_detail_sections(
 ) -> dict[str, Any]:
     out = _safe_mapping(base)
     for key, value in _safe_mapping(extra).items():
+        if key in out and key in RESERVED_DETAIL_KEYS:
+            raise ValueError(f"extra_details cannot overwrite generated report detail section: {key}")
         if key in out and isinstance(out[key], Mapping) and isinstance(value, Mapping):
             merged = dict(out[key])
             merged.update(dict(value))
