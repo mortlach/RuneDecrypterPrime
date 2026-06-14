@@ -89,3 +89,44 @@ jobs:
           name: rdp-v1-full-pytest-log-${{ matrix.os }}-py${{ matrix.python-version }}
           path: output/test_logs/full_pytest.log
           if-no-files-found: warn
+
+      - name: Run V1 release tutorials
+        shell: python
+        run: |
+          from pathlib import Path
+          import subprocess
+          import sys
+
+          log_path = Path("output") / "test_logs" / "v1_release_tutorials.log"
+          log_path.parent.mkdir(parents=True, exist_ok=True)
+
+          cmd = [sys.executable, "-X", "utf8", "tutorials/v1/run_all.py"]
+          print("Running:", " ".join(cmd))
+
+          proc = subprocess.run(
+              cmd,
+              stdout=subprocess.PIPE,
+              stderr=subprocess.STDOUT,
+              text=True,
+              encoding="utf-8",
+              errors="replace",
+          )
+          log_path.write_text(proc.stdout, encoding="utf-8")
+
+          lines = proc.stdout.splitlines()
+          if proc.returncode:
+              print("V1 release tutorials failed. Output tail:")
+              print("\n".join(lines[-200:]))
+          else:
+              print("V1 release tutorials passed. Output tail:")
+              print("\n".join(lines[-40:]))
+
+          raise SystemExit(proc.returncode)
+
+      - name: Upload V1 release tutorial log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rdp-v1-release-tutorial-log-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: output/test_logs/v1_release_tutorials.log
+          if-no-files-found: warn
