@@ -3,7 +3,12 @@ from __future__ import annotations
 import sys
 from types import ModuleType
 
-from rune_decrypter_prime.core.component_contracts import EffectiveState, ScorerLaneName
+from rune_decrypter_prime.core.component_contracts import (
+    CapabilityIssue,
+    CapabilityStatus,
+    EffectiveState,
+    ScorerLaneName,
+)
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.types import Device
@@ -12,11 +17,13 @@ from rune_decrypter_prime.scoring.unified_rune_scorer import UnifiedRuneScorer
 
 class _FakeBackendScorer:
     hamming_backend = None
+    hamming_issue = None
 
     def __init__(self, c_cfg: CipherConfig, s_cfg: ScoringConfig) -> None:
         self.c_cfg = c_cfg
         self.s_cfg = s_cfg
         self._hamming_backend = type(self).hamming_backend
+        self._hamming_issue = type(self).hamming_issue
         self._span_hamming_backend = None
         self._span_hamming_assets = None
         self._span_hamming_mode = "off"
@@ -45,9 +52,19 @@ def _lane_by_name(report, lane: ScorerLaneName):
     return matches[0]
 
 
+def _issue(code: str) -> CapabilityIssue:
+    return CapabilityIssue(
+        code=code,
+        message=f"{code} message",
+        status=CapabilityStatus.UNAVAILABLE,
+        source="hamming",
+    )
+
+
 def test_unified_scorer_reports_missing_backend_lane_without_builder(monkeypatch) -> None:
     _install_fake_numpy_backend(monkeypatch)
     _FakeBackendScorer.hamming_backend = None
+    _FakeBackendScorer.hamming_issue = None
 
     scorer = UnifiedRuneScorer(_cipher_cfg(), ScoringConfig(hamming_enabled=True))
     lane = _lane_by_name(scorer.capability_report(), ScorerLaneName.HAMMING)
@@ -56,9 +73,22 @@ def test_unified_scorer_reports_missing_backend_lane_without_builder(monkeypatch
     assert lane.effective_state is EffectiveState.BLOCKED
 
 
+def test_unified_scorer_preserves_backend_capability_issue_without_builder(monkeypatch) -> None:
+    _install_fake_numpy_backend(monkeypatch)
+    _FakeBackendScorer.hamming_backend = None
+    _FakeBackendScorer.hamming_issue = _issue("custom_hamming_backend_failure")
+
+    scorer = UnifiedRuneScorer(_cipher_cfg(), ScoringConfig(hamming_enabled=True))
+    lane = _lane_by_name(scorer.capability_report(), ScorerLaneName.HAMMING)
+
+    assert lane.is_blocking
+    assert lane.issues[0].code == "custom_hamming_backend_failure"
+
+
 def test_unified_scorer_reports_active_backend_lane_without_builder(monkeypatch) -> None:
     _install_fake_numpy_backend(monkeypatch)
     _FakeBackendScorer.hamming_backend = object()
+    _FakeBackendScorer.hamming_issue = None
 
     scorer = UnifiedRuneScorer(_cipher_cfg(), ScoringConfig(hamming_enabled=True))
     lane = _lane_by_name(scorer.capability_report(), ScorerLaneName.HAMMING)
