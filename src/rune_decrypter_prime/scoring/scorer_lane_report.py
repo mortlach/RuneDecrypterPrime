@@ -9,7 +9,10 @@ from rune_decrypter_prime.core.capability_gates import (
 )
 from rune_decrypter_prime.core.component_contracts import (
     CapabilityIssue,
+    CapabilityStatus,
+    EffectiveState,
     FallbackPolicy,
+    LaneStatus,
     RankEffect,
     RequestState,
     ScorerCapabilityReport,
@@ -59,13 +62,30 @@ def _present(value: object | None) -> bool:
     return value is not None
 
 
+def _report_only_lane(
+    *,
+    lane: ScorerLaneName,
+    issue: CapabilityIssue | None,
+    report_section: str,
+) -> LaneStatus:
+    return LaneStatus(
+        lane=lane,
+        request_state=RequestState.REQUESTED,
+        effective_state=EffectiveState.REPORT_ONLY,
+        rank_effect=RankEffect.REPORT_ONLY,
+        fallback_policy=FallbackPolicy.REPORT_ONLY,
+        issues=tuple() if issue is None else (issue,),
+        report_section=report_section,
+    )
+
+
 def _status_for_observed_lane(
     *,
     lane: ScorerLaneName,
     requested: bool,
     observed: object | None,
     issue: CapabilityIssue | None,
-):
+) -> LaneStatus:
     rank_effect = _RANK_EFFECT[lane]
     fallback_policy = _FALLBACK_POLICY[lane]
     report_section = _REPORT_SECTIONS[lane]
@@ -75,6 +95,13 @@ def _status_for_observed_lane(
             lane,
             rank_effect=rank_effect,
             fallback_policy=FallbackPolicy.DISABLED,
+            report_section=report_section,
+        )
+
+    if rank_effect is RankEffect.REPORT_ONLY:
+        return _report_only_lane(
+            lane=lane,
+            issue=issue,
             report_section=report_section,
         )
 
@@ -90,7 +117,7 @@ def _status_for_observed_lane(
         issue = CapabilityIssue(
             code="requested_lane_unavailable",
             message=f"requested scorer lane {lane.value} is unavailable",
-            status=_default_unavailable_status(),
+            status=CapabilityStatus.UNAVAILABLE,
             source=None,
         )
 
@@ -102,12 +129,6 @@ def _status_for_observed_lane(
         request_state=RequestState.REQUESTED,
         report_section=report_section,
     )
-
-
-def _default_unavailable_status():
-    from rune_decrypter_prime.core.component_contracts import CapabilityStatus
-
-    return CapabilityStatus.UNAVAILABLE
 
 
 def build_scorer_lane_report(
