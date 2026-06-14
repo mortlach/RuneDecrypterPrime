@@ -26,6 +26,8 @@ RESERVED_DETAIL_KEYS = frozenset({
     "report_contract",
 })
 
+REPORT_BUILDER_DIAGNOSTICS_KEY = "report_builder_diagnostics"
+
 
 def _objective_spec_from_any(value: Any, *, fallback_win: int = 10) -> ObjectiveSpec:
     if isinstance(value, ObjectiveSpec):
@@ -81,7 +83,7 @@ def _safe_float_metrics(value: Any) -> dict[str, float]:
     for k, v in value.items():
         try:
             f = float(v)
-        except Exception:
+        except (TypeError, ValueError):
             continue
         if not math.isfinite(f):
             continue
@@ -146,6 +148,13 @@ def _merge_detail_sections(
     return out
 
 
+def _exception_diagnostic(exc: Exception) -> dict[str, str]:
+    return {
+        "type": type(exc).__name__,
+        "message": str(exc),
+    }
+
+
 def build_scorer_report(
     *,
     scorer: Any,
@@ -160,22 +169,26 @@ def build_scorer_report(
     objective_raw = objective_str or getattr(scorer, "objective", None)
     objective_spec = _objective_spec_from_any(objective_raw, fallback_win=fallback_win)
 
+    diagnostics: dict[str, Any] = {}
     telemetry: dict[str, Any] = {}
     try:
         if hasattr(scorer, "telemetry") and callable(scorer.telemetry):
             telemetry = _safe_mapping(scorer.telemetry())
-    except Exception:
+    except Exception as exc:  # pragma: no cover - exact exception type is scorer-defined
+        diagnostics["telemetry_error"] = _exception_diagnostic(exc)
         telemetry = {}
 
     metrics: dict[str, float] = {}
     try:
         if hasattr(scorer, "last_stats") and callable(scorer.last_stats):
             metrics.update(_safe_float_metrics(scorer.last_stats()))
-    except Exception:
-        pass
+    except Exception as exc:  # pragma: no cover - exact exception type is scorer-defined
+        diagnostics["last_stats_error"] = _exception_diagnostic(exc)
     metrics.update(_safe_float_metrics(extra_metrics or {}))
 
     derived_details = _derived_details_from_telemetry(telemetry)
+    if diagnostics:
+        derived_details[REPORT_BUILDER_DIAGNOSTICS_KEY] = diagnostics
     details = _merge_detail_sections(derived_details, _safe_mapping(extra_details or {}))
     return ScorerReport(
         objective_str=str(objective_str or ""),
