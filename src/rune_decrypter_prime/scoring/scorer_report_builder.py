@@ -13,6 +13,8 @@ from rune_decrypter_prime.core.types import (
 from rune_decrypter_prime.scoring.base_scorer import parse_objective
 from rune_decrypter_prime.scoring.scorer_report import ScorerReport
 
+REPORT_BUILDER_DIAGNOSTICS_KEY = "report_builder_diagnostics"
+
 RESERVED_DETAIL_KEYS = frozenset({
     "hamming_dictionary",
     "span_hamming",
@@ -24,9 +26,8 @@ RESERVED_DETAIL_KEYS = frozenset({
     "oracle_use",
     "truth_data_policy",
     "report_contract",
+    REPORT_BUILDER_DIAGNOSTICS_KEY,
 })
-
-REPORT_BUILDER_DIAGNOSTICS_KEY = "report_builder_diagnostics"
 
 
 def _objective_spec_from_any(value: Any, *, fallback_win: int = 10) -> ObjectiveSpec:
