@@ -15,6 +15,7 @@ from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
 from rune_decrypter_prime.core.problem.spec import ProblemSpec
 from rune_decrypter_prime.core.types import ScorerImpl
 from rune_decrypter_prime.scoring.rune_scorer import RuneScorer
+from rune_decrypter_prime.scoring.unified_rune_scorer import UnifiedRuneScorer
 
 
 def _cipher_config() -> CipherConfig:
@@ -92,6 +93,16 @@ def test_build_scorer_rejects_dict_s_cfg() -> None:
 def test_rune_scorer_rejects_dict_scorer_cfg_before_backend_load() -> None:
     with pytest.raises(TypeError, match="scorer_cfg must be ScoringConfig"):
         RuneScorer(_cipher_config(), {})  # type: ignore[arg-type]
+
+
+def test_unified_rune_scorer_rejects_dict_cipher_cfg_before_backend_load() -> None:
+    with pytest.raises(TypeError, match="cfg_cipher must be CipherConfig"):
+        UnifiedRuneScorer({}, _scoring_config())  # type: ignore[arg-type]
+
+
+def test_unified_rune_scorer_rejects_dict_scorer_cfg_before_backend_load() -> None:
+    with pytest.raises(TypeError, match="cfg_scorer_params must be ScoringConfig"):
+        UnifiedRuneScorer(_cipher_config(), {})  # type: ignore[arg-type]
 
 
 def test_runapi_accepts_user_facing_scorer_params_dict(monkeypatch: pytest.MonkeyPatch) -> None:
