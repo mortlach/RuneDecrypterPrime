@@ -9,11 +9,13 @@ D6 has covered these contract areas:
 - verified `prelease/v1.0.0_d6` starts from the final D5 head;
 - restored full-proof workflow coverage for the active D6 branch;
 - restored the V1 release tutorial gate in full-proof CI;
+- clarified the full-proof workflow trigger contract: it must remain manually runnable through `workflow_dispatch`, and it may also run on active prelease branch pushes for immediate release-branch feedback;
 - prevented caller-provided solver-report details from masking generated `report_contract`, `oracle_use`, `truth_data_policy`, and `reproducibility` sections;
 - made scorer-report telemetry and `last_stats()` failures explicit through `report_builder_diagnostics` instead of silently dropping them;
-- reserved `report_builder_diagnostics` so caller-provided `extra_details` cannot mask generated report-builder diagnostics;
+- reserved `report_builder_diagnostics` so caller-provided `extra_details` cannot supply or mask generated report-builder diagnostics;
+- enum-backed stable artifact agreement labels, solver-report labels, scorer-report labels, report-builder diagnostic labels, and stop categories while preserving existing public JSON strings;
 - removed the duplicate manifest-local `Classification = str` alias so manifest classification type information comes from the artifact agreement authority;
-- added focused contract tests for each changed behaviour.
+- added focused contract tests and guardrails for each changed behaviour.
 
 ## Design alignment
 
