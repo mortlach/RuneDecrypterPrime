@@ -1,6 +1,6 @@
-# D3.7 targeted contract sweep overlay
+# D3.7 targeted V1 contract sweep overlay
 
-Scope: guard the D3 scorer-lane contract paths against known stale patterns.
+Scope: guard the D3 V1 core/scoring/report contract paths against known stale patterns and silent drift.
 
 Changed file:
 
@@ -12,4 +12,4 @@ Locked behaviour:
 - D3 contract/report paths do not use hidden config helper names.
 - D3 contract/report paths do not introduce report-only score/bonus tokens.
 
-This is a targeted guardrail, not a whole-repository cleanup campaign.
+This was not random refactoring; it was a required no-drift sweep over the V1 core/scoring/report paths. Hits were either fixed, isolated, or documented as intentional compatibility boundaries.
