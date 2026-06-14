@@ -116,6 +116,14 @@ def build_solver_report(
 ) -> SolverReport:
     if isinstance(normalized_params, Mapping) and "name" in normalized_params:
         raise ValueError('normalized_params must not include "name"')
+    merged_details = _solver_report_contract_details(
+        solver_name=solver_name,
+        requested_seed=requested_seed,
+        effective_seed=effective_seed,
+        normalized_params=normalized_params,
+        stop_reason=stop_reason,
+        details=details,
+    )
     return SolverReport(
         solver_name=solver_name,
         requested_seed=requested_seed,
@@ -130,9 +138,54 @@ def build_solver_report(
         wall_time_s=wall_time_s,
         decrypt_time_s=decrypt_time_s,
         score_time_s=score_time_s,
-        details={} if details is None else details,
+        details=merged_details,
     )
 
+
+
+def _solver_report_contract_details(
+    *,
+    solver_name: str,
+    requested_seed: int | None,
+    effective_seed: int | None,
+    normalized_params: Mapping[str, Any],
+    stop_reason: str | None,
+    details: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    out = dict(details or {})
+    oracle_use, truth_data_policy = _oracle_use_details(
+        normalized_params=normalized_params,
+        stop_reason=stop_reason,
+        existing_details=out,
+    )
+    out.setdefault("report_contract", {"version": "api_solver_report_details.v1"})
+    out.setdefault("oracle_use", oracle_use)
+    out.setdefault("truth_data_policy", truth_data_policy)
+    out.setdefault(
+        "reproducibility",
+        {
+            "deterministic_seed_policy": "explicit_or_default_zero",
+            "requested_seed": requested_seed,
+            "effective_seed": effective_seed,
+            "solver_name": str(solver_name),
+        },
+    )
+    return out
+
+
+def _oracle_use_details(
+    *,
+    normalized_params: Mapping[str, Any],
+    stop_reason: str | None,
+    existing_details: Mapping[str, Any],
+) -> tuple[str, str]:
+    if existing_details.get("execution_route") == "known_key_fastpath":
+        return "known_key_fastpath", "reported_test_or_tutorial_only"
+    reason = "" if stop_reason is None else str(stop_reason).strip().lower()
+    has_test_key = isinstance(normalized_params, Mapping) and "test_key" in normalized_params
+    if has_test_key or reason == "test_key":
+        return "test_key", "reported_test_or_tutorial_only"
+    return "none", "none"
 
 def _require_text(value: Any, field_name: str) -> str:
     if isinstance(value, Path) or not isinstance(value, str):
