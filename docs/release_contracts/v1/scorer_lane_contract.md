@@ -34,6 +34,7 @@ Report-only lanes must be visible in the report and must not affect ranking, raw
 Public scorer / backend visibility:
 
 - Every public scorer implementation exposed by `build_scorer()` must provide `capability_report()`.
+- Public scorer constructors that are part of the V1 runtime surface must require typed `CipherConfig` and `ScoringConfig` objects.
 - Façade scorers, including `UnifiedRuneScorer`, must expose the backend-derived report.
 - When a builder attaches a capability report to a façade, the backend must expose the same report object.
 - Backend-specific `CapabilityIssue` entries must survive into the public report; they must not be flattened into a generic unavailable state.
