@@ -12,6 +12,9 @@ class ArtifactClassification(StrEnum):
     NEEDS_REVIEW = "needs_review"
 
 
+Classification = ArtifactClassification
+
+
 class ArtifactKind(StrEnum):
     RUN_META = "run_meta"
     LOGGING_CONFIG = "logging_config"
@@ -261,6 +264,7 @@ __all__ = [
     "ArtifactAgreementVersion",
     "ArtifactClassification",
     "ArtifactKind",
+    "Classification",
     "KnownArtifactRelpath",
     "RunArtifactManifestVersion",
     "artifact_agreement_v1",
