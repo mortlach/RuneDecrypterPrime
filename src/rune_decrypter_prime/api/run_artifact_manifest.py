@@ -6,13 +6,12 @@ from pathlib import Path
 from typing import Iterable
 
 from rune_decrypter_prime.api.artifact_agreement import (
+    Classification,
     assert_manifest_row_allowed_v1,
     agreement_manifest_row_by_kind_v1,
     validate_artifact_relpath,
     validate_classification as _validate_classification,
 )
-
-Classification = str
 
 MANIFEST_RELPATH = "artifacts/run_artifacts_manifest.json"
 
