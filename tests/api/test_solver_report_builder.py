@@ -43,7 +43,18 @@ def test_build_solver_report_returns_solver_report() -> None:
         "wall_time_s": 0.5,
         "decrypt_time_s": 0.2,
         "score_time_s": 0.3,
-        "details": {"route": "ordinary"},
+        "details": {
+            "route": "ordinary",
+            "report_contract": {"version": "api_solver_report_details.v1"},
+            "oracle_use": "none",
+            "truth_data_policy": "none",
+            "reproducibility": {
+                "deterministic_seed_policy": "explicit_or_default_zero",
+                "requested_seed": 123,
+                "effective_seed": 123,
+                "solver_name": "beam",
+            },
+        },
     }
 
 
@@ -148,4 +159,3 @@ def test_build_solver_report_does_not_accept_solution_positional_shortcut() -> N
 
 def test_runapi_run_still_does_not_return_solver_report() -> None:
     assert "solver_report" not in RunAPI.run.__annotations__
-
