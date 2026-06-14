@@ -11,14 +11,23 @@ def test_d5_contract_doc_names_report_and_artifact_contracts() -> None:
     text = CONTRACT_DOC.read_text(encoding="utf-8")
 
     for phrase in (
-        "artifact agreement",
-        "run artifact manifest",
+        "Artifact agreement",
+        "Run artifact manifest",
+        "Required by agreement",
+        "Listed in manifest",
         "oracle_use",
         "truth_data_policy",
         "reproducibility",
         "full-proof CI",
     ):
         assert phrase in text
+
+
+def test_d5_contract_doc_does_not_call_optional_solver_report_required() -> None:
+    text = CONTRACT_DOC.read_text(encoding="utf-8")
+
+    assert "Required agreement rows are" not in text
+    assert "`artifacts/solver_report.json` | `solver_report` | no" in text
 
 
 def test_d5_handoff_doc_names_d6_starting_gate() -> None:
