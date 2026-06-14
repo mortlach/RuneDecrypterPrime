@@ -29,6 +29,17 @@ def test_stop_reason_category_mapping() -> None:
     assert stop_category_for_reason("manual") == "manual"
 
 
+def test_emitted_success_stop_reason_aliases_are_success() -> None:
+    assert stop_category_for_reason("target_score") == "success"
+    assert stop_category_for_reason("stop_score") == "success"
+    assert stop_category_for_reason("test_key") == "success"
+
+
+def test_emitted_dynamic_budget_stop_reason_families_are_budget() -> None:
+    assert stop_category_for_reason("no_improve_25") == "budget"
+    assert stop_category_for_reason("stall_slip_limit_12") == "budget"
+
+
 def test_stop_reason_details_are_json_safe_and_explicit() -> None:
     solution = SimpleNamespace(
         stop_reason="all_rejected_by_hard_crib",
