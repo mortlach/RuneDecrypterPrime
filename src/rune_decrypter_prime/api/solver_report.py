@@ -19,6 +19,14 @@ class SolverReportDetailKey(StrEnum):
     SCORER_LANES = "scorer_lanes"
 
 
+class ExecutionRoute(StrEnum):
+    KNOWN_KEY_FASTPATH = "known_key_fastpath"
+
+
+class SolverParamKey(StrEnum):
+    TEST_KEY = "test_key"
+
+
 class OracleUse(StrEnum):
     NONE = "none"
     TEST_KEY = "test_key"
@@ -227,10 +235,10 @@ def _oracle_use_details(
     stop_reason: str | None,
     existing_details: Mapping[str, Any],
 ) -> tuple[OracleUse, TruthDataPolicy]:
-    if existing_details.get(SolverReportDetailKey.EXECUTION_ROUTE.value) == OracleUse.KNOWN_KEY_FASTPATH.value:
+    if existing_details.get(SolverReportDetailKey.EXECUTION_ROUTE.value) == ExecutionRoute.KNOWN_KEY_FASTPATH.value:
         return OracleUse.KNOWN_KEY_FASTPATH, TruthDataPolicy.REPORTED_TEST_OR_TUTORIAL_ONLY
     reason = "" if stop_reason is None else str(stop_reason).strip().lower()
-    has_test_key = isinstance(normalized_params, Mapping) and OracleUse.TEST_KEY.value in normalized_params
+    has_test_key = isinstance(normalized_params, Mapping) and SolverParamKey.TEST_KEY.value in normalized_params
     if has_test_key or reason == OracleUse.TEST_KEY.value:
         return OracleUse.TEST_KEY, TruthDataPolicy.REPORTED_TEST_OR_TUTORIAL_ONLY
     return OracleUse.NONE, TruthDataPolicy.NONE
@@ -339,8 +347,10 @@ def _to_json_value(value: Any) -> Any:
 
 __all__ = [
     "DeterministicSeedPolicy",
+    "ExecutionRoute",
     "OracleUse",
     "ReproducibilityKey",
+    "SolverParamKey",
     "SolverReport",
     "SolverReportDetailKey",
     "SolverReportDetailsVersion",
