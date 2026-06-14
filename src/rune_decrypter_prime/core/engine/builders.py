@@ -9,7 +9,6 @@ from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.types import Device, ScorerImpl, ensure_device, ensure_scorer_impl
 from rune_decrypter_prime.backends.xp import select_backend
 from rune_decrypter_prime.ciphers import registry as cipher_registry
-from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
 
 
 def _require_cipher_config(cfg_cipher: CipherConfig) -> CipherConfig:
@@ -41,6 +40,8 @@ def build_cipher(cfg_cipher: CipherConfig) -> Any:
 
 
 def _attach_numpy_scorer_capability_report(scorer: Any, s_cfg: ScoringConfig) -> Any:
+    from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
+
     report = build_scorer_lane_report(
         s_cfg,
         hamming_backend=getattr(scorer, "_hamming_backend", None),
