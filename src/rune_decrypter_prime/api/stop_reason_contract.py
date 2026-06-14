@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-SUCCESS_REASONS = frozenset({"done", "success", "target"})
+SUCCESS_REASONS = frozenset({"done", "success", "target", "target_score", "stop_score", "test_key"})
 BUDGET_REASONS = frozenset({
     "budget",
     "eval_budget",
@@ -14,6 +14,8 @@ BUDGET_REASONS = frozenset({
     "max_time",
     "patience",
     "plateau",
+    "no_improve_1",
+    "stall_slip_limit_1",
 })
 BLOCKED_BEFORE_RUN_REASONS = frozenset({
     "all_rejected_by_hard_crib",
@@ -47,6 +49,8 @@ def stop_category_for_reason(reason: str | None) -> str:
         return "error"
     if value in MANUAL_REASONS:
         return "manual"
+    if value.startswith("no_improve_") or value.startswith("stall_"):
+        return "budget"
     return "error" if "error" in value else "budget"
 
 
