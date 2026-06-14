@@ -3,10 +3,46 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from enum import StrEnum
 from numbers import Integral, Real
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
+
+
+class SolverReportDetailKey(StrEnum):
+    REPORT_CONTRACT = "report_contract"
+    ORACLE_USE = "oracle_use"
+    TRUTH_DATA_POLICY = "truth_data_policy"
+    REPRODUCIBILITY = "reproducibility"
+    EXECUTION_ROUTE = "execution_route"
+    SCORER_LANES = "scorer_lanes"
+
+
+class OracleUse(StrEnum):
+    NONE = "none"
+    TEST_KEY = "test_key"
+    KNOWN_KEY_FASTPATH = "known_key_fastpath"
+
+
+class TruthDataPolicy(StrEnum):
+    NONE = "none"
+    REPORTED_TEST_OR_TUTORIAL_ONLY = "reported_test_or_tutorial_only"
+
+
+class SolverReportDetailsVersion(StrEnum):
+    V1 = "api_solver_report_details.v1"
+
+
+class ReproducibilityKey(StrEnum):
+    DETERMINISTIC_SEED_POLICY = "deterministic_seed_policy"
+    REQUESTED_SEED = "requested_seed"
+    EFFECTIVE_SEED = "effective_seed"
+    SOLVER_NAME = "solver_name"
+
+
+class DeterministicSeedPolicy(StrEnum):
+    EXPLICIT_OR_DEFAULT_ZERO = "explicit_or_default_zero"
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,12 +178,15 @@ def build_solver_report(
     )
 
 
-RESERVED_CONTRACT_DETAIL_KEYS = frozenset({
-    "report_contract",
-    "oracle_use",
-    "truth_data_policy",
-    "reproducibility",
-})
+RESERVED_CONTRACT_DETAIL_KEYS = frozenset(
+    key.value
+    for key in (
+        SolverReportDetailKey.REPORT_CONTRACT,
+        SolverReportDetailKey.ORACLE_USE,
+        SolverReportDetailKey.TRUTH_DATA_POLICY,
+        SolverReportDetailKey.REPRODUCIBILITY,
+    )
+)
 
 
 def _solver_report_contract_details(
@@ -170,14 +209,14 @@ def _solver_report_contract_details(
         stop_reason=stop_reason,
         existing_details=out,
     )
-    out["report_contract"] = {"version": "api_solver_report_details.v1"}
-    out["oracle_use"] = oracle_use
-    out["truth_data_policy"] = truth_data_policy
-    out["reproducibility"] = {
-        "deterministic_seed_policy": "explicit_or_default_zero",
-        "requested_seed": requested_seed,
-        "effective_seed": effective_seed,
-        "solver_name": str(solver_name),
+    out[SolverReportDetailKey.REPORT_CONTRACT.value] = {"version": SolverReportDetailsVersion.V1.value}
+    out[SolverReportDetailKey.ORACLE_USE.value] = oracle_use.value
+    out[SolverReportDetailKey.TRUTH_DATA_POLICY.value] = truth_data_policy.value
+    out[SolverReportDetailKey.REPRODUCIBILITY.value] = {
+        ReproducibilityKey.DETERMINISTIC_SEED_POLICY.value: DeterministicSeedPolicy.EXPLICIT_OR_DEFAULT_ZERO.value,
+        ReproducibilityKey.REQUESTED_SEED.value: requested_seed,
+        ReproducibilityKey.EFFECTIVE_SEED.value: effective_seed,
+        ReproducibilityKey.SOLVER_NAME.value: str(solver_name),
     }
     return out
 
@@ -187,14 +226,14 @@ def _oracle_use_details(
     normalized_params: Mapping[str, Any],
     stop_reason: str | None,
     existing_details: Mapping[str, Any],
-) -> tuple[str, str]:
-    if existing_details.get("execution_route") == "known_key_fastpath":
-        return "known_key_fastpath", "reported_test_or_tutorial_only"
+) -> tuple[OracleUse, TruthDataPolicy]:
+    if existing_details.get(SolverReportDetailKey.EXECUTION_ROUTE.value) == OracleUse.KNOWN_KEY_FASTPATH.value:
+        return OracleUse.KNOWN_KEY_FASTPATH, TruthDataPolicy.REPORTED_TEST_OR_TUTORIAL_ONLY
     reason = "" if stop_reason is None else str(stop_reason).strip().lower()
-    has_test_key = isinstance(normalized_params, Mapping) and "test_key" in normalized_params
-    if has_test_key or reason == "test_key":
-        return "test_key", "reported_test_or_tutorial_only"
-    return "none", "none"
+    has_test_key = isinstance(normalized_params, Mapping) and OracleUse.TEST_KEY.value in normalized_params
+    if has_test_key or reason == OracleUse.TEST_KEY.value:
+        return OracleUse.TEST_KEY, TruthDataPolicy.REPORTED_TEST_OR_TUTORIAL_ONLY
+    return OracleUse.NONE, TruthDataPolicy.NONE
 
 
 def _require_text(value: Any, field_name: str) -> str:
@@ -298,4 +337,13 @@ def _to_json_value(value: Any) -> Any:
     return value
 
 
-__all__ = ["SolverReport", "build_solver_report"]
+__all__ = [
+    "DeterministicSeedPolicy",
+    "OracleUse",
+    "ReproducibilityKey",
+    "SolverReport",
+    "SolverReportDetailKey",
+    "SolverReportDetailsVersion",
+    "TruthDataPolicy",
+    "build_solver_report",
+]
