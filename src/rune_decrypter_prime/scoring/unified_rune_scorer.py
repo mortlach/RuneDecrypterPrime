@@ -5,6 +5,7 @@ import numpy as np
 
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.backends.xp import select_backend
+from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.types import Device
 
@@ -22,9 +23,17 @@ class UnifiedRuneScorer:
       • to_text(pt: Iterable[int]) -> str
       • telemetry() -> {"impl": "...", "device": "...", "dtype": "float32|float64", ...}
       • capability_report() -> ScorerCapabilityReport
+
+    V1 boundary:
+      • direct construction requires CipherConfig + ScoringConfig, matching build_scorer()
     """
 
-    def __init__(self, cfg_cipher, cfg_scorer_params, tables: Any | None = None):
+    def __init__(self, cfg_cipher: CipherConfig, cfg_scorer_params: ScoringConfig, tables: Any | None = None):
+        if not isinstance(cfg_cipher, CipherConfig):
+            raise TypeError(f"cfg_cipher must be CipherConfig, got {type(cfg_cipher).__name__}")
+        if not isinstance(cfg_scorer_params, ScoringConfig):
+            raise TypeError(f"cfg_scorer must be ScoringConfig, got {type(cfg_scorer_params).__name__}")
+
         self.cfg_cipher = cfg_cipher
         self.cfg_scorer = cfg_scorer_params
         self._backend_name = "numpy"
@@ -32,17 +41,9 @@ class UnifiedRuneScorer:
         self._dtype = "float64"
         self._compute_dtype = "float32"
         self._acc_dtype = "float64"
-        cfg_dtype = None
-        cfg_compute = None
-        cfg_acc = None
-        if isinstance(cfg_scorer_params, dict):
-            cfg_dtype = cfg_scorer_params.get("dtype")
-            cfg_compute = cfg_scorer_params.get("compute_dtype")
-            cfg_acc = cfg_scorer_params.get("acc_dtype")
-        else:
-            cfg_dtype = getattr(cfg_scorer_params, "dtype", None)
-            cfg_compute = getattr(cfg_scorer_params, "compute_dtype", None)
-            cfg_acc = getattr(cfg_scorer_params, "acc_dtype", None)
+        cfg_dtype = getattr(cfg_scorer_params, "dtype", None)
+        cfg_compute = getattr(cfg_scorer_params, "compute_dtype", None)
+        cfg_acc = getattr(cfg_scorer_params, "acc_dtype", None)
         if cfg_compute is not None:
             dt = str(getattr(cfg_compute, "value", cfg_compute)).strip().lower()
             if dt in {"float32", "float64"}:
