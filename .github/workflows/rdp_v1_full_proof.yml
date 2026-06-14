@@ -2,6 +2,9 @@ name: RDP V1 full proof
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - preleasev1.0.0_d5
 
 permissions:
   contents: read
