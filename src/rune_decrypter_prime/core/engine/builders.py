@@ -40,6 +40,13 @@ def build_cipher(cfg_cipher: CipherConfig) -> Any:
 
 
 def _attach_numpy_scorer_capability_report(scorer: Any, s_cfg: ScoringConfig) -> Any:
+    native_report = getattr(scorer, "capability_report", None)
+    if callable(native_report):
+        report = native_report()
+        setattr(scorer, "_capability_report", report)
+        raise_if_requested_lane_blocked(report)
+        return scorer
+
     from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
 
     report = build_scorer_lane_report(

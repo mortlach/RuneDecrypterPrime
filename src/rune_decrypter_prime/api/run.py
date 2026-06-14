@@ -16,6 +16,7 @@ from rune_decrypter_prime.api.run_spec_routing import (
     route_runspec_logging,
 )
 from rune_decrypter_prime.api.solver_report import build_solver_report
+from rune_decrypter_prime.api.stop_reason_contract import stop_reason_details_from_solution
 from rune_decrypter_prime.api.normalize import (
     normalize_ciphertext,
     to_indices,
@@ -330,13 +331,14 @@ def _run_normalized(
 
 
 def _solver_report_details_from_solution(solution) -> dict[str, Any]:
+    details = stop_reason_details_from_solution(solution)
     meta = getattr(solution, "meta", None)
     if not isinstance(meta, dict):
-        return {}
+        return details
     scorer_lanes = meta.get("scorer_lanes")
-    if scorer_lanes is None:
-        return {}
-    return {"scorer_lanes": scorer_lanes}
+    if scorer_lanes is not None:
+        details["scorer_lanes"] = scorer_lanes
+    return details
 
 
 def _solver_name_to_report_string(value) -> str:
