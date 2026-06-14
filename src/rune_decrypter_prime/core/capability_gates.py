@@ -68,6 +68,20 @@ def active_lane(
     )
 
 
+def _failure_effective_state(
+    *,
+    fallback_policy: FallbackPolicy,
+    request_state: RequestState,
+) -> EffectiveState:
+    if fallback_policy is FallbackPolicy.REPORT_ONLY:
+        return EffectiveState.REPORT_ONLY
+    if fallback_policy is FallbackPolicy.EXPLICIT_REPORTED_FALLBACK:
+        return EffectiveState.FALLBACK_REPORTED
+    if fallback_policy is FallbackPolicy.DISABLED and request_state is RequestState.NOT_REQUESTED:
+        return EffectiveState.INACTIVE
+    return EffectiveState.BLOCKED
+
+
 def lane_failure_status(
     *,
     lane: ScorerLaneName,
@@ -77,14 +91,13 @@ def lane_failure_status(
     request_state: RequestState = RequestState.REQUESTED,
     report_section: str | None = None,
 ) -> LaneStatus:
-    if fallback_policy is FallbackPolicy.EXPLICIT_REPORTED_FALLBACK:
-        effective_state = EffectiveState.FALLBACK_REPORTED
-    else:
-        effective_state = EffectiveState.BLOCKED
     return LaneStatus(
         lane=lane,
         request_state=request_state,
-        effective_state=effective_state,
+        effective_state=_failure_effective_state(
+            fallback_policy=fallback_policy,
+            request_state=request_state,
+        ),
         rank_effect=rank_effect,
         fallback_policy=fallback_policy,
         issues=(issue,),
