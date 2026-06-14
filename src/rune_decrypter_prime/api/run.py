@@ -293,6 +293,7 @@ def _run_normalized(
             effective_seed = solver.seed if solver.seed is not None else 0
             normalized_params = opt
             details = {}
+        details.update(_solver_report_details_from_solution(solution))
 
         report = build_solver_report(
             solver_name=report_solver_name,
@@ -326,6 +327,16 @@ def _run_normalized(
         return solution
     assert report is not None
     return RunResult(solution=solution, solver_report=report)
+
+
+def _solver_report_details_from_solution(solution) -> dict[str, Any]:
+    meta = getattr(solution, "meta", None)
+    if not isinstance(meta, dict):
+        return {}
+    scorer_lanes = meta.get("scorer_lanes")
+    if scorer_lanes is None:
+        return {}
+    return {"scorer_lanes": scorer_lanes}
 
 
 def _solver_name_to_report_string(value) -> str:
