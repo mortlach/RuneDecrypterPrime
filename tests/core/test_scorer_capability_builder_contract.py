@@ -6,6 +6,8 @@ from types import ModuleType
 import pytest
 
 from rune_decrypter_prime.core.component_contracts import (
+    CapabilityIssue,
+    CapabilityStatus,
     EffectiveState,
     RankEffect,
     RequestedLaneUnavailableError,
@@ -19,6 +21,7 @@ from rune_decrypter_prime.core.types import ScorerImpl
 
 class _FakeRuntimeScorer:
     hamming_backend = None
+    hamming_issue = None
     span_hamming_backend = None
     span_hamming_assets = None
     word_ngram_judge = None
@@ -28,6 +31,7 @@ class _FakeRuntimeScorer:
         self.s_cfg = s_cfg
         self.tables = tables
         self._hamming_backend = type(self).hamming_backend
+        self._hamming_issue = type(self).hamming_issue
         self._span_hamming_backend = type(self).span_hamming_backend
         self._span_hamming_assets = type(self).span_hamming_assets
         self._word_ngram_judge = type(self).word_ngram_judge
@@ -44,6 +48,7 @@ class _FakeUnifiedScorer:
 @pytest.fixture(autouse=True)
 def _reset_fake_runtime_scorer():
     _FakeRuntimeScorer.hamming_backend = None
+    _FakeRuntimeScorer.hamming_issue = None
     _FakeRuntimeScorer.span_hamming_backend = None
     _FakeRuntimeScorer.span_hamming_assets = None
     _FakeRuntimeScorer.word_ngram_judge = None
@@ -71,10 +76,27 @@ def _lane_by_name(report, lane: ScorerLaneName):
     return matches[0]
 
 
+def _issue(code: str) -> CapabilityIssue:
+    return CapabilityIssue(
+        code=code,
+        message=f"{code} message",
+        status=CapabilityStatus.UNAVAILABLE,
+        source="hamming",
+    )
+
+
 def test_torch_requested_hamming_missing_backend_blocks(monkeypatch) -> None:
     _install_fake_torch(monkeypatch)
 
     with pytest.raises(RequestedLaneUnavailableError, match="hamming"):
+        build_scorer(_cipher_cfg(), ScoringConfig(impl=ScorerImpl.TORCH, hamming_enabled=True))
+
+
+def test_torch_requested_hamming_backend_issue_is_preserved(monkeypatch) -> None:
+    _install_fake_torch(monkeypatch)
+    _FakeRuntimeScorer.hamming_issue = _issue("custom_hamming_backend_failure")
+
+    with pytest.raises(RequestedLaneUnavailableError, match="custom_hamming_backend_failure"):
         build_scorer(_cipher_cfg(), ScoringConfig(impl=ScorerImpl.TORCH, hamming_enabled=True))
 
 
