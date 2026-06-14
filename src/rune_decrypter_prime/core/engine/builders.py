@@ -1,12 +1,15 @@
 # rune_decrypter_prime/core/engine/builders.py
 from __future__ import annotations
+from types import MethodType
 from typing import Any
 
+from rune_decrypter_prime.core.capability_gates import raise_if_requested_lane_blocked
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.types import Device, ScorerImpl, ensure_device, ensure_scorer_impl
 from rune_decrypter_prime.backends.xp import select_backend
 from rune_decrypter_prime.ciphers import registry as cipher_registry
+from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
 
 
 def _require_cipher_config(cfg_cipher: CipherConfig) -> CipherConfig:
@@ -37,6 +40,26 @@ def build_cipher(cfg_cipher: CipherConfig) -> Any:
     return cipher
 
 
+def _attach_numpy_scorer_capability_report(scorer: Any, s_cfg: ScoringConfig) -> Any:
+    report = build_scorer_lane_report(
+        s_cfg,
+        hamming_backend=getattr(scorer, "_hamming_backend", None),
+        span_hamming_backend=getattr(scorer, "_span_hamming_backend", None),
+        calibrated_assets=getattr(scorer, "_span_hamming_assets", None),
+        word_ngram_judge=getattr(scorer, "_word_ngram_judge", None),
+    )
+    setattr(scorer, "_capability_report", report)
+
+    if not callable(getattr(scorer, "capability_report", None)):
+        def capability_report(self: Any):
+            return self._capability_report
+
+        setattr(scorer, "capability_report", MethodType(capability_report, scorer))
+
+    raise_if_requested_lane_blocked(report)
+    return scorer
+
+
 def build_scorer(c_cfg: CipherConfig, s_cfg: ScoringConfig):
     c_cfg = _require_cipher_config(c_cfg)
     s_cfg = _require_scoring_config(s_cfg)
@@ -59,7 +82,8 @@ def build_scorer(c_cfg: CipherConfig, s_cfg: ScoringConfig):
     if impl is ScorerImpl.NUMPY:
         from rune_decrypter_prime.scoring.rune_scorer import RuneScorer
 
-        return RuneScorer(c_cfg, s_cfg)
+        scorer = RuneScorer(c_cfg, s_cfg)
+        return _attach_numpy_scorer_capability_report(scorer, s_cfg)
 
     if impl is ScorerImpl.TORCH:
         try:
