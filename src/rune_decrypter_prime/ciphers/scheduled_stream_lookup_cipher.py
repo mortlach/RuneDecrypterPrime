@@ -366,7 +366,14 @@ def validate_streams_v1(
             values = raw.get("values")
             if values is None:
                 raise ValueError("fixed streams require values")
-            value_list = list(values)
+            if isinstance(values, (str, bytes)):
+                raise ValueError("fixed stream values must be a sequence of integer symbols, not text")
+            if isinstance(values, np.ndarray):
+                value_list = values.reshape(-1).tolist()
+            elif isinstance(values, AbcSequence):
+                value_list = list(values)
+            else:
+                raise ValueError("fixed stream values must be a sequence of integer symbols")
             if len(value_list) == 0:
                 raise ValueError("fixed streams require at least one value")
             if alphabet_size is None:
