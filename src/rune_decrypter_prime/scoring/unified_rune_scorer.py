@@ -155,9 +155,13 @@ class UnifiedRuneScorer:
         report = build_scorer_lane_report(
             self.cfg_scorer,
             hamming_backend=getattr(self._backend, "_hamming_backend", None),
+            hamming_issue=getattr(self._backend, "_hamming_issue", None),
             span_hamming_backend=span_hamming_backend if span_hamming_mode == "raw_bonus" else None,
+            span_hamming_issue=getattr(self._backend, "_span_hamming_issue", None),
             calibrated_assets=getattr(self._backend, "_span_hamming_assets", None),
+            calibrated_issue=getattr(self._backend, "_calibrated_issue", None),
             word_ngram_judge=getattr(self._backend, "_word_ngram_judge", None),
+            word_ngram_issue=getattr(self._backend, "_word_ngram_issue", None),
         )
         self._capability_report = report
         setattr(self._backend, "_capability_report", report)
