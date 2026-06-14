@@ -14,8 +14,6 @@ BUDGET_REASONS = frozenset({
     "max_time",
     "patience",
     "plateau",
-    "no_improve_1",
-    "stall_slip_limit_1",
 })
 BLOCKED_BEFORE_RUN_REASONS = frozenset({
     "all_rejected_by_hard_crib",
@@ -24,6 +22,7 @@ BLOCKED_BEFORE_RUN_REASONS = frozenset({
 })
 ERROR_REASONS = frozenset({"error", "exception"})
 MANUAL_REASONS = frozenset({"manual", "cancelled", "canceled", "interrupted"})
+BUDGET_REASON_PREFIXES = ("no_improve_", "stall_")
 
 STOP_CATEGORIES = frozenset({
     "success",
@@ -49,7 +48,7 @@ def stop_category_for_reason(reason: str | None) -> str:
         return "error"
     if value in MANUAL_REASONS:
         return "manual"
-    if value.startswith("no_improve_") or value.startswith("stall_"):
+    if value.startswith(BUDGET_REASON_PREFIXES):
         return "budget"
     return "error" if "error" in value else "budget"
 
