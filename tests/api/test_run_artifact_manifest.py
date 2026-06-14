@@ -192,7 +192,7 @@ def test_rejects_duplicate_relpaths() -> None:
     )
     duplicate = RunArtifactManifestRow(
         relpath="META.json",
-        artifact_kind="other",
+        artifact_kind="logging_config",
         required=True,
         present=True,
         portable_classification="candidate",
@@ -213,7 +213,7 @@ def test_rejects_duplicate_artifact_kinds() -> None:
         export_classification="candidate",
     )
     duplicate = RunArtifactManifestRow(
-        relpath="other.json",
+        relpath="config/logging.json",
         artifact_kind="run_meta",
         required=True,
         present=True,
@@ -233,7 +233,7 @@ def test_rejects_invalid_row_relpaths(bad_relpath: str) -> None:
     with pytest.raises(ValueError):
         RunArtifactManifestRow(
             relpath=bad_relpath,
-            artifact_kind="bad",
+            artifact_kind="run_meta",
             required=True,
             present=True,
             portable_classification="candidate",
