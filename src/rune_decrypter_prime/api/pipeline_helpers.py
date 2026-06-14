@@ -135,66 +135,181 @@ def ensure_plaintext_rune(res, *, ciphertext=None, wli=None, cipher=None, encodi
     """Populate canonical plaintext/ciphertext views on the Solution (idempotent)."""
     import numpy as _np
 
-    # plaintext_idx
-    try:
+    # ---- Key normalisation -------------------------------------------------
+    key_val = getattr(res, "key", None)
+    if isinstance(key_val, _np.ndarray):
+        try:
+            res.key = key_val.astype(int).tolist()
+        except Exception:
+            pass
+    elif hasattr(key_val, "tolist") and not isinstance(key_val, list):
+        try:
+            res.key = key_val.tolist()
+        except Exception:
+            pass
+    elif isinstance(key_val, tuple):
+        res.key = list(key_val)
+
+    # ---- Plaintext indices --------------------------------------------------
+    idx_source = getattr(res, "plaintext_idx", None)
+    arr = None
+    if idx_source is not None:
+        arr = _np.asarray(idx_source, dtype=_np.uint8).reshape(-1)
+        if arr.size == 0:
+            arr = None
+
+    if arr is None:
         pt = getattr(res, "plaintext", None)
-        if pt is not None:
+        if isinstance(pt, (list, tuple, _np.ndarray)):
             arr = _np.asarray(pt, dtype=_np.uint8).reshape(-1)
-            res.plaintext_idx = [int(x) for x in arr.tolist()]
-    except Exception:
-        pass
-
-    # plaintext_rune / latin variants
-    try:
-        if getattr(res, "plaintext_idx", None):
-            idx = list(res.plaintext_idx)
-            w = wli if wli is not None else getattr(res, "wli", None)
+        elif isinstance(pt, str) and pt:
             try:
-                res.plaintext_rune = _R.to_rune(idx, w)
+                arr = _np.asarray(_R.rune_to_pos(pt.replace(' ', '')), dtype=_np.uint8).reshape(-1)
             except Exception:
-                res.plaintext_rune = ""
-            try:
-                res.plaintext_latin = _R.to_latin(idx, w)
-            except Exception:
-                try:
-                    res.plaintext_latin = _R.to_rune_latin(idx, w)
-                except Exception:
-                    res.plaintext_latin = ""
-            res.plaintext_rune_nospace = str(getattr(res, "plaintext_rune", "")).replace(" ", "")
-            res.plaintext_latin_nospace = str(getattr(res, "plaintext_latin", "")).replace(" ", "")
-            if not getattr(res, "plaintext_str", ""):
-                res.plaintext_str = res.plaintext_rune
-    except Exception:
-        pass
+                arr = _np.asarray([], dtype=_np.uint8)
+        else:
+            arr = _np.asarray([], dtype=_np.uint8)
 
-    # ciphertext canonical views
-    try:
-        ct = getattr(res, "ciphertext_idx", None)
-        if not ct and ciphertext is not None:
-            arr = _np.asarray(ciphertext, dtype=_np.uint8).reshape(-1)
-            res.ciphertext_idx = [int(x) for x in arr.tolist()]
-        if getattr(res, "ciphertext_idx", None):
-            w = wli if wli is not None else getattr(res, "wli", None)
-            res.ciphertext_rune = _R.to_rune(res.ciphertext_idx, w)
-            try:
-                res.ciphertext_latin = _R.to_latin(res.ciphertext_idx, w)
-            except Exception:
-                try:
-                    res.ciphertext_latin = _R.to_rune_latin(res.ciphertext_idx, w)
-                except Exception:
-                    res.ciphertext_latin = ""
-            res.ciphertext_rune_nospace = str(getattr(res, "ciphertext_rune", "")).replace(" ", "")
-            res.ciphertext_latin_nospace = str(getattr(res, "ciphertext_latin", "")).replace(" ", "")
-    except Exception:
-        pass
+    pt_idx_list = arr.tolist()
+    res.plaintext_idx = pt_idx_list
 
-    # Direction metadata
+    # ---- WLI reconciliation -------------------------------------------------
+    wli_from_res = getattr(res, "wli", None)
+    effective_wli = wli_from_res if wli_from_res is not None else wli
+    if effective_wli is not None and len(effective_wli) != len(pt_idx_list):
+        effective_wli_valid = None
+    else:
+        effective_wli_valid = effective_wli
+
+    if effective_wli_valid is not None and wli_from_res is None:
+        try:
+            res.wli = effective_wli_valid
+        except Exception:
+            pass
+
+    has_wli = effective_wli_valid is not None
+    res.has_wli = bool(has_wli)
+
+    # ---- Plaintext renderings ----------------------------------------------
+    def _latin_nospace(seq):
+        try:
+            return ''.join(_R.pos_to_latin(int(p)) for p in seq)
+        except Exception:
+            return ''
+
     try:
-        if not hasattr(res, "pipeline") or res.pipeline is None:
-            res.pipeline = {}
-        if isinstance(res.pipeline, dict):
-            res.pipeline.setdefault("text_encoding_direction", str(getattr(encoding_dir, "value", encoding_dir)))
+        pt_rune_nospace = _R.pos_to_rune(pt_idx_list)
     except Exception:
-        pass
+        pt_rune_nospace = ''
+
+    if has_wli:
+        try:
+            pt_rune = _R.to_rune(pt_idx_list, effective_wli_valid)
+        except Exception:
+            pt_rune = pt_rune_nospace
+        try:
+            pt_latin = _R.to_rune_latin(pt_idx_list, effective_wli_valid)
+        except Exception:
+            pt_latin = _latin_nospace(pt_idx_list)
+    else:
+        pt_rune = pt_rune_nospace
+        pt_latin = _latin_nospace(pt_idx_list)
+
+    pt_latin_nospace = _latin_nospace(pt_idx_list)
+
+    res.plaintext_rune_nospace = pt_rune_nospace
+    res.plaintext_rune = pt_rune
+    res.plaintext_str = pt_rune
+    res.plaintext_latin = pt_latin
+    res.plaintext_latin_nospace = pt_latin_nospace
+
+    # ---- Ciphertext renderings ---------------------------------------------
+    if ciphertext is not None:
+        ct_arr = _np.asarray(ciphertext, dtype=_np.uint8).reshape(-1)
+        ct_idx_list = ct_arr.tolist()
+        res.ciphertext_idx = ct_idx_list
+
+        ct_wli = wli if wli is not None else effective_wli_valid
+        if ct_wli is not None and len(ct_wli) != len(ct_idx_list):
+            ct_wli = None
+
+        def _latin_from_idx(seq):
+            try:
+                return ''.join(_R.pos_to_latin(int(p)) for p in seq)
+            except Exception:
+                return ''
+
+        try:
+            ct_rune_nospace = _R.pos_to_rune(ct_idx_list)
+        except Exception:
+            ct_rune_nospace = ''
+
+        if ct_wli is not None:
+            try:
+                ct_rune = _R.to_rune(ct_idx_list, ct_wli)
+            except Exception:
+                ct_rune = ct_rune_nospace
+            try:
+                ct_latin = _R.to_rune_latin(ct_idx_list, ct_wli)
+            except Exception:
+                ct_latin = _latin_from_idx(ct_idx_list)
+        else:
+            ct_rune = ct_rune_nospace
+            ct_latin = _latin_from_idx(ct_idx_list)
+
+        ct_latin_nospace = _latin_from_idx(ct_idx_list)
+
+        res.ciphertext_idx = ct_idx_list
+        res.ciphertext_rune = ct_rune
+        res.ciphertext_rune_nospace = ct_rune_nospace
+        res.ciphertext_latin = ct_latin
+        res.ciphertext_latin_nospace = ct_latin_nospace
+    else:
+        res.ciphertext_idx = list(getattr(res, "ciphertext_idx", []))
+        res.ciphertext_rune = getattr(res, "ciphertext_rune", '')
+        res.ciphertext_rune_nospace = getattr(
+            res,
+            "ciphertext_rune_nospace",
+            res.ciphertext_rune.replace(' ', ''),
+        )
+        res.ciphertext_latin = getattr(res, "ciphertext_latin", '')
+        res.ciphertext_latin_nospace = getattr(
+            res,
+            "ciphertext_latin_nospace",
+            res.ciphertext_latin.replace(' ', ''),
+        )
+
+    # ---- Metadata ----------------------------------------------------------
+    try:
+        res.alphabet_size = int(getattr(res, "alphabet_size", _R.size()))
+    except Exception:
+        res.alphabet_size = _R.size()
+    res.alphabet = getattr(res, "alphabet", "runic-29")
+
+    if encoding_dir is not None:
+        dir_value = encoding_dir.value if isinstance(encoding_dir, Direction) else str(encoding_dir)
+        res.direction = dir_value.lower()
+
+    if cipher is not None:
+        res.cipher_name = getattr(cipher, "name", '') or getattr(
+            cipher,
+            "kind",
+            getattr(res, "cipher_name", ''),
+        )
 
     return res
+
+
+def coerce_wli_for_config(wli):
+    if wli is None:
+        return None
+    converted = []
+    for pair in wli:
+        if pair is None:
+            continue
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            raise ValueError("wli entries must be (pos_in_word, word_len) pairs")
+        pos = int(pair[0])
+        ln = int(pair[1])
+        converted.append([pos, ln])
+    return converted
