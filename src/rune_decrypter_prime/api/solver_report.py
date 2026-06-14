@@ -142,6 +142,13 @@ def build_solver_report(
     )
 
 
+RESERVED_CONTRACT_DETAIL_KEYS = frozenset({
+    "report_contract",
+    "oracle_use",
+    "truth_data_policy",
+    "reproducibility",
+})
+
 
 def _solver_report_contract_details(
     *,
@@ -153,23 +160,25 @@ def _solver_report_contract_details(
     details: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     out = dict(details or {})
+    blocked = RESERVED_CONTRACT_DETAIL_KEYS.intersection(out)
+    if blocked:
+        keys = ", ".join(sorted(blocked))
+        raise ValueError(f"details cannot overwrite generated solver-report contract section(s): {keys}")
+
     oracle_use, truth_data_policy = _oracle_use_details(
         normalized_params=normalized_params,
         stop_reason=stop_reason,
         existing_details=out,
     )
-    out.setdefault("report_contract", {"version": "api_solver_report_details.v1"})
-    out.setdefault("oracle_use", oracle_use)
-    out.setdefault("truth_data_policy", truth_data_policy)
-    out.setdefault(
-        "reproducibility",
-        {
-            "deterministic_seed_policy": "explicit_or_default_zero",
-            "requested_seed": requested_seed,
-            "effective_seed": effective_seed,
-            "solver_name": str(solver_name),
-        },
-    )
+    out["report_contract"] = {"version": "api_solver_report_details.v1"}
+    out["oracle_use"] = oracle_use
+    out["truth_data_policy"] = truth_data_policy
+    out["reproducibility"] = {
+        "deterministic_seed_policy": "explicit_or_default_zero",
+        "requested_seed": requested_seed,
+        "effective_seed": effective_seed,
+        "solver_name": str(solver_name),
+    }
     return out
 
 
@@ -186,6 +195,7 @@ def _oracle_use_details(
     if has_test_key or reason == "test_key":
         return "test_key", "reported_test_or_tutorial_only"
     return "none", "none"
+
 
 def _require_text(value: Any, field_name: str) -> str:
     if isinstance(value, Path) or not isinstance(value, str):
