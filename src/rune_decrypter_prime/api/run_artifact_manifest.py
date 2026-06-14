@@ -7,46 +7,57 @@ from typing import Iterable
 
 from rune_decrypter_prime.api.artifact_agreement import (
     Classification,
+    ArtifactKind,
+    KnownArtifactRelpath,
+    RunArtifactManifestVersion,
     assert_manifest_row_allowed_v1,
     agreement_manifest_row_by_kind_v1,
+    ensure_artifact_classification,
+    ensure_artifact_kind,
+    ensure_known_artifact_relpath,
     validate_artifact_relpath,
-    validate_classification as _validate_classification,
 )
 
-MANIFEST_RELPATH = "artifacts/run_artifacts_manifest.json"
+MANIFEST_RELPATH = KnownArtifactRelpath.RUN_ARTIFACTS_MANIFEST.value
 
 
 @dataclass(frozen=True, slots=True)
 class RunArtifactManifestRow:
-    relpath: str
-    artifact_kind: str
+    relpath: KnownArtifactRelpath | str
+    artifact_kind: ArtifactKind | str
     required: bool
     present: bool
-    portable_classification: Classification
-    export_classification: Classification
+    portable_classification: Classification | str
+    export_classification: Classification | str
     notes: str | None = None
 
     def __post_init__(self) -> None:
-        _validate_relpath(self.relpath)
-        if not isinstance(self.artifact_kind, str) or not self.artifact_kind:
-            raise ValueError("artifact_kind must be a non-empty string")
+        relpath = ensure_known_artifact_relpath(self.relpath)
+        artifact_kind = ensure_artifact_kind(self.artifact_kind)
+        portable_classification = ensure_artifact_classification(self.portable_classification)
+        export_classification = ensure_artifact_classification(self.export_classification)
+
+        validate_artifact_relpath(relpath.value)
+        object.__setattr__(self, "relpath", relpath)
+        object.__setattr__(self, "artifact_kind", artifact_kind)
+        object.__setattr__(self, "portable_classification", portable_classification)
+        object.__setattr__(self, "export_classification", export_classification)
+
         if type(self.required) is not bool:
             raise TypeError("required must be a bool")
         if type(self.present) is not bool:
             raise TypeError("present must be a bool")
-        _validate_classification(self.portable_classification, "portable_classification")
-        _validate_classification(self.export_classification, "export_classification")
         if self.notes is not None and not isinstance(self.notes, str):
             raise TypeError("notes must be a string or None")
 
     def to_json_dict(self) -> dict[str, object]:
         return {
-            "relpath": self.relpath,
-            "artifact_kind": self.artifact_kind,
+            "relpath": self.relpath.value,
+            "artifact_kind": self.artifact_kind.value,
             "required": self.required,
             "present": self.present,
-            "portable_classification": self.portable_classification,
-            "export_classification": self.export_classification,
+            "portable_classification": self.portable_classification.value,
+            "export_classification": self.export_classification.value,
             "notes": self.notes,
         }
 
@@ -62,12 +73,12 @@ def write_run_artifacts_manifest(
         raise TypeError("include_solver_report must be a bool")
 
     run_root = run_dir.resolve()
-    _require_existing_file(run_root, "META.json")
-    _require_existing_file(run_root, "config/logging.json")
+    _require_existing_file(run_root, KnownArtifactRelpath.RUN_META.value)
+    _require_existing_file(run_root, KnownArtifactRelpath.LOGGING_CONFIG.value)
 
     rows = _build_v1_rows(run_root, include_solver_report=include_solver_report)
     payload = {
-        "manifest_version": "api_run_artifacts.v1",
+        "manifest_version": RunArtifactManifestVersion.V1.value,
         "rows": [row.to_json_dict() for row in rows],
     }
 
@@ -87,29 +98,30 @@ def _build_v1_rows(
     *,
     include_solver_report: bool,
 ) -> tuple[RunArtifactManifestRow, ...]:
-    solver_report_relpath = "artifacts/solver_report.json"
+    solver_report_relpath = KnownArtifactRelpath.SOLVER_REPORT.value
     solver_report_path = run_root / solver_report_relpath
     rows: list[RunArtifactManifestRow] = [
-        _row_from_agreement("run_meta", present=True),
-        _row_from_agreement("logging_config", present=True),
+        _row_from_agreement(ArtifactKind.RUN_META, present=True),
+        _row_from_agreement(ArtifactKind.LOGGING_CONFIG, present=True),
     ]
 
     if include_solver_report:
         if not solver_report_path.is_file():
-            raise FileNotFoundError("required artifact is missing: artifacts/solver_report.json")
-        rows.append(_row_from_agreement("solver_report", present=True))
+            raise FileNotFoundError(f"required artifact is missing: {solver_report_relpath}")
+        rows.append(_row_from_agreement(ArtifactKind.SOLVER_REPORT, present=True))
     elif solver_report_path.is_file():
-        rows.append(_row_from_agreement("solver_report", present=True))
+        rows.append(_row_from_agreement(ArtifactKind.SOLVER_REPORT, present=True))
 
     _validate_unique_rows(rows)
     _validate_rows_match_agreement(rows)
     return tuple(rows)
 
 
-def _row_from_agreement(artifact_kind: str, *, present: bool) -> RunArtifactManifestRow:
-    agreement = agreement_manifest_row_by_kind_v1().get(artifact_kind)
+def _row_from_agreement(artifact_kind: ArtifactKind | str, *, present: bool) -> RunArtifactManifestRow:
+    artifact_kind_enum = ensure_artifact_kind(artifact_kind)
+    agreement = agreement_manifest_row_by_kind_v1().get(artifact_kind_enum.value)
     if agreement is None:
-        raise ValueError(f"artifact kind is not in the V1 manifest agreement: {artifact_kind}")
+        raise ValueError(f"artifact kind is not in the V1 manifest agreement: {artifact_kind_enum.value}")
     return RunArtifactManifestRow(
         relpath=agreement.relpath,
         artifact_kind=agreement.artifact_kind,
@@ -122,7 +134,7 @@ def _row_from_agreement(artifact_kind: str, *, present: bool) -> RunArtifactMani
 
 
 def _require_existing_file(run_root: Path, relpath: str) -> None:
-    _validate_relpath(relpath)
+    validate_artifact_relpath(relpath)
     path = (run_root / relpath).resolve()
     if not path.is_relative_to(run_root):
         raise ValueError(f"artifact path escapes run_dir: {relpath}")
@@ -131,29 +143,25 @@ def _require_existing_file(run_root: Path, relpath: str) -> None:
 
 
 def _validate_unique_rows(rows: Iterable[RunArtifactManifestRow]) -> None:
-    relpaths: set[str] = set()
-    artifact_kinds: set[str] = set()
+    relpaths: set[KnownArtifactRelpath] = set()
+    artifact_kinds: set[ArtifactKind] = set()
     for row in rows:
         if row.relpath in relpaths:
-            raise ValueError(f"duplicate manifest relpath: {row.relpath}")
+            raise ValueError(f"duplicate manifest relpath: {row.relpath.value}")
         relpaths.add(row.relpath)
         if row.artifact_kind in artifact_kinds:
-            raise ValueError(f"duplicate manifest artifact_kind: {row.artifact_kind}")
+            raise ValueError(f"duplicate manifest artifact_kind: {row.artifact_kind.value}")
         artifact_kinds.add(row.artifact_kind)
 
 
 def _validate_rows_match_agreement(rows: Iterable[RunArtifactManifestRow]) -> None:
     for row in rows:
         assert_manifest_row_allowed_v1(
-            relpath=row.relpath,
-            artifact_kind=row.artifact_kind,
-            portable_classification=row.portable_classification,
-            export_classification=row.export_classification,
+            relpath=row.relpath.value,
+            artifact_kind=row.artifact_kind.value,
+            portable_classification=row.portable_classification.value,
+            export_classification=row.export_classification.value,
         )
-
-
-def _validate_relpath(relpath: str) -> None:
-    validate_artifact_relpath(relpath)
 
 
 __all__ = [
