@@ -12,6 +12,8 @@ from rune_decrypter_prime.ciphers.scheduled_stream_lookup_cipher import (
     validate_streams_v1,
 )
 
+pytestmark = pytest.mark.tier_a
+
 
 def _periodic_stream(period: int = 3) -> dict[str, object]:
     return {"name": "A", "kind": "periodic", "period": period}
