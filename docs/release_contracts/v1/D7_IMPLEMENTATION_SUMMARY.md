@@ -49,6 +49,7 @@ API-facing code may accept aliases, friendly names, strings, and compatibility s
 - `utils.tutorial_reference` provides an attachable reference helper so tutorial/session code can add reference data early or later without making the run surface brittle.
 - `utils.tutorial_reference` accepts friendly truth-policy strings and normalises them to `TutorialTruthPolicy`, preserving the forgiving tutorial/session boundary.
 - `utils.tutorial_session_report` bridges a solution, optional solver report, optional reference, and optional benchmark policy into one unified tutorial/session report.
+- Tutorial helper boundary tests prevent tutorial/session oracle helpers from leaking into strict runtime modules.
 - Tutorial truth thresholds are explicitly labelled by `TutorialTruthPolicy`; they are allowed for tutorials and benchmarks but are not ciphertext-only solver claims.
 - ScheduledStreamLookup real tutorials now request `return_solver_report=True` and print the unified tutorial report.
 - Seeded pipeline smoke remains minimal and requests a solver report only when a report is explicitly printed.
