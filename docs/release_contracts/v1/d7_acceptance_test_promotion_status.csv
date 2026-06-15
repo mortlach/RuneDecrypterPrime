@@ -14,7 +14,7 @@ experimental/tests/scoring/test_retained_state_plaintext_rescore.py,not_v1_produ
 tests/api/test_artifact_agreement.py,implemented,Existing public artifact portability agreement gate.
 tests/api/test_no_legacy_solve_alias.py,implemented,Added in D7 retained/deprecate-only solve alias boundary.
 tests/contracts/test_asset_registry_contract.py,pending_no_source_module,No concrete asset-registry source module exists in this branch under the expected contract name.
-tests/contracts/test_capability_gates.py,implemented,Added in D7 capability-gate helper semantics.
+tests/core/test_capability_gates.py,implemented,Existing core capability-gate test covers helper semantics; do not add duplicate basename under tests/contracts.
 tests/contracts/test_component_contracts.py,implemented,Existing typed component/lane contract tests.
 tests/contracts/test_no_raw_string_core_labels.py,implemented,Added in D7 API-string-to-core-enum and raw-label rejection gate.
 tests/contracts/test_no_silent_fallback_contract.py,implemented,Added in D7 generic requested-lane no-silent-fallback gate.
