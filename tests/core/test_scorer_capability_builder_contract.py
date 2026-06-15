@@ -14,7 +14,7 @@ from rune_decrypter_prime.core.component_contracts import (
     ScorerLaneName,
 )
 from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig, SpanHammingMode
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rune_decrypter_prime.core.types import ScorerImpl
 
@@ -35,7 +35,7 @@ class _FakeRuntimeScorer:
         self._span_hamming_backend = type(self).span_hamming_backend
         self._span_hamming_assets = type(self).span_hamming_assets
         self._word_ngram_judge = type(self).word_ngram_judge
-        self._span_hamming_mode = str(s_cfg.span_hamming_mode or "off").strip().lower()
+        self._span_hamming_mode = s_cfg.span_hamming_mode
 
 
 class _FakeUnifiedScorer:
@@ -116,6 +116,20 @@ def test_torch_requested_raw_span_missing_backend_blocks(monkeypatch) -> None:
 
     with pytest.raises(RequestedLaneUnavailableError, match="span_hamming_raw"):
         build_scorer(_cipher_cfg(), ScoringConfig(impl=ScorerImpl.TORCH, span_hamming_mode="raw_bonus"))
+
+
+def test_torch_requested_raw_span_backend_is_reported_active_with_enum_runtime_mode(monkeypatch) -> None:
+    _install_fake_torch(monkeypatch)
+    _FakeRuntimeScorer.span_hamming_backend = object()
+
+    scorer = build_scorer(
+        _cipher_cfg(),
+        ScoringConfig(impl=ScorerImpl.TORCH, span_hamming_mode=SpanHammingMode.RAW_BONUS),
+    )
+    lane = _lane_by_name(scorer.capability_report(), ScorerLaneName.SPAN_HAMMING_RAW)
+
+    assert lane.effective_state is EffectiveState.ACTIVE
+    assert lane.rank_effect is RankEffect.PRODUCTION
 
 
 def test_torch_requested_calibrated_span_missing_assets_blocks(monkeypatch) -> None:
