@@ -89,6 +89,15 @@ def _report_json(solver_report: Any) -> dict[str, Any]:
     return _as_dict(solver_report)
 
 
+def _summary_json(summary: Any) -> dict[str, Any]:
+    if summary is None:
+        return {}
+    if hasattr(summary, "to_json_dict"):
+        data = summary.to_json_dict()
+        return dict(data) if isinstance(data, Mapping) else {}
+    return _as_dict(summary)
+
+
 def _compact_mapping(data: Mapping[str, Any], allowed: Sequence[str]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for key in allowed:
@@ -106,6 +115,7 @@ def build_tutorial_run_report(
     cipher: str,
     solution: Any,
     solver_report: Any = None,
+    benchmark_summary: Any = None,
     match_ok: bool | None = None,
     app_version: str | None = None,
     key_idx: Sequence[int] | None = None,
@@ -123,6 +133,7 @@ def build_tutorial_run_report(
     in the solver report object/file.
     """
     report = _report_json(solver_report)
+    benchmark = _summary_json(benchmark_summary)
     details = _as_dict(report.get("details"))
     meta = _as_dict(getattr(solution, "meta", None))
     telemetry = _as_dict(meta.get("telemetry"))
@@ -130,8 +141,8 @@ def build_tutorial_run_report(
     found_key = _int_list(getattr(solution, "key", None))
     expected_key = _int_list(key_idx)
     plaintext_idx = _int_list(getattr(solution, "plaintext_idx", None))
-    ratio = _match_ratio(plaintext_idx, pt_idx_ref)
-    recovered = bool(match_ok) if match_ok is not None else (None if ratio is None else ratio >= 0.97)
+    ratio = _first_present(benchmark.get("match_ratio"), _match_ratio(plaintext_idx, pt_idx_ref))
+    recovered = bool(match_ok) if match_ok is not None else (None if ratio is None else float(ratio) >= 0.97)
 
     solver_section = {
         "name": _first_present(report.get("solver_name"), _as_dict(meta.get("solver")).get("name")),
@@ -176,6 +187,7 @@ def build_tutorial_run_report(
         "match_ratio": ratio,
         "solver": solver_section,
         "key": key_section,
+        "benchmark": benchmark,
         "timings_s": timings,
         "telemetry": {"present": bool(telemetry)},
         "solver_report": {
@@ -199,6 +211,7 @@ def render_tutorial_run_report(report: Mapping[str, Any]) -> list[str]:
     """Render the compact tutorial report as deterministic console lines."""
     solver = _as_dict(report.get("solver"))
     key = _as_dict(report.get("key"))
+    benchmark = _as_dict(report.get("benchmark"))
     solver_report = _as_dict(report.get("solver_report"))
     timings = _as_dict(report.get("timings_s"))
     previews = _as_dict(report.get("previews"))
@@ -218,6 +231,8 @@ def render_tutorial_run_report(report: Mapping[str, Any]) -> list[str]:
         lines.append(f"solver      : {solver}")
     if key:
         lines.append(f"key         : {key}")
+    if benchmark:
+        lines.append(f"benchmark  : {benchmark}")
     if timings:
         lines.append(f"timings_s   : {timings}")
     if solver_report:
