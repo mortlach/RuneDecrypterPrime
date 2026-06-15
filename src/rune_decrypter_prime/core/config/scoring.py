@@ -88,6 +88,69 @@ class SpanHammingLmProfileSource(StrEnum):
     CHARS_COVERED_BY_LEN = "chars_covered_by_len"
 
 
+def ensure_hamming_direction_mode(value: HammingDirectionMode | str | None) -> HammingDirectionMode:
+    return _ensure_scoring_mode(
+        HammingDirectionMode,
+        value,
+        field_name="hamming_direction_mode",
+        default=HammingDirectionMode.MATCH,
+    )
+
+
+def ensure_span_hamming_mode(value: SpanHammingMode | str | None) -> SpanHammingMode:
+    return _ensure_scoring_mode(
+        SpanHammingMode,
+        value,
+        field_name="span_hamming_mode",
+        default=SpanHammingMode.OFF,
+    )
+
+
+def ensure_span_hamming_bucket_policy(
+    value: SpanHammingBucketPolicy | str | None,
+) -> SpanHammingBucketPolicy:
+    return _ensure_scoring_mode(
+        SpanHammingBucketPolicy,
+        value,
+        field_name="span_hamming_bucket_policy",
+        default=SpanHammingBucketPolicy.NEAREST_SMALLER_TIE,
+    )
+
+
+def ensure_span_hamming_combine_mode(
+    value: SpanHammingCombineMode | str | None,
+) -> SpanHammingCombineMode:
+    return _ensure_scoring_mode(
+        SpanHammingCombineMode,
+        value,
+        field_name="span_hamming_combine_mode",
+        default=SpanHammingCombineMode.MIN,
+    )
+
+
+def ensure_span_hamming_gate_fail_policy(
+    value: SpanHammingGateFailPolicy | str | None,
+) -> SpanHammingGateFailPolicy:
+    return _ensure_scoring_mode(
+        SpanHammingGateFailPolicy,
+        value,
+        field_name="span_hamming_gate_fail_policy",
+        default=SpanHammingGateFailPolicy.SCORE_FLOOR,
+    )
+
+
+def ensure_span_hamming_lm_profile_source(
+    value: SpanHammingLmProfileSource | str | None,
+) -> SpanHammingLmProfileSource:
+    return _ensure_scoring_mode(
+        SpanHammingLmProfileSource,
+        value,
+        field_name="span_hamming_lm_profile_source",
+        default=SpanHammingLmProfileSource.SPAN_RAW_BY_LEN,
+        lower=False,
+    )
+
+
 def _objective_from_string(spec: str) -> ObjectiveSpec:
     """
     Accept legacy strings like "pct.logp.win10" and convert them to ObjectiveSpec.
@@ -242,12 +305,7 @@ class ScoringConfig:
             self.span_hamming_lm_assets_json = Path(self.span_hamming_lm_assets_json)
         if isinstance(self.word_ngram_judge_sqlite_path, (str, bytes)):
             self.word_ngram_judge_sqlite_path = Path(self.word_ngram_judge_sqlite_path)
-        self.hamming_direction_mode = _ensure_scoring_mode(
-            HammingDirectionMode,
-            self.hamming_direction_mode,
-            field_name="hamming_direction_mode",
-            default=HammingDirectionMode.MATCH,
-        )
+        self.hamming_direction_mode = ensure_hamming_direction_mode(self.hamming_direction_mode)
         self.hamming_ramp_start_frac = float(self.hamming_ramp_start_frac)
         self.hamming_ramp_end_frac = float(self.hamming_ramp_end_frac)
         self.span_hamming_weight = float(self.span_hamming_weight)
@@ -275,33 +333,19 @@ class ScoringConfig:
             raise ValueError("span_hamming_max_intervals_considered_per_start must be >= 1")
         if not (0.0 <= self.span_hamming_min_quality_threshold <= 1.0):
             raise ValueError("span_hamming_min_quality_threshold must be in [0,1]")
-        self.span_hamming_mode = _ensure_scoring_mode(
-            SpanHammingMode,
-            self.span_hamming_mode,
-            field_name="span_hamming_mode",
-            default=SpanHammingMode.OFF,
-        )
+        self.span_hamming_mode = ensure_span_hamming_mode(self.span_hamming_mode)
         if self.span_hamming_assets_dictionary_policy is not None:
             self.span_hamming_assets_dictionary_policy = ensure_hamming_dictionary_policy(
                 self.span_hamming_assets_dictionary_policy
             )
-        self.span_hamming_bucket_policy = _ensure_scoring_mode(
-            SpanHammingBucketPolicy,
-            self.span_hamming_bucket_policy,
-            field_name="span_hamming_bucket_policy",
-            default=SpanHammingBucketPolicy.NEAREST_SMALLER_TIE,
+        self.span_hamming_bucket_policy = ensure_span_hamming_bucket_policy(
+            self.span_hamming_bucket_policy
         )
-        self.span_hamming_combine_mode = _ensure_scoring_mode(
-            SpanHammingCombineMode,
-            self.span_hamming_combine_mode,
-            field_name="span_hamming_combine_mode",
-            default=SpanHammingCombineMode.MIN,
+        self.span_hamming_combine_mode = ensure_span_hamming_combine_mode(
+            self.span_hamming_combine_mode
         )
-        self.span_hamming_gate_fail_policy = _ensure_scoring_mode(
-            SpanHammingGateFailPolicy,
-            self.span_hamming_gate_fail_policy,
-            field_name="span_hamming_gate_fail_policy",
-            default=SpanHammingGateFailPolicy.SCORE_FLOOR,
+        self.span_hamming_gate_fail_policy = ensure_span_hamming_gate_fail_policy(
+            self.span_hamming_gate_fail_policy
         )
         self.span_hamming_weight_span = float(self.span_hamming_weight_span)
         self.span_hamming_weight_char = float(self.span_hamming_weight_char)
@@ -332,12 +376,8 @@ class ScoringConfig:
                 raise ValueError("span_hamming_ecdf_clamp_min must be < span_hamming_ecdf_clamp_max")
         if self.span_hamming_gate_score_floor is not None:
             self.span_hamming_gate_score_floor = float(self.span_hamming_gate_score_floor)
-        self.span_hamming_lm_profile_source = _ensure_scoring_mode(
-            SpanHammingLmProfileSource,
-            self.span_hamming_lm_profile_source,
-            field_name="span_hamming_lm_profile_source",
-            default=SpanHammingLmProfileSource.SPAN_RAW_BY_LEN,
-            lower=False,
+        self.span_hamming_lm_profile_source = ensure_span_hamming_lm_profile_source(
+            self.span_hamming_lm_profile_source
         )
         self.span_hamming_lm_tail_start_index = int(self.span_hamming_lm_tail_start_index)
         if self.span_hamming_lm_tail_start_index < 0:
