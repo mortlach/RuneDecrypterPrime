@@ -36,4 +36,4 @@ The contract test is:
 tests/contracts/test_enum_domain_ownership.py
 ```
 
-The test intentionally reports unledgered cross-domain string reuse. Treat that as a review queue. Either remove the semantic overlap or ledger it with a reason.
+The test builds a repository-wide string-enum inventory and fails on explicitly forbidden wrong-domain borrowings recorded in the ledger. Broad duplicate-value uniqueness is intentionally not a hard gate yet because RDP still has legitimate historical overlaps such as generic direction, device, and mode labels. Tighten this by adding ledgered allow/deny rows rather than relying on accidental string equality.
