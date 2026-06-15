@@ -24,10 +24,22 @@ def test_d7_summary_names_branch_and_scope() -> None:
 def test_d7_summary_names_owned_label_domains() -> None:
     text = _summary_text()
 
+    assert "ComponentKind" in text
+    assert "ScorerLaneName" in text
     assert "SpanHammingMode" in text
     assert "SpanHammingGateFailPolicy" in text
     assert "ScorerTelemetryPrefix" in text
     assert "ScorerTelemetryKey" in text
+
+
+def test_d7_summary_names_runtime_bridge_hardening() -> None:
+    text = _summary_text()
+
+    assert "Runtime capability report bridges" in text
+    assert "core/engine/builders.py" in text
+    assert "NumPy wrapper" in text
+    assert "unified scorer" in text
+    assert "span_hamming_raw" in text
 
 
 def test_d7_summary_names_output_and_report_only_rules() -> None:
