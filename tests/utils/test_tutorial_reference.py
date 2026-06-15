@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialRunKind, TutorialStopPolicy
+import pytest
+
+from rune_decrypter_prime.utils.tutorial_benchmark import TutorialRunKind, TutorialStopPolicy, TutorialTruthPolicy
 from rune_decrypter_prime.utils.tutorial_reference import TutorialReference
 
 
@@ -14,6 +16,18 @@ def test_tutorial_reference_can_be_created_before_vectors_are_attached() -> None
 
     attached = ref.with_plaintext([1, 2, 3])
     assert attached.match_ratio([1, 2, 9]) == 2 / 3
+
+
+def test_tutorial_reference_normalizes_string_truth_policy() -> None:
+    ref = TutorialReference(truth_policy="known_plaintext_reference", plaintext_idx=[1, 2, 3])
+
+    assert ref.truth_policy is TutorialTruthPolicy.KNOWN_PLAINTEXT_REFERENCE
+    assert ref.to_json_dict()["truth_policy"] == "known_plaintext_reference"
+
+
+def test_tutorial_reference_rejects_unknown_truth_policy() -> None:
+    with pytest.raises(ValueError, match="unknown tutorial truth policy"):
+        TutorialReference(truth_policy="maybe")
 
 
 def test_tutorial_reference_builds_benchmark_summary_from_solution() -> None:
