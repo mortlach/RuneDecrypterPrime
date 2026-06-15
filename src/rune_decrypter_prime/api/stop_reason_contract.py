@@ -119,7 +119,7 @@ def stop_category_for_reason(reason: str | None) -> StopCategory:
         return StopCategory.MANUAL
     if value.startswith(BUDGET_REASON_PREFIXES):
         return StopCategory.BUDGET
-    return StopCategory.ERROR if KnownStopReason.ERROR.value in value else StopCategory.BUDGET
+    return StopCategory.ERROR
 
 
 def stop_reason_details_from_solution(solution: Any) -> dict[str, Any]:
