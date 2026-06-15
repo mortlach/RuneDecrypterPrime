@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 from pathlib import Path
 from types import ModuleType
 
@@ -10,6 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 TUTORIAL_ROOT = REPO_ROOT / "tutorials" / "v1"
 MANIFEST = TUTORIAL_ROOT / "tutorial_manifest_v1.json"
 RUN_ALL = TUTORIAL_ROOT / "run_all.py"
+SSL_HELPERS = REPO_ROOT / "src" / "rune_decrypter_prime" / "utils" / "scheduled_stream_lookup_tutorial_utils.py"
 RELEASE_GATES = {"v1_smoke", "v1_release"}
 FULL_V1_GATES = {"v1_smoke", "v1_release", "v1_extended", "v1_showcase_near_solve"}
 KNOWN_BLOCKED_GATES = {"broken_contract_fix_needed", "wrapper_script_fix_needed", "remove_from_pure_release"}
@@ -34,9 +36,11 @@ def _entry(path: str) -> dict:
 
 
 def _run_all_module() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("rdp_tutorial_run_all", RUN_ALL)
+    name = "rdp_tutorial_run_all"
+    spec = importlib.util.spec_from_file_location(name, RUN_ALL)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -103,3 +107,13 @@ def test_runner_parses_unified_tutorial_match_ratio_label() -> None:
 
     assert run_all._parse_match_ratio("match_ratio : 1.000") == 1.0
     assert run_all._parse_match_ratio("Match ratio: 0.901") == 0.901
+
+
+def test_scheduled_stream_lookup_real_tutorials_emit_session_benchmark_report() -> None:
+    text = SSL_HELPERS.read_text(encoding="utf-8")
+
+    assert "return_solver_report=True" in text
+    assert "print_tutorial_session_report" in text
+    assert "TutorialReference.key_and_plaintext" in text
+    assert "TutorialStopPolicy" in text
+    assert "TutorialRunKind.REAL_KEY_RECOVERY_BENCHMARK" in text
