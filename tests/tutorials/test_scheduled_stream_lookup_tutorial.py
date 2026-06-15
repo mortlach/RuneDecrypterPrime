@@ -44,8 +44,8 @@ def test_scheduled_stream_lookup_manifest_keeps_real_solve_coverage() -> None:
     entries = _scheduled_entries()
     by_path = {item["path"]: item for item in entries}
     expected = {
+        "Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py": "v1_release",
         "Tutorial_ScheduledStreamLookup_RealSolve_P13Primes.py": "v1_extended",
-        "Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py": "v1_extended",
         "Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py": "v1_showcase_near_solve",
     }
     for path, gate in expected.items():
@@ -55,8 +55,13 @@ def test_scheduled_stream_lookup_manifest_keeps_real_solve_coverage() -> None:
         assert (ROOT / "tutorials" / "v1" / path).is_file()
 
 
-def test_scheduled_stream_lookup_long_real_solves_not_in_default_release_profile() -> None:
+def test_only_exact_p13_sequence_real_solve_is_in_default_release_profile() -> None:
     release_gates = {"v1_smoke", "v1_release"}
-    for entry in _scheduled_entries():
-        if entry["path"].startswith("Tutorial_ScheduledStreamLookup_RealSolve_"):
-            assert entry["gate"] not in release_gates
+    release_real_solves = {
+        entry["path"]
+        for entry in _scheduled_entries()
+        if entry["path"].startswith("Tutorial_ScheduledStreamLookup_RealSolve_")
+        and entry["gate"] in release_gates
+    }
+
+    assert release_real_solves == {"Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py"}
