@@ -7,7 +7,10 @@ import numpy as np
 from rune_decrypter_prime.api import Direction, KeySpec, SolverSpec, by_name, cipher_instance, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_benchmark import TutorialRunKind, TutorialStopPolicy
+from rune_decrypter_prime.utils.tutorial_reference import TutorialReference
 from rune_decrypter_prime.utils.tutorial_report import print_tutorial_run_report
+from rune_decrypter_prime.utils.tutorial_session_report import print_tutorial_session_report
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 
@@ -365,11 +368,14 @@ def run_real_key_recovery_demo(
     print(f"Key accepted?: {key_ok}")
     print(f"Plaintext OK?: {match_ok}")
 
-    print_tutorial_run_report(
+    print_tutorial_session_report(
         title=title,
         cipher="scheduled_stream_lookup",
         solution=solution,
         solver_report=solver_report,
+        reference=TutorialReference.key_and_plaintext(key_idx=expected_key_list, plaintext_idx=pt_idx),
+        run_kind=TutorialRunKind.REAL_KEY_RECOVERY_BENCHMARK,
+        stop_policy=TutorialStopPolicy(readable_match_ratio=0.85, target_match_ratio=0.99, stop_score=stop_score),
         match_ok=match_ok,
         app_version=APP_VERSION,
         key_idx=expected_key_list,
