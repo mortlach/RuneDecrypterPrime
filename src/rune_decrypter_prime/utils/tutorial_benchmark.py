@@ -40,9 +40,12 @@ class TutorialStopReason(StrEnum):
 class TutorialStopPolicy:
     """Tutorial/benchmark stop policy.
 
-    Match-ratio thresholds require tutorial truth data and must not be used as a
-    real ciphertext-only solve claim.  Score/work/time thresholds are normal
-    benchmark controls and can be reported for every tutorial.
+    Match-ratio thresholds are tutorial/benchmark oracle instrumentation.  When
+    reference data is available, the summary reports match/readability/target
+    fields.  Missing reference data is allowed at the tutorial/session layer so
+    oracles can be attached progressively without making the run API brittle.
+    Score/work/time thresholds are normal benchmark controls and can be reported
+    for every run.
     """
 
     readable_match_ratio: float = 0.85
@@ -260,8 +263,6 @@ def _validate_truth_policy_match_ratio(
 ) -> None:
     if truth_policy is TutorialTruthPolicy.NONE and match_ratio is not None:
         raise ValueError("match_ratio requires a tutorial truth policy")
-    if truth_policy is not TutorialTruthPolicy.NONE and match_ratio is None:
-        raise ValueError("tutorial truth policy requires plaintext_idx and reference_idx to compute match_ratio")
 
 
 def _validate_truth_policy_fields(
@@ -272,11 +273,12 @@ def _validate_truth_policy_fields(
     target_reached: bool | None,
 ) -> None:
     _validate_truth_policy_match_ratio(truth_policy=truth_policy, match_ratio=match_ratio)
-    if truth_policy is not TutorialTruthPolicy.NONE:
-        if readable_reached is None:
-            raise ValueError("tutorial truth policy requires readable_reached")
-        if target_reached is None:
-            raise ValueError("tutorial truth policy requires target_reached")
+    if match_ratio is None:
+        return
+    if readable_reached is None:
+        raise ValueError("match_ratio requires readable_reached")
+    if target_reached is None:
+        raise ValueError("match_ratio requires target_reached")
 
 
 def _require_enum(value: object, enum_type: type[StrEnum], field_name: str) -> None:
