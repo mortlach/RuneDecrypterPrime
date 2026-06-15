@@ -58,19 +58,44 @@ def test_tutorial_benchmark_requires_truth_label_for_reference_match() -> None:
         )
 
 
-def test_tutorial_truth_policy_requires_reference_match_ratio() -> None:
-    with pytest.raises(ValueError, match="compute match_ratio"):
-        build_tutorial_benchmark_summary(
-            run_kind=TutorialRunKind.REAL_KEY_RECOVERY_BENCHMARK,
-            truth_policy=TutorialTruthPolicy.KNOWN_PLAINTEXT_REFERENCE,
-            stop_policy=TutorialStopPolicy(),
-            plaintext_idx=[1, 2, 3],
-            reference_idx=None,
-        )
+def test_tutorial_truth_policy_can_be_declared_before_reference_attached() -> None:
+    summary = build_tutorial_benchmark_summary(
+        run_kind=TutorialRunKind.REAL_KEY_RECOVERY_BENCHMARK,
+        truth_policy=TutorialTruthPolicy.KNOWN_PLAINTEXT_REFERENCE,
+        stop_policy=TutorialStopPolicy(),
+        plaintext_idx=[1, 2, 3],
+        reference_idx=None,
+    )
+
+    assert summary.truth_policy is TutorialTruthPolicy.KNOWN_PLAINTEXT_REFERENCE
+    assert summary.match_ratio is None
+    assert summary.readable_reached is None
+    assert summary.target_reached is None
+    assert summary.outcome is TutorialBenchmarkOutcome.INCOMPLETE
 
 
-def test_direct_tutorial_summary_truth_policy_requires_match_fields() -> None:
-    with pytest.raises(ValueError, match="requires match_ratio"):
+def test_direct_tutorial_summary_allows_oracle_attachment_before_match_fields() -> None:
+    summary = TutorialBenchmarkSummary(
+        schema="rdp_tutorial_benchmark_summary.v1",
+        run_kind=TutorialRunKind.REAL_KEY_RECOVERY_BENCHMARK,
+        truth_policy=TutorialTruthPolicy.KNOWN_PLAINTEXT_REFERENCE,
+        stop_policy=TutorialStopPolicy(),
+        outcome=TutorialBenchmarkOutcome.INCOMPLETE,
+        stop_reason=TutorialStopReason.NOT_REACHED,
+        readable_reached=None,
+        target_reached=None,
+        match_ratio=None,
+        score=None,
+        evals=None,
+        tokens=None,
+        wall_time_s=None,
+    )
+
+    assert summary.match_ratio is None
+
+
+def test_direct_tutorial_summary_match_ratio_requires_reached_flags() -> None:
+    with pytest.raises(ValueError, match="readable_reached"):
         TutorialBenchmarkSummary(
             schema="rdp_tutorial_benchmark_summary.v1",
             run_kind=TutorialRunKind.REAL_KEY_RECOVERY_BENCHMARK,
@@ -79,8 +104,8 @@ def test_direct_tutorial_summary_truth_policy_requires_match_fields() -> None:
             outcome=TutorialBenchmarkOutcome.INCOMPLETE,
             stop_reason=TutorialStopReason.NOT_REACHED,
             readable_reached=None,
-            target_reached=None,
-            match_ratio=None,
+            target_reached=True,
+            match_ratio=1.0,
             score=None,
             evals=None,
             tokens=None,
