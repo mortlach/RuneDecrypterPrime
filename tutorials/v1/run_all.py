@@ -115,7 +115,7 @@ def _parse_last_float(pattern: str, text: str) -> float | None:
 
 
 def _parse_match_ratio(text: str) -> float | None:
-    return _parse_last_float(r"Match ratio(?:\s*\([^)]*\))?:\s*([0-9]+(?:\.[0-9]+)?)", text)
+    return _parse_last_float(r"(?:Match ratio(?:\s*\([^)]*\))?|match_ratio)\s*:?\s*([0-9]+(?:\.[0-9]+)?)", text)
 
 
 def _parse_score_time_s(text: str) -> float | None:
@@ -238,147 +238,83 @@ def _acceptance(entry: dict[str, Any], proc: subprocess.CompletedProcess[str]) -
     else:
         status = "FAIL"
 
-    return RunResult(
-        name=name,
-        gate=gate,
-        returncode=int(proc.returncode),
-        accepted=bool(accepted),
-        status=status,
-        match_ratio=match_ratio,
-        score_time_s=score_time_s,
-        tokens=tokens,
-        reason=reason,
-    )
-
-
-def _print_compact_result(result: RunResult) -> None:
-    fields = [
-        result.status,
-        result.name,
-        f"gate={result.gate}",
-        f"returncode={result.returncode}",
-    ]
-    if result.match_ratio is not None:
-        fields.append(f"match={result.match_ratio:.3f}")
-    if result.score_time_s is not None:
-        fields.append(f"score_time_s={result.score_time_s:.3f}")
-    if result.tokens is not None:
-        fields.append(f"tokens={result.tokens}")
-    fields.append(result.reason)
-    print(" | ".join(fields))
+    return RunResult(name, gate, proc.returncode, accepted, status, match_ratio, score_time_s, tokens, reason)
 
 
 def main() -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-
     base = Path(__file__).resolve().parent
     repo_root = base.parents[1]
     src_path = repo_root / "src"
     manifest = _load_manifest(base)
     gates = _selected_gates()
 
-    tutorials = manifest["tutorials"]
-    selected = [entry for entry in tutorials if _is_selected(entry, gates)]
-
-    skipped: list[tuple[str, str]] = []
-    runnable: list[dict[str, Any]] = []
-    for entry in selected:
-        reason = _skip_reason(entry)
-        if reason:
-            skipped.append((str(entry.get("path", "<missing-path>")), reason))
-        else:
-            runnable.append(entry)
-
-    print("============================================================")
-    print("RDP tutorial gate runner")
-    print(f"gate_profile : {GATE_PROFILE}")
-    print(f"asset_profile: {ASSET_PROFILE}")
-    print(f"selected gates: {', '.join(gates)}")
-    print(f"selected entries: {len(selected)}")
-    print(f"runnable entries: {len(runnable)}")
-    print(f"skipped entries : {len(skipped)}")
-    print("============================================================")
-
-    if skipped:
-        print("\nSkipped:")
-        for path, reason in skipped:
-            print(f"- {path}: {reason}")
-
-    if LIST_ONLY:
-        print("\nRunnable:")
-        for entry in runnable:
-            print(f"- {entry['path']} [{entry.get('gate')}]")
-        return 0
+    selected = [entry for entry in manifest["tutorials"] if _is_selected(entry, gates)]
+    print(f"RDP V1 tutorial runner | gate={GATE_PROFILE} | asset_profile={ASSET_PROFILE}")
+    print(f"Selected gates: {', '.join(gates)}")
+    print(f"Selected entries: {len(selected)}")
 
     results: list[RunResult] = []
+    skipped = 0
 
-    for entry in runnable:
-        script = base / str(entry["path"])
-        print(f"\n=== Running {script.name} [{entry.get('gate')}] ===")
-        if not script.exists():
-            result = RunResult(
-                name=str(entry["path"]),
-                gate=str(entry.get("gate", "")),
-                returncode=999,
-                accepted=False,
-                status="FAIL",
-                match_ratio=None,
-                score_time_s=None,
-                tokens=None,
-                reason=f"script not found: {script}",
-            )
+    for entry in selected:
+        rel = str(entry["path"])
+        script = base / rel
+        skip = _skip_reason(entry)
+        if skip is not None:
+            skipped += 1
+            print(f"SKIP {rel} | {skip}")
+            continue
+        if not script.is_file():
+            result = RunResult(rel, str(entry.get("gate", "")), 127, False, "FAIL", None, None, None, "script missing")
             results.append(result)
-            _print_compact_result(result)
+            print(f"FAIL {rel} | script missing")
             if STOP_ON_FIRST_FAILURE:
                 break
             continue
+        if LIST_ONLY:
+            print(f"LIST {rel} | {entry.get('title', '')}")
+            continue
 
+        print(f"RUN  {rel} | gate={entry.get('gate')} | title={entry.get('title', '')}")
         proc = _launch_script(repo_root, src_path, script)
-
-        if ECHO_OUTPUT:
-            if proc.stdout:
-                print(proc.stdout, end="" if proc.stdout.endswith("\n") else "\n")
-            if proc.stderr:
-                print(proc.stderr, end="" if proc.stderr.endswith("\n") else "\n")
+        if ECHO_OUTPUT and proc.stdout:
+            print(proc.stdout)
+        if ECHO_OUTPUT and proc.stderr:
+            print(proc.stderr, file=sys.stderr)
 
         result = _acceptance(entry, proc)
         results.append(result)
-        _print_compact_result(result)
+        metric_bits = []
+        if result.match_ratio is not None:
+            metric_bits.append(f"match={result.match_ratio:.3f}")
+        if result.score_time_s is not None:
+            metric_bits.append(f"score_time_s={result.score_time_s:.3f}")
+        if result.tokens is not None:
+            metric_bits.append(f"tokens={result.tokens}")
+        metrics = " | " + ", ".join(metric_bits) if metric_bits else ""
+        print(f"{result.status} {rel}{metrics} | {result.reason}")
 
         if not result.accepted and PRINT_FAILURE_TAIL:
-            combined = (proc.stdout or "") + "\n" + (proc.stderr or "")
-            print("\n--- failure/near-solve output tail ---")
-            print(_tail(combined))
+            text = (proc.stdout or "") + "\n" + (proc.stderr or "")
+            print("--- output tail ---")
+            print(_tail(text))
             print("--- end tail ---")
-
-        if STOP_ON_FIRST_FAILURE and not result.accepted:
+        if not result.accepted and STOP_ON_FIRST_FAILURE:
             break
 
-    passed = sum(1 for item in results if item.status == "PASS")
-    near = sum(1 for item in results if item.status == "NEAR_SOLVE_ACCEPTED")
-    failed = sum(1 for item in results if item.status == "FAIL")
+    failures = [r for r in results if not r.accepted]
+    print("\nSummary")
+    print(f"  selected : {len(selected)}")
+    print(f"  skipped  : {skipped}")
+    print(f"  run      : {len(results)}")
+    print(f"  passed   : {len(results) - len(failures)}")
+    print(f"  failed   : {len(failures)}")
 
-    print("\n============================================================")
-    print("Summary")
-    print(f"gate_profile       : {GATE_PROFILE}")
-    print(f"asset_profile      : {ASSET_PROFILE}")
-    print(f"selected           : {len(selected)}")
-    print(f"run                : {len(results)}")
-    print(f"passed             : {passed}")
-    print(f"near_solve_accepted: {near}")
-    print(f"failed             : {failed}")
-    print(f"skipped            : {len(skipped)}")
-    print("============================================================")
-
-    if failed:
-        print("\nFailures:")
-        for item in results:
-            if item.status == "FAIL":
-                print(f"- {item.name}: {item.reason}")
+    if failures:
+        print("\nFailures")
+        for failure in failures:
+            print(f"  - {failure.name}: {failure.reason}")
         return 1
-
-    print("\nSelected tutorial gate completed successfully.")
     return 0
 
 
