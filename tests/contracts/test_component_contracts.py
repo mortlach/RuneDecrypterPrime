@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from enum import StrEnum
 import json
 
 import pytest
@@ -19,6 +20,20 @@ from rune_decrypter_prime.core.component_contracts import (
     ScorerLaneName,
     V1Status,
 )
+
+
+def test_component_contract_label_domains_are_str_enums() -> None:
+    for enum_type in (
+        CapabilityStatus,
+        ComponentKind,
+        EffectiveState,
+        FallbackPolicy,
+        RankEffect,
+        RequestState,
+        ScorerLaneName,
+        V1Status,
+    ):
+        assert issubclass(enum_type, StrEnum)
 
 
 def test_lane_status_is_json_safe() -> None:
