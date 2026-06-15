@@ -17,6 +17,7 @@ Keep this folder small, reviewable, and repo-relative. Runtime tests must not de
 - `d7_acceptance_test_promotion_status.csv` — current D7 status for acceptance-test rows promoted from the original gap list.
 - `D7_CLOSURE_CHECKLIST.md` — final closure checklist and required validation gates.
 - `D7_IMPLEMENTATION_SUMMARY.md` — concise summary of D7 hardening, retained boundaries, and final validation requirement.
+- `D7_TUTORIAL_BENCHMARK_POLICY.md` — typed tutorial/benchmark truth-policy and compute-efficiency reporting policy.
 
 ## Rules
 
