@@ -91,6 +91,35 @@ def test_fixed_stream_roundtrip():
     _roundtrip(c, key, pt)
 
 
+def test_fixed_stream_values_are_symbols_not_text():
+    with pytest.raises(ValueError, match="not text"):
+        _cipher(
+            name="scheduled_stream_lookup",
+            streams=[
+                {"name": "A", "kind": "periodic", "period": 3},
+                {"name": "B", "kind": "fixed", "values": "abc"},
+            ],
+            schedule="overlay",
+            operation="add",
+            key_length=3,
+        )
+
+
+def test_fixed_stream_values_are_not_modulo_wrapped():
+    with pytest.raises(ValueError, match="outside 0..28"):
+        _cipher(
+            name="scheduled_stream_lookup",
+            streams=[
+                {"name": "A", "kind": "periodic", "period": 3},
+                {"name": "B", "kind": "fixed", "values": [1, 29]},
+            ],
+            schedule="overlay",
+            operation="add",
+            key_length=3,
+            alphabet_size=29,
+        )
+
+
 def test_alternating_schedule_roundtrip():
     c = _cipher(
         name="scheduled_stream_lookup",
