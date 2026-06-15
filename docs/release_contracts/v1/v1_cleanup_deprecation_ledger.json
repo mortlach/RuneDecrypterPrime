@@ -139,7 +139,7 @@
     },
     {
       "docs_required_before_removal": [
-        "docs/release_contracts/v1/D6_SCHEDULED_STREAM_LOOKUP_LOCK_TESTS.md"
+        "docs/release_contracts/v1/D7_CLEANUP_DEPRECATION_POLICY.md"
       ],
       "id": "cipher.scheduled_stream_lookup_aliases",
       "reason": "Tutorials and users need friendly names; engine remains canonical scheduled_stream_lookup.",
