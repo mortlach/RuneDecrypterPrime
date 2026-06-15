@@ -185,6 +185,26 @@
       "notes": "Keep one mono-substitution tutorial in V1.0.0; standard entry-level cipher. GA is the fastest mono option in current run."
     },
     {
+      "path": "Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py",
+      "title": "ScheduledStreamLookup P13 plus supplied sequence",
+      "cipher_family": "scheduled_stream_lookup",
+      "tutorial_kind": "real_solve",
+      "gate": "v1_release",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "min_match_ratio",
+      "min_match_ratio": 1.0,
+      "observed_lm2_baseline": {
+        "match_ratio": 1.0,
+        "score_time_s": 53.039,
+        "tokens": 4604124
+      },
+      "uses_oracle_stop_score": true,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Promoted to default release gate as the exact ScheduledStreamLookup real-solve proof under lm2_baseline."
+    },
+    {
       "path": "Tutorial_Repeating_multiply.py",
       "title": "Repeating multiply mod 29",
       "cipher_family": "custom_map_repeating_multiply",
@@ -262,27 +282,7 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
-      "notes": "Exact real key-recovery tutorial under lm2_baseline."
-    },
-    {
-      "path": "Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py",
-      "title": "ScheduledStreamLookup P13 plus supplied sequence",
-      "cipher_family": "scheduled_stream_lookup",
-      "tutorial_kind": "real_solve",
-      "gate": "v1_extended",
-      "required_asset_profile": "lm2_baseline",
-      "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "min_match_ratio",
-      "min_match_ratio": 1.0,
-      "observed_lm2_baseline": {
-        "match_ratio": 1.0,
-        "score_time_s": 53.039,
-        "tokens": 4604124
-      },
-      "uses_oracle_stop_score": true,
-      "supplies_true_key_to_solver": false,
-      "current_status": "active",
-      "notes": "Exact real key-recovery tutorial under lm2_baseline."
+      "notes": "Exact real key-recovery tutorial under lm2_baseline; retained in full_v1/extended to avoid making default release too heavy."
     },
     {
       "path": "Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py",
@@ -302,7 +302,7 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
-      "notes": "Keep. It shows near-solve power and that partial plaintext recovery can still be useful. Exact recovery is not required under lm2_baseline."
+      "notes": "Keep as showcase/near-solve. Exact recovery is not required under lm2_baseline."
     },
     {
       "path": "Tutorial_MonoSubstitution_SA.py",
@@ -342,7 +342,7 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "active_optional",
-      "notes": "Fails under lm2_baseline because it requests char n=3 LM table, e.g. char29_joint_rtl_3_nose.bin.zst."
+      "notes": "Requires lm3_extended assets beyond the pure lm2_baseline release profile."
     },
     {
       "path": "Tutorial_PeriodicColumnar_Simple_P7_ColThenSub.py",
@@ -362,7 +362,7 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "active_optional",
-      "notes": "Fails under lm2_baseline because it directly scores char n=3/n=4."
+      "notes": "Requires lm3_extended assets beyond the pure lm2_baseline release profile."
     },
     {
       "path": "Tutorial_PeriodicSubstitution.py",
@@ -382,7 +382,7 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "active_optional",
-      "notes": "Fails under lm2_baseline because it requests char n=3 LM table."
+      "notes": "Requires lm3_extended assets beyond the pure lm2_baseline release profile."
     },
     {
       "path": "Tutorial_PeriodicSubstitution_Simple_P7.py",
@@ -402,7 +402,7 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "active_optional",
-      "notes": "Fails under lm2_baseline because it requests char n=3 LM table."
+      "notes": "Requires lm3_extended assets beyond the pure lm2_baseline release profile."
     },
     {
       "path": "Tutorial_PeriodicColumnar_Simple_P7_SubThenCol.py",
@@ -422,7 +422,7 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "known_broken",
-      "notes": "Current failure: make_true_periodic_columnar_key() got unexpected keyword argument 'order'."
+      "notes": "Current failure: make_true_periodic_columnar_key() got unexpected keyword argument 'order'. Excluded from release/full_v1 gates."
     },
     {
       "path": "Tutorial_ScheduledStreamLookup.py",
@@ -442,7 +442,7 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "known_broken",
-      "notes": "Current failure: imports Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence by module name from runpy context. Use direct real-solve scripts instead until wrapper is fixed."
+      "notes": "Wrapper import issue. Direct real-solve scripts supersede it for release gates; excluded from release/full_v1 gates until fixed or removed."
     }
   ]
 }
