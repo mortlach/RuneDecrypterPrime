@@ -4,6 +4,7 @@ import pytest
 
 from rune_decrypter_prime.utils.tutorial_benchmark import (
     TutorialBenchmarkOutcome,
+    TutorialBenchmarkSummary,
     TutorialRunKind,
     TutorialStopPolicy,
     TutorialStopReason,
@@ -54,6 +55,36 @@ def test_tutorial_benchmark_requires_truth_label_for_reference_match() -> None:
             stop_policy=TutorialStopPolicy(),
             plaintext_idx=[1, 2, 3],
             reference_idx=[1, 2, 3],
+        )
+
+
+def test_tutorial_truth_policy_requires_reference_match_ratio() -> None:
+    with pytest.raises(ValueError, match="compute match_ratio"):
+        build_tutorial_benchmark_summary(
+            run_kind=TutorialRunKind.REAL_KEY_RECOVERY_BENCHMARK,
+            truth_policy=TutorialTruthPolicy.KNOWN_PLAINTEXT_REFERENCE,
+            stop_policy=TutorialStopPolicy(),
+            plaintext_idx=[1, 2, 3],
+            reference_idx=None,
+        )
+
+
+def test_direct_tutorial_summary_truth_policy_requires_match_fields() -> None:
+    with pytest.raises(ValueError, match="requires match_ratio"):
+        TutorialBenchmarkSummary(
+            schema="rdp_tutorial_benchmark_summary.v1",
+            run_kind=TutorialRunKind.REAL_KEY_RECOVERY_BENCHMARK,
+            truth_policy=TutorialTruthPolicy.KNOWN_PLAINTEXT_REFERENCE,
+            stop_policy=TutorialStopPolicy(),
+            outcome=TutorialBenchmarkOutcome.INCOMPLETE,
+            stop_reason=TutorialStopReason.NOT_REACHED,
+            readable_reached=None,
+            target_reached=None,
+            match_ratio=None,
+            score=None,
+            evals=None,
+            tokens=None,
+            wall_time_s=None,
         )
 
 
