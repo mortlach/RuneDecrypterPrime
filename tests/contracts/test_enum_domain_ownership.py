@@ -7,8 +7,9 @@ from pathlib import Path
 from typing import Iterable
 
 
-SRC_ROOT = Path("src/rune_decrypter_prime")
-LEDGER = Path("docs/v1_traceability/v1_enum_domain_ledger.json")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SRC_ROOT = REPO_ROOT / "src" / "rune_decrypter_prime"
+LEDGER = REPO_ROOT / "docs" / "v1_traceability" / "v1_enum_domain_ledger.json"
 
 
 @dataclass(frozen=True)
@@ -27,6 +28,13 @@ class EnumMember:
         return f"{self.path}:{self.qualified_name}"
 
 
+def _repo_relative(path: Path) -> str:
+    try:
+        return path.relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
 def _read_py_text(path: Path) -> str:
     # Some legacy source files carry a UTF-8 BOM. Python import handles that at
     # the bytes/tokeniser layer, but ast.parse() on an already-decoded string
@@ -35,7 +43,7 @@ def _read_py_text(path: Path) -> str:
 
 
 def _load_ledger() -> dict:
-    assert LEDGER.is_file(), f"missing enum-domain ledger: {LEDGER}"
+    assert LEDGER.is_file(), f"missing enum-domain ledger: {_repo_relative(LEDGER)}"
     data = json.loads(LEDGER.read_text(encoding="utf-8"))
     assert data["schema"] == "rdp_v1_enum_domain_ledger.v1"
     assert data["policy"] == "enum_wire_values_have_explicit_domain_ownership"
@@ -45,7 +53,7 @@ def _load_ledger() -> dict:
 
 
 def _py_files() -> Iterable[Path]:
-    assert SRC_ROOT.is_dir(), f"missing source root: {SRC_ROOT}"
+    assert SRC_ROOT.is_dir(), f"missing source root: {_repo_relative(SRC_ROOT)}"
     for path in sorted(SRC_ROOT.rglob("*.py")):
         parts = set(path.parts)
         if "__pycache__" in parts:
@@ -77,7 +85,7 @@ def _iter_string_enum_members() -> Iterable[EnumMember]:
     for path in _py_files():
         text = _read_py_text(path)
         tree = ast.parse(text, filename=str(path))
-        relpath = path.as_posix()
+        relpath = _repo_relative(path)
         for node in ast.walk(tree):
             if not isinstance(node, ast.ClassDef) or not _is_enum_class(node):
                 continue
@@ -150,7 +158,7 @@ def test_known_wrong_domain_enum_borrowing_patterns_are_absent() -> None:
                 if contexts and not any(context in line for context in contexts):
                     continue
                 failures.append(
-                    f"{path.as_posix()}:{line_number}: {rule['id']} uses {expression}; "
+                    f"{_repo_relative(path)}:{line_number}: {rule['id']} uses {expression}; "
                     f"use {rule['replacement']} instead. Reason: {rule['reason']}"
                 )
 
