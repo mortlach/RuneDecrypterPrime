@@ -6,7 +6,7 @@ import numpy as np
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.backends.xp import select_backend
 from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode
 from rune_decrypter_prime.core.types import Device
 
 class UnifiedRuneScorer:
@@ -150,14 +150,16 @@ class UnifiedRuneScorer:
         from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
 
         span_hamming_backend = getattr(self._backend, "_span_hamming_backend", None)
-        span_hamming_mode = str(
-            getattr(self._backend, "_span_hamming_mode", "off") or "off"
-        ).strip().lower()
+        span_hamming_mode = ensure_span_hamming_mode(
+            getattr(self._backend, "_span_hamming_mode", SpanHammingMode.OFF)
+        )
         report = build_scorer_lane_report(
             self.cfg_scorer,
             hamming_backend=getattr(self._backend, "_hamming_backend", None),
             hamming_issue=getattr(self._backend, "_hamming_issue", None),
-            span_hamming_backend=span_hamming_backend if span_hamming_mode == "raw_bonus" else None,
+            span_hamming_backend=(
+                span_hamming_backend if span_hamming_mode is SpanHammingMode.RAW_BONUS else None
+            ),
             span_hamming_issue=getattr(self._backend, "_span_hamming_issue", None),
             calibrated_assets=getattr(self._backend, "_span_hamming_assets", None),
             calibrated_issue=getattr(self._backend, "_calibrated_issue", None),
