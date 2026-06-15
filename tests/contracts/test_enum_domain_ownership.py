@@ -28,6 +28,13 @@ class EnumMember:
         return f"{self.path}:{self.qualified_name}"
 
 
+def _read_py_text(path: Path) -> str:
+    # Some legacy source files carry a UTF-8 BOM. Python import handles that at
+    # the bytes/tokeniser layer, but ast.parse() on an already-decoded string
+    # sees U+FEFF as a non-printable character unless we strip it here.
+    return path.read_text(encoding="utf-8-sig")
+
+
 def _load_ledger() -> dict:
     assert LEDGER.is_file(), f"missing enum-domain ledger: {LEDGER}"
     data = json.loads(LEDGER.read_text(encoding="utf-8"))
@@ -69,7 +76,7 @@ def _string_literal(node: ast.AST) -> str | None:
 
 def _iter_string_enum_members() -> Iterable[EnumMember]:
     for path in _py_files():
-        text = path.read_text(encoding="utf-8")
+        text = _read_py_text(path)
         tree = ast.parse(text, filename=str(path))
         relpath = path.as_posix()
         for node in ast.walk(tree):
@@ -132,17 +139,18 @@ def test_known_wrong_domain_enum_borrowing_patterns_are_absent() -> None:
     failures: list[str] = []
 
     for path in _py_files():
-        text = path.read_text(encoding="utf-8")
-        for rule in data["forbidden_enum_usages"]:
-            expression = rule["enum_expression"]
-            contexts = rule.get("forbidden_when_file_contains_any", [])
-            if expression not in text:
-                continue
-            if contexts and not any(context in text for context in contexts):
-                continue
-            failures.append(
-                f"{path.as_posix()}: {rule['id']} uses {expression}; "
-                f"use {rule['replacement']} instead. Reason: {rule['reason']}"
-            )
+        text = _read_py_text(path)
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            for rule in data["forbidden_enum_usages"]:
+                expression = rule["enum_expression"]
+                contexts = rule.get("forbidden_when_file_contains_any", [])
+                if expression not in line:
+                    continue
+                if contexts and not any(context in line for context in contexts):
+                    continue
+                failures.append(
+                    f"{path.as_posix()}:{line_number}: {rule['id']} uses {expression}; "
+                    f"use {rule['replacement']} instead. Reason: {rule['reason']}"
+                )
 
     assert not failures, "\n".join(failures)
