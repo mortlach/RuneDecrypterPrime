@@ -21,6 +21,7 @@ REQUIRED_RELEASE_CONTRACT_FILES = {
     "D7_IMPLEMENTATION_SUMMARY.md",
     "D7_TUTORIAL_BENCHMARK_POLICY.md",
     "D7_TUTORIAL_BENCHMARK_MATCH_RATIO_ADDENDUM.md",
+    "D7_TUTORIAL_OUTPUT_FRAMEWORK.md",
 }
 
 
@@ -80,6 +81,7 @@ def test_d7_implementation_summary_names_api_forgiving_core_strict_split() -> No
         "D7 deliberately keeps the API layer forgiving and the core layer strict",
         "Requested scorer lanes block when unavailable instead of warning and disappearing",
         "Tutorial truth thresholds are explicitly labelled by `TutorialTruthPolicy`",
+        "Tutorial helper boundary tests prevent tutorial/session oracle helpers from leaking into strict runtime modules",
         "Full save/restore solving remains roadmap/experimental",
     ]
     for phrase in required_phrases:
