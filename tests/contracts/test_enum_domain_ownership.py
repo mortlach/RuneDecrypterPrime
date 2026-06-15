@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import ast
 import json
-from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -103,23 +102,25 @@ def test_enum_domain_ledger_schema_is_valid() -> None:
 
 
 def test_string_enum_inventory_can_be_built_without_parse_errors() -> None:
-    """Keep the enum audit live without making every shared wire value a failure.
-
-    RDP has legitimate historical overlaps such as generic direction/device labels.
-    D7 therefore makes the inventory executable and uses explicit forbidden-borrowing
-    rules for known bad cross-domain uses. Broad uniqueness can be tightened later by
-    adding ledgered allow/deny rows instead of silently depending on string coincidence.
-    """
-    members = list(_iter_string_enum_members())
+    """Keep the enum audit live without making duplicate wire values a requirement."""
+    members = {member.qualified_name: member for member in _iter_string_enum_members()}
     assert members, "no string enum members found under src/rune_decrypter_prime"
 
-    by_value: dict[str, list[EnumMember]] = defaultdict(list)
-    for member in members:
-        by_value[member.value].append(member)
-
-    # The audit should see at least one reused value in the real tree; this keeps the
-    # scanner meaningful without failing legitimate overlaps by default.
-    assert any(len({member.enum_class for member in group}) > 1 for group in by_value.values())
+    expected_sentinels = {
+        "Direction.LTR": "ltr",
+        "SolverReportDetailKey.ORACLE_USE": "oracle_use",
+        "ExecutionRoute.KNOWN_KEY_FASTPATH": "known_key_fastpath",
+        "SolverParamKey.TEST_KEY": "test_key",
+        "OracleUse.TEST_KEY": "test_key",
+    }
+    missing = sorted(set(expected_sentinels) - set(members))
+    assert not missing, f"enum scanner missed expected sentinel members: {missing}"
+    wrong_values = {
+        name: (members[name].value, expected)
+        for name, expected in expected_sentinels.items()
+        if members[name].value != expected
+    }
+    assert not wrong_values, f"enum scanner returned unexpected sentinel values: {wrong_values}"
 
 
 def test_ledgered_allowed_shared_wire_values_are_well_formed() -> None:
