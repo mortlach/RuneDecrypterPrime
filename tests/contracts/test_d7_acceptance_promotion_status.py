@@ -19,6 +19,7 @@ REQUIRED_RELEASE_CONTRACT_FILES = {
     "d7_acceptance_test_promotion_status.csv",
     "D7_CLOSURE_CHECKLIST.md",
     "D7_IMPLEMENTATION_SUMMARY.md",
+    "D7_TUTORIAL_BENCHMARK_POLICY.md",
 }
 
 
@@ -77,6 +78,7 @@ def test_d7_implementation_summary_names_api_forgiving_core_strict_split() -> No
     required_phrases = [
         "D7 deliberately keeps the API layer forgiving and the core layer strict",
         "Requested scorer lanes block when unavailable instead of warning and disappearing",
+        "Tutorial truth thresholds are explicitly labelled by `TutorialTruthPolicy`",
         "Full save/restore solving remains roadmap/experimental",
     ]
     for phrase in required_phrases:
