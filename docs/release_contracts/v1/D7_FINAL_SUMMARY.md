@@ -29,6 +29,25 @@ The branch only hardens stable contract labels, branch workflow coverage, accept
 
 ## Implemented hardening
 
+### Component and capability contract labels
+
+D7 converts the stable component/capability contract label domains from plain `Enum` to Python 3.11 `StrEnum`.
+
+Owned labels:
+
+```text
+ComponentKind
+V1Status
+RankEffect
+RequestState
+EffectiveState
+CapabilityStatus
+FallbackPolicy
+ScorerLaneName
+```
+
+The public JSON strings are unchanged because reports still emit `.value`. Raw strings are still rejected when constructing typed contract objects such as `LaneStatus`.
+
 ### Core scoring config labels
 
 D7 enum-owns the finite scoring config modes and policies that had still been represented as raw strings inside `ScoringConfig`.
@@ -46,6 +65,19 @@ SpanHammingLmProfileSource
 
 Public/config boundary strings are still accepted, but they are normalised immediately in `ScoringConfig.__post_init__`. Internal config state stores enum values. `ScoringConfig.asdict()` preserves the same public strings as before.
 
+D7 also exports domain-local normalisers:
+
+```text
+ensure_hamming_direction_mode
+ensure_span_hamming_mode
+ensure_span_hamming_bucket_policy
+ensure_span_hamming_combine_mode
+ensure_span_hamming_gate_fail_policy
+ensure_span_hamming_lm_profile_source
+```
+
+These are used by runtime/capability bridge code so each path does not invent its own string validation.
+
 This is a contract-hardening change, not a scoring change.
 
 ### Requested scorer lane detection
@@ -54,11 +86,11 @@ This is a contract-hardening change, not a scoring change.
 
 This keeps the capability-report path aligned with the same labels used by config validation.
 
-### Runtime capability report bridge
+### Runtime capability report bridges
 
-D7 also hardens the scorer-construction capability bridge in `core/engine/builders.py`.
+D7 hardens the scorer-construction capability bridge in `core/engine/builders.py`, plus the NumPy wrapper and unified scorer capability-report fallback paths.
 
-That bridge may need to inspect private runtime scorer state when a scorer backend does not provide a native `capability_report()`. It now normalises `_span_hamming_mode` through `SpanHammingMode` before deciding whether a raw span backend is active. This prevents enum-backed runtime mode state from silently dropping a requested `span_hamming_raw` lane in the fallback capability-report path.
+These bridges may need to inspect private runtime scorer state when a scorer backend does not provide a native `capability_report()`. They now normalise `_span_hamming_mode` through `SpanHammingMode` before deciding whether a raw span backend is active. This prevents enum-backed runtime mode state from silently dropping a requested `span_hamming_raw` lane in fallback capability-report paths.
 
 This is intentionally narrow. It does not change scoring, ranking, scorer construction, or the public report schema.
 
@@ -144,6 +176,7 @@ review-pack regeneration
 D7 adds or extends focused tests for the new hardening surface:
 
 ```text
+tests/contracts/test_component_contracts.py
 tests/core/test_scoring_config_label_contract.py
 tests/core/test_scorer_capability_builder_contract.py
 tests/scoring/test_scorer_report_label_contract.py
@@ -155,7 +188,9 @@ tests/contracts/test_v1_release_acceptance_gates_doc.py
 These tests assert that:
 
 ```text
+component/capability labels are StrEnum-owned
 D7-owned scoring config labels are enum-owned
+exported scoring-mode normalisers preserve enum domains
 invalid D7-owned config strings are rejected
 public asdict strings are unchanged
 requested scorer lanes use enum-backed span mode
@@ -171,7 +206,7 @@ acceptance-gate docs record the closure rules
 
 A runtime enum-state overlay exists for the large NumPy and Torch scorer backend files. It is intentionally handled as a separate local overlay because the GitHub connector has blocked writes to the large scorer backend paths.
 
-The branch now hardens the config surface and the fallback capability-report bridge, but the large backend files still contain private runtime fields that are normalised to raw strings internally. The correct final hardening direction is to update those backend private fields to enum members and update tests that directly mutate those private fields to use enum members too.
+The branch now hardens the config surface and all fallback capability-report bridges, but the large backend files still contain private runtime fields that are normalised to raw strings internally. The correct final hardening direction is to update those backend private fields to enum members and update tests that directly mutate those private fields to use enum members too.
 
 Required local test-only substitutions are:
 
@@ -190,7 +225,9 @@ This is not a D7 scope reduction. It is a tooling limitation around large backen
 D7 has completed these closure hardening blocks:
 
 ```text
+component/capability contract StrEnum ownership
 core scoring config label ownership
+exported scoring-mode normalisers
 requested scorer lane enum-backed detection
 fallback capability-report runtime span-mode normalisation
 scorer telemetry label ownership
