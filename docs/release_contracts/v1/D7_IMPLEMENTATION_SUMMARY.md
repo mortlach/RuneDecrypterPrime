@@ -46,6 +46,7 @@ API-facing code may accept aliases, friendly names, strings, and compatibility s
 
 - `utils.tutorial_report` provides a compact `rdp_tutorial_run_report.v1` payload and deterministic console renderer.
 - Tutorial report shape is contract-tested so public JSON section keys do not drift silently.
+- Tutorial reports preserve structured `scorer_lanes` mapping payloads and wrap legacy list payloads as `{"lanes": [...]}` instead of silently dropping visibility data.
 - `utils.tutorial_benchmark` provides typed tutorial benchmark policies and `rdp_tutorial_benchmark_summary.v1` summaries for readability/target/work/time reporting.
 - Tutorial benchmark enum domains accept canonical strings at the tutorial/session boundary and normalise to enum instances internally.
 - `utils.tutorial_reference` provides an attachable reference helper so tutorial/session code can add reference data early or later without making the run surface brittle.
@@ -62,7 +63,14 @@ API-facing code may accept aliases, friendly names, strings, and compatibility s
 - D7 cleanup/deprecation policy and machine-readable ledger are present.
 - D7 acceptance-test promotion status records every original acceptance-row outcome.
 - D7 closure checklist records the exact local/CI gates required before final closure.
+- D7 review request records review scope, requested checks, and review-response fixes.
 - Contract tests ensure implemented D7 acceptance paths exist and non-V1 rows stay explicitly experimental.
+
+## Review-response fixes completed
+
+- Removed the one-off root patch script `apply_solver_stop_reason_domain.py`.
+- Fixed tutorial report scorer-lane payload preservation.
+- Updated the D7 review request so it targets the current branch head instead of a stale hard-coded commit.
 
 ## Still deliberately not done in D7
 
