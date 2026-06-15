@@ -11,6 +11,7 @@ from rune_decrypter_prime.core.types import (
     Direction,
     ensure_device,
     ensure_direction,
+    ensure_keyops_family,
     KeyOpsFamily,
 )
 
@@ -50,6 +51,8 @@ class CipherConfig:
             self.device = ensure_device(self.device)
         if self.encoding_dir is not None:
             self.encoding_dir = ensure_direction(self.encoding_dir)
+        if self.keyops_family is not None:
+            self.keyops_family = ensure_keyops_family(self.keyops_family)
 
         if self.wli_data is not None:
             try:
@@ -157,30 +160,3 @@ class CipherConfig:
                     max_count=max_count,
                 )
             self.interruptors_cfg = cfg
-
-        cfg = getattr(self, "interruptors_cfg", None)
-        if isinstance(cfg, InterruptorConfig):
-            if cfg.mode == "exact":
-                exact_list = list(cfg.exact or [])
-                self.interruptors_exact = exact_list or None
-                self.interruptors = exact_list or None
-                self.interruptors_pool = None
-                self.interruptors_max = None
-            elif cfg.mode == "pool":
-                self.interruptors_exact = None
-                self.interruptors = None
-                self.interruptors_pool = list(cfg.pool or [])
-                self.interruptors_max = int(cfg.max_count) if cfg.max_count is not None else None
-            else:
-                self.interruptors_exact = None
-                self.interruptors = None
-                self.interruptors_pool = None
-                self.interruptors_max = None
-
-    def asdict(self) -> Dict[str, Any]:
-        out = asdict(self)
-        if isinstance(self.device, Device):
-            out["device"] = self.device.value
-        if isinstance(self.encoding_dir, Direction):
-            out["encoding_dir"] = self.encoding_dir.value
-        return out
