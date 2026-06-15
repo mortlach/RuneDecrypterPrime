@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 ARTIFACT_AGREEMENT = ROOT / "src" / "rune_decrypter_prime" / "api" / "artifact_agreement.py"
 SOLVER_REPORT = ROOT / "src" / "rune_decrypter_prime" / "api" / "solver_report.py"
+COMPONENT_CONTRACTS = ROOT / "src" / "rune_decrypter_prime" / "core" / "component_contracts.py"
 SCORER_REPORT_BUILDER = ROOT / "src" / "rune_decrypter_prime" / "scoring" / "scorer_report_builder.py"
 SCORING_CONFIG = ROOT / "src" / "rune_decrypter_prime" / "core" / "config" / "scoring.py"
 ENGINE_BUILDERS = ROOT / "src" / "rune_decrypter_prime" / "core" / "engine" / "builders.py"
@@ -21,6 +22,25 @@ def test_artifact_classifications_are_enum_owned_not_literal_or_raw_set() -> Non
     assert "Classification = Literal" not in text
     assert 'ALLOWED_CLASSIFICATIONS = {"candidate"' not in text
     assert "ALLOWED_CLASSIFICATIONS = frozenset(item.value for item in ArtifactClassification)" in text
+
+
+def test_component_contract_labels_are_strenum_owned() -> None:
+    text = COMPONENT_CONTRACTS.read_text(encoding="utf-8")
+
+    assert "from enum import Enum, StrEnum" in text
+    for name in (
+        "ComponentKind",
+        "V1Status",
+        "RankEffect",
+        "RequestState",
+        "EffectiveState",
+        "CapabilityStatus",
+        "FallbackPolicy",
+        "ScorerLaneName",
+    ):
+        assert f"class {name}(StrEnum)" in text
+    assert "class ScorerLaneName(Enum)" not in text
+    assert "class RankEffect(Enum)" not in text
 
 
 def test_solver_report_reserved_detail_keys_are_enum_derived() -> None:
