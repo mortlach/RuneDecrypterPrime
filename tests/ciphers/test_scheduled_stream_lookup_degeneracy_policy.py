@@ -10,6 +10,8 @@ from rune_decrypter_prime.ciphers.scheduled_stream_lookup_cipher import (
     validate_operation_degeneracy,
 )
 
+pytestmark = pytest.mark.tier_a
+
 
 def test_xor_mod_and_lookup_require_explicit_degeneracy_allow() -> None:
     with pytest.raises(ValueError, match="requires degeneracy='allow'"):
@@ -36,7 +38,7 @@ def _identity_ab_table(alphabet_size: int) -> list[list[list[int]]]:
 def test_degenerate_lookup_reports_multiple_candidates_not_unique_decrypt() -> None:
     A = 3
     a_table = _identity_a_table(A)
-    a_table[1][0] = 0  # plaintext 0 and 1 both decrypt as candidates for ct=0 at state 0.
+    a_table[1][0] = 0
 
     cipher = ScheduledStreamLookupCipher(
         SimpleNamespace(
