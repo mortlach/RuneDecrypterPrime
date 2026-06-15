@@ -22,10 +22,17 @@ class TutorialReference:
     pieces are allowed so tutorial code can stay easy to compose.
     """
 
-    truth_policy: TutorialTruthPolicy = TutorialTruthPolicy.NONE
+    truth_policy: TutorialTruthPolicy | str = TutorialTruthPolicy.NONE
     plaintext_idx: tuple[int, ...] | None = None
     key_idx: tuple[int, ...] | None = None
     label: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "truth_policy", _truth_policy(self.truth_policy))
+        object.__setattr__(self, "plaintext_idx", _int_tuple(self.plaintext_idx))
+        object.__setattr__(self, "key_idx", _int_tuple(self.key_idx))
+        if self.label is not None:
+            object.__setattr__(self, "label", str(self.label))
 
     @classmethod
     def none(cls, *, label: str | None = None) -> "TutorialReference":
@@ -118,6 +125,16 @@ class TutorialReference:
             "has_plaintext": self.plaintext_idx is not None,
             "has_key": self.key_idx is not None,
         }
+
+
+def _truth_policy(value: TutorialTruthPolicy | str) -> TutorialTruthPolicy:
+    if isinstance(value, TutorialTruthPolicy):
+        return value
+    try:
+        return TutorialTruthPolicy(str(value))
+    except ValueError as exc:
+        allowed = ", ".join(item.value for item in TutorialTruthPolicy)
+        raise ValueError(f"unknown tutorial truth policy {value!r}; expected one of: {allowed}") from exc
 
 
 def _solution_plaintext(value: Any) -> tuple[int, ...] | None:
