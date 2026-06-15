@@ -40,12 +40,12 @@ class TutorialStopReason(StrEnum):
 class TutorialStopPolicy:
     """Tutorial/benchmark stop policy.
 
-    Match-ratio thresholds are tutorial/benchmark oracle instrumentation.  When
+    Match-ratio thresholds are tutorial/benchmark instrumentation. When
     reference data is available, the summary reports match/readability/target
-    fields.  Missing reference data is allowed at the tutorial/session layer so
-    oracles can be attached progressively without making the run API brittle.
-    Score/work/time thresholds are normal benchmark controls and can be reported
-    for every run.
+    fields. Missing reference data is allowed at the tutorial/session layer so
+    reference data can be attached progressively without making the run API
+    brittle. Score/work/time thresholds are normal benchmark controls and can be
+    reported for every run.
     """
 
     readable_match_ratio: float = 0.85
@@ -79,11 +79,11 @@ class TutorialStopPolicy:
 @dataclass(frozen=True, slots=True)
 class TutorialBenchmarkSummary:
     schema: str
-    run_kind: TutorialRunKind
-    truth_policy: TutorialTruthPolicy
+    run_kind: TutorialRunKind | str
+    truth_policy: TutorialTruthPolicy | str
     stop_policy: TutorialStopPolicy
-    outcome: TutorialBenchmarkOutcome
-    stop_reason: TutorialStopReason
+    outcome: TutorialBenchmarkOutcome | str
+    stop_reason: TutorialStopReason | str
     readable_reached: bool | None
     target_reached: bool | None
     match_ratio: float | None
@@ -95,12 +95,12 @@ class TutorialBenchmarkSummary:
     def __post_init__(self) -> None:
         if self.schema != "rdp_tutorial_benchmark_summary.v1":
             raise ValueError("unsupported tutorial benchmark summary schema")
-        _require_enum(self.run_kind, TutorialRunKind, "run_kind")
-        _require_enum(self.truth_policy, TutorialTruthPolicy, "truth_policy")
+        object.__setattr__(self, "run_kind", _coerce_enum(self.run_kind, TutorialRunKind, "run_kind"))
+        object.__setattr__(self, "truth_policy", _coerce_enum(self.truth_policy, TutorialTruthPolicy, "truth_policy"))
+        object.__setattr__(self, "outcome", _coerce_enum(self.outcome, TutorialBenchmarkOutcome, "outcome"))
+        object.__setattr__(self, "stop_reason", _coerce_enum(self.stop_reason, TutorialStopReason, "stop_reason"))
         if not isinstance(self.stop_policy, TutorialStopPolicy):
             raise TypeError("stop_policy must be TutorialStopPolicy")
-        _require_enum(self.outcome, TutorialBenchmarkOutcome, "outcome")
-        _require_enum(self.stop_reason, TutorialStopReason, "stop_reason")
         _require_optional_bool(self.readable_reached, "readable_reached")
         _require_optional_bool(self.target_reached, "target_reached")
         _require_optional_ratio(self.match_ratio, "match_ratio")
@@ -135,8 +135,8 @@ class TutorialBenchmarkSummary:
 
 def build_tutorial_benchmark_summary(
     *,
-    run_kind: TutorialRunKind,
-    truth_policy: TutorialTruthPolicy,
+    run_kind: TutorialRunKind | str,
+    truth_policy: TutorialTruthPolicy | str,
     stop_policy: TutorialStopPolicy,
     plaintext_idx: Sequence[int] | None = None,
     reference_idx: Sequence[int] | None = None,
@@ -147,13 +147,13 @@ def build_tutorial_benchmark_summary(
     solver_stop_reason: str | None = None,
 ) -> TutorialBenchmarkSummary:
     """Build a compact benchmark summary for tutorial/release evidence."""
-    _require_enum(run_kind, TutorialRunKind, "run_kind")
-    _require_enum(truth_policy, TutorialTruthPolicy, "truth_policy")
+    run_kind_value = _coerce_enum(run_kind, TutorialRunKind, "run_kind")
+    truth_policy_value = _coerce_enum(truth_policy, TutorialTruthPolicy, "truth_policy")
     if not isinstance(stop_policy, TutorialStopPolicy):
         raise TypeError("stop_policy must be TutorialStopPolicy")
 
     match_ratio = _match_ratio(plaintext_idx, reference_idx)
-    _validate_truth_policy_match_ratio(truth_policy=truth_policy, match_ratio=match_ratio)
+    _validate_truth_policy_match_ratio(truth_policy=truth_policy_value, match_ratio=match_ratio)
 
     readable = None if match_ratio is None else match_ratio >= stop_policy.readable_match_ratio
     target = None if match_ratio is None else match_ratio >= stop_policy.target_match_ratio
@@ -176,8 +176,8 @@ def build_tutorial_benchmark_summary(
 
     return TutorialBenchmarkSummary(
         schema="rdp_tutorial_benchmark_summary.v1",
-        run_kind=run_kind,
-        truth_policy=truth_policy,
+        run_kind=run_kind_value,
+        truth_policy=truth_policy_value,
         stop_policy=stop_policy,
         outcome=outcome,
         stop_reason=stop_reason,
@@ -281,9 +281,14 @@ def _validate_truth_policy_fields(
         raise ValueError("match_ratio requires target_reached")
 
 
-def _require_enum(value: object, enum_type: type[StrEnum], field_name: str) -> None:
-    if not isinstance(value, enum_type):
-        raise TypeError(f"{field_name} must be {enum_type.__name__}")
+def _coerce_enum(value: object, enum_type: type[StrEnum], field_name: str) -> StrEnum:
+    if isinstance(value, enum_type):
+        return value
+    try:
+        return enum_type(str(value))
+    except ValueError as exc:
+        allowed = ", ".join(item.value for item in enum_type)
+        raise ValueError(f"unknown {field_name} {value!r}; expected one of: {allowed}") from exc
 
 
 def _require_ratio(value: object, field_name: str) -> None:
