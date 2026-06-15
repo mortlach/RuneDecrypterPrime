@@ -45,6 +45,8 @@ API-facing code may accept aliases, friendly names, strings, and compatibility s
 ## Tutorial/report output rationalisation started
 
 - `utils.tutorial_report` provides a compact `rdp_tutorial_run_report.v1` payload and deterministic console renderer.
+- `utils.tutorial_benchmark` provides typed tutorial benchmark policies and `rdp_tutorial_benchmark_summary.v1` summaries for readability/target/work/time reporting.
+- Tutorial truth thresholds are explicitly labelled by `TutorialTruthPolicy`; they are allowed for tutorials and benchmarks but are not ciphertext-only solver claims.
 - ScheduledStreamLookup real tutorials now request `return_solver_report=True` and print the unified tutorial report.
 - Seeded pipeline smoke remains minimal and requests a solver report only when a report is explicitly printed.
 - This is a first unified output layer; broader tutorial clean-up should continue after D7 validation rather than expanding V1 scope late.
