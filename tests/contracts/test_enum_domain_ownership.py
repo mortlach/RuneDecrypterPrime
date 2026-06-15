@@ -112,7 +112,7 @@ def test_string_enum_inventory_can_be_built_without_parse_errors() -> None:
 
     # The audit should see at least one reused value in the real tree; this keeps the
     # scanner meaningful without failing legitimate overlaps by default.
-    assert any({member.enum_class for member in group} for group in by_value.values())
+    assert any(len({member.enum_class for member in group}) > 1 for group in by_value.values())
 
 
 def test_ledgered_allowed_shared_wire_values_are_well_formed() -> None:
