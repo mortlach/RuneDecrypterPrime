@@ -105,6 +105,12 @@ class TutorialBenchmarkSummary:
         _require_optional_nonnegative_int(self.evals, "evals")
         _require_optional_nonnegative_int(self.tokens, "tokens")
         _require_optional_nonnegative_float(self.wall_time_s, "wall_time_s")
+        _validate_truth_policy_fields(
+            truth_policy=self.truth_policy,
+            match_ratio=self.match_ratio,
+            readable_reached=self.readable_reached,
+            target_reached=self.target_reached,
+        )
 
     def to_json_dict(self) -> dict[str, object]:
         return {
@@ -144,8 +150,7 @@ def build_tutorial_benchmark_summary(
         raise TypeError("stop_policy must be TutorialStopPolicy")
 
     match_ratio = _match_ratio(plaintext_idx, reference_idx)
-    if truth_policy is TutorialTruthPolicy.NONE and match_ratio is not None:
-        raise ValueError("match_ratio requires a tutorial truth policy")
+    _validate_truth_policy_match_ratio(truth_policy=truth_policy, match_ratio=match_ratio)
 
     readable = None if match_ratio is None else match_ratio >= stop_policy.readable_match_ratio
     target = None if match_ratio is None else match_ratio >= stop_policy.target_match_ratio
@@ -246,6 +251,32 @@ def _int_list(value: Sequence[int] | None) -> list[int] | None:
     except Exception:
         return None
     return out if out else None
+
+
+def _validate_truth_policy_match_ratio(
+    *,
+    truth_policy: TutorialTruthPolicy,
+    match_ratio: float | None,
+) -> None:
+    if truth_policy is TutorialTruthPolicy.NONE and match_ratio is not None:
+        raise ValueError("match_ratio requires a tutorial truth policy")
+    if truth_policy is not TutorialTruthPolicy.NONE and match_ratio is None:
+        raise ValueError("tutorial truth policy requires plaintext_idx and reference_idx to compute match_ratio")
+
+
+def _validate_truth_policy_fields(
+    *,
+    truth_policy: TutorialTruthPolicy,
+    match_ratio: float | None,
+    readable_reached: bool | None,
+    target_reached: bool | None,
+) -> None:
+    _validate_truth_policy_match_ratio(truth_policy=truth_policy, match_ratio=match_ratio)
+    if truth_policy is not TutorialTruthPolicy.NONE:
+        if readable_reached is None:
+            raise ValueError("tutorial truth policy requires readable_reached")
+        if target_reached is None:
+            raise ValueError("tutorial truth policy requires target_reached")
 
 
 def _require_enum(value: object, enum_type: type[StrEnum], field_name: str) -> None:
