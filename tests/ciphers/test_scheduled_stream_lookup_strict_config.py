@@ -9,6 +9,8 @@ from rune_decrypter_prime.ciphers.scheduled_stream_lookup_cipher import (
     validate_streams_v1,
 )
 
+pytestmark = pytest.mark.tier_a
+
 
 def test_rejects_bad_stream_kind_direction_anchor_and_advance() -> None:
     with pytest.raises(ValueError, match="unknown stream kind"):
