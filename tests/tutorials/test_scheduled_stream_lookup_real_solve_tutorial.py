@@ -21,8 +21,8 @@ def test_real_solve_tutorials_are_manifested_for_release_runner_profiles() -> No
     }
 
     expected_profiles = {
+        "Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py": "v1_release",
         "Tutorial_ScheduledStreamLookup_RealSolve_P13Primes.py": "v1_extended",
-        "Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py": "v1_extended",
         "Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py": "v1_showcase_near_solve",
     }
     for path, gate in expected_profiles.items():
@@ -31,3 +31,8 @@ def test_real_solve_tutorials_are_manifested_for_release_runner_profiles() -> No
         assert entry["required_asset_profile"] == "lm2_baseline"
         assert entry["acceptance_kind"] in {"min_match_ratio", "near_solve_min_match"}
         assert (ROOT / "tutorials" / "v1" / path).is_file()
+
+    release_entry = entries["Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py"]
+    assert release_entry["acceptance_kind"] == "min_match_ratio"
+    assert release_entry["min_match_ratio"] == 1.0
+    assert release_entry["supplies_true_key_to_solver"] is False
