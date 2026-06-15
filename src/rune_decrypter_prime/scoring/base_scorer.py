@@ -80,6 +80,27 @@ class BaseScorer(ABC):
     This base intentionally stays light; concrete scorers own the math.
     """
 
+    _SPAN_ENUM_FIELD_ENSURERS = {
+        "_span_hamming_mode": "ensure_span_hamming_mode",
+        "_span_hamming_bucket_policy": "ensure_span_hamming_bucket_policy",
+        "_span_hamming_combine_mode": "ensure_span_hamming_combine_mode",
+        "_span_hamming_gate_fail_policy": "ensure_span_hamming_gate_fail_policy",
+        "_span_hamming_lm_profile_source": "ensure_span_hamming_lm_profile_source",
+        "_hamming_direction_mode": "ensure_hamming_direction_mode",
+    }
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Keep enum-backed scorer fields canonical even in tests that bypass __init__."""
+        ensure_name = self._SPAN_ENUM_FIELD_ENSURERS.get(name)
+        if ensure_name is not None and value is not None:
+            from rune_decrypter_prime.core import config as _core_config
+
+            scoring_config = getattr(_core_config, "scoring", None)
+            if scoring_config is None:
+                from rune_decrypter_prime.core.config import scoring as scoring_config
+            value = getattr(scoring_config, ensure_name)(value)
+        object.__setattr__(self, name, value)
+
     @abstractmethod
     def score(self, plaintext: Iterable[int], wli_windows: Any | None = None) -> float:  # pragma: no cover
         raise NotImplementedError
