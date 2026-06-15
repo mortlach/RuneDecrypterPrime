@@ -85,9 +85,17 @@ This means the release/extended/showcase ScheduledStreamLookup real tutorials em
 
 The tutorial runner now parses both older `Match ratio: ...` output and unified report `match_ratio : ...` output.
 
+The tutorial runner keeps IDE-editable defaults but also accepts environment overrides for review/CI runs:
+
+```bash
+GATE_PROFILE=full_v1 python tutorials/v1/run_all.py
+ASSET_PROFILE=lm3_extended python tutorials/v1/run_all.py
+```
+
 ## Tests added/updated
 
 - `tests/contracts/test_v1_tutorial_manifest_contract.py`
+- `tests/contracts/test_v1_tutorial_runner_config_contract.py`
 - `tests/tutorials/test_scheduled_stream_lookup_real_solve_tutorial.py`
 - `tests/tutorials/test_scheduled_stream_lookup_tutorial.py`
 
@@ -101,6 +109,7 @@ These cover:
 - known-broken entries are not selected by release/full_v1
 - runner parses unified `match_ratio` output
 - ScheduledStreamLookup real tutorials emit through the session benchmark report path
+- gate/asset environment overrides are explicit and invalid boolean overrides fail loudly
 
 ## Validation evidence so far
 
@@ -117,9 +126,8 @@ The skipped tests were expected environment/asset skips, including optional Torc
 Run before claiming closure:
 
 ```bash
-python tutorials/v1/run_all.py
+GATE_PROFILE=release python tutorials/v1/run_all.py
+GATE_PROFILE=full_v1 python tutorials/v1/run_all.py
 ```
-
-with `GATE_PROFILE = "release"`, then with `GATE_PROFILE = "full_v1"`.
 
 Record the release gate output and full_v1 gate output after the final branch head is fixed.
