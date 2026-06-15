@@ -13,7 +13,7 @@ tests/ciphers/test_scheduled_stream_lookup_degeneracy_policy.py,implemented,Adde
 experimental/tests/scoring/test_retained_state_plaintext_rescore.py,not_v1_production,Experimental branch/path is not part of V1 release tree; covered by report-only boundary tests in V1.
 tests/api/test_artifact_agreement.py,implemented,Existing public artifact portability agreement gate.
 tests/api/test_no_legacy_solve_alias.py,implemented,Added in D7 retained/deprecate-only solve alias boundary.
-tests/contracts/test_asset_registry_contract.py,pending_no_source_module,No concrete asset-registry source module exists in this branch under the expected contract name.
+tests/contracts/test_asset_registry_contract.py,implemented,Added in D7 as thin contract over LM root/index helpers plus ECDFCache status methods.
 tests/core/test_capability_gates.py,implemented,Existing core capability-gate test covers helper semantics; do not add duplicate basename under tests/contracts.
 tests/contracts/test_component_contracts.py,implemented,Existing typed component/lane contract tests.
 tests/contracts/test_no_raw_string_core_labels.py,implemented,Added in D7 API-string-to-core-enum and raw-label rejection gate.
@@ -22,8 +22,8 @@ tests/contracts/test_oracle_truth_separation_contract.py,implemented,Added in D7
 tests/contracts/test_scorer_registry_contract.py,implemented,Added in D7 stable scorer-lane registry/BaseScorer interface gate.
 tests/contracts/test_source_decision_ledger_completeness.py,implemented,Added in D7 source decision completeness gate.
 tests/core/test_no_dead_config_shim_imports.py,implemented,Added in D7 split-config package/dead-shim cleanup gate.
-tests/scoring/language_model/test_ecdf_status_reporting.py,pending_no_source_module,No concrete language-model asset-status helper exists yet; do not fake coverage.
-tests/scoring/language_model/test_lm_asset_status.py,pending_no_source_module,No concrete language-model asset-status helper exists yet; do not fake coverage.
+tests/scoring/language_model/test_ecdf_status_reporting.py,implemented,Added in D7 against ECDFCache validation/status methods with temp ECDF assets.
+tests/scoring/language_model/test_lm_asset_status.py,implemented,Added in D7 against resolve_lm_root/load_index structured path/index handling.
 tests/scoring/test_report_only_sections_have_no_rank_effect.py,implemented,Added in D7 report-only scorer lane no-rank-effect gate.
 tests/scoring/test_scorer_lane_status_report.py,implemented,Added in D7 scorer-lane status report gate.
 tests/scoring/test_scorer_report_lane_sections.py,implemented,Added in D7 scorer report-section JSON portability gate.
