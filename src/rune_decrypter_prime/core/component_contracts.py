@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 
 
-class ComponentKind(Enum):
+class ComponentKind(StrEnum):
     SCORER_LANE = "scorer_lane"
     SCORER_RUNTIME = "scorer_runtime"
     CIPHER = "cipher"
@@ -14,7 +14,7 @@ class ComponentKind(Enum):
     ARTIFACT = "artifact"
 
 
-class V1Status(Enum):
+class V1Status(StrEnum):
     V1_CORE = "v1_core"
     V1_OPTIONAL = "v1_optional"
     EXPERIMENTAL_REPORT_ONLY = "experimental_report_only"
@@ -24,19 +24,19 @@ class V1Status(Enum):
     REMOVED = "removed"
 
 
-class RankEffect(Enum):
+class RankEffect(StrEnum):
     PRODUCTION = "production"
     REPORT_ONLY = "report_only"
     NONE = "none"
 
 
-class RequestState(Enum):
+class RequestState(StrEnum):
     NOT_REQUESTED = "not_requested"
     REQUESTED = "requested"
     REQUIRED = "required"
 
 
-class EffectiveState(Enum):
+class EffectiveState(StrEnum):
     INACTIVE = "inactive"
     ACTIVE = "active"
     BLOCKED = "blocked"
@@ -44,7 +44,7 @@ class EffectiveState(Enum):
     REPORT_ONLY = "report_only"
 
 
-class CapabilityStatus(Enum):
+class CapabilityStatus(StrEnum):
     AVAILABLE = "available"
     UNAVAILABLE = "unavailable"
     ASSET_MISSING = "asset_missing"
@@ -54,14 +54,14 @@ class CapabilityStatus(Enum):
     MISCONFIGURED = "misconfigured"
 
 
-class FallbackPolicy(Enum):
+class FallbackPolicy(StrEnum):
     BLOCK = "block"
     EXPLICIT_REPORTED_FALLBACK = "explicit_reported_fallback"
     REPORT_ONLY = "report_only"
     DISABLED = "disabled"
 
 
-class ScorerLaneName(Enum):
+class ScorerLaneName(StrEnum):
     LM_CHAR_WLI = "lm_char_wli"
     HAMMING = "hamming"
     SPAN_HAMMING_RAW = "span_hamming_raw"
