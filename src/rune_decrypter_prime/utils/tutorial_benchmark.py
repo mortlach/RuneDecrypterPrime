@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -56,7 +57,7 @@ class TutorialStopPolicy:
         _require_ratio(self.target_match_ratio, "target_match_ratio")
         if self.target_match_ratio < self.readable_match_ratio:
             raise ValueError("target_match_ratio must be >= readable_match_ratio")
-        _require_optional_nonnegative_float(self.stop_score, "stop_score")
+        _require_optional_finite_float(self.stop_score, "stop_score")
         _require_optional_positive_int(self.max_evals, "max_evals")
         _require_optional_positive_int(self.max_tokens, "max_tokens")
         _require_optional_nonnegative_float(self.max_seconds, "max_seconds")
@@ -100,7 +101,7 @@ class TutorialBenchmarkSummary:
         _require_optional_bool(self.readable_reached, "readable_reached")
         _require_optional_bool(self.target_reached, "target_reached")
         _require_optional_ratio(self.match_ratio, "match_ratio")
-        _require_optional_nonnegative_float(self.score, "score")
+        _require_optional_finite_float(self.score, "score")
         _require_optional_nonnegative_int(self.evals, "evals")
         _require_optional_nonnegative_int(self.tokens, "tokens")
         _require_optional_nonnegative_float(self.wall_time_s, "wall_time_s")
@@ -256,6 +257,8 @@ def _require_ratio(value: object, field_name: str) -> None:
     if isinstance(value, bool) or not isinstance(value, Real):
         raise TypeError(f"{field_name} must be a float ratio")
     item = float(value)
+    if not math.isfinite(item):
+        raise ValueError(f"{field_name} must be finite")
     if not 0.0 <= item <= 1.0:
         raise ValueError(f"{field_name} must be between 0 and 1")
 
@@ -273,7 +276,7 @@ def _require_optional_bool(value: object, field_name: str) -> None:
 def _optional_float(value: float | None) -> float | None:
     if value is None:
         return None
-    _require_optional_nonnegative_float(value, "value")
+    _require_optional_finite_float(value, "value")
     return float(value)
 
 
@@ -284,12 +287,18 @@ def _optional_int(value: int | None) -> int | None:
     return int(value)
 
 
-def _require_optional_nonnegative_float(value: object, field_name: str) -> None:
+def _require_optional_finite_float(value: object, field_name: str) -> None:
     if value is None:
         return
     if isinstance(value, bool) or not isinstance(value, Real):
-        raise TypeError(f"{field_name} must be a non-negative float or None")
-    if float(value) < 0.0:
+        raise TypeError(f"{field_name} must be a finite float or None")
+    if not math.isfinite(float(value)):
+        raise ValueError(f"{field_name} must be finite")
+
+
+def _require_optional_nonnegative_float(value: object, field_name: str) -> None:
+    _require_optional_finite_float(value, field_name)
+    if value is not None and float(value) < 0.0:
         raise ValueError(f"{field_name} must be >= 0")
 
 
