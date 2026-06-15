@@ -56,6 +56,13 @@ def _safe_int(value: Any) -> int | None:
     return item if item >= 0 else None
 
 
+def _first_present(*values: Any) -> Any:
+    for value in values:
+        if value is not None:
+            return value
+    return None
+
+
 def _preview_text(value: Any, limit: int) -> str:
     text = "" if value is None else str(value)
     return text if len(text) <= limit else text[: max(0, limit - 1)] + "…"
@@ -127,19 +134,23 @@ def build_tutorial_run_report(
     recovered = bool(match_ok) if match_ok is not None else (None if ratio is None else ratio >= 0.97)
 
     solver_section = {
-        "name": report.get("solver_name") or _as_dict(meta.get("solver")).get("name"),
-        "stop_reason": report.get("stop_reason") or getattr(solution, "stop_reason", None),
-        "score": _safe_float(report.get("best_score", getattr(solution, "score", None))),
-        "step": _safe_int(report.get("step", getattr(solution, "step", None))),
-        "evals": _safe_int(report.get("evals", getattr(solution, "evals", None))),
+        "name": _first_present(report.get("solver_name"), _as_dict(meta.get("solver")).get("name")),
+        "stop_reason": _first_present(report.get("stop_reason"), getattr(solution, "stop_reason", None)),
+        "score": _safe_float(_first_present(report.get("best_score"), getattr(solution, "score", None))),
+        "step": _safe_int(_first_present(report.get("step"), getattr(solution, "step", None))),
+        "evals": _safe_int(_first_present(report.get("evals"), getattr(solution, "evals", None))),
         "tokens_processed": _safe_int(
-            report.get("tokens_processed", getattr(solution, "tokens_processed", None))
+            _first_present(report.get("tokens_processed"), getattr(solution, "tokens_processed", None))
         ),
     }
     solver_section = {key: value for key, value in solver_section.items() if value is not None}
 
     timings = _compact_mapping(
-        report,
+        {
+            "wall_time_s": _first_present(report.get("wall_time_s"), getattr(solution, "wall_time_s", None)),
+            "decrypt_time_s": _first_present(report.get("decrypt_time_s"), getattr(solution, "decrypt_time_s", None)),
+            "score_time_s": _first_present(report.get("score_time_s"), getattr(solution, "score_time_s", None)),
+        },
         ("wall_time_s", "decrypt_time_s", "score_time_s"),
     )
 
