@@ -7,6 +7,8 @@ import pytest
 
 from rune_decrypter_prime.ciphers.scheduled_stream_lookup_cipher import ScheduledStreamLookupCipher
 
+pytestmark = pytest.mark.tier_a
+
 
 def _cipher(**kwargs) -> ScheduledStreamLookupCipher:
     return ScheduledStreamLookupCipher(SimpleNamespace(**kwargs))
