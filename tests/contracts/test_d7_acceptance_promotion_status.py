@@ -9,12 +9,26 @@ CONTRACT_ROOT = REPO_ROOT / "docs" / "release_contracts" / "v1"
 STATUS_CSV = CONTRACT_ROOT / "d7_acceptance_test_promotion_status.csv"
 CLOSURE_CHECKLIST = CONTRACT_ROOT / "D7_CLOSURE_CHECKLIST.md"
 ALLOWED_STATUS = {"implemented", "not_v1_production"}
+REQUIRED_RELEASE_CONTRACT_FILES = {
+    "final_source_to_wp_decision_target_test_chain.csv",
+    "final_missing_or_new_acceptance_tests.csv",
+    "v1_scope_lock.json",
+    "D7_CLEANUP_DEPRECATION_POLICY.md",
+    "v1_cleanup_deprecation_ledger.json",
+    "d7_acceptance_test_promotion_status.csv",
+    "D7_CLOSURE_CHECKLIST.md",
+}
 
 
 def _rows() -> list[dict[str, str]]:
     assert STATUS_CSV.is_file(), "missing D7 acceptance promotion status CSV"
     with STATUS_CSV.open("r", encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def test_d7_release_contract_evidence_files_exist() -> None:
+    missing = sorted(name for name in REQUIRED_RELEASE_CONTRACT_FILES if not (CONTRACT_ROOT / name).is_file())
+    assert not missing, f"missing D7 release-contract evidence files: {missing}"
 
 
 def test_d7_acceptance_promotion_status_has_no_silent_pending_rows() -> None:
