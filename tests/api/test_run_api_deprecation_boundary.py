@@ -13,7 +13,7 @@ LEDGER = REPO_ROOT / "docs" / "release_contracts" / "v1" / "v1_cleanup_deprecati
 def test_run_api_solve_alias_is_retained_for_v1_boundary() -> None:
     assert hasattr(RunAPI, "run")
     assert hasattr(RunAPI, "solve")
-    assert RunAPI.solve is RunAPI.run
+    assert RunAPI.__dict__["solve"] is RunAPI.__dict__["run"]
 
 
 def test_run_api_solve_alias_cleanup_requires_ledger_update() -> None:
