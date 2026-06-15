@@ -5,7 +5,7 @@ from typing import Any
 
 from rune_decrypter_prime.core.capability_gates import raise_if_requested_lane_blocked
 from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig, SpanHammingMode
 from rune_decrypter_prime.core.types import Device, ScorerImpl, ensure_device, ensure_scorer_impl
 from rune_decrypter_prime.backends.xp import select_backend
 from rune_decrypter_prime.ciphers import registry as cipher_registry
@@ -21,6 +21,17 @@ def _require_scoring_config(s_cfg: ScoringConfig) -> ScoringConfig:
     if not isinstance(s_cfg, ScoringConfig):
         raise TypeError(f"s_cfg must be ScoringConfig, got {type(s_cfg).__name__}")
     return s_cfg
+
+
+def _ensure_runtime_span_hamming_mode(value: Any) -> SpanHammingMode:
+    if isinstance(value, SpanHammingMode):
+        return value
+    text = SpanHammingMode.OFF.value if value is None else str(value).strip().lower()
+    try:
+        return SpanHammingMode(text)
+    except ValueError as exc:
+        allowed = ", ".join(item.value for item in SpanHammingMode)
+        raise ValueError(f"runtime span_hamming_mode must be one of: {allowed}") from exc
 
 
 def build_cipher(cfg_cipher: CipherConfig) -> Any:
@@ -71,12 +82,16 @@ def _attach_scorer_capability_report(scorer: Any, s_cfg: ScoringConfig) -> Any:
         from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
 
         span_hamming_backend = getattr(target, "_span_hamming_backend", None)
-        span_hamming_mode = str(getattr(target, "_span_hamming_mode", "off") or "off").strip().lower()
+        span_hamming_mode = _ensure_runtime_span_hamming_mode(
+            getattr(target, "_span_hamming_mode", SpanHammingMode.OFF)
+        )
         report = build_scorer_lane_report(
             s_cfg,
             hamming_backend=getattr(target, "_hamming_backend", None),
             hamming_issue=getattr(target, "_hamming_issue", None),
-            span_hamming_backend=span_hamming_backend if span_hamming_mode == "raw_bonus" else None,
+            span_hamming_backend=(
+                span_hamming_backend if span_hamming_mode is SpanHammingMode.RAW_BONUS else None
+            ),
             span_hamming_issue=getattr(target, "_span_hamming_issue", None),
             calibrated_assets=getattr(target, "_span_hamming_assets", None),
             calibrated_issue=getattr(target, "_calibrated_issue", None),
