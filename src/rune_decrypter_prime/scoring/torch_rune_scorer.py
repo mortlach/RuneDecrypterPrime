@@ -58,6 +58,20 @@ from rune_decrypter_prime.core.types import (
     ensure_avg_window_policy,
 )
 from rune_decrypter_prime.scoring.word_ngrams import RuneTokenWordNgramJudgeRuntime
+from rune_decrypter_prime.core.config.scoring import (
+    HammingDirectionMode,
+    SpanHammingBucketPolicy,
+    SpanHammingCombineMode,
+    SpanHammingGateFailPolicy,
+    SpanHammingLmProfileSource,
+    SpanHammingMode,
+    ensure_hamming_direction_mode,
+    ensure_span_hamming_bucket_policy,
+    ensure_span_hamming_combine_mode,
+    ensure_span_hamming_gate_fail_policy,
+    ensure_span_hamming_lm_profile_source,
+    ensure_span_hamming_mode,
+)
 
 # --------------------------- small utils ---------------------------
 
@@ -361,7 +375,9 @@ class RuneScorerTorch(BaseScorer):
         self._hamming_ramp_start: float = float(_cfg_get(scorer_cfg, "hamming_ramp_start_frac", 0.2) or 0.0)
         self._hamming_ramp_end: float = float(_cfg_get(scorer_cfg, "hamming_ramp_end_frac", 0.7) or 1.0)
         self._hamming_max_hd: int = int(_cfg_get(scorer_cfg, "hamming_max_hd", 2 ** 31 - 1))
-        self._hamming_direction_mode: str = str(_cfg_get(scorer_cfg, "hamming_direction_mode", "match") or "match").lower()
+        self._hamming_direction_mode: HammingDirectionMode = ensure_hamming_direction_mode(
+            _cfg_get(scorer_cfg, "hamming_direction_mode", HammingDirectionMode.MATCH)
+        )
         self._hamming_enabled: bool = bool(_cfg_get(scorer_cfg, "hamming_enabled", False) or self._hamming_weight != 0.0)
         self._hamming_dictionary_policy = _cfg_get(scorer_cfg, "hamming_dictionary_policy", None)
         self._hamming_dictionary_policy_root = _cfg_get(scorer_cfg, "hamming_dictionary_policy_root", None)
@@ -408,13 +424,13 @@ class RuneScorerTorch(BaseScorer):
         # Optional span-hamming backend (pure Python dictionary span matcher)
         self._span_hamming_backend = None
         self._span_hamming_assets = None
-        self._span_hamming_mode = str(_cfg_get(scorer_cfg, "span_hamming_mode", "off") or "off").strip().lower()
-        if self._span_hamming_mode not in {"off", "raw_bonus", "calibrated"}:
-            raise ValueError("span_hamming_mode must be one of: off, raw_bonus, calibrated")
+        self._span_hamming_mode: SpanHammingMode = ensure_span_hamming_mode(
+            _cfg_get(scorer_cfg, "span_hamming_mode", SpanHammingMode.OFF)
+        )
         self._span_hamming_weight = float(_cfg_get(scorer_cfg, "span_hamming_weight", 0.0) or 0.0)
         legacy_enabled = bool(_cfg_get(scorer_cfg, "span_hamming_enabled", False) or self._span_hamming_weight != 0.0)
-        if self._span_hamming_mode == "off" and legacy_enabled:
-            self._span_hamming_mode = "raw_bonus"
+        if self._span_hamming_mode is SpanHammingMode.OFF and legacy_enabled:
+            self._span_hamming_mode = SpanHammingMode.RAW_BONUS
         self._span_hamming_assets_dir = _cfg_get(scorer_cfg, "span_hamming_assets_dir", None)
         self._span_hamming_assets_dictionary_policy = _cfg_get(
             scorer_cfg, "span_hamming_assets_dictionary_policy", None
@@ -426,9 +442,9 @@ class RuneScorerTorch(BaseScorer):
         self._span_hamming_dictionary_policy = None
         self._span_hamming_dictionary_policy_match = None
         self._span_hamming_dictionary_policy_note = None
-        self._span_hamming_bucket_policy = str(
-            _cfg_get(scorer_cfg, "span_hamming_bucket_policy", "nearest_smaller_tie") or "nearest_smaller_tie"
-        ).strip().lower()
+        self._span_hamming_bucket_policy: SpanHammingBucketPolicy = ensure_span_hamming_bucket_policy(
+            _cfg_get(scorer_cfg, "span_hamming_bucket_policy", SpanHammingBucketPolicy.NEAREST_SMALLER_TIE)
+        )
         self._span_hamming_ecdf_clamp_min = _cfg_get(scorer_cfg, "span_hamming_ecdf_clamp_min", None)
         self._span_hamming_ecdf_clamp_max = _cfg_get(scorer_cfg, "span_hamming_ecdf_clamp_max", None)
         if self._span_hamming_ecdf_clamp_min is None:
@@ -447,25 +463,23 @@ class RuneScorerTorch(BaseScorer):
         self._span_hamming_char_pct_min = _cfg_get(scorer_cfg, "span_hamming_char_pct_min", None)
         if self._span_hamming_char_pct_min is not None:
             self._span_hamming_char_pct_min = float(self._span_hamming_char_pct_min)
-        self._span_hamming_combine_mode = str(
-            _cfg_get(scorer_cfg, "span_hamming_combine_mode", "min") or "min"
-        ).strip().lower()
-        if self._span_hamming_combine_mode not in {"min", "weighted_sum"}:
-            raise ValueError("span_hamming_combine_mode must be one of: min, weighted_sum")
+        self._span_hamming_combine_mode: SpanHammingCombineMode = ensure_span_hamming_combine_mode(
+            _cfg_get(scorer_cfg, "span_hamming_combine_mode", SpanHammingCombineMode.MIN)
+        )
         self._span_hamming_weight_span = float(_cfg_get(scorer_cfg, "span_hamming_weight_span", 1.0) or 0.0)
         self._span_hamming_weight_char = float(_cfg_get(scorer_cfg, "span_hamming_weight_char", 0.0) or 0.0)
         self._span_hamming_use_char_channel = False
-        self._span_hamming_gate_fail_policy = str(
-            _cfg_get(scorer_cfg, "span_hamming_gate_fail_policy", "score_floor") or "score_floor"
-        ).strip().lower()
+        self._span_hamming_gate_fail_policy: SpanHammingGateFailPolicy = ensure_span_hamming_gate_fail_policy(
+            _cfg_get(scorer_cfg, "span_hamming_gate_fail_policy", SpanHammingGateFailPolicy.SCORE_FLOOR)
+        )
         self._span_hamming_gate_score_floor = _cfg_get(scorer_cfg, "span_hamming_gate_score_floor", None)
         if self._span_hamming_gate_score_floor is not None:
             self._span_hamming_gate_score_floor = float(self._span_hamming_gate_score_floor)
         self._span_hamming_lm_assets = None
         self._span_hamming_lm_assets_json = _cfg_get(scorer_cfg, "span_hamming_lm_assets_json", None)
-        self._span_hamming_lm_profile_source = str(
-            _cfg_get(scorer_cfg, "span_hamming_lm_profile_source", "span_raw_by_len") or "span_raw_by_len"
-        ).strip()
+        self._span_hamming_lm_profile_source: SpanHammingLmProfileSource = ensure_span_hamming_lm_profile_source(
+            _cfg_get(scorer_cfg, "span_hamming_lm_profile_source", SpanHammingLmProfileSource.SPAN_RAW_BY_LEN)
+        )
         self._span_hamming_lm_tail_start_index = int(
             _cfg_get(scorer_cfg, "span_hamming_lm_tail_start_index", 5) or 0
         )
@@ -493,11 +507,9 @@ class RuneScorerTorch(BaseScorer):
             )
         if not (0.0 < self._span_hamming_ecdf_clamp_min < self._span_hamming_ecdf_clamp_max < 1.0):
             raise ValueError("span_hamming_ecdf_clamp_min/max must satisfy 0 < min < max < 1")
-        if self._span_hamming_bucket_policy != "nearest_smaller_tie":
+        if self._span_hamming_bucket_policy is not SpanHammingBucketPolicy.NEAREST_SMALLER_TIE:
             raise ValueError("span_hamming_bucket_policy currently only supports 'nearest_smaller_tie'")
-        if self._span_hamming_gate_fail_policy not in {"score_floor", "char_only"}:
-            raise ValueError("span_hamming_gate_fail_policy must be one of: score_floor, char_only")
-        self._span_hamming_enabled = (self._span_hamming_mode != "off")
+        self._span_hamming_enabled = (self._span_hamming_mode is not SpanHammingMode.OFF)
         if self._span_hamming_enabled:
             try:
                 from rune_decrypter_prime.core.hamming_dictionary_policy import ensure_hamming_dictionary_policy
@@ -552,7 +564,7 @@ class RuneScorerTorch(BaseScorer):
                     wordlist_dir=wl_dir,
                     require_selected=require_selected,
                 )
-                if self._span_hamming_mode == "calibrated":
+                if self._span_hamming_mode is SpanHammingMode.CALIBRATED:
                     from rune_decrypter_prime.core.types import ObjectiveFamily
                     fam = getattr(self.objective, "family", None)
                     if fam not in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
@@ -622,7 +634,7 @@ class RuneScorerTorch(BaseScorer):
                         )
                     if self._span_hamming_weight_span < 0.0 or self._span_hamming_weight_char < 0.0:
                         raise ValueError("span_hamming_weight_span/char must be >= 0")
-                    if self._span_hamming_combine_mode == "weighted_sum":
+                    if self._span_hamming_combine_mode is SpanHammingCombineMode.WEIGHTED_SUM:
                         w_span = float(self._span_hamming_weight_span)
                         w_char = float(self._span_hamming_weight_char if self._span_hamming_use_char_channel else 0.0)
                         if (w_span + w_char) <= 0.0:
@@ -638,13 +650,13 @@ class RuneScorerTorch(BaseScorer):
                         else:
                             self._span_hamming_gate_score_floor = float(self._span_hamming_ecdf_clamp_min)
             except Exception:
-                if self._span_hamming_mode == "calibrated":
+                if self._span_hamming_mode is SpanHammingMode.CALIBRATED:
                     raise
                 self._span_hamming_backend = None
         self._telemetry["span_hamming_enabled"] = bool(
             self._span_hamming_backend is not None and (
-                (self._span_hamming_mode == "raw_bonus" and self._span_hamming_weight != 0.0)
-                or self._span_hamming_mode == "calibrated"
+                (self._span_hamming_mode is SpanHammingMode.RAW_BONUS and self._span_hamming_weight != 0.0)
+                or self._span_hamming_mode is SpanHammingMode.CALIBRATED
             )
         )
         self._telemetry["span_hamming_wordlist_dir"] = (
@@ -653,7 +665,7 @@ class RuneScorerTorch(BaseScorer):
             else None
         )
         self._telemetry["span_hamming_dictionary_policy"] = self._span_hamming_dictionary_policy
-        self._telemetry["span_hamming_mode"] = self._span_hamming_mode
+        self._telemetry["span_hamming_mode"] = self._span_hamming_mode.value
         self._telemetry["span_hamming_assets_dir"] = (
             str(self._span_hamming_assets_dir) if self._span_hamming_assets_dir is not None else None
         )
@@ -668,13 +680,13 @@ class RuneScorerTorch(BaseScorer):
         self._telemetry["word_ngram_judge_min_positions"] = int(self._word_ngram_judge_min_positions)
         self._telemetry["word_ngram_judge_prefix_total_thresholds"] = tuple(self._word_ngram_judge_prefix_total_thresholds)
         self._telemetry["word_ngram_judge_forced_debug_intervals"] = bool(self._word_ngram_judge_forced_debug_intervals)
-        self._telemetry["span_hamming_combine_mode"] = self._span_hamming_combine_mode
+        self._telemetry["span_hamming_combine_mode"] = self._span_hamming_combine_mode.value
         self._telemetry["span_hamming_weight_span"] = float(self._span_hamming_weight_span)
         self._telemetry["span_hamming_weight_char"] = float(self._span_hamming_weight_char)
         self._telemetry["span_hamming_use_char_channel"] = bool(self._span_hamming_use_char_channel)
         self._telemetry["span_hamming_ecdf_clamp_min"] = float(self._span_hamming_ecdf_clamp_min)
         self._telemetry["span_hamming_ecdf_clamp_max"] = float(self._span_hamming_ecdf_clamp_max)
-        self._telemetry["span_hamming_bucket_policy"] = self._span_hamming_bucket_policy
+        self._telemetry["span_hamming_bucket_policy"] = self._span_hamming_bucket_policy.value
         self._telemetry["span_hamming_eval_total"] = 0
         self._telemetry["span_hamming_eval_active"] = 0
         self._telemetry["span_hamming_eval_skipped_char_gate"] = 0
@@ -950,7 +962,7 @@ class RuneScorerTorch(BaseScorer):
                             pt_b[i].tolist(),
                             wli_b[i].tolist(),
                             direction=self.direction,
-                            mode=self._hamming_direction_mode,
+                            mode=self._hamming_direction_mode.value,
                         )
                         totals.append(float(stats.get("total_hd", 0.0)))
                         avgs.append(float(stats.get("avg_hd_word", stats.get("total_hd", 0.0))))
@@ -1134,7 +1146,7 @@ class RuneScorerTorch(BaseScorer):
                         pt_b[i].tolist(),
                         wli_b[i].tolist(),
                         direction=self.direction,
-                        mode=self._hamming_direction_mode,
+                        mode=self._hamming_direction_mode.value,
                     )
                     totals.append(float(stats.get("total_hd", 0.0)))
                     avgs.append(float(stats.get("avg_hd_word", stats.get("total_hd", 0.0))))
@@ -1433,7 +1445,7 @@ class RuneScorerTorch(BaseScorer):
                         pt_b[i].tolist(),
                         wli_b[i].tolist(),
                         direction=self.direction,
-                        mode=self._hamming_direction_mode,
+                        mode=self._hamming_direction_mode.value,
                     )
                     totals.append(float(stats.get("total_hd", 0.0)))
                     avgs.append(float(stats.get("avg_hd_word", stats.get("total_hd", 0.0))))
@@ -1703,7 +1715,7 @@ class RuneScorerTorch(BaseScorer):
                         pt_b[i].tolist(),
                         wli_b[i].tolist(),
                         direction=self.direction,
-                        mode=self._hamming_direction_mode,
+                        mode=self._hamming_direction_mode.value,
                     )
                     totals.append(float(stats.get("total_hd", 0.0)))
                     avgs.append(float(stats.get("avg_hd_word", stats.get("total_hd", 0.0))))
@@ -1839,7 +1851,7 @@ class RuneScorerTorch(BaseScorer):
 
         prev_mode = self._span_hamming_mode
         prev_enabled = self._span_hamming_enabled
-        self._span_hamming_mode = "off"
+        self._span_hamming_mode = SpanHammingMode.OFF
         self._span_hamming_enabled = False
         try:
             base_scores = np.asarray(self._score_batch_impl(pt_b, wli_b), dtype=self._score_dtype)
@@ -1867,7 +1879,9 @@ class RuneScorerTorch(BaseScorer):
         backend = self._span_hamming_backend
         assets = self._span_hamming_assets
         lm_assets = getattr(self, "_span_hamming_lm_assets", None)
-        lm_profile_source = str(getattr(self, "_span_hamming_lm_profile_source", "span_raw_by_len") or "span_raw_by_len")
+        lm_profile_source = getattr(
+            self, "_span_hamming_lm_profile_source", SpanHammingLmProfileSource.SPAN_RAW_BY_LEN
+        ).value
         lm_tail_start_index = int(getattr(self, "_span_hamming_lm_tail_start_index", 0) or 0)
         lm_weight = float(getattr(self, "_span_hamming_lm_weight", 0.0) or 0.0)
         if backend is None or assets is None:
@@ -2031,7 +2045,7 @@ class RuneScorerTorch(BaseScorer):
 
         if char_pct is None:
             combined_pct = span_pct.copy()
-        elif self._span_hamming_combine_mode == "min":
+        elif self._span_hamming_combine_mode is SpanHammingCombineMode.MIN:
             combined_pct = np.minimum(span_pct, char_pct)
         else:
             w_span = float(self._span_hamming_weight_span)
@@ -2093,7 +2107,7 @@ class RuneScorerTorch(BaseScorer):
             score_vec = span_energy_total.copy()
         else:
             score_vec = span_pct_total.copy()
-        gate_policy = str(self._span_hamming_gate_fail_policy)
+        gate_policy = self._span_hamming_gate_fail_policy.value
         if bool(gate_failed.any()):
             score_vec = score_vec.copy()
             if gate_policy == "char_only" and char_score is not None:
@@ -2115,7 +2129,7 @@ class RuneScorerTorch(BaseScorer):
                 "span_energy": float(span_energy[i]),
                 "char_pct": (None if char_pct is None else float(char_pct[i])),
                 "char_score": (None if char_score is None else float(char_score[i])),
-                "combine_mode": str(self._span_hamming_combine_mode),
+                "combine_mode": self._span_hamming_combine_mode.value,
                 "combined_pct": float(combined_pct[i]),
                 "combined_energy": float(combined_energy[i]),
                 "span_energy_base": float(span_energy_base[i]),
@@ -2142,7 +2156,7 @@ class RuneScorerTorch(BaseScorer):
                 "stat.variant": "span_full_text",
                 "stat.mean_per_ngram_penalized": float(span_raw[i]),
                 "span_hamming_mode": "calibrated",
-                "span_hamming_combine_mode": str(self._span_hamming_combine_mode),
+                "span_hamming_combine_mode": self._span_hamming_combine_mode.value,
                 "span_hamming_weight_span": float(self._span_hamming_weight_span),
                 "span_hamming_weight_char": float(self._span_hamming_weight_char),
                 "span_hamming_use_char_channel": bool(self._span_hamming_use_char_channel),
@@ -2258,7 +2272,7 @@ class RuneScorerTorch(BaseScorer):
                 "score_mean_batch": score_vec.astype(score_dtype, copy=False).tolist(),
                 "score_std_batch": [0.0] * B,
                 "span_hamming_mode": "calibrated",
-                "span_hamming_combine_mode": str(self._span_hamming_combine_mode),
+                "span_hamming_combine_mode": self._span_hamming_combine_mode.value,
                 "span_hamming_weight_span": float(self._span_hamming_weight_span),
                 "span_hamming_weight_char": float(self._span_hamming_weight_char),
                 "span_hamming_use_char_channel": bool(self._span_hamming_use_char_channel),
@@ -2344,7 +2358,7 @@ class RuneScorerTorch(BaseScorer):
         return score_vec.astype(score_dtype, copy=False)
 
     def _apply_span_hamming_bonus_batch(self, scores: np.ndarray, pt_b: np.ndarray) -> np.ndarray:
-        if str(getattr(self, "_span_hamming_mode", "off") or "off") != "raw_bonus":
+        if getattr(self, "_span_hamming_mode", SpanHammingMode.OFF) is not SpanHammingMode.RAW_BONUS:
             return scores
         backend = self._span_hamming_backend
         weight = float(self._span_hamming_weight)
@@ -2577,7 +2591,7 @@ class RuneScorerTorch(BaseScorer):
             if (wli_b[..., 0] > 63).any() or (wli_b[..., 1] > 63).any():
                 raise ValueError("WLI entries must be <= 63 for torch scorer")
 
-        if str(getattr(self, "_span_hamming_mode", "off") or "off") == "calibrated":
+        if getattr(self, "_span_hamming_mode", SpanHammingMode.OFF) is SpanHammingMode.CALIBRATED:
             scores = self._score_span_hamming_calibrated_batch(pt_b, wli_b)
         else:
             scores = self._score_batch_impl(pt_b, wli_b)

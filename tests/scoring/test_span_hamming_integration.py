@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig, SpanHammingMode, SpanHammingGateFailPolicy
 from rune_decrypter_prime.core.types import Direction, ObjectiveFamily, ObjectiveSpec, Stat
 from rune_decrypter_prime.scoring import rune_scorer
 from rune_decrypter_prime.scoring.span_hamming.calibrated_assets import SpanCalibratedAssets
@@ -162,7 +162,7 @@ def test_numpy_rune_scorer_applies_span_bonus(monkeypatch):
 
 def test_torch_span_bonus_batch_adjusts_score_and_raw():
     scorer = _make_torch_scorer()
-    scorer._span_hamming_mode = "raw_bonus"
+    scorer._span_hamming_mode = SpanHammingMode.RAW_BONUS
     scorer._span_hamming_backend = _DummySpanBackend(raw=0.2)
     scorer._span_hamming_weight = 1.5
     scorer._score_dtype = np.float64
@@ -198,7 +198,7 @@ def test_torch_calibrated_span_batch_pct_mode(tmp_path: Path):
     scorer._span_hamming_weight_span = 1.0
     scorer._span_hamming_weight_char = 0.0
     scorer._span_hamming_use_char_channel = False
-    scorer._span_hamming_gate_fail_policy = "score_floor"
+    scorer._span_hamming_gate_fail_policy = SpanHammingGateFailPolicy.SCORE_FLOOR
     scorer._span_hamming_gate_score_floor = 0.123
     scorer._last_stats = {}
     scorer._telemetry = {}
@@ -232,7 +232,7 @@ def test_torch_calibrated_span_batch_weighted_sum_and_char_gate(tmp_path: Path):
     scorer._span_hamming_weight_span = 1.0
     scorer._span_hamming_weight_char = 3.0
     scorer._span_hamming_use_char_channel = True
-    scorer._span_hamming_gate_fail_policy = "score_floor"
+    scorer._span_hamming_gate_fail_policy = SpanHammingGateFailPolicy.SCORE_FLOOR
     scorer._span_hamming_gate_score_floor = 0.222
     scorer._last_stats = {}
     scorer._telemetry = {}
