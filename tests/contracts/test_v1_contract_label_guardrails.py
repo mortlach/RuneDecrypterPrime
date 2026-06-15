@@ -8,6 +8,10 @@ SOLVER_REPORT = ROOT / "src" / "rune_decrypter_prime" / "api" / "solver_report.p
 SCORER_REPORT_BUILDER = ROOT / "src" / "rune_decrypter_prime" / "scoring" / "scorer_report_builder.py"
 SCORING_CONFIG = ROOT / "src" / "rune_decrypter_prime" / "core" / "config" / "scoring.py"
 ENGINE_BUILDERS = ROOT / "src" / "rune_decrypter_prime" / "core" / "engine" / "builders.py"
+RUNE_SCORER_WRAPPER = ROOT / "src" / "rune_decrypter_prime" / "scoring" / "rune_scorer.py"
+UNIFIED_RUNE_SCORER = ROOT / "src" / "rune_decrypter_prime" / "scoring" / "unified_rune_scorer.py"
+RUNE_SCORER_IMPL = ROOT / "src" / "rune_decrypter_prime" / "scoring" / "rune_scorer_impl.py"
+TORCH_RUNE_SCORER = ROOT / "src" / "rune_decrypter_prime" / "scoring" / "torch_rune_scorer.py"
 
 
 def test_artifact_classifications_are_enum_owned_not_literal_or_raw_set() -> None:
@@ -48,6 +52,12 @@ def test_d7_scoring_config_modes_are_enum_owned_not_raw_validation_sets() -> Non
     assert "class SpanHammingCombineMode(StrEnum)" in text
     assert "class SpanHammingGateFailPolicy(StrEnum)" in text
     assert "class SpanHammingLmProfileSource(StrEnum)" in text
+    assert "def ensure_hamming_direction_mode" in text
+    assert "def ensure_span_hamming_mode" in text
+    assert "def ensure_span_hamming_bucket_policy" in text
+    assert "def ensure_span_hamming_combine_mode" in text
+    assert "def ensure_span_hamming_gate_fail_policy" in text
+    assert "def ensure_span_hamming_lm_profile_source" in text
     assert "hamming_direction_mode not in" not in text
     assert "span_hamming_mode not in" not in text
     assert "span_hamming_combine_mode not in" not in text
@@ -80,11 +90,22 @@ def test_d7_solver_report_does_not_reuse_oracle_use_for_route_or_param_domains()
     assert "OracleUse.TEST_KEY.value in normalized_params" not in text
 
 
-def test_d7_capability_builder_does_not_drop_enum_backed_runtime_span_mode() -> None:
-    text = ENGINE_BUILDERS.read_text(encoding="utf-8")
+def test_d7_capability_helpers_do_not_drop_enum_backed_runtime_span_mode() -> None:
+    for path in (ENGINE_BUILDERS, RUNE_SCORER_WRAPPER, UNIFIED_RUNE_SCORER):
+        text = path.read_text(encoding="utf-8")
 
-    assert "from rune_decrypter_prime.core.config.scoring import ScoringConfig, SpanHammingMode" in text
-    assert "def _ensure_runtime_span_hamming_mode" in text
-    assert "SpanHammingMode.RAW_BONUS" in text
-    assert 'span_hamming_mode == "raw_bonus"' not in text
-    assert 'str(getattr(target, "_span_hamming_mode"' not in text
+        assert "SpanHammingMode" in text
+        assert "ensure_span_hamming_mode" in text or "def _ensure_runtime_span_hamming_mode" in text
+        assert "SpanHammingMode.RAW_BONUS" in text
+        assert 'span_hamming_mode == "raw_bonus"' not in text
+        assert 'str(getattr(self._backend, "_span_hamming_mode"' not in text
+        assert 'str(getattr(target, "_span_hamming_mode"' not in text
+
+
+def test_d7_large_backend_runtime_enum_overlay_remains_explicit_until_applied() -> None:
+    for path in (RUNE_SCORER_IMPL, TORCH_RUNE_SCORER):
+        text = path.read_text(encoding="utf-8")
+
+        assert "_span_hamming_mode = str" in text
+        assert "_span_hamming_combine_mode = str" in text
+        assert "_span_hamming_gate_fail_policy = str" in text
