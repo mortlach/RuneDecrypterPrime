@@ -14,7 +14,7 @@ from rune_decrypter_prime.core.component_contracts import (
     ScorerLaneName,
 )
 from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rune_decrypter_prime.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode
 from rune_decrypter_prime.scoring import rune_scorer_impl as _impl
 from rune_decrypter_prime.scoring.rune_scorer_impl import *  # noqa: F401,F403
 from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
@@ -144,7 +144,9 @@ class RuneScorer(_LegacyRuneScorer):
             hamming_issue=hamming_issue,
             span_hamming_backend=(
                 getattr(self, "_span_hamming_backend", None)
-                if getattr(self, "_span_hamming_mode", None) == "raw_bonus"
+                if ensure_span_hamming_mode(
+                    getattr(self, "_span_hamming_mode", SpanHammingMode.OFF)
+                ) is SpanHammingMode.RAW_BONUS
                 else None
             ),
             span_hamming_issue=span_hamming_issue,
