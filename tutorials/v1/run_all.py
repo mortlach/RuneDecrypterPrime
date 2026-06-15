@@ -22,6 +22,10 @@ from typing import Any
 #   slow_demo   -> v1_slow_demo only
 #   optional_lm3 -> optional_lm3 only; requires lm3_extended assets
 #   all_manifest -> all manifest entries, but known-broken/remove entries are still skipped
+#
+# CI/review runs may override the IDE defaults with environment variables:
+#   GATE_PROFILE=full_v1 python tutorials/v1/run_all.py
+#   ASSET_PROFILE=lm3_extended python tutorials/v1/run_all.py
 GATE_PROFILE = "release"
 
 # Asset choices:
@@ -71,6 +75,9 @@ KNOWN_BLOCKED_GATES = {
     "remove_from_pure_release",
 }
 
+_TRUE_VALUES = {"1", "true", "yes", "on"}
+_FALSE_VALUES = {"0", "false", "no", "off"}
+
 
 @dataclass(frozen=True)
 class RunResult:
@@ -85,6 +92,38 @@ class RunResult:
     reason: str
 
 
+def _env_text(name: str, default: str) -> str:
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return default
+    return value.strip()
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return bool(default)
+    normalized = value.strip().lower()
+    if normalized in _TRUE_VALUES:
+        return True
+    if normalized in _FALSE_VALUES:
+        return False
+    valid = ", ".join(sorted(_TRUE_VALUES | _FALSE_VALUES))
+    raise ValueError(f"Invalid boolean override {name}={value!r}; expected one of: {valid}")
+
+
+def _gate_profile() -> str:
+    return _env_text("GATE_PROFILE", GATE_PROFILE)
+
+
+def _asset_profile() -> str:
+    return _env_text("ASSET_PROFILE", ASSET_PROFILE)
+
+
+def _run_known_broken() -> bool:
+    return _env_bool("RUN_KNOWN_BROKEN", RUN_KNOWN_BROKEN)
+
+
 def _load_manifest(base: Path) -> dict[str, Any]:
     manifest_path = base / MANIFEST_NAME
     with manifest_path.open("r", encoding="utf-8") as fh:
@@ -97,11 +136,12 @@ def _load_manifest(base: Path) -> dict[str, Any]:
 
 
 def _selected_gates() -> tuple[str, ...]:
+    profile = _gate_profile()
     try:
-        return GATE_PRESETS[GATE_PROFILE]
+        return GATE_PRESETS[profile]
     except KeyError as exc:
         valid = ", ".join(sorted(GATE_PRESETS))
-        raise ValueError(f"Unknown GATE_PROFILE={GATE_PROFILE!r}; expected one of: {valid}") from exc
+        raise ValueError(f"Unknown GATE_PROFILE={profile!r}; expected one of: {valid}") from exc
 
 
 def _parse_last_float(pattern: str, text: str) -> float | None:
@@ -169,17 +209,19 @@ def _skip_reason(entry: dict[str, Any]) -> str | None:
     gate = str(entry.get("gate", "")).strip()
     current_status = str(entry.get("current_status", "")).strip()
     required_asset_profile = str(entry.get("required_asset_profile", "")).strip()
+    asset_profile = _asset_profile()
+    run_known_broken = _run_known_broken()
 
-    if gate in KNOWN_BLOCKED_GATES and not RUN_KNOWN_BROKEN:
+    if gate in KNOWN_BLOCKED_GATES and not run_known_broken:
         return f"known blocked gate: {gate}"
 
-    if current_status in {"known_broken", "remove_from_pure_release"} and not RUN_KNOWN_BROKEN:
+    if current_status in {"known_broken", "remove_from_pure_release"} and not run_known_broken:
         return f"known blocked status: {current_status}"
 
-    if required_asset_profile and required_asset_profile not in {ASSET_PROFILE, "unknown"}:
-        return f"requires asset profile {required_asset_profile}, current profile is {ASSET_PROFILE}"
+    if required_asset_profile and required_asset_profile not in {asset_profile, "unknown"}:
+        return f"requires asset profile {required_asset_profile}, current profile is {asset_profile}"
 
-    if str(entry.get("expected_under_lm2_baseline", "")).strip() == "skip" and ASSET_PROFILE == "lm2_baseline":
+    if str(entry.get("expected_under_lm2_baseline", "")).strip() == "skip" and asset_profile == "lm2_baseline":
         return "marked skip under lm2_baseline"
 
     return None
@@ -246,10 +288,12 @@ def main() -> int:
     repo_root = base.parents[1]
     src_path = repo_root / "src"
     manifest = _load_manifest(base)
+    profile = _gate_profile()
+    asset_profile = _asset_profile()
     gates = _selected_gates()
 
     selected = [entry for entry in manifest["tutorials"] if _is_selected(entry, gates)]
-    print(f"RDP V1 tutorial runner | gate={GATE_PROFILE} | asset_profile={ASSET_PROFILE}")
+    print(f"RDP V1 tutorial runner | gate={profile} | asset_profile={asset_profile}")
     print(f"Selected gates: {', '.join(gates)}")
     print(f"Selected entries: {len(selected)}")
 
