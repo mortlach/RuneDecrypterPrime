@@ -21,8 +21,15 @@ REQUIRED_ENTRY_FIELDS = {
 }
 
 
+def _repo_relative(path: Path) -> str:
+    try:
+        return path.relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
 def _load_ledger() -> dict:
-    assert LEDGER.is_file(), "missing cleanup ledger"
+    assert LEDGER.is_file(), f"missing cleanup ledger: {_repo_relative(LEDGER)}"
     return json.loads(LEDGER.read_text(encoding="utf-8"))
 
 
@@ -53,6 +60,34 @@ def test_cleanup_entries_are_complete_and_actionable() -> None:
         assert str(entry["replacement"]).strip()
         assert str(entry["rollback_note"]).strip()
         assert str(entry["v1_action"]).strip()
+
+
+def test_current_cleanup_evidence_files_exist_for_non_removal_entries() -> None:
+    data = _load_ledger()
+
+    # remove_after_green rows are intentionally future gates: their docs/tests are
+    # required before removal, not evidence that removal is already safe today.
+    current_statuses = {"retain", "deprecate_only", "removed"}
+    for entry in data["entries"]:
+        if entry["status"] not in current_statuses:
+            continue
+        for relpath in entry["docs_required_before_removal"]:
+            if not relpath.startswith(("docs/", "tests/", "src/")):
+                continue
+            path = REPO_ROOT / relpath
+            assert path.exists(), f"{entry['id']} references missing current evidence: {relpath}"
+
+
+def test_remove_after_green_entries_are_future_gates_not_current_evidence() -> None:
+    data = _load_ledger()
+
+    for entry in data["entries"]:
+        if entry["status"] != "remove_after_green":
+            continue
+        assert entry["tests_required_before_removal"], entry["id"]
+        assert entry["docs_required_before_removal"], entry["id"]
+        action = entry["v1_action"].lower()
+        assert "after" in action and "green" in action
 
 
 def test_known_v1_cleanup_items_are_tracked() -> None:
