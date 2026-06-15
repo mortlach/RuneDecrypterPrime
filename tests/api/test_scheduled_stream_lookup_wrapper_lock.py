@@ -19,7 +19,7 @@ def test_periodic_plus_primes_alias_maps_to_canonical_engine() -> None:
     spec, key = by_name.cipher_with_key("periodic_plus_primes", period=13, default_key=True)
 
     assert spec.name == "scheduled_stream_lookup"
-    assert key.length == 13
+    assert key.period_hint() == 13
     assert spec.extra["streams"][1]["kind"] == "primes"
 
 
@@ -27,4 +27,4 @@ def test_two_period_vigenere_alias_maps_to_canonical_engine() -> None:
     spec, key = by_name.cipher_with_key("two_period_vigenere", period_a=13, period_b=31, default_key=True)
 
     assert spec.name == "scheduled_stream_lookup"
-    assert key.length == 44
+    assert key.period_hint() == 44
