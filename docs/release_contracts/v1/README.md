@@ -7,13 +7,14 @@ Keep this folder small, reviewable, and repo-relative. Runtime tests must not de
 ## D0/D1 release authority
 
 - `final_source_to_wp_decision_target_test_chain.csv` — repaired source -> WP -> decision -> target -> test chain.
-- `final_missing_or_new_acceptance_tests.csv` — acceptance tests that still need to be added/promoted.
+- `final_missing_or_new_acceptance_tests.csv` — original acceptance-test gap/promotion list from the handoff evidence.
 - `v1_scope_lock.json` — compact V1 included/excluded boundary used by scope-lock tests.
 
 ## D7 cleanup guardrails
 
 - `D7_CLEANUP_DEPRECATION_POLICY.md` — human-readable cleanup/deprecation policy.
 - `v1_cleanup_deprecation_ledger.json` — machine-readable ledger for retained, deprecated, future-removal, and removed items.
+- `d7_acceptance_test_promotion_status.csv` — current D7 status for acceptance-test rows promoted from the original gap list.
 
 ## Rules
 
