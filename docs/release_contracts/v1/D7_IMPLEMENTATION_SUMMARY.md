@@ -45,7 +45,9 @@ API-facing code may accept aliases, friendly names, strings, and compatibility s
 ## Tutorial/report output rationalisation started
 
 - `utils.tutorial_report` provides a compact `rdp_tutorial_run_report.v1` payload and deterministic console renderer.
+- Tutorial report shape is contract-tested so public JSON section keys do not drift silently.
 - `utils.tutorial_benchmark` provides typed tutorial benchmark policies and `rdp_tutorial_benchmark_summary.v1` summaries for readability/target/work/time reporting.
+- Tutorial benchmark enum domains accept canonical strings at the tutorial/session boundary and normalise to enum instances internally.
 - `utils.tutorial_reference` provides an attachable reference helper so tutorial/session code can add reference data early or later without making the run surface brittle.
 - `utils.tutorial_reference` accepts friendly truth-policy strings and normalises them to `TutorialTruthPolicy`, preserving the forgiving tutorial/session boundary.
 - `utils.tutorial_session_report` bridges a solution, optional solver report, optional reference, and optional benchmark policy into one unified tutorial/session report.
