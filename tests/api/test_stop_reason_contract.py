@@ -43,6 +43,10 @@ def test_emitted_dynamic_budget_stop_reason_families_are_budget() -> None:
     assert stop_category_for_reason("stall_slip_limit_12") is StopCategory.BUDGET
 
 
+def test_unknown_stop_reasons_are_errors_not_silent_budget() -> None:
+    assert stop_category_for_reason("future_solver_reason_not_in_v1_schema") is StopCategory.ERROR
+
+
 def test_stop_reason_details_are_json_safe_and_explicit() -> None:
     solution = SimpleNamespace(
         stop_reason=KnownStopReason.ALL_REJECTED_BY_HARD_CRIB.value,
