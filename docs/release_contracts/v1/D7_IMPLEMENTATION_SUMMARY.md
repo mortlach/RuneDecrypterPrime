@@ -42,6 +42,13 @@ API-facing code may accept aliases, friendly names, strings, and compatibility s
 - ECDF status tests cover relative asset ids, metadata, meta hash, interpolation dtype, missing assets, and malformed ECDF rejection.
 - D7 does not add a fake asset-registry layer; the V1 asset status contract is the existing LM path helpers plus `ECDFCache` validation/status methods.
 
+## Tutorial/report output rationalisation started
+
+- `utils.tutorial_report` provides a compact `rdp_tutorial_run_report.v1` payload and deterministic console renderer.
+- ScheduledStreamLookup real tutorials now request `return_solver_report=True` and print the unified tutorial report.
+- Seeded pipeline smoke remains minimal and requests a solver report only when a report is explicitly printed.
+- This is a first unified output layer; broader tutorial clean-up should continue after D7 validation rather than expanding V1 scope late.
+
 ## Release-contract evidence completed
 
 - D7 cleanup/deprecation policy and machine-readable ledger are present.
