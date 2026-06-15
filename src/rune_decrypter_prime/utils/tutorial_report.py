@@ -109,6 +109,14 @@ def _compact_mapping(data: Mapping[str, Any], allowed: Sequence[str]) -> dict[st
     return out
 
 
+def _scorer_lanes_payload(value: Any) -> dict[str, Any]:
+    if isinstance(value, Mapping):
+        return dict(value)
+    if isinstance(value, list):
+        return {"lanes": list(value)}
+    return {}
+
+
 def build_tutorial_run_report(
     *,
     title: str,
@@ -174,9 +182,7 @@ def build_tutorial_run_report(
         key_section["exact"] = found_key == expected_key
     key_section = {key: value for key, value in key_section.items() if value is not None}
 
-    scorer_lanes = details.get("scorer_lanes", meta.get("scorer_lanes"))
-    if not isinstance(scorer_lanes, list):
-        scorer_lanes = []
+    scorer_lanes = _scorer_lanes_payload(details.get("scorer_lanes", meta.get("scorer_lanes")))
 
     return {
         "schema": SCHEMA,
