@@ -6,8 +6,8 @@ import numpy as np
 
 from rune_decrypter_prime.api import Direction, KeySpec, SolverSpec, by_name, cipher_instance, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
-from rune_decrypter_prime.utils.pretty import print_run_report
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_report import print_tutorial_run_report
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 
@@ -171,6 +171,11 @@ def _as_int_list(x) -> list[int] | None:
     return None
 
 
+def _split_run_result(result):
+    """Return ``(solution, solver_report)`` for either Solution or RunResult."""
+    return getattr(result, "solution", result), getattr(result, "solver_report", None)
+
+
 def two_period_additive_equivalent(
     found: Sequence[int] | None,
     expected: Sequence[int],
@@ -233,7 +238,7 @@ def run_seeded_pipeline_smoke(
     scorer_params = default_scorer_params(direction)
     solver = make_seeded_smoke_solver(pt_idx, wli, scorer_params, direction, label=title)
 
-    solution = run(
+    result = run(
         text=ct_runes,
         cipher=cipher_spec,
         key=key_spec,
@@ -245,7 +250,9 @@ def run_seeded_pipeline_smoke(
         encoding_dir=direction,
         telemetry_on=True,
         initial_keys=[list(key_values)],
+        return_solver_report=bool(print_report),
     )
+    solution, solver_report = _split_run_result(result)
 
     recovered = [int(v) for v in getattr(solution, "plaintext_idx", [])]
     match_ok = recovered[: len(pt_idx)] == pt_idx if recovered else False
@@ -257,10 +264,11 @@ def run_seeded_pipeline_smoke(
         raise AssertionError("seeded pipeline smoke did not preserve/recover expected key")
 
     if print_report:
-        print_run_report(
+        print_tutorial_run_report(
             title=title,
             cipher="scheduled_stream_lookup",
             solution=solution,
+            solver_report=solver_report,
             match_ok=match_ok,
             app_version=APP_VERSION,
             key_idx=list(key_values),
@@ -269,7 +277,6 @@ def run_seeded_pipeline_smoke(
             ct_rune=ct_runes,
             pt_rune_ref=pt_runes,
             pt_idx_ref=pt_idx,
-            wli=wli,
         )
 
 
@@ -312,7 +319,7 @@ def run_real_key_recovery_demo(
         max_children_per_parent=max_children_per_parent,
     )
 
-    solution = run(
+    result = run(
         text=ct_runes,
         cipher=cipher_spec,
         key=key_spec,
@@ -324,7 +331,9 @@ def run_real_key_recovery_demo(
         encoding_dir=direction,
         telemetry_on=True,
         initial_keys=None,
+        return_solver_report=True,
     )
+    solution, solver_report = _split_run_result(result)
 
     recovered = [int(v) for v in getattr(solution, "plaintext_idx", [])]
     match_ok = recovered[: len(pt_idx)] == pt_idx if recovered else False
@@ -356,10 +365,11 @@ def run_real_key_recovery_demo(
     print(f"Key accepted?: {key_ok}")
     print(f"Plaintext OK?: {match_ok}")
 
-    print_run_report(
+    print_tutorial_run_report(
         title=title,
         cipher="scheduled_stream_lookup",
         solution=solution,
+        solver_report=solver_report,
         match_ok=match_ok,
         app_version=APP_VERSION,
         key_idx=expected_key_list,
@@ -368,7 +378,6 @@ def run_real_key_recovery_demo(
         ct_rune=ct_runes,
         pt_rune_ref=pt_runes,
         pt_idx_ref=pt_idx,
-        wli=wli,
     )
 
     if not match_ok:
