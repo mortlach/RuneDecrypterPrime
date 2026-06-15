@@ -54,6 +54,14 @@ This is a contract-hardening change, not a scoring change.
 
 This keeps the capability-report path aligned with the same labels used by config validation.
 
+### Runtime capability report bridge
+
+D7 also hardens the scorer-construction capability bridge in `core/engine/builders.py`.
+
+That bridge may need to inspect private runtime scorer state when a scorer backend does not provide a native `capability_report()`. It now normalises `_span_hamming_mode` through `SpanHammingMode` before deciding whether a raw span backend is active. This prevents enum-backed runtime mode state from silently dropping a requested `span_hamming_raw` lane in the fallback capability-report path.
+
+This is intentionally narrow. It does not change scoring, ranking, scorer construction, or the public report schema.
+
 ### Scorer telemetry source labels
 
 D7 enum-owns the scorer telemetry source prefixes and keys that derive stable public scorer-report detail sections.
@@ -137,6 +145,7 @@ D7 adds or extends focused tests for the new hardening surface:
 
 ```text
 tests/core/test_scoring_config_label_contract.py
+tests/core/test_scorer_capability_builder_contract.py
 tests/scoring/test_scorer_report_label_contract.py
 tests/contracts/test_v1_contract_label_guardrails.py
 tests/contracts/test_v1_full_proof_workflow_contract.py
@@ -150,6 +159,7 @@ D7-owned scoring config labels are enum-owned
 invalid D7-owned config strings are rejected
 public asdict strings are unchanged
 requested scorer lanes use enum-backed span mode
+fallback capability reports preserve enum-backed runtime span mode
 scorer telemetry source labels are enum-owned
 public scorer-report sections remain unchanged
 report-only details do not mutate score/raw_score/metrics
@@ -159,9 +169,9 @@ acceptance-gate docs record the closure rules
 
 ## Known local overlay not yet pushed
 
-A runtime enum-state overlay exists for private scorer backend tests and runtime backend field alignment. It is intentionally handled as a separate local overlay because the GitHub connector blocked a large test-file replacement.
+A runtime enum-state overlay exists for the large NumPy and Torch scorer backend files. It is intentionally handled as a separate local overlay because the GitHub connector has blocked writes to the large scorer backend paths.
 
-The observed failures were caused by tests directly mutating private runtime scorer fields with raw strings after D7 made those private fields enum-owned. The correct fix is to update those tests to set enum members, not to add production compatibility shims.
+The branch now hardens the config surface and the fallback capability-report bridge, but the large backend files still contain private runtime fields that are normalised to raw strings internally. The correct final hardening direction is to update those backend private fields to enum members and update tests that directly mutate those private fields to use enum members too.
 
 Required local test-only substitutions are:
 
@@ -173,14 +183,16 @@ Required local test-only substitutions are:
 "char_only" -> SpanHammingGateFailPolicy.CHAR_ONLY
 ```
 
-This is not a D7 scope reduction. It is a tooling limitation around a large test-file update. The branch should not close until that overlay is either applied locally and pushed, or the equivalent test update is made through a normal Git checkout.
+This is not a D7 scope reduction. It is a tooling limitation around large backend-path updates. The branch should not close until that overlay is either applied locally and pushed, or the equivalent backend/test update is made through a normal Git checkout.
 
 ## Closure status
 
-D7 has completed the first closure hardening blocks:
+D7 has completed these closure hardening blocks:
 
 ```text
 core scoring config label ownership
+requested scorer lane enum-backed detection
+fallback capability-report runtime span-mode normalisation
 scorer telemetry label ownership
 solver-report semantic split verification
 workflow D7 branch coverage
@@ -191,7 +203,7 @@ focused guardrail tests
 D7 is not final until:
 
 ```text
-span-hamming enum-state test overlay is applied
+large backend runtime enum-state overlay is applied or explicitly superseded by equivalent code
 focused D7 tests pass
 full pytest passes
 V1 tutorial gate passes
