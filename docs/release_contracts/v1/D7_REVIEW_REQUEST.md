@@ -2,11 +2,11 @@
 
 Branch under review: `prelease/v1.0.0_d7`
 
-Latest reviewed commit at time of this note: `1fbbe4d958e48b9b3dd94b7aa9d510a1bfe685c1`
+Review target: current head of `prelease/v1.0.0_d7`.
 
-Local validation status: user reported tests passing after the final tutorial report/string-enum hardening pass.
+Validation status: rerun focused and full validation after any commit made in response to this review request.
 
-GitHub status-check status: no combined status checks were attached to the latest commit when this note was written.
+GitHub status-check status: no combined status checks were attached when this note was last checked through the connector.
 
 ## Review purpose
 
@@ -40,6 +40,7 @@ D7 follows this boundary:
 - Requested production scorer lanes block when unavailable.
 - Report-only lanes remain report-only and cannot become ranking inputs accidentally.
 - Scorer lane report sections are stable and JSON-safe.
+- Tutorial reports preserve structured scorer-lane payloads instead of silently dropping non-list payloads.
 - Legacy optional-backend warning behaviour remains behind the V1 wrapper and is tracked for future cleanup.
 
 ### ScheduledStreamLookup V1 lock
@@ -85,6 +86,7 @@ Review these files together:
 Key tests added or strengthened include:
 
 - `tests/contracts/test_d7_acceptance_promotion_status.py`
+- `tests/contracts/test_d7_review_request_contract.py`
 - `tests/contracts/test_tutorial_helpers_boundary.py`
 - `tests/contracts/test_tutorial_output_framework_contract.py`
 - `tests/contracts/test_tutorial_enum_normalization_contract.py`
@@ -94,6 +96,15 @@ Key tests added or strengthened include:
 - `tests/utils/test_tutorial_reference.py`
 - `tests/utils/test_tutorial_session_report.py`
 - `tests/utils/test_tutorial_session_report_enum_normalization.py`
+- `tests/utils/test_tutorial_report_scorer_lanes_payload.py`
+
+## Review-response fixes applied
+
+The following review blockers were addressed after the initial review request:
+
+1. Removed the one-off root patch script `apply_solver_stop_reason_domain.py`.
+2. Updated `utils/tutorial_report.py` to preserve structured `scorer_lanes` mapping payloads and wrap legacy list payloads as `{"lanes": [...]}`.
+3. Removed the stale hard-coded latest-reviewed commit from this review request; the review target is now the current branch head.
 
 ## Deliberately not done in D7
 
@@ -128,10 +139,12 @@ python -m pytest -q \
   tests/utils/test_tutorial_reference.py \
   tests/utils/test_tutorial_session_report.py \
   tests/utils/test_tutorial_session_report_enum_normalization.py \
+  tests/utils/test_tutorial_report_scorer_lanes_payload.py \
   tests/contracts/test_tutorial_enum_normalization_contract.py \
   tests/contracts/test_tutorial_helpers_boundary.py \
   tests/contracts/test_tutorial_output_framework_contract.py \
   tests/contracts/test_tutorial_report_shape_contract.py \
+  tests/contracts/test_d7_review_request_contract.py \
   tests/contracts/test_d7_acceptance_promotion_status.py
 ```
 
@@ -141,4 +154,4 @@ Full D7 gate:
 python -m pytest -q -ra -p no:cacheprovider tests
 ```
 
-D7 should not be treated as closed until the latest commit has equivalent full validation evidence.
+D7 should not be treated as closed until the latest branch head has equivalent full validation evidence.
