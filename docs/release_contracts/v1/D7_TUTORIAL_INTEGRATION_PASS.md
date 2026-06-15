@@ -2,7 +2,7 @@
 
 Branch: `prelease/v1.0.0_d7`
 
-Status: integration pass started; not final D7 closure until focused gates, full tutorial gates, and full pytest are run on the final branch head.
+Status: integration pass started; not final D7 closure until release/full_v1 tutorial gates are run on the final branch head and the review pack is regenerated.
 
 ## Gate counts after this pass
 
@@ -88,8 +88,10 @@ The tutorial runner now parses both older `Match ratio: ...` output and unified 
 ## Tests added/updated
 
 - `tests/contracts/test_v1_tutorial_manifest_contract.py`
+- `tests/tutorials/test_scheduled_stream_lookup_real_solve_tutorial.py`
+- `tests/tutorials/test_scheduled_stream_lookup_tutorial.py`
 
-This covers:
+These cover:
 
 - manifest schema and required fields
 - all `v1_release` entries exist on disk
@@ -99,6 +101,16 @@ This covers:
 - known-broken entries are not selected by release/full_v1
 - runner parses unified `match_ratio` output
 - ScheduledStreamLookup real tutorials emit through the session benchmark report path
+
+## Validation evidence so far
+
+User-reported full pytest result after the ScheduledStreamLookup manifest-test updates:
+
+```text
+1177 passed, 41 skipped in 232.68s (0:03:52)
+```
+
+The skipped tests were expected environment/asset skips, including optional Torch/CUDA tests and optional LM3/LM4 asset tests.
 
 ## Required validation still pending
 
@@ -110,10 +122,4 @@ python tutorials/v1/run_all.py
 
 with `GATE_PROFILE = "release"`, then with `GATE_PROFILE = "full_v1"`.
 
-Then run:
-
-```bash
-python -m pytest -q -ra -p no:cacheprovider tests
-```
-
-Record the release gate output, full_v1 gate output, and full pytest result after the final branch head is fixed.
+Record the release gate output and full_v1 gate output after the final branch head is fixed.
