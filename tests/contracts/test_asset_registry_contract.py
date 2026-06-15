@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import get_type_hints
+
 from rune_decrypter_prime.scoring.language_model.language_model_prime_runtime import ECDFCache
 from rune_decrypter_prime.scoring.language_model.paths import LmIndex, load_index, resolve_lm_root
 
@@ -7,7 +9,7 @@ from rune_decrypter_prime.scoring.language_model.paths import LmIndex, load_inde
 def test_v1_language_model_asset_contract_has_structured_entry_points() -> None:
     assert callable(resolve_lm_root)
     assert callable(load_index)
-    assert LmIndex.__annotations__["models"] == dict
+    assert get_type_hints(LmIndex)["models"] is dict
 
 
 def test_v1_ecdf_asset_contract_exposes_status_metadata_methods() -> None:
