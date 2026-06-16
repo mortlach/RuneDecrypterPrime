@@ -7,6 +7,8 @@ from rune_decrypter_prime.utils.runeglish import Runeglish
 
 pytestmark = pytest.mark.tier_a
 
+_WORD_BREAKERS = {"-", ",", ".", ";", '"', "'"}
+
 
 def _word_lengths_from_wli(wli: list[list[int]] | tuple[tuple[int, int], ...]) -> list[int]:
     lengths: list[int] = []
@@ -31,7 +33,7 @@ def _reference_ct_idx_and_word_lengths(reference_text: str) -> tuple[list[int], 
     for ch in reference_text:
         pos = Runeglish.rune2pos.get(ch)
         if pos is None:
-            if current_word_length:
+            if ch in _WORD_BREAKERS and current_word_length:
                 word_lengths.append(current_word_length)
                 current_word_length = 0
             continue
