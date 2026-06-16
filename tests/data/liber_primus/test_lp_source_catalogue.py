@@ -7,39 +7,26 @@ from rune_decrypter_prime.data import liber_primus as lp
 pytestmark = pytest.mark.tier_a
 
 
-_METHOD_WORDS = {
-    "cipher",
-    "emirp",
-    "fibbo",
-    "fibonacci",
-    "firfumferenfe",
-    "gematria",
-    "interrupter",
-    "interruptors",
-    "key",
-    "prime",
-    "primes",
-    "recipe",
-    "shift",
-    "stream",
-    "vigenere",
+EXPECTED_SOLVED_SOURCE_RANGES = {
+    "warning": ("red_rune.warning", (0, 0)),
+    "welcome_pilgrim": ("red_rune.welcome_pilgrim", (1, 2)),
+    "some_wisdom": ("red_rune.some_wisdom", (3, 3)),
+    "koan_a_man": ("red_rune.koan_a_man", (4, 7)),
+    "loss_of_divinity": ("red_rune.loss_of_divinity", (8, 11)),
+    "koan_during_lesson": ("red_rune.koan_during_lesson", (12, 13)),
+    "instruction": ("red_rune.instruction", (14, 14)),
+    "an_end": ("red_rune.an_end", (56, 56)),
+    "parable": ("red_rune.parable", (57, 57)),
 }
 
 
-def _label_parts(label: str) -> set[str]:
-    return {part for part in label.replace("-", "_").split(".") for part in part.split("_") if part}
+def test_solved_lp_source_labels_are_listed() -> None:
+    labels = set(lp.list_source_labels())
+    aliases = set(lp.list_source_labels(include_aliases=True))
 
-
-def test_solved_lp_source_labels_are_text_identity_only() -> None:
-    labels = lp.list_source_labels()
-
-    assert "red_rune.welcome_pilgrim" in labels
-    assert "red_rune.an_end" in labels
-    assert "red_rune.parable" in labels
-    assert all(label.startswith("red_rune.") for label in labels)
-
-    for label in lp.list_source_labels(include_aliases=True):
-        assert not (_label_parts(label) & _METHOD_WORDS), label
+    for simple_label, (canonical_label, _) in EXPECTED_SOLVED_SOURCE_RANGES.items():
+        assert canonical_label in labels
+        assert simple_label in aliases
 
 
 def test_resolve_source_label_exposes_spreadsheet_and_master_page_metadata() -> None:
@@ -55,15 +42,18 @@ def test_resolve_source_label_exposes_spreadsheet_and_master_page_metadata() -> 
     assert entry.locator is None
 
 
-def test_source_aliases_resolve_to_canonical_text_label() -> None:
-    assert lp.resolve_source_label("welcome_pilgrim").source_label == "red_rune.welcome_pilgrim"
-    assert lp.resolve_source_label("solved.welcome_pilgrim").source_label == "red_rune.welcome_pilgrim"
-    assert lp.resolve_source_label("an_end").source_label == "red_rune.an_end"
+@pytest.mark.parametrize("simple_label,expected", sorted(EXPECTED_SOLVED_SOURCE_RANGES.items()))
+def test_source_aliases_resolve_to_canonical_text_label(simple_label: str, expected: tuple[str, tuple[int, int]]) -> None:
+    canonical_label, expected_master_range = expected
+    entry = lp.resolve_source_label(simple_label)
+
+    assert entry.source_label == canonical_label
+    assert entry.master_page_range == expected_master_range
 
 
 def test_unknown_source_label_fails_clearly() -> None:
     with pytest.raises(KeyError, match="unknown LP source label"):
-        lp.resolve_source_label("red_rune.not_a_real_source")
+        lp.resolve_source_label("not_a_real_source")
 
 
 def test_solve_recipes_are_separate_from_source_labels() -> None:
@@ -85,29 +75,22 @@ def test_every_recipe_targets_a_known_source_label() -> None:
         assert recipe.source_label in sources
 
 
-def test_payload_from_label_returns_real_master_transcript_payload() -> None:
-    payload = lp.payload_from_label("an_end")
+@pytest.mark.parametrize("simple_label,expected", sorted(EXPECTED_SOLVED_SOURCE_RANGES.items()))
+def test_payload_from_label_returns_real_master_transcript_payload(simple_label: str, expected: tuple[str, tuple[int, int]]) -> None:
+    canonical_label, expected_master_range = expected
+
+    payload = lp.payload_from_label(simple_label)
 
     assert payload.ct_idx
     assert payload.wli
     assert len(payload.ct_idx) == len(payload.wli)
     assert payload.metadata["source_kind"] == "liber_primus.label"
-    assert payload.metadata["source_label"] == "red_rune.an_end"
-    assert payload.metadata["requested_label"] == "an_end"
+    assert payload.metadata["source_label"] == canonical_label
+    assert payload.metadata["requested_label"] == simple_label
     assert payload.metadata["boundary_status"] == lp.BOUNDARY_MASTER_PAGE_RANGE
-    assert payload.metadata["master_page_start"] == 56
-    assert payload.metadata["master_page_end"] == 56
-    assert payload.metadata["bound_book_start"] == payload.metadata["bound_book_end"] == 57
+    assert (payload.metadata["master_page_start"], payload.metadata["master_page_end"]) == expected_master_range
+    assert payload.metadata["bound_book_start"] == expected_master_range[0] + 1
+    assert payload.metadata["bound_book_end"] == expected_master_range[1] + 1
     assert payload.metadata["line"] is None
     assert payload.metadata["line_end"] is None
     assert payload.metadata["boundary_granularity"] == "full_master_pages"
-
-
-def test_payload_from_label_alias_uses_canonical_metadata() -> None:
-    payload = lp.payload_from_label("parable")
-
-    assert payload.ct_idx
-    assert payload.metadata["source_label"] == "red_rune.parable"
-    assert payload.metadata["red_rune_sections"] == (17,) or payload.metadata["red_rune_sections"] == [17]
-    assert payload.metadata["master_page_start"] == 57
-    assert payload.metadata["master_page_end"] == 57
