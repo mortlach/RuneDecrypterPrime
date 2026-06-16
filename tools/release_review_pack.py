@@ -156,7 +156,7 @@ def _suffix(path: Path) -> str:
     return path.suffix.lower()
 
 
-def _git_output(repo_root: Path, *args: str) -> str | None:
+def _git_output(repo_root: Path, *args: str, empty_is_none: bool = True) -> str | None:
     try:
         proc = subprocess.run(
             ["git", "-C", str(repo_root), *args],
@@ -171,13 +171,15 @@ def _git_output(repo_root: Path, *args: str) -> str | None:
     if proc.returncode != 0:
         return None
     value = proc.stdout.strip()
-    return value or None
+    if value:
+        return value
+    return None if empty_is_none else ""
 
 
 def _git_metadata(repo_root: Path) -> dict[str, object]:
     commit_sha = _git_output(repo_root, "rev-parse", "HEAD")
     branch = _git_output(repo_root, "rev-parse", "--abbrev-ref", "HEAD")
-    status = _git_output(repo_root, "status", "--porcelain")
+    status = _git_output(repo_root, "status", "--porcelain", empty_is_none=False)
     if branch == "HEAD":
         branch = None
     return {
