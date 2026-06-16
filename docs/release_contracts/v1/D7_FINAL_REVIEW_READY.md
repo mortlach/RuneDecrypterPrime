@@ -18,9 +18,10 @@ The branch is not a tiny documentation-only closure branch. It contains real V1 
 - scorer-lane/report-only visibility contracts;
 - ScheduledStreamLookup V1 API/wrapper/cipher/tutor-lock contracts;
 - tutorial/session report framework foundation;
-- tutorial manifest integration and default release-gate promotion for one exact ScheduledStreamLookup real solve.
+- tutorial manifest integration and default release-gate promotion for one exact ScheduledStreamLookup real solve;
+- review-pack metadata binding to git branch/head/dirty state.
 
-This is acceptable for D7 only because the changes are contract/release hardening and tutorial-gate integration, not new solver/cipher/scorer feature expansion.
+This is acceptable for D7 only because the changes are contract/release hardening, evidence hardening, and tutorial-gate integration, not new solver/cipher/scorer feature expansion.
 
 ## Final tutorial-gate evidence
 
@@ -63,6 +64,12 @@ actual: full_v1
 
 That failure was fixed by changing the contract to require a valid configured default profile and valid environment overrides, rather than hard-coding `release` as the only acceptable IDE default.
 
+## Review-pack evidence note
+
+A final evidence hardening fix was applied after inspecting the generated review-pack summary: `tools/release_review_pack.py` now writes `git_branch`, `git_commit_sha`, and `git_working_tree_dirty` into both `REVIEW_PACK_MANIFEST.json` and the sidecar summary JSON.
+
+Regenerate the review pack from the final branch head before external review. The regenerated pack should show a `git_commit_sha` matching the final reviewed commit.
+
 ## Review scope
 
 Review D7 for closure against these questions:
@@ -74,7 +81,8 @@ Review D7 for closure against these questions:
 5. Are known-broken tutorials classified honestly and excluded from release/full_v1 gates?
 6. Does the tutorial runner select and accept tutorials by manifest policy rather than ad-hoc skips?
 7. Does the review evidence overclaim compared with actual tested behaviour?
-8. Is the D7 scope now frozen except for reviewer-requested fixes?
+8. Is the generated review pack bound to the final reviewed commit?
+9. Is the D7 scope now frozen except for reviewer-requested fixes?
 
 ## Known non-blockers / future work
 
@@ -88,6 +96,6 @@ These should not block D7 closure:
 
 ## Closeout recommendation
 
-Request external review for final D7 closure.
+Request external review for final D7 closure after regenerating the review pack from the final branch head.
 
 Do not continue adding broad hardening or framework scope in D7 unless review finds a concrete blocker.
