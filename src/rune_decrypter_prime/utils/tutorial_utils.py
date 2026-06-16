@@ -54,7 +54,7 @@ def oracle_stop_score(
     """Compute a stop_score from oracle plaintext score (with safe fallback)."""
     try:
         oracle = score_plaintext(pt_idx, wli, scorer_params, device=device, encoding_dir=encoding_dir)
-    except Exception as exc:  # keep tutorials runnable even if LM assets missing
+    except FileNotFoundError as exc:  # keep tutorials runnable even if LM assets are absent
         return StopScoreResult(None, fallback, f"oracle_failed: {exc}")
 
     stop = float(oracle - float(margin))

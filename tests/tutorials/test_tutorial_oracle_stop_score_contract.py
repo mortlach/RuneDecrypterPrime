@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
@@ -49,3 +50,36 @@ def test_oracle_stop_score_reports_real_oracle_from_typed_helper(monkeypatch) ->
     assert result.oracle_score == 0.82
     assert result.stop_score == 0.7999999999999999
     assert result.reason == "oracle_ok"
+
+
+def test_oracle_stop_score_only_falls_back_for_missing_assets(monkeypatch) -> None:
+    def missing_asset(*args, **kwargs):
+        raise FileNotFoundError("missing LM asset")
+
+    monkeypatch.setattr(tutorial_utils, "score_plaintext", missing_asset)
+
+    result = tutorial_utils.oracle_stop_score(
+        [1, 2, 3],
+        None,
+        {"include_char": True},
+        fallback=0.1,
+    )
+
+    assert result.oracle_score is None
+    assert result.stop_score == 0.1
+    assert result.reason == "oracle_failed: missing LM asset"
+
+
+def test_oracle_stop_score_does_not_hide_config_contract_errors(monkeypatch) -> None:
+    def config_error(*args, **kwargs):
+        raise TypeError("cfg_scorer must be ScoringConfig")
+
+    monkeypatch.setattr(tutorial_utils, "score_plaintext", config_error)
+
+    with pytest.raises(TypeError, match="cfg_scorer must be ScoringConfig"):
+        tutorial_utils.oracle_stop_score(
+            [1, 2, 3],
+            None,
+            {"include_char": True},
+            fallback=0.1,
+        )
