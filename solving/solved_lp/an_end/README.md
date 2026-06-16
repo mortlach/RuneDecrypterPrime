@@ -16,7 +16,8 @@ Status:
 
 ```text
 source catalogue entry exists
-exact master-transcript locator pending verification
+payload_from_label loads real master-transcript payload
+current boundary granularity: full canon page 56
 runner not implemented yet
 ```
 
@@ -28,8 +29,8 @@ interrupters.
 Planned technical path:
 
 ```text
-1. Verify exact master-transcript locator for red_rune.an_end.
-2. Build a dictionary/two-gram search over early plaintext candidates.
+1. Use the live red_rune.an_end payload.
+2. Build the early-word candidate search.
 3. Recover early key material from the first words.
 4. Compare candidate key material against canonical zero-shifted sequences
    such as primes-minus-one, emirps, Fibonacci-like sequences, and other simple
