@@ -76,7 +76,7 @@ entry = lp.resolve_source_label("red_rune.welcome_pilgrim")
 recipe = lp.resolve_solve_recipe_label("recipe.welcome_pilgrim.vigenere_interruptors")
 ```
 
-`payload_from_label(...)` exists as the future solving bridge:
+`payload_from_label(...)` is the direct solving bridge:
 
 ```python
 payload = lp.payload_from_label("red_rune.welcome_pilgrim")
@@ -92,6 +92,26 @@ LP source label 'red_rune.welcome_pilgrim' has no verified master transcript loc
 That is deliberate. The next work block is to verify exact page/line locators
 for one solved source at a time, starting with the Vigenere-with-interruptors
 examples and `AN END`.
+
+## RunSpec source references
+
+LP labels are also accepted as first-class `SourceInputRef` values:
+
+```python
+from rune_decrypter_prime.api import SourceInputRef
+
+source_ref = SourceInputRef(
+    source_kind="liber_primus.label",
+    asset_id="liber_primus.master_transcript",
+    asset_version="<master transcript sha256>",
+    ref={"label": "red_rune.welcome_pilgrim"},
+)
+```
+
+The `ref` payload is intentionally narrow. It contains only the source label.
+Solver settings such as period, max iterations, key hints, streams, or
+interrupter policy belong in the solve recipe or solver config, not in the source
+reference.
 
 ## First technical targets
 
