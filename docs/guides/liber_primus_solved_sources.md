@@ -47,24 +47,22 @@ This keeps LP text selection independent from the cipher hypothesis.
 
 ## Boundary policy
 
-Catalogue entries may be added before their exact transcript locator is
-verified, but candidate page ranges must not be silently used as solver input.
+The current catalogue resolves solved red-rune labels through the bundled master
+transcript using full canon-page ranges. Each payload records both the canon page
+range and the computed bound-book page range.
 
-The final verified boundary should be stored as a master-transcript locator,
-preferably:
-
-```text
-bound-book page + line range
-```
-
-or, where clearer:
+The current boundary granularity is:
 
 ```text
-transcript page id + line range
+full_canon_pages
 ```
 
-Red-rune section numbers and side-art labels are useful metadata, but they are
-not sufficient by themselves as the sole source boundary.
+More precise bound-book page + line-range locators can be added later for any
+source whose solved text covers only part of a page. The public source label does
+not need to change when that locator is refined.
+
+Red-rune section numbers and side-art labels remain useful metadata, but solver
+payloads are loaded through the master transcript, not by hand-copied text.
 
 ## Current API
 
@@ -76,22 +74,29 @@ entry = lp.resolve_source_label("red_rune.welcome_pilgrim")
 recipe = lp.resolve_solve_recipe_label("recipe.welcome_pilgrim.vigenere_interruptors")
 ```
 
-`payload_from_label(...)` is the direct solving bridge:
+`payload_from_label(...)` loads real solver payloads:
 
 ```python
-payload = lp.payload_from_label("red_rune.welcome_pilgrim")
+payload = lp.payload_from_label("red_rune.an_end")
+
+text = payload.ct_idx
+wli_data = payload.wli
+metadata = payload.metadata
 ```
 
-For entries whose exact master-transcript locator is not verified yet, this
-fails clearly instead of using candidate ranges:
+Payload metadata includes:
 
 ```text
-LP source label 'red_rune.welcome_pilgrim' has no verified master transcript locator yet
+source_label
+red_rune_sections
+canon_start / canon_end
+bound_book_start / bound_book_end
+line / line_end
+boundary_granularity
 ```
 
-That is deliberate. The next work block is to verify exact page/line locators
-for one solved source at a time, starting with the Vigenere-with-interruptors
-examples and `AN END`.
+For now `line` and `line_end` are `None` for the solved red-rune sources because
+the first live mapping uses full canon pages.
 
 ## RunSpec source references
 
@@ -115,9 +120,11 @@ reference.
 
 ## First technical targets
 
-1. Verify `red_rune.welcome_pilgrim` exact locator and connect it to
+1. Use the live `red_rune.welcome_pilgrim` payload with
    `recipe.welcome_pilgrim.vigenere_interruptors`.
-2. Verify `red_rune.koan_during_lesson` exact locator and connect it to
+2. Use the live `red_rune.koan_during_lesson` payload with
    `recipe.koan_during_lesson.vigenere_interruptors`.
-3. Verify `red_rune.an_end` exact locator and build the stream-sequence recipe
+3. Use the live `red_rune.an_end` payload to build the stream-sequence recipe
    around canonical sequence candidates such as primes-minus-one.
+4. Refine any source from full-page boundaries to bound-book page + line ranges
+   where the solved text requires a narrower fragment.
