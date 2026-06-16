@@ -13,9 +13,23 @@ solve recipe = how RDP tries to solve or replay it
 A source label must not include the method, key, stream, or shift. Those belong
 in a recipe label.
 
-## Source labels
+## User-facing labels
 
-Initial solved text sources are named by the red-rune text identity:
+Users can use short labels:
+
+```text
+warning
+some_wisdom
+welcome_pilgrim
+koan_a_man
+loss_of_divinity
+koan_during_lesson
+instruction
+an_end
+parable
+```
+
+The canonical internal source labels remain namespaced:
 
 ```text
 red_rune.warning
@@ -29,8 +43,7 @@ red_rune.an_end
 red_rune.parable
 ```
 
-Aliases such as `solved.welcome_pilgrim` may point to the same source, but the
-canonical label remains `red_rune.welcome_pilgrim`.
+Aliases such as `solved.welcome_pilgrim` also resolve to the same source.
 
 ## Page-label terminology
 
@@ -38,40 +51,46 @@ LP has several page-label systems:
 
 ```text
 red-rune label        human/source identity, e.g. red_rune.an_end
-bound-book page       physical book order used for retrieval/display
-transcript page id    zero-based page id in the master transcript parser
-canon-unsolved page   existing internal RDP scheme for the last 58 transcript pages
-puzzle-maker label    external labels/titles that may not follow numerical order
+master page id        zero-based page id in the bundled master transcript
+bound-book page       one-based book-order page number, useful for display
+puzzle-maker label    external label/title; not guaranteed to match local order
 ```
 
-User-facing solved-source labels should not depend on external numerical canon
-labels. They should resolve through the bundled master transcript and expose
-book-order metadata.
+Solved-source retrieval uses complete integer master transcript pages. User code
+should normally use labels, not page numbers.
+
+Known examples:
+
+```text
+warning          -> master page 0
+welcome_pilgrim  -> master pages 1-2
+some_wisdom      -> master page 3
+an_end           -> master page 56
+parable          -> master page 57
+```
 
 ## Boundary policy
 
-The current catalogue resolves solved red-rune labels through the bundled master
-transcript using full-page ranges in the existing internal RDP page scheme. Each
-payload also records the computed bound-book page range for book-order retrieval
-and display.
+The current catalogue resolves solved labels through the bundled master
+transcript using full master-page ranges. Each payload records both the master
+page range and the computed bound-book page range.
 
 The current boundary granularity is:
 
 ```text
-full_canon_pages
+full_master_pages
 ```
 
-More precise bound-book page + line-range locators can be added later for any
-source whose solved text covers only part of a page. The public source label does
-not need to change when that locator is refined.
+Line locators can still be used later where needed, but the solved pages in this
+catalogue should normally be complete pages.
 
 ## Spreadsheet-reference tests
 
 Solved source labels are checked against hardcoded references derived from the
-solved-page spreadsheet. The tests compare the loaded numeric stream and WLI word
-lengths against the spreadsheet reference values.
+solved-page spreadsheet and page images. The tests compare the loaded numeric
+stream and WLI word lengths against the reference values.
 
-This proves that a red-rune label retrieves the expected numeric payload and word
+This proves that a simple label retrieves the expected numeric payload and word
 segmentation before any solving routine is built on top.
 
 ## Current API
@@ -79,16 +98,7 @@ segmentation before any solving routine is built on top.
 ```python
 from rune_decrypter_prime.data import liber_primus as lp
 
-labels = lp.list_source_labels()
-entry = lp.resolve_source_label("red_rune.welcome_pilgrim")
-recipe = lp.resolve_solve_recipe_label("recipe.welcome_pilgrim.vigenere_interruptors")
-```
-
-`payload_from_label(...)` loads real solver payloads:
-
-```python
-payload = lp.payload_from_label("red_rune.an_end")
-
+payload = lp.payload_from_label("welcome_pilgrim")
 text = payload.ct_idx
 wli_data = payload.wli
 metadata = payload.metadata
@@ -98,16 +108,15 @@ Payload metadata includes:
 
 ```text
 source_label
+requested_label
 red_rune_sections
-canon_start / canon_end
+master_page_start / master_page_end
 bound_book_start / bound_book_end
 line / line_end
 boundary_granularity
 ```
 
-For now `line` and `line_end` are `None` for the solved red-rune sources because
-the first live mapping uses full pages. Bound-book page + line locators should be
-used when a solved source needs narrower retrieval.
+For solved full-page labels, `line` and `line_end` are `None`.
 
 ## RunSpec source references
 
@@ -120,7 +129,7 @@ source_ref = SourceInputRef(
     source_kind="liber_primus.label",
     asset_id="liber_primus.master_transcript",
     asset_version="<master transcript sha256>",
-    ref={"label": "red_rune.welcome_pilgrim"},
+    ref={"label": "welcome_pilgrim"},
 )
 ```
 
@@ -131,11 +140,9 @@ reference.
 
 ## First technical targets
 
-1. Use the live `red_rune.welcome_pilgrim` payload with
+1. Use the live `welcome_pilgrim` payload with
    `recipe.welcome_pilgrim.vigenere_interruptors`.
-2. Use the live `red_rune.koan_during_lesson` payload with
+2. Use the live `koan_during_lesson` payload with
    `recipe.koan_during_lesson.vigenere_interruptors`.
-3. Use the live `red_rune.an_end` payload to build the stream-sequence recipe
-   around canonical sequence candidates such as primes-minus-one.
-4. Refine any source from full-page boundaries to bound-book page + line ranges
-   where the solved text requires a narrower fragment.
+3. Use the live `an_end` payload to build the stream-sequence recipe around
+   canonical sequence candidates such as primes-minus-one.
