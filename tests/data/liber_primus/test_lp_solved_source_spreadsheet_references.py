@@ -24,6 +24,20 @@ def _word_lengths_from_wli(wli: list[list[int]] | tuple[tuple[int, int], ...]) -
 
 
 SPREADSHEET_REFERENCES = {
+    "red_rune.instruction": {
+        "sheet": "An Instruction",
+        "expected_ct_idx": [
+            24, 9, 10, 9, 15, 16, 4, 1, 5, 16, 27, 9, 5, 7, 18, 15, 16, 27, 9,
+            24, 20, 20, 2, 21, 15, 23, 10, 15, 5, 3, 1, 18, 4, 16, 4, 1, 2, 10,
+            9, 15, 10, 23, 18, 26, 3, 1, 4, 15, 18, 20, 0, 0, 3, 20, 20, 3, 7,
+            26, 3, 1, 4, 16, 4, 1, 2, 10, 19, 13, 3, 15, 18, 9, 3, 2, 21, 3,
+            9, 3, 2, 18, 4, 15, 5, 9, 3, 7, 2, 10, 15,
+        ],
+        "expected_word_lengths": [
+            2, 10, 7, 3, 3, 8, 4, 6, 8, 6, 4, 4, 6, 4, 2, 5, 4, 3,
+        ],
+        "expected_canon_range": (54, 55),
+    },
     "red_rune.an_end": {
         "sheet": "p56 An End",
         "expected_ct_idx": [
@@ -70,4 +84,6 @@ def test_solved_lp_label_payload_matches_hardcoded_spreadsheet_reference(source_
     assert (payload.metadata["canon_start"], payload.metadata["canon_end"]) == reference[
         "expected_canon_range"
     ]
+    assert payload.metadata["bound_book_start"] >= 1
+    assert payload.metadata["bound_book_end"] >= payload.metadata["bound_book_start"]
     assert payload.metadata["boundary_granularity"] == "full_canon_pages"
