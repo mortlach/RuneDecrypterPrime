@@ -6,7 +6,7 @@ from __future__ import annotations
 import numpy as np
 
 from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin, ArrayU8
-from rune_decrypter_prime.ciphers.dev.base_keyed_cipher import KeyedCipherBase
+from rune_decrypter_prime.ciphers.base_keyed_cipher import KeyedCipherBase
 from rune_decrypter_prime.ciphers.registry import register_cipher
 from rune_decrypter_prime.core.types import Direction, KeyOpsFamily, ensure_direction
 
@@ -99,7 +99,7 @@ class ColumnarTranspositionCipher(CipherPipelineMixin, KeyedCipherBase):
             return np.empty((0, L), dtype=np.uint8)
         # vectorized validity check
         if not (
-                keys.dtype.kind in "patche_old_ui" and
+                keys.dtype.kind in "ui" and
                 keys.min() >= 0 and keys.max() < K and
                 (np.apply_along_axis(lambda r: np.unique(r).size, 1, keys) == K).all()
         ):

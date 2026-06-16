@@ -1,2 +1,0 @@
-rdp
-rune_decrypter_prime

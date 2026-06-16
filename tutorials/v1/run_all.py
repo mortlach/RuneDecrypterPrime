@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 # -----------------------------------------------------------------------------
-# Runner config (edit these in your IDE; no CLI args required)
+# Runner config (IDE defaults; CI/review may override with environment variables)
 # -----------------------------------------------------------------------------
 #
 # Gate choices:
@@ -24,9 +24,10 @@ from typing import Any
 #   all_manifest -> all manifest entries, but known-broken/remove entries are still skipped
 #
 # CI/review runs may override the IDE defaults with environment variables:
-#   GATE_PROFILE=full_v1 python tutorials/v1/run_all.py
-#   ASSET_PROFILE=lm3_extended python tutorials/v1/run_all.py
-GATE_PROFILE = "full_v1"
+#   RDP_TUTORIAL_GATE_PROFILE=full_v1 python tutorials/v1/run_all.py
+#   RDP_TUTORIAL_ASSET_PROFILE=lm3_extended python tutorials/v1/run_all.py
+# Legacy GATE_PROFILE / ASSET_PROFILE names are still accepted.
+GATE_PROFILE = "release"
 
 # Asset choices:
 #   lm2_baseline  -> default minimal V1 asset profile
@@ -36,7 +37,7 @@ ASSET_PROFILE = "lm2_baseline"
 LIST_ONLY = False
 STOP_ON_FIRST_FAILURE = False
 
-# Keep normal runs compact. Flip to True when you want full tutorial output.
+# Keep normal runs compact. Override with RDP_TUTORIAL_ECHO_OUTPUT=1 for full output.
 ECHO_OUTPUT = False
 
 # Print the tail of failed/near-solve output for context.
@@ -99,6 +100,14 @@ def _env_text(name: str, default: str) -> str:
     return value.strip()
 
 
+def _env_text_any(names: tuple[str, ...], default: str) -> str:
+    for name in names:
+        value = os.environ.get(name)
+        if value is not None and value.strip():
+            return value.strip()
+    return default
+
+
 def _env_bool(name: str, default: bool) -> bool:
     value = os.environ.get(name)
     if value is None or not value.strip():
@@ -113,11 +122,15 @@ def _env_bool(name: str, default: bool) -> bool:
 
 
 def _gate_profile() -> str:
-    return _env_text("GATE_PROFILE", GATE_PROFILE)
+    return _env_text_any(("RDP_TUTORIAL_GATE_PROFILE", "GATE_PROFILE"), GATE_PROFILE)
 
 
 def _asset_profile() -> str:
-    return _env_text("ASSET_PROFILE", ASSET_PROFILE)
+    return _env_text_any(("RDP_TUTORIAL_ASSET_PROFILE", "ASSET_PROFILE"), ASSET_PROFILE)
+
+
+def _echo_output() -> bool:
+    return _env_bool("RDP_TUTORIAL_ECHO_OUTPUT", ECHO_OUTPUT)
 
 
 def _run_known_broken() -> bool:
@@ -321,9 +334,10 @@ def main() -> int:
 
         print(f"RUN  {rel} | gate={entry.get('gate')} | title={entry.get('title', '')}")
         proc = _launch_script(repo_root, src_path, script)
-        if ECHO_OUTPUT and proc.stdout:
+        echo_output = _echo_output()
+        if echo_output and proc.stdout:
             print(proc.stdout)
-        if ECHO_OUTPUT and proc.stderr:
+        if echo_output and proc.stderr:
             print(proc.stderr, file=sys.stderr)
 
         result = _acceptance(entry, proc)

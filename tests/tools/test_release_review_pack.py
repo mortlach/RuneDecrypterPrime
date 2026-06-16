@@ -21,8 +21,13 @@ def test_release_review_pack_includes_review_contract_files_and_small_data(tmp_p
     _write(repo / "README.md", "# readme\n")
     _write(repo / "pyproject.toml", "[project]\nname='x'\n")
     _write(repo / "install.py", "print('install')\n")
+    _write(repo / "install.ps1", "Write-Host install\n")
+    _write(repo / "setup.py", "from setuptools import setup\n")
+    _write(repo / "pytest.ini", "[pytest]\n")
+    _write(repo / "MANIFEST.in", "include README.md\n")
     _write(repo / "assets_manifest_v1.json", "{}\n")
     _write(repo / "unexpected_root_patch.py", "print('patch')\n")
+    _write(repo / "repair_old_release.py", "print('repair')\n")
     _write(repo / "root_archive.zip", "NOPE\n")
     _write(repo / "src" / "rune_decrypter_prime" / "core.py", "VALUE = 1\n")
     _write(
@@ -69,8 +74,13 @@ def test_release_review_pack_includes_review_contract_files_and_small_data(tmp_p
     assert "README.md" in names
     assert "pyproject.toml" in names
     assert "install.py" in names
+    assert "install.ps1" in names
+    assert "setup.py" in names
+    assert "pytest.ini" in names
+    assert "MANIFEST.in" in names
     assert "assets_manifest_v1.json" in names
-    assert "unexpected_root_patch.py" in names
+    assert "unexpected_root_patch.py" not in names
+    assert "repair_old_release.py" not in names
     assert "src/rune_decrypter_prime/core.py" in names
     assert "src/rune_decrypter_prime/data/cipher_tests/baseline_registry.py" in names
     assert "tests/core/test_core.py" in names
@@ -84,13 +94,16 @@ def test_release_review_pack_includes_review_contract_files_and_small_data(tmp_p
     assert "planning/private.md" not in names
     assert "src/rune_decrypter_prime/data/large_asset.zst" not in names
     assert "root_archive.zip" not in names
+    assert "repair_old_release.py" not in names
     assert manifest["schema"] == "rdp_v1_review_pack_manifest.v1"
-    assert manifest["root_file_selection"] == "all_direct_root_files_filtered_by_review_pack_rules"
+    assert manifest["root_file_selection"] == "strict_root_allowlist_filtered_by_review_pack_rules"
     assert manifest["git_branch"] == "prelease/v1.0.0_d7"
     assert manifest["git_commit_sha"] == "0123456789abcdef"
     assert manifest["git_working_tree_dirty"] is False
     excluded = {entry["path"]: entry["reason"] for entry in manifest["excluded_entries"]}
-    assert excluded["root_archive.zip"] == "excluded_suffix"
+    assert "root_archive.zip" not in excluded
+    assert "repair_old_release.py" not in excluded
+    assert "unexpected_root_patch.py" not in excluded
 
 
 def test_release_review_pack_excludes_large_text_files_by_size(tmp_path: Path) -> None:

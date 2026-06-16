@@ -22,6 +22,8 @@ def _run_all_module():
 
 
 def test_tutorial_runner_uses_valid_ide_defaults_without_environment_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("RDP_TUTORIAL_GATE_PROFILE", raising=False)
+    monkeypatch.delenv("RDP_TUTORIAL_ASSET_PROFILE", raising=False)
     monkeypatch.delenv("GATE_PROFILE", raising=False)
     monkeypatch.delenv("ASSET_PROFILE", raising=False)
     run_all = _run_all_module()
@@ -30,11 +32,27 @@ def test_tutorial_runner_uses_valid_ide_defaults_without_environment_override(mo
     asset_profile = run_all._asset_profile()
 
     assert gate_profile in run_all.GATE_PRESETS
+    assert gate_profile == "release"
     assert asset_profile in {"lm2_baseline", "lm3_extended"}
     assert run_all._selected_gates() == run_all.GATE_PRESETS[gate_profile]
 
 
-def test_tutorial_runner_allows_environment_gate_override(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_tutorial_runner_allows_canonical_environment_gate_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("RDP_TUTORIAL_GATE_PROFILE", "full_v1")
+    monkeypatch.setenv("GATE_PROFILE", "smoke")
+    run_all = _run_all_module()
+
+    assert run_all._gate_profile() == "full_v1"
+    assert run_all._selected_gates() == (
+        "v1_smoke",
+        "v1_release",
+        "v1_extended",
+        "v1_showcase_near_solve",
+    )
+
+
+def test_tutorial_runner_keeps_legacy_environment_gate_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("RDP_TUTORIAL_GATE_PROFILE", raising=False)
     monkeypatch.setenv("GATE_PROFILE", "full_v1")
     run_all = _run_all_module()
 
@@ -47,11 +65,27 @@ def test_tutorial_runner_allows_environment_gate_override(monkeypatch: pytest.Mo
     )
 
 
-def test_tutorial_runner_allows_environment_asset_override(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_tutorial_runner_allows_canonical_environment_asset_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("RDP_TUTORIAL_ASSET_PROFILE", "lm3_extended")
+    monkeypatch.setenv("ASSET_PROFILE", "lm2_baseline")
+    run_all = _run_all_module()
+
+    assert run_all._asset_profile() == "lm3_extended"
+
+
+def test_tutorial_runner_keeps_legacy_environment_asset_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("RDP_TUTORIAL_ASSET_PROFILE", raising=False)
     monkeypatch.setenv("ASSET_PROFILE", "lm3_extended")
     run_all = _run_all_module()
 
     assert run_all._asset_profile() == "lm3_extended"
+
+
+def test_tutorial_runner_allows_echo_output_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("RDP_TUTORIAL_ECHO_OUTPUT", "1")
+    run_all = _run_all_module()
+
+    assert run_all._echo_output() is True
 
 
 def test_tutorial_runner_rejects_invalid_boolean_override(monkeypatch: pytest.MonkeyPatch) -> None:

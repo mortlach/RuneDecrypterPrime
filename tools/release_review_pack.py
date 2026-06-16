@@ -14,15 +14,24 @@ MAX_FILE_BYTES = 256 * 1024
 
 ROOT_FILE_NAMES: tuple[str, ...] = (
     "AGENTS.md",
+    ".gitattributes",
+    ".gitignore",
+    "CONTRIBUTING.md",
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
     "LICENSE.txt",
+    "LICENSE_MIT.txt",
+    "MANIFEST.in",
     "pyproject.toml",
+    "pytest.ini",
     "requirements.txt",
     "install.py",
+    "install.bat",
+    "install.ps1",
+    "install.sh",
     "assets_manifest_v1.json",
-    ".gitignore",
+    "setup.py",
 )
 
 REVIEW_DIRS: tuple[str, ...] = (
@@ -92,6 +101,7 @@ ALLOWED_SUFFIXES = frozenset(
         ".cfg",
         ".csv",
         ".gitignore",
+        ".in",
         ".ini",
         ".json",
         ".lock",
@@ -100,6 +110,9 @@ ALLOWED_SUFFIXES = frozenset(
         ".pyi",
         ".rst",
         ".toml",
+        ".bat",
+        ".ps1",
+        ".sh",
         ".tsv",
         ".txt",
         ".yaml",
@@ -214,8 +227,9 @@ def _iter_files_under(root: Path) -> list[Path]:
 
 def _candidate_files(repo_root: Path) -> list[Path]:
     candidates: list[Path] = []
-    for p in repo_root.iterdir():
-        if p.is_file():
+    for name in ROOT_FILE_NAMES:
+        p = repo_root / name
+        if p.exists() and p.is_file():
             candidates.append(p)
     for name in REVIEW_DIRS:
         candidates.extend(_iter_files_under(repo_root / name))
@@ -262,7 +276,7 @@ def make_release_review_pack(
         "schema": "rdp_v1_review_pack_manifest.v1",
         "timestamp_utc": timestamp,
         "max_file_bytes": max_file_bytes,
-        "root_file_selection": "all_direct_root_files_filtered_by_review_pack_rules",
+        "root_file_selection": "strict_root_allowlist_filtered_by_review_pack_rules",
         "included_roots": list(REVIEW_DIRS),
         "preferred_root_files": list(ROOT_FILE_NAMES),
         "included_tool_files": list(REVIEW_TOOL_FILES),

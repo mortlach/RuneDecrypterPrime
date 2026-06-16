@@ -100,6 +100,7 @@ def test_known_broken_entries_are_not_selected_by_release_or_full_v1() -> None:
             assert entry["gate"] in KNOWN_BLOCKED_GATES, entry["path"]
             assert entry["gate"] not in RELEASE_GATES
             assert entry["gate"] not in FULL_V1_GATES
+            assert entry["path"].startswith("_legacy_blocked/"), entry["path"]
 
 
 def test_runner_parses_unified_tutorial_match_ratio_label() -> None:

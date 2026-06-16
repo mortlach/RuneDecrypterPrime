@@ -58,30 +58,30 @@ python tutorials/v1/run_all.py
 
 The runner defaults to the V1 release profile.
 
-The runner settings are at the top of:
-
-```text
-tutorials/v1/run_all.py
-```
-
 Useful settings:
 
 ```text
-GATE_PROFILE = "release"
-ASSET_PROFILE = "lm2_baseline"
-ECHO_OUTPUT = False
+RDP_TUTORIAL_GATE_PROFILE=release
+RDP_TUTORIAL_ASSET_PROFILE=lm2_baseline
+RDP_TUTORIAL_ECHO_OUTPUT=0
 ```
 
-To print full tutorial output for users, change:
+To print full tutorial output for users, set:
 
 ```text
-ECHO_OUTPUT = True
+RDP_TUTORIAL_ECHO_OUTPUT=1
 ```
 
 Then run:
 
 ```text
 python tutorials/v1/run_all.py
+```
+
+For the longer full V1 proof/showcase gate, set:
+
+```text
+RDP_TUTORIAL_GATE_PROFILE=full_v1
 ```
 
 Generated tutorial output is written under:

@@ -21,12 +21,6 @@ notes.
 python tutorials/v1/run_all.py
 ```
 
-The runner uses the settings at the top of:
-
-```text
-tutorials/v1/run_all.py
-```
-
 Default V1 settings:
 
 ```text
@@ -37,22 +31,22 @@ ECHO_OUTPUT = False
 
 ## 3. Show full tutorial output
 
-For a user-facing run where you want to see each tutorial's full output, edit:
+For a user-facing run where you want to see each tutorial's full output, set:
 
 ```text
-tutorials/v1/run_all.py
-```
-
-and set:
-
-```text
-ECHO_OUTPUT = True
+RDP_TUTORIAL_ECHO_OUTPUT=1
 ```
 
 Then run:
 
 ```text
 python tutorials/v1/run_all.py
+```
+
+For the longer full V1 proof/showcase gate, set:
+
+```text
+RDP_TUTORIAL_GATE_PROFILE=full_v1
 ```
 
 ## 4. What success looks like

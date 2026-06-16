@@ -1,5 +1,5 @@
 # ============================================================
-# rune_decrypter_prime/patche_old_ui/maps_api.py
+# rune_decrypter_prime/api/maps_api.py
 #   Consolidated UX helpers for user-defined maps and lookup ciphers
 # ============================================================
 from __future__ import annotations

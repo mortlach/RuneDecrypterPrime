@@ -33,8 +33,8 @@ def score_plaintext(
         key_length=None,
         device=device,
         encoding_dir=encoding_dir,
-    ).asdict()
-    s_cfg = ScoringConfig(**scorer_params).asdict()
+    )
+    s_cfg = ScoringConfig(**scorer_params)
     scorer = build_scorer(c_cfg, s_cfg)
     return float(scorer.score(pt_arr, wli))
 

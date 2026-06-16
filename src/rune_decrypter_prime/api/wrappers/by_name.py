@@ -39,7 +39,7 @@ def _make_vigenere_like_spec(**kwargs):
     )
 
 
-# patche_old_ui/wrappers.py
+# API wrapper compatibility surface.
 from types import SimpleNamespace as _NS
 from typing import Union as _Union
 
@@ -103,7 +103,7 @@ class by_name:
         return cls._REG[key](**kwargs)
 
     # ---------------- handlers ---------------- #
-    # IMPORTANT: Lazy-import patche_old_ui.api types inside handlers to avoid circular import.
+    # IMPORTANT: Lazy-import API spec types inside handlers to avoid circular imports.
 
     @staticmethod
     def _vigenere(*, key_len: int | None = None, default_key: bool = False, **kwargs: Any):
@@ -227,7 +227,7 @@ class by_name:
     #     degeneracy: str = "forbid", resolver: str = "first", per_pos_limit: int = 1, **kwargs: Any
     # ):
     #     """Columnar transposition: values unchanged, positions permuted."""
-    #     from rune_decrypter_prime.patche_old_ui.api import CipherSpec, KeySpec
+    #     from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
     #     N = _pull_N(kwargs)
     #     def f(pt: int, k: int) -> int:
     #         return pt

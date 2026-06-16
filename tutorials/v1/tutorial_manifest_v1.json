@@ -405,7 +405,7 @@
       "notes": "Requires lm3_extended assets beyond the pure lm2_baseline release profile."
     },
     {
-      "path": "Tutorial_PeriodicColumnar_Simple_P7_SubThenCol.py",
+      "path": "_legacy_blocked/Tutorial_PeriodicColumnar_Simple_P7_SubThenCol.py",
       "title": "Periodic columnar simple P7 sub-then-col",
       "cipher_family": "periodic_columnar",
       "tutorial_kind": "contract_fix_needed",
@@ -425,7 +425,7 @@
       "notes": "Current failure: make_true_periodic_columnar_key() got unexpected keyword argument 'order'. Excluded from release/full_v1 gates."
     },
     {
-      "path": "Tutorial_ScheduledStreamLookup.py",
+      "path": "_legacy_blocked/Tutorial_ScheduledStreamLookup.py",
       "title": "ScheduledStreamLookup wrapper script",
       "cipher_family": "scheduled_stream_lookup",
       "tutorial_kind": "wrapper_script",

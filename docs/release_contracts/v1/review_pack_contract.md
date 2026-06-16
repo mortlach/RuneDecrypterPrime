@@ -14,17 +14,28 @@ The pack includes small files from:
 - `tutorials/`
 - `.github/workflows/`
 
-It also includes selected root files:
+It also includes only allow-listed root files:
 
 - `AGENTS.md`
 - `README.md`
 - `CHANGELOG.md` if present
 - `LICENSE` / `LICENSE.txt` if present
 - `pyproject.toml`
+- `pytest.ini`
+- `setup.py`
+- `MANIFEST.in`
 - `requirements.txt`
-- `install.py`
+- `install.py` and platform launcher scripts
 - `assets_manifest_v1.json`
 - `.gitignore`
+
+Root repair/apply/patch/temp scripts are not included just because they are small text files. If a new root file is review-critical, add it deliberately to the allowlist and update the tests.
+
+The manifest field `root_file_selection` must be:
+
+```text
+strict_root_allowlist_filtered_by_review_pack_rules
+```
 
 The tool itself, `tools/release_review_pack.py`, is included so reviewers can see exactly how the pack was produced.
 
