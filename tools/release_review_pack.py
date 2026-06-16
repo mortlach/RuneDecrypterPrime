@@ -214,9 +214,8 @@ def _iter_files_under(root: Path) -> list[Path]:
 
 def _candidate_files(repo_root: Path) -> list[Path]:
     candidates: list[Path] = []
-    for name in ROOT_FILE_NAMES:
-        p = repo_root / name
-        if p.exists() and p.is_file():
+    for p in repo_root.iterdir():
+        if p.is_file():
             candidates.append(p)
     for name in REVIEW_DIRS:
         candidates.extend(_iter_files_under(repo_root / name))
@@ -263,8 +262,9 @@ def make_release_review_pack(
         "schema": "rdp_v1_review_pack_manifest.v1",
         "timestamp_utc": timestamp,
         "max_file_bytes": max_file_bytes,
+        "root_file_selection": "all_direct_root_files_filtered_by_review_pack_rules",
         "included_roots": list(REVIEW_DIRS),
-        "included_root_files": list(ROOT_FILE_NAMES),
+        "preferred_root_files": list(ROOT_FILE_NAMES),
         "included_tool_files": list(REVIEW_TOOL_FILES),
         "excluded_dir_names": sorted(EXCLUDED_DIR_NAMES),
         "excluded_suffixes": sorted(EXCLUDED_SUFFIXES),
