@@ -26,7 +26,7 @@ from typing import Any
 # CI/review runs may override the IDE defaults with environment variables:
 #   GATE_PROFILE=full_v1 python tutorials/v1/run_all.py
 #   ASSET_PROFILE=lm3_extended python tutorials/v1/run_all.py
-GATE_PROFILE = "release"
+GATE_PROFILE = "full_v1"
 
 # Asset choices:
 #   lm2_baseline  -> default minimal V1 asset profile
