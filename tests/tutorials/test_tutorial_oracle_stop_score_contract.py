@@ -7,6 +7,8 @@ from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.utils import tutorial_utils
 
+pytestmark = pytest.mark.tier_a
+
 
 class _FakeScorer:
     def score(self, plaintext, wli) -> float:
