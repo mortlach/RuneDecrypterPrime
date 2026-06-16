@@ -13,6 +13,7 @@ from rune_decrypter_prime.api.run_spec import SourceInputRef
 
 SUPPORTED_SOURCE_KINDS = frozenset(
     {
+        "liber_primus.label",
         "liber_primus.locator",
         "liber_primus.partition",
     }
@@ -45,12 +46,28 @@ def resolve_source_input_ref(source_ref: SourceInputRef) -> ResolvedSourceInput:
     if not isinstance(source_ref, SourceInputRef):
         raise TypeError("source_ref must be a SourceInputRef")
 
+    if source_ref.source_kind == "liber_primus.label":
+        return _resolve_lp_label(source_ref)
     if source_ref.source_kind == "liber_primus.locator":
         return _resolve_lp_locator(source_ref)
     if source_ref.source_kind == "liber_primus.partition":
         return _resolve_lp_partition(source_ref)
 
     raise ValueError(f"unsupported source_kind for resolution: {source_ref.source_kind}")
+
+
+def _resolve_lp_label(source_ref: SourceInputRef) -> ResolvedSourceInput:
+    _validate_lp_master_identity(source_ref)
+
+    from rune_decrypter_prime.data.liber_primus.lp_source_catalogue import payload_from_label
+
+    payload = payload_from_label(source_ref.ref["label"])
+    return ResolvedSourceInput(
+        ct_idx=payload.ct_idx,
+        wli=payload.wli,
+        source_ref=source_ref,
+        source_metadata=payload.metadata,
+    )
 
 
 def _resolve_lp_locator(source_ref: SourceInputRef) -> ResolvedSourceInput:
