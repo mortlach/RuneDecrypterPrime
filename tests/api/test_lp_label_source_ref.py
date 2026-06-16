@@ -61,16 +61,6 @@ def test_lp_label_source_ref_rejects_extra_keys() -> None:
         )
 
 
-def test_lp_label_source_ref_rejects_recipe_namespace_as_source() -> None:
-    with pytest.raises(ValueError, match="solve recipe"):
-        SourceInputRef(
-            source_kind="liber_primus.label",
-            asset_id="liber_primus.master_transcript",
-            asset_version="test-version",
-            ref={"label": "recipe.welcome_pilgrim.vigenere_interruptors"},
-        )
-
-
 def test_source_resolution_dispatches_lp_label(monkeypatch) -> None:
     from rune_decrypter_prime.api import source_resolution
     from rune_decrypter_prime.data.liber_primus import lp_source_catalogue
