@@ -14,11 +14,7 @@ SOURCE_STATUS_SOLVED_TEXT_AVAILABLE = "solved_text_available"
 
 @dataclass(frozen=True)
 class LPSourceEntry:
-    """Human-facing LP text-source label resolved to master-transcript pages.
-
-    Source labels identify *which LP text fragment* is being used. They must not
-    encode the cipher, key, or solving method. Those belong in solve recipes.
-    """
+    """Human-facing LP text-source label resolved to master-transcript pages."""
 
     source_label: str
     display_name: str
@@ -35,8 +31,6 @@ class LPSourceEntry:
 
     def __post_init__(self) -> None:
         _require_label(self.source_label, "source_label")
-        if not self.source_label.startswith("red_rune."):
-            raise ValueError(f"source_label must use red_rune namespace: {self.source_label!r}")
         if not self.display_name.strip():
             raise ValueError("display_name must be non-empty")
         if not self.red_rune_label.strip():
@@ -50,10 +44,8 @@ class LPSourceEntry:
         start, end = self.master_page_range
         if start < 0 or end < start:
             raise ValueError("master_page_range must be a non-negative inclusive range")
-        _reject_method_words(self.source_label, "source_label")
         for alias in self.aliases:
             _require_label(alias, "alias")
-            _reject_method_words(alias, "alias")
 
     @property
     def has_explicit_locator(self) -> bool:
@@ -80,8 +72,6 @@ class LPSolveRecipeEntry:
 
     def __post_init__(self) -> None:
         _require_label(self.recipe_label, "recipe_label")
-        if not self.recipe_label.startswith("recipe."):
-            raise ValueError(f"recipe_label must use recipe namespace: {self.recipe_label!r}")
         _require_label(self.source_label, "source_label")
         if not self.cipher_family.strip():
             raise ValueError("cipher_family must be non-empty")
@@ -93,28 +83,6 @@ class LPSolveRecipeEntry:
             raise ValueError("expected_match must be in [0, 1]")
 
 
-_METHOD_WORDS = frozenset(
-    {
-        "atbash",
-        "cipher",
-        "emirp",
-        "fibbo",
-        "fibonacci",
-        "firfumferenfe",
-        "gematria",
-        "interrupter",
-        "interruptors",
-        "key",
-        "prime",
-        "primes",
-        "recipe",
-        "shift",
-        "stream",
-        "vigenere",
-    }
-)
-
-
 def _require_label(value: str, field_name: str) -> None:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{field_name} must be a non-empty string")
@@ -122,13 +90,6 @@ def _require_label(value: str, field_name: str) -> None:
         raise ValueError(f"{field_name} must not have surrounding whitespace")
     if " " in value:
         raise ValueError(f"{field_name} must not contain spaces")
-
-
-def _reject_method_words(label: str, field_name: str) -> None:
-    parts = {part for part in label.replace("-", "_").split(".") for part in part.split("_") if part}
-    overlap = sorted(parts & _METHOD_WORDS)
-    if overlap:
-        raise ValueError(f"{field_name} must not encode solving method words: {overlap}")
 
 
 _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
