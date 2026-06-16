@@ -9,7 +9,6 @@ pytestmark = pytest.mark.tier_a
 
 _METHOD_WORDS = {
     "cipher",
-    "divinity",
     "emirp",
     "fibbo",
     "fibonacci",
