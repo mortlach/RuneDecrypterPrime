@@ -42,11 +42,19 @@ def test_release_review_pack_includes_review_contract_files_and_small_data(tmp_p
         output_root=zip_path.parent,
         zip_path_override=zip_path,
         max_file_bytes=4096,
+        git_metadata={
+            "git_branch": "prelease/v1.0.0_d7",
+            "git_commit_sha": "0123456789abcdef",
+            "git_working_tree_dirty": False,
+        },
     )
 
     assert zip_path.exists()
     assert summary["included_files_count"] >= 10
     assert Path(str(summary["summary_path"])).exists()
+    assert summary["git_branch"] == "prelease/v1.0.0_d7"
+    assert summary["git_commit_sha"] == "0123456789abcdef"
+    assert summary["git_working_tree_dirty"] is False
 
     with ZipFile(zip_path, "r") as zf:
         names = set(zf.namelist())
@@ -72,6 +80,9 @@ def test_release_review_pack_includes_review_contract_files_and_small_data(tmp_p
     assert "planning/private.md" not in names
     assert "src/rune_decrypter_prime/data/large_asset.zst" not in names
     assert manifest["schema"] == "rdp_v1_review_pack_manifest.v1"
+    assert manifest["git_branch"] == "prelease/v1.0.0_d7"
+    assert manifest["git_commit_sha"] == "0123456789abcdef"
+    assert manifest["git_working_tree_dirty"] is False
 
 
 def test_release_review_pack_excludes_large_text_files_by_size(tmp_path: Path) -> None:
@@ -86,6 +97,7 @@ def test_release_review_pack_excludes_large_text_files_by_size(tmp_path: Path) -
         output_root=zip_path.parent,
         zip_path_override=zip_path,
         max_file_bytes=32,
+        git_metadata={"git_branch": None, "git_commit_sha": None, "git_working_tree_dirty": None},
     )
 
     with ZipFile(zip_path, "r") as zf:
