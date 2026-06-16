@@ -7,6 +7,7 @@ on:
       - preleasev1.0.0_d5
       - prelease/v1.0.0_d6
       - prelease/v1.0.0_d7
+      - prelease/v1.0.0_lp_source_labels
 
 permissions:
   contents: read
