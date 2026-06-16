@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from rune_decrypter_prime.data import liber_primus as lp
+from rune_decrypter_prime.utils.runeglish import Runeglish
 
 pytestmark = pytest.mark.tier_a
 
@@ -23,8 +24,74 @@ def _word_lengths_from_wli(wli: list[list[int]] | tuple[tuple[int, int], ...]) -
     return lengths
 
 
-SPREADSHEET_REFERENCES = {
-    "red_rune.instruction": {
+def _reference_ct_idx_and_word_lengths(reference_text: str) -> tuple[list[int], list[int]]:
+    ct_idx: list[int] = []
+    word_lengths: list[int] = []
+    current_word_length = 0
+    for ch in reference_text:
+        pos = Runeglish.rune2pos.get(ch)
+        if pos is None:
+            if current_word_length:
+                word_lengths.append(current_word_length)
+                current_word_length = 0
+            continue
+        ct_idx.append(pos)
+        current_word_length += 1
+    if current_word_length:
+        word_lengths.append(current_word_length)
+    return ct_idx, word_lengths
+
+
+RUNE_PAGE_REFERENCES = {
+    "warning": {
+        "sheet": "A Warning",
+        "expected_master_page_range": (0, 0),
+        "reference_text": """ᚱ-ᛝᚱᚪᛗᚹ.ᛄᛁᚻᛖᛁᛡᛁ-ᛗᚫᚣᚹ-ᛠᚪᚫᚾ-/
+ᚣᛖᛈ-ᛄᚫᚫᛞ.ᛁᛉᛞᛁᛋᛇ-ᛝᛚᚱᛇ-ᚦᚫᛡ/
+-ᛞᛗᚫᛝ-ᛇᚫ-ᛄᛁ-ᛇᚪᛡᛁ.ᛇᛁᛈᛇ-ᚣᛁ-ᛞ/
+ᛗᚫᛝᚻᛁᚳᛟᛁ.ᛠᛖᛗᚳ-ᚦᚫᛡᚪ-ᛇᚪᛡᚣ.ᛁᛉ/
+ᛋᛁᚪᛖᛁᛗᛞᛁ-ᚦᚫᛡᚪ-ᚳᚠᚣ.ᚳᚫ-ᛗᚫᛇ-ᛁᚳᛖᛇ-ᚫ/
+ᚪ-ᛞᛚᚱᚹᛁ-ᚣᛖᛈ-ᛄᚫᚫᛞ.ᚫᚪ-ᚣᛁ-ᚾᛁᛈᛈᚱᛟᛁ-/
+ᛞᚫᛗᛇᚱᛖᛗᛁᚳ-ᛝᛖᚣᛖᛗ.ᛁᛖᚣᛁᚪ-ᚣᛁ-ᛝᚫ/
+ᚪᚳᛈ-ᚫᚪ-ᚣᛁᛖᚪ-ᛗᛡᚾᛄᛁᚪᛈ.ᛠᚫᚪ-ᚱᚻᚻ-ᛖ/
+ᛈ-ᛈᚱᛞᚪᛁᚳ./""",
+    },
+    "welcome_pilgrim": {
+        "sheet": "Welcome",
+        "expected_master_page_range": (1, 2),
+        "reference_text": """ᚢᛠᛝᛋᛇᚠᚳ.ᚱᛇᚢᚷᛈᛠᛠ,-ᚠᚹᛉ/
+ᛏᚳᛚᛠ,-ᚣᛗ-ᛠᛇ-ᛏᚳᚾᚫ-ᛝᛗᛡ/
+ᛡᛗᛗᚹ-ᚫᛈᛞᛝᛡᚱ-ᚩᛠ-ᛡᛗᛁ-ᚠᚠ-/
+ᛖᚢᛝ-ᛇᚢᚫ.ᚣᛈ-ᚱᚫ-ᛁᛈᚫ-ᚳᚫ-ᚫᚾᚹ-ᛒᛉᛗᛞ/
+,ᚱᛡᛁ-ᚠᛈᚳ-ᛇᛇᚫᚳ-ᚱᚦᛈ-ᚠᛄᛗᚩ-ᛇᚳᚹᛡ-ᛒᚫᚹ-/
+ᛒᛠᛚᛋ-ᚱᚣ-ᛄᚫ-ᚱ-ᛗᚳᚦᛇᚫᛏᚳᛈᚹ-ᛗᚷᛇ.ᚳ/
+ᛝᛈᚢ-ᛇᚳ-ᚱᛖᚹ-ᛡᛈᛁ-ᛒᚣᛒᛉ-ᚠᛚᛁᚱ-ᚱᛗ-ᚳᚷ/
+ᛒ-ᚣᚱ-ᚳᚠᚢ-ᚦᛈᛡᛄᚹᛏᚠᛠ-ᛄᚷᛒ-ᚫᚦᚠᚠᛠ/
+ᛈᚦ,-ᛈᚠᚪᛉ-ᛄᛗᛖᛈᛝᛋᚩᛋᛗ,-ᚹᛇᛄᛚ-ᚹᛉᚢᚦ/
+ᚫᚹᛗᚦ-ᛞᚣᛄᚳ-ᛋᛡᛉᚩᛝᚱᛗᛒᚹ,-ᚱᛗᛁ-ᛞᚣᛄ/
+ᚳ-ᛉᚻᚢᚣᛈᛚ.ᛄᛝᚣᛗᚠᛄᛈᛇᚢᛡ,-ᚹᛇᛄ-ᛞ/
+ᚹᛉᚢ-ᚪᛚᚪᛋᛗᛡᛇᛉ-ᚫᛗ-ᛡᛗᛁ-ᛈᚣ-ᚫᛗᚢᚠ/
+%
+.ᛗᚣ-ᚣᛇ-ᚫᛉᚱᛄᛋᛖ-ᛖᚹᚾ-ᛞᛄᚢᛋᛉᚣᛏ/
+ᛖᛏᛗ-ᛇᚱᚣ-ᛞᛋ-ᚾᛖᚫᛞᛡ-ᛈᛒᚢᚾᛠᛝᛄᛡ/
+ᚫ-ᛄᚷᛒ-ᛈᚦᛉ-ᛈᚾᚹᚹᛁᛚᛗᚫ.ᛚᛈᛒᚢᚩᛠᛡ-ᚱ/
+ᛡᛠᚠ-ᚱᚱᛇᛄᛗ-ᚱᛗᛁ-ᛞᚣᛄ-ᚻᛚᚠᚢ-ᛄᚢᛡᛚᚦ/
+ᛠ-ᛇᛄᚩᛇᚱᚱᛗ.ᚢᛗᛋᚳ-ᛠᛇ-ᛚᛁᚫᚫᚳᛚ,-ᚹᛁ-ᛚ/
+ᛏ-ᛈᛖᚢᛈ-ᛠᛡᛈᚦᛏᛒ-ᛏᛗᛖ-ᚢᛚᚩᛚᛖ-ᛇᛄ/
+ᛈ-ᚢᛠ-ᛚᚳᚷ-ᛠᚷᛋᛡᛏᛗ./
+&
+ᛒᛗᚱᚦᚠᛈ.ᚹᚱᛄ-ᚱᛉᚳ-ᛝ-ᛄᛠᛟ-ᛄᛖ/
+ᚣᛗ-ᛞᚣᛄᚳᚫᛡᚢᚠ.ᛈᚠᚪ-ᚳᚳᛠ-ᚱ-/
+ᚢᛄᚱ-ᚪᛗᛒᛈ-ᚷᛈᛒᚢᚾᛠᛝᚠ.ᚾᛉᛖ-/
+ᚣᚷᛁᛠᛝᚢᛗᛏᚳᚷᛠᛠ-ᛄᚫ-ᛒᛈᚹᛞ.ᚠᚣ/
+ᛉ-ᚫᚢᚠ-ᛇᛄᛈ-ᛉᛚᚦᛠᚪ-ᛚᚦ-ᚳᚣᚢᛡ./
+ᚳᛖ-ᛚᚫᛇᛁᛉᚦᛋᚫᚻᚫ.ᚦᚣᚠᛚᚳᛖᚱ-ᛈᚠᚪᛉ-ᚱᛒᛖ-ᚫᚳᛒᚠ./""",
+    },
+}
+
+
+SPREADSHEET_NUMERIC_REFERENCES = {
+    "instruction": {
         "sheet": "An Instruction",
         "expected_ct_idx": [
             24, 9, 10, 9, 15, 16, 4, 1, 5, 16, 27, 9, 5, 7, 18, 15, 16, 27, 9,
@@ -36,9 +103,9 @@ SPREADSHEET_REFERENCES = {
         "expected_word_lengths": [
             2, 10, 7, 3, 3, 8, 4, 6, 8, 6, 4, 4, 6, 4, 2, 5, 4, 3,
         ],
-        "expected_canon_range": (54, 55),
+        "expected_master_page_range": (54, 55),
     },
-    "red_rune.an_end": {
+    "an_end": {
         "sheet": "p56 An End",
         "expected_ct_idx": [
             25, 11, 22, 15, 4, 19, 26, 20, 3, 8, 3, 25, 5, 2, 6, 7, 7, 20, 25, 14,
@@ -51,9 +118,9 @@ SPREADSHEET_REFERENCES = {
             2, 3, 5, 2, 4, 3, 4, 6, 1, 4, 3, 6, 2, 2, 2, 2, 4, 2, 5, 7, 2, 4, 3,
             3, 4,
         ],
-        "expected_canon_range": (56, 56),
+        "expected_master_page_range": (56, 56),
     },
-    "red_rune.parable": {
+    "parable": {
         "sheet": "p57 Parable",
         "expected_ct_idx": [
             13, 24, 4, 24, 17, 20, 18, 20, 10, 5, 18, 2, 18, 10, 9, 15, 16, 24, 4,
@@ -65,25 +132,43 @@ SPREADSHEET_REFERENCES = {
         "expected_word_lengths": [
             7, 4, 2, 6, 7, 2, 2, 7, 2, 4, 4, 3, 3, 14, 4, 2, 8, 5, 3, 6,
         ],
-        "expected_canon_range": (57, 57),
+        "expected_master_page_range": (57, 57),
     },
 }
 
 
-@pytest.mark.parametrize("source_label", sorted(SPREADSHEET_REFERENCES))
-def test_solved_lp_label_payload_matches_hardcoded_spreadsheet_reference(source_label: str) -> None:
-    reference = SPREADSHEET_REFERENCES[source_label]
+@pytest.mark.parametrize("source_label", sorted(RUNE_PAGE_REFERENCES))
+def test_solved_lp_label_payload_matches_hardcoded_page_reference(source_label: str) -> None:
+    reference = RUNE_PAGE_REFERENCES[source_label]
+    expected_ct_idx, expected_word_lengths = _reference_ct_idx_and_word_lengths(reference["reference_text"])
 
     payload = lp.payload_from_label(source_label)
 
-    assert payload.metadata["source_label"] == source_label
+    assert payload.metadata["requested_label"] == source_label
+    assert payload.metadata["spreadsheet_sheet"] == reference["sheet"]
+    assert tuple(payload.ct_idx) == tuple(expected_ct_idx)
+    assert _word_lengths_from_wli(payload.wli) == expected_word_lengths
+    assert sum(expected_word_lengths) == len(expected_ct_idx)
+    assert (payload.metadata["master_page_start"], payload.metadata["master_page_end"]) == reference[
+        "expected_master_page_range"
+    ]
+    assert payload.metadata["boundary_granularity"] == "full_master_pages"
+
+
+@pytest.mark.parametrize("source_label", sorted(SPREADSHEET_NUMERIC_REFERENCES))
+def test_solved_lp_label_payload_matches_hardcoded_numeric_reference(source_label: str) -> None:
+    reference = SPREADSHEET_NUMERIC_REFERENCES[source_label]
+
+    payload = lp.payload_from_label(source_label)
+
+    assert payload.metadata["requested_label"] == source_label
     assert payload.metadata["spreadsheet_sheet"] == reference["sheet"]
     assert tuple(payload.ct_idx) == tuple(reference["expected_ct_idx"])
     assert _word_lengths_from_wli(payload.wli) == reference["expected_word_lengths"]
     assert sum(reference["expected_word_lengths"]) == len(reference["expected_ct_idx"])
-    assert (payload.metadata["canon_start"], payload.metadata["canon_end"]) == reference[
-        "expected_canon_range"
+    assert (payload.metadata["master_page_start"], payload.metadata["master_page_end"]) == reference[
+        "expected_master_page_range"
     ]
     assert payload.metadata["bound_book_start"] >= 1
     assert payload.metadata["bound_book_end"] >= payload.metadata["bound_book_start"]
-    assert payload.metadata["boundary_granularity"] == "full_canon_pages"
+    assert payload.metadata["boundary_granularity"] == "full_master_pages"
