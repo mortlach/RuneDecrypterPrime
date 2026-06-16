@@ -1,19 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from typing import Optional
 
 from rune_decrypter_prime.data.liber_primus.lp_registry import LPFragmentLocator
 from rune_decrypter_prime.data.liber_primus.lp_transcript import LPTranscript
 
 
-BOUNDARY_NEEDS_VERIFICATION = "needs_master_transcript_locator_verification"
+BOUNDARY_CANON_PAGE_RANGE = "verified_master_transcript_canon_page_range"
 SOURCE_STATUS_SOLVED_TEXT_AVAILABLE = "solved_text_available"
 
 
 @dataclass(frozen=True)
 class LPSourceEntry:
-    """Human-facing LP text-source label resolved to a verified transcript locator.
+    """Human-facing LP text-source label resolved to master-transcript pages.
 
     Source labels identify *which LP text fragment* is being used. They must not
     encode the cipher, key, or solving method. Those belong in solve recipes.
@@ -25,9 +25,9 @@ class LPSourceEntry:
     boundary_status: str
     red_rune_label: str
     spreadsheet_sheet: str
-    candidate_red_rune_sections: tuple[int, ...]
-    candidate_canon_page_range: tuple[int, int]
-    candidate_side_art_label: Optional[str] = None
+    red_rune_sections: tuple[int, ...]
+    canon_page_range: tuple[int, int]
+    side_art_label: Optional[str] = None
     aliases: tuple[str, ...] = ()
     locator: Optional[LPFragmentLocator] = None
     notes: str = ""
@@ -42,20 +42,20 @@ class LPSourceEntry:
             raise ValueError("red_rune_label must be non-empty")
         if not self.spreadsheet_sheet.strip():
             raise ValueError("spreadsheet_sheet must be non-empty")
-        if not self.candidate_red_rune_sections:
-            raise ValueError("candidate_red_rune_sections must be non-empty")
-        if any(section <= 0 for section in self.candidate_red_rune_sections):
-            raise ValueError("candidate_red_rune_sections must be positive")
-        start, end = self.candidate_canon_page_range
+        if not self.red_rune_sections:
+            raise ValueError("red_rune_sections must be non-empty")
+        if any(section <= 0 for section in self.red_rune_sections):
+            raise ValueError("red_rune_sections must be positive")
+        start, end = self.canon_page_range
         if start < 0 or end < start:
-            raise ValueError("candidate_canon_page_range must be a non-negative inclusive range")
+            raise ValueError("canon_page_range must be a non-negative inclusive range")
         _reject_method_words(self.source_label, "source_label")
         for alias in self.aliases:
             _require_label(alias, "alias")
             _reject_method_words(alias, "alias")
 
     @property
-    def has_verified_locator(self) -> bool:
+    def has_explicit_locator(self) -> bool:
         return self.locator is not None
 
 
@@ -131,108 +131,108 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         source_label="red_rune.warning",
         display_name="A Warning",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_NEEDS_VERIFICATION,
+        boundary_status=BOUNDARY_CANON_PAGE_RANGE,
         red_rune_label="warning",
         spreadsheet_sheet="A Warning",
-        candidate_red_rune_sections=(1,),
-        candidate_canon_page_range=(0, 2),
-        candidate_side_art_label="sign_post_cross",
+        red_rune_sections=(1,),
+        canon_page_range=(0, 2),
+        side_art_label="sign_post_cross",
         aliases=("solved.warning",),
     ),
     LPSourceEntry(
         source_label="red_rune.some_wisdom",
         display_name="Some Wisdom",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_NEEDS_VERIFICATION,
+        boundary_status=BOUNDARY_CANON_PAGE_RANGE,
         red_rune_label="some_wisdom",
         spreadsheet_sheet="Some Wisdom",
-        candidate_red_rune_sections=(2,),
-        candidate_canon_page_range=(3, 3),
-        candidate_side_art_label="spirals",
+        red_rune_sections=(2,),
+        canon_page_range=(3, 3),
+        side_art_label="spirals",
         aliases=("solved.some_wisdom",),
     ),
     LPSourceEntry(
         source_label="red_rune.welcome_pilgrim",
         display_name="Welcome Pilgrim",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_NEEDS_VERIFICATION,
+        boundary_status=BOUNDARY_CANON_PAGE_RANGE,
         red_rune_label="welcome_pilgrim",
         spreadsheet_sheet="Welcome",
-        candidate_red_rune_sections=(3,),
-        candidate_canon_page_range=(3, 6),
-        candidate_side_art_label="spirals",
+        red_rune_sections=(3,),
+        canon_page_range=(3, 6),
+        side_art_label="spirals",
         aliases=("solved.welcome_pilgrim",),
     ),
     LPSourceEntry(
         source_label="red_rune.koan_a_man",
         display_name="A Koan: A Man",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_NEEDS_VERIFICATION,
+        boundary_status=BOUNDARY_CANON_PAGE_RANGE,
         red_rune_label="koan_a_man",
         spreadsheet_sheet="A Koan A Man",
-        candidate_red_rune_sections=(4, 5),
-        candidate_canon_page_range=(6, 7),
-        candidate_side_art_label="spirals",
+        red_rune_sections=(4, 5),
+        canon_page_range=(6, 7),
+        side_art_label="spirals",
         aliases=("solved.koan_a_man",),
     ),
     LPSourceEntry(
         source_label="red_rune.loss_of_divinity",
         display_name="The Loss of Divinity",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_NEEDS_VERIFICATION,
+        boundary_status=BOUNDARY_CANON_PAGE_RANGE,
         red_rune_label="loss_of_divinity",
         spreadsheet_sheet="The Loss Of",
-        candidate_red_rune_sections=(6,),
-        candidate_canon_page_range=(8, 14),
-        candidate_side_art_label="branches",
+        red_rune_sections=(6,),
+        canon_page_range=(8, 14),
+        side_art_label="branches",
         aliases=("solved.loss_of_divinity",),
     ),
     LPSourceEntry(
         source_label="red_rune.koan_during_lesson",
         display_name="A Koan: During a Lesson",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_NEEDS_VERIFICATION,
+        boundary_status=BOUNDARY_CANON_PAGE_RANGE,
         red_rune_label="koan_during_lesson",
         spreadsheet_sheet="A Koan During",
-        candidate_red_rune_sections=(7, 8),
-        candidate_canon_page_range=(15, 22),
-        candidate_side_art_label="mobius",
+        red_rune_sections=(7, 8),
+        canon_page_range=(15, 22),
+        side_art_label="mobius",
         aliases=("solved.koan_during_lesson",),
     ),
     LPSourceEntry(
         source_label="red_rune.instruction",
         display_name="An Instruction",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_NEEDS_VERIFICATION,
+        boundary_status=BOUNDARY_CANON_PAGE_RANGE,
         red_rune_label="instruction",
         spreadsheet_sheet="An Instruction",
-        candidate_red_rune_sections=(15,),
-        candidate_canon_page_range=(54, 55),
-        candidate_side_art_label="spiral_branches",
+        red_rune_sections=(15,),
+        canon_page_range=(54, 55),
+        side_art_label="spiral_branches",
         aliases=("solved.instruction",),
     ),
     LPSourceEntry(
         source_label="red_rune.an_end",
         display_name="AN END",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_NEEDS_VERIFICATION,
+        boundary_status=BOUNDARY_CANON_PAGE_RANGE,
         red_rune_label="an_end",
         spreadsheet_sheet="p56 An End",
-        candidate_red_rune_sections=(16,),
-        candidate_canon_page_range=(56, 56),
-        candidate_side_art_label="an_end",
+        red_rune_sections=(16,),
+        canon_page_range=(56, 56),
+        side_art_label="an_end",
         aliases=("solved.an_end",),
     ),
     LPSourceEntry(
         source_label="red_rune.parable",
         display_name="Parable",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_NEEDS_VERIFICATION,
+        boundary_status=BOUNDARY_CANON_PAGE_RANGE,
         red_rune_label="parable",
         spreadsheet_sheet="p57 Parable",
-        candidate_red_rune_sections=(17,),
-        candidate_canon_page_range=(57, 57),
-        candidate_side_art_label="parable",
+        red_rune_sections=(17,),
+        canon_page_range=(57, 57),
+        side_art_label="parable",
         aliases=("solved.parable",),
     ),
 )
@@ -353,39 +353,77 @@ def resolve_solve_recipe_label(label: str) -> LPSolveRecipeEntry:
 
 
 def payload_from_label(label: str, *, doc: LPTranscript | None = None):
-    """Return an LP solver payload for a verified source label.
+    """Return an LP solver payload for a source label.
 
-    Catalogue entries are allowed to exist before their exact master-transcript
-    locator has been verified. Such entries fail clearly rather than using
-    candidate page/section ranges as solver input.
+    The current solved-source catalogue resolves red-rune labels to verified
+    canon-page ranges in the bundled master transcript. More precise line-level
+    locators can be added later without changing the public label.
     """
 
+    from rune_decrypter_prime.data.liber_primus.lp_adapter import (
+        payload_from_locator,
+        payload_from_partition_entry,
+    )
+    from rune_decrypter_prime.data.liber_primus.lp_master import (
+        load_master_transcript,
+        make_resolution_context,
+    )
+    from rune_decrypter_prime.data.liber_primus.lp_registry import (
+        LPBuiltInPartitionScheme,
+        LPPageRef,
+        LPPartitionEntry,
+        LPSectionOrdinal,
+    )
+
     entry = resolve_source_label(label)
-    if entry.locator is None:
-        raise ValueError(
-            f"LP source label {entry.source_label!r} has no verified master transcript locator yet; "
-            "verify bound-book/transcript page and line boundaries before loading payload"
-        )
-
-    from rune_decrypter_prime.data.liber_primus.lp_adapter import payload_from_locator
-    from rune_decrypter_prime.data.liber_primus.lp_master import load_master_transcript
-
     effective_doc = doc or load_master_transcript(attach_catalogue=True)
-    payload = payload_from_locator(effective_doc, entry.locator)
+
+    if entry.locator is not None:
+        payload = payload_from_locator(effective_doc, entry.locator)
+        start_canon = entry.locator.page_ref.number
+        end_canon = start_canon
+        red_rune_ordinal = "-".join(str(part) for part in entry.red_rune_sections)
+    else:
+        start_canon, end_canon = entry.canon_page_range
+        red_rune_ordinal = "-".join(str(part) for part in entry.red_rune_sections)
+        partition_entry = LPPartitionEntry(
+            scheme=LPBuiltInPartitionScheme.SOLVED_PLAINTEXT_PAGES,
+            ordinal=LPSectionOrdinal.of(*entry.red_rune_sections),
+            start_page=LPPageRef.canon_page(start_canon),
+            end_page=LPPageRef.canon_page(end_canon),
+            display_name=entry.display_name,
+            tags=("solved_text", entry.red_rune_label),
+        )
+        payload = payload_from_partition_entry(effective_doc, partition_entry)
+
+    context = make_resolution_context(effective_doc)
+    bound_book_start = context.canon_offset + start_canon + 1
+    bound_book_end = context.canon_offset + end_canon + 1
     metadata = {
         **payload.metadata,
+        "source_kind": "liber_primus.label",
         "source_label": entry.source_label,
         "display_name": entry.display_name,
         "source_status": entry.source_status,
         "boundary_status": entry.boundary_status,
         "red_rune_label": entry.red_rune_label,
+        "red_rune_sections": list(entry.red_rune_sections),
+        "red_rune_ordinal": red_rune_ordinal,
+        "side_art_label": entry.side_art_label,
         "spreadsheet_sheet": entry.spreadsheet_sheet,
+        "canon_start": start_canon,
+        "canon_end": end_canon,
+        "bound_book_start": bound_book_start,
+        "bound_book_end": bound_book_end,
+        "line": None,
+        "line_end": None,
+        "boundary_granularity": "full_canon_pages",
     }
     return type(payload)(ct_idx=payload.ct_idx, wli=payload.wli, metadata=metadata)
 
 
 __all__ = [
-    "BOUNDARY_NEEDS_VERIFICATION",
+    "BOUNDARY_CANON_PAGE_RANGE",
     "SOURCE_STATUS_SOLVED_TEXT_AVAILABLE",
     "LPSourceEntry",
     "LPSolveRecipeEntry",
