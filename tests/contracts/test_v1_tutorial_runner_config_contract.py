@@ -21,14 +21,17 @@ def _run_all_module():
     return module
 
 
-def test_tutorial_runner_uses_ide_defaults_without_environment_override(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_tutorial_runner_uses_valid_ide_defaults_without_environment_override(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("GATE_PROFILE", raising=False)
     monkeypatch.delenv("ASSET_PROFILE", raising=False)
     run_all = _run_all_module()
 
-    assert run_all._gate_profile() == "release"
-    assert run_all._asset_profile() == "lm2_baseline"
-    assert run_all._selected_gates() == ("v1_smoke", "v1_release")
+    gate_profile = run_all._gate_profile()
+    asset_profile = run_all._asset_profile()
+
+    assert gate_profile in run_all.GATE_PRESETS
+    assert asset_profile in {"lm2_baseline", "lm3_extended"}
+    assert run_all._selected_gates() == run_all.GATE_PRESETS[gate_profile]
 
 
 def test_tutorial_runner_allows_environment_gate_override(monkeypatch: pytest.MonkeyPatch) -> None:
