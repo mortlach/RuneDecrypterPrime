@@ -57,10 +57,16 @@ def _env_direction(name: str, default: Direction) -> Direction:
     return Direction(value.strip().lower())
 
 
+def _as_int_list(values: object) -> list[int]:
+    if values is None:
+        return []
+    if hasattr(values, "tolist"):
+        values = values.tolist()
+    return [int(v) for v in list(values)]
+
+
 def _split_found_key(found_key: object, *, key_length: int) -> tuple[list[int], list[int]]:
-    if found_key is None:
-        return [], []
-    values = [int(v) for v in list(found_key)]
+    values = _as_int_list(found_key)
     core = values[:key_length]
     interrupters = [v for v in values[key_length:] if v >= 0]
     return core, interrupters
@@ -141,8 +147,8 @@ def main() -> None:
     print("Stop reason:", getattr(solution, "stop_reason", None))
     print("Solver report best score:", getattr(report, "best_score", None))
 
-    plaintext_idx = getattr(solution, "plaintext_idx", []) or []
-    plaintext_latin = Runeglish.to_rune_latin(list(plaintext_idx), wli) if plaintext_idx else ""
+    plaintext_idx = _as_int_list(getattr(solution, "plaintext_idx", []))
+    plaintext_latin = Runeglish.to_rune_latin(plaintext_idx, wli) if plaintext_idx else ""
     print("Plaintext preview:", plaintext_latin[:300])
 
     print_run_report(
