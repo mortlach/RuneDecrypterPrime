@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from zipfile import ZipFile
 
 from tools import release_review_pack as pack
@@ -108,3 +109,23 @@ def test_release_review_pack_excludes_large_text_files_by_size(tmp_path: Path) -
     assert "docs/large.md" not in names
     excluded = {entry["path"]: entry["reason"] for entry in manifest["excluded_entries"]}
     assert excluded["docs/large.md"] == "too_large>32"
+
+
+def test_git_metadata_reports_clean_working_tree_as_not_dirty(monkeypatch) -> None:
+    def fake_run(args, **kwargs):
+        command = tuple(args[-2:])
+        if command == ("rev-parse", "HEAD"):
+            return SimpleNamespace(returncode=0, stdout="0123456789abcdef\n")
+        if command == ("--abbrev-ref", "HEAD"):
+            return SimpleNamespace(returncode=0, stdout="prelease/v1.0.0_d7\n")
+        if command == ("status", "--porcelain"):
+            return SimpleNamespace(returncode=0, stdout="")
+        raise AssertionError(args)
+
+    monkeypatch.setattr(pack.subprocess, "run", fake_run)
+
+    assert pack._git_metadata(Path("/repo")) == {
+        "git_branch": "prelease/v1.0.0_d7",
+        "git_commit_sha": "0123456789abcdef",
+        "git_working_tree_dirty": False,
+    }
