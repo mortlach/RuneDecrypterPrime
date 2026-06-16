@@ -69,6 +69,16 @@ Do not assume these label systems are numerically equivalent. In particular,
 `56.jpg` does not mean `master transcript page 56` unless the catalogue entry
 explicitly says that after verification.
 
+In the current master transcript, the puzzle-maker filename sequence starts only
+after the initial solved/introduction pages. The first filename page, `0.jpg`,
+starts at master transcript page 15. Therefore the filename aliases used here map
+as:
+
+```text
+p56 / 56.jpg / canon.56 -> an_end  -> master transcript page 71
+p57 / 57.jpg / canon.57 -> parable -> master transcript page 72
+```
+
 For RDP, the retrieval ground truth is:
 
 ```text
