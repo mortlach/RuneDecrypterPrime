@@ -97,7 +97,6 @@ _METHOD_WORDS = frozenset(
     {
         "atbash",
         "cipher",
-        "divinity",
         "emirp",
         "fibbo",
         "fibonacci",
