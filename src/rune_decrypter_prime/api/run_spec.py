@@ -15,6 +15,7 @@ from rune_decrypter_prime.core.types import Device, Direction
 
 LP_SOURCE_KINDS = frozenset(
     {
+        "liber_primus.label",
         "liber_primus.locator",
         "liber_primus.partition",
     }
@@ -48,6 +49,7 @@ _LP_PARTITION_KEYS = frozenset(
         "intersect_page_number",
     }
 )
+_LP_LABEL_KEYS = frozenset({"label"})
 
 
 def _require_text(value: Any, field_name: str) -> str:
@@ -248,8 +250,17 @@ def _validate_lp_partition_ref(ref: Mapping[str, Any]) -> None:
     )
 
 
+def _validate_lp_label_ref(ref: Mapping[str, Any]) -> None:
+    _require_exact_keys(ref, _LP_LABEL_KEYS, "ref")
+    label = _require_text(ref["label"], "label")
+    if not label.startswith("red_rune.") and not label.startswith("solved."):
+        raise ValueError("label must use a supported LP source label namespace")
+
+
 def _validate_source_ref(source_kind: str, ref: Mapping[str, Any]) -> None:
-    if source_kind == "liber_primus.locator":
+    if source_kind == "liber_primus.label":
+        _validate_lp_label_ref(ref)
+    elif source_kind == "liber_primus.locator":
         _validate_lp_locator_ref(ref)
     elif source_kind == "liber_primus.partition":
         _validate_lp_partition_ref(ref)
@@ -358,8 +369,13 @@ class RunSpec:
 
         object.__setattr__(self, "key", key)
         object.__setattr__(self, "scorer", _require_text(self.scorer, "scorer"))
-        object.__setattr__(
-            self,
-            "scorer_params",
-            _copy_json_primitive_mapping(self.scorer_params, "scorer_params"),
-        )
+        object.__setattr__(self, "scorer_params", _copy_json_primitive_mapping(self.scorer_params, "scorer_params"))
+
+
+__all__ = [
+    "NormalizedInput",
+    "ProblemInput",
+    "RawTextInput",
+    "RunSpec",
+    "SourceInputRef",
+]
