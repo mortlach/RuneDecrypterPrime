@@ -8,6 +8,7 @@ from rune_decrypter_prime.utils.runeglish import Runeglish
 pytestmark = pytest.mark.tier_a
 
 _WORD_BREAKERS = {"-", ",", ".", ";", '"', "'"}
+_STRUCTURAL_MARKERS = {"/", "%", "&", "$", "§"}
 
 
 def _word_lengths_from_wli(wli: list[list[int]] | tuple[tuple[int, int], ...]) -> list[int]:
@@ -42,6 +43,14 @@ def _reference_ct_idx_and_word_lengths(reference_text: str) -> tuple[list[int], 
     if current_word_length:
         word_lengths.append(current_word_length)
     return ct_idx, word_lengths
+
+
+def test_reference_parser_preserves_words_across_structural_markers() -> None:
+    assert not (_WORD_BREAKERS & _STRUCTURAL_MARKERS)
+
+    _, word_lengths = _reference_ct_idx_and_word_lengths("ᚪ/%&$§ᚾ-ᛖ")
+
+    assert word_lengths == [2, 1]
 
 
 RUNE_PAGE_REFERENCES = {
