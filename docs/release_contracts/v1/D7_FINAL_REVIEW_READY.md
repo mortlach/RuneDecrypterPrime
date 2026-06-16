@@ -2,15 +2,26 @@
 
 Branch: `prelease/v1.0.0_d7`
 
-Current status: closeout review candidate after bounded review-pack evidence fixes.
+Current status: final closeout review candidate after bounded review-pack evidence fixes and local proof reruns.
 
-Validation status: user reported green after the D7 tutorial-integration and runner-contract fixes, before the final review-pack metadata hardening commits. Because the review-pack tool and tests changed after that green run, the current branch head still needs the focused review-pack test and final proof rerun recorded before closure.
+Validation status: local final closeout proof was recorded for commit `5e5372fff386378dde3f8dcd0acd8c880c70667d` on branch `prelease/v1.0.0_d7`.
+
+Recorded local proof:
+
+```text
+focused review-pack tests: 3 passed
+focused D7/tutorial framework tests: 34 passed
+compact D7 smoke: 146 passed
+broader focused closure gate: 676 passed
+full pytest: 1220 passed, 19 skipped
+full_v1 tutorial gate: 14 passed, 0 failed
+```
 
 GitHub connector status visibility: no combined status checks or workflow runs were visible for the latest checked commit through the connector when this note was written. Treat user-reported logs and regenerated review-pack metadata as the validation source until GitHub status is visible.
 
 ## Final D7 position
 
-D7 should now move from hardening/development into closeout review after the final evidence-tool rerun is recorded.
+D7 should now move from hardening/development into final closeout review. The final evidence-tool rerun has been recorded locally for the review target commit.
 
 The branch is not a tiny documentation-only closure branch. It contains real V1 hardening, including:
 
@@ -28,15 +39,17 @@ This is acceptable for D7 only because the changes are contract/release hardenin
 
 ## Final tutorial-gate evidence
 
-User-reported local `full_v1` tutorial gate result from the tutorial-integration head:
+Local `full_v1` tutorial gate result from the final closeout proof:
 
 ```text
 RDP V1 tutorial runner | gate=full_v1 | asset_profile=lm2_baseline
 Selected gates: v1_smoke, v1_release, v1_extended, v1_showcase_near_solve
 Selected entries: 14
+selected: 14
+skipped: 0
+run: 14
 passed: 14
 failed: 0
-Process finished with exit code 0
 ```
 
 Important ScheduledStreamLookup tutorial results in that run:
@@ -47,17 +60,22 @@ Tutorial_ScheduledStreamLookup_RealSolve_P13Primes.py: PASS, match=1.000
 Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py: NEAR_SOLVE_ACCEPTED, match=0.901
 ```
 
-## Final pytest/CI evidence
+## Final pytest evidence
 
-User reported the branch was green after the final runner default-profile contract fix.
-
-Earlier full pytest evidence before the final doc-only update and runner-contract correction was:
+Local full pytest proof from the final closeout target:
 
 ```text
-1177 passed, 41 skipped
+1220 passed, 19 skipped in 355.54s (0:05:55)
 ```
 
-The last concrete CI failure before green was:
+Known skip classes:
+
+```text
+optional LM3/LM4 asset tests skip when those assets are absent from the lm2_baseline profile
+optional Hill-wrapper tutorial tests skip because the wrapper is not registered yet
+```
+
+Earlier history: the last concrete CI failure before green was:
 
 ```text
 test_tutorial_runner_uses_ide_defaults_without_environment_override
@@ -67,26 +85,22 @@ actual: full_v1
 
 That failure was fixed by changing the contract to require a valid configured default profile and valid environment overrides, rather than hard-coding `release` as the only acceptable IDE default.
 
-After the later review-pack metadata fixes, rerun at minimum:
-
-```bash
-python -m pytest -q tests/tools/test_release_review_pack.py
-python tools/release_review_pack.py
-```
-
-For final closure evidence, rerun the full proof command used for D7:
-
-```bash
-python -m pytest -q -ra -p no:cacheprovider tests
-```
-
 ## Review-pack evidence note
 
 A final evidence hardening fix was applied after inspecting the generated review-pack summary: `tools/release_review_pack.py` now writes `git_branch`, `git_commit_sha`, and `git_working_tree_dirty` into both `REVIEW_PACK_MANIFEST.json` and the sidecar summary JSON.
 
 The pack generator now scans all direct root files and records excluded direct-root files in `excluded_entries`, so root one-off patch scripts or archives cannot be silently omitted from pack review.
 
-Regenerate the review pack from the final branch head before external review. The regenerated pack should show a `git_commit_sha` matching the final reviewed commit and `git_working_tree_dirty: false` for a clean review pack.
+The final local review pack was regenerated from the review target commit. The generated manifest reports:
+
+```text
+git_branch: prelease/v1.0.0_d7
+git_commit_sha: 5e5372fff386378dde3f8dcd0acd8c880c70667d
+git_working_tree_dirty: false
+included_files_count: 692
+excluded_entries_count: 480
+root_file_selection: all_direct_root_files_filtered_by_review_pack_rules
+```
 
 ## Review scope
 
@@ -115,6 +129,6 @@ These should not block D7 closure:
 
 ## Closeout recommendation
 
-Request external review for final D7 closure after regenerating the review pack from the final branch head and recording the final focused/full validation.
+Request external review for final D7 closure using the regenerated review pack and recorded final focused/full validation for commit `5e5372fff386378dde3f8dcd0acd8c880c70667d`.
 
 Do not continue adding broad hardening or framework scope in D7 unless review finds a concrete blocker.
