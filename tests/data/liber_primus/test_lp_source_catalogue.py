@@ -4,6 +4,8 @@ import pytest
 
 from rune_decrypter_prime.data import liber_primus as lp
 
+pytestmark = pytest.mark.tier_a
+
 
 _METHOD_WORDS = {
     "cipher",
