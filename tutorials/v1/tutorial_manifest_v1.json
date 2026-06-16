@@ -19,7 +19,7 @@
       "default": true
     },
     "lm3_extended": {
-      "description": "Optional profile for tutorials that explicitly require 3-gram LM assets.",
+      "description": "Optional profile for tutorials that explicitly require 3-gram language-model assets.",
       "default": false
     }
   },
@@ -203,6 +203,26 @@
       "supplies_true_key_to_solver": false,
       "current_status": "active",
       "notes": "Promoted to default release gate as the exact ScheduledStreamLookup real-solve proof under lm2_baseline."
+    },
+    {
+      "path": "Tutorial_LP_Welcome_Pilgrim_Solve.py",
+      "title": "Liber Primus Welcome Pilgrim label solve",
+      "cipher_family": "vigenere_interruptors",
+      "tutorial_kind": "lp_real_solve",
+      "gate": "v1_release",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "process_success",
+      "min_match_ratio": null,
+      "observed_lm2_baseline": {
+        "match_ratio": null,
+        "score_time_s": null,
+        "tokens": null
+      },
+      "uses_oracle_stop_score": false,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Loads welcome_pilgrim by LP source label and runs bounded Vigenere/interrupter search. Included in release/full_v1 once runtime is observed."
     },
     {
       "path": "Tutorial_Repeating_multiply.py",
