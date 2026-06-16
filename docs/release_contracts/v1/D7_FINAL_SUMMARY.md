@@ -202,23 +202,28 @@ full-proof workflow covers prelease/v1.0.0_d7
 acceptance-gate docs record the closure rules
 ```
 
-## Known local overlay not yet pushed
+## Backend enum-state overlay resolved
 
-A runtime enum-state overlay exists for the large NumPy and Torch scorer backend files. It is intentionally handled as a separate local overlay because the GitHub connector has blocked writes to the large scorer backend paths.
+An earlier D7 note recorded a local-only runtime enum-state overlay for the large NumPy and Torch scorer backend files. That blocker has now been superseded by equivalent in-repo code and tests.
 
-The branch now hardens the config surface and all fallback capability-report bridges, but the large backend files still contain private runtime fields that are normalised to raw strings internally. The correct final hardening direction is to update those backend private fields to enum members and update tests that directly mutate those private fields to use enum members too.
-
-Required local test-only substitutions are:
+The backend runtime paths now keep the D7-owned span-Hamming and Hamming mode fields enum-backed:
 
 ```text
-"raw_bonus" -> SpanHammingMode.RAW_BONUS
-"min" -> SpanHammingCombineMode.MIN
-"weighted_sum" -> SpanHammingCombineMode.WEIGHTED_SUM
-"score_floor" -> SpanHammingGateFailPolicy.SCORE_FLOOR
-"char_only" -> SpanHammingGateFailPolicy.CHAR_ONLY
+src/rune_decrypter_prime/scoring/rune_scorer_impl.py
+src/rune_decrypter_prime/scoring/torch_rune_scorer.py
+src/rune_decrypter_prime/scoring/base_scorer.py
 ```
 
-This is not a D7 scope reduction. It is a tooling limitation around large backend-path updates. The branch should not close until that overlay is either applied locally and pushed, or the equivalent backend/test update is made through a normal Git checkout.
+The focused proof is:
+
+```text
+tests/contracts/test_v1_contract_label_guardrails.py
+tests/scoring/test_base_scorer_enum_assignment_contract.py
+```
+
+`BaseScorer.__setattr__` also normalises direct private-field assignments used by targeted backend tests. This keeps compatibility with tests that bypass backend constructors while still ensuring the private runtime state is canonical enum state.
+
+This resolves the old local-overlay closeout blocker. D7 still requires the focused D7 tests, full pytest, tutorial gate, full-proof CI or equivalent recorded local proof, and regenerated final review pack before closure.
 
 ## Closure status
 
@@ -240,7 +245,6 @@ focused guardrail tests
 D7 is not final until:
 
 ```text
-large backend runtime enum-state overlay is applied or explicitly superseded by equivalent code
 focused D7 tests pass
 full pytest passes
 V1 tutorial gate passes

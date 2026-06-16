@@ -52,10 +52,14 @@ def test_d7_summary_names_output_and_report_only_rules() -> None:
     assert "solver stopping" in text
 
 
-def test_d7_summary_names_remaining_local_overlay() -> None:
+def test_d7_summary_names_resolved_backend_enum_overlay() -> None:
     text = _summary_text()
 
-    assert "Known local overlay not yet pushed" in text
-    assert "tooling limitation" in text
-    assert "not a D7 scope reduction" in text
-    assert "branch should not close" in text
+    assert "Backend enum-state overlay resolved" in text
+    assert "superseded by equivalent in-repo code and tests" in text
+    assert "src/rune_decrypter_prime/scoring/rune_scorer_impl.py" in text
+    assert "src/rune_decrypter_prime/scoring/torch_rune_scorer.py" in text
+    assert "tests/scoring/test_base_scorer_enum_assignment_contract.py" in text
+    assert "old local-overlay closeout blocker" in text
+    assert "Known local overlay not yet pushed" not in text
+    assert "branch should not close" not in text
