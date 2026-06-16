@@ -74,6 +74,46 @@ def load_lp_payload_from_label(label: str) -> "LPSolverPayload":
     return payload_from_label(label)
 
 
+def load_lp_payload_from_master_pages(
+    start_page: int,
+    end_page: int | None = None,
+) -> "LPSolverPayload":
+    """Return deterministic solver payload for complete master transcript pages.
+
+    Page numbers are zero-based master transcript page ids. This is the direct
+    helper behind solved-source page-span retrieval.
+    """
+    from rune_decrypter_prime.data.liber_primus.lp_adapter import LPSolverPayload
+    from rune_decrypter_prime.data.liber_primus.lp_master import load_master_transcript, page_view_from_ref
+    from rune_decrypter_prime.data.liber_primus.lp_registry import LPPageRef
+
+    if not isinstance(start_page, int) or isinstance(start_page, bool):
+        raise TypeError("start_page must be an integer")
+    if end_page is None:
+        end_page = start_page
+    elif not isinstance(end_page, int) or isinstance(end_page, bool):
+        raise TypeError("end_page must be an integer or None")
+    if start_page < 0:
+        raise ValueError("start_page must be >= 0")
+    if end_page < start_page:
+        raise ValueError("end_page must be >= start_page")
+
+    doc = load_master_transcript(attach_catalogue=True)
+    start = page_view_from_ref(doc, LPPageRef.transcript_page(start_page))
+    end = page_view_from_ref(doc, LPPageRef.transcript_page(end_page))
+    span = doc.glyph_span(start.rec.g_start, end.rec.g_end - start.rec.g_start)
+    ct_idx, wli = span.ct_wli()
+    metadata = {
+        "source_kind": "liber_primus.master_pages",
+        "master_page_start": start_page,
+        "master_page_end": end_page,
+        "bound_book_start": start_page + 1,
+        "bound_book_end": end_page + 1,
+        "boundary_granularity": "full_master_pages",
+    }
+    return LPSolverPayload(ct_idx=ct_idx, wli=wli, metadata=metadata)
+
+
 def load_lp_payload_from_locator(
     locator: "LPFragmentLocator",
     *,
