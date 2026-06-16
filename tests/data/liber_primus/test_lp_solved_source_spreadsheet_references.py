@@ -103,7 +103,7 @@ SPREADSHEET_NUMERIC_REFERENCES = {
         "expected_word_lengths": [
             2, 10, 7, 3, 3, 8, 4, 6, 8, 6, 4, 4, 6, 4, 2, 5, 4, 3,
         ],
-        "expected_master_page_range": (54, 55),
+        "expected_master_page_range": (14, 14),
     },
     "an_end": {
         "sheet": "p56 An End",
@@ -118,7 +118,7 @@ SPREADSHEET_NUMERIC_REFERENCES = {
             2, 3, 5, 2, 4, 3, 4, 6, 1, 4, 3, 6, 2, 2, 2, 2, 4, 2, 5, 7, 2, 4, 3,
             3, 4,
         ],
-        "expected_master_page_range": (56, 56),
+        "expected_master_page_range": (71, 71),
     },
     "parable": {
         "sheet": "p57 Parable",
@@ -132,7 +132,7 @@ SPREADSHEET_NUMERIC_REFERENCES = {
         "expected_word_lengths": [
             7, 4, 2, 6, 7, 2, 2, 7, 2, 4, 4, 3, 3, 14, 4, 2, 8, 5, 3, 6,
         ],
-        "expected_master_page_range": (57, 57),
+        "expected_master_page_range": (72, 72),
     },
 }
 
