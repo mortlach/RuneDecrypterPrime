@@ -15,8 +15,24 @@ EXPECTED_SOLVED_SOURCE_RANGES = {
     "loss_of_divinity": ("red_rune.loss_of_divinity", (8, 11)),
     "koan_during_lesson": ("red_rune.koan_during_lesson", (12, 13)),
     "instruction": ("red_rune.instruction", (14, 14)),
-    "an_end": ("red_rune.an_end", (56, 56)),
-    "parable": ("red_rune.parable", (57, 57)),
+    "an_end": ("red_rune.an_end", (71, 71)),
+    "parable": ("red_rune.parable", (72, 72)),
+}
+
+ALIAS_GROUPS = {
+    "warning": ("warning", "red_rune.warning", "solved.warning"),
+    "welcome_pilgrim": ("welcome_pilgrim", "red_rune.welcome_pilgrim", "solved.welcome_pilgrim"),
+    "some_wisdom": ("some_wisdom", "red_rune.some_wisdom", "solved.some_wisdom"),
+    "koan_a_man": ("koan_a_man", "red_rune.koan_a_man", "solved.koan_a_man"),
+    "loss_of_divinity": ("loss_of_divinity", "red_rune.loss_of_divinity", "solved.loss_of_divinity"),
+    "koan_during_lesson": (
+        "koan_during_lesson",
+        "red_rune.koan_during_lesson",
+        "solved.koan_during_lesson",
+    ),
+    "instruction": ("instruction", "red_rune.instruction", "solved.instruction"),
+    "an_end": ("an_end", "red_rune.an_end", "solved.an_end", "p56", "56.jpg", "canon.56"),
+    "parable": ("parable", "red_rune.parable", "solved.parable", "p57", "57.jpg", "canon.57"),
 }
 
 
@@ -27,6 +43,10 @@ def test_solved_lp_source_labels_are_listed() -> None:
     for simple_label, (canonical_label, _) in EXPECTED_SOLVED_SOURCE_RANGES.items():
         assert canonical_label in labels
         assert simple_label in aliases
+
+    for aliases_for_page in ALIAS_GROUPS.values():
+        for alias in aliases_for_page:
+            assert alias in aliases
 
 
 def test_resolve_source_label_exposes_spreadsheet_and_master_page_metadata() -> None:
@@ -49,6 +69,19 @@ def test_source_aliases_resolve_to_canonical_text_label(simple_label: str, expec
 
     assert entry.source_label == canonical_label
     assert entry.master_page_range == expected_master_range
+
+
+@pytest.mark.parametrize("simple_label,aliases", sorted(ALIAS_GROUPS.items()))
+def test_alias_flavours_return_same_payload(simple_label: str, aliases: tuple[str, ...]) -> None:
+    canonical_label, expected_master_range = EXPECTED_SOLVED_SOURCE_RANGES[simple_label]
+    baseline = lp.payload_from_label(simple_label)
+
+    for alias in aliases:
+        payload = lp.payload_from_label(alias)
+        assert payload.metadata["source_label"] == canonical_label
+        assert (payload.metadata["master_page_start"], payload.metadata["master_page_end"]) == expected_master_range
+        assert payload.ct_idx == baseline.ct_idx
+        assert payload.wli == baseline.wli
 
 
 def test_unknown_source_label_fails_clearly() -> None:
