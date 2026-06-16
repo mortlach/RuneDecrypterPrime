@@ -185,9 +185,9 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         red_rune_label="an_end",
         spreadsheet_sheet="p56 An End",
         red_rune_sections=(16,),
-        master_page_range=(56, 56),
+        master_page_range=(71, 71),
         side_art_label="an_end",
-        aliases=("an_end", "solved.an_end"),
+        aliases=("an_end", "solved.an_end", "p56", "56.jpg", "canon.56"),
     ),
     LPSourceEntry(
         source_label="red_rune.parable",
@@ -197,9 +197,9 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         red_rune_label="parable",
         spreadsheet_sheet="p57 Parable",
         red_rune_sections=(17,),
-        master_page_range=(57, 57),
+        master_page_range=(72, 72),
         side_art_label="parable",
-        aliases=("parable", "solved.parable"),
+        aliases=("parable", "solved.parable", "p57", "57.jpg", "canon.57"),
     ),
 )
 
