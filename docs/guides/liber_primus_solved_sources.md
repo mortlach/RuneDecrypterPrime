@@ -10,8 +10,8 @@ source label = which LP text fragment
 solve recipe = how RDP tries to solve or replay it
 ```
 
-A source label must not include the cipher, key, shift, stream, or solving
-method. Those belong in a recipe label.
+A source label must not include the method, key, stream, or shift. Those belong
+in a recipe label.
 
 ## Source labels
 
@@ -32,24 +32,28 @@ red_rune.parable
 Aliases such as `solved.welcome_pilgrim` may point to the same source, but the
 canonical label remains `red_rune.welcome_pilgrim`.
 
-## Recipes
+## Page-label terminology
 
-Recipes are method-specific and intentionally separate:
+LP has several page-label systems:
 
 ```text
-recipe.welcome_pilgrim.vigenere_interruptors
-recipe.koan_during_lesson.vigenere_interruptors
-recipe.an_end.stream_sequence_interruptors
-recipe.loss_of_divinity.constant_shift_zero_replay
+red-rune label        human/source identity, e.g. red_rune.an_end
+bound-book page       physical book order used for retrieval/display
+transcript page id    zero-based page id in the master transcript parser
+canon-unsolved page   existing internal RDP scheme for the last 58 transcript pages
+puzzle-maker label    external labels/titles that may not follow numerical order
 ```
 
-This keeps LP text selection independent from the cipher hypothesis.
+User-facing solved-source labels should not depend on external numerical canon
+labels. They should resolve through the bundled master transcript and expose
+book-order metadata.
 
 ## Boundary policy
 
 The current catalogue resolves solved red-rune labels through the bundled master
-transcript using full canon-page ranges. Each payload records both the canon page
-range and the computed bound-book page range.
+transcript using full-page ranges in the existing internal RDP page scheme. Each
+payload also records the computed bound-book page range for book-order retrieval
+and display.
 
 The current boundary granularity is:
 
@@ -61,8 +65,14 @@ More precise bound-book page + line-range locators can be added later for any
 source whose solved text covers only part of a page. The public source label does
 not need to change when that locator is refined.
 
-Red-rune section numbers and side-art labels remain useful metadata, but solver
-payloads are loaded through the master transcript, not by hand-copied text.
+## Spreadsheet-reference tests
+
+Solved source labels are checked against hardcoded references derived from the
+solved-page spreadsheet. The tests compare the loaded numeric stream and WLI word
+lengths against the spreadsheet reference values.
+
+This proves that a red-rune label retrieves the expected numeric payload and word
+segmentation before any solving routine is built on top.
 
 ## Current API
 
@@ -96,7 +106,8 @@ boundary_granularity
 ```
 
 For now `line` and `line_end` are `None` for the solved red-rune sources because
-the first live mapping uses full canon pages.
+the first live mapping uses full pages. Bound-book page + line locators should be
+used when a solved source needs narrower retrieval.
 
 ## RunSpec source references
 
