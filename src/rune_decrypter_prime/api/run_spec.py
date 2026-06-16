@@ -253,8 +253,8 @@ def _validate_lp_partition_ref(ref: Mapping[str, Any]) -> None:
 def _validate_lp_label_ref(ref: Mapping[str, Any]) -> None:
     _require_exact_keys(ref, _LP_LABEL_KEYS, "ref")
     label = _require_text(ref["label"], "label")
-    if not label.startswith("red_rune.") and not label.startswith("solved."):
-        raise ValueError("label must use a supported LP source label namespace")
+    if label.startswith("recipe."):
+        raise ValueError("label must be an LP source label, not a solve recipe label")
 
 
 def _validate_source_ref(source_kind: str, ref: Mapping[str, Any]) -> None:
