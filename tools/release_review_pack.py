@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -116,6 +117,9 @@ class ReviewPackSummary:
     included_files_count: int
     excluded_entries_count: int
     included_bytes: int
+    git_branch: str | None
+    git_commit_sha: str | None
+    git_working_tree_dirty: bool | None
 
     def to_json_dict(self) -> dict[str, object]:
         return {
@@ -127,6 +131,9 @@ class ReviewPackSummary:
             "included_files_count": self.included_files_count,
             "excluded_entries_count": self.excluded_entries_count,
             "included_bytes": self.included_bytes,
+            "git_branch": self.git_branch,
+            "git_commit_sha": self.git_commit_sha,
+            "git_working_tree_dirty": self.git_working_tree_dirty,
         }
 
 
@@ -147,6 +154,37 @@ def _suffix(path: Path) -> str:
     if name == ".gitignore":
         return ".gitignore"
     return path.suffix.lower()
+
+
+def _git_output(repo_root: Path, *args: str) -> str | None:
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(repo_root), *args],
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if proc.returncode != 0:
+        return None
+    value = proc.stdout.strip()
+    return value or None
+
+
+def _git_metadata(repo_root: Path) -> dict[str, object]:
+    commit_sha = _git_output(repo_root, "rev-parse", "HEAD")
+    branch = _git_output(repo_root, "rev-parse", "--abbrev-ref", "HEAD")
+    status = _git_output(repo_root, "status", "--porcelain")
+    if branch == "HEAD":
+        branch = None
+    return {
+        "git_branch": branch,
+        "git_commit_sha": commit_sha,
+        "git_working_tree_dirty": None if status is None else bool(status),
+    }
 
 
 def _should_include_file(path: Path, repo_root: Path, *, max_file_bytes: int) -> tuple[bool, str | None]:
@@ -199,12 +237,14 @@ def make_release_review_pack(
     zip_path_override: Path | None = None,
     max_file_bytes: int = MAX_FILE_BYTES,
     write_summary_json: bool = True,
+    git_metadata: dict[str, object] | None = None,
 ) -> dict[str, object]:
     repo_root = repo_root.resolve()
     output_root = output_root.resolve()
     output_root.mkdir(parents=True, exist_ok=True)
     timestamp = _utc_stamp()
     zip_path = zip_path_override or output_root / f"{ZIP_STEM}__{timestamp}.zip"
+    git_info = _git_metadata(repo_root) if git_metadata is None else dict(git_metadata)
 
     included: list[tuple[Path, str, int]] = []
     excluded: list[dict[str, object]] = []
@@ -226,6 +266,9 @@ def make_release_review_pack(
         "included_tool_files": list(REVIEW_TOOL_FILES),
         "excluded_dir_names": sorted(EXCLUDED_DIR_NAMES),
         "excluded_suffixes": sorted(EXCLUDED_SUFFIXES),
+        "git_branch": git_info.get("git_branch"),
+        "git_commit_sha": git_info.get("git_commit_sha"),
+        "git_working_tree_dirty": git_info.get("git_working_tree_dirty"),
         "included_files": [
             {"path": rel, "size_bytes": size}
             for _, rel, size in included
@@ -251,6 +294,11 @@ def make_release_review_pack(
         included_files_count=len(included),
         excluded_entries_count=len(excluded),
         included_bytes=sum(size for _, _, size in included),
+        git_branch=None if git_info.get("git_branch") is None else str(git_info.get("git_branch")),
+        git_commit_sha=None if git_info.get("git_commit_sha") is None else str(git_info.get("git_commit_sha")),
+        git_working_tree_dirty=None
+        if git_info.get("git_working_tree_dirty") is None
+        else bool(git_info.get("git_working_tree_dirty")),
     ).to_json_dict()
     summary["manifest_path_in_zip"] = "REVIEW_PACK_MANIFEST.json"
 
