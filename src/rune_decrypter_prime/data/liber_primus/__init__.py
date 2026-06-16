@@ -45,6 +45,7 @@ from .lp_routes import (
 )
 from .lp_source_catalogue import (
     BOUNDARY_CANON_PAGE_RANGE,
+    BOUNDARY_MASTER_PAGE_RANGE,
     SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
     LPSourceEntry,
     LPSolveRecipeEntry,
@@ -59,6 +60,7 @@ from .lp_ui_parse import parse_page_token
 
 __all__ = [
     "BOUNDARY_CANON_PAGE_RANGE",
+    "BOUNDARY_MASTER_PAGE_RANGE",
     "CANON_PAGE_COUNT",
     "CANON_SUFFIX",
     "MASTER_TRANSCRIPT",
