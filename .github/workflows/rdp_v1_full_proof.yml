@@ -94,6 +94,8 @@ jobs:
 
       - name: Run V1 release tutorials
         shell: python
+        env:
+          RDP_TUTORIAL_ECHO_OUTPUT: "1"
         run: |
           from pathlib import Path
           import subprocess
