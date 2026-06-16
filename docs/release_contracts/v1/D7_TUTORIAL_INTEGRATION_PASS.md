@@ -2,7 +2,7 @@
 
 Branch: `prelease/v1.0.0_d7`
 
-Status: integration pass started; not final D7 closure until release/full_v1 tutorial gates are run on the final branch head and the review pack is regenerated.
+Status: integration pass validated locally for `full_v1`; not final D7 closure until release tutorial gate, full pytest after the latest runner-config fix, CI/equivalent proof, and regenerated review pack are available from the final branch head.
 
 ## Gate counts after this pass
 
@@ -113,7 +113,23 @@ These cover:
 
 ## Validation evidence so far
 
-User-reported full pytest result after the ScheduledStreamLookup manifest-test updates:
+User-reported local `full_v1` tutorial gate result after the ScheduledStreamLookup promotion and runner/test updates:
+
+```text
+RDP V1 tutorial runner | gate=full_v1 | asset_profile=lm2_baseline
+Selected entries: 14
+passed: 14
+failed: 0
+Process finished with exit code 0
+```
+
+Notable full_v1 outcomes:
+
+- `Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py`: `PASS`, `match=1.000`, expected `>= 1.000`
+- `Tutorial_ScheduledStreamLookup_RealSolve_P13Primes.py`: `PASS`, `match=1.000`, expected `>= 1.000`
+- `Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py`: `NEAR_SOLVE_ACCEPTED`, `match=0.901`, expected `>= 0.900`
+
+User-reported full pytest result after the ScheduledStreamLookup manifest-test updates, before the later runner-default contract fix:
 
 ```text
 1177 passed, 41 skipped in 232.68s (0:03:52)
@@ -123,11 +139,11 @@ The skipped tests were expected environment/asset skips, including optional Torc
 
 ## Required validation still pending
 
-Run before claiming closure:
+Run before claiming closure from the latest branch head:
 
 ```bash
 GATE_PROFILE=release python tutorials/v1/run_all.py
-GATE_PROFILE=full_v1 python tutorials/v1/run_all.py
+python -m pytest -q -ra -p no:cacheprovider tests
 ```
 
-Record the release gate output and full_v1 gate output after the final branch head is fixed.
+Also confirm CI/equivalent proof after the latest runner-default contract fix, then regenerate the review pack from the final branch head.
