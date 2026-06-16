@@ -16,7 +16,8 @@ Status:
 
 ```text
 source catalogue entry exists
-exact master-transcript locator pending verification
+payload_from_label loads real master-transcript ciphertext/WLI
+current boundary granularity: full canon pages 3-6
 runner not implemented yet
 ```
 
