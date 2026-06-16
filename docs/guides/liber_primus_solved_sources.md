@@ -10,12 +10,13 @@ source label = which LP text fragment
 solve recipe = how RDP tries to solve or replay it
 ```
 
-A source label must not include the method, key, stream, or shift. Those belong
-in a recipe label.
+The solved-source label layer is a thin convenience layer over the existing LP
+master transcript. It is not a redesign of the LP transcript, locator, page, or
+section APIs.
 
 ## User-facing labels
 
-Users can use short labels:
+Users should normally use short labels:
 
 ```text
 warning
@@ -29,60 +30,97 @@ an_end
 parable
 ```
 
-The canonical internal source labels remain namespaced:
+Namespaced aliases may also exist:
 
 ```text
-red_rune.warning
-red_rune.some_wisdom
 red_rune.welcome_pilgrim
-red_rune.koan_a_man
-red_rune.loss_of_divinity
-red_rune.koan_during_lesson
-red_rune.instruction
-red_rune.an_end
-red_rune.parable
+solved.welcome_pilgrim
 ```
 
-Aliases such as `solved.welcome_pilgrim` also resolve to the same source.
+Puzzle-maker filename labels may also be aliases where useful, for example:
+
+```text
+56.jpg
+p56
+canon.56
+57.jpg
+p57
+canon.57
+```
+
+Those filename-style labels are **not** master transcript page ids. They are
+external page names/filenames from the puzzle history.
 
 ## Page-label terminology
 
-LP has several page-label systems:
+LP page naming is not trivial. The collection grew organically as the puzzle
+progressed, and several label systems coexist:
 
 ```text
-red-rune label        human/source identity, e.g. red_rune.an_end
-master page id        zero-based page id in the bundled master transcript
-bound-book page       one-based book-order page number, useful for display
-puzzle-maker label    external label/title; not guaranteed to match local order
+source label          human RDP label, e.g. welcome_pilgrim
+master transcript id  zero-based page order in the bundled master transcript
+bound-book page       one-based display/order alias for the master transcript
+puzzle filename       puzzle-maker filename/canon-style label, e.g. 56.jpg
+red-rune section      visual/section grouping from red-rune material
+side-art section      visual/section grouping from side art
 ```
 
-Solved-source retrieval uses complete integer master transcript pages. User code
-should normally use labels, not page numbers.
+Do not assume these label systems are numerically equivalent. In particular,
+`56.jpg` does not mean `master transcript page 56` unless the catalogue entry
+explicitly says that after verification.
 
-Known examples:
+For RDP, the retrieval ground truth is:
 
 ```text
-warning          -> master page 0
-welcome_pilgrim  -> master pages 1-2
-some_wisdom      -> master page 3
-an_end           -> master page 56
-parable          -> master page 57
+label -> catalogue entry -> master transcript page/span -> ct_idx + wli
+```
+
+The user normally supplies the label. The catalogue records which master
+transcript pages that label resolves to.
+
+## Low-level access remains available
+
+The existing low-level typed APIs still exist for direct page/line work:
+
+```python
+from rune_decrypter_prime.data import liber_primus as lp
+
+doc = lp.load_master_transcript()
+locator = lp.LPFragmentLocator(page_ref=lp.LPPageRef.transcript_page(0))
+payload = lp.payload_from_locator(doc, locator)
+```
+
+The public data helper can also load complete master pages directly for debugging
+or manual work:
+
+```python
+from rune_decrypter_prime.api import load_lp_payload_from_master_pages
+
+payload = load_lp_payload_from_master_pages(1, 2)
+```
+
+That is low-level access. Solved-page workflows should prefer labels:
+
+```python
+from rune_decrypter_prime.data import liber_primus as lp
+
+payload = lp.payload_from_label("welcome_pilgrim")
 ```
 
 ## Boundary policy
 
-The current catalogue resolves solved labels through the bundled master
-transcript using full master-page ranges. Each payload records both the master
-page range and the computed bound-book page range.
+Solved-source entries should resolve to complete integer master transcript pages
+where possible. Each payload records the master transcript page span and the
+bound-book display range.
 
-The current boundary granularity is:
+Current boundary granularity for solved full-page labels is:
 
 ```text
 full_master_pages
 ```
 
-Line locators can still be used later where needed, but the solved pages in this
-catalogue should normally be complete pages.
+Line locators can still be used later if a future source label needs a narrower
+fragment.
 
 ## Spreadsheet-reference tests
 
@@ -93,34 +131,9 @@ stream and WLI word lengths against the reference values.
 This proves that a simple label retrieves the expected numeric payload and word
 segmentation before any solving routine is built on top.
 
-## Current API
-
-```python
-from rune_decrypter_prime.data import liber_primus as lp
-
-payload = lp.payload_from_label("welcome_pilgrim")
-text = payload.ct_idx
-wli_data = payload.wli
-metadata = payload.metadata
-```
-
-Payload metadata includes:
-
-```text
-source_label
-requested_label
-red_rune_sections
-master_page_start / master_page_end
-bound_book_start / bound_book_end
-line / line_end
-boundary_granularity
-```
-
-For solved full-page labels, `line` and `line_end` are `None`.
-
 ## RunSpec source references
 
-LP labels are also accepted as first-class `SourceInputRef` values:
+LP labels are accepted as first-class `SourceInputRef` values:
 
 ```python
 from rune_decrypter_prime.api import SourceInputRef
@@ -138,11 +151,18 @@ Solver settings such as period, max iterations, key hints, streams, or
 interrupter policy belong in the solve recipe or solver config, not in the source
 reference.
 
-## First technical targets
+## Current solved-source targets
 
-1. Use the live `welcome_pilgrim` payload with
-   `recipe.welcome_pilgrim.vigenere_interruptors`.
-2. Use the live `koan_during_lesson` payload with
-   `recipe.koan_during_lesson.vigenere_interruptors`.
-3. Use the live `an_end` payload to build the stream-sequence recipe around
-   canonical sequence candidates such as primes-minus-one.
+The first solved-source work is to verify the label mapping and then build
+solving/replay routines on top of it:
+
+```text
+welcome_pilgrim       Vigenere/interrupter solved-page reproduction
+koan_during_lesson    Vigenere/interrupter solved-page reproduction
+an_end                stream-sequence/interrupter solved-page reproduction
+parable               solved reference page
+```
+
+The important contract is not the spelling of a single label. The contract is
+that all accepted aliases for a page resolve to the same master-transcript
+payload and therefore the same `ct_idx` and `wli`.
