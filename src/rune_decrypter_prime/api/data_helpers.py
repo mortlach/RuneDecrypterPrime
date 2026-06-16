@@ -67,6 +67,13 @@ def load_lp_master_section(
     return extract_section_ct_wli_by_id(doc, section_id=section_id, split=split)
 
 
+def load_lp_payload_from_label(label: str) -> "LPSolverPayload":
+    """Return deterministic solver payload for a verified LP source label."""
+    from rune_decrypter_prime.data.liber_primus.lp_source_catalogue import payload_from_label
+
+    return payload_from_label(label)
+
+
 def load_lp_payload_from_locator(
     locator: "LPFragmentLocator",
     *,
