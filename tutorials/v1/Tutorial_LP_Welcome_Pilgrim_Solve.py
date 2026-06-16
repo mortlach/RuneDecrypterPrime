@@ -72,8 +72,52 @@ def _split_found_key(found_key: object, *, key_length: int) -> tuple[list[int], 
     return core, interrupters
 
 
+def _render_plaintext(solution: object, wli: list[list[int]]) -> tuple[list[int], str, str]:
+    plaintext_idx = _as_int_list(getattr(solution, "plaintext_idx", []))
+    plaintext_latin = str(getattr(solution, "plaintext_latin", "") or "")
+    plaintext_runes = str(getattr(solution, "plaintext_rune", "") or "")
+    if plaintext_idx and not plaintext_latin:
+        plaintext_latin = Runeglish.to_rune_latin(plaintext_idx, wli)
+    if plaintext_idx and not plaintext_runes:
+        plaintext_runes = Runeglish.to_rune(plaintext_idx, wli)
+    return plaintext_idx, plaintext_latin, plaintext_runes
+
+
+def _print_final_result_block(
+    *,
+    payload: object,
+    solution: object,
+    report: object,
+    found_core: list[int],
+    found_interruptors: list[int],
+    plaintext_idx: list[int],
+    plaintext_latin: str,
+    plaintext_runes: str,
+) -> None:
+    print("\nLP_WELCOME_FINAL_RESULT_BEGIN")
+    print("source_label:", SOURCE_LABEL)
+    print("resolved_source_label:", getattr(payload, "metadata", {}).get("source_label"))
+    print("master_page_start:", getattr(payload, "metadata", {}).get("master_page_start"))
+    print("master_page_end:", getattr(payload, "metadata", {}).get("master_page_end"))
+    print("key_period:", KEY_LENGTH)
+    print("found_key_core:", found_core)
+    print("found_interruptors:", found_interruptors)
+    print("found_interruptor_count:", len(found_interruptors))
+    print("best_score:", getattr(solution, "score", None))
+    print("stop_reason:", getattr(solution, "stop_reason", None))
+    print("solver_report_best_score:", getattr(report, "best_score", None))
+    print("plaintext_idx_length:", len(plaintext_idx))
+    print("plaintext_latin:")
+    print(plaintext_latin or "<empty>")
+    print("plaintext_runes:")
+    print(plaintext_runes or "<empty>")
+    print("LP_WELCOME_FINAL_RESULT_END")
+
+
 def main() -> None:
-    max_interruptors = _env_int("RDP_LP_WELCOME_MAX_INTERRUPTORS", 5)
+    max_interruptors = _env_int("RDP_LP_WELCOME_MAX_INTERRUPTERS", 5)
+    # Backwards-compatible spelling used in the README before this tutorial was gated.
+    max_interruptors = _env_int("RDP_LP_WELCOME_MAX_INTERRUPTORS", max_interruptors)
     beam_width = _env_int("RDP_LP_WELCOME_BEAM_WIDTH", 64)
     plateau_rounds = _env_int("RDP_LP_WELCOME_PLATEAU_ROUNDS", 5)
     direction = _env_direction("RDP_LP_WELCOME_DIRECTION", Direction.RTL)
@@ -139,6 +183,7 @@ def main() -> None:
     solution = result.solution
     report = result.solver_report
     found_core, found_interruptors = _split_found_key(getattr(solution, "key", []), key_length=KEY_LENGTH)
+    plaintext_idx, plaintext_latin, plaintext_runes = _render_plaintext(solution, wli)
 
     print("Found key core:", found_core)
     print("Found interruptors:", found_interruptors)
@@ -146,9 +191,6 @@ def main() -> None:
     print("Best score:", getattr(solution, "score", None))
     print("Stop reason:", getattr(solution, "stop_reason", None))
     print("Solver report best score:", getattr(report, "best_score", None))
-
-    plaintext_idx = _as_int_list(getattr(solution, "plaintext_idx", []))
-    plaintext_latin = Runeglish.to_rune_latin(plaintext_idx, wli) if plaintext_idx else ""
     print("Plaintext preview:", plaintext_latin[:300])
 
     print_run_report(
@@ -164,6 +206,17 @@ def main() -> None:
         wli=wli,
         interruptors_ref=None,
         compact=True,
+    )
+
+    _print_final_result_block(
+        payload=payload,
+        solution=solution,
+        report=report,
+        found_core=found_core,
+        found_interruptors=found_interruptors,
+        plaintext_idx=plaintext_idx,
+        plaintext_latin=plaintext_latin,
+        plaintext_runes=plaintext_runes,
     )
 
 
