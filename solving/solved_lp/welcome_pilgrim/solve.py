@@ -29,7 +29,7 @@ Welcome Pilgrim solved-LP solve attempt.
 This is intentionally small and readable:
 
 1. Load the real LP ciphertext/WLI by source label.
-2. Run the existing Vigenere solver with interruptor search enabled.
+2. Run Vigenere with an 11-interruptor search over the known ciphertext-zero pool.
 3. Print the key, interruptors, score, recovered plaintext, and match ratio.
 
 No canonical plaintext or canonical key is supplied to the solver. The canonical
@@ -41,8 +41,15 @@ if hasattr(sys.stdout, "reconfigure"):
 
 SOURCE_LABEL = "welcome_pilgrim"
 KEY_LENGTH = 7
+INTERRUPTOR_COUNT = 11
 TUTORIAL_SEED = 2026
 DEFAULT_MIN_MATCH = 1.0
+
+# Candidate interrupters for this cipher are known to be ciphertext zeroes.
+ZERO_CIPHERTEXT_INTERRUPTOR_POOL: tuple[int, ...] = (
+    5, 14, 47, 48, 74, 84, 132, 144, 152, 159, 160, 165, 219,
+    250, 317, 331, 398, 421, 423, 443, 465, 470, 499, 505, 514,
+)
 
 
 def _env_int(name: str, default: int) -> int:
@@ -120,6 +127,8 @@ def _print_final_result_block(
     print("master_page_start:", getattr(payload, "metadata", {}).get("master_page_start"))
     print("master_page_end:", getattr(payload, "metadata", {}).get("master_page_end"))
     print("key_period:", KEY_LENGTH)
+    print("interruptor_pool:", list(ZERO_CIPHERTEXT_INTERRUPTOR_POOL))
+    print("interruptor_count_required:", INTERRUPTOR_COUNT)
     print("found_key_core:", found_core)
     print("found_interruptors:", found_interruptors)
     print("found_interruptor_count:", len(found_interruptors))
@@ -137,8 +146,6 @@ def _print_final_result_block(
 
 
 def main() -> None:
-    max_interruptors = _env_int("RDP_LP_WELCOME_MAX_INTERRUPTERS", 5)
-    max_interruptors = _env_int("RDP_LP_WELCOME_MAX_INTERRUPTORS", max_interruptors)
     beam_width = _env_int("RDP_LP_WELCOME_BEAM_WIDTH", 64)
     plateau_rounds = _env_int("RDP_LP_WELCOME_PLATEAU_ROUNDS", 5)
     min_match = _env_float("RDP_LP_WELCOME_MIN_MATCH", DEFAULT_MIN_MATCH)
@@ -147,13 +154,18 @@ def main() -> None:
     payload = lp.payload_from_label(SOURCE_LABEL)
     ct_idx = list(payload.ct_idx)
     wli = [list(pair) for pair in payload.wli]
-    interruptor_pool = list(range(len(ct_idx)))
+    interruptor_pool = list(ZERO_CIPHERTEXT_INTERRUPTOR_POOL)
 
     if len(CANONICAL_WELCOME_PILGRIM_IDX) != len(ct_idx):
         raise ValueError(
             "Canonical Welcome Pilgrim reference is not aligned with the loaded source payload: "
             f"canonical={len(CANONICAL_WELCOME_PILGRIM_IDX)} ct={len(ct_idx)}"
         )
+    for idx in interruptor_pool:
+        if idx < 0 or idx >= len(ct_idx):
+            raise ValueError(f"Interruptor pool index out of range: {idx}")
+        if int(ct_idx[idx]) != 0:
+            raise ValueError(f"Interruptor pool index {idx} is not ciphertext zero: {ct_idx[idx]}")
 
     print("LP source label:", SOURCE_LABEL)
     print("Resolved source label:", payload.metadata.get("source_label"))
@@ -166,15 +178,17 @@ def main() -> None:
     print("Ciphertext length:", len(ct_idx))
     print("WLI length:", len(wli))
     print("Key period:", KEY_LENGTH)
-    print("Max interruptors:", max_interruptors)
+    print("Interruptor pool size:", len(interruptor_pool))
+    print("Interruptor count:", INTERRUPTOR_COUNT)
+    print("Interruptor pool:", interruptor_pool)
     print("Encoding direction:", direction.value)
     print("Required match ratio:", f"{min_match:.3f}")
 
     interrupt_cfg = InterruptorConfig(
         mode="pool",
         pool=interruptor_pool,
-        min_count=0,
-        max_count=max_interruptors,
+        min_count=INTERRUPTOR_COUNT,
+        max_count=INTERRUPTOR_COUNT,
         search_strategy="keyops",
     )
 
