@@ -1,5 +1,20 @@
 # Welcome Pilgrim
 
+Primary solve file:
+
+```text
+solving/solved_lp/welcome_pilgrim/solve.py
+```
+
+The tutorial runner uses a thin wrapper:
+
+```text
+tutorials/v1/Tutorial_LP_Welcome_Pilgrim_Solve.py
+```
+
+That wrapper exists only so CI can keep using the tutorial manifest. The actual
+human-facing solved-LP attempt is `solve.py` in this folder.
+
 Source label:
 
 ```text
@@ -20,16 +35,10 @@ Status:
 source catalogue entry exists
 payload_from_label loads real master-transcript ciphertext/WLI
 current boundary granularity: full master transcript pages 1-2
-first bounded solve tutorial exists
+solve.py runs the bounded Vigenere/interrupter attempt
 ```
 
-Tutorial:
-
-```text
-tutorials/v1/Tutorial_LP_Welcome_Pilgrim_Solve.py
-```
-
-Default tutorial assumptions:
+Default solve assumptions:
 
 ```text
 source_label      = welcome_pilgrim
