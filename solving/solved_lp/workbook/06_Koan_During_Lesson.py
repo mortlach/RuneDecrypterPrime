@@ -8,11 +8,6 @@ from pathlib import Path
 
 import numpy as np
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8")
-
 ROOT = Path(__file__).resolve().parents[3]
 SRC = ROOT / "src"
 for path in (ROOT, SRC):
@@ -22,7 +17,18 @@ for path in (ROOT, SRC):
 from rune_decrypter_prime.core.config.cipher import CipherConfig  # noqa: E402
 from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher  # noqa: E402
 from rune_decrypter_prime.data import liber_primus as lp  # noqa: E402
+from rune_decrypter_prime.utils.solve_output import (  # noqa: E402
+    configure_utf8_stdio,
+    match_ratio,
+    page_value,
+    print_block,
+    print_final_result,
+    render_plaintext,
+    zero_positions,
+)
 from rune_decrypter_prime.utils.runeglish import Runeglish  # noqa: E402
+
+configure_utf8_stdio()
 
 
 SOURCE_LABEL = "koan_during_lesson"
@@ -47,23 +53,9 @@ YOUR HEAD IS THE I AND THE STUDENTS WERE ENLIGHTENED
 """
 
 
-def zero_positions(values: list[int]) -> list[int]:
-    return [index for index, value in enumerate(values) if int(value) == 0]
-
-
 def encode_reference(text: str) -> list[int]:
     idx, _wli, _runes = Runeglish.encode_english_to_runes(text, direction="ltr")
     return [int(value) for value in idx]
-
-
-def match_ratio(candidate: list[int], reference: list[int]) -> float:
-    if not candidate and not reference:
-        return 1.0
-    total = max(len(candidate), len(reference))
-    if total == 0:
-        return 0.0
-    matches = sum(1 for left, right in zip(candidate, reference) if int(left) == int(right))
-    return matches / total
 
 
 def replay_pinned_solution(ct_idx: list[int], wli: list[list[int]]) -> list[int]:
@@ -82,11 +74,6 @@ def replay_pinned_solution(ct_idx: list[int], wli: list[list[int]]) -> list[int]
     )[0]
     return [int(value) for value in plaintext.tolist()]
 
-
-def print_kv(key: str, value: object) -> None:
-    print(f"{key}: {value}")
-
-
 def main() -> int:
     started = time.perf_counter()
     payload = lp.payload_from_label(SOURCE_LABEL)
@@ -94,13 +81,12 @@ def main() -> int:
     ct_idx = [int(value) for value in payload.ct_idx]
     wli = [list(pair) for pair in payload.wli]
     metadata = payload.metadata
-    master_page_start = metadata.get("master_page_start", metadata.get("main_page_start"))
-    master_page_end = metadata.get("master_page_end", metadata.get("main_page_end"))
+    master_page_start = page_value(metadata, "master_page_start", "main_page_start")
+    master_page_end = page_value(metadata, "master_page_end", "main_page_end")
     interruptor_pool = zero_positions(ct_idx)
     reference_idx = encode_reference(CANONICAL_KOAN_DURING_LESSON_TEXT)
     plaintext_idx = replay_pinned_solution(ct_idx, wli)
-    plaintext_latin = Runeglish.to_rune_latin(plaintext_idx, wli)
-    plaintext_runes = Runeglish.to_rune(plaintext_idx, wli)
+    plaintext_latin, plaintext_runes = render_plaintext(plaintext_idx, wli)
     ratio = match_ratio(plaintext_idx, reference_idx)
     status = "solved" if ratio >= ACCEPTANCE_MATCH_RATIO else "diagnostic_not_yet_solved"
     found_interruptors_in_pool = all(value in interruptor_pool for value in PINNED_FOUND_INTERRUPTORS)
@@ -108,8 +94,9 @@ def main() -> int:
     key_matches_recipe_hint = PINNED_FOUND_KEY_CORE == keyspace_hint_idx
     elapsed_wall_time_s = time.perf_counter() - started
 
-    print("\nLP_KOAN_DURING_LESSON_RUN_CONFIG_BEGIN")
-    for key, value in (
+    print_block(
+        "LP_KOAN_DURING_LESSON_RUN_CONFIG",
+        (
         ("source_label", SOURCE_LABEL),
         ("resolved_source_label", metadata["source_label"]),
         ("main_page_start", metadata["main_page_start"]),
@@ -128,12 +115,12 @@ def main() -> int:
         ("interrupter_pool_size", len(interruptor_pool)),
         ("interrupter_pool", interruptor_pool),
         ("acceptance_match_ratio", f"{ACCEPTANCE_MATCH_RATIO:.3f}"),
-    ):
-        print_kv(key, value)
-    print("LP_KOAN_DURING_LESSON_RUN_CONFIG_END")
+        ),
+    )
 
-    print("\nLP_KOAN_DURING_LESSON_ATTEMPT_SUMMARY_BEGIN")
-    for key, value in (
+    print_block(
+        "LP_KOAN_DURING_LESSON_ATTEMPT_SUMMARY",
+        (
         ("method", "pinned_period_13_vigenere_interruptor_replay"),
         ("found_key_core", PINNED_FOUND_KEY_CORE),
         ("found_key_core_len", len(PINNED_FOUND_KEY_CORE)),
@@ -148,43 +135,45 @@ def main() -> int:
         ("reference_idx_length", len(reference_idx)),
         ("elapsed_wall_time_s", elapsed_wall_time_s),
         ("status", status),
-    ):
-        print_kv(key, value)
-    print("LP_KOAN_DURING_LESSON_ATTEMPT_SUMMARY_END")
-
-    print("\nLP_KOAN_DURING_LESSON_FINAL_RESULT_BEGIN")
-    for key, value in (
-        ("source_label", SOURCE_LABEL),
-        ("resolved_source_label", metadata["source_label"]),
-        ("master_page_start", master_page_start),
-        ("master_page_end", master_page_end),
-        ("recipe", recipe.recipe_label),
-        ("cipher_family", recipe.cipher_family),
-        ("key_text_hint_human", KEY_TEXT_HINT_HUMAN),
-        ("recipe_reference_key_or_shift", RECIPE_REFERENCE_KEY_OR_SHIFT),
-        ("key_length", KEY_LENGTH),
-        ("interrupter_pool_size", len(interruptor_pool)),
-        ("interrupter_pool", interruptor_pool),
-        ("interrupter_count_required", INTERRUPTOR_COUNT),
-        ("found_key_core", PINNED_FOUND_KEY_CORE),
-        ("found_interruptors", PINNED_FOUND_INTERRUPTORS),
-        ("found_interrupter_count", len(PINNED_FOUND_INTERRUPTORS)),
-        ("found_interruptors_in_pool", found_interruptors_in_pool),
-        ("best_score", PINNED_BEST_SCORE),
-        ("stop_reason", PINNED_STOP_REASON),
-        ("match_ratio", f"{ratio:.3f}"),
-        ("status", status),
-        (
-            "notes",
-            "exact solved reference match using period-13 Vigenere/interrupter replay over ciphertext-zero pool; found two interrupters [49, 58]",
         ),
-    ):
-        print_kv(key, value)
-    print("plaintext_latin:")
-    print(plaintext_latin)
-    print("plaintext_runes:")
-    print(plaintext_runes)
-    print("LP_KOAN_DURING_LESSON_FINAL_RESULT_END")
+    )
+
+    print_final_result(
+        block_name="LP_KOAN_DURING_LESSON_FINAL_RESULT",
+        source_label=SOURCE_LABEL,
+        resolved_source_label=metadata["source_label"],
+        master_page_start=master_page_start,
+        master_page_end=master_page_end,
+        ciphertext_length=len(ct_idx),
+        wli_length=len(wli),
+        recipe=recipe.recipe_label,
+        cipher_family=recipe.cipher_family,
+        method="pinned_period_13_vigenere_interruptor_replay",
+        key_or_params=None,
+        match_ratio=ratio,
+        status=status,
+        acceptance_rule="exact canonical reference match",
+        plaintext_latin=plaintext_latin,
+        plaintext_runes=plaintext_runes,
+        extra_fields={
+            "key_text_hint_human": KEY_TEXT_HINT_HUMAN,
+            "recipe_reference_key_or_shift": RECIPE_REFERENCE_KEY_OR_SHIFT,
+            "key_length": KEY_LENGTH,
+            "interrupter_pool_size": len(interruptor_pool),
+            "interrupter_pool": interruptor_pool,
+            "interrupter_count_required": INTERRUPTOR_COUNT,
+            "found_key_core": PINNED_FOUND_KEY_CORE,
+            "found_interruptors": PINNED_FOUND_INTERRUPTORS,
+            "found_interrupter_count": len(PINNED_FOUND_INTERRUPTORS),
+            "found_interruptors_in_pool": found_interruptors_in_pool,
+            "best_score": PINNED_BEST_SCORE,
+            "stop_reason": PINNED_STOP_REASON,
+            "notes": (
+                "exact solved reference match using period-13 Vigenere/interrupter replay over "
+                "ciphertext-zero pool; found two interrupters [49, 58]"
+            ),
+        },
+    )
     return 0 if status == "solved" else 1
 
 

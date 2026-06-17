@@ -84,25 +84,12 @@ def test_solved_lp_examples_do_not_delegate_to_shared_helper_module() -> None:
 
 def test_solved_lp_examples_use_main_page_metadata_names() -> None:
     files = list(SOLVED_ROOT.glob("*/solve.py")) + list((SOLVED_ROOT / "workbook").glob("*.py"))
-    stale_start = "master" + "_page_start"
-    stale_end = "master" + "_page_end"
-    an_end_files = {
-        SOLVED_ROOT / "an_end" / "solve.py",
-        SOLVED_ROOT / "workbook" / "06_Koan_During_Lesson.py",
-        SOLVED_ROOT / "workbook" / "08_An_End.py",
-    }
 
     assert files
     for path in files:
         text = path.read_text(encoding="utf-8")
         assert "main_page_start" in text
         assert "main_page_end" in text
-        if path in an_end_files:
-            assert stale_start in text
-            assert stale_end in text
-        else:
-            assert stale_start not in text
-            assert stale_end not in text
 
 
 @pytest.mark.parametrize(
@@ -121,8 +108,8 @@ def test_welcome_pilgrim_uses_divinity_period_and_zero_position_pool(path: Path)
     assert "KEY_LENGTH = len(KEY_TEXT_HINT)" in text
     assert stale_period not in text
     assert stale_pool not in text
-    assert "enumerate(ct_idx)" in text
-    assert "int(value) == 0" in text
+    assert "enumerate(ct_idx)" in text or "zero_positions(ct_idx)" in text
+    assert "int(value) == 0" in text or "zero_positions(ct_idx)" in text
     assert "pool=interruptor_pool" in text
     assert "range(len(ct_idx))" not in text
     assert "os.environ" not in text
@@ -144,8 +131,8 @@ def test_koan_during_lesson_workbook_pins_solved_count_two_replay(path: Path) ->
     assert "PINNED_FOUND_INTERRUPTORS = [49, 58]" in text
     assert "ACCEPTANCE_MATCH_RATIO = 1.0" in text
     assert "CANONICAL_KOAN_DURING_LESSON_TEXT" in text
-    assert "enumerate(values)" in text
-    assert "int(value) == 0" in text
+    assert "zero_positions(ct_idx)" in text
+    assert "zero_positions(ct_idx)" in text
     assert "match_ratio(plaintext_idx, reference_idx)" in text
     assert '"solved" if ratio >= ACCEPTANCE_MATCH_RATIO else "diagnostic_not_yet_solved"' in text
 

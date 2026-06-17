@@ -8,18 +8,9 @@ from ciphertext-zero positions, validates against the canonical solved text,
 prints structured evidence blocks, and writes a local JSON evidence file.
 """
 
-import dataclasses
-import json
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
-from typing import Any
-
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8")
 
 ROOT = Path(__file__).resolve().parents[3]
 SRC = ROOT / "src"
@@ -29,9 +20,20 @@ for path in (ROOT, SRC):
 
 from rune_decrypter_prime.api import Direction, InterruptorConfig, KeySpec, SolverSpec, by_name, run  # noqa: E402
 from rune_decrypter_prime.data import liber_primus as lp  # noqa: E402
-from rune_decrypter_prime.utils.runeglish import Runeglish  # noqa: E402
+from rune_decrypter_prime.utils.solve_output import (  # noqa: E402
+    collect_solver_attempt,
+    configure_utf8_stdio,
+    print_block,
+    print_final_result,
+    print_kv,
+    safe_public_dict,
+    write_latest_evidence,
+    zero_positions,
+)
 
 from solving.solved_lp.welcome_pilgrim.reference import CANONICAL_WELCOME_PILGRIM_IDX  # noqa: E402
+
+configure_utf8_stdio()
 
 
 SOURCE_LABEL = "welcome_pilgrim"
@@ -60,101 +62,6 @@ SOLVER = SolverSpec.beam(
     progress_pct=10,
     seed=2026,
 )
-
-
-def as_int_list(values: object) -> list[int]:
-    if values is None:
-        return []
-    if hasattr(values, "tolist"):
-        values = values.tolist()
-    return [int(value) for value in list(values)]
-
-
-def match_ratio(candidate: list[int], reference: tuple[int, ...]) -> float:
-    total = max(len(candidate), len(reference))
-    if total == 0:
-        return 0.0
-    limit = min(len(candidate), len(reference))
-    matches = sum(1 for index in range(limit) if int(candidate[index]) == int(reference[index]))
-    return matches / float(total)
-
-
-def zero_positions(ct_idx: list[int]) -> list[int]:
-    return [index for index, value in enumerate(ct_idx) if int(value) == 0]
-
-
-def render_plaintext(plaintext_idx: list[int], wli: list[list[int]]) -> tuple[str, str]:
-    if not plaintext_idx:
-        return "", ""
-    return Runeglish.to_rune_latin(plaintext_idx, wli), Runeglish.to_rune(plaintext_idx, wli)
-
-
-def split_found_key(found_key: object, key_length: int) -> tuple[list[int], list[int]]:
-    values = as_int_list(found_key)
-    return values[:key_length], [value for value in values[key_length:] if value >= 0]
-
-
-def get_nested(obj: object, *names: str, default: object = None) -> object:
-    current = obj
-    for name in names:
-        if current is None:
-            return default
-        if isinstance(current, dict):
-            current = current.get(name, default)
-        else:
-            current = getattr(current, name, default)
-    return current
-
-
-def json_value(value: object, *, max_list: int = 25) -> object:
-    if value is None or isinstance(value, (str, bool, int, float)):
-        return value
-    if hasattr(value, "item"):
-        try:
-            return value.item()
-        except Exception:
-            pass
-    if hasattr(value, "shape") and hasattr(value, "tolist"):
-        shape = tuple(int(part) for part in getattr(value, "shape", ()))
-        flat = value.reshape(-1).tolist() if hasattr(value, "reshape") else value.tolist()
-        preview = [json_value(item) for item in list(flat)[:max_list]]
-        return {"type": type(value).__name__, "shape": list(shape), "preview": preview}
-    if dataclasses.is_dataclass(value):
-        return json_value(dataclasses.asdict(value), max_list=max_list)
-    if isinstance(value, dict):
-        return {str(key): json_value(val, max_list=max_list) for key, val in value.items()}
-    if isinstance(value, (list, tuple, set)):
-        items = list(value)
-        if len(items) > max_list:
-            return {
-                "type": type(value).__name__,
-                "length": len(items),
-                "preview": [json_value(item, max_list=max_list) for item in items[:max_list]],
-            }
-        return [json_value(item, max_list=max_list) for item in items]
-    if hasattr(value, "to_json_dict"):
-        return json_value(value.to_json_dict(), max_list=max_list)
-    if hasattr(value, "__dict__"):
-        return json_value(vars(value), max_list=max_list)
-    return repr(value)
-
-
-def safe_public_dict(obj: object) -> dict[str, object]:
-    if obj is None:
-        return {}
-    if hasattr(obj, "to_json_dict"):
-        data = obj.to_json_dict()
-    elif dataclasses.is_dataclass(obj):
-        data = dataclasses.asdict(obj)
-    elif isinstance(obj, dict):
-        data = obj
-    else:
-        data = {
-            name: getattr(obj, name)
-            for name in dir(obj)
-            if not name.startswith("_") and not callable(getattr(obj, name, None))
-        }
-    return json_value(data)  # type: ignore[return-value]
 
 
 def validate_interrupter_pool(ct_idx: list[int], pool: list[int]) -> dict[str, object]:
@@ -199,78 +106,44 @@ def collect_result_diagnostics(
     wli: list[list[int]],
     elapsed_wall_time_s: float,
 ) -> dict[str, object]:
-    solution = getattr(result, "solution", result)
-    report = getattr(result, "solver_report", None)
-    plaintext_idx = as_int_list(getattr(solution, "plaintext_idx", []))
-    plaintext_latin = str(getattr(solution, "plaintext_latin", "") or "")
-    plaintext_runes = str(getattr(solution, "plaintext_rune", "") or "")
-    if plaintext_idx and (not plaintext_latin or not plaintext_runes):
-        plaintext_latin, plaintext_runes = render_plaintext(plaintext_idx, wli)
-
-    found_key_core, found_interruptors = split_found_key(getattr(solution, "key", []), key_length)
-    found_interruptors_in_pool = all(value in interruptor_pool for value in found_interruptors)
+    record = collect_solver_attempt(
+        result=result,
+        solver_variant=solver_variant,
+        scorer_variant=scorer_variant,
+        key_length=key_length,
+        interruptor_pool=interruptor_pool,
+        interruptor_count=interruptor_count,
+        reference_idx=reference_idx,
+        ciphertext_length=ciphertext_length,
+        wli=wli,
+        elapsed_wall_time_s=elapsed_wall_time_s,
+        acceptance_match_ratio=ACCEPTANCE_MATCH_RATIO,
+    )
+    found_key_core = list(record.get("found_key_core") or [])
+    found_interruptors = list(record.get("found_interruptors") or [])
     extra_non_pool = [value for value in found_interruptors if value not in interruptor_pool]
     missing_pool = [value for value in interruptor_pool if value not in found_interruptors]
-    ratio = match_ratio(plaintext_idx, reference_idx)
-    best_score = get_nested(solution, "score", default=get_nested(report, "best_score"))
-    stop_reason = get_nested(solution, "stop_reason", default=get_nested(report, "stop_reason"))
-    status = (
-        "solved"
-        if ratio >= ACCEPTANCE_MATCH_RATIO
-        and len(found_interruptors) == interruptor_count
-        and found_interruptors_in_pool
-        and len(plaintext_idx) == ciphertext_length
-        else "diagnostic_not_yet_solved"
-    )
 
-    return {
+    record.update({
         "attempt_index": attempt_index,
-        "solver_variant": solver_variant,
-        "scorer_variant": scorer_variant,
         "solver_name": solver.name,
         "solver_params": solver_params_dict(solver),
-        "found_key_core": found_key_core,
         "found_key_core_len": len(found_key_core),
         "found_key_core_as_runes_or_latin_if_available": KEY_TEXT_HINT if found_key_core == [23, 10, 1, 10, 9, 10, 16, 26] else None,
-        "found_interruptors": found_interruptors,
-        "found_interrupter_count": len(found_interruptors),
         "found_interruptors_sorted": found_interruptors == sorted(found_interruptors),
         "found_interruptors_unique": len(found_interruptors) == len(set(found_interruptors)),
-        "found_interruptors_in_pool": found_interruptors_in_pool,
         "found_interrupter_count_matches_required": len(found_interruptors) == interruptor_count,
         "missing_pool_positions": missing_pool,
         "extra_non_pool_positions": extra_non_pool,
-        "best_score": best_score,
-        "stop_reason": stop_reason,
-        "match_ratio": ratio,
-        "plaintext_idx_length": len(plaintext_idx),
-        "score_time_s": get_nested(report, "score_time_s", default=get_nested(solution, "score_time_s")),
-        "decrypt_time_s": get_nested(report, "decrypt_time_s", default=get_nested(solution, "decrypt_time_s")),
-        "tokens": get_nested(report, "tokens_processed", default=get_nested(solution, "tokens_processed")),
-        "evals_or_candidates": get_nested(report, "evals", default=get_nested(solution, "evals")),
-        "elapsed_wall_time_s": elapsed_wall_time_s,
-        "status": status,
         "error_type": None,
         "error_message": None,
-        "solver_report_fields": [name for name in safe_public_dict(report).keys()] if report is not None else [],
-        "solution_meta_keys": sorted(getattr(solution, "meta", {}).keys()) if isinstance(getattr(solution, "meta", None), dict) else [],
-        "solver_report": safe_public_dict(report),
-        "solution_meta": json_value(getattr(solution, "meta", None)),
-        "plaintext_idx": plaintext_idx,
-        "plaintext_latin": plaintext_latin,
-        "plaintext_runes": plaintext_runes,
-    }
-
-
-def print_kv(key: str, value: object) -> None:
-    print(f"{key}: {json.dumps(json_value(value), ensure_ascii=False) if isinstance(value, (dict, list, tuple)) else value}")
+        "solver_report_fields": [name for name in safe_public_dict(getattr(result, "solver_report", None)).keys()],
+    })
+    return record
 
 
 def print_run_config(config: dict[str, object]) -> None:
-    print("\nLP_WELCOME_PILGRIM_RUN_CONFIG_BEGIN")
-    for key, value in config.items():
-        print_kv(key, value)
-    print("LP_WELCOME_PILGRIM_RUN_CONFIG_END")
+    print_block("LP_WELCOME_PILGRIM_RUN_CONFIG", config)
 
 
 def print_attempt_summary(record: dict[str, object]) -> None:
@@ -355,11 +228,6 @@ def print_score_separation() -> dict[str, object]:
         print_kv(key, value)
     print("SCORE_SEPARATION_END")
     return data
-
-
-def write_json_evidence(path: Path, evidence: dict[str, object]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(evidence, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def main() -> int:
@@ -487,50 +355,52 @@ def main() -> int:
         else "diagnostic_not_yet_solved; acceptance checks did not all pass"
     )
 
-    print("\nLP_WELCOME_PILGRIM_FINAL_RESULT_BEGIN")
-    for key, value in (
-        ("source_label", SOURCE_LABEL),
-        ("resolved_source_label", metadata["source_label"]),
-        ("main_page_start", metadata["main_page_start"]),
-        ("main_page_end", metadata["main_page_end"]),
-        ("recipe", recipe.recipe_label),
-        ("cipher_family", recipe.cipher_family),
-        ("solver_variant", best_attempt.get("solver_variant")),
-        ("scorer_variant", SCORER_VARIANT),
-        ("key_text_hint", KEY_TEXT_HINT),
-        ("key_length", KEY_LENGTH),
-        ("found_key_core", best_attempt.get("found_key_core")),
-        ("found_interruptors", best_attempt.get("found_interruptors")),
-        ("found_interruptors_sorted", best_attempt.get("found_interruptors_sorted")),
-        ("found_interruptors_unique", best_attempt.get("found_interruptors_unique")),
-        ("found_interruptors_in_pool", best_attempt.get("found_interruptors_in_pool")),
-        ("found_interrupter_count", best_attempt.get("found_interrupter_count")),
-        ("found_interrupter_count_matches_required", best_attempt.get("found_interrupter_count_matches_required")),
-        ("interrupter_pool_size", len(interruptor_pool)),
-        ("interrupter_pool", interruptor_pool),
-        ("ciphertext_zero_positions", pool_validation["ciphertext_zero_positions"]),
-        ("ciphertext_zero_count", pool_validation["ciphertext_zero_count"]),
-        ("interrupter_pool_zero_validation", pool_validation["interrupter_pool_zero_validation"]),
-        ("interrupter_pool_equals_ciphertext_zero_positions", pool_validation["interrupter_pool_equals_ciphertext_zero_positions"]),
-        ("best_score", best_attempt.get("best_score")),
-        ("stop_reason", best_attempt.get("stop_reason")),
-        ("match_ratio", f"{float(best_attempt.get('match_ratio') or 0.0):.3f}"),
-        ("plaintext_idx_length", best_attempt.get("plaintext_idx_length")),
-        ("score_time_s", best_attempt.get("score_time_s")),
-        ("decrypt_time_s", best_attempt.get("decrypt_time_s")),
-        ("tokens", best_attempt.get("tokens")),
-        ("evals_or_candidates", best_attempt.get("evals_or_candidates")),
-        ("elapsed_wall_time_s", best_attempt.get("elapsed_wall_time_s")),
-        ("status", status),
-        ("acceptance_rule", "match_ratio >= 1.000 and 11 interrupters in pool and plaintext length equals ciphertext length"),
-        ("notes", notes),
-    ):
-        print_kv(key, value)
-    print("plaintext_latin:")
-    print(plaintext_latin)
-    print("plaintext_runes:")
-    print(plaintext_runes)
-    print("LP_WELCOME_PILGRIM_FINAL_RESULT_END")
+    print_final_result(
+        block_name="LP_WELCOME_PILGRIM_FINAL_RESULT",
+        source_label=SOURCE_LABEL,
+        resolved_source_label=metadata["source_label"],
+        master_page_start=metadata["main_page_start"],
+        master_page_end=metadata["main_page_end"],
+        ciphertext_length=len(ct_idx),
+        wli_length=len(wli),
+        recipe=recipe.recipe_label,
+        cipher_family=recipe.cipher_family,
+        method="beam_64_period_8_vigenere_interruptor_search",
+        key_or_params={"key_text_hint": KEY_TEXT_HINT, "key_length": KEY_LENGTH},
+        match_ratio=float(best_attempt.get("match_ratio") or 0.0),
+        status=status,
+        acceptance_rule="match_ratio >= 1.000 and 11 interrupters in pool and plaintext length equals ciphertext length",
+        plaintext_latin=plaintext_latin,
+        plaintext_runes=plaintext_runes,
+        extra_fields={
+            "solver_variant": best_attempt.get("solver_variant"),
+            "scorer_variant": SCORER_VARIANT,
+            "found_key_core": best_attempt.get("found_key_core"),
+            "found_interruptors": best_attempt.get("found_interruptors"),
+            "found_interruptors_sorted": best_attempt.get("found_interruptors_sorted"),
+            "found_interruptors_unique": best_attempt.get("found_interruptors_unique"),
+            "found_interruptors_in_pool": best_attempt.get("found_interruptors_in_pool"),
+            "found_interrupter_count": best_attempt.get("found_interrupter_count"),
+            "found_interrupter_count_matches_required": best_attempt.get("found_interrupter_count_matches_required"),
+            "interrupter_pool_size": len(interruptor_pool),
+            "interrupter_pool": interruptor_pool,
+            "ciphertext_zero_positions": pool_validation["ciphertext_zero_positions"],
+            "ciphertext_zero_count": pool_validation["ciphertext_zero_count"],
+            "interrupter_pool_zero_validation": pool_validation["interrupter_pool_zero_validation"],
+            "interrupter_pool_equals_ciphertext_zero_positions": pool_validation[
+                "interrupter_pool_equals_ciphertext_zero_positions"
+            ],
+            "best_score": best_attempt.get("best_score"),
+            "stop_reason": best_attempt.get("stop_reason"),
+            "plaintext_idx_length": best_attempt.get("plaintext_idx_length"),
+            "score_time_s": best_attempt.get("score_time_s"),
+            "decrypt_time_s": best_attempt.get("decrypt_time_s"),
+            "tokens": best_attempt.get("tokens"),
+            "evals_or_candidates": best_attempt.get("evals_or_candidates"),
+            "elapsed_wall_time_s": best_attempt.get("elapsed_wall_time_s"),
+            "notes": notes,
+        },
+    )
 
     final = {
         "status": status,
@@ -550,12 +420,9 @@ def main() -> int:
         "score_separation": score_separation,
         "final": final,
     }
-    latest_path = EVIDENCE_DIR / "latest_solve_evidence.json"
-    stamped_path = EVIDENCE_DIR / f"solve_evidence_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    write_json_evidence(latest_path, evidence)
-    write_json_evidence(stamped_path, evidence)
+    latest_path, stamped_path = write_latest_evidence(EVIDENCE_DIR, evidence)
     print("json_evidence_latest:", latest_path.relative_to(ROOT))
-    print("json_evidence_timestamped:", stamped_path.relative_to(ROOT))
+    print("json_evidence_timestamped:", stamped_path.relative_to(ROOT) if stamped_path is not None else None)
 
     return 0 if status == "solved" else 1
 
