@@ -1,0 +1,29 @@
+test_path,purpose
+tests/contracts/test_source_traceability_chain.py,"Load Stage1, corrected Stage2, corrected Stage3, and Stage7 matrices; fail on undefined source IDs or source rows without decision/test/boundary."
+tests/contracts/test_v1_scope_lock_contract.py,"Fail if V1 scope advertises new n-gram Hamming scoring, huge n-gram assets, or full save/restore solving as production."
+tests/core/test_scoring_requested_lane_detection.py,ScoringConfig identifies requested Hamming/span-Hamming/span-LM/word-ngram side-channel without constructing the scorer.
+tests/scoring/test_no_silent_hamming_fallback.py,NumPy and Torch requested Hamming block on missing backend/assets unless explicit fallback is allowed and reported.
+tests/scoring/test_no_silent_span_hamming_fallback.py,NumPy and Torch requested raw/calibrated span-Hamming block rather than warn-skip.
+tests/scoring/test_requested_lanes_block_not_warn.py,"Parameterised scorer strictness test proving requested lanes run, block, or explicit-fallback, never disappear."
+tests/contracts/test_experimental_boundary_ngram_hamming_not_v1.py,"Existing ngram_hamming helpers can be report-only/experimental, but cannot become a V1 rank-affecting production lane."
+tests/contracts/test_resume_boundary_contract.py,Full save/restore remains experimental; requested unsupported resume blocks with a clear reason.
+tests/ciphers/test_scheduled_stream_lookup_strict_config.py,Reject bad stream kind/direction/anchor/advance/schedule/operation/lossy integer coercion.
+tests/ciphers/test_scheduled_stream_lookup_schedule_modes.py,"Cover overlay, alternating, staggered_overlay, ragged_overlap, mask, forward/backward, start/end anchor combinations."
+tests/ciphers/test_scheduled_stream_lookup_degeneracy_policy.py,Prove xor_mod/lookup require degeneracy=allow and degenerate lookup cannot masquerade as unique decrypt.
+experimental/tests/scoring/test_retained_state_plaintext_rescore.py,report-only/no-rank-effect discipline: Report-only data changes only reserved detail sections and leaves scores/ranks identical.
+tests/api/test_artifact_agreement.py,"typed core contracts: Public JSON contains no absolute local paths for assets, reports, or artifact entries."
+tests/api/test_no_legacy_solve_alias.py,legacy alias cleanup: Tests/docs/tutorials either cannot access removed solve aliases or prove retained aliases are documented public API.
+tests/contracts/test_asset_registry_contract.py,"asset registry: LM roots/indexes, ECDF assets, Hamming wordlists, span-Hamming wordlists/assets, and span-LM assets have structured status."
+tests/contracts/test_capability_gates.py,"typed core contracts: BlockedReason requires a stable code, human-readable message, component/lane context, and JSON-safe details."
+tests/contracts/test_component_contracts.py,"typed core contracts: Component descriptors, lane statuses, asset requirements, backend requirements, capability gates, and blocked reasons serialise with stable enum values."
+tests/contracts/test_no_raw_string_core_labels.py,typed core contracts: The test scans or imports the new contracts and key config paths and rejects unnormalised core labels.
+tests/contracts/test_no_silent_fallback_contract.py,capability gates: requested=True and available=False produces a structured blocker unless explicit fallback is allowed.
+tests/contracts/test_oracle_truth_separation_contract.py,"oracle/truth separation: Runtime-safe components cannot use truth/oracle; reports distinguish available, enabled, consulted, and used."
+tests/contracts/test_scorer_registry_contract.py,scorer registry: The registry lists lanes but does not add a second scorer API or change BaseScorer public contract.
+tests/contracts/test_source_decision_ledger_completeness.py,"release authority: Every Stage 1 source row, not only rows already referenced by Stage 2, has a non-empty decision, destination/boundary, and acceptance test or documented docs-only/experimental exception."
+tests/core/test_no_dead_config_shim_imports.py,config shim cleanup: No internal code depends accidentally on dead config shim imports.
+tests/scoring/language_model/test_ecdf_status_reporting.py,language-model status: Malformed/missing LM/ECDF assets produce structured blocked reasons and safe display paths.
+tests/scoring/language_model/test_lm_asset_status.py,"asset registry: LM roots/indexes, ECDF assets, Hamming wordlists, span-Hamming wordlists/assets, and span-LM assets have structured status."
+tests/scoring/test_report_only_sections_have_no_rank_effect.py,report-only/no-rank-effect discipline: Report-only data changes only reserved detail sections and leaves scores/ranks identical.
+tests/scoring/test_scorer_lane_status_report.py,"scorer registry: Registry has stable lane IDs, score authority, requested/effective state, asset/backend requirements, and report authority."
+tests/scoring/test_scorer_report_lane_sections.py,"typed core contracts: Public JSON contains no absolute local paths for assets, reports, or artifact entries."

@@ -1,0 +1,179 @@
+{
+  "allowed_statuses": [
+    "retain",
+    "deprecate_only",
+    "remove_after_green",
+    "removed"
+  ],
+  "entries": [
+    {
+      "docs_required_before_removal": [
+        "docs/release_contracts/v1/D7_CLEANUP_DEPRECATION_POLICY.md"
+      ],
+      "id": "api.run.solve_alias",
+      "reason": "Existing public compatibility alias. Removing it in V1 would be a breaking API cleanup, not a hardening fix.",
+      "replacement": "Use RunAPI.run as the canonical API path.",
+      "rollback_note": "Restore solve = run alias if external/tutorial usage breaks.",
+      "status": "deprecate_only",
+      "symbol_or_feature": "RunAPI.solve = run",
+      "target_paths": [
+        "src/rune_decrypter_prime/api/run.py"
+      ],
+      "tests_required_before_removal": [
+        "tests/api/test_run_api_deprecation_boundary.py",
+        "tutorials/v1 canonical API smoke tests"
+      ],
+      "v1_action": "Keep alias working; document as legacy/deprecated only if desired."
+    },
+    {
+      "docs_required_before_removal": [
+        "docs/release_contracts/v1/D3_NUMPY_STRICT_REQUESTED_LANES.md"
+      ],
+      "id": "scoring.numpy.hamming_warning_skip",
+      "reason": "Requested Hamming scoring must not silently disappear.",
+      "replacement": "Raise RequestedLaneUnavailableError for requested lane, or record explicit reported fallback where policy allows.",
+      "rollback_note": "Revert only if D3 tests identify a false positive; do not restore warning-skip as default.",
+      "status": "remove_after_green",
+      "symbol_or_feature": "NumPy Hamming backend warning-and-skip setup path",
+      "target_paths": [
+        "src/rune_decrypter_prime/scoring/rune_scorer.py"
+      ],
+      "tests_required_before_removal": [
+        "tests/scoring/test_no_silent_hamming_fallback.py",
+        "tests/scoring/test_requested_lanes_block_not_warn.py"
+      ],
+      "v1_action": "Remove warning-skip after D3 is green."
+    },
+    {
+      "docs_required_before_removal": [
+        "docs/release_contracts/v1/D3_NUMPY_STRICT_REQUESTED_LANES.md"
+      ],
+      "id": "scoring.numpy.span_hamming_warning_skip",
+      "reason": "Requested raw span-Hamming must not silently disappear.",
+      "replacement": "Raise RequestedLaneUnavailableError for requested lane, or record explicit reported fallback where policy allows.",
+      "rollback_note": "Revert only with a failing D3 regression test; do not restore silent disable.",
+      "status": "remove_after_green",
+      "symbol_or_feature": "NumPy raw span-Hamming warning-and-skip setup path",
+      "target_paths": [
+        "src/rune_decrypter_prime/scoring/rune_scorer.py"
+      ],
+      "tests_required_before_removal": [
+        "tests/scoring/test_no_silent_span_hamming_fallback.py",
+        "tests/scoring/test_requested_lanes_block_not_warn.py"
+      ],
+      "v1_action": "Remove warning-skip after D3 is green."
+    },
+    {
+      "docs_required_before_removal": [
+        "docs/release_contracts/v1/D4_TORCH_STRICT_REQUESTED_LANES.md"
+      ],
+      "id": "scoring.torch.hamming_silent_disable",
+      "reason": "Torch must match NumPy requested-lane behaviour.",
+      "replacement": "Raise RequestedLaneUnavailableError for requested lane, or record explicit reported fallback where policy allows.",
+      "rollback_note": "Revert only with parity-test evidence; do not restore silent disable.",
+      "status": "remove_after_green",
+      "symbol_or_feature": "Torch Hamming backend catch-and-disable setup path",
+      "target_paths": [
+        "src/rune_decrypter_prime/scoring/torch_rune_scorer.py"
+      ],
+      "tests_required_before_removal": [
+        "tests/scoring/test_torch_no_silent_hamming_fallback.py",
+        "tests/scoring/test_numpy_torch_requested_lane_parity_contract.py"
+      ],
+      "v1_action": "Remove silent-disable after D4 is green."
+    },
+    {
+      "docs_required_before_removal": [
+        "docs/release_contracts/v1/D4_TORCH_STRICT_REQUESTED_LANES.md"
+      ],
+      "id": "scoring.torch.span_hamming_silent_disable",
+      "reason": "Torch must match NumPy requested-lane behaviour.",
+      "replacement": "Raise RequestedLaneUnavailableError for requested lane, or record explicit reported fallback where policy allows.",
+      "rollback_note": "Revert only with parity-test evidence; do not restore silent disable.",
+      "status": "remove_after_green",
+      "symbol_or_feature": "Torch raw span-Hamming backend catch-and-disable setup path",
+      "target_paths": [
+        "src/rune_decrypter_prime/scoring/torch_rune_scorer.py"
+      ],
+      "tests_required_before_removal": [
+        "tests/scoring/test_torch_no_silent_span_hamming_fallback.py",
+        "tests/scoring/test_numpy_torch_requested_lane_parity_contract.py"
+      ],
+      "v1_action": "Remove silent-disable after D4 is green."
+    },
+    {
+      "docs_required_before_removal": [
+        "docs/release_contracts/v1/D7_CLEANUP_DEPRECATION_POLICY.md"
+      ],
+      "id": "experimental.ngram_hamming_scoring",
+      "reason": "Useful experimental/report-only work, but not V1 production scoring.",
+      "replacement": "Keep report-only/no-rank-effect boundary; do not register as V1 production scorer lane.",
+      "rollback_note": "If boundary drifts, disable production exposure rather than deleting experimental evidence.",
+      "status": "retain",
+      "symbol_or_feature": "New no-WLI n-gram Hamming scoring/report-only code",
+      "target_paths": [
+        "src/rune_decrypter_prime/scoring/ngram_hamming"
+      ],
+      "tests_required_before_removal": [
+        "tests/contracts/test_experimental_boundary_ngram_hamming_not_v1.py"
+      ],
+      "v1_action": "Retain as experimental/report-only boundary only."
+    },
+    {
+      "docs_required_before_removal": [
+        "docs/release_contracts/v1/D7_CLEANUP_DEPRECATION_POLICY.md"
+      ],
+      "id": "experimental.save_restore_solving",
+      "reason": "Useful roadmap idea but not V1-ready and too complex for current V1 release.",
+      "replacement": "Unsupported/experimental boundary in V1.",
+      "rollback_note": "Keep as roadmap/experimental note only; do not add runtime promise.",
+      "status": "retain",
+      "symbol_or_feature": "Full save/restore solving",
+      "target_paths": [
+        "experimental branches and planning docs"
+      ],
+      "tests_required_before_removal": [
+        "tests/contracts/test_resume_boundary_contract.py"
+      ],
+      "v1_action": "Retain as out-of-scope boundary."
+    },
+    {
+      "docs_required_before_removal": [
+        "docs/release_contracts/v1/D7_CLEANUP_DEPRECATION_POLICY.md"
+      ],
+      "id": "cipher.scheduled_stream_lookup_aliases",
+      "reason": "Tutorials and users need friendly names; engine remains canonical scheduled_stream_lookup.",
+      "replacement": "Keep aliases mapping to canonical scheduled_stream_lookup engine.",
+      "rollback_note": "Restore alias if tutorial or wrapper tests fail.",
+      "status": "retain",
+      "symbol_or_feature": "Friendly aliases: periodic_plus_primes, periodic_plus_sequence, two_period_vigenere, two_period_arithmetic",
+      "target_paths": [
+        "src/rune_decrypter_prime/api/wrappers/by_name.py"
+      ],
+      "tests_required_before_removal": [
+        "tests/api/test_scheduled_stream_lookup_wrapper_lock.py"
+      ],
+      "v1_action": "Retain aliases."
+    },
+    {
+      "docs_required_before_removal": [
+        "docs/release_contracts/v1/README.md"
+      ],
+      "id": "release.traceability_files",
+      "reason": "Release evidence; deleting it would hide source-to-test accountability.",
+      "replacement": "Regenerate deliberately only, keeping schema and source IDs valid.",
+      "rollback_note": "Restore from handoff pack if accidentally deleted.",
+      "status": "retain",
+      "symbol_or_feature": "V1 traceability/source decision evidence files",
+      "target_paths": [
+        "docs/release_contracts/v1"
+      ],
+      "tests_required_before_removal": [
+        "tests/contracts/test_source_traceability_chain.py"
+      ],
+      "v1_action": "Retain evidence files."
+    }
+  ],
+  "policy": "no_silent_drift_no_unsupported_removal_no_experimental_promotion",
+  "schema": "rdp_v1_cleanup_deprecation_ledger.v1"
+}

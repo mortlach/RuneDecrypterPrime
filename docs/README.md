@@ -1,97 +1,66 @@
-# Rune Decrypter Prime documentation
+# Rune Decrypter Prime docs
 
-This is the user documentation for Rune Decrypter Prime.
+Rune Decrypter Prime (RDP) is a deterministic lab for testing decryption methods
+on a 29-rune alphabet.
 
-It has two levels:
+The point of the project is not just to get a high score. It is to make each run
+repeatable and explainable:
 
 ```text
-beginner path       install, run, inspect, repeat
-expert path         understand contracts, interfaces, components, plugins
+ciphertext
+  -> optional pipeline transform
+  -> cipher and key schedule
+  -> scorer
+  -> solver/search loop
+  -> report, telemetry, and tutorial/test result
 ```
 
-## New user path
+## What V1 is about
+
+V1 keeps the public surface small enough to test properly.
+
+Included in V1:
+
+- stable package install
+- API wrappers for supported ciphers
+- ScheduledStreamLookup tutorials and smoke tests
+- Span-Hamming support
+- scorer/report diagnostics
+- deterministic tutorial runner
+- Windows and Ubuntu full CI
+- Windows and Ubuntu wheel CI
+
+Not included in V1:
+
+- production n-gram Hamming scoring
+- large campaign assets as default install payload
+- save/restore solving state
+- broad experimental benchmark branches
+
+## First-time user path
 
 1. Install: [`setup/installation.md`](setup/installation.md)
 2. Run tutorials: [`guides/quickstart.md`](guides/quickstart.md)
-3. Read one complete solve: [`guides/first_real_solve.md`](guides/first_real_solve.md)
-4. Learn normal use: [`guides/using_rdp.md`](guides/using_rdp.md)
-5. Fix common problems: [`guides/troubleshooting.md`](guides/troubleshooting.md)
+3. If something fails: [`guides/troubleshooting.md`](guides/troubleshooting.md)
 
-## Beginner-friendly guides
+## More detail
 
-```text
-guides/quickstart.md
-guides/first_real_solve.md
-guides/using_rdp.md
-guides/features.md
-guides/common_run_options.md
-guides/tutorial_catalogue.md
-guides/examples.md
-guides/outputs.md
-guides/troubleshooting.md
-guides/liber_primus_solved_sources.md
-```
+Architecture:
 
-## Expert and integrator path
+- [`architecture/engine_api.md`](architecture/engine_api.md)
+- [`architecture/pipeline.md`](architecture/pipeline.md)
+- [`architecture/ciphers.md`](architecture/ciphers.md)
+- [`architecture/keyops.md`](architecture/keyops.md)
+- [`architecture/optimisers.md`](architecture/optimisers.md)
+- [`architecture/telemetry.md`](architecture/telemetry.md)
+- [`architecture/data.md`](architecture/data.md)
 
-Use this path if you are an expert client, advanced user, reviewer, or someone
-building a GUI/front-end on top of RDP:
+Testing and traceability:
 
-```text
-expert/README.md
-expert/design_philosophy.md
-expert/component_model.md
-expert/contracts_overview.md
-expert/gui_frontend_interfaces.md
-expert/gui_interface_contract.md
-expert/stability_surface.md
-expert/plugin_design.md
-expert/reports_and_artifacts.md
-expert/source_and_tutorial_interfaces.md
-```
+- [`tests/overview.md`](tests/overview.md)
+- [`release_contracts/v1/README.md`](release_contracts/v1/README.md)
 
-These docs explain stable interfaces and design intent without exposing old
-implementation-history material.
+Build and packaging:
 
-## Tutorials
-
-Tutorial notes are under:
-
-```text
-tutorials/
-```
-
-Runnable tutorial scripts are under:
-
-```text
-../tutorials/v1/
-```
-
-The tutorial runner is:
-
-```text
-../tutorials/v1/run_all.py
-```
-
-The tutorial manifest is:
-
-```text
-../tutorials/v1/tutorial_manifest_v1.json
-```
-
-## Reference for users
-
-```text
-FAQ.md
-glossary.md
-```
-
-## Generated output
-
-RDP writes generated logs and reports under:
-
-```text
-../output/
-```
-
-Do not commit generated output.
+- [`setup/installation.md`](setup/installation.md)
+- [`setup/building.md`](setup/building.md)

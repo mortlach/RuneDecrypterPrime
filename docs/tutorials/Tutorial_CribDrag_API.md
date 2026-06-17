@@ -1,29 +1,28 @@
-# Crib-drag API tutorial
+# Tutorial - Crib‑Drag API (Vigenère)
 
-Status: user tutorial note
+**Goal**  
+Use a known plaintext snippet ("crib") to constrain the key search.
 
-This tutorial demonstrates a crib-drag style workflow through the public API.
-
-## What it shows
-
-```text
-known or guessed text fragment
-candidate alignment
-scoring/checking
-reported result
+**Sketch**
+```python
+crib = "HELLO"
+# Example approach: try alignments or fix partial key via KeySpec
+result = RunAPI.run(
+    ciphertext=CTXT,
+    cipher_spec=CipherSpec(name="Vigenere", key_length=5),
+    solver_spec=SolverSpec(name="SA", eval_budget=10_000),
+    # key_spec=KeySpec(...),   # where supported to fix known positions
+    seed=777,
+)
+print(result.plaintext[:120])
 ```
 
-## What to inspect
+**Notes**
+- Partial knowledge reduces search space significantly.
+- Keep Pipeline direction consistent with the crib.
+- Determinism helps compare strategies (with/without crib).
 
-```text
-tutorials/v1/tutorial_manifest_v1.json
-output/tutorials/
-```
+**See also**  
+[Engine & API](../architecture/engine_api.md) · [Pipeline](../architecture/pipeline.md)
 
-## Related docs
-
-```text
-docs/guides/tutorial_catalogue.md
-docs/guides/common_run_options.md
-docs/expert/source_and_tutorial_interfaces.md
-```
+[← Vigenère + GA](Tutorial_Vigenere_GeneralMap.md) · [Next -> Tests](../tests/overview.md)

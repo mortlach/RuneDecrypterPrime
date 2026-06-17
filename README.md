@@ -1,91 +1,69 @@
 # Rune Decrypter Prime
 
-Rune Decrypter Prime (RDP) is a deterministic toolkit for running and checking
-29-rune decryption experiments.
+Rune Decrypter Prime (RDP) is a deterministic cryptanalysis toolkit for a
+29-rune alphabet.
 
-The aim is simple:
+The project is built around small, testable parts: ciphers, key schedules,
+scorers, solvers, tutorial runs, and reports. The aim is to make decryption
+experiments repeatable rather than mysterious.
 
-```text
-run a solve
-see what happened
-compare the result
-repeat it later
-```
+This branch is the V1 pre-release surface. It focuses on:
+
+- a clean Python install path
+- ScheduledStreamLookup cipher support
+- Span-Hamming support
+- deterministic tutorials
+- traceable solver/scorer reports
+- Windows and Ubuntu CI proof
+- wheel builds with native extension import checks
 
 ## Start here
 
-1. Install RDP: [`docs/setup/installation.md`](docs/setup/installation.md)
-2. Run the tutorials: [`docs/guides/quickstart.md`](docs/guides/quickstart.md)
-3. Read one complete solve walkthrough: [`docs/guides/first_real_solve.md`](docs/guides/first_real_solve.md)
-4. Learn normal use: [`docs/guides/using_rdp.md`](docs/guides/using_rdp.md)
-5. Troubleshoot setup or runs: [`docs/guides/troubleshooting.md`](docs/guides/troubleshooting.md)
+For most users:
 
-## Expert and GUI/front-end docs
+1. Install: [`docs/setup/installation.md`](docs/setup/installation.md)
+2. Run the V1 tutorials: [`docs/guides/quickstart.md`](docs/guides/quickstart.md)
+3. Read the project overview: [`docs/README.md`](docs/README.md)
 
-For expert users, reviewers, and GUI/front-end integrators:
-
-```text
-docs/expert/README.md
-docs/expert/design_philosophy.md
-docs/expert/component_model.md
-docs/expert/contracts_overview.md
-docs/expert/gui_frontend_interfaces.md
-docs/expert/gui_interface_contract.md
-docs/expert/stability_surface.md
-docs/expert/plugin_design.md
-docs/expert/reports_and_artifacts.md
-docs/expert/source_and_tutorial_interfaces.md
-```
-
-These explain stable user-facing interfaces, design goals, component boundaries,
-plugin ideas, reports, and integration surfaces.
-
-## Quick install
-
-From the repository root:
+The shortest install check is:
 
 ```text
 python install.py
 ```
 
-On Windows:
+On Windows, this wrapper is also available:
 
 ```text
 install.bat
 ```
 
-## Quick tutorial run
+## Common paths
 
 ```text
-python tutorials/v1/run_all.py
+src/rune_decrypter_prime/   package source
+tutorials/v1/               V1 tutorial scripts and tutorial runner
+tests/                      pytest test suite
+docs/                       user, setup, architecture, and test notes
+assets/                     small V1 asset baseline
+output/                     generated logs and test/tutorial output
 ```
 
-Success means the tutorial summary reports:
+`output/` is local runtime output and should not be committed.
 
-```text
-failed   : 0
-```
+## Main docs
 
-## Useful user docs
+- [`docs/README.md`](docs/README.md) - project overview and architecture links
+- [`docs/setup/installation.md`](docs/setup/installation.md) - simple install, tutorial run, and expert test commands
+- [`docs/setup/building.md`](docs/setup/building.md) - wheel/native build notes
+- [`docs/guides/quickstart.md`](docs/guides/quickstart.md) - first tutorial run
+- [`docs/guides/troubleshooting.md`](docs/guides/troubleshooting.md) - common failures
+- [`docs/tests/overview.md`](docs/tests/overview.md) - test-suite overview
+- [`docs/release_contracts/v1/README.md`](docs/release_contracts/v1/README.md) - required V1 release-contract data
 
-```text
-docs/README.md                         documentation map
-docs/FAQ.md                            common questions
-docs/glossary.md                       common terms
-docs/setup/installation.md             install and first checks
-docs/guides/quickstart.md              shortest working path
-docs/guides/first_real_solve.md        one full solve explained
-docs/guides/using_rdp.md               normal user workflow
-docs/guides/features.md                feature overview
-docs/guides/common_run_options.md      common choices users can set
-docs/guides/tutorial_catalogue.md      tutorials and what they prove
-docs/guides/examples.md                beginner examples
-docs/guides/outputs.md                 where results are written
-docs/guides/troubleshooting.md         common fixes
-docs/guides/liber_primus_solved_sources.md  LP source labels
-docs/tutorials/                        tutorial notes
-docs/expert/                           expert and integration docs
-```
+## Developer notes
 
-The public docs are intended to help users install, run, inspect, repeat, and
-integrate RDP solves.
+Python 3.11+ is the supported target for V1.
+
+The public V1 boundary is intentionally narrow. Experimental n-gram Hamming
+campaign work, large benchmark runs, and save/restore solver state are not part
+of the V1 production surface.
