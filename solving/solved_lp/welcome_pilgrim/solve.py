@@ -21,6 +21,8 @@ from rune_decrypter_prime.data import liber_primus as lp  # noqa: E402
 from rune_decrypter_prime.utils.pretty import print_run_report  # noqa: E402
 from rune_decrypter_prime.utils.runeglish import Runeglish  # noqa: E402
 
+from solving.solved_lp.welcome_pilgrim.reference import CANONICAL_WELCOME_PILGRIM_IDX  # noqa: E402
+
 """
 Welcome Pilgrim solved-LP solve attempt.
 
@@ -28,9 +30,10 @@ This is intentionally small and readable:
 
 1. Load the real LP ciphertext/WLI by source label.
 2. Run the existing Vigenere solver with interruptor search enabled.
-3. Print the key, interruptors, score, and recovered plaintext.
+3. Print the key, interruptors, score, recovered plaintext, and match ratio.
 
-No canonical plaintext or canonical key is supplied to the solver here.
+No canonical plaintext or canonical key is supplied to the solver. The canonical
+reference is imported only after the solve for validation/reporting.
 """
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -70,6 +73,15 @@ def _split_found_key(found_key: object, *, key_length: int) -> tuple[list[int], 
     return core, interrupters
 
 
+def _match_ratio(found: list[int], reference: tuple[int, ...]) -> float:
+    denominator = max(len(found), len(reference))
+    if denominator == 0:
+        return 0.0
+    limit = min(len(found), len(reference))
+    matches = sum(1 for idx in range(limit) if int(found[idx]) == int(reference[idx]))
+    return matches / float(denominator)
+
+
 def _render_plaintext(solution: object, wli: list[list[int]]) -> tuple[list[int], str, str]:
     plaintext_idx = _as_int_list(getattr(solution, "plaintext_idx", []))
     plaintext_latin = str(getattr(solution, "plaintext_latin", "") or "")
@@ -88,6 +100,7 @@ def _print_final_result_block(
     report: object,
     found_core: list[int],
     found_interruptors: list[int],
+    match_ratio: float,
     plaintext_idx: list[int],
     plaintext_latin: str,
     plaintext_runes: str,
@@ -105,6 +118,7 @@ def _print_final_result_block(
     print("stop_reason:", getattr(solution, "stop_reason", None))
     print("solver_report_best_score:", getattr(report, "best_score", None))
     print("plaintext_idx_length:", len(plaintext_idx))
+    print(f"Match ratio: {match_ratio:.3f}")
     print("plaintext_latin:")
     print(plaintext_latin or "<empty>")
     print("plaintext_runes:")
@@ -123,6 +137,12 @@ def main() -> None:
     ct_idx = list(payload.ct_idx)
     wli = [list(pair) for pair in payload.wli]
     interruptor_pool = list(range(len(ct_idx)))
+
+    if len(CANONICAL_WELCOME_PILGRIM_IDX) != len(ct_idx):
+        raise ValueError(
+            "Canonical Welcome Pilgrim reference is not aligned with the loaded source payload: "
+            f"canonical={len(CANONICAL_WELCOME_PILGRIM_IDX)} ct={len(ct_idx)}"
+        )
 
     print("LP source label:", SOURCE_LABEL)
     print("Resolved source label:", payload.metadata.get("source_label"))
@@ -181,6 +201,7 @@ def main() -> None:
     report = result.solver_report
     found_core, found_interruptors = _split_found_key(getattr(solution, "key", []), key_length=KEY_LENGTH)
     plaintext_idx, plaintext_latin, plaintext_runes = _render_plaintext(solution, wli)
+    match_ratio = _match_ratio(plaintext_idx, CANONICAL_WELCOME_PILGRIM_IDX)
 
     print("Found key core:", found_core)
     print("Found interruptors:", found_interruptors)
@@ -188,6 +209,7 @@ def main() -> None:
     print("Best score:", getattr(solution, "score", None))
     print("Stop reason:", getattr(solution, "stop_reason", None))
     print("Solver report best score:", getattr(report, "best_score", None))
+    print("Match ratio:", f"{match_ratio:.3f}")
     print("Plaintext preview:", plaintext_latin[:300])
 
     print_run_report(
@@ -200,6 +222,7 @@ def main() -> None:
         key_len=len(found_core) + len(found_interruptors),
         ct_idx=ct_idx,
         ct_rune=Runeglish.to_rune(ct_idx, wli),
+        pt_idx_ref=list(CANONICAL_WELCOME_PILGRIM_IDX),
         wli=wli,
         interruptors_ref=None,
         compact=True,
@@ -211,6 +234,7 @@ def main() -> None:
         report=report,
         found_core=found_core,
         found_interruptors=found_interruptors,
+        match_ratio=match_ratio,
         plaintext_idx=plaintext_idx,
         plaintext_latin=plaintext_latin,
         plaintext_runes=plaintext_runes,
