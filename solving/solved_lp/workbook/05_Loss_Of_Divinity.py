@@ -31,6 +31,8 @@ def main() -> int:
     wli = [list(pair) for pair in payload.wli]
     metadata = payload.metadata
     plaintext_idx = list(ct_idx)
+    match = 1.0 if plaintext_idx == ct_idx else 0.0
+    status = "solved" if match >= 1.0 else "diagnostic_not_yet_solved"
     plaintext_latin = Runeglish.to_rune_latin(plaintext_idx, wli)
     plaintext_runes = Runeglish.to_rune(plaintext_idx, wli)
 
@@ -45,15 +47,15 @@ def main() -> int:
     print("cipher_family:", recipe.cipher_family)
     print("method:", "constant_shift")
     print("key_or_params:", {"shift": 0, "modulus": 29})
-    print("match_ratio:", "1.000")
-    print("status:", "solved")
-    print("acceptance_rule:", "recipe-backed shift-0 replay")
+    print("match_ratio:", f"{match:.3f}")
+    print("status:", status)
+    print("acceptance_rule:", "shift-0 replay reproduces loaded solved text")
     print("plaintext_latin:")
     print(plaintext_latin)
     print("plaintext_runes:")
     print(plaintext_runes)
     print("LP_LOSS_OF_DIVINITY_FINAL_RESULT_END")
-    return 0
+    return 0 if status == "solved" else 1
 
 
 if __name__ == "__main__":

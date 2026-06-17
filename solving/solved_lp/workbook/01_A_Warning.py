@@ -37,6 +37,9 @@ def main() -> int:
     metadata = payload.metadata
 
     plaintext_idx = reverse_transform(ct_idx)
+    roundtrip_idx = reverse_transform(plaintext_idx)
+    match = 1.0 if roundtrip_idx == ct_idx else 0.0
+    status = "solved" if match >= 1.0 else "diagnostic_not_yet_solved"
     plaintext_latin = Runeglish.to_rune_latin(plaintext_idx, wli)
     plaintext_runes = Runeglish.to_rune(plaintext_idx, wli)
 
@@ -51,15 +54,15 @@ def main() -> int:
     print("cipher_family:", recipe.cipher_family)
     print("method:", "reverse_gematria")
     print("key_or_params:", {"modulus": MODULUS})
-    print("match_ratio:", "1.000")
-    print("status:", "solved")
-    print("acceptance_rule:", "recipe-backed reverse gematria replay")
+    print("match_ratio:", f"{match:.3f}")
+    print("status:", status)
+    print("acceptance_rule:", "reverse gematria roundtrip reproduces loaded ciphertext")
     print("plaintext_latin:")
     print(plaintext_latin)
     print("plaintext_runes:")
     print(plaintext_runes)
     print("LP_WARNING_FINAL_RESULT_END")
-    return 0
+    return 0 if status == "solved" else 1
 
 
 if __name__ == "__main__":

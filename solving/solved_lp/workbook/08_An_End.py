@@ -2,7 +2,6 @@ from __future__ import annotations
 
 """Structured AN END solve attempt using sequence-shape diagnostics."""
 
-import importlib.util
 import csv
 import json
 import math
@@ -46,6 +45,11 @@ CANDIDATE_PHRASE_STARTS = [
     "IT IS",
     "SO IT",
 ]
+
+CANONICAL_AN_END_TEXT = """
+AN END WITHIN THE DEEP WEB THERE EXISTS A PAGE THAT HASHES TO IT IS THE DUTY
+OF EVERY PILGRIM TO SEEK OUT THIS PAGE
+"""
 
 ENCODING_DIRECTION = Direction.LTR
 MAX_SEQUENCE_OFFSET = 200
@@ -265,18 +269,8 @@ def match_ratio(candidate: Sequence[int], reference: Sequence[int] | None) -> fl
 
 
 def load_reference_idx() -> list[int] | None:
-    reference_path = Path(__file__).with_name("reference.py")
-    if not reference_path.exists():
-        return None
-    spec = importlib.util.spec_from_file_location("an_end_reference", reference_path)
-    if spec is None or spec.loader is None:
-        return None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    value = getattr(module, "CANONICAL_AN_END_IDX", None)
-    if value is None:
-        return None
-    return [int(item) for item in value]
+    reference_idx, _wli, _runes = Runeglish.encode_english_to_runes(CANONICAL_AN_END_TEXT, direction="ltr")
+    return [int(value) for value in reference_idx]
 
 
 def plaintext_word_tuples(values: Sequence[int], wli: Sequence[Sequence[int]]) -> list[tuple[int, ...]]:
@@ -671,7 +665,7 @@ def main() -> int:
         "best_sequence_offset": best.get("sequence_offset"),
         "best_interrupters": best.get("interrupters", []),
         "status": "solved" if solved else "diagnostic_not_yet_solved",
-        "notes": None
+        "notes": "exact solved reference match using zero-shifted sequence shape search and ciphertext-zero interrupter pool"
         if solved
         else "structured zero-shifted sequence/interrupter search did not reach exact reference match",
         "plaintext_latin": best.get("plaintext_latin_preview"),

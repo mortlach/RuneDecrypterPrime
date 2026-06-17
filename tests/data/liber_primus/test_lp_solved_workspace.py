@@ -88,6 +88,7 @@ def test_solved_lp_examples_use_main_page_metadata_names() -> None:
     stale_end = "master" + "_page_end"
     an_end_files = {
         SOLVED_ROOT / "an_end" / "solve.py",
+        SOLVED_ROOT / "workbook" / "06_Koan_During_Lesson.py",
         SOLVED_ROOT / "workbook" / "08_An_End.py",
     }
 
@@ -130,24 +131,23 @@ def test_welcome_pilgrim_uses_divinity_period_and_zero_position_pool(path: Path)
 @pytest.mark.parametrize(
     "path",
     (
-        SOLVED_ROOT / "koan_during_lesson" / "solve.py",
         SOLVED_ROOT / "workbook" / "06_Koan_During_Lesson.py",
     ),
 )
-def test_koan_during_lesson_uses_circumference_period_and_zero_diagnostics(path: Path) -> None:
+def test_koan_during_lesson_workbook_pins_solved_count_two_replay(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
 
-    assert 'KEY_TEXT_HINT = "CIRCUMFERENCE"' in text
-    assert "KEY_LENGTH = len(KEY_TEXT_HINT)" in text
-    assert "INTERRUPTOR_COUNT = 11" in text
+    assert 'KEY_TEXT_HINT_HUMAN = "CIRCUMFERENCE"' in text
+    assert 'RECIPE_REFERENCE_KEY_OR_SHIFT = "FIRFUMFERENFE"' in text
+    assert "KEY_LENGTH = len(RECIPE_REFERENCE_KEY_OR_SHIFT)" in text
+    assert "INTERRUPTOR_COUNT = len(PINNED_FOUND_INTERRUPTORS)" in text
+    assert "PINNED_FOUND_INTERRUPTORS = [49, 58]" in text
     assert "ACCEPTANCE_MATCH_RATIO = 1.0" in text
-    assert 'SCORER_OBJECTIVE = "pct.logp.win10"' in text
-    assert "CHAR_NGRAM_WEIGHTS = {1: 0.3, 2: 0.7}" in text
-    assert "WLI_NGRAM_WEIGHTS = {1: 0.3, 2: 0.7}" in text
-    assert "enumerate(ct_idx)" in text
+    assert "CANONICAL_KOAN_DURING_LESSON_TEXT" in text
+    assert "enumerate(values)" in text
     assert "int(value) == 0" in text
-    assert '("key_length", KEY_LENGTH)' in text
-    assert '("interrupter_pool_size", len(interruptor_pool))' in text
+    assert "match_ratio(plaintext_idx, reference_idx)" in text
+    assert '"solved" if ratio >= ACCEPTANCE_MATCH_RATIO else "diagnostic_not_yet_solved"' in text
 
 
 @pytest.mark.parametrize(

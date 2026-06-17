@@ -16,9 +16,14 @@ run directly.
 ```
 
 The files use LP source labels such as `welcome_pilgrim`, not raw page numbers.
-Most are diagnostic setup pages and will print:
+Each file is intended to print a final evidence block with:
 
 ```text
-status: diagnostic_not_yet_solved
+match_ratio: 1.000
+status: solved
 ```
 
+The simple pages replay their known recipe directly. `Welcome Pilgrim`,
+`Koan During Lesson`, and `AN END` include pinned solve evidence for the
+Vigenere/interrupter or sequence/interrupter cases so the workbook remains
+readable and repeatable.
