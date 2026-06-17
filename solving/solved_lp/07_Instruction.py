@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-"""Worked solve for the solved LP section "The Loss of Divinity"."""
+"""Worked solve for the solved LP section "An Instruction"."""
 
 from pathlib import Path
 import sys
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
 for path in (ROOT, SRC):
     if str(path) not in sys.path:
@@ -22,8 +22,8 @@ from rune_decrypter_prime.utils.solve_output import (  # noqa: E402
 configure_utf8_stdio()
 
 
-SOURCE_LABEL = "loss_of_divinity"
-RECIPE_LABEL = "recipe.loss_of_divinity.constant_shift_zero_replay"
+SOURCE_LABEL = "instruction"
+RECIPE_LABEL = "recipe.instruction.constant_shift_zero_replay"
 
 
 def main() -> int:
@@ -38,7 +38,7 @@ def main() -> int:
     plaintext_latin, plaintext_runes = render_plaintext(plaintext_idx, wli)
 
     print_final_result(
-        block_name="LP_LOSS_OF_DIVINITY_FINAL_RESULT",
+        block_name="LP_INSTRUCTION_FINAL_RESULT",
         source_label=SOURCE_LABEL,
         resolved_source_label=metadata["source_label"],
         main_page_start=page_value(metadata, "main_page_start"),

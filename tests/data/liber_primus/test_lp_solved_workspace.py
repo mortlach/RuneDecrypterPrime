@@ -37,22 +37,6 @@ WORKBOOK_FILES = (
 
 
 @pytest.mark.parametrize("label", KNOWN_SOLVED_LABELS)
-def test_every_known_solved_lp_section_has_solve_file(label: str) -> None:
-    solve_file = SOLVED_ROOT / label / "solve.py"
-
-    assert solve_file.is_file()
-
-
-@pytest.mark.parametrize("label", KNOWN_SOLVED_LABELS)
-def test_every_known_solved_lp_solve_file_has_main(label: str) -> None:
-    solve_file = SOLVED_ROOT / label / "solve.py"
-    tree = ast.parse(solve_file.read_text(encoding="utf-8"))
-
-    functions = {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}
-    assert "main" in functions
-
-
-@pytest.mark.parametrize("label", KNOWN_SOLVED_LABELS)
 def test_solved_lp_workspace_labels_resolve_to_payloads(label: str) -> None:
     payload = lp.payload_from_label(label)
 
@@ -61,9 +45,13 @@ def test_solved_lp_workspace_labels_resolve_to_payloads(label: str) -> None:
     assert payload.metadata["requested_label"] == label
 
 
+def test_solved_lp_workspace_is_flat() -> None:
+    assert [path.name for path in SOLVED_ROOT.iterdir() if path.is_dir()] == []
+
+
 @pytest.mark.parametrize("filename", WORKBOOK_FILES)
-def test_solved_lp_workbook_has_human_readable_files(filename: str) -> None:
-    workbook_file = SOLVED_ROOT / "workbook" / filename
+def test_solved_lp_has_human_readable_files(filename: str) -> None:
+    workbook_file = SOLVED_ROOT / filename
     tree = ast.parse(workbook_file.read_text(encoding="utf-8"))
 
     assert workbook_file.is_file()
@@ -71,7 +59,7 @@ def test_solved_lp_workbook_has_human_readable_files(filename: str) -> None:
 
 
 def test_solved_lp_examples_do_not_delegate_to_shared_helper_module() -> None:
-    files = list(SOLVED_ROOT.glob("*/solve.py")) + list((SOLVED_ROOT / "workbook").glob("*.py"))
+    files = [path for path in SOLVED_ROOT.glob("*.py") if path.name != "run_all.py"]
     forbidden_helper = "_" + "common"
 
     assert files
@@ -79,11 +67,11 @@ def test_solved_lp_examples_do_not_delegate_to_shared_helper_module() -> None:
         text = path.read_text(encoding="utf-8")
         assert not text.startswith("\ufeff")
         assert forbidden_helper not in text
-        assert "from solving.solved_lp." not in text or "welcome_pilgrim.reference" in text
+        assert "from solving.solved_lp." not in text
 
 
 def test_solved_lp_examples_use_main_page_metadata_names() -> None:
-    files = list(SOLVED_ROOT.glob("*/solve.py")) + list((SOLVED_ROOT / "workbook").glob("*.py"))
+    files = [path for path in SOLVED_ROOT.glob("*.py") if path.name != "run_all.py"]
 
     assert files
     for path in files:
@@ -95,8 +83,7 @@ def test_solved_lp_examples_use_main_page_metadata_names() -> None:
 @pytest.mark.parametrize(
     "path",
     (
-        SOLVED_ROOT / "welcome_pilgrim" / "solve.py",
-        SOLVED_ROOT / "workbook" / "02_Welcome_Pilgrim.py",
+        SOLVED_ROOT / "02_Welcome_Pilgrim.py",
     ),
 )
 def test_welcome_pilgrim_uses_divinity_period_and_zero_position_pool(path: Path) -> None:
@@ -118,7 +105,7 @@ def test_welcome_pilgrim_uses_divinity_period_and_zero_position_pool(path: Path)
 @pytest.mark.parametrize(
     "path",
     (
-        SOLVED_ROOT / "workbook" / "06_Koan_During_Lesson.py",
+        SOLVED_ROOT / "06_Koan_During_Lesson.py",
     ),
 )
 def test_koan_during_lesson_workbook_pins_solved_count_two_replay(path: Path) -> None:
@@ -140,8 +127,7 @@ def test_koan_during_lesson_workbook_pins_solved_count_two_replay(path: Path) ->
 @pytest.mark.parametrize(
     "path",
     (
-        SOLVED_ROOT / "welcome_pilgrim" / "solve.py",
-        SOLVED_ROOT / "workbook" / "02_Welcome_Pilgrim.py",
+        SOLVED_ROOT / "02_Welcome_Pilgrim.py",
     ),
 )
 def test_welcome_pilgrim_uses_pinned_beam_64_solver_variant(path: Path) -> None:
@@ -160,8 +146,7 @@ def test_welcome_pilgrim_uses_pinned_beam_64_solver_variant(path: Path) -> None:
 @pytest.mark.parametrize(
     "path",
     (
-        SOLVED_ROOT / "welcome_pilgrim" / "solve.py",
-        SOLVED_ROOT / "workbook" / "02_Welcome_Pilgrim.py",
+        SOLVED_ROOT / "02_Welcome_Pilgrim.py",
     ),
 )
 def test_welcome_pilgrim_uses_minimal_one_and_two_gram_scoring(path: Path) -> None:

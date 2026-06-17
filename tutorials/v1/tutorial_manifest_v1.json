@@ -208,21 +208,21 @@
       "path": "Tutorial_LP_Welcome_Pilgrim_Solve.py",
       "title": "Liber Primus Welcome Pilgrim label solve",
       "cipher_family": "vigenere_interruptors",
-      "tutorial_kind": "lp_diagnostic_attempt",
+      "tutorial_kind": "lp_real_solve",
       "gate": "v1_release",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "process_success",
-      "min_match_ratio": null,
+      "acceptance_kind": "min_match_ratio",
+      "min_match_ratio": 1.0,
       "observed_lm2_baseline": {
-        "match_ratio": null,
+        "match_ratio": 1.0,
         "score_time_s": null,
         "tokens": null
       },
       "uses_oracle_stop_score": false,
       "supplies_true_key_to_solver": false,
-      "current_status": "active_diagnostic",
-      "notes": "Thin wrapper over solving/solved_lp/welcome_pilgrim/solve.py. Loads welcome_pilgrim by LP source label and runs the bounded Vigenere/interrupter diagnostic; current match is poor, so this is process-success only, not a strict solved gate."
+      "current_status": "active",
+      "notes": "Thin wrapper over solving/solved_lp/02_Welcome_Pilgrim.py. Loads welcome_pilgrim by LP source label and requires exact solved evidence."
     },
     {
       "path": "Tutorial_Repeating_multiply.py",

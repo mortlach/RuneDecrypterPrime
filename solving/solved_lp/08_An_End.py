@@ -2,9 +2,7 @@ from __future__ import annotations
 
 """Structured AN END solve attempt using sequence-shape diagnostics."""
 
-import importlib.util
 import csv
-import json
 import math
 import sys
 from collections.abc import Callable, Sequence
@@ -12,12 +10,7 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8")
-
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
 for path in (ROOT, SRC):
     if str(path) not in sys.path:
@@ -27,6 +20,16 @@ from rune_decrypter_prime.core.types import Direction  # noqa: E402
 from rune_decrypter_prime.data import liber_primus as lp  # noqa: E402
 from rune_decrypter_prime.data.wordlists.loaders import load_short_word_dictionary  # noqa: E402
 from rune_decrypter_prime.utils.runeglish import Runeglish  # noqa: E402
+from rune_decrypter_prime.utils.solve_output import (  # noqa: E402
+    configure_utf8_stdio,
+    match_ratio,
+    page_value,
+    print_block,
+    write_json_evidence,
+    zero_positions,
+)
+
+configure_utf8_stdio()
 
 
 SOURCE_LABEL = "an_end"
@@ -46,6 +49,11 @@ CANDIDATE_PHRASE_STARTS = [
     "IT IS",
     "SO IT",
 ]
+
+CANONICAL_AN_END_TEXT = """
+AN END WITHIN THE DEEP WEB THERE EXISTS A PAGE THAT HASHES TO IT IS THE DUTY
+OF EVERY PILGRIM TO SEEK OUT THIS PAGE
+"""
 
 ENCODING_DIRECTION = Direction.LTR
 MAX_SEQUENCE_OFFSET = 200
@@ -252,31 +260,9 @@ def decrypt_stream_ct_plus_key(ct_core: Sequence[int], stream: Sequence[int]) ->
     return [(int(c) + int(k)) % MODULUS for c, k in zip(ct_core, stream)]
 
 
-def match_ratio(candidate: Sequence[int], reference: Sequence[int] | None) -> float | None:
-    if reference is None:
-        return None
-    if not candidate and not reference:
-        return 1.0
-    denom = max(len(candidate), len(reference))
-    if denom == 0:
-        return 0.0
-    matches = sum(1 for a, b in zip(candidate, reference) if int(a) == int(b))
-    return matches / denom
-
-
 def load_reference_idx() -> list[int] | None:
-    reference_path = Path(__file__).with_name("reference.py")
-    if not reference_path.exists():
-        return None
-    spec = importlib.util.spec_from_file_location("an_end_reference", reference_path)
-    if spec is None or spec.loader is None:
-        return None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    value = getattr(module, "CANONICAL_AN_END_IDX", None)
-    if value is None:
-        return None
-    return [int(item) for item in value]
+    reference_idx, _wli, _runes = Runeglish.encode_english_to_runes(CANONICAL_AN_END_TEXT, direction="ltr")
+    return [int(value) for value in reference_idx]
 
 
 def plaintext_word_tuples(values: Sequence[int], wli: Sequence[Sequence[int]]) -> list[tuple[int, ...]]:
@@ -487,13 +473,6 @@ def attach_attempt_previews(records: Sequence[dict[str, Any]]) -> list[dict[str,
     return out
 
 
-def print_block(title: str, fields: Sequence[tuple[str, Any]]) -> None:
-    print(f"\n{title}_BEGIN")
-    for key, value in fields:
-        print(f"{key}:", value)
-    print(f"{title}_END")
-
-
 def print_shape_records(records: Sequence[dict[str, Any]], limit: int = 20) -> None:
     print("\nLP_AN_END_SEQUENCE_SHAPE_SEARCH_BEGIN")
     for rank, record in enumerate(records[:limit], start=1):
@@ -564,10 +543,10 @@ def main() -> int:
     ct_idx = [int(value) for value in payload.ct_idx]
     wli = [list(pair) for pair in payload.wli]
     metadata = payload.metadata
-    main_page_start = metadata.get("main_page_start")
-    main_page_end = metadata.get("main_page_end")
+    main_page_start = page_value(metadata, "main_page_start")
+    main_page_end = page_value(metadata, "main_page_end")
     word_lengths = word_lengths_from_wli(wli)
-    zero_positions = [index for index, value in enumerate(ct_idx) if int(value) == 0]
+    interruptor_pool = zero_positions(ct_idx)
     candidates = build_candidate_phrases(word_lengths)
     reference_idx = load_reference_idx()
     max_sequence_count = MAX_SEQUENCE_OFFSET + len(ct_idx) + 1
@@ -583,8 +562,8 @@ def main() -> int:
         "ciphertext_length": len(ct_idx),
         "wli_length": len(wli),
         "word_lengths": word_lengths,
-        "ciphertext_zero_count": len(zero_positions),
-        "ciphertext_zero_positions": zero_positions,
+        "ciphertext_zero_count": len(interruptor_pool),
+        "ciphertext_zero_positions": interruptor_pool,
         "recipe": recipe.recipe_label,
         "cipher_family": recipe.cipher_family,
         "recipe_hint": recipe.reference_key_or_shift,
@@ -635,7 +614,7 @@ def main() -> int:
         wli=wli,
         shape_records=shape_records,
         sequences=sequences,
-        interruptor_pool=zero_positions,
+        interruptor_pool=interruptor_pool,
         reference_idx=reference_idx,
         word_weights=word_weights,
     )
@@ -669,7 +648,7 @@ def main() -> int:
         "best_sequence_offset": best.get("sequence_offset"),
         "best_interrupters": best.get("interrupters", []),
         "status": "solved" if solved else "diagnostic_not_yet_solved",
-        "notes": None
+        "notes": "exact solved reference match using zero-shifted sequence shape search and ciphertext-zero interrupter pool"
         if solved
         else "structured zero-shifted sequence/interrupter search did not reach exact reference match",
         "plaintext_latin": best.get("plaintext_latin_preview"),
@@ -721,8 +700,7 @@ def main() -> int:
         "best_attempt": best,
         "final": final,
     }
-    EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
-    EVIDENCE_PATH.write_text(json.dumps(evidence, indent=2, sort_keys=True, ensure_ascii=False), encoding="utf-8")
+    write_json_evidence(EVIDENCE_PATH, evidence)
     return 0
 
 

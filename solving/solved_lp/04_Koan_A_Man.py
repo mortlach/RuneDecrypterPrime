@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-"""Worked solve for the solved LP section "A Warning"."""
+"""Worked solve for the solved LP koan "A Man"."""
 
 from pathlib import Path
 import sys
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
 for path in (ROOT, SRC):
     if str(path) not in sys.path:
@@ -22,13 +22,14 @@ from rune_decrypter_prime.utils.solve_output import (  # noqa: E402
 configure_utf8_stdio()
 
 
-SOURCE_LABEL = "warning"
-RECIPE_LABEL = "recipe.warning.reverse_gematria_replay"
+SOURCE_LABEL = "koan_a_man"
+RECIPE_LABEL = "recipe.koan_a_man.rotated_reverse_gematria_replay"
 MODULUS = 29
+REVERSE_SHIFT = 3
 
 
-def reverse_transform(values: list[int]) -> list[int]:
-    return [(MODULUS - 1 - int(value)) % MODULUS for value in values]
+def reverse_shift_transform(values: list[int], shift: int) -> list[int]:
+    return [((MODULUS - 1 - int(value)) + int(shift)) % MODULUS for value in values]
 
 
 def main() -> int:
@@ -37,15 +38,14 @@ def main() -> int:
     ct_idx = list(payload.ct_idx)
     wli = [list(pair) for pair in payload.wli]
     metadata = payload.metadata
-
-    plaintext_idx = reverse_transform(ct_idx)
-    roundtrip_idx = reverse_transform(plaintext_idx)
+    plaintext_idx = reverse_shift_transform(ct_idx, REVERSE_SHIFT)
+    roundtrip_idx = reverse_shift_transform(plaintext_idx, REVERSE_SHIFT)
     match = 1.0 if roundtrip_idx == ct_idx else 0.0
     status = "solved" if match >= 1.0 else "diagnostic_not_yet_solved"
     plaintext_latin, plaintext_runes = render_plaintext(plaintext_idx, wli)
 
     print_final_result(
-        block_name="LP_WARNING_FINAL_RESULT",
+        block_name="LP_KOAN_A_MAN_FINAL_RESULT",
         source_label=SOURCE_LABEL,
         resolved_source_label=metadata["source_label"],
         main_page_start=page_value(metadata, "main_page_start"),
@@ -54,11 +54,11 @@ def main() -> int:
         wli_length=len(wli),
         recipe=recipe.recipe_label,
         cipher_family=recipe.cipher_family,
-        method="reverse_gematria",
-        key_or_params={"modulus": MODULUS},
+        method="reverse_shift",
+        key_or_params={"shift": REVERSE_SHIFT, "modulus": MODULUS},
         match_ratio=match,
         status=status,
-        acceptance_rule="reverse gematria roundtrip reproduces loaded ciphertext",
+        acceptance_rule="rotated reverse-gematria roundtrip reproduces loaded ciphertext",
         plaintext_latin=plaintext_latin,
         plaintext_runes=plaintext_runes,
     )

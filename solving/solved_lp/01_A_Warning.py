@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-"""Worked solve for the solved LP section "Parable"."""
+"""Worked solve for the solved LP section "A Warning"."""
 
 from pathlib import Path
 import sys
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
 for path in (ROOT, SRC):
     if str(path) not in sys.path:
@@ -22,8 +22,13 @@ from rune_decrypter_prime.utils.solve_output import (  # noqa: E402
 configure_utf8_stdio()
 
 
-SOURCE_LABEL = "parable"
-RECIPE_LABEL = "recipe.parable.constant_shift_zero_replay"
+SOURCE_LABEL = "warning"
+RECIPE_LABEL = "recipe.warning.reverse_gematria_replay"
+MODULUS = 29
+
+
+def reverse_transform(values: list[int]) -> list[int]:
+    return [(MODULUS - 1 - int(value)) % MODULUS for value in values]
 
 
 def main() -> int:
@@ -32,13 +37,15 @@ def main() -> int:
     ct_idx = list(payload.ct_idx)
     wli = [list(pair) for pair in payload.wli]
     metadata = payload.metadata
-    plaintext_idx = list(ct_idx)
-    match = 1.0 if plaintext_idx == ct_idx else 0.0
+
+    plaintext_idx = reverse_transform(ct_idx)
+    roundtrip_idx = reverse_transform(plaintext_idx)
+    match = 1.0 if roundtrip_idx == ct_idx else 0.0
     status = "solved" if match >= 1.0 else "diagnostic_not_yet_solved"
     plaintext_latin, plaintext_runes = render_plaintext(plaintext_idx, wli)
 
     print_final_result(
-        block_name="LP_PARABLE_FINAL_RESULT",
+        block_name="LP_WARNING_FINAL_RESULT",
         source_label=SOURCE_LABEL,
         resolved_source_label=metadata["source_label"],
         main_page_start=page_value(metadata, "main_page_start"),
@@ -47,11 +54,11 @@ def main() -> int:
         wli_length=len(wli),
         recipe=recipe.recipe_label,
         cipher_family=recipe.cipher_family,
-        method="constant_shift",
-        key_or_params={"shift": 0, "modulus": 29},
+        method="reverse_gematria",
+        key_or_params={"modulus": MODULUS},
         match_ratio=match,
         status=status,
-        acceptance_rule="shift-0 replay reproduces loaded solved text",
+        acceptance_rule="reverse gematria roundtrip reproduces loaded ciphertext",
         plaintext_latin=plaintext_latin,
         plaintext_runes=plaintext_runes,
     )
