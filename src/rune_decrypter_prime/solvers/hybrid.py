@@ -3,7 +3,7 @@
 solver/hybrid.py — Phase-chained Hybrid: Beam → GA → SA
 
 Goals:
-  - Deterministic: one master rng; child rngs spawned per phase.
+  - Deterministic: one main rng; child rngs spawned per phase.
   - Phase tags in progress: {"phase": "beam"|"ga"|"sa"}.
   - True handover: Beam seeds → GA start; GA best → SA start.
   - Best-of selection at the end, with meta["from_phase"] recorded.

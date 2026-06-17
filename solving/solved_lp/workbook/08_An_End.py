@@ -543,8 +543,8 @@ def main() -> int:
     ct_idx = [int(value) for value in payload.ct_idx]
     wli = [list(pair) for pair in payload.wli]
     metadata = payload.metadata
-    master_page_start = page_value(metadata, "master_page_start", "main_page_start")
-    master_page_end = page_value(metadata, "master_page_end", "main_page_end")
+    main_page_start = page_value(metadata, "main_page_start")
+    main_page_end = page_value(metadata, "main_page_end")
     word_lengths = word_lengths_from_wli(wli)
     interruptor_pool = zero_positions(ct_idx)
     candidates = build_candidate_phrases(word_lengths)
@@ -557,10 +557,8 @@ def main() -> int:
         "source_label": SOURCE_LABEL,
         "resolved_source_label": metadata["source_label"],
         "aliases": ALIASES,
-        "main_page_start": metadata.get("main_page_start"),
-        "main_page_end": metadata.get("main_page_end"),
-        "master_page_start": master_page_start,
-        "master_page_end": master_page_end,
+        "main_page_start": main_page_start,
+        "main_page_end": main_page_end,
         "ciphertext_length": len(ct_idx),
         "wli_length": len(wli),
         "word_lengths": word_lengths,
@@ -589,8 +587,8 @@ def main() -> int:
             ("source_label", run_config["source_label"]),
             ("resolved_source_label", run_config["resolved_source_label"]),
             ("aliases", run_config["aliases"]),
-            ("master_page_start", run_config["master_page_start"]),
-            ("master_page_end", run_config["master_page_end"]),
+            ("main_page_start", run_config["main_page_start"]),
+            ("main_page_end", run_config["main_page_end"]),
             ("ciphertext_length", run_config["ciphertext_length"]),
             ("wli_length", run_config["wli_length"]),
             ("word_lengths", run_config["word_lengths"]),
@@ -628,8 +626,8 @@ def main() -> int:
         "source_label": SOURCE_LABEL,
         "resolved_source_label": metadata["source_label"],
         "aliases": ALIASES,
-        "master_page_start": master_page_start,
-        "master_page_end": master_page_end,
+        "main_page_start": main_page_start,
+        "main_page_end": main_page_end,
         "recipe": recipe.recipe_label,
         "cipher_family": recipe.cipher_family,
         "method": run_config["method"],
@@ -663,8 +661,8 @@ def main() -> int:
             ("source_label", final["source_label"]),
             ("resolved_source_label", final["resolved_source_label"]),
             ("aliases", final["aliases"]),
-            ("master_page_start", final["master_page_start"]),
-            ("master_page_end", final["master_page_end"]),
+            ("main_page_start", final["main_page_start"]),
+            ("main_page_end", final["main_page_end"]),
             ("recipe", final["recipe"]),
             ("cipher_family", final["cipher_family"]),
             ("method", final["method"]),

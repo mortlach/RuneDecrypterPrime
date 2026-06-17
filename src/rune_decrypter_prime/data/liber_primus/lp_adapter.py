@@ -3,11 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from rune_decrypter_prime.data.liber_primus.lp_master import (
+from rune_decrypter_prime.data.liber_primus.lp_main import (
     extract_locator_ct_wli,
     extract_partition_entry_ct_wli,
     glyph_span_from_partition_entry,
-    master_transcript_asset_identity,
+    main_transcript_asset_identity,
     page_view_from_ref,
 )
 from rune_decrypter_prime.data.liber_primus.lp_registry import LPFragmentLocator, LPPageRef, LPPartitionEntry
@@ -37,7 +37,7 @@ class LPSolverPayload:
 
 
 def _source_metadata(source_kind: str) -> dict[str, str]:
-    metadata = master_transcript_asset_identity()
+    metadata = main_transcript_asset_identity()
     return {
         "source_kind": source_kind,
         "asset_id": metadata["asset_id"],

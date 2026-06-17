@@ -11,27 +11,27 @@ from rune_decrypter_prime.api.source_resolution import (
     ResolvedSourceInput,
     resolve_source_input_ref,
 )
-from rune_decrypter_prime.data.liber_primus.lp_master import (
-    MASTER_TRANSCRIPT_ASSET_ID,
-    master_transcript_asset_identity,
+from rune_decrypter_prime.data.liber_primus.lp_main import (
+    MAIN_TRANSCRIPT_ASSET_ID,
+    main_transcript_asset_identity,
 )
 
 
-def _master_asset_version() -> str:
-    return master_transcript_asset_identity()["asset_version"]
+def _main_asset_version() -> str:
+    return main_transcript_asset_identity()["asset_version"]
 
 
 def _source_ref(
     *,
     source_kind: str,
     ref: dict[str, object],
-    asset_id: str = MASTER_TRANSCRIPT_ASSET_ID,
+    asset_id: str = MAIN_TRANSCRIPT_ASSET_ID,
     asset_version: str | None = None,
 ) -> SourceInputRef:
     return SourceInputRef(
         source_kind=source_kind,
         asset_id=asset_id,
-        asset_version=asset_version or _master_asset_version(),
+        asset_version=asset_version or _main_asset_version(),
         ref=ref,
     )
 
@@ -102,8 +102,8 @@ def test_resolve_lp_locator_ref_returns_tuple_solver_input() -> None:
     _assert_resolved_payload_shape(resolved)
     assert resolved.source_ref is source_ref
     assert resolved.source_metadata["source_kind"] == "liber_primus.locator"
-    assert resolved.source_metadata["asset_id"] == MASTER_TRANSCRIPT_ASSET_ID
-    assert resolved.source_metadata["asset_version"] == _master_asset_version()
+    assert resolved.source_metadata["asset_id"] == MAIN_TRANSCRIPT_ASSET_ID
+    assert resolved.source_metadata["asset_version"] == _main_asset_version()
 
 
 def test_resolve_lp_partition_ref_returns_tuple_solver_input() -> None:
@@ -155,8 +155,8 @@ def test_resolve_source_input_ref_rejects_loose_dict_inputs() -> None:
         resolve_source_input_ref(  # type: ignore[arg-type]
             {
                 "source_kind": "liber_primus.locator",
-                "asset_id": MASTER_TRANSCRIPT_ASSET_ID,
-                "asset_version": _master_asset_version(),
+                "asset_id": MAIN_TRANSCRIPT_ASSET_ID,
+                "asset_version": _main_asset_version(),
                 "ref": _valid_locator_ref_none(),
             }
         )

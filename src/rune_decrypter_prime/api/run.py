@@ -43,7 +43,7 @@ class RunAPI:
     """
     High-level entrypoint for the decrypter.  This class owns the full solve
     pipeline: it normalises user inputs, constructs the cipher and solver
-    configuration, seeds the master RNG, and delegates to the execution
+    configuration, seeds the main RNG, and delegates to the execution
     pipeline.  This replaces the legacy ``run.solve`` function; callers
     should prefer :meth:`RunAPI.run` for clarity.
     """

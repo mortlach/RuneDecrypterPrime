@@ -16,7 +16,7 @@ from rune_decrypter_prime.core.config.logging_config import LoggingConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.config.solver import SolverConfig
 from rune_decrypter_prime.core.types import Device, Direction
-from rune_decrypter_prime.data.liber_primus.lp_master import MASTER_TRANSCRIPT_ASSET_ID
+from rune_decrypter_prime.data.liber_primus.lp_main import MAIN_TRANSCRIPT_ASSET_ID
 
 
 def _minimal_spec(
@@ -170,7 +170,7 @@ def test_runspec_source_input_ref_stale_version_fails_through_resolver(monkeypat
     _capture_run_execute(monkeypatch)
     source_ref = SourceInputRef(
         source_kind="liber_primus.locator",
-        asset_id=MASTER_TRANSCRIPT_ASSET_ID,
+        asset_id=MAIN_TRANSCRIPT_ASSET_ID,
         asset_version="stale-version",
         ref=_valid_locator_ref(),
     )

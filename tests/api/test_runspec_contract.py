@@ -172,7 +172,7 @@ def test_source_input_ref_accepts_valid_lp_locator_refs() -> None:
     for ref in (_valid_locator_ref_none(), _valid_locator_ref_line(), _valid_locator_ref_spiral()):
         source_ref = SourceInputRef(
             source_kind="liber_primus.locator",
-            asset_id="liber_primus.master_transcript",
+            asset_id="liber_primus.main_transcript",
             asset_version="105f1c68",
             ref=ref,
         )
@@ -265,7 +265,7 @@ def test_source_input_ref_rejects_invalid_lp_locator_structure() -> None:
 def test_source_input_ref_accepts_valid_lp_partition_refs() -> None:
     no_intersection = SourceInputRef(
         source_kind="liber_primus.partition",
-        asset_id="liber_primus.master_transcript",
+        asset_id="liber_primus.main_transcript",
         asset_version="105f1c68",
         ref=_valid_partition_ref(),
     )
@@ -276,7 +276,7 @@ def test_source_input_ref_accepts_valid_lp_partition_refs() -> None:
     ref["intersect_page_number"] = 20
     with_intersection = SourceInputRef(
         source_kind="liber_primus.partition",
-        asset_id="liber_primus.master_transcript",
+        asset_id="liber_primus.main_transcript",
         asset_version="105f1c68",
         ref=ref,
     )

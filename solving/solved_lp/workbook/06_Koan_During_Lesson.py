@@ -81,8 +81,8 @@ def main() -> int:
     ct_idx = [int(value) for value in payload.ct_idx]
     wli = [list(pair) for pair in payload.wli]
     metadata = payload.metadata
-    master_page_start = page_value(metadata, "master_page_start", "main_page_start")
-    master_page_end = page_value(metadata, "master_page_end", "main_page_end")
+    main_page_start = page_value(metadata, "main_page_start")
+    main_page_end = page_value(metadata, "main_page_end")
     interruptor_pool = zero_positions(ct_idx)
     reference_idx = encode_reference(CANONICAL_KOAN_DURING_LESSON_TEXT)
     plaintext_idx = replay_pinned_solution(ct_idx, wli)
@@ -99,10 +99,8 @@ def main() -> int:
         (
         ("source_label", SOURCE_LABEL),
         ("resolved_source_label", metadata["source_label"]),
-        ("main_page_start", metadata["main_page_start"]),
-        ("main_page_end", metadata["main_page_end"]),
-        ("master_page_start", master_page_start),
-        ("master_page_end", master_page_end),
+        ("main_page_start", main_page_start),
+        ("main_page_end", main_page_end),
         ("ciphertext_length", len(ct_idx)),
         ("wli_length", len(wli)),
         ("recipe", recipe.recipe_label),
@@ -142,8 +140,8 @@ def main() -> int:
         block_name="LP_KOAN_DURING_LESSON_FINAL_RESULT",
         source_label=SOURCE_LABEL,
         resolved_source_label=metadata["source_label"],
-        master_page_start=master_page_start,
-        master_page_end=master_page_end,
+        main_page_start=main_page_start,
+        main_page_end=main_page_end,
         ciphertext_length=len(ct_idx),
         wli_length=len(wli),
         recipe=recipe.recipe_label,

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -20,7 +20,7 @@ class _Payload:
 def test_lp_label_source_ref_accepts_canonical_source_label() -> None:
     ref = SourceInputRef(
         source_kind="liber_primus.label",
-        asset_id="liber_primus.master_transcript",
+        asset_id="liber_primus.main_transcript",
         asset_version="test-version",
         ref={"label": "red_rune.welcome_pilgrim"},
     )
@@ -32,7 +32,7 @@ def test_lp_label_source_ref_accepts_canonical_source_label() -> None:
 def test_lp_label_source_ref_accepts_simple_user_label() -> None:
     ref = SourceInputRef(
         source_kind="liber_primus.label",
-        asset_id="liber_primus.master_transcript",
+        asset_id="liber_primus.main_transcript",
         asset_version="test-version",
         ref={"label": "welcome_pilgrim"},
     )
@@ -43,7 +43,7 @@ def test_lp_label_source_ref_accepts_simple_user_label() -> None:
 def test_lp_label_source_ref_accepts_solved_alias_namespace() -> None:
     ref = SourceInputRef(
         source_kind="liber_primus.label",
-        asset_id="liber_primus.master_transcript",
+        asset_id="liber_primus.main_transcript",
         asset_version="test-version",
         ref={"label": "solved.welcome_pilgrim"},
     )
@@ -55,7 +55,7 @@ def test_lp_label_source_ref_rejects_extra_keys() -> None:
     with pytest.raises(ValueError, match="unsupported keys"):
         SourceInputRef(
             source_kind="liber_primus.label",
-            asset_id="liber_primus.master_transcript",
+            asset_id="liber_primus.main_transcript",
             asset_version="test-version",
             ref={"label": "welcome_pilgrim", "period": 7},
         )
@@ -65,7 +65,7 @@ def test_source_resolution_dispatches_lp_label(monkeypatch) -> None:
     from rune_decrypter_prime.api import source_resolution
     from rune_decrypter_prime.data.liber_primus import lp_source_catalogue
 
-    monkeypatch.setattr(source_resolution, "_validate_lp_master_identity", lambda source_ref: None)
+    monkeypatch.setattr(source_resolution, "_validate_lp_main_identity", lambda source_ref: None)
 
     def fake_payload_from_label(label: str):
         assert label == "welcome_pilgrim"
@@ -80,7 +80,7 @@ def test_source_resolution_dispatches_lp_label(monkeypatch) -> None:
     resolved = resolve_source_input_ref(
         SourceInputRef(
             source_kind="liber_primus.label",
-            asset_id="liber_primus.master_transcript",
+            asset_id="liber_primus.main_transcript",
             asset_version="test-version",
             ref={"label": "welcome_pilgrim"},
         )

@@ -328,11 +328,11 @@ def payload_from_label(label: str, *, doc: LPTranscript | None = None):
     """
 
     from rune_decrypter_prime.data.liber_primus.lp_adapter import LPSolverPayload, payload_from_locator
-    from rune_decrypter_prime.data.liber_primus.lp_master import load_master_transcript, page_view_from_ref
+    from rune_decrypter_prime.data.liber_primus.lp_main import load_main_transcript, page_view_from_ref
     from rune_decrypter_prime.data.liber_primus.lp_registry import LPPageRef
 
     entry = resolve_source_label(label)
-    effective_doc = doc or load_master_transcript(attach_catalogue=True)
+    effective_doc = doc or load_main_transcript(attach_catalogue=True)
 
     if entry.locator is not None:
         payload = payload_from_locator(effective_doc, entry.locator)

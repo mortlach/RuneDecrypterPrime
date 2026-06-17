@@ -1,4 +1,4 @@
-Liber Primus Typed Workflows
+﻿Liber Primus Typed Workflows
 ============================
 
 This guide uses the typed `rune_decrypter_prime.data.liber_primus` APIs.
@@ -14,7 +14,7 @@ Load main transcript
 ```python
 from rune_decrypter_prime.data import liber_primus as lp
 
-doc = lp.load_master_transcript(attach_catalogue=True)
+doc = lp.load_main_transcript(attach_catalogue=True)
 ```
 
 Retrieve a canon page fragment

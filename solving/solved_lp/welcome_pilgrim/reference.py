@@ -24,7 +24,7 @@ CANONICAL_WELCOME_PILGRIM_TEXT = (
 )
 
 # Canonical solved Welcome Pilgrim plaintext as Runeglish positions, derived from
-# the solved LP reference sheet and aligned to the master-transcript WLI. Keep
+# the solved LP reference sheet and aligned to the main transcript WLI. Keep
 # this numeric form for stable regression checks across tokenisation changes.
 CANONICAL_WELCOME_PILGRIM_IDX: tuple[int, ...] = (
     7, 18, 20, 5, 3, 19, 18, 7, 18, 20, 5, 3, 19, 18, 13, 10, 20, 6, 4, 10,

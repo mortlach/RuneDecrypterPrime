@@ -37,7 +37,7 @@ print(result.score, result.plaintext_str[:80])
 - `KeySpec(...)` (optional; constrain or fix parts of a key)
 
 ## Determinism & RNG
-- One master RNG per run (`seed`).
+- One main RNG per run (`seed`).
 - Named child streams per module (examples below).
 - No global RNG calls inside core; all randomness is injected.
 

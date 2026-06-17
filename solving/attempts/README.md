@@ -16,7 +16,7 @@ result_summary   what happened and why it matters
 ```
 
 Do not start unsolved attempts by hand-copying ciphertext. Use the LP source
-catalogue and verified master-transcript locators so attempts can be rerun and
+catalogue and verified main transcript locators so attempts can be rerun and
 compared later.
 
 The solved-page reproductions in `../solved_lp/` should come first. Once the

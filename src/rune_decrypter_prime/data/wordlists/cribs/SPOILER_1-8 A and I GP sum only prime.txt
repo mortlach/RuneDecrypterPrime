@@ -5711,7 +5711,7 @@ a depletion 631 1 0
 a lactation 631 1 0
 a landless 631 1 0
 a libelled 631 1 0
-a masterly 631 1 0
+a mainly 631 1 0
 a meaningless 631 1 0
 a palaestra 631 1 0
 a parallel 631 1 0

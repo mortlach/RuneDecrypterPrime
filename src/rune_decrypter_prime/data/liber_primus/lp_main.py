@@ -1,4 +1,4 @@
-"""Helpers for the master LP transcript (page catalogue + section matching)."""
+"""Helpers for the main LP transcript (page catalogue + section matching)."""
 
 from __future__ import annotations
 
@@ -31,21 +31,21 @@ from rune_decrypter_prime.data.liber_primus.lp_transcript import LPTranscript
 from rune_decrypter_prime.utils.runeglish import Runeglish
 
 _DEFAULT_LP_ASSETS_REL = Path("liber_primus")
-_MASTER_TRANSCRIPT_NAME = "liber-primus__transcription--master.txt"
-MASTER_TRANSCRIPT_ASSET_ID = "liber_primus.master_transcript"
+_MAIN_TRANSCRIPT_NAME = "liber-primus__transcription--master.txt"
+MAIN_TRANSCRIPT_ASSET_ID = "liber_primus.main_transcript"
 
 
-def default_master_transcript_path() -> Path:
-    return resolve_assets_path(str(_DEFAULT_LP_ASSETS_REL), _MASTER_TRANSCRIPT_NAME, start=Path(__file__))
+def default_main_transcript_path() -> Path:
+    return resolve_assets_path(str(_DEFAULT_LP_ASSETS_REL), _MAIN_TRANSCRIPT_NAME, start=Path(__file__))
 
 
-MASTER_TRANSCRIPT = default_master_transcript_path()
+MAIN_TRANSCRIPT = default_main_transcript_path()
 CANON_PAGE_COUNT = 58
 CANON_SUFFIX = ".jpg"
 
 
-def master_transcript_asset_identity() -> dict[str, str]:
-    asset_id, asset_version = _cached_master_transcript_asset_identity()
+def main_transcript_asset_identity() -> dict[str, str]:
+    asset_id, asset_version = _cached_main_transcript_asset_identity()
     return {
         "asset_id": asset_id,
         "asset_version": asset_version,
@@ -53,7 +53,7 @@ def master_transcript_asset_identity() -> dict[str, str]:
 
 
 @lru_cache(maxsize=1)
-def _cached_master_transcript_asset_identity() -> tuple[str, str]:
+def _cached_main_transcript_asset_identity() -> tuple[str, str]:
     root = find_repo_root(Path(__file__))
     manifest_path = root / "assets_manifest_v1.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -63,23 +63,23 @@ def _cached_master_transcript_asset_identity() -> tuple[str, str]:
     matches = [
         row
         for row in rows
-        if isinstance(row, dict) and row.get("asset_id") == MASTER_TRANSCRIPT_ASSET_ID
+        if isinstance(row, dict) and row.get("asset_id") == MAIN_TRANSCRIPT_ASSET_ID
     ]
     if len(matches) != 1:
-        raise RuntimeError(_master_transcript_manifest_error("expected exactly one manifest row"))
+        raise RuntimeError(_main_transcript_manifest_error("expected exactly one manifest row"))
     row = matches[0]
     asset_version = row.get("asset_version")
     if not isinstance(asset_version, str) or not asset_version:
-        raise RuntimeError(_master_transcript_manifest_error("asset_version must be defined"))
+        raise RuntimeError(_main_transcript_manifest_error("asset_version must be defined"))
     if row.get("version_scheme") != "sha256":
-        raise RuntimeError(_master_transcript_manifest_error("version_scheme must be 'sha256'"))
+        raise RuntimeError(_main_transcript_manifest_error("version_scheme must be 'sha256'"))
     if row.get("sha256") != asset_version:
-        raise RuntimeError(_master_transcript_manifest_error("asset_version must match sha256"))
-    return MASTER_TRANSCRIPT_ASSET_ID, asset_version
+        raise RuntimeError(_main_transcript_manifest_error("asset_version must match sha256"))
+    return MAIN_TRANSCRIPT_ASSET_ID, asset_version
 
 
-def _master_transcript_manifest_error(detail: str) -> str:
-    return f"Manifest row for asset_id={MASTER_TRANSCRIPT_ASSET_ID!r}: {detail}"
+def _main_transcript_manifest_error(detail: str) -> str:
+    return f"Manifest row for asset_id={MAIN_TRANSCRIPT_ASSET_ID!r}: {detail}"
 
 
 @dataclass(frozen=True)
@@ -231,11 +231,11 @@ def route_locator_lines_text(
     return read_lines(line_text, mode=mode, selector=selector)
 
 
-def load_master_transcript(*, attach_catalogue: bool = True) -> LPTranscript:
-    if not MASTER_TRANSCRIPT.exists():
-        rel = to_repo_relative(MASTER_TRANSCRIPT, start=Path(__file__))
+def load_main_transcript(*, attach_catalogue: bool = True) -> LPTranscript:
+    if not MAIN_TRANSCRIPT.exists():
+        rel = to_repo_relative(MAIN_TRANSCRIPT, start=Path(__file__))
         raise FileNotFoundError(f"Liber Primus main transcript not found: {rel}")
-    doc = LPTranscript.from_file(MASTER_TRANSCRIPT)
+    doc = LPTranscript.from_file(MAIN_TRANSCRIPT)
     if attach_catalogue:
         attach_default_page_catalogue(doc)
     return doc
@@ -415,7 +415,7 @@ def _page_id_for_glyph(doc: LPTranscript, glyph_id: int) -> int:
 __all__ = [
     "CANON_PAGE_COUNT",
     "CANON_SUFFIX",
-    "MASTER_TRANSCRIPT",
+    "MAIN_TRANSCRIPT",
     "RuneGlyphIndex",
     "RuneWordIndex",
     "SectionMatch",
@@ -426,7 +426,7 @@ __all__ = [
     "extract_section_ct_wli_by_id",
     "glyph_span_from_locator",
     "glyph_span_from_partition_entry",
-    "load_master_transcript",
+    "load_main_transcript",
     "make_resolution_context",
     "match_lp_section",
     "match_lp_sections",

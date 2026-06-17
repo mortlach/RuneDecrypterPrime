@@ -45,25 +45,25 @@ def load_lp_section_inputs(
     return {"text": ct_idx, "wli_data": wli}
 
 
-def load_lp_master_transcript(*, attach_catalogue: bool = True) -> "LPTranscript":
-    """Return the parsed master LP transcript."""
-    from rune_decrypter_prime.data.liber_primus.lp_master import load_master_transcript
+def load_lp_main_transcript(*, attach_catalogue: bool = True) -> "LPTranscript":
+    """Return the parsed main LP transcript."""
+    from rune_decrypter_prime.data.liber_primus.lp_main import load_main_transcript
 
-    return load_master_transcript(attach_catalogue=attach_catalogue)
+    return load_main_transcript(attach_catalogue=attach_catalogue)
 
 
-def load_lp_master_section(
+def load_lp_main_section(
     section_id: int,
     *,
     split: str = "page",
 ) -> tuple[list[int], list[list[int]]]:
     """Return (ct_idx, wli) extracted from the main transcript for a section."""
-    from rune_decrypter_prime.data.liber_primus.lp_master import (
+    from rune_decrypter_prime.data.liber_primus.lp_main import (
         extract_section_ct_wli_by_id,
-        load_master_transcript,
+        load_main_transcript,
     )
 
-    doc = load_master_transcript(attach_catalogue=True)
+    doc = load_main_transcript(attach_catalogue=True)
     return extract_section_ct_wli_by_id(doc, section_id=section_id, split=split)
 
 
@@ -84,7 +84,7 @@ def load_lp_payload_from_main_pages(
     helper behind solved-source page-span retrieval.
     """
     from rune_decrypter_prime.data.liber_primus.lp_adapter import LPSolverPayload
-    from rune_decrypter_prime.data.liber_primus.lp_master import load_master_transcript, page_view_from_ref
+    from rune_decrypter_prime.data.liber_primus.lp_main import load_main_transcript, page_view_from_ref
     from rune_decrypter_prime.data.liber_primus.lp_registry import LPPageRef
 
     if not isinstance(start_page, int) or isinstance(start_page, bool):
@@ -98,7 +98,7 @@ def load_lp_payload_from_main_pages(
     if end_page < start_page:
         raise ValueError("end_page must be >= start_page")
 
-    doc = load_master_transcript(attach_catalogue=True)
+    doc = load_main_transcript(attach_catalogue=True)
     start = page_view_from_ref(doc, LPPageRef.transcript_page(start_page))
     end = page_view_from_ref(doc, LPPageRef.transcript_page(end_page))
     span = doc.glyph_span(start.rec.g_start, end.rec.g_end - start.rec.g_start)
@@ -123,11 +123,11 @@ def load_lp_payload_from_locator(
 ) -> "LPSolverPayload":
     """Return deterministic solver payload for a typed LP locator."""
     from rune_decrypter_prime.data.liber_primus.lp_adapter import payload_from_locator
-    from rune_decrypter_prime.data.liber_primus.lp_master import load_master_transcript
+    from rune_decrypter_prime.data.liber_primus.lp_main import load_main_transcript
     from rune_decrypter_prime.data.liber_primus.lp_routes import LPLineRuneSelector
 
     effective_selector = selector or LPLineRuneSelector.ALL
-    doc = load_master_transcript(attach_catalogue=True)
+    doc = load_main_transcript(attach_catalogue=True)
     return payload_from_locator(
         doc,
         locator,
@@ -144,7 +144,7 @@ def load_lp_payload_from_partition_entry(
 ) -> "LPSolverPayload":
     """Return deterministic solver payload for a typed LP partition entry."""
     from rune_decrypter_prime.data.liber_primus.lp_adapter import payload_from_partition_entry
-    from rune_decrypter_prime.data.liber_primus.lp_master import load_master_transcript
+    from rune_decrypter_prime.data.liber_primus.lp_main import load_main_transcript
 
-    doc = load_master_transcript(attach_catalogue=True)
+    doc = load_main_transcript(attach_catalogue=True)
     return payload_from_partition_entry(doc, entry, intersect_page_ref=intersect_page_ref)

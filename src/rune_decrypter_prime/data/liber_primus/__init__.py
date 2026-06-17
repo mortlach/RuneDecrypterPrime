@@ -1,17 +1,17 @@
 """Liber Primus typed domain surface."""
 
 from .lp_adapter import LPSolverPayload, payload_from_locator, payload_from_partition_entry
-from .lp_master import (
+from .lp_main import (
     CANON_PAGE_COUNT,
     CANON_SUFFIX,
-    MASTER_TRANSCRIPT,
+    MAIN_TRANSCRIPT,
     extract_locator_ct_wli,
     extract_partition_entry_ct_wli,
     extract_section_ct_wli,
     extract_section_ct_wli_by_id,
     glyph_span_from_locator,
     glyph_span_from_partition_entry,
-    load_master_transcript,
+    load_main_transcript,
     page_view_from_ref,
     resolve_typed_page_ref,
     route_locator_lines_text,
@@ -63,7 +63,7 @@ __all__ = [
     "BOUNDARY_MAIN_PAGE_RANGE",
     "CANON_PAGE_COUNT",
     "CANON_SUFFIX",
-    "MASTER_TRANSCRIPT",
+    "MAIN_TRANSCRIPT",
     "SOURCE_STATUS_SOLVED_TEXT_AVAILABLE",
     "Delimiters",
     "GlyphSpan",
@@ -97,7 +97,7 @@ __all__ = [
     "glyph_span_from_partition_entry",
     "list_solve_recipe_labels",
     "list_source_labels",
-    "load_master_transcript",
+    "load_main_transcript",
     "make_ragged_grid",
     "page_view_from_ref",
     "parse_page_token",

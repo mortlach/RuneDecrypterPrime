@@ -1,12 +1,12 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import pytest
 
 from rune_decrypter_prime.data.liber_primus.lp_adapter import payload_from_locator, payload_from_partition_entry
-from rune_decrypter_prime.data.liber_primus.lp_master import (
+from rune_decrypter_prime.data.liber_primus.lp_main import (
     extract_locator_ct_wli,
     extract_partition_entry_ct_wli,
-    load_master_transcript,
+    load_main_transcript,
 )
 from rune_decrypter_prime.data.liber_primus.lp_registry import (
     LPFragmentLocator,
@@ -23,13 +23,13 @@ from rune_decrypter_prime.data.liber_primus.lp_routes import (
 
 pytestmark = pytest.mark.tier_a
 
-LP_MASTER_TRANSCRIPT_SHA256 = (
+LP_MAIN_TRANSCRIPT_SHA256 = (
     "105f1c68cecde03df1e66982d3021ab31d7f49ee975ca109d1a1924cbcafc99c"
 )
 
 
 def test_payload_from_locator_matches_direct_ct_wli() -> None:
-    doc = load_master_transcript(attach_catalogue=True)
+    doc = load_main_transcript(attach_catalogue=True)
     locator = LPFragmentLocator(page_ref=LPPageRef.canon_page(54))
     payload = payload_from_locator(doc, locator)
     ct_direct, wli_direct = extract_locator_ct_wli(doc, locator)
@@ -37,12 +37,12 @@ def test_payload_from_locator_matches_direct_ct_wli() -> None:
     assert payload.wli == wli_direct
     assert payload.metadata["route"] == "none"
     assert payload.metadata["source_kind"] == "liber_primus.locator"
-    assert payload.metadata["asset_id"] == "liber_primus.master_transcript"
-    assert payload.metadata["asset_version"] == LP_MASTER_TRANSCRIPT_SHA256
+    assert payload.metadata["asset_id"] == "liber_primus.main_transcript"
+    assert payload.metadata["asset_version"] == LP_MAIN_TRANSCRIPT_SHA256
 
 
 def test_payload_from_partition_entry_matches_direct_ct_wli() -> None:
-    doc = load_master_transcript(attach_catalogue=True)
+    doc = load_main_transcript(attach_catalogue=True)
     entry = build_red_rune_17_partition()[0]
     payload = payload_from_partition_entry(doc, entry)
     ct_direct, wli_direct = extract_partition_entry_ct_wli(doc, entry)
@@ -50,12 +50,12 @@ def test_payload_from_partition_entry_matches_direct_ct_wli() -> None:
     assert payload.wli == wli_direct
     assert payload.metadata["partition_ordinal"] == "1"
     assert payload.metadata["source_kind"] == "liber_primus.partition"
-    assert payload.metadata["asset_id"] == "liber_primus.master_transcript"
-    assert payload.metadata["asset_version"] == LP_MASTER_TRANSCRIPT_SHA256
+    assert payload.metadata["asset_id"] == "liber_primus.main_transcript"
+    assert payload.metadata["asset_version"] == LP_MAIN_TRANSCRIPT_SHA256
 
 
 def test_payload_from_partition_entry_page_intersection_is_deterministic() -> None:
-    doc = load_master_transcript(attach_catalogue=True)
+    doc = load_main_transcript(attach_catalogue=True)
     entry = build_red_rune_17_partition()[7]  # pages 15..22
     page_ref = LPPageRef.canon_page(20)
     payload_a = payload_from_partition_entry(doc, entry, intersect_page_ref=page_ref)
@@ -65,7 +65,7 @@ def test_payload_from_partition_entry_page_intersection_is_deterministic() -> No
 
 
 def test_payload_from_locator_line_selector_route() -> None:
-    doc = load_master_transcript(attach_catalogue=True)
+    doc = load_main_transcript(attach_catalogue=True)
     locator = LPFragmentLocator(page_ref=LPPageRef.canon_page(54), line=0, line_end=2)
     payload = payload_from_locator(
         doc,
@@ -78,7 +78,7 @@ def test_payload_from_locator_line_selector_route() -> None:
 
 
 def test_payload_from_locator_spiral_route() -> None:
-    doc = load_master_transcript(attach_catalogue=True)
+    doc = load_main_transcript(attach_catalogue=True)
     locator = LPFragmentLocator(page_ref=LPPageRef.canon_page(54), line=0, line_end=2)
     route = LPSpiralRoute(direction=LPSpiralDirection.CLOCKWISE)
     payload = payload_from_locator(doc, locator, spiral_route=route)

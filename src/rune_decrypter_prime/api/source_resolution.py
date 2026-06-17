@@ -57,7 +57,7 @@ def resolve_source_input_ref(source_ref: SourceInputRef) -> ResolvedSourceInput:
 
 
 def _resolve_lp_label(source_ref: SourceInputRef) -> ResolvedSourceInput:
-    _validate_lp_master_identity(source_ref)
+    _validate_lp_main_identity(source_ref)
 
     from rune_decrypter_prime.data.liber_primus.lp_source_catalogue import payload_from_label
 
@@ -71,10 +71,10 @@ def _resolve_lp_label(source_ref: SourceInputRef) -> ResolvedSourceInput:
 
 
 def _resolve_lp_locator(source_ref: SourceInputRef) -> ResolvedSourceInput:
-    _validate_lp_master_identity(source_ref)
+    _validate_lp_main_identity(source_ref)
 
     from rune_decrypter_prime.data.liber_primus.lp_adapter import payload_from_locator
-    from rune_decrypter_prime.data.liber_primus.lp_master import load_master_transcript
+    from rune_decrypter_prime.data.liber_primus.lp_main import load_main_transcript
     from rune_decrypter_prime.data.liber_primus.lp_registry import LPFragmentLocator
     from rune_decrypter_prime.data.liber_primus.lp_routes import (
         LPLineReadMode,
@@ -92,7 +92,7 @@ def _resolve_lp_locator(source_ref: SourceInputRef) -> ResolvedSourceInput:
         word=ref["word"],
         word_end=ref["word_end"],
     )
-    doc = load_master_transcript()
+    doc = load_main_transcript()
     route_kind = ref["route_kind"]
     if route_kind == "none":
         payload = payload_from_locator(doc, locator)
@@ -125,10 +125,10 @@ def _resolve_lp_locator(source_ref: SourceInputRef) -> ResolvedSourceInput:
 
 
 def _resolve_lp_partition(source_ref: SourceInputRef) -> ResolvedSourceInput:
-    _validate_lp_master_identity(source_ref)
+    _validate_lp_main_identity(source_ref)
 
     from rune_decrypter_prime.data.liber_primus.lp_adapter import payload_from_partition_entry
-    from rune_decrypter_prime.data.liber_primus.lp_master import load_master_transcript
+    from rune_decrypter_prime.data.liber_primus.lp_main import load_main_transcript
     from rune_decrypter_prime.data.liber_primus.lp_registry import (
         LPBuiltInPartitionScheme,
         LPPageRef,
@@ -153,7 +153,7 @@ def _resolve_lp_partition(source_ref: SourceInputRef) -> ResolvedSourceInput:
         )
 
     payload = payload_from_partition_entry(
-        load_master_transcript(),
+        load_main_transcript(),
         entry,
         intersect_page_ref=intersect_page_ref,
     )
@@ -165,18 +165,18 @@ def _resolve_lp_partition(source_ref: SourceInputRef) -> ResolvedSourceInput:
     )
 
 
-def _validate_lp_master_identity(source_ref: SourceInputRef) -> None:
-    from rune_decrypter_prime.data.liber_primus.lp_master import (
-        MASTER_TRANSCRIPT_ASSET_ID,
-        master_transcript_asset_identity,
+def _validate_lp_main_identity(source_ref: SourceInputRef) -> None:
+    from rune_decrypter_prime.data.liber_primus.lp_main import (
+        MAIN_TRANSCRIPT_ASSET_ID,
+        main_transcript_asset_identity,
     )
 
-    if source_ref.asset_id != MASTER_TRANSCRIPT_ASSET_ID:
+    if source_ref.asset_id != MAIN_TRANSCRIPT_ASSET_ID:
         raise ValueError(
-            f"source_ref.asset_id must be {MASTER_TRANSCRIPT_ASSET_ID!r} for LP resolution"
+            f"source_ref.asset_id must be {MAIN_TRANSCRIPT_ASSET_ID!r} for LP resolution"
         )
 
-    identity = master_transcript_asset_identity()
+    identity = main_transcript_asset_identity()
     if source_ref.asset_version != identity["asset_version"]:
         raise ValueError("source_ref.asset_version does not match current LP main transcript asset_version")
 

@@ -1,8 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 
-from rune_decrypter_prime.data.liber_primus.lp_master import default_master_transcript_path
+from rune_decrypter_prime.data.liber_primus.lp_main import default_main_transcript_path
 from rune_decrypter_prime.data.wordlists.loaders import default_wordlists_dir
 from rune_decrypter_prime.scoring.hamming.loader import default_hamming_dir
 from rune_decrypter_prime.scoring.language_model.paths import default_lm_root
@@ -32,8 +32,8 @@ def test_wordlists_default_root_under_assets():
     _assert_under_assets(default_wordlists_dir(), expected_suffix="wordlists")
 
 
-def test_lp_master_transcript_default_under_assets():
+def test_lp_main_transcript_default_under_assets():
     _assert_under_assets(
-        default_master_transcript_path(),
+        default_main_transcript_path(),
         expected_suffix="liber_primus/liber-primus__transcription--master.txt",
     )

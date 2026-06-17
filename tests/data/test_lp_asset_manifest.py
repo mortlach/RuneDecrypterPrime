@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import hashlib
 import json
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from rune_decrypter_prime.data.liber_primus import lp_master
+from rune_decrypter_prime.data.liber_primus import lp_main
 
 
 pytestmark = pytest.mark.tier_a
@@ -24,13 +24,13 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def test_lp_master_transcript_has_manifest_integrity_entry() -> None:
+def test_lp_main_transcript_has_manifest_integrity_entry() -> None:
     root = _repo_root()
     manifest = json.loads((root / "assets_manifest_v1.json").read_text(encoding="utf-8"))
     rows = [
         row
         for row in manifest["required_assets"]
-        if row.get("asset_id") == "liber_primus.master_transcript"
+        if row.get("asset_id") == "liber_primus.main_transcript"
     ]
 
     assert len(rows) == 1
@@ -46,26 +46,26 @@ def test_lp_master_transcript_has_manifest_integrity_entry() -> None:
     assert _sha256(packed_part) == row["sha256"]
 
 
-def test_lp_master_transcript_identity_returns_fresh_mutable_copy() -> None:
-    lp_master._cached_master_transcript_asset_identity.cache_clear()
-    first = lp_master.master_transcript_asset_identity()
+def test_lp_main_transcript_identity_returns_fresh_mutable_copy() -> None:
+    lp_main._cached_main_transcript_asset_identity.cache_clear()
+    first = lp_main.main_transcript_asset_identity()
     first["asset_version"] = "bad"
 
-    second = lp_master.master_transcript_asset_identity()
+    second = lp_main.main_transcript_asset_identity()
 
     assert second == {
-        "asset_id": "liber_primus.master_transcript",
+        "asset_id": "liber_primus.main_transcript",
         "asset_version": "105f1c68cecde03df1e66982d3021ab31d7f49ee975ca109d1a1924cbcafc99c",
     }
     assert second is not first
 
 
-def test_lp_master_transcript_identity_rejects_duplicate_manifest_rows(
+def test_lp_main_transcript_identity_rejects_duplicate_manifest_rows(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     row = {
-        "asset_id": "liber_primus.master_transcript",
+        "asset_id": "liber_primus.main_transcript",
         "asset_version": "a" * 64,
         "version_scheme": "sha256",
         "sha256": "a" * 64,
@@ -73,23 +73,23 @@ def test_lp_master_transcript_identity_rejects_duplicate_manifest_rows(
     manifest = {"required_assets": [row, dict(row)]}
     (tmp_path / "assets_manifest_v1.json").write_text(json.dumps(manifest), encoding="utf-8")
 
-    lp_master._cached_master_transcript_asset_identity.cache_clear()
-    monkeypatch.setattr(lp_master, "find_repo_root", lambda _start: tmp_path)
+    lp_main._cached_main_transcript_asset_identity.cache_clear()
+    monkeypatch.setattr(lp_main, "find_repo_root", lambda _start: tmp_path)
     try:
         with pytest.raises(RuntimeError, match="expected exactly one"):
-            lp_master.master_transcript_asset_identity()
+            lp_main.main_transcript_asset_identity()
     finally:
-        lp_master._cached_master_transcript_asset_identity.cache_clear()
+        lp_main._cached_main_transcript_asset_identity.cache_clear()
 
 
-def test_lp_master_transcript_identity_rejects_version_mismatch(
+def test_lp_main_transcript_identity_rejects_version_mismatch(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     manifest = {
         "required_assets": [
             {
-                "asset_id": "liber_primus.master_transcript",
+                "asset_id": "liber_primus.main_transcript",
                 "asset_version": "a" * 64,
                 "version_scheme": "sha256",
                 "sha256": "b" * 64,
@@ -98,10 +98,10 @@ def test_lp_master_transcript_identity_rejects_version_mismatch(
     }
     (tmp_path / "assets_manifest_v1.json").write_text(json.dumps(manifest), encoding="utf-8")
 
-    lp_master._cached_master_transcript_asset_identity.cache_clear()
-    monkeypatch.setattr(lp_master, "find_repo_root", lambda _start: tmp_path)
+    lp_main._cached_main_transcript_asset_identity.cache_clear()
+    monkeypatch.setattr(lp_main, "find_repo_root", lambda _start: tmp_path)
     try:
         with pytest.raises(RuntimeError, match="asset_version must match sha256"):
-            lp_master.master_transcript_asset_identity()
+            lp_main.main_transcript_asset_identity()
     finally:
-        lp_master._cached_master_transcript_asset_identity.cache_clear()
+        lp_main._cached_main_transcript_asset_identity.cache_clear()

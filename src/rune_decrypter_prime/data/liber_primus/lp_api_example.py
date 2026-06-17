@@ -1,7 +1,7 @@
 from pathlib import Path
 from lp_transcript import LPTranscript
 
-TRANSCRIPT = Path(r"liber-primus__transcription--master.txt")   
+TRANSCRIPT = Path(r"liber-primus__transcription--master.txt")
 
 doc = LPTranscript.from_file(TRANSCRIPT)
 print(doc.summary())

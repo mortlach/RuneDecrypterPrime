@@ -1,4 +1,4 @@
-# Liber Primus solved source labels
+﻿# Liber Primus solved source labels
 
 This guide describes the first V1 source-label layer for solved Liber Primus
 text fragments.
@@ -85,7 +85,7 @@ For RDP, the retrieval ground truth is:
 label -> catalogue entry -> main transcript page/span -> ct_idx + wli
 ```
 
-The user normally supplies the label. The catalogue records which master
+The user normally supplies the label. The catalogue records which main
 transcript pages that label resolves to.
 
 ## Low-level access remains available
@@ -95,7 +95,7 @@ The existing low-level typed APIs still exist for direct page/line work:
 ```python
 from rune_decrypter_prime.data import liber_primus as lp
 
-doc = lp.load_master_transcript()
+doc = lp.load_main_transcript()
 locator = lp.LPFragmentLocator(page_ref=lp.LPPageRef.transcript_page(0))
 payload = lp.payload_from_locator(doc, locator)
 ```
@@ -150,7 +150,7 @@ from rune_decrypter_prime.api import SourceInputRef
 
 source_ref = SourceInputRef(
     source_kind="liber_primus.label",
-    asset_id="liber_primus.master_transcript",
+    asset_id="liber_primus.main_transcript",
     asset_version="<main transcript sha256>",
     ref={"label": "welcome_pilgrim"},
 )
@@ -174,5 +174,5 @@ parable               solved reference page
 ```
 
 The important contract is not the spelling of a single label. The contract is
-that all accepted aliases for a page resolve to the same master-transcript
+that all accepted aliases for a page resolve to the same main transcript
 payload and therefore the same `ct_idx` and `wli`.
