@@ -9,7 +9,7 @@ Principle
 - Solvers consume payloads (`ct_idx`, `wli`).
 - Bridge via `payload_from_locator(...)` / `payload_from_partition_entry(...)`.
 
-Load master transcript
+Load main transcript
 ----------------------
 ```python
 from rune_decrypter_prime.data import liber_primus as lp

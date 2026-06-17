@@ -1,76 +1,43 @@
-# Welcome Pilgrim
+# welcome_pilgrim
 
-Primary solve file:
-
-```text
-solving/solved_lp/welcome_pilgrim/solve.py
-```
-
-The tutorial runner uses a thin wrapper:
+Run:
 
 ```text
-tutorials/v1/Tutorial_LP_Welcome_Pilgrim_Solve.py
+python solving/solved_lp/welcome_pilgrim/solve.py
 ```
-
-That wrapper exists only so CI can keep using the tutorial manifest. The actual
-human-facing solved-LP attempt is `solve.py` in this folder.
 
 Source label:
 
 ```text
 welcome_pilgrim
-red_rune.welcome_pilgrim
-solved.welcome_pilgrim
 ```
 
-Primary recipe:
+Recipe:
 
 ```text
 recipe.welcome_pilgrim.vigenere_interruptors
 ```
 
-Status:
+Current confirmed model:
 
 ```text
-source catalogue entry exists
-payload_from_label loads real master-transcript ciphertext/WLI
-current boundary granularity: full master transcript pages 1-2
-solve.py runs the bounded Vigenere/interrupter attempt
+cipher: Vigenere with interrupters
+key_text_hint: DIVINITY
+key_length: 8
+interrupter_count: 11
+interrupter_pool: all ciphertext-zero positions
 ```
 
-Default solve assumptions:
+The script searches using the zero-position pool, prints the found key,
+interrupters, score, stop reason, telemetry timing, plaintext, and exact match
+ratio. It reports `status: solved` only when the recovered plaintext matches
+the canonical reference exactly.
+
+The tutorial wrapper at `tutorials/v1/Tutorial_LP_Welcome_Pilgrim_Solve.py`
+delegates here and should stay thin.
+
+The readable workbook copy is:
 
 ```text
-source_label      = welcome_pilgrim
-cipher            = vigenere
-period            = 7
-interruptor_pool  = all ciphertext positions
-max_interruptors  = 5
-encoding_dir      = rtl
+python solving/solved_lp/workbook/02_Welcome_Pilgrim.py
 ```
-
-The solver is not given the canonical plaintext or the canonical key. The label
-only supplies the real LP ciphertext and WLI from the master transcript.
-
-Useful overrides:
-
-```text
-RDP_LP_WELCOME_MAX_INTERRUPTORS=5
-RDP_LP_WELCOME_BEAM_WIDTH=64
-RDP_LP_WELCOME_PLATEAU_ROUNDS=5
-RDP_LP_WELCOME_DIRECTION=rtl
-```
-
-Goal:
-
-RDP should reproduce this solved LP text as a Vigenere-with-interruptors real
-solve. The intended user-facing setup should remain simple:
-
-```text
-source_label = welcome_pilgrim
-period       = 7
-max_interruptors = <chosen search budget>
-```
-
-The source label remains method-free. Vigenere/interrupter information belongs
-in the recipe and runner, not in the LP source label.

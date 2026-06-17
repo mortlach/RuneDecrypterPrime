@@ -1,44 +1,20 @@
-# AN END
+# an_end
 
-Source label:
+Run:
 
 ```text
-red_rune.an_end
+python solving/solved_lp/an_end/solve.py
 ```
 
-Primary recipe:
+Recipe:
 
 ```text
 recipe.an_end.stream_sequence_interruptors
 ```
 
-Status:
+Status: diagnostic stream-sequence/interrupter target. It loads by source label
+only and does not invent a solution.
 
-```text
-source catalogue entry exists
-payload_from_label loads real master-transcript payload
-current boundary granularity: full canon page 56
-runner not implemented yet
-```
+Catalogue aliases `p56`, `56.jpg`, and `canon.56` still resolve here, but local
+solving workflows should use `an_end`.
 
-Goal:
-
-RDP should reproduce this solved LP text using a stream-sequence approach with
-interrupters.
-
-Planned technical path:
-
-```text
-1. Use the live red_rune.an_end payload.
-2. Build the early-word candidate search.
-3. Recover early key material from the first words.
-4. Compare candidate key material against canonical zero-shifted sequences
-   such as primes-minus-one, emirps, Fibonacci-like sequences, and other simple
-   named sequence candidates.
-5. Select the matching sequence recipe.
-6. Solve/replay the page with interrupters and record the result.
-```
-
-This is expected to be the trickiest initial solved-page reproduction. Keep the
-source label method-free; all sequence and interrupter details belong in the
-recipe/runner.

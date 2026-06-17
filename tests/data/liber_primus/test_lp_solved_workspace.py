@@ -1,0 +1,192 @@
+from __future__ import annotations
+
+import ast
+from pathlib import Path
+
+import pytest
+
+from rune_decrypter_prime.data import liber_primus as lp
+
+pytestmark = pytest.mark.tier_a
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+SOLVED_ROOT = REPO_ROOT / "solving" / "solved_lp"
+KNOWN_SOLVED_LABELS = (
+    "warning",
+    "welcome_pilgrim",
+    "some_wisdom",
+    "koan_a_man",
+    "loss_of_divinity",
+    "koan_during_lesson",
+    "instruction",
+    "an_end",
+    "parable",
+)
+
+WORKBOOK_FILES = (
+    "01_A_Warning.py",
+    "02_Welcome_Pilgrim.py",
+    "03_Some_Wisdom.py",
+    "04_Koan_A_Man.py",
+    "05_Loss_Of_Divinity.py",
+    "06_Koan_During_Lesson.py",
+    "07_Instruction.py",
+    "08_An_End.py",
+    "09_Parable.py",
+)
+
+
+@pytest.mark.parametrize("label", KNOWN_SOLVED_LABELS)
+def test_every_known_solved_lp_section_has_solve_file(label: str) -> None:
+    solve_file = SOLVED_ROOT / label / "solve.py"
+
+    assert solve_file.is_file()
+
+
+@pytest.mark.parametrize("label", KNOWN_SOLVED_LABELS)
+def test_every_known_solved_lp_solve_file_has_main(label: str) -> None:
+    solve_file = SOLVED_ROOT / label / "solve.py"
+    tree = ast.parse(solve_file.read_text(encoding="utf-8"))
+
+    functions = {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}
+    assert "main" in functions
+
+
+@pytest.mark.parametrize("label", KNOWN_SOLVED_LABELS)
+def test_solved_lp_workspace_labels_resolve_to_payloads(label: str) -> None:
+    payload = lp.payload_from_label(label)
+
+    assert payload.ct_idx
+    assert payload.wli
+    assert payload.metadata["requested_label"] == label
+
+
+@pytest.mark.parametrize("filename", WORKBOOK_FILES)
+def test_solved_lp_workbook_has_human_readable_files(filename: str) -> None:
+    workbook_file = SOLVED_ROOT / "workbook" / filename
+    tree = ast.parse(workbook_file.read_text(encoding="utf-8"))
+
+    assert workbook_file.is_file()
+    assert "main" in {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}
+
+
+def test_solved_lp_examples_do_not_delegate_to_shared_helper_module() -> None:
+    files = list(SOLVED_ROOT.glob("*/solve.py")) + list((SOLVED_ROOT / "workbook").glob("*.py"))
+    forbidden_helper = "_" + "common"
+
+    assert files
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        assert not text.startswith("\ufeff")
+        assert forbidden_helper not in text
+        assert "from solving.solved_lp." not in text or "welcome_pilgrim.reference" in text
+
+
+def test_solved_lp_examples_use_main_page_metadata_names() -> None:
+    files = list(SOLVED_ROOT.glob("*/solve.py")) + list((SOLVED_ROOT / "workbook").glob("*.py"))
+    stale_start = "master" + "_page_start"
+    stale_end = "master" + "_page_end"
+    an_end_files = {
+        SOLVED_ROOT / "an_end" / "solve.py",
+        SOLVED_ROOT / "workbook" / "08_An_End.py",
+    }
+
+    assert files
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        assert "main_page_start" in text
+        assert "main_page_end" in text
+        if path in an_end_files:
+            assert stale_start in text
+            assert stale_end in text
+        else:
+            assert stale_start not in text
+            assert stale_end not in text
+
+
+@pytest.mark.parametrize(
+    "path",
+    (
+        SOLVED_ROOT / "welcome_pilgrim" / "solve.py",
+        SOLVED_ROOT / "workbook" / "02_Welcome_Pilgrim.py",
+    ),
+)
+def test_welcome_pilgrim_uses_divinity_period_and_zero_position_pool(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    stale_period = "KEY_LENGTH = " + "7"
+    stale_pool = "CANONICAL" + "_INTERRUPTOR_POOL"
+
+    assert 'KEY_TEXT_HINT = "DIVINITY"' in text
+    assert "KEY_LENGTH = len(KEY_TEXT_HINT)" in text
+    assert stale_period not in text
+    assert stale_pool not in text
+    assert "enumerate(ct_idx)" in text
+    assert "int(value) == 0" in text
+    assert "pool=interruptor_pool" in text
+    assert "range(len(ct_idx))" not in text
+    assert "os.environ" not in text
+
+
+@pytest.mark.parametrize(
+    "path",
+    (
+        SOLVED_ROOT / "koan_during_lesson" / "solve.py",
+        SOLVED_ROOT / "workbook" / "06_Koan_During_Lesson.py",
+    ),
+)
+def test_koan_during_lesson_uses_circumference_period_and_zero_diagnostics(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+
+    assert 'KEY_TEXT_HINT = "CIRCUMFERENCE"' in text
+    assert "KEY_LENGTH = len(KEY_TEXT_HINT)" in text
+    assert "INTERRUPTOR_COUNT = 11" in text
+    assert "ACCEPTANCE_MATCH_RATIO = 1.0" in text
+    assert 'SCORER_OBJECTIVE = "pct.logp.win10"' in text
+    assert "CHAR_NGRAM_WEIGHTS = {1: 0.3, 2: 0.7}" in text
+    assert "WLI_NGRAM_WEIGHTS = {1: 0.3, 2: 0.7}" in text
+    assert "enumerate(ct_idx)" in text
+    assert "int(value) == 0" in text
+    assert '("key_length", KEY_LENGTH)' in text
+    assert '("interrupter_pool_size", len(interruptor_pool))' in text
+
+
+@pytest.mark.parametrize(
+    "path",
+    (
+        SOLVED_ROOT / "welcome_pilgrim" / "solve.py",
+        SOLVED_ROOT / "workbook" / "02_Welcome_Pilgrim.py",
+    ),
+)
+def test_welcome_pilgrim_uses_pinned_beam_64_solver_variant(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+
+    stale_variants = "SOLVER" + "_VARIANTS"
+    assert stale_variants not in text
+    assert 'SOLVER_VARIANT = "beam_64"' in text
+    assert "SOLVER = SolverSpec.beam(" in text
+    assert "beam_width=64" in text
+    assert "plateau_rounds=5" in text
+    assert "seed=2026" in text
+    assert "score_time_s" in text
+
+
+@pytest.mark.parametrize(
+    "path",
+    (
+        SOLVED_ROOT / "welcome_pilgrim" / "solve.py",
+        SOLVED_ROOT / "workbook" / "02_Welcome_Pilgrim.py",
+    ),
+)
+def test_welcome_pilgrim_uses_minimal_one_and_two_gram_scoring(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+
+    assert "CHAR_NGRAM_WEIGHTS" in text
+    assert "WLI_NGRAM_WEIGHTS" in text
+    assert "char_weights=CHAR_NGRAM_WEIGHTS" in text or '"char_weights": CHAR_NGRAM_WEIGHTS' in text
+    assert "wli_weights=WLI_NGRAM_WEIGHTS" in text or '"wli_weights": WLI_NGRAM_WEIGHTS' in text
+    assert "CHAR_NGRAM_WEIGHTS = {1: 0.3, 2: 0.7}" in text
+    assert "WLI_NGRAM_WEIGHTS = {1: 0.3, 2: 0.7}" in text
+    stale_char = "CHAR_NGRAM_WEIGHTS = {" + "3:"
+    stale_wli = "WLI_NGRAM_WEIGHTS = {" + "3:"
+    assert stale_char not in text
+    assert stale_wli not in text

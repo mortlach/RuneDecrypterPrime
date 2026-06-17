@@ -34,7 +34,7 @@ Suggested layout:
 
 your_project/
   lp_transcript.py          # parser + view objects (LPTranscript, PageView, LineView, …)
-  pasted.txt                # your master transcript
+  pasted.txt                # your main transcript
   page_catalogue.json       # (optional) mapping transcript pages -> canonical image names like 54.jpg
   README.md
 

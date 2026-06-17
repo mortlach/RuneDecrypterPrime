@@ -1,28 +1,24 @@
-# Koan During a Lesson
+# koan_during_lesson
 
-Source label:
+Run:
 
 ```text
-red_rune.koan_during_lesson
+python solving/solved_lp/koan_during_lesson/solve.py
 ```
 
-Primary recipe:
+Recipe:
 
 ```text
 recipe.koan_during_lesson.vigenere_interruptors
 ```
 
-Status:
+Status: diagnostic Vigenere/interrupter workspace setup. It loads by source
+label and does not claim a solve until real settings are promoted.
+
+Current model hint:
 
 ```text
-source catalogue entry exists
-payload_from_label loads real master-transcript payload
-current boundary granularity: full canon pages 15-22
-runner not implemented yet
+key_text_hint: CIRCUMFERENCE
+key_length: 13
+interrupter_pool: all ciphertext-zero positions
 ```
-
-Goal:
-
-RDP should reproduce this solved LP text as a Vigenere-with-interruptors real
-solve. This is the second Vigenere/interrupter target after Welcome Pilgrim and
-should reuse the same source-label and recipe interface.

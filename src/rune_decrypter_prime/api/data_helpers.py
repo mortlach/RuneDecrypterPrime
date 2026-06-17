@@ -57,7 +57,7 @@ def load_lp_master_section(
     *,
     split: str = "page",
 ) -> tuple[list[int], list[list[int]]]:
-    """Return (ct_idx, wli) extracted from the master transcript for a section."""
+    """Return (ct_idx, wli) extracted from the main transcript for a section."""
     from rune_decrypter_prime.data.liber_primus.lp_master import (
         extract_section_ct_wli_by_id,
         load_master_transcript,
@@ -74,13 +74,13 @@ def load_lp_payload_from_label(label: str) -> "LPSolverPayload":
     return payload_from_label(label)
 
 
-def load_lp_payload_from_master_pages(
+def load_lp_payload_from_main_pages(
     start_page: int,
     end_page: int | None = None,
 ) -> "LPSolverPayload":
-    """Return deterministic solver payload for complete master transcript pages.
+    """Return deterministic solver payload for complete main transcript pages.
 
-    Page numbers are zero-based master transcript page ids. This is the direct
+    Page numbers are zero-based main transcript page ids. This is the direct
     helper behind solved-source page-span retrieval.
     """
     from rune_decrypter_prime.data.liber_primus.lp_adapter import LPSolverPayload
@@ -104,12 +104,12 @@ def load_lp_payload_from_master_pages(
     span = doc.glyph_span(start.rec.g_start, end.rec.g_end - start.rec.g_start)
     ct_idx, wli = span.ct_wli()
     metadata = {
-        "source_kind": "liber_primus.master_pages",
-        "master_page_start": start_page,
-        "master_page_end": end_page,
+        "source_kind": "liber_primus.main_pages",
+        "main_page_start": start_page,
+        "main_page_end": end_page,
         "bound_book_start": start_page + 1,
         "bound_book_end": end_page + 1,
-        "boundary_granularity": "full_master_pages",
+        "boundary_granularity": "full_main_pages",
     }
     return LPSolverPayload(ct_idx=ct_idx, wli=wli, metadata=metadata)
 

@@ -178,7 +178,7 @@ def _validate_lp_master_identity(source_ref: SourceInputRef) -> None:
 
     identity = master_transcript_asset_identity()
     if source_ref.asset_version != identity["asset_version"]:
-        raise ValueError("source_ref.asset_version does not match current LP master transcript asset_version")
+        raise ValueError("source_ref.asset_version does not match current LP main transcript asset_version")
 
 
 def _lp_page_ref(ref: Mapping[str, Any], *, scheme_key: str, number_key: str):

@@ -234,7 +234,7 @@ def route_locator_lines_text(
 def load_master_transcript(*, attach_catalogue: bool = True) -> LPTranscript:
     if not MASTER_TRANSCRIPT.exists():
         rel = to_repo_relative(MASTER_TRANSCRIPT, start=Path(__file__))
-        raise FileNotFoundError(f"Liber Primus master transcript not found: {rel}")
+        raise FileNotFoundError(f"Liber Primus main transcript not found: {rel}")
     doc = LPTranscript.from_file(MASTER_TRANSCRIPT)
     if attach_catalogue:
         attach_default_page_catalogue(doc)

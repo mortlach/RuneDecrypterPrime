@@ -43,6 +43,6 @@ negative_result     useful failed attempt with a clear setup and result
 
 ## Boundary policy
 
-LP source entries must resolve through the master transcript. Candidate red-rune
+LP source entries must resolve through the main transcript. Candidate red-rune
 sections or page ranges are useful metadata, but they must not be silently used
 as solver input until exact page/line boundaries are verified.

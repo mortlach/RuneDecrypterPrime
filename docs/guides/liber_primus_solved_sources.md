@@ -11,7 +11,7 @@ solve recipe = how RDP tries to solve or replay it
 ```
 
 The solved-source label layer is a thin convenience layer over the existing LP
-master transcript. It is not a redesign of the LP transcript, locator, page, or
+main transcript. It is not a redesign of the LP transcript, locator, page, or
 section APIs.
 
 ## User-facing labels
@@ -48,7 +48,7 @@ p57
 canon.57
 ```
 
-Those filename-style labels are **not** master transcript page ids. They are
+Those filename-style labels are **not** main transcript page ids. They are
 external page names/filenames from the puzzle history.
 
 ## Page-label terminology
@@ -58,31 +58,31 @@ progressed, and several label systems coexist:
 
 ```text
 source label          human RDP label, e.g. welcome_pilgrim
-master transcript id  zero-based page order in the bundled master transcript
-bound-book page       one-based display/order alias for the master transcript
+main transcript id  zero-based page order in the bundled main transcript
+bound-book page       one-based display/order alias for the main transcript
 puzzle filename       puzzle-maker filename/canon-style label, e.g. 56.jpg
 red-rune section      visual/section grouping from red-rune material
 side-art section      visual/section grouping from side art
 ```
 
 Do not assume these label systems are numerically equivalent. In particular,
-`56.jpg` does not mean `master transcript page 56` unless the catalogue entry
+`56.jpg` does not mean `main transcript page 56` unless the catalogue entry
 explicitly says that after verification.
 
-In the current master transcript, the puzzle-maker filename sequence starts only
+In the current main transcript, the puzzle-maker filename sequence starts only
 after the initial solved/introduction pages. The first filename page, `0.jpg`,
-starts at master transcript page 15. Therefore the filename aliases used here map
+starts at main transcript page 15. Therefore the filename aliases used here map
 as:
 
 ```text
-p56 / 56.jpg / canon.56 -> an_end  -> master transcript page 71
-p57 / 57.jpg / canon.57 -> parable -> master transcript page 72
+p56 / 56.jpg / canon.56 -> an_end  -> main transcript page 71
+p57 / 57.jpg / canon.57 -> parable -> main transcript page 72
 ```
 
 For RDP, the retrieval ground truth is:
 
 ```text
-label -> catalogue entry -> master transcript page/span -> ct_idx + wli
+label -> catalogue entry -> main transcript page/span -> ct_idx + wli
 ```
 
 The user normally supplies the label. The catalogue records which master
@@ -100,13 +100,13 @@ locator = lp.LPFragmentLocator(page_ref=lp.LPPageRef.transcript_page(0))
 payload = lp.payload_from_locator(doc, locator)
 ```
 
-The public data helper can also load complete master pages directly for debugging
+The public data helper can also load complete main pages directly for debugging
 or manual work:
 
 ```python
-from rune_decrypter_prime.api import load_lp_payload_from_master_pages
+from rune_decrypter_prime.api import load_lp_payload_from_main_pages
 
-payload = load_lp_payload_from_master_pages(1, 2)
+payload = load_lp_payload_from_main_pages(1, 2)
 ```
 
 That is low-level access. Solved-page workflows should prefer labels:
@@ -119,14 +119,14 @@ payload = lp.payload_from_label("welcome_pilgrim")
 
 ## Boundary policy
 
-Solved-source entries should resolve to complete integer master transcript pages
-where possible. Each payload records the master transcript page span and the
+Solved-source entries should resolve to complete integer main transcript pages
+where possible. Each payload records the main transcript page span and the
 bound-book display range.
 
 Current boundary granularity for solved full-page labels is:
 
 ```text
-full_master_pages
+full_main_pages
 ```
 
 Line locators can still be used later if a future source label needs a narrower
@@ -151,7 +151,7 @@ from rune_decrypter_prime.api import SourceInputRef
 source_ref = SourceInputRef(
     source_kind="liber_primus.label",
     asset_id="liber_primus.master_transcript",
-    asset_version="<master transcript sha256>",
+    asset_version="<main transcript sha256>",
     ref={"label": "welcome_pilgrim"},
 )
 ```

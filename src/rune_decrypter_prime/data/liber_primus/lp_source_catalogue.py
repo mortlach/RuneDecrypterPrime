@@ -7,14 +7,14 @@ from rune_decrypter_prime.data.liber_primus.lp_registry import LPFragmentLocator
 from rune_decrypter_prime.data.liber_primus.lp_transcript import LPTranscript
 
 
-BOUNDARY_MASTER_PAGE_RANGE = "verified_master_transcript_page_range"
-BOUNDARY_CANON_PAGE_RANGE = BOUNDARY_MASTER_PAGE_RANGE
+BOUNDARY_MAIN_PAGE_RANGE = "verified_main_transcript_page_range"
+BOUNDARY_CANON_PAGE_RANGE = BOUNDARY_MAIN_PAGE_RANGE
 SOURCE_STATUS_SOLVED_TEXT_AVAILABLE = "solved_text_available"
 
 
 @dataclass(frozen=True)
 class LPSourceEntry:
-    """Human-facing LP text-source label resolved to master-transcript pages."""
+    """Human-facing LP text-source label resolved to main transcript pages."""
 
     source_label: str
     display_name: str
@@ -23,7 +23,7 @@ class LPSourceEntry:
     red_rune_label: str
     spreadsheet_sheet: str
     red_rune_sections: tuple[int, ...]
-    master_page_range: tuple[int, int]
+    main_page_range: tuple[int, int]
     side_art_label: Optional[str] = None
     aliases: tuple[str, ...] = ()
     locator: Optional[LPFragmentLocator] = None
@@ -41,9 +41,9 @@ class LPSourceEntry:
             raise ValueError("red_rune_sections must be non-empty")
         if any(section <= 0 for section in self.red_rune_sections):
             raise ValueError("red_rune_sections must be positive")
-        start, end = self.master_page_range
+        start, end = self.main_page_range
         if start < 0 or end < start:
-            raise ValueError("master_page_range must be a non-negative inclusive range")
+            raise ValueError("main_page_range must be a non-negative inclusive range")
         for alias in self.aliases:
             _require_label(alias, "alias")
 
@@ -54,7 +54,7 @@ class LPSourceEntry:
     @property
     def canon_page_range(self) -> tuple[int, int]:
         """Deprecated compatibility alias for the old internal page naming."""
-        return self.master_page_range
+        return self.main_page_range
 
 
 @dataclass(frozen=True)
@@ -97,11 +97,11 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         source_label="red_rune.warning",
         display_name="A Warning",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_MASTER_PAGE_RANGE,
+        boundary_status=BOUNDARY_MAIN_PAGE_RANGE,
         red_rune_label="warning",
         spreadsheet_sheet="A Warning",
         red_rune_sections=(1,),
-        master_page_range=(0, 0),
+        main_page_range=(0, 0),
         side_art_label="sign_post_cross",
         aliases=("warning", "solved.warning"),
     ),
@@ -109,11 +109,11 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         source_label="red_rune.welcome_pilgrim",
         display_name="Welcome Pilgrim",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_MASTER_PAGE_RANGE,
+        boundary_status=BOUNDARY_MAIN_PAGE_RANGE,
         red_rune_label="welcome_pilgrim",
         spreadsheet_sheet="Welcome",
         red_rune_sections=(3,),
-        master_page_range=(1, 2),
+        main_page_range=(1, 2),
         side_art_label="spirals",
         aliases=("welcome_pilgrim", "solved.welcome_pilgrim"),
     ),
@@ -121,11 +121,11 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         source_label="red_rune.some_wisdom",
         display_name="Some Wisdom",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_MASTER_PAGE_RANGE,
+        boundary_status=BOUNDARY_MAIN_PAGE_RANGE,
         red_rune_label="some_wisdom",
         spreadsheet_sheet="Some Wisdom",
         red_rune_sections=(2,),
-        master_page_range=(3, 3),
+        main_page_range=(3, 3),
         side_art_label="spirals",
         aliases=("some_wisdom", "solved.some_wisdom"),
     ),
@@ -133,11 +133,11 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         source_label="red_rune.koan_a_man",
         display_name="A Koan: A Man",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_MASTER_PAGE_RANGE,
+        boundary_status=BOUNDARY_MAIN_PAGE_RANGE,
         red_rune_label="koan_a_man",
         spreadsheet_sheet="A Koan A Man",
         red_rune_sections=(4, 5),
-        master_page_range=(4, 7),
+        main_page_range=(4, 7),
         side_art_label="spirals",
         aliases=("koan_a_man", "solved.koan_a_man"),
     ),
@@ -145,11 +145,11 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         source_label="red_rune.loss_of_divinity",
         display_name="The Loss of Divinity",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_MASTER_PAGE_RANGE,
+        boundary_status=BOUNDARY_MAIN_PAGE_RANGE,
         red_rune_label="loss_of_divinity",
         spreadsheet_sheet="The Loss Of",
         red_rune_sections=(6,),
-        master_page_range=(8, 11),
+        main_page_range=(8, 11),
         side_art_label="branches",
         aliases=("loss_of_divinity", "solved.loss_of_divinity"),
     ),
@@ -157,11 +157,11 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         source_label="red_rune.koan_during_lesson",
         display_name="A Koan: During a Lesson",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_MASTER_PAGE_RANGE,
+        boundary_status=BOUNDARY_MAIN_PAGE_RANGE,
         red_rune_label="koan_during_lesson",
         spreadsheet_sheet="A Koan During",
         red_rune_sections=(7, 8),
-        master_page_range=(12, 13),
+        main_page_range=(12, 13),
         side_art_label="mobius",
         aliases=("koan_during_lesson", "solved.koan_during_lesson"),
     ),
@@ -169,11 +169,11 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         source_label="red_rune.instruction",
         display_name="An Instruction",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_MASTER_PAGE_RANGE,
+        boundary_status=BOUNDARY_MAIN_PAGE_RANGE,
         red_rune_label="instruction",
         spreadsheet_sheet="An Instruction",
         red_rune_sections=(15,),
-        master_page_range=(14, 14),
+        main_page_range=(14, 14),
         side_art_label="spiral_branches",
         aliases=("instruction", "solved.instruction"),
     ),
@@ -181,11 +181,11 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         source_label="red_rune.an_end",
         display_name="AN END",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_MASTER_PAGE_RANGE,
+        boundary_status=BOUNDARY_MAIN_PAGE_RANGE,
         red_rune_label="an_end",
         spreadsheet_sheet="p56 An End",
         red_rune_sections=(16,),
-        master_page_range=(71, 71),
+        main_page_range=(71, 71),
         side_art_label="an_end",
         aliases=("an_end", "solved.an_end", "p56", "56.jpg", "canon.56"),
     ),
@@ -193,11 +193,11 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         source_label="red_rune.parable",
         display_name="Parable",
         source_status=SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
-        boundary_status=BOUNDARY_MASTER_PAGE_RANGE,
+        boundary_status=BOUNDARY_MAIN_PAGE_RANGE,
         red_rune_label="parable",
         spreadsheet_sheet="p57 Parable",
         red_rune_sections=(17,),
-        master_page_range=(72, 72),
+        main_page_range=(72, 72),
         side_art_label="parable",
         aliases=("parable", "solved.parable", "p57", "57.jpg", "canon.57"),
     ),
@@ -248,7 +248,7 @@ _SOLVE_RECIPES: tuple[LPSolveRecipeEntry, ...] = (
         cipher_family="vigenere_with_interruptors",
         target_kind="real_solve",
         priority="P0",
-        reference_key_or_shift="FIRFUMFERENFE",
+        reference_key_or_shift="CIRCUMFERENCE",
     ),
     LPSolveRecipeEntry(
         recipe_label="recipe.instruction.constant_shift_zero_replay",
@@ -323,7 +323,7 @@ def resolve_solve_recipe_label(label: str) -> LPSolveRecipeEntry:
 def payload_from_label(label: str, *, doc: LPTranscript | None = None):
     """Return an LP solver payload for a source label.
 
-    Solved-source labels resolve to complete master transcript page spans.
+    Solved-source labels resolve to complete main transcript page spans.
     The user-facing label stays simple; page-system details are metadata.
     """
 
@@ -336,12 +336,12 @@ def payload_from_label(label: str, *, doc: LPTranscript | None = None):
 
     if entry.locator is not None:
         payload = payload_from_locator(effective_doc, entry.locator)
-        start_master = entry.locator.page_ref.number
-        end_master = start_master
+        start_main = entry.locator.page_ref.number
+        end_main = start_main
     else:
-        start_master, end_master = entry.master_page_range
-        start_page = page_view_from_ref(effective_doc, LPPageRef.transcript_page(start_master))
-        end_page = page_view_from_ref(effective_doc, LPPageRef.transcript_page(end_master))
+        start_main, end_main = entry.main_page_range
+        start_page = page_view_from_ref(effective_doc, LPPageRef.transcript_page(start_main))
+        end_page = page_view_from_ref(effective_doc, LPPageRef.transcript_page(end_main))
         span = effective_doc.glyph_span(start_page.rec.g_start, end_page.rec.g_end - start_page.rec.g_start)
         ct_idx, wli = span.ct_wli()
         payload = LPSolverPayload(ct_idx=ct_idx, wli=wli, metadata={})
@@ -359,20 +359,20 @@ def payload_from_label(label: str, *, doc: LPTranscript | None = None):
         "red_rune_ordinal": "-".join(str(part) for part in entry.red_rune_sections),
         "side_art_label": entry.side_art_label,
         "spreadsheet_sheet": entry.spreadsheet_sheet,
-        "master_page_start": start_master,
-        "master_page_end": end_master,
-        "bound_book_start": start_master + 1,
-        "bound_book_end": end_master + 1,
+        "main_page_start": start_main,
+        "main_page_end": end_main,
+        "bound_book_start": start_main + 1,
+        "bound_book_end": end_main + 1,
         "line": None,
         "line_end": None,
-        "boundary_granularity": "full_master_pages",
+        "boundary_granularity": "full_main_pages",
     }
     return type(payload)(ct_idx=payload.ct_idx, wli=payload.wli, metadata=metadata)
 
 
 __all__ = [
     "BOUNDARY_CANON_PAGE_RANGE",
-    "BOUNDARY_MASTER_PAGE_RANGE",
+    "BOUNDARY_MAIN_PAGE_RANGE",
     "SOURCE_STATUS_SOLVED_TEXT_AVAILABLE",
     "LPSourceEntry",
     "LPSolveRecipeEntry",

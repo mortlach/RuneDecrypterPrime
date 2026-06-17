@@ -22,6 +22,12 @@ output/
 .coverage
 htmlcov/
 
+# Optional local language-model assets beyond the minimal tracked 1/2-gram set
+assets/language_model/lmp/**/*_3_*.bin.zst
+assets/language_model/lmp/**/*_4_*.bin.zst
+assets/language_model/lmp/**/*_n3_win10_*.npz
+assets/language_model/lmp/**/*_n4_win10_*.npz
+
 # Local virtual environments
 .venv/
 venv/

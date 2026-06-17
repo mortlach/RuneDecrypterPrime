@@ -1,6 +1,6 @@
 Below is a clean README you can paste in as `lp_api_readme.md`. It’s written to match what you already have in code today (canonical page names, glyph spans, and section matching), and it also includes the “image-aligned sections / paragraph letters” plan as a first-class use case.
 
-It assumes you’re using the existing `LPTranscript` parser and the “master transcript helpers” (`load_master_transcript`, section matching, etc.).   
+It assumes you’re using the existing `LPTranscript` parser and the main transcript helpers (`load_master_transcript`, section matching, etc.).   
 
 ---
 
@@ -59,9 +59,9 @@ And fast index maps so you can jump instantly:
 
 ## Quick start
 
-### Load the master transcript (recommended)
+### Load the main transcript (recommended)
 
-If you use the provided helper, it loads the repo’s master transcript file and **automatically attaches canonical page names** (`0.jpg` … `57.jpg`) to the last 58 pages. Earlier pages (if present) can be labelled `front-*`. 
+If you use the provided helper, it loads the repo’s main transcript file and **automatically attaches canonical page names** (`0.jpg` … `57.jpg`) to the last 58 pages. Earlier pages (if present) can be labelled `front-*`. 
 
 ```python
 from rune_decrypter_prime.data.liber_primus.lp_master import load_master_transcript
