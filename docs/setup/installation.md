@@ -1,18 +1,21 @@
 # Installation
 
-This page is the simple V1 install path.
+Status: user guide
 
-All paths below are relative to the repository root.
+This page is the simple install path.
+
+All commands are run from the repository root.
 
 ## Requirements
 
-- Python 3.11+
-- A normal C/C++ build toolchain if native extensions need to be built locally
-- Git is recommended, but not part of the Python package itself
+```text
+Python 3.11+
+```
+
+A normal compiler/build toolchain may be needed if native extensions are built
+locally.
 
 ## Simple install
-
-Run this from the repository root:
 
 ```text
 python install.py
@@ -24,13 +27,8 @@ On Windows you can also use:
 install.bat
 ```
 
-The installer is deliberately conservative. It:
-
-1. checks the Python version
-2. installs the package in editable mode with test extras
-3. checks required V1 asset sentinels
-4. checks required native imports
-5. runs compact V1 smoke tests
+The installer checks Python, installs RDP, checks required assets/imports, and
+runs a compact smoke check.
 
 Installer logs are written under:
 
@@ -38,113 +36,40 @@ Installer logs are written under:
 output/install_logs/
 ```
 
-To show successful command output while debugging, set this before running the
-installer:
-
-```text
-RDP_INSTALL_VERBOSE=1
-```
-
-The installer does not silently upgrade build tools for you. If pip, setuptools,
-or wheel are too old, upgrade them deliberately and rerun the installer.
-
-## Run the V1 tutorial gate
-
-After install:
+## Run tutorials after install
 
 ```text
 python tutorials/v1/run_all.py
 ```
 
-The runner defaults to the V1 release profile.
-
-Useful settings:
+Success means:
 
 ```text
-RDP_TUTORIAL_GATE_PROFILE=release
-RDP_TUTORIAL_ASSET_PROFILE=lm2_baseline
-RDP_TUTORIAL_ECHO_OUTPUT=0
+failed   : 0
 ```
 
-To print full tutorial output for users, set:
+## Show tutorial output
+
+The tutorial runner normally keeps output compact. To echo full tutorial output:
 
 ```text
 RDP_TUTORIAL_ECHO_OUTPUT=1
-```
-
-Then run:
-
-```text
 python tutorials/v1/run_all.py
 ```
 
-For the longer full V1 proof/showcase gate, set:
+## Longer local proof
+
+For a fuller V1 tutorial pass:
 
 ```text
 RDP_TUTORIAL_GATE_PROFILE=full_v1
-```
-
-Generated tutorial output is written under:
-
-```text
-output/
-```
-
-## Run all tests after a manual install
-
-For the full expert test gate:
-
-```text
-python -m pytest -q -p no:cacheprovider
-```
-
-This is the same broad pytest command used by full CI.
-
-## CI gates used for V1
-
-The repository has three useful gates:
-
-1. Full CI
-
-   ```text
-   .github/workflows/rdp_v1_full_ci.yml
-   ```
-
-   Runs install, full pytest, and the V1 release tutorial runner on Windows and
-   Ubuntu.
-
-2. Wheel CI
-
-   ```text
-   .github/workflows/rdp_v1_wheel_ci.yml
-   ```
-
-   Builds CPython 3.11 wheels on Windows and Ubuntu, installs them in a wheel
-   test environment, checks native imports, and uploads wheel artifacts.
-
-3. Install smoke
-
-   ```text
-   .github/workflows/install-smoke.yml
-   ```
-
-   Runs the clean installer path on Windows and Ubuntu.
-
-## Manual install notes
-
-For normal development, prefer `python install.py`.
-
-If you need to debug the package install manually, the core editable install is:
-
-```text
-python -m pip install -e ".[test]"
-```
-
-Then run:
-
-```text
-python -m pytest -q -p no:cacheprovider tests/contracts
 python tutorials/v1/run_all.py
 ```
 
-Use the full pytest command above before promoting a branch.
+## Next pages
+
+```text
+docs/guides/quickstart.md
+docs/guides/first_real_solve.md
+docs/guides/troubleshooting.md
+```

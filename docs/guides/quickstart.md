@@ -1,8 +1,8 @@
 # Quickstart
 
-This is the shortest path after installation.
+Status: user guide
 
-All paths below are relative to the repository root.
+This is the shortest path to a working RDP run.
 
 ## 1. Install
 
@@ -10,73 +10,54 @@ All paths below are relative to the repository root.
 python install.py
 ```
 
-On Windows, `install.bat` is also available.
+On Windows:
 
-See [`../setup/installation.md`](../setup/installation.md) for the full install
-notes.
+```text
+install.bat
+```
 
-## 2. Run the release tutorials
+## 2. Run the tutorial gate
 
 ```text
 python tutorials/v1/run_all.py
 ```
 
-Default V1 settings:
+Success means:
 
 ```text
-GATE_PROFILE = "release"
-ASSET_PROFILE = "lm2_baseline"
-ECHO_OUTPUT = False
+failed   : 0
 ```
 
-## 3. Show full tutorial output
-
-For a user-facing run where you want to see each tutorial's full output, set:
+## 3. Read one full example
 
 ```text
-RDP_TUTORIAL_ECHO_OUTPUT=1
+docs/guides/first_real_solve.md
 ```
 
-Then run:
+## 4. Find output
+
+Generated files are under:
 
 ```text
-python tutorials/v1/run_all.py
+output/
 ```
 
-For the longer full V1 proof/showcase gate, set:
+Tutorial output is usually under:
 
 ```text
-RDP_TUTORIAL_GATE_PROFILE=full_v1
+output/tutorials/
 ```
 
-## 4. What success looks like
-
-The runner prints a summary similar to:
+Read:
 
 ```text
-Summary
-gate_profile       : release
-asset_profile      : lm2_baseline
-selected           : ...
-run                : ...
-passed             : ...
-near_solve_accepted: ...
-failed             : 0
-skipped            : ...
+docs/guides/outputs.md
 ```
 
-The important line is:
+## 5. Learn the options
 
 ```text
-Selected tutorial gate completed successfully.
+docs/guides/common_run_options.md
+docs/guides/tutorial_catalogue.md
+docs/guides/examples.md
 ```
-
-## 5. Run the full expert tests
-
-After install:
-
-```text
-python -m pytest -q -p no:cacheprovider
-```
-
-That is the full local pytest gate. It is slower than the tutorial runner.
