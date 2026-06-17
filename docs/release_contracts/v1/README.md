@@ -1,27 +1,53 @@
-# RDP V1 release-contract data
+# RDP V1 contract evidence used by tests
 
-This folder is the repo-local copy of the final post-crosschecked V1 handoff evidence and release-contract guardrails used by the V1 contract tests.
+This folder is **test-backed contract evidence**, not the beginner documentation
+path.
 
-Keep this folder small, reviewable, and repo-relative. Runtime tests must not depend on local review ZIP paths or machine-specific absolute paths.
+Several V1 contract tests read files from this exact folder to stop scope drift.
+That means these files are part of the tested release boundary. They may look
+like docs, CSV, or JSON, but they are also test fixtures and release evidence.
 
-## D0/D1 release authority
+Do not delete, rename, or move this folder as ordinary docs cleanup unless the
+corresponding tests are updated in the same change.
 
-- `final_source_to_wp_decision_target_test_chain.csv` — repaired source -> WP -> decision -> target -> test chain.
-- `final_missing_or_new_acceptance_tests.csv` — original acceptance-test gap/promotion list from the handoff evidence.
-- `v1_scope_lock.json` — compact V1 included/excluded boundary used by scope-lock tests.
+## Why this exists
 
-## D7 cleanup guardrails
+The V1 release needs a small set of explicit drift locks:
 
-- `D7_CLEANUP_DEPRECATION_POLICY.md` — human-readable cleanup/deprecation policy.
-- `v1_cleanup_deprecation_ledger.json` — machine-readable ledger for retained, deprecated, future-removal, and removed items.
-- `d7_acceptance_test_promotion_status.csv` — current D7 status for acceptance-test rows promoted from the original gap list.
-- `D7_CLOSURE_CHECKLIST.md` — final closure checklist and required validation gates.
-- `D7_IMPLEMENTATION_SUMMARY.md` — concise summary of D7 hardening, retained boundaries, and final validation requirement.
-- `D7_TUTORIAL_BENCHMARK_POLICY.md` — typed tutorial/benchmark truth-policy and compute-efficiency reporting policy.
+- what is included in V1
+- what is deliberately not production V1
+- which cleanup/deprecation decisions are locked
+- which release gates must remain visible
+- which evidence rows connect source material to tests
+
+These files make those decisions reviewable and machine-checkable.
+
+## Files used as contract evidence
+
+- `final_source_to_wp_decision_target_test_chain.csv` - source -> WP -> decision -> target -> test chain
+- `final_missing_or_new_acceptance_tests.csv` - acceptance-test gap/promotion list from handoff evidence
+- `v1_scope_lock.json` - compact V1 included/excluded boundary used by scope-lock tests
+- `v1_cleanup_deprecation_ledger.json` - machine-readable cleanup/deprecation ledger
+- `d7_acceptance_test_promotion_status.csv` - acceptance-test promotion status rows
+- `V1_RELEASE_ACCEPTANCE_GATES.md` - human-readable release acceptance gates used by contract tests
+
+## Human-readable policy/evidence notes
+
+- `D7_CLEANUP_DEPRECATION_POLICY.md`
+- `D7_CLOSURE_CHECKLIST.md`
+- `D7_IMPLEMENTATION_SUMMARY.md`
+- `D7_TUTORIAL_BENCHMARK_POLICY.md`
+- `core_runtime_config_contract.md`
+- `core_runtime_contract_boundary.md`
+- `report_only_diagnostics_contract.md`
+- `review_pack_contract.md`
+- `scorer_lane_contract.md`
+- `stop_reason_contract.md`
 
 ## Rules
 
 - Do not delete source-to-test evidence as cleanup.
 - Do not promote experimental/report-only features into V1 production scoring.
 - Do not remove public/API compatibility aliases without updating the cleanup ledger and the relevant tests.
-- Do not add machine-specific absolute paths to public release artifacts.
+- Do not add machine-specific absolute paths to public release artefacts.
+- If this folder is relocated later, move the tests and docs references in the same commit.

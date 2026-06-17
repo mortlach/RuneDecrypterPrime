@@ -43,22 +43,38 @@ install.bat
 src/rune_decrypter_prime/   package source
 tutorials/v1/               V1 tutorial scripts and tutorial runner
 tests/                      pytest test suite
-docs/                       user, setup, architecture, and test notes
+docs/                       user, expert, and contract-evidence docs
 assets/                     small V1 asset baseline
 output/                     generated logs and test/tutorial output
 ```
 
 `output/` is local runtime output and should not be committed.
 
-## Main docs
+## User docs
 
-- [`docs/README.md`](docs/README.md) - project overview and architecture links
-- [`docs/setup/installation.md`](docs/setup/installation.md) - simple install, tutorial run, and expert test commands
-- [`docs/setup/building.md`](docs/setup/building.md) - wheel/native build notes
+- [`docs/README.md`](docs/README.md) - docs map and reading order
+- [`docs/setup/installation.md`](docs/setup/installation.md) - simple install and tutorial run
 - [`docs/guides/quickstart.md`](docs/guides/quickstart.md) - first tutorial run
 - [`docs/guides/troubleshooting.md`](docs/guides/troubleshooting.md) - common failures
-- [`docs/tests/overview.md`](docs/tests/overview.md) - test-suite overview
-- [`docs/release_contracts/v1/README.md`](docs/release_contracts/v1/README.md) - required V1 release-contract data
+
+## Expert and integration docs
+
+- [`docs/expert/README.md`](docs/expert/README.md) - expert reading order
+- [`docs/expert/design_philosophy.md`](docs/expert/design_philosophy.md) - goals and motivations
+- [`docs/expert/component_model.md`](docs/expert/component_model.md) - component boundaries
+- [`docs/expert/gui_frontend_interfaces.md`](docs/expert/gui_frontend_interfaces.md) - GUI/front-end guidance
+- [`docs/expert/gui_interface_contract.md`](docs/expert/gui_interface_contract.md) - practical GUI contract
+- [`docs/expert/stability_surface.md`](docs/expert/stability_surface.md) - stable versus non-stable surfaces
+
+## Contract evidence used by tests
+
+The release-contract folder is not the beginner docs path. It is retained because
+contract tests read it as repo-local evidence to stop V1 drift:
+
+- [`docs/release_contracts/v1/README.md`](docs/release_contracts/v1/README.md)
+
+Do not delete or move that folder without updating the corresponding contract
+tests.
 
 ## Developer notes
 

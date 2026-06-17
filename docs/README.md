@@ -15,37 +15,45 @@ ciphertext
   -> report, telemetry, and tutorial/test result
 ```
 
-## What V1 is about
-
-V1 keeps the public surface small enough to test properly.
-
-Included in V1:
-
-- stable package install
-- API wrappers for supported ciphers
-- ScheduledStreamLookup tutorials and smoke tests
-- Span-Hamming support
-- scorer/report diagnostics
-- deterministic tutorial runner
-- Windows and Ubuntu full CI
-- Windows and Ubuntu wheel CI
-
-Not included in V1:
-
-- production n-gram Hamming scoring
-- large campaign assets as default install payload
-- save/restore solving state
-- broad experimental benchmark branches
-
 ## First-time user path
 
 1. Install: [`setup/installation.md`](setup/installation.md)
 2. Run tutorials: [`guides/quickstart.md`](guides/quickstart.md)
 3. If something fails: [`guides/troubleshooting.md`](guides/troubleshooting.md)
 
-## More detail
+## Normal user docs
 
-Architecture:
+- [`setup/installation.md`](setup/installation.md) - install and first checks
+- [`guides/quickstart.md`](guides/quickstart.md) - first tutorial run
+- [`guides/troubleshooting.md`](guides/troubleshooting.md) - common failures
+- [`guides/outputs.md`](guides/outputs.md) - generated reports, logs, and telemetry
+
+## Expert and integrator docs
+
+Use this path if you are an expert client, reviewer, or someone building a GUI or
+overlay on top of RDP:
+
+- [`expert/README.md`](expert/README.md) - expert reading order
+- [`expert/design_philosophy.md`](expert/design_philosophy.md) - goals and motivations
+- [`expert/component_model.md`](expert/component_model.md) - component boundaries
+- [`expert/gui_frontend_interfaces.md`](expert/gui_frontend_interfaces.md) - front-end integration guidance
+- [`expert/gui_interface_contract.md`](expert/gui_interface_contract.md) - practical GUI input/output contract
+- [`expert/stability_surface.md`](expert/stability_surface.md) - stable versus non-stable surfaces
+
+## Contract evidence used by tests
+
+The folder below is intentionally retained because contract tests read it as
+repo-local V1 evidence:
+
+- [`release_contracts/v1/README.md`](release_contracts/v1/README.md)
+
+That folder is not the beginner path and should not be treated as prose-only docs
+cleanup. It is a test-backed drift lock. Do not delete or move it unless the
+contract tests are updated at the same time.
+
+## Existing technical reference
+
+Some technical reference pages still exist while the docs are being cleaned up:
 
 - [`architecture/engine_api.md`](architecture/engine_api.md)
 - [`architecture/pipeline.md`](architecture/pipeline.md)
@@ -55,12 +63,5 @@ Architecture:
 - [`architecture/telemetry.md`](architecture/telemetry.md)
 - [`architecture/data.md`](architecture/data.md)
 
-Testing and traceability:
-
-- [`tests/overview.md`](tests/overview.md)
-- [`release_contracts/v1/README.md`](release_contracts/v1/README.md)
-
-Build and packaging:
-
-- [`setup/installation.md`](setup/installation.md)
-- [`setup/building.md`](setup/building.md)
+These are useful for advanced readers, but the intended expert landing page is
+now [`expert/README.md`](expert/README.md).
