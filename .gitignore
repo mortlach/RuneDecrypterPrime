@@ -39,3 +39,5 @@ env/
 
 # Wheel build outputs
 wheelhouse/
+make_docs_inventory.py
+docs/DOCS_INVENTORY_REVIEW.md
