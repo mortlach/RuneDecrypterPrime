@@ -42,6 +42,7 @@ if hasattr(sys.stdout, "reconfigure"):
 SOURCE_LABEL = "welcome_pilgrim"
 KEY_LENGTH = 7
 TUTORIAL_SEED = 2026
+DEFAULT_MIN_MATCH = 1.0
 
 
 def _env_int(name: str, default: int) -> int:
@@ -49,6 +50,13 @@ def _env_int(name: str, default: int) -> int:
     if value is None or not value.strip():
         return int(default)
     return int(value.strip())
+
+
+def _env_float(name: str, default: float) -> float:
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return float(default)
+    return float(value.strip())
 
 
 def _env_direction(name: str, default: Direction) -> Direction:
@@ -101,6 +109,7 @@ def _print_final_result_block(
     found_core: list[int],
     found_interruptors: list[int],
     match_ratio: float,
+    min_match: float,
     plaintext_idx: list[int],
     plaintext_latin: str,
     plaintext_runes: str,
@@ -119,6 +128,7 @@ def _print_final_result_block(
     print("solver_report_best_score:", getattr(report, "best_score", None))
     print("plaintext_idx_length:", len(plaintext_idx))
     print(f"Match ratio: {match_ratio:.3f}")
+    print(f"Required match ratio: {min_match:.3f}")
     print("plaintext_latin:")
     print(plaintext_latin or "<empty>")
     print("plaintext_runes:")
@@ -131,6 +141,7 @@ def main() -> None:
     max_interruptors = _env_int("RDP_LP_WELCOME_MAX_INTERRUPTORS", max_interruptors)
     beam_width = _env_int("RDP_LP_WELCOME_BEAM_WIDTH", 64)
     plateau_rounds = _env_int("RDP_LP_WELCOME_PLATEAU_ROUNDS", 5)
+    min_match = _env_float("RDP_LP_WELCOME_MIN_MATCH", DEFAULT_MIN_MATCH)
     direction = _env_direction("RDP_LP_WELCOME_DIRECTION", Direction.RTL)
 
     payload = lp.payload_from_label(SOURCE_LABEL)
@@ -157,6 +168,7 @@ def main() -> None:
     print("Key period:", KEY_LENGTH)
     print("Max interruptors:", max_interruptors)
     print("Encoding direction:", direction.value)
+    print("Required match ratio:", f"{min_match:.3f}")
 
     interrupt_cfg = InterruptorConfig(
         mode="pool",
@@ -216,10 +228,8 @@ def main() -> None:
         title="LP Welcome Pilgrim label solve",
         cipher="vigenere",
         solution=solution,
-        match_ok=None,
+        match_ok=match_ratio >= min_match,
         app_version="tutorial-1.0",
-        key_idx=found_core + found_interruptors,
-        key_len=len(found_core) + len(found_interruptors),
         ct_idx=ct_idx,
         ct_rune=Runeglish.to_rune(ct_idx, wli),
         pt_idx_ref=list(CANONICAL_WELCOME_PILGRIM_IDX),
@@ -235,10 +245,16 @@ def main() -> None:
         found_core=found_core,
         found_interruptors=found_interruptors,
         match_ratio=match_ratio,
+        min_match=min_match,
         plaintext_idx=plaintext_idx,
         plaintext_latin=plaintext_latin,
         plaintext_runes=plaintext_runes,
     )
+
+    if match_ratio < min_match:
+        raise SystemExit(
+            f"LP Welcome solve failed validation: match_ratio={match_ratio:.3f}; expected >= {min_match:.3f}"
+        )
 
 
 if __name__ == "__main__":
