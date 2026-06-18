@@ -5,6 +5,15 @@ from .run_result import RunResult
 from .specs import CipherSpec, SolverSpec, KeySpec
 from .run_spec import RawTextInput, NormalizedInput, SourceInputRef, RunSpec
 from .solver_report import SolverReport
+from .display import (
+    DISPLAY_SUMMARY_SCHEMA,
+    RdpDisplayOptions,
+    RdpDisplaySummary,
+    build_rdp_summary,
+    format_rdp_summary,
+    print_rdp_summary,
+    write_rdp_summary_json,
+)
 from .wrappers.by_name import by_name, cipher_instance
 from .normalize import (
     Direction,
@@ -40,6 +49,13 @@ __all__ = [
     "SourceInputRef",
     "RunSpec",
     "SolverReport",
+    "DISPLAY_SUMMARY_SCHEMA",
+    "RdpDisplayOptions",
+    "RdpDisplaySummary",
+    "build_rdp_summary",
+    "format_rdp_summary",
+    "print_rdp_summary",
+    "write_rdp_summary_json",
     "Direction",
     "normalize_ciphertext",
     "normalize_encoding_dir",
