@@ -64,12 +64,7 @@ def _progress_kwargs(demo: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
-def _solution_object(result_or_solution):
-    return getattr(result_or_solution, "solution", result_or_solution)
-
-
-def _match_ratio(result_or_solution, pt_idx: list[int]) -> float:
-    solution = _solution_object(result_or_solution)
+def _solution_match_ratio(solution, pt_idx: list[int]) -> float:
     guess = getattr(solution, "plaintext_idx", None)
     if not guess:
         return 0.0
@@ -187,7 +182,7 @@ def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any
         return_solver_report=True,
     )
     pt_idx = demo.get("plaintext_idx")
-    if pt_idx is not None and _match_ratio(result, pt_idx) < 0.999:
+    if pt_idx is not None and _solution_match_ratio(result.solution, pt_idx) < 0.999:
         print("[General Map] retrying with wider beam...")
         solver_spec = api.SolverSpec.beam(
             beam_width=96,
@@ -213,24 +208,16 @@ def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any
     _print_summary("General Map Beam", result, demo)
 
 
-def _print_summary(label: str, result_or_solution, demo: Dict[str, Any]) -> None:
+def _print_summary(label: str, result, demo: Dict[str, Any]) -> None:
     pt_idx = demo.get("plaintext_idx")
     reference_idx = list(pt_idx) if pt_idx is not None else None
-    solution = _solution_object(result_or_solution)
 
     print(f"\n[{label}] standard summary")
     api.print_rdp_summary(
-        result_or_solution,
+        result,
         reference_idx=reference_idx,
         options=api.RdpDisplayOptions.for_tutorial(),
     )
-
-    # Compatibility lines for older tutorial gates that still scrape console text.
-    if reference_idx is not None:
-        print(f"match_ratio={_match_ratio(solution, reference_idx):.3f}")
-    score = getattr(solution, "score", None)
-    if score is not None:
-        print(f"score={float(score):.6f}")
 
 
 def main():
