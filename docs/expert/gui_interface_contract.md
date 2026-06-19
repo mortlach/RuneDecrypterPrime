@@ -32,24 +32,28 @@ output folder
 
 ## Standard display/share surface
 
-The preferred structured display surface is the API standard summary:
+The preferred structured display surface is the API standard summary plus the
+standard printer facade:
 
 ```python
+from pathlib import Path
+
 from rune_decrypter_prime.api import (
     RdpDisplayOptions,
-    build_rdp_summary,
-    print_rdp_summary,
-    write_rdp_summary_json,
+    RdpPrintFormat,
+    print_rdp_result,
+    render_rdp_summary,
+    write_rdp_summary_artifact,
 )
 
-summary = build_rdp_summary(
+summary = print_rdp_result(
     result,
     spec=run_spec,  # preferred when available
     reference_plaintext=known_plaintext,  # optional tutorial/review aid
     options=RdpDisplayOptions.standard(),
 )
-print_rdp_summary(summary)
-write_rdp_summary_json(summary)
+json_text = render_rdp_summary(summary, output_format=RdpPrintFormat.JSON)
+relpath = write_rdp_summary_artifact(summary, run_dir=Path("output/run"))
 ```
 
 The JSON sidecar path is:
@@ -64,6 +68,10 @@ LP-evidence, console, and debug views should use the same schema with different
 
 If `RunSpec` is not supplied, the summary must warn that the problem/cipher/key
 configuration is only reconstructed from result/report fields.
+
+Public display and printer return values must not expose absolute local machine
+paths. Real paths may be used internally to write files, but displayed artifact
+paths should be run-relative, such as `artifacts/rdp_display_summary.json`.
 
 ## Output surfaces
 
