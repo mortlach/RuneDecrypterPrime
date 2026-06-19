@@ -28,14 +28,17 @@ class LoggingConfig:
     Configuration for initializing a run's logging/telemetry directories.
 
     Fields mirror the existing codebase to avoid breaking callers:
-      - verbose:         enable verbose console logging
-      - print_progress:  allow progress printing
-      - write_jsonl:     write JSONL event stream under logs/
-      - repo_root:       explicit repository root (optional)
-      - out_root:        base output directory (optional, default: <repo_root>/out)
-      - run_kind:        short tag for the run kind (e.g., "test", "bench", "solve")
-      - label:           human-friendly label to include in the run directory name
-      - fixed_run_dir:   if set, use this exact directory (absolute or relative to out_root/runs)
+      - verbose:                     enable verbose console logging
+      - print_progress:              allow progress printing
+      - write_jsonl:                 write JSONL event stream under logs/
+      - repo_root:                   explicit repository root (optional)
+      - out_root:                    base output directory (optional, default: <repo_root>/out)
+      - run_kind:                    short tag for the run kind (e.g., "test", "bench", "solve")
+      - label:                       human-friendly label to include in the run directory name
+      - fixed_run_dir:               if set, use this exact directory (absolute or relative to out_root/runs)
+      - write_solver_report:         write artifacts/solver_report.json
+      - write_rdp_display_summary:   write artifacts/rdp_display_summary.json
+      - write_run_artifacts_manifest: write artifacts/run_artifacts_manifest.json
 
     No environment variables or CLI flags are read here—config is explicit.
     """
@@ -50,11 +53,14 @@ class LoggingConfig:
     redact_identity: bool = False
     portable_output: bool = False
     write_solver_report: bool = False
+    write_rdp_display_summary: bool = False
     write_run_artifacts_manifest: bool = False
 
     def __post_init__(self) -> None:
         if type(self.write_solver_report) is not bool:
             raise TypeError("write_solver_report must be a bool")
+        if type(self.write_rdp_display_summary) is not bool:
+            raise TypeError("write_rdp_display_summary must be a bool")
         if type(self.write_run_artifacts_manifest) is not bool:
             raise TypeError("write_run_artifacts_manifest must be a bool")
 
@@ -82,7 +88,6 @@ def current_paths() -> Dict[str, str]:
       {"run_dir", "logs_dir", "trace_dir"}  (string paths)
     """
     return dict(_PATHS)
-
 
 # ----------------------------
 # Internal helpers
@@ -266,7 +271,6 @@ def _write_logging_snapshot(run_dir: Path, cfg: LoggingConfig, repo_root: Path, 
 
 def _ensure_dirs(d: Path) -> None:
     d.mkdir(parents=True, exist_ok=True)
-
 
 # ----------------------------
 # Public entry point
