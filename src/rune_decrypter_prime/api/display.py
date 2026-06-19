@@ -36,7 +36,7 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path, PurePosixPath, PureWindowsPath
+from pathlib import Path, PurePosixPath
 from typing import Any, TextIO
 
 from rune_decrypter_prime.api.artifact_agreement import KnownArtifactRelpath
@@ -70,7 +70,6 @@ class RdpDisplayOptions:
     ciphertext_preview_chars: int = 240
     max_sequence_preview: int = 40
     include_scope_notes: bool = True
-    allow_absolute_paths: bool = False
 
     def __post_init__(self) -> None:
         _require_text(self.mode, "mode")
@@ -81,7 +80,6 @@ class RdpDisplayOptions:
         _require_bool(self.include_scorer_report, "include_scorer_report")
         _require_bool(self.include_telemetry_summary, "include_telemetry_summary")
         _require_bool(self.include_scope_notes, "include_scope_notes")
-        _require_bool(self.allow_absolute_paths, "allow_absolute_paths")
         _require_nonnegative_int(self.plaintext_preview_chars, "plaintext_preview_chars")
         _require_nonnegative_int(self.ciphertext_preview_chars, "ciphertext_preview_chars")
         _require_nonnegative_int(self.max_sequence_preview, "max_sequence_preview")
@@ -183,12 +181,7 @@ def build_rdp_summary(
     artifact_manifest_path: str | Path | None = None,
     options: RdpDisplayOptions | None = None,
 ) -> RdpDisplaySummary:
-    """Build the standard display/share summary from an RDP result or solution.
-
-    ``value`` may be an API ``RunResult`` or a solution-like object. Pass
-    ``spec`` when available; without it, the summary deliberately reports a
-    warning because the result object does not contain all original config.
-    """
+    """Build the standard display/share summary from an RDP result or solution."""
 
     options = options or RdpDisplayOptions.standard()
     if not isinstance(options, RdpDisplayOptions):
@@ -310,8 +303,6 @@ def print_rdp_summary(
     file: TextIO | None = None,
     **build_kwargs: Any,
 ) -> None:
-    """Print a compact RDP display summary to stdout or a supplied file."""
-
     import sys
 
     target = sys.stdout if file is None else file
@@ -786,9 +777,7 @@ def _json_value(value: object, *, options: RdpDisplayOptions) -> Any:
     if isinstance(value, Enum):
         return value.value
     if isinstance(value, Path):
-        if value.is_absolute() and not options.allow_absolute_paths:
-            return _safe_display_path(value)
-        return value.as_posix()
+        return _safe_display_path(value)
     if hasattr(value, "item"):
         try:
             return _json_value(value.item(), options=options)
