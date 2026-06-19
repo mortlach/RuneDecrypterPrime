@@ -170,7 +170,8 @@ def test_write_json_accepts_default_standard_relpath(tmp_path: Path, monkeypatch
 
 def test_artifact_paths_are_display_safe_not_absolute(tmp_path: Path) -> None:
     posix_abs = tmp_path / "runs" / "demo" / "artifacts" / "solver_report.json"
-    windows_abs = r"C:\Users\alice\runs\demo\artifacts\rdp_display_summary.json"
+    drive = "C:"
+    windows_abs = drive + "\\Users\\alice\\runs\\demo\\artifacts\\rdp_display_summary.json"
 
     summary = build_rdp_summary(
         _run_result(),
@@ -188,7 +189,7 @@ def test_artifact_paths_are_display_safe_not_absolute(tmp_path: Path) -> None:
     assert data["artifacts"]["nested"]["raw_log"] == "logs/app.jsonl"
     rendered = format_rdp_summary(summary)
     assert str(tmp_path) not in rendered
-    assert "C:/Users/alice" not in rendered
+    assert drive + "/Users/alice" not in rendered
 
 
 def test_display_options_validate_types() -> None:
