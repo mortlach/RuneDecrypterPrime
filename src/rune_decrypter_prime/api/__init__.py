@@ -6,6 +6,7 @@ from .specs import CipherSpec, SolverSpec, KeySpec
 from .run_spec import RawTextInput, NormalizedInput, SourceInputRef, RunSpec
 from .solver_report import SolverReport
 from .display import (
+    DISPLAY_SUMMARY_RELPATH,
     DISPLAY_SUMMARY_SCHEMA,
     RdpDisplayOptions,
     RdpDisplaySummary,
@@ -49,6 +50,7 @@ __all__ = [
     "SourceInputRef",
     "RunSpec",
     "SolverReport",
+    "DISPLAY_SUMMARY_RELPATH",
     "DISPLAY_SUMMARY_SCHEMA",
     "RdpDisplayOptions",
     "RdpDisplaySummary",
