@@ -15,6 +15,12 @@ from .display import (
     print_rdp_summary,
     write_rdp_summary_json,
 )
+from .printer import (
+    RdpPrintFormat,
+    print_rdp_result,
+    render_rdp_summary,
+    write_rdp_summary_artifact,
+)
 from .wrappers.by_name import by_name, cipher_instance
 from .normalize import (
     Direction,
@@ -58,6 +64,10 @@ __all__ = [
     "format_rdp_summary",
     "print_rdp_summary",
     "write_rdp_summary_json",
+    "RdpPrintFormat",
+    "print_rdp_result",
+    "render_rdp_summary",
+    "write_rdp_summary_artifact",
     "Direction",
     "normalize_ciphertext",
     "normalize_encoding_dir",
