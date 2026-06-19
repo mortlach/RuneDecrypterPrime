@@ -39,6 +39,7 @@ def test_writes_v1_manifest_under_artifacts(tmp_path: Path) -> None:
 def test_manifest_uses_fixed_order_and_run_relative_posix_paths(tmp_path: Path) -> None:
     _write_required_files(tmp_path)
     (tmp_path / "artifacts" / "solver_report.json").write_text("{}\n", encoding="utf-8")
+    (tmp_path / "artifacts" / "rdp_display_summary.json").write_text("{}\n", encoding="utf-8")
 
     write_run_artifacts_manifest(run_dir=tmp_path)
 
@@ -48,12 +49,13 @@ def test_manifest_uses_fixed_order_and_run_relative_posix_paths(tmp_path: Path) 
         "META.json",
         "config/logging.json",
         "artifacts/solver_report.json",
+        "artifacts/rdp_display_summary.json",
     ]
     assert all(not os.path.isabs(row["relpath"]) for row in rows)
     assert all("\\" not in row["relpath"] for row in rows)
 
 
-def test_includes_required_rows_without_solver_report(tmp_path: Path) -> None:
+def test_includes_required_rows_without_solver_report_or_display_summary(tmp_path: Path) -> None:
     _write_required_files(tmp_path)
 
     write_run_artifacts_manifest(run_dir=tmp_path)
@@ -95,7 +97,26 @@ def test_includes_existing_solver_report_row_when_not_requested(tmp_path: Path) 
     ]
 
 
-def test_omits_missing_solver_report_when_not_requested(tmp_path: Path) -> None:
+def test_includes_existing_display_summary_row_when_present(tmp_path: Path) -> None:
+    _write_required_files(tmp_path)
+    (tmp_path / "artifacts" / "rdp_display_summary.json").write_text("{}\n", encoding="utf-8")
+
+    write_run_artifacts_manifest(run_dir=tmp_path)
+
+    rows = _read_manifest(tmp_path)["rows"]
+    assert isinstance(rows, list)
+    assert [row["artifact_kind"] for row in rows] == [
+        "run_meta",
+        "logging_config",
+        "rdp_display_summary",
+    ]
+    display_row = rows[-1]
+    assert display_row["relpath"] == "artifacts/rdp_display_summary.json"
+    assert display_row["required"] is False
+    assert display_row["present"] is True
+
+
+def test_omits_missing_solver_report_and_display_summary_when_not_requested(tmp_path: Path) -> None:
     _write_required_files(tmp_path)
 
     write_run_artifacts_manifest(run_dir=tmp_path, include_solver_report=False)
@@ -103,6 +124,7 @@ def test_omits_missing_solver_report_when_not_requested(tmp_path: Path) -> None:
     rows = _read_manifest(tmp_path)["rows"]
     assert isinstance(rows, list)
     assert "solver_report" not in {row["artifact_kind"] for row in rows}
+    assert "rdp_display_summary" not in {row["artifact_kind"] for row in rows}
 
 
 def test_raises_for_missing_required_meta(tmp_path: Path) -> None:
@@ -146,6 +168,7 @@ def test_does_not_include_logs_or_trace(tmp_path: Path) -> None:
 def test_does_not_include_hashes_sizes_mtimes_or_absolute_paths(tmp_path: Path) -> None:
     _write_required_files(tmp_path)
     (tmp_path / "artifacts" / "solver_report.json").write_text("{}\n", encoding="utf-8")
+    (tmp_path / "artifacts" / "rdp_display_summary.json").write_text("{}\n", encoding="utf-8")
 
     write_run_artifacts_manifest(run_dir=tmp_path)
 
