@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """First-class display/share contract for RDP runs.
 
-This module is intentionally API-level, not tutorial-specific.  It builds a
+This module is intentionally API-level, not tutorial-specific. It builds a
 small, JSON-safe view of the main objects users need to inspect, debug, review,
 and share: problem/input summary, cipher/key/solver/scoring configuration,
 solver result, solver report, scorer report, telemetry, stop reason, oracle use,
@@ -13,7 +13,9 @@ Scope in v1:
   KeySpec, SolverSpec, RunResult, Solution, SolverReport, and ScorerReport;
 - avoid changing solver/scorer behaviour;
 - provide deterministic, compact console text plus a stable JSON payload;
-- make missing context visible through warnings rather than guessing.
+- make missing context visible through warnings rather than guessing;
+- use one standard summary schema for tutorials, examples, LP evidence, user
+  scripts, and future GUI/report consumers.
 
 Known gaps / TODOs:
 - RDP does not yet attach the originating RunSpec to RunResult, so callers should
@@ -36,6 +38,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, TextIO
 
+from rune_decrypter_prime.api.artifact_agreement import KnownArtifactRelpath
 from rune_decrypter_prime.api.run_result import RunResult
 from rune_decrypter_prime.api.run_spec import NormalizedInput, RawTextInput, RunSpec, SourceInputRef
 from rune_decrypter_prime.api.solver_report import SolverReport, SolverReportDetailKey
@@ -46,11 +49,12 @@ from rune_decrypter_prime.api.stop_reason_contract import (
 )
 
 DISPLAY_SUMMARY_SCHEMA = "api_display_summary.v1"
+DISPLAY_SUMMARY_RELPATH = KnownArtifactRelpath.RDP_DISPLAY_SUMMARY.value
 
 
 @dataclass(frozen=True, slots=True)
 class RdpDisplayOptions:
-    """Controls how much of an RDP run is shown in the display/share view."""
+    """Controls how much of the standard RDP run summary is shown."""
 
     mode: str = "standard"
     include_plaintext: bool = True
@@ -102,7 +106,7 @@ class RdpDisplayOptions:
 
 @dataclass(frozen=True, slots=True)
 class RdpDisplaySummary:
-    """JSON-safe, shareable display view of an RDP run."""
+    """JSON-safe, shareable standard display view of an RDP run."""
 
     schema: str = DISPLAY_SUMMARY_SCHEMA
     problem: Mapping[str, Any] = field(default_factory=dict)
@@ -176,9 +180,9 @@ def build_rdp_summary(
     artifact_manifest_path: str | Path | None = None,
     options: RdpDisplayOptions | None = None,
 ) -> RdpDisplaySummary:
-    """Build a stable display/share summary from an RDP result or solution.
+    """Build the standard display/share summary from an RDP result or solution.
 
-    ``value`` may be an API ``RunResult`` or a solution-like object.  Pass
+    ``value`` may be an API ``RunResult`` or a solution-like object. Pass
     ``spec`` when available; without it, the summary deliberately reports a
     warning because the result object does not contain all original config.
     """
@@ -248,13 +252,13 @@ def build_rdp_summary(
 
 
 def format_rdp_summary(summary: RdpDisplaySummary | object, **build_kwargs: Any) -> str:
-    """Return a compact human-readable RDP summary."""
+    """Return a compact human-readable rendering of the standard summary."""
 
     if not isinstance(summary, RdpDisplaySummary):
         summary = build_rdp_summary(summary, **build_kwargs)
 
     data = summary.to_json_dict()
-    lines: list[str] = ["RDP run summary", "==============="]
+    lines: list[str] = ["RDP standard summary", "===================="]
 
     result = data.get("result") or {}
     solver = data.get("solver") or {}
@@ -274,8 +278,10 @@ def format_rdp_summary(summary: RdpDisplaySummary | object, **build_kwargs: Any)
     _append_kv(lines, "truth_data_policy", oracle.get("truth_data_policy"))
 
     plaintext = result.get("plaintext")
-    if isinstance(plaintext, Mapping) and plaintext.get("preview"):
-        lines.extend(["", "Plaintext", "---------", str(plaintext["preview"])])
+    if isinstance(plaintext, Mapping):
+        preview = plaintext.get("latin_preview") or plaintext.get("rune_preview")
+        if preview:
+            lines.extend(["", "Plaintext", "---------", str(preview)])
 
     key = data.get("key") or {}
     recovered = key.get("recovered_key") if isinstance(key, Mapping) else None
@@ -309,13 +315,15 @@ def print_rdp_summary(
     target.write(format_rdp_summary(summary, **build_kwargs))
 
 
-def write_rdp_summary_json(summary: RdpDisplaySummary, path: Path) -> str:
-    """Write a display summary JSON file and return the path as text."""
+def write_rdp_summary_json(summary: RdpDisplaySummary, path: Path | str = DISPLAY_SUMMARY_RELPATH) -> str:
+    """Write a display summary JSON file and return the path as POSIX text."""
 
     if not isinstance(summary, RdpDisplaySummary):
         raise TypeError("summary must be RdpDisplaySummary")
+    if isinstance(path, str):
+        path = Path(path)
     if not isinstance(path, Path):
-        raise TypeError("path must be a Path")
+        raise TypeError("path must be a Path or string")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(summary.to_json_dict(), indent=2, sort_keys=True, ensure_ascii=False) + "\n",
@@ -327,6 +335,8 @@ def write_rdp_summary_json(summary: RdpDisplaySummary, path: Path) -> str:
 def _solution_from(value: object) -> object | None:
     if isinstance(value, RunResult):
         return value.solution
+    if isinstance(value, SolverReport):
+        return None
     return value
 
 
@@ -600,6 +610,7 @@ def _artifact_summary(
     options: RdpDisplayOptions,
 ) -> dict[str, Any]:
     out = dict(artifacts or {})
+    out.setdefault("display_summary_relpath", DISPLAY_SUMMARY_RELPATH)
     if artifact_manifest_path is not None:
         out["artifact_manifest_path"] = artifact_manifest_path
     return _json_value(out, options=options)
@@ -826,6 +837,7 @@ def _dedupe(values: Sequence[str]) -> tuple[str, ...]:
 
 
 __all__ = [
+    "DISPLAY_SUMMARY_RELPATH",
     "DISPLAY_SUMMARY_SCHEMA",
     "RdpDisplayOptions",
     "RdpDisplaySummary",
