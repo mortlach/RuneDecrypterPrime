@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from rune_decrypter_prime.api import (
+    DISPLAY_SUMMARY_RELPATH,
     DISPLAY_SUMMARY_SCHEMA,
     CipherSpec,
     KeySpec,
@@ -107,6 +108,7 @@ def test_builds_spec_aware_display_summary() -> None:
     assert data["stop"]["stop_category"] == "success"
     assert data["oracle"]["oracle_use"] == "none"
     assert data["tutorial"]["path"] == "Tutorial_Demo.py"
+    assert data["artifacts"]["display_summary_relpath"] == DISPLAY_SUMMARY_RELPATH
     assert data["artifacts"]["solver_report_path"] == "artifacts/solver_report.json"
     assert data["solver_report"]["details"]["scorer_lanes"] == {"lanes": [], "components": []}
 
@@ -141,8 +143,9 @@ def test_format_and_write_json_summary(tmp_path: Path) -> None:
     summary = build_rdp_summary(_run_result(), spec=_run_spec())
 
     text = format_rdp_summary(summary)
-    assert "RDP run summary" in text
+    assert "RDP standard summary" in text
     assert "stop_category: success" in text
+    assert "Plaintext" in text
 
     out = tmp_path / "artifacts" / "rdp_display_summary.json"
     written = write_rdp_summary_json(summary, out)
@@ -151,6 +154,16 @@ def test_format_and_write_json_summary(tmp_path: Path) -> None:
     payload = json.loads(out.read_text(encoding="utf-8"))
     assert payload["schema"] == DISPLAY_SUMMARY_SCHEMA
     assert payload["solver"]["solver_name"] == "beam"
+
+
+def test_write_json_accepts_default_standard_relpath(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    summary = build_rdp_summary(_run_result(), spec=_run_spec())
+
+    written = write_rdp_summary_json(summary)
+
+    assert written == DISPLAY_SUMMARY_RELPATH
+    assert (tmp_path / DISPLAY_SUMMARY_RELPATH).is_file()
 
 
 def test_display_options_validate_types() -> None:
