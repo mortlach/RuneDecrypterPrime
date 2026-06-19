@@ -15,7 +15,8 @@ Scope in v1:
 - provide deterministic, compact console text plus a stable JSON payload;
 - make missing context visible through warnings rather than guessing;
 - use one standard summary schema for tutorials, examples, LP evidence, user
-  scripts, and future GUI/report consumers.
+  scripts, and future GUI/report consumers;
+- never expose absolute local filesystem paths in display output.
 
 Known gaps / TODOs:
 - RDP does not yet attach the originating RunSpec to RunResult, so callers should
@@ -35,7 +36,7 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, TextIO
 
 from rune_decrypter_prime.api.artifact_agreement import KnownArtifactRelpath
@@ -50,6 +51,8 @@ from rune_decrypter_prime.api.stop_reason_contract import (
 
 DISPLAY_SUMMARY_SCHEMA = "api_display_summary.v1"
 DISPLAY_SUMMARY_RELPATH = KnownArtifactRelpath.RDP_DISPLAY_SUMMARY.value
+_OPSEC_PATH_PARENT_NAMES = frozenset({"artifacts", "config", "logs", "trace", "traces", "output"})
+_WINDOWS_ABSOLUTE_RE = re.compile(r"^[A-Za-z]:[\\/]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -316,7 +319,7 @@ def print_rdp_summary(
 
 
 def write_rdp_summary_json(summary: RdpDisplaySummary, path: Path | str = DISPLAY_SUMMARY_RELPATH) -> str:
-    """Write a display summary JSON file and return the path as POSIX text."""
+    """Write a display summary JSON file and return a display-safe POSIX path."""
 
     if not isinstance(summary, RdpDisplaySummary):
         raise TypeError("summary must be RdpDisplaySummary")
@@ -329,7 +332,7 @@ def write_rdp_summary_json(summary: RdpDisplaySummary, path: Path | str = DISPLA
         json.dumps(summary.to_json_dict(), indent=2, sort_keys=True, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
-    return path.as_posix()
+    return _safe_display_path(path)
 
 
 def _solution_from(value: object) -> object | None:
@@ -613,7 +616,40 @@ def _artifact_summary(
     out.setdefault("display_summary_relpath", DISPLAY_SUMMARY_RELPATH)
     if artifact_manifest_path is not None:
         out["artifact_manifest_path"] = artifact_manifest_path
-    return _json_value(out, options=options)
+    return _json_value(_redact_artifact_paths(out), options=options)
+
+
+def _redact_artifact_paths(value: object) -> object:
+    if isinstance(value, Mapping):
+        return {str(key): _redact_artifact_paths(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_redact_artifact_paths(item) for item in value]
+    if isinstance(value, Path):
+        return _safe_display_path(value)
+    if isinstance(value, str) and _looks_like_path(value):
+        return _safe_display_path(value)
+    return value
+
+
+def _safe_display_path(value: Path | str) -> str:
+    raw = value.as_posix() if isinstance(value, Path) else str(value).replace("\\", "/")
+    if not _looks_like_absolute_path(raw):
+        return raw
+    parts = tuple(part for part in PurePosixPath(raw).parts if part not in ("/", ""))
+    if not parts:
+        return "."
+    for index, part in enumerate(parts):
+        if part in _OPSEC_PATH_PARENT_NAMES and index + 1 < len(parts):
+            return PurePosixPath(*parts[index:]).as_posix()
+    return parts[-1]
+
+
+def _looks_like_path(value: str) -> bool:
+    return "/" in value or "\\" in value or bool(_WINDOWS_ABSOLUTE_RE.match(value))
+
+
+def _looks_like_absolute_path(value: str) -> bool:
+    return value.startswith("/") or bool(_WINDOWS_ABSOLUTE_RE.match(value))
 
 
 def _optional_mapping(value: Mapping[str, Any] | None, field_name: str, *, options: RdpDisplayOptions) -> dict[str, Any] | None:
@@ -751,7 +787,7 @@ def _json_value(value: object, *, options: RdpDisplayOptions) -> Any:
         return value.value
     if isinstance(value, Path):
         if value.is_absolute() and not options.allow_absolute_paths:
-            return value.name
+            return _safe_display_path(value)
         return value.as_posix()
     if hasattr(value, "item"):
         try:
