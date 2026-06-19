@@ -26,24 +26,28 @@ def test_v1_agreement_names_expected_artifacts() -> None:
         KnownArtifactRelpath.RUN_META,
         KnownArtifactRelpath.LOGGING_CONFIG,
         KnownArtifactRelpath.SOLVER_REPORT,
+        KnownArtifactRelpath.RDP_DISPLAY_SUMMARY,
         KnownArtifactRelpath.RUN_ARTIFACTS_MANIFEST,
     ]
     assert [row.artifact_kind for row in rows] == [
         ArtifactKind.RUN_META,
         ArtifactKind.LOGGING_CONFIG,
         ArtifactKind.SOLVER_REPORT,
+        ArtifactKind.RDP_DISPLAY_SUMMARY,
         ArtifactKind.RUN_ARTIFACTS_MANIFEST,
     ]
     assert [row.to_json_dict()["relpath"] for row in rows] == [
         "META.json",
         "config/logging.json",
         "artifacts/solver_report.json",
+        "artifacts/rdp_display_summary.json",
         "artifacts/run_artifacts_manifest.json",
     ]
     assert [row.to_json_dict()["artifact_kind"] for row in rows] == [
         "run_meta",
         "logging_config",
         "solver_report",
+        "rdp_display_summary",
         "run_artifacts_manifest",
     ]
 
@@ -59,16 +63,21 @@ def test_artifact_agreement_stores_enums_and_emits_json_strings() -> None:
     assert row.to_json_dict()["export_classification"] == "candidate"
 
 
-def test_manifest_agreement_excludes_manifest_itself_and_reviews_solver_report() -> None:
+def test_manifest_agreement_excludes_manifest_itself_and_reviews_solver_report_and_display_summary() -> None:
     rows_by_kind = agreement_manifest_row_by_kind_v1()
     solver_row = rows_by_kind[ArtifactKind.SOLVER_REPORT.value]
+    display_row = rows_by_kind[ArtifactKind.RDP_DISPLAY_SUMMARY.value]
 
-    assert set(rows_by_kind) == {"run_meta", "logging_config", "solver_report"}
+    assert set(rows_by_kind) == {"run_meta", "logging_config", "solver_report", "rdp_display_summary"}
     assert ArtifactKind.RUN_ARTIFACTS_MANIFEST.value not in rows_by_kind
     assert solver_row.required is False
     assert solver_row.portable_classification is ArtifactClassification.CANDIDATE
     assert solver_row.export_classification is ArtifactClassification.CANDIDATE
     assert solver_row.review_required is True
+    assert display_row.required is False
+    assert display_row.portable_classification is ArtifactClassification.CANDIDATE
+    assert display_row.export_classification is ArtifactClassification.CANDIDATE
+    assert display_row.review_required is True
 
 
 @pytest.mark.parametrize("bad_relpath", ["", "/absolute.json", "../outside.json", "a/../b.json", "a\\b.json"])
