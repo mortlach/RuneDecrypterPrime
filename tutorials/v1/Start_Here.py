@@ -213,7 +213,7 @@ def _print_summary(label: str, result, demo: Dict[str, Any]) -> None:
     reference_idx = list(pt_idx) if pt_idx is not None else None
 
     print(f"\n[{label}] standard summary")
-    api.print_rdp_summary(
+    api.print_rdp_result(
         result,
         reference_idx=reference_idx,
         options=api.RdpDisplayOptions.for_tutorial(),
