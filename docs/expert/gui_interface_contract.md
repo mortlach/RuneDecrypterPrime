@@ -30,6 +30,41 @@ source label, where supported
 output folder
 ```
 
+## Standard display/share surface
+
+The preferred structured display surface is the API standard summary:
+
+```python
+from rune_decrypter_prime.api import (
+    RdpDisplayOptions,
+    build_rdp_summary,
+    print_rdp_summary,
+    write_rdp_summary_json,
+)
+
+summary = build_rdp_summary(
+    result,
+    spec=run_spec,  # preferred when available
+    reference_plaintext=known_plaintext,  # optional tutorial/review aid
+    options=RdpDisplayOptions.standard(),
+)
+print_rdp_summary(summary)
+write_rdp_summary_json(summary)
+```
+
+The JSON sidecar path is:
+
+```text
+artifacts/rdp_display_summary.json
+```
+
+This is the standard contract for human display and lightweight sharing. Tutorial,
+LP-evidence, console, and debug views should use the same schema with different
+`RdpDisplayOptions`; they should not invent separate summary formats.
+
+If `RunSpec` is not supplied, the summary must warn that the problem/cipher/key
+configuration is only reconstructed from result/report fields.
+
 ## Output surfaces
 
 A GUI should read:
@@ -41,6 +76,7 @@ structured reports
 artefact files
 telemetry JSONL
 tutorial summaries
+artifacts/rdp_display_summary.json
 ```
 
 Do not depend on exact human console wording.
@@ -59,6 +95,7 @@ A useful GUI run record should contain:
   "match_ratio": 1.0,
   "stop_reason": "success",
   "report_path": "output/tutorials/...",
+  "display_summary_path": "output/tutorials/.../artifacts/rdp_display_summary.json",
   "telemetry_path": "output/tutorials/.../logs/app.jsonl",
   "warnings": []
 }
@@ -77,6 +114,7 @@ blocked tutorial entry
 solver stopped by budget
 diagnostic value is report-only
 backend/device differs
+standard display summary reconstructed without RunSpec
 ```
 
 ## Not a stable GUI contract
