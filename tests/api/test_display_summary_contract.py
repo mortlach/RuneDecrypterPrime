@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -150,7 +151,8 @@ def test_format_and_write_json_summary(tmp_path: Path) -> None:
     out = tmp_path / "artifacts" / "rdp_display_summary.json"
     written = write_rdp_summary_json(summary, out)
 
-    assert written.endswith("artifacts/rdp_display_summary.json")
+    assert written == "artifacts/rdp_display_summary.json"
+    assert not os.path.isabs(written)
     payload = json.loads(out.read_text(encoding="utf-8"))
     assert payload["schema"] == DISPLAY_SUMMARY_SCHEMA
     assert payload["solver"]["solver_name"] == "beam"
@@ -164,6 +166,29 @@ def test_write_json_accepts_default_standard_relpath(tmp_path: Path, monkeypatch
 
     assert written == DISPLAY_SUMMARY_RELPATH
     assert (tmp_path / DISPLAY_SUMMARY_RELPATH).is_file()
+
+
+def test_artifact_paths_are_display_safe_not_absolute(tmp_path: Path) -> None:
+    posix_abs = tmp_path / "runs" / "demo" / "artifacts" / "solver_report.json"
+    windows_abs = r"C:\Users\alice\runs\demo\artifacts\rdp_display_summary.json"
+
+    summary = build_rdp_summary(
+        _run_result(),
+        spec=_run_spec(),
+        artifacts={
+            "solver_report_path": posix_abs,
+            "display_summary_path": windows_abs,
+            "nested": {"raw_log": tmp_path / "logs" / "app.jsonl"},
+        },
+    )
+    data = summary.to_json_dict()
+
+    assert data["artifacts"]["solver_report_path"] == "artifacts/solver_report.json"
+    assert data["artifacts"]["display_summary_path"] == "artifacts/rdp_display_summary.json"
+    assert data["artifacts"]["nested"]["raw_log"] == "logs/app.jsonl"
+    rendered = format_rdp_summary(summary)
+    assert str(tmp_path) not in rendered
+    assert "C:/Users/alice" not in rendered
 
 
 def test_display_options_validate_types() -> None:
