@@ -100,6 +100,8 @@ def _build_v1_rows(
 ) -> tuple[RunArtifactManifestRow, ...]:
     solver_report_relpath = KnownArtifactRelpath.SOLVER_REPORT.value
     solver_report_path = run_root / solver_report_relpath
+    display_summary_relpath = KnownArtifactRelpath.RDP_DISPLAY_SUMMARY.value
+    display_summary_path = run_root / display_summary_relpath
     rows: list[RunArtifactManifestRow] = [
         _row_from_agreement(ArtifactKind.RUN_META, present=True),
         _row_from_agreement(ArtifactKind.LOGGING_CONFIG, present=True),
@@ -111,6 +113,9 @@ def _build_v1_rows(
         rows.append(_row_from_agreement(ArtifactKind.SOLVER_REPORT, present=True))
     elif solver_report_path.is_file():
         rows.append(_row_from_agreement(ArtifactKind.SOLVER_REPORT, present=True))
+
+    if display_summary_path.is_file():
+        rows.append(_row_from_agreement(ArtifactKind.RDP_DISPLAY_SUMMARY, present=True))
 
     _validate_unique_rows(rows)
     _validate_rows_match_agreement(rows)
