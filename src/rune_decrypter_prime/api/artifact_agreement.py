@@ -19,6 +19,7 @@ class ArtifactKind(StrEnum):
     RUN_META = "run_meta"
     LOGGING_CONFIG = "logging_config"
     SOLVER_REPORT = "solver_report"
+    RDP_DISPLAY_SUMMARY = "rdp_display_summary"
     RUN_ARTIFACTS_MANIFEST = "run_artifacts_manifest"
 
 
@@ -26,6 +27,7 @@ class KnownArtifactRelpath(StrEnum):
     RUN_META = "META.json"
     LOGGING_CONFIG = "config/logging.json"
     SOLVER_REPORT = "artifacts/solver_report.json"
+    RDP_DISPLAY_SUMMARY = "artifacts/rdp_display_summary.json"
     RUN_ARTIFACTS_MANIFEST = "artifacts/run_artifacts_manifest.json"
 
 
@@ -152,6 +154,15 @@ def artifact_agreement_v1() -> tuple[ArtifactAgreementRow, ...]:
             export_classification=ArtifactClassification.CANDIDATE,
             review_required=True,
             notes="stable-readable SolverReport sidecar; review before export",
+        ),
+        ArtifactAgreementRow(
+            relpath=KnownArtifactRelpath.RDP_DISPLAY_SUMMARY,
+            artifact_kind=ArtifactKind.RDP_DISPLAY_SUMMARY,
+            required=False,
+            portable_classification=ArtifactClassification.CANDIDATE,
+            export_classification=ArtifactClassification.CANDIDATE,
+            review_required=True,
+            notes="stable-readable API display/share summary; review before export",
         ),
         ArtifactAgreementRow(
             relpath=KnownArtifactRelpath.RUN_ARTIFACTS_MANIFEST,
