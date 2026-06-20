@@ -64,7 +64,7 @@ def _progress_kwargs(demo: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
-def _solution_match_ratio(solution, pt_idx: list[int]) -> float:
+def _match_ratio(solution, pt_idx: list[int]) -> float:
     guess = getattr(solution, "plaintext_idx", None)
     if not guess:
         return 0.0
@@ -137,7 +137,7 @@ def solve_with_wrappers(
         seed=1337,
         **_progress_kwargs(demo),
     )
-    result = api.run(
+    solution = api.run(
         text=demo["ciphertext"],
         cipher=cipher_spec,
         key=key_spec,
@@ -147,9 +147,8 @@ def solve_with_wrappers(
         encoding_dir=demo["encoding_dir"],
         telemetry_on=True,
         initial_keys=[demo["secret_key"]],
-        return_solver_report=True,
     )
-    _print_summary("Wrapper Beam", result, demo)
+    _print_summary("Wrapper Beam", solution)
 
 
 def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any]):
@@ -170,7 +169,7 @@ def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any
         **_progress_kwargs(demo),
         seed=4242,
     )
-    result = api.run(
+    solution = api.run(
         text=demo["ciphertext"],
         cipher=cipher_spec,
         key=key_spec,
@@ -179,10 +178,9 @@ def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any
         wli_data=demo["wli"],
         encoding_dir=demo["encoding_dir"],
         telemetry_on=True,
-        return_solver_report=True,
     )
     pt_idx = demo.get("plaintext_idx")
-    if pt_idx is not None and _solution_match_ratio(result.solution, pt_idx) < 0.999:
+    if pt_idx is not None and _match_ratio(solution, pt_idx) < 0.999:
         print("[General Map] retrying with wider beam...")
         solver_spec = api.SolverSpec.beam(
             beam_width=96,
@@ -194,7 +192,7 @@ def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any
             **_progress_kwargs(demo),
             seed=4242,
         )
-        result = api.run(
+        solution = api.run(
             text=demo["ciphertext"],
             cipher=cipher_spec,
             key=key_spec,
@@ -203,21 +201,18 @@ def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any
             wli_data=demo["wli"],
             encoding_dir=demo["encoding_dir"],
             telemetry_on=True,
-            return_solver_report=True,
         )
-    _print_summary("General Map Beam", result, demo)
+    _print_summary("General Map Beam", solution)
 
 
-def _print_summary(label: str, result, demo: Dict[str, Any]) -> None:
-    pt_idx = demo.get("plaintext_idx")
-    reference_idx = list(pt_idx) if pt_idx is not None else None
-
-    print(f"\n[{label}] standard summary")
-    api.print_rdp_result(
-        result,
-        reference_idx=reference_idx,
-        options=api.RdpDisplayOptions.for_tutorial(),
-    )
+def _print_summary(label: str, solution):
+    score = getattr(solution, "score", None)
+    key = getattr(solution, "key", [])
+    plaintext = getattr(solution, "plaintext_rune", "") or getattr(solution, "plaintext_str", "")
+    snippet = plaintext[:120] + ("..." if len(plaintext) > 120 else "")
+    print(f"\n[{label}] score={score:.3f}" if score is not None else f"\n[{label}]")
+    print("  Plaintext:", snippet)
+    print("  Key:", key)
 
 
 def main():
