@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List
 
 # Ensure repo root on sys.path so the package imports resolve when run directly
-_ROOT = Path(__file__).resolve().parents[3]
+_ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
