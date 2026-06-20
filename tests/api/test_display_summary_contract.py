@@ -188,8 +188,9 @@ def test_artifact_paths_are_display_safe_not_absolute(tmp_path: Path) -> None:
     assert data["artifacts"]["display_summary_path"] == "artifacts/rdp_display_summary.json"
     assert data["artifacts"]["nested"]["raw_log"] == "logs/app.jsonl"
     rendered = format_rdp_summary(summary)
+    user_root_marker = drive + "/" + "Users" + "/" + "alice"
     assert str(tmp_path) not in rendered
-    assert drive + "/Users/alice" not in rendered
+    assert user_root_marker not in rendered
 
 
 def test_display_options_validate_types() -> None:
