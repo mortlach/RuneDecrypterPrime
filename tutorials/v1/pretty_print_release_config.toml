@@ -14,6 +14,9 @@
 #   - Keep output_dir repo-relative. Do not use machine-local absolute paths.
 #   - Set show_output = true only when you want full tutorial output in the console.
 #   - Keep thresholds aligned with the normal v1_release tutorial acceptance contract.
+#   - MonoSubstitution GA has separate RTL and LTR tutorials because the encoding
+#     directions create independent generated ciphertext examples, not one shared
+#     ciphertext solved under two assumptions.
 
 [runner]
 title = "v1_release pretty-print tutorial review"
@@ -36,7 +39,11 @@ path = "Tutorial_Vigenere_Interruptors_Solve_PrettyPrint.py"
 min_match_ratio = 1.0
 
 [[tutorials]]
-path = "Tutorial_MonoSubstitution_GA_PrettyPrint.py"
+path = "Tutorial_MonoSubstitution_GA_RTL_PrettyPrint.py"
+min_match_ratio = 0.97
+
+[[tutorials]]
+path = "Tutorial_MonoSubstitution_GA_LTR_PrettyPrint.py"
 min_match_ratio = 0.97
 
 [[tutorials]]
