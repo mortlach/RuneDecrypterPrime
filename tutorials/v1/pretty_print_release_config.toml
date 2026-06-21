@@ -1,7 +1,7 @@
-# RDP pretty-print release tutorial runner config
+# RDP pretty-print tutorial runner config
 #
 # Purpose:
-#   Run the new *_PrettyPrint.py variants for the active v1_release tutorials.
+#   Run the new *_PrettyPrint.py variants for active V1 tutorials.
 #   The original tutorials and normal release manifest are left untouched.
 #
 # How to run:
@@ -13,18 +13,36 @@
 # Notes:
 #   - Keep output_dir repo-relative. Do not use machine-local absolute paths.
 #   - Set show_output = true only when you want full tutorial output in the console.
-#   - Keep thresholds aligned with the normal v1_release tutorial acceptance contract.
+#   - Keep thresholds aligned with the normal V1 tutorial acceptance contract.
 #   - MonoSubstitution GA has separate RTL and LTR tutorials because the encoding
 #     directions create independent generated ciphertext examples, not one shared
 #     ciphertext solved under two assumptions.
+#   - This config includes smoke, release, and selected lm2-backed extended pretty
+#     variants. Optional lm3 tutorials stay out until their asset profile is present.
 
 [runner]
-title = "v1_release pretty-print tutorial review"
+title = "V1 pretty-print tutorial review"
 show_output = false
 stop_on_first_failure = false
 write_logs = true
 output_dir = "output/tutorial_pretty_print_logs"
 tail_lines = 80
+
+[[tutorials]]
+path = "Start_Here_PrettyPrint.py"
+min_match_ratio = 1.0
+
+[[tutorials]]
+path = "Tutorial_Autokey_PrettyPrint.py"
+min_match_ratio = 1.0
+
+[[tutorials]]
+path = "Tutorial_Railfence_PrettyPrint.py"
+min_match_ratio = 1.0
+
+[[tutorials]]
+path = "Tutorial_Vigenere_Interruptors_Exact_PrettyPrint.py"
+min_match_ratio = 1.0
 
 [[tutorials]]
 path = "Tutorial_ColumnarTransposition_PrettyPrint.py"
@@ -47,7 +65,23 @@ path = "Tutorial_MonoSubstitution_GA_LTR_PrettyPrint.py"
 min_match_ratio = 0.97
 
 [[tutorials]]
+path = "Tutorial_Repeating_multiply_PrettyPrint.py"
+min_match_ratio = 1.0
+
+[[tutorials]]
+path = "Tutorial_MonoSubstitution_HYBRID_RTL_PrettyPrint.py"
+min_match_ratio = 0.995
+
+[[tutorials]]
+path = "Tutorial_Vigenere_Interruptors_NonTrivial_PrettyPrint.py"
+min_match_ratio = 1.0
+
+[[tutorials]]
 path = "Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence_PrettyPrint.py"
+min_match_ratio = 1.0
+
+[[tutorials]]
+path = "Tutorial_ScheduledStreamLookup_RealSolve_P13Primes_PrettyPrint.py"
 min_match_ratio = 1.0
 
 [[tutorials]]
