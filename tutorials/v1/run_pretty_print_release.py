@@ -1,24 +1,24 @@
 from __future__ import annotations
 
-"""Run v1_release pretty-print tutorial variants from a small config file.
+"""Run V1 pretty-print tutorial variants from the adjacent config file.
 
 The tutorial list, thresholds, console-output policy, and output-log location live
 in ``pretty_print_release_config.toml`` next to this runner. That keeps the runner
-stable and makes review settings visible without environment variables.
+stable and makes review settings visible without environment variables or CLI
+switches.
 """
 
-import argparse
 import re
 import subprocess
 import sys
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 TUTORIAL_DIR = Path(__file__).resolve().parent
-DEFAULT_CONFIG_PATH = TUTORIAL_DIR / "pretty_print_release_config.toml"
+CONFIG_PATH = TUTORIAL_DIR / "pretty_print_release_config.toml"
 
 
 @dataclass(frozen=True)
@@ -45,17 +45,6 @@ class PrettyResult:
     match_ratio: float | None
     passed: bool
     output_path: Path | None
-
-
-def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run pretty-print tutorial variants from a TOML config file.")
-    parser.add_argument(
-        "--config",
-        type=Path,
-        default=DEFAULT_CONFIG_PATH,
-        help="Path to the pretty-print runner config. Defaults to tutorials/v1/pretty_print_release_config.toml.",
-    )
-    return parser.parse_args(argv)
 
 
 def _read_toml(path: Path) -> dict[str, Any]:
@@ -99,7 +88,7 @@ def _repo_relative_dir(raw_path: str) -> Path:
     return ROOT / path
 
 
-def _load_config(path: Path) -> PrettyRunnerConfig:
+def _load_config(path: Path = CONFIG_PATH) -> PrettyRunnerConfig:
     payload = _read_toml(path)
     runner = payload.get("runner")
     if not isinstance(runner, dict):
@@ -196,12 +185,11 @@ def _run_one(entry: PrettyTutorial, config: PrettyRunnerConfig) -> PrettyResult:
     return PrettyResult(entry.path, proc.returncode, match_ratio, passed, output_path)
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    args = _parse_args(argv)
-    config = _load_config(args.config)
+def main() -> int:
+    config = _load_config()
 
-    print("RDP pretty-print release tutorial runner")
-    print(f"config: {_relpath(args.config)}")
+    print("RDP pretty-print tutorial runner")
+    print(f"config: {_relpath(CONFIG_PATH)}")
     print(f"title : {config.title}")
     print(f"selected: {len(config.tutorials)}")
     if config.write_logs:
@@ -221,7 +209,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     passed = sum(1 for result in results if result.passed)
     failed = len(results) - passed
-    print("\nPretty-print release summary")
+    print("\nPretty-print summary")
     print(f"selected={len(config.tutorials)} run={len(results)} passed={passed} failed={failed}")
     return 0 if failed == 0 and len(results) == len(config.tutorials) else 1
 
