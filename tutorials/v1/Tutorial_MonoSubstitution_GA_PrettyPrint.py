@@ -11,14 +11,14 @@ import sys
 from pathlib import Path
 
 # Ensure project root is importable when run as a script.
-_ROOT = Path(__file__).resolve().parents[3]
+_ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 import numpy as np
 
-from rune_decrypter_prime.api import Direction, KeySpec, SolverSpec, by_name, cipher_instance, print_rdp_result, run
+from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, by_name, cipher_instance, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
@@ -34,7 +34,7 @@ TUTORIAL_SEED = 12345
 CIPHERTEXT_SEED = 12345
 SCENARIOS = [
     ("RTL telemetry on", Direction.RTL, True),
-    ("LTR telemetry off", Direction.LTR, False),
+    ("LTR telemetry on", Direction.LTR, True),
 ]
 _DEF_TITLE = "mono-ga-pretty-print"
 
@@ -62,9 +62,13 @@ def _build_ciphertext(pt_en: str, *, encoding_direction: Direction = Direction.R
 
 def _solve_once(direction: Direction, telemetry_on: bool):
     pt_en = plaintext_english_string
-    _ct_idx, ct_runes, wli, _key_fwd, _key_inv, pt_idx = _build_ciphertext(
+    ct_idx, ct_runes, wli, _key_fwd, _key_inv, pt_idx = _build_ciphertext(
         pt_en, encoding_direction=direction, seed=CIPHERTEXT_SEED
     )
+    ct_idx_list = [int(v) for v in ct_idx.tolist()]
+
+    print(f"ciphertext length: {len(ct_idx_list)}")
+    print(f"ciphertext preview: {preview(ct_runes, 160)}")
 
     if direction == Direction.LTR:
         seed_keys = 240
@@ -94,12 +98,24 @@ def _solve_once(direction: Direction, telemetry_on: bool):
     else:
         raise ValueError(f"Unknown run_profile: {run_profile!r}")
 
+    print(f"seeded starts: {0 if seeds is None else len(seeds)}")
+    print(f"GA population: {population}")
+    print(f"GA generations: {generations}")
+
     scorer_params = dict(
         char_weights={2: 0.3},
         wli_weights={2: 0.7},
         use_word_breaks=True,
         encoding_dir=direction,
     )
+    display_scorer_params = {
+        "objective": "pct.logp.win10",
+        "include_char": True,
+        "use_word_breaks": True,
+        "encoding_dir": direction.value,
+        "char_order_2_weight": 0.3,
+        "wli_order_2_weight": 0.7,
+    }
 
     stop = oracle_stop_score(
         pt_idx,
@@ -129,11 +145,23 @@ def _solve_once(direction: Direction, telemetry_on: bool):
         log_interval=5,
         seed=TUTORIAL_SEED,
     )
+    key_spec = KeySpec.permutation(len=29)
+    cipher_spec = by_name.cipher("mono")
+    display_spec = RunSpec(
+        problem_input=NormalizedInput(ct_idx=ct_idx_list, wli=wli),
+        cipher=cipher_spec,
+        key=key_spec,
+        solver=ga,
+        scorer="rune",
+        scorer_params=display_scorer_params,
+        encoding_dir=direction,
+        telemetry_on=telemetry_on,
+    )
 
     result = run(
         text=ct_runes,
-        cipher=by_name.cipher("mono"),
-        key=KeySpec.permutation(len=29),
+        cipher=cipher_spec,
+        key=key_spec,
         solver=ga,
         scorer_params=dict(scorer_params),
         wli_data=wli,
@@ -143,14 +171,14 @@ def _solve_once(direction: Direction, telemetry_on: bool):
         **({} if seeds is None else {"initial_keys": seeds}),
     )
 
-    return result, pt_en, seeds, pt_idx, wli
+    return result, pt_en, seeds, pt_idx, wli, display_spec
 
 
 def main() -> None:
     for label, direction, telemetry_on in SCENARIOS:
         print("=" * 72)
         print(f"{label} (direction={direction.value}, telemetry_on={telemetry_on})")
-        result, _pt_en, seeds, pt_idx, _wli = _solve_once(direction, telemetry_on)
+        result, _pt_en, seeds, pt_idx, _wli, display_spec = _solve_once(direction, telemetry_on)
 
         mode_label = "GA (seeded start)" if seeds is not None else "GA (noise start)"
         print(f"Mode: {mode_label}")
@@ -165,6 +193,7 @@ def main() -> None:
 
         print_rdp_result(
             result,
+            spec=display_spec,
             reference_idx=pt_idx,
             tutorial_entry={
                 "path": "Tutorial_MonoSubstitution_GA_PrettyPrint.py",
