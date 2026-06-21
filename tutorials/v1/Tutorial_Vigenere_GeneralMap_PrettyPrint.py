@@ -4,12 +4,12 @@ import sys
 from pathlib import Path
 
 # Ensure repo root is importable when running this file directly
-_ROOT = Path(__file__).resolve().parents[3]
+_ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from rune_decrypter_prime.api import Direction, KeySpec, SolverSpec, define_map, print_rdp_result, run
+from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, define_map, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
@@ -42,6 +42,12 @@ def main() -> None:
     ct_idx = [vigenere_map(p, k) for p, k in zip(pt_idx, stream)]
     ct_runes = Runeglish.to_rune(ct_idx, wli)
 
+    print("Vigenere general-map problem")
+    print(f"direction: {encoding_dir.value}")
+    print(f"ciphertext length: {len(ct_idx)}")
+    print(f"key period: {len(key_nums)}")
+    print(f"ciphertext preview: {ct_runes[:160]}{'...' if len(ct_runes) > 160 else ''}")
+
     scorer_params = dict(
         char_weights={2: 0.3},
         wli_weights={2: 0.7},
@@ -49,6 +55,14 @@ def main() -> None:
         use_word_breaks=True,
         encoding_dir=encoding_dir,
     )
+    display_scorer_params = {
+        "objective": "pct.logp.win10",
+        "include_char": True,
+        "use_word_breaks": True,
+        "encoding_dir": encoding_dir.value,
+        "char_order_2_weight": 0.3,
+        "wli_order_2_weight": 0.7,
+    }
 
     stop = oracle_stop_score(
         pt_idx,
@@ -74,6 +88,16 @@ def main() -> None:
         print_progress=True,
         seed=TUTORIAL_SEED,
     )
+    display_spec = RunSpec(
+        problem_input=NormalizedInput(ct_idx=ct_idx, wli=wli),
+        cipher=cipher,
+        key=key_spec,
+        solver=solve_spec,
+        scorer="rune",
+        scorer_params=display_scorer_params,
+        encoding_dir=encoding_dir,
+        telemetry_on=True,
+    )
 
     result = run(
         text=ct_runes,
@@ -89,6 +113,7 @@ def main() -> None:
 
     print_rdp_result(
         result,
+        spec=display_spec,
         reference_idx=pt_idx,
         tutorial_entry={
             "path": "Tutorial_Vigenere_GeneralMap_PrettyPrint.py",
