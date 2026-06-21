@@ -1,0 +1,48 @@
+# RDP pretty-print release tutorial runner config
+#
+# Purpose:
+#   Run the new *_PrettyPrint.py variants for the active v1_release tutorials.
+#   The original tutorials and normal release manifest are left untouched.
+#
+# How to run:
+#   python tutorials/v1/run_pretty_print_release.py
+#
+# Where to inspect full pretty output:
+#   output/tutorial_pretty_print_logs/*.txt
+#
+# Notes:
+#   - Keep output_dir repo-relative. Do not use machine-local absolute paths.
+#   - Set show_output = true only when you want full tutorial output in the console.
+#   - Keep thresholds aligned with the normal v1_release tutorial acceptance contract.
+
+[runner]
+title = "v1_release pretty-print tutorial review"
+show_output = false
+stop_on_first_failure = false
+write_logs = true
+output_dir = "output/tutorial_pretty_print_logs"
+tail_lines = 80
+
+[[tutorials]]
+path = "Tutorial_ColumnarTransposition_PrettyPrint.py"
+min_match_ratio = 1.0
+
+[[tutorials]]
+path = "Tutorial_Vigenere_GeneralMap_PrettyPrint.py"
+min_match_ratio = 1.0
+
+[[tutorials]]
+path = "Tutorial_Vigenere_Interruptors_Solve_PrettyPrint.py"
+min_match_ratio = 1.0
+
+[[tutorials]]
+path = "Tutorial_MonoSubstitution_GA_PrettyPrint.py"
+min_match_ratio = 0.97
+
+[[tutorials]]
+path = "Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence_PrettyPrint.py"
+min_match_ratio = 1.0
+
+[[tutorials]]
+path = "Tutorial_LP_Welcome_Pilgrim_Solve_PrettyPrint.py"
+min_match_ratio = 1.0
