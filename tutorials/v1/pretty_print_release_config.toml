@@ -17,11 +17,11 @@
 #   - MonoSubstitution GA has separate RTL and LTR tutorials because the encoding
 #     directions create independent generated ciphertext examples, not one shared
 #     ciphertext solved under two assumptions.
-#   - This config includes smoke, release, and selected lm2-backed extended pretty
-#     variants. Optional lm3 tutorials stay out until their asset profile is present.
+#   - Optional LM3-backed tutorials are included because this review config is for
+#     preparing all active V1 tutorials, not only the default lm2 release gate.
 
 [runner]
-title = "V1 pretty-print tutorial review"
+title = "V1 all-active pretty-print tutorial review"
 show_output = false
 stop_on_first_failure = false
 write_logs = true
@@ -85,5 +85,29 @@ path = "Tutorial_ScheduledStreamLookup_RealSolve_P13Primes_PrettyPrint.py"
 min_match_ratio = 1.0
 
 [[tutorials]]
+path = "Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented_PrettyPrint.py"
+min_match_ratio = 0.9
+
+[[tutorials]]
 path = "Tutorial_LP_Welcome_Pilgrim_Solve_PrettyPrint.py"
+min_match_ratio = 1.0
+
+[[tutorials]]
+path = "Tutorial_MonoSubstitution_SA_LTR_PrettyPrint.py"
+min_match_ratio = 0.995
+
+[[tutorials]]
+path = "Tutorial_PeriodicSubstitution_PrettyPrint.py"
+min_match_ratio = 1.0
+
+[[tutorials]]
+path = "Tutorial_PeriodicSubstitution_Simple_P7_PrettyPrint.py"
+min_match_ratio = 1.0
+
+[[tutorials]]
+path = "Tutorial_PeriodicColumnar_PrettyPrint.py"
+min_match_ratio = 1.0
+
+[[tutorials]]
+path = "Tutorial_PeriodicColumnar_Simple_P7_ColThenSub_PrettyPrint.py"
 min_match_ratio = 1.0
