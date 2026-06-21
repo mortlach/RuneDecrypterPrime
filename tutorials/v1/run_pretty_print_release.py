@@ -19,6 +19,10 @@ TUTORIAL_DIR = Path(__file__).resolve().parent
 STOP_ON_FIRST_FAILURE = os.environ.get("RDP_PRETTY_STOP_ON_FIRST_FAILURE", "0").strip().lower() in {"1", "true", "yes", "on"}
 ECHO_OUTPUT = os.environ.get("RDP_PRETTY_ECHO_OUTPUT", "0").strip().lower() in {"1", "true", "yes", "on"}
 TAIL_LINES = 80
+UTF8_ENV = {
+    "PYTHONUTF8": "1",
+    "PYTHONIOENCODING": "utf-8",
+}
 
 
 @dataclass(frozen=True)
@@ -70,8 +74,10 @@ def _run_one(entry: PrettyTutorial) -> PrettyResult:
         [sys.executable, str(script)],
         cwd=ROOT,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=True,
-        env={**os.environ, "PYTHONUTF8": "1"},
+        env={**os.environ, **UTF8_ENV},
     )
     output = (proc.stdout or "") + (proc.stderr or "")
     if ECHO_OUTPUT or proc.returncode != 0:
