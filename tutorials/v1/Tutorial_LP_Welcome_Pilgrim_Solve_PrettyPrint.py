@@ -18,7 +18,7 @@ for path in (_ROOT, _SRC):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from rune_decrypter_prime.api import InterruptorConfig, KeySpec, by_name, print_rdp_result, run  # noqa: E402
+from rune_decrypter_prime.api import InterruptorConfig, KeySpec, NormalizedInput, RunSpec, by_name, print_rdp_result, run  # noqa: E402
 
 _SOLVE_SCRIPT = _ROOT / "solving" / "solved_lp" / "02_Welcome_Pilgrim.py"
 
@@ -56,6 +56,13 @@ def main() -> int:
         "wli_weights": workbook.WLI_NGRAM_WEIGHTS,
         "encoding_dir": workbook.ENCODING_DIRECTION,
     }
+    display_scorer_params = {
+        "objective": str(workbook.SCORER_OBJECTIVE),
+        "include_char": True,
+        "use_word_breaks": True,
+        "encoding_dir": workbook.ENCODING_DIRECTION.value,
+        "scorer_variant": str(workbook.SCORER_VARIANT),
+    }
     workbook.print_run_config({
         "source_label": workbook.SOURCE_LABEL,
         "resolved_source_label": metadata["source_label"],
@@ -85,12 +92,24 @@ def main() -> int:
         max_count=workbook.INTERRUPTOR_COUNT,
         search_strategy="keyops",
     )
+    cipher_spec = by_name.cipher("vigenere")
+    key_spec = KeySpec.repeat(len=workbook.KEY_LENGTH)
+    display_spec = RunSpec(
+        problem_input=NormalizedInput(ct_idx=ct_idx, wli=wli),
+        cipher=cipher_spec,
+        key=key_spec,
+        solver=workbook.SOLVER,
+        scorer="rune",
+        scorer_params=display_scorer_params,
+        encoding_dir=workbook.ENCODING_DIRECTION,
+        telemetry_on=True,
+    )
 
     started = time.perf_counter()
     result = run(
         text=ct_idx,
-        cipher=by_name.cipher("vigenere"),
-        key=KeySpec.repeat(len=workbook.KEY_LENGTH),
+        cipher=cipher_spec,
+        key=key_spec,
         solver=workbook.SOLVER,
         scorer_params=scorer_params,
         wli_data=wli,
@@ -120,6 +139,7 @@ def main() -> int:
 
     print_rdp_result(
         result,
+        spec=display_spec,
         reference_idx=workbook.CANONICAL_WELCOME_PILGRIM_IDX,
         tutorial_entry={
             "path": "Tutorial_LP_Welcome_Pilgrim_Solve_PrettyPrint.py",
