@@ -10,7 +10,7 @@ _SRC = _ROOT / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from rune_decrypter_prime.api import KeySpec, SolverSpec, Direction, by_name, print_rdp_result, run
+from rune_decrypter_prime.api import Direction, KeySpec, RawTextInput, RunSpec, SolverSpec, by_name, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
@@ -27,6 +27,8 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 TUTORIAL_SEED = 12345
+PREVIEW_RUNES = 160
+PREVIEW_IDX = 32
 
 
 def encrypt_columnar(pt: str, key: List[int]) -> str:
@@ -42,6 +44,18 @@ def encrypt_columnar(pt: str, key: List[int]) -> str:
     return "".join(out_chars)
 
 
+def _preview_text(label: str, value: str, *, limit: int = PREVIEW_RUNES) -> None:
+    suffix = "..." if len(value) > limit else ""
+    print(f"{label} length: {len(value)}")
+    print(f"{label} preview: {value[:limit]}{suffix}")
+
+
+def _preview_idx(label: str, values: list[int], *, limit: int = PREVIEW_IDX) -> None:
+    suffix = " ..." if len(values) > limit else ""
+    print(f"{label} length: {len(values)}")
+    print(f"{label} preview: {values[:limit]}{suffix}")
+
+
 def main() -> None:
     direction = Direction.RTL
     pt_en = plaintext_english_string
@@ -49,13 +63,16 @@ def main() -> None:
     pt_runes_nosp = pt_runes.replace(" ", "")
     reference_idx = Runeglish.rune_to_pos(pt_runes_nosp)
 
-    print(f"pt_runes = {pt_runes_nosp}")
-
     key_true = [3, 6, 1, 4, 2, 0, 5]
     ct_runes = encrypt_columnar(pt_runes_nosp, key_true)
-    print(f"ct_runes = {ct_runes}")
     ct_idx = Runeglish.rune_to_pos(ct_runes)
-    print(f"ct_idx = {ct_idx}")
+
+    print("Columnar transposition problem")
+    print(f"direction: {direction.value}")
+    print(f"true key length: {len(key_true)}")
+    _preview_text("plaintext runes", pt_runes_nosp)
+    _preview_text("ciphertext runes", ct_runes)
+    _preview_idx("ciphertext indices", ct_idx)
 
     cipher = by_name.cipher("columnar")
     key_spec = KeySpec.permutation(len=len(key_true))
@@ -67,6 +84,14 @@ def main() -> None:
         "use_word_breaks": False,
         "include_char": True,
         "encoding_dir": direction,
+    }
+
+    display_scorer_params = {
+        "objective": "pct.logp.win10",
+        "include_char": True,
+        "use_word_breaks": False,
+        "encoding_dir": direction.value,
+        "char_order_2_weight": 1.0,
     }
 
     stop = oracle_stop_score(
@@ -120,6 +145,16 @@ def main() -> None:
         plateau_min_delta=1e-4,
         stop_score=stop.stop_score,
     )
+    display_spec = RunSpec(
+        problem_input=RawTextInput(text=ct_runes),
+        cipher=cipher,
+        key=key_spec,
+        solver=solve_spec,
+        scorer="rune",
+        scorer_params=display_scorer_params,
+        encoding_dir=direction,
+        telemetry_on=True,
+    )
 
     result = run(
         text=ct_runes,
@@ -138,6 +173,7 @@ def main() -> None:
 
     print_rdp_result(
         result,
+        spec=display_spec,
         reference_idx=reference_idx,
         options=None,
         tutorial_entry={
