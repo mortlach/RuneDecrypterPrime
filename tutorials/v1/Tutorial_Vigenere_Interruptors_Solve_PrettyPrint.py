@@ -14,6 +14,8 @@ from rune_decrypter_prime.api import (  # noqa: E402
     Direction,
     InterruptorConfig,
     KeySpec,
+    NormalizedInput,
+    RunSpec,
     SolverSpec,
     by_name,
     cipher_instance,
@@ -70,20 +72,23 @@ def main() -> None:
         raise ValueError("Need at least two interruptors for this tutorial")
 
     key_arr = np.asarray(KEY_NUMS, dtype=np.uint8)
-    cipher = cipher_instance(
+    encrypt_cipher = cipher_instance(
         "vigenere",
         key_length=int(key_arr.size),
         text_transposition=direction.value,
     )
 
-    ct_idx = cipher.encrypt_single(plaintext=pt_arr, key=key_arr, interrupt_idx=interruptors)
+    ct_idx = encrypt_cipher.encrypt_single(plaintext=pt_arr, key=key_arr, interrupt_idx=interruptors)
     intr_values_pt = [int(pt_arr[i]) for i in interruptors]
     intr_values_ct = [int(ct_idx[i]) for i in interruptors]
     if intr_values_pt != intr_values_ct:
         raise ValueError("Interruptor symbols changed during encryption")
 
-    ct_runes = Runeglish.to_rune(ct_idx.tolist(), wli)
+    ct_idx_list = [int(v) for v in ct_idx.tolist()]
+    ct_runes = Runeglish.to_rune(ct_idx_list, wli)
 
+    print("Vigenere interruptor problem")
+    print(f"direction: {direction.value}")
     print("Interruptor pool:", pool)
     print("Interruptor positions:", interruptors)
     print("Interruptor symbols:", intr_values_ct)
@@ -105,6 +110,14 @@ def main() -> None:
         wli_weights={2: 0.7},
         encoding_dir=direction,
     )
+    display_scorer_params = {
+        "objective": "pct.logp.win10",
+        "include_char": True,
+        "use_word_breaks": True,
+        "encoding_dir": direction.value,
+        "char_order_2_weight": 0.3,
+        "wli_order_2_weight": 0.7,
+    }
 
     stop = oracle_stop_score(
         pt_idx,
@@ -127,11 +140,23 @@ def main() -> None:
         progress_pct=10,
         seed=TUTORIAL_SEED,
     )
+    key_spec = KeySpec.repeat(len=len(KEY_NUMS))
+    cipher_spec = by_name.cipher("vigenere")
+    display_spec = RunSpec(
+        problem_input=NormalizedInput(ct_idx=ct_idx_list, wli=wli),
+        cipher=cipher_spec,
+        key=key_spec,
+        solver=solver,
+        scorer="rune",
+        scorer_params=display_scorer_params,
+        encoding_dir=direction,
+        telemetry_on=True,
+    )
 
     result = run(
-        text=ct_idx,
-        cipher=by_name.cipher("vigenere"),
-        key=KeySpec.repeat(len=len(KEY_NUMS)),
+        text=ct_idx_list,
+        cipher=cipher_spec,
+        key=key_spec,
         solver=solver,
         scorer_params=dict(scorer_params),
         wli_data=wli,
@@ -150,6 +175,7 @@ def main() -> None:
 
     print_rdp_result(
         result,
+        spec=display_spec,
         reference_idx=pt_idx,
         tutorial_entry={
             "path": "Tutorial_Vigenere_Interruptors_Solve_PrettyPrint.py",
