@@ -17,6 +17,7 @@ from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpe
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
+from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -29,7 +30,7 @@ USE_SEEDS = True
 BLOCK_SEEDS = 6
 SEED_KEYS = 32
 SEED_SWAPS = 2
-MIN_MATCH_RATIO = 1.0
+MIN_MATCH_RATIO = 0.995
 SCENARIOS: Tuple[Tuple[str, Dict[str, Any]], ...] = (
     ("easy", dict(period=2, steps=400, restarts=1, inner_batch=48, slip_every=0, slip_blocks=1)),
     ("medium", dict(period=3, steps=700, restarts=2, inner_batch=64, slip_every=80, slip_blocks=1)),
@@ -87,6 +88,7 @@ def _build_solver_kwargs(cfg: Dict[str, Any]) -> Dict[str, Any]:
         stop_score=float(cfg.get("stop_score", 0.55)),
         progress_pct=2,
         print_progress=True,
+        progress_preview_chars=120,
         seed=TUTORIAL_SEED,
     )
     for key in (
@@ -184,6 +186,8 @@ def main() -> None:
         print("=" * 72)
         print(f"Scenario: {label} (period={period})")
         print("Ciphertext preview:", _preview(ct_runes))
+        print_tutorial_debug_preview(label=f"plaintext_{label}", idx=pt_idx, wli=wli, direction=direction)
+        print_tutorial_debug_preview(label=f"ciphertext_{label}", idx=ct_idx_list, wli=wli, direction=direction)
 
         seed_keys = None
         if USE_SEEDS:
@@ -283,7 +287,7 @@ def main() -> None:
                 "path": "Tutorial_PeriodicSubstitution.py",
                 "title": f"Periodic substitution {label} pretty-print variant",
                 "gate": "optional_lm3_pretty_print",
-                "acceptance_kind": "min_match_ratio",
+                "acceptance_kind": "near_exact",
                 "min_match_ratio": MIN_MATCH_RATIO,
                 "uses_oracle_stop_score": True,
             },

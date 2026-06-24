@@ -21,6 +21,7 @@ import numpy as np
 from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, by_name, cipher_instance, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
@@ -76,6 +77,8 @@ def main() -> None:
     print("example relation: independent generated LTR ciphertext, not paired with the RTL tutorial")
     print(f"ciphertext length: {len(ct_idx_list)}")
     print(f"ciphertext preview: {preview(ct_runes, 160)}")
+    print_tutorial_debug_preview(label="plaintext", idx=pt_idx, wli=wli, direction=DIRECTION)
+    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx_list, wli=wli, direction=DIRECTION)
 
     seeds = None
     if START_MODE == "seeded":
@@ -125,6 +128,7 @@ def main() -> None:
         verbose=True,
         progress_pct=2,
         print_progress=True,
+        progress_preview_chars=120,
         elite_frac=0.08,
         cx_frac=0.85,
         mut_prob=0.25,
@@ -178,7 +182,7 @@ def main() -> None:
             "path": TUTORIAL_PATH,
             "title": TUTORIAL_TITLE,
             "gate": "v1_release_pretty_print",
-            "acceptance_kind": "min_match_ratio",
+            "acceptance_kind": "human_readable",
             "min_match_ratio": MIN_MATCH_RATIO,
             "uses_oracle_stop_score": True,
         },

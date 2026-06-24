@@ -16,6 +16,7 @@ SHOW_OUTPUT = True
 STOP_ON_FIRST_FAILURE = False
 WRITE_LOGS = True
 OUTPUT_DIR = Path("output/tutorial_pretty_print_output_review_logs")
+CLEAN_OUTPUT_DIR = True
 TAIL_LINES = 80
 
 
@@ -25,6 +26,7 @@ def main() -> int:
     release_runner.STOP_ON_FIRST_FAILURE = STOP_ON_FIRST_FAILURE
     release_runner.WRITE_LOGS = WRITE_LOGS
     release_runner.OUTPUT_DIR = OUTPUT_DIR
+    release_runner.CLEAN_OUTPUT_DIR = CLEAN_OUTPUT_DIR
     release_runner.TAIL_LINES = TAIL_LINES
     return release_runner.main()
 

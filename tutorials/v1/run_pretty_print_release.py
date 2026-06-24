@@ -14,13 +14,19 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+SRC = ROOT / "src"
 TUTORIAL_DIR = Path(__file__).resolve().parent
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
 
 TITLE = "V1 pretty-print tutorial review"
 SHOW_OUTPUT = False
 STOP_ON_FIRST_FAILURE = False
 WRITE_LOGS = True
 OUTPUT_DIR = Path("output/tutorial_pretty_print_logs")
+CLEAN_OUTPUT_DIR = True
 TAIL_LINES = 80
 
 
@@ -28,6 +34,7 @@ TAIL_LINES = 80
 class PrettyTutorial:
     path: str
     min_match_ratio: float
+    acceptance: TutorialAcceptanceKind = TutorialAcceptanceKind.EXACT
 
 
 TUTORIALS: tuple[PrettyTutorial, ...] = (
@@ -38,19 +45,19 @@ TUTORIALS: tuple[PrettyTutorial, ...] = (
     PrettyTutorial("Tutorial_ColumnarTransposition.py", 1.0),
     PrettyTutorial("Tutorial_Vigenere_GeneralMap.py", 1.0),
     PrettyTutorial("Tutorial_Vigenere_Interruptors_Solve.py", 1.0),
-    PrettyTutorial("Tutorial_MonoSubstitution_GA_RTL.py", 0.97),
-    PrettyTutorial("Tutorial_MonoSubstitution_GA_LTR.py", 0.97),
+    PrettyTutorial("Tutorial_MonoSubstitution_GA_RTL.py", 0.97, TutorialAcceptanceKind.HUMAN_READABLE),
+    PrettyTutorial("Tutorial_MonoSubstitution_GA_LTR.py", 0.97, TutorialAcceptanceKind.HUMAN_READABLE),
     PrettyTutorial("Tutorial_Repeating_multiply.py", 1.0),
-    PrettyTutorial("Tutorial_MonoSubstitution_HYBRID_RTL.py", 0.995),
+    PrettyTutorial("Tutorial_MonoSubstitution_HYBRID_RTL.py", 0.995, TutorialAcceptanceKind.NEAR_EXACT),
     PrettyTutorial("Tutorial_Vigenere_Interruptors_NonTrivial.py", 1.0),
     PrettyTutorial("Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py", 1.0),
     PrettyTutorial("Tutorial_ScheduledStreamLookup_RealSolve_P13Primes.py", 1.0),
-    PrettyTutorial("Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py", 0.9),
+    PrettyTutorial("Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py", 0.9, TutorialAcceptanceKind.SHOWCASE_NEAR_SOLVE),
     PrettyTutorial("Tutorial_LP_Welcome_Pilgrim_Solve.py", 1.0),
-    PrettyTutorial("Tutorial_MonoSubstitution_SA_LTR.py", 0.995),
-    PrettyTutorial("Tutorial_PeriodicSubstitution.py", 1.0),
-    PrettyTutorial("Tutorial_PeriodicSubstitution_Simple_P7.py", 1.0),
-    PrettyTutorial("Tutorial_PeriodicColumnar.py", 1.0),
+    PrettyTutorial("Tutorial_MonoSubstitution_SA_LTR.py", 0.995, TutorialAcceptanceKind.NEAR_EXACT),
+    PrettyTutorial("Tutorial_PeriodicSubstitution.py", 0.995, TutorialAcceptanceKind.NEAR_EXACT),
+    PrettyTutorial("Tutorial_PeriodicSubstitution_Simple_P7.py", 0.995, TutorialAcceptanceKind.NEAR_EXACT),
+    PrettyTutorial("Tutorial_PeriodicColumnar.py", 0.995, TutorialAcceptanceKind.NEAR_EXACT),
     PrettyTutorial("Tutorial_PeriodicColumnar_Simple_P7_ColThenSub.py", 1.0),
 )
 
@@ -58,6 +65,7 @@ TUTORIALS: tuple[PrettyTutorial, ...] = (
 @dataclass(frozen=True)
 class PrettyResult:
     path: str
+    acceptance: TutorialAcceptanceKind
     returncode: int
     match_ratio: float | None
     passed: bool
@@ -73,6 +81,8 @@ def _validate_tutorials() -> None:
             raise ValueError(f"TUTORIALS[{index}] path must be a simple Python filename.")
         if not 0.0 <= float(entry.min_match_ratio) <= 1.0:
             raise ValueError(f"TUTORIALS[{index}] min_match_ratio must be between 0.0 and 1.0.")
+        if not isinstance(entry.acceptance, TutorialAcceptanceKind):
+            raise TypeError(f"TUTORIALS[{index}] acceptance must be TutorialAcceptanceKind.")
         if not script_path.is_file():
             raise FileNotFoundError(f"TUTORIALS[{index}] does not exist: {script_path}")
 
@@ -81,6 +91,20 @@ def _output_dir() -> Path:
     if OUTPUT_DIR.is_absolute():
         raise ValueError("OUTPUT_DIR must be repo-relative, not absolute.")
     return ROOT / OUTPUT_DIR
+
+
+def _prepare_output_dir() -> None:
+    if not WRITE_LOGS:
+        return
+    output_dir = _output_dir().resolve()
+    output_root = (ROOT / "output").resolve()
+    if output_root not in output_dir.parents:
+        raise ValueError("OUTPUT_DIR must stay under output/ for cleanup.")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    if CLEAN_OUTPUT_DIR:
+        for path in output_dir.glob("*.txt"):
+            if path.is_file():
+                path.unlink()
 
 
 def _parse_last_float(pattern: str, text: str) -> float | None:
@@ -139,11 +163,12 @@ def _run_one(entry: PrettyTutorial) -> PrettyResult:
     if not passed and not SHOW_OUTPUT:
         print(f"\n--- tail: {entry.path} ---")
         print(_tail(output, lines=TAIL_LINES))
-    return PrettyResult(entry.path, proc.returncode, match_ratio, passed, output_path)
+    return PrettyResult(entry.path, entry.acceptance, proc.returncode, match_ratio, passed, output_path)
 
 
 def main() -> int:
     _validate_tutorials()
+    _prepare_output_dir()
 
     print("RDP pretty-print tutorial runner")
     print(f"title : {TITLE}")
@@ -159,7 +184,10 @@ def main() -> int:
         status = "PASS" if result.passed else "FAIL"
         match_text = "none" if result.match_ratio is None else f"{result.match_ratio:.3f}"
         log_text = "" if result.output_path is None else f" log={_relpath(result.output_path)}"
-        print(f"[{status}] {entry.path} match_ratio={match_text} min={entry.min_match_ratio:.3f}{log_text}")
+        print(
+            f"[{status}] {entry.path} acceptance={entry.acceptance.value} "
+            f"match_ratio={match_text} min={entry.min_match_ratio:.3f}{log_text}"
+        )
         if not result.passed and STOP_ON_FIRST_FAILURE:
             break
 

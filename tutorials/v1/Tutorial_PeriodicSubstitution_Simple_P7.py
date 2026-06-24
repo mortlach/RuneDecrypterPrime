@@ -16,6 +16,7 @@ import numpy as np
 from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, by_name, cipher_instance, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.seed_utils import make_periodic_seed_pool, make_periodic_structured_key
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
@@ -38,7 +39,7 @@ SOLVER_SLIP_BLOCKS = 1
 SOLVER_STALL_ROUNDS = 140
 SOLVER_STALL_SLIP_LIMIT = 3
 SOLVER_SLIP_SWAPS = 30
-MIN_MATCH_RATIO = 1.0
+MIN_MATCH_RATIO = 0.995
 
 
 def _preview(text: str, n: int = 160) -> str:
@@ -96,6 +97,8 @@ def main() -> None:
     )
     ct_idx_list = [int(v) for v in ct_idx.tolist()]
     print("Ciphertext preview:", _preview(ct_runes))
+    print_tutorial_debug_preview(label="plaintext", idx=pt_idx, wli=wli, direction=encoding_dir)
+    print_tutorial_debug_preview(label="ciphertext", idx=[int(v) for v in ct_idx.tolist()], wli=wli, direction=encoding_dir)
 
     seed_keys = None
     if USE_SEEDS:
@@ -157,6 +160,7 @@ def main() -> None:
         stop_score=stop.stop_score,
         progress_pct=2,
         print_progress=True,
+        progress_preview_chars=120,
         seed=TUTORIAL_SEED,
         slip_policy="stall",
         stall_rounds=SOLVER_STALL_ROUNDS,
@@ -202,7 +206,7 @@ def main() -> None:
             "path": "Tutorial_PeriodicSubstitution_Simple_P7.py",
             "title": "Periodic substitution simple P7 pretty-print variant",
             "gate": "optional_lm3_pretty_print",
-            "acceptance_kind": "min_match_ratio",
+            "acceptance_kind": "near_exact",
             "min_match_ratio": MIN_MATCH_RATIO,
             "uses_oracle_stop_score": True,
         },

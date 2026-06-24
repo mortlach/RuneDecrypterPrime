@@ -15,6 +15,7 @@ import numpy as np
 from rune_decrypter_prime.api import Direction, InterruptorConfig, KeySpec, NormalizedInput, RunSpec, SolverSpec, by_name, cipher_instance, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1, word_breaks1
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -76,6 +77,8 @@ def main() -> None:
     print("Interruptor pool preview:", pool[:12])
     print("Plaintext preview:", _preview(pt_runes))
     print("Ciphertext preview:", _preview(ct_runes))
+    print_tutorial_debug_preview(label="plaintext", idx=pt_idx, wli=wli, direction=direction)
+    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx_list, wli=wli, direction=direction)
 
     interrupt_cfg = InterruptorConfig(
         mode="pool",
@@ -120,6 +123,8 @@ def main() -> None:
         plateau_min_delta=1e-4,
         stop_score=stop.stop_score,
         progress_pct=5,
+        print_progress=True,
+        progress_preview_chars=120,
         seed=TUTORIAL_SEED,
     )
     cipher_spec = by_name.cipher("vigenere")
@@ -156,7 +161,7 @@ def main() -> None:
             "path": "Tutorial_Vigenere_Interruptors_NonTrivial.py",
             "title": "Vigenere non-trivial interruptor pretty-print variant",
             "gate": "v1_extended_pretty_print",
-            "acceptance_kind": "min_match_ratio",
+            "acceptance_kind": "exact",
             "min_match_ratio": MIN_MATCH_RATIO,
             "uses_oracle_stop_score": True,
         },

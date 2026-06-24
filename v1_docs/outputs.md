@@ -19,13 +19,17 @@ The simple V1 path uses these folders:
 Install logs capture each installer step. Tutorial logs capture the complete
 printout from each tutorial file.
 
+Each pretty-print runner clears its own tutorial-log folder at the start of a
+new run. That keeps stale tutorial names and old pass/fail output out of the
+current review.
+
 ## Console Output
 
 The normal tutorial runner prints compact review lines:
 
 ```text
 [RUN ] Tutorial_Autokey.py
-[PASS] Tutorial_Autokey.py match_ratio=1.000 min=1.000 log=output/tutorial_pretty_print_logs/Tutorial_Autokey.txt
+[PASS] Tutorial_Autokey.py acceptance=exact match_ratio=1.000 min=1.000 log=output/tutorial_pretty_print_logs/Tutorial_Autokey.txt
 ```
 
 The final summary is the main beginner signal:
@@ -43,7 +47,10 @@ Tutorial logs are plain text. A good tutorial printout shows:
 
 - what problem is being solved
 - `encoding_dir`
+- a debug preview with token-delimited Latin, rune indices, and rune glyphs
 - cipher and solver
+- live progress lines with score, counters, and plaintext preview when the
+  solver supports progress output
 - truth/oracle use when present
 - match ratio or acceptance result
 - recovered key or key preview

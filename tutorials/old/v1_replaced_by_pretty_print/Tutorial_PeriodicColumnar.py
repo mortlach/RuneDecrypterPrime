@@ -25,6 +25,7 @@ from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, by_nam
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.pretty import print_run_report
 from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
+from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 
@@ -424,6 +425,13 @@ def main() -> None:
             print("=" * 72)
             print(f"Scenario: {label} (period={period}, columns={columns}, order={order})")
             print("Ciphertext preview:", _preview(ct_runes))
+            print_tutorial_debug_preview(label=f"plaintext_{label}_{order}", idx=pt_idx, wli=wli, direction=direction)
+            print_tutorial_debug_preview(
+                label=f"ciphertext_{label}_{order}",
+                idx=[int(v) for v in ct_idx.tolist()],
+                wli=wli,
+                direction=direction,
+            )
 
             scorer_params = dict(
                 objective="pct.logp.win10",

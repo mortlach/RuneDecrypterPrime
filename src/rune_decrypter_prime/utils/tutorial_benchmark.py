@@ -26,6 +26,18 @@ class TutorialBenchmarkOutcome(StrEnum):
     INCOMPLETE = "incomplete"
 
 
+class TutorialAcceptanceKind(StrEnum):
+    """Release-runner acceptance policies for tutorial evidence."""
+
+    PROCESS_SUCCESS = "process_success"
+    EXACT = "exact"
+    NEAR_EXACT = "near_exact"
+    HUMAN_READABLE = "human_readable"
+    SHOWCASE_NEAR_SOLVE = "showcase_near_solve"
+    REQUIRES_ASSET_PROFILE = "requires_asset_profile"
+    BLOCKED_KNOWN_ISSUE = "blocked_known_issue"
+
+
 class TutorialStopReason(StrEnum):
     TARGET_MATCH_RATIO = "target_match_ratio"
     READABLE_MATCH_RATIO = "readable_match_ratio"
@@ -359,6 +371,7 @@ def _require_optional_nonnegative_int(value: object, field_name: str) -> None:
 
 
 __all__ = [
+    "TutorialAcceptanceKind",
     "TutorialBenchmarkOutcome",
     "TutorialBenchmarkSummary",
     "TutorialRunKind",

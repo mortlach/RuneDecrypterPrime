@@ -130,8 +130,8 @@ These should not block D7 closure:
 
 - optional LM3/LM4 asset tests skip when those assets are absent;
 - optional Torch/CUDA tests skip when the environment lacks the required backend;
-- `tutorials/legacy/v1_blocked/Tutorial_PeriodicColumnar_Simple_P7_SubThenCol.py` remains legacy-blocked and excluded from release/full_v1;
-- `tutorials/legacy/v1_blocked/Tutorial_ScheduledStreamLookup.py` wrapper remains legacy-blocked and superseded by direct real-solve scripts;
+- `tutorials/old/v1_blocked/Tutorial_PeriodicColumnar_Simple_P7_SubThenCol.py` remains old blocked reference material and excluded from release/full_v1;
+- `tutorials/old/v1_blocked/Tutorial_ScheduledStreamLookup.py` wrapper remains old blocked reference material and superseded by direct real-solve scripts;
 - full tutorial rationalisation, optional-lm3 proof, and GPU/CPU matrix hardening belong to post-D7 work.
 
 ## Closeout recommendation

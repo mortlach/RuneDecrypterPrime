@@ -20,6 +20,7 @@ import numpy as np
 
 from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, by_name, cipher_instance, print_rdp_result, run
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -89,6 +90,8 @@ def main() -> None:
     print(f"crib text used only for second run: {CRIB_TEXT}")
     _preview_text("plaintext runes", pt_runes)
     _preview_text("ciphertext runes", ct_runes)
+    print_tutorial_debug_preview(label="plaintext", idx=pt_idx, wli=wli, direction=direction)
+    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx_list, wli=wli, direction=direction)
 
     cipher_spec = by_name.cipher("autokey", seed_len=SEED_LEN, alphabet_size=ALPHABET_SIZE)
     key_spec = KeySpec.repeat(len=SEED_LEN)
@@ -169,7 +172,7 @@ def main() -> None:
                 "path": "Tutorial_Autokey.py",
                 "title": f"Autokey pretty-print variant ({label})",
                 "gate": "v1_smoke_pretty_print",
-                "acceptance_kind": "min_match_ratio",
+                "acceptance_kind": "exact",
                 "min_match_ratio": MATCH_THRESHOLD,
                 "uses_oracle_stop_score": True,
             },

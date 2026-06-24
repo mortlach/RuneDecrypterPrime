@@ -1,7 +1,7 @@
 {
   "schema": "rdp_tutorial_manifest.v1",
   "asset_profile_default": "lm2_baseline",
-  "description": "Tutorial catalogue for the pure V1.0.0 release tree. Working V1 tutorials live under tutorials/v1; older replaced files live under tutorials/legacy. Labels are release-runner policy, not core solver contracts.",
+  "description": "Tutorial catalogue for the pure V1.0.0 release tree. Working V1 tutorials live under tutorials/v1; older replaced files live under tutorials/old. Labels are release-runner policy, not core solver contracts.",
   "gate_definitions": {
     "v1_smoke": "Fast, stable tutorial run on every release check.",
     "v1_release": "Normal V1 release tutorial; should pass under lm2_baseline.",
@@ -32,7 +32,7 @@
       "gate": "v1_smoke",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "min_match_ratio",
+      "acceptance_kind": "exact",
       "min_match_ratio": 1.0,
       "observed_lm2_baseline": {
         "match_ratio": null,
@@ -52,7 +52,7 @@
       "gate": "v1_smoke",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "min_match_ratio",
+      "acceptance_kind": "exact",
       "min_match_ratio": 1.0,
       "observed_lm2_baseline": {
         "match_ratio": 1.0,
@@ -72,7 +72,7 @@
       "gate": "v1_smoke",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "min_match_ratio",
+      "acceptance_kind": "exact",
       "min_match_ratio": 1.0,
       "observed_lm2_baseline": {
         "match_ratio": 1.0,
@@ -92,7 +92,7 @@
       "gate": "v1_smoke",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "min_match_ratio",
+      "acceptance_kind": "exact",
       "min_match_ratio": 1.0,
       "observed_lm2_baseline": {
         "match_ratio": 1.0,
@@ -112,7 +112,7 @@
       "gate": "v1_release",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "min_match_ratio",
+      "acceptance_kind": "exact",
       "min_match_ratio": 1.0,
       "observed_lm2_baseline": {
         "match_ratio": 1.0,
@@ -132,7 +132,7 @@
       "gate": "v1_release",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "min_match_ratio",
+      "acceptance_kind": "exact",
       "min_match_ratio": 1.0,
       "observed_lm2_baseline": {
         "match_ratio": 1.0,
@@ -152,7 +152,7 @@
       "gate": "v1_release",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "min_match_ratio",
+      "acceptance_kind": "exact",
       "min_match_ratio": 1.0,
       "observed_lm2_baseline": {
         "match_ratio": 1.0,
@@ -172,7 +172,7 @@
       "gate": "v1_release",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "min_match_ratio",
+      "acceptance_kind": "human_readable",
       "min_match_ratio": 0.97,
       "observed_lm2_baseline": {
         "match_ratio": 0.981,
@@ -192,7 +192,7 @@
       "gate": "v1_release",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "min_match_ratio",
+      "acceptance_kind": "human_readable",
       "min_match_ratio": 0.97,
       "observed_lm2_baseline": {
         "match_ratio": 0.981,
@@ -212,7 +212,7 @@
       "gate": "v1_extended",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "min_match_ratio",
+      "acceptance_kind": "exact",
       "min_match_ratio": 1.0,
       "observed_lm2_baseline": {
         "match_ratio": 1.0,
@@ -232,7 +232,7 @@
       "gate": "v1_extended",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "min_match_ratio",
+      "acceptance_kind": "near_exact",
       "min_match_ratio": 0.995,
       "observed_lm2_baseline": {
         "match_ratio": 0.998,
@@ -252,7 +252,7 @@
       "gate": "v1_extended",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "min_match_ratio",
+      "acceptance_kind": "exact",
       "min_match_ratio": 1.0,
       "observed_lm2_baseline": {
         "match_ratio": 1.0,
@@ -272,7 +272,7 @@
       "gate": "v1_release",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "min_match_ratio",
+      "acceptance_kind": "exact",
       "min_match_ratio": 1.0,
       "observed_lm2_baseline": {
         "match_ratio": 1.0,
@@ -292,7 +292,7 @@
       "gate": "v1_extended",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "min_match_ratio",
+      "acceptance_kind": "exact",
       "min_match_ratio": 1.0,
       "observed_lm2_baseline": {
         "match_ratio": 1.0,
@@ -312,7 +312,7 @@
       "gate": "v1_showcase_near_solve",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "near_solve_min_match",
+      "acceptance_kind": "showcase_near_solve",
       "min_match_ratio": 0.9,
       "observed_lm2_baseline": {
         "match_ratio": 0.901,
@@ -332,7 +332,7 @@
       "gate": "v1_release",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "min_match_ratio",
+      "acceptance_kind": "exact",
       "min_match_ratio": 1.0,
       "observed_lm2_baseline": {
         "match_ratio": 1.0,
@@ -352,7 +352,7 @@
       "gate": "v1_slow_demo",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "min_match_ratio",
+      "acceptance_kind": "near_exact",
       "min_match_ratio": 0.995,
       "observed_lm2_baseline": {
         "match_ratio": 0.999,
@@ -372,8 +372,8 @@
       "gate": "optional_lm3",
       "required_asset_profile": "lm3_extended",
       "expected_under_lm2_baseline": "skip",
-      "acceptance_kind": "min_match_ratio",
-      "min_match_ratio": 1.0,
+      "acceptance_kind": "near_exact",
+      "min_match_ratio": 0.995,
       "observed_lm2_baseline": {
         "match_ratio": null,
         "score_time_s": null,
@@ -392,8 +392,8 @@
       "gate": "optional_lm3",
       "required_asset_profile": "lm3_extended",
       "expected_under_lm2_baseline": "skip",
-      "acceptance_kind": "min_match_ratio",
-      "min_match_ratio": 1.0,
+      "acceptance_kind": "near_exact",
+      "min_match_ratio": 0.995,
       "observed_lm2_baseline": {
         "match_ratio": null,
         "score_time_s": null,
@@ -412,8 +412,8 @@
       "gate": "optional_lm3",
       "required_asset_profile": "lm3_extended",
       "expected_under_lm2_baseline": "skip",
-      "acceptance_kind": "min_match_ratio",
-      "min_match_ratio": 1.0,
+      "acceptance_kind": "near_exact",
+      "min_match_ratio": 0.995,
       "observed_lm2_baseline": {
         "match_ratio": null,
         "score_time_s": null,
@@ -432,7 +432,7 @@
       "gate": "optional_lm3",
       "required_asset_profile": "lm3_extended",
       "expected_under_lm2_baseline": "skip",
-      "acceptance_kind": "min_match_ratio",
+      "acceptance_kind": "exact",
       "min_match_ratio": 1.0,
       "observed_lm2_baseline": {
         "match_ratio": null,

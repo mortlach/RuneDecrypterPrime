@@ -36,6 +36,7 @@ The main constants are:
 | `STOP_ON_FIRST_FAILURE` | Whether to stop after the first failure. |
 | `WRITE_LOGS` | Whether to write captured output logs. |
 | `OUTPUT_DIR` | Repo-relative log folder. |
+| `CLEAN_OUTPUT_DIR` | Whether stale `.txt` logs are cleared before a new run. |
 | `TAIL_LINES` | Failure tail size. |
 | `TUTORIALS` | Selected tutorial files and thresholds. |
 

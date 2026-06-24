@@ -75,7 +75,7 @@ The manifest records tutorial classification ideas:
 - notes
 
 The manifest now names the promoted tutorial files in `tutorials/v1/`. Older
-replaced tutorial files live under `tutorials/legacy/`.
+replaced tutorial files live under `tutorials/old/`.
 
 The preferred long-term state is one metadata story for all working
 `tutorials/v1/` tutorials. A future tutorial must not require a reader to

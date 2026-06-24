@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUN_ALL = REPO_ROOT / "tutorials" / "v1" / "run_all.py"
@@ -81,9 +83,11 @@ def test_pretty_runner_keeps_review_config_in_file_constants() -> None:
     assert runner.STOP_ON_FIRST_FAILURE is False
     assert runner.WRITE_LOGS is True
     assert runner.OUTPUT_DIR.as_posix() == "output/tutorial_pretty_print_logs"
+    assert runner.CLEAN_OUTPUT_DIR is True
     assert runner.TAIL_LINES == 80
     assert len(runner.TUTORIALS) >= 20
     assert all(entry.path.endswith(".py") for entry in runner.TUTORIALS)
+    assert all(isinstance(entry.acceptance, TutorialAcceptanceKind) for entry in runner.TUTORIALS)
     assert not any("PrettyPrint" in entry.path for entry in runner.TUTORIALS)
 
 
@@ -104,6 +108,7 @@ def test_pretty_output_review_runner_echoes_all_output_without_env_or_cli() -> N
     assert runner.STOP_ON_FIRST_FAILURE is False
     assert runner.WRITE_LOGS is True
     assert runner.OUTPUT_DIR.as_posix() == "output/tutorial_pretty_print_output_review_logs"
+    assert runner.CLEAN_OUTPUT_DIR is True
     assert "os.environ" not in text
     assert "argparse" not in text
     assert "sys.argv" not in text
@@ -117,4 +122,5 @@ def test_pretty_runner_final_list_is_documented() -> None:
     assert "python tutorials/v1/run_pretty_print_output_review.py" in text
     for entry in runner.TUTORIALS:
         assert entry.path in text
+        assert entry.acceptance.value in text
         assert f"{entry.min_match_ratio:.3f}" in text

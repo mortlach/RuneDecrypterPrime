@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, cast
 
-# Allow direct execution from the legacy tutorial folder without pip install.
+# Allow direct execution from the old tutorial folder without pip install.
 _ROOT = Path(__file__).resolve().parents[3]
 _SRC = _ROOT / "src"
 for path in (_SRC,):

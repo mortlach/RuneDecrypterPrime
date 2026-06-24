@@ -125,7 +125,7 @@ def _run_case(label: str, mask: list[int], key: list[int]) -> None:
             "path": "Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py",
             "title": f"ScheduledStreamLookup segmented {label} pretty-print variant",
             "gate": "v1_showcase_near_solve_pretty_print",
-            "acceptance_kind": "near_solve_min_match",
+            "acceptance_kind": "showcase_near_solve",
             "min_match_ratio": MIN_MATCH_RATIO,
             "uses_oracle_stop_score": False,
         },

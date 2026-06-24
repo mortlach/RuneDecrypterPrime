@@ -12,6 +12,7 @@ if str(_SRC) not in sys.path:
 from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, define_map, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 """
@@ -47,6 +48,8 @@ def main() -> None:
     print(f"ciphertext length: {len(ct_idx)}")
     print(f"key period: {len(key_nums)}")
     print(f"ciphertext preview: {ct_runes[:160]}{'...' if len(ct_runes) > 160 else ''}")
+    print_tutorial_debug_preview(label="plaintext", idx=pt_idx, wli=wli, direction=encoding_dir)
+    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx, wli=wli, direction=encoding_dir)
 
     scorer_params = dict(
         char_weights={2: 0.3},
@@ -86,6 +89,7 @@ def main() -> None:
         verbose=True,
         progress_pct=1,
         print_progress=True,
+        progress_preview_chars=120,
         seed=TUTORIAL_SEED,
     )
     display_spec = RunSpec(
@@ -119,7 +123,7 @@ def main() -> None:
             "path": "Tutorial_Vigenere_GeneralMap.py",
             "title": "Vigenere via General Map API pretty-print variant",
             "gate": "v1_release_pretty_print",
-            "acceptance_kind": "min_match_ratio",
+            "acceptance_kind": "exact",
             "min_match_ratio": 1.0,
             "uses_oracle_stop_score": True,
         },

@@ -32,7 +32,7 @@ Promoted to default release gate:
 Reason:
 
 - exact real key-recovery tutorial under `lm2_baseline`
-- `acceptance_kind = min_match_ratio`
+- `acceptance_kind = exact`
 - `min_match_ratio = 1.0`
 - does not supply true key to solver
 - uses public API via the ScheduledStreamLookup tutorial/session utility path
@@ -55,7 +55,7 @@ Reason:
 
 - useful near-solve showcase
 - exact recovery is not required under `lm2_baseline`
-- acceptance is `near_solve_min_match` with `min_match_ratio = 0.9`
+- acceptance is `showcase_near_solve` with `min_match_ratio = 0.9`
 
 ## Known-broken entries excluded from release/full_v1
 

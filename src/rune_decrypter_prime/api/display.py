@@ -48,6 +48,7 @@ from rune_decrypter_prime.api.stop_reason_contract import (
     stop_category_for_reason,
     stop_reason_details_from_solution,
 )
+from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
 
 DISPLAY_SUMMARY_SCHEMA = "api_display_summary.v1"
 DISPLAY_SUMMARY_RELPATH = KnownArtifactRelpath.RDP_DISPLAY_SUMMARY.value
@@ -667,7 +668,7 @@ def _policy_warnings(
     oracle_use = oracle.get("oracle_use")
     if oracle_use and oracle_use != "none":
         warnings.append(f"truth/oracle data use is reported as {oracle_use}")
-    if tutorial is not None and tutorial.get("acceptance_kind") == "near_solve_min_match":
+    if tutorial is not None and tutorial.get("acceptance_kind") == TutorialAcceptanceKind.SHOWCASE_NEAR_SOLVE.value:
         warnings.append("tutorial accepts a near-solve threshold; exact recovery is not required")
     if telemetry.get("telemetry_off") is True:
         warnings.append("telemetry was explicitly disabled")

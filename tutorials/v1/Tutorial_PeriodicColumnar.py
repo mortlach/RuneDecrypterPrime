@@ -18,7 +18,7 @@ for path in (_ROOT, _SRC):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-_SOURCE = _ROOT / "tutorials" / "legacy" / "v1_pretty_replaced" / "Tutorial_PeriodicColumnar.py"
+_SOURCE = _ROOT / "tutorials" / "old" / "v1_replaced_by_pretty_print" / "Tutorial_PeriodicColumnar.py"
 
 
 def _load_source_module():

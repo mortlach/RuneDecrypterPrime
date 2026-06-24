@@ -123,12 +123,8 @@ These are the places most likely to conflict with the staged V1 path.
 
 ## Open Questions
 
-- Should the manifest be updated now, or after one more review of the pretty
-  tutorial list?
 - Should optional/advanced working tutorials be listed in public docs, or only
   in contributor/reference docs?
-- Should old non-pretty tutorial files remain as working tutorials, legacy
-  examples, or be replaced by pretty-print variants?
 - Should `v1_docs/` be promoted as a whole, or should beginner docs promote
   first?
 
@@ -136,7 +132,6 @@ These are the places most likely to conflict with the staged V1 path.
 
 The best next review point is after:
 
-- tutorial manifest alignment decision
 - one successful pretty-print runner pass
 - one output-review pass for wording
 

@@ -20,6 +20,7 @@ import numpy as np
 from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, by_name, cipher_instance, print_rdp_result, run
 from rune_decrypter_prime.utils.interrupter import InterruptorManager
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -78,6 +79,8 @@ def main() -> None:
     print("Plaintext (runes):", pt_runes)
     print("Ciphertext (runes):", ct_runes)
     print("Core length:", int(pt_core.size), "->", int(ct_core.size))
+    print_tutorial_debug_preview(label="plaintext", idx=pt_idx_list, wli=wli, direction=direction)
+    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx_list, wli=wli, direction=direction)
     print("Core interruptors removed:", info.idx.tolist())
 
     scorer_params = dict(
@@ -116,6 +119,8 @@ def main() -> None:
         plateau_rounds=4,
         plateau_min_delta=1e-4,
         progress_pct=1,
+        print_progress=True,
+        progress_preview_chars=120,
         seed=TUTORIAL_SEED,
     )
     cipher_spec = by_name.cipher("vigenere")
@@ -152,7 +157,7 @@ def main() -> None:
             "path": "Tutorial_Vigenere_Interruptors_Exact.py",
             "title": "Vigenere exact-interruptor pretty-print variant",
             "gate": "v1_smoke_pretty_print",
-            "acceptance_kind": "min_match_ratio",
+            "acceptance_kind": "exact",
             "min_match_ratio": MIN_MATCH_RATIO,
             "uses_oracle_stop_score": True,
         },

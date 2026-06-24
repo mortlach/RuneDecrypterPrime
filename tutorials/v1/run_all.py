@@ -46,6 +46,11 @@ TAIL_LINES = 80
 RUN_KNOWN_BROKEN = False
 
 MANIFEST_NAME = "tutorial_manifest_v1.json"
+SRC = Path(__file__).resolve().parents[2] / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
 
 GATE_PRESETS: dict[str, tuple[str, ...]] = {
     "smoke": ("v1_smoke",),
@@ -211,14 +216,18 @@ def _acceptance(entry: dict[str, Any], proc: subprocess.CompletedProcess[str]) -
 
     name = str(entry["path"])
     gate = str(entry.get("gate", ""))
-    acceptance_kind = str(entry.get("acceptance_kind", "process_success"))
+    acceptance_kind = TutorialAcceptanceKind(entry.get("acceptance_kind", TutorialAcceptanceKind.PROCESS_SUCCESS.value))
     min_match_raw = entry.get("min_match_ratio")
     min_match = float(min_match_raw) if min_match_raw is not None else None
 
-    if acceptance_kind in {"process_success", "requires_asset_profile"}:
+    if acceptance_kind in {TutorialAcceptanceKind.PROCESS_SUCCESS, TutorialAcceptanceKind.REQUIRES_ASSET_PROFILE}:
         accepted = proc.returncode == 0
         reason = "process returned 0" if accepted else f"process returned {proc.returncode}"
-    elif acceptance_kind == "min_match_ratio":
+    elif acceptance_kind in {
+        TutorialAcceptanceKind.EXACT,
+        TutorialAcceptanceKind.NEAR_EXACT,
+        TutorialAcceptanceKind.HUMAN_READABLE,
+    }:
         if proc.returncode != 0:
             accepted = False
             reason = f"process returned {proc.returncode}"
@@ -230,26 +239,23 @@ def _acceptance(entry: dict[str, Any], proc: subprocess.CompletedProcess[str]) -
             reason = f"no match ratio found; expected >= {min_match:.3f}"
         else:
             accepted = match_ratio >= min_match
-            reason = f"match_ratio={match_ratio:.3f}; expected >= {min_match:.3f}"
-    elif acceptance_kind == "near_solve_min_match":
+            reason = f"{acceptance_kind.value}; match_ratio={match_ratio:.3f}; expected >= {min_match:.3f}"
+    elif acceptance_kind == TutorialAcceptanceKind.SHOWCASE_NEAR_SOLVE:
         if min_match is None:
             accepted = False
-            reason = "near-solve entry missing min_match_ratio"
+            reason = "showcase near-solve entry missing min_match_ratio"
         elif match_ratio is None:
             accepted = False
-            reason = f"no match ratio found; expected near-solve >= {min_match:.3f}"
+            reason = f"no match ratio found; expected showcase near-solve >= {min_match:.3f}"
         else:
             accepted = match_ratio >= min_match
-            rc_note = "returned 0" if proc.returncode == 0 else f"returned {proc.returncode}, accepted as near-solve"
+            rc_note = "returned 0" if proc.returncode == 0 else f"returned {proc.returncode}, accepted as showcase near-solve"
             reason = f"{rc_note}; match_ratio={match_ratio:.3f}; expected >= {min_match:.3f}"
-    elif acceptance_kind == "blocked_known_issue":
+    elif acceptance_kind == TutorialAcceptanceKind.BLOCKED_KNOWN_ISSUE:
         accepted = False
         reason = "blocked known issue should not have been run"
-    else:
-        accepted = proc.returncode == 0
-        reason = f"unknown acceptance_kind={acceptance_kind!r}; fell back to process return code"
 
-    if accepted and acceptance_kind == "near_solve_min_match":
+    if accepted and acceptance_kind == TutorialAcceptanceKind.SHOWCASE_NEAR_SOLVE:
         status = "NEAR_SOLVE_ACCEPTED"
     elif accepted:
         status = "PASS"

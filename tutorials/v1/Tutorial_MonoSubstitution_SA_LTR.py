@@ -15,6 +15,7 @@ import numpy as np
 from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, by_name, cipher_instance, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
@@ -70,6 +71,8 @@ def main() -> None:
     print("solver path: simulated annealing with frequency-derived starting seeds")
     print(f"ciphertext length: {len(ct_idx)}")
     print(f"ciphertext preview: {preview(ct_runes, 160)}")
+    print_tutorial_debug_preview(label="plaintext", idx=pt_idx, wli=wli, direction=DIRECTION)
+    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx_list, wli=wli, direction=DIRECTION)
 
     seeds = make_seeds_from_freq(
         ct_runes.replace(" ", ""),
@@ -156,6 +159,7 @@ def main() -> None:
         stop_score=stop.stop_score,
         progress_pct=2,
         print_progress=True,
+        progress_preview_chars=120,
         verbose=True,
         seed=TUTORIAL_SEED,
         tol=1e-6,
@@ -186,7 +190,7 @@ def main() -> None:
             "path": "Tutorial_MonoSubstitution_SA_LTR.py",
             "title": "Mono-substitution SA LTR pretty-print variant",
             "gate": "v1_slow_demo_pretty_print",
-            "acceptance_kind": "min_match_ratio",
+            "acceptance_kind": "near_exact",
             "min_match_ratio": MIN_MATCH_RATIO,
             "uses_oracle_stop_score": True,
         },

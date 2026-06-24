@@ -13,6 +13,7 @@ if str(_SRC) not in sys.path:
 from rune_decrypter_prime.api import Direction, KeySpec, RawTextInput, RunSpec, SolverSpec, by_name, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 # -*- coding: utf-8 -*-
@@ -73,6 +74,8 @@ def main() -> None:
     _preview_text("plaintext runes", pt_runes_nosp)
     _preview_text("ciphertext runes", ct_runes)
     _preview_idx("ciphertext indices", ct_idx)
+    print_tutorial_debug_preview(label="plaintext_no_spaces", idx=reference_idx, wli=None, direction=direction)
+    print_tutorial_debug_preview(label="ciphertext_no_spaces", idx=ct_idx, wli=None, direction=direction)
 
     cipher = by_name.cipher("columnar")
     key_spec = KeySpec.permutation(len=len(key_true))
@@ -115,6 +118,7 @@ def main() -> None:
         top_parents_factor=0.4,
         progress_pct=2,
         print_progress=True,
+        progress_preview_chars=120,
         ga=dict(
             pop_size=96,
             generations=40,
@@ -126,6 +130,7 @@ def main() -> None:
             plateau_min_delta=1e-4,
             stop_score=stop.stop_score,
             print_progress=True,
+            progress_preview_chars=120,
         ),
         sa=dict(
             sa_iters=3000,
@@ -137,6 +142,7 @@ def main() -> None:
             local_improve_on_accept=True,
             stop_score=stop.stop_score,
             print_progress=True,
+            progress_preview_chars=120,
         ),
         seed=TUTORIAL_SEED,
         verbose=True,
@@ -180,7 +186,7 @@ def main() -> None:
             "path": "Tutorial_ColumnarTransposition.py",
             "title": "Columnar transposition pretty-print variant",
             "gate": "v1_release_pretty_print",
-            "acceptance_kind": "min_match_ratio",
+            "acceptance_kind": "exact",
             "min_match_ratio": 1.0,
             "uses_oracle_stop_score": True,
         },

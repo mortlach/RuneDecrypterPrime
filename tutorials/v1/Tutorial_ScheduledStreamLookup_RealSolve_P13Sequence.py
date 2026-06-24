@@ -118,7 +118,7 @@ def main() -> None:
             "path": "Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py",
             "title": "ScheduledStreamLookup P13 supplied sequence pretty-print variant",
             "gate": "v1_release_pretty_print",
-            "acceptance_kind": "min_match_ratio",
+            "acceptance_kind": "exact",
             "min_match_ratio": 1.0,
             "uses_oracle_stop_score": False,
         },

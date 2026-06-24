@@ -23,6 +23,7 @@ from rune_decrypter_prime.api import (  # noqa: E402
     run,
 )
 from rune_decrypter_prime.utils.runeglish import Runeglish  # noqa: E402
+from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview  # noqa: E402
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary  # noqa: E402
 
 """
@@ -94,6 +95,8 @@ def main() -> None:
     print("Interruptor symbols:", intr_values_ct)
     print("Plaintext (preview):", pt_runes[:120] + ("..." if len(pt_runes) > 120 else ""))
     print("Ciphertext (preview):", ct_runes[:120] + ("..." if len(ct_runes) > 120 else ""))
+    print_tutorial_debug_preview(label="plaintext", idx=pt_idx, wli=wli, direction=direction)
+    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx_list, wli=wli, direction=direction)
 
     interrupt_cfg = InterruptorConfig(
         mode="pool",
@@ -138,6 +141,8 @@ def main() -> None:
         plateau_min_delta=1e-4,
         stop_score=stop.stop_score,
         progress_pct=10,
+        print_progress=True,
+        progress_preview_chars=120,
         seed=TUTORIAL_SEED,
     )
     key_spec = KeySpec.repeat(len=len(KEY_NUMS))
@@ -181,7 +186,7 @@ def main() -> None:
             "path": "Tutorial_Vigenere_Interruptors_Solve.py",
             "title": "Vigenere interruptor solver search pretty-print variant",
             "gate": "v1_release_pretty_print",
-            "acceptance_kind": "min_match_ratio",
+            "acceptance_kind": "exact",
             "min_match_ratio": 1.0,
             "uses_oracle_stop_score": True,
         },

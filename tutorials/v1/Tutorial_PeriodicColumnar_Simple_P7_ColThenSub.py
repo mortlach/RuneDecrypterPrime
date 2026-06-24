@@ -20,6 +20,7 @@ from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext_stri
 from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
 from rune_decrypter_prime.scoring.language_model.language_model_prime import LanguageModelPrime
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.seed_utils_periodic_columnar import SeedPlan, generate_seed_keys_periodic_columnar
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
@@ -98,6 +99,8 @@ def main() -> None:
     ct_runes = Runeglish.to_rune(ct_idx_list, wli)
 
     print("Ciphertext preview:", _preview(ct_runes))
+    print_tutorial_debug_preview(label="plaintext", idx=pt_idx, wli=wli, direction=encoding_dir)
+    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx_list, wli=wli, direction=encoding_dir)
 
     lm = LanguageModelPrime(lm_root=None, smoothing=None, oov_policy=None, include_char=True)
 
@@ -180,6 +183,7 @@ def main() -> None:
         stop_score=stop1.stop_score,
         progress_pct=2,
         print_progress=True,
+        progress_preview_chars=120,
         seed=TUTORIAL_SEED,
         slip_policy="stall",
         stall_rounds=STAGE1_STALL_ROUNDS,
@@ -241,6 +245,7 @@ def main() -> None:
         stop_score=stop2.stop_score,
         progress_pct=2,
         print_progress=True,
+        progress_preview_chars=120,
         seed=TUTORIAL_SEED,
         slip_policy="stall",
         stall_rounds=STAGE2_STALL_ROUNDS,
@@ -285,7 +290,7 @@ def main() -> None:
             "path": "Tutorial_PeriodicColumnar_Simple_P7_ColThenSub.py",
             "title": "Periodic columnar simple P7 col-then-sub pretty-print variant",
             "gate": "optional_lm3_pretty_print",
-            "acceptance_kind": "min_match_ratio",
+            "acceptance_kind": "exact",
             "min_match_ratio": MIN_MATCH_RATIO,
             "uses_oracle_stop_score": True,
         },

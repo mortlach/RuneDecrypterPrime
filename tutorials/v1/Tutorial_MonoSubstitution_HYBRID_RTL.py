@@ -15,6 +15,7 @@ import numpy as np
 from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, by_name, cipher_instance, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -58,6 +59,8 @@ def main() -> None:
     print("start condition: no true-key seed supplied")
     print(f"ciphertext length: {len(ct_idx)}")
     print(f"ciphertext preview: {preview(ct_runes, 160)}")
+    print_tutorial_debug_preview(label="plaintext", idx=pt_idx, wli=wli, direction=DIRECTION)
+    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx_list, wli=wli, direction=DIRECTION)
 
     scorer_params = dict(
         char_weights={2: 0.3},
@@ -96,6 +99,7 @@ def main() -> None:
         top_parents_factor=0.5,
         progress_pct=2,
         print_progress=True,
+        progress_preview_chars=120,
         ga=dict(
             pop_size=60,
             generations=15,
@@ -107,6 +111,7 @@ def main() -> None:
             plateau_min_delta=1e-4,
             stop_score=stop.stop_score,
             print_progress=True,
+            progress_preview_chars=120,
         ),
         sa=dict(
             sa_iters=1500,
@@ -122,6 +127,7 @@ def main() -> None:
             plateau_min_delta=1e-4,
             stop_score=stop.stop_score,
             print_progress=True,
+            progress_preview_chars=120,
         ),
         seed=TUTORIAL_SEED,
         verbose=True,
@@ -168,7 +174,7 @@ def main() -> None:
             "path": "Tutorial_MonoSubstitution_HYBRID_RTL.py",
             "title": "Mono-substitution HYBRID RTL pretty-print variant",
             "gate": "v1_extended_pretty_print",
-            "acceptance_kind": "min_match_ratio",
+            "acceptance_kind": "near_exact",
             "min_match_ratio": MIN_MATCH_RATIO,
             "uses_oracle_stop_score": True,
         },

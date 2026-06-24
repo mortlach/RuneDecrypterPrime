@@ -19,6 +19,7 @@ for path in (_ROOT, _SRC):
         sys.path.insert(0, str(path))
 
 from rune_decrypter_prime.api import InterruptorConfig, KeySpec, NormalizedInput, RunSpec, by_name, print_rdp_result, run  # noqa: E402
+from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview  # noqa: E402
 
 _SOLVE_SCRIPT = _ROOT / "solving" / "solved_lp" / "02_Welcome_Pilgrim.py"
 
@@ -84,6 +85,18 @@ def main() -> int:
         "solver_params": workbook.solver_params_dict(workbook.SOLVER),
         "acceptance_match_ratio": workbook.ACCEPTANCE_MATCH_RATIO,
     })
+    print_tutorial_debug_preview(
+        label="reference_plaintext",
+        idx=workbook.CANONICAL_WELCOME_PILGRIM_IDX,
+        wli=wli,
+        direction=workbook.ENCODING_DIRECTION,
+    )
+    print_tutorial_debug_preview(
+        label="ciphertext",
+        idx=ct_idx,
+        wli=wli,
+        direction=workbook.ENCODING_DIRECTION,
+    )
 
     interruptors = InterruptorConfig(
         mode="pool",
@@ -145,7 +158,7 @@ def main() -> int:
             "path": "Tutorial_LP_Welcome_Pilgrim_Solve.py",
             "title": "Liber Primus Welcome Pilgrim pretty-print variant",
             "gate": "v1_release_pretty_print",
-            "acceptance_kind": "min_match_ratio",
+            "acceptance_kind": "exact",
             "min_match_ratio": 1.0,
             "uses_oracle_stop_score": False,
         },

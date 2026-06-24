@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TUTORIAL_ROOT = REPO_ROOT / "tutorials" / "v1"
@@ -67,6 +69,7 @@ def test_manifest_entries_have_required_classification_fields() -> None:
     for entry in _entries():
         assert required <= set(entry), entry.get("path")
         assert entry["gate"] in ALLOWED_GATES, entry["path"]
+        assert TutorialAcceptanceKind(entry["acceptance_kind"]), entry["path"]
         assert entry["notes"].strip(), entry["path"]
 
 
@@ -84,7 +87,7 @@ def test_release_gate_includes_scheduled_stream_lookup_exact_real_solve() -> Non
     entry = _entry("Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py")
 
     assert entry["gate"] == "v1_release"
-    assert entry["acceptance_kind"] == "min_match_ratio"
+    assert entry["acceptance_kind"] == TutorialAcceptanceKind.EXACT.value
     assert entry["min_match_ratio"] == 1.0
     assert entry["current_status"] == "active"
     assert entry["supplies_true_key_to_solver"] is False
@@ -94,7 +97,7 @@ def test_scheduled_stream_lookup_extended_and_showcase_are_classified_honestly()
     assert _entry("Tutorial_ScheduledStreamLookup_RealSolve_P13Primes.py")["gate"] == "v1_extended"
     segmented = _entry("Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py")
     assert segmented["gate"] == "v1_showcase_near_solve"
-    assert segmented["acceptance_kind"] == "near_solve_min_match"
+    assert segmented["acceptance_kind"] == TutorialAcceptanceKind.SHOWCASE_NEAR_SOLVE.value
 
 
 def test_known_broken_entries_are_not_selected_by_release_or_full_v1() -> None:
@@ -109,7 +112,7 @@ def test_pretty_runner_selected_tutorials_are_manifested() -> None:
     for selected in runner.TUTORIALS:
         entry = entries[selected.path]
         assert entry["current_status"] == "active"
-        assert entry["acceptance_kind"] in {"min_match_ratio", "near_solve_min_match"}
+        assert TutorialAcceptanceKind(entry["acceptance_kind"]) is selected.acceptance
         assert entry["min_match_ratio"] == selected.min_match_ratio
 
 

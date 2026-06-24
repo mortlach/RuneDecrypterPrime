@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
-# Allow direct execution from the legacy tutorial folder without pip install.
+# Allow direct execution from the old tutorial folder without pip install.
 _ROOT = Path(__file__).resolve().parents[3]
 _SRC = _ROOT / "src"
 if str(_SRC) not in sys.path:

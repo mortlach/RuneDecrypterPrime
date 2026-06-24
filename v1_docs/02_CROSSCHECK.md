@@ -120,8 +120,8 @@ tutorials/v1/tutorial_manifest_v1.json
 ```
 
 It now lists the same 21 promoted tutorial files. Older replaced files were
-moved to `tutorials/legacy/v1_pretty_replaced/`, and blocked legacy files were
-moved to `tutorials/legacy/v1_blocked/`.
+moved to `tutorials/old/v1_replaced_by_pretty_print/`, and blocked old files
+were moved to `tutorials/old/v1_blocked/`.
 
 This is now documented in:
 
@@ -183,7 +183,7 @@ Result:
 127 passed
 ```
 
-After the tutorial rename and legacy move, this focused set was run again:
+After the tutorial rename and old-file move, this focused set was run again:
 
 ```text
 python -m pytest -q tests/contracts/test_v1_tutorial_runner_config_contract.py tests/contracts/test_v1_tutorial_manifest_contract.py tests/tutorials/test_scheduled_stream_lookup_real_solve_tutorial.py tests/tutorials/test_scheduled_stream_lookup_tutorial.py tests/api/test_directional_plaintext_display.py tests/utils/test_runeglish_encode_contract.py tests/api/test_display_summary_contract.py

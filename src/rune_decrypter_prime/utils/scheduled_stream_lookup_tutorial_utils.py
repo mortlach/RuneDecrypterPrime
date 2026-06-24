@@ -8,6 +8,7 @@ from rune_decrypter_prime.api import Direction, KeySpec, SolverSpec, by_name, ci
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.tutorial_benchmark import TutorialRunKind, TutorialStopPolicy
+from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_reference import TutorialReference
 from rune_decrypter_prime.utils.tutorial_report import print_tutorial_run_report
 from rune_decrypter_prime.utils.tutorial_session_report import print_tutorial_session_report
@@ -111,6 +112,7 @@ def make_seeded_smoke_solver(
         verbose=True,
         progress_pct=5,
         print_progress=True,
+        progress_preview_chars=120,
         seed=TUTORIAL_SEED,
     )
 
@@ -138,6 +140,7 @@ def make_real_solve_solver(
         verbose=True,
         progress_pct=5,
         print_progress=True,
+        progress_preview_chars=120,
         seed=int(seed),
     )
 
@@ -165,6 +168,8 @@ def build_ciphertext(
     ct_idx = cipher_obj.encrypt_single(plaintext=pt_arr, key=key_arr)
     ct_idx_list = [int(v) for v in ct_idx]
     ct_runes = Runeglish.to_rune(ct_idx_list, wli)
+    print_tutorial_debug_preview(label="plaintext", idx=pt_idx, wli=wli, direction=direction)
+    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx_list, wli=wli, direction=direction)
     return cipher_spec, key_spec, pt_idx, wli, pt_runes, ct_idx_list, ct_runes, key_arr, cipher_obj
 
 

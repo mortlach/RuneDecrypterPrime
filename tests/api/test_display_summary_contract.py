@@ -23,6 +23,7 @@ from rune_decrypter_prime.api import (
 from rune_decrypter_prime.api.solver_report import build_solver_report
 from rune_decrypter_prime.core.config import Solution
 from rune_decrypter_prime.core.types import Direction
+from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
 
 
 def _solution() -> Solution:
@@ -86,7 +87,7 @@ def test_builds_spec_aware_display_summary() -> None:
             "path": "Tutorial_Demo.py",
             "title": "Demo",
             "gate": "v1_smoke",
-            "acceptance_kind": "min_match_ratio",
+            "acceptance_kind": TutorialAcceptanceKind.EXACT.value,
             "min_match_ratio": 1.0,
         },
         artifacts={"solver_report_path": "artifacts/solver_report.json"},
@@ -135,7 +136,7 @@ def test_text_reference_match_ratio_uses_normalised_plaintext() -> None:
 def test_near_solve_tutorial_policy_is_warned() -> None:
     summary = build_rdp_summary(
         _run_result(),
-        tutorial_entry={"acceptance_kind": "near_solve_min_match"},
+        tutorial_entry={"acceptance_kind": TutorialAcceptanceKind.SHOWCASE_NEAR_SOLVE.value},
     )
 
     assert "tutorial accepts a near-solve threshold; exact recovery is not required" in summary.warnings

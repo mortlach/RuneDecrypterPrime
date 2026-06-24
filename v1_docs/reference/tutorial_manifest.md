@@ -36,7 +36,7 @@ review and release metadata file.
 ## Current State
 
 The current manifest names the promoted working tutorial files under
-`tutorials/v1/`. Older replaced files live under `tutorials/legacy/`.
+`tutorials/v1/`. Older replaced files live under `tutorials/old/`.
 
 Target:
 
@@ -65,6 +65,19 @@ Each working tutorial should have enough metadata to support docs and tests:
 | `supplies_true_key_to_solver` | Whether the true key is supplied to the solver. |
 | `current_status` | Active, optional, slow, showcase, blocked, retired. |
 | `notes` | Short reviewer explanation. |
+
+Acceptance kinds are enum values in code and serialized as strings in the
+manifest:
+
+| Acceptance | Meaning |
+| --- | --- |
+| `exact` | Expected to recover the full reference text. |
+| `near_exact` | Expected to be effectively solved, with only tiny mismatch allowance. |
+| `human_readable` | Expected to produce a readable solve above the stated threshold. |
+| `showcase_near_solve` | Public showcase where exact recovery is not required. |
+| `process_success` | Process success only; avoid for public V1 solve evidence. |
+| `requires_asset_profile` | Runner should treat asset availability as the controlling condition. |
+| `blocked_known_issue` | Known blocked entry; excluded from normal release runs. |
 
 ## Gate Ideas
 

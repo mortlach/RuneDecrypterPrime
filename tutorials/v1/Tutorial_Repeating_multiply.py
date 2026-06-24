@@ -19,6 +19,7 @@ import numpy as np
 from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, define_map, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1_rev, word_breaks1_rev
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -59,6 +60,8 @@ def main() -> None:
     print(f"key length: {KEY_LEN}")
     _preview("plaintext runes", pt_runes)
     _preview("ciphertext runes", ct_runes)
+    print_tutorial_debug_preview(label="plaintext", idx=pt_idx, wli=wli, direction=DIRECTION)
+    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx, wli=wli, direction=DIRECTION)
 
     cipher = define_map(function=mult_map, N=N)
     key_spec = KeySpec.repeat(len=KEY_LEN)
@@ -99,6 +102,7 @@ def main() -> None:
         verbose=True,
         progress_pct=2,
         print_progress=True,
+        progress_preview_chars=120,
         seed=TUTORIAL_SEED,
     )
     display_spec = RunSpec(
@@ -135,7 +139,7 @@ def main() -> None:
             "path": "Tutorial_Repeating_multiply.py",
             "title": "Repeating multiply pretty-print variant",
             "gate": "v1_extended_pretty_print",
-            "acceptance_kind": "min_match_ratio",
+            "acceptance_kind": "exact",
             "min_match_ratio": MIN_MATCH_RATIO,
             "uses_oracle_stop_score": True,
         },

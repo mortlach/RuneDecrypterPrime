@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
+
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "tutorials" / "v1" / "tutorial_manifest_v1.json"
@@ -29,10 +31,13 @@ def test_real_solve_tutorials_are_manifested_for_release_runner_profiles() -> No
         entry = entries[path]
         assert entry["gate"] == gate
         assert entry["required_asset_profile"] == "lm2_baseline"
-        assert entry["acceptance_kind"] in {"min_match_ratio", "near_solve_min_match"}
+        assert TutorialAcceptanceKind(entry["acceptance_kind"]) in {
+            TutorialAcceptanceKind.EXACT,
+            TutorialAcceptanceKind.SHOWCASE_NEAR_SOLVE,
+        }
         assert (ROOT / "tutorials" / "v1" / path).is_file()
 
     release_entry = entries["Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py"]
-    assert release_entry["acceptance_kind"] == "min_match_ratio"
+    assert release_entry["acceptance_kind"] == TutorialAcceptanceKind.EXACT.value
     assert release_entry["min_match_ratio"] == 1.0
     assert release_entry["supplies_true_key_to_solver"] is False

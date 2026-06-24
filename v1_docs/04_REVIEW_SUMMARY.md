@@ -56,7 +56,7 @@ The staged docs now use the current V1 policy:
 - no tutorial CLI switch surface
 - no separate tutorial config file for normal review
 - selected tutorials live under `tutorials/v1/`
-- older replaced tutorials live under `tutorials/legacy/`
+- older replaced tutorials live under `tutorials/old/`
 - the normal tutorial gate is `run_pretty_print_release.py`
 - the full output review runner is `run_pretty_print_output_review.py`
 

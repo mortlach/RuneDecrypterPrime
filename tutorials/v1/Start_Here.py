@@ -19,6 +19,7 @@ from rune_decrypter_prime.core.config import ScoringConfig  # noqa: E402
 from rune_decrypter_prime.core.engine.builders import build_scorer  # noqa: E402
 from rune_decrypter_prime.core.types import Device  # noqa: E402
 from rune_decrypter_prime.utils.runeglish import Runeglish  # noqa: E402
+from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview  # noqa: E402
 
 ALPHABET = 29
 DEMO_TEXT = "THERE WAS A TABLE SET OUT UNDER A TREE"
@@ -250,7 +251,7 @@ def _print_summary(label: str, result, demo: Dict[str, Any], spec: api.RunSpec) 
             "path": "Start_Here.py",
             "title": f"Start Here pretty-print {label}",
             "gate": "v1_smoke_pretty_print",
-            "acceptance_kind": "min_match_ratio",
+            "acceptance_kind": "exact",
             "min_match_ratio": 1.0,
         },
     )
@@ -258,6 +259,18 @@ def _print_summary(label: str, result, demo: Dict[str, Any], spec: api.RunSpec) 
 
 def main():
     demo = _demo_ciphertext()
+    print_tutorial_debug_preview(
+        label="plaintext",
+        idx=cast(List[int], demo["plaintext_idx"]),
+        wli=cast(List[List[int]], demo["wli"]),
+        direction=cast(api.Direction, demo["encoding_dir"]),
+    )
+    print_tutorial_debug_preview(
+        label="ciphertext",
+        idx=cast(List[int], demo["ciphertext_idx"]),
+        wli=cast(List[List[int]], demo["wli"]),
+        direction=cast(api.Direction, demo["encoding_dir"]),
+    )
     key_len = len(cast(List[int], demo["secret_key"]))
     cipher_spec, key_spec = api.define_cipher(
         name="vigenere",
