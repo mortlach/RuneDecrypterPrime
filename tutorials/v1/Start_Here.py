@@ -49,7 +49,7 @@ def _demo_ciphertext() -> Dict[str, Any]:
 
 
 def _progress_kwargs(demo: Dict[str, Any]) -> Dict[str, Any]:
-    """Console progress prints the entire rune string each pct update."""
+    """Console progress prints the entire short demo string each pct update."""
     ct = str(demo.get("ciphertext", "") or "")
     pt = str(demo.get("plaintext", "") or "")
     preview_chars = max(len(ct), len(pt))
@@ -64,7 +64,7 @@ def _progress_kwargs(demo: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
-def _match_ratio(solution, pt_idx: list[int]) -> float:
+def _solution_match_ratio(solution, pt_idx: list[int]) -> float:
     guess = getattr(solution, "plaintext_idx", None)
     if not guess:
         return 0.0
@@ -84,6 +84,34 @@ def _make_scorer_params(demo: Dict[str, Any]) -> Dict[str, Any]:
         wli_weights={2: 0.7},
         encoding_dir=demo["encoding_dir"],
         objective="pct.logp.win10",
+    )
+
+
+def _display_scorer_params(demo: Dict[str, Any]) -> Dict[str, Any]:
+    direction = cast(api.Direction, demo["encoding_dir"])
+    return {
+        "objective": "pct.logp.win10",
+        "include_char": True,
+        "use_word_breaks": True,
+        "encoding_dir": direction.value,
+        "char_order_2_weight": 0.3,
+        "wli_order_2_weight": 0.7,
+    }
+
+
+def _display_spec(demo: Dict[str, Any], cipher_spec, key_spec, solver_spec) -> api.RunSpec:
+    return api.RunSpec(
+        problem_input=api.NormalizedInput(
+            ct_idx=cast(List[int], demo["ciphertext_idx"]),
+            wli=cast(List[List[int]], demo["wli"]),
+        ),
+        cipher=cipher_spec,
+        key=key_spec,
+        solver=solver_spec,
+        scorer="rune",
+        scorer_params=_display_scorer_params(demo),
+        encoding_dir=cast(api.Direction, demo["encoding_dir"]),
+        telemetry_on=True,
     )
 
 
@@ -137,7 +165,7 @@ def solve_with_wrappers(
         seed=1337,
         **_progress_kwargs(demo),
     )
-    solution = api.run(
+    result = api.run(
         text=demo["ciphertext"],
         cipher=cipher_spec,
         key=key_spec,
@@ -147,8 +175,9 @@ def solve_with_wrappers(
         encoding_dir=demo["encoding_dir"],
         telemetry_on=True,
         initial_keys=[demo["secret_key"]],
+        return_solver_report=True,
     )
-    _print_summary("Wrapper Beam", solution)
+    _print_summary("Wrapper Beam", result, demo, _display_spec(demo, cipher_spec, key_spec, solver_spec))
 
 
 def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any]):
@@ -166,10 +195,10 @@ def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any
         stop_score=0.62,
         plateau_rounds=6,
         plateau_min_delta=1e-4,
-        **_progress_kwargs(demo),
+        **_progress_kwargs(cast(Dict[str, Any], demo)),
         seed=4242,
     )
-    solution = api.run(
+    result = api.run(
         text=demo["ciphertext"],
         cipher=cipher_spec,
         key=key_spec,
@@ -178,9 +207,10 @@ def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any
         wli_data=demo["wli"],
         encoding_dir=demo["encoding_dir"],
         telemetry_on=True,
+        return_solver_report=True,
     )
     pt_idx = demo.get("plaintext_idx")
-    if pt_idx is not None and _match_ratio(solution, pt_idx) < 0.999:
+    if pt_idx is not None and _solution_match_ratio(result.solution, pt_idx) < 0.999:
         print("[General Map] retrying with wider beam...")
         solver_spec = api.SolverSpec.beam(
             beam_width=96,
@@ -189,10 +219,10 @@ def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any
             stop_score=0.62,
             plateau_rounds=10,
             plateau_min_delta=1e-5,
-            **_progress_kwargs(demo),
+            **_progress_kwargs(cast(Dict[str, Any], demo)),
             seed=4242,
         )
-        solution = api.run(
+        result = api.run(
             text=demo["ciphertext"],
             cipher=cipher_spec,
             key=key_spec,
@@ -201,18 +231,29 @@ def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any
             wli_data=demo["wli"],
             encoding_dir=demo["encoding_dir"],
             telemetry_on=True,
+            return_solver_report=True,
         )
-    _print_summary("General Map Beam", solution)
+    _print_summary("General Map Beam", result, cast(Dict[str, Any], demo), _display_spec(cast(Dict[str, Any], demo), cipher_spec, key_spec, solver_spec))
 
 
-def _print_summary(label: str, solution):
-    score = getattr(solution, "score", None)
-    key = getattr(solution, "key", [])
-    plaintext = getattr(solution, "plaintext_rune", "") or getattr(solution, "plaintext_str", "")
-    snippet = plaintext[:120] + ("..." if len(plaintext) > 120 else "")
-    print(f"\n[{label}] score={score:.3f}" if score is not None else f"\n[{label}]")
-    print("  Plaintext:", snippet)
-    print("  Key:", key)
+def _print_summary(label: str, result, demo: Dict[str, Any], spec: api.RunSpec) -> None:
+    pt_idx = demo.get("plaintext_idx")
+    reference_idx = list(pt_idx) if pt_idx is not None else None
+
+    print(f"\n[{label}] standard summary")
+    api.print_rdp_result(
+        result,
+        spec=spec,
+        reference_idx=reference_idx,
+        options=api.RdpDisplayOptions.for_tutorial(),
+        tutorial_entry={
+            "path": "Start_Here.py",
+            "title": f"Start Here pretty-print {label}",
+            "gate": "v1_smoke_pretty_print",
+            "acceptance_kind": "min_match_ratio",
+            "min_match_ratio": 1.0,
+        },
+    )
 
 
 def main():

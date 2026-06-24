@@ -8,7 +8,7 @@ The V1 release proof is the GitHub workflow `.github/workflows/rdp_v1_full_proof
 
 - `python install.py`
 - the full pytest suite under `tests`
-- `tutorials/v1/run_all.py`
+- `tutorials/v1/run_pretty_print_release.py`
 - Windows and Ubuntu on Python 3.11
 
 Pytest must use `-ra` so skipped optional-runtime tests are visible in the log rather than silently hidden.

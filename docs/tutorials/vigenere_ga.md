@@ -1,4 +1,4 @@
-﻿# Tutorial: Vigenere (GA)
+# Tutorial: Vigenere (GA)
 
 > Tracks: **Hands-on** - follow the steps to run `tutorials/v1/Tutorial_Vigenere_GeneralMap.py`. **Expert** - learn which modules/tests back the preset.
 
@@ -12,9 +12,9 @@ Prereqs: Python 3.11+, bootstrap complete (`python install.py`)
 - Observe deterministic telemetry buckets and verify =0.55 mono score.
 
 ## Hands-on Steps
-1. Open `tutorials/v1/Tutorial_Vigenere_GeneralMap.py` (environment setup: `guides/quickstart.md`).
+1. Open `tutorials/v1/Tutorial_Vigenere_GeneralMap.py` (setup help: `guides/quickstart.md`).
 2. Keep `TUTORIAL_SEED = 12345` so your run matches other solvers.
-3. Execute `python tutorials/v1/Tutorial_Vigenere_GeneralMap.py --print-progress`.
+3. Execute `python tutorials/v1/Tutorial_Vigenere_GeneralMap.py`.
 4. Watch the GA progress lines (`pct=... best_score=...`). When it finishes, note the plaintext preview and score.
 5. Inspect `output/tutorials/<timestamp>__tutorials__vigenere__<git>/logs/app.jsonl` for the `telemetry.run` block.
 

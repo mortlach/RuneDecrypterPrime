@@ -78,7 +78,7 @@ def _safe_float(x: Any, default: Optional[float] = None) -> Optional[float]:
     except Exception:
         return default
 
-def _latin_from_idx(idx: Sequence[int] | Any, wli: Optional[Sequence[Sequence[int]]]) -> str:
+def _latin_from_idx(idx: Sequence[int] | Any, wli: Optional[Sequence[Sequence[int]]], direction: Any = "ltr") -> str:
     """
     Robust: if WLI is missing or wrong length, still render Latin tokens
     without spacing. If WLI length matches idx, insert spaces accordingly.
@@ -91,7 +91,7 @@ def _latin_from_idx(idx: Sequence[int] | Any, wli: Optional[Sequence[Sequence[in
             # No WLI → join latin tokens without spaces
             return "".join(Runeglish.pos_to_latin(int(p)) for p in arr)
         # WLI present and aligned → use word spacing
-        return Runeglish.to_rune_latin(arr, wli)
+        return Runeglish.to_rune_latin(arr, wli, direction=direction)
     except Exception:
         return ""
 
@@ -242,6 +242,7 @@ def print_run_report(
     pt_latin_attr = str(getattr(solution, "plaintext_latin", "") or "")
     sol_wli    = getattr(solution, "wli", None)
     wli_for_latin = sol_wli if sol_wli is not None else wli
+    direction = getattr(solution, "direction", "ltr")
 
     # ---- meta & telemetry ---------------------------------------------------
     meta    = _as_dict(getattr(solution, "meta", {}))
@@ -360,18 +361,18 @@ def print_run_report(
 
     # ---- PT / CT previews ---------------------------------------------------
     pt_ref_runes = pt_rune_ref or ""
-    pt_ref_latin = _latin_from_idx(_to_list(pt_idx_ref), wli_for_latin) if _nonempty(pt_idx_ref) else ""
+    pt_ref_latin = _latin_from_idx(_to_list(pt_idx_ref), wli_for_latin, direction) if _nonempty(pt_idx_ref) else ""
     if not pt_ref_latin and pt_ref_runes:
         try:
             pt_ref_latin = " ".join(Runeglish.rune_to_latin(ch) for ch in pt_ref_runes)
         except Exception:
             pt_ref_latin = ""
 
-    pt_found_latin = pt_latin_attr if pt_latin_attr else (_latin_from_idx(pt_idx, wli_for_latin) if _nonempty(pt_idx) else "")
+    pt_found_latin = pt_latin_attr if pt_latin_attr else (_latin_from_idx(pt_idx, wli_for_latin, direction) if _nonempty(pt_idx) else "")
     ct_idx_source = ct_idx if ct_idx is not None else getattr(solution, "ciphertext_idx", [])
     ct_idx_list   = _to_list(ct_idx_source)
     ct_latin_attr = getattr(solution, "ciphertext_latin", "") or ""
-    ct_latin      = ct_latin_attr or (_latin_from_idx(ct_idx_list, wli_for_latin) if ct_idx_list else "")
+    ct_latin      = ct_latin_attr or (_latin_from_idx(ct_idx_list, wli_for_latin, direction) if ct_idx_list else "")
     ct_rune_attr  = getattr(solution, "ciphertext_rune", "") or ""
     ct_runes_disp = ct_rune or ct_rune_attr or _runes_from_idx(ct_idx_list, wli_for_latin)
 

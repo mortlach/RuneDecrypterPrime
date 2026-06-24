@@ -1,6 +1,6 @@
-﻿# Tutorial: Monoalphabetic Substitution (GA)
+# Tutorial: Monoalphabetic Substitution (GA)
 
-> Tracks: **Hands-on** - run `tutorials/v1/Tutorial_MonoSubstitution_GA.py`. **Expert** - tune GA presets and validate regressions.
+> Tracks: **Hands-on** - run `tutorials/v1/Tutorial_MonoSubstitution_GA_RTL.py`. **Expert** - tune GA presets and validate regressions.
 
 Audience: Handsâ€‘on
 Time: 8-12 minutes (CPU)
@@ -12,7 +12,7 @@ Prereqs: Python 3.11+, bootstrap complete (`python install.py`)
 - Hit =0.55 mono score to satisfy tutorial regression tests.
 
 ## Hands-on Steps
-1. Open `tutorials/v1/Tutorial_MonoSubstitution_GA.py` (environment setup: `guides/quickstart.md`).
+1. Open `tutorials/v1/Tutorial_MonoSubstitution_GA_RTL.py` (environment setup: `guides/quickstart.md`).
 2. Keep `TUTORIAL_SEED = 12345` and `CIPHERTEXT_SEED = 12345` for reproducible plaintext/key generation.
 3. Run the script; it encrypts a reference English passage, then launches GA with seeded frequency-derived starting keys.
 4. Watch the progress buckets; once finished, the script prints recovered plaintext and score.

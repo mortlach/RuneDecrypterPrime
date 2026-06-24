@@ -1,4 +1,4 @@
-﻿# Tutorial: Columnar Transposition (Hybrid)
+# Tutorial: Columnar Transposition (Hybrid)
 
 > Tracks: **Hands-on** - run `tutorials/v1/Tutorial_ColumnarTransposition.py`. **Expert** - tweak presets and ensure telemetry stays canonical.
 
@@ -12,9 +12,9 @@ Prereqs: Python 3.11+, bootstrap complete (`python install.py`)
 - Validate the >=0.62 score / >=98% match requirement for Hybrid presets.
 
 ## Hands-on Steps
-1. Open `tutorials/v1/Tutorial_ColumnarTransposition.py` (see `guides/quickstart.md` if your environment is not ready).
+1. Open `tutorials/v1/Tutorial_ColumnarTransposition.py` (see `guides/quickstart.md` if your setup is not ready).
 2. Keep `TUTORIAL_SEED = 2025` so ciphertext/key generation stays deterministic.
-3. Run the script with your preferred workflow (for example: `python tutorials/v1/Tutorial_ColumnarTransposition.py --print-progress`).
+3. Run `python tutorials/v1/Tutorial_ColumnarTransposition.py`.
 4. Observe the beam phase (`progress_pct=1` buckets) followed by SA refinements.
 5. Inspect `output/tutorials/<run>/logs/app.jsonl` for `solver_spans` showing beam to SA transitions.
 

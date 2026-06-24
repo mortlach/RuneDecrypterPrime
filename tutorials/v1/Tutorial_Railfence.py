@@ -1,36 +1,31 @@
 from __future__ import annotations
 
+"""Railfence pretty-print tutorial.
+
+This variant keeps the original railfence teaching path but reports through the
+standard RDP printer contract.
+"""
+
 import sys
 from pathlib import Path
 from typing import Sequence
-_ROOT = Path(__file__).resolve().parents[3]
+
+_ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from rune_decrypter_prime.api import Direction, KeySpec, SolverSpec, by_name, run
-from rune_decrypter_prime.utils.pretty import print_run_report
+from rune_decrypter_prime.api import Direction, KeySpec, RawTextInput, RunSpec, SolverSpec, by_name, print_rdp_result, run
+from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
-from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
-
-
-"""
-Tutorial: Railfence (zig-zag) transposition without word boundaries.
-
-This walkthrough:
-    1. Encodes an Alice-in-Wonderland plaintext into runes (RTL) and strips spaces.
-    2. Encrypts with a 3-rail fence to produce ciphertext lacking WLI.
-    3. Builds the production railfence wrapper + scalar key spec (rails search range).
-    4. Runs a small beam search to recover both plaintext and rail count.
-    5. Prints a run, telemetry-friendly summary via `print_run_report`.
-"""
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 TUTORIAL_SEED = 4242
 TRUE_RAILS = 3
+MIN_MATCH_RATIO = 1.0
 
 
 def encrypt_railfence(pt: str, rails: int) -> str:
@@ -55,8 +50,14 @@ def _match_ratio(recovered: Sequence[int], reference: Sequence[int]) -> float:
     limit = min(len(recovered), len(reference))
     if limit == 0:
         return 0.0
-    matches = sum(1 for i in range(limit) if recovered[i] == reference[i])
+    matches = sum(1 for i in range(limit) if int(recovered[i]) == int(reference[i]))
     return matches / float(limit)
+
+
+def _preview_text(label: str, value: str, *, limit: int = 160) -> None:
+    suffix = "..." if len(value) > limit else ""
+    print(f"{label} length: {len(value)}")
+    print(f"{label} preview: {value[:limit]}{suffix}")
 
 
 def main() -> None:
@@ -64,23 +65,38 @@ def main() -> None:
     pt_latin = plaintext_english_string
     pt_idx, _, pt_runes = Runeglish.encode_english_to_runes(pt_latin, direction=direction.value)
     pt_runes_nosp = pt_runes.replace(" ", "")
+    reference_idx = Runeglish.rune_to_pos(pt_runes_nosp)
 
     ct_runes = encrypt_railfence(pt_runes_nosp, TRUE_RAILS)
     ct_idx = Runeglish.rune_to_pos(ct_runes)
+
+    print("Railfence problem")
+    print(f"encoding direction: {direction.value}")
+    print(f"true rails: {TRUE_RAILS}")
+    print("word boundaries: stripped before transposition")
+    _preview_text("plaintext runes", pt_runes_nosp)
+    _preview_text("ciphertext runes", ct_runes)
 
     cipher_spec = by_name.cipher("railfence", min_rails=2, max_rails=6)
     key_spec = KeySpec.scalar(max_val=6)
     scorer_params = dict(
         objective="pct.logp.win10",
         include_char=True,
-        use_word_breaks=False,  # ciphertext lost spacing during transposition
+        use_word_breaks=False,
         char_weights={2: 1.0},
         wli_weights={},
         encoding_dir=direction,
     )
+    display_scorer_params = {
+        "objective": "pct.logp.win10",
+        "include_char": True,
+        "use_word_breaks": False,
+        "encoding_dir": direction.value,
+        "char_order_2_weight": 1.0,
+    }
 
     stop = oracle_stop_score(
-        pt_idx,
+        reference_idx,
         None,
         scorer_params,
         device="cpu",
@@ -99,8 +115,18 @@ def main() -> None:
         plateau_min_delta=1e-4,
         seed=TUTORIAL_SEED,
     )
+    display_spec = RunSpec(
+        problem_input=RawTextInput(text=ct_runes),
+        cipher=cipher_spec,
+        key=key_spec,
+        solver=solver_spec,
+        scorer="rune",
+        scorer_params=display_scorer_params,
+        encoding_dir=direction,
+        telemetry_on=True,
+    )
 
-    solution = run(
+    result = run(
         text=ct_runes,
         cipher=cipher_spec,
         key=key_spec,
@@ -112,31 +138,28 @@ def main() -> None:
         force_no_wli=True,
         encoding_dir=direction,
         telemetry_on=True,
+        return_solver_report=True,
     )
 
-    recovered = getattr(solution, "plaintext_rune", "") or getattr(solution, "plaintext_str", "")
-    preview = recovered[:120] + ("..." if len(recovered) > 120 else "")
-    print(f"Recovered plaintext preview:\n{preview}")
+    recovered = getattr(result.solution, "plaintext_rune", "") or getattr(result.solution, "plaintext_str", "")
+    print("Recovered plaintext preview:", recovered[:120] + ("..." if len(recovered) > 120 else ""))
+    match_ratio = _match_ratio(result.solution.plaintext_idx, reference_idx)
+    print(f"Match ratio: {match_ratio:.3f}")
 
-    match_ratio = _match_ratio(solution.plaintext_idx, pt_idx)
-    match_ok = match_ratio >= 0.95
-
-    print_run_report(
-        title="Railfence Tutorial",
-        cipher="railfence",
-        solution=solution,
-        match_ok=match_ok,
-        app_version="tutorial-1.0",
-        key_idx=[TRUE_RAILS],
-        key_len=1,
-        ct_idx=ct_idx,
-        ct_rune=ct_runes,
-        pt_rune_ref=pt_runes_nosp,
-        pt_idx_ref=pt_idx,
-        wli=None,
+    print_rdp_result(
+        result,
+        spec=display_spec,
+        reference_idx=reference_idx,
+        tutorial_entry={
+            "path": "Tutorial_Railfence.py",
+            "title": "Railfence pretty-print variant",
+            "gate": "v1_smoke_pretty_print",
+            "acceptance_kind": "min_match_ratio",
+            "min_match_ratio": MIN_MATCH_RATIO,
+            "uses_oracle_stop_score": True,
+        },
     )
 
 
 if __name__ == "__main__":
     main()
-

@@ -27,6 +27,8 @@ ciphertext
 - [`guides/quickstart.md`](guides/quickstart.md) - first tutorial run
 - [`guides/troubleshooting.md`](guides/troubleshooting.md) - common failures
 - [`guides/outputs.md`](guides/outputs.md) - generated reports, logs, and telemetry
+- [`tutorials/index.md`](tutorials/index.md) - final V1 pretty-print tutorial list
+- [`development/docs_style.md`](development/docs_style.md) - documentation and tutorial-runner policy
 
 ## Expert and integrator docs
 

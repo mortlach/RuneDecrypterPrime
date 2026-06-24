@@ -1,30 +1,25 @@
 from __future__ import annotations
 
+"""Repeating multiply pretty-print tutorial.
+
+This variant demonstrates a custom user map, ct = pt * k mod 29, and reports the
+real solve through the standard RDP printer contract.
+"""
+
 import sys
 from pathlib import Path
-
-import numpy as np
 
 _ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, define_map
+import numpy as np
+
+from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, define_map, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1_rev, word_breaks1_rev
-from rune_decrypter_prime.utils.pretty import print_run_report
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
-
-"""
-Tutorial: Repeating Multiply (mod 29) via Generic Map
-
-What it shows:
-1) Use the reverse-encoded plaintext sample with WLI from data.
-2) Define a multiplicative map: ct = (pt * k) % 29.
-3) Encrypt with a repeating key of length 13 (values 1..28).
-4) Solve with the generic map + repeating-key search.
-"""
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -32,46 +27,63 @@ if hasattr(sys.stdout, "reconfigure"):
 N = 29
 TUTORIAL_SEED = 12345
 KEY_LEN = 13
+MIN_MATCH_RATIO = 1.0
+DIRECTION = Direction.RTL
 
 
 def mult_map(pt: int, k: int) -> int:
     return (pt * k) % N
 
 
+def _preview(label: str, text: str, limit: int = 160) -> None:
+    suffix = "..." if len(text) > limit else ""
+    print(f"{label} length: {len(text)}")
+    print(f"{label} preview: {text[:limit]}{suffix}")
+
+
 def main() -> None:
     rng = np.random.default_rng(TUTORIAL_SEED)
-    key_nums = rng.integers(1, N, size=KEY_LEN).tolist()  # avoid 0 to keep the map invertible
+    key_nums = rng.integers(1, N, size=KEY_LEN).tolist()
 
-    pt_idx = list(plaintext1_rev)
-    wli = list(word_breaks1_rev)
+    pt_idx = [int(v) for v in plaintext1_rev]
+    wli = [list(pair) for pair in word_breaks1_rev]
 
     pt_runes = Runeglish.to_rune(pt_idx, wli)
-    pt_preview = pt_runes[:120] + ("..." if len(pt_runes) > 120 else "")
-    print("Plaintext preview:", pt_preview)
-
     stream = [key_nums[i % KEY_LEN] for i in range(len(pt_idx))]
-    ct_idx = [(p * k) % N for p, k in zip(pt_idx, stream)]
+    ct_idx = [int((p * k) % N) for p, k in zip(pt_idx, stream)]
     ct_runes = Runeglish.to_rune(ct_idx, wli)
-    ct_preview = ct_runes[:120] + ("..." if len(ct_runes) > 120 else "")
-    print("Ciphertext preview:", ct_preview)
+
+    print("Repeating multiply problem")
+    print(f"encoding direction: {DIRECTION.value}")
+    print(f"map: ct = pt * k mod {N}")
+    print(f"key length: {KEY_LEN}")
+    _preview("plaintext runes", pt_runes)
+    _preview("ciphertext runes", ct_runes)
 
     cipher = define_map(function=mult_map, N=N)
     key_spec = KeySpec.repeat(len=KEY_LEN)
-
     scorer_params = dict(
         char_weights={2: 0.3},
         wli_weights={2: 0.7},
         include_char=True,
         use_word_breaks=True,
-        encoding_dir=Direction.RTL,
+        encoding_dir=DIRECTION,
     )
+    display_scorer_params = {
+        "objective": "pct.logp.win10",
+        "include_char": True,
+        "use_word_breaks": True,
+        "encoding_dir": DIRECTION.value,
+        "char_order_2_weight": 0.3,
+        "wli_order_2_weight": 0.7,
+    }
 
     stop = oracle_stop_score(
         pt_idx,
         wli,
         scorer_params,
         device="cpu",
-        encoding_dir=Direction.RTL,
+        encoding_dir=DIRECTION,
         margin=0.02,
         min_score=0.50,
         fallback=0.55,
@@ -89,32 +101,44 @@ def main() -> None:
         print_progress=True,
         seed=TUTORIAL_SEED,
     )
+    display_spec = RunSpec(
+        problem_input=NormalizedInput(ct_idx=ct_idx, wli=wli),
+        cipher=cipher,
+        key=key_spec,
+        solver=solve_spec,
+        scorer="rune",
+        scorer_params=display_scorer_params,
+        encoding_dir=DIRECTION,
+        telemetry_on=True,
+    )
 
-    sol = run(
+    result = run(
         text=ct_runes,
         cipher=cipher,
         key=key_spec,
         solver=solve_spec,
         scorer_params=dict(scorer_params),
         wli_data=wli,
-        encoding_dir=Direction.RTL,
+        encoding_dir=DIRECTION,
         telemetry_on=True,
+        return_solver_report=True,
     )
 
-    recovered = getattr(sol, "plaintext_rune", "") or getattr(sol, "plaintext_str", "")
-    rec_preview = str(recovered)
-    rec_preview = rec_preview[:120] + ("..." if len(rec_preview) > 120 else "")
-    print("Recovered plaintext preview:", rec_preview)
+    recovered = getattr(result.solution, "plaintext_rune", "") or getattr(result.solution, "plaintext_str", "")
+    print("Recovered plaintext preview:", str(recovered)[:120] + ("..." if len(str(recovered)) > 120 else ""))
 
-    print_run_report(
-        title="Repeating Multiply (mod 29)",
-        cipher="user_map2",
-        solution=sol,
-        match_ok=None,
-        app_version="tutorial-1.0",
-        key_idx=key_nums,
-        key_len=KEY_LEN,
-        pt_rune_ref=Runeglish.to_rune(pt_idx, wli),
+    print_rdp_result(
+        result,
+        spec=display_spec,
+        reference_idx=pt_idx,
+        tutorial_entry={
+            "path": "Tutorial_Repeating_multiply.py",
+            "title": "Repeating multiply pretty-print variant",
+            "gate": "v1_extended_pretty_print",
+            "acceptance_kind": "min_match_ratio",
+            "min_match_ratio": MIN_MATCH_RATIO,
+            "uses_oracle_stop_score": True,
+        },
     )
 
 

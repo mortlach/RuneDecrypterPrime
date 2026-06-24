@@ -25,6 +25,7 @@ known truth/key visibility
 
 ```text
 tutorials/v1/tutorial_manifest_v1.json
+tutorials/v1/run_pretty_print_release.py
 tutorials/v1/run_all.py
 docs/README.md
 docs/expert/gui_interface_contract.md

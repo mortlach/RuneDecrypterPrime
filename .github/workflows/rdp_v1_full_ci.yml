@@ -96,11 +96,11 @@ jobs:
           log_dir.mkdir(parents=True, exist_ok=True)
           log_path = log_dir / "tutorials_v1_release.log"
 
-          script = Path("tutorials") / "v1" / "run_all.py"
+          script = Path("tutorials") / "v1" / "run_pretty_print_release.py"
           if not script.is_file():
               raise SystemExit(f"Missing tutorial runner: {script}")
 
-          cmd = [sys.executable, str(script)]
+          cmd = [sys.executable, "-X", "utf8", str(script)]
           proc = subprocess.run(
               cmd,
               text=True,

@@ -144,17 +144,35 @@ class Runeglish:
         return [[i, len(word)] for word in runewords for i, _ in enumerate(word)]
 
     @staticmethod
-    def to_rune_latin(pt: Sequence[int], wli: Sequence[Sequence[int]], limit: int | None = None) -> str:
-        """Render positions as Latin tokens, respecting WLI word breaks."""
+    def to_rune_latin(
+        pt: Sequence[int],
+        wli: Sequence[Sequence[int]] | None,
+        limit: int | None = None,
+        *,
+        direction: str | object = "ltr",
+    ) -> str:
+        """Render positions as Latin text, respecting WLI and encoding direction."""
+        dir_value = getattr(direction, "value", direction)
+        dir_text = str(dir_value).strip().lower()
+
+        def _display_word(tokens: list[str]) -> str:
+            if dir_text != "rtl" or wli is None:
+                return ''.join(tokens)
+            # Inverse of encode_english_to_runes(..., direction="rtl"):
+            # encoded tokens are in display order, but multigraph boundaries were
+            # chosen after reversing the source word.
+            source_order = ''.join(tokens[::-1]).replace("(I)NG", "ING")
+            return source_order[::-1]
+
         words, cur = [], []
         for i, sym in enumerate(pt):
             cur.append(Runeglish.pos_to_latin(sym))
             if wli is not None and wli[i][0] == wli[i][1] - 1:
-                words.append(''.join(cur)); cur = []
+                words.append(_display_word(cur)); cur = []
             if limit and len(' '.join(words)) >= limit:
                 break
         if cur:
-            words.append(''.join(cur))
+            words.append(_display_word(cur))
         return ' '.join(words)
 
     @staticmethod

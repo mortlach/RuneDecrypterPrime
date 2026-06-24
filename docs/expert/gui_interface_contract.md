@@ -13,11 +13,13 @@ A GUI should prefer these inputs:
 
 ```text
 tutorials/v1/tutorial_manifest_v1.json
+tutorials/v1/run_pretty_print_release.py
 tutorials/v1/run_all.py
-RDP_TUTORIAL_GATE_PROFILE
-RDP_TUTORIAL_ASSET_PROFILE
-RDP_TUTORIAL_ECHO_OUTPUT
 ```
+
+Normal V1 tutorial control is visible in runner-file constants. Public tutorial
+runners should not require or advertise RDP environment variables, CLI switches,
+or separate local config files for the standard path.
 
 For user choices, expose:
 

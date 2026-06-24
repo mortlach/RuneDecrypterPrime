@@ -9,7 +9,7 @@ Goal
 - Show that interruptor symbols are removed before encryption and reinserted unchanged.
 
 Steps
-1. Open `tutorials/v1/Tutorial_Vigenere_Interruptors.py`.
+1. Open `tutorials/v1/Tutorial_Vigenere_Interruptors_Exact.py`.
 2. Adjust `KEY` and `INTERRUPTORS` (zero-based absolute positions).
 3. Run the script and confirm the printed interruptor symbols match between plaintext and ciphertext.
 4. Confirm the recovered plaintext matches the original (see the report output).

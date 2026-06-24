@@ -53,36 +53,12 @@ or wheel are too old, upgrade them deliberately and rerun the installer.
 After install:
 
 ```text
-python tutorials/v1/run_all.py
+python tutorials/v1/run_pretty_print_release.py
 ```
 
-The runner defaults to the V1 release profile.
-
-Useful settings:
-
-```text
-RDP_TUTORIAL_GATE_PROFILE=release
-RDP_TUTORIAL_ASSET_PROFILE=lm2_baseline
-RDP_TUTORIAL_ECHO_OUTPUT=0
-```
-
-To print full tutorial output for users, set:
-
-```text
-RDP_TUTORIAL_ECHO_OUTPUT=1
-```
-
-Then run:
-
-```text
-python tutorials/v1/run_all.py
-```
-
-For the longer full V1 proof/showcase gate, set:
-
-```text
-RDP_TUTORIAL_GATE_PROFILE=full_v1
-```
+The pretty-print runner is the normal V1 tutorial review path. Its tutorial
+list, thresholds, output policy, and log folder are visible as constants near
+the top of `tutorials/v1/run_pretty_print_release.py`.
 
 Generated tutorial output is written under:
 
@@ -144,7 +120,7 @@ Then run:
 
 ```text
 python -m pytest -q -p no:cacheprovider tests/contracts
-python tutorials/v1/run_all.py
+python tutorials/v1/run_pretty_print_release.py
 ```
 
 Use the full pytest command above before promoting a branch.

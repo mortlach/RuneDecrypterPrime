@@ -262,8 +262,10 @@ def format_rdp_summary(summary: RdpDisplaySummary | object, **build_kwargs: Any)
     stop = data.get("stop") or {}
     oracle = data.get("oracle") or {}
     artifacts = data.get("artifacts") or {}
+    problem = data.get("problem") or {}
 
     _append_kv(lines, "schema", data.get("schema"))
+    _append_kv(lines, "encoding_dir", problem.get("encoding_dir"))
     _append_kv(lines, "cipher", cipher.get("name") or cipher.get("cipher_name"))
     _append_kv(lines, "solver", solver.get("name") or solver.get("solver_name"))
     _append_kv(lines, "score", result.get("score"))

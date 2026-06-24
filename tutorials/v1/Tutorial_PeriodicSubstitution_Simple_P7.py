@@ -1,32 +1,23 @@
-"""
-Tutorial: Periodic Substitution (simple, period=7)
-
-- Single scenario, deterministic setup.
-- Uses Kaeding solver with a small seed pool.
-"""
 from __future__ import annotations
+
+"""Periodic substitution simple P7 pretty-print tutorial."""
 
 import sys
 from pathlib import Path
 from typing import Sequence, Tuple
 
-import numpy as np
-
-# Ensure repo root on sys.path so "python tutorials/v1/..." works
-_ROOT = Path(__file__).resolve().parents[3]
+_ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, by_name, cipher_instance
-from rune_decrypter_prime.utils.runeglish import Runeglish
-from rune_decrypter_prime.utils.pretty import print_run_report
-from rune_decrypter_prime.utils.seed_utils import (
-    make_periodic_seed_pool,
-    make_periodic_structured_key,
-)
-from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
+import numpy as np
+
+from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, by_name, cipher_instance, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
+from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.seed_utils import make_periodic_seed_pool, make_periodic_structured_key
+from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -35,12 +26,10 @@ ALPHABET = 29
 PERIOD = 7
 TUTORIAL_SEED = 12345
 CIPHERTEXT_SEED = 12345
-
 USE_SEEDS = True
 BLOCK_SEEDS = 8
 SEED_KEYS = 48
 SEED_SWAPS = 2
-
 SOLVER_STEPS = 1200
 SOLVER_RESTARTS = 3
 SOLVER_INNER_BATCH = 96
@@ -49,9 +38,10 @@ SOLVER_SLIP_BLOCKS = 1
 SOLVER_STALL_ROUNDS = 140
 SOLVER_STALL_SLIP_LIMIT = 3
 SOLVER_SLIP_SWAPS = 30
+MIN_MATCH_RATIO = 1.0
 
 
-def _preview(text: str, n: int = 120) -> str:
+def _preview(text: str, n: int = 160) -> str:
     return text if len(text) <= n else text[:n] + "..."
 
 
@@ -60,8 +50,6 @@ def _match_ratio(solution, pt_idx: Sequence[int]) -> float:
     if guess is None:
         return 0.0
     a = np.asarray(guess, dtype=np.int64).reshape(-1)
-    if a.size == 0:
-        return 0.0
     b = np.asarray(pt_idx, dtype=np.int64).reshape(-1)
     n = min(a.size, b.size)
     return float(np.mean(a[:n] == b[:n])) if n > 0 else 0.0
@@ -76,18 +64,10 @@ def _build_ciphertext(
     seed: int,
 ) -> Tuple[np.ndarray, str, np.ndarray]:
     key = np.asarray(
-        make_periodic_structured_key(
-            period=period,
-            alphabet_size=alphabet_size,
-            seed=seed,
-        ),
+        make_periodic_structured_key(period=period, alphabet_size=alphabet_size, seed=seed),
         dtype=np.int16,
     )
-    cipher_spec = by_name.cipher(
-        "periodic_substitution",
-        period=period,
-        alphabet_size=alphabet_size,
-    )
+    cipher_spec = by_name.cipher("periodic_substitution", period=period, alphabet_size=alphabet_size)
     cipher = cipher_instance(cipher_spec)
     ct_idx = cipher.encrypt_single(plaintext=pt_idx, key=key)
     ct_runes = Runeglish.to_rune(ct_idx.tolist(), wli)
@@ -102,6 +82,9 @@ def main() -> None:
     )
     pt_idx_arr = np.asarray(pt_idx, dtype=np.uint8)
 
+    print("Periodic substitution simple problem")
+    print(f"encoding direction: {encoding_dir.value}")
+    print(f"period: {PERIOD}")
     print("Plaintext preview:", _preview(pt_runes))
 
     ct_idx, ct_runes, key = _build_ciphertext(
@@ -111,9 +94,7 @@ def main() -> None:
         alphabet_size=ALPHABET,
         seed=CIPHERTEXT_SEED + PERIOD,
     )
-
-    print("=" * 72)
-    print(f"Scenario: simple (period={PERIOD})")
+    ct_idx_list = [int(v) for v in ct_idx.tolist()]
     print("Ciphertext preview:", _preview(ct_runes))
 
     seed_keys = None
@@ -130,13 +111,8 @@ def main() -> None:
         )
         print(f"Seed pool: {len(seed_keys)} keys")
 
-    cipher_spec = by_name.cipher(
-        "periodic_substitution",
-        period=PERIOD,
-        alphabet_size=ALPHABET,
-    )
+    cipher_spec = by_name.cipher("periodic_substitution", period=PERIOD, alphabet_size=ALPHABET)
     key_spec = KeySpec.periodic_substitution(period=PERIOD, alphabet_size=ALPHABET)
-
     scorer_params = dict(
         objective="pct.logp.win10",
         include_char=True,
@@ -145,6 +121,16 @@ def main() -> None:
         wli_weights={3: 0.4, 4: 0.6},
         encoding_dir=encoding_dir,
     )
+    display_scorer_params = {
+        "objective": "pct.logp.win10",
+        "include_char": True,
+        "use_word_breaks": True,
+        "encoding_dir": encoding_dir.value,
+        "char_order_3_weight": 0.3,
+        "char_order_4_weight": 0.7,
+        "wli_order_3_weight": 0.4,
+        "wli_order_4_weight": 0.6,
+    }
 
     stop = oracle_stop_score(
         pt_idx,
@@ -156,10 +142,10 @@ def main() -> None:
         min_score=0.50,
         fallback=0.55,
     )
-    print_stop_summary("PeriodicSub simple", stop)
+    print_stop_summary("PeriodicSub simple P7", stop)
 
     plateau_rounds = max(10, int(SOLVER_STEPS * 0.1))
-    solver_kwargs = dict(
+    solver = SolverSpec.kaeding(
         steps=SOLVER_STEPS,
         restarts=SOLVER_RESTARTS,
         inner_batch=SOLVER_INNER_BATCH,
@@ -178,9 +164,18 @@ def main() -> None:
         slip_swaps=SOLVER_SLIP_SWAPS,
         stall_stop_on_limit=True,
     )
-    solver = SolverSpec.kaeding(**solver_kwargs)
+    display_spec = RunSpec(
+        problem_input=NormalizedInput(ct_idx=ct_idx_list, wli=wli),
+        cipher=cipher_spec,
+        key=key_spec,
+        solver=solver,
+        scorer="rune",
+        scorer_params=display_scorer_params,
+        encoding_dir=encoding_dir,
+        telemetry_on=True,
+    )
 
-    sol = run(
+    result = run(
         text=ct_runes,
         cipher=cipher_spec,
         key=key_spec,
@@ -189,30 +184,30 @@ def main() -> None:
         wli_data=wli,
         encoding_dir=encoding_dir,
         telemetry_on=True,
+        return_solver_report=True,
         **({} if seed_keys is None else {"initial_keys": seed_keys}),
     )
 
-    ratio = _match_ratio(sol, pt_idx)
+    ratio = _match_ratio(result.solution, pt_idx)
     if ratio < 0.999:
         raise RuntimeError(f"Solve failed: match_ratio={ratio:.4f}")
-
-    recovered = getattr(sol, "plaintext_rune", "") or getattr(sol, "plaintext_str", "")
+    recovered = getattr(result.solution, "plaintext_rune", "") or getattr(result.solution, "plaintext_str", "")
     print("Recovered preview:", _preview(str(recovered)))
 
-    print_run_report(
-        title="periodic-substitution-simple-p7",
-        cipher="periodic_substitution",
-        solution=sol,
-        match_ok=None,
-        app_version="tutorial-1.0",
-        key_idx=key.tolist(),
-        key_len=int(key.size),
-        ct_idx=ct_idx.tolist(),
-        ct_rune=ct_runes,
-        pt_rune_ref=pt_runes,
-        pt_idx_ref=pt_idx,
-        wli=wli,
+    print_rdp_result(
+        result,
+        spec=display_spec,
+        reference_idx=pt_idx,
+        tutorial_entry={
+            "path": "Tutorial_PeriodicSubstitution_Simple_P7.py",
+            "title": "Periodic substitution simple P7 pretty-print variant",
+            "gate": "optional_lm3_pretty_print",
+            "acceptance_kind": "min_match_ratio",
+            "min_match_ratio": MIN_MATCH_RATIO,
+            "uses_oracle_stop_score": True,
+        },
     )
+    print(f"True key length: {int(key.size)}")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import subprocess
 import sys
@@ -10,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 # -----------------------------------------------------------------------------
-# Runner config (IDE defaults; CI/review may override with environment variables)
+# Runner config
 # -----------------------------------------------------------------------------
 #
 # Gate choices:
@@ -23,10 +22,9 @@ from typing import Any
 #   optional_lm3 -> optional_lm3 only; requires lm3_extended assets
 #   all_manifest -> all manifest entries, but known-broken/remove entries are still skipped
 #
-# CI/review runs may override the IDE defaults with environment variables:
-#   RDP_TUTORIAL_GATE_PROFILE=full_v1 python tutorials/v1/run_all.py
-#   RDP_TUTORIAL_ASSET_PROFILE=lm3_extended python tutorials/v1/run_all.py
-# Legacy GATE_PROFILE / ASSET_PROFILE names are still accepted.
+# Public V1 tutorial runners do not use environment-variable or CLI-switch
+# control. Change the constants below when a review gate intentionally needs a
+# different tutorial set.
 GATE_PROFILE = "release"
 
 # Asset choices:
@@ -37,7 +35,7 @@ ASSET_PROFILE = "lm2_baseline"
 LIST_ONLY = False
 STOP_ON_FIRST_FAILURE = False
 
-# Keep normal runs compact. Override with RDP_TUTORIAL_ECHO_OUTPUT=1 for full output.
+# Keep normal runs compact.
 ECHO_OUTPUT = False
 
 # Print the tail of failed/near-solve output for context.
@@ -76,9 +74,6 @@ KNOWN_BLOCKED_GATES = {
     "remove_from_pure_release",
 }
 
-_TRUE_VALUES = {"1", "true", "yes", "on"}
-_FALSE_VALUES = {"0", "false", "no", "off"}
-
 
 @dataclass(frozen=True)
 class RunResult:
@@ -93,48 +88,20 @@ class RunResult:
     reason: str
 
 
-def _env_text(name: str, default: str) -> str:
-    value = os.environ.get(name)
-    if value is None or not value.strip():
-        return default
-    return value.strip()
-
-
-def _env_text_any(names: tuple[str, ...], default: str) -> str:
-    for name in names:
-        value = os.environ.get(name)
-        if value is not None and value.strip():
-            return value.strip()
-    return default
-
-
-def _env_bool(name: str, default: bool) -> bool:
-    value = os.environ.get(name)
-    if value is None or not value.strip():
-        return bool(default)
-    normalized = value.strip().lower()
-    if normalized in _TRUE_VALUES:
-        return True
-    if normalized in _FALSE_VALUES:
-        return False
-    valid = ", ".join(sorted(_TRUE_VALUES | _FALSE_VALUES))
-    raise ValueError(f"Invalid boolean override {name}={value!r}; expected one of: {valid}")
-
-
 def _gate_profile() -> str:
-    return _env_text_any(("RDP_TUTORIAL_GATE_PROFILE", "GATE_PROFILE"), GATE_PROFILE)
+    return GATE_PROFILE
 
 
 def _asset_profile() -> str:
-    return _env_text_any(("RDP_TUTORIAL_ASSET_PROFILE", "ASSET_PROFILE"), ASSET_PROFILE)
+    return ASSET_PROFILE
 
 
 def _echo_output() -> bool:
-    return _env_bool("RDP_TUTORIAL_ECHO_OUTPUT", ECHO_OUTPUT)
+    return ECHO_OUTPUT
 
 
 def _run_known_broken() -> bool:
-    return _env_bool("RUN_KNOWN_BROKEN", RUN_KNOWN_BROKEN)
+    return RUN_KNOWN_BROKEN
 
 
 def _load_manifest(base: Path) -> dict[str, Any]:
@@ -154,7 +121,7 @@ def _selected_gates() -> tuple[str, ...]:
         return GATE_PRESETS[profile]
     except KeyError as exc:
         valid = ", ".join(sorted(GATE_PRESETS))
-        raise ValueError(f"Unknown GATE_PROFILE={profile!r}; expected one of: {valid}") from exc
+        raise ValueError(f"Unknown tutorial gate profile {profile!r}; expected one of: {valid}") from exc
 
 
 def _parse_last_float(pattern: str, text: str) -> float | None:
@@ -199,9 +166,6 @@ def _launch_script(repo_root: Path, src_path: Path, script: Path) -> subprocess.
         f"sys.path.insert(0, {str(src_path)!r}); "
         f"runpy.run_path({str(script)!r}, run_name='__main__')"
     )
-    env = os.environ.copy()
-    env["PYTHONIOENCODING"] = "utf-8"
-    env["PYTHONUTF8"] = "1"
     return subprocess.run(
         [sys.executable, "-X", "utf8", "-c", launch],
         cwd=str(repo_root),
@@ -210,7 +174,6 @@ def _launch_script(repo_root: Path, src_path: Path, script: Path) -> subprocess.
         errors="replace",
         capture_output=True,
         check=False,
-        env=env,
     )
 
 

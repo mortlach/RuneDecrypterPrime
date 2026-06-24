@@ -1,20 +1,57 @@
-﻿# Tutorials (v1)
+# V1 Pretty-Print Tutorials
 
-Short, deterministic walkthroughs. Run each `.py` script with your preferred workflow. Seeds are fixed so results match across machines.
+The normal V1 tutorial command is:
 
-## Script -> Doc -> Outputs
-| Script (repo)                                  | Doc page                                | Outputs directory                     |
-|------------------------------------------------|------------------------------------------|---------------------------------------|
-| `tutorials/v1/Tutorial_MonoSubstitution_GA.py` | [MonoSubstitution + GA](Tutorial_MonoSubstitution_GA.md) | `output/tutorials/mono_ga/...`        |
-| `tutorials/v1/Tutorial_ColumnarTransposition.py` | [Columnar + Hybrid](Tutorial_ColumnarTransposition.md) | `output/tutorials/columnar/...`       |
-| `tutorials/v1/Tutorial_Vigenere_GeneralMap.py` | [Vigenere + GA](Tutorial_Vigenere_GeneralMap.md) | `output/tutorials/vigenere/...`       |
-| `tutorials/v1/Tutorial_Vigenere_Interruptors.py` | [Vigenere + Interruptors](Tutorial_Vigenere_Interruptors.md) | `output/tutorials/vigenere_interruptors/...` |
-| `tutorials/v1/Tutorial_CribDrag_API.py`        | [Crib-Drag API](Tutorial_CribDrag_API.md) | `output/tutorials/crib_drag/...`      |
+```text
+python tutorials/v1/run_pretty_print_release.py
+```
 
-**Tip:** After a first pass, change only one parameter (e.g. `eval_budget`) and re-run to see controlled effects.
+For a printout review where every captured tutorial printout is echoed to the
+console, run:
 
-**See also**  
-[Engine & API](../architecture/engine_api.md) · [Telemetry](../architecture/telemetry.md)
+```text
+python tutorials/v1/run_pretty_print_output_review.py
+```
 
-[<- Data & Scoring](../architecture/data.md) · [Next -> MonoSubstitution + GA](Tutorial_MonoSubstitution_GA.md)
+The runner keeps the final tutorial list and thresholds as constants near the top
+of `tutorials/v1/run_pretty_print_release.py`. There are no RDP tutorial
+environment variables, CLI switches, or separate config files for the normal
+tutorial path.
 
+## Final V1 List
+
+| Tutorial | Minimum match |
+| --- | ---: |
+| `Start_Here.py` | 1.000 |
+| `Tutorial_Autokey.py` | 1.000 |
+| `Tutorial_Railfence.py` | 1.000 |
+| `Tutorial_Vigenere_Interruptors_Exact.py` | 1.000 |
+| `Tutorial_ColumnarTransposition.py` | 1.000 |
+| `Tutorial_Vigenere_GeneralMap.py` | 1.000 |
+| `Tutorial_Vigenere_Interruptors_Solve.py` | 1.000 |
+| `Tutorial_MonoSubstitution_GA_RTL.py` | 0.970 |
+| `Tutorial_MonoSubstitution_GA_LTR.py` | 0.970 |
+| `Tutorial_Repeating_multiply.py` | 1.000 |
+| `Tutorial_MonoSubstitution_HYBRID_RTL.py` | 0.995 |
+| `Tutorial_Vigenere_Interruptors_NonTrivial.py` | 1.000 |
+| `Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py` | 1.000 |
+| `Tutorial_ScheduledStreamLookup_RealSolve_P13Primes.py` | 1.000 |
+| `Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py` | 0.900 |
+| `Tutorial_LP_Welcome_Pilgrim_Solve.py` | 1.000 |
+| `Tutorial_MonoSubstitution_SA_LTR.py` | 0.995 |
+| `Tutorial_PeriodicSubstitution.py` | 1.000 |
+| `Tutorial_PeriodicSubstitution_Simple_P7.py` | 1.000 |
+| `Tutorial_PeriodicColumnar.py` | 1.000 |
+| `Tutorial_PeriodicColumnar_Simple_P7_ColThenSub.py` | 1.000 |
+
+The compact release runner writes full per-tutorial output under:
+
+```text
+output/tutorial_pretty_print_logs/
+```
+
+The output-review runner writes its logs under:
+
+```text
+output/tutorial_pretty_print_output_review_logs/
+```

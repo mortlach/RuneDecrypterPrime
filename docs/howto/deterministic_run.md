@@ -1,4 +1,4 @@
-﻿# How-To: Run a Deterministic Solve
+# How-To: Run a Deterministic Solve
 
 Audience: Hands-on
 Time: 3-5 minutes
@@ -6,9 +6,9 @@ Outcome: Reproduce a seeded run and compare telemetry
 Prereqs: Python 3.11+, bootstrap complete (`python install.py`)
 
 ## Hands-on
-1. Follow the quickstart steps (virtualenv, `python install.py`).
-2. Run a tutorial with `--print-progress` and keep the default seed.
-3. Compare `output/tutorials/<run>/logs/app.jsonl` with another solver's run; `telemetry.run.seed` should match.
+1. Follow the quickstart steps and run `python install.py`.
+2. Run `python tutorials/v1/run_pretty_print_release.py`.
+3. Compare the tutorial logs under `output/tutorial_pretty_print_logs/` with another run.
 
 ## Expert
 1. Configure RunAPI with explicit `seed`:
@@ -26,7 +26,7 @@ Prereqs: Python 3.11+, bootstrap complete (`python install.py`)
 3. For tests, run `pytest -m tier_a` to ensure determinism across GA/SA/Hybrid tutorials.
 
 ## Troubleshooting
-- If seeds differ, re-check tutorial constants/config files (benchmark behavior should not depend on environment variables).
+- If seeds differ, re-check tutorial constants in the runner file.
 - Use `docs/guides/troubleshooting.md` for a checklist.
 
 

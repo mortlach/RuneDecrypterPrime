@@ -2,10 +2,10 @@ from __future__ import annotations
 
 """Run all active V1 pretty-print tutorials.
 
-This is the obvious entry point for the all-active pretty tutorial review. The
-actual tutorial list and review settings live in ``pretty_print_release_config.toml``
-next to this file. There are no CLI switches and no environment-variable control
-surface.
+This is an alias for the pretty-print release runner. The tutorial list and
+review settings live as constants near the top of ``run_pretty_print_release.py``.
+There are no CLI switches, environment-variable controls, or separate config
+files for normal tutorial control.
 """
 
 from run_pretty_print_release import main

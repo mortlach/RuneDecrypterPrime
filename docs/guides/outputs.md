@@ -55,9 +55,9 @@ Every helper (`tests/conftest.py`, tutorials, RunLogger) writes relative to the 
 ---
 
 ## Hands-on Track - Reading Your Outputs
-1. Run a tutorial (e.g., `python tutorials/v1/Tutorial_Vigenere_GeneralMap.py --print-progress`).
-2. Open `output/tutorials/<latest>/logs/app.jsonl` and search for `telemetry.run` to see device, solver, pipeline summary.
-3. Artifacts (plaintext previews, traces) live under `artifacts/`. Share that folder with other solvers to compare runs.
+1. Run `python tutorials/v1/run_pretty_print_release.py`.
+2. Open `output/tutorial_pretty_print_logs/` to inspect the full output for each pretty tutorial.
+3. Tutorial/session artifacts, when a tutorial writes them, live under `output/tutorials/`.
 4. If files show up outside `output/`, re-check the working directory or the troubleshooting appendix.
 
 ---

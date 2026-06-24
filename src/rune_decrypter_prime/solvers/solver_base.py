@@ -854,7 +854,11 @@ class SolverBase:
             wli = getattr(self.problem, "wli_data", None)
             preview = ""
             try:
-                preview = Runeglish.to_rune_latin(pt_u8.tolist(), wli if wli is not None else None)
+                preview = Runeglish.to_rune_latin(
+                    pt_u8.tolist(),
+                    wli if wli is not None else None,
+                    direction=getattr(self, "encoding_direction", Direction.LTR),
+                )
             except Exception:
                 preview = _to_plaintext_str(pt_u8, wli)
             if not preview:

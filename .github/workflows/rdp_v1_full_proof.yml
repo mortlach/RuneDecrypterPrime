@@ -94,8 +94,6 @@ jobs:
 
       - name: Run V1 release tutorials
         shell: python
-        env:
-          RDP_TUTORIAL_ECHO_OUTPUT: "1"
         run: |
           from pathlib import Path
           import subprocess
@@ -104,7 +102,7 @@ jobs:
           log_path = Path("output") / "test_logs" / "v1_release_tutorials.log"
           log_path.parent.mkdir(parents=True, exist_ok=True)
 
-          cmd = [sys.executable, "-X", "utf8", "tutorials/v1/run_all.py"]
+          cmd = [sys.executable, "-X", "utf8", "tutorials/v1/run_pretty_print_release.py"]
           print("Running:", " ".join(cmd))
 
           proc = subprocess.run(
@@ -116,20 +114,6 @@ jobs:
               errors="replace",
           )
           log_path.write_text(proc.stdout, encoding="utf-8")
-
-          marker_start = "LP_WELCOME_FINAL_RESULT_BEGIN"
-          marker_end = "LP_WELCOME_FINAL_RESULT_END"
-          block_start = proc.stdout.find(marker_start)
-          if block_start >= 0:
-              block_end = proc.stdout.find(marker_end, block_start)
-              if block_end >= 0:
-                  block_end += len(marker_end)
-                  print("\nLP Welcome final result block:")
-                  print(proc.stdout[block_start:block_end])
-              else:
-                  print("\nLP Welcome final result block was started but not closed.")
-          else:
-              print("\nLP Welcome final result block was not found in tutorial output.")
 
           lines = proc.stdout.splitlines()
           if proc.returncode:

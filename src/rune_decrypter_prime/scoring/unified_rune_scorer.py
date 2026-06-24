@@ -7,7 +7,7 @@ from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.backends.xp import select_backend
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode
-from rune_decrypter_prime.core.types import Device
+from rune_decrypter_prime.core.types import Device, Direction
 
 class UnifiedRuneScorer:
     """
@@ -132,7 +132,8 @@ class UnifiedRuneScorer:
                 wli = wb
         except Exception:
             wli = None
-        return Runeglish.to_rune_latin(arr.tolist(), wli)
+        direction = getattr(self.cfg_scorer, "encoding_dir", Direction.LTR)
+        return Runeglish.to_rune_latin(arr.tolist(), wli, direction=direction)
 
     def capability_report(self):
         native_report = getattr(self._backend, "capability_report", None)

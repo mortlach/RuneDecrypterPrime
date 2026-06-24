@@ -208,7 +208,7 @@ def ensure_plaintext_rune(res, *, ciphertext=None, wli=None, cipher=None, encodi
         except Exception:
             pt_rune = pt_rune_nospace
         try:
-            pt_latin = _R.to_rune_latin(pt_idx_list, effective_wli_valid)
+            pt_latin = _R.to_rune_latin(pt_idx_list, effective_wli_valid, direction=encoding_dir)
         except Exception:
             pt_latin = _latin_nospace(pt_idx_list)
     else:
@@ -250,7 +250,7 @@ def ensure_plaintext_rune(res, *, ciphertext=None, wli=None, cipher=None, encodi
             except Exception:
                 ct_rune = ct_rune_nospace
             try:
-                ct_latin = _R.to_rune_latin(ct_idx_list, ct_wli)
+                ct_latin = _R.to_rune_latin(ct_idx_list, ct_wli, direction=encoding_dir)
             except Exception:
                 ct_latin = _latin_from_idx(ct_idx_list)
         else:

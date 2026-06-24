@@ -22,6 +22,7 @@ from rune_decrypter_prime.api import (
 )
 from rune_decrypter_prime.api.solver_report import build_solver_report
 from rune_decrypter_prime.core.config import Solution
+from rune_decrypter_prime.core.types import Direction
 
 
 def _solution() -> Solution:
@@ -145,6 +146,7 @@ def test_format_and_write_json_summary(tmp_path: Path) -> None:
 
     text = format_rdp_summary(summary)
     assert "RDP standard summary" in text
+    assert "encoding_dir: rtl" in text
     assert "stop_category: success" in text
     assert "Plaintext" in text
 
@@ -198,3 +200,17 @@ def test_display_options_validate_types() -> None:
         RdpDisplayOptions(include_key=1)  # type: ignore[arg-type]
     with pytest.raises(ValueError):
         RdpDisplayOptions(max_sequence_preview=-1)
+
+
+def test_format_summary_prints_explicit_encoding_direction() -> None:
+    spec = RunSpec(
+        problem_input=NormalizedInput(ct_idx=[3, 4]),
+        cipher=CipherSpec.periodic_substitution(period=2),
+        key=KeySpec.repeat(len=2),
+        solver=SolverSpec(name="beam", params={"beam_width": 2}, seed=42),
+        encoding_dir=Direction.LTR,
+    )
+
+    text = format_rdp_summary(build_rdp_summary(_run_result(), spec=spec))
+
+    assert "encoding_dir: ltr" in text

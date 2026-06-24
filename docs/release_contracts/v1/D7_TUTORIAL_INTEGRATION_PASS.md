@@ -85,12 +85,11 @@ This means the release/extended/showcase ScheduledStreamLookup real tutorials em
 
 The tutorial runner now parses both older `Match ratio: ...` output and unified report `match_ratio : ...` output.
 
-The tutorial runner keeps IDE-editable defaults but also accepts environment overrides for review/CI runs:
+Superseded V1 cleanup note:
 
-```bash
-GATE_PROFILE=full_v1 python tutorials/v1/run_all.py
-ASSET_PROFILE=lm3_extended python tutorials/v1/run_all.py
-```
+The older environment-variable runner behavior was the state of the D7 integration pass.
+The current public V1 tutorial path is `python tutorials/v1/run_pretty_print_release.py`.
+Current public tutorial runners do not use RDP environment-variable control.
 
 ## Tests added/updated
 
@@ -109,7 +108,7 @@ These cover:
 - known-broken entries are not selected by release/full_v1
 - runner parses unified `match_ratio` output
 - ScheduledStreamLookup real tutorials emit through the session benchmark report path
-- gate/asset environment overrides are explicit and invalid boolean overrides fail loudly
+- tutorial gate selection is manifest-backed and test-covered
 
 ## Validation evidence so far
 
@@ -141,8 +140,8 @@ The skipped tests were expected environment/asset skips, including optional Torc
 
 Run before claiming closure from the latest branch head:
 
-```bash
-GATE_PROFILE=release python tutorials/v1/run_all.py
+```text
+python tutorials/v1/run_pretty_print_release.py
 python -m pytest -q -ra -p no:cacheprovider tests
 ```
 

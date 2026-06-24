@@ -1,77 +1,67 @@
-# Troubleshooting & Quick Tests
+# Troubleshooting
 
-Audience: Hands-on / Expert  
-Time: 3–5 minutes per issue  
-Goal: Recover from the most common setup and runtime problems without digging through the entire codebase.
+This page covers the normal V1 install and tutorial path.
 
----
+All paths below are relative to the repository root.
 
-## 1. Environment checklist
-Run these commands inside your repo root:
+## Quick checks
 
-| Check | Command | Expected |
+Run these from the repository root:
+
+```text
+python --version
+python install.py
+python tutorials/v1/run_pretty_print_release.py
+```
+
+Use the same Python interpreter for all three commands. If you install with one
+Python and run tutorials with another, imports and native extensions can fail in
+confusing ways.
+
+## Common issues
+
+| Symptom | Likely cause | What to do |
 | --- | --- | --- |
-| Virtualenv active | *(prompt shows)* `(.venv)` | `(.venv)` prefix before every command |
-| Package installed | `python -m pip list | findstr rune` | `rune-decrypter-prime` shows `editable` path |
-| Python version | `python --version` | `3.11.x` |
-| PYTHONPATH (only if needed) | `echo $env:PYTHONPATH` or `echo $PYTHONPATH` | Either empty or pointing at `src/` |
+| `ModuleNotFoundError: rune_decrypter_prime` | The package was not installed for the Python you are using now. | Run `python install.py`, then run the tutorial command again with the same `python`. |
+| Native extension import fails, such as `_fastlm` | Build tools or package build dependencies are missing or stale. | Run `python install.py` again and inspect the newest log under `output/install_logs/`. |
+| A tutorial fails but most tutorials pass | That tutorial hit a real failure or missing asset. | Open the matching log in `output/tutorial_pretty_print_logs/` and check the tail printed by the runner. |
+| Output appears somewhere unexpected | The command was run from a different working directory. | Change to the repository root and rerun the command. |
+| Results differ between machines | Different Python/package state, assets, or code checkout. | Confirm `python --version`, rerun `python install.py`, and check that Git is on the expected branch. |
 
-If any check fails, re-run the steps from `docs/setup/installation.md`.
+## Tutorial logs
 
----
+The normal V1 pretty-print runner writes full tutorial output here:
 
-## 2. Frequent issues
-
-| Symptom | Likely cause | Fix |
-| --- | --- | --- |
-| `ModuleNotFoundError: rune_decrypter_prime` | venv not activated or IDE/editor not pointing at `src/` | Activate `.venv` and configure your editor to treat `src/` as the project root (or add `src/` to `PYTHONPATH`). |
-| `_fastlm` missing or fails to import | Build toolchain/extension not available on this machine | Re-run `python install.py` and inspect `output/tools/benchmarks/community/setup_preflight/latest/setup_report.json`. |
-| Tutorial prints zero progress | Solver config left at defaults | Set `print_progress=True` and keep `progress_pct=1` when teaching/demonstrating. |
-| Files end up outside `output/` | Commands run from the wrong directory | `cd` into the repo root and re-run; check `pwd`/`Get-Location`. All scripts should write under `output/<kind>/...`. |
-| Start_Here outputs differ between machines | Different seeds/directions/permutations | Compare `output/tutorials/.../logs/app.jsonl` → `telemetry.run`. Seeds and `text_encoding_direction` must match. |
-
-If you see corrupted logs or telemetry fields missing, delete the run folder under `output/` and re-run after fixing the root cause.
-
----
-
-## 3. Quick validation commands
-Use these whenever you set up a new machine or after a large dependency change.
-
-### A. Tutorial smoke (≈1 minute)
-```bash
-source .venv/bin/activate      # or .\.venv\Scripts\activate
-python tutorials/v1/Start_Here.py
+```text
+output/tutorial_pretty_print_logs/
 ```
-Check for both console blocks (Wrapper Beam / General Map) and verify logs under `output/tutorials/...`.
 
-### B. Tier-A slice (≈2 minutes)
-```bash
-pytest tests/tutorials/test_mono_substitution.py -m tier_a -q
+Each active pretty tutorial gets one text log. The console stays compact unless a
+tutorial fails.
+
+For a review pass that echoes every captured tutorial printout to the console,
+run:
+
+```text
+python tutorials/v1/run_pretty_print_output_review.py
 ```
-This enforces the GA/SA mono score threshold (≥0.55) and confirms telemetry writes to `output/tests/...`.
 
-### C. Telemetry contract
-```bash
-pytest tests/telemetry/test_schema_contract.py -q
+## What to include in a report
+
+Include:
+
+```text
+python --version
+the command you ran
+the full error text
+the relevant output/tutorial_pretty_print_logs/*.txt file
+the current Git branch and commit, if available
 ```
-Useful when editing logging or telemetry modules.
 
-Set `PYTHONPATH=src` if your IDE shell doesn’t mark `src/` as a source root.
-
----
-
-## 4. When to escalate
-Contact maintainers (or open a GitHub issue) if:
-
-- Deterministic runs (same seed/config) produce different scores across machines after rerunning the quick tests above.
-- `telemetry.run` or solver progress events are missing from JSONL logs despite `telemetry_on=True`.
-- `output/.../META.json` contains personal data and `LoggingConfig.redact_identity=True` didn’t help.
-
-Include the failing command, full traceback, `python --version`, and the relevant `output/<kind>/<run_id>/logs/app.jsonl` snippet.
-
----
+Do not include local private files or unrelated generated output.
 
 ## Related docs
-- `docs/setup/installation.md` – one-time setup steps.
-- `docs/guides/architecture.md` – explains the pipeline, which helps when comparing telemetry blocks.
-- `docs/guides/quickstart.md` – examples of successful runs and their expected output folders.
+
+- `docs/setup/installation.md`
+- `docs/guides/quickstart.md`
+- `docs/README.md`

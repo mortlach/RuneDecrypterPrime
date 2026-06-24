@@ -10,27 +10,25 @@ _SRC = _ROOT / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from rune_decrypter_prime.api import (
-    run,
-    KeySpec,
-    SolverSpec,
+from rune_decrypter_prime.api import (  # noqa: E402
     Direction,
+    InterruptorConfig,
+    KeySpec,
+    NormalizedInput,
+    RunSpec,
+    SolverSpec,
     by_name,
     cipher_instance,
-    InterruptorConfig,
+    print_rdp_result,
+    run,
 )
-from rune_decrypter_prime.utils.pretty import print_run_report
-from rune_decrypter_prime.utils.runeglish import Runeglish
-from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
+from rune_decrypter_prime.utils.runeglish import Runeglish  # noqa: E402
+from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary  # noqa: E402
 
 """
-Tutorial: Vigenere with interruptors (solver search)
+Tutorial variant: Vigenere interruptor solver search with the standard RDP printer.
 
-This walkthrough:
-1) Encode a short English plaintext into runes with WLI.
-2) Insert interruptors at hidden positions; encrypt with Vigenere.
-3) Provide a small interruptor pool and let beam search recover
-   both the key and the interruptor positions.
+The original tutorial remains unchanged; this variant proves the printer facade.
 """
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -65,10 +63,7 @@ def _pick_interruptors(pool: list[int]) -> list[int]:
 
 def main() -> None:
     direction = Direction.LTR
-    pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(
-        DEMO_TEXT,
-        direction=direction.value,
-    )
+    pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(DEMO_TEXT, direction=direction.value)
     pt_arr = np.asarray(pt_idx, dtype=np.uint8)
 
     pool = _make_interruptor_pool(len(pt_idx))
@@ -77,25 +72,23 @@ def main() -> None:
         raise ValueError("Need at least two interruptors for this tutorial")
 
     key_arr = np.asarray(KEY_NUMS, dtype=np.uint8)
-    cipher = cipher_instance(
+    encrypt_cipher = cipher_instance(
         "vigenere",
         key_length=int(key_arr.size),
         text_transposition=direction.value,
     )
 
-    ct_idx = cipher.encrypt_single(
-        plaintext=pt_arr,
-        key=key_arr,
-        interrupt_idx=interruptors,
-    )
-
+    ct_idx = encrypt_cipher.encrypt_single(plaintext=pt_arr, key=key_arr, interrupt_idx=interruptors)
     intr_values_pt = [int(pt_arr[i]) for i in interruptors]
     intr_values_ct = [int(ct_idx[i]) for i in interruptors]
     if intr_values_pt != intr_values_ct:
         raise ValueError("Interruptor symbols changed during encryption")
 
-    ct_runes = Runeglish.to_rune(ct_idx.tolist(), wli)
+    ct_idx_list = [int(v) for v in ct_idx.tolist()]
+    ct_runes = Runeglish.to_rune(ct_idx_list, wli)
 
+    print("Vigenere interruptor problem")
+    print(f"direction: {direction.value}")
     print("Interruptor pool:", pool)
     print("Interruptor positions:", interruptors)
     print("Interruptor symbols:", intr_values_ct)
@@ -117,6 +110,14 @@ def main() -> None:
         wli_weights={2: 0.7},
         encoding_dir=direction,
     )
+    display_scorer_params = {
+        "objective": "pct.logp.win10",
+        "include_char": True,
+        "use_word_breaks": True,
+        "encoding_dir": direction.value,
+        "char_order_2_weight": 0.3,
+        "wli_order_2_weight": 0.7,
+    }
 
     stop = oracle_stop_score(
         pt_idx,
@@ -139,39 +140,51 @@ def main() -> None:
         progress_pct=10,
         seed=TUTORIAL_SEED,
     )
+    key_spec = KeySpec.repeat(len=len(KEY_NUMS))
+    cipher_spec = by_name.cipher("vigenere")
+    display_spec = RunSpec(
+        problem_input=NormalizedInput(ct_idx=ct_idx_list, wli=wli),
+        cipher=cipher_spec,
+        key=key_spec,
+        solver=solver,
+        scorer="rune",
+        scorer_params=display_scorer_params,
+        encoding_dir=direction,
+        telemetry_on=True,
+    )
 
-    solution = run(
-        text=ct_idx,
-        cipher=by_name.cipher("vigenere"),
-        key=KeySpec.repeat(len=len(KEY_NUMS)),
+    result = run(
+        text=ct_idx_list,
+        cipher=cipher_spec,
+        key=key_spec,
         solver=solver,
         scorer_params=dict(scorer_params),
         wli_data=wli,
         encoding_dir=direction,
         telemetry_on=True,
         interruptors=interrupt_cfg,
+        return_solver_report=True,
     )
 
-    found_key = getattr(solution, "key", []) or []
+    found_key = getattr(result.solution, "key", []) or []
     found_core = found_key[: len(KEY_NUMS)]
     found_intr = [int(v) for v in found_key[len(KEY_NUMS) :] if int(v) >= 0]
     if found_key:
         print("Found key (core):", found_core)
         print("Found interruptors:", found_intr)
 
-    print_run_report(
-        title="Vigenere with Interruptors (solver search)",
-        cipher="vigenere",
-        solution=solution,
-        match_ok=None,
-        app_version="tutorial-1.0",
-        key_idx=KEY_NUMS + sorted(interruptors),
-        key_len=len(KEY_NUMS) + len(interruptors),
-        ct_idx=ct_idx.tolist(),
-        ct_rune=ct_runes,
-        pt_rune_ref=pt_runes,
-        pt_idx_ref=pt_idx,
-        wli=wli,
+    print_rdp_result(
+        result,
+        spec=display_spec,
+        reference_idx=pt_idx,
+        tutorial_entry={
+            "path": "Tutorial_Vigenere_Interruptors_Solve.py",
+            "title": "Vigenere interruptor solver search pretty-print variant",
+            "gate": "v1_release_pretty_print",
+            "acceptance_kind": "min_match_ratio",
+            "min_match_ratio": 1.0,
+            "uses_oracle_stop_score": True,
+        },
     )
 
 

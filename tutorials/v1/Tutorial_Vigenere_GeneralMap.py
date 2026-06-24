@@ -1,60 +1,52 @@
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 
 # Ensure repo root is importable when running this file directly
-_ROOT = Path(__file__).resolve().parents[3]
+_ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from rune_decrypter_prime.api import run, KeySpec, SolverSpec, Direction, define_map
-from rune_decrypter_prime.utils.runeglish import Runeglish
-from rune_decrypter_prime.utils.pretty import print_run_report
-from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
+from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, define_map, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
+from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 """
-Tutorial: Vigenere via the General Map API
+Tutorial variant: Vigenere via the General Map API with the standard RDP printer.
 
-What it shows:
-1. Define a Vigenere cell as a simple function: (pt + k) % 29.
-2. Encode English text -> rune indices (with spaces/WLI).
-3. Encrypt with a short numeric key; repeat-to-length handled inline.
-4. Tell the solver only the period, not the key.
-5. Use the built-in pretty printer to show results.
+The original tutorial remains unchanged; this variant proves the printer facade.
 """
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-
-N = 29  # Rune alphabet
+N = 29
 TUTORIAL_SEED = 12345
+
 
 def vigenere_map(pt: int, k: int) -> int:
     return (pt + k) % N
 
-def main():
-    # Plaintext: a paragraph with spaces
-    pt_en_sample = (
-        "THERE WAS A TABLE SET OUT UNDER A TREE IN FRONT OF THE HOUSE "
-        "AND THE MARCH HARE AND THE HATTER WERE HAVING TEA AT IT "
-        "A DORMOUSE WAS SITTING BETWEEN THEM FAST ASLEEP "
-        "AND THE OTHER TWO WERE USING IT AS A CUSHION RESTING THEIR ELBOWS ON IT"
-    )
-    # test strgin from package
+
+def main() -> None:
     pt_en = plaintext_english_string
     encoding_dir = Direction.RTL
-    pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(pt_en, direction=encoding_dir.value)
+    pt_idx, wli, _pt_runes = Runeglish.encode_english_to_runes(pt_en, direction=encoding_dir.value)
 
-    # Cipher spec: Vigen?re cell (pt,k) -> (pt+k)%29
     cipher = define_map(function=vigenere_map, N=N)
-
-    # Encrypt with a short numeric key
-    key_nums = [3, 1, 4, 1,5, 6]
+    key_nums = [3, 1, 4, 1, 5, 6]
     stream = [key_nums[i % len(key_nums)] for i in range(len(pt_idx))]
     ct_idx = [vigenere_map(p, k) for p, k in zip(pt_idx, stream)]
     ct_runes = Runeglish.to_rune(ct_idx, wli)
+
+    print("Vigenere general-map problem")
+    print(f"direction: {encoding_dir.value}")
+    print(f"ciphertext length: {len(ct_idx)}")
+    print(f"key period: {len(key_nums)}")
+    print(f"ciphertext preview: {ct_runes[:160]}{'...' if len(ct_runes) > 160 else ''}")
 
     scorer_params = dict(
         char_weights={2: 0.3},
@@ -63,6 +55,14 @@ def main():
         use_word_breaks=True,
         encoding_dir=encoding_dir,
     )
+    display_scorer_params = {
+        "objective": "pct.logp.win10",
+        "include_char": True,
+        "use_word_breaks": True,
+        "encoding_dir": encoding_dir.value,
+        "char_order_2_weight": 0.3,
+        "wli_order_2_weight": 0.7,
+    }
 
     stop = oracle_stop_score(
         pt_idx,
@@ -76,8 +76,7 @@ def main():
     )
     print_stop_summary("Vigenere Beam", stop)
 
-    # Solver knows only the period (length of key), not the key itself
-    key_spec   = KeySpec.repeat(len=len(key_nums))
+    key_spec = KeySpec.repeat(len=len(key_nums))
     solve_spec = SolverSpec.beam(
         beam_width=24,
         stop_score=stop.stop_score,
@@ -89,9 +88,18 @@ def main():
         print_progress=True,
         seed=TUTORIAL_SEED,
     )
+    display_spec = RunSpec(
+        problem_input=NormalizedInput(ct_idx=ct_idx, wli=wli),
+        cipher=cipher,
+        key=key_spec,
+        solver=solve_spec,
+        scorer="rune",
+        scorer_params=display_scorer_params,
+        encoding_dir=encoding_dir,
+        telemetry_on=True,
+    )
 
-    # Run solver (defaults handle wli from spaces in ct_runes)
-    sol = run(
+    result = run(
         text=ct_runes,
         cipher=cipher,
         key=key_spec,
@@ -100,25 +108,23 @@ def main():
         wli_data=wli,
         encoding_dir=encoding_dir,
         telemetry_on=True,
+        return_solver_report=True,
     )
 
-    recovered = getattr(sol, "plaintext_rune", "") or getattr(sol, "plaintext_str", "")
-    snippet = str(recovered)
-    preview = snippet[:120] + ("..." if len(snippet) > 120 else "")
-    print("Recovered plaintext:", preview)
-
-    # Pretty printer already formats everything (pt, ct, recovered, meta)
-    print_run_report(
-        title="Vigenere via General Map API",
-        cipher="vigenere",
-        solution=sol,
-        match_ok=None,
-        app_version="tutorial-1.0",
-        key_idx=key_nums,
-        key_len=len(key_nums),
-        pt_rune_ref=Runeglish.to_rune(pt_idx, wli),
+    print_rdp_result(
+        result,
+        spec=display_spec,
+        reference_idx=pt_idx,
+        tutorial_entry={
+            "path": "Tutorial_Vigenere_GeneralMap.py",
+            "title": "Vigenere via General Map API pretty-print variant",
+            "gate": "v1_release_pretty_print",
+            "acceptance_kind": "min_match_ratio",
+            "min_match_ratio": 1.0,
+            "uses_oracle_stop_score": True,
+        },
     )
+
 
 if __name__ == "__main__":
     main()
-

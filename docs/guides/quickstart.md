@@ -18,60 +18,41 @@ notes.
 ## 2. Run the release tutorials
 
 ```text
-python tutorials/v1/run_all.py
+python tutorials/v1/run_pretty_print_release.py
 ```
 
-Default V1 settings:
+The runner prints compact status lines and writes full per-tutorial logs under
+`output/tutorial_pretty_print_logs/`.
+
+The tutorial list and thresholds live near the top of
+`tutorials/v1/run_pretty_print_release.py`. There are no RDP tutorial
+environment variables for the normal V1 tutorial path.
+
+To review the complete printouts in the console, run:
 
 ```text
-GATE_PROFILE = "release"
-ASSET_PROFILE = "lm2_baseline"
-ECHO_OUTPUT = False
+python tutorials/v1/run_pretty_print_output_review.py
 ```
 
-## 3. Show full tutorial output
-
-For a user-facing run where you want to see each tutorial's full output, set:
-
-```text
-RDP_TUTORIAL_ECHO_OUTPUT=1
-```
-
-Then run:
-
-```text
-python tutorials/v1/run_all.py
-```
-
-For the longer full V1 proof/showcase gate, set:
-
-```text
-RDP_TUTORIAL_GATE_PROFILE=full_v1
-```
-
-## 4. What success looks like
+## 3. What success looks like
 
 The runner prints a summary similar to:
 
 ```text
-Summary
-gate_profile       : release
-asset_profile      : lm2_baseline
-selected           : ...
-run                : ...
-passed             : ...
-near_solve_accepted: ...
-failed             : 0
-skipped            : ...
+Pretty-print summary
+selected=...
+run=...
+passed=...
+failed=0
 ```
 
-The important line is:
+The important part is:
 
 ```text
-Selected tutorial gate completed successfully.
+failed=0
 ```
 
-## 5. Run the full expert tests
+## 4. Run the full expert tests
 
 After install:
 

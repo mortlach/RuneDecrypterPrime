@@ -35,14 +35,17 @@ def _entry(path: str) -> dict:
     return matches[0]
 
 
-def _run_all_module() -> ModuleType:
-    name = "rdp_tutorial_run_all"
-    spec = importlib.util.spec_from_file_location(name, RUN_ALL)
+def _load_module(path: Path, name: str) -> ModuleType:
+    spec = importlib.util.spec_from_file_location(name, path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def _run_all_module() -> ModuleType:
+    return _load_module(RUN_ALL, "rdp_tutorial_run_all")
 
 
 def test_manifest_entries_have_required_classification_fields() -> None:
@@ -96,11 +99,18 @@ def test_scheduled_stream_lookup_extended_and_showcase_are_classified_honestly()
 
 def test_known_broken_entries_are_not_selected_by_release_or_full_v1() -> None:
     for entry in _entries():
-        if entry["current_status"] == "known_broken":
-            assert entry["gate"] in KNOWN_BLOCKED_GATES, entry["path"]
-            assert entry["gate"] not in RELEASE_GATES
-            assert entry["gate"] not in FULL_V1_GATES
-            assert entry["path"].startswith("_legacy_blocked/"), entry["path"]
+        assert entry["current_status"] != "known_broken", entry["path"]
+
+
+def test_pretty_runner_selected_tutorials_are_manifested() -> None:
+    runner = _load_module(TUTORIAL_ROOT / "run_pretty_print_release.py", "rdp_pretty_runner_manifest_alignment")
+    entries = {entry["path"]: entry for entry in _entries()}
+
+    for selected in runner.TUTORIALS:
+        entry = entries[selected.path]
+        assert entry["current_status"] == "active"
+        assert entry["acceptance_kind"] in {"min_match_ratio", "near_solve_min_match"}
+        assert entry["min_match_ratio"] == selected.min_match_ratio
 
 
 def test_runner_parses_unified_tutorial_match_ratio_label() -> None:
