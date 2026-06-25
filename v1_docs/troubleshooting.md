@@ -6,7 +6,7 @@ This page is for the simple V1 path:
 
 ```text
 python install.py
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 ```
 
 Use the same Python for both commands. Many confusing failures come from
@@ -49,43 +49,43 @@ useful than the last line of a long build log.
 Run:
 
 ```text
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 ```
 
 The normal runner prints one line per tutorial and ends with:
 
 ```text
-Pretty-print summary
+Tutorial summary
 selected=21 run=21 passed=21 failed=0
 ```
 
 If `failed` is not `0`, open the log for the failing tutorial under:
 
 ```text
-output/tutorial_pretty_print_logs/
+output/tutorial_logs/
 ```
 
 Each log is named after the tutorial file. For example, a failure in
 `Tutorial_Autokey.py` writes:
 
 ```text
-output/tutorial_pretty_print_logs/Tutorial_Autokey.txt
+output/tutorial_logs/Tutorial_Autokey.txt
 ```
 
 ## Reviewing The Full Printout
 
-If the compact runner passes but the tutorial output looks unclear, use the
-output-review runner:
+If the compact runner passes but the tutorial output looks unclear, set this in
+`tutorials/v1/run_tutorials.py`:
 
-```text
-python tutorials/v1/run_pretty_print_output_review.py
+```python
+CONSOLE_OUTPUT = ConsoleOutput.FULL
 ```
 
 It uses the same tutorial list as the normal runner, but echoes each captured
 printout to the console and writes logs under:
 
 ```text
-output/tutorial_pretty_print_output_review_logs/
+output/tutorial_logs/
 ```
 
 Use this for documentation and release review. The normal runner is better for a
@@ -111,7 +111,7 @@ rune, so display bugs can look like spelling bugs.
 ## Match Ratio Is Below The Minimum
 
 The runner compares the last reported match ratio with the tutorial threshold in
-`tutorials/v1/run_pretty_print_release.py`.
+`tutorials/v1/run_tutorials.py`.
 
 If the tutorial is an exact-recovery lesson, the minimum is usually `1.000`.
 Some longer or stochastic tutorials use a lower threshold. That threshold is

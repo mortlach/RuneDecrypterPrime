@@ -11,7 +11,7 @@ Manifest counts by gate:
 - `v1_smoke`: 4
 - `v1_release`: 5
 - `v1_extended`: 4
-- `v1_showcase_near_solve`: 1
+- `v1_partial_recovery`: 1
 - `v1_slow_demo`: 1
 - `optional_lm3`: 4
 - `broken_contract_fix_needed`: 1
@@ -21,7 +21,7 @@ Manifest counts by gate:
 Runner profile counts:
 
 - `release`: 9 selected entries (`v1_smoke` + `v1_release`)
-- `full_v1`: 14 selected entries (`v1_smoke` + `v1_release` + `v1_extended` + `v1_showcase_near_solve`)
+- `full_v1`: 14 selected entries (`v1_smoke` + `v1_release` + `v1_extended` + `v1_partial_recovery`)
 
 ## Promotion completed
 
@@ -47,15 +47,15 @@ Reason:
 
 - exact under `lm2_baseline`, but retained outside default release to avoid making the default proof too heavy.
 
-Retained in `v1_showcase_near_solve`:
+Retained in `v1_partial_recovery`:
 
 - `Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py`
 
 Reason:
 
-- useful near-solve showcase
+- useful partial-recovery tutorial
 - exact recovery is not required under `lm2_baseline`
-- acceptance is `showcase_near_solve` with `min_match_ratio = 0.9`
+- acceptance is `partial_recovery` with `min_match_ratio = 0.9`
 
 ## Known-broken entries excluded from release/full_v1
 
@@ -81,14 +81,14 @@ ScheduledStreamLookup real tutorials now use:
 - `TutorialRunKind.REAL_KEY_RECOVERY_BENCHMARK`
 - `print_tutorial_session_report(...)`
 
-This means the release/extended/showcase ScheduledStreamLookup real tutorials emit unified tutorial/session reports with benchmark/truth-policy fields when they complete.
+This means the release/extended/partial recovery ScheduledStreamLookup real tutorials emit unified tutorial/session reports with benchmark/truth-policy fields when they complete.
 
 The tutorial runner now parses both older `Match ratio: ...` output and unified report `match_ratio : ...` output.
 
 Superseded V1 cleanup note:
 
 The older environment-variable runner behavior was the state of the D7 integration pass.
-The current public V1 tutorial path is `python tutorials/v1/run_pretty_print_release.py`.
+The current public V1 tutorial path is `python tutorials/v1/run_tutorials.py`.
 Current public tutorial runners do not use RDP environment-variable control.
 
 ## Tests added/updated
@@ -104,7 +104,7 @@ These cover:
 - all `v1_release` entries exist on disk
 - default release gate includes the exact ScheduledStreamLookup P13 supplied-sequence real solve
 - P13 primes remains extended
-- P13/P31 segmented remains showcase/near-solve
+- P13/P31 segmented remains partial recovery
 - known-broken entries are not selected by release/full_v1
 - runner parses unified `match_ratio` output
 - ScheduledStreamLookup real tutorials emit through the session benchmark report path
@@ -126,7 +126,7 @@ Notable full_v1 outcomes:
 
 - `Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py`: `PASS`, `match=1.000`, expected `>= 1.000`
 - `Tutorial_ScheduledStreamLookup_RealSolve_P13Primes.py`: `PASS`, `match=1.000`, expected `>= 1.000`
-- `Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py`: `NEAR_SOLVE_ACCEPTED`, `match=0.901`, expected `>= 0.900`
+- `Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py`: `PARTIAL_RECOVERY_ACCEPTED`, `match=0.901`, expected `>= 0.900`
 
 User-reported full pytest result after the ScheduledStreamLookup manifest-test updates, before the later runner-default contract fix:
 
@@ -141,7 +141,7 @@ The skipped tests were expected environment/asset skips, including optional Torc
 Run before claiming closure from the latest branch head:
 
 ```text
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 python -m pytest -q -ra -p no:cacheprovider tests
 ```
 

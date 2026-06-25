@@ -11,7 +11,7 @@ question         what hypothesis is being tested
 source_label     which LP source was loaded
 recipe/model     which cipher or route family was tried
 truth_policy     usually no_truth for unsolved material
-expected_result  solve, near_solve, diagnostic_only, or expected_fail
+expected_result  solve, partial_recovery, diagnostic_only, or expected_fail
 result_summary   what happened and why it matters
 ```
 

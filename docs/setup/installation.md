@@ -53,12 +53,12 @@ or wheel are too old, upgrade them deliberately and rerun the installer.
 After install:
 
 ```text
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 ```
 
 The pretty-print runner is the normal V1 tutorial review path. Its tutorial
 list, thresholds, output policy, and log folder are visible as constants near
-the top of `tutorials/v1/run_pretty_print_release.py`.
+the top of `tutorials/v1/run_tutorials.py`.
 
 Generated tutorial output is written under:
 
@@ -120,7 +120,7 @@ Then run:
 
 ```text
 python -m pytest -q -p no:cacheprovider tests/contracts
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 ```
 
 Use the full pytest command above before promoting a branch.

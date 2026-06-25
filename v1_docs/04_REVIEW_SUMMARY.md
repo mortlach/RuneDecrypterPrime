@@ -57,8 +57,8 @@ The staged docs now use the current V1 policy:
 - no separate tutorial config file for normal review
 - selected tutorials live under `tutorials/v1/`
 - older replaced tutorials live under `tutorials/old/`
-- the normal tutorial gate is `run_pretty_print_release.py`
-- the full output review runner is `run_pretty_print_output_review.py`
+- the normal tutorial gate is `run_tutorials.py`
+- full output review is `run_tutorials.py` with `CONSOLE_OUTPUT = ConsoleOutput.FULL`
 
 ## Tutorial State
 
@@ -121,14 +121,14 @@ Reviewers should decide:
 - whether the tutorial table should stay hand-written for V1 or be generated
   from the runner/manifest in a later cleanup
 - whether each pretty-print tutorial output is friendly and consistent enough
-  after a full output-review run
+  after a full-output run
 
 ## Before Promotion
 
 Before these docs become public V1 docs:
 
 1. Run the normal tutorial gate.
-2. Run the full printout-review runner, or review its captured logs.
+2. Run full output mode, or review the captured logs.
 3. Update `02_CROSSCHECK.md` with the final results.
 4. Choose the promotion layout.
 5. Replace, redirect, or retire stale pages in the old `docs/` tree.

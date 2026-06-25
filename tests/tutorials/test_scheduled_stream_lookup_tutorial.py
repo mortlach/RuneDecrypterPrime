@@ -46,7 +46,7 @@ def test_scheduled_stream_lookup_manifest_keeps_real_solve_coverage() -> None:
     expected = {
         "Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py": "v1_release",
         "Tutorial_ScheduledStreamLookup_RealSolve_P13Primes.py": "v1_extended",
-        "Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py": "v1_showcase_near_solve",
+        "Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py": "v1_partial_recovery",
     }
     for path, gate in expected.items():
         assert path in by_path

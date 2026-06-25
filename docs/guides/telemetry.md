@@ -20,7 +20,7 @@ Use these together to answer “what did we run?” and “how did it progress?�
 ---
 
 ## 2. Hands-on guide: reading logs
-1. Run a tutorial (e.g., `python tutorials/v1/Start_Here.py`).
+1. Run a tutorial (e.g., `python tutorials/v1/Tutorial_Start_Here.py`).
 2. Open `output/tutorials/<run_id>/logs/app.jsonl`.
 3. Find the latest `telemetry.run` block to confirm `text_encoding_direction`, `solver`, `seed`, and scorer backend. Comparing two runs? Diff this block.
 4. Scroll to `telemetry.solver_progress` entries (emitted at `progress_pct` increments, default 1%) to see how `best_score` evolved.

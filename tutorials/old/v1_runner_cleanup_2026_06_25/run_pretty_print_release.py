@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 """Run the final V1 pretty-print tutorial review list.
 
@@ -38,7 +38,7 @@ class PrettyTutorial:
 
 
 TUTORIALS: tuple[PrettyTutorial, ...] = (
-    PrettyTutorial("Start_Here.py", 1.0),
+    PrettyTutorial("Tutorial_Start_Here.py", 1.0),
     PrettyTutorial("Tutorial_Autokey.py", 1.0),
     PrettyTutorial("Tutorial_Railfence.py", 1.0),
     PrettyTutorial("Tutorial_Vigenere_Interruptors_Exact.py", 1.0),
@@ -52,7 +52,7 @@ TUTORIALS: tuple[PrettyTutorial, ...] = (
     PrettyTutorial("Tutorial_Vigenere_Interruptors_NonTrivial.py", 1.0),
     PrettyTutorial("Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py", 1.0),
     PrettyTutorial("Tutorial_ScheduledStreamLookup_RealSolve_P13Primes.py", 1.0),
-    PrettyTutorial("Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py", 0.9, TutorialAcceptanceKind.SHOWCASE_NEAR_SOLVE),
+    PrettyTutorial("Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py", 0.9, TutorialAcceptanceKind.PARTIAL_RECOVERY),
     PrettyTutorial("Tutorial_LP_Welcome_Pilgrim_Solve.py", 1.0),
     PrettyTutorial("Tutorial_MonoSubstitution_SA_LTR.py", 0.995, TutorialAcceptanceKind.NEAR_EXACT),
     PrettyTutorial("Tutorial_PeriodicSubstitution.py", 0.995, TutorialAcceptanceKind.NEAR_EXACT),

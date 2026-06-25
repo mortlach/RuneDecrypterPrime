@@ -36,7 +36,7 @@ def test_release_review_pack_includes_review_contract_files_and_small_data(tmp_p
     )
     _write(repo / "tests" / "core" / "test_core.py", "def test_ok():\n    pass\n")
     _write(repo / "docs" / "release_contracts" / "v1" / "d4_contract_closure.md", "# D4\n")
-    _write(repo / "tutorials" / "v1" / "run_all.py", "print('tutorials')\n")
+    _write(repo / "tutorials" / "v1" / "run_tutorials.py", "print('tutorials')\n")
     _write(repo / ".github" / "workflows" / "rdp_v1_full_proof.yml", "name: proof\n")
     _write(repo / "tools" / "release_review_pack.py", "# tool copy\n")
 
@@ -85,7 +85,7 @@ def test_release_review_pack_includes_review_contract_files_and_small_data(tmp_p
     assert "src/rune_decrypter_prime/data/cipher_tests/baseline_registry.py" in names
     assert "tests/core/test_core.py" in names
     assert "docs/release_contracts/v1/d4_contract_closure.md" in names
-    assert "tutorials/v1/run_all.py" in names
+    assert "tutorials/v1/run_tutorials.py" in names
     assert ".github/workflows/rdp_v1_full_proof.yml" in names
     assert "tools/release_review_pack.py" in names
 

@@ -10,7 +10,7 @@ variables. Normal users should run a Python file directly.
 Allowed:
 
 - clear constants in the runner file
-- a small number of separate runner files for distinct review gates
+- one public tutorial runner with named run-set and console-output constants
 - tutorial manifest data used by tests and release gates
 
 Avoid:
@@ -25,8 +25,11 @@ Avoid:
 The normal V1 tutorial command is:
 
 ```text
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 ```
 
-Use `python tutorials/v1/run_pretty_print_output_review.py` when reviewing the
-full human-facing tutorial printouts.
+For full human-facing printout review, edit the same runner and set:
+
+```python
+CONSOLE_OUTPUT = ConsoleOutput.FULL
+```

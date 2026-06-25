@@ -50,7 +50,7 @@ Local `full_v1` tutorial gate result from the final closeout proof:
 
 ```text
 RDP V1 tutorial runner | gate=full_v1 | asset_profile=lm2_baseline
-Selected gates: v1_smoke, v1_release, v1_extended, v1_showcase_near_solve
+Selected gates: v1_smoke, v1_release, v1_extended, v1_partial_recovery
 Selected entries: 14
 selected: 14
 skipped: 0
@@ -64,7 +64,7 @@ Important ScheduledStreamLookup tutorial results in that run:
 ```text
 Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py: PASS, match=1.000
 Tutorial_ScheduledStreamLookup_RealSolve_P13Primes.py: PASS, match=1.000
-Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py: NEAR_SOLVE_ACCEPTED, match=0.901
+Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py: PARTIAL_RECOVERY_ACCEPTED, match=0.901
 ```
 
 ## Final pytest evidence

@@ -14,7 +14,7 @@ They are not secret production scoring rules.
 For the pretty-print V1 review, the current executable source of truth is:
 
 ```text
-tutorials/v1/run_pretty_print_release.py
+tutorials/v1/run_tutorials.py
 ```
 
 That runner contains:
@@ -24,14 +24,14 @@ That runner contains:
 - the compact console-output policy
 - the log output folder
 
-The full printout-review runner is:
+For full printout review, use the same runner and set:
 
-```text
-tutorials/v1/run_pretty_print_output_review.py
+```python
+CONSOLE_OUTPUT = ConsoleOutput.FULL
 ```
 
-It uses the same list through the release runner, but echoes each captured
-printout so reviewers can inspect formatting and wording.
+It uses the same selected list, but echoes each captured printout so reviewers
+can inspect formatting and wording.
 
 ## Target Tutorial Shape
 
@@ -46,7 +46,7 @@ That includes:
 - beginner tutorials
 - normal release tutorials
 - extended confidence tutorials
-- near-solve showcase tutorials
+- partial-recovery tutorials
 - optional-asset tutorials
 - advanced examples that are still healthy and runnable
 
@@ -125,7 +125,7 @@ Current tutorial evidence uses these ideas:
 | --- | --- |
 | process success | The tutorial only needs to complete successfully. |
 | minimum match ratio | The recovered plaintext must meet a stated threshold. |
-| near-solve minimum match | Exact recovery is not required, but the near-solve quality must be reported. |
+| partial recovery minimum match | Exact recovery is not required, but the partial recovery quality must be reported. |
 | requires asset profile | The tutorial is valid only when the named assets are available. |
 | blocked known issue | The tutorial is excluded until a known problem is fixed. |
 
@@ -152,7 +152,7 @@ For exact tutorials, the threshold is usually:
 1.000
 ```
 
-For near-solve or stochastic tutorials, the threshold may be lower. A lower
+For partial recovery or stochastic tutorials, the threshold may be lower. A lower
 threshold is not a hidden failure if the tutorial is explicitly classified that
 way and the output says so.
 

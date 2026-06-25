@@ -6,7 +6,7 @@ This page is for contributors. The beginner path remains:
 
 ```text
 python install.py
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 ```
 
 ## Normal Test Command
@@ -42,17 +42,17 @@ If install fails, see [../troubleshooting.md](../troubleshooting.md).
 For the pretty-print tutorial gate:
 
 ```text
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 ```
 
-For full printout review:
+For full printout review, set:
 
-```text
-python tutorials/v1/run_pretty_print_output_review.py
+```python
+CONSOLE_OUTPUT = ConsoleOutput.FULL
 ```
 
-The printout-review runner is useful after changes to tutorial wording,
-rendering, report fields, rune display, or output paths.
+Use this after changes to tutorial wording, rendering, report fields, rune
+display, or output paths.
 
 ## Where Test Output Goes
 

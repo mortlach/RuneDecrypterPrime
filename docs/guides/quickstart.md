@@ -18,20 +18,21 @@ notes.
 ## 2. Run the release tutorials
 
 ```text
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 ```
 
 The runner prints compact status lines and writes full per-tutorial logs under
-`output/tutorial_pretty_print_logs/`.
+`output/tutorial_logs/`.
 
 The tutorial list and thresholds live near the top of
-`tutorials/v1/run_pretty_print_release.py`. There are no RDP tutorial
+`tutorials/v1/run_tutorials.py`. There are no RDP tutorial
 environment variables for the normal V1 tutorial path.
 
-To review the complete printouts in the console, run:
+To review the complete printouts in the console, edit
+`tutorials/v1/run_tutorials.py` and set:
 
-```text
-python tutorials/v1/run_pretty_print_output_review.py
+```python
+CONSOLE_OUTPUT = ConsoleOutput.FULL
 ```
 
 ## 3. What success looks like
@@ -39,7 +40,7 @@ python tutorials/v1/run_pretty_print_output_review.py
 The runner prints a summary similar to:
 
 ```text
-Pretty-print summary
+Tutorial summary
 selected=...
 run=...
 passed=...

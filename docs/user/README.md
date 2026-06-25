@@ -11,7 +11,7 @@ This section is the shortest path for running RuneDecrypterPrime without touchin
 ## Common workflows
 
 - Tutorials (first run):
-  - `python tutorials/v1/Start_Here.py`
+  - `python tutorials/v1/Tutorial_Start_Here.py`
 - Benchmarks (periodic substitution + transposition):
   - `python tools/benchmarks/bench_solve_periodic_columnar_pipeline_no_wli.py`
   - `python tools/benchmarks/bench_solve_periodic_columnar_pipeline_col_then_sub.py`

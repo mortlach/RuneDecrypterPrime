@@ -31,14 +31,14 @@ and verifies the native scoring extension can be imported.
 After install:
 
 ```text
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 ```
 
 This runs the staged V1 pretty-print tutorial gate. The console output is short.
 Full tutorial logs are written under:
 
 ```text
-output/tutorial_pretty_print_logs/
+output/tutorial_logs/
 ```
 
 ## If Something Fails
@@ -47,7 +47,7 @@ Run these checks with the same Python:
 
 ```text
 python install.py
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 ```
 
 Then open the newest install log under:
@@ -59,7 +59,7 @@ output/install_logs/
 For tutorial failures, open the matching log under:
 
 ```text
-output/tutorial_pretty_print_logs/
+output/tutorial_logs/
 ```
 
 ## What This Page Avoids

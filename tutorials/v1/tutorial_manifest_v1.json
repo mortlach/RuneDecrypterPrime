@@ -6,7 +6,7 @@
     "v1_smoke": "Fast, stable tutorial run on every release check.",
     "v1_release": "Normal V1 release tutorial; should pass under lm2_baseline.",
     "v1_extended": "Valid V1 tutorial but slower; run for fuller confidence.",
-    "v1_showcase_near_solve": "Public demo where exact recovery is not required; near-solve quality must be reported.",
+    "v1_partial_recovery": "Partial-recovery tutorial where exact recovery is not required; recovery quality must be reported.",
     "v1_slow_demo": "Working demo that is too slow for the default release gate.",
     "optional_lm3": "Valid tutorial that requires 3-gram language-model assets beyond lm2_baseline.",
     "broken_contract_fix_needed": "Tutorial or helper has an API mismatch; exclude until fixed.",
@@ -25,7 +25,7 @@
   },
   "tutorials": [
     {
-      "path": "Start_Here.py",
+      "path": "Tutorial_Start_Here.py",
       "title": "Start here: Vigenere wrapper and general-map beam solve",
       "cipher_family": "vigenere",
       "tutorial_kind": "intro_real_solve",
@@ -306,13 +306,13 @@
     },
     {
       "path": "Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py",
-      "title": "ScheduledStreamLookup segmented P13/P31/P13 near-solve showcase",
+      "title": "ScheduledStreamLookup segmented P13/P31/P13 partial-recovery tutorial",
       "cipher_family": "scheduled_stream_lookup",
-      "tutorial_kind": "showcase_near_solve",
-      "gate": "v1_showcase_near_solve",
+      "tutorial_kind": "partial_recovery",
+      "gate": "v1_partial_recovery",
       "required_asset_profile": "lm2_baseline",
       "expected_under_lm2_baseline": "pass",
-      "acceptance_kind": "showcase_near_solve",
+      "acceptance_kind": "partial_recovery",
       "min_match_ratio": 0.9,
       "observed_lm2_baseline": {
         "match_ratio": 0.901,
@@ -322,7 +322,7 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
-      "notes": "Keep as showcase/near-solve. Exact recovery is not required under lm2_baseline. Pretty-print near-solve showcase promoted to canonical V1 tutorial filename."
+      "notes": "Keep as partial recovery. Exact recovery is not required under lm2_baseline. Pretty-print partial-recovery tutorial promoted to canonical V1 tutorial filename."
     },
     {
       "path": "Tutorial_LP_Welcome_Pilgrim_Solve.py",

@@ -50,13 +50,13 @@ docs true, maintainable, and connected to the repo.
 3. Run:
 
 ```text
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 ```
 
-4. Run the output-review runner when ready to inspect printout wording:
+4. Run full output mode when ready to inspect printout wording:
 
-```text
-python tutorials/v1/run_pretty_print_output_review.py
+```python
+CONSOLE_OUTPUT = ConsoleOutput.FULL
 ```
 
 5. Review the generated tutorial logs.
@@ -132,7 +132,7 @@ These are the places most likely to conflict with the staged V1 path.
 
 The best next review point is after:
 
-- one successful pretty-print runner pass
-- one output-review pass for wording
+- one successful tutorial runner pass
+- one full-output pass for wording
 
 At that point the docs can move from staged draft to promotion planning.

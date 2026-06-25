@@ -23,13 +23,13 @@ The public beginner path should stay simple:
 
 ```text
 python install.py
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 ```
 
-For printout review:
+For printout review, edit `tutorials/v1/run_tutorials.py` and set:
 
-```text
-python tutorials/v1/run_pretty_print_output_review.py
+```python
+CONSOLE_OUTPUT = ConsoleOutput.FULL
 ```
 
 No special shell setup, no separate tutorial config file, and no CLI-heavy

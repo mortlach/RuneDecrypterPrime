@@ -28,7 +28,7 @@ Beginner pages should use the simple path:
 
 ```text
 python install.py
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 ```
 
 Do not make beginner docs depend on special shell setup, separate tutorial
@@ -44,7 +44,7 @@ If a page describes evidence, say what kind of evidence it is.
 Examples:
 
 - a tutorial pass proves that tutorial passed
-- a near-solve threshold is not exact recovery
+- a partial recovery threshold is not exact recovery
 - truth/oracle data must be visible
 - report-only diagnostics must not affect ranking
 - a display summary is not a solver-state persistence format
@@ -58,8 +58,8 @@ Use repo-relative paths in committed docs.
 Good:
 
 ```text
-tutorials/v1/run_pretty_print_release.py
-output/tutorial_pretty_print_logs/
+tutorials/v1/run_tutorials.py
+output/tutorial_logs/
 artifacts/solver_report.json
 ```
 

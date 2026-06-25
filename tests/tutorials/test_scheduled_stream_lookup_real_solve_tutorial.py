@@ -25,7 +25,7 @@ def test_real_solve_tutorials_are_manifested_for_release_runner_profiles() -> No
     expected_profiles = {
         "Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py": "v1_release",
         "Tutorial_ScheduledStreamLookup_RealSolve_P13Primes.py": "v1_extended",
-        "Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py": "v1_showcase_near_solve",
+        "Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py": "v1_partial_recovery",
     }
     for path, gate in expected_profiles.items():
         entry = entries[path]
@@ -33,7 +33,7 @@ def test_real_solve_tutorials_are_manifested_for_release_runner_profiles() -> No
         assert entry["required_asset_profile"] == "lm2_baseline"
         assert TutorialAcceptanceKind(entry["acceptance_kind"]) in {
             TutorialAcceptanceKind.EXACT,
-            TutorialAcceptanceKind.SHOWCASE_NEAR_SOLVE,
+            TutorialAcceptanceKind.PARTIAL_RECOVERY,
         }
         assert (ROOT / "tutorials" / "v1" / path).is_file()
 

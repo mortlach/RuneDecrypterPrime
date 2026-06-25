@@ -15,7 +15,7 @@ Before writing code, decide what the tutorial is:
 | cipher lesson | the reader is learning one cipher family |
 | real solve | the solver searches and recovers a result |
 | LP example | the tutorial uses a Liber Primus source label or workbook |
-| near-solve showcase | exact recovery is not required and the threshold is explicit |
+| partial-recovery tutorial | exact recovery is not required and the threshold is explicit |
 | advanced demo | useful, but not part of the beginner release gate |
 
 ## File Shape
@@ -27,7 +27,7 @@ tutorials/v1/
 ```
 
 The target V1 shape is that all working tutorials live in this folder. A
-tutorial can be beginner, release, extended, optional, showcase, or advanced,
+tutorial can be beginner, release, extended, optional, partial recovery, or advanced,
 but it should still have a clear status and a direct file to run.
 
 Use a clear filename ending in:
@@ -66,7 +66,7 @@ consistent than hand-built print blocks.
 The current pretty-print release list lives in:
 
 ```text
-tutorials/v1/run_pretty_print_release.py
+tutorials/v1/run_tutorials.py
 ```
 
 Add the tutorial to `TUTORIALS` only when it is ready for the pretty-print
@@ -77,8 +77,8 @@ Each entry needs:
 - file name
 - minimum match ratio
 
-The output-review runner shares the same list, so adding one entry affects both
-the compact gate and the full printout review.
+Full output mode shares the same list, so adding one entry affects both the
+compact gate and the full printout review.
 
 ## Metadata Registration
 
@@ -92,7 +92,7 @@ Metadata should answer:
 - the minimum match ratio, if any
 - whether it uses truth/oracle data
 - whether it supplies a true key to the solver
-- whether it is active, optional, showcase, slow, or blocked
+- whether it is active, optional, partial recovery, slow, or blocked
 - short notes that explain why it is classified that way
 
 Today, that metadata is partly in `tutorial_manifest_v1.json` and partly in the
@@ -117,7 +117,7 @@ they apply.
 
 Use `1.000` for exact recovery.
 
-Use a lower threshold only when the tutorial is intentionally a near-solve or
+Use a lower threshold only when the tutorial is intentionally a partial recovery or
 stochastic example. If exact recovery is not required, the tutorial output and
 docs must say so.
 
@@ -134,7 +134,7 @@ At minimum, update or add focused tests for:
 For the final human-facing review, run:
 
 ```text
-python tutorials/v1/run_pretty_print_output_review.py
+python tutorials/v1/run_tutorials.py
 ```
 
 ## Do Not Add

@@ -29,13 +29,13 @@ Current beginner commands:
 
 ```text
 python install.py
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 ```
 
-Current printout review command:
+Current printout review setting:
 
-```text
-python tutorials/v1/run_pretty_print_output_review.py
+```python
+CONSOLE_OUTPUT = ConsoleOutput.FULL
 ```
 
 Current first-class report/display surfaces:
@@ -58,7 +58,7 @@ Current important tutorial/report policy:
 - Public V1 tutorial runners should use visible constants in the runner, not
   shell-controlled tutorial behavior or separate tutorial config files.
 - `tutorials/v1/` should eventually hold all working V1 tutorials, including
-  beginner, extended, showcase, and advanced examples.
+  beginner, extended, partial recovery, and advanced examples.
 - Tutorial docs should be easy to update when tutorials are added: one selected
   runner list, one metadata/manifest story, and one cross-check step.
 

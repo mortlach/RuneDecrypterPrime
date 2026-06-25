@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""ScheduledStreamLookup segmented P13/P31/P13 near-solve pretty tutorial."""
+"""ScheduledStreamLookup segmented P13/P31/P13 partial-recovery tutorial."""
 
 import sys
 from pathlib import Path
@@ -49,11 +49,11 @@ def _run_case(label: str, mask: list[int], key: list[int]) -> None:
     pretty.print_rdp_identity()
     pretty.print_initialising()
     pretty.print_tutorial_contract(
-        name="ScheduledStreamLookup segmented P13/P31/P13 near-solve showcase",
+        name="ScheduledStreamLookup segmented P13/P31/P13 partial-recovery tutorial",
         cipher="scheduled stream lookup",
         solver="beam",
         direction=DIRECTION.value,
-        expected_result="showcase near-solve",
+        expected_result="partial recovery",
         uses_reference_stop_score=False,
         extra_rows=[("case", label)],
     )
@@ -72,11 +72,11 @@ def _run_case(label: str, mask: list[int], key: list[int]) -> None:
     )
 
     print("=" * 72)
-    print(f"ScheduledStreamLookup segmented near-solve problem: {label}")
+    print(f"ScheduledStreamLookup segmented partial-recovery problem: {label}")
     print(f"direction: {DIRECTION.value}")
     print("periods: P13 + P31")
     print("schedule: user-supplied mask")
-    print("acceptance: near-solve match ratio, exact recovery not required")
+    print("acceptance: partial-recovery match ratio, exact recovery not required")
     print(f"ciphertext length: {len(ct_idx_list)}")
     print(f"ciphertext preview: {ct_runes[:160]}{'...' if len(ct_runes) > 160 else ''}")
 
@@ -127,7 +127,7 @@ def _run_case(label: str, mask: list[int], key: list[int]) -> None:
     print(f"Expected key length : {len(key)}")
     print(f"Found key length    : {0 if found_key is None else len(found_key)}")
     print(f"Plaintext match     : {ratio:.3f}")
-    print(f"Near-solve accepted?: {ratio >= MIN_MATCH_RATIO}")
+    print(f"Partial recovery accepted?: {ratio >= MIN_MATCH_RATIO}")
 
     pretty.print_summary_spacer()
     print_rdp_result(
@@ -137,14 +137,14 @@ def _run_case(label: str, mask: list[int], key: list[int]) -> None:
         tutorial_entry={
             "path": "Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py",
             "title": f"ScheduledStreamLookup segmented {label} pretty-print variant",
-            "gate": "v1_showcase_near_solve_pretty_print",
-            "acceptance_kind": "showcase_near_solve",
+            "gate": "v1_partial_recovery_pretty_print",
+            "acceptance_kind": "partial_recovery",
             "min_match_ratio": MIN_MATCH_RATIO,
             "uses_oracle_stop_score": False,
         },
     )
     if ratio < MIN_MATCH_RATIO:
-        raise AssertionError(f"near-solve below threshold: match_ratio={ratio:.3f}")
+        raise AssertionError(f"partial recovery below threshold: match_ratio={ratio:.3f}")
 
 
 def main() -> None:

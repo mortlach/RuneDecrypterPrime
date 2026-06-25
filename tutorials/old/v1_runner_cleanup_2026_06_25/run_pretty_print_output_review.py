@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 """Run the V1 pretty-print tutorials and echo every captured printout.
 
 Use this runner when reviewing whether tutorial printouts are clear and
 standardised. It shares the final tutorial list with
-``run_pretty_print_release.py`` and changes only the review display policy.
+``run_tutorials.py`` and changes only the review display policy.
 """
 
 from pathlib import Path

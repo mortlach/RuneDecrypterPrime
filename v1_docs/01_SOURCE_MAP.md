@@ -93,7 +93,7 @@ Use these archived areas for context, not copy:
 | `reference/run_spec.md` | `src/rune_decrypter_prime/api/run_spec.py` | Stable input contract summary. |
 | `reference/reports.md` | `solver_report.py`, `scorer_report.py`, `display.py` | Stable report/display vocabulary. |
 | `reference/artifacts.md` | `artifact_agreement.py`, `run_artifact_manifest.py` | Known artifact paths and classifications. |
-| `reference/tutorial_runners.md` | `run_pretty_print_release.py`, `run_pretty_print_output_review.py`, runner contract tests | Runner ownership and current mismatch notes. |
+| `reference/tutorial_runners.md` | `run_tutorials.py`, runner contract tests | Runner ownership and current mismatch notes. |
 | `reference/tutorial_manifest.md` | `tutorial_manifest_v1.json`, pretty runner list, tutorial contract tests | Target metadata policy for a growing tutorial set. |
 
 ## Do Not Promote Directly

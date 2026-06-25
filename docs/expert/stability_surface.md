@@ -17,7 +17,7 @@ tutorial status
 source label concept
 output/ generated-output root
 reports, artefacts, and telemetry as evidence surfaces
-exact solve versus near-solve
+exact solve versus partial recovery
 known truth/key visibility
 ```
 
@@ -25,8 +25,7 @@ known truth/key visibility
 
 ```text
 tutorials/v1/tutorial_manifest_v1.json
-tutorials/v1/run_pretty_print_release.py
-tutorials/v1/run_all.py
+tutorials/v1/run_tutorials.py
 docs/README.md
 docs/expert/gui_interface_contract.md
 output/

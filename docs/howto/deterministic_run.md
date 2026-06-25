@@ -7,8 +7,8 @@ Prereqs: Python 3.11+, bootstrap complete (`python install.py`)
 
 ## Hands-on
 1. Follow the quickstart steps and run `python install.py`.
-2. Run `python tutorials/v1/run_pretty_print_release.py`.
-3. Compare the tutorial logs under `output/tutorial_pretty_print_logs/` with another run.
+2. Run `python tutorials/v1/run_tutorials.py`.
+3. Compare the tutorial logs under `output/tutorial_logs/` with another run.
 
 ## Expert
 1. Configure RunAPI with explicit `seed`:

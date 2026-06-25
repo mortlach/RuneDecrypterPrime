@@ -29,7 +29,7 @@ Checked:
 
 ### Pretty-Print Tutorial List
 
-`v1_docs/tutorials.md` matches `tutorials/v1/run_pretty_print_release.py`.
+`v1_docs/tutorials.md` matches `tutorials/v1/run_tutorials.py`.
 
 Confirmed:
 
@@ -108,7 +108,7 @@ liber_primus.partition
 The current pretty-print release runner owns this selected review list:
 
 ```text
-tutorials/v1/run_pretty_print_release.py
+tutorials/v1/run_tutorials.py
 ```
 
 It selects 21 promoted tutorial files.
@@ -199,8 +199,8 @@ Result:
 
 Before replacing old public docs:
 
-- run the pretty-print release runner once on the target machine
-- run the output-review runner when ready to review wording
+- run `run_tutorials.py` once on the target machine
+- run `run_tutorials.py` with `CONSOLE_OUTPUT = ConsoleOutput.FULL` when ready to review wording
 - plan the easy-update path for tutorial number 22 and beyond
 - check old `docs/INDEX.md` replacement or redirect policy
 - check whether `docs/README.md` should point to `v1_docs/` during staging

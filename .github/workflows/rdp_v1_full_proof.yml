@@ -102,7 +102,7 @@ jobs:
           log_path = Path("output") / "test_logs" / "v1_release_tutorials.log"
           log_path.parent.mkdir(parents=True, exist_ok=True)
 
-          cmd = [sys.executable, "-X", "utf8", "tutorials/v1/run_pretty_print_release.py"]
+          cmd = [sys.executable, "-X", "utf8", "tutorials/v1/run_tutorials.py"]
           print("Running:", " ".join(cmd))
 
           proc = subprocess.run(

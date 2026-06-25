@@ -111,7 +111,7 @@ pytest -q -ra -p no:cacheprovider tests
 The V1 release tutorial runner must pass from the final V1 branch head:
 
 ```text
-python -X utf8 tutorials/v1/run_pretty_print_release.py
+python -X utf8 tutorials/v1/run_tutorials.py
 ```
 
 The full-proof workflow must also run this tutorial gate.

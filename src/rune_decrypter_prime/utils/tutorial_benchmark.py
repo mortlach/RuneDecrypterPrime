@@ -33,7 +33,7 @@ class TutorialAcceptanceKind(StrEnum):
     EXACT = "exact"
     NEAR_EXACT = "near_exact"
     HUMAN_READABLE = "human_readable"
-    SHOWCASE_NEAR_SOLVE = "showcase_near_solve"
+    PARTIAL_RECOVERY = "partial_recovery"
     REQUIRES_ASSET_PROFILE = "requires_asset_profile"
     BLOCKED_KNOWN_ISSUE = "blocked_known_issue"
 

@@ -36,7 +36,7 @@ Solving runs must say how truth/reference text is used:
 known_key_demo      the answer/key is supplied to demonstrate plumbing
 reference_replay    solved text/reference is replayed or checked
 real_solve          solver is not given the true key/plaintext; truth is evaluation only
-near_solve          partial recovery accepted above a stated threshold
+partial_recovery          partial recovery accepted above a stated threshold
 diagnostic_attempt  not expected to solve; tests a hypothesis or route
 negative_result     useful failed attempt with a clear setup and result
 ```

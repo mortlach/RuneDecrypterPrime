@@ -96,7 +96,7 @@ jobs:
           log_dir.mkdir(parents=True, exist_ok=True)
           log_path = log_dir / "tutorials_v1_release.log"
 
-          script = Path("tutorials") / "v1" / "run_pretty_print_release.py"
+          script = Path("tutorials") / "v1" / "run_tutorials.py"
           if not script.is_file():
               raise SystemExit(f"Missing tutorial runner: {script}")
 

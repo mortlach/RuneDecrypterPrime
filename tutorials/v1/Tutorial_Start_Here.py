@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, cast
 
-# Allow "python tutorials/v1/Start_Here.py" without pip-installing the project
+# Allow "python tutorials/v1/Tutorial_Start_Here.py" without pip-installing the project
 _ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / "src"
 for path in (_SRC,):
@@ -250,7 +250,7 @@ def _print_summary(label: str, result, demo: Dict[str, Any], spec: api.RunSpec) 
         reference_idx=reference_idx,
         options=api.RdpDisplayOptions.for_tutorial(),
         tutorial_entry={
-            "path": "Start_Here.py",
+            "path": "Tutorial_Start_Here.py",
             "title": f"Start Here pretty-print {label}",
             "gate": "v1_smoke_pretty_print",
             "acceptance_kind": "exact",

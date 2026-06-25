@@ -17,7 +17,7 @@ tutorials/v1/Tutorial_LP_Welcome_Pilgrim_Solve.py
 It is included in the pretty-print release runner:
 
 ```text
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 ```
 
 This tutorial loads the solved-LP Welcome Pilgrim workbook, runs the solve

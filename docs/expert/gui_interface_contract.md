@@ -13,8 +13,7 @@ A GUI should prefer these inputs:
 
 ```text
 tutorials/v1/tutorial_manifest_v1.json
-tutorials/v1/run_pretty_print_release.py
-tutorials/v1/run_all.py
+tutorials/v1/run_tutorials.py
 ```
 
 Normal V1 tutorial control is visible in runner-file constants. Public tutorial
@@ -118,7 +117,7 @@ The exact folder under `output/` may change between runs.
 ```text
 known truth/key used
 oracle stop score used
-near-solve threshold used
+partial recovery threshold used
 optional asset missing
 blocked tutorial entry
 solver stopped by budget

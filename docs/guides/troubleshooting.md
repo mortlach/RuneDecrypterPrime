@@ -11,7 +11,7 @@ Run these from the repository root:
 ```text
 python --version
 python install.py
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 ```
 
 Use the same Python interpreter for all three commands. If you install with one
@@ -24,7 +24,7 @@ confusing ways.
 | --- | --- | --- |
 | `ModuleNotFoundError: rune_decrypter_prime` | The package was not installed for the Python you are using now. | Run `python install.py`, then run the tutorial command again with the same `python`. |
 | Native extension import fails, such as `_fastlm` | Build tools or package build dependencies are missing or stale. | Run `python install.py` again and inspect the newest log under `output/install_logs/`. |
-| A tutorial fails but most tutorials pass | That tutorial hit a real failure or missing asset. | Open the matching log in `output/tutorial_pretty_print_logs/` and check the tail printed by the runner. |
+| A tutorial fails but most tutorials pass | That tutorial hit a real failure or missing asset. | Open the matching log in `output/tutorial_logs/` and check the tail printed by the runner. |
 | Output appears somewhere unexpected | The command was run from a different working directory. | Change to the repository root and rerun the command. |
 | Results differ between machines | Different Python/package state, assets, or code checkout. | Confirm `python --version`, rerun `python install.py`, and check that Git is on the expected branch. |
 
@@ -33,7 +33,7 @@ confusing ways.
 The normal V1 pretty-print runner writes full tutorial output here:
 
 ```text
-output/tutorial_pretty_print_logs/
+output/tutorial_logs/
 ```
 
 Each active pretty tutorial gets one text log. The console stays compact unless a
@@ -43,7 +43,7 @@ For a review pass that echoes every captured tutorial printout to the console,
 run:
 
 ```text
-python tutorials/v1/run_pretty_print_output_review.py
+python tutorials/v1/run_tutorials.py
 ```
 
 ## What to include in a report
@@ -54,7 +54,7 @@ Include:
 python --version
 the command you ran
 the full error text
-the relevant output/tutorial_pretty_print_logs/*.txt file
+the relevant output/tutorial_logs/*.txt file
 the current Git branch and commit, if available
 ```
 

@@ -16,8 +16,8 @@ from typing import Any
 #   smoke       -> v1_smoke only
 #   release     -> v1_smoke + v1_release
 #   extended    -> v1_extended only
-#   showcase    -> v1_showcase_near_solve only
-#   full_v1     -> v1_smoke + v1_release + v1_extended + v1_showcase_near_solve
+#   partial_recovery -> v1_partial_recovery only
+#   full_v1     -> v1_smoke + v1_release + v1_extended + v1_partial_recovery
 #   slow_demo   -> v1_slow_demo only
 #   optional_lm3 -> optional_lm3 only; requires lm3_extended assets
 #   all_manifest -> all manifest entries, but known-broken/remove entries are still skipped
@@ -38,7 +38,7 @@ STOP_ON_FIRST_FAILURE = False
 # Keep normal runs compact.
 ECHO_OUTPUT = False
 
-# Print the tail of failed/near-solve output for context.
+# Print the tail of failed or partial-recovery output for context.
 PRINT_FAILURE_TAIL = True
 TAIL_LINES = 80
 
@@ -56,15 +56,15 @@ GATE_PRESETS: dict[str, tuple[str, ...]] = {
     "smoke": ("v1_smoke",),
     "release": ("v1_smoke", "v1_release"),
     "extended": ("v1_extended",),
-    "showcase": ("v1_showcase_near_solve",),
-    "full_v1": ("v1_smoke", "v1_release", "v1_extended", "v1_showcase_near_solve"),
+    "partial_recovery": ("v1_partial_recovery",),
+    "full_v1": ("v1_smoke", "v1_release", "v1_extended", "v1_partial_recovery"),
     "slow_demo": ("v1_slow_demo",),
     "optional_lm3": ("optional_lm3",),
     "all_manifest": (
         "v1_smoke",
         "v1_release",
         "v1_extended",
-        "v1_showcase_near_solve",
+        "v1_partial_recovery",
         "v1_slow_demo",
         "optional_lm3",
         "broken_contract_fix_needed",
@@ -240,23 +240,23 @@ def _acceptance(entry: dict[str, Any], proc: subprocess.CompletedProcess[str]) -
         else:
             accepted = match_ratio >= min_match
             reason = f"{acceptance_kind.value}; match_ratio={match_ratio:.3f}; expected >= {min_match:.3f}"
-    elif acceptance_kind == TutorialAcceptanceKind.SHOWCASE_NEAR_SOLVE:
+    elif acceptance_kind == TutorialAcceptanceKind.PARTIAL_RECOVERY:
         if min_match is None:
             accepted = False
-            reason = "showcase near-solve entry missing min_match_ratio"
+            reason = "partial recovery entry missing min_match_ratio"
         elif match_ratio is None:
             accepted = False
-            reason = f"no match ratio found; expected showcase near-solve >= {min_match:.3f}"
+            reason = f"no match ratio found; expected partial recovery >= {min_match:.3f}"
         else:
             accepted = match_ratio >= min_match
-            rc_note = "returned 0" if proc.returncode == 0 else f"returned {proc.returncode}, accepted as showcase near-solve"
+            rc_note = "returned 0" if proc.returncode == 0 else f"returned {proc.returncode}, accepted as partial recovery"
             reason = f"{rc_note}; match_ratio={match_ratio:.3f}; expected >= {min_match:.3f}"
     elif acceptance_kind == TutorialAcceptanceKind.BLOCKED_KNOWN_ISSUE:
         accepted = False
         reason = "blocked known issue should not have been run"
 
-    if accepted and acceptance_kind == TutorialAcceptanceKind.SHOWCASE_NEAR_SOLVE:
-        status = "NEAR_SOLVE_ACCEPTED"
+    if accepted and acceptance_kind == TutorialAcceptanceKind.PARTIAL_RECOVERY:
+        status = "PARTIAL_RECOVERY_ACCEPTED"
     elif accepted:
         status = "PASS"
     else:

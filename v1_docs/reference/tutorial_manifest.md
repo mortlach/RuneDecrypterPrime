@@ -57,13 +57,13 @@ Each working tutorial should have enough metadata to support docs and tests:
 | `title` | Human-readable title. |
 | `cipher_family` | Main cipher family or workflow. |
 | `tutorial_kind` | Lesson type. |
-| `gate` | Beginner/release/extended/showcase/optional/blocked lane. |
+| `gate` | Beginner/release/extended/partial recovery/optional/blocked lane. |
 | `required_asset_profile` | Asset profile needed to run. |
 | `acceptance_kind` | How pass/fail is decided. |
 | `min_match_ratio` | Threshold when match-ratio acceptance is used. |
 | `uses_oracle_stop_score` | Whether oracle stop score is used. |
 | `supplies_true_key_to_solver` | Whether the true key is supplied to the solver. |
-| `current_status` | Active, optional, slow, showcase, blocked, retired. |
+| `current_status` | Active, optional, slow, partial recovery, blocked, retired. |
 | `notes` | Short reviewer explanation. |
 
 Acceptance kinds are enum values in code and serialized as strings in the
@@ -74,7 +74,7 @@ manifest:
 | `exact` | Expected to recover the full reference text. |
 | `near_exact` | Expected to be effectively solved, with only tiny mismatch allowance. |
 | `human_readable` | Expected to produce a readable solve above the stated threshold. |
-| `showcase_near_solve` | Public showcase where exact recovery is not required. |
+| `partial_recovery` | Partial-recovery tutorial where exact recovery is not required. |
 | `process_success` | Process success only; avoid for public V1 solve evidence. |
 | `requires_asset_profile` | Runner should treat asset availability as the controlling condition. |
 | `blocked_known_issue` | Known blocked entry; excluded from normal release runs. |
@@ -88,7 +88,7 @@ The exact names can evolve, but the docs should preserve these concepts:
 | beginner/smoke | Small first check. |
 | release | Normal public release tutorial. |
 | extended | More confidence, slower or broader. |
-| showcase | Useful public demo, possibly near-solve. |
+| partial recovery | Partial recovery accepted above an explicit threshold. |
 | optional asset | Requires assets beyond the default profile. |
 | slow demo | Works, but not selected by normal release runs. |
 | blocked | Known issue; excluded until fixed. |
@@ -103,7 +103,7 @@ Adding a tutorial should be a small, reviewable change:
 3. Add it to the pretty-print runner if it is selected for that review set.
 4. Update public docs only if the tutorial is public-facing.
 5. Add or update a focused alignment test.
-6. Run the pretty-print output-review runner before release.
+6. Run `run_tutorials.py` with `CONSOLE_OUTPUT = ConsoleOutput.FULL` before release.
 
 If this becomes annoying, the next improvement should be a small checker or
 generator that compares the runner, manifest, and docs table.

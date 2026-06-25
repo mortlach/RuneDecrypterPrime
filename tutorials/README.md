@@ -4,11 +4,11 @@ Runnable tutorial scripts and walkthrough examples.
 
 ## Start point
 
-- `tutorials/v1/Start_Here.py`
+- `tutorials/v1/Tutorial_Start_Here.py`
 
 Run:
 
-`python tutorials/v1/Start_Here.py`
+`python tutorials/v1/Tutorial_Start_Here.py`
 
 Related docs:
 

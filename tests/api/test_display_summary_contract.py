@@ -133,13 +133,13 @@ def test_text_reference_match_ratio_uses_normalised_plaintext() -> None:
     assert summary.result["match_ratio"] == pytest.approx(0.5)
 
 
-def test_near_solve_tutorial_policy_is_warned() -> None:
+def test_partial_recovery_tutorial_policy_is_warned() -> None:
     summary = build_rdp_summary(
         _run_result(),
-        tutorial_entry={"acceptance_kind": TutorialAcceptanceKind.SHOWCASE_NEAR_SOLVE.value},
+        tutorial_entry={"acceptance_kind": TutorialAcceptanceKind.PARTIAL_RECOVERY.value},
     )
 
-    assert "tutorial accepts a near-solve threshold; exact recovery is not required" in summary.warnings
+    assert "tutorial accepts a partial-recovery threshold; exact recovery is not required" in summary.warnings
 
 
 def test_format_and_write_json_summary(tmp_path: Path) -> None:

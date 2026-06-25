@@ -10,33 +10,30 @@ are teaching material and release evidence, not mock examples.
 From the repository root:
 
 ```text
-python tutorials/v1/run_pretty_print_release.py
+python tutorials/v1/run_tutorials.py
 ```
 
-This is the normal V1 tutorial gate. It runs the final pretty-print tutorial
-list, prints compact status lines, and checks each tutorial against its minimum
-match threshold.
+This is the normal V1 tutorial gate. It runs the selected tutorial set, prints
+compact status lines, and checks each tutorial against its minimum match
+threshold.
 
 Full output for each tutorial is written under:
 
 ```text
-output/tutorial_pretty_print_logs/
+output/tutorial_logs/
 ```
 
 ## Full Printout Review
 
-When the goal is to review the human-facing tutorial printouts, run:
+When the goal is to review the human-facing tutorial printouts, edit the same
+runner and set:
 
-```text
-python tutorials/v1/run_pretty_print_output_review.py
+```python
+CONSOLE_OUTPUT = ConsoleOutput.FULL
 ```
 
-This uses the same final tutorial list, but echoes every captured printout to the
-console. It writes separate logs under:
-
-```text
-output/tutorial_pretty_print_output_review_logs/
-```
+This echoes every captured printout to the console while keeping the same log
+folder.
 
 Use this runner when checking whether tutorial output is clear, consistent, and
 friendly enough for the V1 release.
@@ -46,14 +43,14 @@ friendly enough for the V1 release.
 The tutorial list and thresholds live as constants near the top of:
 
 ```text
-tutorials/v1/run_pretty_print_release.py
+tutorials/v1/run_tutorials.py
 ```
 
 The current list is:
 
 | Tutorial | Minimum match |
 | --- | ---: |
-| `Start_Here.py` | 1.000 |
+| `Tutorial_Start_Here.py` | 1.000 |
 | `Tutorial_Autokey.py` | 1.000 |
 | `Tutorial_Railfence.py` | 1.000 |
 | `Tutorial_Vigenere_Interruptors_Exact.py` | 1.000 |
@@ -70,9 +67,9 @@ The current list is:
 | `Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py` | 0.900 |
 | `Tutorial_LP_Welcome_Pilgrim_Solve.py` | 1.000 |
 | `Tutorial_MonoSubstitution_SA_LTR.py` | 0.995 |
-| `Tutorial_PeriodicSubstitution.py` | 1.000 |
-| `Tutorial_PeriodicSubstitution_Simple_P7.py` | 1.000 |
-| `Tutorial_PeriodicColumnar.py` | 1.000 |
+| `Tutorial_PeriodicSubstitution.py` | 0.995 |
+| `Tutorial_PeriodicSubstitution_Simple_P7.py` | 0.995 |
+| `Tutorial_PeriodicColumnar.py` | 0.995 |
 | `Tutorial_PeriodicColumnar_Simple_P7_ColThenSub.py` | 1.000 |
 
 ## What Success Looks Like
@@ -80,7 +77,7 @@ The current list is:
 The normal runner ends with a summary like:
 
 ```text
-Pretty-print summary
+Tutorial summary
 selected=21 run=21 passed=21 failed=0
 ```
 

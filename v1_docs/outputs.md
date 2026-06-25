@@ -13,15 +13,14 @@ The simple V1 path uses these folders:
 | Folder | What writes it |
 | --- | --- |
 | `output/install_logs/` | `python install.py` |
-| `output/tutorial_pretty_print_logs/` | `python tutorials/v1/run_pretty_print_release.py` |
-| `output/tutorial_pretty_print_output_review_logs/` | `python tutorials/v1/run_pretty_print_output_review.py` |
+| `output/tutorial_logs/` | `python tutorials/v1/run_tutorials.py` |
 
 Install logs capture each installer step. Tutorial logs capture the complete
 printout from each tutorial file.
 
-Each pretty-print runner clears its own tutorial-log folder at the start of a
-new run. That keeps stale tutorial names and old pass/fail output out of the
-current review.
+The tutorial runner clears its tutorial-log folder at the start of a new run.
+That keeps stale tutorial names and old pass/fail output out of the current
+review.
 
 ## Console Output
 
@@ -29,13 +28,13 @@ The normal tutorial runner prints compact review lines:
 
 ```text
 [RUN ] Tutorial_Autokey.py
-[PASS] Tutorial_Autokey.py acceptance=exact match_ratio=1.000 min=1.000 log=output/tutorial_pretty_print_logs/Tutorial_Autokey.txt
+[PASS] Tutorial_Autokey.py acceptance=exact match_ratio=1.000 min=1.000 log=output/tutorial_logs/Tutorial_Autokey.txt
 ```
 
 The final summary is the main beginner signal:
 
 ```text
-Pretty-print summary
+Tutorial summary
 selected=21 run=21 passed=21 failed=0
 ```
 
@@ -57,8 +56,9 @@ Tutorial logs are plain text. A good tutorial printout shows:
 - warnings
 - artifact or log paths when written
 
-The output-review runner prints the same captured tutorial text to the console,
-which makes it easier to compare formatting across tutorials.
+Set `CONSOLE_OUTPUT = ConsoleOutput.FULL` in `run_tutorials.py` to print the
+same captured tutorial text to the console. This makes it easier to compare
+formatting across tutorials.
 
 ## Standard RDP Summary
 

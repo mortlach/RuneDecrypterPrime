@@ -38,7 +38,7 @@ Advanced panels may expose:
 
 ```text
 match threshold
-near-solve threshold
+partial recovery threshold
 solver budget
 scorer options
 direction

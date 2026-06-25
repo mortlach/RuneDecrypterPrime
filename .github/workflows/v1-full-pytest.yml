@@ -48,7 +48,7 @@ jobs:
 
       - name: Run tutorial release profile
         if: ${{ inputs.run_release_tutorials }}
-        run: python tutorials/v1/run_pretty_print_release.py
+        run: python tutorials/v1/run_tutorials.py
 
       - name: Run ScheduledStreamLookup real solve P13 plus primes
         if: ${{ inputs.run_scheduled_stream_real_solves }}

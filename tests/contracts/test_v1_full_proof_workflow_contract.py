@@ -36,7 +36,7 @@ def test_v1_full_proof_workflow_runs_install_pytest_and_tutorials() -> None:
     assert '"tests"' in text
     assert "tutorials" in text
     assert "v1" in text
-    assert "run_pretty_print_release.py" in text
+    assert "run_tutorials.py" in text
     assert "RDP_TUTORIAL_" not in text
 
 
