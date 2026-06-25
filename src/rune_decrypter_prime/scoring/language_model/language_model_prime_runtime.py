@@ -41,6 +41,7 @@ import numpy as np
 from rune_decrypter_prime.core.types import Stat
 from rune_decrypter_prime.scoring.stat_transform import apply_stat_transform
 from .language_model_prime import LanguageModelPrime
+from .load_status import LmLoadReporter, LmLoadStatus
 from .paths import load_index, expand_pattern, default_lm_root  # (used by ECDFCache)
 
 _LM_RUNTIME_CACHE: dict[tuple, "LmPrimeRuntime"] = {}
@@ -69,7 +70,13 @@ class ECDFCache:
     Enforces ABI: grid/q are float64 on disk, strictly increasing, meta_json required.
     Allows explicit float32 working buffers if they remain strictly increasing.
     """
-    def __init__(self, root: Optional[Path] = None, *, prefer_float32: bool = True):
+    def __init__(
+        self,
+        root: Optional[Path] = None,
+        *,
+        prefer_float32: bool = True,
+        load_reporter: LmLoadReporter | None = None,
+    ):
         self.root: Path = (root or default_lm_root()).resolve()
         self.idx = load_index(self.root)
         self._cache: dict[tuple, tuple[np.ndarray, np.ndarray]] = {}
@@ -77,7 +84,7 @@ class ECDFCache:
         self._hash_cache: dict[tuple, str] = {}
         self._interp_dtype_cache: dict[tuple, str] = {}
         self._q_range_cache: dict[tuple, tuple[float, float]] = {}
-        self._printed_files: set[Path] = set()
+        self._load_reporter = load_reporter
         self._prefer_float32 = bool(prefer_float32)
 
     def _ecdf_path(self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int) -> Path:
@@ -107,17 +114,25 @@ class ECDFCache:
         if global_hit is not None:
             grid64, q64, meta, meta_hash, q_range = global_hit
             q0, q1 = q_range
+            fp = self._ecdf_path(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
+            self._emit_load_status(
+                kind="cache_hit",
+                asset_id=self.asset_id(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win),
+                path=fp,
+                status="cached",
+                cached=True,
+            )
         else:
             fp = self._ecdf_path(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
             if not fp.exists():
+                self._emit_load_status(
+                    kind="missing_asset",
+                    asset_id=self.asset_id(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win),
+                    path=fp,
+                    status="missing",
+                    cached=False,
+                )
                 raise FileNotFoundError(f"ECDF file not found: {fp}")
-            if fp not in self._printed_files:
-                try:
-                    rel = fp.relative_to(self.root)
-                except Exception:
-                    rel = fp
-                print(f"[LM ECDF] Loading {rel}")
-                self._printed_files.add(fp)
 
             arr = np.load(fp, allow_pickle=True)
             if "grid" not in arr or "q" not in arr:
@@ -192,6 +207,13 @@ class ECDFCache:
             except Exception as exc:
                 raise ValueError(f"ECDF meta_hash computation failed in {fp}: {exc}") from exc
             _ECDF_GLOBAL_CACHE[global_key] = (grid64, q64, dict(meta), meta_hash, (q0, q1))
+            self._emit_load_status(
+                kind="ecdf_load",
+                asset_id=self.asset_id(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win),
+                path=fp,
+                status="loaded",
+                cached=False,
+            )
 
         # Working buffers for interpolation
         interp_dtype = "float64"
@@ -219,6 +241,28 @@ class ECDFCache:
         self._interp_dtype_cache[key] = interp_dtype
         self._q_range_cache[key] = (q0, q1)
         return (grid, q)
+
+    def _emit_load_status(
+        self,
+        *,
+        kind: str,
+        asset_id: str,
+        path: Path,
+        status: str,
+        cached: bool,
+    ) -> None:
+        if self._load_reporter is None:
+            return
+        self._load_reporter(
+            LmLoadStatus(
+                kind=kind,  # type: ignore[arg-type]
+                asset_type="ecdf",
+                asset_id=asset_id,
+                path=str(path),
+                status=status,
+                cached=bool(cached),
+            )
+        )
 
     def meta(self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int) -> dict:
         key = self._key(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
@@ -331,6 +375,7 @@ class LmPrimeRuntime:
         oov_policy: str = "floor_min_seen",
         include_char: bool = True,
         prefer_float32: bool = True,
+        load_reporter: LmLoadReporter | None = None,
     ):
         # Discover language model root and index once
         self.root: Path = (root or default_lm_root()).resolve()
@@ -348,7 +393,7 @@ class LmPrimeRuntime:
         # ECDF normalisation cache (reads NPZ based on index.json patterns)
         self._prefer_float32 = bool(prefer_float32)
         self._compute_dtype = np.float32 if self._prefer_float32 else np.float64
-        self.ecdf = ECDFCache(self.root, prefer_float32=self._prefer_float32)
+        self.ecdf = ECDFCache(self.root, prefer_float32=self._prefer_float32, load_reporter=load_reporter)
         # Coverage cache: key = (L, n, wise:bool, N)
         self._coverage_cache: Dict[Tuple[int, int, bool, int], Tuple[np.ndarray, np.ndarray]] = {}
 

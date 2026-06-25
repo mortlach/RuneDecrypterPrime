@@ -181,11 +181,12 @@ class RuneScorer(BaseScorer):
             include_char=self.include_char,
             prefer_float32=(self._compute_dtype != "float64"),
         )
+        self._lm_load_reporter = getattr(scorer_cfg, "_lm_load_reporter", None)
         get_cached = getattr(LmPrimeRuntime, "get_cached", None)
-        if callable(get_cached):
+        if self._lm_load_reporter is None and callable(get_cached):
             self._rt = get_cached(**rt_kwargs)
         else:
-            self._rt = LmPrimeRuntime(**rt_kwargs)
+            self._rt = LmPrimeRuntime(**rt_kwargs, load_reporter=self._lm_load_reporter)
         self._ecdf_root = scorer_cfg.model_root
         self._ecdf_prefer_float32 = (acc_dt != "float64")
         self._ecdf: ECDFCache | None = None
@@ -560,7 +561,11 @@ class RuneScorer(BaseScorer):
 
     def _ensure_ecdf(self) -> ECDFCache:
         if self._ecdf is None:
-            self._ecdf = ECDFCache(self._ecdf_root, prefer_float32=self._ecdf_prefer_float32)
+            self._ecdf = ECDFCache(
+                self._ecdf_root,
+                prefer_float32=self._ecdf_prefer_float32,
+                load_reporter=self._lm_load_reporter,
+            )
         return self._ecdf
 
     def _score_word_ngram_signal(self, *, pt: np.ndarray, span_stats: Any) -> dict[str, Any]:
@@ -2292,4 +2297,3 @@ def _extract_legacy(bucket_out: Dict[str, Any], objective: ObjectiveSpec) -> flo
         return float(np.asarray(bucket_out["pct"]["logp"], dtype=np.float64)[0])
     except Exception as e:
         raise ValueError(f"unsupported legacy objective: {fam}.{stat}") from e
-

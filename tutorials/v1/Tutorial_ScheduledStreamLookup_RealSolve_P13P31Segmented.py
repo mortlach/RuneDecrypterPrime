@@ -12,6 +12,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from rune_decrypter_prime.api import Direction, NormalizedInput, RunSpec, print_rdp_result, run
+from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.scheduled_stream_lookup_tutorial_utils import (
     build_ciphertext,
     concat_keys,
@@ -45,6 +46,17 @@ def _match_ratio(found: Sequence[int], expected: Sequence[int]) -> float:
 
 
 def _run_case(label: str, mask: list[int], key: list[int]) -> None:
+    pretty.print_rdp_identity()
+    pretty.print_initialising()
+    pretty.print_tutorial_contract(
+        name="ScheduledStreamLookup segmented P13/P31/P13 near-solve showcase",
+        cipher="scheduled stream lookup",
+        solver="beam",
+        direction=DIRECTION.value,
+        expected_result="showcase near-solve",
+        uses_reference_stop_score=False,
+        extra_rows=[("case", label)],
+    )
     cipher_spec, key_spec, pt_idx, wli, _pt_runes, ct_idx_list, ct_runes, _key_arr, _cipher_obj = build_ciphertext(
         cipher_name="two_period_vigenere",
         cipher_kwargs=dict(
@@ -117,6 +129,7 @@ def _run_case(label: str, mask: list[int], key: list[int]) -> None:
     print(f"Plaintext match     : {ratio:.3f}")
     print(f"Near-solve accepted?: {ratio >= MIN_MATCH_RATIO}")
 
+    pretty.print_summary_spacer()
     print_rdp_result(
         result,
         spec=display_spec,

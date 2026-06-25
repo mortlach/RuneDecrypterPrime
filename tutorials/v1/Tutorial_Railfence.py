@@ -18,6 +18,7 @@ if str(_SRC) not in sys.path:
 from rune_decrypter_prime.api import Direction, KeySpec, RawTextInput, RunSpec, SolverSpec, by_name, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
@@ -62,6 +63,16 @@ def _preview_text(label: str, value: str, *, limit: int = 160) -> None:
 
 
 def main() -> None:
+    pretty.print_rdp_identity()
+    pretty.print_initialising()
+    pretty.print_tutorial_contract(
+        name='Railfence beam solve',
+        cipher='railfence',
+        solver='beam',
+        direction='rtl',
+        expected_result='exact solve',
+        uses_reference_stop_score=True,
+    )
     direction = Direction.RTL
     pt_latin = plaintext_english_string
     pt_idx, _, pt_runes = Runeglish.encode_english_to_runes(pt_latin, direction=direction.value)
@@ -149,6 +160,7 @@ def main() -> None:
     match_ratio = _match_ratio(result.solution.plaintext_idx, reference_idx)
     print(f"Match ratio: {match_ratio:.3f}")
 
+    pretty.print_summary_spacer()
     print_rdp_result(
         result,
         spec=display_spec,

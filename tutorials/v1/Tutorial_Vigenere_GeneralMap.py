@@ -12,6 +12,7 @@ if str(_SRC) not in sys.path:
 from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, define_map, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
@@ -33,6 +34,16 @@ def vigenere_map(pt: int, k: int) -> int:
 
 
 def main() -> None:
+    pretty.print_rdp_identity()
+    pretty.print_initialising()
+    pretty.print_tutorial_contract(
+        name='Vigenere via General Map API',
+        cipher='vigenere general map',
+        solver='beam',
+        direction='rtl',
+        expected_result='exact solve',
+        uses_reference_stop_score=True,
+    )
     pt_en = plaintext_english_string
     encoding_dir = Direction.RTL
     pt_idx, wli, _pt_runes = Runeglish.encode_english_to_runes(pt_en, direction=encoding_dir.value)
@@ -115,6 +126,7 @@ def main() -> None:
         return_solver_report=True,
     )
 
+    pretty.print_summary_spacer()
     print_rdp_result(
         result,
         spec=display_spec,

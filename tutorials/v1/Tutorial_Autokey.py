@@ -20,6 +20,7 @@ import numpy as np
 
 from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, by_name, cipher_instance, print_rdp_result, run
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
@@ -70,6 +71,16 @@ def _crib_seeds_from_prefix(
 
 
 def main() -> None:
+    pretty.print_rdp_identity()
+    pretty.print_initialising()
+    pretty.print_tutorial_contract(
+        name='Autokey solve',
+        cipher='autokey',
+        solver='ga',
+        direction='rtl',
+        expected_result='exact solve',
+        uses_reference_stop_score=True,
+    )
     direction = Direction.RTL
     plaintext = (
         "WHEN THE WHITE RABBIT READ THESE WORDS HE SEEMED SUDDENLY ALARMED "
@@ -164,6 +175,7 @@ def main() -> None:
         )
         ratio = _match_ratio(result.solution.plaintext_idx, pt_idx)
         print(f"Match ratio ({label}): {ratio:.3f}")
+        pretty.print_summary_spacer()
         print_rdp_result(
             result,
             spec=display_spec,

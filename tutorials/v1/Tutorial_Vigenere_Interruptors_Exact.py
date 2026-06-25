@@ -20,6 +20,7 @@ import numpy as np
 from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, by_name, cipher_instance, print_rdp_result, run
 from rune_decrypter_prime.utils.interrupter import InterruptorManager
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
@@ -38,6 +39,16 @@ def _make_wli(length: int, word_len: int = 5) -> list[list[int]]:
 
 
 def main() -> None:
+    pretty.print_rdp_identity()
+    pretty.print_initialising()
+    pretty.print_tutorial_contract(
+        name='Vigenere with exact interruptors',
+        cipher='vigenere interruptors',
+        solver='beam',
+        direction='ltr',
+        expected_result='exact solve',
+        uses_reference_stop_score=True,
+    )
     direction = Direction.LTR
     pt_idx = np.array(
         [4, 20, 1, 3, 14, 25, 6, 8, 9, 10, 12, 17, 18, 2, 5, 7, 11, 13, 15, 19],
@@ -149,6 +160,7 @@ def main() -> None:
         return_solver_report=True,
     )
 
+    pretty.print_summary_spacer()
     print_rdp_result(
         result,
         spec=display_spec,

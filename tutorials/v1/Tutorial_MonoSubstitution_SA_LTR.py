@@ -15,6 +15,7 @@ import numpy as np
 from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, by_name, cipher_instance, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
@@ -62,6 +63,16 @@ def _build_ciphertext(pt_en: str, *, seed: int):
 
 
 def main() -> None:
+    pretty.print_rdp_identity()
+    pretty.print_initialising()
+    pretty.print_tutorial_contract(
+        name='Mono-substitution simulated annealing LTR',
+        cipher='mono substitution',
+        solver='simulated annealing',
+        direction='ltr',
+        expected_result='near-exact solve',
+        uses_reference_stop_score=True,
+    )
     ct_idx, ct_runes, wli, _key_fwd, _key_inv, pt_idx = _build_ciphertext(
         plaintext_english_string,
         seed=CIPHERTEXT_SEED,
@@ -182,6 +193,7 @@ def main() -> None:
     print("Recovered plaintext:", preview(str(recovered)))
     print("Score:", round(result.solution.score, 6))
 
+    pretty.print_summary_spacer()
     print_rdp_result(
         result,
         spec=display_spec,

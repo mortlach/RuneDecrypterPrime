@@ -19,6 +19,7 @@ for path in (_ROOT, _SRC):
         sys.path.insert(0, str(path))
 
 from rune_decrypter_prime.api import InterruptorConfig, KeySpec, NormalizedInput, RunSpec, by_name, print_rdp_result, run  # noqa: E402
+from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview  # noqa: E402
 
 _SOLVE_SCRIPT = _ROOT / "solving" / "solved_lp" / "02_Welcome_Pilgrim.py"
@@ -34,6 +35,16 @@ def _load_workbook():
 
 
 def main() -> int:
+    pretty.print_rdp_identity()
+    pretty.print_initialising()
+    pretty.print_tutorial_contract(
+        name='Liber Primus Welcome Pilgrim label solve',
+        cipher='liber primus label solve',
+        solver='beam',
+        direction='rtl',
+        expected_result='exact solve',
+        uses_reference_stop_score=False,
+    )
     workbook = _load_workbook()
     payload = workbook.lp.payload_from_label(workbook.SOURCE_LABEL)
     recipe = workbook.lp.resolve_solve_recipe_label(workbook.RECIPE_LABEL)
@@ -150,6 +161,7 @@ def main() -> int:
     workbook.print_attempt_summary(best_attempt)
     workbook.print_best_variant(best_attempt)
 
+    pretty.print_summary_spacer()
     print_rdp_result(
         result,
         spec=display_spec,

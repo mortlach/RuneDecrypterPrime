@@ -18,6 +18,8 @@ for path in (_ROOT, _SRC):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
+from rune_decrypter_prime.utils import tutorial_pretty as pretty
+
 _SOURCE = _ROOT / "tutorials" / "old" / "v1_replaced_by_pretty_print" / "Tutorial_PeriodicColumnar.py"
 
 
@@ -31,6 +33,16 @@ def _load_source_module():
 
 
 def main() -> None:
+    pretty.print_rdp_identity()
+    pretty.print_initialising()
+    pretty.print_tutorial_contract(
+        name='Periodic columnar',
+        cipher='periodic columnar',
+        solver='hybrid',
+        direction='rtl',
+        expected_result='near-exact solve',
+        uses_reference_stop_score=True,
+    )
     print("Periodic columnar full multi-scenario tutorial")
     print("mode: compatibility wrapper over the legacy multi-scenario source tutorial")
     print("note: this tutorial emits multiple scenario/order reports; the simple P7 pretty tutorial is the single-result standard-printer version")

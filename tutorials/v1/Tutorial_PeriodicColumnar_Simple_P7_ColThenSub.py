@@ -20,6 +20,7 @@ from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext_stri
 from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
 from rune_decrypter_prime.scoring.language_model.language_model_prime import LanguageModelPrime
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.seed_utils_periodic_columnar import SeedPlan, generate_seed_keys_periodic_columnar
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
@@ -77,6 +78,16 @@ def _match_ratio(solution, pt_idx: Sequence[int]) -> float:
 
 
 def main() -> None:
+    pretty.print_rdp_identity()
+    pretty.print_initialising()
+    pretty.print_tutorial_contract(
+        name='Periodic columnar simple P7 col-then-sub',
+        cipher='periodic columnar',
+        solver='hybrid',
+        direction='rtl',
+        expected_result='exact solve',
+        uses_reference_stop_score=True,
+    )
     encoding_dir = Direction.RTL
     pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(long_plaintext_string, direction=encoding_dir.value)
     pt_arr = np.asarray(pt_idx, dtype=np.uint8)
@@ -282,6 +293,7 @@ def main() -> None:
         encoding_dir=encoding_dir,
         telemetry_on=True,
     )
+    pretty.print_summary_spacer()
     print_rdp_result(
         result,
         spec=display_spec,

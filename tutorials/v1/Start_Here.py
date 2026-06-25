@@ -19,6 +19,7 @@ from rune_decrypter_prime.core.config import ScoringConfig  # noqa: E402
 from rune_decrypter_prime.core.engine.builders import build_scorer  # noqa: E402
 from rune_decrypter_prime.core.types import Device  # noqa: E402
 from rune_decrypter_prime.utils.runeglish import Runeglish  # noqa: E402
+from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview  # noqa: E402
 
 ALPHABET = 29
@@ -242,6 +243,7 @@ def _print_summary(label: str, result, demo: Dict[str, Any], spec: api.RunSpec) 
     reference_idx = list(pt_idx) if pt_idx is not None else None
 
     print(f"\n[{label}] standard summary")
+    pretty.print_summary_spacer()
     api.print_rdp_result(
         result,
         spec=spec,
@@ -258,6 +260,16 @@ def _print_summary(label: str, result, demo: Dict[str, Any], spec: api.RunSpec) 
 
 
 def main():
+    pretty.print_rdp_identity()
+    pretty.print_initialising()
+    pretty.print_tutorial_contract(
+        name='Start here: Vigenere wrapper and general-map beam solve',
+        cipher='vigenere / general map',
+        solver='beam',
+        direction='rtl',
+        expected_result='exact solve',
+        uses_reference_stop_score=False,
+    )
     demo = _demo_ciphertext()
     print_tutorial_debug_preview(
         label="plaintext",

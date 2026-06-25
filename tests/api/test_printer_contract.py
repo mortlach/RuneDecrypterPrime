@@ -10,11 +10,21 @@ from rune_decrypter_prime.api import (
     CipherSpec,
     KeySpec,
     NormalizedInput,
+    RdpBannerStyle,
+    RdpPrintDetail,
     RdpPrintFormat,
+    RdpPrintOptions,
     RunResult,
     RunSpec,
     SolverSpec,
+    format_rdp_banner,
+    format_rdp_kv_block,
+    format_rdp_preview_block,
+    format_rdp_section,
+    format_rdp_status_block,
+    print_rdp_block,
     print_rdp_result,
+    print_rdp_text,
     render_rdp_summary,
     write_rdp_summary_artifact,
 )
@@ -85,8 +95,79 @@ def test_write_rdp_summary_artifact_returns_relative_path(tmp_path: Path) -> Non
     assert (tmp_path / relpath).is_file()
 
 
-def test_printer_rejects_bad_format_and_run_dir(tmp_path: Path) -> None:
+def test_printer_rejects_bad_format_run_dir_and_paths(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="output_format"):
         render_rdp_summary(_result(), output_format="xml")
     with pytest.raises(TypeError, match="run_dir must be a Path"):
         write_rdp_summary_artifact(_result(), run_dir=str(tmp_path))  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="repo-relative"):
+        format_rdp_banner(output_root=tmp_path)
+    with pytest.raises(ValueError, match="repo-relative"):
+        format_rdp_banner(output_root="C:/tmp/output")
+
+
+def test_rdp_print_options_are_small_and_explicit() -> None:
+    detailed = RdpPrintOptions.detailed()
+
+    assert detailed.detail is RdpPrintDetail.DETAILED
+    assert detailed.banner_style is RdpBannerStyle.PLAIN
+    assert RdpPrintOptions.standard().detail is RdpPrintDetail.STANDARD
+    assert RdpPrintOptions.compact().detail is RdpPrintDetail.COMPACT
+    assert RdpPrintOptions.debug().width > detailed.width
+
+
+def test_format_rdp_banner_defaults_to_plain_ascii() -> None:
+    banner = format_rdp_banner()
+
+    assert banner == (
+        "Rune Decrypter Prime\n"
+        "====================\n"
+        "RDP V1 pre-release\n"
+        "output root : output/\n"
+    )
+    assert "+" not in banner
+
+    boxed = format_rdp_banner(options=RdpPrintOptions(banner_style=RdpBannerStyle.BOX))
+    assert "+" in boxed
+    assert "Rune Decrypter Prime" in boxed
+
+
+def test_format_rdp_section_and_blocks_preserve_order() -> None:
+    section = format_rdp_section("Initialising RDP")
+    block = format_rdp_kv_block("Tutorial", [("name", "Columnar"), ("score", 0.5), ("asset", None)])
+    preview = format_rdp_preview_block("Preview", [("runes", "ᚠᚢᚦ"), ("indices", [0, 1, 2])])
+
+    assert section.startswith("Initialising RDP\n")
+    assert "name  : Columnar" in block
+    assert "score : 0.500000" in block
+    assert "asset : unavailable" in block
+    assert block.index("name") < block.index("score") < block.index("asset")
+    assert "Preview" in preview
+    assert "ᚠᚢᚦ" in preview
+
+
+def test_print_rdp_text_adds_trailing_newline_when_needed() -> None:
+    stream = io.StringIO()
+
+    print_rdp_text("hello", file=stream)
+
+    assert stream.getvalue() == "hello\n"
+
+
+def test_format_rdp_status_block_uses_standard_key_value_style() -> None:
+    status = format_rdp_status_block(
+        "Model loading",
+        [("ecdf", "ecdf/char/rtl/model.npz"), ("status", "loaded")],
+    )
+
+    assert "Model loading" in status
+    assert "ecdf   : ecdf/char/rtl/model.npz" in status
+    assert "status : loaded" in status
+
+
+def test_print_rdp_block_adds_single_blank_line_after_block() -> None:
+    stream = io.StringIO()
+
+    print_rdp_block("hello\n", file=stream)
+
+    assert stream.getvalue() == "hello\n\n"

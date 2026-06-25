@@ -23,6 +23,7 @@ from rune_decrypter_prime.api import (  # noqa: E402
     run,
 )
 from rune_decrypter_prime.utils.runeglish import Runeglish  # noqa: E402
+from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview  # noqa: E402
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary  # noqa: E402
 
@@ -63,6 +64,16 @@ def _pick_interruptors(pool: list[int]) -> list[int]:
 
 
 def main() -> None:
+    pretty.print_rdp_identity()
+    pretty.print_initialising()
+    pretty.print_tutorial_contract(
+        name='Vigenere interruptor solver search',
+        cipher='vigenere interruptors',
+        solver='hybrid',
+        direction='ltr',
+        expected_result='exact solve',
+        uses_reference_stop_score=True,
+    )
     direction = Direction.LTR
     pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(DEMO_TEXT, direction=direction.value)
     pt_arr = np.asarray(pt_idx, dtype=np.uint8)
@@ -178,6 +189,7 @@ def main() -> None:
         print("Found key (core):", found_core)
         print("Found interruptors:", found_intr)
 
+    pretty.print_summary_spacer()
     print_rdp_result(
         result,
         spec=display_spec,

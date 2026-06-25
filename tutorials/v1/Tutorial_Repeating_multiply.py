@@ -19,6 +19,7 @@ import numpy as np
 from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, define_map, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1_rev, word_breaks1_rev
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
@@ -43,6 +44,16 @@ def _preview(label: str, text: str, limit: int = 160) -> None:
 
 
 def main() -> None:
+    pretty.print_rdp_identity()
+    pretty.print_initialising()
+    pretty.print_tutorial_contract(
+        name='Repeating multiply mod 29',
+        cipher='repeating multiply',
+        solver='beam',
+        direction='rtl',
+        expected_result='exact solve',
+        uses_reference_stop_score=True,
+    )
     rng = np.random.default_rng(TUTORIAL_SEED)
     key_nums = rng.integers(1, N, size=KEY_LEN).tolist()
 
@@ -131,6 +142,7 @@ def main() -> None:
     recovered = getattr(result.solution, "plaintext_rune", "") or getattr(result.solution, "plaintext_str", "")
     print("Recovered plaintext preview:", str(recovered)[:120] + ("..." if len(str(recovered)) > 120 else ""))
 
+    pretty.print_summary_spacer()
     print_rdp_result(
         result,
         spec=display_spec,

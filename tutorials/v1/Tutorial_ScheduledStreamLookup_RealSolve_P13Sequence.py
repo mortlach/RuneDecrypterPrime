@@ -10,6 +10,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from rune_decrypter_prime.api import Direction, NormalizedInput, RunSpec, print_rdp_result, run
+from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.scheduled_stream_lookup_tutorial_utils import (
     build_ciphertext,
     default_scorer_params,
@@ -33,6 +34,16 @@ def _match_ok(found: Sequence[int], expected: Sequence[int]) -> bool:
 
 
 def main() -> None:
+    pretty.print_rdp_identity()
+    pretty.print_initialising()
+    pretty.print_tutorial_contract(
+        name='ScheduledStreamLookup P13 plus supplied sequence',
+        cipher='scheduled stream lookup',
+        solver='beam',
+        direction='rtl',
+        expected_result='exact solve',
+        uses_reference_stop_score=True,
+    )
     sequence = sample_sequence(64)
     key_values = key_period13()
     expected_key_len = 13
@@ -110,6 +121,7 @@ def main() -> None:
     print(f"Key accepted?: {key_ok}")
     print(f"Plaintext OK?: {plaintext_ok}")
 
+    pretty.print_summary_spacer()
     print_rdp_result(
         result,
         spec=display_spec,

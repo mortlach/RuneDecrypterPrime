@@ -701,6 +701,7 @@ class RuneScorerTorch(BaseScorer):
         self._loaded_device: torch.device | None = None
         self._ecdf_root = _cfg_get(scorer_cfg, "model_root", None)
         self._ecdf_prefer_float32 = (self._acc_dtype != "float64")
+        self._lm_load_reporter = getattr(scorer_cfg, "_lm_load_reporter", None)
         self._ecdf: ECDFCache | None = None
 
         # det settings
@@ -717,6 +718,7 @@ class RuneScorerTorch(BaseScorer):
             self._ecdf = ECDFCache(
                 root=self._ecdf_root,
                 prefer_float32=self._ecdf_prefer_float32,
+                load_reporter=self._lm_load_reporter,
             )
         return self._ecdf
 
