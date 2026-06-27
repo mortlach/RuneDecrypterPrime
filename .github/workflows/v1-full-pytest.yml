@@ -48,7 +48,19 @@ jobs:
 
       - name: Run tutorial release profile
         if: ${{ inputs.run_release_tutorials }}
-        run: python tutorials/v1/run_tutorials.py
+        shell: python
+        run: |
+          import importlib.util
+          import pathlib
+          import sys
+
+          script = pathlib.Path("tutorials/v1/run_tutorials.py")
+          spec = importlib.util.spec_from_file_location("rdp_ci_tutorial_runner", script)
+          module = importlib.util.module_from_spec(spec)
+          sys.modules[spec.name] = module
+          spec.loader.exec_module(module)
+          module.RUN_SET = module.TutorialRunSet.FAST
+          raise SystemExit(module.main())
 
       - name: Run ScheduledStreamLookup real solve P13 plus primes
         if: ${{ inputs.run_scheduled_stream_real_solves }}

@@ -46,7 +46,7 @@ def test_solved_lp_workspace_labels_resolve_to_payloads(label: str) -> None:
 
 
 def test_solved_lp_workspace_is_flat() -> None:
-    assert [path.name for path in SOLVED_ROOT.iterdir() if path.is_dir()] == []
+    assert [path.name for path in SOLVED_ROOT.iterdir() if path.is_dir() and path.name != "__pycache__"] == []
 
 
 @pytest.mark.parametrize("filename", WORKBOOK_FILES)

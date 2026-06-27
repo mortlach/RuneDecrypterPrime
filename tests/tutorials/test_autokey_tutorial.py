@@ -35,5 +35,6 @@ def test_autokey_tutorial_runs_both_modes():
     matches = [float(m) for m in re.findall(r"Match ratio.*?:\s*([0-9.]+)", stdout)]
     assert len(matches) >= 2, f"expected two match ratios in output:\n{stdout}"
     assert all(m >= 0.90 for m in matches), stdout
-    recovered_flags = re.findall(r"Recovered\?\s*:\s*(\w+)", stdout)
-    assert recovered_flags.count("Yes") >= 2, stdout
+    assert stdout.count("RDP standard summary") >= 2, stdout
+    assert stdout.count("match_ratio: 1.0") >= 2, stdout
+    assert stdout.count("stop_category: success") >= 2, stdout

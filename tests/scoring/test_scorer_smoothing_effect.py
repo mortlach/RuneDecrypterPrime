@@ -26,9 +26,9 @@ def _require_char4_joint() -> None:
         pytest.skip(f"Required char4 joint table is missing: {fp}")
 
 
-def _mk_cipher_cfg(length: int) -> dict:
+def _mk_cipher_cfg(length: int) -> CipherConfig:
     ct = list(range(length))
-    return CipherConfig(ciphertext=ct, wli_data=[], key_length=None, device=Device.CPU, encoding_dir=Direction.LTR).asdict()
+    return CipherConfig(ciphertext=ct, wli_data=[], key_length=None, device=Device.CPU, encoding_dir=Direction.LTR)
 
 
 def _mk_avg_scorer(*, smoothing: str) -> object:
@@ -44,7 +44,7 @@ def _mk_avg_scorer(*, smoothing: str) -> object:
         wli_weights={},
         smoothing=smoothing,
         dtype="float32",
-    ).asdict()
+    )
     return build_scorer(_mk_cipher_cfg(1000), s)
 
 

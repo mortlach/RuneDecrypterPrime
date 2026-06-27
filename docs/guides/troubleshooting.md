@@ -24,6 +24,9 @@ confusing ways.
 | --- | --- | --- |
 | `ModuleNotFoundError: rune_decrypter_prime` | The package was not installed for the Python you are using now. | Run `python install.py`, then run the tutorial command again with the same `python`. |
 | Native extension import fails, such as `_fastlm` | Build tools or package build dependencies are missing or stale. | Run `python install.py` again and inspect the newest log under `output/install_logs/`. |
+| Required LM asset download fails | Network access, proxy settings, or the GitHub Release asset is unavailable. | Download `rdp-v1-lm-large-part*.zip` from the V1 release, place the files under `downloads/`, then run `python install.py` again. |
+| Required LM asset hash mismatch | A partial or corrupt download was found. | Delete the matching zip under `downloads/` and rerun `python install.py`, or download a fresh copy from the release. |
+| Large LM asset verification fails after extraction | A runtime asset is missing or corrupt under `assets/language_model/lmp/`. | Rerun `python install.py`; it will reinstall from verified bundles and recheck the final files. |
 | A tutorial fails but most tutorials pass | That tutorial hit a real failure or missing asset. | Open the matching log in `output/tutorial_logs/` and check the tail printed by the runner. |
 | Output appears somewhere unexpected | The command was run from a different working directory. | Change to the repository root and rerun the command. |
 | Results differ between machines | Different Python/package state, assets, or code checkout. | Confirm `python --version`, rerun `python install.py`, and check that Git is on the expected branch. |

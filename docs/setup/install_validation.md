@@ -1,46 +1,59 @@
 # Install Validation Playbook
 
-This is the lightweight process for confirming install/deploy readiness without a release tag.
+This page separates product install validation from normal CI cost control.
 
-## Scope
+## Product install
 
-Pass criteria for a candidate commit:
+The public V1 developer-checkout install is:
 
-1. Full test suite is green on your dev machine.
-2. Fresh-environment install smoke passes.
-3. Setup/preflight emits ready markers in the expected output location.
-
-## Local Clean VM Validation
-
-From repo root in a fresh VM:
-
-```bash
-python tools/ci/install_smoke.py
+```text
+python install.py
 ```
 
-Expected outcome:
+It installs the package, checks native imports, installs or verifies the required
+LM3/LM4 release assets, and runs compact smoke tests. It must not silently fall
+back to LM2 when large assets are missing.
 
-1. Exit code `0`.
-2. `output/tools/benchmarks/community/setup_preflight/latest/benchmark_ready.json` exists and contains `"ready": true`.
-3. `output/tools/benchmarks/community/setup_preflight/latest/preflight_report.json` exists and contains `"success": true`.
+## CI-light install
 
-## GitHub Validation
+Normal push and pull-request workflows use:
+
+```text
+python tools/ci/install_light.py
+```
+
+This is internal CI tooling only. It skips the real large LM download while still
+checking package install, native imports, small assets, smoke tests, and the
+tiny fake-asset tests for the large-asset machinery.
+
+## Manual large-asset validation
 
 Run workflow:
 
-- `.github/workflows/install-smoke.yml`
+```text
+.github/workflows/v1-large-asset-validation.yml
+```
 
 Current profile:
 
-1. Manual trigger (`workflow_dispatch`).
-2. Fresh runner matrix: Windows and Ubuntu.
-3. Executes `python tools/ci/install_smoke.py`.
+1. Manual trigger only (`workflow_dispatch`).
+2. Fresh runner.
+3. Confirms no preloaded `downloads/` asset zips are present.
+4. Runs `python install.py`.
+5. Downloads the real GitHub release bundles.
+6. Verifies bundle SHA256 and byte size.
+7. Extracts safely.
+8. Verifies the final 129 runtime files.
+9. Runs focused asset/install tests and the V1 tutorial gate.
 
-## Failure Triage Artifacts
+Enable the workflow input to run full pytest when a complete release validation
+signal is needed.
 
-Collect these files from the failing machine/run:
+## Failure triage artifacts
 
-1. `output/tools/benchmarks/community/setup_preflight/latest/setup.log`
-2. `output/tools/benchmarks/community/setup_preflight/latest/setup_report.json`
-3. `output/tools/benchmarks/community/setup_preflight/latest/preflight.log`
-4. `output/tools/benchmarks/community/setup_preflight/latest/preflight_report.json`
+Collect:
+
+```text
+output/install_logs/*.log
+output/tutorial_logs/*.txt
+```

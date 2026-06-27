@@ -31,6 +31,14 @@ The shortest install check is:
 python install.py
 ```
 
+This verifies the package and installs or checks the required V1 LM3/LM4 assets.
+If automatic download is unavailable, place the release zip parts under
+`downloads/` and run the same command again.
+
+GitHub push and pull-request workflows use an internal CI-light install to avoid
+downloading the large release bundles on every run. That is a workflow-cost
+choice only; `python install.py` remains the full V1 install.
+
 On Windows, this wrapper is also available:
 
 ```text

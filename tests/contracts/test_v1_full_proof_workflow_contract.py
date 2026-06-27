@@ -31,12 +31,13 @@ def test_v1_full_proof_workflow_may_run_on_active_prelease_pushes() -> None:
 def test_v1_full_proof_workflow_runs_install_pytest_and_tutorials() -> None:
     text = _workflow_text()
 
-    assert "python install.py" in text
+    assert "python tools/ci/install_light.py" in text
     assert '"pytest"' in text
     assert '"tests"' in text
     assert "tutorials" in text
     assert "v1" in text
     assert "run_tutorials.py" in text
+    assert "TutorialRunSet.FAST" in text
     assert "RDP_TUTORIAL_" not in text
 
 
@@ -46,3 +47,15 @@ def test_v1_full_proof_workflow_preserves_logs() -> None:
     assert "Upload installer logs" in text
     assert "Upload full pytest log" in text
     assert "Upload V1 release tutorial log" in text
+
+
+def test_manual_large_asset_validation_workflow_runs_full_install() -> None:
+    workflow = REPO_ROOT / ".github" / "workflows" / "v1-large-asset-validation.yml"
+    text = workflow.read_text(encoding="utf-8")
+
+    assert "workflow_dispatch:" in text
+    assert "python install.py" in text
+    assert "downloads/ already contains large asset zips" in text
+    assert "tests/assets tests/installation tests/data/test_lp_asset_manifest.py" in text
+    assert "python tutorials/v1/run_tutorials.py" in text
+    assert "run_full_pytest" in text

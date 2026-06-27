@@ -18,6 +18,7 @@ ALLOWED_TOP_DIRS = {
 }
 
 ALLOWED_TOOLS_SUBDIRS = {
+    "assets",
     "benchmarks",
     "ci",
     "docs_lint",

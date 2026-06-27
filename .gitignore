@@ -18,6 +18,8 @@ src/*.egg-info/
 
 # Test/runtime outputs
 output/
+downloads/
+release_build/
 .pytest_cache/
 .coverage
 htmlcov/

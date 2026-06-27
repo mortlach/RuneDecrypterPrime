@@ -31,7 +31,7 @@ def test_all_workbook_files_exist() -> None:
 
 
 def test_solved_lp_folder_is_flat() -> None:
-    directories = [path.name for path in WORKBOOK_ROOT.iterdir() if path.is_dir()]
+    directories = [path.name for path in WORKBOOK_ROOT.iterdir() if path.is_dir() and path.name != "__pycache__"]
     assert directories == []
 
 

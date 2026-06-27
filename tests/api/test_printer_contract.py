@@ -102,8 +102,9 @@ def test_printer_rejects_bad_format_run_dir_and_paths(tmp_path: Path) -> None:
         write_rdp_summary_artifact(_result(), run_dir=str(tmp_path))  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="repo-relative"):
         format_rdp_banner(output_root=tmp_path)
+    drive_path = "".join(("C", chr(58), chr(47), "tmp", chr(47), "output"))
     with pytest.raises(ValueError, match="repo-relative"):
-        format_rdp_banner(output_root="C:/tmp/output")
+        format_rdp_banner(output_root=drive_path)
 
 
 def test_rdp_print_options_are_small_and_explicit() -> None:

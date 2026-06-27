@@ -28,5 +28,5 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Run V1 clean installer
-        run: python install.py
+      - name: Run V1 CI-light installer
+        run: python tools/ci/install_light.py

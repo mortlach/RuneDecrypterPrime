@@ -3,6 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
+
+pytestmark = pytest.mark.tier_a
+
 
 def _active_tutorial_paths(root: Path) -> list[Path]:
     manifest = json.loads((root / "tutorials" / "v1" / "tutorial_manifest_v1.json").read_text(encoding="utf-8"))

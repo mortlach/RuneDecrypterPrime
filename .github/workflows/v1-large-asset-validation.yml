@@ -1,0 +1,72 @@
+name: V1 Large Asset Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_full_pytest:
+        description: "Run full pytest after install and tutorial validation"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  large-asset-validation:
+    name: large asset validation / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Confirm no local release downloads are present
+        shell: python
+        run: |
+          from pathlib import Path
+          downloads = Path("downloads")
+          if downloads.exists() and any(downloads.glob("rdp-v1-lm-large-part*.zip")):
+              raise SystemExit("downloads/ already contains large asset zips; this workflow must test GitHub download")
+          print("No preloaded large asset zips found")
+
+      - name: Run full V1 installer with real large asset download
+        run: python install.py
+
+      - name: Run focused large-asset tests
+        run: python -m pytest -q -p no:cacheprovider tests/assets tests/installation tests/data/test_lp_asset_manifest.py
+
+      - name: Run V1 tutorial gate
+        run: python tutorials/v1/run_tutorials.py
+
+      - name: Run full pytest
+        if: ${{ inputs.run_full_pytest }}
+        run: python -m pytest -q -p no:cacheprovider
+
+      - name: Upload install and tutorial logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rdp-v1-large-asset-validation-logs-${{ matrix.os }}
+          path: |
+            output/install_logs/*.log
+            output/tutorial_logs/*.txt
+          if-no-files-found: warn

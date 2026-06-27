@@ -3,6 +3,11 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
+echo "Rune Decrypter Prime V1 full installer"
+echo "This installs or verifies the required LM3/LM4 release assets."
+echo "If automatic download fails, place rdp-v1-lm-large-part*.zip under downloads/ and run this again."
+echo
+
 if command -v python >/dev/null 2>&1; then
   PYTHON_BIN=python
 elif command -v python3 >/dev/null 2>&1; then

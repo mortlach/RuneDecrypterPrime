@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+
+pytestmark = pytest.mark.tier_a
+
 
 def test_active_tutorial_labels_do_not_use_deprecated_demo_language() -> None:
     root = Path(__file__).resolve().parents[2]

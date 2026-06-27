@@ -39,8 +39,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Run V1 installer smoke
-        run: python install.py
+      - name: Run V1 CI-light installer smoke
+        run: python tools/ci/install_light.py
 
       - name: Upload installer logs on failure
         if: failure()

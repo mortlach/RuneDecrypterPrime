@@ -12,12 +12,17 @@ PYTHON = sys.executable
 MIN_PYTHON = (3, 11)
 VERBOSE = os.environ.get("RDP_INSTALL_VERBOSE", "").strip().lower() in {"1", "true", "yes", "on"}
 LOG_DIR = ROOT / "output" / "install_logs"
+INSTALL_MODE_LABEL = "Full V1 install"
 
 REQUIRED_ASSET_SENTINELS = [
     ROOT / "assets" / "hamming_raw_1g" / "raw1grams_01.csv",
     ROOT / "assets" / "hamming_dictionary_policies_phaseA_v0_14" / "strict" / "hamming_raw_1g" / "raw1grams_14.csv",
     ROOT / "assets" / "hamming_dictionary_policies_phaseA_v0_14" / "normal" / "hamming_raw_1g" / "raw1grams_14.csv",
 ]
+LARGE_ASSET_MANIFEST = ROOT / "assets_manifest_v1.json"
+LARGE_ASSET_SET = "v1_lm_runtime_full"
+LARGE_ASSET_DOWNLOAD_DIR = ROOT / "downloads"
+LARGE_ASSET_ROOT = ROOT / "assets"
 
 REQUIRED_NATIVE_MODULES = [
     "rune_decrypter_prime.scoring.language_model._fastlm",
@@ -184,24 +189,54 @@ def _check_assets() -> None:
     print("[PASS] required V1 asset sentinels present")
 
 
+def _install_large_lm_assets() -> None:
+    print("[RUN ] Install or verify required V1 LM3/LM4 assets")
+    try:
+        from tools.assets.release_asset_installer import AssetInstallError, install_release_asset_set
+
+        install_release_asset_set(
+            LARGE_ASSET_MANIFEST,
+            LARGE_ASSET_SET,
+            LARGE_ASSET_DOWNLOAD_DIR,
+            LARGE_ASSET_ROOT,
+        )
+    except AssetInstallError as exc:
+        print("[FAIL] Required V1 large LM assets are not installed.")
+        print("Manual fallback:")
+        print("  Download rdp-v1-lm-large-part*.zip from the V1 GitHub Release.")
+        print("  Place them under downloads/.")
+        print("  Run python install.py again.")
+        raise InstallFailure(f"required V1 large LM assets are missing or corrupt: {exc}") from exc
+    print("[PASS] required V1 LM3/LM4 assets installed or verified")
+
+
 def _run_smoke_tests() -> None:
     _run("Run compact V1 smoke tests", [PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider", *SMOKE_TESTS])
 
 
-def main() -> int:
+def run_install(*, install_large_lm_assets: bool, mode_label: str) -> int:
     print("Rune Decrypter Prime V1 installer")
+    print(f"Mode: {mode_label}")
     print(f"Repo root: {ROOT}")
     print("Successful command output is hidden. Set RDP_INSTALL_VERBOSE=1 to show it.")
     print("Full command logs are written under output/install_logs/.")
     print("pip is not upgraded automatically.")
+    if install_large_lm_assets:
+        print("This full V1 install downloads or verifies the required LM3/LM4 assets.")
+    else:
+        print("This CI-only light install skips the real large LM download.")
     print()
     try:
         _verify_python()
         _install_package()
         _check_imports()
         _check_assets()
+        if install_large_lm_assets:
+            _install_large_lm_assets()
+        else:
+            print("[SKIP] Real LM3/LM4 asset download skipped for CI-light install")
         _run_smoke_tests()
-        print("[PASS] RDP V1 install smoke complete")
+        print(f"[PASS] RDP V1 install smoke complete ({mode_label})")
         return 0
     except InstallFailure as exc:
         print(f"[INSTALL FAILED] {exc}")
@@ -209,6 +244,10 @@ def main() -> int:
     except KeyboardInterrupt:
         print("\n[INSTALL FAILED] interrupted")
         return 130
+
+
+def main() -> int:
+    return run_install(install_large_lm_assets=True, mode_label=INSTALL_MODE_LABEL)
 
 
 if __name__ == "__main__":

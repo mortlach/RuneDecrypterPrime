@@ -35,11 +35,10 @@ def _require_char4_joint(*, mode: str, pos: str) -> None:
         pytest.skip(f"Required char4 joint table is missing: {fp}")
 
 
-def _mk_cipher_cfg(length: int, *, encoding_dir: Direction) -> dict:
-    # build_scorer expects a CipherConfig-like mapping.
+def _mk_cipher_cfg(length: int, *, encoding_dir: Direction) -> CipherConfig:
     # ciphertext and wli_data are required by CipherConfig, but scoring only needs device/dir and lengths.
     ct = list(range(length))
-    return CipherConfig(ciphertext=ct, wli_data=[], key_length=None, device=Device.CPU, encoding_dir=encoding_dir).asdict()
+    return CipherConfig(ciphertext=ct, wli_data=[], key_length=None, device=Device.CPU, encoding_dir=encoding_dir)
 
 
 def _mk_kaeding_scorer(win_ngrams: int, *, encoding_dir: Direction) -> object:
@@ -56,7 +55,7 @@ def _mk_kaeding_scorer(win_ngrams: int, *, encoding_dir: Direction) -> object:
         char_weights={4: 1.0},
         wli_weights={},
         dtype="float32",
-    ).asdict()
+    )
     return build_scorer(_mk_cipher_cfg(span_len, encoding_dir=encoding_dir), s_cfg)
 
 

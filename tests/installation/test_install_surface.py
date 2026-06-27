@@ -13,6 +13,16 @@ def test_root_installer_does_not_import_removed_benchmark_bootstrap() -> None:
     assert "install_smoke.py" not in text
 
 
+def test_root_installer_is_full_v1_and_ci_light_is_separate() -> None:
+    install_text = (ROOT / "install.py").read_text(encoding="utf-8")
+    light_text = (ROOT / "tools" / "ci" / "install_light.py").read_text(encoding="utf-8")
+
+    assert "INSTALL_MODE_LABEL = \"Full V1 install\"" in install_text
+    assert "install_large_lm_assets=True" in install_text
+    assert "install_large_lm_assets=False" in light_text
+    assert "CI light install" in light_text
+
+
 def test_root_setup_builds_native_extensions_from_present_sources() -> None:
     text = (ROOT / "setup.py").read_text(encoding="utf-8")
     assert "rune_decrypter_prime.scoring.language_model._fastlm" in text

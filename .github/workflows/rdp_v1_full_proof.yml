@@ -40,8 +40,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Run V1 installer smoke
-        run: python install.py
+      - name: Run V1 CI-light installer smoke
+        run: python tools/ci/install_light.py
 
       - name: Upload installer logs on failure
         if: failure()
@@ -92,7 +92,7 @@ jobs:
           path: output/test_logs/full_pytest.log
           if-no-files-found: warn
 
-      - name: Run V1 release tutorials
+      - name: Run V1 CI-safe tutorials
         shell: python
         run: |
           from pathlib import Path
@@ -102,7 +102,17 @@ jobs:
           log_path = Path("output") / "test_logs" / "v1_release_tutorials.log"
           log_path.parent.mkdir(parents=True, exist_ok=True)
 
-          cmd = [sys.executable, "-X", "utf8", "tutorials/v1/run_tutorials.py"]
+          code = (
+              "import importlib.util, pathlib, sys; "
+              "script = pathlib.Path('tutorials/v1/run_tutorials.py'); "
+              "spec = importlib.util.spec_from_file_location('rdp_ci_tutorial_runner', script); "
+              "mod = importlib.util.module_from_spec(spec); "
+              "sys.modules[spec.name] = mod; "
+              "spec.loader.exec_module(mod); "
+              "mod.RUN_SET = mod.TutorialRunSet.FAST; "
+              "raise SystemExit(mod.main())"
+          )
+          cmd = [sys.executable, "-X", "utf8", "-c", code]
           print("Running:", " ".join(cmd))
 
           proc = subprocess.run(

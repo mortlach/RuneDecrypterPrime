@@ -44,8 +44,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Run V1 installer smoke
-        run: python install.py
+      - name: Run V1 CI-light installer smoke
+        run: python tools/ci/install_light.py
 
       - name: Upload installer logs on failure
         if: failure()
@@ -85,10 +85,11 @@ jobs:
           path: output/ci_logs/full_pytest.log
           if-no-files-found: warn
 
-      - name: Run V1 release tutorial runner
+      - name: Run V1 CI-safe tutorial runner
         shell: python
         run: |
           from pathlib import Path
+          import importlib.util
           import subprocess
           import sys
 
@@ -100,7 +101,17 @@ jobs:
           if not script.is_file():
               raise SystemExit(f"Missing tutorial runner: {script}")
 
-          cmd = [sys.executable, "-X", "utf8", str(script)]
+          code = (
+              "import importlib.util, pathlib, sys; "
+              f"script = pathlib.Path({str(script)!r}); "
+              "spec = importlib.util.spec_from_file_location('rdp_ci_tutorial_runner', script); "
+              "mod = importlib.util.module_from_spec(spec); "
+              "sys.modules[spec.name] = mod; "
+              "spec.loader.exec_module(mod); "
+              "mod.RUN_SET = mod.TutorialRunSet.FAST; "
+              "raise SystemExit(mod.main())"
+          )
+          cmd = [sys.executable, "-X", "utf8", "-c", code]
           proc = subprocess.run(
               cmd,
               text=True,
