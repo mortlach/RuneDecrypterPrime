@@ -83,7 +83,7 @@ def main() -> None:
     print(f"ciphertext length: {len(ct_idx)}")
     print(f"ciphertext preview: {preview(ct_runes, 160)}")
     print_tutorial_debug_preview(label="plaintext", idx=pt_idx, wli=wli, direction=DIRECTION)
-    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx_list, wli=wli, direction=DIRECTION)
+    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx, wli=wli, direction=DIRECTION)
 
     seeds = make_seeds_from_freq(
         ct_runes.replace(" ", ""),

@@ -12,7 +12,7 @@ from tools.assets.release_asset_installer import sha256_file
 
 
 DEFAULT_RELEASE_REPOSITORY = "mortlach/rdp_assets"
-DEFAULT_RELEASE_TAG = "rdp-v1-lm-large-test-20260626"
+DEFAULT_RELEASE_TAG = "rdp-v1.0.0-lm-large"
 DEFAULT_TARGET_PART_BYTES = 550 * 1024 * 1024
 RUNTIME_PREFIX = pathlib.PurePosixPath("language_model/lmp")
 RELEASE_ASSET_PREFIX = "rdp-v1-lm-large"

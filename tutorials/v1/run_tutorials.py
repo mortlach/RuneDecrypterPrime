@@ -108,7 +108,7 @@ TUTORIALS: tuple[TutorialEntry, ...] = (
         "Tutorial_MonoSubstitution_SA_LTR.py",
         0.995,
         TutorialAcceptanceKind.NEAR_EXACT,
-        (TutorialRunSet.RELEASE,),
+        (TutorialRunSet.EXTENDED,),
     ),
     TutorialEntry(
         "Tutorial_PeriodicSubstitution.py",
@@ -120,7 +120,7 @@ TUTORIALS: tuple[TutorialEntry, ...] = (
         "Tutorial_PeriodicSubstitution_Simple_P7.py",
         0.995,
         TutorialAcceptanceKind.NEAR_EXACT,
-        (TutorialRunSet.RELEASE,),
+        (TutorialRunSet.EXTENDED,),
     ),
     TutorialEntry(
         "Tutorial_PeriodicColumnar.py",
@@ -131,7 +131,7 @@ TUTORIALS: tuple[TutorialEntry, ...] = (
     TutorialEntry(
         "Tutorial_PeriodicColumnar_Simple_P7_ColThenSub.py",
         1.0,
-        run_sets=(TutorialRunSet.RELEASE,),
+        run_sets=(TutorialRunSet.EXTENDED,),
     ),
 )
 

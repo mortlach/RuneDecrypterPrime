@@ -37,17 +37,17 @@
       "required_by_default_install": true,
       "description": "Full V1 runtime LM asset set implied by root index.json.",
       "release_repository": "mortlach/rdp_assets",
-      "release_tag": "rdp-v1-lm-large-test-20260626",
+      "release_tag": "rdp-v1.0.0-lm-large",
       "release_assets": [
         {
           "name": "rdp-v1-lm-large-part001.zip",
-          "url": "https://github.com/mortlach/rdp_assets/releases/download/rdp-v1-lm-large-test-20260626/rdp-v1-lm-large-part001.zip",
+          "url": "https://github.com/mortlach/rdp_assets/releases/download/rdp-v1.0.0-lm-large/rdp-v1-lm-large-part001.zip",
           "sha256": "fbd18104ce2194b85729203ebe4844b42f392669eb9137afb79bd7383bd09543",
           "size_bytes": 526399103
         },
         {
           "name": "rdp-v1-lm-large-part002.zip",
-          "url": "https://github.com/mortlach/rdp_assets/releases/download/rdp-v1-lm-large-test-20260626/rdp-v1-lm-large-part002.zip",
+          "url": "https://github.com/mortlach/rdp_assets/releases/download/rdp-v1.0.0-lm-large/rdp-v1-lm-large-part002.zip",
           "sha256": "ddbecc1d99cc539eb75d3356a1c425ccb75b87e65b6de47cd52e16e3bd6ae434",
           "size_bytes": 373232816
         }

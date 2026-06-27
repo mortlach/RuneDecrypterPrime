@@ -23,11 +23,11 @@ Installers must verify SHA256 and byte size for both. They must use path-safe ex
 
 Normal CI uses tiny fake assets and the CI-light installer path. That split is only a workflow-cost control; it does not change the product contract. `python install.py` remains the full V1 install and must install or verify LM3/LM4 by default.
 
-The current manifest points at the validated prerelease asset host:
+The current manifest points at the final V1 asset release:
 
 ```text
 mortlach/rdp_assets
-rdp-v1-lm-large-test-20260626
+rdp-v1.0.0-lm-large
 ```
 
-Before final publication, replace the test tag with the final asset tag and rerun the manual large-asset validation workflow. Real 1.6 GB asset validation is a manual release gate before publication.
+If the asset release is rebuilt, update the tag, SHA256 values, and sizes, then rerun the manual large-asset validation workflow. Real 1.6 GB asset validation is a manual release gate before publication.

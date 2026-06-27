@@ -16,12 +16,12 @@ def test_large_asset_manifest_points_to_validated_prerelease_host() -> None:
     asset_set = manifest["release_asset_sets"]["v1_lm_runtime_full"]
 
     assert asset_set["release_repository"] == "mortlach/rdp_assets"
-    assert asset_set["release_tag"] == "rdp-v1-lm-large-test-20260626"
+    assert asset_set["release_tag"] == "rdp-v1.0.0-lm-large"
     assert [item["name"] for item in asset_set["release_assets"]] == [
         "rdp-v1-lm-large-part001.zip",
         "rdp-v1-lm-large-part002.zip",
     ]
-    assert all("mortlach/rdp_assets/releases/download/rdp-v1-lm-large-test-20260626" in item["url"] for item in asset_set["release_assets"])
+    assert all("mortlach/rdp_assets/releases/download/rdp-v1.0.0-lm-large" in item["url"] for item in asset_set["release_assets"])
 
 
 def test_large_asset_manifest_declares_129_runtime_assets_and_64_large_required() -> None:
