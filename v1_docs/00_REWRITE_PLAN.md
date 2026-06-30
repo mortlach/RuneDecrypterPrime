@@ -221,10 +221,116 @@ Exit condition:
 2. Beginner docs should use plain `python`, not a machine-specific interpreter
    path.
 3. The old `docs/` tree stays in place while the new documentation is drafted.
+4. Core coder documentation is Markdown-first for this phase. Sphinx, autodoc,
+   autosummary, and Doxygen may be added later, but generated documentation
+   must not define the intended public support boundary.
+5. Hand-written docs define the intended support boundary; generated docs
+   reflect inspected code. If docs, code, and tests disagree, record or fix the
+   mismatch.
+6. Generated documentation output belongs outside the repo, for example under
+   `run_outputs/docs/`. Source docs live in `v1_docs/`; built HTML, doctrees,
+   generated API dumps, coverage reports, and other generated artifacts do not.
+
+## Core Coder Documentation Plan
+
+Status: implementation plan
+
+Scope: `v1_docs/`
+
+Goal: create detailed, maintainable documentation for the core Rune Decrypter
+Prime codebase: package structure, public classes, function surfaces, run flow,
+extension points, reporting contracts, and tests that protect behaviour.
+
+Done means a reader can open `v1_docs/` and understand:
+
+- what the main RDP packages do
+- which classes/functions are intended public surfaces
+- how a run moves from input to spec to cipher/key/solver/scorer to reports
+- how to add or review a cipher, solver, scorer, or tutorial
+- which behaviour is contract-backed by tests
+- which internals are intentionally not public API
+
+### Documentation Lanes
+
+The staged docs use these lanes:
+
+| Lane | Purpose |
+| --- | --- |
+| Beginner/user docs | Short, runnable, friendly first path. |
+| Understanding docs | Concepts and design. |
+| `coder/` | Codebase maps, architecture, pipelines, and support boundaries. |
+| `howto/` | Concrete contributor task recipes. |
+| `development/` | Existing policy, testing, and docs-style material. |
+| `reference/` | Exact stable contracts and allowlists. |
+| Generated docs | Optional later; build output stays outside the repo. |
+
+Do not duplicate `howto/` and existing `development/` pages. Prefer `coder/`
+for explanations, `howto/` for task recipes, and `development/` for policy.
+
+### Public API Boundary
+
+Do not imply every importable function is public. Documented objects should be
+classified as one of:
+
+- Public V1 surface
+- Semi-stable contributor surface
+- Internal helper
+- Test-only helper
+- Legacy / transitional
+
+Start with a narrow, verified public API allowlist and expand only after
+inspection. The allowlist lives in `reference/public_api_allowlist.md` and uses
+a simple table so tests can check it.
+
+### Work Packages And Intelligence Level
+
+| WP | Work package | Intelligence level | Notes |
+| --- | --- | --- | --- |
+| WP0 | Record the decision | Low to medium | Mostly planning hygiene; needs release-rule awareness. |
+| WP1 | Core package inventory | High | Requires careful code reading and honest "not yet assessed" markers. |
+| WP2 | Public API boundary | Very high | Requires judgement about stable support promises versus importable internals. |
+| WP3 | Run flow documentation | High | Requires understanding runtime wiring, reports, and separation of responsibilities. |
+| WP4 | Spec/config object docs | High | Requires field-level inspection and validation-rule accuracy. |
+| WP5 | Pipeline pages | Very high | Cipher/key/solver/scoring boundaries are where silent drift risk is highest. |
+| WP6 | Reports, telemetry, and artifacts | Very high | Contract-backed evidence, oracle use, and diagnostic-only claims must be precise. |
+| WP7 | Extension docs | High | Must give safe contributor paths without encouraging unsupported edits. |
+| WP8 | Docstring policy and targeted annotation | High | Good judgement matters more than volume; avoid low-value comments. |
+| WP9 | Cross-check and drift tests | Medium-high | Mostly mechanical once scope is clear, but test claims must not be brittle. |
+
+### First Implementation Slice
+
+The first slice is deliberately small:
+
+- update this plan and `03_REMAINING_WORK.md`
+- add `coder/README.md`
+- add `coder/module_map.md`
+- add `coder/public_api.md`
+- add `coder/docstring_policy.md`
+- add `reference/public_api_allowlist.md`
+- add a focused docs-contract test
+
+Do not generate full-package API docs in this slice.
+
+### WP0 Close-Out
+
+Status: complete for the initial coder-docs implementation.
+
+Recorded decisions:
+
+- source docs are Markdown-first in `v1_docs/`
+- Sphinx, autodoc, autosummary, and Doxygen are deferred
+- hand-written docs define the intended support boundary
+- generated docs reflect inspected code, not the other way around
+- generated documentation output stays outside the repo under a root such as
+  `run_outputs/docs/`
+- the `coder/`, `howto/`, `development/`, and `reference/` lanes have distinct
+  jobs
+- the public API boundary starts narrow and expands only after inspection
 
 ## Immediate Next Slice
 
-Finish Phase A and continue Phase B/C:
+Finish Phase A and continue Phase B/C, then build the first core coder-docs
+slice:
 
 1. Review and refine `01_SOURCE_MAP.md`.
 2. Review and refine `troubleshooting.md`.
@@ -241,3 +347,7 @@ Finish Phase A and continue Phase B/C:
     tutorials can be classified and documented as the set grows.
 12. Decide when a staged page is ready to replace or redirect an old `docs/`
    page.
+13. Establish the `coder/` lane with a module map, public API boundary, and
+    docstring policy.
+14. Add docs-contract tests for the initial public API allowlist and coder-doc
+    hygiene.

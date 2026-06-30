@@ -268,6 +268,13 @@ def _validate_source_ref(source_kind: str, ref: Mapping[str, Any]) -> None:
 
 @dataclass(frozen=True, slots=True)
 class RawTextInput:
+    """Raw ciphertext text supplied at the API boundary.
+
+    The text is validated as a non-empty string and is normalised later by the
+    RunSpec routing layer. File paths and other objects are rejected here so the
+    input source remains explicit.
+    """
+
     text: str
 
     def __post_init__(self) -> None:
@@ -276,6 +283,13 @@ class RawTextInput:
 
 @dataclass(frozen=True, slots=True)
 class NormalizedInput:
+    """Pre-normalised ciphertext indices, optionally with WLI pairs.
+
+    `ct_idx` is copied to an immutable tuple of rune indices in the inclusive
+    range 0..28. `wli`, when supplied, must be the same length as `ct_idx` and
+    must contain ordered `(position, word_length)` pairs.
+    """
+
     ct_idx: Sequence[int]
     wli: Sequence[Sequence[int]] | None = None
 
@@ -306,6 +320,14 @@ class NormalizedInput:
 
 @dataclass(frozen=True, slots=True)
 class SourceInputRef:
+    """Reference to a resolver-owned source input.
+
+    The identity fields name the source kind, asset id, and asset version.
+    `ref` is restricted to flat JSON primitive metadata so reports can remain
+    portable and free of local path objects. Liber Primus references receive
+    stricter shape validation according to `source_kind`.
+    """
+
     source_kind: str
     asset_id: str
     asset_version: str
@@ -332,6 +354,14 @@ ProblemInput = RawTextInput | NormalizedInput | SourceInputRef
 
 @dataclass(frozen=True, slots=True)
 class RunSpec:
+    """Immutable public run request.
+
+    RunSpec binds one explicit problem input to a cipher spec, key spec,
+    solver spec, scorer selection, logging config, text direction, device, and
+    telemetry toggle. It validates only the request contract; materialisation
+    and execution happen later in the routing and engine layers.
+    """
+
     problem_input: ProblemInput
     cipher: CipherSpec
     key: KeySpec | tuple[KeySpec, KeySpec]

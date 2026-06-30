@@ -23,6 +23,14 @@ MANIFEST_RELPATH = KnownArtifactRelpath.RUN_ARTIFACTS_MANIFEST.value
 
 @dataclass(frozen=True, slots=True)
 class RunArtifactManifestRow:
+    """Manifest row for a known V1 run artifact.
+
+    Rows record which agreement-backed artifacts were present for a run. Paths
+    are known run-relative POSIX relpaths, classifications come from the V1
+    artifact agreement, and `present` records observed output state for this
+    particular run.
+    """
+
     relpath: KnownArtifactRelpath | str
     artifact_kind: ArtifactKind | str
     required: bool
@@ -67,6 +75,16 @@ def write_run_artifacts_manifest(
     run_dir: Path,
     include_solver_report: bool = False,
 ) -> str:
+    """Write the V1 run artifact manifest under `run_dir`.
+
+    The run directory must already contain `META.json` and
+    `config/logging.json`. Optional solver report and display summary artifacts
+    are listed when present, and the solver report can be required by setting
+    `include_solver_report=True`.
+
+    Returns the run-relative manifest path.
+    """
+
     if not isinstance(run_dir, Path):
         raise TypeError("run_dir must be a Path")
     if type(include_solver_report) is not bool:
