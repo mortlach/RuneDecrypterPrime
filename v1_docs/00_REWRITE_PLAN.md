@@ -103,10 +103,17 @@ Goal: help contributors add or review behavior without silent drift.
 Candidate pages:
 
 - `development/testing.md`
-- `development/adding_a_cipher.md`
-- `development/adding_a_scorer.md`
+- `howto/add_cipher.md`
+- `howto/add_solver.md`
+- `howto/add_scorer_lane.md`
 - `development/adding_a_tutorial.md`
 - `development/docs_style.md`
+
+Lane split:
+
+- `coder/`: maps, architecture, pipelines, and support boundaries
+- `howto/`: concrete contributor task recipes
+- `development/`: testing, docs-style, and tutorial policy material
 
 Source material:
 

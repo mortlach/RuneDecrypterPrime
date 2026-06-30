@@ -64,10 +64,10 @@ This narrative explains why the first entries are included.
 | Solver specification | `rune_decrypter_prime.api.specs.SolverSpec` | `src/rune_decrypter_prime/api/specs.py` | Describes the solver family, parameters, and seed. |
 | Run result | `rune_decrypter_prime.api.run_result.RunResult` | `src/rune_decrypter_prime/api/run_result.py` | Pairs a solution object with a `SolverReport`. |
 | Solver report | `rune_decrypter_prime.api.solver_report.SolverReport` | `src/rune_decrypter_prime/api/solver_report.py` | Records solver search evidence and reproducibility details. |
-| Solver report builder | `rune_decrypter_prime.api.solver_report.build_solver_report` | `src/rune_decrypter_prime/api/solver_report.py` | Builds a solver report with generated contract detail sections. |
+| Solver report builder | `rune_decrypter_prime.api.solver_report.build_solver_report` | `src/rune_decrypter_prime/api/solver_report.py` | Semi-stable contributor helper that builds a solver report with generated contract detail sections. |
 | Scorer report | `rune_decrypter_prime.scoring.scorer_report.ScorerReport` | `src/rune_decrypter_prime/scoring/scorer_report.py` | Records scoring objective, score, metrics, telemetry, and details. |
 | Run artifact manifest row | `rune_decrypter_prime.api.run_artifact_manifest.RunArtifactManifestRow` | `src/rune_decrypter_prime/api/run_artifact_manifest.py` | Describes one artifact row in the V1 run artifact manifest. |
-| Run artifact manifest writer | `rune_decrypter_prime.api.run_artifact_manifest.write_run_artifacts_manifest` | `src/rune_decrypter_prime/api/run_artifact_manifest.py` | Writes the V1 run artifact manifest for a run directory. |
+| Run artifact manifest writer | `rune_decrypter_prime.api.run_artifact_manifest.write_run_artifacts_manifest` | `src/rune_decrypter_prime/api/run_artifact_manifest.py` | Semi-stable contributor/logging helper that writes the V1 run artifact manifest for a run directory. |
 | Display options | `rune_decrypter_prime.api.display.RdpDisplayOptions` | `src/rune_decrypter_prime/api/display.py` | Controls the standard RDP display/share view. |
 | Display summary | `rune_decrypter_prime.api.display.RdpDisplaySummary` | `src/rune_decrypter_prime/api/display.py` | JSON-safe standard display/share view of a run. |
 | Display builder | `rune_decrypter_prime.api.display.build_rdp_summary` | `src/rune_decrypter_prime/api/display.py` | Builds a standard display summary without changing solver/scorer behaviour. |
@@ -78,7 +78,7 @@ This narrative explains why the first entries are included.
 | Summary renderer | `rune_decrypter_prime.api.printer.render_rdp_summary` | `src/rune_decrypter_prime/api/printer.py` | Renders an RDP display summary as text or JSON. |
 | Summary artifact writer | `rune_decrypter_prime.api.printer.write_rdp_summary_artifact` | `src/rune_decrypter_prime/api/printer.py` | Writes the display summary under a run directory and returns a relative artifact path. |
 | By-name wrapper facade | `rune_decrypter_prime.api.wrappers.by_name.by_name` | `src/rune_decrypter_prime/api/wrappers/by_name.py` | Friendly cipher wrapper/spec factory used by tutorials and examples. |
-| Cipher instance helper | `rune_decrypter_prime.api.wrappers.by_name.cipher_instance` | `src/rune_decrypter_prime/api/wrappers/by_name.py` | Materialises a cipher instance from a friendly name or spec. |
+| Cipher instance helper | `rune_decrypter_prime.api.wrappers.by_name.cipher_instance` | `src/rune_decrypter_prime/api/wrappers/by_name.py` | Semi-stable contributor helper that materialises a cipher instance from a friendly name or spec. |
 
 ## Import Routes
 

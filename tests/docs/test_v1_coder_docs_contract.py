@@ -48,8 +48,10 @@ def _import_paths_from_allowlist() -> list[str]:
     paths: list[str] = []
     for line in _read(PUBLIC_API_ALLOWLIST).splitlines():
         match = re.match(r"^\| `([^`]+)` \|", line)
-        if match and match.group(1).startswith("rune_decrypter_prime."):
-            paths.append(match.group(1))
+        if match:
+            import_path = match.group(1)
+            if import_path.startswith(("rune_decrypter_prime.", "rdp.")):
+                paths.append(import_path)
     return paths
 
 
@@ -100,6 +102,18 @@ def test_public_api_allowlist_labels_are_controlled() -> None:
 def test_public_api_allowlist_has_no_duplicates() -> None:
     import_paths = [row[0] for row in _allowlist_rows()]
     assert len(import_paths) == len(set(import_paths))
+
+
+def test_builder_writer_materialiser_helpers_are_not_broad_user_api() -> None:
+    expected = {
+        "rune_decrypter_prime.api.solver_report.build_solver_report",
+        "rune_decrypter_prime.api.run_artifact_manifest.write_run_artifacts_manifest",
+        "rune_decrypter_prime.api.wrappers.by_name.cipher_instance",
+    }
+    labels = {import_path: stability for import_path, stability, _notes in _allowlist_rows()}
+
+    for import_path in sorted(expected):
+        assert labels[import_path] == "Semi-stable contributor surface"
 
 
 def test_module_map_source_paths_exist() -> None:

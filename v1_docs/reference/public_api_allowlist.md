@@ -41,10 +41,10 @@ inspection.
 | `rune_decrypter_prime.api.specs.SolverSpec` | Public V1 surface | Declarative solver builder/specification. |
 | `rune_decrypter_prime.api.run_result.RunResult` | Public V1 surface | Solution plus solver report result wrapper. |
 | `rune_decrypter_prime.api.solver_report.SolverReport` | Public V1 surface | Solver evidence and reproducibility report. |
-| `rune_decrypter_prime.api.solver_report.build_solver_report` | Public V1 surface | Solver report builder with generated contract details. |
+| `rune_decrypter_prime.api.solver_report.build_solver_report` | Semi-stable contributor surface | Solver report builder with generated contract details; prefer returned `SolverReport` objects at the user boundary. |
 | `rune_decrypter_prime.scoring.scorer_report.ScorerReport` | Public V1 surface | Scorer objective, score, telemetry, and details report. |
 | `rune_decrypter_prime.api.run_artifact_manifest.RunArtifactManifestRow` | Public V1 surface | One V1 run artifact manifest row. |
-| `rune_decrypter_prime.api.run_artifact_manifest.write_run_artifacts_manifest` | Public V1 surface | V1 run artifact manifest writer. |
+| `rune_decrypter_prime.api.run_artifact_manifest.write_run_artifacts_manifest` | Semi-stable contributor surface | V1 run artifact manifest writer used by logging/export paths. |
 | `rune_decrypter_prime.api.display.RdpDisplayOptions` | Public V1 surface | Controls standard display-summary content. |
 | `rune_decrypter_prime.api.display.RdpDisplaySummary` | Public V1 surface | JSON-safe display/share view of a run. |
 | `rune_decrypter_prime.api.display.build_rdp_summary` | Public V1 surface | Builds the standard display summary. |
@@ -55,7 +55,7 @@ inspection.
 | `rune_decrypter_prime.api.printer.render_rdp_summary` | Public V1 surface | Renders a display summary as text or JSON. |
 | `rune_decrypter_prime.api.printer.write_rdp_summary_artifact` | Public V1 surface | Writes the display summary artifact and returns a relative path. |
 | `rune_decrypter_prime.api.wrappers.by_name.by_name` | Public V1 surface | Friendly by-name cipher wrapper facade. |
-| `rune_decrypter_prime.api.wrappers.by_name.cipher_instance` | Public V1 surface | Materialises cipher instances from names/specs. |
+| `rune_decrypter_prime.api.wrappers.by_name.cipher_instance` | Semi-stable contributor surface | Materialises cipher instances from names/specs; useful for tests and contributor examples. |
 | `rdp.api` | Public V1 surface | Lightweight short alias for `rune_decrypter_prime.api`. |
 
 ## Non-Goals
