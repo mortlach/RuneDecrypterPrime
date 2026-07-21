@@ -15,6 +15,7 @@ from cipher_development.shared.archive import (
     _atomic_write_json,
     _canonical_json,
     _candidate_id,
+    _reject_reference_fields,
     archive_content_hash,
 )
 
@@ -28,9 +29,21 @@ def _text(value: Any, name: str) -> str:
     return value.strip()
 
 
-def _content_payload(*, purpose: str, source_archive_hash: str, source_decision_score: str,
-                     candidate_ids: Sequence[str], candidates: Sequence[CandidateRecord],
-                     selection_label: str) -> dict[str, Any]:
+def _decision_score(value: Any) -> str:
+    score = _text(value, "source_decision_score")
+    _reject_reference_fields({score: 0}, "source_decision_score")
+    return score
+
+
+def _content_payload(
+    *,
+    purpose: str,
+    source_archive_hash: str,
+    source_decision_score: str,
+    candidate_ids: Sequence[str],
+    candidates: Sequence[CandidateRecord],
+    selection_label: str,
+) -> dict[str, Any]:
     return {
         "schema": SCHEMA,
         "purpose": purpose,
@@ -67,17 +80,22 @@ class CandidateReplayBatch:
         if self.schema != SCHEMA:
             raise ValueError(f"schema must be {SCHEMA!r}")
         try:
-            purpose = self.purpose if isinstance(self.purpose, CandidateBatchPurpose) \
+            purpose = (
+                self.purpose
+                if isinstance(self.purpose, CandidateBatchPurpose)
                 else CandidateBatchPurpose(str(self.purpose))
+            )
         except ValueError as exc:
             raise ValueError("purpose must be replay or handoff") from exc
+
         source_archive_hash = str(self.source_archive_hash)
         if not _HASH_RE.fullmatch(source_archive_hash):
             raise ValueError(
                 "source_archive_hash must be a 40-character lowercase hexadecimal digest"
             )
-        source_decision_score = _text(self.source_decision_score, "source_decision_score")
+        source_decision_score = _decision_score(self.source_decision_score)
         selection_label = _text(self.selection_label, "selection_label")
+
         candidate_ids = tuple(_candidate_id(item, "candidate_ids[]") for item in self.candidate_ids)
         if len(set(candidate_ids)) != len(candidate_ids):
             raise ValueError("candidate_ids must be unique")
@@ -88,6 +106,17 @@ class CandidateReplayBatch:
             raise TypeError("candidates must contain CandidateRecord values")
         if tuple(item.candidate_id for item in candidates) != candidate_ids:
             raise ValueError("candidate_ids must correspond exactly to embedded candidates")
+        missing_score = [
+            candidate.candidate_id
+            for candidate in candidates
+            if source_decision_score not in candidate.scores
+        ]
+        if missing_score:
+            raise ValueError(
+                "source_decision_score must exist in every embedded candidate; "
+                f"missing from {missing_score}"
+            )
+
         payload = _content_payload(
             purpose=purpose.value,
             source_archive_hash=source_archive_hash,
@@ -99,6 +128,7 @@ class CandidateReplayBatch:
         expected = _batch_id(payload)
         if str(self.batch_id) != expected:
             raise ValueError("batch_id does not match batch content")
+
         object.__setattr__(self, "purpose", purpose)
         object.__setattr__(self, "source_archive_hash", source_archive_hash)
         object.__setattr__(self, "source_decision_score", source_decision_score)
@@ -146,11 +176,15 @@ def select_candidate_batch(
     if not isinstance(archive, CandidateArchive):
         raise TypeError("archive must be a CandidateArchive")
     try:
-        purpose_value = purpose if isinstance(purpose, CandidateBatchPurpose) \
+        purpose_value = (
+            purpose
+            if isinstance(purpose, CandidateBatchPurpose)
             else CandidateBatchPurpose(str(purpose))
+        )
     except ValueError as exc:
         raise ValueError("purpose must be replay or handoff") from exc
     selection_label = _text(selection_label, "selection_label")
+
     if (limit is None) == (candidate_ids is None):
         raise ValueError("provide exactly one of limit or candidate_ids")
     if limit is not None:
@@ -170,6 +204,7 @@ def select_candidate_batch(
             candidates = tuple(archive.get(item) for item in ids)
         except KeyError as exc:
             raise ValueError(f"unknown candidate ID {exc.args[0]!r}") from exc
+
     if not candidates:
         raise ValueError("archive selection produced no candidates")
     ids = tuple(candidate.candidate_id for candidate in candidates)
@@ -213,6 +248,9 @@ def read_candidate_batch(path: Path) -> CandidateReplayBatch:
 
 
 __all__ = [
-    "CandidateBatchPurpose", "CandidateReplayBatch", "read_candidate_batch",
-    "select_candidate_batch", "write_candidate_batch",
+    "CandidateBatchPurpose",
+    "CandidateReplayBatch",
+    "read_candidate_batch",
+    "select_candidate_batch",
+    "write_candidate_batch",
 ]

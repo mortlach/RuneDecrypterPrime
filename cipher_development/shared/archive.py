@@ -21,6 +21,8 @@ _REFERENCE_KEYS = {
     "reference_metrics", "test_key", "truth", "truth_key", "truth_metrics",
 }
 _REFERENCE_PREFIXES = ("oracle_", "reference_", "truth_")
+_ARCHIVE_KEYS = frozenset({"schema", "policy", "records", "statistics"})
+_ARCHIVE_REQUIRED_KEYS = frozenset({"schema", "policy", "records"})
 
 
 def _text(value: Any, name: str) -> str:
@@ -93,13 +95,21 @@ def _snapshot_json(value: Any, name: str) -> Any:
 
 def _canonical_json(value: Any, name: str) -> str:
     frozen = _snapshot_json(value, name)
-    return json.dumps(_thaw_json(frozen), ensure_ascii=False, sort_keys=True,
-                      separators=(",", ":"), allow_nan=False)
+    return json.dumps(
+        _thaw_json(frozen),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
 
 
 def _digest(value: Any, *, name: str, person: bytes) -> str:
-    return hashlib.blake2b(_canonical_json(value, name).encode("utf-8"), digest_size=20,
-                           person=person).hexdigest()
+    return hashlib.blake2b(
+        _canonical_json(value, name).encode("utf-8"),
+        digest_size=20,
+        person=person,
+    ).hexdigest()
 
 
 def candidate_id_for(identity: Any) -> str:
@@ -109,8 +119,13 @@ def candidate_id_for(identity: Any) -> str:
 def _atomic_write_json(path: Path, payload: Mapping[str, Any]) -> None:
     if not isinstance(path, Path):
         raise TypeError("path must be a Path")
-    text = json.dumps(_thaw_json(_snapshot_json(payload, "payload")), ensure_ascii=False,
-                      indent=2, sort_keys=True, allow_nan=False) + "\n"
+    text = json.dumps(
+        _thaw_json(_snapshot_json(payload, "payload")),
+        ensure_ascii=False,
+        indent=2,
+        sort_keys=True,
+        allow_nan=False,
+    ) + "\n"
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{os.getpid()}.{time.time_ns()}.tmp")
     try:
@@ -146,8 +161,7 @@ class CandidateProvenance:
             raise ValueError("parent_ids must be unique")
         object.__setattr__(self, "parent_ids", parents)
         if self.evaluation_index is not None:
-            if (isinstance(self.evaluation_index, bool)
-                    or not isinstance(self.evaluation_index, int)):
+            if isinstance(self.evaluation_index, bool) or not isinstance(self.evaluation_index, int):
                 raise TypeError("evaluation_index must be a non-negative integer or None")
             if self.evaluation_index < 0:
                 raise ValueError("evaluation_index must be a non-negative integer or None")
@@ -183,22 +197,25 @@ class CandidateRecord:
     def __post_init__(self) -> None:
         identity = _snapshot_json(self.identity, "identity")
         candidate_id = _candidate_id(self.candidate_id)
-        expected = candidate_id_for(identity)
-        if candidate_id != expected:
+        if candidate_id != candidate_id_for(identity):
             raise ValueError("candidate_id does not match identity")
         payload = _snapshot_json(self.payload, "payload")
         if not isinstance(self.scores, Mapping) or not self.scores:
             raise ValueError("scores must be a non-empty mapping")
+
         scores: dict[str, float] = {}
-        for name, value in self.scores.items():
-            name = _text(name, "score name")
+        for raw_name, value in self.scores.items():
+            name = _text(raw_name, "score name")
             _reject_reference_fields({name: 0}, "scores")
+            if name in scores:
+                raise ValueError(f"scores contain duplicate normalised name {name!r}")
             if isinstance(value, bool) or not isinstance(value, (int, float)):
                 raise TypeError(f"score {name!r} must be a finite number")
             score = float(value)
             if not math.isfinite(score):
                 raise ValueError(f"score {name!r} must be a finite number")
             scores[name] = score
+
         if not isinstance(self.provenance, CandidateProvenance):
             raise TypeError("provenance must be a CandidateProvenance")
         family_id = None if self.family_id is None else _text(self.family_id, "family_id")
@@ -239,8 +256,9 @@ class ArchivePolicy:
             raise TypeError("capacity must be a positive integer")
         if self.capacity <= 0:
             raise ValueError("capacity must be a positive integer")
-        object.__setattr__(self, "decision_score", _text(self.decision_score, "decision_score"))
-        _reject_reference_fields({self.decision_score: 0}, "decision_score")
+        decision_score = _text(self.decision_score, "decision_score")
+        _reject_reference_fields({decision_score: 0}, "decision_score")
+        object.__setattr__(self, "decision_score", decision_score)
         if type(self.higher_is_better) is not bool:
             raise TypeError("higher_is_better must be a bool")
         if self.family_limit is not None:
@@ -294,7 +312,7 @@ class CandidateArchive:
 
     def _rank_key(self, record: CandidateRecord) -> tuple[float, str]:
         score = record.scores[self.policy.decision_score]
-        return ((-score if self.policy.higher_is_better else score), record.candidate_id)
+        return (-score if self.policy.higher_is_better else score, record.candidate_id)
 
     def _select(self, records: Mapping[str, CandidateRecord]) -> tuple[CandidateRecord, ...]:
         ordered = sorted(records.values(), key=self._rank_key)
@@ -309,7 +327,7 @@ class CandidateArchive:
                     counts[record.family_id] = count + 1
                 selected.append(record)
             ordered = selected
-        return tuple(ordered[:self.policy.capacity])
+        return tuple(ordered[: self.policy.capacity])
 
     @property
     def records(self) -> tuple[CandidateRecord, ...]:
@@ -322,23 +340,41 @@ class CandidateArchive:
         if not isinstance(record, CandidateRecord):
             raise TypeError("record must be a CandidateRecord")
         if self.policy.decision_score not in record.scores:
-            return ArchiveOfferResult(ArchiveOfferAction.REJECTED, record.candidate_id, False, (),
-                                      len(self._records))
+            return ArchiveOfferResult(
+                ArchiveOfferAction.REJECTED,
+                record.candidate_id,
+                False,
+                (),
+                len(self._records),
+            )
+
         existing = self._records.get(record.candidate_id)
         if existing is not None:
             old = existing.scores[self.policy.decision_score]
             new = record.scores[self.policy.decision_score]
             better = new > old if self.policy.higher_is_better else new < old
             if not better:
-                return ArchiveOfferResult(ArchiveOfferAction.UNCHANGED, record.candidate_id, True,
-                                          (), len(self._records))
+                return ArchiveOfferResult(
+                    ArchiveOfferAction.UNCHANGED,
+                    record.candidate_id,
+                    True,
+                    (),
+                    len(self._records),
+                )
+
         proposed = dict(self._records)
         proposed[record.candidate_id] = record
         selected = self._select(proposed)
         selected_ids = {item.candidate_id for item in selected}
         if record.candidate_id not in selected_ids:
-            return ArchiveOfferResult(ArchiveOfferAction.REJECTED, record.candidate_id, False, (),
-                                      len(self._records))
+            return ArchiveOfferResult(
+                ArchiveOfferAction.REJECTED,
+                record.candidate_id,
+                False,
+                (),
+                len(self._records),
+            )
+
         old_ids = set(self._records)
         self._records = {item.candidate_id: item for item in selected}
         evicted = tuple(sorted(old_ids - set(self._records)))
@@ -379,12 +415,15 @@ class CandidateArchive:
 def archive_content_hash(archive: CandidateArchive) -> str:
     if not isinstance(archive, CandidateArchive):
         raise TypeError("archive must be a CandidateArchive")
-    payload = {
-        "schema": SCHEMA,
-        "policy": archive.policy.to_json_dict(),
-        "records": [record.to_json_dict() for record in archive.records],
-    }
-    return _digest(payload, name="archive", person=b"rdp-archive-v1")
+    return _digest(
+        {
+            "schema": SCHEMA,
+            "policy": archive.policy.to_json_dict(),
+            "records": [record.to_json_dict() for record in archive.records],
+        },
+        name="archive",
+        person=b"rdp-archive-v1",
+    )
 
 
 def write_candidate_archive(path: Path, archive: CandidateArchive) -> None:
@@ -400,25 +439,40 @@ def read_candidate_archive(path: Path) -> CandidateArchive:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise ValueError(f"malformed candidate archive JSON: {exc.msg}") from exc
-    if not isinstance(payload, Mapping) or payload.get("schema") != SCHEMA:
+    if not isinstance(payload, Mapping):
+        raise TypeError("candidate archive must be a mapping")
+
+    keys = frozenset(payload)
+    unknown = keys - _ARCHIVE_KEYS
+    missing = _ARCHIVE_REQUIRED_KEYS - keys
+    if unknown:
+        raise ValueError(f"candidate archive contains unknown fields: {sorted(unknown)}")
+    if missing:
+        raise ValueError(f"candidate archive is missing required fields: {sorted(missing)}")
+    if payload.get("schema") != SCHEMA:
         raise ValueError(f"candidate archive schema must be {SCHEMA!r}")
+
     policy = ArchivePolicy.from_json_dict(payload.get("policy"))
     raw_records = payload.get("records")
     if not isinstance(raw_records, list):
         raise TypeError("candidate archive records must be a list")
     if len(raw_records) > policy.capacity:
         raise ValueError("candidate archive contains more records than policy capacity")
+
     records = tuple(CandidateRecord.from_json_dict(item) for item in raw_records)
     ids = [record.candidate_id for record in records]
     if len(set(ids)) != len(ids):
         raise ValueError("candidate archive contains duplicate candidate IDs")
+
     if policy.family_limit is not None:
         counts: dict[str, int] = {}
         for record in records:
-            if record.family_id is not None:
-                counts[record.family_id] = counts.get(record.family_id, 0) + 1
-                if counts[record.family_id] > policy.family_limit:
-                    raise ValueError("candidate archive contradicts policy family_limit")
+            if record.family_id is None:
+                continue
+            counts[record.family_id] = counts.get(record.family_id, 0) + 1
+            if counts[record.family_id] > policy.family_limit:
+                raise ValueError("candidate archive contradicts policy family_limit")
+
     archive = CandidateArchive(policy)
     for record in records:
         result = archive.offer(record)
@@ -426,6 +480,7 @@ def read_candidate_archive(path: Path) -> CandidateArchive:
             raise ValueError("candidate archive records contradict retention policy")
     if [record.candidate_id for record in archive.records] != ids:
         raise ValueError("candidate archive records are not in deterministic best-first order")
+
     statistics = payload.get("statistics")
     if statistics is not None and statistics != archive.statistics():
         raise ValueError("candidate archive statistics contradict records or policy")
@@ -433,7 +488,14 @@ def read_candidate_archive(path: Path) -> CandidateArchive:
 
 
 __all__ = [
-    "ArchiveOfferAction", "ArchiveOfferResult", "ArchivePolicy", "CandidateArchive",
-    "CandidateProvenance", "CandidateRecord", "archive_content_hash", "candidate_id_for",
-    "read_candidate_archive", "write_candidate_archive",
+    "ArchiveOfferAction",
+    "ArchiveOfferResult",
+    "ArchivePolicy",
+    "CandidateArchive",
+    "CandidateProvenance",
+    "CandidateRecord",
+    "archive_content_hash",
+    "candidate_id_for",
+    "read_candidate_archive",
+    "write_candidate_archive",
 ]
