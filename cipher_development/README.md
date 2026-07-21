@@ -23,6 +23,8 @@ cipher_development/
   shared/
     experiment.py
     ledger.py
+    archive.py
+    replay.py
 
   <cipher_or_campaign>/
     CAMPAIGN.md
@@ -64,3 +66,13 @@ The execution configuration is frozen when `ExperimentRun` is constructed. Refer
 Only one `ExperimentRun` may be active in a Python process because RDP's logging paths are process-global. Parallel cipher-development experiments must use separate processes.
 
 The terminal result file is authoritative. If appending the campaign ledger fails after the result is written, the completed or failed result is preserved so a later recovery tool can rebuild the missing ledger row.
+
+## Candidate retention and replay
+
+WP2 adds a bounded candidate archive and self-contained replay or handoff batches. The campaign defines candidate identity, payload, named scores, provenance and any optional family identifier. Shared code only validates, ranks, retains and persists that evidence.
+
+The archive uses one explicitly named decision score and deterministic candidate-ID tie-breaking. Family caps are optional and disabled by default. The archive does not calculate scores, infer cipher equivalence, mutate candidates or decide whether an experiment should be promoted, refined or closed.
+
+Replay and handoff batches embed exact retained candidate records and identify their source archive by content hash. They prepare evidence for campaign code; they do not decrypt, score, run solvers or convert candidates into RDP seed keys.
+
+Candidate identities and payloads must not contain reference truth, expected plaintext, known keys or oracle data. Large archive and batch payloads remain run artifacts; only concise summaries and relative artifact paths belong in the experiment result and ledger.
