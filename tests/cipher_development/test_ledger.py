@@ -71,13 +71,18 @@ def test_completed_requires_decision_but_failed_may_omit_it() -> None:
     assert failed.decision is None
 
 
-@pytest.mark.parametrize(
-    "bad",
-    ["/absolute/result.json", "../outside/result.json", "run\\result.json"],
-)
-def test_result_relpath_must_be_campaign_relative_posix(bad: str) -> None:
-    with pytest.raises(ValueError):
-        _row(result_relpath=bad)
+@pytest.mark.parametrize("field", ["wli_mode", "truth_policy", "mechanisms", "stop_category"])
+def test_ledger_enum_domains_are_validated(field: str) -> None:
+    value = ("nonsense",) if field == "mechanisms" else "nonsense"
+    with pytest.raises(ValueError, match=field):
+        _row(**{field: value})
+
+
+def test_result_relpath_must_be_campaign_relative_posix(tmp_path: Path) -> None:
+    absolute = (tmp_path.resolve() / "result.json").as_posix()
+    for bad in (absolute, "../outside/result.json", "run\\result.json"):
+        with pytest.raises(ValueError):
+            _row(result_relpath=bad)
 
 
 def test_non_finite_values_and_invalid_rows_are_rejected(tmp_path: Path) -> None:

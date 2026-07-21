@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+import cipher_development.shared.experiment as experiment_module
 from cipher_development.shared.experiment import (
     ExperimentDecision,
     ExperimentRun,
@@ -38,10 +39,10 @@ def _spec(**overrides) -> ExperimentSpec:
     return ExperimentSpec(**values)
 
 
-def _run(tmp_path: Path, **spec_overrides) -> ExperimentRun:
+def _run(tmp_path: Path, configuration=None, **spec_overrides) -> ExperimentRun:
     return ExperimentRun(
         spec=_spec(**spec_overrides),
-        configuration={"seed": 7, "solver": {"name": "coordinate"}},
+        configuration=configuration or {"seed": 7, "solver": {"name": "coordinate"}},
         repo_root=tmp_path,
     )
 
@@ -106,6 +107,39 @@ def test_configuration_hash_is_canonical_and_sensitive() -> None:
 def test_configuration_hash_rejects_unstable_values(bad) -> None:
     with pytest.raises((TypeError, ValueError)):
         canonical_config_hash(bad)
+
+
+@pytest.mark.parametrize(
+    "configuration",
+    [
+        {"truth_key": [1, 2]},
+        {"nested": {"ground_truth": "answer"}},
+        {"oracle": {"key": [1, 2]}},
+        {"expected_plaintext": "answer"},
+        {"match_ratio": 1.0},
+    ],
+)
+def test_configuration_rejects_reference_truth_and_oracle_fields(
+    tmp_path: Path, configuration
+) -> None:
+    with pytest.raises(ValueError, match="reference or truth"):
+        _run(tmp_path, configuration=configuration)
+
+
+def test_configuration_snapshot_and_hash_cannot_drift(tmp_path: Path) -> None:
+    configuration = {"seed": 7, "solver": {"weights": [1, 2]}}
+    run = _run(tmp_path, configuration=configuration)
+    expected_hash = run.configuration_hash
+    configuration["seed"] = 9
+    configuration["solver"]["weights"].append(3)
+    with run:
+        manifest = json.loads(
+            (run.run_dir / "artifacts/experiment_manifest.json").read_text(encoding="utf-8")
+        )
+        assert manifest["configuration"] == {"seed": 7, "solver": {"weights": [1, 2]}}
+        assert manifest["configuration_hash"] == expected_hash
+        assert canonical_config_hash(manifest["configuration"]) == expected_hash
+        run.finish(decision="refine", stop_reason="time_budget")
 
 
 def test_telemetry_summary_reads_existing_values_without_merging_counts() -> None:
@@ -184,6 +218,28 @@ def test_finish_writes_result_and_exactly_one_ledger_row(tmp_path: Path) -> None
             run.finish(decision="close", stop_reason="done")
 
 
+def test_ledger_failure_does_not_overwrite_completed_result(tmp_path: Path, monkeypatch) -> None:
+    run = _run(tmp_path)
+
+    def fail_append(*args, **kwargs):
+        raise OSError("ledger unavailable")
+
+    monkeypatch.setattr(experiment_module, "append_ledger_row", fail_append)
+    with pytest.raises(OSError, match="ledger unavailable"):
+        with run:
+            run.finish(
+                decision="promote",
+                stop_reason="target_score",
+                result_summary={"best_score": 0.98},
+            )
+    result = json.loads(
+        (run.run_dir / "artifacts/experiment_result.json").read_text(encoding="utf-8")
+    )
+    assert result["status"] == "completed"
+    assert result["decision"] == "promote"
+    assert result["result_summary"] == {"best_score": 0.98}
+
+
 def test_truth_policy_none_rejects_reference_evaluation(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="forbidden"):
         with _run(tmp_path, truth_policy=TruthPolicy.NONE) as run:
@@ -196,13 +252,17 @@ def test_truth_policy_none_rejects_reference_evaluation(tmp_path: Path) -> None:
 
 def test_exception_is_recorded_and_reraised(tmp_path: Path) -> None:
     run = _run(tmp_path)
+    machine_path = tmp_path / "private" / "campaign"
     with pytest.raises(RuntimeError, match="campaign failed"):
         with run:
-            raise RuntimeError("campaign failed at /private/path")
+            raise RuntimeError(f"campaign failed at {machine_path}")
     assert run.run_dir is not None
-    result = json.loads((run.run_dir / "artifacts" / "experiment_result.json").read_text(encoding="utf-8"))
+    result = json.loads(
+        (run.run_dir / "artifacts" / "experiment_result.json").read_text(encoding="utf-8")
+    )
     assert result["status"] == "failed"
     assert result["decision"] is None
+    assert str(machine_path) not in result["result_summary"]["error_message"]
     assert len(read_ledger(run.ledger_path)) == 1
 
 
@@ -215,10 +275,38 @@ def test_normal_exit_without_finish_is_recorded_then_raises(tmp_path: Path) -> N
     assert read_ledger(run.ledger_path)[0].status == "failed"
 
 
-@pytest.mark.parametrize("bad", [Path("elsewhere"), Path("../output"), Path("/tmp/output")])
-def test_output_root_cannot_escape_output(tmp_path: Path, bad: Path) -> None:
-    with pytest.raises(ValueError, match="output"):
-        ExperimentRun(spec=_spec(), configuration={}, repo_root=tmp_path, output_root=bad)
+def test_only_one_experiment_run_may_be_active_per_process(tmp_path: Path) -> None:
+    first = _run(tmp_path / "first")
+    second = _run(tmp_path / "second")
+    with first:
+        with pytest.raises(RuntimeError, match="only one"):
+            second.__enter__()
+        first.finish(decision="refine", stop_reason="time_budget")
+    with second:
+        second.finish(decision="close", stop_reason="done")
+
+
+def test_output_root_must_stay_below_cipher_development(tmp_path: Path) -> None:
+    bad_roots = [
+        Path("elsewhere"),
+        Path("../output"),
+        Path("output/unrelated"),
+        tmp_path.resolve() / "outside",
+    ]
+    for bad in bad_roots:
+        with pytest.raises(ValueError, match="cipher_development"):
+            ExperimentRun(spec=_spec(), configuration={}, repo_root=tmp_path, output_root=bad)
+
+    run = ExperimentRun(
+        spec=_spec(),
+        configuration={},
+        repo_root=tmp_path,
+        output_root=Path("output/cipher_development/controlled"),
+    )
+    with run:
+        assert run.run_dir is not None
+        assert "controlled" in run.run_dir.parts
+        run.finish(decision="close", stop_reason="done")
 
 
 def test_new_source_has_no_environment_or_cli_configuration() -> None:

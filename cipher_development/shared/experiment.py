@@ -24,9 +24,16 @@ MANIFEST_SCHEMA = "rdp_cipher_development_experiment_manifest.v1"
 SNAPSHOT_SCHEMA = "rdp_cipher_development_progress_snapshot.v1"
 RESULT_SCHEMA = "rdp_cipher_development_experiment_result.v1"
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
-_REFERENCE_KEYS = {"reference", "reference_evaluation", "reference_metrics", "truth", "truth_metrics", "match_ratio"}
+_REFERENCE_KEYS = {
+    "expected_key", "expected_plaintext", "ground_truth", "known_key", "known_plaintext",
+    "match_ratio", "oracle", "oracle_key", "reference", "reference_evaluation",
+    "reference_metrics", "test_key", "truth", "truth_key", "truth_metrics",
+}
+_REFERENCE_PREFIXES = ("oracle_", "reference_", "truth_")
 _COUNTERS = ("eval_keys", "eval_batches", "candidates_evaluated", "tokens_processed",
              "decrypt_time_s", "score_time_s")
+_OUTPUT_BASE = Path("output/cipher_development")
+_ACTIVE_RUN: ExperimentRun | None = None
 
 
 class WliMode(StrEnum):
@@ -77,7 +84,7 @@ def _enum(value: Any, enum_type: type[StrEnum], name: str) -> StrEnum:
     try:
         return enum_type(str(value))
     except ValueError as exc:
-        raise ValueError(f"{name} must be one of: {', '.join(item.value for item in enum_type)}") from exc
+        raise ValueError(f"{name} must be one of: {', '.join(x.value for x in enum_type)}") from exc
 
 
 def _json_value(value: Any, name: str) -> Any:
@@ -113,16 +120,27 @@ def _mapping(value: Any, name: str) -> dict[str, Any]:
     return _json_value(value, name)
 
 
+def _optional_mapping(value: Any, name: str) -> dict[str, Any]:
+    return {} if value is None else _mapping(value, name)
+
+
 def _reject_reference_fields(value: Any, name: str) -> None:
     if isinstance(value, Mapping):
         for key, item in value.items():
             token = str(key).strip().lower()
-            if token in _REFERENCE_KEYS or token.startswith(("reference_", "truth_")):
+            if token in _REFERENCE_KEYS or token.startswith(_REFERENCE_PREFIXES):
                 raise ValueError(f"{name} must not contain reference or truth field {key!r}")
             _reject_reference_fields(item, name)
     elif isinstance(value, (list, tuple)):
         for item in value:
             _reject_reference_fields(item, name)
+
+
+def _canonical_json(configuration: Mapping[str, Any]) -> str:
+    payload = _mapping(configuration, "configuration")
+    _reject_reference_fields(payload, "configuration")
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True,
+                      separators=(",", ":"), allow_nan=False)
 
 
 def _now() -> str:
@@ -149,8 +167,10 @@ class ExperimentSpec:
         for name in ("question", "hypothesis", "decision_rule"):
             object.__setattr__(self, name, _text(getattr(self, name), name))
         object.__setattr__(self, "wli_mode", _enum(self.wli_mode, WliMode, "wli_mode"))
-        object.__setattr__(self, "truth_policy", _enum(self.truth_policy, TruthPolicy, "truth_policy"))
-        mechanisms = tuple(_enum(item, FailureMechanism, "mechanisms[]") for item in self.mechanisms)
+        object.__setattr__(self, "truth_policy", _enum(
+            self.truth_policy, TruthPolicy, "truth_policy"
+        ))
+        mechanisms = tuple(_enum(x, FailureMechanism, "mechanisms[]") for x in self.mechanisms)
         if len(set(mechanisms)) != len(mechanisms):
             raise ValueError("mechanisms must be unique")
         object.__setattr__(self, "mechanisms", mechanisms)
@@ -174,16 +194,14 @@ class ExperimentSpec:
             "benchmark_id": self.benchmark_id, "question": self.question,
             "hypothesis": self.hypothesis, "decision_rule": self.decision_rule,
             "wli_mode": self.wli_mode.value, "truth_policy": self.truth_policy.value,
-            "mechanisms": [item.value for item in self.mechanisms],
+            "mechanisms": [x.value for x in self.mechanisms],
             "budget_seconds": self.budget_seconds, "budget_evaluations": self.budget_evaluations,
         }
 
 
 def canonical_config_hash(configuration: Mapping[str, Any]) -> str:
-    payload = _mapping(configuration, "configuration")
-    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True,
-                         separators=(",", ":"), allow_nan=False).encode("utf-8")
-    return hashlib.blake2b(encoded, digest_size=20, person=b"rdp-cipher-v1").hexdigest()
+    return hashlib.blake2b(_canonical_json(configuration).encode("utf-8"), digest_size=20,
+                           person=b"rdp-cipher-v1").hexdigest()
 
 
 def telemetry_summary(telemetry: Any) -> dict[str, int | float | None]:
@@ -241,19 +259,23 @@ def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
 
 class ExperimentRun:
     def __init__(self, *, spec: ExperimentSpec, configuration: Mapping[str, Any], repo_root: Path,
-                 output_root: Path = Path("output/cipher_development")) -> None:
+                 output_root: Path = _OUTPUT_BASE) -> None:
         if not isinstance(spec, ExperimentSpec):
             raise TypeError("spec must be an ExperimentSpec")
         if not isinstance(repo_root, Path) or not isinstance(output_root, Path):
             raise TypeError("repo_root and output_root must be Path values")
-        if output_root.is_absolute() or ".." in output_root.parts or not output_root.parts \
-                or output_root.parts[0] != "output":
-            raise ValueError("output_root must be repository-relative and stay below output/")
+        if (output_root.is_absolute() or ".." in output_root.parts
+                or output_root == Path("output")
+                or (_OUTPUT_BASE != output_root and _OUTPUT_BASE not in output_root.parents)):
+            raise ValueError("output_root must stay below output/cipher_development/")
+        configuration_json = _canonical_json(configuration)
         self.spec = spec
-        self.configuration = _mapping(configuration, "configuration")
-        self.configuration_hash = canonical_config_hash(self.configuration)
+        self.configuration_hash = hashlib.blake2b(
+            configuration_json.encode("utf-8"), digest_size=20, person=b"rdp-cipher-v1"
+        ).hexdigest()
         self.repo_root = repo_root.resolve()
         self.output_root = output_root
+        self._configuration_json = configuration_json
         self.run_dir: Path | None = None
         self.ledger_path: Path | None = None
         self._start: float | None = None
@@ -262,31 +284,43 @@ class ExperimentRun:
         self._meta: dict[str, Any] = {}
 
     def __enter__(self) -> "ExperimentRun":
+        global _ACTIVE_RUN
         if self._entered:
             raise RuntimeError("ExperimentRun cannot be entered more than once")
-        self._entered, self._start = True, time.perf_counter()
-        out_root = (self.repo_root / self.output_root).resolve()
-        base = (self.repo_root / "output").resolve()
-        if out_root != base and base not in out_root.parents:
-            raise ValueError("output_root must stay below output/")
-        cfg = LoggingConfig(
-            verbose=False, print_progress=False, write_jsonl=True,
-            repo_root=str(self.repo_root), out_root=str(out_root),
-            run_kind=self.spec.campaign_id, label=self.spec.experiment_id,
-            portable_output=True, write_run_artifacts_manifest=False,
-        )
-        self.run_dir = init_logging(cfg)
-        self.ledger_path = out_root / self.spec.campaign_id / "experiment_ledger.jsonl"
-        self._meta = json.loads((self.run_dir / "META.json").read_text(encoding="utf-8"))
-        _write_json(self.run_dir / "artifacts/experiment_manifest.json", {
-            "schema": MANIFEST_SCHEMA, "run_id": self.run_dir.name,
-            "campaign_id": self.spec.campaign_id, "experiment": self.spec.to_json_dict(),
-            "configuration": self.configuration, "configuration_hash": self.configuration_hash,
-            "standard_artifacts": {"run_meta": "META.json", "logging_config": "config/logging.json"},
-            "experiment_artifacts": {"progress_snapshot": "artifacts/progress_snapshot.json",
-                                     "result": "artifacts/experiment_result.json"},
-        })
-        return self
+        if _ACTIVE_RUN is not None:
+            raise RuntimeError("only one ExperimentRun may be active in a process")
+        self._entered, self._start, _ACTIVE_RUN = True, time.perf_counter(), self
+        try:
+            out_root = (self.repo_root / self.output_root).resolve()
+            base = (self.repo_root / _OUTPUT_BASE).resolve()
+            if out_root != base and base not in out_root.parents:
+                raise ValueError("output_root must stay below output/cipher_development/")
+            cfg = LoggingConfig(
+                verbose=False, print_progress=False, write_jsonl=True,
+                repo_root=str(self.repo_root), out_root=str(out_root),
+                run_kind=self.spec.campaign_id, label=self.spec.experiment_id,
+                portable_output=True, write_run_artifacts_manifest=False,
+            )
+            self.run_dir = init_logging(cfg)
+            self.ledger_path = out_root / self.spec.campaign_id / "experiment_ledger.jsonl"
+            self._meta = json.loads((self.run_dir / "META.json").read_text(encoding="utf-8"))
+            _write_json(self.run_dir / "artifacts/experiment_manifest.json", {
+                "schema": MANIFEST_SCHEMA, "run_id": self.run_dir.name,
+                "campaign_id": self.spec.campaign_id, "experiment": self.spec.to_json_dict(),
+                "configuration": json.loads(self._configuration_json),
+                "configuration_hash": self.configuration_hash,
+                "standard_artifacts": {
+                    "run_meta": "META.json", "logging_config": "config/logging.json",
+                },
+                "experiment_artifacts": {
+                    "progress_snapshot": "artifacts/progress_snapshot.json",
+                    "result": "artifacts/experiment_result.json",
+                },
+            })
+            return self
+        except BaseException:
+            _ACTIVE_RUN, self._entered, self._start = None, False, None
+            raise
 
     def _active(self) -> None:
         if not self._entered or self.run_dir is None or self._start is None:
@@ -301,8 +335,9 @@ class ExperimentRun:
     def snapshot(self, *, label: str, metrics: Mapping[str, Any] | None = None,
                  telemetry: Any = None) -> Path:
         self._active()
-        metrics = _mapping(metrics or {}, "metrics")
+        metrics = _optional_mapping(metrics, "metrics")
         _reject_reference_fields(metrics, "metrics")
+        assert self.run_dir is not None
         path = self.run_dir / "artifacts/progress_snapshot.json"
         _write_json(path, {
             "schema": SNAPSHOT_SCHEMA, "recorded_at": _now(), "run_id": self.run_dir.name,
@@ -318,7 +353,7 @@ class ExperimentRun:
         self._active()
         decision = _enum(decision, ExperimentDecision, "decision")
         stop_reason = _text(stop_reason, "stop_reason")
-        summary = _mapping(result_summary or {}, "result_summary")
+        summary = _optional_mapping(result_summary, "result_summary")
         _reject_reference_fields(summary, "result_summary")
         reference = None
         if reference_evaluation is not None:
@@ -328,6 +363,7 @@ class ExperimentRun:
         category = stop_category_for_reason(stop_reason)
         category = getattr(category, "value", str(category))
         elapsed, counters = self._elapsed(), telemetry_summary(telemetry)
+        assert self.run_dir is not None
         path = self.run_dir / "artifacts/experiment_result.json"
         _write_json(path, {
             "schema": RESULT_SCHEMA, "recorded_at": _now(), "run_id": self.run_dir.name,
@@ -336,9 +372,9 @@ class ExperimentRun:
             "stop_reason": stop_reason, "elapsed_s": elapsed, "telemetry": counters,
             "result_summary": summary, "reference_evaluation": reference,
         })
+        self._finished = True
         self._append_row("completed", decision.value, category, stop_reason,
                          elapsed, counters, summary, path)
-        self._finished = True
         return path
 
     def _append_row(self, status: str, decision: str | None, category: str, reason: str,
@@ -353,7 +389,7 @@ class ExperimentRun:
             benchmark_id=self.spec.benchmark_id, question=self.spec.question,
             configuration_hash=self.configuration_hash, wli_mode=self.spec.wli_mode.value,
             truth_policy=self.spec.truth_policy.value,
-            mechanisms=tuple(item.value for item in self.spec.mechanisms),
+            mechanisms=tuple(x.value for x in self.spec.mechanisms),
             status=status, decision=decision, stop_category=category, stop_reason=reason,
             elapsed_s=elapsed, telemetry=telemetry, result_summary=summary,
             result_relpath=result_path.relative_to(self.ledger_path.parent).as_posix(),
@@ -379,20 +415,25 @@ class ExperimentRun:
                 "stop_reason": "exception", "elapsed_s": elapsed, "telemetry": {},
                 "result_summary": summary, "reference_evaluation": None,
             })
-            self._append_row("failed", None, "error", "exception", elapsed, {}, summary, path)
             self._finished = True
+            self._append_row("failed", None, "error", "exception", elapsed, {}, summary, path)
         except Exception:
             pass
 
     def __exit__(self, exc_type, exc, tb) -> bool:
-        if exc is not None:
-            self._fail(exc)
+        global _ACTIVE_RUN
+        try:
+            if exc is not None:
+                self._fail(exc)
+                return False
+            if not self._finished:
+                error = RuntimeError("ExperimentRun exited normally without finish()")
+                self._fail(error)
+                raise error
             return False
-        if not self._finished:
-            error = RuntimeError("ExperimentRun exited normally without finish()")
-            self._fail(error)
-            raise error
-        return False
+        finally:
+            if _ACTIVE_RUN is self:
+                _ACTIVE_RUN = None
 
 
 __all__ = ["ExperimentDecision", "ExperimentRun", "ExperimentSpec", "FailureMechanism",

@@ -8,16 +8,30 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from rune_decrypter_prime.api.stop_reason_contract import STOP_CATEGORIES
+
 SCHEMA = "rdp_cipher_development_experiment_ledger.v1"
 _STATUSES = {"completed", "failed"}
 _DECISIONS = {"promote", "refine", "close"}
-_STOP_CATEGORIES = {"success", "budget", "blocked_before_run", "error", "manual", "not_started"}
+_WLI_MODES = {"with_wli", "without_wli"}
+_TRUTH_POLICIES = {"benchmark_only", "none"}
+_MECHANISMS = {
+    "contract", "objective", "candidate_supply", "diversity_collapse", "ranking",
+    "handoff", "exploitation", "acceptance", "budget", "evidence_reproducibility",
+}
 
 
 def _text(value: Any, name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a non-empty string")
     return value.strip()
+
+
+def _choice(value: Any, name: str, allowed: set[str] | frozenset[str]) -> str:
+    value = _text(value, name)
+    if value not in allowed:
+        raise ValueError(f"{name} must be one of {sorted(allowed)}")
+    return value
 
 
 def _json_value(value: Any, name: str) -> Any:
@@ -41,11 +55,9 @@ def _json_value(value: Any, name: str) -> Any:
 
 def _relpath(value: Any) -> str:
     text = _text(value, "result_relpath")
-    if "\\" in text:
-        raise ValueError("result_relpath must use POSIX separators")
     path = Path(text)
-    if path.is_absolute() or ".." in path.parts:
-        raise ValueError("result_relpath must be campaign-relative")
+    if "\\" in text or path.is_absolute() or ".." in path.parts:
+        raise ValueError("result_relpath must be a campaign-relative POSIX path")
     return path.as_posix()
 
 
@@ -78,30 +90,28 @@ class ExperimentLedgerRow:
             raise ValueError(f"schema must be {SCHEMA!r}")
         for name in (
             "recorded_at", "run_id", "campaign_id", "experiment_id", "benchmark_id",
-            "question", "configuration_hash", "wli_mode", "truth_policy", "stop_reason",
+            "question", "configuration_hash", "stop_reason",
         ):
             object.__setattr__(self, name, _text(getattr(self, name), name))
 
-        mechanisms = tuple(_text(item, "mechanisms[]") for item in self.mechanisms)
+        object.__setattr__(self, "wli_mode", _choice(self.wli_mode, "wli_mode", _WLI_MODES))
+        object.__setattr__(self, "truth_policy", _choice(
+            self.truth_policy, "truth_policy", _TRUTH_POLICIES
+        ))
+        mechanisms = tuple(_choice(item, "mechanisms[]", _MECHANISMS) for item in self.mechanisms)
         if len(set(mechanisms)) != len(mechanisms):
             raise ValueError("mechanisms must not contain duplicates")
         object.__setattr__(self, "mechanisms", mechanisms)
 
-        status = _text(self.status, "status")
-        if status not in _STATUSES:
-            raise ValueError(f"status must be one of {sorted(_STATUSES)}")
-        decision = None if self.decision is None else _text(self.decision, "decision")
-        if decision is not None and decision not in _DECISIONS:
-            raise ValueError(f"decision must be one of {sorted(_DECISIONS)} or None")
+        status = _choice(self.status, "status", _STATUSES)
+        decision = None if self.decision is None else _choice(self.decision, "decision", _DECISIONS)
         if status == "completed" and decision is None:
             raise ValueError("completed ledger rows require a decision")
         object.__setattr__(self, "status", status)
         object.__setattr__(self, "decision", decision)
-
-        category = _text(self.stop_category, "stop_category")
-        if category not in _STOP_CATEGORIES:
-            raise ValueError(f"stop_category must be one of {sorted(_STOP_CATEGORIES)}")
-        object.__setattr__(self, "stop_category", category)
+        object.__setattr__(self, "stop_category", _choice(
+            self.stop_category, "stop_category", STOP_CATEGORIES
+        ))
 
         if isinstance(self.elapsed_s, bool):
             raise TypeError("elapsed_s must be a non-negative finite float")
