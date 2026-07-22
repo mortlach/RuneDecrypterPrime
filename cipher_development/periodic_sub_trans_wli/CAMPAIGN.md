@@ -49,17 +49,21 @@ Select by `seed_raw_score`, using candidate ID as the final deterministic tie-br
 
 ## WLI-ranking arm
 
-Select by `wli_decision_score`, using the WP2 archive's deterministic ranking.
+Select by `wli_decision_score`, using the WP2 archive's deterministic ranking. This compares the complete production WLI policy (`pct.logp.win10`, character plus WLI channels) with the legacy full-text raw character policy. It does not isolate WLI as the only changed scoring component.
 
 ## Exploitation contract
 
-Selected candidates receive identical full-WLI Kaeding settings. Solver seeds depend only on benchmark ID, candidate ID, replicate and the campaign master seed. Candidates selected by both policies are executed once and their exact result is reused in both arm summaries.
+Selected candidates receive identical WLI-driven Kaeding settings. The solver contract explicitly sets `use_raw_score=False`, `seed_selection_metric=pct` and one supplied seed restart. Multiple trials are campaign replicates, so every trial begins from the selected candidate rather than adding an unrelated random restart.
 
-Both final arms are persisted as candidate archives with parent provenance. The terminal best candidate ID, membership and containing artifact are recorded.
+Solver seeds depend only on benchmark ID, candidate ID, replicate and the campaign master seed. Candidates selected by both policies are executed once and their exact result is reused in both arm summaries. The solver-reported score must agree with independent WLI rescoring, and Kaeding telemetry must prove the supplied candidate was the sole restart start.
+
+All material Kaeding and scorer settings are frozen in the experiment configuration. The campaign wall-clock value is an overrun detector checked between bounded solver calls; it is not represented as a hard process timeout.
+
+Both final arms are persisted as candidate archives with parent provenance. The terminal best candidate ID, membership and containing artifact are recorded. Terminal reference evaluation covers every unique final candidate in both archives.
 
 ## Decision rule
 
-Canaries always refine. Full panels also refine when candidate supply is short or the two ranking policies do not provide the configured minimum exclusive candidates. A valid panel promotes when WLI ranking wins more target cases than it loses without positive-control regression; it closes when no target case improves; otherwise it refines.
+Canaries always refine. Full panels also refine when candidate supply is short, the policies do not provide the configured minimum exclusive candidates, too few target cases complete, or too few positive-control cases remain valid. A valid panel promotes when WLI ranking wins more target cases than it loses without positive-control regression; it closes when no target case improves; otherwise it refines.
 
 ## Current result
 

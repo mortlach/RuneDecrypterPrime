@@ -261,9 +261,13 @@ def generate_seed_pool(
             details={"benchmark_id": case.benchmark_id, "pool_index": index - 1},
         )
         records.append(record)
-        result = wli_archive.offer(record)
+        previous_best = (
+            wli_archive.records[0].candidate_id if wli_archive.records else None
+        )
+        wli_archive.offer(record)
         raw_archive.offer(record)
-        if result.retained and result.action.value != "unchanged":
+        current_best = wli_archive.records[0].candidate_id
+        if current_best != previous_best:
             last_improvement = index
 
     evidence = SupplyEvidence(
@@ -320,8 +324,10 @@ def select_ranking_batches(
     wli_only = tuple(candidate_id for candidate_id in wli_ids if candidate_id not in raw_set)
     raw_only = tuple(candidate_id for candidate_id in raw_ids if candidate_id not in wli_set)
     union = wli_set | raw_set
-    raw_ranks = {candidate_id: index + 1 for index, candidate_id in enumerate(raw_ids)}
-    wli_ranks = {candidate_id: index + 1 for index, candidate_id in enumerate(wli_ids)}
+    raw_full_ids = _rank_ids(raw_archive.records, RAW_SCORE)
+    wli_full_ids = _rank_ids(wli_archive.records, WLI_SCORE)
+    raw_ranks = {candidate_id: index + 1 for index, candidate_id in enumerate(raw_full_ids)}
+    wli_ranks = {candidate_id: index + 1 for index, candidate_id in enumerate(wli_full_ids)}
     evidence = SelectionEvidence(
         requested_handoff=budget.handoff_candidates,
         actual_raw_handoff=len(raw_ids),
@@ -365,7 +371,7 @@ def _record_membership(
 
 def _deadline_check(deadline: float) -> None:
     if time.monotonic() >= deadline:
-        raise CampaignWallclockExceeded("WP4 campaign wall-clock safety limit reached")
+        raise CampaignWallclockExceeded("WP4 campaign wall-clock overrun limit reached")
 
 
 def run_exploitation(
@@ -377,7 +383,7 @@ def run_exploitation(
     *,
     started: float,
 ) -> tuple[CandidateArchive, CandidateArchive, tuple[Mapping[str, Any], ...]]:
-    deadline = started + budget.wallclock_limit_s
+    deadline = started + budget.wallclock_overrun_limit_s
     raw_final = CandidateArchive(_archive_policy(WLI_SCORE))
     wli_final = CandidateArchive(_archive_policy(WLI_SCORE))
     membership = _record_membership(raw_batch, wli_batch)
@@ -400,6 +406,16 @@ def run_exploitation(
             solved: SolverEvidence = case.exploit_key(initial_key, seed, budget)
             _deadline_check(deadline)
             raw_scores, wli_scores = case.score_keys([solved.final_key])
+            score_delta = float(solved.reported_score) - float(wli_scores[0])
+            if not math.isclose(
+                float(solved.reported_score),
+                float(wli_scores[0]),
+                rel_tol=1e-6,
+                abs_tol=1e-8,
+            ):
+                raise RuntimeError(
+                    "Kaeding reported score does not match independent WLI rescoring"
+                )
             evaluation_index += max(1, solved.evaluations)
             final_record = candidate_record_for_key(
                 case,
@@ -418,6 +434,7 @@ def run_exploitation(
                     "solver_evaluations": solved.evaluations,
                     "solver_elapsed_s": solved.elapsed_s,
                     "solver_stop_reason": solved.stop_reason,
+                    "solver_wli_score_delta": score_delta,
                 },
             )
             if "raw" in membership[candidate_id]:
@@ -436,6 +453,7 @@ def run_exploitation(
                 "final_wli_score": final_record.scores[WLI_SCORE],
                 "wli_gain": final_record.scores[WLI_SCORE] - parent.scores[WLI_SCORE],
                 "solver_reported_score": solved.reported_score,
+                "solver_wli_score_delta": score_delta,
                 "evaluations": solved.evaluations,
                 "elapsed_s": solved.elapsed_s,
                 "stop_reason": solved.stop_reason,
@@ -542,7 +560,10 @@ def panel_decision(
         return "refine"
     valid = [row for row in case_summaries if bool(row["valid"])]
     targets = [row for row in valid if row["family"] == "target"]
+    controls = [row for row in valid if row["family"] == "positive_control"]
     if len(targets) < budget.minimum_completed_target_cases:
+        return "refine"
+    if len(controls) < budget.minimum_completed_positive_controls:
         return "refine"
     wins = sum(
         row["wli_best_advantage"] >= -1e-15 and row["wli_median_advantage"] > 1e-15
@@ -552,8 +573,11 @@ def panel_decision(
         row["wli_best_advantage"] < -1e-15 or row["wli_median_advantage"] < -1e-15
         for row in targets
     )
-    controls = [row for row in valid if row["family"] == "positive_control"]
-    control_regressed = any(row["wli_best_advantage"] < -1e-12 for row in controls)
+    control_regressed = any(
+        row["wli_best_advantage"] < -1e-12
+        or row["wli_median_advantage"] < -1e-12
+        for row in controls
+    )
     if wins > losses and not control_regressed:
         return "promote"
     if wins == 0 and all(

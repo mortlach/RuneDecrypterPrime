@@ -80,6 +80,6 @@ Candidate identities and payloads must not contain reference truth, expected pla
 ## Established campaigns
 
 - `two_period_overlay/` tests archive handoff on a crib-constrained affine P13/P17 overlay.
-- `periodic_sub_trans_wli/` tests raw versus full-WLI ranking over one periodic-columnar candidate pool, followed by equal-budget seeded exploitation.
+- `periodic_sub_trans_wli/` tests legacy raw versus production full-WLI ranking over one periodic-columnar candidate pool, followed by equal-budget WLI-driven seeded exploitation.
 
 The two campaigns deliberately use different key structures and scientific questions while reusing the WP1 experiment and WP2 archive/replay contracts unchanged.

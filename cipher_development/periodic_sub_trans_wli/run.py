@@ -10,6 +10,7 @@ from cipher_development.periodic_sub_trans_wli.benchmark import (
 from cipher_development.periodic_sub_trans_wli.config import (
     ALPHABET_SIZE,
     ARCHIVE_CAPACITY,
+    KAEDING_SOLVER_CONTRACT,
     MASTER_SEED,
     ORDER,
     RAW_SCORE,
@@ -52,7 +53,10 @@ def _budget_configuration(budget: RunBudget) -> dict[str, Any]:
         "solver_inner_batch": budget.solver_inner_batch,
         "minimum_policy_exclusive": budget.minimum_policy_exclusive,
         "minimum_completed_target_cases": budget.minimum_completed_target_cases,
-        "wallclock_limit_s": budget.wallclock_limit_s,
+        "minimum_completed_positive_controls": (
+            budget.minimum_completed_positive_controls
+        ),
+        "wallclock_overrun_limit_s": budget.wallclock_overrun_limit_s,
         "seed_plan": {
             "n_block_seeds": budget.seed_plan.n_block_seeds,
             "n_tail_seeds": budget.seed_plan.n_tail_seeds,
@@ -62,6 +66,27 @@ def _budget_configuration(budget: RunBudget) -> dict[str, Any]:
             "temp_start": budget.seed_plan.temp_start,
             "temp_end": budget.seed_plan.temp_end,
         },
+    }
+
+
+def _archive_reference_metrics(reference: Any, archive: Any) -> dict[str, Any]:
+    candidates: dict[str, dict[str, Any]] = {}
+    for record in archive.records:
+        candidates[record.candidate_id] = reference_metrics(
+            reference, record.payload["expanded_key"]
+        )
+    rows = list(candidates.values())
+    return {
+        "candidate_count": len(rows),
+        "exact_solve_count": sum(bool(row["exact_plaintext"]) for row in rows),
+        "best_rune_matches": max((int(row["rune_matches"]) for row in rows), default=0),
+        "best_complete_word_matches": max(
+            (int(row["complete_word_matches"]) for row in rows), default=0
+        ),
+        "canonical_key_equal_count": sum(
+            bool(row["canonical_key_equal"]) for row in rows
+        ),
+        "candidates": candidates,
     }
 
 
@@ -102,7 +127,7 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
             FailureMechanism.HANDOFF,
             FailureMechanism.EXPLOITATION,
         ),
-        budget_seconds=budget.wallclock_limit_s * len(specs),
+        budget_seconds=budget.wallclock_overrun_limit_s * len(specs),
     )
     configuration = {
         "profile": profile,
@@ -116,6 +141,7 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
         "budget": _budget_configuration(budget),
         "raw_scoring": RAW_SCORING_CONTRACT,
         "wli_scoring": WLI_SCORING_CONTRACT,
+        "kaeding_solver": KAEDING_SOLVER_CONTRACT,
     }
 
     with ExperimentRun(spec=experiment, configuration=configuration, repo_root=repo_root) as run:
@@ -150,11 +176,13 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
             summary = case_summary(search_case, outcome)
             case_summaries.append(summary)
 
-            raw_best = outcome.raw_final_archive.records[0]
-            wli_best = outcome.wli_final_archive.records[0]
             reference_cases[search_case.benchmark_id] = {
-                "raw_arm": reference_metrics(reference, raw_best.payload["expanded_key"]),
-                "wli_arm": reference_metrics(reference, wli_best.payload["expanded_key"]),
+                "raw_arm": _archive_reference_metrics(
+                    reference, outcome.raw_final_archive
+                ),
+                "wli_arm": _archive_reference_metrics(
+                    reference, outcome.wli_final_archive
+                ),
             }
             best_candidates[search_case.benchmark_id] = {
                 "candidate_id": outcome.best_candidate_id,

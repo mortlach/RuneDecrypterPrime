@@ -78,7 +78,8 @@ class RunBudget:
     solver_inner_batch: int
     minimum_policy_exclusive: int
     minimum_completed_target_cases: int
-    wallclock_limit_s: float
+    minimum_completed_positive_controls: int
+    wallclock_overrun_limit_s: float
     seed_plan: SeedPoolPlan
 
     def __post_init__(self) -> None:
@@ -91,6 +92,7 @@ class RunBudget:
             "solver_inner_batch",
             "minimum_policy_exclusive",
             "minimum_completed_target_cases",
+            "minimum_completed_positive_controls",
         ):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, int):
@@ -101,12 +103,14 @@ class RunBudget:
             raise ValueError("candidate_pool_size must not exceed archive capacity")
         if self.handoff_candidates > self.candidate_pool_size:
             raise ValueError("handoff_candidates must not exceed candidate_pool_size")
-        if isinstance(self.wallclock_limit_s, bool):
-            raise TypeError("wallclock_limit_s must be a positive finite number")
-        limit = float(self.wallclock_limit_s)
+        if self.solver_restarts != 1:
+            raise ValueError("WP4 requires one seeded solver restart per campaign replicate")
+        if isinstance(self.wallclock_overrun_limit_s, bool):
+            raise TypeError("wallclock_overrun_limit_s must be a positive finite number")
+        limit = float(self.wallclock_overrun_limit_s)
         if not math.isfinite(limit) or limit <= 0:
-            raise ValueError("wallclock_limit_s must be a positive finite number")
-        object.__setattr__(self, "wallclock_limit_s", limit)
+            raise ValueError("wallclock_overrun_limit_s must be a positive finite number")
+        object.__setattr__(self, "wallclock_overrun_limit_s", limit)
         if not isinstance(self.seed_plan, SeedPoolPlan):
             raise TypeError("seed_plan must be a SeedPoolPlan")
 
@@ -151,30 +155,73 @@ FULL_CASES = tuple(
     for variant, seed in enumerate((111, 222), start=1)
 )
 
-RAW_SCORING_CONTRACT = {
-    "objective": "avg.logp",
-    "include_char": True,
-    "use_word_breaks": False,
-    "n_char": 4,
-    "n_wli": 4,
-    "char_weights": {3: 0.5, 4: 0.5},
-    "wli_weights": {3: 0.5, 4: 0.5},
-    "encoding_direction": "ltr",
-    "avg_window_policy": "full_text",
-    "hard_crib": False,
-}
 
-WLI_SCORING_CONTRACT = {
-    "objective": "pct.logp.win10",
-    "include_char": True,
-    "use_word_breaks": True,
-    "n_char": 4,
-    "n_wli": 4,
-    "char_weights": {3: 0.5, 4: 0.5},
-    "wli_weights": {3: 0.5, 4: 0.5},
-    "encoding_direction": "ltr",
-    "avg_window_policy": "fixed_win",
-    "hard_crib": False,
+def _scoring_contract(*, objective: str, use_word_breaks: bool, avg_window_policy: str) -> dict:
+    return {
+        "model_root": None,
+        "smoothing": "auto_gt",
+        "alpha": 0.5,
+        "oov_policy": "floor_min_seen",
+        "objective": objective,
+        "include_char": True,
+        "use_word_breaks": use_word_breaks,
+        "n_char": 4,
+        "n_wli": 4,
+        "win": 10,
+        "stride": 1,
+        "se_mode": "nose",
+        "weights": [0.25, 0.75],
+        "maximize": True,
+        "char_weights": {3: 0.5, 4: 0.5},
+        "wli_weights": {3: 0.5, 4: 0.5},
+        "encoding_direction": "ltr",
+        "avg_window_policy": avg_window_policy,
+        "impl": "auto",
+        "compute_dtype": "float32",
+        "acc_dtype": "float64",
+        "dtype": "float64",
+        "ecdf_clamp_min": 1e-6,
+        "ecdf_clamp_max": 1.0 - 1e-6,
+        "diagnostics_enabled": False,
+        "hard_crib": False,
+        "hamming_enabled": False,
+        "span_hamming_enabled": False,
+        "word_ngram_judge_enabled": False,
+    }
+
+
+RAW_SCORING_CONTRACT = _scoring_contract(
+    objective="avg.logp",
+    use_word_breaks=False,
+    avg_window_policy="full_text",
+)
+WLI_SCORING_CONTRACT = _scoring_contract(
+    objective="pct.logp.win10",
+    use_word_breaks=True,
+    avg_window_policy="fixed_win",
+)
+
+KAEDING_SOLVER_CONTRACT = {
+    "block_schedule": "round_robin",
+    "slip_every": 50,
+    "slip_blocks": 1,
+    "col_every": 10,
+    "col_batch": 64,
+    "seed_selection_metric": "pct",
+    "seed_restarts": 1,
+    "slip_policy": "fixed",
+    "stall_rounds": 50,
+    "stall_slip_limit": 2,
+    "slip_swaps": 20,
+    "stall_stop_on_limit": False,
+    "slip_follow_steps": 200,
+    "use_raw_score": False,
+    "raw_accept_min_delta": 1e-6,
+    "pct_plateau_min_delta": 0.0,
+    "delta_window": 200,
+    "top_k": 0,
+    "plateau_rounds": 360,
+    "plateau_min_delta": 1e-6,
 }
 
 RUN_BUDGETS = {
@@ -187,7 +234,8 @@ RUN_BUDGETS = {
         solver_inner_batch=8,
         minimum_policy_exclusive=1,
         minimum_completed_target_cases=1,
-        wallclock_limit_s=900.0,
+        minimum_completed_positive_controls=1,
+        wallclock_overrun_limit_s=900.0,
         seed_plan=SeedPoolPlan(
             n_block_seeds=3,
             n_tail_seeds=3,
@@ -202,12 +250,13 @@ RUN_BUDGETS = {
         candidate_pool_size=64,
         handoff_candidates=8,
         exploitation_replicates=2,
-        solver_restarts=2,
+        solver_restarts=1,
         solver_steps=300,
         solver_inner_batch=32,
         minimum_policy_exclusive=2,
         minimum_completed_target_cases=4,
-        wallclock_limit_s=28_800.0,
+        minimum_completed_positive_controls=2,
+        wallclock_overrun_limit_s=28_800.0,
         seed_plan=SeedPoolPlan(
             n_block_seeds=6,
             n_tail_seeds=6,
