@@ -86,12 +86,17 @@ A replayable campaign persists:
 ```text
 artifacts/replay_context.json
 candidate archive or replay batch
+artifacts/<selection>_binding.json
 artifacts/experiment_manifest.json
 artifacts/experiment_result.json
 ```
 
-The replay context contains only search-visible information required to reconstruct evaluation. It must not contain benchmark truth. Replay verifies or reranks saved candidates; it does not rerun discovery or exploitation.
+The replay context contains only search-visible information required to reconstruct evaluation. It must not contain benchmark truth. It should freeze all material scorer settings and evaluator/model provenance needed to identify the historic surface.
+
+The replay binding must join the exact source run, benchmark, configuration hash, context ID, batch ID, source archive hash and relative artifact paths. The source result records the binding ID and path. Replay verifies the binding, source result and candidate identity/payload agreement before evaluation.
+
+Replay verifies or reranks saved candidates; it does not rerun discovery or exploitation. A completed replay uses a successful stop reason such as `done` while retaining the scientific decision `refine`.
 
 ## Milestone synthesis
 
-Generate a milestone synthesis after a meaningful group of runs, not after every run. Select run IDs explicitly. Review the generated JSON and Markdown together with raw artifacts, then update `CAMPAIGN.md` and `LESSONS.md` manually.
+Generate a milestone synthesis after a meaningful group of runs, not after every run. Select run IDs explicitly. Replay runs must contribute a readable, semantically validated and hashed replay-evidence artifact rather than only copied result-summary claims. Review the generated JSON and Markdown together with raw artifacts, then update `CAMPAIGN.md` and `LESSONS.md` manually.

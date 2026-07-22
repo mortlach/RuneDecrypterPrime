@@ -80,11 +80,15 @@ The full expanded, gauge-fixed key. Payloads also retain the affine variables re
 
 ## Current candidate archive status
 
-The implementation writes coordinate, handoff, final and control-final candidate artifacts. No full-run archive has yet been reviewed.
+The implementation writes coordinate, handoff, final and control-final candidate artifacts. It also writes content-addressed bindings for the archive-handoff and independent-control starting batches. No full-run archive has yet been reviewed.
 
 ## Replay plan
 
-Each run writes `artifacts/replay_context.json` before discovery. The context contains ciphertext, WLI, crib, affine matrices, gauge and scoring contract, but no plaintext or benchmark key. `replay.py` verifies or reranks a saved batch without coordinate search, SA or coordinate polish.
+Each run writes `artifacts/replay_context.json` before discovery. The context contains ciphertext, WLI, crib, affine matrices, gauge, a fully frozen scoring contract and evaluator/model provenance, but no plaintext or benchmark key.
+
+After candidate batches are written, the run creates `archive_handoff_binding.json` and `control_start_binding.json`. Each binding joins the run ID, benchmark, configuration hash, replay context, exact batch and source archive. The completed source result records the binding IDs and artifact paths.
+
+`replay.py` requires a recorded binding and completed source result. It verifies evaluator/model provenance, candidate identity–payload agreement, affine reconstruction and the gauge before scoring. It verifies or reranks the saved batch without coordinate search, SA or coordinate polish.
 
 ## Current result
 
@@ -96,8 +100,8 @@ None yet.
 
 ## Next experiment
 
-Run and review the committed canary on a full RDP checkout, then replay its archive-handoff batch twice. Only then approve the bounded full paired experiment.
+Run and review the committed canary on a full RDP checkout, then replay its bound archive-handoff batch twice. Only then approve the bounded full paired experiment.
 
 ## Candidate lessons awaiting promotion
 
-CSL-007 remains `candidate`: real replay must show that the saved candidate surface can be rescored deterministically without rediscovery.
+CSL-007 remains `candidate`: real replay must show that the bound saved candidate surface can be rescored deterministically without rediscovery.

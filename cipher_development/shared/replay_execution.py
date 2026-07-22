@@ -12,6 +12,7 @@ from cipher_development.shared.replay import (
     _reject_replay_reference_fields,
     _text,
 )
+from cipher_development.shared.replay_binding import CandidateReplayBinding
 from cipher_development.shared.replay_evidence import (
     EVIDENCE_SCHEMA,
     CandidateReplayEvidence,
@@ -20,6 +21,7 @@ from cipher_development.shared.replay_evidence import (
     ReplayMode,
     _replay_id,
 )
+
 
 def _coerce_evaluation(value: Any) -> ReplayEvaluation:
     if isinstance(value, ReplayEvaluation):
@@ -40,6 +42,7 @@ def _within_tolerance(a: float, b: float, absolute: float, relative: float) -> b
 def replay_candidate_batch(
     batch: CandidateReplayBatch,
     context: CandidateReplayContext,
+    binding: CandidateReplayBinding,
     *,
     evaluator: Callable[
         [CandidateRecord, CandidateReplayContext],
@@ -57,6 +60,9 @@ def replay_candidate_batch(
         raise TypeError("batch must be a CandidateReplayBatch")
     if not isinstance(context, CandidateReplayContext):
         raise TypeError("context must be a CandidateReplayContext")
+    if not isinstance(binding, CandidateReplayBinding):
+        raise TypeError("binding must be a CandidateReplayBinding")
+    binding.validate(batch, context)
     if not callable(evaluator):
         raise TypeError("evaluator must be callable")
     try:
@@ -108,7 +114,6 @@ def replay_candidate_batch(
                 ):
                     deterministic = False
 
-        observed_score = evaluations[0].scores[decision_score]
         stored_delta = None
         if mode_value is ReplayMode.VERIFY:
             if decision_score not in candidate.scores:
@@ -152,6 +157,7 @@ def replay_candidate_batch(
     content = {
         "schema": EVIDENCE_SCHEMA,
         "mode": mode_value.value,
+        "source_binding_id": binding.binding_id,
         "source_batch_id": batch.batch_id,
         "source_archive_hash": batch.source_archive_hash,
         "source_context_id": context.context_id,
@@ -173,7 +179,6 @@ def replay_candidate_batch(
         "replay_id": _replay_id(content),
         **content,
     })
-
 
 
 __all__ = ["replay_candidate_batch"]

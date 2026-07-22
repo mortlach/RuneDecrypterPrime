@@ -81,11 +81,15 @@ Canaries always refine. Full panels also refine when candidate supply is short, 
 
 ## Current candidate archive status
 
-Each case writes the seed-pool archive, raw and WLI handoff batches, and both final archives. No full-panel archive set has yet been reviewed.
+Each case writes the seed-pool archive, raw and WLI handoff batches, both final archives and content-addressed bindings for the two handoff batches. No full-panel archive set has yet been reviewed.
 
 ## Replay plan
 
-Each case writes `artifacts/<benchmark_id>/replay_context.json` before candidate generation. The context contains ciphertext, WLI, dimensions and both scoring contracts, but no plaintext, truth-key seed or benchmark key. `replay.py` validates structured keys and recalculates raw and WLI scores without seed generation or Kaeding.
+Each case writes `artifacts/<benchmark_id>/replay_context.json` before candidate generation. The context contains ciphertext, WLI, dimensions, both complete scoring contracts and evaluator/model provenance, but no plaintext, truth-key seed or benchmark key.
+
+After selection, the case writes `raw_handoff_binding.json` and `wli_handoff_binding.json`. Each binding joins the source run, exact benchmark variant, configuration, context, batch and source archive; the completed panel result records every binding ID and path.
+
+`replay.py` requires a recorded binding and completed source result. It validates evaluator/model provenance, context dimensions and score contracts, then requires candidate identity, payload and structured-key fields to agree exactly before recalculating raw and WLI scores. Replay performs no seed generation or Kaeding exploitation.
 
 ## Current result
 
@@ -97,11 +101,11 @@ None.
 
 ## Next experiment
 
-Run the committed canary with the full language-model assets, replay a saved handoff or seed-pool batch twice, review candidate supply and policy overlap, then freeze the full-panel solver budget before any expensive run.
+Run the committed canary with the full language-model assets, replay a bound WLI-handoff or raw-handoff batch twice, review candidate supply and policy overlap, then freeze the full-panel solver budget before any expensive run.
 
 ## Candidate lessons awaiting promotion
 
-CSL-007 remains `candidate`: deterministic real-RDP replay must be demonstrated before it can be supported.
+CSL-007 remains `candidate`: deterministic real-RDP replay of a bound candidate surface must be demonstrated before it can be supported.
 
 ## Generality evidence
 

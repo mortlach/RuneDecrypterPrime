@@ -7,6 +7,11 @@ from pathlib import Path
 import numpy as np
 
 from cipher_development.shared.replay import write_replay_context
+from cipher_development.shared.replay_binding import (
+    CandidateReplayBinding,
+    write_replay_binding,
+)
+from cipher_development.shared.replay_provenance import build_evaluator_provenance
 from cipher_development.two_period_overlay.benchmark import (
     build_rdp_case,
     normalise_baseline_result,
@@ -174,10 +179,19 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
     }
     with ExperimentRun(spec=spec, configuration=configuration, repo_root=repo_root) as run:
         assert run.run_dir is not None
+        run_meta = json.loads((run.run_dir / "META.json").read_text(encoding="utf-8"))
+        evaluator_provenance = build_evaluator_provenance(
+            repo_root=repo_root,
+            evaluator_source=Path(__file__).with_name("replay.py"),
+            scoring_contracts=(SCORING_CONTRACT,),
+            run_meta=run_meta,
+            require_assets=True,
+        )
         replay_context = make_replay_context(
             search_case,
             run_id=run.run_dir.name,
             configuration_hash=run.configuration_hash,
+            evaluator_provenance=evaluator_provenance,
         )
         write_replay_context(
             run.run_dir / "artifacts/replay_context.json", replay_context
@@ -198,14 +212,46 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
             budget,
             progress=lambda label, metrics: run.snapshot(label=label, metrics=metrics),
         )
-        artifact_names = dict(
-            write_search_artifacts(run.run_dir / "artifacts", outcome)
-        )
+        artifact_names = dict(write_search_artifacts(run.run_dir / "artifacts", outcome))
         artifact_names["replay_context"] = "replay_context.json"
+        bindings: dict[str, dict[str, str]] = {}
+        for name, batch, batch_filename, binding_filename in (
+            (
+                "archive_handoff",
+                outcome.handoff_batch,
+                "archive_handoff_batch.json",
+                "archive_handoff_binding.json",
+            ),
+            (
+                "control_start",
+                outcome.control_batch,
+                "control_start_batch.json",
+                "control_start_binding.json",
+            ),
+        ):
+            binding = CandidateReplayBinding.create(
+                campaign_id="two_period_overlay",
+                source_run_id=run.run_dir.name,
+                configuration_hash=run.configuration_hash,
+                benchmark_id="alice_308_p13_p17",
+                context=replay_context,
+                batch=batch,
+                context_artifact="artifacts/replay_context.json",
+                batch_artifact=f"artifacts/{batch_filename}",
+            )
+            write_replay_binding(run.run_dir / "artifacts" / binding_filename, binding)
+            artifact_names[f"{name}_binding"] = binding_filename
+            bindings[name] = {
+                "binding_id": binding.binding_id,
+                "artifact": f"artifacts/{binding_filename}",
+                "batch_id": batch.batch_id,
+                "context_id": replay_context.context_id,
+            }
         run.snapshot(label="handoff_batches_written", metrics={
             "archive_candidates": len(outcome.handoff_batch.candidates),
             "control_candidates": len(outcome.control_batch.candidates),
             "control_final_candidates": len(outcome.control_archive.records),
+            "archive_binding_id": bindings["archive_handoff"]["binding_id"],
         })
         summary = comparison_summary(outcome)
         decision = campaign_decision(summary, profile)
@@ -238,6 +284,7 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
                 "best_candidate_artifact": best_artifact,
                 "replay_context_id": replay_context.context_id,
                 "replay_context_artifact": "artifacts/replay_context.json",
+                "replay_bindings": bindings,
                 "evaluations": outcome.evaluations,
                 "elapsed_s": outcome.elapsed_s,
                 "coordinate_restarts": budget.coordinate_restarts,

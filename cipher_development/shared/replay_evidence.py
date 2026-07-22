@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
@@ -11,7 +11,6 @@ from types import MappingProxyType
 from typing import Any
 
 from cipher_development.shared.archive import (
-    CandidateRecord,
     _atomic_write_json,
     _candidate_id,
     _canonical_json,
@@ -19,8 +18,6 @@ from cipher_development.shared.archive import (
     _thaw_json,
 )
 from cipher_development.shared.replay import (
-    CandidateReplayBatch,
-    CandidateReplayContext,
     _finite,
     _hash40,
     _identifier,
@@ -30,14 +27,15 @@ from cipher_development.shared.replay import (
     _text,
 )
 
-EVIDENCE_SCHEMA = "rdp_cipher_development_candidate_replay_evidence.v1"
+EVIDENCE_SCHEMA = "rdp_cipher_development_candidate_replay_evidence.v2"
 _EVIDENCE_KEYS = frozenset({
-    "schema", "replay_id", "mode", "source_batch_id", "source_archive_hash",
-    "source_context_id", "evaluator_id", "configuration_hash", "decision_score",
-    "higher_is_better", "repeat_count", "absolute_tolerance", "relative_tolerance",
-    "candidate_ids", "observations", "ranking", "deterministic",
-    "stored_scores_verified", "evaluator_configuration",
+    "schema", "replay_id", "mode", "source_binding_id", "source_batch_id",
+    "source_archive_hash", "source_context_id", "evaluator_id",
+    "configuration_hash", "decision_score", "higher_is_better", "repeat_count",
+    "absolute_tolerance", "relative_tolerance", "candidate_ids", "observations",
+    "ranking", "deterministic", "stored_scores_verified", "evaluator_configuration",
 })
+
 
 class ReplayMode(StrEnum):
     VERIFY = "verify"
@@ -100,9 +98,8 @@ class CandidateReplayObservation:
         )
         if maximum != calculated_maximum:
             raise ValueError("maximum_repeat_delta contradicts repeat_scores")
-        stored_delta = (
-            None if self.stored_score_delta is None
-            else _non_negative(self.stored_score_delta, "stored_score_delta")
+        stored_delta = None if self.stored_score_delta is None else _non_negative(
+            self.stored_score_delta, "stored_score_delta"
         )
         object.__setattr__(self, "candidate_id", candidate_id)
         object.__setattr__(self, "stored_scores", stored)
@@ -144,6 +141,7 @@ def _evidence_content(evidence: "CandidateReplayEvidence") -> dict[str, Any]:
     return {
         "schema": EVIDENCE_SCHEMA,
         "mode": evidence.mode.value,
+        "source_binding_id": evidence.source_binding_id,
         "source_batch_id": evidence.source_batch_id,
         "source_archive_hash": evidence.source_archive_hash,
         "source_context_id": evidence.source_context_id,
@@ -167,7 +165,7 @@ def _replay_id(content: Mapping[str, Any]) -> str:
     return hashlib.blake2b(
         _canonical_json(content, "replay_evidence").encode("utf-8"),
         digest_size=20,
-        person=b"rdp-evidence-v1",
+        person=b"rdp-evidence-v2",
     ).hexdigest()
 
 
@@ -180,6 +178,7 @@ class CandidateReplayEvidence:
     schema: str
     replay_id: str
     mode: ReplayMode
+    source_binding_id: str
     source_batch_id: str
     source_archive_hash: str
     source_context_id: str
@@ -204,6 +203,7 @@ class CandidateReplayEvidence:
             mode = self.mode if isinstance(self.mode, ReplayMode) else ReplayMode(str(self.mode))
         except ValueError as exc:
             raise ValueError("mode must be verify or rerank") from exc
+        source_binding_id = _hash40(self.source_binding_id, "source_binding_id")
         source_batch_id = _hash40(self.source_batch_id, "source_batch_id")
         source_archive_hash = _hash40(self.source_archive_hash, "source_archive_hash")
         source_context_id = _hash40(self.source_context_id, "source_context_id")
@@ -276,9 +276,17 @@ class CandidateReplayEvidence:
             if any(item.stored_score_delta is not None for item in observations):
                 raise ValueError("rerank observations must not contain stored score deltas")
         else:
+            missing = [
+                item.candidate_id for item in observations
+                if decision_score not in item.stored_scores
+            ]
+            if missing:
+                raise ValueError(
+                    "verify evidence stored scores are missing the decision score for "
+                    f"{missing}"
+                )
             calculated_verified = all(
-                decision_score in item.stored_scores
-                and all(
+                all(
                     _within_tolerance(
                         repeat[decision_score],
                         item.stored_scores[decision_score],
@@ -290,27 +298,20 @@ class CandidateReplayEvidence:
                 for item in observations
             )
             if self.stored_scores_verified != calculated_verified:
-                raise ValueError(
-                    "stored_scores_verified contradicts stored and observed scores"
-                )
+                raise ValueError("stored_scores_verified contradicts stored and observed scores")
             for item in observations:
                 expected_delta = max(
-                    abs(
-                        repeat[decision_score]
-                        - item.stored_scores[decision_score]
-                    )
+                    abs(repeat[decision_score] - item.stored_scores[decision_score])
                     for repeat in item.repeat_scores
                 )
                 if item.stored_score_delta != expected_delta:
-                    raise ValueError(
-                        "stored_score_delta contradicts stored and observed scores"
-                    )
+                    raise ValueError("stored_score_delta contradicts stored and observed scores")
         evaluator_configuration = _snapshot_json(
             self.evaluator_configuration, "evaluator_configuration"
         )
         _reject_replay_reference_fields(evaluator_configuration, "evaluator_configuration")
-
         object.__setattr__(self, "mode", mode)
+        object.__setattr__(self, "source_binding_id", source_binding_id)
         object.__setattr__(self, "source_batch_id", source_batch_id)
         object.__setattr__(self, "source_archive_hash", source_archive_hash)
         object.__setattr__(self, "source_context_id", source_context_id)
@@ -348,7 +349,6 @@ class CandidateReplayEvidence:
         return cls(**values)
 
 
-
 def write_candidate_replay(path: Path, evidence: CandidateReplayEvidence) -> None:
     if not isinstance(evidence, CandidateReplayEvidence):
         raise TypeError("evidence must be CandidateReplayEvidence")
@@ -365,7 +365,6 @@ def read_candidate_replay(path: Path) -> CandidateReplayEvidence:
     if not isinstance(payload, Mapping) or payload.get("schema") != EVIDENCE_SCHEMA:
         raise ValueError(f"candidate replay schema must be {EVIDENCE_SCHEMA!r}")
     return CandidateReplayEvidence.from_json_dict(payload)
-
 
 
 __all__ = [

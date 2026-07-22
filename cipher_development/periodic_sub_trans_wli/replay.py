@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
+from typing import Any, Mapping
 
 import numpy as np
 
@@ -15,21 +15,23 @@ from cipher_development.periodic_sub_trans_wli.config import (
     RAW_SCORE,
     WLI_SCORE,
 )
-from cipher_development.shared.replay import (
-    CandidateReplayContext,
-    read_candidate_batch,
-    read_replay_context,
-)
+from cipher_development.shared.replay import CandidateReplayContext
+from cipher_development.shared.replay_binding import load_bound_replay_source
 from cipher_development.shared.replay_evidence import (
     ReplayEvaluation,
     ReplayMode,
     write_candidate_replay,
 )
 from cipher_development.shared.replay_execution import replay_candidate_batch
+from cipher_development.shared.replay_provenance import (
+    build_evaluator_provenance,
+    validate_evaluator_provenance,
+)
 
 SOURCE_RUN_ID = ""
-SOURCE_BATCH_RELPATH = Path("artifacts/<benchmark_id>/wli_handoff_batch.json")
-SOURCE_CONTEXT_RELPATH = Path("artifacts/<benchmark_id>/replay_context.json")
+SOURCE_BINDING_RELPATH = Path(
+    "artifacts/<benchmark_id>/wli_handoff_binding.json"
+)
 REPLAY_MODE = ReplayMode.VERIFY
 DECISION_SCORE_NAME = WLI_SCORE
 REPEAT_COUNT = 2
@@ -38,7 +40,7 @@ RELATIVE_TOLERANCE = 1e-12
 
 
 def _portable_json(value):
-    if isinstance(value, dict):
+    if isinstance(value, Mapping):
         return {str(key): _portable_json(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
         return [_portable_json(item) for item in value]
@@ -52,12 +54,13 @@ def make_replay_context(
     configuration_hash: str,
     raw_scoring: dict,
     wli_scoring: dict,
+    evaluator_provenance: Mapping[str, Any],
 ) -> CandidateReplayContext:
     return CandidateReplayContext.create(
         campaign_id="periodic_sub_trans_wli",
         run_id=run_id,
         configuration_hash=configuration_hash,
-        evaluator_id="periodic_columnar_dual_score_v1",
+        evaluator_id="periodic_columnar_dual_score_v2",
         payload={
             "benchmark_id": search_case.benchmark_id,
             "family": search_case.family,
@@ -76,8 +79,50 @@ def make_replay_context(
                 "structure": "periodic_structured",
                 "key_length": search_case.period * ALPHABET_SIZE + search_case.columns,
             },
+            "evaluator_provenance": _portable_json(evaluator_provenance),
         },
     )
+
+
+def validate_candidate_payload(candidate, context: CandidateReplayContext) -> np.ndarray:
+    payload = context.payload
+    period = int(payload["period"])
+    columns = int(payload["columns"])
+    if payload["order"] != ORDER:
+        raise ValueError("replay context order does not match the campaign")
+    expected_length = period * int(payload["alphabet_size"]) + columns
+    if int(payload["key_contract"]["key_length"]) != expected_length:
+        raise ValueError("replay key contract length is inconsistent")
+    if payload["raw_score"] != RAW_SCORE or payload["wli_score"] != WLI_SCORE:
+        raise ValueError("replay context score names do not match the campaign")
+    key = validate_structured_key(
+        candidate.payload["expanded_key"], period=period, columns=columns
+    )
+    key_list = key.astype(int).tolist()
+    expected_identity = {
+        "cipher": "periodic_columnar",
+        "order": payload["order"],
+        "period": period,
+        "columns": columns,
+        "expanded_key": key_list,
+    }
+    if _portable_json(candidate.identity) != expected_identity:
+        raise ValueError("candidate identity and payload structured key disagree")
+    expected_payload = {
+        "expanded_key": key_list,
+        "period": period,
+        "columns": columns,
+        "order": payload["order"],
+    }
+    actual_payload = {
+        "expanded_key": _portable_json(candidate.payload["expanded_key"]),
+        "period": int(candidate.payload["period"]),
+        "columns": int(candidate.payload["columns"]),
+        "order": str(candidate.payload["order"]),
+    }
+    if actual_payload != expected_payload:
+        raise ValueError("candidate payload structure disagrees with the replay context")
+    return key
 
 
 def build_replay_evaluator(context: CandidateReplayContext):
@@ -95,6 +140,8 @@ def build_replay_evaluator(context: CandidateReplayContext):
     columns = int(payload["columns"])
     ciphertext = np.asarray(payload["ciphertext"], dtype=np.uint8)
     wli = tuple((int(a), int(b)) for a, b in payload["wli"])
+    if len(ciphertext) != int(payload["length"]) or len(wli) != len(ciphertext):
+        raise ValueError("replay context length, ciphertext and WLI disagree")
     spec, key_spec = by_name.cipher_with_key(
         "periodic_columnar",
         period=period,
@@ -133,10 +180,8 @@ def build_replay_evaluator(context: CandidateReplayContext):
     raw_problem = make_problem(payload["raw_scoring"], False)
     wli_problem = make_problem(payload["wli_scoring"], True)
 
-    def evaluator(candidate, _context):
-        key = validate_structured_key(
-            candidate.payload["expanded_key"], period=period, columns=columns
-        )
+    def evaluator(candidate, replay_context):
+        key = validate_candidate_payload(candidate, replay_context)
         raw_score = float(np.asarray(raw_problem.evaluate_keys(key[None, :]))[0])
         wli_score = float(np.asarray(wli_problem.evaluate_keys(key[None, :]))[0])
         return ReplayEvaluation(
@@ -163,20 +208,11 @@ def _resolve_source_run(repo_root: Path, run_id: str) -> Path:
     return run_dir
 
 
-def _safe_source_path(run_dir: Path, relative: Path) -> Path:
-    if relative.is_absolute() or ".." in relative.parts:
-        raise ValueError("source artifact path must be relative and remain within the run")
-    if "<benchmark_id>" in relative.as_posix():
-        raise ValueError("replace <benchmark_id> in the configured source artifact paths")
-    resolved = (run_dir / relative).resolve()
-    if run_dir.resolve() not in resolved.parents:
-        raise ValueError("source artifact path escaped the run directory")
-    return resolved
-
-
 def run_saved_replay(repo_root: Path) -> Path:
     if not SOURCE_RUN_ID:
         raise ValueError("configure SOURCE_RUN_ID before running replay")
+    if "<benchmark_id>" in SOURCE_BINDING_RELPATH.as_posix():
+        raise ValueError("replace <benchmark_id> in SOURCE_BINDING_RELPATH")
     from cipher_development.shared.experiment import (
         ExperimentDecision,
         ExperimentRun,
@@ -187,31 +223,39 @@ def run_saved_replay(repo_root: Path) -> Path:
     )
 
     source_run = _resolve_source_run(repo_root, SOURCE_RUN_ID)
-    manifest = json.loads(
-        (source_run / "artifacts/experiment_manifest.json").read_text(encoding="utf-8")
+    _, _, binding, context, batch = load_bound_replay_source(
+        source_run,
+        SOURCE_BINDING_RELPATH,
+        expected_campaign_id="periodic_sub_trans_wli",
+        expected_run_id=SOURCE_RUN_ID,
     )
-    if manifest.get("campaign_id") != "periodic_sub_trans_wli":
-        raise ValueError("source manifest belongs to a different campaign")
-    if manifest.get("run_id") != SOURCE_RUN_ID:
-        raise ValueError("source manifest run ID does not match the selected run")
-    context = read_replay_context(_safe_source_path(source_run, SOURCE_CONTEXT_RELPATH))
-    batch = read_candidate_batch(_safe_source_path(source_run, SOURCE_BATCH_RELPATH))
-    if context.run_id != SOURCE_RUN_ID:
-        raise ValueError("replay context run ID does not match the selected source run")
-    if context.configuration_hash != manifest.get("configuration_hash"):
-        raise ValueError("replay context configuration hash does not match the manifest")
+    actual_provenance = build_evaluator_provenance(
+        repo_root=repo_root,
+        evaluator_source=Path(__file__),
+        scoring_contracts=(
+            dict(context.payload["raw_scoring"]),
+            dict(context.payload["wli_scoring"]),
+        ),
+        require_assets=True,
+    )
+    validate_evaluator_provenance(
+        context.payload["evaluator_provenance"], actual_provenance
+    )
     evaluator = build_replay_evaluator(context)
     evidence = replay_candidate_batch(
         batch,
         context,
+        binding,
         evaluator=evaluator,
         mode=REPLAY_MODE,
         decision_score=DECISION_SCORE_NAME,
         higher_is_better=True,
         evaluator_configuration={
             "campaign": "periodic_sub_trans_wli",
+            "binding_id": binding.binding_id,
             "context_id": context.context_id,
             "decision_score": DECISION_SCORE_NAME,
+            "evaluator_provenance": actual_provenance,
         },
         repeat_count=REPEAT_COUNT,
         absolute_tolerance=ABSOLUTE_TOLERANCE,
@@ -220,12 +264,12 @@ def run_saved_replay(repo_root: Path) -> Path:
     spec = ExperimentSpec(
         campaign_id="periodic_sub_trans_wli",
         experiment_id="wp5_candidate_replay",
-        benchmark_id=str(context.payload["benchmark_id"]),
+        benchmark_id=binding.benchmark_id,
         question=(
-            "Can a saved WP4 candidate batch be rescored deterministically "
+            "Can a bound WP4 candidate batch be rescored deterministically "
             "without generation or Kaeding?"
         ),
-        hypothesis="The saved periodic-columnar surface reproduces both raw and WLI scores.",
+        hypothesis="The bound periodic-columnar surface reproduces both scores.",
         decision_rule="Replay studies always refine; report reproducibility evidence only.",
         wli_mode=WliMode.WITH_WLI,
         truth_policy=TruthPolicy.NONE,
@@ -235,6 +279,7 @@ def run_saved_replay(repo_root: Path) -> Path:
         spec=spec,
         configuration={
             "source_run_id": SOURCE_RUN_ID,
+            "source_binding_id": binding.binding_id,
             "source_batch_id": batch.batch_id,
             "source_context_id": context.context_id,
             "mode": str(REPLAY_MODE),
@@ -250,9 +295,10 @@ def run_saved_replay(repo_root: Path) -> Path:
         write_candidate_replay(artifact, evidence)
         return run.finish(
             decision=ExperimentDecision.REFINE,
-            stop_reason="max_rounds",
+            stop_reason="done",
             result_summary={
                 "source_run_id": SOURCE_RUN_ID,
+                "source_binding_id": binding.binding_id,
                 "source_batch_id": batch.batch_id,
                 "source_context_id": context.context_id,
                 "replay_id": evidence.replay_id,

@@ -4,11 +4,10 @@ import hashlib
 import json
 import math
 import re
-from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from types import MappingProxyType
 from typing import Any
 
 from cipher_development.shared.archive import (
@@ -40,6 +39,10 @@ _EXTRA_REFERENCE_KEYS = {
     "exact_matches", "exact_plaintext", "rune_matches", "word_matches",
     "complete_word_matches", "canonical_key_equal", "combined_shift_equal",
 }
+_CONTEXT_ONLY_REFERENCE_KEYS = {
+    "plaintext", "decoded_plaintext", "benchmark_plaintext", "benchmark_key",
+    "true_key", "truth_key_seed", "true_key_seed", "expected_solution",
+}
 
 
 def _reject_replay_reference_fields(value: Any, name: str) -> None:
@@ -54,6 +57,18 @@ def _reject_replay_reference_fields(value: Any, name: str) -> None:
         for item in value:
             _reject_replay_reference_fields(item, name)
 
+
+def _reject_replay_context_fields(value: Any, name: str) -> None:
+    _reject_replay_reference_fields(value, name)
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            token = str(key).strip().lower()
+            if token in _CONTEXT_ONLY_REFERENCE_KEYS:
+                raise ValueError(f"{name} must not contain replay-context truth field {key!r}")
+            _reject_replay_context_fields(item, name)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            _reject_replay_context_fields(item, name)
 
 
 def _text(value: Any, name: str) -> str:
@@ -108,15 +123,9 @@ def _decision_score(value: Any) -> str:
     return score
 
 
-def _content_payload(
-    *,
-    purpose: str,
-    source_archive_hash: str,
-    source_decision_score: str,
-    candidate_ids: Sequence[str],
-    candidates: Sequence[CandidateRecord],
-    selection_label: str,
-) -> dict[str, Any]:
+def _content_payload(*, purpose: str, source_archive_hash: str,
+                     source_decision_score: str, candidate_ids: Sequence[str],
+                     candidates: Sequence[CandidateRecord], selection_label: str) -> dict[str, Any]:
     return {
         "schema": SCHEMA,
         "purpose": purpose,
@@ -160,11 +169,9 @@ class CandidateReplayBatch:
             )
         except ValueError as exc:
             raise ValueError("purpose must be replay or handoff") from exc
-
         source_archive_hash = _hash40(self.source_archive_hash, "source_archive_hash")
         source_decision_score = _decision_score(self.source_decision_score)
         selection_label = _text(self.selection_label, "selection_label")
-
         candidate_ids = tuple(_candidate_id(item, "candidate_ids[]") for item in self.candidate_ids)
         if len(set(candidate_ids)) != len(candidate_ids):
             raise ValueError("candidate_ids must be unique")
@@ -185,7 +192,6 @@ class CandidateReplayBatch:
                 "source_decision_score must exist in every embedded candidate; "
                 f"missing from {missing_score}"
             )
-
         payload = _content_payload(
             purpose=purpose.value,
             source_archive_hash=source_archive_hash,
@@ -197,7 +203,6 @@ class CandidateReplayBatch:
         expected = _batch_id(payload)
         if str(self.batch_id) != expected:
             raise ValueError("batch_id does not match batch content")
-
         object.__setattr__(self, "purpose", purpose)
         object.__setattr__(self, "source_archive_hash", source_archive_hash)
         object.__setattr__(self, "source_decision_score", source_decision_score)
@@ -227,7 +232,8 @@ class CandidateReplayBatch:
         if not isinstance(raw_candidates, list):
             raise TypeError("candidate batch candidates must be a list")
         values["candidates"] = tuple(
-            CandidateRecord.from_json_dict(item) for item in raw_candidates
+            CandidateRecord.from_json_dict(item)
+            for item in raw_candidates
         )
         return cls(**values)
 
@@ -235,14 +241,9 @@ class CandidateReplayBatch:
         return self.source_archive_hash == archive_content_hash(archive)
 
 
-def select_candidate_batch(
-    archive: CandidateArchive,
-    *,
-    purpose: CandidateBatchPurpose | str,
-    selection_label: str,
-    limit: int | None = None,
-    candidate_ids: Sequence[str] | None = None,
-) -> CandidateReplayBatch:
+def select_candidate_batch(archive: CandidateArchive, *, purpose: CandidateBatchPurpose | str,
+                           selection_label: str, limit: int | None = None,
+                           candidate_ids: Sequence[str] | None = None) -> CandidateReplayBatch:
     if not isinstance(archive, CandidateArchive):
         raise TypeError("archive must be a CandidateArchive")
     try:
@@ -254,7 +255,6 @@ def select_candidate_batch(
     except ValueError as exc:
         raise ValueError("purpose must be replay or handoff") from exc
     selection_label = _text(selection_label, "selection_label")
-
     if (limit is None) == (candidate_ids is None):
         raise ValueError("provide exactly one of limit or candidate_ids")
     if limit is not None:
@@ -274,7 +274,6 @@ def select_candidate_batch(
             candidates = tuple(archive.get(item) for item in ids)
         except KeyError as exc:
             raise ValueError(f"unknown candidate ID {exc.args[0]!r}") from exc
-
     if not candidates:
         raise ValueError("archive selection produced no candidates")
     ids = tuple(candidate.candidate_id for candidate in candidates)
@@ -317,15 +316,8 @@ def read_candidate_batch(path: Path) -> CandidateReplayBatch:
     return CandidateReplayBatch.from_json_dict(payload)
 
 
-# ---------------------------------------------------------------------------
-# WP5 replay contexts and evidence
-# ---------------------------------------------------------------------------
-
-
-def _context_content(
-    *, campaign_id: str, run_id: str, configuration_hash: str,
-    evaluator_id: str, payload: Mapping[str, Any],
-) -> dict[str, Any]:
+def _context_content(*, campaign_id: str, run_id: str, configuration_hash: str,
+                     evaluator_id: str, payload: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "schema": CONTEXT_SCHEMA,
         "campaign_id": campaign_id,
@@ -364,7 +356,7 @@ class CandidateReplayContext:
         if not isinstance(self.payload, Mapping):
             raise TypeError("payload must be a mapping")
         payload = _snapshot_json(self.payload, "payload")
-        _reject_replay_reference_fields(payload, "payload")
+        _reject_replay_context_fields(payload, "payload")
         content = _context_content(
             campaign_id=campaign_id,
             run_id=run_id,
@@ -383,12 +375,10 @@ class CandidateReplayContext:
         object.__setattr__(self, "context_id", expected)
 
     @classmethod
-    def create(
-        cls, *, campaign_id: str, run_id: str, configuration_hash: str,
-        evaluator_id: str, payload: Mapping[str, Any],
-    ) -> "CandidateReplayContext":
+    def create(cls, *, campaign_id: str, run_id: str, configuration_hash: str,
+               evaluator_id: str, payload: Mapping[str, Any]) -> "CandidateReplayContext":
         frozen = _snapshot_json(payload, "payload")
-        _reject_replay_reference_fields(frozen, "payload")
+        _reject_replay_context_fields(frozen, "payload")
         content = _context_content(
             campaign_id=_identifier(campaign_id, "campaign_id"),
             run_id=_text(run_id, "run_id"),
@@ -431,7 +421,6 @@ def read_replay_context(path: Path) -> CandidateReplayContext:
     if not isinstance(payload, Mapping) or payload.get("schema") != CONTEXT_SCHEMA:
         raise ValueError(f"replay context schema must be {CONTEXT_SCHEMA!r}")
     return CandidateReplayContext.from_json_dict(payload)
-
 
 
 __all__ = [

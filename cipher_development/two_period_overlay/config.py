@@ -16,8 +16,6 @@ DECISION_SCORE = "wli_decision_score"
 ARCHIVE_CAPACITY = 64
 RUN_PROFILE = "canary"
 
-# Explicit source paths for RUN_PROFILE = "baseline_import". Relative paths are
-# resolved from the repository root and are never written to portable evidence.
 BASELINE_RESULT_PATH = Path(
     "output/cipher_development_sources/two_period_overlay/latest_result.json"
 )
@@ -40,12 +38,8 @@ class RunBudget:
 
     def __post_init__(self) -> None:
         for name in (
-            "coordinate_restarts",
-            "coordinate_sweeps",
-            "handoff_candidates",
-            "minimum_comparisons",
-            "sa_steps",
-            "sa_cycles",
+            "coordinate_restarts", "coordinate_sweeps", "handoff_candidates",
+            "minimum_comparisons", "sa_steps", "sa_cycles",
         ):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, int):
@@ -88,15 +82,35 @@ RUN_BUDGETS = {
 }
 
 SCORING_CONTRACT = {
+    "model_root": None,
+    "smoothing": "auto_gt",
+    "alpha": 0.5,
+    "oov_policy": "floor_min_seen",
     "objective": "pct.logp.win10",
     "include_char": True,
     "use_word_breaks": True,
     "n_char": 4,
     "n_wli": 4,
+    "win": 10,
+    "stride": 1,
+    "se_mode": "nose",
+    "weights": [0.25, 0.75],
+    "maximize": True,
     "char_weights": {3: 0.5, 4: 0.5},
     "wli_weights": {3: 0.5, 4: 0.5},
     "encoding_direction": "ltr",
+    "avg_window_policy": "fixed_win",
+    "impl": "auto",
+    "compute_dtype": "float32",
+    "acc_dtype": "float64",
+    "dtype": "float64",
+    "ecdf_clamp_min": 1e-6,
+    "ecdf_clamp_max": 1.0 - 1e-6,
+    "diagnostics_enabled": False,
     "hard_crib": True,
+    "hamming_enabled": False,
+    "span_hamming_enabled": False,
+    "word_ngram_judge_enabled": False,
 }
 
 

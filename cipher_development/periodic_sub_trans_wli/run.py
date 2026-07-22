@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +32,11 @@ from cipher_development.periodic_sub_trans_wli.search import (
     write_case_artifacts,
 )
 from cipher_development.shared.replay import write_replay_context
+from cipher_development.shared.replay_binding import (
+    CandidateReplayBinding,
+    write_replay_binding,
+)
+from cipher_development.shared.replay_provenance import build_evaluator_provenance
 
 
 def _case_configuration(spec: BenchmarkSpec) -> dict[str, Any]:
@@ -149,6 +155,16 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
         reference_cases: dict[str, Any] = {}
         artifacts: dict[str, dict[str, str]] = {}
         best_candidates: dict[str, dict[str, Any]] = {}
+        replay_bindings: dict[str, dict[str, str]] = {}
+        assert run.run_dir is not None
+        run_meta = json.loads((run.run_dir / "META.json").read_text(encoding="utf-8"))
+        evaluator_provenance = build_evaluator_provenance(
+            repo_root=repo_root,
+            evaluator_source=Path(__file__).with_name("replay.py"),
+            scoring_contracts=(RAW_SCORING_CONTRACT, WLI_SCORING_CONTRACT),
+            run_meta=run_meta,
+            require_assets=True,
+        )
 
         for index, benchmark_spec in enumerate(specs):
             run.snapshot(label="benchmark_build_started", metrics={
@@ -159,7 +175,6 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
                 "length": benchmark_spec.length,
             })
             search_case, reference = build_rdp_case(benchmark_spec, budget)
-            assert run.run_dir is not None
             case_dir = run.run_dir / "artifacts" / search_case.benchmark_id
             replay_context = make_replay_context(
                 search_case,
@@ -167,6 +182,7 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
                 configuration_hash=run.configuration_hash,
                 raw_scoring=RAW_SCORING_CONTRACT,
                 wli_scoring=WLI_SCORING_CONTRACT,
+                evaluator_provenance=evaluator_provenance,
             )
             write_replay_context(case_dir / "replay_context.json", replay_context)
             run.snapshot(label="benchmark_built", metrics={
@@ -179,12 +195,56 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
             outcome = run_case(search_case, budget)
             names = dict(write_case_artifacts(case_dir, outcome))
             names["replay_context"] = "replay_context.json"
+            for arm, batch, batch_filename, binding_filename in (
+                (
+                    "raw_handoff",
+                    outcome.raw_handoff_batch,
+                    "raw_handoff_batch.json",
+                    "raw_handoff_binding.json",
+                ),
+                (
+                    "wli_handoff",
+                    outcome.wli_handoff_batch,
+                    "wli_handoff_batch.json",
+                    "wli_handoff_binding.json",
+                ),
+            ):
+                binding = CandidateReplayBinding.create(
+                    campaign_id="periodic_sub_trans_wli",
+                    source_run_id=run.run_dir.name,
+                    configuration_hash=run.configuration_hash,
+                    benchmark_id=search_case.benchmark_id,
+                    context=replay_context,
+                    batch=batch,
+                    context_artifact=(
+                        f"artifacts/{search_case.benchmark_id}/replay_context.json"
+                    ),
+                    batch_artifact=(
+                        f"artifacts/{search_case.benchmark_id}/{batch_filename}"
+                    ),
+                )
+                write_replay_binding(case_dir / binding_filename, binding)
+                names[f"{arm}_binding"] = binding_filename
+                key = f"{search_case.benchmark_id}:{arm}"
+                replay_bindings[key] = {
+                    "binding_id": binding.binding_id,
+                    "artifact": (
+                        f"artifacts/{search_case.benchmark_id}/{binding_filename}"
+                    ),
+                    "batch_id": batch.batch_id,
+                    "context_id": replay_context.context_id,
+                    "benchmark_id": search_case.benchmark_id,
+                }
             artifacts[search_case.benchmark_id] = {
                 name: f"artifacts/{search_case.benchmark_id}/{filename}"
                 for name, filename in names.items()
             }
             summary = case_summary(search_case, outcome)
             summary["replay_context_id"] = replay_context.context_id
+            summary["replay_binding_ids"] = {
+                arm: replay_bindings[f"{search_case.benchmark_id}:{arm}"]["binding_id"]
+                for arm in ("raw_handoff", "wli_handoff")
+            }
             case_summaries.append(summary)
 
             reference_cases[search_case.benchmark_id] = {
@@ -231,6 +291,7 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
                 "cases": case_summaries,
                 "best_candidates": best_candidates,
                 "artifacts": artifacts,
+                "replay_bindings": replay_bindings,
             },
             reference_evaluation={"cases": reference_cases},
         )

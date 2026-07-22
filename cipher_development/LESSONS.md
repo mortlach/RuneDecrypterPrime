@@ -177,11 +177,11 @@ Scope: candidate archives with replayable score contexts
 
 Observation: A retained candidate surface should allow later score verification or reranking without repeating expensive discovery.
 
-Operational implication: Persist a truth-free replay context beside candidate batches and verify it through deterministic replay.
+Operational implication: Persist a truth-free replay context, evaluator/model provenance and a content-addressed binding to the exact source run and candidate batch. Verify identity, payload, context and binding agreement before scoring.
 
 Evidence: WP5 implementation contract only; real campaign replay evidence is still pending.
 
-Counterexamples or limits: A saved surface cannot answer questions about candidates that discovery never generated.
+Counterexamples or limits: A saved surface cannot answer questions about candidates that discovery never generated, and verify mode is meaningful only when the historic evaluator and model assets can be identified exactly.
 
 Last reviewed: 2026-07-22
 

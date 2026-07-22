@@ -27,8 +27,10 @@ cipher_development/
     ledger.py
     archive.py
     replay.py
+    replay_binding.py
     replay_evidence.py
     replay_execution.py
+    replay_provenance.py
     synthesis.py
 
   <cipher_or_campaign>/
@@ -83,13 +85,15 @@ Replay and handoff batches embed exact retained candidate records and identify t
 
 Candidate identities and payloads must not contain reference truth, expected plaintext, known keys or oracle data. Large archive and batch payloads remain run artifacts; only concise summaries and relative artifact paths belong in the experiment result and ledger.
 
-WP5 adds truth-free replay contexts and deterministic replay evidence. Campaign-local adapters rebuild evaluation from the saved context, while shared code verifies repeatability, stored-score agreement and deterministic ranking. Replay never reruns discovery or exploitation.
+WP5 adds truth-free replay contexts, content-addressed replay bindings and deterministic replay evidence. A binding joins the exact source run, benchmark, configuration, context and candidate batch; replay refuses unbound or mismatched evidence. Campaign-local adapters rebuild evaluation from the saved context and require candidate identity, payload and structural constraints to agree before scoring.
+
+Verify-mode contexts also record evaluator-source, Git/package and language-model asset provenance. Shared code checks repeatability, stored-score agreement, deterministic ranking and provenance equality. Replay never reruns discovery or exploitation.
 
 ## Lessons and milestones
 
 `LESSONS.md` is manually curated. IDs are stable, rejected or superseded lessons remain visible, and no code promotes lessons automatically.
 
-`CAMPAIGN_TEMPLATE.md` is a copyable starting checklist, not a generator. Milestone synthesis reads explicitly selected ledger rows and result files, validates them, and writes deterministic JSON and Markdown below `output/cipher_development/`. Generated summaries never edit permanent documentation.
+`CAMPAIGN_TEMPLATE.md` is a copyable starting checklist, not a generator. Milestone synthesis reads explicitly selected ledger rows and result files, validates them, and writes deterministic JSON and Markdown below `output/cipher_development/`. Replay summaries are derived from validated replay artifacts, whose hashes are included in the milestone evidence. Generated summaries never edit permanent documentation.
 
 ## Established campaigns
 
