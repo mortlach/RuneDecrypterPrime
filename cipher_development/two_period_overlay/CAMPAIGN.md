@@ -27,6 +27,18 @@ The seven-hour `two_period_crib_solver_runner.py` remains untouched. Baseline im
 
 `benchmark_only`. Search code receives ciphertext, WLI, the crib, the affine key space and the scoring callback. Plaintext and the benchmark key remain in a separate terminal reference object.
 
+## Applicable prior lessons
+
+- CSL-001 — persist exact candidates;
+- CSL-002 — persist terminally evaluated candidates;
+- CSL-004 — separate search evidence from truth;
+- CSL-005 — canaries do not decide scientific hypotheses;
+- CSL-007 — saved surfaces may support reranking without rediscovery.
+
+## Intentional departures from those lessons
+
+None. CSL-007 remains a candidate lesson until real replay evidence exists.
+
 ## Current failure classification
 
 Candidate supply, diversity collapse, handoff and exploitation.
@@ -66,6 +78,14 @@ The full expanded, gauge-fixed key. Payloads also retain the affine variables re
 - higher is better;
 - no family cap in the first experiment.
 
+## Current candidate archive status
+
+The implementation writes coordinate, handoff, final and control-final candidate artifacts. No full-run archive has yet been reviewed.
+
+## Replay plan
+
+Each run writes `artifacts/replay_context.json` before discovery. The context contains ciphertext, WLI, crib, affine matrices, gauge and scoring contract, but no plaintext or benchmark key. `replay.py` verifies or reranks a saved batch without coordinate search, SA or coordinate polish.
+
 ## Current result
 
 The WP3 evidence and validation corrections are implemented. No scientific result is claimed until the committed real-RDP canary has run successfully.
@@ -76,4 +96,8 @@ None yet.
 
 ## Next experiment
 
-Run and review the committed canary on a full RDP checkout. Only then approve the bounded full paired experiment.
+Run and review the committed canary on a full RDP checkout, then replay its archive-handoff batch twice. Only then approve the bounded full paired experiment.
+
+## Candidate lessons awaiting promotion
+
+CSL-007 remains `candidate`: real replay must show that the saved candidate surface can be rescored deterministically without rediscovery.

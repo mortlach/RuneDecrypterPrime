@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
+from cipher_development.shared.replay import write_replay_context
 from cipher_development.two_period_overlay.benchmark import (
     build_rdp_case,
     normalise_baseline_result,
@@ -28,6 +29,7 @@ from cipher_development.two_period_overlay.config import (
     RunBudget,
     budget_for,
 )
+from cipher_development.two_period_overlay.replay import make_replay_context
 from cipher_development.two_period_overlay.search import (
     campaign_decision,
     comparison_summary,
@@ -171,9 +173,19 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
         "scoring": SCORING_CONTRACT,
     }
     with ExperimentRun(spec=spec, configuration=configuration, repo_root=repo_root) as run:
+        assert run.run_dir is not None
+        replay_context = make_replay_context(
+            search_case,
+            run_id=run.run_dir.name,
+            configuration_hash=run.configuration_hash,
+        )
+        write_replay_context(
+            run.run_dir / "artifacts/replay_context.json", replay_context
+        )
         run.snapshot(label="benchmark_built", metrics={
             "free_dimension": len(search_case.free_columns),
             "sample_start": search_case.sample_start,
+            "replay_context_id": replay_context.context_id,
         })
         run.snapshot(label="discovery_started", metrics={
             "coordinate_restarts": budget.coordinate_restarts,
@@ -186,8 +198,10 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
             budget,
             progress=lambda label, metrics: run.snapshot(label=label, metrics=metrics),
         )
-        assert run.run_dir is not None
-        artifact_names = write_search_artifacts(run.run_dir / "artifacts", outcome)
+        artifact_names = dict(
+            write_search_artifacts(run.run_dir / "artifacts", outcome)
+        )
+        artifact_names["replay_context"] = "replay_context.json"
         run.snapshot(label="handoff_batches_written", metrics={
             "archive_candidates": len(outcome.handoff_batch.candidates),
             "control_candidates": len(outcome.control_batch.candidates),
@@ -222,6 +236,8 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
                 "best_candidate_id": outcome.best_candidate_id,
                 "best_arm": outcome.best_arm,
                 "best_candidate_artifact": best_artifact,
+                "replay_context_id": replay_context.context_id,
+                "replay_context_artifact": "artifacts/replay_context.json",
                 "evaluations": outcome.evaluations,
                 "elapsed_s": outcome.elapsed_s,
                 "coordinate_restarts": budget.coordinate_restarts,

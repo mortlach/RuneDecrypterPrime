@@ -23,12 +23,14 @@ from cipher_development.periodic_sub_trans_wli.config import (
     budget_for,
     cases_for,
 )
+from cipher_development.periodic_sub_trans_wli.replay import make_replay_context
 from cipher_development.periodic_sub_trans_wli.search import (
     case_summary,
     panel_decision,
     run_case,
     write_case_artifacts,
 )
+from cipher_development.shared.replay import write_replay_context
 
 
 def _case_configuration(spec: BenchmarkSpec) -> dict[str, Any]:
@@ -53,9 +55,7 @@ def _budget_configuration(budget: RunBudget) -> dict[str, Any]:
         "solver_inner_batch": budget.solver_inner_batch,
         "minimum_policy_exclusive": budget.minimum_policy_exclusive,
         "minimum_completed_target_cases": budget.minimum_completed_target_cases,
-        "minimum_completed_positive_controls": (
-            budget.minimum_completed_positive_controls
-        ),
+        "minimum_completed_positive_controls": budget.minimum_completed_positive_controls,
         "wallclock_overrun_limit_s": budget.wallclock_overrun_limit_s,
         "seed_plan": {
             "n_block_seeds": budget.seed_plan.n_block_seeds,
@@ -159,21 +159,32 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
                 "length": benchmark_spec.length,
             })
             search_case, reference = build_rdp_case(benchmark_spec, budget)
+            assert run.run_dir is not None
+            case_dir = run.run_dir / "artifacts" / search_case.benchmark_id
+            replay_context = make_replay_context(
+                search_case,
+                run_id=run.run_dir.name,
+                configuration_hash=run.configuration_hash,
+                raw_scoring=RAW_SCORING_CONTRACT,
+                wli_scoring=WLI_SCORING_CONTRACT,
+            )
+            write_replay_context(case_dir / "replay_context.json", replay_context)
             run.snapshot(label="benchmark_built", metrics={
                 "case_index": index,
                 "benchmark_id": search_case.benchmark_id,
                 "sample_start": search_case.sample_start,
                 "text_length": search_case.length,
+                "replay_context_id": replay_context.context_id,
             })
             outcome = run_case(search_case, budget)
-            assert run.run_dir is not None
-            case_dir = run.run_dir / "artifacts" / search_case.benchmark_id
-            names = write_case_artifacts(case_dir, outcome)
+            names = dict(write_case_artifacts(case_dir, outcome))
+            names["replay_context"] = "replay_context.json"
             artifacts[search_case.benchmark_id] = {
                 name: f"artifacts/{search_case.benchmark_id}/{filename}"
                 for name, filename in names.items()
             }
             summary = case_summary(search_case, outcome)
+            summary["replay_context_id"] = replay_context.context_id
             case_summaries.append(summary)
 
             reference_cases[search_case.benchmark_id] = {

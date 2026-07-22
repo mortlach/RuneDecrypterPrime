@@ -19,16 +19,22 @@ A campaign may model damaged or incomplete WLI locally when a real scientific qu
 ```text
 cipher_development/
   README.md
+  LESSONS.md
+  CAMPAIGN_TEMPLATE.md
 
   shared/
     experiment.py
     ledger.py
     archive.py
     replay.py
+    replay_evidence.py
+    replay_execution.py
+    synthesis.py
 
   <cipher_or_campaign>/
     CAMPAIGN.md
     run.py
+    replay.py
     cipher.py
     keyops.py
     solver.py
@@ -76,6 +82,14 @@ The archive uses one explicitly named decision score and deterministic candidate
 Replay and handoff batches embed exact retained candidate records and identify their source archive by content hash. They prepare evidence for campaign code; they do not decrypt, score, run solvers or convert candidates into RDP seed keys.
 
 Candidate identities and payloads must not contain reference truth, expected plaintext, known keys or oracle data. Large archive and batch payloads remain run artifacts; only concise summaries and relative artifact paths belong in the experiment result and ledger.
+
+WP5 adds truth-free replay contexts and deterministic replay evidence. Campaign-local adapters rebuild evaluation from the saved context, while shared code verifies repeatability, stored-score agreement and deterministic ranking. Replay never reruns discovery or exploitation.
+
+## Lessons and milestones
+
+`LESSONS.md` is manually curated. IDs are stable, rejected or superseded lessons remain visible, and no code promotes lessons automatically.
+
+`CAMPAIGN_TEMPLATE.md` is a copyable starting checklist, not a generator. Milestone synthesis reads explicitly selected ledger rows and result files, validates them, and writes deterministic JSON and Markdown below `output/cipher_development/`. Generated summaries never edit permanent documentation.
 
 ## Established campaigns
 

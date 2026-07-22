@@ -27,6 +27,20 @@ The campaign uses RDP's existing `periodic_columnar` wrapper, structured key pla
 
 `benchmark_only`. Search-visible cases contain ciphertext, WLI, dimensions and execution callables. Plaintext and the deterministic benchmark key remain in a separate terminal reference object.
 
+## Applicable prior lessons
+
+- CSL-001 — persist exact candidates;
+- CSL-002 — persist terminally evaluated candidates;
+- CSL-003 — handoff comparisons must not add unrelated restarts;
+- CSL-004 — separate search evidence from truth;
+- CSL-005 — canaries do not decide scientific hypotheses;
+- CSL-006 — state every material policy difference;
+- CSL-007 — saved surfaces may support reranking without rediscovery.
+
+## Intentional departures from those lessons
+
+The ranking comparison deliberately changes the complete scoring policy, not WLI alone. That limitation is explicit under CSL-006.
+
 ## Scientific question
 
 Does full-WLI reranking of a fixed periodic-columnar candidate pool produce better downstream solutions than ranking the same pool by the raw character seed score?
@@ -65,6 +79,14 @@ Both final arms are persisted as candidate archives with parent provenance. The 
 
 Canaries always refine. Full panels also refine when candidate supply is short, the policies do not provide the configured minimum exclusive candidates, too few target cases complete, or too few positive-control cases remain valid. A valid panel promotes when WLI ranking wins more target cases than it loses without positive-control regression; it closes when no target case improves; otherwise it refines.
 
+## Current candidate archive status
+
+Each case writes the seed-pool archive, raw and WLI handoff batches, and both final archives. No full-panel archive set has yet been reviewed.
+
+## Replay plan
+
+Each case writes `artifacts/<benchmark_id>/replay_context.json` before candidate generation. The context contains ciphertext, WLI, dimensions and both scoring contracts, but no plaintext, truth-key seed or benchmark key. `replay.py` validates structured keys and recalculates raw and WLI scores without seed generation or Kaeding.
+
 ## Current result
 
 Implementation only. No scientific result is claimed until the committed real-RDP canary and normal repository CI pass.
@@ -75,7 +97,11 @@ None.
 
 ## Next experiment
 
-Run the committed canary with the full language-model assets, review candidate supply and policy overlap, then freeze the full-panel solver budget before any expensive run.
+Run the committed canary with the full language-model assets, replay a saved handoff or seed-pool batch twice, review candidate supply and policy overlap, then freeze the full-panel solver budget before any expensive run.
+
+## Candidate lessons awaiting promotion
+
+CSL-007 remains `candidate`: deterministic real-RDP replay must be demonstrated before it can be supported.
 
 ## Generality evidence
 
