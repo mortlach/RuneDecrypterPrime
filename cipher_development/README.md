@@ -76,3 +76,10 @@ The archive uses one explicitly named decision score and deterministic candidate
 Replay and handoff batches embed exact retained candidate records and identify their source archive by content hash. They prepare evidence for campaign code; they do not decrypt, score, run solvers or convert candidates into RDP seed keys.
 
 Candidate identities and payloads must not contain reference truth, expected plaintext, known keys or oracle data. Large archive and batch payloads remain run artifacts; only concise summaries and relative artifact paths belong in the experiment result and ledger.
+
+## Established campaigns
+
+- `two_period_overlay/` tests archive handoff on a crib-constrained affine P13/P17 overlay.
+- `periodic_sub_trans_wli/` tests raw versus full-WLI ranking over one periodic-columnar candidate pool, followed by equal-budget seeded exploitation.
+
+The two campaigns deliberately use different key structures and scientific questions while reusing the WP1 experiment and WP2 archive/replay contracts unchanged.
