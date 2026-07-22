@@ -7,8 +7,6 @@ from pathlib import Path
 import numpy as np
 
 from cipher_development.two_period_overlay.benchmark import (
-    ReferenceCase,
-    SearchCase,
     build_rdp_case,
     normalise_baseline_result,
     reference_metrics,
@@ -17,6 +15,7 @@ from cipher_development.two_period_overlay.config import (
     ALPHABET_SIZE,
     ARCHIVE_CAPACITY,
     BASELINE_RESULT_PATH,
+    BASELINE_RUNNER_PATH,
     CRIB_START,
     CRIB_WORD,
     DECISION_SCORE,
@@ -26,25 +25,40 @@ from cipher_development.two_period_overlay.config import (
     RUN_PROFILE,
     SCORING_CONTRACT,
     TEXT_LENGTH,
+    RunBudget,
     budget_for,
-)
-from cipher_development.two_period_overlay.keyspace import (
-    candidate_record,
-    comparison_seed,
-    crib_space,
-    deterministic_key,
-    expand,
 )
 from cipher_development.two_period_overlay.search import (
     campaign_decision,
     comparison_summary,
-    discover_archive,
     run_search,
     write_search_artifacts,
 )
 
 
-def import_baseline_result(repo_root: Path, source_path: Path = BASELINE_RESULT_PATH) -> Path:
+def _resolve_source_path(repo_root: Path, source_path: Path) -> Path:
+    return source_path if source_path.is_absolute() else repo_root / source_path
+
+
+def _budget_configuration(budget: RunBudget) -> dict[str, int | float]:
+    return {
+        "coordinate_restarts": budget.coordinate_restarts,
+        "coordinate_sweeps": budget.coordinate_sweeps,
+        "handoff_candidates": budget.handoff_candidates,
+        "minimum_comparisons": budget.minimum_comparisons,
+        "sa_steps": budget.sa_steps,
+        "sa_cycles": budget.sa_cycles,
+        "sa_t0": budget.sa_t0,
+        "sa_tmin": budget.sa_tmin,
+        "wallclock_limit_s": budget.wallclock_limit_s,
+    }
+
+
+def import_baseline_result(
+    repo_root: Path,
+    source_path: Path = BASELINE_RESULT_PATH,
+    runner_path: Path = BASELINE_RUNNER_PATH,
+) -> Path:
     from cipher_development.shared.experiment import (
         ExperimentDecision,
         ExperimentRun,
@@ -55,12 +69,25 @@ def import_baseline_result(repo_root: Path, source_path: Path = BASELINE_RESULT_
     )
     from cipher_development.shared.ledger import read_ledger
 
-    raw = source_path.read_bytes()
+    resolved_result = _resolve_source_path(repo_root, source_path)
+    resolved_runner = _resolve_source_path(repo_root, runner_path)
+    raw = resolved_result.read_bytes()
+    runner_raw = resolved_runner.read_bytes()
     source_sha256 = hashlib.sha256(raw).hexdigest()
+    runner_sha256 = hashlib.sha256(runner_raw).hexdigest()
     payload = json.loads(raw.decode("utf-8"))
-    summary, reference = normalise_baseline_result(payload, source_sha256, source_path.name)
+    summary, reference = normalise_baseline_result(
+        payload,
+        source_sha256,
+        resolved_result.name,
+        runner_sha256,
+        resolved_runner.name,
+    )
     ledger_path = repo_root / "output/cipher_development/two_period_overlay/experiment_ledger.jsonl"
-    if any(row.result_summary.get("source_sha256") == source_sha256 for row in read_ledger(ledger_path)):
+    if any(
+        row.result_summary.get("source_sha256") == source_sha256
+        for row in read_ledger(ledger_path)
+    ):
         raise ValueError("this baseline source hash has already been imported")
     spec = ExperimentSpec(
         campaign_id="two_period_overlay",
@@ -71,16 +98,24 @@ def import_baseline_result(repo_root: Path, source_path: Path = BASELINE_RESULT_
         decision_rule="Import evidence only; do not promote a mechanism.",
         wli_mode=WliMode.WITH_WLI,
         truth_policy=TruthPolicy.BENCHMARK_ONLY,
-        mechanisms=(FailureMechanism.EXPLOITATION, FailureMechanism.EVIDENCE_REPRODUCIBILITY),
+        mechanisms=(
+            FailureMechanism.EXPLOITATION,
+            FailureMechanism.EVIDENCE_REPRODUCIBILITY,
+        ),
     )
     with ExperimentRun(
         spec=spec,
-        configuration={"source_sha256": source_sha256, "source_filename": source_path.name},
+        configuration={
+            "source_sha256": source_sha256,
+            "source_filename": resolved_result.name,
+            "runner_sha256": runner_sha256,
+            "runner_filename": resolved_runner.name,
+        },
         repo_root=repo_root,
     ) as run:
         return run.finish(
             decision=ExperimentDecision.REFINE,
-            stop_reason="time_budget",
+            stop_reason="max_time",
             result_summary=summary,
             reference_evaluation=reference,
         )
@@ -102,15 +137,25 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
         campaign_id="two_period_overlay",
         experiment_id=f"wp3_archive_handoff_{profile}",
         benchmark_id="alice_308_p13_p17",
-        question="Does a retained full-WLI coordinate archive outperform independent exploitation starts?",
+        question=(
+            "Does a retained full-WLI coordinate archive outperform "
+            "independent exploitation starts?"
+        ),
         hypothesis="Useful coordinate basins are discarded between independent methods.",
         decision_rule=(
-            "Promote when archive wins exceed control wins and archive best is no worse; "
-            "close when there are no archive wins and archive best is no better; otherwise refine."
+            "Promote when the valid paired sample meets the minimum, archive wins exceed control "
+            "wins and archive best is no worse; close when the valid sample meets the minimum, "
+            "there are no archive wins and archive best is no better; otherwise refine."
         ),
         wli_mode=WliMode.WITH_WLI,
         truth_policy=TruthPolicy.BENCHMARK_ONLY,
-        mechanisms=(FailureMechanism.CANDIDATE_SUPPLY, FailureMechanism.HANDOFF, FailureMechanism.EXPLOITATION),
+        mechanisms=(
+            FailureMechanism.CANDIDATE_SUPPLY,
+            FailureMechanism.DIVERSITY_COLLAPSE,
+            FailureMechanism.HANDOFF,
+            FailureMechanism.EXPLOITATION,
+        ),
+        budget_seconds=budget.wallclock_limit_s,
     )
     configuration = {
         "profile": profile,
@@ -122,17 +167,14 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
         "master_seed": MASTER_SEED,
         "archive_capacity": ARCHIVE_CAPACITY,
         "decision_score": DECISION_SCORE,
-        "budget": {
-            "coordinate_restarts": budget.coordinate_restarts,
-            "coordinate_sweeps": budget.coordinate_sweeps,
-            "handoff_candidates": budget.handoff_candidates,
-            "sa_steps": budget.sa_steps,
-            "sa_cycles": budget.sa_cycles,
-        },
+        "budget": _budget_configuration(budget),
         "scoring": SCORING_CONTRACT,
     }
     with ExperimentRun(spec=spec, configuration=configuration, repo_root=repo_root) as run:
-        run.snapshot(label="benchmark_built", metrics={"free_dimension": len(search_case.free_columns)})
+        run.snapshot(label="benchmark_built", metrics={
+            "free_dimension": len(search_case.free_columns),
+            "sample_start": search_case.sample_start,
+        })
         run.snapshot(label="discovery_started", metrics={
             "coordinate_restarts": budget.coordinate_restarts,
             "coordinate_sweeps": budget.coordinate_sweeps,
@@ -149,28 +191,47 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
         run.snapshot(label="handoff_batches_written", metrics={
             "archive_candidates": len(outcome.handoff_batch.candidates),
             "control_candidates": len(outcome.control_batch.candidates),
+            "control_final_candidates": len(outcome.control_archive.records),
         })
         summary = comparison_summary(outcome)
         decision = campaign_decision(summary, profile)
-        run.snapshot(label="campaign_completed", metrics={**summary, "retained": len(outcome.archive.records)})
+        run.snapshot(label="campaign_completed", metrics={
+            **summary,
+            "archive_retained": len(outcome.archive.records),
+            "control_final_retained": len(outcome.control_archive.records),
+            "best_candidate_id": outcome.best_candidate_id,
+            "best_arm": outcome.best_arm,
+        })
         reference_evaluation = reference_metrics(
             reference,
             np.asarray(outcome.best_variables, dtype=np.uint8),
             search_case.particular,
             search_case.basis,
         )
+        best_artifact = (
+            "artifacts/final_archive.json"
+            if outcome.best_arm == "archive"
+            else "artifacts/control_final_archive.json"
+        )
         return run.finish(
             decision=ExperimentDecision(decision),
-            stop_reason="time_budget",
+            stop_reason="max_rounds",
             result_summary={
                 **summary,
                 "best_score": outcome.best_score,
+                "best_candidate_id": outcome.best_candidate_id,
+                "best_arm": outcome.best_arm,
+                "best_candidate_artifact": best_artifact,
                 "evaluations": outcome.evaluations,
+                "elapsed_s": outcome.elapsed_s,
                 "coordinate_restarts": budget.coordinate_restarts,
-                "discovery_retained": len(outcome.discovery_archive.records),
+                "discovery": outcome.discovery.to_json_dict(),
                 "archive_retained": len(outcome.archive.records),
+                "control_final_retained": len(outcome.control_archive.records),
                 "paired_comparisons": [dict(row) for row in outcome.comparisons],
-                "artifacts": {name: f"artifacts/{filename}" for name, filename in artifact_names.items()},
+                "artifacts": {
+                    name: f"artifacts/{filename}" for name, filename in artifact_names.items()
+                },
             },
             reference_evaluation=reference_evaluation,
         )

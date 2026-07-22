@@ -17,7 +17,7 @@ Solve a 308-rune additive P13/P17 overlay benchmark with the complete word `unco
 
 ## Frozen historical baseline
 
-The seven-hour `two_period_crib_solver_runner.py` remains untouched. Its runner has been located and its contract verified. The completed `latest_result.json` has not yet been supplied, so the baseline-import function is implemented but no historical ledger entry is claimed yet.
+The seven-hour `two_period_crib_solver_runner.py` remains untouched. Baseline import requires both the completed result and runner, records SHA-256 for each, and validates the complete benchmark, scoring, gauge and phase contract before adding evidence.
 
 ## Evidence mode
 
@@ -29,7 +29,7 @@ The seven-hour `two_period_crib_solver_runner.py` remains untouched. Its runner 
 
 ## Current failure classification
 
-Candidate supply, handoff and exploitation.
+Candidate supply, diversity collapse, handoff and exploitation.
 
 ## Scientific question
 
@@ -45,7 +45,7 @@ Coordinate discovery never reaches useful candidate regions, so archive handoff 
 
 ## Control arm
 
-The same number of independently generated starts receive the same SA and coordinate-polish budgets. Comparison index `i` uses the same exploitation RNG seed in both arms.
+The same number of independently generated starts receive the same SA and coordinate-polish budgets. Comparison index `i` uses the same exploitation RNG seed in both arms. Final control candidates are retained as replayable evidence.
 
 ## Archive-handoff arm
 
@@ -53,11 +53,11 @@ Each completed coordinate restart offers its optimum to a capacity-64 archive. T
 
 ## Fixed comparison rule
 
-Promote when archive wins exceed control wins and the archive best is no worse. Close when there are no archive wins and the archive best is no better. Otherwise refine. Canary runs always refine.
+Canary runs always refine. Full runs also refine when the retained candidate supply cannot meet the predeclared minimum comparison count. Otherwise promote when archive wins exceed control wins and the archive best is no worse; close when there are no archive wins and the archive best is no better; otherwise refine.
 
 ## Candidate identity
 
-The full expanded, gauge-fixed key. Payloads also retain the affine variables required for replay.
+The full expanded, gauge-fixed key. Payloads also retain the affine variables required for replay. The terminal best candidate ID, arm and artifact are recorded explicitly.
 
 ## Candidate archive policy
 
@@ -68,7 +68,7 @@ The full expanded, gauge-fixed key. Payloads also retain the affine variables re
 
 ## Current result
 
-Implementation and deterministic pure-contract canary are ready for validation. The campaign is split only at real boundaries: pure keyspace/search, benchmark/reference construction and the executable wrapper. No scientific result is claimed.
+The WP3 evidence and validation corrections are implemented. No scientific result is claimed until the committed real-RDP canary has run successfully.
 
 ## Closed mechanisms
 

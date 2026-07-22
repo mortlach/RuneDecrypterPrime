@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import time
 from typing import Any, Callable, Mapping
 
 import numpy as np
@@ -24,6 +25,15 @@ from cipher_development.two_period_overlay.config import (
 ScoreVariables = Callable[[np.ndarray], np.ndarray]
 
 
+class CampaignWallclockExceeded(RuntimeError):
+    pass
+
+
+def _check_deadline(deadline: float | None) -> None:
+    if deadline is not None and time.monotonic() >= deadline:
+        raise CampaignWallclockExceeded("campaign wall-clock safety limit reached")
+
+
 def deterministic_key() -> np.ndarray:
     a = [(5 * i + 3) % ALPHABET_SIZE for i in range(PERIOD_A)]
     b = [0] + [(7 * i + 11) % ALPHABET_SIZE for i in range(1, PERIOD_B)]
@@ -35,6 +45,8 @@ def rref_mod(matrix: np.ndarray) -> tuple[np.ndarray, tuple[int, ...]]:
     row = 0
     pivots: list[int] = []
     for col in range(out.shape[1] - 1):
+        if row == out.shape[0]:
+            break
         found = np.flatnonzero(out[row:, col])
         if found.size == 0:
             continue
@@ -46,15 +58,15 @@ def rref_mod(matrix: np.ndarray) -> tuple[np.ndarray, tuple[int, ...]]:
                 out[other] = (out[other] - out[other, col] * out[row]) % ALPHABET_SIZE
         pivots.append(col)
         row += 1
-        if row == out.shape[0]:
-            break
     for values in out:
         if not np.any(values[:-1]) and values[-1]:
             raise ValueError("contradictory crib equations")
     return out, tuple(pivots)
 
 
-def crib_space(ciphertext: np.ndarray, crib: np.ndarray) -> tuple[np.ndarray, np.ndarray, tuple[int, ...]]:
+def crib_space(
+    ciphertext: np.ndarray, crib: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, tuple[int, ...]]:
     key_length = PERIOD_A + PERIOD_B
     rows: list[np.ndarray] = []
     for offset, plain in enumerate(np.asarray(crib, dtype=np.uint8).tolist()):
@@ -97,14 +109,18 @@ def comparison_seed(index: int) -> int:
     if isinstance(index, bool) or not isinstance(index, int) or index < 0:
         raise ValueError("comparison index must be a non-negative integer")
     data = f"{MASTER_SEED}:paired:{index}".encode("ascii")
-    return int.from_bytes(hashlib.blake2b(data, digest_size=8, person=b"rdp-wp3-seed").digest(), "big")
+    return int.from_bytes(
+        hashlib.blake2b(data, digest_size=8, person=b"rdp-wp3-seed").digest(), "big"
+    )
 
 
 def control_start_seed(index: int) -> int:
     if isinstance(index, bool) or not isinstance(index, int) or index < 0:
         raise ValueError("control index must be a non-negative integer")
     data = f"{MASTER_SEED}:control:{index}".encode("ascii")
-    return int.from_bytes(hashlib.blake2b(data, digest_size=8, person=b"rdp-wp3-seed").digest(), "big")
+    return int.from_bytes(
+        hashlib.blake2b(data, digest_size=8, person=b"rdp-wp3-seed").digest(), "big"
+    )
 
 
 def _score(evaluate: ScoreVariables, variables: np.ndarray) -> np.ndarray:
@@ -121,13 +137,17 @@ def coordinate_search(
     rng: np.random.Generator,
     variables: np.ndarray,
     sweeps: int,
+    *,
+    deadline: float | None = None,
 ) -> tuple[np.ndarray, float, int]:
     current = np.asarray(variables, dtype=np.uint8).copy()
+    _check_deadline(deadline)
     current_score = float(_score(evaluate, current)[0])
     evaluations = 1
     for _ in range(sweeps):
         improved = False
         for index in rng.permutation(current.size):
+            _check_deadline(deadline)
             candidates = np.repeat(current[None, :], ALPHABET_SIZE, axis=0)
             candidates[:, index] = np.arange(ALPHABET_SIZE, dtype=np.uint8)
             scores = _score(evaluate, candidates)
@@ -147,9 +167,12 @@ def anneal_and_polish(
     variables: np.ndarray,
     budget: RunBudget,
     seed: int,
+    *,
+    deadline: float | None = None,
 ) -> tuple[np.ndarray, float, Mapping[str, Any]]:
     rng = np.random.default_rng(seed)
     current = np.asarray(variables, dtype=np.uint8).copy()
+    _check_deadline(deadline)
     current_score = float(_score(evaluate, current)[0])
     best, best_score = current.copy(), current_score
     evaluations = 1
@@ -157,6 +180,7 @@ def anneal_and_polish(
 
     for _cycle in range(budget.sa_cycles):
         for step in range(budget.sa_steps):
+            _check_deadline(deadline)
             fraction = step / max(1, budget.sa_steps - 1)
             temperature = budget.sa_t0 * (budget.sa_tmin / budget.sa_t0) ** fraction
             index = int(rng.integers(0, current.size))
@@ -178,8 +202,9 @@ def anneal_and_polish(
                 if current_score > best_score + 1e-15:
                     best, best_score = current.copy(), current_score
 
+    pre_polish_best_score = best_score
     polished, polished_score, polish_evaluations = coordinate_search(
-        evaluate, rng, best, budget.coordinate_sweeps
+        evaluate, rng, best, budget.coordinate_sweeps, deadline=deadline
     )
     evaluations += polish_evaluations
     if polished_score > best_score + 1e-15:
@@ -189,7 +214,7 @@ def anneal_and_polish(
         "sa_proposals_attempted": budget.sa_steps * budget.sa_cycles,
         "accepted_sa_proposals": accepted,
         "accepted_downhill_proposals": downhill,
-        "coordinate_polish_gain": polished_score - current_score,
+        "coordinate_polish_gain": polished_score - pre_polish_best_score,
     }
 
 
@@ -219,4 +244,3 @@ def candidate_record(
             evaluation_index=evaluation_index,
         ),
     )
-
