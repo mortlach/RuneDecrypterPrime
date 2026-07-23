@@ -115,6 +115,24 @@ The benchmark builder and affine key-space contract support the full ladder. The
 7. `archive_handoff_v1` — compare selected candidates with matched independent controls.
 8. `candidate_replay_v1` — verify every cross-experiment candidate surface without discovery or exploitation.
 
+## Coordinate-supply experiment contract
+
+`coordinate_supply_v1` runs only the dimension-4 and dimension-8 ladder rungs.
+
+For each rung:
+
+- 32 deterministic coordinate restarts;
+- eight requested coordinate sweeps;
+- seed block 0;
+- 900-second wall-clock safety limit;
+- every unique restart optimum retained in `discovery_pool_archive.json`;
+- a capacity-64 operational `coordinate_archive.json`;
+- every restart, seed, starting variables, ending variables, evaluations and completed sweeps retained;
+- deterministic affine and expanded-key Hamming diagnostics;
+- no simulated annealing, handoff, control arm or candidate mutation.
+
+The declared upper evaluation budget is 89,152 across both rungs. The experiment always returns `refine`. A unique-candidate threshold of 16 is reported separately for each rung but does not itself decide the campaign.
+
 ## Control arm
 
 The same number of independently generated starts receive the same SA and coordinate-polish budgets. Comparison index `i` uses the same exploitation RNG seed in each arm. Final control candidates are retained.
@@ -172,11 +190,11 @@ Close only the current discovery mechanism if two predeclared equal-budget seed 
 
 ## Current candidate archive status
 
-The implementation writes coordinate, handoff, final and control-final candidate artifacts and binds both starting batches. The real-RDP technical canary has been reviewed; both starting batches await the combined replay-suite gate.
+The implementation writes coordinate, handoff, final and control-final candidate artifacts and binds both starting batches. The real-RDP technical canary and its two-binding replay suite are complete and reviewed.
 
 ## Current result
 
-The benchmark-contract gate is closed. The bounded P13/P17 technical canary completed successfully with four unique coordinate candidates and two matched comparisons. The top coordinate candidate remained the overall best; one archive start and both independent controls improved during exploitation. With only two pairs this is infrastructure evidence, not a scientific handoff result. Both saved starting batches still require deterministic bound replay before the technical gate closes.
+The benchmark-contract and technical infrastructure gates are closed. The bounded P13/P17 canary produced four unique coordinate candidates and both saved starting batches reproduced their stored scores and ranking twice. The top coordinate candidate remained the overall best; one archive start and both independent controls improved during exploitation. With only two pairs this remains infrastructure evidence, not a scientific handoff result.
 
 ## Closed mechanisms
 
@@ -184,8 +202,8 @@ None.
 
 ## Next experiment
 
-Run `technical_canary_replay_suite_v1`. It automatically selects the latest completed technical canary, verifies both `artifacts/archive_handoff_binding.json` and `artifacts/control_start_binding.json` twice, and produces one self-contained review pack containing the exact source context, batches and bindings. After both replays verify, begin `coordinate_supply_v1`; do not repeat the handoff canary with a larger budget.
+Run `coordinate_supply_v1` on the dimension-4 and dimension-8 ladder rungs. Use one fixed seed block of 32 coordinate restarts and eight sweeps per rung, retain every unique optimum, record every restart, and compute deterministic affine and expanded-key diversity diagnostics. Review this evidence before any P13/P17 candidate-supply run; do not repeat the handoff canary with a larger budget.
 
 ## Candidate lessons awaiting promotion
 
-CSL-007 remains `candidate`: real replay must show that a bound saved candidate surface can be rescored deterministically without rediscovery.
+CSL-007 is supported by the technical replay suite: both bound starting surfaces reproduced their stored scores and ranking without rediscovery. Promotion to a general lesson remains a milestone decision.
