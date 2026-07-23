@@ -12,6 +12,7 @@ CRIB_RUNES = (1, 9, 5, 3, 19, 0, 3, 4, 16, 24, 17, 20, 18)
 MASTER_SEED = 101
 DECISION_SCORE = "wli_decision_score"
 ARCHIVE_CAPACITY = 64
+RUN_EXPERIMENT = "benchmark_contract_canary"
 RUN_PROFILE = "canary"
 RUN_BENCHMARK_ID = "alice_308_p13_p17_d16"
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
