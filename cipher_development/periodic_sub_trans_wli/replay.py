@@ -270,10 +270,18 @@ def run_saved_replay(repo_root: Path) -> Path:
             "without generation or Kaeding?"
         ),
         hypothesis="The bound periodic-columnar surface reproduces both scores.",
+        alternative=(
+            "The saved surface or evaluator provenance is insufficient to reproduce both "
+            "recorded scores."
+        ),
         decision_rule="Replay studies always refine; report reproducibility evidence only.",
         wli_mode=WliMode.WITH_WLI,
         truth_policy=TruthPolicy.NONE,
         mechanisms=(FailureMechanism.EVIDENCE_REPRODUCIBILITY,),
+        lesson_ids=(
+            "CSL-001", "CSL-002", "CSL-003", "CSL-004",
+            "CSL-005", "CSL-006", "CSL-007",
+        ),
     )
     with ExperimentRun(
         spec=spec,

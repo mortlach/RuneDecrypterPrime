@@ -18,10 +18,15 @@ def _row(**overrides) -> ExperimentLedgerRow:
         "experiment_id": "wp1",
         "benchmark_id": "alice_308",
         "question": "Does this retain evidence?",
+        "hypothesis": "The evidence contract is sufficient.",
+        "alternative": "The evidence contract omits required fields.",
         "configuration_hash": "abc123",
         "wli_mode": "with_wli",
         "truth_policy": "benchmark_only",
         "mechanisms": ("evidence_reproducibility",),
+        "budget_seconds": 10.0,
+        "budget_evaluations": 100,
+        "lesson_ids": ("CSL-001",),
         "status": "completed",
         "decision": "refine",
         "stop_category": "budget",
@@ -90,6 +95,14 @@ def test_non_finite_values_and_invalid_rows_are_rejected(tmp_path: Path) -> None
         _row(elapsed_s=math.inf)
     with pytest.raises(ValueError):
         _row(result_summary={"score": math.nan})
+    with pytest.raises(ValueError):
+        _row(budget_seconds=math.inf)
+    with pytest.raises(ValueError):
+        _row(budget_evaluations=0)
+    with pytest.raises(ValueError, match="CSL-NNN"):
+        _row(lesson_ids=("CSL-1",))
+    with pytest.raises(ValueError, match="unique"):
+        _row(lesson_ids=("CSL-001", "CSL-001"))
 
     path = tmp_path / "ledger.jsonl"
     payload = _row().to_json_dict()

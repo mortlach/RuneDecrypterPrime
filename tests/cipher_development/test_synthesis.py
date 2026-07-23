@@ -45,10 +45,15 @@ def _fixture(root: Path, *, truth_policy: str = "benchmark_only") -> str:
         "experiment_id": "demo",
         "benchmark_id": "bench",
         "question": "question",
+        "hypothesis": "hypothesis",
+        "alternative": "alternative",
         "configuration_hash": "b" * 40,
         "wli_mode": "with_wli",
         "truth_policy": truth_policy,
         "mechanisms": ["evidence_reproducibility"],
+        "budget_seconds": 10.0,
+        "budget_evaluations": 100,
+        "lesson_ids": ["CSL-001"],
         "status": "completed",
         "decision": "refine",
         "stop_category": "budget",
@@ -84,6 +89,11 @@ def test_synthesis_is_deterministic_and_excludes_reference_by_default(
     second = build_milestone_summary(tmp_path, spec)
     assert first.to_json_dict() == second.to_json_dict()
     assert "reference_evaluation" not in first.selected_runs[0]
+    assert first.selected_runs[0]["hypothesis"] == "hypothesis"
+    assert first.selected_runs[0]["alternative"] == "alternative"
+    assert first.selected_runs[0]["budget_seconds"] == 10.0
+    assert first.selected_runs[0]["budget_evaluations"] == 100
+    assert first.selected_runs[0]["lesson_ids"] == ["CSL-001"]
     assert render_milestone_markdown(first) == render_milestone_markdown(second)
 
 
@@ -284,10 +294,15 @@ def _replay_fixture(root: Path, *, duplicate: bool = False) -> str:
         "experiment_id": "wp5_candidate_replay",
         "benchmark_id": "bench",
         "question": "q",
+        "hypothesis": "h",
+        "alternative": "a",
         "configuration_hash": "b" * 40,
         "wli_mode": "with_wli",
         "truth_policy": "none",
         "mechanisms": ["evidence_reproducibility"],
+        "budget_seconds": None,
+        "budget_evaluations": None,
+        "lesson_ids": ["CSL-007"],
         "status": "completed",
         "decision": "refine",
         "stop_category": "success",

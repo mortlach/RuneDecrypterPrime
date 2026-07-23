@@ -24,6 +24,7 @@ MANIFEST_SCHEMA = "rdp_cipher_development_experiment_manifest.v1"
 SNAPSHOT_SCHEMA = "rdp_cipher_development_progress_snapshot.v1"
 RESULT_SCHEMA = "rdp_cipher_development_experiment_result.v1"
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+_LESSON_ID_RE = re.compile(r"^CSL-[0-9]{3}$")
 _REFERENCE_KEYS = {
     "expected_key", "expected_plaintext", "ground_truth", "known_key", "known_plaintext",
     "match_ratio", "oracle", "oracle_key", "reference", "reference_evaluation",
@@ -154,17 +155,19 @@ class ExperimentSpec:
     benchmark_id: str
     question: str
     hypothesis: str
+    alternative: str
     decision_rule: str
     wli_mode: WliMode = WliMode.WITH_WLI
     truth_policy: TruthPolicy = TruthPolicy.BENCHMARK_ONLY
     mechanisms: tuple[FailureMechanism, ...] = ()
     budget_seconds: float | None = None
     budget_evaluations: int | None = None
+    lesson_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         for name in ("campaign_id", "experiment_id", "benchmark_id"):
             object.__setattr__(self, name, _identifier(getattr(self, name), name))
-        for name in ("question", "hypothesis", "decision_rule"):
+        for name in ("question", "hypothesis", "alternative", "decision_rule"):
             object.__setattr__(self, name, _text(getattr(self, name), name))
         object.__setattr__(self, "wli_mode", _enum(self.wli_mode, WliMode, "wli_mode"))
         object.__setattr__(self, "truth_policy", _enum(
@@ -187,15 +190,24 @@ class ExperimentSpec:
                 raise TypeError("budget_evaluations must be a positive integer or None")
             if value <= 0:
                 raise ValueError("budget_evaluations must be a positive integer or None")
+        lesson_ids = tuple(_text(item, "lesson_ids[]") for item in self.lesson_ids)
+        invalid_lessons = [item for item in lesson_ids if not _LESSON_ID_RE.fullmatch(item)]
+        if invalid_lessons:
+            raise ValueError("lesson_ids must use the CSL-NNN format")
+        if len(set(lesson_ids)) != len(lesson_ids):
+            raise ValueError("lesson_ids must be unique")
+        object.__setattr__(self, "lesson_ids", lesson_ids)
 
     def to_json_dict(self) -> dict[str, Any]:
         return {
             "campaign_id": self.campaign_id, "experiment_id": self.experiment_id,
             "benchmark_id": self.benchmark_id, "question": self.question,
-            "hypothesis": self.hypothesis, "decision_rule": self.decision_rule,
+            "hypothesis": self.hypothesis, "alternative": self.alternative,
+            "decision_rule": self.decision_rule,
             "wli_mode": self.wli_mode.value, "truth_policy": self.truth_policy.value,
             "mechanisms": [x.value for x in self.mechanisms],
             "budget_seconds": self.budget_seconds, "budget_evaluations": self.budget_evaluations,
+            "lesson_ids": list(self.lesson_ids),
         }
 
 
@@ -387,9 +399,13 @@ class ExperimentRun:
             schema=LEDGER_SCHEMA, recorded_at=_now(), run_id=self.run_dir.name,
             campaign_id=self.spec.campaign_id, experiment_id=self.spec.experiment_id,
             benchmark_id=self.spec.benchmark_id, question=self.spec.question,
+            hypothesis=self.spec.hypothesis, alternative=self.spec.alternative,
             configuration_hash=self.configuration_hash, wli_mode=self.spec.wli_mode.value,
             truth_policy=self.spec.truth_policy.value,
             mechanisms=tuple(x.value for x in self.spec.mechanisms),
+            budget_seconds=self.spec.budget_seconds,
+            budget_evaluations=self.spec.budget_evaluations,
+            lesson_ids=self.spec.lesson_ids,
             status=status, decision=decision, stop_category=category, stop_reason=reason,
             elapsed_s=elapsed, telemetry=telemetry, result_summary=summary,
             result_relpath=result_path.relative_to(self.ledger_path.parent).as_posix(),

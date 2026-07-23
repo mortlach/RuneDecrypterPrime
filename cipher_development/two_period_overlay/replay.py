@@ -240,10 +240,15 @@ def run_saved_replay(repo_root: Path) -> Path:
         benchmark_id=binding.benchmark_id,
         question="Can a saved WP3 candidate batch be rescored deterministically without discovery?",
         hypothesis="The bound candidate surface reproduces its scores and order.",
+        alternative=(
+            "The saved surface or evaluator provenance is insufficient to reproduce its "
+            "recorded scores and order."
+        ),
         decision_rule="Replay studies always refine; report reproducibility evidence only.",
         wli_mode=WliMode.WITH_WLI,
         truth_policy=TruthPolicy.NONE,
         mechanisms=(FailureMechanism.EVIDENCE_REPRODUCIBILITY,),
+        lesson_ids=("CSL-001", "CSL-002", "CSL-004", "CSL-005", "CSL-007"),
     )
     with ExperimentRun(
         spec=spec,

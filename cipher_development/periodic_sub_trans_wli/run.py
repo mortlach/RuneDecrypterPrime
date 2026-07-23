@@ -120,6 +120,10 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
             "Useful structured candidates are generated but raw seed ranking fails to "
             "handoff the most exploitable keys."
         ),
+        alternative=(
+            "The candidate supply itself is inadequate, so changing ranking policy will "
+            "not improve downstream exploitation."
+        ),
         decision_rule=(
             "Canaries and invalid or policy-no-op panels refine. A valid full panel promotes "
             "when WLI ranking wins more target cases than it loses without positive-control "
@@ -134,6 +138,10 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
             FailureMechanism.EXPLOITATION,
         ),
         budget_seconds=budget.wallclock_overrun_limit_s * len(specs),
+        lesson_ids=(
+            "CSL-001", "CSL-002", "CSL-003", "CSL-004",
+            "CSL-005", "CSL-006", "CSL-007",
+        ),
     )
     configuration = {
         "profile": profile,

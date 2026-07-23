@@ -102,6 +102,10 @@ def import_baseline_result(
         benchmark_id="alice_308_p13_p17",
         question="What ceilings were reached by the frozen independent search mechanisms?",
         hypothesis="The historical run provides a reproducible exploitation baseline.",
+        alternative=(
+            "The historical artifacts are incomplete or incompatible and cannot support "
+            "a reproducible baseline."
+        ),
         decision_rule="Import evidence only; do not promote a mechanism.",
         wli_mode=WliMode.WITH_WLI,
         truth_policy=TruthPolicy.BENCHMARK_ONLY,
@@ -109,6 +113,7 @@ def import_baseline_result(
             FailureMechanism.EXPLOITATION,
             FailureMechanism.EVIDENCE_REPRODUCIBILITY,
         ),
+        lesson_ids=("CSL-001", "CSL-002", "CSL-004", "CSL-005", "CSL-007"),
     )
     with ExperimentRun(
         spec=spec,
@@ -149,6 +154,10 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
             "independent exploitation starts?"
         ),
         hypothesis="Useful coordinate basins are discarded between independent methods.",
+        alternative=(
+            "Coordinate discovery never reaches useful candidate regions, so archive "
+            "handoff will not improve exploitation."
+        ),
         decision_rule=(
             "Promote when the valid paired sample meets the minimum, archive wins exceed control "
             "wins and archive best is no worse; close when the valid sample meets the minimum, "
@@ -163,6 +172,7 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
             FailureMechanism.EXPLOITATION,
         ),
         budget_seconds=budget.wallclock_limit_s,
+        lesson_ids=("CSL-001", "CSL-002", "CSL-004", "CSL-005", "CSL-007"),
     )
     configuration = {
         "profile": profile,

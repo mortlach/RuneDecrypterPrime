@@ -32,6 +32,7 @@ def _spec(**overrides) -> ExperimentSpec:
         "benchmark_id": "alice_308",
         "question": "Does the experiment boundary preserve evidence?",
         "hypothesis": "The small contract is sufficient.",
+        "alternative": "The small contract omits required evidence.",
         "decision_rule": "Refine if the evidence is incomplete.",
         "mechanisms": (FailureMechanism.EVIDENCE_REPRODUCIBILITY,),
     }
@@ -58,7 +59,7 @@ def test_wli_modes_are_deliberately_two_way() -> None:
 def test_spec_validates_ids_text_budgets_and_unique_mechanisms() -> None:
     with pytest.raises(ValueError, match="campaign_id"):
         _spec(campaign_id="Bad Campaign")
-    for field in ("question", "hypothesis", "decision_rule"):
+    for field in ("question", "hypothesis", "alternative", "decision_rule"):
         with pytest.raises(ValueError, match=field):
             _spec(**{field: "  "})
     for bad in (0, -1, math.inf, math.nan):
@@ -73,14 +74,26 @@ def test_spec_validates_ids_text_budgets_and_unique_mechanisms() -> None:
         _spec(budget_evaluations=True)
     with pytest.raises(ValueError, match="unique"):
         _spec(mechanisms=(FailureMechanism.BUDGET, FailureMechanism.BUDGET))
+    for bad in ("CSL-1", "csl-001", "CSL-0001"):
+        with pytest.raises(ValueError, match="CSL-NNN"):
+            _spec(lesson_ids=(bad,))
+    with pytest.raises(ValueError, match="unique"):
+        _spec(lesson_ids=("CSL-001", "CSL-001"))
 
 
 def test_spec_is_frozen_and_json_compatible() -> None:
-    spec = _spec(wli_mode="without_wli", truth_policy="none", budget_evaluations=10)
+    spec = _spec(
+        wli_mode="without_wli",
+        truth_policy="none",
+        budget_evaluations=10,
+        lesson_ids=("CSL-001",),
+    )
     payload = spec.to_json_dict()
     assert payload["wli_mode"] == "without_wli"
     assert payload["truth_policy"] == "none"
     assert payload["mechanisms"] == ["evidence_reproducibility"]
+    assert payload["alternative"] == "The small contract omits required evidence."
+    assert payload["lesson_ids"] == ["CSL-001"]
     with pytest.raises(Exception):
         spec.question = "changed"  # type: ignore[misc]
 
@@ -198,7 +211,12 @@ def test_snapshot_replaces_previous_file_and_forbids_truth_metrics(tmp_path: Pat
 
 
 def test_finish_writes_result_and_exactly_one_ledger_row(tmp_path: Path) -> None:
-    with _run(tmp_path) as run:
+    with _run(
+        tmp_path,
+        budget_seconds=30.0,
+        budget_evaluations=200,
+        lesson_ids=("CSL-001", "CSL-007"),
+    ) as run:
         result_path = run.finish(
             decision=ExperimentDecision.PROMOTE,
             stop_reason="target_score",
@@ -213,6 +231,11 @@ def test_finish_writes_result_and_exactly_one_ledger_row(tmp_path: Path) -> None
         rows = read_ledger(run.ledger_path)
         assert len(rows) == 1
         assert rows[0].decision == "promote"
+        assert rows[0].hypothesis == "The small contract is sufficient."
+        assert rows[0].alternative == "The small contract omits required evidence."
+        assert rows[0].budget_seconds == 30.0
+        assert rows[0].budget_evaluations == 200
+        assert rows[0].lesson_ids == ("CSL-001", "CSL-007")
         assert rows[0].telemetry["eval_keys"] == 20
         with pytest.raises(RuntimeError, match="already finished"):
             run.finish(decision="close", stop_reason="done")

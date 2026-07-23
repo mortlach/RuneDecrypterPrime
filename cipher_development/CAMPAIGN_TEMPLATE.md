@@ -58,6 +58,8 @@ MASTER_SEED = 101
 
 Do not use argparse or environment variables for campaign configuration. Record material solver and scorer settings explicitly. Do not place plaintext truth, known keys or oracle metrics in execution configuration.
 
+Every `ExperimentSpec` records the question, hypothesis, strongest alternative, decision rule, declared budgets and applicable `CSL-NNN` lesson IDs. The campaign brief remains the narrative authority, while the manifest and ledger preserve the contract for each individual run.
+
 ## Minimal runner shape
 
 ```python

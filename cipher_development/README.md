@@ -67,7 +67,7 @@ They are not committed. A custom output root, when needed for tests or controlle
 
 Each established campaign should maintain one evolving `CAMPAIGN.md` and one machine-readable experiment ledger. Do not create a new Markdown plan or review pack for every run.
 
-The shared WP1 infrastructure records experiment identity, deterministic configuration hashes, progress snapshots, terminal results and append-only ledger rows. It does not run solvers, retain candidate archives or decide campaign control flow.
+The shared WP1 infrastructure records experiment identity, question, hypothesis, strongest alternative, declared budgets, applicable lesson IDs, deterministic configuration hashes, progress snapshots, terminal results and append-only ledger rows. Lesson IDs use the stable `CSL-NNN` form. It does not run solvers, retain candidate archives or decide campaign control flow.
 
 The execution configuration is frozen when `ExperimentRun` is constructed. Reference truth, expected plaintext, known keys and oracle data must not be placed in that configuration; benchmark reference evaluation belongs only in the terminal `reference_evaluation` field.
 
