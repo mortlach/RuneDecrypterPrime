@@ -55,6 +55,14 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     )
 
 
+def _portable_json(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _portable_json(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_portable_json(item) for item in value]
+    return value
+
+
 def _portable_hash(value: Any) -> str:
     encoded = json.dumps(
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
@@ -137,7 +145,7 @@ def run_benchmark_contract_canary(repo_root: Path) -> Path:
         "run_experiment": "benchmark_contract_canary",
         "repeat_count": 2,
         "benchmarks": [item.to_json_dict() for item in BENCHMARK_LADDER],
-        "scoring": SCORING_CONTRACT,
+        "scoring": _portable_json(SCORING_CONTRACT),
     }
     run_dir: Path | None = None
     result_path: Path | None = None
@@ -347,7 +355,7 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
         "decision_score": DECISION_SCORE,
         "budget": _budget_configuration(budget),
         "evaluation_budget_upper_bound": evaluation_budget,
-        "scoring": SCORING_CONTRACT,
+        "scoring": _portable_json(SCORING_CONTRACT),
     }
     run_dir: Path | None = None
     result_path: Path | None = None

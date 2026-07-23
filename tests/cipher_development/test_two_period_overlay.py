@@ -40,6 +40,7 @@ from cipher_development.two_period_overlay.keyspace import (
 from cipher_development.two_period_overlay.run import (
     _budget_configuration,
     _evaluation_budget_upper_bound,
+    _portable_json,
 )
 from cipher_development.two_period_overlay.search import (
     campaign_decision,
@@ -110,6 +111,13 @@ def test_budget_configuration_records_every_search_control() -> None:
     assert payload["sa_tmin"] == 0.003
     assert payload["wallclock_limit_s"] == 123.0
     assert _evaluation_budget_upper_bound(budget, 16) > 0
+
+
+def test_scoring_contract_has_a_portable_recorded_configuration() -> None:
+    portable = _portable_json(SCORING_CONTRACT)
+    assert portable["char_weights"] == {"3": 0.5, "4": 0.5}
+    assert portable["wli_weights"] == {"3": 0.5, "4": 0.5}
+    assert SCORING_CONTRACT["char_weights"] == {3: 0.5, 4: 0.5}
 
 
 def test_benchmark_ladder_is_frozen_and_addressable() -> None:
