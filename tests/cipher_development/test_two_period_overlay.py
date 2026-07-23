@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import math
 from pathlib import Path
 
@@ -14,19 +13,19 @@ from cipher_development.two_period_overlay.benchmark import (
     SearchCase,
     _scoring_kwargs,
     build_rdp_case,
-    normalise_baseline_result,
 )
 from cipher_development.two_period_overlay.config import (
     ALPHABET_SIZE,
+    BENCHMARK_LADDER,
     CRIB_RUNES,
     CRIB_START,
     CRIB_WORD,
-    DECISION_SCORE,
-    PERIOD_A,
-    PERIOD_B,
     SCORING_CONTRACT,
+    TARGET_BENCHMARK,
     TEXT_LENGTH,
+    BenchmarkSpec,
     RunBudget,
+    benchmark_for,
 )
 from cipher_development.two_period_overlay.keyspace import (
     CampaignWallclockExceeded,
@@ -40,7 +39,7 @@ from cipher_development.two_period_overlay.keyspace import (
 )
 from cipher_development.two_period_overlay.run import (
     _budget_configuration,
-    _resolve_source_path,
+    _evaluation_budget_upper_bound,
 )
 from cipher_development.two_period_overlay.search import (
     campaign_decision,
@@ -67,18 +66,18 @@ def _budget(**overrides) -> RunBudget:
     return RunBudget(**values)
 
 
-def _linear_fixture():
-    true_key = deterministic_key()
+def _linear_fixture(benchmark: BenchmarkSpec = TARGET_BENCHMARK):
+    true_key = deterministic_key(benchmark)
     crib = np.asarray(CRIB_RUNES, dtype=np.uint8)
-    ciphertext = np.zeros(TEXT_LENGTH, dtype=np.uint8)
+    ciphertext = np.zeros(benchmark.text_length, dtype=np.uint8)
     for offset, plain in enumerate(crib):
-        pos = CRIB_START + offset
+        pos = benchmark.crib_start + offset
         ciphertext[pos] = (
             int(plain)
-            + int(true_key[pos % PERIOD_A])
-            + int(true_key[PERIOD_A + pos % PERIOD_B])
-        ) % ALPHABET_SIZE
-    particular, basis, free = crib_space(ciphertext, crib)
+            + int(true_key[pos % benchmark.period_a])
+            + int(true_key[benchmark.period_a + pos % benchmark.period_b])
+        ) % benchmark.alphabet_size
+    particular, basis, free = crib_space(ciphertext, crib, benchmark)
     variables = np.asarray([true_key[index] for index in free], dtype=np.uint8)
     return true_key, crib, ciphertext, particular, basis, free, variables
 
@@ -88,45 +87,6 @@ def _target_evaluator(target: np.ndarray):
         batch = np.asarray(values, dtype=np.int64)
         return -np.sum((batch - target[None, :]) ** 2, axis=1).astype(np.float64)
     return evaluate
-
-
-def _baseline_payload() -> dict:
-    return {
-        "schema": "rdp.two_period_crib_solver.plateau_comparison.v1",
-        "status": "completed",
-        "decision": "all_three_plateaued_on_p13_p17",
-        "stop_reason": "campaign_wallclock_budget",
-        "evaluations": 123,
-        "elapsed_seconds": 25_200.0,
-        "config": {
-            "periods": [13, 17],
-            "alphabet_size": 29,
-            "schedule": "overlay",
-            "gauge": {"stream": "B", "index": 0, "value": 0},
-            "text": {"length": 308},
-            "crib": {"word": "uncomfortable", "compact_core_offset": 188},
-            "scoring": {
-                **SCORING_CONTRACT,
-                "char_weights": {"3": 0.5, "4": 0.5},
-                "wli_weights": {"3": 0.5, "4": 0.5},
-            },
-        },
-        "phases": {
-            "coordinate": {},
-            "short_sa": {},
-            "coordinate_beam": {},
-        },
-        "best_result": {
-            "phase": "short_sa",
-            "score": 1.5,
-            "exact_plaintext": False,
-            "rune_matches": 20,
-            "complete_word_matches": 2,
-            "complete_words_total": 70,
-            "canonical_key_equal": False,
-            "combined_shift_equal": False,
-        },
-    }
 
 
 def test_run_budget_rejects_invalid_contract() -> None:
@@ -149,15 +109,53 @@ def test_budget_configuration_records_every_search_control() -> None:
     assert payload["sa_t0"] == 0.02
     assert payload["sa_tmin"] == 0.003
     assert payload["wallclock_limit_s"] == 123.0
+    assert _evaluation_budget_upper_bound(budget, 16) > 0
 
 
-def test_benchmark_constants_are_frozen() -> None:
-    assert (PERIOD_A, PERIOD_B) == (13, 17)
-    assert TEXT_LENGTH == 308
-    assert ALPHABET_SIZE == 29
-    assert CRIB_WORD == "uncomfortable"
-    assert CRIB_START == 188
+def test_benchmark_ladder_is_frozen_and_addressable() -> None:
+    assert [item.benchmark_id for item in BENCHMARK_LADDER] == [
+        "alice_308_p05_p07_d00",
+        "alice_308_p05_p13_d04",
+        "alice_308_p09_p13_d08",
+        "alice_308_p13_p17_d16",
+    ]
+    assert [(item.period_a, item.period_b) for item in BENCHMARK_LADDER] == [
+        (5, 7), (5, 13), (9, 13), (13, 17),
+    ]
+    assert [item.expected_free_dimension for item in BENCHMARK_LADDER] == [0, 4, 8, 16]
+    assert benchmark_for(TARGET_BENCHMARK.benchmark_id) is TARGET_BENCHMARK
+    with pytest.raises(ValueError, match="unknown"):
+        benchmark_for("missing")
+
+
+def test_benchmark_contract_constants_are_shared() -> None:
+    for benchmark in BENCHMARK_LADDER:
+        assert benchmark.text_length == TEXT_LENGTH == 308
+        assert benchmark.alphabet_size == ALPHABET_SIZE == 29
+        assert benchmark.crib_word == CRIB_WORD == "uncomfortable"
+        assert benchmark.crib_start == CRIB_START == 188
+        assert benchmark.gauge_key_index == benchmark.period_a
+        assert benchmark.to_json_dict()["gauge"] == "B[0]=0"
     assert len(CRIB_RUNES) == 13
+
+
+@pytest.mark.parametrize("benchmark", BENCHMARK_LADDER, ids=lambda item: item.benchmark_id)
+def test_every_ladder_crib_space_reconstructs_gauge_fixed_key(
+    benchmark: BenchmarkSpec,
+) -> None:
+    true_key, _crib, _ciphertext, particular, basis, free, variables = _linear_fixture(
+        benchmark
+    )
+    assert len(free) == benchmark.expected_free_dimension
+    assert basis.shape == (benchmark.key_length, benchmark.expected_free_dimension)
+    expanded = expand(variables, particular, basis, benchmark)
+    assert expanded[benchmark.gauge_key_index] == benchmark.gauge_value
+    assert np.array_equal(expanded, true_key)
+    if benchmark.expected_free_dimension == 0:
+        assert variables.shape == (0,)
+        assert np.array_equal(
+            expand(np.empty(0, dtype=np.uint8), particular, basis, benchmark), true_key
+        )
 
 
 def test_scoring_kwargs_are_derived_from_declared_contract() -> None:
@@ -179,14 +177,6 @@ def test_scoring_kwargs_are_derived_from_declared_contract() -> None:
     }
 
 
-def test_crib_space_preserves_gauge_and_reconstructs_true_key() -> None:
-    true_key, _crib, _ciphertext, particular, basis, free, variables = _linear_fixture()
-    assert len(free) == 16
-    expanded = expand(variables, particular, basis)
-    assert expanded[PERIOD_A] == 0
-    assert np.array_equal(expanded, true_key)
-
-
 def test_candidate_identity_is_expanded_key_and_payload_replays() -> None:
     _true_key, _crib, _ciphertext, particular, basis, _free, variables = _linear_fixture()
     record = candidate_record(
@@ -200,6 +190,7 @@ def test_candidate_identity_is_expanded_key_and_payload_replays() -> None:
     )
     payload = record.to_json_dict()
     assert payload["identity"] == {"expanded_key": payload["payload"]["expanded_key"]}
+    assert payload["payload"]["benchmark_id"] == TARGET_BENCHMARK.benchmark_id
     assert record.candidate_id == candidate_id_for(payload["identity"])
     assert expand(
         np.asarray(payload["payload"]["variables"], dtype=np.uint8), particular, basis
@@ -338,60 +329,23 @@ def test_search_case_has_no_truth_fields() -> None:
     assert {"plaintext", "true_key"}.issubset(ReferenceCase.__dataclass_fields__)
 
 
-def test_baseline_import_is_strict_and_separates_reference(tmp_path: Path) -> None:
-    payload = _baseline_payload()
-    result_source = (tmp_path / "sensitive" / "latest_result.json").resolve()
-    runner_source = (tmp_path / "sensitive" / "two_period_crib_solver_runner.py").resolve()
-    summary, reference = normalise_baseline_result(
-        payload, "a" * 64, str(result_source),
-        "b" * 64, str(runner_source),
-    )
-    assert summary["source_filename"] == "latest_result.json"
-    assert summary["runner_filename"] == "two_period_crib_solver_runner.py"
-    assert str(result_source.parent) not in json.dumps(summary)
-    assert "exact_plaintext" not in summary
-    assert set(reference) == {
-        "exact_plaintext", "rune_matches", "complete_word_matches",
-        "complete_words_total", "canonical_key_equal", "combined_shift_equal",
-    }
-
-    for mutation, match in (
-        (("status", "failed"), "completed status"),
-        (("config.schedule", "alternating"), "schedule"),
-        (("config.gauge", None), "gauge"),
-        (("config.scoring.n_char", 3), "n_char"),
-        (("phases", {"coordinate": {}}), "three historical phases"),
-    ):
-        broken = _baseline_payload()
-        path, value = mutation
-        target = broken
-        parts = path.split(".")
-        for part in parts[:-1]:
-            target = target[part]
-        target[parts[-1]] = value
-        with pytest.raises(ValueError, match=match):
-            normalise_baseline_result(broken, "a" * 64, "result.json", "b" * 64, "runner.py")
-
-
-def test_baseline_path_is_resolved_from_repo_root(tmp_path: Path) -> None:
-    root = tmp_path / "repo"
-    assert _resolve_source_path(root, Path("sources/result.json")) == root / "sources/result.json"
-    absolute = (tmp_path / "external" / "result.json").resolve()
-    assert _resolve_source_path(root, absolute) == absolute
-
-
-def test_real_rdp_benchmark_builds_and_scores_known_key() -> None:
+@pytest.mark.parametrize("benchmark", BENCHMARK_LADDER, ids=lambda item: item.benchmark_id)
+def test_real_rdp_benchmark_ladder_builds_and_scores_known_key(
+    benchmark: BenchmarkSpec,
+) -> None:
     pytest.importorskip("rune_decrypter_prime")
-    search_case, reference = build_rdp_case()
+    search_case, reference = build_rdp_case(benchmark)
     variables = np.asarray(
         [reference.true_key[index] for index in search_case.free_columns], dtype=np.uint8
     )
     scores = search_case.evaluate_variables(variables[None, :])
+    assert search_case.benchmark == benchmark
     assert search_case.sample_start >= 0
-    assert len(search_case.ciphertext) == TEXT_LENGTH
-    assert search_case.wli[CRIB_START: CRIB_START + len(CRIB_RUNES)] == tuple(
-        (i, len(CRIB_RUNES)) for i in range(len(CRIB_RUNES))
-    )
+    assert len(search_case.ciphertext) == benchmark.text_length
+    assert search_case.wli[
+        benchmark.crib_start: benchmark.crib_start + len(CRIB_RUNES)
+    ] == tuple((i, len(CRIB_RUNES)) for i in range(len(CRIB_RUNES)))
+    assert len(search_case.free_columns) == benchmark.expected_free_dimension
     assert scores.shape == (1,)
     assert np.isfinite(scores[0])
 
@@ -403,6 +357,7 @@ def test_campaign_source_uses_no_environment_or_cli_configuration() -> None:
         Path("cipher_development/two_period_overlay/keyspace.py"),
         Path("cipher_development/two_period_overlay/search.py"),
         Path("cipher_development/two_period_overlay/benchmark.py"),
+        Path("cipher_development/two_period_overlay/replay.py"),
         Path("cipher_development/two_period_overlay/run.py"),
     ):
         text = (root / relpath).read_text(encoding="utf-8")
