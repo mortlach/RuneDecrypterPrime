@@ -134,6 +134,21 @@ Each source run writes a truth-free replay context containing the exact benchmar
 
 Every batch crossing an experiment boundary has a content-addressed binding joining the source run, benchmark, configuration, context, batch and source archive. Replay verifies provenance, identity-payload agreement, affine reconstruction, benchmark membership, gauge, stored score and deterministic ranking. Replay never runs discovery or exploitation.
 
+## Automatic review packs
+
+Every benchmark, search and replay run automatically writes:
+
+```text
+output/cipher_development/two_period_overlay/review_packs/
+  two_period_overlay_<experiment_id>_<run_id>_review_pack.zip
+```
+
+The ZIP contains the complete run directory, campaign and relevant shared source snapshots, focused tests, evaluator/model provenance, environment metadata, a SHA-256 inventory and a generated `REVIEW.md`. ZIP ordering and timestamps are fixed so repacking unchanged evidence is byte-identical.
+
+The pack rejects absolute repository paths and truth-bearing search-visible JSON. Only terminal `experiment_result.json` may contain reference evaluation. A failed run still produces an explicitly incomplete diagnostic pack when the experiment directory exists.
+
+Local validation is recorded through `write_local_validation_receipt()` after focused and real-asset tests. Test logs placed below `output/cipher_development/two_period_overlay/validation/` are included automatically. A pack is `review_ready` only when required artifacts and source snapshots are complete, the recorded tests passed and the working tree is clean.
+
 ## Scale-up gates
 
 Do not run a bounded full P13/P17 panel until:
