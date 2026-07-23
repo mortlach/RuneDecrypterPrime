@@ -107,12 +107,31 @@ The benchmark builder and affine key-space contract support the full ladder. The
 ## Controlled experiment sequence
 
 1. `benchmark_contract_canary_v1` — validate every ladder rung twice without an expensive search.
-2. `technical_canary_v1` — execute the existing tiny P13/P17 archive-handoff path and replay both bound starting batches.
-3. `coordinate_supply_v1` — retain and diagnose every unique coordinate optimum on lower rungs before P13/P17.
-4. `candidate_diversity_v1` — diagnose affine and expanded-key basin diversity without new search.
-5. `candidate_selection_v1` — compare deterministic top-score and diverse-high-score selections.
-6. `archive_handoff_v1` — compare selected candidates with matched independent controls.
-7. `candidate_replay_v1` — verify every cross-experiment candidate surface without discovery or exploitation.
+2. `technical_canary_v1` — execute the existing tiny P13/P17 archive-handoff path. Completed successfully on 2026-07-23.
+3. `technical_canary_replay_suite_v1` — replay both bound starting batches twice in one evidence pack.
+4. `coordinate_supply_v1` — retain and diagnose every unique coordinate optimum on lower rungs before P13/P17.
+5. `candidate_diversity_v1` — diagnose affine and expanded-key basin diversity without new search.
+6. `candidate_selection_v1` — compare deterministic top-score and diverse-high-score selections.
+7. `archive_handoff_v1` — compare selected candidates with matched independent controls.
+8. `candidate_replay_v1` — verify every cross-experiment candidate surface without discovery or exploitation.
+
+## Coordinate-supply experiment contract
+
+`coordinate_supply_v1` runs only the dimension-4 and dimension-8 ladder rungs.
+
+For each rung:
+
+- 32 deterministic coordinate restarts;
+- eight requested coordinate sweeps;
+- seed block 0;
+- 900-second wall-clock safety limit;
+- every unique restart optimum retained in `discovery_pool_archive.json`;
+- a capacity-64 operational `coordinate_archive.json`;
+- every restart, seed, starting variables, ending variables, evaluations and completed sweeps retained;
+- deterministic affine and expanded-key Hamming diagnostics;
+- no simulated annealing, handoff, control arm or candidate mutation.
+
+The declared upper evaluation budget is 89,152 across both rungs. The experiment always returns `refine`. A unique-candidate threshold of 16 is reported separately for each rung but does not itself decide the campaign.
 
 ## Control arm
 
@@ -145,9 +164,9 @@ output/cipher_development/two_period_overlay/review_packs/
 
 The ZIP contains the complete run directory, campaign and relevant shared source snapshots, focused tests, evaluator/model provenance, environment metadata, a SHA-256 inventory and a generated `REVIEW.md`. ZIP ordering and timestamps are fixed so repacking unchanged evidence is byte-identical.
 
-The pack rejects absolute repository paths and truth-bearing search-visible JSON. Only terminal `experiment_result.json` may contain reference evaluation. A failed run still produces an explicitly incomplete diagnostic pack when the experiment directory exists.
+The pack rejects absolute repository paths in run and source evidence and truth-bearing search-visible JSON. Text validation logs are converted to UTF-8 and the exact local repository root is replaced with `<repo_root>`. Only terminal `experiment_result.json` may contain reference evaluation. A failed run still produces an explicitly incomplete diagnostic pack when the experiment directory exists.
 
-Local validation is recorded through `write_local_validation_receipt()` after focused and real-asset tests. Test logs placed below `output/cipher_development/two_period_overlay/validation/` are included automatically. A pack is `review_ready` only when required artifacts and source snapshots are complete, the recorded tests passed and the working tree is clean.
+Local validation is recorded through `write_local_validation_receipt()` after focused and real-asset tests. The receipt is bound to a content fingerprint of the packed campaign, shared-contract and focused-test source. Test logs placed below `output/cipher_development/two_period_overlay/validation/` are included automatically. A pack is `review_ready` only when required run, source and source-run artifacts are complete, the recorded tests passed and the validation fingerprint matches the packed source. Git cleanliness is retained as informational metadata, not a gate.
 
 ## Scale-up gates
 
@@ -171,11 +190,11 @@ Close only the current discovery mechanism if two predeclared equal-budget seed 
 
 ## Current candidate archive status
 
-The implementation writes coordinate, handoff, final and control-final candidate artifacts and binds both starting batches. No real-RDP canary or full-run archive has yet been reviewed.
+The implementation writes coordinate, handoff, final and control-final candidate artifacts and binds both starting batches. The real-RDP technical canary and its two-binding replay suite are complete and reviewed.
 
 ## Current result
 
-WP1-WP5 contracts are frozen. WP6 historical compatibility has been removed and the benchmark ladder contract is being established. No scientific WP6 result is claimed.
+The benchmark-contract and technical infrastructure gates are closed. The bounded P13/P17 canary produced four unique coordinate candidates and both saved starting batches reproduced their stored scores and ranking twice. The top coordinate candidate remained the overall best; one archive start and both independent controls improved during exploitation. With only two pairs this remains infrastructure evidence, not a scientific handoff result.
 
 ## Closed mechanisms
 
@@ -183,8 +202,8 @@ None.
 
 ## Next experiment
 
-The benchmark-contract gate is closed. Run and review `technical_canary_v1`, then replay both `artifacts/archive_handoff_binding.json` and `artifacts/control_start_binding.json` with two evaluator repeats each. Both bound replays must verify before the technical gate can close.
+Run `coordinate_supply_v1` on the dimension-4 and dimension-8 ladder rungs. Use one fixed seed block of 32 coordinate restarts and eight sweeps per rung, retain every unique optimum, record every restart, and compute deterministic affine and expanded-key diversity diagnostics. Review this evidence before any P13/P17 candidate-supply run; do not repeat the handoff canary with a larger budget.
 
 ## Candidate lessons awaiting promotion
 
-CSL-007 remains `candidate`: real replay must show that a bound saved candidate surface can be rescored deterministically without rediscovery.
+CSL-007 is supported by the technical replay suite: both bound starting surfaces reproduced their stored scores and ranking without rediscovery. Promotion to a general lesson remains a milestone decision.
