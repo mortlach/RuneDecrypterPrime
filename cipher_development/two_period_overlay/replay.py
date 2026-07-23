@@ -24,6 +24,7 @@ from cipher_development.two_period_overlay.config import (
     benchmark_for,
 )
 from cipher_development.two_period_overlay.keyspace import expand
+from cipher_development.two_period_overlay.review_pack import write_review_pack_after_run
 
 SOURCE_RUN_ID = ""
 SOURCE_BINDING_RELPATH = Path("artifacts/archive_handoff_binding.json")
@@ -236,35 +237,6 @@ def run_saved_replay(repo_root: Path) -> Path:
         expected_campaign_id="two_period_overlay",
         expected_run_id=SOURCE_RUN_ID,
     )
-    actual_provenance = build_evaluator_provenance(
-        repo_root=repo_root,
-        evaluator_source=Path(__file__),
-        scoring_contracts=(dict(context.payload["scoring"]),),
-        require_assets=True,
-    )
-    validate_evaluator_provenance(
-        context.payload["evaluator_provenance"], actual_provenance
-    )
-    evaluator = build_replay_evaluator(context)
-    evidence = replay_candidate_batch(
-        batch,
-        context,
-        binding,
-        evaluator=evaluator,
-        mode=REPLAY_MODE,
-        decision_score=DECISION_SCORE_NAME,
-        higher_is_better=True,
-        evaluator_configuration={
-            "campaign": "two_period_overlay",
-            "binding_id": binding.binding_id,
-            "context_id": context.context_id,
-            "decision_score": DECISION_SCORE_NAME,
-            "evaluator_provenance": actual_provenance,
-        },
-        repeat_count=REPEAT_COUNT,
-        absolute_tolerance=ABSOLUTE_TOLERANCE,
-        relative_tolerance=RELATIVE_TOLERANCE,
-    )
     spec = ExperimentSpec(
         campaign_id="two_period_overlay",
         experiment_id="candidate_replay_v1",
@@ -281,42 +253,85 @@ def run_saved_replay(repo_root: Path) -> Path:
         mechanisms=(FailureMechanism.EVIDENCE_REPRODUCIBILITY,),
         lesson_ids=("CSL-001", "CSL-002", "CSL-004", "CSL-005", "CSL-007"),
     )
-    with ExperimentRun(
-        spec=spec,
-        configuration={
-            "source_run_id": SOURCE_RUN_ID,
-            "source_binding_id": binding.binding_id,
-            "source_batch_id": batch.batch_id,
-            "source_context_id": context.context_id,
-            "mode": str(REPLAY_MODE),
-            "decision_score": DECISION_SCORE_NAME,
-            "repeat_count": REPEAT_COUNT,
-            "absolute_tolerance": ABSOLUTE_TOLERANCE,
-            "relative_tolerance": RELATIVE_TOLERANCE,
-        },
-        repo_root=repo_root,
-    ) as run:
-        assert run.run_dir is not None
-        artifact = run.run_dir / "artifacts/candidate_replay.json"
-        write_candidate_replay(artifact, evidence)
-        return run.finish(
-            decision=ExperimentDecision.REFINE,
-            stop_reason="done",
-            result_summary={
-                "source_run_id": SOURCE_RUN_ID,
-                "source_binding_id": binding.binding_id,
-                "source_batch_id": batch.batch_id,
-                "source_context_id": context.context_id,
-                "replay_id": evidence.replay_id,
-                "mode": evidence.mode.value,
-                "candidate_count": len(evidence.candidate_ids),
-                "decision_score": evidence.decision_score,
-                "deterministic": evidence.deterministic,
-                "stored_scores_verified": evidence.stored_scores_verified,
-                "ranking": list(evidence.ranking),
-                "artifact": "artifacts/candidate_replay.json",
-            },
-        )
+    configuration = {
+        "source_run_id": SOURCE_RUN_ID,
+        "source_binding_id": binding.binding_id,
+        "source_binding_artifact": SOURCE_BINDING_RELPATH.as_posix(),
+        "source_batch_id": batch.batch_id,
+        "source_context_id": context.context_id,
+        "mode": str(REPLAY_MODE),
+        "decision_score": DECISION_SCORE_NAME,
+        "repeat_count": REPEAT_COUNT,
+        "absolute_tolerance": ABSOLUTE_TOLERANCE,
+        "relative_tolerance": RELATIVE_TOLERANCE,
+    }
+    run_dir: Path | None = None
+    result_path: Path | None = None
+    try:
+        with ExperimentRun(
+            spec=spec, configuration=configuration, repo_root=repo_root
+        ) as run:
+            assert run.run_dir is not None
+            run_dir = run.run_dir
+            actual_provenance = build_evaluator_provenance(
+                repo_root=repo_root,
+                evaluator_source=Path(__file__),
+                scoring_contracts=(dict(context.payload["scoring"]),),
+                require_assets=True,
+            )
+            validate_evaluator_provenance(
+                context.payload["evaluator_provenance"], actual_provenance
+            )
+            evaluator = build_replay_evaluator(context)
+            evidence = replay_candidate_batch(
+                batch,
+                context,
+                binding,
+                evaluator=evaluator,
+                mode=REPLAY_MODE,
+                decision_score=DECISION_SCORE_NAME,
+                higher_is_better=True,
+                evaluator_configuration={
+                    "campaign": "two_period_overlay",
+                    "binding_id": binding.binding_id,
+                    "context_id": context.context_id,
+                    "decision_score": DECISION_SCORE_NAME,
+                    "evaluator_provenance": actual_provenance,
+                },
+                repeat_count=REPEAT_COUNT,
+                absolute_tolerance=ABSOLUTE_TOLERANCE,
+                relative_tolerance=RELATIVE_TOLERANCE,
+            )
+            artifact = run_dir / "artifacts/candidate_replay.json"
+            write_candidate_replay(artifact, evidence)
+            result_path = run.finish(
+                decision=ExperimentDecision.REFINE,
+                stop_reason="done",
+                result_summary={
+                    "source_run_id": SOURCE_RUN_ID,
+                    "source_binding_id": binding.binding_id,
+                    "source_binding_artifact": SOURCE_BINDING_RELPATH.as_posix(),
+                    "source_batch_id": batch.batch_id,
+                    "source_context_id": context.context_id,
+                    "replay_id": evidence.replay_id,
+                    "mode": evidence.mode.value,
+                    "candidate_count": len(evidence.candidate_ids),
+                    "decision_score": evidence.decision_score,
+                    "deterministic": evidence.deterministic,
+                    "stored_scores_verified": evidence.stored_scores_verified,
+                    "ranking": list(evidence.ranking),
+                    "artifact": "artifacts/candidate_replay.json",
+                },
+            )
+    except BaseException as exc:
+        if run_dir is not None:
+            write_review_pack_after_run(
+                repo_root, run_dir, original_error=exc
+            )
+        raise
+    assert run_dir is not None and result_path is not None
+    write_review_pack_after_run(repo_root, run_dir)
+    return result_path
 
 
 def main() -> int:
