@@ -18,12 +18,10 @@ from cipher_development.shared.replay_provenance import (
     validate_evaluator_provenance,
 )
 from cipher_development.two_period_overlay.config import (
-    ALPHABET_SIZE,
-    CRIB_START,
     DECISION_SCORE,
-    PERIOD_A,
-    PERIOD_B,
     SCORING_CONTRACT,
+    TARGET_BENCHMARK,
+    benchmark_for,
 )
 from cipher_development.two_period_overlay.keyspace import expand
 
@@ -51,22 +49,18 @@ def make_replay_context(
     configuration_hash: str,
     evaluator_provenance: Mapping[str, Any],
 ) -> CandidateReplayContext:
+    benchmark = getattr(search_case, "benchmark", TARGET_BENCHMARK)
     return CandidateReplayContext.create(
         campaign_id="two_period_overlay",
         run_id=run_id,
         configuration_hash=configuration_hash,
-        evaluator_id="two_period_overlay_wli_v2",
+        evaluator_id="two_period_overlay_wli_v3",
         payload={
-            "benchmark_id": "alice_308_p13_p17",
-            "alphabet_size": ALPHABET_SIZE,
-            "period_a": PERIOD_A,
-            "period_b": PERIOD_B,
-            "schedule": "overlay",
+            "benchmark_id": benchmark.benchmark_id,
+            "benchmark": benchmark.to_json_dict(),
             "ciphertext": np.asarray(search_case.ciphertext, dtype=np.uint8).tolist(),
             "wli": [list(pair) for pair in search_case.wli],
             "crib": np.asarray(search_case.crib, dtype=np.uint8).tolist(),
-            "crib_start": CRIB_START,
-            "gauge": "B[0]=0",
             "particular": np.asarray(search_case.particular, dtype=np.uint8).tolist(),
             "basis": np.asarray(search_case.basis, dtype=np.uint8).tolist(),
             "free_columns": list(search_case.free_columns),
@@ -77,25 +71,58 @@ def make_replay_context(
     )
 
 
+def _context_benchmark(context: CandidateReplayContext):
+    payload = context.payload
+    benchmark_id = str(payload.get("benchmark_id"))
+    if "benchmark" not in payload:
+        # WP5 unit fixtures used the pre-ladder target identifier. This is a
+        # replay-context compatibility boundary, not support for the discarded
+        # exploratory result schema.
+        if benchmark_id != "alice_308_p13_p17":
+            raise ValueError("legacy replay context does not identify the P13/P17 target")
+        if payload.get("gauge") != "B[0]=0":
+            raise ValueError("legacy replay context does not establish B[0] = 0")
+        if (int(payload.get("period_a", -1)), int(payload.get("period_b", -1))) != (
+            TARGET_BENCHMARK.period_a,
+            TARGET_BENCHMARK.period_b,
+        ):
+            raise ValueError("legacy replay periods do not match the P13/P17 target")
+        return TARGET_BENCHMARK
+    benchmark = benchmark_for(benchmark_id)
+    if _portable_json(payload.get("benchmark")) != benchmark.to_json_dict():
+        raise ValueError("replay benchmark contract does not match the registered ladder")
+    return benchmark
+
+
 def validate_candidate_payload(candidate, context: CandidateReplayContext) -> np.ndarray:
     payload = context.payload
-    if payload.get("benchmark_id") != "alice_308_p13_p17":
-        raise ValueError("unexpected WP3 replay benchmark")
-    if payload.get("gauge") != "B[0]=0":
-        raise ValueError("replay context does not establish B[0] = 0")
+    benchmark = _context_benchmark(context)
     particular = np.asarray(payload["particular"], dtype=np.uint8)
     basis = np.asarray(payload["basis"], dtype=np.uint8)
     variables = np.asarray(candidate.payload["variables"], dtype=np.uint8)
     stored_key = np.asarray(candidate.payload["expanded_key"], dtype=np.uint8)
-    if stored_key.shape != (int(payload["period_a"]) + int(payload["period_b"]),):
+    strict_ladder_context = "benchmark" in payload
+    candidate_benchmark_id = candidate.payload.get("benchmark_id")
+    if strict_ladder_context and candidate_benchmark_id != benchmark.benchmark_id:
+        raise ValueError("candidate payload belongs to a different benchmark")
+    if particular.shape != (benchmark.key_length,):
+        raise ValueError("replay particular solution has the wrong length")
+    expected_free_dimension = (
+        benchmark.expected_free_dimension if strict_ladder_context else basis.shape[1]
+    )
+    if basis.shape != (benchmark.key_length, expected_free_dimension):
+        raise ValueError("replay basis has the wrong shape")
+    if variables.shape != (expected_free_dimension,):
+        raise ValueError("stored affine variables have the wrong length")
+    if stored_key.shape != (benchmark.key_length,):
         raise ValueError("stored expanded key has the wrong length")
     identity = _portable_json(candidate.identity)
     if identity != {"expanded_key": stored_key.astype(int).tolist()}:
         raise ValueError("candidate identity and payload expanded key disagree")
-    rebuilt = expand(variables, particular, basis)
+    rebuilt = expand(variables, particular, basis, benchmark)
     if not np.array_equal(rebuilt, stored_key):
         raise ValueError("candidate variables do not reproduce the stored expanded key")
-    if int(stored_key[int(payload["period_a"])]) != 0:
+    if int(stored_key[benchmark.gauge_key_index]) != benchmark.gauge_value:
         raise ValueError("candidate violates the B[0] = 0 gauge")
     return stored_key
 
@@ -104,6 +131,7 @@ def build_replay_evaluator(context: CandidateReplayContext):
     if context.campaign_id != "two_period_overlay":
         raise ValueError("replay context belongs to a different campaign")
     payload = context.payload
+    benchmark = _context_benchmark(context)
     from rune_decrypter_prime.api import by_name, cipher_instance
     from rune_decrypter_prime.api.wrappers.registry import build_cipher_config
     from rune_decrypter_prime.core.config import HardCribConfig, ScoringConfig
@@ -114,15 +142,17 @@ def build_replay_evaluator(context: CandidateReplayContext):
     ciphertext = np.asarray(payload["ciphertext"], dtype=np.uint8)
     wli = tuple((int(a), int(b)) for a, b in payload["wli"])
     crib = np.asarray(payload["crib"], dtype=np.uint8)
-    if len(ciphertext) != len(wli):
-        raise ValueError("replay ciphertext and WLI lengths differ")
+    if len(ciphertext) != benchmark.text_length or len(wli) != benchmark.text_length:
+        raise ValueError("replay ciphertext, WLI and benchmark lengths differ")
+    if len(crib) != len(benchmark.crib_word):
+        raise ValueError("replay crib length does not match the benchmark")
     scoring_contract = dict(payload["scoring"])
     spec, key_spec = by_name.cipher_with_key(
         "two_period_vigenere",
-        period_a=int(payload["period_a"]),
-        period_b=int(payload["period_b"]),
-        schedule=str(payload["schedule"]),
-        alphabet_size=int(payload["alphabet_size"]),
+        period_a=benchmark.period_a,
+        period_b=benchmark.period_b,
+        schedule=benchmark.schedule,
+        alphabet_size=benchmark.alphabet_size,
         default_key=True,
     )
     cipher = cipher_instance(spec)
@@ -144,7 +174,7 @@ def build_replay_evaluator(context: CandidateReplayContext):
     hard_crib = HardCribConfig(
         enabled=bool(scoring_contract["hard_crib"]),
         fixed_chars={
-            int(payload["crib_start"]) + index: [int(value)]
+            benchmark.crib_start + index: [int(value)]
             for index, value in enumerate(crib)
         },
     )
@@ -168,6 +198,7 @@ def build_replay_evaluator(context: CandidateReplayContext):
             scores={DECISION_SCORE: score},
             stable_metrics={
                 "candidate_id": candidate.candidate_id,
+                "benchmark_id": benchmark.benchmark_id,
                 "payload_valid": True,
                 "gauge_valid": True,
             },
@@ -236,9 +267,9 @@ def run_saved_replay(repo_root: Path) -> Path:
     )
     spec = ExperimentSpec(
         campaign_id="two_period_overlay",
-        experiment_id="wp5_candidate_replay",
+        experiment_id="candidate_replay_v1",
         benchmark_id=binding.benchmark_id,
-        question="Can a saved WP3 candidate batch be rescored deterministically without discovery?",
+        question="Can a bound candidate batch be rescored deterministically without discovery?",
         hypothesis="The bound candidate surface reproduces its scores and order.",
         alternative=(
             "The saved surface or evaluator provenance is insufficient to reproduce its "
