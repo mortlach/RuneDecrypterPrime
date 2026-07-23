@@ -14,11 +14,10 @@ from cipher_development.shared.archive import (
 )
 from cipher_development.two_period_overlay.config import (
     ALPHABET_SIZE,
-    CRIB_START,
     DECISION_SCORE,
     MASTER_SEED,
-    PERIOD_A,
-    PERIOD_B,
+    TARGET_BENCHMARK,
+    BenchmarkSpec,
     RunBudget,
 )
 
@@ -34,14 +33,20 @@ def _check_deadline(deadline: float | None) -> None:
         raise CampaignWallclockExceeded("campaign wall-clock safety limit reached")
 
 
-def deterministic_key() -> np.ndarray:
-    a = [(5 * i + 3) % ALPHABET_SIZE for i in range(PERIOD_A)]
-    b = [0] + [(7 * i + 11) % ALPHABET_SIZE for i in range(1, PERIOD_B)]
+def deterministic_key(benchmark: BenchmarkSpec = TARGET_BENCHMARK) -> np.ndarray:
+    a = [(5 * i + 3) % benchmark.alphabet_size for i in range(benchmark.period_a)]
+    b = [benchmark.gauge_value] + [
+        (7 * i + 11) % benchmark.alphabet_size for i in range(1, benchmark.period_b)
+    ]
     return np.asarray([*a, *b], dtype=np.uint8)
 
 
-def rref_mod(matrix: np.ndarray) -> tuple[np.ndarray, tuple[int, ...]]:
-    out = np.asarray(matrix, dtype=np.int64).copy() % ALPHABET_SIZE
+def rref_mod(
+    matrix: np.ndarray, modulus: int = ALPHABET_SIZE
+) -> tuple[np.ndarray, tuple[int, ...]]:
+    if isinstance(modulus, bool) or not isinstance(modulus, int) or modulus <= 1:
+        raise ValueError("modulus must be an integer greater than one")
+    out = np.asarray(matrix, dtype=np.int64).copy() % modulus
     row = 0
     pivots: list[int] = []
     for col in range(out.shape[1] - 1):
@@ -52,10 +57,14 @@ def rref_mod(matrix: np.ndarray) -> tuple[np.ndarray, tuple[int, ...]]:
             continue
         selected = row + int(found[0])
         out[[row, selected]] = out[[selected, row]]
-        out[row] = out[row] * pow(int(out[row, col]), -1, ALPHABET_SIZE) % ALPHABET_SIZE
+        try:
+            inverse = pow(int(out[row, col]), -1, modulus)
+        except ValueError as exc:
+            raise ValueError("crib equations require an invertible pivot") from exc
+        out[row] = out[row] * inverse % modulus
         for other in range(out.shape[0]):
             if other != row and out[other, col]:
-                out[other] = (out[other] - out[other, col] * out[row]) % ALPHABET_SIZE
+                out[other] = (out[other] - out[other, col] * out[row]) % modulus
         pivots.append(col)
         row += 1
     for values in out:
@@ -65,43 +74,68 @@ def rref_mod(matrix: np.ndarray) -> tuple[np.ndarray, tuple[int, ...]]:
 
 
 def crib_space(
-    ciphertext: np.ndarray, crib: np.ndarray
+    ciphertext: np.ndarray,
+    crib: np.ndarray,
+    benchmark: BenchmarkSpec = TARGET_BENCHMARK,
 ) -> tuple[np.ndarray, np.ndarray, tuple[int, ...]]:
-    key_length = PERIOD_A + PERIOD_B
+    ciphertext = np.asarray(ciphertext, dtype=np.uint8)
+    crib = np.asarray(crib, dtype=np.uint8)
+    if len(ciphertext) != benchmark.text_length:
+        raise ValueError("ciphertext length does not match the benchmark")
+    if len(crib) != len(benchmark.crib_word):
+        raise ValueError("crib length does not match the frozen complete word")
     rows: list[np.ndarray] = []
-    for offset, plain in enumerate(np.asarray(crib, dtype=np.uint8).tolist()):
-        pos = CRIB_START + offset
-        row = np.zeros(key_length + 1, dtype=np.int64)
-        row[pos % PERIOD_A] = 1
-        row[PERIOD_A + (pos % PERIOD_B)] = 1
-        row[-1] = (int(ciphertext[pos]) - int(plain)) % ALPHABET_SIZE
+    for offset, plain in enumerate(crib.tolist()):
+        pos = benchmark.crib_start + offset
+        row = np.zeros(benchmark.key_length + 1, dtype=np.int64)
+        row[pos % benchmark.period_a] = 1
+        row[benchmark.period_a + (pos % benchmark.period_b)] = 1
+        row[-1] = (int(ciphertext[pos]) - int(plain)) % benchmark.alphabet_size
         rows.append(row)
-    gauge = np.zeros(key_length + 1, dtype=np.int64)
-    gauge[PERIOD_A] = 1
+    gauge = np.zeros(benchmark.key_length + 1, dtype=np.int64)
+    gauge[benchmark.gauge_key_index] = 1
+    gauge[-1] = benchmark.gauge_value
     rows.append(gauge)
 
-    reduced, pivots = rref_mod(np.stack(rows))
-    free = tuple(i for i in range(key_length) if i not in pivots)
-    particular = np.zeros(key_length, dtype=np.int64)
-    basis = np.zeros((key_length, len(free)), dtype=np.int64)
+    reduced, pivots = rref_mod(np.stack(rows), benchmark.alphabet_size)
+    free = tuple(i for i in range(benchmark.key_length) if i not in pivots)
+    particular = np.zeros(benchmark.key_length, dtype=np.int64)
+    basis = np.zeros((benchmark.key_length, len(free)), dtype=np.int64)
     for j, col in enumerate(free):
         basis[col, j] = 1
     for row_index, pivot in enumerate(pivots):
         particular[pivot] = reduced[row_index, -1]
         for j, col in enumerate(free):
             basis[pivot, j] = -reduced[row_index, col]
-    return particular % ALPHABET_SIZE, basis % ALPHABET_SIZE, free
+    return (
+        particular % benchmark.alphabet_size,
+        basis % benchmark.alphabet_size,
+        free,
+    )
 
 
-def expand(variables: np.ndarray, particular: np.ndarray, basis: np.ndarray) -> np.ndarray:
+def expand(
+    variables: np.ndarray,
+    particular: np.ndarray,
+    basis: np.ndarray,
+    benchmark: BenchmarkSpec = TARGET_BENCHMARK,
+) -> np.ndarray:
     values = np.asarray(variables, dtype=np.int64)
+    if values.ndim not in (1, 2):
+        raise ValueError("affine variables must be a vector or matrix")
     one = values.ndim == 1
     if one:
         values = values[None, :]
-    keys = (particular[None, :] + values @ basis.T) % ALPHABET_SIZE
+    particular = np.asarray(particular, dtype=np.int64)
+    basis = np.asarray(basis, dtype=np.int64)
+    if particular.shape != (benchmark.key_length,):
+        raise ValueError("particular solution has the wrong key length")
+    if basis.shape != (benchmark.key_length, values.shape[1]):
+        raise ValueError("basis shape does not match the variables and key length")
+    keys = (particular[None, :] + values @ basis.T) % benchmark.alphabet_size
     keys = np.ascontiguousarray(keys, dtype=np.uint8)
-    if not np.all(keys[:, PERIOD_A] == 0):
-        raise RuntimeError("expanded candidate violated B[0] = 0 gauge")
+    if not np.all(keys[:, benchmark.gauge_key_index] == benchmark.gauge_value):
+        raise RuntimeError("expanded candidate violated the B[0] = 0 gauge")
     return keys[0] if one else keys
 
 
@@ -228,14 +262,21 @@ def candidate_record(
     operation: str,
     evaluation_index: int,
     parent_ids: tuple[str, ...] = (),
+    benchmark: BenchmarkSpec = TARGET_BENCHMARK,
 ) -> CandidateRecord:
     variable_list = np.asarray(variables, dtype=np.uint8).astype(int).tolist()
-    key_list = expand(np.asarray(variables, dtype=np.uint8), particular, basis).astype(int).tolist()
+    key_list = expand(
+        np.asarray(variables, dtype=np.uint8), particular, basis, benchmark
+    ).astype(int).tolist()
     identity = {"expanded_key": key_list}
     return CandidateRecord(
         candidate_id=candidate_id_for(identity),
         identity=identity,
-        payload={"variables": variable_list, "expanded_key": key_list},
+        payload={
+            "variables": variable_list,
+            "expanded_key": key_list,
+            "benchmark_id": benchmark.benchmark_id,
+        },
         scores={DECISION_SCORE: float(score)},
         provenance=CandidateProvenance(
             source=source,
