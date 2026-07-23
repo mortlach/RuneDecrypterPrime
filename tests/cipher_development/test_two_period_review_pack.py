@@ -96,6 +96,7 @@ def _run_fixture(root: Path, *, missing: str | None = None) -> Path:
             "failed": 0,
             "skipped": 0,
             "duration_s": 1.0,
+            "source_fingerprint": review_pack._source_fingerprint(root),
         },
     )
     validation = root / review_pack.VALIDATION_ARTIFACT_ROOT
@@ -198,13 +199,15 @@ def test_windows_validation_logs_are_packed_as_utf8(
     _stable_runtime(monkeypatch)
     run = _run_fixture(tmp_path)
     log = tmp_path / review_pack.VALIDATION_ARTIFACT_ROOT / "focused_tests.txt"
-    log.write_bytes("166 passed\r\n".encode("utf-16"))
+    log.write_bytes(
+        f"166 passed at {tmp_path.resolve()}\r\n".encode("utf-16")
+    )
 
     result = review_pack.write_review_pack(tmp_path, run)
 
     with ZipFile(result.path) as archive:
         packed = archive.read("validation/local/focused_tests.txt")
-    assert packed.decode("utf-8") == "166 passed\r\n"
+    assert packed.decode("utf-8") == "166 passed at <repo_root>\r\n"
     assert not packed.startswith((b"\xff\xfe", b"\xfe\xff"))
 
 
@@ -300,6 +303,7 @@ def test_validation_receipt_is_strict_and_portable(tmp_path: Path) -> None:
     assert payload["schema"] == review_pack.LOCAL_VALIDATION_SCHEMA
     assert payload["status"] == "passed"
     assert payload["selected"] == 12
+    assert payload["source_fingerprint"] == review_pack._source_fingerprint(tmp_path)
     with pytest.raises(ValueError, match="sum"):
         review_pack.write_local_validation_receipt(
             tmp_path,
@@ -309,3 +313,109 @@ def test_validation_receipt_is_strict_and_portable(tmp_path: Path) -> None:
             skipped=0,
             duration_s=1.0,
         )
+
+
+def test_stale_validation_receipt_blocks_review_ready(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stable_runtime(monkeypatch)
+    run = _run_fixture(tmp_path)
+    source = tmp_path / review_pack.CAMPAIGN_SOURCE_PATHS[0]
+    source.write_text(source.read_text(encoding="utf-8") + "changed\n", encoding="utf-8")
+
+    result = review_pack.write_review_pack(tmp_path, run)
+
+    assert result.pack_complete is True
+    assert result.review_ready is False
+    with ZipFile(result.path) as archive:
+        manifest = json.loads(archive.read("review_manifest.json"))
+    assert manifest["evidence_quality"]["validation_source_matches"] is False
+    assert manifest["evidence_quality"]["tests_passed"] is False
+
+
+def test_dirty_git_state_is_informational_not_a_review_gate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = _run_fixture(tmp_path)
+    monkeypatch.setattr(
+        review_pack,
+        "_git_state",
+        lambda repo_root, meta: {
+            "recorded_run_commit": None,
+            "recorded_run_dirty": True,
+            "current_commit": None,
+            "current_branch": None,
+            "working_tree_clean": False,
+            "working_tree_entries": [" M local.py"],
+        },
+    )
+    monkeypatch.setattr(
+        review_pack,
+        "_environment",
+        lambda: {
+            "python_version": "3.11.0",
+            "python_implementation": "CPython",
+            "numpy_version": "2.0.0",
+            "platform_system": "TestOS",
+            "platform_release": "1",
+            "platform_machine": "x86_64",
+            "byteorder": "little",
+        },
+    )
+
+    result = review_pack.write_review_pack(tmp_path, run)
+
+    assert result.review_ready is True
+    with ZipFile(result.path) as archive:
+        manifest = json.loads(archive.read("review_manifest.json"))
+    assert manifest["working_tree_clean"] is False
+    assert manifest["evidence_quality"]["working_tree_clean"] is False
+
+
+def test_replay_suite_pack_includes_bound_source_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stable_runtime(monkeypatch)
+    run = _run_fixture(tmp_path)
+    source_run = tmp_path / "output/cipher_development/two_period_overlay/source-run"
+    for relative in review_pack._REPLAY_SOURCE_ARTIFACTS:
+        _write_json(source_run / relative, {"schema": "source.fixture.v1", "value": relative})
+
+    manifest_path = run / "artifacts/experiment_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["experiment"]["experiment_id"] = "technical_canary_replay_suite_v1"
+    manifest["experiment"]["truth_policy"] = "none"
+    _write_json(manifest_path, manifest)
+    result_path = run / "artifacts/experiment_result.json"
+    result_payload = json.loads(result_path.read_text(encoding="utf-8"))
+    result_payload["experiment_id"] = "technical_canary_replay_suite_v1"
+    result_payload["reference_evaluation"] = None
+    result_payload["result_summary"] = {
+        "source_run_id": "source-run",
+        "replay_count": 2,
+        "all_deterministic": True,
+        "all_stored_scores_verified": True,
+        "technical_replay_gate_passed": True,
+    }
+    _write_json(result_path, result_payload)
+    for relative in review_pack._required_artifacts("technical_canary_replay_suite_v1"):
+        if relative not in {
+            "artifacts/experiment_manifest.json",
+            "artifacts/experiment_result.json",
+        }:
+            _write_json(run / relative, {"schema": "suite.fixture.v1", "payload": {}})
+    review_pack.write_local_validation_receipt(
+        tmp_path, selected=1, passed=1, failed=0, skipped=0, duration_s=0.1
+    )
+
+    packed = review_pack.write_review_pack(tmp_path, run)
+
+    assert packed.pack_complete is True
+    assert packed.review_ready is True
+    with ZipFile(packed.path) as archive:
+        names = set(archive.namelist())
+        manifest = json.loads(archive.read("review_manifest.json"))
+    assert "source_run/artifacts/archive_handoff_binding.json" in names
+    assert "source_run/artifacts/control_start_batch.json" in names
+    assert manifest["missing_source_run_artifacts"] == []
+    assert len(manifest["source_run_files"]) == len(review_pack._REPLAY_SOURCE_ARTIFACTS)

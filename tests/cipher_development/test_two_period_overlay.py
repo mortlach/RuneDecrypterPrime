@@ -388,6 +388,8 @@ def test_campaign_source_uses_no_environment_or_cli_configuration() -> None:
         Path("cipher_development/two_period_overlay/search.py"),
         Path("cipher_development/two_period_overlay/benchmark.py"),
         Path("cipher_development/two_period_overlay/replay.py"),
+        Path("cipher_development/two_period_overlay/replay_suite.py"),
+        Path("cipher_development/two_period_overlay/review_pack.py"),
         Path("cipher_development/two_period_overlay/run.py"),
     ):
         text = (root / relpath).read_text(encoding="utf-8")

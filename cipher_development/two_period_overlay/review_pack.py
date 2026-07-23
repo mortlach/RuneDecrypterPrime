@@ -36,6 +36,7 @@ CAMPAIGN_SOURCE_PATHS = (
     Path("cipher_development/two_period_overlay/keyspace.py"),
     Path("cipher_development/two_period_overlay/search.py"),
     Path("cipher_development/two_period_overlay/replay.py"),
+    Path("cipher_development/two_period_overlay/replay_suite.py"),
     Path("cipher_development/two_period_overlay/review_pack.py"),
     Path("cipher_development/two_period_overlay/run.py"),
 )
@@ -88,6 +89,29 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _source_fingerprint(repo_root: Path) -> str:
+    paths = sorted(set((
+        *CAMPAIGN_SOURCE_PATHS,
+        *OPTIONAL_CAMPAIGN_SOURCE_PATHS,
+        *SHARED_SOURCE_PATHS,
+        *TEST_SOURCE_PATHS,
+    )), key=lambda item: item.as_posix())
+    records = []
+    for relative in paths:
+        source = repo_root.resolve() / relative
+        if source.is_file():
+            records.append({
+                "path": relative.as_posix(),
+                "sha256": _sha256(source.read_bytes()),
+            })
+    encoded = json.dumps(
+        records, ensure_ascii=True, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.blake2b(
+        encoded, digest_size=20, person=b"rdp-wp6-src-v1"
+    ).hexdigest()
 
 
 def _record(path: str, data: bytes, purpose: str) -> dict[str, Any]:
@@ -218,6 +242,13 @@ def _required_artifacts(experiment_id: str) -> tuple[str, ...]:
         )
     if experiment_id == "candidate_replay_v1":
         return (*common, "artifacts/candidate_replay.json")
+    if experiment_id == "technical_canary_replay_suite_v1":
+        return (
+            *common,
+            "artifacts/source_replay_context.json",
+            "artifacts/archive_handoff_replay.json",
+            "artifacts/control_start_replay.json",
+        )
     if experiment_id == "benchmark_contract_canary_v1":
         return (*common, "artifacts/benchmark_contract.json")
     return common
@@ -233,6 +264,7 @@ def _validation_receipt(repo_root: Path) -> dict[str, Any]:
             "failed": None,
             "skipped": None,
             "note": "Run focused and real-asset tests locally before treating this pack as review-ready.",
+            "source_fingerprint": None,
         }
     receipt = _read_json(path)
     if receipt.get("schema") != LOCAL_VALIDATION_SCHEMA:
@@ -274,6 +306,7 @@ def write_local_validation_receipt(
         **counts,
         "duration_s": duration,
         "note": None if note is None else note.strip(),
+        "source_fingerprint": _source_fingerprint(repo_root),
     }
     path = repo_root.resolve() / VALIDATION_RECEIPT
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -329,7 +362,9 @@ def _review_markdown(manifest: Mapping[str, Any], result: Mapping[str, Any]) -> 
         "best_candidate_id", "best_arm", "evaluations", "elapsed_s",
         "candidate_count", "deterministic", "stored_scores_verified",
         "benchmark_count", "repeat_count", "all_structural_repeats_equal",
-        "artifact", "replay_context_artifacts",
+        "artifact", "replay_context_artifacts", "source_run_id",
+        "replay_count", "all_deterministic", "all_stored_scores_verified",
+        "technical_replay_gate_passed", "replays",
     ):
         if key in summary:
             rendered = (
@@ -345,7 +380,8 @@ def _review_markdown(manifest: Mapping[str, Any], result: Mapping[str, Any]) -> 
         f"- required run artifacts complete: `{quality['required_artifacts_complete']}`",
         f"- source snapshot complete: `{quality['source_snapshot_complete']}`",
         f"- local tests recorded as passed: `{quality['tests_passed']}`",
-        f"- working tree clean: `{quality['working_tree_clean']}`",
+        f"- validation matches packed source: `{quality['validation_source_matches']}`",
+        f"- working tree clean (informational): `{quality['working_tree_clean']}`",
         f"- pack complete: `{manifest['pack_complete']}`",
         f"- review ready: `{manifest['review_ready']}`",
     ])
@@ -353,6 +389,12 @@ def _review_markdown(manifest: Mapping[str, Any], result: Mapping[str, Any]) -> 
         lines.append(f"- missing artifacts: `{', '.join(manifest['missing_artifacts'])}`")
     if manifest["missing_sources"]:
         lines.append(f"- missing sources: `{', '.join(manifest['missing_sources'])}`")
+    if manifest.get("missing_source_run_artifacts"):
+        lines.append(
+            "- missing source-run artifacts: `"
+            + ", ".join(manifest["missing_source_run_artifacts"])
+            + "`"
+        )
     review_questions = {
         "benchmark_contract_canary_v1": (
             "Were all four expected affine dimensions derived as `0/4/8/16`?",
@@ -367,6 +409,13 @@ def _review_markdown(manifest: Mapping[str, Any], result: Mapping[str, Any]) -> 
             "Does every candidate reproduce its stored identity, affine key and gauge?",
             "Are repeated scores and ranking deterministic within the declared tolerances?",
             "Does evaluator and language-model provenance match the source context?",
+        ),
+        "technical_canary_replay_suite_v1": (
+            "Are both required technical-canary bindings present and tied to one source run?",
+            "Did every archive-handoff and independent-control candidate verify twice?",
+            "Are both stored rankings deterministic within the declared tolerances?",
+            "Does evaluator and language-model provenance match the source context?",
+            "Is the complete source binding, context and batch evidence included in this pack?",
         ),
     }.get(
         manifest["experiment_id"],
@@ -418,6 +467,23 @@ def _add_source_entries(
         records.append(_record(member, data, purpose))
 
 
+def _portable_validation_bytes(data: bytes, repo_root: Path) -> bytes:
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        text = data.decode("utf-16")
+    elif data.startswith(b"\xef\xbb\xbf"):
+        text = data.decode("utf-8-sig")
+    else:
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError:
+            return data
+    root = str(repo_root.resolve())
+    for candidate in {root, root.replace("\\", "/"), root.replace("/", "\\")}:
+        if candidate:
+            text = text.replace(candidate, "<repo_root>")
+    return text.encode("utf-8")
+
+
 def _add_local_validation_artifacts(
     entries: dict[str, bytes],
     records: list[dict[str, Any]],
@@ -431,10 +497,7 @@ def _add_local_validation_artifacts(
         member = _safe_member(f"validation/local/{relative.as_posix()}")
         data = source.read_bytes()
         if source.suffix.lower() in {".log", ".txt"}:
-            if data.startswith((b"\xff\xfe", b"\xfe\xff")):
-                data = data.decode("utf-16").encode("utf-8")
-            elif data.startswith(b"\xef\xbb\xbf"):
-                data = data.decode("utf-8-sig").encode("utf-8")
+            data = _portable_validation_bytes(data, repo_root)
         _guard_portable(data, repo_root, member)
         entries[member] = data
         records.append(_record(member, data, "local validation output"))
@@ -442,7 +505,8 @@ def _add_local_validation_artifacts(
 
 def _asset_provenance(run_dir: Path) -> dict[str, Any]:
     direct = run_dir / "artifacts/replay_context.json"
-    context_paths = [direct] if direct.is_file() else []
+    source_context = run_dir / "artifacts/source_replay_context.json"
+    context_paths = [path for path in (direct, source_context) if path.is_file()]
     nested = run_dir / "artifacts/replay_contexts"
     if nested.is_dir():
         context_paths.extend(sorted(nested.glob("*.json")))
@@ -460,7 +524,7 @@ def _asset_provenance(run_dir: Path) -> dict[str, Any]:
         })
     if not contexts:
         return {}
-    if len(contexts) == 1 and direct.is_file():
+    if len(contexts) == 1:
         return dict(contexts[0]["evaluator_provenance"])
     canonical = contexts[0]["evaluator_provenance"]
     return {
@@ -472,6 +536,47 @@ def _asset_provenance(run_dir: Path) -> dict[str, Any]:
         "evaluator_provenance": canonical,
         "contexts": contexts,
     }
+
+
+_REPLAY_SOURCE_ARTIFACTS = (
+    "META.json",
+    "artifacts/experiment_manifest.json",
+    "artifacts/experiment_result.json",
+    "artifacts/replay_context.json",
+    "artifacts/archive_handoff_batch.json",
+    "artifacts/archive_handoff_binding.json",
+    "artifacts/control_start_batch.json",
+    "artifacts/control_start_binding.json",
+)
+
+
+def _add_replay_source_entries(
+    entries: dict[str, bytes],
+    records: list[dict[str, Any]],
+    missing: list[str],
+    repo_root: Path,
+    source_run_id: str | None,
+) -> None:
+    if not source_run_id:
+        missing.append("source_run_id")
+        return
+    if source_run_id in {".", ".."} or "/" in source_run_id or "\\" in source_run_id:
+        raise ValueError("source_run_id must be one directory name")
+    campaign_root = (repo_root / "output/cipher_development/two_period_overlay").resolve()
+    source_run = (campaign_root / source_run_id).resolve()
+    if campaign_root not in source_run.parents:
+        raise ValueError("source replay run escaped the campaign output root")
+    for relative in _REPLAY_SOURCE_ARTIFACTS:
+        source = source_run / PurePosixPath(relative)
+        if not source.is_file():
+            missing.append(relative)
+            continue
+        member = _safe_member(f"source_run/{relative}")
+        data = source.read_bytes()
+        _guard_run_json(Path(relative), data)
+        _guard_portable(data, repo_root, member)
+        entries[member] = data
+        records.append(_record(member, data, "bound replay source evidence"))
 
 
 def write_review_pack(repo_root: Path, run_dir: Path) -> ReviewPackResult:
@@ -524,6 +629,16 @@ def write_review_pack(repo_root: Path, run_dir: Path) -> ReviewPackResult:
         TEST_SOURCE_PATHS, "source/tests", "focused test source", required=True,
     )
 
+    source_run_records: list[dict[str, Any]] = []
+    missing_source_run_artifacts: list[str] = []
+    if experiment_id == "technical_canary_replay_suite_v1":
+        summary = result.get("result_summary")
+        summary = summary if isinstance(summary, Mapping) else {}
+        _add_replay_source_entries(
+            entries, source_run_records, missing_source_run_artifacts, repo_root,
+            str(summary.get("source_run_id") or "") or None,
+        )
+
     git_state = _git_state(repo_root, meta)
     environment = _environment()
     validation = _validation_receipt(repo_root)
@@ -543,12 +658,20 @@ def write_review_pack(repo_root: Path, run_dir: Path) -> ReviewPackResult:
 
     _add_local_validation_artifacts(entries, validation_records, repo_root)
 
-    tests_passed = validation.get("status") == "passed" and int(validation.get("failed", 0)) == 0
-    working_tree_clean = git_state.get("working_tree_clean") is True
+    current_source_fingerprint = _source_fingerprint(repo_root)
+    validation_source_matches = (
+        validation.get("source_fingerprint") == current_source_fingerprint
+    )
+    tests_passed = (
+        validation.get("status") == "passed"
+        and int(validation.get("failed", 0)) == 0
+        and validation_source_matches
+    )
     required_complete = not missing_artifacts
     sources_complete = not missing_sources
-    pack_complete = required_complete and sources_complete
-    review_ready = pack_complete and tests_passed and working_tree_clean
+    source_run_complete = not missing_source_run_artifacts
+    pack_complete = required_complete and sources_complete and source_run_complete
+    review_ready = pack_complete and tests_passed
     review_manifest = {
         "schema": REVIEW_PACK_SCHEMA,
         "campaign_id": "two_period_overlay",
@@ -568,8 +691,10 @@ def write_review_pack(repo_root: Path, run_dir: Path) -> ReviewPackResult:
         "required_artifacts": list(required_artifacts),
         "missing_artifacts": sorted(missing_artifacts),
         "missing_sources": sorted(missing_sources),
+        "missing_source_run_artifacts": sorted(missing_source_run_artifacts),
         "run_files": run_records,
         "source_files": source_records,
+        "source_run_files": source_run_records,
         "validation_files": validation_records,
         "asset_provenance": dict(asset_provenance),
         "test_summary": validation,
@@ -577,6 +702,9 @@ def write_review_pack(repo_root: Path, run_dir: Path) -> ReviewPackResult:
             "required_artifacts_complete": required_complete,
             "source_snapshot_complete": sources_complete,
             "tests_passed": tests_passed,
+            "validation_source_matches": validation_source_matches,
+            "validation_source_fingerprint": validation.get("source_fingerprint"),
+            "packed_source_fingerprint": current_source_fingerprint,
             "working_tree_clean": git_state.get("working_tree_clean"),
         },
         "pack_complete": pack_complete,

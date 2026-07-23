@@ -333,6 +333,40 @@ def test_source_run_paths_cannot_escape(tmp_path: Path):
         wp4_resolve(tmp_path, "a/b")
 
 
+def test_replay_suite_normalizes_frozen_context_json() -> None:
+    from cipher_development.two_period_overlay.replay_suite import _portable_json
+
+    frozen = {
+        "git_dirty": False,
+        "language_model_assets": (
+            {"logical_path": "lm.bin", "sha256": "a" * 64, "size_bytes": 1},
+        ),
+    }
+    normalized = _portable_json(frozen)
+    assert normalized["language_model_assets"] == [
+        {"logical_path": "lm.bin", "sha256": "a" * 64, "size_bytes": 1}
+    ]
+
+
+def test_wp6_replay_suite_restores_integer_ngram_weight_keys() -> None:
+    from cipher_development.two_period_overlay.replay_suite import _evaluator_context
+
+    context = SimpleNamespace(
+        campaign_id="two_period_overlay",
+        payload={
+            "scoring": {
+                "char_weights": {"3": 0.5, "4": 0.5},
+                "wli_weights": {"3": 0.25, "4": 0.75},
+                "objective": "pct.logp.win10",
+            }
+        },
+    )
+    restored = _evaluator_context(context).payload["scoring"]
+    assert restored["char_weights"] == {3: 0.5, 4: 0.5}
+    assert restored["wli_weights"] == {3: 0.25, 4: 0.75}
+    assert restored["objective"] == "pct.logp.win10"
+
+
 def test_verify_checks_every_repeat_against_stored_score():
     batch = _batch()
     context = _context()
@@ -554,3 +588,41 @@ def test_evaluator_provenance_fingerprints_the_default_asset_root(
     assert provenance["language_model_assets"][0]["logical_path"] == (
         "contract_0/model.json"
     )
+
+
+def test_required_replay_suite_selects_latest_completed_technical_canary(tmp_path: Path):
+    from cipher_development.two_period_overlay.replay_suite import (
+        latest_completed_technical_canary,
+    )
+
+    root = tmp_path / "output/cipher_development/two_period_overlay"
+    for run_id, experiment_id, status in (
+        ("20260723_010000__two_period_overlay__technical_canary_v1__aaaaaaa", "technical_canary_v1", "completed"),
+        ("20260723_020000__two_period_overlay__benchmark_contract_canary_v1__bbbbbbb", "benchmark_contract_canary_v1", "completed"),
+        ("20260723_030000__two_period_overlay__technical_canary_v1__ccccccc", "technical_canary_v1", "failed"),
+        ("20260723_040000__two_period_overlay__technical_canary_v1__ddddddd", "technical_canary_v1", "completed"),
+    ):
+        run = root / run_id / "artifacts"
+        run.mkdir(parents=True)
+        (run / "experiment_manifest.json").write_text(json.dumps({
+            "experiment": {"experiment_id": experiment_id},
+        }))
+        (run / "experiment_result.json").write_text(json.dumps({
+            "run_id": run_id,
+            "status": status,
+        }))
+
+    assert latest_completed_technical_canary(tmp_path) == (
+        "20260723_040000__two_period_overlay__technical_canary_v1__ddddddd"
+    )
+
+
+def test_required_replay_suite_requires_a_completed_source(tmp_path: Path):
+    from cipher_development.two_period_overlay.replay_suite import (
+        latest_completed_technical_canary,
+    )
+
+    root = tmp_path / "output/cipher_development/two_period_overlay"
+    root.mkdir(parents=True)
+    with pytest.raises(FileNotFoundError, match="completed technical_canary"):
+        latest_completed_technical_canary(tmp_path)
