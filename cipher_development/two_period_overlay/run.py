@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 
@@ -14,24 +13,18 @@ from cipher_development.shared.replay_binding import (
 from cipher_development.shared.replay_provenance import build_evaluator_provenance
 from cipher_development.two_period_overlay.benchmark import (
     build_rdp_case,
-    normalise_baseline_result,
     reference_metrics,
 )
 from cipher_development.two_period_overlay.config import (
-    ALPHABET_SIZE,
     ARCHIVE_CAPACITY,
-    BASELINE_RESULT_PATH,
-    BASELINE_RUNNER_PATH,
-    CRIB_START,
-    CRIB_WORD,
     DECISION_SCORE,
     MASTER_SEED,
-    PERIOD_A,
-    PERIOD_B,
+    RUN_BENCHMARK_ID,
     RUN_PROFILE,
     SCORING_CONTRACT,
-    TEXT_LENGTH,
+    TARGET_BENCHMARK,
     RunBudget,
+    benchmark_for,
     budget_for,
 )
 from cipher_development.two_period_overlay.replay import make_replay_context
@@ -41,10 +34,6 @@ from cipher_development.two_period_overlay.search import (
     run_search,
     write_search_artifacts,
 )
-
-
-def _resolve_source_path(repo_root: Path, source_path: Path) -> Path:
-    return source_path if source_path.is_absolute() else repo_root / source_path
 
 
 def _budget_configuration(budget: RunBudget) -> dict[str, int | float]:
@@ -61,76 +50,15 @@ def _budget_configuration(budget: RunBudget) -> dict[str, int | float]:
     }
 
 
-def import_baseline_result(
-    repo_root: Path,
-    source_path: Path = BASELINE_RESULT_PATH,
-    runner_path: Path = BASELINE_RUNNER_PATH,
-) -> Path:
-    from cipher_development.shared.experiment import (
-        ExperimentDecision,
-        ExperimentRun,
-        ExperimentSpec,
-        FailureMechanism,
-        TruthPolicy,
-        WliMode,
+def _evaluation_budget_upper_bound(budget: RunBudget, free_dimension: int) -> int:
+    coordinate_pass = 1 + budget.coordinate_sweeps * free_dimension * TARGET_BENCHMARK.alphabet_size
+    discovery = budget.coordinate_restarts * coordinate_pass
+    control_starts = budget.handoff_candidates
+    exploitation_per_arm = 2 + budget.sa_steps * budget.sa_cycles + (
+        budget.coordinate_sweeps * free_dimension * TARGET_BENCHMARK.alphabet_size
     )
-    from cipher_development.shared.ledger import read_ledger
-
-    resolved_result = _resolve_source_path(repo_root, source_path)
-    resolved_runner = _resolve_source_path(repo_root, runner_path)
-    raw = resolved_result.read_bytes()
-    runner_raw = resolved_runner.read_bytes()
-    source_sha256 = hashlib.sha256(raw).hexdigest()
-    runner_sha256 = hashlib.sha256(runner_raw).hexdigest()
-    payload = json.loads(raw.decode("utf-8"))
-    summary, reference = normalise_baseline_result(
-        payload,
-        source_sha256,
-        resolved_result.name,
-        runner_sha256,
-        resolved_runner.name,
-    )
-    ledger_path = repo_root / "output/cipher_development/two_period_overlay/experiment_ledger.jsonl"
-    if any(
-        row.result_summary.get("source_sha256") == source_sha256
-        for row in read_ledger(ledger_path)
-    ):
-        raise ValueError("this baseline source hash has already been imported")
-    spec = ExperimentSpec(
-        campaign_id="two_period_overlay",
-        experiment_id="frozen_baseline_import",
-        benchmark_id="alice_308_p13_p17",
-        question="What ceilings were reached by the frozen independent search mechanisms?",
-        hypothesis="The historical run provides a reproducible exploitation baseline.",
-        alternative=(
-            "The historical artifacts are incomplete or incompatible and cannot support "
-            "a reproducible baseline."
-        ),
-        decision_rule="Import evidence only; do not promote a mechanism.",
-        wli_mode=WliMode.WITH_WLI,
-        truth_policy=TruthPolicy.BENCHMARK_ONLY,
-        mechanisms=(
-            FailureMechanism.EXPLOITATION,
-            FailureMechanism.EVIDENCE_REPRODUCIBILITY,
-        ),
-        lesson_ids=("CSL-001", "CSL-002", "CSL-004", "CSL-005", "CSL-007"),
-    )
-    with ExperimentRun(
-        spec=spec,
-        configuration={
-            "source_sha256": source_sha256,
-            "source_filename": resolved_result.name,
-            "runner_sha256": runner_sha256,
-            "runner_filename": resolved_runner.name,
-        },
-        repo_root=repo_root,
-    ) as run:
-        return run.finish(
-            decision=ExperimentDecision.REFINE,
-            stop_reason="max_time",
-            result_summary=summary,
-            reference_evaluation=reference,
-        )
+    exploitation = budget.handoff_candidates * 2 * exploitation_per_arm
+    return discovery + control_starts + exploitation
 
 
 def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
@@ -143,12 +71,22 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
         WliMode,
     )
 
+    benchmark = benchmark_for(RUN_BENCHMARK_ID)
+    if benchmark != TARGET_BENCHMARK:
+        raise ValueError(
+            "the archive-handoff runner is frozen to the P13/P17 target; "
+            "lower ladder rungs are contract canaries until their search profiles are reviewed"
+        )
     budget = budget_for(profile)
-    search_case, reference = build_rdp_case()
+    search_case, reference = build_rdp_case(benchmark)
+    experiment_id = "technical_canary_v1" if profile == "canary" else "archive_handoff_v1"
+    evaluation_budget = _evaluation_budget_upper_bound(
+        budget, benchmark.expected_free_dimension
+    )
     spec = ExperimentSpec(
         campaign_id="two_period_overlay",
-        experiment_id=f"wp3_archive_handoff_{profile}",
-        benchmark_id="alice_308_p13_p17",
+        experiment_id=experiment_id,
+        benchmark_id=benchmark.benchmark_id,
         question=(
             "Does a retained full-WLI coordinate archive outperform "
             "independent exploitation starts?"
@@ -159,9 +97,9 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
             "handoff will not improve exploitation."
         ),
         decision_rule=(
-            "Promote when the valid paired sample meets the minimum, archive wins exceed control "
-            "wins and archive best is no worse; close when the valid sample meets the minimum, "
-            "there are no archive wins and archive best is no better; otherwise refine."
+            "Canaries always refine. A valid full comparison promotes when archive wins exceed "
+            "control wins and archive best is no worse; it closes when there are no archive "
+            "wins and archive best is no better; otherwise it refines."
         ),
         wli_mode=WliMode.WITH_WLI,
         truth_policy=TruthPolicy.BENCHMARK_ONLY,
@@ -172,19 +110,17 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
             FailureMechanism.EXPLOITATION,
         ),
         budget_seconds=budget.wallclock_limit_s,
+        budget_evaluations=evaluation_budget,
         lesson_ids=("CSL-001", "CSL-002", "CSL-004", "CSL-005", "CSL-007"),
     )
     configuration = {
         "profile": profile,
-        "periods": [PERIOD_A, PERIOD_B],
-        "text_length": TEXT_LENGTH,
-        "alphabet_size": ALPHABET_SIZE,
-        "crib_word": CRIB_WORD,
-        "crib_start": CRIB_START,
+        "benchmark": benchmark.to_json_dict(),
         "master_seed": MASTER_SEED,
         "archive_capacity": ARCHIVE_CAPACITY,
         "decision_score": DECISION_SCORE,
         "budget": _budget_configuration(budget),
+        "evaluation_budget_upper_bound": evaluation_budget,
         "scoring": SCORING_CONTRACT,
     }
     with ExperimentRun(spec=spec, configuration=configuration, repo_root=repo_root) as run:
@@ -207,6 +143,7 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
             run.run_dir / "artifacts/replay_context.json", replay_context
         )
         run.snapshot(label="benchmark_built", metrics={
+            "benchmark_id": benchmark.benchmark_id,
             "free_dimension": len(search_case.free_columns),
             "sample_start": search_case.sample_start,
             "replay_context_id": replay_context.context_id,
@@ -243,7 +180,7 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
                 campaign_id="two_period_overlay",
                 source_run_id=run.run_dir.name,
                 configuration_hash=run.configuration_hash,
-                benchmark_id="alice_308_p13_p17",
+                benchmark_id=benchmark.benchmark_id,
                 context=replay_context,
                 batch=batch,
                 context_artifact="artifacts/replay_context.json",
@@ -288,6 +225,7 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
             stop_reason="max_rounds",
             result_summary={
                 **summary,
+                "benchmark_id": benchmark.benchmark_id,
                 "best_score": outcome.best_score,
                 "best_candidate_id": outcome.best_candidate_id,
                 "best_arm": outcome.best_arm,
@@ -296,6 +234,7 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
                 "replay_context_artifact": "artifacts/replay_context.json",
                 "replay_bindings": bindings,
                 "evaluations": outcome.evaluations,
+                "evaluation_budget_upper_bound": evaluation_budget,
                 "elapsed_s": outcome.elapsed_s,
                 "coordinate_restarts": budget.coordinate_restarts,
                 "discovery": outcome.discovery.to_json_dict(),
@@ -311,11 +250,7 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
 
 
 def main() -> int:
-    repo_root = Path(__file__).resolve().parents[2]
-    if RUN_PROFILE == "baseline_import":
-        import_baseline_result(repo_root)
-    else:
-        run_rdp_campaign(repo_root, RUN_PROFILE)
+    run_rdp_campaign(Path(__file__).resolve().parents[2], RUN_PROFILE)
     return 0
 
 
