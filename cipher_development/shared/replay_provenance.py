@@ -8,6 +8,8 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from rune_decrypter_prime.scoring.language_model.paths import default_lm_root
+
 _DATA_SUFFIXES = {
     ".bin", ".csv", ".db", ".json", ".npy", ".npz", ".sqlite",
     ".tsv", ".txt", ".zst",
@@ -29,15 +31,17 @@ def _candidate_asset_files(repo_root: Path, scoring_contracts: Sequence[Mapping[
             root = Path(str(model_root))
             root = root if root.is_absolute() else repo_root / root
             root = root.resolve()
-            if root.is_file():
-                candidates.append((f"contract_{index}/{root.name}", root))
-            elif root.is_dir():
-                for path in sorted(root.rglob("*")):
-                    if path.is_file():
-                        candidates.append((
-                            f"contract_{index}/{path.relative_to(root).as_posix()}",
-                            path,
-                        ))
+        else:
+            root = default_lm_root().resolve()
+        if root.is_file():
+            candidates.append((f"contract_{index}/{root.name}", root))
+        elif root.is_dir():
+            for path in sorted(root.rglob("*")):
+                if path.is_file():
+                    candidates.append((
+                        f"contract_{index}/{path.relative_to(root).as_posix()}",
+                        path,
+                    ))
 
     try:
         distribution = importlib.metadata.distribution("rune-decrypter-prime")

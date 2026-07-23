@@ -529,3 +529,28 @@ def test_evaluator_provenance_hashes_source_and_explicit_assets(tmp_path: Path):
     changed["evaluator_source_sha256"] = "0" * 64
     with pytest.raises(ValueError, match="provenance"):
         validate_evaluator_provenance(provenance, changed)
+
+
+def test_evaluator_provenance_fingerprints_the_default_asset_root(
+    tmp_path: Path, monkeypatch
+):
+    import cipher_development.shared.replay_provenance as provenance_module
+
+    source = tmp_path / "evaluator.py"
+    source.write_text("x = 1\n")
+    assets = tmp_path / "default_models"
+    assets.mkdir()
+    (assets / "model.json").write_text('{"x": 1}\n')
+    monkeypatch.setattr(provenance_module, "default_lm_root", lambda: assets)
+
+    provenance = provenance_module.build_evaluator_provenance(
+        repo_root=tmp_path,
+        evaluator_source=source,
+        scoring_contracts=({"model_root": None},),
+        run_meta={"git": {"commit": "a" * 40, "dirty": False}},
+        require_assets=True,
+    )
+
+    assert provenance["language_model_assets"][0]["logical_path"] == (
+        "contract_0/model.json"
+    )
