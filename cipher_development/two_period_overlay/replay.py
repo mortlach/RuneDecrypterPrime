@@ -19,6 +19,8 @@ from cipher_development.shared.replay_provenance import (
 )
 from cipher_development.two_period_overlay.config import (
     DECISION_SCORE,
+    REQUIRED_REPLAY_BINDING_ARTIFACTS,
+    REQUIRED_REPLAY_REPEAT_COUNT,
     SCORING_CONTRACT,
     TARGET_BENCHMARK,
     benchmark_for,
@@ -27,10 +29,10 @@ from cipher_development.two_period_overlay.keyspace import expand
 from cipher_development.two_period_overlay.review_pack import write_review_pack_after_run
 
 SOURCE_RUN_ID = ""
-SOURCE_BINDING_RELPATH = Path("artifacts/archive_handoff_binding.json")
+SOURCE_BINDING_RELPATH = Path(REQUIRED_REPLAY_BINDING_ARTIFACTS[0])
 REPLAY_MODE = ReplayMode.VERIFY
 DECISION_SCORE_NAME = DECISION_SCORE
-REPEAT_COUNT = 2
+REPEAT_COUNT = REQUIRED_REPLAY_REPEAT_COUNT
 ABSOLUTE_TOLERANCE = 1e-12
 RELATIVE_TOLERANCE = 1e-12
 
@@ -221,6 +223,11 @@ def _resolve_source_run(repo_root: Path, run_id: str) -> Path:
 def run_saved_replay(repo_root: Path) -> Path:
     if not SOURCE_RUN_ID:
         raise ValueError("configure SOURCE_RUN_ID before running replay")
+    if SOURCE_BINDING_RELPATH.as_posix() not in REQUIRED_REPLAY_BINDING_ARTIFACTS:
+        raise ValueError(
+            "SOURCE_BINDING_RELPATH must select one of the two required technical-canary "
+            "starting-batch bindings"
+        )
     from cipher_development.shared.experiment import (
         ExperimentDecision,
         ExperimentRun,

@@ -20,6 +20,10 @@ from cipher_development.two_period_overlay.config import (
     CRIB_RUNES,
     CRIB_START,
     CRIB_WORD,
+    REQUIRED_REPLAY_BINDING_ARTIFACTS,
+    REQUIRED_REPLAY_REPEAT_COUNT,
+    RUN_BUDGETS,
+    RUN_EXPERIMENT,
     SCORING_CONTRACT,
     TARGET_BENCHMARK,
     TEXT_LENGTH,
@@ -111,6 +115,24 @@ def test_budget_configuration_records_every_search_control() -> None:
     assert payload["sa_tmin"] == 0.003
     assert payload["wallclock_limit_s"] == 123.0
     assert _evaluation_budget_upper_bound(budget, 16) > 0
+
+
+def test_technical_canary_is_prepared_with_frozen_budget_and_both_replays() -> None:
+    budget = RUN_BUDGETS["canary"]
+    assert RUN_EXPERIMENT == "archive_handoff"
+    assert (
+        budget.coordinate_restarts,
+        budget.coordinate_sweeps,
+        budget.handoff_candidates,
+        budget.sa_steps,
+        budget.sa_cycles,
+        budget.wallclock_limit_s,
+    ) == (4, 2, 2, 50, 1, 300.0)
+    assert REQUIRED_REPLAY_BINDING_ARTIFACTS == (
+        "artifacts/archive_handoff_binding.json",
+        "artifacts/control_start_binding.json",
+    )
+    assert REQUIRED_REPLAY_REPEAT_COUNT == 2
 
 
 def test_scoring_contract_has_a_portable_recorded_configuration() -> None:

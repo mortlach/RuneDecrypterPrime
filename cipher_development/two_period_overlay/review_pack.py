@@ -328,9 +328,16 @@ def _review_markdown(manifest: Mapping[str, Any], result: Mapping[str, Any]) -> 
         "underpowered", "archive_wins", "control_wins", "ties", "best_score",
         "best_candidate_id", "best_arm", "evaluations", "elapsed_s",
         "candidate_count", "deterministic", "stored_scores_verified",
+        "benchmark_count", "repeat_count", "all_structural_repeats_equal",
+        "artifact", "replay_context_artifacts",
     ):
         if key in summary:
-            lines.append(f"- {key}: `{summary[key]}`")
+            rendered = (
+                json.dumps(summary[key], ensure_ascii=False, sort_keys=True)
+                if isinstance(summary[key], (Mapping, list, tuple))
+                else str(summary[key])
+            )
+            lines.append(f"- {key}: `{rendered}`")
     lines.extend([
         "",
         "## Evidence quality",
@@ -346,19 +353,40 @@ def _review_markdown(manifest: Mapping[str, Any], result: Mapping[str, Any]) -> 
         lines.append(f"- missing artifacts: `{', '.join(manifest['missing_artifacts'])}`")
     if manifest["missing_sources"]:
         lines.append(f"- missing sources: `{', '.join(manifest['missing_sources'])}`")
+    review_questions = {
+        "benchmark_contract_canary_v1": (
+            "Were all four expected affine dimensions derived as `0/4/8/16`?",
+            "Did every known key round-trip with affine reconstruction and `B[0] = 0`?",
+            "Were scores finite and exactly repeated?",
+            "Were ciphertext, WLI, crib, affine structures and replay-context IDs identical?",
+            "Was reference evaluation terminal-only and exact for plaintext, key and shifts?",
+            "Are all search-visible artifacts free of plaintext and benchmark-key fields?",
+        ),
+        "candidate_replay_v1": (
+            "Does the binding identify the exact source run, context and candidate batch?",
+            "Does every candidate reproduce its stored identity, affine key and gauge?",
+            "Are repeated scores and ranking deterministic within the declared tolerances?",
+            "Does evaluator and language-model provenance match the source context?",
+        ),
+    }.get(
+        manifest["experiment_id"],
+        (
+            "Did discovery supply enough unique candidates?",
+            "Did discovery collapse into one basin?",
+            "Did the selected policies produce genuinely different candidate sets?",
+            "Did starting score predict final performance?",
+            "Did archive-derived candidates beat independent starts?",
+            "Did exploitation improve the supplied candidates?",
+            "Are bindings, provenance and replay evidence sufficient?",
+            "Is the experiment valid and sufficiently powered?",
+            "Is scale-up justified?",
+        ),
+    )
     lines.extend([
         "",
         "## Review questions",
         "",
-        "- Did discovery supply enough unique candidates?",
-        "- Did discovery collapse into one basin?",
-        "- Did the selected policies produce genuinely different candidate sets?",
-        "- Did starting score predict final performance?",
-        "- Did archive-derived candidates beat independent starts?",
-        "- Did exploitation improve the supplied candidates?",
-        "- Are bindings, provenance and replay evidence sufficient?",
-        "- Is the experiment valid and sufficiently powered?",
-        "- Is scale-up justified?",
+        *(f"- {question}" for question in review_questions),
         "",
         "Review `review_manifest.json` and `file_inventory.sha256` before relying on individual artifacts.",
         "",
@@ -402,9 +430,48 @@ def _add_local_validation_artifacts(
         relative = source.relative_to(root)
         member = _safe_member(f"validation/local/{relative.as_posix()}")
         data = source.read_bytes()
+        if source.suffix.lower() in {".log", ".txt"}:
+            if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+                data = data.decode("utf-16").encode("utf-8")
+            elif data.startswith(b"\xef\xbb\xbf"):
+                data = data.decode("utf-8-sig").encode("utf-8")
         _guard_portable(data, repo_root, member)
         entries[member] = data
         records.append(_record(member, data, "local validation output"))
+
+
+def _asset_provenance(run_dir: Path) -> dict[str, Any]:
+    direct = run_dir / "artifacts/replay_context.json"
+    context_paths = [direct] if direct.is_file() else []
+    nested = run_dir / "artifacts/replay_contexts"
+    if nested.is_dir():
+        context_paths.extend(sorted(nested.glob("*.json")))
+    contexts: list[dict[str, Any]] = []
+    for path in context_paths:
+        context = _read_json(path)
+        payload = context.get("payload") if isinstance(context.get("payload"), Mapping) else {}
+        provenance = payload.get("evaluator_provenance")
+        if not isinstance(provenance, Mapping):
+            continue
+        contexts.append({
+            "artifact": path.relative_to(run_dir).as_posix(),
+            "context_id": context.get("context_id"),
+            "evaluator_provenance": dict(provenance),
+        })
+    if not contexts:
+        return {}
+    if len(contexts) == 1 and direct.is_file():
+        return dict(contexts[0]["evaluator_provenance"])
+    canonical = contexts[0]["evaluator_provenance"]
+    return {
+        "schema": "rdp.two_period_overlay.asset_provenance.v1",
+        "context_count": len(contexts),
+        "all_evaluator_provenance_equal": all(
+            item["evaluator_provenance"] == canonical for item in contexts[1:]
+        ),
+        "evaluator_provenance": canonical,
+        "contexts": contexts,
+    }
 
 
 def write_review_pack(repo_root: Path, run_dir: Path) -> ReviewPackResult:
@@ -460,14 +527,7 @@ def write_review_pack(repo_root: Path, run_dir: Path) -> ReviewPackResult:
     git_state = _git_state(repo_root, meta)
     environment = _environment()
     validation = _validation_receipt(repo_root)
-    replay_context_path = run_dir / "artifacts/replay_context.json"
-    asset_provenance: Mapping[str, Any] = {}
-    if replay_context_path.is_file():
-        context = _read_json(replay_context_path)
-        payload = context.get("payload") if isinstance(context.get("payload"), Mapping) else {}
-        raw_provenance = payload.get("evaluator_provenance")
-        if isinstance(raw_provenance, Mapping):
-            asset_provenance = dict(raw_provenance)
+    asset_provenance = _asset_provenance(run_dir)
 
     generated_validation = {
         "validation/git_state.json": git_state,

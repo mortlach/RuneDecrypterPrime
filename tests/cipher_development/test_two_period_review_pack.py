@@ -164,6 +164,80 @@ def test_review_pack_is_complete_review_ready_and_deterministic(
         assert str(tmp_path.resolve()).encode() not in first_bytes
 
 
+def test_nested_replay_context_provenance_is_collected(tmp_path: Path) -> None:
+    run = tmp_path / "output/cipher_development/two_period_overlay/run-001"
+    provenance = {
+        "asset_manifest_complete": True,
+        "language_model_assets": [
+            {"logical_path": "lm.bin", "sha256": "a" * 64, "size_bytes": 12}
+        ],
+    }
+    for benchmark_id, context_id in (("d00", "a" * 40), ("d16", "b" * 40)):
+        _write_json(
+            run / f"artifacts/replay_contexts/{benchmark_id}.json",
+            {
+                "context_id": context_id,
+                "payload": {"evaluator_provenance": provenance},
+            },
+        )
+
+    collected = review_pack._asset_provenance(run)
+
+    assert collected["context_count"] == 2
+    assert collected["all_evaluator_provenance_equal"] is True
+    assert collected["evaluator_provenance"] == provenance
+    assert [item["context_id"] for item in collected["contexts"]] == [
+        "a" * 40,
+        "b" * 40,
+    ]
+
+
+def test_windows_validation_logs_are_packed_as_utf8(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stable_runtime(monkeypatch)
+    run = _run_fixture(tmp_path)
+    log = tmp_path / review_pack.VALIDATION_ARTIFACT_ROOT / "focused_tests.txt"
+    log.write_bytes("166 passed\r\n".encode("utf-16"))
+
+    result = review_pack.write_review_pack(tmp_path, run)
+
+    with ZipFile(result.path) as archive:
+        packed = archive.read("validation/local/focused_tests.txt")
+    assert packed.decode("utf-8") == "166 passed\r\n"
+    assert not packed.startswith((b"\xff\xfe", b"\xfe\xff"))
+
+
+def test_benchmark_canary_review_renders_contract_summary_and_questions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stable_runtime(monkeypatch)
+    run = _run_fixture(tmp_path)
+    manifest_path = run / "artifacts/experiment_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["experiment"]["experiment_id"] = "benchmark_contract_canary_v1"
+    _write_json(manifest_path, manifest)
+    result_path = run / "artifacts/experiment_result.json"
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    result["experiment_id"] = "benchmark_contract_canary_v1"
+    result["result_summary"] = {
+        "benchmark_count": 4,
+        "repeat_count": 2,
+        "all_structural_repeats_equal": True,
+    }
+    _write_json(result_path, result)
+    _write_json(run / "artifacts/benchmark_contract.json", {"benchmarks": []})
+
+    packed = review_pack.write_review_pack(tmp_path, run)
+
+    with ZipFile(packed.path) as archive:
+        review = archive.read("REVIEW.md").decode("utf-8")
+    assert "- benchmark_count: `4`" in review
+    assert "- all_structural_repeats_equal: `True`" in review
+    assert "expected affine dimensions derived as `0/4/8/16`" in review
+    assert "Did discovery supply enough unique candidates?" not in review
+
+
 def test_missing_required_artifact_still_creates_incomplete_pack(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

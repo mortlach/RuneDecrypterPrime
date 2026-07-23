@@ -29,6 +29,8 @@ from cipher_development.two_period_overlay.config import (
     RUN_BENCHMARK_ID,
     RUN_EXPERIMENT,
     RUN_PROFILE,
+    REQUIRED_REPLAY_BINDING_ARTIFACTS,
+    REQUIRED_REPLAY_REPEAT_COUNT,
     SCORING_CONTRACT,
     TARGET_BENCHMARK,
     RunBudget,
@@ -355,6 +357,10 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
         "decision_score": DECISION_SCORE,
         "budget": _budget_configuration(budget),
         "evaluation_budget_upper_bound": evaluation_budget,
+        "required_bound_replays": {
+            "binding_artifacts": list(REQUIRED_REPLAY_BINDING_ARTIFACTS),
+            "repeat_count": REQUIRED_REPLAY_REPEAT_COUNT,
+        },
         "scoring": _portable_json(SCORING_CONTRACT),
     }
     run_dir: Path | None = None
@@ -471,6 +477,10 @@ def run_rdp_campaign(repo_root: Path, profile: str = RUN_PROFILE) -> Path:
                     "replay_context_id": replay_context.context_id,
                     "replay_context_artifact": "artifacts/replay_context.json",
                     "replay_bindings": bindings,
+                    "required_bound_replays": {
+                        "binding_artifacts": list(REQUIRED_REPLAY_BINDING_ARTIFACTS),
+                        "repeat_count": REQUIRED_REPLAY_REPEAT_COUNT,
+                    },
                     "evaluations": outcome.evaluations,
                     "evaluation_budget_upper_bound": evaluation_budget,
                     "elapsed_s": outcome.elapsed_s,

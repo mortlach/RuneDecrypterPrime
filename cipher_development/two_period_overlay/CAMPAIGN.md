@@ -107,7 +107,7 @@ The benchmark builder and affine key-space contract support the full ladder. The
 ## Controlled experiment sequence
 
 1. `benchmark_contract_canary_v1` — validate every ladder rung twice without an expensive search.
-2. `technical_canary_v1` — execute the existing tiny P13/P17 archive-handoff path and replay its bound batch.
+2. `technical_canary_v1` — execute the existing tiny P13/P17 archive-handoff path and replay both bound starting batches.
 3. `coordinate_supply_v1` — retain and diagnose every unique coordinate optimum on lower rungs before P13/P17.
 4. `candidate_diversity_v1` — diagnose affine and expanded-key basin diversity without new search.
 5. `candidate_selection_v1` — compare deterministic top-score and diverse-high-score selections.
@@ -183,7 +183,7 @@ None.
 
 ## Next experiment
 
-Validate all ladder contracts with the complete RDP installation and language-model assets. Then run and review `technical_canary_v1` and replay its archive-handoff batch twice.
+The benchmark-contract gate is closed. Run and review `technical_canary_v1`, then replay both `artifacts/archive_handoff_binding.json` and `artifacts/control_start_binding.json` with two evaluator repeats each. Both bound replays must verify before the technical gate can close.
 
 ## Candidate lessons awaiting promotion
 
