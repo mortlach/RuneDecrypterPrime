@@ -110,10 +110,13 @@ The benchmark builder and affine key-space contract support the full ladder. The
 2. `technical_canary_v1` — execute the existing tiny P13/P17 archive-handoff path. Completed successfully on 2026-07-23.
 3. `technical_canary_replay_suite_v1` — replay both bound starting batches twice in one evidence pack.
 4. `coordinate_supply_v1` — retain and diagnose every unique coordinate optimum on lower rungs before P13/P17.
-5. `candidate_diversity_v1` — diagnose affine and expanded-key basin diversity without new search.
-6. `candidate_selection_v1` — compare deterministic top-score and diverse-high-score selections.
-7. `archive_handoff_v1` — compare selected candidates with matched independent controls.
-8. `candidate_replay_v1` — verify every cross-experiment candidate surface without discovery or exploitation.
+5. `candidate_diversity_v1` — closed from the diagnostics embedded in `coordinate_supply_v1`; no duplicate run is required.
+6. `candidate_selection_v1` — compare deterministic top-score and diverse-high-score d8 selections and replay both twice.
+7. `matched_exploitation_v1` — compare top-WLI, diverse-high-WLI and one common independent-control surface under matched d8 exploitation budgets.
+8. `target_coordinate_supply_v1` — run two independent, equal-budget 32-restart P13/P17 seed blocks and diagnose the combined target pool.
+9. `target_ranking_diagnostic_v1` — replay the complete 64-candidate target pool twice and assess aggregate WLI-to-truth rank alignment terminally.
+10. `candidate_replay_v1` — verify every later cross-experiment candidate surface without discovery or exploitation.
+
 
 ## Coordinate-supply experiment contract
 
@@ -133,6 +136,21 @@ For each rung:
 
 The declared upper evaluation budget is 89,152 across both rungs. The experiment always returns `refine`. A unique-candidate threshold of 16 is reported separately for each rung but does not itself decide the campaign.
 
+## Matched-exploitation experiment contract
+
+`matched_exploitation_v1` uses the two verified eight-candidate d8 selection batches and one common eight-candidate independent-control batch.
+
+For each of eight matched slots:
+
+- top-WLI, diverse-high-WLI and independent-control starts receive the same deterministic exploitation seed;
+- each arm receives 500 simulated-annealing proposals in each of two cycles;
+- each arm receives up to four coordinate-polish sweeps;
+- all starts, final candidates, gains, diagnostics and parent identities are retained;
+- every unique final candidate is bound and replayed twice;
+- terminal benchmark truth is evaluated only after all search and replay work is complete.
+
+The panel has a 900-second wall-clock safety limit and a 46,432-evaluation ceiling, including control construction and final replay. It always returns `refine`. A policy signal requires at least six of eight matched top-versus-diverse wins and a majority over the common control; otherwise it is `inconclusive`.
+
 ## Control arm
 
 The same number of independently generated starts receive the same SA and coordinate-polish budgets. Comparison index `i` uses the same exploitation RNG seed in each arm. Final control candidates are retained.
@@ -143,7 +161,7 @@ Each completed coordinate restart offers its optimum to a bounded archive. Selec
 
 ## Decision rule
 
-Canaries always refine. Full comparisons also refine when candidate supply is below the declared minimum. Otherwise promote when archive wins exceed control wins and archive best is no worse; close when there are no archive wins and archive best is no better; otherwise refine.
+Canaries, supply, selection and the first d8 matched-exploitation panel always return `refine`. They close infrastructure gates and report bounded scientific signals; they do not promote a P13/P17 mechanism by themselves. A later predeclared P13/P17 panel may promote or close only after candidate supply, policy contrast, replay and evaluation budgets are all valid.
 
 A wall-clock safety interruption is incomplete or underpowered evidence and cannot promote or close a mechanism.
 
@@ -190,19 +208,33 @@ Close only the current discovery mechanism if two predeclared equal-budget seed 
 
 ## Current candidate archive status
 
-The implementation writes coordinate, handoff, final and control-final candidate artifacts and binds both starting batches. The real-RDP technical canary and its two-binding replay suite are complete and reviewed.
+The lower-rung coordinate-supply run retained 30 unique d4 optima and 32 unique d8 optima. The d4 pool contained an exact solution. The d8 pool showed no duplicate-basin collapse and supplied two verified eight-candidate selection surfaces.
+
+The matched d8 exploitation panel retained and replayed eight finals from each of the top-WLI, diverse-high-WLI and independent-control arms. Both selected surfaces beat the common control in seven of eight matched slots, but neither selected surface improved under the tested SA-plus-coordinate-polish budget.
+
+The bounded P13/P17 target-supply panel retained 64 unique coordinate optima across two independent 32-restart seed blocks. There was no cross-block identity overlap. Combined nearest-neighbour affine Hamming distances were 10 to 14 in the 16-dimensional space.
 
 ## Current result
 
-The benchmark-contract and technical infrastructure gates are closed. The bounded P13/P17 canary produced four unique coordinate candidates and both saved starting batches reproduced their stored scores and ranking twice. The top coordinate candidate remained the overall best; one archive start and both independent controls improved during exploitation. With only two pairs this remains infrastructure evidence, not a scientific handoff result.
+The benchmark-contract, technical infrastructure, lower-rung candidate-supply, diversity, selection, matched-exploitation and P13/P17 target-supply gates are closed.
+
+P13/P17 coordinate candidate supply is not currently limiting: both seed blocks met their unique-candidate thresholds and the combined pool is broad. The best WLI-ranked target candidate was not an exact solve and matched only 26 runes and one complete word terminally. That single best-candidate result is insufficient to determine whether the full WLI ordering is useful or whether ranking is the next failure mechanism.
+
+The next gate therefore replays and terminally diagnoses the entire 64-candidate target surface without exposing candidate-specific truth mappings.
 
 ## Closed mechanisms
 
-None.
+- inadequate coordinate candidate supply on the d4 and d8 rungs;
+- coordinate-basin diversity collapse on the d4 and d8 rungs;
+- loss of selected d8 candidates to unmatched independent starts under the tested exploitation budget;
+- inadequate coordinate candidate supply in the first bounded two-block P13/P17 panel;
+- coordinate-basin identity collapse across the first two P13/P17 seed blocks.
+
+The top-WLI versus diverse-high-WLI policy comparison remains open. The tested short-SA operator did not improve established d8 coordinate optima. WLI ranking quality on the complete P13/P17 pool remains open.
 
 ## Next experiment
 
-Run `coordinate_supply_v1` on the dimension-4 and dimension-8 ladder rungs. Use one fixed seed block of 32 coordinate restarts and eight sweeps per rung, retain every unique optimum, record every restart, and compute deterministic affine and expanded-key diversity diagnostics. Review this evidence before any P13/P17 candidate-supply run; do not repeat the handoff canary with a larger budget.
+Run `target_ranking_diagnostic_v1`. Replay all 64 saved P13/P17 candidates twice, verify stored scores and ranking, then compute only aggregate terminal diagnostics for WLI score versus rune matches, complete-word matches and affine-variable matches. Do not emit candidate-specific truth mappings and do not run discovery, selection, mutation, SA or handoff.
 
 ## Candidate lessons awaiting promotion
 

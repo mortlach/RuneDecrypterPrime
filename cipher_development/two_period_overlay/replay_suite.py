@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import sys
+from types import SimpleNamespace
 from typing import Any, Mapping
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 REPLAY_MODE = "verify"
 ABSOLUTE_TOLERANCE = 1e-12
@@ -72,6 +77,25 @@ def _replay_summary(evidence, artifact: str) -> dict[str, Any]:
         "ranking": list(evidence.ranking),
         "artifact": artifact,
     }
+
+
+def _portable_json(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {str(key): _portable_json(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_portable_json(item) for item in value]
+    return value
+
+
+def _evaluator_context(context: Any) -> Any:
+    payload = _portable_json(context.payload)
+    scoring = dict(payload["scoring"])
+    for field in ("char_weights", "wli_weights"):
+        weights = scoring.get(field)
+        if isinstance(weights, Mapping):
+            scoring[field] = {int(n): weight for n, weight in weights.items()}
+    payload["scoring"] = scoring
+    return SimpleNamespace(campaign_id=context.campaign_id, payload=payload)
 
 
 def run_required_replay_suite(
@@ -178,27 +202,37 @@ def run_required_replay_suite(
             assert run.run_dir is not None
             run_dir = run.run_dir
             write_replay_context(run_dir / "artifacts/source_replay_context.json", first_context)
+            expected_provenance = _portable_json(
+                first_context.payload["evaluator_provenance"]
+            )
             actual_provenance = build_evaluator_provenance(
                 repo_root=repo_root,
                 evaluator_source=Path(__file__).with_name("replay.py"),
                 scoring_contracts=(dict(first_context.payload["scoring"]),),
+                run_meta={
+                    "git": {
+                        "commit": expected_provenance.get("git_commit"),
+                        "dirty": expected_provenance.get("git_dirty"),
+                    }
+                },
                 require_assets=True,
             )
             validate_evaluator_provenance(
-                first_context.payload["evaluator_provenance"], actual_provenance
+                expected_provenance, actual_provenance
             )
 
             summaries: dict[str, dict[str, Any]] = {}
             for binding_artifact in REQUIRED_REPLAY_BINDING_ARTIFACTS:
                 binding, context, batch = loaded[binding_artifact]
                 validate_evaluator_provenance(
-                    context.payload["evaluator_provenance"], actual_provenance
+                    _portable_json(context.payload["evaluator_provenance"]),
+                    actual_provenance,
                 )
                 evidence = replay_candidate_batch(
                     batch,
                     context,
                     binding,
-                    evaluator=build_replay_evaluator(context),
+                    evaluator=build_replay_evaluator(_evaluator_context(context)),
                     mode=replay_mode,
                     decision_score=DECISION_SCORE,
                     higher_is_better=True,

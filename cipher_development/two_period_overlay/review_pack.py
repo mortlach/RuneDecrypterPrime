@@ -28,6 +28,10 @@ _REFERENCE_KEYS = {
     "reference_metrics", "test_key", "truth", "truth_key", "truth_metrics",
 }
 _REFERENCE_PREFIXES = ("oracle_", "reference_", "truth_")
+_COORDINATE_SUPPLY_BENCHMARK_IDS = (
+    "alice_308_p05_p13_d04",
+    "alice_308_p09_p13_d08",
+)
 
 CAMPAIGN_SOURCE_PATHS = (
     Path("cipher_development/two_period_overlay/CAMPAIGN.md"),
@@ -35,14 +39,19 @@ CAMPAIGN_SOURCE_PATHS = (
     Path("cipher_development/two_period_overlay/benchmark.py"),
     Path("cipher_development/two_period_overlay/keyspace.py"),
     Path("cipher_development/two_period_overlay/search.py"),
+    Path("cipher_development/two_period_overlay/coordinate_supply.py"),
+    Path("cipher_development/two_period_overlay/diagnostics.py"),
     Path("cipher_development/two_period_overlay/replay.py"),
     Path("cipher_development/two_period_overlay/replay_suite.py"),
     Path("cipher_development/two_period_overlay/review_pack.py"),
     Path("cipher_development/two_period_overlay/run.py"),
 )
 OPTIONAL_CAMPAIGN_SOURCE_PATHS = (
-    Path("cipher_development/two_period_overlay/diagnostics.py"),
     Path("cipher_development/two_period_overlay/selection.py"),
+    Path("cipher_development/two_period_overlay/candidate_selection.py"),
+    Path("cipher_development/two_period_overlay/exploitation.py"),
+    Path("cipher_development/two_period_overlay/target_supply.py"),
+    Path("cipher_development/two_period_overlay/target_ranking.py"),
 )
 SHARED_SOURCE_PATHS = (
     Path("cipher_development/shared/experiment.py"),
@@ -58,6 +67,11 @@ TEST_SOURCE_PATHS = (
     Path("tests/cipher_development/test_two_period_overlay.py"),
     Path("tests/cipher_development/test_campaign_replay.py"),
     Path("tests/cipher_development/test_two_period_review_pack.py"),
+    Path("tests/cipher_development/test_two_period_coordinate_supply.py"),
+    Path("tests/cipher_development/test_two_period_selection.py"),
+    Path("tests/cipher_development/test_two_period_exploitation.py"),
+    Path("tests/cipher_development/test_two_period_target_supply.py"),
+    Path("tests/cipher_development/test_two_period_target_ranking.py"),
 )
 
 
@@ -150,7 +164,10 @@ def _contains_reference(value: Any) -> str | None:
 
 
 def _guard_run_json(relative: Path, data: bytes) -> None:
-    if relative.as_posix() == "artifacts/experiment_result.json":
+    if relative.as_posix() in {
+        "artifacts/experiment_result.json",
+        "artifacts/source_experiment_result.json",
+    }:
         return
     if relative.suffix.lower() != ".json":
         return
@@ -239,6 +256,107 @@ def _required_artifacts(experiment_id: str) -> tuple[str, ...]:
             "artifacts/control_start_binding.json",
             "artifacts/final_archive.json",
             "artifacts/control_final_archive.json",
+        )
+    if experiment_id == "coordinate_supply_v1":
+        benchmark_artifacts = tuple(
+            f"artifacts/coordinate_supply/{benchmark_id}/{filename}"
+            for benchmark_id in _COORDINATE_SUPPLY_BENCHMARK_IDS
+            for filename in (
+                "discovery_pool_archive.json",
+                "coordinate_archive.json",
+                "discovery_restarts.json",
+                "discovery_diagnostics.json",
+            )
+        )
+        replay_contexts = tuple(
+            f"artifacts/replay_contexts/{benchmark_id}.json"
+            for benchmark_id in _COORDINATE_SUPPLY_BENCHMARK_IDS
+        )
+        return (
+            *common,
+            "artifacts/coordinate_supply_summary.json",
+            *replay_contexts,
+            *benchmark_artifacts,
+        )
+    if experiment_id == "target_coordinate_supply_v1":
+        block_artifacts = tuple(
+            f"artifacts/target_coordinate_supply/seed_block_{seed_block}/{filename}"
+            for seed_block in (0, 1)
+            for filename in (
+                "discovery_pool_archive.json",
+                "coordinate_archive.json",
+                "discovery_restarts.json",
+                "discovery_diagnostics.json",
+            )
+        )
+        return (
+            *common,
+            "artifacts/replay_context.json",
+            "artifacts/target_coordinate_supply_summary.json",
+            "artifacts/target_coordinate_supply/combined_pool_archive.json",
+            "artifacts/target_coordinate_supply/combined_diagnostics.json",
+            *block_artifacts,
+        )
+    if experiment_id == "target_ranking_diagnostic_v1":
+        return (
+            *common,
+            "artifacts/replay_context.json",
+            "artifacts/source_experiment_manifest.json",
+            "artifacts/source_experiment_result.json",
+            "artifacts/source_target_coordinate_supply_summary.json",
+            "artifacts/source_combined_pool_archive.json",
+            "artifacts/source_combined_diagnostics.json",
+            "artifacts/source_replay_context.json",
+            "artifacts/all_candidates_batch.json",
+            "artifacts/all_candidates_binding.json",
+            "artifacts/all_candidates_replay.json",
+        )
+    if experiment_id == "candidate_selection_v1":
+        return (
+            *common,
+            "artifacts/replay_context.json",
+            "artifacts/source_experiment_manifest.json",
+            "artifacts/source_experiment_result.json",
+            "artifacts/source_discovery_pool_archive.json",
+            "artifacts/source_discovery_diagnostics.json",
+            "artifacts/source_replay_context.json",
+            "artifacts/top_wli_batch.json",
+            "artifacts/top_wli_binding.json",
+            "artifacts/top_wli_replay.json",
+            "artifacts/diverse_high_wli_batch.json",
+            "artifacts/diverse_high_wli_binding.json",
+            "artifacts/diverse_high_wli_replay.json",
+            "artifacts/selection_comparison.json",
+        )
+    if experiment_id == "matched_exploitation_v1":
+        source_artifacts = (
+            "artifacts/source_experiment_manifest.json",
+            "artifacts/source_experiment_result.json",
+            "artifacts/source_replay_context.json",
+            "artifacts/source_selection_comparison.json",
+            "artifacts/source_top_wli_batch.json",
+            "artifacts/source_top_wli_binding.json",
+            "artifacts/source_top_wli_replay.json",
+            "artifacts/source_diverse_high_wli_batch.json",
+            "artifacts/source_diverse_high_wli_binding.json",
+            "artifacts/source_diverse_high_wli_replay.json",
+            "artifacts/source_discovery_pool_archive.json",
+            "artifacts/source_discovery_diagnostics.json",
+        )
+        final_artifacts = tuple(
+            f"artifacts/{label}_final_{suffix}.json"
+            for label in ("top_wli", "diverse_high_wli", "independent_control")
+            for suffix in ("archive", "batch", "binding", "replay")
+        )
+        return (
+            *common,
+            "artifacts/replay_context.json",
+            *source_artifacts,
+            "artifacts/control_start_archive.json",
+            "artifacts/control_start_batch.json",
+            "artifacts/control_start_binding.json",
+            "artifacts/matched_exploitation.json",
+            *final_artifacts,
         )
     if experiment_id == "candidate_replay_v1":
         return (*common, "artifacts/candidate_replay.json")
@@ -365,6 +483,26 @@ def _review_markdown(manifest: Mapping[str, Any], result: Mapping[str, Any]) -> 
         "artifact", "replay_context_artifacts", "source_run_id",
         "replay_count", "all_deterministic", "all_stored_scores_verified",
         "technical_replay_gate_passed", "replays",
+        "benchmark_ids", "minimum_unique_candidates", "total_evaluations",
+        "evaluation_budget_upper_bound", "total_generated_candidates",
+        "total_unique_candidates", "all_unique_thresholds_met", "benchmarks",
+        "selection_count", "shortlist_count", "overlap_count",
+        "selection_sets_identical", "top_wli_batch_id",
+        "diverse_high_wli_batch_id", "top_wli_binding_id",
+        "diverse_high_wli_binding_id", "top_score_summary",
+        "diverse_score_summary", "top_affine_hamming_summary",
+        "diverse_affine_hamming_summary", "selection_gate_passed",
+        "policy_signal", "preference_min_wins", "arm_summaries",
+        "pairwise", "slot_winner_counts", "tied_slots",
+        "control_start_evaluations", "exploitation_evaluations",
+        "final_replay_evaluations", "evaluation_ceiling",
+        "all_final_replays_verified", "matched_exploitation_gate_passed",
+        "final_replays", "seed_blocks", "restarts_per_block", "sweeps",
+        "minimum_unique_per_block", "minimum_combined_unique",
+        "all_block_thresholds_met", "target_supply_gate_passed",
+        "combined", "blocks", "replay_evaluations", "terminal_evaluations",
+        "batch_id", "binding_id", "replay_id",
+        "ranking_diagnostic_gate_passed",
     ):
         if key in summary:
             rendered = (
@@ -403,6 +541,50 @@ def _review_markdown(manifest: Mapping[str, Any], result: Mapping[str, Any]) -> 
             "Were ciphertext, WLI, crib, affine structures and replay-context IDs identical?",
             "Was reference evaluation terminal-only and exact for plaintext, key and shifts?",
             "Are all search-visible artifacts free of plaintext and benchmark-key fields?",
+        ),
+        "coordinate_supply_v1": (
+            "Did every declared restart complete within the frozen evaluation budget?",
+            "Was every unique coordinate optimum retained with restart provenance?",
+            "How many unique candidates were supplied on the dimension-4 and dimension-8 rungs?",
+            "Did either rung collapse to duplicate or near-duplicate affine basins?",
+            "When did the best score and bounded archive last change?",
+            "Do the terminal reference results show an exact lower-rung solve without truth leakage?",
+            "Is P13/P17 candidate-supply execution justified, or is another discovery mechanism needed first?",
+        ),
+        "target_coordinate_supply_v1": (
+            "Did both independent P13/P17 seed blocks complete within their frozen budgets?",
+            "Did each block supply at least sixteen unique coordinate optima?",
+            "Did the combined pool contain at least thirty-two unique candidates?",
+            "How much candidate-identity overlap occurred between the two seed blocks?",
+            "Do the combined affine and expanded-key diagnostics show broad basin coverage?",
+            "Did the best score continue improving late in either block?",
+            "Was benchmark truth used only for terminal evaluation of the combined best candidate?",
+            "Is the resulting target pool sufficient for deterministic selection, or is a new discovery operator required?",
+        ),
+        "target_ranking_diagnostic_v1": (
+            "Did all sixty-four P13/P17 candidates replay twice with stored scores verified?",
+            "Does the terminal output contain only aggregate ranking diagnostics, with no candidate-specific truth mapping?",
+            "How strongly does WLI rank associate with terminal rune and complete-word matches?",
+            "Are the score-ranked top 8, 16 and 32 enriched for the strongest terminal candidates?",
+            "Where does the best terminal candidate fall in the WLI ordering?",
+            "Does the evidence support score-only selection, diversity-aware selection, or scorer investigation before exploitation?",
+        ),
+        "candidate_selection_v1": (
+            "Were both selections derived from the exact bound d8 coordinate-supply archive?",
+            "Does the diverse-high-WLI policy preserve the best candidate and produce a different eight-candidate set?",
+            "How much score is sacrificed, if any, to increase affine basin separation?",
+            "Did both selected batches replay twice with stored scores and ranking verified?",
+            "Are both batches and bindings suitable for the next matched exploitation experiment?",
+        ),
+        "matched_exploitation_v1": (
+            "Were the top-WLI and diverse-high-WLI surfaces loaded from the exact verified selection run?",
+            "Did all three arms use the same matched seed and identical exploitation budget at each slot?",
+            "Did each selected policy outperform the common independent-control surface?",
+            "Did top-WLI or diverse-high-WLI win at least six of eight matched policy comparisons?",
+            "How strongly did starting WLI score predict final score and gain?",
+            "Did all unique final candidates replay twice with stored scores verified?",
+            "Do terminal reference results show exact solves or saturation without truth leakage?",
+            "Does the d8 evidence justify one selection policy, a second seed block, or P13/P17 supply work?",
         ),
         "candidate_replay_v1": (
             "Does the binding identify the exact source run, context and candidate batch?",

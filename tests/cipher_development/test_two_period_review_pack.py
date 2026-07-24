@@ -241,6 +241,49 @@ def test_benchmark_canary_review_renders_contract_summary_and_questions(
     assert "Did discovery supply enough unique candidates?" not in review
 
 
+def test_coordinate_supply_review_requires_all_ladder_artifacts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stable_runtime(monkeypatch)
+    run = _run_fixture(tmp_path)
+    manifest_path = run / "artifacts/experiment_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["experiment"]["experiment_id"] = "coordinate_supply_v1"
+    manifest["experiment"]["benchmark_id"] = "alice_308_coordinate_supply_d04_d08"
+    _write_json(manifest_path, manifest)
+    result_path = run / "artifacts/experiment_result.json"
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    result["experiment_id"] = "coordinate_supply_v1"
+    result["result_summary"] = {
+        "benchmark_count": 2,
+        "benchmark_ids": list(review_pack._COORDINATE_SUPPLY_BENCHMARK_IDS),
+        "minimum_unique_candidates": 16,
+        "total_evaluations": 100,
+        "total_generated_candidates": 64,
+        "total_unique_candidates": 20,
+        "all_unique_thresholds_met": False,
+        "benchmarks": {},
+    }
+    _write_json(result_path, result)
+    for relative in review_pack._required_artifacts("coordinate_supply_v1"):
+        if relative in {
+            "artifacts/experiment_manifest.json",
+            "artifacts/experiment_result.json",
+        }:
+            continue
+        _write_json(run / relative, {"schema": "fixture.v1"})
+
+    packed = review_pack.write_review_pack(tmp_path, run)
+
+    assert packed.pack_complete is True
+    with ZipFile(packed.path) as archive:
+        review = archive.read("REVIEW.md").decode("utf-8")
+        packed_manifest = json.loads(archive.read("review_manifest.json"))
+    assert "- total_generated_candidates: `64`" in review
+    assert "every unique coordinate optimum retained" in review
+    assert len(packed_manifest["required_artifacts"]) == 13
+
+
 def test_missing_required_artifact_still_creates_incomplete_pack(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -264,6 +307,13 @@ def test_search_visible_truth_field_is_rejected(
     _write_json(run / "artifacts/coordinate_archive.json", {"truth_key": [1, 2, 3]})
     with pytest.raises(ValueError, match="reference field"):
         review_pack.write_review_pack(tmp_path, run)
+
+
+def test_copied_source_terminal_result_may_contain_reference_evaluation() -> None:
+    review_pack._guard_run_json(
+        Path("artifacts/source_experiment_result.json"),
+        json.dumps({"reference_evaluation": {"exact_plaintext": True}}).encode("utf-8"),
+    )
 
 
 def test_run_directory_cannot_escape_campaign_root(tmp_path: Path) -> None:

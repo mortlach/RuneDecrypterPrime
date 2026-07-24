@@ -147,12 +147,23 @@ def coordinate_supply_seed(
 
 def coordinate_supply_evaluation_budget(
     benchmark_ids: tuple[str, ...] = SUPPLY_BENCHMARK_IDS,
+    *,
+    restarts: int | None = None,
+    sweeps: int | None = None,
 ) -> int:
+    resolved_restarts = SUPPLY_RESTARTS if restarts is None else restarts
+    resolved_sweeps = SUPPLY_SWEEPS if sweeps is None else sweeps
+    for name, value in (
+        ("restarts", resolved_restarts),
+        ("sweeps", resolved_sweeps),
+    ):
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise ValueError(f"{name} must be a positive integer")
     return sum(
-        SUPPLY_RESTARTS
+        resolved_restarts
         * (
             1
-            + SUPPLY_SWEEPS
+            + resolved_sweeps
             * benchmark_for(benchmark_id).expected_free_dimension
             * benchmark_for(benchmark_id).alphabet_size
         )
@@ -206,6 +217,10 @@ def run_coordinate_supply(
     basis: np.ndarray,
     benchmark: BenchmarkSpec,
     *,
+    restarts: int | None = None,
+    sweeps: int | None = None,
+    seed_block: int | None = None,
+    wallclock_limit_s: float | None = None,
     progress: ProgressCallback | None = None,
 ) -> CoordinateSupplyOutcome:
     dimension = benchmark.expected_free_dimension
@@ -214,10 +229,35 @@ def run_coordinate_supply(
     if dimension <= 0:
         raise ValueError("coordinate supply requires a positive affine dimension")
 
+    resolved_restarts = SUPPLY_RESTARTS if restarts is None else restarts
+    resolved_sweeps = SUPPLY_SWEEPS if sweeps is None else sweeps
+    resolved_seed_block = SUPPLY_SEED_BLOCK if seed_block is None else seed_block
+    resolved_wallclock = (
+        SUPPLY_WALLCLOCK_LIMIT_S
+        if wallclock_limit_s is None
+        else float(wallclock_limit_s)
+    )
+    for name, value in (
+        ("restarts", resolved_restarts),
+        ("sweeps", resolved_sweeps),
+    ):
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise ValueError(f"{name} must be a positive integer")
+    if (
+        isinstance(resolved_seed_block, bool)
+        or not isinstance(resolved_seed_block, int)
+        or resolved_seed_block < 0
+    ):
+        raise ValueError("seed_block must be a non-negative integer")
+    if not math.isfinite(resolved_wallclock) or resolved_wallclock <= 0:
+        raise ValueError("wallclock_limit_s must be a positive finite number")
+
     started = time.monotonic()
-    deadline = started + SUPPLY_WALLCLOCK_LIMIT_S
-    pool = CandidateArchive(_archive_policy(SUPPLY_RESTARTS))
-    bounded = CandidateArchive(_archive_policy(min(ARCHIVE_CAPACITY, SUPPLY_RESTARTS)))
+    deadline = started + resolved_wallclock
+    pool = CandidateArchive(_archive_policy(resolved_restarts))
+    bounded = CandidateArchive(
+        _archive_policy(min(ARCHIVE_CAPACITY, resolved_restarts))
+    )
     restart_rows: list[dict[str, Any]] = []
     improvement_points: list[dict[str, Any]] = []
     evaluations = 0
@@ -227,13 +267,13 @@ def run_coordinate_supply(
     last_best_improvement: int | None = None
     last_archive_change: int | None = None
 
-    for restart_index in range(SUPPLY_RESTARTS):
+    for restart_index in range(resolved_restarts):
         if time.monotonic() >= deadline:
             raise CampaignWallclockExceeded(
                 "coordinate-supply wall-clock safety limit reached"
             )
         seed = coordinate_supply_seed(
-            benchmark.benchmark_id, SUPPLY_SEED_BLOCK, restart_index
+            benchmark.benchmark_id, resolved_seed_block, restart_index
         )
         rng = np.random.default_rng(seed)
         starting = rng.integers(
@@ -246,14 +286,14 @@ def run_coordinate_supply(
             evaluate,
             rng,
             starting,
-            SUPPLY_SWEEPS,
+            resolved_sweeps,
             deadline=deadline,
         )
         coordinate_batch_size = dimension * benchmark.alphabet_size
         if (used - 1) % coordinate_batch_size:
             raise RuntimeError("coordinate-search evaluation accounting is inconsistent")
         sweeps_completed = (used - 1) // coordinate_batch_size
-        if not 1 <= sweeps_completed <= SUPPLY_SWEEPS:
+        if not 1 <= sweeps_completed <= resolved_sweeps:
             raise RuntimeError("coordinate-search completed-sweep count is invalid")
 
         evaluations += used
@@ -261,11 +301,11 @@ def run_coordinate_supply(
             "benchmark_id": benchmark.benchmark_id,
             "restart_index": restart_index,
             "restart_seed": seed,
-            "seed_block": SUPPLY_SEED_BLOCK,
+            "seed_block": resolved_seed_block,
             "starting_variables": starting.astype(int).tolist(),
             "ending_variables": ending.astype(int).tolist(),
             "evaluations_used": used,
-            "sweeps_requested": SUPPLY_SWEEPS,
+            "sweeps_requested": resolved_sweeps,
             "sweeps_completed": sweeps_completed,
             "coordinate_batches": sweeps_completed * dimension,
         }
