@@ -52,6 +52,20 @@ OPTIONAL_CAMPAIGN_SOURCE_PATHS = (
     Path("cipher_development/two_period_overlay/exploitation.py"),
     Path("cipher_development/two_period_overlay/target_supply.py"),
     Path("cipher_development/two_period_overlay/target_ranking.py"),
+    Path("cipher_development/two_period_overlay/scorer_profiles.py"),
+    Path("cipher_development/two_period_overlay/multiscale.py"),
+    Path("cipher_development/two_period_overlay/pack01.py"),
+    Path("cipher_development/two_period_overlay/matched_pilot.py"),
+    Path("cipher_development/two_period_overlay/pack02a.py"),
+    Path("cipher_development/two_period_overlay/staged_handoff.py"),
+    Path("cipher_development/two_period_overlay/pack02b.py"),
+    Path("cipher_development/two_period_overlay/experiment_a.py"),
+    Path("cipher_development/two_period_overlay/pack03a.py"),
+    Path("cipher_development/two_period_overlay/candidate_words.py"),
+    Path("cipher_development/two_period_overlay/experiment_b.py"),
+    Path("cipher_development/two_period_overlay/pack04.py"),
+    Path("cipher_development/two_period_overlay/b100_budget_sensitivity.py"),
+    Path("cipher_development/two_period_overlay/pack05.py"),
 )
 SHARED_SOURCE_PATHS = (
     Path("cipher_development/shared/experiment.py"),
@@ -72,6 +86,12 @@ TEST_SOURCE_PATHS = (
     Path("tests/cipher_development/test_two_period_exploitation.py"),
     Path("tests/cipher_development/test_two_period_target_supply.py"),
     Path("tests/cipher_development/test_two_period_target_ranking.py"),
+    Path("tests/cipher_development/test_two_period_multiscale.py"),
+    Path("tests/cipher_development/test_two_period_matched_pilot.py"),
+    Path("tests/cipher_development/test_two_period_staged_handoff.py"),
+    Path("tests/cipher_development/test_two_period_experiment_a.py"),
+    Path("tests/cipher_development/test_two_period_experiment_b.py"),
+    Path("tests/cipher_development/test_two_period_b100_budget_sensitivity.py"),
 )
 
 
@@ -167,6 +187,11 @@ def _guard_run_json(relative: Path, data: bytes) -> None:
     if relative.as_posix() in {
         "artifacts/experiment_result.json",
         "artifacts/source_experiment_result.json",
+        "artifacts/staged_d8_handoff/source_static_experiment_result.json",
+        "artifacts/staged_d8_handoff/source_shell_experiment_result.json",
+        "artifacts/staged_d8_handoff/source_pilot_experiment_result.json",
+        "artifacts/experiment_a/source_pack02b_experiment_result.json",
+        "artifacts/experiment_b/terminal_branch_evaluation.json",
     }:
         return
     if relative.suffix.lower() != ".json":
@@ -241,7 +266,7 @@ def _environment() -> dict[str, Any]:
     }
 
 
-def _required_artifacts(experiment_id: str) -> tuple[str, ...]:
+def _required_artifacts(experiment_id: str, run_dir: Path | None = None) -> tuple[str, ...]:
     common = (
         "artifacts/experiment_manifest.json",
         "artifacts/experiment_result.json",
@@ -310,6 +335,171 @@ def _required_artifacts(experiment_id: str) -> tuple[str, ...]:
             "artifacts/all_candidates_batch.json",
             "artifacts/all_candidates_binding.json",
             "artifacts/all_candidates_replay.json",
+        )
+    if experiment_id == "multiscale_scorer_contract_canary_v1":
+        return (*common, "artifacts/scorer_contract_canary.json")
+    if experiment_id == "multiscale_static_panel_v1":
+        return (*common, "artifacts/static_panel_summary.json")
+    if experiment_id == "exact_extra_crib_contract_canary_v1":
+        return (*common, "artifacts/exact_extra_crib_contracts.json")
+    if experiment_id == "multiscale_perturbation_shells_v1":
+        return (
+            *common,
+            "artifacts/perturbation_shell_design.json",
+            "artifacts/execution_timing.json",
+        )
+    if experiment_id == "matched_d8_profile_pilot_v1":
+        return (
+            *common,
+            "artifacts/matched_d8_pilot_summary.json",
+            "artifacts/matched_d8_pilot/starts.json",
+            "artifacts/matched_d8_pilot/source_static_panel_summary.json",
+            "artifacts/execution_timing.json",
+            "artifacts/matched_d8_pilot/attempt_timing.json",
+        )
+    if experiment_id == "staged_d8_handoff_v1":
+        stage_artifacts = tuple(
+            f"artifacts/staged_d8_handoff/{stage_id}/{filename}"
+            for stage_id in ("scout", "bridge", "judge")
+            for filename in (
+                "candidate_archive.json",
+                "attempts.json",
+                "handoff_batch.json",
+                "replay_context.json",
+                "replay_binding.json",
+                "replay_evidence.json",
+            )
+        )
+        final_artifacts = tuple(
+            f"artifacts/staged_d8_handoff/final_union/{filename}"
+            for filename in (
+                "candidate_archive.json",
+                "replay_batch.json",
+                "replay_context.json",
+                "replay_binding.json",
+                "replay_evidence.json",
+            )
+        )
+        return (
+            *common,
+            "artifacts/staged_d8_handoff_summary.json",
+            "artifacts/execution_timing.json",
+            "artifacts/staged_d8_handoff/ladder_freeze.json",
+            "artifacts/staged_d8_handoff/scout_starts.json",
+            "artifacts/staged_d8_handoff/attempt_timing.json",
+            "artifacts/staged_d8_handoff/runtime_projection.json",
+            "artifacts/staged_d8_handoff/source_static_experiment_result.json",
+            "artifacts/staged_d8_handoff/source_shell_experiment_result.json",
+            "artifacts/staged_d8_handoff/source_pilot_experiment_result.json",
+            *stage_artifacts,
+            *final_artifacts,
+        )
+    if experiment_id == "experiment_a_standard_panel_v1":
+        block_artifacts: list[str] = []
+        primary_benchmark = "alice_308_p13_p17_crib188x13_plus206x8_d08"
+        positional_benchmark = "alice_308_p13_p17_crib188x13_plus081x8_d08"
+        for benchmark_id, block_ids, include_baseline in (
+            (primary_benchmark, range(31, 39), True),
+            (positional_benchmark, range(41, 45), False),
+        ):
+            for block_id in block_ids:
+                root = (
+                    f"artifacts/experiment_a/{benchmark_id}/"
+                    f"block_{block_id:02d}"
+                )
+                block_artifacts.append(f"{root}/starts.json")
+                if include_baseline:
+                    block_artifacts.extend(
+                        f"{root}/baseline/search/{filename}"
+                        for filename in (
+                            "candidate_archive.json",
+                            "attempts.json",
+                            "handoff_batch.json",
+                            "replay_context.json",
+                            "replay_binding.json",
+                            "replay_evidence.json",
+                        )
+                    )
+                for stage_id in ("scout", "bridge", "judge"):
+                    block_artifacts.extend(
+                        f"{root}/staged/{stage_id}/{filename}"
+                        for filename in (
+                            "candidate_archive.json",
+                            "attempts.json",
+                            "handoff_batch.json",
+                            "replay_context.json",
+                            "replay_binding.json",
+                            "replay_evidence.json",
+                        )
+                    )
+                block_artifacts.extend(
+                    f"{root}/staged/final_union/{filename}"
+                    for filename in (
+                        "candidate_archive.json",
+                        "replay_batch.json",
+                        "replay_context.json",
+                        "replay_binding.json",
+                        "replay_evidence.json",
+                    )
+                )
+        return (
+            *common,
+            "artifacts/experiment_a_standard_panel_summary.json",
+            "artifacts/execution_timing.json",
+            "artifacts/experiment_a/runtime_plan.json",
+            "artifacts/experiment_a/attempt_timing.json",
+            "artifacts/experiment_a/search_summary.json",
+            "artifacts/experiment_a/replay_summary.json",
+            "artifacts/experiment_a/source_pack02b_experiment_result.json",
+            *tuple(block_artifacts),
+        )
+    if experiment_id in {"candidate_word_branches_b10_v1", "candidate_word_branches_b100_v1", "candidate_word_branches_b1000_v1"}:
+        base = (
+            *common,
+            "artifacts/candidate_branch_summary.json",
+            "artifacts/execution_timing.json",
+            "artifacts/experiment_b/candidate_list.json",
+            "artifacts/experiment_b/candidate_list_assets.json",
+            "artifacts/experiment_b/shared_starts.json",
+            "artifacts/experiment_b/shared/scout_selection_archive.json",
+            "artifacts/experiment_b/shared/scout_selection_summary.json",
+            "artifacts/experiment_b/search_summary.json",
+            "artifacts/experiment_b/replay_summary.json",
+            "artifacts/experiment_b/attempt_timing.json",
+            "artifacts/experiment_b/terminal_branch_evaluation.json",
+            "artifacts/experiment_b/source_experiment_a_gate.json",
+            "artifacts/experiment_b/required_artifacts.json",
+        )
+        if run_dir is None:
+            return base
+        inventory_path = run_dir / "artifacts/experiment_b/required_artifacts.json"
+        if not inventory_path.is_file():
+            return base
+        inventory = _read_json(inventory_path)
+        paths = inventory.get("paths")
+        if not isinstance(paths, list) or any(not isinstance(item, str) for item in paths):
+            raise ValueError("candidate branch required-artifact inventory is invalid")
+        safe_paths: list[str] = []
+        for item in paths:
+            candidate = Path(item)
+            if (
+                not item
+                or candidate.is_absolute()
+                or ".." in candidate.parts
+                or "\\" in item
+                or candidate.as_posix() != item
+            ):
+                raise ValueError(
+                    "candidate branch required-artifact inventory contains an unsafe path"
+                )
+            safe_paths.append(item)
+        return tuple(dict.fromkeys((*base, *safe_paths)))
+    if experiment_id == "b100_scout_budget_sensitivity_v1":
+        return (
+            *common,
+            "artifacts/execution_timing.json",
+            "artifacts/b100_budget_sensitivity/source_b100_gate.json",
+            "artifacts/b100_budget_sensitivity/summary.json",
         )
     if experiment_id == "candidate_selection_v1":
         return (
@@ -439,6 +629,7 @@ def write_local_validation_receipt(
 
 def _review_markdown(manifest: Mapping[str, Any], result: Mapping[str, Any]) -> str:
     experiment = manifest["experiment"]
+    experiment_id = str(manifest.get("experiment_id") or "")
     quality = manifest["evidence_quality"]
     summary = result.get("result_summary", {})
     lines = [
@@ -502,7 +693,16 @@ def _review_markdown(manifest: Mapping[str, Any], result: Mapping[str, Any]) -> 
         "all_block_thresholds_met", "target_supply_gate_passed",
         "combined", "blocks", "replay_evaluations", "terminal_evaluations",
         "batch_id", "binding_id", "replay_id",
-        "ranking_diagnostic_gate_passed",
+        "ranking_diagnostic_gate_passed", "profile_count", "profile_ids",
+        "all_profiles_passed", "recorded_baseline_effective_weights",
+        "intended_judge_effective_weights", "surface_count", "surface_ids",
+        "all_deterministic", "static_panel_gate_passed", "all_contracts_passed",
+        "primary_block_count", "positional_block_count", "starts_per_block",
+        "promotion_gate_passed", "primary_baseline_exact_blocks",
+        "primary_staged_exact_blocks", "positional_staged_exact_blocks",
+        "experiment_a_overnight_recommended", "list_id", "branch_count",
+        "selected_branch_count", "branch_survival_rate",
+        "progression_gate_passed", "exact_solution_persisted",
     ):
         if key in summary:
             rendered = (
@@ -511,6 +711,90 @@ def _review_markdown(manifest: Mapping[str, Any], result: Mapping[str, Any]) -> 
                 else str(summary[key])
             )
             lines.append(f"- {key}: `{rendered}`")
+
+    timing = summary.get("timing")
+    if isinstance(timing, Mapping):
+        lines.extend([
+            "",
+            "## Timing",
+            "",
+            f"- started at UTC: `{timing.get('started_at_utc')}`",
+            f"- finished at UTC: `{timing.get('finished_at_utc')}`",
+            (
+                "- scientific-work elapsed seconds: "
+                f"`{timing.get('scientific_work_elapsed_s', timing.get('elapsed_s'))}`"
+            ),
+            f"- scope: {timing.get('scope')}",
+        ])
+        phases = timing.get("phases")
+        if isinstance(phases, Mapping):
+            for phase_name, phase_elapsed in phases.items():
+                lines.append(f"- {phase_name}: `{phase_elapsed}` seconds")
+        profiles = timing.get("profiles")
+        if isinstance(profiles, Mapping):
+            lines.extend(["", "### Profile and arm timing", ""])
+            for profile_id in sorted(profiles):
+                profile_timing = profiles[profile_id]
+                if not isinstance(profile_timing, Mapping):
+                    continue
+                if "elapsed_s" in profile_timing:
+                    lines.append(
+                        f"- `{profile_id}`: elapsed=`{profile_timing.get('elapsed_s')}` s; "
+                        f"evaluations=`{profile_timing.get('evaluations')}`; "
+                        f"evaluations/s=`{profile_timing.get('candidate_evaluations_per_s')}`"
+                    )
+                    continue
+                for arm_id in sorted(profile_timing):
+                    arm = profile_timing[arm_id]
+                    if not isinstance(arm, Mapping):
+                        continue
+                    attempt_summary = arm.get("attempt_elapsed_s_summary")
+                    attempt_summary = attempt_summary if isinstance(attempt_summary, Mapping) else {}
+                    lines.append(
+                        f"- `{profile_id}/{arm_id}`: elapsed=`{arm.get('elapsed_s')}` s; "
+                        f"attempts=`{arm.get('attempt_count')}`; "
+                        f"median attempt=`{attempt_summary.get('median')}` s; "
+                        f"maximum attempt=`{attempt_summary.get('maximum')}` s; "
+                        f"evaluations/s=`{arm.get('candidate_evaluations_per_s')}`"
+                    )
+        if timing.get("attempt_timing_artifact"):
+            lines.append(
+                f"- individual attempt log: `{timing.get('attempt_timing_artifact')}`"
+            )
+
+    if experiment_id in {"candidate_word_branches_b10_v1", "candidate_word_branches_b100_v1", "candidate_word_branches_b1000_v1"}:
+        terminal = result.get("reference_evaluation")
+        if isinstance(terminal, Mapping):
+            ranks = terminal.get("branch_ranks")
+            ranks = ranks if isinstance(ranks, Mapping) else {}
+            lines.extend([
+                "",
+                "## Terminal branch result",
+                "",
+                f"- controlled word: `{terminal.get('controlled_word')}`",
+                f"- occurred naturally in source list: `{terminal.get('controlled_word_occurred_naturally')}`",
+                f"- survived global scout selection: `{terminal.get('survived_global_scout_selection')}`",
+                f"- scout-full branch rank: `{ranks.get('scout_full')}`",
+                f"- scout-selected branch rank: `{ranks.get('scout_selected')}`",
+                f"- bridge branch rank: `{ranks.get('bridge')}`",
+                f"- final branch rank: `{ranks.get('final')}`",
+                f"- exact solution persisted: `{terminal.get('exact_solution_persisted')}`",
+                f"- progression gate passed: `{terminal.get('progression_gate_passed')}`",
+            ])
+
+    if experiment_id == "b100_scout_budget_sensitivity_v1":
+        terminal = result.get("reference_evaluation")
+        if isinstance(terminal, Mapping):
+            checks = terminal.get("gate_checks")
+            checks = checks if isinstance(checks, Mapping) else {}
+            lines.extend([
+                "",
+                "## B1000 progression result",
+                "",
+                f"- B1000 gate passed: `{terminal.get('b1000_gate_passed')}`",
+                *[f"- {key}: `{value}`" for key, value in sorted(checks.items())],
+            ])
+
     lines.extend([
         "",
         "## Evidence quality",
@@ -568,6 +852,100 @@ def _review_markdown(manifest: Mapping[str, Any], result: Mapping[str, Any]) -> 
             "Are the score-ranked top 8, 16 and 32 enriched for the strongest terminal candidates?",
             "Where does the best terminal candidate fall in the WLI ordering?",
             "Does the evidence support score-only selection, diversity-aware selection, or scorer investigation before exploitation?",
+        ),
+        "multiscale_scorer_contract_canary_v1": (
+            "Did every predeclared profile build and execute using the installed assets?",
+            "Did repeated batch scoring and scalar scoring agree within the frozen tolerance?",
+            "Does the evidence distinguish the exact recorded J0 weighting from intended J1 weighting?",
+            "Were asset names and hashes recorded for all orders 1-4 used by the panel?",
+        ),
+        "multiscale_static_panel_v1": (
+            "Did all d4, d8 and d16 candidates rerank twice under every profile?",
+            "Which profiles improve rune, complete-word and affine enrichment over J0?",
+            "How strongly do profile rankings disagree across the three saved surfaces?",
+            "Are throughput and Python allocation costs acceptable for the matched d8 pilot?",
+            "Does terminal output remain aggregate-only with no candidate-specific truth mapping?",
+            "Which profiles should enter the matched pilot without freezing the ladder prematurely?",
+        ),
+        "exact_extra_crib_contract_canary_v1": (
+            "Do offsets 206 and 81 each add rank eight to the original d16 space?",
+            "Do both contracts preserve B[0] = 0 and reconstruct the exact gauge-fixed key?",
+            "Are both complete dormouse spans recorded explicitly as declared oracle assistance?",
+            "Was any normal search performed during this contract-only canary?",
+        ),
+        "multiscale_perturbation_shells_v1": (
+            "Were all d16 shell distances 1, 2, 4, 6, 8, 12 and 16 sampled deterministically?",
+            "Were variable indices and non-zero modulo-29 deltas balanced as declared?",
+            "Which profiles show monotonic median movement and the least adjacent-shell overlap?",
+            "Do shell scores associate with rune, complete-word and affine-variable correctness?",
+            "Were shell candidates kept out of normal candidate archives and later search seeds?",
+            "Are total and per-profile scoring times explicit and plausible?",
+        ),
+        "matched_d8_profile_pilot_v1": (
+            "Did every profile use the same eight deterministic starting vectors?",
+            "Did the fixed core use identical coordinate-sweep limits for every profile?",
+            "Were the calibrated-time sweep caps derived only from the accepted Pack 01 static evidence?",
+            "Did every retained candidate replay with its stored profile score verified?",
+            "Which profiles improve rune, word and affine correctness from the matched starts?",
+            "How do duplicate rate, basin diversity, throughput and terminal enrichment compare?",
+            "Was all search-visible work completed before terminal metrics were opened?",
+            "Does the evidence justify freezing one scout, one bridge and one judge for Pack 02B?",
+            "Are total, per-profile/arm and individual restart timings explicit enough for home-PC scaling decisions?",
+        ),
+        "staged_d8_handoff_v1": (
+            "Was the ladder frozen explicitly as S2 scout, B1 bridge and F1 judge from the accepted aggregate evidence?",
+            "Did all ninety-six deterministic scout starts complete under the frozen budget?",
+            "Did every unique scout candidate enter the bridge and every unique scout/bridge candidate enter the judge?",
+            "Were scout, bridge, judge and final-union candidate surfaces all persisted and replayed deterministically?",
+            "Did the final F1 union preserve earlier basins rather than silently retaining only the last stage?",
+            "Which stage first generated the eventual best candidate, and did later stages promote, rescue or damage it?",
+            "Did any exact candidate appear, or did the search repeatedly saturate at the 289-rune basin?",
+            "Are per-stage, per-attempt and total timing data explicit, with 256/512/1024 and eight-hour projections?",
+            "Does the evidence justify a substantially longer standard Experiment A panel before an overnight run?",
+        ),
+        "candidate_word_branches_b10_v1": (
+            "Did all ten valid distinct branches receive identical starts and equal S2 budget?",
+            "Did the correct branch survive global score-only selection without a per-branch quota?",
+            "What was its rank after scout, bridge and final judgement?",
+            "Did any false branches outrank it, and did the correct branch solve exactly?",
+            "Does the measured safety-adjusted B100 projection fit eight hours?",
+            "Was B100 authorised only by the predeclared terminal gate?",
+        ),
+        "candidate_word_branches_b100_v1": (
+            "Did all one hundred branches receive identical starts and equal S2 budget?",
+            "Did the correct branch survive and finish in the top ten?",
+            "Did the correct branch produce an exact persisted and replayed solution?",
+            "Which false branches produced the strongest final scores?",
+            "Did actual runtime remain within the declared overnight budget?",
+            "Is B1000 scientifically and computationally justified?",
+        ),
+        "b100_scout_budget_sensitivity_v1": (
+            "Was the diagnostic derived only from the completed source-matched B100 attempt evidence?",
+            "Did every disjoint eight-start block rank the controlled branch in the top three?",
+            "Did the controlled branch survive the frozen top-200 candidate selection in every eight-start block?",
+            "Was the minimum controlled-versus-false score margin at least 0.05?",
+            "Does the conservative safety-adjusted B1000 projection fit eight hours?",
+            "Was B1000 authorised only by the complete predeclared diagnostic gate?",
+        ),
+        "candidate_word_branches_b1000_v1": (
+            "Did all one thousand distinct branches receive the same eight deterministic S2 starts?",
+            "Was global scout retention capped at four hundred candidates with no per-branch quota?",
+            "Did the controlled branch survive and finish in the top twenty-five?",
+            "Did the exact solution persist and replay deterministically?",
+            "How many branches survived and which false branches produced the strongest final scores?",
+            "Did scientific runtime remain within the declared eight-hour ceiling?",
+            "Does the result close the current B1000 scaling question without silently authorising further work?",
+        ),
+        "experiment_a_standard_panel_v1": (
+            "Did all eight primary baseline/staged blocks and four positional staged blocks complete from independent deterministic starts?",
+            "Did primary J0 and staged arms receive identical starting vectors, equal archive capacities and equal wall-clock ceilings?",
+            "Were all current-run search surfaces persisted and replayed before any current-run terminal metrics were opened?",
+            "How many independent primary blocks solved under J0 and under the staged ladder?",
+            "How many S2 scout attempts converged to the exact candidate in each block, and did B1 or F1 add any exact candidates not already present in scout?",
+            "Did the offset-81 positional confirmation produce at least one exact persisted and replayed solution?",
+            "What were the exact-block rates, time-to-first-exact distributions and per-stage runtimes?",
+            "Does J0 match or exceed the staged method, or does the staged/scout surface retain a clear advantage?",
+            "Is another assisted-d8 overnight run scientifically justified, or should the overnight budget move to Experiment B scaling or later d16 work?",
         ),
         "candidate_selection_v1": (
             "Were both selections derived from the exact bound d8 coordinate-supply archive?",
@@ -689,9 +1067,15 @@ def _asset_provenance(run_dir: Path) -> dict[str, Any]:
     direct = run_dir / "artifacts/replay_context.json"
     source_context = run_dir / "artifacts/source_replay_context.json"
     context_paths = [path for path in (direct, source_context) if path.is_file()]
+    context_paths.extend(sorted(
+        path for path in (run_dir / "artifacts").rglob("replay_context.json")
+        if path not in context_paths
+    ))
     nested = run_dir / "artifacts/replay_contexts"
     if nested.is_dir():
-        context_paths.extend(sorted(nested.glob("*.json")))
+        context_paths.extend(sorted(
+            path for path in nested.glob("*.json") if path not in context_paths
+        ))
     contexts: list[dict[str, Any]] = []
     for path in context_paths:
         context = _read_json(path)
@@ -705,6 +1089,17 @@ def _asset_provenance(run_dir: Path) -> dict[str, Any]:
             "evaluator_provenance": dict(provenance),
         })
     if not contexts:
+        for relative in (
+            "artifacts/scorer_contract_canary.json",
+            "artifacts/perturbation_shell_design.json",
+        ):
+            source = run_dir / relative
+            if not source.is_file():
+                continue
+            payload = _read_json(source)
+            provenance = payload.get("asset_provenance")
+            if isinstance(provenance, Mapping):
+                return dict(provenance)
         return {}
     if len(contexts) == 1:
         return dict(contexts[0]["evaluator_provenance"])
@@ -776,7 +1171,7 @@ def write_review_pack(repo_root: Path, run_dir: Path) -> ReviewPackResult:
     experiment = manifest.get("experiment") if isinstance(manifest.get("experiment"), Mapping) else {}
     experiment_id = str(experiment.get("experiment_id") or result.get("experiment_id") or "unknown")
     benchmark_id = str(experiment.get("benchmark_id") or result.get("benchmark_id") or "unknown")
-    required_artifacts = _required_artifacts(experiment_id)
+    required_artifacts = _required_artifacts(experiment_id, run_dir)
     missing_artifacts = [path for path in required_artifacts if not (run_dir / path).is_file()]
 
     entries: dict[str, bytes] = {}

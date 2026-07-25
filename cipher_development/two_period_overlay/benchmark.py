@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 import numpy as np
 
@@ -31,6 +31,7 @@ class SearchCase:
     basis: np.ndarray
     free_columns: tuple[int, ...]
     evaluate_variables: ScoreVariables
+    scoring_contract: Mapping[str, Any]
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,22 +44,29 @@ class ReferenceCase:
     true_key: np.ndarray
 
 
-def _scoring_kwargs(direction_type: Any, hard_crib: Any) -> dict[str, Any]:
+def _scoring_kwargs(
+    direction_type: Any,
+    hard_crib: Any,
+    scoring_contract: Mapping[str, Any] = SCORING_CONTRACT,
+) -> dict[str, Any]:
+    contract = dict(scoring_contract)
     return {
-        "objective": SCORING_CONTRACT["objective"],
-        "include_char": bool(SCORING_CONTRACT["include_char"]),
-        "use_word_breaks": bool(SCORING_CONTRACT["use_word_breaks"]),
-        "n_char": int(SCORING_CONTRACT["n_char"]),
-        "n_wli": int(SCORING_CONTRACT["n_wli"]),
-        "char_weights": dict(SCORING_CONTRACT["char_weights"]),
-        "wli_weights": dict(SCORING_CONTRACT["wli_weights"]),
-        "encoding_dir": direction_type(str(SCORING_CONTRACT["encoding_direction"])),
+        "objective": contract["objective"],
+        "include_char": bool(contract["include_char"]),
+        "use_word_breaks": bool(contract["use_word_breaks"]),
+        "n_char": int(contract["n_char"]),
+        "n_wli": int(contract["n_wli"]),
+        "char_weights": dict(contract["char_weights"]),
+        "wli_weights": dict(contract["wli_weights"]),
+        "encoding_dir": direction_type(str(contract["encoding_direction"])),
         "hard_crib": hard_crib,
     }
 
 
 def build_rdp_case(
     benchmark: BenchmarkSpec = TARGET_BENCHMARK,
+    *,
+    scoring_contract: Mapping[str, Any] | None = None,
 ) -> tuple[SearchCase, ReferenceCase]:
     from rune_decrypter_prime.api import by_name, cipher_instance
     from rune_decrypter_prime.api.wrappers.registry import build_cipher_config
@@ -67,6 +75,8 @@ def build_rdp_case(
     from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
     from rune_decrypter_prime.core.types import Device, Direction
     from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1, word_breaks1
+
+    contract = dict(SCORING_CONTRACT if scoring_contract is None else scoring_contract)
 
     starts = [i for i, pair in enumerate(word_breaks1) if int(pair[0]) == 0]
     ends = {i + 1 for i, pair in enumerate(word_breaks1) if int(pair[0]) == int(pair[1]) - 1}
@@ -92,6 +102,17 @@ def build_rdp_case(
         raise ValueError(
             f"RDP WLI no longer describes complete crib {benchmark.crib_word!r}"
         )
+    for extra in benchmark.additional_cribs:
+        expected = np.asarray(extra.runes, dtype=np.uint8)
+        if (
+            benchmark.additional_cribs_are_exact
+            and not np.array_equal(plaintext[extra.start:extra.stop], expected)
+        ):
+            raise ValueError(f"RDP asset no longer matches extra crib {extra.word!r}")
+        if wli[extra.start:extra.stop] != tuple(
+            (i, len(extra.runes)) for i in range(len(extra.runes))
+        ):
+            raise ValueError(f"RDP WLI no longer describes extra crib {extra.word!r}")
 
     spec, key_spec = by_name.cipher_with_key(
         "two_period_vigenere",
@@ -113,10 +134,12 @@ def build_rdp_case(
             f"{benchmark.benchmark_id} produced free dimension {len(free)}, expected "
             f"{benchmark.expected_free_dimension}"
         )
-    if not np.array_equal(expand(true_variables, particular, basis, benchmark), true_key):
+    if benchmark.additional_cribs_are_exact and not np.array_equal(
+        expand(true_variables, particular, basis, benchmark), true_key
+    ):
         raise RuntimeError("crib parameterisation does not reproduce the gauge-fixed benchmark key")
 
-    direction = Direction(str(SCORING_CONTRACT["encoding_direction"]))
+    direction = Direction(str(contract["encoding_direction"]))
     cipher_cfg = build_cipher_config(
         cipher=spec,
         key=key_spec,
@@ -131,11 +154,14 @@ def build_rdp_case(
         interruptors_pool=None,
         interruptors_max=None,
     )
+    fixed_chars = {start + i: [int(x)] for i, x in enumerate(crib.tolist())}
+    for extra in benchmark.additional_cribs:
+        fixed_chars.update({extra.start + i: [int(x)] for i, x in enumerate(extra.runes)})
     hard_crib = HardCribConfig(
-        enabled=bool(SCORING_CONTRACT["hard_crib"]),
-        fixed_chars={start + i: [int(x)] for i, x in enumerate(crib.tolist())},
+        enabled=bool(contract["hard_crib"]),
+        fixed_chars=fixed_chars,
     )
-    scoring = ScoringConfig(**_scoring_kwargs(Direction, hard_crib))
+    scoring = ScoringConfig(**_scoring_kwargs(Direction, hard_crib, contract))
     problem = DecryptionProblem(
         cipher=cipher,
         scorer=build_scorer(cipher_cfg, scoring),
@@ -160,6 +186,7 @@ def build_rdp_case(
             basis=basis,
             free_columns=free,
             evaluate_variables=evaluate_variables,
+            scoring_contract=contract,
         ),
         ReferenceCase(
             benchmark=benchmark,

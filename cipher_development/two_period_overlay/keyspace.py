@@ -16,6 +16,8 @@ from cipher_development.two_period_overlay.config import (
     ALPHABET_SIZE,
     DECISION_SCORE,
     MASTER_SEED,
+    CRIB_RUNES,
+    PRIMARY_CRIB,
     TARGET_BENCHMARK,
     BenchmarkSpec,
     RunBudget,
@@ -78,20 +80,35 @@ def crib_space(
     crib: np.ndarray,
     benchmark: BenchmarkSpec = TARGET_BENCHMARK,
 ) -> tuple[np.ndarray, np.ndarray, tuple[int, ...]]:
+    """Return the gauge-fixed affine key space for all declared complete cribs.
+
+    ``crib`` remains the frozen primary ``uncomfortable`` rune sequence for
+    compatibility with the existing campaign and replay artifacts. Any additional
+    complete-word oracle assistance is declared on ``benchmark.additional_cribs``.
+    """
+
     ciphertext = np.asarray(ciphertext, dtype=np.uint8)
     crib = np.asarray(crib, dtype=np.uint8)
     if len(ciphertext) != benchmark.text_length:
         raise ValueError("ciphertext length does not match the benchmark")
-    if len(crib) != len(benchmark.crib_word):
+    if len(crib) != len(CRIB_RUNES):
         raise ValueError("crib length does not match the frozen complete word")
+    if tuple(int(value) for value in crib) != PRIMARY_CRIB.runes:
+        raise ValueError("primary crib runes do not match the frozen contract")
+
     rows: list[np.ndarray] = []
-    for offset, plain in enumerate(crib.tolist()):
-        pos = benchmark.crib_start + offset
-        row = np.zeros(benchmark.key_length + 1, dtype=np.int64)
-        row[pos % benchmark.period_a] = 1
-        row[benchmark.period_a + (pos % benchmark.period_b)] = 1
-        row[-1] = (int(ciphertext[pos]) - int(plain)) % benchmark.alphabet_size
-        rows.append(row)
+    spans = ((benchmark.crib_start, tuple(int(value) for value in crib)), *(
+        (item.start, item.runes) for item in benchmark.additional_cribs
+    ))
+    for start, runes in spans:
+        for offset, plain in enumerate(runes):
+            pos = start + offset
+            row = np.zeros(benchmark.key_length + 1, dtype=np.int64)
+            row[pos % benchmark.period_a] = 1
+            row[benchmark.period_a + (pos % benchmark.period_b)] = 1
+            row[-1] = (int(ciphertext[pos]) - int(plain)) % benchmark.alphabet_size
+            rows.append(row)
+
     gauge = np.zeros(benchmark.key_length + 1, dtype=np.int64)
     gauge[benchmark.gauge_key_index] = 1
     gauge[-1] = benchmark.gauge_value

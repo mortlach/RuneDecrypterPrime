@@ -18,6 +18,8 @@ from cipher_development.shared.replay_provenance import (
     validate_evaluator_provenance,
 )
 from cipher_development.two_period_overlay.config import (
+    BenchmarkSpec,
+    CribSpec,
     DECISION_SCORE,
     REQUIRED_REPLAY_BINDING_ARTIFACTS,
     REQUIRED_REPLAY_REPEAT_COUNT,
@@ -51,13 +53,21 @@ def make_replay_context(
     run_id: str,
     configuration_hash: str,
     evaluator_provenance: Mapping[str, Any],
+    scoring_contract: Mapping[str, Any] | None = None,
+    decision_score: str = DECISION_SCORE,
+    evaluator_id: str = "two_period_overlay_wli_v3",
 ) -> CandidateReplayContext:
     benchmark = getattr(search_case, "benchmark", TARGET_BENCHMARK)
+    contract = dict(
+        getattr(search_case, "scoring_contract", SCORING_CONTRACT)
+        if scoring_contract is None
+        else scoring_contract
+    )
     return CandidateReplayContext.create(
         campaign_id="two_period_overlay",
         run_id=run_id,
         configuration_hash=configuration_hash,
-        evaluator_id="two_period_overlay_wli_v3",
+        evaluator_id=evaluator_id,
         payload={
             "benchmark_id": benchmark.benchmark_id,
             "benchmark": benchmark.to_json_dict(),
@@ -67,11 +77,55 @@ def make_replay_context(
             "particular": np.asarray(search_case.particular, dtype=np.uint8).tolist(),
             "basis": np.asarray(search_case.basis, dtype=np.uint8).tolist(),
             "free_columns": list(search_case.free_columns),
-            "decision_score": DECISION_SCORE,
-            "scoring": _portable_json(SCORING_CONTRACT),
+            "decision_score": str(decision_score),
+            "scoring": _portable_json(contract),
             "evaluator_provenance": _portable_json(evaluator_provenance),
         },
     )
+
+
+def _benchmark_from_payload(value: Any) -> BenchmarkSpec:
+    if not isinstance(value, Mapping):
+        raise ValueError("replay benchmark contract must be a mapping")
+    gauge = str(value.get("gauge"))
+    if gauge != "B[0]=0":
+        raise ValueError("replay benchmark contract does not establish B[0] = 0")
+    additional_payload = value.get("additional_cribs", ())
+    if not isinstance(additional_payload, (list, tuple)):
+        raise ValueError("replay benchmark additional cribs must be a sequence")
+    additional_cribs: list[CribSpec] = []
+    for row in additional_payload:
+        if not isinstance(row, Mapping):
+            raise ValueError("replay benchmark crib contract must be a mapping")
+        runes = row.get("runes")
+        if not isinstance(runes, (list, tuple)):
+            raise ValueError("replay benchmark crib runes must be a sequence")
+        additional_cribs.append(
+            CribSpec(
+                label=str(row.get("label")),
+                word=str(row.get("word")),
+                start=int(row.get("start")),
+                runes=tuple(int(item) for item in runes),
+            )
+        )
+    benchmark = BenchmarkSpec(
+        benchmark_id=str(value.get("benchmark_id")),
+        period_a=int(value.get("period_a")),
+        period_b=int(value.get("period_b")),
+        expected_free_dimension=int(value.get("expected_free_dimension")),
+        alphabet_size=int(value.get("alphabet_size")),
+        schedule=str(value.get("schedule")),
+        text_length=int(value.get("text_length")),
+        crib_word=str(value.get("crib_word")),
+        crib_start=int(value.get("crib_start")),
+        additional_cribs=tuple(additional_cribs),
+        additional_cribs_are_exact=bool(
+            value.get("additional_cribs_are_exact", True)
+        ),
+    )
+    if _portable_json(value) != benchmark.to_json_dict():
+        raise ValueError("replay benchmark contract is not canonical")
+    return benchmark
 
 
 def _context_benchmark(context: CandidateReplayContext):
@@ -91,8 +145,17 @@ def _context_benchmark(context: CandidateReplayContext):
         ):
             raise ValueError("legacy replay periods do not match the P13/P17 target")
         return TARGET_BENCHMARK
-    benchmark = benchmark_for(benchmark_id)
-    if _portable_json(payload.get("benchmark")) != benchmark.to_json_dict():
+    serialized = payload.get("benchmark")
+    try:
+        benchmark = benchmark_for(benchmark_id)
+    except ValueError:
+        benchmark = _benchmark_from_payload(serialized)
+        if benchmark.benchmark_id != benchmark_id:
+            raise ValueError(
+                "replay benchmark ID does not match its bound contract"
+            )
+        return benchmark
+    if _portable_json(serialized) != benchmark.to_json_dict():
         raise ValueError("replay benchmark contract does not match the registered ladder")
     return benchmark
 
@@ -174,14 +237,20 @@ def build_replay_evaluator(context: CandidateReplayContext):
         interruptors_pool=None,
         interruptors_max=None,
     )
+    fixed_chars = {
+        benchmark.crib_start + index: [int(value)]
+        for index, value in enumerate(crib)
+    }
+    for extra in benchmark.additional_cribs:
+        fixed_chars.update({
+            extra.start + index: [int(value)]
+            for index, value in enumerate(extra.runes)
+        })
     hard_crib = HardCribConfig(
         enabled=bool(scoring_contract["hard_crib"]),
-        fixed_chars={
-            benchmark.crib_start + index: [int(value)]
-            for index, value in enumerate(crib)
-        },
+        fixed_chars=fixed_chars,
     )
-    scoring_values = dict(scoring_contract)
+    scoring_values = _portable_json(scoring_contract)
     scoring_values["encoding_dir"] = direction
     scoring_values["hard_crib"] = hard_crib
     scoring_values.pop("encoding_direction", None)
@@ -194,11 +263,13 @@ def build_replay_evaluator(context: CandidateReplayContext):
         enable_telemetry=False,
     )
 
+    decision_score = str(payload.get("decision_score", DECISION_SCORE))
+
     def evaluator(candidate, replay_context):
         stored_key = validate_candidate_payload(candidate, replay_context)
         score = float(np.asarray(problem.evaluate_keys(stored_key[None, :]))[0])
         return ReplayEvaluation(
-            scores={DECISION_SCORE: score},
+            scores={decision_score: score},
             stable_metrics={
                 "candidate_id": candidate.candidate_id,
                 "benchmark_id": benchmark.benchmark_id,

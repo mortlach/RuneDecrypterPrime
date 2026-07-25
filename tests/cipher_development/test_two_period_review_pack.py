@@ -314,6 +314,10 @@ def test_copied_source_terminal_result_may_contain_reference_evaluation() -> Non
         Path("artifacts/source_experiment_result.json"),
         json.dumps({"reference_evaluation": {"exact_plaintext": True}}).encode("utf-8"),
     )
+    review_pack._guard_run_json(
+        Path("artifacts/staged_d8_handoff/source_pilot_experiment_result.json"),
+        json.dumps({"reference_evaluation": {"exact_plaintext": True}}).encode("utf-8"),
+    )
 
 
 def test_run_directory_cannot_escape_campaign_root(tmp_path: Path) -> None:

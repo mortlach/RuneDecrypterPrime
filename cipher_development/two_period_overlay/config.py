@@ -3,12 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 import math
 import re
+from typing import Any
 
 ALPHABET_SIZE = 29
 TEXT_LENGTH = 308
 CRIB_WORD = "uncomfortable"
 CRIB_START = 188
 CRIB_RUNES = (1, 9, 5, 3, 19, 0, 3, 4, 16, 24, 17, 20, 18)
+DORMOUSE_WORD = "dormouse"
+DORMOUSE_RUNES = (23, 3, 4, 19, 3, 1, 15, 18)
 MASTER_SEED = 101
 DECISION_SCORE = "wli_decision_score"
 ARCHIVE_CAPACITY = 64
@@ -21,6 +24,52 @@ REQUIRED_REPLAY_BINDING_ARTIFACTS = (
 )
 REQUIRED_REPLAY_REPEAT_COUNT = 2
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+
+
+@dataclass(frozen=True, slots=True)
+class CribSpec:
+    """One complete plaintext span deliberately exposed to an experiment."""
+
+    label: str
+    word: str
+    start: int
+    runes: tuple[int, ...]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.label, str) or not _ID_RE.fullmatch(self.label):
+            raise ValueError("crib label must use lowercase letters, numbers, '_' or '-'")
+        if not isinstance(self.word, str) or not self.word.strip():
+            raise ValueError("crib word must be a non-empty string")
+        if isinstance(self.start, bool) or not isinstance(self.start, int) or self.start < 0:
+            raise ValueError("crib start must be a non-negative integer")
+        try:
+            runes = tuple(int(value) for value in self.runes)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("crib runes must be an integer sequence") from exc
+        if not runes:
+            raise ValueError("crib runes must not be empty")
+        if any(value < 0 or value >= ALPHABET_SIZE for value in runes):
+            raise ValueError("crib runes must be valid modulo-29 symbols")
+        object.__setattr__(self, "word", self.word.strip().lower())
+        object.__setattr__(self, "runes", runes)
+
+    @property
+    def stop(self) -> int:
+        return self.start + len(self.runes)
+
+    def to_json_dict(self) -> dict[str, Any]:
+        return {
+            "label": self.label,
+            "word": self.word,
+            "start": self.start,
+            "rune_length": len(self.runes),
+            "runes": list(self.runes),
+        }
+
+
+PRIMARY_CRIB = CribSpec("uncomfortable_188", CRIB_WORD, CRIB_START, CRIB_RUNES)
+EXTRA_CRIB_206 = CribSpec("dormouse_206", DORMOUSE_WORD, 206, DORMOUSE_RUNES)
+EXTRA_CRIB_081 = CribSpec("dormouse_081", DORMOUSE_WORD, 81, DORMOUSE_RUNES)
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +86,8 @@ class BenchmarkSpec:
     gauge_stream: str = "B"
     gauge_index: int = 0
     gauge_value: int = 0
+    additional_cribs: tuple[CribSpec, ...] = ()
+    additional_cribs_are_exact: bool = True
 
     def __post_init__(self) -> None:
         if not isinstance(self.benchmark_id, str) or not _ID_RE.fullmatch(self.benchmark_id):
@@ -67,6 +118,22 @@ class BenchmarkSpec:
         if (self.gauge_stream, self.gauge_index, self.gauge_value) != ("B", 0, 0):
             raise ValueError("the WP6 ladder fixes the gauge B[0] = 0")
 
+        if not isinstance(self.additional_cribs_are_exact, bool):
+            raise TypeError("additional_cribs_are_exact must be a boolean")
+
+        cribs = tuple(self.additional_cribs)
+        if any(not isinstance(item, CribSpec) for item in cribs):
+            raise TypeError("additional_cribs must contain CribSpec values")
+        occupied = set(range(PRIMARY_CRIB.start, PRIMARY_CRIB.stop))
+        for crib in cribs:
+            if crib.stop > self.text_length:
+                raise ValueError(f"additional crib {crib.label!r} does not fit the text")
+            positions = set(range(crib.start, crib.stop))
+            if occupied & positions:
+                raise ValueError("complete crib spans must not overlap")
+            occupied.update(positions)
+        object.__setattr__(self, "additional_cribs", cribs)
+
     @property
     def key_length(self) -> int:
         return self.period_a + self.period_b
@@ -75,8 +142,12 @@ class BenchmarkSpec:
     def gauge_key_index(self) -> int:
         return self.period_a + self.gauge_index
 
-    def to_json_dict(self) -> dict[str, int | str]:
-        return {
+    @property
+    def crib_specs(self) -> tuple[CribSpec, ...]:
+        return (PRIMARY_CRIB, *self.additional_cribs)
+
+    def to_json_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
             "benchmark_id": self.benchmark_id,
             "period_a": self.period_a,
             "period_b": self.period_b,
@@ -88,6 +159,14 @@ class BenchmarkSpec:
             "gauge": f"{self.gauge_stream}[{self.gauge_index}]={self.gauge_value}",
             "expected_free_dimension": self.expected_free_dimension,
         }
+        # Keep old replay contexts byte-for-byte compatible at the contract level.
+        if self.additional_cribs:
+            payload["additional_cribs"] = [
+                crib.to_json_dict() for crib in self.additional_cribs
+            ]
+        if not self.additional_cribs_are_exact:
+            payload["additional_cribs_are_exact"] = False
+        return payload
 
 
 BENCHMARK_LADDER = (
@@ -96,7 +175,26 @@ BENCHMARK_LADDER = (
     BenchmarkSpec("alice_308_p09_p13_d08", 9, 13, 8),
     BenchmarkSpec("alice_308_p13_p17_d16", 13, 17, 16),
 )
-BENCHMARKS = {spec.benchmark_id: spec for spec in BENCHMARK_LADDER}
+EXACT_EXTRA_CRIB_BENCHMARKS = (
+    BenchmarkSpec(
+        "alice_308_p13_p17_crib188x13_plus206x8_d08",
+        13,
+        17,
+        8,
+        additional_cribs=(EXTRA_CRIB_206,),
+    ),
+    BenchmarkSpec(
+        "alice_308_p13_p17_crib188x13_plus081x8_d08",
+        13,
+        17,
+        8,
+        additional_cribs=(EXTRA_CRIB_081,),
+    ),
+)
+BENCHMARKS = {
+    spec.benchmark_id: spec
+    for spec in (*BENCHMARK_LADDER, *EXACT_EXTRA_CRIB_BENCHMARKS)
+}
 TARGET_BENCHMARK = BENCHMARKS[RUN_BENCHMARK_ID]
 
 # Compatibility aliases for the current target-only search implementation. New
