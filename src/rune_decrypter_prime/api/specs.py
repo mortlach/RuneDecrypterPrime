@@ -310,6 +310,27 @@ class SolverSpec:
     params: Dict[str, Any] = field(default_factory=dict)
     seed: Optional[int] = None
 
+    @classmethod
+    def two_period_cribs(
+        cls,
+        *,
+        fixed_cribs: Sequence[tuple[str, int]] = (),
+        candidate_words: Sequence[str] = (),
+        candidate_positions: Optional[Dict[str, Sequence[int]]] = None,
+        starts: int = 96,
+        seed: Optional[int] = None,
+    ) -> "SolverSpec":
+        """Solve an additive two-period Vigenere overlay from complete-word cribs."""
+        from rune_decrypter_prime.api.two_period_cribs import build_two_period_cribs_spec
+
+        return build_two_period_cribs_spec(
+            fixed_cribs=fixed_cribs,
+            candidate_words=candidate_words,
+            candidate_positions=candidate_positions,
+            starts=starts,
+            seed=seed,
+        )
+
 
 
     @classmethod

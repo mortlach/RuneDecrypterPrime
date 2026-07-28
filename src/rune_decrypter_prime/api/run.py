@@ -34,6 +34,10 @@ from rune_decrypter_prime.api.solver_report_export import write_solver_report_js
 from rune_decrypter_prime.api.run_artifact_manifest import (
     write_run_artifacts_manifest as write_run_artifacts_manifest_file,
 )
+from rune_decrypter_prime.api.two_period_cribs import (
+    is_two_period_cribs_solver,
+    normalize_two_period_cribs_request,
+)
 
 
 _UNSET = object()
@@ -119,6 +123,10 @@ class RunAPI:
                 unset=_UNSET,
             )
             materialized = materialize_runspec_problem_input(spec)
+            if is_two_period_cribs_solver(spec.solver):
+                from rune_decrypter_prime.api.run_spec import RawTextInput
+                if isinstance(spec.problem_input, RawTextInput):
+                    _validate_rune_only_text(spec.problem_input.text)
             logging_route = route_runspec_logging(
                 spec,
                 None if logging is _UNSET else logging,
@@ -154,6 +162,8 @@ class RunAPI:
             raise TypeError("RunAPI.run() missing required keyword-only argument: 'key'")
         if solver is _UNSET:
             raise TypeError("RunAPI.run() missing required keyword-only argument: 'solver'")
+        if is_two_period_cribs_solver(solver) and isinstance(text, str):
+            _validate_rune_only_text(text)
 
         device = Device.CPU if device is _UNSET else device
         scorer = "rune" if scorer is _UNSET else scorer
@@ -241,35 +251,70 @@ def _run_normalized(
     interruptors_max: Optional[int],
     return_solver_report: bool,
 ):
-    scorer_params = normalize_scorer_params(resolve_scorer_aliases(scorer_params or {}))
-    scoring_cfg = ScoringConfig(**scorer_params)
-    scoring_cfg.encoding_dir = encoding_dir
+    if is_two_period_cribs_solver(solver):
+        request = normalize_two_period_cribs_request(solver)
+        _validate_two_period_run_options(
+            wli=wli,
+            cipher=cipher,
+            key=key,
+            device=device,
+            scorer=scorer,
+            scorer_params=scorer_params,
+            initial_keys=initial_keys,
+            initial_text_permutation_indices=initial_text_permutation_indices,
+            interruptors=interruptors,
+            interruptors_exact=interruptors_exact,
+            interruptors_pool=interruptors_pool,
+            interruptors_max=interruptors_max,
+        )
+        if initialize_logging and logging_config is not None:
+            from rune_decrypter_prime.core.config.logging_config import init_logging
+            init_logging(logging_config)
+        from rune_decrypter_prime.solvers.two_period_cribs import run_two_period_stages
+        solution = run_two_period_stages(
+            ciphertext=ciphertext,
+            wli=wli,
+            cipher=cipher,
+            key=key,
+            request=request,
+            device=device,
+            direction=encoding_dir,
+            telemetry_on=telemetry_on,
+        )
+        opt_name = "two_period_cribs"
+        opt = request.normalized_params()
+        special_route = True
+    else:
+        special_route = False
+        scorer_params = normalize_scorer_params(resolve_scorer_aliases(scorer_params or {}))
+        scoring_cfg = ScoringConfig(**scorer_params)
+        scoring_cfg.encoding_dir = encoding_dir
 
-    opt = normalize_optimizer_spec({"name": solver.name, **solver.params})
-    opt_name = opt.pop("name")
-    solver_cfg = SolverConfig(name=opt_name, params=opt, seed=solver.seed)
+        opt = normalize_optimizer_spec({"name": solver.name, **solver.params})
+        opt_name = opt.pop("name")
+        solver_cfg = SolverConfig(name=opt_name, params=opt, seed=solver.seed)
 
-    solution = execute_run(
-        ciphertext=ciphertext,
-        wli=wli,
-        cipher=cipher,
-        key=key,
-        solver=solver_cfg,
-        scoring=scoring_cfg,
-        scorer_name=scorer,
-        logging_config=logging_config,
-        logging_runtime=logging_runtime,
-        initialize_logging=initialize_logging,
-        telemetry_on=telemetry_on,
-        device=device,
-        encoding_dir=encoding_dir,
-        initial_keys=initial_keys,
-        initial_text_permutation_indices=initial_text_permutation_indices,
-        interruptors=interruptors,
-        interruptors_exact=interruptors_exact,
-        interruptors_pool=interruptors_pool,
-        interruptors_max=interruptors_max,
-    )
+        solution = execute_run(
+            ciphertext=ciphertext,
+            wli=wli,
+            cipher=cipher,
+            key=key,
+            solver=solver_cfg,
+            scoring=scoring_cfg,
+            scorer_name=scorer,
+            logging_config=logging_config,
+            logging_runtime=logging_runtime,
+            initialize_logging=initialize_logging,
+            telemetry_on=telemetry_on,
+            device=device,
+            encoding_dir=encoding_dir,
+            initial_keys=initial_keys,
+            initial_text_permutation_indices=initial_text_permutation_indices,
+            interruptors=interruptors,
+            interruptors_exact=interruptors_exact,
+            interruptors_pool=interruptors_pool,
+            interruptors_max=interruptors_max,
+        )
     write_solver_report = (
         logging_config is not None
         and bool(getattr(logging_config, "write_solver_report", False))
@@ -284,7 +329,12 @@ def _run_normalized(
     known_key_fastpath = isinstance(key, KeySpec) and key.plan in ("otp", "const")
     report = None
     if return_solver_report or write_solver_report:
-        if known_key_fastpath:
+        if special_route:
+            report_solver_name = "two_period_cribs"
+            effective_seed = request.effective_seed
+            normalized_params = opt
+            details = {"execution_route": "two_period_cribs"}
+        elif known_key_fastpath:
             report_solver_name = "beam"
             effective_seed = None
             normalized_params = {"beam_width": 1}
@@ -338,7 +388,57 @@ def _solver_report_details_from_solution(solution) -> dict[str, Any]:
     scorer_lanes = meta.get("scorer_lanes")
     if scorer_lanes is not None:
         details["scorer_lanes"] = scorer_lanes
+    two_period_solve = meta.get("two_period_solve")
+    if two_period_solve is not None:
+        details["two_period_solve"] = two_period_solve
     return details
+
+
+def _validate_rune_only_text(text: str) -> None:
+    from rune_decrypter_prime.utils.runeglish import Runeglish
+
+    unsupported = sorted({char for char in text if not char.isspace() and char not in Runeglish.rune2pos})
+    if unsupported:
+        raise ValueError("two_period_cribs requires rune ciphertext; Latin or mixed input is unsupported")
+
+
+def _validate_two_period_run_options(
+    *,
+    wli,
+    cipher,
+    key,
+    device,
+    scorer,
+    scorer_params,
+    initial_keys,
+    initial_text_permutation_indices,
+    interruptors,
+    interruptors_exact,
+    interruptors_pool,
+    interruptors_max,
+) -> None:
+    if wli is None:
+        raise ValueError("two_period_cribs requires WLI data")
+    if device is not Device.CPU:
+        raise ValueError("two_period_cribs currently supports CPU only")
+    if str(scorer).strip().lower() != "rune":
+        raise ValueError("two_period_cribs supports only the rune scorer")
+    if scorer_params:
+        raise ValueError("two_period_cribs does not accept scorer_params")
+    if initial_keys is not None:
+        raise ValueError("two_period_cribs does not accept initial_keys")
+    if initial_text_permutation_indices is not None:
+        raise ValueError("two_period_cribs does not accept text permutation")
+    if any(
+        value is not None
+        for value in (interruptors, interruptors_exact, interruptors_pool, interruptors_max)
+    ):
+        raise ValueError(
+            "two_period_cribs interruptor compatibility is not yet proven; "
+            "exact and pool interruptor options are unsupported"
+        )
+    if not isinstance(cipher, CipherSpec) or not isinstance(key, KeySpec):
+        raise TypeError("two_period_cribs requires canonical CipherSpec and KeySpec values")
 
 
 def _solver_name_to_report_string(value) -> str:
