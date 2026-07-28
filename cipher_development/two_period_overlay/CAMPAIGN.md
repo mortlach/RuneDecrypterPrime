@@ -486,3 +486,116 @@ explicit:
 This is a budget-compression experiment, not a silent reduction of Experiment
 B. The full B100 evidence remains the source used to justify the new frozen
 B1000 budget. B1000 does not authorise any larger list or new work package.
+
+## WP6 Pack 06 — controlled P13/P31 d14 staged panel
+
+Pack 05 closes the current 1,000-candidate branch-scaling question. Pack 06
+therefore isolates the next scientific question: whether the frozen staged
+solver can exactly recover a controlled P13/P31 benchmark after three declared
+complete-word crib spans reduce the gauge-fixed affine space to d14.
+
+The benchmark is:
+
+```text
+alice_308_p13_p31_crib188x13_plus081x8_plus206x8_d14
+period A: 13
+period B: 31
+gauge: B[0] = 0
+uncomfortable at 188
+Dormouse at 81 and 206
+derived affine dimension: 14
+```
+
+The d30, d22, d22 and d14 rank ladder must be derived and tested before search.
+The frozen search ladder remains:
+
+```text
+S2 WLI12, five sweeps
+-> B1 char23 + WLI23, four sweeps
+-> F1 char1234 + WLI1234, three sweeps
+```
+
+The run contains one four-start integration canary followed by ten independent
+512-start scientific blocks. Blocks 51 and 52 form Phase A. Their continuation
+gate may inspect only replay integrity, stored-score verification and the
+safety-adjusted runtime projection. It may not inspect plaintext, key, rune,
+word or exactness metrics. Blocks 53 through 60 then run unchanged.
+
+The complete panel contains 5,120 scientific starts. Pack 02B timing scaled by
+starts and affine dimension gives approximately 5.7 hours centrally and 7.1
+hours with the frozen 1.25 safety factor. The hard scientific ceiling is eight
+hours. A safety interruption is incomplete evidence and cannot close d14.
+
+Every block retains the complete deduplicated scout, bridge and judge union.
+Each stage and final union replays twice before terminal truth is opened. The
+canary and all ten science blocks must finish search, persistence and replay
+before terminal metrics are calculated.
+
+Promotion requires at least two independent exact blocks, with each exact
+candidate final-union score rank one and with one canonical key and one combined
+shift. One exact block, a ranking or uniqueness issue, or at least two blocks
+containing a candidate with at least 289 rune and 63 complete-word matches
+returns refine. Zero exact blocks and fewer than two near-solve blocks returns
+close only after every frozen block and replay has completed.
+
+No real Liber Primus run, scorer change, automatic crib addition, reduced-start
+substitution or optional `hatter` d8 fallback is authorised by Pack 06.
+
+## WP6 Pack 07R — P13/P31 two-word d22 recovery panel
+
+Pack 07 removes the second `dormouse` occurrence from the successful Pack 06
+contract and tests the next harder controlled benchmark:
+
+```text
+period A       : 13
+period B       : 31
+primary crib   : uncomfortable at rune offset 188, length 13
+additional crib: dormouse at rune offset 206, length 8
+gauge          : B[0] = 0
+derived space  : d22
+```
+
+Only these two complete words at these two declared spans are supplied. The
+offset-81 `dormouse` crib, `hatter` fallback and every other additional crib are
+excluded from the search-visible contract and are not started automatically.
+
+The search method remains frozen:
+
+```text
+scout  : S2 WLI12, 5 sweeps
+bridge : B1 char23 + WLI23, 4 sweeps
+judge  : F1 char1234 + WLI1234, 3 sweeps
+```
+
+The original ten-block Pack 07 panel stopped safely when its first 512-start
+science block exceeded the 9,000-second block ceiling. Its real four-start d22
+canary measured 98.1856 seconds and invalidated the earlier d14
+dimension-scaling estimate. Pack 07R therefore preserves the per-block science
+but revises the panel count to fit the unchanged twelve-hour global ceiling:
+
+```text
+canary       : block 70, 4 starts, excluded from scientific solve-rate claims
+Phase A      : blocks 71-72, 512 starts each
+Phase B      : block 73, 512 starts
+science total: 3 blocks, 1,536 independent starts
+archive cap  : 2,048 candidates per complete stage union
+replay       : two repeats of every retained stage and final-union surface
+```
+
+The measured d22 canary projects the recovery panel at approximately 10.5 hours
+centrally and 11.5 hours with a 1.10 safety factor. Pack 07R uses a three-hour
+stage ceiling, a three-hour-forty-five-minute block ceiling, the existing
+twelve-hour hard scientific ceiling and a twenty-minute terminal reserve.
+
+The Phase A continuation gate is operational only. It may inspect completion,
+replay integrity, stored-score verification and measured runtime projection. It
+must not inspect exactness, rune matches, complete-word matches, true variables,
+keys or any other terminal benchmark metric.
+
+Promotion requires at least two independent exact blocks, with each exact
+candidate retained at final-union score rank one and represented by one canonical
+key and one combined shift. One exact block, a ranking or uniqueness issue, or
+repeated near-solve enrichment returns `refine`. Zero exact and fewer than two
+near-solve blocks closes only this frozen 1,536-start d22 budget. No result
+automatically authorises another crib, a d14 retreat, a d8 fallback or a real
+Liber Primus experiment.

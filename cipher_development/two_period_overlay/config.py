@@ -191,9 +191,51 @@ EXACT_EXTRA_CRIB_BENCHMARKS = (
         additional_cribs=(EXTRA_CRIB_081,),
     ),
 )
+
+# WP6 Pack 06 controlled period-13 / period-31 benchmark ladder.  The first
+# three entries exist to lock the independently derived rank changes; the final
+# entry is the frozen d14 scientific target.
+P13_P31_BENCHMARKS = (
+    BenchmarkSpec(
+        "alice_308_p13_p31_crib188x13_d30",
+        13,
+        31,
+        30,
+    ),
+    BenchmarkSpec(
+        "alice_308_p13_p31_crib188x13_plus081x8_d22",
+        13,
+        31,
+        22,
+        additional_cribs=(EXTRA_CRIB_081,),
+    ),
+    BenchmarkSpec(
+        "alice_308_p13_p31_crib188x13_plus206x8_d22",
+        13,
+        31,
+        22,
+        additional_cribs=(EXTRA_CRIB_206,),
+    ),
+    BenchmarkSpec(
+        "alice_308_p13_p31_crib188x13_plus081x8_plus206x8_d14",
+        13,
+        31,
+        14,
+        additional_cribs=(EXTRA_CRIB_081, EXTRA_CRIB_206),
+    ),
+)
+P13_P31_PRIMARY_BENCHMARK = P13_P31_BENCHMARKS[0]
+P13_P31_DORMOUSE_081_BENCHMARK = P13_P31_BENCHMARKS[1]
+P13_P31_DORMOUSE_206_BENCHMARK = P13_P31_BENCHMARKS[2]
+P13_P31_TARGET_BENCHMARK = P13_P31_BENCHMARKS[3]
+
 BENCHMARKS = {
     spec.benchmark_id: spec
-    for spec in (*BENCHMARK_LADDER, *EXACT_EXTRA_CRIB_BENCHMARKS)
+    for spec in (
+        *BENCHMARK_LADDER,
+        *EXACT_EXTRA_CRIB_BENCHMARKS,
+        *P13_P31_BENCHMARKS,
+    )
 }
 TARGET_BENCHMARK = BENCHMARKS[RUN_BENCHMARK_ID]
 

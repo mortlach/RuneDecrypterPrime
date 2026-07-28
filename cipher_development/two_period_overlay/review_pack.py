@@ -66,6 +66,12 @@ OPTIONAL_CAMPAIGN_SOURCE_PATHS = (
     Path("cipher_development/two_period_overlay/pack04.py"),
     Path("cipher_development/two_period_overlay/b100_budget_sensitivity.py"),
     Path("cipher_development/two_period_overlay/pack05.py"),
+    Path("cipher_development/two_period_overlay/experiment_c.py"),
+    Path("cipher_development/two_period_overlay/pack06.py"),
+    Path("cipher_development/two_period_overlay/experiment_d.py"),
+    Path("cipher_development/two_period_overlay/pack07.py"),
+    Path("cipher_development/two_period_overlay/experiment_e.py"),
+    Path("cipher_development/two_period_overlay/pack09.py"),
 )
 SHARED_SOURCE_PATHS = (
     Path("cipher_development/shared/experiment.py"),
@@ -92,6 +98,10 @@ TEST_SOURCE_PATHS = (
     Path("tests/cipher_development/test_two_period_experiment_a.py"),
     Path("tests/cipher_development/test_two_period_experiment_b.py"),
     Path("tests/cipher_development/test_two_period_b100_budget_sensitivity.py"),
+    Path("tests/cipher_development/test_two_period_p13_p31.py"),
+    Path("tests/cipher_development/test_two_period_experiment_c.py"),
+    Path("tests/cipher_development/test_two_period_experiment_d.py"),
+    Path("tests/cipher_development/test_two_period_experiment_e.py"),
 )
 
 
@@ -192,6 +202,9 @@ def _guard_run_json(relative: Path, data: bytes) -> None:
         "artifacts/staged_d8_handoff/source_pilot_experiment_result.json",
         "artifacts/experiment_a/source_pack02b_experiment_result.json",
         "artifacts/experiment_b/terminal_branch_evaluation.json",
+        "artifacts/experiment_c/terminal_evaluation.json",
+        "artifacts/experiment_d/terminal_evaluation.json",
+        "artifacts/experiment_e/terminal_evaluation.json",
     }:
         return
     if relative.suffix.lower() != ".json":
@@ -453,6 +466,127 @@ def _required_artifacts(experiment_id: str, run_dir: Path | None = None) -> tupl
             "artifacts/experiment_a/source_pack02b_experiment_result.json",
             *tuple(block_artifacts),
         )
+    if experiment_id == "p13_p31_dual_word_staged_panel_v1":
+        base = (
+            *common,
+            "artifacts/p13_p31_dual_word_staged_panel_summary.json",
+            "artifacts/execution_timing.json",
+            "artifacts/experiment_c/visible_status.json",
+            "artifacts/experiment_c/runtime_plan.json",
+            "artifacts/experiment_c/contract_preflight.json",
+            "artifacts/experiment_c/operational_gate.json",
+            "artifacts/experiment_c/attempt_timing.json",
+            "artifacts/experiment_c/search_summary.json",
+            "artifacts/experiment_c/replay_summary.json",
+            "artifacts/experiment_c/terminal_evaluation.json",
+        "artifacts/experiment_d/terminal_evaluation.json",
+            "artifacts/experiment_c/required_artifacts.json",
+        )
+        if run_dir is None:
+            return base
+        inventory_path = run_dir / "artifacts/experiment_c/required_artifacts.json"
+        if not inventory_path.is_file():
+            return base
+        inventory = _read_json(inventory_path)
+        paths = inventory.get("paths")
+        if not isinstance(paths, list) or any(not isinstance(item, str) for item in paths):
+            raise ValueError("P13/P31 required-artifact inventory is invalid")
+        safe_paths: list[str] = []
+        for item in paths:
+            candidate = Path(item)
+            if (
+                not item
+                or candidate.is_absolute()
+                or ".." in candidate.parts
+                or "\\" in item
+                or candidate.as_posix() != item
+            ):
+                raise ValueError(
+                    "P13/P31 required-artifact inventory contains an unsafe path"
+                )
+            safe_paths.append(item)
+        return tuple(dict.fromkeys((*base, *safe_paths)))
+    if experiment_id in {
+        "p13_p31_two_word_d22_staged_panel_v1",
+        "p13_p31_two_word_d22_staged_panel_v2",
+    }:
+        base = (
+            *common,
+            "artifacts/p13_p31_two_word_d22_staged_panel_summary.json",
+            "artifacts/execution_timing.json",
+            "artifacts/experiment_d/visible_status.json",
+            "artifacts/experiment_d/runtime_plan.json",
+            "artifacts/experiment_d/contract_preflight.json",
+            "artifacts/experiment_d/operational_gate.json",
+            "artifacts/experiment_d/attempt_timing.json",
+            "artifacts/experiment_d/search_summary.json",
+            "artifacts/experiment_d/replay_summary.json",
+            "artifacts/experiment_d/terminal_evaluation.json",
+            "artifacts/experiment_d/required_artifacts.json",
+        )
+        if run_dir is None:
+            return base
+        inventory_path = run_dir / "artifacts/experiment_d/required_artifacts.json"
+        if not inventory_path.is_file():
+            return base
+        inventory = _read_json(inventory_path)
+        paths = inventory.get("paths")
+        if not isinstance(paths, list) or any(not isinstance(item, str) for item in paths):
+            raise ValueError("P13/P31 d22 required-artifact inventory is invalid")
+        safe_paths: list[str] = []
+        for item in paths:
+            candidate = Path(item)
+            if (
+                not item
+                or candidate.is_absolute()
+                or ".." in candidate.parts
+                or "\\" in item
+                or candidate.as_posix() != item
+            ):
+                raise ValueError(
+                    "P13/P31 d22 required-artifact inventory contains an unsafe path"
+                )
+            safe_paths.append(item)
+        return tuple(dict.fromkeys((*base, *safe_paths)))
+    if experiment_id == "p13_p31_one_word_d30_s2_discovery_panel_v1":
+        base = (
+            *common,
+            "artifacts/p13_p31_one_word_d30_summary.json",
+            "artifacts/execution_timing.json",
+            "artifacts/experiment_e/visible_status.json",
+            "artifacts/experiment_e/runtime_plan.json",
+            "artifacts/experiment_e/contract_preflight.json",
+            "artifacts/experiment_e/operational_gate.json",
+            "artifacts/experiment_e/attempt_timing.json",
+            "artifacts/experiment_e/search_summary.json",
+            "artifacts/experiment_e/replay_summary.json",
+            "artifacts/experiment_e/terminal_evaluation.json",
+            "artifacts/experiment_e/required_artifacts.json",
+        )
+        if run_dir is None:
+            return base
+        inventory_path = run_dir / "artifacts/experiment_e/required_artifacts.json"
+        if not inventory_path.is_file():
+            return base
+        inventory = _read_json(inventory_path)
+        paths = inventory.get("paths")
+        if not isinstance(paths, list) or any(not isinstance(item, str) for item in paths):
+            raise ValueError("P13/P31 d30 required-artifact inventory is invalid")
+        safe_paths: list[str] = []
+        for item in paths:
+            candidate = Path(item)
+            if (
+                not item
+                or candidate.is_absolute()
+                or ".." in candidate.parts
+                or "\\" in item
+                or candidate.as_posix() != item
+            ):
+                raise ValueError(
+                    "P13/P31 d30 required-artifact inventory contains an unsafe path"
+                )
+            safe_paths.append(item)
+        return tuple(dict.fromkeys((*base, *safe_paths)))
     if experiment_id in {"candidate_word_branches_b10_v1", "candidate_word_branches_b100_v1", "candidate_word_branches_b1000_v1"}:
         base = (
             *common,
@@ -947,6 +1081,35 @@ def _review_markdown(manifest: Mapping[str, Any], result: Mapping[str, Any]) -> 
             "Does J0 match or exceed the staged method, or does the staged/scout surface retain a clear advantage?",
             "Is another assisted-d8 overnight run scientifically justified, or should the overnight budget move to Experiment B scaling or later d16 work?",
         ),
+        "p13_p31_dual_word_staged_panel_v1": (
+            "Did the P13/P31 crib ladder independently derive d30, d22, d22 and d14 before search?",
+            "Did the real four-start canary complete and replay without contributing to scientific solve-rate claims?",
+            "Did all ten 512-start scientific blocks run from independent deterministic starts under the unchanged S2-B1-F1 ladder?",
+            "Was the Phase A continuation based only on replay integrity and the safety-adjusted runtime projection, with no terminal metrics opened?",
+            "Did every block retain the complete deduplicated scout, bridge and judge union without silent pruning?",
+            "Were all stage and final-union surfaces replayed twice with stored scores and rankings verified?",
+            "How many independent blocks solved exactly, and at which stage did each exact candidate first appear?",
+            "Was every exact final candidate score rank one with one canonical key and one combined shift?",
+            "How many blocks reached the predeclared 289-rune and 63-word near-solve diagnostic?",
+            "Did the complete scientific execution remain within the frozen eight-hour ceiling?",
+            "Does the result promote P13/P31, require unchanged replication, or close only the frozen Pack 06 d14 budget?",
+            "Was the optional hatter d8 fallback left unstarted and unauthorised?",
+        ),
+        "p13_p31_two_word_d22_staged_panel_v2": (
+            "Did the P13/P31 two-word contract independently derive d30 and d22 before search?",
+            "Was only uncomfortable at offset 188 and one dormouse at offset 206 supplied?",
+            "Did the real four-start d22 canary complete and replay without contributing to scientific solve-rate claims?",
+            "Did all three 512-start scientific blocks run from independent deterministic starts under the unchanged S2-B1-F1 ladder?",
+            "Was the Phase A continuation based only on replay integrity and the safety-adjusted runtime projection, with no terminal metrics opened?",
+            "Did every block retain the complete deduplicated scout, bridge and judge union without silent pruning?",
+            "Were all stage and final-union surfaces replayed twice with stored scores and rankings verified?",
+            "How many independent blocks solved exactly, and at which stage did each exact candidate first appear?",
+            "Was every exact final candidate score rank one with one canonical key and one combined shift?",
+            "How many blocks reached the predeclared 289-rune and 63-word near-solve diagnostic?",
+            "Did the complete scientific execution remain within the frozen twelve-hour ceiling?",
+            "Does the result promote d22, require unchanged replication, or close only the frozen Pack 07R budget?",
+            "Was every additional-crib fallback left unstarted and unauthorised?",
+        ),
         "candidate_selection_v1": (
             "Were both selections derived from the exact bound d8 coordinate-supply archive?",
             "Does the diverse-high-WLI policy preserve the best candidate and produce a different eight-candidate set?",
@@ -1037,10 +1200,15 @@ def _portable_validation_bytes(data: bytes, repo_root: Path) -> bytes:
             text = data.decode("utf-8")
         except UnicodeDecodeError:
             return data
-    root = str(repo_root.resolve())
-    for candidate in {root, root.replace("\\", "/"), root.replace("/", "\\")}:
-        if candidate:
-            text = text.replace(candidate, "<repo_root>")
+    resolved_repo = repo_root.resolve()
+    replacements = [(str(resolved_repo), "<repo_root>")]
+    if len(resolved_repo.parents) >= 2:
+        replacements.append((str(resolved_repo.parents[1]), "<workspace_root>"))
+    replacements.append((str(Path(sys.executable).resolve()), "<python_executable>"))
+    for root, label in replacements:
+        for candidate in (root, root.replace("\\", "/"), root.replace("/", "\\")):
+            if candidate:
+                text = text.replace(candidate, label)
     return text.encode("utf-8")
 
 

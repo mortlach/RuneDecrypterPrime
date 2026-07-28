@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -209,6 +210,26 @@ def test_windows_validation_logs_are_packed_as_utf8(
         packed = archive.read("validation/local/focused_tests.txt")
     assert packed.decode("utf-8") == "166 passed at <repo_root>\r\n"
     assert not packed.startswith((b"\xff\xfe", b"\xfe\xff"))
+
+
+def test_validation_logs_redact_external_workspace_and_python_paths(
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "workspace"
+    repo_root = workspace / "pure_release_repo" / "RuneDecrypterPrime"
+    external_output = workspace / "run_outputs" / "pack06"
+    payload = (
+        f"{repo_root}\n{external_output}\n{Path(sys.executable).resolve()}\n"
+    ).encode("utf-8")
+
+    packed = review_pack._portable_validation_bytes(payload, repo_root)
+    text = packed.decode("utf-8")
+
+    assert "<repo_root>" in text
+    assert "<workspace_root>" in text
+    assert "<python_executable>" in text
+    assert str(workspace) not in text
+    assert str(Path(sys.executable).resolve()) not in text
 
 
 def test_benchmark_canary_review_renders_contract_summary_and_questions(
