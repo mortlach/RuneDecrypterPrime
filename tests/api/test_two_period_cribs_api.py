@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 import numpy as np
 
@@ -111,3 +113,17 @@ def test_real_route_returns_standard_exact_solution_with_installed_assets():
     assert result.solution.stop_reason == "done"
     assert result.solver_report.solver_name == "two_period_cribs"
     assert result.solver_report.details["execution_route"] == "two_period_cribs"
+    details = result.solver_report.details["two_period_solve"]
+    summaries = {row["stage_id"]: row for row in details["stage_summaries"]}
+    assert tuple(summaries) == ("S2", "B1", "F1", "final_union")
+    assert summaries["F1"]["sweeps"] == 3
+    assert summaries["F1"]["generated_terminals"] == summaries["F1"]["inputs"]
+    assert summaries["final_union"]["generated_terminals"] == 0
+    assert summaries["final_union"]["mode"] == "static_rescore"
+    counts = details["candidate_counts"]
+    assert counts["judge_inputs"] >= counts["judge_unique_terminals"]
+    assert counts["final_union_inputs"] >= counts["final_union_unique_terminals"]
+    portable_details = result.solver_report.to_json_dict()["details"]["two_period_solve"]
+    report_json = json.dumps(portable_details, sort_keys=True)
+    assert "reference" not in report_json.lower()
+    assert "truth" not in report_json.lower()

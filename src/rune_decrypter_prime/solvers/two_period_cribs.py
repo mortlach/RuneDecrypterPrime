@@ -170,12 +170,25 @@ def _complete_word_starts(wli: Sequence[Sequence[int]], length: int) -> tuple[in
     return tuple(starts)
 
 
-def _branch_id(spans: Sequence[CribSpan], space: CribConstraintSpace) -> str:
+def _branch_id(
+    fixed_cribs: Sequence[CribSpan],
+    candidate_crib: CribSpan | None,
+    space: CribConstraintSpace,
+) -> str:
     payload = {
         "contract": TWO_PERIOD_CRIBS_CONTRACT,
-        "spans": sorted((list(span.runes), span.start) for span in spans),
-        "particular": list(space.particular),
-        "basis": [list(row) for row in space.basis],
+        "modulus": space.modulus,
+        "period_a": space.period_a,
+        "period_b": space.period_b,
+        "fixed_cribs": sorted(
+            ({"runes": list(span.runes), "start": span.start} for span in fixed_cribs),
+            key=lambda row: (row["start"], row["runes"]),
+        ),
+        "candidate_crib": (
+            None
+            if candidate_crib is None
+            else {"runes": list(candidate_crib.runes), "start": candidate_crib.start}
+        ),
     }
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -199,17 +212,38 @@ def build_branches(
         ciphertext, fixed, period_a=period_a, period_b=period_b, modulus=modulus
     )
     alternatives: list[CribSpan | None] = []
+    rejected: list[dict[str, Any]] = []
     if not request.candidate_words:
         alternatives.append(None)
     for word in request.candidate_words:
         runes = _span(word, 0, direction).runes
         positions = request.positions_for(word)
+        complete_starts = _complete_word_starts(wli, len(runes))
         if positions is None:
-            positions = _complete_word_starts(wli, len(runes))
+            positions = complete_starts
+            if not positions:
+                rejected.append({
+                    "word": word,
+                    "start": None,
+                    "reason": f"no complete WLI span of rune length {len(runes)}",
+                })
+        else:
+            if not positions:
+                rejected.append({
+                    "word": word,
+                    "start": None,
+                    "reason": "explicit candidate position list is empty",
+                })
+            invalid = tuple(position for position in positions if position not in complete_starts)
+            if invalid:
+                position = invalid[0]
+                raise ValueError(
+                    f"candidate word {word!r} position {position} is not a complete "
+                    f"WLI span of rune length {len(runes)}"
+                )
         alternatives.extend(CribSpan(word, runes, start) for start in positions)
 
     accepted: dict[str, TwoPeriodBranch] = {}
-    rejected: list[dict[str, Any]] = []
     for candidate in alternatives:
         spans = fixed + (() if candidate is None else (candidate,))
         try:
@@ -227,10 +261,14 @@ def build_branches(
                 "reason": str(exc),
             })
             continue
-        branch_id = _branch_id(spans, space)
+        branch_id = _branch_id(fixed, candidate, space)
         accepted.setdefault(branch_id, TwoPeriodBranch(branch_id, fixed, candidate, space))
     if not accepted:
-        raise ValueError("no compatible two-period crib branches remain")
+        reasons = "; ".join(
+            f"{row['word']!r} at {row['start']}: {row['reason']}" for row in rejected
+        )
+        detail = f": {reasons}" if reasons else ""
+        raise ValueError(f"no compatible two-period crib branches remain{detail}")
     return tuple(accepted[key] for key in sorted(accepted)), tuple(rejected)
 
 
@@ -251,7 +289,10 @@ def coordinate_search(
     modulus: int = 29,
 ) -> tuple[np.ndarray, float, int]:
     current = np.asarray(variables, dtype=np.uint8).copy()
-    current_score = float(np.asarray(evaluate(current[None, :]), dtype=np.float64)[0])
+    initial_scores = np.asarray(evaluate(current[None, :]), dtype=np.float64)
+    if initial_scores.shape != (1,) or not np.all(np.isfinite(initial_scores)):
+        raise RuntimeError("candidate evaluator returned invalid scores")
+    current_score = float(initial_scores[0])
     evaluations = 1
     for _ in range(sweeps):
         improved = False
@@ -318,6 +359,60 @@ def _records_digest(records: Sequence[tuple[str, float]]) -> str:
     return hashlib.sha256(
         json.dumps(payload, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
+
+
+def _deduplicated_union(
+    *surfaces: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    union: dict[str, dict[str, Any]] = {}
+    for surface in surfaces:
+        for candidate_id in sorted(surface):
+            union.setdefault(candidate_id, surface[candidate_id])
+    return union
+
+
+def _run_refinement_stage(
+    *,
+    stage_id: str,
+    score_field: str,
+    evaluate: Callable[[np.ndarray], np.ndarray],
+    branch: TwoPeriodBranch,
+    inputs: dict[str, dict[str, Any]],
+    sweeps: int,
+    root_seed: int,
+    modulus: int,
+) -> tuple[dict[str, dict[str, Any]], int, float]:
+    started = time.perf_counter()
+    evaluations = 0
+    output: dict[str, dict[str, Any]] = {}
+    for parent_id in sorted(inputs):
+        parent = inputs[parent_id]
+        rng = np.random.default_rng(
+            derive_child_seed(root_seed, branch.branch_id, stage_id, parent_id)
+        )
+        variables, score, used = coordinate_search(
+            evaluate,
+            rng,
+            np.asarray(parent["variables"], dtype=np.uint8),
+            sweeps,
+            modulus=modulus,
+        )
+        evaluations += used
+        expanded = expand_reduced_key(variables, branch.constraint_space)
+        candidate_id = _candidate_id(expanded)
+        record = {
+            "candidate_id": candidate_id,
+            "branch_id": branch.branch_id,
+            "variables": variables.astype(int).tolist(),
+            "key": expanded.astype(int).tolist(),
+            score_field: score,
+            "source_stage": stage_id,
+            "parent_id": parent_id,
+        }
+        old = output.get(candidate_id)
+        if old is None or score > float(old[score_field]) + _EPSILON:
+            output[candidate_id] = record
+    return output, evaluations, time.perf_counter() - started
 
 
 def _validate_cipher(cipher: CipherSpec, key: KeySpec) -> tuple[int, int, int]:
@@ -393,10 +488,14 @@ def run_two_period_stages(
         "bridge_generated_terminals": 0,
         "bridge_unique_terminals": 0,
         "bridge_duplicates": 0,
-        "final_inputs": 0,
-        "final_generated_terminals": 0,
-        "final_unique_terminals": 0,
-        "final_duplicates": 0,
+        "judge_inputs": 0,
+        "judge_generated_terminals": 0,
+        "judge_unique_terminals": 0,
+        "judge_duplicates": 0,
+        "final_union_inputs": 0,
+        "final_union_generated_terminals": 0,
+        "final_union_unique_terminals": 0,
+        "final_union_duplicates": 0,
     }
     final_problem: DecryptionProblem | None = None
 
@@ -496,38 +595,17 @@ def run_two_period_stages(
             ),
         })
 
-        bridge: dict[str, dict[str, Any]] = {}
-        bridge_started = time.perf_counter()
-        bridge_evaluations = 0
-        for parent_id in sorted(scout):
-            parent = scout[parent_id]
-            rng = np.random.default_rng(
-                derive_child_seed(request.effective_seed, branch.branch_id, "B1", parent_id)
-            )
-            variables, score, used = coordinate_search(
-                evaluator("B1"),
-                rng,
-                np.asarray(parent["variables"], dtype=np.uint8),
-                4,
-                modulus=modulus,
-            )
-            total_evaluations += used
-            bridge_evaluations += used
-            expanded = expand_reduced_key(variables, branch.constraint_space)
-            candidate_id = _candidate_id(expanded)
-            record = {
-                "candidate_id": candidate_id,
-                "branch_id": branch.branch_id,
-                "variables": variables.astype(int).tolist(),
-                "key": expanded.astype(int).tolist(),
-                "bridge_score": score,
-                "source_stage": "B1",
-                "parent_id": parent_id,
-            }
-            old = bridge.get(candidate_id)
-            if old is None or score > old["bridge_score"]:
-                bridge[candidate_id] = record
-        bridge_elapsed = time.perf_counter() - bridge_started
+        bridge, bridge_evaluations, bridge_elapsed = _run_refinement_stage(
+            stage_id="B1",
+            score_field="bridge_score",
+            evaluate=evaluator("B1"),
+            branch=branch,
+            inputs=scout,
+            sweeps=4,
+            root_seed=request.effective_seed,
+            modulus=modulus,
+        )
+        total_evaluations += bridge_evaluations
         bridge_best = max(float(record["bridge_score"]) for record in bridge.values())
         candidate_counts["bridge_inputs"] += len(scout)
         candidate_counts["bridge_generated_terminals"] += len(scout)
@@ -550,17 +628,56 @@ def run_two_period_stages(
             ),
         })
 
-        union = dict(scout)
-        for candidate_id, record in bridge.items():
-            union.setdefault(candidate_id, record)
-        ordered_ids = sorted(union)
-        keys = np.asarray([union[candidate_id]["key"] for candidate_id in ordered_ids], dtype=np.uint8)
+        judge_inputs = _deduplicated_union(scout, bridge)
+        judge, judge_evaluations, judge_elapsed = _run_refinement_stage(
+            stage_id="F1",
+            score_field="judge_score",
+            evaluate=evaluator("F1"),
+            branch=branch,
+            inputs=judge_inputs,
+            sweeps=3,
+            root_seed=request.effective_seed,
+            modulus=modulus,
+        )
+        total_evaluations += judge_evaluations
+        judge_best = max(float(record["judge_score"]) for record in judge.values())
+        candidate_counts["judge_inputs"] += len(judge_inputs)
+        candidate_counts["judge_generated_terminals"] += len(judge_inputs)
+        candidate_counts["judge_unique_terminals"] += len(judge)
+        candidate_counts["judge_duplicates"] += len(judge_inputs) - len(judge)
+        stage_summaries.append({
+            "branch_id": branch.branch_id,
+            "stage_id": "F1",
+            "profile_id": "f1_char1234_wli1234",
+            "inputs": len(judge_inputs),
+            "generated_terminals": len(judge_inputs),
+            "unique_terminals": len(judge),
+            "duplicates": len(judge_inputs) - len(judge),
+            "evaluations": judge_evaluations,
+            "elapsed_s": judge_elapsed,
+            "stop_reason": "done",
+            "best_score": judge_best,
+            "sweeps": 3,
+            "mode": "coordinate_search",
+            "terminal_digest": _records_digest(
+                [(candidate_id, record["judge_score"]) for candidate_id, record in judge.items()]
+            ),
+        })
+
+        final_union = _deduplicated_union(scout, bridge, judge)
+        ordered_ids = sorted(final_union)
+        keys = np.asarray(
+            [final_union[candidate_id]["key"] for candidate_id in ordered_ids],
+            dtype=np.uint8,
+        )
         final_started = time.perf_counter()
         scores = np.asarray(problems["F1"].evaluate_keys(keys), dtype=np.float64)
+        if scores.shape != (len(keys),) or not np.all(np.isfinite(scores)):
+            raise RuntimeError("final F1 evaluator returned invalid scores")
         final_elapsed = time.perf_counter() - final_started
         total_evaluations += len(keys)
         for candidate_id, score in zip(ordered_ids, scores):
-            record = dict(union[candidate_id])
+            record = dict(final_union[candidate_id])
             record["final_score"] = float(score)
             previous = all_union.get(candidate_id)
             if (
@@ -572,17 +689,16 @@ def run_two_period_stages(
                 )
             ):
                 all_union[candidate_id] = record
-        candidate_counts["final_inputs"] += len(union)
-        candidate_counts["final_unique_terminals"] += len(union)
+        candidate_counts["final_union_inputs"] += len(final_union)
         stage_summaries.append({
             "branch_id": branch.branch_id,
-            "stage_id": "F1",
+            "stage_id": "final_union",
             "profile_id": "f1_char1234_wli1234",
-            "inputs": len(union),
+            "inputs": len(final_union),
             "generated_terminals": 0,
-            "unique_terminals": len(union),
+            "unique_terminals": len(final_union),
             "duplicates": 0,
-            "evaluations": len(union),
+            "evaluations": len(final_union),
             "elapsed_s": final_elapsed,
             "stop_reason": "done",
             "best_score": float(np.max(scores)),
@@ -598,7 +714,8 @@ def run_two_period_stages(
             "affine_dimension": branch.constraint_space.dimension,
             "scout_unique": len(scout),
             "bridge_unique": len(bridge),
-            "final_union_unique": len(union),
+            "judge_unique": len(judge),
+            "final_union_unique": len(final_union),
         })
         final_problem = problems["F1"]
 
@@ -614,8 +731,10 @@ def run_two_period_stages(
     if plaintext is None:
         plaintext = cipher_obj.decrypt_single(ciphertext=ciphertext, key=best_key)
     elapsed = time.perf_counter() - started
-    candidate_counts["final_unique_terminals"] = len(all_union)
-    candidate_counts["final_duplicates"] = candidate_counts["final_inputs"] - len(all_union)
+    candidate_counts["final_union_unique_terminals"] = len(all_union)
+    candidate_counts["final_union_duplicates"] = (
+        candidate_counts["final_union_inputs"] - len(all_union)
+    )
     winning_branch = next(
         item for item in branch_summaries if item["branch_id"] == best["branch_id"]
     )
@@ -644,8 +763,8 @@ def run_two_period_stages(
         "profiles": {
             profile_id: {
                 "contract_hash": profile_hashes[profile_id],
-                "role": {"S2": "scout", "B1": "bridge", "F1": "static_final"}[profile_id],
-                "sweeps": {"S2": 5, "B1": 4, "F1": 0}[profile_id],
+                "role": {"S2": "scout", "B1": "bridge", "F1": "judge"}[profile_id],
+                "sweeps": {"S2": 5, "B1": 4, "F1": 3}[profile_id],
             }
             for profile_id in ("S2", "B1", "F1")
         },
@@ -664,7 +783,11 @@ def run_two_period_stages(
         score=float(best["final_score"]),
         meta={"two_period_solve": metadata},
         evals=total_evaluations,
-        step=request.starts * len(branches),
+        step=(
+            candidate_counts["scout_generated_terminals"]
+            + candidate_counts["bridge_generated_terminals"]
+            + candidate_counts["judge_generated_terminals"]
+        ),
         wall_time_s=elapsed,
         stop_reason="done",
         device=device,
