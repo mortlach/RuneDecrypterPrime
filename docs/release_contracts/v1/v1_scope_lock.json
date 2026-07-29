@@ -56,6 +56,10 @@
       "rule": "solver stop reasons are reported through stable V1 categories, including emitted aliases and dynamic budget families",
       "status": "v1_core"
     },
+    "two_period_cribs": {
+      "rule": "specialised additive two-period scheduled_stream_lookup solver using explicit complete-word crib evidence, deterministic staged search and complete-union retention; it rejects unsupported options rather than silently dropping them",
+      "status": "v1_core"
+    },
     "typed_builder_config_boundary": {
       "rule": "public builders require typed CipherConfig and ScoringConfig objects; compatibility shims must not bypass the boundary",
       "status": "v1_core"

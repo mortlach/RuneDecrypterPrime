@@ -156,13 +156,18 @@ Stability: Public V1 surface
 
 | Field | Meaning | Validation/default |
 | --- | --- | --- |
-| `name` | Solver family name. | Required by constructor/factory. Known V1 families include `beam`, `ga`, `sa`, `hybrid`, and `kaeding`. |
+| `name` | Solver family name. | Required by constructor/factory. Known V1 families include `beam`, `ga`, `sa`, `hybrid`, `kaeding`, and the specialised `two_period_cribs`. |
 | `params` | Solver parameter mapping. | Defaults to `{}`; factories canonicalise friendly aliases where supported. |
 | `seed` | Requested solver seed. | Defaults to `None`; the engine uses deterministic effective seed `0` when omitted. |
 
 Prefer factories such as `SolverSpec.beam(...)`, `SolverSpec.ga(...)`,
 `SolverSpec.sa(...)`, `SolverSpec.hybrid(...)`, and `SolverSpec.kaeding(...)`
 for friendly alias handling.
+
+`SolverSpec.two_period_cribs(...)` accepts complete fixed crib placements,
+candidate words, optional explicit candidate positions, a positive start count,
+and a deterministic seed. Unsupported general solver or scorer options are
+rejected by the dedicated `api.run` route.
 
 ## LoggingConfig
 

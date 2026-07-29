@@ -1,0 +1,135 @@
+{
+  "schema": "rdp_two_period_fixture_manifest.v1",
+  "entry_point": "cipher_development/two_period_overlay/pack09.py",
+  "accepted_role": "final WP6 scientific/development fixture",
+  "retained_sources": [
+    {
+      "path": "cipher_development/shared/archive.py",
+      "sha256": "1facfff85fb3b96ff309c9caeedaeda2f0f1d28d12adb310c9325a0e2231a4a7",
+      "role": "recursive local dependency"
+    },
+    {
+      "path": "cipher_development/shared/experiment.py",
+      "sha256": "899db389814067caaa6fdec10dfff4a19c97d92704c095783da77fc7b7dcd34b",
+      "role": "recursive local dependency"
+    },
+    {
+      "path": "cipher_development/shared/ledger.py",
+      "sha256": "6a03e826e0d8db31358cbfbab7b3b3cca96a54f8e66c193adebfa60a05991ba4",
+      "role": "recursive local dependency"
+    },
+    {
+      "path": "cipher_development/shared/replay.py",
+      "sha256": "4533c3df869cdf57cfbe5430107f34bfa572e396d8103533760bf7092452772a",
+      "role": "recursive local dependency"
+    },
+    {
+      "path": "cipher_development/shared/replay_binding.py",
+      "sha256": "ba91d88005508350681279b3e94f9c612b59aa8d09dae35de872738121471d89",
+      "role": "recursive local dependency"
+    },
+    {
+      "path": "cipher_development/shared/replay_evidence.py",
+      "sha256": "ed67d5b8316a48bcd06ebebb9c87e8a1a7072fbfbb52706e333b167cb634e658",
+      "role": "recursive local dependency"
+    },
+    {
+      "path": "cipher_development/shared/replay_execution.py",
+      "sha256": "d943d4613c21fb4295ca36fcbbdb53cbf1eb752c99f05f6f542ddc3785328bfe",
+      "role": "recursive local dependency"
+    },
+    {
+      "path": "cipher_development/shared/replay_provenance.py",
+      "sha256": "23307048cfd96a3141504b4bed101f21e837479555b30e798092e7af3ae79068",
+      "role": "recursive local dependency"
+    },
+    {
+      "path": "cipher_development/two_period_overlay/benchmark.py",
+      "sha256": "0090c72ae13f0e225dfc1a876115cde2076ebd8d8a95da691f17dc2ae882404a",
+      "role": "recursive local dependency"
+    },
+    {
+      "path": "cipher_development/two_period_overlay/config.py",
+      "sha256": "16fde412974d36cc658670a5315ace0ffa2c2ff55de22a1341f4ab50e8e0bc79",
+      "role": "recursive local dependency"
+    },
+    {
+      "path": "cipher_development/two_period_overlay/experiment_e.py",
+      "sha256": "ccb728074498049120ac315b3fd3acfa2ff5bf1ab2c7b16fd96dccbc2fc8b4b4",
+      "role": "Pack 09 experiment implementation"
+    },
+    {
+      "path": "cipher_development/two_period_overlay/keyspace.py",
+      "sha256": "621b58eff80946afe30f44601c67d6619504699dee651321f715a564de8c4e4b",
+      "role": "recursive local dependency"
+    },
+    {
+      "path": "cipher_development/two_period_overlay/multiscale.py",
+      "sha256": "add2e7e0f21a386f070284cf8e2e1edeb75a95f2d995fa470aea0115020d497a",
+      "role": "recursive local dependency"
+    },
+    {
+      "path": "cipher_development/two_period_overlay/pack09.py",
+      "sha256": "fda4e725aa7ec0db327dbbd4e9a9358f5c6ab09bd26ad23ab48fcf24e807ff26",
+      "role": "retained entry point"
+    },
+    {
+      "path": "cipher_development/two_period_overlay/replay.py",
+      "sha256": "b01d1b7c284d039138230e7dd6c86d55745fa37fad146af99fd621d5367c84a1",
+      "role": "recursive local dependency"
+    },
+    {
+      "path": "cipher_development/two_period_overlay/replay_suite.py",
+      "sha256": "c0b78a46550d9e13bd4a4d9b8707e88a0dcb60281abbc60dacf6a4eebcf8e862",
+      "role": "recursive local dependency"
+    },
+    {
+      "path": "cipher_development/two_period_overlay/review_pack.py",
+      "sha256": "7fff138fc0f718fdc6e97c6254fc44f34e52df839c2cafb2f906c99e9c6ea869",
+      "role": "recursive local dependency"
+    },
+    {
+      "path": "cipher_development/two_period_overlay/scorer_profiles.py",
+      "sha256": "5c2d2c2159c5737579ce66f6bce8c2ffe913009040608b38c3452e327c199e70",
+      "role": "recursive local dependency"
+    },
+    {
+      "path": "cipher_development/two_period_overlay/staged_handoff.py",
+      "sha256": "72b41bdc8df799a961c903990c039ea031198092d88338b625cafe6350d706fa",
+      "role": "recursive local dependency"
+    },
+    {
+      "path": "cipher_development/two_period_overlay/target_ranking.py",
+      "sha256": "0d868b7f28eaf0534ffd97ca03e78807800bc5674bb8537bbd37f7fec40efb5f",
+      "role": "recursive local dependency"
+    }
+  ],
+  "excluded_historical_sources": [
+    "cipher_development/two_period_overlay/b100_budget_sensitivity.py",
+    "cipher_development/two_period_overlay/candidate_selection.py",
+    "cipher_development/two_period_overlay/candidate_words.py",
+    "cipher_development/two_period_overlay/experiment_a.py",
+    "cipher_development/two_period_overlay/experiment_b.py",
+    "cipher_development/two_period_overlay/experiment_c.py",
+    "cipher_development/two_period_overlay/experiment_d.py",
+    "cipher_development/two_period_overlay/exploitation.py",
+    "cipher_development/two_period_overlay/matched_pilot.py",
+    "cipher_development/two_period_overlay/pack04.py",
+    "cipher_development/two_period_overlay/selection.py",
+    "cipher_development/two_period_overlay/target_supply.py"
+  ],
+  "external_import_policy": {
+    "standard_library": "not copied",
+    "third_party_packages": "not copied",
+    "rune_decrypter_prime": "production package dependency, not copied into fixture"
+  },
+  "production_wheel_included": false,
+  "curated_source_release_included": true,
+  "curation_authority": "This tested manifest is the V1 source-fixture authority; no separate source-release assembly path exists.",
+  "generated_material_policy": {
+    "outputs": "excluded",
+    "assets": "excluded",
+    "binaries": "excluded",
+    "caches": "excluded"
+  }
+}

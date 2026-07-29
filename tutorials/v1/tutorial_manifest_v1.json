@@ -25,6 +25,46 @@
   },
   "tutorials": [
     {
+      "path": "Tutorial_TwoPeriodCribs.py",
+      "title": "Two-period cribs: fast public walkthrough",
+      "cipher_family": "scheduled_stream_lookup",
+      "tutorial_kind": "real_solve",
+      "gate": "v1_release",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "exact",
+      "min_match_ratio": 1.0,
+      "observed_lm2_baseline": {
+        "match_ratio": 1.0,
+        "score_time_s": 1.628,
+        "tokens": 0
+      },
+      "uses_oracle_stop_score": false,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Fast exact public API walkthrough; three deterministic exact runs measured at 1.615-1.686 seconds of solver wall time."
+    },
+    {
+      "path": "Tutorial_TwoPeriodCribs_P13P31_Search.py",
+      "title": "Two-period cribs: genuine P13/P31 d14 search",
+      "cipher_family": "scheduled_stream_lookup",
+      "tutorial_kind": "real_solve",
+      "gate": "v1_extended",
+      "required_asset_profile": "lm2_baseline",
+      "expected_under_lm2_baseline": "pass",
+      "acceptance_kind": "exact",
+      "min_match_ratio": 1.0,
+      "observed_lm2_baseline": {
+        "match_ratio": 1.0,
+        "score_time_s": 260.112,
+        "tokens": 0
+      },
+      "uses_oracle_stop_score": false,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Genuine non-zero d14 staged search; three deterministic exact runs measured at 259.825-260.715 seconds and therefore classified extended."
+    },
+    {
       "path": "Tutorial_Start_Here.py",
       "title": "Start here: Vigenere wrapper and general-map beam solve",
       "cipher_family": "vigenere",

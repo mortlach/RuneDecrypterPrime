@@ -58,6 +58,16 @@ FAILURE_TAIL_LINES = 80
 
 
 TUTORIALS: tuple[TutorialEntry, ...] = (
+    TutorialEntry(
+        "Tutorial_TwoPeriodCribs.py",
+        1.0,
+        run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE),
+    ),
+    TutorialEntry(
+        "Tutorial_TwoPeriodCribs_P13P31_Search.py",
+        1.0,
+        run_sets=(TutorialRunSet.EXTENDED,),
+    ),
     TutorialEntry("Tutorial_Start_Here.py", 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE)),
     TutorialEntry("Tutorial_Autokey.py", 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE)),
     TutorialEntry("Tutorial_Railfence.py", 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE)),

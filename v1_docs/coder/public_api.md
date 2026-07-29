@@ -103,6 +103,15 @@ from rdp import api
 `src/rdp/` is a lightweight import alias. It should stay import-only and should
 not gain solver, scorer, cipher, or filesystem behaviour.
 
+### Specialised two-period crib route
+
+`api.SolverSpec.two_period_cribs(...)` and `api.run(...)` provide the V1 public
+route for additive two-period scheduled-stream problems. The friendly
+`api.by_name.cipher_with_key("two_period_vigenere", ..., default_key=True)`
+builder supplies the canonical A-then-B key shape. See
+`docs/release_contracts/v1/WP7_TWO_PERIOD_CRIBS.md` for the complete supported
+option boundary.
+
 ## Compatibility Surfaces
 
 | Surface | Status | Rule |

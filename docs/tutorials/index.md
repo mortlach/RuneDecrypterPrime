@@ -21,6 +21,8 @@ CONSOLE_OUTPUT = ConsoleOutput.FULL
 
 | Tutorial | Acceptance | Minimum match |
 | --- | --- | ---: |
+| `Tutorial_TwoPeriodCribs.py` | `exact` | 1.000 |
+| `Tutorial_TwoPeriodCribs_P13P31_Search.py` | `exact` | 1.000 |
 | `Tutorial_Start_Here.py` | `exact` | 1.000 |
 | `Tutorial_Autokey.py` | `exact` | 1.000 |
 | `Tutorial_Railfence.py` | `exact` | 1.000 |

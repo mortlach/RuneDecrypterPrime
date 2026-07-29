@@ -64,6 +64,11 @@ SolverSpec
   -> solver returns Solution
 ```
 
+The specialised `two_period_cribs` route is dispatched directly by `api.run`.
+It derives complete-word crib constraints, performs deterministic S2 scout, B1
+bridge and three-sweep F1 judge searches, then statically ranks the complete
+deduplicated union. It still returns the normal `Solution` and `SolverReport`.
+
 ## Contracts And Invariants
 
 - The engine applies deterministic default seed `0` when no seed is supplied.

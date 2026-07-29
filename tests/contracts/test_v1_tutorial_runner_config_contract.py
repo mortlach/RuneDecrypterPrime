@@ -129,7 +129,7 @@ def test_single_runner_selects_expected_review_sets() -> None:
     runner = _runner_module()
 
     runner.RUN_SET = runner.TutorialRunSet.FAST
-    assert len(runner._selected_tutorials()) == 5
+    assert len(runner._selected_tutorials()) == 6
 
     runner.RUN_SET = runner.TutorialRunSet.RELEASE
     release = runner._selected_tutorials()
