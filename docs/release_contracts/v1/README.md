@@ -30,6 +30,9 @@ These files make those decisions reviewable and machine-checkable.
 - `v1_cleanup_deprecation_ledger.json` - machine-readable cleanup/deprecation ledger
 - `d7_acceptance_test_promotion_status.csv` - acceptance-test promotion status rows
 - `V1_RELEASE_ACCEPTANCE_GATES.md` - human-readable release acceptance gates used by contract tests
+- `V1_AUTHORITY_AND_DECISIONS.md` - final V1 authority hierarchy and human-readable resolved-decision record
+- `v1_resolved_decisions.csv` - machine-readable approved final-integration decisions
+- `v1_final_integration_baseline.json` - reviewed repository, branch and source-snapshot baseline
 
 ## Human-readable policy/evidence notes
 
