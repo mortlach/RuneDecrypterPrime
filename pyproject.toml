@@ -58,5 +58,7 @@ include = ["rune_decrypter_prime*", "rdp*"]
 
 [tool.pytest.ini_options]
 markers = [
+  "tier_a: fast deterministic unit or contract test",
+  "full_assets: requires the canonical full_v1 LM1-LM4 asset profile",
   "torch: tests that require the optional Torch runtime; skipped when torch is unavailable",
 ]

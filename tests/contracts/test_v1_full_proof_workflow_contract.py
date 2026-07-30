@@ -2,60 +2,41 @@ from __future__ import annotations
 
 from pathlib import Path
 
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
-WORKFLOW = REPO_ROOT / ".github" / "workflows" / "rdp_v1_full_proof.yml"
+PUSH_GATE = REPO_ROOT / ".github" / "workflows" / "rdp_v1_full_ci.yml"
+FULL_PROOF = REPO_ROOT / ".github" / "workflows" / "rdp_v1_full_proof.yml"
 
 
-def _workflow_text() -> str:
-    assert WORKFLOW.exists()
-    return WORKFLOW.read_text(encoding="utf-8")
+def test_v1_push_gate_is_the_only_automatic_ci_gate() -> None:
+    text = PUSH_GATE.read_text(encoding="utf-8")
+
+    assert "name: RDP V1 push gate" in text
+    assert "push:" in text
+    assert "pull_request:" in text
+    assert '"prelease/**"' in text
+    assert "python tools/ci/install_light.py" in text
+    assert '"not full_assets"' in text
+    assert "TutorialRunSet.CI_LIGHT" in text
 
 
-def test_v1_full_proof_workflow_is_manually_runnable_release_gate() -> None:
-    text = _workflow_text()
+def test_v1_full_proof_is_manual_full_asset_release_gate() -> None:
+    text = FULL_PROOF.read_text(encoding="utf-8")
 
     assert "workflow_dispatch:" in text
+    assert "\n  push:\n" not in text
     assert "windows-latest" in text
     assert "ubuntu-latest" in text
     assert '"3.11"' in text
-
-
-def test_v1_full_proof_workflow_may_run_on_active_prelease_pushes() -> None:
-    text = _workflow_text()
-
-    assert "push:" in text
-    assert "prelease/v1.0.0_d6" in text
-    assert "prelease/v1.0.0_d7" in text
-
-
-def test_v1_full_proof_workflow_runs_install_pytest_and_tutorials() -> None:
-    text = _workflow_text()
-
-    assert "python tools/ci/install_light.py" in text
-    assert '"pytest"' in text
-    assert '"tests"' in text
-    assert "tutorials" in text
-    assert "v1" in text
-    assert "run_tutorials.py" in text
-    assert "TutorialRunSet.FAST" in text
-    assert "RDP_TUTORIAL_" not in text
-
-
-def test_v1_full_proof_workflow_preserves_logs() -> None:
-    text = _workflow_text()
-
-    assert "Upload installer logs" in text
-    assert "Upload full pytest log" in text
-    assert "Upload V1 release tutorial log" in text
-
-
-def test_manual_large_asset_validation_workflow_runs_full_install() -> None:
-    workflow = REPO_ROOT / ".github" / "workflows" / "v1-large-asset-validation.yml"
-    text = workflow.read_text(encoding="utf-8")
-
-    assert "workflow_dispatch:" in text
     assert "python install.py" in text
-    assert "downloads/ already contains large asset zips" in text
-    assert "tests/assets tests/installation tests/data/test_lp_asset_manifest.py" in text
-    assert "python tutorials/v1/run_tutorials.py" in text
-    assert "run_full_pytest" in text
+    assert "complete pytest suite with full assets" in text
+    assert "TutorialRunSet.ALL_WORKING" in text
+
+
+def test_v1_full_proof_preserves_install_test_and_tutorial_logs() -> None:
+    text = FULL_PROOF.read_text(encoding="utf-8")
+
+    assert "Upload full-proof logs" in text
+    assert "output/install_logs/*.log" in text
+    assert "output/test_logs/*.log" in text
+    assert "output/tutorial_logs/*.txt" in text

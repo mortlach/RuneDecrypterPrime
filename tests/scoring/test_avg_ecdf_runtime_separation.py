@@ -144,6 +144,7 @@ def test_numpy_torch_avg_parity_without_ecdf_assets() -> None:
     assert np.allclose(scores_np, scores_torch, rtol=1e-4, atol=1e-5)
 
 
+@pytest.mark.full_assets
 def test_avg_fulltext_mixed_order_ngram_counts() -> None:
     pytest.importorskip("torch")
     require_full_lm_assets(

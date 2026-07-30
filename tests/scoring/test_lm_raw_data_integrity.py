@@ -54,6 +54,7 @@ def _read_joint_header(path: Path) -> dict:
     }
 
 
+@pytest.mark.full_assets
 @pytest.mark.tier_a
 def test_joint_tables_have_expected_shapes_and_zero_counts() -> None:
     lm_root, idx = require_full_lm_assets()
@@ -131,6 +132,7 @@ def test_joint_tables_have_expected_shapes_and_zero_counts() -> None:
         assert float(v["zero_frac"]) == pytest.approx(float(b["zero_frac"]), abs=tol)
 
 
+@pytest.mark.full_assets
 @pytest.mark.tier_a
 def test_ecdf_tables_are_monotone_and_end_at_0_1() -> None:
     lm_root, _ = require_full_lm_assets()

@@ -90,7 +90,7 @@ tests/api/test_run_artifact_manifest_classification_contract.py
 tests/api/test_solver_report_enum_contract.py
 tests/api/test_solver_report_truth_repro_contract.py
 tests/api/test_stop_reason_contract.py
-tests/contracts/test_d6_ci_branch_contract.py
+tests/contracts/test_a1_asset_ci_workflow_contract.py
 tests/contracts/test_d6_docs_contract.py
 tests/contracts/test_v1_contract_label_guardrails.py
 tests/contracts/test_v1_full_proof_workflow_contract.py
@@ -108,29 +108,34 @@ pytest -q -ra -p no:cacheprovider tests
 
 ## Tutorial gate
 
-The V1 release tutorial runner must pass from the final V1 branch head:
+The canonical tutorial selections must pass under the profile that supplies their declared assets:
+
+```text
+ci_light -> TutorialRunSet.CI_LIGHT
+full_v1 -> TutorialRunSet.ALL_WORKING
+```
+
+The normal local full-profile command remains:
 
 ```text
 python -X utf8 tutorials/v1/run_tutorials.py
 ```
 
-The full-proof workflow must also run this tutorial gate.
+The manual full-proof workflow must run the full-profile tutorial gate.
 
 ## CI gate
 
-The full-proof workflow must remain manually runnable through `workflow_dispatch` and must include the active V1 closure branch in push coverage.
+The repository must keep exactly one automatic push/pull-request gate and one manual full-proof gate.
 
-For D7 this means:
+The automatic gate is `.github/workflows/rdp_v1_full_ci.yml`. It covers `main` and `prelease/**`, installs `ci_light`, excludes `full_assets` tests, and runs the `CI_LIGHT` tutorial set.
 
-```text
-prelease/v1.0.0_d7
-```
+The full-proof gate is `.github/workflows/rdp_v1_full_proof.yml`. It remains manually runnable through `workflow_dispatch`, installs `full_v1`, runs complete pytest, and runs the `ALL_WORKING` tutorial set on Windows and Ubuntu with Python 3.11.
 
 A final release note must record either green full-proof CI evidence or clearly labelled equivalent local proof.
 
 ## Review-pack gate
 
-The final review pack must be regenerated from the final branch head after all D7 commits.
+The final review pack must be regenerated from the final branch head after all final-integration changes.
 
 The final review pack should include:
 
@@ -157,15 +162,15 @@ private local config
 
 The review pack is evidence, not source authority. The GitHub branch remains the source of truth.
 
-## Final D7 closeout gate
+## Final V1 closeout gate
 
-D7 may close only when all of the following are true:
+V1 may close only when all of the following are true:
 
 ```text
 full pytest passes or failures are explicitly evidenced and accepted
 full-proof CI passes or equivalent local proof is documented
 V1 release tutorials pass
-review pack is regenerated from final D7 head
+review pack is regenerated from the final integration head
 stable labels are enum-owned or constant-owned
 public JSON/config strings are unchanged
 diagnostics remain report-only

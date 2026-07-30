@@ -24,7 +24,8 @@ precedent.
 Final integration began from:
 
 - repository: `mortlach/RuneDecrypterPrime`
-- branch: `prelease/v1.0.0_o2p`
+- reviewed source branch: `prelease/v1.0.0_o2p`
+- final-integration working branch: `prelease/v1.0.0._h`
 - reviewed GitHub commit: `a7a8439c8c3a6bc0b9110577ba93630857e08156`
 - reviewed source ZIP SHA-256: `3af42108db33a0e7b20062d1c1f2f06f276e043bb119bdd6576f9681c7eb1309`
 

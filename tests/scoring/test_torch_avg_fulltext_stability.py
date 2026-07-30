@@ -50,6 +50,7 @@ def _avg_fulltext_cfg(*, impl: ScorerImpl, win: int = 20) -> ScoringConfig:
     )
 
 
+@pytest.mark.full_assets
 @pytest.mark.parametrize("length", [4, 40, 96, 240])
 def test_torch_avg_fulltext_matches_numpy_across_lengths(length: int) -> None:
     require_full_lm_assets(
@@ -74,6 +75,7 @@ def test_torch_avg_fulltext_matches_numpy_across_lengths(length: int) -> None:
     np.testing.assert_allclose(s_t, s_np, rtol=1e-4, atol=1e-5)
 
 
+@pytest.mark.full_assets
 def test_torch_avg_fulltext_is_repeatable_and_reports_lookup_diagnostics() -> None:
     require_full_lm_assets(
         models=("char",),

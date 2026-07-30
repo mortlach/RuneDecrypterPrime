@@ -1,0 +1,346 @@
+{
+  "schema_version": 2,
+  "assets_root": "assets",
+  "packed_root": "assets",
+  "required_assets": [],
+  "optional_external_assets": [],
+  "release_asset_sets": {
+    "v1_lm_ci_light": {
+      "required_by_default_install": false,
+      "bundled_with_source": true,
+      "description": "Exact source-bundled LM1/LM2 nose runtime assets used by the normal CI-light gate."
+    }
+  },
+  "installed_assets": [
+    {
+      "asset_id": "lm.lmp.char.ltr.char29_joint_ltr_1_nose.bin.zst",
+      "final_relpath": "language_model/lmp/char/ltr/char29_joint_ltr_1_nose.bin.zst",
+      "sha256": "7cb7c52f396e80acb888f7c8312ddbf839d9fdbf91950caefe0a37057c8cba1b",
+      "size_bytes": 664,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.char.ltr.char29_joint_ltr_2_nose.bin.zst",
+      "final_relpath": "language_model/lmp/char/ltr/char29_joint_ltr_2_nose.bin.zst",
+      "sha256": "e77187aaab010605118b2b4dfd24a814af75350941706bdd58a0c2e335f868e8",
+      "size_bytes": 16352,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.char.rtl.char29_joint_rtl_1_nose.bin.zst",
+      "final_relpath": "language_model/lmp/char/rtl/char29_joint_rtl_1_nose.bin.zst",
+      "sha256": "956871e0c42b7dfd20e56b5749d8adf3ad939249a282d1fd9c07c2d4a943c9a8",
+      "size_bytes": 667,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.char.rtl.char29_joint_rtl_2_nose.bin.zst",
+      "final_relpath": "language_model/lmp/char/rtl/char29_joint_rtl_2_nose.bin.zst",
+      "sha256": "9e996209965ade69fff0adfe212815830f3ae94c76ae5430415bc2629af1d706",
+      "size_bytes": 16187,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.char.ltr.ltr_nose_char_n1_win10_logp.npz",
+      "final_relpath": "language_model/lmp/ecdf/char/ltr/ltr_nose_char_n1_win10_logp.npz",
+      "sha256": "812003406c6eff18bc1ebeb722557d9565069344db3014b008cf4adb5bfa3de5",
+      "size_bytes": 32190,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.char.ltr.ltr_nose_char_n1_win10_madsum.npz",
+      "final_relpath": "language_model/lmp/ecdf/char/ltr/ltr_nose_char_n1_win10_madsum.npz",
+      "sha256": "7b17b273d5bcc0ba4c872ebf6ce33b9bd474c8d9b694212c65b427e18340ea64",
+      "size_bytes": 34402,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.char.ltr.ltr_nose_char_n1_win10_zsum.npz",
+      "final_relpath": "language_model/lmp/ecdf/char/ltr/ltr_nose_char_n1_win10_zsum.npz",
+      "sha256": "5206bd0e5ae215204c9d9a4fcd5e0377ac278c157dcccc3ca5c5ad4bb483aedc",
+      "size_bytes": 33795,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.char.ltr.ltr_nose_char_n2_win10_logp.npz",
+      "final_relpath": "language_model/lmp/ecdf/char/ltr/ltr_nose_char_n2_win10_logp.npz",
+      "sha256": "b0178b757fd54a65de78002ed20fd8bf3fcafd9daeaf29231f97f1b56835fc92",
+      "size_bytes": 32693,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.char.ltr.ltr_nose_char_n2_win10_madsum.npz",
+      "final_relpath": "language_model/lmp/ecdf/char/ltr/ltr_nose_char_n2_win10_madsum.npz",
+      "sha256": "d1e73c83551773cdabc74d757f4d132c752e2f59a57dde57e68d58e2ae5a4b38",
+      "size_bytes": 33937,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.char.ltr.ltr_nose_char_n2_win10_zsum.npz",
+      "final_relpath": "language_model/lmp/ecdf/char/ltr/ltr_nose_char_n2_win10_zsum.npz",
+      "sha256": "9ab70eb312fb7eab2031ff50ce3cfdd7537dc0dcbbd755cd520ac8cbc9461e34",
+      "size_bytes": 33203,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.char.rtl.rtl_nose_char_n1_win10_logp.npz",
+      "final_relpath": "language_model/lmp/ecdf/char/rtl/rtl_nose_char_n1_win10_logp.npz",
+      "sha256": "9f929412b1c1f362dafb16583ba7d18ab291b673d6651de70c1772e35e82b2be",
+      "size_bytes": 32215,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.char.rtl.rtl_nose_char_n1_win10_madsum.npz",
+      "final_relpath": "language_model/lmp/ecdf/char/rtl/rtl_nose_char_n1_win10_madsum.npz",
+      "sha256": "b7faa297f4192c4e0ff853d439a2b7f7fd92a68652c677c7ee00c6b061344278",
+      "size_bytes": 34142,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.char.rtl.rtl_nose_char_n1_win10_zsum.npz",
+      "final_relpath": "language_model/lmp/ecdf/char/rtl/rtl_nose_char_n1_win10_zsum.npz",
+      "sha256": "c2b13fe73dd7267e9e8ed5e591b5e1e4e4f62e7e96337f9dc86be1138c357517",
+      "size_bytes": 33474,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.char.rtl.rtl_nose_char_n2_win10_logp.npz",
+      "final_relpath": "language_model/lmp/ecdf/char/rtl/rtl_nose_char_n2_win10_logp.npz",
+      "sha256": "ee746c2aff85c8066b28b46c5bcf5308776d0e157d056fb372e482e475459499",
+      "size_bytes": 32895,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.char.rtl.rtl_nose_char_n2_win10_madsum.npz",
+      "final_relpath": "language_model/lmp/ecdf/char/rtl/rtl_nose_char_n2_win10_madsum.npz",
+      "sha256": "11e89bb7d10717735b428e8f10fe18247838dbd355c297460ffa70ef6fdf0c3c",
+      "size_bytes": 33881,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.char.rtl.rtl_nose_char_n2_win10_zsum.npz",
+      "final_relpath": "language_model/lmp/ecdf/char/rtl/rtl_nose_char_n2_win10_zsum.npz",
+      "sha256": "7f41be65f521500d3cada9ab20753ed17a31c502902837b048d91878d4f11e2a",
+      "size_bytes": 32785,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.wli.ltr.ltr_nose_wli_n1_win10_logp.npz",
+      "final_relpath": "language_model/lmp/ecdf/wli/ltr/ltr_nose_wli_n1_win10_logp.npz",
+      "sha256": "260257345035cfaf12141e42b6498bb4ae92831ba4eda0008b53a59949d199c3",
+      "size_bytes": 33904,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.wli.ltr.ltr_nose_wli_n1_win10_madsum.npz",
+      "final_relpath": "language_model/lmp/ecdf/wli/ltr/ltr_nose_wli_n1_win10_madsum.npz",
+      "sha256": "9d27635ab0fb4eaf81f51ccbc5dd5e618ab995290ac066d1af2cbe2fad7f4c12",
+      "size_bytes": 34095,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.wli.ltr.ltr_nose_wli_n1_win10_zsum.npz",
+      "final_relpath": "language_model/lmp/ecdf/wli/ltr/ltr_nose_wli_n1_win10_zsum.npz",
+      "sha256": "de9642411f1e1fdd29eb8985894cf72c3b0c81c5d09df6e384f59e66801e60a1",
+      "size_bytes": 33810,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.wli.ltr.ltr_nose_wli_n2_win10_logp.npz",
+      "final_relpath": "language_model/lmp/ecdf/wli/ltr/ltr_nose_wli_n2_win10_logp.npz",
+      "sha256": "ffdc2583b7506ab23099e90e7087e5316260b82a28b451231154dd341a57b1cd",
+      "size_bytes": 33421,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.wli.ltr.ltr_nose_wli_n2_win10_madsum.npz",
+      "final_relpath": "language_model/lmp/ecdf/wli/ltr/ltr_nose_wli_n2_win10_madsum.npz",
+      "sha256": "ad88777ab8df2766d45f93234d208dc586df998da4ce8d36105be50113856a0e",
+      "size_bytes": 33527,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.wli.ltr.ltr_nose_wli_n2_win10_zsum.npz",
+      "final_relpath": "language_model/lmp/ecdf/wli/ltr/ltr_nose_wli_n2_win10_zsum.npz",
+      "sha256": "9824168f5d71827215e597bc8650ddb0d0871c79bf9f6924de0545975d65c38e",
+      "size_bytes": 33608,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.wli.rtl.rtl_nose_wli_n1_win10_logp.npz",
+      "final_relpath": "language_model/lmp/ecdf/wli/rtl/rtl_nose_wli_n1_win10_logp.npz",
+      "sha256": "9abf7e3a1a9c922a073d1025f00e212f6684c172ef4243d56702fc0b78530175",
+      "size_bytes": 33751,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.wli.rtl.rtl_nose_wli_n1_win10_madsum.npz",
+      "final_relpath": "language_model/lmp/ecdf/wli/rtl/rtl_nose_wli_n1_win10_madsum.npz",
+      "sha256": "ae39dda4ffdb6a3a5f181120f89a8a7e02beaba730d73f4d91473268e44a91be",
+      "size_bytes": 33567,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.wli.rtl.rtl_nose_wli_n1_win10_zsum.npz",
+      "final_relpath": "language_model/lmp/ecdf/wli/rtl/rtl_nose_wli_n1_win10_zsum.npz",
+      "sha256": "b608d8141fbe0949f8f66555e2c1a59e6175aaea3e8d117e600dd12c16bb7c76",
+      "size_bytes": 33431,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.wli.rtl.rtl_nose_wli_n2_win10_logp.npz",
+      "final_relpath": "language_model/lmp/ecdf/wli/rtl/rtl_nose_wli_n2_win10_logp.npz",
+      "sha256": "0d526efb6040d44ba60c053298e7d05d606398fccefe9e6e4d13a94b13511c29",
+      "size_bytes": 33303,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.wli.rtl.rtl_nose_wli_n2_win10_madsum.npz",
+      "final_relpath": "language_model/lmp/ecdf/wli/rtl/rtl_nose_wli_n2_win10_madsum.npz",
+      "sha256": "afd8919a0f3bcccbe391b04781df96a11d192ed6b3f175994b9e700c01b8a7ff",
+      "size_bytes": 33483,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.ecdf.wli.rtl.rtl_nose_wli_n2_win10_zsum.npz",
+      "final_relpath": "language_model/lmp/ecdf/wli/rtl/rtl_nose_wli_n2_win10_zsum.npz",
+      "sha256": "fbdcf206e41e8b9483ca8c3840f0592b497e5db7ebda99f9b4f256f93e49aac9",
+      "size_bytes": 32918,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.index.json",
+      "final_relpath": "language_model/lmp/index.json",
+      "sha256": "5e4f0031690d0cce8fdbc717be6a6102e3507b580b411578fcd146edd1b5eb40",
+      "size_bytes": 627,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.wli.ltr.wli29_joint_ltr_1_nose.bin.zst",
+      "final_relpath": "language_model/lmp/wli/ltr/wli29_joint_ltr_1_nose.bin.zst",
+      "sha256": "e13c5a51e142c55046eed85cb1de328f22993f2ff75e88786d05d2a3ab1997be",
+      "size_bytes": 55683,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.wli.ltr.wli29_joint_ltr_2_nose.bin.zst",
+      "final_relpath": "language_model/lmp/wli/ltr/wli29_joint_ltr_2_nose.bin.zst",
+      "sha256": "150664b34eed6ceafda4c45ffe9b2c562eca562c2f9007a0021883c58f73d7ad",
+      "size_bytes": 1997463,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.wli.rtl.wli29_joint_rtl_1_nose.bin.zst",
+      "final_relpath": "language_model/lmp/wli/rtl/wli29_joint_rtl_1_nose.bin.zst",
+      "sha256": "d7654058a64e11821b689634c96ebc69f2f5bacab029f49f5dbb66b9810d6b8e",
+      "size_bytes": 62947,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "lm.lmp.wli.rtl.wli29_joint_rtl_2_nose.bin.zst",
+      "final_relpath": "language_model/lmp/wli/rtl/wli29_joint_rtl_2_nose.bin.zst",
+      "sha256": "308527bf21df88f3d112b673e930af8502edf1ec3071178bfcf99e9e246f46bf",
+      "size_bytes": 2143326,
+      "required_for": [
+        "v1_lm_ci_light"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
+    }
+  ]
+}

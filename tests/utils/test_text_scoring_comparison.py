@@ -32,6 +32,7 @@ def test_default_scoring_methods_cover_char_and_wli_n1_to_n4():
     assert "pct_combo_char34_wli12" in names
 
 
+@pytest.mark.full_assets
 @pytest.mark.tier_a
 def test_compare_two_texts_scores_real_beats_random_on_core_methods():
     from tests.scoring._helpers.lm_test_guard import require_full_lm_assets

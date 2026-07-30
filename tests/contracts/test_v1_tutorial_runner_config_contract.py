@@ -45,10 +45,10 @@ def test_v1_tutorial_folder_has_one_public_runner() -> None:
 
 def test_single_runner_uses_file_constants_not_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("RDP_TUTORIAL_GATE_PROFILE", "full_v1")
-    monkeypatch.setenv("RDP_TUTORIAL_ASSET_PROFILE", "lm3_extended")
+    monkeypatch.setenv("RDP_TUTORIAL_ASSET_PROFILE", "full_v1")
     monkeypatch.setenv("RDP_TUTORIAL_ECHO_OUTPUT", "1")
     monkeypatch.setenv("GATE_PROFILE", "smoke")
-    monkeypatch.setenv("ASSET_PROFILE", "lm3_extended")
+    monkeypatch.setenv("ASSET_PROFILE", "full_v1")
     monkeypatch.setenv("RUN_KNOWN_BROKEN", "1")
 
     runner = _runner_module()
@@ -110,7 +110,8 @@ def test_single_runner_has_clear_enum_run_sets_and_console_modes() -> None:
         "release",
         "extended",
         "partial_recovery",
-        "optional_lm3",
+        "ci_light",
+        "full_assets",
         "all_working",
     ]
     assert [item.value for item in runner.ConsoleOutput] == ["compact", "full"]
@@ -122,6 +123,7 @@ def test_single_runner_has_clear_enum_run_sets_and_console_modes() -> None:
     assert all(entry.path.endswith(".py") for entry in runner.TUTORIALS)
     assert all(isinstance(entry.acceptance, TutorialAcceptanceKind) for entry in runner.TUTORIALS)
     assert all(entry.run_sets for entry in runner.TUTORIALS)
+    assert {entry.required_asset_profile for entry in runner.TUTORIALS} == {"ci_light", "full_v1"}
     assert not any("PrettyPrint" in entry.path for entry in runner.TUTORIALS)
 
 
@@ -130,6 +132,11 @@ def test_single_runner_selects_expected_review_sets() -> None:
 
     runner.RUN_SET = runner.TutorialRunSet.FAST
     assert len(runner._selected_tutorials()) == 6
+
+    runner.RUN_SET = runner.TutorialRunSet.CI_LIGHT
+    light = runner._selected_tutorials()
+    assert light
+    assert all(entry.required_asset_profile == "ci_light" for entry in light)
 
     runner.RUN_SET = runner.TutorialRunSet.RELEASE
     release = runner._selected_tutorials()

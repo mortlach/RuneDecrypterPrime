@@ -327,6 +327,7 @@ def _real_case(spec):
         pytest.skip(f"full RDP language-model assets are unavailable: {exc}")
 
 
+@pytest.mark.full_assets
 def test_real_rdp_positive_control_constructs_and_scores() -> None:
     case, _reference = _real_case(POSITIVE_CONTROL)
     keys = case.generate_seed_keys(2)
@@ -335,6 +336,7 @@ def test_real_rdp_positive_control_constructs_and_scores() -> None:
     assert np.all(np.isfinite(raw)) and np.all(np.isfinite(wli))
 
 
+@pytest.mark.full_assets
 def test_real_rdp_seed_generator_order_matches_recorded_raw_score() -> None:
     case, _reference = _real_case(POSITIVE_CONTROL)
     keys = case.generate_seed_keys(4)
@@ -342,6 +344,7 @@ def test_real_rdp_seed_generator_order_matches_recorded_raw_score() -> None:
     assert np.all(raw[:-1] >= raw[1:] - 1e-12)
 
 
+@pytest.mark.full_assets
 def test_real_rdp_kaeding_is_seeded_and_wli_driven() -> None:
     case, _reference = _real_case(POSITIVE_CONTROL)
     initial = case.generate_seed_keys(1)[0]
@@ -355,6 +358,7 @@ def test_real_rdp_kaeding_is_seeded_and_wli_driven() -> None:
     assert solved.telemetry["run"]["params"]["use_raw_score"] is False
 
 
+@pytest.mark.full_assets
 def test_real_rdp_target_case_constructs() -> None:
     case, _reference = _real_case(TARGET_CASE)
     assert (case.period, case.columns, case.length, case.order) == (13, 13, 300, ORDER)

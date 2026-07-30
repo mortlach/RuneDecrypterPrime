@@ -41,7 +41,8 @@ def test_v1_final_integration_baseline_matches_reviewed_source() -> None:
     data = json.loads(BASELINE.read_text(encoding="utf-8"))
     assert data["schema"] == "rdp_v1_final_integration_baseline.v1"
     assert data["repository"] == "mortlach/RuneDecrypterPrime"
-    assert data["branch"] == "prelease/v1.0.0_o2p"
+    assert data["reviewed_source_branch"] == "prelease/v1.0.0_o2p"
+    assert data["integration_branch"] == "prelease/v1.0.0._h"
     assert data["reviewed_remote_head"] == (
         "a7a8439c8c3a6bc0b9110577ba93630857e08156"
     )

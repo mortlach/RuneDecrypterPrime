@@ -1,15 +1,13 @@
-name: RDP V1 full CI
+name: RDP V1 push gate
 
 on:
   push:
     branches:
       - main
-      - ScheduledStreamLookup
       - "prelease/**"
   pull_request:
     branches:
       - main
-      - ScheduledStreamLookup
       - "prelease/**"
   workflow_dispatch:
 
@@ -21,8 +19,8 @@ env:
   PYTHONIOENCODING: "utf-8"
 
 jobs:
-  full-ci:
-    name: full CI / ${{ matrix.os }} / py${{ matrix.python-version }}
+  push-gate:
+    name: V1 push gate / ${{ matrix.os }} / py${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -44,32 +42,34 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Run V1 CI-light installer smoke
+      - name: Install and verify the canonical ci_light asset profile
         run: python tools/ci/install_light.py
 
-      - name: Upload installer logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: rdp-v1-install-logs-full-ci-${{ matrix.os }}-py${{ matrix.python-version }}
-          path: output/install_logs/*.log
-          if-no-files-found: warn
-
-      - name: Run full pytest suite
+      - name: Run CI-light pytest selection
         shell: python
         run: |
           from pathlib import Path
           import subprocess
           import sys
 
-          log_dir = Path("output") / "ci_logs"
-          log_dir.mkdir(parents=True, exist_ok=True)
-          log_path = log_dir / "full_pytest.log"
-
-          cmd = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"]
+          log_path = Path("output") / "ci_logs" / "ci_light_pytest.log"
+          log_path.parent.mkdir(parents=True, exist_ok=True)
+          cmd = [
+              sys.executable,
+              "-m",
+              "pytest",
+              "-q",
+              "-p",
+              "no:cacheprovider",
+              "-m",
+              "not full_assets",
+              "tests",
+          ]
           proc = subprocess.run(
               cmd,
               text=True,
+              encoding="utf-8",
+              errors="replace",
               stdout=subprocess.PIPE,
               stderr=subprocess.STDOUT,
           )
@@ -77,15 +77,7 @@ jobs:
           print(proc.stdout, end="")
           raise SystemExit(proc.returncode)
 
-      - name: Upload full pytest log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: rdp-v1-full-pytest-log-${{ matrix.os }}-py${{ matrix.python-version }}
-          path: output/ci_logs/full_pytest.log
-          if-no-files-found: warn
-
-      - name: Run V1 CI-safe tutorial runner
+      - name: Run CI-light V1 tutorials
         shell: python
         run: |
           from pathlib import Path
@@ -93,14 +85,9 @@ jobs:
           import subprocess
           import sys
 
-          log_dir = Path("output") / "ci_logs"
-          log_dir.mkdir(parents=True, exist_ok=True)
-          log_path = log_dir / "tutorials_v1_release.log"
-
+          log_path = Path("output") / "ci_logs" / "ci_light_tutorials.log"
+          log_path.parent.mkdir(parents=True, exist_ok=True)
           script = Path("tutorials") / "v1" / "run_tutorials.py"
-          if not script.is_file():
-              raise SystemExit(f"Missing tutorial runner: {script}")
-
           code = (
               "import importlib.util, pathlib, sys; "
               f"script = pathlib.Path({str(script)!r}); "
@@ -108,13 +95,14 @@ jobs:
               "mod = importlib.util.module_from_spec(spec); "
               "sys.modules[spec.name] = mod; "
               "spec.loader.exec_module(mod); "
-              "mod.RUN_SET = mod.TutorialRunSet.FAST; "
+              "mod.RUN_SET = mod.TutorialRunSet.CI_LIGHT; "
               "raise SystemExit(mod.main())"
           )
-          cmd = [sys.executable, "-X", "utf8", "-c", code]
           proc = subprocess.run(
-              cmd,
+              [sys.executable, "-X", "utf8", "-c", code],
               text=True,
+              encoding="utf-8",
+              errors="replace",
               stdout=subprocess.PIPE,
               stderr=subprocess.STDOUT,
           )
@@ -122,10 +110,13 @@ jobs:
           print(proc.stdout, end="")
           raise SystemExit(proc.returncode)
 
-      - name: Upload V1 tutorial log
+      - name: Upload push-gate logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rdp-v1-tutorial-log-${{ matrix.os }}-py${{ matrix.python-version }}
-          path: output/ci_logs/tutorials_v1_release.log
+          name: rdp-v1-push-gate-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: |
+            output/install_logs/*.log
+            output/ci_logs/*.log
+            output/tutorial_logs/*.txt
           if-no-files-found: warn

@@ -23,7 +23,8 @@ def test_tutorial_runner_enums_are_plain_stable_labels() -> None:
         "release",
         "extended",
         "partial_recovery",
-        "optional_lm3",
+        "ci_light",
+        "full_assets",
         "all_working",
     ]
     assert [item.value for item in ConsoleOutput] == ["compact", "full"]
@@ -38,6 +39,7 @@ def test_select_tutorials_uses_named_run_sets() -> None:
     assert select_tutorials(entries, TutorialRunSet.FAST) == (entries[0],)
     assert select_tutorials(entries, TutorialRunSet.PARTIAL_RECOVERY) == (entries[1],)
     assert select_tutorials(entries, TutorialRunSet.ALL_WORKING) == entries
+    assert entries[0].required_asset_profile == "ci_light"
 
 
 def test_validate_tutorial_entries_checks_shape_and_files(tmp_path: Path) -> None:

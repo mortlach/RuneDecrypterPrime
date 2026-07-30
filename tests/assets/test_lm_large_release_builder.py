@@ -95,7 +95,7 @@ def test_builder_writes_manifest_zips_and_sums_without_local_source_paths(tmp_pa
     manifest_text = manifest_path.read_text(encoding="utf-8")
 
     assert manifest["schema_version"] == 2
-    assert "source" not in manifest_text
+    assert str(source) not in manifest_text
     assert "C:" not in manifest_text
     assert "D:" not in manifest_text
     assert load_manifest(manifest_path)["assets_root"] == "assets"
@@ -104,6 +104,22 @@ def test_builder_writes_manifest_zips_and_sums_without_local_source_paths(tmp_pa
 
     with zipfile.ZipFile(sorted(output.glob("rdp-v1-lm-large-part*.zip"))[0]) as archive:
         assert all(name.startswith("language_model/lmp/") for name in archive.namelist())
+
+
+def test_builder_marks_source_bundled_lm1_lm2_nose_assets_as_ci_light(tmp_path: pathlib.Path) -> None:
+    _write_source(tmp_path)
+
+    manifest = build_lm_large_release_bundle(tmp_path, tmp_path / "release_build", target_part_bytes=1024)
+    ci_rows = [
+        row for row in manifest["installed_assets"] if "v1_lm_ci_light" in row["required_for"]
+    ]
+
+    assert manifest["release_asset_sets"]["v1_lm_ci_light"]["bundled_with_source"] is True
+    assert {row["final_relpath"] for row in ci_rows} == {
+        "language_model/lmp/ecdf/char/rtl/rtl_nose_char_n2_win10_logp.npz",
+        "language_model/lmp/index.json",
+    }
+
 
 
 def test_builder_marks_n3_n4_assets_as_large_required(tmp_path: pathlib.Path) -> None:

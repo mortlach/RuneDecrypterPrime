@@ -1,4 +1,4 @@
-name: RDP V1 wheel build proof
+name: RDP V1 wheel build proof (manual, non-authoritative)
 
 on:
   workflow_dispatch:

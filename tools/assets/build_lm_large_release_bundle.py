@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import pathlib
+import re
 import zipfile
 from dataclasses import dataclass
 from typing import Any
@@ -106,6 +107,15 @@ def derive_expected_lmp_files(source_lmp_root: pathlib.Path | str) -> list[str]:
     return sorted(cleaned)
 
 
+def _is_ci_light_required(relpath: str) -> bool:
+    lower = relpath.lower()
+    if lower == "index.json":
+        return True
+    if "_nose" not in lower and "/nose_" not in lower:
+        return False
+    return re.search(r"(?:_n|_)([12])(?:_|\.)", lower) is not None
+
+
 def _is_large_required(relpath: str) -> bool:
     lower = relpath.lower()
     return (
@@ -136,6 +146,8 @@ def collect_runtime_assets(source_lmp_root: pathlib.Path | str) -> list[RuntimeA
         if bad_hits:
             raise AssetBuildError(f"local path metadata requires review before release: {relpath}")
         required_for = ["v1_lm_runtime_full"]
+        if _is_ci_light_required(relpath):
+            required_for.append("v1_lm_ci_light")
         if _is_large_required(relpath):
             required_for.append("v1_lm_large_required")
         rows.append(
@@ -231,6 +243,11 @@ def build_lm_large_release_bundle(
         "schema_version": 2,
         "assets_root": "assets",
         "release_asset_sets": {
+            "v1_lm_ci_light": {
+                "required_by_default_install": False,
+                "bundled_with_source": True,
+                "description": "Source-bundled LM1/LM2 nose runtime assets for CI-light checks.",
+            },
             "v1_lm_runtime_full": {
                 "required_by_default_install": True,
                 "description": "Full V1 runtime LM asset set implied by root index.json.",

@@ -59,6 +59,7 @@ def _mk_kaeding_scorer(win_ngrams: int, *, encoding_dir: Direction) -> object:
     return build_scorer(_mk_cipher_cfg(span_len, encoding_dir=encoding_dir), s_cfg)
 
 
+@pytest.mark.full_assets
 @pytest.mark.tier_a
 def test_kaeding_style_avglogp_prefers_real_text_over_random() -> None:
     # Needs char4 / NOSE (no sentence tags).
@@ -83,6 +84,7 @@ def test_kaeding_style_avglogp_prefers_real_text_over_random() -> None:
     assert s_real > s_rand
 
 
+@pytest.mark.full_assets
 @pytest.mark.tier_a
 def test_kaeding_style_sd_shrinks_with_length() -> None:
     # With longer passages, the SD of avg logp should shrink (law of large numbers).
@@ -110,6 +112,7 @@ def test_kaeding_style_sd_shrinks_with_length() -> None:
     assert std100 > std1000
 
 
+@pytest.mark.full_assets
 @pytest.mark.tier_a
 def test_direction_symmetry_ltr_vs_rtl_on_reversed_text() -> None:
     # LTR and RTL are distinct encodings; do not assume symmetry.

@@ -17,7 +17,7 @@ SSL_HELPERS = REPO_ROOT / "src" / "rune_decrypter_prime" / "utils" / "scheduled_
 RELEASE_GATES = {"v1_smoke", "v1_release"}
 FULL_V1_GATES = {"v1_smoke", "v1_release", "v1_extended", "v1_partial_recovery"}
 KNOWN_BLOCKED_GATES = {"broken_contract_fix_needed", "wrapper_script_fix_needed", "remove_from_pure_release"}
-ALLOWED_GATES = RELEASE_GATES | FULL_V1_GATES | {"v1_slow_demo", "optional_lm3"} | KNOWN_BLOCKED_GATES
+ALLOWED_GATES = RELEASE_GATES | FULL_V1_GATES | {"v1_slow_demo", "v1_full_assets"} | KNOWN_BLOCKED_GATES
 
 
 def _manifest() -> dict:
@@ -58,9 +58,10 @@ def test_manifest_entries_have_required_classification_fields() -> None:
         "tutorial_kind",
         "gate",
         "required_asset_profile",
-        "expected_under_lm2_baseline",
+        "expected_under_required_profile",
         "acceptance_kind",
-        "observed_lm2_baseline",
+        "observed_under_required_profile",
+        "profile_evidence_status",
         "uses_oracle_stop_score",
         "supplies_true_key_to_solver",
         "current_status",
@@ -70,6 +71,9 @@ def test_manifest_entries_have_required_classification_fields() -> None:
         assert required <= set(entry), entry.get("path")
         assert entry["gate"] in ALLOWED_GATES, entry["path"]
         assert TutorialAcceptanceKind(entry["acceptance_kind"]), entry["path"]
+        assert entry["required_asset_profile"] in {"ci_light", "full_v1"}
+        assert entry["expected_under_required_profile"] == "pass"
+        assert entry["profile_evidence_status"] in {"measured", "unmeasured_full_profile"}
         assert entry["notes"].strip(), entry["path"]
 
 
@@ -114,6 +118,7 @@ def test_pretty_runner_selected_tutorials_are_manifested() -> None:
         assert entry["current_status"] == "active"
         assert TutorialAcceptanceKind(entry["acceptance_kind"]) is selected.acceptance
         assert entry["min_match_ratio"] == selected.min_match_ratio
+        assert entry["required_asset_profile"] == selected.required_asset_profile
 
 
 def test_runner_parses_unified_tutorial_match_ratio_label() -> None:

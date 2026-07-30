@@ -30,7 +30,7 @@ def test_real_solve_tutorials_are_manifested_for_release_runner_profiles() -> No
     for path, gate in expected_profiles.items():
         entry = entries[path]
         assert entry["gate"] == gate
-        assert entry["required_asset_profile"] == "lm2_baseline"
+        assert entry["required_asset_profile"] == "ci_light"
         assert TutorialAcceptanceKind(entry["acceptance_kind"]) in {
             TutorialAcceptanceKind.EXACT,
             TutorialAcceptanceKind.PARTIAL_RECOVERY,

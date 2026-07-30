@@ -1,7 +1,8 @@
 {
   "schema": "rdp_v1_final_integration_baseline.v1",
   "repository": "mortlach/RuneDecrypterPrime",
-  "branch": "prelease/v1.0.0_o2p",
+  "reviewed_source_branch": "prelease/v1.0.0_o2p",
+  "integration_branch": "prelease/v1.0.0._h",
   "reviewed_remote_head": "a7a8439c8c3a6bc0b9110577ba93630857e08156",
   "reviewed_source_snapshot": {
     "filename": "RuneDecrypterPrime-prelease-v1.0.0_o2p.zip",

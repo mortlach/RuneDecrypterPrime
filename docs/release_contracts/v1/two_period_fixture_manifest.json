@@ -5,42 +5,42 @@
   "retained_sources": [
     {
       "path": "cipher_development/shared/archive.py",
-      "sha256": "1facfff85fb3b96ff309c9caeedaeda2f0f1d28d12adb310c9325a0e2231a4a7",
+      "sha256": "0a102950a10c1b4997cf7f0c198350f2a8291610c9aed63e7270546f076bdb35",
       "role": "recursive local dependency"
     },
     {
       "path": "cipher_development/shared/experiment.py",
-      "sha256": "899db389814067caaa6fdec10dfff4a19c97d92704c095783da77fc7b7dcd34b",
+      "sha256": "e5606e85a448d560a83d341df675fcc53c79c23cd6ba76ca76d3d735496658b5",
       "role": "recursive local dependency"
     },
     {
       "path": "cipher_development/shared/ledger.py",
-      "sha256": "6a03e826e0d8db31358cbfbab7b3b3cca96a54f8e66c193adebfa60a05991ba4",
+      "sha256": "1b99ed15c4f7c721e42b8e359264fa8d6bc73a37ab2cc7e57ef15ee4767426d2",
       "role": "recursive local dependency"
     },
     {
       "path": "cipher_development/shared/replay.py",
-      "sha256": "4533c3df869cdf57cfbe5430107f34bfa572e396d8103533760bf7092452772a",
+      "sha256": "49da0cb520c31ed28d9f261d23f22aed1d0ce1c69a9617521dfd3506d5f3bc2a",
       "role": "recursive local dependency"
     },
     {
       "path": "cipher_development/shared/replay_binding.py",
-      "sha256": "ba91d88005508350681279b3e94f9c612b59aa8d09dae35de872738121471d89",
+      "sha256": "77f55a7f167d002a9852eff29fe3c5216b4ca13f0318ea26c50171a51bcdef05",
       "role": "recursive local dependency"
     },
     {
       "path": "cipher_development/shared/replay_evidence.py",
-      "sha256": "ed67d5b8316a48bcd06ebebb9c87e8a1a7072fbfbb52706e333b167cb634e658",
+      "sha256": "ea0c5ca249eddd7ca8f7e1bca0d5f90a100e83d485e4b76c0843d07a2a17fdab",
       "role": "recursive local dependency"
     },
     {
       "path": "cipher_development/shared/replay_execution.py",
-      "sha256": "d943d4613c21fb4295ca36fcbbdb53cbf1eb752c99f05f6f542ddc3785328bfe",
+      "sha256": "aa4ed91f615068f6a94e5fa0370793982ffb37a1753310a0e61ce77d3bee0741",
       "role": "recursive local dependency"
     },
     {
       "path": "cipher_development/shared/replay_provenance.py",
-      "sha256": "23307048cfd96a3141504b4bed101f21e837479555b30e798092e7af3ae79068",
+      "sha256": "c69944b4238e3f38511f027980cfa44da4b4129e3f49b914129c96602377d67b",
       "role": "recursive local dependency"
     },
     {
@@ -131,5 +131,21 @@
     "assets": "excluded",
     "binaries": "excluded",
     "caches": "excluded"
+  },
+  "dependency_review": {
+    "review_date": "2026-07-30",
+    "closure_changed": false,
+    "reviewed_changed_dependencies": [
+      "cipher_development/shared/archive.py",
+      "cipher_development/shared/experiment.py",
+      "cipher_development/shared/ledger.py",
+      "cipher_development/shared/replay.py",
+      "cipher_development/shared/replay_binding.py",
+      "cipher_development/shared/replay_evidence.py",
+      "cipher_development/shared/replay_execution.py",
+      "cipher_development/shared/replay_provenance.py"
+    ],
+    "decision": "retain_current_closure_and_refresh_hashes",
+    "production_package_boundary_changed": false
   }
 }

@@ -55,6 +55,7 @@ def test_special_route_blocks_latin_before_search():
         api.run(text="latin words", cipher=cipher, key=key, solver=solver)
 
 
+@pytest.mark.full_assets
 def test_real_route_returns_standard_exact_solution_with_installed_assets():
     from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1, word_breaks1
 

@@ -21,7 +21,7 @@ final installed runtime assets
 
 Installers must verify SHA256 and byte size for both. They must use path-safe extraction, reject corrupt assets, and fail clearly if required LM3/LM4 assets cannot be installed. They must not silently downgrade to LM2 for the full V1 path.
 
-Normal CI uses tiny fake assets and the CI-light installer path. That split is only a workflow-cost control; it does not change the product contract. `python install.py` remains the full V1 install and must install or verify LM3/LM4 by default.
+Normal CI verifies the exact source-bundled `v1_lm_ci_light` LM1/LM2 set and uses fake bundles only in focused installer tests. That split is only a workflow-cost control; it does not change the product contract. `python install.py` remains the full V1 install and must install or verify LM3/LM4 by default.
 
 The current manifest points at the final V1 asset release:
 
@@ -30,4 +30,4 @@ mortlach/rdp_assets
 rdp-v1.0.0-lm-large
 ```
 
-If the asset release is rebuilt, update the tag, SHA256 values, and sizes, then rerun the manual large-asset validation workflow. Real 1.6 GB asset validation is a manual release gate before publication.
+If the asset release is rebuilt, update the tag, SHA256 values, and sizes, then rerun `.github/workflows/rdp_v1_full_proof.yml`. Real large-asset validation remains a manual release gate before publication.

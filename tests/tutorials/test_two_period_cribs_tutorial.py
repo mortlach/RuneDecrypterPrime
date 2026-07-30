@@ -76,9 +76,10 @@ def test_tutorials_are_uniquely_active_and_honestly_manifested() -> None:
         assert entry["min_match_ratio"] == 1.0
         assert entry["uses_oracle_stop_score"] is False
         assert entry["supplies_true_key_to_solver"] is False
-        assert entry["required_asset_profile"] == "lm2_baseline"
+        assert entry["required_asset_profile"] == "full_v1"
 
 
+@pytest.mark.full_assets
 def test_fast_walkthrough_returns_exact_plaintext_and_key(capsys) -> None:
     module = _load(FAST, "rdp_tutorial_two_period_fast_test")
     result = module.run_tutorial()

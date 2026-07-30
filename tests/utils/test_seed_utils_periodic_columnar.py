@@ -183,6 +183,7 @@ def test_seed_generator_columns_one_tail_identity():
         _validate_key_layout(np.asarray(k), period=3, columns=1)
 
 
+@pytest.mark.full_assets
 def test_seed_generator_quality_beats_random_baseline_fraction_of_gap():
     lm_root, _ = require_full_lm_assets(models=("char",), modes=("ltr",), poses=("nose",), ns=(3, 4), ecdf_stats=("logp",))
 

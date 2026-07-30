@@ -13,6 +13,7 @@ from tests.scoring.golden_vectors import GOLDEN_SCORE_VECTORS, PLAINTEXT_TOKEN_V
 pytestmark = pytest.mark.tier_a
 
 
+@pytest.mark.full_assets
 @pytest.mark.parametrize("case_name", sorted(GOLDEN_SCORE_VECTORS.keys()))
 def test_numpy_scores_match_golden_vectors(case_name: str) -> None:
     require_full_lm_assets(

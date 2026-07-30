@@ -105,33 +105,28 @@ This is the same broad pytest command used by full CI.
 
 ## CI gates used for V1
 
-The repository has three useful gates:
+The repository has two authoritative validation gates:
 
-1. Full CI
+1. Normal push gate
 
    ```text
    .github/workflows/rdp_v1_full_ci.yml
    ```
 
-   Runs install, full pytest, and the V1 release tutorial runner on Windows and
-   Ubuntu.
+   Uses the `ci_light` profile on Windows and Ubuntu with Python 3.11, excludes
+   tests marked `full_assets`, and runs `TutorialRunSet.CI_LIGHT`.
 
-2. Wheel CI
-
-   ```text
-   .github/workflows/rdp_v1_wheel_ci.yml
-   ```
-
-   Builds CPython 3.11 wheels on Windows and Ubuntu, installs them in a wheel
-   test environment, checks native imports, and uploads wheel artifacts.
-
-3. Install smoke
+2. Manual full proof
 
    ```text
-   .github/workflows/install-smoke.yml
+   .github/workflows/rdp_v1_full_proof.yml
    ```
 
-   Runs the clean installer path on Windows and Ubuntu.
+   Uses the complete `full_v1` profile, runs all tests and all active V1
+   tutorials on Windows and Ubuntu with Python 3.11.
+
+The wheel workflows are separate manual packaging proofs. They are not substitutes
+for either validation gate.
 
 ## Manual install notes
 

@@ -47,6 +47,7 @@ def test_seed_generator_wli_rerank_requires_wli_data_when_enabled():
         )
 
 
+@pytest.mark.full_assets
 def test_seed_generator_wli_rerank_runs_when_assets_present():
     # Guard: requires full LM assets incl. WLI + ECDF buckets
     from tests.scoring._helpers.lm_test_guard import require_full_lm_assets

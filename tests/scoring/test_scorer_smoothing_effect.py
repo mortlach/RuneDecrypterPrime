@@ -48,6 +48,7 @@ def _mk_avg_scorer(*, smoothing: str) -> object:
     return build_scorer(_mk_cipher_cfg(1000), s)
 
 
+@pytest.mark.full_assets
 @pytest.mark.tier_a
 def test_smoothing_choice_changes_scores_for_random_text() -> None:
     _require_char4_joint()

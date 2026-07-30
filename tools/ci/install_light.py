@@ -20,7 +20,7 @@ def _load_install_module():
 def main() -> int:
     module = _load_install_module()
     return module.run_install(
-        install_large_lm_assets=False,
+        asset_profile_name="ci_light",
         mode_label="CI light install",
     )
 

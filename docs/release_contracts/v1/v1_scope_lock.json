@@ -36,7 +36,7 @@
       "status": "v1_optional"
     },
     "release_full_proof_gate": {
-      "rule": "manual full-proof workflow runs install smoke, full pytest, and V1 tutorials on Windows and Ubuntu",
+      "rule": "manual full-proof workflow installs full_v1, runs complete pytest, and runs all active V1 tutorials on Python 3.11 for Windows and Ubuntu; the automatic push gate uses ci_light",
       "status": "v1_release_gate"
     },
     "scheduled_stream_lookup": {

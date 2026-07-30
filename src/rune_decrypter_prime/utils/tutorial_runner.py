@@ -13,7 +13,8 @@ class TutorialRunSet(StrEnum):
     RELEASE = "release"
     EXTENDED = "extended"
     PARTIAL_RECOVERY = "partial_recovery"
-    OPTIONAL_LM3 = "optional_lm3"
+    CI_LIGHT = "ci_light"
+    FULL_ASSETS = "full_assets"
     ALL_WORKING = "all_working"
 
 
@@ -28,6 +29,7 @@ class TutorialEntry:
     min_match_ratio: float
     acceptance: TutorialAcceptanceKind = TutorialAcceptanceKind.EXACT
     run_sets: tuple[TutorialRunSet, ...] = (TutorialRunSet.RELEASE,)
+    required_asset_profile: str = "ci_light"
 
 
 @dataclass(frozen=True)
@@ -67,6 +69,10 @@ def validate_tutorial_entries(
             raise TypeError(f"TUTORIALS[{index}] acceptance must be TutorialAcceptanceKind.")
         if not all(isinstance(item, TutorialRunSet) for item in entry.run_sets):
             raise TypeError(f"TUTORIALS[{index}] run_sets must be TutorialRunSet values.")
+        if entry.required_asset_profile not in {"ci_light", "full_v1"}:
+            raise ValueError(
+                f"TUTORIALS[{index}] required_asset_profile must be ci_light or full_v1."
+            )
         if not script_path.is_file():
             raise FileNotFoundError(f"TUTORIALS[{index}] does not exist: {script_path}")
 

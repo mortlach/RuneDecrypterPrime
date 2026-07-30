@@ -1,18 +1,6 @@
-name: RDP V1 wheel CI
+name: RDP V1 packaging proof (manual, non-authoritative)
 
 on:
-  push:
-    branches:
-      - main
-      - ScheduledStreamLookup
-      - "prelease/**"
-    tags:
-      - "v*"
-  pull_request:
-    branches:
-      - main
-      - ScheduledStreamLookup
-      - "prelease/**"
   workflow_dispatch:
 
 permissions:

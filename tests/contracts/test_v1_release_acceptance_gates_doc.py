@@ -26,11 +26,13 @@ def test_v1_acceptance_gates_doc_names_no_feature_expansion_rule() -> None:
         assert phrase in text
 
 
-def test_v1_acceptance_gates_doc_names_d7_branch_and_workflow_gate() -> None:
+def test_v1_acceptance_gates_doc_names_current_profile_and_workflow_gates() -> None:
     text = _doc_text()
 
     assert "workflow_dispatch" in text
-    assert "prelease/v1.0.0_d7" in text
+    assert "prelease/**" in text
+    assert "ci_light" in text
+    assert "full_v1" in text
     assert "full-proof" in text
 
 
@@ -39,7 +41,7 @@ def test_v1_acceptance_gates_doc_names_review_pack_and_tutorial_gates() -> None:
 
     assert "tutorials/v1/run_tutorials.py" in text
     assert "review pack" in text
-    assert "final D7 head" in text
+    assert "final integration head" in text
 
 
 def test_v1_acceptance_gates_doc_names_report_only_no_rank_effect() -> None:

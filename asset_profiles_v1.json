@@ -1,0 +1,32 @@
+{
+  "schema": "rdp_v1_asset_profiles.v1",
+  "default_profile": "full_v1",
+  "profiles": {
+    "ci_light": {
+      "description": "Source-bundled LM1/LM2 nose assets for the normal push and pull-request gate.",
+      "release_asset_set": "v1_lm_ci_light",
+      "download_release_assets": false,
+      "language_model_orders": [
+        1,
+        2
+      ],
+      "pytest_marker_expression": "not full_assets",
+      "tutorial_run_set": "ci_light",
+      "verification_manifest": "assets_manifest_ci_light_v1.json"
+    },
+    "full_v1": {
+      "description": "Complete supported V1 language-model assets, including LM1-LM4 character and WLI data.",
+      "release_asset_set": "v1_lm_runtime_full",
+      "download_release_assets": true,
+      "language_model_orders": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "pytest_marker_expression": null,
+      "tutorial_run_set": "all_working",
+      "verification_manifest": "assets_manifest_v1.json"
+    }
+  }
+}

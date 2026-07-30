@@ -1,59 +1,71 @@
-# Install Validation Playbook
+# Install validation playbook
 
-This page separates product install validation from normal CI cost control.
+This page separates the complete product install from normal CI cost control.
+The canonical definitions are in `asset_profiles_v1.json` and
+`docs/release_contracts/v1/V1_ASSET_AND_CI_PROFILES.md`.
 
-## Product install
-
-The public V1 developer-checkout install is:
+## Full V1 product install
 
 ```text
 python install.py
 ```
 
-It installs the package, checks native imports, installs or verifies the required
-LM3/LM4 release assets, and runs compact smoke tests. It must not silently fall
-back to LM2 when large assets are missing.
+This selects `full_v1`. It installs the package, checks native imports, obtains
+or verifies the complete supported LM1-LM4 runtime assets, and runs compact
+smoke tests. It must not silently fall back to LM1/LM2 when full assets are
+missing.
 
 ## CI-light install
-
-Normal push and pull-request workflows use:
 
 ```text
 python tools/ci/install_light.py
 ```
 
-This is internal CI tooling only. It skips the real large LM download while still
-checking package install, native imports, small assets, smoke tests, and the
-tiny fake-asset tests for the large-asset machinery.
+This selects `ci_light`. It verifies the exact source-bundled LM1/LM2 asset set
+and does not download the large GitHub Release bundles. It is internal CI
+tooling, not a replacement product install.
 
-## Manual large-asset validation
+## Normal push and pull-request validation
 
-Run workflow:
+Workflow:
 
 ```text
-.github/workflows/v1-large-asset-validation.yml
+.github/workflows/rdp_v1_full_ci.yml
 ```
 
-Current profile:
+This is the only automatic V1 gate. On Windows and Ubuntu with Python 3.11 it:
 
-1. Manual trigger only (`workflow_dispatch`).
-2. Fresh runner.
-3. Confirms no preloaded `downloads/` asset zips are present.
-4. Runs `python install.py`.
-5. Downloads the real GitHub release bundles.
-6. Verifies bundle SHA256 and byte size.
-7. Extracts safely.
-8. Verifies the final 129 runtime files.
-9. Runs focused asset/install tests and the V1 tutorial gate.
+1. installs `ci_light`;
+2. runs pytest with `not full_assets`;
+3. runs `TutorialRunSet.CI_LIGHT`;
+4. preserves install, test and tutorial logs.
 
-Enable the workflow input to run full pytest when a complete release validation
-signal is needed.
+## Manual full-proof validation
 
-## Failure triage artifacts
+Workflow:
+
+```text
+.github/workflows/rdp_v1_full_proof.yml
+```
+
+This manual `workflow_dispatch` gate uses a fresh Windows and Ubuntu runner. It:
+
+1. runs `python install.py`;
+2. downloads pinned release bundles when they are not already present;
+3. verifies bundle SHA-256, byte size, extraction safety and final runtime files;
+4. runs complete pytest, including `full_assets` tests;
+5. runs `TutorialRunSet.ALL_WORKING`;
+6. preserves install, test and tutorial logs.
+
+The full proof is the real release signal for the complete asset profile.
+
+## Failure triage artefacts
 
 Collect:
 
 ```text
 output/install_logs/*.log
+output/ci_logs/*.log
+output/test_logs/*.log
 output/tutorial_logs/*.txt
 ```

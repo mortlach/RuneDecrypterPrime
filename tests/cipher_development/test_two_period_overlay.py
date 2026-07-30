@@ -359,6 +359,7 @@ def test_search_case_has_no_truth_fields() -> None:
     assert {"plaintext", "true_key"}.issubset(ReferenceCase.__dataclass_fields__)
 
 
+@pytest.mark.full_assets
 @pytest.mark.parametrize("benchmark", BENCHMARK_LADDER, ids=lambda item: item.benchmark_id)
 def test_real_rdp_benchmark_ladder_builds_and_scores_known_key(
     benchmark: BenchmarkSpec,

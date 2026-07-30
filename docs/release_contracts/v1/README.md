@@ -33,6 +33,9 @@ These files make those decisions reviewable and machine-checkable.
 - `V1_AUTHORITY_AND_DECISIONS.md` - final V1 authority hierarchy and human-readable resolved-decision record
 - `v1_resolved_decisions.csv` - machine-readable approved final-integration decisions
 - `v1_final_integration_baseline.json` - reviewed repository, branch and source-snapshot baseline
+- `V1_ASSET_AND_CI_PROFILES.md` - A1 canonical asset profiles, test markers and workflow tiers
+- `../../../assets_manifest_ci_light_v1.json` - exact source-bundled CI-light asset hashes
+- `PACK09_DEPENDENCY_REVIEW_A1.md` - A1 retained fixture-closure review and refreshed hashes
 
 ## Human-readable policy/evidence notes
 

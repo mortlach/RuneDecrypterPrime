@@ -98,7 +98,7 @@ A useful GUI run record should contain:
 {
   "tutorial_id": "example_tutorial",
   "gate_profile": "release",
-  "asset_profile": "lm2_baseline",
+  "asset_profile": "ci_light",
   "status": "pass",
   "acceptance_kind": "exact_or_threshold",
   "match_ratio": 1.0,
