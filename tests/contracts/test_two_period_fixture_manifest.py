@@ -37,6 +37,21 @@ def _local_import_closure(entry_point: str) -> set[str]:
     return closure
 
 
+def test_pack09_retained_sources_are_lf_checkout_stable() -> None:
+    attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8").splitlines()
+    assert "cipher_development/shared/*.py text eol=lf" in attributes
+    assert "cipher_development/two_period_overlay/*.py text eol=lf" in attributes
+
+    manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    for row in manifest["retained_sources"]:
+        relpath = row["path"]
+        assert relpath.startswith((
+            "cipher_development/shared/",
+            "cipher_development/two_period_overlay/",
+        ))
+        assert (ROOT / relpath).read_bytes().count(b"\r\n") == 0
+
+
 def test_fixture_manifest_is_exact_tracked_pack09_closure() -> None:
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     assert manifest["schema"] == "rdp_two_period_fixture_manifest.v1"
