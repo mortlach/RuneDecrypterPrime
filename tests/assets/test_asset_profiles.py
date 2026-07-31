@@ -72,6 +72,15 @@ def test_ci_light_manifest_rows_are_source_bundled_and_hash_exact() -> None:
     verify_installed_assets(release, "v1_lm_ci_light", ROOT / "assets")
 
 
+def test_ci_light_manifest_text_asset_preserves_exact_checkout_bytes() -> None:
+    attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8").splitlines()
+    assert "assets/language_model/lmp/index.json -text" in attributes
+
+    index_bytes = (ROOT / "assets" / "language_model" / "lmp" / "index.json").read_bytes()
+    assert b"\r\n" not in index_bytes
+    assert len(index_bytes) == 627
+
+
 def test_unknown_or_malformed_profile_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(AssetProfileError, match="unknown asset profile"):
         select_asset_profile(PROFILE_MANIFEST, "not_a_profile")
