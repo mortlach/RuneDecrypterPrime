@@ -1,2 +1,3 @@
-# Keep manifest-checked packed LP transcript bytes deterministic on all platforms.
+# Keep manifest-checked asset bytes deterministic on all platforms.
 assets/liber_primus/liber-primus__transcription--master.txt.part001 text eol=crlf
+assets/language_model/lmp/index.json -text
