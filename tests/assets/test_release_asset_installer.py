@@ -125,6 +125,92 @@ def test_install_reuses_valid_download_and_verifies_final_asset(tmp_path: pathli
     verify_file(tmp_path / "assets" / "language_model" / "lmp" / "fake_n3.bin.zst", _sha256(payload), len(payload))
 
 
+def test_install_preserves_verified_source_bundled_asset(tmp_path: pathlib.Path) -> None:
+    payload = b"fake n3 model"
+    canonical_index = b'{\n  "version": "v1"\n}\n'
+    archived_index = canonical_index.replace(b"\n", b"\r\n")
+    source_zip = tmp_path / "source.zip"
+    _write_zip(
+        source_zip,
+        {
+            "language_model/lmp/fake_n3.bin.zst": payload,
+            "language_model/lmp/index.json": archived_index,
+        },
+    )
+    manifest_path = _manifest(tmp_path, source_zip, payload)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["installed_assets"].append(
+        {
+            "asset_id": "lm.lmp.index.json",
+            "final_relpath": "language_model/lmp/index.json",
+            "sha256": _sha256(canonical_index),
+            "size_bytes": len(canonical_index),
+            "required_for": ["v1_lm_runtime_full"],
+            "policy": "source_bundled_shared_v1_asset",
+            "install_policy": "preserve_existing_verified",
+        }
+    )
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    index_path = tmp_path / "assets" / "language_model" / "lmp" / "index.json"
+    index_path.parent.mkdir(parents=True)
+    index_path.write_bytes(canonical_index)
+
+    install_release_asset_set(
+        manifest_path,
+        "v1_lm_runtime_full",
+        tmp_path / "downloads",
+        tmp_path / "assets",
+    )
+
+    assert index_path.read_bytes() == canonical_index
+    verify_file(index_path, _sha256(canonical_index), len(canonical_index))
+    verify_file(
+        tmp_path / "assets" / "language_model" / "lmp" / "fake_n3.bin.zst",
+        _sha256(payload),
+        len(payload),
+    )
+
+
+def test_install_rejects_invalid_preserved_source_bundled_asset(tmp_path: pathlib.Path) -> None:
+    payload = b"fake n3 model"
+    canonical_index = b'{\n  "version": "v1"\n}\n'
+    source_zip = tmp_path / "source.zip"
+    _write_zip(
+        source_zip,
+        {
+            "language_model/lmp/fake_n3.bin.zst": payload,
+            "language_model/lmp/index.json": canonical_index.replace(b"\n", b"\r\n"),
+        },
+    )
+    manifest_path = _manifest(tmp_path, source_zip, payload)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["installed_assets"].append(
+        {
+            "asset_id": "lm.lmp.index.json",
+            "final_relpath": "language_model/lmp/index.json",
+            "sha256": _sha256(canonical_index),
+            "size_bytes": len(canonical_index),
+            "required_for": ["v1_lm_runtime_full"],
+            "policy": "source_bundled_shared_v1_asset",
+            "install_policy": "preserve_existing_verified",
+        }
+    )
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    index_path = tmp_path / "assets" / "language_model" / "lmp" / "index.json"
+    index_path.parent.mkdir(parents=True)
+    index_path.write_bytes(b"corrupt")
+
+    with pytest.raises(AssetInstallError, match="preserved source-bundled asset is invalid"):
+        install_release_asset_set(
+            manifest_path,
+            "v1_lm_runtime_full",
+            tmp_path / "downloads",
+            tmp_path / "assets",
+        )
+
+    assert index_path.read_bytes() == b"corrupt"
+
+
 def test_corrupt_existing_download_is_rejected_then_replaced_from_url(tmp_path: pathlib.Path) -> None:
     payload = b"fake n4 model"
     source_zip = tmp_path / "source.zip"

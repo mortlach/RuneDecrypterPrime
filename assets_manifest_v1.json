@@ -1239,12 +1239,13 @@
     {
       "asset_id": "lm.lmp.index.json",
       "final_relpath": "language_model/lmp/index.json",
-      "sha256": "6b73c513be4c2f7ee6199ca333958bf402ad58ae7d936c4f982a920246d4c0df",
-      "size_bytes": 647,
+      "sha256": "5e4f0031690d0cce8fdbc717be6a6102e3507b580b411578fcd146edd1b5eb40",
+      "size_bytes": 627,
       "required_for": [
         "v1_lm_runtime_full"
       ],
-      "policy": "required_v1_lm_runtime_asset"
+      "policy": "source_bundled_shared_v1_asset",
+      "install_policy": "preserve_existing_verified"
     },
     {
       "asset_id": "lm.lmp.wli.ltr.wli29_joint_ltr_1_nose.bin.zst",

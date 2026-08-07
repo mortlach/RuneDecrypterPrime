@@ -81,6 +81,23 @@ def test_ci_light_manifest_text_asset_preserves_exact_checkout_bytes() -> None:
     assert len(index_bytes) == 627
 
 
+def test_full_v1_manifest_preserves_the_same_canonical_source_index() -> None:
+    ci_manifest = load_manifest(CI_MANIFEST)
+    full_manifest = load_manifest(RELEASE_MANIFEST)
+    ci_index = next(
+        row for row in ci_manifest["installed_assets"]
+        if row["final_relpath"] == "language_model/lmp/index.json"
+    )
+    full_index = next(
+        row for row in full_manifest["installed_assets"]
+        if row["final_relpath"] == "language_model/lmp/index.json"
+    )
+
+    assert full_index["sha256"] == ci_index["sha256"]
+    assert full_index["size_bytes"] == ci_index["size_bytes"] == 627
+    assert full_index["install_policy"] == "preserve_existing_verified"
+
+
 def test_unknown_or_malformed_profile_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(AssetProfileError, match="unknown asset profile"):
         select_asset_profile(PROFILE_MANIFEST, "not_a_profile")

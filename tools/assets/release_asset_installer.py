@@ -13,6 +13,7 @@ from typing import Any
 
 CHUNK_SIZE = 1024 * 1024
 SHA256_HEX_LENGTH = 64
+PRESERVE_EXISTING_VERIFIED = "preserve_existing_verified"
 
 
 class AssetInstallError(RuntimeError):
@@ -128,6 +129,12 @@ def _validate_installed_assets(manifest: dict[str, Any]) -> list[dict[str, Any]]
             _fail(f"installed_assets[{index}].required_for must list asset set names")
         row["sha256"] = _validate_sha256(row.get("sha256"), f"installed_assets[{index}].sha256")
         row["size_bytes"] = _validate_size(row.get("size_bytes"), f"installed_assets[{index}].size_bytes")
+        install_policy = row.get("install_policy")
+        if install_policy is not None and install_policy != PRESERVE_EXISTING_VERIFIED:
+            _fail(
+                f"installed_assets[{index}].install_policy must be "
+                f"{PRESERVE_EXISTING_VERIFIED!r} when present"
+            )
         row["final_relpath"] = relpath
         normalized.append(row)
     return normalized
@@ -247,9 +254,18 @@ def _safe_destination(root: pathlib.Path, rel: pathlib.PurePosixPath) -> pathlib
     return target
 
 
-def safe_extract_zip(zip_path: pathlib.Path | str, destination_root: pathlib.Path | str) -> list[pathlib.Path]:
+def safe_extract_zip(
+    zip_path: pathlib.Path | str,
+    destination_root: pathlib.Path | str,
+    *,
+    skip_relpaths: set[str] | None = None,
+) -> list[pathlib.Path]:
     root = pathlib.Path(destination_root)
     root.mkdir(parents=True, exist_ok=True)
+    preserved = {
+        _safe_relpath(relpath, "preserved extraction path").as_posix()
+        for relpath in (skip_relpaths or set())
+    }
     extracted: list[pathlib.Path] = []
     with zipfile.ZipFile(zip_path, "r") as archive:
         infos = archive.infolist()
@@ -264,6 +280,9 @@ def safe_extract_zip(zip_path: pathlib.Path | str, destination_root: pathlib.Pat
             if not name:
                 continue
             rel = _safe_relpath(name, f"zip member {info.filename!r}")
+            if rel.as_posix() in preserved:
+                print(f"[SKIP] Preserve verified source-bundled asset {rel.as_posix()}")
+                continue
             target = _safe_destination(root, rel)
             if info.is_dir():
                 target.mkdir(parents=True, exist_ok=True)
@@ -305,6 +324,21 @@ def install_release_asset_set(
         _fail(f"release asset set {asset_set_name} has no release assets")
 
     download_root = pathlib.Path(download_dir)
+    preserved_rows = [
+        row
+        for row in installed_assets_for_set(manifest, asset_set_name)
+        if row.get("install_policy") == PRESERVE_EXISTING_VERIFIED
+    ]
+    preserved_relpaths = {row["final_relpath"] for row in preserved_rows}
+    assets_path = pathlib.Path(assets_root)
+    for row in preserved_rows:
+        path = assets_path.joinpath(*pathlib.PurePosixPath(row["final_relpath"]).parts)
+        try:
+            verify_file(path, row["sha256"], row["size_bytes"])
+        except AssetInstallError as exc:
+            _fail(f"{row['asset_id']}: preserved source-bundled asset is invalid: {exc}")
+        print(f"[PASS] Preserve verified source-bundled asset {row['final_relpath']}")
+
     for index, release_asset in enumerate(release_assets, start=1):
         name = _safe_leaf_name(release_asset["name"], "release asset name")
         zip_path = download_root / name
@@ -318,7 +352,7 @@ def install_release_asset_set(
         else:
             download_file(release_asset["url"], zip_path, release_asset["sha256"], release_asset["size_bytes"])
         print(f"[RUN ] Extract LM asset bundle {index}/{len(release_assets)}")
-        safe_extract_zip(zip_path, assets_root)
+        safe_extract_zip(zip_path, assets_root, skip_relpaths=preserved_relpaths)
         print("[PASS] Extracted safely")
     print("[RUN ] Verify V1 LM runtime assets")
     verify_installed_assets(manifest, asset_set_name, assets_root)
