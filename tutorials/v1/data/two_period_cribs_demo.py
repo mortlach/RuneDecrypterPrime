@@ -7,7 +7,7 @@ plaintext and key values are never passed to the production solver.
 """
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Sequence
 
 import numpy as np
 
@@ -27,9 +27,14 @@ class TwoPeriodDemoFixture:
     wli: tuple[tuple[int, int], ...]
     reference_plaintext: tuple[int, ...]
     reference_key: tuple[int, ...]
+    reference_interruptors: tuple[int, ...] = ()
 
 
-def build_demo_fixture(cipher_spec: Any) -> TwoPeriodDemoFixture:
+def build_demo_fixture(
+    cipher_spec: Any,
+    *,
+    interruptors: Sequence[int] = (),
+) -> TwoPeriodDemoFixture:
     starts = [index for index, pair in enumerate(word_breaks1) if int(pair[0]) == 0]
     ends = {
         index + 1
@@ -57,12 +62,18 @@ def build_demo_fixture(cipher_spec: Any) -> TwoPeriodDemoFixture:
     ciphertext = api.cipher_instance(cipher_spec).encrypt_single(
         plaintext=plaintext,
         key=reference_key,
+        interrupt_idx=(
+            None
+            if not interruptors
+            else np.asarray(tuple(interruptors), dtype=np.intp)
+        ),
     )
     return TwoPeriodDemoFixture(
         ciphertext=tuple(int(value) for value in ciphertext),
         wli=wli,
         reference_plaintext=tuple(int(value) for value in plaintext),
         reference_key=tuple(int(value) for value in reference_key),
+        reference_interruptors=tuple(int(value) for value in interruptors),
     )
 
 

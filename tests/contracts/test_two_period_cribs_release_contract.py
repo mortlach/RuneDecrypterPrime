@@ -24,6 +24,11 @@ def test_public_contract_documents_the_specialised_route() -> None:
         "B1 bridge",
         "F1 judge",
         "complete deduplicated",
+        "InterruptorConfig",
+        "structural interruptor",
+        "compacted core",
+        "bruteforce_max",
+        'search_strategy="keyops"',
         "RunResult",
         "SolverReport",
     ):

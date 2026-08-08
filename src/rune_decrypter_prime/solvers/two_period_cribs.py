@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import time
+from bisect import bisect_left
 from dataclasses import dataclass
+from itertools import combinations
 from typing import Any, Callable, Sequence
 
 import numpy as np
@@ -16,7 +19,12 @@ from rune_decrypter_prime.api.two_period_cribs import (
 )
 from rune_decrypter_prime.api.wrappers.by_name import cipher_instance
 from rune_decrypter_prime.api.wrappers.registry import build_cipher_config
-from rune_decrypter_prime.core.config import HardCribConfig, ScoringConfig, Solution
+from rune_decrypter_prime.core.config import (
+    HardCribConfig,
+    InterruptorConfig,
+    ScoringConfig,
+    Solution,
+)
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
 from rune_decrypter_prime.core.types import Device, Direction
@@ -56,6 +64,7 @@ class TwoPeriodBranch:
     fixed_cribs: tuple[CribSpan, ...]
     candidate_crib: CribSpan | None
     constraint_space: CribConstraintSpace
+    interruptors: tuple[int, ...] = ()
 
     @property
     def spans(self) -> tuple[CribSpan, ...]:
@@ -99,17 +108,27 @@ def derive_constraint_space(
     period_a: int,
     period_b: int,
     modulus: int,
+    interruptors: Sequence[int] = (),
 ) -> CribConstraintSpace:
     key_length = period_a + period_b
+    resolved_interruptors = _validated_interruptor_positions(interruptors, len(ciphertext))
+    interruptor_set = set(resolved_interruptors)
     rows: list[np.ndarray] = []
     for span in spans:
         if span.start < 0 or span.stop > len(ciphertext):
             raise ValueError(f"crib {span.word!r} lies outside the ciphertext")
         for offset, plain in enumerate(span.runes):
             position = span.start + offset
+            if position in interruptor_set:
+                if int(ciphertext[position]) != int(plain):
+                    raise ValueError(
+                        f"crib {span.word!r} contradicts interruptor at position {position}"
+                    )
+                continue
+            core_position = position - bisect_left(resolved_interruptors, position)
             row = np.zeros(key_length + 1, dtype=np.int64)
-            row[position % period_a] = 1
-            row[period_a + position % period_b] = 1
+            row[core_position % period_a] = 1
+            row[period_a + core_position % period_b] = 1
             row[-1] = (int(ciphertext[position]) - plain) % modulus
             rows.append(row)
     gauge = np.zeros(key_length + 1, dtype=np.int64)
@@ -170,10 +189,54 @@ def _complete_word_starts(wli: Sequence[Sequence[int]], length: int) -> tuple[in
     return tuple(starts)
 
 
+def _validated_interruptor_positions(
+    interruptors: Sequence[int],
+    text_length: int,
+) -> tuple[int, ...]:
+    positions = tuple(int(value) for value in interruptors)
+    if tuple(sorted(set(positions))) != positions:
+        raise ValueError("resolved interruptor positions must be sorted and unique")
+    if any(position < 0 or position >= text_length for position in positions):
+        raise ValueError(f"interruptor position lies outside text length {text_length}")
+    return positions
+
+
+def _resolve_interruptor_hypotheses(
+    config: InterruptorConfig | None,
+    text_length: int,
+) -> tuple[tuple[int, ...], ...]:
+    if config is None or config.mode == "disabled":
+        return ((),)
+    if config.mode == "exact":
+        return (_validated_interruptor_positions(tuple(config.exact or ()), text_length),)
+
+    pool = _validated_interruptor_positions(tuple(config.pool or ()), text_length)
+    min_count = int(config.min_count)
+    max_count = int(config.max_count or 0)
+    combination_count = sum(math.comb(len(pool), count) for count in range(min_count, max_count + 1))
+    strategy = str(config.search_strategy)
+    if strategy == "keyops":
+        raise ValueError(
+            "two_period_cribs requires structural interruptor hypotheses; "
+            "search_strategy='keyops' is unsupported"
+        )
+    if strategy == "auto" and combination_count > int(config.bruteforce_max):
+        raise ValueError(
+            "two_period_cribs structural interruptor search exceeds bruteforce_max; "
+            "narrow the pool/count range, raise bruteforce_max, or explicitly request bruteforce"
+        )
+    return tuple(
+        tuple(int(value) for value in picked)
+        for count in range(min_count, max_count + 1)
+        for picked in combinations(pool, count)
+    )
+
+
 def _branch_id(
     fixed_cribs: Sequence[CribSpan],
     candidate_crib: CribSpan | None,
     space: CribConstraintSpace,
+    interruptors: Sequence[int] = (),
 ) -> str:
     payload = {
         "contract": TWO_PERIOD_CRIBS_CONTRACT,
@@ -190,10 +253,34 @@ def _branch_id(
             else {"runes": list(candidate_crib.runes), "start": candidate_crib.start}
         ),
     }
+    resolved_interruptors = tuple(int(value) for value in interruptors)
+    if resolved_interruptors:
+        payload["interruptors"] = list(resolved_interruptors)
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()[:20]
     return f"tpb_{digest}"
+
+
+def _validate_candidate_position_contract(
+    wli: Sequence[Sequence[int]],
+    request: TwoPeriodCribsRequest,
+    direction: Direction,
+) -> None:
+    """Validate caller-supplied candidate positions independently of structural branches."""
+    for word in request.candidate_words:
+        positions = request.positions_for(word)
+        if positions is None:
+            continue
+        runes = _span(word, 0, direction).runes
+        complete_starts = _complete_word_starts(wli, len(runes))
+        invalid = tuple(position for position in positions if position not in complete_starts)
+        if invalid:
+            position = invalid[0]
+            raise ValueError(
+                f"candidate word {word!r} position {position} is not a complete "
+                f"WLI span of rune length {len(runes)}"
+            )
 
 
 def build_branches(
@@ -205,11 +292,19 @@ def build_branches(
     period_b: int,
     modulus: int,
     direction: Direction,
+    interruptors: Sequence[int] = (),
 ) -> tuple[tuple[TwoPeriodBranch, ...], tuple[dict[str, Any], ...]]:
+    resolved_interruptors = _validated_interruptor_positions(interruptors, len(ciphertext))
+    _validate_candidate_position_contract(wli, request, direction)
     fixed = tuple(_span(word, start, direction) for word, start in request.fixed_cribs)
     # Fixed evidence is authoritative: contradictions are a caller error.
     derive_constraint_space(
-        ciphertext, fixed, period_a=period_a, period_b=period_b, modulus=modulus
+        ciphertext,
+        fixed,
+        period_a=period_a,
+        period_b=period_b,
+        modulus=modulus,
+        interruptors=resolved_interruptors,
     )
     alternatives: list[CribSpan | None] = []
     rejected: list[dict[str, Any]] = []
@@ -253,6 +348,7 @@ def build_branches(
                 period_a=period_a,
                 period_b=period_b,
                 modulus=modulus,
+                interruptors=resolved_interruptors,
             )
         except ValueError as exc:
             rejected.append({
@@ -261,8 +357,11 @@ def build_branches(
                 "reason": str(exc),
             })
             continue
-        branch_id = _branch_id(fixed, candidate, space)
-        accepted.setdefault(branch_id, TwoPeriodBranch(branch_id, fixed, candidate, space))
+        branch_id = _branch_id(fixed, candidate, space, resolved_interruptors)
+        accepted.setdefault(
+            branch_id,
+            TwoPeriodBranch(branch_id, fixed, candidate, space, resolved_interruptors),
+        )
     if not accepted:
         reasons = "; ".join(
             f"{row['word']!r} at {row['start']}: {row['reason']}" for row in rejected
@@ -350,8 +449,16 @@ def profile_contract_hash(profile_id: str) -> str:
     ).hexdigest()
 
 
-def _candidate_id(key: np.ndarray) -> str:
-    return "tpc_" + hashlib.sha256(bytes(np.asarray(key, dtype=np.uint8))).hexdigest()[:20]
+def _candidate_id(key: np.ndarray, interruptors: Sequence[int] = ()) -> str:
+    key_bytes = bytes(np.asarray(key, dtype=np.uint8))
+    resolved_interruptors = tuple(int(value) for value in interruptors)
+    if not resolved_interruptors:
+        payload = key_bytes
+    else:
+        payload = key_bytes + b"|interruptors|" + json.dumps(
+            list(resolved_interruptors), separators=(",", ":")
+        ).encode("ascii")
+    return "tpc_" + hashlib.sha256(payload).hexdigest()[:20]
 
 
 def _records_digest(records: Sequence[tuple[str, float]]) -> str:
@@ -399,10 +506,11 @@ def _run_refinement_stage(
         )
         evaluations += used
         expanded = expand_reduced_key(variables, branch.constraint_space)
-        candidate_id = _candidate_id(expanded)
+        candidate_id = _candidate_id(expanded, branch.interruptors)
         record = {
             "candidate_id": candidate_id,
             "branch_id": branch.branch_id,
+            "interruptors": list(branch.interruptors),
             "variables": variables.astype(int).tolist(),
             "key": expanded.astype(int).tolist(),
             score_field: score,
@@ -462,18 +570,75 @@ def run_two_period_stages(
     device: Device,
     direction: Direction,
     telemetry_on: bool,
+    interruptors: InterruptorConfig | dict[str, Any] | None = None,
+    interruptors_exact: Sequence[int] | None = None,
+    interruptors_pool: Sequence[int] | None = None,
+    interruptors_max: int | None = None,
 ) -> Solution:
     started = time.perf_counter()
     period_a, period_b, modulus = _validate_cipher(cipher, key)
-    branches, rejections = build_branches(
-        ciphertext,
-        wli,
-        request,
-        period_a=period_a,
-        period_b=period_b,
-        modulus=modulus,
-        direction=direction,
+    template_cfg = build_cipher_config(
+        cipher=cipher,
+        key=key,
+        ciphertext=ciphertext,
+        wli=wli,
+        device=device,
+        encoding_dir=direction,
+        initial_text_permutation_indices=None,
+        initial_keys=None,
+        interruptors=interruptors,
+        interruptors_exact=interruptors_exact,
+        interruptors_pool=interruptors_pool,
+        interruptors_max=interruptors_max,
     )
+    interruptor_cfg = template_cfg.interruptors_cfg
+    interruptor_hypotheses = _resolve_interruptor_hypotheses(
+        interruptor_cfg,
+        len(ciphertext),
+    )
+    # Candidate-position validity is a caller contract, not a structural-hypothesis rejection.
+    _validate_candidate_position_contract(wli, request, direction)
+    branch_list: list[TwoPeriodBranch] = []
+    rejection_list: list[dict[str, Any]] = []
+    for resolved_interruptors in interruptor_hypotheses:
+        try:
+            resolved_branches, resolved_rejections = build_branches(
+                ciphertext,
+                wli,
+                request,
+                period_a=period_a,
+                period_b=period_b,
+                modulus=modulus,
+                direction=direction,
+                interruptors=resolved_interruptors,
+            )
+        except ValueError as exc:
+            if interruptor_cfg is None or interruptor_cfg.mode != "pool":
+                raise
+            rejection_list.append({
+                "word": None,
+                "start": None,
+                "interruptors": list(resolved_interruptors),
+                "reason": str(exc),
+            })
+            continue
+        branch_list.extend(resolved_branches)
+        rejection_list.extend(
+            {
+                **row,
+                "interruptors": list(resolved_interruptors),
+            }
+            for row in resolved_rejections
+        )
+    if not branch_list:
+        reasons = "; ".join(
+            f"interruptors={row.get('interruptors', [])}: {row['reason']}"
+            for row in rejection_list
+        )
+        detail = f": {reasons}" if reasons else ""
+        raise ValueError(f"no compatible two-period interruptor/crib branches remain{detail}")
+    branches = tuple(sorted(branch_list, key=lambda branch: branch.branch_id))
+    rejections = tuple(rejection_list)
     cipher_obj = cipher_instance(cipher)
     total_evaluations = 0
     all_union: dict[str, dict[str, Any]] = {}
@@ -498,7 +663,6 @@ def run_two_period_stages(
         "final_union_duplicates": 0,
     }
     final_problem: DecryptionProblem | None = None
-
     for branch in branches:
         fixed_chars = {
             span.start + offset: [int(value)]
@@ -507,6 +671,11 @@ def run_two_period_stages(
         }
         hard_crib = HardCribConfig(enabled=True, fixed_chars=fixed_chars)
         problems: dict[str, DecryptionProblem] = {}
+        branch_interruptors = (
+            None
+            if not branch.interruptors
+            else InterruptorConfig(mode="exact", exact=list(branch.interruptors))
+        )
         for profile_id in ("S2", "B1", "F1"):
             scoring = _profile(profile_id, hard_crib, direction)
             cipher_cfg = build_cipher_config(
@@ -518,7 +687,7 @@ def run_two_period_stages(
                 encoding_dir=direction,
                 initial_text_permutation_indices=None,
                 initial_keys=None,
-                interruptors=None,
+                interruptors=branch_interruptors,
                 interruptors_exact=None,
                 interruptors_pool=None,
                 interruptors_max=None,
@@ -557,10 +726,11 @@ def run_two_period_stages(
             total_evaluations += used
             scout_evaluations += used
             expanded = expand_reduced_key(variables, branch.constraint_space)
-            candidate_id = _candidate_id(expanded)
+            candidate_id = _candidate_id(expanded, branch.interruptors)
             record = {
                 "candidate_id": candidate_id,
                 "branch_id": branch.branch_id,
+                "interruptors": list(branch.interruptors),
                 "variables": variables.astype(int).tolist(),
                 "key": expanded.astype(int).tolist(),
                 "scout_score": score,
@@ -709,6 +879,8 @@ def run_two_period_stages(
         })
         branch_summaries.append({
             "branch_id": branch.branch_id,
+            "interruptors": list(branch.interruptors),
+            "interruptor_count": len(branch.interruptors),
             "candidate_word": None if branch.candidate_crib is None else branch.candidate_crib.word,
             "candidate_start": None if branch.candidate_crib is None else branch.candidate_crib.start,
             "affine_dimension": branch.constraint_space.dimension,
@@ -727,9 +899,11 @@ def run_two_period_stages(
     )
     best = ranked[0]
     best_key = np.asarray(best["key"], dtype=np.uint8)
-    plaintext = final_problem.resolve_plaintext(best_key)
-    if plaintext is None:
-        plaintext = cipher_obj.decrypt_single(ciphertext=ciphertext, key=best_key)
+    plaintext = cipher_obj.decrypt_single(
+        ciphertext=ciphertext,
+        key=best_key,
+        interrupt_idx=(None if not best["interruptors"] else best["interruptors"]),
+    )
     elapsed = time.perf_counter() - started
     candidate_counts["final_union_unique_terminals"] = len(all_union)
     candidate_counts["final_union_duplicates"] = (
@@ -749,6 +923,17 @@ def run_two_period_stages(
         "period_a": period_a,
         "period_b": period_b,
         "gauge": {"stream": "B", "index": 0, "value": 0},
+        "interruptors": {
+            "requested": (
+                {"mode": "disabled"}
+                if interruptor_cfg is None
+                else interruptor_cfg.asdict()
+            ),
+            "resolution": "structural",
+            "hypothesis_count": len(interruptor_hypotheses),
+            "winning_positions": list(best["interruptors"]),
+            "winning_count": len(best["interruptors"]),
+        },
         "branch_count": len(branches),
         "rejected_branch_count": len(rejections),
         "rejected_branches": list(rejections),

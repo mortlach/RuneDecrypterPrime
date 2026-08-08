@@ -7,10 +7,12 @@ import pytest
 
 from rune_decrypter_prime.api.two_period_cribs import normalize_two_period_cribs_request
 from rune_decrypter_prime.api.specs import SolverSpec
-from rune_decrypter_prime.core.types import Direction
+from rune_decrypter_prime.core.config import InterruptorConfig
+from rune_decrypter_prime.core.types import Device, Direction
 from rune_decrypter_prime.solvers.two_period_cribs import (
     CribConstraintSpace,
     TwoPeriodBranch,
+    _candidate_id,
     _deduplicated_union,
     _run_refinement_stage,
     build_branches,
@@ -19,6 +21,8 @@ from rune_decrypter_prime.solvers.two_period_cribs import (
     derive_constraint_space,
     expand_reduced_key,
     profile_contract_hash,
+    _resolve_interruptor_hypotheses,
+    run_two_period_stages,
 )
 
 pytestmark = pytest.mark.tier_a
@@ -45,6 +49,228 @@ def test_constraint_space_contains_canonical_known_key():
     variables = np.asarray([np.concatenate((key_a, key_b))[i] for i in space.free_columns])
     assert np.array_equal(expand_reduced_key(variables, space), np.concatenate((key_a, key_b)))
     assert expand_reduced_key(variables, space)[5] == 0
+
+
+def test_constraint_space_uses_core_positions_after_structural_interruptors():
+    from rune_decrypter_prime import api
+    from rune_decrypter_prime.api.wrappers.by_name import cipher_instance
+    from rune_decrypter_prime.solvers.two_period_cribs import CribSpan
+    from rune_decrypter_prime.utils.runeglish import Runeglish
+
+    plain, _wli, _runes = Runeglish.encode_english_to_runes(
+        "uncomfortable", direction="ltr"
+    )
+    plaintext = np.asarray(plain, dtype=np.uint8)
+    key_a = np.asarray([3, 8, 13, 18, 23], dtype=np.uint8)
+    key_b = np.asarray([0, 7, 14, 21, 28, 6, 13], dtype=np.uint8)
+    known_key = np.concatenate((key_a, key_b))
+    interruptors = (2, 7)
+    cipher, _key = api.by_name.cipher_with_key(
+        "two_period_vigenere", period_a=5, period_b=7, default_key=True
+    )
+    ciphertext = cipher_instance(cipher).encrypt_single(
+        plaintext=plaintext,
+        key=known_key,
+        interrupt_idx=np.asarray(interruptors, dtype=np.intp),
+    )
+
+    span = CribSpan("uncomfortable", tuple(int(x) for x in plaintext), 0)
+    space = derive_constraint_space(
+        ciphertext,
+        (span,),
+        period_a=5,
+        period_b=7,
+        modulus=29,
+        interruptors=interruptors,
+    )
+    variables = np.asarray([known_key[i] for i in space.free_columns], dtype=np.uint8)
+
+    assert np.array_equal(expand_reduced_key(variables, space), known_key)
+    assert all(int(ciphertext[index]) == int(plaintext[index]) for index in interruptors)
+
+
+def test_crib_must_match_unchanged_interruptor_symbol():
+    from rune_decrypter_prime.solvers.two_period_cribs import CribSpan
+
+    ciphertext = np.asarray([4, 9, 5, 7], dtype=np.uint8)
+    span = CribSpan("fixture", (4, 9, 6, 7), 0)
+    with pytest.raises(ValueError, match=r"contradicts interruptor at position 2"):
+        derive_constraint_space(
+            ciphertext,
+            (span,),
+            period_a=2,
+            period_b=3,
+            modulus=29,
+            interruptors=(2,),
+        )
+
+
+def test_interruptor_pool_hypotheses_are_stable_and_count_bounded():
+    cfg = InterruptorConfig(
+        mode="pool",
+        pool=[8, 3, 5],
+        min_count=2,
+        max_count=2,
+        search_strategy="auto",
+        bruteforce_max=3,
+    )
+    assert _resolve_interruptor_hypotheses(cfg, 20) == (
+        (3, 5),
+        (3, 8),
+        (5, 8),
+    )
+
+
+def test_interruptor_pool_range_enumerates_each_allowed_count_stably():
+    cfg = InterruptorConfig(
+        mode="pool",
+        pool=[4, 1, 7],
+        min_count=1,
+        max_count=2,
+        search_strategy="auto",
+        bruteforce_max=6,
+    )
+    assert _resolve_interruptor_hypotheses(cfg, 20) == (
+        (1,),
+        (4,),
+        (7,),
+        (1, 4),
+        (1, 7),
+        (4, 7),
+    )
+
+
+def test_interruptor_pool_explicit_bruteforce_can_opt_in_above_auto_cap():
+    cfg = InterruptorConfig(
+        mode="pool",
+        pool=[1, 2, 3, 4],
+        min_count=2,
+        max_count=2,
+        search_strategy="bruteforce",
+        bruteforce_max=1,
+    )
+    assert _resolve_interruptor_hypotheses(cfg, 20) == (
+        (1, 2),
+        (1, 3),
+        (1, 4),
+        (2, 3),
+        (2, 4),
+        (3, 4),
+    )
+
+
+def test_interruptor_pool_auto_refuses_implicit_keyops_fallback():
+    cfg = InterruptorConfig(
+        mode="pool",
+        pool=[1, 2, 3, 4],
+        min_count=2,
+        max_count=2,
+        search_strategy="auto",
+        bruteforce_max=5,
+    )
+    with pytest.raises(ValueError, match=r"exceeds bruteforce_max"):
+        _resolve_interruptor_hypotheses(cfg, 20)
+
+
+def test_interruptor_pool_keyops_is_explicitly_unsupported_for_constraint_route():
+    cfg = InterruptorConfig(
+        mode="pool",
+        pool=[1, 2, 3],
+        min_count=1,
+        max_count=1,
+        search_strategy="keyops",
+    )
+    with pytest.raises(ValueError, match=r"structural.*keyops.*unsupported"):
+        _resolve_interruptor_hypotheses(cfg, 20)
+
+
+def test_staged_pool_search_keeps_structural_candidates_distinct_and_uses_winning_interruptors(monkeypatch):
+    from rune_decrypter_prime import api
+    from rune_decrypter_prime.api.normalize import normalize_ciphertext
+    from rune_decrypter_prime.api.wrappers.by_name import cipher_instance
+    from rune_decrypter_prime.solvers import two_period_cribs as staged
+
+    plaintext, wli = normalize_ciphertext("uncomfortable dormouse")
+    known_key = np.asarray(
+        [3, 8, 13, 18, 23, 0, 7, 14, 21, 28, 6, 13],
+        dtype=np.uint8,
+    )
+    true_interruptors = (14,)
+    cipher, key = api.by_name.cipher_with_key(
+        "two_period_vigenere", period_a=5, period_b=7, default_key=True
+    )
+    cipher_obj = cipher_instance(cipher)
+    ciphertext = cipher_obj.encrypt_single(
+        plaintext=plaintext,
+        key=known_key,
+        interrupt_idx=np.asarray(true_interruptors, dtype=np.intp),
+    )
+    request = normalize_two_period_cribs_request(
+        SolverSpec.two_period_cribs(fixed_cribs=(("uncomfortable", 0),), starts=1, seed=9)
+    )
+
+    class FakeProblem:
+        def __init__(self, *, cipher, scorer, c_cfg, s_cfg, enable_telemetry):
+            self.cipher = cipher
+            self.scorer = scorer
+            self.c_cfg = c_cfg
+
+        def _interruptors(self):
+            cfg = self.c_cfg.interruptors_cfg
+            return None if cfg is None else cfg.exact
+
+        def _plain(self, key_values):
+            return np.asarray(
+                self.cipher.decrypt_single(
+                    ciphertext=self.c_cfg.ciphertext,
+                    key=np.asarray(key_values, dtype=np.uint8),
+                    interrupt_idx=self._interruptors(),
+                ),
+                dtype=np.uint8,
+            )
+
+        def evaluate_keys(self, keys):
+            batch = np.asarray(keys, dtype=np.uint8)
+            if batch.ndim == 1:
+                batch = batch[None, :]
+            return np.asarray(
+                [np.mean(self._plain(row) == plaintext) for row in batch],
+                dtype=np.float64,
+            )
+
+        def resolve_plaintext(self, key_values):
+            return self._plain(key_values)
+
+    monkeypatch.setattr(staged, "DecryptionProblem", FakeProblem)
+    monkeypatch.setattr(staged, "build_scorer", lambda *_args, **_kwargs: object())
+
+    result = run_two_period_stages(
+        ciphertext=np.asarray(ciphertext, dtype=np.uint8),
+        wli=wli,
+        cipher=cipher,
+        key=key,
+        request=request,
+        device=Device.CPU,
+        direction=Direction.LTR,
+        telemetry_on=False,
+        interruptors=InterruptorConfig(
+            mode="pool",
+            pool=[15, 14],
+            min_count=1,
+            max_count=1,
+            search_strategy="auto",
+            bruteforce_max=2,
+        ),
+    )
+
+    details = result.meta["two_period_solve"]
+    assert result.key == known_key.astype(int).tolist()
+    assert result.plaintext_idx == np.asarray(plaintext, dtype=np.uint8).astype(int).tolist()
+    assert details["interruptors"]["hypothesis_count"] == 2
+    assert details["interruptors"]["winning_positions"] == [14]
+    assert details["interruptors"]["winning_count"] == 1
+    assert details["branch_count"] == 2
+    assert details["final_union_count"] == 2
 
 
 def test_contradictory_overlapping_crib_rejects():
@@ -160,6 +386,63 @@ def test_explicit_candidate_position_must_be_complete_wli_span():
         )
 
 
+def test_staged_route_rejects_mixed_canonical_and_legacy_interruptor_inputs():
+    from rune_decrypter_prime import api
+    from rune_decrypter_prime.api.normalize import normalize_ciphertext
+
+    ciphertext, wli = normalize_ciphertext("a")
+    cipher, key = api.by_name.cipher_with_key(
+        "two_period_vigenere", period_a=5, period_b=7, default_key=True
+    )
+    request = normalize_two_period_cribs_request(
+        SolverSpec.two_period_cribs(fixed_cribs=(("a", 0),), starts=1)
+    )
+    with pytest.raises(ValueError, match=r"cannot be combined"):
+        run_two_period_stages(
+            ciphertext=np.asarray(ciphertext, dtype=np.uint8),
+            wli=wli,
+            cipher=cipher,
+            key=key,
+            request=request,
+            device=Device.CPU,
+            direction=Direction.LTR,
+            telemetry_on=False,
+            interruptors=InterruptorConfig(mode="exact", exact=[0]),
+            interruptors_exact=[0],
+        )
+
+
+def test_pool_mode_does_not_mask_invalid_explicit_candidate_position_as_structural_rejection():
+    from rune_decrypter_prime import api
+    from rune_decrypter_prime.api.normalize import normalize_ciphertext
+
+    ciphertext, wli = normalize_ciphertext("dormouse")
+    cipher, key = api.by_name.cipher_with_key(
+        "two_period_vigenere", period_a=5, period_b=7, default_key=True
+    )
+    request = normalize_two_period_cribs_request(
+        SolverSpec.two_period_cribs(
+            candidate_words=("dormouse",),
+            candidate_positions={"dormouse": (1,)},
+            starts=1,
+        )
+    )
+    with pytest.raises(ValueError, match=r"dormouse.*position 1.*complete WLI span"):
+        run_two_period_stages(
+            ciphertext=np.asarray(ciphertext, dtype=np.uint8),
+            wli=wli,
+            cipher=cipher,
+            key=key,
+            request=request,
+            device=Device.CPU,
+            direction=Direction.LTR,
+            telemetry_on=False,
+            interruptors=InterruptorConfig(
+                mode="pool", pool=[0, 2], min_count=1, max_count=1
+            ),
+        )
+
+
 def test_missing_automatic_position_is_retained_as_rejection_evidence():
     from rune_decrypter_prime.api.normalize import normalize_ciphertext
 
@@ -205,6 +488,12 @@ def test_all_missing_automatic_positions_raise_with_rejection_reason():
             modulus=29,
             direction=Direction.LTR,
         )
+
+
+def test_candidate_identity_preserves_legacy_key_only_hash_without_interruptors():
+    key = np.asarray([3, 8, 13, 0, 7], dtype=np.uint8)
+    expected = "tpc_" + hashlib.sha256(bytes(key)).hexdigest()[:20]
+    assert _candidate_id(key) == expected
 
 
 def test_branch_identity_varies_with_periods_and_modulus():

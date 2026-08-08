@@ -37,7 +37,7 @@
     },
     {
       "path": "Tutorial_TwoPeriodCribs_P13P31_Search.py",
-      "title": "Two-period cribs: genuine P13/P31 d14 search",
+      "title": "Two-period cribs: genuine P13/P31 d14 interruptor search",
       "cipher_family": "scheduled_stream_lookup",
       "tutorial_kind": "real_solve",
       "gate": "v1_extended",
@@ -47,14 +47,35 @@
       "uses_oracle_stop_score": false,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
-      "notes": "Requires the full_v1 LM1-LM4 profile because the retained S2-B1-F1 solver ends with the unchanged F1 char1-4/WLI1-4 scorer. Genuine non-zero d14 staged search; three deterministic exact runs measured at 259.825-260.715 seconds and therefore classified extended.",
+      "notes": "A2 genuine non-zero d14 P13/P31 staged search with a two-position interruptor pool and fixed count one. The decoy at 192 contradicts the fixed crib before staged search; the true interruptor at 300 leaves the retained d14 crib-derived affine space identical to the proven pre-A2 search, while still exercising structural removal in the tail. The pre-A2 no-interruptor form measured about 260 seconds; this updated form requires fresh full-profile evidence.",
       "expected_under_required_profile": "pass",
       "observed_under_required_profile": {
-        "match_ratio": 1.0,
-        "score_time_s": 260.112,
-        "tokens": 0
+        "match_ratio": null,
+        "score_time_s": null,
+        "tokens": null
       },
-      "profile_evidence_status": "measured"
+      "profile_evidence_status": "unmeasured_full_profile"
+    },
+    {
+      "path": "Tutorial_TwoPeriodCribs_Interruptors.py",
+      "title": "Two-period cribs with structural interruptor pool search",
+      "cipher_family": "scheduled_stream_lookup",
+      "tutorial_kind": "real_solve",
+      "gate": "v1_release",
+      "required_asset_profile": "full_v1",
+      "acceptance_kind": "exact",
+      "min_match_ratio": 1.0,
+      "uses_oracle_stop_score": false,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "A2 structural interruptor example. Uses the normal two_period_cribs route with a three-position pool and fixed count of two; the true interruptor positions are not supplied to the solver. Requires full_v1 because the staged route retains the unchanged F1 char1-4/WLI1-4 scorer.",
+      "expected_under_required_profile": "pass",
+      "observed_under_required_profile": {
+        "match_ratio": null,
+        "score_time_s": null,
+        "tokens": null
+      },
+      "profile_evidence_status": "unmeasured_full_profile"
     },
     {
       "path": "Tutorial_Start_Here.py",

@@ -66,6 +66,12 @@ TUTORIALS: tuple[TutorialEntry, ...] = (
         required_asset_profile="full_v1",
     ),
     TutorialEntry(
+        "Tutorial_TwoPeriodCribs_Interruptors.py",
+        1.0,
+        run_sets=(TutorialRunSet.RELEASE, TutorialRunSet.FULL_ASSETS),
+        required_asset_profile="full_v1",
+    ),
+    TutorialEntry(
         "Tutorial_TwoPeriodCribs_P13P31_Search.py",
         1.0,
         run_sets=(TutorialRunSet.EXTENDED, TutorialRunSet.FULL_ASSETS),

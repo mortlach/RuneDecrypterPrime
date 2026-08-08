@@ -280,6 +280,10 @@ def _run_normalized(
             device=device,
             direction=encoding_dir,
             telemetry_on=telemetry_on,
+            interruptors=interruptors,
+            interruptors_exact=interruptors_exact,
+            interruptors_pool=interruptors_pool,
+            interruptors_max=interruptors_max,
         )
         opt_name = "two_period_cribs"
         opt = request.normalized_params()
@@ -429,14 +433,6 @@ def _validate_two_period_run_options(
         raise ValueError("two_period_cribs does not accept initial_keys")
     if initial_text_permutation_indices is not None:
         raise ValueError("two_period_cribs does not accept text permutation")
-    if any(
-        value is not None
-        for value in (interruptors, interruptors_exact, interruptors_pool, interruptors_max)
-    ):
-        raise ValueError(
-            "two_period_cribs interruptor compatibility is not yet proven; "
-            "exact and pool interruptor options are unsupported"
-        )
     if not isinstance(cipher, CipherSpec) or not isinstance(key, KeySpec):
         raise TypeError("two_period_cribs requires canonical CipherSpec and KeySpec values")
 

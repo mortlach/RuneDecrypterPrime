@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-"""Genuine non-zero d14 P13/P31 search with a structural interruptor pool."""
+"""Fast P13/P31 walkthrough with structural interruptor pool search."""
 
-import json
 import sys
 from pathlib import Path
 from time import perf_counter
@@ -29,26 +28,31 @@ from data.two_period_cribs_demo import build_demo_fixture  # noqa: E402
 PERIOD_A = 13
 PERIOD_B = 31
 SEED = 101
-STARTS = 8
-REFERENCE_INTERRUPTORS = (300,)
-INTERRUPTOR_POOL = (300, 192)
-INTERRUPTOR_COUNT = 1
+STARTS = 1
+REFERENCE_INTERRUPTORS = (190, 194)
+INTERRUPTOR_POOL = (190, 192, 194)
+INTERRUPTOR_COUNT = 2
 FIXED_CRIBS = (
     ("uncomfortable", 188),
     ("dormouse", 81),
+    ("dormouse", 206),
+    ("suppose", 241),
+    ("talcing", 169),
+    ("sitting", 92),
+    ("out", 12),
+    ("front", 27),
 )
-WORDS_TO_TRY = ("dormouse",)
 
 
 def run_tutorial():
     pretty.print_rdp_identity()
     pretty.print_initialising()
     pretty.print_tutorial_contract(
-        name="Two-period cribs: P13/P31 interruptor search",
+        name="Two-period cribs: structural interruptor pool",
         cipher="two_period_vigenere",
         solver="two_period_cribs",
         direction="ltr",
-        expected_result="exact d14 solve",
+        expected_result="exact key, plaintext and interruptor positions",
         uses_reference_stop_score=False,
     )
     cipher, key = api.by_name.cipher_with_key(
@@ -59,20 +63,18 @@ def run_tutorial():
         default_key=True,
     )
     fixture = build_demo_fixture(cipher, interruptors=REFERENCE_INTERRUPTORS)
+    solver = api.SolverSpec.two_period_cribs(
+        fixed_cribs=FIXED_CRIBS,
+        starts=STARTS,
+        seed=SEED,
+    )
     interruptors = api.InterruptorConfig(
         mode="pool",
         pool=INTERRUPTOR_POOL,
         min_count=INTERRUPTOR_COUNT,
         max_count=INTERRUPTOR_COUNT,
     )
-    solver = api.SolverSpec.two_period_cribs(
-        fixed_cribs=FIXED_CRIBS,
-        candidate_words=WORDS_TO_TRY,
-        starts=STARTS,
-        seed=SEED,
-    )
 
-    # The solver creates and compares complete-word placement branches internally.
     started = perf_counter()
     result = api.run(
         text=(fixture.ciphertext, fixture.wli),
@@ -90,10 +92,10 @@ def run_tutorial():
     reference = TutorialReference.key_and_plaintext(
         key_idx=fixture.reference_key,
         plaintext_idx=fixture.reference_plaintext,
-        label="deterministic P13/P31 tutorial fixture",
+        label="deterministic interruptor tutorial fixture",
     )
     report = print_tutorial_session_report(
-        title="Two-period cribs: P13/P31 interruptor search",
+        title="Two-period cribs: structural interruptor pool",
         cipher="two_period_vigenere",
         solution=result.solution,
         solver_report=result.solver_report,
@@ -102,30 +104,16 @@ def run_tutorial():
         stop_policy=TutorialStopPolicy(target_match_ratio=1.0),
     )
     details = result.solver_report.details["two_period_solve"]
-    portable_details = result.solver_report.to_json_dict()["details"][
-        "two_period_solve"
-    ]
     match_ratio = reference.match_ratio(result.solution)
     key_exact = reference.key_exact(result.solution)
-    print(f"derived_dimension : {details['derived_dimension']}")
-    print(
-        "stage_summary : "
-        + json.dumps(
-            portable_details["stage_summaries"],
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-    )
     winning_interruptors = tuple(details["interruptors"]["winning_positions"])
-    print(f"winning_interruptors : {list(winning_interruptors)}")
+    print(f"winning_interruptors : {winning_interruptors}")
     print(f"tutorial_elapsed_s : {elapsed_s:.6f}")
     print(f"match_ratio : {match_ratio:.6f}")
-    assert details["derived_dimension"] == 14
-    assert details["interruptors"]["hypothesis_count"] == 2
-    assert winning_interruptors == REFERENCE_INTERRUPTORS
     assert report["benchmark"]["match_ratio"] == 1.0
     assert match_ratio == 1.0
     assert key_exact is True
+    assert winning_interruptors == fixture.reference_interruptors
     return result
 
 

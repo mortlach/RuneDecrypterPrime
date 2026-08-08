@@ -60,8 +60,16 @@ Current implementation notes:
 - API accepts `interruptors=InterruptorConfig(...)` (or a dict) and maps legacy
   `interruptors_exact/pool/max` into the new config when present.
 
-## KeyOps Integration (Core Mechanism)
-Interruptors must be part of the key search, not a separate brute-force pass.
+## Search Integration
+For the normal optimiser path, pooled interruptors are integrated with KeyOps so
+optimisers share one search representation.
+
+Specialised constraint solvers may resolve interruptor choices as deterministic
+structural hypotheses before their key search when the chosen positions change
+the mathematical problem itself. They must still use the same
+`InterruptorConfig`, the same remove/core/reinsert semantics, and the same
+configured pool/count bounds. They must not silently fall back to a different
+search strategy or truncate the requested hypothesis space.
 
 Representation (current):
 1) Fixed-size sorted picks with a sentinel:
@@ -85,6 +93,11 @@ When `search_strategy="auto"`:
 - Otherwise fall back to KeyOps mutation/recombination with a capped expansion.
 
 This is configurable to prevent runaway search space growth.
+
+Specialised constraint routes may reject the KeyOps fallback when it cannot
+preserve that route's mathematics. In that case `auto` must fail clearly once
+the exhaustive combination count exceeds `bruteforce_max`; an explicit
+`bruteforce` request may opt into exhaustive structural enumeration.
 
 ## Pipeline Impact (Default)
 Index space defaults to pre-transposition absolute indices. If a full-text permutation

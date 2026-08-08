@@ -7,6 +7,7 @@ import numpy as np
 
 from rune_decrypter_prime import api
 from rune_decrypter_prime.api.two_period_cribs import normalize_two_period_cribs_request
+from rune_decrypter_prime.core.config import Solution
 from rune_decrypter_prime.core.types import Direction
 from rune_decrypter_prime.utils.runeglish import Runeglish
 
@@ -53,6 +54,81 @@ def test_special_route_blocks_latin_before_search():
     solver = api.SolverSpec.two_period_cribs(fixed_cribs=(("word", 0),), starts=1)
     with pytest.raises(ValueError, match="rune ciphertext"):
         api.run(text="latin words", cipher=cipher, key=key, solver=solver)
+
+
+def test_special_route_passes_canonical_interruptor_config_to_staged_solver(monkeypatch):
+    from rune_decrypter_prime.solvers import two_period_cribs as staged
+
+    captured = {}
+
+    def fake_run_two_period_stages(**kwargs):
+        captured.update(kwargs)
+        return Solution(
+            key=[0] * 12,
+            plaintext=[0, 0, 0],
+            score=0.0,
+            meta={},
+            stop_reason="done",
+        )
+
+    monkeypatch.setattr(staged, "run_two_period_stages", fake_run_two_period_stages)
+    cipher, key = api.by_name.cipher_with_key(
+        "two_period_vigenere", period_a=5, period_b=7, default_key=True
+    )
+    solver = api.SolverSpec.two_period_cribs(fixed_cribs=(("a", 0),), starts=1)
+    config = api.InterruptorConfig(mode="exact", exact=[1])
+
+    result = api.run(
+        text=(np.asarray([0, 1, 2], dtype=np.uint8), ((0, 1), (0, 1), (0, 1))),
+        cipher=cipher,
+        key=key,
+        solver=solver,
+        encoding_dir=Direction.LTR,
+        interruptors=config,
+    )
+
+    assert isinstance(result, Solution)
+    assert captured["interruptors"] is config
+    assert captured["interruptors_exact"] is None
+    assert captured["interruptors_pool"] is None
+    assert captured["interruptors_max"] is None
+
+
+def test_special_route_passes_legacy_interruptor_pool_fields_to_staged_solver(monkeypatch):
+    from rune_decrypter_prime.solvers import two_period_cribs as staged
+
+    captured = {}
+
+    def fake_run_two_period_stages(**kwargs):
+        captured.update(kwargs)
+        return Solution(
+            key=[0] * 12,
+            plaintext=[0, 0, 0],
+            score=0.0,
+            meta={},
+            stop_reason="done",
+        )
+
+    monkeypatch.setattr(staged, "run_two_period_stages", fake_run_two_period_stages)
+    cipher, key = api.by_name.cipher_with_key(
+        "two_period_vigenere", period_a=5, period_b=7, default_key=True
+    )
+    solver = api.SolverSpec.two_period_cribs(fixed_cribs=(("a", 0),), starts=1)
+
+    api.run(
+        text=(np.asarray([0, 1, 2], dtype=np.uint8), ((0, 1), (0, 1), (0, 1))),
+        cipher=cipher,
+        key=key,
+        solver=solver,
+        encoding_dir=Direction.LTR,
+        interruptors_pool=[2, 1],
+        interruptors_max=1,
+    )
+
+    assert captured["interruptors"] is None
+    assert captured["interruptors_exact"] is None
+    assert captured["interruptors_pool"] == [2, 1]
+    assert captured["interruptors_max"] == 1
 
 
 @pytest.mark.full_assets

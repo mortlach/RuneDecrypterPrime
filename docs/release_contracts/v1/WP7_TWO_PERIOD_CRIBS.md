@@ -24,6 +24,12 @@ result = api.run(
     cipher=cipher,
     key=key,
     solver=solver,
+    interruptors=api.InterruptorConfig(
+        mode="pool",
+        pool=[190, 192, 194],
+        min_count=2,
+        max_count=2,
+    ),
     return_solver_report=True,
 )
 api.print_rdp_result(result)
@@ -39,7 +45,26 @@ effective value `0`. Search is the retained S2 scout, B1 bridge, F1 judge with
 three coordinate sweeps, then static F1 ranking over the complete deduplicated
 scout, bridge and judge union.
 
+The route uses the normal V1 structural interruptor contract. Interruptor
+symbols are fixed from the input: chosen positions are removed before the core
+cipher runs and reinserted unchanged afterwards. `exact` interruptors therefore
+produce one structural branch. A `pool` with `min_count`/`max_count` produces
+deterministic structural hypotheses because each choice changes the compacted
+core positions used by the crib equations.
+
+For a non-interruptor crib rune, periodic A/B indices use its compacted core
+position, not its absolute full-text position. A crib rune that lies on an
+interruptor must equal the unchanged ciphertext rune and adds no key equation.
+
+`search_strategy="auto"` exhaustively resolves structural hypotheses while the
+total combination count is within `bruteforce_max`. This specialised route does
+not silently switch to KeyOps when that cap is exceeded: it raises a clear error
+so the caller can narrow the pool/count range, raise the cap, or explicitly
+request `bruteforce`. `search_strategy="keyops"` is not supported by this
+constraint route in V1.
+
 The route returns the normal `RunResult`, `Solution` and `SolverReport` and uses
-the normal RDP display/printer surface. V1 does not silently accept scorer
-parameters, interruptors, initial keys or text permutations on this specialised
-route: unsupported options raise clear errors.
+the normal RDP display/printer surface. The report records the requested
+interruptor configuration, structural hypothesis count and winning positions.
+V1 does not silently accept scorer parameters, initial keys or text permutations
+on this specialised route: unsupported options raise clear errors.
