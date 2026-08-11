@@ -227,6 +227,7 @@ def test_progress_model_label_reports_effective_legacy_pair_models() -> None:
 def test_numpy_and_torch_model_selection_share_canonical_weight_contract() -> None:
     """Development-machine backend parity without loading LM assets."""
     pytest.importorskip("zstandard")
+    pytest.importorskip("torch", reason="Torch backend required for parity test")
     from rune_decrypter_prime.scoring.rune_scorer_impl import RuneScorer
     from rune_decrypter_prime.scoring.torch_rune_scorer import RuneScorerTorch
 
