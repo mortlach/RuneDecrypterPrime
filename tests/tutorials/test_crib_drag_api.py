@@ -1,7 +1,6 @@
 """Crib-drag style integration tests for RunAPI."""
 from __future__ import annotations
 
-import math
 import numpy as np
 import pytest
 
@@ -14,10 +13,7 @@ from rune_decrypter_prime.api import (
     cipher_instance,
 )
 from rune_decrypter_prime.utils.runeglish import Runeglish
-from rune_decrypter_prime.ciphers import registry as cipher_registry
 from tests.tutorials._utils import plaintext_match_rate
-from tests._helpers.hill_cases import hill_encrypt
-from tests._helpers.permutation_cases import encode_text
 
 pytestmark = pytest.mark.tier_a
 
@@ -71,24 +67,6 @@ def _encrypt_vigenere(text: str, direction: Direction, key: np.ndarray):
     return ct_arr, np.asarray(pt_idx, dtype=np.uint8), wli
 
 
-def _derive_hill_seed_from_crib(ct_idx: np.ndarray, pt_idx: np.ndarray) -> np.ndarray:
-    ct = np.asarray(ct_idx, dtype=np.int64)
-    pt = np.asarray(pt_idx, dtype=np.int64)
-    mod = 29
-    length = min(ct.size, pt.size)
-    for start in range(0, length - 3, 2):
-        P = pt[start : start + 4].reshape(2, 2)
-        C = ct[start : start + 4].reshape(2, 2)
-        det = int((P[0, 0] * P[1, 1] - P[0, 1] * P[1, 0]) % mod)
-        if math.gcd(det, mod) != 1:
-            continue
-        inv_det = pow(det, -1, mod)
-        adj = np.array([[P[1, 1], -P[0, 1]], [-P[1, 0], P[0, 0]]], dtype=np.int64)
-        p_inv = (inv_det * adj) % mod
-        key = (C @ p_inv) % mod
-        return key.astype(np.uint8)
-    raise ValueError("Could not derive Hill seed from crib")
-
 
 def test_runapi_accepts_crib_seeded_keys_for_vigenere():
     """
@@ -129,39 +107,6 @@ def test_runapi_accepts_crib_seeded_keys_for_vigenere():
     assert match >= 0.99
 
 
-def test_hill_seeded_runapi_from_crib():
-    """
-    Extract a Hill 2x2 matrix seed from a plaintext crib and ensure GA refines it.
-    """
-    if not cipher_registry.has("hill"):
-        pytest.skip("Hill cipher wrapper not registered yet")
-    direction = Direction.LTR
-    plaintext = "hill crib dragging seeds the solver search space"
-    pt_idx, wli = encode_text(plaintext, direction)
-
-    true_key = np.array([[3, 5], [7, 11]], dtype=np.uint8)
-    ct_idx = hill_encrypt(pt_idx, true_key)
-    seed_key = _derive_hill_seed_from_crib(ct_idx, pt_idx)
-
-    solver = SolverSpec.ga(
-        pop_size=20,
-        generations=18,
-        elite_frac=0.2,
-        mut_prob=0.15,
-        seed=5150,
-        progress_pct=1,
-    )
-
-    sol = RunAPI.run(
-        text=ct_idx,
-        cipher=by_name.cipher("hill"),
-        key=KeySpec.matrix2x2(),
-        solver=solver,
-        encoding_dir=direction,
-        wli_data=wli,
-        telemetry_on=False,
-        initial_keys=[seed_key.reshape(-1).tolist()],
-    )
-
-    match = plaintext_match_rate(sol.plaintext_idx, pt_idx)
-    assert match >= 0.95, f"Hill crib seed expected >=95% match, got {match:.3f}"
+def test_hill_crib_drag_route_is_not_public_v1():
+    with pytest.raises(NotImplementedError, match="not a supported RDP V1"):
+        by_name.cipher("hill")

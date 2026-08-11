@@ -296,10 +296,29 @@ class RuneScorerTorch(BaseScorer):
         if self.se_mode is SeMode.WISE:
             raise ValueError("WISE mode is not supported yet; use NOSE.")
 
-        # weights: legacy pair or dict maps
-        self.weights = tuple(_cfg_get(scorer_cfg, "weights", (0.5, 0.5)))
+        # weights: canonical ScoringConfig path, with compatibility for direct
+        # lower-level mapping callers retained by constructing only the weight slice.
+        self.weights = tuple(_cfg_get(scorer_cfg, "weights", (0.5, 0.5)) or (0.5, 0.5))
         self.char_weights = _cfg_get(scorer_cfg, "char_weights", None)
         self.wli_weights  = _cfg_get(scorer_cfg, "wli_weights", None)
+        effective_weights = getattr(scorer_cfg, "effective_lm_model_weights", None)
+        weight_contract = getattr(scorer_cfg, "weight_contract", None)
+        if callable(effective_weights) and callable(weight_contract):
+            self._effective_model_weights = effective_weights
+            self._weight_contract = weight_contract()
+        else:
+            from rune_decrypter_prime.core.config.scoring import ScoringConfig
+            weight_cfg = ScoringConfig(
+                include_char=self.include_char,
+                use_word_breaks=self.use_wli,
+                n_char=self.n_char,
+                n_wli=self.n_wli,
+                weights=_cfg_get(scorer_cfg, "weights", None),
+                char_weights=_cfg_get(scorer_cfg, "char_weights", None),
+                wli_weights=_cfg_get(scorer_cfg, "wli_weights", None),
+            )
+            self._effective_model_weights = weight_cfg.effective_lm_model_weights
+            self._weight_contract = weight_cfg.weight_contract()
 
         # objective intake supports ObjectiveSpec | dict | str | None
         from rune_decrypter_prime.core.types import ObjectiveFamily, Stat, ObjectiveSpec
@@ -357,6 +376,7 @@ class RuneScorerTorch(BaseScorer):
             "avg_window_policy": self._avg_window_policy.value,
             "win_configured": int(self.win),
             "win_effective": win_effective,
+            "lm_weights": self._weight_contract,
         }
         self._last_stats: Dict[str, Any] = {}
 
@@ -815,23 +835,10 @@ class RuneScorerTorch(BaseScorer):
 
     # ---------- model set ----------
     def _active_models(self, use_wli_now: bool) -> List[Tuple[str, int, float]]:
-        models: List[Tuple[str, int, float]] = []
-        if (self.char_weights or self.wli_weights):
-            if self.include_char and isinstance(self.char_weights, Mapping):
-                for n, w in self.char_weights.items():
-                    if float(w) > 0: models.append(("char", int(n), float(w)))
-            if use_wli_now and isinstance(self.wli_weights, Mapping):
-                for n, w in self.wli_weights.items():
-                    if float(w) > 0: models.append(("wli", int(n), float(w)))
-        else:
-            w_char, w_wli = self.weights if self.weights else (0.5, 0.5)
-            if not self.include_char: w_char = 0.0
-            if not use_wli_now:       w_wli = 0.0
-            s = (w_char + w_wli) or 1.0
-            if self.include_char: models.append(("char", int(self.n_char), float(w_char / s)))
-            if use_wli_now:       models.append(("wli",  int(self.n_wli),  float(w_wli / s)))
-        tot = sum(w for _, _, w in models) or 1.0
-        return [(c, n, w / tot) for (c, n, w) in models]
+        return [
+            (channel, int(n), float(weight))
+            for channel, n, weight in self._effective_model_weights(use_wli=use_wli_now)
+        ]
 
     def _objective_id(
         self,

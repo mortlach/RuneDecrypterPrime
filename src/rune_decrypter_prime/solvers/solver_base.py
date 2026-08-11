@@ -495,11 +495,21 @@ class SolverBase:
                         continue
                 return sorted(set(out))
 
-            char_ns = _positive_keys(getattr(s_cfg, "char_weights", None) if s_cfg is not None else None)
-            wli_ns = _positive_keys(getattr(s_cfg, "wli_weights", None) if s_cfg is not None else None)
             wb = bool(getattr(s_cfg, "use_word_breaks", False)) if s_cfg is not None else False
-            char_w = getattr(s_cfg, "char_weights", None) if s_cfg is not None else None
-            wli_w = getattr(s_cfg, "wli_weights", None) if s_cfg is not None else None
+            effective_weights = getattr(s_cfg, "effective_lm_model_weights", None) if s_cfg is not None else None
+            if callable(effective_weights):
+                char_w: dict[int, float] = {}
+                wli_w: dict[int, float] = {}
+                for channel, n, weight in effective_weights(use_wli=wb):
+                    target = char_w if channel == "char" else wli_w
+                    target[int(n)] = float(weight)
+                char_ns = sorted(char_w)
+                wli_ns = sorted(wli_w)
+            else:
+                char_w = getattr(s_cfg, "char_weights", None) if s_cfg is not None else None
+                wli_w = getattr(s_cfg, "wli_weights", None) if s_cfg is not None else None
+                char_ns = _positive_keys(char_w)
+                wli_ns = _positive_keys(wli_w)
 
             def _fmt_weights(d: Any) -> str:
                 if not isinstance(d, dict) or not d:

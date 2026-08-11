@@ -209,7 +209,9 @@ def validate_structured_key(
 def _scoring_values(contract: Mapping[str, Any]) -> dict[str, Any]:
     if bool(contract.get("hard_crib", False)):
         raise ValueError("WP4 does not permit a hard crib")
-    return {
+    char_weights = {int(k): float(v) for k, v in contract["char_weights"].items()}
+    wli_weights = {int(k): float(v) for k, v in contract["wli_weights"].items()}
+    values = {
         "model_root": contract["model_root"],
         "smoothing": str(contract["smoothing"]),
         "alpha": float(contract["alpha"]),
@@ -222,10 +224,9 @@ def _scoring_values(contract: Mapping[str, Any]) -> dict[str, Any]:
         "win": int(contract["win"]),
         "stride": int(contract["stride"]),
         "se_mode": str(contract["se_mode"]),
-        "weights": tuple(float(v) for v in contract["weights"]),
         "maximize": bool(contract["maximize"]),
-        "char_weights": {int(k): float(v) for k, v in contract["char_weights"].items()},
-        "wli_weights": {int(k): float(v) for k, v in contract["wli_weights"].items()},
+        "char_weights": char_weights,
+        "wli_weights": wli_weights,
         "avg_window_policy": str(contract["avg_window_policy"]),
         "impl": str(contract["impl"]),
         "compute_dtype": str(contract["compute_dtype"]),
@@ -239,6 +240,13 @@ def _scoring_values(contract: Mapping[str, Any]) -> dict[str, Any]:
         "span_hamming_enabled": bool(contract["span_hamming_enabled"]),
         "word_ngram_judge_enabled": bool(contract["word_ngram_judge_enabled"]),
     }
+    # These frozen development contracts predate A3 and record both an aggregate
+    # pair and non-empty per-order maps. The maps were always the effective
+    # runtime weights, so the adapter preserves that behaviour by omitting the
+    # stale aggregate pair when materialising strict ScoringConfig kwargs.
+    if not char_weights and not wli_weights:
+        values["weights"] = tuple(float(v) for v in contract["weights"])
+    return values
 
 
 def scoring_kwargs(contract: Mapping[str, Any], direction_type: Any) -> dict[str, Any]:

@@ -171,6 +171,7 @@ class RuneScorer(BaseScorer):
         self._n_char: Optional[int] = scorer_cfg.n_char
         self._n_wli: Optional[int] = scorer_cfg.n_wli
         self._weights_pair: Optional[Tuple[float, float]] = scorer_cfg.weights
+        self._effective_model_weights = scorer_cfg.effective_lm_model_weights
 
         # Language-model runtime (LM tables + ECDF cache)
         rt_kwargs = dict(
@@ -504,6 +505,7 @@ class RuneScorer(BaseScorer):
             "avg_window_policy": self._avg_window_policy.value,
             "win_configured": win_cfg,
             "win_effective": win_effective,
+            "lm_weights": scorer_cfg.weight_contract(),
             "hamming_dictionary_policy": (
                 str(getattr(self._hamming_dictionary_policy, "value", self._hamming_dictionary_policy))
                 if self._hamming_dictionary_policy is not None
@@ -2242,35 +2244,10 @@ class RuneScorer(BaseScorer):
 
     # ---------------------------- model selection ----------------------------
     def _active_models(self) -> List[Tuple[Channel, int, float]]:
-        # Prefer per-order maps if any provided
-        have_maps = (self._char_weights is not None and len(self._char_weights) > 0) or (
-            self._wli_weights is not None and len(self._wli_weights) > 0
-        )
-        models: List[Tuple[Channel, int, float]] = []
-        if have_maps:
-            if self.include_char and self._char_weights:
-                for n, w in sorted({int(k): float(v) for k, v in self._char_weights.items() if float(v) > 0.0}.items()):
-                    models.append((Channel.CHAR, int(n), float(w)))
-            if self.use_word_breaks and self._wli_weights:
-                for n, w in sorted({int(k): float(v) for k, v in self._wli_weights.items() if float(v) > 0.0}.items()):
-                    models.append((Channel.WLI, int(n), float(w)))
-        else:
-            # Legacy single-order + pair weights
-            w_char, w_wli = self._weights_pair or (0.5, 0.5)
-            if self.include_char:
-                if self._n_char is None:
-                    raise ValueError("n_char must be set when include_char=True and using legacy weights")
-                models.append((Channel.CHAR, int(self._n_char), float(w_char)))
-            if self.use_word_breaks:
-                if self._n_wli is None:
-                    raise ValueError("n_wli must be set when use_word_breaks=True and using legacy weights")
-                models.append((Channel.WLI, int(self._n_wli), float(w_wli)))
-
-        # L1-normalise weights
-        s = sum(max(0.0, w) for _, _, w in models)
-        if s <= 0.0:
-            raise ValueError("No active models; check weights and include/use flags")
-        return [(ch, n, (w / s)) for ch, n, w in models]
+        return [
+            (Channel.CHAR if channel == "char" else Channel.WLI, int(n), float(weight))
+            for channel, n, weight in self._effective_model_weights(use_wli=self.use_word_breaks)
+        ]
 
     def _requires_wli(self) -> bool:
         if not self.use_word_breaks:

@@ -251,6 +251,11 @@ def build_replay_evaluator(context: CandidateReplayContext):
         fixed_chars=fixed_chars,
     )
     scoring_values = _portable_json(scoring_contract)
+    if scoring_values.get("char_weights") or scoring_values.get("wli_weights"):
+        # Historical two-period evidence records both aggregate family weights
+        # and the per-order maps that were actually effective. Preserve the
+        # recorded payload, but materialise only the maps into strict A3 config.
+        scoring_values.pop("weights", None)
     scoring_values["encoding_dir"] = direction
     scoring_values["hard_crib"] = hard_crib
     scoring_values.pop("encoding_direction", None)

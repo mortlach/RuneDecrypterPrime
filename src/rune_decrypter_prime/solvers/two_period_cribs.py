@@ -426,7 +426,6 @@ def _profile(profile_id: str, hard_crib: HardCribConfig, direction: Direction) -
         n_wli=max(wli_orders, default=1),
         char_weights={} if not char_orders else {order: char_total / len(char_orders) for order in char_orders},
         wli_weights={} if not wli_orders else {order: wli_total / len(wli_orders) for order in wli_orders},
-        weights=(char_total, wli_total),
         encoding_dir=direction,
         hard_crib=hard_crib,
     )
@@ -434,6 +433,11 @@ def _profile(profile_id: str, hard_crib: HardCribConfig, direction: Direction) -
 
 def profile_contract_hash(profile_id: str) -> str:
     cfg = _profile(profile_id, HardCribConfig(enabled=False), Direction.LTR)
+    effective = cfg.effective_lm_model_weights()
+    effective_pair = (
+        float(sum(weight for channel, _n, weight in effective if channel == "char")),
+        float(sum(weight for channel, _n, weight in effective if channel == "wli")),
+    )
     payload = {
         "profile": profile_id,
         "include_char": cfg.include_char,
@@ -442,7 +446,10 @@ def profile_contract_hash(profile_id: str) -> str:
         "n_wli": cfg.n_wli,
         "char_weights": cfg.char_weights,
         "wli_weights": cfg.wli_weights,
-        "weights": cfg.weights,
+        # A2 profile identity was defined by the effective aggregate channel
+        # totals, even when per-order maps supplied them. Preserve that stable
+        # contract while ScoringConfig keeps requested and derived fields separate.
+        "weights": effective_pair,
     }
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")

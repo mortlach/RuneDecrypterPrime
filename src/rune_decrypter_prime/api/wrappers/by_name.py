@@ -1,14 +1,141 @@
 from __future__ import annotations
 from typing import Tuple, Dict, Callable, Any
+from numbers import Integral
 
 # Only import for type hints to avoid circular import at runtime
+def _wrapper_int(value: Any, field: str) -> int:
+    if isinstance(value, bool):
+        raise TypeError(f"{field} must be an integer, not bool")
+    if isinstance(value, Integral):
+        return int(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if text and (text.isdigit() or (text[0] in "+-" and text[1:].isdigit())):
+            return int(text)
+    raise TypeError(f"{field} must be an integer")
+
+
 def _pull_N(kwargs: dict, default: int = 29) -> int:
-    """Prefer explicit 'alphabet_size' or 'N' if provided by caller; otherwise default to 29."""
-    if "alphabet_size" in kwargs and kwargs["alphabet_size"] is not None:
-        return int(kwargs["alphabet_size"])
-    if "N" in kwargs and kwargs["N"] is not None:
-        return int(kwargs["N"])
-    return default
+    """Resolve the canonical alphabet-size aliases after conflict validation."""
+    alphabet = kwargs.get("alphabet_size")
+    legacy = kwargs.get("N")
+    if alphabet is not None and legacy is not None:
+        if _wrapper_int(alphabet, "alphabet_size") != _wrapper_int(legacy, "N"):
+            raise ValueError("conflicting wrapper aliases: alphabet_size and N")
+    value = alphabet if alphabet is not None else legacy
+    return default if value is None else _wrapper_int(value, "alphabet_size")
+
+
+_SCHEDULED_EXTRA_FIELDS = {
+    "degeneracy", "per_pos_limit", "resolver_limit", "lookup",
+    "alternating_start", "a_start", "b_start", "a_end", "b_end",
+}
+
+_WRAPPER_ALLOWED_FIELDS = {
+    "vigenere": {"key_len", "default_key", "N", "alphabet_size", "resolver_limit"},
+    "caesar": {"key_len", "default_key", "N", "alphabet_size", "resolver_limit"},
+    "affine": {"key_len", "default_key", "degeneracy", "resolver", "per_pos_limit", "resolver_limit", "N", "alphabet_size"},
+    "xor-mod": {"key_len", "default_key", "degeneracy", "resolver", "per_pos_limit", "resolver_limit", "N", "alphabet_size"},
+    "beaufort": {"key_len", "default_key", "degeneracy", "resolver", "per_pos_limit", "resolver_limit", "N", "alphabet_size"},
+    "variant-vigenere": {"key_len", "default_key", "degeneracy", "resolver", "per_pos_limit", "resolver_limit", "N", "alphabet_size"},
+    "columnar": {"key_len", "key_length", "cols", "default_key"},
+    "railfence": {"rails", "min_rails", "max_rails", "default_key"},
+    "autokey": {"seed_len", "alphabet_size", "N", "default_key"},
+    "route": {"cols", "default_key", "N", "alphabet_size", "resolver_limit"},
+    "double_transposition": {"key_len1", "key_len2", "default_key", "N", "alphabet_size", "resolver_limit"},
+    "blockperm": {"block_size", "default_key", "N", "alphabet_size", "resolver_limit"},
+    "foursquare": {"default_key", "N", "alphabet_size", "resolver_limit"},
+    "mono": {"key_len", "default_key", "N", "alphabet_size"},
+    "substitution": {"key_len", "default_key", "N", "alphabet_size"},
+    "periodic_substitution": {"period", "alphabet_size", "N", "default_key"},
+    "periodic_columnar": {"period", "columns", "cols", "order", "alphabet_size", "N", "default_key"},
+    "scheduled_stream_lookup": {"streams", "schedule", "operation", "mask", "alphabet_size", "N", "default_key", *_SCHEDULED_EXTRA_FIELDS},
+    "periodic_plus_sequence": {"period", "sequence", "alphabet_size", "N", "default_key", *_SCHEDULED_EXTRA_FIELDS},
+    "periodic_plus_primes": {"period", "prime_offset", "alphabet_size", "N", "default_key", *_SCHEDULED_EXTRA_FIELDS},
+    "two_period_vigenere": {"period_a", "period_b", "alphabet_size", "N", "schedule", "mask", "default_key", *_SCHEDULED_EXTRA_FIELDS},
+    "two_period_arithmetic": {"period_a", "period_b", "alphabet_size", "N", "operation", "schedule", "mask", "default_key", *_SCHEDULED_EXTRA_FIELDS},
+}
+
+_UNSUPPORTED_V1_WRAPPERS = {
+    "hill": "Hill is not a supported RDP V1 production wrapper",
+}
+
+
+_WRAPPER_INTEGER_FIELDS = {
+    "N", "alphabet_size", "key_len", "key_length", "cols",
+    "rails", "min_rails", "max_rails", "seed_len",
+    "key_len1", "key_len2", "block_size", "period", "columns",
+    "per_pos_limit", "resolver_limit", "prime_offset", "period_a", "period_b",
+    "a_start", "b_start", "a_end", "b_end",
+}
+
+_WRAPPER_POSITIVE_FIELDS = {
+    "key_len", "key_length", "cols", "rails", "min_rails", "max_rails",
+    "seed_len", "key_len1", "key_len2", "block_size", "period", "columns",
+    "per_pos_limit", "resolver_limit", "period_a", "period_b",
+}
+
+
+def _normalise_wrapper_kwargs(name: str, kwargs: dict[str, Any]) -> dict[str, Any]:
+    out = dict(kwargs)
+    allowed = _WRAPPER_ALLOWED_FIELDS.get(name)
+    if allowed is None:
+        return out
+    unknown = sorted(set(out) - allowed)
+    if unknown:
+        raise TypeError(f"{name} wrapper does not accept option(s): {unknown}")
+
+    for field in sorted(set(out) & _WRAPPER_INTEGER_FIELDS):
+        if out[field] is not None:
+            out[field] = _wrapper_int(out[field], f"{name}.{field}")
+    for field in sorted(set(out) & _WRAPPER_POSITIVE_FIELDS):
+        if out[field] is not None and out[field] <= 0:
+            raise ValueError(f"{name}.{field} must be > 0")
+    if "default_key" in out and not isinstance(out["default_key"], bool):
+        raise TypeError(f"{name}.default_key must be bool")
+
+    if "N" in out and "alphabet_size" in out:
+        if out["N"] is not None and out["alphabet_size"] is not None and out["N"] != out["alphabet_size"]:
+            raise ValueError("conflicting wrapper aliases: N and alphabet_size")
+        if out.get("alphabet_size") is None:
+            out["alphabet_size"] = out.get("N")
+        out.pop("N", None)
+    elif "N" in out:
+        out["alphabet_size"] = out.pop("N")
+
+    if name == "caesar" and out.get("key_len") not in (None, 1):
+        raise ValueError("caesar.key_len must be 1 when provided")
+    if name == "railfence":
+        rails = out.get("rails")
+        min_rails = out.get("min_rails")
+        max_rails = out.get("max_rails")
+        if any(value is not None and value < 2 for value in (rails, min_rails, max_rails)):
+            raise ValueError("railfence rails/min_rails/max_rails must be >= 2")
+        if rails is not None:
+            conflicts = [
+                (field, value)
+                for field, value in (("min_rails", min_rails), ("max_rails", max_rails))
+                if value is not None and value != rails
+            ]
+            if conflicts:
+                raise ValueError("conflicting railfence fixed rails and min/max bounds")
+        elif min_rails is not None and max_rails is not None and min_rails > max_rails:
+            raise ValueError("railfence min_rails cannot exceed max_rails")
+
+    if name == "columnar":
+        supplied = [(field, out[field]) for field in ("key_len", "key_length", "cols") if out.get(field) is not None]
+        if supplied:
+            values = {value for _field, value in supplied}
+            if len(values) > 1:
+                raise ValueError("conflicting columnar aliases: key_len/key_length/cols")
+            value = supplied[0][1]
+            out.pop("key_len", None); out.pop("cols", None)
+            out["key_length"] = value
+    if name == "periodic_columnar" and out.get("columns") is not None and out.get("cols") is not None:
+        if out["columns"] != out["cols"]:
+            raise ValueError("conflicting periodic_columnar aliases: columns and cols")
+        out.pop("cols", None)
+    return out
 
 
 def _make_vigenere_like_spec(**kwargs):
@@ -98,9 +225,11 @@ class by_name:
     @classmethod
     def _get(cls, name: str, **kwargs) -> Tuple["CipherSpec", "KeySpec | tuple[KeySpec, KeySpec] | None"]:
         key = name.lower().strip()
+        if key in _UNSUPPORTED_V1_WRAPPERS:
+            raise NotImplementedError(_UNSUPPORTED_V1_WRAPPERS[key])
         if key not in cls._REG:
             raise KeyError(f"Unknown cipher '{name}'. Available: {sorted(cls._REG)}")
-        return cls._REG[key](**kwargs)
+        return cls._REG[key](**_normalise_wrapper_kwargs(key, kwargs))
 
     # ---------------- handlers ---------------- #
     # IMPORTANT: Lazy-import API spec types inside handlers to avoid circular imports.
@@ -314,7 +443,7 @@ class by_name:
             per_pos_limit=29, resolver_limit=resolver_limit,
         )
         #key = KeySpec.permutation(cols) if (default_key and cols and cols > 0) else None
-        key = KeySpec.permutation(len=cols) if (default_key and cols and cols > 0) else None
+        key = KeySpec.permutation(len=int(cols)) if (default_key and cols and cols > 0) else None
         return spec, key
 
     @staticmethod
@@ -335,7 +464,7 @@ class by_name:
             per_pos_limit=29, resolver_limit=resolver_limit,
         )
         if default_key and key_len1 and key_len2:
-            return spec, (KeySpec.permutation(key_len1), KeySpec.permutation(key_len2))
+            return spec, (KeySpec.permutation(len=int(key_len1)), KeySpec.permutation(len=int(key_len2)))
         return spec, None
 
     @staticmethod
@@ -355,7 +484,7 @@ class by_name:
             per_pos_limit=29, resolver_limit=resolver_limit,
         )
         #key = KeySpec.permutation(block_size) if (default_key and block_size and block_size > 0) else None
-        key = KeySpec.permutation(len=block_size) if (default_key and block_size and block_size > 0) else None
+        key = KeySpec.permutation(len=int(block_size)) if (default_key and block_size and block_size > 0) else None
         return spec, key
 
     @staticmethod
@@ -380,7 +509,7 @@ class by_name:
 
     @staticmethod
     def _columnar(
-        *, key_len: int | None = None, key_length: int | None = None,
+        *, key_len: int | None = None, key_length: int | None = None, cols: int | None = None,
         default_key: bool = False, **kwargs: Any
     ):
         """
@@ -392,7 +521,7 @@ class by_name:
         from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
 
         spec = CipherSpec._wrapper(name="columnar", core_name="columnar")
-        cols = key_length if key_length else key_len
+        cols = key_length if key_length is not None else (key_len if key_len is not None else cols)
         if cols is not None:
             cols = int(cols)
             if cols > 0:
@@ -411,11 +540,10 @@ class by_name:
         UX wrapper that targets the core 'substitution' cipher.
         """
         from rune_decrypter_prime.api.specs import CipherSpec, KeySpec  # lazy
-        # Reuse the generic wrapper hook just like _columnar does
-        spec = CipherSpec._wrapper(name="substitution", core_name="substitution")
+        N = _pull_N(kwargs)
+        spec = CipherSpec._wrapper(name="substitution", core_name="substitution", N=N)
         # For mono, a “key” is a permutation of the alphabet (length = N)
         if default_key:
-            N = _pull_N(kwargs)
             L = key_len if (key_len and key_len > 0) else N
             return spec, KeySpec.permutation(len=L)
         return spec, None
@@ -570,7 +698,11 @@ class by_name:
             raise ValueError("periodic_plus_sequence requires sequence=[...]")
         streams = [
             {"name": "A", "kind": "periodic", "period": int(period)},
-            {"name": "S", "kind": "sequence", "values": [int(v) for v in sequence]},
+            {
+                "name": "S",
+                "kind": "sequence",
+                "values": [_wrapper_int(v, "periodic_plus_sequence.sequence") for v in sequence],
+            },
         ]
         return by_name._scheduled_stream_lookup(
             streams=streams,
@@ -652,7 +784,6 @@ class by_name:
         "substitution": _mono.__func__,
         "periodic_substitution": _periodic_substitution.__func__,
         "periodic_columnar": _periodic_columnar.__func__,
-        "hill": _hill.__func__,
         "scheduled_stream_lookup": _scheduled_stream_lookup.__func__,
         "periodic_plus_sequence": _periodic_plus_sequence.__func__,
         "periodic_plus_primes": _periodic_plus_primes.__func__,

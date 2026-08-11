@@ -21,6 +21,7 @@ from rune_decrypter_prime.solvers.beam import BeamSolver
 from rune_decrypter_prime.solvers.ga import GASolver
 from rune_decrypter_prime.solvers.sa import SASolver
 from rune_decrypter_prime.solvers.hybrid import HybridSolver
+from rune_decrypter_prime.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
 
 
 _SOLVER_TABLE: Dict[SolverName, Any] = {
@@ -28,6 +29,7 @@ _SOLVER_TABLE: Dict[SolverName, Any] = {
     SolverName.GA: GASolver,
     SolverName.SA: SASolver,
     SolverName.HYBRID: HybridSolver,
+    SolverName.KAEDING: KaedingPeriodicStructuredSolver,
 }
 
 

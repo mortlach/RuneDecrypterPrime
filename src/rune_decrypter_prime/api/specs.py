@@ -3,6 +3,8 @@ import dataclasses
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Literal, Any, Dict
+import json
+from numbers import Integral
 
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Optional, Tuple, Union, Iterable, List, Sequence
@@ -19,6 +21,40 @@ from rune_decrypter_prime.core.types import Device, KEY_DTYPE
 # Local helpers
 # Ensure generic cipher is registered (side-effect registration of user_map2/3/lookup)
 import rune_decrypter_prime.ciphers.generic_map_cipher  # noqa: F401
+
+def _strict_int(value: Any, field: str) -> int:
+    if isinstance(value, bool):
+        raise TypeError(f"{field} must be an integer, not bool")
+    if isinstance(value, Integral):
+        return int(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if text and (text.isdigit() or (text[0] in "+-" and text[1:].isdigit())):
+            return int(text)
+    raise TypeError(f"{field} must be an integer")
+
+
+def _json_safe(value: Any, field: str) -> Any:
+    """Return a JSON-portable copy or fail without stringifying unknown objects."""
+    try:
+        encoded = json.dumps(value)
+        return json.loads(encoded)
+    except (TypeError, ValueError) as exc:
+        raise TypeError(f"{field} must contain only JSON-portable values") from exc
+
+
+def _strict_device(value: Any) -> Device:
+    if isinstance(value, Device):
+        return value
+    if not isinstance(value, str):
+        raise TypeError("CipherSpec.device must be Device or a supported device string")
+    key = value.strip().lower()
+    if key in {"cpu", "torch"}:
+        return Device.CPU
+    if key == "gpu" or key.startswith("cuda"):
+        return Device.CUDA
+    raise ValueError(f"unsupported CipherSpec.device {value!r}")
+
 
 # ------------------------------- CipherSpec -------------------------------
 @dataclass(slots=True)
@@ -51,10 +87,65 @@ class CipherSpec:
 
     # wrapper routing
     wrapper_core: Optional[str] = None
-    device: Optional[str, Device] = Device.CPU
+    device: str | Device | None = Device.CPU
 
     # misc
     extra: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name.strip():
+            raise ValueError("CipherSpec.name must be a non-empty string")
+        self.name = self.name.strip()
+        self.N = _strict_int(self.N, "CipherSpec.N")
+        if self.N <= 1:
+            raise ValueError("CipherSpec.N must be >= 2")
+
+        self.kind = str(self.kind or "").strip().lower()
+        if self.kind not in {"wrapper", "user_map2", "user_map3", "lookup"}:
+            raise ValueError(f"unsupported CipherSpec.kind {self.kind!r}")
+        self.degeneracy = str(self.degeneracy or "").strip().lower()
+        if self.degeneracy not in {"allow", "forbid"}:
+            raise ValueError("CipherSpec.degeneracy must be 'allow' or 'forbid'")
+        self.resolver = str(self.resolver or "").strip().lower()
+        if self.resolver not in {"first", "expand_beam"}:
+            raise ValueError("CipherSpec.resolver must be 'first' or 'expand_beam'")
+        self.per_pos_limit = _strict_int(self.per_pos_limit, "CipherSpec.per_pos_limit")
+        self.resolver_limit = _strict_int(self.resolver_limit, "CipherSpec.resolver_limit")
+        if self.per_pos_limit <= 0 or self.resolver_limit <= 0:
+            raise ValueError("CipherSpec per_pos_limit/resolver_limit must be positive")
+        if not isinstance(self.extra, dict):
+            raise TypeError("CipherSpec.extra must be a dict")
+        self.extra = dict(self.extra)
+        if self.device is not None:
+            self.device = _strict_device(self.device)
+
+        if self.kind == "wrapper":
+            if not isinstance(self.wrapper_core, str) or not self.wrapper_core.strip():
+                raise ValueError("wrapper CipherSpec requires a non-empty wrapper_core")
+            if self.function is not None or self.table is not None:
+                raise ValueError("wrapper CipherSpec cannot define function/table")
+            self.wrapper_core = self.wrapper_core.strip()
+        elif self.kind == "user_map2":
+            if not callable(self.function):
+                raise TypeError("user_map2 CipherSpec requires callable function(pt, k)")
+            if self.table is not None or self.wrapper_core is not None:
+                raise ValueError("user_map2 CipherSpec cannot define table/wrapper_core")
+        elif self.kind == "user_map3":
+            if not callable(self.function):
+                raise TypeError("user_map3 CipherSpec requires callable function(pt, k1, k2)")
+            if self.table is not None or self.wrapper_core is not None:
+                raise ValueError("user_map3 CipherSpec cannot define table/wrapper_core")
+        elif self.kind == "lookup":
+            if self.table is None:
+                raise ValueError("lookup CipherSpec requires a table")
+            if self.function is not None or self.wrapper_core is not None:
+                raise ValueError("lookup CipherSpec cannot define function/wrapper_core")
+            table = np.asarray(self.table, dtype=object)
+            if table.ndim != 2 or int(table.shape[0]) != self.N:
+                raise ValueError(
+                    f"lookup CipherSpec table must have N rows; got shape {table.shape}, "
+                    f"expected ({self.N}, ?)"
+                )
 
     @classmethod
     def user_map2(cls, function: Callable[[int, int], int], *,
@@ -106,10 +197,10 @@ class CipherSpec:
         alphabet_size: int = 29,
         name: Optional[str] = None,
     ) -> CipherSpec:
-        p = int(period)
+        p = _strict_int(period, "CipherSpec.periodic_substitution.period")
         if p <= 0:
             raise ValueError("period must be >= 1")
-        A = int(alphabet_size)
+        A = _strict_int(alphabet_size, "CipherSpec.periodic_substitution.alphabet_size")
         if A <= 0:
             raise ValueError("alphabet_size must be >= 1")
         spec = cls._wrapper(name=name or "periodic_substitution", core_name="periodic_substitution", N=A)
@@ -127,13 +218,13 @@ class CipherSpec:
         order: str = "sub_then_col",
         name: Optional[str] = None,
     ) -> CipherSpec:
-        p = int(period)
-        c = int(columns)
+        p = _strict_int(period, "CipherSpec.periodic_columnar.period")
+        c = _strict_int(columns, "CipherSpec.periodic_columnar.columns")
         if p <= 0:
             raise ValueError("period must be >= 1")
         if c <= 0:
             raise ValueError("columns must be >= 1")
-        A = int(alphabet_size)
+        A = _strict_int(alphabet_size, "CipherSpec.periodic_columnar.alphabet_size")
         if A <= 0:
             raise ValueError("alphabet_size must be >= 1")
         spec = cls._wrapper(name=name or "periodic_columnar", core_name="periodic_columnar", N=A)
@@ -172,31 +263,140 @@ class KeySpec:
     params: Dict[str, Any] = field(default_factory=dict)
     _align_offset: Optional[Union[int, Tuple[str, int, int]]] = None  # e.g., ("search",-3,3)
 
+    def __post_init__(self) -> None:
+        self.plan = str(self.plan or "").strip().lower()
+        allowed = {
+            "repeat", "repeat_range", "block", "otp", "const", "keystream",
+            "perm", "periodic_structured", "matrix2x2", "matrix", "affine", "scalar",
+        }
+        if self.plan not in allowed:
+            raise ValueError(f"unsupported KeySpec.plan {self.plan!r}")
+        if not isinstance(self.params, dict):
+            raise TypeError("KeySpec.params must be a dict")
+        self.params = dict(self.params)
+        allowed_params = {
+            "repeat": {"len"},
+            "repeat_range": {"min", "max"},
+            "block": {"size", "pattern"},
+            "otp": {"stream"},
+            "const": {"value"},
+            "keystream": {"fn", "params"},
+            "perm": {"len"},
+            "periodic_structured": {"period", "alphabet_size", "columns"},
+            "matrix2x2": {"A"},
+            "matrix": {"n", "A"},
+            "affine": {"A"},
+            "scalar": {"max_val"},
+        }[self.plan]
+        unknown = sorted(set(self.params) - allowed_params)
+        if unknown:
+            raise ValueError(f"KeySpec.{self.plan} does not accept parameter(s): {unknown}")
+
+        if self.plan in {"repeat", "perm"}:
+            length = _strict_int(self.params.get("len"), f"KeySpec.{self.plan}.len")
+            if length <= 0:
+                raise ValueError(f"KeySpec.{self.plan} requires len > 0")
+            self.params = {"len": length}
+        elif self.plan == "repeat_range":
+            low = _strict_int(self.params.get("min"), "KeySpec.repeat_range.min")
+            high = _strict_int(self.params.get("max"), "KeySpec.repeat_range.max")
+            if low <= 0 or high < low:
+                raise ValueError("KeySpec.repeat_range requires 0 < min <= max")
+            self.params = {"min": low, "max": high}
+        elif self.plan == "block":
+            size = _strict_int(self.params.get("size"), "KeySpec.block.size")
+            if size <= 0:
+                raise ValueError("KeySpec.block requires size > 0")
+            pattern = self.params.get("pattern")
+            if pattern is not None:
+                pattern = _json_safe(pattern, "KeySpec.block.pattern")
+            self.params = {"size": size, "pattern": pattern}
+        elif self.plan == "otp":
+            stream = self.params.get("stream")
+            if isinstance(stream, (str, bytes)) or stream is None:
+                raise TypeError("KeySpec.otp stream must be a sequence of integers")
+            values = [_strict_int(value, "KeySpec.otp.stream") for value in stream]
+            if not values:
+                raise ValueError("KeySpec.otp requires a non-empty stream")
+            self.params = {"stream": values}
+        elif self.plan == "const":
+            self.params = {"value": _strict_int(self.params.get("value"), "KeySpec.const.value")}
+        elif self.plan == "keystream":
+            fn = self.params.get("fn")
+            if not callable(fn):
+                raise TypeError("KeySpec.keystream requires callable fn")
+            runtime_params = self.params.get("params", {})
+            if not isinstance(runtime_params, dict):
+                raise TypeError("KeySpec.keystream params must be a dict")
+            _json_safe(runtime_params, "KeySpec.keystream params")
+            self.params = {"fn": fn, "params": dict(runtime_params)}
+        elif self.plan == "periodic_structured":
+            period = _strict_int(self.params.get("period"), "KeySpec.periodic_structured.period")
+            alphabet = _strict_int(self.params.get("alphabet_size", 29), "KeySpec.periodic_structured.alphabet_size")
+            if period <= 0 or alphabet <= 0:
+                raise ValueError("periodic_structured requires period/alphabet_size >= 1")
+            out = {"period": period, "alphabet_size": alphabet}
+            if self.params.get("columns") is not None:
+                columns = _strict_int(self.params.get("columns"), "KeySpec.periodic_structured.columns")
+                if columns <= 0:
+                    raise ValueError("periodic_structured columns must be >= 1")
+                out["columns"] = columns
+            self.params = out
+        elif self.plan in {"matrix2x2", "affine"}:
+            alphabet = _strict_int(self.params.get("A", 29), f"KeySpec.{self.plan}.A")
+            if alphabet <= 1:
+                raise ValueError(f"KeySpec.{self.plan} requires A >= 2")
+            self.params = {"A": alphabet}
+        elif self.plan == "matrix":
+            n = _strict_int(self.params.get("n"), "KeySpec.matrix.n")
+            alphabet = _strict_int(self.params.get("A", 29), "KeySpec.matrix.A")
+            if n < 2 or alphabet <= 1:
+                raise ValueError("KeySpec.matrix requires n >= 2 and A >= 2")
+            self.params = {"n": n, "A": alphabet}
+        elif self.plan == "scalar":
+            if self.params.get("max_val") is None:
+                self.params = {}
+            else:
+                max_val = _strict_int(self.params.get("max_val"), "KeySpec.scalar.max_val")
+                if max_val <= 0:
+                    raise ValueError("KeySpec.scalar max_val must be > 0")
+                self.params = {"max_val": max_val}
+
+        if self._align_offset is not None:
+            raw_align = self._align_offset
+            self._align_offset = None
+            self.align(offset=raw_align)
+
     # --- factories ---
     @classmethod
     def repeat(cls, *, len: int) -> KeySpec:
-        if int(len) <= 0:
+        length = _strict_int(len, "KeySpec.repeat.len")
+        if length <= 0:
             raise ValueError("KeySpec.repeat requires len > 0")
-        return cls(plan="repeat", params={"len": int(len)})
+        return cls(plan="repeat", params={"len": length})
 
     @classmethod
     def repeat_range(cls, *, min: int, max: int) -> KeySpec:
-        return cls(plan="repeat_range", params={"min": int(min), "max": int(max)})
+        return cls(plan="repeat_range", params={
+            "min": _strict_int(min, "KeySpec.repeat_range.min"),
+            "max": _strict_int(max, "KeySpec.repeat_range.max"),
+        })
 
     @classmethod
     def block(cls, *, size: int, pattern=None) -> KeySpec:
-        return cls(plan="block", params={"size": int(size), "pattern": pattern})
+        return cls(plan="block", params={"size": _strict_int(size, "KeySpec.block.size"), "pattern": pattern})
 
     @classmethod
     def otp(cls, *, stream: Iterable[int]) -> KeySpec:
-        arr = np.asarray(list(stream), dtype=KEY_DTYPE).reshape(-1)
-        if arr.size == 0:
+        values = [_strict_int(value, "KeySpec.otp.stream") for value in stream]
+        if not values:
             raise ValueError("KeySpec.otp requires a non-empty stream")
+        arr = np.asarray(values, dtype=KEY_DTYPE).reshape(-1)
         return cls(plan="otp", params={"stream": arr.tolist()})
 
     @classmethod
     def const(cls, *, value: int) -> KeySpec:
-        return cls(plan="const", params={"value": int(value)})
+        return cls(plan="const", params={"value": _strict_int(value, "KeySpec.const.value")})
 
     @classmethod
     def keystream(cls, *, fn: Callable[..., np.ndarray], params: Optional[Dict[str, Any]] = None) -> KeySpec:
@@ -204,9 +404,10 @@ class KeySpec:
 
     @classmethod
     def permutation(cls, *, len: int) -> KeySpec:
-        if int(len) <= 0:
+        length = _strict_int(len, "KeySpec.permutation.len")
+        if length <= 0:
             raise ValueError("KeySpec.permutation requires len > 0")
-        return cls(plan="perm", params={"len": int(len)})
+        return cls(plan="perm", params={"len": length})
 
     @classmethod
     def periodic_structured(
@@ -216,15 +417,15 @@ class KeySpec:
         alphabet_size: int = 29,
         columns: int | None = None,
     ) -> "KeySpec":
-        p = int(period)
+        p = _strict_int(period, "KeySpec.periodic_structured.period")
         if p <= 0:
             raise ValueError("period must be >= 1")
-        A = int(alphabet_size)
+        A = _strict_int(alphabet_size, "KeySpec.periodic_structured.alphabet_size")
         if A <= 0:
             raise ValueError("alphabet_size must be >= 1")
         params: Dict[str, Any] = {"period": p, "alphabet_size": A}
         if columns is not None:
-            c = int(columns)
+            c = _strict_int(columns, "KeySpec.periodic_structured.columns")
             if c <= 0:
                 raise ValueError("columns must be >= 1")
             params["columns"] = c
@@ -251,7 +452,7 @@ class KeySpec:
 
     @classmethod
     def matrix2x2(cls, *, A: int = 29) -> KeySpec:
-        return cls(plan="matrix2x2", params={"A": int(A)})
+        return cls(plan="matrix2x2", params={"A": _strict_int(A, "KeySpec.matrix2x2.A")})
 
     @classmethod
     def matrix(cls, *, n: int, A: int = 29) -> "KeySpec":
@@ -259,16 +460,16 @@ class KeySpec:
         Square matrix key of size n×n over Z_A, flattened row-major.
         Key length implied downstream = n*n.
         """
-        n = int(n)
+        n = _strict_int(n, "KeySpec.matrix.n")
         if n <= 1:
             raise ValueError("KeySpec.matrix requires n >= 2")
-        return cls(plan="matrix", params={"n": n, "A": int(A)})
+        return cls(plan="matrix", params={"n": n, "A": _strict_int(A, "KeySpec.matrix.A")})
 
 
 
     @classmethod
     def affine(cls, *, A: int = 29) -> KeySpec:
-        return cls(plan="affine", params={"A": int(A)})
+        return cls(plan="affine", params={"A": _strict_int(A, "KeySpec.affine.A")})
 
     @classmethod
     def scalar(cls, *, max_val: int | None = None) -> "KeySpec":
@@ -278,13 +479,27 @@ class KeySpec:
         """
         p = {}
         if max_val is not None:
-            p["max_val"] = int(max_val)
+            p["max_val"] = _strict_int(max_val, "KeySpec.scalar.max_val")
         return cls(plan="scalar", params=p)
 
 
     # --- modifiers ---
     def align(self, *, offset: Union[int, Tuple[str, int, int]]) -> KeySpec:
-        self._align_offset = offset
+        if isinstance(offset, bool):
+            raise TypeError("KeySpec.align offset cannot be bool")
+        if isinstance(offset, int):
+            self._align_offset = int(offset)
+            return self
+        if not isinstance(offset, (tuple, list)) or len(offset) != 3:
+            raise TypeError("KeySpec.align offset must be an integer or ('search', min, max)")
+        mode, low, high = offset
+        if str(mode).strip().lower() != "search":
+            raise ValueError("KeySpec.align tuple mode must be 'search'")
+        low_i = _strict_int(low, "KeySpec.align.min")
+        high_i = _strict_int(high, "KeySpec.align.max")
+        if low_i > high_i:
+            raise ValueError("KeySpec.align requires min <= max")
+        self._align_offset = ("search", low_i, high_i)
         return self
 
     # --- utils ---
@@ -294,10 +509,22 @@ class KeySpec:
         return None
 
     def to_telemetry(self) -> Dict[str, Any]:
-        t = {"plan": self.plan, **{k: v for k, v in self.params.items() if k != "stream"}}
+        t: Dict[str, Any] = {"plan": self.plan}
+        if self.plan == "keystream":
+            fn = self.params["fn"]
+            t["params"] = _json_safe(self.params.get("params", {}), "KeySpec.keystream params")
+            t["runtime_callable"] = {
+                "module": str(getattr(fn, "__module__", "") or ""),
+                "qualname": str(getattr(fn, "__qualname__", getattr(fn, "__name__", type(fn).__name__))),
+            }
+        else:
+            for key, value in self.params.items():
+                if key == "stream":
+                    continue
+                t[key] = _json_safe(value, f"KeySpec.{self.plan}.{key}")
         if self._align_offset is not None:
-            t["align"] = self._align_offset
-        return t
+            t["align"] = _json_safe(self._align_offset, "KeySpec.align")
+        return _json_safe(t, "KeySpec telemetry")
 
 
 # ------------------------------- SolverSpec -------------------------------

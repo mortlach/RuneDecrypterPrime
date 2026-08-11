@@ -63,11 +63,11 @@ class ScorerProfile:
             "use_word_breaks": bool(self.wli_orders),
             "n_char": max(self.char_orders, default=1),
             "n_wli": max(self.wli_orders, default=1),
+            # Preserve the historical aggregate pair in the scientific contract
+            # and retained evidence. Runtime adapters materialise the non-empty
+            # per-order maps and omit this redundant pair before strict
+            # ScoringConfig construction.
             "weights": [char_family, wli_family],
-            # RDP's current scorer globally normalises per-order maps and ignores
-            # ``weights`` when those maps are present. Encode family totals directly
-            # here so the campaign receives the declared effective weighting without
-            # altering the public scorer runtime.
             "char_weights": _equal_order_weights(self.char_orders, char_family),
             "wli_weights": _equal_order_weights(self.wli_orders, wli_family),
         })

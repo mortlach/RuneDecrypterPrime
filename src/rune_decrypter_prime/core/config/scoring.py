@@ -189,11 +189,11 @@ class ScoringConfig:
     win: int = 10
     stride: int = 1
     se_mode: SeMode = SeMode.NOSE
-    weights: Tuple[float, float] = (0.25, 0.75)   # (w_char, w_wli)
+    weights: Tuple[float, float] | None = None   # legacy explicit (w_char, w_wli)
     maximize: bool = True
     encoding_dir: Direction = Direction.LTR
-    char_weights: Dict[int, float] = field(default_factory=lambda: {2: 0.5})
-    wli_weights: Dict[int, float] = field(default_factory=lambda: {2: 0.5})
+    char_weights: Dict[int, float] | None = None
+    wli_weights: Dict[int, float] | None = None
     impl: Optional[ScorerImpl] = ScorerImpl.AUTO
     compute_dtype: FloatDType | Literal["float32", "float64"] = "float32"
     acc_dtype: FloatDType | Literal["float32", "float64"] = "float64"
@@ -437,8 +437,7 @@ class ScoringConfig:
         if self.stride <= 0:
             raise ValueError("stride must be >= 1")
 
-        self.char_weights = self._normalise_channel_weights(self.char_weights, 'char_weights')
-        self.wli_weights = self._normalise_channel_weights(self.wli_weights, 'wli_weights')
+        self._normalise_weight_intent()
         self.hard_crib = normalize_hard_crib_config(self.hard_crib)
 
         if not bool(self.maximize):
@@ -509,9 +508,32 @@ class ScoringConfig:
         )
         out["maximize"] = self.maximize
         out["encoding_dir"] = self.encoding_dir.value if isinstance(self.encoding_dir, Direction) else self.encoding_dir
-        out["weights"] = [float(v) for v in tuple(self.weights or ())]
-        out["char_weights"] = {str(int(k)): float(v) for k, v in dict(self.char_weights or {}).items()}
-        out["wli_weights"] = {str(int(k)): float(v) for k, v in dict(self.wli_weights or {}).items()}
+        # Preserve the caller's configuration mode so this durable payload can be
+        # passed back to ScoringConfig(**payload) without creating an artificial
+        # pair+map conflict from our normalised runtime state.
+        out.pop("weight_mode", None)
+        if self.weight_mode == "legacy_pair":
+            out["weights"] = [float(v) for v in tuple(self.weights or ())]
+            out["char_weights"] = (
+                {str(int(k)): float(v) for k, v in dict(self.char_weights or {}).items()}
+                if self.char_weights is not None else None
+            )
+            out["wli_weights"] = (
+                {str(int(k)): float(v) for k, v in dict(self.wli_weights or {}).items()}
+                if self.wli_weights is not None else None
+            )
+        elif self.weight_mode == "per_order":
+            out["weights"] = None
+            out["char_weights"] = {
+                str(int(k)): float(v) for k, v in dict(self.char_weights or {}).items()
+            }
+            out["wli_weights"] = {
+                str(int(k)): float(v) for k, v in dict(self.wli_weights or {}).items()
+            }
+        else:
+            out["weights"] = None
+            out["char_weights"] = None
+            out["wli_weights"] = None
         out["impl"] = self.impl.value if isinstance(self.impl, ScorerImpl) else self.impl
         out["compute_dtype"] = self.compute_dtype.value if isinstance(self.compute_dtype, FloatDType) else self.compute_dtype
         out["acc_dtype"] = self.acc_dtype.value if isinstance(self.acc_dtype, FloatDType) else self.acc_dtype
@@ -601,6 +623,135 @@ class ScoringConfig:
 
 
 
+    def _normalise_weight_intent(self) -> None:
+        raw_pair = self.weights
+        raw_char = self.char_weights
+        raw_wli = self.wli_weights
+        pair_explicit = raw_pair is not None
+        maps_supplied = raw_char is not None or raw_wli is not None
+        maps_have_weights = bool(raw_char) or bool(raw_wli)
+
+        if pair_explicit and maps_have_weights:
+            raise ValueError(
+                "ScoringConfig weights cannot be combined with non-empty "
+                "char_weights/wli_weights; choose legacy pair mode or per-order map mode"
+            )
+
+        if not pair_explicit and not maps_supplied:
+            # Preserve the pre-A3 *effective* default without rewriting the durable
+            # request fields. Generic dataclasses.asdict() must remain safe to feed
+            # back into ScoringConfig and therefore must not synthesize pair+maps.
+            self._weight_mode = "default"
+            self._effective_weights_pair = (0.5, 0.5)
+            self._effective_char_weights = {2: 0.5}
+            self._effective_wli_weights = {2: 0.5}
+        elif pair_explicit:
+            if isinstance(raw_pair, (str, bytes)) or not isinstance(raw_pair, (list, tuple)) or len(raw_pair) != 2:
+                raise TypeError("weights must be a two-value (char, wli) pair")
+            pair = tuple(float(value) for value in raw_pair)
+            if any(not math.isfinite(value) for value in pair):
+                raise ValueError("weights must contain finite numbers")
+            if any(value < 0.0 for value in pair) or sum(pair) <= 0.0:
+                raise ValueError("weights must be non-negative with a positive total")
+            self._weight_mode = "legacy_pair"
+            self.weights = pair
+            # Explicitly empty maps remain accepted as the legacy compatibility
+            # spelling, but None stays None so durable payloads preserve intent.
+            self.char_weights = (
+                self._normalise_channel_weights(raw_char, "char_weights")
+                if raw_char is not None else None
+            )
+            self.wli_weights = (
+                self._normalise_channel_weights(raw_wli, "wli_weights")
+                if raw_wli is not None else None
+            )
+            self._effective_weights_pair = pair
+            self._effective_char_weights = {}
+            self._effective_wli_weights = {}
+        else:
+            self._weight_mode = "per_order"
+            char_weights = self._normalise_channel_weights(raw_char, "char_weights")
+            wli_weights = self._normalise_channel_weights(raw_wli, "wli_weights")
+            char_total = sum(char_weights.values())
+            wli_total = sum(wli_weights.values())
+            if char_total + wli_total <= 0.0:
+                raise ValueError("per-order weights must contain at least one positive weight")
+            self.weights = None
+            self.char_weights = char_weights if raw_char is not None else None
+            self.wli_weights = wli_weights if raw_wli is not None else None
+            self._effective_weights_pair = (float(char_total), float(wli_total))
+            self._effective_char_weights = char_weights
+            self._effective_wli_weights = wli_weights
+
+        # Fail at configuration time when the chosen channels leave no active model.
+        self.effective_lm_model_weights()
+
+    @property
+    def weight_mode(self) -> str:
+        """Derived requested weight mode; excluded from dataclass constructor payloads."""
+        return self._weight_mode
+
+    def effective_lm_model_weights(
+        self,
+        *,
+        use_wli: bool | None = None,
+    ) -> tuple[tuple[str, int, float], ...]:
+        use_wli_now = bool(self.use_word_breaks if use_wli is None else use_wli)
+        models: list[tuple[str, int, float]] = []
+        if self.weight_mode in {"default", "per_order"}:
+            if self.include_char:
+                for n, weight in sorted(dict(self._effective_char_weights).items()):
+                    if float(weight) > 0.0:
+                        models.append(("char", int(n), float(weight)))
+            if use_wli_now:
+                for n, weight in sorted(dict(self._effective_wli_weights).items()):
+                    if float(weight) > 0.0:
+                        models.append(("wli", int(n), float(weight)))
+        else:
+            w_char, w_wli = tuple(self._effective_weights_pair)
+            if self.include_char and float(w_char) > 0.0:
+                if self.n_char is None or int(self.n_char) <= 0:
+                    raise ValueError("n_char must be positive in legacy pair mode")
+                models.append(("char", int(self.n_char), float(w_char)))
+            if use_wli_now and float(w_wli) > 0.0:
+                if self.n_wli is None or int(self.n_wli) <= 0:
+                    raise ValueError("n_wli must be positive in legacy pair mode")
+                models.append(("wli", int(self.n_wli), float(w_wli)))
+
+        total = sum(weight for _channel, _n, weight in models)
+        if total <= 0.0:
+            raise ValueError("No active language-model weights remain after channel selection")
+        return tuple((channel, n, weight / total) for channel, n, weight in models)
+
+    def weight_contract(self) -> Dict[str, Any]:
+        """Return a JSON-safe requested/effective language-model weight report.
+
+        This is reporting metadata, not constructor input. ``asdict()`` remains a
+        durable round-trippable configuration representation.
+        """
+        requested: Dict[str, Any]
+        if self.weight_mode == "legacy_pair":
+            requested = {"weights": [float(v) for v in tuple(self.weights or ())]}
+        elif self.weight_mode == "per_order":
+            requested = {
+                "char_weights": {
+                    str(int(k)): float(v) for k, v in dict(self.char_weights or {}).items()
+                },
+                "wli_weights": {
+                    str(int(k)): float(v) for k, v in dict(self.wli_weights or {}).items()
+                },
+            }
+        else:
+            requested = {}
+        return {
+            "mode": self.weight_mode,
+            "requested": requested,
+            "effective_lm_models": [
+                {"channel": channel, "n": int(n), "weight": float(weight)}
+                for channel, n, weight in self.effective_lm_model_weights()
+            ],
+        }
+
     @staticmethod
     def _normalise_channel_weights(weights: Any, field_name: str) -> Dict[int, float]:
         if weights in (None, {}):
@@ -636,6 +787,8 @@ class ScoringConfig:
                 raise TypeError(f"{field_name} values must be numeric weights") from exc
             if not math.isfinite(weight_val):
                 raise ValueError(f"{field_name} weights must be finite numbers")
+            if weight_val < 0.0:
+                raise ValueError(f"{field_name} weights must be non-negative")
 
             normalised[n_val] = weight_val
 

@@ -73,21 +73,25 @@ def define_cipher(
         raise ValueError("Provide exactly one of 'spec' or 'name'.")
 
     if name is not None:
-        spec_obj, default_key = by_name.cipher_with_key(name, **kwargs)
+        wrapper_kwargs = dict(kwargs)
+        if key_len is not None:
+            # ``key_len`` is a first-class convenience parameter of this builder.
+            # Forward it to named wrappers so wrapper-specific default key plans
+            # (for example, columnar permutation keys) are not silently lost.
+            wrapper_kwargs["key_len"] = key_len
+        spec_obj, default_key = by_name.cipher_with_key(name, **wrapper_kwargs)
         if key is not None:
             return spec_obj, key
         if default_key is not None:
             return spec_obj, default_key
-        L = int(key_len) if key_len is not None else 1
-        return spec_obj, KeySpec.repeat(len=L)
+        return spec_obj, KeySpec.repeat(len=1 if key_len is None else key_len)
 
     if spec is None:
         raise ValueError("define_cipher requires either 'spec' or 'name'.")
 
     if key is not None:
         return spec, key
-    L = int(key_len) if key_len is not None else 1
-    return spec, KeySpec.repeat(len=L)
+    return spec, KeySpec.repeat(len=1 if key_len is None else key_len)
 
 
 # ------------------------------ preview ------------------------------ #
