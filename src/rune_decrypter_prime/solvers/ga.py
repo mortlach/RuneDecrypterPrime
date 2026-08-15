@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Optional, Tuple
 import numpy as np
 
+from ..core.config.validation import strict_positive_int
 from ..core.types import SolverName, KEY_DTYPE
 from .solver_base import SolverBase
 
@@ -33,6 +34,7 @@ class GASolver(SolverBase):
         # Defaults (kept conservative and deterministic)
         params.setdefault("pop_size", 64)
         params.setdefault("generations", 200)
+        params["generations"] = strict_positive_int(params["generations"], "generations")
 
         # Selection / variation
         params.setdefault("tournament_k", 3)

@@ -5,6 +5,8 @@
 from __future__ import annotations
 from typing import Dict, Any, Optional
 
+from rune_decrypter_prime.core.config.validation import strict_positive_int
+
 
 # ----------------------------- optimiser ----------------------------- #
 
@@ -120,6 +122,15 @@ def resolve_optimizer_aliases(name: str, params: Dict[str, Any]) -> Dict[str, An
         allowed = ", ".join(sorted(keyset))
         bad = ", ".join(sorted(unknown))
         raise ValueError(f"Unknown {name} parameter(s): {bad}. Allowed: {allowed}")
+
+    budget_fields = {
+        "ga": ("generations",),
+        "sa": ("iters",),
+        "hybrid": ("generations", "iters"),
+    }
+    for field in budget_fields.get(name_key, ()):
+        if field in normalized:
+            normalized[field] = strict_positive_int(normalized[field], field)
 
     # Shallow copy to avoid caller mutation; values pass through unchanged
     return dict(normalized)

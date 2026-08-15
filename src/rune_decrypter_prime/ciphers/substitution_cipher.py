@@ -55,8 +55,16 @@ class SubstitutionCipher(CipherPipelineMixin):
         # Optional: expose key_length for the Problem's K resolution
         self.key_length = N
 
-    # ---- Decrypt (vectorized, batch-aware) ----
-    def decrypt(self, *, ciphertext: ArrayU8, key: ArrayU8, key_is_fwd: bool = False, **kwargs) -> ArrayU8:
+    # ---- Public orientation helpers; structure remains owned by the mixin ----
+    def decrypt(
+        self,
+        *,
+        ciphertext: ArrayU8,
+        key: ArrayU8,
+        key_is_fwd: bool = False,
+        interrupt_idx: ArrayU8 | None = None,
+        interrupt_sym: ArrayU8 | None = None,
+    ) -> ArrayU8:
         """
         Decrypt ciphertext with a permutation key.
 
@@ -75,44 +83,112 @@ class SubstitutionCipher(CipherPipelineMixin):
             If key is 1-D: [L] plaintext indices.
             If key is 2-D: [B,L] plaintext indices (row per key).
         """
-        ct = np.asarray(ciphertext, dtype=np.uint8).reshape(-1)
-        k  = np.asarray(key, dtype=np.uint8)
-
-        if k.ndim == 1:
-            if k.size != self.A:
-                raise ValueError(f"decrypt: expected key of length {self.A}, got {k.size}")
-            if key_is_fwd:
-                inv = np.empty_like(k)            # inv[ct] = pt
-                inv[k] = np.arange(self.A, dtype=np.uint8)
-                return inv[ct]
+        k = np.asarray(key, dtype=np.uint8)
+        single = k.ndim == 1
+        self._validate_substitution_key_shape(k, "decrypt")
+        if key_is_fwd:
+            inverse = np.empty_like(k)
+            alphabet = np.arange(self.A, dtype=np.uint8)
+            if single:
+                inverse[k] = alphabet
             else:
-                return k[ct]
+                for row in range(k.shape[0]):
+                    inverse[row, k[row]] = alphabet
+            k = inverse
 
-        elif k.ndim == 2:
-            if k.shape[1] != self.A:
-                raise ValueError(f"decrypt: expected key shape (*,{self.A}), got {k.shape}")
-            B = k.shape[0]
-            if key_is_fwd:
-                inv = np.empty_like(k)
-                ar = np.arange(self.A, dtype=np.uint8)
-                # vectorized row-wise inverse
-                for b in range(B):
-                    inv[b, k[b]] = ar
-                return inv[:, ct]  # [B,L]
-            else:
-                return k[:, ct]    # [B,L]
-
-        else:
-            raise ValueError("decrypt: key must be 1-D or 2-D array")
+        out = super().decrypt(
+            ciphertext=ciphertext,
+            key=k,
+            interrupt_idx=interrupt_idx,
+            interrupt_sym=interrupt_sym,
+        )
+        return out[0] if single else out
 
     # ---- Optional tutorial helper (pt->ct) ----
-    def encrypt(self, *, plaintext: ArrayU8, key: ArrayU8, **kwargs) -> ArrayU8:
+    def encrypt(
+        self,
+        *,
+        plaintext: ArrayU8,
+        key: ArrayU8,
+        interrupt_idx: ArrayU8 | None = None,
+        interrupt_sym: ArrayU8 | None = None,
+    ) -> ArrayU8:
         """
         Encrypt using a forward permutation key mapping pt->ct (tutorials).
         Optimizers never call this.
         """
-        pt = np.asarray(plaintext, dtype=np.uint8).reshape(-1)
-        k  = np.asarray(key, dtype=np.uint8).reshape(-1)
-        if k.size != self.A:
-            raise ValueError(f"encrypt: expected key of length {self.A}, got {k.size}")
-        return k[pt]
+        k = np.asarray(key, dtype=np.uint8)
+        single = k.ndim == 1
+        self._validate_substitution_key_shape(k, "encrypt")
+        out = super().encrypt(
+            plaintext=plaintext,
+            key=k,
+            interrupt_idx=interrupt_idx,
+            interrupt_sym=interrupt_sym,
+        )
+        return out[0] if single else out
+
+    def decrypt_single(
+        self,
+        *,
+        ciphertext: ArrayU8,
+        key: ArrayU8,
+        interrupt_idx: ArrayU8 | None = None,
+        interrupt_sym: ArrayU8 | None = None,
+        key_is_fwd: bool = False,
+    ) -> ArrayU8:
+        """Decrypt one key while preserving the historical one-dimensional result."""
+        out = self.decrypt(
+            ciphertext=ciphertext,
+            key=key,
+            key_is_fwd=key_is_fwd,
+            interrupt_idx=interrupt_idx,
+            interrupt_sym=interrupt_sym,
+        )
+        return out[0] if out.ndim == 2 else out
+
+    def encrypt_single(
+        self,
+        *,
+        plaintext: ArrayU8,
+        key: ArrayU8,
+        interrupt_idx: ArrayU8 | None = None,
+        interrupt_sym: ArrayU8 | None = None,
+    ) -> ArrayU8:
+        """Encrypt one key while preserving the historical one-dimensional result."""
+        out = self.encrypt(
+            plaintext=plaintext,
+            key=key,
+            interrupt_idx=interrupt_idx,
+            interrupt_sym=interrupt_sym,
+        )
+        return out[0] if out.ndim == 2 else out
+
+    def _validate_substitution_key_shape(self, key: np.ndarray, operation: str) -> None:
+        if key.ndim == 1:
+            if key.size != self.A:
+                raise ValueError(f"{operation}: expected key of length {self.A}, got {key.size}")
+            return
+        if key.ndim == 2:
+            if key.shape[1] != self.A:
+                raise ValueError(f"{operation}: expected key shape (*,{self.A}), got {key.shape}")
+            return
+        raise ValueError(f"{operation}: key must be 1-D or 2-D array")
+
+    def _core_decrypt_batch(self, ct_tr: ArrayU8, keys_tr: ArrayU8) -> ArrayU8:
+        """Gather inverse substitution tables in compacted/transposed core space."""
+        ct = np.asarray(ct_tr, dtype=np.uint8).reshape(-1)
+        keys = np.asarray(keys_tr, dtype=np.uint8)
+        if keys.ndim == 1:
+            keys = keys[None, :]
+        self._validate_substitution_key_shape(keys, "decrypt")
+        return keys[:, ct]
+
+    def _core_encrypt_batch(self, pt_tr: ArrayU8, keys_tr: ArrayU8) -> ArrayU8:
+        """Gather forward substitution tables in compacted/transposed core space."""
+        pt = np.asarray(pt_tr, dtype=np.uint8).reshape(-1)
+        keys = np.asarray(keys_tr, dtype=np.uint8)
+        if keys.ndim == 1:
+            keys = keys[None, :]
+        self._validate_substitution_key_shape(keys, "encrypt")
+        return keys[:, pt]

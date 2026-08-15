@@ -12,6 +12,7 @@ from __future__ import annotations
 import math
 import numpy as np
 
+from ..core.config.validation import strict_positive_int
 from ..core.types import SolverName, KEY_DTYPE
 from .solver_base import SolverBase
 
@@ -33,6 +34,7 @@ class SASolver(SolverBase):
 
         # Defaults (kept close to common SA setups; we’ll match legacy constants if provided)
         params.setdefault("iters", 2000)
+        params["iters"] = strict_positive_int(params["iters"], "iters")
         params.setdefault("T0", 1.0)
         params.setdefault("Tmin", 1e-3)
         params.setdefault("cool", 0.995)           # geometric cooling

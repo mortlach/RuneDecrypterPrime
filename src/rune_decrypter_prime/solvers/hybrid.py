@@ -64,6 +64,8 @@ class HybridSolver(SolverBase):
         params.setdefault("ga.pop_size", params.get("pop_size", 64))
         params.setdefault("ga.generations", params.get("generations", 150))
         params.setdefault("sa.iters", params.get("iters", 1500))
+        if kwargs.get("stop_score") is not None:
+            params.setdefault("stop_score", kwargs["stop_score"])
 
         rng = kwargs.get("rng")
         if rng is None:
