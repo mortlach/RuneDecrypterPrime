@@ -345,8 +345,10 @@ class BeamSolver(SolverBase):
             best_key = beam[best_idx].copy()
             best_score = float(scores[best_idx])
 
+            if self._stop_reason is None:
+                self._stop_reason = "max_rounds_reached"
             self._end_span(span, candidates=int(candidates_seen),
-                           rounds=int(r), reason=(self._stop_reason or "done"))
+                           rounds=int(r), reason=self._stop_reason)
             sol = self._finalize_solution(best_key, best_score)
 
             # Opportunistic: expose final beam keys for Hybrid GA seeding ([W,K] uint8).

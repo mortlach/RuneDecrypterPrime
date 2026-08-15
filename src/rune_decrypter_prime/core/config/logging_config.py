@@ -9,7 +9,7 @@ import json
 import os
 import socket
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 import subprocess
@@ -133,10 +133,12 @@ def _default_out_root(repo_root: Path) -> Path:
     return repo_root / "output"
 
 
-def _relativize_path(path: Path, base: Path) -> str:
-    """
-    Return a repo-local representation of `path`. Prefers Path.relative_to when possible,
-    falls back to os.path.relpath, and ultimately to the basename if drives differ.
+def _relativize_path(path: Path, base: Path, *, external_label: str = "path") -> str:
+    """Return a durable portable path representation.
+
+    Paths below ``base`` are emitted as POSIX relative paths. External paths are
+    labelled rather than serialising private absolute locations or ``..`` walks.
+    Runtime filesystem objects remain unchanged.
     """
     path = path.resolve()
     base = base.resolve()
@@ -144,15 +146,10 @@ def _relativize_path(path: Path, base: Path) -> str:
         return "."
     try:
         rel = path.relative_to(base)
-        rel_str = rel.as_posix()
-        return rel_str or "."
     except ValueError:
-        try:
-            rel = os.path.relpath(path, base)
-            rel_str = rel.replace("\\", "/")
-            return rel_str or "."
-        except Exception:
-            return path.name
+        return f"<external:{_safe_token(external_label, 'path')}>"
+    rel_str = rel.as_posix()
+    return rel_str or "."
 
 
 def _effective_redact_identity(cfg: LoggingConfig) -> bool:
@@ -180,7 +177,7 @@ def _collect_versions() -> Dict[str, Any]:
 
 
 def _git_info(repo_root: Path) -> Dict[str, Any]:
-    info: Dict[str, Any] = {"commit": None, "short": None, "dirty": None}
+    info: Dict[str, Any] = {"branch": None, "commit": None, "short": None, "dirty": None}
     git_dir = repo_root / ".git"
     if not git_dir.exists():
         return info
@@ -191,10 +188,15 @@ def _git_info(repo_root: Path) -> Dict[str, Any]:
         short = subprocess.check_output(
             ["git", "rev-parse", "--short", "HEAD"], cwd=repo_root, stderr=subprocess.DEVNULL
         ).decode("utf-8").strip()
+        branch = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root, stderr=subprocess.DEVNULL
+        ).decode("utf-8").strip()
+        if branch == "HEAD":
+            branch = None
         dirty = subprocess.call(
             ["git", "diff", "--quiet"], cwd=repo_root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         ) != 0
-        info.update({"commit": commit, "short": short, "dirty": dirty})
+        info.update({"branch": branch or None, "commit": commit, "short": short, "dirty": dirty})
     except Exception:
         pass
     return info
@@ -218,10 +220,11 @@ def _write_meta(
     meta: Dict[str, Any] = {
         # Legacy/previously observed fields (kept to avoid breaking readers)
         "created": timestamp,
+        "created_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "user": None if identity_redacted else getpass.getuser(),
         "host": None if identity_redacted else socket.gethostname(),
         "repo_root": ".",
-        "out_root": _relativize_path(out_root, repo_root),
+        "out_root": _relativize_path(out_root, repo_root, external_label="out_root"),
         "run_kind": cfg.run_kind,
         "label": cfg.label,
         "verbose": cfg.verbose,
@@ -248,10 +251,12 @@ def _write_meta(
     logs_dir = run_dir / "logs"
     trace_dir = run_dir / "trace"
     artifacts_dir = run_dir / "artifacts"
+    # Artifact pointers are run-relative by contract, regardless of where the
+    # run directory lives on the local machine.
     meta["pointers"] = {
-        "logs": _relativize_path(logs_dir, repo_root),
-        "trace": _relativize_path(trace_dir, repo_root),
-        "artifacts": _relativize_path(artifacts_dir, repo_root),
+        "logs": "logs",
+        "trace": "trace",
+        "artifacts": "artifacts",
     }
 
     (run_dir / "META.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
@@ -260,10 +265,12 @@ def _write_meta(
 def _write_logging_snapshot(run_dir: Path, cfg: LoggingConfig, repo_root: Path, out_root: Path) -> None:
     snap = asdict(cfg)
     snap["repo_root"] = "."
-    snap["out_root"] = _relativize_path(out_root, repo_root)
+    snap["out_root"] = _relativize_path(out_root, repo_root, external_label="out_root")
     value = snap.get("fixed_run_dir")
     if value:
-        snap["fixed_run_dir"] = _relativize_path(Path(str(value)), repo_root)
+        snap["fixed_run_dir"] = _relativize_path(
+            Path(str(value)), repo_root, external_label="fixed_run_dir"
+        )
     config_dir = run_dir / "config"
     config_dir.mkdir(parents=True, exist_ok=True)
     (config_dir / "logging.json").write_text(json.dumps(snap, indent=2), encoding="utf-8")

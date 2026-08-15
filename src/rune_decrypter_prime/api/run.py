@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import json
+from datetime import datetime, timezone
+from enum import Enum
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 
@@ -15,8 +19,22 @@ from rune_decrypter_prime.api.run_spec_routing import (
     reject_runspec_mixed_inputs,
     route_runspec_logging,
 )
-from rune_decrypter_prime.api.solver_report import build_solver_report
-from rune_decrypter_prime.api.stop_reason_contract import stop_reason_details_from_solution
+from rune_decrypter_prime.api.solver_report import (
+    ReproducibilityMetadata,
+    RequestedEffectiveConfig,
+    RunConfigurationReport,
+    build_solver_report,
+)
+from rune_decrypter_prime.api.stop_reason_contract import (
+    CanonicalStopReason,
+    ExecutionStatus,
+    RunStatus,
+    StopCategory,
+    execution_status_for_category,
+    run_status_from_solution,
+    stop_category_for_reason,
+    stop_reason_details_from_solution,
+)
 from rune_decrypter_prime.api.normalize import (
     normalize_ciphertext,
     to_indices,
@@ -251,6 +269,9 @@ def _run_normalized(
     interruptors_max: Optional[int],
     return_solver_report: bool,
 ):
+    requested_scorer_params = dict(scorer_params or {})
+    scoring_cfg: ScoringConfig | None = None
+
     if is_two_period_cribs_solver(solver):
         request = normalize_two_period_cribs_request(solver)
         _validate_two_period_run_options(
@@ -349,6 +370,51 @@ def _run_normalized(
             normalized_params = opt
             details = {}
         details.update(_solver_report_details_from_solution(solution))
+        if known_key_fastpath:
+            # The internal fast path reuses the test-key mechanism, but public
+            # semantics are an explicit caller-supplied known-key execution, not
+            # hidden tutorial/test oracle use.
+            raw_reason = getattr(solution, "stop_reason", None)
+            run_status = RunStatus(
+                execution_status=ExecutionStatus.COMPLETED,
+                stop_category=StopCategory.SUCCESS,
+                stop_reason=CanonicalStopReason.KNOWN_KEY_EXECUTION_COMPLETED,
+                legacy_reason=None if raw_reason is None else str(raw_reason),
+                stop_detail="explicit known-key execution completed",
+            )
+        else:
+            raw_reason = getattr(solution, "stop_reason", None)
+            if raw_reason is None:
+                # We know the API returned normally. Missing termination truth is
+                # therefore a producer/reporting defect, not "not_started".
+                execution_status = ExecutionStatus.COMPLETED
+            else:
+                execution_status = execution_status_for_category(
+                    stop_category_for_reason(str(raw_reason))
+                )
+            run_status = run_status_from_solution(
+                solution,
+                execution_status=execution_status,
+            )
+        configuration = _build_run_configuration_report(
+            solution=solution,
+            cipher=cipher,
+            solver=solver,
+            normalized_solver_params=normalized_params,
+            requested_scorer_params=requested_scorer_params,
+            scoring_cfg=scoring_cfg,
+            report_solver_name=report_solver_name,
+            effective_seed=effective_seed,
+        )
+        reproducibility = _build_reproducibility_metadata(
+            solution=solution,
+            run_status=run_status,
+            configuration=configuration,
+            scoring_cfg=scoring_cfg,
+            effective_seed=effective_seed,
+            known_key_fastpath=known_key_fastpath,
+            initialize_logging=initialize_logging,
+        )
 
         report = build_solver_report(
             solver_name=report_solver_name,
@@ -365,6 +431,9 @@ def _run_normalized(
             decrypt_time_s=getattr(solution, "decrypt_time_s", None),
             score_time_s=getattr(solution, "score_time_s", None),
             details=details,
+            run_status=run_status,
+            configuration=configuration,
+            reproducibility=reproducibility,
         )
     if write_solver_report:
         if not initialize_logging:
@@ -396,6 +465,221 @@ def _solver_report_details_from_solution(solution) -> dict[str, Any]:
     if two_period_solve is not None:
         details["two_period_solve"] = two_period_solve
     return details
+
+
+def _telemetry_blocks(solution) -> tuple[dict[str, Any], dict[str, Any]]:
+    meta = getattr(solution, "meta", None)
+    if not isinstance(meta, dict):
+        return {}, {}
+    telemetry = meta.get("telemetry")
+    if not isinstance(telemetry, dict):
+        return {}, {}
+    run = telemetry.get("run")
+    return telemetry, run if isinstance(run, dict) else {}
+
+
+def _portable_json_value(value: Any, *, field_name: str = "value") -> Any:
+    if value is None or isinstance(value, (str, bool, int, float)):
+        if isinstance(value, str) and _looks_like_absolute_path(value):
+            return f"<external:{field_name}>"
+        return value
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, Path):
+        return f"<external:{field_name}>"
+    if isinstance(value, dict):
+        return {
+            str(key): _portable_json_value(item, field_name=str(key))
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_portable_json_value(item, field_name=field_name) for item in value]
+    return f"<unsupported:{type(value).__name__}>"
+
+
+def _looks_like_absolute_path(value: str) -> bool:
+    text = value.strip()
+    if not text:
+        return False
+    if text.startswith(("/", "\\", "//", "../", "..\\")):
+        return True
+    return len(text) >= 2 and text[1] == ":" and text[0].isalpha()
+
+
+def _cipher_report_summary(cipher: CipherSpec) -> dict[str, Any]:
+    return {
+        "name": cipher.name,
+        "kind": cipher.kind,
+        "alphabet_size": int(cipher.N),
+        "wrapper_core": cipher.wrapper_core,
+        "degeneracy": cipher.degeneracy,
+        "resolver": cipher.resolver,
+        "extra": _portable_json_value(dict(cipher.extra or {}), field_name="cipher_extra"),
+    }
+
+
+def _scoring_report_summaries(
+    scoring_cfg: ScoringConfig | None,
+    requested_scorer_params: dict[str, Any],
+    solution,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    telemetry, run = _telemetry_blocks(solution)
+    runtime_scorer = telemetry.get("scorer")
+    if not isinstance(runtime_scorer, dict):
+        runtime_scorer = run.get("scorer") if isinstance(run.get("scorer"), dict) else {}
+    if scoring_cfg is None:
+        effective = dict(runtime_scorer)
+        meta = getattr(solution, "meta", None)
+        two_period = meta.get("two_period_solve") if isinstance(meta, dict) else None
+        if isinstance(two_period, dict) and isinstance(two_period.get("profiles"), dict):
+            # The specialised route owns fixed scorer profiles. Reuse the
+            # existing A2 profile metadata instead of inventing a second config.
+            effective["profiles"] = two_period["profiles"]
+        return (
+            _portable_json_value(requested_scorer_params, field_name="scoring"),
+            _portable_json_value(effective, field_name="scoring"),
+        )
+    objective = scoring_cfg.asdict().get("objective")
+    weight_contract = scoring_cfg.weight_contract()
+    requested = {
+        "objective": objective,
+        "impl": getattr(scoring_cfg.impl, "value", scoring_cfg.impl),
+        "encoding_dir": getattr(scoring_cfg.encoding_dir, "value", scoring_cfg.encoding_dir),
+        "weights": weight_contract.get("requested", {}),
+    }
+    effective = {
+        "objective": objective,
+        "backend": runtime_scorer.get("impl"),
+        "device": runtime_scorer.get("device", getattr(getattr(solution, "device", None), "value", None)),
+        "dtype": runtime_scorer.get("dtype"),
+        "weight_mode": weight_contract.get("mode"),
+        "lm_models": weight_contract.get("effective_lm_models", []),
+    }
+    meta = getattr(solution, "meta", None)
+    if isinstance(meta, dict) and isinstance(meta.get("scorer_lanes"), dict):
+        effective["scorer_lanes"] = meta["scorer_lanes"]
+    return (
+        _portable_json_value(requested, field_name="scoring"),
+        _portable_json_value(effective, field_name="scoring"),
+    )
+
+
+def _build_run_configuration_report(
+    *,
+    solution,
+    cipher: CipherSpec,
+    solver: SolverSpec,
+    normalized_solver_params: dict[str, Any],
+    requested_scorer_params: dict[str, Any],
+    scoring_cfg: ScoringConfig | None,
+    report_solver_name: str,
+    effective_seed: int | None,
+) -> RunConfigurationReport:
+    _telemetry, run = _telemetry_blocks(solution)
+    effective_params = run.get("params") if isinstance(run.get("params"), dict) else normalized_solver_params
+    scoring_requested, scoring_effective = _scoring_report_summaries(
+        scoring_cfg,
+        requested_scorer_params,
+        solution,
+    )
+    cipher_summary = _cipher_report_summary(cipher)
+    return RunConfigurationReport(
+        solver=RequestedEffectiveConfig(
+            requested={
+                "name": str(solver.name),
+                "params": _portable_json_value(dict(solver.params), field_name="solver_params"),
+                "seed": solver.seed,
+            },
+            effective={
+                "name": report_solver_name,
+                "params": _portable_json_value(dict(effective_params), field_name="solver_params"),
+                "seed": effective_seed,
+            },
+        ),
+        scoring=RequestedEffectiveConfig(
+            requested=scoring_requested,
+            effective=scoring_effective,
+        ),
+        cipher=RequestedEffectiveConfig(
+            requested=cipher_summary,
+            effective=cipher_summary,
+        ),
+    )
+
+
+def _logging_meta_for_report(*, initialize_logging: bool) -> dict[str, Any]:
+    if not initialize_logging:
+        return {}
+    try:
+        run_dir = logging_state.get_run_dir()
+        payload = json.loads((run_dir / "META.json").read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _build_reproducibility_metadata(
+    *,
+    solution,
+    run_status: RunStatus,
+    configuration: RunConfigurationReport,
+    scoring_cfg: ScoringConfig | None,
+    effective_seed: int | None,
+    known_key_fastpath: bool,
+    initialize_logging: bool,
+) -> ReproducibilityMetadata:
+    telemetry, run = _telemetry_blocks(solution)
+    runtime_scorer = telemetry.get("scorer")
+    if not isinstance(runtime_scorer, dict):
+        runtime_scorer = run.get("scorer") if isinstance(run.get("scorer"), dict) else {}
+    meta = _logging_meta_for_report(initialize_logging=initialize_logging)
+    git = meta.get("git") if isinstance(meta.get("git"), dict) else {}
+    objective = None
+    dictionary_policy = "not_applicable"
+    if scoring_cfg is not None:
+        objective = scoring_cfg.asdict().get("objective")
+        policy = getattr(scoring_cfg, "hamming_dictionary_policy", None)
+        if bool(getattr(scoring_cfg, "hamming_enabled", False)) or bool(getattr(scoring_cfg, "span_hamming_enabled", False)):
+            dictionary_policy = getattr(policy, "value", str(policy) if policy is not None else None)
+    created_at_utc = meta.get("created_at_utc")
+    if not isinstance(created_at_utc, str):
+        # Without logging metadata, use the actual engine run-start timestamp
+        # when available. Never substitute report-construction time.
+        start_ts = run.get("start_ts") if isinstance(run, dict) else None
+        if isinstance(start_ts, (int, float)) and not isinstance(start_ts, bool):
+            created_at_utc = datetime.fromtimestamp(
+                float(start_ts), tz=timezone.utc
+            ).isoformat().replace("+00:00", "Z")
+        else:
+            created_at_utc = None
+    return ReproducibilityMetadata(
+        run_id=meta.get("run_id") if isinstance(meta.get("run_id"), str) else None,
+        created_at_utc=created_at_utc,
+        git_branch=git.get("branch") if isinstance(git.get("branch"), str) else None,
+        git_commit=git.get("commit") if isinstance(git.get("commit"), str) else None,
+        backend=runtime_scorer.get("impl") if isinstance(runtime_scorer.get("impl"), str) else None,
+        device=(
+            runtime_scorer.get("device")
+            if isinstance(runtime_scorer.get("device"), str)
+            else getattr(getattr(solution, "device", None), "value", None)
+        ),
+        dtype=runtime_scorer.get("dtype") if isinstance(runtime_scorer.get("dtype"), str) else None,
+        seed=effective_seed,
+        stochastic=(
+            False
+            if known_key_fastpath or str(getattr(solution, "stop_reason", "")) == "test_key"
+            else True
+        ),
+        solver_config=configuration.solver.to_json_dict(),
+        scoring_config=configuration.scoring.to_json_dict(),
+        objective=objective,
+        cipher=configuration.cipher.effective,
+        asset_ids=None,
+        asset_hashes=None,
+        dictionary_policy=dictionary_policy,
+        stop_category=run_status.stop_category,
+        stop_reason=run_status.stop_reason,
+    )
 
 
 def _validate_rune_only_text(text: str) -> None:

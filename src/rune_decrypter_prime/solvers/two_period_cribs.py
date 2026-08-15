@@ -12,6 +12,7 @@ from typing import Any, Callable, Sequence
 import numpy as np
 
 from rune_decrypter_prime.api.pipeline_helpers import finalize_solution
+from rune_decrypter_prime.api.stop_reason_contract import CanonicalStopReason, StopCategory
 from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
 from rune_decrypter_prime.api.two_period_cribs import (
     TWO_PERIOD_CRIBS_CONTRACT,
@@ -379,21 +380,36 @@ def derive_child_seed(root_seed: int, *parts: object) -> int:
     )
 
 
-def coordinate_search(
+@dataclass(frozen=True, slots=True)
+class CoordinateSearchResult:
+    variables: np.ndarray
+    score: float
+    evaluations: int
+    stop_reason: CanonicalStopReason
+
+
+def _coordinate_search_with_status(
     evaluate: Callable[[np.ndarray], np.ndarray],
     rng: np.random.Generator,
     variables: np.ndarray,
     sweeps: int,
     *,
     modulus: int = 29,
-) -> tuple[np.ndarray, float, int]:
+) -> CoordinateSearchResult:
     current = np.asarray(variables, dtype=np.uint8).copy()
     initial_scores = np.asarray(evaluate(current[None, :]), dtype=np.float64)
     if initial_scores.shape != (1,) or not np.all(np.isfinite(initial_scores)):
         raise RuntimeError("candidate evaluator returned invalid scores")
     current_score = float(initial_scores[0])
     evaluations = 1
-    for _ in range(sweeps):
+    if current.size == 0:
+        return CoordinateSearchResult(
+            current,
+            current_score,
+            evaluations,
+            CanonicalStopReason.CONSTRAINT_SPACE_RESOLVED_EXACTLY,
+        )
+    for _sweep in range(sweeps):
         improved = False
         for index in rng.permutation(current.size):
             candidates = np.repeat(current[None, :], modulus, axis=0)
@@ -407,8 +423,31 @@ def coordinate_search(
                 current, current_score = candidates[best].copy(), float(scores[best])
                 improved = True
         if not improved:
-            break
-    return current, current_score, evaluations
+            return CoordinateSearchResult(
+                current,
+                current_score,
+                evaluations,
+                CanonicalStopReason.NO_IMPROVEMENT_BUDGET_REACHED,
+            )
+    return CoordinateSearchResult(
+        current,
+        current_score,
+        evaluations,
+        CanonicalStopReason.MAX_SWEEPS_REACHED,
+    )
+
+
+def coordinate_search(
+    evaluate: Callable[[np.ndarray], np.ndarray],
+    rng: np.random.Generator,
+    variables: np.ndarray,
+    sweeps: int,
+    *,
+    modulus: int = 29,
+) -> tuple[np.ndarray, float, int]:
+    """Compatibility wrapper retaining the established three-value return."""
+    result = _coordinate_search_with_status(evaluate, rng, variables, sweeps, modulus=modulus)
+    return result.variables, result.score, result.evaluations
 
 
 def _profile(profile_id: str, hard_crib: HardCribConfig, direction: Direction) -> ScoringConfig:
@@ -504,13 +543,16 @@ def _run_refinement_stage(
         rng = np.random.default_rng(
             derive_child_seed(root_seed, branch.branch_id, stage_id, parent_id)
         )
-        variables, score, used = coordinate_search(
+        search_result = _coordinate_search_with_status(
             evaluate,
             rng,
             np.asarray(parent["variables"], dtype=np.uint8),
             sweeps,
             modulus=modulus,
         )
+        variables = search_result.variables
+        score = search_result.score
+        used = search_result.evaluations
         evaluations += used
         expanded = expand_reduced_key(variables, branch.constraint_space)
         candidate_id = _candidate_id(expanded, branch.interruptors)
@@ -523,11 +565,37 @@ def _run_refinement_stage(
             score_field: score,
             "source_stage": stage_id,
             "parent_id": parent_id,
+            "search_stop_reason": search_result.stop_reason.value,
         }
         old = output.get(candidate_id)
         if old is None or score > float(old[score_field]) + _EPSILON:
             output[candidate_id] = record
     return output, evaluations, time.perf_counter() - started
+
+
+def _stage_stop_reason(records: Sequence[dict[str, Any]]) -> CanonicalStopReason:
+    reasons = {str(record.get("search_stop_reason", "")) for record in records}
+    reasons.discard("")
+    if CanonicalStopReason.MAX_SWEEPS_REACHED.value in reasons:
+        return CanonicalStopReason.MAX_SWEEPS_REACHED
+    if CanonicalStopReason.NO_IMPROVEMENT_BUDGET_REACHED.value in reasons:
+        return CanonicalStopReason.NO_IMPROVEMENT_BUDGET_REACHED
+    if reasons == {CanonicalStopReason.CONSTRAINT_SPACE_RESOLVED_EXACTLY.value}:
+        return CanonicalStopReason.CONSTRAINT_SPACE_RESOLVED_EXACTLY
+    if not reasons:
+        return CanonicalStopReason.UNKNOWN_RUNTIME_REASON
+    return CanonicalStopReason(sorted(reasons)[0])
+
+
+def _stage_stop_category(reason: CanonicalStopReason) -> str:
+    if reason in {
+        CanonicalStopReason.MAX_SWEEPS_REACHED,
+        CanonicalStopReason.NO_IMPROVEMENT_BUDGET_REACHED,
+    }:
+        return StopCategory.BUDGET.value
+    if reason is CanonicalStopReason.UNKNOWN_RUNTIME_REASON:
+        return StopCategory.ERROR.value
+    return StopCategory.SUCCESS.value
 
 
 def _validate_cipher(cipher: CipherSpec, key: KeySpec) -> tuple[int, int, int]:
@@ -727,9 +795,12 @@ def run_two_period_stages(
             initial = rng.integers(
                 0, modulus, size=branch.constraint_space.dimension, dtype=np.uint8
             )
-            variables, score, used = coordinate_search(
+            search_result = _coordinate_search_with_status(
                 evaluator("S2"), rng, initial, 5, modulus=modulus
             )
+            variables = search_result.variables
+            score = search_result.score
+            used = search_result.evaluations
             total_evaluations += used
             scout_evaluations += used
             expanded = expand_reduced_key(variables, branch.constraint_space)
@@ -742,12 +813,14 @@ def run_two_period_stages(
                 "key": expanded.astype(int).tolist(),
                 "scout_score": score,
                 "source_stage": "S2",
+                "search_stop_reason": search_result.stop_reason.value,
             }
             old = scout.get(candidate_id)
             if old is None or score > old["scout_score"]:
                 scout[candidate_id] = record
         scout_elapsed = time.perf_counter() - scout_started
         scout_best = max(float(record["scout_score"]) for record in scout.values())
+        scout_stop_reason = _stage_stop_reason(tuple(scout.values()))
         candidate_counts["scout_inputs"] += request.starts
         candidate_counts["scout_generated_terminals"] += request.starts
         candidate_counts["scout_unique_terminals"] += len(scout)
@@ -762,7 +835,9 @@ def run_two_period_stages(
             "duplicates": request.starts - len(scout),
             "evaluations": scout_evaluations,
             "elapsed_s": scout_elapsed,
-            "stop_reason": "done",
+            "stop_category": _stage_stop_category(scout_stop_reason),
+            "stop_reason": scout_stop_reason.value,
+            "legacy_stop_reason": "done",
             "best_score": scout_best,
             "input_seed_digest": hashlib.sha256(
                 json.dumps(scout_seeds, separators=(",", ":")).encode("ascii")
@@ -784,6 +859,7 @@ def run_two_period_stages(
         )
         total_evaluations += bridge_evaluations
         bridge_best = max(float(record["bridge_score"]) for record in bridge.values())
+        bridge_stop_reason = _stage_stop_reason(tuple(bridge.values()))
         candidate_counts["bridge_inputs"] += len(scout)
         candidate_counts["bridge_generated_terminals"] += len(scout)
         candidate_counts["bridge_unique_terminals"] += len(bridge)
@@ -798,7 +874,9 @@ def run_two_period_stages(
             "duplicates": len(scout) - len(bridge),
             "evaluations": bridge_evaluations,
             "elapsed_s": bridge_elapsed,
-            "stop_reason": "done",
+            "stop_category": _stage_stop_category(bridge_stop_reason),
+            "stop_reason": bridge_stop_reason.value,
+            "legacy_stop_reason": "done",
             "best_score": bridge_best,
             "terminal_digest": _records_digest(
                 [(candidate_id, record["bridge_score"]) for candidate_id, record in bridge.items()]
@@ -818,6 +896,7 @@ def run_two_period_stages(
         )
         total_evaluations += judge_evaluations
         judge_best = max(float(record["judge_score"]) for record in judge.values())
+        judge_stop_reason = _stage_stop_reason(tuple(judge.values()))
         candidate_counts["judge_inputs"] += len(judge_inputs)
         candidate_counts["judge_generated_terminals"] += len(judge_inputs)
         candidate_counts["judge_unique_terminals"] += len(judge)
@@ -832,7 +911,9 @@ def run_two_period_stages(
             "duplicates": len(judge_inputs) - len(judge),
             "evaluations": judge_evaluations,
             "elapsed_s": judge_elapsed,
-            "stop_reason": "done",
+            "stop_category": _stage_stop_category(judge_stop_reason),
+            "stop_reason": judge_stop_reason.value,
+            "legacy_stop_reason": "done",
             "best_score": judge_best,
             "sweeps": 3,
             "mode": "coordinate_search",
@@ -877,7 +958,9 @@ def run_two_period_stages(
             "duplicates": 0,
             "evaluations": len(final_union),
             "elapsed_s": final_elapsed,
-            "stop_reason": "done",
+            "stop_category": StopCategory.BUDGET.value,
+            "stop_reason": CanonicalStopReason.STATIC_RESCORE_COMPLETED.value,
+            "legacy_stop_reason": "done",
             "best_score": float(np.max(scores)),
             "mode": "static_rescore",
             "terminal_digest": _records_digest(
@@ -981,7 +1064,7 @@ def run_two_period_stages(
             + candidate_counts["judge_generated_terminals"]
         ),
         wall_time_s=elapsed,
-        stop_reason="done",
+        stop_reason=CanonicalStopReason.CONFIGURED_WORK_LIMIT_REACHED.value,
         device=device,
         direction=direction,
     )

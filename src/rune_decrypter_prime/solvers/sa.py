@@ -172,11 +172,13 @@ class SASolver(SolverBase):
                 if self._early_stop_stop_score(float(s_best)) or plateau_stop:
                     break
 
+            if self._stop_reason is None:
+                self._stop_reason = "max_iterations_reached"
             self._end_span(getattr(self, "_span", None),
                            iters=int(it),
                            candidates=int(total_evals),
                            best_score=float(s_best),
-                           reason=(getattr(self, "_stop_reason", None) or "done"))
+                           reason=self._stop_reason)
             return self._finalize_solution(k_best, float(s_best))
 
         except Exception as e:

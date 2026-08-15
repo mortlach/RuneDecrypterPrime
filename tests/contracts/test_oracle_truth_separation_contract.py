@@ -50,6 +50,14 @@ def test_known_key_execution_route_is_reported_without_borrowing_detail_key_doma
         report.details[SolverReportDetailKey.TRUTH_DATA_POLICY.value]
         == TruthDataPolicy.REPORTED_TEST_OR_TUTORIAL_ONLY.value
     )
+    assert report.details[SolverReportDetailKey.ORACLE.value] == {
+        "available": True,
+        "used_for_scoring": False,
+        "used_for_ranking": False,
+        "used_for_stop": True,
+        "stop_reason": "known_key_execution_completed",
+        "mode": "unknown",
+    }
 
 
 def test_user_details_cannot_overwrite_generated_truth_contract_fields() -> None:

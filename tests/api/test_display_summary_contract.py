@@ -215,3 +215,36 @@ def test_format_summary_prints_explicit_encoding_direction() -> None:
     text = format_rdp_summary(build_rdp_summary(_run_result(), spec=spec))
 
     assert "encoding_dir: ltr" in text
+
+
+def test_display_prefers_canonical_run_status_over_legacy_solution_reason() -> None:
+    from rune_decrypter_prime.api.stop_reason_contract import (
+        CanonicalStopReason,
+        ExecutionStatus,
+        RunStatus,
+        StopCategory,
+    )
+
+    solution = _solution()
+    solution.stop_reason = "test_key"  # internal compatibility mechanism
+    status = RunStatus(
+        execution_status=ExecutionStatus.COMPLETED,
+        stop_category=StopCategory.SUCCESS,
+        stop_reason=CanonicalStopReason.KNOWN_KEY_EXECUTION_COMPLETED,
+        legacy_reason="test_key",
+    )
+    report = build_solver_report(
+        solver_name="beam",
+        requested_seed=None,
+        effective_seed=None,
+        normalized_params={"beam_width": 1},
+        stop_reason="test_key",
+        details={"execution_route": "known_key_fastpath"},
+        run_status=status,
+    )
+    summary = build_rdp_summary(RunResult(solution=solution, solver_report=report))
+    data = summary.to_json_dict()
+    assert data["stop"]["stop_reason"] == "known_key_execution_completed"
+    assert data["stop"]["legacy_stop_reason"] == "test_key"
+    assert data["oracle"]["mode"] == "unknown"
+    assert data["oracle"]["available"] is True

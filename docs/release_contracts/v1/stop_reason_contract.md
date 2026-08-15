@@ -1,8 +1,8 @@
 # V1 stop-reason contract
 
-Solver reports expose a stable stop schema in `SolverReport.details`.
+A4 extends the existing June `rdp.run_status_contract.v1` schema. Solver reports retain the established flat stop fields for compatibility and expose the canonical typed status under `details.run_status`.
 
-Required fields:
+Legacy flat fields remain:
 
 - `stop_category`
 - `stop_reason`
@@ -10,7 +10,7 @@ Required fields:
 - `blocked_before_run`
 - `error_type`
 
-Stable categories:
+Stable coarse categories remain:
 
 - `success`
 - `budget`
@@ -19,13 +19,20 @@ Stable categories:
 - `manual`
 - `not_started`
 
-`stop_reason` remains the precise solver/runtime reason string. `stop_category` is the coarse contract field for downstream reports and dashboards.
+A4 adds precise producer-owned canonical reasons while retaining `legacy_stop_reason` where applicable.
 
 Examples:
 
-- `done` -> `success`
-- `patience` -> `budget`
-- `all_rejected_by_hard_crib` -> `blocked_before_run`
-- `error` -> `error`
+- natural Beam limit -> `max_rounds_reached` / `budget`
+- natural GA limit -> `max_generations_reached` / `budget`
+- natural SA limit -> `max_iterations_reached` / `budget`
+- natural Kaeding limit -> `max_steps_reached` / `budget`
+- configured Hybrid/two-period work completed -> `configured_work_limit_reached` / `budget`
+- target score -> `target_score_reached` / `success`
+- `no_improve_25` -> `no_improvement_budget_reached` / `budget`
+- hard crib rejects all candidates -> `all_candidates_rejected_by_hard_crib` / `blocked_before_run`
+- exception -> `unexpected_exception` / `error`
 
-Blocked-before-run cases should set `blocked_before_run` to true. Unknown non-empty reasons are categorised conservatively rather than dropped.
+Historical `done` and `success` are ambiguous. A4 does not reinterpret them as success; without a precise producer reason they map to `unknown_runtime_reason` / `error`.
+
+`success` is a termination category, not proof of scientific recovery. Recovery is a separate status and defaults to `not_assessed` unless legitimate reference/truth data is explicitly available.

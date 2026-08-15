@@ -282,11 +282,13 @@ class GASolver(SolverBase):
                     break
 
             # Finalise
+            if self._stop_reason is None:
+                self._stop_reason = "max_generations_reached"
             self._end_span(getattr(self, "_span", None),
                            generations=int(gen),
                            candidates=int(total_evals),
                            best_score=float(best_score),
-                           reason=(getattr(self, "_stop_reason", None) or "done"))
+                           reason=self._stop_reason)
             return self._finalize_solution(best_key, float(best_score))
 
         except Exception as e:

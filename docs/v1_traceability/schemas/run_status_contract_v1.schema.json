@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rdp.run_status_contract.v1",
+  "title": "RDP run status contract v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "stop_category",
+    "stop_reason",
+    "oracle",
+    "reproducibility"
+  ],
+  "properties": {
+    "schema": {"const": "rdp.run_status_contract.v1"},
+    "execution_status": {
+      "type": "string",
+      "enum": ["completed", "blocked_before_run", "error", "manual_stop", "not_started"]
+    },
+    "stop_category": {
+      "type": "string",
+      "enum": ["success", "budget", "blocked_before_run", "error", "manual", "not_started"]
+    },
+    "stop_reason": {
+      "type": "string",
+      "enum": [
+        "target_score_reached",
+        "oracle_exact_plaintext_match",
+        "oracle_exact_key_match",
+        "oracle_test_key_used",
+        "known_key_execution_completed",
+        "constraint_space_resolved_exactly",
+        "max_evaluations_reached",
+        "max_time_reached",
+        "no_improvement_budget_reached",
+        "max_rounds_reached",
+        "max_generations_reached",
+        "max_iterations_reached",
+        "max_steps_reached",
+        "max_sweeps_reached",
+        "configured_work_limit_reached",
+        "static_rescore_completed",
+        "manual_stop",
+        "requested_lane_unavailable",
+        "blocked_before_run",
+        "all_candidates_rejected_by_hard_crib",
+        "asset_missing",
+        "config_invalid",
+        "artifact_agreement_failed",
+        "unexpected_exception",
+        "unknown_runtime_reason",
+        "not_started"
+      ]
+    },
+    "stop_detail": {"type": ["string", "null"]},
+    "blocked_before_run": {"type": "boolean"},
+    "error_type": {"type": ["string", "null"]},
+    "legacy_stop_reason": {"type": ["string", "null"]},
+    "recovery": {
+      "type": "object",
+      "required": ["status", "assessed", "match_ratio", "basis"],
+      "properties": {
+        "status": {"type": "string", "enum": ["not_assessed", "exact", "partial", "not_recovered"]},
+        "assessed": {"type": "boolean"},
+        "match_ratio": {"type": ["number", "null"], "minimum": 0.0, "maximum": 1.0},
+        "basis": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "oracle": {
+      "type": "object",
+      "required": ["available", "used_for_scoring", "used_for_ranking", "used_for_stop", "mode"],
+      "properties": {
+        "available": {"type": "boolean"},
+        "used_for_scoring": {"type": "boolean"},
+        "used_for_ranking": {"type": "boolean"},
+        "used_for_stop": {"type": "boolean"},
+        "stop_reason": {"type": ["string", "null"]},
+        "mode": {"type": "string", "enum": ["real_solve", "tutorial", "test", "benchmark", "unknown"]}
+      },
+      "additionalProperties": true
+    },
+    "reproducibility": {
+      "type": "object",
+      "properties": {
+        "run_id": {"type": ["string", "null"]},
+        "created_at_utc": {"type": ["string", "null"]},
+        "rdp_version": {"type": ["string", "null"]},
+        "git_branch": {"type": ["string", "null"]},
+        "git_commit": {"type": ["string", "null"]},
+        "python_version": {"type": ["string", "null"]},
+        "backend": {"type": ["string", "null"]},
+        "device": {"type": ["string", "null"]},
+        "dtype": {"type": ["string", "null"]},
+        "seed": {"type": ["integer", "string", "null"]},
+        "stochastic": {"type": ["boolean", "null"]},
+        "solver_config": {},
+        "scoring_config": {},
+        "objective": {},
+        "cipher": {},
+        "asset_ids": {},
+        "asset_hashes": {},
+        "dictionary_policy": {"type": ["string", "null"]},
+        "stop_category": {"type": ["string", "null"]},
+        "stop_reason": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "assets": {"type": "array", "items": {"type": "object"}}
+  },
+  "additionalProperties": true
+}

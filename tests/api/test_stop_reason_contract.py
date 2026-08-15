@@ -25,17 +25,22 @@ def test_stop_categories_are_stable_and_enum_backed() -> None:
 
 def test_stop_reason_category_mapping() -> None:
     assert stop_category_for_reason(None) is StopCategory.NOT_STARTED
-    assert stop_category_for_reason(KnownStopReason.DONE.value) is StopCategory.SUCCESS
+    assert stop_category_for_reason(KnownStopReason.DONE.value) is StopCategory.ERROR
     assert stop_category_for_reason(KnownStopReason.PATIENCE.value) is StopCategory.BUDGET
     assert stop_category_for_reason(KnownStopReason.ALL_REJECTED_BY_HARD_CRIB.value) is StopCategory.BLOCKED_BEFORE_RUN
     assert stop_category_for_reason(KnownStopReason.ERROR.value) is StopCategory.ERROR
     assert stop_category_for_reason(KnownStopReason.MANUAL.value) is StopCategory.MANUAL
 
 
-def test_emitted_success_stop_reason_aliases_are_success() -> None:
+def test_explicit_positive_stop_reason_aliases_are_success() -> None:
     assert stop_category_for_reason(KnownStopReason.TARGET_SCORE.value) is StopCategory.SUCCESS
     assert stop_category_for_reason(KnownStopReason.STOP_SCORE.value) is StopCategory.SUCCESS
     assert stop_category_for_reason(KnownStopReason.TEST_KEY.value) is StopCategory.SUCCESS
+
+
+def test_ambiguous_legacy_completion_is_not_promoted_to_success() -> None:
+    assert stop_category_for_reason(KnownStopReason.DONE.value) is StopCategory.ERROR
+    assert stop_category_for_reason(KnownStopReason.SUCCESS.value) is StopCategory.ERROR
 
 
 def test_emitted_dynamic_budget_stop_reason_families_are_budget() -> None:

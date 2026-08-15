@@ -554,6 +554,26 @@ def _telemetry_summary(solution: object | None, *, options: RdpDisplayOptions) -
 
 
 def _stop_summary(solution: object | None, solver_report: SolverReport | None) -> dict[str, Any]:
+    # Prefer the canonical A4/June status when a SolverReport is available. The
+    # Solution field remains a low-level compatibility reason and can differ for
+    # routes such as explicit known-key execution.
+    if solver_report is not None and isinstance(solver_report.details, Mapping):
+        run_status = solver_report.details.get(SolverReportDetailKey.RUN_STATUS.value)
+        if isinstance(run_status, Mapping):
+            keep = (
+                "execution_status",
+                "stop_category",
+                "stop_reason",
+                "stop_detail",
+                "blocked_before_run",
+                "error_type",
+                "legacy_stop_reason",
+                "recovery",
+            )
+            return _json_value(
+                {key: run_status.get(key) for key in keep if key in run_status},
+                options=RdpDisplayOptions.standard(),
+            )
     if solution is not None:
         try:
             return _json_value(stop_reason_details_from_solution(solution), options=RdpDisplayOptions.standard())
@@ -574,11 +594,15 @@ def _oracle_summary(solver_report: SolverReport | None) -> dict[str, Any]:
     details = solver_report.details if solver_report is not None else {}
     if not isinstance(details, Mapping):
         details = {}
-    return {
+    out = {
         "oracle_use": details.get(SolverReportDetailKey.ORACLE_USE.value),
         "truth_data_policy": details.get(SolverReportDetailKey.TRUTH_DATA_POLICY.value),
         "execution_route": details.get(SolverReportDetailKey.EXECUTION_ROUTE.value),
     }
+    canonical = details.get(SolverReportDetailKey.ORACLE.value)
+    if isinstance(canonical, Mapping):
+        out.update({str(key): value for key, value in canonical.items()})
+    return out
 
 
 def _tutorial_summary(entry: Mapping[str, Any] | None, *, options: RdpDisplayOptions) -> dict[str, Any] | None:

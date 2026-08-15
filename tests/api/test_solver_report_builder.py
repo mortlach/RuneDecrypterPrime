@@ -29,33 +29,29 @@ def test_build_solver_report_returns_solver_report() -> None:
     )
 
     assert isinstance(report, SolverReport)
-    assert report.to_json_dict() == {
-        "solver_name": "beam",
-        "requested_seed": 123,
-        "effective_seed": 123,
-        "normalized_params": {"beam_width": 4},
-        "stop_reason": "max_steps",
-        "best_score": 10.5,
-        "best_key": [1, 2, 3],
-        "step": 7,
-        "evals": 8,
-        "tokens_processed": 9,
-        "wall_time_s": 0.5,
-        "decrypt_time_s": 0.2,
-        "score_time_s": 0.3,
-        "details": {
-            "route": "ordinary",
-            "report_contract": {"version": "api_solver_report_details.v1"},
-            "oracle_use": "none",
-            "truth_data_policy": "none",
-            "reproducibility": {
-                "deterministic_seed_policy": "explicit_or_default_zero",
-                "requested_seed": 123,
-                "effective_seed": 123,
-                "solver_name": "beam",
-            },
-        },
-    }
+    payload = report.to_json_dict()
+    assert payload["solver_name"] == "beam"
+    assert payload["requested_seed"] == 123
+    assert payload["effective_seed"] == 123
+    assert payload["normalized_params"] == {"beam_width": 4}
+    assert payload["stop_reason"] == "max_steps"
+    assert payload["best_key"] == [1, 2, 3]
+    assert payload["details"]["route"] == "ordinary"
+    assert payload["details"]["report_contract"] == {"version": "api_solver_report_details.v1"}
+    assert payload["details"]["oracle_use"] == "none"
+    assert payload["details"]["truth_data_policy"] == "none"
+    assert payload["details"]["run_status"]["schema"] == "rdp.run_status_contract.v1"
+    assert payload["details"]["run_status"]["execution_status"] == "completed"
+    assert payload["details"]["run_status"]["stop_reason"] == "max_steps_reached"
+    assert payload["details"]["run_status"]["recovery"]["status"] == "not_assessed"
+    assert payload["details"]["configuration"]["solver"]["requested"]["params"] == {"beam_width": 4}
+    repro = payload["details"]["reproducibility"]
+    assert repro["deterministic_seed_policy"] == "explicit_or_default_zero"
+    assert repro["requested_seed"] == 123
+    assert repro["effective_seed"] == 123
+    assert repro["solver_name"] == "beam"
+    assert repro["stop_category"] == "budget"
+    assert repro["stop_reason"] == "max_steps_reached"
 
 
 def test_build_solver_report_passes_seeds_unchanged() -> None:

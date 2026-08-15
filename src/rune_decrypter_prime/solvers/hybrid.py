@@ -227,7 +227,7 @@ class HybridSolver(SolverBase):
 
                 # Early terminate if we’ve hit stop_score
                 if self._early_stop_stop_score(best_score):
-                    self._end_span(span, best_score=float(best_score), reason="stop_score")
+                    self._end_span(span, best_score=float(best_score), reason=self._stop_reason)
                     return self._finalize_solution(best_key, float(best_score))
 
             # GA phase
@@ -236,7 +236,7 @@ class HybridSolver(SolverBase):
                 best_key, best_score, from_phase = g_key.copy(), float(g_score), "ga"
 
             if self._early_stop_stop_score(best_score):
-                self._end_span(span, best_score=float(best_score), reason="stop_score")
+                self._end_span(span, best_score=float(best_score), reason=self._stop_reason)
                 return self._finalize_solution(best_key, float(best_score))
 
             # SA phase (refine)
@@ -244,8 +244,9 @@ class HybridSolver(SolverBase):
             if s_score > best_score:
                 best_key, best_score, from_phase = s_key.copy(), float(s_score), "sa"
 
-            # End of hybrid
-            self._end_span(span, best_score=float(best_score), reason="done")
+            # End of hybrid: all configured phases completed without an earlier stop.
+            self._stop_reason = "configured_work_limit_reached"
+            self._end_span(span, best_score=float(best_score), reason=self._stop_reason)
             sol = self._finalize_solution(best_key, float(best_score))
             try:
                 if not hasattr(sol, "meta") or sol.meta is None:

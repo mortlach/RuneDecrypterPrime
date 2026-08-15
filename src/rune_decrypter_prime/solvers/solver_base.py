@@ -893,7 +893,10 @@ class SolverBase:
         elif payload.get("error") and not getattr(self, "_stop_reason", None):
             self._stop_reason = "error"
         elif not getattr(self, "_stop_reason", None):
-            self._stop_reason = "done"
+            # A4: an omitted producer reason must never be upgraded to success.
+            # Concrete solvers own their natural termination reason; this is only
+            # the conservative compatibility fallback for an incomplete producer.
+            self._stop_reason = "unknown_runtime_reason"
 
         # Preferred: explicit counters
         pt = getattr(self.problem, "telemetry_counters", None)

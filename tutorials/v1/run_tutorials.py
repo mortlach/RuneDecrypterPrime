@@ -24,6 +24,7 @@ from rune_decrypter_prime.utils.tutorial_runner import (
     TutorialEntry,
     TutorialResult,
     TutorialRunSet,
+    evaluate_tutorial_acceptance,
     parse_match_ratio,
     repo_relpath,
     select_tutorials,
@@ -228,11 +229,26 @@ def _run_one(entry: TutorialEntry) -> TutorialResult:
         print(f"\n--- output: {entry.path} ---")
         print(output.rstrip())
     match_ratio = _parse_match_ratio(output)
-    passed = proc.returncode == 0 and match_ratio is not None and match_ratio >= entry.min_match_ratio
+    process_succeeded = proc.returncode == 0
+    acceptance_met = evaluate_tutorial_acceptance(
+        entry,
+        process_succeeded=process_succeeded,
+        match_ratio=match_ratio,
+    )
+    passed = process_succeeded and acceptance_met
     if not passed and CONSOLE_OUTPUT != ConsoleOutput.FULL:
         print(f"\n--- tail: {entry.path} ---")
         print(_tail(output, lines=FAILURE_TAIL_LINES))
-    return TutorialResult(entry.path, entry.acceptance, proc.returncode, match_ratio, passed, output_path)
+    return TutorialResult(
+        path=entry.path,
+        acceptance=entry.acceptance,
+        returncode=proc.returncode,
+        match_ratio=match_ratio,
+        passed=passed,
+        output_path=output_path,
+        process_succeeded=process_succeeded,
+        acceptance_met=acceptance_met,
+    )
 
 
 def main() -> int:
@@ -263,7 +279,8 @@ def main() -> int:
         match_text = "none" if result.match_ratio is None else f"{result.match_ratio:.3f}"
         log_text = "" if result.output_path is None else f" log={_relpath(result.output_path)}"
         print(
-            f"[{status}] {entry.path} acceptance={entry.acceptance.value} "
+            f"[{status}] {entry.path} process={'PASS' if result.process_succeeded else 'FAIL'} "
+            f"acceptance={entry.acceptance.value}:{'PASS' if result.acceptance_met else 'FAIL'} "
             f"match_ratio={match_text} min={entry.min_match_ratio:.3f}{log_text}"
         )
         if not result.passed and STOP_ON_FIRST_FAILURE:

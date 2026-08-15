@@ -608,12 +608,14 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                     pass
 
             final_score = float(best_raw) if use_raw_score else float(best_pct)
+            if self._stop_reason is None:
+                self._stop_reason = "max_steps_reached"
             self._end_span(getattr(self, "_span", None),
                            steps=int(global_step),
                            candidates=int(total_evals),
                            best_score=float(final_score),
                            best_raw=float(best_raw),
-                           reason=(getattr(self, "_stop_reason", None) or "done"))
+                           reason=self._stop_reason)
             return self._finalize_solution(best_key, float(final_score))
 
         except Exception as e:

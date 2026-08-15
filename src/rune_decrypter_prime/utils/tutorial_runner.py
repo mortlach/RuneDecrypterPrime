@@ -32,14 +32,41 @@ class TutorialEntry:
     required_asset_profile: str = "ci_light"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TutorialResult:
+    # Preserve the established positional field order. A4 adds the two
+    # explicit truth fields after the compatibility surface.
     path: str
     acceptance: TutorialAcceptanceKind
     returncode: int
     match_ratio: float | None
     passed: bool
     output_path: Path | None
+    process_succeeded: bool | None = None
+    acceptance_met: bool | None = None
+
+    def __post_init__(self) -> None:
+        if type(self.passed) is not bool:
+            raise TypeError("passed must be bool")
+        process_succeeded = self.process_succeeded
+        if process_succeeded is None:
+            process_succeeded = self.returncode == 0
+            object.__setattr__(self, "process_succeeded", process_succeeded)
+        elif type(process_succeeded) is not bool:
+            raise TypeError("process_succeeded must be bool or None")
+
+        acceptance_met = self.acceptance_met
+        if acceptance_met is None:
+            # Old six-argument TutorialResult only carried the aggregate. This
+            # preserves construction compatibility without changing active
+            # runner semantics, which always supplies acceptance_met explicitly.
+            acceptance_met = bool(self.passed) if process_succeeded else False
+            object.__setattr__(self, "acceptance_met", acceptance_met)
+        elif type(acceptance_met) is not bool:
+            raise TypeError("acceptance_met must be bool or None")
+
+        if self.passed != (process_succeeded and acceptance_met):
+            raise ValueError("passed must equal process_succeeded and acceptance_met")
 
 
 def select_tutorials(
@@ -100,7 +127,20 @@ def repo_relpath(path: Path, *, repo_root: Path) -> str:
     try:
         return path.resolve().relative_to(repo_root.resolve()).as_posix()
     except ValueError:
-        return path.as_posix()
+        return f"<external>/{path.name}"
+
+
+def evaluate_tutorial_acceptance(
+    entry: TutorialEntry,
+    *,
+    process_succeeded: bool,
+    match_ratio: float | None,
+) -> bool:
+    if type(process_succeeded) is not bool:
+        raise TypeError("process_succeeded must be bool")
+    if entry.acceptance is TutorialAcceptanceKind.PROCESS_SUCCESS:
+        return process_succeeded
+    return match_ratio is not None and match_ratio >= float(entry.min_match_ratio)
 
 
 __all__ = [
@@ -108,6 +148,7 @@ __all__ = [
     "TutorialEntry",
     "TutorialResult",
     "TutorialRunSet",
+    "evaluate_tutorial_acceptance",
     "parse_last_float",
     "parse_match_ratio",
     "repo_relpath",

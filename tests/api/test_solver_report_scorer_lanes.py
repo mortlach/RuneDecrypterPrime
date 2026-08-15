@@ -17,13 +17,13 @@ class _ProblemLike:
 
 def test_solver_report_details_carries_scorer_lanes_from_solution_meta() -> None:
     scorer_lanes = {"lanes": [], "components": []}
-    solution = _SolutionLike(meta={"scorer_lanes": scorer_lanes}, stop_reason="done")
+    solution = _SolutionLike(meta={"scorer_lanes": scorer_lanes}, stop_reason="max_rounds_reached")
 
     details = _solver_report_details_from_solution(solution)
 
     assert details["scorer_lanes"] == scorer_lanes
-    assert details["stop_category"] == "success"
-    assert details["stop_reason"] == "done"
+    assert details["stop_category"] == "budget"
+    assert details["stop_reason"] == "max_rounds_reached"
 
 
 def test_solver_report_details_includes_stop_schema_when_scorer_lanes_missing() -> None:
@@ -46,7 +46,7 @@ def test_scorer_lanes_report_failure_cannot_silently_disappear_from_solver_repor
         def capability_report(self):
             raise RuntimeError("capability report exploded")
 
-    solution = _SolutionLike(meta={}, stop_reason="done")
+    solution = _SolutionLike(meta={}, stop_reason="max_rounds_reached")
     _attach_scorer_lanes_to_meta(solution, _ProblemLike(_BrokenScorer()))
 
     details = _solver_report_details_from_solution(solution)
@@ -67,7 +67,7 @@ def test_scorer_lanes_serialization_failure_cannot_silently_disappear_from_solve
         def capability_report(self):
             return _BrokenReport()
 
-    solution = _SolutionLike(meta={}, stop_reason="done")
+    solution = _SolutionLike(meta={}, stop_reason="max_rounds_reached")
     _attach_scorer_lanes_to_meta(solution, _ProblemLike(_BrokenScorer()))
 
     details = _solver_report_details_from_solution(solution)

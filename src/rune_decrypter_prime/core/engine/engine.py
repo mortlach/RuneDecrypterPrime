@@ -31,6 +31,13 @@ from rune_decrypter_prime.telemetry.events import (
     run_end   as tel_run_end,
 )
 from rune_decrypter_prime.telemetry.schema import to_canonical_device_str
+from rune_decrypter_prime.api.stop_reason_contract import (
+    ExecutionStatus,
+    build_run_status,
+    execution_status_for_category,
+    run_status_from_solution,
+    stop_category_for_reason,
+)
 
 
 _SOLVER_TABLE: Dict[SolverName, Any] = {
@@ -193,10 +200,34 @@ def solve(instance: ProblemInstance, engine_cfg: EngineConfig):
     try:
         solution = solver.solve()
 
-        stop_reason = getattr(solver, "_stop_reason", None)
-        result_payload = {"score": float(getattr(solution, "score", 0.0))}
+        solution_reason = getattr(solution, "stop_reason", None)
+        stop_reason = solution_reason or getattr(solver, "_stop_reason", None)
+        if stop_reason is None:
+            # solver.solve() returned normally, so execution completed even if a
+            # producer failed to state why it stopped. Surface that as an
+            # unknown-runtime reporting defect rather than "not_started".
+            run_status = build_run_status(
+                legacy_reason=None,
+                execution_status=ExecutionStatus.COMPLETED,
+            )
+        elif solution_reason is None:
+            status_category = stop_category_for_reason(str(stop_reason))
+            run_status = build_run_status(
+                legacy_reason=str(stop_reason),
+                execution_status=execution_status_for_category(status_category),
+            )
+        else:
+            status_category = stop_category_for_reason(str(stop_reason))
+            run_status = run_status_from_solution(
+                solution,
+                execution_status=execution_status_for_category(status_category),
+            )
+        result_payload = {
+            "score": float(getattr(solution, "score", 0.0)),
+            "run_status": run_status.to_json_dict(),
+        }
         if stop_reason:
-            result_payload["reason"] = stop_reason
+            result_payload["reason"] = str(stop_reason)
 
         # --- run_end telemetry envelope ---
         tel_run_end(
@@ -212,6 +243,12 @@ def solve(instance: ProblemInstance, engine_cfg: EngineConfig):
 
     except Exception as e:
         # Emit a failed run_end and re-raise
+        error_status = build_run_status(
+            legacy_reason="exception",
+            execution_status=ExecutionStatus.ERROR,
+            stop_detail=str(e),
+            error_type=type(e).__name__,
+        )
         tel_run_end(
             problem=instance.problem,
             seed=engine_cfg.seed,
@@ -219,7 +256,11 @@ def solve(instance: ProblemInstance, engine_cfg: EngineConfig):
             device=dev,
             scorer=scorer_meta,
             pipeline=instance.pipeline_block,
-            result={"error": str(e)},
+            result={
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "run_status": error_status.to_json_dict(),
+            },
         )
         raise
     finally:

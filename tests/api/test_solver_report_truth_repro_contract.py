@@ -35,12 +35,20 @@ def test_production_report_defaults_truth_data_use_to_none() -> None:
 
     assert report.details["oracle_use"] == "none"
     assert report.details["truth_data_policy"] == "none"
-    assert report.details["reproducibility"] == {
-        "deterministic_seed_policy": "explicit_or_default_zero",
-        "requested_seed": None,
-        "effective_seed": 0,
-        "solver_name": "beam",
-    }
+    reproducibility = report.details["reproducibility"]
+    assert reproducibility["deterministic_seed_policy"] == "explicit_or_default_zero"
+    assert reproducibility["requested_seed"] is None
+    assert reproducibility["effective_seed"] == 0
+    assert reproducibility["solver_name"] == "beam"
+    assert reproducibility["stop_category"] == "budget"
+    assert reproducibility["stop_reason"] == "max_evaluations_reached"
+    for field in (
+        "run_id", "created_at_utc", "rdp_version", "git_branch", "git_commit",
+        "python_version", "backend", "device", "dtype", "seed", "stochastic",
+        "solver_config", "scoring_config", "objective", "cipher", "asset_ids",
+        "asset_hashes", "dictionary_policy", "stop_category", "stop_reason",
+    ):
+        assert field in reproducibility
 
 
 def test_known_key_fastpath_is_reported_and_existing_details_survive() -> None:
@@ -49,7 +57,7 @@ def test_known_key_fastpath_is_reported_and_existing_details_survive() -> None:
         requested_seed=None,
         effective_seed=None,
         normalized_params={"beam_width": 1},
-        stop_reason="done",
+        stop_reason="known_key_execution_completed",
         details={"execution_route": "known_key_fastpath", "scorer_lanes": {"lanes": []}},
     )
 
@@ -57,6 +65,14 @@ def test_known_key_fastpath_is_reported_and_existing_details_survive() -> None:
     assert payload["details"]["oracle_use"] == "known_key_fastpath"
     assert payload["details"]["truth_data_policy"] == "reported_test_or_tutorial_only"
     assert payload["details"]["scorer_lanes"] == {"lanes": []}
+    assert payload["details"]["oracle"] == {
+        "available": True,
+        "used_for_scoring": False,
+        "used_for_ranking": False,
+        "used_for_stop": True,
+        "stop_reason": "known_key_execution_completed",
+        "mode": "unknown",
+    }
 
 
 @pytest.mark.parametrize(

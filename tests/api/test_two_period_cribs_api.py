@@ -187,7 +187,8 @@ def test_real_route_returns_standard_exact_solution_with_installed_assets():
     assert isinstance(result, api.RunResult)
     assert result.solution.key == known_key.astype(int).tolist()
     assert result.solution.plaintext_idx == plaintext.astype(int).tolist()
-    assert result.solution.stop_reason == "done"
+    assert result.solution.stop_reason == "configured_work_limit_reached"
+    assert result.solver_report.details["run_status"]["stop_reason"] == "configured_work_limit_reached"
     assert result.solver_report.solver_name == "two_period_cribs"
     assert result.solver_report.details["execution_route"] == "two_period_cribs"
     details = result.solver_report.details["two_period_solve"]
@@ -197,6 +198,9 @@ def test_real_route_returns_standard_exact_solution_with_installed_assets():
     assert summaries["F1"]["generated_terminals"] == summaries["F1"]["inputs"]
     assert summaries["final_union"]["generated_terminals"] == 0
     assert summaries["final_union"]["mode"] == "static_rescore"
+    assert summaries["final_union"]["stop_reason"] == "static_rescore_completed"
+    assert summaries["final_union"]["stop_category"] == "budget"
+    assert all(row["stop_reason"] != "done" for row in summaries.values())
     counts = details["candidate_counts"]
     assert counts["judge_inputs"] >= counts["judge_unique_terminals"]
     assert counts["final_union_inputs"] >= counts["final_union_unique_terminals"]
