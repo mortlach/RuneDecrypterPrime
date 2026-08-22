@@ -67,6 +67,12 @@ exclude = [
   "rune_decrypter_prime.data.liber_primus.old.*",
 ]
 
+[tool.setuptools.package-data]
+rune_decrypter_prime = [
+  "data/cipher_tests/books/*.npz",
+  "data/cipher_tests/books/*.json",
+]
+
 [tool.pytest.ini_options]
 markers = [
   "tier_a: fast deterministic unit or contract test",

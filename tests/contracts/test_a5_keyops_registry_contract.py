@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -18,9 +19,15 @@ EXPECTED_MATRIX_FACTORY = "PeriodicStructuredMatrixKeyOps"
 
 
 def _fresh(code: str) -> str:
+    env = os.environ.copy()
+    src = str(REPO_ROOT / "src")
+    env["PYTHONPATH"] = os.pathsep.join(
+        part for part in (src, env.get("PYTHONPATH", "")) if part
+    )
     proc = subprocess.run(
         [sys.executable, "-c", code],
         cwd=REPO_ROOT,
+        env=env,
         text=True,
         encoding="utf-8",
         errors="replace",

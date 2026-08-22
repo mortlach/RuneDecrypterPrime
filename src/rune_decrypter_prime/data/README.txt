@@ -6,7 +6,8 @@ Code and small fixtures used by the project.
 Contents
 --------
 - `cipher_tests/`: plaintexts, word-break indices, and helper fixtures used by
-  tier-A tests/tutorials.
+  tier-A tests/tutorials. Its `books/` directory contains small packaged
+  NOSE+WLI book corpora for cipher tests, tutorials, and robustness campaigns.
 - `liber_primus`, `tutorials`, etc.: curated lightweight datasets for tutorials.
 
 Guidelines
