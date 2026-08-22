@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import Optional, Sequence
 import numpy as np
 from rune_decrypter_prime.keyops.base_keyops import KeyOpBase, KeyCaps, ArrayU8
-from rune_decrypter_prime.keyops.registry import register_keyop
 
 def _gcd(a: int, b: int) -> int:
     while b:
@@ -59,7 +58,6 @@ class MatrixKeyConfig:
     mod: int = 29
     require_invertible: bool = True
 
-@register_keyop("matrix")
 class MatrixKey(KeyOpBase):
     """
     General integer matrix key with modular arithmetic.

@@ -11,12 +11,25 @@ def _normalize_family(name: KeyOpsFamily | str) -> KeyOpsFamily:
     return ensure_keyops_family(name)
 
 
-def register_keyop(name: KeyOpsFamily | str):
-    """Decorator: register a KeyOps factory/class under a canonical family."""
+def register_keyop(name: KeyOpsFamily | str, *, replace: bool = False):
+    """Register a KeyOps factory under a canonical family.
+
+    Normal registration is strict: an existing family is a contract conflict and
+    raises. Deliberate replacement is available only through ``replace=True`` and
+    is intended for explicit development/test use, never import-order arbitration.
+    """
+    family = _normalize_family(name)
 
     def _wrap(factory: Callable[..., Any]):
-        family = _normalize_family(name)
-        # Allow re-registration during dev, but always overwrite
+        existing = _REG.get(family)
+        if existing is not None and not replace:
+            existing_name = getattr(existing, "__name__", repr(existing))
+            new_name = getattr(factory, "__name__", repr(factory))
+            raise ValueError(
+                f"KeyOps family '{family.value}' is already registered by "
+                f"{existing_name}; refusing implicit replacement with {new_name}. "
+                "Use replace=True only for an explicit replacement."
+            )
         _REG[family] = factory
         return factory
 
@@ -46,20 +59,17 @@ def available() -> list[KeyOpsFamily]:
     return sorted(_REG.keys(), key=lambda fam: fam.value)
 
 
-# ---- Canonical aliasing for ctor kwargs (kept from previous implementation) ---
 def _alias_kwargs_for_family(family: KeyOpsFamily, kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """Normalize legacy kwarg names to canonical ctor args per family."""
     fam = _normalize_family(family)
     out = dict(kwargs) if kwargs else {}
 
-    # Common K aliases
     if "K" not in out:
         if "length" in out:
             out["K"] = out.pop("length")
         elif "L" in out:
             out["K"] = out.pop("L")
 
-    # Family-specific
     if fam is KeyOpsFamily.VECTOR or fam is KeyOpsFamily.COMPOSITE:
         if "mod" not in out:
             if "A" in out:
@@ -67,8 +77,8 @@ def _alias_kwargs_for_family(family: KeyOpsFamily, kwargs: Dict[str, Any]) -> Di
             elif "alphabet_size" in out:
                 out["mod"] = out.pop("alphabet_size")
     elif fam is KeyOpsFamily.PERMUTATION:
-        pass  # no extra aliases beyond K
-    # Coerce to ints where present (robust to numpy scalars / strings)
+        pass
+
     if "K" in out and out["K"] is not None:
         out["K"] = int(out["K"])
     if "mod" in out and out["mod"] is not None:
@@ -76,7 +86,6 @@ def _alias_kwargs_for_family(family: KeyOpsFamily, kwargs: Dict[str, Any]) -> Di
     return out
 
 
-# -----------------------------------------------------------------------------
 def create(name: KeyOpsFamily | str, **kwargs: Any):
     """Construct a KeyOps instance by canonical family name or Enum."""
     family = _normalize_family(name)
@@ -92,21 +101,11 @@ def create(name: KeyOpsFamily | str, **kwargs: Any):
         ) from exc
 
 
-# Ensure imports run registration side-effects
-try:
-    from . import permutation_ops  # registers KeyOpsFamily.PERMUTATION on import
-except Exception:
-    pass
-try:
-    from . import vector  # registers KeyOpsFamily.VECTOR on import
-except Exception:
-    pass
-try:
-    from . import composite  # registers KeyOpsFamily.COMPOSITE on import
-except Exception:
-    pass
-try:
-    from . import periodic_structured_matrix_ops  # registers KeyOpsFamily.MATRIX on import
-except Exception:
-    pass
+# Production registrations are required. Import failures must be visible rather
+# than silently changing the registry according to environment/import order.
+from . import permutation_ops as _permutation_ops  # noqa: E402,F401
+from . import vector as _vector  # noqa: E402,F401
+from . import composite as _composite  # noqa: E402,F401
+from . import periodic_structured_matrix_ops as _periodic_structured_matrix_ops  # noqa: E402,F401
+
 __all__ = ["register_keyop", "create", "get", "has", "available"]

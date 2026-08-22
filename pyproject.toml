@@ -13,11 +13,14 @@ dependencies = [
   "numpy>=1.26",
   "zstandard>=0.22",
   "tzdata>=2024.1",
+  "lark>=1.1",
 ]
 classifiers = [
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
   "License :: OSI Approved :: MIT License",
-  "Operating System :: OS Independent",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
 ]
 
 [project.optional-dependencies]
@@ -55,6 +58,14 @@ Issues = "https://github.com/mortlach/RuneDecrypterPrime/issues"
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["rune_decrypter_prime*", "rdp*"]
+exclude = [
+  "rune_decrypter_prime.ciphers.dev",
+  "rune_decrypter_prime.ciphers.dev.*",
+  "rune_decrypter_prime.keyops.dev",
+  "rune_decrypter_prime.keyops.dev.*",
+  "rune_decrypter_prime.data.liber_primus.old",
+  "rune_decrypter_prime.data.liber_primus.old.*",
+]
 
 [tool.pytest.ini_options]
 markers = [

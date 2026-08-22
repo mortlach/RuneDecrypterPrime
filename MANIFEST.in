@@ -1,6 +1,22 @@
 include pyproject.toml
 include setup.py
+include README.md
+include LICENSE*
+include assets_manifest_ci_light_v1.json
+include assets_manifest_v1.json
+include asset_profiles_v1.json
 
 recursive-include src/rune_decrypter_prime/scoring/language_model *.cpp *.hpp *.h
 recursive-include src/rune_decrypter_prime/scoring/hamming *.cpp *.hpp *.h
 recursive-include src/rune_decrypter_prime/scoring/span_hamming *.cpp *.hpp *.h
+
+# CI-light runtime files are added to the sdist by A5Sdist from the exact
+# assets_manifest_ci_light_v1.json allowlist. Do not recursively include the
+# local assets tree: a developer's full_v1 install may contain large files that
+# must never leak into the Python package by globbing.
+
+prune src/rune_decrypter_prime/ciphers/dev
+prune src/rune_decrypter_prime/keyops/dev
+prune src/rune_decrypter_prime/data/liber_primus/old
+
+global-exclude __pycache__ *.py[cod] .DS_Store Thumbs.db

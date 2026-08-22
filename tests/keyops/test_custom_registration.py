@@ -16,7 +16,7 @@ def test_keyops_registration_can_be_overridden_and_restored():
     """Developers can swap in custom KeyOps implementations and revert safely."""
     original_factory = get(KeyOpsFamily.VECTOR)
 
-    @register_keyop(KeyOpsFamily.VECTOR)
+    @register_keyop(KeyOpsFamily.VECTOR, replace=True)
     class UnitTestVector(KeyOpBase):
         def __init__(self, K: int = 4, mod: int = 29):
             self.K = int(K)
@@ -46,4 +46,4 @@ def test_keyops_registration_can_be_overridden_and_restored():
         assert mutated.shape == (5,)
         assert ops.normalize(mutated).shape == (5,)
     finally:
-        register_keyop(KeyOpsFamily.VECTOR)(original_factory)
+        register_keyop(KeyOpsFamily.VECTOR, replace=True)(original_factory)

@@ -1,4 +1,4 @@
-name: RDP V1 wheel build proof (manual, non-authoritative)
+name: RDP V1 wheel/sdist build proof (manual, non-authoritative)
 
 on:
   workflow_dispatch:
@@ -11,48 +11,47 @@ env:
   PYTHONIOENCODING: "utf-8"
 
 jobs:
-  build-wheels:
-    name: wheel proof / ${{ matrix.os }}
+  build-packages:
+    name: package proof / ${{ matrix.os }} / py3.11
     runs-on: ${{ matrix.os }}
-
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - windows-latest
-          - ubuntu-latest
+        os: [windows-latest, ubuntu-latest]
 
     env:
       CIBW_BUILD: "cp311-*"
       CIBW_SKIP: "*-musllinux_*"
       CIBW_TEST_COMMAND: >-
-        python -c "import importlib;
-        importlib.import_module('rune_decrypter_prime');
-        importlib.import_module('rdp');
-        importlib.import_module('rune_decrypter_prime.scoring.language_model._fastlm');
-        importlib.import_module('rune_decrypter_prime.scoring.hamming._hamming');
-        importlib.import_module('rune_decrypter_prime.scoring.span_hamming._span_hamming_fast');
-        print('wheel package and native imports passed')"
+        python {project}/tools/ci/a5_installed_wheel_smoke.py
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Python for cibuildwheel driver
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
 
-      - name: Install cibuildwheel
-        run: python -m pip install cibuildwheel
+      - name: Install package-build drivers
+        run: python -m pip install cibuildwheel build
 
-      - name: Build and test CPython 3.11 wheels
+      - name: Build and isolate-test CPython 3.11 wheels
         run: python -m cibuildwheel --output-dir wheelhouse
 
-      - name: Upload wheel artifacts
+      - name: Build source distribution
+        run: python -m build --sdist --outdir dist
+
+      - name: Validate wheel and sdist boundaries
+        run: python tools/ci/a5_artifact_contract.py
+
+      - name: Upload package artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rdp-v1-wheelhouse-${{ matrix.os }}
-          path: wheelhouse/*.whl
+          name: rdp-v1-packages-${{ matrix.os }}-py3.11
+          path: |
+            wheelhouse/*.whl
+            dist/*.tar.gz
           if-no-files-found: error

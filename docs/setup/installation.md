@@ -2,13 +2,15 @@
 
 This page is the simple V1 install path.
 
-All paths below are relative to the repository root.
+All paths below are relative to the repository root unless a clean installed-wheel proof is explicitly described.
 
-## Requirements
+## Requirements and qualified platforms
 
-- Python 3.11+
-- A normal C/C++ build toolchain if native extensions need to be built locally
-- Git is recommended, but not part of the Python package itself
+- The package requires Python 3.11 or newer at the metadata/API level.
+- The V1 release gate is currently qualified on **Python 3.11** on **Windows** and **Ubuntu/Linux**.
+- Newer Python versions or other platforms may work, but are not release-qualified until the same gates are run there.
+- A normal C/C++ build toolchain is required if native extensions need to be built locally.
+- Git is recommended for source development, but is not part of the installed Python package.
 
 ## Simple install
 
@@ -39,8 +41,7 @@ Installer logs are written under:
 output/install_logs/
 ```
 
-To show successful command output while debugging, set this before running the
-installer:
+To show successful command output while debugging, set this before running the installer:
 
 ```text
 RDP_INSTALL_VERBOSE=1
@@ -52,7 +53,8 @@ or wheel are too old, upgrade them deliberately and rerun the installer.
 ## Large V1 language-model assets
 
 Full V1 requires the LM3/LM4 language-model assets. They are distributed as
-GitHub Release zip parts, not committed to normal Git history.
+GitHub Release zip parts, not committed to normal Git history and not silently
+embedded into the production wheel.
 
 `python install.py` first reuses valid local bundles from:
 
@@ -73,7 +75,9 @@ Run python install.py again.
 ```
 
 The installer does not silently downgrade to LM2 if required LM3/LM4 assets are
-missing or corrupt.
+missing or corrupt. Clean installed-wheel/scorer proofs supply any external full
+LM root through the existing explicit `model_root` configuration; RDP does not
+search user/home/current-working-directory locations for substitute assets.
 
 ## Run the V1 tutorial gate
 
@@ -107,26 +111,20 @@ This is the same broad pytest command used by full CI.
 
 The repository has two authoritative validation gates:
 
-1. Normal push gate
+1. Normal push gate: `.github/workflows/rdp_v1_full_ci.yml`
+   - `ci_light` on Windows and Ubuntu with Python 3.11
+   - excludes `full_assets`
+   - runs `TutorialRunSet.CI_LIGHT`
 
-   ```text
-   .github/workflows/rdp_v1_full_ci.yml
-   ```
+2. Manual full proof: `.github/workflows/rdp_v1_full_proof.yml`
+   - complete `full_v1` profile
+   - all tests and active V1 tutorials
+   - Windows and Ubuntu with Python 3.11
 
-   Uses the `ci_light` profile on Windows and Ubuntu with Python 3.11, excludes
-   tests marked `full_assets`, and runs `TutorialRunSet.CI_LIGHT`.
-
-2. Manual full proof
-
-   ```text
-   .github/workflows/rdp_v1_full_proof.yml
-   ```
-
-   Uses the complete `full_v1` profile, runs all tests and all active V1
-   tutorials on Windows and Ubuntu with Python 3.11.
-
-The wheel workflows are separate manual packaging proofs. They are not substitutes
-for either validation gate.
+The package workflow `.github/workflows/rdp_v1_wheel_build_proof.yml` is a separate
+manual packaging proof. It builds CPython 3.11 wheels plus an sdist, performs an
+isolated installed-wheel import/native-module check outside `src`, and validates
+artifact allow/deny boundaries. It is not a substitute for either validation gate.
 
 ## Manual install notes
 
