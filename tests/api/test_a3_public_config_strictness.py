@@ -77,6 +77,14 @@ def test_key_spec_factory_and_direct_validation_are_consistent() -> None:
             make()
 
 
+def test_beam_restarts_are_positive_and_canonical() -> None:
+    assert SolverSpec.beam(restarts="3").params["restarts"] == 3
+    with pytest.raises(ValueError, match="restarts must be greater than zero"):
+        SolverSpec.beam(restarts=0)
+    with pytest.raises(TypeError, match="restarts must be an integer"):
+        SolverSpec.beam(restarts=True)
+
+
 def test_every_key_spec_plan_emits_json_portable_telemetry() -> None:
     def stream_fn(length: int, *, offset: int = 0) -> np.ndarray:
         return np.arange(length, dtype=np.uint8) + np.uint8(offset)

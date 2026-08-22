@@ -78,9 +78,14 @@ RESULT_FIELDS = (
 )
 
 
+def case_seed_namespace(family: str) -> str:
+    return str(config.CASE_SEED_NAMESPACES.get(family, family))
+
+
 def trial_seed(family: str, trial_index: int) -> int:
     rng = RNGController(CAMPAIGN_SEED).scope("cipher_solver_campaign")
-    return int(rng.child(f"{family}.{trial_index}").integers(1, 2**31 - 1))
+    namespace = case_seed_namespace(family)
+    return int(rng.child(f"{namespace}.{trial_index}").integers(1, 2**31 - 1))
 
 
 def attempt_seed(family: str, trial_index: int, attempt_index: int) -> int:
@@ -178,7 +183,7 @@ def _ordinary_inputs(family: str, trial_index: int, attempt_index: int):
     solver_seed = attempt_seed(family, trial_index, attempt_index)
     direction = trial_direction(trial_index)
     plaintext, wli, source = _book_passage(seed, direction)
-    rng = RNGController(seed).scope(family)
+    rng = RNGController(seed).scope(case_seed_namespace(family))
     limits = config.CIPHER_RANGES[family]
     budget = dict(config.SOLVER_BUDGETS[family])
     budget["seed"] = solver_seed
@@ -192,6 +197,7 @@ def _case(
     key_length: int, expected_key: Sequence[int] | None = None,
     expected_interruptors: Sequence[int] | None = None,
     initial_keys: Any = None, interruptors: Any = None,
+    scorer: Mapping[str, Any] | None = None,
 ) -> CampaignCase:
     return CampaignCase(
         family=family,
@@ -202,7 +208,11 @@ def _case(
         cipher=cipher,
         key=key,
         solver=solver,
-        scorer=_scorer(direction),
+        scorer=(
+            _scorer(direction)
+            if scorer is None
+            else {**dict(scorer), "encoding_dir": direction}
+        ),
         cipher_parameters=cipher_parameters,
         solver_parameters=dict(solver.params),
         source=source,
@@ -261,7 +271,7 @@ def _build_railfence(trial_index: int, attempt_index: int) -> CampaignCase:
 
 
 def _build_autokey(trial_index: int, attempt_index: int) -> CampaignCase:
-    family = "autokey_ga"
+    family = "autokey_beam"
     _, direction, pt, wli, source, rng, limits, budget = _ordinary_inputs(
         family, trial_index, attempt_index
     )
@@ -273,9 +283,9 @@ def _build_autokey(trial_index: int, attempt_index: int) -> CampaignCase:
     ct = obj.encrypt_single(plaintext=pt, key=np.asarray(truth, dtype=np.uint8))
     return _case(
         family=family, direction=direction, plaintext=pt, wli=wli, source=source,
-        ciphertext=ct, cipher=cipher, key=key, solver=api.SolverSpec.ga(**budget),
+        ciphertext=ct, cipher=cipher, key=key, solver=api.SolverSpec.beam(**budget),
         cipher_parameters={"seed_length": length, "key": truth}, key_length=length,
-        expected_key=truth,
+        expected_key=truth, scorer=config.AUTOKEY_SCORER,
     )
 
 
@@ -443,7 +453,7 @@ FAMILIES = {
         ),
         FamilyDefinition("railfence_beam", config.FAMILY_GROUPS["railfence_beam"], _build_railfence),
         FamilyDefinition(
-            "autokey_ga", config.FAMILY_GROUPS["autokey_ga"],
+            "autokey_beam", config.FAMILY_GROUPS["autokey_beam"],
             _build_autokey, _exact_key_equivalence,
         ),
         FamilyDefinition(

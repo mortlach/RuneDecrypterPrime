@@ -41,7 +41,7 @@ def test_registry_uses_central_groups_and_registered_builders() -> None:
     campaign = _campaign()
     assert set(campaign.FAMILIES) == set(campaign.config.FAMILY_GROUPS)
     assert all(definition.name == name for name, definition in campaign.FAMILIES.items())
-    assert campaign.FAMILIES["autokey_ga"].group == "DEVELOPMENT"
+    assert campaign.FAMILIES["autokey_beam"].group == "STANDARD"
     assert campaign.FAMILIES["two_period_cribs"].group == "SPECIALIST"
     assert campaign.FAMILIES["vigenere_beam"].group == "STANDARD"
 
@@ -88,6 +88,12 @@ def test_trial_and_attempt_seeds_are_repeatable_and_namespaced() -> None:
     assert campaign.attempt_seed("vigenere_beam", 0, 1) != trial
 
 
+def test_autokey_solver_rename_preserves_the_problem_stream() -> None:
+    campaign = _campaign()
+    assert campaign.case_seed_namespace("autokey_beam") == "autokey_ga"
+    assert campaign.case_seed_namespace("vigenere_beam") == "vigenere_beam"
+
+
 def test_same_trial_reconstructs_same_problem_with_new_attempt_seed() -> None:
     campaign = _campaign()
     first = campaign.build_case("vigenere_beam", 0, 0)
@@ -102,7 +108,7 @@ def test_same_trial_reconstructs_same_problem_with_new_attempt_seed() -> None:
 @pytest.mark.parametrize(
     "family",
     (
-        "vigenere_beam", "railfence_beam", "autokey_ga", "columnar_hybrid",
+        "vigenere_beam", "railfence_beam", "autokey_beam", "columnar_hybrid",
         "mono_ga", "vigenere_interruptors_beam",
         "generic_map_multiply_beam", "scheduled_stream_beam",
     ),
@@ -127,6 +133,17 @@ def test_configured_difficulty_minima_are_respected() -> None:
         case = campaign.build_case(family, 0)
         minimum = min(campaign.config.CIPHER_RANGES[family].values())[0]
         assert case.cipher_parameters[field] >= minimum
+
+
+def test_autokey_uses_the_qualified_beam_and_wli_profile() -> None:
+    campaign = _campaign()
+    case = campaign.build_case("autokey_beam", 0)
+    assert case.solver.name == "beam"
+    assert case.solver.params["restarts"] == 3
+    assert case.scorer["include_char"] is False
+    assert case.scorer["use_word_breaks"] is True
+    assert case.scorer["char_weights"] == {}
+    assert case.scorer["wli_weights"] == {1: 0.3, 2: 0.7}
 
 
 def test_truth_not_target_score_controls_classification() -> None:

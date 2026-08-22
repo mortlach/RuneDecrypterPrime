@@ -99,6 +99,28 @@ def test_normal_solver_completion_has_producer_owned_reason() -> None:
         assert solution.stop_reason == expected_reason
 
 
+def test_beam_restarts_report_score_selected_restart_metadata() -> None:
+    solver = BeamSolver(
+        _problem(),
+        opt_cfg={
+            "beam_width": 2,
+            "rounds": 1,
+            "restarts": 3,
+            "plateau_rounds": 0,
+            "progress_pct": 0,
+        },
+        rng=np.random.default_rng(7),
+        verbose=False,
+        log_interval=9999,
+    )
+    solution = solver.solve()
+    beam = solution.meta["beam"]
+    assert solution.stop_reason == "max_rounds_reached"
+    assert beam["restarts"] == 3
+    assert beam["selected_restart"] == 0
+    assert beam["restart_scores"] == [0.0, 0.0, 0.0]
+
+
 def test_kaeding_normal_completion_has_producer_owned_reason() -> None:
     solver = KaedingPeriodicStructuredSolver(
         _kaeding_problem(),

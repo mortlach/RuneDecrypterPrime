@@ -14,7 +14,7 @@ from rune_decrypter_prime.core.config.validation import strict_positive_int
 # NOTE: aliases are normalized in resolve_optimizer_aliases().
 _CANON_OPTS: dict[str, set[str]] = {
     "beam": {
-        "params", "beam_width", "rounds",
+        "params", "beam_width", "rounds", "restarts",
         "expand_mode", "sample_per_parent", "top_parents_factor",
         "max_children_per_parent",
         "plateau_rounds", "plateau_min_delta", "stop_score",
@@ -131,6 +131,8 @@ def resolve_optimizer_aliases(name: str, params: Dict[str, Any]) -> Dict[str, An
     for field in budget_fields.get(name_key, ()):
         if field in normalized:
             normalized[field] = strict_positive_int(normalized[field], field)
+    if name_key == "beam" and "restarts" in normalized:
+        normalized["restarts"] = strict_positive_int(normalized["restarts"], "restarts")
 
     # Shallow copy to avoid caller mutation; values pass through unchanged
     return dict(normalized)

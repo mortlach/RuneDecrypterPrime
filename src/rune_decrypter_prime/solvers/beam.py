@@ -24,6 +24,7 @@ class BeamSolver(SolverBase):
       - Start with W keys (seeded or random).
       - For R rounds, expand a subset of parents at a subset of positions.
       - Keep top-W by score.
+      - Optionally repeat from independent random populations.
       - Return the best-of-beam.
     """
     name = "beam"
@@ -45,6 +46,7 @@ class BeamSolver(SolverBase):
         # Defaults for beam (stable)
         params.setdefault("beam_width", 16)
         params.setdefault("rounds", 0)  # 0 = auto: max(2*K, 12)
+        params.setdefault("restarts", 1)
 
         # Expansion controls
         params.setdefault("expand.parent_mode", "top")         # "top" | "stochastic" | "diverse"
@@ -194,6 +196,7 @@ class BeamSolver(SolverBase):
     def solve(self):
         # Resolve primary params BEFORE starting the span so start-event shows the real values
         W: int = int(self.get_param("beam_width", 16))
+        restarts: int = max(1, int(self.get_param("restarts", 1)))
         rounds_cfg: int = int(self.get_param("rounds", 0))
         rounds: int = rounds_cfg if rounds_cfg > 0 else max(2 * self.K, 12)
 
@@ -233,6 +236,7 @@ class BeamSolver(SolverBase):
 
         # Snapshot resolved params so telemetry_start prints what actually runs
         self.params["beam_width"] = W
+        self.params["restarts"] = restarts
         self.params["rounds"] = rounds
         self.params["expand.parent_mode"] = p_mode
         self.params["expand.parents"] = parents_k
@@ -246,118 +250,134 @@ class BeamSolver(SolverBase):
         span = self._start_span()
         candidates_seen = 0
 
-        # Rolling dedup structure (bytes of key) — keep only recent ~4*W to cap memory
-        recent_hashes: set[bytes] = set()
-        recent_queue: deque[bytes] = deque()
-        dedup_window = max(1, 4 * W)
-
-        def _dedup_rows(u8: np.ndarray) -> np.ndarray:
-            if not dedup_on or u8.size == 0:
-                return u8
-            keep = []
-            for row in u8:
-                b = row.tobytes()
-                if b in recent_hashes:
-                    continue
-                keep.append(row)
-                recent_hashes.add(b)
-                recent_queue.append(b)
-                if len(recent_queue) > dedup_window:
-                    old = recent_queue.popleft()
-                    recent_hashes.discard(old)
-            if not keep:
-                return u8[:0]
-            return np.ascontiguousarray(np.vstack(keep), dtype=KEY_DTYPE)
-
         try:
-            # 1) Seed beam
-            self._maybe_update_hamming_progress(0.0)
-            if self.seed_keys is not None and len(self.seed_keys) > 0:
-                beam = np.ascontiguousarray(self.seed_keys, dtype=KEY_DTYPE)
-                if beam.shape[0] < W:
-                    extra_n = W - beam.shape[0]
-                    extra = (self.keyops.make_population(extra_n, self.rng)
-                             if "make_population" in self.keyops.caps.ops
-                             else np.vstack([self.keyops.random(self.rng) for _ in range(extra_n)]).astype(KEY_DTYPE))
-                    beam = np.ascontiguousarray(np.vstack([beam, extra]), dtype=KEY_DTYPE)
+            best_key = None
+            best_score = float("-inf")
+            best_beam = None
+            selected_restart = 0
+            restart_scores: list[float] = []
+            completed_rounds = 0
+            final_reason = "max_rounds_reached"
+
+            for restart in range(restarts):
+                # Dedup is deliberately restart-local so an independent start can
+                # revisit candidates seen by an earlier population.
+                recent_hashes: set[bytes] = set()
+                recent_queue: deque[bytes] = deque()
+                dedup_window = max(1, 4 * W)
+
+                def _dedup_rows(u8: np.ndarray) -> np.ndarray:
+                    if not dedup_on or u8.size == 0:
+                        return u8
+                    keep = []
+                    for row in u8:
+                        b = row.tobytes()
+                        if b in recent_hashes:
+                            continue
+                        keep.append(row)
+                        recent_hashes.add(b)
+                        recent_queue.append(b)
+                        if len(recent_queue) > dedup_window:
+                            old = recent_queue.popleft()
+                            recent_hashes.discard(old)
+                    if not keep:
+                        return u8[:0]
+                    return np.ascontiguousarray(np.vstack(keep), dtype=KEY_DTYPE)
+
+                self._maybe_update_hamming_progress(0.0)
+                if restart == 0 and self.seed_keys is not None and len(self.seed_keys) > 0:
+                    beam = np.ascontiguousarray(self.seed_keys, dtype=KEY_DTYPE)
+                    if beam.shape[0] < W:
+                        extra_n = W - beam.shape[0]
+                        extra = (self.keyops.make_population(extra_n, self.rng)
+                                 if "make_population" in self.keyops.caps.ops
+                                 else np.vstack([self.keyops.random(self.rng) for _ in range(extra_n)]).astype(KEY_DTYPE))
+                        beam = np.ascontiguousarray(np.vstack([beam, extra]), dtype=KEY_DTYPE)
+                    else:
+                        beam = np.ascontiguousarray(beam[:W], dtype=KEY_DTYPE)
                 else:
-                    beam = np.ascontiguousarray(beam[:W], dtype=KEY_DTYPE)
-            else:
-                beam = (self.keyops.make_population(W, self.rng)
-                        if "make_population" in self.keyops.caps.ops
-                        else np.vstack([self.keyops.random(self.rng) for _ in range(W)]).astype(KEY_DTYPE))
+                    beam = (self.keyops.make_population(W, self.rng)
+                            if "make_population" in self.keyops.caps.ops
+                            else np.vstack([self.keyops.random(self.rng) for _ in range(W)]).astype(KEY_DTYPE))
 
-            scores = self._score_batch(beam)
-            candidates_seen += int(beam.shape[0])
-
-            self._early_stop_reset(
-                initial_best=float(np.max(scores)),
-                plateau_override=int(self.get_param("plateau_rounds", 0))
-            )
-
-            for r in range(1, rounds + 1):
-                self._maybe_update_hamming_progress(r / float(rounds))
-                expanded, attempted, parents_used, cpp = self._expand_round_safe(beam, scores, r)
-
-                if dedup_on:
-                    expanded = _dedup_rows(expanded)
-
-                exp_scores = self._score_batch(expanded)
-                candidates_seen += int(expanded.shape[0])
-
-                # Merge and keep top-W
-                all_keys = np.vstack([beam, expanded]).astype(KEY_DTYPE, copy=False)
-                all_scores = np.concatenate([scores, exp_scores])
-
-                idx = self._stable_topk_indices(all_scores, int(W))
-
-                beam = np.ascontiguousarray(all_keys[idx], dtype=KEY_DTYPE)
-                scores = np.ascontiguousarray(all_scores[idx], dtype=np.float64)
-
-                # percent progress (verbose only), add parents and cands_per_parent
-                self._progress_pct(
-                    r,
-                    rounds,
-                    best_score=float(scores[0]),
-                    round=int(r),
-                    rounds=int(rounds),
-                    attempted=int(attempted),
-                    kept=int(beam.shape[0]),
-                    parents=int(parents_used),
-                    cands_per_parent=int(cpp),
-                    preview_key=beam[0] if beam.size else None,
+                scores = self._score_batch(beam)
+                candidates_seen += int(beam.shape[0])
+                self._early_stop_reset(
+                    initial_best=float(np.max(scores)),
+                    plateau_override=int(self.get_param("plateau_rounds", 0)),
                 )
 
-                round_best = float(scores[0])
-                if self._early_stop_stop_score(round_best) or self._early_stop_update(round_best, r):
+                for r in range(1, rounds + 1):
+                    completed_rounds += 1
+                    self._maybe_update_hamming_progress(r / float(rounds))
+                    expanded, attempted, parents_used, cpp = self._expand_round_safe(beam, scores, r)
+                    if dedup_on:
+                        expanded = _dedup_rows(expanded)
+
+                    exp_scores = self._score_batch(expanded)
+                    candidates_seen += int(expanded.shape[0])
+                    all_keys = np.vstack([beam, expanded]).astype(KEY_DTYPE, copy=False)
+                    all_scores = np.concatenate([scores, exp_scores])
+                    idx = self._stable_topk_indices(all_scores, int(W))
+                    beam = np.ascontiguousarray(all_keys[idx], dtype=KEY_DTYPE)
+                    scores = np.ascontiguousarray(all_scores[idx], dtype=np.float64)
+
+                    progress_step = restart * rounds + r
                     self._progress_pct(
-                        r,
-                        rounds,
-                        best_score=float(round_best),
+                        progress_step,
+                        rounds * restarts,
+                        best_score=float(scores[0]),
+                        restart=int(restart),
+                        restarts=int(restarts),
                         round=int(r),
                         rounds=int(rounds),
-                        reason=(self._stop_reason or "stop"),
+                        attempted=int(attempted),
+                        kept=int(beam.shape[0]),
+                        parents=int(parents_used),
+                        cands_per_parent=int(cpp),
                         preview_key=beam[0] if beam.size else None,
                     )
+
+                    round_best = float(scores[0])
+                    if self._early_stop_stop_score(round_best) or self._early_stop_update(round_best, r):
+                        break
+
+                restart_best_idx = int(np.argmax(scores))
+                restart_best_score = float(scores[restart_best_idx])
+                restart_reason = self._stop_reason or "max_rounds_reached"
+                restart_scores.append(restart_best_score)
+                if best_key is None or restart_best_score > best_score:
+                    best_key = beam[restart_best_idx].copy()
+                    best_score = restart_best_score
+                    best_beam = beam.copy()
+                    selected_restart = restart
+
+                final_reason = restart_reason
+                if restart_reason == "target_score":
                     break
 
-            best_idx = int(np.argmax(scores))
-            best_key = beam[best_idx].copy()
-            best_score = float(scores[best_idx])
-
-            if self._stop_reason is None:
-                self._stop_reason = "max_rounds_reached"
-            self._end_span(span, candidates=int(candidates_seen),
-                           rounds=int(r), reason=self._stop_reason)
+            if best_key is None:
+                raise RuntimeError("beam search completed without a candidate")
+            self._stop_reason = final_reason
+            self._end_span(
+                span,
+                candidates=int(candidates_seen),
+                rounds=int(completed_rounds),
+                restarts=int(len(restart_scores)),
+                reason=self._stop_reason,
+            )
             sol = self._finalize_solution(best_key, best_score)
 
             # Opportunistic: expose final beam keys for Hybrid GA seeding ([W,K] uint8).
             try:
-                if isinstance(beam, np.ndarray) and beam.ndim == 2 and beam.shape[1] == self.K:
+                if isinstance(best_beam, np.ndarray) and best_beam.ndim == 2 and best_beam.shape[1] == self.K:
                     meta = getattr(sol, "meta", None)
                     if isinstance(meta, dict):
                         beam_meta = meta.setdefault("beam", {})
-                        beam_meta["final_keys"] = beam.astype(KEY_DTYPE, copy=True).tolist()
+                        beam_meta["final_keys"] = best_beam.astype(KEY_DTYPE, copy=True).tolist()
+                        beam_meta["restarts"] = int(len(restart_scores))
+                        beam_meta["selected_restart"] = int(selected_restart)
+                        beam_meta["restart_scores"] = list(restart_scores)
             except Exception:
                 pass
             return sol

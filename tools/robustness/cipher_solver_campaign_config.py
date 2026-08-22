@@ -30,8 +30,14 @@ FAMILY_GROUPS = {
     "vigenere_interruptors_beam": "STANDARD",
     "generic_map_multiply_beam": "STANDARD",
     "scheduled_stream_beam": "STANDARD",
-    "autokey_ga": "DEVELOPMENT",
+    "autokey_beam": "STANDARD",
     "two_period_cribs": "SPECIALIST",
+}
+
+# Keep the original problem stream when a family label changes because its
+# solver changes. This makes before/after solver evidence directly comparable.
+CASE_SEED_NAMESPACES = {
+    "autokey_beam": "autokey_ga",
 }
 
 # The runner supports deterministic multiple attempts without requiring them.
@@ -39,24 +45,20 @@ FAMILY_GROUPS = {
 # changing selected stochastic families here rather than special-casing seeds.
 ATTEMPTS_PER_TRIAL = {family: 1 for family in FAMILY_GROUPS}
 
-DEVELOPMENT_NOTES = {
-    "autokey_ga": (
-        "Autokey solver qualification remains separate work: define realistic "
-        "known information and crib assumptions, review the practical search "
-        "strategy, develop a representative solver, benchmark realistic seed "
-        "lengths, then reconsider STANDARD campaign status."
-    ),
-}
-
 SCORER = {
     "objective": "pct.logp.win10", "include_char": True,
     "use_word_breaks": True, "char_weights": {2: 0.3},
     "wli_weights": {2: 0.7},
 }
+AUTOKEY_SCORER = {
+    "objective": "pct.logp.win10", "include_char": False,
+    "use_word_breaks": True, "char_weights": {},
+    "wli_weights": {1: 0.3, 2: 0.7},
+}
 ACCEPTANCE_RULES = {
     "vigenere_beam": {"plaintext_match": 1.0},
     "railfence_beam": {"plaintext_match": 1.0},
-    "autokey_ga": {"plaintext_match": 1.0},
+    "autokey_beam": {"plaintext_match": 1.0},
     "columnar_hybrid": {"plaintext_match": 1.0},
     "mono_ga": {"plaintext_match": 0.97},
     "vigenere_interruptors_beam": {
@@ -70,7 +72,7 @@ ACCEPTANCE_RULES = {
 CIPHER_RANGES = {
     "vigenere_beam": {"key_length": (6, 14)},
     "railfence_beam": {"rails": (4, 10)},
-    "autokey_ga": {"seed_length": (6, 12)},
+    "autokey_beam": {"seed_length": (6, 12)},
     "columnar_hybrid": {"columns": (7, 9)},
     "mono_ga": {"alphabet_size": 29},
     "vigenere_interruptors_beam": {
@@ -82,9 +84,8 @@ CIPHER_RANGES = {
 SOLVER_BUDGETS = {
     "vigenere_beam": {"beam_width": 96, "max_children_per_parent": 29, "plateau_rounds": 12},
     "railfence_beam": {"beam_width": 64, "plateau_rounds": 40},
-    "autokey_ga": {"pop_size": 192, "generations": 200, "elite_frac": 0.08,
-                    "cx_frac": 0.90, "mut_prob": 0.25, "tournament_k": 4,
-                    "plateau_rounds": 30},
+    "autokey_beam": {"beam_width": 96, "rounds": 32, "restarts": 3,
+                      "expand_mode": "sweep", "plateau_rounds": 0},
     "columnar_hybrid": {
         "use_beam": True, "beam_width": 96, "rounds": 6,
         "expand_mode": "sample", "sample_per_parent": 48,

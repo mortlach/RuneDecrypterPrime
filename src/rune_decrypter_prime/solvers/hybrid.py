@@ -130,7 +130,7 @@ class HybridSolver(SolverBase):
             beam_meta = meta.get("beam", {})
             fbk = beam_meta.get("final_keys", None)
             if fbk is not None:
-                arr = np.asarray(fbk, dtype=KEY_DTYPE, copy=False)
+                arr = np.asarray(fbk, dtype=KEY_DTYPE)
                 if arr.ndim == 2 and arr.shape[1] == self.K:
                     beam_mat = arr
         except Exception:

@@ -133,9 +133,9 @@ class SolverBase:
         "improved", "accepted", "rejected",
         "top", "best", "best_score", "temp",
         "decrypt_time_s", "score_time_s", "tokens",
-        "phase", "reason", "round", "rounds", "parents", "cands_per_parent",
+        "phase", "reason", "round", "rounds", "restart", "restarts", "parents", "cands_per_parent",
         "evals",
-        "block", "restart", "slip", "col_moves",
+        "block", "slip", "col_moves",
         "hamming_weight",
         # plateau
         "since_improve", "patience_left",

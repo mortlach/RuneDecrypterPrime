@@ -565,7 +565,7 @@ class SolverSpec:
         """
         Beam search (UI builder).
         Friendly keys accepted: width -> beam_width.
-        Canonicalised keys passed downstream: beam_width (int), plus any passthroughs.
+        Canonicalised keys passed downstream: beam_width and restarts, plus any passthroughs.
         Plateau: use plateau_rounds / plateau_min_delta (patience_* aliases accepted).
         """
         from rune_decrypter_prime.api._resolve import resolve_optimizer_aliases as _resolve_opt
