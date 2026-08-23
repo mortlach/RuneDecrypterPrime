@@ -258,7 +258,11 @@ def _build_railfence(trial_index: int, attempt_index: int) -> CampaignCase:
     truth = [rails - low]
     cipher = api.by_name.cipher("railfence", min_rails=low, max_rails=high)
     key = api.KeySpec.scalar(max_val=high - low + 1)
-    ct = api.cipher_instance(cipher).encrypt(
+    # CipherSpec stores wrapper parameters in ``extra`` while the concrete
+    # RailFenceCipher reads direct attributes.  Pass the declared range
+    # explicitly so generation and solving use the same key space.
+    obj = api.cipher_instance("railfence", min_rails=low, max_rails=high)
+    ct = obj.encrypt(
         plaintext=pt, key=np.asarray(truth, dtype=np.uint8)
     )
     return _case(
