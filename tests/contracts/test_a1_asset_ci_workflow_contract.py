@@ -72,10 +72,6 @@ def test_full_asset_integration_tests_are_explicitly_marked() -> None:
         ROOT / "tests" / "tutorials" / "test_two_period_cribs_tutorial.py",
         "test_fast_walkthrough_returns_exact_plaintext_and_key",
     )
-    assert "pytest.mark.full_assets" in _decorator_names(
-        ROOT / "tests" / "cipher_development" / "test_two_period_overlay.py",
-        "test_real_rdp_benchmark_ladder_builds_and_scores_known_key",
-    )
     marked = {
         "tests/scoring/test_scorer_smoothing_effect.py": (
             "test_smoothing_choice_changes_scores_for_random_text",
@@ -86,10 +82,6 @@ def test_full_asset_integration_tests_are_explicitly_marked() -> None:
         ),
         "tests/utils/test_seed_utils_periodic_columnar.py": (
             "test_seed_generator_quality_beats_random_baseline_fraction_of_gap",
-        ),
-        "tests/cipher_development/test_periodic_sub_trans_wli.py": (
-            "test_real_rdp_positive_control_constructs_and_scores",
-            "test_real_rdp_target_case_constructs",
         ),
     }
     for relpath, function_names in marked.items():

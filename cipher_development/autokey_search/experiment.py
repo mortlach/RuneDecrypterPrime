@@ -1,158 +1,77 @@
 from __future__ import annotations
 
-"""Small, fixed Autokey experiments using the permanent robustness cases."""
+"""Retained Autokey study using the canonical robustness recipe unchanged."""
 
 import json
-import sys
-import time
+import os
 from pathlib import Path
-
-import numpy as np
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
-for import_root in (REPO_ROOT, REPO_ROOT / "src"):
-    if str(import_root) not in sys.path:
-        sys.path.insert(0, str(import_root))
+from typing import Any
 
 from tools.robustness import cipher_solver_campaign as campaign
 
 
-EXPERIMENT = "solver_trials"  # "profile_probe" or "solver_trials"
-TRIALS = tuple(range(20))
-ALPHABET = 29
-SOLVER_SCORER_PROFILE = "wli12"
-
-SCORER_PROFILES = {
-    "current": {
-        "objective": "pct.logp.win10",
-        "include_char": True,
-        "use_word_breaks": True,
-        "char_weights": {2: 0.3},
-        "wli_weights": {2: 0.7},
-    },
-    "char2": {
-        "objective": "pct.logp.win10",
-        "include_char": True,
-        "use_word_breaks": False,
-        "char_weights": {2: 1.0},
-        "wli_weights": {},
-    },
-    "wli2": {
-        "objective": "pct.logp.win10",
-        "include_char": False,
-        "use_word_breaks": True,
-        "char_weights": {},
-        "wli_weights": {2: 1.0},
-    },
-    "char12": {
-        "objective": "pct.logp.win10",
-        "include_char": True,
-        "use_word_breaks": False,
-        "char_weights": {1: 0.3, 2: 0.7},
-        "wli_weights": {},
-    },
-    "wli12": {
-        "objective": "pct.logp.win10",
-        "include_char": False,
-        "use_word_breaks": True,
-        "char_weights": {},
-        "wli_weights": {1: 0.3, 2: 0.7},
-    },
-    "combined12": {
-        "objective": "pct.logp.win10",
-        "include_char": True,
-        "use_word_breaks": True,
-        "char_weights": {1: 0.1, 2: 0.2},
-        "wli_weights": {1: 0.2, 2: 0.5},
-    },
-}
-
-BEAM_PARAMS = {
-    "beam_width": 96,
-    "rounds": 32,
-    "restarts": 3,
-    "expand_mode": "sweep",
-    "plateau_rounds": 0,
-}
+FAMILY = "autokey_beam"
+ASSET_PROFILE = "ci_light"
 
 
-def _single_change_neighbourhood(key: list[int]) -> np.ndarray:
-    truth = np.asarray(key, dtype=np.uint8)
-    rows = [truth.copy()]
-    for position, current in enumerate(truth.tolist()):
-        for value in range(ALPHABET):
-            if value == current:
-                continue
-            candidate = truth.copy()
-            candidate[position] = value
-            rows.append(candidate)
-    return np.asarray(rows, dtype=np.uint8)
+def trial_indices(mode: str, seed: int) -> tuple[int, ...]:
+    if mode == "smoke":
+        return (int(seed) % campaign.config.FULL_TRIALS_PER_FAMILY,)
+    if mode == "development":
+        raise ValueError(
+            "20-case Autokey qualification belongs in "
+            "tools/robustness/cipher_solver_campaign.py"
+        )
+    raise ValueError("mode must be 'smoke' or 'development'")
 
 
-def profile_probe() -> list[dict[str, object]]:
-    rows: list[dict[str, object]] = []
-    for trial in TRIALS:
-        for profile_name, scorer in SCORER_PROFILES.items():
-            case = campaign.build_case("autokey_beam", trial)
-            case.scorer = dict(scorer)
-            case.initial_keys = _single_change_neighbourhood(case.expected_key or [])
-            population = len(case.initial_keys)
-            case.solver = campaign.api.SolverSpec.ga(
-                pop_size=population,
-                generations=1,
-                elite_frac=0.0,
-                cx_frac=0.0,
-                mut_prob=0.0,
-                tournament_k=2,
-                plateau_rounds=0,
-            )
-            started = time.perf_counter()
-            assessment = campaign.assess_result(case, campaign.execute_case(case))
-            row = {
-                "trial": trial,
-                "direction": case.direction.value,
-                "seed_length": case.key_length,
-                "profile": profile_name,
-                "truth_is_best_local_key": (
-                    assessment["recovered_key"] == assessment["expected_key"]
-                ),
-                "best_local_match_ratio": assessment["match_ratio"],
-                "best_local_score": assessment["best_score"],
-                "runtime_seconds": time.perf_counter() - started,
-            }
-            rows.append(row)
-            print(json.dumps(row, sort_keys=True), flush=True)
-    return rows
+def _output_path(output_root: Path, mode: str, seed: int) -> Path:
+    if not output_root.is_absolute():
+        raise ValueError("Autokey requires an absolute external output root")
+    root = output_root.resolve()
+    if root == campaign.REPO_ROOT or root.is_relative_to(campaign.REPO_ROOT):
+        raise ValueError("Autokey development output must stay outside the repository")
+    return root / "autokey" / f"{mode}_seed{seed}.jsonl"
 
 
-def solver_trials() -> list[dict[str, object]]:
-    rows: list[dict[str, object]] = []
-    for trial in TRIALS:
-        case = campaign.build_case("autokey_beam", trial)
-        case.scorer = dict(SCORER_PROFILES[SOLVER_SCORER_PROFILE])
-        case.solver = campaign.api.SolverSpec.beam(**BEAM_PARAMS)
-        started = time.perf_counter()
-        assessment = campaign.assess_result(case, campaign.execute_case(case))
-        row = {
-            "trial": trial,
-            "direction": case.direction.value,
-            "seed_length": case.key_length,
-            "classification": assessment["classification"],
-            "match_ratio": assessment["match_ratio"],
-            "key_match": assessment["recovered_key"] == assessment["expected_key"],
-            "best_score": assessment["best_score"],
-            "runtime_seconds": time.perf_counter() - started,
-        }
-        rows.append(row)
-        print(json.dumps(row, sort_keys=True), flush=True)
-    return rows
+def _append_jsonl(path: Path, payload: dict[str, Any]) -> None:
+    line = json.dumps(payload, sort_keys=True, allow_nan=False) + "\n"
+    with path.open("a", encoding="utf-8", newline="\n") as handle:
+        handle.write(line)
+        handle.flush()
+        try:
+            os.fsync(handle.fileno())
+        except OSError:
+            pass
 
 
-def main() -> int:
-    rows = profile_probe() if EXPERIMENT == "profile_probe" else solver_trials()
-    print(json.dumps(rows, indent=2, sort_keys=True))
-    return 0
+def run_experiment(*, mode: str, seed: int, output_root: Path) -> Path:
+    recipe = campaign.resolved_recipe(FAMILY)
+    output = _output_path(output_root, mode, seed)
+    if output.exists():
+        raise FileExistsError(f"refusing to overwrite Autokey evidence: {output}")
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    trials = trial_indices(mode, seed)
+    print(f"canonical recipe: {recipe['recipe_id']}")
+    print(f"trial count: {len(trials)}")
+    for ordinal, trial_index in enumerate(trials, start=1):
+        print(
+            f"[autokey] {ordinal}/{len(trials)} trial_id={FAMILY}.{trial_index}",
+            flush=True,
+        )
+        record = campaign.run_trial(FAMILY, trial_index, mode="pilot")
+        _append_jsonl(
+            output,
+            {
+                "entry_seed": seed,
+                "recipe_id": recipe["recipe_id"],
+                "recipe_fingerprint": campaign.recipe_fingerprint(FAMILY),
+                "asset_profile": ASSET_PROFILE,
+                "campaign_record": record,
+            },
+        )
+    return output
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+__all__ = ["ASSET_PROFILE", "FAMILY", "run_experiment", "trial_indices"]

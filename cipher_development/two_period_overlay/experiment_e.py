@@ -30,7 +30,7 @@ from cipher_development.two_period_overlay.review_pack import (
     write_review_pack_after_run,
 )
 from cipher_development.two_period_overlay.scorer_profiles import F1, S2
-from cipher_development.two_period_overlay.staged_handoff import (
+from cipher_development.two_period_overlay.pack09_support import (
     STAGE_SWEEPS,
     StageOutcome,
     _attempt_terminal_movement,
@@ -637,7 +637,9 @@ def _runtime_gate(
     }
 
 
-def run_p13_p31_one_word_d30_panel(repo_root: Path) -> Path:
+def run_p13_p31_one_word_d30_panel(
+    repo_root: Path, *, output_root: Path,
+) -> Path:
     from cipher_development.shared.experiment import (
         ExperimentDecision,
         ExperimentRun,
@@ -651,6 +653,11 @@ def run_p13_p31_one_word_d30_panel(repo_root: Path) -> Path:
     )
 
     repo_root = repo_root.resolve()
+    if not output_root.is_absolute():
+        raise ValueError("Pack 09 requires an absolute external output root")
+    output_root = output_root.resolve()
+    if output_root == repo_root or output_root.is_relative_to(repo_root):
+        raise ValueError("Pack 09 output must stay outside the repository")
     started_at = _utc_now_iso()
     experiment_started = time.perf_counter()
 
@@ -719,6 +726,7 @@ def run_p13_p31_one_word_d30_panel(repo_root: Path) -> Path:
             spec=spec,
             configuration=configuration,
             repo_root=repo_root,
+            output_root=output_root,
         ) as run:
             assert run.run_dir is not None
             run_dir = run.run_dir
@@ -945,11 +953,18 @@ def run_p13_p31_one_word_d30_panel(repo_root: Path) -> Path:
             )
     except BaseException as exc:
         if run_dir is not None:
-            write_review_pack_after_run(repo_root, run_dir, original_error=exc)
+            write_review_pack_after_run(
+                repo_root,
+                run_dir,
+                output_root=output_root / "review_packs",
+                original_error=exc,
+            )
         raise
 
     assert run_dir is not None and result_path is not None
-    write_review_pack_after_run(repo_root, run_dir)
+    write_review_pack_after_run(
+        repo_root, run_dir, output_root=output_root / "review_packs"
+    )
     return result_path
 
 

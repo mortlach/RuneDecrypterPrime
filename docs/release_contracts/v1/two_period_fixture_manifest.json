@@ -10,7 +10,7 @@
     },
     {
       "path": "cipher_development/shared/experiment.py",
-      "sha256": "e5606e85a448d560a83d341df675fcc53c79c23cd6ba76ca76d3d735496658b5",
+      "sha256": "4dc9666af744316e00bdfc33e3aec3f69b42135a8d83c51fe5b37cf04cea6411",
       "role": "recursive local dependency"
     },
     {
@@ -55,7 +55,7 @@
     },
     {
       "path": "cipher_development/two_period_overlay/experiment_e.py",
-      "sha256": "ccb728074498049120ac315b3fd3acfa2ff5bf1ab2c7b16fd96dccbc2fc8b4b4",
+      "sha256": "16f1a8de4656d6089f97f2c70239fc04a56bf6de16807208129e40695a668781",
       "role": "Pack 09 experiment implementation"
     },
     {
@@ -64,60 +64,32 @@
       "role": "recursive local dependency"
     },
     {
-      "path": "cipher_development/two_period_overlay/multiscale.py",
-      "sha256": "add2e7e0f21a386f070284cf8e2e1edeb75a95f2d995fa470aea0115020d497a",
-      "role": "recursive local dependency"
+      "path": "cipher_development/two_period_overlay/pack09.py",
+      "sha256": "16703b189bd82be132ce1d46a523d315bcbe2cc1d3621357f1262c24130d1d81",
+      "role": "retained experiment adapter"
     },
     {
-      "path": "cipher_development/two_period_overlay/pack09.py",
-      "sha256": "fda4e725aa7ec0db327dbbd4e9a9358f5c6ab09bd26ad23ab48fcf24e807ff26",
-      "role": "retained entry point"
+      "path": "cipher_development/two_period_overlay/pack09_support.py",
+      "role": "Pack 09 search, archive and replay support",
+      "sha256": "67d4ebd7272b79041c8d2ab0224de1f0469adad4d1208f39aaef97c8a3ff6c44"
     },
     {
       "path": "cipher_development/two_period_overlay/replay.py",
-      "sha256": "68995322d03034586a8a559aad5378696c68cc0ee98d92e5fab4b872ec010211",
-      "role": "recursive local dependency"
-    },
-    {
-      "path": "cipher_development/two_period_overlay/replay_suite.py",
-      "sha256": "c0b78a46550d9e13bd4a4d9b8707e88a0dcb60281abbc60dacf6a4eebcf8e862",
+      "sha256": "1f3aa774ea0429aab55099c640fa13bc3f3041bf5a78b5b41483c24c3159ba01",
       "role": "recursive local dependency"
     },
     {
       "path": "cipher_development/two_period_overlay/review_pack.py",
-      "sha256": "7fff138fc0f718fdc6e97c6254fc44f34e52df839c2cafb2f906c99e9c6ea869",
-      "role": "recursive local dependency"
+      "sha256": "b7cd28db41e4f8be76dab01124078925409aedcaf0e028ee4b43cdf397498a58",
+      "role": "Pack 09 review-pack generation"
     },
     {
       "path": "cipher_development/two_period_overlay/scorer_profiles.py",
       "sha256": "6ed28f6358a1d34fc3e294cd992696822d392eff59aea35fc05fd89b72be20ef",
       "role": "recursive local dependency"
-    },
-    {
-      "path": "cipher_development/two_period_overlay/staged_handoff.py",
-      "sha256": "72b41bdc8df799a961c903990c039ea031198092d88338b625cafe6350d706fa",
-      "role": "recursive local dependency"
-    },
-    {
-      "path": "cipher_development/two_period_overlay/target_ranking.py",
-      "sha256": "0d868b7f28eaf0534ffd97ca03e78807800bc5674bb8537bbd37f7fec40efb5f",
-      "role": "recursive local dependency"
     }
   ],
-  "excluded_historical_sources": [
-    "cipher_development/two_period_overlay/b100_budget_sensitivity.py",
-    "cipher_development/two_period_overlay/candidate_selection.py",
-    "cipher_development/two_period_overlay/candidate_words.py",
-    "cipher_development/two_period_overlay/experiment_a.py",
-    "cipher_development/two_period_overlay/experiment_b.py",
-    "cipher_development/two_period_overlay/experiment_c.py",
-    "cipher_development/two_period_overlay/experiment_d.py",
-    "cipher_development/two_period_overlay/exploitation.py",
-    "cipher_development/two_period_overlay/matched_pilot.py",
-    "cipher_development/two_period_overlay/pack04.py",
-    "cipher_development/two_period_overlay/selection.py",
-    "cipher_development/two_period_overlay/target_supply.py"
-  ],
+  "excluded_historical_sources": [],
   "external_import_policy": {
     "standard_library": "not copied",
     "third_party_packages": "not copied",
@@ -133,19 +105,17 @@
     "caches": "excluded"
   },
   "dependency_review": {
-    "review_date": "2026-07-30",
-    "closure_changed": false,
+    "review_date": "2026-08-23",
+    "closure_changed": true,
     "reviewed_changed_dependencies": [
-      "cipher_development/shared/archive.py",
       "cipher_development/shared/experiment.py",
-      "cipher_development/shared/ledger.py",
-      "cipher_development/shared/replay.py",
-      "cipher_development/shared/replay_binding.py",
-      "cipher_development/shared/replay_evidence.py",
-      "cipher_development/shared/replay_execution.py",
-      "cipher_development/shared/replay_provenance.py"
+      "cipher_development/two_period_overlay/experiment_e.py",
+      "cipher_development/two_period_overlay/pack09.py",
+      "cipher_development/two_period_overlay/pack09_support.py",
+      "cipher_development/two_period_overlay/replay.py",
+      "cipher_development/two_period_overlay/review_pack.py"
     ],
-    "decision": "retain_current_closure_and_refresh_hashes",
+    "decision": "retain_only_final_pack09_dependency_closure",
     "production_package_boundary_changed": false
   }
 }

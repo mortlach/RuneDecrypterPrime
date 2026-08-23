@@ -141,25 +141,12 @@ def test_generic_dataclass_asdict_does_not_leak_derived_weight_state() -> None:
         )
 
 
-def test_development_scoring_adapters_remove_only_stale_redundant_pairs() -> None:
-    from cipher_development.periodic_sub_trans_wli.benchmark import scoring_kwargs
-    from cipher_development.periodic_sub_trans_wli.config import (
-        RAW_SCORING_CONTRACT,
-        WLI_SCORING_CONTRACT,
-    )
+def test_retained_development_scoring_adapter_removes_stale_redundant_pair() -> None:
     from cipher_development.two_period_overlay.benchmark import (
         _scoring_kwargs as two_period_scoring_kwargs,
     )
     from cipher_development.two_period_overlay.scorer_profiles import S2
     from rune_decrypter_prime.core.types import Direction
-
-    for contract in (RAW_SCORING_CONTRACT, WLI_SCORING_CONTRACT):
-        # Preserve the frozen historical contract itself, but materialise the
-        # effective map-mode request without the ignored aggregate pair.
-        assert contract.get("weights") is not None
-        kwargs = scoring_kwargs(contract, Direction)
-        assert "weights" not in kwargs
-        assert ScoringConfig(**kwargs).weight_mode == "per_order"
 
     s2_contract = S2.scoring_contract()
     # The scientific contract retains its historical aggregate field for

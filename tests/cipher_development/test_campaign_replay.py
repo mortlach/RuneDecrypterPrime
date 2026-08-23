@@ -269,9 +269,8 @@ def test_score_repeat_drift_marks_replay_nondeterministic():
     assert evidence.stored_scores_verified is False
 
 
-def test_campaign_contexts_are_truth_free_and_content_addressed():
+def test_retained_campaign_context_is_truth_free_and_content_addressed():
     from cipher_development.two_period_overlay.replay import make_replay_context as wp3_context
-    from cipher_development.periodic_sub_trans_wli.replay import make_replay_context as wp4_context
 
     provenance = {
         "evaluator_source_sha256": "a" * 64,
@@ -305,67 +304,6 @@ def test_campaign_contexts_are_truth_free_and_content_addressed():
     )
     assert first.context_id == second.context_id
     assert "truth" not in json.dumps(first.to_json_dict()).lower()
-
-    wp4_case = SimpleNamespace(
-        benchmark_id="bench", family="target", period=2, columns=3, length=30,
-        order="col_then_sub", ciphertext=tuple(range(30)),
-        wli=tuple((i, 30) for i in range(30)),
-    )
-    context = wp4_context(
-        wp4_case,
-        run_id="run-002",
-        configuration_hash="b" * 40,
-        raw_scoring={"model_root": None, "encoding_direction": "ltr"},
-        wli_scoring={"model_root": None, "encoding_direction": "ltr"},
-        evaluator_provenance=provenance,
-    )
-    encoded = json.dumps(context.to_json_dict()).lower()
-    assert "truth_key" not in encoded
-    assert context.payload["evaluator_provenance"]["asset_manifest_complete"] is True
-
-
-def test_source_run_paths_cannot_escape(tmp_path: Path):
-    from cipher_development.two_period_overlay.replay import _resolve_source_run as wp3_resolve
-    from cipher_development.periodic_sub_trans_wli.replay import _resolve_source_run as wp4_resolve
-    with pytest.raises(ValueError, match="directory name"):
-        wp3_resolve(tmp_path, "../escape")
-    with pytest.raises(ValueError, match="directory name"):
-        wp4_resolve(tmp_path, "a/b")
-
-
-def test_replay_suite_normalizes_frozen_context_json() -> None:
-    from cipher_development.two_period_overlay.replay_suite import _portable_json
-
-    frozen = {
-        "git_dirty": False,
-        "language_model_assets": (
-            {"logical_path": "lm.bin", "sha256": "a" * 64, "size_bytes": 1},
-        ),
-    }
-    normalized = _portable_json(frozen)
-    assert normalized["language_model_assets"] == [
-        {"logical_path": "lm.bin", "sha256": "a" * 64, "size_bytes": 1}
-    ]
-
-
-def test_wp6_replay_suite_restores_integer_ngram_weight_keys() -> None:
-    from cipher_development.two_period_overlay.replay_suite import _evaluator_context
-
-    context = SimpleNamespace(
-        campaign_id="two_period_overlay",
-        payload={
-            "scoring": {
-                "char_weights": {"3": 0.5, "4": 0.5},
-                "wli_weights": {"3": 0.25, "4": 0.75},
-                "objective": "pct.logp.win10",
-            }
-        },
-    )
-    restored = _evaluator_context(context).payload["scoring"]
-    assert restored["char_weights"] == {3: 0.5, 4: 0.5}
-    assert restored["wli_weights"] == {3: 0.25, 4: 0.75}
-    assert restored["objective"] == "pct.logp.win10"
-
 
 def test_verify_checks_every_repeat_against_stored_score():
     batch = _batch()
@@ -482,60 +420,6 @@ def test_wp3_candidate_identity_payload_and_gauge_are_enforced():
         validate_candidate_payload(bad, context)
 
 
-def test_wp4_candidate_identity_payload_and_context_are_enforced():
-    from cipher_development.periodic_sub_trans_wli.replay import validate_candidate_payload
-
-    period, columns = 1, 3
-    key = [*range(29), 0, 1, 2]
-    context = CandidateReplayContext.create(
-        campaign_id="periodic_sub_trans_wli",
-        run_id="r",
-        configuration_hash="a" * 40,
-        evaluator_id="e",
-        payload={
-            "period": period,
-            "columns": columns,
-            "alphabet_size": 29,
-            "order": "col_then_sub",
-            "raw_score": "seed_raw_score",
-            "wli_score": "wli_decision_score",
-            "key_contract": {"key_length": 32},
-        },
-    )
-    identity = {
-        "cipher": "periodic_columnar",
-        "order": "col_then_sub",
-        "period": period,
-        "columns": columns,
-        "expanded_key": key,
-    }
-    payload = {
-        "expanded_key": key,
-        "period": period,
-        "columns": columns,
-        "order": "col_then_sub",
-    }
-    record = CandidateRecord(
-        candidate_id_for(identity),
-        identity,
-        payload,
-        {"seed_raw_score": 1.0, "wli_decision_score": 2.0},
-        CandidateProvenance("test"),
-    )
-    assert validate_candidate_payload(record, context).size == 32
-    other = key.copy()
-    other[0], other[1] = other[1], other[0]
-    bad = CandidateRecord(
-        candidate_id_for(identity),
-        identity,
-        {**payload, "expanded_key": other},
-        record.scores,
-        record.provenance,
-    )
-    with pytest.raises(ValueError, match="identity"):
-        validate_candidate_payload(bad, context)
-
-
 def test_evaluator_provenance_hashes_source_and_explicit_assets(tmp_path: Path):
     from cipher_development.shared.replay_provenance import (
         build_evaluator_provenance,
@@ -588,41 +472,3 @@ def test_evaluator_provenance_fingerprints_the_default_asset_root(
     assert provenance["language_model_assets"][0]["logical_path"] == (
         "contract_0/model.json"
     )
-
-
-def test_required_replay_suite_selects_latest_completed_technical_canary(tmp_path: Path):
-    from cipher_development.two_period_overlay.replay_suite import (
-        latest_completed_technical_canary,
-    )
-
-    root = tmp_path / "output/cipher_development/two_period_overlay"
-    for run_id, experiment_id, status in (
-        ("20260723_010000__two_period_overlay__technical_canary_v1__aaaaaaa", "technical_canary_v1", "completed"),
-        ("20260723_020000__two_period_overlay__benchmark_contract_canary_v1__bbbbbbb", "benchmark_contract_canary_v1", "completed"),
-        ("20260723_030000__two_period_overlay__technical_canary_v1__ccccccc", "technical_canary_v1", "failed"),
-        ("20260723_040000__two_period_overlay__technical_canary_v1__ddddddd", "technical_canary_v1", "completed"),
-    ):
-        run = root / run_id / "artifacts"
-        run.mkdir(parents=True)
-        (run / "experiment_manifest.json").write_text(json.dumps({
-            "experiment": {"experiment_id": experiment_id},
-        }))
-        (run / "experiment_result.json").write_text(json.dumps({
-            "run_id": run_id,
-            "status": status,
-        }))
-
-    assert latest_completed_technical_canary(tmp_path) == (
-        "20260723_040000__two_period_overlay__technical_canary_v1__ddddddd"
-    )
-
-
-def test_required_replay_suite_requires_a_completed_source(tmp_path: Path):
-    from cipher_development.two_period_overlay.replay_suite import (
-        latest_completed_technical_canary,
-    )
-
-    root = tmp_path / "output/cipher_development/two_period_overlay"
-    root.mkdir(parents=True)
-    with pytest.raises(FileNotFoundError, match="completed technical_canary"):
-        latest_completed_technical_canary(tmp_path)

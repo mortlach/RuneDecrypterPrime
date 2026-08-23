@@ -45,6 +45,7 @@ def _run(tmp_path: Path, configuration=None, **spec_overrides) -> ExperimentRun:
         spec=_spec(**spec_overrides),
         configuration=configuration or {"seed": 7, "solver": {"name": "coordinate"}},
         repo_root=tmp_path,
+        output_root=tmp_path.parent / f"{tmp_path.name}-external-output",
     )
 
 
@@ -309,28 +310,22 @@ def test_only_one_experiment_run_may_be_active_per_process(tmp_path: Path) -> No
         second.finish(decision="close", stop_reason="done")
 
 
-def test_output_root_must_stay_below_cipher_development(tmp_path: Path) -> None:
-    bad_roots = [
-        Path("elsewhere"),
-        Path("../output"),
-        Path("output/unrelated"),
-        tmp_path.resolve() / "outside",
-    ]
+def test_output_root_supports_explicit_external_development_evidence(
+    tmp_path: Path,
+) -> None:
+    bad_roots = [Path("elsewhere"), Path("../output"), tmp_path / "inside-repository"]
     for bad in bad_roots:
-        with pytest.raises(ValueError, match="cipher_development"):
+        with pytest.raises(ValueError, match="absolute external|outside the repository"):
             ExperimentRun(spec=_spec(), configuration={}, repo_root=tmp_path, output_root=bad)
 
-    run = ExperimentRun(
-        spec=_spec(),
-        configuration={},
-        repo_root=tmp_path,
-        output_root=Path("output/cipher_development/controlled"),
+    external = tmp_path.parent / "external-cipher-development"
+    external_run = ExperimentRun(
+        spec=_spec(), configuration={}, repo_root=tmp_path, output_root=external,
     )
-    with run:
-        assert run.run_dir is not None
-        assert "controlled" in run.run_dir.parts
-        run.finish(decision="close", stop_reason="done")
-
+    with external_run:
+        assert external_run.run_dir is not None
+        assert external_run.run_dir.is_relative_to(external)
+        external_run.finish(decision="close", stop_reason="done")
 
 def test_new_source_has_no_environment_or_cli_configuration() -> None:
     root = Path(__file__).resolve().parents[2]

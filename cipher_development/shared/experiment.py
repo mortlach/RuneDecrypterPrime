@@ -33,7 +33,6 @@ _REFERENCE_KEYS = {
 _REFERENCE_PREFIXES = ("oracle_", "reference_", "truth_")
 _COUNTERS = ("eval_keys", "eval_batches", "candidates_evaluated", "tokens_processed",
              "decrypt_time_s", "score_time_s")
-_OUTPUT_BASE = Path("output/cipher_development")
 _ACTIVE_RUN: ExperimentRun | None = None
 
 
@@ -271,22 +270,24 @@ def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
 
 class ExperimentRun:
     def __init__(self, *, spec: ExperimentSpec, configuration: Mapping[str, Any], repo_root: Path,
-                 output_root: Path = _OUTPUT_BASE) -> None:
+                 output_root: Path) -> None:
         if not isinstance(spec, ExperimentSpec):
             raise TypeError("spec must be an ExperimentSpec")
         if not isinstance(repo_root, Path) or not isinstance(output_root, Path):
             raise TypeError("repo_root and output_root must be Path values")
-        if (output_root.is_absolute() or ".." in output_root.parts
-                or output_root == Path("output")
-                or (_OUTPUT_BASE != output_root and _OUTPUT_BASE not in output_root.parents)):
-            raise ValueError("output_root must stay below output/cipher_development/")
+        resolved_repo = repo_root.resolve()
+        if not output_root.is_absolute():
+            raise ValueError("output_root must be an absolute external path")
+        resolved_output = output_root.resolve()
+        if resolved_output == resolved_repo or resolved_output.is_relative_to(resolved_repo):
+            raise ValueError("output_root must stay outside the repository")
         configuration_json = _canonical_json(configuration)
         self.spec = spec
         self.configuration_hash = hashlib.blake2b(
             configuration_json.encode("utf-8"), digest_size=20, person=b"rdp-cipher-v1"
         ).hexdigest()
         self.repo_root = repo_root.resolve()
-        self.output_root = output_root
+        self.output_root = resolved_output
         self._configuration_json = configuration_json
         self.run_dir: Path | None = None
         self.ledger_path: Path | None = None
@@ -303,10 +304,9 @@ class ExperimentRun:
             raise RuntimeError("only one ExperimentRun may be active in a process")
         self._entered, self._start, _ACTIVE_RUN = True, time.perf_counter(), self
         try:
-            out_root = (self.repo_root / self.output_root).resolve()
-            base = (self.repo_root / _OUTPUT_BASE).resolve()
-            if out_root != base and base not in out_root.parents:
-                raise ValueError("output_root must stay below output/cipher_development/")
+            out_root = self.output_root.resolve()
+            if out_root == self.repo_root or out_root.is_relative_to(self.repo_root):
+                raise ValueError("output_root must stay outside the repository")
             cfg = LoggingConfig(
                 verbose=False, print_progress=False, write_jsonl=True,
                 repo_root=str(self.repo_root), out_root=str(out_root),

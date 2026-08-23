@@ -1,103 +1,81 @@
 # Cipher development
 
-`cipher_development/` is RDP's workspace for designing, benchmarking and diagnosing solvers for novel or difficult ciphers before their contracts are stable enough for the public package.
+`cipher_development/` contains a small set of deterministic investigations that
+remain useful after their production behaviour has stabilised. It is not a
+public API, tutorial collection, solver framework, or robustness campaign.
 
-This is not a second public API, a universal solver framework or a numbered-stage campaign engine. Campaign code remains explicit and readable.
+- Production ciphers, scorers and solvers live under `src/rune_decrypter_prime/`.
+- Public teaching examples live under `tutorials/`.
+- Repeatable multi-family qualification lives in `tools/robustness/`.
+- This directory holds only focused diagnostic or scientific fixtures.
 
-## Normal operating mode
+## Run an experiment
 
-RDP cipher development normally uses reliable WLI:
+Edit the four constants at the top of `cipher_development/run_experiment.py`:
 
-- `with_wli` is the normal mode;
-- `without_wli` is an optional specialist robustness mode;
-- there is no permanent `partial_wli` framework mode.
-
-A campaign may model damaged or incomplete WLI locally when a real scientific question requires it, but that does not create another framework-wide mode.
-
-## Intended layout
-
-```text
-cipher_development/
-  README.md
-  LESSONS.md
-  CAMPAIGN_TEMPLATE.md
-
-  shared/
-    experiment.py
-    ledger.py
-    archive.py
-    replay.py
-    replay_binding.py
-    replay_evidence.py
-    replay_execution.py
-    replay_provenance.py
-    synthesis.py
-
-  <cipher_or_campaign>/
-    CAMPAIGN.md
-    run.py
-    replay.py
-    cipher.py
-    keyops.py
-    solver.py
-    fixtures/
+```python
+EXPERIMENT = "autokey"
+MODE = "smoke"
+SEED = 20260822
+OUTPUT_LOCATION = ... / "run_outputs" / "cipher_development"
 ```
 
-The example is not a requirement that every campaign contain every file. Start with the smallest readable campaign and add files only when they have a real purpose.
-
-## Development and promotion boundary
-
-Cipher, keyops, candidate, move and solver code may begin together inside a campaign folder while their representations and scientific assumptions are still changing.
-
-Use existing RDP facilities unchanged when they fit. Wrap or compose them locally for experiments rather than copying them.
-
-First-use code stays campaign-local. Move code into `cipher_development/shared/` only after it has a stable contract and a real second consumer. Move code into `src/rune_decrypter_prime/` only after its contract is stable, it is useful independently of one campaign and appropriate core tests can be written.
-
-Do not create generic numbered stages, a universal solver inheritance hierarchy or an abstract cipher-development API.
-
-## Evidence and outputs
-
-Runtime outputs belong below:
+Then run:
 
 ```text
-output/cipher_development/
+python cipher_development/run_experiment.py
 ```
 
-They are not committed. A custom output root, when needed for tests or controlled runs, must remain beneath this directory.
+There are no environment-variable or command-line configuration layers. The
+script resolves the repository from its own location, prints the selected
+recipe/profile, seed, asset profile and output path, and refuses repository
+output or silent overwrite.
 
-Each established campaign should maintain one evolving `CAMPAIGN.md` and one machine-readable experiment ledger. Do not create a new Markdown plan or review pack for every run.
+`smoke` is the default and performs the smallest meaningful deterministic
+check. Pack 09 also exposes its retained long `development` study. Autokey is
+deliberately one-case replay only; run its 20-case qualification through
+`tools/robustness/cipher_solver_campaign.py`.
 
-The shared WP1 infrastructure records experiment identity, question, hypothesis, strongest alternative, declared budgets, applicable lesson IDs, deterministic configuration hashes, progress snapshots, terminal results and append-only ledger rows. Lesson IDs use the stable `CSL-NNN` form. It does not run solvers, retain candidate archives or decide campaign control flow.
+## Retained experiments
 
-The execution configuration is frozen when `ExperimentRun` is constructed. Reference truth, expected plaintext, known keys and oracle data must not be placed in that configuration; benchmark reference evaluation belongs only in the terminal `reference_evaluation` field.
+| Entry-point name | Purpose | Smoke assets | Development assets |
+|---|---|---|---|
+| `autokey` | Replays one deterministic case with the canonical qualified Autokey Beam recipe | `ci_light` | Use `tools/robustness` for 20 cases |
+| `two_period_pack09` | Preserves the final Pack 09 P13/P31 d30 scientific fixture | `ci_light` | `full_v1` |
 
-Only one `ExperimentRun` may be active in a Python process because RDP's logging paths are process-global. Parallel cipher-development experiments must use separate processes.
+Autokey obtains its scorer, Beam budget, restart count, seed handling and
+acceptance rule directly from `CAMPAIGN_RECIPES`. It does not redefine them.
+Its WLI1+2 recipe is correctly supported by the `ci_light` asset profile.
 
-The terminal result file is authoritative. If appending the campaign ledger fails after the result is written, the completed or failed result is preserved so a later recovery tool can rebuild the missing ledger row.
+Pack 09's recursive source closure is recorded in
+`docs/release_contracts/v1/two_period_fixture_manifest.json`. Its smoke mode is
+a bounded contract preflight. Its development mode is a long specialist run,
+requires the downloaded `full_v1` asset pack and must not be started as a
+normal test or tutorial.
 
-## Candidate retention and replay
+Missing required language-model assets fail through the canonical RDP asset
+resolver. Do not add local asset roots, copied books, fallback searches or
+sample-as-full substitutions here.
 
-WP2 adds a bounded candidate archive and self-contained replay or handoff batches. The campaign defines candidate identity, payload, named scores, provenance and any optional family identifier. Shared code only validates, ranks, retains and persists that evidence.
+## Evidence rules
 
-The archive uses one explicitly named decision score and deterministic candidate-ID tie-breaking. Family caps are optional and disabled by default. The archive does not calculate scores, infer cipher equivalence, mutate candidates or decide whether an experiment should be promoted, refined or closed.
+- Seeds and frozen recipes/profiles are explicit.
+- Truth, plaintext and known keys may classify a completed benchmark result;
+  they must never select candidates, rank attempts or stop production search.
+- Generated JSON, JSONL, logs and review packs belong under the configured
+  external `run_outputs/cipher_development/` root and are never committed.
+- A repeated smoke run with the same seed reconstructs the same case and
+  result. Use a fresh output location when preserving both runs.
 
-Replay and handoff batches embed exact retained candidate records and identify their source archive by content hash. They prepare evidence for campaign code; they do not decrypt, score, run solvers or convert candidates into RDP seed keys.
+## Adding a future experiment
 
-Candidate identities and payloads must not contain reference truth, expected plaintext, known keys or oracle data. Large archive and batch payloads remain run artifacts; only concise summaries and relative artifact paths belong in the experiment result and ledger.
+Before adding one, confirm that it:
 
-WP5 adds truth-free replay contexts, content-addressed replay bindings and deterministic replay evidence. A binding joins the exact source run, benchmark, configuration, context and candidate batch; replay refuses unbound or mismatched evidence. Campaign-local adapters rebuild evaluation from the saved context and require candidate identity, payload and structural constraints to agree before scoring.
-
-Verify-mode contexts also record evaluator-source, Git/package and language-model asset provenance. Shared code checks repeatability, stored-score agreement, deterministic ranking and provenance equality. Replay never reruns discovery or exploitation.
-
-## Lessons and milestones
-
-`LESSONS.md` is manually curated. IDs are stable, rejected or superseded lessons remain visible, and no code promotes lessons automatically.
-
-`CAMPAIGN_TEMPLATE.md` is a copyable starting checklist, not a generator. Milestone synthesis reads explicitly selected ledger rows and result files, validates them, and writes deterministic JSON and Markdown below `output/cipher_development/`. Replay summaries are derived from validated replay artifacts, whose hashes are included in the milestone evidence. Generated summaries never edit permanent documentation.
-
-## Established campaigns
-
-- `two_period_overlay/` tests archive handoff on a crib-constrained affine P13/P17 overlay.
-- `periodic_sub_trans_wli/` tests legacy raw versus production full-WLI ranking over one periodic-columnar candidate pool, followed by equal-budget WLI-driven seeded exploitation.
-
-The two campaigns deliberately use different key structures and scientific questions while reusing the WP1 experiment and WP2 archive/replay contracts unchanged.
+1. asks a distinct unresolved question;
+2. uses existing RDP ciphers, scorers, solvers and asset resolution;
+3. has an explicit deterministic seed and bounded smoke path;
+4. keeps truth out of ranking and selection;
+5. writes only to external `run_outputs`;
+6. blocks clearly when its declared asset profile is missing;
+7. has focused tests and a short README entry;
+8. does not duplicate `tools/robustness` or introduce a public framework.
