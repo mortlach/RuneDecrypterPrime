@@ -18,17 +18,17 @@ def _campaign():
 
 def _result(
     case, *, plaintext=None, key=None, stop_reason="work_limit",
-    execution_status="completed",
+    execution_status="completed", score=0.5,
 ):
     solution = SimpleNamespace(
         plaintext_idx=case.reference if plaintext is None else plaintext,
         key=(case.expected_key or []) if key is None else key,
-        score=0.5,
+        score=score,
     )
     report = SimpleNamespace(
         details={"run_status": {"execution_status": execution_status}},
         stop_reason=stop_reason,
-        best_score=0.5,
+        best_score=score,
         evals=0,
         tokens_processed=0,
         requested_seed=11,
@@ -39,11 +39,37 @@ def _result(
 
 def test_registry_uses_central_groups_and_registered_builders() -> None:
     campaign = _campaign()
+    campaign.validate_campaign_recipes(tuple(campaign.FAMILIES))
     assert set(campaign.FAMILIES) == set(campaign.config.FAMILY_GROUPS)
+    assert set(campaign.FAMILIES) == set(campaign.config.CAMPAIGN_RECIPES)
+    recipe_ids = [
+        recipe["recipe_id"] for recipe in campaign.config.CAMPAIGN_RECIPES.values()
+    ]
+    assert len(recipe_ids) == len(set(recipe_ids))
     assert all(definition.name == name for name, definition in campaign.FAMILIES.items())
     assert campaign.FAMILIES["autokey_beam"].group == "STANDARD"
     assert campaign.FAMILIES["two_period_cribs"].group == "SPECIALIST"
     assert campaign.FAMILIES["vigenere_beam"].group == "STANDARD"
+
+
+def test_recipe_validator_rejects_duplicate_ids(monkeypatch: pytest.MonkeyPatch) -> None:
+    campaign = _campaign()
+    changed = dict(campaign.config.CAMPAIGN_RECIPES["mono_ga"])
+    changed["recipe_id"] = campaign.config.CAMPAIGN_RECIPES["vigenere_beam"]["recipe_id"]
+    monkeypatch.setitem(campaign.config.CAMPAIGN_RECIPES, "mono_ga", changed)
+    with pytest.raises(ValueError, match="recipe_id values must be unique"):
+        campaign.validate_campaign_recipes(tuple(campaign.FAMILIES))
+
+
+def test_recipe_validator_rejects_non_normalised_weights(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    campaign = _campaign()
+    changed = dict(campaign.config.CAMPAIGN_RECIPES["mono_ga"])
+    changed["scorer"] = {**changed["scorer"], "wli_weights": {1: 0.20, 2: 0.49}}
+    monkeypatch.setitem(campaign.config.CAMPAIGN_RECIPES, "mono_ga", changed)
+    with pytest.raises(ValueError, match="weights must sum to 1.0"):
+        campaign.validate_campaign_recipes(tuple(campaign.FAMILIES))
 
 
 def test_direction_schedule_can_balance_ltr_and_rtl() -> None:
@@ -60,6 +86,42 @@ def test_campaign_mode_selects_trial_count_from_config() -> None:
     assert campaign.campaign_trial_count("full") == campaign.config.FULL_TRIALS_PER_FAMILY
     with pytest.raises(ValueError, match="unknown campaign mode"):
         campaign.campaign_trial_count("unknown")
+
+
+@pytest.mark.parametrize(
+    "family",
+    ("railfence_beam", "vigenere_interruptors_beam", "mono_ga"),
+)
+def test_full_family_plan_contains_exactly_twenty_cases(family: str) -> None:
+    campaign = _campaign()
+    plan = campaign.campaign_plan("full", family)
+    assert plan == [(family, index) for index in range(20)]
+    assert all(name != "two_period_cribs" for name, _ in plan)
+
+
+def test_mono_canonical_recipe_contract_is_exact() -> None:
+    campaign = _campaign()
+    recipe = campaign.resolved_recipe("mono_ga")
+    case = campaign.build_case("mono_ga", 0)
+    assert recipe["recipe_id"] == "mono_char2_wli12_3start_v1"
+    assert recipe["scorer"] == {
+        "objective": "pct.logp.win10", "include_char": True,
+        "use_word_breaks": True, "char_weights": {2: 0.30},
+        "wli_weights": {1: 0.21, 2: 0.49},
+    }
+    assert recipe["solver_budget"] == {
+        "seed_keys": 160, "seed_swaps": 2, "pop_size": 128,
+        "generations": 160, "elite_frac": 0.08, "cx_frac": 0.85,
+        "mut_prob": 0.25, "tournament_k": 4, "plateau_rounds": 30,
+    }
+    assert recipe["attempt_count"] == 3
+    assert recipe["selection"] == "highest_valid_solver_score"
+    assert recipe["acceptance_rule"] == {"plaintext_match": 0.97}
+    assert case.solver.seed == campaign.attempt_seed("mono_ga", 0, 0)
+    assert case.solver_parameters["pop_size"] == 128
+    assert case.solver_parameters["generations"] == 160
+    assert case.scorer["char_weights"] == {2: 0.30}
+    assert case.scorer["wli_weights"] == {1: 0.21, 2: 0.49}
 
 
 def test_qualification_status_is_group_and_mode_aware() -> None:
@@ -146,6 +208,30 @@ def test_autokey_uses_the_qualified_beam_and_wli_profile() -> None:
     assert case.scorer["wli_weights"] == {1: 0.3, 2: 0.7}
 
 
+def test_mono_asset_provenance_covers_exact_effective_lanes() -> None:
+    campaign = _campaign()
+    provenance = campaign.language_model_asset_provenance("mono_ga")
+    assert provenance["asset_profile"] == "ci_light"
+    assert provenance["language_model_lanes"] == {"char": [2], "wli": [1, 2]}
+    assert len(provenance["language_model_assets"]) == 13
+    assert len(provenance["language_model_assets_sha256"]) == 64
+    for asset in provenance["language_model_assets"]:
+        assert not Path(asset["logical_path"]).is_absolute()
+        assert len(asset["sha256"]) == 64
+        assert asset["size_bytes"] > 0
+
+
+def test_runtime_provenance_fingerprints_native_scorer() -> None:
+    campaign = _campaign()
+    provenance = campaign.runtime_provenance()
+    assert provenance["python_version"]
+    assert provenance["numpy_version"]
+    assert provenance["zstandard_version"]
+    assert provenance["fastlm_filename"].startswith("_fastlm")
+    assert len(provenance["fastlm_sha256"]) == 64
+    assert len(provenance["runtime_fingerprint"]) == 64
+
+
 def test_truth_not_target_score_controls_classification() -> None:
     campaign = _campaign()
     case = campaign.build_case("vigenere_beam", 0)
@@ -209,7 +295,6 @@ def test_specialist_adapter_supplies_ciphertext_and_wli(monkeypatch: pytest.Monk
 
 def test_exceptions_become_fail_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
     campaign = _campaign()
-    monkeypatch.setitem(campaign.config.ATTEMPTS_PER_TRIAL, "vigenere_beam", 1)
     monkeypatch.setattr(
         campaign, "build_case", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("broken"))
     )
@@ -220,25 +305,187 @@ def test_exceptions_become_fail_evidence(monkeypatch: pytest.MonkeyPatch) -> Non
 
 def test_multiple_attempt_pipeline_is_deterministic(monkeypatch: pytest.MonkeyPatch) -> None:
     campaign = _campaign()
-    monkeypatch.setitem(campaign.config.ATTEMPTS_PER_TRIAL, "railfence_beam", 2)
-    monkeypatch.setattr(campaign, "execute_case", lambda case: _result(case))
-    first = campaign.run_trial("railfence_beam", 0)
-    second = campaign.run_trial("railfence_beam", 0)
-    assert first["attempt_count"] == 2
-    assert first["attempt_seeds"] == second["attempt_seeds"]
-    assert first["selected_attempt"] == second["selected_attempt"]
-    assert first["cipher_parameters"] == second["cipher_parameters"]
+    calls = 0
+
+    def fake_execute(case):
+        nonlocal calls
+        index = calls
+        calls += 1
+        plaintext = list(case.reference)
+        if index == 0:
+            plaintext[:20] = [(value + 1) % 29 for value in plaintext[:20]]
+        return _result(case, plaintext=plaintext, score=(0.9, 0.1, 0.5)[index])
+
+    monkeypatch.setattr(campaign, "execute_case", fake_execute)
+    record = campaign.run_trial("mono_ga", 0)
+    assert record["attempt_count"] == 3
+    assert len(set(record["attempt_seeds"])) == 3
+    assert len(record["attempts"]) == 3
+    assert record["selected_attempt"] == 0
+    assert record["classification"] == "REVIEW"
+    assert record["selection_policy"] == "highest_valid_solver_score"
+    assert record["truth_used_for_selection"] is False
+    assert record["recipe_id"] == "mono_char2_wli12_3start_v1"
+    assert record["recipe_fingerprint"] == campaign.recipe_fingerprint("mono_ga")
+    assert record["configuration_fingerprint"] == (
+        campaign.configuration_fingerprint("mono_ga", "pilot")
+    )
+    assert record["scorer_profile"]["wli_weights"] == {1: 0.21, 2: 0.49}
+
+
+def test_multiple_attempt_selection_uses_score_not_benchmark_truth() -> None:
+    campaign = _campaign()
+    exact_lower_score = {
+        "attempt_index": 0, "valid": True, "classification": "PASS",
+        "match_ratio": 1.0, "best_score": 0.4,
+    }
+    wrong_higher_score = {
+        "attempt_index": 1, "valid": True, "classification": "REVIEW",
+        "match_ratio": 0.5, "best_score": 0.5,
+    }
+    assert max(
+        (exact_lower_score, wrong_higher_score), key=campaign._selection_key
+    ) is wrong_higher_score
+
+
+def test_multiple_attempt_selection_prefers_valid_and_breaks_score_ties_early() -> None:
+    campaign = _campaign()
+    invalid = {"attempt_index": 0, "valid": False, "best_score": 1.0}
+    first = {"attempt_index": 1, "valid": True, "best_score": 0.5}
+    tied_later = {"attempt_index": 2, "valid": True, "best_score": 0.5}
+    assert max((invalid, first, tied_later), key=campaign._selection_key) is first
 
 
 def test_output_is_external_and_jsonl_schema_is_exact(tmp_path: Path) -> None:
     campaign = _campaign()
-    assert not campaign.OUTPUT_PATH.is_relative_to(ROOT)
+    output_path = campaign.qualification_output_path("full", "mono_ga")
+    assert not output_path.is_relative_to(ROOT)
+    assert output_path.name == (
+        "full_mono_char2_wli12_3start_v1_seed20260822.jsonl"
+    )
     record = campaign.failure_record(
         "vigenere_beam", 0, 7, RuntimeError("broken"), 0.5
     )
     assert set(record) == set(campaign.RESULT_FIELDS)
     output = tmp_path / "result.jsonl"
     campaign.write_records([record], output)
-    assert json.loads(output.read_text(encoding="utf-8")) == record
+    assert json.loads(output.read_text(encoding="utf-8")) == json.loads(
+        json.dumps(record)
+    )
     campaign.append_record(record, output)
     assert len(output.read_text(encoding="utf-8").splitlines()) == 2
+
+
+def test_resume_repairs_partial_tail_without_duplicate_trials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    campaign = _campaign()
+    monkeypatch.setattr(campaign, "OUTPUT_ROOT", tmp_path)
+    monkeypatch.setattr(
+        campaign, "source_state",
+        lambda: {
+            "source_dirty": False, "tracked_dirty": False,
+            "untracked_runtime_files": [], "source_diff_sha256": None,
+        },
+    )
+    monkeypatch.setattr(
+        campaign, "campaign_plan",
+        lambda mode, family: [(family, 0), (family, 1)],
+    )
+    calls: list[int] = []
+
+    def fake_trial(family: str, trial_index: int, mode: str | None = None):
+        calls.append(trial_index)
+        return campaign.failure_record(
+            family, trial_index, campaign.trial_seed(family, trial_index),
+            RuntimeError("synthetic preflight"), 0.0, mode=mode,
+        )
+
+    monkeypatch.setattr(campaign, "run_trial", fake_trial)
+    output = campaign.qualification_output_path("full", "railfence_beam")
+    arguments = [
+        "--mode", "full", "--family", "railfence_beam",
+    ]
+    assert campaign.main(arguments) == 1
+    initial = campaign.load_completed_records(output)
+    assert [record["trial_id"] for record in initial] == [
+        "railfence_beam.0", "railfence_beam.1",
+    ]
+
+    campaign.write_records(initial[:1], output)
+    with output.open("ab") as handle:
+        handle.write(b'{"trial_id":"railfence_beam.1"')
+    calls.clear()
+    assert campaign.main([*arguments, "--resume"]) == 1
+    resumed = campaign.load_completed_records(output)
+    assert calls == [1]
+    assert [record["trial_id"] for record in resumed] == [
+        "railfence_beam.0", "railfence_beam.1",
+    ]
+    assert campaign.main(arguments) == 2
+
+
+def test_loader_rejects_duplicate_completed_trial_ids(tmp_path: Path) -> None:
+    campaign = _campaign()
+    record = campaign.failure_record(
+        "railfence_beam", 0, 7, RuntimeError("synthetic preflight"), 0.0
+    )
+    output = tmp_path / "duplicates.jsonl"
+    campaign.write_records([record, record], output)
+    with pytest.raises(ValueError, match="duplicate completed trial IDs"):
+        campaign.load_completed_records(output)
+
+
+def test_resume_refuses_different_recipe_fingerprint(tmp_path: Path) -> None:
+    campaign = _campaign()
+    output = tmp_path / "fingerprint.jsonl"
+    provenance = {
+        "git_commit": "head", "runner_sha256": "runner",
+        "config_sha256": "config", "recipe_id": "recipe",
+        "recipe_fingerprint": "accepted",
+        "configuration_fingerprint": "configuration",
+        "campaign_configuration_sha256": "campaign", "output": str(output),
+    }
+    campaign.initialise_run(output=output, provenance=provenance, resume=False)
+    changed = {**provenance, "recipe_fingerprint": "different"}
+    with pytest.raises(ValueError, match="recipe_fingerprint"):
+        campaign.initialise_run(output=output, provenance=changed, resume=True)
+
+
+def test_full_provenance_refuses_dirty_runtime_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    campaign = _campaign()
+    monkeypatch.setattr(
+        campaign, "source_state",
+        lambda: {
+            "source_dirty": True, "tracked_dirty": True,
+            "untracked_runtime_files": [], "source_diff_sha256": "dirty",
+        },
+    )
+    with pytest.raises(RuntimeError, match="clean runtime source tree"):
+        campaign.build_provenance(
+            mode="full", family="mono_ga", output=tmp_path / "result.jsonl",
+            plan=[("mono_ga", 0)], command=["python", "campaign.py"],
+        )
+
+
+def test_resume_refuses_different_language_model_assets(tmp_path: Path) -> None:
+    campaign = _campaign()
+    output = tmp_path / "asset_fingerprint.jsonl"
+    provenance = {
+        "git_commit": "head", "source_diff_sha256": None,
+        "runner_sha256": "runner", "config_sha256": "config",
+        "recipe_id": "recipe", "recipe_fingerprint": "recipe-fingerprint",
+        "configuration_fingerprint": "configuration",
+        "campaign_configuration_sha256": "campaign",
+        "asset_profile": "ci_light",
+        "asset_profile_manifest_sha256": "profile",
+        "asset_verification_manifest_sha256": "manifest",
+        "language_model_assets_sha256": "accepted",
+        "output": str(output),
+    }
+    campaign.initialise_run(output=output, provenance=provenance, resume=False)
+    changed = {**provenance, "language_model_assets_sha256": "different"}
+    with pytest.raises(ValueError, match="language_model_assets_sha256"):
+        campaign.initialise_run(output=output, provenance=changed, resume=True)

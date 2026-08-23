@@ -1,13 +1,27 @@
-from __future__ import annotations
-
 """Deterministic known-answer cipher/solver robustness campaign."""
 
+from __future__ import annotations
+
+# The standalone tool establishes its repository import roots before importing
+# the package and its sibling configuration module.
+# ruff: noqa: E402
+
+import argparse
+import copy
+import contextlib
+import hashlib
+import importlib.metadata
 import json
 import math
+import os
+import platform
+import re
+import subprocess
 import sys
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +37,12 @@ for import_root in (REPO_ROOT, SRC_ROOT, TOOL_ROOT):
 from rune_decrypter_prime import api
 from rune_decrypter_prime.data.cipher_tests.book_corpus import load_book, select_passage
 from rune_decrypter_prime.io.rng import RNGController
+from rune_decrypter_prime.scoring.language_model import _fastlm
+from rune_decrypter_prime.scoring.language_model.paths import (
+    default_lm_root,
+    expand_pattern,
+    load_index,
+)
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
 from rune_decrypter_prime.utils.solve_output import match_ratio
@@ -33,7 +53,6 @@ import cipher_solver_campaign_config as config
 ALPHABET = 29
 CAMPAIGN_SEED = config.CAMPAIGN_SEED
 OUTPUT_ROOT = config.OUTPUT_ROOT
-OUTPUT_PATH = config.OUTPUT_PATH
 
 
 @dataclass(slots=True)
@@ -67,6 +86,9 @@ class FamilyDefinition:
 
 RESULT_FIELDS = (
     "campaign_seed", "trial_seed", "trial_index", "trial_id", "family",
+    "recipe_id", "recipe_fingerprint", "configuration_fingerprint",
+    "scorer_profile", "selection_policy",
+    "truth_used_for_selection",
     "campaign_group", "direction", "plaintext_source", "book", "start_word",
     "word_count", "plaintext_length", "cipher_parameters", "solver_parameters",
     "attempt_count", "attempt_seeds", "attempts", "selected_attempt",
@@ -76,6 +98,121 @@ RESULT_FIELDS = (
     "run_status", "stop_reason", "best_score", "evaluations", "tokens",
     "runtime_seconds", "classification", "notes",
 )
+
+_RECIPE_FIELDS = {
+    "recipe_id", "scorer", "solver_budget", "attempt_count", "selection",
+    "acceptance_rule",
+}
+_SCORER_FIELDS = {
+    "objective", "include_char", "use_word_breaks", "char_weights",
+    "wli_weights",
+}
+_SELECTION_POLICIES = {"highest_valid_solver_score"}
+_RECIPE_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_]*_v[1-9][0-9]*$")
+_RUNTIME_SOURCE_PATHS = (
+    "src", "tools/robustness", "tutorials/v1",
+    "asset_profiles_v1.json", "assets_manifest_ci_light_v1.json",
+    "assets_manifest_v1.json",
+)
+
+
+def _validated_weights(value: Any, label: str) -> dict[int, float]:
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{label} must be a mapping")
+    weights: dict[int, float] = {}
+    for raw_order, raw_weight in value.items():
+        if isinstance(raw_order, bool) or not isinstance(raw_order, int):
+            raise ValueError(f"{label} orders must be integers")
+        order = int(raw_order)
+        if order not in {1, 2, 3, 4}:
+            raise ValueError(f"{label} orders must be in 1..4")
+        if isinstance(raw_weight, bool) or not isinstance(raw_weight, (int, float)):
+            raise ValueError(f"{label} weights must be numeric")
+        weight = float(raw_weight)
+        if not math.isfinite(weight) or weight < 0.0:
+            raise ValueError(f"{label} weights must be finite and non-negative")
+        if weight > 0.0:
+            weights[order] = weight
+    return weights
+
+
+def validate_campaign_recipes(
+    registered_families: Sequence[str] | None = None,
+) -> None:
+    """Fail early when the canonical family/recipe registry drifts."""
+    family_names = set(config.FAMILY_GROUPS)
+    recipe_names = set(config.CAMPAIGN_RECIPES)
+    if family_names != recipe_names:
+        raise ValueError(
+            "campaign family/recipe registry mismatch: "
+            f"families={sorted(family_names)}, recipes={sorted(recipe_names)}"
+        )
+    if registered_families is not None and family_names != set(registered_families):
+        raise ValueError("campaign builder registry does not match configured families")
+
+    recipe_ids: list[str] = []
+    for family in sorted(recipe_names):
+        recipe = config.CAMPAIGN_RECIPES[family]
+        if not isinstance(recipe, Mapping) or set(recipe) != _RECIPE_FIELDS:
+            raise ValueError(f"{family}: recipe fields must be {sorted(_RECIPE_FIELDS)}")
+        recipe_id = recipe["recipe_id"]
+        if not isinstance(recipe_id, str) or not _RECIPE_ID_PATTERN.fullmatch(recipe_id):
+            raise ValueError(f"{family}: recipe_id must be a versioned lowercase identifier")
+        recipe_ids.append(recipe_id)
+
+        scorer = recipe["scorer"]
+        if not isinstance(scorer, Mapping) or set(scorer) != _SCORER_FIELDS:
+            raise ValueError(f"{family}: scorer fields must be {sorted(_SCORER_FIELDS)}")
+        if scorer["objective"] != "pct.logp.win10":
+            raise ValueError(f"{family}: campaign objective must be pct.logp.win10")
+        if not isinstance(scorer["include_char"], bool):
+            raise ValueError(f"{family}: include_char must be boolean")
+        if not isinstance(scorer["use_word_breaks"], bool):
+            raise ValueError(f"{family}: use_word_breaks must be boolean")
+        char_weights = _validated_weights(scorer["char_weights"], f"{family}.char_weights")
+        wli_weights = _validated_weights(scorer["wli_weights"], f"{family}.wli_weights")
+        if not scorer["include_char"] and char_weights:
+            raise ValueError(f"{family}: char weights require include_char=True")
+        if not scorer["use_word_breaks"] and wli_weights:
+            raise ValueError(f"{family}: WLI weights require use_word_breaks=True")
+        if not char_weights and not wli_weights:
+            raise ValueError(f"{family}: scorer requires at least one positive LM lane")
+        if not math.isclose(
+            sum(char_weights.values()) + sum(wli_weights.values()), 1.0,
+            rel_tol=0.0, abs_tol=1e-9,
+        ):
+            raise ValueError(f"{family}: active scorer weights must sum to 1.0")
+
+        if not isinstance(recipe["solver_budget"], Mapping):
+            raise ValueError(f"{family}: solver_budget must be a mapping")
+        attempt_count = recipe["attempt_count"]
+        if isinstance(attempt_count, bool) or not isinstance(attempt_count, int) or attempt_count < 1:
+            raise ValueError(f"{family}: attempt_count must be a positive integer")
+        if recipe["selection"] not in _SELECTION_POLICIES:
+            raise ValueError(f"{family}: unsupported selection policy {recipe['selection']!r}")
+
+        acceptance = recipe["acceptance_rule"]
+        allowed_acceptance = {"plaintext_match", "require_interruptor_match"}
+        if (
+            not isinstance(acceptance, Mapping)
+            or "plaintext_match" not in acceptance
+            or not set(acceptance).issubset(allowed_acceptance)
+        ):
+            raise ValueError(f"{family}: invalid acceptance rule fields")
+        threshold = acceptance["plaintext_match"]
+        if (
+            isinstance(threshold, bool)
+            or not isinstance(threshold, (int, float))
+            or not 0.0 <= float(threshold) <= 1.0
+        ):
+            raise ValueError(f"{family}: plaintext_match must be in [0, 1]")
+        if "require_interruptor_match" in acceptance and not isinstance(
+            acceptance["require_interruptor_match"], bool
+        ):
+            raise ValueError(f"{family}: require_interruptor_match must be boolean")
+
+    if len(recipe_ids) != len(set(recipe_ids)):
+        raise ValueError("campaign recipe_id values must be unique")
 
 
 def case_seed_namespace(family: str) -> str:
@@ -118,8 +255,39 @@ def _book_passage(seed: int, direction: api.Direction):
     return passage.plaintext, passage.wli.tolist(), source
 
 
-def _scorer(direction: api.Direction) -> dict[str, Any]:
-    return {**config.SCORER, "encoding_dir": direction}
+def resolved_recipe(family: str) -> dict[str, Any]:
+    try:
+        return copy.deepcopy(config.CAMPAIGN_RECIPES[family])
+    except KeyError as exc:
+        raise ValueError(f"unknown campaign family: {family!r}") from exc
+
+
+def recipe_fingerprint(family: str) -> str:
+    return _canonical_hash(resolved_recipe(family))
+
+
+def resolved_campaign_configuration(family: str, mode: str) -> dict[str, Any]:
+    return {
+        "campaign_seed": CAMPAIGN_SEED,
+        "mode": mode,
+        "family": family,
+        "campaign_group": FAMILIES[family].group,
+        "recipe": resolved_recipe(family),
+        "recipe_fingerprint": recipe_fingerprint(family),
+        "books": list(config.BOOKS),
+        "directions": list(config.DIRECTIONS),
+        "target_runes": config.TARGET_RUNES,
+        "rune_tolerance": config.RUNE_TOLERANCE,
+        "cipher_range": config.CIPHER_RANGES.get(family),
+    }
+
+
+def configuration_fingerprint(family: str, mode: str) -> str:
+    return _canonical_hash(resolved_campaign_configuration(family, mode))
+
+
+def _scorer(family: str, direction: api.Direction) -> dict[str, Any]:
+    return {**resolved_recipe(family)["scorer"], "encoding_dir": direction}
 
 
 def _range_value(rng: RNGController, limits: tuple[int, int]) -> int:
@@ -185,7 +353,7 @@ def _ordinary_inputs(family: str, trial_index: int, attempt_index: int):
     plaintext, wli, source = _book_passage(seed, direction)
     rng = RNGController(seed).scope(case_seed_namespace(family))
     limits = config.CIPHER_RANGES[family]
-    budget = dict(config.SOLVER_BUDGETS[family])
+    budget = dict(resolved_recipe(family)["solver_budget"])
     budget["seed"] = solver_seed
     return seed, direction, plaintext, wli, source, rng, limits, budget
 
@@ -209,7 +377,7 @@ def _case(
         key=key,
         solver=solver,
         scorer=(
-            _scorer(direction)
+            _scorer(family, direction)
             if scorer is None
             else {**dict(scorer), "encoding_dir": direction}
         ),
@@ -289,7 +457,7 @@ def _build_autokey(trial_index: int, attempt_index: int) -> CampaignCase:
         family=family, direction=direction, plaintext=pt, wli=wli, source=source,
         ciphertext=ct, cipher=cipher, key=key, solver=api.SolverSpec.beam(**budget),
         cipher_parameters={"seed_length": length, "key": truth}, key_length=length,
-        expected_key=truth, scorer=config.AUTOKEY_SCORER,
+        expected_key=truth,
     )
 
 
@@ -489,6 +657,7 @@ ORDINARY_FAMILIES = tuple(
 SPECIALIST_FAMILIES = tuple(
     name for name, definition in FAMILIES.items() if definition.group == "SPECIALIST"
 )
+validate_campaign_recipes(tuple(FAMILIES))
 
 
 def build_case(family: str, trial_index: int, attempt_index: int = 0) -> CampaignCase:
@@ -565,7 +734,7 @@ def assess_result(case: CampaignCase, result: Any) -> dict[str, Any]:
         None if case.expected_interruptors is None
         else recovered_interruptors == case.expected_interruptors
     )
-    rule = config.ACCEPTANCE_RULES[case.family]
+    rule = resolved_recipe(case.family)["acceptance_rule"]
     truth_accepted = ratio >= float(rule["plaintext_match"])
     if rule.get("require_interruptor_match"):
         truth_accepted = truth_accepted and interruptor_match is True
@@ -629,17 +798,20 @@ def _attempt_failure(
     }
 
 
-def _selection_key(attempt: dict[str, Any]) -> tuple[int, float, float]:
-    rank = {"FAIL": 0, "REVIEW": 1, "PASS": 2}[attempt["classification"]]
-    ratio = -1.0 if attempt["match_ratio"] is None else float(attempt["match_ratio"])
+def _selection_key(attempt: dict[str, Any]) -> tuple[int, float, int]:
+    valid = int(bool(attempt["valid"]))
     score = -math.inf if attempt["best_score"] is None else float(attempt["best_score"])
-    return rank, ratio, score
+    return valid, score, -int(attempt["attempt_index"])
 
 
-def run_trial(family: str, trial_index: int) -> dict[str, Any]:
+def run_trial(
+    family: str, trial_index: int, mode: str | None = None,
+) -> dict[str, Any]:
     seed = trial_seed(family, trial_index)
     group = FAMILIES[family].group
-    count = int(config.ATTEMPTS_PER_TRIAL[family])
+    recipe = resolved_recipe(family)
+    selected_mode = config.CAMPAIGN_MODE if mode is None else str(mode)
+    count = int(recipe["attempt_count"])
     if count < 1:
         raise ValueError(f"{family}: attempts per trial must be >= 1")
     print(
@@ -679,12 +851,18 @@ def run_trial(family: str, trial_index: int) -> dict[str, Any]:
         trial_index=trial_index,
         trial_id=f"{family}.{trial_index}",
         family=family,
+        recipe_id=recipe["recipe_id"],
+        recipe_fingerprint=recipe_fingerprint(family),
+        configuration_fingerprint=configuration_fingerprint(family, selected_mode),
+        scorer_profile=recipe["scorer"],
+        selection_policy=recipe["selection"],
+        truth_used_for_selection=False,
         campaign_group=group,
         attempt_count=count,
         attempt_seeds=[int(item["attempt_seed"]) for item in attempts],
         attempts=attempts,
         selected_attempt=selected_index,
-        selection_reason="best classification, then plaintext match, then score",
+        selection_reason="highest valid solver score; earliest attempt breaks ties",
         requested_seed=selected["requested_seed"],
         effective_seed=selected["effective_seed"],
         match_ratio=selected["match_ratio"],
@@ -721,52 +899,501 @@ def run_trial(family: str, trial_index: int) -> dict[str, Any]:
 
 
 def failure_record(
-    family: str, trial_index: int, seed: int, exc: BaseException, elapsed: float
+    family: str, trial_index: int, seed: int, exc: BaseException, elapsed: float,
+    mode: str | None = None,
 ) -> dict[str, Any]:
+    recipe = resolved_recipe(family)
+    selected_mode = config.CAMPAIGN_MODE if mode is None else str(mode)
     record = {field: None for field in RESULT_FIELDS}
     record.update(
         campaign_seed=CAMPAIGN_SEED, trial_seed=seed, trial_index=trial_index,
         trial_id=f"{family}.{trial_index}", family=family,
+        recipe_id=recipe["recipe_id"],
+        recipe_fingerprint=recipe_fingerprint(family),
+        configuration_fingerprint=configuration_fingerprint(family, selected_mode),
+        scorer_profile=recipe["scorer"],
+        selection_policy=recipe["selection"], truth_used_for_selection=False,
         campaign_group=config.FAMILY_GROUPS.get(family), runtime_seconds=elapsed,
         classification="FAIL", notes=f"{type(exc).__name__}: {exc}",
     )
     return record
 
 
-def write_records(records: Sequence[dict[str, Any]], path: Path = OUTPUT_PATH) -> None:
+def write_records(records: Sequence[dict[str, Any]], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="\n") as handle:
         for record in records:
             handle.write(json.dumps(record, sort_keys=True, ensure_ascii=False) + "\n")
 
 
-def append_record(record: dict[str, Any], path: Path = OUTPUT_PATH) -> None:
+def append_record(record: dict[str, Any], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8", newline="\n") as handle:
         handle.write(json.dumps(record, sort_keys=True, ensure_ascii=False) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
 
 
-def main() -> int:
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text("", encoding="utf-8")
+def campaign_plan(mode: str, family: str) -> list[tuple[str, int]]:
+    if family not in FAMILIES:
+        raise ValueError(f"unknown campaign family: {family!r}")
+    count = 1 if FAMILIES[family].group == "SPECIALIST" else campaign_trial_count(mode)
+    return [(family, trial_index) for trial_index in range(count)]
+
+
+def campaign_artifact_paths(output: Path) -> tuple[Path, Path]:
+    return output.with_suffix(".log"), output.with_suffix(".provenance.json")
+
+
+def qualification_output_path(mode: str, family: str) -> Path:
+    recipe_id = str(resolved_recipe(family)["recipe_id"])
+    filename = f"{mode}_{recipe_id}_seed{CAMPAIGN_SEED}.jsonl"
+    return (OUTPUT_ROOT / "qualifications" / filename).resolve()
+
+
+def _git_value(*args: str) -> str:
+    return subprocess.check_output(
+        ["git", "-C", str(REPO_ROOT), *args], text=True, encoding="utf-8"
+    ).strip()
+
+
+def _canonical_hash(value: Any) -> str:
+    payload = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def runtime_provenance() -> dict[str, Any]:
+    fastlm_path = Path(_fastlm.__file__).resolve()
+    identity = {
+        "python_implementation": platform.python_implementation(),
+        "python_version": platform.python_version(),
+        "platform": platform.platform(),
+        "numpy_version": np.__version__,
+        "zstandard_version": importlib.metadata.version("zstandard"),
+        "fastlm_filename": fastlm_path.name,
+        "fastlm_sha256": _sha256_file(fastlm_path),
+    }
+    return {**identity, "runtime_fingerprint": _canonical_hash(identity)}
+
+
+def source_state() -> dict[str, Any]:
+    """Identify every repository source byte that can affect the campaign."""
+    tracked_status = _git_value(
+        "status", "--short", "--untracked-files=no", "--", *_RUNTIME_SOURCE_PATHS
+    )
+    tracked_diff = subprocess.check_output(
+        [
+            "git", "-C", str(REPO_ROOT), "diff", "--binary", "HEAD", "--",
+            *_RUNTIME_SOURCE_PATHS,
+        ]
+    )
+    untracked_text = _git_value(
+        "ls-files", "--others", "--exclude-standard", "--", *_RUNTIME_SOURCE_PATHS
+    )
+    untracked_files = sorted(line for line in untracked_text.splitlines() if line)
+    digest = hashlib.sha256()
+    digest.update(tracked_diff)
+    for relative in untracked_files:
+        path = (REPO_ROOT / relative).resolve()
+        if not path.is_file() or not path.is_relative_to(REPO_ROOT):
+            raise ValueError(f"invalid untracked runtime source path: {relative!r}")
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    dirty = bool(tracked_status or untracked_files)
+    return {
+        "source_dirty": dirty,
+        "tracked_dirty": bool(tracked_status),
+        "untracked_runtime_files": untracked_files,
+        "source_diff_sha256": digest.hexdigest() if dirty else None,
+    }
+
+
+def required_lm_lanes(family: str) -> dict[str, tuple[int, ...]]:
+    if family == "two_period_cribs":
+        # The specialist solver's S2/B1/F1 stages collectively use LM1-LM4.
+        return {"char": (1, 2, 3, 4), "wli": (1, 2, 3, 4)}
+    scorer = resolved_recipe(family)["scorer"]
+    char_orders = (
+        tuple(sorted(int(order) for order, weight in scorer["char_weights"].items()
+                     if float(weight) > 0.0))
+        if scorer["include_char"] else ()
+    )
+    wli_orders = (
+        tuple(sorted(int(order) for order, weight in scorer["wli_weights"].items()
+                     if float(weight) > 0.0))
+        if scorer["use_word_breaks"] else ()
+    )
+    return {"char": char_orders, "wli": wli_orders}
+
+
+def _asset_profile_for_lanes(lanes: Mapping[str, Sequence[int]]) -> dict[str, Any]:
+    profile_manifest = REPO_ROOT / "asset_profiles_v1.json"
+    raw = json.loads(profile_manifest.read_text(encoding="utf-8"))
+    required_orders = {
+        int(order) for orders in lanes.values() for order in orders
+    }
+    candidates: list[tuple[int, str, Mapping[str, Any]]] = []
+    for name, profile in raw["profiles"].items():
+        available = {int(order) for order in profile["language_model_orders"]}
+        if required_orders.issubset(available):
+            candidates.append((len(available), str(name), profile))
+    if not candidates:
+        raise ValueError(f"no asset profile covers LM orders {sorted(required_orders)}")
+    _size, name, profile = min(candidates, key=lambda item: (item[0], item[1]))
+    verification_manifest = REPO_ROOT / str(profile["verification_manifest"])
+    return {
+        "asset_profile": name,
+        "asset_profile_manifest_sha256": _sha256_file(profile_manifest),
+        "asset_verification_manifest": verification_manifest.name,
+        "asset_verification_manifest_sha256": _sha256_file(verification_manifest),
+        "verification_manifest_path": verification_manifest,
+    }
+
+
+def language_model_asset_provenance(family: str) -> dict[str, Any]:
+    """Resolve, verify and fingerprint the exact LM files used by a family."""
+    lanes = required_lm_lanes(family)
+    profile = _asset_profile_for_lanes(lanes)
+    verification = json.loads(
+        profile["verification_manifest_path"].read_text(encoding="utf-8")
+    )
+    manifest_entries = {
+        str(entry["final_relpath"]): entry
+        for section in ("required_assets", "installed_assets")
+        for entry in verification.get(section, ())
+        if isinstance(entry, Mapping) and "final_relpath" in entry
+    }
+
+    root = default_lm_root().resolve()
+    index = load_index(root)
+    required_paths = {root / "index.json"}
+    se_mode = str(resolved_recipe(family)["scorer"].get("se_mode", "nose"))
+    for direction in config.DIRECTIONS:
+        for model, orders in lanes.items():
+            for order in orders:
+                model_config = index.models[model]
+                required_paths.add(
+                    expand_pattern(
+                        root, model_config["joint_pattern"], mode=direction,
+                        pos=se_mode, n=int(order),
+                    )
+                )
+                required_paths.add(
+                    expand_pattern(
+                        root, model_config["ecdf_pattern"], mode=direction,
+                        pos=se_mode, n=int(order), stat="logp", win=10,
+                    )
+                )
+
+    asset_root = (REPO_ROOT / "assets").resolve()
+    assets: list[dict[str, Any]] = []
+    for path in sorted(required_paths, key=lambda item: item.as_posix()):
+        resolved = path.resolve()
+        if not resolved.is_file():
+            raise FileNotFoundError(f"required campaign LM asset is missing: {path.name}")
+        if not resolved.is_relative_to(asset_root):
+            raise ValueError("campaign LM assets must resolve under the repository asset root")
+        logical_path = resolved.relative_to(asset_root).as_posix()
+        actual_sha256 = _sha256_file(resolved)
+        actual_size = resolved.stat().st_size
+        expected = manifest_entries.get(logical_path)
+        if expected is None:
+            raise ValueError(f"campaign LM asset is absent from verification manifest: {logical_path}")
+        if str(expected.get("sha256")) != actual_sha256:
+            raise ValueError(f"campaign LM asset SHA-256 mismatch: {logical_path}")
+        if int(expected.get("size_bytes", -1)) != actual_size:
+            raise ValueError(f"campaign LM asset size mismatch: {logical_path}")
+        assets.append(
+            {
+                "logical_path": logical_path,
+                "sha256": actual_sha256,
+                "size_bytes": actual_size,
+            }
+        )
+
+    public_profile = {
+        key: value for key, value in profile.items()
+        if key != "verification_manifest_path"
+    }
+    return {
+        **public_profile,
+        "language_model_lanes": {
+            model: list(orders) for model, orders in lanes.items()
+        },
+        "language_model_assets": assets,
+        "language_model_assets_sha256": _canonical_hash(assets),
+    }
+
+
+def build_provenance(
+    *, mode: str, family: str, output: Path,
+    plan: Sequence[tuple[str, int]], command: Sequence[str],
+) -> dict[str, Any]:
+    validate_campaign_recipes(tuple(FAMILIES))
+    recipe = resolved_recipe(family)
+    fingerprint = recipe_fingerprint(family)
+    source = source_state()
+    if mode == "full" and source["source_dirty"]:
+        raise RuntimeError(
+            "full qualification requires a clean runtime source tree"
+        )
+    asset_provenance = language_model_asset_provenance(family)
+    runtime = runtime_provenance()
+    configuration = resolved_campaign_configuration(family, mode)
+    configuration.update(
+        trial_count=len(plan),
+        trial_ids=[f"{name}.{index}" for name, index in plan],
+        attempts_per_trial=recipe["attempt_count"],
+    )
+    return {
+        "schema_version": 2,
+        "recipe_id": recipe["recipe_id"],
+        "recipe_fingerprint": fingerprint,
+        "configuration_fingerprint": configuration_fingerprint(family, mode),
+        "created_utc": datetime.now(timezone.utc).isoformat(),
+        "git_commit": _git_value("rev-parse", "HEAD"),
+        "git_branch": _git_value("branch", "--show-current"),
+        "git_dirty": source["source_dirty"],
+        **source,
+        **runtime,
+        "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "config_sha256": hashlib.sha256(
+            (TOOL_ROOT / "cipher_solver_campaign_config.py").read_bytes()
+        ).hexdigest(),
+        "campaign_configuration": configuration,
+        "campaign_configuration_sha256": _canonical_hash(configuration),
+        **asset_provenance,
+        "output": str(output.resolve()),
+        "command_argv": list(command),
+    }
+
+
+def load_completed_records(
+    path: Path, *, repair_trailing_partial: bool = False,
+) -> list[dict[str, Any]]:
+    lines = path.read_bytes().splitlines(keepends=True)
     records: list[dict[str, Any]] = []
-    trial_count = campaign_trial_count()
-    for family in ORDINARY_FAMILIES:
-        for trial_index in range(trial_count):
-            record = run_trial(family, trial_index)
-            records.append(record)
-            append_record(record)
-    for family in SPECIALIST_FAMILIES:
-        record = run_trial(family, 0)
+    valid_bytes = 0
+    for index, raw_line in enumerate(lines):
+        try:
+            record = json.loads(raw_line.decode("utf-8"))
+            if not isinstance(record, dict) or set(record) != set(RESULT_FIELDS):
+                raise ValueError("record does not match campaign result schema")
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
+            if repair_trailing_partial and index == len(lines) - 1:
+                with path.open("r+b") as handle:
+                    handle.truncate(valid_bytes)
+                break
+            raise ValueError(f"invalid JSONL record at line {index + 1}") from None
         records.append(record)
-        append_record(record)
+        valid_bytes += len(raw_line)
+    trial_ids = [str(record["trial_id"]) for record in records]
+    if len(trial_ids) != len(set(trial_ids)):
+        raise ValueError("duplicate completed trial IDs in JSONL evidence")
+    return records
+
+
+def initialise_run(
+    *, output: Path, provenance: Mapping[str, Any], resume: bool,
+) -> tuple[list[dict[str, Any]], Path]:
+    log_path, provenance_path = campaign_artifact_paths(output)
+    if resume:
+        if not output.is_file() or not provenance_path.is_file():
+            raise FileNotFoundError("resume requires existing JSONL and provenance files")
+        recorded = json.loads(provenance_path.read_text(encoding="utf-8"))
+        for field in (
+            "git_commit", "source_diff_sha256", "runner_sha256", "config_sha256", "recipe_id",
+            "recipe_fingerprint", "configuration_fingerprint",
+            "campaign_configuration_sha256", "asset_profile",
+            "asset_profile_manifest_sha256", "asset_verification_manifest_sha256",
+            "language_model_assets_sha256", "runtime_fingerprint", "output",
+        ):
+            if recorded.get(field) != provenance.get(field):
+                raise ValueError(f"resume provenance mismatch: {field}")
+        return load_completed_records(output, repair_trailing_partial=True), log_path
+
+    existing = [path for path in (output, log_path, provenance_path) if path.exists()]
+    if existing:
+        raise FileExistsError(
+            "fresh run refuses to overwrite existing artifacts: "
+            + ", ".join(str(path) for path in existing)
+        )
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.open("x", encoding="utf-8").close()
+    provenance_path.write_text(
+        json.dumps(dict(provenance), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8", newline="\n",
+    )
+    return [], log_path
+
+
+class _Tee:
+    def __init__(self, console: Any, log: Any) -> None:
+        self.console = console
+        self.log = log
+
+    def write(self, value: str) -> int:
+        self.console.write(value)
+        self.log.write(value)
+        return len(value)
+
+    def flush(self) -> None:
+        self.console.flush()
+        self.log.flush()
+
+
+def summarise_records(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     counts = {
         name: sum(record["classification"] == name for record in records)
         for name in ("PASS", "REVIEW", "FAIL")
     }
-    print(f"[campaign] RESULTS {OUTPUT_PATH}", flush=True)
-    print(f"[campaign] SUMMARY records={len(records)} {counts}", flush=True)
-    return qualification_exit_code(records)
+    return {"records": len(records), "classifications": counts}
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--mode", choices=tuple(config.TRIALS_PER_MODE), required=True)
+    parser.add_argument("--family", choices=tuple(FAMILIES), required=True)
+    action = parser.add_mutually_exclusive_group()
+    action.add_argument("--resume", action="store_true")
+    action.add_argument("--dry-run", action="store_true")
+    action.add_argument("--summarize", action="store_true")
+    return parser
+
+
+def _scorer_summary(recipe: Mapping[str, Any]) -> str:
+    scorer = recipe["scorer"]
+    parts = [
+        *(f"char{order}={float(weight):.2f}"
+          for order, weight in sorted(scorer.get("char_weights", {}).items())),
+        *(f"WLI{order}={float(weight):.2f}"
+          for order, weight in sorted(scorer.get("wli_weights", {}).items())),
+    ]
+    return ", ".join(parts) if parts else "none"
+
+
+def print_resolved_plan(mode: str, family: str, plan: Sequence[tuple[str, int]]) -> None:
+    recipe = resolved_recipe(family)
+    attempts = int(recipe["attempt_count"])
+    print(f"family: {family}")
+    print(f"recipe: {recipe['recipe_id']}")
+    print(f"trials: {len(plan)}")
+    print(f"attempts per trial: {attempts}")
+    print(f"total solver attempts: {len(plan) * attempts}")
+    print(f"scorer: {_scorer_summary(recipe)}")
+    print(f"selection: {str(recipe['selection']).replace('_', ' ')}")
+    print("truth used for selection: no")
+    print(f"recipe fingerprint: {recipe_fingerprint(family)}")
+    print(f"configuration fingerprint: {configuration_fingerprint(family, mode)}")
+    print("resolved recipe: " + json.dumps(recipe, sort_keys=True))
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    try:
+        output = qualification_output_path(args.mode, args.family)
+        plan = campaign_plan(args.mode, args.family)
+        if args.dry_run:
+            validate_campaign_recipes(tuple(FAMILIES))
+            print_resolved_plan(args.mode, args.family, plan)
+            source = source_state()
+            assets = language_model_asset_provenance(args.family)
+            runtime = runtime_provenance()
+            print(f"source tree clean: {'no' if source['source_dirty'] else 'yes'}")
+            if args.mode == "full" and source["source_dirty"]:
+                print("full execution preflight: BLOCKED until runtime source is clean")
+            else:
+                print("full execution preflight: ready")
+            print(f"asset profile: {assets['asset_profile']}")
+            print(
+                "language-model asset fingerprint: "
+                f"{assets['language_model_assets_sha256']}"
+            )
+            print(f"runtime fingerprint: {runtime['runtime_fingerprint']}")
+            print(f"[campaign] RESULTS {output}")
+            print(f"[campaign] LOG {campaign_artifact_paths(output)[0]}")
+            return 0
+        if args.summarize:
+            records = load_completed_records(output)
+            print(json.dumps(summarise_records(records), indent=2, sort_keys=True))
+            return qualification_exit_code(records, args.mode)
+
+        command = [sys.executable, str(Path(__file__).resolve()), *(argv or sys.argv[1:])]
+        provenance = build_provenance(
+            mode=args.mode, family=args.family, output=output,
+            plan=plan, command=command,
+        )
+        records, log_path = initialise_run(
+            output=output, provenance=provenance, resume=args.resume
+        )
+        planned_ids = {f"{family}.{index}" for family, index in plan}
+        completed_ids = {str(record["trial_id"]) for record in records}
+        unexpected = completed_ids - planned_ids
+        if unexpected:
+            raise ValueError(f"resume evidence contains unplanned trial IDs: {sorted(unexpected)}")
+        expected_fingerprint = recipe_fingerprint(args.family)
+        wrong_recipe = {
+            str(record.get("recipe_fingerprint")) for record in records
+            if record.get("recipe_fingerprint") != expected_fingerprint
+        }
+        if wrong_recipe:
+            raise ValueError(
+                "resume evidence contains a different recipe fingerprint: "
+                f"{sorted(wrong_recipe)}"
+            )
+        expected_configuration = configuration_fingerprint(args.family, args.mode)
+        wrong_configuration = {
+            str(record.get("configuration_fingerprint")) for record in records
+            if record.get("configuration_fingerprint") != expected_configuration
+        }
+        if wrong_configuration:
+            raise ValueError(
+                "resume evidence contains a different configuration fingerprint: "
+                f"{sorted(wrong_configuration)}"
+            )
+
+        log_mode = "a" if args.resume else "x"
+        with log_path.open(log_mode, encoding="utf-8", newline="\n") as log_handle:
+            with contextlib.redirect_stdout(_Tee(sys.stdout, log_handle)):
+                with contextlib.redirect_stderr(_Tee(sys.stderr, log_handle)):
+                    print_resolved_plan(args.mode, args.family, plan)
+                    print(
+                        f"[campaign] RUN mode={args.mode} family={args.family} "
+                        f"planned={len(plan)} completed={len(records)} output={output}",
+                        flush=True,
+                    )
+                    for ordinal, (family, trial_index) in enumerate(plan, start=1):
+                        trial_id = f"{family}.{trial_index}"
+                        if trial_id in completed_ids:
+                            continue
+                        print(
+                            f"[campaign] PROGRESS {ordinal}/{len(plan)} trial_id={trial_id}",
+                            flush=True,
+                        )
+                        record = run_trial(family, trial_index, mode=args.mode)
+                        append_record(record, output)
+                        records.append(record)
+                        completed_ids.add(trial_id)
+                    summary = summarise_records(records)
+                    print(f"[campaign] RESULTS {output}", flush=True)
+                    print(
+                        f"[campaign] SUMMARY {json.dumps(summary, sort_keys=True)}",
+                        flush=True,
+                    )
+        return qualification_exit_code(records, args.mode)
+    except (FileExistsError, FileNotFoundError, ValueError) as exc:
+        print(f"[campaign] ERROR {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":
