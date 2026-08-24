@@ -28,7 +28,7 @@ from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_prev
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary  # noqa: E402
 
 """
-Tutorial variant: Vigenere interruptor solver search with the standard RDP printer.
+Tutorial variant: smaller single-start Vigenere interruptor Beam pool search.
 
 The original tutorial remains unchanged; this variant proves the printer facade.
 """
@@ -67,9 +67,9 @@ def main() -> None:
     pretty.print_rdp_identity()
     pretty.print_initialising()
     pretty.print_tutorial_contract(
-        name='Vigenere interruptor solver search',
+        name='Vigenere smaller single-start interruptor Beam pool search',
         cipher='vigenere interruptors',
-        solver='hybrid',
+        solver='beam',
         direction='ltr',
         expected_result='exact solve',
         uses_reference_stop_score=True,
@@ -196,7 +196,7 @@ def main() -> None:
         reference_idx=pt_idx,
         tutorial_entry={
             "path": "Tutorial_Vigenere_Interruptors_Solve.py",
-            "title": "Vigenere interruptor solver search pretty-print variant",
+            "title": "Vigenere smaller single-start interruptor Beam pool search",
             "gate": "v1_release_pretty_print",
             "acceptance_kind": "exact",
             "min_match_ratio": 1.0,

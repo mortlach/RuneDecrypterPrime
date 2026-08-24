@@ -80,6 +80,7 @@ TUTORIALS: tuple[TutorialEntry, ...] = (
     ),
     TutorialEntry("Tutorial_Start_Here.py", 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)),
     TutorialEntry("Tutorial_Autokey.py", 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)),
+    TutorialEntry("Tutorial_Autokey_Robust.py", 1.0, run_sets=(TutorialRunSet.EXTENDED,)),
     TutorialEntry("Tutorial_Railfence.py", 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)),
     TutorialEntry("Tutorial_Vigenere_Interruptors_Exact.py", 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)),
     TutorialEntry("Tutorial_ColumnarTransposition.py", 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)),
@@ -97,6 +98,12 @@ TUTORIALS: tuple[TutorialEntry, ...] = (
         TutorialAcceptanceKind.HUMAN_READABLE,
         (TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT),
     ),
+    TutorialEntry(
+        "Tutorial_MonoSubstitution_GA_Robust.py",
+        0.97,
+        TutorialAcceptanceKind.HUMAN_READABLE,
+        (TutorialRunSet.EXTENDED,),
+    ),
     TutorialEntry("Tutorial_Repeating_multiply.py", 1.0, run_sets=(TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)),
     TutorialEntry(
         "Tutorial_MonoSubstitution_HYBRID_RTL.py",
@@ -106,6 +113,11 @@ TUTORIALS: tuple[TutorialEntry, ...] = (
     ),
     TutorialEntry(
         "Tutorial_Vigenere_Interruptors_NonTrivial.py",
+        1.0,
+        run_sets=(TutorialRunSet.EXTENDED,),
+    ),
+    TutorialEntry(
+        "Tutorial_Vigenere_Interruptors_Robust.py",
         1.0,
         run_sets=(TutorialRunSet.EXTENDED,),
     ),
@@ -141,13 +153,6 @@ TUTORIALS: tuple[TutorialEntry, ...] = (
     ),
     TutorialEntry(
         "Tutorial_PeriodicSubstitution_Simple_P7.py",
-        0.995,
-        TutorialAcceptanceKind.NEAR_EXACT,
-        (TutorialRunSet.FULL_ASSETS,),
-        required_asset_profile="full_v1",
-    ),
-    TutorialEntry(
-        "Tutorial_PeriodicColumnar.py",
         0.995,
         TutorialAcceptanceKind.NEAR_EXACT,
         (TutorialRunSet.FULL_ASSETS,),

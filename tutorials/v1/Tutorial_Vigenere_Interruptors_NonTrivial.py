@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Vigenere non-trivial interruptor-search pretty-print tutorial."""
+"""Larger single-start Vigenere interruptor Beam-search tutorial."""
 
 import sys
 from pathlib import Path
@@ -39,9 +39,9 @@ def main() -> None:
     pretty.print_rdp_identity()
     pretty.print_initialising()
     pretty.print_tutorial_contract(
-        name='Vigenere interruptors non-trivial',
+        name='Vigenere larger single-start interruptor Beam search',
         cipher='vigenere interruptors',
-        solver='hybrid',
+        solver='beam',
         direction='ltr',
         expected_result='exact solve',
         uses_reference_stop_score=True,
@@ -171,7 +171,7 @@ def main() -> None:
         reference_idx=pt_idx,
         tutorial_entry={
             "path": "Tutorial_Vigenere_Interruptors_NonTrivial.py",
-            "title": "Vigenere non-trivial interruptor pretty-print variant",
+            "title": "Vigenere larger single-start interruptor Beam search",
             "gate": "v1_extended_pretty_print",
             "acceptance_kind": "exact",
             "min_match_ratio": MIN_MATCH_RATIO,

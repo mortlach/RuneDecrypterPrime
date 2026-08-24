@@ -79,17 +79,17 @@
     },
     {
       "path": "Tutorial_Start_Here.py",
-      "title": "Start here: Vigenere wrapper and general-map beam solve",
+      "title": "Start here: seeded Vigenere interface and general-map beam solve",
       "cipher_family": "vigenere",
-      "tutorial_kind": "intro_real_solve",
+      "tutorial_kind": "interface_demo_and_real_solve",
       "gate": "v1_smoke",
       "required_asset_profile": "ci_light",
       "acceptance_kind": "exact",
       "min_match_ratio": 1.0,
       "uses_oracle_stop_score": false,
-      "supplies_true_key_to_solver": false,
+      "supplies_true_key_to_solver": true,
       "current_status": "active",
-      "notes": "Basic first tutorial; uses lm2 char/WLI order-2 scorer. Pretty-print version promoted to canonical V1 tutorial filename.",
+      "notes": "Basic interface tutorial. The wrapper call explicitly supplies the known key and is not presented as independent cryptanalysis; the General Map call is unseeded.",
       "expected_under_required_profile": "pass",
       "observed_under_required_profile": {
         "match_ratio": null,
@@ -100,7 +100,7 @@
     },
     {
       "path": "Tutorial_Autokey.py",
-      "title": "Autokey solve",
+      "title": "Autokey older GA/crib-assisted comparison",
       "cipher_family": "autokey",
       "tutorial_kind": "real_solve",
       "gate": "v1_smoke",
@@ -110,13 +110,30 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
-      "notes": "Fast exact solve under ci_light; includes no-crib and crib-assisted runs. Pretty-print version promoted to canonical V1 tutorial filename.",
+      "notes": "Historical lighter GA comparison using the earlier char2/WLI2 scorer; not the qualified robust Beam recipe.",
       "expected_under_required_profile": "pass",
       "observed_under_required_profile": {
         "match_ratio": 1.0,
         "score_time_s": 0.626,
         "tokens": 41410
       },
+      "profile_evidence_status": "measured"
+    },
+    {
+      "path": "Tutorial_Autokey_Robust.py",
+      "title": "Autokey robust Beam solve",
+      "cipher_family": "autokey",
+      "tutorial_kind": "qualification_derived_solve",
+      "gate": "v1_extended",
+      "required_asset_profile": "ci_light",
+      "acceptance_kind": "exact",
+      "min_match_ratio": 1.0,
+      "uses_oracle_stop_score": false,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Qualified WLI1+2 Beam recipe with three internal restarts; truth is terminal-only.",
+      "expected_under_required_profile": "pass",
+      "observed_under_required_profile": {"match_ratio": 1.0, "score_time_s": 133.733, "tokens": null},
       "profile_evidence_status": "measured"
     },
     {
@@ -128,10 +145,10 @@
       "required_asset_profile": "ci_light",
       "acceptance_kind": "exact",
       "min_match_ratio": 1.0,
-      "uses_oracle_stop_score": true,
+      "uses_oracle_stop_score": false,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
-      "notes": "Fast exact solve under ci_light. Pretty-print version promoted to canonical V1 tutorial filename.",
+      "notes": "Qualified Beam recipe and public cipher construction; fixed budget without oracle stop.",
       "expected_under_required_profile": "pass",
       "observed_under_required_profile": {
         "match_ratio": 1.0,
@@ -142,7 +159,7 @@
     },
     {
       "path": "Tutorial_Vigenere_Interruptors_Exact.py",
-      "title": "Vigenere with exact interruptors",
+      "title": "Vigenere known-position interruptor interface demonstration",
       "cipher_family": "vigenere_interruptors",
       "tutorial_kind": "known_key_or_tiny_search",
       "gate": "v1_smoke",
@@ -152,7 +169,7 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
-      "notes": "Tiny exact-position interruptor example. Pretty-print exact interruptor tutorial promoted to canonical V1 tutorial filename.",
+      "notes": "Tiny known-position interface demonstration, not unknown-position solver qualification.",
       "expected_under_required_profile": "pass",
       "observed_under_required_profile": {
         "match_ratio": 1.0,
@@ -205,7 +222,7 @@
     },
     {
       "path": "Tutorial_Vigenere_Interruptors_Solve.py",
-      "title": "Vigenere interruptor solver search",
+      "title": "Vigenere smaller single-start interruptor Beam pool search",
       "cipher_family": "vigenere_interruptors",
       "tutorial_kind": "real_solve",
       "gate": "v1_release",
@@ -215,7 +232,7 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
-      "notes": "Small but real interruptor search example. Pretty-print version promoted to canonical V1 tutorial filename.",
+      "notes": "Small real single-start Beam pool search; not the qualified three-restart recipe.",
       "expected_under_required_profile": "pass",
       "observed_under_required_profile": {
         "match_ratio": 1.0,
@@ -226,7 +243,7 @@
     },
     {
       "path": "Tutorial_MonoSubstitution_GA_RTL.py",
-      "title": "Mono-substitution GA RTL",
+      "title": "Mono-substitution lighter single-attempt GA RTL",
       "cipher_family": "mono_substitution",
       "tutorial_kind": "real_solve",
       "gate": "v1_release",
@@ -236,7 +253,7 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
-      "notes": "Keep one mono-substitution tutorial in V1.0.0; standard entry-level cipher. GA is the fastest mono option in current run. Directional RTL pretty-print variant promoted to canonical V1 tutorial filename.",
+      "notes": "Lighter single-attempt demonstration using the earlier char2/WLI2 scorer; not the qualified robust recipe.",
       "expected_under_required_profile": "pass",
       "observed_under_required_profile": {
         "match_ratio": 0.981,
@@ -247,7 +264,7 @@
     },
     {
       "path": "Tutorial_MonoSubstitution_GA_LTR.py",
-      "title": "Mono-substitution GA LTR",
+      "title": "Mono-substitution lighter single-attempt GA LTR",
       "cipher_family": "mono_substitution",
       "tutorial_kind": "real_solve",
       "gate": "v1_release",
@@ -257,13 +274,30 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
-      "notes": "Keep one mono-substitution tutorial in V1.0.0; standard entry-level cipher. GA is the fastest mono option in current run. Directional LTR pretty-print variant promoted to canonical V1 tutorial filename.",
+      "notes": "Lighter single-attempt demonstration using the earlier char2/WLI2 scorer; not the qualified robust recipe.",
       "expected_under_required_profile": "pass",
       "observed_under_required_profile": {
         "match_ratio": 0.981,
         "score_time_s": 21.492,
         "tokens": 8228953
       },
+      "profile_evidence_status": "measured"
+    },
+    {
+      "path": "Tutorial_MonoSubstitution_GA_Robust.py",
+      "title": "Mono-substitution robust three-attempt GA",
+      "cipher_family": "mono_substitution",
+      "tutorial_kind": "qualification_derived_solve",
+      "gate": "v1_extended",
+      "required_asset_profile": "ci_light",
+      "acceptance_kind": "human_readable",
+      "min_match_ratio": 0.97,
+      "uses_oracle_stop_score": false,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Qualified char2/WLI1+2 GA recipe with three independent attempts and score-only selection; truth is terminal-only.",
+      "expected_under_required_profile": "pass",
+      "observed_under_required_profile": {"match_ratio": 0.999, "score_time_s": 131.549, "tokens": null},
       "profile_evidence_status": "measured"
     },
     {
@@ -310,7 +344,7 @@
     },
     {
       "path": "Tutorial_Vigenere_Interruptors_NonTrivial.py",
-      "title": "Vigenere interruptors non-trivial",
+      "title": "Vigenere larger single-start interruptor Beam search",
       "cipher_family": "vigenere_interruptors",
       "tutorial_kind": "real_solve",
       "gate": "v1_extended",
@@ -320,13 +354,30 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
-      "notes": "Longer interruptor example; good extended check. Pretty-print version promoted to canonical V1 tutorial filename.",
+      "notes": "Larger single-start Beam search; not the qualified three-restart recipe.",
       "expected_under_required_profile": "pass",
       "observed_under_required_profile": {
         "match_ratio": 1.0,
         "score_time_s": 21.966,
         "tokens": 7658130
       },
+      "profile_evidence_status": "measured"
+    },
+    {
+      "path": "Tutorial_Vigenere_Interruptors_Robust.py",
+      "title": "Vigenere interruptors robust three-restart Beam search",
+      "cipher_family": "vigenere_interruptors",
+      "tutorial_kind": "qualification_derived_solve",
+      "gate": "v1_extended",
+      "required_asset_profile": "ci_light",
+      "acceptance_kind": "exact",
+      "min_match_ratio": 1.0,
+      "uses_oracle_stop_score": false,
+      "supplies_true_key_to_solver": false,
+      "current_status": "active",
+      "notes": "Qualified Beam-64 three-restart unknown-position pool search; truth is terminal-only.",
+      "expected_under_required_profile": "pass",
+      "observed_under_required_profile": {"match_ratio": 1.0, "score_time_s": 67.374, "tokens": null},
       "profile_evidence_status": "measured"
     },
     {
@@ -338,7 +389,7 @@
       "required_asset_profile": "ci_light",
       "acceptance_kind": "exact",
       "min_match_ratio": 1.0,
-      "uses_oracle_stop_score": true,
+      "uses_oracle_stop_score": false,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
       "notes": "Promoted to default release gate as the exact ScheduledStreamLookup real-solve proof under ci_light. Pretty-print version promoted to canonical V1 tutorial filename.",
@@ -359,7 +410,7 @@
       "required_asset_profile": "ci_light",
       "acceptance_kind": "exact",
       "min_match_ratio": 1.0,
-      "uses_oracle_stop_score": true,
+      "uses_oracle_stop_score": false,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
       "notes": "Exact real key-recovery tutorial under ci_light; retained in full_v1/extended to avoid making default release too heavy. Pretty-print version promoted to canonical V1 tutorial filename.",
@@ -380,7 +431,7 @@
       "required_asset_profile": "ci_light",
       "acceptance_kind": "partial_recovery",
       "min_match_ratio": 0.9,
-      "uses_oracle_stop_score": true,
+      "uses_oracle_stop_score": false,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
       "notes": "Keep as partial recovery. Exact recovery is not required under ci_light. Pretty-print partial-recovery tutorial promoted to canonical V1 tutorial filename.",
@@ -468,27 +519,6 @@
       "supplies_true_key_to_solver": false,
       "current_status": "active",
       "notes": "Requires full_v1 assets beyond the pure ci_light release profile. Pretty-print version promoted to canonical V1 tutorial filename and selected by the pretty-print review runner.",
-      "expected_under_required_profile": "pass",
-      "observed_under_required_profile": {
-        "match_ratio": null,
-        "score_time_s": null,
-        "tokens": null
-      },
-      "profile_evidence_status": "unmeasured_full_profile"
-    },
-    {
-      "path": "Tutorial_PeriodicColumnar.py",
-      "title": "Periodic columnar",
-      "cipher_family": "periodic_columnar",
-      "tutorial_kind": "real_solve",
-      "gate": "v1_full_assets",
-      "required_asset_profile": "full_v1",
-      "acceptance_kind": "near_exact",
-      "min_match_ratio": 0.995,
-      "uses_oracle_stop_score": true,
-      "supplies_true_key_to_solver": false,
-      "current_status": "active",
-      "notes": "Requires full_v1 assets beyond the pure ci_light release profile. Pretty-print wrapper promoted to canonical V1 tutorial filename and selected by the pretty-print review runner.",
       "expected_under_required_profile": "pass",
       "observed_under_required_profile": {
         "match_ratio": null,

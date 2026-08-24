@@ -14,10 +14,6 @@ for path in (_SRC,):
 import numpy as np
 
 from rdp import api  # noqa: E402
-from rune_decrypter_prime.api.wrappers.registry import build_cipher_config  # noqa: E402
-from rune_decrypter_prime.core.config import ScoringConfig  # noqa: E402
-from rune_decrypter_prime.core.engine.builders import build_scorer  # noqa: E402
-from rune_decrypter_prime.core.types import Device  # noqa: E402
 from rune_decrypter_prime.utils.runeglish import Runeglish  # noqa: E402
 from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview  # noqa: E402
@@ -36,8 +32,14 @@ def _demo_ciphertext() -> Dict[str, Any]:
         direction=encoding_dir.value,
     )
     key_nums: List[int] = [3, 1, 4, 1]
-    stream = [key_nums[i % len(key_nums)] for i in range(len(pt_idx))]
-    ct_idx = [(p + k) % ALPHABET for p, k in zip(pt_idx, stream)]
+    cipher = api.cipher_instance(
+        "vigenere", key_length=len(key_nums), text_transposition=encoding_dir.value
+    )
+    encrypted = cipher.encrypt_single(
+        plaintext=np.asarray(pt_idx, dtype=np.uint8),
+        key=np.asarray(key_nums, dtype=np.uint8),
+    )
+    ct_idx = [int(value) for value in encrypted.tolist()]
     ct_runes = Runeglish.to_rune(ct_idx, wli)
     return {
         "ciphertext": ct_runes,
@@ -117,47 +119,13 @@ def _display_spec(demo: Dict[str, Any], cipher_spec, key_spec, solver_spec) -> a
     )
 
 
-def _score_ground_truth(
-    cipher_spec,
-    key_spec,
-    scorer_params: Dict[str, Any],
-    demo: Dict[str, Any],
-) -> float | None:
-    """Compute the pct score for the actual plaintext."""
-    try:
-        plaintext_idx = demo.get("plaintext_idx")
-        if plaintext_idx is None:
-            raise ValueError("plaintext_idx missing")
-        scoring_cfg = ScoringConfig(**scorer_params)
-        scoring_cfg.encoding_dir = demo["encoding_dir"]
-        cipher_cfg = build_cipher_config(
-            cipher=cipher_spec,
-            key=key_spec,
-            ciphertext=np.asarray(demo["ciphertext_idx"], dtype=np.uint8),
-            wli=demo.get("wli"),
-            device=Device.CPU,
-            encoding_dir=demo["encoding_dir"],
-            initial_text_permutation_indices=None,
-            initial_keys=None,
-            interruptors=None,
-            interruptors_exact=None,
-            interruptors_pool=None,
-            interruptors_max=None,
-        )
-        scorer = build_scorer(cipher_cfg, scoring_cfg)
-        return float(scorer.score(plaintext_idx, demo.get("wli")))
-    except Exception as exc:
-        print(f"[GroundTruth] Unable to score plaintext: {exc}")
-        return None
-
-
 def solve_with_wrappers(
     demo: Dict[str, Any],
     cipher_spec,
     key_spec,
     scorer_params: Dict[str, Any],
 ):
-    """Minimal Vigenere run using the ergonomic by_name wrapper helpers."""
+    """Interface demonstration with the known key supplied as an initial key."""
     solver_spec = api.SolverSpec.beam(
         beam_width=18,
         stop_score=0.54,
@@ -179,7 +147,7 @@ def solve_with_wrappers(
         initial_keys=[demo["secret_key"]],
         return_solver_report=True,
     )
-    _print_summary("Wrapper Beam", result, demo, _display_spec(demo, cipher_spec, key_spec, solver_spec))
+    _print_summary("Wrapper Beam (known key supplied)", result, demo, _display_spec(demo, cipher_spec, key_spec, solver_spec))
 
 
 def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any]):
@@ -191,12 +159,12 @@ def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any
     key_len = len(cast(List[int], demo["secret_key"]))
     key_spec = api.KeySpec.repeat(len=key_len)
     solver_spec = api.SolverSpec.beam(
-        beam_width=32,
+        beam_width=96,
         rounds=0,
         top_parents_factor=1.0,
         stop_score=0.62,
-        plateau_rounds=6,
-        plateau_min_delta=1e-4,
+        plateau_rounds=10,
+        plateau_min_delta=1e-5,
         **_progress_kwargs(cast(Dict[str, Any], demo)),
         seed=4242,
     )
@@ -211,30 +179,6 @@ def solve_with_general_map(demo: Dict[str, object], scorer_params: Dict[str, Any
         telemetry_on=True,
         return_solver_report=True,
     )
-    pt_idx = demo.get("plaintext_idx")
-    if pt_idx is not None and _solution_match_ratio(result.solution, pt_idx) < 0.999:
-        print("[General Map] retrying with wider beam...")
-        solver_spec = api.SolverSpec.beam(
-            beam_width=96,
-            rounds=0,
-            top_parents_factor=1.0,
-            stop_score=0.62,
-            plateau_rounds=10,
-            plateau_min_delta=1e-5,
-            **_progress_kwargs(cast(Dict[str, Any], demo)),
-            seed=4242,
-        )
-        result = api.run(
-            text=demo["ciphertext"],
-            cipher=cipher_spec,
-            key=key_spec,
-            solver=solver_spec,
-            scorer_params=dict(scorer_params),
-            wli_data=demo["wli"],
-            encoding_dir=demo["encoding_dir"],
-            telemetry_on=True,
-            return_solver_report=True,
-        )
     _print_summary("General Map Beam", result, cast(Dict[str, Any], demo), _display_spec(cast(Dict[str, Any], demo), cipher_spec, key_spec, solver_spec))
 
 
@@ -262,15 +206,23 @@ def _print_summary(label: str, result, demo: Dict[str, Any], spec: api.RunSpec) 
 def main():
     pretty.print_rdp_identity()
     pretty.print_initialising()
-    pretty.print_tutorial_contract(
-        name='Start here: Vigenere wrapper and general-map beam solve',
-        cipher='vigenere / general map',
-        solver='beam',
-        direction='rtl',
-        expected_result='exact solve',
-        uses_reference_stop_score=False,
+    pretty.print_result_note(
+        "Tutorial",
+        [
+            ("name", "Start here: seeded Vigenere interface and general-map solve"),
+            ("cipher", "vigenere / general map"),
+            ("solver", "beam"),
+            ("direction", "rtl"),
+            ("expected result", "exact solve"),
+            (
+                "truth/reference use",
+                "known key supplied to wrapper interface demo; terminal-only for General Map",
+            ),
+        ],
     )
     demo = _demo_ciphertext()
+    print("The wrapper example supplies the known key to demonstrate the interface;")
+    print("it is not an independent cryptanalytic recovery. The General Map run is unseeded.")
     print_tutorial_debug_preview(
         label="plaintext",
         idx=cast(List[int], demo["plaintext_idx"]),
@@ -290,9 +242,6 @@ def main():
         default_key=True,
     )
     scorer_params = _make_scorer_params(demo)
-    target = _score_ground_truth(cipher_spec, key_spec, scorer_params, demo)
-    if target is not None:
-        print(f"[GroundTruth] pct.win10 target score: {target:.6f}")
     solve_with_wrappers(demo, cipher_spec, key_spec, scorer_params)
     solve_with_general_map(demo, scorer_params)
 

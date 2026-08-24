@@ -155,18 +155,18 @@ def main() -> None:
         return result, display_spec
 
     sa_base = dict(
-        sa_iters=3500,
+        sa_iters=9000,
         sa_init_temp=1.0,
         sa_min_temp=1e-4,
         sa_cooling=0.999,
         sa_auto_cooling=True,
-        sa_reseed_interval=400,
-        sa_rescue_drop_abs=0.02,
+        sa_reseed_interval=250,
+        sa_rescue_drop_abs=0.01,
         sa_rescue_drop_ratio=0.5,
         local_improve_on_accept=True,
         log_interval=250,
-        plateau_rounds=120,
-        plateau_min_delta=1e-4,
+        plateau_rounds=250,
+        plateau_min_delta=1e-6,
         stop_score=stop.stop_score,
         progress_pct=2,
         print_progress=True,
@@ -176,18 +176,8 @@ def main() -> None:
         tol=1e-6,
     )
 
+    # One fixed declared budget: terminal truth never controls retries.
     result, display_spec = _solve_with_sa(sa_base)
-    if _match_ratio(result.solution, pt_idx) < 0.999:
-        print("Retrying with stronger SA settings...")
-        sa_retry = dict(sa_base)
-        sa_retry.update(
-            sa_iters=9000,
-            sa_reseed_interval=250,
-            sa_rescue_drop_abs=0.01,
-            plateau_rounds=250,
-            plateau_min_delta=1e-6,
-        )
-        result, display_spec = _solve_with_sa(sa_retry)
 
     recovered = getattr(result.solution, "plaintext_rune", "") or getattr(result.solution, "plaintext_str", "")
     print("Recovered plaintext:", preview(str(recovered)))

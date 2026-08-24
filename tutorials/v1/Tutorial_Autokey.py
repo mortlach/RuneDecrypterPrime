@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-"""Autokey pretty-print tutorial.
+"""Older Autokey GA and crib-assisted comparison.
 
-This variant keeps the original tutorial's teaching shape: first a no-crib GA
+This lighter alternative keeps the historical teaching shape: first a no-crib GA
 solve, then a crib-assisted GA solve. It prints compact problem context, solver
-calibration/progress, and a standard RDP summary for each solve.
+calibration/progress, and a standard RDP summary for each solve. The qualified
+robust Beam/WLI1+2 recipe is shown in ``Tutorial_Autokey_Robust.py``.
 """
 
 import sys
@@ -74,7 +75,7 @@ def main() -> None:
     pretty.print_rdp_identity()
     pretty.print_initialising()
     pretty.print_tutorial_contract(
-        name='Autokey solve',
+        name='Autokey older GA/crib-assisted comparison',
         cipher='autokey',
         solver='ga',
         direction='rtl',
@@ -95,7 +96,7 @@ def main() -> None:
     ct_idx_list = [int(v) for v in ct_idx.tolist()]
     ct_runes = Runeglish.to_rune(ct_idx_list, wli)
 
-    print("Autokey problem")
+    print("Autokey older GA/crib-assisted comparison (not the robust recipe)")
     print(f"encoding direction: {direction.value}")
     print(f"seed length: {SEED_LEN}")
     print(f"crib text used only for second run: {CRIB_TEXT}")
@@ -182,7 +183,7 @@ def main() -> None:
             reference_idx=pt_idx,
             tutorial_entry={
                 "path": "Tutorial_Autokey.py",
-                "title": f"Autokey pretty-print variant ({label})",
+                "title": f"Autokey older GA/crib-assisted comparison ({label})",
                 "gate": "v1_smoke_pretty_print",
                 "acceptance_kind": "exact",
                 "min_match_ratio": MATCH_THRESHOLD,

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-"""Mono-substitution GA pretty-print tutorial for RTL rune encoding.
+"""Lighter single-attempt Mono-substitution GA tutorial for RTL encoding.
 
 This is an independently generated RTL-encoded mono-substitution example. It is
 not the same ciphertext as the LTR tutorial solved under a different assumption.
 The purpose is to show that RDP can solve this cipher shape in RTL rune encoding
-while preserving the standard printer/report contract.
+while preserving the standard printer/report contract. It uses the earlier
+char2/WLI2 scorer, not the qualified three-attempt recipe.
 """
 
 import sys
@@ -40,7 +41,7 @@ POPULATION = 96
 GENERATIONS = 96
 MIN_MATCH_RATIO = 0.97
 TUTORIAL_PATH = "Tutorial_MonoSubstitution_GA_RTL.py"
-TUTORIAL_TITLE = "Mono-substitution GA RTL pretty-print variant"
+TUTORIAL_TITLE = "Mono-substitution lighter single-attempt GA RTL demonstration"
 
 
 def preview(s: str, n: int = 120) -> str:
@@ -68,7 +69,7 @@ def main() -> None:
     pretty.print_rdp_identity()
     pretty.print_initialising()
     pretty.print_tutorial_contract(
-        name='Mono-substitution GA RTL',
+        name='Mono-substitution lighter single-attempt GA RTL',
         cipher='mono substitution',
         solver='ga',
         direction='rtl',
@@ -83,7 +84,8 @@ def main() -> None:
     )
     ct_idx_list = [int(v) for v in ct_idx.tolist()]
 
-    print("Mono-substitution GA problem")
+    print("Mono-substitution lighter single-attempt GA problem")
+    print("recipe status: earlier scorer demonstration; not the qualified robust recipe")
     print(f"encoding direction: {DIRECTION.value}")
     print("example relation: independent generated RTL ciphertext, not paired with the LTR tutorial")
     print(f"ciphertext length: {len(ct_idx_list)}")

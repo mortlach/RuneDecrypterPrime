@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Vigenere exact-interruptor pretty-print tutorial.
+"""Known-position Vigenere interruptor interface demonstration.
 
 This is the tiny, explicit-position interruptor example. It demonstrates the
 mechanics of removing/reinserting interruptors and prints the final run through
@@ -42,7 +42,7 @@ def main() -> None:
     pretty.print_rdp_identity()
     pretty.print_initialising()
     pretty.print_tutorial_contract(
-        name='Vigenere with exact interruptors',
+        name='Vigenere known-position interruptor interface demonstration',
         cipher='vigenere interruptors',
         solver='beam',
         direction='ltr',
@@ -83,7 +83,8 @@ def main() -> None:
     pt_core, info = intr_mgr.remove_from(pt_idx, possible_idx=INTERRUPTORS)
     ct_core, _ = intr_mgr.remove_from(ct_idx, possible_idx=INTERRUPTORS)
 
-    print("Vigenere exact-interruptor problem")
+    print("Vigenere known-position interruptor interface demonstration")
+    print("This is not unknown-position solver qualification.")
     print(f"encoding direction: {direction.value}")
     print("Interruptor positions:", INTERRUPTORS)
     print("Interruptor symbols:", intr_values_ct)
@@ -167,7 +168,7 @@ def main() -> None:
         reference_idx=pt_idx_list,
         tutorial_entry={
             "path": "Tutorial_Vigenere_Interruptors_Exact.py",
-            "title": "Vigenere exact-interruptor pretty-print variant",
+            "title": "Vigenere known-position interruptor interface demonstration",
             "gate": "v1_smoke_pretty_print",
             "acceptance_kind": "exact",
             "min_match_ratio": MIN_MATCH_RATIO,

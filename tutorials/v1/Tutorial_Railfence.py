@@ -15,37 +15,22 @@ _SRC = _ROOT / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from rune_decrypter_prime.api import Direction, KeySpec, RawTextInput, RunSpec, SolverSpec, by_name, print_rdp_result, run
+import numpy as np
+
+from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, by_name, cipher_instance, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
-from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 TUTORIAL_SEED = 4242
-TRUE_RAILS = 3
+MIN_RAILS = 4
+MAX_RAILS = 10
+TRUE_RAILS = 7
 MIN_MATCH_RATIO = 1.0
-
-
-def encrypt_railfence(pt: str, rails: int) -> str:
-    """Zig-zag write across rails, then read row-by-row."""
-    if rails <= 1:
-        return pt
-
-    rows = [""] * rails
-    r = 0
-    step = 1
-    for ch in pt:
-        rows[r] += ch
-        if r == 0:
-            step = 1
-        elif r == rails - 1:
-            step = -1
-        r += step
-    return "".join(rows)
 
 
 def _match_ratio(recovered: Sequence[int], reference: Sequence[int]) -> float:
@@ -71,66 +56,55 @@ def main() -> None:
         solver='beam',
         direction='rtl',
         expected_result='exact solve',
-        uses_reference_stop_score=True,
+        uses_reference_stop_score=False,
     )
     direction = Direction.RTL
     pt_latin = plaintext_english_string
-    pt_idx, _, pt_runes = Runeglish.encode_english_to_runes(pt_latin, direction=direction.value)
-    pt_runes_nosp = pt_runes.replace(" ", "")
-    reference_idx = Runeglish.rune_to_pos(pt_runes_nosp)
-
-    ct_runes = encrypt_railfence(pt_runes_nosp, TRUE_RAILS)
-    ct_idx = Runeglish.rune_to_pos(ct_runes)
+    reference_idx, wli, pt_runes = Runeglish.encode_english_to_runes(pt_latin, direction=direction.value)
+    cipher_spec = by_name.cipher("railfence", min_rails=MIN_RAILS, max_rails=MAX_RAILS)
+    rail_key = [TRUE_RAILS - MIN_RAILS]
+    ct = cipher_instance("railfence", min_rails=MIN_RAILS, max_rails=MAX_RAILS).encrypt(
+        plaintext=np.asarray(reference_idx, dtype=np.uint8),
+        key=np.asarray(rail_key, dtype=np.uint8),
+    )
+    ct_idx = [int(v) for v in ct.tolist()]
+    ct_runes = Runeglish.to_rune(ct_idx, wli)
 
     print("Railfence problem")
     print(f"encoding direction: {direction.value}")
     print(f"true rails: {TRUE_RAILS}")
-    print("word boundaries: stripped before transposition")
-    _preview_text("plaintext runes", pt_runes_nosp)
+    print(f"qualified rail range: {MIN_RAILS}..{MAX_RAILS}")
+    _preview_text("plaintext runes", pt_runes)
     _preview_text("ciphertext runes", ct_runes)
-    print_tutorial_debug_preview(label="plaintext_no_spaces", idx=reference_idx, wli=None, direction=direction)
-    print_tutorial_debug_preview(label="ciphertext_no_spaces", idx=ct_idx, wli=None, direction=direction)
+    print_tutorial_debug_preview(label="plaintext", idx=reference_idx, wli=wli, direction=direction)
+    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx, wli=wli, direction=direction)
 
-    cipher_spec = by_name.cipher("railfence", min_rails=2, max_rails=6)
-    key_spec = KeySpec.scalar(max_val=6)
+    key_spec = KeySpec.scalar(max_val=MAX_RAILS - MIN_RAILS + 1)
     scorer_params = dict(
         objective="pct.logp.win10",
         include_char=True,
-        use_word_breaks=False,
-        char_weights={2: 1.0},
-        wli_weights={},
+        use_word_breaks=True,
+        char_weights={2: 0.3},
+        wli_weights={2: 0.7},
         encoding_dir=direction,
     )
     display_scorer_params = {
         "objective": "pct.logp.win10",
         "include_char": True,
-        "use_word_breaks": False,
+        "use_word_breaks": True,
         "encoding_dir": direction.value,
-        "char_order_2_weight": 1.0,
+        "char_order_2_weight": 0.3,
+        "wli_order_2_weight": 0.7,
     }
-
-    stop = oracle_stop_score(
-        reference_idx,
-        None,
-        scorer_params,
-        device="cpu",
-        encoding_dir=direction,
-        margin=0.02,
-        min_score=0.50,
-        fallback=0.54,
-    )
-    print_stop_summary("Railfence Beam", stop)
 
     solver_spec = SolverSpec.beam(
         beam_width=64,
         log_interval=20,
-        stop_score=stop.stop_score,
         plateau_rounds=40,
-        plateau_min_delta=1e-4,
         seed=TUTORIAL_SEED,
     )
     display_spec = RunSpec(
-        problem_input=RawTextInput(text=ct_runes),
+        problem_input=NormalizedInput(ct_idx=ct_idx, wli=wli),
         cipher=cipher_spec,
         key=key_spec,
         solver=solver_spec,
@@ -148,8 +122,7 @@ def main() -> None:
         device="cpu",
         scorer="rune",
         scorer_params=scorer_params,
-        wli_data=None,
-        force_no_wli=True,
+        wli_data=wli,
         encoding_dir=direction,
         telemetry_on=True,
         return_solver_report=True,
@@ -171,7 +144,7 @@ def main() -> None:
             "gate": "v1_smoke_pretty_print",
             "acceptance_kind": "exact",
             "min_match_ratio": MIN_MATCH_RATIO,
-            "uses_oracle_stop_score": True,
+            "uses_oracle_stop_score": False,
         },
     )
 

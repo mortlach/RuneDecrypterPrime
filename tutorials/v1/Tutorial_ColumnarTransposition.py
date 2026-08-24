@@ -86,6 +86,8 @@ def _model_loading_rows(events: Sequence[LmLoadStatus]) -> list[tuple[str, objec
 
 
 def main() -> None:
+    print("Recipe note: this concise tutorial uses a char2-only pedagogical scorer;")
+    print("the qualified robustness recipe uses char2=.30 plus WLI2=.70.")
     print_options = RdpPrintOptions.detailed()
     direction = Direction.RTL
     pt_en = plaintext_english_string

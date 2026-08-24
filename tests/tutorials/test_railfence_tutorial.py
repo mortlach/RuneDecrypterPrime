@@ -34,7 +34,7 @@ def test_railfence_tutorial_script_recovers_plaintext():
     stdout = result.stdout
     assert "RDP standard summary" in stdout, stdout
     assert "match_ratio: 1.0" in stdout, stdout
-    assert "stop_category: success" in stdout, stdout
+    assert "stop_category: budget" in stdout, stdout
     match = re.search(r"Match ratio:\s*([0-9.]+)", stdout)
     assert match, f"match ratio not found in output:\n{stdout}"
     assert float(match.group(1)) >= 0.95
