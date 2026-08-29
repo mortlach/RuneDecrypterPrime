@@ -201,7 +201,7 @@ class RunStatus:
     execution_status: ExecutionStatus
     stop_category: StopCategory
     stop_reason: CanonicalStopReason
-    legacy_reason: str | None = None
+    runtime_reason: str | None = None
     stop_detail: str | None = None
     error_type: str | None = None
     recovery_status: RecoveryStatus = RecoveryStatus.NOT_ASSESSED
@@ -218,7 +218,7 @@ class RunStatus:
         if not isinstance(self.recovery_status, RecoveryStatus):
             raise TypeError("recovery_status must be RecoveryStatus")
         for field_name, value in (
-            ("legacy_reason", self.legacy_reason),
+            ("runtime_reason", self.runtime_reason),
             ("stop_detail", self.stop_detail),
             ("error_type", self.error_type),
             ("recovery_basis", self.recovery_basis),
@@ -277,7 +277,7 @@ class RunStatus:
             "stop_detail": self.stop_detail,
             "blocked_before_run": self.stop_category is StopCategory.BLOCKED_BEFORE_RUN,
             "error_type": self.error_type,
-            "legacy_stop_reason": self.legacy_reason,
+            "runtime_reason": self.runtime_reason,
             "recovery": {
                 "status": self.recovery_status.value,
                 "assessed": self.recovery_assessed,
@@ -355,7 +355,7 @@ def execution_status_for_category(category: StopCategory) -> ExecutionStatus:
 
 def build_run_status(
     *,
-    legacy_reason: str | None,
+    runtime_reason: str | None,
     execution_status: ExecutionStatus,
     stop_detail: str | None = None,
     error_type: str | None = None,
@@ -366,7 +366,7 @@ def build_run_status(
     if not isinstance(execution_status, ExecutionStatus):
         raise TypeError("execution_status must be ExecutionStatus")
 
-    canonical = canonical_stop_reason_for_legacy(legacy_reason)
+    canonical = canonical_stop_reason_for_legacy(runtime_reason)
     if execution_status is ExecutionStatus.COMPLETED and canonical is CanonicalStopReason.NOT_STARTED:
         canonical = CanonicalStopReason.UNKNOWN_RUNTIME_REASON
     elif execution_status is ExecutionStatus.BLOCKED_BEFORE_RUN and _CANONICAL_CATEGORY[canonical] is not StopCategory.BLOCKED_BEFORE_RUN:
@@ -382,7 +382,7 @@ def build_run_status(
         execution_status=execution_status,
         stop_category=_CANONICAL_CATEGORY[canonical],
         stop_reason=canonical,
-        legacy_reason=None if legacy_reason is None else str(legacy_reason),
+        runtime_reason=None if runtime_reason is None else str(runtime_reason),
         stop_detail=stop_detail,
         error_type=error_type,
         recovery_status=recovery_status,
@@ -411,7 +411,7 @@ def run_status_from_solution(
         detail = extras.get("stop_detail", extras.get("stop_reason_detail", detail))
         error_type = extras.get("error_type", error_type)
     return build_run_status(
-        legacy_reason=None if reason_raw is None else str(reason_raw),
+        runtime_reason=None if reason_raw is None else str(reason_raw),
         execution_status=execution_status,
         stop_detail=None if detail is None else str(detail),
         error_type=None if error_type is None else str(error_type),

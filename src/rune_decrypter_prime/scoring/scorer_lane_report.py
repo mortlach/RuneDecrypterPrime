@@ -10,51 +10,51 @@ from rune_decrypter_prime.core.capability_gates import (
 from rune_decrypter_prime.core.component_contracts import (
     CapabilityIssue,
     CapabilityStatus,
-    EffectiveState,
+    CapabilityEffectiveState,
     FallbackPolicy,
-    LaneStatus,
-    RankEffect,
-    RequestState,
+    ScoringLaneStatus,
+    RankingEffect,
+    CapabilityRequestState,
     ScorerCapabilityReport,
-    ScorerLaneName,
+    ScoringLane,
 )
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 
 
-_LANE_ORDER: tuple[ScorerLaneName, ...] = (
-    ScorerLaneName.LM_CHAR_WLI,
-    ScorerLaneName.HAMMING,
-    ScorerLaneName.SPAN_HAMMING_RAW,
-    ScorerLaneName.SPAN_HAMMING_CALIBRATED,
-    ScorerLaneName.WORD_NGRAM_JUDGE_REPORT_ONLY,
-    ScorerLaneName.NGRAM_HAMMING_EXPERIMENTAL_REPORT_ONLY,
+_LANE_ORDER: tuple[ScoringLane, ...] = (
+    ScoringLane.LANGUAGE_MODEL_CHARACTER_AND_WORD_LENGTH,
+    ScoringLane.HAMMING,
+    ScoringLane.SPAN_HAMMING_RAW,
+    ScoringLane.SPAN_HAMMING_CALIBRATED,
+    ScoringLane.WORD_NGRAM_JUDGE_REPORT_ONLY,
+    ScoringLane.NGRAM_HAMMING_EXPERIMENTAL_REPORT_ONLY,
 )
 
-_REPORT_SECTIONS: dict[ScorerLaneName, str] = {
-    ScorerLaneName.LM_CHAR_WLI: "lm_char_wli",
-    ScorerLaneName.HAMMING: "hamming_dictionary",
-    ScorerLaneName.SPAN_HAMMING_RAW: "span_hamming_raw",
-    ScorerLaneName.SPAN_HAMMING_CALIBRATED: "span_hamming_calibrated",
-    ScorerLaneName.WORD_NGRAM_JUDGE_REPORT_ONLY: "word_ngram_judge",
-    ScorerLaneName.NGRAM_HAMMING_EXPERIMENTAL_REPORT_ONLY: "ngram_hamming_experimental",
+_REPORT_SECTIONS: dict[ScoringLane, str] = {
+    ScoringLane.LANGUAGE_MODEL_CHARACTER_AND_WORD_LENGTH: "language_model_character_and_word_length",
+    ScoringLane.HAMMING: "hamming_dictionary",
+    ScoringLane.SPAN_HAMMING_RAW: "span_hamming_raw",
+    ScoringLane.SPAN_HAMMING_CALIBRATED: "span_hamming_calibrated",
+    ScoringLane.WORD_NGRAM_JUDGE_REPORT_ONLY: "word_ngram_judge",
+    ScoringLane.NGRAM_HAMMING_EXPERIMENTAL_REPORT_ONLY: "ngram_hamming_experimental",
 }
 
-_RANK_EFFECT: dict[ScorerLaneName, RankEffect] = {
-    ScorerLaneName.LM_CHAR_WLI: RankEffect.PRODUCTION,
-    ScorerLaneName.HAMMING: RankEffect.PRODUCTION,
-    ScorerLaneName.SPAN_HAMMING_RAW: RankEffect.PRODUCTION,
-    ScorerLaneName.SPAN_HAMMING_CALIBRATED: RankEffect.PRODUCTION,
-    ScorerLaneName.WORD_NGRAM_JUDGE_REPORT_ONLY: RankEffect.REPORT_ONLY,
-    ScorerLaneName.NGRAM_HAMMING_EXPERIMENTAL_REPORT_ONLY: RankEffect.REPORT_ONLY,
+_RANK_EFFECT: dict[ScoringLane, RankingEffect] = {
+    ScoringLane.LANGUAGE_MODEL_CHARACTER_AND_WORD_LENGTH: RankingEffect.PRODUCTION,
+    ScoringLane.HAMMING: RankingEffect.PRODUCTION,
+    ScoringLane.SPAN_HAMMING_RAW: RankingEffect.PRODUCTION,
+    ScoringLane.SPAN_HAMMING_CALIBRATED: RankingEffect.PRODUCTION,
+    ScoringLane.WORD_NGRAM_JUDGE_REPORT_ONLY: RankingEffect.REPORT_ONLY,
+    ScoringLane.NGRAM_HAMMING_EXPERIMENTAL_REPORT_ONLY: RankingEffect.REPORT_ONLY,
 }
 
-_FALLBACK_POLICY: dict[ScorerLaneName, FallbackPolicy] = {
-    ScorerLaneName.LM_CHAR_WLI: FallbackPolicy.BLOCK,
-    ScorerLaneName.HAMMING: FallbackPolicy.BLOCK,
-    ScorerLaneName.SPAN_HAMMING_RAW: FallbackPolicy.BLOCK,
-    ScorerLaneName.SPAN_HAMMING_CALIBRATED: FallbackPolicy.BLOCK,
-    ScorerLaneName.WORD_NGRAM_JUDGE_REPORT_ONLY: FallbackPolicy.REPORT_ONLY,
-    ScorerLaneName.NGRAM_HAMMING_EXPERIMENTAL_REPORT_ONLY: FallbackPolicy.REPORT_ONLY,
+_FALLBACK_POLICY: dict[ScoringLane, FallbackPolicy] = {
+    ScoringLane.LANGUAGE_MODEL_CHARACTER_AND_WORD_LENGTH: FallbackPolicy.BLOCK,
+    ScoringLane.HAMMING: FallbackPolicy.BLOCK,
+    ScoringLane.SPAN_HAMMING_RAW: FallbackPolicy.BLOCK,
+    ScoringLane.SPAN_HAMMING_CALIBRATED: FallbackPolicy.BLOCK,
+    ScoringLane.WORD_NGRAM_JUDGE_REPORT_ONLY: FallbackPolicy.REPORT_ONLY,
+    ScoringLane.NGRAM_HAMMING_EXPERIMENTAL_REPORT_ONLY: FallbackPolicy.REPORT_ONLY,
 }
 
 
@@ -64,15 +64,15 @@ def _present(value: object | None) -> bool:
 
 def _report_only_lane(
     *,
-    lane: ScorerLaneName,
+    lane: ScoringLane,
     issue: CapabilityIssue | None,
     report_section: str,
-) -> LaneStatus:
-    return LaneStatus(
+) -> ScoringLaneStatus:
+    return ScoringLaneStatus(
         lane=lane,
-        request_state=RequestState.REQUESTED,
-        effective_state=EffectiveState.REPORT_ONLY,
-        rank_effect=RankEffect.REPORT_ONLY,
+        request_state=CapabilityRequestState.REQUESTED,
+        effective_state=CapabilityEffectiveState.REPORT_ONLY,
+        ranking_effect=RankingEffect.REPORT_ONLY,
         fallback_policy=FallbackPolicy.REPORT_ONLY,
         issues=tuple() if issue is None else (issue,),
         report_section=report_section,
@@ -81,11 +81,11 @@ def _report_only_lane(
 
 def _status_for_observed_lane(
     *,
-    lane: ScorerLaneName,
+    lane: ScoringLane,
     requested: bool,
     observed: object | None,
     issue: CapabilityIssue | None,
-) -> LaneStatus:
+) -> ScoringLaneStatus:
     rank_effect = _RANK_EFFECT[lane]
     fallback_policy = _FALLBACK_POLICY[lane]
     report_section = _REPORT_SECTIONS[lane]
@@ -93,12 +93,12 @@ def _status_for_observed_lane(
     if not requested:
         return inactive_lane(
             lane,
-            rank_effect=rank_effect,
+            ranking_effect=rank_effect,
             fallback_policy=FallbackPolicy.DISABLED,
             report_section=report_section,
         )
 
-    if rank_effect is RankEffect.REPORT_ONLY:
+    if rank_effect is RankingEffect.REPORT_ONLY:
         return _report_only_lane(
             lane=lane,
             issue=issue,
@@ -108,7 +108,7 @@ def _status_for_observed_lane(
     if _present(observed) and issue is None:
         return active_lane(
             lane,
-            rank_effect=rank_effect,
+            ranking_effect=rank_effect,
             fallback_policy=fallback_policy,
             report_section=report_section,
         )
@@ -124,9 +124,9 @@ def _status_for_observed_lane(
     return lane_failure_status(
         lane=lane,
         issue=issue,
-        rank_effect=rank_effect,
+        ranking_effect=rank_effect,
         fallback_policy=fallback_policy,
-        request_state=RequestState.REQUESTED,
+        request_state=CapabilityRequestState.REQUESTED,
         report_section=report_section,
     )
 
@@ -142,7 +142,7 @@ def build_scorer_lane_report(
     calibrated_issue: CapabilityIssue | None = None,
     word_ngram_judge: object | None = None,
     word_ngram_issue: CapabilityIssue | None = None,
-    extra_report_only_lanes: dict[ScorerLaneName, tuple[object | None, CapabilityIssue | None]] | None = None,
+    extra_report_only_lanes: dict[ScoringLane, tuple[object | None, CapabilityIssue | None]] | None = None,
 ) -> ScorerCapabilityReport:
     """Build the V1 scorer-lane capability report from typed config and observations.
 
@@ -158,21 +158,21 @@ def build_scorer_lane_report(
 
     lanes = [
         active_lane(
-            ScorerLaneName.LM_CHAR_WLI,
-            request_state=RequestState.REQUIRED,
-            rank_effect=RankEffect.PRODUCTION,
+            ScoringLane.LANGUAGE_MODEL_CHARACTER_AND_WORD_LENGTH,
+            request_state=CapabilityRequestState.REQUIRED,
+            ranking_effect=RankingEffect.PRODUCTION,
             fallback_policy=FallbackPolicy.BLOCK,
-            report_section=_REPORT_SECTIONS[ScorerLaneName.LM_CHAR_WLI],
+            report_section=_REPORT_SECTIONS[ScoringLane.LANGUAGE_MODEL_CHARACTER_AND_WORD_LENGTH],
         )
     ]
 
-    observed_by_lane: dict[ScorerLaneName, tuple[Any | None, CapabilityIssue | None]] = {
-        ScorerLaneName.HAMMING: (hamming_backend, hamming_issue),
-        ScorerLaneName.SPAN_HAMMING_RAW: (span_hamming_backend, span_hamming_issue),
-        ScorerLaneName.SPAN_HAMMING_CALIBRATED: (calibrated_assets, calibrated_issue),
-        ScorerLaneName.WORD_NGRAM_JUDGE_REPORT_ONLY: (word_ngram_judge, word_ngram_issue),
-        ScorerLaneName.NGRAM_HAMMING_EXPERIMENTAL_REPORT_ONLY: extra_report_only_lanes.get(
-            ScorerLaneName.NGRAM_HAMMING_EXPERIMENTAL_REPORT_ONLY,
+    observed_by_lane: dict[ScoringLane, tuple[Any | None, CapabilityIssue | None]] = {
+        ScoringLane.HAMMING: (hamming_backend, hamming_issue),
+        ScoringLane.SPAN_HAMMING_RAW: (span_hamming_backend, span_hamming_issue),
+        ScoringLane.SPAN_HAMMING_CALIBRATED: (calibrated_assets, calibrated_issue),
+        ScoringLane.WORD_NGRAM_JUDGE_REPORT_ONLY: (word_ngram_judge, word_ngram_issue),
+        ScoringLane.NGRAM_HAMMING_EXPERIMENTAL_REPORT_ONLY: extra_report_only_lanes.get(
+            ScoringLane.NGRAM_HAMMING_EXPERIMENTAL_REPORT_ONLY,
             (None, None),
         ),
     }

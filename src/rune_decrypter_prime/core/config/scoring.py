@@ -1,795 +1,535 @@
-# ============================================================
-# rune_decrypter_prime/core/config.py
-# Unified dataclasses for cipher/scorer/solver/run configs.
-# ============================================================
+"""Immutable public scoring request and objective contracts."""
 
 from __future__ import annotations
-from dataclasses import dataclass, asdict, field
-from enum import StrEnum
-from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Literal, TypeVar
+
+import json
 import math
+from collections.abc import Mapping
+from dataclasses import dataclass, field, fields
+from enum import Enum
+from pathlib import Path
+from types import MappingProxyType
+from typing import Any
 
+from rune_decrypter_prime.core.component_contracts import ScoringLane
+from rune_decrypter_prime.core.config.hard_crib import (
+    HardCribConfig,
+    normalize_hard_crib_config,
+)
+from rune_decrypter_prime.core.hamming_dictionary_policy import HammingDictionaryPolicy
 from rune_decrypter_prime.core.types import (
-    ScorerImpl,
-    Direction,
+    AverageWindowPolicy,
     FloatDType,
-    SeMode,
-    ObjectiveFamily,
-    Stat,
-    ObjectiveSpec,
-    AvgWindowPolicy,
-    ensure_direction,
-    ensure_float_dtype,
-    ensure_scorer_impl,
-    ensure_se_mode,
-    ensure_objective_family,
-    ensure_stat,
-    ensure_avg_window_policy,
-)
-from rune_decrypter_prime.core.config.hard_crib import HardCribConfig, normalize_hard_crib_config
-from rune_decrypter_prime.core.component_contracts import ScorerLaneName
-from rune_decrypter_prime.core.hamming_dictionary_policy import (
-    HammingDictionaryPolicy,
-    ensure_hamming_dictionary_policy,
+    HammingTextDirectionMode,
+    JsonObject,
+    LanguageModelBoundaryMode,
+    OutOfVocabularyPolicy,
+    ScoreDirection,
+    ScoreStatistic,
+    ScorerBackend,
+    ScoringObjectiveKind,
+    SmoothingMethod,
+    SpanHammingBucketPolicy,
+    SpanHammingCombineMode,
+    SpanHammingGateFailurePolicy,
+    SpanHammingLanguageModelProfileSource,
+    SpanHammingMode,
 )
 
 
-_ScoringModeT = TypeVar("_ScoringModeT", bound=StrEnum)
+def ensure_hamming_text_direction_mode(value: object) -> HammingTextDirectionMode:
+    return _enum_value(HammingTextDirectionMode, value, "hamming_text_direction_mode")  # type: ignore[return-value]
 
 
-def _ensure_scoring_mode(
-    enum_cls: type[_ScoringModeT],
-    value: _ScoringModeT | str | None,
-    *,
-    field_name: str,
-    default: _ScoringModeT,
-    lower: bool = True,
-) -> _ScoringModeT:
-    if isinstance(value, enum_cls):
+def ensure_span_hamming_mode(value: object) -> SpanHammingMode:
+    return _enum_value(SpanHammingMode, value, "span_hamming_mode")  # type: ignore[return-value]
+
+
+def ensure_span_hamming_bucket_policy(value: object) -> SpanHammingBucketPolicy:
+    return _enum_value(SpanHammingBucketPolicy, value, "span_hamming_bucket_policy")  # type: ignore[return-value]
+
+
+def ensure_span_hamming_combine_mode(value: object) -> SpanHammingCombineMode:
+    return _enum_value(SpanHammingCombineMode, value, "span_hamming_combine_mode")  # type: ignore[return-value]
+
+
+def ensure_span_hamming_gate_failure_policy(value: object) -> SpanHammingGateFailurePolicy:
+    return _enum_value(SpanHammingGateFailurePolicy, value, "span_hamming_gate_failure_policy")  # type: ignore[return-value]
+
+
+def ensure_span_hamming_language_model_profile_source(
+    value: object,
+) -> SpanHammingLanguageModelProfileSource:
+    return _enum_value(
+        SpanHammingLanguageModelProfileSource,
+        value,
+        "span_hamming_language_model_profile_source",
+    )  # type: ignore[return-value]
+
+
+def _enum_value(enum_type: type[Enum], value: object, field_name: str) -> Enum:
+    if isinstance(value, enum_type):
         return value
-    text = default.value if value is None else str(value).strip()
-    if lower:
-        text = text.lower()
-    try:
-        return enum_cls(text)
-    except ValueError as exc:
-        allowed = ", ".join(item.value for item in enum_cls)
-        raise ValueError(f"{field_name} must be one of: {allowed}") from exc
+    raise TypeError(f"{field_name} must be {enum_type.__name__}")
 
 
-class HammingDirectionMode(StrEnum):
-    MATCH = "match"
-    BOTH = "both"
+def _finite_float(value: object, field_name: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError(f"{field_name} must be a number")
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError(f"{field_name} must be finite")
+    return result
 
 
-class SpanHammingMode(StrEnum):
-    OFF = "off"
-    RAW_BONUS = "raw_bonus"
-    CALIBRATED = "calibrated"
+def _positive_int(value: object, field_name: str, *, allow_zero: bool = False) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{field_name} must be an integer")
+    minimum = 0 if allow_zero else 1
+    if value < minimum:
+        raise ValueError(f"{field_name} must be >= {minimum}")
+    return value
 
 
-class SpanHammingBucketPolicy(StrEnum):
-    NEAREST_SMALLER_TIE = "nearest_smaller_tie"
+def _path(value: object, field_name: str) -> Path | None:
+    if value is None or isinstance(value, Path):
+        return value
+    raise TypeError(f"{field_name} must be Path or None")
 
 
-class SpanHammingCombineMode(StrEnum):
-    MIN = "min"
-    WEIGHTED_SUM = "weighted_sum"
+def _weight_map(
+    value: Mapping[int, float] | None,
+    field_name: str,
+    *,
+    allow_none: bool = True,
+) -> Mapping[int, float] | None:
+    if value is None:
+        if allow_none:
+            return None
+        value = {}
+    if not isinstance(value, Mapping):
+        raise TypeError(f"{field_name} must be a mapping")
+    normalised: dict[int, float] = {}
+    for key, weight in value.items():
+        if isinstance(key, bool) or not isinstance(key, int) or key < 1:
+            raise ValueError(f"{field_name} keys must be positive integers")
+        number = _finite_float(weight, f"{field_name}[{key}]")
+        if number < 0.0:
+            raise ValueError(f"{field_name} weights must be non-negative")
+        normalised[int(key)] = number
+    return MappingProxyType(normalised)
 
 
-class SpanHammingGateFailPolicy(StrEnum):
-    SCORE_FLOOR = "score_floor"
-    CHAR_ONLY = "char_only"
-
-
-class SpanHammingLmProfileSource(StrEnum):
-    SPAN_RAW_BY_LEN = "span_raw_by_len"
-    CHARS_COVERED_BY_LEN = "chars_covered_by_len"
-
-
-def ensure_hamming_direction_mode(value: HammingDirectionMode | str | None) -> HammingDirectionMode:
-    return _ensure_scoring_mode(
-        HammingDirectionMode,
-        value,
-        field_name="hamming_direction_mode",
-        default=HammingDirectionMode.MATCH,
-    )
-
-
-def ensure_span_hamming_mode(value: SpanHammingMode | str | None) -> SpanHammingMode:
-    return _ensure_scoring_mode(
-        SpanHammingMode,
-        value,
-        field_name="span_hamming_mode",
-        default=SpanHammingMode.OFF,
-    )
-
-
-def ensure_span_hamming_bucket_policy(
-    value: SpanHammingBucketPolicy | str | None,
-) -> SpanHammingBucketPolicy:
-    return _ensure_scoring_mode(
-        SpanHammingBucketPolicy,
-        value,
-        field_name="span_hamming_bucket_policy",
-        default=SpanHammingBucketPolicy.NEAREST_SMALLER_TIE,
-    )
-
-
-def ensure_span_hamming_combine_mode(
-    value: SpanHammingCombineMode | str | None,
-) -> SpanHammingCombineMode:
-    return _ensure_scoring_mode(
-        SpanHammingCombineMode,
-        value,
-        field_name="span_hamming_combine_mode",
-        default=SpanHammingCombineMode.MIN,
-    )
-
-
-def ensure_span_hamming_gate_fail_policy(
-    value: SpanHammingGateFailPolicy | str | None,
-) -> SpanHammingGateFailPolicy:
-    return _ensure_scoring_mode(
-        SpanHammingGateFailPolicy,
-        value,
-        field_name="span_hamming_gate_fail_policy",
-        default=SpanHammingGateFailPolicy.SCORE_FLOOR,
-    )
-
-
-def ensure_span_hamming_lm_profile_source(
-    value: SpanHammingLmProfileSource | str | None,
-) -> SpanHammingLmProfileSource:
-    return _ensure_scoring_mode(
-        SpanHammingLmProfileSource,
-        value,
-        field_name="span_hamming_lm_profile_source",
-        default=SpanHammingLmProfileSource.SPAN_RAW_BY_LEN,
-        lower=False,
-    )
-
-
-def _objective_from_string(spec: str) -> ObjectiveSpec:
-    """
-    Accept legacy strings like "pct.logp.win10" and convert them to ObjectiveSpec.
-    """
-    if spec is None:
-        raise ValueError("objective string cannot be None")
-    text = str(spec).strip().lower()
-    if not text:
-        raise ValueError("objective string cannot be empty")
-    parts = [token for token in text.replace("/", ".").split(".") if token]
-    family = ensure_objective_family(parts[0])
-    stat = None
-    win = None
-    for token in parts[1:]:
-        if token.startswith("win"):
-            try:
-                win = int(token[3:])
-            except ValueError as exc:
-                raise ValueError(f"Invalid window token '{token}' in objective string '{spec}'") from exc
-            continue
-        stat = ensure_stat(token)
-    return ObjectiveSpec(family=family, stat=stat, win=win)
-
-# ---------------- ScoringConfig ----------------------------------------------
-@dataclass
-class ScoringConfig:
-    """Configuration for the Language Model scorer (LMPrime)."""
-    model_root: Path = None
-    smoothing: str = "auto_gt"
-    alpha: float = 0.5
-    oov_policy: str = "floor_min_seen"
-    include_char: bool = True
-    use_word_breaks: bool = True
-    n_char: int = 2
-    n_wli: int  = 2
-    win: int = 10
-    stride: int = 1
-    se_mode: SeMode = SeMode.NOSE
-    weights: Tuple[float, float] | None = None   # legacy explicit (w_char, w_wli)
-    maximize: bool = True
-    encoding_dir: Direction = Direction.LTR
-    char_weights: Dict[int, float] | None = None
-    wli_weights: Dict[int, float] | None = None
-    impl: Optional[ScorerImpl] = ScorerImpl.AUTO
-    compute_dtype: FloatDType | Literal["float32", "float64"] = "float32"
-    acc_dtype: FloatDType | Literal["float32", "float64"] = "float64"
-    dtype: FloatDType | Literal["float32", "float64"] | None = None
-    objective: ObjectiveSpec = ObjectiveSpec(family=ObjectiveFamily.PCT,stat=Stat.LOGP,win=10)
-    avg_window_policy: AvgWindowPolicy | Literal["fixed_win", "full_text"] = AvgWindowPolicy.FIXED_WIN
-    ecdf_clamp_min: float = 1e-6
-    ecdf_clamp_max: float = 1.0 - 1e-6
-    diagnostics_enabled: bool = False
-    hard_crib: Optional[HardCribConfig | Dict[str, Any]] = None
-    # Optional Hamming scorer component
-    hamming_enabled: bool = False
-    hamming_dictionary_policy: HammingDictionaryPolicy | str = HammingDictionaryPolicy.NORMAL
-    hamming_dictionary_policy_root: Path | None = None
-    hamming_wordlist_dir: Path | None = None
-    hamming_build_rtl: bool = False
-    hamming_weight: float | None = None
-    hamming_weight_max: float = 0.01
-    hamming_ramp_start_frac: float = 0.2
-    hamming_ramp_end_frac: float = 0.7
-    hamming_max_hd: int = 1_000_000
-    hamming_length_weights: Dict[int, float] = field(default_factory=dict)
-    hamming_direction_mode: HammingDirectionMode | str = HammingDirectionMode.MATCH
-    # Optional span-hamming scorer component
-    span_hamming_enabled: bool = False
-    span_hamming_wordlist_dir: Path | None = None
-    span_hamming_weight: float = 0.0
-    span_hamming_len_min: int = 3
-    span_hamming_len_max: int = 14
-    span_hamming_max_hd: int = 2
-    span_hamming_start_stride: int = 1
-    span_hamming_max_windows_total: int = 0
-    span_hamming_max_candidates_per_window: int = 256
-    span_hamming_max_intervals_considered_per_start: int = 4
-    span_hamming_min_quality_threshold: float = 1e-9
-    span_hamming_debug_return_intervals: bool = False
-    span_hamming_require_selected: bool = True
-    # Calibrated span channel (source-driven; no CLI)
-    span_hamming_mode: SpanHammingMode | str = SpanHammingMode.OFF
-    span_hamming_assets_dir: Path | None = None
-    span_hamming_assets_dictionary_policy: HammingDictionaryPolicy | str | None = None
-    span_hamming_allow_dictionary_policy_mismatch: bool = False
-    span_hamming_bucket_policy: SpanHammingBucketPolicy | str = SpanHammingBucketPolicy.NEAREST_SMALLER_TIE
-    span_hamming_ecdf_clamp_min: float | None = None
-    span_hamming_ecdf_clamp_max: float | None = None
-    span_hamming_combine_mode: SpanHammingCombineMode | str = SpanHammingCombineMode.MIN
-    span_hamming_weight_span: float = 1.0
-    span_hamming_weight_char: float = 0.0
-    span_hamming_coverage_min: float = 0.0
-    span_hamming_quality_min: float = 0.0
-    span_hamming_span_pct_min: float | None = None
-    span_hamming_char_pct_min: float | None = None
-    span_hamming_gate_fail_policy: SpanHammingGateFailPolicy | str = SpanHammingGateFailPolicy.SCORE_FLOOR
-    span_hamming_gate_score_floor: float | None = None
-    # Optional LM/profile extension over calibrated span.
-    span_hamming_lm_assets_json: Path | None = None
-    span_hamming_lm_profile_source: SpanHammingLmProfileSource | str = SpanHammingLmProfileSource.SPAN_RAW_BY_LEN
-    span_hamming_lm_tail_start_index: int = 5
-    span_hamming_lm_weight: float = 0.0
-    # Optional word-ngram judge side-channel (report-only in slice 1).
-    word_ngram_judge_enabled: bool = False
-    word_ngram_judge_sqlite_path: Path | None = None
-    word_ngram_judge_alpha: float = 0.4
-    word_ngram_judge_miss_logp: float = -20.0
-    word_ngram_judge_min_positions: int = 12
-    word_ngram_judge_prefix_total_thresholds: Tuple[int, ...] = (1, 10, 100)
+@dataclass(frozen=True, slots=True)
+class ScoringObjective:
+    kind: ScoringObjectiveKind
+    statistic: ScoreStatistic | None = None
+    window_size: int | None = None
 
     def __post_init__(self) -> None:
-        if self.encoding_dir is not None:
-            self.encoding_dir = ensure_direction(self.encoding_dir)
-        if self.impl is not None:
-            self.impl = ensure_scorer_impl(self.impl)
-        if self.se_mode is not None:
-            self.se_mode = ensure_se_mode(self.se_mode)
-        if self.avg_window_policy is not None:
-            self.avg_window_policy = ensure_avg_window_policy(self.avg_window_policy)
-        if self.compute_dtype is not None:
-            self.compute_dtype = ensure_float_dtype(self.compute_dtype)
-        if self.acc_dtype is not None:
-            self.acc_dtype = ensure_float_dtype(self.acc_dtype)
-        if self.dtype is not None:
-            self.dtype = ensure_float_dtype(self.dtype)
-        if self.dtype is None:
-            self.dtype = self.acc_dtype
+        _enum_value(ScoringObjectiveKind, self.kind, "kind")
+        if self.statistic is not None:
+            _enum_value(ScoreStatistic, self.statistic, "statistic")
+        if self.window_size is not None:
+            _positive_int(self.window_size, "window_size")
+        if self.kind is ScoringObjectiveKind.PERCENTILE:
+            if self.statistic is None or self.window_size is None:
+                raise ValueError("percentile objectives require statistic and window_size")
+        elif self.kind is ScoringObjectiveKind.AVERAGE:
+            if self.statistic is not ScoreStatistic.LOG_PROBABILITY or self.window_size is not None:
+                raise ValueError("average objective is log probability over the full text")
+        elif self.kind is ScoringObjectiveKind.NEGATIVE_LOG_PROBABILITY:
+            if self.statistic is not None or self.window_size is not None:
+                raise ValueError("negative-log-probability objective has no statistic or window_size")
 
-        obj = getattr(self, "objective", None)
-        if isinstance(obj, dict):
-            fam = ensure_objective_family(obj.get("family", ObjectiveFamily.PCT))
-            stat_val = obj.get("stat")
-            stat = ensure_stat(stat_val) if stat_val is not None else None
-            win = obj.get("win")
-            self.objective = ObjectiveSpec(family=fam, stat=stat, win=win)
-        elif isinstance(obj, str):
-            self.objective = _objective_from_string(obj)
-        elif isinstance(obj, ObjectiveSpec):
-            fam = ensure_objective_family(obj.family)
-            stat = ensure_stat(obj.stat) if obj.stat is not None else None
-            self.objective = ObjectiveSpec(family=fam, stat=stat, win=obj.win)
+    @classmethod
+    def percentile_log_probability(cls, *, window_size: int = 10) -> ScoringObjective:
+        return cls(ScoringObjectiveKind.PERCENTILE, ScoreStatistic.LOG_PROBABILITY, window_size)
 
-        if isinstance(self.hamming_wordlist_dir, (str, bytes)):
-            self.hamming_wordlist_dir = Path(self.hamming_wordlist_dir)
-        if isinstance(self.hamming_dictionary_policy_root, (str, bytes)):
-            self.hamming_dictionary_policy_root = Path(self.hamming_dictionary_policy_root)
-        if isinstance(self.span_hamming_wordlist_dir, (str, bytes)):
-            self.span_hamming_wordlist_dir = Path(self.span_hamming_wordlist_dir)
-        if isinstance(self.span_hamming_assets_dir, (str, bytes)):
-            self.span_hamming_assets_dir = Path(self.span_hamming_assets_dir)
-        if isinstance(self.span_hamming_lm_assets_json, (str, bytes)):
-            self.span_hamming_lm_assets_json = Path(self.span_hamming_lm_assets_json)
-        if isinstance(self.word_ngram_judge_sqlite_path, (str, bytes)):
-            self.word_ngram_judge_sqlite_path = Path(self.word_ngram_judge_sqlite_path)
-        self.hamming_direction_mode = ensure_hamming_direction_mode(self.hamming_direction_mode)
-        self.hamming_ramp_start_frac = float(self.hamming_ramp_start_frac)
-        self.hamming_ramp_end_frac = float(self.hamming_ramp_end_frac)
-        self.span_hamming_weight = float(self.span_hamming_weight)
-        self.span_hamming_len_min = int(self.span_hamming_len_min)
-        self.span_hamming_len_max = int(self.span_hamming_len_max)
-        self.span_hamming_max_hd = int(self.span_hamming_max_hd)
-        self.span_hamming_start_stride = int(self.span_hamming_start_stride)
-        self.span_hamming_max_windows_total = int(self.span_hamming_max_windows_total)
-        self.span_hamming_max_candidates_per_window = int(self.span_hamming_max_candidates_per_window)
-        self.span_hamming_max_intervals_considered_per_start = int(self.span_hamming_max_intervals_considered_per_start)
-        self.span_hamming_min_quality_threshold = float(self.span_hamming_min_quality_threshold)
-        if self.span_hamming_len_min < 1:
-            raise ValueError("span_hamming_len_min must be >= 1")
-        if self.span_hamming_len_max < self.span_hamming_len_min:
-            raise ValueError("span_hamming_len_max must be >= span_hamming_len_min")
-        if self.span_hamming_max_hd < 0:
-            raise ValueError("span_hamming_max_hd must be >= 0")
-        if self.span_hamming_start_stride < 1:
-            raise ValueError("span_hamming_start_stride must be >= 1")
-        if self.span_hamming_max_windows_total < 0:
-            raise ValueError("span_hamming_max_windows_total must be >= 0")
-        if self.span_hamming_max_candidates_per_window < 1:
-            raise ValueError("span_hamming_max_candidates_per_window must be >= 1")
-        if self.span_hamming_max_intervals_considered_per_start < 1:
-            raise ValueError("span_hamming_max_intervals_considered_per_start must be >= 1")
-        if not (0.0 <= self.span_hamming_min_quality_threshold <= 1.0):
-            raise ValueError("span_hamming_min_quality_threshold must be in [0,1]")
-        self.span_hamming_mode = ensure_span_hamming_mode(self.span_hamming_mode)
+    @classmethod
+    def percentile_z_score_sum(cls, *, window_size: int = 10) -> ScoringObjective:
+        return cls(ScoringObjectiveKind.PERCENTILE, ScoreStatistic.Z_SCORE_SUM, window_size)
+
+    @classmethod
+    def percentile_median_absolute_deviation_sum(
+        cls, *, window_size: int = 10
+    ) -> ScoringObjective:
+        return cls(
+            ScoringObjectiveKind.PERCENTILE,
+            ScoreStatistic.MEDIAN_ABSOLUTE_DEVIATION_SUM,
+            window_size,
+        )
+
+    @classmethod
+    def average_log_probability(cls) -> ScoringObjective:
+        return cls(ScoringObjectiveKind.AVERAGE, ScoreStatistic.LOG_PROBABILITY)
+
+    @classmethod
+    def negative_log_probability(cls) -> ScoringObjective:
+        return cls(ScoringObjectiveKind.NEGATIVE_LOG_PROBABILITY)
+
+    def to_dict(self) -> JsonObject:
+        return {
+            "kind": self.kind.value,
+            "statistic": self.statistic.value if self.statistic is not None else None,
+            "window_size": self.window_size,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ScoringConfig:
+    language_model_root: Path | None = None
+    smoothing: SmoothingMethod = SmoothingMethod.AUTO_GOOD_TURING
+    smoothing_alpha: float = 0.5
+    out_of_vocabulary_policy: OutOfVocabularyPolicy = OutOfVocabularyPolicy.FLOOR_MINIMUM_SEEN
+    character_lane_enabled: bool = True
+    word_length_lane_enabled: bool = True
+    character_ngram_order: int = 2
+    word_length_ngram_order: int = 2
+    window_size: int = 10
+    stride: int = 1
+    boundary_mode: LanguageModelBoundaryMode = LanguageModelBoundaryMode.EXCLUDE_BOUNDARIES
+    base_lane_weights: tuple[float, float] | None = None
+    score_direction: ScoreDirection = ScoreDirection.MAXIMIZE
+    character_order_weights: Mapping[int, float] | None = None
+    word_length_order_weights: Mapping[int, float] | None = None
+    backend: ScorerBackend = ScorerBackend.AUTO
+    compute_dtype: FloatDType = FloatDType.FLOAT32
+    accumulator_dtype: FloatDType = FloatDType.FLOAT64
+    objective: ScoringObjective = field(default_factory=ScoringObjective.percentile_log_probability)
+    average_window_policy: AverageWindowPolicy = AverageWindowPolicy.FIXED_WINDOW
+    ecdf_clamp_minimum: float = 1e-6
+    ecdf_clamp_maximum: float = 1.0 - 1e-6
+    diagnostics_enabled: bool = False
+    hard_crib: HardCribConfig | None = None
+    hamming_enabled: bool = False
+    hamming_dictionary_policy: HammingDictionaryPolicy = HammingDictionaryPolicy.NORMAL
+    hamming_dictionary_root: Path | None = None
+    hamming_wordlist_directory: Path | None = None
+    hamming_build_right_to_left: bool = False
+    hamming_weight: float | None = None
+    hamming_maximum_weight: float = 0.01
+    hamming_ramp_start_fraction: float = 0.2
+    hamming_ramp_end_fraction: float = 0.7
+    hamming_maximum_distance: int = 1_000_000
+    hamming_length_weights: Mapping[int, float] = field(default_factory=dict)
+    hamming_text_direction_mode: HammingTextDirectionMode = HammingTextDirectionMode.MATCH_TEXT
+    span_hamming_enabled: bool = False
+    span_hamming_wordlist_directory: Path | None = None
+    span_hamming_weight: float = 0.0
+    span_hamming_minimum_length: int = 3
+    span_hamming_maximum_length: int = 14
+    span_hamming_maximum_distance: int = 2
+    span_hamming_start_stride: int = 1
+    span_hamming_maximum_windows: int = 0
+    span_hamming_maximum_candidates_per_window: int = 256
+    span_hamming_maximum_intervals_per_start: int = 4
+    span_hamming_minimum_quality: float = 1e-9
+    span_hamming_return_debug_intervals: bool = False
+    span_hamming_require_selection: bool = True
+    span_hamming_mode: SpanHammingMode = SpanHammingMode.OFF
+    span_hamming_assets_directory: Path | None = None
+    span_hamming_assets_dictionary_policy: HammingDictionaryPolicy | None = None
+    span_hamming_allow_dictionary_mismatch: bool = False
+    span_hamming_bucket_policy: SpanHammingBucketPolicy = SpanHammingBucketPolicy.NEAREST_SMALLER_ON_TIE
+    span_hamming_ecdf_clamp_minimum: float | None = None
+    span_hamming_ecdf_clamp_maximum: float | None = None
+    span_hamming_combine_mode: SpanHammingCombineMode = SpanHammingCombineMode.MINIMUM
+    span_hamming_span_weight: float = 1.0
+    span_hamming_character_weight: float = 0.0
+    span_hamming_minimum_coverage: float = 0.0
+    span_hamming_minimum_gate_quality: float = 0.0
+    span_hamming_minimum_span_percentile: float | None = None
+    span_hamming_minimum_character_percentile: float | None = None
+    span_hamming_gate_failure_policy: SpanHammingGateFailurePolicy = SpanHammingGateFailurePolicy.SCORE_FLOOR
+    span_hamming_gate_score_floor: float | None = None
+    span_hamming_language_model_assets: Path | None = None
+    span_hamming_language_model_profile_source: SpanHammingLanguageModelProfileSource = SpanHammingLanguageModelProfileSource.RAW_SPAN_BY_LENGTH
+    span_hamming_language_model_tail_start: int = 5
+    span_hamming_language_model_weight: float = 0.0
+    word_ngram_judge_enabled: bool = False
+    word_ngram_judge_database: Path | None = None
+    word_ngram_judge_alpha: float = 0.4
+    word_ngram_judge_missing_log_probability: float = -20.0
+    word_ngram_judge_minimum_positions: int = 12
+    word_ngram_judge_prefix_thresholds: tuple[int, ...] = (1, 10, 100)
+
+    def __post_init__(self) -> None:
+        enum_fields: tuple[tuple[str, type[Enum]], ...] = (
+            ("smoothing", SmoothingMethod),
+            ("out_of_vocabulary_policy", OutOfVocabularyPolicy),
+            ("boundary_mode", LanguageModelBoundaryMode),
+            ("score_direction", ScoreDirection),
+            ("backend", ScorerBackend),
+            ("compute_dtype", FloatDType),
+            ("accumulator_dtype", FloatDType),
+            ("average_window_policy", AverageWindowPolicy),
+            ("hamming_dictionary_policy", HammingDictionaryPolicy),
+            ("hamming_text_direction_mode", HammingTextDirectionMode),
+            ("span_hamming_mode", SpanHammingMode),
+            ("span_hamming_bucket_policy", SpanHammingBucketPolicy),
+            ("span_hamming_combine_mode", SpanHammingCombineMode),
+            ("span_hamming_gate_failure_policy", SpanHammingGateFailurePolicy),
+            ("span_hamming_language_model_profile_source", SpanHammingLanguageModelProfileSource),
+        )
+        for name, enum_type in enum_fields:
+            _enum_value(enum_type, getattr(self, name), name)
+        if not isinstance(self.objective, ScoringObjective):
+            raise TypeError("objective must be ScoringObjective")
         if self.span_hamming_assets_dictionary_policy is not None:
-            self.span_hamming_assets_dictionary_policy = ensure_hamming_dictionary_policy(
-                self.span_hamming_assets_dictionary_policy
+            _enum_value(
+                HammingDictionaryPolicy,
+                self.span_hamming_assets_dictionary_policy,
+                "span_hamming_assets_dictionary_policy",
             )
-        self.span_hamming_bucket_policy = ensure_span_hamming_bucket_policy(
-            self.span_hamming_bucket_policy
-        )
-        self.span_hamming_combine_mode = ensure_span_hamming_combine_mode(
-            self.span_hamming_combine_mode
-        )
-        self.span_hamming_gate_fail_policy = ensure_span_hamming_gate_fail_policy(
-            self.span_hamming_gate_fail_policy
-        )
-        self.span_hamming_weight_span = float(self.span_hamming_weight_span)
-        self.span_hamming_weight_char = float(self.span_hamming_weight_char)
-        self.span_hamming_coverage_min = float(self.span_hamming_coverage_min)
-        self.span_hamming_quality_min = float(self.span_hamming_quality_min)
-        if not (0.0 <= self.span_hamming_coverage_min <= 1.0):
-            raise ValueError("span_hamming_coverage_min must be in [0,1]")
-        if not (0.0 <= self.span_hamming_quality_min <= 1.0):
-            raise ValueError("span_hamming_quality_min must be in [0,1]")
-        if self.span_hamming_span_pct_min is not None:
-            self.span_hamming_span_pct_min = float(self.span_hamming_span_pct_min)
-            if not (0.0 <= self.span_hamming_span_pct_min <= 1.0):
-                raise ValueError("span_hamming_span_pct_min must be in [0,1]")
-        if self.span_hamming_char_pct_min is not None:
-            self.span_hamming_char_pct_min = float(self.span_hamming_char_pct_min)
-            if not (0.0 <= self.span_hamming_char_pct_min <= 1.0):
-                raise ValueError("span_hamming_char_pct_min must be in [0,1]")
-        if self.span_hamming_ecdf_clamp_min is not None:
-            self.span_hamming_ecdf_clamp_min = float(self.span_hamming_ecdf_clamp_min)
-            if not (0.0 < self.span_hamming_ecdf_clamp_min < 1.0):
-                raise ValueError("span_hamming_ecdf_clamp_min must be in (0,1)")
-        if self.span_hamming_ecdf_clamp_max is not None:
-            self.span_hamming_ecdf_clamp_max = float(self.span_hamming_ecdf_clamp_max)
-            if not (0.0 < self.span_hamming_ecdf_clamp_max < 1.0):
-                raise ValueError("span_hamming_ecdf_clamp_max must be in (0,1)")
-        if self.span_hamming_ecdf_clamp_min is not None and self.span_hamming_ecdf_clamp_max is not None:
-            if not (self.span_hamming_ecdf_clamp_min < self.span_hamming_ecdf_clamp_max):
-                raise ValueError("span_hamming_ecdf_clamp_min must be < span_hamming_ecdf_clamp_max")
-        if self.span_hamming_gate_score_floor is not None:
-            self.span_hamming_gate_score_floor = float(self.span_hamming_gate_score_floor)
-        self.span_hamming_lm_profile_source = ensure_span_hamming_lm_profile_source(
-            self.span_hamming_lm_profile_source
-        )
-        self.span_hamming_lm_tail_start_index = int(self.span_hamming_lm_tail_start_index)
-        if self.span_hamming_lm_tail_start_index < 0:
-            raise ValueError("span_hamming_lm_tail_start_index must be >= 0")
-        self.span_hamming_lm_weight = float(self.span_hamming_lm_weight)
-        if self.span_hamming_lm_weight != 0.0 and self.span_hamming_lm_assets_json is None:
-            raise ValueError(
-                "span_hamming_lm_assets_json is required when span_hamming_lm_weight is non-zero"
-            )
-        self.word_ngram_judge_enabled = bool(self.word_ngram_judge_enabled)
-        self.word_ngram_judge_alpha = float(self.word_ngram_judge_alpha)
-        if not (0.0 < self.word_ngram_judge_alpha <= 1.0):
-            raise ValueError("word_ngram_judge_alpha must be in (0,1]")
-        self.word_ngram_judge_miss_logp = float(self.word_ngram_judge_miss_logp)
-        self.word_ngram_judge_min_positions = int(self.word_ngram_judge_min_positions)
-        if self.word_ngram_judge_min_positions < 0:
-            raise ValueError("word_ngram_judge_min_positions must be >= 0")
-        self.word_ngram_judge_prefix_total_thresholds = tuple(
-            int(v) for v in self.word_ngram_judge_prefix_total_thresholds
-        )
-        if any(int(v) < 0 for v in self.word_ngram_judge_prefix_total_thresholds):
-            raise ValueError("word_ngram_judge_prefix_total_thresholds must be >= 0")
-        if self.word_ngram_judge_enabled and self.word_ngram_judge_sqlite_path is None:
-            raise ValueError(
-                "word_ngram_judge_sqlite_path is required when word_ngram_judge_enabled is true"
-            )
-        if self.hamming_dictionary_policy is not None:
-            self.hamming_dictionary_policy = ensure_hamming_dictionary_policy(self.hamming_dictionary_policy)
 
-        obj = getattr(self, "objective", None)
-        if isinstance(obj, ObjectiveSpec) and obj.family in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
-            if obj.stat is None:
-                obj = ObjectiveSpec(family=obj.family, stat=Stat.LOGP, win=obj.win)
-                self.objective = obj
-            if obj.win is None:
-                legacy_win = getattr(self, "win", None)
-                if legacy_win is None:
-                    raise ValueError("ObjectiveSpec.win is required for pct/energy objectives.")
-                self.objective = ObjectiveSpec(family=obj.family, stat=obj.stat, win=int(legacy_win))
-                obj = self.objective
-            if int(obj.win) != 10:
-                raise ValueError("pct/energy objectives only support win=10 in the current LM tables.")
-            self.win = int(obj.win)
-        if isinstance(obj, ObjectiveSpec) and obj.family is ObjectiveFamily.AVG:
-            if obj.stat is None:
-                obj = ObjectiveSpec(family=obj.family, stat=Stat.LOGP, win=obj.win)
-                self.objective = obj
-            if obj.win is None:
-                legacy_win = getattr(self, "win", None)
-                if legacy_win is None:
-                    raise ValueError("ObjectiveSpec.win is required for avg objectives.")
-                obj = ObjectiveSpec(family=obj.family, stat=obj.stat, win=int(legacy_win))
-                self.objective = obj
-            self.win = int(obj.win)
-
-        self.stride = int(self.stride or 1)
-        if self.stride <= 0:
-            raise ValueError("stride must be >= 1")
-
-        self._normalise_weight_intent()
-        self.hard_crib = normalize_hard_crib_config(self.hard_crib)
-
-        if not bool(self.maximize):
-            raise ValueError("maximize must be True; objectives are defined as higher-is-better")
-        self.maximize = True
-
-    def requested_scorer_lanes(self) -> tuple[ScorerLaneName, ...]:
-        """Return optional scorer lanes explicitly requested by this config.
-
-        This method is configuration-only. It must not import scorer backends,
-        read assets, construct scorer objects, or change runtime scoring.
-        """
-        lanes: list[ScorerLaneName] = []
-
-        hamming_weight = self.hamming_weight
-        if bool(self.hamming_enabled) or (
-            hamming_weight is not None and float(hamming_weight) != 0.0
+        for name in (
+            "language_model_root",
+            "hamming_dictionary_root",
+            "hamming_wordlist_directory",
+            "span_hamming_wordlist_directory",
+            "span_hamming_assets_directory",
+            "span_hamming_language_model_assets",
+            "word_ngram_judge_database",
         ):
-            lanes.append(ScorerLaneName.HAMMING)
+            object.__setattr__(self, name, _path(getattr(self, name), name))
 
-        span_mode = self.span_hamming_mode
-        raw_span_requested = (
-            span_mode is SpanHammingMode.RAW_BONUS
-            or bool(self.span_hamming_enabled)
-            or float(self.span_hamming_weight) != 0.0
-        )
+        for name in (
+            "character_ngram_order",
+            "word_length_ngram_order",
+            "window_size",
+            "stride",
+            "span_hamming_minimum_length",
+            "span_hamming_maximum_length",
+            "span_hamming_start_stride",
+            "span_hamming_maximum_candidates_per_window",
+            "span_hamming_maximum_intervals_per_start",
+        ):
+            _positive_int(getattr(self, name), name)
+        for name in (
+            "hamming_maximum_distance",
+            "span_hamming_maximum_distance",
+            "span_hamming_maximum_windows",
+            "span_hamming_language_model_tail_start",
+            "word_ngram_judge_minimum_positions",
+        ):
+            _positive_int(getattr(self, name), name, allow_zero=True)
+        if self.span_hamming_maximum_length < self.span_hamming_minimum_length:
+            raise ValueError("span_hamming_maximum_length must be >= span_hamming_minimum_length")
 
-        if span_mode is SpanHammingMode.CALIBRATED:
-            lanes.append(ScorerLaneName.SPAN_HAMMING_CALIBRATED)
-        elif raw_span_requested:
-            lanes.append(ScorerLaneName.SPAN_HAMMING_RAW)
+        for name in (
+            "smoothing_alpha",
+            "ecdf_clamp_minimum",
+            "ecdf_clamp_maximum",
+            "hamming_maximum_weight",
+            "hamming_ramp_start_fraction",
+            "hamming_ramp_end_fraction",
+            "span_hamming_weight",
+            "span_hamming_minimum_quality",
+            "span_hamming_span_weight",
+            "span_hamming_character_weight",
+            "span_hamming_minimum_coverage",
+            "span_hamming_minimum_gate_quality",
+            "span_hamming_language_model_weight",
+            "word_ngram_judge_alpha",
+            "word_ngram_judge_missing_log_probability",
+        ):
+            object.__setattr__(self, name, _finite_float(getattr(self, name), name))
+        for name in (
+            "hamming_weight",
+            "span_hamming_ecdf_clamp_minimum",
+            "span_hamming_ecdf_clamp_maximum",
+            "span_hamming_minimum_span_percentile",
+            "span_hamming_minimum_character_percentile",
+            "span_hamming_gate_score_floor",
+        ):
+            value = getattr(self, name)
+            if value is not None:
+                object.__setattr__(self, name, _finite_float(value, name))
+        if not 0.0 < self.ecdf_clamp_minimum < self.ecdf_clamp_maximum < 1.0:
+            raise ValueError("ECDF clamps must satisfy 0 < minimum < maximum < 1")
+        for name in (
+            "hamming_ramp_start_fraction",
+            "hamming_ramp_end_fraction",
+            "span_hamming_minimum_quality",
+            "span_hamming_minimum_coverage",
+            "span_hamming_minimum_gate_quality",
+        ):
+            if not 0.0 <= getattr(self, name) <= 1.0:
+                raise ValueError(f"{name} must be in [0, 1]")
+        if self.hamming_ramp_start_fraction > self.hamming_ramp_end_fraction:
+            raise ValueError("hamming ramp start must not exceed its end")
 
-        if bool(self.word_ngram_judge_enabled):
-            lanes.append(ScorerLaneName.WORD_NGRAM_JUDGE_REPORT_ONLY)
-
-        return tuple(lanes)
-
-    def asdict(self) -> Dict[str, Any]:
-        out = asdict(self)
-        out["model_root"] = str(self.model_root) if isinstance(self.model_root, Path) else self.model_root
-        out["smoothing"] = self.smoothing
-        out["alpha"] = self.alpha
-        out["oov_policy"] = self.oov_policy
-        out["include_char"] = self.include_char
-        out["use_word_breaks"] = self.use_word_breaks
-        out["n_char"] = self.n_char
-        out["n_wli"] = self.n_wli
-        out["win"] = self.win
-        out["stride"] = self.stride
-        out["se_mode"] = self.se_mode.value if isinstance(self.se_mode, SeMode) else self.se_mode
-        out["objective"] = {
-            "family": (
-                self.objective.family.value
-                if isinstance(self.objective.family, ObjectiveFamily)
-                else self.objective.family
-            ),
-            "stat": (
-                self.objective.stat.value
-                if isinstance(self.objective.stat, Stat)
-                else self.objective.stat
-            ) if self.objective.stat is not None else None,
-            "win": (int(self.objective.win) if self.objective.win is not None else None),
-        }
-        out["avg_window_policy"] = (
-            self.avg_window_policy.value
-            if isinstance(self.avg_window_policy, AvgWindowPolicy)
-            else self.avg_window_policy
-        )
-        out["maximize"] = self.maximize
-        out["encoding_dir"] = self.encoding_dir.value if isinstance(self.encoding_dir, Direction) else self.encoding_dir
-        # Preserve the caller's configuration mode so this durable payload can be
-        # passed back to ScoringConfig(**payload) without creating an artificial
-        # pair+map conflict from our normalised runtime state.
-        out.pop("weight_mode", None)
-        if self.weight_mode == "legacy_pair":
-            out["weights"] = [float(v) for v in tuple(self.weights or ())]
-            out["char_weights"] = (
-                {str(int(k)): float(v) for k, v in dict(self.char_weights or {}).items()}
-                if self.char_weights is not None else None
-            )
-            out["wli_weights"] = (
-                {str(int(k)): float(v) for k, v in dict(self.wli_weights or {}).items()}
-                if self.wli_weights is not None else None
-            )
-        elif self.weight_mode == "per_order":
-            out["weights"] = None
-            out["char_weights"] = {
-                str(int(k)): float(v) for k, v in dict(self.char_weights or {}).items()
-            }
-            out["wli_weights"] = {
-                str(int(k)): float(v) for k, v in dict(self.wli_weights or {}).items()
-            }
-        else:
-            out["weights"] = None
-            out["char_weights"] = None
-            out["wli_weights"] = None
-        out["impl"] = self.impl.value if isinstance(self.impl, ScorerImpl) else self.impl
-        out["compute_dtype"] = self.compute_dtype.value if isinstance(self.compute_dtype, FloatDType) else self.compute_dtype
-        out["acc_dtype"] = self.acc_dtype.value if isinstance(self.acc_dtype, FloatDType) else self.acc_dtype
-        out["dtype"] = self.dtype.value if isinstance(self.dtype, FloatDType) else self.dtype
-        out["ecdf_clamp_min"] = self.ecdf_clamp_min
-        out["ecdf_clamp_max"] = self.ecdf_clamp_max
-        out["diagnostics_enabled"] = self.diagnostics_enabled
-        out["hard_crib"] = self.hard_crib.asdict() if isinstance(self.hard_crib, HardCribConfig) else None
-        out["hamming_enabled"] = self.hamming_enabled
-        out["hamming_dictionary_policy"] = (
-            self.hamming_dictionary_policy.value
-            if isinstance(self.hamming_dictionary_policy, HammingDictionaryPolicy)
-            else self.hamming_dictionary_policy
-        )
-        out["hamming_dictionary_policy_root"] = (
-            str(self.hamming_dictionary_policy_root)
-            if isinstance(self.hamming_dictionary_policy_root, Path)
-            else self.hamming_dictionary_policy_root
-        )
-        out["hamming_wordlist_dir"] = str(self.hamming_wordlist_dir) if isinstance(self.hamming_wordlist_dir, Path) else self.hamming_wordlist_dir
-        out["hamming_build_rtl"] = self.hamming_build_rtl
-        out["hamming_weight"] = self.hamming_weight
-        out["hamming_weight_max"] = self.hamming_weight_max
-        out["hamming_ramp_start_frac"] = self.hamming_ramp_start_frac
-        out["hamming_ramp_end_frac"] = self.hamming_ramp_end_frac
-        out["hamming_max_hd"] = self.hamming_max_hd
-        out["hamming_length_weights"] = {
-            str(int(k)): float(v) for k, v in dict(self.hamming_length_weights or {}).items()
-        }
-        out["hamming_direction_mode"] = self.hamming_direction_mode.value
-        out["span_hamming_enabled"] = self.span_hamming_enabled
-        out["span_hamming_wordlist_dir"] = str(self.span_hamming_wordlist_dir) if isinstance(self.span_hamming_wordlist_dir, Path) else self.span_hamming_wordlist_dir
-        out["span_hamming_weight"] = self.span_hamming_weight
-        out["span_hamming_len_min"] = self.span_hamming_len_min
-        out["span_hamming_len_max"] = self.span_hamming_len_max
-        out["span_hamming_max_hd"] = self.span_hamming_max_hd
-        out["span_hamming_start_stride"] = self.span_hamming_start_stride
-        out["span_hamming_max_windows_total"] = self.span_hamming_max_windows_total
-        out["span_hamming_max_candidates_per_window"] = self.span_hamming_max_candidates_per_window
-        out["span_hamming_max_intervals_considered_per_start"] = self.span_hamming_max_intervals_considered_per_start
-        out["span_hamming_min_quality_threshold"] = self.span_hamming_min_quality_threshold
-        out["span_hamming_debug_return_intervals"] = self.span_hamming_debug_return_intervals
-        out["span_hamming_require_selected"] = self.span_hamming_require_selected
-        out["span_hamming_mode"] = self.span_hamming_mode.value
-        out["span_hamming_assets_dir"] = str(self.span_hamming_assets_dir) if isinstance(self.span_hamming_assets_dir, Path) else self.span_hamming_assets_dir
-        out["span_hamming_assets_dictionary_policy"] = (
-            self.span_hamming_assets_dictionary_policy.value
-            if isinstance(self.span_hamming_assets_dictionary_policy, HammingDictionaryPolicy)
-            else self.span_hamming_assets_dictionary_policy
-        )
-        out["span_hamming_allow_dictionary_policy_mismatch"] = bool(
-            self.span_hamming_allow_dictionary_policy_mismatch
-        )
-        out["span_hamming_bucket_policy"] = self.span_hamming_bucket_policy.value
-        out["span_hamming_ecdf_clamp_min"] = self.span_hamming_ecdf_clamp_min
-        out["span_hamming_ecdf_clamp_max"] = self.span_hamming_ecdf_clamp_max
-        out["span_hamming_combine_mode"] = self.span_hamming_combine_mode.value
-        out["span_hamming_weight_span"] = self.span_hamming_weight_span
-        out["span_hamming_weight_char"] = self.span_hamming_weight_char
-        out["span_hamming_coverage_min"] = self.span_hamming_coverage_min
-        out["span_hamming_quality_min"] = self.span_hamming_quality_min
-        out["span_hamming_span_pct_min"] = self.span_hamming_span_pct_min
-        out["span_hamming_char_pct_min"] = self.span_hamming_char_pct_min
-        out["span_hamming_gate_fail_policy"] = self.span_hamming_gate_fail_policy.value
-        out["span_hamming_gate_score_floor"] = self.span_hamming_gate_score_floor
-        out["span_hamming_lm_assets_json"] = (
-            str(self.span_hamming_lm_assets_json)
-            if isinstance(self.span_hamming_lm_assets_json, Path)
-            else self.span_hamming_lm_assets_json
-        )
-        out["span_hamming_lm_profile_source"] = self.span_hamming_lm_profile_source.value
-        out["span_hamming_lm_tail_start_index"] = self.span_hamming_lm_tail_start_index
-        out["span_hamming_lm_weight"] = self.span_hamming_lm_weight
-        out["word_ngram_judge_enabled"] = bool(self.word_ngram_judge_enabled)
-        out["word_ngram_judge_sqlite_path"] = (
-            str(self.word_ngram_judge_sqlite_path)
-            if isinstance(self.word_ngram_judge_sqlite_path, Path)
-            else self.word_ngram_judge_sqlite_path
-        )
-        out["word_ngram_judge_alpha"] = self.word_ngram_judge_alpha
-        out["word_ngram_judge_miss_logp"] = self.word_ngram_judge_miss_logp
-        out["word_ngram_judge_min_positions"] = self.word_ngram_judge_min_positions
-        out["word_ngram_judge_prefix_total_thresholds"] = [
-            int(v) for v in tuple(self.word_ngram_judge_prefix_total_thresholds)
-        ]
-        return out
-
-
-
-    def _normalise_weight_intent(self) -> None:
-        raw_pair = self.weights
-        raw_char = self.char_weights
-        raw_wli = self.wli_weights
-        pair_explicit = raw_pair is not None
-        maps_supplied = raw_char is not None or raw_wli is not None
-        maps_have_weights = bool(raw_char) or bool(raw_wli)
-
-        if pair_explicit and maps_have_weights:
-            raise ValueError(
-                "ScoringConfig weights cannot be combined with non-empty "
-                "char_weights/wli_weights; choose legacy pair mode or per-order map mode"
-            )
-
-        if not pair_explicit and not maps_supplied:
-            # Preserve the pre-A3 *effective* default without rewriting the durable
-            # request fields. Generic dataclasses.asdict() must remain safe to feed
-            # back into ScoringConfig and therefore must not synthesize pair+maps.
-            self._weight_mode = "default"
-            self._effective_weights_pair = (0.5, 0.5)
-            self._effective_char_weights = {2: 0.5}
-            self._effective_wli_weights = {2: 0.5}
-        elif pair_explicit:
-            if isinstance(raw_pair, (str, bytes)) or not isinstance(raw_pair, (list, tuple)) or len(raw_pair) != 2:
-                raise TypeError("weights must be a two-value (char, wli) pair")
-            pair = tuple(float(value) for value in raw_pair)
-            if any(not math.isfinite(value) for value in pair):
-                raise ValueError("weights must contain finite numbers")
+        pair = self.base_lane_weights
+        if pair is not None:
+            if type(pair) is not tuple or len(pair) != 2:
+                raise TypeError("base_lane_weights must be tuple[float, float] or None")
+            pair = tuple(_finite_float(value, "base_lane_weights") for value in pair)
             if any(value < 0.0 for value in pair) or sum(pair) <= 0.0:
-                raise ValueError("weights must be non-negative with a positive total")
-            self._weight_mode = "legacy_pair"
-            self.weights = pair
-            # Explicitly empty maps remain accepted as the legacy compatibility
-            # spelling, but None stays None so durable payloads preserve intent.
-            self.char_weights = (
-                self._normalise_channel_weights(raw_char, "char_weights")
-                if raw_char is not None else None
-            )
-            self.wli_weights = (
-                self._normalise_channel_weights(raw_wli, "wli_weights")
-                if raw_wli is not None else None
-            )
-            self._effective_weights_pair = pair
-            self._effective_char_weights = {}
-            self._effective_wli_weights = {}
-        else:
-            self._weight_mode = "per_order"
-            char_weights = self._normalise_channel_weights(raw_char, "char_weights")
-            wli_weights = self._normalise_channel_weights(raw_wli, "wli_weights")
-            char_total = sum(char_weights.values())
-            wli_total = sum(wli_weights.values())
-            if char_total + wli_total <= 0.0:
-                raise ValueError("per-order weights must contain at least one positive weight")
-            self.weights = None
-            self.char_weights = char_weights if raw_char is not None else None
-            self.wli_weights = wli_weights if raw_wli is not None else None
-            self._effective_weights_pair = (float(char_total), float(wli_total))
-            self._effective_char_weights = char_weights
-            self._effective_wli_weights = wli_weights
+                raise ValueError("base_lane_weights must be non-negative with a positive total")
+            object.__setattr__(self, "base_lane_weights", pair)
 
-        # Fail at configuration time when the chosen channels leave no active model.
+        character_weights = _weight_map(self.character_order_weights, "character_order_weights")
+        word_length_weights = _weight_map(self.word_length_order_weights, "word_length_order_weights")
+        if pair is not None and (character_weights or word_length_weights):
+            raise ValueError("base_lane_weights cannot be combined with per-order weights")
+        object.__setattr__(self, "character_order_weights", character_weights)
+        object.__setattr__(self, "word_length_order_weights", word_length_weights)
+        object.__setattr__(
+            self,
+            "hamming_length_weights",
+            _weight_map(self.hamming_length_weights, "hamming_length_weights", allow_none=False),
+        )
+        object.__setattr__(self, "hard_crib", normalize_hard_crib_config(self.hard_crib))
+
+        thresholds = self.word_ngram_judge_prefix_thresholds
+        if type(thresholds) is not tuple:
+            raise TypeError("word_ngram_judge_prefix_thresholds must be tuple[int, ...]")
+        for index, value in enumerate(thresholds):
+            _positive_int(value, f"word_ngram_judge_prefix_thresholds[{index}]", allow_zero=True)
+        if self.word_ngram_judge_enabled and self.word_ngram_judge_database is None:
+            raise ValueError("word_ngram_judge_database is required when its lane is enabled")
+        if self.span_hamming_language_model_weight and self.span_hamming_language_model_assets is None:
+            raise ValueError("span_hamming_language_model_assets is required for a non-zero LM weight")
+
         self.effective_lm_model_weights()
 
-    @property
-    def weight_mode(self) -> str:
-        """Derived requested weight mode; excluded from dataclass constructor payloads."""
-        return self._weight_mode
+    @classmethod
+    def from_dict(cls, values: JsonObject, /) -> ScoringConfig:
+        if not isinstance(values, dict):
+            raise TypeError("values must be a dict")
+        known = {item.name for item in fields(cls)}
+        unknown = sorted(set(values) - known)
+        if unknown:
+            raise ValueError(f"unknown ScoringConfig fields: {', '.join(unknown)}")
+        payload: dict[str, Any] = dict(values)
+        enum_fields: dict[str, type[Enum]] = {
+            "smoothing": SmoothingMethod,
+            "out_of_vocabulary_policy": OutOfVocabularyPolicy,
+            "boundary_mode": LanguageModelBoundaryMode,
+            "score_direction": ScoreDirection,
+            "backend": ScorerBackend,
+            "compute_dtype": FloatDType,
+            "accumulator_dtype": FloatDType,
+            "average_window_policy": AverageWindowPolicy,
+            "hamming_dictionary_policy": HammingDictionaryPolicy,
+            "hamming_text_direction_mode": HammingTextDirectionMode,
+            "span_hamming_mode": SpanHammingMode,
+            "span_hamming_assets_dictionary_policy": HammingDictionaryPolicy,
+            "span_hamming_bucket_policy": SpanHammingBucketPolicy,
+            "span_hamming_combine_mode": SpanHammingCombineMode,
+            "span_hamming_gate_failure_policy": SpanHammingGateFailurePolicy,
+            "span_hamming_language_model_profile_source": SpanHammingLanguageModelProfileSource,
+        }
+        for name, enum_type in enum_fields.items():
+            if name in payload and payload[name] is not None:
+                payload[name] = enum_type(payload[name])
+        if "objective" in payload and isinstance(payload["objective"], dict):
+            objective = payload["objective"]
+            payload["objective"] = ScoringObjective(
+                kind=ScoringObjectiveKind(objective["kind"]),
+                statistic=(ScoreStatistic(objective["statistic"]) if objective.get("statistic") else None),
+                window_size=objective.get("window_size"),
+            )
+        for name in (
+            "language_model_root",
+            "hamming_dictionary_root",
+            "hamming_wordlist_directory",
+            "span_hamming_wordlist_directory",
+            "span_hamming_assets_directory",
+            "span_hamming_language_model_assets",
+            "word_ngram_judge_database",
+        ):
+            if payload.get(name) is not None:
+                payload[name] = Path(str(payload[name]))
+        if "word_ngram_judge_prefix_thresholds" in payload:
+            payload["word_ngram_judge_prefix_thresholds"] = tuple(payload["word_ngram_judge_prefix_thresholds"])
+        if payload.get("base_lane_weights") is not None:
+            payload["base_lane_weights"] = tuple(payload["base_lane_weights"])
+        for name in (
+            "character_order_weights",
+            "word_length_order_weights",
+            "hamming_length_weights",
+        ):
+            if isinstance(payload.get(name), Mapping):
+                payload[name] = {int(key): value for key, value in payload[name].items()}
+        return cls(**payload)
+
+    def requested_scorer_lanes(self) -> tuple[ScoringLane, ...]:
+        lanes: list[ScoringLane] = []
+        if self.hamming_enabled or (self.hamming_weight is not None and self.hamming_weight != 0.0):
+            lanes.append(ScoringLane.HAMMING)
+        if self.span_hamming_mode is SpanHammingMode.CALIBRATED:
+            lanes.append(ScoringLane.SPAN_HAMMING_CALIBRATED)
+        elif (
+            self.span_hamming_mode is SpanHammingMode.RAW_BONUS
+            or self.span_hamming_enabled
+            or self.span_hamming_weight != 0.0
+        ):
+            lanes.append(ScoringLane.SPAN_HAMMING_RAW)
+        if self.word_ngram_judge_enabled:
+            lanes.append(ScoringLane.WORD_NGRAM_JUDGE_REPORT_ONLY)
+        return tuple(lanes)
 
     def effective_lm_model_weights(
-        self,
-        *,
-        use_wli: bool | None = None,
+        self, *, use_word_lengths: bool | None = None
     ) -> tuple[tuple[str, int, float], ...]:
-        use_wli_now = bool(self.use_word_breaks if use_wli is None else use_wli)
+        use_word_lengths_now = self.word_length_lane_enabled if use_word_lengths is None else use_word_lengths
         models: list[tuple[str, int, float]] = []
-        if self.weight_mode in {"default", "per_order"}:
-            if self.include_char:
-                for n, weight in sorted(dict(self._effective_char_weights).items()):
-                    if float(weight) > 0.0:
-                        models.append(("char", int(n), float(weight)))
-            if use_wli_now:
-                for n, weight in sorted(dict(self._effective_wli_weights).items()):
-                    if float(weight) > 0.0:
-                        models.append(("wli", int(n), float(weight)))
+        if self.base_lane_weights is not None:
+            character_weight, word_length_weight = self.base_lane_weights
+            if self.character_lane_enabled and character_weight > 0.0:
+                models.append(("char", self.character_ngram_order, character_weight))
+            if use_word_lengths_now and word_length_weight > 0.0:
+                models.append(("wli", self.word_length_ngram_order, word_length_weight))
         else:
-            w_char, w_wli = tuple(self._effective_weights_pair)
-            if self.include_char and float(w_char) > 0.0:
-                if self.n_char is None or int(self.n_char) <= 0:
-                    raise ValueError("n_char must be positive in legacy pair mode")
-                models.append(("char", int(self.n_char), float(w_char)))
-            if use_wli_now and float(w_wli) > 0.0:
-                if self.n_wli is None or int(self.n_wli) <= 0:
-                    raise ValueError("n_wli must be positive in legacy pair mode")
-                models.append(("wli", int(self.n_wli), float(w_wli)))
-
-        total = sum(weight for _channel, _n, weight in models)
+            character_weights = self.character_order_weights
+            word_length_weights = self.word_length_order_weights
+            if character_weights is None and word_length_weights is None:
+                character_weights = MappingProxyType({2: 0.5})
+                word_length_weights = MappingProxyType({2: 0.5})
+            if self.character_lane_enabled:
+                models.extend(("char", order, weight) for order, weight in (character_weights or {}).items() if weight > 0.0)
+            if use_word_lengths_now:
+                models.extend(("wli", order, weight) for order, weight in (word_length_weights or {}).items() if weight > 0.0)
+        total = sum(weight for _channel, _order, weight in models)
         if total <= 0.0:
-            raise ValueError("No active language-model weights remain after channel selection")
-        return tuple((channel, n, weight / total) for channel, n, weight in models)
+            raise ValueError("no active language-model weights remain after channel selection")
+        return tuple((channel, order, weight / total) for channel, order, weight in models)
 
-    def weight_contract(self) -> Dict[str, Any]:
-        """Return a JSON-safe requested/effective language-model weight report.
-
-        This is reporting metadata, not constructor input. ``asdict()`` remains a
-        durable round-trippable configuration representation.
-        """
-        requested: Dict[str, Any]
-        if self.weight_mode == "legacy_pair":
-            requested = {"weights": [float(v) for v in tuple(self.weights or ())]}
-        elif self.weight_mode == "per_order":
-            requested = {
-                "char_weights": {
-                    str(int(k)): float(v) for k, v in dict(self.char_weights or {}).items()
-                },
-                "wli_weights": {
-                    str(int(k)): float(v) for k, v in dict(self.wli_weights or {}).items()
-                },
-            }
-        else:
-            requested = {}
+    def weight_contract(self) -> JsonObject:
         return {
-            "mode": self.weight_mode,
-            "requested": requested,
+            "requested": {
+                "base_lane_weights": list(self.base_lane_weights) if self.base_lane_weights is not None else None,
+                "character_order_weights": dict(self.character_order_weights or {}),
+                "word_length_order_weights": dict(self.word_length_order_weights or {}),
+            },
             "effective_lm_models": [
-                {"channel": channel, "n": int(n), "weight": float(weight)}
-                for channel, n, weight in self.effective_lm_model_weights()
+                {"channel": channel, "n": order, "weight": weight}
+                for channel, order, weight in self.effective_lm_model_weights()
             ],
         }
 
-    @staticmethod
-    def _normalise_channel_weights(weights: Any, field_name: str) -> Dict[int, float]:
-        if weights in (None, {}):
-            return {}
-        if isinstance(weights, dict):
-            iterable = weights.items()
-        elif isinstance(weights, (list, tuple)):
-            iterable = weights
-        else:
-            raise TypeError(f"{field_name} must be a dict or list of (n, weight) pairs as documented")
+    def to_dict(self) -> JsonObject:
+        def encode(value: object) -> object:
+            if isinstance(value, Enum):
+                return value.value
+            if isinstance(value, Path):
+                return str(value)
+            if isinstance(value, ScoringObjective):
+                return value.to_dict()
+            if isinstance(value, HardCribConfig):
+                return value.asdict()
+            if isinstance(value, Mapping):
+                return {str(key): encode(item) for key, item in value.items()}
+            if isinstance(value, tuple):
+                return [encode(item) for item in value]
+            return value
 
-        normalised: Dict[int, float] = {}
-        for item in iterable:
-            if isinstance(item, dict):
-                if len(item) != 1:
-                    raise ValueError(f"{field_name} dict entries must contain a single (n, weight) mapping")
-                ((key, value),) = item.items()
-            elif isinstance(item, (list, tuple)) and len(item) == 2:
-                key, value = item
-            else:
-                raise TypeError(f"{field_name} entries must be (n, weight) pairs")
+        return {item.name: encode(getattr(self, item.name)) for item in fields(self)}  # type: ignore[return-value]
 
-            try:
-                n_val = int(key)
-            except Exception as exc:
-                raise TypeError(f"{field_name} keys must be integers (n-gram length)") from exc
-            if n_val <= 0:
-                raise ValueError(f"{field_name} keys must be positive integers per scoring docs")
+    def asdict(self) -> JsonObject:
+        return self.to_dict()
 
-            try:
-                weight_val = float(value)
-            except Exception as exc:
-                raise TypeError(f"{field_name} values must be numeric weights") from exc
-            if not math.isfinite(weight_val):
-                raise ValueError(f"{field_name} weights must be finite numbers")
-            if weight_val < 0.0:
-                raise ValueError(f"{field_name} weights must be non-negative")
-
-            normalised[n_val] = weight_val
-
-        return normalised
+    def __hash__(self) -> int:
+        return hash(json.dumps(self.to_dict(), sort_keys=True, separators=(",", ":")))

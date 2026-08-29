@@ -413,19 +413,19 @@ def _solver_report_contract_details(
                 execution_status=ExecutionStatus.COMPLETED,
                 stop_category=StopCategory.SUCCESS,
                 stop_reason=CanonicalStopReason.KNOWN_KEY_EXECUTION_COMPLETED,
-                legacy_reason=stop_reason,
+                runtime_reason=stop_reason,
             )
         elif oracle_use is OracleUse.TEST_KEY:
             run_status = RunStatus(
                 execution_status=ExecutionStatus.COMPLETED,
                 stop_category=StopCategory.SUCCESS,
                 stop_reason=CanonicalStopReason.ORACLE_TEST_KEY_USED,
-                legacy_reason=stop_reason,
+                runtime_reason=stop_reason,
             )
         else:
             category = stop_category_for_reason(stop_reason)
             run_status = build_run_status(
-                legacy_reason=stop_reason,
+                runtime_reason=stop_reason,
                 execution_status=execution_status_for_category(category),
             )
     if oracle is None:

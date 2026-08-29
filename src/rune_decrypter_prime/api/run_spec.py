@@ -9,8 +9,19 @@ from types import MappingProxyType
 from typing import Any
 
 from rune_decrypter_prime.api.specs import CipherSpec, KeySpec, SolverSpec
+from rune_decrypter_prime.core.config.interruptor import InterruptorConfig
 from rune_decrypter_prime.core.config.logging_config import LoggingConfig
-from rune_decrypter_prime.core.types import Device, Direction
+from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rune_decrypter_prime.core.types import (
+    ComputeDevice,
+    IndexPermutation,
+    InitialKeys,
+    JsonObject,
+    TextDirection,
+    WordLengthInfo,
+    WordLengthPolicy,
+    normalize_initial_keys,
+)
 
 
 LP_SOURCE_KINDS = frozenset(
@@ -282,7 +293,7 @@ class RawTextInput:
 
 
 @dataclass(frozen=True, slots=True)
-class NormalizedInput:
+class RuneIndexInput:
     """Pre-normalised ciphertext indices, optionally with WLI pairs.
 
     `ct_idx` is copied to an immutable tuple of rune indices in the inclusive
@@ -290,36 +301,44 @@ class NormalizedInput:
     must contain ordered `(position, word_length)` pairs.
     """
 
-    ct_idx: Sequence[int]
-    wli: Sequence[Sequence[int]] | None = None
+    indices: Sequence[int]
+    word_lengths: WordLengthInfo | None = None
 
     def __post_init__(self) -> None:
-        ct_idx_input = _require_ordered_sequence(self.ct_idx, "ct_idx")
+        ct_idx_input = _require_ordered_sequence(self.indices, "indices")
         ct_idx = tuple(
-            _require_index(item, f"ct_idx[{index}]")
+            _require_index(item, f"indices[{index}]")
             for index, item in enumerate(ct_idx_input)
         )
         if not ct_idx:
-            raise ValueError("ct_idx must not be empty")
+            raise ValueError("indices must not be empty")
 
         wli: tuple[tuple[int, int], ...] | None
-        if self.wli is None:
+        if self.word_lengths is None:
             wli = None
         else:
-            wli_input = _require_ordered_sequence(self.wli, "wli")
+            wli_input = _require_ordered_sequence(self.word_lengths, "word_lengths")
             wli_items: list[tuple[int, int]] = []
             for index, pair in enumerate(wli_input):
-                wli_items.append(_require_wli_pair(pair, f"wli[{index}]"))
+                wli_items.append(_require_wli_pair(pair, f"word_lengths[{index}]"))
             wli = tuple(wli_items)
             if len(wli) != len(ct_idx):
-                raise ValueError("wli length must match ct_idx length")
+                raise ValueError("word_lengths length must match indices length")
 
-        object.__setattr__(self, "ct_idx", ct_idx)
-        object.__setattr__(self, "wli", wli)
+        object.__setattr__(self, "indices", ct_idx)
+        object.__setattr__(self, "word_lengths", wli)
+
+    @property
+    def ct_idx(self) -> tuple[int, ...]:
+        return tuple(self.indices)
+
+    @property
+    def wli(self) -> WordLengthInfo | None:
+        return self.word_lengths
 
 
 @dataclass(frozen=True, slots=True)
-class SourceInputRef:
+class SourceReferenceInput:
     """Reference to a resolver-owned source input.
 
     The identity fields name the source kind, asset id, and asset version.
@@ -331,7 +350,7 @@ class SourceInputRef:
     source_kind: str
     asset_id: str
     asset_version: str
-    ref: Mapping[str, Any] = field(default_factory=dict)
+    reference: JsonObject = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         source_kind = _require_text(self.source_kind, "source_kind")
@@ -340,16 +359,24 @@ class SourceInputRef:
         if source_kind.startswith("liber_primus.") and source_kind not in LP_SOURCE_KINDS:
             raise ValueError(f"unsupported LP source_kind: {source_kind}")
 
-        ref = _copy_json_primitive_mapping(self.ref, "ref")
+        ref = _copy_json_primitive_mapping(self.reference, "reference")
         _validate_source_ref(source_kind, ref)
 
         object.__setattr__(self, "source_kind", source_kind)
         object.__setattr__(self, "asset_id", asset_id)
         object.__setattr__(self, "asset_version", asset_version)
-        object.__setattr__(self, "ref", ref)
+        object.__setattr__(self, "reference", ref)
+
+    @property
+    def ref(self) -> Mapping[str, Any]:
+        return self.reference
 
 
-ProblemInput = RawTextInput | NormalizedInput | SourceInputRef
+ProblemInput = RawTextInput | RuneIndexInput | SourceReferenceInput
+
+# Existing internal names remain until retained callers migrate in AN3.6.
+NormalizedInput = RuneIndexInput
+SourceInputRef = SourceReferenceInput
 
 
 @dataclass(frozen=True, slots=True)
@@ -364,48 +391,54 @@ class RunSpec:
 
     problem_input: ProblemInput
     cipher: CipherSpec
-    key: KeySpec | tuple[KeySpec, KeySpec]
+    key_space: KeySpec
     solver: SolverSpec
-    scorer: str = "rune"
-    scorer_params: Mapping[str, Any] | None = None
+    scoring: ScoringConfig = field(default_factory=ScoringConfig)
+    initial_keys: InitialKeys | None = None
     logging: LoggingConfig | None = None
-    encoding_dir: Direction = Direction.RTL
-    device: Device = Device.CPU
-    telemetry_on: bool = True
+    word_length_policy: WordLengthPolicy = WordLengthPolicy.INFER
+    text_direction: TextDirection = TextDirection.RIGHT_TO_LEFT
+    compute_device: ComputeDevice = ComputeDevice.CPU
+    telemetry_enabled: bool = True
+    text_permutation: IndexPermutation | None = None
+    interruptors: InterruptorConfig | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.problem_input, (RawTextInput, NormalizedInput, SourceInputRef)):
-            raise TypeError("problem_input must be RawTextInput, NormalizedInput, or SourceInputRef")
+        if not isinstance(self.problem_input, (RawTextInput, RuneIndexInput, SourceReferenceInput)):
+            raise TypeError("problem_input must be RawTextInput, RuneIndexInput, or SourceReferenceInput")
         if not isinstance(self.cipher, CipherSpec):
             raise TypeError("cipher must be a CipherSpec")
-        if isinstance(self.key, KeySpec):
-            key: KeySpec | tuple[KeySpec, KeySpec] = self.key
-        elif isinstance(self.key, tuple):
-            if len(self.key) != 2 or not all(isinstance(item, KeySpec) for item in self.key):
-                raise TypeError("key tuple must contain exactly two KeySpec values")
-            key = tuple(self.key)
-        else:
-            raise TypeError("key must be a KeySpec or a two-item tuple of KeySpec values")
+        if not isinstance(self.key_space, KeySpec):
+            raise TypeError("key_space must be a KeySpec")
         if not isinstance(self.solver, SolverSpec):
             raise TypeError("solver must be a SolverSpec")
+        if not isinstance(self.scoring, ScoringConfig):
+            raise TypeError("scoring must be a ScoringConfig")
         if self.logging is not None and not isinstance(self.logging, LoggingConfig):
             raise TypeError("logging must be a LoggingConfig or None")
-        if not isinstance(self.encoding_dir, Direction):
-            raise TypeError("encoding_dir must be a Direction")
-        if not isinstance(self.device, Device):
-            raise TypeError("device must be a Device")
-        if not isinstance(self.telemetry_on, bool):
-            raise TypeError("telemetry_on must be a bool")
-
-        object.__setattr__(self, "key", key)
-        object.__setattr__(self, "scorer", _require_text(self.scorer, "scorer"))
-        object.__setattr__(self, "scorer_params", _copy_json_primitive_mapping(self.scorer_params, "scorer_params"))
+        if not isinstance(self.word_length_policy, WordLengthPolicy):
+            raise TypeError("word_length_policy must be WordLengthPolicy")
+        if not isinstance(self.text_direction, TextDirection):
+            raise TypeError("text_direction must be TextDirection")
+        if not isinstance(self.compute_device, ComputeDevice):
+            raise TypeError("compute_device must be ComputeDevice")
+        if type(self.telemetry_enabled) is not bool:
+            raise TypeError("telemetry_enabled must be a bool")
+        if self.initial_keys is not None:
+            object.__setattr__(self, "initial_keys", normalize_initial_keys(self.initial_keys))
+        if self.text_permutation is not None:
+            permutation = tuple(_require_int(value, "text_permutation") for value in self.text_permutation)
+            if sorted(permutation) != list(range(len(permutation))):
+                raise ValueError("text_permutation must be a permutation of 0..n-1")
+            object.__setattr__(self, "text_permutation", permutation)
+        if self.interruptors is not None and not isinstance(self.interruptors, InterruptorConfig):
+            raise TypeError("interruptors must be InterruptorConfig or None")
 
 
 __all__ = [
-    "NormalizedInput",
+    "RuneIndexInput",
     "ProblemInput",
     "RawTextInput",
     "RunSpec",
-    "SourceInputRef",
+    "SourceReferenceInput",
 ]

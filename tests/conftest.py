@@ -29,12 +29,11 @@ def _init_session_logging() -> Path:
     then return the resolved run_dir.
     """
     cfg = LoggingConfig(
-        repo_root=str(ROOT),
-        run_kind="tests",
+        run_category="tests",
         label="pytest",
-        write_jsonl=True,
+        write_event_log=True,
         verbose=False,
-        print_progress=False,
+        show_progress=False,
     )
     run_dir = init_logging(cfg)
     return run_dir

@@ -22,7 +22,7 @@ import subprocess
 # Public configuration model
 # ----------------------------
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class LoggingConfig:
     """
     Configuration for initializing a run's logging/telemetry directories.
@@ -42,27 +42,50 @@ class LoggingConfig:
 
     No environment variables or CLI flags are read here—config is explicit.
     """
-    verbose: bool = True
-    print_progress: bool = True
-    write_jsonl: bool = True
-    repo_root: Optional[str] = None
-    out_root: Optional[str] = None
-    run_kind: str = "run"
-    label: Optional[str] = None
-    fixed_run_dir: Optional[str] = None
+    verbose: bool = False
+    show_progress: bool = True
+    write_event_log: bool = False
+    output_root: Path | None = None
+    run_category: str = "run"
+    label: str | None = None
+    run_directory: Path | None = None
     redact_identity: bool = False
-    portable_output: bool = False
+    portable_output: bool = True
     write_solver_report: bool = False
-    write_rdp_display_summary: bool = False
-    write_run_artifacts_manifest: bool = False
+    write_display_summary: bool = False
+    write_artifact_manifest: bool = False
 
     def __post_init__(self) -> None:
-        if type(self.write_solver_report) is not bool:
-            raise TypeError("write_solver_report must be a bool")
-        if type(self.write_rdp_display_summary) is not bool:
-            raise TypeError("write_rdp_display_summary must be a bool")
-        if type(self.write_run_artifacts_manifest) is not bool:
-            raise TypeError("write_run_artifacts_manifest must be a bool")
+        for field_name in (
+            "verbose", "show_progress", "write_event_log", "redact_identity",
+            "portable_output", "write_solver_report", "write_display_summary",
+            "write_artifact_manifest",
+        ):
+            if type(getattr(self, field_name)) is not bool:
+                raise TypeError(f"{field_name} must be a bool")
+        for field_name in ("output_root", "run_directory"):
+            value = getattr(self, field_name)
+            if value is not None and not isinstance(value, Path):
+                raise TypeError(f"{field_name} must be a Path or None")
+        if not isinstance(self.run_category, str) or not self.run_category:
+            raise ValueError("run_category must be a non-empty string")
+        if self.label is not None and not isinstance(self.label, str):
+            raise TypeError("label must be a string or None")
+
+    @classmethod
+    def from_dict(cls, values: Dict[str, Any], /) -> "LoggingConfig":
+        if not isinstance(values, dict):
+            raise TypeError("values must be a dictionary")
+        allowed = set(cls.__dataclass_fields__)
+        unknown = sorted(set(values) - allowed)
+        if unknown:
+            raise ValueError(f"unsupported LoggingConfig field(s): {unknown}")
+        copied = dict(values)
+        for field_name in ("output_root", "run_directory"):
+            value = copied.get(field_name)
+            if isinstance(value, str):
+                copied[field_name] = Path(value)
+        return cls(**copied)
 
 # ----------------------------
 # Module state & simple accessors
@@ -225,11 +248,11 @@ def _write_meta(
         "host": None if identity_redacted else socket.gethostname(),
         "repo_root": ".",
         "out_root": _relativize_path(out_root, repo_root, external_label="out_root"),
-        "run_kind": cfg.run_kind,
+        "run_kind": cfg.run_category,
         "label": cfg.label,
         "verbose": cfg.verbose,
-        "print_progress": cfg.print_progress,
-        "write_jsonl": cfg.write_jsonl,
+        "print_progress": cfg.show_progress,
+        "write_jsonl": cfg.write_event_log,
         "portable_output": bool(cfg.portable_output),
         "identity_redacted": identity_redacted,
         "pid": os.getpid(),
@@ -245,7 +268,7 @@ def _write_meta(
         "git": git_info,
     }
 
-    if cfg.run_kind == "tests":
+    if cfg.run_category == "tests":
         short = git_info.get("short") or "nogit"
         meta["test_id"] = f"{short}-{timestamp}"
     logs_dir = run_dir / "logs"
@@ -264,12 +287,11 @@ def _write_meta(
 
 def _write_logging_snapshot(run_dir: Path, cfg: LoggingConfig, repo_root: Path, out_root: Path) -> None:
     snap = asdict(cfg)
-    snap["repo_root"] = "."
-    snap["out_root"] = _relativize_path(out_root, repo_root, external_label="out_root")
-    value = snap.get("fixed_run_dir")
+    snap["output_root"] = _relativize_path(out_root, repo_root, external_label="output_root")
+    value = snap.get("run_directory")
     if value:
-        snap["fixed_run_dir"] = _relativize_path(
-            Path(str(value)), repo_root, external_label="fixed_run_dir"
+        snap["run_directory"] = _relativize_path(
+            Path(str(value)), repo_root, external_label="run_directory"
         )
     config_dir = run_dir / "config"
     config_dir.mkdir(parents=True, exist_ok=True)
@@ -295,19 +317,19 @@ def init_logging(cfg: LoggingConfig) -> Path:
         - Stores META.json and config/logging.json for reproducibility.
         - Updates module-global _PATHS so get_run_dir() and current_paths() work.
     """
-    repo_root = Path(cfg.repo_root).resolve() if cfg.repo_root else _detect_repo_root()
-    out_root = Path(cfg.out_root).resolve() if cfg.out_root else _default_out_root(repo_root)
+    repo_root = _detect_repo_root()
+    out_root = cfg.output_root.resolve() if cfg.output_root else _default_out_root(repo_root)
 
     ts = _now_stamp()
-    kind_token = _safe_token(cfg.run_kind, "run")
+    kind_token = _safe_token(cfg.run_category, "run")
     label_token = _safe_token(cfg.label, kind_token)
     git_info = _git_info(repo_root)
     git_token = git_info.get("short") or "nogit"
     run_id = f"{ts}__{kind_token}__{label_token}__{git_token}"
     kind_root = out_root / kind_token
 
-    if cfg.fixed_run_dir:
-        fixed = Path(cfg.fixed_run_dir)
+    if cfg.run_directory:
+        fixed = cfg.run_directory
         if fixed.is_absolute():
             run_dir = fixed.resolve()
         else:

@@ -1,132 +1,207 @@
-# ============================================================
-# rune_decrypter_prime/core/config/interruptor.py
-# Interruptor configuration (positions only; symbols fixed from text).
-# ============================================================
+"""Immutable interruptor request configuration."""
+
 from __future__ import annotations
-from dataclasses import dataclass, asdict
-from typing import Any, Dict, Iterable, List, Optional
 
-from rune_decrypter_prime.core.types import InterruptorSearchStrategy, ensure_interruptor_search_strategy
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
+from numbers import Integral
+from typing import Any, ClassVar
 
-
-_INT16_MIN = -(2 ** 15)
-_INT16_MAX = (2 ** 15) - 1
-
-
-def _coerce_indices(values: Iterable[Any], field: str) -> List[int]:
-    if values is None:
-        return []
-    out: list[int] = []
-    for i, raw in enumerate(values):
-        if isinstance(raw, bool):
-            raise TypeError(f"{field} indices cannot be bool (index {i})")
-        try:
-            val = int(raw)
-        except Exception as exc:
-            raise TypeError(f"{field} indices must be integers (index {i})") from exc
-        if val < 0:
-            raise ValueError(f"{field} indices must be >= 0 (index {i})")
-        if val < _INT16_MIN or val > _INT16_MAX:
-            raise ValueError(f"{field} indices must fit int16 range (index {i})")
-        out.append(val)
-    if len(set(out)) != len(out):
-        raise ValueError(f"{field} indices must be unique")
-    return sorted(out)
+from rune_decrypter_prime.core.component_contracts import UnsupportedConfigurationError
+from rune_decrypter_prime.core.types import (
+    FinalInterruptorSearchStrategy as InterruptorSearchStrategy,
+    FrozenParameterItems,
+    InterruptorMode,
+    JsonObject,
+    JsonValue,
+    freeze_parameter_items,
+    readonly_parameters,
+    replay_key,
+    thaw_parameter_items,
+)
 
 
-@dataclass(slots=True)
+def _strict_int(value: object, field_name: str, *, minimum: int | None = None) -> int:
+    if isinstance(value, bool) or not isinstance(value, Integral):
+        raise TypeError(f"{field_name} must be an integer")
+    result = int(value)
+    if minimum is not None and result < minimum:
+        raise ValueError(f"{field_name} must be >= {minimum}")
+    return result
+
+
+def _positions(values: Sequence[int], field_name: str) -> tuple[int, ...]:
+    if isinstance(values, (str, bytes, Mapping)) or not isinstance(values, Sequence):
+        raise TypeError(f"{field_name} must be an ordered sequence")
+    copied = tuple(
+        _strict_int(value, f"{field_name}[{index}]", minimum=0)
+        for index, value in enumerate(values)
+    )
+    if not copied:
+        raise ValueError(f"{field_name} must not be empty")
+    if len(set(copied)) != len(copied):
+        raise ValueError(f"{field_name} must not contain duplicates")
+    return tuple(sorted(copied))
+
+
+@dataclass(frozen=True, slots=True, init=False, repr=False)
 class InterruptorConfig:
-    """
-    Canonical interruptor configuration.
+    mode: InterruptorMode
+    _parameter_items: FrozenParameterItems = field(repr=False)
 
-    Positions are absolute indices in the plaintext/ciphertext by default.
-    Interruptor symbols are fixed from the text; only positions are configurable.
-    """
-    # primary mode
-    mode: str = "disabled"  # "disabled" | "exact" | "pool"
+    _REPLAY_PREFIX: ClassVar[str] = "interruptor-config"
 
-    # exact positions (absolute indices)
-    exact: Optional[List[int]] = None
+    @classmethod
+    def _create(
+        cls,
+        mode: InterruptorMode,
+        parameters: Mapping[str, object],
+    ) -> InterruptorConfig:
+        instance = object.__new__(cls)
+        object.__setattr__(instance, "mode", mode)
+        object.__setattr__(instance, "_parameter_items", freeze_parameter_items(parameters))
+        return instance
 
-    # pool search
-    pool: Optional[List[int]] = None
-    min_count: int = 0
-    max_count: Optional[int] = None
+    @classmethod
+    def disabled(cls) -> InterruptorConfig:
+        return cls._create(InterruptorMode.DISABLED, {})
 
-    # index space (future extension)
-    index_space: str = "absolute"  # "absolute" only for now
+    @classmethod
+    def exact(cls, positions: Sequence[int], /) -> InterruptorConfig:
+        return cls._create(InterruptorMode.EXACT, {"positions": _positions(positions, "positions")})
 
-    # search strategy
-    search_strategy: str = InterruptorSearchStrategy.AUTO.value  # "auto" | "bruteforce" | "keyops"
-    bruteforce_max: int = 5000
+    @classmethod
+    def search(
+        cls,
+        candidate_positions: Sequence[int],
+        /,
+        *,
+        minimum_count: int = 0,
+        maximum_count: int | None = None,
+        strategy: InterruptorSearchStrategy = InterruptorSearchStrategy.AUTO,
+        maximum_combinations: int = 5000,
+    ) -> InterruptorConfig:
+        positions = _positions(candidate_positions, "candidate_positions")
+        low = _strict_int(minimum_count, "minimum_count", minimum=0)
+        high = len(positions) if maximum_count is None else _strict_int(
+            maximum_count, "maximum_count", minimum=0
+        )
+        if low > high:
+            raise ValueError("minimum_count must not exceed maximum_count")
+        if high > len(positions):
+            raise ValueError("maximum_count must not exceed candidate position count")
+        if not isinstance(strategy, InterruptorSearchStrategy):
+            raise TypeError("strategy must be InterruptorSearchStrategy")
+        return cls._create(InterruptorMode.SEARCH, {
+            "candidate_positions": positions,
+            "minimum_count": low,
+            "maximum_count": high,
+            "strategy": strategy,
+            "maximum_combinations": _strict_int(
+                maximum_combinations, "maximum_combinations", minimum=1
+            ),
+        })
 
-    # reserved for future expansion (explicitly validated)
-    score_mode: str = "full"  # "full" only for now
-    value_mode: str = "fixed"  # "fixed" only for now
+    @classmethod
+    def from_dict(cls, values: JsonObject, /) -> InterruptorConfig:
+        if not isinstance(values, Mapping):
+            raise TypeError("values must be a mapping")
+        unknown = sorted(set(values) - {"mode", "parameters"})
+        if unknown:
+            raise UnsupportedConfigurationError(
+                f"unsupported interruptor fields: {', '.join(unknown)}",
+                field_paths=tuple(unknown),
+            )
+        mode = values.get("mode")
+        parameters = values.get("parameters", {})
+        if not isinstance(mode, str):
+            raise TypeError("mode must be a serialized InterruptorMode value")
+        if not isinstance(parameters, Mapping):
+            raise TypeError("parameters must be a mapping")
+        try:
+            parsed_mode = InterruptorMode(mode)
+        except ValueError as exc:
+            raise UnsupportedConfigurationError(
+                f"unsupported interruptor mode {mode!r}", field_paths=("mode",)
+            ) from exc
+        payload = dict(parameters)
+        try:
+            if parsed_mode is InterruptorMode.DISABLED:
+                if payload:
+                    raise TypeError("disabled mode accepts no parameters")
+                return cls.disabled()
+            if parsed_mode is InterruptorMode.EXACT:
+                positions = payload.pop("positions")
+                if payload:
+                    raise TypeError(f"unsupported exact parameters: {sorted(payload)}")
+                return cls.exact(positions)
+            if "strategy" in payload:
+                payload["strategy"] = InterruptorSearchStrategy(payload["strategy"])
+            positions = payload.pop("candidate_positions")
+            return cls.search(positions, **payload)
+        except (KeyError, TypeError, ValueError) as exc:
+            if isinstance(exc, UnsupportedConfigurationError):
+                raise
+            raise UnsupportedConfigurationError(
+                f"invalid interruptor parameters: {exc}", field_paths=("parameters",)
+            ) from exc
 
-    def __post_init__(self) -> None:
-        self.mode = str(self.mode or "disabled").strip().lower()
-        if self.mode not in {"disabled", "exact", "pool"}:
-            raise ValueError("interruptor mode must be 'disabled', 'exact', or 'pool'")
+    @property
+    def parameters(self) -> Mapping[str, JsonValue]:
+        return readonly_parameters(self._parameter_items)  # type: ignore[return-value]
 
-        self.index_space = str(self.index_space or "absolute").strip().lower()
-        if self.index_space != "absolute":
-            raise NotImplementedError("interruptor index_space currently supports only 'absolute'")
+    def to_dict(self) -> dict[str, JsonValue]:
+        return {
+            "mode": self.mode.value,
+            "parameters": thaw_parameter_items(self._parameter_items, json_compatible=True),
+        }  # type: ignore[return-value]
 
-        self.search_strategy = ensure_interruptor_search_strategy(self.search_strategy).value
+    @property
+    def replay_key(self) -> str:
+        return replay_key(self._REPLAY_PREFIX, self.to_dict())
 
-        self.bruteforce_max = int(self.bruteforce_max)
-        if self.bruteforce_max < 0:
-            raise ValueError("interruptor bruteforce_max must be >= 0")
+    def __copy__(self) -> InterruptorConfig:
+        return self
 
-        self.score_mode = str(self.score_mode or "full").strip().lower()
-        if self.score_mode != "full":
-            raise NotImplementedError("interruptor score_mode currently supports only 'full'")
+    def __deepcopy__(self, memo: dict[int, object]) -> InterruptorConfig:
+        return self
 
-        self.value_mode = str(self.value_mode or "fixed").strip().lower()
-        if self.value_mode != "fixed":
-            raise NotImplementedError("interruptor value_mode currently supports only 'fixed'")
+    def __repr__(self) -> str:
+        return (
+            f"InterruptorConfig(mode={self.mode!r}, "
+            f"parameters={dict(self.parameters)!r})"
+        )
 
-        if self.exact is not None:
-            self.exact = _coerce_indices(self.exact, "exact")
-        if self.pool is not None:
-            self.pool = _coerce_indices(self.pool, "pool")
+    # Existing internal projections are removed after the AN3.6 caller cutover.
+    @property
+    def exact_positions(self) -> tuple[int, ...] | None:
+        value = self.parameters.get("positions")
+        return None if value is None else tuple(value)  # type: ignore[arg-type]
 
-        if self.mode == "disabled":
-            if self.exact or self.pool:
-                raise ValueError("interruptor mode='disabled' cannot define exact/pool indices")
-            return
+    @property
+    def pool(self) -> tuple[int, ...] | None:
+        value = self.parameters.get("candidate_positions")
+        return None if value is None else tuple(value)  # type: ignore[arg-type]
 
-        if self.mode == "exact":
-            if self.exact is None or len(self.exact) == 0:
-                raise ValueError("interruptor mode='exact' requires a non-empty exact list")
-            if self.pool is not None:
-                raise ValueError("interruptor mode='exact' cannot define a pool")
-            return
+    @property
+    def min_count(self) -> int:
+        return int(self.parameters.get("minimum_count", 0))
 
-        # pool mode
-        if self.pool is None or len(self.pool) == 0:
-            raise ValueError("interruptor mode='pool' requires a non-empty pool")
+    @property
+    def max_count(self) -> int | None:
+        value = self.parameters.get("maximum_count")
+        return None if value is None else int(value)
 
-        if self.max_count is None:
-            self.max_count = int(len(self.pool))
-        else:
-            self.max_count = int(self.max_count)
-        self.min_count = int(self.min_count or 0)
+    @property
+    def search_strategy(self) -> str:
+        return str(self.parameters.get("strategy", InterruptorSearchStrategy.AUTO.value))
 
-        if self.min_count < 0:
-            raise ValueError("interruptor min_count must be >= 0")
-        if self.max_count <= 0:
-            raise ValueError("interruptor max_count must be > 0 when mode='pool'")
-        if self.min_count > self.max_count:
-            raise ValueError("interruptor min_count cannot exceed max_count")
-        if self.max_count > len(self.pool):
-            raise ValueError("interruptor max_count cannot exceed pool size")
+    @property
+    def bruteforce_max(self) -> int:
+        return int(self.parameters.get("maximum_combinations", 5000))
 
-    def asdict(self) -> Dict[str, Any]:
-        out = asdict(self)
-        out["search_strategy"] = self.search_strategy
-        return out
+    def asdict(self) -> dict[str, Any]:
+        return self.to_dict()
 
 
 __all__ = ["InterruptorConfig"]

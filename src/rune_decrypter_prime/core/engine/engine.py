@@ -207,13 +207,13 @@ def solve(instance: ProblemInstance, engine_cfg: EngineConfig):
             # producer failed to state why it stopped. Surface that as an
             # unknown-runtime reporting defect rather than "not_started".
             run_status = build_run_status(
-                legacy_reason=None,
+                runtime_reason=None,
                 execution_status=ExecutionStatus.COMPLETED,
             )
         elif solution_reason is None:
             status_category = stop_category_for_reason(str(stop_reason))
             run_status = build_run_status(
-                legacy_reason=str(stop_reason),
+                runtime_reason=str(stop_reason),
                 execution_status=execution_status_for_category(status_category),
             )
         else:
@@ -244,7 +244,7 @@ def solve(instance: ProblemInstance, engine_cfg: EngineConfig):
     except Exception as e:
         # Emit a failed run_end and re-raise
         error_status = build_run_status(
-            legacy_reason="exception",
+            runtime_reason="exception",
             execution_status=ExecutionStatus.ERROR,
             stop_detail=str(e),
             error_type=type(e).__name__,

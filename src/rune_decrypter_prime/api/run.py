@@ -379,7 +379,7 @@ def _run_normalized(
                 execution_status=ExecutionStatus.COMPLETED,
                 stop_category=StopCategory.SUCCESS,
                 stop_reason=CanonicalStopReason.KNOWN_KEY_EXECUTION_COMPLETED,
-                legacy_reason=None if raw_reason is None else str(raw_reason),
+                runtime_reason=None if raw_reason is None else str(raw_reason),
                 stop_detail="explicit known-key execution completed",
             )
         else:

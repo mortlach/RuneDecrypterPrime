@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum, StrEnum
-from typing import Any
+from collections.abc import Mapping, Sequence
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+    from rune_decrypter_prime.api.stop_reason_contract import RunStatus
+    from rune_decrypter_prime.core.types import ConcreteKey, JsonObject
 
 
 class ComponentKind(StrEnum):
@@ -14,7 +21,7 @@ class ComponentKind(StrEnum):
     ARTIFACT = "artifact"
 
 
-class V1Status(StrEnum):
+class ReleaseStatus(StrEnum):
     V1_CORE = "v1_core"
     V1_OPTIONAL = "v1_optional"
     EXPERIMENTAL_REPORT_ONLY = "experimental_report_only"
@@ -24,19 +31,19 @@ class V1Status(StrEnum):
     REMOVED = "removed"
 
 
-class RankEffect(StrEnum):
+class RankingEffect(StrEnum):
     PRODUCTION = "production"
     REPORT_ONLY = "report_only"
     NONE = "none"
 
 
-class RequestState(StrEnum):
+class CapabilityRequestState(StrEnum):
     NOT_REQUESTED = "not_requested"
     REQUESTED = "requested"
     REQUIRED = "required"
 
 
-class EffectiveState(StrEnum):
+class CapabilityEffectiveState(StrEnum):
     INACTIVE = "inactive"
     ACTIVE = "active"
     BLOCKED = "blocked"
@@ -61,8 +68,8 @@ class FallbackPolicy(StrEnum):
     DISABLED = "disabled"
 
 
-class ScorerLaneName(StrEnum):
-    LM_CHAR_WLI = "lm_char_wli"
+class ScoringLane(StrEnum):
+    LANGUAGE_MODEL_CHARACTER_AND_WORD_LENGTH = "language_model_character_and_word_length"
     HAMMING = "hamming"
     SPAN_HAMMING_RAW = "span_hamming_raw"
     SPAN_HAMMING_CALIBRATED = "span_hamming_calibrated"
@@ -72,6 +79,154 @@ class ScorerLaneName(StrEnum):
 
 class RequestedLaneUnavailableError(RuntimeError):
     """Raised when a requested V1 scorer lane cannot run and fallback is not allowed."""
+
+
+class RdpError(Exception):
+    """Base class for stable public RDP failures."""
+
+    def __init__(self, message: str, /) -> None:
+        if not isinstance(message, str) or not message:
+            raise ValueError("message must be a non-empty string")
+        super().__init__(message)
+
+
+class ConfigurationError(RdpError):
+    def __init__(
+        self,
+        message: str,
+        /,
+        *,
+        field_path: str | None = None,
+        issues: Sequence["CapabilityIssue"] = (),
+    ) -> None:
+        super().__init__(message)
+        if field_path is not None and (not isinstance(field_path, str) or not field_path):
+            raise ValueError("field_path must be a non-empty string or None")
+        self.field_path = field_path
+        self.issues = _copy_issues(issues)
+
+
+class CapabilityUnavailableError(RdpError):
+    def __init__(
+        self,
+        message: str,
+        /,
+        *,
+        status: "RunStatus",
+        issues: Sequence["CapabilityIssue"],
+    ) -> None:
+        super().__init__(message)
+        self.status = status
+        self.issues = _copy_issues(issues)
+
+
+class AssetUnavailableError(CapabilityUnavailableError):
+    pass
+
+
+class NonInvertibleCipherError(CapabilityUnavailableError):
+    pass
+
+
+class ExecutionError(RdpError):
+    def __init__(
+        self,
+        message: str,
+        /,
+        *,
+        status: "RunStatus",
+        phase: str,
+        context: "JsonObject | None" = None,
+    ) -> None:
+        super().__init__(message)
+        if not isinstance(phase, str) or not phase:
+            raise ValueError("phase must be a non-empty string")
+        if context is not None and not isinstance(context, Mapping):
+            raise TypeError("context must be a mapping or None")
+        self.status = status
+        self.phase = phase
+        self.context = MappingProxyType({} if context is None else dict(context))
+
+
+class UnknownComponentError(RdpError):
+    def __init__(self, message: str, /, *, component_kind: ComponentKind, token: str) -> None:
+        super().__init__(message)
+        _require_enum(component_kind, ComponentKind, "component_kind")
+        _require_non_empty_str(token, "token")
+        self.component_kind = component_kind
+        self.token = token
+
+
+class UnsupportedConfigurationError(ConfigurationError):
+    def __init__(
+        self,
+        message: str,
+        /,
+        *,
+        field_paths: Sequence[str],
+        issues: Sequence["CapabilityIssue"] = (),
+    ) -> None:
+        paths = tuple(field_paths)
+        if not paths or any(not isinstance(path, str) or not path for path in paths):
+            raise ValueError("field_paths must contain non-empty strings")
+        super().__init__(message, field_path=paths[0], issues=issues)
+        self.field_paths = paths
+
+
+class CipherKeyMismatchError(ConfigurationError):
+    def __init__(
+        self,
+        message: str,
+        /,
+        *,
+        cipher: "CipherSpec",
+        key_space: "KeySpec | None" = None,
+        key: "ConcreteKey | None" = None,
+    ) -> None:
+        super().__init__(message)
+        self.cipher = cipher
+        self.key_space = key_space
+        self.key = key
+
+
+class InvalidConcreteKeyError(ConfigurationError):
+    def __init__(
+        self,
+        message: str,
+        /,
+        *,
+        index: int | None = None,
+        value: int | None = None,
+        expected_domain: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.index = index
+        self.value = value
+        self.expected_domain = expected_domain
+
+
+class CipherRegistrationError(ConfigurationError):
+    def __init__(
+        self,
+        message: str,
+        /,
+        *,
+        identity: str,
+        owner: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        _require_non_empty_str(identity, "identity")
+        if owner is not None and (not isinstance(owner, str) or not owner):
+            raise ValueError("owner must be a non-empty string or None")
+        self.identity = identity
+        self.owner = owner
+
+
+def _copy_issues(issues: Sequence["CapabilityIssue"]) -> tuple["CapabilityIssue", ...]:
+    copied = tuple(issues)
+    if any(not isinstance(issue, CapabilityIssue) for issue in copied):
+        raise TypeError("issues must contain CapabilityIssue values")
+    return copied
 
 
 def _require_enum(value: object, enum_type: type[Enum], field_name: str) -> None:
@@ -112,37 +267,37 @@ class CapabilityIssue:
 
 
 @dataclass(frozen=True, slots=True)
-class LaneStatus:
-    lane: ScorerLaneName
-    request_state: RequestState
-    effective_state: EffectiveState
-    rank_effect: RankEffect
+class ScoringLaneStatus:
+    lane: ScoringLane
+    request_state: CapabilityRequestState
+    effective_state: CapabilityEffectiveState
+    ranking_effect: RankingEffect
     fallback_policy: FallbackPolicy
     issues: tuple[CapabilityIssue, ...] = field(default_factory=tuple)
     report_section: str | None = None
 
     def __post_init__(self) -> None:
-        _require_enum(self.lane, ScorerLaneName, "LaneStatus.lane")
-        _require_enum(self.request_state, RequestState, "LaneStatus.request_state")
-        _require_enum(self.effective_state, EffectiveState, "LaneStatus.effective_state")
-        _require_enum(self.rank_effect, RankEffect, "LaneStatus.rank_effect")
-        _require_enum(self.fallback_policy, FallbackPolicy, "LaneStatus.fallback_policy")
+        _require_enum(self.lane, ScoringLane, "ScoringLaneStatus.lane")
+        _require_enum(self.request_state, CapabilityRequestState, "ScoringLaneStatus.request_state")
+        _require_enum(self.effective_state, CapabilityEffectiveState, "ScoringLaneStatus.effective_state")
+        _require_enum(self.ranking_effect, RankingEffect, "ScoringLaneStatus.ranking_effect")
+        _require_enum(self.fallback_policy, FallbackPolicy, "ScoringLaneStatus.fallback_policy")
         for issue in self.issues:
             if not isinstance(issue, CapabilityIssue):
-                raise TypeError("LaneStatus.issues must contain CapabilityIssue entries")
+                raise TypeError("ScoringLaneStatus.issues must contain CapabilityIssue entries")
         if self.report_section is not None and not isinstance(self.report_section, str):
-            raise TypeError("LaneStatus.report_section must be str or None")
+            raise TypeError("ScoringLaneStatus.report_section must be str or None")
 
     @property
     def is_blocking(self) -> bool:
-        return self.effective_state is EffectiveState.BLOCKED
+        return self.effective_state is CapabilityEffectiveState.BLOCKED
 
     def to_json_dict(self) -> dict[str, object]:
         return {
             "lane": self.lane.value,
             "request_state": self.request_state.value,
             "effective_state": self.effective_state.value,
-            "rank_effect": self.rank_effect.value,
+            "ranking_effect": self.ranking_effect.value,
             "fallback_policy": self.fallback_policy.value,
             "issues": [issue.to_json_dict() for issue in self.issues],
             "report_section": self.report_section,
@@ -153,8 +308,8 @@ class LaneStatus:
 class ComponentContract:
     component_id: str
     kind: ComponentKind
-    v1_status: V1Status
-    rank_effect: RankEffect
+    release_status: ReleaseStatus
+    ranking_effect: RankingEffect
     required_if_requested: bool
     default_fallback_policy: FallbackPolicy
     owner_module: str
@@ -163,8 +318,8 @@ class ComponentContract:
     def __post_init__(self) -> None:
         _require_non_empty_str(self.component_id, "component_id")
         _require_enum(self.kind, ComponentKind, "kind")
-        _require_enum(self.v1_status, V1Status, "v1_status")
-        _require_enum(self.rank_effect, RankEffect, "rank_effect")
+        _require_enum(self.release_status, ReleaseStatus, "release_status")
+        _require_enum(self.ranking_effect, RankingEffect, "ranking_effect")
         if type(self.required_if_requested) is not bool:
             raise TypeError("required_if_requested must be bool")
         _require_enum(self.default_fallback_policy, FallbackPolicy, "default_fallback_policy")
@@ -176,8 +331,8 @@ class ComponentContract:
         return {
             "component_id": self.component_id,
             "kind": self.kind.value,
-            "v1_status": self.v1_status.value,
-            "rank_effect": self.rank_effect.value,
+            "release_status": self.release_status.value,
+            "ranking_effect": self.ranking_effect.value,
             "required_if_requested": self.required_if_requested,
             "default_fallback_policy": self.default_fallback_policy.value,
             "owner_module": self.owner_module,
@@ -187,18 +342,18 @@ class ComponentContract:
 
 @dataclass(frozen=True, slots=True)
 class ScorerCapabilityReport:
-    lanes: tuple[LaneStatus, ...]
+    lanes: tuple[ScoringLaneStatus, ...]
     components: tuple[ComponentContract, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
         for lane in self.lanes:
-            if not isinstance(lane, LaneStatus):
-                raise TypeError("ScorerCapabilityReport.lanes must contain LaneStatus entries")
+            if not isinstance(lane, ScoringLaneStatus):
+                raise TypeError("ScorerCapabilityReport.lanes must contain ScoringLaneStatus entries")
         for component in self.components:
             if not isinstance(component, ComponentContract):
                 raise TypeError("ScorerCapabilityReport.components must contain ComponentContract entries")
 
-    def blocked_lanes(self) -> tuple[LaneStatus, ...]:
+    def blocked_lanes(self) -> tuple[ScoringLaneStatus, ...]:
         return tuple(lane for lane in self.lanes if lane.is_blocking)
 
     def raise_if_blocked(self) -> None:

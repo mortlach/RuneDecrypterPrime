@@ -11,7 +11,7 @@ from rune_decrypter_prime.core.component_contracts import (
     CapabilityIssue,
     CapabilityStatus,
     RequestedLaneUnavailableError,
-    ScorerLaneName,
+    ScoringLane,
 )
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode
@@ -30,7 +30,7 @@ WORD_NGRAM_JUDGE_UNAVAILABLE_MESSAGE = (
 _LegacyRuneScorer = _impl.RuneScorer
 
 
-def _requested_lanes(scorer_cfg: ScoringConfig) -> set[ScorerLaneName]:
+def _requested_lanes(scorer_cfg: ScoringConfig) -> set[ScoringLane]:
     return set(scorer_cfg.requested_scorer_lanes())
 
 
@@ -83,7 +83,7 @@ class RuneScorer(_LegacyRuneScorer):
             # channel setup. Preserve those API-visible validation errors.
             raise
         except Exception as exc:
-            if ScorerLaneName.SPAN_HAMMING_CALIBRATED in requested:
+            if ScoringLane.SPAN_HAMMING_CALIBRATED in requested:
                 issue = issue_from_exception(
                     code="calibrated_span_hamming_unavailable",
                     status=CapabilityStatus.UNAVAILABLE,
@@ -117,7 +117,7 @@ class RuneScorer(_LegacyRuneScorer):
                 warnings.warn(warning.message, warning.category, stacklevel=2)
 
         if (
-            ScorerLaneName.HAMMING in requested
+            ScoringLane.HAMMING in requested
             and getattr(self, "_hamming_backend", None) is None
             and hamming_issue is None
         ):
@@ -128,7 +128,7 @@ class RuneScorer(_LegacyRuneScorer):
             )
 
         if (
-            ScorerLaneName.SPAN_HAMMING_RAW in requested
+            ScoringLane.SPAN_HAMMING_RAW in requested
             and getattr(self, "_span_hamming_backend", None) is None
             and span_hamming_issue is None
         ):
