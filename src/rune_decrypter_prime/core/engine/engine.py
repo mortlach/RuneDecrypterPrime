@@ -31,7 +31,7 @@ from rune_decrypter_prime.telemetry.events import (
     run_end   as tel_run_end,
 )
 from rune_decrypter_prime.telemetry.schema import to_canonical_device_str
-from rune_decrypter_prime.api.stop_reason_contract import (
+from rdp.api.stop_reason_contract import (
     ExecutionStatus,
     build_run_status,
     execution_status_for_category,

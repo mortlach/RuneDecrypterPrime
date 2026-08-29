@@ -1,153 +1,69 @@
 from __future__ import annotations
-
-"""Railfence pretty-print tutorial.
-
-This variant keeps the original railfence teaching path but reports through the
-standard RDP printer contract.
-"""
-
+from rdp import api
+'Railfence pretty-print tutorial.\n\nThis variant keeps the original railfence teaching path but reports through the\nstandard RDP printer contract.\n'
 import sys
 from pathlib import Path
 from typing import Sequence
-
 _ROOT = Path(__file__).resolve().parents[2]
-_SRC = _ROOT / "src"
+_SRC = _ROOT / 'src'
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
-
 import numpy as np
-
-from rune_decrypter_prime.api import Direction, KeySpec, NormalizedInput, RunSpec, SolverSpec, by_name, cipher_instance, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
-
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
 TUTORIAL_SEED = 4242
 MIN_RAILS = 4
 MAX_RAILS = 10
 TRUE_RAILS = 7
 MIN_MATCH_RATIO = 1.0
 
-
 def _match_ratio(recovered: Sequence[int], reference: Sequence[int]) -> float:
     limit = min(len(recovered), len(reference))
     if limit == 0:
         return 0.0
-    matches = sum(1 for i in range(limit) if int(recovered[i]) == int(reference[i]))
+    matches = sum((1 for i in range(limit) if int(recovered[i]) == int(reference[i])))
     return matches / float(limit)
 
-
-def _preview_text(label: str, value: str, *, limit: int = 160) -> None:
-    suffix = "..." if len(value) > limit else ""
-    print(f"{label} length: {len(value)}")
-    print(f"{label} preview: {value[:limit]}{suffix}")
-
+def _preview_text(label: str, value: str, *, limit: int=160) -> None:
+    suffix = '...' if len(value) > limit else ''
+    print(f'{label} length: {len(value)}')
+    print(f'{label} preview: {value[:limit]}{suffix}')
 
 def main() -> None:
     pretty.print_rdp_identity()
     pretty.print_initialising()
-    pretty.print_tutorial_contract(
-        name='Railfence beam solve',
-        cipher='railfence',
-        solver='beam',
-        direction='rtl',
-        expected_result='exact solve',
-        uses_reference_stop_score=False,
-    )
-    direction = Direction.RTL
+    pretty.print_tutorial_contract(name='Railfence beam solve', cipher='railfence', solver='beam', direction='rtl', expected_result='exact solve', uses_reference_stop_score=False)
+    direction = api.TextDirection.RIGHT_TO_LEFT
     pt_latin = plaintext_english_string
     reference_idx, wli, pt_runes = Runeglish.encode_english_to_runes(pt_latin, direction=direction.value)
-    cipher_spec = by_name.cipher("railfence", min_rails=MIN_RAILS, max_rails=MAX_RAILS)
-    rail_key = [TRUE_RAILS - MIN_RAILS]
-    ct = cipher_instance("railfence", min_rails=MIN_RAILS, max_rails=MAX_RAILS).encrypt(
-        plaintext=np.asarray(reference_idx, dtype=np.uint8),
-        key=np.asarray(rail_key, dtype=np.uint8),
-    )
-    ct_idx = [int(v) for v in ct.tolist()]
+    cipher_spec = api.CipherSpec.rail_fence(minimum_rails=MIN_RAILS, maximum_rails=MAX_RAILS, alphabet_size=29)
+    rail_key = (TRUE_RAILS,)
+    ct = api.encrypt(tuple(int(value) for value in reference_idx), cipher=api.CipherSpec.rail_fence(minimum_rails=MIN_RAILS, maximum_rails=MAX_RAILS, alphabet_size=29), key=(int(rail_key[0]),))
+    ct_idx = [int(v) for v in list(ct)]
     ct_runes = Runeglish.to_rune(ct_idx, wli)
-
-    print("Railfence problem")
-    print(f"encoding direction: {direction.value}")
-    print(f"true rails: {TRUE_RAILS}")
-    print(f"qualified rail range: {MIN_RAILS}..{MAX_RAILS}")
-    _preview_text("plaintext runes", pt_runes)
-    _preview_text("ciphertext runes", ct_runes)
-    print_tutorial_debug_preview(label="plaintext", idx=reference_idx, wli=wli, direction=direction)
-    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx, wli=wli, direction=direction)
-
-    key_spec = KeySpec.scalar(max_val=MAX_RAILS - MIN_RAILS + 1)
-    scorer_params = dict(
-        objective="pct.logp.win10",
-        include_char=True,
-        use_word_breaks=True,
-        char_weights={2: 0.3},
-        wli_weights={2: 0.7},
-        encoding_dir=direction,
-    )
-    display_scorer_params = {
-        "objective": "pct.logp.win10",
-        "include_char": True,
-        "use_word_breaks": True,
-        "encoding_dir": direction.value,
-        "char_order_2_weight": 0.3,
-        "wli_order_2_weight": 0.7,
-    }
-
-    solver_spec = SolverSpec.beam(
-        beam_width=64,
-        log_interval=20,
-        plateau_rounds=40,
-        seed=TUTORIAL_SEED,
-    )
-    display_spec = RunSpec(
-        problem_input=NormalizedInput(ct_idx=ct_idx, wli=wli),
-        cipher=cipher_spec,
-        key=key_spec,
-        solver=solver_spec,
-        scorer="rune",
-        scorer_params=display_scorer_params,
-        encoding_dir=direction,
-        telemetry_on=True,
-    )
-
-    result = run(
-        text=ct_runes,
-        cipher=cipher_spec,
-        key=key_spec,
-        solver=solver_spec,
-        device="cpu",
-        scorer="rune",
-        scorer_params=scorer_params,
-        wli_data=wli,
-        encoding_dir=direction,
-        telemetry_on=True,
-        return_solver_report=True,
-    )
-
-    recovered = getattr(result.solution, "plaintext_rune", "") or getattr(result.solution, "plaintext_str", "")
-    print("Recovered plaintext preview:", recovered[:120] + ("..." if len(recovered) > 120 else ""))
-    match_ratio = _match_ratio(result.solution.plaintext_idx, reference_idx)
-    print(f"Match ratio: {match_ratio:.3f}")
-
+    print('Railfence problem')
+    print(f'encoding direction: {direction.value}')
+    print(f'true rails: {TRUE_RAILS}')
+    print(f'qualified rail range: {MIN_RAILS}..{MAX_RAILS}')
+    _preview_text('plaintext runes', pt_runes)
+    _preview_text('ciphertext runes', ct_runes)
+    print_tutorial_debug_preview(label='plaintext', idx=reference_idx, wli=wli, direction=direction)
+    print_tutorial_debug_preview(label='ciphertext', idx=ct_idx, wli=wli, direction=direction)
+    key_spec = api.KeySpec.scalar(minimum=MIN_RAILS, maximum=MAX_RAILS)
+    scorer_params = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=True, character_order_weights={2: 0.3}, word_length_order_weights={2: 0.7}, objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10))
+    display_scorer_params = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=True, character_order_weights={2: 0.3}, word_length_order_weights={2: 0.7}, objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10))
+    solver_spec = api.SolverSpec.beam_search(width=64, plateau_rounds=40, seed=TUTORIAL_SEED, rounds=0)
+    display_spec = api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver_spec, scoring=display_scorer_params, text_direction=direction, telemetry_enabled=True)
+    result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver_spec, scoring=scorer_params, telemetry_enabled=True, text_direction=direction, compute_device=api.ComputeDevice.CPU))
+    recovered = (result.plaintext_text or '') or (result.plaintext_text or '')
+    print('Recovered plaintext preview:', recovered[:120] + ('...' if len(recovered) > 120 else ''))
+    match_ratio = _match_ratio(result.plaintext, reference_idx)
+    print(f'Match ratio: {match_ratio:.3f}')
     pretty.print_summary_spacer()
-    print_rdp_result(
-        result,
-        spec=display_spec,
-        reference_idx=reference_idx,
-        tutorial_entry={
-            "path": "Tutorial_Railfence.py",
-            "title": "Railfence pretty-print variant",
-            "gate": "v1_smoke_pretty_print",
-            "acceptance_kind": "exact",
-            "min_match_ratio": MIN_MATCH_RATIO,
-            "uses_oracle_stop_score": False,
-        },
-    )
-
-
-if __name__ == "__main__":
+    api.display.print_result(result, options=api.display.SummaryOptions.tutorial())
+if __name__ == '__main__':
     main()

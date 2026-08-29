@@ -8,9 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from rune_decrypter_prime.api.run_spec import RuneIndexInput, RunSpec
-from rune_decrypter_prime.api.run_result import RunResult
-from rune_decrypter_prime.api.specs import CipherSpec, KeySpec, SolverSpec
+from rdp.api import CipherSpec, KeySpec, RuneIndexInput, RunResult, RunSpec, SolverSpec
 from rune_decrypter_prime.ciphers import cipher_runtime_registry
 from rune_decrypter_prime.core.config.interruptor import InterruptorConfig
 from rune_decrypter_prime.core.config.cipher import (
@@ -323,7 +321,7 @@ def test_mask_schedule_is_bound_to_the_run_input_length() -> None:
 
 
 def test_both_run_forms_use_one_execution_path_and_always_return_run_result(monkeypatch) -> None:
-    run_module = importlib.import_module("rune_decrypter_prime.api.run")
+    run_module = importlib.import_module("rdp.api.run")
     calls: list[dict[str, object]] = []
 
     def fake_execute_run(**kwargs):
@@ -374,7 +372,7 @@ def test_both_run_forms_use_one_execution_path_and_always_return_run_result(monk
 
 
 def test_run_writes_only_requested_typed_artifacts(monkeypatch, tmp_path: Path) -> None:
-    run_module = importlib.import_module("rune_decrypter_prime.api.run")
+    run_module = importlib.import_module("rdp.api.run")
 
     def fake_execute_run(**kwargs):
         from rune_decrypter_prime.core.config.logging_config import init_logging

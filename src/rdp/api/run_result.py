@@ -8,14 +8,14 @@ from dataclasses import dataclass, field
 from numbers import Real
 from types import MappingProxyType
 
-from rune_decrypter_prime.api.run_artifact_manifest import RunArtifactManifestRow
-from rune_decrypter_prime.api.solver_report import (
+from rdp.api.run_artifact_manifest import RunArtifactManifestRow
+from rdp.api.solver_report import (
     OracleReport,
     ReproducibilityMetadata,
     RunConfigurationReport,
     SolverReport,
 )
-from rune_decrypter_prime.api.stop_reason_contract import RunStatus
+from rdp.api.stop_reason_contract import RunStatus
 from rune_decrypter_prime.core.types import (
     ConcreteKey,
     JsonValue,

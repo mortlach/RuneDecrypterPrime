@@ -6,8 +6,7 @@ import inspect
 
 import pytest
 
-from rune_decrypter_prime.api import decrypt, encrypt, experimental
-from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+from rdp.api import CipherSpec, KeySpec, decrypt, encrypt, experimental
 from rune_decrypter_prime.core.config.cipher import materialize_cipher_config
 from rune_decrypter_prime.core.engine.builders import build_cipher
 from rune_decrypter_prime.core.types import ComputeDevice, TextDirection

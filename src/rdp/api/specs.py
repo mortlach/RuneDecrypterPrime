@@ -87,6 +87,15 @@ def _strict_sequence(value: object, field_name: str) -> Sequence[object]:
     return value
 
 
+def _strict_word(value: object, field_name: str) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"{field_name} must be a string")
+    word = value.strip().lower()
+    if not word or not word.isascii() or not word.isalpha():
+        raise ValueError(f"{field_name} must contain only ASCII letters")
+    return word
+
+
 def _strict_int_tuple(
     value: object,
     field_name: str,
@@ -789,21 +798,24 @@ class SolverSpec(_ImmutableSpec):
             if not isinstance(item, Sequence) or isinstance(item, (str, bytes)) or len(item) != 2:
                 raise TypeError(f"fixed_cribs[{index}] must be a (word, position) pair")
             word, position = item
-            if not isinstance(word, str) or not word:
-                raise ValueError(f"fixed_cribs[{index}].word must be non-empty")
-            copied_cribs.append((word, _strict_int(position, f"fixed_cribs[{index}].position", minimum=0)))
-        words = tuple(candidate_words)
-        if any(not isinstance(word, str) or not word for word in words):
-            raise ValueError("candidate_words must contain non-empty strings")
+            copied_cribs.append((_strict_word(word, f"fixed_cribs[{index}].word"), _strict_int(position, f"fixed_cribs[{index}].position", minimum=0)))
+        words = tuple(sorted(set(
+            _strict_word(word, f"candidate_words[{index}]")
+            for index, word in enumerate(_strict_sequence(candidate_words, "candidate_words"))
+        )))
         positions: dict[str, tuple[int, ...]] | None = None
         if candidate_positions is not None:
             if not isinstance(candidate_positions, Mapping):
                 raise TypeError("candidate_positions must be a mapping or None")
             positions = {}
-            for word, items in candidate_positions.items():
-                if not isinstance(word, str) or not word:
-                    raise ValueError("candidate_positions keys must be non-empty strings")
-                positions[word] = _strict_int_tuple(items, f"candidate_positions.{word}", minimum=0)
+            for raw_word, items in candidate_positions.items():
+                word = _strict_word(raw_word, "candidate_positions key")
+                if word not in words:
+                    raise ValueError(f"candidate_positions contains unknown word {word!r}")
+                positions[word] = tuple(sorted(set(_strict_int_tuple(items, f"candidate_positions.{word}", minimum=0))))
+        copied_cribs = sorted(set(copied_cribs))
+        if not copied_cribs and not words:
+            raise ValueError("at least one fixed crib or candidate word is required")
         return cls._create(SolverKind.TWO_PERIOD_CRIBS, seed, {
             "fixed_cribs": tuple(copied_cribs),
             "candidate_words": words,
@@ -894,7 +906,7 @@ class SolverSpec(_ImmutableSpec):
 
     @classmethod
     def beam(cls, **parameters: Any) -> SolverSpec:
-        from rune_decrypter_prime.api._resolve import resolve_optimizer_aliases
+        from rdp.api._resolve import resolve_optimizer_aliases
 
         seed = parameters.pop("seed", None)
         values = resolve_optimizer_aliases("beam", dict(parameters))
@@ -905,7 +917,7 @@ class SolverSpec(_ImmutableSpec):
 
     @classmethod
     def ga(cls, **parameters: Any) -> SolverSpec:
-        from rune_decrypter_prime.api._resolve import resolve_optimizer_aliases
+        from rdp.api._resolve import resolve_optimizer_aliases
 
         seed = parameters.pop("seed", None)
         values = resolve_optimizer_aliases("ga", dict(parameters))
@@ -918,7 +930,7 @@ class SolverSpec(_ImmutableSpec):
 
     @classmethod
     def sa(cls, **parameters: Any) -> SolverSpec:
-        from rune_decrypter_prime.api._resolve import resolve_optimizer_aliases
+        from rdp.api._resolve import resolve_optimizer_aliases
 
         seed = parameters.pop("seed", None)
         values = resolve_optimizer_aliases("sa", dict(parameters))

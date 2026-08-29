@@ -1,156 +1,92 @@
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
-from rune_decrypter_prime.api.wrappers.by_name import by_name
-from rune_decrypter_prime.api.wrappers.registry import build_cipher_config
-from rune_decrypter_prime.ciphers import registry as cipher_registry
-from rune_decrypter_prime.ciphers.scheduled_stream_lookup_cipher import solved_key_length_for_streams
-from rune_decrypter_prime.core.types import Device, Direction, KeyOpsFamily
+from rdp import api
+from rune_decrypter_prime.ciphers import cipher_runtime_registry
+from rune_decrypter_prime.core.config.cipher import materialize_cipher_config
+from rune_decrypter_prime.core.types import KeyOpsFamily
 
 
-def _cfg(spec, key):
-    return build_cipher_config(
+def _cfg(spec: api.CipherSpec, key_space: api.KeySpec):
+    return materialize_cipher_config(
         cipher=spec,
-        key=key,
-        ciphertext=np.arange(8, dtype=np.uint8),
-        wli=None,
-        device=Device.CPU,
-        encoding_dir=Direction.LTR,
-        initial_text_permutation_indices=None,
-        initial_keys=None,
-        interruptors=None,
-        interruptors_exact=None,
-        interruptors_pool=None,
-        interruptors_max=None,
+        key_space=key_space,
+        ciphertext=tuple(range(8)),
+        word_lengths=None,
+        compute_device=api.ComputeDevice.CPU,
+        text_direction=api.TextDirection.LEFT_TO_RIGHT,
     )
 
 
-def test_engine_registry_exposes_only_real_core_cipher_name():
-    assert cipher_registry.has("scheduled_stream_lookup")
-    assert not cipher_registry.has("two_period_vigenere")
-    assert not cipher_registry.has("two_period_arithmetic")
-    assert not cipher_registry.has("periodic_plus_primes")
-    assert not cipher_registry.has("periodic_plus_sequence")
+def test_engine_registry_exposes_only_real_runtime_identity() -> None:
+    assert cipher_runtime_registry.has("scheduled_stream_lookup")
+    assert not cipher_runtime_registry.has("two_period_vigenere")
+    assert not cipher_runtime_registry.has("periodic_with_prime_stream")
 
 
-def test_shared_key_length_contract():
-    assert solved_key_length_for_streams(
-        [
-            {"name": "A", "kind": "periodic", "period": 13},
-            {"name": "B", "kind": "periodic", "period": 31},
-        ]
-    ) == 44
-    assert solved_key_length_for_streams(
-        [
-            {"name": "A", "kind": "periodic", "period": 13},
-            {"name": "B", "kind": "primes"},
-        ]
-    ) == 13
-    assert solved_key_length_for_streams(
-        [
-            {"name": "A", "kind": "periodic", "period": 13},
-            {"name": "S", "kind": "sequence", "values": [1, 2, 3]},
-        ]
-    ) == 13
+@pytest.mark.parametrize(
+    ("cipher", "key_space", "expected_length", "second_stream_kind"),
+    [
+        (
+            api.CipherSpec.two_period_vigenere(first_period=13, second_period=31),
+            api.KeySpec.repeating(length=44),
+            44,
+            "periodic",
+        ),
+        (
+            api.CipherSpec.periodic_with_fixed_stream((3, 4, 5), period=13),
+            api.KeySpec.repeating(length=13),
+            13,
+            "fixed",
+        ),
+        (
+            api.CipherSpec.periodic_with_prime_stream(period=13, prime_offset=2),
+            api.KeySpec.repeating(length=13),
+            13,
+            "primes",
+        ),
+        (
+            api.CipherSpec.two_period_streams(
+                first_period=7,
+                second_period=11,
+                operation=api.advanced.ScheduledStreamOperation.ADD_SUBTRACT,
+            ),
+            api.KeySpec.repeating(length=18),
+            18,
+            "periodic",
+        ),
+    ],
+)
+def test_scheduled_families_materialize_exact_key_binding(
+    cipher: api.CipherSpec,
+    key_space: api.KeySpec,
+    expected_length: int,
+    second_stream_kind: str,
+) -> None:
+    cfg = _cfg(cipher, key_space)
 
-
-def test_generic_scheduled_stream_wrapper_key_length_and_metadata():
-    spec, key = by_name.cipher_with_key(
-        "scheduled_stream_lookup",
-        streams=[
-            {"name": "A", "kind": "periodic", "period": 5},
-            {"name": "S", "kind": "sequence", "values": [3, 4, 5]},
-        ],
-        operation="add",
-        default_key=True,
-    )
-    cfg = _cfg(spec, key)
     assert cfg.name == "scheduled_stream_lookup"
-    assert cfg.key_length == 5
-    assert cfg.keyops_family == KeyOpsFamily.VECTOR
+    assert cfg.key_length == expected_length
+    assert cfg.keyops_family is KeyOpsFamily.VECTOR
     assert cfg.keyops_hints == {"mod": 29}
-    assert cfg.streams[1]["kind"] == "sequence"
+    assert cfg.streams[1]["kind"] == second_stream_kind
 
 
-def test_periodic_plus_sequence_alias_key_length():
-    spec, key = by_name.cipher_with_key(
-        "periodic_plus_sequence",
-        period=13,
-        sequence=[1, 2, 3, 4],
-        default_key=True,
+def test_mask_schedule_is_preserved() -> None:
+    cipher = api.CipherSpec.two_period_vigenere(
+        first_period=2,
+        second_period=3,
+        schedule=api.advanced.ScheduledStreamSchedule.MASK,
+        mask=(1, 2, 3, 1, 2, 3, 1, 2),
     )
-    cfg = _cfg(spec, key)
-    assert cfg.key_length == 13
-    assert cfg.streams[1]["kind"] == "sequence"
+    cfg = _cfg(cipher, api.KeySpec.repeating(length=5))
+
+    assert cfg.mask == (1, 2, 3, 1, 2, 3, 1, 2)
 
 
-def test_two_period_vigenere_wrapper_key_length():
-    spec, key = by_name.cipher_with_key("two_period_vigenere", period_a=13, period_b=31, default_key=True)
-    cfg = _cfg(spec, key)
-    assert cfg.name == "scheduled_stream_lookup"
-    assert cfg.key_length == 44
+def test_scheduled_key_length_conflict_is_rejected() -> None:
+    cipher = api.CipherSpec.two_period_vigenere(first_period=2, second_period=3)
 
-
-def test_periodic_plus_primes_wrapper_key_length():
-    spec, key = by_name.cipher_with_key("periodic_plus_primes", period=13, default_key=True)
-    cfg = _cfg(spec, key)
-    assert cfg.key_length == 13
-    assert cfg.streams[1]["kind"] == "primes"
-
-
-def test_explicit_scheduled_stream_wrapper_preserves_degeneracy_and_limits():
-    spec, key = by_name.cipher_with_key(
-        "scheduled_stream_lookup",
-        streams=[
-            {"name": "A", "kind": "periodic", "period": 5},
-            {"name": "B", "kind": "primes"},
-        ],
-        operation="xor_mod",
-        degeneracy="allow",
-        per_pos_limit=17,
-        resolver_limit=1234,
-        default_key=True,
-    )
-    cfg = _cfg(spec, key)
-    assert cfg.key_length == 5
-    assert cfg.operation == "xor_mod"
-    assert cfg.degeneracy == "allow"
-    assert cfg.per_pos_limit == 17
-    assert cfg.resolver_limit == 1234
-
-
-def test_two_period_arithmetic_preserves_operation():
-    spec, key = by_name.cipher_with_key(
-        "two_period_arithmetic",
-        period_a=7,
-        period_b=11,
-        operation="add_sub",
-        default_key=True,
-    )
-    cfg = _cfg(spec, key)
-    assert cfg.key_length == 18
-    assert cfg.operation == "add_sub"
-    assert spec.name == "scheduled_stream_lookup"
-
-
-def test_bad_stream_specs_rejected_by_config_builder():
-    spec, key = by_name.cipher_with_key(
-        "scheduled_stream_lookup",
-        streams=[
-            {"name": "A", "kind": "periodic", "period": 2},
-            {"name": "B", "kind": "periodic", "period": 3},
-            {"name": "C", "kind": "periodic", "period": 5},
-        ],
-        default_key=True,
-    )
-    with pytest.raises(ValueError, match="one or two streams"):
-        _cfg(spec, key)
-
-    with pytest.raises(ValueError, match="unknown stream kind"):
-        by_name.cipher_with_key(
-            "scheduled_stream_lookup",
-            streams=[{"name": "A", "kind": "derived", "period": 2}],
-            default_key=True,
-        )
+    with pytest.raises(api.advanced.CipherKeyMismatchError, match="length"):
+        _cfg(cipher, api.KeySpec.repeating(length=4))

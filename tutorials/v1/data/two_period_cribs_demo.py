@@ -12,10 +12,9 @@ from typing import Sequence
 import numpy as np
 
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1, word_breaks1
-from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+from rdp import api
 from rune_decrypter_prime.core.config.cipher import materialize_cipher_config
 from rune_decrypter_prime.core.engine.builders import build_cipher
-from rune_decrypter_prime.core.types import ComputeDevice, TextDirection
 
 
 TEXT_LENGTH = 308
@@ -33,8 +32,37 @@ class TwoPeriodDemoFixture:
     reference_interruptors: tuple[int, ...] = ()
 
 
+def encrypt_interruptor_fixture(
+    plaintext: Sequence[int],
+    *,
+    cipher: api.CipherSpec,
+    key: tuple[int, ...],
+    interruptor_positions: Sequence[int],
+) -> np.ndarray:
+    """Prepare deterministic interruptor ciphertext for tutorials and tests."""
+    if not isinstance(key, tuple):
+        raise TypeError("key must be ConcreteKey (tuple[int, ...])")
+    plaintext_values = tuple(int(value) for value in plaintext)
+    key_space = api.KeySpec.repeating(length=len(key))
+    config = materialize_cipher_config(
+        cipher=cipher,
+        key_space=key_space,
+        ciphertext=plaintext_values,
+        word_lengths=None,
+        text_direction=api.TextDirection.RIGHT_TO_LEFT,
+        compute_device=api.ComputeDevice.CPU,
+    )
+    encrypted = build_cipher(config).encrypt(
+        plaintext=np.asarray(plaintext_values, dtype=np.uint8),
+        key=np.asarray(key, dtype=np.uint8),
+        interrupt_idx=np.asarray(tuple(interruptor_positions), dtype=np.intp),
+    )
+    result = np.asarray(encrypted, dtype=np.uint8)
+    return result[0] if result.ndim == 2 else result
+
+
 def build_demo_fixture(
-    cipher_spec: CipherSpec,
+    cipher_spec: api.CipherSpec,
     *,
     interruptors: Sequence[int] = (),
 ) -> TwoPeriodDemoFixture:
@@ -62,16 +90,16 @@ def build_demo_fixture(
         ],
         dtype=np.uint8,
     )
-    if not isinstance(cipher_spec, CipherSpec):
+    if not isinstance(cipher_spec, api.CipherSpec):
         raise TypeError("cipher_spec must be CipherSpec")
-    key_space = KeySpec.repeating(length=len(reference_key))
+    key_space = api.KeySpec.repeating(length=len(reference_key))
     config = materialize_cipher_config(
         cipher=cipher_spec,
         key_space=key_space,
         ciphertext=tuple(int(value) for value in plaintext),
         word_lengths=wli,
-        text_direction=TextDirection.RIGHT_TO_LEFT,
-        compute_device=ComputeDevice.CPU,
+        text_direction=api.TextDirection.RIGHT_TO_LEFT,
+        compute_device=api.ComputeDevice.CPU,
     )
     runtime = build_cipher(config)
     encrypted = runtime.encrypt(
@@ -102,4 +130,5 @@ __all__ = [
     "TEXT_LENGTH",
     "TwoPeriodDemoFixture",
     "build_demo_fixture",
+    "encrypt_interruptor_fixture",
 ]

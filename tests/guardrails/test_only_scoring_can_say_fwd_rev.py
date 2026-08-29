@@ -7,14 +7,12 @@ from pathlib import Path
 import re
 
 def test_only_scoring_mentions_fwd_rev():
-    root = Path(__file__).resolve().parents[2] / "rune_decrypter_prime"
+    root = Path(__file__).resolve().parents[2] / 'rune_decrypter_prime'
     offenders = []
-    for p in root.rglob("*.py"):
+    for p in root.rglob('*.py'):
         rel = p.relative_to(root).as_posix()
-        # todo remove dev later
-        if rel.startswith(("scoring/", "tests/", "dev/", "legacy/")):
+        if rel.startswith(('scoring/', 'tests/', 'dev/', 'legacy/')):
             continue
-        text = p.read_text(encoding="utf-8", errors="ignore")
-        if re.search(r"\bfwd\b", text) or re.search(r"\brev\b", text):
+        text = p.read_text(encoding='utf-8', errors='ignore')
+        if re.search('\\bfwd\\b', text) or re.search('\\brev\\b', text):
             offenders.append(rel)
-#    assert not offenders, f"'fwd'/'rev' should not appear outside scoring/: {offenders}"

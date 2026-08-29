@@ -452,6 +452,12 @@ def _coerce_enum_value(enum_cls, value, *, aliases=None, param_name="value"):
 
 
 def ensure_direction(value) -> Direction:
+    if isinstance(value, TextDirection):
+        return (
+            Direction.LTR
+            if value is TextDirection.LEFT_TO_RIGHT
+            else Direction.RTL
+        )
     return _coerce_enum_value(Direction, value, aliases={
         "forward": Direction.LTR,
         "fwd": Direction.LTR,

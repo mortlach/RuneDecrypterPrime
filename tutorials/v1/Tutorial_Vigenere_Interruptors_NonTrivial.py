@@ -1,27 +1,21 @@
 from __future__ import annotations
-
-"""Larger single-start Vigenere interruptor Beam-search tutorial."""
-
+from tutorials.v1.data.two_period_cribs_demo import encrypt_interruptor_fixture
+from rdp import api
+'Larger single-start Vigenere interruptor Beam-search tutorial.'
 import sys
 from pathlib import Path
-
 _ROOT = Path(__file__).resolve().parents[2]
-_SRC = _ROOT / "src"
+_SRC = _ROOT / 'src'
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
-
 import numpy as np
-
-from rune_decrypter_prime.api import Direction, InterruptorConfig, KeySpec, NormalizedInput, RunSpec, SolverSpec, by_name, cipher_instance, print_rdp_result, run
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1, word_breaks1
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
-
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
 TUTORIAL_SEED = 2027
 INTERRUPTOR_SYMBOL = 27
 INTERRUPTOR_TRUE_COUNT = 2
@@ -30,155 +24,51 @@ INTERRUPTOR_MAX = 3
 KEY_NUMS = [7, 0, 13, 2, 5, 21, 8]
 MIN_MATCH_RATIO = 1.0
 
-
-def _preview(text: str, limit: int = 160) -> str:
-    return text[:limit] + ("..." if len(text) > limit else "")
-
+def _preview(text: str, limit: int=160) -> str:
+    return text[:limit] + ('...' if len(text) > limit else '')
 
 def main() -> None:
     pretty.print_rdp_identity()
     pretty.print_initialising()
-    pretty.print_tutorial_contract(
-        name='Vigenere larger single-start interruptor Beam search',
-        cipher='vigenere interruptors',
-        solver='beam',
-        direction='ltr',
-        expected_result='exact solve',
-        uses_reference_stop_score=True,
-    )
-    direction = Direction.LTR
+    pretty.print_tutorial_contract(name='Vigenere larger single-start interruptor Beam search', cipher='vigenere interruptors', solver='beam', direction='ltr', expected_result='exact solve', uses_reference_stop_score=True)
+    direction = api.TextDirection.LEFT_TO_RIGHT
     pt_idx = [int(v) for v in plaintext1]
     wli = [list(pair) for pair in word_breaks1]
-
     interruptors = [i for i, v in enumerate(pt_idx) if v == INTERRUPTOR_SYMBOL]
     if len(interruptors) != INTERRUPTOR_TRUE_COUNT:
-        raise ValueError(
-            f"Expected {INTERRUPTOR_TRUE_COUNT} interruptors with symbol {INTERRUPTOR_SYMBOL}, "
-            f"found {len(interruptors)}"
-        )
-
+        raise ValueError(f'Expected {INTERRUPTOR_TRUE_COUNT} interruptors with symbol {INTERRUPTOR_SYMBOL}, found {len(interruptors)}')
     pt_arr = np.asarray(pt_idx, dtype=np.uint8)
     key_arr = np.asarray(KEY_NUMS, dtype=np.uint8)
-    encrypt_cipher = cipher_instance(
-        "vigenere",
-        key_length=int(key_arr.size),
-        text_transposition=direction.value,
-    )
-
-    ct_idx = encrypt_cipher.encrypt_single(
-        plaintext=pt_arr,
-        key=key_arr,
-        interrupt_idx=interruptors,
-    )
+    encrypt_cipher = api.CipherSpec.vigenere(alphabet_size=29)
+    ct_idx = encrypt_interruptor_fixture(pt_arr, cipher=encrypt_cipher, key=tuple((int(_concrete_key_value) for _concrete_key_value in key_arr)), interruptor_positions=interruptors)
     ct_idx_list = [int(v) for v in ct_idx.tolist()]
-
     pool = sorted({i for i, v in enumerate(ct_idx_list) if v == INTERRUPTOR_SYMBOL})
     if not set(interruptors).issubset(set(pool)):
-        raise ValueError("Interruptor positions not found in symbol-derived pool")
-
+        raise ValueError('Interruptor positions not found in symbol-derived pool')
     pt_runes = Runeglish.to_rune(pt_idx, wli)
     ct_runes = Runeglish.to_rune(ct_idx_list, wli)
-
-    print("Vigenere non-trivial interruptor problem")
-    print(f"encoding direction: {direction.value}")
-    print("Interruptor symbol:", INTERRUPTOR_SYMBOL)
-    print("Interruptor positions (true):", interruptors)
-    print("Interruptor count range:", f"{INTERRUPTOR_MIN}..{INTERRUPTOR_MAX}")
-    print("Interruptor pool size:", len(pool))
-    print("Interruptor pool preview:", pool[:12])
-    print("Plaintext preview:", _preview(pt_runes))
-    print("Ciphertext preview:", _preview(ct_runes))
-    print_tutorial_debug_preview(label="plaintext", idx=pt_idx, wli=wli, direction=direction)
-    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx_list, wli=wli, direction=direction)
-
-    interrupt_cfg = InterruptorConfig(
-        mode="pool",
-        pool=pool,
-        min_count=INTERRUPTOR_MIN,
-        max_count=INTERRUPTOR_MAX,
-    )
-
-    scorer_params = dict(
-        objective="pct.logp.win10",
-        include_char=True,
-        use_word_breaks=True,
-        char_weights={2: 0.3},
-        wli_weights={2: 0.7},
-        encoding_dir=direction,
-    )
-    display_scorer_params = {
-        "objective": "pct.logp.win10",
-        "include_char": True,
-        "use_word_breaks": True,
-        "encoding_dir": direction.value,
-        "char_order_2_weight": 0.3,
-        "wli_order_2_weight": 0.7,
-    }
-
-    stop = oracle_stop_score(
-        pt_idx,
-        wli,
-        scorer_params,
-        device="cpu",
-        encoding_dir=direction,
-        margin=0.02,
-        min_score=0.50,
-        fallback=0.55,
-    )
-    print_stop_summary("Vigenere Interruptors (non-trivial)", stop)
-
-    solver = SolverSpec.beam(
-        beam_width=64,
-        expand_mode="sweep",
-        plateau_rounds=8,
-        plateau_min_delta=1e-4,
-        stop_score=stop.stop_score,
-        progress_pct=5,
-        print_progress=True,
-        progress_preview_chars=120,
-        seed=TUTORIAL_SEED,
-    )
-    cipher_spec = by_name.cipher("vigenere")
-    key_spec = KeySpec.repeat(len=len(KEY_NUMS))
-    display_spec = RunSpec(
-        problem_input=NormalizedInput(ct_idx=ct_idx_list, wli=wli),
-        cipher=cipher_spec,
-        key=key_spec,
-        solver=solver,
-        scorer="rune",
-        scorer_params=display_scorer_params,
-        encoding_dir=direction,
-        telemetry_on=True,
-    )
-
-    result = run(
-        text=ct_idx_list,
-        cipher=cipher_spec,
-        key=key_spec,
-        solver=solver,
-        scorer_params=dict(scorer_params),
-        wli_data=wli,
-        encoding_dir=direction,
-        telemetry_on=True,
-        interruptors=interrupt_cfg,
-        return_solver_report=True,
-    )
-
+    print('Vigenere non-trivial interruptor problem')
+    print(f'encoding direction: {direction.value}')
+    print('Interruptor symbol:', INTERRUPTOR_SYMBOL)
+    print('Interruptor positions (true):', interruptors)
+    print('Interruptor count range:', f'{INTERRUPTOR_MIN}..{INTERRUPTOR_MAX}')
+    print('Interruptor pool size:', len(pool))
+    print('Interruptor pool preview:', pool[:12])
+    print('Plaintext preview:', _preview(pt_runes))
+    print('Ciphertext preview:', _preview(ct_runes))
+    print_tutorial_debug_preview(label='plaintext', idx=pt_idx, wli=wli, direction=direction)
+    print_tutorial_debug_preview(label='ciphertext', idx=ct_idx_list, wli=wli, direction=direction)
+    interrupt_cfg = api.InterruptorConfig.search(pool, minimum_count=INTERRUPTOR_MIN, maximum_count=INTERRUPTOR_MAX, strategy=api.advanced.InterruptorSearchStrategy.AUTO, maximum_combinations=5000)
+    scorer_params = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=True, character_order_weights={2: 0.3}, word_length_order_weights={2: 0.7}, objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10))
+    display_scorer_params = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=True, character_order_weights={2: 0.3}, word_length_order_weights={2: 0.7}, objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10))
+    stop = oracle_stop_score(pt_idx, wli, scorer_params, device='cpu', encoding_dir=direction, margin=0.02, min_score=0.5, fallback=0.55)
+    print_stop_summary('Vigenere Interruptors (non-trivial)', stop)
+    solver = api.SolverSpec.beam_search(width=64, expansion=api.advanced.BeamExpansionMode.SWEEP, plateau_rounds=8, plateau_minimum_delta=0.0001, target_score=stop.stop_score, seed=TUTORIAL_SEED, rounds=0)
+    cipher_spec = api.CipherSpec.vigenere(alphabet_size=29)
+    key_spec = api.KeySpec.repeating(length=len(KEY_NUMS))
+    display_spec = api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx_list, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=display_scorer_params, text_direction=direction, telemetry_enabled=True)
+    result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx_list, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=scorer_params, telemetry_enabled=True, text_direction=direction, interruptors=interrupt_cfg))
     pretty.print_summary_spacer()
-    print_rdp_result(
-        result,
-        spec=display_spec,
-        reference_idx=pt_idx,
-        tutorial_entry={
-            "path": "Tutorial_Vigenere_Interruptors_NonTrivial.py",
-            "title": "Vigenere larger single-start interruptor Beam search",
-            "gate": "v1_extended_pretty_print",
-            "acceptance_kind": "exact",
-            "min_match_ratio": MIN_MATCH_RATIO,
-            "uses_oracle_stop_score": True,
-        },
-    )
-
-
-if __name__ == "__main__":
+    api.display.print_result(result, options=api.display.SummaryOptions.tutorial())
+if __name__ == '__main__':
     main()

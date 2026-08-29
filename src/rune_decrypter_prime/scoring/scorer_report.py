@@ -13,7 +13,7 @@ from rune_decrypter_prime.core.types import JsonObject, JsonValue
 
 
 def _json_mapping(value: Mapping[str, object], field_name: str) -> Mapping[str, JsonValue]:
-    from rune_decrypter_prime.api.solver_report import _mapping
+    from rdp.api.solver_report import _mapping
 
     return _mapping(value, field_name)
 

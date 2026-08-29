@@ -7,7 +7,7 @@ import inspect
 from collections.abc import Callable, Sequence
 from enum import StrEnum
 
-from rune_decrypter_prime.api.specs import CipherSpec
+from rdp.api.specs import CipherSpec
 from rune_decrypter_prime.core.types import CipherKind
 
 

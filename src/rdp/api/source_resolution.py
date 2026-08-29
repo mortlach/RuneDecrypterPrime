@@ -8,7 +8,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
-from rune_decrypter_prime.api.run_spec import SourceInputRef
+from rdp.api.run_spec import SourceInputRef
 
 
 SUPPORTED_SOURCE_KINDS = frozenset(

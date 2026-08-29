@@ -8,7 +8,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
-from rune_decrypter_prime.api.specs import CipherSpec, KeySpec, SolverSpec
+from rdp.api.specs import CipherSpec, KeySpec, SolverSpec
 from rune_decrypter_prime.core.config.interruptor import InterruptorConfig
 from rune_decrypter_prime.core.config.logging_config import LoggingConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig

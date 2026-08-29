@@ -11,24 +11,32 @@ from typing import Any, Callable, Sequence
 
 import numpy as np
 
-from rune_decrypter_prime.api.pipeline_helpers import finalize_solution
-from rune_decrypter_prime.api.stop_reason_contract import CanonicalStopReason, StopCategory
-from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
-from rune_decrypter_prime.api.two_period_cribs import (
+from rdp.api.pipeline_helpers import finalize_solution
+from rdp.api.stop_reason_contract import CanonicalStopReason, StopCategory
+from rdp.api.specs import CipherSpec, KeySpec
+from rdp.api.two_period_cribs import (
     TWO_PERIOD_CRIBS_CONTRACT,
     TwoPeriodCribsRequest,
 )
-from rune_decrypter_prime.api.wrappers.by_name import cipher_instance
-from rune_decrypter_prime.api.wrappers.registry import build_cipher_config
 from rune_decrypter_prime.core.config import (
     HardCribConfig,
     InterruptorConfig,
     ScoringConfig,
     Solution,
 )
-from rune_decrypter_prime.core.engine.builders import build_scorer
+from rune_decrypter_prime.core.config.cipher import materialize_cipher_config
+from rune_decrypter_prime.core.engine.builders import build_cipher, build_scorer
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
-from rune_decrypter_prime.core.types import Device, Direction
+from rune_decrypter_prime.core.types import (
+    Device,
+    Direction,
+    ComputeDevice,
+    FinalCipherKind,
+    FinalInterruptorSearchStrategy,
+    FinalKeyKind,
+    InterruptorMode,
+    TextDirection,
+)
 from rune_decrypter_prime.utils.runeglish import Runeglish
 
 _EPSILON = 1e-15
@@ -206,22 +214,27 @@ def _resolve_interruptor_hypotheses(
     config: InterruptorConfig | None,
     text_length: int,
 ) -> tuple[tuple[int, ...], ...]:
-    if config is None or config.mode == "disabled":
+    if config is None or config.mode is InterruptorMode.DISABLED:
         return ((),)
-    if config.mode == "exact":
-        return (_validated_interruptor_positions(tuple(config.exact or ()), text_length),)
+    if config.mode is InterruptorMode.EXACT:
+        return (_validated_interruptor_positions(tuple(config.parameters["positions"]), text_length),)
 
-    pool = _validated_interruptor_positions(tuple(config.pool or ()), text_length)
-    min_count = int(config.min_count)
-    max_count = int(config.max_count or 0)
+    pool = _validated_interruptor_positions(
+        tuple(config.parameters["candidate_positions"]), text_length
+    )
+    min_count = int(config.parameters["minimum_count"])
+    max_count = int(config.parameters["maximum_count"])
     combination_count = sum(math.comb(len(pool), count) for count in range(min_count, max_count + 1))
-    strategy = str(config.search_strategy)
-    if strategy == "keyops":
+    strategy = config.parameters["strategy"]
+    if strategy == FinalInterruptorSearchStrategy.KEY_OPERATIONS.value:
         raise ValueError(
             "two_period_cribs requires structural interruptor hypotheses; "
             "search_strategy='keyops' is unsupported"
         )
-    if strategy == "auto" and combination_count > int(config.bruteforce_max):
+    if (
+        strategy == FinalInterruptorSearchStrategy.AUTO.value
+        and combination_count > int(config.parameters["maximum_combinations"])
+    ):
         raise ValueError(
             "two_period_cribs structural interruptor search exceeds bruteforce_max; "
             "narrow the pool/count range, raise bruteforce_max, or explicitly request bruteforce"
@@ -458,14 +471,12 @@ def _profile(profile_id: str, hard_crib: HardCribConfig, direction: Direction) -
     }
     include_char, use_wli, char_orders, wli_orders, char_total, wli_total = profiles[profile_id]
     return ScoringConfig(
-        objective="pct.logp.win10",
-        include_char=include_char,
-        use_word_breaks=use_wli,
-        n_char=max(char_orders, default=1),
-        n_wli=max(wli_orders, default=1),
-        char_weights={} if not char_orders else {order: char_total / len(char_orders) for order in char_orders},
-        wli_weights={} if not wli_orders else {order: wli_total / len(wli_orders) for order in wli_orders},
-        encoding_dir=direction,
+        character_lane_enabled=include_char,
+        word_length_lane_enabled=use_wli,
+        character_ngram_order=max(char_orders, default=1),
+        word_length_ngram_order=max(wli_orders, default=1),
+        character_order_weights={} if not char_orders else {order: char_total / len(char_orders) for order in char_orders},
+        word_length_order_weights={} if not wli_orders else {order: wli_total / len(wli_orders) for order in wli_orders},
         hard_crib=hard_crib,
     )
 
@@ -479,12 +490,12 @@ def profile_contract_hash(profile_id: str) -> str:
     )
     payload = {
         "profile": profile_id,
-        "include_char": cfg.include_char,
-        "use_word_breaks": cfg.use_word_breaks,
-        "n_char": cfg.n_char,
-        "n_wli": cfg.n_wli,
-        "char_weights": cfg.char_weights,
-        "wli_weights": cfg.wli_weights,
+        "character_lane_enabled": cfg.character_lane_enabled,
+        "word_length_lane_enabled": cfg.word_length_lane_enabled,
+        "character_ngram_order": cfg.character_ngram_order,
+        "word_length_ngram_order": cfg.word_length_ngram_order,
+        "character_order_weights": dict(cfg.character_order_weights or {}),
+        "word_length_order_weights": dict(cfg.word_length_order_weights or {}),
         # A2 profile identity was defined by the effective aggregate channel
         # totals, even when per-order maps supplied them. Preserve that stable
         # contract while ScoringConfig keeps requested and derived fields separate.
@@ -599,38 +610,18 @@ def _stage_stop_category(reason: CanonicalStopReason) -> str:
 
 
 def _validate_cipher(cipher: CipherSpec, key: KeySpec) -> tuple[int, int, int]:
-    if not isinstance(cipher, CipherSpec) or cipher.kind != "wrapper":
-        raise ValueError("two_period_cribs requires the scheduled_stream_lookup wrapper")
-    if cipher.wrapper_core != "scheduled_stream_lookup":
-        raise ValueError("two_period_cribs requires scheduled_stream_lookup")
-    extra = dict(cipher.extra or {})
-    allowed = {"streams", "schedule", "operation", "alphabet_size"}
-    unsupported = sorted(set(extra) - allowed)
-    if unsupported:
-        raise ValueError(f"unsupported two-period cipher options: {unsupported}")
-    streams = extra.get("streams")
-    if not isinstance(streams, list) or len(streams) != 2:
-        raise ValueError("two_period_cribs requires exactly two streams")
-    periods: list[int] = []
-    for expected_name, stream in zip(("A", "B"), streams):
-        if not isinstance(stream, dict) or str(stream.get("kind", "")).lower() != "periodic":
-            raise ValueError("two_period_cribs requires two periodic streams")
-        stream_extra = sorted(set(stream) - {"name", "kind", "period"})
-        if stream_extra:
-            raise ValueError(f"unsupported two-period stream options: {stream_extra}")
-        if str(stream.get("name", expected_name)) != expected_name:
-            raise ValueError("two-period streams must be ordered A then B")
-        periods.append(int(stream.get("period", 0)))
-    if any(period <= 0 for period in periods):
-        raise ValueError("two-period stream periods must be positive")
-    modulus = int(extra.get("alphabet_size", cipher.N))
+    if not isinstance(cipher, CipherSpec) or cipher.kind is not FinalCipherKind.TWO_PERIOD_VIGENERE:
+        raise ValueError("two_period_cribs requires CipherSpec.two_period_vigenere")
+    parameters = cipher.parameters
+    periods = [int(parameters["first_period"]), int(parameters["second_period"])]
+    modulus = int(parameters["alphabet_size"])
     if modulus != 29:
         raise ValueError("two_period_cribs currently requires the prime runic modulus 29")
-    if str(extra.get("schedule", "")) != "overlay" or str(extra.get("operation", "")) != "add":
+    if parameters["schedule"] != "overlay" or parameters["mask"] is not None:
         raise ValueError("two_period_cribs requires additive overlay scheduling")
-    if not isinstance(key, KeySpec) or key.plan != "repeat":
+    if not isinstance(key, KeySpec) or key.kind is not FinalKeyKind.REPEATING:
         raise ValueError("two_period_cribs requires a repeating canonical key")
-    if int(key.params.get("len", 0)) != sum(periods):
+    if int(key.parameters["length"]) != sum(periods):
         raise ValueError("two_period_cribs key length must equal period_a + period_b")
     return periods[0], periods[1], modulus
 
@@ -652,19 +643,25 @@ def run_two_period_stages(
 ) -> Solution:
     started = time.perf_counter()
     period_a, period_b, modulus = _validate_cipher(cipher, key)
-    template_cfg = build_cipher_config(
+    if any(
+        value is not None
+        for value in (interruptors_exact, interruptors_pool, interruptors_max)
+    ):
+        raise ValueError("typed interruptors cannot be combined with legacy interruptor inputs")
+    template_cfg = materialize_cipher_config(
         cipher=cipher,
-        key=key,
+        key_space=key,
         ciphertext=ciphertext,
-        wli=wli,
-        device=device,
-        encoding_dir=direction,
-        initial_text_permutation_indices=None,
+        word_lengths=wli,
+        compute_device=(ComputeDevice.CUDA if device is Device.CUDA else ComputeDevice.CPU),
+        text_direction=(
+            TextDirection.LEFT_TO_RIGHT
+            if direction is Direction.LTR
+            else TextDirection.RIGHT_TO_LEFT
+        ),
+        text_permutation=None,
         initial_keys=None,
         interruptors=interruptors,
-        interruptors_exact=interruptors_exact,
-        interruptors_pool=interruptors_pool,
-        interruptors_max=interruptors_max,
     )
     interruptor_cfg = template_cfg.interruptors_cfg
     interruptor_hypotheses = _resolve_interruptor_hypotheses(
@@ -688,7 +685,7 @@ def run_two_period_stages(
                 interruptors=resolved_interruptors,
             )
         except ValueError as exc:
-            if interruptor_cfg is None or interruptor_cfg.mode != "pool":
+            if interruptor_cfg is None or interruptor_cfg.mode is not InterruptorMode.SEARCH:
                 raise
             rejection_list.append({
                 "word": None,
@@ -714,7 +711,6 @@ def run_two_period_stages(
         raise ValueError(f"no compatible two-period interruptor/crib branches remain{detail}")
     branches = tuple(sorted(branch_list, key=lambda branch: branch.branch_id))
     rejections = tuple(rejection_list)
-    cipher_obj = cipher_instance(cipher)
     total_evaluations = 0
     all_union: dict[str, dict[str, Any]] = {}
     branch_summaries: list[dict[str, Any]] = []
@@ -749,26 +745,29 @@ def run_two_period_stages(
         branch_interruptors = (
             None
             if not branch.interruptors
-            else InterruptorConfig(mode="exact", exact=list(branch.interruptors))
+            else InterruptorConfig.exact(branch.interruptors)
         )
         for profile_id in ("S2", "B1", "F1"):
             scoring = _profile(profile_id, hard_crib, direction)
-            cipher_cfg = build_cipher_config(
+            cipher_cfg = materialize_cipher_config(
                 cipher=cipher,
-                key=key,
+                key_space=key,
                 ciphertext=ciphertext,
-                wli=wli,
-                device=device,
-                encoding_dir=direction,
-                initial_text_permutation_indices=None,
+                word_lengths=wli,
+                compute_device=(
+                    ComputeDevice.CUDA if device is Device.CUDA else ComputeDevice.CPU
+                ),
+                text_direction=(
+                    TextDirection.LEFT_TO_RIGHT
+                    if direction is Direction.LTR
+                    else TextDirection.RIGHT_TO_LEFT
+                ),
                 initial_keys=None,
+                text_permutation=None,
                 interruptors=branch_interruptors,
-                interruptors_exact=None,
-                interruptors_pool=None,
-                interruptors_max=None,
             )
             problems[profile_id] = DecryptionProblem(
-                cipher=cipher_obj,
+                cipher=build_cipher(cipher_cfg),
                 scorer=build_scorer(cipher_cfg, scoring),
                 c_cfg=cipher_cfg,
                 s_cfg=scoring,
@@ -989,7 +988,7 @@ def run_two_period_stages(
     )
     best = ranked[0]
     best_key = np.asarray(best["key"], dtype=np.uint8)
-    plaintext = cipher_obj.decrypt_single(
+    plaintext = build_cipher(template_cfg).decrypt_single(
         ciphertext=ciphertext,
         key=best_key,
         interrupt_idx=(None if not best["interruptors"] else best["interruptors"]),

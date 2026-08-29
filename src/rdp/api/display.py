@@ -35,30 +35,30 @@ import math
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, StrEnum
 from pathlib import Path, PurePosixPath
 from typing import Any, TextIO
 
-from rune_decrypter_prime.api.artifact_agreement import KnownArtifactRelpath
-from rune_decrypter_prime.api.run_result import RunResult
-from rune_decrypter_prime.api.run_spec import NormalizedInput, RawTextInput, RunSpec, SourceInputRef
-from rune_decrypter_prime.api.solver_report import SolverReport
-from rune_decrypter_prime.api.specs import KeySpec
-from rune_decrypter_prime.api.stop_reason_contract import (
+from rdp.api.artifact_agreement import KnownArtifactRelpath
+from rdp.api.run_result import RunResult
+from rdp.api.run_spec import NormalizedInput, RawTextInput, RunSpec, SourceInputRef
+from rdp.api.solver_report import SolverReport
+from rdp.api.specs import KeySpec
+from rdp.api.stop_reason_contract import (
     StopReasonDetailKey,
     stop_category_for_reason,
     stop_reason_details_from_solution,
 )
 
-DISPLAY_SUMMARY_SCHEMA = "api_display_summary.v1"
-DISPLAY_SUMMARY_RELPATH = KnownArtifactRelpath.RDP_DISPLAY_SUMMARY.value
+SUMMARY_SCHEMA = "api_display_summary.v1"
+SUMMARY_RELATIVE_PATH = KnownArtifactRelpath.RDP_DISPLAY_SUMMARY.value
 _PARTIAL_RECOVERY_ACCEPTANCE = "partial_recovery"
 _OPSEC_PATH_PARENT_NAMES = frozenset({"artifacts", "config", "logs", "trace", "traces", "output"})
 _WINDOWS_ABSOLUTE_RE = re.compile(r"^[A-Za-z]:[\\/]")
 
 
 @dataclass(frozen=True, slots=True)
-class RdpDisplayOptions:
+class SummaryOptions:
     """Controls how much of the standard RDP run summary is shown."""
 
     mode: str = "standard"
@@ -87,31 +87,31 @@ class RdpDisplayOptions:
         _require_nonnegative_int(self.max_sequence_preview, "max_sequence_preview")
 
     @classmethod
-    def standard(cls) -> "RdpDisplayOptions":
+    def standard(cls) -> "SummaryOptions":
         return cls(mode="standard")
 
     @classmethod
-    def for_console(cls) -> "RdpDisplayOptions":
+    def for_console(cls) -> "SummaryOptions":
         return cls(mode="console", plaintext_preview_chars=500, ciphertext_preview_chars=180)
 
     @classmethod
-    def for_tutorial(cls) -> "RdpDisplayOptions":
+    def for_tutorial(cls) -> "SummaryOptions":
         return cls(mode="tutorial", plaintext_preview_chars=700, ciphertext_preview_chars=200)
 
     @classmethod
-    def for_lp_evidence(cls) -> "RdpDisplayOptions":
+    def for_lp_evidence(cls) -> "SummaryOptions":
         return cls(mode="lp_evidence", plaintext_preview_chars=2000, ciphertext_preview_chars=320)
 
     @classmethod
-    def for_debug(cls) -> "RdpDisplayOptions":
+    def for_debug(cls) -> "SummaryOptions":
         return cls(mode="debug", plaintext_preview_chars=2000, ciphertext_preview_chars=800, max_sequence_preview=120)
 
 
 @dataclass(frozen=True, slots=True)
-class RdpDisplaySummary:
+class DisplaySummary:
     """JSON-safe, shareable standard display view of an RDP run."""
 
-    schema: str = DISPLAY_SUMMARY_SCHEMA
+    schema: str = SUMMARY_SCHEMA
     problem: Mapping[str, Any] = field(default_factory=dict)
     cipher: Mapping[str, Any] = field(default_factory=dict)
     key: Mapping[str, Any] = field(default_factory=dict)
@@ -170,7 +170,7 @@ class RdpDisplaySummary:
         }
 
 
-def build_rdp_summary(
+def build_summary(
     value: object,
     *,
     spec: RunSpec | None = None,
@@ -181,13 +181,13 @@ def build_rdp_summary(
     lp_evidence: Mapping[str, Any] | None = None,
     artifacts: Mapping[str, Any] | None = None,
     artifact_manifest_path: str | Path | None = None,
-    options: RdpDisplayOptions | None = None,
-) -> RdpDisplaySummary:
+    options: SummaryOptions | None = None,
+) -> DisplaySummary:
     """Build the standard display/share summary from an RDP result or solution."""
 
-    options = options or RdpDisplayOptions.standard()
-    if not isinstance(options, RdpDisplayOptions):
-        raise TypeError("options must be RdpDisplayOptions or None")
+    options = options or SummaryOptions.standard()
+    if not isinstance(options, SummaryOptions):
+        raise TypeError("options must be SummaryOptions or None")
     if spec is not None and not isinstance(spec, RunSpec):
         raise TypeError("spec must be RunSpec or None")
 
@@ -230,7 +230,7 @@ def build_rdp_summary(
 
     warnings.extend(_policy_warnings(stop=stop, oracle=oracle, tutorial=tutorial, telemetry=telemetry))
 
-    return RdpDisplaySummary(
+    return DisplaySummary(
         problem=problem,
         cipher=cipher,
         key=key,
@@ -249,11 +249,11 @@ def build_rdp_summary(
     )
 
 
-def format_rdp_summary(summary: RdpDisplaySummary | object, **build_kwargs: Any) -> str:
+def format_summary(summary: DisplaySummary | object, **build_kwargs: Any) -> str:
     """Return a compact human-readable rendering of the standard summary."""
 
-    if not isinstance(summary, RdpDisplaySummary):
-        summary = build_rdp_summary(summary, **build_kwargs)
+    if not isinstance(summary, DisplaySummary):
+        summary = build_summary(summary, **build_kwargs)
 
     data = summary.to_json_dict()
     lines: list[str] = ["RDP standard summary", "===================="]
@@ -301,8 +301,8 @@ def format_rdp_summary(summary: RdpDisplaySummary | object, **build_kwargs: Any)
     return "\n".join(lines) + "\n"
 
 
-def print_rdp_summary(
-    summary: RdpDisplaySummary | object,
+def print_summary(
+    summary: DisplaySummary | object,
     *,
     file: TextIO | None = None,
     **build_kwargs: Any,
@@ -310,14 +310,14 @@ def print_rdp_summary(
     import sys
 
     target = sys.stdout if file is None else file
-    target.write(format_rdp_summary(summary, **build_kwargs))
+    target.write(format_summary(summary, **build_kwargs))
 
 
-def write_rdp_summary_json(summary: RdpDisplaySummary, path: Path | str = DISPLAY_SUMMARY_RELPATH) -> str:
+def write_summary_json(summary: DisplaySummary, path: Path | str = SUMMARY_RELATIVE_PATH) -> str:
     """Write a display summary JSON file and return a display-safe POSIX path."""
 
-    if not isinstance(summary, RdpDisplaySummary):
-        raise TypeError("summary must be RdpDisplaySummary")
+    if not isinstance(summary, DisplaySummary):
+        raise TypeError("summary must be DisplaySummary")
     if isinstance(path, str):
         path = Path(path)
     if not isinstance(path, Path):
@@ -347,7 +347,7 @@ def _solver_report_from(value: object) -> SolverReport | None:
     return None
 
 
-def _problem_summary(spec: RunSpec | None, solution: object | None, *, options: RdpDisplayOptions) -> dict[str, Any]:
+def _problem_summary(spec: RunSpec | None, solution: object | None, *, options: SummaryOptions) -> dict[str, Any]:
     out: dict[str, Any] = {}
     if spec is not None:
         inp = spec.problem_input
@@ -393,7 +393,7 @@ def _problem_summary(spec: RunSpec | None, solution: object | None, *, options: 
     return _json_value(out, options=options)
 
 
-def _cipher_summary(spec: RunSpec | None, solution: object | None, *, options: RdpDisplayOptions) -> dict[str, Any]:
+def _cipher_summary(spec: RunSpec | None, solution: object | None, *, options: SummaryOptions) -> dict[str, Any]:
     cipher = getattr(spec, "cipher", None) if spec is not None else None
     out: dict[str, Any] = {}
     if cipher is not None:
@@ -415,7 +415,7 @@ def _key_summary(
     solution: object | None,
     solver_report: SolverReport | None,
     *,
-    options: RdpDisplayOptions,
+    options: SummaryOptions,
 ) -> dict[str, Any]:
     out: dict[str, Any] = {}
     key = getattr(spec, "key_space", None) if spec is not None else None
@@ -435,7 +435,7 @@ def _key_summary(
     return _json_value(out, options=options)
 
 
-def _key_spec_summary(key_spec: object, *, options: RdpDisplayOptions) -> dict[str, Any]:
+def _key_spec_summary(key_spec: object, *, options: SummaryOptions) -> dict[str, Any]:
     if isinstance(key_spec, KeySpec):
         return _json_value(key_spec.to_dict(), options=options)
     to_telemetry = getattr(key_spec, "to_telemetry", None)
@@ -447,7 +447,7 @@ def _key_spec_summary(key_spec: object, *, options: RdpDisplayOptions) -> dict[s
     return _json_value({"plan": getattr(key_spec, "plan", None)}, options=options)
 
 
-def _solver_summary(spec: RunSpec | None, solver_report: SolverReport | None, *, options: RdpDisplayOptions) -> dict[str, Any]:
+def _solver_summary(spec: RunSpec | None, solver_report: SolverReport | None, *, options: SummaryOptions) -> dict[str, Any]:
     out: dict[str, Any] = {}
     solver = getattr(spec, "solver", None) if spec is not None else None
     if solver is not None:
@@ -464,7 +464,7 @@ def _solver_summary(spec: RunSpec | None, solver_report: SolverReport | None, *,
     return _json_value(out, options=options)
 
 
-def _scoring_summary(spec: RunSpec | None, *, options: RdpDisplayOptions) -> dict[str, Any]:
+def _scoring_summary(spec: RunSpec | None, *, options: SummaryOptions) -> dict[str, Any]:
     out: dict[str, Any] = {}
     if spec is not None:
         out["scorer"] = spec.scoring.backend.value
@@ -482,7 +482,7 @@ def _result_summary(
     *,
     reference_plaintext: str | None,
     reference_idx: Sequence[int] | None,
-    options: RdpDisplayOptions,
+    options: SummaryOptions,
 ) -> dict[str, Any]:
     out: dict[str, Any] = {}
     if solution is None:
@@ -517,13 +517,13 @@ def _result_summary(
     return _json_value(out, options=options)
 
 
-def _solver_report_summary(solver_report: SolverReport | None, *, options: RdpDisplayOptions) -> dict[str, Any] | None:
+def _solver_report_summary(solver_report: SolverReport | None, *, options: SummaryOptions) -> dict[str, Any] | None:
     if solver_report is None or not options.include_solver_report:
         return None
     return _json_value(solver_report.to_json_dict(), options=options)
 
 
-def _scorer_report_summary(scorer_report: object | None, *, options: RdpDisplayOptions) -> dict[str, Any] | None:
+def _scorer_report_summary(scorer_report: object | None, *, options: SummaryOptions) -> dict[str, Any] | None:
     if scorer_report is None or not options.include_scorer_report:
         return None
     to_json_dict = getattr(scorer_report, "to_json_dict", None)
@@ -534,7 +534,7 @@ def _scorer_report_summary(scorer_report: object | None, *, options: RdpDisplayO
     return {"unserialised_type": type(scorer_report).__name__}
 
 
-def _telemetry_summary(solution: object | None, *, options: RdpDisplayOptions) -> dict[str, Any]:
+def _telemetry_summary(solution: object | None, *, options: SummaryOptions) -> dict[str, Any]:
     if solution is None:
         return {}
     if isinstance(solution, RunResult):
@@ -561,10 +561,10 @@ def _stop_summary(solution: object | None, solver_report: SolverReport | None) -
     # Solution field remains a low-level compatibility reason and can differ for
     # routes such as explicit known-key execution.
     if solver_report is not None:
-        return _json_value(solver_report.status.to_json_dict(), options=RdpDisplayOptions.standard())
+        return _json_value(solver_report.status.to_json_dict(), options=SummaryOptions.standard())
     if solution is not None:
         try:
-            return _json_value(stop_reason_details_from_solution(solution), options=RdpDisplayOptions.standard())
+            return _json_value(stop_reason_details_from_solution(solution), options=SummaryOptions.standard())
         except Exception:
             pass
     reason = None
@@ -586,7 +586,7 @@ def _oracle_summary(solver_report: SolverReport | None) -> dict[str, Any]:
     return dict(oracle) if isinstance(oracle, Mapping) else {}
 
 
-def _tutorial_summary(entry: Mapping[str, Any] | None, *, options: RdpDisplayOptions) -> dict[str, Any] | None:
+def _tutorial_summary(entry: Mapping[str, Any] | None, *, options: SummaryOptions) -> dict[str, Any] | None:
     if entry is None:
         return None
     keep = (
@@ -609,10 +609,10 @@ def _artifact_summary(
     artifacts: Mapping[str, Any] | None,
     *,
     artifact_manifest_path: str | Path | None,
-    options: RdpDisplayOptions,
+    options: SummaryOptions,
 ) -> dict[str, Any]:
     out = dict(artifacts or {})
-    out.setdefault("display_summary_relpath", DISPLAY_SUMMARY_RELPATH)
+    out.setdefault("display_summary_relpath", SUMMARY_RELATIVE_PATH)
     if artifact_manifest_path is not None:
         out["artifact_manifest_path"] = artifact_manifest_path
     return _json_value(_redact_artifact_paths(out), options=options)
@@ -651,7 +651,7 @@ def _looks_like_absolute_path(value: str) -> bool:
     return value.startswith("/") or bool(_WINDOWS_ABSOLUTE_RE.match(value))
 
 
-def _optional_mapping(value: Mapping[str, Any] | None, field_name: str, *, options: RdpDisplayOptions) -> dict[str, Any] | None:
+def _optional_mapping(value: Mapping[str, Any] | None, field_name: str, *, options: SummaryOptions) -> dict[str, Any] | None:
     if value is None:
         return None
     if not isinstance(value, Mapping):
@@ -731,7 +731,7 @@ def _preview_sequence(values: object, limit: int) -> dict[str, Any]:
     seq = _as_sequence(values)
     if seq is None:
         return {"length": None, "preview": None, "truncated": False}
-    preview = [_json_value(item, options=RdpDisplayOptions.standard()) for item in seq[:limit]]
+    preview = [_json_value(item, options=SummaryOptions.standard()) for item in seq[:limit]]
     return {"length": len(seq), "preview": preview, "truncated": len(seq) > limit}
 
 
@@ -775,7 +775,7 @@ def _finite_or_none(value: object) -> float | None:
     return out
 
 
-def _json_value(value: object, *, options: RdpDisplayOptions) -> Any:
+def _json_value(value: object, *, options: SummaryOptions) -> Any:
     if value is None or isinstance(value, (str, bool, int)):
         return value
     if isinstance(value, float):
@@ -869,13 +869,342 @@ def _dedupe(values: Sequence[str]) -> tuple[str, ...]:
     return tuple(out)
 
 
+class PrintFormat(StrEnum):
+    TEXT = "text"
+    JSON = "json"
+
+
+class PrintDetail(StrEnum):
+    COMPACT = "compact"
+    STANDARD = "standard"
+    DETAILED = "detailed"
+    DEBUG = "debug"
+
+
+class BannerStyle(StrEnum):
+    PLAIN = "plain"
+    BOX = "box"
+
+
+@dataclass(frozen=True, slots=True)
+class PrintOptions:
+    """Controls shared human console presentation."""
+
+    detail: PrintDetail | str = PrintDetail.DETAILED
+    width: int = 72
+    output_root: str = "output/"
+    banner_style: BannerStyle | str = BannerStyle.PLAIN
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "detail", _print_ensure_detail(self.detail))
+        object.__setattr__(self, "banner_style", _print_ensure_banner_style(self.banner_style))
+        _print_require_positive_int(self.width, "width")
+        object.__setattr__(self, "output_root", _print_safe_display_path(self.output_root, field_name="output_root"))
+
+    @classmethod
+    def compact(cls) -> "PrintOptions":
+        return cls(detail=PrintDetail.COMPACT)
+
+    @classmethod
+    def standard(cls) -> "PrintOptions":
+        return cls(detail=PrintDetail.STANDARD)
+
+    @classmethod
+    def detailed(cls) -> "PrintOptions":
+        return cls(detail=PrintDetail.DETAILED)
+
+    @classmethod
+    def debug(cls) -> "PrintOptions":
+        return cls(detail=PrintDetail.DEBUG, width=88)
+
+
+def render_summary(
+    summary: DisplaySummary | object,
+    *,
+    output_format: PrintFormat | str = PrintFormat.TEXT,
+    **build_kwargs: Any,
+) -> str:
+    """Render a standard RDP summary as text or JSON.
+
+    ``summary`` may already be an ``DisplaySummary`` or may be any value
+    accepted by ``build_summary``. Build keyword arguments are forwarded only
+    when a summary must be built.
+    """
+
+    fmt = _print_ensure_format(output_format)
+    if not isinstance(summary, DisplaySummary):
+        summary = build_summary(summary, **build_kwargs)
+
+    if fmt is PrintFormat.TEXT:
+        return format_summary(summary)
+    if fmt is PrintFormat.JSON:
+        return json.dumps(summary.to_json_dict(), indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    raise AssertionError(f"unhandled print format: {fmt}")
+
+
+def print_result(
+    value: object,
+    *,
+    file: TextIO | None = None,
+    output_format: PrintFormat | str = PrintFormat.TEXT,
+    options: SummaryOptions | None = None,
+    **build_kwargs: Any,
+) -> DisplaySummary:
+    """Build, print, and return the standard RDP display summary."""
+
+    summary = build_summary(value, options=options, **build_kwargs)
+    rendered = render_summary(summary, output_format=output_format)
+    if file is None:
+        import sys
+
+        file = sys.stdout
+    file.write(rendered)
+    return summary
+
+
+def write_summary_artifact(
+    summary: DisplaySummary | object,
+    *,
+    run_dir: Path,
+    options: SummaryOptions | None = None,
+    **build_kwargs: Any,
+) -> str:
+    """Write ``artifacts/rdp_display_summary.json`` under ``run_dir``.
+
+    The returned value is always the standard run-relative sidecar path, never an
+    absolute local path.
+    """
+
+    if not isinstance(run_dir, Path):
+        raise TypeError("run_dir must be a Path")
+    if isinstance(summary, DisplaySummary):
+        built = summary
+    else:
+        built = build_summary(summary, options=options, **build_kwargs)
+    relpath = write_summary_json(built, run_dir / SUMMARY_RELATIVE_PATH)
+    if relpath != SUMMARY_RELATIVE_PATH:
+        # Keep the public contract fixed even if the internal path was absolute.
+        return SUMMARY_RELATIVE_PATH
+    return relpath
+
+
+def format_banner(
+    *,
+    title: str = "Rune Decrypter Prime",
+    version_label: str = "RDP V1 pre-release",
+    output_root: str | Path | None = None,
+    options: PrintOptions | None = None,
+) -> str:
+    """Return the standard restrained RDP console banner."""
+    opts = _print_ensure_options(options)
+    root = opts.output_root if output_root is None else _print_safe_display_path(output_root, field_name="output_root")
+    lines = [
+        _print_require_text(title, "title"),
+        "=" * len(title),
+        _print_require_text(version_label, "version_label"),
+        f"output root : {root}",
+    ]
+    if opts.banner_style is BannerStyle.PLAIN:
+        return "\n".join(lines) + "\n"
+
+    inner_width = max(max(len(line) for line in lines), 42)
+    out = ["+" + "-" * (inner_width + 2) + "+"]
+    out.extend(f"| {line.ljust(inner_width)} |" for line in lines)
+    out.append("+" + "-" * (inner_width + 2) + "+")
+    return "\n".join(out) + "\n"
+
+
+def format_section(title: str, *, underline: str = "-") -> str:
+    """Return a simple deterministic section heading."""
+    title_text = _print_require_text(title, "title")
+    underline_text = _print_require_text(underline, "underline")
+    marker = underline_text[0]
+    return f"{title_text}\n{marker * len(title_text)}\n"
+
+
+def format_key_value_block(
+    title: str,
+    rows: Mapping[str, Any] | Sequence[tuple[str, Any]],
+    *,
+    options: PrintOptions | None = None,
+) -> str:
+    """Return a deterministic key/value section for human console output."""
+    _print_ensure_options(options)
+    items = _print_normalise_rows(rows)
+    key_width = max((len(key) for key, _ in items), default=0)
+    lines = [format_section(title).rstrip()]
+    for key, value in items:
+        rendered = _print_display_value(value)
+        value_lines = rendered.splitlines() or [""]
+        lines.append(f"{key.ljust(key_width)} : {value_lines[0]}")
+        indent = " " * (key_width + 3)
+        lines.extend(f"{indent}{line}" for line in value_lines[1:])
+    return "\n".join(lines) + "\n"
+
+
+def format_preview_block(
+    title: str,
+    rows: Mapping[str, Any] | Sequence[tuple[str, Any]],
+    *,
+    options: PrintOptions | None = None,
+) -> str:
+    """Return a preview section using the standard key/value style."""
+    return format_key_value_block(title, rows, options=options)
+
+
+def format_status_block(
+    title: str,
+    rows: Mapping[str, Any] | Sequence[tuple[str, Any]],
+    *,
+    options: PrintOptions | None = None,
+) -> str:
+    """Return a status section using the standard key/value style."""
+    return format_key_value_block(title, rows, options=options)
+
+
+def print_text(text: str, *, file: TextIO | None = None) -> None:
+    """Write human console text to ``file`` or stdout."""
+    if file is None:
+        import sys
+
+        file = sys.stdout
+    file.write(str(text))
+    if text and not str(text).endswith("\n"):
+        file.write("\n")
+
+
+def print_block(text: str, *, file: TextIO | None = None) -> None:
+    """Write a complete console block followed by one blank line."""
+    if file is None:
+        import sys
+
+        file = sys.stdout
+    file.write(str(text).rstrip() + "\n\n")
+
+
+def _print_normalise_rows(rows: Mapping[str, Any] | Sequence[tuple[str, Any]]) -> list[tuple[str, Any]]:
+    if isinstance(rows, Mapping):
+        iterable = list(rows.items())
+    elif isinstance(rows, Sequence) and not isinstance(rows, (str, bytes)):
+        iterable = list(rows)
+    else:
+        raise TypeError("rows must be a mapping or sequence of key/value pairs")
+
+    out: list[tuple[str, Any]] = []
+    for index, item in enumerate(iterable):
+        if not isinstance(item, tuple) or len(item) != 2:
+            raise TypeError(f"rows[{index}] must be a two-item tuple")
+        key, value = item
+        out.append((_print_require_text(str(key), f"rows[{index}].key"), value))
+    return out
+
+
+def _print_display_value(value: Any) -> str:
+    if value is None:
+        return "unavailable"
+    if isinstance(value, Path):
+        return _print_safe_display_path(value, field_name="value")
+    if isinstance(value, float):
+        return f"{value:.6f}" if value == value and abs(value) < 1e9 else str(value)
+    return str(value)
+
+
+def _print_safe_display_path(value: str | Path, *, field_name: str) -> str:
+    if isinstance(value, Path):
+        if value.is_absolute():
+            raise ValueError(f"{field_name} must be display-safe and repo-relative")
+        text = value.as_posix()
+    elif isinstance(value, str):
+        text = value.strip()
+        if not text:
+            raise ValueError(f"{field_name} must not be empty")
+        path = Path(text)
+        if path.is_absolute() or _print_looks_windows_absolute(text):
+            raise ValueError(f"{field_name} must be display-safe and repo-relative")
+        text = text.replace("\\", "/")
+    else:
+        raise TypeError(f"{field_name} must be a string or Path")
+    return text
+
+
+def _print_looks_windows_absolute(value: str) -> bool:
+    return len(value) >= 3 and value[1] == ":" and value[2] in {"/", "\\"} and value[0].isalpha()
+
+
+def _print_ensure_format(value: PrintFormat | str) -> PrintFormat:
+    if isinstance(value, PrintFormat):
+        return value
+    try:
+        return PrintFormat(str(value))
+    except ValueError as exc:
+        allowed = sorted(item.value for item in PrintFormat)
+        raise ValueError(f"output_format must be one of {allowed}") from exc
+
+
+def _print_ensure_detail(value: PrintDetail | str) -> PrintDetail:
+    if isinstance(value, PrintDetail):
+        return value
+    try:
+        return PrintDetail(str(value))
+    except ValueError as exc:
+        allowed = sorted(item.value for item in PrintDetail)
+        raise ValueError(f"detail must be one of {allowed}") from exc
+
+
+def _print_ensure_banner_style(value: BannerStyle | str) -> BannerStyle:
+    if isinstance(value, BannerStyle):
+        return value
+    try:
+        return BannerStyle(str(value))
+    except ValueError as exc:
+        allowed = sorted(item.value for item in BannerStyle)
+        raise ValueError(f"banner_style must be one of {allowed}") from exc
+
+
+def _print_ensure_options(value: PrintOptions | None) -> PrintOptions:
+    if value is None:
+        return PrintOptions.detailed()
+    if not isinstance(value, PrintOptions):
+        raise TypeError("options must be PrintOptions or None")
+    return value
+
+
+def _print_require_text(value: str, field_name: str) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"{field_name} must be a string")
+    if not value:
+        raise ValueError(f"{field_name} must not be empty")
+    return value
+
+
+def _print_require_positive_int(value: Any, field_name: str) -> None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{field_name} must be an integer")
+    if value <= 0:
+        raise ValueError(f"{field_name} must be > 0")
+
+
 __all__ = [
-    "DISPLAY_SUMMARY_RELPATH",
-    "DISPLAY_SUMMARY_SCHEMA",
-    "RdpDisplayOptions",
-    "RdpDisplaySummary",
-    "build_rdp_summary",
-    "format_rdp_summary",
-    "print_rdp_summary",
-    "write_rdp_summary_json",
+    "SUMMARY_RELATIVE_PATH",
+    "SUMMARY_SCHEMA",
+    "SummaryOptions",
+    "DisplaySummary",
+    "BannerStyle",
+    "PrintDetail",
+    "PrintFormat",
+    "PrintOptions",
+    "build_summary",
+    "format_summary",
+    "print_summary",
+    "render_summary",
+    "print_result",
+    "write_summary_json",
+    "write_summary_artifact",
+    "format_banner",
+    "format_key_value_block",
+    "format_preview_block",
+    "format_section",
+    "format_status_block",
+    "print_block",
+    "print_text",
 ]

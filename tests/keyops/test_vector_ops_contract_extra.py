@@ -1,4 +1,3 @@
-# tests/keyops/test_vector_ops_contract_extra.py
 """
 VectorKeyOps – contract extras that double as tutorial examples.
 
@@ -12,64 +11,46 @@ Why these matter:
 - Population samplers shouldn't be degenerate. We want at least minimal
   diversity per column to avoid identical individuals.
 """
-
 import numpy as np
 import pytest
-
 from rune_decrypter_prime.keyops.registry import create
 from rune_decrypter_prime.keyops import VectorKeyOps
-
 
 def _hamming(a, b) -> int:
     return int(np.count_nonzero(a != b))
 
-
 def test_mutate_changes_exactly_one_position_and_by_plusminus_one():
-    K, M = 12, 29
-    ops: VectorKeyOps = create("vector", K=K, mod=M)
+    K, M = (12, 29)
+    ops: VectorKeyOps = create('vector', K=K, mod=M)
     rng = np.random.default_rng(123)
-
     key = ops.random(rng)
     for _ in range(200):
         nxt = ops.mutate(key, rng)
-        # Exactly one position changes (locality)
-        assert _hamming(key, nxt) == 1, "mutate must alter exactly one index"
-        # The change is ±1 mod M (documented micro-step)
+        assert _hamming(key, nxt) == 1, 'mutate must alter exactly one index'
         idx = int(np.flatnonzero(key != nxt)[0])
         delta = (int(nxt[idx]) - int(key[idx])) % M
-        assert delta in (1, M - 1), f"expected ±1 mod {M}, got {delta}"
-        key = nxt  # advance
-
+        assert delta in (1, M - 1), f'expected ±1 mod {M}, got {delta}'
+        key = nxt
 
 def test_recombine_child_genes_come_from_parents_only_and_idempotence():
-    K, M = 16, 29
-    ops: VectorKeyOps = create("vector", K=K, mod=M)
+    K, M = (16, 29)
+    ops: VectorKeyOps = create('vector', K=K, mod=M)
     rng = np.random.default_rng(7)
-
     p1 = ops.random(rng)
     p2 = ops.random(rng)
-
-    # Idempotence: same parents -> identical child
     child_same = ops.recombine(p1, p1, rng)
     assert np.array_equal(child_same, p1)
-
-    # Gene provenance: every gene equals either p1[i] or p2[i]
     child = ops.recombine(p1, p2, rng)
     assert child.shape == (K,)
     assert child.dtype == np.uint8
-    assert np.all((child == p1) | (child == p2)), \
-        "crossover must select genes from parents, not invent values"
-
+    assert np.all((child == p1) | (child == p2)), 'crossover must select genes from parents, not invent values'
 
 def test_make_population_shapes_types_and_diversity():
-    K, M, N = 10, 29, 128
-    ops: VectorKeyOps = create("vector", K=K, mod=M)
+    K, M, N = (10, 29, 128)
+    ops: VectorKeyOps = create('vector', K=K, mod=M)
     rng = np.random.default_rng(99)
-
     pop = ops.make_population(N, rng)
     assert pop.shape == (N, K)
-    assert pop.dtype == np.uint8 and pop.flags["C_CONTIGUOUS"]
-
-    # Each column should have >1 unique value under uniform sampling
+    assert pop.dtype == np.uint8 and pop.flags['C_CONTIGUOUS']
     col_uniqs = [np.unique(pop[:, j]).size for j in range(K)]
-    assert all(u > 1 for u in col_uniqs), "degenerate population column detected"
+    assert all((u > 1 for u in col_uniqs)), 'degenerate population column detected'

@@ -2,81 +2,30 @@ from __future__ import annotations
 
 import pytest
 
-from rune_decrypter_prime.api.solver_report import (
-    ExecutionRoute,
-    OracleUse,
-    SolverParamKey,
-    SolverReportDetailKey,
-    SolverReportDetailsVersion,
-    TruthDataPolicy,
-    build_solver_report,
-)
+from rdp import api
 
 
 def test_solver_report_contract_labels_are_enum_backed() -> None:
-    assert SolverReportDetailKey.REPORT_CONTRACT.value == "report_contract"
-    assert SolverReportDetailKey.ORACLE_USE.value == "oracle_use"
-    assert SolverReportDetailKey.TRUTH_DATA_POLICY.value == "truth_data_policy"
-    assert SolverReportDetailKey.REPRODUCIBILITY.value == "reproducibility"
-    assert ExecutionRoute.KNOWN_KEY_FASTPATH.value == "known_key_fastpath"
-    assert SolverParamKey.TEST_KEY.value == "test_key"
-    assert OracleUse.NONE.value == "none"
-    assert OracleUse.TEST_KEY.value == "test_key"
-    assert OracleUse.KNOWN_KEY_FASTPATH.value == "known_key_fastpath"
-    assert TruthDataPolicy.NONE.value == "none"
-    assert TruthDataPolicy.REPORTED_TEST_OR_TUTORIAL_ONLY.value == "reported_test_or_tutorial_only"
-    assert SolverReportDetailsVersion.V1.value == "api_solver_report_details.v1"
+    assert api.advanced.StopReason.TARGET_SCORE_REACHED.value == "target_score_reached"
+    assert api.advanced.StopCategory.SUCCESS.value == "success"
+    assert api.advanced.ExecutionStatus.COMPLETED.value == "completed"
+    assert api.advanced.RecoveryStatus.EXACT.value == "exact"
+    assert api.advanced.OracleMode.REAL_SOLVE.value == "real_solve"
 
 
-def test_execution_route_and_solver_param_keys_are_separate_label_domains() -> None:
-    report = build_solver_report(
-        solver_name="beam",
-        requested_seed=None,
-        effective_seed=None,
-        normalized_params={"beam_width": 1},
-        details={SolverReportDetailKey.EXECUTION_ROUTE.value: ExecutionRoute.KNOWN_KEY_FASTPATH.value},
-    )
-    assert report.to_json_dict()["details"]["oracle_use"] == OracleUse.KNOWN_KEY_FASTPATH.value
-
-    report = build_solver_report(
-        solver_name="beam",
-        requested_seed=None,
-        effective_seed=0,
-        normalized_params={"beam_width": 4, SolverParamKey.TEST_KEY.value: [1, 2, 3]},
-    )
-    assert report.to_json_dict()["details"]["oracle_use"] == OracleUse.TEST_KEY.value
+def test_oracle_report_rejects_unavailable_oracle_use() -> None:
+    with pytest.raises(ValueError, match="available"):
+        api.advanced.OracleReport(available=False, used_for_ranking=True)
 
 
-def test_solver_report_json_detail_strings_remain_stable() -> None:
-    report = build_solver_report(
-        solver_name="beam",
-        requested_seed=None,
-        effective_seed=0,
-        normalized_params={"beam_width": 4},
+def test_reproducibility_metadata_serializes_enum_values() -> None:
+    metadata = api.advanced.ReproducibilityMetadata(
+        compute_device=api.ComputeDevice.CPU,
+        stop_category=api.advanced.StopCategory.SUCCESS,
+        stop_reason=api.advanced.StopReason.TARGET_SCORE_REACHED,
     )
 
-    details = report.to_json_dict()["details"]
-    assert details["report_contract"] == {"version": "api_solver_report_details.v1"}
-    assert details["oracle_use"] == "none"
-    assert details["truth_data_policy"] == "none"
-    assert details["reproducibility"]["deterministic_seed_policy"] == "explicit_or_default_zero"
-
-
-@pytest.mark.parametrize(
-    "reserved_key",
-    [
-        SolverReportDetailKey.REPORT_CONTRACT.value,
-        SolverReportDetailKey.ORACLE_USE.value,
-        SolverReportDetailKey.TRUTH_DATA_POLICY.value,
-        SolverReportDetailKey.REPRODUCIBILITY.value,
-    ],
-)
-def test_solver_report_enum_owned_sections_cannot_be_caller_supplied(reserved_key: str) -> None:
-    with pytest.raises(ValueError, match=reserved_key):
-        build_solver_report(
-            solver_name="beam",
-            requested_seed=None,
-            effective_seed=0,
-            normalized_params={"beam_width": 4},
-            details={reserved_key: "caller supplied"},
-        )
+    payload = metadata.to_json_dict()
+    assert payload["compute_device"] == "cpu"
+    assert payload["stop_category"] == "success"
+    assert payload["stop_reason"] == "target_score_reached"

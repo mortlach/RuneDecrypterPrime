@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from rune_decrypter_prime.api.printer import RdpPrintOptions, format_rdp_kv_block, print_rdp_block
+from rdp.api.display import PrintOptions, format_key_value_block, print_block
 from rune_decrypter_prime.core.types import Direction, ensure_direction
 from rune_decrypter_prime.utils.runeglish import Runeglish
 
@@ -19,7 +19,7 @@ def print_tutorial_debug_preview(
     token_limit: int = DEFAULT_DEBUG_PREVIEW_TOKENS,
 ) -> None:
     """Print an unambiguous tutorial text preview using the standard style."""
-    print_rdp_block(
+    print_block(
         tutorial_debug_preview_block(
             label=label,
             idx=idx,
@@ -37,7 +37,7 @@ def tutorial_debug_preview_block(
     wli: Sequence[Sequence[int]] | None,
     direction: Direction | str,
     token_limit: int = DEFAULT_DEBUG_PREVIEW_TOKENS,
-    options: RdpPrintOptions | None = None,
+    options: PrintOptions | None = None,
 ) -> str:
     """Return a sectioned debug preview for tutorial/review output."""
     direction_value = ensure_direction(direction)
@@ -47,7 +47,7 @@ def tutorial_debug_preview_block(
 
     clipped = idx_values[:token_limit]
     suffix = "" if len(idx_values) <= token_limit else f" ... <{len(idx_values) - token_limit} more>"
-    return format_rdp_kv_block(
+    return format_key_value_block(
         f"Debug preview: {label}",
         [
             ("encoding_dir", direction_value.value),

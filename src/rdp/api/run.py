@@ -7,21 +7,21 @@ from typing import overload
 
 import numpy as np
 
-from rune_decrypter_prime.api.pipeline import execute_run
-from rune_decrypter_prime.api.run_artifact_manifest import write_run_artifacts_manifest
-from rune_decrypter_prime.api.run_result import RunResult
-from rune_decrypter_prime.api.run_spec import ProblemInput, RunSpec
-from rune_decrypter_prime.api.run_spec_routing import materialize_runspec_problem_input
-from rune_decrypter_prime.api.solver_report import (
+from rdp.api.pipeline import execute_run
+from rdp.api.run_artifact_manifest import write_run_artifacts_manifest
+from rdp.api.run_result import RunResult
+from rdp.api.run_spec import ProblemInput, RunSpec
+from rdp.api.run_spec_routing import materialize_runspec_problem_input
+from rdp.api.solver_report import (
     ConfigurationResolution,
     OracleReport,
     ReproducibilityMetadata,
     RunConfigurationReport,
     SolverReport,
 )
-from rune_decrypter_prime.api.solver_report_export import write_solver_report_json
-from rune_decrypter_prime.api.specs import CipherSpec, KeySpec, SolverSpec
-from rune_decrypter_prime.api.stop_reason_contract import (
+from rdp.api.solver_report_export import write_solver_report_json
+from rdp.api.specs import CipherSpec, KeySpec, SolverSpec
+from rdp.api.stop_reason_contract import (
     ExecutionStatus,
     execution_status_for_category,
     run_status_from_solution,
@@ -168,7 +168,6 @@ def _execute(
     device = Device.CPU if request.compute_device is ComputeDevice.CPU else Device.CUDA
     direction = Direction.LTR if request.text_direction is TextDirection.LEFT_TO_RIGHT else Direction.RTL
     effective_seed = 0 if request.solver.seed is None else request.solver.seed
-    solver_config = _runtime_solver_config(request.solver, effective_seed=effective_seed)
     logging_runtime: dict[str, object] = {}
     if progress_callback is not None:
         logging_runtime["progress_callback"] = progress_callback
@@ -178,7 +177,7 @@ def _execute(
     if request.solver.kind is SolverKind.TWO_PERIOD_CRIBS:
         if request.logging is not None:
             init_logging(request.logging)
-        from rune_decrypter_prime.api.two_period_cribs import normalize_two_period_cribs_request
+        from rdp.api.two_period_cribs import normalize_two_period_cribs_request
         from rune_decrypter_prime.solvers.two_period_cribs import run_two_period_stages
 
         special_request = normalize_two_period_cribs_request(request.solver)
@@ -197,6 +196,7 @@ def _execute(
             interruptors_max=None,
         )
     else:
+        solver_config = _runtime_solver_config(request.solver, effective_seed=effective_seed)
         solution = execute_run(
             ciphertext=materialized.ciphertext,
             wli=materialized.wli,
@@ -251,14 +251,14 @@ def _write_requested_artifacts(request: RunSpec, result: RunResult) -> None:
     if logging.write_solver_report:
         write_solver_report_json(result.solver_report, run_dir=run_dir)
     if logging.write_display_summary:
-        from rune_decrypter_prime.api.display import build_rdp_summary, write_rdp_summary_json
+        from rdp.api.display import build_summary, write_summary_json
 
-        summary = build_rdp_summary(
+        summary = build_summary(
             result,
             spec=request,
             scorer_report=result.scorer_report,
         )
-        write_rdp_summary_json(summary, run_dir / "artifacts" / "rdp_display_summary.json")
+        write_summary_json(summary, run_dir / "artifacts" / "rdp_display_summary.json")
     if logging.write_artifact_manifest:
         write_run_artifacts_manifest(
             run_dir=run_dir,

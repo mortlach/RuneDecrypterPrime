@@ -3,14 +3,14 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from rune_decrypter_prime.api.printer import (
-    RdpPrintOptions,
-    format_rdp_banner,
-    format_rdp_kv_block,
-    format_rdp_preview_block,
-    format_rdp_section,
-    format_rdp_status_block,
-    print_rdp_block,
+from rdp.api.display import (
+    PrintOptions,
+    format_banner,
+    format_key_value_block,
+    format_preview_block,
+    format_section,
+    format_status_block,
+    print_block,
 )
 from rune_decrypter_prime.scoring.language_model.load_status import LmLoadStatus
 from rune_decrypter_prime.utils.tutorial_output import tutorial_debug_preview_block
@@ -18,17 +18,17 @@ from rune_decrypter_prime.utils.tutorial_output import tutorial_debug_preview_bl
 TRUTH_REFERENCE_USE = "stop-score calibration; not supplied to solver ranking"
 
 
-def default_options() -> RdpPrintOptions:
-    return RdpPrintOptions.detailed()
+def default_options() -> PrintOptions:
+    return PrintOptions.detailed()
 
 
-def print_rdp_identity(*, options: RdpPrintOptions | None = None) -> None:
-    print_rdp_block(format_rdp_banner(options=options or default_options()))
+def print_rdp_identity(*, options: PrintOptions | None = None) -> None:
+    print_block(format_banner(options=options or default_options()))
 
 
-def print_initialising(*, options: RdpPrintOptions | None = None) -> None:
-    print_rdp_block(
-        format_rdp_kv_block(
+def print_initialising(*, options: PrintOptions | None = None) -> None:
+    print_block(
+        format_key_value_block(
             "Initialising RDP",
             [
                 ("display schema", "api_display_summary.v1"),
@@ -49,7 +49,7 @@ def print_tutorial_contract(
     expected_result: str,
     uses_reference_stop_score: bool = True,
     extra_rows: Mapping[str, Any] | Sequence[tuple[str, Any]] = (),
-    options: RdpPrintOptions | None = None,
+    options: PrintOptions | None = None,
 ) -> None:
     rows: list[tuple[str, Any]] = [
         ("name", name),
@@ -63,24 +63,24 @@ def print_tutorial_contract(
     else:
         rows.append(("truth/reference use", "not supplied to solver"))
     rows.extend(_rows(extra_rows))
-    print_rdp_block(format_rdp_kv_block("Tutorial", rows, options=options or default_options()))
+    print_block(format_key_value_block("Tutorial", rows, options=options or default_options()))
 
 
 def print_problem_input(
     rows: Mapping[str, Any] | Sequence[tuple[str, Any]],
     *,
-    options: RdpPrintOptions | None = None,
+    options: PrintOptions | None = None,
 ) -> None:
-    print_rdp_block(format_rdp_kv_block("Problem input", rows, options=options or default_options()))
+    print_block(format_key_value_block("Problem input", rows, options=options or default_options()))
 
 
 def print_preview(
     title: str,
     rows: Mapping[str, Any] | Sequence[tuple[str, Any]],
     *,
-    options: RdpPrintOptions | None = None,
+    options: PrintOptions | None = None,
 ) -> None:
-    print_rdp_block(format_rdp_preview_block(title, rows, options=options or default_options()))
+    print_block(format_preview_block(title, rows, options=options or default_options()))
 
 
 def print_debug_preview(
@@ -89,9 +89,9 @@ def print_debug_preview(
     idx: Sequence[int],
     wli: Sequence[Sequence[int]] | None,
     direction: Any,
-    options: RdpPrintOptions | None = None,
+    options: PrintOptions | None = None,
 ) -> None:
-    print_rdp_block(
+    print_block(
         tutorial_debug_preview_block(
             label=label,
             idx=idx,
@@ -102,9 +102,9 @@ def print_debug_preview(
     )
 
 
-def print_model_loading(events: Sequence[LmLoadStatus], *, options: RdpPrintOptions | None = None) -> None:
-    print_rdp_block(
-        format_rdp_status_block(
+def print_model_loading(events: Sequence[LmLoadStatus], *, options: PrintOptions | None = None) -> None:
+    print_block(
+        format_status_block(
             "Model loading",
             model_loading_rows(events),
             options=options or default_options(),
@@ -124,9 +124,9 @@ def model_loading_rows(events: Sequence[LmLoadStatus]) -> list[tuple[str, object
     ]
 
 
-def print_run_progress_heading(*, options: RdpPrintOptions | None = None) -> None:
+def print_run_progress_heading(*, options: PrintOptions | None = None) -> None:
     _ = options or default_options()
-    print_rdp_block(format_rdp_section("Run progress"))
+    print_block(format_section("Run progress"))
 
 
 def print_summary_spacer() -> None:
@@ -149,9 +149,9 @@ def print_result_note(
     title: str,
     rows: Mapping[str, Any] | Sequence[tuple[str, Any]],
     *,
-    options: RdpPrintOptions | None = None,
+    options: PrintOptions | None = None,
 ) -> None:
-    print_rdp_block(format_rdp_kv_block(title, rows, options=options or default_options()))
+    print_block(format_key_value_block(title, rows, options=options or default_options()))
 
 
 def _rows(rows: Mapping[str, Any] | Sequence[tuple[str, Any]]) -> list[tuple[str, Any]]:

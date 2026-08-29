@@ -10,7 +10,7 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+from rdp.api.specs import CipherSpec, KeySpec
 from rune_decrypter_prime.core.component_contracts import (
     CapabilityIssue,
     CapabilityStatus,
@@ -138,7 +138,7 @@ def _key_space_for_cipher(cipher: CipherSpec, *, key_length: int) -> KeySpec:
 
 
 def _non_invertible_error(cipher: CipherSpec, operation: str) -> NonInvertibleCipherError:
-    from rune_decrypter_prime.api.stop_reason_contract import (
+    from rdp.api.stop_reason_contract import (
         CanonicalStopReason,
         ExecutionStatus,
         RunStatus,

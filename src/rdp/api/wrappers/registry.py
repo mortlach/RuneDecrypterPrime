@@ -5,8 +5,8 @@ import numpy as np
 
 from rune_decrypter_prime.core.config import CipherConfig
 from rune_decrypter_prime.core.types import Device, Direction, KeyOpsFamily
-from rune_decrypter_prime.api.api_utils import expect_key_plan, resolve_cipher_kind, resolve_key_length
-from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+from rdp.api.api_utils import expect_key_plan, resolve_cipher_kind, resolve_key_length
+from rdp.api.specs import CipherSpec, KeySpec
 from rune_decrypter_prime.ciphers.scheduled_stream_lookup_cipher import (
     solved_key_length_for_streams,
     validate_schedule_for_streams,

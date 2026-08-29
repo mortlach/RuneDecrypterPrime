@@ -1,25 +1,11 @@
 from __future__ import annotations
-
 import ast
 import re
 from pathlib import Path
 import rune_decrypter_prime as rdp
-
-# We still ban the canonical tokens, but we only look at code (AST), not comments/docstrings.
-_BANNED = {"numpy", "torch", "unified", "auto", "beam", "ga", "sa", "hybrid", "cpu", "cuda"}
-# For string constants in code, we use word boundaries:
-_PATTERN = re.compile(r"\b(?:numpy|torch|unified|auto|beam|ga|sa|hybrid|cpu|cuda)\b", re.IGNORECASE)
-
-# Allowed core files to hold canonical strings (e.g., Enum values, stringification helpers)
-_ALLOWLIST = {
-    "core/types.py",
-    "core/config/logging_config.py",
-    "core/config/cipher.py",
-    "core/config/scoring.py",
-    "core/engine/engine.py",
-    "core/problem/instance.py",
-    "core/solver_engine.py",
-}
+_BANNED = {'numpy', 'torch', 'unified', 'auto', 'beam', 'ga', 'sa', 'hybrid', 'cpu', 'cuda'}
+_PATTERN = re.compile('\\b(?:numpy|torch|unified|auto|beam|ga|sa|hybrid|cpu|cuda)\\b', re.IGNORECASE)
+_ALLOWLIST = {'core/types.py', 'core/config/logging_config.py', 'core/config/cipher.py', 'core/config/scoring.py', 'core/engine/engine.py', 'core/problem/instance.py', 'core/solver_engine.py'}
 
 def _strip_docstrings(tree: ast.AST) -> ast.AST:
     """Remove module/class/function docstrings so we don't scan them."""
@@ -27,8 +13,7 @@ def _strip_docstrings(tree: ast.AST) -> ast.AST:
         if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
             if node.body and isinstance(node.body[0], ast.Expr):
                 expr = node.body[0]
-                if isinstance(getattr(expr, "value", None), ast.Constant) and isinstance(expr.value.value, str):
-                    # First statement is a string literal → docstring: drop it.
+                if isinstance(getattr(expr, 'value', None), ast.Constant) and isinstance(expr.value.value, str):
                     node.body.pop(0)
     return tree
 
@@ -38,73 +23,62 @@ def _scan_file(py: Path) -> list[tuple[str, int, str, str]]:
       (kind, lineno, token, context)
     kind ∈ {'import','name','attr','string'}
     """
-    src = py.read_text(encoding="utf-8", errors="ignore")
+    src = py.read_text(encoding='utf-8', errors='ignore')
     try:
         tree = ast.parse(src, filename=str(py))
     except SyntaxError:
-        # If it doesn't parse, skip it rather than producing false positives.
         return []
-
     tree = _strip_docstrings(tree)
-
     offenders: list[tuple[str, int, str, str]] = []
 
     class V(ast.NodeVisitor):
+
         def visit_Import(self, node: ast.Import):
             for alias in node.names:
-                head = alias.name.split(".")[0].lower()
+                head = alias.name.split('.')[0].lower()
                 if head in _BANNED:
-                    offenders.append(("import", node.lineno, head, f"import {alias.name}"))
+                    offenders.append(('import', node.lineno, head, f'import {alias.name}'))
             self.generic_visit(node)
 
         def visit_ImportFrom(self, node: ast.ImportFrom):
             if node.module:
-                head = node.module.split(".")[0].lower()
+                head = node.module.split('.')[0].lower()
                 if head in _BANNED:
-                    offenders.append(("import", node.lineno, head, f"from {node.module} import ..."))
+                    offenders.append(('import', node.lineno, head, f'from {node.module} import ...'))
             self.generic_visit(node)
 
         def visit_Name(self, node: ast.Name):
-            # e.g., 'torch.foo', or bare 'cpu' (unlikely but safe)
             ident = node.id.lower()
             if ident in _BANNED:
-                offenders.append(("name", node.lineno, ident, node.id))
+                offenders.append(('name', node.lineno, ident, node.id))
             self.generic_visit(node)
 
         def visit_Attribute(self, node: ast.Attribute):
-            # e.g., torch.cuda.is_available
             base = node.value
             if isinstance(base, ast.Name):
                 ident = base.id.lower()
                 if ident in _BANNED:
-                    offenders.append(("attr", node.lineno, ident, f"{base.id}.{node.attr}"))
+                    offenders.append(('attr', node.lineno, ident, f'{base.id}.{node.attr}'))
             self.generic_visit(node)
 
         def visit_Constant(self, node: ast.Constant):
-            # Only strings used in executable code (docstrings already stripped).
             if isinstance(node.value, str):
                 if _PATTERN.search(node.value):
-                    # Show a compact preview for context
                     val = node.value
-                    preview = val if len(val) <= 60 else (val[:57] + "...")
-                    offenders.append(("string", node.lineno, "<str>", preview))
+                    preview = val if len(val) <= 60 else val[:57] + '...'
+                    offenders.append(('string', node.lineno, '<str>', preview))
             self.generic_visit(node)
-
     V().visit(tree)
     return offenders
 
 def test_core_has_no_backend_optimizer_magic_literals():
     root = Path(rdp.__file__).resolve().parent
-    core = root / "core"
+    core = root / 'core'
     all_offenders: list[str] = []
-    for py in core.rglob("*.py"):
+    for py in core.rglob('*.py'):
         rel = py.relative_to(root).as_posix()
         if rel in _ALLOWLIST:
             continue
         for kind, lineno, token, ctx in _scan_file(py):
-            all_offenders.append(f"- {rel}:{lineno} [{kind}] {ctx}")
-
-    assert not all_offenders, (
-        "Backend/optimizer magic strings found in core code (comments/docstrings ignored).\n"
-        + "\n".join(all_offenders)
-    )
+            all_offenders.append(f'- {rel}:{lineno} [{kind}] {ctx}')
+    assert not all_offenders, 'Backend/optimizer magic strings found in core code (comments/docstrings ignored).\n' + '\n'.join(all_offenders)

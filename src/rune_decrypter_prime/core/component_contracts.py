@@ -7,8 +7,8 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
-    from rune_decrypter_prime.api.stop_reason_contract import RunStatus
+    from rdp.api.specs import CipherSpec, KeySpec
+    from rdp.api.stop_reason_contract import RunStatus
     from rune_decrypter_prime.core.types import ConcreteKey, JsonObject
 
 

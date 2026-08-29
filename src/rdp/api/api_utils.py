@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Tuple, Union
 
-from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+from rdp.api.specs import CipherSpec, KeySpec
 
 
 def resolve_cipher_kind(cipher: CipherSpec) -> str:

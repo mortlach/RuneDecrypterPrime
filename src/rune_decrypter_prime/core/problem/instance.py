@@ -16,7 +16,7 @@ from rune_decrypter_prime.core.types import Direction, ensure_direction
 
 
 def _expected_runtime_identity(spec: object) -> str | None:
-    from rune_decrypter_prime.api.specs import CipherSpec
+    from rdp.api.specs import CipherSpec
     from rune_decrypter_prime.core.types import FinalCipherKind
 
     if not isinstance(spec, CipherSpec):

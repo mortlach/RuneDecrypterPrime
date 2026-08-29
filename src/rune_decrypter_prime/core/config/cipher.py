@@ -6,7 +6,7 @@ from dataclasses import dataclass, asdict, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 if TYPE_CHECKING:
-    from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+    from rdp.api.specs import CipherSpec, KeySpec
 
 from rune_decrypter_prime.core.config.interruptor import InterruptorConfig
 from rune_decrypter_prime.core.types import (
@@ -168,7 +168,7 @@ def _binding_error(cipher: "CipherSpec", key_space: "KeySpec", message: str):
 
 def expected_concrete_key_length(cipher: "CipherSpec", key_space: "KeySpec") -> int:
     """Validate one accepted cipher/key-space pair and return its flat length."""
-    from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+    from rdp.api.specs import CipherSpec, KeySpec
     from rune_decrypter_prime.core.types import CipherKind, FinalCipherKind, FinalKeyKind
 
     if not isinstance(cipher, CipherSpec):

@@ -144,7 +144,7 @@ def _make_vigenere_like_spec(**kwargs):
     CipherSpec.wrapper(core="vigenere"), gracefully fall back to a generic user_map2
     that implements ct = (pt + k) mod N.
     """
-    from rune_decrypter_prime.api.specs import CipherSpec  # lazy import
+    from rdp.api.specs import CipherSpec  # lazy import
     # Try the official wrapper constructor if present
     wrapper_ctor = getattr(CipherSpec, "wrapper", None)
     if callable(wrapper_ctor):
@@ -237,7 +237,7 @@ class by_name:
     @staticmethod
     def _vigenere(*, key_len: int | None = None, default_key: bool = False, **kwargs: Any):
         """Vigenère wrapper → core 'vigenere' (or generic-map fallback)."""
-        from rune_decrypter_prime.api.specs import KeySpec  # lazy
+        from rdp.api.specs import KeySpec  # lazy
         spec = _make_vigenere_like_spec(**kwargs)
         key = KeySpec.repeat(len=key_len) if (default_key and key_len and key_len > 0) else None
         return spec, key
@@ -245,7 +245,7 @@ class by_name:
     @staticmethod
     def _caesar(*, key_len: int | None = None, default_key: bool = False, **kwargs: Any):
         """Caesar as period-1 Vigenère on the UX surface (uses same wrapper/fallback)."""
-        from rune_decrypter_prime.api.specs import KeySpec  # lazy
+        from rdp.api.specs import KeySpec  # lazy
         spec = _make_vigenere_like_spec(**kwargs)
         # ignore key_len; caesar is period 1
         key = KeySpec.repeat(len=1) if default_key else None
@@ -261,7 +261,7 @@ class by_name:
         Affine cipher: ct = (a * pt + b) mod N
         Implemented using generic user_map3 (pt, a, b) → ct.
         """
-        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec  # lazy
+        from rdp.api.specs import CipherSpec, KeySpec  # lazy
         N = _pull_N(kwargs)
         def f(pt: int, a: int, b: int) -> int:
             return (a * pt + b) % N
@@ -282,7 +282,7 @@ class by_name:
         resolver_limit: int = 8193, **kwargs: Any
     ):
         """'xor-mod' cipher: ct = (pt ^ k) % N."""
-        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec  # lazy
+        from rdp.api.specs import CipherSpec, KeySpec  # lazy
         N = _pull_N(kwargs)
         def f(pt: int, k: int) -> int:
             return (pt ^ k) % N
@@ -301,7 +301,7 @@ class by_name:
         resolver_limit: int = 8193, **kwargs: Any
     ):
         """Classical Beaufort: ct = (k - pt) mod N"""
-        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec  # lazy
+        from rdp.api.specs import CipherSpec, KeySpec  # lazy
         N = _pull_N(kwargs)
         def f(pt: int, k: int) -> int:
             return (k - pt) % N
@@ -320,7 +320,7 @@ class by_name:
         resolver_limit: int = 8193, **kwargs: Any
     ):
         """Variant Vigenère (aka Beaufort-variant): ct = (pt - k) mod N"""
-        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec  # lazy
+        from rdp.api.specs import CipherSpec, KeySpec  # lazy
         N = _pull_N(kwargs)
         def f(pt: int, k: int) -> int:
             return (pt - k) % N
@@ -338,7 +338,7 @@ class by_name:
         Hill cipher wrapper. 'key_n' is the matrix size n (key length = n*n).
         Falls back to n=2 if not provided.
         """
-        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec  # lazy import
+        from rdp.api.specs import CipherSpec, KeySpec  # lazy import
         n = int(key_n) if key_n and key_n > 1 else 2
         N = _pull_N(kwargs)  # alphabet size, defaults to 29
 
@@ -356,7 +356,7 @@ class by_name:
     #     degeneracy: str = "forbid", resolver: str = "first", per_pos_limit: int = 1, **kwargs: Any
     # ):
     #     """Columnar transposition: values unchanged, positions permuted."""
-    #     from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+    #     from rdp.api.specs import CipherSpec, KeySpec
     #     N = _pull_N(kwargs)
     #     def f(pt: int, k: int) -> int:
     #         return pt
@@ -377,7 +377,7 @@ class by_name:
         **kwargs: Any,
     ):
         """Railfence cipher: scalar key controlling the number of rails."""
-        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+        from rdp.api.specs import CipherSpec, KeySpec
 
         spec = CipherSpec._wrapper(name="railfence", core_name="railfence")
         extras = spec.extra
@@ -410,7 +410,7 @@ class by_name:
         **kwargs: Any,
     ):
         """Autokey cipher: search over the seed of length `seed_len`."""
-        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+        from rdp.api.specs import CipherSpec, KeySpec
 
         seed = int(seed_len) if seed_len is not None else 3
         if seed <= 0:
@@ -431,7 +431,7 @@ class by_name:
         *, cols: int | None = None, default_key: bool = False, **kwargs: Any
     ):
         """Route cipher: permute column order in a grid."""
-        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+        from rdp.api.specs import CipherSpec, KeySpec
         N = _pull_N(kwargs)
         def f(pt: int, k: int) -> int:
             return pt
@@ -452,7 +452,7 @@ class by_name:
         default_key: bool = False, **kwargs: Any
     ):
         """Double transposition: two permutations applied in sequence."""
-        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+        from rdp.api.specs import CipherSpec, KeySpec
         N = _pull_N(kwargs)
         def f(pt: int, k: int) -> int:
             return pt
@@ -472,7 +472,7 @@ class by_name:
         *, block_size: int | None = None, default_key: bool = False, **kwargs: Any
     ):
         """Block permutation cipher: permute letters inside fixed-size blocks."""
-        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+        from rdp.api.specs import CipherSpec, KeySpec
         N = _pull_N(kwargs)
         def f(pt: int, k: int) -> int:
             return pt
@@ -492,7 +492,7 @@ class by_name:
         *, default_key: bool = False, **kwargs: Any
     ):
         """Four-square cipher: two keyword squares (two permutations of 25)."""
-        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+        from rdp.api.specs import CipherSpec, KeySpec
         N = _pull_N(kwargs)
         def f(p1: int, p2: int, k1: list[int], k2: list[int]) -> tuple[int,int]:
             return (p1, p2)
@@ -518,7 +518,7 @@ class by_name:
         The resolved length is stored in `spec.extra` for direct cipher_instance()
         use (encryption previews/tests) where no CipherConfig exists yet.
         """
-        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+        from rdp.api.specs import CipherSpec, KeySpec
 
         spec = CipherSpec._wrapper(name="columnar", core_name="columnar")
         cols = key_length if key_length is not None else (key_len if key_len is not None else cols)
@@ -539,7 +539,7 @@ class by_name:
         Monoalphabetic substitution (permutation of N symbols).
         UX wrapper that targets the core 'substitution' cipher.
         """
-        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec  # lazy
+        from rdp.api.specs import CipherSpec, KeySpec  # lazy
         N = _pull_N(kwargs)
         spec = CipherSpec._wrapper(name="substitution", core_name="substitution", N=N)
         # For mono, a “key” is a permutation of the alphabet (length = N)
@@ -557,7 +557,7 @@ class by_name:
         **kwargs: Any,
     ):
         """Periodic substitution cipher wrapper."""
-        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+        from rdp.api.specs import CipherSpec, KeySpec
         if period is None or int(period) <= 0:
             raise ValueError("periodic_substitution requires period >= 1")
         A = int(alphabet_size) if alphabet_size is not None else _pull_N(kwargs)
@@ -583,7 +583,7 @@ class by_name:
         **kwargs: Any,
     ):
         """Periodic substitution + columnar transposition wrapper."""
-        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+        from rdp.api.specs import CipherSpec, KeySpec
         if period is None or int(period) <= 0:
             raise ValueError("periodic_columnar requires period >= 1")
         col_raw = columns if columns is not None else cols
@@ -624,7 +624,7 @@ class by_name:
         This is the public wrapper for the real engine cipher. Preset aliases
         below only build this same wrapper with convenient defaults.
         """
-        from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+        from rdp.api.specs import CipherSpec, KeySpec
 
         A = int(alphabet_size) if alphabet_size is not None else _pull_N(kwargs)
         spec = CipherSpec._wrapper(

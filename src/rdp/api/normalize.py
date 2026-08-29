@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import List, Tuple, Sequence, Union, Optional, TypeVar, Dict, Any
 import numpy as np
 
-from rune_decrypter_prime.api._resolve import resolve_optimizer_aliases
+from rdp.api._resolve import resolve_optimizer_aliases
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.core.types import (
     Direction,

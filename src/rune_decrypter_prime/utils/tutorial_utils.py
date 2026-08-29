@@ -5,7 +5,7 @@ from typing import Any, Dict, Iterable, Optional
 
 import numpy as np
 
-from rune_decrypter_prime.api.printer import RdpPrintOptions, format_rdp_kv_block, print_rdp_block
+from rdp.api.display import PrintOptions, format_key_value_block, print_block
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
@@ -107,11 +107,11 @@ def format_stop_summary(
     label: str,
     result: StopScoreResult,
     *,
-    options: RdpPrintOptions | None = None,
+    options: PrintOptions | None = None,
 ) -> str:
-    return format_rdp_kv_block("Scoring / stop target", stop_summary_rows(label, result), options=options)
+    return format_key_value_block("Scoring / stop target", stop_summary_rows(label, result), options=options)
 
 
 def print_stop_summary(label: str, result: StopScoreResult) -> None:
     print_model_loading(result.load_events)
-    print_rdp_block(format_stop_summary(label, result))
+    print_block(format_stop_summary(label, result))

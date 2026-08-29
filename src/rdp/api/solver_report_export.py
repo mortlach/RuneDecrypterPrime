@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from rune_decrypter_prime.api.solver_report import SolverReport
+from rdp.api.solver_report import SolverReport
 
 
 def write_solver_report_json(report: SolverReport, *, run_dir: Path) -> str:

@@ -1,17 +1,13 @@
 from __future__ import annotations
 
-from typing import Literal, Sequence
+from typing import Sequence
 
 import numpy as np
 
-from rune_decrypter_prime.api import Direction, KeySpec, SolverSpec, by_name, cipher_instance, run
+from rdp import api
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialRunKind, TutorialStopPolicy
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
-from rune_decrypter_prime.utils.tutorial_reference import TutorialReference
-from rune_decrypter_prime.utils.tutorial_report import print_tutorial_run_report
-from rune_decrypter_prime.utils.tutorial_session_report import print_tutorial_session_report
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 
@@ -64,7 +60,9 @@ def mask_from_segments(length: int, segments: Sequence[tuple[str, int, int | Non
     return [int(v) for v in mask]
 
 
-def encode_plaintext(direction: Direction = Direction.RTL):
+def encode_plaintext(
+    direction: api.TextDirection = api.TextDirection.RIGHT_TO_LEFT,
+):
     pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(
         tutorial_plaintext(),
         direction=direction.value,
@@ -72,25 +70,24 @@ def encode_plaintext(direction: Direction = Direction.RTL):
     return [int(v) for v in pt_idx], wli, pt_runes
 
 
-def default_scorer_params(direction: Direction) -> dict:
-    return dict(
-        objective="pct.logp.win10",
-        include_char=True,
-        use_word_breaks=True,
-        char_weights={2: 0.3},
-        wli_weights={2: 0.7},
-        encoding_dir=direction,
+def default_scorer_params(direction: api.TextDirection) -> api.ScoringConfig:
+    return api.ScoringConfig(
+        character_lane_enabled=True,
+        word_length_lane_enabled=True,
+        character_order_weights={2: 0.3},
+        word_length_order_weights={2: 0.7},
+        objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10),
     )
 
 
 def make_seeded_smoke_solver(
     pt_idx: Sequence[int],
     wli,
-    scorer_params: dict,
-    direction: Direction,
+    scorer_params: api.ScoringConfig,
+    direction: api.TextDirection,
     *,
     label: str,
-) -> SolverSpec:
+) -> api.SolverSpec:
     """Seeded pipeline-smoke solver. This is not ciphertext-only solving."""
     stop = oracle_stop_score(
         pt_idx,
@@ -103,16 +100,13 @@ def make_seeded_smoke_solver(
         fallback=0.54,
     )
     print_stop_summary(label, stop)
-    return SolverSpec.beam(
-        beam_width=24,
-        stop_score=stop.stop_score,
+    return api.SolverSpec.beam_search(
+        width=24,
+        rounds=250,
+        target_score=stop.stop_score,
         plateau_rounds=6,
-        plateau_min_delta=1e-4,
-        max_children_per_parent=16,
-        verbose=True,
-        progress_pct=5,
-        print_progress=True,
-        progress_preview_chars=120,
+        plateau_minimum_delta=1e-4,
+        maximum_children_per_parent=16,
         seed=TUTORIAL_SEED,
     )
 
@@ -124,64 +118,52 @@ def make_real_solve_solver(
     plateau_rounds: int = 12,
     max_children_per_parent: int = 29,
     seed: int = 2026,
-) -> SolverSpec:
+) -> api.SolverSpec:
     """Real key-recovery tutorial solver.
 
     Does not receive the true key as an initial key. The stop score is a fixed
     tutorial threshold for the short Alice sample used here.
     """
     print(f"[real solve] fixed stop_score={stop_score:.6f}; true key is not supplied")
-    return SolverSpec.beam(
-        beam_width=int(beam_width),
-        stop_score=float(stop_score),
+    return api.SolverSpec.beam_search(
+        width=int(beam_width),
+        rounds=500,
+        target_score=float(stop_score),
         plateau_rounds=int(plateau_rounds),
-        plateau_min_delta=1e-4,
-        max_children_per_parent=int(max_children_per_parent),
-        verbose=True,
-        progress_pct=5,
-        print_progress=True,
-        progress_preview_chars=120,
+        plateau_minimum_delta=1e-4,
+        maximum_children_per_parent=int(max_children_per_parent),
         seed=int(seed),
     )
 
 
 def build_ciphertext(
     *,
-    cipher_name: str,
-    cipher_kwargs: dict,
+    cipher_spec: api.CipherSpec,
+    key_spec: api.KeySpec,
     key_values: Sequence[int],
-    expected_key_len: int,
-    direction: Direction,
+    direction: api.TextDirection,
 ):
     pt_idx, wli, pt_runes = encode_plaintext(direction)
-    pt_arr = np.asarray(pt_idx, dtype=int)
+    key = tuple(int(value) for value in key_values)
+    expected_key_len = int(key_spec.parameters.get("length", len(key)))
+    if len(key) != expected_key_len:
+        raise AssertionError(f"expected key length {expected_key_len}, got {len(key)}")
 
-    cipher_spec, default_key = by_name.cipher_with_key(cipher_name, default_key=True, **cipher_kwargs)
-    key_spec = default_key if default_key is not None else KeySpec.repeat(len=expected_key_len)
-
-    actual_key_len = int(key_spec.params.get("len", 0))
-    if actual_key_len != expected_key_len:
-        raise AssertionError(f"expected key length {expected_key_len}, got {key_spec.params}")
-
-    cipher_obj = cipher_instance(cipher_spec)
-    key_arr = np.asarray(list(key_values), dtype=int)
-    ct_idx = cipher_obj.encrypt_single(plaintext=pt_arr, key=key_arr)
-    ct_idx_list = [int(v) for v in ct_idx]
+    ciphertext = api.encrypt(tuple(pt_idx), cipher=cipher_spec, key=key)
+    ct_idx_list = list(ciphertext)
     ct_runes = Runeglish.to_rune(ct_idx_list, wli)
-    print_tutorial_debug_preview(label="plaintext", idx=pt_idx, wli=wli, direction=direction)
-    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx_list, wli=wli, direction=direction)
-    return cipher_spec, key_spec, pt_idx, wli, pt_runes, ct_idx_list, ct_runes, key_arr, cipher_obj
+    display_direction = (
+        "rtl" if direction is api.TextDirection.RIGHT_TO_LEFT else "ltr"
+    )
+    print_tutorial_debug_preview(label="plaintext", idx=pt_idx, wli=wli, direction=display_direction)
+    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx_list, wli=wli, direction=display_direction)
+    return cipher_spec, key_spec, pt_idx, wli, pt_runes, ct_idx_list, ct_runes, key
 
 
 def _as_int_list(x) -> list[int] | None:
     if isinstance(x, (list, tuple, np.ndarray)):
         return [int(v) for v in x]
     return None
-
-
-def _split_run_result(result):
-    """Return ``(solution, solver_report)`` for either Solution or RunResult."""
-    return getattr(result, "solution", result), getattr(result, "solver_report", None)
 
 
 def two_period_additive_equivalent(
@@ -212,186 +194,3 @@ def two_period_additive_equivalent(
     if any(fb[i] != (eb[i] - shift) % alphabet_size for i in range(period_b)):
         return False
     return True
-
-
-def run_seeded_pipeline_smoke(
-    *,
-    title: str,
-    cipher_name: str,
-    cipher_kwargs: dict,
-    key_values: Sequence[int],
-    expected_key_len: int,
-    direction: Direction = Direction.RTL,
-    print_report: bool = False,
-) -> None:
-    """Known-key seeded pipeline smoke check. Belongs in tests, not tutorials."""
-    print("\nMODE: seeded pipeline smoke test")
-    print("ASSUMES: cipher config, key length, and true key as initial seed")
-    print("PROVES : API/cipher plumbing and roundtrip correctness\n")
-
-    cipher_spec, key_spec, pt_idx, wli, pt_runes, ct_idx_list, ct_runes, key_arr, cipher_obj = build_ciphertext(
-        cipher_name=cipher_name,
-        cipher_kwargs=cipher_kwargs,
-        key_values=key_values,
-        expected_key_len=expected_key_len,
-        direction=direction,
-    )
-
-    decoded = cipher_obj.decrypt_single(ciphertext=np.asarray(ct_idx_list, dtype=int), key=key_arr)
-    direct_ok = [int(v) for v in decoded] == pt_idx
-    print(f"{title}: direct known-key decrypt {'PASS/OK' if direct_ok else 'FAIL'}")
-    if not direct_ok:
-        raise AssertionError("known-key decrypt did not reproduce plaintext")
-
-    scorer_params = default_scorer_params(direction)
-    solver = make_seeded_smoke_solver(pt_idx, wli, scorer_params, direction, label=title)
-
-    result = run(
-        text=ct_runes,
-        cipher=cipher_spec,
-        key=key_spec,
-        solver=solver,
-        device="cpu",
-        scorer="rune",
-        scorer_params=scorer_params,
-        wli_data=wli,
-        encoding_dir=direction,
-        telemetry_on=True,
-        initial_keys=[list(key_values)],
-        return_solver_report=bool(print_report),
-    )
-    solution, solver_report = _split_run_result(result)
-
-    recovered = [int(v) for v in getattr(solution, "plaintext_idx", [])]
-    match_ok = recovered[: len(pt_idx)] == pt_idx if recovered else False
-    if not match_ok:
-        raise AssertionError("seeded pipeline smoke did not recover reference plaintext")
-
-    found_key_list = _as_int_list(getattr(solution, "key", None))
-    if found_key_list != [int(v) for v in key_values]:
-        raise AssertionError("seeded pipeline smoke did not preserve/recover expected key")
-
-    if print_report:
-        print_tutorial_run_report(
-            title=title,
-            cipher="scheduled_stream_lookup",
-            solution=solution,
-            solver_report=solver_report,
-            match_ok=match_ok,
-            app_version=APP_VERSION,
-            key_idx=list(key_values),
-            key_len=expected_key_len,
-            ct_idx=ct_idx_list,
-            ct_rune=ct_runes,
-            pt_rune_ref=pt_runes,
-            pt_idx_ref=pt_idx,
-        )
-
-
-def run_real_key_recovery_demo(
-    *,
-    title: str,
-    cipher_name: str,
-    cipher_kwargs: dict,
-    key_values: Sequence[int],
-    expected_key_len: int,
-    stop_score: float = 0.56,
-    beam_width: int = 72,
-    plateau_rounds: int = 12,
-    max_children_per_parent: int = 29,
-    key_check: Literal["exact", "two_period_additive_equivalent"] = "exact",
-    period_a: int | None = None,
-    period_b: int | None = None,
-    direction: Direction = Direction.RTL,
-) -> None:
-    """Real key-recovery tutorial: true key is used to encrypt, not supplied to solver."""
-    print("\nMODE: real key-recovery tutorial")
-    print("ASSUMES: cipher family, user-supplied schedule/operation/streams/periods/key length")
-    print("OPTIMIZES: periodic key values only")
-    print("DOES NOT SUPPLY: true key as initial_keys")
-    print("GOAL: recover the periodic key, or an equivalent key where the cipher has gauge freedom\n")
-
-    cipher_spec, key_spec, pt_idx, wli, pt_runes, ct_idx_list, ct_runes, _key_arr, _cipher_obj = build_ciphertext(
-        cipher_name=cipher_name,
-        cipher_kwargs=cipher_kwargs,
-        key_values=key_values,
-        expected_key_len=expected_key_len,
-        direction=direction,
-    )
-
-    scorer_params = default_scorer_params(direction)
-    solver = make_real_solve_solver(
-        stop_score=stop_score,
-        beam_width=beam_width,
-        plateau_rounds=plateau_rounds,
-        max_children_per_parent=max_children_per_parent,
-    )
-
-    result = run(
-        text=ct_runes,
-        cipher=cipher_spec,
-        key=key_spec,
-        solver=solver,
-        device="cpu",
-        scorer="rune",
-        scorer_params=scorer_params,
-        wli_data=wli,
-        encoding_dir=direction,
-        telemetry_on=True,
-        initial_keys=None,
-        return_solver_report=True,
-    )
-    solution, solver_report = _split_run_result(result)
-
-    recovered = [int(v) for v in getattr(solution, "plaintext_idx", [])]
-    match_ok = recovered[: len(pt_idx)] == pt_idx if recovered else False
-
-    found_key_list = _as_int_list(getattr(solution, "key", None))
-    expected_key_list = [int(v) for v in key_values]
-
-    exact_ok = found_key_list == expected_key_list
-    if key_check == "exact":
-        key_ok = exact_ok
-        key_check_label = "exact"
-    elif key_check == "two_period_additive_equivalent":
-        if period_a is None or period_b is None:
-            raise ValueError("two_period_additive_equivalent requires period_a and period_b")
-        key_ok = two_period_additive_equivalent(
-            found_key_list,
-            expected_key_list,
-            period_a=int(period_a),
-            period_b=int(period_b),
-        )
-        key_check_label = "two-period additive equivalent"
-    else:
-        raise ValueError(f"unknown key_check={key_check!r}")
-
-    print(f"Expected key : {expected_key_list}")
-    print(f"Found key    : {found_key_list}")
-    print(f"Key exact?   : {exact_ok}")
-    print(f"Key check    : {key_check_label}")
-    print(f"Key accepted?: {key_ok}")
-    print(f"Plaintext OK?: {match_ok}")
-
-    print_tutorial_session_report(
-        title=title,
-        cipher="scheduled_stream_lookup",
-        solution=solution,
-        solver_report=solver_report,
-        reference=TutorialReference.key_and_plaintext(key_idx=expected_key_list, plaintext_idx=pt_idx),
-        run_kind=TutorialRunKind.REAL_KEY_RECOVERY_BENCHMARK,
-        stop_policy=TutorialStopPolicy(readable_match_ratio=0.85, target_match_ratio=0.99, stop_score=stop_score),
-        match_ok=match_ok,
-        app_version=APP_VERSION,
-        key_idx=expected_key_list,
-        key_len=expected_key_len,
-        ct_idx=ct_idx_list,
-        ct_rune=ct_runes,
-        pt_rune_ref=pt_runes,
-        pt_idx_ref=pt_idx,
-    )
-
-    if not match_ok:
-        raise AssertionError("real solve did not recover the expected plaintext")
-    if not key_ok:
-        raise AssertionError("real solve did not recover an accepted key")

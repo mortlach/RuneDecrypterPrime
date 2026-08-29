@@ -80,7 +80,7 @@ class Solution:
     score_time_s: float = 0.0
 
     # Termination & extras. Public reports classify stop reasons through
-    # rune_decrypter_prime.api.stop_reason_contract; keep the schema there.
+    # rdp.api.stop_reason_contract; keep the schema there.
     stop_reason: Optional[str] = None
     extras: Dict[str, Any] = field(default_factory=dict)
 

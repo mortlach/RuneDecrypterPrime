@@ -106,7 +106,7 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
         if self.kind in (CipherKind.USER_MAP2, CipherKind.USER_MAP3):
             if K <= 0:
                 raise ValueError("GenericMapCipher requires cfg.key_length > 0 for user_map2/user_map3")
-            from rune_decrypter_prime.api.maps_api import function_for
+            from rdp.api.experimental import function_for
 
             f = function_for(spec)
             if not callable(f):

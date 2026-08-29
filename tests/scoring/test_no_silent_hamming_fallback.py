@@ -1,25 +1,23 @@
 from __future__ import annotations
-
+from rdp import api
 import warnings
-
 import numpy as np
 import pytest
-
 from rune_decrypter_prime.core.component_contracts import RequestedLaneUnavailableError
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.types import Direction
 from rune_decrypter_prime.scoring import rune_scorer
 
-
 class _StubECDF:
+
     def validate_clamp_range(self, **_kwargs):
         return None
 
     def load(self, **_kwargs):
         grid = np.array([0.0, 1.0], dtype=np.float64)
         q = np.array([0.0, 1.0], dtype=np.float64)
-        return grid, q
+        return (grid, q)
 
     def interp_percentile(self, grid, q, x):
         x_arr = np.asarray(x, dtype=np.float64)
@@ -31,93 +29,62 @@ class _StubECDF:
         return (-np.log1p(-np.clip(p, 0.0, 1.0))).astype(np.float64, copy=False)
 
     def asset_id(self, **_kwargs):
-        return "stub"
+        return 'stub'
 
     def meta_hash(self, **_kwargs):
-        return "stub"
+        return 'stub'
 
     def interp_dtype(self, **_kwargs):
-        return "float64"
+        return 'float64'
 
     def meta(self, **_kwargs):
         return {}
 
-
 class _StubRt:
+
     def __init__(self, *_, **__):
         self.ecdf = _StubECDF()
 
     def _score_batch_char(self, _dir, _se, _n, pt_windows):
-        nwin = int(pt_windows.shape[0]) if hasattr(pt_windows, "shape") else len(pt_windows or [])
+        nwin = int(pt_windows.shape[0]) if hasattr(pt_windows, 'shape') else len(pt_windows or [])
         zeros = np.zeros((nwin,), dtype=np.float64)
-        return zeros, zeros, zeros
+        return (zeros, zeros, zeros)
 
     def _score_batch_wli(self, _dir, _se, _n, pt_windows, _wli_windows):
-        nwin = int(pt_windows.shape[0]) if hasattr(pt_windows, "shape") else len(pt_windows or [])
+        nwin = int(pt_windows.shape[0]) if hasattr(pt_windows, 'shape') else len(pt_windows or [])
         zeros = np.zeros((nwin,), dtype=np.float64)
-        return zeros, zeros, zeros
-
+        return (zeros, zeros, zeros)
 
 def _patch_runtime(monkeypatch) -> None:
-    monkeypatch.setattr(rune_scorer, "LmPrimeRuntime", _StubRt)
-
+    monkeypatch.setattr(rune_scorer, 'LmPrimeRuntime', _StubRt)
 
 def _cipher_cfg() -> CipherConfig:
     return CipherConfig(ciphertext=[0, 1, 2, 3], wli_data=[], key_length=4)
 
-
 def _warning_messages(caught) -> list[str]:
     return [str(item.message).lower() for item in caught]
 
-
 def test_requested_hamming_missing_wordlist_blocks_without_warning(monkeypatch, tmp_path) -> None:
     _patch_runtime(monkeypatch)
-    cfg = ScoringConfig(
-        include_char=True,
-        use_word_breaks=False,
-        encoding_dir=Direction.LTR,
-        hamming_enabled=True,
-        hamming_wordlist_dir=tmp_path / "missing_hamming_wordlists",
-    )
-
+    cfg = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=False, hamming_enabled=True, hamming_wordlist_directory=tmp_path / 'missing_hamming_wordlists')
     with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        with pytest.raises(RequestedLaneUnavailableError, match="hamming"):
+        warnings.simplefilter('always')
+        with pytest.raises(RequestedLaneUnavailableError, match='hamming'):
             rune_scorer.RuneScorer(_cipher_cfg(), cfg)
-
-    assert not any("skipping hamming" in msg for msg in _warning_messages(caught))
-
+    assert not any(('skipping hamming' in msg for msg in _warning_messages(caught)))
 
 def test_nonzero_hamming_weight_missing_wordlist_blocks_without_warning(monkeypatch, tmp_path) -> None:
     _patch_runtime(monkeypatch)
-    cfg = ScoringConfig(
-        include_char=True,
-        use_word_breaks=False,
-        encoding_dir=Direction.LTR,
-        hamming_weight=0.01,
-        hamming_wordlist_dir=tmp_path / "missing_hamming_wordlists",
-    )
-
+    cfg = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=False, hamming_weight=0.01, hamming_wordlist_directory=tmp_path / 'missing_hamming_wordlists')
     with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        with pytest.raises(RequestedLaneUnavailableError, match="hamming"):
+        warnings.simplefilter('always')
+        with pytest.raises(RequestedLaneUnavailableError, match='hamming'):
             rune_scorer.RuneScorer(_cipher_cfg(), cfg)
-
-    assert not any("skipping hamming" in msg for msg in _warning_messages(caught))
-
+    assert not any(('skipping hamming' in msg for msg in _warning_messages(caught)))
 
 def test_unrequested_hamming_missing_wordlist_does_not_block(monkeypatch, tmp_path) -> None:
     _patch_runtime(monkeypatch)
-    cfg = ScoringConfig(
-        include_char=True,
-        use_word_breaks=False,
-        encoding_dir=Direction.LTR,
-        hamming_enabled=False,
-        hamming_weight=0.0,
-        hamming_wordlist_dir=tmp_path / "missing_hamming_wordlists",
-    )
-
+    cfg = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=False, hamming_enabled=False, hamming_weight=0.0, hamming_wordlist_directory=tmp_path / 'missing_hamming_wordlists')
     scorer = rune_scorer.RuneScorer(_cipher_cfg(), cfg)
-
     assert scorer is not None
-    assert getattr(scorer, "_hamming_backend") is None
+    assert getattr(scorer, '_hamming_backend') is None

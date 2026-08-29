@@ -6,9 +6,9 @@ from typing import Any, Sequence
 
 import numpy as np
 
-from rune_decrypter_prime.api.normalize import _assert_core_ready, normalize_ciphertext
-from rune_decrypter_prime.api.run_spec import NormalizedInput, RawTextInput, RunSpec, SourceInputRef
-from rune_decrypter_prime.api.source_resolution import resolve_source_input_ref
+from rdp.api.normalize import _assert_core_ready, normalize_ciphertext
+from rdp.api.run_spec import NormalizedInput, RawTextInput, RunSpec, SourceInputRef
+from rdp.api.source_resolution import resolve_source_input_ref
 from rune_decrypter_prime.core.config.logging_config import LoggingConfig
 
 

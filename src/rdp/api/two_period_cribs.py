@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
-from rune_decrypter_prime.api.specs import SolverSpec
+from rdp.api.specs import SolverSpec
+from rune_decrypter_prime.core.types import SolverKind
 
 TWO_PERIOD_CRIBS_SOLVER_NAME = "two_period_cribs"
 TWO_PERIOD_CRIBS_CONTRACT = "two_period_cribs.v1"
@@ -102,28 +103,23 @@ def build_two_period_cribs_spec(
     if not fixed and not words:
         raise ValueError("at least one fixed crib or candidate word is required")
 
-    params = {
-        "contract": TWO_PERIOD_CRIBS_CONTRACT,
-        "fixed_cribs": [[word, start] for word, start in sorted(set(fixed))],
-        "candidate_words": list(words),
-        "candidate_positions": {
-            word: list(positions[word]) for word in sorted(positions)
-        },
-        "starts": starts,
-    }
-    return SolverSpec(name=TWO_PERIOD_CRIBS_SOLVER_NAME, params=params, seed=seed)
+    return SolverSpec.two_period_cribs(
+        fixed_cribs=tuple(sorted(set(fixed))),
+        candidate_words=words,
+        candidate_positions={word: positions[word] for word in sorted(positions)},
+        starts=starts,
+        seed=seed,
+    )
 
 
 def is_two_period_cribs_solver(solver: SolverSpec) -> bool:
-    return isinstance(solver, SolverSpec) and solver.name == TWO_PERIOD_CRIBS_SOLVER_NAME
+    return isinstance(solver, SolverSpec) and solver.kind is SolverKind.TWO_PERIOD_CRIBS
 
 
 def normalize_two_period_cribs_request(solver: SolverSpec) -> TwoPeriodCribsRequest:
     if not is_two_period_cribs_solver(solver):
         raise ValueError("solver is not a two_period_cribs request")
-    params = dict(solver.params)
-    if params.pop("contract", None) != TWO_PERIOD_CRIBS_CONTRACT:
-        raise ValueError("unsupported two_period_cribs contract")
+    params = dict(solver.parameters)
     rebuilt = build_two_period_cribs_spec(
         fixed_cribs=params.pop("fixed_cribs", ()),
         candidate_words=params.pop("candidate_words", ()),
@@ -133,13 +129,13 @@ def normalize_two_period_cribs_request(solver: SolverSpec) -> TwoPeriodCribsRequ
     )
     if params:
         raise ValueError(f"unsupported two_period_cribs parameters: {sorted(params)}")
-    normalized = rebuilt.params
+    normalized = rebuilt.parameters
     return TwoPeriodCribsRequest(
         fixed_cribs=tuple((str(w), int(p)) for w, p in normalized["fixed_cribs"]),
         candidate_words=tuple(normalized["candidate_words"]),
         candidate_positions=tuple(
             (word, tuple(int(value) for value in values))
-            for word, values in normalized["candidate_positions"].items()
+            for word, values in (normalized["candidate_positions"] or {}).items()
         ),
         starts=int(normalized["starts"]),
         requested_seed=solver.seed,

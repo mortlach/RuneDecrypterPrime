@@ -1,250 +1,130 @@
 from __future__ import annotations
-
+import rdp.api.solver_report
+from rdp import api
 import json
 import os
 from pathlib import Path
-
 import pytest
-
-from rune_decrypter_prime.api import (
-    DISPLAY_SUMMARY_RELPATH,
-    DISPLAY_SUMMARY_SCHEMA,
-    CipherSpec,
-    KeySpec,
-    NormalizedInput,
-    RdpDisplayOptions,
-    RunResult,
-    RunSpec,
-    SolverSpec,
-    build_rdp_summary,
-    format_rdp_summary,
-    write_rdp_summary_json,
-)
-from rune_decrypter_prime.api.solver_report import build_solver_report
 from rune_decrypter_prime.core.config import Solution
 from rune_decrypter_prime.core.types import Direction
 from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
-
 
 def _solution() -> Solution:
     sol = Solution(key=[1, 2, 3], plaintext=[1, 2, 3], score=12.5)
     sol.plaintext_idx = [1, 2, 3]
     sol.ciphertext_idx = [4, 5, 6]
-    sol.plaintext_latin = "ABC"
-    sol.plaintext_rune = "ABC_RUNES"
-    sol.ciphertext_latin = "DEF"
-    sol.ciphertext_rune = "DEF_RUNES"
-    sol.stop_reason = "stop_score"
+    sol.plaintext_latin = 'ABC'
+    sol.plaintext_rune = 'ABC_RUNES'
+    sol.ciphertext_latin = 'DEF'
+    sol.ciphertext_rune = 'DEF_RUNES'
+    sol.stop_reason = 'stop_score'
     sol.tokens_processed = 7
     sol.score_time_s = 0.25
-    sol.meta = {
-        "telemetry": {
-            "run": {"seed": 123, "solver": "beam"},
-            "solver": {"name": "beam"},
-            "scorer": {"impl": "auto"},
-        },
-        "scorer_lanes": {"lanes": [], "components": []},
-    }
+    sol.meta = {'telemetry': {'run': {'seed': 123, 'solver': 'beam'}, 'solver': {'name': 'beam'}, 'scorer': {'impl': 'auto'}}, 'scorer_lanes': {'lanes': [], 'components': []}}
     return sol
 
-
 def _solver_report():
-    return build_solver_report(
-        solver_name="beam",
-        requested_seed=123,
-        effective_seed=123,
-        normalized_params={"beam_width": 4},
-        stop_reason="stop_score",
-        best_score=12.5,
-        best_key=[1, 2, 3],
-        tokens_processed=7,
-        score_time_s=0.25,
-        details={"scorer_lanes": {"lanes": [], "components": []}},
-    )
+    return rdp.api.solver_report.build_solver_report(solver_name='beam', requested_seed=123, effective_seed=123, normalized_params={'beam_width': 4}, stop_reason='stop_score', best_score=12.5, best_key=[1, 2, 3], tokens_processed=7, score_time_s=0.25, details={'scorer_lanes': {'lanes': [], 'components': []}})
 
+def _run_result() -> api.RunResult:
+    return api.RunResult(plaintext=tuple(_solution().plaintext_idx), plaintext_text=_solution().plaintext_latin, key=tuple(_solution().key), score=float(_solution().score), status=_solver_report().status, solver_report=_solver_report(), scorer_report=api.advanced.ScorerReport(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), score=float(_solution().score)), configuration=api.advanced.RunConfigurationReport(solver=_solver_report().parameters, scoring=api.advanced.ConfigurationResolution(), cipher=api.advanced.ConfigurationResolution()), reproducibility=api.advanced.ReproducibilityMetadata(), oracle=api.advanced.OracleReport(), telemetry=dict(getattr(_solution(), 'meta', {}).get('telemetry', {})))
 
-def _run_result() -> RunResult:
-    return RunResult(solution=_solution(), solver_report=_solver_report())
-
-
-def _run_spec() -> RunSpec:
-    return RunSpec(
-        problem_input=NormalizedInput(ct_idx=[4, 5, 6], wli=[[0, 3], [1, 3], [2, 3]]),
-        cipher=CipherSpec.periodic_substitution(period=3),
-        key=KeySpec.repeat(len=3),
-        solver=SolverSpec(name="beam", params={"beam_width": 4}, seed=123),
-        scorer="rune",
-        scorer_params={"objective": "pct.logp.win10", "include_char": True},
-    )
-
+def _run_spec() -> api.RunSpec:
+    return api.RunSpec(problem_input=api.RuneIndexInput(indices=[4, 5, 6], word_lengths=[[0, 3], [1, 3], [2, 3]]), cipher=api.CipherSpec.periodic_substitution(period=3), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=4, rounds=0, seed=123), scoring=api.ScoringConfig(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), character_lane_enabled=True))
 
 def test_builds_spec_aware_display_summary() -> None:
-    summary = build_rdp_summary(
-        _run_result(),
-        spec=_run_spec(),
-        reference_idx=[1, 2, 4],
-        tutorial_entry={
-            "path": "Tutorial_Demo.py",
-            "title": "Demo",
-            "gate": "v1_smoke",
-            "acceptance_kind": TutorialAcceptanceKind.EXACT.value,
-            "min_match_ratio": 1.0,
-        },
-        artifacts={"solver_report_path": "artifacts/solver_report.json"},
-        options=RdpDisplayOptions.for_tutorial(),
-    )
-
+    summary = api.display.build_summary(_run_result(), run_spec=_run_spec(), reference_indices=[1, 2, 4], tutorial={'path': 'Tutorial_Demo.py', 'title': 'Demo', 'gate': 'v1_smoke', 'acceptance_kind': TutorialAcceptanceKind.EXACT.value, 'min_match_ratio': 1.0}, artifacts=(api.advanced.RunArtifactManifestRow(relative_path='artifacts/solver_report.json', artifact_kind='solver_report_path', required=False, present=True, portable_classification='run_relative', export_classification='review'),), options=api.display.SummaryOptions.tutorial())
     data = summary.to_json_dict()
-
-    assert data["schema"] == DISPLAY_SUMMARY_SCHEMA
-    assert data["problem"]["input_kind"] == "normalized"
-    assert data["problem"]["ciphertext_length"] == 3
-    assert data["cipher"]["name"] == "periodic_substitution"
-    assert data["cipher"]["extra"]["period"] == 3
-    assert data["key"]["requested_key_spec"]["plan"] == "repeat"
-    assert data["key"]["recovered_key"] == {"length": 3, "preview": [1, 2, 3], "truncated": False}
-    assert data["solver"]["name"] == "beam"
-    assert data["solver"]["effective_seed"] == 123
-    assert data["scoring"]["scorer"] == "rune"
-    assert data["result"]["match_ratio"] == pytest.approx(2 / 3)
-    assert data["result"]["reference_kind"] == "plaintext_idx"
-    assert data["stop"]["stop_category"] == "success"
-    assert data["oracle"]["oracle_use"] == "none"
-    assert data["tutorial"]["path"] == "Tutorial_Demo.py"
-    assert data["artifacts"]["display_summary_relpath"] == DISPLAY_SUMMARY_RELPATH
-    assert data["artifacts"]["solver_report_path"] == "artifacts/solver_report.json"
-    assert data["solver_report"]["details"]["scorer_lanes"] == {"lanes": [], "components": []}
-
+    assert data['schema'] == api.display.SUMMARY_SCHEMA
+    assert data['problem']['input_kind'] == 'normalized'
+    assert data['problem']['ciphertext_length'] == 3
+    assert data['cipher']['name'] == 'periodic_substitution'
+    assert data['cipher']['extra']['period'] == 3
+    assert data['key']['requested_key_spec']['plan'] == 'repeat'
+    assert data['key']['recovered_key'] == {'length': 3, 'preview': [1, 2, 3], 'truncated': False}
+    assert data['solver']['name'] == 'beam'
+    assert data['solver']['effective_seed'] == 123
+    assert data['scoring']['scorer'] == 'rune'
+    assert data['result']['match_ratio'] == pytest.approx(2 / 3)
+    assert data['result']['reference_kind'] == 'plaintext_idx'
+    assert data['stop']['stop_category'] == 'success'
+    assert data['oracle']['oracle_use'] == 'none'
+    assert data['tutorial']['path'] == 'Tutorial_Demo.py'
+    assert data['artifacts']['display_summary_relpath'] == api.display.SUMMARY_RELATIVE_PATH
+    assert data['artifacts']['solver_report_path'] == 'artifacts/solver_report.json'
+    assert data['solver_report']['details']['scorer_lanes'] == {'lanes': [], 'components': []}
 
 def test_missing_runspec_is_visible_as_warning() -> None:
-    summary = build_rdp_summary(_run_result())
-
-    assert any("RunSpec was not supplied" in warning for warning in summary.warnings)
-    assert summary.problem["scope_note"] == "Problem display is complete only when RunSpec is supplied."
-
+    summary = api.display.build_summary(_run_result())
+    assert any(('RunSpec was not supplied' in warning for warning in summary.warnings))
+    assert summary.problem['scope_note'] == 'Problem display is complete only when RunSpec is supplied.'
 
 def test_text_reference_match_ratio_uses_normalised_plaintext() -> None:
     result = _run_result()
-    result.solution.plaintext_latin = "HELLO WORLD"
-
-    summary = build_rdp_summary(result, reference_plaintext="hello there")
-
-    assert summary.result["reference_kind"] == "plaintext_text"
-    assert summary.result["match_ratio"] == pytest.approx(0.5)
-
+    result.plaintext_latin = 'HELLO WORLD'
+    summary = api.display.build_summary(result, reference_plaintext='hello there')
+    assert summary.result['reference_kind'] == 'plaintext_text'
+    assert summary.result['match_ratio'] == pytest.approx(0.5)
 
 def test_partial_recovery_tutorial_policy_is_warned() -> None:
-    summary = build_rdp_summary(
-        _run_result(),
-        tutorial_entry={"acceptance_kind": TutorialAcceptanceKind.PARTIAL_RECOVERY.value},
-    )
-
-    assert "tutorial accepts a partial-recovery threshold; exact recovery is not required" in summary.warnings
-
+    summary = api.display.build_summary(_run_result(), tutorial={'acceptance_kind': TutorialAcceptanceKind.PARTIAL_RECOVERY.value})
+    assert 'tutorial accepts a partial-recovery threshold; exact recovery is not required' in summary.warnings
 
 def test_format_and_write_json_summary(tmp_path: Path) -> None:
-    summary = build_rdp_summary(_run_result(), spec=_run_spec())
-
-    text = format_rdp_summary(summary)
-    assert "RDP standard summary" in text
-    assert "encoding_dir: rtl" in text
-    assert "stop_category: success" in text
-    assert "Plaintext" in text
-
-    out = tmp_path / "artifacts" / "rdp_display_summary.json"
-    written = write_rdp_summary_json(summary, out)
-
-    assert written == "artifacts/rdp_display_summary.json"
+    summary = api.display.build_summary(_run_result(), run_spec=_run_spec())
+    text = api.display.format_summary(summary)
+    assert 'RDP standard summary' in text
+    assert 'encoding_dir: rtl' in text
+    assert 'stop_category: success' in text
+    assert 'Plaintext' in text
+    out = tmp_path / 'artifacts' / 'rdp_display_summary.json'
+    written = api.display.write_summary_json(summary, out)
+    assert written == 'artifacts/rdp_display_summary.json'
     assert not os.path.isabs(written)
-    payload = json.loads(out.read_text(encoding="utf-8"))
-    assert payload["schema"] == DISPLAY_SUMMARY_SCHEMA
-    assert payload["solver"]["solver_name"] == "beam"
-
+    payload = json.loads(out.read_text(encoding='utf-8'))
+    assert payload['schema'] == api.display.SUMMARY_SCHEMA
+    assert payload['solver']['solver_name'] == 'beam'
 
 def test_write_json_accepts_default_standard_relpath(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
-    summary = build_rdp_summary(_run_result(), spec=_run_spec())
-
-    written = write_rdp_summary_json(summary)
-
-    assert written == DISPLAY_SUMMARY_RELPATH
-    assert (tmp_path / DISPLAY_SUMMARY_RELPATH).is_file()
-
+    summary = api.display.build_summary(_run_result(), run_spec=_run_spec())
+    written = api.display.write_summary_json(summary)
+    assert written == api.display.SUMMARY_RELATIVE_PATH
+    assert (tmp_path / api.display.SUMMARY_RELATIVE_PATH).is_file()
 
 def test_artifact_paths_are_display_safe_not_absolute(tmp_path: Path) -> None:
-    posix_abs = tmp_path / "runs" / "demo" / "artifacts" / "solver_report.json"
-    drive = "C:"
-    windows_abs = drive + "\\Users\\alice\\runs\\demo\\artifacts\\rdp_display_summary.json"
-
-    summary = build_rdp_summary(
-        _run_result(),
-        spec=_run_spec(),
-        artifacts={
-            "solver_report_path": posix_abs,
-            "display_summary_path": windows_abs,
-            "nested": {"raw_log": tmp_path / "logs" / "app.jsonl"},
-        },
-    )
+    posix_abs = tmp_path / 'runs' / 'demo' / 'artifacts' / 'solver_report.json'
+    drive = 'C:'
+    windows_abs = drive + '\\Users\\alice\\runs\\demo\\artifacts\\rdp_display_summary.json'
+    summary = api.display.build_summary(_run_result(), run_spec=_run_spec(), artifacts=(api.advanced.RunArtifactManifestRow(relative_path=posix_abs, artifact_kind='solver_report_path', required=False, present=True, portable_classification='run_relative', export_classification='review'), api.advanced.RunArtifactManifestRow(relative_path=windows_abs, artifact_kind='display_summary_path', required=False, present=True, portable_classification='run_relative', export_classification='review'), api.advanced.RunArtifactManifestRow(relative_path='artifacts/nested.json', artifact_kind='nested', required=False, present=True, portable_classification='run_relative', export_classification='review')))
     data = summary.to_json_dict()
-
-    assert data["artifacts"]["solver_report_path"] == "artifacts/solver_report.json"
-    assert data["artifacts"]["display_summary_path"] == "artifacts/rdp_display_summary.json"
-    assert data["artifacts"]["nested"]["raw_log"] == "logs/app.jsonl"
-    rendered = format_rdp_summary(summary)
-    user_root_marker = drive + "/" + "Users" + "/" + "alice"
+    assert data['artifacts']['solver_report_path'] == 'artifacts/solver_report.json'
+    assert data['artifacts']['display_summary_path'] == 'artifacts/rdp_display_summary.json'
+    assert data['artifacts']['nested']['raw_log'] == 'logs/app.jsonl'
+    rendered = api.display.format_summary(summary)
+    user_root_marker = drive + '/' + 'Users' + '/' + 'alice'
     assert str(tmp_path) not in rendered
     assert user_root_marker not in rendered
 
-
 def test_display_options_validate_types() -> None:
     with pytest.raises(TypeError):
-        RdpDisplayOptions(include_key=1)  # type: ignore[arg-type]
+        api.display.SummaryOptions(include_key=1)
     with pytest.raises(ValueError):
-        RdpDisplayOptions(max_sequence_preview=-1)
-
+        api.display.SummaryOptions(maximum_sequence_preview=-1)
 
 def test_format_summary_prints_explicit_encoding_direction() -> None:
-    spec = RunSpec(
-        problem_input=NormalizedInput(ct_idx=[3, 4]),
-        cipher=CipherSpec.periodic_substitution(period=2),
-        key=KeySpec.repeat(len=2),
-        solver=SolverSpec(name="beam", params={"beam_width": 2}, seed=42),
-        encoding_dir=Direction.LTR,
-    )
-
-    text = format_rdp_summary(build_rdp_summary(_run_result(), spec=spec))
-
-    assert "encoding_dir: ltr" in text
-
+    spec = api.RunSpec(problem_input=api.RuneIndexInput(indices=[3, 4]), cipher=api.CipherSpec.periodic_substitution(period=2), key_space=api.KeySpec.repeating(length=2), solver=api.SolverSpec.beam_search(width=2, rounds=0, seed=42), text_direction=api.TextDirection.LEFT_TO_RIGHT)
+    text = api.display.format_summary(api.display.build_summary(_run_result(), run_spec=spec))
+    assert 'encoding_dir: ltr' in text
 
 def test_display_prefers_canonical_run_status_over_legacy_solution_reason() -> None:
-    from rune_decrypter_prime.api.stop_reason_contract import (
-        CanonicalStopReason,
-        ExecutionStatus,
-        RunStatus,
-        StopCategory,
-    )
-
     solution = _solution()
-    solution.stop_reason = "test_key"  # internal compatibility mechanism
-    status = RunStatus(
-        execution_status=ExecutionStatus.COMPLETED,
-        stop_category=StopCategory.SUCCESS,
-        stop_reason=CanonicalStopReason.KNOWN_KEY_EXECUTION_COMPLETED,
-        legacy_reason="test_key",
-    )
-    report = build_solver_report(
-        solver_name="beam",
-        requested_seed=None,
-        effective_seed=None,
-        normalized_params={"beam_width": 1},
-        stop_reason="test_key",
-        details={"execution_route": "known_key_fastpath"},
-        run_status=status,
-    )
-    summary = build_rdp_summary(RunResult(solution=solution, solver_report=report))
+    solution.stop_reason = 'test_key'
+    status = api.RunStatus(execution_status=api.advanced.ExecutionStatus.COMPLETED, stop_category=api.advanced.StopCategory.SUCCESS, stop_reason=api.advanced.StopReason.KNOWN_KEY_EXECUTION_COMPLETED, runtime_reason='test_key')
+    report = rdp.api.solver_report.build_solver_report(solver_name='beam', requested_seed=None, effective_seed=None, normalized_params={'beam_width': 1}, stop_reason='test_key', details={'execution_route': 'known_key_fastpath'}, run_status=status)
+    summary = api.display.build_summary(api.RunResult(plaintext=tuple(solution.plaintext_idx), plaintext_text=solution.plaintext_latin, key=tuple(solution.key), score=float(solution.score), status=report.status, solver_report=report, scorer_report=api.advanced.ScorerReport(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), score=float(solution.score)), configuration=api.advanced.RunConfigurationReport(solver=report.parameters, scoring=api.advanced.ConfigurationResolution(), cipher=api.advanced.ConfigurationResolution()), reproducibility=api.advanced.ReproducibilityMetadata(), oracle=api.advanced.OracleReport(), telemetry=dict(getattr(solution, 'meta', {}).get('telemetry', {}))))
     data = summary.to_json_dict()
-    assert data["stop"]["stop_reason"] == "known_key_execution_completed"
-    assert data["stop"]["legacy_stop_reason"] == "test_key"
-    assert data["oracle"]["mode"] == "unknown"
-    assert data["oracle"]["available"] is True
+    assert data['stop']['stop_reason'] == 'known_key_execution_completed'
+    assert data['stop']['legacy_stop_reason'] == 'test_key'
+    assert data['oracle']['mode'] == 'unknown'
+    assert data['oracle']['available'] is True

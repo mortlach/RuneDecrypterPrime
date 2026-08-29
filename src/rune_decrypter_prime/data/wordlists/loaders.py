@@ -4,7 +4,7 @@ import csv
 from pathlib import Path
 from typing import Dict, Iterable, Sequence
 
-from rune_decrypter_prime.api.word_crib_config import WordCribConfig
+from rdp.api.word_crib_config import WordCribConfig
 from rune_decrypter_prime.data.asset_paths import resolve_assets_path, to_repo_relative
 from rune_decrypter_prime.core.types import Direction, ensure_direction
 from rune_decrypter_prime.utils.runeglish import Runeglish

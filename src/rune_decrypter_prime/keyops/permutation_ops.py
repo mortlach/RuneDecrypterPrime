@@ -1,4 +1,4 @@
-﻿# rune_decrypter_prime/keyops/permutation_ops.py
+# rune_decrypter_prime/keyops/permutation_ops.py
 # -*- coding: utf-8 -*-
 """
 Permutation KeyOps

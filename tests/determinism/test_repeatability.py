@@ -1,24 +1,9 @@
-from rune_decrypter_prime.api import RunAPI, by_name, KeySpec, SolverSpec
-
+from rdp import api
 
 def test_repeatability_minimal():
-    # Tiny ciphertext snippet (indices or placeholder runes are fine)
-    ct = "ᛗᛁᚩᚾᚪ"  # short and deterministic
-    solver = SolverSpec.ga(pop_size=16, generations=5, seed=123, progress_pct=100)
-    r1 = RunAPI.run(
-        text=ct,
-        cipher=by_name.cipher("vigenere", key_len=3),
-        key=KeySpec.repeat(len=3),
-        solver=solver,
-        telemetry_on=True,
-    )
-    r2 = RunAPI.run(
-        text=ct,
-        cipher=by_name.cipher("vigenere", key_len=3),
-        key=KeySpec.repeat(len=3),
-        solver=solver,
-        telemetry_on=True,
-    )
-
+    ct = 'ᛗᛁᚩᚾᚪ'
+    solver = api.SolverSpec.genetic_algorithm(population_size=16, generations=5, seed=123)
+    r1 = api.run(api.RunSpec(problem_input=api.RawTextInput(text=ct), cipher=api.CipherSpec.vigenere(alphabet_size=29), key_space=api.KeySpec.repeating(length=3), solver=solver, scoring=api.ScoringConfig(), telemetry_enabled=True))
+    r2 = api.run(api.RunSpec(problem_input=api.RawTextInput(text=ct), cipher=api.CipherSpec.vigenere(alphabet_size=29), key_space=api.KeySpec.repeating(length=3), solver=solver, scoring=api.ScoringConfig(), telemetry_enabled=True))
     assert r1.score == r2.score
-    assert getattr(r1, "plaintext_rune", r1.plaintext_str) == getattr(r2, "plaintext_rune", r2.plaintext_str)
+    assert (r1.plaintext_text or r1.plaintext_text) == (r2.plaintext_text or r2.plaintext_text)

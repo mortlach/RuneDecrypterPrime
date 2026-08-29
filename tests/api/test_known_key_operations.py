@@ -4,8 +4,7 @@ import importlib
 
 import pytest
 
-from rune_decrypter_prime.api.fastpaths import decrypt, encrypt
-from rune_decrypter_prime.api.specs import CipherSpec
+from rdp.api import CipherSpec, decrypt, encrypt
 from rune_decrypter_prime.core.component_contracts import (
     InvalidConcreteKeyError,
     NonInvertibleCipherError,
@@ -65,7 +64,7 @@ def test_public_keys_are_strict_concrete_keys() -> None:
 
 
 def test_known_key_operations_do_not_construct_solver_or_scorer(monkeypatch) -> None:
-    module = importlib.import_module("rune_decrypter_prime.api.fastpaths")
+    module = importlib.import_module("rdp.api.known_key")
     real_builder = module.build_cipher
     calls: list[str] = []
 
@@ -82,7 +81,7 @@ def test_known_key_operations_do_not_construct_solver_or_scorer(monkeypatch) -> 
 
 
 def test_missing_runtime_operation_raises_typed_error(monkeypatch) -> None:
-    module = importlib.import_module("rune_decrypter_prime.api.fastpaths")
+    module = importlib.import_module("rdp.api.known_key")
     monkeypatch.setattr(module, "build_cipher", lambda _config: object())
 
     with pytest.raises(NonInvertibleCipherError) as exc_info:

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from rune_decrypter_prime.api.artifact_agreement import (
+from rdp.api.artifact_agreement import (
     Classification,
     ArtifactKind,
     KnownArtifactRelpath,
