@@ -6,9 +6,10 @@
 # repo/core/transpositions.py
 
 from __future__ import annotations
-from typing import Iterable, List, Sequence, TypeVar
+from typing import List, Sequence, TypeVar
 
 T = TypeVar("T")
+
 
 def assert_is_permutation(perm: Sequence[int], n: int | None = None) -> None:
     """
@@ -30,6 +31,7 @@ def assert_is_permutation(perm: Sequence[int], n: int | None = None) -> None:
             details.append(f"extra={sorted(extra)}")
         raise ValueError("Invalid permutation; " + ", ".join(details))
 
+
 def invert_permutation(perm: Sequence[int]) -> List[int]:
     n = len(perm)
     assert_is_permutation(perm, n)
@@ -38,10 +40,11 @@ def invert_permutation(perm: Sequence[int]) -> List[int]:
         out[p] = i
     return out
 
+
 def apply_permutation(xs: Sequence[T], perm: Sequence[int]) -> List[T]:
     assert_is_permutation(perm, len(xs))
     return [xs[i] for i in perm]
 
+
 def apply_inverse_permutation(xs: Sequence[T], perm: Sequence[int]) -> List[T]:
     return apply_permutation(xs, invert_permutation(perm))
-

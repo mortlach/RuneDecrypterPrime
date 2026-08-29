@@ -110,14 +110,22 @@ def run(
             raise TypeError("run_spec cannot be combined with component arguments")
         if any(
             value is not None
-            for value in (scoring, initial_keys, logging, text_permutation, interruptors)
+            for value in (
+                scoring,
+                initial_keys,
+                logging,
+                text_permutation,
+                interruptors,
+            )
         ) or (
             word_length_policy is not WordLengthPolicy.INFER
             or text_direction is not TextDirection.RIGHT_TO_LEFT
             or compute_device is not ComputeDevice.CPU
             or telemetry_enabled is not True
         ):
-            raise TypeError("run_spec cannot be combined with durable component options")
+            raise TypeError(
+                "run_spec cannot be combined with durable component options"
+            )
         request = run_spec
     else:
         missing = [
@@ -131,7 +139,9 @@ def run(
             if value is _UNSET
         ]
         if missing:
-            raise TypeError(f"missing required keyword-only arguments: {', '.join(missing)}")
+            raise TypeError(
+                f"missing required keyword-only arguments: {', '.join(missing)}"
+            )
         request = RunSpec(
             problem_input=problem_input,  # type: ignore[arg-type]
             cipher=cipher,  # type: ignore[arg-type]
@@ -151,11 +161,17 @@ def run(
     if progress_callback is not None and not callable(progress_callback):
         raise TypeError("progress_callback must be callable or None")
     if progress_interval is not None:
-        if isinstance(progress_interval, bool) or not isinstance(progress_interval, int):
+        if isinstance(progress_interval, bool) or not isinstance(
+            progress_interval, int
+        ):
             raise TypeError("progress_interval must be an integer or None")
         if progress_interval < 1:
             raise ValueError("progress_interval must be >= 1")
-    return _execute(request, progress_callback=progress_callback, progress_interval=progress_interval)
+    return _execute(
+        request,
+        progress_callback=progress_callback,
+        progress_interval=progress_interval,
+    )
 
 
 def _execute(
@@ -166,7 +182,11 @@ def _execute(
 ) -> RunResult:
     materialized = materialize_runspec_problem_input(request)
     device = Device.CPU if request.compute_device is ComputeDevice.CPU else Device.CUDA
-    direction = Direction.LTR if request.text_direction is TextDirection.LEFT_TO_RIGHT else Direction.RTL
+    direction = (
+        Direction.LTR
+        if request.text_direction is TextDirection.LEFT_TO_RIGHT
+        else Direction.RTL
+    )
     effective_seed = 0 if request.solver.seed is None else request.solver.seed
     logging_runtime: dict[str, object] = {}
     if progress_callback is not None:
@@ -196,7 +216,9 @@ def _execute(
             interruptors_max=None,
         )
     else:
-        solver_config = _runtime_solver_config(request.solver, effective_seed=effective_seed)
+        solver_config = _runtime_solver_config(
+            request.solver, effective_seed=effective_seed
+        )
         solution = execute_run(
             ciphertext=materialized.ciphertext,
             wli=materialized.wli,
@@ -239,7 +261,11 @@ def _runtime_solver_config(solver: SolverSpec, *, effective_seed: int) -> Solver
         SolverKind.SIMULATED_ANNEALING: {"iterations": "sa_iters"},
         SolverKind.KAEDING: {"inner_batch_size": "inner_batch"},
     }.get(solver.kind, {})
-    runtime_params = {field_names.get(name, name): value for name, value in params.items()}
+    runtime_params = {
+        field_names.get(name, name): value
+        for name, value in params.items()
+        if value is not None
+    }
     return SolverConfig(name=runtime_name, params=runtime_params, seed=effective_seed)
 
 
@@ -292,7 +318,20 @@ def _solution_telemetry(solution: object) -> Mapping[str, object]:
     return telemetry if isinstance(telemetry, Mapping) else {}
 
 
-def _result_from_solution(request: RunSpec, solution: object, *, effective_seed: int) -> RunResult:
+def _scorer_report_details_from_solution(solution: object) -> Mapping[str, object]:
+    """Retain the runtime scorer-capability evidence in its canonical report owner."""
+    meta = getattr(solution, "meta", None)
+    if not isinstance(meta, Mapping):
+        return {}
+    scorer_lanes = meta.get("scorer_lanes")
+    if not isinstance(scorer_lanes, Mapping):
+        return {}
+    return {"scorer_lanes": dict(scorer_lanes)}
+
+
+def _result_from_solution(
+    request: RunSpec, solution: object, *, effective_seed: int
+) -> RunResult:
     runtime_reason = getattr(solution, "stop_reason", None)
     category = stop_category_for_reason(runtime_reason)
     execution_status = execution_status_for_category(category)
@@ -349,6 +388,7 @@ def _result_from_solution(request: RunSpec, solution: object, *, effective_seed:
         telemetry=_solution_telemetry(solution),
         time_seconds=float(getattr(solution, "score_time_s", 0.0) or 0.0),
         capabilities=ScorerCapabilityReport(lanes=()),
+        details=_scorer_report_details_from_solution(solution),
     )
     reproducibility = ReproducibilityMetadata(
         backend=request.scoring.backend,
@@ -361,7 +401,10 @@ def _result_from_solution(request: RunSpec, solution: object, *, effective_seed:
         solver_config=request.solver.to_dict(),
         scoring_config=request.scoring.to_dict(),
         objective=request.scoring.objective.to_dict(),
-        cipher={"cipher": request.cipher.to_dict(), "key_space": request.key_space.to_dict()},
+        cipher={
+            "cipher": request.cipher.to_dict(),
+            "key_space": request.key_space.to_dict(),
+        },
         dictionary_policy=request.scoring.hamming_dictionary_policy.value,
         stop_category=status.stop_category,
         stop_reason=status.stop_reason,

@@ -12,13 +12,13 @@ from rune_decrypter_prime.core.types import (
 )
 
 
-
 class SolverConfig:
     """
     Backward/forward compatible solver config.
     Canonical: SolverConfig(name=OptimizerKind.BEAM, params={...})
     Legacy:    SolverConfig(name="beam", params={...})
     """
+
     def __init__(
         self,
         name: SolverName | str = SolverName.BEAM,
@@ -64,5 +64,6 @@ class SolverConfig:
         p = d.pop("params", None)
         if p is None:
             return cls(name=name, seed=seed, **d)
-        params = dict(p); params.update(d)
+        params = dict(p)
+        params.update(d)
         return cls(name=name, params=params, seed=seed)

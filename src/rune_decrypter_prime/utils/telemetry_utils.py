@@ -7,12 +7,13 @@
 from __future__ import annotations
 from typing import Any, Iterable, Mapping
 from rune_decrypter_prime.io.logging_adapter import module_logger
-from dataclasses import dataclass, is_dataclass
-from dataclasses import is_dataclass, asdict
+from dataclasses import is_dataclass
+from dataclasses import asdict
 from enum import Enum
-from typing import Any, Dict, Mapping, MutableMapping
+from typing import Dict, MutableMapping
 
 logger = module_logger(__name__)
+
 
 def telem(sol) -> dict:
     """Return the telemetry dict if present, else {}."""
@@ -20,11 +21,13 @@ def telem(sol) -> dict:
     t = meta.get("telemetry")
     return t if isinstance(t, dict) else {}
 
+
 def run_meta(sol) -> dict:
     """Return the run_meta summary if present, else {}."""
     meta = getattr(sol, "meta", {}) or {}
     rm = meta.get("run_meta")
     return rm if isinstance(rm, dict) else {}
+
 
 def get(d: Mapping[str, Any] | None, path: str, default: Any = None) -> Any:
     """
@@ -51,6 +54,7 @@ def get(d: Mapping[str, Any] | None, path: str, default: Any = None) -> Any:
             return default
     return cur
 
+
 def flatten(d: Mapping[str, Any], prefix: str = "") -> dict[str, Any]:
     """Flatten a nested dict to dotted paths → values (keeps simple lists intact)."""
     out: dict[str, Any] = {}
@@ -58,11 +62,16 @@ def flatten(d: Mapping[str, Any], prefix: str = "") -> dict[str, Any]:
         key = f"{prefix}{k}" if not prefix else f"{prefix}.{k}"
         if isinstance(v, Mapping):
             out.update(flatten(v, key))
-        elif isinstance(v, (list, tuple)) and v and all(not isinstance(x, Mapping) for x in v):
+        elif (
+            isinstance(v, (list, tuple))
+            and v
+            and all(not isinstance(x, Mapping) for x in v)
+        ):
             out[key] = v  # keep lists as-is if they’re not dict-like
         else:
             out[key] = v
     return out
+
 
 def print_telem(sol, *, only: Iterable[str] | None = None) -> None:
     """Pretty-print telemetry; optionally restrict to specific dotted paths."""
@@ -78,12 +87,15 @@ def print_telem(sol, *, only: Iterable[str] | None = None) -> None:
     for k in sorted(flat):
         logger.debug(f"{k}: {flat[k]}")
 
+
 # --- Add at module level ---
 def _upgrade_v1_time_keys(tel: dict) -> None:
     """Map legacy timing keys to v1 *_time_s keys (non-destructive)."""
-    for old, new in (("decrypt_time", "decrypt_time_s"),
-                     ("score_time", "score_time_s"),
-                     ("wall_time", "wall_time_s")):
+    for old, new in (
+        ("decrypt_time", "decrypt_time_s"),
+        ("score_time", "score_time_s"),
+        ("wall_time", "wall_time_s"),
+    ):
         if old in tel and new not in tel:
             try:
                 tel[new] = float(tel[old])
@@ -99,6 +111,7 @@ _CANON_TIMING_KEYS = {
     "_score_time": "score_time_s",
 }
 
+
 def canonicalize_timing_keys(payload: MutableMapping[str, Any]) -> None:
     """
     In-place: map any legacy timing keys to *_time_s. No-ops if already canonical.
@@ -106,6 +119,7 @@ def canonicalize_timing_keys(payload: MutableMapping[str, Any]) -> None:
     for legacy, canon in _CANON_TIMING_KEYS.items():
         if legacy in payload and canon not in payload:
             payload[canon] = payload.pop(legacy)
+
 
 def _enum_to_value(obj: Any) -> Any:
     if isinstance(obj, Enum):
@@ -118,6 +132,7 @@ def _enum_to_value(obj: Any) -> Any:
         return type(obj)(_enum_to_value(v) for v in obj)
     return obj
 
+
 def stringify_for_telemetry(ctx: Mapping[str, Any]) -> Dict[str, Any]:
     """
     Returns a deep-copied dict where any Enum/dataclass members are
@@ -125,5 +140,6 @@ def stringify_for_telemetry(ctx: Mapping[str, Any]) -> Dict[str, Any]:
     turns Enums into strings (e.g., Direction -> "ltr"/"rtl").
     """
     return _enum_to_value(dict(ctx))
+
 
 # TODO: Consider exporting a stable set of “common telemetry keys” to help tutorials/tests.

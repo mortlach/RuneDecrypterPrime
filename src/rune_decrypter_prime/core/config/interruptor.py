@@ -59,7 +59,9 @@ class InterruptorConfig:
     ) -> InterruptorConfig:
         instance = object.__new__(cls)
         object.__setattr__(instance, "mode", mode)
-        object.__setattr__(instance, "_parameter_items", freeze_parameter_items(parameters))
+        object.__setattr__(
+            instance, "_parameter_items", freeze_parameter_items(parameters)
+        )
         return instance
 
     @classmethod
@@ -68,7 +70,9 @@ class InterruptorConfig:
 
     @classmethod
     def exact(cls, positions: Sequence[int], /) -> InterruptorConfig:
-        return cls._create(InterruptorMode.EXACT, {"positions": _positions(positions, "positions")})
+        return cls._create(
+            InterruptorMode.EXACT, {"positions": _positions(positions, "positions")}
+        )
 
     @classmethod
     def search(
@@ -83,8 +87,10 @@ class InterruptorConfig:
     ) -> InterruptorConfig:
         positions = _positions(candidate_positions, "candidate_positions")
         low = _strict_int(minimum_count, "minimum_count", minimum=0)
-        high = len(positions) if maximum_count is None else _strict_int(
-            maximum_count, "maximum_count", minimum=0
+        high = (
+            len(positions)
+            if maximum_count is None
+            else _strict_int(maximum_count, "maximum_count", minimum=0)
         )
         if low > high:
             raise ValueError("minimum_count must not exceed maximum_count")
@@ -92,15 +98,18 @@ class InterruptorConfig:
             raise ValueError("maximum_count must not exceed candidate position count")
         if not isinstance(strategy, InterruptorSearchStrategy):
             raise TypeError("strategy must be InterruptorSearchStrategy")
-        return cls._create(InterruptorMode.SEARCH, {
-            "candidate_positions": positions,
-            "minimum_count": low,
-            "maximum_count": high,
-            "strategy": strategy,
-            "maximum_combinations": _strict_int(
-                maximum_combinations, "maximum_combinations", minimum=1
-            ),
-        })
+        return cls._create(
+            InterruptorMode.SEARCH,
+            {
+                "candidate_positions": positions,
+                "minimum_count": low,
+                "maximum_count": high,
+                "strategy": strategy,
+                "maximum_combinations": _strict_int(
+                    maximum_combinations, "maximum_combinations", minimum=1
+                ),
+            },
+        )
 
     @classmethod
     def from_dict(cls, values: JsonObject, /) -> InterruptorConfig:
@@ -153,7 +162,9 @@ class InterruptorConfig:
     def to_dict(self) -> dict[str, JsonValue]:
         return {
             "mode": self.mode.value,
-            "parameters": thaw_parameter_items(self._parameter_items, json_compatible=True),
+            "parameters": thaw_parameter_items(
+                self._parameter_items, json_compatible=True
+            ),
         }  # type: ignore[return-value]
 
     @property
@@ -171,5 +182,6 @@ class InterruptorConfig:
             f"InterruptorConfig(mode={self.mode!r}, "
             f"parameters={dict(self.parameters)!r})"
         )
+
 
 __all__ = ["InterruptorConfig"]

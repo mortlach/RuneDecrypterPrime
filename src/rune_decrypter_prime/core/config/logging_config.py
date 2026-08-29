@@ -22,6 +22,7 @@ import subprocess
 # Public configuration model
 # ----------------------------
 
+
 @dataclass(frozen=True, slots=True)
 class LoggingConfig:
     """
@@ -42,6 +43,7 @@ class LoggingConfig:
 
     No environment variables or CLI flags are read here—config is explicit.
     """
+
     verbose: bool = False
     show_progress: bool = True
     write_event_log: bool = False
@@ -57,8 +59,13 @@ class LoggingConfig:
 
     def __post_init__(self) -> None:
         for field_name in (
-            "verbose", "show_progress", "write_event_log", "redact_identity",
-            "portable_output", "write_solver_report", "write_display_summary",
+            "verbose",
+            "show_progress",
+            "write_event_log",
+            "redact_identity",
+            "portable_output",
+            "write_solver_report",
+            "write_display_summary",
             "write_artifact_manifest",
         ):
             if type(getattr(self, field_name)) is not bool:
@@ -87,6 +94,7 @@ class LoggingConfig:
                 copied[field_name] = Path(value)
         return cls(**copied)
 
+
 # ----------------------------
 # Module state & simple accessors
 # ----------------------------
@@ -112,9 +120,11 @@ def current_paths() -> Dict[str, str]:
     """
     return dict(_PATHS)
 
+
 # ----------------------------
 # Internal helpers
 # ----------------------------
+
 
 def _now_stamp() -> str:
     """
@@ -132,7 +142,9 @@ def _safe_token(s: Optional[str], default: str = "run") -> str:
     if not s:
         return default
     s = s.strip().replace(" ", "-")
-    return "".join(ch for ch in s if ch.isalnum() or ch in ("-", "_")).lower() or default
+    return (
+        "".join(ch for ch in s if ch.isalnum() or ch in ("-", "_")).lower() or default
+    )
 
 
 def _detect_repo_root(start: Optional[Path] = None) -> Path:
@@ -188,11 +200,13 @@ def _collect_versions() -> Dict[str, Any]:
     }
     try:
         import numpy as _np  # type: ignore
+
         v["numpy"] = getattr(_np, "__version__", None)
     except Exception:
         pass
     try:
         import torch as _torch  # type: ignore
+
         v["torch"] = getattr(_torch, "__version__", None)
     except Exception:
         pass
@@ -200,26 +214,55 @@ def _collect_versions() -> Dict[str, Any]:
 
 
 def _git_info(repo_root: Path) -> Dict[str, Any]:
-    info: Dict[str, Any] = {"branch": None, "commit": None, "short": None, "dirty": None}
+    info: Dict[str, Any] = {
+        "branch": None,
+        "commit": None,
+        "short": None,
+        "dirty": None,
+    }
     git_dir = repo_root / ".git"
     if not git_dir.exists():
         return info
     try:
-        commit = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], cwd=repo_root, stderr=subprocess.DEVNULL
-        ).decode("utf-8").strip()
-        short = subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"], cwd=repo_root, stderr=subprocess.DEVNULL
-        ).decode("utf-8").strip()
-        branch = subprocess.check_output(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root, stderr=subprocess.DEVNULL
-        ).decode("utf-8").strip()
+        commit = (
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=repo_root, stderr=subprocess.DEVNULL
+            )
+            .decode("utf-8")
+            .strip()
+        )
+        short = (
+            subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],
+                cwd=repo_root,
+                stderr=subprocess.DEVNULL,
+            )
+            .decode("utf-8")
+            .strip()
+        )
+        branch = (
+            subprocess.check_output(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=repo_root,
+                stderr=subprocess.DEVNULL,
+            )
+            .decode("utf-8")
+            .strip()
+        )
         if branch == "HEAD":
             branch = None
-        dirty = subprocess.call(
-            ["git", "diff", "--quiet"], cwd=repo_root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        ) != 0
-        info.update({"branch": branch or None, "commit": commit, "short": short, "dirty": dirty})
+        dirty = (
+            subprocess.call(
+                ["git", "diff", "--quiet"],
+                cwd=repo_root,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            != 0
+        )
+        info.update(
+            {"branch": branch or None, "commit": commit, "short": short, "dirty": dirty}
+        )
     except Exception:
         pass
     return info
@@ -271,9 +314,6 @@ def _write_meta(
     if cfg.run_category == "tests":
         short = git_info.get("short") or "nogit"
         meta["test_id"] = f"{short}-{timestamp}"
-    logs_dir = run_dir / "logs"
-    trace_dir = run_dir / "trace"
-    artifacts_dir = run_dir / "artifacts"
     # Artifact pointers are run-relative by contract, regardless of where the
     # run directory lives on the local machine.
     meta["pointers"] = {
@@ -285,9 +325,13 @@ def _write_meta(
     (run_dir / "META.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
 
-def _write_logging_snapshot(run_dir: Path, cfg: LoggingConfig, repo_root: Path, out_root: Path) -> None:
+def _write_logging_snapshot(
+    run_dir: Path, cfg: LoggingConfig, repo_root: Path, out_root: Path
+) -> None:
     snap = asdict(cfg)
-    snap["output_root"] = _relativize_path(out_root, repo_root, external_label="output_root")
+    snap["output_root"] = _relativize_path(
+        out_root, repo_root, external_label="output_root"
+    )
     value = snap.get("run_directory")
     if value:
         snap["run_directory"] = _relativize_path(
@@ -295,15 +339,19 @@ def _write_logging_snapshot(run_dir: Path, cfg: LoggingConfig, repo_root: Path, 
         )
     config_dir = run_dir / "config"
     config_dir.mkdir(parents=True, exist_ok=True)
-    (config_dir / "logging.json").write_text(json.dumps(snap, indent=2), encoding="utf-8")
+    (config_dir / "logging.json").write_text(
+        json.dumps(snap, indent=2), encoding="utf-8"
+    )
 
 
 def _ensure_dirs(d: Path) -> None:
     d.mkdir(parents=True, exist_ok=True)
 
+
 # ----------------------------
 # Public entry point
 # ----------------------------
+
 
 def init_logging(cfg: LoggingConfig) -> Path:
     """
@@ -318,7 +366,9 @@ def init_logging(cfg: LoggingConfig) -> Path:
         - Updates module-global _PATHS so get_run_dir() and current_paths() work.
     """
     repo_root = _detect_repo_root()
-    out_root = cfg.output_root.resolve() if cfg.output_root else _default_out_root(repo_root)
+    out_root = (
+        cfg.output_root.resolve() if cfg.output_root else _default_out_root(repo_root)
+    )
 
     ts = _now_stamp()
     kind_token = _safe_token(cfg.run_category, "run")
@@ -345,15 +395,25 @@ def init_logging(cfg: LoggingConfig) -> Path:
     _ensure_dirs(trace_dir)
     _ensure_dirs(artifacts_dir)
 
-    _write_meta(run_dir, cfg, timestamp=ts, repo_root=repo_root, out_root=out_root,
-                run_id=run_dir.name, git_info=git_info, kind_token=kind_token)
+    _write_meta(
+        run_dir,
+        cfg,
+        timestamp=ts,
+        repo_root=repo_root,
+        out_root=out_root,
+        run_id=run_dir.name,
+        git_info=git_info,
+        kind_token=kind_token,
+    )
     _write_logging_snapshot(run_dir, cfg, repo_root=repo_root, out_root=out_root)
 
     _PATHS.clear()
-    _PATHS.update({
-        "run_dir": str(run_dir),
-        "logs_dir": str(logs_dir),
-        "trace_dir": str(trace_dir),
-    })
+    _PATHS.update(
+        {
+            "run_dir": str(run_dir),
+            "logs_dir": str(logs_dir),
+            "trace_dir": str(trace_dir),
+        }
+    )
 
     return run_dir

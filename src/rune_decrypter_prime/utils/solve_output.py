@@ -5,7 +5,6 @@ import json
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from rune_decrypter_prime.utils.runeglish import Runeglish
 
@@ -37,7 +36,9 @@ def match_ratio(candidate: Sequence[int], reference: Sequence[int]) -> float:
     total = max(len(candidate), len(reference))
     if total == 0:
         return 0.0
-    matches = sum(1 for left, right in zip(candidate, reference) if int(left) == int(right))
+    matches = sum(
+        1 for left, right in zip(candidate, reference) if int(left) == int(right)
+    )
     return matches / total
 
 
@@ -50,10 +51,14 @@ def render_plaintext(
     if not plaintext_idx:
         return "", ""
     idx = [int(value) for value in plaintext_idx]
-    return Runeglish.to_rune_latin(idx, wli, direction=direction), Runeglish.to_rune(idx, wli)
+    return Runeglish.to_rune_latin(idx, wli, direction=direction), Runeglish.to_rune(
+        idx, wli
+    )
 
 
-def page_value(metadata: Mapping[str, object], canonical: str, legacy: str | None = None) -> object:
+def page_value(
+    metadata: Mapping[str, object], canonical: str, legacy: str | None = None
+) -> object:
     if canonical in metadata:
         return metadata[canonical]
     if legacy is not None and legacy in metadata:
@@ -156,20 +161,28 @@ def json_value(value: object, *, max_list: int = 40) -> object:
             pass
     if hasattr(value, "shape") and hasattr(value, "tolist"):
         shape = [int(part) for part in getattr(value, "shape", ())]
-        flat = value.reshape(-1).tolist() if hasattr(value, "reshape") else value.tolist()
-        preview = [json_value(item, max_list=max_list) for item in list(flat)[:max_list]]
+        flat = (
+            value.reshape(-1).tolist() if hasattr(value, "reshape") else value.tolist()
+        )
+        preview = [
+            json_value(item, max_list=max_list) for item in list(flat)[:max_list]
+        ]
         return {"type": type(value).__name__, "shape": shape, "preview": preview}
     if dataclasses.is_dataclass(value):
         return json_value(dataclasses.asdict(value), max_list=max_list)
     if isinstance(value, Mapping):
-        return {str(key): json_value(val, max_list=max_list) for key, val in value.items()}
+        return {
+            str(key): json_value(val, max_list=max_list) for key, val in value.items()
+        }
     if isinstance(value, (list, tuple, set)):
         items = list(value)
         if len(items) > max_list:
             return {
                 "type": type(value).__name__,
                 "length": len(items),
-                "preview": [json_value(item, max_list=max_list) for item in items[:max_list]],
+                "preview": [
+                    json_value(item, max_list=max_list) for item in items[:max_list]
+                ],
             }
         return [json_value(item, max_list=max_list) for item in items]
     if hasattr(value, "to_json_dict"):
@@ -198,7 +211,10 @@ def safe_public_dict(obj: object) -> dict[str, object]:
 def write_json_evidence(path: Path, evidence: Mapping[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        json.dumps(json_value(dict(evidence)), indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+        json.dumps(
+            json_value(dict(evidence)), indent=2, sort_keys=True, ensure_ascii=False
+        )
+        + "\n",
         encoding="utf-8",
     )
 
@@ -213,7 +229,10 @@ def write_latest_evidence(
     write_json_evidence(latest, evidence)
     stamped: Path | None = None
     if timestamped:
-        stamped = evidence_dir / f"solve_evidence_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        stamped = (
+            evidence_dir
+            / f"solve_evidence_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        )
         write_json_evidence(stamped, evidence)
     return latest, stamped
 
@@ -237,7 +256,11 @@ def collect_solver_attempt(
     plaintext_idx = as_int_list(getattr(solution, "plaintext_idx", []))
     plaintext_latin = str(getattr(solution, "plaintext_latin", "") or "")
     plaintext_runes = str(getattr(solution, "plaintext_rune", "") or "")
-    if plaintext_idx and wli is not None and (not plaintext_latin or not plaintext_runes):
+    if (
+        plaintext_idx
+        and wli is not None
+        and (not plaintext_latin or not plaintext_runes)
+    ):
         plaintext_latin, plaintext_runes = render_plaintext(plaintext_idx, wli)
 
     key_values = as_int_list(getattr(solution, "key", []))
@@ -245,9 +268,15 @@ def collect_solver_attempt(
     found_interruptors = [value for value in key_values[key_length:] if value >= 0]
     pool = list(interruptor_pool or [])
     found_interruptors_in_pool = all(value in pool for value in found_interruptors)
-    ratio = match_ratio(plaintext_idx, reference_idx) if reference_idx is not None else None
-    best_score = _get_nested(solution, "score", default=_get_nested(report, "best_score"))
-    stop_reason = _get_nested(solution, "stop_reason", default=_get_nested(report, "stop_reason"))
+    ratio = (
+        match_ratio(plaintext_idx, reference_idx) if reference_idx is not None else None
+    )
+    best_score = _get_nested(
+        solution, "score", default=_get_nested(report, "best_score")
+    )
+    stop_reason = _get_nested(
+        solution, "stop_reason", default=_get_nested(report, "stop_reason")
+    )
 
     solved = True
     if ratio is not None:
@@ -270,10 +299,20 @@ def collect_solver_attempt(
         "stop_reason": stop_reason,
         "match_ratio": ratio,
         "plaintext_idx_length": len(plaintext_idx),
-        "score_time_s": _get_nested(report, "score_time_s", default=_get_nested(solution, "score_time_s")),
-        "decrypt_time_s": _get_nested(report, "decrypt_time_s", default=_get_nested(solution, "decrypt_time_s")),
-        "tokens": _get_nested(report, "tokens_processed", default=_get_nested(solution, "tokens_processed")),
-        "evals_or_candidates": _get_nested(report, "evals", default=_get_nested(solution, "evals")),
+        "score_time_s": _get_nested(
+            report, "score_time_s", default=_get_nested(solution, "score_time_s")
+        ),
+        "decrypt_time_s": _get_nested(
+            report, "decrypt_time_s", default=_get_nested(solution, "decrypt_time_s")
+        ),
+        "tokens": _get_nested(
+            report,
+            "tokens_processed",
+            default=_get_nested(solution, "tokens_processed"),
+        ),
+        "evals_or_candidates": _get_nested(
+            report, "evals", default=_get_nested(solution, "evals")
+        ),
         "elapsed_wall_time_s": elapsed_wall_time_s,
         "status": "solved" if solved else "diagnostic_not_yet_solved",
         "plaintext_latin": plaintext_latin,

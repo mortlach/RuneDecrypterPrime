@@ -17,7 +17,9 @@ def _normalize_word_weights(mapping: Mapping[str, Any] | None) -> Dict[str, floa
         try:
             weight = float(raw_weight) if raw_weight is not None else 0.0
         except Exception as exc:  # pragma: no cover - defensive
-            raise TypeError(f"Word crib weights must be numeric, got {raw_weight!r}") from exc
+            raise TypeError(
+                f"Word crib weights must be numeric, got {raw_weight!r}"
+            ) from exc
         out[word] = weight
     return out
 
@@ -32,7 +34,9 @@ def _normalize_short_dict(
         try:
             length = int(length_key)
         except Exception as exc:  # pragma: no cover - defensive
-            raise TypeError(f"Short-word crib keys must be integers, got {length_key!r}") from exc
+            raise TypeError(
+                f"Short-word crib keys must be integers, got {length_key!r}"
+            ) from exc
         if length <= 0:
             continue
         normalized = _normalize_word_weights(entries)
@@ -41,7 +45,9 @@ def _normalize_short_dict(
     return out
 
 
-def _normalize_per_word(mapping: Mapping[int, Mapping[str, Any]] | None) -> Dict[int, Dict[str, float]]:
+def _normalize_per_word(
+    mapping: Mapping[int, Mapping[str, Any]] | None,
+) -> Dict[int, Dict[str, float]]:
     if not mapping:
         return {}
     out: Dict[int, Dict[str, float]] = {}
@@ -49,7 +55,9 @@ def _normalize_per_word(mapping: Mapping[int, Mapping[str, Any]] | None) -> Dict
         try:
             index = int(idx_key)
         except Exception as exc:  # pragma: no cover - defensive
-            raise TypeError(f"Per-word crib keys must be integers, got {idx_key!r}") from exc
+            raise TypeError(
+                f"Per-word crib keys must be integers, got {idx_key!r}"
+            ) from exc
         if index < 0:
             continue
         normalized = _normalize_word_weights(entries)

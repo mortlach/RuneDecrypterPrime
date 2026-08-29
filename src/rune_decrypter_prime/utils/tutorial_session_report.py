@@ -3,9 +3,15 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialRunKind, TutorialStopPolicy
+from rune_decrypter_prime.utils.tutorial_benchmark import (
+    TutorialRunKind,
+    TutorialStopPolicy,
+)
 from rune_decrypter_prime.utils.tutorial_reference import TutorialReference
-from rune_decrypter_prime.utils.tutorial_report import build_tutorial_run_report, render_tutorial_run_report
+from rune_decrypter_prime.utils.tutorial_report import (
+    build_tutorial_run_report,
+    render_tutorial_run_report,
+)
 
 
 def build_tutorial_session_report(
@@ -29,7 +35,9 @@ def build_tutorial_session_report(
 ) -> dict[str, Any]:
     benchmark_summary = None
     if reference is not None and run_kind is not None and stop_policy is not None:
-        benchmark_summary = reference.build_summary(run_kind=run_kind, stop_policy=stop_policy, solution=solution)
+        benchmark_summary = reference.build_summary(
+            run_kind=run_kind, stop_policy=stop_policy, solution=solution
+        )
 
     if reference is not None:
         if key_idx is None and reference.key_idx is not None:

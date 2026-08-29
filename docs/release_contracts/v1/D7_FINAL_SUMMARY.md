@@ -37,13 +37,13 @@ Owned labels:
 
 ```text
 ComponentKind
-V1Status
-RankEffect
-RequestState
-EffectiveState
+ReleaseStatus
+RankingEffect
+CapabilityRequestState
+CapabilityEffectiveState
 CapabilityStatus
 FallbackPolicy
-ScorerLaneName
+ScoringLane
 ```
 
 The public JSON strings are unchanged because reports still emit `.value`. Raw strings are still rejected when constructing typed contract objects such as `LaneStatus`.
@@ -55,12 +55,12 @@ D7 enum-owns the finite scoring config modes and policies that had still been re
 Owned labels:
 
 ```text
-HammingDirectionMode
+HammingTextDirectionMode
 SpanHammingMode
 SpanHammingBucketPolicy
 SpanHammingCombineMode
-SpanHammingGateFailPolicy
-SpanHammingLmProfileSource
+SpanHammingGateFailurePolicy
+SpanHammingLanguageModelProfileSource
 ```
 
 Public/config boundary strings are still accepted, but they are normalised immediately in `ScoringConfig.__post_init__`. Internal config state stores enum values. `ScoringConfig.asdict()` preserves the same public strings as before.
@@ -68,12 +68,12 @@ Public/config boundary strings are still accepted, but they are normalised immed
 D7 also exports domain-local normalisers:
 
 ```text
-ensure_hamming_direction_mode
+ensure_hamming_text_direction_mode
 ensure_span_hamming_mode
 ensure_span_hamming_bucket_policy
 ensure_span_hamming_combine_mode
-ensure_span_hamming_gate_fail_policy
-ensure_span_hamming_lm_profile_source
+ensure_span_hamming_gate_failure_policy
+ensure_span_hamming_language_model_profile_source
 ```
 
 These are used by runtime/capability bridge code so each path does not invent its own string validation.

@@ -21,7 +21,7 @@ Checked:
 - `SolverReport` fields
 - `ScorerReport` fields
 - artifact kind/path/classification enums
-- LP `SourceInputRef` source kinds
+- LP `SourceReferenceInput` source kinds
 - staged docs setup-pattern hygiene
 - staged docs whitespace hygiene
 
@@ -120,8 +120,8 @@ tutorials/v1/tutorial_manifest_v1.json
 ```
 
 It now lists the same 21 promoted tutorial files. Older replaced files were
-moved to `tutorials/old/v1_replaced_by_pretty_print/`, and blocked old files
-were moved to `tutorials/old/v1_blocked/`.
+were removed from the release tree after the complete retired tutorial tree was
+owner-approved for deletion. Git history preserves the retired material.
 
 This is now documented in:
 

@@ -17,6 +17,7 @@ class Telemetry:
     `Solution.meta['telemetry']`. Optimisers may store counters
     under the `solver` dict keyed by optimiser name.
     """
+
     device: str
     dtype: str
     batch_size: Optional[int] = None
@@ -44,6 +45,7 @@ class Telemetry:
 
 class _Timer:
     """Tiny helper for elapsed time measurements (perf counters)."""
+
     def __init__(self):
         self.t0: float = 0.0
 

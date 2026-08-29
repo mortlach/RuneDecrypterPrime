@@ -2,12 +2,14 @@
 # rune_decrypter_prime/ciphers/vigenere_cipher.py  (unified CPU/Torch)
 # ============================================================
 from __future__ import annotations
-from typing import Iterable, Union, Optional
+from typing import Iterable, Union
 import re
 import numpy as np
 
 from rune_decrypter_prime.backends.xp import select_backend
-from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin  # transposition/interruptors mixin
+from rune_decrypter_prime.ciphers.ciphers_pipeline import (
+    CipherPipelineMixin,
+)  # transposition/interruptors mixin
 from rune_decrypter_prime.ciphers.base_keyed_cipher import KeyedCipherBase
 from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
 from rune_decrypter_prime.core.types import (
@@ -42,7 +44,9 @@ def _letters_to_indices(s: str) -> list[int]:
     return out
 
 
-def _to_key_u8(key: Union[str, bytes, bytearray, Iterable[int], np.ndarray]) -> np.ndarray:
+def _to_key_u8(
+    key: Union[str, bytes, bytearray, Iterable[int], np.ndarray],
+) -> np.ndarray:
     """
     Coerce 'key' into a 1-D uint8 array of indices modulo A.
 
@@ -59,7 +63,9 @@ def _to_key_u8(key: Union[str, bytes, bytearray, Iterable[int], np.ndarray]) -> 
         key = key.strip()
         if not key:
             raise ValueError("Empty key string")
-        vals = _parse_int_tokens(key) if _str_has_digits(key) else _letters_to_indices(key)
+        vals = (
+            _parse_int_tokens(key) if _str_has_digits(key) else _letters_to_indices(key)
+        )
         arr = np.asarray(vals, dtype=np.int64)
         return (arr % A).astype(np.uint8, copy=False)
     # fallback: iterable of ints
@@ -68,14 +74,18 @@ def _to_key_u8(key: Union[str, bytes, bytearray, Iterable[int], np.ndarray]) -> 
 
 
 # convenience for tests (index space)
-def encrypt(pt: np.ndarray, key: Union[str, bytes, bytearray, Iterable[int], np.ndarray]) -> np.ndarray:
+def encrypt(
+    pt: np.ndarray, key: Union[str, bytes, bytearray, Iterable[int], np.ndarray]
+) -> np.ndarray:
     pt_u8 = np.asarray(pt, dtype=np.uint8).reshape(-1)
     key_u8 = _to_key_u8(key)
     L, K = int(pt_u8.size), int(key_u8.size)
     if K <= 0:
         raise ValueError("Key length must be positive")
     cols = np.arange(L, dtype=np.int64) % K
-    return ((pt_u8.astype(np.int16) + key_u8[cols].astype(np.int16)) % A).astype(np.uint8)
+    return ((pt_u8.astype(np.int16) + key_u8[cols].astype(np.int16)) % A).astype(
+        np.uint8
+    )
 
 
 @register_cipher("vigenere")
@@ -99,16 +109,27 @@ class RuneVigenereCipher(CipherPipelineMixin, KeyedCipherBase):
     - Does not normalize keys in decrypt path; assumes keys are valid/uint8.
     - Problem attaches KeyOps based on `keyops_family="vector"` and `key_length`.
     """
+
     keyops_family: KeyOpsFamily = KeyOpsFamily.VECTOR
     A: int = A
 
-    def __init__(self, cfg, *, text_transposition: Direction | str = Direction.LTR, key_transposition: Direction | str = Direction.LTR):
-        text_dir = ensure_direction(getattr(cfg, "text_transposition", text_transposition))
+    def __init__(
+        self,
+        cfg,
+        *,
+        text_transposition: Direction | str = Direction.LTR,
+        key_transposition: Direction | str = Direction.LTR,
+    ):
+        text_dir = ensure_direction(
+            getattr(cfg, "text_transposition", text_transposition)
+        )
         key_dir = ensure_direction(getattr(cfg, "key_transposition", key_transposition))
         super().__init__(
             text_transposition=text_dir.value,
             key_transposition=key_dir.value,
-            initial_text_permutation_indices=getattr(cfg, "initial_text_permutation_indices", None),
+            initial_text_permutation_indices=getattr(
+                cfg, "initial_text_permutation_indices", None
+            ),
         )
         K = getattr(cfg, "key_length", None)
         if K is None:
@@ -131,6 +152,7 @@ class RuneVigenereCipher(CipherPipelineMixin, KeyedCipherBase):
         self._backend = getattr(xp, "backend", "numpy")
         if self._backend == "torch":
             import torch
+
             device = torch.device(dev_name if "cuda" in dev_name else "cpu")
             self._torch = torch
             self._torch_device = device
@@ -159,16 +181,17 @@ class RuneVigenereCipher(CipherPipelineMixin, KeyedCipherBase):
         L = int(ct.shape[0])
 
         if self._backend == "torch":
-            t = self._torch; device = self._torch_device
-            ct_t = t.as_tensor(ct, device=device, dtype=t.uint8).reshape(-1)        # (L,)
-            keys_t = t.as_tensor(keys, device=device, dtype=t.uint8)                # (B,K)
-            cols = t.arange(L, device=device, dtype=t.long) % K                     # (L,)
-            ks = keys_t.gather(1, cols.unsqueeze(0).expand(B, L))                   # (B,L)
-            pt = (ct_t.unsqueeze(0).to(t.int16) - ks.to(t.int16)) % self.A          # (B,L)
+            t = self._torch
+            device = self._torch_device
+            ct_t = t.as_tensor(ct, device=device, dtype=t.uint8).reshape(-1)  # (L,)
+            keys_t = t.as_tensor(keys, device=device, dtype=t.uint8)  # (B,K)
+            cols = t.arange(L, device=device, dtype=t.long) % K  # (L,)
+            ks = keys_t.gather(1, cols.unsqueeze(0).expand(B, L))  # (B,L)
+            pt = (ct_t.unsqueeze(0).to(t.int16) - ks.to(t.int16)) % self.A  # (B,L)
             return pt.to(t.uint8).cpu().numpy().astype(np.uint8, copy=False)
 
         cols = np.arange(L, dtype=np.int64) % K
-        ks = keys[:, cols]                                                          # (B,L)
+        ks = keys[:, cols]  # (B,L)
         pt = (ct[None, :].astype(np.int16) - ks.astype(np.int16)) % self.A
         return pt.astype(np.uint8, copy=False)
 
@@ -182,11 +205,12 @@ class RuneVigenereCipher(CipherPipelineMixin, KeyedCipherBase):
         L = int(pt.shape[0])
 
         if self._backend == "torch":
-            t = self._torch; device = self._torch_device
-            pt_t = t.as_tensor(pt, device=device, dtype=t.uint8).reshape(-1)        # (L,)
-            keys_t = t.as_tensor(keys, device=device, dtype=t.uint8)                # (B,K)
+            t = self._torch
+            device = self._torch_device
+            pt_t = t.as_tensor(pt, device=device, dtype=t.uint8).reshape(-1)  # (L,)
+            keys_t = t.as_tensor(keys, device=device, dtype=t.uint8)  # (B,K)
             cols = t.arange(L, device=device, dtype=t.long) % K
-            ks = keys_t.gather(1, cols.unsqueeze(0).expand(B, L))                   # (B,L)
+            ks = keys_t.gather(1, cols.unsqueeze(0).expand(B, L))  # (B,L)
             ct = (pt_t.unsqueeze(0).to(t.int16) + ks.to(t.int16)) % self.A
             return ct.to(t.uint8).cpu().numpy().astype(np.uint8, copy=False)
 

@@ -12,7 +12,9 @@ from rune_decrypter_prime.scoring.word_ngrams.scorer import (
     summarize_word_ngram_report_trust,
     word_ngram_report_is_active,
 )
-from rune_decrypter_prime.scoring.word_ngrams.sqlite_model import RuneTokenWordNgramSqlite
+from rune_decrypter_prime.scoring.word_ngrams.sqlite_model import (
+    RuneTokenWordNgramSqlite,
+)
 
 
 @dataclass(frozen=True)
@@ -58,7 +60,8 @@ def extract_exact_match_tokens(
     chosen = [
         item
         for item in intervals
-        if int(item.distance) == 0 and 0 <= int(item.start) < int(item.end) <= len(values)
+        if int(item.distance) == 0
+        and 0 <= int(item.start) < int(item.end) <= len(values)
     ]
     chosen.sort(key=lambda item: (int(item.start), int(item.end), int(item.length)))
     out: list[ExactMatchToken] = []
@@ -81,7 +84,9 @@ def segment_exact_match_tokens(
 ) -> tuple[tuple[ExactMatchToken, ...], ...]:
     if not tokens:
         return tuple()
-    ordered = sorted(tokens, key=lambda item: (int(item.start), int(item.end), int(item.length)))
+    ordered = sorted(
+        tokens, key=lambda item: (int(item.start), int(item.end), int(item.length))
+    )
     segments: list[list[ExactMatchToken]] = [[ordered[0]]]
     for item in ordered[1:]:
         prev = segments[-1][-1]
@@ -173,7 +178,9 @@ class RuneTokenWordNgramJudgeRuntime:
             n_positions=int(score.n_positions),
             min_positions=int(self.min_positions),
             prefix_total_ge_10_rate=float(support.get("prefix_total_ge_10_rate", 0.0)),
-            prefix_total_ge_100_rate=float(support.get("prefix_total_ge_100_rate", 0.0)),
+            prefix_total_ge_100_rate=float(
+                support.get("prefix_total_ge_100_rate", 0.0)
+            ),
         )
         inactive_reason = None
         if int(score.n_positions) <= 0:
@@ -192,14 +199,22 @@ class RuneTokenWordNgramJudgeRuntime:
             ),
             n_positions=int(score.n_positions),
             miss_rate=(None if int(score.n_positions) <= 0 else float(score.miss_rate)),
-            used5_rate=(None if int(score.n_positions) <= 0 else float(score.used5_rate)),
-            used4_rate=(None if int(score.n_positions) <= 0 else float(score.used4_rate)),
-            used3_rate=(None if int(score.n_positions) <= 0 else float(score.used3_rate)),
+            used5_rate=(
+                None if int(score.n_positions) <= 0 else float(score.used5_rate)
+            ),
+            used4_rate=(
+                None if int(score.n_positions) <= 0 else float(score.used4_rate)
+            ),
+            used3_rate=(
+                None if int(score.n_positions) <= 0 else float(score.used3_rate)
+            ),
             prefix_total_mean=float(support.get("prefix_total_mean", 0.0)),
             prefix_total_min=float(support.get("prefix_total_min", 0.0)),
             prefix_total_ge_1_rate=float(support.get("prefix_total_ge_1_rate", 0.0)),
             prefix_total_ge_10_rate=float(support.get("prefix_total_ge_10_rate", 0.0)),
-            prefix_total_ge_100_rate=float(support.get("prefix_total_ge_100_rate", 0.0)),
+            prefix_total_ge_100_rate=float(
+                support.get("prefix_total_ge_100_rate", 0.0)
+            ),
             trust_score=float(trust.trust_score),
             trust_tier=str(trust.trust_tier),
         )

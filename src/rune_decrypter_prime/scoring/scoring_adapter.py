@@ -8,12 +8,14 @@ from typing import Any, Sequence
 import numpy as np
 from rune_decrypter_prime.core.types import Direction, ensure_direction
 
+
 @dataclass(slots=True)
 class ScoringAdapter:
     """
     Adapter that gives solvers a single numeric interface
     while delegating all work to the underlying scorer.
     """
+
     scorer: Any
     direction: Direction
 

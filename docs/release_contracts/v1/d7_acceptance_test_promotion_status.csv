@@ -12,7 +12,7 @@ tests/ciphers/test_scheduled_stream_lookup_schedule_modes.py,implemented,Added i
 tests/ciphers/test_scheduled_stream_lookup_degeneracy_policy.py,implemented,Added in D7 degeneracy policy/candidate-list gate.
 experimental/tests/scoring/test_retained_state_plaintext_rescore.py,not_v1_production,Experimental branch/path is not part of V1 release tree; covered by report-only boundary tests in V1.
 tests/api/test_artifact_agreement.py,implemented,Existing public artifact portability agreement gate.
-tests/api/test_no_legacy_solve_alias.py,implemented,Added in D7 retained/deprecate-only solve alias boundary.
+tests/api/test_public_execution_boundary.py,implemented,Migrated in AN3 to the canonical run-only public execution boundary.
 tests/contracts/test_asset_registry_contract.py,implemented,Added in D7 as thin contract over LM root/index helpers plus ECDFCache status methods.
 tests/core/test_capability_gates.py,implemented,Existing core capability-gate test covers helper semantics; do not add duplicate basename under tests/contracts.
 tests/contracts/test_component_contracts.py,implemented,Existing typed component/lane contract tests.

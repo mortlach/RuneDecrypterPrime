@@ -10,6 +10,7 @@ import numpy as np
 
 __all__ = ["TranspositionManager"]
 
+
 class TranspositionManager:
     """
     Text and key transpositions.
@@ -112,6 +113,7 @@ class TranspositionManager:
             inv[self._key_perm] = np.arange(self._key_perm.size)
             return keys[:, inv]
         raise ValueError(f"unknown key_mode {self.key_mode}")
+
 
 # TODO: Consider normalising `text_mode`/`key_mode` with a shared helper
 #       (accept "reverse"/"rtl"/"back"/"bwd" etc.) without changing defaults.

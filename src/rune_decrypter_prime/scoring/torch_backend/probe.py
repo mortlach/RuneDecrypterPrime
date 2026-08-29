@@ -28,7 +28,9 @@ def lookup_logp_linear_probe(
         raise ValueError("h, keys_i64, and logp_f32 must be on the same device")
 
     idx = (h & torch.tensor(mask, dtype=keys_i64.dtype, device=h.device)).to(torch.long)
-    out = torch.full(h.shape, fill_value=float(fallback_logp), dtype=torch.float32, device=h.device)
+    out = torch.full(
+        h.shape, fill_value=float(fallback_logp), dtype=torch.float32, device=h.device
+    )
     found = torch.zeros(h.shape, dtype=torch.bool, device=h.device)
     probe_exhausted = False
 

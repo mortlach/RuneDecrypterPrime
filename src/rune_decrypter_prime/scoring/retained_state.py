@@ -38,7 +38,10 @@ def _int_wli_value(value: Any, *, field_name: str) -> int:
 def _normalize_plaintext_idx(value: Iterable[Any]) -> tuple[int, ...]:
     try:
         raw = value.tolist() if hasattr(value, "tolist") else value
-        return tuple(_int_token(item, field_name=f"plaintext_idx[{idx}]") for idx, item in enumerate(raw))
+        return tuple(
+            _int_token(item, field_name=f"plaintext_idx[{idx}]")
+            for idx, item in enumerate(raw)
+        )
     except (TypeError, ValueError):
         raise
     except Exception as exc:
@@ -71,13 +74,17 @@ def _normalize_wli(
     except (TypeError, ValueError):
         raise
     except Exception as exc:
-        raise TypeError("wli must be an iterable of (pos_in_word, word_len) pairs") from exc
+        raise TypeError(
+            "wli must be an iterable of (pos_in_word, word_len) pairs"
+        ) from exc
     if len(out) != int(expected_len):
         raise ValueError("wli length must match plaintext_idx length")
     return tuple(out)
 
 
-def _metadata_str(value: Any, *, field_name: str, allow_none: bool = False) -> str | None:
+def _metadata_str(
+    value: Any, *, field_name: str, allow_none: bool = False
+) -> str | None:
     if value is None:
         if allow_none:
             return None
@@ -117,9 +124,13 @@ class PlaintextRetainedCandidate:
         object.__setattr__(self, "candidate_representation", "plaintext_idx")
         object.__setattr__(self, "plaintext_idx", pt)
         object.__setattr__(self, "wli", norm_wli)
-        object.__setattr__(self, "alphabet", _metadata_str(alphabet, field_name="alphabet"))
+        object.__setattr__(
+            self, "alphabet", _metadata_str(alphabet, field_name="alphabet")
+        )
         object.__setattr__(self, "direction", ensure_direction(direction))
-        object.__setattr__(self, "tokenization", _metadata_str(tokenization, field_name="tokenization"))
+        object.__setattr__(
+            self, "tokenization", _metadata_str(tokenization, field_name="tokenization")
+        )
         object.__setattr__(
             self,
             "candidate_id",

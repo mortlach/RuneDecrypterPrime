@@ -44,7 +44,9 @@ def _strict_int(value: object, field_name: str, *, minimum: int | None = None) -
     return result
 
 
-def _optional_int(value: object, field_name: str, *, minimum: int | None = None) -> int | None:
+def _optional_int(
+    value: object, field_name: str, *, minimum: int | None = None
+) -> int | None:
     return None if value is None else _strict_int(value, field_name, minimum=minimum)
 
 
@@ -175,10 +177,14 @@ class CipherSpec(_ImmutableSpec):
     _REPLAY_PREFIX: ClassVar[str] = "cipher-spec"
 
     @classmethod
-    def _create(cls, kind: CipherKind | RuntimeCipherKind, parameters: Mapping[str, object]) -> CipherSpec:
+    def _create(
+        cls, kind: CipherKind | RuntimeCipherKind, parameters: Mapping[str, object]
+    ) -> CipherSpec:
         instance = object.__new__(cls)
         object.__setattr__(instance, "kind", kind)
-        object.__setattr__(instance, "_parameter_items", freeze_parameter_items(parameters))
+        object.__setattr__(
+            instance, "_parameter_items", freeze_parameter_items(parameters)
+        )
         return instance
 
     @staticmethod
@@ -187,18 +193,25 @@ class CipherSpec(_ImmutableSpec):
 
     @classmethod
     def vigenere(cls, *, alphabet_size: int = 29) -> CipherSpec:
-        return cls._create(CipherKind.VIGENERE, {"alphabet_size": cls._alphabet(alphabet_size)})
+        return cls._create(
+            CipherKind.VIGENERE, {"alphabet_size": cls._alphabet(alphabet_size)}
+        )
 
     @classmethod
     def autokey(cls, *, alphabet_size: int = 29) -> CipherSpec:
-        return cls._create(CipherKind.AUTOKEY, {"alphabet_size": cls._alphabet(alphabet_size)})
+        return cls._create(
+            CipherKind.AUTOKEY, {"alphabet_size": cls._alphabet(alphabet_size)}
+        )
 
     @classmethod
     def columnar(cls, *, columns: int, alphabet_size: int = 29) -> CipherSpec:
-        return cls._create(CipherKind.COLUMNAR, {
-            "columns": _strict_int(columns, "columns", minimum=1),
-            "alphabet_size": cls._alphabet(alphabet_size),
-        })
+        return cls._create(
+            CipherKind.COLUMNAR,
+            {
+                "columns": _strict_int(columns, "columns", minimum=1),
+                "alphabet_size": cls._alphabet(alphabet_size),
+            },
+        )
 
     @classmethod
     def rail_fence(
@@ -212,22 +225,32 @@ class CipherSpec(_ImmutableSpec):
         high = _strict_int(maximum_rails, "maximum_rails", minimum=2)
         if low > high:
             raise ValueError("minimum_rails must not exceed maximum_rails")
-        return cls._create(CipherKind.RAIL_FENCE, {
-            "minimum_rails": low,
-            "maximum_rails": high,
-            "alphabet_size": cls._alphabet(alphabet_size),
-        })
+        return cls._create(
+            CipherKind.RAIL_FENCE,
+            {
+                "minimum_rails": low,
+                "maximum_rails": high,
+                "alphabet_size": cls._alphabet(alphabet_size),
+            },
+        )
 
     @classmethod
     def substitution(cls, *, alphabet_size: int = 29) -> CipherSpec:
-        return cls._create(CipherKind.SUBSTITUTION, {"alphabet_size": cls._alphabet(alphabet_size)})
+        return cls._create(
+            CipherKind.SUBSTITUTION, {"alphabet_size": cls._alphabet(alphabet_size)}
+        )
 
     @classmethod
-    def periodic_substitution(cls, *, period: int, alphabet_size: int = 29) -> CipherSpec:
-        return cls._create(CipherKind.PERIODIC_SUBSTITUTION, {
-            "period": _strict_int(period, "period", minimum=1),
-            "alphabet_size": cls._alphabet(alphabet_size),
-        })
+    def periodic_substitution(
+        cls, *, period: int, alphabet_size: int = 29
+    ) -> CipherSpec:
+        return cls._create(
+            CipherKind.PERIODIC_SUBSTITUTION,
+            {
+                "period": _strict_int(period, "period", minimum=1),
+                "alphabet_size": cls._alphabet(alphabet_size),
+            },
+        )
 
     @classmethod
     def periodic_columnar(
@@ -239,12 +262,15 @@ class CipherSpec(_ImmutableSpec):
         alphabet_size: int = 29,
     ) -> CipherSpec:
         _strict_enum(order, PeriodicColumnarOrder, "order")
-        return cls._create(CipherKind.PERIODIC_COLUMNAR, {
-            "period": _strict_int(period, "period", minimum=1),
-            "columns": _strict_int(columns, "columns", minimum=1),
-            "order": order,
-            "alphabet_size": cls._alphabet(alphabet_size),
-        })
+        return cls._create(
+            CipherKind.PERIODIC_COLUMNAR,
+            {
+                "period": _strict_int(period, "period", minimum=1),
+                "columns": _strict_int(columns, "columns", minimum=1),
+                "order": order,
+                "alphabet_size": cls._alphabet(alphabet_size),
+            },
+        )
 
     @staticmethod
     def _schedule_mask(
@@ -270,13 +296,16 @@ class CipherSpec(_ImmutableSpec):
         mask: Sequence[int] | None = None,
         alphabet_size: int = 29,
     ) -> CipherSpec:
-        return cls._create(CipherKind.TWO_PERIOD_VIGENERE, {
-            "first_period": _strict_int(first_period, "first_period", minimum=1),
-            "second_period": _strict_int(second_period, "second_period", minimum=1),
-            "schedule": _strict_enum(schedule, ScheduledStreamSchedule, "schedule"),
-            "mask": cls._schedule_mask(schedule, mask),
-            "alphabet_size": cls._alphabet(alphabet_size),
-        })
+        return cls._create(
+            CipherKind.TWO_PERIOD_VIGENERE,
+            {
+                "first_period": _strict_int(first_period, "first_period", minimum=1),
+                "second_period": _strict_int(second_period, "second_period", minimum=1),
+                "schedule": _strict_enum(schedule, ScheduledStreamSchedule, "schedule"),
+                "mask": cls._schedule_mask(schedule, mask),
+                "alphabet_size": cls._alphabet(alphabet_size),
+            },
+        )
 
     @classmethod
     def periodic_with_fixed_stream(
@@ -288,12 +317,17 @@ class CipherSpec(_ImmutableSpec):
         alphabet_size: int = 29,
     ) -> CipherSpec:
         alphabet = cls._alphabet(alphabet_size)
-        stream = _strict_int_tuple(fixed_stream, "fixed_stream", maximum=alphabet - 1, non_empty=True)
-        return cls._create(CipherKind.PERIODIC_WITH_FIXED_STREAM, {
-            "fixed_stream": stream,
-            "period": _strict_int(period, "period", minimum=1),
-            "alphabet_size": alphabet,
-        })
+        stream = _strict_int_tuple(
+            fixed_stream, "fixed_stream", maximum=alphabet - 1, non_empty=True
+        )
+        return cls._create(
+            CipherKind.PERIODIC_WITH_FIXED_STREAM,
+            {
+                "fixed_stream": stream,
+                "period": _strict_int(period, "period", minimum=1),
+                "alphabet_size": alphabet,
+            },
+        )
 
     @classmethod
     def periodic_with_prime_stream(
@@ -303,11 +337,14 @@ class CipherSpec(_ImmutableSpec):
         prime_offset: int = 0,
         alphabet_size: int = 29,
     ) -> CipherSpec:
-        return cls._create(CipherKind.PERIODIC_WITH_PRIME_STREAM, {
-            "period": _strict_int(period, "period", minimum=1),
-            "prime_offset": _strict_int(prime_offset, "prime_offset", minimum=0),
-            "alphabet_size": cls._alphabet(alphabet_size),
-        })
+        return cls._create(
+            CipherKind.PERIODIC_WITH_PRIME_STREAM,
+            {
+                "period": _strict_int(period, "period", minimum=1),
+                "prime_offset": _strict_int(prime_offset, "prime_offset", minimum=0),
+                "alphabet_size": cls._alphabet(alphabet_size),
+            },
+        )
 
     @classmethod
     def two_period_streams(
@@ -321,14 +358,17 @@ class CipherSpec(_ImmutableSpec):
         alphabet_size: int = 29,
     ) -> CipherSpec:
         _strict_enum(operation, ScheduledStreamOperation, "operation")
-        return cls._create(CipherKind.TWO_PERIOD_STREAMS, {
-            "first_period": _strict_int(first_period, "first_period", minimum=1),
-            "second_period": _strict_int(second_period, "second_period", minimum=1),
-            "operation": operation,
-            "schedule": _strict_enum(schedule, ScheduledStreamSchedule, "schedule"),
-            "mask": cls._schedule_mask(schedule, mask),
-            "alphabet_size": cls._alphabet(alphabet_size),
-        })
+        return cls._create(
+            CipherKind.TWO_PERIOD_STREAMS,
+            {
+                "first_period": _strict_int(first_period, "first_period", minimum=1),
+                "second_period": _strict_int(second_period, "second_period", minimum=1),
+                "operation": operation,
+                "schedule": _strict_enum(schedule, ScheduledStreamSchedule, "schedule"),
+                "mask": cls._schedule_mask(schedule, mask),
+                "alphabet_size": cls._alphabet(alphabet_size),
+            },
+        )
 
     @classmethod
     def from_name(
@@ -348,14 +388,23 @@ class CipherSpec(_ImmutableSpec):
             "rail_fence": (cls.rail_fence, {}),
             "substitution": (cls.substitution, {}),
             "periodic_substitution": (cls.periodic_substitution, {}),
-            "periodic_columnar": (cls.periodic_columnar, {"order": PeriodicColumnarOrder}),
-            "two_period_vigenere": (cls.two_period_vigenere, {"schedule": ScheduledStreamSchedule}),
+            "periodic_columnar": (
+                cls.periodic_columnar,
+                {"order": PeriodicColumnarOrder},
+            ),
+            "two_period_vigenere": (
+                cls.two_period_vigenere,
+                {"schedule": ScheduledStreamSchedule},
+            ),
             "periodic_with_fixed_stream": (cls.periodic_with_fixed_stream, {}),
             "periodic_with_prime_stream": (cls.periodic_with_prime_stream, {}),
-            "two_period_streams": (cls.two_period_streams, {
-                "operation": ScheduledStreamOperation,
-                "schedule": ScheduledStreamSchedule,
-            }),
+            "two_period_streams": (
+                cls.two_period_streams,
+                {
+                    "operation": ScheduledStreamOperation,
+                    "schedule": ScheduledStreamSchedule,
+                },
+            ),
         }
         if name not in constructors:
             raise UnknownComponentError(
@@ -374,7 +423,8 @@ class CipherSpec(_ImmutableSpec):
             return constructor(**values)  # type: ignore[operator]
         except (KeyError, TypeError) as exc:
             raise UnsupportedConfigurationError(
-                f"invalid parameters for cipher {name!r}: {exc}", field_paths=("parameters",)
+                f"invalid parameters for cipher {name!r}: {exc}",
+                field_paths=("parameters",),
             ) from exc
 
     def to_dict(self) -> dict[str, JsonValue]:
@@ -413,12 +463,16 @@ class KeySpec(_ImmutableSpec):
     def _create(cls, kind: KeyKind, parameters: Mapping[str, object]) -> KeySpec:
         instance = object.__new__(cls)
         object.__setattr__(instance, "kind", kind)
-        object.__setattr__(instance, "_parameter_items", freeze_parameter_items(parameters))
+        object.__setattr__(
+            instance, "_parameter_items", freeze_parameter_items(parameters)
+        )
         return instance
 
     @classmethod
     def repeating(cls, *, length: int) -> KeySpec:
-        return cls._create(KeyKind.REPEATING, {"length": _strict_int(length, "length", minimum=1)})
+        return cls._create(
+            KeyKind.REPEATING, {"length": _strict_int(length, "length", minimum=1)}
+        )
 
     @classmethod
     def repeating_range(cls, *, minimum_length: int, maximum_length: int) -> KeySpec:
@@ -426,11 +480,15 @@ class KeySpec(_ImmutableSpec):
         high = _strict_int(maximum_length, "maximum_length", minimum=1)
         if low > high:
             raise ValueError("minimum_length must not exceed maximum_length")
-        return cls._create(KeyKind.REPEATING_RANGE, {"minimum_length": low, "maximum_length": high})
+        return cls._create(
+            KeyKind.REPEATING_RANGE, {"minimum_length": low, "maximum_length": high}
+        )
 
     @classmethod
     def permutation(cls, *, length: int) -> KeySpec:
-        return cls._create(KeyKind.PERMUTATION, {"length": _strict_int(length, "length", minimum=1)})
+        return cls._create(
+            KeyKind.PERMUTATION, {"length": _strict_int(length, "length", minimum=1)}
+        )
 
     @classmethod
     def scalar(cls, *, minimum: int, maximum: int) -> KeySpec:
@@ -442,10 +500,13 @@ class KeySpec(_ImmutableSpec):
 
     @classmethod
     def periodic_substitution(cls, *, period: int, alphabet_size: int = 29) -> KeySpec:
-        return cls._create(KeyKind.PERIODIC_SUBSTITUTION, {
-            "period": _strict_int(period, "period", minimum=1),
-            "alphabet_size": _strict_int(alphabet_size, "alphabet_size", minimum=2),
-        })
+        return cls._create(
+            KeyKind.PERIODIC_SUBSTITUTION,
+            {
+                "period": _strict_int(period, "period", minimum=1),
+                "alphabet_size": _strict_int(alphabet_size, "alphabet_size", minimum=2),
+            },
+        )
 
     @classmethod
     def periodic_columnar(
@@ -455,11 +516,14 @@ class KeySpec(_ImmutableSpec):
         columns: int,
         alphabet_size: int = 29,
     ) -> KeySpec:
-        return cls._create(KeyKind.PERIODIC_COLUMNAR, {
-            "period": _strict_int(period, "period", minimum=1),
-            "columns": _strict_int(columns, "columns", minimum=1),
-            "alphabet_size": _strict_int(alphabet_size, "alphabet_size", minimum=2),
-        })
+        return cls._create(
+            KeyKind.PERIODIC_COLUMNAR,
+            {
+                "period": _strict_int(period, "period", minimum=1),
+                "columns": _strict_int(columns, "columns", minimum=1),
+                "alphabet_size": _strict_int(alphabet_size, "alphabet_size", minimum=2),
+            },
+        )
 
     def with_fixed_alignment(self, *, offset: int) -> KeySpec:
         self._require_alignment_capability()
@@ -467,7 +531,9 @@ class KeySpec(_ImmutableSpec):
         parameters["alignment"] = ("fixed", _strict_int(offset, "offset"))
         return self._create(self.kind, parameters)
 
-    def with_alignment_search(self, *, minimum_offset: int, maximum_offset: int) -> KeySpec:
+    def with_alignment_search(
+        self, *, minimum_offset: int, maximum_offset: int
+    ) -> KeySpec:
         self._require_alignment_capability()
         low = _strict_int(minimum_offset, "minimum_offset")
         high = _strict_int(maximum_offset, "maximum_offset")
@@ -480,7 +546,8 @@ class KeySpec(_ImmutableSpec):
     def _require_alignment_capability(self) -> None:
         if self.kind not in {KeyKind.REPEATING, KeyKind.REPEATING_RANGE}:
             raise UnsupportedConfigurationError(
-                f"{self.kind.value} keys do not support alignment", field_paths=("alignment",)
+                f"{self.kind.value} keys do not support alignment",
+                field_paths=("alignment",),
             )
 
     @classmethod
@@ -514,7 +581,8 @@ class KeySpec(_ImmutableSpec):
             spec = constructor(**values)
         except TypeError as exc:
             raise UnsupportedConfigurationError(
-                f"invalid parameters for key {name!r}: {exc}", field_paths=("parameters",)
+                f"invalid parameters for key {name!r}: {exc}",
+                field_paths=("parameters",),
             ) from exc
         if alignment is None:
             return spec
@@ -522,15 +590,21 @@ class KeySpec(_ImmutableSpec):
             items = tuple(alignment)
             if len(items) == 2 and items[0] == "fixed":
                 return spec.with_fixed_alignment(offset=items[1])
-        if isinstance(alignment, Mapping) and set(alignment) == {"minimum_offset", "maximum_offset"}:
+        if isinstance(alignment, Mapping) and set(alignment) == {
+            "minimum_offset",
+            "maximum_offset",
+        }:
             return spec.with_alignment_search(
                 minimum_offset=alignment["minimum_offset"],
                 maximum_offset=alignment["maximum_offset"],
             )
-        raise UnsupportedConfigurationError("invalid serialized alignment", field_paths=("parameters.alignment",))
+        raise UnsupportedConfigurationError(
+            "invalid serialized alignment", field_paths=("parameters.alignment",)
+        )
 
     def to_dict(self) -> dict[str, JsonValue]:
         return {"kind": self.kind.value, "parameters": self._json_parameters()}
+
 
 @dataclass(frozen=True, slots=True, init=False, repr=False)
 class SolverSpec(_ImmutableSpec):
@@ -551,7 +625,9 @@ class SolverSpec(_ImmutableSpec):
         instance = object.__new__(cls)
         object.__setattr__(instance, "kind", kind)
         object.__setattr__(instance, "seed", _optional_int(seed, "seed"))
-        object.__setattr__(instance, "_parameter_items", freeze_parameter_items(parameters))
+        object.__setattr__(
+            instance, "_parameter_items", freeze_parameter_items(parameters)
+        )
         return instance
 
     @classmethod
@@ -574,18 +650,32 @@ class SolverSpec(_ImmutableSpec):
         fraction = _finite_float(top_parents_fraction, "top_parents_fraction")
         if not 0.0 < fraction <= 1.0:
             raise ValueError("top_parents_fraction must be in (0, 1]")
-        return cls._create(SolverKind.BEAM_SEARCH, seed, {
-            "width": _strict_int(width, "width", minimum=1),
-            "rounds": _strict_int(rounds, "rounds", minimum=0),
-            "restarts": _strict_int(restarts, "restarts", minimum=1),
-            "expansion": expansion,
-            "maximum_children_per_parent": _optional_int(maximum_children_per_parent, "maximum_children_per_parent", minimum=1),
-            "sample_per_parent": _optional_int(sample_per_parent, "sample_per_parent", minimum=1),
-            "top_parents_fraction": fraction,
-            "plateau_rounds": _optional_int(plateau_rounds, "plateau_rounds", minimum=1),
-            "plateau_minimum_delta": _finite_float(plateau_minimum_delta, "plateau_minimum_delta"),
-            "target_score": _optional_float(target_score, "target_score"),
-        })
+        return cls._create(
+            SolverKind.BEAM_SEARCH,
+            seed,
+            {
+                "width": _strict_int(width, "width", minimum=1),
+                "rounds": _strict_int(rounds, "rounds", minimum=0),
+                "restarts": _strict_int(restarts, "restarts", minimum=1),
+                "expansion": expansion,
+                "maximum_children_per_parent": _optional_int(
+                    maximum_children_per_parent,
+                    "maximum_children_per_parent",
+                    minimum=1,
+                ),
+                "sample_per_parent": _optional_int(
+                    sample_per_parent, "sample_per_parent", minimum=1
+                ),
+                "top_parents_fraction": fraction,
+                "plateau_rounds": _optional_int(
+                    plateau_rounds, "plateau_rounds", minimum=1
+                ),
+                "plateau_minimum_delta": _finite_float(
+                    plateau_minimum_delta, "plateau_minimum_delta"
+                ),
+                "target_score": _optional_float(target_score, "target_score"),
+            },
+        )
 
     @classmethod
     def genetic_algorithm(
@@ -604,20 +694,36 @@ class SolverSpec(_ImmutableSpec):
     ) -> SolverSpec:
         fractions = {
             "elite_fraction": _finite_float(elite_fraction, "elite_fraction"),
-            "mutation_probability": _finite_float(mutation_probability, "mutation_probability"),
-            "crossover_fraction": _finite_float(crossover_fraction, "crossover_fraction"),
+            "mutation_probability": _finite_float(
+                mutation_probability, "mutation_probability"
+            ),
+            "crossover_fraction": _finite_float(
+                crossover_fraction, "crossover_fraction"
+            ),
         }
         if any(not 0.0 <= value <= 1.0 for value in fractions.values()):
             raise ValueError("genetic algorithm fractions must be in [0, 1]")
-        return cls._create(SolverKind.GENETIC_ALGORITHM, seed, {
-            "population_size": _strict_int(population_size, "population_size", minimum=1),
-            "generations": _strict_int(generations, "generations", minimum=1),
-            **fractions,
-            "tournament_size": _strict_int(tournament_size, "tournament_size", minimum=2),
-            "plateau_generations": _optional_int(plateau_generations, "plateau_generations", minimum=1),
-            "plateau_minimum_delta": _finite_float(plateau_minimum_delta, "plateau_minimum_delta"),
-            "target_score": _optional_float(target_score, "target_score"),
-        })
+        return cls._create(
+            SolverKind.GENETIC_ALGORITHM,
+            seed,
+            {
+                "population_size": _strict_int(
+                    population_size, "population_size", minimum=1
+                ),
+                "generations": _strict_int(generations, "generations", minimum=1),
+                **fractions,
+                "tournament_size": _strict_int(
+                    tournament_size, "tournament_size", minimum=2
+                ),
+                "plateau_generations": _optional_int(
+                    plateau_generations, "plateau_generations", minimum=1
+                ),
+                "plateau_minimum_delta": _finite_float(
+                    plateau_minimum_delta, "plateau_minimum_delta"
+                ),
+                "target_score": _optional_float(target_score, "target_score"),
+            },
+        )
 
     @classmethod
     def simulated_annealing(
@@ -637,20 +743,42 @@ class SolverSpec(_ImmutableSpec):
         target_score: float | None = None,
         seed: int | None = None,
     ) -> SolverSpec:
-        return cls._create(SolverKind.SIMULATED_ANNEALING, seed, {
-            "iterations": _strict_int(iterations, "iterations", minimum=1),
-            "initial_temperature": _optional_float(initial_temperature, "initial_temperature"),
-            "minimum_temperature": _optional_float(minimum_temperature, "minimum_temperature"),
-            "cooling_rate": _optional_float(cooling_rate, "cooling_rate"),
-            "automatic_cooling": _strict_bool(automatic_cooling, "automatic_cooling"),
-            "reseed_interval": _optional_int(reseed_interval, "reseed_interval", minimum=0),
-            "local_improvement_on_accept": _strict_bool(local_improvement_on_accept, "local_improvement_on_accept"),
-            "rescue_drop_absolute": _optional_float(rescue_drop_absolute, "rescue_drop_absolute"),
-            "rescue_drop_ratio": _optional_float(rescue_drop_ratio, "rescue_drop_ratio"),
-            "plateau_iterations": _optional_int(plateau_iterations, "plateau_iterations", minimum=1),
-            "plateau_minimum_delta": _finite_float(plateau_minimum_delta, "plateau_minimum_delta"),
-            "target_score": _optional_float(target_score, "target_score"),
-        })
+        return cls._create(
+            SolverKind.SIMULATED_ANNEALING,
+            seed,
+            {
+                "iterations": _strict_int(iterations, "iterations", minimum=1),
+                "initial_temperature": _optional_float(
+                    initial_temperature, "initial_temperature"
+                ),
+                "minimum_temperature": _optional_float(
+                    minimum_temperature, "minimum_temperature"
+                ),
+                "cooling_rate": _optional_float(cooling_rate, "cooling_rate"),
+                "automatic_cooling": _strict_bool(
+                    automatic_cooling, "automatic_cooling"
+                ),
+                "reseed_interval": _optional_int(
+                    reseed_interval, "reseed_interval", minimum=0
+                ),
+                "local_improvement_on_accept": _strict_bool(
+                    local_improvement_on_accept, "local_improvement_on_accept"
+                ),
+                "rescue_drop_absolute": _optional_float(
+                    rescue_drop_absolute, "rescue_drop_absolute"
+                ),
+                "rescue_drop_ratio": _optional_float(
+                    rescue_drop_ratio, "rescue_drop_ratio"
+                ),
+                "plateau_iterations": _optional_int(
+                    plateau_iterations, "plateau_iterations", minimum=1
+                ),
+                "plateau_minimum_delta": _finite_float(
+                    plateau_minimum_delta, "plateau_minimum_delta"
+                ),
+                "target_score": _optional_float(target_score, "target_score"),
+            },
+        )
 
     @classmethod
     def hybrid(
@@ -669,27 +797,45 @@ class SolverSpec(_ImmutableSpec):
         target_score: float | None = None,
         seed: int | None = None,
     ) -> SolverSpec:
-        if not isinstance(genetic_algorithm, SolverSpec) or genetic_algorithm.kind is not SolverKind.GENETIC_ALGORITHM:
+        if (
+            not isinstance(genetic_algorithm, SolverSpec)
+            or genetic_algorithm.kind is not SolverKind.GENETIC_ALGORITHM
+        ):
             raise TypeError("genetic_algorithm must be a genetic-algorithm SolverSpec")
-        if not isinstance(simulated_annealing, SolverSpec) or simulated_annealing.kind is not SolverKind.SIMULATED_ANNEALING:
-            raise TypeError("simulated_annealing must be a simulated-annealing SolverSpec")
+        if (
+            not isinstance(simulated_annealing, SolverSpec)
+            or simulated_annealing.kind is not SolverKind.SIMULATED_ANNEALING
+        ):
+            raise TypeError(
+                "simulated_annealing must be a simulated-annealing SolverSpec"
+            )
         _strict_enum(beam_expansion, BeamExpansionMode, "beam_expansion")
         fraction = _finite_float(top_parents_fraction, "top_parents_fraction")
         if not 0.0 < fraction <= 1.0:
             raise ValueError("top_parents_fraction must be in (0, 1]")
-        return cls._create(SolverKind.HYBRID, seed, {
-            "genetic_algorithm": genetic_algorithm.to_dict(),
-            "simulated_annealing": simulated_annealing.to_dict(),
-            "use_beam_search": _strict_bool(use_beam_search, "use_beam_search"),
-            "beam_width": _optional_int(beam_width, "beam_width", minimum=1),
-            "beam_rounds": _optional_int(beam_rounds, "beam_rounds", minimum=0),
-            "beam_expansion": beam_expansion,
-            "sample_per_parent": _optional_int(sample_per_parent, "sample_per_parent", minimum=1),
-            "top_parents_fraction": fraction,
-            "plateau_rounds": _optional_int(plateau_rounds, "plateau_rounds", minimum=1),
-            "plateau_minimum_delta": _finite_float(plateau_minimum_delta, "plateau_minimum_delta"),
-            "target_score": _optional_float(target_score, "target_score"),
-        })
+        return cls._create(
+            SolverKind.HYBRID,
+            seed,
+            {
+                "genetic_algorithm": genetic_algorithm.to_dict(),
+                "simulated_annealing": simulated_annealing.to_dict(),
+                "use_beam_search": _strict_bool(use_beam_search, "use_beam_search"),
+                "beam_width": _optional_int(beam_width, "beam_width", minimum=1),
+                "beam_rounds": _optional_int(beam_rounds, "beam_rounds", minimum=0),
+                "beam_expansion": beam_expansion,
+                "sample_per_parent": _optional_int(
+                    sample_per_parent, "sample_per_parent", minimum=1
+                ),
+                "top_parents_fraction": fraction,
+                "plateau_rounds": _optional_int(
+                    plateau_rounds, "plateau_rounds", minimum=1
+                ),
+                "plateau_minimum_delta": _finite_float(
+                    plateau_minimum_delta, "plateau_minimum_delta"
+                ),
+                "target_score": _optional_float(target_score, "target_score"),
+            },
+        )
 
     @classmethod
     def kaeding(
@@ -715,24 +861,42 @@ class SolverSpec(_ImmutableSpec):
     ) -> SolverSpec:
         _strict_enum(block_schedule, KaedingBlockSchedule, "block_schedule")
         _strict_enum(slip_policy, KaedingSlipPolicy, "slip_policy")
-        return cls._create(SolverKind.KAEDING, seed, {
-            "steps": _strict_int(steps, "steps", minimum=1),
-            "restarts": _strict_int(restarts, "restarts", minimum=1),
-            "inner_batch_size": _strict_int(inner_batch_size, "inner_batch_size", minimum=1),
-            "block_schedule": block_schedule,
-            "column_batch_size": _strict_int(column_batch_size, "column_batch_size", minimum=0),
-            "column_interval": _strict_int(column_interval, "column_interval", minimum=0),
-            "slip_blocks": _strict_int(slip_blocks, "slip_blocks", minimum=0),
-            "slip_interval": _strict_int(slip_interval, "slip_interval", minimum=0),
-            "slip_policy": slip_policy,
-            "slip_swaps": _strict_int(slip_swaps, "slip_swaps", minimum=0),
-            "stall_rounds": _strict_int(stall_rounds, "stall_rounds", minimum=0),
-            "stall_slip_limit": _strict_int(stall_slip_limit, "stall_slip_limit", minimum=0),
-            "stop_after_stall_slip_limit": _strict_bool(stop_after_stall_slip_limit, "stop_after_stall_slip_limit"),
-            "plateau_rounds": _optional_int(plateau_rounds, "plateau_rounds", minimum=1),
-            "plateau_minimum_delta": _finite_float(plateau_minimum_delta, "plateau_minimum_delta"),
-            "target_score": _optional_float(target_score, "target_score"),
-        })
+        return cls._create(
+            SolverKind.KAEDING,
+            seed,
+            {
+                "steps": _strict_int(steps, "steps", minimum=1),
+                "restarts": _strict_int(restarts, "restarts", minimum=1),
+                "inner_batch_size": _strict_int(
+                    inner_batch_size, "inner_batch_size", minimum=1
+                ),
+                "block_schedule": block_schedule,
+                "column_batch_size": _strict_int(
+                    column_batch_size, "column_batch_size", minimum=0
+                ),
+                "column_interval": _strict_int(
+                    column_interval, "column_interval", minimum=0
+                ),
+                "slip_blocks": _strict_int(slip_blocks, "slip_blocks", minimum=0),
+                "slip_interval": _strict_int(slip_interval, "slip_interval", minimum=0),
+                "slip_policy": slip_policy,
+                "slip_swaps": _strict_int(slip_swaps, "slip_swaps", minimum=0),
+                "stall_rounds": _strict_int(stall_rounds, "stall_rounds", minimum=0),
+                "stall_slip_limit": _strict_int(
+                    stall_slip_limit, "stall_slip_limit", minimum=0
+                ),
+                "stop_after_stall_slip_limit": _strict_bool(
+                    stop_after_stall_slip_limit, "stop_after_stall_slip_limit"
+                ),
+                "plateau_rounds": _optional_int(
+                    plateau_rounds, "plateau_rounds", minimum=1
+                ),
+                "plateau_minimum_delta": _finite_float(
+                    plateau_minimum_delta, "plateau_minimum_delta"
+                ),
+                "target_score": _optional_float(target_score, "target_score"),
+            },
+        )
 
     @classmethod
     def two_period_cribs(
@@ -746,14 +910,29 @@ class SolverSpec(_ImmutableSpec):
     ) -> SolverSpec:
         copied_cribs: list[tuple[str, int]] = []
         for index, item in enumerate(_strict_sequence(fixed_cribs, "fixed_cribs")):
-            if not isinstance(item, Sequence) or isinstance(item, (str, bytes)) or len(item) != 2:
+            if (
+                not isinstance(item, Sequence)
+                or isinstance(item, (str, bytes))
+                or len(item) != 2
+            ):
                 raise TypeError(f"fixed_cribs[{index}] must be a (word, position) pair")
             word, position = item
-            copied_cribs.append((_strict_word(word, f"fixed_cribs[{index}].word"), _strict_int(position, f"fixed_cribs[{index}].position", minimum=0)))
-        words = tuple(sorted(set(
-            _strict_word(word, f"candidate_words[{index}]")
-            for index, word in enumerate(_strict_sequence(candidate_words, "candidate_words"))
-        )))
+            copied_cribs.append(
+                (
+                    _strict_word(word, f"fixed_cribs[{index}].word"),
+                    _strict_int(position, f"fixed_cribs[{index}].position", minimum=0),
+                )
+            )
+        words = tuple(
+            sorted(
+                set(
+                    _strict_word(word, f"candidate_words[{index}]")
+                    for index, word in enumerate(
+                        _strict_sequence(candidate_words, "candidate_words")
+                    )
+                )
+            )
+        )
         positions: dict[str, tuple[int, ...]] | None = None
         if candidate_positions is not None:
             if not isinstance(candidate_positions, Mapping):
@@ -762,17 +941,31 @@ class SolverSpec(_ImmutableSpec):
             for raw_word, items in candidate_positions.items():
                 word = _strict_word(raw_word, "candidate_positions key")
                 if word not in words:
-                    raise ValueError(f"candidate_positions contains unknown word {word!r}")
-                positions[word] = tuple(sorted(set(_strict_int_tuple(items, f"candidate_positions.{word}", minimum=0))))
+                    raise ValueError(
+                        f"candidate_positions contains unknown word {word!r}"
+                    )
+                positions[word] = tuple(
+                    sorted(
+                        set(
+                            _strict_int_tuple(
+                                items, f"candidate_positions.{word}", minimum=0
+                            )
+                        )
+                    )
+                )
         copied_cribs = sorted(set(copied_cribs))
         if not copied_cribs and not words:
             raise ValueError("at least one fixed crib or candidate word is required")
-        return cls._create(SolverKind.TWO_PERIOD_CRIBS, seed, {
-            "fixed_cribs": tuple(copied_cribs),
-            "candidate_words": words,
-            "candidate_positions": positions,
-            "starts": _strict_int(starts, "starts", minimum=1),
-        })
+        return cls._create(
+            SolverKind.TWO_PERIOD_CRIBS,
+            seed,
+            {
+                "fixed_cribs": tuple(copied_cribs),
+                "candidate_words": words,
+                "candidate_positions": positions,
+                "starts": _strict_int(starts, "starts", minimum=1),
+            },
+        )
 
     @classmethod
     def from_name(
@@ -790,7 +983,10 @@ class SolverSpec(_ImmutableSpec):
             "genetic_algorithm": {},
             "simulated_annealing": {},
             "hybrid": {"beam_expansion": BeamExpansionMode},
-            "kaeding": {"block_schedule": KaedingBlockSchedule, "slip_policy": KaedingSlipPolicy},
+            "kaeding": {
+                "block_schedule": KaedingBlockSchedule,
+                "slip_policy": KaedingSlipPolicy,
+            },
             "two_period_cribs": {},
         }
         constructors = {
@@ -822,19 +1018,31 @@ class SolverSpec(_ImmutableSpec):
                     nested_kind = nested_values.pop("kind", nested_name)
                     nested_seed = nested_values.pop("seed", None)
                     nested_parameters = nested_values.pop("parameters", nested_values)
-                    parsed = cls.from_name(str(nested_kind), parameters=dict(nested_parameters))
+                    parsed = cls.from_name(
+                        str(nested_kind), parameters=dict(nested_parameters)
+                    )
                     if nested_seed is not None:
-                        parsed = cls._create(parsed.kind, _strict_int(nested_seed, f"{key}.seed"), parsed.parameters)
+                        parsed = cls._create(
+                            parsed.kind,
+                            _strict_int(nested_seed, f"{key}.seed"),
+                            parsed.parameters,
+                        )
                     values[key] = parsed
         seed = values.pop("seed", None)
         try:
             return constructor(seed=seed, **values)
         except TypeError as exc:
             raise UnsupportedConfigurationError(
-                f"invalid parameters for solver {name!r}: {exc}", field_paths=("parameters",)
+                f"invalid parameters for solver {name!r}: {exc}",
+                field_paths=("parameters",),
             ) from exc
 
     def to_dict(self) -> dict[str, JsonValue]:
-        return {"kind": self.kind.value, "seed": self.seed, "parameters": self._json_parameters()}
+        return {
+            "kind": self.kind.value,
+            "seed": self.seed,
+            "parameters": self._json_parameters(),
+        }
+
 
 __all__ = ["CipherSpec", "KeySpec", "SolverSpec"]

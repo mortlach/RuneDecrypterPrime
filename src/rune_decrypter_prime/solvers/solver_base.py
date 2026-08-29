@@ -48,6 +48,7 @@ def _to_plaintext_str(pt_u8, wli):
 
 class TelemetrySpan(AbstractContextManager):
     """Context wrapper emitting start/progress/end via telemetry utils."""
+
     def __init__(self, problem, name: str, params: Dict[str, Any] | None = None):
         self.problem = problem
         self.name = str(name)
@@ -111,36 +112,91 @@ class SolverBase:
     # ---- Telemetry whitelists ----
     _SPAN_WHITELIST_PARAMS = {
         # GA
-        "pop_size", "generations", "elite_frac", "cx_frac", "mut_prob", "tournament_k",
-        "perm_batch_improve_rounds", "perm_batch_improve_size",
+        "pop_size",
+        "generations",
+        "elite_frac",
+        "cx_frac",
+        "mut_prob",
+        "tournament_k",
+        "perm_batch_improve_rounds",
+        "perm_batch_improve_size",
         # SA
-        "iters", "T0", "Tmin", "cool", "accept_in_log", "log_eps", "local_improve_on_accept",
+        "iters",
+        "T0",
+        "Tmin",
+        "cool",
+        "accept_in_log",
+        "log_eps",
+        "local_improve_on_accept",
         # Beam / Hybrid
-        "beam_width", "use_beam", "rounds",
+        "beam_width",
+        "use_beam",
+        "rounds",
         # Kaeding
-        "steps", "restarts", "inner_batch", "block_schedule",
-        "slip_every", "slip_blocks", "col_every", "col_batch",
+        "steps",
+        "restarts",
+        "inner_batch",
+        "block_schedule",
+        "slip_every",
+        "slip_blocks",
+        "col_every",
+        "col_batch",
         # Early stop (generic)
-        "stop_score", "plateau_rounds", "plateau_min_delta",
+        "stop_score",
+        "plateau_rounds",
+        "plateau_min_delta",
         # common
-        "K", "seed", "verbose", "log_interval", "progress_pct", "print_progress", "verbose_console",
+        "K",
+        "seed",
+        "verbose",
+        "log_interval",
+        "progress_pct",
+        "print_progress",
+        "verbose_console",
         "progress_preview_chars",
-        "seed_keys_count", "seed_source",
+        "seed_keys_count",
+        "seed_source",
     }
     _PROGRESS_WHITELIST = {
-        "step", "gen", "generation", "iter", "depth", "pct",
-        "attempted", "evaluated", "kept", "pruned",
-        "improved", "accepted", "rejected",
-        "top", "best", "best_score", "temp",
-        "decrypt_time_s", "score_time_s", "tokens",
-        "phase", "reason", "round", "rounds", "restart", "restarts", "parents", "cands_per_parent",
+        "step",
+        "gen",
+        "generation",
+        "iter",
+        "depth",
+        "pct",
+        "attempted",
+        "evaluated",
+        "kept",
+        "pruned",
+        "improved",
+        "accepted",
+        "rejected",
+        "top",
+        "best",
+        "best_score",
+        "temp",
+        "decrypt_time_s",
+        "score_time_s",
+        "tokens",
+        "phase",
+        "reason",
+        "round",
+        "rounds",
+        "restart",
+        "restarts",
+        "parents",
+        "cands_per_parent",
         "evals",
-        "block", "slip", "col_moves",
+        "block",
+        "slip",
+        "col_moves",
         "hamming_weight",
         # plateau
-        "since_improve", "patience_left",
+        "since_improve",
+        "patience_left",
         # sa stuff
-        "accepts", "accept_rate",
+        "accepts",
+        "accept_rate",
     }
 
     def __init__(
@@ -175,12 +231,20 @@ class SolverBase:
 
         c_cfg = getattr(problem, "c_cfg", None)
         try:
-            dev_raw = getattr(c_cfg, "device", Device.CPU) if c_cfg is not None else Device.CPU
+            dev_raw = (
+                getattr(c_cfg, "device", Device.CPU)
+                if c_cfg is not None
+                else Device.CPU
+            )
             self.device: Device = ensure_device(dev_raw)
         except Exception:
             self.device = Device.CPU
         try:
-            dir_raw = getattr(c_cfg, "encoding_dir", Direction.LTR) if c_cfg is not None else Direction.LTR
+            dir_raw = (
+                getattr(c_cfg, "encoding_dir", Direction.LTR)
+                if c_cfg is not None
+                else Direction.LTR
+            )
             self.encoding_direction: Direction = ensure_direction(dir_raw)
         except Exception:
             self.encoding_direction = Direction.LTR
@@ -225,9 +289,13 @@ class SolverBase:
                 if norm.ndim == 2:
                     norm = norm[0]
                 if norm.shape[0] != self.K:
-                    raise ValueError(f"Seed key at index {i} has length {norm.shape[0]}, expected {self.K}")
+                    raise ValueError(
+                        f"Seed key at index {i} has length {norm.shape[0]}, expected {self.K}"
+                    )
                 normalized_rows.append(norm)
-            self.seed_keys = np.ascontiguousarray(np.vstack(normalized_rows), dtype=self.key_dtype)
+            self.seed_keys = np.ascontiguousarray(
+                np.vstack(normalized_rows), dtype=self.key_dtype
+            )
 
     # ---------------- Param + telemetry helpers ----------------
 
@@ -241,6 +309,7 @@ class SolverBase:
     def _to_plain(self, v: Any) -> Any:
         try:
             import numpy as _np
+
             if isinstance(v, _np.generic):
                 return v.item()
             if isinstance(v, _np.ndarray):
@@ -271,7 +340,11 @@ class SolverBase:
             n_seeds = 0
             if getattr(self, "seed_keys", None) is not None:
                 sk = self.seed_keys
-                n_seeds = int(getattr(sk, "shape", (0,))[0]) if hasattr(sk, "shape") else (len(sk) if hasattr(sk, "__len__") else 1)
+                n_seeds = (
+                    int(getattr(sk, "shape", (0,))[0])
+                    if hasattr(sk, "shape")
+                    else (len(sk) if hasattr(sk, "__len__") else 1)
+                )
             out.setdefault("seed_keys_count", n_seeds)
             out.setdefault("seed_source", "provided" if n_seeds > 0 else "none")
         except Exception:
@@ -279,7 +352,9 @@ class SolverBase:
         return out
 
     def _start_span(self) -> TelemetrySpan:
-        span = TelemetrySpan(self.problem, name=self.optimizer_name, params=self._public_params())
+        span = TelemetrySpan(
+            self.problem, name=self.optimizer_name, params=self._public_params()
+        )
         span.__enter__()  # explicit enter so we can keep a handle
         self._span = span
         return span
@@ -291,7 +366,11 @@ class SolverBase:
         """
         if not getattr(self, "_span", None):
             return
-        data = {k: self._to_plain(v) for k, v in kwargs.items() if k in self._PROGRESS_WHITELIST}
+        data = {
+            k: self._to_plain(v)
+            for k, v in kwargs.items()
+            if k in self._PROGRESS_WHITELIST
+        }
         if data:
             self._span.progress(**data)
 
@@ -350,12 +429,14 @@ class SolverBase:
         payload = dict(fields)
         preview_key = payload.pop("preview_key", None)
         payload.setdefault("step", int(current_step))
-        payload.update({
-            "pct": pct,
-            "decrypt_time_s": live["decrypt_time_s"],
-            "score_time_s": live["score_time_s"],
-            "tokens": live["tokens"],
-        })
+        payload.update(
+            {
+                "pct": pct,
+                "decrypt_time_s": live["decrypt_time_s"],
+                "score_time_s": live["score_time_s"],
+                "tokens": live["tokens"],
+            }
+        )
         hw = getattr(self, "_hamming_weight_current", None)
         if hw is not None:
             payload.setdefault("hamming_weight", hw)
@@ -368,7 +449,9 @@ class SolverBase:
             except Exception:
                 since = int(payload.get("since_improve", 0))
             payload.setdefault("since_improve", since)
-            payload.setdefault("patience_left", max(0, int(self.plateau_rounds) - since))
+            payload.setdefault(
+                "patience_left", max(0, int(self.plateau_rounds) - since)
+            )
 
         extra_fields = {}
         extra_fn = getattr(self, "extra_progress_fields", None)
@@ -445,8 +528,15 @@ class SolverBase:
         model_label = self._progress_model_label()
         if model_label:
             model_str = f" model={model_label}"
-        prefix = f"[{self.optimizer_name} {pct_val:3d}%]" if pct_val is not None else f"[{self.optimizer_name}]"
-        print(f"{prefix}{model_str}{best_str}{evals_str}{since_str}{reason_str}{preview_str}", flush=False)
+        prefix = (
+            f"[{self.optimizer_name} {pct_val:3d}%]"
+            if pct_val is not None
+            else f"[{self.optimizer_name}]"
+        )
+        print(
+            f"{prefix}{model_str}{best_str}{evals_str}{since_str}{reason_str}{preview_str}",
+            flush=False,
+        )
 
     def _progress_model_label(self) -> str:
         cached = getattr(self, "_cached_progress_model_label", None)
@@ -463,12 +553,23 @@ class SolverBase:
 
             if obj is not None and hasattr(obj, "family"):
                 family = getattr(obj.family, "value", obj.family)
-                stat = getattr(getattr(obj, "stat", None), "value", getattr(obj, "stat", None))
+                stat = getattr(
+                    getattr(obj, "stat", None), "value", getattr(obj, "stat", None)
+                )
                 win = getattr(obj, "win", None)
-                avg_policy = getattr(s_cfg, "avg_window_policy", None) if s_cfg is not None else None
+                avg_policy = (
+                    getattr(s_cfg, "avg_window_policy", None)
+                    if s_cfg is not None
+                    else None
+                )
                 avg_policy = getattr(avg_policy, "value", avg_policy)
-                avg_policy_txt = str(avg_policy).strip().lower() if avg_policy is not None else ""
-                is_avg_full_text = str(family).strip().lower() == "avg" and avg_policy_txt == "full_text"
+                avg_policy_txt = (
+                    str(avg_policy).strip().lower() if avg_policy is not None else ""
+                )
+                is_avg_full_text = (
+                    str(family).strip().lower() == "avg"
+                    and avg_policy_txt == "full_text"
+                )
                 parts = [str(family)] if family is not None else []
                 if stat is not None:
                     parts.append(str(stat))
@@ -495,8 +596,16 @@ class SolverBase:
                         continue
                 return sorted(set(out))
 
-            wb = bool(getattr(s_cfg, "use_word_breaks", False)) if s_cfg is not None else False
-            effective_weights = getattr(s_cfg, "effective_lm_model_weights", None) if s_cfg is not None else None
+            wb = (
+                bool(getattr(s_cfg, "use_word_breaks", False))
+                if s_cfg is not None
+                else False
+            )
+            effective_weights = (
+                getattr(s_cfg, "effective_lm_model_weights", None)
+                if s_cfg is not None
+                else None
+            )
             if callable(effective_weights):
                 char_w: dict[int, float] = {}
                 wli_w: dict[int, float] = {}
@@ -506,8 +615,12 @@ class SolverBase:
                 char_ns = sorted(char_w)
                 wli_ns = sorted(wli_w)
             else:
-                char_w = getattr(s_cfg, "char_weights", None) if s_cfg is not None else None
-                wli_w = getattr(s_cfg, "wli_weights", None) if s_cfg is not None else None
+                char_w = (
+                    getattr(s_cfg, "char_weights", None) if s_cfg is not None else None
+                )
+                wli_w = (
+                    getattr(s_cfg, "wli_weights", None) if s_cfg is not None else None
+                )
                 char_ns = _positive_keys(char_w)
                 wli_ns = _positive_keys(wli_w)
 
@@ -549,7 +662,9 @@ class SolverBase:
     def _register_step_best(self, current_best: float, step: int) -> bool:
         """Update the running best. Returns True if we improved by ≥ plateau_min_delta."""
         improved = False
-        if self._is_improvement(current_best, self._best_score_so_far, self.plateau_min_delta):
+        if self._is_improvement(
+            current_best, self._best_score_so_far, self.plateau_min_delta
+        ):
             self._best_score_so_far = float(current_best)
             self._best_at_step = int(step)
             improved = True
@@ -573,11 +688,15 @@ class SolverBase:
             keys = keys.astype(self.key_dtype, copy=False)
         if keys.ndim == 1:
             keys = keys.reshape(1, -1)
-        assert keys.shape[1] == self.K, f"Key length mismatch: {keys.shape[1]} != {self.K}"
+        assert (
+            keys.shape[1] == self.K
+        ), f"Key length mismatch: {keys.shape[1]} != {self.K}"
 
-        eval_fn = getattr(self.problem, "evaluate_keys", None) or \
-                  getattr(self.problem, "_evaluate_keys", None) or \
-                  self._slow_evaluate_keys
+        eval_fn = (
+            getattr(self.problem, "evaluate_keys", None)
+            or getattr(self.problem, "_evaluate_keys", None)
+            or self._slow_evaluate_keys
+        )
 
         t0 = time.perf_counter()
         scores = eval_fn(keys)
@@ -588,10 +707,14 @@ class SolverBase:
             self._decrypt_time += float(dec_t)
             self._score_time += float(sc_t)
         else:
-            self._score_time += (t1 - t0)
+            self._score_time += t1 - t0
 
         # Token accounting: prefer problem counters if defined; else estimate
-        ct_len = int(getattr(self.problem, "ciphertext_len", 0) or getattr(self.problem, "N_tokens", 0) or 0)
+        ct_len = int(
+            getattr(self.problem, "ciphertext_len", 0)
+            or getattr(self.problem, "N_tokens", 0)
+            or 0
+        )
         if ct_len:
             self._tokens_processed += int(keys.shape[0]) * ct_len
 
@@ -605,7 +728,11 @@ class SolverBase:
         Stores the current weight (best-effort) for diagnostics.
         """
         scorer = getattr(self.problem, "scorer", None)
-        fn = getattr(scorer, "set_hamming_progress", None) if scorer is not None else None
+        fn = (
+            getattr(scorer, "set_hamming_progress", None)
+            if scorer is not None
+            else None
+        )
         if callable(fn):
             try:
                 fn(progress)
@@ -629,7 +756,9 @@ class SolverBase:
                         pt = self.problem.cipher.decrypt(self.problem.ciphertext, k)
                 else:
                     pt = self.problem.cipher.decrypt(self.problem.ciphertext, k)
-            scores[i] = float(scorer(pt)) if scorer else float(self.problem.scorer.score(pt))
+            scores[i] = (
+                float(scorer(pt)) if scorer else float(self.problem.scorer.score(pt))
+            )
         return scores
 
     def _pipeline_snapshot(self) -> Optional[dict]:
@@ -746,7 +875,11 @@ class SolverBase:
     def _finalize_solution(self, best_key: np.ndarray, best_score: float) -> Solution:
         k = np.ascontiguousarray(best_key, dtype=self.key_dtype).reshape(-1)
         if not np.isfinite(float(best_score)):
-            sol = Solution(key=k.copy(), plaintext=np.asarray([], dtype=np.uint8), score=float(best_score))
+            sol = Solution(
+                key=k.copy(),
+                plaintext=np.asarray([], dtype=np.uint8),
+                score=float(best_score),
+            )
             try:
                 sol.plaintext_idx = []
                 sol.plaintext_str = ""
@@ -768,7 +901,9 @@ class SolverBase:
             for _ in range(10):
                 hint_payload = dict(base_hints)
                 hint_payload["budget"] = budget
-                k2, s2 = self._local_improve(k, float(best_score), self.rng, **hint_payload)
+                k2, s2 = self._local_improve(
+                    k, float(best_score), self.rng, **hint_payload
+                )
                 if s2 <= best_score + 1e-9:
                     break
                 k, best_score = k2, s2
@@ -790,7 +925,9 @@ class SolverBase:
         except Exception:
             pass
         try:
-            sol.plaintext_str = _to_plaintext_str(pt_u8, getattr(self.problem, "wli_data", None))
+            sol.plaintext_str = _to_plaintext_str(
+                pt_u8, getattr(self.problem, "wli_data", None)
+            )
         except Exception:
             pass
 
@@ -918,28 +1055,32 @@ class SolverBase:
             for k in ("decrypt_time_s", "dec_time", "time_dec"):
                 v = getattr(tel, k, None) if not isinstance(tel, dict) else tel.get(k)
                 if v is not None:
-                    payload["decrypt_time_s"] = self._to_plain(v); break
+                    payload["decrypt_time_s"] = self._to_plain(v)
+                    break
         if (payload.get("score_time_s") in (None, 0, 0.0)) and tel is not None:
             for k in ("score_time_s", "sc_time", "time_score"):
                 v = getattr(tel, k, None) if not isinstance(tel, dict) else tel.get(k)
                 if v is not None:
-                    payload["score_time_s"] = self._to_plain(v); break
+                    payload["score_time_s"] = self._to_plain(v)
+                    break
         if payload.get("tokens") in (None, 0, 0.0) and tel is not None:
             for k in ("tokens_processed", "tokens"):
                 v = getattr(tel, k, None) if not isinstance(tel, dict) else tel.get(k)
                 if v is not None:
-                    payload["tokens"] = self._to_plain(v); break
+                    payload["tokens"] = self._to_plain(v)
+                    break
         if payload.get("evals") in (None, 0, 0.0) and tel is not None:
             for k in ("candidates_evaluated", "evals"):
                 v = getattr(tel, k, None) if not isinstance(tel, dict) else tel.get(k)
                 if v is not None:
-                    payload["evals"] = self._to_plain(v); break
+                    payload["evals"] = self._to_plain(v)
+                    break
 
         # Final fallback: internal accumulators
-        payload.setdefault("tokens",         self._tokens_processed)
+        payload.setdefault("tokens", self._tokens_processed)
         payload.setdefault("decrypt_time_s", self._decrypt_time)
-        payload.setdefault("score_time_s",   self._score_time)
-        payload.setdefault("evals",          getattr(self, "_candidates_evaluated", 0))
+        payload.setdefault("score_time_s", self._score_time)
+        payload.setdefault("evals", getattr(self, "_candidates_evaluated", 0))
 
         pipeline_block = self._pipeline_snapshot()
         if pipeline_block is not None:
@@ -950,10 +1091,14 @@ class SolverBase:
 
     # ---------------- Early-stop controls (public helpers) ----------------
 
-    def _early_stop_reset(self, initial_best: float, plateau_override: int | None = None) -> None:
+    def _early_stop_reset(
+        self, initial_best: float, plateau_override: int | None = None
+    ) -> None:
         """Initialise early-stop state; keeps public/internal mirrors in sync."""
         pr = int(self.get_param("plateau_rounds", 0) or 0)
-        self._plateau_rounds = int(plateau_override if plateau_override is not None else pr) or 0
+        self._plateau_rounds = (
+            int(plateau_override if plateau_override is not None else pr) or 0
+        )
         self.plateau_rounds = self._plateau_rounds
 
         pd = float(self.get_param("plateau_min_delta", 0.0) or 0.0)
@@ -967,8 +1112,10 @@ class SolverBase:
 
     def _early_stop_update(self, current_best: float, step: int) -> bool:
         """Update plateau state; return True if plateau triggers a stop."""
-        min_delta = float(getattr(self, "_plateau_delta",
-                                  getattr(self, "plateau_min_delta", 0.0)) or 0.0)
+        min_delta = float(
+            getattr(self, "_plateau_delta", getattr(self, "plateau_min_delta", 0.0))
+            or 0.0
+        )
         if self._is_improvement(current_best, self._best_score_so_far, min_delta):
             self._best_score_so_far = float(current_best)
             self._last_improve_at = int(step)
@@ -996,7 +1143,9 @@ class SolverBase:
         return False
 
     @staticmethod
-    def _is_improvement(current_best: float, prev_best: float, min_delta: float) -> bool:
+    def _is_improvement(
+        current_best: float, prev_best: float, min_delta: float
+    ) -> bool:
         """Return True when current_best improves by more than min_delta (strict)."""
         return float(current_best) > (float(prev_best) + float(min_delta))
 
@@ -1064,9 +1213,9 @@ class SolverBase:
             if "make_population" in getattr(self.keyops.caps, "ops", set()):
                 random = self.keyops.make_population(seeds.shape[0], self.rng)
             else:
-                random = np.vstack([self.keyops.random(self.rng) for _ in range(seeds.shape[0])]).astype(
-                    self.key_dtype
-                )
+                random = np.vstack(
+                    [self.keyops.random(self.rng) for _ in range(seeds.shape[0])]
+                ).astype(self.key_dtype)
             random_scores = self._score_batch(random)
             payload = {
                 "count": int(seeds.shape[0]),
@@ -1099,7 +1248,9 @@ class SolverBase:
         resolve = getattr(self.problem, "resolve_plaintext", None)
         pt_idx = resolve(key_arr) if callable(resolve) else None
         if pt_idx is None:
-            pt_idx = self.problem.cipher.decrypt(key=key_arr, ciphertext=self.problem.ciphertext)
+            pt_idx = self.problem.cipher.decrypt(
+                key=key_arr, ciphertext=self.problem.ciphertext
+            )
         if isinstance(pt_idx, tuple):
             pt_idx = pt_idx[0]
         pt_idx = np.asarray(pt_idx, dtype=np.int64)
@@ -1115,8 +1266,15 @@ class SolverBase:
         score = float(self._score_batch(key_arr[None, :])[0])
 
         solver_tag = tag.value if isinstance(tag, SolverName) else tag
-        solver_str = solver_tag or getattr(self, "optimizer_name", self.solver_name.value)
-        sol = Solution(key_arr.tolist(), pt_str, score, {"solver": solver_str, "reason": "test_key"})
+        solver_str = solver_tag or getattr(
+            self, "optimizer_name", self.solver_name.value
+        )
+        sol = Solution(
+            key_arr.tolist(),
+            pt_str,
+            score,
+            {"solver": solver_str, "reason": "test_key"},
+        )
         meta = getattr(sol, "meta", {})
         if isinstance(meta, dict):
             work = meta.setdefault("work", {})
@@ -1132,21 +1290,28 @@ class SolverBase:
             meta = {}
             sol.meta = meta
         tel = meta.setdefault("telemetry", {})
-        tel.setdefault("device", getattr(getattr(self.problem, "device", None), "value", "cpu"))
+        tel.setdefault(
+            "device", getattr(getattr(self.problem, "device", None), "value", "cpu")
+        )
         tel.setdefault("dtype", "float32")
         tel.setdefault(
             "tokens_processed",
-            int(getattr(getattr(self.problem, "telemetry", {}), "tokens_processed", 0) or 0),
+            int(
+                getattr(getattr(self.problem, "telemetry", {}), "tokens_processed", 0)
+                or 0
+            ),
         )
         progress = tel.setdefault("solver_progress", [])
-        progress.append({
-            "solver": solver_str,
-            "step": 0,
-            "pct": 100,
-            "best_score": score,
-            "evals": 1,
-            "reason": "test_key",
-        })
+        progress.append(
+            {
+                "solver": solver_str,
+                "step": 0,
+                "pct": 100,
+                "best_score": score,
+                "evals": 1,
+                "reason": "test_key",
+            }
+        )
         run = tel.setdefault("run", {})
         now = time.time()
         run.setdefault("solver", solver_str)
@@ -1167,7 +1332,9 @@ class SolverBase:
         if pt_idx.ndim >= 2:
             pt_idx = pt_idx[0]
         pt_idx = pt_idx.ravel().tolist()
-        return Runeglish.to_rune(pt_idx, wli=getattr(self.problem.c_cfg, "wli_data", None))
+        return Runeglish.to_rune(
+            pt_idx, wli=getattr(self.problem.c_cfg, "wli_data", None)
+        )
 
     def _local_improve(self, key: np.ndarray, score: float, rng, **hint):
         """
@@ -1192,7 +1359,11 @@ class SolverBase:
         merged_hint.update(hint or {})
 
         k2, s2 = local_improve(
-            key=key, score=float(score), scorer=_score_fn_any, rng=rng, hint=merged_hint,
+            key=key,
+            score=float(score),
+            scorer=_score_fn_any,
+            rng=rng,
+            hint=merged_hint,
         )
         k2 = np.ascontiguousarray(k2, dtype=self.key_dtype)
         return k2, float(s2)
@@ -1219,10 +1390,12 @@ class SolverBase:
             params = self.params or {}
             hints["perm_batch_size"] = int(params.get("perm_batch_improve_size", 64))
             hints["perm_batch_rounds"] = int(params.get("perm_batch_improve_rounds", 3))
-            hints["perm_hill_iters"] = int(params.get("perm_hill_iters",
-                                                      params.get("local_improve_iters", 200)))
-            hints["perm_hill_swaps"] = int(params.get("perm_hill_swaps",
-                                                      params.get("local_improve_k", 2)))
+            hints["perm_hill_iters"] = int(
+                params.get("perm_hill_iters", params.get("local_improve_iters", 200))
+            )
+            hints["perm_hill_swaps"] = int(
+                params.get("perm_hill_swaps", params.get("local_improve_k", 2))
+            )
         return hints
 
     def _maybe_early_stop(
@@ -1242,9 +1415,17 @@ class SolverBase:
         """
         reason = ""
 
-        if (stop_score is not None) and (best_score is not None) and (best_score >= float(stop_score)):
+        if (
+            (stop_score is not None)
+            and (best_score is not None)
+            and (best_score >= float(stop_score))
+        ):
             reason = "stop_score"
-        elif plateau_rounds and (since_improve is not None) and (since_improve >= int(plateau_rounds)):
+        elif (
+            plateau_rounds
+            and (since_improve is not None)
+            and (since_improve >= int(plateau_rounds))
+        ):
             reason = f"no_improve_{int(plateau_rounds)}"
 
         if reason:
@@ -1274,9 +1455,9 @@ class SolverBase:
         if seed_keys is None:
             no_seeds = True
         elif isinstance(seed_keys, np.ndarray):
-            no_seeds = (seed_keys.size == 0)
+            no_seeds = seed_keys.size == 0
         elif isinstance(seed_keys, (list, tuple)):
-            no_seeds = (len(seed_keys) == 0)
+            no_seeds = len(seed_keys) == 0
 
         if no_seeds:
             if initial_key is not None:
@@ -1312,9 +1493,13 @@ class SolverBase:
         return seeds[best_idx].copy()
 
     # Optional family-specific helper (retained)
-    def _local_improve_add(self, key: np.ndarray, score: float) -> tuple[np.ndarray, float]:
+    def _local_improve_add(
+        self, key: np.ndarray, score: float
+    ) -> tuple[np.ndarray, float]:
         """Greedy sweep for additive keys (column-wise maximise)."""
-        kind = getattr(self.keyops.caps, "kind", "") or getattr(self.keyops.caps, "traits", {}).get("family", "")
+        kind = getattr(self.keyops.caps, "kind", "") or getattr(
+            self.keyops.caps, "traits", {}
+        ).get("family", "")
         if kind != "additive":
             return key, float(score)
         k = self.keyops.normalize(key).copy()

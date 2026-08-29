@@ -35,12 +35,17 @@ def _child_rng(parent: np.random.Generator, tag: int) -> np.random.Generator:
     # Create a deterministic child stream without relying on global state
     try:
         # NumPy >=1.20 style: advance a derived stream by mixing in a tag
-        s = np.random.SeedSequence(parent.bit_generator.state["state"]["state"] ^ (0x9E3779B97F4A7C15 * (1 + tag)))
+        s = np.random.SeedSequence(
+            parent.bit_generator.state["state"]["state"]
+            ^ (0x9E3779B97F4A7C15 * (1 + tag))
+        )
         return np.random.Generator(np.random.PCG64(s))
     except Exception:
         # Conservative fallback: sample a u64 from parent as a seed
         seed = int(parent.integers(0, 2**63 - 1, dtype=np.int64))
-        return np.random.Generator(np.random.PCG64(seed ^ (0xD1B54A32D192ED03 * (1 + tag))))
+        return np.random.Generator(
+            np.random.PCG64(seed ^ (0xD1B54A32D192ED03 * (1 + tag)))
+        )
 
 
 class HybridSolver(SolverBase):
@@ -60,7 +65,9 @@ class HybridSolver(SolverBase):
         # Top-level toggles / defaults
         bw = int(params.get("beam_width", params.get("beam.width", 0)) or 0)
         params.setdefault("use_beam", (bw > 0))
-        params.setdefault("beam_width", bw if bw > 0 else 16)  # if enabled but unspecified, use 16
+        params.setdefault(
+            "beam_width", bw if bw > 0 else 16
+        )  # if enabled but unspecified, use 16
         params.setdefault("ga.pop_size", params.get("pop_size", 64))
         params.setdefault("ga.generations", params.get("generations", 150))
         params.setdefault("sa.iters", params.get("iters", 1500))
@@ -69,7 +76,9 @@ class HybridSolver(SolverBase):
 
         rng = kwargs.get("rng")
         if rng is None:
-            raise TypeError("HybridSolver requires rng=np.random.Generator from the engine")
+            raise TypeError(
+                "HybridSolver requires rng=np.random.Generator from the engine"
+            )
 
         super().__init__(
             problem,
@@ -98,9 +107,15 @@ class HybridSolver(SolverBase):
         # Build child params for Beam (prefixed or flat keys)
         b_params = {}
         for k, v in (self.params or {}).items():
-            if k.startswith("beam.") or k.startswith("expand.") or k in {
-                "beam_width", "rounds",
-            }:
+            if (
+                k.startswith("beam.")
+                or k.startswith("expand.")
+                or k
+                in {
+                    "beam_width",
+                    "rounds",
+                }
+            ):
                 b_params[k] = v
         for key in ("plateau_rounds", "plateau_min_delta"):
             if key in self.params and key not in b_params:
@@ -148,7 +163,14 @@ class HybridSolver(SolverBase):
         ga_block = self.params.get("ga")
         if isinstance(ga_block, dict):
             g_params.update(ga_block)
-        for alias in ("pop_size", "generations", "tournament_k", "elite_frac", "cx_frac", "mut_prob"):
+        for alias in (
+            "pop_size",
+            "generations",
+            "tournament_k",
+            "elite_frac",
+            "cx_frac",
+            "mut_prob",
+        ):
             if alias in self.params and alias not in g_params:
                 g_params[alias] = self.params[alias]
         for key in ("plateau_rounds", "plateau_min_delta"):
@@ -161,7 +183,9 @@ class HybridSolver(SolverBase):
             self.problem,
             opt_cfg=g_params,
             rng=ga_rng,
-            seed_keys=seed_keys if seed_keys is not None and len(seed_keys) > 0 else self.seed_keys,
+            seed_keys=seed_keys
+            if seed_keys is not None and len(seed_keys) > 0
+            else self.seed_keys,
             stop_score=self.get_param("stop_score", None),
             verbose=self.verbose,
             log_interval=self.log_interval,
@@ -222,14 +246,20 @@ class HybridSolver(SolverBase):
                 best_key, best_score, from_phase = b_key.copy(), float(b_score), "beam"
 
                 # Seed GA with beam keys (if available)
-                if beam_mat is not None and beam_mat.ndim == 2 and beam_mat.shape[1] == self.K:
+                if (
+                    beam_mat is not None
+                    and beam_mat.ndim == 2
+                    and beam_mat.shape[1] == self.K
+                ):
                     seed_for_ga = beam_mat.copy()
                 else:
                     seed_for_ga = b_key.reshape(1, -1)
 
                 # Early terminate if we’ve hit stop_score
                 if self._early_stop_stop_score(best_score):
-                    self._end_span(span, best_score=float(best_score), reason=self._stop_reason)
+                    self._end_span(
+                        span, best_score=float(best_score), reason=self._stop_reason
+                    )
                     return self._finalize_solution(best_key, float(best_score))
 
             # GA phase
@@ -238,7 +268,9 @@ class HybridSolver(SolverBase):
                 best_key, best_score, from_phase = g_key.copy(), float(g_score), "ga"
 
             if self._early_stop_stop_score(best_score):
-                self._end_span(span, best_score=float(best_score), reason=self._stop_reason)
+                self._end_span(
+                    span, best_score=float(best_score), reason=self._stop_reason
+                )
                 return self._finalize_solution(best_key, float(best_score))
 
             # SA phase (refine)
@@ -253,7 +285,9 @@ class HybridSolver(SolverBase):
             try:
                 if not hasattr(sol, "meta") or sol.meta is None:
                     sol.meta = {}
-                sol.meta["from_phase"] = from_phase or ("ga" if not bool(self.get_param("use_beam", True)) else "beam")
+                sol.meta["from_phase"] = from_phase or (
+                    "ga" if not bool(self.get_param("use_beam", True)) else "beam"
+                )
             except Exception:
                 pass
             return sol
@@ -266,7 +300,12 @@ class HybridSolver(SolverBase):
         """Propagate console/preview knobs into sub-solvers."""
         if not isinstance(payload, dict):
             return payload
-        for key in ("progress_pct", "print_progress", "progress_preview_chars", "verbose_console"):
+        for key in (
+            "progress_pct",
+            "print_progress",
+            "progress_preview_chars",
+            "verbose_console",
+        ):
             if key in self.params and key not in payload:
                 payload[key] = self.params[key]
         return payload

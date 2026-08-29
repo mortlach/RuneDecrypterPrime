@@ -10,8 +10,8 @@ There is one public V1 tutorial runner:
 python tutorials/v1/run_tutorials.py
 ```
 
-Older runner files have been moved under `tutorials/old/` as historical
-reference. The main `tutorials/v1/` folder should have only one `run*.py` file.
+Retired runners have been deleted from the release tree and remain available in
+Git history. The `tutorials/v1/` folder has one `run*.py` file.
 
 ## Editable Settings
 

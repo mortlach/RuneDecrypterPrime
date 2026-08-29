@@ -78,9 +78,13 @@ def build_two_period_cribs_spec(
             raise ValueError("fixed crib starts must be non-negative integers")
         fixed.append((_word(word, "fixed_cribs"), start))
 
-    if isinstance(candidate_words, (str, bytes)) or not isinstance(candidate_words, Sequence):
+    if isinstance(candidate_words, (str, bytes)) or not isinstance(
+        candidate_words, Sequence
+    ):
         raise TypeError("candidate_words must be a sequence of words")
-    words = tuple(sorted(set(_word(word, "candidate_words") for word in candidate_words)))
+    words = tuple(
+        sorted(set(_word(word, "candidate_words") for word in candidate_words))
+    )
 
     if candidate_positions is None:
         positions: dict[str, tuple[int, ...]] = {}
@@ -92,7 +96,9 @@ def build_two_period_cribs_spec(
             word = _word(raw_word, "candidate_positions")
             if word not in words:
                 raise ValueError(f"candidate_positions contains unknown word {word!r}")
-            positions[word] = _positions(raw_positions, f"candidate_positions[{word!r}]")
+            positions[word] = _positions(
+                raw_positions, f"candidate_positions[{word!r}]"
+            )
 
     if isinstance(starts, bool) or not isinstance(starts, int):
         raise TypeError("starts must be a positive integer")

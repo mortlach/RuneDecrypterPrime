@@ -15,6 +15,7 @@ from rune_decrypter_prime.core.problem import ProblemSpec, ProblemInstance
 from rune_decrypter_prime.core.engine import EngineConfig, solve as engine_solve
 from rdp.api.normalize import normalize_optimizer_name  # str -> SolverName
 
+
 def execute_run(
     *,
     ciphertext: np.ndarray,
@@ -46,7 +47,9 @@ def execute_run(
         key_space=key,
         ciphertext=ciphertext,
         word_lengths=coerce_wli_for_config(wli),
-        compute_device=(ComputeDevice.CUDA if device is Device.CUDA else ComputeDevice.CPU),
+        compute_device=(
+            ComputeDevice.CUDA if device is Device.CUDA else ComputeDevice.CPU
+        ),
         text_direction=(
             TextDirection.RIGHT_TO_LEFT
             if encoding_dir is Direction.RTL
@@ -101,13 +104,19 @@ def execute_run(
         stop_score=None,
         verbose=True,
         log_interval=log_int,
-        seed_keys=(np.asarray(initial_keys, dtype=KEY_DTYPE) if initial_keys is not None else None),
+        seed_keys=(
+            np.asarray(initial_keys, dtype=KEY_DTYPE)
+            if initial_keys is not None
+            else None
+        ),
     )
 
     result = engine_solve(instance, eng_cfg)
 
     # 4) Finalise outward-facing Solution
-    compat_cfg = SimpleNamespace(cipher=cipher_cfg, scorer_params=scoring, solver=solver)
+    compat_cfg = SimpleNamespace(
+        cipher=cipher_cfg, scorer_params=scoring, solver=solver
+    )
     return finalize_solution(
         instance.problem,
         result,

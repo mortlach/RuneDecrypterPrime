@@ -95,7 +95,7 @@ write reports itself.
 3. Add or update API wrapper routing if it should be friendly/public.
 4. Define keyops family and key length rules.
 5. Add focused tests under `tests/ciphers/`.
-6. Add run/API tests if it is exposed through `RunAPI`.
+6. Add run/API tests if it is exposed through `api.run`.
 7. Update docs and public API allowlist only if the new surface is public.
 
 ## What Not To Rely On

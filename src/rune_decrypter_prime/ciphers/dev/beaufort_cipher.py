@@ -3,7 +3,8 @@
 # ============================================================
 import numpy as np
 from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin, ArrayU8
-from rune_decrypter_prime.keyops import VectorKeyOps, VectorKeyConfig
+from rune_decrypter_prime.keyops import VectorKeyOps
+
 
 class BeaufortCipher(CipherPipelineMixin):
     """
@@ -12,6 +13,7 @@ class BeaufortCipher(CipherPipelineMixin):
       Decrypt: p = (k - c) mod A  (same transform)
     Key: [K] numeric (0..A-1), repeats across text.
     """
+
     A = 29
 
     def __init__(self, cfg, *, text_transposition="ltr", key_transposition="ltr"):
@@ -19,17 +21,21 @@ class BeaufortCipher(CipherPipelineMixin):
             text_transposition=getattr(cfg, "text_transposition", "ltr"),
             key_transposition=getattr(cfg, "key_transposition", "ltr"),
         )
-        #self._additive_debug = False
+        # self._additive_debug = False
         self.cfg = cfg
         # todo wow this is till about, years old, poor beaufort obviously unloved
-        intr_exact  = getattr(cfg, "interruptors_exact", None)
+        intr_exact = getattr(cfg, "interruptors_exact", None)
         intr_legacy = getattr(cfg, "interruptors", None)
         chosen = intr_exact if intr_exact is not None else intr_legacy
-        self._default_interrupt_idx = np.asarray(chosen, dtype=np.intp) if chosen is not None else None
+        self._default_interrupt_idx = (
+            np.asarray(chosen, dtype=np.intp) if chosen is not None else None
+        )
         # expect a VectorKeyOps (length K, mod = A)
         key_obj = getattr(cfg, "key", None)
         if not isinstance(key_obj, VectorKeyOps):
-            raise TypeError(f"{self.__class__.__name__} expects a VectorKeyOps (VectorKeyConfig(K=..., mod={self.A}))")
+            raise TypeError(
+                f"{self.__class__.__name__} expects a VectorKeyOps (VectorKeyConfig(K=..., mod={self.A}))"
+            )
         self._keyops: VectorKeyOps = key_obj
 
     def _core_decrypt_batch(self, ct_tr: ArrayU8, keys_tr: ArrayU8) -> ArrayU8:
@@ -38,7 +44,7 @@ class BeaufortCipher(CipherPipelineMixin):
         B, K = keys_tr.shape
         L = int(ct_tr.size)
         out = np.empty((B, L), dtype=np.uint8)
-        cols = (np.arange(L, dtype=np.int64) % K)
+        cols = np.arange(L, dtype=np.int64) % K
         for b in range(B):
             # normalize each candidate key row to [0..A) & right length
             krow = self._keyops.normalize(keys_tr[b])
@@ -59,6 +65,7 @@ class VariantBeaufortCipher(CipherPipelineMixin):
       Decrypt: p = (c + k) mod A
     Key: [K] numeric (0..A-1), repeats across text.
     """
+
     A = 29
 
     def __init__(self, cfg, *, text_transposition="ltr", key_transposition="ltr"):
@@ -67,11 +74,13 @@ class VariantBeaufortCipher(CipherPipelineMixin):
             key_transposition=getattr(cfg, "key_transposition", "ltr"),
         )
         self.cfg = cfg
-        #self._additive_debug = False  # additive identity holds with (+k)
-        intr_exact  = getattr(cfg, "interruptors_exact", None)
+        # self._additive_debug = False  # additive identity holds with (+k)
+        intr_exact = getattr(cfg, "interruptors_exact", None)
         intr_legacy = getattr(cfg, "interruptors", None)
         chosen = intr_exact if intr_exact is not None else intr_legacy
-        self._default_interrupt_idx = np.asarray(chosen, dtype=np.intp) if chosen is not None else None
+        self._default_interrupt_idx = (
+            np.asarray(chosen, dtype=np.intp) if chosen is not None else None
+        )
 
     def _core_decrypt_batch(self, ct_tr: ArrayU8, keys_tr: ArrayU8) -> ArrayU8:
         if keys_tr.ndim == 1:
@@ -79,7 +88,7 @@ class VariantBeaufortCipher(CipherPipelineMixin):
         B, K = keys_tr.shape
         L = int(ct_tr.size)
         out = np.empty((B, L), dtype=np.uint8)
-        cols = (np.arange(L, dtype=np.int64) % K)
+        cols = np.arange(L, dtype=np.int64) % K
         for b in range(B):
             krow = keys_tr[b]
             pt = (ct_tr.astype(np.int16) + krow[cols].astype(np.int16)) % self.A

@@ -36,8 +36,9 @@ Terminology
 This mixin must be combined with a concrete cipher class that implements the
 abstract core hooks and exposes required helpers/managers described below.
 """
+
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Sequence
 import numpy as np
 
 from rune_decrypter_prime.utils.interrupter import InterruptorManager, InterruptorInfo  # noqa: F401
@@ -78,10 +79,17 @@ class CipherPipelineMixin:
         When enabled by additive ciphers, a re-encrypt/re-decrypt invariant is
         checked as a runtime assertion (disabled by default).
     """
+
     A: int = 29  # alphabet size; override if needed
     mod_keys: bool = True  # apply key % A before passing to core kernels
 
-    def __init__(self, *, text_transposition: str = "ltr", key_transposition: str = "ltr",initial_text_permutation_indices: Optional[Sequence[int]] = None) -> None:
+    def __init__(
+        self,
+        *,
+        text_transposition: str = "ltr",
+        key_transposition: str = "ltr",
+        initial_text_permutation_indices: Optional[Sequence[int]] = None,
+    ) -> None:
         """Initialise pipeline managers and debugging flags.
 
         Parameters
@@ -106,28 +114,41 @@ class CipherPipelineMixin:
         self._text_perm_inv = None
 
         if initial_text_permutation_indices is not None:
-            perm = np.asarray(initial_text_permutation_indices, dtype=np.int64).reshape(-1)
+            perm = np.asarray(initial_text_permutation_indices, dtype=np.int64).reshape(
+                -1
+            )
             self._validate_full_perm(perm)
             self._text_perm_full = perm
             inv = np.empty_like(perm)
             inv[perm] = np.arange(perm.size, dtype=np.int64)
             self._text_perm_inv = inv
             # Explicit permutations override named text modes; keep text transposition neutral.
-            self._trans_mgr = TranspositionManager(text_mode="ltr", key_mode=key_transposition)
+            self._trans_mgr = TranspositionManager(
+                text_mode="ltr", key_mode=key_transposition
+            )
         else:
-            self._trans_mgr = TranspositionManager(text_mode=text_transposition, key_mode=key_transposition)
+            self._trans_mgr = TranspositionManager(
+                text_mode=text_transposition, key_mode=key_transposition
+            )
         # Only additive ciphers (e.g., Vigenère) should enable this in their __init__
-        #self._additive_debug = False
+        # self._additive_debug = False
 
     @property
     def initial_text_permutation_indices(self) -> Optional[list[int]]:
         """Ground truth: explicit ciphertext-index permutation applied in full-text space, or None."""
         if self._text_perm_full is not None:
-            return [int(x) for x in np.asarray(self._text_perm_full, dtype=np.int64).tolist()]
+            return [
+                int(x)
+                for x in np.asarray(self._text_perm_full, dtype=np.int64).tolist()
+            ]
         if getattr(self._trans_mgr, "text_mode", None) != "perm":
             return None
         tp = getattr(self._trans_mgr, "_text_perm", None)
-        return None if tp is None else [int(x) for x in np.asarray(tp, dtype=np.int64).tolist()]
+        return (
+            None
+            if tp is None
+            else [int(x) for x in np.asarray(tp, dtype=np.int64).tolist()]
+        )
 
     @staticmethod
     def _validate_full_perm(perm: np.ndarray) -> None:
@@ -164,12 +185,12 @@ class CipherPipelineMixin:
 
     # ---------- Decrypt (canonical pipeline) ----------
     def decrypt(
-            self,
-            *,
-            ciphertext: Optional[ArrayU8],
-            key: ArrayU8,
-            interrupt_idx: Optional[ArrayU8] = None,
-            interrupt_sym: Optional[ArrayU8] = None,
+        self,
+        *,
+        ciphertext: Optional[ArrayU8],
+        key: ArrayU8,
+        interrupt_idx: Optional[ArrayU8] = None,
+        interrupt_sym: Optional[ArrayU8] = None,
     ) -> ArrayU8:
         """Decrypt in canonical pipeline form.
 
@@ -213,7 +234,9 @@ class CipherPipelineMixin:
             cfg = getattr(self, "cfg", None)
             bound_ct = getattr(cfg, "ciphertext", None) if cfg is not None else None
             if bound_ct is None:
-                raise ValueError("ciphertext is required (no bound cfg.ciphertext present)")
+                raise ValueError(
+                    "ciphertext is required (no bound cfg.ciphertext present)"
+                )
             ct_idx = self._as_u8(bound_ct, "ciphertext")
         else:
             ct_idx = self._as_u8(ciphertext, "ciphertext")
@@ -249,9 +272,13 @@ class CipherPipelineMixin:
         plains_tr = self._core_decrypt_batch(ct_tr, keys_tr)  # [B,L_core_tr] uint8
 
         # 7) optional invariant (do NOT reimplement maths here)
-        if (getattr(self, "_additive_debug", False) or
-            (hasattr(self, "keyops") and getattr(self.keyops.caps, "can_additive_invariant", False))) \
-                and keys_tr.shape[0] >= 1:
+        if (
+            getattr(self, "_additive_debug", False)
+            or (
+                hasattr(self, "keyops")
+                and getattr(self.keyops.caps, "can_additive_invariant", False)
+            )
+        ) and keys_tr.shape[0] >= 1:
             re_enc = self._core_encrypt_batch(plains_tr[0], keys_tr)[0]
             if not np.array_equal(re_enc, ct_tr):
                 raise AssertionError("core re-encrypt mismatch")
@@ -266,7 +293,9 @@ class CipherPipelineMixin:
             cand_full = self._undo_full_text_perm(cand_full)
             cand_full = np.asarray(cand_full, dtype=np.uint8)
             if cand_full.ndim != 1 or cand_full.size != L_full:
-                raise ValueError(f"insert_into returned shape {cand_full.shape}, expected ({L_full},)")
+                raise ValueError(
+                    f"insert_into returned shape {cand_full.shape}, expected ({L_full},)"
+                )
             batch_out.append(cand_full.copy())
 
         out = np.stack(batch_out, axis=0)  # [B, L_full]
@@ -274,12 +303,12 @@ class CipherPipelineMixin:
 
     # ---------- Encrypt (canonical pipeline; mirror of decrypt) ----------
     def encrypt(
-            self,
-            *,
-            plaintext: ArrayU8,
-            key: ArrayU8,
-            interrupt_idx: Optional[ArrayU8] = None,
-            interrupt_sym: Optional[ArrayU8] = None,
+        self,
+        *,
+        plaintext: ArrayU8,
+        key: ArrayU8,
+        interrupt_idx: Optional[ArrayU8] = None,
+        interrupt_sym: Optional[ArrayU8] = None,
     ) -> ArrayU8:
         """Encrypt in canonical pipeline form (mirror of `decrypt`). Full-text permutations apply before interruptor removal."""
         # 1) normalise
@@ -314,9 +343,13 @@ class CipherPipelineMixin:
         cts_tr = self._core_encrypt_batch(pt_tr, keys_tr)  # [B,L_core_tr] uint8
 
         # 7) optional invariant (do NOT reimplement maths here)
-        if (getattr(self, "_additive_debug", False) or
-            (hasattr(self, "keyops") and getattr(self.keyops.caps, "can_additive_invariant", False))) \
-                and keys_tr.shape[0] >= 1:
+        if (
+            getattr(self, "_additive_debug", False)
+            or (
+                hasattr(self, "keyops")
+                and getattr(self.keyops.caps, "can_additive_invariant", False)
+            )
+        ) and keys_tr.shape[0] >= 1:
             recon = self._core_decrypt_batch(cts_tr[0], keys_tr)[0]
             if not np.array_equal(recon, pt_tr):
                 raise AssertionError("core re-decrypt mismatch")
@@ -331,7 +364,9 @@ class CipherPipelineMixin:
             cand_full = self._undo_full_text_perm(cand_full)
             cand_full = np.asarray(cand_full, dtype=np.uint8)
             if cand_full.ndim != 1 or cand_full.size != L_full:
-                raise ValueError(f"insert_into returned shape {cand_full.shape}, expected ({L_full},)")
+                raise ValueError(
+                    f"insert_into returned shape {cand_full.shape}, expected ({L_full},)"
+                )
             batch_out.append(cand_full.copy())
 
         out = np.stack(batch_out, axis=0)  # [B, L_full]
@@ -379,7 +414,9 @@ class CipherPipelineMixin:
         if arr.size == 0:
             return
         if np.any(arr < 0) or np.any(arr >= int(A)):
-            raise ValueError(f"key values must be in [0, {int(A)}) when mod_keys is enabled")
+            raise ValueError(
+                f"key values must be in [0, {int(A)}) when mod_keys is enabled"
+            )
 
     @staticmethod
     def _as_intp(x, name: str) -> ArrayU8:
@@ -403,41 +440,51 @@ class CipherPipelineMixin:
         if length < 0:
             raise ValueError("length must be non-negative")
         if (idx < 0).any() or (idx >= length).any():
-            raise ValueError(f"interrupt_idx contains out-of-range values for length {length}")
+            raise ValueError(
+                f"interrupt_idx contains out-of-range values for length {length}"
+            )
         if np.unique(idx).size != idx.size:
             raise ValueError("interrupt_idx contains duplicates")
 
     def decrypt_single(
-            self,
-            *,
-            ciphertext: np.ndarray | list | tuple,
-            key: np.ndarray | list | tuple,
-            interrupt_idx: np.ndarray | list | tuple | None = None,
-            interrupt_sym: np.ndarray | list | tuple | None = None,
+        self,
+        *,
+        ciphertext: np.ndarray | list | tuple,
+        key: np.ndarray | list | tuple,
+        interrupt_idx: np.ndarray | list | tuple | None = None,
+        interrupt_sym: np.ndarray | list | tuple | None = None,
     ) -> np.ndarray:
         """Decrypt a single key against a single ciphertext and return 1-D plaintext."""
         plains = self.decrypt(
             ciphertext=np.asarray(ciphertext, dtype=np.uint8),
             key=self._as_key_dtype(key, "key"),
-            interrupt_idx=None if interrupt_idx is None else np.asarray(interrupt_idx, dtype=np.intp),
-            interrupt_sym=None if interrupt_sym is None else np.asarray(interrupt_sym, dtype=np.uint8),
+            interrupt_idx=None
+            if interrupt_idx is None
+            else np.asarray(interrupt_idx, dtype=np.intp),
+            interrupt_sym=None
+            if interrupt_sym is None
+            else np.asarray(interrupt_sym, dtype=np.uint8),
         )
         return plains[0]
 
     def encrypt_single(
-            self,
-            *,
-            plaintext: np.ndarray | list | tuple,
-            key: np.ndarray | list | tuple,
-            interrupt_idx: np.ndarray | list | tuple | None = None,
-            interrupt_sym: np.ndarray | list | tuple | None = None,
+        self,
+        *,
+        plaintext: np.ndarray | list | tuple,
+        key: np.ndarray | list | tuple,
+        interrupt_idx: np.ndarray | list | tuple | None = None,
+        interrupt_sym: np.ndarray | list | tuple | None = None,
     ) -> np.ndarray:
         """Encrypt a single key against a single plaintext and return 1-D ciphertext."""
         cts = self.encrypt(
             plaintext=np.asarray(plaintext, dtype=np.uint8),
             key=self._as_key_dtype(key, "key"),
-            interrupt_idx=None if interrupt_idx is None else np.asarray(interrupt_idx, dtype=np.intp),
-            interrupt_sym=None if interrupt_sym is None else np.asarray(interrupt_sym, dtype=np.uint8),
+            interrupt_idx=None
+            if interrupt_idx is None
+            else np.asarray(interrupt_idx, dtype=np.intp),
+            interrupt_sym=None
+            if interrupt_sym is None
+            else np.asarray(interrupt_sym, dtype=np.uint8),
         )
         return cts[0]
 
@@ -452,6 +499,7 @@ class CipherPipelineMixin:
         ct = np.asarray(ciphertext, np.uint8)[None, :]
         kk = self._as_key_dtype(key, "key")[None, :]
         return self._core_decrypt_batch(ct, kk)[0]
+
 
 #
 #

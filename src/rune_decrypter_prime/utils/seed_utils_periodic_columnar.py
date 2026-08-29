@@ -11,8 +11,15 @@ from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rune_decrypter_prime.core.transpositions import assert_is_permutation
-from rune_decrypter_prime.core.types import Direction, Device, KEY_DTYPE, ensure_direction
-from rune_decrypter_prime.scoring.language_model.language_model_prime import LanguageModelPrime
+from rune_decrypter_prime.core.types import (
+    Direction,
+    Device,
+    KEY_DTYPE,
+    ensure_direction,
+)
+from rune_decrypter_prime.scoring.language_model.language_model_prime import (
+    LanguageModelPrime,
+)
 
 ALPHABET_SIZE = 29
 _ALLOWED_ORDERS = {"col_then_sub", "sub_then_col"}
@@ -40,9 +47,15 @@ class _RawCharScorer:
             include_char=True,
         )
         weights = dict(cfg.char_weights) if cfg.char_weights else {3: 0.5, 4: 0.5}
-        self._weights = {int(n): float(w) for n, w in weights.items() if int(n) > 0 and float(w) > 0.0}
+        self._weights = {
+            int(n): float(w)
+            for n, w in weights.items()
+            if int(n) > 0 and float(w) > 0.0
+        }
         if not self._weights:
-            raise ValueError("char_weights must include at least one positive n-gram weight")
+            raise ValueError(
+                "char_weights must include at least one positive n-gram weight"
+            )
 
     def score(self, plaintext: Iterable[int], _wli=None) -> float:
         pt = np.asarray(list(plaintext), dtype=np.uint8).reshape(-1)
@@ -59,7 +72,14 @@ class _RawCharScorer:
             total_eval = L - n + 1
             if total_eval <= 0:
                 return float("-inf")
-            res = self.lm.score([pt.tolist()], None, direction=self._direction.value, se="nose", n=n, model="char")[0]
+            res = self.lm.score(
+                [pt.tolist()],
+                None,
+                direction=self._direction.value,
+                se="nose",
+                n=n,
+                model="char",
+            )[0]
             avg = float(res.logprob_sum) / float(total_eval)
             acc += float(w) * avg
         return acc / total_w
@@ -92,10 +112,14 @@ def generate_seed_keys_periodic_columnar(
     order = str(order)
     direction = ensure_direction(direction)
     if scoring_cfg is not None and bool(getattr(scoring_cfg, "use_word_breaks", False)):
-        raise ValueError("Seed refinement does not support WLI; set scoring_cfg.use_word_breaks=False and use rerank_cfg for WLI rerank")
+        raise ValueError(
+            "Seed refinement does not support WLI; set scoring_cfg.use_word_breaks=False and use rerank_cfg for WLI rerank"
+        )
     if rerank_cfg is not None and bool(getattr(rerank_cfg, "use_word_breaks", False)):
         if not wli_data:
-            raise ValueError("wli_data is required when rerank_cfg.use_word_breaks=True")
+            raise ValueError(
+                "wli_data is required when rerank_cfg.use_word_breaks=True"
+            )
 
     ct_u8 = _validate_inputs(
         ct_idx=ct_idx,
@@ -112,7 +136,11 @@ def generate_seed_keys_periodic_columnar(
 
     rng = np.random.default_rng(int(seed))
 
-    raw_scorer = _RawCharScorer(scoring_cfg, direction=direction) if scoring_cfg is not None else None
+    raw_scorer = (
+        _RawCharScorer(scoring_cfg, direction=direction)
+        if scoring_cfg is not None
+        else None
+    )
 
     pt_order = _pt_unigram_order(
         scoring_cfg=scoring_cfg,
@@ -128,7 +156,9 @@ def generate_seed_keys_periodic_columnar(
         n_block_seeds=plan.n_block_seeds,
         rng=rng,
     )
-    tail_seeds = _make_tail_seeds(columns=columns, n_tail_seeds=plan.n_tail_seeds, rng=rng)
+    tail_seeds = _make_tail_seeds(
+        columns=columns, n_tail_seeds=plan.n_tail_seeds, rng=rng
+    )
     start_keys = _make_start_keys(
         block_seeds_by_phase=block_seeds_by_phase,
         tail_seeds=tail_seeds,
@@ -186,9 +216,13 @@ def generate_seed_keys_periodic_columnar(
 
     if rerank_cfg is not None:
         scorer = build_scorer(cipher_cfg, rerank_cfg)
-        ranked = _rank_candidates(ct_u8, candidates, scorer, cipher, cache=None, wli=wli)
+        ranked = _rank_candidates(
+            ct_u8, candidates, scorer, cipher, cache=None, wli=wli
+        )
     elif raw_scorer is not None:
-        ranked = _rank_candidates(ct_u8, candidates, raw_scorer, cipher, cache=cache, wli=wli)
+        ranked = _rank_candidates(
+            ct_u8, candidates, raw_scorer, cipher, cache=cache, wli=wli
+        )
     else:
         ranked = candidates
 
@@ -200,6 +234,7 @@ def generate_seed_keys_periodic_columnar(
 
 
 # -------------------- validation + helpers --------------------
+
 
 def _validate_inputs(
     *,
@@ -218,7 +253,9 @@ def _validate_inputs(
     if not isinstance(columns, (int, np.integer)) or int(columns) <= 0:
         raise ValueError(f"columns must be an int >= 1; got {columns!r}")
     if order not in _ALLOWED_ORDERS:
-        raise ValueError("order must be exactly 'col_then_sub' or 'sub_then_col' (required; do not rely on cipher defaults)")
+        raise ValueError(
+            "order must be exactly 'col_then_sub' or 'sub_then_col' (required; do not rely on cipher defaults)"
+        )
     if not isinstance(n_keys, (int, np.integer)) or int(n_keys) <= 0:
         raise ValueError(f"n_keys must be > 0; got {n_keys!r}")
 
@@ -235,7 +272,9 @@ def _validate_inputs(
 
     if scoring_cfg is None:
         if pt_unigram_rank_override is None:
-            raise ValueError("pt_unigram_rank_override is required when scoring_cfg is None")
+            raise ValueError(
+                "pt_unigram_rank_override is required when scoring_cfg is None"
+            )
         _validate_pt_rank_override(pt_unigram_rank_override)
 
     return np.ascontiguousarray(arr_i64.astype(np.uint8), dtype=np.uint8)
@@ -282,13 +321,17 @@ def _pt_unigram_order(
         return np.asarray(list(pt_unigram_rank_override), dtype=np.int64)
 
     if scoring_cfg is None:
-        raise ValueError("pt_unigram_rank_override is required when scoring_cfg is None")
+        raise ValueError(
+            "pt_unigram_rank_override is required when scoring_cfg is None"
+        )
 
     probs = _lm_unigram_probs(scoring_cfg, direction=direction, lm=lm)
     return np.lexsort((np.arange(ALPHABET_SIZE), -probs))
 
 
-def _lm_unigram_probs(cfg: ScoringConfig, *, direction: Direction, lm: LanguageModelPrime | None) -> np.ndarray:
+def _lm_unigram_probs(
+    cfg: ScoringConfig, *, direction: Direction, lm: LanguageModelPrime | None
+) -> np.ndarray:
     if lm is None:
         lm = LanguageModelPrime(
             lm_root=getattr(cfg, "model_root", None),
@@ -305,7 +348,9 @@ def _lm_unigram_probs(cfg: ScoringConfig, *, direction: Direction, lm: LanguageM
     return np.asarray([x / Z for x in raw], dtype=np.float64)
 
 
-def _phase_symbol_counts(ct_u8: np.ndarray, *, period: int, order: str) -> List[np.ndarray]:
+def _phase_symbol_counts(
+    ct_u8: np.ndarray, *, period: int, order: str
+) -> List[np.ndarray]:
     counts: List[np.ndarray] = []
     if order == "col_then_sub":
         for r in range(period):
@@ -325,7 +370,9 @@ def _rank_alignment_perm(ct_counts: np.ndarray, pt_order: np.ndarray) -> np.ndar
     return perm
 
 
-def _jitter_perm(perm: np.ndarray, *, rng: np.random.Generator, n_swaps: int) -> np.ndarray:
+def _jitter_perm(
+    perm: np.ndarray, *, rng: np.random.Generator, n_swaps: int
+) -> np.ndarray:
     out = perm.copy()
     for _ in range(max(1, int(n_swaps))):
         a = int(rng.integers(0, ALPHABET_SIZE))
@@ -353,7 +400,9 @@ def _make_block_seeds_by_phase(
     return seeds_by_phase
 
 
-def _make_tail_seeds(*, columns: int, n_tail_seeds: int, rng: np.random.Generator) -> List[np.ndarray]:
+def _make_tail_seeds(
+    *, columns: int, n_tail_seeds: int, rng: np.random.Generator
+) -> List[np.ndarray]:
     if columns <= 1:
         return [np.zeros(1, dtype=KEY_DTYPE)]
 
@@ -380,8 +429,12 @@ def _assemble_key(
     *,
     period: int,
 ) -> np.ndarray:
-    head = np.concatenate([block_seeds_by_phase[r][picks[r]] for r in range(period)]).astype(KEY_DTYPE, copy=False)
-    return np.concatenate([head, tail.astype(KEY_DTYPE, copy=False)]).astype(KEY_DTYPE, copy=False)
+    head = np.concatenate(
+        [block_seeds_by_phase[r][picks[r]] for r in range(period)]
+    ).astype(KEY_DTYPE, copy=False)
+    return np.concatenate([head, tail.astype(KEY_DTYPE, copy=False)]).astype(
+        KEY_DTYPE, copy=False
+    )
 
 
 def _make_start_keys(
@@ -396,14 +449,20 @@ def _make_start_keys(
     n_block = len(block_seeds_by_phase[0])
     n_tail = len(tail_seeds)
 
-    starts.append(_assemble_key(block_seeds_by_phase, [0] * period, tail_seeds[0], period=period))
+    starts.append(
+        _assemble_key(block_seeds_by_phase, [0] * period, tail_seeds[0], period=period)
+    )
 
     attempts = 0
     max_attempts = max(10, int(n_starts) * 20)
     while len(starts) < int(n_starts) and attempts < max_attempts:
         picks = [int(rng.integers(0, n_block)) for _ in range(period)]
         tail_pick = int(rng.integers(0, n_tail))
-        starts.append(_assemble_key(block_seeds_by_phase, picks, tail_seeds[tail_pick], period=period))
+        starts.append(
+            _assemble_key(
+                block_seeds_by_phase, picks, tail_seeds[tail_pick], period=period
+            )
+        )
         attempts += 1
 
     return _unique_keys_preserve_order(starts)
@@ -436,7 +495,9 @@ def _pad_candidates(
     max_attempts = max(100, (n_target - len(out)) * 50)
     attempts = 0
     while len(out) < n_target and attempts < max_attempts:
-        blocks = [rng.permutation(ALPHABET_SIZE).astype(KEY_DTYPE) for _ in range(period)]
+        blocks = [
+            rng.permutation(ALPHABET_SIZE).astype(KEY_DTYPE) for _ in range(period)
+        ]
         if columns <= 1:
             tail = np.zeros(1, dtype=KEY_DTYPE)
         else:
@@ -499,7 +560,7 @@ def _refine_key(
 
     for step in range(refine_steps):
         frac = step / max(1, refine_steps - 1)
-        T = temp_start * (ratio ** frac) if temp_start > 0 else 0.0
+        T = temp_start * (ratio**frac) if temp_start > 0 else 0.0
 
         k_new = k.copy()
         do_tail = (columns >= 2) and (float(rng.random()) < tail_move_prob)
@@ -565,7 +626,11 @@ def _validate_key_layout(key: np.ndarray, *, period: int, columns: int) -> None:
         raise ValueError(f"Key length mismatch: expected {expected}, got {k.size}")
     for r in range(period):
         block = k[r * ALPHABET_SIZE : (r + 1) * ALPHABET_SIZE]
-        _assert_perm_1d(block, ALPHABET_SIZE, f"Block {r} is not a permutation of 0..{ALPHABET_SIZE - 1}")
+        _assert_perm_1d(
+            block,
+            ALPHABET_SIZE,
+            f"Block {r} is not a permutation of 0..{ALPHABET_SIZE - 1}",
+        )
     tail = k[period * ALPHABET_SIZE :]
     _assert_perm_1d(tail, columns, f"Tail is not a permutation of 0..{columns - 1}")
 

@@ -63,6 +63,7 @@ class RunLogger:
     • If not initialized yet, self-initialize with a sensible default
       (run_kind="test", label="autolog").
     """
+
     def __init__(self, *, out_dir: Optional[str] = None, echo: bool = False):
         # Resolve where to write
         if out_dir:
@@ -74,8 +75,13 @@ class RunLogger:
                 rd = get_run_dir()
             except Exception:
                 # No prior init — do a minimal self-init for tests/dev
-                cfg = LoggingConfig(verbose=echo, print_progress=echo, write_jsonl=True,
-                                    run_kind="test", label="autolog")
+                cfg = LoggingConfig(
+                    verbose=echo,
+                    print_progress=echo,
+                    write_jsonl=True,
+                    run_kind="test",
+                    label="autolog",
+                )
                 rd = init_logging(cfg)
 
         self._run_dir = rd
@@ -106,7 +112,10 @@ class RunLogger:
         if self._echo:
             # Keep console readable, but don't spam on huge dicts
             typ = rec.get("type", "event")
-            print(f"[log] {typ}: { {k: v for k, v in rec.items() if k != 'trace'} }", flush=True)
+            print(
+                f"[log] {typ}: { {k: v for k, v in rec.items() if k != 'trace'} }",
+                flush=True,
+            )
 
     def log_trace(self, obj: Dict[str, Any]) -> Optional[Path]:
         """

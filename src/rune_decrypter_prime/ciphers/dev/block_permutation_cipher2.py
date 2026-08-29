@@ -4,6 +4,7 @@ import numpy as np
 from rune_decrypter_prime.keyops.permutation_ops import PermutationOps
 from .pipeline import CipherPipelineMixin, ArrayU8
 
+
 class BlockPermutationCipher(CipherPipelineMixin):
     """
     Fixed-size block permutation. Values unchanged; only positions permuted
@@ -11,6 +12,7 @@ class BlockPermutationCipher(CipherPipelineMixin):
 
     Key: permutation of [0..K-1] applied identically to every full block.
     """
+
     A = 29
 
     def __init__(self, cfg, *, text_transposition="ltr", key_transposition="ltr"):
@@ -53,13 +55,14 @@ class BlockPermutationCipher(CipherPipelineMixin):
 
     @staticmethod
     def _apply_block_perm(x: np.ndarray, perm: np.ndarray) -> np.ndarray:
-        L = int(x.size); K = int(perm.size)
+        L = int(x.size)
+        K = int(perm.size)
         y = np.empty(L, dtype=np.uint8)
         nb = L // K
         for bi in range(nb):
             s = bi * K
-            y[s:s+K] = x[s:s+K][perm]
+            y[s : s + K] = x[s : s + K][perm]
         # tail untouched
         if nb * K < L:
-            y[nb*K:] = x[nb*K:]
+            y[nb * K :] = x[nb * K :]
         return y

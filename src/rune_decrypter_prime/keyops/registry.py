@@ -49,8 +49,9 @@ def get(name: KeyOpsFamily | str) -> Callable[..., Any]:
     if family not in _REG:
         available_fams = ", ".join(sorted(fam.value for fam in _REG))
         raise KeyError(
-            f"KeyOps '{name}' is not registered. Available: {available_fams}" if available_fams else
-            f"KeyOps '{name}' is not registered."
+            f"KeyOps '{name}' is not registered. Available: {available_fams}"
+            if available_fams
+            else f"KeyOps '{name}' is not registered."
         )
     return _REG[family]
 
@@ -59,7 +60,9 @@ def available() -> list[KeyOpsFamily]:
     return sorted(_REG.keys(), key=lambda fam: fam.value)
 
 
-def _alias_kwargs_for_family(family: KeyOpsFamily, kwargs: Dict[str, Any]) -> Dict[str, Any]:
+def _alias_kwargs_for_family(
+    family: KeyOpsFamily, kwargs: Dict[str, Any]
+) -> Dict[str, Any]:
     """Normalize legacy kwarg names to canonical ctor args per family."""
     fam = _normalize_family(family)
     out = dict(kwargs) if kwargs else {}

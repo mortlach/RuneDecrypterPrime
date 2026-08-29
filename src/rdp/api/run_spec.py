@@ -99,7 +99,9 @@ def _require_wli_index(value: Any, field_name: str) -> int:
 
 
 def _require_ordered_sequence(value: Any, field_name: str) -> Sequence[Any]:
-    if isinstance(value, (str, bytes, Path, Mapping)) or not isinstance(value, Sequence):
+    if isinstance(value, (str, bytes, Path, Mapping)) or not isinstance(
+        value, Sequence
+    ):
         raise TypeError(f"{field_name} must be an ordered sequence")
     return value
 
@@ -153,7 +155,9 @@ def _require_enum_value(value: Any, allowed: frozenset[str], field_name: str) ->
     return text
 
 
-def _require_exact_keys(ref: Mapping[str, Any], required: frozenset[str], field_name: str) -> None:
+def _require_exact_keys(
+    ref: Mapping[str, Any], required: frozenset[str], field_name: str
+) -> None:
     keys = frozenset(ref.keys())
     missing = sorted(required - keys)
     extra = sorted(keys - required)
@@ -172,7 +176,9 @@ def _validate_lp_page_ref(
 ) -> None:
     from rune_decrypter_prime.data.liber_primus.lp_registry import LPBuiltInPageScheme
 
-    scheme = _require_enum_value(ref[scheme_key], _enum_values(LPBuiltInPageScheme), scheme_key)
+    scheme = _require_enum_value(
+        ref[scheme_key], _enum_values(LPBuiltInPageScheme), scheme_key
+    )
     number = _require_int(ref[number_key], number_key)
     if scheme == LPBuiltInPageScheme.BOUND_BOOK_PAGE.value:
         if number < 1:
@@ -189,9 +195,13 @@ def _validate_lp_locator_ref(ref: Mapping[str, Any]) -> None:
         LPSpiralStartCorner,
     )
 
-    route_kind = _require_enum_value(ref.get("route_kind"), frozenset(_LP_LOCATOR_ROUTE_KEYS), "route_kind")
+    route_kind = _require_enum_value(
+        ref.get("route_kind"), frozenset(_LP_LOCATOR_ROUTE_KEYS), "route_kind"
+    )
     _require_exact_keys(ref, _LP_LOCATOR_ROUTE_KEYS[route_kind], "ref")
-    _validate_lp_page_ref(ref, scheme_key="page_scheme", number_key="page_number", field_name="ref")
+    _validate_lp_page_ref(
+        ref, scheme_key="page_scheme", number_key="page_number", field_name="ref"
+    )
 
     line = _require_optional_int(ref["line"], "line")
     line_end = _require_optional_int(ref["line_end"], "line_end")
@@ -214,12 +224,20 @@ def _validate_lp_locator_ref(ref: Mapping[str, Any]) -> None:
         if word is not None or word_end is not None:
             raise ValueError("line routed locator refs do not support word selectors")
         _require_enum_value(ref["line_mode"], _enum_values(LPLineReadMode), "line_mode")
-        _require_enum_value(ref["line_selector"], _enum_values(LPLineRuneSelector), "line_selector")
+        _require_enum_value(
+            ref["line_selector"], _enum_values(LPLineRuneSelector), "line_selector"
+        )
     elif route_kind == "spiral":
         if word is not None or word_end is not None:
             raise ValueError("spiral routed locator refs do not support word selectors")
-        _require_enum_value(ref["spiral_direction"], _enum_values(LPSpiralDirection), "spiral_direction")
-        _require_enum_value(ref["spiral_start_corner"], _enum_values(LPSpiralStartCorner), "spiral_start_corner")
+        _require_enum_value(
+            ref["spiral_direction"], _enum_values(LPSpiralDirection), "spiral_direction"
+        )
+        _require_enum_value(
+            ref["spiral_start_corner"],
+            _enum_values(LPSpiralStartCorner),
+            "spiral_start_corner",
+        )
         if not isinstance(ref["spiral_skip_empty"], bool):
             raise TypeError("spiral_skip_empty must be a bool")
 
@@ -235,10 +253,16 @@ def _validate_partition_ordinal(value: Any) -> None:
 
 
 def _validate_lp_partition_ref(ref: Mapping[str, Any]) -> None:
-    from rune_decrypter_prime.data.liber_primus.lp_registry import LPBuiltInPartitionScheme
+    from rune_decrypter_prime.data.liber_primus.lp_registry import (
+        LPBuiltInPartitionScheme,
+    )
 
     _require_exact_keys(ref, _LP_PARTITION_KEYS, "ref")
-    _require_enum_value(ref["partition_scheme"], _enum_values(LPBuiltInPartitionScheme), "partition_scheme")
+    _require_enum_value(
+        ref["partition_scheme"],
+        _enum_values(LPBuiltInPartitionScheme),
+        "partition_scheme",
+    )
     _validate_partition_ordinal(ref["partition_ordinal"])
     canon_start = _require_int(ref["canon_start"], "canon_start")
     canon_end = _require_int(ref["canon_end"], "canon_end")
@@ -252,7 +276,9 @@ def _validate_lp_partition_ref(ref: Mapping[str, Any]) -> None:
     if intersect_scheme is None and intersect_number is None:
         return
     if intersect_scheme is None or intersect_number is None:
-        raise ValueError("intersect_page_scheme and intersect_page_number must both be None or both be populated")
+        raise ValueError(
+            "intersect_page_scheme and intersect_page_number must both be None or both be populated"
+        )
     _validate_lp_page_ref(
         ref,
         scheme_key="intersect_page_scheme",
@@ -356,7 +382,10 @@ class SourceReferenceInput:
         source_kind = _require_text(self.source_kind, "source_kind")
         asset_id = _require_text(self.asset_id, "asset_id")
         asset_version = _require_text(self.asset_version, "asset_version")
-        if source_kind.startswith("liber_primus.") and source_kind not in LP_SOURCE_KINDS:
+        if (
+            source_kind.startswith("liber_primus.")
+            and source_kind not in LP_SOURCE_KINDS
+        ):
             raise ValueError(f"unsupported LP source_kind: {source_kind}")
 
         ref = _copy_json_primitive_mapping(self.reference, "reference")
@@ -373,6 +402,7 @@ class SourceReferenceInput:
 
 
 ProblemInput = RawTextInput | RuneIndexInput | SourceReferenceInput
+
 
 @dataclass(frozen=True, slots=True)
 class RunSpec:
@@ -399,8 +429,12 @@ class RunSpec:
     interruptors: InterruptorConfig | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.problem_input, (RawTextInput, RuneIndexInput, SourceReferenceInput)):
-            raise TypeError("problem_input must be RawTextInput, RuneIndexInput, or SourceReferenceInput")
+        if not isinstance(
+            self.problem_input, (RawTextInput, RuneIndexInput, SourceReferenceInput)
+        ):
+            raise TypeError(
+                "problem_input must be RawTextInput, RuneIndexInput, or SourceReferenceInput"
+            )
         if not isinstance(self.cipher, CipherSpec):
             raise TypeError("cipher must be a CipherSpec")
         if not isinstance(self.key_space, KeySpec):
@@ -408,6 +442,7 @@ class RunSpec:
         if not isinstance(self.solver, SolverSpec):
             raise TypeError("solver must be a SolverSpec")
         from rune_decrypter_prime.core.config.cipher import expected_concrete_key_length
+
         expected_concrete_key_length(self.cipher, self.key_space)
         if not isinstance(self.scoring, ScoringConfig):
             raise TypeError("scoring must be a ScoringConfig")
@@ -422,15 +457,26 @@ class RunSpec:
         if type(self.telemetry_enabled) is not bool:
             raise TypeError("telemetry_enabled must be a bool")
         if self.initial_keys is not None:
-            object.__setattr__(self, "initial_keys", normalize_initial_keys(self.initial_keys))
+            object.__setattr__(
+                self, "initial_keys", normalize_initial_keys(self.initial_keys)
+            )
         if self.text_permutation is not None:
-            permutation = tuple(_require_int(value, "text_permutation") for value in self.text_permutation)
+            permutation = tuple(
+                _require_int(value, "text_permutation")
+                for value in self.text_permutation
+            )
             if sorted(permutation) != list(range(len(permutation))):
                 raise ValueError("text_permutation must be a permutation of 0..n-1")
-            if isinstance(self.problem_input, RuneIndexInput) and len(permutation) != len(self.problem_input.indices):
-                raise ValueError("text_permutation length must match RuneIndexInput.indices")
+            if isinstance(self.problem_input, RuneIndexInput) and len(
+                permutation
+            ) != len(self.problem_input.indices):
+                raise ValueError(
+                    "text_permutation length must match RuneIndexInput.indices"
+                )
             object.__setattr__(self, "text_permutation", permutation)
-        if self.interruptors is not None and not isinstance(self.interruptors, InterruptorConfig):
+        if self.interruptors is not None and not isinstance(
+            self.interruptors, InterruptorConfig
+        ):
             raise TypeError("interruptors must be InterruptorConfig or None")
 
 

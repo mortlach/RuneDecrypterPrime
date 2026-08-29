@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
-from typing import Any, Mapping, Optional, Sequence, Iterable, Union, Dict, Tuple
+from typing import Any, Mapping, Iterable, Union, Dict
 
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.data.asset_paths import resolve_assets_path, to_repo_relative
@@ -138,6 +138,7 @@ def load_index(root: Path) -> LmIndex:
 
 
 # --- Compatibility shims expected by language_model_prime.py ---
+
 
 def default_lm_root() -> Path:
     """Repository assets-relative default LM root."""

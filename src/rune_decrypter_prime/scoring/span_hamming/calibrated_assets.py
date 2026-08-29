@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, Tuple
+from typing import Any, Dict, Tuple
 
 import numpy as np
-from rune_decrypter_prime.core.hamming_dictionary_policy import ensure_hamming_dictionary_policy
+from rune_decrypter_prime.core.hamming_dictionary_policy import (
+    ensure_hamming_dictionary_policy,
+)
 
 
 def _decode_meta_json(raw: Any) -> dict[str, Any]:
@@ -84,8 +86,7 @@ class SpanCalibratedAssets:
         for direction, length_bucket in self._calibration_rows:
             by_dir.setdefault(direction, set()).add(length_bucket)
         self._length_buckets_by_direction: Dict[str, Tuple[int, ...]] = {
-            direction: tuple(sorted(lengths))
-            for direction, lengths in by_dir.items()
+            direction: tuple(sorted(lengths)) for direction, lengths in by_dir.items()
         }
 
     @classmethod
@@ -105,7 +106,9 @@ class SpanCalibratedAssets:
             raise ValueError("combined_calibration.json must contain list field 'rows'")
 
         dictionary_policy = None
-        raw_policy = cal_raw.get("dictionary_policy", cal_raw.get("hamming_dictionary_policy"))
+        raw_policy = cal_raw.get(
+            "dictionary_policy", cal_raw.get("hamming_dictionary_policy")
+        )
         if raw_policy is not None:
             dictionary_policy = ensure_hamming_dictionary_policy(raw_policy).value
 
@@ -130,13 +133,19 @@ class SpanCalibratedAssets:
                 span_denom=span_denom,
                 span_valid=span_valid,
                 char4_neg_ref=(
-                    None if row.get("char4_neg_ref") is None else float(row.get("char4_neg_ref"))
+                    None
+                    if row.get("char4_neg_ref") is None
+                    else float(row.get("char4_neg_ref"))
                 ),
                 char4_denom=(
-                    None if row.get("char4_denom") is None else float(row.get("char4_denom"))
+                    None
+                    if row.get("char4_denom") is None
+                    else float(row.get("char4_denom"))
                 ),
                 char4_valid=(
-                    None if row.get("char4_valid") is None else bool(row.get("char4_valid"))
+                    None
+                    if row.get("char4_valid") is None
+                    else bool(row.get("char4_valid"))
                 ),
             )
 
@@ -177,7 +186,9 @@ class SpanCalibratedAssets:
         # Require ECDF presence for every valid span bucket.
         for key, row in calibration_rows.items():
             if row.span_valid and row.span_denom > 0.0 and key not in ecdf_rows:
-                raise ValueError(f"Missing span ECDF for valid calibration bucket: {key}")
+                raise ValueError(
+                    f"Missing span ECDF for valid calibration bucket: {key}"
+                )
 
         return cls(
             calibration_rows=calibration_rows,
@@ -239,13 +250,17 @@ class SpanCalibratedAssets:
         bucket = int(length_bucket)
         key = (dir_norm, bucket)
         if key not in self._calibration_rows:
-            raise KeyError(f"No calibration bucket for direction={dir_norm}, length_bucket={bucket}")
+            raise KeyError(
+                f"No calibration bucket for direction={dir_norm}, length_bucket={bucket}"
+            )
         row = self._calibration_rows[key]
         if not row.span_valid or not (row.span_denom > 0.0):
             raise ValueError(f"Invalid span calibration bucket: {key}")
         grid, q = self._ecdf_rows[key]
         x_span = (float(span_raw) - row.span_neg_ref) / row.span_denom
-        span_pct = float(np.interp(x_span, grid, q, left=float(q[0]), right=float(q[-1])))
+        span_pct = float(
+            np.interp(x_span, grid, q, left=float(q[0]), right=float(q[-1]))
+        )
         span_pct = float(np.clip(span_pct, float(clamp_min), float(clamp_max)))
         span_energy = float(-np.log1p(-span_pct))
         return SpanBucketScore(
@@ -264,4 +279,3 @@ __all__ = [
     "SpanCalibrationRow",
     "SpanBucketScore",
 ]
-

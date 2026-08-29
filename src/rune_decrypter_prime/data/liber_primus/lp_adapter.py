@@ -10,7 +10,11 @@ from rune_decrypter_prime.data.liber_primus.lp_main import (
     main_transcript_asset_identity,
     page_view_from_ref,
 )
-from rune_decrypter_prime.data.liber_primus.lp_registry import LPFragmentLocator, LPPageRef, LPPartitionEntry
+from rune_decrypter_prime.data.liber_primus.lp_registry import (
+    LPFragmentLocator,
+    LPPageRef,
+    LPPartitionEntry,
+)
 from rune_decrypter_prime.data.liber_primus.lp_routes import (
     LPLineReadMode,
     LPLineRuneSelector,
@@ -151,7 +155,7 @@ def _locator_line_text(doc: LPTranscript, locator: LPFragmentLocator) -> list[st
             raise IndexError("line selector is out of range")
         if end < start:
             raise ValueError("line_end must be >= line")
-        selected = lines[start:end + 1]
+        selected = lines[start : end + 1]
     return [line.text(sep="") for line in selected]
 
 
@@ -171,4 +175,3 @@ __all__ = [
     "payload_from_locator",
     "payload_from_partition_entry",
 ]
-

@@ -14,7 +14,7 @@ src/rune_decrypter_prime/api/run_spec.py
 
 | Field | Meaning |
 | --- | --- |
-| `problem_input` | `RawTextInput`, `NormalizedInput`, or `SourceInputRef`. |
+| `problem_input` | `RawTextInput`, `RuneIndexInput`, or `SourceReferenceInput`. |
 | `cipher` | A `CipherSpec`. |
 | `key` | A `KeySpec`, or a two-item tuple of `KeySpec` values. |
 | `solver` | A `SolverSpec`. |
@@ -30,10 +30,10 @@ src/rune_decrypter_prime/api/run_spec.py
 | Type | Use |
 | --- | --- |
 | `RawTextInput` | Direct text input. |
-| `NormalizedInput` | Already-normalized rune indices, with optional WLI. |
-| `SourceInputRef` | A typed reference to a known source such as a Liber Primus label, locator, or partition. |
+| `RuneIndexInput` | Already-normalized rune indices, with optional WLI. |
+| `SourceReferenceInput` | A typed reference to a known source such as a Liber Primus label, locator, or partition. |
 
-## SourceInputRef LP Kinds
+## SourceReferenceInput LP Kinds
 
 | Source kind | Meaning |
 | --- | --- |
@@ -41,7 +41,7 @@ src/rune_decrypter_prime/api/run_spec.py
 | `liber_primus.locator` | Typed LP locator. |
 | `liber_primus.partition` | Typed LP partition. |
 
-`SourceInputRef` validates supported keys early. Recipe labels are not accepted
+`SourceReferenceInput` validates supported keys early. Recipe labels are not accepted
 as source labels.
 
 ## Design Notes

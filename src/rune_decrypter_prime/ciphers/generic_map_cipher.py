@@ -22,6 +22,7 @@ from rune_decrypter_prime.core.types import (
 
 ArrayU8 = np.ndarray
 
+
 def _as_u8(value, name: str) -> np.ndarray:
     try:
         return np.asarray(value, dtype=np.uint8, order="C")
@@ -53,6 +54,7 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
     - Does not construct KeyOps; Problem attaches it with `keyops_family="vector"`.
     - Degeneracy in lookup tables: decoder uses the first-seen inverse deterministically.
     """
+
     keyops_family: KeyOpsFamily = KeyOpsFamily.VECTOR
     A: int = 29
 
@@ -62,7 +64,9 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
         super().__init__(
             text_transposition=text_dir.value,
             key_transposition=key_dir.value,
-            initial_text_permutation_indices=getattr(cfg, "initial_text_permutation_indices", None),
+            initial_text_permutation_indices=getattr(
+                cfg, "initial_text_permutation_indices", None
+            ),
         )
         self.cfg = cfg
         self.text_direction = text_dir
@@ -70,9 +74,15 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
         spec = getattr(cfg, "spec", None)
         if spec is None:
             raise ValueError("GenericMapCipher requires cfg.spec")
-        raw_kind = getattr(spec, "kind", getattr(cfg, "name", RuntimeCipherKind.LOOKUP.value))
-        kind_key = str(raw_kind.value if isinstance(raw_kind, RuntimeCipherKind) else raw_kind).strip().lower()
-        if kind_key == "generic-map":
+        raw_kind = getattr(
+            spec, "kind", getattr(cfg, "name", RuntimeCipherKind.LOOKUP.value)
+        )
+        kind_key = (
+            str(raw_kind.value if isinstance(raw_kind, RuntimeCipherKind) else raw_kind)
+            .strip()
+            .lower()
+        )
+        if kind_key in {"generic-map", "generic_map"}:
             kind_key = RuntimeCipherKind.LOOKUP.value
         self.kind: RuntimeCipherKind = ensure_cipher_kind(kind_key)
         self.kind_value = self.kind.value
@@ -87,14 +97,18 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
         K_cfg = int(getattr(cfg, "key_length", 0) or 0)
         K = K_cfg
 
-        A_key = self.A if self.kind is not RuntimeCipherKind.USER_MAP3 else self.A * self.A  # domain size for key value index
+        A_key = (
+            self.A if self.kind is not RuntimeCipherKind.USER_MAP3 else self.A * self.A
+        )  # domain size for key value index
 
         # build enc/dec tables (NumPy arrays)
         enc = np.zeros((self.A, A_key), dtype=np.uint8)
         dec_len = np.zeros((A_key, self.A), dtype=np.uint16)
         dec_all = np.zeros((A_key, self.A, self.A), dtype=np.uint8)
 
-        def _push_candidate(kv: int, ct_val: int, pt_val: int, seen: np.ndarray) -> None:
+        def _push_candidate(
+            kv: int, ct_val: int, pt_val: int, seen: np.ndarray
+        ) -> None:
             if seen[ct_val, pt_val]:
                 return
             idx = int(dec_len[kv, ct_val])
@@ -105,7 +119,9 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
 
         if self.kind in (RuntimeCipherKind.USER_MAP2, RuntimeCipherKind.USER_MAP3):
             if K <= 0:
-                raise ValueError("GenericMapCipher requires cfg.key_length > 0 for user_map2/user_map3")
+                raise ValueError(
+                    "GenericMapCipher requires cfg.key_length > 0 for user_map2/user_map3"
+                )
             from rdp.api.experimental import function_for
 
             f = function_for(spec)
@@ -134,7 +150,9 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
                 raise ValueError("lookup requires spec.table")
             T = np.asarray(table, dtype=object)
             if T.ndim != 2 or T.shape[0] != self.A:
-                raise ValueError(f"lookup table must have A rows; got shape {T.shape}, expected ({self.A}, ?)")
+                raise ValueError(
+                    f"lookup table must have A rows; got shape {T.shape}, expected ({self.A}, ?)"
+                )
 
             # infer K if not provided
             if K <= 0:
@@ -144,7 +162,9 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
                     K = int(T.shape[1])  # treat non-1, non-A_key as period
                 # else: table is in key-value domain; require explicit K
             if K <= 0:
-                raise ValueError("GenericMapCipher requires cfg.key_length > 0 (or inferable from lookup shape)")
+                raise ValueError(
+                    "GenericMapCipher requires cfg.key_length > 0 (or inferable from lookup shape)"
+                )
 
             # canonicalize to key-value domain
             if T.shape[1] == A_key:
@@ -152,7 +172,7 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
             elif T.shape[1] == 1:
                 T_use = np.broadcast_to(T, (self.A, A_key)).copy()
             elif T.shape[1] == K:
-                idx = (np.arange(A_key) % K)
+                idx = np.arange(A_key) % K
                 T_use = T[:, idx]
             else:
                 raise ValueError(
@@ -203,9 +223,16 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
         self._enc_t = self._dec_t = None
         if self._xp_backend == "torch":
             import torch
-            device = torch.device(self._device_name if "cuda" in self._device_name else "cpu")
-            self._enc_t = torch.as_tensor(self._enc_np, device=device, dtype=torch.uint8)
-            self._dec_t = torch.as_tensor(self._dec_np, device=device, dtype=torch.uint8)
+
+            device = torch.device(
+                self._device_name if "cuda" in self._device_name else "cpu"
+            )
+            self._enc_t = torch.as_tensor(
+                self._enc_np, device=device, dtype=torch.uint8
+            )
+            self._dec_t = torch.as_tensor(
+                self._dec_np, device=device, dtype=torch.uint8
+            )
 
         self.key_length = int(K)  # expose K for Problem/KeyOps
 
@@ -223,25 +250,26 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
           return : [B,L]  uint8
         """
         ct = np.asarray(ct_tr, dtype=np.uint8).reshape(-1)
-        keys  = np.asarray(keys_tr, dtype=np.uint8)
+        keys = np.asarray(keys_tr, dtype=np.uint8)
         if keys.ndim == 1:
             keys = keys[None, :]
-        B, K = int(keys.shape[0]), int(keys.shape[1])
+        _batch_size, K = int(keys.shape[0]), int(keys.shape[1])
         L = int(ct.size)
 
         if self._xp_backend == "torch":
             import torch as t
+
             device = self._enc_t.device  # type: ignore
-            ct_t   = t.as_tensor(ct, device=device, dtype=t.long).reshape(-1)
+            ct_t = t.as_tensor(ct, device=device, dtype=t.long).reshape(-1)
             keys_t = t.as_tensor(keys, device=device, dtype=t.long)
-            cols   = t.arange(L, device=device, dtype=t.long) % K
-            kv     = keys_t[:, cols]                                     # (B,L)
-            out    = self._dec_t[kv, ct_t]                                # (B,L)
+            cols = t.arange(L, device=device, dtype=t.long) % K
+            kv = keys_t[:, cols]  # (B,L)
+            out = self._dec_t[kv, ct_t]  # (B,L)
             return out.detach().cpu().numpy().astype(np.uint8, copy=False)
 
         cols = np.arange(L, dtype=np.int64) % K
-        kv = keys[:, cols]                                                # (B,L)
-        out = self._dec_np[kv, ct]                                        # (B,L)
+        kv = keys[:, cols]  # (B,L)
+        out = self._dec_np[kv, ct]  # (B,L)
         return out.astype(np.uint8, copy=False)
 
     def _core_encrypt_batch(self, pt_tr: ArrayU8, keys_tr: ArrayU8) -> ArrayU8:
@@ -249,21 +277,22 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
         Encrypt in core space using encoder table:
           c = enc[p, key_value]
         """
-        pt = _as_u8(pt_tr,"pt")
-        keys = _as_u8(keys_tr,"keys")
+        pt = _as_u8(pt_tr, "pt")
+        keys = _as_u8(keys_tr, "keys")
         if keys.ndim == 1:
             keys = keys[None, :]
-        B, K = int(keys.shape[0]), int(keys.shape[1])
+        _batch_size, K = int(keys.shape[0]), int(keys.shape[1])
         L = int(pt.shape[0])
 
         if self._xp_backend == "torch":
             import torch as t
+
             device = self._enc_t.device  # type: ignore
-            pt_t   = t.as_tensor(pt, device=device, dtype=t.long).reshape(-1)
+            pt_t = t.as_tensor(pt, device=device, dtype=t.long).reshape(-1)
             keys_t = t.as_tensor(keys, device=device, dtype=t.long)
-            cols   = t.arange(L, device=device, dtype=t.long) % K
-            kv     = keys_t[:, cols]                                     # (B,L)
-            out    = self._enc_t[pt_t, kv]                                # (B,L)
+            cols = t.arange(L, device=device, dtype=t.long) % K
+            kv = keys_t[:, cols]  # (B,L)
+            out = self._enc_t[pt_t, kv]  # (B,L)
             return out.detach().cpu().numpy().astype(np.uint8, copy=False)
 
         cols = np.arange(L, dtype=np.int64) % K
@@ -272,8 +301,14 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
         return out.astype(np.uint8, copy=False)
 
     # optional degeneracy API (kept for compatibility)
-    def candidates_for(self, ct_tr: ArrayU8, keys_tr: ArrayU8, *, positions: Optional[np.ndarray] = None,
-                       limit: Optional[int] = None) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def candidates_for(
+        self,
+        ct_tr: ArrayU8,
+        keys_tr: ArrayU8,
+        *,
+        positions: Optional[np.ndarray] = None,
+        limit: Optional[int] = None,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Candidates per position (first LMT plaintext indices per (key_value, ct)).
         Returns:
@@ -286,13 +321,17 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
             raise ValueError("limit must be >= 0")
         if LIMIT > self.A:
             LIMIT = int(self.A)
-        ct = _as_u8(ct_tr,"ct").reshape(-1)
-        keys = _as_u8(keys_tr,"key")
+        ct = _as_u8(ct_tr, "ct").reshape(-1)
+        keys = _as_u8(keys_tr, "key")
         if keys.ndim == 1:
             keys = keys[None, :]
         B, K = int(keys.shape[0]), int(keys.shape[1])
         L = int(ct.size)
-        pos = np.arange(L, dtype=np.int64) if positions is None else np.asarray(positions, dtype=np.int64).reshape(-1)
+        pos = (
+            np.arange(L, dtype=np.int64)
+            if positions is None
+            else np.asarray(positions, dtype=np.int64).reshape(-1)
+        )
         Lq = int(pos.size)
         cols = (pos % K).astype(np.int64)
         kv = keys[:, cols]  # (B,Lq)
@@ -315,5 +354,5 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
                     lens[b, i] = 0
                     if LIMIT:
                         cands[b, i, :] = 0
-        invalid = (lens == 0)
+        invalid = lens == 0
         return cands, lens, invalid

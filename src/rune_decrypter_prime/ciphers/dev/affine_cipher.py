@@ -3,7 +3,7 @@
 # ============================================================
 import numpy as np
 from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin, ArrayU8
-from rune_decrypter_prime.keyops import AffineKey, AffineKeyConfig
+from rune_decrypter_prime.keyops import AffineKey
 
 
 class AffineCipherMod29(CipherPipelineMixin):
@@ -13,6 +13,7 @@ class AffineCipherMod29(CipherPipelineMixin):
       Encrypt:  ct = (a * pt + b) mod 29
       Decrypt:  pt = a_inv * (ct - b) mod 29
     """
+
     A = 29
 
     def __init__(self, cfg, *, text_transposition="ltr", key_transposition="ltr"):
@@ -22,7 +23,7 @@ class AffineCipherMod29(CipherPipelineMixin):
         )
         self.cfg = cfg
         # interruptors (exact/legacy)
-        intr_exact  = getattr(cfg, "interruptors_exact", None)
+        intr_exact = getattr(cfg, "interruptors_exact", None)
         intr_legacy = getattr(cfg, "interruptors", None)
         chosen = intr_exact if intr_exact is not None else intr_legacy
         self._default_interrupt_idx = (
@@ -31,7 +32,9 @@ class AffineCipherMod29(CipherPipelineMixin):
         # inside __init__(...)
         key_obj = getattr(cfg, "key", None)
         if not isinstance(key_obj, AffineKey):
-            raise TypeError("AffineCipherMod29 expects an AffineKey (AffineKeyConfig(mod=29))")
+            raise TypeError(
+                "AffineCipherMod29 expects an AffineKey (AffineKeyConfig(mod=29))"
+            )
         self._keyops: AffineKey = key_obj
         self.A = int(self._keyops.mod)  # keep A in sync with keyops
 

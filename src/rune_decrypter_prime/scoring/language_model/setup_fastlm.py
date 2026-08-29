@@ -9,12 +9,17 @@ from __future__ import annotations
 from setuptools import setup
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 from pathlib import Path
-import shutil, sys, traceback, os
+import shutil
+import sys
+import traceback
+import os
 
 # --- toggle here only ---
-BUILD_MODE: str = "safe"   # change to "fastmath" for local benchmarking
+BUILD_MODE: str = "safe"  # change to "fastmath" for local benchmarking
 
-HERE = Path(__file__).resolve().parent                          # .../rune_decrypter_prime/scoring/language_model
+HERE = (
+    Path(__file__).resolve().parent
+)  # .../rune_decrypter_prime/scoring/language_model
 SRC_CPP = HERE / "fastlm.cpp"
 PKG_MOD = "rune_decrypter_prime.scoring.language_model._fastlm"
 
@@ -31,8 +36,8 @@ def find_repo_root(start: Path) -> Path:
         p = p.parent
 
 
-REPO_ROOT = find_repo_root(HERE)                                 # should resolve to .../rune_decrypter_2
-PKG_DIR   = REPO_ROOT / "rune_decrypter_prime"
+REPO_ROOT = find_repo_root(HERE)  # should resolve to .../rune_decrypter_2
+PKG_DIR = REPO_ROOT / "rune_decrypter_prime"
 
 # Compile flags (portable by default; only flip the string to 'fastmath' for local speed)
 if sys.platform == "win32":
@@ -58,7 +63,7 @@ ext_modules = [
 
 # Short build dirs (under the real repo root → avoids long Windows paths)
 BUILD_TEMP = REPO_ROOT / "build_tmp_fastlm"
-BUILD_LIB  = REPO_ROOT / "build_lib_fastlm"
+BUILD_LIB = REPO_ROOT / "build_lib_fastlm"
 BUILD_TEMP.mkdir(exist_ok=True)
 BUILD_LIB.mkdir(exist_ok=True)
 
@@ -67,9 +72,9 @@ class _BuildExtShort(build_ext):
     def finalize_options(self):
         super().finalize_options()
         self.build_temp = str(BUILD_TEMP)
-        self.build_lib  = str(BUILD_LIB)
+        self.build_lib = str(BUILD_LIB)
         os.makedirs(self.build_temp, exist_ok=True)
-        os.makedirs(self.build_lib,  exist_ok=True)
+        os.makedirs(self.build_lib, exist_ok=True)
         self.inplace = True
 
 
@@ -80,7 +85,10 @@ def _ensure_default_args():
 
 def _dest_ext_suffix() -> str:
     from distutils.sysconfig import get_config_var
-    return get_config_var("EXT_SUFFIX") or (".pyd" if sys.platform == "win32" else ".so")
+
+    return get_config_var("EXT_SUFFIX") or (
+        ".pyd" if sys.platform == "win32" else ".so"
+    )
 
 
 def _copy_built():
@@ -105,6 +113,7 @@ def _try_import():
         sys.path.insert(0, str(REPO_ROOT))
     try:
         from rune_decrypter_prime.scoring.language_model import _fastlm  # type: ignore
+
         print("[fastlm] SUCCESS Import OK:", _fastlm)
     except Exception:
         print("[fastlm] WARNING  Import failed:")

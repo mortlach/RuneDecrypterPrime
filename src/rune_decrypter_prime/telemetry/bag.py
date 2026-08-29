@@ -2,8 +2,10 @@
 from __future__ import annotations
 from typing import Any
 
+
 class TelemetryBag(dict):
     """A dict that also supports attribute access for ergonomic writes/reads."""
+
     def __getattr__(self, name: str) -> Any:
         try:
             return self[name]

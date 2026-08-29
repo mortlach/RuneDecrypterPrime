@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-def compute_hamming_weight(progress: float, w_max: float, ramp_start: float, ramp_end: float) -> float:
+
+def compute_hamming_weight(
+    progress: float, w_max: float, ramp_start: float, ramp_end: float
+) -> float:
     """
     Piecewise-linear ramp:
       - 0 for tau < ramp_start

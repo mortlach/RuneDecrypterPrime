@@ -153,7 +153,9 @@ def _validate_table(
         values: list[int] = []
         for column_index, value in enumerate(row):
             if isinstance(value, bool) or not isinstance(value, int):
-                raise TypeError(f"table[{row_index}][{column_index}] must be an integer")
+                raise TypeError(
+                    f"table[{row_index}][{column_index}] must be an integer"
+                )
             if not 0 <= value < alphabet_size:
                 raise ValueError(
                     f"table[{row_index}][{column_index}] must be in [0, {alphabet_size - 1}]"

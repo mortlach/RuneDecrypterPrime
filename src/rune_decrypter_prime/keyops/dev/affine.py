@@ -13,9 +13,11 @@ from rune_decrypter_prime.keyops.registry import register_keyop
 
 ArrayU8 = np.ndarray
 
+
 @dataclass
 class AffineKeyConfig:
     mod: int = 29  # alphabet size
+
 
 @register_keyop(KeyOpsFamily.AFFINE)
 class AffineKey(KeyOpBase):
@@ -23,21 +25,27 @@ class AffineKey(KeyOpBase):
     Affine keyops: key = [a, b], with gcd(a, mod) == 1, b in [0..mod-1].
     Genome: length 2 (uint8).
     """
+
     def __init__(self, cfg_or_mod=None, **kwargs):
         mod = self._unpack(cfg_or_mod, kwargs)
         # For affine monoalphabetic, key "length" is 2 parameters (a,b),
         # but caps.length should reflect the size of the key vector you store.
         # If you represent it as length-2 vector, use 2. If you store as scalar pair, use 2.
         K_effective = 2
-        self.caps = KeyCaps(length=K_effective, prefers_batch=False,
-                            traits={"family": KeyOpsFamily.AFFINE, "mod": int(mod)})
+        self.caps = KeyCaps(
+            length=K_effective,
+            prefers_batch=False,
+            traits={"family": KeyOpsFamily.AFFINE, "mod": int(mod)},
+        )
         super().__init__(self.caps)
         self.mod = int(mod)
 
-
     @staticmethod
     def _unpack(cfg_or_mod, kwargs):
-        if isinstance(cfg_or_mod, AffineKeyConfig) and type(cfg_or_mod).__name__ == "AffineKeyConfig":
+        if (
+            isinstance(cfg_or_mod, AffineKeyConfig)
+            and type(cfg_or_mod).__name__ == "AffineKeyConfig"
+        ):
             return int(cfg_or_mod.mod)
         if isinstance(cfg_or_mod, (int, np.integer)):
             return int(cfg_or_mod)

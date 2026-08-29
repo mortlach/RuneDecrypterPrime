@@ -11,17 +11,23 @@ import numpy as np
 from rune_decrypter_prime.core.config.run import RunConfig
 from rune_decrypter_prime.core.config.solution import Solution
 from rune_decrypter_prime.core.config.solver import SolverConfig
-from rune_decrypter_prime.core.engine.builders import build_cipher, build_scorer
 from rune_decrypter_prime.core.engine import EngineConfig, solve as engine_solve
 from rune_decrypter_prime.core.problem import ProblemInstance, ProblemSpec
-from rune_decrypter_prime.core.types import Direction, SolverName, ensure_direction, ensure_solver_name, KEY_DTYPE
+from rune_decrypter_prime.core.types import (
+    Direction,
+    SolverName,
+    ensure_direction,
+    KEY_DTYPE,
+)
 from rdp.api.pipeline_helpers import finalize_solution
 
 from rune_decrypter_prime.solvers.beam import BeamSolver
 from rune_decrypter_prime.solvers.ga import GASolver
 from rune_decrypter_prime.solvers.sa import SASolver
 from rune_decrypter_prime.solvers.hybrid import HybridSolver
-from rune_decrypter_prime.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
+from rune_decrypter_prime.solvers.kaeding_periodic_structured import (
+    KaedingPeriodicStructuredSolver,
+)
 
 
 _SOLVER_TABLE: Dict[SolverName, Any] = {
@@ -69,7 +75,9 @@ def build_optimizer(problem, optimizer_cfg: SolverConfig, *, rng=None):
     stop_score = params.get("stop_score")
 
     if rng is None:
-        raise TypeError("build_optimizer requires rng (np.random.Generator) for determinism")
+        raise TypeError(
+            "build_optimizer requires rng (np.random.Generator) for determinism"
+        )
 
     solver_cls = _SOLVER_TABLE[kind]
     solver = solver_cls(

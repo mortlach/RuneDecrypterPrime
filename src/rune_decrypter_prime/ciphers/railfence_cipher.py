@@ -142,4 +142,3 @@ class RailFenceCipher(KeyedCipherBase):
         for idx, r in enumerate(rails):
             out[idx] = self._encrypt_single(pt, int(r))
         return out
-

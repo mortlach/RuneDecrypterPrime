@@ -7,6 +7,7 @@
 from __future__ import annotations
 from .xp import select_backend, to_numpy
 
+
 def get_device(
     requested: str | None = None,
     *,
@@ -39,4 +40,6 @@ def get_device(
     # Fall back to CPU/NumPy
     _, xp = select_backend("np")
     return "cpu", xp
+
+
 __all__ = ["get_device", "to_numpy"]

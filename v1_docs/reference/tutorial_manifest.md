@@ -36,7 +36,7 @@ review and release metadata file.
 ## Current State
 
 The current manifest names the promoted working tutorial files under
-`tutorials/v1/`. Older replaced files live under `tutorials/old/`.
+`tutorials/v1/`. Retired files are absent from the release tree and preserved in Git history.
 
 Target:
 

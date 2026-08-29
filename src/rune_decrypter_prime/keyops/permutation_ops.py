@@ -12,6 +12,7 @@ Permutation KeyOps
   * provides capability verbs: random, normalize, mutate, neighbor, recombine,
     make_population, batch_neighbors, local_improve, expand_position (optional)
 """
+
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Any
@@ -22,10 +23,13 @@ from rune_decrypter_prime.io.rng import RNGController
 from .base_keyops import KeyOpBase, KeyCaps
 from .registry import register_keyop
 
+
 @dataclass(frozen=True)
 class PermutationKeyConfig:
     """Configuration for permutation keys: K = permutation length."""
+
     K: int
+
 
 @register_keyop(KeyOpsFamily.PERMUTATION)
 class PermutationKeyOps(KeyOpBase):
@@ -51,9 +55,11 @@ class PermutationKeyOps(KeyOpBase):
 
         # Caps (KEEP THESE NAMES)
         self.caps = KeyCaps(
-            length=K,                      # <-- critical for OptimizerBase
+            length=K,  # <-- critical for OptimizerBase
             prefers_batch=True,
-            traits={"family": KeyOpsFamily.PERMUTATION},  # unify with registry canonical
+            traits={
+                "family": KeyOpsFamily.PERMUTATION
+            },  # unify with registry canonical
         )
         # todo used in sa get rid
         self.caps.kind = RuntimeKeyKind.PERM
@@ -72,8 +78,15 @@ class PermutationKeyOps(KeyOpBase):
         # Advertise verbs if supported on caps
         if hasattr(self.caps, "ops"):
             self.caps.ops |= {
-                "random", "normalize", "mutate", "neighbor", "recombine",
-                "make_population", "batch_neighbors", "local_improve", "expand_position",
+                "random",
+                "normalize",
+                "mutate",
+                "neighbor",
+                "recombine",
+                "make_population",
+                "batch_neighbors",
+                "local_improve",
+                "expand_position",
                 "crossover",  # alias to recombine
             }
 
@@ -205,7 +218,7 @@ class PermutationKeyOps(KeyOpBase):
         K = a.size
         i, j = sorted(rng.choice(K, size=2, replace=False))
         child = np.full(K, 255, dtype=KEY_DTYPE)
-        child[i:j+1] = a[i:j+1]
+        child[i : j + 1] = a[i : j + 1]
         # PMX mapping
         for k in range(i, j + 1):
             if b[k] not in child:
@@ -227,8 +240,8 @@ class PermutationKeyOps(KeyOpBase):
         K = a.size
         i, j = sorted(rng.choice(K, size=2, replace=False))
         child = np.full(K, 255, dtype=KEY_DTYPE)
-        child[i:j+1] = a[i:j+1]
-        used = set(child[i:j+1].tolist())
+        child[i : j + 1] = a[i : j + 1]
+        used = set(child[i : j + 1].tolist())
         cursor = (j + 1) % K
         for val in np.concatenate((b[j + 1 :], b[: j + 1])):
             if val not in used:
@@ -265,6 +278,7 @@ class PermutationKeyOps(KeyOpBase):
         K is inferred from the key itself to avoid coupling to internal fields.
         """
         import numpy as np
+
         k = np.asarray(key, dtype=self.dtype)
         assert k.ndim == 1, f"Permutation key must be 1-D, got shape {k.shape}"
         K = int(k.shape[0])
@@ -272,7 +286,9 @@ class PermutationKeyOps(KeyOpBase):
         assert np.all(k < K), "Permutation entries must be < K"
         assert len(np.unique(k)) == K, "Permutation must be a bijection of 0..K-1"
 
-    def batch_neighbors(self, base: np.ndarray, n: int, rng, policy: Optional[str] = None) -> np.ndarray:
+    def batch_neighbors(
+        self, base: np.ndarray, n: int, rng, policy: Optional[str] = None
+    ) -> np.ndarray:
         B = int(n)
         if self._batch_tmp is None or self._batch_tmp.shape != (B, self.K):
             self._batch_tmp = np.empty((B, self.K), dtype=self.dtype)
@@ -299,16 +315,30 @@ class PermutationKeyOps(KeyOpBase):
             out[idx, i], out[idx, j] = out[idx, j], out[idx, i]
         return np.ascontiguousarray(out, dtype=self.dtype)
 
-    def local_improve(self, key: np.ndarray, score: float, scorer: Any, rng, **hints: Any) -> tuple[np.ndarray, float]:
+    def local_improve(
+        self, key: np.ndarray, score: float, scorer: Any, rng, **hints: Any
+    ) -> tuple[np.ndarray, float]:
         """Permutation-aware hill climb that mirrors the Stage-1 GA polish."""
         opts = dict(hints.get("hint") or {})
         budget = max(8, int(opts.get("budget", 64)))
-        batch_size = max(4, min(int(opts.get("perm_batch_size",
-                                            opts.get("perm_batch_improve_size", 64))), budget))
-        rounds = int(opts.get("perm_batch_rounds",
-                              opts.get("perm_batch_improve_rounds", 3)))
-        hill_iters = int(opts.get("perm_hill_iters", opts.get("local_improve_iters", 200)))
-        hill_swaps = max(1, int(opts.get("perm_hill_swaps", opts.get("local_improve_k", 2))))
+        batch_size = max(
+            4,
+            min(
+                int(
+                    opts.get("perm_batch_size", opts.get("perm_batch_improve_size", 64))
+                ),
+                budget,
+            ),
+        )
+        rounds = int(
+            opts.get("perm_batch_rounds", opts.get("perm_batch_improve_rounds", 3))
+        )
+        hill_iters = int(
+            opts.get("perm_hill_iters", opts.get("local_improve_iters", 200))
+        )
+        hill_swaps = max(
+            1, int(opts.get("perm_hill_swaps", opts.get("local_improve_k", 2)))
+        )
 
         best_k = np.ascontiguousarray(key, dtype=self.dtype).copy()
         best_s = float(score)
@@ -368,11 +398,8 @@ class PermutationKeyOps(KeyOpBase):
             out[t] = cand
         return out
 
+
 # Back-compat export
 PermutationKey = PermutationKeyOps
 
 __all__ = ["PermutationKeyConfig", "PermutationKeyOps", "PermutationKey"]
-
-
-
-

@@ -87,4 +87,9 @@ def to_repo_relative(path: Path, *, start: Path | None = None) -> str:
         return f"<external:{p.name or 'path'}>"
 
 
-__all__ = ["find_repo_root", "find_assets_root", "resolve_assets_path", "to_repo_relative"]
+__all__ = [
+    "find_repo_root",
+    "find_assets_root",
+    "resolve_assets_path",
+    "to_repo_relative",
+]

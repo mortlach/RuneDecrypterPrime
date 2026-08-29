@@ -110,9 +110,9 @@ class LPPageFeature:
 @dataclass
 class LPRegistry:
     page_aliases: Dict[LPRegistryLabel, LPPageRef] = field(default_factory=dict)
-    partitions: Dict[LPBuiltInPartitionScheme | LPRegistryLabel, tuple[LPPartitionEntry, ...]] = (
-        field(default_factory=dict)
-    )
+    partitions: Dict[
+        LPBuiltInPartitionScheme | LPRegistryLabel, tuple[LPPartitionEntry, ...]
+    ] = field(default_factory=dict)
     page_features: Dict[int, LPPageFeature] = field(default_factory=dict)
 
     def register_page_alias(self, label: LPRegistryLabel, target: LPPageRef) -> None:

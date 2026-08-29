@@ -56,7 +56,9 @@ class ScorerTelemetryKey(StrEnum):
 REPORT_BUILDER_DIAGNOSTICS_KEY = ScorerReportDetailKey.REPORT_BUILDER_DIAGNOSTICS.value
 
 RESERVED_DETAIL_KEYS = frozenset(key.value for key in ScorerReportDetailKey)
-CALLER_FORBIDDEN_DETAIL_KEYS = frozenset({ScorerReportDetailKey.REPORT_BUILDER_DIAGNOSTICS.value})
+CALLER_FORBIDDEN_DETAIL_KEYS = frozenset(
+    {ScorerReportDetailKey.REPORT_BUILDER_DIAGNOSTICS.value}
+)
 
 
 def _objective_spec_from_any(value: Any, *, fallback_win: int = 10) -> ObjectiveSpec:
@@ -97,7 +99,9 @@ def _objective_spec_from_any(value: Any, *, fallback_win: int = 10) -> Objective
             fallback_win=fallback_win,
         )
 
-    return ObjectiveSpec(family=ObjectiveFamily.PCT, stat=Stat.LOGP, win=int(fallback_win))
+    return ObjectiveSpec(
+        family=ObjectiveFamily.PCT, stat=Stat.LOGP, win=int(fallback_win)
+    )
 
 
 def _safe_mapping(value: Any) -> dict[str, Any]:
@@ -126,18 +130,22 @@ def _section_from_prefix(data: Mapping[str, Any], prefix: str) -> dict[str, Any]
     for k, v in data.items():
         key = str(k)
         if key.startswith(prefix):
-            out[key[len(prefix):]] = v
+            out[key[len(prefix) :]] = v
     return out
 
 
 def _derived_details_from_telemetry(telemetry: Mapping[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
 
-    span_hamming = _section_from_prefix(telemetry, ScorerTelemetryPrefix.SPAN_HAMMING.value)
+    span_hamming = _section_from_prefix(
+        telemetry, ScorerTelemetryPrefix.SPAN_HAMMING.value
+    )
     if span_hamming:
         out[ScorerReportDetailKey.SPAN_HAMMING.value] = span_hamming
 
-    word_ngrams = _section_from_prefix(telemetry, ScorerTelemetryPrefix.WORD_NGRAM_JUDGE.value)
+    word_ngrams = _section_from_prefix(
+        telemetry, ScorerTelemetryPrefix.WORD_NGRAM_JUDGE.value
+    )
     if word_ngrams:
         out[ScorerReportDetailKey.WORD_NGRAMS.value] = word_ngrams
 
@@ -162,9 +170,13 @@ def _merge_detail_sections(
     out = _safe_mapping(base)
     for key, value in _safe_mapping(extra).items():
         if key in CALLER_FORBIDDEN_DETAIL_KEYS:
-            raise ValueError(f"extra_details cannot supply generated report detail section: {key}")
+            raise ValueError(
+                f"extra_details cannot supply generated report detail section: {key}"
+            )
         if key in out and key in RESERVED_DETAIL_KEYS:
-            raise ValueError(f"extra_details cannot overwrite generated report detail section: {key}")
+            raise ValueError(
+                f"extra_details cannot overwrite generated report detail section: {key}"
+            )
         if key in out and isinstance(out[key], Mapping) and isinstance(value, Mapping):
             merged = dict(out[key])
             merged.update(dict(value))
@@ -200,22 +212,34 @@ def build_scorer_report(
     try:
         if hasattr(scorer, "telemetry") and callable(scorer.telemetry):
             telemetry = _safe_mapping(scorer.telemetry())
-    except Exception as exc:  # pragma: no cover - exact exception type is scorer-defined
-        diagnostics[ReportBuilderDiagnosticKey.TELEMETRY_ERROR.value] = _exception_diagnostic(exc)
+    except (
+        Exception
+    ) as exc:  # pragma: no cover - exact exception type is scorer-defined
+        diagnostics[ReportBuilderDiagnosticKey.TELEMETRY_ERROR.value] = (
+            _exception_diagnostic(exc)
+        )
         telemetry = {}
 
     metrics: dict[str, float] = {}
     try:
         if hasattr(scorer, "last_stats") and callable(scorer.last_stats):
             metrics.update(_safe_float_metrics(scorer.last_stats()))
-    except Exception as exc:  # pragma: no cover - exact exception type is scorer-defined
-        diagnostics[ReportBuilderDiagnosticKey.LAST_STATS_ERROR.value] = _exception_diagnostic(exc)
+    except (
+        Exception
+    ) as exc:  # pragma: no cover - exact exception type is scorer-defined
+        diagnostics[ReportBuilderDiagnosticKey.LAST_STATS_ERROR.value] = (
+            _exception_diagnostic(exc)
+        )
     metrics.update(_safe_float_metrics(extra_metrics or {}))
 
     derived_details = _derived_details_from_telemetry(telemetry)
     if diagnostics:
-        derived_details[ScorerReportDetailKey.REPORT_BUILDER_DIAGNOSTICS.value] = diagnostics
-    details = _merge_detail_sections(derived_details, _safe_mapping(extra_details or {}))
+        derived_details[ScorerReportDetailKey.REPORT_BUILDER_DIAGNOSTICS.value] = (
+            diagnostics
+        )
+    details = _merge_detail_sections(
+        derived_details, _safe_mapping(extra_details or {})
+    )
     from rune_decrypter_prime.core.config.scoring import ScoringObjective
     from rune_decrypter_prime.core.types import ObjectiveFamily, ScoreStatistic, Stat
 

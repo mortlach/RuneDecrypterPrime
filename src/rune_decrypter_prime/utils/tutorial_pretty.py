@@ -63,7 +63,9 @@ def print_tutorial_contract(
     else:
         rows.append(("truth/reference use", "not supplied to solver"))
     rows.extend(_rows(extra_rows))
-    print_block(format_key_value_block("Tutorial", rows, options=options or default_options()))
+    print_block(
+        format_key_value_block("Tutorial", rows, options=options or default_options())
+    )
 
 
 def print_problem_input(
@@ -71,7 +73,11 @@ def print_problem_input(
     *,
     options: PrintOptions | None = None,
 ) -> None:
-    print_block(format_key_value_block("Problem input", rows, options=options or default_options()))
+    print_block(
+        format_key_value_block(
+            "Problem input", rows, options=options or default_options()
+        )
+    )
 
 
 def print_preview(
@@ -102,7 +108,9 @@ def print_debug_preview(
     )
 
 
-def print_model_loading(events: Sequence[LmLoadStatus], *, options: PrintOptions | None = None) -> None:
+def print_model_loading(
+    events: Sequence[LmLoadStatus], *, options: PrintOptions | None = None
+) -> None:
     print_block(
         format_status_block(
             "Model loading",
@@ -151,7 +159,9 @@ def print_result_note(
     *,
     options: PrintOptions | None = None,
 ) -> None:
-    print_block(format_key_value_block(title, rows, options=options or default_options()))
+    print_block(
+        format_key_value_block(title, rows, options=options or default_options())
+    )
 
 
 def _rows(rows: Mapping[str, Any] | Sequence[tuple[str, Any]]) -> list[tuple[str, Any]]:

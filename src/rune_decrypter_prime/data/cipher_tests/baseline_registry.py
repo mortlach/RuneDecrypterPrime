@@ -34,6 +34,7 @@ seeds or budgets. Example:
 Developers can override these in *experimental tests*,
 but baseline CI and benchmark traces should stick to these values.
 """
+
 from __future__ import annotations
 from rune_decrypter_prime.core.types import Device, ScorerImpl, Direction
 
@@ -62,13 +63,12 @@ BASELINE: dict = {
     # CUDA (device="cuda" or "cuda:0") Means: run with PyTorch on an NVIDIA GPU, using CUDA kernels.
     #                                  Telemetry: scorer.impl = "torch", scorer.device = "cuda" (or cuda:0, cuda:1). This is “real GPU acceleration” path.
     # """
-    
     # Canonical key length for vigenere tier-A tests
     "key_length": 7,
     "enable_telemetry": True,
     "budgets": {
-          "beam": {"beam_width": 8, "verbose": False, "stop_score": 0.98},
-          "ga": {"population": 64, "generations": 50},
+        "beam": {"beam_width": 8, "verbose": False, "stop_score": 0.98},
+        "ga": {"population": 64, "generations": 50},
     },
     "logging": {
         "run_kind": "tests",
@@ -89,7 +89,7 @@ BASELINE: dict = {
         "win": 10,
         "maximize": True,
         "model_root": None,
-        "encoding_dir" : Direction.LTR
+        "encoding_dir": Direction.LTR,
     },
     "solver": {
         "name": "beam",

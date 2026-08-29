@@ -77,7 +77,9 @@ class TwoPeriodBranch:
 
     @property
     def spans(self) -> tuple[CribSpan, ...]:
-        return self.fixed_cribs + (() if self.candidate_crib is None else (self.candidate_crib,))
+        return self.fixed_cribs + (
+            () if self.candidate_crib is None else (self.candidate_crib,)
+        )
 
 
 def rref_mod(matrix: np.ndarray, modulus: int) -> tuple[np.ndarray, tuple[int, ...]]:
@@ -120,7 +122,9 @@ def derive_constraint_space(
     interruptors: Sequence[int] = (),
 ) -> CribConstraintSpace:
     key_length = period_a + period_b
-    resolved_interruptors = _validated_interruptor_positions(interruptors, len(ciphertext))
+    resolved_interruptors = _validated_interruptor_positions(
+        interruptors, len(ciphertext)
+    )
     interruptor_set = set(resolved_interruptors)
     rows: list[np.ndarray] = []
     for span in spans:
@@ -191,7 +195,7 @@ def _span(word: str, start: int, direction: Direction) -> CribSpan:
 def _complete_word_starts(wli: Sequence[Sequence[int]], length: int) -> tuple[int, ...]:
     starts: list[int] = []
     for start in range(0, len(wli) - length + 1):
-        if tuple((int(a), int(b)) for a, b in wli[start:start + length]) == tuple(
+        if tuple((int(a), int(b)) for a, b in wli[start : start + length]) == tuple(
             (offset, length) for offset in range(length)
         ):
             starts.append(start)
@@ -217,23 +221,28 @@ def _resolve_interruptor_hypotheses(
     if config is None or config.mode is InterruptorMode.DISABLED:
         return ((),)
     if config.mode is InterruptorMode.EXACT:
-        return (_validated_interruptor_positions(tuple(config.parameters["positions"]), text_length),)
+        return (
+            _validated_interruptor_positions(
+                tuple(config.parameters["positions"]), text_length
+            ),
+        )
 
     pool = _validated_interruptor_positions(
         tuple(config.parameters["candidate_positions"]), text_length
     )
     min_count = int(config.parameters["minimum_count"])
     max_count = int(config.parameters["maximum_count"])
-    combination_count = sum(math.comb(len(pool), count) for count in range(min_count, max_count + 1))
+    combination_count = sum(
+        math.comb(len(pool), count) for count in range(min_count, max_count + 1)
+    )
     strategy = config.parameters["strategy"]
     if strategy == InterruptorSearchStrategy.KEY_OPERATIONS.value:
         raise ValueError(
             "two_period_cribs requires structural interruptor hypotheses; "
             "search_strategy='keyops' is unsupported"
         )
-    if (
-        strategy == InterruptorSearchStrategy.AUTO.value
-        and combination_count > int(config.parameters["maximum_combinations"])
+    if strategy == InterruptorSearchStrategy.AUTO.value and combination_count > int(
+        config.parameters["maximum_combinations"]
     ):
         raise ValueError(
             "two_period_cribs structural interruptor search exceeds bruteforce_max; "
@@ -288,7 +297,9 @@ def _validate_candidate_position_contract(
             continue
         runes = _span(word, 0, direction).runes
         complete_starts = _complete_word_starts(wli, len(runes))
-        invalid = tuple(position for position in positions if position not in complete_starts)
+        invalid = tuple(
+            position for position in positions if position not in complete_starts
+        )
         if invalid:
             position = invalid[0]
             raise ValueError(
@@ -308,7 +319,9 @@ def build_branches(
     direction: Direction,
     interruptors: Sequence[int] = (),
 ) -> tuple[tuple[TwoPeriodBranch, ...], tuple[dict[str, Any], ...]]:
-    resolved_interruptors = _validated_interruptor_positions(interruptors, len(ciphertext))
+    resolved_interruptors = _validated_interruptor_positions(
+        interruptors, len(ciphertext)
+    )
     _validate_candidate_position_contract(wli, request, direction)
     fixed = tuple(_span(word, start, direction) for word, start in request.fixed_cribs)
     # Fixed evidence is authoritative: contradictions are a caller error.
@@ -331,19 +344,25 @@ def build_branches(
         if positions is None:
             positions = complete_starts
             if not positions:
-                rejected.append({
-                    "word": word,
-                    "start": None,
-                    "reason": f"no complete WLI span of rune length {len(runes)}",
-                })
+                rejected.append(
+                    {
+                        "word": word,
+                        "start": None,
+                        "reason": f"no complete WLI span of rune length {len(runes)}",
+                    }
+                )
         else:
             if not positions:
-                rejected.append({
-                    "word": word,
-                    "start": None,
-                    "reason": "explicit candidate position list is empty",
-                })
-            invalid = tuple(position for position in positions if position not in complete_starts)
+                rejected.append(
+                    {
+                        "word": word,
+                        "start": None,
+                        "reason": "explicit candidate position list is empty",
+                    }
+                )
+            invalid = tuple(
+                position for position in positions if position not in complete_starts
+            )
             if invalid:
                 position = invalid[0]
                 raise ValueError(
@@ -365,11 +384,13 @@ def build_branches(
                 interruptors=resolved_interruptors,
             )
         except ValueError as exc:
-            rejected.append({
-                "word": None if candidate is None else candidate.word,
-                "start": None if candidate is None else candidate.start,
-                "reason": str(exc),
-            })
+            rejected.append(
+                {
+                    "word": None if candidate is None else candidate.word,
+                    "start": None if candidate is None else candidate.start,
+                    "reason": str(exc),
+                }
+            )
             continue
         branch_id = _branch_id(fixed, candidate, space, resolved_interruptors)
         accepted.setdefault(
@@ -386,9 +407,13 @@ def build_branches(
 
 
 def derive_child_seed(root_seed: int, *parts: object) -> int:
-    payload = ":".join((str(root_seed), TWO_PERIOD_CRIBS_CONTRACT, *(str(x) for x in parts)))
+    payload = ":".join(
+        (str(root_seed), TWO_PERIOD_CRIBS_CONTRACT, *(str(x) for x in parts))
+    )
     return int.from_bytes(
-        hashlib.blake2b(payload.encode("utf-8"), digest_size=8, person=b"rdp-tp-cribs").digest(),
+        hashlib.blake2b(
+            payload.encode("utf-8"), digest_size=8, person=b"rdp-tp-cribs"
+        ).digest(),
         "big",
     )
 
@@ -459,24 +484,34 @@ def coordinate_search(
     modulus: int = 29,
 ) -> tuple[np.ndarray, float, int]:
     """Compatibility wrapper retaining the established three-value return."""
-    result = _coordinate_search_with_status(evaluate, rng, variables, sweeps, modulus=modulus)
+    result = _coordinate_search_with_status(
+        evaluate, rng, variables, sweeps, modulus=modulus
+    )
     return result.variables, result.score, result.evaluations
 
 
-def _profile(profile_id: str, hard_crib: HardCribConfig, direction: Direction) -> ScoringConfig:
+def _profile(
+    profile_id: str, hard_crib: HardCribConfig, direction: Direction
+) -> ScoringConfig:
     profiles = {
         "S2": (False, True, (), (1, 2), 0.0, 1.0),
         "B1": (True, True, (2, 3), (2, 3), 0.25, 0.75),
         "F1": (True, True, (1, 2, 3, 4), (1, 2, 3, 4), 0.25, 0.75),
     }
-    include_char, use_wli, char_orders, wli_orders, char_total, wli_total = profiles[profile_id]
+    include_char, use_wli, char_orders, wli_orders, char_total, wli_total = profiles[
+        profile_id
+    ]
     return ScoringConfig(
         character_lane_enabled=include_char,
         word_length_lane_enabled=use_wli,
         character_ngram_order=max(char_orders, default=1),
         word_length_ngram_order=max(wli_orders, default=1),
-        character_order_weights={} if not char_orders else {order: char_total / len(char_orders) for order in char_orders},
-        word_length_order_weights={} if not wli_orders else {order: wli_total / len(wli_orders) for order in wli_orders},
+        character_order_weights={}
+        if not char_orders
+        else {order: char_total / len(char_orders) for order in char_orders},
+        word_length_order_weights={}
+        if not wli_orders
+        else {order: wli_total / len(wli_orders) for order in wli_orders},
         hard_crib=hard_crib,
     )
 
@@ -512,14 +547,20 @@ def _candidate_id(key: np.ndarray, interruptors: Sequence[int] = ()) -> str:
     if not resolved_interruptors:
         payload = key_bytes
     else:
-        payload = key_bytes + b"|interruptors|" + json.dumps(
-            list(resolved_interruptors), separators=(",", ":")
-        ).encode("ascii")
+        payload = (
+            key_bytes
+            + b"|interruptors|"
+            + json.dumps(list(resolved_interruptors), separators=(",", ":")).encode(
+                "ascii"
+            )
+        )
     return "tpc_" + hashlib.sha256(payload).hexdigest()[:20]
 
 
 def _records_digest(records: Sequence[tuple[str, float]]) -> str:
-    payload = [[candidate_id, float(score).hex()] for candidate_id, score in sorted(records)]
+    payload = [
+        [candidate_id, float(score).hex()] for candidate_id, score in sorted(records)
+    ]
     return hashlib.sha256(
         json.dumps(payload, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
@@ -610,13 +651,18 @@ def _stage_stop_category(reason: StopReason) -> str:
 
 
 def _validate_cipher(cipher: CipherSpec, key: KeySpec) -> tuple[int, int, int]:
-    if not isinstance(cipher, CipherSpec) or cipher.kind is not CipherKind.TWO_PERIOD_VIGENERE:
+    if (
+        not isinstance(cipher, CipherSpec)
+        or cipher.kind is not CipherKind.TWO_PERIOD_VIGENERE
+    ):
         raise ValueError("two_period_cribs requires CipherSpec.two_period_vigenere")
     parameters = cipher.parameters
     periods = [int(parameters["first_period"]), int(parameters["second_period"])]
     modulus = int(parameters["alphabet_size"])
     if modulus != 29:
-        raise ValueError("two_period_cribs currently requires the prime runic modulus 29")
+        raise ValueError(
+            "two_period_cribs currently requires the prime runic modulus 29"
+        )
     if parameters["schedule"] != "overlay" or parameters["mask"] is not None:
         raise ValueError("two_period_cribs requires additive overlay scheduling")
     if not isinstance(key, KeySpec) or key.kind is not KeyKind.REPEATING:
@@ -647,13 +693,17 @@ def run_two_period_stages(
         value is not None
         for value in (interruptors_exact, interruptors_pool, interruptors_max)
     ):
-        raise ValueError("typed interruptors cannot be combined with legacy interruptor inputs")
+        raise ValueError(
+            "typed interruptors cannot be combined with legacy interruptor inputs"
+        )
     template_cfg = materialize_cipher_config(
         cipher=cipher,
         key_space=key,
         ciphertext=ciphertext,
         word_lengths=wli,
-        compute_device=(ComputeDevice.CUDA if device is Device.CUDA else ComputeDevice.CPU),
+        compute_device=(
+            ComputeDevice.CUDA if device is Device.CUDA else ComputeDevice.CPU
+        ),
         text_direction=(
             TextDirection.LEFT_TO_RIGHT
             if direction is Direction.LTR
@@ -685,14 +735,19 @@ def run_two_period_stages(
                 interruptors=resolved_interruptors,
             )
         except ValueError as exc:
-            if interruptor_cfg is None or interruptor_cfg.mode is not InterruptorMode.SEARCH:
+            if (
+                interruptor_cfg is None
+                or interruptor_cfg.mode is not InterruptorMode.SEARCH
+            ):
                 raise
-            rejection_list.append({
-                "word": None,
-                "start": None,
-                "interruptors": list(resolved_interruptors),
-                "reason": str(exc),
-            })
+            rejection_list.append(
+                {
+                    "word": None,
+                    "start": None,
+                    "interruptors": list(resolved_interruptors),
+                    "reason": str(exc),
+                }
+            )
             continue
         branch_list.extend(resolved_branches)
         rejection_list.extend(
@@ -708,7 +763,9 @@ def run_two_period_stages(
             for row in rejection_list
         )
         detail = f": {reasons}" if reasons else ""
-        raise ValueError(f"no compatible two-period interruptor/crib branches remain{detail}")
+        raise ValueError(
+            f"no compatible two-period interruptor/crib branches remain{detail}"
+        )
     branches = tuple(sorted(branch_list, key=lambda branch: branch.branch_id))
     rejections = tuple(rejection_list)
     total_evaluations = 0
@@ -735,12 +792,12 @@ def run_two_period_stages(
     }
     final_problem: DecryptionProblem | None = None
     for branch in branches:
-        fixed_chars = {
+        fixed_characters = {
             span.start + offset: [int(value)]
             for span in branch.spans
             for offset, value in enumerate(span.runes)
         }
-        hard_crib = HardCribConfig(enabled=True, fixed_chars=fixed_chars)
+        hard_crib = HardCribConfig(enabled=True, fixed_characters=fixed_characters)
         problems: dict[str, DecryptionProblem] = {}
         branch_interruptors = (
             None
@@ -779,7 +836,10 @@ def run_two_period_stages(
                 keys = expand_reduced_key(values, branch.constraint_space)
                 if keys.ndim == 1:
                     keys = keys[None, :]
-                return np.asarray(problems[profile_id].evaluate_keys(keys), dtype=np.float64)
+                return np.asarray(
+                    problems[profile_id].evaluate_keys(keys), dtype=np.float64
+                )
+
             return evaluate
 
         scout: dict[str, dict[str, Any]] = {}
@@ -824,27 +884,32 @@ def run_two_period_stages(
         candidate_counts["scout_generated_terminals"] += request.starts
         candidate_counts["scout_unique_terminals"] += len(scout)
         candidate_counts["scout_duplicates"] += request.starts - len(scout)
-        stage_summaries.append({
-            "branch_id": branch.branch_id,
-            "stage_id": "S2",
-            "profile_id": "s2_wli12",
-            "inputs": request.starts,
-            "generated_terminals": request.starts,
-            "unique_terminals": len(scout),
-            "duplicates": request.starts - len(scout),
-            "evaluations": scout_evaluations,
-            "elapsed_s": scout_elapsed,
-            "stop_category": _stage_stop_category(scout_stop_reason),
-            "stop_reason": scout_stop_reason.value,
-            "legacy_stop_reason": "done",
-            "best_score": scout_best,
-            "input_seed_digest": hashlib.sha256(
-                json.dumps(scout_seeds, separators=(",", ":")).encode("ascii")
-            ).hexdigest(),
-            "terminal_digest": _records_digest(
-                [(candidate_id, record["scout_score"]) for candidate_id, record in scout.items()]
-            ),
-        })
+        stage_summaries.append(
+            {
+                "branch_id": branch.branch_id,
+                "stage_id": "S2",
+                "profile_id": "s2_wli12",
+                "inputs": request.starts,
+                "generated_terminals": request.starts,
+                "unique_terminals": len(scout),
+                "duplicates": request.starts - len(scout),
+                "evaluations": scout_evaluations,
+                "elapsed_s": scout_elapsed,
+                "stop_category": _stage_stop_category(scout_stop_reason),
+                "stop_reason": scout_stop_reason.value,
+                "legacy_stop_reason": "done",
+                "best_score": scout_best,
+                "input_seed_digest": hashlib.sha256(
+                    json.dumps(scout_seeds, separators=(",", ":")).encode("ascii")
+                ).hexdigest(),
+                "terminal_digest": _records_digest(
+                    [
+                        (candidate_id, record["scout_score"])
+                        for candidate_id, record in scout.items()
+                    ]
+                ),
+            }
+        )
 
         bridge, bridge_evaluations, bridge_elapsed = _run_refinement_stage(
             stage_id="B1",
@@ -863,24 +928,29 @@ def run_two_period_stages(
         candidate_counts["bridge_generated_terminals"] += len(scout)
         candidate_counts["bridge_unique_terminals"] += len(bridge)
         candidate_counts["bridge_duplicates"] += len(scout) - len(bridge)
-        stage_summaries.append({
-            "branch_id": branch.branch_id,
-            "stage_id": "B1",
-            "profile_id": "b1_char23_wli23",
-            "inputs": len(scout),
-            "generated_terminals": len(scout),
-            "unique_terminals": len(bridge),
-            "duplicates": len(scout) - len(bridge),
-            "evaluations": bridge_evaluations,
-            "elapsed_s": bridge_elapsed,
-            "stop_category": _stage_stop_category(bridge_stop_reason),
-            "stop_reason": bridge_stop_reason.value,
-            "legacy_stop_reason": "done",
-            "best_score": bridge_best,
-            "terminal_digest": _records_digest(
-                [(candidate_id, record["bridge_score"]) for candidate_id, record in bridge.items()]
-            ),
-        })
+        stage_summaries.append(
+            {
+                "branch_id": branch.branch_id,
+                "stage_id": "B1",
+                "profile_id": "b1_char23_wli23",
+                "inputs": len(scout),
+                "generated_terminals": len(scout),
+                "unique_terminals": len(bridge),
+                "duplicates": len(scout) - len(bridge),
+                "evaluations": bridge_evaluations,
+                "elapsed_s": bridge_elapsed,
+                "stop_category": _stage_stop_category(bridge_stop_reason),
+                "stop_reason": bridge_stop_reason.value,
+                "legacy_stop_reason": "done",
+                "best_score": bridge_best,
+                "terminal_digest": _records_digest(
+                    [
+                        (candidate_id, record["bridge_score"])
+                        for candidate_id, record in bridge.items()
+                    ]
+                ),
+            }
+        )
 
         judge_inputs = _deduplicated_union(scout, bridge)
         judge, judge_evaluations, judge_elapsed = _run_refinement_stage(
@@ -900,26 +970,31 @@ def run_two_period_stages(
         candidate_counts["judge_generated_terminals"] += len(judge_inputs)
         candidate_counts["judge_unique_terminals"] += len(judge)
         candidate_counts["judge_duplicates"] += len(judge_inputs) - len(judge)
-        stage_summaries.append({
-            "branch_id": branch.branch_id,
-            "stage_id": "F1",
-            "profile_id": "f1_char1234_wli1234",
-            "inputs": len(judge_inputs),
-            "generated_terminals": len(judge_inputs),
-            "unique_terminals": len(judge),
-            "duplicates": len(judge_inputs) - len(judge),
-            "evaluations": judge_evaluations,
-            "elapsed_s": judge_elapsed,
-            "stop_category": _stage_stop_category(judge_stop_reason),
-            "stop_reason": judge_stop_reason.value,
-            "legacy_stop_reason": "done",
-            "best_score": judge_best,
-            "sweeps": 3,
-            "mode": "coordinate_search",
-            "terminal_digest": _records_digest(
-                [(candidate_id, record["judge_score"]) for candidate_id, record in judge.items()]
-            ),
-        })
+        stage_summaries.append(
+            {
+                "branch_id": branch.branch_id,
+                "stage_id": "F1",
+                "profile_id": "f1_char1234_wli1234",
+                "inputs": len(judge_inputs),
+                "generated_terminals": len(judge_inputs),
+                "unique_terminals": len(judge),
+                "duplicates": len(judge_inputs) - len(judge),
+                "evaluations": judge_evaluations,
+                "elapsed_s": judge_elapsed,
+                "stop_category": _stage_stop_category(judge_stop_reason),
+                "stop_reason": judge_stop_reason.value,
+                "legacy_stop_reason": "done",
+                "best_score": judge_best,
+                "sweeps": 3,
+                "mode": "coordinate_search",
+                "terminal_digest": _records_digest(
+                    [
+                        (candidate_id, record["judge_score"])
+                        for candidate_id, record in judge.items()
+                    ]
+                ),
+            }
+        )
 
         final_union = _deduplicated_union(scout, bridge, judge)
         ordered_ids = sorted(final_union)
@@ -947,44 +1022,56 @@ def run_two_period_stages(
             ):
                 all_union[candidate_id] = record
         candidate_counts["final_union_inputs"] += len(final_union)
-        stage_summaries.append({
-            "branch_id": branch.branch_id,
-            "stage_id": "final_union",
-            "profile_id": "f1_char1234_wli1234",
-            "inputs": len(final_union),
-            "generated_terminals": 0,
-            "unique_terminals": len(final_union),
-            "duplicates": 0,
-            "evaluations": len(final_union),
-            "elapsed_s": final_elapsed,
-            "stop_category": StopCategory.BUDGET.value,
-            "stop_reason": StopReason.STATIC_RESCORE_COMPLETED.value,
-            "legacy_stop_reason": "done",
-            "best_score": float(np.max(scores)),
-            "mode": "static_rescore",
-            "terminal_digest": _records_digest(
-                list(zip(ordered_ids, (float(score) for score in scores)))
-            ),
-        })
-        branch_summaries.append({
-            "branch_id": branch.branch_id,
-            "interruptors": list(branch.interruptors),
-            "interruptor_count": len(branch.interruptors),
-            "candidate_word": None if branch.candidate_crib is None else branch.candidate_crib.word,
-            "candidate_start": None if branch.candidate_crib is None else branch.candidate_crib.start,
-            "affine_dimension": branch.constraint_space.dimension,
-            "scout_unique": len(scout),
-            "bridge_unique": len(bridge),
-            "judge_unique": len(judge),
-            "final_union_unique": len(final_union),
-        })
+        stage_summaries.append(
+            {
+                "branch_id": branch.branch_id,
+                "stage_id": "final_union",
+                "profile_id": "f1_char1234_wli1234",
+                "inputs": len(final_union),
+                "generated_terminals": 0,
+                "unique_terminals": len(final_union),
+                "duplicates": 0,
+                "evaluations": len(final_union),
+                "elapsed_s": final_elapsed,
+                "stop_category": StopCategory.BUDGET.value,
+                "stop_reason": StopReason.STATIC_RESCORE_COMPLETED.value,
+                "legacy_stop_reason": "done",
+                "best_score": float(np.max(scores)),
+                "mode": "static_rescore",
+                "terminal_digest": _records_digest(
+                    list(zip(ordered_ids, (float(score) for score in scores)))
+                ),
+            }
+        )
+        branch_summaries.append(
+            {
+                "branch_id": branch.branch_id,
+                "interruptors": list(branch.interruptors),
+                "interruptor_count": len(branch.interruptors),
+                "candidate_word": None
+                if branch.candidate_crib is None
+                else branch.candidate_crib.word,
+                "candidate_start": None
+                if branch.candidate_crib is None
+                else branch.candidate_crib.start,
+                "affine_dimension": branch.constraint_space.dimension,
+                "scout_unique": len(scout),
+                "bridge_unique": len(bridge),
+                "judge_unique": len(judge),
+                "final_union_unique": len(final_union),
+            }
+        )
         final_problem = problems["F1"]
 
     if not all_union or final_problem is None:
         raise RuntimeError("two_period_cribs produced no candidates")
     ranked = sorted(
         all_union.values(),
-        key=lambda row: (-float(row["final_score"]), tuple(row["key"]), row["branch_id"]),
+        key=lambda row: (
+            -float(row["final_score"]),
+            tuple(row["key"]),
+            row["branch_id"],
+        ),
     )
     best = ranked[0]
     best_key = np.asarray(best["key"], dtype=np.uint8)
@@ -995,14 +1082,15 @@ def run_two_period_stages(
     )
     elapsed = time.perf_counter() - started
     candidate_counts["final_union_unique_terminals"] = len(all_union)
-    candidate_counts["final_union_duplicates"] = (
-        candidate_counts["final_union_inputs"] - len(all_union)
-    )
+    candidate_counts["final_union_duplicates"] = candidate_counts[
+        "final_union_inputs"
+    ] - len(all_union)
     winning_branch = next(
         item for item in branch_summaries if item["branch_id"] == best["branch_id"]
     )
     profile_hashes = {
-        profile_id: profile_contract_hash(profile_id) for profile_id in ("S2", "B1", "F1")
+        profile_id: profile_contract_hash(profile_id)
+        for profile_id in ("S2", "B1", "F1")
     }
     metadata = {
         "contract": TWO_PERIOD_CRIBS_CONTRACT,
@@ -1077,7 +1165,11 @@ def run_two_period_stages(
         telemetry_on=telemetry_on,
         pipeline_block={
             "text_encoding_direction": direction.value,
-            "input_permutation": {"kind": "none", "length": len(ciphertext), "hash": ""},
+            "input_permutation": {
+                "kind": "none",
+                "length": len(ciphertext),
+                "hash": "",
+            },
             "solver_route": "two_period_cribs",
         },
     )

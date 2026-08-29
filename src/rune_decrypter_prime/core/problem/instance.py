@@ -6,7 +6,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence
 
-import numpy as np
 
 from rune_decrypter_prime.core.problem.spec import ProblemSpec
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
@@ -17,7 +16,7 @@ from rune_decrypter_prime.core.types import Direction, ensure_direction
 
 def _expected_runtime_identity(spec: object) -> str | None:
     from rdp.api.specs import CipherSpec
-    from rune_decrypter_prime.core.types import CipherKind
+    from rune_decrypter_prime.core.types import CipherKind, RuntimeCipherKind
 
     if not isinstance(spec, CipherSpec):
         return None
@@ -28,7 +27,10 @@ def _expected_runtime_identity(spec: object) -> str | None:
         CipherKind.TWO_PERIOD_STREAMS,
     }:
         return "scheduled_stream_lookup"
+    if spec.kind in {RuntimeCipherKind.USER_MAP2, RuntimeCipherKind.LOOKUP}:
+        return "generic_map"
     return spec.kind.value
+
 
 def _indices_from_perm(perm: Optional[Sequence[int]], n: int) -> Optional[List[int]]:
     if perm is None:
@@ -38,6 +40,7 @@ def _indices_from_perm(perm: Optional[Sequence[int]], n: int) -> Optional[List[i
         raise ValueError(f"input_permutation must have length {n}, got {len(idx)}")
     return idx
 
+
 @dataclass(slots=True)
 class ProblemInstance:
     """
@@ -46,6 +49,7 @@ class ProblemInstance:
       - DecryptionProblem bound to configs
       - pipeline/telemetry snapshot (for start/end events)
     """
+
     spec: ProblemSpec
     problem: DecryptionProblem
     pipeline_block: Dict[str, Any]
@@ -66,27 +70,45 @@ class ProblemInstance:
         scorer = build_scorer(spec.cipher_cfg, spec.scorer_params)
 
         # 2) Bind into the canonical DecryptionProblem
-        problem = DecryptionProblem(cipher=cipher, scorer=scorer, c_cfg=spec.cipher_cfg, s_cfg=spec.scorer_params)
+        problem = DecryptionProblem(
+            cipher=cipher,
+            scorer=scorer,
+            c_cfg=spec.cipher_cfg,
+            s_cfg=spec.scorer_params,
+        )
 
         # Enforce direction for the pipeline block
         direction: Direction = ensure_direction(spec.text_encoding_direction)
 
         # Ciphertext length – prefer problem introspection
         try:
-            n = int(getattr(problem, "ciphertext_len", 0) or getattr(problem, "N_tokens", 0) or 0)
+            n = int(
+                getattr(problem, "ciphertext_len", 0)
+                or getattr(problem, "N_tokens", 0)
+                or 0
+            )
         except Exception:
             n = 0
 
         # 3) Build a minimal, stable pipeline snapshot
-        perm_indices = _indices_from_perm(spec.input_permutation, n) if spec.input_permutation is not None else None
+        perm_indices = (
+            _indices_from_perm(spec.input_permutation, n)
+            if spec.input_permutation is not None
+            else None
+        )
         # Ensure WLI schema: list of (int, int) pairs or None
         wli = spec.cipher_cfg.wli_data
         if wli is not None:
-            if not (isinstance(wli, (list, tuple)) and all(
-                    isinstance(p, (list, tuple)) and len(p) == 2 and
-                    isinstance(p[0], int) and isinstance(p[1], int)
+            if not (
+                isinstance(wli, (list, tuple))
+                and all(
+                    isinstance(p, (list, tuple))
+                    and len(p) == 2
+                    and isinstance(p[0], int)
+                    and isinstance(p[1], int)
                     for p in wli
-            )):
+                )
+            ):
                 raise TypeError("WLI must be a list of (int,int) pairs")
 
         pipeline_block = make_pipeline_block(
@@ -99,6 +121,10 @@ class ProblemInstance:
             spec=spec,
             problem=problem,
             pipeline_block=pipeline_block,
-            K=int(getattr(problem, "K", 0) or getattr(problem.keyops.caps, "length", 0) or 0),
+            K=int(
+                getattr(problem, "K", 0)
+                or getattr(problem.keyops.caps, "length", 0)
+                or 0
+            ),
             ciphertext_len=n,
         )

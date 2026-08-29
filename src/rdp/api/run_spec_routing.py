@@ -48,10 +48,14 @@ def materialize_runspec_problem_input(spec: RunSpec) -> MaterializedRunSpecInput
         _assert_core_ready(ciphertext, resolved.wli)
         return MaterializedRunSpecInput(ciphertext=ciphertext, wli=resolved.wli)
 
-    raise TypeError("spec.problem_input must be RawTextInput, RuneIndexInput, or SourceReferenceInput")
+    raise TypeError(
+        "spec.problem_input must be RawTextInput, RuneIndexInput, or SourceReferenceInput"
+    )
 
 
-def route_runspec_logging(spec: RunSpec, outside_logging: Any = None) -> RunSpecLoggingRoute:
+def route_runspec_logging(
+    spec: RunSpec, outside_logging: Any = None
+) -> RunSpecLoggingRoute:
     if not isinstance(spec, RunSpec):
         raise TypeError("spec must be a RunSpec")
 
@@ -62,12 +66,18 @@ def route_runspec_logging(spec: RunSpec, outside_logging: Any = None) -> RunSpec
         keys = frozenset(outside_logging)
         unsupported = sorted(keys - RUNTIME_LOGGING_KEYS)
         if unsupported:
-            raise ValueError(f"logging has unsupported keys for spec path: {', '.join(unsupported)}")
+            raise ValueError(
+                f"logging has unsupported keys for spec path: {', '.join(unsupported)}"
+            )
         runtime_controls = dict(outside_logging)
     elif isinstance(outside_logging, LoggingConfig):
-        raise TypeError("LoggingConfig outside spec is not allowed when spec is supplied")
+        raise TypeError(
+            "LoggingConfig outside spec is not allowed when spec is supplied"
+        )
     else:
-        raise TypeError("logging must be None or a runtime-controls dict when spec is supplied")
+        raise TypeError(
+            "logging must be None or a runtime-controls dict when spec is supplied"
+        )
 
     return RunSpecLoggingRoute(
         config=spec.logging,
@@ -79,7 +89,9 @@ def route_runspec_logging(spec: RunSpec, outside_logging: Any = None) -> RunSpec
 def reject_runspec_mixed_inputs(inputs: Mapping[str, Any], *, unset: object) -> None:
     supplied = sorted(name for name, value in inputs.items() if value is not unset)
     if supplied:
-        raise TypeError(f"run(request) does not accept outside durable inputs: {', '.join(supplied)}")
+        raise TypeError(
+            f"run(request) does not accept outside durable inputs: {', '.join(supplied)}"
+        )
 
 
 def _ct_idx_to_uint8_array(ct_idx: Sequence[int]) -> np.ndarray:

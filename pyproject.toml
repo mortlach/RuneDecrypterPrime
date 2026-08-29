@@ -34,6 +34,7 @@ community-organiser = [
 dev = [
   "pytest>=8.0",
   "ruff>=0.5.0",
+  "mypy>=1.11.0",
   "pre-commit>=3.0",
   "jsonschema>=4.23.0",
 ]
@@ -68,6 +69,7 @@ exclude = [
 ]
 
 [tool.setuptools.package-data]
+rdp = ["py.typed"]
 rune_decrypter_prime = [
   "data/cipher_tests/books/*.npz",
   "data/cipher_tests/books/*.json",
@@ -79,3 +81,29 @@ markers = [
   "full_assets: requires the canonical full_v1 LM1-LM4 asset profile",
   "torch: tests that require the optional Torch runtime; skipped when torch is unavailable",
 ]
+
+[tool.ruff]
+target-version = "py311"
+extend-exclude = ["src/rune_decrypter_prime/ciphers/dev"]
+
+[tool.ruff.lint.per-file-ignores]
+"cipher_development/**/*.py" = ["E402"]
+"solving/**/*.py" = ["E402"]
+"tools/**/*.py" = ["E402"]
+"tutorials/**/*.py" = ["E402"]
+"tests/conftest.py" = ["E402"]
+"src/rune_decrypter_prime/data/liber_primus/lp_transcript.py" = ["E741", "F841"]
+"src/rune_decrypter_prime/keyops/base_keyops.py" = ["F811"]
+"src/rune_decrypter_prime/scoring/base_scorer.py" = ["F811"]
+"src/rune_decrypter_prime/solvers/sa.py" = ["E741"]
+"src/rune_decrypter_prime/utils/pretty.py" = ["E731"]
+"src/rune_decrypter_prime/utils/runeglish.py" = ["E741", "F811"]
+"tests/api/test_run_logging_routing.py" = ["E731"]
+"tests/api/test_run_routing.py" = ["E731"]
+"tests/ciphers/test_substitution_interruptor_pipeline.py" = ["F841"]
+"tests/harness.py" = ["F841"]
+"tests/scoring/test_hamming_integration.py" = ["E741"]
+"tests/scoring/test_scorer_report_json_safe.py" = ["F841"]
+"tests/scoring/test_scorer_smoothing_effect.py" = ["F841"]
+"tests/scoring/test_scoring_integrity.py" = ["F841"]
+"tests/solvers/test_a4_two_period_stage_status.py" = ["E731"]

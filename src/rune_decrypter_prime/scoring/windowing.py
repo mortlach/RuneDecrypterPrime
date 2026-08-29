@@ -9,7 +9,7 @@ Window semantics:
 
 from __future__ import annotations
 
-from typing import Dict, Iterable, Tuple
+from typing import Dict, Iterable
 
 from rune_decrypter_prime.core.types import SeMode
 
@@ -59,7 +59,9 @@ def span_max(*, n_set: Iterable[int], W: int, se_mode: SeMode | str) -> int:
     return max(spans.values())
 
 
-def aligned_window_count(*, length: int, n_set: Iterable[int], W: int, se_mode: SeMode | str, stride: int = 1) -> int:
+def aligned_window_count(
+    *, length: int, n_set: Iterable[int], W: int, se_mode: SeMode | str, stride: int = 1
+) -> int:
     """Compute the aligned window count using L_max and stride.
 
     `length` must be the effective sequence length used for windowing:

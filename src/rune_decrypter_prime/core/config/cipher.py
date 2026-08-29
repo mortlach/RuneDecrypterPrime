@@ -2,7 +2,7 @@
 # rune_decrypter_prime/core/config/cipher.py
 # ============================================================
 from __future__ import annotations
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 if TYPE_CHECKING:
@@ -18,10 +18,12 @@ from rune_decrypter_prime.core.types import (
     KeyOpsFamily,
 )
 
+
 # ---------------- CipherConfig ------------------------------------------------
 @dataclass
 class CipherConfig:
     """Cipher-specific configuration (ciphertext, WLI, keys, device, etc.)."""
+
     ciphertext: Sequence[int]
     wli_data: Sequence[Sequence[int]]
     key_length: Optional[int]
@@ -50,6 +52,7 @@ class CipherConfig:
     interruptors_max: Optional[int] = None
     transposition_search_modes: Optional[List[str]] = None
     name: str = "vigenere"
+
     def __post_init__(self) -> None:
         if self.device is not None:
             self.device = ensure_device(self.device)
@@ -61,6 +64,7 @@ class CipherConfig:
         if self.wli_data is not None:
             try:
                 import numpy as _np  # local import to avoid core-level import debt
+
                 arr = self.wli_data
                 # Allow empty list/array to mean "no WLI"
                 if isinstance(arr, _np.ndarray):
@@ -82,12 +86,16 @@ class CipherConfig:
                         out: list[list[int]] = []
                         for i, pair in enumerate(pairs):
                             if not isinstance(pair, (list, tuple)) or len(pair) != 2:
-                                raise ValueError("wli_data items must be (pos_in_word, word_len) pairs")
+                                raise ValueError(
+                                    "wli_data items must be (pos_in_word, word_len) pairs"
+                                )
                             out.append([int(pair[0]), int(pair[1])])
                         self._validate_wli_pairs(out)
                         self.wli_data = out
             except Exception as exc:
-                raise ValueError("wli_data must be a sequence of two-integer tuples as documented") from exc
+                raise ValueError(
+                    "wli_data must be a sequence of two-integer tuples as documented"
+                ) from exc
 
         self._normalize_interruptors_cfg()
 
@@ -102,17 +110,23 @@ class CipherConfig:
         current_len = None
         for i, (pos, ln) in enumerate(pairs):
             if pos < 0 or ln <= 0:
-                raise ValueError("wli_data entries must be non-negative; word_len must be > 0")
+                raise ValueError(
+                    "wli_data entries must be non-negative; word_len must be > 0"
+                )
             if pos >= ln:
                 raise ValueError("wli_data pos_in_word must be < word_len")
             if pos > 63 or ln > 63:
-                raise ValueError("wli_data entries must be <= 63 to match LMPrime WLI encoding")
+                raise ValueError(
+                    "wli_data entries must be <= 63 to match LMPrime WLI encoding"
+                )
             if expected_pos == 0:
                 current_len = ln
             if ln != current_len:
                 raise ValueError("wli_data word_len must remain constant within a word")
             if pos != expected_pos:
-                raise ValueError("wli_data pos_in_word sequence must be contiguous within each word")
+                raise ValueError(
+                    "wli_data pos_in_word sequence must be contiguous within each word"
+                )
             expected_pos += 1
             if expected_pos == current_len:
                 expected_pos = 0
@@ -123,7 +137,8 @@ class CipherConfig:
     def _normalize_interruptors_cfg(self) -> None:
         cfg_raw = getattr(self, "interruptors_cfg", None)
         has_legacy = any(
-            x is not None for x in (
+            x is not None
+            for x in (
                 self.interruptors_exact,
                 self.interruptors,
                 self.interruptors_pool,
@@ -133,7 +148,9 @@ class CipherConfig:
 
         if cfg_raw is not None:
             if has_legacy:
-                raise ValueError("interruptors_cfg cannot be combined with legacy interruptor fields")
+                raise ValueError(
+                    "interruptors_cfg cannot be combined with legacy interruptor fields"
+                )
             if isinstance(cfg_raw, dict):
                 cfg = InterruptorConfig.from_dict(cfg_raw)
             elif isinstance(cfg_raw, InterruptorConfig):
@@ -147,11 +164,19 @@ class CipherConfig:
                 cfg = InterruptorConfig.exact(self.interruptors_exact)
             elif self.interruptors is not None:
                 cfg = InterruptorConfig.exact(self.interruptors)
-            elif self.interruptors_pool is not None or self.interruptors_max is not None:
+            elif (
+                self.interruptors_pool is not None or self.interruptors_max is not None
+            ):
                 pool = list(self.interruptors_pool or [])
                 if not pool:
-                    raise ValueError("interruptors_pool is required when interruptors_max is set")
-                count = len(pool) if self.interruptors_max is None else int(self.interruptors_max)
+                    raise ValueError(
+                        "interruptors_pool is required when interruptors_max is set"
+                    )
+                count = (
+                    len(pool)
+                    if self.interruptors_max is None
+                    else int(self.interruptors_max)
+                )
                 cfg = InterruptorConfig.search(
                     pool,
                     minimum_count=count,
@@ -183,20 +208,28 @@ def expected_concrete_key_length(cipher: "CipherSpec", key_space: "KeySpec") -> 
 
     if kind in {RuntimeCipherKind.USER_MAP2, RuntimeCipherKind.LOOKUP}:
         if key_kind is not KeyKind.REPEATING:
-            _binding_error(cipher, key_space, "experimental maps require a repeating key space")
+            _binding_error(
+                cipher, key_space, "experimental maps require a repeating key space"
+            )
         return int(key_values["length"])
 
     if kind in {CipherKind.VIGENERE, CipherKind.AUTOKEY}:
         if key_kind is not KeyKind.REPEATING:
-            _binding_error(cipher, key_space, f"{kind.value} requires a repeating key space")
+            _binding_error(
+                cipher, key_space, f"{kind.value} requires a repeating key space"
+            )
         return int(key_values["length"])
 
     if kind is CipherKind.COLUMNAR:
         if key_kind is not KeyKind.PERMUTATION:
-            _binding_error(cipher, key_space, "columnar requires a permutation key space")
+            _binding_error(
+                cipher, key_space, "columnar requires a permutation key space"
+            )
         columns = int(cipher_values["columns"])
         if int(key_values["length"]) != columns:
-            _binding_error(cipher, key_space, "columnar key length must equal cipher columns")
+            _binding_error(
+                cipher, key_space, "columnar key length must equal cipher columns"
+            )
         return columns
 
     if kind is CipherKind.RAIL_FENCE:
@@ -208,40 +241,61 @@ def expected_concrete_key_length(cipher: "CipherSpec", key_space: "KeySpec") -> 
         )
         supplied = (int(key_values["minimum"]), int(key_values["maximum"]))
         if supplied != expected:
-            _binding_error(cipher, key_space, "rail_fence key bounds must match cipher rail bounds")
+            _binding_error(
+                cipher, key_space, "rail_fence key bounds must match cipher rail bounds"
+            )
         return 1
 
     if kind is CipherKind.SUBSTITUTION:
         if key_kind is not KeyKind.PERMUTATION:
-            _binding_error(cipher, key_space, "substitution requires a permutation key space")
+            _binding_error(
+                cipher, key_space, "substitution requires a permutation key space"
+            )
         alphabet_size = int(cipher_values["alphabet_size"])
         if int(key_values["length"]) != alphabet_size:
-            _binding_error(cipher, key_space, "substitution key length must equal alphabet size")
+            _binding_error(
+                cipher, key_space, "substitution key length must equal alphabet size"
+            )
         return alphabet_size
 
     if kind is CipherKind.PERIODIC_SUBSTITUTION:
         if key_kind is not KeyKind.PERIODIC_SUBSTITUTION:
-            _binding_error(cipher, key_space, "periodic_substitution requires its structured key space")
+            _binding_error(
+                cipher,
+                key_space,
+                "periodic_substitution requires its structured key space",
+            )
         for dimension in ("period", "alphabet_size"):
             if int(key_values[dimension]) != int(cipher_values[dimension]):
-                _binding_error(cipher, key_space, f"periodic_substitution {dimension} values conflict")
+                _binding_error(
+                    cipher,
+                    key_space,
+                    f"periodic_substitution {dimension} values conflict",
+                )
         return int(cipher_values["period"]) * int(cipher_values["alphabet_size"])
 
     if kind is CipherKind.PERIODIC_COLUMNAR:
         if key_kind is not KeyKind.PERIODIC_COLUMNAR:
-            _binding_error(cipher, key_space, "periodic_columnar requires its structured key space")
+            _binding_error(
+                cipher, key_space, "periodic_columnar requires its structured key space"
+            )
         for dimension in ("period", "columns", "alphabet_size"):
             if int(key_values[dimension]) != int(cipher_values[dimension]):
-                _binding_error(cipher, key_space, f"periodic_columnar {dimension} values conflict")
-        return (
-            int(cipher_values["period"]) * int(cipher_values["alphabet_size"])
-            + int(cipher_values["columns"])
+                _binding_error(
+                    cipher, key_space, f"periodic_columnar {dimension} values conflict"
+                )
+        return int(cipher_values["period"]) * int(cipher_values["alphabet_size"]) + int(
+            cipher_values["columns"]
         )
 
     if key_kind is not KeyKind.REPEATING:
-        _binding_error(cipher, key_space, f"{kind.value} requires a repeating key space")
+        _binding_error(
+            cipher, key_space, f"{kind.value} requires a repeating key space"
+        )
     if kind in {CipherKind.TWO_PERIOD_VIGENERE, CipherKind.TWO_PERIOD_STREAMS}:
-        expected_length = int(cipher_values["first_period"]) + int(cipher_values["second_period"])
+        expected_length = int(cipher_values["first_period"]) + int(
+            cipher_values["second_period"]
+        )
     elif kind in {
         CipherKind.PERIODIC_WITH_FIXED_STREAM,
         CipherKind.PERIODIC_WITH_PRIME_STREAM,
@@ -265,7 +319,11 @@ def validate_concrete_key(
 ) -> tuple[int, ...]:
     """Apply the shared strict V1 key length, range, and segment validator."""
     from rune_decrypter_prime.core.component_contracts import InvalidConcreteKeyError
-    from rune_decrypter_prime.core.types import CipherKind, RuntimeCipherKind, normalize_concrete_key
+    from rune_decrypter_prime.core.types import (
+        CipherKind,
+        RuntimeCipherKind,
+        normalize_concrete_key,
+    )
 
     concrete_key = normalize_concrete_key(key)
     expected_length = expected_concrete_key_length(cipher, key_space)
@@ -368,8 +426,7 @@ def materialize_cipher_config(
     validated_initial_keys = None
     if initial_keys is not None:
         validated_initial_keys = [
-            validate_concrete_key(cipher, key_space, tuple(key))
-            for key in initial_keys
+            validate_concrete_key(cipher, key_space, tuple(key)) for key in initial_keys
         ]
     values = cipher.parameters
     kind = cipher.kind
@@ -410,8 +467,16 @@ def materialize_cipher_config(
         runtime_identity = "scheduled_stream_lookup"
         if kind in {CipherKind.TWO_PERIOD_VIGENERE, CipherKind.TWO_PERIOD_STREAMS}:
             streams = [
-                {"name": "A", "kind": "periodic", "period": int(values["first_period"])},
-                {"name": "B", "kind": "periodic", "period": int(values["second_period"])},
+                {
+                    "name": "A",
+                    "kind": "periodic",
+                    "period": int(values["first_period"]),
+                },
+                {
+                    "name": "B",
+                    "kind": "periodic",
+                    "period": int(values["second_period"]),
+                },
             ]
         elif kind is CipherKind.PERIODIC_WITH_FIXED_STREAM:
             streams = [
@@ -431,10 +496,16 @@ def materialize_cipher_config(
                 ScheduledStreamOperation.SUBTRACT_ADD.value: "sub_add",
                 ScheduledStreamOperation.BEAUFORT_SUM.value: "beaufort_sum",
             }[str(values["operation"])]
-        streams = validate_streams_v1(streams, alphabet_size=int(values["alphabet_size"]))
+        streams = validate_streams_v1(
+            streams, alphabet_size=int(values["alphabet_size"])
+        )
         if solved_key_length_for_streams(streams) != key_length:
-            raise RuntimeError("scheduled runtime key length disagrees with the public binding")
-        schedule = validate_schedule_for_streams(values.get("schedule", "overlay"), streams)
+            raise RuntimeError(
+                "scheduled runtime key length disagrees with the public binding"
+            )
+        schedule = validate_schedule_for_streams(
+            values.get("schedule", "overlay"), streams
+        )
         mask = values.get("mask")
         if schedule == "mask":
             mask = tuple(validate_mask(mask, length=len(ciphertext)))
@@ -462,6 +533,17 @@ def materialize_cipher_config(
                 "minimum": int(values["minimum_rails"]),
             }
             if kind is CipherKind.RAIL_FENCE
+            else {
+                "period": int(values["period"]),
+                "A": int(values["alphabet_size"]),
+            }
+            if kind is CipherKind.PERIODIC_SUBSTITUTION
+            else {
+                "period": int(values["period"]),
+                "A": int(values["alphabet_size"]),
+                "columns": int(values["columns"]),
+            }
+            if kind is CipherKind.PERIODIC_COLUMNAR
             else {"mod": int(values["alphabet_size"])}
         ),
         spec=cipher,
@@ -469,7 +551,9 @@ def materialize_cipher_config(
         alphabet_size=int(values["alphabet_size"]),
         initial_text_permutation_indices=text_permutation,
         device=Device.CPU if compute_device is ComputeDevice.CPU else Device.CUDA,
-        encoding_dir=Direction.LTR if text_direction is TextDirection.LEFT_TO_RIGHT else Direction.RTL,
+        encoding_dir=Direction.LTR
+        if text_direction is TextDirection.LEFT_TO_RIGHT
+        else Direction.RTL,
         interruptors_cfg=interruptors,
         initial_keys=validated_initial_keys,
         name=runtime_identity,

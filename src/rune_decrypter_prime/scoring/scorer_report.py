@@ -12,7 +12,9 @@ from rune_decrypter_prime.core.config.scoring import ScoringObjective
 from rune_decrypter_prime.core.types import JsonObject, JsonValue
 
 
-def _json_mapping(value: Mapping[str, object], field_name: str) -> Mapping[str, JsonValue]:
+def _json_mapping(
+    value: Mapping[str, object], field_name: str
+) -> Mapping[str, JsonValue]:
     from rdp.api.solver_report import _mapping
 
     return _mapping(value, field_name)
@@ -37,19 +39,32 @@ class ScorerReport:
     telemetry: Mapping[str, JsonValue] = field(default_factory=dict)
     metrics: Mapping[str, float] = field(default_factory=dict)
     time_seconds: float | None = None
-    capabilities: ScorerCapabilityReport = field(default_factory=lambda: ScorerCapabilityReport(lanes=()))
+    capabilities: ScorerCapabilityReport = field(
+        default_factory=lambda: ScorerCapabilityReport(lanes=())
+    )
     details: Mapping[str, JsonValue] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not isinstance(self.objective, ScoringObjective):
             raise TypeError("objective must be ScoringObjective")
         object.__setattr__(self, "score", _optional_score(self.score, "score"))
-        object.__setattr__(self, "raw_score", _optional_score(self.raw_score, "raw_score"))
-        object.__setattr__(self, "time_seconds", _optional_score(self.time_seconds, "time_seconds"))
+        object.__setattr__(
+            self, "raw_score", _optional_score(self.raw_score, "raw_score")
+        )
+        object.__setattr__(
+            self, "time_seconds", _optional_score(self.time_seconds, "time_seconds")
+        )
         if self.time_seconds is not None and self.time_seconds < 0.0:
             raise ValueError("time_seconds must be non-negative")
-        object.__setattr__(self, "telemetry", _json_mapping(self.telemetry, "telemetry"))
-        metrics = {str(key): _optional_score(value, f"metrics.{key}") for key, value in self.metrics.items()}
+        object.__setattr__(
+            self, "telemetry", _json_mapping(self.telemetry, "telemetry")
+        )
+        if any(not isinstance(key, str) for key in self.metrics):
+            raise TypeError("metrics keys must be strings")
+        metrics = {
+            key: _optional_score(value, f"metrics.{key}")
+            for key, value in self.metrics.items()
+        }
         object.__setattr__(self, "metrics", MappingProxyType(metrics))
         if not isinstance(self.capabilities, ScorerCapabilityReport):
             raise TypeError("capabilities must be ScorerCapabilityReport")

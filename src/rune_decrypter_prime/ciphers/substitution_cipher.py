@@ -10,6 +10,7 @@ from rune_decrypter_prime.core.types import Direction, KeyOpsFamily, ensure_dire
 
 DEFAULT_N = 29
 
+
 @register_cipher("substitution")
 class SubstitutionCipher(CipherPipelineMixin):
     """
@@ -35,15 +36,27 @@ class SubstitutionCipher(CipherPipelineMixin):
     """
 
     # ---- Tell the Problem which KeyOps to build ----
-    keyops_family: KeyOpsFamily = KeyOpsFamily.PERMUTATION  # <- Problem will attach PermutationKeyOps(length=N)
+    keyops_family: KeyOpsFamily = (
+        KeyOpsFamily.PERMUTATION
+    )  # <- Problem will attach PermutationKeyOps(length=N)
 
-    def __init__(self, cfg, *, text_transposition: Direction | str = Direction.LTR, key_transposition: Direction | str = Direction.LTR):
-        text_dir = ensure_direction(getattr(cfg, "text_transposition", text_transposition))
+    def __init__(
+        self,
+        cfg,
+        *,
+        text_transposition: Direction | str = Direction.LTR,
+        key_transposition: Direction | str = Direction.LTR,
+    ):
+        text_dir = ensure_direction(
+            getattr(cfg, "text_transposition", text_transposition)
+        )
         key_dir = ensure_direction(getattr(cfg, "key_transposition", key_transposition))
         super().__init__(
             text_transposition=text_dir.value,
             key_transposition=key_dir.value,
-            initial_text_permutation_indices=getattr(cfg, "initial_text_permutation_indices", None),
+            initial_text_permutation_indices=getattr(
+                cfg, "initial_text_permutation_indices", None
+            ),
         )
         self.cfg = cfg
         self.text_direction = text_dir
@@ -166,11 +179,15 @@ class SubstitutionCipher(CipherPipelineMixin):
     def _validate_substitution_key_shape(self, key: np.ndarray, operation: str) -> None:
         if key.ndim == 1:
             if key.size != self.A:
-                raise ValueError(f"{operation}: expected key of length {self.A}, got {key.size}")
+                raise ValueError(
+                    f"{operation}: expected key of length {self.A}, got {key.size}"
+                )
             return
         if key.ndim == 2:
             if key.shape[1] != self.A:
-                raise ValueError(f"{operation}: expected key shape (*,{self.A}), got {key.shape}")
+                raise ValueError(
+                    f"{operation}: expected key shape (*,{self.A}), got {key.shape}"
+                )
             return
         raise ValueError(f"{operation}: key must be 1-D or 2-D array")
 

@@ -8,11 +8,9 @@ from abc import ABC, abstractmethod
 from typing import Any, Iterable, Sequence, Dict, Tuple, Optional
 import re
 
-from rune_decrypter_prime.utils.telemetry import stash as _tstash
 from rune_decrypter_prime.core.types import (
-    Direction, Device,  # existing
-    # new enum family used by the scorers
-    SeMode, Channel, ObjectiveFamily, Stat, ObjectiveSpec,
+    Direction,
+    SeMode,
 )
 
 # --- Shared constants used by concrete scorers ---
@@ -20,7 +18,10 @@ STAT_KEYS: Tuple[str, ...] = ("logp", "zsum", "madsum")
 WIN_FIXED: int = 10  # v1 assumption: all pct.* scorers use win=10
 
 # Accepts: "family.stat" or "family.stat.win<k>" (legacy helpers kept for callers that still use strings)
-_OBJ_RE = re.compile(r'^(?P<family>[A-Za-z_]+)\.(?P<stat>[A-Za-z_]+)(?:\.win(?P<win>\d+))?$')
+_OBJ_RE = re.compile(
+    r"^(?P<family>[A-Za-z_]+)\.(?P<stat>[A-Za-z_]+)(?:\.win(?P<win>\d+))?$"
+)
+
 
 def parse_objective(obj: str) -> Tuple[str, Optional[str], Optional[int]]:
     """
@@ -80,33 +81,16 @@ class BaseScorer(ABC):
     This base intentionally stays light; concrete scorers own the math.
     """
 
-    _SPAN_ENUM_FIELD_ENSURERS = {
-        "_span_hamming_mode": "ensure_span_hamming_mode",
-        "_span_hamming_bucket_policy": "ensure_span_hamming_bucket_policy",
-        "_span_hamming_combine_mode": "ensure_span_hamming_combine_mode",
-        "_span_hamming_gate_fail_policy": "ensure_span_hamming_gate_fail_policy",
-        "_span_hamming_lm_profile_source": "ensure_span_hamming_lm_profile_source",
-        "_hamming_direction_mode": "ensure_hamming_direction_mode",
-    }
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Keep enum-backed scorer fields canonical even in tests that bypass __init__."""
-        ensure_name = self._SPAN_ENUM_FIELD_ENSURERS.get(name)
-        if ensure_name is not None and value is not None:
-            from rune_decrypter_prime.core import config as _core_config
-
-            scoring_config = getattr(_core_config, "scoring", None)
-            if scoring_config is None:
-                from rune_decrypter_prime.core.config import scoring as scoring_config
-            value = getattr(scoring_config, ensure_name)(value)
-        object.__setattr__(self, name, value)
-
     @abstractmethod
-    def score(self, plaintext: Iterable[int], wli_windows: Any | None = None) -> float:  # pragma: no cover
+    def score(
+        self, plaintext: Iterable[int], wli_windows: Any | None = None
+    ) -> float:  # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
-    def batch_score(self, pts: Sequence[Iterable[int]], wlis: Any | None = None):  # -> np.ndarray[float32]
+    def batch_score(
+        self, pts: Sequence[Iterable[int]], wlis: Any | None = None
+    ):  # -> np.ndarray[float32]
         raise NotImplementedError
 
     def __call__(self, plaintexts: Any, wli_windows: Any | None = None):
@@ -116,7 +100,9 @@ class BaseScorer(ABC):
         """Return True if this scorer provides real raw scores."""
         return False
 
-    def score_with_raw(self, plaintext: Iterable[int], wli_windows: Any | None = None) -> Tuple[float, float]:
+    def score_with_raw(
+        self, plaintext: Iterable[int], wli_windows: Any | None = None
+    ) -> Tuple[float, float]:
         """
         Optional: return (primary_score, raw_score). Defaults to primary for both.
         Concrete scorers can override for raw logp support.
@@ -124,7 +110,9 @@ class BaseScorer(ABC):
         pct = float(self.score(plaintext, wli_windows))
         return pct, pct
 
-    def batch_score_with_raw(self, pts: Sequence[Iterable[int]], wlis: Any | None = None) -> Tuple[Any, Any]:
+    def batch_score_with_raw(
+        self, pts: Sequence[Iterable[int]], wlis: Any | None = None
+    ) -> Tuple[Any, Any]:
         """
         Optional: return (primary_scores, raw_scores). Defaults to primary for both.
         Concrete scorers can override for raw logp support.
@@ -165,6 +153,7 @@ class BaseScorer(ABC):
             if stats:
                 # 1) update telemetry (merge)
                 from rune_decrypter_prime.utils.telemetry import stash as _tstash
+
                 _tstash(tele, **stats)
 
                 # 2) publish a fresh per-call snapshot for tests / callers
@@ -197,7 +186,9 @@ class BaseScorer(ABC):
         fam_val = getattr(fam, "value", str(fam)).lower()
         stat_val = getattr(stat, "value", str(stat)).lower()
         if fam_val not in ("pct", "energy") or stat_val != "logp":
-            raise ValueError(f"unsupported objective: {obj!r} (expected pct.logp.winK or energy.logp.winK)")
+            raise ValueError(
+                f"unsupported objective: {obj!r} (expected pct.logp.winK or energy.logp.winK)"
+            )
 
         k = int(win) if (win is not None) else int(getattr(self, "win", 10))
         # Keep base/state coherent

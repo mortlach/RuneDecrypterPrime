@@ -1,4 +1,5 @@
 """Internal artifact path and portable-message policy helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -8,7 +9,9 @@ import re
 EXTERNAL_PATH = "<external>"
 REDACTED_PATH_TEXT = "<path>"
 
-_QUOTED_WINDOWS_ABS_PATH_RE = re.compile(r"(?i)(?<=[\"'])[a-z]:[\\/][^\"'<>|]+(?=[\"'])")
+_QUOTED_WINDOWS_ABS_PATH_RE = re.compile(
+    r"(?i)(?<=[\"'])[a-z]:[\\/][^\"'<>|]+(?=[\"'])"
+)
 _QUOTED_UNC_ABS_PATH_RE = re.compile(r"(?<=[\"'])\\\\[^\"'<>|]+(?=[\"'])")
 _QUOTED_UNIX_ABS_PATH_RE = re.compile(r"(?<=[\"'])/(?:[^\"'<>|]+/)*[^\"'<>|]+(?=[\"'])")
 _WINDOWS_ABS_PATH_RE = re.compile(r"(?i)\b[a-z]:[\\/][^\s\"'<>|]+")
@@ -31,7 +34,9 @@ def artifact_json_value(value: Any, *, root: Path) -> Any:
     if isinstance(value, Path):
         return artifact_path(value, root=root)
     if isinstance(value, dict):
-        return {key: artifact_json_value(item, root=root) for key, item in value.items()}
+        return {
+            key: artifact_json_value(item, root=root) for key, item in value.items()
+        }
     if isinstance(value, list):
         return [artifact_json_value(item, root=root) for item in value]
     if isinstance(value, tuple):
@@ -39,7 +44,9 @@ def artifact_json_value(value: Any, *, root: Path) -> Any:
     return value
 
 
-def portable_exception_message(exc: Exception, *, max_len: int = 240) -> tuple[str, bool]:
+def portable_exception_message(
+    exc: Exception, *, max_len: int = 240
+) -> tuple[str, bool]:
     """Return a short message safe for explicitly portable event fields."""
     message = str(exc)
     redacted = False

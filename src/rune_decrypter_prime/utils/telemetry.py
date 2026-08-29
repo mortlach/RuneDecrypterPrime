@@ -7,6 +7,7 @@
 from __future__ import annotations
 from typing import Any, Dict, Optional
 
+
 def stash(holder: Optional[Dict[str, Any]], /, **fields: Any) -> None:
     """
     Safely update a telemetry dictionary.
@@ -24,6 +25,7 @@ def stash(holder: Optional[Dict[str, Any]], /, **fields: Any) -> None:
         except Exception:
             # Telemetry must never interfere with core logic.
             pass
+
 
 def event(name: str, /, **kv: Any) -> Dict[str, Any]:
     """

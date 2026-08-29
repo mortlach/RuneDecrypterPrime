@@ -3,16 +3,18 @@ Why: Legacy table folders require 'fwd'/'rev' tokens; we isolate that string map
       to the scoring boundary only.
 Proves: Outside scoring/, those tokens don't exist anywhere in Python sources.
 """
+
 from pathlib import Path
 import re
 
+
 def test_only_scoring_mentions_fwd_rev():
-    root = Path(__file__).resolve().parents[2] / 'rune_decrypter_prime'
+    root = Path(__file__).resolve().parents[2] / "rune_decrypter_prime"
     offenders = []
-    for p in root.rglob('*.py'):
+    for p in root.rglob("*.py"):
         rel = p.relative_to(root).as_posix()
-        if rel.startswith(('scoring/', 'tests/', 'dev/', 'legacy/')):
+        if rel.startswith(("scoring/", "tests/", "dev/", "legacy/")):
             continue
-        text = p.read_text(encoding='utf-8', errors='ignore')
-        if re.search('\\bfwd\\b', text) or re.search('\\brev\\b', text):
+        text = p.read_text(encoding="utf-8", errors="ignore")
+        if re.search("\\bfwd\\b", text) or re.search("\\brev\\b", text):
             offenders.append(rel)

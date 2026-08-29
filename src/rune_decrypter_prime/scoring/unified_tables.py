@@ -5,11 +5,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, Literal, Dict, Any
+from typing import Protocol, Literal, Dict
 import numpy as np
 
 # Public kind tag used across scorers
 Kind = Literal["wli", "char"]
+
 
 @dataclass(frozen=True)
 class JointNgramTable:
@@ -22,14 +23,18 @@ class JointNgramTable:
     stats: robust stats used by downstream scorers
            {"mu","sigma","median","mad_sigma","fallback_logp"}
     """
-    keys: np.ndarray        # dtype=uint64, C-contig
-    logp: np.ndarray        # dtype=float32, C-contig
-    mask: int               # 2^k - 1
-    stats: Dict[str, float] # {"mu","sigma","median","mad_sigma","fallback_logp"}
+
+    keys: np.ndarray  # dtype=uint64, C-contig
+    logp: np.ndarray  # dtype=float32, C-contig
+    mask: int  # 2^k - 1
+    stats: Dict[str, float]  # {"mu","sigma","median","mad_sigma","fallback_logp"}
+
 
 class TablesProvider(Protocol):
     """Stable contract consumed by both NumPy and Torch scorers."""
+
     def get_joint_table(self, kind: Kind, n: int) -> JointNgramTable: ...
+
 
 class RuntimeTablesProvider:
     """
@@ -53,13 +58,34 @@ class RuntimeTablesProvider:
         if self._lm is not None:
             return
         # Late import to avoid cycles
-        from rune_decrypter_prime.scoring.language_model.language_model_prime import LanguageModelPrime
+        from rune_decrypter_prime.scoring.language_model.language_model_prime import (
+            LanguageModelPrime,
+        )
+        from rune_decrypter_prime.core.config.scoring import ScoringConfig
+        from rune_decrypter_prime.core.types import (
+            OutOfVocabularyPolicy,
+            SmoothingMethod,
+        )
+
         s = self.cfg_scorer_params
+        if not isinstance(s, ScoringConfig):
+            raise TypeError("cfg_scorer_params must be ScoringConfig")
+        smoothing = {
+            SmoothingMethod.NONE: "none",
+            SmoothingMethod.LIDSTONE: "lidstone",
+            SmoothingMethod.JEFFREYS: "jeffreys",
+            SmoothingMethod.AUTO_GOOD_TURING: "auto_gt",
+        }[s.smoothing]
+        oov_policy = {
+            OutOfVocabularyPolicy.FLOOR_MINIMUM_SEEN: "floor_min_seen",
+            OutOfVocabularyPolicy.LIDSTONE: "lidstone",
+        }[s.out_of_vocabulary_policy]
         self._lm = LanguageModelPrime(
-            smoothing=getattr(s, "smoothing", "auto_gt"),
-            alpha=float(getattr(s, "alpha", 0.5)),
-            oov_policy=getattr(s, "oov_policy", "floor_min_seen"),
-            include_char=bool(getattr(s, "include_char", True)),
+            lm_root=s.language_model_root,
+            smoothing=smoothing,
+            alpha=s.smoothing_alpha,
+            oov_policy=oov_policy,
+            include_char=s.character_lane_enabled,
         )
 
     @staticmethod
@@ -97,12 +123,13 @@ class RuntimeTablesProvider:
             _norm_se,
             _norm_model,
         )
+
         # Pull canonical fields and convert Enums to their .value strings
         dir_raw = (
-                getattr(self.cfg_cipher, "encoding_dir", None)
-                or getattr(self.cfg_cipher, "text_encoding_direction", None)
-                or getattr(self.cfg_cipher, "text_transposition", None)
-                or "ltr"
+            getattr(self.cfg_cipher, "encoding_dir", None)
+            or getattr(self.cfg_cipher, "text_encoding_direction", None)
+            or getattr(self.cfg_cipher, "text_transposition", None)
+            or "ltr"
         )
         if hasattr(dir_raw, "value"):  # Direction Enum -> "ltr"/"rtl"
             dir_raw = dir_raw.value

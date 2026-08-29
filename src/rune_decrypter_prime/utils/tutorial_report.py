@@ -77,7 +77,9 @@ def _match_ratio(found: Any, reference: Any) -> float | None:
     if denom <= 0:
         return None
     limit = min(len(found_items), len(ref_items))
-    return sum(1 for idx in range(limit) if found_items[idx] == ref_items[idx]) / float(denom)
+    return sum(1 for idx in range(limit) if found_items[idx] == ref_items[idx]) / float(
+        denom
+    )
 
 
 def _report_json(solver_report: Any) -> dict[str, Any]:
@@ -149,40 +151,77 @@ def build_tutorial_run_report(
     found_key = _int_list(getattr(solution, "key", None))
     expected_key = _int_list(key_idx)
     plaintext_idx = _int_list(getattr(solution, "plaintext_idx", None))
-    ratio = _first_present(benchmark.get("match_ratio"), _match_ratio(plaintext_idx, pt_idx_ref))
-    recovered = bool(match_ok) if match_ok is not None else (None if ratio is None else float(ratio) >= 0.97)
+    ratio = _first_present(
+        benchmark.get("match_ratio"), _match_ratio(plaintext_idx, pt_idx_ref)
+    )
+    recovered = (
+        bool(match_ok)
+        if match_ok is not None
+        else (None if ratio is None else float(ratio) >= 0.97)
+    )
 
     solver_section = {
-        "name": _first_present(report.get("solver_name"), _as_dict(meta.get("solver")).get("name")),
-        "stop_reason": _first_present(report.get("stop_reason"), getattr(solution, "stop_reason", None)),
-        "score": _safe_float(_first_present(report.get("best_score"), getattr(solution, "score", None))),
-        "step": _safe_int(_first_present(report.get("step"), getattr(solution, "step", None))),
-        "evals": _safe_int(_first_present(report.get("evals"), getattr(solution, "evals", None))),
+        "name": _first_present(
+            report.get("solver"), _as_dict(meta.get("solver")).get("name")
+        ),
+        "stop_reason": _first_present(
+            _as_dict(report.get("status")).get("stop_reason"),
+            getattr(solution, "stop_reason", None),
+        ),
+        "score": _safe_float(
+            _first_present(report.get("best_score"), getattr(solution, "score", None))
+        ),
+        "step": _safe_int(
+            _first_present(report.get("steps"), getattr(solution, "step", None))
+        ),
+        "evals": _safe_int(
+            _first_present(report.get("evaluations"), getattr(solution, "evals", None))
+        ),
         "tokens_processed": _safe_int(
-            _first_present(report.get("tokens_processed"), getattr(solution, "tokens_processed", None))
+            _first_present(
+                report.get("tokens_processed"),
+                getattr(solution, "tokens_processed", None),
+            )
         ),
     }
-    solver_section = {key: value for key, value in solver_section.items() if value is not None}
+    solver_section = {
+        key: value for key, value in solver_section.items() if value is not None
+    }
 
     timings = _compact_mapping(
         {
-            "wall_time_s": _first_present(report.get("wall_time_s"), getattr(solution, "wall_time_s", None)),
-            "decrypt_time_s": _first_present(report.get("decrypt_time_s"), getattr(solution, "decrypt_time_s", None)),
-            "score_time_s": _first_present(report.get("score_time_s"), getattr(solution, "score_time_s", None)),
+            "wall_time_s": _first_present(
+                report.get("wall_time_seconds"),
+                getattr(solution, "wall_time_s", None),
+            ),
+            "decrypt_time_s": _first_present(
+                report.get("decrypt_time_seconds"),
+                getattr(solution, "decrypt_time_s", None),
+            ),
+            "score_time_s": _first_present(
+                report.get("score_time_seconds"),
+                getattr(solution, "score_time_s", None),
+            ),
         },
         ("wall_time_s", "decrypt_time_s", "score_time_s"),
     )
 
     key_section: dict[str, Any] = {
-        "length": key_len if key_len is not None else (len(found_key) if found_key is not None else None),
+        "length": key_len
+        if key_len is not None
+        else (len(found_key) if found_key is not None else None),
         "expected": expected_key,
         "found": found_key,
     }
     if expected_key is not None and found_key is not None:
         key_section["exact"] = found_key == expected_key
-    key_section = {key: value for key, value in key_section.items() if value is not None}
+    key_section = {
+        key: value for key, value in key_section.items() if value is not None
+    }
 
-    scorer_lanes = _scorer_lanes_payload(details.get("scorer_lanes", meta.get("scorer_lanes")))
+    scorer_lanes = _scorer_lanes_payload(
+        details.get("scorer_lanes", meta.get("scorer_lanes"))
+    )
 
     return {
         "schema": SCHEMA,
@@ -198,14 +237,14 @@ def build_tutorial_run_report(
         "telemetry": {"present": bool(telemetry)},
         "solver_report": {
             "present": bool(report),
-            "oracle_use": details.get("oracle_use"),
-            "truth_data_policy": details.get("truth_data_policy"),
-            "stop_category": details.get("stop_category"),
+            "stop_category": _as_dict(report.get("status")).get("stop_category"),
             "scorer_lanes": scorer_lanes,
         },
         "previews": {
             "ciphertext_runes": _preview_text(ct_rune, preview_len),
-            "plaintext_runes": _preview_text(getattr(solution, "plaintext_rune", ""), preview_len),
+            "plaintext_runes": _preview_text(
+                getattr(solution, "plaintext_rune", ""), preview_len
+            ),
             "reference_runes": _preview_text(pt_rune_ref, preview_len),
             "ciphertext_idx_head": (_int_list(ct_idx) or [])[:32],
             "plaintext_idx_head": (plaintext_idx or [])[:32],

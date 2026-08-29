@@ -30,10 +30,16 @@ PLAINTEXT = tuple(range(12))
             CipherSpec.periodic_columnar(period=2, columns=3),
             tuple(range(29)) + tuple(reversed(range(29))) + (2, 0, 1),
         ),
-        (CipherSpec.two_period_vigenere(first_period=2, second_period=3), (1, 2, 3, 4, 5)),
+        (
+            CipherSpec.two_period_vigenere(first_period=2, second_period=3),
+            (1, 2, 3, 4, 5),
+        ),
         (CipherSpec.periodic_with_fixed_stream((1, 2, 3), period=2), (1, 2)),
         (CipherSpec.periodic_with_prime_stream(period=2), (1, 2)),
-        (CipherSpec.two_period_streams(first_period=2, second_period=3), (1, 2, 3, 4, 5)),
+        (
+            CipherSpec.two_period_streams(first_period=2, second_period=3),
+            (1, 2, 3, 4, 5),
+        ),
     ),
 )
 def test_all_supported_cipher_families_round_trip(

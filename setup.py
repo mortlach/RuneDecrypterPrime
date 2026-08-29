@@ -101,7 +101,9 @@ class A5BuildPy(_build_py):
     def _extra_outputs(self) -> list[Path]:
         build_root = Path(self.build_lib)
         outputs = [build_root / PACKAGE_CI_MANIFEST_REL]
-        outputs.extend(build_root / PACKAGE_ASSETS_REL / rel for rel in _ci_asset_relpaths())
+        outputs.extend(
+            build_root / PACKAGE_ASSETS_REL / rel for rel in _ci_asset_relpaths()
+        )
         return outputs
 
     def run(self) -> None:
@@ -148,7 +150,11 @@ for maybe_ext in (
     ),
     _extension_if_sources_exist(
         "rune_decrypter_prime.scoring.hamming._hamming",
-        [hamming_dir / "bindings.cpp", hamming_dir / "Hamming.cpp", hamming_dir / "Flat2DArray.cpp"],
+        [
+            hamming_dir / "bindings.cpp",
+            hamming_dir / "Hamming.cpp",
+            hamming_dir / "Flat2DArray.cpp",
+        ],
         [hamming_dir],
     ),
     _extension_if_sources_exist(

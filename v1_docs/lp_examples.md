@@ -63,9 +63,9 @@ The LP source catalogue resolves labels like this into deterministic solver
 payloads: rune indices, word-length index data, and metadata about where the
 text came from.
 
-## SourceInputRef
+## SourceReferenceInput
 
-The public `RunSpec` input surface can represent LP inputs with `SourceInputRef`.
+The public `RunSpec` input surface can represent LP inputs with `SourceReferenceInput`.
 
 Supported LP source kinds are:
 

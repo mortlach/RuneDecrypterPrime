@@ -37,11 +37,11 @@ It contains:
 Problem input can be:
 
 - `RawTextInput`
-- `NormalizedInput`
-- `SourceInputRef`
+- `RuneIndexInput`
+- `SourceReferenceInput`
 
-`RawTextInput` is a direct text input. `NormalizedInput` is already converted to
-rune indices, with optional word-length index data. `SourceInputRef` points to a
+`RawTextInput` is a direct text input. `RuneIndexInput` is already converted to
+rune indices, with optional word-length index data. `SourceReferenceInput` points to a
 known source such as a Liber Primus label, locator, or partition.
 
 `RunSpec` is intentionally strict. It rejects unsupported types early so that

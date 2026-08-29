@@ -121,7 +121,9 @@ class SpanHammingLmAssetsV2:
         if profile_vector_length < 1:
             raise ValueError("profile_vector_length must be >= 1")
         if len(profile_length_bins) != profile_vector_length:
-            raise ValueError("profile_vector_length must equal len(profile_length_bins)")
+            raise ValueError(
+                "profile_vector_length must equal len(profile_length_bins)"
+            )
         if not tables:
             raise ValueError("No LM bucket tables loaded")
         self.profile_vector_length = int(profile_vector_length)
@@ -131,8 +133,7 @@ class SpanHammingLmAssetsV2:
         for direction, bucket, _source in self._tables:
             by_dir.setdefault(direction, set()).add(int(bucket))
         self._length_buckets_by_direction = {
-            direction: tuple(sorted(values))
-            for direction, values in by_dir.items()
+            direction: tuple(sorted(values)) for direction, values in by_dir.items()
         }
 
     @classmethod
@@ -152,7 +153,9 @@ class SpanHammingLmAssetsV2:
             raise ValueError("profile_length_bins must be a non-empty list")
         profile_length_bins = tuple(int(v) for v in length_bins)
         if vector_length != len(profile_length_bins):
-            raise ValueError("profile_vector_length must equal len(profile_length_bins)")
+            raise ValueError(
+                "profile_vector_length must equal len(profile_length_bins)"
+            )
 
         profile_tables = raw.get("profile_tables")
         if not isinstance(profile_tables, dict):
@@ -173,13 +176,21 @@ class SpanHammingLmAssetsV2:
                     bucket = int(bucket_text)
                     refs = bucket_node.get("references")
                     combined_noise = bucket_node.get("combined_noise")
-                    if not isinstance(refs, dict) or not isinstance(combined_noise, dict):
+                    if not isinstance(refs, dict) or not isinstance(
+                        combined_noise, dict
+                    ):
                         raise ValueError(
                             f"Missing references/combined_noise for source={source_measure}, key=({dir_norm},{bucket})"
                         )
-                    real_mean = np.asarray(refs.get("real_mean_profile", []), dtype=np.float64)
-                    noise_mean = np.asarray(refs.get("noise_mean_profile", []), dtype=np.float64)
-                    if real_mean.shape != (vector_length,) or noise_mean.shape != (vector_length,):
+                    real_mean = np.asarray(
+                        refs.get("real_mean_profile", []), dtype=np.float64
+                    )
+                    noise_mean = np.asarray(
+                        refs.get("noise_mean_profile", []), dtype=np.float64
+                    )
+                    if real_mean.shape != (vector_length,) or noise_mean.shape != (
+                        vector_length,
+                    ):
                         raise ValueError(
                             f"mean profiles must match profile_vector_length for source={source_measure}, key=({dir_norm},{bucket})"
                         )
@@ -204,12 +215,16 @@ class SpanHammingLmAssetsV2:
                         feature_name="mean_bin_value",
                         required=True,
                     )
-                    tail_mass_noise_map_raw = ecdf_noise_all.get("tail_mass_by_start_index", {})
+                    tail_mass_noise_map_raw = ecdf_noise_all.get(
+                        "tail_mass_by_start_index", {}
+                    )
                     if not isinstance(tail_mass_noise_map_raw, dict):
                         raise ValueError(
                             f"Invalid tail_mass_by_start_index ecdf for source={source_measure}, key=({dir_norm},{bucket})"
                         )
-                    tail_mass_noise_by_start_index: Dict[int, Tuple[np.ndarray, np.ndarray]] = {}
+                    tail_mass_noise_by_start_index: Dict[
+                        int, Tuple[np.ndarray, np.ndarray]
+                    ] = {}
                     for start_text, start_node in tail_mass_noise_map_raw.items():
                         start_index = int(start_text)
                         bp_tail, q_tail = _load_scalar_ecdf(
@@ -225,10 +240,14 @@ class SpanHammingLmAssetsV2:
                     mean_index_real_q: np.ndarray | None = None
                     mean_length_real_bp: np.ndarray | None = None
                     mean_length_real_q: np.ndarray | None = None
-                    tail_mass_real_by_start_index: Dict[int, Tuple[np.ndarray, np.ndarray]] = {}
+                    tail_mass_real_by_start_index: Dict[
+                        int, Tuple[np.ndarray, np.ndarray]
+                    ] = {}
                     generators = bucket_node.get("generators", {})
                     if isinstance(generators, dict) and real_generator in generators:
-                        ecdf_real_all = generators.get(real_generator, {}).get("ecdf", {})
+                        ecdf_real_all = generators.get(real_generator, {}).get(
+                            "ecdf", {}
+                        )
                         if isinstance(ecdf_real_all, dict):
                             real_bp, real_q = _load_scalar_ecdf(
                                 ecdf_real_all.get("profile_margin_l1", {}),
@@ -245,16 +264,24 @@ class SpanHammingLmAssetsV2:
                                 feature_name="mean_bin_value_real",
                                 required=False,
                             )
-                            tail_mass_real_raw = ecdf_real_all.get("tail_mass_by_start_index", {})
+                            tail_mass_real_raw = ecdf_real_all.get(
+                                "tail_mass_by_start_index", {}
+                            )
                             if isinstance(tail_mass_real_raw, dict):
-                                for start_text, start_node in tail_mass_real_raw.items():
+                                for (
+                                    start_text,
+                                    start_node,
+                                ) in tail_mass_real_raw.items():
                                     start_index = int(start_text)
                                     bp_tail_real, q_tail_real = _load_scalar_ecdf(
                                         start_node,
                                         feature_name=f"tail_mass_by_start_index_real[{start_index}]",
                                         required=False,
                                     )
-                                    if bp_tail_real is not None and q_tail_real is not None:
+                                    if (
+                                        bp_tail_real is not None
+                                        and q_tail_real is not None
+                                    ):
                                         tail_mass_real_by_start_index[start_index] = (
                                             bp_tail_real,
                                             q_tail_real,
@@ -338,7 +365,9 @@ class SpanHammingLmAssetsV2:
             )
         profile = _normalise_profile(source_values)
 
-        margin_raw = _l1_distance(profile, table.noise_mean_profile) - _l1_distance(profile, table.real_mean_profile)
+        margin_raw = _l1_distance(profile, table.noise_mean_profile) - _l1_distance(
+            profile, table.real_mean_profile
+        )
         pct_noise = _interp_clamped_pct(
             margin_raw,
             table.margin_noise_breakpoints,
@@ -361,9 +390,13 @@ class SpanHammingLmAssetsV2:
             raise ValueError(
                 f"tail_start_index must be in [0,{self.profile_vector_length - 1}]"
             )
-        mean_bin_index = float(np.sum(profile * np.arange(self.profile_vector_length, dtype=np.float64)))
-        mean_bin_length = float(np.sum(profile * np.asarray(self.profile_length_bins, dtype=np.float64)))
-        tail_mass = float(np.sum(profile[int(tail_start_index):]))
+        mean_bin_index = float(
+            np.sum(profile * np.arange(self.profile_vector_length, dtype=np.float64))
+        )
+        mean_bin_length = float(
+            np.sum(profile * np.asarray(self.profile_length_bins, dtype=np.float64))
+        )
+        tail_mass = float(np.sum(profile[int(tail_start_index) :]))
         mean_index_pct_noise = _interp_clamped_pct(
             mean_bin_index,
             table.mean_index_noise_breakpoints,
@@ -402,7 +435,9 @@ class SpanHammingLmAssetsV2:
             raise KeyError(
                 f"Missing tail_mass_by_start_index ecdf for start_index={int(tail_start_index)}"
             )
-        tail_noise_bp, tail_noise_q = table.tail_mass_noise_by_start_index[int(tail_start_index)]
+        tail_noise_bp, tail_noise_q = table.tail_mass_noise_by_start_index[
+            int(tail_start_index)
+        ]
         tail_pct_noise = _interp_clamped_pct(
             tail_mass,
             tail_noise_bp,
@@ -411,11 +446,15 @@ class SpanHammingLmAssetsV2:
             clamp_max=clamp_max,
         )
         if tail_pct_noise is None:
-            raise ValueError("Missing combined_noise percentile for tail_mass_by_start_index")
+            raise ValueError(
+                "Missing combined_noise percentile for tail_mass_by_start_index"
+            )
         tail_energy = pct_to_energy(tail_pct_noise)
         tail_pct_real = None
         if int(tail_start_index) in table.tail_mass_real_by_start_index:
-            tail_real_bp, tail_real_q = table.tail_mass_real_by_start_index[int(tail_start_index)]
+            tail_real_bp, tail_real_q = table.tail_mass_real_by_start_index[
+                int(tail_start_index)
+            ]
             tail_pct_real = _interp_clamped_pct(
                 tail_mass,
                 tail_real_bp,
@@ -447,7 +486,9 @@ class SpanHammingLmAssetsV2:
             tail_mass_raw=tail_mass,
             tail_mass_pct_noise=float(tail_pct_noise),
             tail_mass_energy=float(tail_energy),
-            tail_mass_pct_real=(None if tail_pct_real is None else float(tail_pct_real)),
+            tail_mass_pct_real=(
+                None if tail_pct_real is None else float(tail_pct_real)
+            ),
         )
 
 

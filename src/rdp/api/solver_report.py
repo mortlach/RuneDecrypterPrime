@@ -38,7 +38,10 @@ def _json_value(value: object, field_name: str) -> JsonValue:
             raise ValueError(f"{field_name} contains an absolute path")
         return value.as_posix()
     if isinstance(value, Mapping):
-        return {str(key): _json_value(item, f"{field_name}.{key}") for key, item in value.items()}
+        return {
+            str(key): _json_value(item, f"{field_name}.{key}")
+            for key, item in value.items()
+        }
     if isinstance(value, (list, tuple)):
         return [_json_value(item, f"{field_name}[]") for item in value]
     raise TypeError(f"{field_name} contains unsupported {type(value).__name__}")
@@ -47,7 +50,11 @@ def _json_value(value: object, field_name: str) -> JsonValue:
 def _mapping(value: Mapping[str, object], field_name: str) -> Mapping[str, JsonValue]:
     if not isinstance(value, Mapping):
         raise TypeError(f"{field_name} must be a mapping")
-    return MappingProxyType({str(key): _json_value(item, f"{field_name}.{key}") for key, item in value.items()})
+    if any(not isinstance(key, str) for key in value):
+        raise TypeError(f"{field_name} keys must be strings")
+    return MappingProxyType(
+        {key: _json_value(item, f"{field_name}.{key}") for key, item in value.items()}
+    )
 
 
 def _optional_int(value: int | None, field_name: str) -> int | None:
@@ -103,7 +110,11 @@ class RunConfigurationReport:
                 raise TypeError(f"{name} must be ConfigurationResolution")
 
     def to_dict(self) -> JsonObject:
-        return {"solver": self.solver.to_dict(), "scoring": self.scoring.to_dict(), "cipher": self.cipher.to_dict()}
+        return {
+            "solver": self.solver.to_dict(),
+            "scoring": self.scoring.to_dict(),
+            "cipher": self.cipher.to_dict(),
+        }
 
     def to_json_dict(self) -> JsonObject:
         return self.to_dict()
@@ -127,17 +138,28 @@ class OracleReport:
     mode: OracleMode = OracleMode.REAL_SOLVE
 
     def __post_init__(self) -> None:
-        for name in ("available", "used_for_scoring", "used_for_ranking", "used_for_stop"):
+        for name in (
+            "available",
+            "used_for_scoring",
+            "used_for_ranking",
+            "used_for_stop",
+        ):
             if type(getattr(self, name)) is not bool:
                 raise TypeError(f"{name} must be bool")
-        if self.stop_reason is not None and not isinstance(self.stop_reason, StopReason):
+        if self.stop_reason is not None and not isinstance(
+            self.stop_reason, StopReason
+        ):
             raise TypeError("stop_reason must be StopReason or None")
         if not isinstance(self.mode, OracleMode):
             raise TypeError("mode must be OracleMode")
-        if (self.used_for_scoring or self.used_for_ranking or self.used_for_stop) and not self.available:
+        if (
+            self.used_for_scoring or self.used_for_ranking or self.used_for_stop
+        ) and not self.available:
             raise ValueError("oracle use requires available=True")
         if self.used_for_stop != (self.stop_reason is not None):
-            raise ValueError("oracle stop use and stop_reason must be recorded together")
+            raise ValueError(
+                "oracle stop use and stop_reason must be recorded together"
+            )
 
     def to_dict(self) -> JsonObject:
         return {
@@ -190,8 +212,12 @@ class ReproducibilityMetadata:
             value = getattr(self, name)
             if value is not None and not isinstance(value, enum_type):
                 raise TypeError(f"{name} must be {enum_type.__name__} or None")
-        object.__setattr__(self, "requested_seed", _optional_int(self.requested_seed, "requested_seed"))
-        object.__setattr__(self, "effective_seed", _optional_int(self.effective_seed, "effective_seed"))
+        object.__setattr__(
+            self, "requested_seed", _optional_int(self.requested_seed, "requested_seed")
+        )
+        object.__setattr__(
+            self, "effective_seed", _optional_int(self.effective_seed, "effective_seed")
+        )
         if self.stochastic is not None and type(self.stochastic) is not bool:
             raise TypeError("stochastic must be bool or None")
         for name in ("solver_config", "scoring_config", "objective", "cipher"):
@@ -203,13 +229,17 @@ class ReproducibilityMetadata:
             raise TypeError("asset_ids must contain strings")
         object.__setattr__(self, "asset_ids", ids)
         hashes = dict(self.asset_hashes)
-        if any(not isinstance(key, str) or not isinstance(value, str) for key, value in hashes.items()):
+        if any(
+            not isinstance(key, str) or not isinstance(value, str)
+            for key, value in hashes.items()
+        ):
             raise TypeError("asset_hashes must map strings to strings")
         object.__setattr__(self, "asset_hashes", MappingProxyType(hashes))
 
     def to_dict(self) -> JsonObject:
         def enum_value(value: Enum | None) -> str | None:
             return None if value is None else str(value.value)
+
         return {
             "run_id": self.run_id,
             "created_at_utc": self.created_at_utc,
@@ -224,8 +254,12 @@ class ReproducibilityMetadata:
             "requested_seed": self.requested_seed,
             "effective_seed": self.effective_seed,
             "stochastic": self.stochastic,
-            "solver_config": None if self.solver_config is None else dict(self.solver_config),
-            "scoring_config": None if self.scoring_config is None else dict(self.scoring_config),
+            "solver_config": None
+            if self.solver_config is None
+            else dict(self.solver_config),
+            "scoring_config": None
+            if self.scoring_config is None
+            else dict(self.scoring_config),
             "objective": None if self.objective is None else dict(self.objective),
             "cipher": None if self.cipher is None else dict(self.cipher),
             "asset_ids": list(self.asset_ids),
@@ -261,16 +295,24 @@ class SolverReport:
             raise TypeError("solver must be SolverKind")
         if not isinstance(self.parameters, ConfigurationResolution):
             raise TypeError("parameters must be ConfigurationResolution")
-        object.__setattr__(self, "requested_seed", _optional_int(self.requested_seed, "requested_seed"))
+        object.__setattr__(
+            self, "requested_seed", _optional_int(self.requested_seed, "requested_seed")
+        )
         effective_seed = _optional_int(self.effective_seed, "effective_seed")
         assert effective_seed is not None
         object.__setattr__(self, "effective_seed", effective_seed)
         if not isinstance(self.status, RunStatus):
             raise TypeError("status must be RunStatus")
         if self.best_key is not None:
-            object.__setattr__(self, "best_key", normalize_concrete_key(self.best_key, field_name="best_key"))
+            object.__setattr__(
+                self,
+                "best_key",
+                normalize_concrete_key(self.best_key, field_name="best_key"),
+            )
         if self.best_score is not None:
-            if isinstance(self.best_score, bool) or not isinstance(self.best_score, (int, float)):
+            if isinstance(self.best_score, bool) or not isinstance(
+                self.best_score, (int, float)
+            ):
                 raise TypeError("best_score must be a number or None")
             score = float(self.best_score)
             if not math.isfinite(score):
@@ -304,4 +346,11 @@ class SolverReport:
         return self.to_dict()
 
 
-__all__ = ["ConfigurationResolution", "OracleMode", "OracleReport", "ReproducibilityMetadata", "RunConfigurationReport", "SolverReport"]
+__all__ = [
+    "ConfigurationResolution",
+    "OracleMode",
+    "OracleReport",
+    "ReproducibilityMetadata",
+    "RunConfigurationReport",
+    "SolverReport",
+]

@@ -35,7 +35,8 @@ class N3CNormalReportTelemetryConfig:
 
 def n3c_normal_report_profile() -> NgramProfileSpec:
     matches = [
-        spec for spec in bridge_profile_specs()
+        spec
+        for spec in bridge_profile_specs()
         if spec.profile_id == REPORT_PROFILE_ID
         and REPORT_ORDER in spec.orders
         and REPORT_CUT in spec.cuts
@@ -43,7 +44,9 @@ def n3c_normal_report_profile() -> NgramProfileSpec:
         and "canonical_equivalent_for_normal" in spec.parameter_status
     ]
     if len(matches) != 1:
-        raise RuntimeError("N3C-normal report profile contract is not uniquely satisfied")
+        raise RuntimeError(
+            "N3C-normal report profile contract is not uniquely satisfied"
+        )
     return matches[0]
 
 
@@ -86,7 +89,8 @@ def build_n3c_normal_report_telemetry(
 
     spec = n3c_normal_report_profile()
     selected_hits = tuple(
-        hit for hit in hits
+        hit
+        for hit in hits
         if hit.candidate_id == candidate_id
         and hit.profile_id == spec.profile_id
         and hit.dictionary_cut == REPORT_CUT
@@ -100,9 +104,15 @@ def build_n3c_normal_report_telemetry(
     phrase_counter = Counter(hit.phrase_id for hit in selected_hits)
     cluster_hit_counts = [cluster.raw_hit_count for cluster in clusters]
     warning_flags: list[str] = []
-    if selected_hits and max(phrase_counter.values(), default=0) / len(selected_hits) >= 0.75:
+    if (
+        selected_hits
+        and max(phrase_counter.values(), default=0) / len(selected_hits) >= 0.75
+    ):
         warning_flags.append("one_phrase_dominates")
-    if selected_hits and max(cluster_hit_counts, default=0) / len(selected_hits) >= 0.75:
+    if (
+        selected_hits
+        and max(cluster_hit_counts, default=0) / len(selected_hits) >= 0.75
+    ):
         warning_flags.append("one_cluster_dominates")
 
     return {
@@ -120,14 +130,20 @@ def build_n3c_normal_report_telemetry(
         "cut": REPORT_CUT,
         "ngram_order": REPORT_ORDER,
         "cluster_count": len(clusters),
-        "exact_cluster_count": sum(1 for cluster in clusters if cluster.exact_hit_present),
+        "exact_cluster_count": sum(
+            1 for cluster in clusters if cluster.exact_hit_present
+        ),
         "hit_count": len(selected_hits),
         "best_hit_signature": best_hit_signature(selected_hits),
         "dominant_cluster_hit_fraction": (
-            max(cluster_hit_counts, default=0) / len(selected_hits) if selected_hits else 0.0
+            max(cluster_hit_counts, default=0) / len(selected_hits)
+            if selected_hits
+            else 0.0
         ),
         "dominant_phrase_hit_fraction": (
-            max(phrase_counter.values(), default=0) / len(selected_hits) if selected_hits else 0.0
+            max(phrase_counter.values(), default=0) / len(selected_hits)
+            if selected_hits
+            else 0.0
         ),
         "warning_flags": sorted(warning_flags),
         "counts_are_diagnostic_only": True,
@@ -147,7 +163,9 @@ def merge_n3c_normal_report_details(
         raise ValueError("candidate_id is required for N3C-normal report telemetry")
     details = dict(extra_details or {})
     if REPORT_DETAILS_KEY in details:
-        raise ValueError(f"extra_details already contains reserved section {REPORT_DETAILS_KEY!r}")
+        raise ValueError(
+            f"extra_details already contains reserved section {REPORT_DETAILS_KEY!r}"
+        )
     details[REPORT_DETAILS_KEY] = build_n3c_normal_report_telemetry(
         candidate_id=candidate_id,
         hits=hits,

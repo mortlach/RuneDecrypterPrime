@@ -1,22 +1,37 @@
 from __future__ import annotations
+
+import pytest
 from rdp import api
-import rdp.api.solver_report
 
-def test_solver_report_test_key_wire_value_has_separate_domains() -> None:
-    assert rdp.api.solver_report.SolverParamKey.TEST_KEY.value == 'test_key'
-    assert rdp.api.solver_report.SolverStopReason.TEST_KEY.value == 'test_key'
-    assert rdp.api.solver_report.OracleUse.TEST_KEY.value == 'test_key'
-    assert rdp.api.solver_report.SolverParamKey.TEST_KEY is not rdp.api.solver_report.OracleUse.TEST_KEY
-    assert rdp.api.solver_report.SolverStopReason.TEST_KEY is not rdp.api.solver_report.OracleUse.TEST_KEY
 
-def test_solver_report_marks_oracle_use_from_solver_param_key() -> None:
-    report = rdp.api.solver_report.build_solver_report(solver_name='beam', requested_seed=1, effective_seed=1, normalized_params={rdp.api.solver_report.SolverParamKey.TEST_KEY.value: [1, 2, 3]})
-    details = report.to_json_dict()['details']
-    assert details[rdp.api.solver_report.SolverReportDetailKey.ORACLE_USE.value] == rdp.api.solver_report.OracleUse.TEST_KEY.value
-    assert details[rdp.api.solver_report.SolverReportDetailKey.TRUTH_DATA_POLICY.value] == rdp.api.solver_report.TruthDataPolicy.REPORTED_TEST_OR_TUTORIAL_ONLY.value
+def test_solver_report_domains_are_distinct_typed_fields() -> None:
+    report = api.advanced.SolverReport(
+        solver=api.advanced.SolverKind.BEAM_SEARCH,
+        parameters=api.advanced.ConfigurationResolution(
+            requested={"width": 4}, effective={"width": 4}
+        ),
+        requested_seed=1,
+        effective_seed=1,
+        status=api.RunStatus(
+            execution_status=api.advanced.ExecutionStatus.COMPLETED,
+            stop_category=api.advanced.StopCategory.BUDGET,
+            stop_reason=api.advanced.StopReason.MAX_ROUNDS_REACHED,
+        ),
+    )
+    assert report.solver is api.advanced.SolverKind.BEAM_SEARCH
+    assert report.status.stop_reason is api.advanced.StopReason.MAX_ROUNDS_REACHED
 
-def test_solver_report_marks_oracle_use_from_solver_stop_reason() -> None:
-    report = rdp.api.solver_report.build_solver_report(solver_name='beam', requested_seed=1, effective_seed=1, normalized_params={}, stop_reason=rdp.api.solver_report.SolverStopReason.TEST_KEY.value)
-    details = report.to_json_dict()['details']
-    assert details[rdp.api.solver_report.SolverReportDetailKey.ORACLE_USE.value] == rdp.api.solver_report.OracleUse.TEST_KEY.value
-    assert details[rdp.api.solver_report.SolverReportDetailKey.TRUTH_DATA_POLICY.value] == rdp.api.solver_report.TruthDataPolicy.REPORTED_TEST_OR_TUTORIAL_ONLY.value
+
+def test_solver_report_rejects_cross_domain_string_values() -> None:
+    with pytest.raises(TypeError, match="solver"):
+        api.advanced.SolverReport(
+            solver="beam_search",  # type: ignore[arg-type]
+            parameters=api.advanced.ConfigurationResolution(),
+            requested_seed=1,
+            effective_seed=1,
+            status=api.RunStatus(
+                execution_status=api.advanced.ExecutionStatus.COMPLETED,
+                stop_category=api.advanced.StopCategory.BUDGET,
+                stop_reason=api.advanced.StopReason.MAX_ROUNDS_REACHED,
+            ),
+        )

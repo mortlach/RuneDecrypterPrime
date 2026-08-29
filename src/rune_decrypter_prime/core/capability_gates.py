@@ -8,7 +8,6 @@ from rune_decrypter_prime.core.component_contracts import (
     ScoringLaneStatus,
     RankingEffect,
     CapabilityRequestState,
-    RequestedLaneUnavailableError,
     ScorerCapabilityReport,
     ScoringLane,
 )
@@ -77,7 +76,10 @@ def _failure_effective_state(
         return CapabilityEffectiveState.REPORT_ONLY
     if fallback_policy is FallbackPolicy.EXPLICIT_REPORTED_FALLBACK:
         return CapabilityEffectiveState.FALLBACK_REPORTED
-    if fallback_policy is FallbackPolicy.DISABLED and request_state is CapabilityRequestState.NOT_REQUESTED:
+    if (
+        fallback_policy is FallbackPolicy.DISABLED
+        and request_state is CapabilityRequestState.NOT_REQUESTED
+    ):
         return CapabilityEffectiveState.INACTIVE
     return CapabilityEffectiveState.BLOCKED
 

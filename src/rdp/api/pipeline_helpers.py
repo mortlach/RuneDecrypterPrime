@@ -32,9 +32,10 @@ def finalize_solution(
     else:
         if not hasattr(res, "meta") or res.meta is None:
             res.meta = {}
-        # Mark explicitly so lower layers (e.g., dump_telemetry) can hard-respect the toggle
+        # Replace any lower-layer telemetry so the public toggle is authoritative.
         try:
             res.meta["telemetry_off"] = True
+            res.meta["telemetry"] = {"telemetry_off": True}
         except Exception:
             pass
 
@@ -74,7 +75,9 @@ def _set_scorer_lanes_payload(res, payload: dict[str, Any]) -> None:
     res.meta["scorer_lanes"] = payload
 
 
-def _scorer_lanes_error_payload(*, message: str, exc: BaseException | None = None) -> dict[str, Any]:
+def _scorer_lanes_error_payload(
+    *, message: str, exc: BaseException | None = None
+) -> dict[str, Any]:
     error: dict[str, Any] = {
         "code": _SCORER_LANES_ERROR_CODE,
         "message": str(message),
@@ -131,7 +134,9 @@ def _attach_scorer_lanes_to_meta(res, problem) -> None:
     _set_scorer_lanes_payload(res, payload)
 
 
-def ensure_plaintext_rune(res, *, ciphertext=None, wli=None, cipher=None, encoding_dir=Direction.RTL):
+def ensure_plaintext_rune(
+    res, *, ciphertext=None, wli=None, cipher=None, encoding_dir=Direction.RTL
+):
     """Populate canonical plaintext/ciphertext views on the Solution (idempotent)."""
     import numpy as _np
 
@@ -164,7 +169,9 @@ def ensure_plaintext_rune(res, *, ciphertext=None, wli=None, cipher=None, encodi
             arr = _np.asarray(pt, dtype=_np.uint8).reshape(-1)
         elif isinstance(pt, str) and pt:
             try:
-                arr = _np.asarray(_R.rune_to_pos(pt.replace(' ', '')), dtype=_np.uint8).reshape(-1)
+                arr = _np.asarray(
+                    _R.rune_to_pos(pt.replace(" ", "")), dtype=_np.uint8
+                ).reshape(-1)
             except Exception:
                 arr = _np.asarray([], dtype=_np.uint8)
         else:
@@ -193,14 +200,14 @@ def ensure_plaintext_rune(res, *, ciphertext=None, wli=None, cipher=None, encodi
     # ---- Plaintext renderings ----------------------------------------------
     def _latin_nospace(seq):
         try:
-            return ''.join(_R.pos_to_latin(int(p)) for p in seq)
+            return "".join(_R.pos_to_latin(int(p)) for p in seq)
         except Exception:
-            return ''
+            return ""
 
     try:
         pt_rune_nospace = _R.pos_to_rune(pt_idx_list)
     except Exception:
-        pt_rune_nospace = ''
+        pt_rune_nospace = ""
 
     if has_wli:
         try:
@@ -208,7 +215,9 @@ def ensure_plaintext_rune(res, *, ciphertext=None, wli=None, cipher=None, encodi
         except Exception:
             pt_rune = pt_rune_nospace
         try:
-            pt_latin = _R.to_rune_latin(pt_idx_list, effective_wli_valid, direction=encoding_dir)
+            pt_latin = _R.to_rune_latin(
+                pt_idx_list, effective_wli_valid, direction=encoding_dir
+            )
         except Exception:
             pt_latin = _latin_nospace(pt_idx_list)
     else:
@@ -235,14 +244,14 @@ def ensure_plaintext_rune(res, *, ciphertext=None, wli=None, cipher=None, encodi
 
         def _latin_from_idx(seq):
             try:
-                return ''.join(_R.pos_to_latin(int(p)) for p in seq)
+                return "".join(_R.pos_to_latin(int(p)) for p in seq)
             except Exception:
-                return ''
+                return ""
 
         try:
             ct_rune_nospace = _R.pos_to_rune(ct_idx_list)
         except Exception:
-            ct_rune_nospace = ''
+            ct_rune_nospace = ""
 
         if ct_wli is not None:
             try:
@@ -266,17 +275,17 @@ def ensure_plaintext_rune(res, *, ciphertext=None, wli=None, cipher=None, encodi
         res.ciphertext_latin_nospace = ct_latin_nospace
     else:
         res.ciphertext_idx = list(getattr(res, "ciphertext_idx", []))
-        res.ciphertext_rune = getattr(res, "ciphertext_rune", '')
+        res.ciphertext_rune = getattr(res, "ciphertext_rune", "")
         res.ciphertext_rune_nospace = getattr(
             res,
             "ciphertext_rune_nospace",
-            res.ciphertext_rune.replace(' ', ''),
+            res.ciphertext_rune.replace(" ", ""),
         )
-        res.ciphertext_latin = getattr(res, "ciphertext_latin", '')
+        res.ciphertext_latin = getattr(res, "ciphertext_latin", "")
         res.ciphertext_latin_nospace = getattr(
             res,
             "ciphertext_latin_nospace",
-            res.ciphertext_latin.replace(' ', ''),
+            res.ciphertext_latin.replace(" ", ""),
         )
 
     # ---- Metadata ----------------------------------------------------------
@@ -287,14 +296,18 @@ def ensure_plaintext_rune(res, *, ciphertext=None, wli=None, cipher=None, encodi
     res.alphabet = getattr(res, "alphabet", "runic-29")
 
     if encoding_dir is not None:
-        dir_value = encoding_dir.value if isinstance(encoding_dir, Direction) else str(encoding_dir)
+        dir_value = (
+            encoding_dir.value
+            if isinstance(encoding_dir, Direction)
+            else str(encoding_dir)
+        )
         res.direction = dir_value.lower()
 
     if cipher is not None:
-        res.cipher_name = getattr(cipher, "name", '') or getattr(
+        res.cipher_name = getattr(cipher, "name", "") or getattr(
             cipher,
             "kind",
-            getattr(res, "cipher_name", ''),
+            getattr(res, "cipher_name", ""),
         )
 
     return res

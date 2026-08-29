@@ -5,8 +5,10 @@ import numpy as np
 
 from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin, ArrayU8
 from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
-#from rune_decrypter_prime.keyops import KeyOpBase, KeySpec
+
+# from rune_decrypter_prime.keyops import KeyOpBase, KeySpec
 from rune_decrypter_prime.keyops.dev.matrix import MatrixKey, MatrixKeyConfig
+
 # XP helper is optional and only used when n==2 and device is GPU/XP
 try:
     from rune_decrypter_prime.ciphers.dev import hill2x2_xp as hill_xp
@@ -15,12 +17,15 @@ except Exception:
 
 A = 29
 
+
 def _inv_mod(x: int, m: int = A) -> int:
     return pow(int(x), -1, int(m))
+
 
 def _det_mod(M: np.ndarray, mod: int) -> int:
     det = round(np.linalg.det(M.astype(np.int64)))
     return int(det) % int(mod)
+
 
 def _adjugate(M: np.ndarray, mod: int) -> np.ndarray:
     n = M.shape[0]
@@ -32,6 +37,7 @@ def _adjugate(M: np.ndarray, mod: int) -> np.ndarray:
             cof[i, j] = (sign * round(np.linalg.det(minor.astype(np.int64)))) % mod
     return (cof.T % mod).astype(np.int64)
 
+
 def _invert_mod(M: np.ndarray, mod: int) -> np.ndarray:
     det = _det_mod(M, mod)
     if np.gcd(det, mod) != 1:
@@ -41,6 +47,7 @@ def _invert_mod(M: np.ndarray, mod: int) -> np.ndarray:
     Minv = (adj * inv_det) % mod
     return Minv.astype(np.uint8)
 
+
 def _precompute_inv_map(mod: int) -> np.ndarray:
     """inv_map[x] = x^{-1} mod mod (0 for non-invertible)."""
     inv = np.zeros(mod, dtype=np.int64)
@@ -48,8 +55,6 @@ def _precompute_inv_map(mod: int) -> np.ndarray:
         if np.gcd(x, mod) == 1:
             inv[x] = pow(x, -1, mod)
     return inv
-
-
 
 
 @register_cipher("hill")
@@ -64,6 +69,7 @@ class HillCipher(CipherPipelineMixin):
     sees a singular matrix.
 
     """
+
     A = A
 
     def __init__(self, cfg, *, text_transposition="ltr", key_transposition="ltr"):
@@ -79,7 +85,11 @@ class HillCipher(CipherPipelineMixin):
         key_obj = getattr(cfg, "key", None)
         if isinstance(key_obj, MatrixKey):
             self._keyops: MatrixKey = key_obj
-            n_rows, n_cols, modA = self._keyops.rows, self._keyops.cols, self._keyops.mod
+            n_rows, n_cols, modA = (
+                self._keyops.rows,
+                self._keyops.cols,
+                self._keyops.mod,
+            )
             if n_rows != n_cols:
                 raise ValueError("Hill requires a square matrix key")
             self._n = int(n_rows)
@@ -90,15 +100,20 @@ class HillCipher(CipherPipelineMixin):
             key_len = int(getattr(cfg, "key_length", 0) or 0)
             if key_len <= 0:
                 raise ValueError(
-                    "HillCipher: key_length (n*n) must be provided explicitly (e.g., 4 for 2x2, 9 for 3x3).")
+                    "HillCipher: key_length (n*n) must be provided explicitly (e.g., 4 for 2x2, 9 for 3x3)."
+                )
             n_float = int(round((key_len) ** 0.5))
             if n_float * n_float != key_len:
-                raise ValueError(f"HillCipher: key_length={key_len} is not a perfect square")
+                raise ValueError(
+                    f"HillCipher: key_length={key_len} is not a perfect square"
+                )
             n = n_float
 
             self.A = int(getattr(cfg, "N", 29) or 29)
             # Construct a default MatrixKey (require invertible)
-            self._keyops = MatrixKey(MatrixKeyConfig(rows=n, cols=n, mod=self.A, require_invertible=True))
+            self._keyops = MatrixKey(
+                MatrixKeyConfig(rows=n, cols=n, mod=self.A, require_invertible=True)
+            )
             self._n = n
 
         # --- expose for solver/UI ---
@@ -112,7 +127,10 @@ class HillCipher(CipherPipelineMixin):
         self._xp_helper = None
         if self._n == 2 and self.device.startswith("cuda"):
             try:
-                from rune_decrypter_prime.ciphers.dev import hill2x2_xp as hill_xp  # fast path
+                from rune_decrypter_prime.ciphers.dev import (
+                    hill2x2_xp as hill_xp,
+                )  # fast path
+
                 self._xp_helper = hill_xp
             except Exception:
                 self._xp_helper = None  # safe fallback to CPU
@@ -136,10 +154,13 @@ class HillCipher(CipherPipelineMixin):
             outs = []
             for b in range(B):
                 key_b = keys_tr[b]
-                out_b = self._decrypt_cpu(ct_tr, key_b) if self._xp_helper is None else self._decrypt_xp(ct_tr, key_b)
+                out_b = (
+                    self._decrypt_cpu(ct_tr, key_b)
+                    if self._xp_helper is None
+                    else self._decrypt_xp(ct_tr, key_b)
+                )
                 outs.append(out_b[None, :])
             return np.concatenate(outs, axis=0).astype(np.uint8)
-
 
         # General CPU NxN path
         outs = []
@@ -151,28 +172,31 @@ class HillCipher(CipherPipelineMixin):
             A = int(self.A)
 
             # Split keys into a,b,c,d
-            a = keys[:, 0].astype(np.int64);
+            a = keys[:, 0].astype(np.int64)
             b = keys[:, 1].astype(np.int64)
-            c = keys[:, 2].astype(np.int64);
+            c = keys[:, 2].astype(np.int64)
             d = keys[:, 3].astype(np.int64)
 
             det = (a * d - b * c) % A
-            inv_det = self._inv_map[det]  # 0 for non-invertible (should be rare with normalize)
+            inv_det = self._inv_map[
+                det
+            ]  # 0 for non-invertible (should be rare with normalize)
 
             # inverse matrix [[d,-b],[-c,a]] * inv_det mod A
             m00 = (d * inv_det) % A
             m01 = ((A - b % A) * inv_det) % A
             m10 = ((A - c % A) * inv_det) % A
             m11 = (a * inv_det) % A
-            Minv = np.stack([np.stack([m00, m01], axis=1),
-                             np.stack([m10, m11], axis=1)], axis=1)  # (B,2,2)
+            Minv = np.stack(
+                [np.stack([m00, m01], axis=1), np.stack([m10, m11], axis=1)], axis=1
+            )  # (B,2,2)
 
             # reshape ciphertext to blocks of 2
             L = int(ct.size)
             pad = (-L) % 2
             if pad:
-                w = np.empty(L + pad, dtype=np.uint8);
-                w[:L] = ct;
+                w = np.empty(L + pad, dtype=np.uint8)
+                w[:L] = ct
                 w[L:] = 0
             else:
                 w = ct
@@ -185,7 +209,9 @@ class HillCipher(CipherPipelineMixin):
             out = Y.reshape(B, -1)[:, :L].astype(np.uint8, copy=False)
             return out
 
-    def _decrypt_batch_2x2_numpy(self, ct_u8: np.ndarray, keys_2d: np.ndarray) -> np.ndarray:
+    def _decrypt_batch_2x2_numpy(
+        self, ct_u8: np.ndarray, keys_2d: np.ndarray
+    ) -> np.ndarray:
         """
         Ultra-fast NumPy decrypt for Hill 2x2 (B keys).
         Shapes:
@@ -201,8 +227,8 @@ class HillCipher(CipherPipelineMixin):
         # Reshape text into pairs with padding (pad=0) but crop back to L.
         pad = (-L) % 2
         if pad:
-            w = np.empty(L + pad, dtype=np.uint8);
-            w[:L] = ct_u8;
+            w = np.empty(L + pad, dtype=np.uint8)
+            w[:L] = ct_u8
             w[L:] = 0
         else:
             w = ct_u8
@@ -267,7 +293,9 @@ class HillCipher(CipherPipelineMixin):
         X = ct_work.reshape(-1, n).astype(np.int64)  # [M, n]
         K = np.asarray(key_flat, dtype=np.uint8).ravel().astype(np.int64)
         if K.size != n * n:
-            raise ValueError(f"HillCipher: key length {K.size} does not match n*n={n*n}.")
+            raise ValueError(
+                f"HillCipher: key length {K.size} does not match n*n={n*n}."
+            )
         M = K.reshape(n, n)
         Mi = _invert_mod(M, A).astype(np.int64)
         pt = (X @ Mi.T) % A

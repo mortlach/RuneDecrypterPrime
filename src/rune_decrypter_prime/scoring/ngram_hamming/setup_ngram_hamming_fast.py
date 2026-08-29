@@ -25,7 +25,16 @@ def _find_repo_root(start: Path) -> Path:
 REPO_ROOT = _find_repo_root(HERE)
 
 if sys.platform == "win32":
-    COMPILE_ARGS = ["/Ox", "/Ob2", "/Oi", "/Ot", "/GL", "/EHsc", "/std:c++20", "/DNDEBUG"]
+    COMPILE_ARGS = [
+        "/Ox",
+        "/Ob2",
+        "/Oi",
+        "/Ot",
+        "/GL",
+        "/EHsc",
+        "/std:c++20",
+        "/DNDEBUG",
+    ]
     LINK_ARGS: list[str] = ["/LTCG"]
 else:
     COMPILE_ARGS = ["-O3", "-march=native", "-DNDEBUG", "-std=c++20"]
@@ -65,7 +74,9 @@ def _ensure_default_args() -> None:
 def _dest_ext_suffix() -> str:
     from distutils.sysconfig import get_config_var
 
-    return get_config_var("EXT_SUFFIX") or (".pyd" if sys.platform == "win32" else ".so")
+    return get_config_var("EXT_SUFFIX") or (
+        ".pyd" if sys.platform == "win32" else ".so"
+    )
 
 
 def _repo_rel(path: Path) -> str:
@@ -80,7 +91,10 @@ def _copy_built() -> Path | None:
     built_dir = BUILD_LIB / "rune_decrypter_prime" / "scoring" / "ngram_hamming"
     candidates = sorted(built_dir.glob(f"_ngram_hamming_fast*{suffix}"))
     if not candidates:
-        print("[ngram_hamming_fast] WARNING: built artifact not found in:", _repo_rel(built_dir))
+        print(
+            "[ngram_hamming_fast] WARNING: built artifact not found in:",
+            _repo_rel(built_dir),
+        )
         return None
     src = candidates[0]
     dest = HERE / f"_ngram_hamming_fast{suffix}"

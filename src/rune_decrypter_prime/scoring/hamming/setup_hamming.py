@@ -71,7 +71,9 @@ def _ensure_default_args():
 def _dest_ext_suffix() -> str:
     from distutils.sysconfig import get_config_var
 
-    return get_config_var("EXT_SUFFIX") or (".pyd" if sys.platform == "win32" else ".so")
+    return get_config_var("EXT_SUFFIX") or (
+        ".pyd" if sys.platform == "win32" else ".so"
+    )
 
 
 def _copy_built():

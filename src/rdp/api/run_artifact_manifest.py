@@ -42,8 +42,12 @@ class RunArtifactManifestRow:
     def __post_init__(self) -> None:
         relpath = ensure_known_artifact_relpath(self.relpath)
         artifact_kind = ensure_artifact_kind(self.artifact_kind)
-        portable_classification = ensure_artifact_classification(self.portable_classification)
-        export_classification = ensure_artifact_classification(self.export_classification)
+        portable_classification = ensure_artifact_classification(
+            self.portable_classification
+        )
+        export_classification = ensure_artifact_classification(
+            self.export_classification
+        )
 
         validate_artifact_relpath(relpath.value)
         object.__setattr__(self, "relpath", relpath)
@@ -127,7 +131,9 @@ def _build_v1_rows(
 
     if include_solver_report:
         if not solver_report_path.is_file():
-            raise FileNotFoundError(f"required artifact is missing: {solver_report_relpath}")
+            raise FileNotFoundError(
+                f"required artifact is missing: {solver_report_relpath}"
+            )
         rows.append(_row_from_agreement(ArtifactKind.SOLVER_REPORT, present=True))
     elif solver_report_path.is_file():
         rows.append(_row_from_agreement(ArtifactKind.SOLVER_REPORT, present=True))
@@ -140,11 +146,15 @@ def _build_v1_rows(
     return tuple(rows)
 
 
-def _row_from_agreement(artifact_kind: ArtifactKind | str, *, present: bool) -> RunArtifactManifestRow:
+def _row_from_agreement(
+    artifact_kind: ArtifactKind | str, *, present: bool
+) -> RunArtifactManifestRow:
     artifact_kind_enum = ensure_artifact_kind(artifact_kind)
     agreement = agreement_manifest_row_by_kind_v1().get(artifact_kind_enum.value)
     if agreement is None:
-        raise ValueError(f"artifact kind is not in the V1 manifest agreement: {artifact_kind_enum.value}")
+        raise ValueError(
+            f"artifact kind is not in the V1 manifest agreement: {artifact_kind_enum.value}"
+        )
     return RunArtifactManifestRow(
         relpath=agreement.relpath,
         artifact_kind=agreement.artifact_kind,
@@ -173,7 +183,9 @@ def _validate_unique_rows(rows: Iterable[RunArtifactManifestRow]) -> None:
             raise ValueError(f"duplicate manifest relpath: {row.relpath.value}")
         relpaths.add(row.relpath)
         if row.artifact_kind in artifact_kinds:
-            raise ValueError(f"duplicate manifest artifact_kind: {row.artifact_kind.value}")
+            raise ValueError(
+                f"duplicate manifest artifact_kind: {row.artifact_kind.value}"
+            )
         artifact_kinds.add(row.artifact_kind)
 
 

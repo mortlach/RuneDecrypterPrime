@@ -56,7 +56,7 @@ The staged docs now use the current V1 policy:
 - no tutorial CLI switch surface
 - no separate tutorial config file for normal review
 - selected tutorials live under `tutorials/v1/`
-- older replaced tutorials live under `tutorials/old/`
+- the complete retired tutorial tree is deleted and preserved in Git history
 - the normal tutorial gate is `run_tutorials.py`
 - full output review is `run_tutorials.py` with `CONSOLE_OUTPUT = ConsoleOutput.FULL`
 

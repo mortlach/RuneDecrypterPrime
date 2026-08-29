@@ -73,7 +73,9 @@ def spiral_read(lines: Sequence[str], *, route: LPSpiralRoute | None = None) -> 
         return ""
 
     rotated = _rotate_grid_to_top_left(grid, route.start_corner)
-    collected = _spiral_collect(rotated, direction=route.direction, skip_empty=route.skip_empty)
+    collected = _spiral_collect(
+        rotated, direction=route.direction, skip_empty=route.skip_empty
+    )
     return "".join(collected)
 
 

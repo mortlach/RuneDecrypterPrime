@@ -35,7 +35,9 @@ def word_tokens_from_idx_and_wli(
     return tuple(tokens)
 
 
-def wli_pairs_from_flat_array(flat_wli: Sequence[int] | np.ndarray) -> tuple[tuple[int, int], ...]:
+def wli_pairs_from_flat_array(
+    flat_wli: Sequence[int] | np.ndarray,
+) -> tuple[tuple[int, int], ...]:
     raw = np.asarray(flat_wli, dtype=np.int64).reshape(-1)
     if raw.size % 2 != 0:
         raise ValueError("flat WLI array must have even length")
@@ -68,7 +70,9 @@ class RuneTokenWordNgramMemoryModel:
                     key = make_token_ngram_key(gram)
                     prefix = make_prefix_key(gram[:-1])
                     counts[width][key] = int(counts[width].get(key, 0) + 1)
-                    totals[width - 1][prefix] = int(totals[width - 1].get(prefix, 0) + 1)
+                    totals[width - 1][prefix] = int(
+                        totals[width - 1].get(prefix, 0) + 1
+                    )
         return cls(counts_by_n=counts, totals_by_prefix_len=totals)
 
     @classmethod
@@ -79,8 +83,7 @@ class RuneTokenWordNgramMemoryModel:
         orders: Sequence[int] = (3, 4, 5),
     ) -> "RuneTokenWordNgramMemoryModel":
         sequences = [
-            word_tokens_from_idx_and_wli(text_idx, wli)
-            for text_idx, wli in corpora
+            word_tokens_from_idx_and_wli(text_idx, wli) for text_idx, wli in corpora
         ]
         return cls.from_token_sequences(sequences, orders=orders)
 
@@ -98,7 +101,9 @@ class RuneTokenWordNgramMemoryModel:
             path = Path(fp).expanduser().resolve()
             with np.load(path, allow_pickle=True) as data:
                 text_idx = np.asarray(data[pt_key], dtype=np.uint8).reshape(-1)
-                wli_pairs = wli_pairs_from_flat_array(np.asarray(data[wli_key], dtype=np.uint8))
+                wli_pairs = wli_pairs_from_flat_array(
+                    np.asarray(data[wli_key], dtype=np.uint8)
+                )
             sequences.append(word_tokens_from_idx_and_wli(text_idx, wli_pairs))
         return cls.from_token_sequences(sequences, orders=orders)
 
@@ -106,7 +111,9 @@ class RuneTokenWordNgramMemoryModel:
         return int(self.counts_by_n.get(int(n), {}).get(bytes(key), 0))
 
     def get_prefix_total(self, n_minus_1: int, prefix: bytes) -> int:
-        return int(self.totals_by_prefix_len.get(int(n_minus_1), {}).get(bytes(prefix), 0))
+        return int(
+            self.totals_by_prefix_len.get(int(n_minus_1), {}).get(bytes(prefix), 0)
+        )
 
 
 __all__ = [

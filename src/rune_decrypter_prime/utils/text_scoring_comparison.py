@@ -2,15 +2,25 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
 
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
-from rune_decrypter_prime.core.types import Device, Direction, ObjectiveFamily, ObjectiveSpec, ScorerImpl, SeMode, Stat
-from rune_decrypter_prime.scoring.language_model.language_model_prime import LanguageModelPrime
+from rune_decrypter_prime.core.types import (
+    Device,
+    Direction,
+    ObjectiveFamily,
+    ObjectiveSpec,
+    ScorerImpl,
+    SeMode,
+    Stat,
+)
+from rune_decrypter_prime.scoring.language_model.language_model_prime import (
+    LanguageModelPrime,
+)
 from rune_decrypter_prime.utils.runeglish import Runeglish
 
 ALPHABET_SIZE = 29
@@ -125,7 +135,9 @@ def encode_text(
     *,
     direction: Direction,
 ) -> tuple[np.ndarray, List[List[int]]]:
-    pt_idx, wli, _runes = Runeglish.encode_english_to_runes(text, direction=direction.value)
+    pt_idx, wli, _runes = Runeglish.encode_english_to_runes(
+        text, direction=direction.value
+    )
     pt = np.asarray(pt_idx, dtype=np.uint8).reshape(-1)
     if pt.size == 0:
         raise ValueError("Encoded text is empty. Provide non-empty alphabetic text.")
@@ -159,7 +171,9 @@ def compare_two_texts(
         lm_root=Path(model_root).resolve() if model_root is not None else None,
         include_char=True,
     )
-    pct_cache: Dict[Tuple[Tuple[Tuple[int, float], ...], Tuple[Tuple[int, float], ...]], object] = {}
+    pct_cache: Dict[
+        Tuple[Tuple[Tuple[int, float], ...], Tuple[Tuple[int, float], ...]], object
+    ] = {}
     out: List[ScoreRow] = []
 
     for method in method_list:
@@ -175,8 +189,20 @@ def compare_two_texts(
             score_b = float(scorer.score(pt_b, wli_b))
         elif method.family == "pct":
             key = (
-                tuple(sorted((int(k), float(v)) for k, v in method.char_weights.items() if float(v) > 0.0)),
-                tuple(sorted((int(k), float(v)) for k, v in method.wli_weights.items() if float(v) > 0.0)),
+                tuple(
+                    sorted(
+                        (int(k), float(v))
+                        for k, v in method.char_weights.items()
+                        if float(v) > 0.0
+                    )
+                ),
+                tuple(
+                    sorted(
+                        (int(k), float(v))
+                        for k, v in method.wli_weights.items()
+                        if float(v) > 0.0
+                    )
+                ),
             )
             scorer = pct_cache.get(key)
             if scorer is None:
@@ -259,9 +285,13 @@ class RawCompositeScorer:
         self._wli_weights = _normalise_weights(wli_weights or {})
         self._wli_within_word = bool(wli_within_word)
         if not self._char_weights and not self._wli_weights:
-            raise ValueError("RawCompositeScorer requires at least one active channel weight")
+            raise ValueError(
+                "RawCompositeScorer requires at least one active channel weight"
+            )
 
-    def score(self, pt: Sequence[int] | np.ndarray, wli: Sequence[Sequence[int]] | None) -> float:
+    def score(
+        self, pt: Sequence[int] | np.ndarray, wli: Sequence[Sequence[int]] | None
+    ) -> float:
         pt_u8 = np.asarray(pt, dtype=np.uint8).reshape(-1)
         if pt_u8.size == 0:
             return float("-inf")
@@ -292,7 +322,14 @@ class RawCompositeScorer:
             total_eval = L - int(n) + 1
             if total_eval <= 0:
                 return float("-inf")
-            res = self._lm.score([seq], None, direction=self._direction.value, se="nose", n=int(n), model="char")[0]
+            res = self._lm.score(
+                [seq],
+                None,
+                direction=self._direction.value,
+                se="nose",
+                n=int(n),
+                model="char",
+            )[0]
             total += float(w) * (float(res.logprob_sum) / float(total_eval))
         return total
 
@@ -309,7 +346,14 @@ class RawCompositeScorer:
             total_eval = L - int(n) + 1
             if total_eval <= 0:
                 return float("-inf")
-            res = self._lm.score([seq], [wli], direction=self._direction.value, se="nose", n=int(n), model="wli")[0]
+            res = self._lm.score(
+                [seq],
+                [wli],
+                direction=self._direction.value,
+                se="nose",
+                n=int(n),
+                model="wli",
+            )[0]
             total += float(w) * (float(res.logprob_sum) / float(total_eval))
         return total
 
@@ -325,7 +369,14 @@ class RawCompositeScorer:
                     continue
                 pt_word = pt_u8[s:e].tolist()
                 wli_word = wli[s:e]
-                res = self._lm.score([pt_word], [wli_word], direction=self._direction.value, se="nose", n=int(n), model="wli")[0]
+                res = self._lm.score(
+                    [pt_word],
+                    [wli_word],
+                    direction=self._direction.value,
+                    se="nose",
+                    n=int(n),
+                    model="wli",
+                )[0]
                 logp_sum += float(res.logprob_sum)
                 eval_count += int(seg_len - int(n) + 1)
             if eval_count <= 0:
@@ -335,7 +386,9 @@ class RawCompositeScorer:
 
 
 def _normalise_weights(weights: Dict[int, float]) -> Dict[int, float]:
-    out = {int(n): float(w) for n, w in weights.items() if int(n) > 0 and float(w) > 0.0}
+    out = {
+        int(n): float(w) for n, w in weights.items() if int(n) > 0 and float(w) > 0.0
+    }
     return out
 
 

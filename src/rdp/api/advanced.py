@@ -1,5 +1,7 @@
 """Advanced typed V1 contracts."""
 
+# ruff: noqa: F401 - imports below are the deliberate public re-export surface.
+
 from __future__ import annotations
 
 from rdp.api.run_artifact_manifest import RunArtifactManifestRow
@@ -12,10 +14,10 @@ from rdp.api.solver_report import (
     SolverReport,
 )
 from rdp.api.stop_reason_contract import (
-    StopReason,
     ExecutionStatus,
     RecoveryStatus,
     StopCategory,
+    StopReason,
 )
 from rune_decrypter_prime.core.component_contracts import (
     CapabilityEffectiveState,
@@ -43,17 +45,17 @@ from rune_decrypter_prime.core.types import (
     AverageWindowPolicy,
     BeamExpansionMode,
     CipherKind,
-    InterruptorSearchStrategy,
-    KeyKind,
     FloatDType,
     HammingTextDirectionMode,
     IndexPermutation,
     InterruptorMode,
+    InterruptorSearchStrategy,
     JsonObject,
     JsonPrimitive,
     JsonValue,
     KaedingBlockSchedule,
     KaedingSlipPolicy,
+    KeyKind,
     LanguageModelBoundaryMode,
     OutOfVocabularyPolicy,
     PeriodicColumnarOrder,
@@ -75,4 +77,6 @@ from rune_decrypter_prime.core.types import (
 )
 from rune_decrypter_prime.scoring.scorer_report import ScorerReport
 
-__all__ = [name for name in globals() if not name.startswith("_") and name != "annotations"]
+__all__ = [
+    name for name in globals() if not name.startswith("_") and name != "annotations"
+]

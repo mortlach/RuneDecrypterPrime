@@ -1,78 +1,97 @@
 from __future__ import annotations
-from rdp import api
-import rdp.api.solver_report
+
 import math
 from pathlib import Path
+
 import pytest
-from rune_decrypter_prime.core.config.solution import Solution
+from rdp import api
 
-def test_build_solver_report_returns_solver_report() -> None:
-    report = rdp.api.solver_report.build_solver_report(solver_name='beam', requested_seed=123, effective_seed=123, normalized_params={'beam_width': 4}, stop_reason='max_steps', best_score=10.5, best_key=[1, 2, 3], step=7, evals=8, tokens_processed=9, wall_time_s=0.5, decrypt_time_s=0.2, score_time_s=0.3, details={'route': 'ordinary'})
-    assert isinstance(report, api.advanced.SolverReport)
-    payload = report.to_json_dict()
-    assert payload['solver_name'] == 'beam'
-    assert payload['requested_seed'] == 123
-    assert payload['effective_seed'] == 123
-    assert payload['normalized_params'] == {'beam_width': 4}
-    assert payload['stop_reason'] == 'max_steps'
-    assert payload['best_key'] == [1, 2, 3]
-    assert payload['details']['route'] == 'ordinary'
-    assert payload['details']['report_contract'] == {'version': 'api_solver_report_details.v1'}
-    assert payload['details']['oracle_use'] == 'none'
-    assert payload['details']['truth_data_policy'] == 'none'
-    assert payload['details']['run_status']['schema'] == 'rdp.run_status_contract.v1'
-    assert payload['details']['run_status']['execution_status'] == 'completed'
-    assert payload['details']['run_status']['stop_reason'] == 'max_steps_reached'
-    assert payload['details']['run_status']['recovery']['status'] == 'not_assessed'
-    assert payload['details']['configuration']['solver']['requested']['params'] == {'beam_width': 4}
-    repro = payload['details']['reproducibility']
-    assert repro['deterministic_seed_policy'] == 'explicit_or_default_zero'
-    assert repro['requested_seed'] == 123
-    assert repro['effective_seed'] == 123
-    assert repro['solver_name'] == 'beam'
-    assert repro['stop_category'] == 'budget'
-    assert repro['stop_reason'] == 'max_steps_reached'
 
-def test_build_solver_report_passes_seeds_unchanged() -> None:
-    report = rdp.api.solver_report.build_solver_report(solver_name='beam', requested_seed=None, effective_seed=0, normalized_params={'beam_width': 1})
+def _report(**overrides: object) -> api.advanced.SolverReport:
+    values: dict[str, object] = {
+        "solver": api.advanced.SolverKind.BEAM_SEARCH,
+        "parameters": api.advanced.ConfigurationResolution(
+            requested={"width": 4}, effective={"width": 4}
+        ),
+        "requested_seed": 123,
+        "effective_seed": 123,
+        "status": api.RunStatus(
+            execution_status=api.advanced.ExecutionStatus.COMPLETED,
+            stop_category=api.advanced.StopCategory.BUDGET,
+            stop_reason=api.advanced.StopReason.MAX_STEPS_REACHED,
+        ),
+        "best_score": 10.5,
+        "best_key": (1, 2, 3),
+        "steps": 7,
+        "evaluations": 8,
+        "tokens_processed": 9,
+        "wall_time_seconds": 0.5,
+        "decrypt_time_seconds": 0.2,
+        "score_time_seconds": 0.3,
+        "details": {"route": "ordinary"},
+    }
+    values.update(overrides)
+    return api.advanced.SolverReport(**values)  # type: ignore[arg-type]
+
+
+def test_solver_report_serializes_its_declared_contract() -> None:
+    payload = _report().to_json_dict()
+    assert payload["solver"] == "beam_search"
+    assert payload["parameters"] == {
+        "requested": {"width": 4},
+        "effective": {"width": 4},
+    }
+    assert payload["requested_seed"] == 123
+    assert payload["effective_seed"] == 123
+    assert payload["status"]["stop_reason"] == "max_steps_reached"
+    assert payload["best_key"] == [1, 2, 3]
+    assert payload["details"] == {"route": "ordinary"}
+
+
+def test_solver_report_preserves_requested_and_effective_seeds() -> None:
+    report = _report(requested_seed=None, effective_seed=0)
     assert report.requested_seed is None
     assert report.effective_seed == 0
 
-def test_build_solver_report_allows_known_key_style_effective_seed_none() -> None:
-    report = rdp.api.solver_report.build_solver_report(solver_name='beam', requested_seed=None, effective_seed=0, normalized_params={'beam_width': 1, 'test_key': [0, 1]})
-    assert report.effective_seed == 0
 
-def test_build_solver_report_passes_normalized_params_through_copy_validation() -> None:
-    params = {'beam_width': 4, 'nested': {'weights': [1, 2]}}
-    report = rdp.api.solver_report.build_solver_report(solver_name='beam', requested_seed=1, effective_seed=1, normalized_params=params)
-    params['nested']['weights'].append(3)
-    assert report.normalized_params['nested']['weights'] == (1, 2)
-    assert report.to_json_dict()['normalized_params'] == {'beam_width': 4, 'nested': {'weights': [1, 2]}}
+def test_configuration_resolution_copies_and_validates_nested_values() -> None:
+    params = {"width": 4, "nested": {"weights": [1, 2]}}
+    resolution = api.advanced.ConfigurationResolution(
+        requested=params, effective=params
+    )
+    params["nested"]["weights"].append(3)  # type: ignore[index, union-attr]
+    assert resolution.to_json_dict()["requested"] == {
+        "width": 4,
+        "nested": {"weights": [1, 2]},
+    }
 
-def test_build_solver_report_rejects_name_in_normalized_params() -> None:
-    with pytest.raises(ValueError):
-        rdp.api.solver_report.build_solver_report(solver_name='beam', requested_seed=1, effective_seed=1, normalized_params={'name': 'beam', 'beam_width': 4})
 
-def test_build_solver_report_rejects_path_in_normalized_params() -> None:
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"artifact": Path.cwd().resolve() / "absolute" / "report.json"},
+        {"bad": math.inf},
+        {"bad": object()},
+    ],
+)
+def test_configuration_resolution_rejects_nonportable_values(
+    bad: dict[str, object],
+) -> None:
+    with pytest.raises((TypeError, ValueError)):
+        api.advanced.ConfigurationResolution(requested=bad)
+
+
+def test_solver_report_rejects_invalid_concrete_key() -> None:
     with pytest.raises(TypeError):
-        rdp.api.solver_report.build_solver_report(solver_name='beam', requested_seed=1, effective_seed=1, normalized_params={'artifact': Path('out/report.json')})
+        _report(best_key=(1, True))
 
-def test_build_solver_report_rejects_non_string_normalized_params_key() -> None:
+
+def test_solver_report_requires_typed_solver_and_status() -> None:
     with pytest.raises(TypeError):
-        rdp.api.solver_report.build_solver_report(solver_name='beam', requested_seed=1, effective_seed=1, normalized_params={1: 'bad'})
-
-def test_build_solver_report_rejects_non_finite_float_in_details() -> None:
-    with pytest.raises(ValueError):
-        rdp.api.solver_report.build_solver_report(solver_name='beam', requested_seed=1, effective_seed=1, normalized_params={'beam_width': 4}, details={'bad': math.inf})
-
-def test_build_solver_report_best_key_uses_solver_report_validation() -> None:
+        _report(solver="beam")
     with pytest.raises(TypeError):
-        rdp.api.solver_report.build_solver_report(solver_name='beam', requested_seed=1, effective_seed=1, normalized_params={'beam_width': 4}, best_key=[1, True])
+        _report(status="max_steps")
 
-def test_build_solver_report_does_not_accept_solution_positional_shortcut() -> None:
-    solution = Solution(key=[1], plaintext=[0], score=1.0)
-    with pytest.raises(TypeError):
-        rdp.api.solver_report.build_solver_report(solution)
 
-def test_runapi_run_still_does_not_return_solver_report() -> None:
-    assert 'return_solver_report' not in api.run.__annotations__
+def test_run_does_not_offer_conditional_report_return() -> None:
+    assert "return_solver_report" not in api.run.__annotations__

@@ -278,7 +278,9 @@ _SOLVE_RECIPES: tuple[LPSolveRecipeEntry, ...] = (
 )
 
 _SOURCE_BY_LABEL = {entry.source_label: entry for entry in _SOURCE_ENTRIES}
-_SOURCE_ALIAS_TO_LABEL = {alias: entry.source_label for entry in _SOURCE_ENTRIES for alias in entry.aliases}
+_SOURCE_ALIAS_TO_LABEL = {
+    alias: entry.source_label for entry in _SOURCE_ENTRIES for alias in entry.aliases
+}
 _RECIPE_BY_LABEL = {entry.recipe_label: entry for entry in _SOLVE_RECIPES}
 
 if len(_SOURCE_BY_LABEL) != len(_SOURCE_ENTRIES):
@@ -289,7 +291,9 @@ if len(_RECIPE_BY_LABEL) != len(_SOLVE_RECIPES):
     raise RuntimeError("duplicate LP solve recipe labels in catalogue")
 for recipe in _SOLVE_RECIPES:
     if recipe.source_label not in _SOURCE_BY_LABEL:
-        raise RuntimeError(f"solve recipe references unknown source label: {recipe.recipe_label}")
+        raise RuntimeError(
+            f"solve recipe references unknown source label: {recipe.recipe_label}"
+        )
 
 
 def list_source_labels(*, include_aliases: bool = False) -> tuple[str, ...]:
@@ -327,8 +331,14 @@ def payload_from_label(label: str, *, doc: LPTranscript | None = None):
     The user-facing label stays simple; page-system details are metadata.
     """
 
-    from rune_decrypter_prime.data.liber_primus.lp_adapter import LPSolverPayload, payload_from_locator
-    from rune_decrypter_prime.data.liber_primus.lp_main import load_main_transcript, page_view_from_ref
+    from rune_decrypter_prime.data.liber_primus.lp_adapter import (
+        LPSolverPayload,
+        payload_from_locator,
+    )
+    from rune_decrypter_prime.data.liber_primus.lp_main import (
+        load_main_transcript,
+        page_view_from_ref,
+    )
     from rune_decrypter_prime.data.liber_primus.lp_registry import LPPageRef
 
     entry = resolve_source_label(label)
@@ -340,9 +350,15 @@ def payload_from_label(label: str, *, doc: LPTranscript | None = None):
         end_main = start_main
     else:
         start_main, end_main = entry.main_page_range
-        start_page = page_view_from_ref(effective_doc, LPPageRef.transcript_page(start_main))
-        end_page = page_view_from_ref(effective_doc, LPPageRef.transcript_page(end_main))
-        span = effective_doc.glyph_span(start_page.rec.g_start, end_page.rec.g_end - start_page.rec.g_start)
+        start_page = page_view_from_ref(
+            effective_doc, LPPageRef.transcript_page(start_main)
+        )
+        end_page = page_view_from_ref(
+            effective_doc, LPPageRef.transcript_page(end_main)
+        )
+        span = effective_doc.glyph_span(
+            start_page.rec.g_start, end_page.rec.g_end - start_page.rec.g_start
+        )
         ct_idx, wli = span.ct_wli()
         payload = LPSolverPayload(ct_idx=ct_idx, wli=wli, metadata={})
 

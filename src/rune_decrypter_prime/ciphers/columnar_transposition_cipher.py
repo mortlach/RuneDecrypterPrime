@@ -10,6 +10,7 @@ from rune_decrypter_prime.ciphers.base_keyed_cipher import KeyedCipherBase
 from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
 from rune_decrypter_prime.core.types import Direction, KeyOpsFamily, ensure_direction
 
+
 @register_cipher("columnar")
 class ColumnarTranspositionCipher(CipherPipelineMixin, KeyedCipherBase):
     """
@@ -44,17 +45,28 @@ class ColumnarTranspositionCipher(CipherPipelineMixin, KeyedCipherBase):
       - length: K (from cfg or cipher.key_length)
 
     """
+
     name: str = "columnar"
     keyops_family: KeyOpsFamily = KeyOpsFamily.PERMUTATION
     mod_keys: bool = False
 
-    def __init__(self, cfg, *, text_transposition: Direction | str = Direction.LTR, key_transposition: Direction | str = Direction.LTR):
-        text_dir = ensure_direction(getattr(cfg, "text_transposition", text_transposition))
+    def __init__(
+        self,
+        cfg,
+        *,
+        text_transposition: Direction | str = Direction.LTR,
+        key_transposition: Direction | str = Direction.LTR,
+    ):
+        text_dir = ensure_direction(
+            getattr(cfg, "text_transposition", text_transposition)
+        )
         key_dir = ensure_direction(getattr(cfg, "key_transposition", key_transposition))
         super().__init__(
             text_transposition=text_dir.value,
             key_transposition=key_dir.value,
-            initial_text_permutation_indices=getattr(cfg, "initial_text_permutation_indices", None),
+            initial_text_permutation_indices=getattr(
+                cfg, "initial_text_permutation_indices", None
+            ),
         )
         self.cfg = cfg
         self.text_direction = text_dir
@@ -99,9 +111,10 @@ class ColumnarTranspositionCipher(CipherPipelineMixin, KeyedCipherBase):
             return np.empty((0, L), dtype=np.uint8)
         # vectorized validity check
         if not (
-                keys.dtype.kind in "ui" and
-                keys.min() >= 0 and keys.max() < K and
-                (np.apply_along_axis(lambda r: np.unique(r).size, 1, keys) == K).all()
+            keys.dtype.kind in "ui"
+            and keys.min() >= 0
+            and keys.max() < K
+            and (np.apply_along_axis(lambda r: np.unique(r).size, 1, keys) == K).all()
         ):
             bad = keys[0]  # sample
             raise ValueError(
@@ -129,11 +142,17 @@ class ColumnarTranspositionCipher(CipherPipelineMixin, KeyedCipherBase):
         keys_i64 = keys.astype(np.int64, copy=False)
         col_lens_perm = col_lens[keys_i64]  # (B, K)
         off_ro = np.concatenate(
-            [np.zeros((B, 1), dtype=np.int64), np.cumsum(col_lens_perm[:, :-1], axis=1)], axis=1
+            [
+                np.zeros((B, 1), dtype=np.int64),
+                np.cumsum(col_lens_perm[:, :-1], axis=1),
+            ],
+            axis=1,
         )  # (B, K)
         off_phys = np.empty_like(off_ro)
         idx_rows = np.arange(B)[:, None]
-        off_phys[idx_rows, keys_i64] = off_ro  # scatter read-order offsets to physical columns
+        off_phys[idx_rows, keys_i64] = (
+            off_ro  # scatter read-order offsets to physical columns
+        )
 
         # Gather ciphertext indices for each (row, col) destination and assemble
         take = off_phys[:, C] + R[None, :]
@@ -167,4 +186,3 @@ class ColumnarTranspositionCipher(CipherPipelineMixin, KeyedCipherBase):
             ct_parts = [columns[c] for c in perm]
             out[b] = np.concatenate(ct_parts, axis=0)[:L]
         return out
-

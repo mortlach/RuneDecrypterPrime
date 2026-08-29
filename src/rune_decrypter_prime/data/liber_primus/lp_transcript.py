@@ -11,11 +11,13 @@ from rune_decrypter_prime.utils.runeglish import Runeglish
 # Format model
 # -----------------------------
 
+
 @dataclass(frozen=True)
 class Delimiters:
     """
     File-format delimiters (usually read from the header).
     """
+
     word: str = "-"
     three_dot: str = ","
     clause: str = "."
@@ -101,7 +103,7 @@ class GlyphSpan:
     g_end: int
 
     def text(self) -> str:
-        return "".join(self.doc.glyphs[self.g_start:self.g_end])
+        return "".join(self.doc.glyphs[self.g_start : self.g_end])
 
     def intersect(self, other: "GlyphSpan") -> "GlyphSpan":
         if self.doc is not other.doc:
@@ -174,6 +176,7 @@ class GlyphSpan:
 # Main parser
 # -----------------------------
 
+
 class LPTranscript:
     """
     Robust parser for the LP-style transcript format.
@@ -189,8 +192,8 @@ class LPTranscript:
         self.raw = raw_text
 
         # canonical streams
-        self.glyphs: List[str] = []        # glyph-only (no delimiters)
-        self.words: List[WordRec] = []     # word spans into glyphs
+        self.glyphs: List[str] = []  # glyph-only (no delimiters)
+        self.words: List[WordRec] = []  # word spans into glyphs
         self.lines: List[LineRec] = []
         self.pages: List[PageRec] = []
 
@@ -214,7 +217,9 @@ class LPTranscript:
     # ---------- construction ----------
 
     @classmethod
-    def from_file(cls, path: str | Path, *, delimiters: Delimiters | None = None) -> "LPTranscript":
+    def from_file(
+        cls, path: str | Path, *, delimiters: Delimiters | None = None
+    ) -> "LPTranscript":
         p = Path(path)
         raw_text = p.read_text(encoding="utf-8")
         delims = delimiters or cls._parse_delimiter_header(raw_text)
@@ -276,7 +281,9 @@ class LPTranscript:
 
     # ---------- random access helpers ----------
 
-    def word_id_at(self, *, chapter: int, page: int, line: int, word_in_line: int) -> int:
+    def word_id_at(
+        self, *, chapter: int, page: int, line: int, word_in_line: int
+    ) -> int:
         key = (chapter, page, line, word_in_line)
         if key not in self._loc_to_word:
             raise KeyError(f"No word at {key}")
@@ -337,7 +344,9 @@ class LPTranscript:
 
     # ---------- page catalogue / canon names ----------
 
-    def attach_page_catalogue(self, source: str | Path | Dict[int, Dict[str, str]]) -> None:
+    def attach_page_catalogue(
+        self, source: str | Path | Dict[int, Dict[str, str]]
+    ) -> None:
         if isinstance(source, (str, Path)):
             p = Path(source)
             data = p.read_text(encoding="utf-8")
@@ -451,12 +460,14 @@ class LPTranscript:
                 continue
 
             for i in range(0, len(word_texts) - len(pat) + 1):
-                if word_texts[i:i + len(pat)] == pat:
+                if word_texts[i : i + len(pat)] == pat:
                     starts.append(i if include_match_word else i + len(pat))
                     break
 
         boundaries = sorted(set([0, *starts, len(self.words)]))
-        self.add_split_from_boundaries(name, boundaries_word_ids=boundaries, start_section_id=start_section_id)
+        self.add_split_from_boundaries(
+            name, boundaries_word_ids=boundaries, start_section_id=start_section_id
+        )
 
     def section(self, split: str, section_id: int) -> "SectionView":
         if split not in self._splits:
@@ -473,7 +484,9 @@ class LPTranscript:
         if not matches:
             raise KeyError(f"No section label '{label}' in split '{split}'.")
         if len(matches) > 1:
-            raise KeyError(f"Multiple sections with label '{label}' in split '{split}'.")
+            raise KeyError(
+                f"Multiple sections with label '{label}' in split '{split}'."
+            )
         return SectionView(self, matches[0])
 
     # ---------- parsing ----------
@@ -513,19 +526,32 @@ class LPTranscript:
         def flush_word() -> None:
             nonlocal cur_word_chars, cur_word_g_start
             nonlocal cur_word_start_chapter, cur_word_start_page, cur_word_start_line
-            nonlocal cur_word_start_word_in_line, cur_word_start_line_id, cur_word_start_page_id
+            nonlocal \
+                cur_word_start_word_in_line, \
+                cur_word_start_line_id, \
+                cur_word_start_page_id
             if not cur_word_chars:
                 cur_word_g_start = None
                 return
 
             text = "".join(cur_word_chars)
-            g_start = cur_word_g_start if cur_word_g_start is not None else len(self.glyphs) - len(cur_word_chars)
+            g_start = (
+                cur_word_g_start
+                if cur_word_g_start is not None
+                else len(self.glyphs) - len(cur_word_chars)
+            )
             g_end = g_start + len(cur_word_chars)
 
-            start_chapter = 0 if cur_word_start_chapter is None else cur_word_start_chapter
+            start_chapter = (
+                0 if cur_word_start_chapter is None else cur_word_start_chapter
+            )
             start_page = 0 if cur_word_start_page is None else cur_word_start_page
             start_line = 0 if cur_word_start_line is None else cur_word_start_line
-            start_word_in_line = 0 if cur_word_start_word_in_line is None else cur_word_start_word_in_line
+            start_word_in_line = (
+                0
+                if cur_word_start_word_in_line is None
+                else cur_word_start_word_in_line
+            )
 
             w_idx = len(self.words)
             wrec = WordRec(
@@ -538,7 +564,9 @@ class LPTranscript:
                 word_in_line=start_word_in_line,
             )
             self.words.append(wrec)
-            self._loc_to_word[(start_chapter, start_page, start_line, start_word_in_line)] = w_idx
+            self._loc_to_word[
+                (start_chapter, start_page, start_line, start_word_in_line)
+            ] = w_idx
 
             for j in range(g_start, g_end):
                 self._glyph_to_word.append(w_idx)
@@ -581,7 +609,9 @@ class LPTranscript:
                         g_end=g_end,
                     )
                 )
-                self._line_to_page.append(len(self.pages))  # provisional until page closes
+                self._line_to_page.append(
+                    len(self.pages)
+                )  # provisional until page closes
 
             if has_content or force_advance:
                 line_in_page += 1
@@ -596,7 +626,11 @@ class LPTranscript:
             line_end = len(self.lines)
             word_end = len(self.words)
             g_end = len(self.glyphs)
-            has_content = (line_end > page_line_start) or (word_end > page_word_start) or (g_end > page_g_start)
+            has_content = (
+                (line_end > page_line_start)
+                or (word_end > page_word_start)
+                or (g_end > page_g_start)
+            )
 
             if has_content:
                 p_idx = len(self.pages)
@@ -623,7 +657,13 @@ class LPTranscript:
                 page_g_start = len(self.glyphs)
 
         def start_new_chapter() -> None:
-            nonlocal chapter, page, line_in_page, page_line_start, page_word_start, page_g_start
+            nonlocal \
+                chapter, \
+                page, \
+                line_in_page, \
+                page_line_start, \
+                page_word_start, \
+                page_g_start
             flush_page(force_advance=False)
             chapter += 1
             page = 0
@@ -747,6 +787,7 @@ class LPTranscript:
 # Views (chainable access)
 # -----------------------------
 
+
 @dataclass(frozen=True)
 class WordView:
     doc: LPTranscript
@@ -773,10 +814,16 @@ class LineView:
         return self.doc.lines[self.line_id]
 
     def words(self) -> List[WordView]:
-        return [WordView(self.doc, wi) for wi in range(self.rec.word_start, self.rec.word_end)]
+        return [
+            WordView(self.doc, wi)
+            for wi in range(self.rec.word_start, self.rec.word_end)
+        ]
 
     def text(self, sep: str = " ") -> str:
-        return sep.join(self.doc.words[wi].text for wi in range(self.rec.word_start, self.rec.word_end))
+        return sep.join(
+            self.doc.words[wi].text
+            for wi in range(self.rec.word_start, self.rec.word_end)
+        )
 
     def glyph_span(self) -> GlyphSpan:
         return GlyphSpan(self.doc, self.rec.g_start, self.rec.g_end)
@@ -792,7 +839,10 @@ class PageView:
         return self.doc.pages[self.page_id]
 
     def lines(self) -> List[LineView]:
-        return [LineView(self.doc, li) for li in range(self.rec.line_start, self.rec.line_end)]
+        return [
+            LineView(self.doc, li)
+            for li in range(self.rec.line_start, self.rec.line_end)
+        ]
 
     def text(self, sep: str = " ", line_sep: str = "\n") -> str:
         return line_sep.join(l.text(sep=sep) for l in self.lines())
@@ -815,7 +865,10 @@ class SectionView:
     rec: SectionRec
 
     def words(self) -> List[WordView]:
-        return [WordView(self.doc, wi) for wi in range(self.rec.word_start, self.rec.word_end)]
+        return [
+            WordView(self.doc, wi)
+            for wi in range(self.rec.word_start, self.rec.word_end)
+        ]
 
     def local_word_index(self, word_id: int) -> int:
         if not (self.rec.word_start <= word_id < self.rec.word_end):

@@ -33,17 +33,28 @@ class PeriodicColumnarCipher(CipherPipelineMixin, KeyedCipherBase):
     Integrated periodic substitution + columnar transposition.
     Key layout: K = p * A + W
     """
+
     name: str = "periodic_columnar"
     keyops_family: KeyOpsFamily = KeyOpsFamily.MATRIX
     mod_keys: bool = False
 
-    def __init__(self, cfg, *, text_transposition: Direction | str = Direction.LTR, key_transposition: Direction | str = Direction.LTR):
-        text_dir = ensure_direction(getattr(cfg, "text_transposition", text_transposition))
+    def __init__(
+        self,
+        cfg,
+        *,
+        text_transposition: Direction | str = Direction.LTR,
+        key_transposition: Direction | str = Direction.LTR,
+    ):
+        text_dir = ensure_direction(
+            getattr(cfg, "text_transposition", text_transposition)
+        )
         key_dir = ensure_direction(getattr(cfg, "key_transposition", key_transposition))
         super().__init__(
             text_transposition=text_dir.value,
             key_transposition=key_dir.value,
-            initial_text_permutation_indices=getattr(cfg, "initial_text_permutation_indices", None),
+            initial_text_permutation_indices=getattr(
+                cfg, "initial_text_permutation_indices", None
+            ),
         )
         self.cfg = cfg
         self.text_direction = text_dir
@@ -52,8 +63,12 @@ class PeriodicColumnarCipher(CipherPipelineMixin, KeyedCipherBase):
         period = _cfg_get(cfg, "period", None)
         columns = _cfg_get(cfg, "columns", None)
         if period is None or columns is None:
-            raise ValueError("PeriodicColumnar requires period and columns in config or keyops_hints")
-        A = _cfg_get(cfg, "alphabet_size", _cfg_get(cfg, "A", _cfg_get(cfg, "N", DEFAULT_A)))
+            raise ValueError(
+                "PeriodicColumnar requires period and columns in config or keyops_hints"
+            )
+        A = _cfg_get(
+            cfg, "alphabet_size", _cfg_get(cfg, "A", _cfg_get(cfg, "N", DEFAULT_A))
+        )
 
         self.period = int(period)
         self.columns = int(columns)
@@ -75,7 +90,9 @@ class PeriodicColumnarCipher(CipherPipelineMixin, KeyedCipherBase):
         expected = int(self.period * self.A + self.columns)
         key_len = getattr(cfg, "key_length", None)
         if key_len is not None and int(key_len) != expected:
-            raise ValueError(f"key_length must be {expected} for period={self.period}, A={self.A}, columns={self.columns}")
+            raise ValueError(
+                f"key_length must be {expected} for period={self.period}, A={self.A}, columns={self.columns}"
+            )
         self.key_length = expected
 
     def _periodic_decrypt_batch(self, ct: ArrayU8, keys: ArrayU8) -> ArrayU8:
@@ -162,7 +179,11 @@ class PeriodicColumnarCipher(CipherPipelineMixin, KeyedCipherBase):
         keys_i64 = keys_arr.astype(np.int64, copy=False)
         col_lens_perm = col_lens[keys_i64]
         off_ro = np.concatenate(
-            [np.zeros((B, 1), dtype=np.int64), np.cumsum(col_lens_perm[:, :-1], axis=1)], axis=1
+            [
+                np.zeros((B, 1), dtype=np.int64),
+                np.cumsum(col_lens_perm[:, :-1], axis=1),
+            ],
+            axis=1,
         )
         off_phys = np.empty_like(off_ro)
         idx_rows = np.arange(B)[:, None]
@@ -206,7 +227,9 @@ class PeriodicColumnarCipher(CipherPipelineMixin, KeyedCipherBase):
         sub_len = int(self.period * self.A)
         col_len = int(self.columns)
         if keys.shape[1] != int(self.key_length):
-            raise ValueError(f"Expected key length {self.key_length}, got {keys.shape[1]}")
+            raise ValueError(
+                f"Expected key length {self.key_length}, got {keys.shape[1]}"
+            )
         sub_keys = keys[:, :sub_len]
         col_keys = keys[:, sub_len : sub_len + col_len]
 
@@ -225,7 +248,9 @@ class PeriodicColumnarCipher(CipherPipelineMixin, KeyedCipherBase):
         sub_len = int(self.period * self.A)
         col_len = int(self.columns)
         if keys.shape[1] != int(self.key_length):
-            raise ValueError(f"Expected key length {self.key_length}, got {keys.shape[1]}")
+            raise ValueError(
+                f"Expected key length {self.key_length}, got {keys.shape[1]}"
+            )
         sub_keys = keys[:, :sub_len]
         col_keys = keys[:, sub_len : sub_len + col_len]
 
@@ -234,4 +259,3 @@ class PeriodicColumnarCipher(CipherPipelineMixin, KeyedCipherBase):
             return self._columnar_apply_batch(pt1, col_keys)
         pt1 = self._columnar_apply_batch(pt, col_keys)
         return self._periodic_encrypt_batch(pt1, sub_keys)
-
