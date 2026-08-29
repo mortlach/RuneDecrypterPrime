@@ -438,7 +438,14 @@ def materialize_cipher_config(
             if kind in {FinalCipherKind.PERIODIC_SUBSTITUTION, FinalCipherKind.PERIODIC_COLUMNAR}
             else KeyOpsFamily.VECTOR
         ),
-        keyops_hints={"mod": int(values["alphabet_size"])},
+        keyops_hints=(
+            {
+                "mod": int(values["maximum_rails"]) - int(values["minimum_rails"]) + 1,
+                "minimum": int(values["minimum_rails"]),
+            }
+            if kind is FinalCipherKind.RAIL_FENCE
+            else {"mod": int(values["alphabet_size"])}
+        ),
         spec=cipher,
         key_space=key_space,
         alphabet_size=int(values["alphabet_size"]),

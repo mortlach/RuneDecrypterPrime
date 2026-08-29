@@ -17,9 +17,8 @@ def _make_cipher(**overrides) -> RailFenceCipher:
 
 
 def _key_for(cipher: RailFenceCipher, rails: int) -> np.ndarray:
-    """Helper to encode a desired rail count into the scalar key space."""
-    raw = rails - cipher._min_rails
-    return np.asarray([raw], dtype=np.uint8)
+    """Return the semantic public/runtime rail count."""
+    return np.asarray([rails], dtype=np.uint8)
 
 
 def test_railfence_encrypt_decrypt_roundtrip():
@@ -54,3 +53,9 @@ def test_railfence_fixed_rails_must_be_in_range():
         _make_cipher(rails_fixed=1)
     with pytest.raises(ValueError):
         _make_cipher(min_rails=2, max_rails=4, rails_fixed=6)
+
+
+def test_railfence_rejects_legacy_offset_keys():
+    cipher = _make_cipher()
+    with pytest.raises(ValueError, match="semantic rail counts"):
+        cipher.encrypt(plaintext=np.arange(8, dtype=np.uint8), key=np.asarray([0], dtype=np.uint8))

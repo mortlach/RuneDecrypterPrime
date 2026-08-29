@@ -28,6 +28,7 @@ def _rng_choice(rng, a: int, size=None):
 class VectorKeyConfig:
     K: int
     mod: int = 29  # default runic alphabet
+    minimum: int = 0
     # future traits can go here (e.g., per-position step); keep simple for now
 
 @register_keyop(KeyOpsFamily.VECTOR)
@@ -49,17 +50,22 @@ class VectorKeyOps(KeyOpBase):
         elif isinstance(cfg_or_K, (int, np.integer)) or cfg_or_K is None:
             K = int(cfg_or_K) if cfg_or_K is not None else int(kwargs.get("K"))
             mod = int(kwargs.get("mod", 29))
-            cfg = VectorKeyConfig(K=K, mod=mod)
+            cfg = VectorKeyConfig(K=K, mod=mod, minimum=int(kwargs.get("minimum", 0)))
         else:
             # kwargs-only path (e.g., create("vector", K=.., mod=..))
             K = int(kwargs.get("K"))
             mod = int(kwargs.get("mod", 29))
-            cfg = VectorKeyConfig(K=K, mod=mod)
+            cfg = VectorKeyConfig(K=K, mod=mod, minimum=int(kwargs.get("minimum", 0)))
 
         self.K: int = int(cfg.K)
         self.mod: int = int(cfg.mod)
+        self.minimum: int = int(cfg.minimum)
 
-        traits: Dict[str, Any] = {"family": KeyOpsFamily.VECTOR, "mod": self.mod}
+        traits: Dict[str, Any] = {
+            "family": KeyOpsFamily.VECTOR,
+            "mod": self.mod,
+            "minimum": self.minimum,
+        }
         ops: Set[str] = {
             "random",
             "normalize",
@@ -77,11 +83,11 @@ class VectorKeyOps(KeyOpBase):
         k = np.asarray(key, dtype=np.int64).reshape(-1)  # tolerate list/np types
         if k.size != self.K:
             raise ValueError(f"VectorKeyOps.normalize: expected length {self.K}, got {k.size}")
-        k = np.mod(k, self.mod, dtype=np.int64)
+        k = self.minimum + np.mod(k - self.minimum, self.mod, dtype=np.int64)
         return k.astype(np.uint8, copy=False)
 
     def random(self, rng) -> np.ndarray:
-        k = _rng_integers(rng, 0, self.mod, size=self.K)
+        k = _rng_integers(rng, self.minimum, self.minimum + self.mod, size=self.K)
         return np.asarray(k, dtype=np.uint8)
 
     def mutate(self, key: np.ndarray, rng) -> np.ndarray:
@@ -89,7 +95,9 @@ class VectorKeyOps(KeyOpBase):
         idx = int(_rng_integers(rng, 0, self.K))
         # +/- 1 step (wrapped). If you ever want bigger steps, make it a param.
         step = 1 if _rng_integers(rng, 0, 2) == 0 else -1
-        k[idx] = np.uint8((int(k[idx]) + step) % self.mod)
+        k[idx] = np.uint8(
+            self.minimum + ((int(k[idx]) - self.minimum + step) % self.mod)
+        )
         return k
 
     def recombine(self, p1: np.ndarray, p2: np.ndarray, rng) -> np.ndarray:
@@ -120,8 +128,12 @@ class VectorKeyOps(KeyOpBase):
         k = np.asarray(key, dtype=np.uint8)
         assert k.ndim == 1, f"Vector key must be 1-D, got shape {k.shape}"
         assert k.size > 0, "Vector key must be non-empty"
-        assert np.all(k >= 0), "Vector key entries must be >= 0"
-        assert np.all(k < self.mod), f"Vector key entries must be < mod ({self.mod})"
+        assert np.all(k >= self.minimum), (
+            f"Vector key entries must be >= minimum ({self.minimum})"
+        )
+        assert np.all(k < self.minimum + self.mod), (
+            f"Vector key entries must be < {self.minimum + self.mod}"
+        )
 
     def partial_mask(self, L: int, depth: int):
         """
@@ -167,7 +179,12 @@ class VectorKeyOps(KeyOpBase):
 
     # --------------------------- Batch helpers --------------------------------
     def make_population(self, n: int, rng) -> np.ndarray:
-        pop = _rng_integers(rng, 0, self.mod, size=(int(n), self.K))
+        pop = _rng_integers(
+            rng,
+            self.minimum,
+            self.minimum + self.mod,
+            size=(int(n), self.K),
+        )
         return np.asarray(pop, dtype=np.uint8, order="C")
 
     def batch_neighbors(self, key: np.ndarray, n: int, rng) -> np.ndarray:
@@ -189,5 +206,9 @@ class VectorKeyOps(KeyOpBase):
         if not (0 <= p < self.K):
             raise IndexError(f"expand_position: pos={p} out of range [0,{self.K})")
         out = np.tile(base, (self.mod, 1)).astype(np.uint8, copy=False)
-        out[:, p] = np.arange(self.mod, dtype=np.uint8)
+        out[:, p] = np.arange(
+            self.minimum,
+            self.minimum + self.mod,
+            dtype=np.uint8,
+        )
         return out

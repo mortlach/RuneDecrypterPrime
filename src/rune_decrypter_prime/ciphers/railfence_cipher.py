@@ -76,10 +76,12 @@ class RailFenceCipher(KeyedCipherBase):
         if self._fixed_rails is not None:
             return np.full(keys.shape[0], self._fixed_rails, dtype=np.int64)
 
-        raw = keys[:, 0].astype(np.int64, copy=False)
-        rails = self._min_rails + (raw % self._key_mod)
-        # Guard against stray values from legacy callers
-        np.clip(rails, self._min_rails, self._max_rails, out=rails)
+        rails = keys[:, 0].astype(np.int64, copy=False)
+        if np.any(rails < self._min_rails) or np.any(rails > self._max_rails):
+            raise ValueError(
+                "railfence keys are semantic rail counts in "
+                f"[{self._min_rails}, {self._max_rails}]"
+            )
         return rails
 
     @staticmethod

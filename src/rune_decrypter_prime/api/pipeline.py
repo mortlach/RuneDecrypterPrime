@@ -6,7 +6,6 @@ import numpy as np
 from rune_decrypter_prime.core.types import Device, Direction, SolverName, KEY_DTYPE
 from rune_decrypter_prime.core.config import ScoringConfig, SolverConfig
 from rune_decrypter_prime.core.config.logging_config import LoggingConfig, init_logging
-from rune_decrypter_prime.api.fastpaths import maybe_known_key_fastpath
 from rune_decrypter_prime.api.pipeline_helpers import finalize_solution, coerce_wli_for_config
 from rune_decrypter_prime.core.config.cipher import materialize_cipher_config
 from rune_decrypter_prime.core.types import ComputeDevice, TextDirection
@@ -40,22 +39,6 @@ def execute_run(
 ):
     if initialize_logging and logging_config is not None:
         init_logging(logging_config)
-
-    # 0) Known-key fast path
-    fast = maybe_known_key_fastpath(
-        cipher=cipher,
-        key=key,
-        ciphertext=ciphertext,
-        wli=wli,
-        device=device,
-        scoring=scoring,
-        scorer_name=scorer_name,
-        logging_runtime=logging_runtime,
-        encoding_dir=encoding_dir,
-        telemetry_on=telemetry_on,
-    )
-    if fast is not None:
-        return fast
 
     # 1) Canonical CipherConfig
     cipher_cfg = materialize_cipher_config(
