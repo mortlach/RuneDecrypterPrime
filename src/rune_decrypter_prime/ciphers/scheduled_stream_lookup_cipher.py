@@ -13,7 +13,7 @@ import numpy as np
 
 from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin
 from rune_decrypter_prime.ciphers.base_keyed_cipher import KeyedCipherBase
-from rune_decrypter_prime.ciphers.registry import register_cipher
+from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
 from rune_decrypter_prime.core.types import Device, Direction, KeyOpsFamily, ensure_device, ensure_direction
 
 ArrayInt = np.ndarray

@@ -8,7 +8,7 @@ from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode
 from rune_decrypter_prime.core.types import Device, ScorerImpl, ensure_device, ensure_scorer_impl
 from rune_decrypter_prime.backends.xp import select_backend
-from rune_decrypter_prime.ciphers import registry as cipher_registry
+from rune_decrypter_prime.ciphers import cipher_runtime_registry
 
 
 def _require_cipher_config(cfg_cipher: CipherConfig) -> CipherConfig:
@@ -29,10 +29,10 @@ def build_cipher(cfg_cipher: CipherConfig) -> Any:
     if not name:
         raise ValueError("Cipher config must include a 'name' field")
     name = str(name).lower()
-    if not cipher_registry.has(name):
-        avail = ", ".join(cipher_registry.available())
+    if not cipher_runtime_registry.has(name):
+        avail = ", ".join(cipher_runtime_registry.available())
         raise KeyError(f"Unknown cipher '{name}'. Available: {avail}")
-    CipherCtor = cipher_registry.get(name)
+    CipherCtor = cipher_runtime_registry.get(name)
     cipher = CipherCtor(cfg_cipher)
     if not hasattr(cipher, "cfg"):
         setattr(cipher, "cfg", cfg_cipher)

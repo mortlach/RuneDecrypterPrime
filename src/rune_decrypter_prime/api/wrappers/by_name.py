@@ -170,7 +170,7 @@ def _make_vigenere_like_spec(**kwargs):
 from types import SimpleNamespace as _NS
 from typing import Union as _Union
 
-from rune_decrypter_prime.ciphers import registry as _cipher_registry
+from rune_decrypter_prime.ciphers import cipher_runtime_registry
 
 def cipher_instance(spec_or_name: _Union[str, object], **overrides):
     """
@@ -195,7 +195,7 @@ def cipher_instance(spec_or_name: _Union[str, object], **overrides):
             setattr(base, k, v)
         spec = base
 
-    ctor = _cipher_registry.get(name)  # uses  cipher registry
+    ctor = cipher_runtime_registry.get(name)
     return ctor(spec)
 
 

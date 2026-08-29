@@ -9,7 +9,7 @@ import numpy as np
 from rune_decrypter_prime.backends.xp import select_backend
 from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin  # transposition/interruptors mixin
 from rune_decrypter_prime.ciphers.base_keyed_cipher import KeyedCipherBase
-from rune_decrypter_prime.ciphers.registry import register_cipher
+from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
 from rune_decrypter_prime.core.types import (
     Device,
     Direction,
@@ -79,7 +79,6 @@ def encrypt(pt: np.ndarray, key: Union[str, bytes, bytearray, Iterable[int], np.
 
 
 @register_cipher("vigenere")
-@register_cipher("vig")
 class RuneVigenereCipher(CipherPipelineMixin, KeyedCipherBase):
     """
     Canonical Vigenère implementation (mod 29).
@@ -115,6 +114,9 @@ class RuneVigenereCipher(CipherPipelineMixin, KeyedCipherBase):
         if K is None:
             raise ValueError("Vigenere requires cfg.key_length")
         self.key_length = int(K)
+        self.A = int(getattr(cfg, "alphabet_size", A) or A)
+        if self.A < 2:
+            raise ValueError("Vigenere alphabet_size must be >= 2")
         self.cfg = cfg
         self.text_direction = text_dir
         self.key_direction = key_dir

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Optional, Sequence
 
 from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rune_decrypter_prime.core.config.cipher import expected_concrete_key_length
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.types import Direction, ensure_direction
 
@@ -38,3 +39,12 @@ class ProblemSpec:
             raise TypeError(f"cipher_cfg must be CipherConfig, got {type(self.cipher_cfg).__name__}")
         if not isinstance(self.scorer_params, ScoringConfig):
             raise TypeError(f"scorer_params must be ScoringConfig, got {type(self.scorer_params).__name__}")
+        if self.cipher_cfg.spec is not None or self.cipher_cfg.key_space is not None:
+            if self.cipher_cfg.spec is None or self.cipher_cfg.key_space is None:
+                raise ValueError("typed cipher and key-space ownership must be recorded together")
+            expected = expected_concrete_key_length(
+                self.cipher_cfg.spec,
+                self.cipher_cfg.key_space,
+            )
+            if self.cipher_cfg.key_length != expected:
+                raise ValueError("materialized key length does not match the typed binding")

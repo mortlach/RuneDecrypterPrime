@@ -8,7 +8,7 @@ import numpy as np
 
 from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin
 from rune_decrypter_prime.ciphers.base_keyed_cipher import KeyedCipherBase
-from rune_decrypter_prime.ciphers.registry import register_cipher
+from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
 from rune_decrypter_prime.backends.xp import select_backend
 from rune_decrypter_prime.core.types import (
     CipherKind,
@@ -29,10 +29,7 @@ def _as_u8(value, name: str) -> np.ndarray:
         raise TypeError(f"{name} must be array-like of uint8") from exc
 
 
-@register_cipher("user_map2")
-@register_cipher("user_map3")
-@register_cipher("lookup")
-@register_cipher("generic-map")
+@register_cipher("generic_map")
 class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
     """
     Generic map cipher that evaluates a per-position mapping:

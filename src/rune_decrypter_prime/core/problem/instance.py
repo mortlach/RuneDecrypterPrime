@@ -14,6 +14,22 @@ from rune_decrypter_prime.core.engine.builders import build_cipher, build_scorer
 from rune_decrypter_prime.telemetry.pipeline import make_pipeline_block
 from rune_decrypter_prime.core.types import Direction, ensure_direction
 
+
+def _expected_runtime_identity(spec: object) -> str | None:
+    from rune_decrypter_prime.api.specs import CipherSpec
+    from rune_decrypter_prime.core.types import FinalCipherKind
+
+    if not isinstance(spec, CipherSpec):
+        return None
+    if spec.kind in {
+        FinalCipherKind.TWO_PERIOD_VIGENERE,
+        FinalCipherKind.PERIODIC_WITH_FIXED_STREAM,
+        FinalCipherKind.PERIODIC_WITH_PRIME_STREAM,
+        FinalCipherKind.TWO_PERIOD_STREAMS,
+    }:
+        return "scheduled_stream_lookup"
+    return spec.kind.value
+
 def _indices_from_perm(perm: Optional[Sequence[int]], n: int) -> Optional[List[int]]:
     if perm is None:
         return None
@@ -42,6 +58,11 @@ class ProblemInstance:
     def materialise(cls, spec: ProblemSpec) -> "ProblemInstance":
         # 1) Build cipher/scorer using existing, tested builders
         cipher = build_cipher(spec.cipher_cfg)
+        expected_identity = _expected_runtime_identity(spec.cipher_cfg.spec)
+        if expected_identity is not None and spec.cipher_cfg.name != expected_identity:
+            raise RuntimeError(
+                "runtime cipher identity does not match the typed cipher materialization"
+            )
         scorer = build_scorer(spec.cipher_cfg, spec.scorer_params)
 
         # 2) Bind into the canonical DecryptionProblem

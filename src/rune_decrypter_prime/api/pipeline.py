@@ -8,7 +8,8 @@ from rune_decrypter_prime.core.config import ScoringConfig, SolverConfig
 from rune_decrypter_prime.core.config.logging_config import LoggingConfig, init_logging
 from rune_decrypter_prime.api.fastpaths import maybe_known_key_fastpath
 from rune_decrypter_prime.api.pipeline_helpers import finalize_solution, coerce_wli_for_config
-from rune_decrypter_prime.api.wrappers.registry import build_cipher_config
+from rune_decrypter_prime.core.config.cipher import materialize_cipher_config
+from rune_decrypter_prime.core.types import ComputeDevice, TextDirection
 
 # Stage-2 imports
 from rune_decrypter_prime.core.problem import ProblemSpec, ProblemInstance
@@ -57,19 +58,20 @@ def execute_run(
         return fast
 
     # 1) Canonical CipherConfig
-    cipher_cfg = build_cipher_config(
+    cipher_cfg = materialize_cipher_config(
         cipher=cipher,
-        key=key,
+        key_space=key,
         ciphertext=ciphertext,
-        wli=coerce_wli_for_config(wli),
-        device=device,
-        encoding_dir=encoding_dir,
-        initial_text_permutation_indices=initial_text_permutation_indices,
+        word_lengths=coerce_wli_for_config(wli),
+        compute_device=(ComputeDevice.CUDA if device is Device.CUDA else ComputeDevice.CPU),
+        text_direction=(
+            TextDirection.RIGHT_TO_LEFT
+            if encoding_dir is Direction.RTL
+            else TextDirection.LEFT_TO_RIGHT
+        ),
+        text_permutation=initial_text_permutation_indices,
         initial_keys=initial_keys,
         interruptors=interruptors,
-        interruptors_exact=interruptors_exact,
-        interruptors_pool=interruptors_pool,
-        interruptors_max=interruptors_max,
     )
 
     # 2) Materialise Stage-2 ProblemInstance

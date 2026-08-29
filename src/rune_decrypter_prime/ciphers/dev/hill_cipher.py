@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 
 from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin, ArrayU8
-from rune_decrypter_prime.ciphers.registry import register_cipher
+from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
 #from rune_decrypter_prime.keyops import KeyOpBase, KeySpec
 from rune_decrypter_prime.keyops.dev.matrix import MatrixKey, MatrixKeyConfig
 # XP helper is optional and only used when n==2 and device is GPU/XP
