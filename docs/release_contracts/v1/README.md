@@ -24,6 +24,7 @@ These files make those decisions reviewable and machine-checkable.
 
 ## Files used as contract evidence
 
+- `RDP_CORE_DESIGN_PRINCIPLES.md` - single canonical implementation-design principles for the V1 API migration
 - `final_source_to_wp_decision_target_test_chain.csv` - source -> WP -> decision -> target -> test chain
 - `final_missing_or_new_acceptance_tests.csv` - acceptance-test gap/promotion list from handoff evidence
 - `v1_scope_lock.json` - compact V1 included/excluded boundary used by scope-lock tests
@@ -52,8 +53,11 @@ These files make those decisions reviewable and machine-checkable.
 
 ## Rules
 
+- Follow `RDP_CORE_DESIGN_PRINCIPLES.md` when implementing or reviewing V1 changes.
 - Do not delete source-to-test evidence as cleanup.
 - Do not promote experimental/report-only features into V1 production scoring.
-- Do not remove public/API compatibility aliases without updating the cleanup ledger and the relevant tests.
+- Remove unreleased accidental public/API aliases only under accepted authority,
+  after their consumers and relevant tests migrate; do not preserve them through
+  compatibility shims.
 - Do not add machine-specific absolute paths to public release artefacts.
 - If this folder is relocated later, move the tests and docs references in the same commit.
