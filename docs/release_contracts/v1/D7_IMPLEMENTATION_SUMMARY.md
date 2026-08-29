@@ -1,5 +1,8 @@
 # D7 implementation summary
 
+> Historical D7 evidence. Its pre-AN3 public names are superseded by the
+> accepted AN1/AN2 contract and the definition-owning `rdp.api` implementation.
+
 D7 closes the V1 release-contract gap by turning the D0-D6 hardening work into explicit, repo-local evidence and tests.
 
 ## Design split

@@ -1,32 +1,25 @@
-# How-To: Run a Deterministic Solve
+# Run a deterministic solve
 
-Audience: Hands-on
-Time: 3-5 minutes
-Outcome: Reproduce a seeded run and compare telemetry
-Prereqs: Python 3.11+, bootstrap complete (`python install.py`)
+Put the seed on the typed solver specification and retain the request/result
+pair:
 
-## Hands-on
-1. Follow the quickstart steps and run `python install.py`.
-2. Run `python tutorials/v1/run_tutorials.py`.
-3. Compare the tutorial logs under `output/tutorial_logs/` with another run.
+```python
+from rdp import api
 
-## Expert
-1. Configure RunAPI with explicit `seed`:
-   ```python
-   from rune_decrypter_prime.api import run, SolverSpec, KeySpec, by_name
-   sol = run(
-       text="??????",
-       cipher=by_name.cipher("vigenere", key_len=6),
-       key=KeySpec.repeat(len=6),
-       solver=SolverSpec.ga(seed=1337, progress_pct=1),
-       telemetry_on=True,
-   )
-   ```
-2. Log outputs land in `output/tutorials/...`; archive META.json + logs when sharing results.
-3. For tests, run `pytest -m tier_a` to ensure determinism across GA/SA/Hybrid tutorials.
+request = api.RunSpec(
+    problem_input=api.RuneIndexInput(indices=(0, 1, 2, 3)),
+    cipher=api.CipherSpec.vigenere(),
+    key_space=api.KeySpec.repeating(length=3),
+    solver=api.SolverSpec.beam_search(width=16, rounds=5, seed=2025),
+    text_direction=api.TextDirection.LEFT_TO_RIGHT,
+    compute_device=api.ComputeDevice.CPU,
+)
+result = api.run(request)
+```
 
-## Troubleshooting
-- If seeds differ, re-check tutorial constants in the runner file.
-- Use `docs/guides/troubleshooting.md` for a checklist.
+Compare `result.reproducibility`, `result.status`, the recovered key/plaintext
+and score across runs. Requested and effective seeds are reported separately.
 
-
+Keep inputs, assets, package version, compute device and scoring configuration
+the same. A deterministic seed cannot compensate for a different runtime or
+asset set.

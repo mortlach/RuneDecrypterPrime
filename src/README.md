@@ -1,12 +1,11 @@
-# Source Folder
+# Source folder
 
 Project source code lives under `src/`.
 
-## Key directories
+- `src/rdp/api/` owns the canonical V1 public definitions.
+- `src/rdp/__init__.py` exposes that package without wildcard forwarding.
+- `src/rune_decrypter_prime/` contains the existing engine implementations and
+  exact internal owners.
 
-- `src/rune_decrypter_prime/` main package.
-- `src/rdp/` compatibility/import alias package.
-
-## Build artifacts
-
-- `src/build_tmp_fastlm/` and `src/build_lib_fastlm/` are build outputs for fast LM extension work.
+Public consumers use `from rdp import api`. The engine package is not a second
+public API, compatibility layer or forwarding namespace.

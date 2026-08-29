@@ -1,69 +1,23 @@
-# Public v1 Repository Structure (proposed)
+# V1 repository structure
 
-```
-rune_decrypter_prime/
-  api/
-    wrappers/            # by_name.py, registry.py
-    __init__.py
-    run.py               # RunAPI public entry point
-    specs.py             # CipherSpec, KeySpec, SolverSpec, ScoringConfig
-    normalize.py         # user input -> canonical
-    pipeline.py          # direction, permutation helpers
-  backends/
-    device.py            # Device selection (CPU surface for v1)
-    xp.py                # NumPy/Torch adapters
-  ciphers/
-    substitution_cipher.py
-    vigenere_cipher.py
-    columnar_transposition_cipher.py
-    generic_map_cipher.py
-    registry.py
-  core/
-    types.py
-    config/             # run, cipher, solver, scoring, solution
-    engine/             # builders, engine
-    problem/            # spec, instance, runtime
-    telemetry.py
-  keyops/
-    permutation_ops.py
-    vector.py
-    registry.py
-  solvers/
-    solver_base.py
-    beam.py
-    ga.py
-    sa.py
-    hybrid.py
-    progress/
-      logger.py
-      mixin.py
-  scoring/
-    base_scorer.py
-    rune_scorer.py
-    torch_rune_scorer.py
-    scoring_adapter.py
-    policy.py
-    unified_tables.py
-  telemetry/
-    events.py
-    pipeline.py
-    schema.py
-  io/
-    run_logger.py
-    logging_adapter.py
-  tutorials/
-    v1/
-      Tutorial_Vigenere_GeneralMap.py
-      Tutorial_ColumnarTransposition.py
-      Tutorial_MonoSubstitution_*.py
-  tests/                 # tiered; deterministic
-  tools/                 # see below
-docs/                    # this documentation site
-README.md
-CONTRIBUTING.md
-CODE_OF_CONDUCT.md
-LICENSE
+```text
+src/
+  rdp/
+    __init__.py          # exposes the definition-owning api package
+    api/                 # canonical V1 public definitions
+  rune_decrypter_prime/  # engine implementations and exact internal owners
+tests/                   # unit, contract, installation and type-check evidence
+tutorials/v1/            # active V1 tutorials
+docs/                    # active documentation and release contracts
+v1_docs/                 # retained V1 reference material pending selective merge
 ```
 
-**Out of scope for v1 public repo:** `dev/`, experimental ciphers, legacy docs.
+Public consumers use `from rdp import api`. Internal consumers import the exact
+implementation module they require. There is no forwarding public package,
+compatibility alias namespace or generic internal facade.
 
+The engine package retains ciphers, solvers, scoring, key operations, telemetry,
+data and native-extension ownership until the separately governed AN4 work.
+
+Generated output, caches, review packs, local configuration and large local
+assets do not belong in the repository.

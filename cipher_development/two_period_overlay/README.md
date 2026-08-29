@@ -5,8 +5,9 @@ source release. Run it only through `cipher_development/run_experiment.py`.
 Its exact recursive Python dependency closure is recorded in
 `docs/release_contracts/v1/two_period_fixture_manifest.json`.
 
-The normal public route is `SolverSpec.two_period_cribs(...)` through
-`api.run(...)`. Historical staged, multiscale and ranking runners were removed;
+The normal public route starts with `from rdp import api` and uses
+`api.SolverSpec.two_period_cribs(...)` through `api.run(...)`. Historical staged,
+multiscale and ranking runners were removed;
 their history remains available through Git.
 
 Pack 09 is a long scientific campaign and must not run in normal CI. The

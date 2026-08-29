@@ -1,52 +1,25 @@
-﻿# Telemetry
+# Telemetry
 
-Audience: Hands-on / Expert
-Time: 3-5 minutes
-Outcome: Read the schema and required fields
-Prereqs: Completed one tutorial
+Telemetry is explicit run state, not a side effect hidden behind an execution
+class. Set `RunSpec.telemetry_enabled` to request it and use an optional
+`api.LoggingConfig` for durable files.
 
-**Concept**  
-Structured JSONL events that describe a run. Minimal schema; true on/off toggle.
+```python
+from rdp import api
 
-## Always present
-- `timestamp` / `wall_time_s`  
-- `step`, `evals`, `since_improve`  
-- `best_score`  
-- `optimizer` (name, params or hash)  
-- `scorer` (impl, dtype)  
-- `device` (e.g. `"cpu"`)  
-- `seed`  
-- `pipeline` (direction, permutation summary)
-- Solver-specific fields may appear (e.g., Kaeding emits `block`, `restart`, `slip`, `col_moves`).
-
-## Telemetry toggle and overhead
-- `RunAPI.run(..., telemetry=False)` -> **no events and no files**.  
-- When enabled, events go to `output/<label>/<timestamp>/logs/app.jsonl`.
-
-**Overhead discipline (v1):**
-- Logging overhead kept small and stable; snapshot tests guard schema and key timings.
-- Event names are short and consistent: `run_start`, `phase`, `new_best`, `run_end`.
-
-**Device parity (v1):**  
-All examples and tests run on **CPU**. If Torch is present, it is pinned to CPU for deterministic parity across machines.
-
-## Example events (shape)
-```json
-{"event":"run_start","seed":42,"device":"cpu",
- "pipeline":{"direction":"ltr","permutation":{"kind":"none"}}}
-
-{"event":"new_best","evals":1042,"since_improve":0,"best_score":1.2345}
-
-{"event":"run_end","evals":50000,"best_score":1.5678}
+request = api.RunSpec(
+    problem_input=api.RuneIndexInput(indices=(0, 1, 2, 3)),
+    cipher=api.CipherSpec.vigenere(),
+    key_space=api.KeySpec.repeating(length=3),
+    solver=api.SolverSpec.beam_search(width=8, rounds=2, seed=7),
+    telemetry_enabled=False,
+)
+result = api.run(request)
 ```
 
-**See also**  
+When disabled, the public result reports that choice and does not expose stale
+lower-layer telemetry. When enabled, solver and scorer reporting includes
+requested/effective configuration, work counters, timing and capability data.
 
-**Related tests**
-- `tests/telemetry/test_schema_contract.py`
-- `tests/telemetry/test_progress_events.py`
-**See also**  
-[Engine & API](engine_api.md) · [Data & Scoring](data.md)
-
-[<- Optimisers](optimisers.md) · [Next -> Data & Scoring](data.md)
-
+Durable artefact writes are controlled by typed logging fields. Output paths
+must remain outside the repository in release work.

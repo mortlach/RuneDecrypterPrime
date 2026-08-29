@@ -1,33 +1,25 @@
-# Data & Scoring (WLI)
+# Data and word-length information
 
-**Concept**  
-Scorers consume plaintext rune indices and optional WLI pairs. WLI is a per-rune `(pos_in_word, word_len)` list used for word-boundary features; spaces are **not** part of rune indices. Rune indices must be in the canonical `0..28` range (29-rune alphabet). WLI values must be `<= 63` (LMPrime 6-bit encoding). When WLI is present, word boundaries are fixed by that list; when WLI is absent, there is no word-boundary contract.
+Public run inputs are typed:
 
-## Behaviour
-- English-tuned models for the 29-rune alphabet.  
-- CPU-first; Torch backend (if installed) is kept on CPU for parity.  
-- Deterministic across machines with fixed seed and inputs.
-- Canonical runtime LM assets live under `assets/language_model/lmp` (not `src/.../data`).
+- `api.RawTextInput` for text that must be encoded;
+- `api.RuneIndexInput` for already-normalized rune indices and optional
+  word-length information;
+- `api.SourceReferenceInput` for a supported source reference.
 
-**Example (shape)**
 ```python
-res = RunAPI.run(
-    ciphertext="...",
-    cipher_spec=CipherSpec(name="Vigenere", key_length=5),
-    solver_spec=SolverSpec(name="GA", eval_budget=40_000),
-    seed=33,
+from rdp import api
+
+problem = api.RuneIndexInput(
+    indices=(0, 1, 2, 3),
+    word_lengths=((0, 2), (1, 2), (0, 2), (1, 2)),
 )
-print(res.score)  # primary fitness; WLI (if provided) is metadata for scoring
 ```
 
-## Appendix: Faster scorers (optional)
-If you provide a faster backend (compiled extension or Torch kernels), keep these rules:
+Rune indices are validated against the 29-symbol alphabet. Word-length pairs
+describe each rune's position and word length; spaces are not rune indices.
+`RunSpec.word_length_policy` controls how missing information is handled.
 
-- Parity: scores must match the CPU reference path for the same inputs.  
-- Determinism: keep Torch on CPU and seed via the engine's injected RNG.  
-- Deployment: provide workflow-agnostic setup steps in a local README under `tools/`.
-
-**See also**  
-[Telemetry](telemetry.md) · [Optimisers](optimisers.md)
-
-[<- Telemetry](telemetry.md) · [Next -> Tutorials](../tutorials/index.md)
+Packaged source references are resolved by `rdp.api` and then materialised by
+the existing data owners. Scoring models and large assets remain implementation
+data, not public configuration objects.

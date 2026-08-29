@@ -57,8 +57,7 @@ whether it affects ranking or is diagnostic/report-only.
 ## How It Fits Into A Run
 
 ```text
-scorer name and scorer_params
-  -> ScoringConfig
+typed ScoringConfig on RunSpec
   -> scorer runtime
   -> DecryptionProblem scores candidate plaintext
   -> solver ranks candidates

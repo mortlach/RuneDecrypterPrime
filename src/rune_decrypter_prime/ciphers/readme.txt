@@ -26,5 +26,5 @@ Design notes
   and return `[B, L]` plaintexts. Single keys are promoted to batch size 1.
 - Keep decrypt pure and deterministic. Assume keys are already normalised by
   KeyOps; avoid secret repairs inside the cipher itself.
-- Register new ciphers via `@register_cipher("name")` so API wrappers and
-  RunAPI can discover them automatically.
+- Register new ciphers via `@register_cipher("name")` so the exact runtime
+  materializer used by `api.run` can discover them.

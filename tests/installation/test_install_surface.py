@@ -1,4 +1,5 @@
 from __future__ import annotations
+import ast
 import subprocess
 import sys
 import tomllib
@@ -16,7 +17,17 @@ def test_root_installer_is_full_v1_and_ci_light_is_separate() -> None:
     assert 'INSTALL_MODE_LABEL = "Full V1 install"' in install_text
     assert 'DEFAULT_ASSET_PROFILE = "full_v1"' in install_text
     assert 'asset_profile_name=DEFAULT_ASSET_PROFILE' in install_text
-    assert 'asset_profile_name="ci_light"' in light_text
+    light_tree = ast.parse(light_text)
+    assert any(
+        isinstance(node, ast.Call)
+        and any(
+            keyword.arg == 'asset_profile_name'
+            and isinstance(keyword.value, ast.Constant)
+            and keyword.value.value == 'ci_light'
+            for keyword in node.keywords
+        )
+        for node in ast.walk(light_tree)
+    )
     assert 'CI light install' in light_text
 
 def test_ci_light_wrapper_bootstraps_repo_root_for_standalone_execution(tmp_path: Path) -> None:

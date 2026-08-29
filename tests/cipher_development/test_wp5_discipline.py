@@ -28,7 +28,21 @@ def test_no_duplicate_campaign_implementation_remains() -> None:
 
 def test_run_experiment_is_the_only_directly_executable_development_file() -> None:
     root = ROOT / 'cipher_development'
-    executable = {path.relative_to(root).as_posix() for path in root.rglob('*.py') if '__name__ == "__main__"' in path.read_text(encoding='utf-8')}
+    executable = set()
+    for path in root.rglob('*.py'):
+        tree = ast.parse(path.read_text(encoding='utf-8'))
+        if any(
+            isinstance(node, ast.Compare)
+            and isinstance(node.left, ast.Name)
+            and node.left.id == '__name__'
+            and len(node.ops) == 1
+            and isinstance(node.ops[0], ast.Eq)
+            and len(node.comparators) == 1
+            and isinstance(node.comparators[0], ast.Constant)
+            and node.comparators[0].value == '__main__'
+            for node in ast.walk(tree)
+        ):
+            executable.add(path.relative_to(root).as_posix())
     assert executable == {'run_experiment.py'}
 
 def test_retained_development_has_no_repository_local_output_default() -> None:

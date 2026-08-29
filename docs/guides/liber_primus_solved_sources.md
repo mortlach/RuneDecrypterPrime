@@ -88,33 +88,35 @@ label -> catalogue entry -> main transcript page/span -> ct_idx + wli
 The user normally supplies the label. The catalogue records which main
 transcript pages that label resolves to.
 
-## Low-level access remains available
+## Typed public access
 
-The existing low-level typed APIs still exist for direct page/line work:
+The public Liber Primus namespace supports direct page/line work:
 
 ```python
-from rune_decrypter_prime.data import liber_primus as lp
+from rdp import api
 
-doc = lp.load_main_transcript()
-locator = lp.LPFragmentLocator(page_ref=lp.LPPageRef.transcript_page(0))
-payload = lp.payload_from_locator(doc, locator)
+doc = api.liber_primus.load_main_transcript()
+locator = api.liber_primus.FragmentLocator(
+    page_ref=api.liber_primus.PageReference.transcript_page(0)
+)
+payload = api.liber_primus.payload_from_locator(locator)
 ```
 
 The public data helper can also load complete main pages directly for debugging
 or manual work:
 
 ```python
-from rune_decrypter_prime.api import load_lp_payload_from_main_pages
+from rdp import api
 
-payload = load_lp_payload_from_main_pages(1, 2)
+payload = api.liber_primus.payload_from_main_pages(1, 2)
 ```
 
 That is low-level access. Solved-page workflows should prefer labels:
 
 ```python
-from rune_decrypter_prime.data import liber_primus as lp
+from rdp import api
 
-payload = lp.payload_from_label("welcome_pilgrim")
+payload = api.liber_primus.payload_from_label("welcome_pilgrim")
 ```
 
 ## Boundary policy
@@ -143,16 +145,16 @@ segmentation before any solving routine is built on top.
 
 ## RunSpec source references
 
-LP labels are accepted as first-class `SourceInputRef` values:
+LP labels are accepted as first-class `SourceReferenceInput` values:
 
 ```python
-from rune_decrypter_prime.api import SourceInputRef
+from rdp import api
 
-source_ref = SourceInputRef(
+source_ref = api.SourceReferenceInput(
     source_kind="liber_primus.label",
     asset_id="liber_primus.main_transcript",
     asset_version="<main transcript sha256>",
-    ref={"label": "welcome_pilgrim"},
+    reference={"label": "welcome_pilgrim"},
 )
 ```
 

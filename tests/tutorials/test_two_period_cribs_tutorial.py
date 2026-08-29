@@ -1,4 +1,5 @@
 from __future__ import annotations
+import ast
 import rdp.api.two_period_cribs
 import importlib.util
 import json
@@ -29,11 +30,17 @@ def _load(path: Path, name: str):
     finally:
         sys.path.remove(str(TUTORIALS))
 
+def _string_literals(text: str) -> set[str]:
+    return {
+        node.value
+        for node in ast.walk(ast.parse(text))
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    }
+
 def test_tutorial_sources_use_only_the_simple_public_route() -> None:
     required = (
         "from rdp import api",
         "api.CipherSpec.two_period_vigenere(",
-        '"two_period_vigenere"',
         "api.KeySpec.repeating(",
         "api.SolverSpec.two_period_cribs(",
         "api.run(",
@@ -50,6 +57,7 @@ def test_tutorial_sources_use_only_the_simple_public_route() -> None:
     )
     text = FAST.read_text(encoding="utf-8")
     assert all((fragment in text for fragment in required))
+    assert "two_period_vigenere" in _string_literals(text)
     assert not any((fragment in text for fragment in forbidden))
 
 
@@ -60,7 +68,6 @@ def test_genuine_p13_p31_search_uses_public_interruptor_pool_without_supplying_t
     required = (
         "from rdp import api",
         "api.CipherSpec.two_period_vigenere(",
-        '"two_period_vigenere"',
         "api.SolverSpec.two_period_cribs(",
         "api.InterruptorConfig.search(",
         "INTERRUPTOR_POOL,",
@@ -76,6 +83,7 @@ def test_genuine_p13_p31_search_uses_public_interruptor_pool_without_supplying_t
         "test_key=",
     )
     assert all((fragment in text for fragment in required))
+    assert "two_period_vigenere" in _string_literals(text)
     assert not any((fragment in text for fragment in forbidden))
 
 def test_interruptor_tutorial_uses_public_pool_count_contract() -> None:
@@ -83,7 +91,6 @@ def test_interruptor_tutorial_uses_public_pool_count_contract() -> None:
     required = (
         "from rdp import api",
         "api.CipherSpec.two_period_vigenere(",
-        '"two_period_vigenere"',
         "api.SolverSpec.two_period_cribs(",
         "api.InterruptorConfig.search(",
         "INTERRUPTOR_POOL,",
@@ -99,6 +106,7 @@ def test_interruptor_tutorial_uses_public_pool_count_contract() -> None:
         "test_key=",
     )
     assert all((fragment in text for fragment in required))
+    assert "two_period_vigenere" in _string_literals(text)
     assert not any((fragment in text for fragment in forbidden))
 
 def test_tutorials_are_uniquely_active_and_honestly_manifested() -> None:

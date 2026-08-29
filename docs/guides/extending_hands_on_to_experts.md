@@ -45,7 +45,8 @@ This guide maps the learning ladder:
 
 **Steps (Expert):**
 1. Move the implementation into `src/rune_decrypter_prime/ciphers/<name>.py`.
-2. Register it in `ciphers/registry.py` and expose a by-name wrapper via `api/by_name.py`.
+2. Register it with the existing runtime registry and, if the family is approved
+   for the public surface, add the exact typed `api.CipherSpec` constructor.
 3. Add tests:
    - `tests/ciphers/test_<name>.py` for round-trip + KNF.
    - Update tutorials or create a new one referencing the promoted cipher.

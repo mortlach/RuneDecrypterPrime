@@ -1,5 +1,8 @@
 # D7 tutorial integration pass
 
+> Historical D7 evidence. Its pre-AN3 public names are superseded by the
+> accepted AN1/AN2 contract and the definition-owning `rdp.api` implementation.
+
 Branch: `prelease/v1.0.0_d7`
 
 Status: integration pass validated locally for `full_v1`; not final D7 closure until release tutorial gate, full pytest after the latest runner-config fix, CI/equivalent proof, and regenerated review pack are available from the final branch head.

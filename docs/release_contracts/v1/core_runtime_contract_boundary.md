@@ -1,5 +1,8 @@
 # Core runtime contract boundary
 
+> Historical D3 evidence. Its pre-AN3 public names are superseded by the
+> accepted AN1/AN2 contract and the definition-owning `rdp.api` implementation.
+
 Status: D3-0c contract freeze baseline.
 
 ## Rule

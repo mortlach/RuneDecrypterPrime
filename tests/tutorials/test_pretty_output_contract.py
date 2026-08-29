@@ -1,4 +1,5 @@
 from __future__ import annotations
+import ast
 import json
 from pathlib import Path
 import pytest
@@ -21,11 +22,16 @@ def test_active_pretty_tutorials_declare_standard_contract_blocks() -> None:
     root = Path(__file__).resolve().parents[2]
     for script in _active_tutorial_paths(root):
         source = script.read_text(encoding="utf-8")
+        string_literals = {
+            node.value
+            for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.Constant) and isinstance(node.value, str)
+        }
         canonical_display = "api.display.print_result(" in source
         assert "truth/oracle use" not in source, script.name
         assert (
             "print_tutorial_contract(" in source
-            or '"truth/reference use"' in source
+            or "truth/reference use" in string_literals
             or canonical_display
         ), script.name
         assert (

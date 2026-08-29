@@ -1,50 +1,43 @@
-# RunSpec Reference
+# RunSpec reference
 
-Status: staged V1 draft
+Status: implemented
 
 Owner:
 
 ```text
-src/rune_decrypter_prime/api/run_spec.py
+src/rdp/api/run_spec.py
 ```
 
-`RunSpec` is the typed recipe for an RDP run.
-
-## Fields
+`RunSpec` is the immutable typed recipe accepted by `api.run`.
 
 | Field | Meaning |
 | --- | --- |
 | `problem_input` | `RawTextInput`, `RuneIndexInput`, or `SourceReferenceInput`. |
-| `cipher` | A `CipherSpec`. |
-| `key` | A `KeySpec`, or a two-item tuple of `KeySpec` values. |
-| `solver` | A `SolverSpec`. |
-| `scorer` | Scorer name, defaulting to `rune`. |
-| `scorer_params` | JSON-primitive scorer parameters. |
-| `logging` | Optional logging config. |
-| `encoding_dir` | Rune text direction. |
-| `device` | Device selection. |
-| `telemetry_on` | Whether telemetry is enabled. |
+| `cipher` | An immutable `CipherSpec`. |
+| `key_space` | The exactly compatible immutable `KeySpec`. |
+| `solver` | An immutable `SolverSpec`. |
+| `scoring` | Typed `ScoringConfig`. |
+| `initial_keys` | Optional tuple of semantic concrete keys. |
+| `logging` | Optional typed `LoggingConfig`. |
+| `word_length_policy` | Typed policy for missing word-length information. |
+| `text_direction` | `TextDirection`; typed constructors reject raw strings. |
+| `compute_device` | `ComputeDevice`; typed constructors reject raw strings. |
+| `telemetry_enabled` | Explicit telemetry request. |
+| `text_permutation` | Optional full-length index permutation. |
+| `interruptors` | Optional typed `InterruptorConfig`. |
 
-## Problem Inputs
+```python
+from rdp import api
 
-| Type | Use |
-| --- | --- |
-| `RawTextInput` | Direct text input. |
-| `RuneIndexInput` | Already-normalized rune indices, with optional WLI. |
-| `SourceReferenceInput` | A typed reference to a known source such as a Liber Primus label, locator, or partition. |
+request = api.RunSpec(
+    problem_input=api.RuneIndexInput(indices=(0, 1, 2, 3)),
+    cipher=api.CipherSpec.vigenere(),
+    key_space=api.KeySpec.repeating(length=3),
+    solver=api.SolverSpec.beam_search(width=16, rounds=5, seed=7),
+)
+result = api.run(request)
+```
 
-## SourceReferenceInput LP Kinds
-
-| Source kind | Meaning |
-| --- | --- |
-| `liber_primus.label` | Named LP source label. |
-| `liber_primus.locator` | Typed LP locator. |
-| `liber_primus.partition` | Typed LP partition. |
-
-`SourceReferenceInput` validates supported keys early. Recipe labels are not accepted
-as source labels.
-
-## Design Notes
-
-`RunSpec` should describe input and configuration. It should not hide runtime
-results, generated artifacts, or tutorial acceptance policy.
+The component overload of `api.run` creates the same request. Runtime progress
+callbacks are operation arguments and are deliberately absent from durable
+`RunSpec` state.

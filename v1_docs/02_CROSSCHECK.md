@@ -1,6 +1,7 @@
 # V1 documentation cross-check
 
-Status: staged audit ledger
+Status: historical audit ledger, updated to point at the implemented AN3 public
+field names. Recorded test counts below remain historical evidence.
 
 This page records checks made while drafting `v1_docs/`. It should be updated
 whenever the staged docs claim a current runner list, report field, artifact
@@ -46,19 +47,21 @@ current field lists:
 
 ```text
 RunSpec:
-problem_input, cipher, key, solver, scorer, scorer_params, logging,
-encoding_dir, device, telemetry_on
+problem_input, cipher, key_space, solver, scoring, initial_keys, logging,
+word_length_policy, text_direction, compute_device, telemetry_enabled,
+text_permutation, interruptors
 
 RunResult:
-solution, solver_report
+plaintext, plaintext_text, key, score, status, solver_report, scorer_report,
+configuration, reproducibility, oracle, telemetry, artifacts
 
 SolverReport:
-solver_name, requested_seed, effective_seed, normalized_params, stop_reason,
-best_score, best_key, step, evals, tokens_processed, wall_time_s,
-decrypt_time_s, score_time_s, details
+solver, parameters, requested_seed, effective_seed, status, best_key,
+best_score, evaluations, steps, tokens_processed, wall_time_seconds,
+decrypt_time_seconds, score_time_seconds, details
 
 ScorerReport:
-objective_str, objective_spec, score, raw_score, telemetry, metrics, cost_ms,
+objective, score, raw_score, telemetry, metrics, time_seconds, capabilities,
 details
 ```
 
@@ -173,7 +176,7 @@ Commands:
 
 ```text
 python -m pytest -q tests/contracts/test_v1_tutorial_runner_config_contract.py tests/api/test_display_summary_contract.py tests/api/test_artifact_agreement.py tests/api/test_run_artifact_manifest.py
-python -m pytest -q tests/api/test_runspec_contract.py tests/api/test_runapi_runspec_routing.py tests/api/test_solver_report_truth_repro_contract.py tests/scoring/test_scorer_report_lane_sections.py
+python -m pytest -q tests/api/test_runspec_contract.py tests/api/test_v1_public_contract.py tests/api/test_solver_report_truth_repro_contract.py tests/scoring/test_scorer_report_lane_sections.py
 python -m pytest -q tests/utils/test_runeglish_encode_contract.py tests/api/test_directional_plaintext_display.py tests/utils/test_tutorial_report.py tests/utils/test_tutorial_session_report.py
 ```
 

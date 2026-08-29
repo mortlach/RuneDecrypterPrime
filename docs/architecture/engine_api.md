@@ -1,67 +1,45 @@
-# Engine & API
+# Engine and public API
 
-Audience: Hands-on / Expert
-Time: 4-6 minutes
-Outcome: Understand how RunAPI builds and runs a solve
-Prereqs: Completed one tutorial
+Audience: hands-on users and contributors
 
-**Concept**  
-The Engine builds and runs a decryption experiment. It seeds RNG, applies the Pipeline, initialises the Cipher, KeyOps, Scorer, and Optimiser, and records Telemetry.
+The V1 public boundary is the definition-owning `rdp.api` package. Public code
+uses one import style:
 
-**Usage**
-- Entry point: `RunAPI.run(...)`
-- Accepts enums and dataclasses on the public surface; normalisers handle friendly strings.
-- Shared semantics for budgets and patience across all optimisers.
-- CPU-first; Torch (if present) is kept on CPU for determinism and parity.
-
-**Example**
 ```python
-from rune_decrypter_prime.api import RunAPI
-from rune_decrypter_prime.api.specs import CipherSpec, KeySpec, SolverSpec
-from rune_decrypter_prime.core.types import Direction
-
-result = RunAPI.run(
-    text="KPHIBKRZM...",
-    cipher=CipherSpec(name="Substitution"),
-    key=KeySpec.permutation(len=29),
-    solver=SolverSpec.sa(eval_budget=50_000, patience=2_000, seed=12345),
-    encoding_dir=Direction.LTR,
-    telemetry_on=True,
-)
-print(result.score, result.plaintext_str[:80])
+from rdp import api
 ```
 
-## Config objects (shape)
-- `CipherSpec(name, **params)`
-- `SolverSpec(name, eval_budget, time_budget_s=None, patience=None, **params)`
-- `KeySpec(...)` (optional; constrain or fix parts of a key)
+`api.run` is the only solve operation. It accepts either one immutable
+`api.RunSpec` or the equivalent typed keyword components.
 
-## Determinism & RNG
-- One main RNG per run (`seed`).
-- Named child streams per module (examples below).
-- No global RNG calls inside core; all randomness is injected.
+```python
+request = api.RunSpec(
+    problem_input=api.RuneIndexInput(indices=(0, 1, 2, 3)),
+    cipher=api.CipherSpec.vigenere(),
+    key_space=api.KeySpec.repeating(length=3),
+    solver=api.SolverSpec.beam_search(width=16, rounds=5, seed=7),
+    text_direction=api.TextDirection.LEFT_TO_RIGHT,
+)
+result = api.run(request)
+```
 
-### RNG streams (named children)
-| Stream name           | Used by              | Notes                              |
-|-----------------------|----------------------|------------------------------------|
-| `optim.sa`            | Simulated Annealing  | Temperature, neighbour choices     |
-| `optim.ga`            | Genetic Algorithm    | Selection, crossover, mutation     |
-| `optim.beam`          | Beam Search          | Tie-breaks, candidate shuffles     |
-| `keyops.permutation`  | Permutation keys     | Swap/insert/reorder operations     |
-| `keyops.vector`       | Vector keys          | Per-element tweaks (mod-29)        |
-| `misc.bootstrap`      | Engine helpers       | Any non-critical draws             |
+The boundary validates and materialises the request before the existing engine
+builds the cipher, key operations, scorer and solver. Engine modules remain
+implementation owners; they are not public imports.
 
-## Telemetry
-- On by default; JSONL written under `output/.../logs/app.jsonl`.
-- True toggle: `RunAPI.run(..., telemetry_on=False)` produces no events and no files.
+Known-key work uses `api.encrypt` and `api.decrypt` with a semantic tuple key:
 
-**Related tests**
-- `tests/smoke/test_runapi_determinism.py`
-- `tests/telemetry/test_schema_contract.py`
-- `tests/telemetry/test_solver_pipeline_block.py`
+```python
+cipher = api.CipherSpec.rail_fence(minimum_rails=2, maximum_rails=10)
+key: api.ConcreteKey = (7,)
+ciphertext = api.encrypt((0, 1, 2, 3), cipher=cipher, key=key)
+plaintext = api.decrypt(ciphertext, cipher=cipher, key=key)
+```
 
-**See also**  
-[Pipeline](pipeline.md) · [Ciphers](ciphers.md) · [Optimisers](optimisers.md) · [Telemetry](telemetry.md)
+There is no public runtime cipher object, generic transform operation or class
+execution fallback. `api.RunResult` always contains the typed status, solver
+report, scorer report, reproducibility information and requested artefacts.
 
-[<- Home](../README.md) · [Next -> Pipeline](pipeline.md)
-
+Telemetry is controlled by `RunSpec.telemetry_enabled`. Logging and durable
+outputs are configured with `api.LoggingConfig`; progress callbacks remain
+runtime-only arguments to `api.run`.

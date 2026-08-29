@@ -1,5 +1,8 @@
 # D7 cleanup and deprecation policy
 
+> Historical D7 evidence. Its pre-AN3 public names are superseded by the
+> accepted AN1/AN2 contract and the definition-owning `rdp.api` implementation.
+
 D7 is the V1 cleanup guardrail.
 
 Cleanup must not silently change the V1 specification. Every cleanup or removal must be traceable to a ledger entry, a replacement path, tests, docs, and a rollback note.

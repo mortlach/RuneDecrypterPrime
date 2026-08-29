@@ -202,7 +202,7 @@ def build_summary(
     if solution is None:
         warnings.append("No solution object was available in the supplied value.")
     if solver_report is None:
-        warnings.append("No SolverReport was available; call run(..., return_solver_report=True) for full display/share data.")
+        warnings.append("No SolverReport was available; supply the RunResult returned by api.run for full display/share data.")
 
     problem = _problem_summary(spec, solution, options=options)
     cipher = _cipher_summary(spec, solution, options=options)
