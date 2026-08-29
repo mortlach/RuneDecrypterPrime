@@ -32,7 +32,8 @@ def test_two_input_map_uses_typed_experimental_contract() -> None:
 
 def test_lookup_map_reuses_generic_runtime() -> None:
     table = tuple(
-        tuple((plaintext + key) % 5 for key in range(5)) for plaintext in range(5)
+        tuple((plaintext + key) % 5 for key in range(5))
+        for plaintext in range(5)
     )
     spec = experimental.define_cipher_lookup(table, alphabet_size=5)
     config = materialize_cipher_config(

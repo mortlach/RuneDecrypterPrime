@@ -110,22 +110,14 @@ def run(
             raise TypeError("run_spec cannot be combined with component arguments")
         if any(
             value is not None
-            for value in (
-                scoring,
-                initial_keys,
-                logging,
-                text_permutation,
-                interruptors,
-            )
+            for value in (scoring, initial_keys, logging, text_permutation, interruptors)
         ) or (
             word_length_policy is not WordLengthPolicy.INFER
             or text_direction is not TextDirection.RIGHT_TO_LEFT
             or compute_device is not ComputeDevice.CPU
             or telemetry_enabled is not True
         ):
-            raise TypeError(
-                "run_spec cannot be combined with durable component options"
-            )
+            raise TypeError("run_spec cannot be combined with durable component options")
         request = run_spec
     else:
         missing = [
@@ -139,9 +131,7 @@ def run(
             if value is _UNSET
         ]
         if missing:
-            raise TypeError(
-                f"missing required keyword-only arguments: {', '.join(missing)}"
-            )
+            raise TypeError(f"missing required keyword-only arguments: {', '.join(missing)}")
         request = RunSpec(
             problem_input=problem_input,  # type: ignore[arg-type]
             cipher=cipher,  # type: ignore[arg-type]
@@ -161,17 +151,11 @@ def run(
     if progress_callback is not None and not callable(progress_callback):
         raise TypeError("progress_callback must be callable or None")
     if progress_interval is not None:
-        if isinstance(progress_interval, bool) or not isinstance(
-            progress_interval, int
-        ):
+        if isinstance(progress_interval, bool) or not isinstance(progress_interval, int):
             raise TypeError("progress_interval must be an integer or None")
         if progress_interval < 1:
             raise ValueError("progress_interval must be >= 1")
-    return _execute(
-        request,
-        progress_callback=progress_callback,
-        progress_interval=progress_interval,
-    )
+    return _execute(request, progress_callback=progress_callback, progress_interval=progress_interval)
 
 
 def _execute(
@@ -182,11 +166,7 @@ def _execute(
 ) -> RunResult:
     materialized = materialize_runspec_problem_input(request)
     device = Device.CPU if request.compute_device is ComputeDevice.CPU else Device.CUDA
-    direction = (
-        Direction.LTR
-        if request.text_direction is TextDirection.LEFT_TO_RIGHT
-        else Direction.RTL
-    )
+    direction = Direction.LTR if request.text_direction is TextDirection.LEFT_TO_RIGHT else Direction.RTL
     effective_seed = 0 if request.solver.seed is None else request.solver.seed
     logging_runtime: dict[str, object] = {}
     if progress_callback is not None:
@@ -216,9 +196,7 @@ def _execute(
             interruptors_max=None,
         )
     else:
-        solver_config = _runtime_solver_config(
-            request.solver, effective_seed=effective_seed
-        )
+        solver_config = _runtime_solver_config(request.solver, effective_seed=effective_seed)
         solution = execute_run(
             ciphertext=materialized.ciphertext,
             wli=materialized.wli,
@@ -401,10 +379,7 @@ def _result_from_solution(
         solver_config=request.solver.to_dict(),
         scoring_config=request.scoring.to_dict(),
         objective=request.scoring.objective.to_dict(),
-        cipher={
-            "cipher": request.cipher.to_dict(),
-            "key_space": request.key_space.to_dict(),
-        },
+        cipher={"cipher": request.cipher.to_dict(), "key_space": request.key_space.to_dict()},
         dictionary_policy=request.scoring.hamming_dictionary_policy.value,
         stop_category=status.stop_category,
         stop_reason=status.stop_reason,

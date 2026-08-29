@@ -19,7 +19,6 @@ from rune_decrypter_prime.core.types import (
     ensure_scorer_name,
 )
 
-
 @dataclass
 class RunConfig:
     cipher: CipherConfig | Dict[str, Any]
@@ -43,9 +42,7 @@ class RunConfig:
         if not isinstance(self.cipher, CipherConfig):
             raise TypeError(f"cipher must be CipherConfig, got {type(self.cipher)}")
         if not isinstance(self.scorer_params, ScoringConfig):
-            raise TypeError(
-                f"scorer_params must be ScoringConfig, got {type(self.scorer_params)}"
-            )
+            raise TypeError(f"scorer_params must be ScoringConfig, got {type(self.scorer_params)}")
         if not isinstance(self.solver, SolverConfig):
             raise TypeError(f"solver must be SolverConfig, got {type(self.solver)}")
 
@@ -54,9 +51,7 @@ class RunConfig:
         if self.optimizer_name is not None:
             self.optimizer_name = ensure_solver_name(self.optimizer_name)
 
-        if self.optimizer_params is not None and not isinstance(
-            self.optimizer_params, dict
-        ):
+        if self.optimizer_params is not None and not isinstance(self.optimizer_params, dict):
             self.optimizer_params = dict(self.optimizer_params)
 
     @classmethod
@@ -86,21 +81,11 @@ class RunConfig:
 
     def asdict(self) -> Dict[str, Any]:
         out = asdict(self)
-        out["cipher"] = (
-            self.cipher.asdict()
-            if hasattr(self.cipher, "asdict")
-            else asdict(self.cipher)
-        )
+        out["cipher"] = self.cipher.asdict() if hasattr(self.cipher, "asdict") else asdict(self.cipher)
         out["scorer_params"] = (
-            self.scorer_params.asdict()
-            if isinstance(self.scorer_params, ScoringConfig)
-            else self.scorer_params
+            self.scorer_params.asdict() if isinstance(self.scorer_params, ScoringConfig) else self.scorer_params
         )
-        out["solver"] = (
-            self.solver.asdict()
-            if hasattr(self.solver, "asdict")
-            else asdict(self.solver)
-        )
+        out["solver"] = self.solver.asdict() if hasattr(self.solver, "asdict") else asdict(self.solver)
         if isinstance(out.get("scorer_name"), ScorerName):
             out["scorer_name"] = out["scorer_name"].value
         if isinstance(out.get("optimizer_name"), SolverName):
@@ -108,3 +93,5 @@ class RunConfig:
         out["optimizer_name"] = None
         out["optimizer_params"] = None
         return out
+
+

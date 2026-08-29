@@ -106,24 +106,10 @@ class TutorialBenchmarkSummary:
     def __post_init__(self) -> None:
         if self.schema != "rdp_tutorial_benchmark_summary.v1":
             raise ValueError("unsupported tutorial benchmark summary schema")
-        object.__setattr__(
-            self, "run_kind", _coerce_enum(self.run_kind, TutorialRunKind, "run_kind")
-        )
-        object.__setattr__(
-            self,
-            "truth_policy",
-            _coerce_enum(self.truth_policy, TutorialTruthPolicy, "truth_policy"),
-        )
-        object.__setattr__(
-            self,
-            "outcome",
-            _coerce_enum(self.outcome, TutorialBenchmarkOutcome, "outcome"),
-        )
-        object.__setattr__(
-            self,
-            "stop_reason",
-            _coerce_enum(self.stop_reason, TutorialStopReason, "stop_reason"),
-        )
+        object.__setattr__(self, "run_kind", _coerce_enum(self.run_kind, TutorialRunKind, "run_kind"))
+        object.__setattr__(self, "truth_policy", _coerce_enum(self.truth_policy, TutorialTruthPolicy, "truth_policy"))
+        object.__setattr__(self, "outcome", _coerce_enum(self.outcome, TutorialBenchmarkOutcome, "outcome"))
+        object.__setattr__(self, "stop_reason", _coerce_enum(self.stop_reason, TutorialStopReason, "stop_reason"))
         if not isinstance(self.stop_policy, TutorialStopPolicy):
             raise TypeError("stop_policy must be TutorialStopPolicy")
         _require_optional_bool(self.readable_reached, "readable_reached")
@@ -178,16 +164,10 @@ def build_tutorial_benchmark_summary(
         raise TypeError("stop_policy must be TutorialStopPolicy")
 
     match_ratio = _match_ratio(plaintext_idx, reference_idx)
-    _validate_truth_policy_match_ratio(
-        truth_policy=truth_policy_value, match_ratio=match_ratio
-    )
+    _validate_truth_policy_match_ratio(truth_policy=truth_policy_value, match_ratio=match_ratio)
 
-    readable = (
-        None if match_ratio is None else match_ratio >= stop_policy.readable_match_ratio
-    )
-    target = (
-        None if match_ratio is None else match_ratio >= stop_policy.target_match_ratio
-    )
+    readable = None if match_ratio is None else match_ratio >= stop_policy.readable_match_ratio
+    target = None if match_ratio is None else match_ratio >= stop_policy.target_match_ratio
     score_value = _optional_float(score)
     evals_value = _optional_int(evals)
     tokens_value = _optional_int(tokens)
@@ -237,29 +217,13 @@ def _choose_stop_reason(
         return TutorialStopReason.TARGET_MATCH_RATIO
     if readable is True:
         return TutorialStopReason.READABLE_MATCH_RATIO
-    if (
-        stop_policy.stop_score is not None
-        and score is not None
-        and score >= stop_policy.stop_score
-    ):
+    if stop_policy.stop_score is not None and score is not None and score >= stop_policy.stop_score:
         return TutorialStopReason.SCORE_THRESHOLD
-    if (
-        stop_policy.max_evals is not None
-        and evals is not None
-        and evals >= stop_policy.max_evals
-    ):
+    if stop_policy.max_evals is not None and evals is not None and evals >= stop_policy.max_evals:
         return TutorialStopReason.WORK_BUDGET
-    if (
-        stop_policy.max_tokens is not None
-        and tokens is not None
-        and tokens >= stop_policy.max_tokens
-    ):
+    if stop_policy.max_tokens is not None and tokens is not None and tokens >= stop_policy.max_tokens:
         return TutorialStopReason.WORK_BUDGET
-    if (
-        stop_policy.max_seconds is not None
-        and wall_time_s is not None
-        and wall_time_s >= stop_policy.max_seconds
-    ):
+    if stop_policy.max_seconds is not None and wall_time_s is not None and wall_time_s >= stop_policy.max_seconds:
         return TutorialStopReason.TIME_BUDGET
     if solver_stop_reason:
         return TutorialStopReason.SOLVER_STOP
@@ -281,9 +245,7 @@ def _choose_outcome(
     return TutorialBenchmarkOutcome.INCOMPLETE
 
 
-def _match_ratio(
-    found: Sequence[int] | None, reference: Sequence[int] | None
-) -> float | None:
+def _match_ratio(found: Sequence[int] | None, reference: Sequence[int] | None) -> float | None:
     found_values = _int_list(found)
     reference_values = _int_list(reference)
     if found_values is None or reference_values is None:
@@ -292,9 +254,7 @@ def _match_ratio(
     if denom == 0:
         return None
     limit = min(len(found_values), len(reference_values))
-    return sum(
-        1 for idx in range(limit) if found_values[idx] == reference_values[idx]
-    ) / float(denom)
+    return sum(1 for idx in range(limit) if found_values[idx] == reference_values[idx]) / float(denom)
 
 
 def _int_list(value: Sequence[int] | None) -> list[int] | None:
@@ -323,9 +283,7 @@ def _validate_truth_policy_fields(
     readable_reached: bool | None,
     target_reached: bool | None,
 ) -> None:
-    _validate_truth_policy_match_ratio(
-        truth_policy=truth_policy, match_ratio=match_ratio
-    )
+    _validate_truth_policy_match_ratio(truth_policy=truth_policy, match_ratio=match_ratio)
     if match_ratio is None:
         return
     if readable_reached is None:
@@ -341,9 +299,7 @@ def _coerce_enum(value: object, enum_type: type[StrEnum], field_name: str) -> St
         return enum_type(str(value))
     except ValueError as exc:
         allowed = ", ".join(item.value for item in enum_type)
-        raise ValueError(
-            f"unknown {field_name} {value!r}; expected one of: {allowed}"
-        ) from exc
+        raise ValueError(f"unknown {field_name} {value!r}; expected one of: {allowed}") from exc
 
 
 def _require_ratio(value: object, field_name: str) -> None:

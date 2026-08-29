@@ -32,11 +32,11 @@ class KeyedCipherBase:
     # To be set by subclasses
     keyops_family: KeyOpsFamily = KeyOpsFamily.PERMUTATION
     key_length: int | None = None
-
     @property
     def keyops_family_enum(self) -> KeyOpsFamily:
         """Return the canonical KeyOpsFamily for this cipher."""
         return ensure_keyops_family(self.keyops_family)
+
 
     @staticmethod
     def _as_u8(a: Any) -> ArrayU8:

@@ -4,7 +4,6 @@ from rune_decrypter_prime.backends.xp import select_backend
 
 A = 29
 
-
 def _route_decrypt_indices(n: int, cols: int, mode: str = "row-major") -> np.ndarray:
     rows = (n + cols - 1) // cols
     pad = rows * cols - n
@@ -19,17 +18,14 @@ def _route_decrypt_indices(n: int, cols: int, mode: str = "row-major") -> np.nda
         inv[pos] = rank
     return inv
 
-
 class RouteTranspositionXP:
     """
     keys_u8: shape [B,2] like [cols, mode_id] with mode_id: 0=row-major,1=col-major (example)
     Decrypt by building index map on CPU, then XP gather. Adapt mode mapping as needed.
     """
-
     def __init__(self, device: str | None = None):
         dev = (device or "np").lower()
-        if dev == "cuda":
-            dev = "torch"
+        if dev == "cuda": dev = "torch"
         self.dev, self.xp = select_backend(dev)
 
     def decrypt_batch(self, ct_u8, keys_u8):
@@ -37,8 +33,8 @@ class RouteTranspositionXP:
         ct = xp.asarray(ct_u8, dtype=xp.uint8)
         keys = np.asarray(keys_u8, dtype=np.uint8)
         N = int(ct.shape[0])
-        cols = int(keys[0, 0])
-        mode = "col-major" if int(keys[0, 1]) == 1 else "row-major"
+        cols = int(keys[0,0])
+        mode = "col-major" if int(keys[0,1]) == 1 else "row-major"
         idx = _route_decrypt_indices(N, cols, mode=mode)
         idx_x = xp.asarray(idx, dtype=xp.int64)
         pt1 = ct[idx_x]

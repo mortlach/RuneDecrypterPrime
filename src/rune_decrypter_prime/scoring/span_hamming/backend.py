@@ -4,9 +4,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Tuple
 
 from rune_decrypter_prime.scoring.hamming.loader import load_raw1grams_wordlists
-from rune_decrypter_prime.scoring.span_hamming.interval_select import (
-    select_non_overlapping,
-)
+from rune_decrypter_prime.scoring.span_hamming.interval_select import select_non_overlapping
 from rune_decrypter_prime.scoring.span_hamming.split_index import LengthSplitIndex
 from rune_decrypter_prime.scoring.span_hamming.types import (
     SpanHammingConfig,
@@ -18,9 +16,7 @@ from rune_decrypter_prime.scoring.span_hamming.types import (
 Wordlist = Dict[int, List[List[int]]]
 
 
-def _hamming_distance_limited(
-    lhs: Sequence[int], rhs: Sequence[int], max_value: int
-) -> int:
+def _hamming_distance_limited(lhs: Sequence[int], rhs: Sequence[int], max_value: int) -> int:
     mismatch = 0
     for left, right in zip(lhs, rhs):
         if left != right:
@@ -48,9 +44,7 @@ class SpanHammingBackend:
         require_selected: bool = True,
     ) -> None:
         self.config = config or SpanHammingConfig()
-        self.length_bins: Tuple[int, ...] = tuple(
-            range(self.config.len_min, self.config.len_max + 1)
-        )
+        self.length_bins: Tuple[int, ...] = tuple(range(self.config.len_min, self.config.len_max + 1))
         self._max_dist = int(self.config.max_hd) + 1
 
         if wordlists is None:
@@ -73,9 +67,7 @@ class SpanHammingBackend:
                 max_hd=self.config.max_hd,
             )
 
-    def _normalize_wordlists(
-        self, wordlists: Wordlist | None
-    ) -> Dict[int, Tuple[Tuple[int, ...], ...]]:
+    def _normalize_wordlists(self, wordlists: Wordlist | None) -> Dict[int, Tuple[Tuple[int, ...], ...]]:
         normalized: Dict[int, Tuple[Tuple[int, ...], ...]] = {}
         if not wordlists:
             return normalized
@@ -181,9 +173,7 @@ class SpanHammingBackend:
                     # Tighten the early-out bound as soon as we have a better
                     # candidate; equal/worse distances can no longer improve.
                     distance_limit = max(0, best_distance - 1)
-                    distance = hamming_distance_limited(
-                        window, dict_word, distance_limit
-                    )
+                    distance = hamming_distance_limited(window, dict_word, distance_limit)
                     clipped_distance = min(distance, max_dist)
                     if clipped_distance < best_distance:
                         best_distance = clipped_distance
@@ -206,9 +196,7 @@ class SpanHammingBackend:
                 )
 
             if len(intervals_for_start) > max_intervals_per_start:
-                intervals_for_start.sort(
-                    key=lambda item: (-item.weight, item.end, item.start, -item.length)
-                )
+                intervals_for_start.sort(key=lambda item: (-item.weight, item.end, item.start, -item.length))
                 intervals_for_start = intervals_for_start[:max_intervals_per_start]
 
             intervals.extend(intervals_for_start)
@@ -236,17 +224,13 @@ class SpanHammingBackend:
             selected_intervals_by_len[idx] += 1
 
         span_raw_by_len = tuple(weight / denom_n for weight in sum_weight_by_len)
-        coverage_by_len = tuple(
-            float(chars) / denom_n for chars in covered_chars_by_len
-        )
+        coverage_by_len = tuple(float(chars) / denom_n for chars in covered_chars_by_len)
         quality_by_len = tuple(
             (sum_weight_by_len[idx] / float(max(1, covered_chars_by_len[idx])))
             for idx in range(len(length_bins))
         )
 
-        selected_intervals_debug = (
-            selected if self.config.debug_return_intervals else tuple()
-        )
+        selected_intervals_debug = selected if self.config.debug_return_intervals else tuple()
         return SpanHammingStats(
             span_raw=span_raw,
             coverage=coverage,

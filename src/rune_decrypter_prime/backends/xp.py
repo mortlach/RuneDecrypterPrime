@@ -37,7 +37,6 @@ def have_cupy() -> bool:
     except Exception:
         return False
 
-
 def have_torch_cuda() -> bool:
     """True iff torch is importable AND reports CUDA available."""
     if _torch is None:
@@ -47,7 +46,6 @@ def have_torch_cuda() -> bool:
     except Exception:
         return False
 
-
 def have_any_cuda() -> bool:
     return have_cupy() or have_torch_cuda()
 
@@ -55,116 +53,62 @@ def have_any_cuda() -> bool:
 # ---------- NumPy backend (always available) ----------
 class _NumpyXP:
     backend = "numpy"
-    device = "cpu"
+    device  = "cpu"
 
     # dtypes
-    uint8 = _np.uint8
-    int16 = _np.int16
-    int64 = _np.int64
+    uint8   = _np.uint8
+    int16   = _np.int16
+    int64   = _np.int64
     float32 = _np.float32
     float64 = _np.float64
 
     # ops (NumPy passthroughs)
-    def asarray(self, x, dtype=None):
-        return _np.asarray(x, dtype=dtype)
-
-    def arange(self, n, dtype=None):
-        return _np.arange(int(n), dtype=dtype)
-
-    def zeros(self, shape, dtype=None):
-        return _np.zeros(shape, dtype=dtype)
-
-    def zeros_like(self, a, dtype=None):
-        return _np.zeros_like(a, dtype=dtype)
-
-    def empty(self, shape, dtype=None):
-        return _np.empty(shape, dtype=dtype)
-
-    def empty_like(self, a, dtype=None):
-        return _np.empty_like(a, dtype=dtype)
-
-    def full(self, shape, fill_value, dtype=None):
-        return _np.full(shape, fill_value, dtype=dtype)
-
-    def concatenate(self, seq, axis=0):
-        return _np.concatenate([_np.asarray(a) for a in seq], axis=axis)
-
-    def mod(self, a, m):
-        return _np.mod(a, m)
-
-    def take(self, a, idx):
-        return _np.take(a, idx)
-
-    def sum(self, a, axis=None):
-        return _np.sum(a, axis=axis)
-
-    def astype(self, a, dtype):
-        return _np.asarray(a).astype(dtype)
-
-    def to_numpy(self, a):
-        return _np.asarray(a)
-
-    def synchronize(self):
-        return  # no-op on CPU
+    def asarray(self, x, dtype=None):         return _np.asarray(x, dtype=dtype)
+    def arange(self, n, dtype=None):          return _np.arange(int(n), dtype=dtype)
+    def zeros(self, shape, dtype=None):       return _np.zeros(shape, dtype=dtype)
+    def zeros_like(self, a, dtype=None):      return _np.zeros_like(a, dtype=dtype)
+    def empty(self, shape, dtype=None):       return _np.empty(shape, dtype=dtype)
+    def empty_like(self, a, dtype=None):      return _np.empty_like(a, dtype=dtype)
+    def full(self, shape, fill_value, dtype=None): return _np.full(shape, fill_value, dtype=dtype)
+    def concatenate(self, seq, axis=0):       return _np.concatenate([_np.asarray(a) for a in seq], axis=axis)
+    def mod(self, a, m):                      return _np.mod(a, m)
+    def take(self, a, idx):                   return _np.take(a, idx)
+    def sum(self, a, axis=None):              return _np.sum(a, axis=axis)
+    def astype(self, a, dtype):               return _np.asarray(a).astype(dtype)
+    def to_numpy(self, a):                    return _np.asarray(a)
+    def synchronize(self):                    return  # no-op on CPU
 
 
 # ---------- CuPy backend (only if available) ----------
 class _CuPyXP:
     backend = "cupy"
-    device = "cuda"
+    device  = "cuda"
 
     def __init__(self):
         if not have_cupy():
             raise RuntimeError("CuPy backend requested but no CUDA device is available")
         # dtypes
-        self.uint8 = _cp.uint8
-        self.int16 = _cp.int16
-        self.int64 = _cp.int64
+        self.uint8   = _cp.uint8
+        self.int16   = _cp.int16
+        self.int64   = _cp.int64
         self.float32 = _cp.float32
         self.float64 = _cp.float64
 
     # ops
-    def asarray(self, x, dtype=None):
-        return _cp.asarray(x, dtype=dtype)
-
-    def arange(self, n, dtype=None):
-        return _cp.arange(int(n), dtype=dtype)
-
-    def zeros(self, shape, dtype=None):
-        return _cp.zeros(shape, dtype=dtype)
-
-    def zeros_like(self, a, dtype=None):
-        return _cp.zeros_like(a, dtype=dtype)
-
-    def empty(self, shape, dtype=None):
-        return _cp.empty(shape, dtype=dtype)
-
-    def empty_like(self, a, dtype=None):
-        return _cp.empty_like(a, dtype=dtype)
-
-    def full(self, shape, fill_value, dtype=None):
-        return _cp.full(shape, fill_value, dtype=dtype)
-
-    def concatenate(self, seq, axis=0):
-        return _cp.concatenate([_cp.asarray(a) for a in seq], axis=axis)
-
-    def mod(self, a, m):
-        return _cp.mod(a, m)
-
-    def take(self, a, idx):
-        return _cp.take(a, idx)
-
-    def sum(self, a, axis=None):
-        return _cp.sum(a, axis=axis)
-
-    def astype(self, a, dtype):
-        return a.astype(dtype)
-
-    def to_numpy(self, a):
-        return _cp.asnumpy(a)
-
-    def synchronize(self):
-        _cp.cuda.Stream.null.synchronize()
+    def asarray(self, x, dtype=None):         return _cp.asarray(x, dtype=dtype)
+    def arange(self, n, dtype=None):          return _cp.arange(int(n), dtype=dtype)
+    def zeros(self, shape, dtype=None):       return _cp.zeros(shape, dtype=dtype)
+    def zeros_like(self, a, dtype=None):      return _cp.zeros_like(a, dtype=dtype)
+    def empty(self, shape, dtype=None):       return _cp.empty(shape, dtype=dtype)
+    def empty_like(self, a, dtype=None):      return _cp.empty_like(a, dtype=dtype)
+    def full(self, shape, fill_value, dtype=None): return _cp.full(shape, fill_value, dtype=dtype)
+    def concatenate(self, seq, axis=0):       return _cp.concatenate([_cp.asarray(a) for a in seq], axis=axis)
+    def mod(self, a, m):                      return _cp.mod(a, m)
+    def take(self, a, idx):                   return _cp.take(a, idx)
+    def sum(self, a, axis=None):              return _cp.sum(a, axis=axis)
+    def astype(self, a, dtype):               return a.astype(dtype)
+    def to_numpy(self, a):                    return _cp.asnumpy(a)
+    def synchronize(self):                    _cp.cuda.Stream.null.synchronize()
 
 
 # ---------- Torch backend (CPU or CUDA) ----------
@@ -182,9 +126,9 @@ class _TorchXP:
         self.device = dev
 
         # dtypes
-        self.uint8 = _torch.uint8
-        self.int16 = _torch.int16
-        self.int64 = _torch.int64
+        self.uint8   = _torch.uint8
+        self.int16   = _torch.int16
+        self.int64   = _torch.int64
         self.float32 = _torch.float32
         self.float64 = _torch.float64
 
@@ -197,34 +141,13 @@ class _TorchXP:
         t = _torch.arange(int(n), device=self.device)
         return t.to(dtype) if dtype is not None else t
 
-    def zeros(self, shape, dtype=None):
-        return _torch.zeros(shape, dtype=dtype, device=self.device)
-
-    def zeros_like(self, a, dtype=None):
-        return (
-            _torch.zeros_like(a, dtype=dtype, device=a.device)
-            if dtype is not None
-            else _torch.zeros_like(a)
-        )
-
-    def empty(self, shape, dtype=None):
-        return _torch.empty(shape, dtype=dtype, device=self.device)
-
-    def empty_like(self, a, dtype=None):
-        return (
-            _torch.empty_like(a, dtype=dtype, device=a.device)
-            if dtype is not None
-            else _torch.empty_like(a)
-        )
-
-    def full(self, shape, fill_value, dtype=None):
-        return _torch.full(shape, fill_value, dtype=dtype, device=self.device)
-
-    def concatenate(self, seq, axis=0):
-        return _torch.cat(seq, dim=axis)
-
-    def mod(self, a, m):
-        return a.remainder(m)
+    def zeros(self, shape, dtype=None):       return _torch.zeros(shape, dtype=dtype, device=self.device)
+    def zeros_like(self, a, dtype=None):      return _torch.zeros_like(a, dtype=dtype, device=a.device) if dtype is not None else _torch.zeros_like(a)
+    def empty(self, shape, dtype=None):       return _torch.empty(shape, dtype=dtype, device=self.device)
+    def empty_like(self, a, dtype=None):      return _torch.empty_like(a, dtype=dtype, device=a.device) if dtype is not None else _torch.empty_like(a)
+    def full(self, shape, fill_value, dtype=None): return _torch.full(shape, fill_value, dtype=dtype, device=self.device)
+    def concatenate(self, seq, axis=0):       return _torch.cat(seq, dim=axis)
+    def mod(self, a, m):                      return a.remainder(m)
 
     def take(self, a, idx):
         # Simple NumPy-like take, general enough for typical 1D/2D uses.
@@ -235,15 +158,9 @@ class _TorchXP:
         out = _torch.index_select(t, 0, i)
         return out.reshape(idx.shape)
 
-    def sum(self, a, axis=None):
-        return a.sum(dim=axis)
-
-    def astype(self, a, dtype):
-        return a.to(dtype)
-
-    def to_numpy(self, x):
-        return x.detach().cpu().numpy()
-
+    def sum(self, a, axis=None):              return a.sum(dim=axis)
+    def astype(self, a, dtype):               return a.to(dtype)
+    def to_numpy(self, x):                    return x.detach().cpu().numpy()
     def synchronize(self):
         if self.device == "cuda":
             _torch.cuda.synchronize()

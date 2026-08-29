@@ -6,21 +6,18 @@ import sys
 from pathlib import Path
 import pytest
 from tools.robustness import cipher_solver_campaign_config as campaign
-
 pytestmark = pytest.mark.tier_a
 ROOT = Path(__file__).resolve().parents[2]
-TUTORIALS = ROOT / "tutorials" / "v1"
-
+TUTORIALS = ROOT / 'tutorials' / 'v1'
 
 def _load(filename: str):
     path = TUTORIALS / filename
-    spec = importlib.util.spec_from_file_location(f"test_{path.stem}", path)
+    spec = importlib.util.spec_from_file_location(f'test_{path.stem}', path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
-
 
 def test_robust_autokey_recipe_matches_campaign() -> None:
     module = _load("Tutorial_Autokey_Robust.py")
@@ -51,14 +48,11 @@ def test_robust_mono_recipe_and_selection_match_campaign() -> None:
     assert module.PLATEAU_ROUNDS == budget.plateau_generations
     assert module.MIN_MATCH_RATIO == recipe.acceptance.plaintext_match
     selection_source = inspect.getsource(module.select_attempt).lower()
-    assert "score" in selection_source and "valid" in selection_source
-    assert not {"plaintext", "truth", "match", "classification", "key"} & set(
-        selection_source.replace("(", " ").replace(")", " ").split()
-    )
+    assert 'score' in selection_source and 'valid' in selection_source
+    assert not {'plaintext', 'truth', 'match', 'classification', 'key'} & set(selection_source.replace('(', ' ').replace(')', ' ').split())
     module.enforce_acceptance(module.MIN_MATCH_RATIO)
-    with pytest.raises(AssertionError, match="below acceptance threshold"):
+    with pytest.raises(AssertionError, match='below acceptance threshold'):
         module.enforce_acceptance(module.MIN_MATCH_RATIO - 0.001)
-
 
 def test_robust_interruptor_recipe_matches_campaign() -> None:
     module = _load("Tutorial_Vigenere_Interruptors_Robust.py")
@@ -70,22 +64,16 @@ def test_robust_interruptor_recipe_matches_campaign() -> None:
     assert module.SCORER_PARAMS == recipe.scoring
     assert module.INTERRUPTOR_COUNT == 2
 
-
 def test_robust_tutorials_do_not_use_oracles_true_key_seeds_or_repo_outputs() -> None:
-    for filename in (
-        "Tutorial_Autokey_Robust.py",
-        "Tutorial_MonoSubstitution_GA_Robust.py",
-        "Tutorial_Vigenere_Interruptors_Robust.py",
-    ):
-        source = (TUTORIALS / filename).read_text(encoding="utf-8").lower()
-        assert "oracle_stop_score(" not in source
-        assert "initial_keys=[true" not in source
-        assert "tools.robustness" not in source
-        assert "cipher_development" not in source
-        assert "output/" not in source and "artifacts/" not in source
-        assert "api.display.print_result(" in source
-        assert "recovered plaintext:" in source
-
+    for filename in ('Tutorial_Autokey_Robust.py', 'Tutorial_MonoSubstitution_GA_Robust.py', 'Tutorial_Vigenere_Interruptors_Robust.py'):
+        source = (TUTORIALS / filename).read_text(encoding='utf-8').lower()
+        assert 'oracle_stop_score(' not in source
+        assert 'initial_keys=[true' not in source
+        assert 'tools.robustness' not in source
+        assert 'cipher_development' not in source
+        assert 'output/' not in source and 'artifacts/' not in source
+        assert 'api.display.print_result(' in source
+        assert 'recovered plaintext:' in source
 
 def test_alternative_labels_and_manifest_are_honest() -> None:
     manifest = json.loads(
@@ -134,13 +122,7 @@ def test_bounded_best_practice_cleanup_contracts() -> None:
 
 
 def test_robust_tutorials_are_manual_extended_not_ordinary_ci_light() -> None:
-    runner = _load("run_tutorials.py")
+    runner = _load('run_tutorials.py')
     entries = {entry.path: entry for entry in runner.TUTORIALS}
-    for filename in (
-        "Tutorial_Autokey_Robust.py",
-        "Tutorial_MonoSubstitution_GA_Robust.py",
-        "Tutorial_Vigenere_Interruptors_Robust.py",
-    ):
-        assert tuple((item.value for item in entries[filename].run_sets)) == (
-            "extended",
-        )
+    for filename in ('Tutorial_Autokey_Robust.py', 'Tutorial_MonoSubstitution_GA_Robust.py', 'Tutorial_Vigenere_Interruptors_Robust.py'):
+        assert tuple((item.value for item in entries[filename].run_sets)) == ('extended',)

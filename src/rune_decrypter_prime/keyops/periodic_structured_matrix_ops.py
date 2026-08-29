@@ -138,9 +138,7 @@ class PeriodicStructuredMatrixKeyOps(KeyOpBase):
         super().__init__(self.caps)
 
         self._id_block = np.arange(self.A, dtype=self.dtype)
-        self._id_cols = (
-            np.arange(self.columns, dtype=self.dtype) if self.columns else None
-        )
+        self._id_cols = np.arange(self.columns, dtype=self.dtype) if self.columns else None
 
     def _normalize_1d(self, key: np.ndarray) -> np.ndarray:
         arr = np.asarray(key, dtype=np.int64).reshape(-1)
@@ -207,9 +205,7 @@ class PeriodicStructuredMatrixKeyOps(KeyOpBase):
             out[a], out[b] = out[b], out[a]
         return out
 
-    def mutate(
-        self, key: np.ndarray, rng, prob: Optional[float] = None, strength: int = 1
-    ) -> np.ndarray:
+    def mutate(self, key: np.ndarray, rng, prob: Optional[float] = None, strength: int = 1) -> np.ndarray:
         arr = np.asarray(key)
         if arr.ndim == 1:
             return self._mutate_1d(arr, rng, strength=strength)
@@ -225,18 +221,14 @@ class PeriodicStructuredMatrixKeyOps(KeyOpBase):
             return out
         raise ValueError("mutate expects (K,) or (B,K) array")
 
-    def _batch_mutate(
-        self, base: np.ndarray, rng, batch_size: int, strength: int = 1
-    ) -> np.ndarray:
+    def _batch_mutate(self, base: np.ndarray, rng, batch_size: int, strength: int = 1) -> np.ndarray:
         base_norm = self._normalize_1d(base)
         out = np.empty((int(batch_size), self.K), dtype=self.dtype)
         for i in range(int(batch_size)):
             out[i] = self._mutate_1d(base_norm, rng, strength=strength)
         return out
 
-    def batch_neighbors(
-        self, base: np.ndarray, n: int, rng, policy: Optional[str] = None
-    ) -> np.ndarray:
+    def batch_neighbors(self, base: np.ndarray, n: int, rng, policy: Optional[str] = None) -> np.ndarray:
         return self._batch_mutate(base, rng, batch_size=int(n), strength=1)
 
     def recombine(self, p1: np.ndarray, p2: np.ndarray, rng) -> np.ndarray:

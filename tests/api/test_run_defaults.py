@@ -25,9 +25,7 @@ def _minimal_cipher_config() -> CipherConfig:
 def test_run_uses_public_defaults_and_always_returns_run_result(monkeypatch) -> None:
     captured: dict[str, object] = {}
     run_module = importlib.import_module("rdp.api.run")
-    monkeypatch.setattr(
-        run_module, "execute_run", lambda **kwargs: captured.update(kwargs)
-    )
+    monkeypatch.setattr(run_module, "execute_run", lambda **kwargs: captured.update(kwargs))
 
     result = api.run(
         api.RunSpec(
@@ -49,10 +47,7 @@ def test_execute_run_uses_effective_seed_zero(monkeypatch) -> None:
     fake_instance = type(
         "FakeInstance",
         (),
-        {
-            "problem": type("FakeProblem", (), {"telemetry": None})(),
-            "pipeline_block": "pipeline",
-        },
+        {"problem": type("FakeProblem", (), {"telemetry": None})(), "pipeline_block": "pipeline"},
     )()
     monkeypatch.setattr(
         rdp.api.pipeline,

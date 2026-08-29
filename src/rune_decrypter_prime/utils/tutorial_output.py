@@ -46,11 +46,7 @@ def tutorial_debug_preview_block(
         raise ValueError("token_limit must be >= 1")
 
     clipped = idx_values[:token_limit]
-    suffix = (
-        ""
-        if len(idx_values) <= token_limit
-        else f" ... <{len(idx_values) - token_limit} more>"
-    )
+    suffix = "" if len(idx_values) <= token_limit else f" ... <{len(idx_values) - token_limit} more>"
     return format_key_value_block(
         f"Debug preview: {label}",
         [
@@ -77,11 +73,7 @@ def tutorial_debug_preview_lines(
         raise ValueError("token_limit must be >= 1")
 
     clipped = idx_values[:token_limit]
-    suffix = (
-        ""
-        if len(idx_values) <= token_limit
-        else f" ... <{len(idx_values) - token_limit} more>"
-    )
+    suffix = "" if len(idx_values) <= token_limit else f" ... <{len(idx_values) - token_limit} more>"
 
     return [
         f"Debug preview: {label}",
@@ -94,28 +86,18 @@ def tutorial_debug_preview_lines(
 
 
 def _token_text(idx: Sequence[int], wli: Sequence[Sequence[int]] | None) -> str:
-    return _join_words(
-        [
-            [str(Runeglish.pos_to_latin(int(value))) for value in word]
-            for word in _word_groups(idx, wli)
-        ]
-    )
+    return _join_words([[str(Runeglish.pos_to_latin(int(value))) for value in word] for word in _word_groups(idx, wli)])
 
 
 def _rune_text(idx: Sequence[int], wli: Sequence[Sequence[int]] | None) -> str:
-    return "  ".join(
-        "".join(str(Runeglish.pos_to_rune(int(value))) for value in word)
-        for word in _word_groups(idx, wli)
-    )
+    return "  ".join("".join(str(Runeglish.pos_to_rune(int(value))) for value in word) for word in _word_groups(idx, wli))
 
 
 def _join_words(words: Sequence[Sequence[str]]) -> str:
     return "  ".join("|".join(token for token in word) for word in words)
 
 
-def _word_groups(
-    idx: Sequence[int], wli: Sequence[Sequence[int]] | None
-) -> list[list[int]]:
+def _word_groups(idx: Sequence[int], wli: Sequence[Sequence[int]] | None) -> list[list[int]]:
     values = [int(value) for value in idx]
     if not values:
         return []

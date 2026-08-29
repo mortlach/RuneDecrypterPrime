@@ -4,10 +4,7 @@ import math
 from dataclasses import dataclass
 from typing import Protocol, Sequence
 
-from rune_decrypter_prime.scoring.word_ngrams.sqlite_model import (
-    make_prefix_key,
-    make_token_ngram_key,
-)
+from rune_decrypter_prime.scoring.word_ngrams.sqlite_model import make_prefix_key, make_token_ngram_key
 
 
 class RuneTokenWordNgramCounts(Protocol):
@@ -80,9 +77,7 @@ class RuneTokenWordNgramScorer:
         prefix = make_prefix_key(tuple(tokens))
         return int(self.model.get_prefix_total(int(n_minus_1), prefix))
 
-    def _score_backoff_position(
-        self, tokens: Sequence[bytes], idx: int
-    ) -> tuple[float, int] | None:
+    def _score_backoff_position(self, tokens: Sequence[bytes], idx: int) -> tuple[float, int] | None:
         if idx >= 4:
             lp5 = self._cond_logp(n=5, tokens=tokens[idx - 4 : idx + 1])
             if lp5 is not None:
@@ -171,9 +166,7 @@ class RuneTokenWordNgramScorer:
             prefix_totals_3=tuple(int(v) for v in prefix_totals_3),
         )
 
-    def score_segments(
-        self, segments: Sequence[Sequence[bytes]]
-    ) -> RuneTokenWordNgramScore:
+    def score_segments(self, segments: Sequence[Sequence[bytes]]) -> RuneTokenWordNgramScore:
         return self.score_segments_with_diagnostics(segments).score
 
 

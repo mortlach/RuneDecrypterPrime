@@ -14,7 +14,6 @@ from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.types import Device
 from rune_decrypter_prime.scoring.unified_rune_scorer import UnifiedRuneScorer
 
-
 class _FakeBackendScorer:
     hamming_backend = None
     hamming_issue = None
@@ -35,46 +34,31 @@ class _FakeBackendScorer:
     def batch_score(self, pts, wlis=None):
         return [0.0 for _ in pts]
 
-
 def _install_fake_numpy_backend(monkeypatch) -> None:
-    module = ModuleType("rune_decrypter_prime.scoring.rune_scorer")
+    module = ModuleType('rune_decrypter_prime.scoring.rune_scorer')
     module.RuneScorer = _FakeBackendScorer
     monkeypatch.setitem(sys.modules, module.__name__, module)
 
-
 def _cipher_cfg() -> CipherConfig:
-    return CipherConfig(
-        ciphertext=[0, 1, 2, 3], wli_data=[], key_length=4, device=Device.CPU
-    )
-
+    return CipherConfig(ciphertext=[0, 1, 2, 3], wli_data=[], key_length=4, device=Device.CPU)
 
 def _lane_by_name(report, lane: ScoringLane):
     matches = [status for status in report.lanes if status.lane is lane]
     assert len(matches) == 1
     return matches[0]
 
-
 def _issue(code: str) -> CapabilityIssue:
-    return CapabilityIssue(
-        code=code,
-        message=f"{code} message",
-        status=CapabilityStatus.UNAVAILABLE,
-        source="hamming",
-    )
-
+    return CapabilityIssue(code=code, message=f'{code} message', status=CapabilityStatus.UNAVAILABLE, source='hamming')
 
 def test_unified_scorer_requires_typed_config_objects() -> None:
-    with pytest.raises(TypeError, match="CipherConfig"):
+    with pytest.raises(TypeError, match='CipherConfig'):
         UnifiedRuneScorer(SimpleNamespace(ciphertext=[0, 1, 2, 3]), api.ScoringConfig())
-    with pytest.raises(TypeError, match="ScoringConfig"):
-        UnifiedRuneScorer(_cipher_cfg(), {"hamming_enabled": True})
-    with pytest.raises(TypeError, match="ScoringConfig"):
+    with pytest.raises(TypeError, match='ScoringConfig'):
+        UnifiedRuneScorer(_cipher_cfg(), {'hamming_enabled': True})
+    with pytest.raises(TypeError, match='ScoringConfig'):
         UnifiedRuneScorer(_cipher_cfg(), SimpleNamespace(hamming_enabled=True))
 
-
-def test_unified_scorer_reports_missing_backend_lane_without_builder(
-    monkeypatch,
-) -> None:
+def test_unified_scorer_reports_missing_backend_lane_without_builder(monkeypatch) -> None:
     _install_fake_numpy_backend(monkeypatch)
     _FakeBackendScorer.hamming_backend = None
     _FakeBackendScorer.hamming_issue = None
@@ -83,22 +67,16 @@ def test_unified_scorer_reports_missing_backend_lane_without_builder(
     assert lane.is_blocking
     assert lane.effective_state is CapabilityEffectiveState.BLOCKED
 
-
-def test_unified_scorer_preserves_backend_capability_issue_without_builder(
-    monkeypatch,
-) -> None:
+def test_unified_scorer_preserves_backend_capability_issue_without_builder(monkeypatch) -> None:
     _install_fake_numpy_backend(monkeypatch)
     _FakeBackendScorer.hamming_backend = None
-    _FakeBackendScorer.hamming_issue = _issue("custom_hamming_backend_failure")
+    _FakeBackendScorer.hamming_issue = _issue('custom_hamming_backend_failure')
     scorer = UnifiedRuneScorer(_cipher_cfg(), api.ScoringConfig(hamming_enabled=True))
     lane = _lane_by_name(scorer.capability_report(), ScoringLane.HAMMING)
     assert lane.is_blocking
-    assert lane.issues[0].code == "custom_hamming_backend_failure"
+    assert lane.issues[0].code == 'custom_hamming_backend_failure'
 
-
-def test_unified_scorer_reports_active_backend_lane_without_builder(
-    monkeypatch,
-) -> None:
+def test_unified_scorer_reports_active_backend_lane_without_builder(monkeypatch) -> None:
     _install_fake_numpy_backend(monkeypatch)
     _FakeBackendScorer.hamming_backend = object()
     _FakeBackendScorer.hamming_issue = None

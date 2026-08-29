@@ -1,5 +1,4 @@
 """Strict enums and dataclasses shared across the core/engine pipeline."""
-
 from __future__ import annotations
 import hashlib
 import json
@@ -38,44 +37,29 @@ def _strict_public_int(value: object, field_name: str) -> int:
     return int(value)
 
 
-def normalize_rune_indices(
-    values: Sequence[int], *, field_name: str = "indices"
-) -> RuneIndices:
+def normalize_rune_indices(values: Sequence[int], *, field_name: str = "indices") -> RuneIndices:
     if isinstance(values, (str, bytes, Path)) or not isinstance(values, Sequence):
         raise TypeError(f"{field_name} must be an ordered sequence of integers")
-    copied = tuple(
-        _strict_public_int(value, f"{field_name}[{index}]")
-        for index, value in enumerate(values)
-    )
+    copied = tuple(_strict_public_int(value, f"{field_name}[{index}]") for index, value in enumerate(values))
     for index, value in enumerate(copied):
         if value < 0 or value > 28:
             raise ValueError(f"{field_name}[{index}] must be in [0..28]")
     return copied
 
 
-def normalize_concrete_key(
-    value: Sequence[int], *, field_name: str = "key"
-) -> ConcreteKey:
+def normalize_concrete_key(value: Sequence[int], *, field_name: str = "key") -> ConcreteKey:
     if type(value) is not tuple:
         raise TypeError(f"{field_name} must be ConcreteKey (tuple[int, ...])")
-    copied = tuple(
-        _strict_public_int(item, f"{field_name}[{index}]")
-        for index, item in enumerate(value)
-    )
+    copied = tuple(_strict_public_int(item, f"{field_name}[{index}]") for index, item in enumerate(value))
     if not copied:
         raise ValueError(f"{field_name} must not be empty")
     return copied
 
 
-def normalize_initial_keys(
-    value: Sequence[Sequence[int]], *, field_name: str = "initial_keys"
-) -> InitialKeys:
+def normalize_initial_keys(value: Sequence[Sequence[int]], *, field_name: str = "initial_keys") -> InitialKeys:
     if type(value) is not tuple:
         raise TypeError(f"{field_name} must be InitialKeys (tuple[ConcreteKey, ...])")
-    return tuple(
-        normalize_concrete_key(item, field_name=f"{field_name}[{index}]")
-        for index, item in enumerate(value)
-    )
+    return tuple(normalize_concrete_key(item, field_name=f"{field_name}[{index}]") for index, item in enumerate(value))
 
 
 def freeze_json_value(value: object, field_name: str) -> FrozenValue:
@@ -98,16 +82,11 @@ def freeze_json_value(value: object, field_name: str) -> FrozenValue:
             items.append((key, freeze_json_value(item, f"{field_name}.{key}")))
         return tuple(items)
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
-        return tuple(
-            freeze_json_value(item, f"{field_name}[{index}]")
-            for index, item in enumerate(value)
-        )
+        return tuple(freeze_json_value(item, f"{field_name}[{index}]") for index, item in enumerate(value))
     raise TypeError(f"{field_name} contains unsupported value {type(value).__name__}")
 
 
-def freeze_parameter_items(
-    values: Mapping[str, object], field_name: str = "parameters"
-) -> FrozenParameterItems:
+def freeze_parameter_items(values: Mapping[str, object], field_name: str = "parameters") -> FrozenParameterItems:
     if not isinstance(values, Mapping):
         raise TypeError(f"{field_name} must be a mapping")
     if any(not isinstance(key, str) for key in values):
@@ -139,7 +118,8 @@ def thaw_frozen_value(
             for key, item in value  # type: ignore[misc]
         }
     values = tuple(
-        thaw_frozen_value(item, json_compatible=json_compatible) for item in value
+        thaw_frozen_value(item, json_compatible=json_compatible)
+        for item in value
     )
     return list(values) if json_compatible else values
 
@@ -350,59 +330,47 @@ class SpanHammingLanguageModelProfileSource(StrEnum):
     RAW_SPAN_BY_LENGTH = "raw_span_by_length"
     CHARACTERS_COVERED_BY_LENGTH = "characters_covered_by_length"
 
-
 class Direction(Enum):
     """Canonical text-encoding direction for the pipeline.
     Core uses this Enum only (never raw strings). When serialized to JSON,
     use .value to emit 'ltr' or 'rtl' for readability.
     """
-
     LTR = "ltr"
     RTL = "rtl"
 
-
 class Device(Enum):
     """Execution device. Core can branch on this; API remains forgiving."""
-
     CPU = "cpu"
     CUDA = "cuda"
 
-
 class ScorerImpl(Enum):
     """Execution device. Core uses this API remains forgiving."""
-
     NUMPY = "numpy"
     TORCH = "torch"
     UNIFIED = "unified"
     AUTO = "auto"
 
-
 class FloatDType(StrEnum):
     """Canonical float dtype for scoring/telemetry knobs."""
-
     FLOAT32 = "float32"
     FLOAT64 = "float64"
 
 
 class ScorerName(Enum):
     """Canonical scorer families recognised by the config layer."""
-
     RUNE = "rune"
-
 
 class SolverName(Enum):
     """Optimizer device. Core uses this API remains forgiving."""
-
-    BEAM = "beam"
-    GA = "ga"
-    SA = "sa"
-    HYBRID = "hybrid"
+    BEAM  = "beam"
+    GA  = "ga"
+    SA  = "sa"
+    HYBRID  = "hybrid"
     KAEDING = "kaeding"
 
 
 class RuntimeInterruptorSearchStrategy(Enum):
     """Search strategy for interruptor positions."""
-
     AUTO = "auto"
     BRUTEFORCE = "bruteforce"
     KEYOPS = "keyops"
@@ -412,54 +380,45 @@ class RuntimeCipherKind(Enum):
     """Canonical cipher family for strict branching in the core.
     UI may keep string fields, but the core uses this Enum only.
     """
-
-    WRAPPER = "wrapper"  # Named core cipher exposed via wrappers/registry
+    WRAPPER = "wrapper"      # Named core cipher exposed via wrappers/registry
     USER_MAP2 = "user_map2"  # ct = f(pt, k)
     USER_MAP3 = "user_map3"  # ct = f(pt, k1, k2)
-    LOOKUP = "lookup"  # ct = table[pt, k] or similar
-
+    LOOKUP = "lookup"        # ct = table[pt, k] or similar
 
 class RuntimeKeyKind(Enum):
     """Canonical key plan for strict branching in the core.
     Avoid magic strings in engine/cipher builders.
     """
-
-    REPEAT = "repeat"  # periodic stream of length K
-    OTP = "otp"  # explicit stream
-    CONST = "const"  # broadcast constant value
-    PERM = "perm"  # permutation key (bijective)
+    REPEAT = "repeat"        # periodic stream of length K
+    OTP = "otp"              # explicit stream
+    CONST = "const"          # broadcast constant value
+    PERM = "perm"            # permutation key (bijective)
     MATRIX2X2 = "matrix2x2"  # 2×2 matrix (e.g., Hill-2)
-    MATRIX = "matrix"  # general matrix
-    AFFINE = "affine"  # (a, b) pair when used as key parts
-    SCALAR = "scalar"  # single int modulo N
-    BLOCK = "block"  # structured/block key (reserved)
+    MATRIX = "matrix"        # general matrix
+    AFFINE = "affine"        # (a, b) pair when used as key parts
+    SCALAR = "scalar"        # single int modulo N
+    BLOCK = "block"          # structured/block key (reserved)
     KEYSTREAM = "keystream"  # pre-generated stream (alias of OTP at core level)
-
 
 class KeyOpsFamily(Enum):
     """KeyOps families recognised by the core/keyops registry."""
-
     PERMUTATION = "permutation"
     VECTOR = "vector"
     COMPOSITE = "composite"
     AFFINE = "affine"
     MATRIX = "matrix"
 
-
 @dataclass(frozen=True)
 class PipelineCfg:
     """Strict pipeline config carried inside core."""
-
     text_encoding_direction: Direction = Direction.LTR
     # Core expects a true permutation over ciphertext token indices or None.
     # API normalizes various user formats to this canonical list[int] in PR2.
     text_permutation: Optional[list[int]] = None
 
-
 @dataclass(frozen=True)
 class SolveCfg:
     """Strict top-level config for the solver engine (core-facing only)."""
-
     seed: int = 42
     device: Device = Device.CPU
     telemetry_on: bool = True
@@ -494,18 +453,17 @@ def _coerce_enum_value(enum_cls, value, *, aliases=None, param_name="value"):
 
 def ensure_direction(value) -> Direction:
     if isinstance(value, TextDirection):
-        return Direction.LTR if value is TextDirection.LEFT_TO_RIGHT else Direction.RTL
-    return _coerce_enum_value(
-        Direction,
-        value,
-        aliases={
-            "forward": Direction.LTR,
-            "fwd": Direction.LTR,
-            "reverse": Direction.RTL,
-            "rev": Direction.RTL,
-        },
-        param_name="direction",
-    )
+        return (
+            Direction.LTR
+            if value is TextDirection.LEFT_TO_RIGHT
+            else Direction.RTL
+        )
+    return _coerce_enum_value(Direction, value, aliases={
+        "forward": Direction.LTR,
+        "fwd": Direction.LTR,
+        "reverse": Direction.RTL,
+        "rev": Direction.RTL,
+    }, param_name="direction")
 
 
 def ensure_device(value) -> Device:
@@ -532,38 +490,27 @@ def ensure_scorer_name(value) -> ScorerName:
 def ensure_scorer_impl(value) -> ScorerImpl:
     return _coerce_enum_value(ScorerImpl, value, param_name="scorer impl")
 
-
 def ensure_float_dtype(value) -> FloatDType:
-    return _coerce_enum_value(
-        FloatDType,
-        value,
-        aliases={
-            "f32": FloatDType.FLOAT32,
-            "fp32": FloatDType.FLOAT32,
-            "32": FloatDType.FLOAT32,
-            "float32": FloatDType.FLOAT32,
-            "f64": FloatDType.FLOAT64,
-            "fp64": FloatDType.FLOAT64,
-            "64": FloatDType.FLOAT64,
-            "float64": FloatDType.FLOAT64,
-        },
-        param_name="float dtype",
-    )
+    return _coerce_enum_value(FloatDType, value, aliases={
+        "f32": FloatDType.FLOAT32,
+        "fp32": FloatDType.FLOAT32,
+        "32": FloatDType.FLOAT32,
+        "float32": FloatDType.FLOAT32,
+        "f64": FloatDType.FLOAT64,
+        "fp64": FloatDType.FLOAT64,
+        "64": FloatDType.FLOAT64,
+        "float64": FloatDType.FLOAT64,
+    }, param_name="float dtype")
 
 
 def ensure_keyops_family(value) -> KeyOpsFamily:
-    return _coerce_enum_value(
-        KeyOpsFamily,
-        value,
-        aliases={
-            "perm": KeyOpsFamily.PERMUTATION,
-            "param": KeyOpsFamily.COMPOSITE,
-            "composite": KeyOpsFamily.COMPOSITE,
-            "interruptor": KeyOpsFamily.COMPOSITE,
-            "interruptors": KeyOpsFamily.COMPOSITE,
-        },
-        param_name="keyops family",
-    )
+    return _coerce_enum_value(KeyOpsFamily, value, aliases={
+        "perm": KeyOpsFamily.PERMUTATION,
+        "param": KeyOpsFamily.COMPOSITE,
+        "composite": KeyOpsFamily.COMPOSITE,
+        "interruptor": KeyOpsFamily.COMPOSITE,
+        "interruptors": KeyOpsFamily.COMPOSITE,
+    }, param_name="keyops family")
 
 
 def ensure_interruptor_search_strategy(value) -> RuntimeInterruptorSearchStrategy:
@@ -574,6 +521,7 @@ def ensure_interruptor_search_strategy(value) -> RuntimeInterruptorSearchStrateg
     )
 
 
+
 def ensure_cipher_kind(value) -> RuntimeCipherKind:
     return _coerce_enum_value(RuntimeCipherKind, value, param_name="cipher kind")
 
@@ -582,9 +530,9 @@ def ensure_key_kind(value) -> RuntimeKeyKind:
     return _coerce_enum_value(RuntimeKeyKind, value, param_name="key kind")
 
 
+
 def parse_optimizer_kind(val) -> SolverName:
     return ensure_solver_name(val)
-
 
 def parse_device(val) -> Device:
     if val is None:
@@ -596,18 +544,15 @@ class SeMode(Enum):
     NOSE = "nose"
     WISE = "wise"
 
-
 class Channel(Enum):
     CHAR = "char"
     WLI = "wli"
 
-
 class ObjectiveFamily(Enum):
     PCT = "pct"
     AVG = "avg"
-    ENERGY = "energy"  # kept as explicit alias
-    NEGLOGP = "neglogp"  # scalar legacy
-
+    ENERGY = "energy"     # kept as explicit alias
+    NEGLOGP = "neglogp"   # scalar legacy
 
 class Stat(Enum):
     LOGP = "logp"
@@ -619,12 +564,11 @@ class AvgWindowPolicy(Enum):
     FIXED_WIN = "fixed_win"
     FULL_TEXT = "full_text"
 
-
 @dataclass(frozen=True)
 class ObjectiveSpec:
     family: ObjectiveFamily
-    stat: Optional[Stat] = None  # None for NEGLOGP
-    win: Optional[int] = None  # required for PCT/ENERGY families
+    stat: Optional[Stat] = None     # None for NEGLOGP
+    win: Optional[int] = None       # required for PCT/ENERGY families
 
 
 def ensure_se_mode(value) -> SeMode:

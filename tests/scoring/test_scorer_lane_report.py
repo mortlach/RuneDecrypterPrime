@@ -14,21 +14,13 @@ from rune_decrypter_prime.core.component_contracts import (
 )
 from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
 
-
-def _issue(code: str = "backend_unavailable") -> CapabilityIssue:
-    return CapabilityIssue(
-        code=code,
-        message="test lane unavailable",
-        status=CapabilityStatus.UNAVAILABLE,
-        source="test",
-    )
-
+def _issue(code: str='backend_unavailable') -> CapabilityIssue:
+    return CapabilityIssue(code=code, message='test lane unavailable', status=CapabilityStatus.UNAVAILABLE, source='test')
 
 def _lane_by_name(report, lane: ScoringLane):
     matches = [status for status in report.lanes if status.lane is lane]
     assert len(matches) == 1
     return matches[0]
-
 
 def test_default_report_has_stable_lane_order_and_inactive_optional_lanes() -> None:
     report = build_scorer_lane_report(api.ScoringConfig())
@@ -48,7 +40,6 @@ def test_default_report_has_stable_lane_order_and_inactive_optional_lanes() -> N
     ]
     json.dumps(payload)
 
-
 def test_requested_hamming_backend_is_active_production() -> None:
     report = build_scorer_lane_report(
         api.ScoringConfig(hamming_enabled=True), hamming_backend=object()
@@ -60,7 +51,6 @@ def test_requested_hamming_backend_is_active_production() -> None:
     assert lane.fallback_policy is FallbackPolicy.BLOCK
     report.raise_if_blocked()
 
-
 def test_requested_hamming_failure_blocks() -> None:
     report = build_scorer_lane_report(
         api.ScoringConfig(hamming_enabled=True), hamming_issue=_issue()
@@ -71,9 +61,8 @@ def test_requested_hamming_failure_blocks() -> None:
     assert lane.ranking_effect is RankingEffect.PRODUCTION
     assert lane.fallback_policy is FallbackPolicy.BLOCK
     assert lane.is_blocking
-    with pytest.raises(RequestedLaneUnavailableError, match="hamming"):
+    with pytest.raises(RequestedLaneUnavailableError, match='hamming'):
         report.raise_if_blocked()
-
 
 def test_requested_raw_span_failure_blocks() -> None:
     report = build_scorer_lane_report(
@@ -86,7 +75,6 @@ def test_requested_raw_span_failure_blocks() -> None:
     with pytest.raises(RequestedLaneUnavailableError, match="span_hamming_raw"):
         report.raise_if_blocked()
 
-
 def test_requested_calibrated_span_failure_blocks() -> None:
     report = build_scorer_lane_report(
         api.ScoringConfig(span_hamming_mode=api.advanced.SpanHammingMode.CALIBRATED),
@@ -97,7 +85,6 @@ def test_requested_calibrated_span_failure_blocks() -> None:
     assert lane.ranking_effect is RankingEffect.PRODUCTION
     with pytest.raises(RequestedLaneUnavailableError, match="span_hamming_calibrated"):
         report.raise_if_blocked()
-
 
 def test_requested_word_ngram_failure_is_report_only_and_non_blocking(tmp_path) -> None:
     report = build_scorer_lane_report(
@@ -132,7 +119,6 @@ def test_requested_word_ngram_runtime_is_report_only_even_when_available(
     assert lane.fallback_policy is FallbackPolicy.REPORT_ONLY
     report.raise_if_blocked()
 
-
 def test_report_builder_rejects_non_canonical_config() -> None:
-    with pytest.raises(TypeError, match="ScoringConfig"):
+    with pytest.raises(TypeError, match='ScoringConfig'):
         build_scorer_lane_report({})

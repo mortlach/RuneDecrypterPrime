@@ -40,13 +40,9 @@ def _normalize_rune_sequence(
         try:
             v = int(raw)
         except Exception as exc:  # pragma: no cover - defensive
-            raise TypeError(
-                f"{field_name} rune indices must be integers, got {raw!r}"
-            ) from exc
+            raise TypeError(f"{field_name} rune indices must be integers, got {raw!r}") from exc
         if v < 0 or v >= ALPHABET_SIZE:
-            raise ValueError(
-                f"{field_name} rune indices must be in [0..{ALPHABET_SIZE - 1}]"
-            )
+            raise ValueError(f"{field_name} rune indices must be in [0..{ALPHABET_SIZE - 1}]")
         if dedupe:
             if v in seen:
                 continue
@@ -79,9 +75,7 @@ def _normalize_word_sequences(
     expected_len: int | None = None,
 ) -> Tuple[Tuple[int, ...], ...]:
     if not isinstance(raw_sequences, (list, tuple)):
-        raise TypeError(
-            f"{field_name} values must be a list/tuple of rune-index word sequences"
-        )
+        raise TypeError(f"{field_name} values must be a list/tuple of rune-index word sequences")
     if len(raw_sequences) == 0:
         raise ValueError(f"{field_name} values cannot be empty")
 
@@ -103,19 +97,13 @@ def _normalize_word_sequences(
     return tuple(out)
 
 
-def _normalize_per_word_allowed(
-    raw_map: Mapping[Any, Any] | None,
-) -> Dict[int, Tuple[Tuple[int, ...], ...]]:
+def _normalize_per_word_allowed(raw_map: Mapping[Any, Any] | None) -> Dict[int, Tuple[Tuple[int, ...], ...]]:
     if not raw_map:
         return {}
     out: Dict[int, Tuple[Tuple[int, ...], ...]] = {}
     for raw_word_idx, raw_sequences in raw_map.items():
-        word_idx = _coerce_key_int(
-            raw_word_idx, field_name="per_word_allowed", min_value=0
-        )
-        seqs = _normalize_word_sequences(
-            raw_sequences, field_name=f"per_word_allowed[{word_idx}]"
-        )
+        word_idx = _coerce_key_int(raw_word_idx, field_name="per_word_allowed", min_value=0)
+        seqs = _normalize_word_sequences(raw_sequences, field_name=f"per_word_allowed[{word_idx}]")
         out[word_idx] = seqs
     return out
 
@@ -179,9 +167,7 @@ class HardCribConfig:
     def asdict(self) -> Dict[str, Any]:
         return {
             "enabled": bool(self.enabled),
-            "mode": self.mode.value
-            if isinstance(self.mode, HardCribMode)
-            else str(self.mode),
+            "mode": self.mode.value if isinstance(self.mode, HardCribMode) else str(self.mode),
             "require_wli_for_word_rules": bool(self.require_wli_for_word_rules),
             "fixed_characters": {
                 int(k): [int(v) for v in vals]

@@ -33,20 +33,12 @@ class HammingBackend:
         length_weights: Dict[int, float] | None = None,
     ) -> None:
         if _hamming_ext is None:
-            raise ImportError(
-                "rune_decrypter_prime.scoring.hamming._hamming is not built; run setup_hamming.py"
-            )
+            raise ImportError("rune_decrypter_prime.scoring.hamming._hamming is not built; run setup_hamming.py")
 
-        self._hamming_ltr = (
-            self._build_backend(wordlists_ltr) if wordlists_ltr else None
-        )
-        self._hamming_rtl = (
-            self._build_backend(wordlists_rtl) if wordlists_rtl else None
-        )
-        self._max_hd = int(max_hd) if max_hd is not None else (2**31 - 1)
-        self._len_weights = {
-            int(k): float(v) for k, v in (length_weights or {}).items()
-        }
+        self._hamming_ltr = self._build_backend(wordlists_ltr) if wordlists_ltr else None
+        self._hamming_rtl = self._build_backend(wordlists_rtl) if wordlists_rtl else None
+        self._max_hd = int(max_hd) if max_hd is not None else (2 ** 31 - 1)
+        self._len_weights = {int(k): float(v) for k, v in (length_weights or {}).items()}
 
     @staticmethod
     def _build_backend(wordlists: Wordlist | None):
@@ -83,9 +75,7 @@ class HammingBackend:
             word_wli.append(cur_w)
         return words, word_wli
 
-    def _word_penalty(
-        self, backend, runes_word: Sequence[int], wli_word: Sequence[Sequence[int]]
-    ) -> float:
+    def _word_penalty(self, backend, runes_word: Sequence[int], wli_word: Sequence[Sequence[int]]) -> float:
         try:
             hd = backend.get_min_hamming_distance(runes_word, wli_word)
         except Exception:
@@ -123,11 +113,7 @@ class HammingBackend:
         def _eval(backend):
             return self._total_for_backend(backend, words, wlis)
 
-        if (
-            mode == "both"
-            and self._hamming_ltr is not None
-            and self._hamming_rtl is not None
-        ):
+        if mode == "both" and self._hamming_ltr is not None and self._hamming_rtl is not None:
             totals.append(_eval(self._hamming_ltr))
             totals.append(_eval(self._hamming_rtl))
             total_hd = min(totals)
@@ -152,8 +138,4 @@ class HammingBackend:
         direction: Direction | str = Direction.LTR,
         mode: str = "match",  # "match" -> follow direction; "both" -> min(ltr, rtl)
     ) -> float:
-        return float(
-            self.total_min_hd_stats(runes, wli, direction=direction, mode=mode)[
-                "total_hd"
-            ]
-        )
+        return float(self.total_min_hd_stats(runes, wli, direction=direction, mode=mode)["total_hd"])

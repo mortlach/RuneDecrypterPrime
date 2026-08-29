@@ -139,7 +139,6 @@ def load_index(root: Path) -> LmIndex:
 
 # --- Compatibility shims expected by language_model_prime.py ---
 
-
 def default_lm_root() -> Path:
     """Repository assets-relative default LM root."""
     return (_assets_lm_base() / _DEFAULT_LM_NAME).resolve()

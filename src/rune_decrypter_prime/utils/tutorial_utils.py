@@ -10,10 +10,7 @@ from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.types import Direction, TextDirection
 from rune_decrypter_prime.core.engine.builders import build_scorer
-from rune_decrypter_prime.scoring.language_model.load_status import (
-    LmLoadReporter,
-    LmLoadStatus,
-)
+from rune_decrypter_prime.scoring.language_model.load_status import LmLoadReporter, LmLoadStatus
 from rune_decrypter_prime.utils.tutorial_pretty import print_model_loading
 
 
@@ -86,12 +83,8 @@ def oracle_stop_score(
             encoding_dir=encoding_dir,
             load_reporter=_report_load,
         )
-    except (
-        FileNotFoundError
-    ) as exc:  # keep tutorials runnable even if LM assets are absent
-        return StopScoreResult(
-            None, fallback, f"oracle_failed: {exc}", tuple(load_events)
-        )
+    except FileNotFoundError as exc:  # keep tutorials runnable even if LM assets are absent
+        return StopScoreResult(None, fallback, f"oracle_failed: {exc}", tuple(load_events))
 
     stop = float(oracle - float(margin))
     # Never allow stop_score to exceed the oracle score.
@@ -104,9 +97,7 @@ def oracle_stop_score(
     return StopScoreResult(oracle, stop, "oracle_ok", tuple(load_events))
 
 
-def plateau_rounds_from_steps(
-    steps: int, *, pct: float = 0.1, minimum: int = 10
-) -> int:
+def plateau_rounds_from_steps(steps: int, *, pct: float = 0.1, minimum: int = 10) -> int:
     return max(minimum, int(max(1, steps) * pct))
 
 
@@ -125,9 +116,7 @@ def format_stop_summary(
     *,
     options: PrintOptions | None = None,
 ) -> str:
-    return format_key_value_block(
-        "Scoring / stop target", stop_summary_rows(label, result), options=options
-    )
+    return format_key_value_block("Scoring / stop target", stop_summary_rows(label, result), options=options)
 
 
 def print_stop_summary(label: str, result: StopScoreResult) -> None:

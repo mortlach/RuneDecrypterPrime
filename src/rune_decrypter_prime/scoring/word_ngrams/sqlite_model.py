@@ -35,9 +35,7 @@ class RuneTokenWordNgramSqlite:
         self.conn.close()
 
     def meta(self, key: str, default: str | None = None) -> str | None:
-        row = self.conn.execute(
-            "SELECT value FROM meta WHERE key = ?", (str(key),)
-        ).fetchone()
+        row = self.conn.execute("SELECT value FROM meta WHERE key = ?", (str(key),)).fetchone()
         if row is None:
             return default
         return str(row["value"])

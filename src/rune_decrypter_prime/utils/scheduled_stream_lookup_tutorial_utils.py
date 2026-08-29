@@ -8,10 +8,7 @@ from rdp import api
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
-from rune_decrypter_prime.utils.tutorial_utils import (
-    oracle_stop_score,
-    print_stop_summary,
-)
+from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 
 
 ALPHABET_SIZE = 29
@@ -43,9 +40,7 @@ def concat_keys(*parts: Sequence[int]) -> list[int]:
     return out
 
 
-def mask_from_segments(
-    length: int, segments: Sequence[tuple[str, int, int | None]]
-) -> list[int]:
+def mask_from_segments(length: int, segments: Sequence[tuple[str, int, int | None]]) -> list[int]:
     """Readable A/B/AB segments -> integer mask."""
     labels = {"NONE": 0, "OFF": 0, "A": 1, "B": 2, "AB": 3, "A+B": 3, "B+A": 3}
     mask: list[int | None] = [None] * int(length)
@@ -81,9 +76,7 @@ def default_scorer_params(direction: api.TextDirection) -> api.ScoringConfig:
         word_length_lane_enabled=True,
         character_order_weights={2: 0.3},
         word_length_order_weights={2: 0.7},
-        objective=api.advanced.ScoringObjective.percentile_log_probability(
-            window_size=10
-        ),
+        objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10),
     )
 
 
@@ -159,13 +152,11 @@ def build_ciphertext(
     ciphertext = api.encrypt(tuple(pt_idx), cipher=cipher_spec, key=key)
     ct_idx_list = list(ciphertext)
     ct_runes = Runeglish.to_rune(ct_idx_list, wli)
-    display_direction = "rtl" if direction is api.TextDirection.RIGHT_TO_LEFT else "ltr"
-    print_tutorial_debug_preview(
-        label="plaintext", idx=pt_idx, wli=wli, direction=display_direction
+    display_direction = (
+        "rtl" if direction is api.TextDirection.RIGHT_TO_LEFT else "ltr"
     )
-    print_tutorial_debug_preview(
-        label="ciphertext", idx=ct_idx_list, wli=wli, direction=display_direction
-    )
+    print_tutorial_debug_preview(label="plaintext", idx=pt_idx, wli=wli, direction=display_direction)
+    print_tutorial_debug_preview(label="ciphertext", idx=ct_idx_list, wli=wli, direction=display_direction)
     return cipher_spec, key_spec, pt_idx, wli, pt_runes, ct_idx_list, ct_runes, key
 
 

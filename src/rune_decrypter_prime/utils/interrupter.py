@@ -11,16 +11,11 @@ import numpy as np
 
 __all__ = ["InterruptorInfo", "InterruptorManager"]
 
-
 @dataclass(slots=True)
 class InterruptorInfo:
     """Holds (index → symbol) pairs stripped from ciphertext."""
-
-    idx: (
-        np.ndarray
-    )  # int64, ascending, unique (position in core array after prior removals)
+    idx: np.ndarray  # int64, ascending, unique (position in core array after prior removals)
     sym: np.ndarray  # same dtype as ciphertext (uint8 for our numeric pipeline)
-
 
 class InterruptorManager:
     """Strip/reinsert interruptors by **position only** (never by symbol)."""

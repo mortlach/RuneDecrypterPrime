@@ -7,9 +7,7 @@ def pack_char_ngram(pt_t: torch.Tensor, n: int) -> torch.Tensor:
     bsz, length = pt_t.shape
     stride = pt_t.stride()
     width = length - n + 1
-    return (
-        pt_t.as_strided((bsz, width, n), (stride[0], stride[1], stride[1])) & 0x1F
-    ).to(torch.uint32)
+    return (pt_t.as_strided((bsz, width, n), (stride[0], stride[1], stride[1])) & 0x1F).to(torch.uint32)
 
 
 def pack_wli_ngram(pt_t: torch.Tensor, wli_t: torch.Tensor, n: int) -> torch.Tensor:
@@ -22,8 +20,5 @@ def pack_wli_ngram(pt_t: torch.Tensor, wli_t: torch.Tensor, n: int) -> torch.Ten
     rune = (pt_win & 0x1F).to(torch.int32)
     pos = (w_win[..., 0] & 0x3F).to(torch.int32)
     ln = (w_win[..., 1] & 0x3F).to(torch.int32)
-    toks = torch.stack(
-        [rune[..., i] | (pos[..., i] << 5) | (ln[..., i] << 11) for i in range(n)],
-        dim=-1,
-    )
+    toks = torch.stack([rune[..., i] | (pos[..., i] << 5) | (ln[..., i] << 11) for i in range(n)], dim=-1)
     return toks.to(torch.uint32)

@@ -16,22 +16,17 @@ from rune_decrypter_prime.core.engine.builders import build_scorer
 def _lanes(cfg: ScoringConfig) -> tuple[ScoringLane, ...]:
     return tuple(cfg.requested_scorer_lanes())
 
-
 def test_default_config_requests_no_optional_scorer_lanes() -> None:
     assert _lanes(api.ScoringConfig()) == tuple()
-
 
 def test_hamming_enabled_requests_hamming_lane() -> None:
     assert _lanes(api.ScoringConfig(hamming_enabled=True)) == (ScoringLane.HAMMING,)
 
-
 def test_nonzero_hamming_weight_requests_hamming_lane() -> None:
     assert _lanes(api.ScoringConfig(hamming_weight=0.01)) == (ScoringLane.HAMMING,)
 
-
 def test_zero_hamming_weight_alone_does_not_request_hamming_lane() -> None:
     assert _lanes(api.ScoringConfig(hamming_weight=0.0)) == tuple()
-
 
 def test_raw_span_mode_requests_raw_span_lane() -> None:
     assert _lanes(
@@ -114,17 +109,14 @@ class _FakeRuneScorer:
         self._span_hamming_assets = type(self).span_hamming_assets
         self._word_ngram_judge = type(self).word_ngram_judge
 
-
 @pytest.fixture(autouse=True)
 def _reset_fake_numpy_scorer(monkeypatch):
     import rune_decrypter_prime.scoring.rune_scorer as rune_scorer_module
-
     _FakeRuneScorer.hamming_backend = None
     _FakeRuneScorer.span_hamming_backend = None
     _FakeRuneScorer.span_hamming_assets = None
     _FakeRuneScorer.word_ngram_judge = None
-    monkeypatch.setattr(rune_scorer_module, "RuneScorer", _FakeRuneScorer)
-
+    monkeypatch.setattr(rune_scorer_module, 'RuneScorer', _FakeRuneScorer)
 
 def _cipher_cfg() -> CipherConfig:
     return CipherConfig(ciphertext=[0, 1, 2, 3], wli_data=[], key_length=4)
@@ -134,7 +126,6 @@ def _lane_by_name(report, lane: ScoringLane):
     matches = [status for status in report.lanes if status.lane is lane]
     assert len(matches) == 1
     return matches[0]
-
 
 def test_build_scorer_attaches_json_safe_capability_report() -> None:
     scorer = build_scorer(_cipher_cfg(), api.ScoringConfig())
@@ -149,11 +140,9 @@ def test_build_scorer_attaches_json_safe_capability_report() -> None:
     )
     json.dumps(report.to_json_dict())
 
-
 def test_requested_hamming_missing_backend_blocks_in_build_scorer() -> None:
-    with pytest.raises(RequestedLaneUnavailableError, match="hamming"):
+    with pytest.raises(RequestedLaneUnavailableError, match='hamming'):
         build_scorer(_cipher_cfg(), api.ScoringConfig(hamming_enabled=True))
-
 
 def test_requested_hamming_backend_is_active_in_report() -> None:
     _FakeRuneScorer.hamming_backend = object()
@@ -162,14 +151,9 @@ def test_requested_hamming_backend_is_active_in_report() -> None:
     assert lane.effective_state is CapabilityEffectiveState.ACTIVE
     assert lane.ranking_effect is RankingEffect.PRODUCTION
 
-
 def test_requested_raw_span_missing_backend_blocks_in_build_scorer() -> None:
-    with pytest.raises(RequestedLaneUnavailableError, match="span_hamming_raw"):
-        build_scorer(
-            _cipher_cfg(),
-            api.ScoringConfig(span_hamming_mode=api.advanced.SpanHammingMode.RAW_BONUS),
-        )
-
+    with pytest.raises(RequestedLaneUnavailableError, match='span_hamming_raw'):
+        build_scorer(_cipher_cfg(), api.ScoringConfig(span_hamming_mode=api.advanced.SpanHammingMode.RAW_BONUS))
 
 def test_requested_calibrated_span_missing_assets_blocks_in_build_scorer() -> None:
     with pytest.raises(RequestedLaneUnavailableError, match="span_hamming_calibrated"):

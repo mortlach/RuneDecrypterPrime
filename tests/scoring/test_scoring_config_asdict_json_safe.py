@@ -7,14 +7,13 @@ import pytest
 
 pytestmark = pytest.mark.tier_a
 
-
 def _assert_jsonish(value: Any) -> None:
     if value is None or isinstance(value, (str, bool, int, float)):
         return
     if isinstance(value, Enum):
-        raise AssertionError(f"enum leaked into asdict payload: {value!r}")
+        raise AssertionError(f'enum leaked into asdict payload: {value!r}')
     if isinstance(value, Path):
-        raise AssertionError(f"path leaked into asdict payload: {value!r}")
+        raise AssertionError(f'path leaked into asdict payload: {value!r}')
     if isinstance(value, dict):
         for k, v in value.items():
             assert isinstance(k, str)
@@ -24,8 +23,7 @@ def _assert_jsonish(value: Any) -> None:
         for item in value:
             _assert_jsonish(item)
         return
-    raise AssertionError(f"non-jsonish value leaked: {type(value)!r}")
-
+    raise AssertionError(f'non-jsonish value leaked: {type(value)!r}')
 
 def test_scoring_config_asdict_emits_json_primitives() -> None:
     cfg = api.ScoringConfig(

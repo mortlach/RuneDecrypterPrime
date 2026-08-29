@@ -3,15 +3,11 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any, Sequence
 
-from rune_decrypter_prime.scoring.ngram_hamming.reference import (
-    PhraseEntry,
-    PhraseProfile,
-)
+from rune_decrypter_prime.scoring.ngram_hamming.reference import PhraseEntry, PhraseProfile
 
 
 try:
     from rune_decrypter_prime.scoring.ngram_hamming import _ngram_hamming_fast
-
     FAST_BACKEND_IMPORT_ERROR: ImportError | None = None
 except ImportError as exc:  # pragma: no cover - availability probe
     _ngram_hamming_fast = None  # type: ignore[assignment]

@@ -82,13 +82,9 @@ def _known_key_operation(
     key_array = np.asarray(concrete_key, dtype=np.int16)
     try:
         if operation == "encrypt":
-            output = method(
-                plaintext=np.asarray(indices, dtype=np.uint8), key=key_array
-            )
+            output = method(plaintext=np.asarray(indices, dtype=np.uint8), key=key_array)
         else:
-            output = method(
-                ciphertext=np.asarray(indices, dtype=np.uint8), key=key_array
-            )
+            output = method(ciphertext=np.asarray(indices, dtype=np.uint8), key=key_array)
     except NotImplementedError as exc:
         raise _non_invertible_error(cipher, operation) from exc
     values = np.asarray(output)
@@ -141,9 +137,7 @@ def _key_space_for_cipher(cipher: CipherSpec, *, key_length: int) -> KeySpec:
     raise ValueError(f"unsupported known-key cipher: {kind.value}")
 
 
-def _non_invertible_error(
-    cipher: CipherSpec, operation: str
-) -> NonInvertibleCipherError:
+def _non_invertible_error(cipher: CipherSpec, operation: str) -> NonInvertibleCipherError:
     from rdp.api.stop_reason_contract import (
         StopReason,
         ExecutionStatus,

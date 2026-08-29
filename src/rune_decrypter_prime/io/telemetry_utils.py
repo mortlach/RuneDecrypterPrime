@@ -6,9 +6,7 @@ from __future__ import annotations
 
 from warnings import warn
 
-from rune_decrypter_prime.telemetry.pipeline import (
-    make_pipeline_block as _make_pipeline_block,
-)
+from rune_decrypter_prime.telemetry.pipeline import make_pipeline_block as _make_pipeline_block
 
 __all__ = ["make_pipeline_block"]
 

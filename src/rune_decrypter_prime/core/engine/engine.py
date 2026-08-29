@@ -23,14 +23,12 @@ from rune_decrypter_prime.solvers.beam import BeamSolver
 from rune_decrypter_prime.solvers.ga import GASolver
 from rune_decrypter_prime.solvers.sa import SASolver
 from rune_decrypter_prime.solvers.hybrid import HybridSolver
-from rune_decrypter_prime.solvers.kaeding_periodic_structured import (
-    KaedingPeriodicStructuredSolver,
-)
+from rune_decrypter_prime.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
 
 # Telemetry (keep canonical helpers)
 from rune_decrypter_prime.telemetry.events import (
     run_start as tel_run_start,
-    run_end as tel_run_end,
+    run_end   as tel_run_end,
 )
 from rune_decrypter_prime.telemetry.schema import to_canonical_device_str
 from rdp.api.stop_reason_contract import (
@@ -43,9 +41,9 @@ from rdp.api.stop_reason_contract import (
 
 
 _SOLVER_TABLE: Dict[SolverName, Any] = {
-    SolverName.BEAM: BeamSolver,
-    SolverName.GA: GASolver,
-    SolverName.SA: SASolver,
+    SolverName.BEAM:   BeamSolver,
+    SolverName.GA:     GASolver,
+    SolverName.SA:     SASolver,
     SolverName.HYBRID: HybridSolver,
     SolverName.KAEDING: KaedingPeriodicStructuredSolver,
 }
@@ -60,9 +58,7 @@ _GLOBAL_EARLY_STOP_DEFAULTS: Dict[SolverName, Dict[str, Any]] = {
 }
 
 
-def _with_early_stop_defaults(
-    kind: SolverName, params: Dict[str, Any] | None
-) -> Dict[str, Any]:
+def _with_early_stop_defaults(kind: SolverName, params: Dict[str, Any] | None) -> Dict[str, Any]:
     """Apply conservative plateau defaults when callers omit them."""
     out: Dict[str, Any] = dict(params or {})
     defaults = _GLOBAL_EARLY_STOP_DEFAULTS.get(kind, {})
@@ -74,7 +70,6 @@ def _with_early_stop_defaults(
 @dataclass(slots=True)
 class EngineConfig:
     """Thin, typed bag for engine-level knobs (avoid dicts here)."""
-
     solver: SolverName
     params: Dict[str, Any] | None = None
     seed: Optional[int] = None
@@ -91,7 +86,6 @@ def _child_rng(seed: Optional[int]) -> np.random.Generator:
     s = 0 if seed is None else int(seed)
     return np.random.default_rng(s)
 
-
 def _scorer_meta(problem: Any, spec: ProblemInstance) -> Dict[str, str]:
     impl = None
     dtype = None
@@ -100,11 +94,7 @@ def _scorer_meta(problem: Any, spec: ProblemInstance) -> Dict[str, str]:
     scorer = getattr(problem, "scorer", None)
     if scorer is not None:
         try:
-            tele = (
-                scorer.telemetry()
-                if callable(getattr(scorer, "telemetry", None))
-                else getattr(scorer, "telemetry", None)
-            )
+            tele = scorer.telemetry() if callable(getattr(scorer, "telemetry", None)) else getattr(scorer, "telemetry", None)
         except Exception:
             tele = None
         if isinstance(tele, dict):
@@ -152,13 +142,8 @@ def _scorer_meta(problem: Any, spec: ProblemInstance) -> Dict[str, str]:
     return out
 
 
-def _solver_from_cfg(
-    kind: SolverName,
-    problem: Any,
-    params: Dict[str, Any] | None,
-    rng: np.random.Generator,
-    cfg: EngineConfig,
-):
+def _solver_from_cfg(kind: SolverName, problem: Any, params: Dict[str, Any] | None,
+                     rng: np.random.Generator, cfg: EngineConfig):
     SolverCls = _SOLVER_TABLE[kind]
     return SolverCls(
         problem,
@@ -178,9 +163,7 @@ def solve(instance: ProblemInstance, engine_cfg: EngineConfig):
       - engine_cfg: which solver + params + seed + small knobs
     """
     if not isinstance(instance, ProblemInstance):
-        raise TypeError(
-            "solve() expects a ProblemInstance (use ProblemInstance.materialise(spec))."
-        )
+        raise TypeError("solve() expects a ProblemInstance (use ProblemInstance.materialise(spec)).")
 
     kind = ensure_solver_name(engine_cfg.solver)
 

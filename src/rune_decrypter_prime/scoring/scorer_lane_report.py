@@ -142,10 +142,7 @@ def build_scorer_lane_report(
     calibrated_issue: CapabilityIssue | None = None,
     word_ngram_judge: object | None = None,
     word_ngram_issue: CapabilityIssue | None = None,
-    extra_report_only_lanes: dict[
-        ScoringLane, tuple[object | None, CapabilityIssue | None]
-    ]
-    | None = None,
+    extra_report_only_lanes: dict[ScoringLane, tuple[object | None, CapabilityIssue | None]] | None = None,
 ) -> ScorerCapabilityReport:
     """Build the V1 scorer-lane capability report from typed config and observations.
 
@@ -165,9 +162,7 @@ def build_scorer_lane_report(
             request_state=CapabilityRequestState.REQUIRED,
             ranking_effect=RankingEffect.PRODUCTION,
             fallback_policy=FallbackPolicy.BLOCK,
-            report_section=_REPORT_SECTIONS[
-                ScoringLane.LANGUAGE_MODEL_CHARACTER_AND_WORD_LENGTH
-            ],
+            report_section=_REPORT_SECTIONS[ScoringLane.LANGUAGE_MODEL_CHARACTER_AND_WORD_LENGTH],
         )
     ]
 

@@ -9,28 +9,19 @@ from rune_decrypter_prime.core.config import Solution
 from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
 from tests._helpers.reports import completed_status, make_solver_report
 
-
 def _solution() -> Solution:
     sol = Solution(key=[1, 2, 3], plaintext=[1, 2, 3], score=12.5)
     sol.plaintext_idx = [1, 2, 3]
     sol.ciphertext_idx = [4, 5, 6]
-    sol.plaintext_latin = "ABC"
-    sol.plaintext_rune = "ABC_RUNES"
-    sol.ciphertext_latin = "DEF"
-    sol.ciphertext_rune = "DEF_RUNES"
-    sol.stop_reason = "stop_score"
+    sol.plaintext_latin = 'ABC'
+    sol.plaintext_rune = 'ABC_RUNES'
+    sol.ciphertext_latin = 'DEF'
+    sol.ciphertext_rune = 'DEF_RUNES'
+    sol.stop_reason = 'stop_score'
     sol.tokens_processed = 7
     sol.score_time_s = 0.25
-    sol.meta = {
-        "telemetry": {
-            "run": {"seed": 123, "solver": "beam"},
-            "solver": {"name": "beam"},
-            "scorer": {"impl": "auto"},
-        },
-        "scorer_lanes": {"lanes": [], "components": []},
-    }
+    sol.meta = {'telemetry': {'run': {'seed': 123, 'solver': 'beam'}, 'solver': {'name': 'beam'}, 'scorer': {'impl': 'auto'}}, 'scorer_lanes': {'lanes': [], 'components': []}}
     return sol
-
 
 def _solver_report():
     return make_solver_report(
@@ -50,29 +41,7 @@ def _solver_report():
 
 
 def _run_result() -> api.RunResult:
-    return api.RunResult(
-        plaintext=tuple(_solution().plaintext_idx),
-        plaintext_text=_solution().plaintext_latin,
-        key=tuple(_solution().key),
-        score=float(_solution().score),
-        status=_solver_report().status,
-        solver_report=_solver_report(),
-        scorer_report=api.advanced.ScorerReport(
-            objective=api.advanced.ScoringObjective.percentile_log_probability(
-                window_size=10
-            ),
-            score=float(_solution().score),
-        ),
-        configuration=api.advanced.RunConfigurationReport(
-            solver=_solver_report().parameters,
-            scoring=api.advanced.ConfigurationResolution(),
-            cipher=api.advanced.ConfigurationResolution(),
-        ),
-        reproducibility=api.advanced.ReproducibilityMetadata(),
-        oracle=api.advanced.OracleReport(),
-        telemetry=dict(getattr(_solution(), "meta", {}).get("telemetry", {})),
-    )
-
+    return api.RunResult(plaintext=tuple(_solution().plaintext_idx), plaintext_text=_solution().plaintext_latin, key=tuple(_solution().key), score=float(_solution().score), status=_solver_report().status, solver_report=_solver_report(), scorer_report=api.advanced.ScorerReport(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), score=float(_solution().score)), configuration=api.advanced.RunConfigurationReport(solver=_solver_report().parameters, scoring=api.advanced.ConfigurationResolution(), cipher=api.advanced.ConfigurationResolution()), reproducibility=api.advanced.ReproducibilityMetadata(), oracle=api.advanced.OracleReport(), telemetry=dict(getattr(_solution(), 'meta', {}).get('telemetry', {})))
 
 def _run_spec() -> api.RunSpec:
     return api.RunSpec(
@@ -140,12 +109,8 @@ def test_builds_spec_aware_display_summary() -> None:
 
 def test_missing_runspec_is_visible_as_warning() -> None:
     summary = api.display.build_summary(_run_result())
-    assert any(("RunSpec was not supplied" in warning for warning in summary.warnings))
-    assert (
-        summary.problem["scope_note"]
-        == "Problem display is complete only when RunSpec is supplied."
-    )
-
+    assert any(('RunSpec was not supplied' in warning for warning in summary.warnings))
+    assert summary.problem['scope_note'] == 'Problem display is complete only when RunSpec is supplied.'
 
 def test_text_reference_match_ratio_uses_normalised_plaintext() -> None:
     result = replace(_run_result(), plaintext_text="HELLO WORLD")
@@ -176,22 +141,18 @@ def test_format_and_write_json_summary(tmp_path: Path) -> None:
     assert "Plaintext" in text
     out = tmp_path / "artifacts" / "rdp_display_summary.json"
     written = api.display.write_summary_json(summary, out)
-    assert written == "artifacts/rdp_display_summary.json"
+    assert written == 'artifacts/rdp_display_summary.json'
     assert not os.path.isabs(written)
     payload = json.loads(out.read_text(encoding="utf-8"))
     assert payload["schema"] == api.display.SUMMARY_SCHEMA
     assert payload["solver"]["solver_name"] == "beam_search"
 
-
-def test_write_json_accepts_default_standard_relpath(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_write_json_accepts_default_standard_relpath(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     summary = api.display.build_summary(_run_result(), spec=_run_spec())
     written = api.display.write_summary_json(summary)
     assert written == api.display.SUMMARY_RELATIVE_PATH
     assert (tmp_path / api.display.SUMMARY_RELATIVE_PATH).is_file()
-
 
 def test_artifact_paths_are_display_safe_not_absolute(tmp_path: Path) -> None:
     posix_abs = tmp_path / "runs" / "demo" / "artifacts" / "solver_report.json"
@@ -209,24 +170,19 @@ def test_artifact_paths_are_display_safe_not_absolute(tmp_path: Path) -> None:
         },
     )
     data = summary.to_json_dict()
-    assert data["artifacts"]["solver_report_path"] == "artifacts/solver_report.json"
-    assert (
-        data["artifacts"]["display_summary_path"]
-        == "artifacts/rdp_display_summary.json"
-    )
-    assert data["artifacts"]["nested"]["raw_log"] == "logs/app.jsonl"
+    assert data['artifacts']['solver_report_path'] == 'artifacts/solver_report.json'
+    assert data['artifacts']['display_summary_path'] == 'artifacts/rdp_display_summary.json'
+    assert data['artifacts']['nested']['raw_log'] == 'logs/app.jsonl'
     rendered = api.display.format_summary(summary)
-    user_root_marker = drive + "/" + "Users" + "/" + "alice"
+    user_root_marker = drive + '/' + 'Users' + '/' + 'alice'
     assert str(tmp_path) not in rendered
     assert user_root_marker not in rendered
-
 
 def test_display_options_validate_types() -> None:
     with pytest.raises(TypeError):
         api.display.SummaryOptions(include_key=1)
     with pytest.raises(ValueError):
         api.display.SummaryOptions(max_sequence_preview=-1)
-
 
 def test_format_summary_prints_explicit_encoding_direction() -> None:
     spec = api.RunSpec(

@@ -5,11 +5,7 @@ from typing import TYPE_CHECKING, Sequence
 if TYPE_CHECKING:
     from rune_decrypter_prime.data.liber_primus.lp_adapter import LPSolverPayload
     from rune_decrypter_prime.data.liber_primus.lp_data import LPSection
-    from rune_decrypter_prime.data.liber_primus.lp_registry import (
-        LPFragmentLocator,
-        LPPageRef,
-        LPPartitionEntry,
-    )
+    from rune_decrypter_prime.data.liber_primus.lp_registry import LPFragmentLocator, LPPageRef, LPPartitionEntry
     from rune_decrypter_prime.data.liber_primus.lp_routes import (
         LPLineReadMode,
         LPLineRuneSelector,
@@ -73,9 +69,7 @@ def load_lp_main_section(
 
 def load_lp_payload_from_label(label: str) -> "LPSolverPayload":
     """Return deterministic solver payload for a verified LP source label."""
-    from rune_decrypter_prime.data.liber_primus.lp_source_catalogue import (
-        payload_from_label,
-    )
+    from rune_decrypter_prime.data.liber_primus.lp_source_catalogue import payload_from_label
 
     return payload_from_label(label)
 
@@ -90,10 +84,7 @@ def load_lp_payload_from_main_pages(
     helper behind solved-source page-span retrieval.
     """
     from rune_decrypter_prime.data.liber_primus.lp_adapter import LPSolverPayload
-    from rune_decrypter_prime.data.liber_primus.lp_main import (
-        load_main_transcript,
-        page_view_from_ref,
-    )
+    from rune_decrypter_prime.data.liber_primus.lp_main import load_main_transcript, page_view_from_ref
     from rune_decrypter_prime.data.liber_primus.lp_registry import LPPageRef
 
     if not isinstance(start_page, int) or isinstance(start_page, bool):
@@ -152,12 +143,8 @@ def load_lp_payload_from_partition_entry(
     intersect_page_ref: "LPPageRef | None" = None,
 ) -> "LPSolverPayload":
     """Return deterministic solver payload for a typed LP partition entry."""
-    from rune_decrypter_prime.data.liber_primus.lp_adapter import (
-        payload_from_partition_entry,
-    )
+    from rune_decrypter_prime.data.liber_primus.lp_adapter import payload_from_partition_entry
     from rune_decrypter_prime.data.liber_primus.lp_main import load_main_transcript
 
     doc = load_main_transcript(attach_catalogue=True)
-    return payload_from_partition_entry(
-        doc, entry, intersect_page_ref=intersect_page_ref
-    )
+    return payload_from_partition_entry(doc, entry, intersect_page_ref=intersect_page_ref)

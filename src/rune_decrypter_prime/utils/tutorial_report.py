@@ -77,9 +77,7 @@ def _match_ratio(found: Any, reference: Any) -> float | None:
     if denom <= 0:
         return None
     limit = min(len(found_items), len(ref_items))
-    return sum(1 for idx in range(limit) if found_items[idx] == ref_items[idx]) / float(
-        denom
-    )
+    return sum(1 for idx in range(limit) if found_items[idx] == ref_items[idx]) / float(denom)
 
 
 def _report_json(solver_report: Any) -> dict[str, Any]:
@@ -151,14 +149,8 @@ def build_tutorial_run_report(
     found_key = _int_list(getattr(solution, "key", None))
     expected_key = _int_list(key_idx)
     plaintext_idx = _int_list(getattr(solution, "plaintext_idx", None))
-    ratio = _first_present(
-        benchmark.get("match_ratio"), _match_ratio(plaintext_idx, pt_idx_ref)
-    )
-    recovered = (
-        bool(match_ok)
-        if match_ok is not None
-        else (None if ratio is None else float(ratio) >= 0.97)
-    )
+    ratio = _first_present(benchmark.get("match_ratio"), _match_ratio(plaintext_idx, pt_idx_ref))
+    recovered = bool(match_ok) if match_ok is not None else (None if ratio is None else float(ratio) >= 0.97)
 
     solver_section = {
         "name": _first_present(
@@ -178,15 +170,10 @@ def build_tutorial_run_report(
             _first_present(report.get("evaluations"), getattr(solution, "evals", None))
         ),
         "tokens_processed": _safe_int(
-            _first_present(
-                report.get("tokens_processed"),
-                getattr(solution, "tokens_processed", None),
-            )
+            _first_present(report.get("tokens_processed"), getattr(solution, "tokens_processed", None))
         ),
     }
-    solver_section = {
-        key: value for key, value in solver_section.items() if value is not None
-    }
+    solver_section = {key: value for key, value in solver_section.items() if value is not None}
 
     timings = _compact_mapping(
         {
@@ -207,21 +194,15 @@ def build_tutorial_run_report(
     )
 
     key_section: dict[str, Any] = {
-        "length": key_len
-        if key_len is not None
-        else (len(found_key) if found_key is not None else None),
+        "length": key_len if key_len is not None else (len(found_key) if found_key is not None else None),
         "expected": expected_key,
         "found": found_key,
     }
     if expected_key is not None and found_key is not None:
         key_section["exact"] = found_key == expected_key
-    key_section = {
-        key: value for key, value in key_section.items() if value is not None
-    }
+    key_section = {key: value for key, value in key_section.items() if value is not None}
 
-    scorer_lanes = _scorer_lanes_payload(
-        details.get("scorer_lanes", meta.get("scorer_lanes"))
-    )
+    scorer_lanes = _scorer_lanes_payload(details.get("scorer_lanes", meta.get("scorer_lanes")))
 
     return {
         "schema": SCHEMA,
@@ -242,9 +223,7 @@ def build_tutorial_run_report(
         },
         "previews": {
             "ciphertext_runes": _preview_text(ct_rune, preview_len),
-            "plaintext_runes": _preview_text(
-                getattr(solution, "plaintext_rune", ""), preview_len
-            ),
+            "plaintext_runes": _preview_text(getattr(solution, "plaintext_rune", ""), preview_len),
             "reference_runes": _preview_text(pt_rune_ref, preview_len),
             "ciphertext_idx_head": (_int_list(ct_idx) or [])[:32],
             "plaintext_idx_head": (plaintext_idx or [])[:32],

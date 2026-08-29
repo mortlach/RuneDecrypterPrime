@@ -42,9 +42,7 @@ def load_short_word_csv(
     and return a {latin_word: weight} dictionary.
     Defaults to assets/wordlists when base_dir is not provided.
     """
-    path = (
-        base_dir or _DATA_DIR
-    ) / f"short_words_{_slug_for(direction)}_len{int(length)}.csv"
+    path = (base_dir or _DATA_DIR) / f"short_words_{_slug_for(direction)}_len{int(length)}.csv"
     if not path.exists():
         raise FileNotFoundError(
             f"Short-word list not found: {to_repo_relative(path, start=Path(__file__))}"
@@ -58,9 +56,7 @@ def load_short_word_csv(
                 continue
             indices = tuple(int(tok) for tok in (row.get("rune_indices") or "").split())
             if indices:
-                encoded, _, _ = Runeglish.encode_english_to_runes(
-                    latin, direction=_normalize_direction(direction).value
-                )
+                encoded, _, _ = Runeglish.encode_english_to_runes(latin, direction=_normalize_direction(direction).value)
                 if tuple(encoded) != indices:
                     raise ValueError(
                         f"CSV entry for '{latin}' does not match encoded indices {encoded} vs {indices}"
@@ -81,9 +77,7 @@ def load_short_word_dictionary(
     """
     tables: Dict[int, Dict[str, float]] = {}
     for length in lengths:
-        tables[int(length)] = load_short_word_csv(
-            length=int(length), direction=direction, base_dir=base_dir
-        )
+        tables[int(length)] = load_short_word_csv(length=int(length), direction=direction, base_dir=base_dir)
     return tables
 
 
@@ -97,9 +91,7 @@ def load_word_crib_config_from_csv(
     """
     Convenience helper: load the short word lists and create an enabled WordCribConfig.
     """
-    tables = load_short_word_dictionary(
-        lengths=lengths, direction=direction, base_dir=base_dir
-    )
+    tables = load_short_word_dictionary(lengths=lengths, direction=direction, base_dir=base_dir)
     if max_short_length is None:
         max_short_length = max(tables.keys(), default=0)
     return WordCribConfig(
@@ -110,9 +102,7 @@ def load_word_crib_config_from_csv(
     )
 
 
-def _wordlist_to_short_dict(
-    wordlists: Dict[int, Sequence[Sequence[int]]], *, direction: Direction
-) -> Dict[int, Dict[str, float]]:
+def _wordlist_to_short_dict(wordlists: Dict[int, Sequence[Sequence[int]]], *, direction: Direction) -> Dict[int, Dict[str, float]]:
     """
     Convert raw1grams-style wordlists (len -> [[rune_idx...]]) into a
     short_word_dict mapping len -> {latin_word: weight}.
@@ -126,9 +116,7 @@ def _wordlist_to_short_dict(
             if not latin:
                 continue
             # Ensure the Latin form round-trips to the same rune length for this direction.
-            encoded, _, _ = Runeglish.encode_english_to_runes(
-                latin, direction=direction.value
-            )
+            encoded, _, _ = Runeglish.encode_english_to_runes(latin, direction=direction.value)
             if len(encoded) != len(word):
                 continue
             out[latin] = out.get(latin, 0.0) + 1.0
@@ -152,9 +140,7 @@ def load_word_crib_config_from_raw1grams(
     # Build both LTR/RTL so we can pick the requested direction reliably.
     wl_ltr, wl_rtl = load_raw1grams_wordlists(base_dir, build_rtl=True)
     wl = wl_rtl if dir_norm is Direction.RTL else wl_ltr
-    filtered = {
-        int(k): v for k, v in wl.items() if int(k) in set(int(x) for x in lengths)
-    }
+    filtered = {int(k): v for k, v in wl.items() if int(k) in set(int(x) for x in lengths)}
     tables = _wordlist_to_short_dict(filtered, direction=dir_norm)
     if max_short_length is None:
         max_short_length = max(tables.keys(), default=0)

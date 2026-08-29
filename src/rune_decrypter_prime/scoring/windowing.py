@@ -59,9 +59,7 @@ def span_max(*, n_set: Iterable[int], W: int, se_mode: SeMode | str) -> int:
     return max(spans.values())
 
 
-def aligned_window_count(
-    *, length: int, n_set: Iterable[int], W: int, se_mode: SeMode | str, stride: int = 1
-) -> int:
+def aligned_window_count(*, length: int, n_set: Iterable[int], W: int, se_mode: SeMode | str, stride: int = 1) -> int:
     """Compute the aligned window count using L_max and stride.
 
     `length` must be the effective sequence length used for windowing:

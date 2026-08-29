@@ -6,22 +6,15 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Sequence
 
-from rune_decrypter_prime.core.types import (
-    Direction,
-    ensure_direction,
-    Device,
-    ensure_device,
-)
+from rune_decrypter_prime.core.types import Direction, ensure_direction, Device, ensure_device
 
 _DEFAULT_TELEMETRY_DIR = Path("output") / "telemetry" / "logs"
-
 
 def device_request_str(dev: Device | str) -> str:
     """Return backend request token accepted by backends.xp.select_backend."""
     d = ensure_device(dev)
     # today backend names match Device.value, keep thin
     return d.value  # "cpu" or "cuda"
-
 
 def _perm_summary(indices: Sequence[int] | None, length: int) -> dict[str, Any]:
     """
@@ -50,7 +43,6 @@ def _perm_summary(indices: Sequence[int] | None, length: int) -> dict[str, Any]:
         "length": perm_length,
         "hash": digest,
     }
-
 
 def make_pipeline_block(
     *,
@@ -90,7 +82,6 @@ def make_pipeline_block(
         "input_permutation": perm_info,
     }
 
-
 def dump_telemetry(sol, *, base_dir: str | Path | None = None) -> str:
     """
     Best-effort JSONL dump of ``sol.meta["telemetry"]``.
@@ -100,19 +91,11 @@ def dump_telemetry(sol, *, base_dir: str | Path | None = None) -> str:
     """
     # Respect a hard toggle if callers attached it to meta
     try:
-        if (
-            hasattr(sol, "meta")
-            and isinstance(sol.meta, dict)
-            and sol.meta.get("telemetry_off", False)
-        ):
+        if hasattr(sol, "meta") and isinstance(sol.meta, dict) and sol.meta.get("telemetry_off", False):
             return ""
     except Exception:
         pass
-    tel = (
-        getattr(sol, "meta", {}).get("telemetry", None)
-        if hasattr(sol, "meta")
-        else None
-    )
+    tel = getattr(sol, "meta", {}).get("telemetry", None) if hasattr(sol, "meta") else None
     if not isinstance(tel, dict):
         return ""
     dest = Path(base_dir) if base_dir is not None else _DEFAULT_TELEMETRY_DIR
@@ -122,6 +105,7 @@ def dump_telemetry(sol, *, base_dir: str | Path | None = None) -> str:
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(tel, ensure_ascii=False) + "\n")
     return str(path)
+
 
 
 def finalize_run_meta(sol, cfg) -> None:
@@ -157,9 +141,7 @@ def finalize_run_meta(sol, cfg) -> None:
     # ---- Solver block (minimal, deterministic) ----
     solver_cfg = getattr(cfg, "solver", None)
     solver_kind = getattr(solver_cfg, "kind", None)
-    solver_name = (
-        getattr(solver_kind, "value", None) or getattr(solver_cfg, "name", None) or ""
-    )
+    solver_name = getattr(solver_kind, "value", None) or getattr(solver_cfg, "name", None) or ""
     sv = tel.get("solver") or {}
     sv.setdefault("name", solver_name)
     tel["solver"] = sv
@@ -167,11 +149,7 @@ def finalize_run_meta(sol, cfg) -> None:
     # ---- Direction & pipeline passthrough if absent ----
     if "encoding_dir" not in tel:
         dir_raw = getattr(getattr(cfg, "scorer_params", None), "encoding_dir", None)
-        tel["encoding_dir"] = (
-            getattr(dir_raw, "value", dir_raw)
-            if dir_raw is not None
-            else tel.get("encoding_dir", "ltr")
-        )
+        tel["encoding_dir"] = getattr(dir_raw, "value", dir_raw) if dir_raw is not None else tel.get("encoding_dir", "ltr")
 
     meta["telemetry"] = tel
 

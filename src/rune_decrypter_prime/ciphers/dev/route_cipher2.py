@@ -1,13 +1,9 @@
 # rune_decrypter_prime/ciphers/route_cipher.py
 from __future__ import annotations
-from rune_decrypter_prime.keyops.permutation_ops import (
-    PermutationKeyOps,
-    PermutationKeyConfig,
-)
+from rune_decrypter_prime.keyops.permutation_ops import PermutationKeyOps,  PermutationKeyConfig
 from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin, ArrayU8
 from rune_decrypter_prime.keyops import PermutationKeyOps, PermutationKeyConfig
 import numpy as np
-
 
 class RouteCipher(CipherPipelineMixin):
     """
@@ -18,7 +14,6 @@ class RouteCipher(CipherPipelineMixin):
     This is effectively the same geometry as 'ColumnarTranspositionCipher' with a different name;
     kept separate for UI/UX clarity.
     """
-
     A = 29
 
     def __init__(self, cfg, *, text_transposition="ltr", key_transposition="ltr"):
@@ -40,7 +35,7 @@ class RouteCipher(CipherPipelineMixin):
         L = int(ct_tr.size)
         out = np.empty((B, L), dtype=np.uint8)
         for b in range(B):
-            # key_perm = np.asarray(keys_tr[b], dtype=np.int64)
+            #key_perm = np.asarray(keys_tr[b], dtype=np.int64)
             # todo int64???'
             key_perm = self.keyops.normalize(np.asarray(keys_tr[b], dtype=np.int64))
             out[b] = self._decrypt_single(ct_tr, key_perm)
@@ -48,10 +43,9 @@ class RouteCipher(CipherPipelineMixin):
 
     @staticmethod
     def _decrypt_single(ct: np.ndarray, key_perm: np.ndarray) -> np.ndarray:
-        L = int(ct.size)
-        K = int(key_perm.size)
+        L = int(ct.size); K = int(key_perm.size)
         rows = (L + K - 1) // K
-        rem = L % K
+        rem  = L % K
         col_lens = np.full(K, rows - 1, dtype=np.int64)
         if rem == 0:
             col_lens[:] = rows
@@ -62,7 +56,7 @@ class RouteCipher(CipherPipelineMixin):
         pos = 0
         for c in key_perm:
             ln = int(col_lens[c])
-            cols[c] = ct[pos : pos + ln]
+            cols[c] = ct[pos:pos+ln]
             pos += ln
 
         pt = np.empty(L, dtype=np.uint8)
@@ -71,6 +65,5 @@ class RouteCipher(CipherPipelineMixin):
             for c in range(K):
                 col = cols[c]
                 if r < col.size:
-                    pt[w] = col[r]
-                    w += 1
+                    pt[w] = col[r]; w += 1
         return pt

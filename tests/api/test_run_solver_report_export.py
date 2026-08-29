@@ -34,9 +34,7 @@ def test_solver_report_sidecar_is_opt_in(monkeypatch, tmp_path) -> None:
     assert not (tmp_path / "artifacts" / "solver_report.json").exists()
 
     result = api.run(
-        _spec(
-            logging=api.LoggingConfig(write_event_log=False, write_solver_report=True)
-        )
+        _spec(logging=api.LoggingConfig(write_event_log=False, write_solver_report=True))
     )
     payload = json.loads(
         (tmp_path / "artifacts" / "solver_report.json").read_text(encoding="utf-8")

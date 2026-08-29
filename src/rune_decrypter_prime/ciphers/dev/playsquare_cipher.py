@@ -51,7 +51,6 @@ class PlaySquareCipher(CipherPipelineMixin):
     ----------
     self.keyops = PermutationOps(25)
     """
-
     A29 = 29
     A25 = 25
     S = 5  # grid size
@@ -62,10 +61,10 @@ class PlaySquareCipher(CipherPipelineMixin):
     # representatives: keep many as-is, remap 4 symbols into representatives
     # these positions (by index) depend on  Runeglish mapping.
     # Based on user's canonical ordering: indices (11=J), (14=X), (25=AE), (27=IO)
-    _REDUCE_29_TO_25[11] = 10  # J→I
-    _REDUCE_29_TO_25[14] = 15  # X→S
-    _REDUCE_29_TO_25[25] = 24  # AE→A (careful: adjust to some 25-space index later)
-    _REDUCE_29_TO_25[27] = 10  # IO→I
+    _REDUCE_29_TO_25[11] = 10   # J→I
+    _REDUCE_29_TO_25[14] = 15   # X→S
+    _REDUCE_29_TO_25[25] = 24   # AE→A (careful: adjust to some 25-space index later)
+    _REDUCE_29_TO_25[27] = 10   # IO→I
 
     #  build a compact 25-space relabel below (in __init__) that maps survivors
     # to 0..24 and creates a reverse projection back into 29-space.
@@ -81,10 +80,10 @@ class PlaySquareCipher(CipherPipelineMixin):
         # Step 1: choose canonical representatives set R ⊂ [0..28]
         rep = self._choose_representatives()
         # rep is sorted array of length 25 with unique 29-space indices
-        self.rep25_in_29 = rep.astype(np.int64)  # (25,)
-        inv29 = -np.ones(self.A29, dtype=np.int64)  # map 29→(0..24) or -1
+        self.rep25_in_29 = rep.astype(np.int64)         # (25,)
+        inv29 = -np.ones(self.A29, dtype=np.int64)      # map 29→(0..24) or -1
         inv29[self.rep25_in_29] = np.arange(self.A25, dtype=np.int64)
-        self.inv29_to_25 = inv29  # (29,) entries in 0..24 or -1
+        self.inv29_to_25 = inv29                        # (29,) entries in 0..24 or -1
 
         # filler (in 29-space) & its 25-space projection
         filler_29 = int(getattr(cfg, "filler_idx29", 0))
@@ -97,9 +96,7 @@ class PlaySquareCipher(CipherPipelineMixin):
         # --- keyops ---
         req_len = getattr(cfg, "key_length", None)
         if req_len not in (None, self.A25):
-            raise ValueError(
-                f"PlaySquare requires key_length={self.A25}, got {req_len}"
-            )
+            raise ValueError(f"PlaySquare requires key_length={self.A25}, got {req_len}")
         self.keyops = PermutationOps(self.A25)
 
     # ------------------- reduction & projection -------------------
@@ -135,9 +132,7 @@ class PlaySquareCipher(CipherPipelineMixin):
         drops = {11, 14, 25, 27}  # J, X, AE, IO (indices in 29-space)
         keep = [i for i in range(self.A29) if i not in drops]
         if len(keep) != self.A25:
-            raise RuntimeError(
-                "PlaySquare representative selection produced wrong count."
-            )
+            raise RuntimeError("PlaySquare representative selection produced wrong count.")
         return np.asarray(keep, dtype=np.int64)
 
     # ------------------- grid helpers -------------------

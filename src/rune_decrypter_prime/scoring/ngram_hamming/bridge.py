@@ -411,9 +411,7 @@ def profile_manifest_rows(specs: Iterable[NgramProfileSpec]) -> list[dict[str, o
 
 
 def profile_manifest_hash(specs: Iterable[NgramProfileSpec]) -> str:
-    payload = json.dumps(
-        profile_manifest_rows(specs), sort_keys=True, separators=(",", ":")
-    )
+    payload = json.dumps(profile_manifest_rows(specs), sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -421,20 +419,15 @@ def score_candidate_profile_ids(specs: Iterable[NgramProfileSpec]) -> set[str]:
     return {
         spec.profile_id
         for spec in specs
-        if spec.score_authority
-        in {"score_bearing_candidate", "blocked_bridge_candidate"}
+        if spec.score_authority in {"score_bearing_candidate", "blocked_bridge_candidate"}
     }
 
 
-def missing_required_fields(
-    row: Mapping[str, object], required_fields: frozenset[str]
-) -> tuple[str, ...]:
+def missing_required_fields(row: Mapping[str, object], required_fields: frozenset[str]) -> tuple[str, ...]:
     return tuple(sorted(required_fields - set(row)))
 
 
-def validate_required_fields(
-    row: Mapping[str, object], required_fields: frozenset[str]
-) -> None:
+def validate_required_fields(row: Mapping[str, object], required_fields: frozenset[str]) -> None:
     missing = missing_required_fields(row, required_fields)
     if missing:
         raise ValueError(f"missing required fields: {', '.join(missing)}")
@@ -479,13 +472,9 @@ def cluster_row(cluster: PhraseCluster, *, run_id: str) -> dict[str, object]:
         "cluster_id": cluster.cluster_id,
         "start_offset": cluster.start_offset,
         "end_offset": cluster.end_offset,
-        "profiles_present": json.dumps(
-            list(cluster.profiles_present), separators=(",", ":")
-        ),
+        "profiles_present": json.dumps(list(cluster.profiles_present), separators=(",", ":")),
         "cuts_present": json.dumps(list(cluster.cuts_present), separators=(",", ":")),
-        "orders_present": json.dumps(
-            list(cluster.orders_present), separators=(",", ":")
-        ),
+        "orders_present": json.dumps(list(cluster.orders_present), separators=(",", ":")),
         "raw_hit_count": cluster.raw_hit_count,
         "unique_phrase_id_count": cluster.unique_phrase_id_count,
         "unique_start_count": cluster.unique_start_count,
@@ -497,9 +486,7 @@ def cluster_row(cluster: PhraseCluster, *, run_id: str) -> dict[str, object]:
     return row
 
 
-def cluster_rows(
-    clusters: Iterable[PhraseCluster], *, run_id: str
-) -> list[dict[str, object]]:
+def cluster_rows(clusters: Iterable[PhraseCluster], *, run_id: str) -> list[dict[str, object]]:
     return [cluster_row(cluster, run_id=run_id) for cluster in clusters]
 
 
@@ -511,13 +498,7 @@ def candidate_summary_rows(
     expected_cluster_scope: str,
 ) -> list[dict[str, object]]:
     cluster_list = list(clusters)
-    wrong_scopes = sorted(
-        {
-            cluster.cluster_scope
-            for cluster in cluster_list
-            if cluster.cluster_scope != expected_cluster_scope
-        }
-    )
+    wrong_scopes = sorted({cluster.cluster_scope for cluster in cluster_list if cluster.cluster_scope != expected_cluster_scope})
     if wrong_scopes:
         raise ValueError(
             "candidate summary cluster scope mismatch: "
@@ -544,13 +525,7 @@ def candidate_summary_rows(
             cluster_counts[key] += 1
             if any(
                 hit.total_phrase_hd == 0
-                and (
-                    hit.candidate_id,
-                    hit.profile_id,
-                    hit.dictionary_cut,
-                    hit.ngram_order,
-                )
-                == key
+                and (hit.candidate_id, hit.profile_id, hit.dictionary_cut, hit.ngram_order) == key
                 for hit in cluster.hits
             ):
                 exact_cluster_counts[key] += 1
@@ -560,17 +535,11 @@ def candidate_summary_rows(
         candidate_id, profile_id, cut, order = key
         spec = specs_by_key.get((profile_id, cut, order))
         if spec is None:
-            raise ValueError(
-                f"hit references unknown profile/cut/order: {profile_id}/{cut}/{order}"
-            )
+            raise ValueError(f"hit references unknown profile/cut/order: {profile_id}/{cut}/{order}")
         raw_hit_count = len(group_hits)
         cluster_count = int(cluster_counts[key])
         phrase_counter = Counter(hit.phrase_id for hit in group_hits)
-        top_phrase_share = (
-            max(phrase_counter.values(), default=0) / raw_hit_count
-            if raw_hit_count
-            else 0.0
-        )
+        top_phrase_share = max(phrase_counter.values(), default=0) / raw_hit_count if raw_hit_count else 0.0
         row: dict[str, object] = {
             "candidate_id": candidate_id,
             "profile_id": profile_id,
@@ -587,9 +556,7 @@ def candidate_summary_rows(
             "exact_cluster_count": int(exact_cluster_counts[key]),
             "unique_phrase_id_count": len(phrase_counter),
             "unique_start_count": len({hit.hit_start for hit in group_hits}),
-            "hit_to_cluster_ratio": raw_hit_count / cluster_count
-            if cluster_count
-            else 0.0,
+            "hit_to_cluster_ratio": raw_hit_count / cluster_count if cluster_count else 0.0,
             "top_phrase_share": top_phrase_share,
             "best_hit_signature": best_hit_signature(group_hits),
         }
@@ -632,30 +599,18 @@ def pair_ledger_row(
         "expected_worse_id": expected_worse_id,
         "baseline_winner": baseline_winner,
         "phrase_tuple_winner": phrase_tuple_winner,
-        "order2_tuple_better": json.dumps(
-            dict(order2_tuple_better or {}), sort_keys=True, separators=(",", ":")
-        ),
-        "order2_tuple_worse": json.dumps(
-            dict(order2_tuple_worse or {}), sort_keys=True, separators=(",", ":")
-        ),
-        "order3_tuple_better": json.dumps(
-            dict(order3_tuple_better or {}), sort_keys=True, separators=(",", ":")
-        ),
-        "order3_tuple_worse": json.dumps(
-            dict(order3_tuple_worse or {}), sort_keys=True, separators=(",", ":")
-        ),
+        "order2_tuple_better": json.dumps(dict(order2_tuple_better or {}), sort_keys=True, separators=(",", ":")),
+        "order2_tuple_worse": json.dumps(dict(order2_tuple_worse or {}), sort_keys=True, separators=(",", ":")),
+        "order3_tuple_better": json.dumps(dict(order3_tuple_better or {}), sort_keys=True, separators=(",", ":")),
+        "order3_tuple_worse": json.dumps(dict(order3_tuple_worse or {}), sort_keys=True, separators=(",", ":")),
         "normal_support_delta": float(normal_support_delta),
         "strict_support_delta": float(strict_support_delta),
         "first_diff_component": first_diff_component,
         "outcome_label": outcome_label,
         "panel_rescue_flag": bool(panel_rescue_flag),
-        "concentration_flags": json.dumps(
-            sorted(concentration_flags), separators=(",", ":")
-        ),
+        "concentration_flags": json.dumps(sorted(concentration_flags), separators=(",", ":")),
         "null_lift_summary": null_lift_summary,
-        "unsafe_interpretation_flags": json.dumps(
-            sorted(unsafe_interpretation_flags), separators=(",", ":")
-        ),
+        "unsafe_interpretation_flags": json.dumps(sorted(unsafe_interpretation_flags), separators=(",", ":")),
     }
     validate_pair_ledger_row(row)
     return row
@@ -682,18 +637,12 @@ def zero_hit_audit_row(
         "panel_rescue_flag": bool(panel_rescue_flag),
         "span_hamming_best_support": span_hamming_best_support,
         "ngram_hit_count_by_order": json.dumps(
-            {
-                str(key): value
-                for key, value in (ngram_hit_count_by_order or {}).items()
-            },
+            {str(key): value for key, value in (ngram_hit_count_by_order or {}).items()},
             sort_keys=True,
             separators=(",", ":"),
         ),
         "phrase_opportunity_count_by_order": json.dumps(
-            {
-                str(key): value
-                for key, value in (phrase_opportunity_count_by_order or {}).items()
-            },
+            {str(key): value for key, value in (phrase_opportunity_count_by_order or {}).items()},
             sort_keys=True,
             separators=(",", ":"),
         ),
@@ -711,24 +660,13 @@ def cluster_hits_overlap_touch(
     allowed_profile_ids: set[str] | None = None,
 ) -> tuple[PhraseCluster, ...]:
     filtered_hits = [
-        hit
-        for hit in hits
+        hit for hit in hits
         if allowed_profile_ids is None or hit.profile_id in allowed_profile_ids
     ]
-    filtered_hits.sort(
-        key=lambda hit: (
-            hit.candidate_id,
-            hit.chunk_id,
-            hit.hit_start,
-            hit.hit_end,
-            hit.profile_id,
-        )
-    )
+    filtered_hits.sort(key=lambda hit: (hit.candidate_id, hit.chunk_id, hit.hit_start, hit.hit_end, hit.profile_id))
     clusters: list[PhraseCluster] = []
     next_cluster_id = 1
-    for (candidate_id, chunk_id), group_iter in groupby(
-        filtered_hits, key=lambda hit: (hit.candidate_id, hit.chunk_id)
-    ):
+    for (candidate_id, chunk_id), group_iter in groupby(filtered_hits, key=lambda hit: (hit.candidate_id, hit.chunk_id)):
         current_hits: list[PhraseHit] = []
         current_start = 0
         current_end = 0

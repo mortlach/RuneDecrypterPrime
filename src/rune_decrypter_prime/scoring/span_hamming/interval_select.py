@@ -36,9 +36,7 @@ def _better_plan(plan_a: _Plan, plan_b: _Plan) -> _Plan:
     return plan_a
 
 
-def select_non_overlapping(
-    intervals: Sequence[SpanInterval],
-) -> Tuple[SpanInterval, ...]:
+def select_non_overlapping(intervals: Sequence[SpanInterval]) -> Tuple[SpanInterval, ...]:
     if not intervals:
         return tuple()
 
@@ -50,14 +48,7 @@ def select_non_overlapping(
         prev_idx = bisect_right(ends, item.start) - 1
         predecessors.append(prev_idx)
 
-    dp = [
-        _Plan(
-            total_weight=0.0,
-            covered_chars=0,
-            selected_indices=tuple(),
-            canonical_keys=tuple(),
-        )
-    ]
+    dp = [_Plan(total_weight=0.0, covered_chars=0, selected_indices=tuple(), canonical_keys=tuple())]
 
     for idx, item in enumerate(ordered):
         include_base = dp[predecessors[idx] + 1]
@@ -72,3 +63,4 @@ def select_non_overlapping(
 
     chosen = dp[-1].selected_indices
     return tuple(ordered[i] for i in chosen)
+

@@ -17,13 +17,7 @@ from rune_decrypter_prime.core.component_contracts import (
 
 
 def _missing_backend_issue() -> CapabilityIssue:
-    return CapabilityIssue(
-        code="backend_unavailable",
-        message="requested backend is unavailable",
-        status=CapabilityStatus.UNAVAILABLE,
-        source="test",
-    )
-
+    return CapabilityIssue(code='backend_unavailable', message='requested backend is unavailable', status=CapabilityStatus.UNAVAILABLE, source='test')
 
 def test_requested_production_lane_missing_backend_blocks_not_silent_fallback() -> None:
     lane = lane_failure_status(
@@ -35,11 +29,8 @@ def test_requested_production_lane_missing_backend_blocks_not_silent_fallback() 
     )
     assert lane.effective_state is CapabilityEffectiveState.BLOCKED
     assert lane.fallback_policy is FallbackPolicy.BLOCK
-    with pytest.raises(
-        RequestedLaneUnavailableError, match="hamming:backend_unavailable"
-    ):
+    with pytest.raises(RequestedLaneUnavailableError, match='hamming:backend_unavailable'):
         raise_for_lane_status(lane)
-
 
 def test_explicit_reported_fallback_is_visible_not_silent() -> None:
     lane = lane_failure_status(
@@ -53,7 +44,6 @@ def test_explicit_reported_fallback_is_visible_not_silent() -> None:
     assert lane.fallback_policy is FallbackPolicy.EXPLICIT_REPORTED_FALLBACK
     assert lane.issues
     raise_for_lane_status(lane)
-
 
 def test_report_only_lane_failure_is_report_only_not_rank_fallback() -> None:
     lane = lane_failure_status(

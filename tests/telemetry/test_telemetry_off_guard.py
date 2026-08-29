@@ -1,9 +1,7 @@
 from rdp import api
 import pytest
 from rune_decrypter_prime.telemetry.pipeline import dump_telemetry
-
 pytestmark = pytest.mark.tier_a
-
 
 def test_telemetry_off_prevents_dump(tmp_path):
     ct = "ᛗᛁᚩᚾ"
@@ -23,4 +21,4 @@ def test_telemetry_off_prevents_dump(tmp_path):
     )
     assert dict(sol.telemetry) == {"telemetry_off": True}
     path = dump_telemetry(sol, base_dir=tmp_path)
-    assert path == ""
+    assert path == ''

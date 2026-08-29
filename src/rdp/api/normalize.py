@@ -1,5 +1,4 @@
 """Single-source normalisation helpers for the public API boundary."""
-
 from __future__ import annotations
 from typing import List, Tuple, Sequence, Union, Optional, TypeVar, Dict, Any
 import numpy as np
@@ -19,9 +18,7 @@ from rune_decrypter_prime.core.types import (
     ensure_direction,
     ensure_float_dtype,
 )
-
 _T = TypeVar("_T")
-
 
 def normalize_objective_family(value: Any) -> ObjectiveFamily:
     if isinstance(value, str):
@@ -60,9 +57,7 @@ def normalize_stat(value: Any) -> Stat:
 def normalize_objective_spec(value: Any) -> ObjectiveSpec:
     if isinstance(value, ObjectiveSpec):
         if value.family is ObjectiveFamily.ENERGY:
-            return ObjectiveSpec(
-                family=ObjectiveFamily.PCT, stat=value.stat, win=value.win
-            )
+            return ObjectiveSpec(family=ObjectiveFamily.PCT, stat=value.stat, win=value.win)
         return value
     if isinstance(value, str):
         # parse simple dotted strings like "pct.logp.win10" or "neglogp"
@@ -71,9 +66,7 @@ def normalize_objective_spec(value: Any) -> ObjectiveSpec:
             if len(parts) == 3 and parts[2].startswith("win"):
                 win = int(parts[2][3:])
             else:
-                raise ValueError(
-                    f"ObjectiveSpec '{value}' must include window (e.g. win10)."
-                )
+                raise ValueError(f"ObjectiveSpec '{value}' must include window (e.g. win10).")
             return ObjectiveSpec(
                 family=ObjectiveFamily.PCT,
                 stat=normalize_stat(parts[1]),
@@ -101,7 +94,6 @@ def normalize_objective_spec(value: Any) -> ObjectiveSpec:
     else:
         raise ValueError(f"Unknown ObjectiveSpec parameter type: {type(value)}.")
 
-
 def normalize_encoding_dir(direction: Union[str, Direction]) -> Direction:
     """Strict public API normaliser for text direction."""
     if direction is None:
@@ -116,9 +108,7 @@ def normalize_encoding_dir(direction: Union[str, Direction]) -> Direction:
         }
         key = alias.get(key, key)
         if key not in {"ltr", "rtl"}:
-            raise ValueError(
-                f"Unknown encoding_dir '{direction}'. Expected 'ltr' or 'rtl'."
-            )
+            raise ValueError(f"Unknown encoding_dir '{direction}'. Expected 'ltr' or 'rtl'.")
         direction = key
     try:
         return ensure_direction(direction)
@@ -164,22 +154,16 @@ def normalize_device(value: Any) -> Device:
             return Device.CPU
         if v in ("cuda", "gpu"):
             return Device.CUDA
-    raise TypeError(
-        f"Invalid device: {value!r} (expected Device or 'cpu'/'cuda'/'gpu')."
-    )
+    raise TypeError(f"Invalid device: {value!r} (expected Device or 'cpu'/'cuda'/'gpu').")
 
 
 def normalize_scorer_params(params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if not params:
         return {}
     if "channel" in params:
-        raise ValueError(
-            "scorer_params.channel is not supported (use include_char/use_word_breaks/weights instead)."
-        )
+        raise ValueError("scorer_params.channel is not supported (use include_char/use_word_breaks/weights instead).")
     if "device" in params:
-        raise ValueError(
-            "scorer_params.device is not supported (use RunSpec.compute_device)."
-        )
+        raise ValueError("scorer_params.device is not supported (use RunSpec.compute_device).")
     if "se_mode" in params:
         params["se_mode"] = normalize_se_mode(params["se_mode"])
     if "encoding_dir" in params:
@@ -196,20 +180,10 @@ def normalize_scorer_params(params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if "objective" in params and "win" in params:
         obj = params.get("objective")
         legacy_win = params.get("win")
-        if isinstance(obj, ObjectiveSpec) and obj.family in (
-            ObjectiveFamily.PCT,
-            ObjectiveFamily.ENERGY,
-            ObjectiveFamily.AVG,
-        ):
+        if isinstance(obj, ObjectiveSpec) and obj.family in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY, ObjectiveFamily.AVG):
             if obj.win is None and legacy_win is not None:
-                stat = (
-                    obj.stat
-                    if obj.stat is not None
-                    else (Stat.LOGP if obj.family is ObjectiveFamily.AVG else obj.stat)
-                )
-                params["objective"] = ObjectiveSpec(
-                    family=obj.family, stat=stat, win=int(legacy_win)
-                )
+                stat = obj.stat if obj.stat is not None else (Stat.LOGP if obj.family is ObjectiveFamily.AVG else obj.stat)
+                params["objective"] = ObjectiveSpec(family=obj.family, stat=stat, win=int(legacy_win))
         params.pop("win", None)
     if "compute_dtype" in params:
         params["compute_dtype"] = ensure_float_dtype(params["compute_dtype"]).value
@@ -219,9 +193,7 @@ def normalize_scorer_params(params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         params["dtype"] = ensure_float_dtype(params["dtype"]).value
     return params
 
-
 # ----------------------------- public API ----------------------------- #
-
 
 def _coerce_index_array(data: Any) -> np.ndarray:
     raw = np.asarray(data)
@@ -239,12 +211,7 @@ def _coerce_index_array(data: Any) -> np.ndarray:
         out = np.ascontiguousarray(out)
     return out
 
-
-def to_indices(
-    text: Union[
-        str, np.ndarray, Sequence[int], Tuple[np.ndarray, Sequence[Sequence[int]]]
-    ],
-) -> np.ndarray:
+def to_indices(text: Union[str, np.ndarray, Sequence[int], Tuple[np.ndarray, Sequence[Sequence[int]]]]) -> np.ndarray:
     """Return `np.ndarray[np.uint8]` of rune indices (shape (L,), C-contiguous).
 
     Accepted `text` forms:
@@ -288,14 +255,10 @@ def to_indices(
                 try:
                     all_idx.extend(Runeglish.rune_to_pos(rw))
                 except KeyError as e:
-                    raise ValueError(
-                        f"English→rune produced unknown rune: {e.args[0]}"
-                    ) from None
+                    raise ValueError(f"English→rune produced unknown rune: {e.args[0]}") from None
         return _coerce_index_array(all_idx)
 
-    raise TypeError(
-        "Unsupported ciphertext type: expected str | array | sequence[int] | (indices, wli) tuple."
-    )
+    raise TypeError("Unsupported ciphertext type: expected str | array | sequence[int] | (indices, wli) tuple.")
 
 
 def make_single_word_wli(L: int) -> list[list[int]] | None:
@@ -313,11 +276,7 @@ def wli_from_text(text: str) -> List[List[int]]:
     # Build lengths in rune-space (after transliteration) for correctness.
     rune_lengths: list[int] = []
     for w in words:
-        rw = (
-            w
-            if any(ch in getattr(Runeglish, "runes", []) for ch in w)
-            else Runeglish.translate_to_gematria(w.upper())
-        )
+        rw = w if any(ch in getattr(Runeglish, "runes", []) for ch in w) else Runeglish.translate_to_gematria(w.upper())
         rune_lengths.append(len(Runeglish.rune_to_pos(rw)))
 
     wli: list[list[int]] = []
@@ -326,10 +285,7 @@ def wli_from_text(text: str) -> List[List[int]]:
             wli.append([i, ln])
     return wli
 
-
-def runes_from_indices(
-    idx: Sequence[int], wli: Optional[Sequence[Sequence[int]]] = None
-) -> str:
+def runes_from_indices(idx: Sequence[int], wli: Optional[Sequence[Sequence[int]]] = None) -> str:
     """
     Render rune characters from indices (grouped by WLI).
     This is NOT the Latin-canon. For Latin-canon, use Runeglish.to_rune(indices, wli).
@@ -352,11 +308,8 @@ def runes_from_indices(
         out_words.append("".join(cur))
     return " ".join(out_words)
 
-
 def normalize_ciphertext(
-    text: Union[
-        str, np.ndarray, Sequence[int], Tuple[np.ndarray, Sequence[Sequence[int]]]
-    ],
+    text: Union[str, np.ndarray, Sequence[int], Tuple[np.ndarray, Sequence[Sequence[int]]]],
     wli_data: Optional[Sequence[Sequence[int]]] = None,
 ) -> Tuple[np.ndarray, List[List[int]]]:
     """Convert user ciphertext input into (indices, WLI), **once**.
@@ -397,10 +350,7 @@ def normalize_ciphertext(
 
 # --------------------------- internal helpers --------------------------- #
 
-
-def _assert_core_ready(
-    ct: np.ndarray, wli_list: Sequence[Sequence[int]] = None
-) -> None:
+def _assert_core_ready(ct: np.ndarray, wli_list: Sequence[Sequence[int]] = None) -> None:
     """Hard, cheap assertions for the UI→core boundary.
     Guarantees so the core never re-casts/validates again:
       • ct: dtype=uint8, shape (L,), C-contiguous
@@ -425,7 +375,6 @@ def _assert_core_ready(
 
 def _as_int(value: Any, name: str) -> int:
     import numpy as _np
-
     if isinstance(value, (bool, str, bytes, bytearray)):
         raise TypeError(f"{name} must be an integer")
     if isinstance(value, (float, _np.floating)):
@@ -457,16 +406,13 @@ def _validate_wli_poslen(wli_list: Sequence[Sequence[int]], L: int) -> None:
         if ln != current_len:
             raise ValueError("wli word_len must remain constant within a word")
         if pos != expected_pos:
-            raise ValueError(
-                "wli pos_in_word sequence must be contiguous within each word"
-            )
+            raise ValueError("wli pos_in_word sequence must be contiguous within each word")
         expected_pos += 1
         if expected_pos == current_len:
             expected_pos = 0
             current_len = None
     if expected_pos != 0:
         raise ValueError("wli word_len exceeds available positions")
-
 
 # --- Enum normalisers (API boundary only) -------------------------------------
 # def normalize_direction(x: Union[str, Direction]) -> Direction:
@@ -479,47 +425,35 @@ def _validate_wli_poslen(wli_list: Sequence[Sequence[int]], L: int) -> None:
 #         return Direction.RTL
 #     raise ValueError(f"Unknown direction: {x!r} (expected 'ltr' or 'rtl' or Direction)")
 
-
 def normalize_scorer_impl(x: Union[str, ScorerImpl]) -> ScorerImpl:
     if isinstance(x, ScorerImpl):
         return x
     v = str(x).strip().lower()
     match v:
-        case "numpy":
-            return ScorerImpl.NUMPY
-        case "torch":
-            return ScorerImpl.TORCH
-        case "unified":
-            return ScorerImpl.UNIFIED
-        case "auto":
-            return ScorerImpl.AUTO
-    raise ValueError(
-        f"Unknown scorer impl: {x!r} (expected 'numpy'|'torch'|'unified'|'auto' or ScorerImpl)"
-    )
-
+        case "numpy":   return ScorerImpl.NUMPY
+        case "torch":   return ScorerImpl.TORCH
+        case "unified": return ScorerImpl.UNIFIED
+        case "auto":    return ScorerImpl.AUTO
+    raise ValueError(f"Unknown scorer impl: {x!r} (expected 'numpy'|'torch'|'unified'|'auto' or ScorerImpl)")
 
 def normalize_optimizer_name(x: Union[str, SolverName]) -> SolverName:
     if isinstance(x, SolverName):
         return x
     v = str(x).strip().lower()
     match v:
-        case "beam":
-            return SolverName.BEAM
-        case "ga":
-            return SolverName.GA
-        case "sa":
-            return SolverName.SA
-        case "hybrid":
-            return SolverName.HYBRID
-        case "kaeding":
-            return SolverName.KAEDING
+        case "beam":   return SolverName.BEAM
+        case "ga":     return SolverName.GA
+        case "sa":     return SolverName.SA
+        case "hybrid": return SolverName.HYBRID
+        case "kaeding": return SolverName.KAEDING
     raise ValueError(
         f"Unknown solver name: {x!r} (expected 'beam'|'ga'|'sa'|'hybrid'|'kaeding' or OptimizerName)"
     )
 
 
-# --- TEXT_PERMUTATION helpers ---
 
+
+# --- TEXT_PERMUTATION helpers ---
 
 def _perm_as_sequence(obj: Any) -> Sequence[Any]:
     # Accept list/tuple/range; accept numpy arrays if present (duck-typed via .tolist()).
@@ -527,10 +461,7 @@ def _perm_as_sequence(obj: Any) -> Sequence[Any]:
         return obj  # type: ignore[return-value]
     if hasattr(obj, "tolist") and callable(getattr(obj, "tolist")):
         return obj.tolist()  # numpy-like
-    raise TypeError(
-        "Permutation must be a sequence of integers (list/tuple/range or numpy array)."
-    )
-
+    raise TypeError("Permutation must be a sequence of integers (list/tuple/range or numpy array).")
 
 def _perm_to_int_list(seq: Sequence[Any]) -> list[int]:
     """
@@ -551,12 +482,9 @@ def _perm_to_int_list(seq: Sequence[Any]) -> list[int]:
         try:
             xi = int(x)  # allows numpy integer scalars, IntEnum, etc.
         except Exception as e:
-            raise TypeError(
-                f"Permutation contains non-integer at index {i}: {x!r}"
-            ) from e
+            raise TypeError(f"Permutation contains non-integer at index {i}: {x!r}") from e
         out.append(xi)
     return out
-
 
 def normalize_text_permutation(p: Optional[Any], n_tokens: int) -> Optional[list[int]]:
     """
@@ -571,19 +499,12 @@ def normalize_text_permutation(p: Optional[Any], n_tokens: int) -> Optional[list
     ints = _perm_to_int_list(seq)
 
     if len(ints) != n_tokens:
-        raise ValueError(
-            f"TEXT_PERMUTATION must have length {n_tokens}, got {len(ints)}."
-        )
+        raise ValueError(f"TEXT_PERMUTATION must have length {n_tokens}, got {len(ints)}.")
     if len(set(ints)) != n_tokens:
         raise ValueError("TEXT_PERMUTATION must not contain duplicates.")
-    if (
-        min(ints) != 0
-        or max(ints) != n_tokens - 1
-        or sorted(ints) != list(range(n_tokens))
-    ):
+    if min(ints) != 0 or max(ints) != n_tokens - 1 or sorted(ints) != list(range(n_tokens)):
         raise ValueError("TEXT_PERMUTATION must be a permutation of 0..n_tokens-1.")
     return ints
-
 
 def apply_permutation(tokens: Sequence[_T], perm: Optional[Sequence[int]]) -> list[_T]:
     """Apply permutation to tokens. If perm is None, returns list(tokens)."""
@@ -591,11 +512,8 @@ def apply_permutation(tokens: Sequence[_T], perm: Optional[Sequence[int]]) -> li
         return list(tokens)
     perm_list = _perm_to_int_list(_perm_as_sequence(perm))
     if len(perm_list) != len(tokens):
-        raise ValueError(
-            f"Permutation length {len(perm_list)} != token count {len(tokens)}."
-        )
+        raise ValueError(f"Permutation length {len(perm_list)} != token count {len(tokens)}.")
     return [tokens[i] for i in perm_list]
-
 
 def invert_permutation(perm: Sequence[int]) -> list[int]:
     """Inverse permutation: perm ∘ inv == identity."""
@@ -609,16 +527,17 @@ def invert_permutation(perm: Sequence[int]) -> list[int]:
     return inv
 
 
+
+
+
 def normalize_optimizer_spec(spec: Dict[str, Any]) -> Dict[str, Any]:
     """Validate and flatten an optimiser spec into `{name, <canonical params...>}`.
 
     Accepts either `{name, params={...}}` or `{name, ...flat params...}`.
     """
     name = (spec.get("name") or "").lower()
-    raw_params = (
-        spec.get("params")
-        if isinstance(spec.get("params"), dict)
-        else {k: v for k, v in spec.items() if k != "name"}
-    )
+    raw_params = spec.get("params") if isinstance(spec.get("params"), dict) else {
+        k: v for k, v in spec.items() if k != "name"
+    }
     flat = resolve_optimizer_aliases(name, dict(raw_params))
     return {"name": name, **flat}

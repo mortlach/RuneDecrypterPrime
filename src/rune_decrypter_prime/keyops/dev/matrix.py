@@ -6,23 +6,19 @@ from typing import Optional
 import numpy as np
 from rune_decrypter_prime.keyops.base_keyops import KeyOpBase, KeyCaps, ArrayU8
 
-
 def _gcd(a: int, b: int) -> int:
     while b:
         a, b = b, a % b
     return abs(a)
 
-
 def _inv_mod(x: int, m: int) -> int:
     return pow(int(x), -1, int(m))
-
 
 def _det_mod(M: np.ndarray, mod: int) -> int:
     # Compute determinant modulo mod for integer matrices
     # Use int64, then reduce mod.
     det = round(np.linalg.det(M.astype(np.int64)))
     return int(det) % mod
-
 
 def _adjugate(M: np.ndarray, mod: int) -> np.ndarray:
     # Cofactor/adjugate for small N (tutorial scale). For larger N, consider faster algos.
@@ -36,20 +32,17 @@ def _adjugate(M: np.ndarray, mod: int) -> np.ndarray:
     # adj = cof^T
     return (cof.T % mod).astype(np.int64)
 
-
 # --- GL(n, Z_mod) elementary row operations (preserve invertibility) ---
 def _gl_row_swap(M: np.ndarray, i: int, j: int) -> None:
     if i == j:
         return
     M[[i, j], :] = M[[j, i], :]
 
-
 def _gl_row_scale(M: np.ndarray, i: int, u: int, mod: int) -> None:
     # scale by a unit (coprime to mod)
     if np.gcd(int(u), int(mod)) != 1:
         raise ValueError("Row scale u must be a unit mod")
     M[i, :] = (M[i, :] * int(u)) % int(mod)
-
 
 def _gl_row_add(M: np.ndarray, i: int, j: int, k: int, mod: int) -> None:
     # R_i <- R_i + k * R_j
@@ -65,7 +58,6 @@ class MatrixKeyConfig:
     mod: int = 29
     require_invertible: bool = True
 
-
 class MatrixKey(KeyOpBase):
     """
     General integer matrix key with modular arithmetic.
@@ -73,23 +65,16 @@ class MatrixKey(KeyOpBase):
     - If require_invertible=True -> must be square and det != 0 (mod).
     Genome layout is row-major flattened uint8 (values in [0, mod)).
     """
-
     def __init__(self, cfg: MatrixKeyConfig):
         self.rows = int(cfg.rows)
         self.cols = int(cfg.cols) if cfg.cols is not None else int(cfg.rows)
-        self.mod = int(cfg.mod)
+        self.mod  = int(cfg.mod)
         self.require_invertible = bool(cfg.require_invertible)
         length = self.rows * self.cols
-        # self.caps = KeyCaps(kind="matrix", length=length, can_partial_score=False)
-        self.caps = KeyCaps(
-            kind="matrix",
-            length=length,
-            can_partial_score=(self.rows == 2 and self.cols == 2),
-        )
+        #self.caps = KeyCaps(kind="matrix", length=length, can_partial_score=False)
+        self.caps = KeyCaps(kind="matrix", length=length, can_partial_score=(self.rows == 2 and self.cols == 2))
         if self.require_invertible and self.rows != self.cols:
-            raise ValueError(
-                "MatrixKey: require_invertible=True requires a square matrix (rows==cols)."
-            )
+            raise ValueError("MatrixKey: require_invertible=True requires a square matrix (rows==cols).")
 
     @property
     def name(self) -> str:
@@ -99,9 +84,7 @@ class MatrixKey(KeyOpBase):
     def _validate_shape(self, key: ArrayU8) -> None:
         L = int(self.rows * self.cols)
         if key.ndim != 1 or key.size != L:
-            raise ValueError(
-                f"MatrixKey: expected flat length {L} ({self.rows}x{self.cols}), got shape {key.shape}."
-            )
+            raise ValueError(f"MatrixKey: expected flat length {L} ({self.rows}x{self.cols}), got shape {key.shape}.")
 
     def _validate_values(self, key: ArrayU8) -> None:
         if (key < 0).any() or (key >= self.mod).any():
@@ -167,12 +150,9 @@ class MatrixKey(KeyOpBase):
     # --- API ---
     def validate(self, key: ArrayU8) -> None:
         k = np.asarray(key, dtype=np.uint8).ravel()
-        self._validate_shape(k)
-        self._validate_values(k)
+        self._validate_shape(k); self._validate_values(k)
         if self.require_invertible and not self._is_invertible(k):
-            raise ValueError(
-                "MatrixKey: matrix is not invertible modulo the given modulus."
-            )
+            raise ValueError("MatrixKey: matrix is not invertible modulo the given modulus.")
 
     def materialize(self, seed: Optional[int] = None) -> ArrayU8:
         rng = np.random.default_rng(seed)
@@ -238,9 +218,7 @@ class MatrixKey(KeyOpBase):
         # normalize will validate invertibility if required
         return self.normalize(out)
 
-    def crossover(
-        self, parent1: ArrayU8, parent2: ArrayU8, rng: np.random.Generator
-    ) -> ArrayU8:
+    def crossover(self, parent1: ArrayU8, parent2: ArrayU8, rng: np.random.Generator) -> ArrayU8:
         """
         GL-safe 'blend': start from parent1 and apply a few GL ops biased by differences to parent2.
         Not a true recombination, but respects the group and gives directional pressure.
@@ -323,6 +301,7 @@ class MatrixKey(KeyOpBase):
         # generic matrices: no simple row-wise partial available by default
         return np.array([], dtype=np.int64)
 
+
     def is_invertible_batch(self, keys_2d: np.ndarray) -> np.ndarray:
         """
         Vectorised invertibility check for flat keys of shape (B, rows*cols).
@@ -331,21 +310,18 @@ class MatrixKey(KeyOpBase):
         """
         K = np.asarray(keys_2d, dtype=np.int64)
         if K.ndim != 2 or K.shape[1] != self.rows * self.cols:
-            raise ValueError(
-                f"is_invertible_batch expects (B,{self.rows * self.cols}), got {K.shape}"
-            )
+            raise ValueError(f"is_invertible_batch expects (B,{self.rows * self.cols}), got {K.shape}")
         if self.rows != self.cols:
             return np.zeros((K.shape[0],), dtype=bool)
 
         if self.rows == 2 and self.cols == 2:
-            a = K[:, 0]
-            b = K[:, 1]
-            c = K[:, 2]
+            a = K[:, 0];
+            b = K[:, 1];
+            c = K[:, 2];
             d = K[:, 3]
             det = (a * d - b * c) % self.mod
             from numpy import gcd
-
-            return gcd(det, self.mod) == 1
+            return (gcd(det, self.mod) == 1)
         # Fallback (small B only): per-row check using existing scalar path
         out = np.zeros((K.shape[0],), dtype=bool)
         for i in range(K.shape[0]):

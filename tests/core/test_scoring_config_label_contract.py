@@ -127,7 +127,6 @@ def test_scoring_config_rejects_invalid_d7_owned_modes(
     with pytest.raises(ValueError):
         api.ScoringConfig.from_dict({**{field_name: bad_value}})
 
-
 def test_requested_scorer_lanes_uses_enum_backed_span_mode() -> None:
     raw_cfg = api.ScoringConfig(
         span_hamming_mode=api.advanced.SpanHammingMode(SpanHammingMode.RAW_BONUS)

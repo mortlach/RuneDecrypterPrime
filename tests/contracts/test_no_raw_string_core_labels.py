@@ -17,7 +17,6 @@ from rune_decrypter_prime.core.types import (
     ScorerBackend,
 )
 
-
 def test_component_contracts_reject_raw_string_core_labels() -> None:
     with pytest.raises(TypeError, match="ScoringLaneStatus.lane"):
         ScoringLaneStatus(
@@ -37,16 +36,8 @@ def test_scoring_config_preserves_typed_boundary_enums() -> None:
     assert cfg.backend is ScorerBackend.TORCH
     assert cfg.span_hamming_mode is SpanHammingMode.CALIBRATED
 
-
 def test_cipher_config_normalises_boundary_strings_to_enums() -> None:
-    cfg = CipherConfig(
-        ciphertext=[0, 1, 2],
-        wli_data=[],
-        key_length=3,
-        device="cpu",
-        encoding_dir="reverse",
-        keyops_family="vector",
-    )
+    cfg = CipherConfig(ciphertext=[0, 1, 2], wli_data=[], key_length=3, device='cpu', encoding_dir='reverse', keyops_family='vector')
     assert cfg.device is Device.CPU
     assert cfg.encoding_dir is Direction.RTL
     assert cfg.keyops_family is KeyOpsFamily.VECTOR

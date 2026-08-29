@@ -10,12 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 PYTHON = sys.executable
 MIN_PYTHON = (3, 11)
-VERBOSE = os.environ.get("RDP_INSTALL_VERBOSE", "").strip().lower() in {
-    "1",
-    "true",
-    "yes",
-    "on",
-}
+VERBOSE = os.environ.get("RDP_INSTALL_VERBOSE", "").strip().lower() in {"1", "true", "yes", "on"}
 LOG_DIR = ROOT / "output" / "install_logs"
 INSTALL_MODE_LABEL = "Full V1 install"
 ASSET_PROFILE_MANIFEST = ROOT / "asset_profiles_v1.json"
@@ -23,18 +18,8 @@ DEFAULT_ASSET_PROFILE = "full_v1"
 
 REQUIRED_ASSET_SENTINELS = [
     ROOT / "assets" / "hamming_raw_1g" / "raw1grams_01.csv",
-    ROOT
-    / "assets"
-    / "hamming_dictionary_policies_phaseA_v0_14"
-    / "strict"
-    / "hamming_raw_1g"
-    / "raw1grams_14.csv",
-    ROOT
-    / "assets"
-    / "hamming_dictionary_policies_phaseA_v0_14"
-    / "normal"
-    / "hamming_raw_1g"
-    / "raw1grams_14.csv",
+    ROOT / "assets" / "hamming_dictionary_policies_phaseA_v0_14" / "strict" / "hamming_raw_1g" / "raw1grams_14.csv",
+    ROOT / "assets" / "hamming_dictionary_policies_phaseA_v0_14" / "normal" / "hamming_raw_1g" / "raw1grams_14.csv",
 ]
 FULL_ASSET_MANIFEST = ROOT / "assets_manifest_v1.json"
 LARGE_ASSET_DOWNLOAD_DIR = ROOT / "downloads"
@@ -48,36 +33,14 @@ NATIVE_SOURCE_CHECKS = [
     (
         "rune_decrypter_prime.scoring.hamming._hamming",
         [
-            ROOT
-            / "src"
-            / "rune_decrypter_prime"
-            / "scoring"
-            / "hamming"
-            / "bindings.cpp",
-            ROOT
-            / "src"
-            / "rune_decrypter_prime"
-            / "scoring"
-            / "hamming"
-            / "Hamming.cpp",
-            ROOT
-            / "src"
-            / "rune_decrypter_prime"
-            / "scoring"
-            / "hamming"
-            / "Flat2DArray.cpp",
+            ROOT / "src" / "rune_decrypter_prime" / "scoring" / "hamming" / "bindings.cpp",
+            ROOT / "src" / "rune_decrypter_prime" / "scoring" / "hamming" / "Hamming.cpp",
+            ROOT / "src" / "rune_decrypter_prime" / "scoring" / "hamming" / "Flat2DArray.cpp",
         ],
     ),
     (
         "rune_decrypter_prime.scoring.span_hamming._span_hamming_fast",
-        [
-            ROOT
-            / "src"
-            / "rune_decrypter_prime"
-            / "scoring"
-            / "span_hamming"
-            / "fast_bindings.cpp"
-        ],
+        [ROOT / "src" / "rune_decrypter_prime" / "scoring" / "span_hamming" / "fast_bindings.cpp"],
     ),
 ]
 
@@ -94,10 +57,7 @@ class InstallFailure(RuntimeError):
 
 
 def _safe_name(label: str) -> str:
-    return (
-        "".join(ch.lower() if ch.isalnum() else "_" for ch in label).strip("_")
-        or "step"
-    )
+    return "".join(ch.lower() if ch.isalnum() else "_" for ch in label).strip("_") or "step"
 
 
 def _tail(text: str, *, max_lines: int = 35) -> str:
@@ -106,14 +66,10 @@ def _tail(text: str, *, max_lines: int = 35) -> str:
         return ""
     if len(lines) <= max_lines:
         return "\n".join(lines)
-    return "\n".join(
-        ["... output truncated; see full log file ...", *lines[-max_lines:]]
-    )
+    return "\n".join(["... output truncated; see full log file ...", *lines[-max_lines:]])
 
 
-def _write_log(
-    label: str, args: list[str], proc: subprocess.CompletedProcess[str]
-) -> Path:
+def _write_log(label: str, args: list[str], proc: subprocess.CompletedProcess[str]) -> Path:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     path = LOG_DIR / f"{stamp}_{_safe_name(label)}.log"
@@ -132,9 +88,7 @@ def _write_log(
     return path
 
 
-def _print_failure_output(
-    proc: subprocess.CompletedProcess[str], log_path: Path
-) -> None:
+def _print_failure_output(proc: subprocess.CompletedProcess[str], log_path: Path) -> None:
     print(f"Full log: {log_path}")
     combined = "\n".join(part for part in (proc.stdout, proc.stderr) if part)
     if combined:
@@ -181,16 +135,11 @@ def _verify_python() -> None:
 
 def _install_package() -> None:
     try:
-        _run(
-            "Install package and build native extensions",
-            [PYTHON, "-m", "pip", "install", "-e", ".[test]"],
-        )
+        _run("Install package and build native extensions", [PYTHON, "-m", "pip", "install", "-e", ".[test]"])
     except InstallFailure:
         print()
         print("RDP did not upgrade pip automatically.")
-        print(
-            "If this failed because pip/setuptools/wheel are too old, run this yourself and retry:"
-        )
+        print("If this failed because pip/setuptools/wheel are too old, run this yourself and retry:")
         print("  python -m pip install --upgrade pip setuptools wheel")
         raise
 
@@ -215,9 +164,7 @@ def _check_imports() -> None:
 
     print("[RUN ] Check required native extension imports")
     for module_name in REQUIRED_NATIVE_MODULES:
-        _check_module_import(
-            module_name, label=f"Import required native extension {module_name}"
-        )
+        _check_module_import(module_name, label=f"Import required native extension {module_name}")
     print("[PASS] required native extensions import")
 
     expected_optional = [
@@ -228,10 +175,7 @@ def _check_imports() -> None:
     if expected_optional:
         print("[RUN ] Check native extensions whose sources are present")
         for module_name in expected_optional:
-            _check_module_import(
-                module_name,
-                label=f"Import source-present native extension {module_name}",
-            )
+            _check_module_import(module_name, label=f"Import source-present native extension {module_name}")
         print("[PASS] source-present native extensions import")
 
 
@@ -290,10 +234,7 @@ def _install_or_verify_profile_assets(profile) -> None:
 
 
 def _run_smoke_tests() -> None:
-    _run(
-        "Run compact V1 smoke tests",
-        [PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider", *SMOKE_TESTS],
-    )
+    _run("Run compact V1 smoke tests", [PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider", *SMOKE_TESTS])
 
 
 def run_install(*, asset_profile_name: str, mode_label: str) -> int:
@@ -307,13 +248,9 @@ def run_install(*, asset_profile_name: str, mode_label: str) -> int:
 
     profile = select_asset_profile(ASSET_PROFILE_MANIFEST, asset_profile_name)
     print(f"Asset profile: {profile.name}")
-    print(
-        f"Language-model orders: {', '.join(str(order) for order in profile.language_model_orders)}"
-    )
+    print(f"Language-model orders: {', '.join(str(order) for order in profile.language_model_orders)}")
     if profile.download_release_assets:
-        print(
-            "This profile downloads or verifies the complete supported V1 language assets."
-        )
+        print("This profile downloads or verifies the complete supported V1 language assets.")
     else:
         print("This profile verifies only the source-bundled CI-light language assets.")
     print()
@@ -335,9 +272,7 @@ def run_install(*, asset_profile_name: str, mode_label: str) -> int:
 
 
 def main() -> int:
-    return run_install(
-        asset_profile_name=DEFAULT_ASSET_PROFILE, mode_label=INSTALL_MODE_LABEL
-    )
+    return run_install(asset_profile_name=DEFAULT_ASSET_PROFILE, mode_label=INSTALL_MODE_LABEL)
 
 
 if __name__ == "__main__":

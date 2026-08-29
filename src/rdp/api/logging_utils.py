@@ -1,12 +1,9 @@
 """User-facing logging normalisers that feed the core LoggingConfig."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
-from rune_decrypter_prime.core.config.logging_config import (
-    LoggingConfig as CoreLoggingConfig,
-)
+from rune_decrypter_prime.core.config.logging_config import LoggingConfig as CoreLoggingConfig
 
 _RUNTIME_LOGGING_KEYS = {"progress_callback", "log_interval"}
 _DURABLE_OUTPUT_PATH_KEYS = {
@@ -66,9 +63,7 @@ def _route_logging_input(logging: Any) -> _LoggingRoute:
     if isinstance(logging, CoreLoggingConfig):
         return _LoggingRoute(config=logging, initialize_output=True)
     if isinstance(logging, dict):
-        runtime_controls = {
-            k: logging[k] for k in _RUNTIME_LOGGING_KEYS if k in logging
-        }
+        runtime_controls = {k: logging[k] for k in _RUNTIME_LOGGING_KEYS if k in logging}
         if _dict_requests_durable_output(logging):
             return _LoggingRoute(
                 config=normalize_logging_cfg(logging),

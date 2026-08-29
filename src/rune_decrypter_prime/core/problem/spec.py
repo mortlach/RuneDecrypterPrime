@@ -20,7 +20,6 @@ class ProblemSpec:
     Core receives canonical config objects only. Dicts and config-like
     objects must be normalised before this boundary.
     """
-
     # Ciphertext / pipeline orientation
     text: str
 
@@ -37,23 +36,15 @@ class ProblemSpec:
         # Enforce Enums and canonical config objects in core.
         self.text_encoding_direction = ensure_direction(self.text_encoding_direction)
         if not isinstance(self.cipher_cfg, CipherConfig):
-            raise TypeError(
-                f"cipher_cfg must be CipherConfig, got {type(self.cipher_cfg).__name__}"
-            )
+            raise TypeError(f"cipher_cfg must be CipherConfig, got {type(self.cipher_cfg).__name__}")
         if not isinstance(self.scorer_params, ScoringConfig):
-            raise TypeError(
-                f"scorer_params must be ScoringConfig, got {type(self.scorer_params).__name__}"
-            )
+            raise TypeError(f"scorer_params must be ScoringConfig, got {type(self.scorer_params).__name__}")
         if self.cipher_cfg.spec is not None or self.cipher_cfg.key_space is not None:
             if self.cipher_cfg.spec is None or self.cipher_cfg.key_space is None:
-                raise ValueError(
-                    "typed cipher and key-space ownership must be recorded together"
-                )
+                raise ValueError("typed cipher and key-space ownership must be recorded together")
             expected = expected_concrete_key_length(
                 self.cipher_cfg.spec,
                 self.cipher_cfg.key_space,
             )
             if self.cipher_cfg.key_length != expected:
-                raise ValueError(
-                    "materialized key length does not match the typed binding"
-                )
+                raise ValueError("materialized key length does not match the typed binding")

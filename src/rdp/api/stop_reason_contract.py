@@ -149,9 +149,7 @@ BLOCKED_BEFORE_RUN_REASONS = frozenset(
         KnownStopReason.BLOCKED_BEFORE_RUN,
     )
 )
-ERROR_REASONS = frozenset(
-    item.value for item in (KnownStopReason.ERROR, KnownStopReason.EXCEPTION)
-)
+ERROR_REASONS = frozenset(item.value for item in (KnownStopReason.ERROR, KnownStopReason.EXCEPTION))
 MANUAL_REASONS = frozenset(
     item.value
     for item in (
@@ -230,9 +228,7 @@ class RunStatus:
 
         ratio: float | None = None
         if self.recovery_match_ratio is not None:
-            if isinstance(self.recovery_match_ratio, bool) or not isinstance(
-                self.recovery_match_ratio, Real
-            ):
+            if isinstance(self.recovery_match_ratio, bool) or not isinstance(self.recovery_match_ratio, Real):
                 raise TypeError("recovery_match_ratio must be a finite float or None")
             ratio = float(self.recovery_match_ratio)
             if not math.isfinite(ratio) or not 0.0 <= ratio <= 1.0:
@@ -245,54 +241,26 @@ class RunStatus:
                 f"stop_category {self.stop_category.value!r} does not match "
                 f"stop_reason {self.stop_reason.value!r}"
             )
-        if (
-            self.execution_status is ExecutionStatus.BLOCKED_BEFORE_RUN
-            and self.stop_category is not StopCategory.BLOCKED_BEFORE_RUN
-        ):
-            raise ValueError(
-                "blocked_before_run execution requires blocked_before_run stop category"
-            )
-        if (
-            self.execution_status is ExecutionStatus.ERROR
-            and self.stop_category is not StopCategory.ERROR
-        ):
+        if self.execution_status is ExecutionStatus.BLOCKED_BEFORE_RUN and self.stop_category is not StopCategory.BLOCKED_BEFORE_RUN:
+            raise ValueError("blocked_before_run execution requires blocked_before_run stop category")
+        if self.execution_status is ExecutionStatus.ERROR and self.stop_category is not StopCategory.ERROR:
             raise ValueError("error execution requires error stop category")
-        if (
-            self.execution_status is ExecutionStatus.MANUAL_STOP
-            and self.stop_category is not StopCategory.MANUAL
-        ):
+        if self.execution_status is ExecutionStatus.MANUAL_STOP and self.stop_category is not StopCategory.MANUAL:
             raise ValueError("manual_stop execution requires manual stop category")
-        if (
-            self.execution_status is ExecutionStatus.NOT_STARTED
-            and self.stop_category is not StopCategory.NOT_STARTED
-        ):
+        if self.execution_status is ExecutionStatus.NOT_STARTED and self.stop_category is not StopCategory.NOT_STARTED:
             raise ValueError("not_started execution requires not_started stop category")
 
         if self.recovery_status is RecoveryStatus.NOT_ASSESSED:
             if ratio is not None or self.recovery_basis is not None:
-                raise ValueError(
-                    "not_assessed recovery must not carry match ratio or basis"
-                )
+                raise ValueError("not_assessed recovery must not carry match ratio or basis")
         else:
             if not self.recovery_basis:
                 raise ValueError("assessed recovery requires recovery_basis")
-            if (
-                self.recovery_status is RecoveryStatus.EXACT
-                and ratio is not None
-                and ratio != 1.0
-            ):
+            if self.recovery_status is RecoveryStatus.EXACT and ratio is not None and ratio != 1.0:
                 raise ValueError("exact recovery match ratio must be 1.0 when supplied")
-            if (
-                self.recovery_status is RecoveryStatus.PARTIAL
-                and ratio is not None
-                and not 0.0 < ratio < 1.0
-            ):
+            if self.recovery_status is RecoveryStatus.PARTIAL and ratio is not None and not 0.0 < ratio < 1.0:
                 raise ValueError("partial recovery match ratio must be between 0 and 1")
-            if (
-                self.recovery_status is RecoveryStatus.NOT_RECOVERED
-                and ratio is not None
-                and ratio != 0.0
-            ):
+            if self.recovery_status is RecoveryStatus.NOT_RECOVERED and ratio is not None and ratio != 0.0:
                 raise ValueError("not_recovered match ratio must be 0.0 when supplied")
 
     @property
@@ -330,19 +298,11 @@ def canonical_stop_reason_for_legacy(reason: str | None) -> StopReason:
     # success. Producers changed by A4 must emit a precise reason instead.
     if value in {KnownStopReason.DONE.value, KnownStopReason.SUCCESS.value}:
         return StopReason.UNKNOWN_RUNTIME_REASON
-    if value in {
-        KnownStopReason.TARGET.value,
-        KnownStopReason.TARGET_SCORE.value,
-        KnownStopReason.STOP_SCORE.value,
-    }:
+    if value in {KnownStopReason.TARGET.value, KnownStopReason.TARGET_SCORE.value, KnownStopReason.STOP_SCORE.value}:
         return StopReason.TARGET_SCORE_REACHED
     if value == KnownStopReason.TEST_KEY.value:
         return StopReason.ORACLE_TEST_KEY_USED
-    if value in {
-        KnownStopReason.EVAL_BUDGET.value,
-        KnownStopReason.MAX_EVALS.value,
-        KnownStopReason.MAX_EVAL.value,
-    }:
+    if value in {KnownStopReason.EVAL_BUDGET.value, KnownStopReason.MAX_EVALS.value, KnownStopReason.MAX_EVAL.value}:
         return StopReason.MAX_EVALUATIONS_REACHED
     if value in {KnownStopReason.TIME_BUDGET.value, KnownStopReason.MAX_TIME.value}:
         return StopReason.MAX_TIME_REACHED
@@ -407,15 +367,9 @@ def build_run_status(
         raise TypeError("execution_status must be ExecutionStatus")
 
     canonical = canonical_stop_reason_for_legacy(runtime_reason)
-    if (
-        execution_status is ExecutionStatus.COMPLETED
-        and canonical is StopReason.NOT_STARTED
-    ):
+    if execution_status is ExecutionStatus.COMPLETED and canonical is StopReason.NOT_STARTED:
         canonical = StopReason.UNKNOWN_RUNTIME_REASON
-    elif (
-        execution_status is ExecutionStatus.BLOCKED_BEFORE_RUN
-        and _CANONICAL_CATEGORY[canonical] is not StopCategory.BLOCKED_BEFORE_RUN
-    ):
+    elif execution_status is ExecutionStatus.BLOCKED_BEFORE_RUN and _CANONICAL_CATEGORY[canonical] is not StopCategory.BLOCKED_BEFORE_RUN:
         canonical = StopReason.CONFIG_INVALID
     elif execution_status is ExecutionStatus.ERROR:
         canonical = StopReason.UNEXPECTED_EXCEPTION
@@ -487,11 +441,8 @@ def stop_reason_details_from_solution(solution: Any) -> dict[str, Any]:
         StopReasonDetailKey.STOP_CATEGORY.value: category.value,
         StopReasonDetailKey.STOP_REASON.value: reason,
         StopReasonDetailKey.STOP_DETAIL.value: None if detail is None else str(detail),
-        StopReasonDetailKey.BLOCKED_BEFORE_RUN.value: category
-        is StopCategory.BLOCKED_BEFORE_RUN,
-        StopReasonDetailKey.ERROR_TYPE.value: None
-        if error_type is None
-        else str(error_type),
+        StopReasonDetailKey.BLOCKED_BEFORE_RUN.value: category is StopCategory.BLOCKED_BEFORE_RUN,
+        StopReasonDetailKey.ERROR_TYPE.value: None if error_type is None else str(error_type),
     }
 
 

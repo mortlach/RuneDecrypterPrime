@@ -70,17 +70,10 @@ def test_tutorial_report_builds_json_safe_payload_from_solution_and_solver_repor
 
 
 def test_tutorial_report_renderer_is_deterministic_and_includes_core_sections() -> None:
-    report = build_tutorial_run_report(
-        title="demo",
-        cipher="vigenere",
-        solution=_solution(),
-        match_ok=True,
-        key_idx=[3, 1, 4],
-        pt_idx_ref=[1, 2, 3, 4],
-    )
+    report = build_tutorial_run_report(title='demo', cipher='vigenere', solution=_solution(), match_ok=True, key_idx=[3, 1, 4], pt_idx_ref=[1, 2, 3, 4])
     lines = render_tutorial_run_report(report)
-    assert lines[0] == "─" * 72
-    assert any(("RDP tutorial report · demo" in line for line in lines))
-    assert any(("schema" in line and SCHEMA in line for line in lines))
-    assert any(("cipher" in line and "vigenere" in line for line in lines))
-    assert any(("report" in line for line in lines))
+    assert lines[0] == '─' * 72
+    assert any(('RDP tutorial report · demo' in line for line in lines))
+    assert any(('schema' in line and SCHEMA in line for line in lines))
+    assert any(('cipher' in line and 'vigenere' in line for line in lines))
+    assert any(('report' in line for line in lines))

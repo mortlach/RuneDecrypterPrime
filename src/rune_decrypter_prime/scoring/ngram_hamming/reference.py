@@ -102,9 +102,7 @@ def _parse_token(value: object, *, field_name: str) -> int:
     return token
 
 
-def parse_flat_token_ids(
-    value: str | Sequence[object], *, field_name: str = "rune_token_ids"
-) -> tuple[int, ...]:
+def parse_flat_token_ids(value: str | Sequence[object], *, field_name: str = "rune_token_ids") -> tuple[int, ...]:
     raw = parse_json_list(value, field_name)
     out = tuple(_parse_token(item, field_name=field_name) for item in raw)
     if not out:
@@ -112,9 +110,7 @@ def parse_flat_token_ids(
     return out
 
 
-def parse_positive_int_ids(
-    value: str | Sequence[object], *, field_name: str
-) -> tuple[int, ...]:
+def parse_positive_int_ids(value: str | Sequence[object], *, field_name: str) -> tuple[int, ...]:
     raw = parse_json_list(value, field_name)
     out: list[int] = []
     for item in raw:
@@ -129,17 +125,13 @@ def parse_positive_int_ids(
 
 
 def validate_candidate_tokens(tokens: Sequence[int]) -> tuple[int, ...]:
-    parsed = tuple(
-        _parse_token(token, field_name="candidate_tokens") for token in tokens
-    )
+    parsed = tuple(_parse_token(token, field_name="candidate_tokens") for token in tokens)
     if not parsed:
         raise ValueError("candidate_tokens is empty")
     return parsed
 
 
-def parse_word_token_ids(
-    value: str | Sequence[object], *, field_name: str = "word_token_ids"
-) -> CanonicalWordTokens:
+def parse_word_token_ids(value: str | Sequence[object], *, field_name: str = "word_token_ids") -> CanonicalWordTokens:
     raw = parse_json_list(value, field_name)
     words: list[tuple[int, ...]] = []
     for word in raw:
@@ -158,14 +150,10 @@ def flatten_word_tokens(word_token_ids: CanonicalWordTokens) -> tuple[int, ...]:
     return tuple(token for word in word_token_ids for token in word)
 
 
-def phrase_entry_from_asset_row(
-    row: Mapping[str, object], *, phrase_id: str | None = None
-) -> PhraseEntry:
+def phrase_entry_from_asset_row(row: Mapping[str, object], *, phrase_id: str | None = None) -> PhraseEntry:
     word_token_ids = parse_word_token_ids(row.get("word_token_ids", ""))
     rune_token_ids = parse_flat_token_ids(row.get("rune_token_ids", ""))
-    rune_lengths = parse_positive_int_ids(
-        row.get("rune_lengths", ""), field_name="rune_lengths"
-    )
+    rune_lengths = parse_positive_int_ids(row.get("rune_lengths", ""), field_name="rune_lengths")
     if flatten_word_tokens(word_token_ids) != rune_token_ids:
         raise ValueError("flatten(word_token_ids) != rune_token_ids")
     if tuple(len(word) for word in word_token_ids) != rune_lengths:
@@ -210,9 +198,7 @@ def profile_allows_entry(entry: PhraseEntry, profile: PhraseProfile) -> bool:
     )
 
 
-def phrase_could_fit_at_start(
-    tokens: Sequence[int], start: int, entry: PhraseEntry, profile: PhraseProfile
-) -> bool:
+def phrase_could_fit_at_start(tokens: Sequence[int], start: int, entry: PhraseEntry, profile: PhraseProfile) -> bool:
     if not profile_allows_entry(entry, profile):
         return False
     return start + entry.phrase_token_length <= len(tokens)
@@ -244,13 +230,8 @@ def verify_phrase_at_start(
     total_hd = sum(word_hds)
     if total_hd > profile.max_total_phrase_hd:
         return None
-    normalised = (
-        total_hd / entry.phrase_token_length if entry.phrase_token_length else 0.0
-    )
-    if (
-        profile.normalised_hd_ceiling is not None
-        and normalised > profile.normalised_hd_ceiling
-    ):
+    normalised = total_hd / entry.phrase_token_length if entry.phrase_token_length else 0.0
+    if profile.normalised_hd_ceiling is not None and normalised > profile.normalised_hd_ceiling:
         return None
     return PhraseHit(
         candidate_id=candidate_id,
@@ -285,20 +266,14 @@ def scan_chunk_reference(
     debug_example_limit: int = 0,
 ) -> ReferenceScanResult:
     tokens = validate_candidate_tokens(tokens)
-    entries = tuple(
-        entry for entry in phrase_entries if profile_allows_entry(entry, profile)
-    )
+    entries = tuple(entry for entry in phrase_entries if profile_allows_entry(entry, profile))
     start_offsets_considered = len(tokens)
     opportunity_offsets: set[int] = set()
     hits: list[PhraseHit] = []
     attempts = 0
     passes = 0
     for start in range(len(tokens)):
-        entries_that_fit = [
-            entry
-            for entry in entries
-            if phrase_could_fit_at_start(tokens, start, entry, profile)
-        ]
+        entries_that_fit = [entry for entry in entries if phrase_could_fit_at_start(tokens, start, entry, profile)]
         if entries_that_fit:
             opportunity_offsets.add(start)
         for entry in entries_that_fit:
@@ -326,11 +301,7 @@ def scan_chunk_reference(
         phrase_verification_passes=passes,
         opportunity_count=opportunity_count,
         positive_start_offset_count=len(positive_offsets),
-        phrase_hits_per_opportunity=(
-            len(hits) / opportunity_count if opportunity_count else 0.0
-        ),
-        positive_start_offset_fraction=(
-            len(positive_offsets) / opportunity_count if opportunity_count else 0.0
-        ),
+        phrase_hits_per_opportunity=(len(hits) / opportunity_count if opportunity_count else 0.0),
+        positive_start_offset_fraction=(len(positive_offsets) / opportunity_count if opportunity_count else 0.0),
         debug_examples=tuple(hits[: max(0, int(debug_example_limit))]),
     )

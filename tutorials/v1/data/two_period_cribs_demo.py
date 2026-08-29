@@ -78,7 +78,9 @@ def build_demo_fixture(
     )
     wli = tuple(
         (int(offset), int(length))
-        for offset, length in word_breaks1[sample_start : sample_start + TEXT_LENGTH]
+        for offset, length in word_breaks1[
+            sample_start : sample_start + TEXT_LENGTH
+        ]
     )
     reference_key = np.asarray(
         [
@@ -104,7 +106,9 @@ def build_demo_fixture(
         plaintext=plaintext,
         key=reference_key,
         interrupt_idx=(
-            None if not interruptors else np.asarray(tuple(interruptors), dtype=np.intp)
+            None
+            if not interruptors
+            else np.asarray(tuple(interruptors), dtype=np.intp)
         ),
     )
     ciphertext = np.asarray(encrypted, dtype=np.uint8)

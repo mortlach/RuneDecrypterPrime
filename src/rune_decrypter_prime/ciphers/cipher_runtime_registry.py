@@ -16,9 +16,7 @@ CipherRuntimeConstructor = Callable[[Any], Any]
 _REGISTRY: dict[str, CipherRuntimeConstructor] = {}
 
 
-def register_cipher(
-    identity: str,
-) -> Callable[[CipherRuntimeConstructor], CipherRuntimeConstructor]:
+def register_cipher(identity: str) -> Callable[[CipherRuntimeConstructor], CipherRuntimeConstructor]:
     if not isinstance(identity, str) or not identity:
         raise CipherRegistrationError(
             "cipher runtime identity must be a non-empty string",

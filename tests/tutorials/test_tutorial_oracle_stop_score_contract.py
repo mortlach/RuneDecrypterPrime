@@ -4,16 +4,14 @@ import pytest
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.utils import tutorial_utils
-
 pytestmark = pytest.mark.tier_a
 
-
 class _FakeScorer:
+
     def score(self, plaintext, wli) -> float:
         assert list(plaintext) == [1, 2, 3]
         assert wli == [(0, 3), (1, 3), (2, 3)]
         return 0.75
-
 
 def test_tutorial_score_plaintext_passes_typed_config_objects(monkeypatch) -> None:
     calls = []
@@ -34,7 +32,6 @@ def test_tutorial_score_plaintext_passes_typed_config_objects(monkeypatch) -> No
     assert isinstance(calls[0][0], CipherConfig)
     assert isinstance(calls[0][1], ScoringConfig)
 
-
 def test_oracle_stop_score_reports_real_oracle_from_typed_helper(monkeypatch) -> None:
     monkeypatch.setattr(tutorial_utils, "score_plaintext", lambda *args, **kwargs: 0.82)
     result = tutorial_utils.oracle_stop_score(
@@ -42,8 +39,7 @@ def test_oracle_stop_score_reports_real_oracle_from_typed_helper(monkeypatch) ->
     )
     assert result.oracle_score == 0.82
     assert result.stop_score == 0.7999999999999999
-    assert result.reason == "oracle_ok"
-
+    assert result.reason == 'oracle_ok'
 
 def test_oracle_stop_score_only_falls_back_for_missing_assets(monkeypatch) -> None:
     def missing_asset(*args, **kwargs):
@@ -56,7 +52,6 @@ def test_oracle_stop_score_only_falls_back_for_missing_assets(monkeypatch) -> No
     assert result.oracle_score is None
     assert result.stop_score == 0.1
     assert result.reason == "oracle_failed: missing LM asset"
-
 
 def test_oracle_stop_score_does_not_hide_config_contract_errors(monkeypatch) -> None:
     def config_error(*args, **kwargs):

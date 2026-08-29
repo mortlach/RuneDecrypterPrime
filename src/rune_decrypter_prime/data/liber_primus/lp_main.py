@@ -36,9 +36,7 @@ MAIN_TRANSCRIPT_ASSET_ID = "liber_primus.main_transcript"
 
 
 def default_main_transcript_path() -> Path:
-    return resolve_assets_path(
-        str(_DEFAULT_LP_ASSETS_REL), _MAIN_TRANSCRIPT_NAME, start=Path(__file__)
-    )
+    return resolve_assets_path(str(_DEFAULT_LP_ASSETS_REL), _MAIN_TRANSCRIPT_NAME, start=Path(__file__))
 
 
 MAIN_TRANSCRIPT = default_main_transcript_path()
@@ -68,23 +66,15 @@ def _cached_main_transcript_asset_identity() -> tuple[str, str]:
         if isinstance(row, dict) and row.get("asset_id") == MAIN_TRANSCRIPT_ASSET_ID
     ]
     if len(matches) != 1:
-        raise RuntimeError(
-            _main_transcript_manifest_error("expected exactly one manifest row")
-        )
+        raise RuntimeError(_main_transcript_manifest_error("expected exactly one manifest row"))
     row = matches[0]
     asset_version = row.get("asset_version")
     if not isinstance(asset_version, str) or not asset_version:
-        raise RuntimeError(
-            _main_transcript_manifest_error("asset_version must be defined")
-        )
+        raise RuntimeError(_main_transcript_manifest_error("asset_version must be defined"))
     if row.get("version_scheme") != "sha256":
-        raise RuntimeError(
-            _main_transcript_manifest_error("version_scheme must be 'sha256'")
-        )
+        raise RuntimeError(_main_transcript_manifest_error("version_scheme must be 'sha256'"))
     if row.get("sha256") != asset_version:
-        raise RuntimeError(
-            _main_transcript_manifest_error("asset_version must match sha256")
-        )
+        raise RuntimeError(_main_transcript_manifest_error("asset_version must match sha256"))
     return MAIN_TRANSCRIPT_ASSET_ID, asset_version
 
 
@@ -150,9 +140,7 @@ class SectionMatch:
 
 
 def make_resolution_context(doc: LPTranscript) -> LPResolutionContext:
-    return LPResolutionContext(
-        total_pages=len(doc.pages), canon_page_count=CANON_PAGE_COUNT
-    )
+    return LPResolutionContext(total_pages=len(doc.pages), canon_page_count=CANON_PAGE_COUNT)
 
 
 def resolve_typed_page_ref(doc: LPTranscript, page_ref: LPPageRef) -> int:
@@ -179,7 +167,7 @@ def glyph_span_from_locator(doc: LPTranscript, locator: LPFragmentLocator):
     if line_end_ix < line_start_ix:
         raise ValueError("line_end must be >= line")
 
-    selected_lines = lines[line_start_ix : line_end_ix + 1]
+    selected_lines = lines[line_start_ix:line_end_ix + 1]
     if not selected_lines:
         return doc.glyph_span(0, 0)
 
@@ -192,16 +180,14 @@ def glyph_span_from_locator(doc: LPTranscript, locator: LPFragmentLocator):
         raise ValueError("word selectors are supported only for a single selected line")
 
     words = selected_lines[0].words()
-    word_start_ix = resolve_relative_index(
-        len(words), locator.word if locator.word is not None else 0
-    )
+    word_start_ix = resolve_relative_index(len(words), locator.word if locator.word is not None else 0)
     word_end_ix = word_start_ix
     if locator.word_end is not None:
         word_end_ix = resolve_relative_index(len(words), locator.word_end)
     if word_end_ix < word_start_ix:
         raise ValueError("word_end must be >= word")
 
-    selected_words = words[word_start_ix : word_end_ix + 1]
+    selected_words = words[word_start_ix:word_end_ix + 1]
     if not selected_words:
         return doc.glyph_span(0, 0)
     g_start = selected_words[0].rec.g_start
@@ -209,9 +195,7 @@ def glyph_span_from_locator(doc: LPTranscript, locator: LPFragmentLocator):
     return doc.glyph_span(g_start, g_end - g_start)
 
 
-def extract_locator_ct_wli(
-    doc: LPTranscript, locator: LPFragmentLocator
-) -> tuple[list[int], list[list[int]]]:
+def extract_locator_ct_wli(doc: LPTranscript, locator: LPFragmentLocator) -> tuple[list[int], list[list[int]]]:
     return glyph_span_from_locator(doc, locator).ct_wli()
 
 
@@ -219,14 +203,10 @@ def glyph_span_from_partition_entry(doc: LPTranscript, entry: LPPartitionEntry):
     start_canon, end_canon = entry.canon_page_range()
     start_page = page_view_from_ref(doc, LPPageRef.canon_page(start_canon))
     end_page = page_view_from_ref(doc, LPPageRef.canon_page(end_canon))
-    return doc.glyph_span(
-        start_page.rec.g_start, end_page.rec.g_end - start_page.rec.g_start
-    )
+    return doc.glyph_span(start_page.rec.g_start, end_page.rec.g_end - start_page.rec.g_start)
 
 
-def extract_partition_entry_ct_wli(
-    doc: LPTranscript, entry: LPPartitionEntry
-) -> tuple[list[int], list[list[int]]]:
+def extract_partition_entry_ct_wli(doc: LPTranscript, entry: LPPartitionEntry) -> tuple[list[int], list[list[int]]]:
     return glyph_span_from_partition_entry(doc, entry).ct_wli()
 
 
@@ -243,14 +223,10 @@ def route_locator_lines_text(
     lines = page_view.lines()
     if locator.line is not None:
         start_ix = resolve_relative_index(len(lines), locator.line)
-        end_ix = (
-            start_ix
-            if locator.line_end is None
-            else resolve_relative_index(len(lines), locator.line_end)
-        )
+        end_ix = start_ix if locator.line_end is None else resolve_relative_index(len(lines), locator.line_end)
         if end_ix < start_ix:
             raise ValueError("line_end must be >= line")
-        lines = lines[start_ix : end_ix + 1]
+        lines = lines[start_ix:end_ix + 1]
     line_text = [line.text(sep="") for line in lines]
     return read_lines(line_text, mode=mode, selector=selector)
 
@@ -274,9 +250,7 @@ def attach_default_page_catalogue(
 ) -> int:
     offset = len(doc.pages) - canon_count
     if offset < 0:
-        raise ValueError(
-            f"Transcript has {len(doc.pages)} pages; cannot map {canon_count} canon pages."
-        )
+        raise ValueError(f"Transcript has {len(doc.pages)} pages; cannot map {canon_count} canon pages.")
 
     mapping: dict[int, dict[str, str]] = {}
     for page_id in range(len(doc.pages)):
@@ -306,9 +280,7 @@ def match_lp_section(
     needle = list(section.ct_idx)
     start = _find_subsequence(index.rune_positions, needle)
     if start is None:
-        raise ValueError(
-            f"Unable to locate section {section.section_id} in transcript rune stream."
-        )
+        raise ValueError(f"Unable to locate section {section.section_id} in transcript rune stream.")
 
     end = start + len(needle)
     glyph_id_start = index.glyph_ids[start]
@@ -360,9 +332,7 @@ def extract_section_ct_wli(
     needle = list(section.ct_idx)
     start = _find_subsequence(index.rune_positions, needle)
     if start is None:
-        raise ValueError(
-            f"Unable to locate section {section.section_id} in transcript rune stream."
-        )
+        raise ValueError(f"Unable to locate section {section.section_id} in transcript rune stream.")
     end = start + len(needle)
     glyph_ids = index.glyph_ids[start:end]
     return _ct_wli_from_glyph_ids(doc, glyph_ids)
@@ -391,7 +361,7 @@ def _find_subsequence(
     for i in range(max_start + 1):
         if haystack[i] != first:
             continue
-        if haystack[i : i + len(needle)] == needle_tuple:
+        if haystack[i:i + len(needle)] == needle_tuple:
             return i
     return None
 

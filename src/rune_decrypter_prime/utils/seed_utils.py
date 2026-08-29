@@ -15,12 +15,8 @@ import itertools
 from rune_decrypter_prime.core.types import Direction
 from rune_decrypter_prime.keyops.permutation_ops import PermutationKeyOps
 from rune_decrypter_prime.utils.runeglish import Runeglish
-from rune_decrypter_prime.scoring.language_model.language_model_prime import (
-    LanguageModelPrime,
-)
-from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import (
-    PeriodicStructuredMatrixKeyOps,
-)
+from rune_decrypter_prime.scoring.language_model.language_model_prime import LanguageModelPrime
+from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
 
 CiphertextLike = Union[str, Sequence[int], np.ndarray]
 
@@ -36,9 +32,7 @@ def _to_ct_indices(ct: CiphertextLike) -> List[int]:
 def _lm_unigram_probs(A: int = 29, direction: str = "rtl") -> List[float]:
     """Estimate rune 1-gram probabilities via LanguageModelPrime; normalised."""
     L = 64
-    lm = LanguageModelPrime(
-        lm_root=None, smoothing=None, oov_policy=None, include_char=True
-    )
+    lm = LanguageModelPrime(lm_root=None, smoothing=None, oov_policy=None, include_char=True)
     pts = [[r] * L for r in range(A)]
     res = lm.score(pts, None, direction=direction, se="nose", n=1, model="char")
     raw = [math.exp(s.logprob_sum / L) for s in res]
@@ -65,23 +59,18 @@ def _normalize_perm(key: np.ndarray, A: int) -> np.ndarray:
     j = 0
     for i in range(A):
         if out[i] < 0:
-            out[i] = int(missing[j])
-            j += 1
+            out[i] = int(missing[j]); j += 1
     return out.astype(np.uint8)
 
 
-def rank_alignment_seed(
-    ct: CiphertextLike, *, A: int = 29, direction: str = "rtl"
-) -> List[int]:
+def rank_alignment_seed(ct: CiphertextLike, *, A: int = 29, direction: str = "rtl") -> List[int]:
     """
     Build a single ct→pt permutation seed by aligning ciphertext
     frequency ranks to language-model unigram ranks.
     """
     ct_idx = Runeglish.rune_to_pos(ct)
     counts = Counter(ct_idx)
-    ct_order = [s for s, _ in counts.most_common()] + [
-        i for i in range(A) if i not in counts
-    ]
+    ct_order = [s for s, _ in counts.most_common()] + [i for i in range(A) if i not in counts]
     probs = _lm_unigram_probs(A=A, direction=direction)
     pt_order = list(np.argsort(-np.asarray(probs)))
     base = np.arange(A, dtype=np.int64)
@@ -90,20 +79,13 @@ def rank_alignment_seed(
     return _normalize_perm(base, A).tolist()
 
 
-def mutate_seed_once(
-    seed_key: Sequence[int],
-    *,
-    swaps: int = 1,
-    rng: Optional[np.random.Generator] = None,
-) -> List[int]:
+def mutate_seed_once(seed_key: Sequence[int], *, swaps: int = 1, rng: Optional[np.random.Generator] = None) -> List[int]:
     """Randomly swap a few positions in the permutation (simple jitter).
 
     Requires an injected RNG so callers remain deterministic by design.
     """
     if rng is None:
-        raise ValueError(
-            "mutate_seed_once requires an injected RNG (no entropy fallback)."
-        )
+        raise ValueError("mutate_seed_once requires an injected RNG (no entropy fallback).")
     A = int(len(seed_key))
     out = np.asarray(seed_key, dtype=np.int64).copy()
     for _ in range(max(1, int(swaps))):
@@ -190,7 +172,7 @@ def make_periodic_seed_pool(
     rng = np.random.default_rng(seed)
     block_seeds: List[List[List[int]]] = []
     for r in range(int(period)):
-        phase_idx = ct_arr[r :: int(period)]
+        phase_idx = ct_arr[r::int(period)]
         phase_runes = Runeglish.to_rune(phase_idx.tolist(), wli=None)
         seeds = make_seeds_from_freq(
             phase_runes,
@@ -215,6 +197,7 @@ def make_periodic_seed_pool(
         pick = [_s[int(rng.integers(0, len(_s)))] for _s in block_seeds]
         keys.append(_concat(pick))
     return keys
+
 
 
 def make_true_periodic_columnar_key(
@@ -250,7 +233,6 @@ def make_true_periodic_columnar_key(
         columns=columns,
     )
     return keyops.random(rng)
-
 
 def make_periodic_columnar_seed_pool(
     ciphertext_idx: np.ndarray,
@@ -381,20 +363,14 @@ def make_periodic_columnar_seed_pool(
 
     if tail_sweep_score_fn is not None:
         if tail_sweep_top_k <= 0:
-            raise ValueError(
-                "tail_sweep_top_k must be >= 1 when tail_sweep_score_fn is provided"
-            )
+            raise ValueError("tail_sweep_top_k must be >= 1 when tail_sweep_score_fn is provided")
         if tail_sweep_block_samples <= 0:
-            raise ValueError(
-                "tail_sweep_block_samples must be >= 1 when tail_sweep_score_fn is provided"
-            )
+            raise ValueError("tail_sweep_block_samples must be >= 1 when tail_sweep_score_fn is provided")
 
         base_blocks_list: list[list[list[int]]] = []
         base_blocks_list.append([seeds_r[0] for seeds_r in block_seeds])
         for _ in range(max(0, tail_sweep_block_samples - 1)):
-            pick = [
-                seeds_r[int(rng.integers(0, len(seeds_r)))] for seeds_r in block_seeds
-            ]
+            pick = [seeds_r[int(rng.integers(0, len(seeds_r)))] for seeds_r in block_seeds]
             base_blocks_list.append(pick)
 
         base_subs = [_concat_blocks(blocks) for blocks in base_blocks_list]
@@ -458,9 +434,7 @@ def make_periodic_columnar_seed_pool(
         else:
             candidates = [
                 (tail, None)
-                for tail in tail_seeds[
-                    : max(1, min(block_refine_tail_top_k, len(tail_seeds)))
-                ]
+                for tail in tail_seeds[: max(1, min(block_refine_tail_top_k, len(tail_seeds)))]
             ]
 
         base_sub_default = _concat_blocks([seeds_r[0] for seeds_r in block_seeds])
@@ -531,9 +505,7 @@ def make_periodic_columnar_seed_pool(
 
     # Remaining keys: mix-and-match across blocks + tails
     while len(keys) < n_keys:
-        picked_blocks = [
-            seeds_r[int(rng.integers(0, len(seeds_r)))] for seeds_r in block_seeds
-        ]
+        picked_blocks = [seeds_r[int(rng.integers(0, len(seeds_r)))] for seeds_r in block_seeds]
         sub = _concat_blocks(picked_blocks)
         tail = tail_seeds[int(rng.integers(0, len(tail_seeds)))]
         _append_key(sub + tail)
@@ -541,9 +513,7 @@ def make_periodic_columnar_seed_pool(
     expected_len = period * alphabet_size + columns
     for k in keys:
         if len(k) != expected_len:
-            raise RuntimeError(
-                f"Seed key has length {len(k)} but expected {expected_len}"
-            )
+            raise RuntimeError(f"Seed key has length {len(k)} but expected {expected_len}")
 
     return keys
 
@@ -632,12 +602,8 @@ def make_periodic_columnar_seed_pool_lmprime_sa(
     # (fast, deterministic, no strings, no per-call LM building)
     # ------------------------------------------------------------
     # LM unigram order: most likely plaintext symbols first
-    probs = _lm_unigram_probs(
-        A=A, direction="rtl"
-    )  # LMPrime unigram probe already in this file
-    pt_order = np.argsort(-np.asarray(probs), kind="mergesort").astype(
-        np.int64, copy=False
-    )
+    probs = _lm_unigram_probs(A=A, direction="rtl")  # LMPrime unigram probe already in this file
+    pt_order = np.argsort(-np.asarray(probs), kind="mergesort").astype(np.int64, copy=False)
 
     block_seed_lists: list[list[np.ndarray]] = []
     for r in range(period):
@@ -718,11 +684,7 @@ def make_periodic_columnar_seed_pool_lmprime_sa(
             blocks[r, :] = seeds_r[pick]
 
         # pick initial tail
-        tail = (
-            tail_seeds[0].copy()
-            if s == 0
-            else tail_seeds[int(rng.integers(0, len(tail_seeds)))].copy()
-        )
+        tail = tail_seeds[0].copy() if s == 0 else tail_seeds[int(rng.integers(0, len(tail_seeds)))].copy()
 
         key_flat = _flat_from_parts(blocks, tail)
         cur = float(score_key_fn(key_flat))
@@ -791,9 +753,7 @@ def make_periodic_columnar_seed_pool_lmprime_sa(
                         key_flat[a], key_flat[b] = key_flat[b], key_flat[a]
                         blocks[r, c1], blocks[r, c2] = blocks[r, c2], blocks[r, c1]
 
-        scored_keys[best_flat.tobytes()] = max(
-            scored_keys.get(best_flat.tobytes(), float("-inf")), best
-        )
+        scored_keys[best_flat.tobytes()] = max(scored_keys.get(best_flat.tobytes(), float("-inf")), best)
 
     # Sort unique best keys from the SA starts.
     ranked = sorted(scored_keys.items(), key=lambda kv: kv[1], reverse=True)

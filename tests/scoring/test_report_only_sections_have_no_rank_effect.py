@@ -9,7 +9,6 @@ def _lane(report, name: ScoringLane):
     assert len(matches) == 1
     return matches[0]
 
-
 def test_word_ngram_report_only_section_has_no_production_rank_effect(tmp_path) -> None:
     cfg = api.ScoringConfig(
         word_ngram_judge_enabled=True,
@@ -23,9 +22,7 @@ def test_word_ngram_report_only_section_has_no_production_rank_effect(tmp_path) 
     assert lane.to_json_dict()["ranking_effect"] == "report_only"
 
 
-def test_experimental_ngram_lane_name_and_default_status_are_report_only_boundary() -> (
-    None
-):
+def test_experimental_ngram_lane_name_and_default_status_are_report_only_boundary() -> None:
     report = build_scorer_lane_report(api.ScoringConfig())
     lane = _lane(report, ScoringLane.NGRAM_HAMMING_EXPERIMENTAL_REPORT_ONLY)
     assert lane.ranking_effect is RankingEffect.REPORT_ONLY

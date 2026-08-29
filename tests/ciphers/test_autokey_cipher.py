@@ -3,18 +3,10 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 from rune_decrypter_prime.ciphers.autokey_cipher import AutokeyCipher
-
 pytestmark = pytest.mark.tier_a
 
-
-def _make_cfg(seed_len: int = 3, alphabet_size: int = 29):
-    return SimpleNamespace(
-        seed_length=seed_len,
-        alphabet_size=alphabet_size,
-        text_transposition="ltr",
-        key_transposition="ltr",
-    )
-
+def _make_cfg(seed_len: int=3, alphabet_size: int=29):
+    return SimpleNamespace(seed_length=seed_len, alphabet_size=alphabet_size, text_transposition='ltr', key_transposition='ltr')
 
 def test_autokey_roundtrip_encrypt_decrypt():
     cipher = AutokeyCipher(_make_cfg(seed_len=4))
@@ -23,7 +15,6 @@ def test_autokey_roundtrip_encrypt_decrypt():
     ciphertext = cipher.encrypt_single(plaintext=plaintext, key=seed)
     recovered = cipher.decrypt_single(ciphertext=ciphertext, key=seed)
     np.testing.assert_array_equal(recovered, plaintext)
-
 
 def test_autokey_batch_keys_supported():
     cipher = AutokeyCipher(_make_cfg(seed_len=3))
@@ -34,7 +25,6 @@ def test_autokey_batch_keys_supported():
     plains = cipher.decrypt(ciphertext=ciphertext[0], key=seed_bank)
     assert plains.shape == (seed_bank.shape[0], plaintext.size)
     np.testing.assert_array_equal(plains[0], plaintext)
-
 
 def test_autokey_rejects_wrong_seed_length():
     cipher = AutokeyCipher(_make_cfg(seed_len=3))

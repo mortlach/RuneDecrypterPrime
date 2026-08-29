@@ -7,12 +7,12 @@ from rune_decrypter_prime.core.config.scoring import (
 )
 from rune_decrypter_prime.scoring.base_scorer import BaseScorer
 
-
 class _ConcreteScorer(BaseScorer):
-    def score(self, plaintext: Iterable[int], wli_windows: Any | None = None) -> float:
+
+    def score(self, plaintext: Iterable[int], wli_windows: Any | None=None) -> float:
         return 0.0
 
-    def batch_score(self, pts: Sequence[Iterable[int]], wlis: Any | None = None):
+    def batch_score(self, pts: Sequence[Iterable[int]], wlis: Any | None=None):
         return [0.0 for _ in pts]
 
 

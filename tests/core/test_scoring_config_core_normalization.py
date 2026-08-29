@@ -39,5 +39,5 @@ def test_scoring_config_preserves_typed_public_enums() -> None:
 
 
 def test_scoring_config_rejects_unknown_core_enum_label() -> None:
-    with pytest.raises(ValueError, match="not a valid"):
-        api.advanced.SpanHammingCombineMode("quietly_guess")
+    with pytest.raises(ValueError, match='not a valid'):
+        api.advanced.SpanHammingCombineMode('quietly_guess')

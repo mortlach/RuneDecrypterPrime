@@ -33,20 +33,16 @@ class GASolver(SolverBase):
         # Defaults (kept conservative and deterministic)
         params.setdefault("pop_size", 64)
         params.setdefault("generations", 200)
-        params["generations"] = strict_positive_int(
-            params["generations"], "generations"
-        )
+        params["generations"] = strict_positive_int(params["generations"], "generations")
 
         # Selection / variation
         params.setdefault("tournament_k", 3)
-        params.setdefault("elite_frac", 0.05)  # keep top 5%
-        params.setdefault("cx_frac", 0.5)  # fraction of new children from crossover
-        params.setdefault(
-            "mut_prob", 0.15
-        )  # mutate probability per child (delegated to keyops)
+        params.setdefault("elite_frac", 0.05)   # keep top 5%
+        params.setdefault("cx_frac", 0.5)       # fraction of new children from crossover
+        params.setdefault("mut_prob", 0.15)     # mutate probability per child (delegated to keyops)
 
         # Plateau stopper (no-improve rounds)
-        params.setdefault("plateau_rounds", 0)  # 0 = off
+        params.setdefault("plateau_rounds", 0)    # 0 = off
 
         rng = kwargs.get("rng")
         if rng is None:
@@ -170,7 +166,7 @@ class GASolver(SolverBase):
         # Normalise counts
         elites = max(0, int(np.floor(elite_frac * P)))
         elites = min(elites, P - 2)  # leave room for variation
-        V = max(2, P - elites)  # children to generate each generation
+        V = max(2, P - elites)       # children to generate each generation
 
         self._start_span()
         total_evals = 0
@@ -181,34 +177,20 @@ class GASolver(SolverBase):
             if self.seed_keys is not None and len(self.seed_keys) > 0:
                 base = np.ascontiguousarray(self.seed_keys, dtype=KEY_DTYPE)
                 if base.shape[0] < P:
-                    extra = (
-                        self.keyops.make_population(P - base.shape[0], self.rng)
-                        if "make_population" in self.keyops.caps.ops
-                        else np.vstack(
-                            [
-                                self.keyops.random(self.rng)
-                                for _ in range(P - base.shape[0])
-                            ]
-                        ).astype(KEY_DTYPE)
-                    )
-                    pop = np.ascontiguousarray(
-                        np.vstack([base, extra]), dtype=KEY_DTYPE
-                    )
+                    extra = (self.keyops.make_population(P - base.shape[0], self.rng)
+                             if "make_population" in self.keyops.caps.ops
+                             else np.vstack([self.keyops.random(self.rng) for _ in range(P - base.shape[0])]).astype(KEY_DTYPE))
+                    pop = np.ascontiguousarray(np.vstack([base, extra]), dtype=KEY_DTYPE)
                 else:
                     pop = np.ascontiguousarray(base[:P], dtype=KEY_DTYPE)
                 seed_rows = min(base.shape[0], P)
                 seed_mask[:seed_rows] = True
             else:
-                pop = (
-                    self.keyops.make_population(P, self.rng)
-                    if "make_population" in self.keyops.caps.ops
-                    else np.vstack(
-                        [self.keyops.random(self.rng) for _ in range(P)]
-                    ).astype(KEY_DTYPE)
-                )
+                pop = (self.keyops.make_population(P, self.rng)
+                       if "make_population" in self.keyops.caps.ops
+                       else np.vstack([self.keyops.random(self.rng) for _ in range(P)]).astype(KEY_DTYPE))
 
-            scores = self._score_batch(pop)
-            total_evals += int(pop.shape[0])
+            scores = self._score_batch(pop); total_evals += int(pop.shape[0])
             if seed_mask.any():
                 try:
                     seed_scores = scores[seed_mask]
@@ -230,24 +212,19 @@ class GASolver(SolverBase):
             best_key, best_score = pop[0].copy(), float(scores[0])
 
             # Set up plateau tracking
-            self._early_stop_reset(
-                initial_best=best_score, plateau_override=plateau_rounds
-            )
+            self._early_stop_reset(initial_best=best_score,
+                                   plateau_override=plateau_rounds)
 
             self._maybe_update_hamming_progress(0.0)
             for gen in range(1, G + 1):
                 self._maybe_update_hamming_progress(gen / float(G))
                 # Elitism
-                elites_idx = (
-                    np.arange(elites) if elites > 0 else np.empty((0,), dtype=np.int64)
-                )
+                elites_idx = np.arange(elites) if elites > 0 else np.empty((0,), dtype=np.int64)
                 elite_keys = pop[elites_idx] if elites > 0 else pop[:0]
 
                 # Parents via tournament
                 parents_needed = max(2, V)  # at least 2 to recombine
-                parent_idx = self._select_tournament(
-                    scores, k=k_tourn, n=parents_needed
-                )
+                parent_idx = self._select_tournament(scores, k=k_tourn, n=parents_needed)
                 parents = pop[parent_idx]
 
                 # Variation: crossover then mutation
@@ -260,30 +237,21 @@ class GASolver(SolverBase):
                     children.append(kids_cx)
                 if n_mut_only > 0:
                     # pick random parents then mutate
-                    base_mut = parents[
-                        self.rng.integers(0, parents.shape[0], size=n_mut_only)
-                    ]
+                    base_mut = parents[self.rng.integers(0, parents.shape[0], size=n_mut_only)]
                     children.append(base_mut)
 
                 if children:
-                    children = np.ascontiguousarray(
-                        np.vstack(children), dtype=KEY_DTYPE
-                    )
+                    children = np.ascontiguousarray(np.vstack(children), dtype=KEY_DTYPE)
                     children = self._mutate_batch(children, mut_prob=mut_prob)
                 else:
                     # very small populations: force some mutation of elites
-                    base_mut = pop[: max(2, V)].copy()
-                    children = self._mutate_batch(
-                        base_mut, mut_prob=max(mut_prob, 0.25)
-                    )
+                    base_mut = pop[:max(2, V)].copy()
+                    children = self._mutate_batch(base_mut, mut_prob=max(mut_prob, 0.25))
 
                 # Evaluate children, merge, keep top-P
-                child_scores = self._score_batch(children)
-                total_evals += int(children.shape[0])
+                child_scores = self._score_batch(children); total_evals += int(children.shape[0])
 
-                all_keys = np.vstack([elite_keys, pop, children]).astype(
-                    KEY_DTYPE, copy=False
-                )
+                all_keys = np.vstack([elite_keys, pop, children]).astype(KEY_DTYPE, copy=False)
                 all_scores = np.concatenate([scores[:elites], scores, child_scores])
 
                 keep = self._stable_topk_indices(all_scores, int(P))
@@ -317,13 +285,11 @@ class GASolver(SolverBase):
             # Finalise
             if self._stop_reason is None:
                 self._stop_reason = "max_generations_reached"
-            self._end_span(
-                getattr(self, "_span", None),
-                generations=int(gen),
-                candidates=int(total_evals),
-                best_score=float(best_score),
-                reason=self._stop_reason,
-            )
+            self._end_span(getattr(self, "_span", None),
+                           generations=int(gen),
+                           candidates=int(total_evals),
+                           best_score=float(best_score),
+                           reason=self._stop_reason)
             return self._finalize_solution(best_key, float(best_score))
 
         except Exception as e:

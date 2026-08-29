@@ -27,7 +27,6 @@ class BeamSolver(SolverBase):
       - Optionally repeat from independent random populations.
       - Return the best-of-beam.
     """
-
     name = "beam"
 
     def __init__(self, problem, opt_cfg=None, **kwargs):
@@ -50,15 +49,13 @@ class BeamSolver(SolverBase):
         params.setdefault("restarts", 1)
 
         # Expansion controls
-        params.setdefault(
-            "expand.parent_mode", "top"
-        )  # "top" | "stochastic" | "diverse"
+        params.setdefault("expand.parent_mode", "top")         # "top" | "stochastic" | "diverse"
         params.setdefault("expand.parents_frac", 0.5)
         params.setdefault("expand.parents_cap", None)
         params.setdefault("expand.parent_temp", 1.0)
 
-        params.setdefault("expand.positions_per_round", 1)  # int | "all"
-        params.setdefault("expand.position_mode", "random")  # "random" | "cyclic"
+        params.setdefault("expand.positions_per_round", 1)     # int | "all"
+        params.setdefault("expand.position_mode", "random")    # "random" | "cyclic"
         params.setdefault("expand.position_cap", None)
 
         params.setdefault("expand.max_children_per_parent", None)  # None = exhaustive
@@ -68,9 +65,7 @@ class BeamSolver(SolverBase):
 
         rng = kwargs.get("rng", None)
         if rng is None:
-            raise TypeError(
-                "BeamSolver requires rng=np.random.Generator from the solver engine"
-            )
+            raise TypeError("BeamSolver requires rng=np.random.Generator from the solver engine")
 
         super().__init__(
             problem,
@@ -96,26 +91,15 @@ class BeamSolver(SolverBase):
                         pass
             return default
 
-        mode = pick(
-            "expand_mode", "expand.mode", "beam.expand_mode", default="sweep", cast=str
-        ).lower()
+        mode = pick("expand_mode", "expand.mode", "beam.expand_mode",
+                    default="sweep", cast=str).lower()
         if mode not in ("sweep", "sample", "exhaustive"):
             mode = "sweep"
 
-        top_parents_factor = pick(
-            "top_parents_factor",
-            "expand.top_parents_factor",
-            "beam.top_parents_factor",
-            default=0.5,
-            cast=float,
-        )
-        sample_per_parent = pick(
-            "sample_per_parent",
-            "expand.sample_per_parent",
-            "beam.sample_per_parent",
-            default=None,
-            cast=int,
-        )
+        top_parents_factor = pick("top_parents_factor", "expand.top_parents_factor", "beam.top_parents_factor",
+                                  default=0.5, cast=float)
+        sample_per_parent = pick("sample_per_parent", "expand.sample_per_parent", "beam.sample_per_parent",
+                                 default=None, cast=int)
 
         traits = getattr(self.keyops, "caps", None)
         traits = getattr(traits, "traits", {}) if traits else {}
@@ -124,9 +108,7 @@ class BeamSolver(SolverBase):
         return {
             "mode": mode,
             "top_parents_factor": float(top_parents_factor),
-            "sample_per_parent": None
-            if sample_per_parent is None
-            else int(sample_per_parent),
+            "sample_per_parent": None if sample_per_parent is None else int(sample_per_parent),
             "alphabet": A,
         }
 
@@ -157,19 +139,14 @@ class BeamSolver(SolverBase):
             if mode == "sweep":
                 pos = int((round_idx - 1) % K)  # 1-based round_idx; sweep 0..K-1
                 cands_per_parent = A if A > 0 else K
-                expanded_list = [
-                    self.keyops.expand_position(k, pos, self.rng) for k in parent_keys
-                ]
+                expanded_list = [self.keyops.expand_position(k, pos, self.rng) for k in parent_keys]
                 expanded = np.concatenate(expanded_list, axis=0)
 
             elif mode == "exhaustive":
                 per_parent = []
                 cands_per_parent = 0
                 for k in parent_keys:
-                    cols = [
-                        self.keyops.expand_position(k, pos, self.rng)
-                        for pos in range(K)
-                    ]
+                    cols = [self.keyops.expand_position(k, pos, self.rng) for pos in range(K)]
                     per_parent.append(np.concatenate(cols, axis=0))
                     cands_per_parent = per_parent[-1].shape[0]
                 expanded = np.concatenate(per_parent, axis=0)
@@ -183,9 +160,7 @@ class BeamSolver(SolverBase):
                 cands_per_parent = spp
                 parts = []
                 for k, pos in zip(parent_keys, pos_vec):
-                    full = self.keyops.expand_position(
-                        k, int(pos), self.rng
-                    )  # [A_or_K, K]
+                    full = self.keyops.expand_position(k, int(pos), self.rng)  # [A_or_K, K]
                     if full.shape[0] > spp:
                         sel = self.rng.choice(full.shape[0], size=spp, replace=False)
                         full = full[sel]
@@ -195,16 +170,12 @@ class BeamSolver(SolverBase):
         # Fallbacks if expand_position missing or produced empty
         if expanded is None or expanded.size == 0:
             if "batch_neighbors" in self.keyops.caps.ops:
-                neigh = [
-                    self.keyops.batch_neighbors(k, max(2, K), self.rng) for k in beam
-                ]
+                neigh = [self.keyops.batch_neighbors(k, max(2, K), self.rng) for k in beam]
                 expanded = np.concatenate(neigh, axis=0)
                 parents = int(beam.shape[0])
                 cands_per_parent = int(expanded.shape[0] // max(1, parents))
             else:
-                expanded = np.vstack(
-                    [self.keyops.mutate(k, self.rng) for k in beam]
-                ).astype(KEY_DTYPE)
+                expanded = np.vstack([self.keyops.mutate(k, self.rng) for k in beam]).astype(KEY_DTYPE)
                 parents = int(beam.shape[0])
                 cands_per_parent = 1
 
@@ -212,9 +183,7 @@ class BeamSolver(SolverBase):
         if attempted <= 0:
             # Hard safety: create at least one by mutating the best key
             k_best = beam[int(np.argmax(scores))]
-            expanded = (
-                self.keyops.mutate(k_best, self.rng).reshape(1, -1).astype(KEY_DTYPE)
-            )
+            expanded = self.keyops.mutate(k_best, self.rng).reshape(1, -1).astype(KEY_DTYPE)
             attempted = 1
             parents = 1
             cands_per_parent = 1
@@ -235,9 +204,7 @@ class BeamSolver(SolverBase):
         p_mode: str = str(self.get_param("expand.parent_mode", "random")).lower()
         parents_frac: float = float(self.get_param("expand.parents_frac", 0.5))
         parents_cap_raw = self.get_param("expand.parents_cap", None)
-        parents_cap: Optional[int] = (
-            None if parents_cap_raw in (None, 0) else int(parents_cap_raw)
-        )
+        parents_cap: Optional[int] = None if parents_cap_raw in (None, 0) else int(parents_cap_raw)
         parent_temp: float = float(self.get_param("expand.parent_temp", 1.0))
 
         pos_per_round_raw = self.get_param("expand.positions_per_round", 1)
@@ -246,9 +213,7 @@ class BeamSolver(SolverBase):
         pos_cap: Optional[int] = None if pos_cap_raw in (None, 0) else int(pos_cap_raw)
 
         m_children_raw = self.get_param("expand.max_children_per_parent", None)
-        max_children: Optional[int] = (
-            None if m_children_raw in (None, 0) else int(m_children_raw)
-        )
+        max_children: Optional[int] = None if m_children_raw in (None, 0) else int(m_children_raw)
 
         dedup_on: bool = bool(self.get_param("expand.dedup", True))
         plateau_rounds: int = int(self.get_param("plateau_rounds", 0))
@@ -276,7 +241,7 @@ class BeamSolver(SolverBase):
         self.params["expand.parent_mode"] = p_mode
         self.params["expand.parents"] = parents_k
         self.params["expand.parent_temp"] = parent_temp
-        self.params["expand.positions_per_round"] = "all" if pos_all else pos_per_round
+        self.params["expand.positions_per_round"] = ("all" if pos_all else pos_per_round)
         self.params["expand.position_mode"] = pos_mode
         self.params["expand.max_children_per_parent"] = max_children
         self.params["expand.dedup"] = dedup_on
@@ -320,34 +285,20 @@ class BeamSolver(SolverBase):
                     return np.ascontiguousarray(np.vstack(keep), dtype=KEY_DTYPE)
 
                 self._maybe_update_hamming_progress(0.0)
-                if (
-                    restart == 0
-                    and self.seed_keys is not None
-                    and len(self.seed_keys) > 0
-                ):
+                if restart == 0 and self.seed_keys is not None and len(self.seed_keys) > 0:
                     beam = np.ascontiguousarray(self.seed_keys, dtype=KEY_DTYPE)
                     if beam.shape[0] < W:
                         extra_n = W - beam.shape[0]
-                        extra = (
-                            self.keyops.make_population(extra_n, self.rng)
-                            if "make_population" in self.keyops.caps.ops
-                            else np.vstack(
-                                [self.keyops.random(self.rng) for _ in range(extra_n)]
-                            ).astype(KEY_DTYPE)
-                        )
-                        beam = np.ascontiguousarray(
-                            np.vstack([beam, extra]), dtype=KEY_DTYPE
-                        )
+                        extra = (self.keyops.make_population(extra_n, self.rng)
+                                 if "make_population" in self.keyops.caps.ops
+                                 else np.vstack([self.keyops.random(self.rng) for _ in range(extra_n)]).astype(KEY_DTYPE))
+                        beam = np.ascontiguousarray(np.vstack([beam, extra]), dtype=KEY_DTYPE)
                     else:
                         beam = np.ascontiguousarray(beam[:W], dtype=KEY_DTYPE)
                 else:
-                    beam = (
-                        self.keyops.make_population(W, self.rng)
-                        if "make_population" in self.keyops.caps.ops
-                        else np.vstack(
-                            [self.keyops.random(self.rng) for _ in range(W)]
-                        ).astype(KEY_DTYPE)
-                    )
+                    beam = (self.keyops.make_population(W, self.rng)
+                            if "make_population" in self.keyops.caps.ops
+                            else np.vstack([self.keyops.random(self.rng) for _ in range(W)]).astype(KEY_DTYPE))
 
                 scores = self._score_batch(beam)
                 candidates_seen += int(beam.shape[0])
@@ -359,9 +310,7 @@ class BeamSolver(SolverBase):
                 for r in range(1, rounds + 1):
                     completed_rounds += 1
                     self._maybe_update_hamming_progress(r / float(rounds))
-                    expanded, attempted, parents_used, cpp = self._expand_round_safe(
-                        beam, scores, r
-                    )
+                    expanded, attempted, parents_used, cpp = self._expand_round_safe(beam, scores, r)
                     if dedup_on:
                         expanded = _dedup_rows(expanded)
 
@@ -390,9 +339,7 @@ class BeamSolver(SolverBase):
                     )
 
                     round_best = float(scores[0])
-                    if self._early_stop_stop_score(
-                        round_best
-                    ) or self._early_stop_update(round_best, r):
+                    if self._early_stop_stop_score(round_best) or self._early_stop_update(round_best, r):
                         break
 
                 restart_best_idx = int(np.argmax(scores))
@@ -423,17 +370,11 @@ class BeamSolver(SolverBase):
 
             # Opportunistic: expose final beam keys for Hybrid GA seeding ([W,K] uint8).
             try:
-                if (
-                    isinstance(best_beam, np.ndarray)
-                    and best_beam.ndim == 2
-                    and best_beam.shape[1] == self.K
-                ):
+                if isinstance(best_beam, np.ndarray) and best_beam.ndim == 2 and best_beam.shape[1] == self.K:
                     meta = getattr(sol, "meta", None)
                     if isinstance(meta, dict):
                         beam_meta = meta.setdefault("beam", {})
-                        beam_meta["final_keys"] = best_beam.astype(
-                            KEY_DTYPE, copy=True
-                        ).tolist()
+                        beam_meta["final_keys"] = best_beam.astype(KEY_DTYPE, copy=True).tolist()
                         beam_meta["restarts"] = int(len(restart_scores))
                         beam_meta["selected_restart"] = int(selected_restart)
                         beam_meta["restart_scores"] = list(restart_scores)

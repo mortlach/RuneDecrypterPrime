@@ -109,9 +109,7 @@ def validate_ecdf_npz(
     try:
         arr = np.load(path, allow_pickle=True)
     except Exception as exc:
-        return ECDFValidationResult(
-            False, (f"failed to load npz: {exc}",), (), None, None
-        )
+        return ECDFValidationResult(False, (f"failed to load npz: {exc}",), (), None, None)
 
     # Required arrays
     if "grid" not in arr or "q" not in arr:
@@ -180,69 +178,28 @@ def validate_ecdf_npz(
                 errors.append(f"meta_json invalid JSON: {exc}")
             else:
                 # required keys
-                _append_missing(
-                    errors,
-                    "meta_json",
-                    [k for k in _REQUIRED_META_TOP if k not in meta],
-                )
+                _append_missing(errors, "meta_json", [k for k in _REQUIRED_META_TOP if k not in meta])
                 if isinstance(meta.get("window_def"), dict):
-                    _append_missing(
-                        errors,
-                        "window_def",
-                        [
-                            k
-                            for k in _REQUIRED_WINDOW_DEF
-                            if k not in meta["window_def"]
-                        ],
-                    )
+                    _append_missing(errors, "window_def", [k for k in _REQUIRED_WINDOW_DEF if k not in meta["window_def"]])
                 if isinstance(meta.get("smoothing"), dict):
-                    _append_missing(
-                        errors,
-                        "smoothing",
-                        [k for k in _REQUIRED_SMOOTHING if k not in meta["smoothing"]],
-                    )
+                    _append_missing(errors, "smoothing", [k for k in _REQUIRED_SMOOTHING if k not in meta["smoothing"]])
                 if isinstance(meta.get("mesh"), dict):
-                    _append_missing(
-                        errors,
-                        "mesh",
-                        [k for k in _REQUIRED_MESH if k not in meta["mesh"]],
-                    )
-                    if (
-                        meta["mesh"].get("kind") == "custom"
-                        and "custom_mesh_id" not in meta["mesh"]
-                    ):
-                        errors.append(
-                            "mesh.custom_mesh_id required when kind == 'custom'"
-                        )
+                    _append_missing(errors, "mesh", [k for k in _REQUIRED_MESH if k not in meta["mesh"]])
+                    if meta["mesh"].get("kind") == "custom" and "custom_mesh_id" not in meta["mesh"]:
+                        errors.append("mesh.custom_mesh_id required when kind == 'custom'")
                 if isinstance(meta.get("strict_increasing"), dict):
-                    _append_missing(
-                        errors,
-                        "strict_increasing",
-                        [
-                            k
-                            for k in _REQUIRED_STRICT
-                            if k not in meta["strict_increasing"]
-                        ],
-                    )
+                    _append_missing(errors, "strict_increasing", [k for k in _REQUIRED_STRICT if k not in meta["strict_increasing"]])
 
                 # value checks (best-effort)
-                if (
-                    model := meta.get("model")
-                ) is not None and model not in _ALLOW_MODEL:
+                if (model := meta.get("model")) is not None and model not in _ALLOW_MODEL:
                     errors.append(f"meta_json.model invalid: {model}")
-                if (
-                    direction := meta.get("direction")
-                ) is not None and direction not in _ALLOW_DIR:
+                if (direction := meta.get("direction")) is not None and direction not in _ALLOW_DIR:
                     errors.append(f"meta_json.direction invalid: {direction}")
-                if (
-                    se_mode := meta.get("se_mode")
-                ) is not None and se_mode not in _ALLOW_SE:
+                if (se_mode := meta.get("se_mode")) is not None and se_mode not in _ALLOW_SE:
                     errors.append(f"meta_json.se_mode invalid: {se_mode}")
                 if (stat := meta.get("stat")) is not None and stat not in _ALLOW_STAT:
                     errors.append(f"meta_json.stat invalid: {stat}")
-                if (
-                    oov := meta.get("oov_policy")
-                ) is not None and oov not in _ALLOW_OOV:
+                if (oov := meta.get("oov_policy")) is not None and oov not in _ALLOW_OOV:
                     errors.append(f"meta_json.oov_policy invalid: {oov}")
                 if isinstance(meta.get("smoothing"), dict):
                     kind = meta["smoothing"].get("kind")
@@ -255,16 +212,9 @@ def validate_ecdf_npz(
                 if isinstance(meta.get("strict_increasing"), dict):
                     method = meta["strict_increasing"].get("method")
                     if method is not None and method not in _ALLOW_STRICT_METHOD:
-                        errors.append(
-                            f"meta_json.strict_increasing.method invalid: {method}"
-                        )
+                        errors.append(f"meta_json.strict_increasing.method invalid: {method}")
 
-            if (
-                meta is not None
-                and meta_bytes is not None
-                and grid.dtype == np.float64
-                and q.dtype == np.float64
-            ):
+            if meta is not None and meta_bytes is not None and grid.dtype == np.float64 and q.dtype == np.float64:
                 try:
                     meta_hash = _hash_ecdf(meta_bytes, grid, q)
                 except Exception as exc:

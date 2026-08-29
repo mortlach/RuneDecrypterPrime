@@ -8,8 +8,8 @@ print(doc.summary())
 
 # By page / line / word
 p0 = doc.page(0)
-print(p0.text())  # whole page as lines
-print(p0.lines()[0].text())  # first line of the page
+print(p0.text())                  # whole page as lines
+print(p0.lines()[0].text())        # first line of the page
 
 # Absolute glyph indexing (counting backwards allowed)
 pos = doc.glyph_pos(1000)

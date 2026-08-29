@@ -20,13 +20,7 @@ from rune_decrypter_prime.core.component_contracts import (
 
 
 def _issue() -> CapabilityIssue:
-    return CapabilityIssue(
-        code="backend_unavailable",
-        message="test backend unavailable",
-        status=CapabilityStatus.UNAVAILABLE,
-        source="test",
-    )
-
+    return CapabilityIssue(code='backend_unavailable', message='test backend unavailable', status=CapabilityStatus.UNAVAILABLE, source='test')
 
 def test_report_only_failure_maps_to_report_only_and_does_not_block() -> None:
     lane = lane_failure_status(
@@ -46,7 +40,6 @@ def test_report_only_failure_maps_to_report_only_and_does_not_block() -> None:
     assert payload["fallback_policy"] == "report_only"
     json.dumps(payload)
 
-
 def test_explicit_reported_fallback_failure_does_not_block() -> None:
     lane = lane_failure_status(
         lane=ScoringLane.NGRAM_HAMMING_EXPERIMENTAL_REPORT_ONLY,
@@ -60,7 +53,6 @@ def test_explicit_reported_fallback_failure_does_not_block() -> None:
     raise_for_lane_status(lane)
     raise_if_requested_lane_blocked(ScorerCapabilityReport(lanes=(lane,)))
 
-
 def test_block_failure_blocks_and_raises_requested_lane_error() -> None:
     lane = lane_failure_status(
         lane=ScoringLane.HAMMING,
@@ -71,11 +63,10 @@ def test_block_failure_blocks_and_raises_requested_lane_error() -> None:
     )
     assert lane.effective_state is CapabilityEffectiveState.BLOCKED
     assert lane.is_blocking
-    with pytest.raises(RequestedLaneUnavailableError, match="hamming"):
+    with pytest.raises(RequestedLaneUnavailableError, match='hamming'):
         raise_for_lane_status(lane)
-    with pytest.raises(RequestedLaneUnavailableError, match="hamming"):
+    with pytest.raises(RequestedLaneUnavailableError, match='hamming'):
         raise_if_requested_lane_blocked(ScorerCapabilityReport(lanes=(lane,)))
-
 
 def test_disabled_not_requested_failure_is_inactive_and_non_blocking() -> None:
     lane = lane_failure_status(
@@ -91,7 +82,6 @@ def test_disabled_not_requested_failure_is_inactive_and_non_blocking() -> None:
     raise_for_lane_status(lane)
     raise_if_requested_lane_blocked(ScorerCapabilityReport(lanes=(lane,)))
 
-
 def test_disabled_requested_failure_blocks_instead_of_disappearing() -> None:
     lane = lane_failure_status(
         lane=ScoringLane.SPAN_HAMMING_CALIBRATED,
@@ -103,5 +93,5 @@ def test_disabled_requested_failure_blocks_instead_of_disappearing() -> None:
     )
     assert lane.effective_state is CapabilityEffectiveState.BLOCKED
     assert lane.is_blocking
-    with pytest.raises(RequestedLaneUnavailableError, match="span_hamming_calibrated"):
+    with pytest.raises(RequestedLaneUnavailableError, match='span_hamming_calibrated'):
         raise_if_requested_lane_blocked(ScorerCapabilityReport(lanes=(lane,)))

@@ -4,7 +4,6 @@ from rune_decrypter_prime.backends.xp import select_backend
 
 A = 29
 
-
 class BlockPermutationXP:
     """
     keys_u8: shape [B, 2K] flattened [perm|shifts].
@@ -13,11 +12,9 @@ class BlockPermutationXP:
       2) undo shifts column-wise
       3) undo permutation via invperm
     """
-
     def __init__(self, device: str | None = None):
         dev = (device or "np").lower()
-        if dev == "cuda":
-            dev = "torch"
+        if dev == "cuda": dev = "torch"
         self.dev, self.xp = select_backend(dev)
 
     def decrypt_batch(self, ct_u8, keys_u8):
@@ -43,9 +40,7 @@ class BlockPermutationXP:
             M = int(ct.shape[0]) // K
             blocks = ct.reshape(M, K)
             # undo shifts
-            tmp = xp.mod(
-                xp.astype(blocks, xp.int16) - xp.asarray(shifts, dtype=xp.int16), A
-            )
+            tmp = xp.mod(xp.astype(blocks, xp.int16) - xp.asarray(shifts, dtype=xp.int16), A)
             # undo permutation
             inv = np.argsort(perm).astype(np.int64)
             tmp = tmp[:, inv]

@@ -19,13 +19,14 @@ from rune_decrypter_prime.core.types import (
 )
 
 
+
+
 @dataclass(slots=True)
 class Solution:
     """Container for a solver’s best output.
     Required on construct: (key, plaintext, score).
     Engine populates the convenience + context fields before returning to API.
     """
-
     # Required
     key: Any
     plaintext: Any
@@ -36,7 +37,7 @@ class Solution:
     meta: Dict[str, Any] = field(default_factory=dict)
 
     # Convenience (safe views for tutorials/UIs)
-    plaintext_str: str = ""  # always a real str by the time API returns
+    plaintext_str: str = ""                 # always a real str by the time API returns
     plaintext_idx: List[int] = field(default_factory=list)
     plaintext_rune: str = ""
     plaintext_rune_nospace: str = ""
@@ -52,19 +53,17 @@ class Solution:
     alphabet_size: int = 29
 
     # -------- v1 standardised context (add-only, optional) --------
-    device: Device = Device.CPU  # v1 surface
+    device: Device = Device.CPU             # v1 surface
     cipher_name: str = ""
     solver_name: Optional[SolverName] = None
     scorer_impl: Optional[ScorerImpl] = None
     scorer_n_char: int = 0
     scorer_n_wli: int = 0
     direction: Direction = Direction.LTR
-    pipeline: Dict[str, Any] = field(
-        default_factory=lambda: {
-            "text_encoding_direction": Direction.LTR,
-            "input_permutation": {"kind": "none", "length": 0, "hash": ""},
-        }
-    )
+    pipeline: Dict[str, Any] = field(default_factory=lambda: {
+        "text_encoding_direction": Direction.LTR,
+        "input_permutation": {"kind": "none", "length": 0, "hash": ""},
+    })
 
     # Optimisation sense
     maximize: bool = True

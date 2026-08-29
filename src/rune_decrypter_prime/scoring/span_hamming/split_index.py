@@ -94,9 +94,7 @@ class LengthSplitIndex:
     ) -> Tuple[Tuple[int, ...], int]:
         ids = self._candidate_ids_set(window)
         all_count = len(ids)
-        return self._finalize_candidate_ids(
-            ids, max_candidates=max_candidates
-        ), all_count
+        return self._finalize_candidate_ids(ids, max_candidates=max_candidates), all_count
 
     def _candidate_ids_set(self, window: Sequence[int]) -> set[int]:
         if self.n_parts == 0:
@@ -132,9 +130,7 @@ class LengthSplitIndex:
         return candidate_ids
 
     @staticmethod
-    def _finalize_candidate_ids(
-        candidate_ids: set[int], *, max_candidates: int | None
-    ) -> Tuple[int, ...]:
+    def _finalize_candidate_ids(candidate_ids: set[int], *, max_candidates: int | None) -> Tuple[int, ...]:
         if max_candidates is None:
             return tuple(sorted(candidate_ids))
 

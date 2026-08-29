@@ -43,17 +43,13 @@ AGREEMENT_VERSION = ArtifactAgreementVersion.V1.value
 ALLOWED_CLASSIFICATIONS = frozenset(item.value for item in ArtifactClassification)
 
 
-def ensure_artifact_classification(
-    value: ArtifactClassification | str,
-) -> ArtifactClassification:
+def ensure_artifact_classification(value: ArtifactClassification | str) -> ArtifactClassification:
     if isinstance(value, ArtifactClassification):
         return value
     try:
         return ArtifactClassification(str(value))
     except ValueError as exc:
-        raise ValueError(
-            f"artifact classification must be one of {sorted(ALLOWED_CLASSIFICATIONS)}"
-        ) from exc
+        raise ValueError(f"artifact classification must be one of {sorted(ALLOWED_CLASSIFICATIONS)}") from exc
 
 
 def ensure_artifact_kind(value: ArtifactKind | str) -> ArtifactKind:
@@ -66,18 +62,14 @@ def ensure_artifact_kind(value: ArtifactKind | str) -> ArtifactKind:
         raise ValueError(f"artifact_kind must be one of {allowed}") from exc
 
 
-def ensure_known_artifact_relpath(
-    value: KnownArtifactRelpath | str,
-) -> KnownArtifactRelpath:
+def ensure_known_artifact_relpath(value: KnownArtifactRelpath | str) -> KnownArtifactRelpath:
     if isinstance(value, KnownArtifactRelpath):
         return value
     try:
         return KnownArtifactRelpath(str(value))
     except ValueError as exc:
         allowed = sorted(item.value for item in KnownArtifactRelpath)
-        raise ValueError(
-            f"relpath must be one of the V1 known artifact paths: {allowed}"
-        ) from exc
+        raise ValueError(f"relpath must be one of the V1 known artifact paths: {allowed}") from exc
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,12 +93,8 @@ class ArtifactAgreementRow:
     def __post_init__(self) -> None:
         relpath = ensure_known_artifact_relpath(self.relpath)
         artifact_kind = ensure_artifact_kind(self.artifact_kind)
-        portable_classification = ensure_artifact_classification(
-            self.portable_classification
-        )
-        export_classification = ensure_artifact_classification(
-            self.export_classification
-        )
+        portable_classification = ensure_artifact_classification(self.portable_classification)
+        export_classification = ensure_artifact_classification(self.export_classification)
 
         validate_artifact_relpath(relpath.value)
         object.__setattr__(self, "relpath", relpath)
@@ -217,9 +205,7 @@ def assert_manifest_row_allowed_v1(
     rows = agreement_manifest_row_by_kind_v1()
     row = rows.get(artifact_kind)
     if row is None:
-        raise ValueError(
-            f"manifest artifact kind is not in the V1 agreement: {artifact_kind}"
-        )
+        raise ValueError(f"manifest artifact kind is not in the V1 agreement: {artifact_kind}")
     if relpath != row.relpath.value:
         raise ValueError(
             f"manifest relpath for {artifact_kind} must be {row.relpath.value!r}, got {relpath!r}"
@@ -241,18 +227,12 @@ def validate_artifact_agreement_rows(rows: Iterable[ArtifactAgreementRow]) -> No
     artifact_kinds: set[ArtifactKind] = set()
     for row in rows:
         if not isinstance(row, ArtifactAgreementRow):
-            raise TypeError(
-                f"agreement rows must be ArtifactAgreementRow, got {type(row).__name__}"
-            )
+            raise TypeError(f"agreement rows must be ArtifactAgreementRow, got {type(row).__name__}")
         if row.relpath in relpaths:
-            raise ValueError(
-                f"duplicate artifact agreement relpath: {row.relpath.value}"
-            )
+            raise ValueError(f"duplicate artifact agreement relpath: {row.relpath.value}")
         relpaths.add(row.relpath)
         if row.artifact_kind in artifact_kinds:
-            raise ValueError(
-                f"duplicate artifact agreement artifact_kind: {row.artifact_kind.value}"
-            )
+            raise ValueError(f"duplicate artifact agreement artifact_kind: {row.artifact_kind.value}")
         artifact_kinds.add(row.artifact_kind)
 
 
@@ -281,15 +261,11 @@ def validate_artifact_relpath(relpath: str) -> None:
         raise ValueError("relpath must be run-relative and stay under run_dir")
 
 
-def validate_classification(
-    value: ArtifactClassification | str, field_name: str
-) -> None:
+def validate_classification(value: ArtifactClassification | str, field_name: str) -> None:
     try:
         ensure_artifact_classification(value)
     except ValueError as exc:
-        raise ValueError(
-            f"{field_name} must be one of {sorted(ALLOWED_CLASSIFICATIONS)}"
-        ) from exc
+        raise ValueError(f"{field_name} must be one of {sorted(ALLOWED_CLASSIFICATIONS)}") from exc
 
 
 __all__ = [

@@ -11,7 +11,6 @@ from rune_decrypter_prime.io.rng import RNGController
 from .base_keyops import KeyOpBase, KeyCaps
 from .registry import register_keyop
 
-
 # --- Helper RNG adapters (support both Generator and RandomState gracefully) --
 def _rng_integers(rng, low: int, high: int, size=None):
     if hasattr(rng, "integers"):  # Generator
@@ -19,15 +18,11 @@ def _rng_integers(rng, low: int, high: int, size=None):
     # RandomState fallback
     return rng.randint(low, high, size=size)  # high is exclusive in RandomState
 
-
 def _rng_choice(rng, a: int, size=None):
     if hasattr(rng, "choice"):
         return rng.choice(a, size=size, replace=True)
     raise TypeError("RNG must support .choice (Generator/RandomState).")
-
-
 # -----------------------------------------------------------------------------
-
 
 @dataclass
 class VectorKeyConfig:
@@ -35,7 +30,6 @@ class VectorKeyConfig:
     mod: int = 29  # default runic alphabet
     minimum: int = 0
     # future traits can go here (e.g., per-position step); keep simple for now
-
 
 @register_keyop(KeyOpsFamily.VECTOR)
 class VectorKeyOps(KeyOpBase):
@@ -49,7 +43,6 @@ class VectorKeyOps(KeyOpBase):
     - batch_neighbors: N independent mutate() calls
     - expand_position: (mod, K) batch varying only one index (for Beam)
     """
-
     def __init__(self, cfg_or_K: Optional[Any] = None, **kwargs: Any):
         # Accept dataclass, positional K, or kwargs {K=..., mod=...}
         if is_dataclass(cfg_or_K):
@@ -89,9 +82,7 @@ class VectorKeyOps(KeyOpBase):
     def normalize(self, key: np.ndarray) -> np.ndarray:
         k = np.asarray(key, dtype=np.int64).reshape(-1)  # tolerate list/np types
         if k.size != self.K:
-            raise ValueError(
-                f"VectorKeyOps.normalize: expected length {self.K}, got {k.size}"
-            )
+            raise ValueError(f"VectorKeyOps.normalize: expected length {self.K}, got {k.size}")
         k = self.minimum + np.mod(k - self.minimum, self.mod, dtype=np.int64)
         return k.astype(np.uint8, copy=False)
 
@@ -134,16 +125,15 @@ class VectorKeyOps(KeyOpBase):
         Raise if key is not uint8, length K, and within [0, mod).
         """
         import numpy as np
-
         k = np.asarray(key, dtype=np.uint8)
         assert k.ndim == 1, f"Vector key must be 1-D, got shape {k.shape}"
         assert k.size > 0, "Vector key must be non-empty"
-        assert np.all(
-            k >= self.minimum
-        ), f"Vector key entries must be >= minimum ({self.minimum})"
-        assert np.all(
-            k < self.minimum + self.mod
-        ), f"Vector key entries must be < {self.minimum + self.mod}"
+        assert np.all(k >= self.minimum), (
+            f"Vector key entries must be >= minimum ({self.minimum})"
+        )
+        assert np.all(k < self.minimum + self.mod), (
+            f"Vector key entries must be < {self.minimum + self.mod}"
+        )
 
     def partial_mask(self, L: int, depth: int):
         """

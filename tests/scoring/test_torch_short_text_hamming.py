@@ -8,11 +8,10 @@ from rune_decrypter_prime.core.types import Direction
 
 pytestmark = pytest.mark.tier_a
 
-
 class _DummyHamming:
-    def total_min_hd_stats(self, pt, wli, direction, mode):
-        return {"total_hd": 5.0, "avg_hd_word": 2.0}
 
+    def total_min_hd_stats(self, pt, wli, direction, mode):
+        return {'total_hd': 5.0, 'avg_hd_word': 2.0}
 
 def test_torch_short_text_applies_hamming_penalty():
     pytest.importorskip("torch")
@@ -34,9 +33,9 @@ def test_torch_short_text_applies_hamming_penalty():
     pt = np.array([0, 1, 2, 3, 4], dtype=np.uint8)
     wli = np.array([[0, 5], [1, 5], [2, 5], [3, 5], [4, 5]], dtype=np.uint8)
     _ = float(scorer.score(pt, wli))
-    stats = scorer.last_stats() if hasattr(scorer, "last_stats") else scorer.telemetry()
-    obj = stats.get("objective_stats") or stats.get("objective")
+    stats = scorer.last_stats() if hasattr(scorer, 'last_stats') else scorer.telemetry()
+    obj = stats.get('objective_stats') or stats.get('objective')
     assert obj is not None
-    assert obj["penalty_hamming"] == pytest.approx(-1.0)
-    assert stats.get("hamming_total_hd") == pytest.approx(5.0)
-    assert stats.get("hamming_avg_hd") == pytest.approx(2.0)
+    assert obj['penalty_hamming'] == pytest.approx(-1.0)
+    assert stats.get('hamming_total_hd') == pytest.approx(5.0)
+    assert stats.get('hamming_avg_hd') == pytest.approx(2.0)

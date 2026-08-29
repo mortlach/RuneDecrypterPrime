@@ -13,11 +13,7 @@ from rune_decrypter_prime.core.component_contracts import (
     ScoringLane,
 )
 from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.scoring import (
-    ScoringConfig,
-    SpanHammingMode,
-    ensure_span_hamming_mode,
-)
+from rune_decrypter_prime.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode
 from rune_decrypter_prime.scoring import rune_scorer_impl as _impl
 from rune_decrypter_prime.scoring.rune_scorer_impl import *  # noqa: F401,F403
 from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
@@ -37,9 +33,7 @@ def _requested_lanes(scorer_cfg: ScoringConfig) -> set[ScoringLane]:
     return set(scorer_cfg.requested_scorer_lanes())
 
 
-def _issue_from_warning(
-    *, code: str, warning: warnings.WarningMessage, source: str
-) -> CapabilityIssue:
+def _issue_from_warning(*, code: str, warning: warnings.WarningMessage, source: str) -> CapabilityIssue:
     return CapabilityIssue(
         code=code,
         message=str(warning.message),
@@ -72,11 +66,7 @@ class RuneScorer(_LegacyRuneScorer):
     """Strict V1 contract wrapper around the NumPy scorer implementation."""
 
     def __init__(self, cfg_cipher: CipherConfig, scorer_cfg: ScoringConfig) -> None:
-        requested = (
-            _requested_lanes(scorer_cfg)
-            if isinstance(scorer_cfg, ScoringConfig)
-            else set()
-        )
+        requested = _requested_lanes(scorer_cfg) if isinstance(scorer_cfg, ScoringConfig) else set()
         _sync_patchable_impl_globals()
 
         caught_warnings: list[warnings.WarningMessage]
@@ -155,8 +145,7 @@ class RuneScorer(_LegacyRuneScorer):
                 getattr(self, "_span_hamming_backend", None)
                 if ensure_span_hamming_mode(
                     getattr(self, "_span_hamming_mode", SpanHammingMode.OFF)
-                )
-                is SpanHammingMode.RAW_BONUS
+                ) is SpanHammingMode.RAW_BONUS
                 else None
             ),
             span_hamming_issue=span_hamming_issue,

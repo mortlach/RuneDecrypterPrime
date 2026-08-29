@@ -4,7 +4,6 @@ import hashlib
 from dataclasses import dataclass
 import numpy as np
 
-
 @dataclass(frozen=True)
 class RNGController:
     """
@@ -13,7 +12,6 @@ class RNGController:
     - Child streams derived by (seed, hierarchical name).
     - Uses NumPy Generator(PCG64). No reliance on global np.random.
     """
-
     seed: int
     prefix: str = ""
 
@@ -25,9 +23,7 @@ class RNGController:
 
     def _derive_uint128(self, qualified_name: str) -> int:
         # hash(seed:name) → 128-bit int for PCG64
-        h = hashlib.sha256(
-            f"{int(self.seed)}:{qualified_name}".encode("utf-8")
-        ).digest()
+        h = hashlib.sha256(f"{int(self.seed)}:{qualified_name}".encode("utf-8")).digest()
         return int.from_bytes(h[:16], "big", signed=False)
 
     def child(self, name: str) -> np.random.Generator:

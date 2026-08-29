@@ -8,73 +8,18 @@ from __future__ import annotations
 from typing import List, Sequence, Iterable
 import re
 
-
 class Runeglish:
-    _BIGRAMS = {"TH", "EO", "NG", "OE", "AE", "IA", "IO", "EA"}
-    _TRIGRAM = "ING"
+    _BIGRAMS = {'TH', 'EO', 'NG', 'OE', 'AE', 'IA', 'IO', 'EA'}
+    _TRIGRAM = 'ING'
 
     runes = [
-        "ᚠ",
-        "ᚢ",
-        "ᚦ",
-        "ᚩ",
-        "ᚱ",
-        "ᚳ",
-        "ᚷ",
-        "ᚹ",
-        "ᚻ",
-        "ᚾ",
-        "ᛁ",
-        "ᛂ",
-        "ᛇ",
-        "ᛈ",
-        "ᛉ",
-        "ᛋ",
-        "ᛏ",
-        "ᛒ",
-        "ᛖ",
-        "ᛗ",
-        "ᛚ",
-        "ᛝ",
-        "ᛟ",
-        "ᛞ",
-        "ᚪ",
-        "ᚫ",
-        "ᚣ",
-        "ᛡ",
-        "ᛠ",
+        "ᚠ", "ᚢ", "ᚦ", "ᚩ", "ᚱ", "ᚳ", "ᚷ", "ᚹ", "ᚻ", "ᚾ", "ᛁ", "ᛂ", "ᛇ", "ᛈ", "ᛉ", "ᛋ", "ᛏ",
+        "ᛒ", "ᛖ", "ᛗ", "ᛚ", "ᛝ", "ᛟ", "ᛞ", "ᚪ", "ᚫ", "ᚣ", "ᛡ", "ᛠ"
     ]
     positions = list(range(len(runes)))
     latin_canon = [
-        "F",
-        "U",
-        "TH",
-        "O",
-        "R",
-        "C",
-        "G",
-        "W",
-        "H",
-        "N",
-        "I",
-        "J",
-        "EO",
-        "P",
-        "X",
-        "S",
-        "T",
-        "B",
-        "E",
-        "M",
-        "L",
-        "(I)NG",
-        "OE",
-        "D",
-        "A",
-        "AE",
-        "Y",
-        "IO",
-        "EA",
+        "F", "U", "TH", "O", "R", "C", "G", "W", "H", "N", "I", "J", "EO", "P", "X", "S",
+        "T", "B", "E", "M", "L", "(I)NG", "OE", "D", "A", "AE", "Y", "IO", "EA"
     ]
 
     # Rune ↔ Position
@@ -90,28 +35,24 @@ class Runeglish:
     pos2latin = {p: l for p, l in enumerate(latin_canon)}
 
     # Normalisation mappings
-    latin2rune.update(
-        {
-            "ING": latin2rune["(I)NG"],
-            "NG": latin2rune["(I)NG"],
-            "Z": latin2rune["S"],
-            "K": latin2rune["C"],
-            "Q": latin2rune["C"],
-            "IA": latin2rune["IO"],
-            "V": latin2rune["U"],
-        }
-    )
-    latin2pos.update(
-        {
-            "ING": latin2pos["(I)NG"],
-            "NG": latin2pos["(I)NG"],
-            "Z": latin2pos["S"],
-            "K": latin2pos["C"],
-            "Q": latin2pos["C"],
-            "IA": latin2pos["IO"],
-            "V": latin2pos["U"],
-        }
-    )
+    latin2rune.update({
+        'ING': latin2rune["(I)NG"],
+        'NG':  latin2rune["(I)NG"],
+        'Z':   latin2rune["S"],
+        'K':   latin2rune["C"],
+        'Q':   latin2rune["C"],
+        'IA':  latin2rune["IO"],
+        'V':   latin2rune["U"],
+    })
+    latin2pos.update({
+        'ING': latin2pos["(I)NG"],
+        'NG':  latin2pos["(I)NG"],
+        'Z':   latin2pos["S"],
+        'K':   latin2pos["C"],
+        'Q':   latin2pos["C"],
+        'IA':  latin2pos["IO"],
+        'V':   latin2pos["U"],
+    })
 
     @staticmethod
     def latin_to_rune(latin: str) -> str:
@@ -129,20 +70,14 @@ class Runeglish:
         return Runeglish.rune2latin.get(rune, rune)
 
     @staticmethod
-    def rune_to_latin(
-        rune_or_runes: str,
-    ) -> str:  # Note: later def overrides earlier (kept for back-compat)
+    def rune_to_latin(rune_or_runes: str) -> str:  # Note: later def overrides earlier (kept for back-compat)
         """
         Accepts a rune string (or any iterable of runes) and returns Latin tokens.
         Unknown runes are returned unchanged.
         """
-
         def _one(r: str) -> str:
             return Runeglish.rune2latin.get(r, r)
-
-        if isinstance(rune_or_runes, Iterable) and not isinstance(
-            rune_or_runes, (str, bytes)
-        ):
+        if isinstance(rune_or_runes, Iterable) and not isinstance(rune_or_runes, (str, bytes)):
             return "".join(_one(p) for p in rune_or_runes)
         return _one(rune_or_runes)
 
@@ -165,13 +100,9 @@ class Runeglish:
         - iterable[int] -> returns the concatenated rune string
         Unknown positions are rendered as their decimal string.
         """
-
         def _one(p: int) -> str:
             return Runeglish.pos2rune.get(int(p), str(int(p)))
-
-        if isinstance(pos_or_positions, Iterable) and not isinstance(
-            pos_or_positions, (str, bytes)
-        ):
+        if isinstance(pos_or_positions, Iterable) and not isinstance(pos_or_positions, (str, bytes)):
             return "".join(_one(p) for p in pos_or_positions)
         return _one(pos_or_positions)
 
@@ -192,20 +123,14 @@ class Runeglish:
         res: list[str] = []
         i = 0
         while i < len(word):
-            if word[i : i + 3] == Runeglish._TRIGRAM:
-                res.append(Runeglish._TRIGRAM)
-                i += 3
-                continue
-            if word[i : i + 2] in Runeglish._BIGRAMS:
-                res.append(word[i : i + 2])
-                i += 2
-                continue
+            if word[i:i+3] == Runeglish._TRIGRAM:
+                res.append(Runeglish._TRIGRAM); i += 3; continue
+            if word[i:i+2] in Runeglish._BIGRAMS:
+                res.append(word[i:i+2]); i += 2; continue
             if word[i] in {"'", '"'}:
-                i += 1
-                continue
-            res.append(word[i])
-            i += 1
-        return "".join([Runeglish.latin_to_rune(l) for l in res])
+                i += 1; continue
+            res.append(word[i]); i += 1
+        return ''.join([Runeglish.latin_to_rune(l) for l in res])
 
     @staticmethod
     def get_wli_data_str(runewords_string: str) -> List[List[int]]:
@@ -232,41 +157,37 @@ class Runeglish:
 
         def _display_word(tokens: list[str]) -> str:
             if dir_text != "rtl" or wli is None:
-                return "".join(tokens)
+                return ''.join(tokens)
             # Inverse of encode_english_to_runes(..., direction="rtl"):
             # encoded tokens are in display order, but multigraph boundaries were
             # chosen after reversing the source word.
-            source_order = "".join(tokens[::-1]).replace("(I)NG", "ING")
+            source_order = ''.join(tokens[::-1]).replace("(I)NG", "ING")
             return source_order[::-1]
 
         words, cur = [], []
         for i, sym in enumerate(pt):
             cur.append(Runeglish.pos_to_latin(sym))
             if wli is not None and wli[i][0] == wli[i][1] - 1:
-                words.append(_display_word(cur))
-                cur = []
-            if limit and len(" ".join(words)) >= limit:
+                words.append(_display_word(cur)); cur = []
+            if limit and len(' '.join(words)) >= limit:
                 break
         if cur:
             words.append(_display_word(cur))
-        return " ".join(words)
+        return ' '.join(words)
 
     @staticmethod
-    def to_rune(
-        pt: Sequence[int], wli: Sequence[Sequence[int]], limit: int | None = None
-    ) -> str:
+    def to_rune(pt: Sequence[int], wli: Sequence[Sequence[int]], limit: int | None = None) -> str:
         """Render positions as runes, respecting WLI word breaks."""
         words, cur = [], []
         for i, sym in enumerate(pt):
             cur.append(Runeglish.pos_to_rune(sym))
             if wli is not None and wli[i][0] == wli[i][1] - 1:
-                words.append("".join(cur))
-                cur = []
-            if limit and len(" ".join(words)) >= limit:
+                words.append(''.join(cur)); cur = []
+            if limit and len(' '.join(words)) >= limit:
                 break
         if cur:
-            words.append("".join(cur))
-        return " ".join(words)
+            words.append(''.join(cur))
+        return ' '.join(words)
 
     @staticmethod
     def size() -> int:
@@ -277,7 +198,7 @@ class Runeglish:
         text: str,
         *,
         # todo change this enums etc encoding_dir
-        direction: str = "ltr",  # "ltr" (default) or "rtl" per-word
+        direction: str = "ltr",   # "ltr" (default) or "rtl" per-word
     ) -> tuple[list[int], list[list[int]], str]:
         """
         Canonical English → (indices, WLI, rune string).
@@ -290,14 +211,9 @@ class Runeglish:
         • direction="rtl" reverses the token sequence *inside each word* before encoding.
         • Output WLI is a flat list of [pos_in_word, word_len] entries.
         """
-        clean = (
-            text.replace("’", "'")
-            .replace("‘", "'")
-            .replace("“", '"')
-            .replace("”", '"')
-            .replace("—", " ")
-            .replace("–", " ")
-        )
+        clean = (text
+                 .replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
+                 .replace("—", " ").replace("–", " "))
         words_raw = re.findall(r"[A-Za-z]+", clean)
 
         idx_out: list[int] = []
@@ -319,16 +235,11 @@ class Runeglish:
             i = 0
             L = len(w)
             while i < L:
-                if i + 3 <= L and w[i : i + 3] == TRI:
-                    tokens.append(TRI)
-                    i += 3
-                    continue
-                if i + 2 <= L and w[i : i + 2] in BIG:
-                    tokens.append(w[i : i + 2])
-                    i += 2
-                    continue
-                tokens.append(w[i])
-                i += 1
+                if i + 3 <= L and w[i:i+3] == TRI:
+                    tokens.append(TRI); i += 3; continue
+                if i + 2 <= L and w[i:i+2] in BIG:
+                    tokens.append(w[i:i+2]); i += 2; continue
+                tokens.append(w[i]); i += 1
 
             if direction.lower() == "rtl":
                 tokens.reverse()
@@ -350,7 +261,6 @@ class Runeglish:
 
         rune_str = " ".join(rune_words)
         return idx_out, wli_out, rune_str
-
 
 # TODO: There are two `rune_to_latin` defs; the latter overrides the former.
 #       Keep as-is for back-compat; consider consolidating in a future major version.

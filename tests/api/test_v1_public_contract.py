@@ -39,9 +39,7 @@ from rune_decrypter_prime.core.types import (
         (CipherSpec.vigenere(), CipherSpec.from_name("vigenere")),
         (
             CipherSpec.periodic_columnar(period=13, columns=7),
-            CipherSpec.from_name(
-                "periodic_columnar", parameters={"period": 13, "columns": 7}
-            ),
+            CipherSpec.from_name("periodic_columnar", parameters={"period": 13, "columns": 7}),
         ),
         (
             CipherSpec.two_period_streams(
@@ -60,10 +58,7 @@ from rune_decrypter_prime.core.types import (
                 },
             ),
         ),
-        (
-            KeySpec.repeating(length=13),
-            KeySpec.from_name("repeating", parameters={"length": 13}),
-        ),
+        (KeySpec.repeating(length=13), KeySpec.from_name("repeating", parameters={"length": 13})),
         (
             KeySpec.repeating_range(minimum_length=3, maximum_length=13),
             KeySpec.from_name(
@@ -100,9 +95,7 @@ from rune_decrypter_prime.core.types import (
         ),
     ),
 )
-def test_typed_and_parser_construction_are_equivalent(
-    typed: object, parsed: object
-) -> None:
+def test_typed_and_parser_construction_are_equivalent(typed: object, parsed: object) -> None:
     assert typed == parsed
     assert hash(typed) == hash(parsed)
     assert copy.copy(typed) is typed
@@ -191,26 +184,10 @@ def test_direct_typed_constructors_reject_raw_enum_strings() -> None:
             KeySpec.periodic_columnar(period=2, columns=5),
             63,
         ),
-        (
-            CipherSpec.two_period_vigenere(first_period=2, second_period=3),
-            KeySpec.repeating(length=5),
-            5,
-        ),
-        (
-            CipherSpec.periodic_with_fixed_stream((1, 2, 3), period=4),
-            KeySpec.repeating(length=4),
-            4,
-        ),
-        (
-            CipherSpec.periodic_with_prime_stream(period=4),
-            KeySpec.repeating(length=4),
-            4,
-        ),
-        (
-            CipherSpec.two_period_streams(first_period=2, second_period=3),
-            KeySpec.repeating(length=5),
-            5,
-        ),
+        (CipherSpec.two_period_vigenere(first_period=2, second_period=3), KeySpec.repeating(length=5), 5),
+        (CipherSpec.periodic_with_fixed_stream((1, 2, 3), period=4), KeySpec.repeating(length=4), 4),
+        (CipherSpec.periodic_with_prime_stream(period=4), KeySpec.repeating(length=4), 4),
+        (CipherSpec.two_period_streams(first_period=2, second_period=3), KeySpec.repeating(length=5), 5),
     ),
 )
 def test_all_v1_cipher_key_bindings_have_one_exact_length(
@@ -254,13 +231,7 @@ def test_concrete_key_validation_preserves_semantic_values() -> None:
 
     substitution = CipherSpec.substitution(alphabet_size=5)
     substitution_space = KeySpec.permutation(length=5)
-    assert validate_concrete_key(substitution, substitution_space, (4, 3, 2, 1, 0)) == (
-        4,
-        3,
-        2,
-        1,
-        0,
-    )
+    assert validate_concrete_key(substitution, substitution_space, (4, 3, 2, 1, 0)) == (4, 3, 2, 1, 0)
     with pytest.raises(InvalidConcreteKeyError, match="permutation segment"):
         validate_concrete_key(substitution, substitution_space, (0, 0, 1, 2, 3))
 
@@ -349,9 +320,7 @@ def test_mask_schedule_is_bound_to_the_run_input_length() -> None:
         )
 
 
-def test_both_run_forms_use_one_execution_path_and_always_return_run_result(
-    monkeypatch,
-) -> None:
+def test_both_run_forms_use_one_execution_path_and_always_return_run_result(monkeypatch) -> None:
     run_module = importlib.import_module("rdp.api.run")
     calls: list[dict[str, object]] = []
 

@@ -4,47 +4,25 @@ import math
 import time
 from typing import Any, Callable, Mapping
 import numpy as np
-from cipher_development.shared.archive import (
-    CandidateProvenance,
-    CandidateRecord,
-    candidate_id_for,
-)
-from cipher_development.two_period_overlay.config import (
-    ALPHABET_SIZE,
-    DECISION_SCORE,
-    MASTER_SEED,
-    CRIB_RUNES,
-    PRIMARY_CRIB,
-    TARGET_BENCHMARK,
-    BenchmarkSpec,
-    RunBudget,
-)
-
+from cipher_development.shared.archive import CandidateProvenance, CandidateRecord, candidate_id_for
+from cipher_development.two_period_overlay.config import ALPHABET_SIZE, DECISION_SCORE, MASTER_SEED, CRIB_RUNES, PRIMARY_CRIB, TARGET_BENCHMARK, BenchmarkSpec, RunBudget
 ScoreVariables = Callable[[np.ndarray], np.ndarray]
-
 
 class CampaignWallclockExceeded(RuntimeError):
     pass
 
-
 def _check_deadline(deadline: float | None) -> None:
     if deadline is not None and time.monotonic() >= deadline:
-        raise CampaignWallclockExceeded("campaign wall-clock safety limit reached")
+        raise CampaignWallclockExceeded('campaign wall-clock safety limit reached')
 
-
-def deterministic_key(benchmark: BenchmarkSpec = TARGET_BENCHMARK) -> np.ndarray:
+def deterministic_key(benchmark: BenchmarkSpec=TARGET_BENCHMARK) -> np.ndarray:
     a = [(5 * i + 3) % benchmark.alphabet_size for i in range(benchmark.period_a)]
-    b = [benchmark.gauge_value] + [
-        (7 * i + 11) % benchmark.alphabet_size for i in range(1, benchmark.period_b)
-    ]
+    b = [benchmark.gauge_value] + [(7 * i + 11) % benchmark.alphabet_size for i in range(1, benchmark.period_b)]
     return np.asarray([*a, *b], dtype=np.uint8)
 
-
-def rref_mod(
-    matrix: np.ndarray, modulus: int = ALPHABET_SIZE
-) -> tuple[np.ndarray, tuple[int, ...]]:
+def rref_mod(matrix: np.ndarray, modulus: int=ALPHABET_SIZE) -> tuple[np.ndarray, tuple[int, ...]]:
     if isinstance(modulus, bool) or not isinstance(modulus, int) or modulus <= 1:
-        raise ValueError("modulus must be an integer greater than one")
+        raise ValueError('modulus must be an integer greater than one')
     out = np.asarray(matrix, dtype=np.int64).copy() % modulus
     row = 0
     pivots: list[int] = []
@@ -59,7 +37,7 @@ def rref_mod(
         try:
             inverse = pow(int(out[row, col]), -1, modulus)
         except ValueError as exc:
-            raise ValueError("crib equations require an invertible pivot") from exc
+            raise ValueError('crib equations require an invertible pivot') from exc
         out[row] = out[row] * inverse % modulus
         for other in range(out.shape[0]):
             if other != row and out[other, col]:
@@ -68,15 +46,10 @@ def rref_mod(
         row += 1
     for values in out:
         if not np.any(values[:-1]) and values[-1]:
-            raise ValueError("contradictory crib equations")
+            raise ValueError('contradictory crib equations')
     return (out, tuple(pivots))
 
-
-def crib_space(
-    ciphertext: np.ndarray,
-    crib: np.ndarray,
-    benchmark: BenchmarkSpec = TARGET_BENCHMARK,
-) -> tuple[np.ndarray, np.ndarray, tuple[int, ...]]:
+def crib_space(ciphertext: np.ndarray, crib: np.ndarray, benchmark: BenchmarkSpec=TARGET_BENCHMARK) -> tuple[np.ndarray, np.ndarray, tuple[int, ...]]:
     """Return the gauge-fixed affine key space for all declared complete cribs.
 
     ``crib`` remains the frozen primary ``uncomfortable`` rune sequence for
@@ -86,16 +59,13 @@ def crib_space(
     ciphertext = np.asarray(ciphertext, dtype=np.uint8)
     crib = np.asarray(crib, dtype=np.uint8)
     if len(ciphertext) != benchmark.text_length:
-        raise ValueError("ciphertext length does not match the benchmark")
+        raise ValueError('ciphertext length does not match the benchmark')
     if len(crib) != len(CRIB_RUNES):
-        raise ValueError("crib length does not match the frozen complete word")
+        raise ValueError('crib length does not match the frozen complete word')
     if tuple((int(value) for value in crib)) != PRIMARY_CRIB.runes:
-        raise ValueError("primary crib runes do not match the frozen contract")
+        raise ValueError('primary crib runes do not match the frozen contract')
     rows: list[np.ndarray] = []
-    spans = (
-        (benchmark.crib_start, tuple((int(value) for value in crib))),
-        *((item.start, item.runes) for item in benchmark.additional_cribs),
-    )
+    spans = ((benchmark.crib_start, tuple((int(value) for value in crib))), *((item.start, item.runes) for item in benchmark.additional_cribs))
     for start, runes in spans:
         for offset, plain in enumerate(runes):
             pos = start + offset
@@ -120,67 +90,46 @@ def crib_space(
             basis[pivot, j] = -reduced[row_index, col]
     return (particular % benchmark.alphabet_size, basis % benchmark.alphabet_size, free)
 
-
-def expand(
-    variables: np.ndarray,
-    particular: np.ndarray,
-    basis: np.ndarray,
-    benchmark: BenchmarkSpec = TARGET_BENCHMARK,
-) -> np.ndarray:
+def expand(variables: np.ndarray, particular: np.ndarray, basis: np.ndarray, benchmark: BenchmarkSpec=TARGET_BENCHMARK) -> np.ndarray:
     values = np.asarray(variables, dtype=np.int64)
     if values.ndim not in (1, 2):
-        raise ValueError("affine variables must be a vector or matrix")
+        raise ValueError('affine variables must be a vector or matrix')
     one = values.ndim == 1
     if one:
         values = values[None, :]
     particular = np.asarray(particular, dtype=np.int64)
     basis = np.asarray(basis, dtype=np.int64)
     if particular.shape != (benchmark.key_length,):
-        raise ValueError("particular solution has the wrong key length")
+        raise ValueError('particular solution has the wrong key length')
     if basis.shape != (benchmark.key_length, values.shape[1]):
-        raise ValueError("basis shape does not match the variables and key length")
+        raise ValueError('basis shape does not match the variables and key length')
     keys = (particular[None, :] + values @ basis.T) % benchmark.alphabet_size
     keys = np.ascontiguousarray(keys, dtype=np.uint8)
     if not np.all(keys[:, benchmark.gauge_key_index] == benchmark.gauge_value):
-        raise RuntimeError("expanded candidate violated the B[0] = 0 gauge")
+        raise RuntimeError('expanded candidate violated the B[0] = 0 gauge')
     return keys[0] if one else keys
-
 
 def comparison_seed(index: int) -> int:
     if isinstance(index, bool) or not isinstance(index, int) or index < 0:
-        raise ValueError("comparison index must be a non-negative integer")
-    data = f"{MASTER_SEED}:paired:{index}".encode("ascii")
-    return int.from_bytes(
-        hashlib.blake2b(data, digest_size=8, person=b"rdp-wp3-seed").digest(), "big"
-    )
-
+        raise ValueError('comparison index must be a non-negative integer')
+    data = f'{MASTER_SEED}:paired:{index}'.encode('ascii')
+    return int.from_bytes(hashlib.blake2b(data, digest_size=8, person=b'rdp-wp3-seed').digest(), 'big')
 
 def control_start_seed(index: int) -> int:
     if isinstance(index, bool) or not isinstance(index, int) or index < 0:
-        raise ValueError("control index must be a non-negative integer")
-    data = f"{MASTER_SEED}:control:{index}".encode("ascii")
-    return int.from_bytes(
-        hashlib.blake2b(data, digest_size=8, person=b"rdp-wp3-seed").digest(), "big"
-    )
-
+        raise ValueError('control index must be a non-negative integer')
+    data = f'{MASTER_SEED}:control:{index}'.encode('ascii')
+    return int.from_bytes(hashlib.blake2b(data, digest_size=8, person=b'rdp-wp3-seed').digest(), 'big')
 
 def _score(evaluate: ScoreVariables, variables: np.ndarray) -> np.ndarray:
     values = np.asarray(variables, dtype=np.uint8)
     batch = values[None, :] if values.ndim == 1 else values
     scores = np.asarray(evaluate(batch), dtype=np.float64)
     if scores.shape != (len(batch),) or not np.all(np.isfinite(scores)):
-        raise RuntimeError("candidate evaluator returned invalid scores")
+        raise RuntimeError('candidate evaluator returned invalid scores')
     return scores
 
-
-def coordinate_search(
-    evaluate: ScoreVariables,
-    rng: np.random.Generator,
-    variables: np.ndarray,
-    sweeps: int,
-    *,
-    deadline: float | None = None,
-) -> tuple[np.ndarray, float, int]:
+def coordinate_search(evaluate: ScoreVariables, rng: np.random.Generator, variables: np.ndarray, sweeps: int, *, deadline: float | None=None) -> tuple[np.ndarray, float, int]:
     current = np.asarray(variables, dtype=np.uint8).copy()
     _check_deadline(deadline)
     current_score = float(_score(evaluate, current)[0])
@@ -202,15 +151,7 @@ def coordinate_search(
             break
     return (current, current_score, evaluations)
 
-
-def anneal_and_polish(
-    evaluate: ScoreVariables,
-    variables: np.ndarray,
-    budget: RunBudget,
-    seed: int,
-    *,
-    deadline: float | None = None,
-) -> tuple[np.ndarray, float, Mapping[str, Any]]:
+def anneal_and_polish(evaluate: ScoreVariables, variables: np.ndarray, budget: RunBudget, seed: int, *, deadline: float | None=None) -> tuple[np.ndarray, float, Mapping[str, Any]]:
     rng = np.random.default_rng(seed)
     current = np.asarray(variables, dtype=np.uint8).copy()
     _check_deadline(deadline)
@@ -234,66 +175,21 @@ def anneal_and_polish(
             proposal_score = float(_score(evaluate, proposal)[0])
             evaluations += 1
             delta = proposal_score - current_score
-            if delta >= 0 or acceptance_draw < math.exp(
-                delta / max(temperature, 1e-12)
-            ):
+            if delta >= 0 or acceptance_draw < math.exp(delta / max(temperature, 1e-12)):
                 current, current_score = (proposal, proposal_score)
                 accepted += 1
                 downhill += int(delta < 0)
                 if current_score > best_score + 1e-15:
                     best, best_score = (current.copy(), current_score)
     pre_polish_best_score = best_score
-    polished, polished_score, polish_evaluations = coordinate_search(
-        evaluate, rng, best, budget.coordinate_sweeps, deadline=deadline
-    )
+    polished, polished_score, polish_evaluations = coordinate_search(evaluate, rng, best, budget.coordinate_sweeps, deadline=deadline)
     evaluations += polish_evaluations
     if polished_score > best_score + 1e-15:
         best, best_score = (polished, polished_score)
-    return (
-        best,
-        best_score,
-        {
-            "evaluations": evaluations,
-            "sa_proposals_attempted": budget.sa_steps * budget.sa_cycles,
-            "accepted_sa_proposals": accepted,
-            "accepted_downhill_proposals": downhill,
-            "coordinate_polish_gain": polished_score - pre_polish_best_score,
-        },
-    )
+    return (best, best_score, {'evaluations': evaluations, 'sa_proposals_attempted': budget.sa_steps * budget.sa_cycles, 'accepted_sa_proposals': accepted, 'accepted_downhill_proposals': downhill, 'coordinate_polish_gain': polished_score - pre_polish_best_score})
 
-
-def candidate_record(
-    variables: np.ndarray,
-    score: float,
-    particular: np.ndarray,
-    basis: np.ndarray,
-    *,
-    source: str,
-    operation: str,
-    evaluation_index: int,
-    parent_ids: tuple[str, ...] = (),
-    benchmark: BenchmarkSpec = TARGET_BENCHMARK,
-) -> CandidateRecord:
+def candidate_record(variables: np.ndarray, score: float, particular: np.ndarray, basis: np.ndarray, *, source: str, operation: str, evaluation_index: int, parent_ids: tuple[str, ...]=(), benchmark: BenchmarkSpec=TARGET_BENCHMARK) -> CandidateRecord:
     variable_list = np.asarray(variables, dtype=np.uint8).astype(int).tolist()
-    key_list = (
-        expand(np.asarray(variables, dtype=np.uint8), particular, basis, benchmark)
-        .astype(int)
-        .tolist()
-    )
-    identity = {"expanded_key": key_list}
-    return CandidateRecord(
-        candidate_id=candidate_id_for(identity),
-        identity=identity,
-        payload={
-            "variables": variable_list,
-            "expanded_key": key_list,
-            "benchmark_id": benchmark.benchmark_id,
-        },
-        scores={DECISION_SCORE: float(score)},
-        provenance=CandidateProvenance(
-            source=source,
-            operation=operation,
-            parent_ids=parent_ids,
-            evaluation_index=evaluation_index,
-        ),
-    )
+    key_list = expand(np.asarray(variables, dtype=np.uint8), particular, basis, benchmark).astype(int).tolist()
+    identity = {'expanded_key': key_list}
+    return CandidateRecord(candidate_id=candidate_id_for(identity), identity=identity, payload={'variables': variable_list, 'expanded_key': key_list, 'benchmark_id': benchmark.benchmark_id}, scores={DECISION_SCORE: float(score)}, provenance=CandidateProvenance(source=source, operation=operation, parent_ids=parent_ids, evaluation_index=evaluation_index))

@@ -1,38 +1,21 @@
 """Telemetry guardrails for solver spans."""
-
 from __future__ import annotations
 from rdp import api
 import pytest
 from rune_decrypter_prime.telemetry.pipeline import make_pipeline_block
 from tests._helpers.permutation_cases import columnar_roundtrip_case
-
 pytestmark = pytest.mark.tier_a
 
-
 def _solver_factory(name: str):
-    if name == "beam":
+    if name == 'beam':
         return api.SolverSpec.beam_search(width=2, seed=111, rounds=0)
-    if name == "ga":
-        return api.SolverSpec.genetic_algorithm(
-            population_size=16,
-            generations=10,
-            mutation_probability=0.2,
-            elite_fraction=0.2,
-            seed=222,
-        )
-    if name == "sa":
-        return api.SolverSpec.simulated_annealing(
-            iterations=120,
-            initial_temperature=0.6,
-            minimum_temperature=0.001,
-            cooling_rate=0.99,
-            automatic_cooling=True,
-            seed=333,
-        )
+    if name == 'ga':
+        return api.SolverSpec.genetic_algorithm(population_size=16, generations=10, mutation_probability=0.2, elite_fraction=0.2, seed=222)
+    if name == 'sa':
+        return api.SolverSpec.simulated_annealing(iterations=120, initial_temperature=0.6, minimum_temperature=0.001, cooling_rate=0.99, automatic_cooling=True, seed=333)
     raise ValueError(name)
 
-
-@pytest.mark.parametrize("solver_name", ["beam", "ga", "sa"])
+@pytest.mark.parametrize('solver_name', ['beam', 'ga', 'sa'])
 def test_solver_spans_include_pipeline_block(solver_name: str):
     ct_idx, _, wli, perm, direction = columnar_roundtrip_case()
     solver = _solver_factory(solver_name)

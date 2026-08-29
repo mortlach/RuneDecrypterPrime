@@ -14,13 +14,7 @@ import numpy as np
 from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin
 from rune_decrypter_prime.ciphers.base_keyed_cipher import KeyedCipherBase
 from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
-from rune_decrypter_prime.core.types import (
-    Device,
-    Direction,
-    KeyOpsFamily,
-    ensure_device,
-    ensure_direction,
-)
+from rune_decrypter_prime.core.types import Device, Direction, KeyOpsFamily, ensure_device, ensure_direction
 
 ArrayInt = np.ndarray
 
@@ -55,18 +49,11 @@ _VALID_STREAM_DIRECTIONS = frozenset({"forward", "backward"})
 _VALID_STREAM_ANCHORS = frozenset({"start", "end"})
 _VALID_STREAM_ADVANCE_MODES = frozenset({"core"})
 
-_VALID_SCHEDULES = frozenset(
-    {"overlay", "alternating", "staggered_overlay", "ragged_overlap", "mask"}
-)
-_SCHEDULES_REQUIRING_TWO_STREAMS = frozenset(
-    {"alternating", "staggered_overlay", "ragged_overlap"}
-)
-_VALID_OPERATIONS = frozenset(
-    {"add", "add_sub", "sub_add", "beaufort_sum", "xor_mod", "lookup"}
-)
+_VALID_SCHEDULES = frozenset({"overlay", "alternating", "staggered_overlay", "ragged_overlap", "mask"})
+_SCHEDULES_REQUIRING_TWO_STREAMS = frozenset({"alternating", "staggered_overlay", "ragged_overlap"})
+_VALID_OPERATIONS = frozenset({"add", "add_sub", "sub_add", "beaufort_sum", "xor_mod", "lookup"})
 _VALID_DEGENERACY_MODES = frozenset({"forbid", "allow"})
 _OPERATIONS_REQUIRING_DEGENERACY_ALLOW = frozenset({"xor_mod", "lookup"})
-
 
 def normalise_name(value: Any, default: str) -> str:
     """Normalise small user-facing enum names.
@@ -233,9 +220,7 @@ def integer_symbol_list(values: Sequence[Any], name: str) -> list[int]:
     return [config_int(x, f"{name}[{i}]") for i, x in enumerate(values)]
 
 
-def validate_symbol_range(
-    values: Sequence[Any], *, alphabet_size: int, name: str
-) -> list[int]:
+def validate_symbol_range(values: Sequence[Any], *, alphabet_size: int, name: str) -> list[int]:
     """Return symbol values after checking they are already in the alphabet.
 
     Fixed streams are user-supplied key material, not arithmetic results.
@@ -301,15 +286,11 @@ def stream_dicts(streams: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     if streams is None:
         raise ValueError("scheduled_stream_lookup requires streams")
     if isinstance(streams, (str, bytes)) or not isinstance(streams, AbcSequence):
-        raise ValueError(
-            "scheduled_stream_lookup streams must be a sequence of dict-like specs"
-        )
+        raise ValueError("scheduled_stream_lookup streams must be a sequence of dict-like specs")
     out: list[dict[str, Any]] = []
     for idx, stream in enumerate(streams):
         if not isinstance(stream, AbcMapping):
-            raise TypeError(
-                f"stream specs must be dict-like; streams[{idx}] is {type(stream).__name__}"
-            )
+            raise TypeError(f"stream specs must be dict-like; streams[{idx}] is {type(stream).__name__}")
         out.append(dict(stream))
     if not (1 <= len(out) <= 2):
         raise ValueError("scheduled_stream_lookup V1 supports one or two streams")
@@ -341,11 +322,7 @@ def default_streams_for_alias(
         p = positive_int(period, "period")
         return [
             {"name": "A", "kind": "periodic", "period": p},
-            {
-                "name": "B",
-                "kind": "primes",
-                "offset": config_int(prime_offset, "prime_offset"),
-            },
+            {"name": "B", "kind": "primes", "offset": config_int(prime_offset, "prime_offset")},
         ]
     raise ValueError("scheduled_stream_lookup requires explicit streams")
 
@@ -390,25 +367,19 @@ def validate_streams_v1(
             if values is None:
                 raise ValueError("fixed streams require values")
             if isinstance(values, (str, bytes)):
-                raise ValueError(
-                    "fixed stream values must be a sequence of integer symbols, not text"
-                )
+                raise ValueError("fixed stream values must be a sequence of integer symbols, not text")
             if isinstance(values, np.ndarray):
                 value_list = values.reshape(-1).tolist()
             elif isinstance(values, AbcSequence):
                 value_list = list(values)
             else:
-                raise ValueError(
-                    "fixed stream values must be a sequence of integer symbols"
-                )
+                raise ValueError("fixed stream values must be a sequence of integer symbols")
             if len(value_list) == 0:
                 raise ValueError("fixed streams require at least one value")
             if alphabet_size is None:
                 raw["values"] = integer_symbol_list(value_list, "fixed values")
             else:
-                raw["values"] = validate_symbol_range(
-                    value_list, alphabet_size=alphabet_size, name="fixed values"
-                )
+                raw["values"] = validate_symbol_range(value_list, alphabet_size=alphabet_size, name="fixed values")
         else:
             raise ValueError(f"unknown stream kind {kind!r}")
     return out
@@ -423,9 +394,7 @@ def solved_key_length_for_streams(streams: Sequence[Mapping[str, Any]]) -> int:
     return int(total)
 
 
-def validate_schedule_for_streams(
-    schedule: Any, streams: Sequence[Mapping[str, Any]]
-) -> str:
+def validate_schedule_for_streams(schedule: Any, streams: Sequence[Mapping[str, Any]]) -> str:
     """Validate a schedule against the available streams and return its name."""
     schedule_name = normalise_schedule(schedule)
     stream_list = validate_streams_v1(streams)
@@ -434,9 +403,7 @@ def validate_schedule_for_streams(
     return schedule_name
 
 
-def validate_schedule_window(
-    length: int, *, start: Any, end: Any, label: str
-) -> tuple[int, int]:
+def validate_schedule_window(length: int, *, start: Any, end: Any, label: str) -> tuple[int, int]:
     """Validate an active window and return ``(start, end)`` as ints."""
     L = config_int(length, "length")
     if L < 0:
@@ -444,9 +411,7 @@ def validate_schedule_window(
     lo = config_int(start, f"{label}_start")
     hi = L if end is None else config_int(end, f"{label}_end")
     if lo < 0 or hi < lo or hi > L:
-        raise ValueError(
-            f"bad {label} schedule window [{lo}, {hi}) for text length {L}"
-        )
+        raise ValueError(f"bad {label} schedule window [{lo}, {hi}) for text length {L}")
     return lo, hi
 
 
@@ -472,21 +437,13 @@ def mask_from_segments(
     mask = [_ACTIVE_NONE] * L
     filled = [False] * L
     for item_index, segment in enumerate(segments):
-        if (
-            not isinstance(segment, AbcSequence)
-            or isinstance(segment, (str, bytes))
-            or len(segment) != 3
-        ):
-            raise ValueError(
-                f"segments[{item_index}] must be a (label, start, end) triple"
-            )
+        if not isinstance(segment, AbcSequence) or isinstance(segment, (str, bytes)) or len(segment) != 3:
+            raise ValueError(f"segments[{item_index}] must be a (label, start, end) triple")
         label, start, end = segment
         state = active_state_from_label(label)
         lo, hi = validate_schedule_window(L, start=start, end=end, label=str(label))
         if not overwrite and any(filled[i] for i in range(lo, hi)):
-            raise ValueError(
-                "mask segments overlap; use an explicit 'AB' segment or allow_overwrite=True"
-            )
+            raise ValueError("mask segments overlap; use an explicit 'AB' segment or allow_overwrite=True")
         for i in range(lo, hi):
             mask[i] = state
             filled[i] = True
@@ -511,9 +468,7 @@ def _coerce_symbol(value: Any, *, alphabet_size: int, context: str) -> int:
     else:
         raise ValueError(f"{context} must be an integer symbol")
     if out < 0 or out >= int(alphabet_size):
-        raise ValueError(
-            f"{context} outside alphabet 0..{int(alphabet_size) - 1}: {out}"
-        )
+        raise ValueError(f"{context} outside alphabet 0..{int(alphabet_size) - 1}: {out}")
     return out
 
 
@@ -527,20 +482,13 @@ def _value_list(value: Any, *, alphabet_size: int, context: str) -> list[int]:
         return []
     if isinstance(value, np.ndarray):
         if value.ndim == 0:
-            return [
-                _coerce_symbol(
-                    value.item(), alphabet_size=alphabet_size, context=context
-                )
-            ]
+            return [_coerce_symbol(value.item(), alphabet_size=alphabet_size, context=context)]
         return [
             _coerce_symbol(x, alphabet_size=alphabet_size, context=f"{context}[{i}]")
             for i, x in enumerate(value.reshape(-1).tolist())
         ]
     if isinstance(value, (list, tuple)):
-        return [
-            _coerce_symbol(x, alphabet_size=alphabet_size, context=f"{context}[{i}]")
-            for i, x in enumerate(value)
-        ]
+        return [_coerce_symbol(x, alphabet_size=alphabet_size, context=f"{context}[{i}]") for i, x in enumerate(value)]
     return [_coerce_symbol(value, alphabet_size=alphabet_size, context=context)]
 
 
@@ -561,10 +509,10 @@ class LookupTables:
 
     alphabet_size: int
     state_size: int
-    enc: ArrayInt  # shape (A, S): pt,state -> ct
-    dec_first: ArrayInt  # shape (S, A): state,ct -> first pt
-    dec_all: ArrayInt  # shape (S, A, A): state,ct,n -> pt
-    dec_len: np.ndarray  # shape (S, A): number of candidates
+    enc: ArrayInt          # shape (A, S): pt,state -> ct
+    dec_first: ArrayInt    # shape (S, A): state,ct -> first pt
+    dec_all: ArrayInt      # shape (S, A, A): state,ct,n -> pt
+    dec_len: np.ndarray    # shape (S, A): number of candidates
 
     @classmethod
     def from_function(
@@ -589,11 +537,7 @@ class LookupTables:
         for state in range(S):
             seen = np.zeros((A, A), dtype=bool)  # ct, pt
             for pt in range(A):
-                vals = _value_list(
-                    function(pt, state),
-                    alphabet_size=A,
-                    context=f"lookup[{pt},{state}]",
-                )
+                vals = _value_list(function(pt, state), alphabet_size=A, context=f"lookup[{pt},{state}]")
                 if not vals:
                     enc[pt, state] = 0
                     continue
@@ -630,9 +574,7 @@ class LookupTables:
         T = np.asarray(table, dtype=object)
         if T.shape != (A, S):
             raise ValueError(f"lookup table must have shape ({A}, {S}); got {T.shape}")
-        return cls.from_function(
-            alphabet_size=A, state_size=S, function=lambda pt, state: T[pt, state]
-        )
+        return cls.from_function(alphabet_size=A, state_size=S, function=lambda pt, state: T[pt, state])
 
     def encrypt_first(self, plaintext: ArrayInt, states: np.ndarray) -> ArrayInt:
         """Vectorised encryption using the first ciphertext listed for a mapping."""
@@ -640,9 +582,7 @@ class LookupTables:
         st = np.asarray(states, dtype=int)
         return self.enc[pt, st].astype(int, copy=False)
 
-    def decrypt_first_symbol(
-        self, ciphertext: ArrayInt, states: np.ndarray
-    ) -> ArrayInt:
+    def decrypt_first_symbol(self, ciphertext: ArrayInt, states: np.ndarray) -> ArrayInt:
         """Vectorised deterministic first-inverse decryption."""
         ct = np.asarray(ciphertext, dtype=int)
         st = np.asarray(states, dtype=int)
@@ -701,6 +641,7 @@ class LookupTables:
         return cands, lens, invalid
 
 
+
 @dataclass(frozen=True)
 class _StreamRuntime:
     name: str
@@ -719,8 +660,8 @@ class _StreamRuntime:
 @dataclass(frozen=True)
 class _CompiledSchedule:
     active: np.ndarray  # integer active-state values: 0 none, 1 A, 2 B, 3 AB
-    a_idx: np.ndarray  # int64 stream-local index, -1 inactive
-    b_idx: np.ndarray  # int64 stream-local index, -1 inactive
+    a_idx: np.ndarray   # int64 stream-local index, -1 inactive
+    b_idx: np.ndarray   # int64 stream-local index, -1 inactive
 
 
 def _get_field(cfg: Any, spec: Any, name: str, default: Any = None) -> Any:
@@ -746,7 +687,7 @@ def _first_primes(n: int) -> np.ndarray:
     candidate = 2
     while len(out) < n:
         is_prime = True
-        limit = int(candidate**0.5)
+        limit = int(candidate ** 0.5)
         for p in out:
             if p > limit:
                 break
@@ -782,9 +723,7 @@ class ScheduledStreamLookupCipher(CipherPipelineMixin, KeyedCipherBase):
         super().__init__(
             text_transposition=text_dir.value,
             key_transposition=key_dir.value,
-            initial_text_permutation_indices=getattr(
-                cfg, "initial_text_permutation_indices", None
-            ),
+            initial_text_permutation_indices=getattr(cfg, "initial_text_permutation_indices", None),
         )
         self.cfg = cfg
         self.text_direction = text_dir
@@ -793,33 +732,21 @@ class ScheduledStreamLookupCipher(CipherPipelineMixin, KeyedCipherBase):
 
         alias_raw = _get_field(cfg, spec, "name", "scheduled_stream_lookup")
         self.alias = normalise_name(alias_raw, "scheduled_stream_lookup")
-        self.A = validate_alphabet_size(
-            _get_field(cfg, spec, "alphabet_size", getattr(spec, "N", 29))
-        )
+        self.A = validate_alphabet_size(_get_field(cfg, spec, "alphabet_size", getattr(spec, "N", 29)))
         self.N = self.A
 
         self.operation, self.degeneracy = validate_operation_degeneracy(
             _get_field(cfg, spec, "operation", "add"),
             _get_field(cfg, spec, "degeneracy", getattr(spec, "degeneracy", "forbid")),
         )
-        self.schedule_name = normalise_schedule(
-            _get_field(cfg, spec, "schedule", "overlay")
-        )
-        self.alternating_start = normalise_alternating_start(
-            _get_field(cfg, spec, "alternating_start", "A")
-        )
+        self.schedule_name = normalise_schedule(_get_field(cfg, spec, "schedule", "overlay"))
+        self.alternating_start = normalise_alternating_start(_get_field(cfg, spec, "alternating_start", "A"))
         self.per_pos_limit = positive_int(
-            _get_field(
-                cfg, spec, "per_pos_limit", getattr(spec, "per_pos_limit", self.A)
-            )
-            or self.A,
+            _get_field(cfg, spec, "per_pos_limit", getattr(spec, "per_pos_limit", self.A)) or self.A,
             "per_pos_limit",
         )
         self.resolver_limit = positive_int(
-            _get_field(
-                cfg, spec, "resolver_limit", getattr(spec, "resolver_limit", 8193)
-            )
-            or 8193,
+            _get_field(cfg, spec, "resolver_limit", getattr(spec, "resolver_limit", 8193)) or 8193,
             "resolver_limit",
         )
 
@@ -830,22 +757,16 @@ class ScheduledStreamLookupCipher(CipherPipelineMixin, KeyedCipherBase):
                 period_a=_get_field(cfg, spec, "period_a", None),
                 period_b=_get_field(cfg, spec, "period_b", None),
                 period=_get_field(cfg, spec, "period", None),
-                prime_offset=config_int(
-                    _get_field(cfg, spec, "prime_offset", 0), "prime_offset"
-                ),
+                prime_offset=config_int(_get_field(cfg, spec, "prime_offset", 0), "prime_offset"),
             )
         self._stream_specs = validate_streams_v1(streams_cfg, alphabet_size=self.A)
-        self.schedule_name = validate_schedule_for_streams(
-            self.schedule_name, self._stream_specs
-        )
+        self.schedule_name = validate_schedule_for_streams(self.schedule_name, self._stream_specs)
 
         self.streams = self._parse_streams(self._stream_specs)
         key_len = int(sum(s.key_len for s in self.streams))
         cfg_key_len = config_int(getattr(cfg, "key_length", 0), "key_length")
         if cfg_key_len not in (0, key_len):
-            raise ValueError(
-                f"scheduled_stream_lookup expected key_length {key_len}, got {cfg_key_len}"
-            )
+            raise ValueError(f"scheduled_stream_lookup expected key_length {key_len}, got {cfg_key_len}")
         self.key_length = key_len
         self.keyops_hints = {"mod": int(self.A)}
 
@@ -859,9 +780,7 @@ class ScheduledStreamLookupCipher(CipherPipelineMixin, KeyedCipherBase):
         self.b_end = optional_config_int(_get_field(cfg, spec, "b_end", None), "b_end")
         self.mask = _get_field(cfg, spec, "mask", None)
 
-    def _parse_streams(
-        self, specs: Sequence[dict[str, Any]]
-    ) -> Tuple[_StreamRuntime, ...]:
+    def _parse_streams(self, specs: Sequence[dict[str, Any]]) -> Tuple[_StreamRuntime, ...]:
         """Convert already validated stream specs into runtime stream records."""
         streams: list[_StreamRuntime] = []
         key_start = 0
@@ -886,11 +805,7 @@ class ScheduledStreamLookupCipher(CipherPipelineMixin, KeyedCipherBase):
                 values = raw.get("values", None)
                 if values is None:
                     raise ValueError("fixed streams require values")
-                fixed_values = (
-                    np.asarray(values, dtype=np.int64)
-                    .reshape(-1)
-                    .astype(int, copy=False)
-                )
+                fixed_values = np.asarray(values, dtype=np.int64).reshape(-1).astype(int, copy=False)
                 if fixed_values.size == 0:
                     raise ValueError("fixed streams require at least one value")
                 period = int(fixed_values.size)
@@ -927,30 +842,22 @@ class ScheduledStreamLookupCipher(CipherPipelineMixin, KeyedCipherBase):
             _ACTIVE_NONE: LookupTables.from_function(
                 alphabet_size=A,
                 state_size=1,
-                function=lambda pt, state: self._eval_operation(
-                    pt, None, None, _ACTIVE_NONE
-                ),
+                function=lambda pt, state: self._eval_operation(pt, None, None, _ACTIVE_NONE),
             ),
             _ACTIVE_A: LookupTables.from_function(
                 alphabet_size=A,
                 state_size=A,
-                function=lambda pt, state: self._eval_operation(
-                    pt, state, None, _ACTIVE_A
-                ),
+                function=lambda pt, state: self._eval_operation(pt, state, None, _ACTIVE_A),
             ),
             _ACTIVE_B: LookupTables.from_function(
                 alphabet_size=A,
                 state_size=A,
-                function=lambda pt, state: self._eval_operation(
-                    pt, None, state, _ACTIVE_B
-                ),
+                function=lambda pt, state: self._eval_operation(pt, None, state, _ACTIVE_B),
             ),
             _ACTIVE_AB: LookupTables.from_function(
                 alphabet_size=A,
                 state_size=A * A,
-                function=lambda pt, state: self._eval_operation(
-                    pt, state // A, state % A, _ACTIVE_AB
-                ),
+                function=lambda pt, state: self._eval_operation(pt, state // A, state % A, _ACTIVE_AB),
             ),
         }
 
@@ -977,14 +884,10 @@ class ScheduledStreamLookupCipher(CipherPipelineMixin, KeyedCipherBase):
             arr = np.asarray(raw, dtype=object)
             if active == _ACTIVE_AB and arr.shape == (A, A, A):
                 arr = arr.reshape(A, A * A)
-            tables[active] = LookupTables.from_table(
-                alphabet_size=A, state_size=state_size, table=arr
-            )
+            tables[active] = LookupTables.from_table(alphabet_size=A, state_size=state_size, table=arr)
         return tables
 
-    def _eval_operation(
-        self, pt: int, a: Optional[int], b: Optional[int], active: int
-    ) -> int:
+    def _eval_operation(self, pt: int, a: Optional[int], b: Optional[int], active: int) -> int:
         A = int(self.A)
         p = int(pt)
         av = 0 if a is None else int(a)
@@ -1011,9 +914,7 @@ class ScheduledStreamLookupCipher(CipherPipelineMixin, KeyedCipherBase):
     # ------------------------------------------------------------------
     # Schedule and stream values
     # ------------------------------------------------------------------
-    def _window_mask(
-        self, pos: np.ndarray, *, start: int, end: Any, length: int, label: str
-    ) -> np.ndarray:
+    def _window_mask(self, pos: np.ndarray, *, start: int, end: Any, length: int, label: str) -> np.ndarray:
         """Return a boolean active-window mask and reject impossible bounds."""
         lo, hi = validate_schedule_window(length, start=start, end=end, label=label)
         return (pos >= lo) & (pos < hi)
@@ -1038,50 +939,28 @@ class ScheduledStreamLookupCipher(CipherPipelineMixin, KeyedCipherBase):
         elif self.schedule_name == "staggered_overlay":
             if len(self.streams) < 2:
                 raise ValueError("staggered_overlay schedule requires two streams")
-            a_on = self._window_mask(
-                pos, start=self.a_start, end=None, length=L, label="A"
-            )
-            b_on = self._window_mask(
-                pos, start=self.b_start, end=None, length=L, label="B"
-            )
+            a_on = self._window_mask(pos, start=self.a_start, end=None, length=L, label="A")
+            b_on = self._window_mask(pos, start=self.b_start, end=None, length=L, label="B")
             active = (a_on.astype(int) * _ACTIVE_A) | (b_on.astype(int) * _ACTIVE_B)
         elif self.schedule_name == "ragged_overlap":
             if len(self.streams) < 2:
                 raise ValueError("ragged_overlap schedule requires two streams")
-            a_on = self._window_mask(
-                pos, start=self.a_start, end=self.a_end, length=L, label="A"
-            )
-            b_on = self._window_mask(
-                pos, start=self.b_start, end=self.b_end, length=L, label="B"
-            )
+            a_on = self._window_mask(pos, start=self.a_start, end=self.a_end, length=L, label="A")
+            b_on = self._window_mask(pos, start=self.b_start, end=self.b_end, length=L, label="B")
             active = (a_on.astype(int) * _ACTIVE_A) | (b_on.astype(int) * _ACTIVE_B)
         elif self.schedule_name == "mask":
-            active = np.asarray(validate_mask(self.mask, length=L), dtype=int).reshape(
-                -1
-            )
+            active = np.asarray(validate_mask(self.mask, length=L), dtype=int).reshape(-1)
         else:
             raise ValueError(f"unknown schedule {self.schedule_name!r}")
 
         if len(self.streams) < 2 and np.any((active & _ACTIVE_B) != 0):
-            raise ValueError(
-                "schedule activates stream B, but only one stream is configured"
-            )
+            raise ValueError("schedule activates stream B, but only one stream is configured")
 
         a_idx = self._indices_for_stream(self.streams[0], L)
-        b_idx = (
-            self._indices_for_stream(self.streams[1], L)
-            if len(self.streams) > 1
-            else np.full(L, -1, dtype=np.int64)
-        )
-        a_idx = np.where((active & _ACTIVE_A) != 0, a_idx, -1).astype(
-            np.int64, copy=False
-        )
-        b_idx = np.where((active & _ACTIVE_B) != 0, b_idx, -1).astype(
-            np.int64, copy=False
-        )
-        return _CompiledSchedule(
-            active=active.astype(int, copy=False), a_idx=a_idx, b_idx=b_idx
-        )
+        b_idx = self._indices_for_stream(self.streams[1], L) if len(self.streams) > 1 else np.full(L, -1, dtype=np.int64)
+        a_idx = np.where((active & _ACTIVE_A) != 0, a_idx, -1).astype(np.int64, copy=False)
+        b_idx = np.where((active & _ACTIVE_B) != 0, b_idx, -1).astype(np.int64, copy=False)
+        return _CompiledSchedule(active=active.astype(int, copy=False), a_idx=a_idx, b_idx=b_idx)
 
     def _indices_for_stream(self, stream: _StreamRuntime, L: int) -> np.ndarray:
         pos = np.arange(int(L), dtype=np.int64)
@@ -1105,14 +984,10 @@ class ScheduledStreamLookupCipher(CipherPipelineMixin, KeyedCipherBase):
         if stream.kind == "fixed":
             assert stream.period is not None
             if np.any(raw >= int(stream.period)):
-                raise ValueError(
-                    f"fixed stream {stream.name!r} index exceeds values and repeat=False"
-                )
+                raise ValueError(f"fixed stream {stream.name!r} index exceeds values and repeat=False")
         return raw.astype(np.int64, copy=False)
 
-    def _stream_values(
-        self, stream: _StreamRuntime, idx: np.ndarray, keys: np.ndarray
-    ) -> np.ndarray:
+    def _stream_values(self, stream: _StreamRuntime, idx: np.ndarray, keys: np.ndarray) -> np.ndarray:
         """Return values shaped (B, Lq) for one stream over selected positions."""
         B = int(keys.shape[0])
         idx = np.asarray(idx, dtype=np.int64).reshape(-1)
@@ -1125,9 +1000,7 @@ class ScheduledStreamLookupCipher(CipherPipelineMixin, KeyedCipherBase):
             return np.broadcast_to(vals[None, :], (B, vals.size))
         if stream.kind == "primes":
             max_idx = int(idx.max()) if idx.size else -1
-            vals = (_first_primes(max_idx + 1)[idx] % self.A).astype(
-                np.int64, copy=False
-            )
+            vals = (_first_primes(max_idx + 1)[idx] % self.A).astype(np.int64, copy=False)
             return np.broadcast_to(vals[None, :], (B, vals.size))
         raise ValueError(f"unknown stream kind {stream.kind!r}")
 
@@ -1156,9 +1029,7 @@ class ScheduledStreamLookupCipher(CipherPipelineMixin, KeyedCipherBase):
         if keys.ndim == 1:
             keys = keys[None, :]
         if keys.shape[1] != int(self.key_length):
-            raise ValueError(
-                f"Expected key length {self.key_length}, got {keys.shape[1]}"
-            )
+            raise ValueError(f"Expected key length {self.key_length}, got {keys.shape[1]}")
         if keys.size:
             keys = keys % int(self.A)
         return keys
@@ -1195,9 +1066,7 @@ class ScheduledStreamLookupCipher(CipherPipelineMixin, KeyedCipherBase):
                 continue
             pos = all_pos[mask]
             states = self._states_for_active(keys, sched, pos, active)
-            out[:, pos] = self._lookups[active].decrypt_first_symbol(
-                ct[pos][None, :], states
-            )
+            out[:, pos] = self._lookups[active].decrypt_first_symbol(ct[pos][None, :], states)
         return out
 
     def candidates_for(
@@ -1211,11 +1080,7 @@ class ScheduledStreamLookupCipher(CipherPipelineMixin, KeyedCipherBase):
         ct = np.asarray(ct_tr, dtype=int).reshape(-1)
         keys = self._prepare_keys(keys_tr)
         B, L = int(keys.shape[0]), int(ct.size)
-        pos = (
-            np.arange(L, dtype=np.int64)
-            if positions is None
-            else np.asarray(positions, dtype=np.int64).reshape(-1)
-        )
+        pos = np.arange(L, dtype=np.int64) if positions is None else np.asarray(positions, dtype=np.int64).reshape(-1)
         if np.any(pos < 0) or np.any(pos >= L):
             raise ValueError("positions contains out-of-range values")
         LIMIT = self.per_pos_limit if limit is None else config_int(limit, "limit")
@@ -1233,9 +1098,7 @@ class ScheduledStreamLookupCipher(CipherPipelineMixin, KeyedCipherBase):
                 continue
             actual_pos = pos[local]
             states = self._states_for_active(keys, sched, actual_pos, active)
-            sub_cands, sub_lens, _sub_invalid = self._lookups[
-                active
-            ].candidates_for_states(
+            sub_cands, sub_lens, _sub_invalid = self._lookups[active].candidates_for_states(
                 ciphertext=ct[actual_pos],
                 states=states,
                 limit=LIMIT,

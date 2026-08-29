@@ -14,7 +14,6 @@ def _lane(report, name: ScoringLane):
     assert len(matches) == 1
     return matches[0]
 
-
 def test_scorer_lane_report_has_stable_lane_order_and_required_lm_lane() -> None:
     report = build_scorer_lane_report(api.ScoringConfig())
     assert tuple((status.lane for status in report.lanes)) == tuple(ScoringLane)
@@ -23,7 +22,6 @@ def test_scorer_lane_report_has_stable_lane_order_and_required_lm_lane() -> None
     assert lm.effective_state is CapabilityEffectiveState.ACTIVE
     assert lm.ranking_effect is RankingEffect.PRODUCTION
 
-
 def test_requested_hamming_without_backend_is_blocking_production_lane() -> None:
     report = build_scorer_lane_report(api.ScoringConfig(hamming_enabled=True))
     hamming = _lane(report, ScoringLane.HAMMING)
@@ -31,7 +29,6 @@ def test_requested_hamming_without_backend_is_blocking_production_lane() -> None
     assert hamming.effective_state is CapabilityEffectiveState.BLOCKED
     assert hamming.ranking_effect is RankingEffect.PRODUCTION
     assert hamming.issues
-
 
 def test_requested_word_ngram_lane_is_report_only(tmp_path) -> None:
     cfg = api.ScoringConfig(

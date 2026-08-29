@@ -45,7 +45,7 @@ def _rng_integers(rng, low: int, high: int):
 class KeyCaps:
     length: int
     # Optional hints/capabilities:
-    ops: set = field(default_factory=set)  # e.g., {"mutate","recombine","neighbor",...}
+    ops: set = field(default_factory=set)               # e.g., {"mutate","recombine","neighbor",...}
     prefers_batch: bool = False
     alphabet_size: Optional[int] = None
     traits: Dict[str, Any] = field(default_factory=dict)
@@ -72,21 +72,14 @@ class KeyOpBase:
         # Required verbs must be provided by concrete class
         for req in ("random", "normalize", "mutate"):
             if not hasattr(self, req):
-                raise TypeError(
-                    f"{self.__class__.__name__} missing required method: {req}"
-                )
+                raise TypeError(f"{self.__class__.__name__} missing required method: {req}")
 
         # Auto-register present verbs
         for name in (
-            "random",
-            "normalize",
-            "mutate",
-            "neighbor",
-            "recombine",
-            "make_population",
-            "batch_neighbors",
-            "local_improve",
-            "expand_position",
+            "random", "normalize", "mutate",
+            "neighbor", "recombine",
+            "make_population", "batch_neighbors",
+            "local_improve", "expand_position",
             "crossover",
         ):
             fn = getattr(self, name, None)
@@ -129,9 +122,7 @@ class KeyOpBase:
         """Default neighbour = mutate; override for richer local moves."""
         return self.mutate(key, rng)
 
-    def recombine(
-        self, p1: np.ndarray, p2: np.ndarray, rng: np.random.RandomState
-    ) -> np.ndarray:
+    def recombine(self, p1: np.ndarray, p2: np.ndarray, rng: np.random.RandomState) -> np.ndarray:
         """Default recombine = copy-parent with splice; override in families that support crossover."""
         K = int(self.caps.length)
         k = _rng_integers(rng, 1, K) if K > 1 else 1

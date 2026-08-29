@@ -9,7 +9,6 @@ from rune_decrypter_prime.core.types import Direction, Device
 
 pytestmark = pytest.mark.tier_a
 
-
 def test_degeneracy_pipeline_known_key_example():
     N = 29
     length = 20

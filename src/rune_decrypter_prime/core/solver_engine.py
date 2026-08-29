@@ -25,9 +25,7 @@ from rune_decrypter_prime.solvers.beam import BeamSolver
 from rune_decrypter_prime.solvers.ga import GASolver
 from rune_decrypter_prime.solvers.sa import SASolver
 from rune_decrypter_prime.solvers.hybrid import HybridSolver
-from rune_decrypter_prime.solvers.kaeding_periodic_structured import (
-    KaedingPeriodicStructuredSolver,
-)
+from rune_decrypter_prime.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
 
 
 _SOLVER_TABLE: Dict[SolverName, Any] = {
@@ -75,9 +73,7 @@ def build_optimizer(problem, optimizer_cfg: SolverConfig, *, rng=None):
     stop_score = params.get("stop_score")
 
     if rng is None:
-        raise TypeError(
-            "build_optimizer requires rng (np.random.Generator) for determinism"
-        )
+        raise TypeError("build_optimizer requires rng (np.random.Generator) for determinism")
 
     solver_cls = _SOLVER_TABLE[kind]
     solver = solver_cls(

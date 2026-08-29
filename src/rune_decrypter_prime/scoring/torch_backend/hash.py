@@ -42,9 +42,7 @@ def _validate_u32_hash_input_device(tokens_u32: torch.Tensor) -> torch.Tensor:
     if not isinstance(tokens_u32, torch.Tensor):
         raise TypeError("xxh64 device hash expects a torch.Tensor input")
     if tokens_u32.dtype != torch.uint32:
-        raise ValueError(
-            f"xxh64 device hash expects torch.uint32 tokens, got dtype={tokens_u32.dtype}"
-        )
+        raise ValueError(f"xxh64 device hash expects torch.uint32 tokens, got dtype={tokens_u32.dtype}")
     if tokens_u32.ndim < 1:
         raise ValueError("xxh64 device hash expects rank >= 1 input")
     n = int(tokens_u32.shape[-1])
@@ -86,11 +84,11 @@ def xxh64_u32words_cpu(tokens_u32: torch.Tensor | np.ndarray) -> np.ndarray:
         h ^= k1
         h = (rotl64(h, 23) * p2 + p3) & mask64
 
-    h ^= h >> u64(33)
+    h ^= (h >> u64(33))
     h = (h * p2) & mask64
-    h ^= h >> u64(29)
+    h ^= (h >> u64(29))
     h = (h * p3) & mask64
-    h ^= h >> u64(32)
+    h ^= (h >> u64(32))
     return h
 
 
@@ -126,13 +124,11 @@ def xxh64_u32words_device(tokens_u32: torch.Tensor) -> torch.Tensor:
             h ^= k1
             h = (_rotl(h, 23) * p2 + p3) & mask64
 
-        h ^= h >> 33
+        h ^= (h >> 33)
         h = (h * p2) & mask64
-        h ^= h >> 29
+        h ^= (h >> 29)
         h = (h * p3) & mask64
-        h ^= h >> 32
+        h ^= (h >> 32)
         return h.to(torch.int64)
     except Exception:
-        return torch.from_numpy(xxh64_u32words_cpu(tokens_u32).view(np.int64)).to(
-            device
-        )
+        return torch.from_numpy(xxh64_u32words_cpu(tokens_u32).view(np.int64)).to(device)

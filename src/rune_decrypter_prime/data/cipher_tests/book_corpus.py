@@ -88,9 +88,7 @@ def load_book(book: str, direction: Direction | str) -> BookCorpus:
     selected = ensure_direction(direction)
     resource = _books_root().joinpath(f"{book}_{selected.value}.npz")
     if not resource.is_file():
-        raise FileNotFoundError(
-            f"No packaged {selected.value} corpus for book {book!r}"
-        )
+        raise FileNotFoundError(f"No packaged {selected.value} corpus for book {book!r}")
     with resource.open("rb") as handle, np.load(handle, allow_pickle=False) as data:
         pt = np.asarray(data["pt_nose_data"], dtype=np.uint8).reshape(-1).copy()
         raw_wli = np.asarray(data["wli_nose_data"], dtype=np.uint8)
@@ -125,9 +123,7 @@ def select_passage(
     if not len(starts):
         raise ValueError("book corpus contains no words")
     cumulative = np.concatenate(([0], np.cumsum(lengths)))
-    viable = np.flatnonzero(
-        cumulative[-1] - cumulative[:-1] >= target_runes - tolerance_runes
-    )
+    viable = np.flatnonzero(cumulative[-1] - cumulative[:-1] >= target_runes - tolerance_runes)
     if not len(viable):
         raise ValueError("book corpus is too short for requested passage")
     rng = np.random.default_rng(int(seed))
@@ -147,10 +143,4 @@ def select_passage(
     return BookPassage(corpus.book, corpus.direction, start_word, word_count, pt, wli)
 
 
-__all__ = [
-    "BookCorpus",
-    "BookPassage",
-    "available_books",
-    "load_book",
-    "select_passage",
-]
+__all__ = ["BookCorpus", "BookPassage", "available_books", "load_book", "select_passage"]

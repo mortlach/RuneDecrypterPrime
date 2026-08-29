@@ -1,6 +1,5 @@
 from __future__ import annotations
 from pathlib import Path
-
 ROOT = Path(__file__).resolve().parents[2]
 ARTIFACT_AGREEMENT = ROOT / "src" / "rdp" / "api" / "artifact_agreement.py"
 SOLVER_REPORT = ROOT / "src" / "rdp" / "api" / "solver_report.py"
@@ -29,15 +28,11 @@ RUNE_SCORER_WRAPPER = (
 
 
 def test_artifact_classifications_are_enum_owned_not_literal_or_raw_set() -> None:
-    text = ARTIFACT_AGREEMENT.read_text(encoding="utf-8")
-    assert "class ArtifactClassification(StrEnum)" in text
-    assert "Classification = Literal" not in text
+    text = ARTIFACT_AGREEMENT.read_text(encoding='utf-8')
+    assert 'class ArtifactClassification(StrEnum)' in text
+    assert 'Classification = Literal' not in text
     assert 'ALLOWED_CLASSIFICATIONS = {"candidate"' not in text
-    assert (
-        "ALLOWED_CLASSIFICATIONS = frozenset(item.value for item in ArtifactClassification)"
-        in text
-    )
-
+    assert 'ALLOWED_CLASSIFICATIONS = frozenset(item.value for item in ArtifactClassification)' in text
 
 def test_solver_report_reserved_detail_keys_are_enum_derived() -> None:
     text = SOLVER_REPORT.read_text(encoding="utf-8")
@@ -49,16 +44,12 @@ def test_solver_report_reserved_detail_keys_are_enum_derived() -> None:
 
 
 def test_scorer_report_reserved_detail_keys_are_enum_derived() -> None:
-    text = SCORER_REPORT_BUILDER.read_text(encoding="utf-8")
-    assert "class ScorerReportDetailKey(StrEnum)" in text
-    assert "class ReportBuilderDiagnosticKey(StrEnum)" in text
+    text = SCORER_REPORT_BUILDER.read_text(encoding='utf-8')
+    assert 'class ScorerReportDetailKey(StrEnum)' in text
+    assert 'class ReportBuilderDiagnosticKey(StrEnum)' in text
     assert 'RESERVED_DETAIL_KEYS = frozenset({"hamming_dictionary"' not in text
-    assert (
-        "RESERVED_DETAIL_KEYS = frozenset(key.value for key in ScorerReportDetailKey)"
-        in text
-    )
-    assert "CALLER_FORBIDDEN_DETAIL_KEYS" in text
-
+    assert 'RESERVED_DETAIL_KEYS = frozenset(key.value for key in ScorerReportDetailKey)' in text
+    assert 'CALLER_FORBIDDEN_DETAIL_KEYS' in text
 
 def test_d7_scoring_config_modes_are_enum_owned_not_raw_validation_sets() -> None:
     text = SCORING_CONFIG.read_text(encoding="utf-8")
@@ -79,9 +70,9 @@ def test_d7_scoring_config_modes_are_enum_owned_not_raw_validation_sets() -> Non
 
 
 def test_d7_scorer_report_telemetry_sources_are_enum_owned() -> None:
-    text = SCORER_REPORT_BUILDER.read_text(encoding="utf-8")
-    assert "class ScorerTelemetryPrefix(StrEnum)" in text
-    assert "class ScorerTelemetryKey(StrEnum)" in text
+    text = SCORER_REPORT_BUILDER.read_text(encoding='utf-8')
+    assert 'class ScorerTelemetryPrefix(StrEnum)' in text
+    assert 'class ScorerTelemetryKey(StrEnum)' in text
     assert '_section_from_prefix(telemetry, "span_hamming_")' not in text
     assert '_section_from_prefix(telemetry, "word_ngram_judge_")' not in text
     assert '_section_from_prefix(telemetry, "span_lm_")' not in text
@@ -122,8 +113,8 @@ def test_d7_runtime_scorers_use_enum_owned_mode_state() -> None:
 
 def test_d7_capability_report_helpers_normalise_backend_mode_through_contract() -> None:
     for path in (ENGINE_BUILDERS, UNIFIED_RUNE_SCORER, RUNE_SCORER_WRAPPER):
-        text = path.read_text(encoding="utf-8")
-        assert "SpanHammingMode" in text
-        assert "ensure_span_hamming_mode" in text
+        text = path.read_text(encoding='utf-8')
+        assert 'SpanHammingMode' in text
+        assert 'ensure_span_hamming_mode' in text
         assert 'span_hamming_mode == "raw_bonus"' not in text
         assert '_span_hamming_mode", "off"' not in text

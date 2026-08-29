@@ -20,9 +20,7 @@ def _spec(problem_input: api.ProblemInput) -> api.RunSpec:
 def _capture(monkeypatch):
     captured: dict[str, object] = {}
     run_module = importlib.import_module("rdp.api.run")
-    monkeypatch.setattr(
-        run_module, "execute_run", lambda **kwargs: captured.update(kwargs)
-    )
+    monkeypatch.setattr(run_module, "execute_run", lambda **kwargs: captured.update(kwargs))
     return captured
 
 

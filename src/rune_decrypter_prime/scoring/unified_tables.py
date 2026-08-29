@@ -11,7 +11,6 @@ import numpy as np
 # Public kind tag used across scorers
 Kind = Literal["wli", "char"]
 
-
 @dataclass(frozen=True)
 class JointNgramTable:
     """
@@ -23,18 +22,14 @@ class JointNgramTable:
     stats: robust stats used by downstream scorers
            {"mu","sigma","median","mad_sigma","fallback_logp"}
     """
-
-    keys: np.ndarray  # dtype=uint64, C-contig
-    logp: np.ndarray  # dtype=float32, C-contig
-    mask: int  # 2^k - 1
-    stats: Dict[str, float]  # {"mu","sigma","median","mad_sigma","fallback_logp"}
-
+    keys: np.ndarray        # dtype=uint64, C-contig
+    logp: np.ndarray        # dtype=float32, C-contig
+    mask: int               # 2^k - 1
+    stats: Dict[str, float] # {"mu","sigma","median","mad_sigma","fallback_logp"}
 
 class TablesProvider(Protocol):
     """Stable contract consumed by both NumPy and Torch scorers."""
-
     def get_joint_table(self, kind: Kind, n: int) -> JointNgramTable: ...
-
 
 class RuntimeTablesProvider:
     """
@@ -123,13 +118,12 @@ class RuntimeTablesProvider:
             _norm_se,
             _norm_model,
         )
-
         # Pull canonical fields and convert Enums to their .value strings
         dir_raw = (
-            getattr(self.cfg_cipher, "encoding_dir", None)
-            or getattr(self.cfg_cipher, "text_encoding_direction", None)
-            or getattr(self.cfg_cipher, "text_transposition", None)
-            or "ltr"
+                getattr(self.cfg_cipher, "encoding_dir", None)
+                or getattr(self.cfg_cipher, "text_encoding_direction", None)
+                or getattr(self.cfg_cipher, "text_transposition", None)
+                or "ltr"
         )
         if hasattr(dir_raw, "value"):  # Direction Enum -> "ltr"/"rtl"
             dir_raw = dir_raw.value

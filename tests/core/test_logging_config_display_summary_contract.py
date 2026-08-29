@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 from rune_decrypter_prime.core.config.logging_config import init_logging
 
-
 def test_logging_config_accepts_display_summary_flag(tmp_path: Path) -> None:
     cfg = api.LoggingConfig(
         output_root=tmp_path / "output",

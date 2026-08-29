@@ -9,18 +9,10 @@ from rune_decrypter_prime.core.hamming_dictionary_policy import (
 
 
 _POLICY_REL_DIRS = {
-    HammingDictionaryPolicy.STRICT: Path(
-        "hamming_dictionary_policies/strict/hamming_raw_1g"
-    ),
-    HammingDictionaryPolicy.NORMAL: Path(
-        "hamming_dictionary_policies/normal/hamming_raw_1g"
-    ),
-    HammingDictionaryPolicy.BROAD: Path(
-        "hamming_dictionary_policies/broad/hamming_raw_1g"
-    ),
-    HammingDictionaryPolicy.RESEARCH: Path(
-        "hamming_dictionary_policies/research/hamming_raw_1g"
-    ),
+    HammingDictionaryPolicy.STRICT: Path("hamming_dictionary_policies/strict/hamming_raw_1g"),
+    HammingDictionaryPolicy.NORMAL: Path("hamming_dictionary_policies/normal/hamming_raw_1g"),
+    HammingDictionaryPolicy.BROAD: Path("hamming_dictionary_policies/broad/hamming_raw_1g"),
+    HammingDictionaryPolicy.RESEARCH: Path("hamming_dictionary_policies/research/hamming_raw_1g"),
 }
 
 

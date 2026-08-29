@@ -12,29 +12,18 @@ from rune_decrypter_prime.scoring.hamming.dictionary_assets import (
 
 
 def test_ensure_hamming_dictionary_policy_normalizes_strings() -> None:
-    assert ensure_hamming_dictionary_policy("strict") is HammingDictionaryPolicy.STRICT
-    assert (
-        ensure_hamming_dictionary_policy(" NORMAL ") is HammingDictionaryPolicy.NORMAL
-    )
-
+    assert ensure_hamming_dictionary_policy('strict') is HammingDictionaryPolicy.STRICT
+    assert ensure_hamming_dictionary_policy(' NORMAL ') is HammingDictionaryPolicy.NORMAL
 
 def test_resolve_hamming_dictionary_wordlist_dir_uses_policy_root() -> None:
-    root = Path("assets")
-    out = resolve_hamming_dictionary_wordlist_dir(
-        HammingDictionaryPolicy.NORMAL, policy_root=root
-    )
-    assert out == root / "hamming_dictionary_policies/normal/hamming_raw_1g"
-
+    root = Path('assets')
+    out = resolve_hamming_dictionary_wordlist_dir(HammingDictionaryPolicy.NORMAL, policy_root=root)
+    assert out == root / 'hamming_dictionary_policies/normal/hamming_raw_1g'
 
 def test_choose_hamming_dictionary_wordlist_dir_prefers_explicit_path() -> None:
-    explicit = Path("custom/raw1grams")
-    out = choose_hamming_dictionary_wordlist_dir(
-        explicit_wordlist_dir=explicit,
-        policy=HammingDictionaryPolicy.STRICT,
-        policy_root=Path("assets"),
-    )
+    explicit = Path('custom/raw1grams')
+    out = choose_hamming_dictionary_wordlist_dir(explicit_wordlist_dir=explicit, policy=HammingDictionaryPolicy.STRICT, policy_root=Path('assets'))
     assert out == explicit
-
 
 def test_scoring_config_serializes_policy_enum_safely() -> None:
     cfg = api.ScoringConfig(

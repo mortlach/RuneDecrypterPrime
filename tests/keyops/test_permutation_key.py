@@ -1,15 +1,12 @@
 import numpy as np
 from rune_decrypter_prime.keyops import PermutationKeyOps, PermutationKeyConfig
 import pytest
-
 pytestmark = [pytest.mark.tier_a]
-
 
 def test_materialize_and_validate():
     keyop = PermutationKeyOps(PermutationKeyConfig(K=10))
     k = keyop.materialize(seed=123)
     keyop.validate(k)
-
 
 def test_normalize_projects_to_perm():
     keyop = PermutationKeyOps(PermutationKeyConfig(K=7))

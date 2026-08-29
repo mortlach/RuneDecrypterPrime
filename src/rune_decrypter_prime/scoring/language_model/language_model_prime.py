@@ -19,17 +19,16 @@ from . import _fastlm
 from .paths import load_index, expand_pattern, default_lm_root
 
 # Canonical LM defaults (single source of truth)
-DEFAULT_SMOOTHING = "auto_gt"  # "none" | "lidstone" | "jeffreys" | "auto_gt"
+DEFAULT_SMOOTHING = "auto_gt"          # "none" | "lidstone" | "jeffreys" | "auto_gt"
 DEFAULT_OOV_POLICY = "floor_min_seen"  # "floor_min_seen" | "lidstone"
 
-DIR = Literal["ltr", "rtl"]
-SE = Literal["wise", "nose", "WISE", "NOSE"]
+DIR   = Literal["ltr", "rtl"]
+SE    = Literal["wise", "nose", "WISE", "NOSE"]
 MODEL = Literal["wli", "char", "WLI", "CHAR"]
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ──────────────────────────────────────────────────────────────────────────────
-
 
 def _norm_dir(direction: DIR) -> str:
     d = str(direction).lower()
@@ -64,12 +63,7 @@ def set_lm_load_logging(enabled: bool) -> None:
     _LOG_LOADS = bool(enabled)
 
 
-def _load_bin(
-    path: Path,
-    *,
-    cache: dict[Path, tuple[np.ndarray, np.ndarray, np.ndarray, np.uint32]]
-    | None = None,
-):
+def _load_bin(path: Path, *, cache: dict[Path, tuple[np.ndarray, np.ndarray, np.ndarray, np.uint32]] | None = None):
     """
     Read a combined .bin.zst with header "<4sBHIff" (magic 'WLI0') then:
       keys:uint64[M], logp:float32[M], cnts:uint64[M]
@@ -103,9 +97,7 @@ def _load_bin(
     buf = memoryview(dec)
     off = 0
 
-    magic, version, lg_size, _zero, _mu_stub, _sigma_stub = struct.unpack_from(
-        "<4sBHIff", buf, off
-    )
+    magic, version, lg_size, _zero, _mu_stub, _sigma_stub = struct.unpack_from("<4sBHIff", buf, off)
     off += struct.calcsize("<4sBHIff")
     if magic != b"WLI0":
         raise ValueError(f"Bad magic in {path}")
@@ -113,12 +105,9 @@ def _load_bin(
     table_size = 1 << lg_size
     mask = np.uint32((1 << lg_size) - 1)
 
-    keys = np.frombuffer(buf[off : off + 8 * table_size], dtype="<u8")
-    off += 8 * table_size
-    logp = np.frombuffer(buf[off : off + 4 * table_size], dtype="<f4")
-    off += 4 * table_size
-    cnts = np.frombuffer(buf[off : off + 8 * table_size], dtype="<u8")
-    off += 8 * table_size
+    keys = np.frombuffer(buf[off: off + 8 * table_size], dtype="<u8"); off += 8 * table_size
+    logp = np.frombuffer(buf[off: off + 4 * table_size], dtype="<f4"); off += 4 * table_size
+    cnts = np.frombuffer(buf[off: off + 8 * table_size], dtype="<u8"); off += 8 * table_size
 
     # Return writable copies (native may smooth in-place)
     out = (
@@ -136,7 +125,6 @@ def _load_bin(
 # Public structures
 # ──────────────────────────────────────────────────────────────────────────────
 
-
 @dataclass
 class SentScores:
     counts_sum: int
@@ -148,7 +136,6 @@ class SentScores:
 # ──────────────────────────────────────────────────────────────────────────────
 # Index-driven LanguageModelPrime
 # ──────────────────────────────────────────────────────────────────────────────
-
 
 class LanguageModelPrime:
     """
@@ -164,8 +151,8 @@ class LanguageModelPrime:
     def __init__(
         self,
         lm_root: str | Path | None = None,
-        smoothing: str | None = None,  # "none"|"lidstone"|"jeffreys"|"auto_gt"
-        alpha: float = 0.5,  # used when smoothing == "lidstone"
+        smoothing: str | None = None,   # "none"|"lidstone"|"jeffreys"|"auto_gt"
+        alpha: float = 0.5,             # used when smoothing == "lidstone"
         oov_policy: str | None = None,  # "floor_min_seen"|"lidstone"
         include_char: bool = True,
     ):
@@ -190,9 +177,7 @@ class LanguageModelPrime:
         self._alpha = float(alpha)
         self._oov_mode = omap[self.oov_policy]
         self._cache: Dict[Tuple[str, str, str, int], _fastlm.FastTransitionModel] = {}
-        self._bin_cache: dict[
-            Path, tuple[np.ndarray, np.ndarray, np.ndarray, np.uint32]
-        ] = {}
+        self._bin_cache: dict[Path, tuple[np.ndarray, np.ndarray, np.ndarray, np.uint32]] = {}
 
     # ---------- public API ----------
 
@@ -238,14 +223,14 @@ class LanguageModelPrime:
                 if pairs.ndim != 2 or pairs.shape[1] != 2:
                     raise ValueError("wli sentence must be (L,2)")
                 w_arr = pairs[None, :, :]  # (1, L, 2)
-                lp = float(mdl.batch_logp(p_arr, w_arr, int(n), 0)[0])
-                ct = int(mdl.batch_count(p_arr, w_arr, int(n), 0)[0])
-                zsum = float(mdl.batch_zsum(p_arr, w_arr, int(n), 0)[0])
-                msum = float(mdl.batch_madsum(p_arr, w_arr, int(n), 0)[0])
+                lp   = float(mdl.batch_logp(   p_arr, w_arr, int(n), 0)[0])
+                ct   = int(  mdl.batch_count(  p_arr, w_arr, int(n), 0)[0])
+                zsum = float(mdl.batch_zsum(   p_arr, w_arr, int(n), 0)[0])
+                msum = float(mdl.batch_madsum( p_arr, w_arr, int(n), 0)[0])
             else:
-                lp = float(mdl.batch_logp_char(p_arr, int(n))[0])
-                ct = int(mdl.batch_count_char(p_arr, int(n))[0])
-                zsum = float(mdl.batch_zsum_char(p_arr, int(n))[0])
+                lp   = float(mdl.batch_logp_char(  p_arr, int(n))[0])
+                ct   = int(  mdl.batch_count_char( p_arr, int(n))[0])
+                zsum = float(mdl.batch_zsum_char(  p_arr, int(n))[0])
                 msum = float(mdl.batch_madsum_char(p_arr, int(n))[0])
             out.append(SentScores(ct, lp, zsum, msum))
         return out
@@ -291,23 +276,20 @@ class LanguageModelPrime:
 
         S = len(pt)
         means: List[Tuple[float, float, float, float]] = []
-        sds: List[Tuple[float, float, float, float]] = []
+        sds:   List[Tuple[float, float, float, float]] = []
 
         for s in range(S):
-            cs = [per_trial[t][s].counts_sum for t in range(trials)]
+            cs = [per_trial[t][s].counts_sum  for t in range(trials)]
             ls = [per_trial[t][s].logprob_sum for t in range(trials)]
-            zs = [per_trial[t][s].z_sum for t in range(trials)]
-            ms = [per_trial[t][s].madsum for t in range(trials)]
+            zs = [per_trial[t][s].z_sum       for t in range(trials)]
+            ms = [per_trial[t][s].madsum      for t in range(trials)]
 
             def msd(a):
                 m = sum(a) / len(a)
                 v = sum((x - m) * (x - m) for x in a) / max(1, len(a) - 1)
                 return m, math.sqrt(v)
 
-            mc, sc = msd(cs)
-            ml, sl = msd(ls)
-            mz, sz = msd(zs)
-            mm, sm = msd(ms)
+            mc, sc = msd(cs); ml, sl = msd(ls); mz, sz = msd(zs); mm, sm = msd(ms)
             means.append((mc, ml, mz, mm))
             sds.append((sc, sl, sz, sm))
         return {"means": means, "sds": sds, "seconds": elapsed}
@@ -375,13 +357,9 @@ class LanguageModelPrime:
           "char/%%MODE%%/char29_joint_%%MODE%%_%%N%%_%%POS%%.bin.zst"
         """
         pat = self.idx.models[_norm_model(model)]["joint_pattern"]
-        return expand_pattern(
-            self.root, pat, mode=_norm_dir(direction), pos=_norm_se(se), n=int(n)
-        )
+        return expand_pattern(self.root, pat, mode=_norm_dir(direction), pos=_norm_se(se), n=int(n))
 
-    def _ensure(
-        self, direction: str, se: str, model: str, n: int
-    ) -> _fastlm.FastTransitionModel:
+    def _ensure(self, direction: str, se: str, model: str, n: int) -> _fastlm.FastTransitionModel:
         key = (_norm_dir(direction), _norm_se(se), _norm_model(model), int(n))
         mdl = getattr(self, "_cache", {}).get(key)
         if mdl is not None:
@@ -389,14 +367,8 @@ class LanguageModelPrime:
         path = self._joint_path(*key)
         keys, logp, cnts, mask = _load_bin(path, cache=self._bin_cache)
         mdl = _fastlm.FastTransitionModel(
-            keys,
-            logp,
-            cnts,
-            int(mask),
-            self._smooth_mode,
-            self._alpha,
-            self._oov_mode,
-            False,
+            keys, logp, cnts, int(mask),
+            self._smooth_mode, self._alpha, self._oov_mode, False
         )
         self._cache[key] = mdl
         return mdl
@@ -425,36 +397,26 @@ class LanguageModelPrime:
                             raise ValueError(f"wli[{s}][{t}] tag must be [0,0]")
                         if _norm_se(se) == "wise":
                             if p[t] not in (29, 30):
-                                raise ValueError(
-                                    f"wli tag at {s},{t} must align to 29/30 in pt"
-                                )
+                                raise ValueError(f"wli tag at {s},{t} must align to 29/30 in pt")
                     else:
                         if not (0 <= pos < L <= 63):
                             raise ValueError(f"wli[{s}][{t}] pos/len out of range")
             if _norm_se(se) == "wise":
                 for s, p in enumerate(pt):
                     if p and (p[0] != 29 or p[-1] != 30):
-                        raise ValueError(
-                            f"WISE sentence {s} must start with 29 and end with 30"
-                        )
+                        raise ValueError(f"WISE sentence {s} must start with 29 and end with 30")
             else:  # NOSE
                 for s, p in enumerate(pt):
                     for tok in p:
                         if tok in (29, 30):
-                            raise ValueError(
-                                f"NOSE sentence {s} must not contain 29/30"
-                            )
+                            raise ValueError(f"NOSE sentence {s} must not contain 29/30")
         else:  # char
             if _norm_se(se) == "wise":
                 for s, p in enumerate(pt):
                     if p and (p[0] != 29 or p[-1] != 30):
-                        raise ValueError(
-                            f"WISE sentence {s} must start with 29 and end with 30"
-                        )
+                        raise ValueError(f"WISE sentence {s} must start with 29 and end with 30")
             else:
                 for s, p in enumerate(pt):
                     for tok in p:
                         if tok in (29, 30):
-                            raise ValueError(
-                                f"NOSE sentence {s} must not contain 29/30"
-                            )
+                            raise ValueError(f"NOSE sentence {s} must not contain 29/30")

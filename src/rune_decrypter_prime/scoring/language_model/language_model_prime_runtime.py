@@ -48,24 +48,20 @@ _LM_RUNTIME_CACHE: dict[tuple, "LmPrimeRuntime"] = {}
 # Global disk-cache for ECDF assets. Key MUST include the resolved LM root;
 # tests frequently use tmp_path roots with different contents but identical
 # (mode,pos,model,n,stat,win) selectors.
-_ECDF_GLOBAL_CACHE: dict[
-    tuple, tuple[np.ndarray, np.ndarray, dict, str, tuple[float, float]]
-] = {}
+_ECDF_GLOBAL_CACHE: dict[tuple, tuple[np.ndarray, np.ndarray, dict, str, tuple[float, float]]] = {}
 
 # ──────────────────────────────────────────────────────────────────────────────
 # ECDF loader/cache
 # ──────────────────────────────────────────────────────────────────────────────
 
-
 @dataclass(frozen=True)
 class Bucket:
     """Selector for a specific ECDF bucket (mode/pos/model/n/win)."""
-
-    d: str  # "ltr" | "rtl"
-    se: str  # "wise" | "nose"
-    model: str  # "wli" | "char"
-    n: int  # 1..4
-    win: int  # window length (e.g., 10)
+    d: str          # "ltr" | "rtl"
+    se: str         # "wise" | "nose"
+    model: str      # "wli" | "char"
+    n: int          # 1..4
+    win: int        # window length (e.g., 10)
 
 
 class ECDFCache:
@@ -74,7 +70,6 @@ class ECDFCache:
     Enforces ABI: grid/q are float64 on disk, strictly increasing, meta_json required.
     Allows explicit float32 working buffers if they remain strictly increasing.
     """
-
     def __init__(
         self,
         root: Optional[Path] = None,
@@ -92,22 +87,16 @@ class ECDFCache:
         self._load_reporter = load_reporter
         self._prefer_float32 = bool(prefer_float32)
 
-    def _ecdf_path(
-        self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int
-    ) -> Path:
+    def _ecdf_path(self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int) -> Path:
         model_cfg = self.idx.models[model]
         pattern: str = model_cfg["ecdf_pattern"]
-        return expand_pattern(
-            self.root, pattern, mode=mode, pos=pos, n=n, stat=stat, win=int(win)
-        )
+        return expand_pattern(self.root, pattern, mode=mode, pos=pos, n=n, stat=stat, win=int(win))
 
     @staticmethod
     def _key(*, model: str, mode: str, pos: str, n: int, stat: str, win: int) -> tuple:
         return (mode, pos, model, int(n), stat, int(win))
 
-    def asset_id(
-        self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int
-    ) -> str:
+    def asset_id(self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int) -> str:
         """Stable asset id for telemetry (relative path when possible)."""
         fp = self._ecdf_path(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         try:
@@ -115,9 +104,7 @@ class ECDFCache:
         except Exception:
             return str(fp)
 
-    def load(
-        self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int
-    ) -> tuple[np.ndarray, np.ndarray]:
+    def load(self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int) -> tuple[np.ndarray, np.ndarray]:
         key = self._key(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         hit = self._cache.get(key)
         if hit is not None:
@@ -127,28 +114,20 @@ class ECDFCache:
         if global_hit is not None:
             grid64, q64, meta, meta_hash, q_range = global_hit
             q0, q1 = q_range
-            fp = self._ecdf_path(
-                model=model, mode=mode, pos=pos, n=n, stat=stat, win=win
-            )
+            fp = self._ecdf_path(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
             self._emit_load_status(
                 kind="cache_hit",
-                asset_id=self.asset_id(
-                    model=model, mode=mode, pos=pos, n=n, stat=stat, win=win
-                ),
+                asset_id=self.asset_id(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win),
                 path=fp,
                 status="cached",
                 cached=True,
             )
         else:
-            fp = self._ecdf_path(
-                model=model, mode=mode, pos=pos, n=n, stat=stat, win=win
-            )
+            fp = self._ecdf_path(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
             if not fp.exists():
                 self._emit_load_status(
                     kind="missing_asset",
-                    asset_id=self.asset_id(
-                        model=model, mode=mode, pos=pos, n=n, stat=stat, win=win
-                    ),
+                    asset_id=self.asset_id(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win),
                     path=fp,
                     status="missing",
                     cached=False,
@@ -163,13 +142,9 @@ class ECDFCache:
             grid64 = np.asarray(arr["grid"])
             q64 = np.asarray(arr["q"])
             if grid64.dtype != np.float64:
-                raise ValueError(
-                    f"ECDF grid dtype must be float64; got {grid64.dtype} in {fp}"
-                )
+                raise ValueError(f"ECDF grid dtype must be float64; got {grid64.dtype} in {fp}")
             if q64.dtype != np.float64:
-                raise ValueError(
-                    f"ECDF q dtype must be float64; got {q64.dtype} in {fp}"
-                )
+                raise ValueError(f"ECDF q dtype must be float64; got {q64.dtype} in {fp}")
             if grid64.ndim != 1 or q64.ndim != 1 or grid64.size != q64.size:
                 raise ValueError(f"ECDF grid/q must be 1D and same length in {fp}")
             if grid64.size > 1 and not bool(np.all(np.diff(grid64) > 0.0)):
@@ -224,28 +199,17 @@ class ECDFCache:
             # Compute meta hash (meta_json + grid + q)
             try:
                 import hashlib
-
                 h = hashlib.sha256()
                 h.update(meta_json.encode("utf-8"))
                 h.update(np.ascontiguousarray(grid64, dtype=np.float64).tobytes())
                 h.update(np.ascontiguousarray(q64, dtype=np.float64).tobytes())
                 meta_hash = h.hexdigest()
             except Exception as exc:
-                raise ValueError(
-                    f"ECDF meta_hash computation failed in {fp}: {exc}"
-                ) from exc
-            _ECDF_GLOBAL_CACHE[global_key] = (
-                grid64,
-                q64,
-                dict(meta),
-                meta_hash,
-                (q0, q1),
-            )
+                raise ValueError(f"ECDF meta_hash computation failed in {fp}: {exc}") from exc
+            _ECDF_GLOBAL_CACHE[global_key] = (grid64, q64, dict(meta), meta_hash, (q0, q1))
             self._emit_load_status(
                 kind="ecdf_load",
-                asset_id=self.asset_id(
-                    model=model, mode=mode, pos=pos, n=n, stat=stat, win=win
-                ),
+                asset_id=self.asset_id(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win),
                 path=fp,
                 status="loaded",
                 cached=False,
@@ -300,42 +264,26 @@ class ECDFCache:
             )
         )
 
-    def meta(
-        self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int
-    ) -> dict:
+    def meta(self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int) -> dict:
         key = self._key(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         if key not in self._meta_cache:
             _ = self.load(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         return dict(self._meta_cache[key])
 
-    def meta_hash(
-        self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int
-    ) -> str:
+    def meta_hash(self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int) -> str:
         key = self._key(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         if key not in self._hash_cache:
             _ = self.load(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         return str(self._hash_cache[key])
 
-    def interp_dtype(
-        self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int
-    ) -> str:
+    def interp_dtype(self, *, model: str, mode: str, pos: str, n: int, stat: str, win: int) -> str:
         key = self._key(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         if key not in self._interp_dtype_cache:
             _ = self.load(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         return str(self._interp_dtype_cache[key])
 
-    def validate_clamp_range(
-        self,
-        *,
-        model: str,
-        mode: str,
-        pos: str,
-        n: int,
-        stat: str,
-        win: int,
-        clamp_min: float,
-        clamp_max: float,
-    ) -> None:
+    def validate_clamp_range(self, *, model: str, mode: str, pos: str, n: int, stat: str,
+                             win: int, clamp_min: float, clamp_max: float) -> None:
         key = self._key(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
         if key not in self._q_range_cache:
             _ = self.load(model=model, mode=mode, pos=pos, n=n, stat=stat, win=win)
@@ -349,11 +297,7 @@ class ECDFCache:
     @staticmethod
     def interp_percentile(grid: np.ndarray, q: np.ndarray, x: np.ndarray) -> np.ndarray:
         """Piecewise-linear ECDF mapping; clamped to [0, 1] with tiny endpoint tolerance."""
-        dtype = (
-            np.float64
-            if (grid.dtype == np.float64 or q.dtype == np.float64)
-            else np.float32
-        )
+        dtype = np.float64 if (grid.dtype == np.float64 or q.dtype == np.float64) else np.float32
         # Allow a tiny epsilon near endpoints to avoid CPU/GPU drift from float jitter.
         x_arr = np.asarray(x, dtype=dtype)
         g0 = dtype(grid[0])
@@ -373,15 +317,11 @@ class ECDFCache:
         """Compute percentiles for all three stats using the same bucket selector."""
         out: Dict[str, np.ndarray] = {}
         for stat in ("zsum", "madsum", "logp"):
-            grid, qq = self.load(
-                model=b.model, mode=b.d, pos=b.se, n=b.n, stat=stat, win=b.win
-            )
+            grid, qq = self.load(model=b.model, mode=b.d, pos=b.se, n=b.n, stat=stat, win=b.win)
             out[stat] = self.interp_percentile(grid, qq, x)
         return out
 
-    def percentiles_multi(
-        self, b: Bucket, arrays: Dict[str, np.ndarray]
-    ) -> Dict[str, np.ndarray]:
+    def percentiles_multi(self, b: Bucket, arrays: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
         """Compute percentiles for specific stats provided in arrays.
 
         Example: arrays={"zsum": zsum_a, "madsum": madsum_a, "logp": logp_a}
@@ -389,9 +329,7 @@ class ECDFCache:
         """
         out: Dict[str, np.ndarray] = {}
         for stat, x in arrays.items():
-            grid, qq = self.load(
-                model=b.model, mode=b.d, pos=b.se, n=b.n, stat=stat, win=b.win
-            )
+            grid, qq = self.load(model=b.model, mode=b.d, pos=b.se, n=b.n, stat=stat, win=b.win)
             out[stat] = self.interp_percentile(grid, qq, x)
         return out
 
@@ -413,7 +351,6 @@ class ECDFCache:
 # Runtime scorer
 # ──────────────────────────────────────────────────────────────────────────────
 
-
 def _norm_dir(d: str) -> str:
     d = str(d).lower()
     if d == "ltr":
@@ -429,7 +366,6 @@ class LmPrimeRuntime:
 
     Create ONE instance and reuse it across scorers/optimisers to leverage caching.
     """
-
     def __init__(
         self,
         root: Optional[Path] = None,
@@ -457,13 +393,9 @@ class LmPrimeRuntime:
         # ECDF normalisation cache (reads NPZ based on index.json patterns)
         self._prefer_float32 = bool(prefer_float32)
         self._compute_dtype = np.float32 if self._prefer_float32 else np.float64
-        self.ecdf = ECDFCache(
-            self.root, prefer_float32=self._prefer_float32, load_reporter=load_reporter
-        )
+        self.ecdf = ECDFCache(self.root, prefer_float32=self._prefer_float32, load_reporter=load_reporter)
         # Coverage cache: key = (L, n, wise:bool, N)
-        self._coverage_cache: Dict[
-            Tuple[int, int, bool, int], Tuple[np.ndarray, np.ndarray]
-        ] = {}
+        self._coverage_cache: Dict[Tuple[int, int, bool, int], Tuple[np.ndarray, np.ndarray]] = {}
 
     @classmethod
     def get_cached(
@@ -485,14 +417,7 @@ class LmPrimeRuntime:
         root_path = (root or default_lm_root()).resolve()
         smoothing = "auto_gt" if smoothing is None else smoothing
         oov_policy = "floor_min_seen" if oov_policy is None else oov_policy
-        key = (
-            str(root_path),
-            str(smoothing),
-            float(alpha),
-            str(oov_policy),
-            bool(include_char),
-            bool(prefer_float32),
-        )
+        key = (str(root_path), str(smoothing), float(alpha), str(oov_policy), bool(include_char), bool(prefer_float32))
         cached = _LM_RUNTIME_CACHE.get(key)
         if cached is None:
             cached = cls(
@@ -517,16 +442,9 @@ class LmPrimeRuntime:
         """
         try:
             import numpy as _np  # local import to avoid circulars during type checking
-
             if isinstance(pt_windows, _np.ndarray):
-                if (
-                    pt_windows.ndim != 2
-                    or pt_windows.shape[0] <= 0
-                    or pt_windows.shape[1] <= 0
-                ):
-                    raise ValueError(
-                        f"{name}: ndarray must be 2D (N,L) with N>0, L>0; got {pt_windows.shape}"
-                    )
+                if pt_windows.ndim != 2 or pt_windows.shape[0] <= 0 or pt_windows.shape[1] <= 0:
+                    raise ValueError(f"{name}: ndarray must be 2D (N,L) with N>0, L>0; got {pt_windows.shape}")
                 return
         except Exception:
             pass
@@ -545,9 +463,7 @@ class LmPrimeRuntime:
         # number of n-grams in a length-L sentence
         return max(0, L - int(n) + 1)
 
-    def _coverage_arrays_cached(
-        self, L: int, n: int, wise: bool, N: int
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    def _coverage_arrays_cached(self, L: int, n: int, wise: bool, N: int) -> Tuple[np.ndarray, np.ndarray]:
         key = (int(L), int(n), bool(wise), int(N))
         hit = self._coverage_cache.get(key)
         if hit is not None:
@@ -581,14 +497,14 @@ class LmPrimeRuntime:
         if isinstance(pt_windows, np.ndarray):
             if pt_windows.ndim != 2:
                 raise ValueError("pt_windows ndarray must be 2D (N,L)")
-            pt = pt_windows.astype(np.uint8, copy=False, order="C")
+            pt = pt_windows.astype(np.uint8, copy=False, order='C')
         else:
             pt_rows = [np.asarray(w, dtype=np.uint8) for w in pt_windows]
             try:
                 L = int(pt_rows[0].shape[0])
             except Exception:
                 raise ValueError("pt_windows must be sequences of equal length")
-            pt = np.ascontiguousarray(np.vstack(pt_rows))  # (N, L)
+            pt = np.ascontiguousarray(np.vstack(pt_rows))       # (N, L)
 
         # L from pt shape
         L = int(pt.shape[1])
@@ -597,44 +513,30 @@ class LmPrimeRuntime:
             # Accept either (N,L,2) or a single (L,2) window source and derive sliding windows
             if wli_windows.ndim >= 3 and wli_windows.shape[-1] == 2:
                 if int(wli_windows.shape[-2]) != L:
-                    raise ValueError(
-                        f"wli_windows length {wli_windows.shape[-2]} != pt length {L}"
-                    )
+                    raise ValueError(f"wli_windows length {wli_windows.shape[-2]} != pt length {L}")
                 # Flatten any leading dims into N
                 N = int(pt.shape[0])
                 wli_flat = wli_windows.reshape(-1, L, 2)
                 if int(wli_flat.shape[0]) != N:
                     # If mismatch, prefer a clear error rather than silent broadcast
-                    raise ValueError(
-                        f"wli_windows N {wli_flat.shape[0]} != pt windows N {N}"
-                    )
-                wli = wli_flat.astype(np.uint8, copy=False, order="C")
+                    raise ValueError(f"wli_windows N {wli_flat.shape[0]} != pt windows N {N}")
+                wli = wli_flat.astype(np.uint8, copy=False, order='C')
             elif wli_windows.ndim == 2 and wli_windows.shape[1] == 2:
                 # Build (N,L,2) by sliding a single (full) WLI over axis 0
                 N = int(pt.shape[0])
                 try:
                     from numpy.lib.stride_tricks import sliding_window_view as _swv  # type: ignore
-
-                    wli_sw = _swv(
-                        wli_windows.astype(np.uint8, copy=False), window_shape=L, axis=0
-                    )
+                    wli_sw = _swv(wli_windows.astype(np.uint8, copy=False), window_shape=L, axis=0)
                     # wli_sw shape: (L-L+1, L, 2) == (1, L, 2) if N==1, else (N,L,2)
                     if int(wli_sw.shape[0]) != N:
-                        raise ValueError(
-                            f"derived wli_windows N {wli_sw.shape[0]} != pt windows N {N}"
-                        )
-                    wli = wli_sw.astype(np.uint8, copy=False, order="C")
+                        raise ValueError(f"derived wli_windows N {wli_sw.shape[0]} != pt windows N {N}")
+                    wli = wli_sw.astype(np.uint8, copy=False, order='C')
                 except Exception:
                     # Fallback: explicit build
                     starts = range(0, 1 + (L - L)) if L > 0 else range(0)
-                    wli_list = [
-                        wli_windows[s : s + L, :].astype(np.uint8, copy=False)
-                        for s in starts
-                    ]
+                    wli_list = [wli_windows[s:s+L, :].astype(np.uint8, copy=False) for s in starts]
                     if len(wli_list) != N:
-                        raise ValueError(
-                            "wli_windows could not be derived to match pt windows"
-                        )
+                        raise ValueError("wli_windows could not be derived to match pt windows")
                     wli = np.ascontiguousarray(np.stack(wli_list, 0), dtype=np.uint8)
             else:
                 # As a last resort, if sizes match exactly, reshape to (N,L,2)
@@ -643,31 +545,25 @@ class LmPrimeRuntime:
                 if int(wli_windows.size) == expected:
                     wli = wli_windows.astype(np.uint8, copy=False).reshape(N, L, 2)
                 else:
-                    raise ValueError(
-                        "wli_windows ndarray must have last dim=2 (…, L, 2)"
-                    )
+                    raise ValueError("wli_windows ndarray must have last dim=2 (…, L, 2)")
         else:
             # Validate and stack WLI pairs: each sentence must be (L, 2)
             wli_rows = []
             for i, pairs in enumerate(wli_windows):
                 a = np.asarray(pairs, dtype=np.uint8)
                 if a.ndim != 2 or a.shape[1] != 2:
-                    raise ValueError(
-                        f"wli_windows[{i}] must have shape (L,2); got {a.shape}"
-                    )
+                    raise ValueError(f"wli_windows[{i}] must have shape (L,2); got {a.shape}")
                 if a.shape[0] != L:
-                    raise ValueError(
-                        f"wli_windows[{i}] length {a.shape[0]} != pt length {L}"
-                    )
+                    raise ValueError(f"wli_windows[{i}] length {a.shape[0]} != pt length {L}")
                 wli_rows.append(a)
-            wli = np.ascontiguousarray(np.stack(wli_rows, 0))  # (N, L, 2)
+            wli = np.ascontiguousarray(np.stack(wli_rows, 0))   # (N, L, 2)
 
         mdl = self.lm._ensure(d, se, "wli", int(n))
 
         # Raw sums from the native scorer
-        logp_sum = np.asarray(mdl.batch_logp(pt, wli, int(n), 0), dtype=np.float32)
-        zsum_sum = np.asarray(mdl.batch_zsum(pt, wli, int(n), 0), dtype=np.float32)
-        madsum_sum = np.asarray(mdl.batch_madsum(pt, wli, int(n), 0), dtype=np.float32)
+        logp_sum  = np.asarray(mdl.batch_logp(   pt, wli, int(n), 0), dtype=np.float32)
+        zsum_sum  = np.asarray(mdl.batch_zsum(   pt, wli, int(n), 0), dtype=np.float32)
+        madsum_sum= np.asarray(mdl.batch_madsum( pt, wli, int(n), 0), dtype=np.float32)
 
         # Normalise by total evals per sentence: (L - n + 1)
         total = float(self._total_eval_from_L(L, n))
@@ -702,8 +598,8 @@ class LmPrimeRuntime:
         else:
             pt = np.asarray(pt_windows, dtype=np.uint8, order="C")  # (N, L)
 
-        logp_sum = np.asarray(mdl.batch_logp_char(pt, int(n)), dtype=np.float32)
-        zsum_sum = np.asarray(mdl.batch_zsum_char(pt, int(n)), dtype=np.float32)
+        logp_sum   = np.asarray(mdl.batch_logp_char(  pt, int(n)), dtype=np.float32)
+        zsum_sum   = np.asarray(mdl.batch_zsum_char(  pt, int(n)), dtype=np.float32)
         madsum_sum = np.asarray(mdl.batch_madsum_char(pt, int(n)), dtype=np.float32)
 
         L = pt.shape[1]
@@ -736,20 +632,14 @@ class LmPrimeRuntime:
         include_energy: bool = True,
     ) -> Dict[str, Dict[str, np.ndarray]]:
         """WLI × WISE. Windows must include [29] ... [30]."""
-        logp_a, zsum_a, madsum_a = self._score_batch_wli(
-            dir_, "wise", n, pt_windows, wli_windows
-        )
+        logp_a, zsum_a, madsum_a = self._score_batch_wli(dir_, "wise", n, pt_windows, wli_windows)
         b = Bucket(_norm_dir(dir_), "wise", "wli", int(n), int(win))
-        pct = self.ecdf.percentiles_multi(
-            b, {"zsum": zsum_a, "madsum": madsum_a, "logp": logp_a}
-        )
+        pct = self.ecdf.percentiles_multi(b, {"zsum": zsum_a, "madsum": madsum_a, "logp": logp_a})
         if include_energy:
             energy = {k: self.ecdf.energy(v) for k, v in pct.items()}
         else:
             energy = {k: np.zeros_like(v) for k, v in pct.items()}
-        interior, total = self._coverage_arrays_cached(
-            len(pt_windows[0]), n, True, len(pt_windows)
-        )
+        interior, total = self._coverage_arrays_cached(len(pt_windows[0]), n, True, len(pt_windows))
         return {
             "avg": {"logp": logp_a, "zsum": zsum_a, "madsum": madsum_a},
             "pct": pct,
@@ -768,20 +658,14 @@ class LmPrimeRuntime:
         include_energy: bool = True,
     ) -> Dict[str, Dict[str, np.ndarray]]:
         """WLI × NOSE. No 29/30 in the windows."""
-        logp_a, zsum_a, madsum_a = self._score_batch_wli(
-            dir_, "nose", n, pt_windows, wli_windows
-        )
+        logp_a, zsum_a, madsum_a = self._score_batch_wli(dir_, "nose", n, pt_windows, wli_windows)
         b = Bucket(_norm_dir(dir_), "nose", "wli", int(n), int(win))
-        pct = self.ecdf.percentiles_multi(
-            b, {"zsum": zsum_a, "madsum": madsum_a, "logp": logp_a}
-        )
+        pct = self.ecdf.percentiles_multi(b, {"zsum": zsum_a, "madsum": madsum_a, "logp": logp_a})
         if include_energy:
             energy = {k: self.ecdf.energy(v) for k, v in pct.items()}
         else:
             energy = {k: np.zeros_like(v) for k, v in pct.items()}
-        interior, total = self._coverage_arrays_cached(
-            len(pt_windows[0]), n, False, len(pt_windows)
-        )
+        interior, total = self._coverage_arrays_cached(len(pt_windows[0]), n, False, len(pt_windows))
         return {
             "avg": {"logp": logp_a, "zsum": zsum_a, "madsum": madsum_a},
             "pct": pct,
@@ -801,16 +685,12 @@ class LmPrimeRuntime:
         """CHAR × WISE. Windows must include [29] ... [30]."""
         logp_a, zsum_a, madsum_a = self._score_batch_char(dir_, "wise", n, pt_windows)
         b = Bucket(_norm_dir(dir_), "wise", "char", int(n), int(win))
-        pct = self.ecdf.percentiles_multi(
-            b, {"zsum": zsum_a, "madsum": madsum_a, "logp": logp_a}
-        )
+        pct = self.ecdf.percentiles_multi(b, {"zsum": zsum_a, "madsum": madsum_a, "logp": logp_a})
         if include_energy:
             energy = {k: self.ecdf.energy(v) for k, v in pct.items()}
         else:
             energy = {k: np.zeros_like(v) for k, v in pct.items()}
-        interior, total = self._coverage_arrays_cached(
-            len(pt_windows[0]), n, True, len(pt_windows)
-        )
+        interior, total = self._coverage_arrays_cached(len(pt_windows[0]), n, True, len(pt_windows))
         return {
             "avg": {"logp": logp_a, "zsum": zsum_a, "madsum": madsum_a},
             "pct": pct,
@@ -830,22 +710,17 @@ class LmPrimeRuntime:
         """CHAR × NOSE. No 29/30 in the windows."""
         logp_a, zsum_a, madsum_a = self._score_batch_char(dir_, "nose", n, pt_windows)
         b = Bucket(_norm_dir(dir_), "nose", "char", int(n), int(win))
-        pct = self.ecdf.percentiles_multi(
-            b, {"zsum": zsum_a, "madsum": madsum_a, "logp": logp_a}
-        )
+        pct = self.ecdf.percentiles_multi(b, {"zsum": zsum_a, "madsum": madsum_a, "logp": logp_a})
         if include_energy:
             energy = {k: self.ecdf.energy(v) for k, v in pct.items()}
         else:
             energy = {k: np.zeros_like(v) for k, v in pct.items()}
-        interior, total = self._coverage_arrays_cached(
-            len(pt_windows[0]), n, False, len(pt_windows)
-        )
+        interior, total = self._coverage_arrays_cached(len(pt_windows[0]), n, False, len(pt_windows))
         return {
             "avg": {"logp": logp_a, "zsum": zsum_a, "madsum": madsum_a},
             "pct": pct,
             "energy": energy,
             "coverage": {"interior": interior, "total_eval": total},
         }
-
 
 # TODO(test): Add a small regression test that ECDF percentiles clamp strictly to [0,1].

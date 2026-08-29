@@ -12,19 +12,15 @@ SHOW_TIMELINE = False
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
-
 def _as_dict(x: Any) -> Dict[str, Any]:
     return x if isinstance(x, dict) else {}
-
 
 def _is_np_array(x: Any) -> bool:
     try:
         import numpy as np  # noqa: F401
-
         return hasattr(x, "dtype") and hasattr(x, "shape")
     except Exception:
         return False
-
 
 def _to_list(x: Any) -> List[Any]:
     if x is None:
@@ -40,7 +36,6 @@ def _to_list(x: Any) -> List[Any]:
     # scalars → singleton
     return [x]
 
-
 def _nonempty(x: Any) -> bool:
     if x is None:
         return False
@@ -54,7 +49,6 @@ def _nonempty(x: Any) -> bool:
     except Exception:
         return True
 
-
 def _preview_list(vals: Sequence[int] | Any, n: int = 32) -> str:
     xs = _to_list(vals)
     if not xs:
@@ -62,7 +56,6 @@ def _preview_list(vals: Sequence[int] | Any, n: int = 32) -> str:
     head = xs[:n]
     suffix = " …" if len(xs) > n else ""
     return f"[{', '.join(str(v) for v in head)}{suffix}]"
-
 
 def _preview_text(s: Any, n: int = 180) -> str:
     if s is None:
@@ -76,10 +69,8 @@ def _preview_text(s: Any, n: int = 180) -> str:
         s = str(s)
     return (s[:n] + "…") if len(s) > n else s
 
-
 def _now_str() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
 
 def _safe_float(x: Any, default: Optional[float] = None) -> Optional[float]:
     try:
@@ -87,12 +78,7 @@ def _safe_float(x: Any, default: Optional[float] = None) -> Optional[float]:
     except Exception:
         return default
 
-
-def _latin_from_idx(
-    idx: Sequence[int] | Any,
-    wli: Optional[Sequence[Sequence[int]]],
-    direction: Any = "ltr",
-) -> str:
+def _latin_from_idx(idx: Sequence[int] | Any, wli: Optional[Sequence[Sequence[int]]], direction: Any = "ltr") -> str:
     """
     Robust: if WLI is missing or wrong length, still render Latin tokens
     without spacing. If WLI length matches idx, insert spaces accordingly.
@@ -109,15 +95,11 @@ def _latin_from_idx(
     except Exception:
         return ""
 
-
-def _runes_from_idx(
-    idx: Sequence[int] | Any, wli: Optional[Sequence[Sequence[int]]]
-) -> str:
+def _runes_from_idx(idx: Sequence[int] | Any, wli: Optional[Sequence[Sequence[int]]]) -> str:
     try:
         return Runeglish.to_rune(_to_list(idx), wli if wli is not None else [])
     except Exception:
         return ""
-
 
 def _latin_from_runes_str(runes: str) -> str:
     # per-rune char mapping; robust if Runeglish has the helper
@@ -125,7 +107,6 @@ def _latin_from_runes_str(runes: str) -> str:
         return " ".join(Runeglish.rune_to_latin(r) for r in runes)
     except Exception:
         return ""
-
 
 def _find_last(events: List[Dict[str, Any]], typ: str) -> Optional[Dict[str, Any]]:
     for ev in reversed(events or []):
@@ -170,7 +151,6 @@ def _match_ratio_from_runes(found: Any, reference: Any) -> Optional[float]:
     matches = sum(1 for i in range(limit) if cand_norm[i] == ref_norm[i])
     return matches / float(denom)
 
-
 # ── main printer ─────────────────────────────────────────────────────────────
 def print_run_report(
     *,
@@ -189,9 +169,9 @@ def print_run_report(
     pt_idx_ref: Optional[Sequence[int]] = None,
     interruptors_ref: Optional[Sequence[int]] = None,
     verbose: bool = True,
-    show_timeline: bool = False,  # default off to reduce clutter
+    show_timeline: bool = False,   # default off to reduce clutter
     preview_len: int = 200,
-    compact: bool = True,  # NEW: compact mode hides bulky sections
+    compact: bool = True,          # NEW: compact mode hides bulky sections
 ) -> None:
     """
     Pretty printer for a normalized Solution (post _ensure_plaintext_rune).
@@ -203,7 +183,6 @@ def print_run_report(
     def _is_np_array(x):
         try:
             import numpy as _np
-
             return isinstance(x, _np.ndarray)
         except Exception:
             return False
@@ -245,6 +224,7 @@ def print_run_report(
                 out[k] = cv
         return out
 
+    
     if not cipher:
         cipher = getattr(solution, "cipher_name", "") or cipher
     if ct_idx is None:
@@ -254,50 +234,34 @@ def print_run_report(
     if wli is None:
         wli = getattr(solution, "wli", None)
 
-    # ---- core fields (already normalized by _ensure_plaintext_rune) --------
-    score = _safe_float(getattr(solution, "score", None), None)
-    found_key = getattr(solution, "key", None)
-    pt_idx = _to_list(getattr(solution, "plaintext_idx", []))
-    pt_runes = str(getattr(solution, "plaintext_rune", "") or "")
+# ---- core fields (already normalized by _ensure_plaintext_rune) --------
+    score      = _safe_float(getattr(solution, "score", None), None)
+    found_key  = getattr(solution, "key", None)
+    pt_idx     = _to_list(getattr(solution, "plaintext_idx", []))
+    pt_runes   = str(getattr(solution, "plaintext_rune", "") or "")
     pt_latin_attr = str(getattr(solution, "plaintext_latin", "") or "")
-    sol_wli = getattr(solution, "wli", None)
+    sol_wli    = getattr(solution, "wli", None)
     wli_for_latin = sol_wli if sol_wli is not None else wli
     direction = getattr(solution, "direction", "ltr")
 
     # ---- meta & telemetry ---------------------------------------------------
-    meta = _as_dict(getattr(solution, "meta", {}))
+    meta    = _as_dict(getattr(solution, "meta", {}))
     m_solver = _as_dict(meta.get("solver", {}))
-    m_work = _as_dict(meta.get("work", {}))
-    m_time = _as_dict(meta.get("timings", {}))
-    tel = _as_dict(meta.get("telemetry", {}))
+    m_work   = _as_dict(meta.get("work", {}))
+    m_time   = _as_dict(meta.get("timings", {}))
+    tel      = _as_dict(meta.get("telemetry", {}))
     events: List[Dict[str, Any]] = list(tel.get("events", []))
 
-    _find_first = lambda es, t: next(
-        (ev for ev in (es or []) if ev.get("type") == t), None
-    )
-    first_s = _find_first(events, "solver_start") or _find_first(
-        events, "optimizer_start"
-    )
-    last_s = _find_last(events, "solver_start") or _find_last(events, "optimizer_start")
-    last_e = _find_last(events, "solver_end") or _find_last(events, "optimizer_end")
+    _find_first = lambda es, t: next((ev for ev in (es or []) if ev.get("type") == t), None)
+    first_s = _find_first(events, "solver_start") or _find_first(events, "optimizer_start")
+    last_s  = _find_last(events, "solver_start")  or _find_last(events, "optimizer_start")
+    last_e  = _find_last(events, "solver_end")    or _find_last(events, "optimizer_end")
 
     solver_name = (
         (m_solver.get("name") if isinstance(m_solver.get("name"), str) else None)
-        or (
-            first_s.get("name")
-            if first_s and isinstance(first_s.get("name"), str)
-            else None
-        )
-        or (
-            last_s.get("name")
-            if last_s and isinstance(last_s.get("name"), str)
-            else None
-        )
-        or (
-            last_e.get("name")
-            if last_e and isinstance(last_e.get("name"), str)
-            else None
-        )
+        or (first_s.get("name") if first_s and isinstance(first_s.get("name"), str) else None)
+        or (last_s.get("name")  if last_s and isinstance(last_s.get("name"), str)  else None)
+        or (last_e.get("name")  if last_e and isinstance(last_e.get("name"), str)  else None)
         or ""
     )
 
@@ -324,6 +288,7 @@ def print_run_report(
         solver_params_raw.setdefault("beam_width", beam_width)
 
     solver_params = _compact_dict(solver_params_raw, drop_keys=("name",))
+
 
     # work: prefer meta, backfill from telemetry end events
     work = {k: v for k, v in m_work.items() if v is not None}
@@ -359,12 +324,7 @@ def print_run_report(
     # timings
     timings = dict(m_time)
     if last_e:
-        for src, dst in {
-            "decrypt_time_s": "decrypt",
-            "score_time_s": "score",
-            "solve_time": "solve",
-            "elapsed_sec": "solve",
-        }.items():
+        for src, dst in {"decrypt_time_s":"decrypt","score_time_s":"score","solve_time":"solve","elapsed_sec":"solve"}.items():
             if dst not in timings and src in last_e:
                 timings[dst] = last_e[src]
     if run_end:
@@ -374,84 +334,47 @@ def print_run_report(
             timings.setdefault("score", run_end["score_time_s"])
         if "tokens" not in work and run_end.get("tokens") is not None:
             work["tokens"] = run_end["tokens"]
-    for src, dst in (
-        ("decrypt_time_s", "decrypt"),
-        ("score_time_s", "score"),
-        ("wall_time_s", "solve"),
-    ):
+    for src, dst in (("decrypt_time_s","decrypt"), ("score_time_s","score"), ("wall_time_s","solve")):
         if dst not in timings and src in tel:
             timings[dst] = tel[src]
     t_view: Dict[str, float] = {}
-    for k in ("decrypt", "score", "solve"):
+    for k in ("decrypt","score","solve"):
         if k in timings and timings[k] is not None:
-            try:
-                t_view[k] = float(timings[k])
-            except Exception:
-                pass
+            try: t_view[k] = float(timings[k])
+            except Exception: pass
     total_time = (
         t_view.get("solve")
         or _safe_float(tel.get("wall_time_s"), None)
         or (last_e.get("elapsed_sec") if last_e else None)
     )
     if total_time is not None:
-        try:
-            t_view["total"] = float(total_time)
-        except Exception:
-            pass
+        try: t_view["total"] = float(total_time)
+        except Exception: pass
 
     # scorer (compact)
-    m_scr = _as_dict(meta.get("scorer", {})) or _as_dict(
-        _as_dict(meta.get("telemetry", {})).get("scorer", {})
-    )
+    m_scr = _as_dict(meta.get("scorer", {})) or _as_dict(_as_dict(meta.get("telemetry", {})).get("scorer", {}))
     scorer_view = {}
     if m_scr:
-        for k in (
-            "name",
-            "objective",
-            "impl",
-            "device",
-            "dtype",
-            "score_mean",
-            "score_std",
-            "n_windows",
-        ):
+        for k in ("name","objective","impl","device","dtype","score_mean","score_std","n_windows"):
             if k in m_scr:
                 scorer_view[k] = m_scr[k]
 
     # ---- PT / CT previews ---------------------------------------------------
     pt_ref_runes = pt_rune_ref or ""
-    pt_ref_latin = (
-        _latin_from_idx(_to_list(pt_idx_ref), wli_for_latin, direction)
-        if _nonempty(pt_idx_ref)
-        else ""
-    )
+    pt_ref_latin = _latin_from_idx(_to_list(pt_idx_ref), wli_for_latin, direction) if _nonempty(pt_idx_ref) else ""
     if not pt_ref_latin and pt_ref_runes:
         try:
             pt_ref_latin = " ".join(Runeglish.rune_to_latin(ch) for ch in pt_ref_runes)
         except Exception:
             pt_ref_latin = ""
 
-    pt_found_latin = (
-        pt_latin_attr
-        if pt_latin_attr
-        else (
-            _latin_from_idx(pt_idx, wli_for_latin, direction)
-            if _nonempty(pt_idx)
-            else ""
-        )
-    )
-    ct_idx_source = (
-        ct_idx if ct_idx is not None else getattr(solution, "ciphertext_idx", [])
-    )
-    ct_idx_list = _to_list(ct_idx_source)
+    pt_found_latin = pt_latin_attr if pt_latin_attr else (_latin_from_idx(pt_idx, wli_for_latin, direction) if _nonempty(pt_idx) else "")
+    ct_idx_source = ct_idx if ct_idx is not None else getattr(solution, "ciphertext_idx", [])
+    ct_idx_list   = _to_list(ct_idx_source)
     ct_latin_attr = getattr(solution, "ciphertext_latin", "") or ""
-    ct_latin = ct_latin_attr or (
-        _latin_from_idx(ct_idx_list, wli_for_latin, direction) if ct_idx_list else ""
-    )
-    ct_rune_attr = getattr(solution, "ciphertext_rune", "") or ""
-    ct_runes_disp = (
-        ct_rune or ct_rune_attr or _runes_from_idx(ct_idx_list, wli_for_latin)
-    )
+    ct_latin      = ct_latin_attr or (_latin_from_idx(ct_idx_list, wli_for_latin, direction) if ct_idx_list else "")
+    ct_rune_attr  = getattr(solution, "ciphertext_rune", "") or ""
+    ct_runes_disp = ct_rune or ct_rune_attr or _runes_from_idx(ct_idx_list, wli_for_latin)
 
     # ---- match ratio & recovered flag --------------------------------------
     match_ratio: Optional[float] = None
@@ -466,11 +389,7 @@ def print_run_report(
     # ---- interruptors (if solved) ------------------------------------------
     intr_meta = _as_dict(meta.get("interruptors", {}))
     intr_found_raw = intr_meta.get("found", None)
-    intr_found = (
-        [int(v) for v in _to_list(intr_found_raw) if int(v) >= 0]
-        if intr_found_raw is not None
-        else None
-    )
+    intr_found = [int(v) for v in _to_list(intr_found_raw) if int(v) >= 0] if intr_found_raw is not None else None
 
     intr_expected: list[int] = []
     expected_known = False
@@ -478,9 +397,7 @@ def print_run_report(
         intr_expected = [int(v) for v in _to_list(interruptors_ref) if int(v) >= 0]
         expected_known = True
     elif "expected" in intr_meta:
-        intr_expected = [
-            int(v) for v in _to_list(intr_meta.get("expected")) if int(v) >= 0
-        ]
+        intr_expected = [int(v) for v in _to_list(intr_meta.get("expected")) if int(v) >= 0]
         expected_known = True
     else:
         core_len = intr_meta.get("core_length", None)
@@ -504,43 +421,27 @@ def print_run_report(
     telemetry_present = bool(meta.get("telemetry"))
 
     summary_bits = []
-    if cipher:
-        summary_bits.append(f"cipher={cipher}")
-    if solver_name:
-        summary_bits.append(f"solver={solver_name}")
-    if "tokens" in work:
-        summary_bits.append(f"tokens={work['tokens']:,}")
-    if "candidates" in work:
-        summary_bits.append(f"candidates={work['candidates']:,}")
-    if "iters" in work:
-        summary_bits.append(f"iters={work['iters']}")
-    if score is not None:
-        summary_bits.append(f"score={score:.6f}")
-    if stop_reason:
-        summary_bits.append(f"stop={stop_reason}")
-    if "total" in t_view:
-        summary_bits.append(f"total={t_view['total']:.3f}s")
+    if cipher:          summary_bits.append(f"cipher={cipher}")
+    if solver_name:     summary_bits.append(f"solver={solver_name}")
+    if "tokens" in work:summary_bits.append(f"tokens={work['tokens']:,}")
+    if "candidates" in work: summary_bits.append(f"candidates={work['candidates']:,}")
+    if "iters" in work: summary_bits.append(f"iters={work['iters']}")
+    if score is not None: summary_bits.append(f"score={score:.6f}")
+    if stop_reason: summary_bits.append(f"stop={stop_reason}")
+    if "total" in t_view:  summary_bits.append(f"total={t_view['total']:.3f}s")
     print("Summary     :", " | ".join(summary_bits) if summary_bits else "(no summary)")
     print(f"Telemetry   : {'Yes' if telemetry_present else 'No'}")
 
     # Keys (kept brief)
-    if key_len is None and (
-        isinstance(found_key, (list, tuple)) or _is_np_array(found_key)
-    ):
+    if key_len is None and (isinstance(found_key, (list, tuple)) or _is_np_array(found_key)):
         try:
             key_len = len(found_key)
         except Exception:
             key_len = None
-    if key_len is not None:
-        print(f"Key length : {key_len}")
-    if key_idx is not None:
-        print(f"Key (nums) : {list(key_idx)}")
+    if key_len is not None: print(f"Key length : {key_len}")
+    if key_idx is not None: print(f"Key (nums) : {list(key_idx)}")
     if found_key is not None:
-        fk = (
-            list(found_key)
-            if isinstance(found_key, (list, tuple)) or _is_np_array(found_key)
-            else found_key
-        )
+        fk = list(found_key) if isinstance(found_key, (list, tuple)) or _is_np_array(found_key) else found_key
         print(f"Key(found) : {fk}")
 
     if intr_found is not None:
@@ -552,10 +453,8 @@ def print_run_report(
 
     # Inputs (hidden in compact mode)
     if verbose and not compact:
-        if pt_ref_runes:
-            print(f"PT Ref (runes): {_preview_text(pt_ref_runes)}")
-        if pt_ref_latin:
-            print(f"PT Ref (latin): {_preview_text(pt_ref_latin)}")
+        if pt_ref_runes: print(f"PT Ref (runes): {_preview_text(pt_ref_runes)}")
+        if pt_ref_latin: print(f"PT Ref (latin): {_preview_text(pt_ref_latin)}")
         print(f"CT idx     : {_preview_list(ct_idx_list)}")
         print(f"CT runes   : {_preview_text(ct_runes_disp)}")
         if ct_latin:
@@ -592,10 +491,7 @@ def print_run_report(
     solver_view = {"name": solver_name}
     # merge sanitized params (no 'name' collision, no huge objects)
     solver_view.update({k: v for k, v in sorted(solver_params.items())})
-    print(
-        "Solver     :",
-        solver_view if any(v is not None for v in solver_view.values()) else {},
-    )
+    print("Solver     :", solver_view if any(v is not None for v in solver_view.values()) else {})
 
     def _first_non_none(*vals):
         for v in vals:
@@ -660,43 +556,32 @@ def print_run_report(
         print(line)
         print("Timeline   :")
         for ev in events:
-            t = ev.get("type")
-            nm = ev.get("name", "")
-            if t in ("solver_start", "optimizer_start"):
+            t = ev.get("type"); nm = ev.get("name", "")
+            if t in ("solver_start","optimizer_start"):
                 ps = _as_dict(ev.get("params", {}))
                 print(f"  start  {nm}  params={_compact_dict(ps)}")
-            elif t in ("solver_progress", "optimizer_progress"):
+            elif t in ("solver_progress","optimizer_progress"):
                 best = ev.get("best") or ev.get("best_score")
                 step = ev.get("step") or ev.get("gen") or ev.get("round")
                 kept = ev.get("kept")
                 msg = f"  prog   {nm}"
-                if step is not None:
-                    msg += f"  step={step}"
-                if best is not None:
-                    msg += f"  best={best}"
-                if kept is not None:
-                    msg += f"  kept={kept}"
+                if step is not None: msg += f"  step={step}"
+                if best is not None: msg += f"  best={best}"
+                if kept is not None: msg += f"  kept={kept}"
                 print(msg)
-            elif t in ("solver_end", "optimizer_end"):
-                kept = ev.get("kept")
-                cand = ev.get("candidates")
-                tok = ev.get("tokens")
+            elif t in ("solver_end","optimizer_end"):
+                kept = ev.get("kept"); cand = ev.get("candidates"); tok = ev.get("tokens")
                 solve = ev.get("solve_time") or ev.get("elapsed_sec")
                 parts = [f"  end    {nm}"]
-                if kept is not None:
-                    parts.append(f"kept={kept}")
-                if cand is not None:
-                    parts.append(f"cand={cand}")
-                if tok is not None:
-                    parts.append(f"tok={tok}")
-                if solve is not None:
-                    parts.append(f"solve={solve}")
+                if kept is not None: parts.append(f"kept={kept}")
+                if cand is not None: parts.append(f"cand={cand}")
+                if tok  is not None: parts.append(f"tok={tok}")
+                if solve is not None: parts.append(f"solve={solve}")
                 print("  ".join(parts))
 
     print(line)
     if app_version:
         print(f"App version: {app_version}")
         print(line)
-
 
 # #     print("─" * 60)

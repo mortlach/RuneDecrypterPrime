@@ -10,10 +10,7 @@ import math
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.interruptor import InterruptorConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
-from rune_decrypter_prime.core.config.hard_crib import (
-    HardCribConfig,
-    normalize_hard_crib_config,
-)
+from rune_decrypter_prime.core.config.hard_crib import HardCribConfig, normalize_hard_crib_config
 from rune_decrypter_prime.telemetry.bag import TelemetryBag
 from rune_decrypter_prime.core.telemetry import _Timer
 from rune_decrypter_prime.core.types import (
@@ -55,7 +52,6 @@ class DecryptionProblem:
     Canonical problem definition consumed by solver.
     Holds cipher, scorer, configs, ciphertext/WLI, and telemetry.
     """
-
     cipher: object
     scorer: object
     c_cfg: CipherConfig
@@ -71,15 +67,11 @@ class DecryptionProblem:
     telemetry: TelemetryBag = field(default_factory=TelemetryBag)
 
     enable_telemetry: bool = True
-    ciphertext: Optional[Any] = None  # xp.ndarray[uint8]
+    ciphertext: Optional[Any] = None          # xp.ndarray[uint8]
     wli_data: Optional[Sequence[Tuple[int, int]]] = None
     key_length: Optional[int] = None
-    _hard_crib_cfg: Optional[HardCribConfig] = field(
-        init=False, default=None, repr=False
-    )
-    _hard_crib_compiled: Optional[_CompiledHardCrib] = field(
-        init=False, default=None, repr=False
-    )
+    _hard_crib_cfg: Optional[HardCribConfig] = field(init=False, default=None, repr=False)
+    _hard_crib_compiled: Optional[_CompiledHardCrib] = field(init=False, default=None, repr=False)
 
     # =========================================================
     # Lifecycle
@@ -87,19 +79,13 @@ class DecryptionProblem:
     def __post_init__(self):
         # Core runtime receives typed canonical config objects only.
         if not isinstance(self.c_cfg, CipherConfig):
-            raise TypeError(
-                f"c_cfg must be CipherConfig, got {type(self.c_cfg).__name__}"
-            )
+            raise TypeError(f"c_cfg must be CipherConfig, got {type(self.c_cfg).__name__}")
         if not isinstance(self.s_cfg, ScoringConfig):
-            raise TypeError(
-                f"s_cfg must be ScoringConfig, got {type(self.s_cfg).__name__}"
-            )
+            raise TypeError(f"s_cfg must be ScoringConfig, got {type(self.s_cfg).__name__}")
 
         # Ensure TelemetryBag
         if not isinstance(self.telemetry, TelemetryBag):
-            self.telemetry = TelemetryBag(
-                dict(self.telemetry) if isinstance(self.telemetry, dict) else {}
-            )
+            self.telemetry = TelemetryBag(dict(self.telemetry) if isinstance(self.telemetry, dict) else {})
 
         t = self.telemetry  # shorthand
 
@@ -152,8 +138,7 @@ class DecryptionProblem:
         self.key_length = self.c_cfg.key_length
 
         self.ciphertext_len = (
-            int(self.ciphertext.shape[-1])
-            if hasattr(self.ciphertext, "shape")
+            int(self.ciphertext.shape[-1]) if hasattr(self.ciphertext, "shape")
             else int(len(self.ciphertext or []))
         )
 
@@ -164,9 +149,7 @@ class DecryptionProblem:
         self._hard_crib_compiled = self._compile_hard_crib(self._hard_crib_cfg)
         self.telemetry["crib_enabled"] = bool(self._hard_crib_compiled is not None)
         self.telemetry["crib_mode"] = (
-            self._hard_crib_cfg.mode.value
-            if isinstance(self._hard_crib_cfg, HardCribConfig)
-            else None
+            self._hard_crib_cfg.mode.value if isinstance(self._hard_crib_cfg, HardCribConfig) else None
         )
 
     # =========================================================
@@ -191,16 +174,12 @@ class DecryptionProblem:
         if K is None and test_key is not None:
             K = int(len(test_key))
         if K is None or K <= 0:
-            raise ValueError(
-                "Fixed key length required (cipher.key_length / config.key_length / test_key)"
-            )
+            raise ValueError("Fixed key length required (cipher.key_length / config.key_length / test_key)")
 
         # --- resolve family ---
         family = getattr(self.cipher, "keyops_family", None) or self.c_cfg.keyops_family
         if not family:
-            family = (
-                "vector" if getattr(self.cipher, "is_vector_key", False) else "perm"
-            )
+            family = "vector" if getattr(self.cipher, "is_vector_key", False) else "perm"
         core_family = family
 
         if self._interruptors_search_enabled():
@@ -221,9 +200,7 @@ class DecryptionProblem:
             traits = getattr(getattr(keyops, "caps", None), "traits", {}) or {}
             core_len = traits.get("core_length")
             if core_len is None or int(core_len) != int(K):
-                raise ValueError(
-                    f"KeyOps length mismatch: caps.length={caps_len} != resolved K={K}"
-                )
+                raise ValueError(f"KeyOps length mismatch: caps.length={caps_len} != resolved K={K}")
         return keyops
 
     # =========================================================
@@ -305,10 +282,7 @@ class DecryptionProblem:
             if cfg.mode is not InterruptorMode.SEARCH:
                 return False
             try:
-                return (
-                    int(cfg.parameters["maximum_count"]) > 0
-                    and len(cfg.parameters["candidate_positions"]) > 0
-                )
+                return int(cfg.parameters["maximum_count"]) > 0 and len(cfg.parameters["candidate_positions"]) > 0
             except Exception:
                 return False
 
@@ -340,25 +314,17 @@ class DecryptionProblem:
     def _validate_wli_alignment(self, plains_seq, wli) -> None:
         if wli is None:
             return
-        if not (
-            isinstance(wli, (list, tuple))
-            and all(
-                isinstance(p, (list, tuple))
-                and len(p) == 2
-                and isinstance(p[0], int)
-                and isinstance(p[1], int)
-                for p in wli
-            )
-        ):
+        if not (isinstance(wli, (list, tuple)) and all(
+            isinstance(p, (list, tuple)) and len(p) == 2 and isinstance(p[0], int) and isinstance(p[1], int)
+            for p in wli
+        )):
             raise TypeError("WLI must be a list of (int,int) pairs or empty list")
         wli_len = int(len(wli))
         for i, pt in enumerate(self._iter_plaintexts(plains_seq)):
             try:
                 pt_len = self._seq_len(pt)
             except Exception as exc:
-                raise ValueError(
-                    "Unable to determine plaintext length for WLI alignment check"
-                ) from exc
+                raise ValueError("Unable to determine plaintext length for WLI alignment check") from exc
             if pt_len != wli_len:
                 raise ValueError(
                     f"WLI length {wli_len} does not match plaintext length {pt_len} at batch index {i}. "
@@ -377,9 +343,7 @@ class DecryptionProblem:
         return normalize_hard_crib_config(raw)
 
     @staticmethod
-    def _word_spans_from_wli(
-        wli: Sequence[Tuple[int, int]],
-    ) -> tuple[tuple[int, int], ...]:
+    def _word_spans_from_wli(wli: Sequence[Tuple[int, int]]) -> tuple[tuple[int, int], ...]:
         if not wli:
             return tuple()
         spans: list[tuple[int, int]] = []
@@ -397,16 +361,12 @@ class DecryptionProblem:
             for off in range(ln0):
                 p, ln = int(wli[i + off][0]), int(wli[i + off][1])
                 if p != off or ln != ln0:
-                    raise ValueError(
-                        "WLI does not form contiguous [pos,len] sequences per word"
-                    )
+                    raise ValueError("WLI does not form contiguous [pos,len] sequences per word")
             spans.append((i, end))
             i = end
         return tuple(spans)
 
-    def _compile_hard_crib(
-        self, cfg: Optional[HardCribConfig]
-    ) -> Optional[_CompiledHardCrib]:
+    def _compile_hard_crib(self, cfg: Optional[HardCribConfig]) -> Optional[_CompiledHardCrib]:
         if cfg is None or (not bool(cfg.enabled)) or (not bool(cfg.has_any_rules)):
             return None
 
@@ -422,9 +382,7 @@ class DecryptionProblem:
         has_word_rules = bool(cfg.has_word_rules)
         if has_word_rules and self.wli_data is None:
             if bool(cfg.require_wli_for_word_rules):
-                raise ValueError(
-                    "hard_crib word rules require WLI data, but WLI is missing for this run"
-                )
+                raise ValueError("hard_crib word rules require WLI data, but WLI is missing for this run")
             has_word_rules = False
 
         word_spans: tuple[tuple[int, int], ...] = tuple()
@@ -438,9 +396,7 @@ class DecryptionProblem:
             for word_idx, allowed_words in (cfg.per_word_allowed or {}).items():
                 idx = int(word_idx)
                 if idx < 0 or idx >= n_words:
-                    raise ValueError(
-                        f"hard_crib.per_word_allowed index {idx} out of range for {n_words} words"
-                    )
+                    raise ValueError(f"hard_crib.per_word_allowed index {idx} out of range for {n_words} words")
                 start, end = word_spans[idx]
                 expected_len = int(end - start)
                 cooked: set[tuple[int, ...]] = set()
@@ -452,9 +408,7 @@ class DecryptionProblem:
                         )
                     cooked.add(tup)
                 if not cooked:
-                    raise ValueError(
-                        f"hard_crib.per_word_allowed[{idx}] cannot be empty"
-                    )
+                    raise ValueError(f"hard_crib.per_word_allowed[{idx}] cannot be empty")
                 per_word_allowed[idx] = frozenset(cooked)
 
             for word_len, allowed_words in (cfg.global_allowed_by_length or {}).items():
@@ -540,44 +494,28 @@ class DecryptionProblem:
         t = self.telemetry
         t["crib_pass_total"] = int(t.get("crib_pass_total", 0)) + pass_count
         t["crib_reject_total"] = int(t.get("crib_reject_total", 0)) + reject_count
-        t["crib_reject_fixed_char"] = int(t.get("crib_reject_fixed_char", 0)) + int(
-            rej_fixed
-        )
-        t["crib_reject_word_index"] = int(t.get("crib_reject_word_index", 0)) + int(
-            rej_word
-        )
-        t["crib_reject_global_len"] = int(t.get("crib_reject_global_len", 0)) + int(
-            rej_global
-        )
+        t["crib_reject_fixed_char"] = int(t.get("crib_reject_fixed_char", 0)) + int(rej_fixed)
+        t["crib_reject_word_index"] = int(t.get("crib_reject_word_index", 0)) + int(rej_word)
+        t["crib_reject_global_len"] = int(t.get("crib_reject_global_len", 0)) + int(rej_global)
         if reject_count == n and n > 0:
-            t["crib_all_rejected_batches"] = (
-                int(t.get("crib_all_rejected_batches", 0)) + 1
-            )
+            t["crib_all_rejected_batches"] = int(t.get("crib_all_rejected_batches", 0)) + 1
 
         return mask, rej_fixed, rej_word, rej_global
 
     def _score_batch_texts_core(self, plains_seq, wli):
         sc = self.scorer
         if hasattr(sc, "batch_score") and callable(sc.batch_score):
-            self.telemetry["score_batch_calls"] = (
-                int(self.telemetry.get("score_batch_calls", 0)) + 1
-            )
+            self.telemetry["score_batch_calls"] = int(self.telemetry.get("score_batch_calls", 0)) + 1
             try:
-                return self.xp.asarray(
-                    sc.batch_score(plains_seq, wli), dtype=self.xp.float64
-                ).reshape(-1)
+                return self.xp.asarray(sc.batch_score(plains_seq, wli), dtype=self.xp.float64).reshape(-1)
             except Exception:
-                self.telemetry["score_batch_fallback_scalar"] = (
-                    int(self.telemetry.get("score_batch_fallback_scalar", 0)) + 1
-                )
+                self.telemetry["score_batch_fallback_scalar"] = int(
+                    self.telemetry.get("score_batch_fallback_scalar", 0)
+                ) + 1
                 pass  # fall back to item-wise
         return self.xp.asarray(
             [
-                float(
-                    sc.score_text(pt, wli)
-                    if hasattr(sc, "score_text")
-                    else sc.score(pt, wli)
-                )
+                float(sc.score_text(pt, wli) if hasattr(sc, "score_text") else sc.score(pt, wli))
                 for pt in plains_seq
             ],
             dtype=self.xp.float64,
@@ -610,9 +548,7 @@ class DecryptionProblem:
             out[idx] = kept_scores[j]
         return out
 
-    def _score_batch_texts_with_raw_core(
-        self, plains_seq, wli, *, require_raw: bool = False
-    ):
+    def _score_batch_texts_with_raw_core(self, plains_seq, wli, *, require_raw: bool = False):
         sc = self.scorer
         if require_raw:
             supports_raw = False
@@ -622,13 +558,11 @@ class DecryptionProblem:
                 except Exception:
                     supports_raw = False
             if not supports_raw:
-                raise ValueError(
-                    "Raw scoring requested but scorer does not support raw outputs."
-                )
+                raise ValueError("Raw scoring requested but scorer does not support raw outputs.")
         if hasattr(sc, "batch_score_with_raw") and callable(sc.batch_score_with_raw):
-            self.telemetry["score_batch_with_raw_calls"] = (
-                int(self.telemetry.get("score_batch_with_raw_calls", 0)) + 1
-            )
+            self.telemetry["score_batch_with_raw_calls"] = int(
+                self.telemetry.get("score_batch_with_raw_calls", 0)
+            ) + 1
             try:
                 pct, raw = sc.batch_score_with_raw(plains_seq, wli)
                 return (
@@ -636,10 +570,9 @@ class DecryptionProblem:
                     self.xp.asarray(raw, dtype=self.xp.float64).reshape(-1),
                 )
             except Exception:
-                self.telemetry["score_batch_with_raw_fallback_scalar"] = (
-                    int(self.telemetry.get("score_batch_with_raw_fallback_scalar", 0))
-                    + 1
-                )
+                self.telemetry["score_batch_with_raw_fallback_scalar"] = int(
+                    self.telemetry.get("score_batch_with_raw_fallback_scalar", 0)
+                ) + 1
                 pass
 
         scores_pct = []
@@ -648,16 +581,10 @@ class DecryptionProblem:
             if hasattr(sc, "score_with_raw") and callable(sc.score_with_raw):
                 pct, raw = sc.score_with_raw(pt, wli)
             else:
-                pct = float(
-                    sc.score_text(pt, wli)
-                    if hasattr(sc, "score_text")
-                    else sc.score(pt, wli)
-                )
+                pct = float(sc.score_text(pt, wli) if hasattr(sc, "score_text") else sc.score(pt, wli))
                 raw = pct
                 if require_raw:
-                    raise ValueError(
-                        "Raw scoring requested but scorer returned pct fallback."
-                    )
+                    raise ValueError("Raw scoring requested but scorer returned pct fallback.")
             scores_pct.append(float(pct))
             scores_raw.append(float(raw))
         return (
@@ -665,9 +592,7 @@ class DecryptionProblem:
             self.xp.asarray(scores_raw, dtype=self.xp.float64),
         )
 
-    def _score_batch_texts_with_raw(
-        self, plains_seq, wli, *, require_raw: bool = False
-    ):
+    def _score_batch_texts_with_raw(self, plains_seq, wli, *, require_raw: bool = False):
         """
         Score a batch of plaintexts and return (primary_scores, raw_scores).
         Raw scores fall back to primary if the scorer doesn't expose raw.
@@ -677,15 +602,11 @@ class DecryptionProblem:
 
         filt = self._crib_filter_mask(plains)
         if filt is None:
-            return self._score_batch_texts_with_raw_core(
-                plains, wli, require_raw=require_raw
-            )
+            return self._score_batch_texts_with_raw_core(plains, wli, require_raw=require_raw)
 
         mask, _, _, _ = filt
         if all(mask):
-            return self._score_batch_texts_with_raw_core(
-                plains, wli, require_raw=require_raw
-            )
+            return self._score_batch_texts_with_raw_core(plains, wli, require_raw=require_raw)
 
         out_pct = self.xp.full((len(plains),), float("-inf"), dtype=self.xp.float64)
         out_raw = self.xp.full((len(plains),), float("-inf"), dtype=self.xp.float64)
@@ -694,9 +615,7 @@ class DecryptionProblem:
             return out_pct, out_raw
 
         kept_plain = [plains[int(i)] for i in keep]
-        kept_pct, kept_raw = self._score_batch_texts_with_raw_core(
-            kept_plain, wli, require_raw=require_raw
-        )
+        kept_pct, kept_raw = self._score_batch_texts_with_raw_core(kept_plain, wli, require_raw=require_raw)
         for j, idx in enumerate(keep):
             out_pct[idx] = kept_pct[j]
             out_raw[idx] = kept_raw[j]
@@ -737,12 +656,8 @@ class DecryptionProblem:
             return float(max(0.0, f))
 
         t = self.telemetry
-        t["span_hamming_eval_total"] = _as_nonneg_int(
-            sc_tel.get("span_hamming_eval_total", 0)
-        )
-        t["span_hamming_eval_active"] = _as_nonneg_int(
-            sc_tel.get("span_hamming_eval_active", 0)
-        )
+        t["span_hamming_eval_total"] = _as_nonneg_int(sc_tel.get("span_hamming_eval_total", 0))
+        t["span_hamming_eval_active"] = _as_nonneg_int(sc_tel.get("span_hamming_eval_active", 0))
         t["span_hamming_eval_skipped_char_gate"] = _as_nonneg_int(
             sc_tel.get("span_hamming_eval_skipped_char_gate", 0)
         )
@@ -790,18 +705,13 @@ class DecryptionProblem:
         k = self._ensure_key_batch_2d(keys)
         B, K = int(k.shape[0]), int(k.shape[1])
 
-        if getattr(self, "keyops", None) is not None and getattr(
-            self.keyops, "caps", None
-        ):
+        if getattr(self, "keyops", None) is not None and getattr(self.keyops, "caps", None):
             expK = int(self.keyops.caps.length)
             if K != expK:
                 raise ValueError(f"Key length mismatch: got {K}, expected {expK}")
 
         # Telemetry device/dtype initialisation (once)
-        if (
-            getattr(self.telemetry, "device", "unknown") == "unknown"
-            or getattr(self.telemetry, "dtype", "unknown") == "unknown"
-        ):
+        if getattr(self.telemetry, "device", "unknown") == "unknown" or getattr(self.telemetry, "dtype", "unknown") == "unknown":
             dev_kind = ensure_device(self.c_cfg.device or Device.CPU)
             dtype = getattr(self.scorer, "dtype", None) or "float32"
             self.telemetry.device = to_canonical_device_str(dev_kind)
@@ -813,9 +723,7 @@ class DecryptionProblem:
         t_dec, t_sc = _Timer(), _Timer()
         if deg_cfg is not None:
             t_dec.start()
-            plains_seq, scores, cand_count, sc_time = (
-                self._evaluate_keys_with_degeneracy(k, deg_cfg)
-            )
+            plains_seq, scores, cand_count, sc_time = self._evaluate_keys_with_degeneracy(k, deg_cfg)
             self.telemetry.decrypt_time_s += t_dec.stop()
             self.telemetry.score_time_s += float(sc_time)
         else:
@@ -842,9 +750,7 @@ class DecryptionProblem:
 
         return to_numpy(scores)
 
-    def evaluate_keys_with_raw(
-        self, keys: Any, *, batch_hint: bool = True, require_raw: bool = False
-    ):
+    def evaluate_keys_with_raw(self, keys: Any, *, batch_hint: bool = True, require_raw: bool = False):
         """
         Evaluate candidate keys and return (primary_scores, raw_scores).
         Raw scores fall back to primary if the scorer doesn't expose raw.
@@ -855,18 +761,13 @@ class DecryptionProblem:
         k = self._ensure_key_batch_2d(keys)
         B, K = int(k.shape[0]), int(k.shape[1])
 
-        if getattr(self, "keyops", None) is not None and getattr(
-            self.keyops, "caps", None
-        ):
+        if getattr(self, "keyops", None) is not None and getattr(self.keyops, "caps", None):
             expK = int(self.keyops.caps.length)
             if K != expK:
                 raise ValueError(f"Key length mismatch: got {K}, expected {expK}")
 
         # Telemetry device/dtype initialisation (once)
-        if (
-            getattr(self.telemetry, "device", "unknown") == "unknown"
-            or getattr(self.telemetry, "dtype", "unknown") == "unknown"
-        ):
+        if getattr(self.telemetry, "device", "unknown") == "unknown" or getattr(self.telemetry, "dtype", "unknown") == "unknown":
             dev_kind = ensure_device(self.c_cfg.device or Device.CPU)
             dtype = getattr(self.scorer, "dtype", None) or "float32"
             self.telemetry.device = to_canonical_device_str(dev_kind)
@@ -883,13 +784,11 @@ class DecryptionProblem:
                 use_raw_primary = True
                 require_raw = True
             t_dec.start()
-            plains_seq, scores_pct, scores_raw, cand_count, sc_time = (
-                self._evaluate_keys_with_degeneracy_raw(
-                    k,
-                    deg_cfg,
-                    use_raw_primary=use_raw_primary,
-                    require_raw=require_raw,
-                )
+            plains_seq, scores_pct, scores_raw, cand_count, sc_time = self._evaluate_keys_with_degeneracy_raw(
+                k,
+                deg_cfg,
+                use_raw_primary=use_raw_primary,
+                require_raw=require_raw,
             )
             self.telemetry.decrypt_time_s += t_dec.stop()
             self.telemetry.score_time_s += float(sc_time)
@@ -899,9 +798,7 @@ class DecryptionProblem:
             self.telemetry.decrypt_time_s += t_dec.stop()
 
             t_sc.start()
-            scores_pct, scores_raw = self._score_batch_texts_with_raw(
-                plains_seq, self.wli_data, require_raw=require_raw
-            )
+            scores_pct, scores_raw = self._score_batch_texts_with_raw(plains_seq, self.wli_data, require_raw=require_raw)
             self.telemetry.score_time_s += t_sc.stop()
             cand_count = int(B)
 
@@ -939,9 +836,7 @@ class DecryptionProblem:
 
         if key_interrupts is None:
             ct_tr, keys_tr, info, L_full = self._prepare_candidate_inputs(core_keys)
-            cands, lens, invalid = self.cipher.candidates_for(
-                ct_tr, keys_tr, limit=per_pos_limit
-            )
+            cands, lens, invalid = self.cipher.candidates_for(ct_tr, keys_tr, limit=per_pos_limit)
             B = int(keys_tr.shape[0])
         else:
             keys_tr = None
@@ -967,7 +862,7 @@ class DecryptionProblem:
                 key_core = core_keys[b]
             else:
                 ct_tr, keys_tr_b, info_b, L_full_b = self._prepare_candidate_inputs(
-                    core_keys[b : b + 1],
+                    core_keys[b:b + 1],
                     interrupt_idx=key_interrupts[b],
                 )
                 cands_b, lens_b, invalid_b = self.cipher.candidates_for(
@@ -996,25 +891,21 @@ class DecryptionProblem:
                 plains_out[b] = pt_arr
                 t_sc = _Timer()
                 t_sc.start()
-                pct_arr, raw_arr = self._score_batch_texts_with_raw(
-                    [pt_arr], self.wli_data, require_raw=require_raw
-                )
+                pct_arr, raw_arr = self._score_batch_texts_with_raw([pt_arr], self.wli_data, require_raw=require_raw)
                 score_time += t_sc.stop()
                 scores_pct_out[b] = float(pct_arr[0])
                 scores_raw_out[b] = float(raw_arr[0])
                 total_scored += 1
                 continue
 
-            pt_best, pct_best, raw_best, scored, sc_time = (
-                self._resolve_candidates_for_key_with_raw(
-                    cands_b[0] if key_interrupts is not None else cands_b,
-                    lens_b[0] if key_interrupts is not None else lens_b,
-                    info_b,
-                    L_full=L_full_b,
-                    resolver_limit=resolver_limit,
-                    use_raw_primary=use_raw_primary,
-                    require_raw=require_raw,
-                )
+            pt_best, pct_best, raw_best, scored, sc_time = self._resolve_candidates_for_key_with_raw(
+                cands_b[0] if key_interrupts is not None else cands_b,
+                lens_b[0] if key_interrupts is not None else lens_b,
+                info_b,
+                L_full=L_full_b,
+                resolver_limit=resolver_limit,
+                use_raw_primary=use_raw_primary,
+                require_raw=require_raw,
             )
             if pt_best is not None:
                 plains_out[b] = pt_best
@@ -1070,9 +961,7 @@ class DecryptionProblem:
 
         if key_interrupts is None:
             ct_tr, keys_tr, info, L_full = self._prepare_candidate_inputs(core_keys)
-            cands, lens, invalid = self.cipher.candidates_for(
-                ct_tr, keys_tr, limit=per_pos_limit
-            )
+            cands, lens, invalid = self.cipher.candidates_for(ct_tr, keys_tr, limit=per_pos_limit)
             B = int(keys_tr.shape[0])
         else:
             keys_tr = None
@@ -1097,7 +986,7 @@ class DecryptionProblem:
                 key_core = core_keys[b]
             else:
                 ct_tr, keys_tr_b, info_b, L_full_b = self._prepare_candidate_inputs(
-                    core_keys[b : b + 1],
+                    core_keys[b:b + 1],
                     interrupt_idx=key_interrupts[b],
                 )
                 cands_b, lens_b, invalid_b = self.cipher.candidates_for(
@@ -1148,9 +1037,7 @@ class DecryptionProblem:
 
         return plains_out, scores_out, total_scored, score_time
 
-    def _prepare_candidate_inputs(
-        self, keys_np: Any, *, interrupt_idx: Optional[Any] = None
-    ):
+    def _prepare_candidate_inputs(self, keys_np: Any, *, interrupt_idx: Optional[Any] = None):
         """Prepare core/transposed ciphertext + keys for candidates_for()."""
         cipher = self.cipher
         ct_arr = to_numpy(self.ciphertext).reshape(-1)
@@ -1254,16 +1141,11 @@ class DecryptionProblem:
         """Undo text transposition and reinsert interruptors for candidate batches."""
         cipher = self.cipher
         if not hasattr(cipher, "_trans_mgr"):
-            return [
-                to_numpy(row).astype("uint8", copy=False).reshape(-1)
-                for row in plains_tr
-            ]
+            return [to_numpy(row).astype("uint8", copy=False).reshape(-1) for row in plains_tr]
 
         out = []
         for row in plains_tr:
-            cand_core = cipher._trans_mgr.undo_text(
-                to_numpy(row).astype("uint8", copy=False)
-            )
+            cand_core = cipher._trans_mgr.undo_text(to_numpy(row).astype("uint8", copy=False))
             if info is not None and hasattr(cipher, "_intr_mgr"):
                 cand_full = cipher._intr_mgr.insert_into(cand_core, info)
             else:
@@ -1272,9 +1154,7 @@ class DecryptionProblem:
                 cand_full = cipher._undo_full_text_perm(cand_full)
             cand_full = to_numpy(cand_full).astype("uint8", copy=False).reshape(-1)
             if L_full and cand_full.size != int(L_full):
-                raise ValueError(
-                    f"reassembled plaintext has length {cand_full.size}, expected {L_full}"
-                )
+                raise ValueError(f"reassembled plaintext has length {cand_full.size}, expected {L_full}")
             out.append(cand_full)
         return out
 
@@ -1300,9 +1180,7 @@ class DecryptionProblem:
         if scores_np.size == 0:
             return None, float("-inf"), 0, sc_time
         best_idx = int(scores_np.argmax())
-        best_plain = (
-            to_numpy(plains_full[best_idx]).astype("uint8", copy=False).reshape(-1)
-        )
+        best_plain = to_numpy(plains_full[best_idx]).astype("uint8", copy=False).reshape(-1)
         return best_plain, float(scores_np[best_idx]), int(len(plains_full)), sc_time
 
     def _resolve_candidates_for_key_with_raw(
@@ -1335,34 +1213,20 @@ class DecryptionProblem:
             return None, float("-inf"), float("-inf"), 0, sc_time
         primary = raw_np if use_raw_primary else pct_np
         best_idx = int(primary.argmax())
-        best_plain = (
-            to_numpy(plains_full[best_idx]).astype("uint8", copy=False).reshape(-1)
-        )
-        return (
-            best_plain,
-            float(pct_np[best_idx]),
-            float(raw_np[best_idx]),
-            int(len(plains_full)),
-            sc_time,
-        )
+        best_plain = to_numpy(plains_full[best_idx]).astype("uint8", copy=False).reshape(-1)
+        return best_plain, float(pct_np[best_idx]), float(raw_np[best_idx]), int(len(plains_full)), sc_time
 
     def resolve_plaintext(self, key: Any) -> Optional[Any]:
         """Resolve a key to a plaintext, honoring degeneracy settings if enabled."""
         cfg = self._degeneracy_cfg()
         key_np = to_numpy(key).astype(self.key_dtype, copy=False).reshape(1, -1)
         key_core, key_interrupts = self._split_key_batch(key_np)
-        interrupt_idx = (
-            self._resolve_interrupt_idx()
-            if key_interrupts is None
-            else key_interrupts[0]
-        )
+        interrupt_idx = self._resolve_interrupt_idx() if key_interrupts is None else key_interrupts[0]
         interrupt_idx = self._normalize_interrupt_idx(interrupt_idx)
         if cfg is None:
             pt = self.cipher.decrypt(
                 ciphertext=self.ciphertext,
-                key=key_core[0]
-                if hasattr(key_core, "ndim") and key_core.ndim == 2
-                else key_core,
+                key=key_core[0] if hasattr(key_core, "ndim") and key_core.ndim == 2 else key_core,
                 interrupt_idx=interrupt_idx,
                 interrupt_sym=None,
             )
@@ -1372,12 +1236,8 @@ class DecryptionProblem:
             return pt_arr.reshape(-1)
 
         keys_np = to_numpy(key_core).astype(self.key_dtype, copy=False).reshape(1, -1)
-        ct_tr, keys_tr, info, L_full = self._prepare_candidate_inputs(
-            keys_np, interrupt_idx=interrupt_idx
-        )
-        cands, lens, invalid = self.cipher.candidates_for(
-            ct_tr, keys_tr, limit=cfg["per_pos_limit"]
-        )
+        ct_tr, keys_tr, info, L_full = self._prepare_candidate_inputs(keys_np, interrupt_idx=interrupt_idx)
+        cands, lens, invalid = self.cipher.candidates_for(ct_tr, keys_tr, limit=cfg["per_pos_limit"])
         if invalid is not None and bool(to_numpy(invalid[0]).any()):
             return None
 
@@ -1385,9 +1245,7 @@ class DecryptionProblem:
         if resolver != "expand_beam":
             pt = self.cipher.decrypt(
                 ciphertext=self.ciphertext,
-                key=key_core[0]
-                if hasattr(key_core, "ndim") and key_core.ndim == 2
-                else key_core,
+                key=key_core[0] if hasattr(key_core, "ndim") and key_core.ndim == 2 else key_core,
                 interrupt_idx=interrupt_idx,
                 interrupt_sym=None,
             )
@@ -1411,11 +1269,7 @@ class DecryptionProblem:
         for name in ("alphabet_size", "A", "N", "mod", "modulus"):
             v = getattr(self.cipher, name, None)
             if v is None:
-                v = (
-                    self.c_cfg.alphabet_size
-                    if name in {"A", "N", "mod", "modulus", "alphabet_size"}
-                    else None
-                )
+                v = self.c_cfg.alphabet_size if name in {"A", "N", "mod", "modulus", "alphabet_size"} else None
             if v is not None:
                 try:
                     hints["A"] = int(v)
@@ -1447,9 +1301,7 @@ class DecryptionProblem:
                 InterruptorSearchStrategy.KEY_OPERATIONS: RuntimeInterruptorSearchStrategy.KEYOPS,
             }[parameters["strategy"]]
             hints["interruptors_search_strategy"] = strategy.value
-            hints["interruptors_bruteforce_max"] = int(
-                parameters["maximum_combinations"]
-            )
+            hints["interruptors_bruteforce_max"] = int(parameters["maximum_combinations"])
         else:
             pool = self.c_cfg.interruptors_pool
             if pool is not None:

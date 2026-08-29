@@ -34,16 +34,12 @@ class AutokeyCipher(CipherPipelineMixin, KeyedCipherBase):
         text_transposition: Direction | str = Direction.LTR,
         key_transposition: Direction | str = Direction.LTR,
     ) -> None:
-        text_dir = ensure_direction(
-            getattr(cfg, "text_transposition", text_transposition)
-        )
+        text_dir = ensure_direction(getattr(cfg, "text_transposition", text_transposition))
         key_dir = ensure_direction(getattr(cfg, "key_transposition", key_transposition))
         super().__init__(
             text_transposition=text_dir.value,
             key_transposition=key_dir.value,
-            initial_text_permutation_indices=getattr(
-                cfg, "initial_text_permutation_indices", None
-            ),
+            initial_text_permutation_indices=getattr(cfg, "initial_text_permutation_indices", None),
         )
         self.cfg = cfg
         self.text_direction = text_dir
@@ -56,18 +52,14 @@ class AutokeyCipher(CipherPipelineMixin, KeyedCipherBase):
             extra = getattr(cfg, "extra", {}) or {}
             seed_len = extra.get("seed_length")
         if seed_len is None:
-            raise ValueError(
-                "Autokey cipher requires a positive seed_length / key_length"
-            )
+            raise ValueError("Autokey cipher requires a positive seed_length / key_length")
         seed_len = int(seed_len)
         if seed_len <= 0:
             raise ValueError("Autokey cipher seed_length must be >= 1")
         self.seed_length = seed_len
         self.key_length = seed_len
 
-        self.alphabet_size = int(
-            getattr(cfg, "alphabet_size", getattr(cfg, "A", 29)) or 29
-        )
+        self.alphabet_size = int(getattr(cfg, "alphabet_size", getattr(cfg, "A", 29)) or 29)
         self.keyops_hints = {"mod": self.alphabet_size}
 
     # ------------------------------------------------------------------ helpers

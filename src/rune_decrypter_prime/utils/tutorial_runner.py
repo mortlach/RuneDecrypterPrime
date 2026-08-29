@@ -89,21 +89,13 @@ def validate_tutorial_entries(
     for index, entry in enumerate(entries, start=1):
         script_path = tutorial_dir / entry.path
         if script_path.name != entry.path or not entry.path.endswith(".py"):
-            raise ValueError(
-                f"TUTORIALS[{index}] path must be a simple Python filename."
-            )
+            raise ValueError(f"TUTORIALS[{index}] path must be a simple Python filename.")
         if not 0.0 <= float(entry.min_match_ratio) <= 1.0:
-            raise ValueError(
-                f"TUTORIALS[{index}] min_match_ratio must be between 0.0 and 1.0."
-            )
+            raise ValueError(f"TUTORIALS[{index}] min_match_ratio must be between 0.0 and 1.0.")
         if not isinstance(entry.acceptance, TutorialAcceptanceKind):
-            raise TypeError(
-                f"TUTORIALS[{index}] acceptance must be TutorialAcceptanceKind."
-            )
+            raise TypeError(f"TUTORIALS[{index}] acceptance must be TutorialAcceptanceKind.")
         if not all(isinstance(item, TutorialRunSet) for item in entry.run_sets):
-            raise TypeError(
-                f"TUTORIALS[{index}] run_sets must be TutorialRunSet values."
-            )
+            raise TypeError(f"TUTORIALS[{index}] run_sets must be TutorialRunSet values.")
         if entry.required_asset_profile not in {"ci_light", "full_v1"}:
             raise ValueError(
                 f"TUTORIALS[{index}] required_asset_profile must be ci_light or full_v1."
@@ -123,10 +115,7 @@ def parse_last_float(pattern: str, text: str) -> float | None:
 
 
 def parse_match_ratio(text: str) -> float | None:
-    return parse_last_float(
-        r"(?:Match ratio(?:\s*\([^)]*\))?|match_ratio)\s*:?\s*([0-9]+(?:\.[0-9]+)?)",
-        text,
-    )
+    return parse_last_float(r"(?:Match ratio(?:\s*\([^)]*\))?|match_ratio)\s*:?\s*([0-9]+(?:\.[0-9]+)?)", text)
 
 
 def tail_text(text: str, *, lines: int) -> str:

@@ -4,7 +4,6 @@ import numpy as np
 from rune_decrypter_prime.keyops.permutation_ops import PermutationOps
 from .pipeline import CipherPipelineMixin, ArrayU8
 
-
 class ColumnarTranspositionCipher(CipherPipelineMixin):
     """
     Classical row-fill / column-read columnar transposition over Runeglish (A=29).
@@ -12,7 +11,6 @@ class ColumnarTranspositionCipher(CipherPipelineMixin):
     Key: permutation of columns [0..K-1] indicating READ ORDER used at encryption.
          Decrypt reconstructs columns by lengths and reads row-wise.
     """
-
     A = 29
 
     def __init__(self, cfg, *, text_transposition="ltr", key_transposition="ltr"):
@@ -27,7 +25,7 @@ class ColumnarTranspositionCipher(CipherPipelineMixin):
             raise ValueError("Columnar requires positive key_length in cfg")
         self.keyops = PermutationOps(key_len)
 
-        intr_exact = getattr(cfg, "interruptors_exact", None)
+        intr_exact  = getattr(cfg, "interruptors_exact", None)
         intr_legacy = getattr(cfg, "interruptors", None)
         chosen = intr_exact if intr_exact is not None else intr_legacy
         self._default_interrupt_idx = (
@@ -59,10 +57,9 @@ class ColumnarTranspositionCipher(CipherPipelineMixin):
 
     # --- scalar helpers --- #
     def _decrypt_single(self, ct: np.ndarray, key_perm: np.ndarray) -> np.ndarray:
-        L = int(ct.size)
-        K = int(key_perm.size)
+        L = int(ct.size); K = int(key_perm.size)
         rows = (L + K - 1) // K
-        rem = L % K
+        rem  = L % K
         col_lens = np.full(K, rows - 1, dtype=np.int64)
         if rem == 0:
             col_lens[:] = rows
@@ -73,7 +70,7 @@ class ColumnarTranspositionCipher(CipherPipelineMixin):
         pos = 0
         for c in key_perm:
             ln = int(col_lens[c])
-            cols[c] = ct[pos : pos + ln]
+            cols[c] = ct[pos:pos+ln]
             pos += ln
 
         pt = np.empty(L, dtype=np.uint8)
@@ -82,15 +79,13 @@ class ColumnarTranspositionCipher(CipherPipelineMixin):
             for c in range(K):
                 col = cols[c]
                 if r < col.size:
-                    pt[w] = col[r]
-                    w += 1
+                    pt[w] = col[r]; w += 1
         return pt
 
     def _encrypt_single(self, pt: np.ndarray, key_perm: np.ndarray) -> np.ndarray:
-        L = int(pt.size)
-        K = int(key_perm.size)
+        L = int(pt.size); K = int(key_perm.size)
         rows = (L + K - 1) // K
-        rem = L % K
+        rem  = L % K
 
         cols = [bytearray() for _ in range(K)]
         # Fill row-wise across physical columns 0..K-1
@@ -98,8 +93,7 @@ class ColumnarTranspositionCipher(CipherPipelineMixin):
         for r in range(rows):
             for c in range(K):
                 if i < L:
-                    cols[c].append(int(pt[i]))
-                    i += 1
+                    cols[c].append(int(pt[i])); i += 1
         # Read columns in key order
         parts = []
         for c in key_perm:

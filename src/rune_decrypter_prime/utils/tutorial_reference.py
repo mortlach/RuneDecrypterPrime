@@ -90,9 +90,7 @@ class TutorialReference:
         if denom == 0:
             return None
         limit = min(len(found), len(self.plaintext_idx))
-        return sum(
-            1 for idx in range(limit) if found[idx] == self.plaintext_idx[idx]
-        ) / float(denom)
+        return sum(1 for idx in range(limit) if found[idx] == self.plaintext_idx[idx]) / float(denom)
 
     def key_exact(self, solution_or_key: Any) -> bool | None:
         found = _solution_key(solution_or_key)
@@ -136,9 +134,7 @@ def _truth_policy(value: TutorialTruthPolicy | str) -> TutorialTruthPolicy:
         return TutorialTruthPolicy(str(value))
     except ValueError as exc:
         allowed = ", ".join(item.value for item in TutorialTruthPolicy)
-        raise ValueError(
-            f"unknown tutorial truth policy {value!r}; expected one of: {allowed}"
-        ) from exc
+        raise ValueError(f"unknown tutorial truth policy {value!r}; expected one of: {allowed}") from exc
 
 
 def _solution_plaintext(value: Any) -> tuple[int, ...] | None:

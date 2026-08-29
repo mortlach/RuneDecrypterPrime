@@ -77,6 +77,4 @@ from rune_decrypter_prime.core.types import (
 )
 from rune_decrypter_prime.scoring.scorer_report import ScorerReport
 
-__all__ = [
-    name for name in globals() if not name.startswith("_") and name != "annotations"
-]
+__all__ = [name for name in globals() if not name.startswith("_") and name != "annotations"]

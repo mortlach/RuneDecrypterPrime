@@ -4,7 +4,6 @@ import copy
 import time
 from typing import Any, Dict
 
-
 def _ensure_tel_dict(problem) -> Dict[str, Any] | None:
     """
     Ensure problem.telemetry exists and is a dict.
@@ -19,9 +18,7 @@ def _ensure_tel_dict(problem) -> Dict[str, Any] | None:
     except Exception:
         return None
 
-
 # ---- New solver-* API (preferred names) ------------------------------------
-
 
 def solver_start(problem, name: str, params: Dict[str, Any] | None = None) -> None:
     tel = _ensure_tel_dict(problem)
@@ -36,7 +33,6 @@ def solver_start(problem, name: str, params: Dict[str, Any] | None = None) -> No
     this.setdefault("optimizer", str(name))
     this["solver"] = str(name)
 
-
 def solver_progress(problem, name: str, **payload) -> None:
     tel = _ensure_tel_dict(problem)
     if tel is None:
@@ -47,7 +43,6 @@ def solver_progress(problem, name: str, **payload) -> None:
     # Compat breadcrumb
     item.setdefault("optimizer", str(name))
     prog.append(item)
-
 
 def solver_end(problem, name: str, result: Dict[str, Any] | None, t0: float) -> None:
     tel = _ensure_tel_dict(problem)
@@ -69,7 +64,6 @@ def solver_end(problem, name: str, result: Dict[str, Any] | None, t0: float) -> 
     except Exception:
         pass
 
-
 # ---- Back-compat aliases (old optimizer_* names) ---------------------------
 
 optimizer_start = solver_start
@@ -77,7 +71,6 @@ optimizer_progress = solver_progress
 optimizer_end = solver_end
 
 # ---- Solution/meta hook (unchanged) ---------------------------------------
-
 
 def attach_telemetry_to_meta(sol, problem) -> None:
     """
@@ -129,7 +122,6 @@ def attach_telemetry_to_meta(sol, problem) -> None:
 
 # ---- Run-level envelope (Stage-2) ------------------------------------------
 
-
 def run_start(*, problem, seed, solver, device, scorer, pipeline, params=None) -> None:
     tel = getattr(problem, "telemetry", None)
     try:
@@ -152,7 +144,6 @@ def run_start(*, problem, seed, solver, device, scorer, pipeline, params=None) -
         run["params"] = dict(params)
     tel["run"] = run
 
-
 def run_end(*, problem, seed, solver, device, scorer, pipeline, result=None) -> None:
     tel = getattr(problem, "telemetry", None)
     try:
@@ -168,7 +159,7 @@ def run_end(*, problem, seed, solver, device, scorer, pipeline, result=None) -> 
     if isinstance(result, dict):
         run["result"] = dict(result)
 
-
 # Back-compat aliases if callers used older names
 log_run_start = run_start
 log_run_end = run_end
+

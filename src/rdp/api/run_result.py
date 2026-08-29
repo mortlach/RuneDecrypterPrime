@@ -45,11 +45,7 @@ class RunResult:
 
     def __post_init__(self) -> None:
         if self.plaintext is not None:
-            object.__setattr__(
-                self,
-                "plaintext",
-                normalize_rune_indices(self.plaintext, field_name="plaintext"),
-            )
+            object.__setattr__(self, "plaintext", normalize_rune_indices(self.plaintext, field_name="plaintext"))
         if self.plaintext_text is not None and not isinstance(self.plaintext_text, str):
             raise TypeError("plaintext_text must be a string or None")
         if self.key is not None:

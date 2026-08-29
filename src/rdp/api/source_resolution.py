@@ -35,9 +35,7 @@ class ResolvedSourceInput:
 
         ct_idx = _copy_ct_idx(self.ct_idx)
         wli = _copy_wli(self.wli, expected_len=len(ct_idx))
-        source_metadata = _copy_path_free_metadata(
-            self.source_metadata, "source_metadata"
-        )
+        source_metadata = _copy_path_free_metadata(self.source_metadata, "source_metadata")
 
         object.__setattr__(self, "ct_idx", ct_idx)
         object.__setattr__(self, "wli", wli)
@@ -55,17 +53,13 @@ def resolve_source_input_ref(source_ref: SourceReferenceInput) -> ResolvedSource
     if source_ref.source_kind == "liber_primus.partition":
         return _resolve_lp_partition(source_ref)
 
-    raise ValueError(
-        f"unsupported source_kind for resolution: {source_ref.source_kind}"
-    )
+    raise ValueError(f"unsupported source_kind for resolution: {source_ref.source_kind}")
 
 
 def _resolve_lp_label(source_ref: SourceReferenceInput) -> ResolvedSourceInput:
     _validate_lp_main_identity(source_ref)
 
-    from rune_decrypter_prime.data.liber_primus.lp_source_catalogue import (
-        payload_from_label,
-    )
+    from rune_decrypter_prime.data.liber_primus.lp_source_catalogue import payload_from_label
 
     payload = payload_from_label(source_ref.ref["label"])
     return ResolvedSourceInput(
@@ -133,9 +127,7 @@ def _resolve_lp_locator(source_ref: SourceReferenceInput) -> ResolvedSourceInput
 def _resolve_lp_partition(source_ref: SourceReferenceInput) -> ResolvedSourceInput:
     _validate_lp_main_identity(source_ref)
 
-    from rune_decrypter_prime.data.liber_primus.lp_adapter import (
-        payload_from_partition_entry,
-    )
+    from rune_decrypter_prime.data.liber_primus.lp_adapter import payload_from_partition_entry
     from rune_decrypter_prime.data.liber_primus.lp_main import load_main_transcript
     from rune_decrypter_prime.data.liber_primus.lp_registry import (
         LPBuiltInPartitionScheme,
@@ -145,9 +137,7 @@ def _resolve_lp_partition(source_ref: SourceReferenceInput) -> ResolvedSourceInp
     )
 
     ref = source_ref.ref
-    ordinal = LPSectionOrdinal.of(
-        *(int(part) for part in ref["partition_ordinal"].split("-"))
-    )
+    ordinal = LPSectionOrdinal.of(*(int(part) for part in ref["partition_ordinal"].split("-")))
     entry = LPPartitionEntry(
         scheme=LPBuiltInPartitionScheme(ref["partition_scheme"]),
         ordinal=ordinal,
@@ -188,16 +178,11 @@ def _validate_lp_main_identity(source_ref: SourceReferenceInput) -> None:
 
     identity = main_transcript_asset_identity()
     if source_ref.asset_version != identity["asset_version"]:
-        raise ValueError(
-            "source_ref.asset_version does not match current LP main transcript asset_version"
-        )
+        raise ValueError("source_ref.asset_version does not match current LP main transcript asset_version")
 
 
 def _lp_page_ref(ref: Mapping[str, Any], *, scheme_key: str, number_key: str):
-    from rune_decrypter_prime.data.liber_primus.lp_registry import (
-        LPBuiltInPageScheme,
-        LPPageRef,
-    )
+    from rune_decrypter_prime.data.liber_primus.lp_registry import LPBuiltInPageScheme, LPPageRef
 
     return LPPageRef(
         scheme=LPBuiltInPageScheme(ref[scheme_key]),
@@ -207,10 +192,7 @@ def _lp_page_ref(ref: Mapping[str, Any], *, scheme_key: str, number_key: str):
 
 def _copy_ct_idx(value: Any) -> tuple[int, ...]:
     ct_idx_input = _require_ordered_sequence(value, "ct_idx")
-    ct_idx = tuple(
-        _require_token(item, f"ct_idx[{index}]")
-        for index, item in enumerate(ct_idx_input)
-    )
+    ct_idx = tuple(_require_token(item, f"ct_idx[{index}]") for index, item in enumerate(ct_idx_input))
     if not ct_idx:
         raise ValueError("ct_idx must not be empty")
     return ct_idx
@@ -221,18 +203,14 @@ def _copy_wli(value: Any, *, expected_len: int) -> tuple[tuple[int, int], ...] |
         return None
 
     wli_input = _require_ordered_sequence(value, "wli")
-    wli = tuple(
-        _require_wli_pair(pair, f"wli[{index}]") for index, pair in enumerate(wli_input)
-    )
+    wli = tuple(_require_wli_pair(pair, f"wli[{index}]") for index, pair in enumerate(wli_input))
     if len(wli) != expected_len:
         raise ValueError("wli length must match ct_idx length")
     return wli
 
 
 def _require_ordered_sequence(value: Any, field_name: str) -> Sequence[Any]:
-    if isinstance(value, (str, bytes, Path, Mapping)) or not isinstance(
-        value, Sequence
-    ):
+    if isinstance(value, (str, bytes, Path, Mapping)) or not isinstance(value, Sequence):
         raise TypeError(f"{field_name} must be an ordered sequence")
     return value
 
@@ -285,9 +263,7 @@ def _copy_path_free_metadata_value(value: Any, field_name: str) -> Any:
     if isinstance(value, Mapping):
         return _copy_path_free_metadata(value, field_name)
     if isinstance(value, (list, tuple)):
-        return tuple(
-            _copy_path_free_metadata_value(item, f"{field_name}[]") for item in value
-        )
+        return tuple(_copy_path_free_metadata_value(item, f"{field_name}[]") for item in value)
     if not isinstance(value, _JSON_PRIMITIVE_TYPES):
         raise TypeError(f"{field_name} must be JSON-compatible")
     if isinstance(value, float) and not math.isfinite(value):

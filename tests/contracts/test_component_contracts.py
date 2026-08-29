@@ -32,7 +32,6 @@ def test_component_contract_label_domains_are_str_enums() -> None:
     ):
         assert issubclass(enum_type, StrEnum)
 
-
 def test_lane_status_is_json_safe() -> None:
     issue = CapabilityIssue(
         code="asset_missing",
@@ -57,7 +56,6 @@ def test_lane_status_is_json_safe() -> None:
     assert payload["ranking_effect"] == "production"
     assert payload["fallback_policy"] == "block"
     json.dumps(payload)
-
 
 def test_scorer_lane_names_are_stable() -> None:
     assert tuple((lane.value for lane in ScoringLane)) == (
@@ -94,13 +92,7 @@ def test_request_and_effective_state_values_are_stable() -> None:
 
 
 def test_fallback_policy_values_are_stable() -> None:
-    assert tuple((policy.value for policy in FallbackPolicy)) == (
-        "block",
-        "explicit_reported_fallback",
-        "report_only",
-        "disabled",
-    )
-
+    assert tuple((policy.value for policy in FallbackPolicy)) == ('block', 'explicit_reported_fallback', 'report_only', 'disabled')
 
 def test_raw_string_enum_values_are_rejected() -> None:
     with pytest.raises(TypeError):
@@ -138,9 +130,8 @@ def test_blocked_report_raises_requested_lane_error() -> None:
         ),
     )
     report = ScorerCapabilityReport(lanes=(lane,))
-    with pytest.raises(RequestedLaneUnavailableError, match="span_hamming_raw"):
+    with pytest.raises(RequestedLaneUnavailableError, match='span_hamming_raw'):
         report.raise_if_blocked()
-
 
 def test_component_contract_json_is_stable() -> None:
     contract = ComponentContract(

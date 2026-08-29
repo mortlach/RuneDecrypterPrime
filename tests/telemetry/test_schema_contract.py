@@ -6,7 +6,6 @@ from rune_decrypter_prime.core.types import Direction, Device, ScorerImpl
 
 pytestmark = pytest.mark.tier_a
 
-
 def test_schema_contract_minimal_plus_pipeline(small_problem_cfg):
     _, _, meta = run_vigenere_roundtrip_baseline(
         device=Device.CPU,
