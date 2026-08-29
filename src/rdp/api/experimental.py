@@ -8,7 +8,7 @@ from collections.abc import Callable, Sequence
 from enum import StrEnum
 
 from rdp.api.specs import CipherSpec
-from rune_decrypter_prime.core.types import CipherKind
+from rune_decrypter_prime.core.types import RuntimeCipherKind
 
 
 class DegeneracyPolicy(StrEnum):
@@ -47,7 +47,7 @@ def define_cipher_map(
     )
     definition_id = _function_id(function)
     values.update(definition_kind="function", definition_id=definition_id)
-    spec = CipherSpec._create(CipherKind.USER_MAP2, values)  # type: ignore[arg-type]
+    spec = CipherSpec._create(RuntimeCipherKind.USER_MAP2, values)  # type: ignore[arg-type]
     _FUNCTIONS[definition_id] = function
     return spec
 
@@ -74,12 +74,12 @@ def define_cipher_lookup(
     )
     rows = _validate_table(table, alphabet_size=alphabet_size)
     values.update(definition_kind="lookup", table=rows)
-    return CipherSpec._create(CipherKind.LOOKUP, values)  # type: ignore[arg-type]
+    return CipherSpec._create(RuntimeCipherKind.LOOKUP, values)  # type: ignore[arg-type]
 
 
 def function_for(spec: CipherSpec) -> Callable[[int, int], int]:
     """Return the callable owned by an experimental map specification."""
-    if not isinstance(spec, CipherSpec) or spec.kind is not CipherKind.USER_MAP2:
+    if not isinstance(spec, CipherSpec) or spec.kind is not RuntimeCipherKind.USER_MAP2:
         raise TypeError("spec must be an experimental two-input CipherSpec")
     definition_id = str(spec.parameters["definition_id"])
     try:

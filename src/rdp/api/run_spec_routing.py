@@ -7,7 +7,7 @@ from typing import Any, Sequence
 import numpy as np
 
 from rdp.api.normalize import _assert_core_ready, normalize_ciphertext
-from rdp.api.run_spec import NormalizedInput, RawTextInput, RunSpec, SourceInputRef
+from rdp.api.run_spec import RawTextInput, RuneIndexInput, RunSpec, SourceReferenceInput
 from rdp.api.source_resolution import resolve_source_input_ref
 from rune_decrypter_prime.core.config.logging_config import LoggingConfig
 
@@ -37,18 +37,18 @@ def materialize_runspec_problem_input(spec: RunSpec) -> MaterializedRunSpecInput
         ciphertext, wli = normalize_ciphertext(problem_input.text)
         return MaterializedRunSpecInput(ciphertext=ciphertext, wli=wli)
 
-    if isinstance(problem_input, NormalizedInput):
+    if isinstance(problem_input, RuneIndexInput):
         ciphertext = _ct_idx_to_uint8_array(problem_input.ct_idx)
         _assert_core_ready(ciphertext, problem_input.wli)
         return MaterializedRunSpecInput(ciphertext=ciphertext, wli=problem_input.wli)
 
-    if isinstance(problem_input, SourceInputRef):
+    if isinstance(problem_input, SourceReferenceInput):
         resolved = resolve_source_input_ref(problem_input)
         ciphertext = _ct_idx_to_uint8_array(resolved.ct_idx)
         _assert_core_ready(ciphertext, resolved.wli)
         return MaterializedRunSpecInput(ciphertext=ciphertext, wli=resolved.wli)
 
-    raise TypeError("spec.problem_input must be RawTextInput, NormalizedInput, or SourceInputRef")
+    raise TypeError("spec.problem_input must be RawTextInput, RuneIndexInput, or SourceReferenceInput")
 
 
 def route_runspec_logging(spec: RunSpec, outside_logging: Any = None) -> RunSpecLoggingRoute:
@@ -79,7 +79,7 @@ def route_runspec_logging(spec: RunSpec, outside_logging: Any = None) -> RunSpec
 def reject_runspec_mixed_inputs(inputs: Mapping[str, Any], *, unset: object) -> None:
     supplied = sorted(name for name, value in inputs.items() if value is not unset)
     if supplied:
-        raise TypeError(f"RunAPI.run(spec=...) does not accept outside durable inputs: {', '.join(supplied)}")
+        raise TypeError(f"run(request) does not accept outside durable inputs: {', '.join(supplied)}")
 
 
 def _ct_idx_to_uint8_array(ct_idx: Sequence[int]) -> np.ndarray:

@@ -9,11 +9,16 @@ from enum import Enum
 from numbers import Integral, Real
 from typing import Any, ClassVar
 
-from rune_decrypter_prime.core.component_contracts import UnsupportedConfigurationError
+from rune_decrypter_prime.core.component_contracts import (
+    ComponentKind,
+    UnknownComponentError,
+    UnsupportedConfigurationError,
+)
 from rune_decrypter_prime.core.types import (
     BeamExpansionMode,
-    FinalCipherKind as CipherKind,
-    FinalKeyKind as KeyKind,
+    CipherKind,
+    KeyKind,
+    RuntimeCipherKind,
     FrozenParameterItems,
     JsonObject,
     JsonValue,
@@ -164,13 +169,13 @@ class _ImmutableSpec:
 
 @dataclass(frozen=True, slots=True, init=False, repr=False)
 class CipherSpec(_ImmutableSpec):
-    kind: CipherKind
+    kind: CipherKind | RuntimeCipherKind
     _parameter_items: FrozenParameterItems = field(repr=False)
 
     _REPLAY_PREFIX: ClassVar[str] = "cipher-spec"
 
     @classmethod
-    def _create(cls, kind: CipherKind, parameters: Mapping[str, object]) -> CipherSpec:
+    def _create(cls, kind: CipherKind | RuntimeCipherKind, parameters: Mapping[str, object]) -> CipherSpec:
         instance = object.__new__(cls)
         object.__setattr__(instance, "kind", kind)
         object.__setattr__(instance, "_parameter_items", freeze_parameter_items(parameters))
@@ -353,7 +358,11 @@ class CipherSpec(_ImmutableSpec):
             }),
         }
         if name not in constructors:
-            raise UnsupportedConfigurationError(f"unsupported cipher name {name!r}", field_paths=("name",))
+            raise UnknownComponentError(
+                f"unsupported cipher name {name!r}",
+                component_kind=ComponentKind.CIPHER,
+                token=name,
+            )
         constructor, enum_fields = constructors[name]
         for key, enum_type in enum_fields.items():
             if key in values:
@@ -496,7 +505,11 @@ class KeySpec(_ImmutableSpec):
         }
         constructor = constructors.get(name)
         if constructor is None:
-            raise UnsupportedConfigurationError(f"unsupported key name {name!r}", field_paths=("name",))
+            raise UnknownComponentError(
+                f"unsupported key name {name!r}",
+                component_kind=ComponentKind.CIPHER,
+                token=name,
+            )
         try:
             spec = constructor(**values)
         except TypeError as exc:
@@ -518,68 +531,6 @@ class KeySpec(_ImmutableSpec):
 
     def to_dict(self) -> dict[str, JsonValue]:
         return {"kind": self.kind.value, "parameters": self._json_parameters()}
-
-    @property
-    def plan(self) -> str:
-        return {
-            KeyKind.REPEATING: "repeat",
-            KeyKind.REPEATING_RANGE: "repeat_range",
-            KeyKind.PERMUTATION: "perm",
-            KeyKind.SCALAR: "scalar",
-            KeyKind.PERIODIC_SUBSTITUTION: "periodic_structured",
-            KeyKind.PERIODIC_COLUMNAR: "periodic_structured",
-        }[self.kind]
-
-    @property
-    def params(self) -> dict[str, object]:
-        aliases = {
-            "length": "len",
-            "minimum_length": "min",
-            "maximum_length": "max",
-            "minimum": "min",
-            "maximum": "max",
-        }
-        return {
-            aliases.get(key, key): value
-            for key, value in self.parameters.items()
-            if key != "alignment"
-        }
-
-    @property
-    def _align_offset(self) -> object:
-        return self.parameters.get("alignment")
-
-    def period_hint(self) -> int | None:
-        return int(self.parameters["length"]) if self.kind is KeyKind.REPEATING else None
-
-    def to_telemetry(self) -> dict[str, object]:
-        return {"plan": self.plan, **self.params}
-
-    @classmethod
-    def repeat(cls, *, len: int) -> KeySpec:
-        return cls.repeating(length=len)
-
-    @classmethod
-    def repeat_range(cls, *, min: int, max: int) -> KeySpec:
-        return cls.repeating_range(minimum_length=min, maximum_length=max)
-
-    @classmethod
-    def periodic_structured(
-        cls,
-        *,
-        period: int,
-        alphabet_size: int = 29,
-        columns: int | None = None,
-    ) -> KeySpec:
-        if columns is None:
-            return cls.periodic_substitution(period=period, alphabet_size=alphabet_size)
-        return cls.periodic_columnar(period=period, columns=columns, alphabet_size=alphabet_size)
-
-    def align(self, *, offset: int | tuple[str, int, int]) -> KeySpec:
-        if isinstance(offset, tuple) and len(offset) == 3 and offset[0] == "search":
-            return self.with_alignment_search(minimum_offset=offset[1], maximum_offset=offset[2])
-        return self.with_fixed_alignment(offset=offset)  # type: ignore[arg-type]
-
 
 @dataclass(frozen=True, slots=True, init=False, repr=False)
 class SolverSpec(_ImmutableSpec):
@@ -852,7 +803,11 @@ class SolverSpec(_ImmutableSpec):
         }
         constructor = constructors.get(name)
         if constructor is None:
-            raise UnsupportedConfigurationError(f"unsupported solver name {name!r}", field_paths=("name",))
+            raise UnknownComponentError(
+                f"unsupported solver name {name!r}",
+                component_kind=ComponentKind.SOLVER,
+                token=name,
+            )
         for key, enum_type in enum_fields[name].items():
             if key in values:
                 values[key] = _parse_enum(values[key], enum_type, f"parameters.{key}")
@@ -881,60 +836,5 @@ class SolverSpec(_ImmutableSpec):
 
     def to_dict(self) -> dict[str, JsonValue]:
         return {"kind": self.kind.value, "seed": self.seed, "parameters": self._json_parameters()}
-
-    @property
-    def name(self) -> str:
-        return {
-            SolverKind.BEAM_SEARCH: "beam",
-            SolverKind.GENETIC_ALGORITHM: "ga",
-            SolverKind.SIMULATED_ANNEALING: "sa",
-            SolverKind.HYBRID: "hybrid",
-            SolverKind.KAEDING: "kaeding",
-            SolverKind.TWO_PERIOD_CRIBS: "two_period_cribs",
-        }[self.kind]
-
-    @property
-    def params(self) -> dict[str, object]:
-        mappings = {
-            SolverKind.BEAM_SEARCH: {"width": "beam_width"},
-            SolverKind.GENETIC_ALGORITHM: {"population_size": "pop_size"},
-            SolverKind.SIMULATED_ANNEALING: {"iterations": "sa_iters"},
-            SolverKind.KAEDING: {"inner_batch_size": "inner_batch"},
-        }
-        aliases = mappings.get(self.kind, {})
-        return {aliases.get(key, key): value for key, value in self.parameters.items()}
-
-    @classmethod
-    def beam(cls, **parameters: Any) -> SolverSpec:
-        from rdp.api._resolve import resolve_optimizer_aliases
-
-        seed = parameters.pop("seed", None)
-        values = resolve_optimizer_aliases("beam", dict(parameters))
-        width = values.pop("beam_width")
-        rounds = values.pop("rounds", 0)
-        expansion = _parse_enum(values.pop("expand_mode", "sweep"), BeamExpansionMode, "expansion")
-        return cls.beam_search(width=width, rounds=rounds, expansion=expansion, seed=seed, **values)
-
-    @classmethod
-    def ga(cls, **parameters: Any) -> SolverSpec:
-        from rdp.api._resolve import resolve_optimizer_aliases
-
-        seed = parameters.pop("seed", None)
-        values = resolve_optimizer_aliases("ga", dict(parameters))
-        return cls.genetic_algorithm(
-            population_size=values.pop("pop_size"),
-            generations=values.pop("generations"),
-            seed=seed,
-            **values,
-        )
-
-    @classmethod
-    def sa(cls, **parameters: Any) -> SolverSpec:
-        from rdp.api._resolve import resolve_optimizer_aliases
-
-        seed = parameters.pop("seed", None)
-        values = resolve_optimizer_aliases("sa", dict(parameters))
-        return cls.simulated_annealing(iterations=values.pop("sa_iters"), seed=seed, **values)
-
 
 __all__ = ["CipherSpec", "KeySpec", "SolverSpec"]

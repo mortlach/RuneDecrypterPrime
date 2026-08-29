@@ -8,7 +8,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
-from rdp.api.run_spec import SourceInputRef
+from rdp.api.run_spec import SourceReferenceInput
 
 
 SUPPORTED_SOURCE_KINDS = frozenset(
@@ -26,12 +26,12 @@ _JSON_PRIMITIVE_TYPES = (str, int, float, bool, type(None))
 class ResolvedSourceInput:
     ct_idx: Sequence[int]
     wli: Sequence[Sequence[int]] | None
-    source_ref: SourceInputRef
+    source_ref: SourceReferenceInput
     source_metadata: Mapping[str, Any]
 
     def __post_init__(self) -> None:
-        if not isinstance(self.source_ref, SourceInputRef):
-            raise TypeError("source_ref must be a SourceInputRef")
+        if not isinstance(self.source_ref, SourceReferenceInput):
+            raise TypeError("source_ref must be a SourceReferenceInput")
 
         ct_idx = _copy_ct_idx(self.ct_idx)
         wli = _copy_wli(self.wli, expected_len=len(ct_idx))
@@ -42,9 +42,9 @@ class ResolvedSourceInput:
         object.__setattr__(self, "source_metadata", source_metadata)
 
 
-def resolve_source_input_ref(source_ref: SourceInputRef) -> ResolvedSourceInput:
-    if not isinstance(source_ref, SourceInputRef):
-        raise TypeError("source_ref must be a SourceInputRef")
+def resolve_source_input_ref(source_ref: SourceReferenceInput) -> ResolvedSourceInput:
+    if not isinstance(source_ref, SourceReferenceInput):
+        raise TypeError("source_ref must be a SourceReferenceInput")
 
     if source_ref.source_kind == "liber_primus.label":
         return _resolve_lp_label(source_ref)
@@ -56,7 +56,7 @@ def resolve_source_input_ref(source_ref: SourceInputRef) -> ResolvedSourceInput:
     raise ValueError(f"unsupported source_kind for resolution: {source_ref.source_kind}")
 
 
-def _resolve_lp_label(source_ref: SourceInputRef) -> ResolvedSourceInput:
+def _resolve_lp_label(source_ref: SourceReferenceInput) -> ResolvedSourceInput:
     _validate_lp_main_identity(source_ref)
 
     from rune_decrypter_prime.data.liber_primus.lp_source_catalogue import payload_from_label
@@ -70,7 +70,7 @@ def _resolve_lp_label(source_ref: SourceInputRef) -> ResolvedSourceInput:
     )
 
 
-def _resolve_lp_locator(source_ref: SourceInputRef) -> ResolvedSourceInput:
+def _resolve_lp_locator(source_ref: SourceReferenceInput) -> ResolvedSourceInput:
     _validate_lp_main_identity(source_ref)
 
     from rune_decrypter_prime.data.liber_primus.lp_adapter import payload_from_locator
@@ -124,7 +124,7 @@ def _resolve_lp_locator(source_ref: SourceInputRef) -> ResolvedSourceInput:
     )
 
 
-def _resolve_lp_partition(source_ref: SourceInputRef) -> ResolvedSourceInput:
+def _resolve_lp_partition(source_ref: SourceReferenceInput) -> ResolvedSourceInput:
     _validate_lp_main_identity(source_ref)
 
     from rune_decrypter_prime.data.liber_primus.lp_adapter import payload_from_partition_entry
@@ -165,7 +165,7 @@ def _resolve_lp_partition(source_ref: SourceInputRef) -> ResolvedSourceInput:
     )
 
 
-def _validate_lp_main_identity(source_ref: SourceInputRef) -> None:
+def _validate_lp_main_identity(source_ref: SourceReferenceInput) -> None:
     from rune_decrypter_prime.data.liber_primus.lp_main import (
         MAIN_TRANSCRIPT_ASSET_ID,
         main_transcript_asset_identity,

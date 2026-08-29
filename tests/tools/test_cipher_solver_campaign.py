@@ -3,6 +3,7 @@ import importlib
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from rdp import api
 import pytest
 pytestmark = pytest.mark.tier_a
 ROOT = Path(__file__).resolve().parents[2]
@@ -134,8 +135,8 @@ def test_configured_difficulty_minima_are_respected() -> None:
 def test_autokey_uses_the_qualified_beam_and_wli_profile() -> None:
     campaign = _campaign()
     case = campaign.build_case('autokey_beam', 0)
-    assert case.solver.name == 'beam'
-    assert case.solver.params['restarts'] == 3
+    assert case.solver.kind is api.advanced.SolverKind.BEAM_SEARCH
+    assert case.solver.parameters['restarts'] == 3
     assert case.scorer['include_char'] is False
     assert case.scorer['use_word_breaks'] is True
     assert case.scorer['char_weights'] == {}

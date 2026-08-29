@@ -374,11 +374,6 @@ class SourceReferenceInput:
 
 ProblemInput = RawTextInput | RuneIndexInput | SourceReferenceInput
 
-# Existing internal names remain until retained callers migrate in AN3.6.
-NormalizedInput = RuneIndexInput
-SourceInputRef = SourceReferenceInput
-
-
 @dataclass(frozen=True, slots=True)
 class RunSpec:
     """Immutable public run request.
@@ -412,6 +407,8 @@ class RunSpec:
             raise TypeError("key_space must be a KeySpec")
         if not isinstance(self.solver, SolverSpec):
             raise TypeError("solver must be a SolverSpec")
+        from rune_decrypter_prime.core.config.cipher import expected_concrete_key_length
+        expected_concrete_key_length(self.cipher, self.key_space)
         if not isinstance(self.scoring, ScoringConfig):
             raise TypeError("scoring must be a ScoringConfig")
         if self.logging is not None and not isinstance(self.logging, LoggingConfig):
@@ -430,6 +427,8 @@ class RunSpec:
             permutation = tuple(_require_int(value, "text_permutation") for value in self.text_permutation)
             if sorted(permutation) != list(range(len(permutation))):
                 raise ValueError("text_permutation must be a permutation of 0..n-1")
+            if isinstance(self.problem_input, RuneIndexInput) and len(permutation) != len(self.problem_input.indices):
+                raise ValueError("text_permutation length must match RuneIndexInput.indices")
             object.__setattr__(self, "text_permutation", permutation)
         if self.interruptors is not None and not isinstance(self.interruptors, InterruptorConfig):
             raise TypeError("interruptors must be InterruptorConfig or None")

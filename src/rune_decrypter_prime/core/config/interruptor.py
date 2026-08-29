@@ -5,11 +5,11 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from numbers import Integral
-from typing import Any, ClassVar
+from typing import ClassVar
 
 from rune_decrypter_prime.core.component_contracts import UnsupportedConfigurationError
 from rune_decrypter_prime.core.types import (
-    FinalInterruptorSearchStrategy as InterruptorSearchStrategy,
+    InterruptorSearchStrategy,
     FrozenParameterItems,
     InterruptorMode,
     JsonObject,
@@ -171,37 +171,5 @@ class InterruptorConfig:
             f"InterruptorConfig(mode={self.mode!r}, "
             f"parameters={dict(self.parameters)!r})"
         )
-
-    # Existing internal projections are removed after the AN3.6 caller cutover.
-    @property
-    def exact_positions(self) -> tuple[int, ...] | None:
-        value = self.parameters.get("positions")
-        return None if value is None else tuple(value)  # type: ignore[arg-type]
-
-    @property
-    def pool(self) -> tuple[int, ...] | None:
-        value = self.parameters.get("candidate_positions")
-        return None if value is None else tuple(value)  # type: ignore[arg-type]
-
-    @property
-    def min_count(self) -> int:
-        return int(self.parameters.get("minimum_count", 0))
-
-    @property
-    def max_count(self) -> int | None:
-        value = self.parameters.get("maximum_count")
-        return None if value is None else int(value)
-
-    @property
-    def search_strategy(self) -> str:
-        return str(self.parameters.get("strategy", InterruptorSearchStrategy.AUTO.value))
-
-    @property
-    def bruteforce_max(self) -> int:
-        return int(self.parameters.get("maximum_combinations", 5000))
-
-    def asdict(self) -> dict[str, Any]:
-        return self.to_dict()
-
 
 __all__ = ["InterruptorConfig"]

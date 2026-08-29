@@ -177,7 +177,7 @@ class WordLengthPolicy(StrEnum):
     REQUIRE = "require"
 
 
-class FinalCipherKind(StrEnum):
+class CipherKind(StrEnum):
     VIGENERE = "vigenere"
     AUTOKEY = "autokey"
     COLUMNAR = "columnar"
@@ -191,7 +191,7 @@ class FinalCipherKind(StrEnum):
     TWO_PERIOD_STREAMS = "two_period_streams"
 
 
-class FinalKeyKind(StrEnum):
+class KeyKind(StrEnum):
     REPEATING = "repeating"
     REPEATING_RANGE = "repeating_range"
     PERMUTATION = "permutation"
@@ -231,7 +231,7 @@ class InterruptorMode(StrEnum):
     SEARCH = "search"
 
 
-class FinalInterruptorSearchStrategy(StrEnum):
+class InterruptorSearchStrategy(StrEnum):
     AUTO = "auto"
     BRUTE_FORCE = "brute_force"
     KEY_OPERATIONS = "key_operations"
@@ -369,14 +369,14 @@ class SolverName(Enum):
     KAEDING = "kaeding"
 
 
-class InterruptorSearchStrategy(Enum):
+class RuntimeInterruptorSearchStrategy(Enum):
     """Search strategy for interruptor positions."""
     AUTO = "auto"
     BRUTEFORCE = "bruteforce"
     KEYOPS = "keyops"
 
 
-class CipherKind(Enum):
+class RuntimeCipherKind(Enum):
     """Canonical cipher family for strict branching in the core.
     UI may keep string fields, but the core uses this Enum only.
     """
@@ -385,7 +385,7 @@ class CipherKind(Enum):
     USER_MAP3 = "user_map3"  # ct = f(pt, k1, k2)
     LOOKUP = "lookup"        # ct = table[pt, k] or similar
 
-class KeyKind(Enum):
+class RuntimeKeyKind(Enum):
     """Canonical key plan for strict branching in the core.
     Avoid magic strings in engine/cipher builders.
     """
@@ -513,21 +513,21 @@ def ensure_keyops_family(value) -> KeyOpsFamily:
     }, param_name="keyops family")
 
 
-def ensure_interruptor_search_strategy(value) -> InterruptorSearchStrategy:
+def ensure_interruptor_search_strategy(value) -> RuntimeInterruptorSearchStrategy:
     return _coerce_enum_value(
-        InterruptorSearchStrategy,
+        RuntimeInterruptorSearchStrategy,
         value,
         param_name="interruptor search strategy",
     )
 
 
 
-def ensure_cipher_kind(value) -> CipherKind:
-    return _coerce_enum_value(CipherKind, value, param_name="cipher kind")
+def ensure_cipher_kind(value) -> RuntimeCipherKind:
+    return _coerce_enum_value(RuntimeCipherKind, value, param_name="cipher kind")
 
 
-def ensure_key_kind(value) -> KeyKind:
-    return _coerce_enum_value(KeyKind, value, param_name="key kind")
+def ensure_key_kind(value) -> RuntimeKeyKind:
+    return _coerce_enum_value(RuntimeKeyKind, value, param_name="key kind")
 
 
 

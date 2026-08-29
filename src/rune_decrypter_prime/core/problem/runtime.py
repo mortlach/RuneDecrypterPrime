@@ -15,10 +15,11 @@ from rune_decrypter_prime.telemetry.bag import TelemetryBag
 from rune_decrypter_prime.core.telemetry import _Timer
 from rune_decrypter_prime.core.types import (
     Device,
+    InterruptorMode,
     InterruptorSearchStrategy,
+    RuntimeInterruptorSearchStrategy,
     ObjectiveFamily,
     ensure_device,
-    ensure_interruptor_search_strategy,
     KEY_DTYPE,
 )
 from rune_decrypter_prime.telemetry.pipeline import device_request_str
@@ -279,10 +280,10 @@ class DecryptionProblem:
     def _interruptors_search_enabled(self) -> bool:
         cfg = self._interruptor_cfg()
         if cfg is not None:
-            if cfg.mode != "pool":
+            if cfg.mode is not InterruptorMode.SEARCH:
                 return False
             try:
-                return int(cfg.max_count or 0) > 0 and len(cfg.pool or []) > 0
+                return int(cfg.parameters["maximum_count"]) > 0 and len(cfg.parameters["candidate_positions"]) > 0
             except Exception:
                 return False
 
@@ -1282,18 +1283,19 @@ class DecryptionProblem:
             hints["prefers_batch"] = pb
 
         cfg = self._interruptor_cfg()
-        if cfg is not None and cfg.mode == "pool":
-            hints["interruptors_pool"] = list(cfg.pool or [])
-            hints["interruptors_min"] = int(cfg.min_count or 0)
-            if cfg.max_count is not None:
-                hints["interruptors_max"] = int(cfg.max_count)
+        if cfg is not None and cfg.mode is InterruptorMode.SEARCH:
+            parameters = cfg.parameters
+            hints["interruptors_pool"] = list(parameters["candidate_positions"])
+            hints["interruptors_min"] = int(parameters["minimum_count"])
+            hints["interruptors_max"] = int(parameters["maximum_count"])
             hints["interruptors_sentinel"] = -1
-            try:
-                strategy = ensure_interruptor_search_strategy(cfg.search_strategy)
-            except Exception:
-                strategy = InterruptorSearchStrategy.AUTO
+            strategy = {
+                InterruptorSearchStrategy.AUTO: RuntimeInterruptorSearchStrategy.AUTO,
+                InterruptorSearchStrategy.BRUTE_FORCE: RuntimeInterruptorSearchStrategy.BRUTEFORCE,
+                InterruptorSearchStrategy.KEY_OPERATIONS: RuntimeInterruptorSearchStrategy.KEYOPS,
+            }[parameters["strategy"]]
             hints["interruptors_search_strategy"] = strategy.value
-            hints["interruptors_bruteforce_max"] = int(cfg.bruteforce_max or 0)
+            hints["interruptors_bruteforce_max"] = int(parameters["maximum_combinations"])
         else:
             pool = self.c_cfg.interruptors_pool
             if pool is not None:

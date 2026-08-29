@@ -161,7 +161,7 @@ def normalize_scorer_params(params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if "channel" in params:
         raise ValueError("scorer_params.channel is not supported (use include_char/use_word_breaks/weights instead).")
     if "device" in params:
-        raise ValueError("scorer_params.device is not supported (use RunAPI device=...).")
+        raise ValueError("scorer_params.device is not supported (use RunSpec.compute_device).")
     if "se_mode" in params:
         params["se_mode"] = normalize_se_mode(params["se_mode"])
     if "encoding_dir" in params:

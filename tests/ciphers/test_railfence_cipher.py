@@ -11,9 +11,8 @@ def _make_cipher(**overrides) -> RailFenceCipher:
     return RailFenceCipher(SimpleNamespace(**cfg_kwargs))
 
 def _key_for(cipher: RailFenceCipher, rails: int) -> np.ndarray:
-    """Helper to encode a desired rail count into the scalar key space."""
-    raw = rails - cipher._min_rails
-    return np.asarray([raw], dtype=np.uint8)
+    """Return the semantic rail count used by the canonical key contract."""
+    return np.asarray([rails], dtype=np.uint8)
 
 def test_railfence_encrypt_decrypt_roundtrip():
     cipher = _make_cipher()

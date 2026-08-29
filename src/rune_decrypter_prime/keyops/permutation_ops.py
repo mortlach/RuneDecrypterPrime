@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import Optional, Any
 import numpy as np
 
-from rune_decrypter_prime.core.types import KeyKind, KeyOpsFamily, KEY_DTYPE
+from rune_decrypter_prime.core.types import RuntimeKeyKind, KeyOpsFamily, KEY_DTYPE
 from rune_decrypter_prime.io.rng import RNGController
 from .base_keyops import KeyOpBase, KeyCaps
 from .registry import register_keyop
@@ -56,7 +56,7 @@ class PermutationKeyOps(KeyOpBase):
             traits={"family": KeyOpsFamily.PERMUTATION},  # unify with registry canonical
         )
         # todo used in sa get rid
-        self.caps.kind = KeyKind.PERM
+        self.caps.kind = RuntimeKeyKind.PERM
         self.K = K
         self.dtype = KEY_DTYPE
         super().__init__(self.caps)

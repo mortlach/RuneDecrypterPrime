@@ -21,7 +21,7 @@ from typing import Callable, Optional, Sequence, Any, Dict, Tuple
 import io, cProfile, pstats, datetime, time
 import numpy as np
 from rune_decrypter_prime.core.config import CipherConfig, ScoringConfig, RunConfig, SolverConfig, LoggingConfig
-from rune_decrypter_prime.core.factory import build_solver
+from rune_decrypter_prime.core.solver_engine import RuneSolverEngine
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.data.cipher_tests.baseline_registry import BASELINE
 from rune_decrypter_prime.io.run_logger import get_logger
@@ -95,7 +95,7 @@ def run_roundtrip_case(*, cipher_name: str, plaintext_idx: np.ndarray, wli_data:
     log_defaults = {'run_kind': 'tests', 'label': 'pytest', 'verbose': True, 'print_progress': True, 'write_jsonl': True}
     log_cfg = api.LoggingConfig.from_dict({**{**log_defaults, **log_over}})
     solver_cfg = RunConfig(cipher=c_cfg, scorer_name='rune', scorer_params=s_cfg, solver=o_cfg, logging=log_cfg, seed=seed)
-    eng = build_solver(solver_cfg)
+    eng = RuneSolverEngine(solver_cfg)
     log = get_logger()
     log.log_event({'type': 'run_start', 'cipher': cipher_name, 'solver': o_cfg.name, 'device': device.value if device else None, 'seed': seed})
     if enable_trace:

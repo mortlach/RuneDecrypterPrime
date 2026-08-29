@@ -12,7 +12,7 @@ from rdp.api.solver_report import (
     SolverReport,
 )
 from rdp.api.stop_reason_contract import (
-    CanonicalStopReason as StopReason,
+    StopReason,
     ExecutionStatus,
     RecoveryStatus,
     StopCategory,
@@ -42,9 +42,9 @@ from rune_decrypter_prime.core.hamming_dictionary_policy import HammingDictionar
 from rune_decrypter_prime.core.types import (
     AverageWindowPolicy,
     BeamExpansionMode,
-    FinalCipherKind as CipherKind,
-    FinalInterruptorSearchStrategy as InterruptorSearchStrategy,
-    FinalKeyKind as KeyKind,
+    CipherKind,
+    InterruptorSearchStrategy,
+    KeyKind,
     FloatDType,
     HammingTextDirectionMode,
     IndexPermutation,

@@ -11,7 +11,7 @@ from pathlib import Path
 from types import MappingProxyType
 
 from rune_decrypter_prime import rune_decrypter_prime_version
-from rdp.api.stop_reason_contract import CanonicalStopReason, RunStatus, StopCategory
+from rdp.api.stop_reason_contract import RunStatus, StopCategory, StopReason
 from rune_decrypter_prime.core.types import (
     ComputeDevice,
     ConcreteKey,
@@ -123,14 +123,14 @@ class OracleReport:
     used_for_scoring: bool = False
     used_for_ranking: bool = False
     used_for_stop: bool = False
-    stop_reason: CanonicalStopReason | None = None
+    stop_reason: StopReason | None = None
     mode: OracleMode = OracleMode.REAL_SOLVE
 
     def __post_init__(self) -> None:
         for name in ("available", "used_for_scoring", "used_for_ranking", "used_for_stop"):
             if type(getattr(self, name)) is not bool:
                 raise TypeError(f"{name} must be bool")
-        if self.stop_reason is not None and not isinstance(self.stop_reason, CanonicalStopReason):
+        if self.stop_reason is not None and not isinstance(self.stop_reason, StopReason):
             raise TypeError("stop_reason must be StopReason or None")
         if not isinstance(self.mode, OracleMode):
             raise TypeError("mode must be OracleMode")
@@ -176,7 +176,7 @@ class ReproducibilityMetadata:
     asset_hashes: Mapping[str, str] = field(default_factory=dict)
     dictionary_policy: str | None = None
     stop_category: StopCategory | None = None
-    stop_reason: CanonicalStopReason | None = None
+    stop_reason: StopReason | None = None
 
     def __post_init__(self) -> None:
         for name, enum_type in (
@@ -185,7 +185,7 @@ class ReproducibilityMetadata:
             ("compute_dtype", FloatDType),
             ("accumulator_dtype", FloatDType),
             ("stop_category", StopCategory),
-            ("stop_reason", CanonicalStopReason),
+            ("stop_reason", StopReason),
         ):
             value = getattr(self, name)
             if value is not None and not isinstance(value, enum_type):

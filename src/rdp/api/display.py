@@ -41,7 +41,7 @@ from typing import Any, TextIO
 
 from rdp.api.artifact_agreement import KnownArtifactRelpath
 from rdp.api.run_result import RunResult
-from rdp.api.run_spec import NormalizedInput, RawTextInput, RunSpec, SourceInputRef
+from rdp.api.run_spec import RawTextInput, RuneIndexInput, RunSpec, SourceReferenceInput
 from rdp.api.solver_report import SolverReport
 from rdp.api.specs import KeySpec
 from rdp.api.stop_reason_contract import (
@@ -353,7 +353,7 @@ def _problem_summary(spec: RunSpec | None, solution: object | None, *, options: 
         inp = spec.problem_input
         if isinstance(inp, RawTextInput):
             out.update({"input_kind": "raw_text", "text_length": len(inp.text), "text_preview": _preview_text(inp.text, 160)})
-        elif isinstance(inp, NormalizedInput):
+        elif isinstance(inp, RuneIndexInput):
             out.update(
                 {
                     "input_kind": "normalized",
@@ -362,7 +362,7 @@ def _problem_summary(spec: RunSpec | None, solution: object | None, *, options: 
                     "wli_length": len(inp.wli) if inp.wli is not None else None,
                 }
             )
-        elif isinstance(inp, SourceInputRef):
+        elif isinstance(inp, SourceReferenceInput):
             out.update(
                 {
                     "input_kind": "source_ref",

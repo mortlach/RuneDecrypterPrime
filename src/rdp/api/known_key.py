@@ -24,8 +24,8 @@ from rune_decrypter_prime.core.engine.builders import build_cipher
 from rune_decrypter_prime.core.types import (
     ComputeDevice,
     CipherKind,
+    RuntimeCipherKind,
     ConcreteKey,
-    FinalCipherKind,
     RuneIndices,
     TextDirection,
     normalize_concrete_key,
@@ -101,36 +101,36 @@ def _known_key_operation(
 def _key_space_for_cipher(cipher: CipherSpec, *, key_length: int) -> KeySpec:
     values = cipher.parameters
     kind = cipher.kind
-    if kind in {CipherKind.USER_MAP2, CipherKind.LOOKUP}:
+    if kind in {RuntimeCipherKind.USER_MAP2, RuntimeCipherKind.LOOKUP}:
         return KeySpec.repeating(length=key_length)
-    if kind in {FinalCipherKind.VIGENERE, FinalCipherKind.AUTOKEY}:
+    if kind in {CipherKind.VIGENERE, CipherKind.AUTOKEY}:
         return KeySpec.repeating(length=key_length)
     if kind in {
-        FinalCipherKind.PERIODIC_WITH_FIXED_STREAM,
-        FinalCipherKind.PERIODIC_WITH_PRIME_STREAM,
+        CipherKind.PERIODIC_WITH_FIXED_STREAM,
+        CipherKind.PERIODIC_WITH_PRIME_STREAM,
     }:
         return KeySpec.repeating(length=int(values["period"]))
-    if kind is FinalCipherKind.COLUMNAR:
+    if kind is CipherKind.COLUMNAR:
         return KeySpec.permutation(length=int(values["columns"]))
-    if kind is FinalCipherKind.RAIL_FENCE:
+    if kind is CipherKind.RAIL_FENCE:
         return KeySpec.scalar(
             minimum=int(values["minimum_rails"]),
             maximum=int(values["maximum_rails"]),
         )
-    if kind is FinalCipherKind.SUBSTITUTION:
+    if kind is CipherKind.SUBSTITUTION:
         return KeySpec.permutation(length=int(values["alphabet_size"]))
-    if kind is FinalCipherKind.PERIODIC_SUBSTITUTION:
+    if kind is CipherKind.PERIODIC_SUBSTITUTION:
         return KeySpec.periodic_substitution(
             period=int(values["period"]),
             alphabet_size=int(values["alphabet_size"]),
         )
-    if kind is FinalCipherKind.PERIODIC_COLUMNAR:
+    if kind is CipherKind.PERIODIC_COLUMNAR:
         return KeySpec.periodic_columnar(
             period=int(values["period"]),
             columns=int(values["columns"]),
             alphabet_size=int(values["alphabet_size"]),
         )
-    if kind in {FinalCipherKind.TWO_PERIOD_VIGENERE, FinalCipherKind.TWO_PERIOD_STREAMS}:
+    if kind in {CipherKind.TWO_PERIOD_VIGENERE, CipherKind.TWO_PERIOD_STREAMS}:
         return KeySpec.repeating(
             length=int(values["first_period"]) + int(values["second_period"])
         )
@@ -139,7 +139,7 @@ def _key_space_for_cipher(cipher: CipherSpec, *, key_length: int) -> KeySpec:
 
 def _non_invertible_error(cipher: CipherSpec, operation: str) -> NonInvertibleCipherError:
     from rdp.api.stop_reason_contract import (
-        CanonicalStopReason,
+        StopReason,
         ExecutionStatus,
         RunStatus,
         StopCategory,
@@ -154,7 +154,7 @@ def _non_invertible_error(cipher: CipherSpec, operation: str) -> NonInvertibleCi
     status = RunStatus(
         execution_status=ExecutionStatus.BLOCKED_BEFORE_RUN,
         stop_category=StopCategory.BLOCKED_BEFORE_RUN,
-        stop_reason=CanonicalStopReason.CONFIG_INVALID,
+        stop_reason=StopReason.CONFIG_INVALID,
         stop_detail=issue.message,
     )
     return NonInvertibleCipherError(issue.message, status=status, issues=(issue,))

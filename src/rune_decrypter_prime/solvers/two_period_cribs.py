@@ -12,7 +12,7 @@ from typing import Any, Callable, Sequence
 import numpy as np
 
 from rdp.api.pipeline_helpers import finalize_solution
-from rdp.api.stop_reason_contract import CanonicalStopReason, StopCategory
+from rdp.api.stop_reason_contract import StopCategory, StopReason
 from rdp.api.specs import CipherSpec, KeySpec
 from rdp.api.two_period_cribs import (
     TWO_PERIOD_CRIBS_CONTRACT,
@@ -31,9 +31,9 @@ from rune_decrypter_prime.core.types import (
     Device,
     Direction,
     ComputeDevice,
-    FinalCipherKind,
-    FinalInterruptorSearchStrategy,
-    FinalKeyKind,
+    CipherKind,
+    InterruptorSearchStrategy,
+    KeyKind,
     InterruptorMode,
     TextDirection,
 )
@@ -226,13 +226,13 @@ def _resolve_interruptor_hypotheses(
     max_count = int(config.parameters["maximum_count"])
     combination_count = sum(math.comb(len(pool), count) for count in range(min_count, max_count + 1))
     strategy = config.parameters["strategy"]
-    if strategy == FinalInterruptorSearchStrategy.KEY_OPERATIONS.value:
+    if strategy == InterruptorSearchStrategy.KEY_OPERATIONS.value:
         raise ValueError(
             "two_period_cribs requires structural interruptor hypotheses; "
             "search_strategy='keyops' is unsupported"
         )
     if (
-        strategy == FinalInterruptorSearchStrategy.AUTO.value
+        strategy == InterruptorSearchStrategy.AUTO.value
         and combination_count > int(config.parameters["maximum_combinations"])
     ):
         raise ValueError(
@@ -398,7 +398,7 @@ class CoordinateSearchResult:
     variables: np.ndarray
     score: float
     evaluations: int
-    stop_reason: CanonicalStopReason
+    stop_reason: StopReason
 
 
 def _coordinate_search_with_status(
@@ -420,7 +420,7 @@ def _coordinate_search_with_status(
             current,
             current_score,
             evaluations,
-            CanonicalStopReason.CONSTRAINT_SPACE_RESOLVED_EXACTLY,
+            StopReason.CONSTRAINT_SPACE_RESOLVED_EXACTLY,
         )
     for _sweep in range(sweeps):
         improved = False
@@ -440,13 +440,13 @@ def _coordinate_search_with_status(
                 current,
                 current_score,
                 evaluations,
-                CanonicalStopReason.NO_IMPROVEMENT_BUDGET_REACHED,
+                StopReason.NO_IMPROVEMENT_BUDGET_REACHED,
             )
     return CoordinateSearchResult(
         current,
         current_score,
         evaluations,
-        CanonicalStopReason.MAX_SWEEPS_REACHED,
+        StopReason.MAX_SWEEPS_REACHED,
     )
 
 
@@ -584,33 +584,33 @@ def _run_refinement_stage(
     return output, evaluations, time.perf_counter() - started
 
 
-def _stage_stop_reason(records: Sequence[dict[str, Any]]) -> CanonicalStopReason:
+def _stage_stop_reason(records: Sequence[dict[str, Any]]) -> StopReason:
     reasons = {str(record.get("search_stop_reason", "")) for record in records}
     reasons.discard("")
-    if CanonicalStopReason.MAX_SWEEPS_REACHED.value in reasons:
-        return CanonicalStopReason.MAX_SWEEPS_REACHED
-    if CanonicalStopReason.NO_IMPROVEMENT_BUDGET_REACHED.value in reasons:
-        return CanonicalStopReason.NO_IMPROVEMENT_BUDGET_REACHED
-    if reasons == {CanonicalStopReason.CONSTRAINT_SPACE_RESOLVED_EXACTLY.value}:
-        return CanonicalStopReason.CONSTRAINT_SPACE_RESOLVED_EXACTLY
+    if StopReason.MAX_SWEEPS_REACHED.value in reasons:
+        return StopReason.MAX_SWEEPS_REACHED
+    if StopReason.NO_IMPROVEMENT_BUDGET_REACHED.value in reasons:
+        return StopReason.NO_IMPROVEMENT_BUDGET_REACHED
+    if reasons == {StopReason.CONSTRAINT_SPACE_RESOLVED_EXACTLY.value}:
+        return StopReason.CONSTRAINT_SPACE_RESOLVED_EXACTLY
     if not reasons:
-        return CanonicalStopReason.UNKNOWN_RUNTIME_REASON
-    return CanonicalStopReason(sorted(reasons)[0])
+        return StopReason.UNKNOWN_RUNTIME_REASON
+    return StopReason(sorted(reasons)[0])
 
 
-def _stage_stop_category(reason: CanonicalStopReason) -> str:
+def _stage_stop_category(reason: StopReason) -> str:
     if reason in {
-        CanonicalStopReason.MAX_SWEEPS_REACHED,
-        CanonicalStopReason.NO_IMPROVEMENT_BUDGET_REACHED,
+        StopReason.MAX_SWEEPS_REACHED,
+        StopReason.NO_IMPROVEMENT_BUDGET_REACHED,
     }:
         return StopCategory.BUDGET.value
-    if reason is CanonicalStopReason.UNKNOWN_RUNTIME_REASON:
+    if reason is StopReason.UNKNOWN_RUNTIME_REASON:
         return StopCategory.ERROR.value
     return StopCategory.SUCCESS.value
 
 
 def _validate_cipher(cipher: CipherSpec, key: KeySpec) -> tuple[int, int, int]:
-    if not isinstance(cipher, CipherSpec) or cipher.kind is not FinalCipherKind.TWO_PERIOD_VIGENERE:
+    if not isinstance(cipher, CipherSpec) or cipher.kind is not CipherKind.TWO_PERIOD_VIGENERE:
         raise ValueError("two_period_cribs requires CipherSpec.two_period_vigenere")
     parameters = cipher.parameters
     periods = [int(parameters["first_period"]), int(parameters["second_period"])]
@@ -619,7 +619,7 @@ def _validate_cipher(cipher: CipherSpec, key: KeySpec) -> tuple[int, int, int]:
         raise ValueError("two_period_cribs currently requires the prime runic modulus 29")
     if parameters["schedule"] != "overlay" or parameters["mask"] is not None:
         raise ValueError("two_period_cribs requires additive overlay scheduling")
-    if not isinstance(key, KeySpec) or key.kind is not FinalKeyKind.REPEATING:
+    if not isinstance(key, KeySpec) or key.kind is not KeyKind.REPEATING:
         raise ValueError("two_period_cribs requires a repeating canonical key")
     if int(key.parameters["length"]) != sum(periods):
         raise ValueError("two_period_cribs key length must equal period_a + period_b")
@@ -958,7 +958,7 @@ def run_two_period_stages(
             "evaluations": len(final_union),
             "elapsed_s": final_elapsed,
             "stop_category": StopCategory.BUDGET.value,
-            "stop_reason": CanonicalStopReason.STATIC_RESCORE_COMPLETED.value,
+            "stop_reason": StopReason.STATIC_RESCORE_COMPLETED.value,
             "legacy_stop_reason": "done",
             "best_score": float(np.max(scores)),
             "mode": "static_rescore",
@@ -1016,7 +1016,7 @@ def run_two_period_stages(
             "requested": (
                 {"mode": "disabled"}
                 if interruptor_cfg is None
-                else interruptor_cfg.asdict()
+                else interruptor_cfg.to_dict()
             ),
             "resolution": "structural",
             "hypothesis_count": len(interruptor_hypotheses),
@@ -1063,7 +1063,7 @@ def run_two_period_stages(
             + candidate_counts["judge_generated_terminals"]
         ),
         wall_time_s=elapsed,
-        stop_reason=CanonicalStopReason.CONFIGURED_WORK_LIMIT_REACHED.value,
+        stop_reason=StopReason.CONFIGURED_WORK_LIMIT_REACHED.value,
         device=device,
         direction=direction,
     )

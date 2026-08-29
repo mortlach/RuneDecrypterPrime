@@ -17,15 +17,15 @@ from rune_decrypter_prime.core.types import Direction, ensure_direction
 
 def _expected_runtime_identity(spec: object) -> str | None:
     from rdp.api.specs import CipherSpec
-    from rune_decrypter_prime.core.types import FinalCipherKind
+    from rune_decrypter_prime.core.types import CipherKind
 
     if not isinstance(spec, CipherSpec):
         return None
     if spec.kind in {
-        FinalCipherKind.TWO_PERIOD_VIGENERE,
-        FinalCipherKind.PERIODIC_WITH_FIXED_STREAM,
-        FinalCipherKind.PERIODIC_WITH_PRIME_STREAM,
-        FinalCipherKind.TWO_PERIOD_STREAMS,
+        CipherKind.TWO_PERIOD_VIGENERE,
+        CipherKind.PERIODIC_WITH_FIXED_STREAM,
+        CipherKind.PERIODIC_WITH_PRIME_STREAM,
+        CipherKind.TWO_PERIOD_STREAMS,
     }:
         return "scheduled_stream_lookup"
     return spec.kind.value

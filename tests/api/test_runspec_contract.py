@@ -4,7 +4,6 @@ from dataclasses import FrozenInstanceError
 from pathlib import Path
 import pytest
 from rune_decrypter_prime.core.config.logging_config import LoggingConfig
-from rune_decrypter_prime.core.types import Device, Direction
 
 def _minimal_runspec(problem_input: object) -> api.RunSpec:
     return api.RunSpec(problem_input=problem_input, cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=2, rounds=0))
@@ -218,17 +217,15 @@ def test_source_input_ref_rejects_paths_objects_and_nested_mutable_ref_metadata(
         api.SourceReferenceInput(source_kind='other.source', asset_id='a', asset_version='v', reference={Path('k'): 'v'})
 
 def test_runspec_defaults_and_copies_scorer_params() -> None:
-    scorer_params = {'window': 10}
+    scorer_params = {'window_size': 10}
     spec = api.RunSpec(problem_input=api.RawTextInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=2, rounds=0), scoring=api.ScoringConfig.from_dict(scorer_params))
-    scorer_params['window'] = 20
-    assert spec.encoding_dir is Direction.RTL
-    assert spec.device is Device.CPU
-    assert spec.telemetry_on is True
-    assert dict(spec.scorer_params) == {'window': 10}
+    scorer_params['window_size'] = 20
+    assert spec.text_direction is api.TextDirection.RIGHT_TO_LEFT
+    assert spec.compute_device is api.ComputeDevice.CPU
+    assert spec.telemetry_enabled is True
+    assert spec.scoring.window_size == 10
     with pytest.raises(FrozenInstanceError):
-        spec.telemetry_on = False
-    with pytest.raises(TypeError):
-        spec.scorer_params['window'] = 30
+        spec.telemetry_enabled = False
 
 def test_runspec_accepts_each_problem_input_form() -> None:
     for problem_input in (api.RawTextInput('abc'), api.RuneIndexInput(indices=[1, 2, 3]), api.SourceReferenceInput(source_kind='liber_primus.partition', asset_id='a', asset_version='v', reference=_valid_partition_ref())):
@@ -239,7 +236,7 @@ def test_runspec_rejects_alias_problem_inputs_and_runtime_controls() -> None:
     with pytest.raises(TypeError):
         _minimal_runspec({'text': 'abc'})
     with pytest.raises(TypeError):
-        api.RunSpec(problem_input=api.RawTextInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=2, rounds=0))
+        api.RunSpec(problem_input=api.RawTextInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=2, rounds=0), telemetry_on=False)
 
 def test_runspec_validates_nested_public_specs_without_execution_routing() -> None:
     with pytest.raises(TypeError):
@@ -250,5 +247,5 @@ def test_runspec_validates_nested_public_specs_without_execution_routing() -> No
         api.RunSpec(problem_input=api.RawTextInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=object())
     with pytest.raises(TypeError):
         api.RunSpec(problem_input=api.RawTextInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=2, rounds=0), logging=object())
-    spec = api.RunSpec(problem_input=api.RawTextInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=(api.KeySpec.repeating(length=3), api.KeySpec.repeating(length=4)), solver=api.SolverSpec.beam_search(width=2, rounds=0), logging=api.LoggingConfig(portable_output=True))
+    spec = api.RunSpec(problem_input=api.RawTextInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=2, rounds=0), logging=api.LoggingConfig(portable_output=True))
     assert isinstance(spec.logging, LoggingConfig)

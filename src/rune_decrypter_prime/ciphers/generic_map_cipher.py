@@ -11,7 +11,7 @@ from rune_decrypter_prime.ciphers.base_keyed_cipher import KeyedCipherBase
 from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
 from rune_decrypter_prime.backends.xp import select_backend
 from rune_decrypter_prime.core.types import (
-    CipherKind,
+    RuntimeCipherKind,
     Device,
     Direction,
     KeyOpsFamily,
@@ -70,16 +70,16 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
         spec = getattr(cfg, "spec", None)
         if spec is None:
             raise ValueError("GenericMapCipher requires cfg.spec")
-        raw_kind = getattr(spec, "kind", getattr(cfg, "name", CipherKind.LOOKUP.value))
-        kind_key = str(raw_kind.value if isinstance(raw_kind, CipherKind) else raw_kind).strip().lower()
+        raw_kind = getattr(spec, "kind", getattr(cfg, "name", RuntimeCipherKind.LOOKUP.value))
+        kind_key = str(raw_kind.value if isinstance(raw_kind, RuntimeCipherKind) else raw_kind).strip().lower()
         if kind_key == "generic-map":
-            kind_key = CipherKind.LOOKUP.value
-        self.kind: CipherKind = ensure_cipher_kind(kind_key)
+            kind_key = RuntimeCipherKind.LOOKUP.value
+        self.kind: RuntimeCipherKind = ensure_cipher_kind(kind_key)
         self.kind_value = self.kind.value
         parameters = spec.parameters
         self.A = int(parameters["alphabet_size"])
         self.N = self.A
-        if self.kind is CipherKind.USER_MAP3:
+        if self.kind is RuntimeCipherKind.USER_MAP3:
             # user_map3 key values encode (k1,k2) pairs in [0..A-1]^2
             self.keyops_hints = {"mod": int(self.A * self.A)}
 
@@ -87,7 +87,7 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
         K_cfg = int(getattr(cfg, "key_length", 0) or 0)
         K = K_cfg
 
-        A_key = self.A if self.kind is not CipherKind.USER_MAP3 else self.A * self.A  # domain size for key value index
+        A_key = self.A if self.kind is not RuntimeCipherKind.USER_MAP3 else self.A * self.A  # domain size for key value index
 
         # build enc/dec tables (NumPy arrays)
         enc = np.zeros((self.A, A_key), dtype=np.uint8)
@@ -103,7 +103,7 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
                 dec_len[kv, ct_val] = np.uint16(idx + 1)
             seen[ct_val, pt_val] = True
 
-        if self.kind in (CipherKind.USER_MAP2, CipherKind.USER_MAP3):
+        if self.kind in (RuntimeCipherKind.USER_MAP2, RuntimeCipherKind.USER_MAP3):
             if K <= 0:
                 raise ValueError("GenericMapCipher requires cfg.key_length > 0 for user_map2/user_map3")
             from rdp.api.experimental import function_for
@@ -111,7 +111,7 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
             f = function_for(spec)
             if not callable(f):
                 raise ValueError(f"{self.kind.value} requires spec.function")
-            if self.kind is CipherKind.USER_MAP2:
+            if self.kind is RuntimeCipherKind.USER_MAP2:
                 for kv in range(A_key):
                     seen = np.zeros((self.A, self.A), dtype=bool)
                     for pt in range(self.A):
@@ -128,7 +128,7 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
                         enc[pt, kv] = np.uint8(ct)
                         _push_candidate(kv, int(ct), int(pt), seen)
 
-        elif self.kind is CipherKind.LOOKUP:
+        elif self.kind is RuntimeCipherKind.LOOKUP:
             table = parameters.get("table")
             if table is None:
                 raise ValueError("lookup requires spec.table")

@@ -169,7 +169,7 @@ def _binding_error(cipher: "CipherSpec", key_space: "KeySpec", message: str):
 def expected_concrete_key_length(cipher: "CipherSpec", key_space: "KeySpec") -> int:
     """Validate one accepted cipher/key-space pair and return its flat length."""
     from rdp.api.specs import CipherSpec, KeySpec
-    from rune_decrypter_prime.core.types import CipherKind, FinalCipherKind, FinalKeyKind
+    from rune_decrypter_prime.core.types import CipherKind, KeyKind, RuntimeCipherKind
 
     if not isinstance(cipher, CipherSpec):
         raise TypeError("cipher must be CipherSpec")
@@ -181,26 +181,26 @@ def expected_concrete_key_length(cipher: "CipherSpec", key_space: "KeySpec") -> 
     kind = cipher.kind
     key_kind = key_space.kind
 
-    if kind in {CipherKind.USER_MAP2, CipherKind.LOOKUP}:
-        if key_kind is not FinalKeyKind.REPEATING:
+    if kind in {RuntimeCipherKind.USER_MAP2, RuntimeCipherKind.LOOKUP}:
+        if key_kind is not KeyKind.REPEATING:
             _binding_error(cipher, key_space, "experimental maps require a repeating key space")
         return int(key_values["length"])
 
-    if kind in {FinalCipherKind.VIGENERE, FinalCipherKind.AUTOKEY}:
-        if key_kind is not FinalKeyKind.REPEATING:
+    if kind in {CipherKind.VIGENERE, CipherKind.AUTOKEY}:
+        if key_kind is not KeyKind.REPEATING:
             _binding_error(cipher, key_space, f"{kind.value} requires a repeating key space")
         return int(key_values["length"])
 
-    if kind is FinalCipherKind.COLUMNAR:
-        if key_kind is not FinalKeyKind.PERMUTATION:
+    if kind is CipherKind.COLUMNAR:
+        if key_kind is not KeyKind.PERMUTATION:
             _binding_error(cipher, key_space, "columnar requires a permutation key space")
         columns = int(cipher_values["columns"])
         if int(key_values["length"]) != columns:
             _binding_error(cipher, key_space, "columnar key length must equal cipher columns")
         return columns
 
-    if kind is FinalCipherKind.RAIL_FENCE:
-        if key_kind is not FinalKeyKind.SCALAR:
+    if kind is CipherKind.RAIL_FENCE:
+        if key_kind is not KeyKind.SCALAR:
             _binding_error(cipher, key_space, "rail_fence requires a scalar key space")
         expected = (
             int(cipher_values["minimum_rails"]),
@@ -211,24 +211,24 @@ def expected_concrete_key_length(cipher: "CipherSpec", key_space: "KeySpec") -> 
             _binding_error(cipher, key_space, "rail_fence key bounds must match cipher rail bounds")
         return 1
 
-    if kind is FinalCipherKind.SUBSTITUTION:
-        if key_kind is not FinalKeyKind.PERMUTATION:
+    if kind is CipherKind.SUBSTITUTION:
+        if key_kind is not KeyKind.PERMUTATION:
             _binding_error(cipher, key_space, "substitution requires a permutation key space")
         alphabet_size = int(cipher_values["alphabet_size"])
         if int(key_values["length"]) != alphabet_size:
             _binding_error(cipher, key_space, "substitution key length must equal alphabet size")
         return alphabet_size
 
-    if kind is FinalCipherKind.PERIODIC_SUBSTITUTION:
-        if key_kind is not FinalKeyKind.PERIODIC_SUBSTITUTION:
+    if kind is CipherKind.PERIODIC_SUBSTITUTION:
+        if key_kind is not KeyKind.PERIODIC_SUBSTITUTION:
             _binding_error(cipher, key_space, "periodic_substitution requires its structured key space")
         for dimension in ("period", "alphabet_size"):
             if int(key_values[dimension]) != int(cipher_values[dimension]):
                 _binding_error(cipher, key_space, f"periodic_substitution {dimension} values conflict")
         return int(cipher_values["period"]) * int(cipher_values["alphabet_size"])
 
-    if kind is FinalCipherKind.PERIODIC_COLUMNAR:
-        if key_kind is not FinalKeyKind.PERIODIC_COLUMNAR:
+    if kind is CipherKind.PERIODIC_COLUMNAR:
+        if key_kind is not KeyKind.PERIODIC_COLUMNAR:
             _binding_error(cipher, key_space, "periodic_columnar requires its structured key space")
         for dimension in ("period", "columns", "alphabet_size"):
             if int(key_values[dimension]) != int(cipher_values[dimension]):
@@ -238,13 +238,13 @@ def expected_concrete_key_length(cipher: "CipherSpec", key_space: "KeySpec") -> 
             + int(cipher_values["columns"])
         )
 
-    if key_kind is not FinalKeyKind.REPEATING:
+    if key_kind is not KeyKind.REPEATING:
         _binding_error(cipher, key_space, f"{kind.value} requires a repeating key space")
-    if kind in {FinalCipherKind.TWO_PERIOD_VIGENERE, FinalCipherKind.TWO_PERIOD_STREAMS}:
+    if kind in {CipherKind.TWO_PERIOD_VIGENERE, CipherKind.TWO_PERIOD_STREAMS}:
         expected_length = int(cipher_values["first_period"]) + int(cipher_values["second_period"])
     elif kind in {
-        FinalCipherKind.PERIODIC_WITH_FIXED_STREAM,
-        FinalCipherKind.PERIODIC_WITH_PRIME_STREAM,
+        CipherKind.PERIODIC_WITH_FIXED_STREAM,
+        CipherKind.PERIODIC_WITH_PRIME_STREAM,
     }:
         expected_length = int(cipher_values["period"])
     else:
@@ -265,7 +265,7 @@ def validate_concrete_key(
 ) -> tuple[int, ...]:
     """Apply the shared strict V1 key length, range, and segment validator."""
     from rune_decrypter_prime.core.component_contracts import InvalidConcreteKeyError
-    from rune_decrypter_prime.core.types import CipherKind, FinalCipherKind, normalize_concrete_key
+    from rune_decrypter_prime.core.types import CipherKind, RuntimeCipherKind, normalize_concrete_key
 
     concrete_key = normalize_concrete_key(key)
     expected_length = expected_concrete_key_length(cipher, key_space)
@@ -278,7 +278,7 @@ def validate_concrete_key(
     values = cipher.parameters
     alphabet_size = int(values["alphabet_size"])
     kind = cipher.kind
-    if kind in {CipherKind.USER_MAP2, CipherKind.LOOKUP}:
+    if kind in {RuntimeCipherKind.USER_MAP2, RuntimeCipherKind.LOOKUP}:
         for index, value in enumerate(concrete_key):
             if value < 0 or value >= alphabet_size:
                 raise InvalidConcreteKeyError(
@@ -288,7 +288,7 @@ def validate_concrete_key(
                     expected_domain=f"[0, {alphabet_size - 1}]",
                 )
         return concrete_key
-    if kind is FinalCipherKind.RAIL_FENCE:
+    if kind is CipherKind.RAIL_FENCE:
         minimum = int(values["minimum_rails"])
         maximum = int(values["maximum_rails"])
         if not minimum <= concrete_key[0] <= maximum:
@@ -301,14 +301,14 @@ def validate_concrete_key(
         return concrete_key
 
     permutation_segments: list[tuple[int, int]] = []
-    if kind is FinalCipherKind.COLUMNAR:
+    if kind is CipherKind.COLUMNAR:
         permutation_segments.append((0, int(values["columns"])))
-    elif kind is FinalCipherKind.SUBSTITUTION:
+    elif kind is CipherKind.SUBSTITUTION:
         permutation_segments.append((0, alphabet_size))
-    elif kind is FinalCipherKind.PERIODIC_SUBSTITUTION:
+    elif kind is CipherKind.PERIODIC_SUBSTITUTION:
         for start in range(0, len(concrete_key), alphabet_size):
             permutation_segments.append((start, alphabet_size))
-    elif kind is FinalCipherKind.PERIODIC_COLUMNAR:
+    elif kind is CipherKind.PERIODIC_COLUMNAR:
         periodic_length = int(values["period"]) * alphabet_size
         for start in range(0, periodic_length, alphabet_size):
             permutation_segments.append((start, alphabet_size))
@@ -354,7 +354,7 @@ def materialize_cipher_config(
     from rune_decrypter_prime.core.types import (
         ComputeDevice,
         CipherKind,
-        FinalCipherKind,
+        RuntimeCipherKind,
         PeriodicColumnarOrder,
         ScheduledStreamOperation,
         TextDirection,
@@ -376,29 +376,29 @@ def materialize_cipher_config(
     runtime_identity = kind.value
     config_values: dict[str, object] = {}
 
-    if kind in {CipherKind.USER_MAP2, CipherKind.LOOKUP}:
+    if kind in {RuntimeCipherKind.USER_MAP2, RuntimeCipherKind.LOOKUP}:
         runtime_identity = "generic_map"
-    elif kind is FinalCipherKind.RAIL_FENCE:
+    elif kind is CipherKind.RAIL_FENCE:
         config_values.update(
             min_rails=int(values["minimum_rails"]),
             max_rails=int(values["maximum_rails"]),
         )
-    elif kind in {FinalCipherKind.PERIODIC_SUBSTITUTION, FinalCipherKind.PERIODIC_COLUMNAR}:
+    elif kind in {CipherKind.PERIODIC_SUBSTITUTION, CipherKind.PERIODIC_COLUMNAR}:
         config_values.update(
             period=int(values["period"]),
             alphabet_size=int(values["alphabet_size"]),
         )
-        if kind is FinalCipherKind.PERIODIC_COLUMNAR:
+        if kind is CipherKind.PERIODIC_COLUMNAR:
             config_values["columns"] = int(values["columns"])
             config_values["order"] = {
                 PeriodicColumnarOrder.SUBSTITUTION_THEN_COLUMNAR.value: "sub_then_col",
                 PeriodicColumnarOrder.COLUMNAR_THEN_SUBSTITUTION.value: "col_then_sub",
             }[str(values["order"])]
     elif kind in {
-        FinalCipherKind.TWO_PERIOD_VIGENERE,
-        FinalCipherKind.PERIODIC_WITH_FIXED_STREAM,
-        FinalCipherKind.PERIODIC_WITH_PRIME_STREAM,
-        FinalCipherKind.TWO_PERIOD_STREAMS,
+        CipherKind.TWO_PERIOD_VIGENERE,
+        CipherKind.PERIODIC_WITH_FIXED_STREAM,
+        CipherKind.PERIODIC_WITH_PRIME_STREAM,
+        CipherKind.TWO_PERIOD_STREAMS,
     }:
         from rune_decrypter_prime.ciphers.scheduled_stream_lookup_cipher import (
             solved_key_length_for_streams,
@@ -408,12 +408,12 @@ def materialize_cipher_config(
         )
 
         runtime_identity = "scheduled_stream_lookup"
-        if kind in {FinalCipherKind.TWO_PERIOD_VIGENERE, FinalCipherKind.TWO_PERIOD_STREAMS}:
+        if kind in {CipherKind.TWO_PERIOD_VIGENERE, CipherKind.TWO_PERIOD_STREAMS}:
             streams = [
                 {"name": "A", "kind": "periodic", "period": int(values["first_period"])},
                 {"name": "B", "kind": "periodic", "period": int(values["second_period"])},
             ]
-        elif kind is FinalCipherKind.PERIODIC_WITH_FIXED_STREAM:
+        elif kind is CipherKind.PERIODIC_WITH_FIXED_STREAM:
             streams = [
                 {"name": "A", "kind": "periodic", "period": int(values["period"])},
                 {"name": "B", "kind": "fixed", "values": list(values["fixed_stream"])},
@@ -424,7 +424,7 @@ def materialize_cipher_config(
                 {"name": "B", "kind": "primes", "offset": int(values["prime_offset"])},
             ]
         operation = "add"
-        if kind is FinalCipherKind.TWO_PERIOD_STREAMS:
+        if kind is CipherKind.TWO_PERIOD_STREAMS:
             operation = {
                 ScheduledStreamOperation.ADD.value: "add",
                 ScheduledStreamOperation.ADD_SUBTRACT.value: "add_sub",
@@ -451,9 +451,9 @@ def materialize_cipher_config(
         key_length=key_length,
         keyops_family=(
             KeyOpsFamily.PERMUTATION
-            if kind in {FinalCipherKind.COLUMNAR, FinalCipherKind.SUBSTITUTION}
+            if kind in {CipherKind.COLUMNAR, CipherKind.SUBSTITUTION}
             else KeyOpsFamily.MATRIX
-            if kind in {FinalCipherKind.PERIODIC_SUBSTITUTION, FinalCipherKind.PERIODIC_COLUMNAR}
+            if kind in {CipherKind.PERIODIC_SUBSTITUTION, CipherKind.PERIODIC_COLUMNAR}
             else KeyOpsFamily.VECTOR
         ),
         keyops_hints=(
@@ -461,7 +461,7 @@ def materialize_cipher_config(
                 "mod": int(values["maximum_rails"]) - int(values["minimum_rails"]) + 1,
                 "minimum": int(values["minimum_rails"]),
             }
-            if kind is FinalCipherKind.RAIL_FENCE
+            if kind is CipherKind.RAIL_FENCE
             else {"mod": int(values["alphabet_size"])}
         ),
         spec=cipher,

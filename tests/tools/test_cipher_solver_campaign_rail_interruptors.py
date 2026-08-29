@@ -15,5 +15,5 @@ def test_railfence_generation_uses_declared_search_range(trial_index: int) -> No
 
 def test_interruptor_campaign_uses_score_selected_beam_restarts() -> None:
     case = campaign.build_case('vigenere_interruptors_beam', 0)
-    assert case.solver.name == 'beam'
-    assert case.solver.params['restarts'] == 3
+    assert case.solver.kind is api.advanced.SolverKind.BEAM_SEARCH
+    assert case.solver.parameters['restarts'] == 3

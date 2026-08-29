@@ -36,7 +36,7 @@ class RecoveryStatus(StrEnum):
     NOT_RECOVERED = "not_recovered"
 
 
-class CanonicalStopReason(StrEnum):
+class StopReason(StrEnum):
     # Positive termination conditions. These describe execution/termination,
     # never scientific recovery unless the name explicitly says oracle match.
     TARGET_SCORE_REACHED = "target_score_reached"
@@ -163,35 +163,35 @@ BUDGET_REASON_PREFIXES = tuple(item.value for item in StopReasonPrefix)
 STOP_CATEGORIES = frozenset(item.value for item in StopCategory)
 
 
-_CANONICAL_CATEGORY: dict[CanonicalStopReason, StopCategory] = {
-    CanonicalStopReason.TARGET_SCORE_REACHED: StopCategory.SUCCESS,
-    CanonicalStopReason.ORACLE_EXACT_PLAINTEXT_MATCH: StopCategory.SUCCESS,
-    CanonicalStopReason.ORACLE_EXACT_KEY_MATCH: StopCategory.SUCCESS,
-    CanonicalStopReason.ORACLE_TEST_KEY_USED: StopCategory.SUCCESS,
-    CanonicalStopReason.KNOWN_KEY_EXECUTION_COMPLETED: StopCategory.SUCCESS,
-    CanonicalStopReason.CONSTRAINT_SPACE_RESOLVED_EXACTLY: StopCategory.SUCCESS,
-    CanonicalStopReason.MAX_EVALUATIONS_REACHED: StopCategory.BUDGET,
-    CanonicalStopReason.MAX_TIME_REACHED: StopCategory.BUDGET,
-    CanonicalStopReason.NO_IMPROVEMENT_BUDGET_REACHED: StopCategory.BUDGET,
-    CanonicalStopReason.MAX_ROUNDS_REACHED: StopCategory.BUDGET,
-    CanonicalStopReason.MAX_GENERATIONS_REACHED: StopCategory.BUDGET,
-    CanonicalStopReason.MAX_ITERATIONS_REACHED: StopCategory.BUDGET,
-    CanonicalStopReason.MAX_STEPS_REACHED: StopCategory.BUDGET,
-    CanonicalStopReason.MAX_SWEEPS_REACHED: StopCategory.BUDGET,
-    CanonicalStopReason.CONFIGURED_WORK_LIMIT_REACHED: StopCategory.BUDGET,
-    CanonicalStopReason.STATIC_RESCORE_COMPLETED: StopCategory.BUDGET,
-    CanonicalStopReason.REQUESTED_LANE_UNAVAILABLE: StopCategory.BLOCKED_BEFORE_RUN,
-    CanonicalStopReason.BLOCKED_BEFORE_RUN: StopCategory.BLOCKED_BEFORE_RUN,
-    CanonicalStopReason.ALL_CANDIDATES_REJECTED_BY_HARD_CRIB: StopCategory.BLOCKED_BEFORE_RUN,
-    CanonicalStopReason.ASSET_MISSING: StopCategory.BLOCKED_BEFORE_RUN,
-    CanonicalStopReason.CONFIG_INVALID: StopCategory.BLOCKED_BEFORE_RUN,
-    CanonicalStopReason.ARTIFACT_AGREEMENT_FAILED: StopCategory.BLOCKED_BEFORE_RUN,
-    CanonicalStopReason.UNEXPECTED_EXCEPTION: StopCategory.ERROR,
-    CanonicalStopReason.UNKNOWN_RUNTIME_REASON: StopCategory.ERROR,
-    CanonicalStopReason.MANUAL_STOP: StopCategory.MANUAL,
-    CanonicalStopReason.NOT_STARTED: StopCategory.NOT_STARTED,
+_CANONICAL_CATEGORY: dict[StopReason, StopCategory] = {
+    StopReason.TARGET_SCORE_REACHED: StopCategory.SUCCESS,
+    StopReason.ORACLE_EXACT_PLAINTEXT_MATCH: StopCategory.SUCCESS,
+    StopReason.ORACLE_EXACT_KEY_MATCH: StopCategory.SUCCESS,
+    StopReason.ORACLE_TEST_KEY_USED: StopCategory.SUCCESS,
+    StopReason.KNOWN_KEY_EXECUTION_COMPLETED: StopCategory.SUCCESS,
+    StopReason.CONSTRAINT_SPACE_RESOLVED_EXACTLY: StopCategory.SUCCESS,
+    StopReason.MAX_EVALUATIONS_REACHED: StopCategory.BUDGET,
+    StopReason.MAX_TIME_REACHED: StopCategory.BUDGET,
+    StopReason.NO_IMPROVEMENT_BUDGET_REACHED: StopCategory.BUDGET,
+    StopReason.MAX_ROUNDS_REACHED: StopCategory.BUDGET,
+    StopReason.MAX_GENERATIONS_REACHED: StopCategory.BUDGET,
+    StopReason.MAX_ITERATIONS_REACHED: StopCategory.BUDGET,
+    StopReason.MAX_STEPS_REACHED: StopCategory.BUDGET,
+    StopReason.MAX_SWEEPS_REACHED: StopCategory.BUDGET,
+    StopReason.CONFIGURED_WORK_LIMIT_REACHED: StopCategory.BUDGET,
+    StopReason.STATIC_RESCORE_COMPLETED: StopCategory.BUDGET,
+    StopReason.REQUESTED_LANE_UNAVAILABLE: StopCategory.BLOCKED_BEFORE_RUN,
+    StopReason.BLOCKED_BEFORE_RUN: StopCategory.BLOCKED_BEFORE_RUN,
+    StopReason.ALL_CANDIDATES_REJECTED_BY_HARD_CRIB: StopCategory.BLOCKED_BEFORE_RUN,
+    StopReason.ASSET_MISSING: StopCategory.BLOCKED_BEFORE_RUN,
+    StopReason.CONFIG_INVALID: StopCategory.BLOCKED_BEFORE_RUN,
+    StopReason.ARTIFACT_AGREEMENT_FAILED: StopCategory.BLOCKED_BEFORE_RUN,
+    StopReason.UNEXPECTED_EXCEPTION: StopCategory.ERROR,
+    StopReason.UNKNOWN_RUNTIME_REASON: StopCategory.ERROR,
+    StopReason.MANUAL_STOP: StopCategory.MANUAL,
+    StopReason.NOT_STARTED: StopCategory.NOT_STARTED,
 }
-_CANONICAL_VALUES = frozenset(reason.value for reason in CanonicalStopReason)
+_CANONICAL_VALUES = frozenset(reason.value for reason in StopReason)
 
 
 @dataclass(frozen=True, slots=True)
@@ -200,7 +200,7 @@ class RunStatus:
 
     execution_status: ExecutionStatus
     stop_category: StopCategory
-    stop_reason: CanonicalStopReason
+    stop_reason: StopReason
     runtime_reason: str | None = None
     stop_detail: str | None = None
     error_type: str | None = None
@@ -213,8 +213,8 @@ class RunStatus:
             raise TypeError("execution_status must be ExecutionStatus")
         if not isinstance(self.stop_category, StopCategory):
             raise TypeError("stop_category must be StopCategory")
-        if not isinstance(self.stop_reason, CanonicalStopReason):
-            raise TypeError("stop_reason must be CanonicalStopReason")
+        if not isinstance(self.stop_reason, StopReason):
+            raise TypeError("stop_reason must be StopReason")
         if not isinstance(self.recovery_status, RecoveryStatus):
             raise TypeError("recovery_status must be RecoveryStatus")
         for field_name, value in (
@@ -287,52 +287,52 @@ class RunStatus:
         }
 
 
-def canonical_stop_reason_for_legacy(reason: str | None) -> CanonicalStopReason:
+def canonical_stop_reason_for_legacy(reason: str | None) -> StopReason:
     if reason is None or str(reason).strip() == "":
-        return CanonicalStopReason.NOT_STARTED
+        return StopReason.NOT_STARTED
     value = str(reason).strip().lower()
     if value in _CANONICAL_VALUES:
-        return CanonicalStopReason(value)
+        return StopReason(value)
 
     # Ambiguous historical completions are deliberately not promoted to
     # success. Producers changed by A4 must emit a precise reason instead.
     if value in {KnownStopReason.DONE.value, KnownStopReason.SUCCESS.value}:
-        return CanonicalStopReason.UNKNOWN_RUNTIME_REASON
+        return StopReason.UNKNOWN_RUNTIME_REASON
     if value in {KnownStopReason.TARGET.value, KnownStopReason.TARGET_SCORE.value, KnownStopReason.STOP_SCORE.value}:
-        return CanonicalStopReason.TARGET_SCORE_REACHED
+        return StopReason.TARGET_SCORE_REACHED
     if value == KnownStopReason.TEST_KEY.value:
-        return CanonicalStopReason.ORACLE_TEST_KEY_USED
+        return StopReason.ORACLE_TEST_KEY_USED
     if value in {KnownStopReason.EVAL_BUDGET.value, KnownStopReason.MAX_EVALS.value, KnownStopReason.MAX_EVAL.value}:
-        return CanonicalStopReason.MAX_EVALUATIONS_REACHED
+        return StopReason.MAX_EVALUATIONS_REACHED
     if value in {KnownStopReason.TIME_BUDGET.value, KnownStopReason.MAX_TIME.value}:
-        return CanonicalStopReason.MAX_TIME_REACHED
+        return StopReason.MAX_TIME_REACHED
     if value in {KnownStopReason.MAX_ROUNDS.value, "max_rounds_reached"}:
-        return CanonicalStopReason.MAX_ROUNDS_REACHED
+        return StopReason.MAX_ROUNDS_REACHED
     if value == "max_generations_reached":
-        return CanonicalStopReason.MAX_GENERATIONS_REACHED
+        return StopReason.MAX_GENERATIONS_REACHED
     if value == "max_iterations_reached":
-        return CanonicalStopReason.MAX_ITERATIONS_REACHED
+        return StopReason.MAX_ITERATIONS_REACHED
     if value in {KnownStopReason.MAX_STEPS.value, "max_steps_reached"}:
-        return CanonicalStopReason.MAX_STEPS_REACHED
+        return StopReason.MAX_STEPS_REACHED
     if value == "max_sweeps_reached":
-        return CanonicalStopReason.MAX_SWEEPS_REACHED
+        return StopReason.MAX_SWEEPS_REACHED
     if value == KnownStopReason.BUDGET.value:
-        return CanonicalStopReason.CONFIGURED_WORK_LIMIT_REACHED
+        return StopReason.CONFIGURED_WORK_LIMIT_REACHED
     if value in {KnownStopReason.PATIENCE.value, KnownStopReason.PLATEAU.value}:
-        return CanonicalStopReason.NO_IMPROVEMENT_BUDGET_REACHED
+        return StopReason.NO_IMPROVEMENT_BUDGET_REACHED
     if value.startswith(BUDGET_REASON_PREFIXES):
-        return CanonicalStopReason.NO_IMPROVEMENT_BUDGET_REACHED
+        return StopReason.NO_IMPROVEMENT_BUDGET_REACHED
     if value == KnownStopReason.ALL_REJECTED_BY_HARD_CRIB.value:
-        return CanonicalStopReason.ALL_CANDIDATES_REJECTED_BY_HARD_CRIB
+        return StopReason.ALL_CANDIDATES_REJECTED_BY_HARD_CRIB
     if value == KnownStopReason.REQUESTED_SCORER_LANE_UNAVAILABLE.value:
-        return CanonicalStopReason.REQUESTED_LANE_UNAVAILABLE
+        return StopReason.REQUESTED_LANE_UNAVAILABLE
     if value == KnownStopReason.BLOCKED_BEFORE_RUN.value:
-        return CanonicalStopReason.BLOCKED_BEFORE_RUN
+        return StopReason.BLOCKED_BEFORE_RUN
     if value in ERROR_REASONS:
-        return CanonicalStopReason.UNEXPECTED_EXCEPTION
+        return StopReason.UNEXPECTED_EXCEPTION
     if value in MANUAL_REASONS:
-        return CanonicalStopReason.MANUAL_STOP
-    return CanonicalStopReason.UNKNOWN_RUNTIME_REASON
+        return StopReason.MANUAL_STOP
+    return StopReason.UNKNOWN_RUNTIME_REASON
 
 
 def stop_category_for_reason(reason: str | None) -> StopCategory:
@@ -367,16 +367,16 @@ def build_run_status(
         raise TypeError("execution_status must be ExecutionStatus")
 
     canonical = canonical_stop_reason_for_legacy(runtime_reason)
-    if execution_status is ExecutionStatus.COMPLETED and canonical is CanonicalStopReason.NOT_STARTED:
-        canonical = CanonicalStopReason.UNKNOWN_RUNTIME_REASON
+    if execution_status is ExecutionStatus.COMPLETED and canonical is StopReason.NOT_STARTED:
+        canonical = StopReason.UNKNOWN_RUNTIME_REASON
     elif execution_status is ExecutionStatus.BLOCKED_BEFORE_RUN and _CANONICAL_CATEGORY[canonical] is not StopCategory.BLOCKED_BEFORE_RUN:
-        canonical = CanonicalStopReason.CONFIG_INVALID
+        canonical = StopReason.CONFIG_INVALID
     elif execution_status is ExecutionStatus.ERROR:
-        canonical = CanonicalStopReason.UNEXPECTED_EXCEPTION
+        canonical = StopReason.UNEXPECTED_EXCEPTION
     elif execution_status is ExecutionStatus.MANUAL_STOP:
-        canonical = CanonicalStopReason.MANUAL_STOP
+        canonical = StopReason.MANUAL_STOP
     elif execution_status is ExecutionStatus.NOT_STARTED:
-        canonical = CanonicalStopReason.NOT_STARTED
+        canonical = StopReason.NOT_STARTED
 
     return RunStatus(
         execution_status=execution_status,
@@ -450,7 +450,7 @@ __all__ = [
     "BLOCKED_BEFORE_RUN_REASONS",
     "BUDGET_REASON_PREFIXES",
     "BUDGET_REASONS",
-    "CanonicalStopReason",
+    "StopReason",
     "ERROR_REASONS",
     "ExecutionStatus",
     "KnownStopReason",
