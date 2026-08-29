@@ -2,6 +2,7 @@
 
 from .run import run
 from .fastpaths import decrypt, encrypt
+from . import maps_api as experimental
 from .run_result import RunResult
 from .specs import CipherSpec, SolverSpec, KeySpec
 from .run_spec import RawTextInput, NormalizedInput, SourceInputRef, RunSpec
@@ -40,7 +41,6 @@ from .normalize import (
     apply_permutation,
     invert_permutation,
 )
-from .maps_api import define_map, define_cipher, preview
 from rune_decrypter_prime.core.config import InterruptorConfig
 from .data_helpers import (
     get_lp_section,
@@ -59,6 +59,7 @@ __all__ = [
     "run",
     "encrypt",
     "decrypt",
+    "experimental",
     "RunResult",
     "CipherSpec",
     "SolverSpec",
@@ -95,9 +96,6 @@ __all__ = [
     "normalize_encoding_dir",
     "apply_permutation",
     "invert_permutation",
-    "define_map",
-    "define_cipher",
-    "preview",
     "InterruptorConfig",
     "get_lp_section",
     "load_lp_payload_from_label",

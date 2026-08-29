@@ -71,12 +71,13 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
         if spec is None:
             raise ValueError("GenericMapCipher requires cfg.spec")
         raw_kind = getattr(spec, "kind", getattr(cfg, "name", CipherKind.LOOKUP.value))
-        kind_key = str(raw_kind).strip().lower()
+        kind_key = str(raw_kind.value if isinstance(raw_kind, CipherKind) else raw_kind).strip().lower()
         if kind_key == "generic-map":
             kind_key = CipherKind.LOOKUP.value
         self.kind: CipherKind = ensure_cipher_kind(kind_key)
         self.kind_value = self.kind.value
-        self.A = int(getattr(spec, "N", 29))
+        parameters = spec.parameters
+        self.A = int(parameters["alphabet_size"])
         self.N = self.A
         if self.kind is CipherKind.USER_MAP3:
             # user_map3 key values encode (k1,k2) pairs in [0..A-1]^2
@@ -105,7 +106,9 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
         if self.kind in (CipherKind.USER_MAP2, CipherKind.USER_MAP3):
             if K <= 0:
                 raise ValueError("GenericMapCipher requires cfg.key_length > 0 for user_map2/user_map3")
-            f = getattr(spec, "function", None)
+            from rune_decrypter_prime.api.maps_api import function_for
+
+            f = function_for(spec)
             if not callable(f):
                 raise ValueError(f"{self.kind.value} requires spec.function")
             if self.kind is CipherKind.USER_MAP2:
@@ -126,7 +129,7 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
                         _push_candidate(kv, int(ct), int(pt), seen)
 
         elif self.kind is CipherKind.LOOKUP:
-            table = getattr(spec, "table", None)
+            table = parameters.get("table")
             if table is None:
                 raise ValueError("lookup requires spec.table")
             T = np.asarray(table, dtype=object)

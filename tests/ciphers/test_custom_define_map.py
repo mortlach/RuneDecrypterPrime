@@ -1,49 +1,87 @@
-"""Guardrails for `define_map` / `define_cipher` extensibility."""
+"""Typed experimental map and tutorial-support boundaries."""
+
 from __future__ import annotations
 
-import numpy as np
+import inspect
+
 import pytest
 
-from rune_decrypter_prime.api import RunAPI, SolverSpec, KeySpec, define_map, define_cipher
-from rune_decrypter_prime.core.types import Direction, Device
+from rune_decrypter_prime.api import decrypt, encrypt, experimental
+from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+from rune_decrypter_prime.core.config.cipher import materialize_cipher_config
+from rune_decrypter_prime.core.engine.builders import build_cipher
+from rune_decrypter_prime.core.types import ComputeDevice, TextDirection
+from tutorials.v1.data.two_period_cribs_demo import build_demo_fixture
 
 pytestmark = pytest.mark.tier_a
 
 
-def test_define_map_cipher_roundtrip_and_telemetry():
-    """Custom map ciphers created via define_map/define_cipher should plug into RunAPI seamlessly."""
-    xor_spec = define_map(
-        function=lambda pt, k: (pt ^ k) % 29,
-        name="unit_test_xor",
-        degeneracy="forbid",
-        per_pos_limit=29,
-        resolver_limit=8193,
-    )
-    xor_spec.name = None  # allow engine to route via canonical user_map2 entry
-    cipher_spec, key_spec = define_cipher(spec=xor_spec, key=KeySpec.const(value=7))
-
-    rng = np.random.default_rng(2025)
-    plaintext = rng.integers(0, 29, size=32, dtype=np.uint8)
-    ciphertext = (plaintext ^ 7) % 29
-
-    solver = SolverSpec.beam(beam_width=2, seed=314, progress_pct=1, stop_score=0.1)
-    sol = RunAPI.run(
-        text=ciphertext,
-        cipher=cipher_spec,
-        key=key_spec,
-        solver=solver,
-        encoding_dir=Direction.LTR,
-        device=Device.CPU,
-        telemetry_on=True,
-        initial_keys=[[7]],
+def test_two_input_map_uses_typed_experimental_contract() -> None:
+    spec = experimental.define_cipher_map(
+        lambda plaintext, key: (plaintext + key) % 29,
+        alphabet_size=29,
+        name="addition",
     )
 
-    solved_key = np.asarray(sol.key, dtype=np.uint8)
-    assert solved_key.size >= 1
-    key_value = int(solved_key.reshape(-1)[0])
-    assert key_value == 7
-    telemetry = sol.meta.get("telemetry", {})
-    run_block = telemetry.get("run", {})
-    assert run_block.get("solver") == "beam"
-    pipeline = run_block.get("pipeline", {})
-    assert pipeline.get("text_encoding_direction") == "ltr"
+    assert isinstance(spec, CipherSpec)
+    assert spec.parameters["definition_kind"] == "function"
+    assert "function" not in spec.parameters
+    ciphertext = encrypt((0, 1, 2, 3), cipher=spec, key=(7,))
+    assert ciphertext == (7, 8, 9, 10)
+    assert decrypt(ciphertext, cipher=spec, key=(7,)) == (0, 1, 2, 3)
+
+
+def test_lookup_map_reuses_generic_runtime() -> None:
+    table = tuple(
+        tuple((plaintext + key) % 5 for key in range(5))
+        for plaintext in range(5)
+    )
+    spec = experimental.define_cipher_lookup(table, alphabet_size=5)
+    config = materialize_cipher_config(
+        cipher=spec,
+        key_space=KeySpec.repeating(length=2),
+        ciphertext=(0, 1, 2, 3),
+        word_lengths=None,
+        text_direction=TextDirection.RIGHT_TO_LEFT,
+        compute_device=ComputeDevice.CPU,
+    )
+
+    assert config.name == "generic_map"
+    assert type(build_cipher(config)).__name__ == "GenericMapCipher"
+
+
+def test_experimental_signatures_and_enums_are_exact() -> None:
+    parameters = inspect.signature(experimental.define_cipher_map).parameters
+    assert parameters["function"].kind is inspect.Parameter.POSITIONAL_ONLY
+    assert "per_position_limit" in parameters
+    assert "per_pos_limit" not in parameters
+    assert set(experimental.DegeneracyPolicy) == {
+        experimental.DegeneracyPolicy.ALLOW,
+        experimental.DegeneracyPolicy.FORBID,
+    }
+    assert set(experimental.ResolverMode) == {
+        experimental.ResolverMode.EXPAND_BEAM,
+        experimental.ResolverMode.FIRST,
+    }
+
+
+def test_three_input_and_raw_enum_options_are_rejected() -> None:
+    with pytest.raises(TypeError, match="exactly two"):
+        experimental.define_cipher_map(lambda plaintext, first, second: plaintext)
+    with pytest.raises(TypeError, match="DegeneracyPolicy"):
+        experimental.define_cipher_map(
+            lambda plaintext, key: plaintext,
+            degeneracy="allow",
+        )
+
+
+def test_interruptor_fixture_is_deterministic_and_keeps_semantic_key() -> None:
+    cipher = CipherSpec.two_period_vigenere(first_period=13, second_period=31)
+
+    first = build_demo_fixture(cipher, interruptors=(3, 9))
+    second = build_demo_fixture(cipher, interruptors=(3, 9))
+
+    assert first == second
+    assert len(first.ciphertext) == 308
+    assert len(first.reference_key) == 44
+    assert first.reference_interruptors == (3, 9)

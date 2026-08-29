@@ -169,7 +169,7 @@ def _binding_error(cipher: "CipherSpec", key_space: "KeySpec", message: str):
 def expected_concrete_key_length(cipher: "CipherSpec", key_space: "KeySpec") -> int:
     """Validate one accepted cipher/key-space pair and return its flat length."""
     from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
-    from rune_decrypter_prime.core.types import FinalCipherKind, FinalKeyKind
+    from rune_decrypter_prime.core.types import CipherKind, FinalCipherKind, FinalKeyKind
 
     if not isinstance(cipher, CipherSpec):
         raise TypeError("cipher must be CipherSpec")
@@ -180,6 +180,11 @@ def expected_concrete_key_length(cipher: "CipherSpec", key_space: "KeySpec") -> 
     key_values = key_space.parameters
     kind = cipher.kind
     key_kind = key_space.kind
+
+    if kind in {CipherKind.USER_MAP2, CipherKind.LOOKUP}:
+        if key_kind is not FinalKeyKind.REPEATING:
+            _binding_error(cipher, key_space, "experimental maps require a repeating key space")
+        return int(key_values["length"])
 
     if kind in {FinalCipherKind.VIGENERE, FinalCipherKind.AUTOKEY}:
         if key_kind is not FinalKeyKind.REPEATING:
@@ -260,7 +265,7 @@ def validate_concrete_key(
 ) -> tuple[int, ...]:
     """Apply the shared strict V1 key length, range, and segment validator."""
     from rune_decrypter_prime.core.component_contracts import InvalidConcreteKeyError
-    from rune_decrypter_prime.core.types import FinalCipherKind, normalize_concrete_key
+    from rune_decrypter_prime.core.types import CipherKind, FinalCipherKind, normalize_concrete_key
 
     concrete_key = normalize_concrete_key(key)
     expected_length = expected_concrete_key_length(cipher, key_space)
@@ -273,6 +278,16 @@ def validate_concrete_key(
     values = cipher.parameters
     alphabet_size = int(values["alphabet_size"])
     kind = cipher.kind
+    if kind in {CipherKind.USER_MAP2, CipherKind.LOOKUP}:
+        for index, value in enumerate(concrete_key):
+            if value < 0 or value >= alphabet_size:
+                raise InvalidConcreteKeyError(
+                    "concrete key symbol is outside the experimental cipher alphabet",
+                    index=index,
+                    value=value,
+                    expected_domain=f"[0, {alphabet_size - 1}]",
+                )
+        return concrete_key
     if kind is FinalCipherKind.RAIL_FENCE:
         minimum = int(values["minimum_rails"])
         maximum = int(values["maximum_rails"])
@@ -338,6 +353,7 @@ def materialize_cipher_config(
     """Build the sole internal runtime cipher configuration from typed specs."""
     from rune_decrypter_prime.core.types import (
         ComputeDevice,
+        CipherKind,
         FinalCipherKind,
         PeriodicColumnarOrder,
         ScheduledStreamOperation,
@@ -360,7 +376,9 @@ def materialize_cipher_config(
     runtime_identity = kind.value
     config_values: dict[str, object] = {}
 
-    if kind is FinalCipherKind.RAIL_FENCE:
+    if kind in {CipherKind.USER_MAP2, CipherKind.LOOKUP}:
+        runtime_identity = "generic_map"
+    elif kind is FinalCipherKind.RAIL_FENCE:
         config_values.update(
             min_rails=int(values["minimum_rails"]),
             max_rails=int(values["maximum_rails"]),

@@ -1,163 +1,192 @@
-# ============================================================
-# rune_decrypter_prime/api/maps_api.py
-#   Consolidated UX helpers for user-defined maps and lookup ciphers
-# ============================================================
+"""Typed experimental two-input and lookup cipher definitions."""
+
 from __future__ import annotations
-from typing import Any, Callable, Dict, Optional, Tuple, Union, Sequence
-import numpy as np
 
-from rune_decrypter_prime.core.config import CipherConfig, RunConfig, SolverConfig
-from rune_decrypter_prime.core.types import KEY_DTYPE
-from rune_decrypter_prime.api.specs import CipherSpec, KeySpec, SolverSpec  # reuse canonical classes
-from rune_decrypter_prime.api.normalize import to_indices, make_single_word_wli
-from rune_decrypter_prime.api.wrappers import by_name
-# Ensure generic cipher is registered
-import rune_decrypter_prime.ciphers.generic_map_cipher  # noqa: F401
+import hashlib
+import inspect
+from collections.abc import Callable, Sequence
+from enum import StrEnum
+
+from rune_decrypter_prime.api.specs import CipherSpec
+from rune_decrypter_prime.core.types import CipherKind
 
 
-# ----------------------------- builders ----------------------------- #
-
-def define_map(*, N: int = 29,
-               function: Optional[Callable[..., int]] = None,
-               table: Optional[Any] = None,
-               degeneracy: str = "forbid",
-               resolver: str = "expand_beam",
-               per_pos_limit: int = 29,
-               resolver_limit: int = 8193,
-               name: Optional[str] = None) -> CipherSpec:
-    """Define a user map or lookup table → `CipherSpec`.
-    Exactly one of `function` or `table` must be provided.
-    """
-    if (function is None) == (table is None):
-        raise ValueError("Provide exactly one of function or table.")
-
-    if function is not None:
-        import inspect
-        n = len(inspect.signature(function).parameters)
-        if n == 2:
-            return CipherSpec.user_map2(function=function, N=N, degeneracy=degeneracy,
-                                        resolver=resolver, per_pos_limit=per_pos_limit,
-                                        resolver_limit=resolver_limit, name=name or "user_map2")
-        if n == 3:
-            return CipherSpec.user_map3(function=function, N=N, degeneracy=degeneracy,
-                                        resolver=resolver, per_pos_limit=per_pos_limit,
-                                        resolver_limit=resolver_limit, name=name or "user_map3")
-        raise ValueError("function must accept (pt,k) or (pt,k1,k2)")
-
-    # table path
-    return CipherSpec.from_lookup(table=table, N=N, degeneracy=degeneracy,
-                                  resolver=resolver, per_pos_limit=per_pos_limit,
-                                  resolver_limit=resolver_limit, name=name or "lookup")
+class DegeneracyPolicy(StrEnum):
+    ALLOW = "allow"
+    FORBID = "forbid"
 
 
-def define_cipher(
+class ResolverMode(StrEnum):
+    EXPAND_BEAM = "expand_beam"
+    FIRST = "first"
+
+
+_FUNCTIONS: dict[str, Callable[[int, int], int]] = {}
+
+
+def define_cipher_map(
+    function: Callable[[int, int], int],
+    /,
     *,
-    spec: CipherSpec | None = None,
+    alphabet_size: int = 29,
+    degeneracy: DegeneracyPolicy = DegeneracyPolicy.FORBID,
+    resolver: ResolverMode = ResolverMode.FIRST,
+    per_position_limit: int = 29,
+    resolver_limit: int = 8_193,
     name: str | None = None,
-    key: Optional[KeySpec] = None,
-    key_len: Optional[int] = None,
-    **kwargs: Any,
-) -> Tuple[CipherSpec, KeySpec]:
-    """
-    Convenience: return `(CipherSpec, KeySpec)`.
-
-    Usage patterns:
-        define_cipher(spec=my_spec, key=KeySpec.repeat(...))
-        define_cipher(spec=my_spec, key_len=3)
-        define_cipher(name="columnar", default_key=True, key_len=6)
-
-    When `name` is provided, the handler looks up the registered UX wrapper
-    (via `by_name`) so callers get the same spec/key defaults as the tutorials.
-    """
-    if (spec is None) == (name is None) is False:
-        raise ValueError("Provide exactly one of 'spec' or 'name'.")
-
-    if name is not None:
-        wrapper_kwargs = dict(kwargs)
-        if key_len is not None:
-            # ``key_len`` is a first-class convenience parameter of this builder.
-            # Forward it to named wrappers so wrapper-specific default key plans
-            # (for example, columnar permutation keys) are not silently lost.
-            wrapper_kwargs["key_len"] = key_len
-        spec_obj, default_key = by_name.cipher_with_key(name, **wrapper_kwargs)
-        if key is not None:
-            return spec_obj, key
-        if default_key is not None:
-            return spec_obj, default_key
-        return spec_obj, KeySpec.repeat(len=1 if key_len is None else key_len)
-
-    if spec is None:
-        raise ValueError("define_cipher requires either 'spec' or 'name'.")
-
-    if key is not None:
-        return spec, key
-    return spec, KeySpec.repeat(len=1 if key_len is None else key_len)
-
-
-# ------------------------------ preview ------------------------------ #
-
-def preview(
-    text: Union[str, np.ndarray, Sequence[int]],
-    *,
-    cipher: CipherSpec,
-    key: KeySpec,
-    direction: str = "decrypt",  # or "encrypt"
-    text_encoding_direction: str = "ltr",  # pipeline knob (no hidden default)
-    device: str = "cpu",
-) -> np.ndarray:
-    """Preview a user map cipher with a fully specified key (OTP/const).
-
-    Returns: plaintext/ciphertext indices (np.uint8, shape (L,)).
-    - For `otp`: uses provided `stream` (resized to L if needed).
-    - For `const`: broadcasts a constant of length L.
-    """
-    arr = to_indices(text)
-    L = int(arr.size)
-
-    # materialise key
-    if key.plan == "otp":
-        stream = key.params.get("stream", None)
-        if stream is None:
-            raise ValueError("OTP KeySpec requires 'stream' parameter.")
-        k = np.asarray(stream, dtype=KEY_DTYPE).reshape(-1)
-    elif key.plan == "const":
-        val = int(key.params.get("value", 0))
-        k = np.full(L, val, dtype=KEY_DTYPE)
-    else:
-        raise ValueError("preview requires KeySpec.otp(.) or KeySpec.const(.)")
-
-    if k.size < L:
-        k = np.resize(k, L)
-    elif k.size > L:
-        k = k[:L]
-
-    from rune_decrypter_prime.core.factory import build_solver  # lazy import to avoid circulars
-    cfg = CipherConfig(
-        ciphertext=np.zeros(L, dtype=np.uint8),
-        wli_data=[],
-        key_length=int(k.size if cipher.kind != "user_map3" else 1),
-        text_transposition=text_encoding_direction,
-        device=device,
-        name=(cipher.kind if cipher.kind in ("user_map2", "user_map3", "lookup") else "generic-map"),
+) -> CipherSpec:
+    """Define one typed two-input experimental cipher map."""
+    _validate_function(function)
+    values = _validated_options(
+        alphabet_size=alphabet_size,
+        degeneracy=degeneracy,
+        resolver=resolver,
+        per_position_limit=per_position_limit,
+        resolver_limit=resolver_limit,
+        name=name,
     )
-    setattr(cfg, "spec", cipher)
+    definition_id = _function_id(function)
+    values.update(definition_kind="function", definition_id=definition_id)
+    spec = CipherSpec._create(CipherKind.USER_MAP2, values)  # type: ignore[arg-type]
+    _FUNCTIONS[definition_id] = function
+    return spec
 
-    # Optimiser fast-path: test_key returns single decrypt w/o search
-    opt = SolverConfig(name="beam", params={"beam_width": 1, "test_key": k.tolist()})
-    run_cfg = RunConfig(cipher=cfg, scorer_name="rune",
-                        scorer_params={"objective": "pct.logp.win10", "n_char": 2, "n_wli": 2, "win": 10,
-                                       "use_word_breaks": False, "wli_weights": {}},
-                        solver=opt, logging={})
-    engine = build_solver(run_cfg)
 
-    # Directly use the instantiated cipher for transform
-    cipher_impl = getattr(engine, "cipher", engine)
-    if direction.lower() == "decrypt":
-        out = cipher_impl.decrypt(ciphertext=arr, key=k)
-    elif direction.lower() == "encrypt":
-        out = cipher_impl.encrypt(plaintext=arr, key=k)
-    else:
-        raise ValueError("direction must be 'decrypt' or 'encrypt'.")
+def define_cipher_lookup(
+    table: Sequence[Sequence[int]],
+    /,
+    *,
+    alphabet_size: int = 29,
+    degeneracy: DegeneracyPolicy = DegeneracyPolicy.FORBID,
+    resolver: ResolverMode = ResolverMode.FIRST,
+    per_position_limit: int = 29,
+    resolver_limit: int = 8_193,
+    name: str | None = None,
+) -> CipherSpec:
+    """Define one typed experimental lookup cipher."""
+    values = _validated_options(
+        alphabet_size=alphabet_size,
+        degeneracy=degeneracy,
+        resolver=resolver,
+        per_position_limit=per_position_limit,
+        resolver_limit=resolver_limit,
+        name=name,
+    )
+    rows = _validate_table(table, alphabet_size=alphabet_size)
+    values.update(definition_kind="lookup", table=rows)
+    return CipherSpec._create(CipherKind.LOOKUP, values)  # type: ignore[arg-type]
 
-    result_idx = out[0] if isinstance(out, tuple) else out
-    return np.asarray(result_idx, dtype=np.uint8).reshape(-1)
+
+def function_for(spec: CipherSpec) -> Callable[[int, int], int]:
+    """Return the callable owned by an experimental map specification."""
+    if not isinstance(spec, CipherSpec) or spec.kind is not CipherKind.USER_MAP2:
+        raise TypeError("spec must be an experimental two-input CipherSpec")
+    definition_id = str(spec.parameters["definition_id"])
+    try:
+        return _FUNCTIONS[definition_id]
+    except KeyError as exc:
+        raise RuntimeError(
+            "experimental map callable is not registered in this process; "
+            "define the map before materializing it"
+        ) from exc
+
+
+def _validate_function(function: object) -> None:
+    if not callable(function):
+        raise TypeError("function must be callable")
+    if not hasattr(function, "__code__"):
+        raise TypeError("function must be a Python function with stable code identity")
+    parameters = tuple(inspect.signature(function).parameters.values())
+    if len(parameters) != 2 or any(
+        parameter.kind
+        not in {parameter.POSITIONAL_ONLY, parameter.POSITIONAL_OR_KEYWORD}
+        for parameter in parameters
+    ):
+        raise TypeError("function must accept exactly two positional inputs")
+
+
+def _validated_options(
+    *,
+    alphabet_size: int,
+    degeneracy: DegeneracyPolicy,
+    resolver: ResolverMode,
+    per_position_limit: int,
+    resolver_limit: int,
+    name: str | None,
+) -> dict[str, object]:
+    for field_name, value, minimum in (
+        ("alphabet_size", alphabet_size, 2),
+        ("per_position_limit", per_position_limit, 1),
+        ("resolver_limit", resolver_limit, 1),
+    ):
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise TypeError(f"{field_name} must be an integer")
+        if value < minimum:
+            raise ValueError(f"{field_name} must be >= {minimum}")
+    if not isinstance(degeneracy, DegeneracyPolicy):
+        raise TypeError("degeneracy must be DegeneracyPolicy")
+    if not isinstance(resolver, ResolverMode):
+        raise TypeError("resolver must be ResolverMode")
+    if name is not None and (not isinstance(name, str) or not name):
+        raise ValueError("name must be a non-empty string or None")
+    return {
+        "alphabet_size": alphabet_size,
+        "degeneracy": degeneracy,
+        "resolver": resolver,
+        "per_position_limit": per_position_limit,
+        "resolver_limit": resolver_limit,
+        "name": name,
+    }
+
+
+def _validate_table(
+    table: Sequence[Sequence[int]],
+    *,
+    alphabet_size: int,
+) -> tuple[tuple[int, ...], ...]:
+    if isinstance(table, (str, bytes)) or not isinstance(table, Sequence):
+        raise TypeError("table must be a sequence of rows")
+    rows: list[tuple[int, ...]] = []
+    for row_index, row in enumerate(table):
+        if isinstance(row, (str, bytes)) or not isinstance(row, Sequence):
+            raise TypeError(f"table[{row_index}] must be a sequence")
+        values: list[int] = []
+        for column_index, value in enumerate(row):
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(f"table[{row_index}][{column_index}] must be an integer")
+            if not 0 <= value < alphabet_size:
+                raise ValueError(
+                    f"table[{row_index}][{column_index}] must be in [0, {alphabet_size - 1}]"
+                )
+            values.append(value)
+        if not values:
+            raise ValueError(f"table[{row_index}] must not be empty")
+        rows.append(tuple(values))
+    if len(rows) != alphabet_size:
+        raise ValueError(f"table must contain exactly {alphabet_size} rows")
+    if len({len(row) for row in rows}) != 1:
+        raise ValueError("table rows must have equal length")
+    return tuple(rows)
+
+
+def _function_id(function: Callable[[int, int], int]) -> str:
+    code = function.__code__
+    closure = tuple(repr(cell.cell_contents) for cell in (function.__closure__ or ()))
+    payload = repr(
+        (
+            function.__module__,
+            function.__qualname__,
+            code.co_code,
+            code.co_consts,
+            closure,
+        )
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+__all__ = [
+    "DegeneracyPolicy",
+    "ResolverMode",
+    "define_cipher_lookup",
+    "define_cipher_map",
+]

@@ -23,6 +23,7 @@ from rune_decrypter_prime.core.config.cipher import (
 from rune_decrypter_prime.core.engine.builders import build_cipher
 from rune_decrypter_prime.core.types import (
     ComputeDevice,
+    CipherKind,
     ConcreteKey,
     FinalCipherKind,
     RuneIndices,
@@ -100,6 +101,8 @@ def _known_key_operation(
 def _key_space_for_cipher(cipher: CipherSpec, *, key_length: int) -> KeySpec:
     values = cipher.parameters
     kind = cipher.kind
+    if kind in {CipherKind.USER_MAP2, CipherKind.LOOKUP}:
+        return KeySpec.repeating(length=key_length)
     if kind in {FinalCipherKind.VIGENERE, FinalCipherKind.AUTOKEY}:
         return KeySpec.repeating(length=key_length)
     if kind in {

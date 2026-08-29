@@ -7,12 +7,15 @@ plaintext and key values are never passed to the production solver.
 """
 
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Sequence
 
 import numpy as np
 
-from rdp import api
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1, word_breaks1
+from rune_decrypter_prime.api.specs import CipherSpec, KeySpec
+from rune_decrypter_prime.core.config.cipher import materialize_cipher_config
+from rune_decrypter_prime.core.engine.builders import build_cipher
+from rune_decrypter_prime.core.types import ComputeDevice, TextDirection
 
 
 TEXT_LENGTH = 308
@@ -31,7 +34,7 @@ class TwoPeriodDemoFixture:
 
 
 def build_demo_fixture(
-    cipher_spec: Any,
+    cipher_spec: CipherSpec,
     *,
     interruptors: Sequence[int] = (),
 ) -> TwoPeriodDemoFixture:
@@ -59,7 +62,19 @@ def build_demo_fixture(
         ],
         dtype=np.uint8,
     )
-    ciphertext = api.cipher_instance(cipher_spec).encrypt_single(
+    if not isinstance(cipher_spec, CipherSpec):
+        raise TypeError("cipher_spec must be CipherSpec")
+    key_space = KeySpec.repeating(length=len(reference_key))
+    config = materialize_cipher_config(
+        cipher=cipher_spec,
+        key_space=key_space,
+        ciphertext=tuple(int(value) for value in plaintext),
+        word_lengths=wli,
+        text_direction=TextDirection.RIGHT_TO_LEFT,
+        compute_device=ComputeDevice.CPU,
+    )
+    runtime = build_cipher(config)
+    encrypted = runtime.encrypt(
         plaintext=plaintext,
         key=reference_key,
         interrupt_idx=(
@@ -68,6 +83,9 @@ def build_demo_fixture(
             else np.asarray(tuple(interruptors), dtype=np.intp)
         ),
     )
+    ciphertext = np.asarray(encrypted, dtype=np.uint8)
+    if ciphertext.ndim == 2:
+        ciphertext = ciphertext[0]
     return TwoPeriodDemoFixture(
         ciphertext=tuple(int(value) for value in ciphertext),
         wli=wli,
