@@ -1,107 +1,74 @@
+"""Immutable V1 scorer report."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from enum import Enum
 import math
-from pathlib import Path
-from typing import Any, Mapping
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from types import MappingProxyType
 
-from rune_decrypter_prime.core.types import ObjectiveSpec
-
-
-def _objective_spec_to_dict(spec: ObjectiveSpec) -> dict[str, Any]:
-    family = getattr(spec.family, "value", spec.family)
-    stat = getattr(spec.stat, "value", spec.stat) if spec.stat is not None else None
-    win = int(spec.win) if spec.win is not None else None
-    return {
-        "family": str(family),
-        "stat": (str(stat) if stat is not None else None),
-        "win": win,
-    }
+from rune_decrypter_prime.core.component_contracts import ScorerCapabilityReport
+from rune_decrypter_prime.core.config.scoring import ScoringObjective
+from rune_decrypter_prime.core.types import JsonObject, JsonValue
 
 
-def _finite_float(value: Any, *, field_name: str) -> float:
-    out = float(value)
-    if not math.isfinite(out):
-        raise ValueError(f"{field_name} must be finite, got {value!r}")
-    return out
+def _json_mapping(value: Mapping[str, object], field_name: str) -> Mapping[str, JsonValue]:
+    from rune_decrypter_prime.api.solver_report import _mapping
+
+    return _mapping(value, field_name)
 
 
-def _json_key(value: Any) -> str:
-    if isinstance(value, Path):
-        if value.is_absolute():
-            raise ValueError("report payload contains absolute Path")
-        return value.as_posix()
-    return str(value)
+def _optional_score(value: float | None, field_name: str) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError(f"{field_name} must be a number or None")
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError(f"{field_name} must be finite")
+    return result
 
 
-def _to_json_primitive(value: Any, *, max_items: int = 64, depth: int = 0) -> Any:
-    if isinstance(value, Path):
-        if value.is_absolute():
-            raise ValueError("report payload contains absolute Path")
-        return value.as_posix()
-    if depth > 6:
-        return str(value)
-    if value is None or isinstance(value, (str, bool, int)):
-        return value
-    if isinstance(value, float):
-        if not math.isfinite(value):
-            raise ValueError("report payload contains non-finite float")
-        return float(value)
-    if isinstance(value, Enum):
-        return getattr(value, "value", str(value))
-    if isinstance(value, ObjectiveSpec):
-        return _objective_spec_to_dict(value)
-    if isinstance(value, Mapping):
-        out: dict[str, Any] = {}
-        for idx, (k, v) in enumerate(value.items()):
-            if idx >= max_items:
-                break
-            out[_json_key(k)] = _to_json_primitive(v, max_items=max_items, depth=depth + 1)
-        return out
-    if isinstance(value, (list, tuple)):
-        vals = list(value)[:max_items]
-        return [_to_json_primitive(v, max_items=max_items, depth=depth + 1) for v in vals]
-    return str(value)
-
-
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ScorerReport:
-    objective_str: str
-    objective_spec: ObjectiveSpec
-    score: float
+    objective: ScoringObjective
+    score: float | None
     raw_score: float | None = None
-    telemetry: Mapping[str, Any] = field(default_factory=dict)
+    telemetry: Mapping[str, JsonValue] = field(default_factory=dict)
     metrics: Mapping[str, float] = field(default_factory=dict)
-    cost_ms: float | None = None
-    details: Mapping[str, Any] = field(default_factory=dict)
+    time_seconds: float | None = None
+    capabilities: ScorerCapabilityReport = field(default_factory=lambda: ScorerCapabilityReport(lanes=()))
+    details: Mapping[str, JsonValue] = field(default_factory=dict)
 
-    def to_json_dict(self) -> dict[str, Any]:
-        score = _finite_float(self.score, field_name="score")
-        raw_score = (
-            _finite_float(self.raw_score, field_name="raw_score")
-            if self.raw_score is not None
-            else None
-        )
-        cost_ms = (
-            _finite_float(self.cost_ms, field_name="cost_ms")
-            if self.cost_ms is not None
-            else None
-        )
+    def __post_init__(self) -> None:
+        if not isinstance(self.objective, ScoringObjective):
+            raise TypeError("objective must be ScoringObjective")
+        object.__setattr__(self, "score", _optional_score(self.score, "score"))
+        object.__setattr__(self, "raw_score", _optional_score(self.raw_score, "raw_score"))
+        object.__setattr__(self, "time_seconds", _optional_score(self.time_seconds, "time_seconds"))
+        if self.time_seconds is not None and self.time_seconds < 0.0:
+            raise ValueError("time_seconds must be non-negative")
+        object.__setattr__(self, "telemetry", _json_mapping(self.telemetry, "telemetry"))
+        metrics = {str(key): _optional_score(value, f"metrics.{key}") for key, value in self.metrics.items()}
+        object.__setattr__(self, "metrics", MappingProxyType(metrics))
+        if not isinstance(self.capabilities, ScorerCapabilityReport):
+            raise TypeError("capabilities must be ScorerCapabilityReport")
+        object.__setattr__(self, "details", _json_mapping(self.details, "details"))
 
-        metrics: dict[str, float] = {}
-        for k, v in dict(self.metrics or {}).items():
-            key = _json_key(k)
-            metrics[key] = _finite_float(v, field_name=f"metrics.{key}")
-
+    def to_dict(self) -> JsonObject:
         return {
-            "objective_str": str(self.objective_str),
-            "objective_spec": _objective_spec_to_dict(self.objective_spec),
-            "score": score,
-            "raw_score": raw_score,
-            "telemetry": _to_json_primitive(dict(self.telemetry or {})),
-            "metrics": metrics,
-            "cost_ms": cost_ms,
-            "details": _to_json_primitive(dict(self.details or {})),
+            "objective": self.objective.to_dict(),
+            "score": self.score,
+            "raw_score": self.raw_score,
+            "telemetry": dict(self.telemetry),
+            "metrics": dict(self.metrics),
+            "time_seconds": self.time_seconds,
+            "capabilities": self.capabilities.to_json_dict(),
+            "details": dict(self.details),
         }
 
+    def to_json_dict(self) -> JsonObject:
+        return self.to_dict()
+
+
+__all__ = ["ScorerReport"]

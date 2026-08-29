@@ -6,7 +6,7 @@ from typing import Any
 from rune_decrypter_prime.core.capability_gates import raise_if_requested_lane_blocked
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode
-from rune_decrypter_prime.core.types import Device, ScorerImpl, ensure_device, ensure_scorer_impl
+from rune_decrypter_prime.core.types import Device, ScorerBackend, ScorerImpl, ensure_device
 from rune_decrypter_prime.backends.xp import select_backend
 from rune_decrypter_prime.ciphers import cipher_runtime_registry
 
@@ -103,7 +103,12 @@ def build_scorer(c_cfg: CipherConfig, s_cfg: ScoringConfig):
     c_cfg = _require_cipher_config(c_cfg)
     s_cfg = _require_scoring_config(s_cfg)
 
-    impl = ensure_scorer_impl(s_cfg.impl)
+    impl = {
+        ScorerBackend.AUTO: ScorerImpl.AUTO,
+        ScorerBackend.NUMPY: ScorerImpl.NUMPY,
+        ScorerBackend.TORCH: ScorerImpl.TORCH,
+        ScorerBackend.UNIFIED: ScorerImpl.UNIFIED,
+    }[s_cfg.backend]
     device = ensure_device(c_cfg.device or Device.CPU)
 
     # Resolve AUTO based on device.

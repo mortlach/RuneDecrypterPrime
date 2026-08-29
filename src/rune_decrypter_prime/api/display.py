@@ -42,7 +42,8 @@ from typing import Any, TextIO
 from rune_decrypter_prime.api.artifact_agreement import KnownArtifactRelpath
 from rune_decrypter_prime.api.run_result import RunResult
 from rune_decrypter_prime.api.run_spec import NormalizedInput, RawTextInput, RunSpec, SourceInputRef
-from rune_decrypter_prime.api.solver_report import SolverReport, SolverReportDetailKey
+from rune_decrypter_prime.api.solver_report import SolverReport
+from rune_decrypter_prime.api.specs import KeySpec
 from rune_decrypter_prime.api.stop_reason_contract import (
     StopReasonDetailKey,
     stop_category_for_reason,
@@ -331,7 +332,7 @@ def write_rdp_summary_json(summary: RdpDisplaySummary, path: Path | str = DISPLA
 
 def _solution_from(value: object) -> object | None:
     if isinstance(value, RunResult):
-        return value.solution
+        return value
     if isinstance(value, SolverReport):
         return None
     return value
@@ -371,12 +372,15 @@ def _problem_summary(spec: RunSpec | None, solution: object | None, *, options: 
                     "ref": _json_value(inp.ref, options=options),
                 }
             )
-        out["encoding_dir"] = _enum_value(spec.encoding_dir)
-        out["device"] = _enum_value(spec.device)
-        out["telemetry_on"] = bool(spec.telemetry_on)
+        out["encoding_dir"] = _enum_value(spec.text_direction)
+        out["device"] = _enum_value(spec.compute_device)
+        out["telemetry_on"] = bool(spec.telemetry_enabled)
     if solution is not None:
         ct_idx = _as_sequence(getattr(solution, "ciphertext_idx", None))
-        pt_idx = _as_sequence(getattr(solution, "plaintext_idx", None))
+        plaintext_value = getattr(solution, "plaintext", None)
+        pt_idx = _as_sequence(
+            plaintext_value if isinstance(solution, RunResult) else getattr(solution, "plaintext_idx", None)
+        )
         if ct_idx is not None:
             out.setdefault("ciphertext_length", len(ct_idx))
         if pt_idx is not None:
@@ -395,17 +399,10 @@ def _cipher_summary(spec: RunSpec | None, solution: object | None, *, options: R
     if cipher is not None:
         out.update(
             {
-                "name": getattr(cipher, "name", None),
-                "kind": getattr(cipher, "kind", None),
-                "alphabet_size": getattr(cipher, "N", None),
-                "wrapper_core": getattr(cipher, "wrapper_core", None),
-                "degeneracy": getattr(cipher, "degeneracy", None),
-                "resolver": getattr(cipher, "resolver", None),
-                "per_pos_limit": getattr(cipher, "per_pos_limit", None),
-                "resolver_limit": getattr(cipher, "resolver_limit", None),
-                "has_function": getattr(cipher, "function", None) is not None,
-                "has_table": getattr(cipher, "table", None) is not None,
-                "extra": _json_value(getattr(cipher, "extra", {}) or {}, options=options),
+                "name": cipher.kind.value,
+                "kind": cipher.kind.value,
+                "alphabet_size": cipher.parameters.get("alphabet_size"),
+                "parameters": _json_value(cipher.parameters, options=options),
             }
         )
     if solution is not None:
@@ -421,7 +418,7 @@ def _key_summary(
     options: RdpDisplayOptions,
 ) -> dict[str, Any]:
     out: dict[str, Any] = {}
-    key = getattr(spec, "key", None) if spec is not None else None
+    key = getattr(spec, "key_space", None) if spec is not None else None
     if key is not None:
         if isinstance(key, tuple):
             out["requested_key_specs"] = [_key_spec_summary(item, options=options) for item in key]
@@ -439,6 +436,8 @@ def _key_summary(
 
 
 def _key_spec_summary(key_spec: object, *, options: RdpDisplayOptions) -> dict[str, Any]:
+    if isinstance(key_spec, KeySpec):
+        return _json_value(key_spec.to_dict(), options=options)
     to_telemetry = getattr(key_spec, "to_telemetry", None)
     if callable(to_telemetry):
         try:
@@ -452,14 +451,14 @@ def _solver_summary(spec: RunSpec | None, solver_report: SolverReport | None, *,
     out: dict[str, Any] = {}
     solver = getattr(spec, "solver", None) if spec is not None else None
     if solver is not None:
-        out.update({"name": getattr(solver, "name", None), "params": getattr(solver, "params", None), "seed": getattr(solver, "seed", None)})
+        out.update({"name": solver.kind.value, "params": solver.parameters, "seed": solver.seed})
     if solver_report is not None:
         out.update(
             {
-                "solver_name": solver_report.solver_name,
+                "solver_name": solver_report.solver.value,
                 "requested_seed": solver_report.requested_seed,
                 "effective_seed": solver_report.effective_seed,
-                "normalized_params": solver_report.normalized_params,
+                "normalized_params": solver_report.parameters.effective,
             }
         )
     return _json_value(out, options=options)
@@ -468,8 +467,8 @@ def _solver_summary(spec: RunSpec | None, solver_report: SolverReport | None, *,
 def _scoring_summary(spec: RunSpec | None, *, options: RdpDisplayOptions) -> dict[str, Any]:
     out: dict[str, Any] = {}
     if spec is not None:
-        out["scorer"] = spec.scorer
-        out["scorer_params"] = _json_value(spec.scorer_params, options=options)
+        out["scorer"] = spec.scoring.backend.value
+        out["scorer_params"] = _json_value(spec.scoring.to_dict(), options=options)
     if options.include_scope_notes:
         out["scope_note"] = (
             "v1 display shows API scorer params and ScorerReport when supplied; "
@@ -492,19 +491,19 @@ def _result_summary(
         {
             "score": _finite_or_none(getattr(solution, "score", None)),
             "maximize": getattr(solution, "maximize", None),
-            "step": getattr(solution, "step", None),
-            "evals": getattr(solution, "evals", None),
-            "tokens_processed": getattr(solution, "tokens_processed", None),
-            "wall_time_s": _finite_or_none(getattr(solution, "wall_time_s", None)),
-            "decrypt_time_s": _finite_or_none(getattr(solution, "decrypt_time_s", None)),
-            "score_time_s": _finite_or_none(getattr(solution, "score_time_s", None)),
+            "step": getattr(getattr(solution, "solver_report", None), "steps", getattr(solution, "step", None)),
+            "evals": getattr(getattr(solution, "solver_report", None), "evaluations", getattr(solution, "evals", None)),
+            "tokens_processed": getattr(getattr(solution, "solver_report", None), "tokens_processed", getattr(solution, "tokens_processed", None)),
+            "wall_time_s": _finite_or_none(getattr(getattr(solution, "solver_report", None), "wall_time_seconds", getattr(solution, "wall_time_s", None))),
+            "decrypt_time_s": _finite_or_none(getattr(getattr(solution, "solver_report", None), "decrypt_time_seconds", getattr(solution, "decrypt_time_s", None))),
+            "score_time_s": _finite_or_none(getattr(getattr(solution, "solver_report", None), "score_time_seconds", getattr(solution, "score_time_s", None))),
         }
     )
     if options.include_plaintext:
         out["plaintext"] = {
             "latin_preview": _preview_text(getattr(solution, "plaintext_latin", "") or "", options.plaintext_preview_chars),
-            "rune_preview": _preview_text(getattr(solution, "plaintext_rune", "") or getattr(solution, "plaintext_str", "") or "", options.plaintext_preview_chars),
-            "length": _safe_len(getattr(solution, "plaintext_idx", None)),
+            "rune_preview": _preview_text(getattr(solution, "plaintext_rune", "") or getattr(solution, "plaintext_text", None) or getattr(solution, "plaintext_str", "") or "", options.plaintext_preview_chars),
+            "length": _safe_len(getattr(solution, "plaintext", None) if isinstance(solution, RunResult) else getattr(solution, "plaintext_idx", None)),
         }
     if options.include_ciphertext:
         out["ciphertext"] = {
@@ -538,6 +537,10 @@ def _scorer_report_summary(scorer_report: object | None, *, options: RdpDisplayO
 def _telemetry_summary(solution: object | None, *, options: RdpDisplayOptions) -> dict[str, Any]:
     if solution is None:
         return {}
+    if isinstance(solution, RunResult):
+        if not options.include_telemetry_summary:
+            return {"available": bool(solution.telemetry)}
+        return _json_value(solution.telemetry, options=options)
     meta = getattr(solution, "meta", None)
     if not isinstance(meta, Mapping):
         return {}
@@ -557,29 +560,14 @@ def _stop_summary(solution: object | None, solver_report: SolverReport | None) -
     # Prefer the canonical A4/June status when a SolverReport is available. The
     # Solution field remains a low-level compatibility reason and can differ for
     # routes such as explicit known-key execution.
-    if solver_report is not None and isinstance(solver_report.details, Mapping):
-        run_status = solver_report.details.get(SolverReportDetailKey.RUN_STATUS.value)
-        if isinstance(run_status, Mapping):
-            keep = (
-                "execution_status",
-                "stop_category",
-                "stop_reason",
-                "stop_detail",
-                "blocked_before_run",
-                "error_type",
-                "legacy_stop_reason",
-                "recovery",
-            )
-            return _json_value(
-                {key: run_status.get(key) for key in keep if key in run_status},
-                options=RdpDisplayOptions.standard(),
-            )
+    if solver_report is not None:
+        return _json_value(solver_report.status.to_json_dict(), options=RdpDisplayOptions.standard())
     if solution is not None:
         try:
             return _json_value(stop_reason_details_from_solution(solution), options=RdpDisplayOptions.standard())
         except Exception:
             pass
-    reason = solver_report.stop_reason if solver_report is not None else None
+    reason = None
     category = stop_category_for_reason(reason)
     return {
         StopReasonDetailKey.STOP_CATEGORY.value: category.value,
@@ -591,18 +579,11 @@ def _stop_summary(solution: object | None, solver_report: SolverReport | None) -
 
 
 def _oracle_summary(solver_report: SolverReport | None) -> dict[str, Any]:
-    details = solver_report.details if solver_report is not None else {}
-    if not isinstance(details, Mapping):
-        details = {}
-    out = {
-        "oracle_use": details.get(SolverReportDetailKey.ORACLE_USE.value),
-        "truth_data_policy": details.get(SolverReportDetailKey.TRUTH_DATA_POLICY.value),
-        "execution_route": details.get(SolverReportDetailKey.EXECUTION_ROUTE.value),
-    }
-    canonical = details.get(SolverReportDetailKey.ORACLE.value)
-    if isinstance(canonical, Mapping):
-        out.update({str(key): value for key, value in canonical.items()})
-    return out
+    if solver_report is None:
+        return {}
+    details = solver_report.details
+    oracle = details.get("oracle") if isinstance(details, Mapping) else None
+    return dict(oracle) if isinstance(oracle, Mapping) else {}
 
 
 def _tutorial_summary(entry: Mapping[str, Any] | None, *, options: RdpDisplayOptions) -> dict[str, Any] | None:

@@ -216,13 +216,31 @@ def build_scorer_report(
     if diagnostics:
         derived_details[ScorerReportDetailKey.REPORT_BUILDER_DIAGNOSTICS.value] = diagnostics
     details = _merge_detail_sections(derived_details, _safe_mapping(extra_details or {}))
+    from rune_decrypter_prime.core.config.scoring import ScoringObjective
+    from rune_decrypter_prime.core.types import ObjectiveFamily, ScoreStatistic, Stat
+
+    if objective_spec.family is ObjectiveFamily.AVG:
+        objective = ScoringObjective.average_log_probability()
+    elif objective_spec.family is ObjectiveFamily.NEGLOGP:
+        objective = ScoringObjective.negative_log_probability()
+    else:
+        statistic = {
+            Stat.LOGP: ScoreStatistic.LOG_PROBABILITY,
+            Stat.ZSUM: ScoreStatistic.Z_SCORE_SUM,
+            Stat.MADSUM: ScoreStatistic.MEDIAN_ABSOLUTE_DEVIATION_SUM,
+        }[objective_spec.stat]
+        constructor = {
+            ScoreStatistic.LOG_PROBABILITY: ScoringObjective.percentile_log_probability,
+            ScoreStatistic.Z_SCORE_SUM: ScoringObjective.percentile_z_score_sum,
+            ScoreStatistic.MEDIAN_ABSOLUTE_DEVIATION_SUM: ScoringObjective.percentile_median_absolute_deviation_sum,
+        }[statistic]
+        objective = constructor(window_size=int(objective_spec.win or 10))
     return ScorerReport(
-        objective_str=str(objective_str or ""),
-        objective_spec=objective_spec,
+        objective=objective,
         score=float(score),
         raw_score=(float(raw_score) if raw_score is not None else None),
         telemetry=telemetry,
         metrics=metrics,
-        cost_ms=(float(cost_ms) if cost_ms is not None else None),
+        time_seconds=(float(cost_ms) / 1000.0 if cost_ms is not None else None),
         details=details,
     )

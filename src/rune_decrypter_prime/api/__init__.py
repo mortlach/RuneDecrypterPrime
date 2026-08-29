@@ -1,6 +1,6 @@
 # rune_decrypter_prime/api/__init__.py
 
-from .run import RunAPI, run
+from .run import run
 from .run_result import RunResult
 from .specs import CipherSpec, SolverSpec, KeySpec
 from .run_spec import RawTextInput, NormalizedInput, SourceInputRef, RunSpec
@@ -55,7 +55,6 @@ from .data_helpers import (
 
 
 __all__ = [
-    "RunAPI",
     "run",
     "RunResult",
     "CipherSpec",

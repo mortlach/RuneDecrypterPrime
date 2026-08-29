@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import copy
+import importlib
 from dataclasses import FrozenInstanceError
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from rune_decrypter_prime.api.run_spec import RuneIndexInput, RunSpec
+from rune_decrypter_prime.api.run_result import RunResult
 from rune_decrypter_prime.api.specs import CipherSpec, KeySpec, SolverSpec
 from rune_decrypter_prime.ciphers import cipher_runtime_registry
 from rune_decrypter_prime.core.config.interruptor import InterruptorConfig
@@ -317,3 +320,97 @@ def test_mask_schedule_is_bound_to_the_run_input_length() -> None:
             text_direction=TextDirection.RIGHT_TO_LEFT,
             compute_device=ComputeDevice.CPU,
         )
+
+
+def test_both_run_forms_use_one_execution_path_and_always_return_run_result(monkeypatch) -> None:
+    run_module = importlib.import_module("rune_decrypter_prime.api.run")
+    calls: list[dict[str, object]] = []
+
+    def fake_execute_run(**kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace(
+            key=(1, 2, 3),
+            plaintext=(3, 2, 1),
+            plaintext_idx=[3, 2, 1],
+            plaintext_str="fake plaintext",
+            score=-1.25,
+            stop_reason="max_rounds",
+            evals=8,
+            step=2,
+            tokens_processed=24,
+            wall_time_s=0.1,
+            decrypt_time_s=0.02,
+            score_time_s=0.03,
+            meta={},
+        )
+
+    monkeypatch.setattr(run_module, "execute_run", fake_execute_run)
+    request = RunSpec(
+        problem_input=RuneIndexInput((1, 2, 3)),
+        cipher=CipherSpec.vigenere(),
+        key_space=KeySpec.repeating(length=3),
+        solver=SolverSpec.beam_search(width=4, rounds=2, seed=11),
+    )
+
+    from_request = run_module.run(request)
+    from_components = run_module.run(
+        problem_input=request.problem_input,
+        cipher=request.cipher,
+        key_space=request.key_space,
+        solver=request.solver,
+    )
+
+    assert isinstance(from_request, RunResult)
+    assert isinstance(from_components, RunResult)
+    assert from_request == from_components
+    assert len(calls) == 2
+    assert calls[0]["cipher"] is calls[1]["cipher"]
+    assert calls[0]["solver"].name == "beam"
+    assert calls[0]["solver"].params["beam_width"] == 4
+    assert from_request.key == (1, 2, 3)
+    assert from_request.solver_report.best_key == from_request.key
+    assert from_request.configuration.solver.requested["kind"] == "beam_search"
+    assert from_request.scorer_report.to_json_dict()["score"] == -1.25
+
+
+def test_run_writes_only_requested_typed_artifacts(monkeypatch, tmp_path: Path) -> None:
+    run_module = importlib.import_module("rune_decrypter_prime.api.run")
+
+    def fake_execute_run(**kwargs):
+        from rune_decrypter_prime.core.config.logging_config import init_logging
+
+        init_logging(kwargs["logging_config"])
+        return SimpleNamespace(
+            key=(1, 2, 3),
+            plaintext_idx=[3, 2, 1],
+            plaintext_str="fake plaintext",
+            score=-1.25,
+            stop_reason="max_rounds",
+            evals=8,
+            step=2,
+            tokens_processed=24,
+            wall_time_s=0.1,
+            decrypt_time_s=0.02,
+            score_time_s=0.03,
+            meta={"telemetry": {"solver": "beam"}},
+        )
+
+    monkeypatch.setattr(run_module, "execute_run", fake_execute_run)
+    run_dir = tmp_path / "typed-run"
+    result = run_module.run(
+        problem_input=RuneIndexInput((1, 2, 3)),
+        cipher=CipherSpec.vigenere(),
+        key_space=KeySpec.repeating(length=3),
+        solver=SolverSpec.beam_search(width=4, rounds=2, seed=11),
+        logging=LoggingConfig(
+            run_directory=run_dir,
+            write_solver_report=True,
+            write_display_summary=True,
+            write_artifact_manifest=True,
+        ),
+    )
+
+    assert isinstance(result, RunResult)
+    assert (run_dir / "artifacts" / "solver_report.json").is_file()
+    assert (run_dir / "artifacts" / "rdp_display_summary.json").is_file()
+    assert (run_dir / "artifacts" / "run_artifacts_manifest.json").is_file()

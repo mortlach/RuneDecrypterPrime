@@ -22,7 +22,23 @@ def normalize_objective_input(value: Any, *, default_win: int) -> ObjectiveSpec:
     - objective string like "pct.logp.win10"
     - None (defaults to pct.logp.win<default_win>)
     """
-    if isinstance(value, ObjectiveSpec):
+    from rune_decrypter_prime.core.config.scoring import ScoringObjective
+    from rune_decrypter_prime.core.types import ScoringObjectiveKind, ScoreStatistic
+
+    if isinstance(value, ScoringObjective):
+        if value.kind is ScoringObjectiveKind.PERCENTILE:
+            fam = ObjectiveFamily.PCT
+            stat = {
+                ScoreStatistic.LOG_PROBABILITY: Stat.LOGP,
+                ScoreStatistic.Z_SCORE_SUM: Stat.ZSUM,
+                ScoreStatistic.MEDIAN_ABSOLUTE_DEVIATION_SUM: Stat.MADSUM,
+            }[value.statistic]
+            win = value.window_size
+        elif value.kind is ScoringObjectiveKind.AVERAGE:
+            fam, stat, win = ObjectiveFamily.AVG, Stat.LOGP, default_win
+        else:
+            fam, stat, win = ObjectiveFamily.NEGLOGP, None, None
+    elif isinstance(value, ObjectiveSpec):
         fam = ensure_objective_family(value.family)
         stat = ensure_stat(value.stat) if value.stat is not None else None
         win = int(value.win) if value.win is not None else None
