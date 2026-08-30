@@ -78,6 +78,7 @@ class EngineConfig:
     log_interval: int = 50
     # Optional seeding of the solver with candidate keys (shape [N,K], uint8)
     seed_keys: Any | None = None
+    progress_callback: Any | None = None
 
 
 def _child_rng(seed: Optional[int]) -> np.random.Generator:
@@ -153,6 +154,7 @@ def _solver_from_cfg(kind: SolverName, problem: Any, params: Dict[str, Any] | No
         stop_score=cfg.stop_score,
         verbose=cfg.verbose,
         log_interval=int(cfg.log_interval),
+        progress_callback=cfg.progress_callback,
     )
 
 

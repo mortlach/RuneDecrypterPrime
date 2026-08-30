@@ -60,10 +60,17 @@ def main() -> None:
     result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=cipher, key_space=key_spec, solver=solve_spec, scoring=scorer_params, telemetry_enabled=True, text_direction=DIRECTION))
     recovered = (result.plaintext_text or '') or (result.plaintext_text or '')
     print('Recovered plaintext preview:', str(recovered)[:120] + ('...' if len(str(recovered)) > 120 else ''))
+    recovered_idx = [int(value) for value in result.plaintext]
+    match_ratio = (
+        sum(a == b for a, b in zip(recovered_idx, pt_idx, strict=True)) / len(pt_idx)
+    )
+    print(f'Match ratio: {match_ratio:.3f}')
     pretty.print_summary_spacer()
     api.display.print_result(
         result, spec=display_spec, options=api.display.SummaryOptions.for_tutorial()
     )
+    if match_ratio < MIN_MATCH_RATIO:
+        raise AssertionError('repeating-multiply tutorial did not recover exact plaintext')
 
 
 if __name__ == "__main__":

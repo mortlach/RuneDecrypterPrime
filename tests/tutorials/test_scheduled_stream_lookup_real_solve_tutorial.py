@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import pytest
 from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
+from rune_decrypter_prime.utils.scheduled_stream_lookup_tutorial_utils import make_real_solve_solver
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / 'tutorials' / 'v1' / 'tutorial_manifest_v1.json'
 pytestmark = pytest.mark.tier_a
@@ -21,3 +22,8 @@ def test_real_solve_tutorials_are_manifested_for_release_runner_profiles() -> No
     assert release_entry['acceptance_kind'] == TutorialAcceptanceKind.EXACT.value
     assert release_entry['min_match_ratio'] == 1.0
     assert release_entry['supplies_true_key_to_solver'] is False
+
+
+def test_real_solve_helper_preserves_the_original_automatic_round_budget() -> None:
+    solver = make_real_solve_solver()
+    assert solver.parameters['rounds'] == 0

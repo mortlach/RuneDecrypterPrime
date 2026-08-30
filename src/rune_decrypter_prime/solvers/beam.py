@@ -100,6 +100,13 @@ class BeamSolver(SolverBase):
                                   default=0.5, cast=float)
         sample_per_parent = pick("sample_per_parent", "expand.sample_per_parent", "beam.sample_per_parent",
                                  default=None, cast=int)
+        maximum_children_per_parent = pick(
+            "maximum_children_per_parent",
+            "expand.max_children_per_parent",
+            "beam.maximum_children_per_parent",
+            default=None,
+            cast=int,
+        )
 
         traits = getattr(self.keyops, "caps", None)
         traits = getattr(traits, "traits", {}) if traits else {}
@@ -109,6 +116,11 @@ class BeamSolver(SolverBase):
             "mode": mode,
             "top_parents_factor": float(top_parents_factor),
             "sample_per_parent": None if sample_per_parent is None else int(sample_per_parent),
+            "maximum_children_per_parent": (
+                None
+                if maximum_children_per_parent is None
+                else max(1, int(maximum_children_per_parent))
+            ),
             "alphabet": A,
         }
 
@@ -122,6 +134,20 @@ class BeamSolver(SolverBase):
         cfg = self._normalize_expand_params()
         mode = cfg["mode"]
         A = cfg["alphabet"]
+        maximum_children_per_parent = cfg["maximum_children_per_parent"]
+
+        def _cap_children(children: np.ndarray) -> np.ndarray:
+            if (
+                maximum_children_per_parent is None
+                or children.shape[0] <= maximum_children_per_parent
+            ):
+                return children
+            selected = self.rng.choice(
+                children.shape[0],
+                size=maximum_children_per_parent,
+                replace=False,
+            )
+            return children[np.sort(selected)]
 
         # how many parents
         W = int(beam.shape[0])
@@ -138,8 +164,11 @@ class BeamSolver(SolverBase):
         if "expand_position" in self.keyops.caps.ops:
             if mode == "sweep":
                 pos = int((round_idx - 1) % K)  # 1-based round_idx; sweep 0..K-1
-                cands_per_parent = A if A > 0 else K
-                expanded_list = [self.keyops.expand_position(k, pos, self.rng) for k in parent_keys]
+                expanded_list = [
+                    _cap_children(self.keyops.expand_position(k, pos, self.rng))
+                    for k in parent_keys
+                ]
+                cands_per_parent = int(expanded_list[0].shape[0])
                 expanded = np.concatenate(expanded_list, axis=0)
 
             elif mode == "exhaustive":
@@ -147,7 +176,7 @@ class BeamSolver(SolverBase):
                 cands_per_parent = 0
                 for k in parent_keys:
                     cols = [self.keyops.expand_position(k, pos, self.rng) for pos in range(K)]
-                    per_parent.append(np.concatenate(cols, axis=0))
+                    per_parent.append(_cap_children(np.concatenate(cols, axis=0)))
                     cands_per_parent = per_parent[-1].shape[0]
                 expanded = np.concatenate(per_parent, axis=0)
 
@@ -156,6 +185,8 @@ class BeamSolver(SolverBase):
                 spp = cfg["sample_per_parent"]
                 if spp is None:
                     spp = min(A if A > 0 else K, 16)
+                if maximum_children_per_parent is not None:
+                    spp = min(spp, maximum_children_per_parent)
                 spp = max(1, int(spp))
                 cands_per_parent = spp
                 parts = []
@@ -170,7 +201,10 @@ class BeamSolver(SolverBase):
         # Fallbacks if expand_position missing or produced empty
         if expanded is None or expanded.size == 0:
             if "batch_neighbors" in self.keyops.caps.ops:
-                neigh = [self.keyops.batch_neighbors(k, max(2, K), self.rng) for k in beam]
+                neigh = [
+                    _cap_children(self.keyops.batch_neighbors(k, max(2, K), self.rng))
+                    for k in beam
+                ]
                 expanded = np.concatenate(neigh, axis=0)
                 parents = int(beam.shape[0])
                 cands_per_parent = int(expanded.shape[0] // max(1, parents))

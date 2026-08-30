@@ -19,4 +19,5 @@ def test_autokey_tutorial_runs_both_modes():
     assert all((m >= 0.9 for m in matches)), stdout
     assert stdout.count("RDP standard summary") >= 2, stdout
     assert stdout.count("Match ratio") >= 2, stdout
-    assert stdout.count("stop_category: budget") >= 2, stdout
+    assert stdout.count("stop_reason: target_score_reached") >= 2, stdout
+    assert stdout.count("stop_category: success") >= 2, stdout

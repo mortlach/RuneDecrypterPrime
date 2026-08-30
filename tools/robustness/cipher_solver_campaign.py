@@ -1,7 +1,5 @@
 """Deterministic known-answer cipher/solver robustness campaign."""
 from __future__ import annotations
-from rdp import api
-from tutorials.v1.data.two_period_cribs_demo import encrypt_interruptor_fixture
 import argparse
 import contextlib
 import hashlib
@@ -26,6 +24,8 @@ TOOL_ROOT = Path(__file__).resolve().parent
 for import_root in (REPO_ROOT, SRC_ROOT, TOOL_ROOT):
     if str(import_root) not in sys.path:
         sys.path.insert(0, str(import_root))
+from rdp import api
+from tutorials.v1.data.two_period_cribs_demo import encrypt_interruptor_fixture
 from rune_decrypter_prime.data.cipher_tests.book_corpus import load_book, select_passage
 from rune_decrypter_prime.io.rng import RNGController
 from rune_decrypter_prime.scoring.language_model import _fastlm
@@ -263,7 +263,7 @@ def _build_mono(trial_index: int, attempt_index: int) -> CampaignCase:
         n_keys=seed_count,
         swaps_per_key=seed_swaps,
         seed=solver_seed,
-        direction=("ltr" if direction is api.TextDirection.LEFT_TO_RIGHT else "rtl"),
+        direction=direction,
     )
     return _case(
         family=family,
@@ -535,12 +535,17 @@ def language_model_asset_provenance(family: str) -> dict[str, Any]:
     index = load_index(root)
     required_paths = {root / 'index.json'}
     se_mode = str(config.scoring_to_dict(resolved_recipe(family).scoring).get('se_mode', 'nose'))
+    direction_tokens = {
+        api.TextDirection.LEFT_TO_RIGHT: 'ltr',
+        api.TextDirection.RIGHT_TO_LEFT: 'rtl',
+    }
     for direction in config.DIRECTIONS:
+        mode = direction_tokens[direction]
         for model, orders in lanes.items():
             for order in orders:
                 model_config = index.models[model]
-                required_paths.add(expand_pattern(root, model_config['joint_pattern'], mode=direction, pos=se_mode, n=int(order)))
-                required_paths.add(expand_pattern(root, model_config['ecdf_pattern'], mode=direction, pos=se_mode, n=int(order), stat='logp', win=10))
+                required_paths.add(expand_pattern(root, model_config['joint_pattern'], mode=mode, pos=se_mode, n=int(order)))
+                required_paths.add(expand_pattern(root, model_config['ecdf_pattern'], mode=mode, pos=se_mode, n=int(order), stat='logp', win=10))
     asset_root = (REPO_ROOT / 'assets').resolve()
     assets: list[dict[str, Any]] = []
     for path in sorted(required_paths, key=lambda item: item.as_posix()):

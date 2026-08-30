@@ -165,8 +165,8 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                     "seed_selection_metric": "n/a",
                     "seed_selected_index": -1,
                     "seed_selected_hash": self._key_hash16(key),
-                    "seed_selected_raw": float("nan"),
-                    "seed_selected_pct": float("nan"),
+                    "seed_selected_raw": None,
+                    "seed_selected_pct": None,
                     "seed_pool_size": 0,
                     "seed_restarts_used": 1,
                 }
@@ -178,8 +178,8 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                 "seed_selection_metric": "n/a",
                 "seed_selected_index": -1,
                 "seed_selected_hash": self._key_hash16(k),
-                "seed_selected_raw": float("nan"),
-                "seed_selected_pct": float("nan"),
+                "seed_selected_raw": None,
+                "seed_selected_pct": None,
                 "seed_pool_size": 0,
                 "seed_restarts_used": 1,
             }
@@ -215,8 +215,16 @@ class KaedingPeriodicStructuredSolver(SolverBase):
         n_use = int(ordered.shape[0]) if seed_restarts <= 0 else min(seed_restarts, int(ordered.shape[0]))
         schedule = [ordered[i].copy() for i in range(n_use)]
 
-        first_raw = float(ordered_raw[0]) if ordered_raw.size else float("nan")
-        first_pct = float(ordered_pct[0]) if ordered_pct.size else float("nan")
+        first_raw = (
+            float(ordered_raw[0])
+            if ordered_raw.size and np.isfinite(ordered_raw[0])
+            else None
+        )
+        first_pct = (
+            float(ordered_pct[0])
+            if ordered_pct.size and np.isfinite(ordered_pct[0])
+            else None
+        )
         first_idx = int(order[0]) if order.size else -1
         first_hash = self._key_hash16(schedule[0]) if schedule else ""
         self._seed_selection_meta = {
@@ -574,7 +582,7 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                 try:
                     per_phase = {}
                     for i in range(int(self.period)):
-                        per_phase[int(i)] = {
+                        per_phase[str(i)] = {
                             "attempts": int(phase_attempts[i]),
                             "improves": int(phase_improves[i]),
                             "best_delta_raw": (

@@ -62,6 +62,7 @@ def _run_case(label: str, mask: list[int], key: list[int]) -> None:
     print(f'Found key length    : {(0 if found_key is None else len(found_key))}')
     print(f'Plaintext match     : {ratio:.3f}')
     print(f'Partial recovery accepted?: {ratio >= MIN_MATCH_RATIO}')
+    print(f'Match ratio: {ratio:.3f}')
     pretty.print_summary_spacer()
     api.display.print_result(result, options=api.display.SummaryOptions.for_tutorial())
     if ratio < MIN_MATCH_RATIO:

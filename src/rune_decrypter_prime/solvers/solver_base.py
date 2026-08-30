@@ -3,7 +3,7 @@
 # ============================================================
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Optional, Sequence, Union
 from contextlib import AbstractContextManager
 import time
 import numpy as np
@@ -154,6 +154,7 @@ class SolverBase:
         stop_score: Optional[float] = None,
         verbose: bool = True,
         log_interval: int = 50,
+        progress_callback: Optional[Callable[..., None]] = None,
     ):
         self.problem = problem
         self.keyops = getattr(problem, "keyops")
@@ -168,6 +169,7 @@ class SolverBase:
         self.stop_score = stop_score
         self.verbose = bool(verbose)
         self.log_interval = int(log_interval)
+        self.progress_callback = progress_callback
         self.verbose_console = bool(
             self.params.get("verbose_console", self.params.get("print_progress", False))
         )
@@ -390,15 +392,7 @@ class SolverBase:
         self._progress(**payload)
 
     def _run_progress_callback(self, payload, preview_key):
-        tele = getattr(self.problem, "telemetry", None)
-        cb = None
-        if tele is not None:
-            try:
-                cb = getattr(tele, "progress_callback", None)
-            except Exception:
-                cb = None
-            if cb is None and isinstance(tele, dict):
-                cb = tele.get("progress_callback")
+        cb = self.progress_callback
         if not callable(cb):
             return
         key_list = None
@@ -812,6 +806,34 @@ class SolverBase:
                 if live.get("score_time_s") is not None:
                     work.setdefault("score_time_s", float(live["score_time_s"]))
                     timings.setdefault("score_time_s", float(live["score_time_s"]))
+
+            # The public SolverReport reads these canonical Solution fields.
+            # Solvers finish their telemetry span before finalization, so retain
+            # the exact producer-owned work counters instead of leaving the
+            # dataclass defaults at zero.
+            final_work = getattr(self, "_final_work", None)
+            if not isinstance(final_work, dict):
+                final_work = {}
+            step_value = next(
+                (
+                    final_work[name]
+                    for name in ("steps", "generations", "iters", "rounds", "step")
+                    if final_work.get(name) is not None
+                ),
+                0,
+            )
+            sol.step = int(step_value)
+            sol.evals = int(final_work.get("evals", live.get("evals", 0)) or 0)
+            sol.tokens_processed = int(
+                final_work.get("tokens", live.get("tokens", 0)) or 0
+            )
+            sol.wall_time_s = float(final_work.get("wall_time_s", 0.0) or 0.0)
+            sol.decrypt_time_s = float(
+                final_work.get("decrypt_time_s", live.get("decrypt_time_s", 0.0)) or 0.0
+            )
+            sol.score_time_s = float(
+                final_work.get("score_time_s", live.get("score_time_s", 0.0)) or 0.0
+            )
         except Exception:
             pass
 
@@ -940,11 +962,14 @@ class SolverBase:
         payload.setdefault("decrypt_time_s", self._decrypt_time)
         payload.setdefault("score_time_s",   self._score_time)
         payload.setdefault("evals",          getattr(self, "_candidates_evaluated", 0))
+        if payload.get("wall_time_s") is None and getattr(span, "_t0", None) is not None:
+            payload["wall_time_s"] = max(0.0, time.perf_counter() - float(span._t0))
 
         pipeline_block = self._pipeline_snapshot()
         if pipeline_block is not None:
             payload.setdefault("pipeline", pipeline_block)
 
+        self._final_work = dict(payload)
         span.end(**payload)
         self._span = None
 

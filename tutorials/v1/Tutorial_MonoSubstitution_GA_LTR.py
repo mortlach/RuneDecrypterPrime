@@ -114,7 +114,12 @@ def main() -> None:
     key_spec = api.KeySpec.permutation(length=29)
     cipher_spec = api.CipherSpec.substitution(alphabet_size=29)
     display_spec = api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx_list, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=display_scorer_params, text_direction=DIRECTION, telemetry_enabled=True)
-    result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=scorer_params, telemetry_enabled=True, text_direction=DIRECTION))
+    initial_keys = (
+        None
+        if seeds is None
+        else tuple(tuple(int(value) for value in key) for key in seeds)
+    )
+    result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=scorer_params, initial_keys=initial_keys, telemetry_enabled=True, text_direction=DIRECTION))
     mode_label = 'GA (seeded start)' if seeds is not None else 'GA (noise start)'
     print(f'Mode: {mode_label}')
     rec = (result.plaintext_text or '') or (result.plaintext_text or '')
@@ -124,10 +129,19 @@ def main() -> None:
     print('Pipeline block:', pipeline)
     has_tel = bool((result.telemetry or {}).get('telemetry'))
     print('Telemetry attached:', has_tel)
+    recovered_idx = [int(value) for value in result.plaintext]
+    expected_idx = [int(value) for value in pt_idx]
+    match_ratio = (
+        sum(a == b for a, b in zip(recovered_idx, expected_idx, strict=True))
+        / len(expected_idx)
+    )
+    print(f'Match ratio: {match_ratio:.3f}')
     pretty.print_summary_spacer()
     api.display.print_result(
         result, spec=display_spec, options=api.display.SummaryOptions.for_tutorial()
     )
+    if match_ratio < MIN_MATCH_RATIO:
+        raise AssertionError(f'GA LTR solve below acceptance threshold: {match_ratio:.3f}')
 
 
 if __name__ == "__main__":

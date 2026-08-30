@@ -156,6 +156,7 @@ def test_execute_run_preserves_normal_path_runtime_controls(monkeypatch):
 
     def fake_engine_solve(_instance, cfg):
         captured['log_interval'] = cfg.log_interval
+        captured['progress_callback'] = cfg.progress_callback
         return 'result'
 
     def fake_finalize_solution(problem, result, **_kwargs):
@@ -164,4 +165,5 @@ def test_execute_run_preserves_normal_path_runtime_controls(monkeypatch):
     monkeypatch.setattr(rdp.api.pipeline, 'finalize_solution', fake_finalize_solution)
     result = _execute_run_for_logging(monkeypatch, logging_runtime={'log_interval': 7, 'progress_callback': callback})
     assert captured['log_interval'] == 7
-    assert result['telemetry']['progress_callback'] is callback
+    assert captured['progress_callback'] is callback
+    assert result['telemetry'] is None

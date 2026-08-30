@@ -71,15 +71,6 @@ def execute_run(
     cb = logging_runtime.get("progress_callback")
     if callable(cb):
         progress_cb = cb
-    if progress_cb is not None:
-        tele = getattr(instance.problem, "telemetry", None)
-        if tele is None:
-            tele = {}
-            instance.problem.telemetry = tele
-        try:
-            tele["progress_callback"] = progress_cb
-        except Exception:
-            pass
 
     # 3) EngineConfig + run
     solver_kind: SolverName = normalize_optimizer_name(solver.name)
@@ -102,6 +93,7 @@ def execute_run(
         verbose=True,
         log_interval=log_int,
         seed_keys=(np.asarray(initial_keys, dtype=KEY_DTYPE) if initial_keys is not None else None),
+        progress_callback=progress_cb,
     )
 
     result = engine_solve(instance, eng_cfg)

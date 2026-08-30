@@ -48,11 +48,11 @@ def word_lengths_from_wli(wli: Sequence[Sequence[int]]) -> list[int]:
     return lengths
 
 def candidate_to_idx(text: str) -> list[int]:
-    idx, _wli, _runes = Runeglish.encode_english_to_runes(text, direction=ENCODING_DIRECTION.value)
+    idx, _wli, _runes = Runeglish.encode_english_to_runes(text, direction=ENCODING_DIRECTION)
     return [int(value) for value in idx]
 
 def candidate_word_lengths(text: str) -> list[int]:
-    _idx, wli, _runes = Runeglish.encode_english_to_runes(text, direction=ENCODING_DIRECTION.value)
+    _idx, wli, _runes = Runeglish.encode_english_to_runes(text, direction=ENCODING_DIRECTION)
     return word_lengths_from_wli(wli)
 
 def load_generated_phrase_starts() -> list[str]:

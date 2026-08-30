@@ -5,7 +5,7 @@ import numpy as np
 from rune_decrypter_prime.utils.runeglish import Runeglish
 
 def encode_text(text: str, direction: api.TextDirection):
-    pt_idx, wli, _ = Runeglish.encode_english_to_runes(text, direction=direction.value)
+    pt_idx, wli, _ = Runeglish.encode_english_to_runes(text, direction=direction)
     return (np.asarray(pt_idx, dtype=np.uint8), wli)
 
 def columnar_roundtrip_case(text: str='columnar permutation solvers must stay bijective'):

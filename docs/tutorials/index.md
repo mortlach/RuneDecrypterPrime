@@ -17,6 +17,18 @@ For a full printout review, edit this constant in the same file:
 CONSOLE_OUTPUT = ConsoleOutput.FULL
 ```
 
+## Long-running Kaeding qualifications
+
+These full-assets tutorials may each take several hours. They are excluded from
+the normal `FAST`, `RELEASE`, `EXTENDED`, and `CI_LIGHT` run sets:
+
+- `Tutorial_PeriodicSubstitution.py`
+- `Tutorial_PeriodicSubstitution_Simple_P7.py`
+- `Tutorial_PeriodicColumnar_Simple_P7_ColThenSub.py`
+
+Selecting `FULL_ASSETS` or `ALL_WORKING` includes them and prints an explicit
+long-running warning before execution begins.
+
 ## Final V1 List
 
 | Tutorial | Acceptance | Minimum match |

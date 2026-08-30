@@ -10,6 +10,7 @@ if str(_SRC) not in sys.path:
 import numpy as np
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.runeglish import Runeglish
+from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
 from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
@@ -19,6 +20,8 @@ DIRECTION = api.TextDirection.RIGHT_TO_LEFT
 TUTORIAL_SEED = 12345
 CIPHERTEXT_SEED = 12345
 MIN_MATCH_RATIO = 0.995
+SEED_KEYS = 120
+SEED_SWAPS = 1
 
 def preview(s: str, n: int=120) -> str:
     return s if len(s) <= n else s[:n] + '...'
@@ -29,7 +32,7 @@ def _invert_perm(pt_to_ct: np.ndarray) -> np.ndarray:
     return inv
 
 def _build_ciphertext(pt_en: str, *, seed: int):
-    pt_idx, wli, _ = Runeglish.encode_english_to_runes(pt_en, direction=DIRECTION.value)
+    pt_idx, wli, _ = Runeglish.encode_english_to_runes(pt_en, direction=DIRECTION)
     rng = np.random.default_rng(seed)
     key_fwd = rng.permutation(29).astype(np.uint8)
     ciph = api.CipherSpec.substitution(alphabet_size=29)
@@ -46,7 +49,14 @@ def main() -> None:
     print('Mono-substitution HYBRID problem')
     print(f'encoding direction: {DIRECTION.value}')
     print('solver path: Beam warm-start -> GA explore -> SA polish')
-    print('start condition: no true-key seed supplied')
+    initial_keys = make_seeds_from_freq(
+        ct_runes.replace(' ', ''),
+        n_keys=SEED_KEYS,
+        swaps_per_key=SEED_SWAPS,
+        seed=TUTORIAL_SEED,
+        direction=DIRECTION,
+    )
+    print(f'start condition: {len(initial_keys)} frequency-derived seeds; no true-key seed')
     print(f'ciphertext length: {len(ct_idx)}')
     print(f'ciphertext preview: {preview(ct_runes, 160)}')
     print_tutorial_debug_preview(label='plaintext', idx=pt_idx, wli=wli, direction=DIRECTION)
@@ -59,14 +69,23 @@ def main() -> None:
     cipher_spec = api.CipherSpec.substitution(alphabet_size=29)
     key_spec = api.KeySpec.permutation(length=29)
     display_spec = api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=display_scorer_params, text_direction=DIRECTION, telemetry_enabled=True)
-    result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=scorer_params, telemetry_enabled=True, text_direction=DIRECTION, compute_device=api.ComputeDevice.CPU))
+    result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=scorer_params, initial_keys=tuple(tuple(int(value) for value in key) for key in initial_keys), telemetry_enabled=True, text_direction=DIRECTION, compute_device=api.ComputeDevice.CPU))
     recovered = (result.plaintext_text or '') or (result.plaintext_text or '')
     print('Recovered plaintext:', preview(str(recovered)))
     print('Score:', round(result.score, 6))
+    recovered_idx = [int(value) for value in result.plaintext]
+    expected_idx = [int(value) for value in pt_idx]
+    match_ratio = (
+        sum(a == b for a, b in zip(recovered_idx, expected_idx, strict=True))
+        / len(expected_idx)
+    )
+    print(f'Match ratio: {match_ratio:.3f}')
     pretty.print_summary_spacer()
     api.display.print_result(
         result, spec=display_spec, options=api.display.SummaryOptions.for_tutorial()
     )
+    if match_ratio < MIN_MATCH_RATIO:
+        raise AssertionError(f'Hybrid RTL solve below acceptance threshold: {match_ratio:.3f}')
 
 
 if __name__ == "__main__":

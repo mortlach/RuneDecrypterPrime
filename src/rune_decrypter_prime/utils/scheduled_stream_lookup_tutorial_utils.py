@@ -65,7 +65,7 @@ def encode_plaintext(
 ):
     pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(
         tutorial_plaintext(),
-        direction=direction.value,
+        direction=direction,
     )
     return [int(v) for v in pt_idx], wli, pt_runes
 
@@ -127,7 +127,7 @@ def make_real_solve_solver(
     print(f"[real solve] fixed stop_score={stop_score:.6f}; true key is not supplied")
     return api.SolverSpec.beam_search(
         width=int(beam_width),
-        rounds=500,
+        rounds=0,
         target_score=float(stop_score),
         plateau_rounds=int(plateau_rounds),
         plateau_minimum_delta=1e-4,

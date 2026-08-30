@@ -2,11 +2,10 @@ from __future__ import annotations
 from rdp import api
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.config import CipherConfig, ScoringConfig
+from rune_decrypter_prime.core.config import CipherConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rune_decrypter_prime.core.types import (
     Direction,
-    ScorerImpl,
 )
 from rune_decrypter_prime.scoring.rune_scorer import RuneScorer
 from tests.scoring._helpers.lm_test_guard import require_full_lm_assets
@@ -17,16 +16,16 @@ pytestmark = pytest.mark.tier_a
 def _cipher_cfg(length: int) -> CipherConfig:
     return CipherConfig(ciphertext=[0] * int(length), wli_data=[], key_length=None, encoding_dir=Direction.LTR)
 
-def _avg_fulltext_cfg(*, impl: ScorerImpl, win: int=20) -> ScoringConfig:
-    return api.ScoringConfig(objective=api.advanced.ScoringObjective.average_log_probability(), character_lane_enabled=True, word_length_lane_enabled=False, character_order_weights={3: 0.2, 4: 0.8}, word_length_order_weights={}, average_window_policy=api.advanced.AverageWindowPolicy.FULL_TEXT, backend=api.advanced.ScorerBackend(impl), compute_dtype=api.advanced.FloatDType.FLOAT32)
+def _avg_fulltext_cfg(*, backend: api.advanced.ScorerBackend) -> api.ScoringConfig:
+    return api.ScoringConfig(objective=api.advanced.ScoringObjective.average_log_probability(), character_lane_enabled=True, word_length_lane_enabled=False, character_order_weights={3: 0.2, 4: 0.8}, word_length_order_weights={}, average_window_policy=api.advanced.AverageWindowPolicy.FULL_TEXT, backend=backend, compute_dtype=api.advanced.FloatDType.FLOAT32)
 
 @pytest.mark.full_assets
 @pytest.mark.parametrize('length', [4, 40, 96, 240])
 def test_torch_avg_fulltext_matches_numpy_across_lengths(length: int) -> None:
     require_full_lm_assets(models=('char',), modes=('ltr',), poses=('nose',), ns=(3, 4), ecdf_stats=())
     c_cfg = _cipher_cfg(length)
-    scorer_np = build_scorer(c_cfg, _avg_fulltext_cfg(impl=ScorerImpl.NUMPY))
-    scorer_torch = build_scorer(c_cfg, _avg_fulltext_cfg(impl=ScorerImpl.TORCH))
+    scorer_np = build_scorer(c_cfg, _avg_fulltext_cfg(backend=api.advanced.ScorerBackend.NUMPY))
+    scorer_torch = build_scorer(c_cfg, _avg_fulltext_cfg(backend=api.advanced.ScorerBackend.TORCH))
     assert isinstance(scorer_np, RuneScorer)
     assert isinstance(scorer_torch, RuneScorerTorch)
     rng = np.random.default_rng(20260225 + int(length))
@@ -39,7 +38,7 @@ def test_torch_avg_fulltext_matches_numpy_across_lengths(length: int) -> None:
 def test_torch_avg_fulltext_is_repeatable_and_reports_lookup_diagnostics() -> None:
     require_full_lm_assets(models=('char',), modes=('ltr',), poses=('nose',), ns=(3, 4), ecdf_stats=())
     length = 452
-    scorer_torch = build_scorer(_cipher_cfg(length), _avg_fulltext_cfg(impl=ScorerImpl.TORCH))
+    scorer_torch = build_scorer(_cipher_cfg(length), _avg_fulltext_cfg(backend=api.advanced.ScorerBackend.TORCH))
     assert isinstance(scorer_torch, RuneScorerTorch)
     rng = np.random.default_rng(2026022501)
     pt = rng.integers(0, 29, size=length, dtype=np.uint8)

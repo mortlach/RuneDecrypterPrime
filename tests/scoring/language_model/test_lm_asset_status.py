@@ -10,12 +10,12 @@ def _write_index(root: Path, *, payload: dict | None=None) -> None:
 
 def test_resolve_lm_root_accepts_existing_absolute_config_path(tmp_path: Path) -> None:
     _write_index(tmp_path)
-    assert resolve_lm_root({'model_root': tmp_path}) == tmp_path.resolve()
+    assert resolve_lm_root({'language_model_root': tmp_path}) == tmp_path.resolve()
 
 def test_resolve_lm_root_rejects_missing_path_with_safe_display_message(tmp_path: Path) -> None:
     missing = tmp_path / 'missing_model'
     with pytest.raises(FileNotFoundError, match='Language-model root not found') as excinfo:
-        resolve_lm_root({'model_root': missing})
+        resolve_lm_root({'language_model_root': missing})
     message = str(excinfo.value)
     assert 'Available local asset models' in message
     assert 'Requested:' in message

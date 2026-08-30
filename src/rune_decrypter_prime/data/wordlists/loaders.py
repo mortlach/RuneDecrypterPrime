@@ -56,7 +56,7 @@ def load_short_word_csv(
                 continue
             indices = tuple(int(tok) for tok in (row.get("rune_indices") or "").split())
             if indices:
-                encoded, _, _ = Runeglish.encode_english_to_runes(latin, direction=_normalize_direction(direction).value)
+                encoded, _, _ = Runeglish.encode_english_to_runes(latin, direction=_normalize_direction(direction))
                 if tuple(encoded) != indices:
                     raise ValueError(
                         f"CSV entry for '{latin}' does not match encoded indices {encoded} vs {indices}"
@@ -116,7 +116,7 @@ def _wordlist_to_short_dict(wordlists: Dict[int, Sequence[Sequence[int]]], *, di
             if not latin:
                 continue
             # Ensure the Latin form round-trips to the same rune length for this direction.
-            encoded, _, _ = Runeglish.encode_english_to_runes(latin, direction=direction.value)
+            encoded, _, _ = Runeglish.encode_english_to_runes(latin, direction=direction)
             if len(encoded) != len(word):
                 continue
             out[latin] = out.get(latin, 0.0) + 1.0

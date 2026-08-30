@@ -8,6 +8,8 @@ from __future__ import annotations
 from typing import List, Sequence, Iterable
 import re
 
+from rune_decrypter_prime.core.types import Direction, TextDirection, ensure_direction
+
 class Runeglish:
     _BIGRAMS = {'TH', 'EO', 'NG', 'OE', 'AE', 'IA', 'IO', 'EA'}
     _TRIGRAM = 'ING'
@@ -197,8 +199,7 @@ class Runeglish:
     def encode_english_to_runes(
         text: str,
         *,
-        # todo change this enums etc encoding_dir
-        direction: str = "ltr",   # "ltr" (default) or "rtl" per-word
+        direction: Direction | TextDirection | str = Direction.LTR,
     ) -> tuple[list[int], list[list[int]], str]:
         """
         Canonical English → (indices, WLI, rune string).
@@ -225,8 +226,10 @@ class Runeglish:
         l2pos = Runeglish.latin_to_pos
         pos2r = Runeglish.pos_to_rune
 
+        encoding_direction = ensure_direction(direction)
+
         for raw in words_raw:
-            if direction.lower() == "rtl":
+            if encoding_direction is Direction.RTL:
                 raw = raw[::-1]
 
             w = raw.upper().replace("QU", "KW")
@@ -241,7 +244,7 @@ class Runeglish:
                     tokens.append(w[i:i+2]); i += 2; continue
                 tokens.append(w[i]); i += 1
 
-            if direction.lower() == "rtl":
+            if encoding_direction is Direction.RTL:
                 tokens.reverse()
 
             word_idx: list[int] = []

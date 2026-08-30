@@ -19,6 +19,11 @@ CLEAN_OUTPUT_LOGS = True
 OUTPUT_DIR = Path('output/tutorial_logs')
 FAILURE_TAIL_LINES = 80
 TUTORIALS: tuple[TutorialEntry, ...] = (TutorialEntry('Tutorial_TwoPeriodCribs.py', 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE, TutorialRunSet.FULL_ASSETS), required_asset_profile='full_v1'), TutorialEntry('Tutorial_TwoPeriodCribs_Interruptors.py', 1.0, run_sets=(TutorialRunSet.RELEASE, TutorialRunSet.FULL_ASSETS), required_asset_profile='full_v1'), TutorialEntry('Tutorial_TwoPeriodCribs_P13P31_Search.py', 1.0, run_sets=(TutorialRunSet.EXTENDED, TutorialRunSet.FULL_ASSETS), required_asset_profile='full_v1'), TutorialEntry('Tutorial_Start_Here.py', 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_Autokey.py', 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_Autokey_Robust.py', 1.0, run_sets=(TutorialRunSet.EXTENDED,)), TutorialEntry('Tutorial_Railfence.py', 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_Vigenere_Interruptors_Exact.py', 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_ColumnarTransposition.py', 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_Vigenere_GeneralMap.py', 1.0, run_sets=(TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_Vigenere_Interruptors_Solve.py', 1.0, run_sets=(TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_MonoSubstitution_GA_RTL.py', 0.97, TutorialAcceptanceKind.HUMAN_READABLE, (TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_MonoSubstitution_GA_LTR.py', 0.97, TutorialAcceptanceKind.HUMAN_READABLE, (TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_MonoSubstitution_GA_Robust.py', 0.97, TutorialAcceptanceKind.HUMAN_READABLE, (TutorialRunSet.EXTENDED,)), TutorialEntry('Tutorial_Repeating_multiply.py', 1.0, run_sets=(TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_MonoSubstitution_HYBRID_RTL.py', 0.995, TutorialAcceptanceKind.NEAR_EXACT, (TutorialRunSet.EXTENDED,)), TutorialEntry('Tutorial_Vigenere_Interruptors_NonTrivial.py', 1.0, run_sets=(TutorialRunSet.EXTENDED,)), TutorialEntry('Tutorial_Vigenere_Interruptors_Robust.py', 1.0, run_sets=(TutorialRunSet.EXTENDED,)), TutorialEntry('Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py', 1.0, run_sets=(TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_ScheduledStreamLookup_RealSolve_P13Primes.py', 1.0, run_sets=(TutorialRunSet.EXTENDED,)), TutorialEntry('Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py', 0.9, TutorialAcceptanceKind.PARTIAL_RECOVERY, (TutorialRunSet.PARTIAL_RECOVERY,)), TutorialEntry('Tutorial_LP_Welcome_Pilgrim_Solve.py', 1.0, run_sets=(TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_MonoSubstitution_SA_LTR.py', 0.995, TutorialAcceptanceKind.NEAR_EXACT, (TutorialRunSet.EXTENDED,)), TutorialEntry('Tutorial_PeriodicSubstitution.py', 0.995, TutorialAcceptanceKind.NEAR_EXACT, (TutorialRunSet.FULL_ASSETS,), required_asset_profile='full_v1'), TutorialEntry('Tutorial_PeriodicSubstitution_Simple_P7.py', 0.995, TutorialAcceptanceKind.NEAR_EXACT, (TutorialRunSet.FULL_ASSETS,), required_asset_profile='full_v1'), TutorialEntry('Tutorial_PeriodicColumnar_Simple_P7_ColThenSub.py', 1.0, run_sets=(TutorialRunSet.FULL_ASSETS,), required_asset_profile='full_v1'))
+LONG_RUNNING_KAEDING_TUTORIALS = frozenset({
+    'Tutorial_PeriodicSubstitution.py',
+    'Tutorial_PeriodicSubstitution_Simple_P7.py',
+    'Tutorial_PeriodicColumnar_Simple_P7_ColThenSub.py',
+})
 
 def _selected_tutorials() -> tuple[TutorialEntry, ...]:
     return select_tutorials(TUTORIALS, RUN_SET)
@@ -86,6 +91,15 @@ def main() -> int:
     pretty.print_rdp_identity()
     pretty.print_initialising()
     pretty.print_result_note('Tutorial runner setup', [('runner', 'tutorials/v1/run_tutorials.py'), ('run set', RUN_SET.value), ('asset profile', 'full_v1' if RUN_SET in {TutorialRunSet.FULL_ASSETS, TutorialRunSet.ALL_WORKING} else 'ci_light' if RUN_SET == TutorialRunSet.CI_LIGHT else 'mixed by tutorial'), ('console output', CONSOLE_OUTPUT.value), ('selected', len(selected)), ('output logs', _relpath(_output_dir()) if WRITE_OUTPUT_LOGS else 'disabled')])
+    long_running = [entry.path for entry in selected if entry.path in LONG_RUNNING_KAEDING_TUTORIALS]
+    if long_running:
+        pretty.print_result_note(
+            'Long-running Kaeding qualification warning',
+            [
+                ('runtime', 'may take several hours per tutorial'),
+                ('tutorials', ', '.join(long_running)),
+            ],
+        )
     results: list[TutorialResult] = []
     for entry in selected:
         print(f'[RUN ] {entry.path}')

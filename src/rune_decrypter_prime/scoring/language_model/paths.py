@@ -60,21 +60,21 @@ def resolve_lm_root(cfg: Union[ScoringConfig, Mapping[str, Any], None]) -> Path:
     Resolve a language-model root folder from a config object or mapping.
 
     Semantics:
-      - None or empty config/model_root -> packaged default (_DEFAULT_LM_NAME).
+      - None or empty config/language_model_root -> packaged default (_DEFAULT_LM_NAME).
       - Relative str/path -> relative to <repo>/assets/language_model.
       - Absolute path -> used as-is.
 
     Raises:
       FileNotFoundError with a friendly list of available packaged models when absent.
     """
-    # Pull model_root from either a dataclass or a dict-like; allow None config
+    # Pull the canonical root from either a dataclass or a dict-like config.
     model_root = None
     if cfg is None:
         model_root = None
-    elif hasattr(cfg, "model_root"):
-        model_root = getattr(cfg, "model_root")
+    elif isinstance(cfg, ScoringConfig):
+        model_root = cfg.language_model_root
     elif isinstance(cfg, Mapping):
-        model_root = cfg.get("model_root")
+        model_root = cfg.get("language_model_root")
 
     root = _coerce_model_root(model_root)
 

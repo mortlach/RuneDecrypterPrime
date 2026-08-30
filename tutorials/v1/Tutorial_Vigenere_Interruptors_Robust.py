@@ -1,14 +1,16 @@
 from __future__ import annotations
-from tutorials.v1.data.two_period_cribs_demo import encrypt_interruptor_fixture
-from rdp import api
 'Qualification-derived Vigenere interruptor-pool Beam tutorial.'
 import sys
 from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / 'src'
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 import numpy as np
+from rdp import api
+from tutorials.v1.data.two_period_cribs_demo import encrypt_interruptor_fixture
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1, word_breaks1
 from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.runeglish import Runeglish

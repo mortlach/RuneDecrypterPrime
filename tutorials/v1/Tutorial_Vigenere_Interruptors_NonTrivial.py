@@ -1,14 +1,16 @@
 from __future__ import annotations
-from tutorials.v1.data.two_period_cribs_demo import encrypt_interruptor_fixture
-from rdp import api
 'Larger single-start Vigenere interruptor Beam-search tutorial.'
 import sys
 from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / 'src'
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 import numpy as np
+from rdp import api
+from tutorials.v1.data.two_period_cribs_demo import encrypt_interruptor_fixture
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1, word_breaks1
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils import tutorial_pretty as pretty
@@ -68,10 +70,17 @@ def main() -> None:
     key_spec = api.KeySpec.repeating(length=len(KEY_NUMS))
     display_spec = api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx_list, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=display_scorer_params, text_direction=direction, telemetry_enabled=True)
     result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx_list, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=scorer_params, telemetry_enabled=True, text_direction=direction, interruptors=interrupt_cfg))
+    recovered = [int(value) for value in result.plaintext]
+    match_ratio = (
+        sum(a == b for a, b in zip(recovered, pt_idx, strict=True)) / len(pt_idx)
+    )
+    print(f'Match ratio: {match_ratio:.3f}')
     pretty.print_summary_spacer()
     api.display.print_result(
         result, spec=display_spec, options=api.display.SummaryOptions.for_tutorial()
     )
+    if match_ratio < MIN_MATCH_RATIO:
+        raise AssertionError('non-trivial interruptor tutorial did not recover exact plaintext')
 
 
 if __name__ == "__main__":

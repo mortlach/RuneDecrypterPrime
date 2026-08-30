@@ -9,7 +9,7 @@ import numpy as np
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
-from rune_decrypter_prime.core.types import Device, Direction, ObjectiveFamily, ObjectiveSpec, ScorerImpl, SeMode, Stat
+from rune_decrypter_prime.core.types import Device, Direction, ScorerBackend
 from rune_decrypter_prime.scoring.language_model.language_model_prime import LanguageModelPrime
 from rune_decrypter_prime.utils.runeglish import Runeglish
 
@@ -125,7 +125,7 @@ def encode_text(
     *,
     direction: Direction,
 ) -> tuple[np.ndarray, List[List[int]]]:
-    pt_idx, wli, _runes = Runeglish.encode_english_to_runes(text, direction=direction.value)
+    pt_idx, wli, _runes = Runeglish.encode_english_to_runes(text, direction=direction)
     pt = np.asarray(pt_idx, dtype=np.uint8).reshape(-1)
     if pt.size == 0:
         raise ValueError("Encoded text is empty. Provide non-empty alphabetic text.")
@@ -367,15 +367,12 @@ def _build_pct_scorer(
         raise ValueError("PCT scorer needs at least one active channel")
 
     cfg = ScoringConfig(
-        model_root=Path(model_root).resolve() if model_root is not None else None,
-        objective=ObjectiveSpec(family=ObjectiveFamily.PCT, stat=Stat.LOGP, win=10),
-        se_mode=SeMode.NOSE,
-        encoding_dir=direction,
-        include_char=include_char,
-        use_word_breaks=use_wli,
-        char_weights=char_w,
-        wli_weights=wli_w,
-        impl=ScorerImpl.NUMPY,
+        language_model_root=Path(model_root).resolve() if model_root is not None else None,
+        character_lane_enabled=include_char,
+        word_length_lane_enabled=use_wli,
+        character_order_weights=char_w,
+        word_length_order_weights=wli_w,
+        backend=ScorerBackend.NUMPY,
     )
     dummy = CipherConfig(
         name="periodic_columnar",

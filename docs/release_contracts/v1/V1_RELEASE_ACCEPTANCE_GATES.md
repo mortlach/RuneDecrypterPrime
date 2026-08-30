@@ -115,6 +115,10 @@ ci_light -> TutorialRunSet.CI_LIGHT
 full_v1 -> TutorialRunSet.ALL_WORKING
 ```
 
+`ALL_WORKING` includes three explicitly labelled Kaeding qualifications that
+may each take several hours. Use it only for the manual full proof, not routine
+local validation.
+
 The normal local full-profile command remains:
 
 ```text

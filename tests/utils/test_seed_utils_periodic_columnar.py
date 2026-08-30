@@ -32,7 +32,7 @@ def _validate_key_layout(key: np.ndarray, *, period: int, columns: int) -> None:
 def _make_instance(*, order: str, direction: Direction=Direction.RTL, period: int=5, columns: int=11, key_seed: int=1234) -> tuple[np.ndarray, np.ndarray, PeriodicColumnarCipher]:
     txt = long_plaintext_string.strip()
     rg = Runeglish()
-    pt_idx, _wli, _runes = rg.encode_english_to_runes(txt, direction=direction.value)
+    pt_idx, _wli, _runes = rg.encode_english_to_runes(txt, direction=direction)
     pt_idx = np.asarray(pt_idx, dtype=np.uint8)
     key_len = period * ALPHABET_SIZE + columns
     rng = np.random.default_rng(key_seed)
@@ -104,8 +104,8 @@ def test_seed_generator_quality_beats_random_baseline_fraction_of_gap():
     ct_idx, key_true, cipher = _make_instance(order='col_then_sub', direction=direction, period=period, columns=columns)
     cfg = _char_only_scoring_cfg(direction, model_root=lm_root)
     key_length = period * ALPHABET_SIZE + columns
-    lm = LanguageModelPrime(lm_root=cfg.model_root, smoothing=cfg.smoothing, alpha=cfg.alpha, oov_policy=cfg.oov_policy, include_char=True)
-    weights = dict(cfg.char_weights) if cfg.char_weights else {3: 0.5, 4: 0.5}
+    lm = LanguageModelPrime(lm_root=cfg.language_model_root, include_char=True)
+    weights = dict(cfg.character_order_weights) if cfg.character_order_weights else {3: 0.5, 4: 0.5}
 
     def score_key(key: np.ndarray) -> float:
         pt = cipher.decrypt_single(ciphertext=ct_idx, key=key)

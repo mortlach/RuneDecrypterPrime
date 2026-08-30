@@ -1,13 +1,15 @@
 from __future__ import annotations
-from tutorials.v1.data.two_period_cribs_demo import encrypt_interruptor_fixture
-from rdp import api
 import sys
 from pathlib import Path
 import numpy as np
 _ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / 'src'
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
+from rdp import api
+from tutorials.v1.data.two_period_cribs_demo import encrypt_interruptor_fixture
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
@@ -18,6 +20,7 @@ if hasattr(sys.stdout, 'reconfigure'):
 TUTORIAL_SEED = 2026
 DEMO_TEXT = 'THERE WAS A TABLE SET OUT UNDER A TREE IN FRONT OF THE HOUSE AND THE MARCH HARE AND THE HATTER WERE HAVING TEA AT IT'
 KEY_NUMS = [7, 0, 13, 2]
+MIN_MATCH_RATIO = 1.0
 
 def _make_interruptor_pool(length: int) -> list[int]:
     fractions = (0.12, 0.32, 0.52, 0.72)
@@ -41,7 +44,7 @@ def main() -> None:
     pretty.print_initialising()
     pretty.print_tutorial_contract(name='Vigenere smaller single-start interruptor Beam pool search', cipher='vigenere interruptors', solver='beam', direction='ltr', expected_result='exact solve', uses_reference_stop_score=True)
     direction = api.TextDirection.LEFT_TO_RIGHT
-    pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(DEMO_TEXT, direction=direction.value)
+    pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(DEMO_TEXT, direction=direction)
     pt_arr = np.asarray(pt_idx, dtype=np.uint8)
     pool = _make_interruptor_pool(len(pt_idx))
     interruptors = _pick_interruptors(pool)
@@ -81,10 +84,17 @@ def main() -> None:
     if found_key:
         print('Found key (core):', found_core)
         print('Found interruptors:', found_intr)
+    recovered = [int(value) for value in result.plaintext]
+    match_ratio = (
+        sum(a == b for a, b in zip(recovered, pt_idx, strict=True)) / len(pt_idx)
+    )
+    print(f'Match ratio: {match_ratio:.3f}')
     pretty.print_summary_spacer()
     api.display.print_result(
         result, spec=display_spec, options=api.display.SummaryOptions.for_tutorial()
     )
+    if match_ratio < MIN_MATCH_RATIO:
+        raise AssertionError('interruptor pool tutorial did not recover exact plaintext')
 
 
 if __name__ == "__main__":

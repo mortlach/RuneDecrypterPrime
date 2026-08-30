@@ -161,7 +161,7 @@
       "path": "Tutorial_Vigenere_Interruptors_Exact.py",
       "title": "Vigenere known-position interruptor interface demonstration",
       "cipher_family": "vigenere_interruptors",
-      "tutorial_kind": "known_key_or_tiny_search",
+      "tutorial_kind": "known_position_real_solve",
       "gate": "v1_smoke",
       "required_asset_profile": "ci_light",
       "acceptance_kind": "exact",
@@ -169,7 +169,7 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
-      "notes": "Tiny known-position interface demonstration, not unknown-position solver qualification.",
+      "notes": "Known-position interface demonstration over realistic text; the fixture key is not supplied to the solver and unknown-position search remains out of scope.",
       "expected_under_required_profile": "pass",
       "observed_under_required_profile": {
         "match_ratio": 1.0,
@@ -497,7 +497,7 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
-      "notes": "Requires full_v1 assets beyond the pure ci_light release profile. Pretty-print version promoted to canonical V1 tutorial filename and selected by the pretty-print review runner.",
+      "notes": "LONG-RUNNING KAEDING QUALIFICATION: may take several hours. Requires full_v1 assets and is excluded from the normal fast, release, extended and ci_light run sets.",
       "expected_under_required_profile": "pass",
       "observed_under_required_profile": {
         "match_ratio": null,
@@ -518,7 +518,7 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
-      "notes": "Requires full_v1 assets beyond the pure ci_light release profile. Pretty-print version promoted to canonical V1 tutorial filename and selected by the pretty-print review runner.",
+      "notes": "LONG-RUNNING KAEDING QUALIFICATION: may take several hours. Requires full_v1 assets and is excluded from the normal fast, release, extended and ci_light run sets.",
       "expected_under_required_profile": "pass",
       "observed_under_required_profile": {
         "match_ratio": null,
@@ -539,7 +539,7 @@
       "uses_oracle_stop_score": true,
       "supplies_true_key_to_solver": false,
       "current_status": "active",
-      "notes": "Requires full_v1 assets beyond the pure ci_light release profile. Pretty-print version promoted to canonical V1 tutorial filename and selected by the pretty-print review runner.",
+      "notes": "LONG-RUNNING KAEDING QUALIFICATION: may take several hours. Requires full_v1 assets and is excluded from the normal fast, release, extended and ci_light run sets.",
       "expected_under_required_profile": "pass",
       "observed_under_required_profile": {
         "match_ratio": null,

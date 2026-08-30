@@ -57,6 +57,10 @@ This manual `workflow_dispatch` gate uses a fresh Windows and Ubuntu runner. It:
 5. runs `TutorialRunSet.ALL_WORKING`;
 6. preserves install, test and tutorial logs.
 
+`ALL_WORKING` includes the three long-running Kaeding qualifications. Each may
+take several hours; this manual gate is intentionally not a normal CI or local
+smoke command.
+
 The full proof is the real release signal for the complete asset profile.
 
 ## Failure triage artefacts

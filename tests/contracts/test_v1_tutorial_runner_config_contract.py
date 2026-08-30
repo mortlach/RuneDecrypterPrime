@@ -103,6 +103,23 @@ def test_single_runner_selects_expected_review_sets() -> None:
     runner.RUN_SET = runner.TutorialRunSet.ALL_WORKING
     assert runner._selected_tutorials() == runner.TUTORIALS
 
+
+def test_long_running_kaeding_tutorials_are_explicitly_isolated() -> None:
+    runner = _runner_module()
+    expected = {
+        'Tutorial_PeriodicSubstitution.py',
+        'Tutorial_PeriodicSubstitution_Simple_P7.py',
+        'Tutorial_PeriodicColumnar_Simple_P7_ColThenSub.py',
+    }
+    assert runner.LONG_RUNNING_KAEDING_TUTORIALS == expected
+    entries = {entry.path: entry for entry in runner.TUTORIALS}
+    for filename in expected:
+        assert entries[filename].run_sets == (runner.TutorialRunSet.FULL_ASSETS,)
+        assert entries[filename].required_asset_profile == 'full_v1'
+        assert 'may take several hours' in (TUTORIAL_DIR / filename).read_text(
+            encoding='utf-8'
+        )
+
 def test_single_runner_final_list_is_documented() -> None:
     runner = _runner_module()
     text = TUTORIAL_INDEX.read_text(encoding='utf-8')

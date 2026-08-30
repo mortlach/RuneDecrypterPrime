@@ -43,3 +43,7 @@ env/
 wheelhouse/
 make_docs_inventory.py
 docs/DOCS_INVENTORY_REVIEW.md
+
+# Local integrated pipeline proving tool (not release material)
+tools/integrity_check/
+tests/tools/test_integrity_check.py

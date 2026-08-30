@@ -16,6 +16,7 @@ if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 N = 29
 TUTORIAL_SEED = 12345
+MIN_MATCH_RATIO = 1.0
 
 def vigenere_map(pt: int, k: int) -> int:
     return (pt + k) % N
@@ -26,7 +27,7 @@ def main() -> None:
     pretty.print_tutorial_contract(name='Vigenere via General Map API', cipher='vigenere general map', solver='beam', direction='rtl', expected_result='exact solve', uses_reference_stop_score=True)
     pt_en = plaintext_english_string
     encoding_dir = api.TextDirection.RIGHT_TO_LEFT
-    pt_idx, wli, _pt_runes = Runeglish.encode_english_to_runes(pt_en, direction=encoding_dir.value)
+    pt_idx, wli, _pt_runes = Runeglish.encode_english_to_runes(pt_en, direction=encoding_dir)
     cipher = api.experimental.define_cipher_map(vigenere_map, alphabet_size=N)
     key_nums = [3, 1, 4, 1, 5, 6]
     stream = [key_nums[i % len(key_nums)] for i in range(len(pt_idx))]
@@ -47,10 +48,17 @@ def main() -> None:
     solve_spec = api.SolverSpec.beam_search(width=24, target_score=stop.stop_score, plateau_rounds=6, plateau_minimum_delta=0.0001, maximum_children_per_parent=16, seed=TUTORIAL_SEED, rounds=0)
     display_spec = api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=cipher, key_space=key_spec, solver=solve_spec, scoring=display_scorer_params, text_direction=encoding_dir, telemetry_enabled=True)
     result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=cipher, key_space=key_spec, solver=solve_spec, scoring=scorer_params, telemetry_enabled=True, text_direction=encoding_dir))
+    recovered = [int(value) for value in result.plaintext]
+    match_ratio = (
+        sum(a == b for a, b in zip(recovered, pt_idx, strict=True)) / len(pt_idx)
+    )
+    print(f'Match ratio: {match_ratio:.3f}')
     pretty.print_summary_spacer()
     api.display.print_result(
         result, spec=display_spec, options=api.display.SummaryOptions.for_tutorial()
     )
+    if match_ratio < MIN_MATCH_RATIO:
+        raise AssertionError('general-map tutorial did not recover exact plaintext')
 
 
 if __name__ == "__main__":

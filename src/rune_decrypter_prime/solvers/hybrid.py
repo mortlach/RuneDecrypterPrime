@@ -148,6 +148,7 @@ class HybridSolver(SolverBase):
         ga_block = self.params.get("ga")
         if isinstance(ga_block, dict):
             g_params.update(ga_block)
+        ga_seed = g_params.pop("seed", None)
         for alias in ("pop_size", "generations", "tournament_k", "elite_frac", "cx_frac", "mut_prob"):
             if alias in self.params and alias not in g_params:
                 g_params[alias] = self.params[alias]
@@ -156,7 +157,11 @@ class HybridSolver(SolverBase):
                 g_params[key] = self.params[key]
         self._inherit_progress_knobs(g_params)
 
-        ga_rng = _child_rng(self.rng, tag=2)
+        ga_rng = (
+            _child_rng(self.rng, tag=2)
+            if ga_seed is None
+            else np.random.default_rng(int(ga_seed))
+        )
         ga = GASolver(
             self.problem,
             opt_cfg=g_params,
@@ -179,6 +184,7 @@ class HybridSolver(SolverBase):
         sa_block = self.params.get("sa")
         if isinstance(sa_block, dict):
             s_params.update(sa_block)
+        sa_seed = s_params.pop("seed", None)
         for alias in ("iters", "T0", "Tmin", "cool", "local_improve_on_accept"):
             if alias in self.params and alias not in s_params:
                 s_params[alias] = self.params[alias]
@@ -187,7 +193,11 @@ class HybridSolver(SolverBase):
                 s_params[key] = self.params[key]
         self._inherit_progress_knobs(s_params)
 
-        sa_rng = _child_rng(self.rng, tag=3)
+        sa_rng = (
+            _child_rng(self.rng, tag=3)
+            if sa_seed is None
+            else np.random.default_rng(int(sa_seed))
+        )
         sa = SASolver(
             self.problem,
             opt_cfg=s_params,

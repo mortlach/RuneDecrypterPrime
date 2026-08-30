@@ -233,8 +233,12 @@ def collect_solver_attempt(
 ) -> dict[str, object]:
     solution = getattr(result, "solution", result)
     report = getattr(result, "solver_report", None)
-    plaintext_idx = as_int_list(getattr(solution, "plaintext_idx", []))
-    plaintext_latin = str(getattr(solution, "plaintext_latin", "") or "")
+    plaintext_idx = as_int_list(
+        getattr(solution, "plaintext_idx", getattr(solution, "plaintext", []))
+    )
+    plaintext_latin = str(
+        getattr(solution, "plaintext_latin", getattr(solution, "plaintext_text", "")) or ""
+    )
     plaintext_runes = str(getattr(solution, "plaintext_rune", "") or "")
     if plaintext_idx and wli is not None and (not plaintext_latin or not plaintext_runes):
         plaintext_latin, plaintext_runes = render_plaintext(plaintext_idx, wli)

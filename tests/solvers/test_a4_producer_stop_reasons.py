@@ -56,6 +56,31 @@ def test_beam_restarts_report_score_selected_restart_metadata() -> None:
     assert beam['selected_restart'] == 0
     assert beam['restart_scores'] == [0.0, 0.0, 0.0]
 
+
+def test_beam_enforces_maximum_children_per_parent() -> None:
+    solver = BeamSolver(
+        _problem(),
+        opt_cfg={
+            'beam_width': 1,
+            'expand_mode': 'sweep',
+            'expand.max_children_per_parent': 3,
+        },
+        rng=np.random.default_rng(8),
+        verbose=False,
+        log_interval=9999,
+    )
+
+    expanded, attempted, parents, children_per_parent = solver._expand_round_safe(
+        np.array([[0, 0]], dtype=np.uint8),
+        np.array([0.0], dtype=np.float64),
+        round_idx=1,
+    )
+
+    assert expanded.shape == (3, 2)
+    assert attempted == 3
+    assert parents == 1
+    assert children_per_parent == 3
+
 def test_kaeding_normal_completion_has_producer_owned_reason() -> None:
     solver = KaedingPeriodicStructuredSolver(_kaeding_problem(), opt_cfg={'steps': 1, 'restarts': 1, 'inner_batch': 2, 'col_every': 0, 'plateau_rounds': 0, 'progress_pct': 0}, rng=np.random.default_rng(5), verbose=False, log_interval=9999)
     solution = solver.solve()

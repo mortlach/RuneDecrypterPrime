@@ -32,7 +32,7 @@ def main() -> None:
     pretty.print_initialising()
     pretty.print_tutorial_contract(name='Autokey robust Beam solve', cipher='autokey', solver='beam', direction=DIRECTION.value, expected_result='exact solve', uses_reference_stop_score=False)
     plaintext = plaintext_english_string
-    pt_idx, wli, _ = Runeglish.encode_english_to_runes(plaintext, direction=DIRECTION.value)
+    pt_idx, wli, _ = Runeglish.encode_english_to_runes(plaintext, direction=DIRECTION)
     seed_length = len(TRUE_SEED)
     cipher_spec = api.CipherSpec.autokey(alphabet_size=29)
     cipher = api.CipherSpec.autokey(alphabet_size=29)

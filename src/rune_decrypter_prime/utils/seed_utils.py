@@ -12,7 +12,7 @@ import math
 import numpy as np
 import itertools
 
-from rune_decrypter_prime.core.types import Direction
+from rune_decrypter_prime.core.types import Direction, TextDirection, ensure_direction
 from rune_decrypter_prime.keyops.permutation_ops import PermutationKeyOps
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.scoring.language_model.language_model_prime import LanguageModelPrime
@@ -29,12 +29,16 @@ def _to_ct_indices(ct: CiphertextLike) -> List[int]:
     return [int(x) for x in arr]
 
 
-def _lm_unigram_probs(A: int = 29, direction: str = "rtl") -> List[float]:
+def _lm_unigram_probs(
+    A: int = 29,
+    direction: Direction | TextDirection | str = Direction.RTL,
+) -> List[float]:
     """Estimate rune 1-gram probabilities via LanguageModelPrime; normalised."""
+    lm_direction = ensure_direction(direction).value
     L = 64
     lm = LanguageModelPrime(lm_root=None, smoothing=None, oov_policy=None, include_char=True)
     pts = [[r] * L for r in range(A)]
-    res = lm.score(pts, None, direction=direction, se="nose", n=1, model="char")
+    res = lm.score(pts, None, direction=lm_direction, se="nose", n=1, model="char")
     raw = [math.exp(s.logprob_sum / L) for s in res]
     Z = sum(raw) or 1.0
     return [x / Z for x in raw]
@@ -63,7 +67,12 @@ def _normalize_perm(key: np.ndarray, A: int) -> np.ndarray:
     return out.astype(np.uint8)
 
 
-def rank_alignment_seed(ct: CiphertextLike, *, A: int = 29, direction: str = "rtl") -> List[int]:
+def rank_alignment_seed(
+    ct: CiphertextLike,
+    *,
+    A: int = 29,
+    direction: Direction | TextDirection | str = Direction.RTL,
+) -> List[int]:
     """
     Build a single ct→pt permutation seed by aligning ciphertext
     frequency ranks to language-model unigram ranks.
@@ -102,7 +111,7 @@ def make_seeds_from_freq(
     swaps_per_key: int = 2,
     seed: int = 12345,
     A: int = 29,
-    direction: str = "rtl",
+    direction: Direction | TextDirection | str = Direction.RTL,
 ) -> List[List[int]]:
     """
     Return a small pool of ct→pt trial keys:
@@ -147,7 +156,7 @@ def make_periodic_seed_pool(
     ct_idx: Sequence[int] | np.ndarray,
     *,
     period: int,
-    direction: str,
+    direction: Direction | TextDirection | str,
     seed: int,
     n_block_seeds: int,
     total_seeds: int,
@@ -158,7 +167,7 @@ def make_periodic_seed_pool(
     Build a deterministic periodic seed pool by seeding each phase separately.
 
     Notes:
-    - `direction` is the encoding direction string ("ltr" / "rtl") used by the scorer.
+    - `direction` is normalised to the engine's typed encoding direction.
     - Returns a list of flattened keys, one per seed candidate.
     - Deterministic: all randomness is sourced from the provided seed.
     """
@@ -240,7 +249,7 @@ def make_periodic_columnar_seed_pool(
     period: int,
     alphabet_size: int = 29,
     columns: int = 13,
-    direction: Direction | str = Direction.RTL,
+    direction: Direction | TextDirection | str = Direction.RTL,
     seed: int = 12345,
     n_keys: int = 48,
     # substitution block seeding
@@ -305,11 +314,7 @@ def make_periodic_columnar_seed_pool(
     if n_keys <= 0:
         return []
 
-    # Normalise direction to the .value used elsewhere (RTL/LTR strings)
-    if isinstance(direction, Direction):
-        dir_value = direction.value
-    else:
-        dir_value = str(direction)
+    engine_direction = ensure_direction(direction)
 
     ct = np.asarray(ciphertext_idx, dtype=np.uint8).reshape(-1)
     rng = np.random.default_rng(int(seed))
@@ -330,7 +335,7 @@ def make_periodic_columnar_seed_pool(
                 swaps_per_key=swaps_per_block,
                 seed=int(seed) + r,
                 A=alphabet_size,
-                direction=dir_value,
+                direction=engine_direction,
             )
             block_seeds.append(seeds_r)
     else:
@@ -342,7 +347,7 @@ def make_periodic_columnar_seed_pool(
             swaps_per_key=swaps_per_block,
             seed=int(seed),
             A=alphabet_size,
-            direction=dir_value,
+            direction=engine_direction,
         )
         for _ in range(period):
             block_seeds.append(global_seeds)
@@ -602,7 +607,7 @@ def make_periodic_columnar_seed_pool_lmprime_sa(
     # (fast, deterministic, no strings, no per-call LM building)
     # ------------------------------------------------------------
     # LM unigram order: most likely plaintext symbols first
-    probs = _lm_unigram_probs(A=A, direction="rtl")  # LMPrime unigram probe already in this file
+    probs = _lm_unigram_probs(A=A, direction=Direction.RTL)  # LMPrime unigram probe already in this file
     pt_order = np.argsort(-np.asarray(probs), kind="mergesort").astype(np.int64, copy=False)
 
     block_seed_lists: list[list[np.ndarray]] = []

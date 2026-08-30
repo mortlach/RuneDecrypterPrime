@@ -1,7 +1,8 @@
 from __future__ import annotations
 import json
+from types import SimpleNamespace
 import numpy as np
-from rune_decrypter_prime.utils.solve_output import as_int_list, json_value, match_ratio, print_block, render_plaintext, write_json_evidence, zero_positions
+from rune_decrypter_prime.utils.solve_output import as_int_list, collect_solver_attempt, json_value, match_ratio, print_block, render_plaintext, write_json_evidence, zero_positions
 
 def test_as_int_list_accepts_plain_and_numpy_values() -> None:
     assert as_int_list([1, '2', 3]) == [1, 2, 3]
@@ -35,3 +36,25 @@ def test_write_json_evidence(tmp_path) -> None:
     path = tmp_path / 'evidence.json'
     write_json_evidence(path, {'b': [1, 2], 'a': 'ok'})
     assert json.loads(path.read_text(encoding='utf-8')) == {'a': 'ok', 'b': [1, 2]}
+
+
+def test_collect_solver_attempt_accepts_canonical_public_result_fields() -> None:
+    result = SimpleNamespace(
+        plaintext=(1, 2, 3),
+        plaintext_text="FUTHORC",
+        key=(7, 11),
+        score=2.5,
+        solver_report=None,
+    )
+    record = collect_solver_attempt(
+        result=result,
+        solver_variant="test",
+        scorer_variant="test",
+        key_length=2,
+        reference_idx=(1, 2, 3),
+        ciphertext_length=3,
+    )
+    assert record["match_ratio"] == 1.0
+    assert record["plaintext_idx_length"] == 3
+    assert record["plaintext_latin"] == "FUTHORC"
+    assert record["status"] == "solved"

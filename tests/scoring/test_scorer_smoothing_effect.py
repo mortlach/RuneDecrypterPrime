@@ -13,6 +13,7 @@ from rune_decrypter_prime.scoring.language_model.paths import (
     load_index,
     expand_pattern,
 )
+from rune_decrypter_prime.scoring.rune_scorer import RuneScorer
 
 
 def _require_char4_joint() -> None:
@@ -34,10 +35,13 @@ def _mk_cipher_cfg(length: int) -> CipherConfig:
     ct = list(range(length))
     return CipherConfig(ciphertext=ct, wli_data=[], key_length=None, device=Device.CPU, encoding_dir=Direction.LTR)
 
-def _mk_avg_scorer(*, smoothing: str) -> object:
-    win = 200 - 3
-    s = api.ScoringConfig(objective=api.advanced.ScoringObjective.average_log_probability(), character_lane_enabled=True, word_length_lane_enabled=False, character_order_weights={4: 1.0}, word_length_order_weights={}, smoothing=api.advanced.SmoothingMethod(smoothing), compute_dtype=api.advanced.FloatDType.FLOAT32)
-    return build_scorer(_mk_cipher_cfg(1000), s)
+def _mk_avg_scorer(
+    *, smoothing: api.advanced.SmoothingMethod
+) -> tuple[RuneScorer, api.ScoringConfig]:
+    s = api.ScoringConfig(objective=api.advanced.ScoringObjective.average_log_probability(), character_lane_enabled=True, word_length_lane_enabled=False, character_order_weights={4: 1.0}, word_length_order_weights={}, smoothing=smoothing, backend=api.advanced.ScorerBackend.NUMPY, compute_dtype=api.advanced.FloatDType.FLOAT32)
+    scorer = build_scorer(_mk_cipher_cfg(1000), s)
+    assert isinstance(scorer, RuneScorer)
+    return scorer, s
 
 @pytest.mark.full_assets
 @pytest.mark.tier_a
@@ -45,9 +49,14 @@ def test_smoothing_choice_changes_scores_for_random_text() -> None:
     _require_char4_joint()
     rng = np.random.default_rng(999)
     x = rng.integers(0, 29, size=200, dtype=np.uint8)
-    scorer_none = _mk_avg_scorer(smoothing='none')
-    scorer_gt = _mk_avg_scorer(smoothing='auto_gt')
+    scorer_none, config_none = _mk_avg_scorer(smoothing=api.advanced.SmoothingMethod.NONE)
+    scorer_gt, config_gt = _mk_avg_scorer(smoothing=api.advanced.SmoothingMethod.AUTO_GOOD_TURING)
+    assert config_none.smoothing is api.advanced.SmoothingMethod.NONE
+    assert config_gt.smoothing is api.advanced.SmoothingMethod.AUTO_GOOD_TURING
+    assert scorer_none._rt.lm.smoothing == 'none'
+    assert scorer_gt._rt.lm.smoothing == 'auto_gt'
     s_none = float(scorer_none.score(x, None))
     s_gt = float(scorer_gt.score(x, None))
     assert np.isfinite(s_none)
     assert np.isfinite(s_gt)
+    assert not np.isclose(s_none, s_gt, rtol=0.0, atol=1e-12)

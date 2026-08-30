@@ -183,7 +183,7 @@ def expand_reduced_key(values: np.ndarray, space: CribConstraintSpace) -> np.nda
 
 def _span(word: str, start: int, direction: Direction) -> CribSpan:
     encoded, _wli, _runes = Runeglish.encode_english_to_runes(
-        word, direction=direction.value
+        word, direction=direction
     )
     return CribSpan(word=word, runes=tuple(int(x) for x in encoded), start=start)
 

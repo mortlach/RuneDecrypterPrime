@@ -148,7 +148,9 @@ def build_tutorial_run_report(
 
     found_key = _int_list(getattr(solution, "key", None))
     expected_key = _int_list(key_idx)
-    plaintext_idx = _int_list(getattr(solution, "plaintext_idx", None))
+    plaintext_idx = _int_list(
+        getattr(solution, "plaintext_idx", getattr(solution, "plaintext", None))
+    )
     ratio = _first_present(benchmark.get("match_ratio"), _match_ratio(plaintext_idx, pt_idx_ref))
     recovered = bool(match_ok) if match_ok is not None else (None if ratio is None else float(ratio) >= 0.97)
 

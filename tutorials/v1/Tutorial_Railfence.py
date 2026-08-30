@@ -38,7 +38,7 @@ def main() -> None:
     pretty.print_tutorial_contract(name='Railfence beam solve', cipher='railfence', solver='beam', direction='rtl', expected_result='exact solve', uses_reference_stop_score=False)
     direction = api.TextDirection.RIGHT_TO_LEFT
     pt_latin = plaintext_english_string
-    reference_idx, wli, pt_runes = Runeglish.encode_english_to_runes(pt_latin, direction=direction.value)
+    reference_idx, wli, pt_runes = Runeglish.encode_english_to_runes(pt_latin, direction=direction)
     cipher_spec = api.CipherSpec.rail_fence(minimum_rails=MIN_RAILS, maximum_rails=MAX_RAILS, alphabet_size=29)
     rail_key = (TRUE_RAILS,)
     ct = api.encrypt(tuple(int(value) for value in reference_idx), cipher=api.CipherSpec.rail_fence(minimum_rails=MIN_RAILS, maximum_rails=MAX_RAILS, alphabet_size=29), key=(int(rail_key[0]),))

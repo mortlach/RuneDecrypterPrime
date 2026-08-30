@@ -65,7 +65,7 @@ def main() -> None:
     pretty.print_rdp_identity()
     pretty.print_initialising()
     pretty.print_tutorial_contract(name='Mono-substitution robust three-attempt GA', cipher='mono substitution', solver='ga', direction=DIRECTION.value, expected_result='human-readable solve', uses_reference_stop_score=False)
-    pt_idx, wli, _ = Runeglish.encode_english_to_runes(plaintext_english_string, direction=DIRECTION.value)
+    pt_idx, wli, _ = Runeglish.encode_english_to_runes(plaintext_english_string, direction=DIRECTION)
     rng = np.random.default_rng(CIPHERTEXT_SEED)
     true_key = rng.permutation(29).astype(np.uint8)
     cipher_spec = api.CipherSpec.substitution(alphabet_size=29)
@@ -81,7 +81,7 @@ def main() -> None:
     print('truth used for selection: no')
     attempts: list[Attempt] = []
     for index, seed in enumerate(ATTEMPT_SEEDS):
-        initial_keys = make_seeds_from_freq(ct_runes.replace(' ', ''), n_keys=SEED_KEYS, swaps_per_key=SEED_SWAPS, seed=seed, direction=DIRECTION.value)
+        initial_keys = make_seeds_from_freq(ct_runes.replace(' ', ''), n_keys=SEED_KEYS, swaps_per_key=SEED_SWAPS, seed=seed, direction=DIRECTION)
         solver = api.SolverSpec.genetic_algorithm(seed=seed, population_size=POP_SIZE, generations=GENERATIONS, elite_fraction=ELITE_FRAC, crossover_fraction=CX_FRAC, mutation_probability=MUT_PROB, tournament_size=TOURNAMENT_K, plateau_generations=PLATEAU_ROUNDS)
         started = time.perf_counter()
         result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=cipher_spec, key_space=api.KeySpec.permutation(length=29), solver=solver, scoring=SCORER_PARAMS, initial_keys=tuple(tuple(int(value) for value in key) for key in initial_keys), telemetry_enabled=True, text_direction=DIRECTION))

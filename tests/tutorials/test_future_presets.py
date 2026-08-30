@@ -8,7 +8,7 @@ pytestmark = pytest.mark.tier_a
 
 def _encode_text(text: str, direction: api.TextDirection):
     from rune_decrypter_prime.utils.runeglish import Runeglish
-    pt_idx, wli, _ = Runeglish.encode_english_to_runes(text, direction=direction.value)
+    pt_idx, wli, _ = Runeglish.encode_english_to_runes(text, direction=direction)
     return (np.asarray(pt_idx, dtype=np.uint8), wli)
 
 def test_hill_is_not_a_public_v1_preset():

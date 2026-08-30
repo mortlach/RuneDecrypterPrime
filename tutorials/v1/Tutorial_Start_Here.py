@@ -19,7 +19,7 @@ if hasattr(sys.stdout, 'reconfigure'):
 
 def _demo_ciphertext() -> Dict[str, Any]:
     encoding_dir = api.TextDirection.RIGHT_TO_LEFT
-    pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(DEMO_TEXT, direction=encoding_dir.value)
+    pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(DEMO_TEXT, direction=encoding_dir)
     key_nums: List[int] = [3, 1, 4, 1]
     encrypted = api.encrypt(tuple(int(value) for value in pt_idx), cipher=api.CipherSpec.vigenere(), key=tuple(int(value) for value in key_nums))
     ct_idx = [int(value) for value in list(encrypted)]

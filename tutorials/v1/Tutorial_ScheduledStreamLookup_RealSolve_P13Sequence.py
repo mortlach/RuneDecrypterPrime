@@ -17,8 +17,13 @@ def _as_int_list(value: object) -> list[int] | None:
         return [int(v) for v in value]
     return None
 
-def _match_ok(found: Sequence[int], expected: Sequence[int]) -> bool:
-    return [int(v) for v in found[:len(expected)]] == [int(v) for v in expected]
+def _match_ratio(found: Sequence[int], expected: Sequence[int]) -> float:
+    if len(found) != len(expected) or not expected:
+        return 0.0
+    return sum(
+        int(actual) == int(wanted)
+        for actual, wanted in zip(found, expected, strict=True)
+    ) / len(expected)
 
 def main() -> None:
     pretty.print_rdp_identity()
@@ -51,11 +56,13 @@ def main() -> None:
     if found_key is None:
         raise AssertionError('real solve did not return a key')
     key_ok = found_key == expected_key
-    plaintext_ok = _match_ok((result.plaintext or []) or [], pt_idx)
+    match_ratio = _match_ratio(result.plaintext, pt_idx)
+    plaintext_ok = match_ratio == 1.0
     print(f'Expected key : {expected_key}')
     print(f'Found key    : {found_key}')
     print(f'Key accepted?: {key_ok}')
     print(f'Plaintext OK?: {plaintext_ok}')
+    print(f'Match ratio: {match_ratio:.3f}')
     pretty.print_summary_spacer()
     api.display.print_result(result, options=api.display.SummaryOptions.for_tutorial())
     if not plaintext_ok:

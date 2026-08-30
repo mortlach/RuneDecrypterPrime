@@ -8,7 +8,7 @@ def build_mono_ciphertext(plaintext: str, *, direction: api.TextDirection=api.Te
     Encode plaintext into runes/WLI, encrypt with a deterministic mono key,
     and return (ciphertext_runes, wli, plaintext_idx, key_forward).
     """
-    pt_idx, wli, _ = Runeglish.encode_english_to_runes(plaintext, direction=direction.value)
+    pt_idx, wli, _ = Runeglish.encode_english_to_runes(plaintext, direction=direction)
     pt_idx = np.asarray(pt_idx, dtype=np.uint8)
     rng = np.random.default_rng(cipher_seed)
     key_forward = rng.permutation(29).astype(np.uint8)

@@ -31,8 +31,8 @@ class _DummyProblem:
 
 class _PreviewSolver(SolverBase):
 
-    def __init__(self):
-        super().__init__(_DummyProblem(), optimizer_name=SolverName.GA, params={'print_progress': True, 'progress_pct': 50, 'progress_preview_chars': 12}, rng=np.random.default_rng(0), seed_keys=None, stop_score=None, verbose=True, log_interval=1)
+    def __init__(self, progress_callback=None):
+        super().__init__(_DummyProblem(), optimizer_name=SolverName.GA, params={'print_progress': True, 'progress_pct': 50, 'progress_preview_chars': 12}, rng=np.random.default_rng(0), seed_keys=None, stop_score=None, verbose=True, log_interval=1, progress_callback=progress_callback)
 
     def _score_batch(self, keys: np.ndarray) -> np.ndarray:
         return np.zeros(keys.shape[0], dtype=np.float32)
@@ -47,3 +47,23 @@ def test_progress_preview_prints_text_snippet(capfd: pytest.CaptureFixture[str])
     out = capfd.readouterr().out
     assert '[ga' in out, f'console progress missing GA prefix: {out!r}'
     assert 'text="' in out, f'plaintext preview missing from console output: {out!r}'
+
+
+def test_progress_callback_is_runtime_state_and_still_receives_progress() -> None:
+    received = []
+    solver = _PreviewSolver(lambda payload, key: received.append((payload, key)))
+    best_key = np.arange(solver.K, dtype=np.uint8)
+
+    solver._progress_pct(
+        current_step=1,
+        total_steps=2,
+        best_score=0.42,
+        evals=10,
+        preview_key=best_key,
+    )
+
+    assert len(received) == 1
+    payload, key = received[0]
+    assert payload['best_score'] == pytest.approx(0.42)
+    assert key == best_key.astype(int).tolist()
+    assert not hasattr(solver.problem.telemetry, 'progress_callback')

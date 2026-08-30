@@ -124,10 +124,14 @@ def main() -> None:
     recovered = (result.plaintext_text or '') or (result.plaintext_text or '')
     print('Recovered plaintext:', preview(str(recovered)))
     print('Score:', round(result.score, 6))
+    match_ratio = _match_ratio(result, pt_idx)
+    print(f'Match ratio: {match_ratio:.3f}')
     pretty.print_summary_spacer()
     api.display.print_result(
         result, spec=display_spec, options=api.display.SummaryOptions.for_tutorial()
     )
+    if match_ratio < MIN_MATCH_RATIO:
+        raise AssertionError(f'SA LTR solve below acceptance threshold: {match_ratio:.3f}')
 
 
 if __name__ == "__main__":

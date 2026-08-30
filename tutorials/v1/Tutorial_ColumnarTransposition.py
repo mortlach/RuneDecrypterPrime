@@ -17,6 +17,7 @@ if hasattr(sys.stdout, 'reconfigure'):
 TUTORIAL_SEED = 12345
 PREVIEW_RUNES = 160
 PREVIEW_IDX = 32
+MIN_MATCH_RATIO = 1.0
 
 def encrypt_columnar(pt: str, key: List[int]) -> str:
     """Row-fill, then read columns in the order given by 'key' (no spaces)."""
@@ -53,7 +54,7 @@ def main() -> None:
     print_options = api.display.PrintOptions.detailed()
     direction = api.TextDirection.RIGHT_TO_LEFT
     pt_en = plaintext_english_string
-    _pt_idx_with_spaces, _wli_pt, pt_runes = Runeglish.encode_english_to_runes(pt_en, direction=direction.value)
+    _pt_idx_with_spaces, _wli_pt, pt_runes = Runeglish.encode_english_to_runes(pt_en, direction=direction)
     pt_runes_nosp = pt_runes.replace(' ', '')
     reference_idx = Runeglish.rune_to_pos(pt_runes_nosp)
     key_true = [3, 6, 1, 4, 2, 0, 5]
@@ -79,10 +80,18 @@ def main() -> None:
     display_spec = api.RunSpec(problem_input=api.RawTextInput(text=ct_runes), cipher=cipher, key_space=key_spec, solver=solve_spec, scoring=display_scorer_params, text_direction=direction, telemetry_enabled=True)
     api.display.print_block(api.display.format_section('Run progress'))
     result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=None), cipher=cipher, key_space=key_spec, solver=solve_spec, scoring=scorer_params, telemetry_enabled=True, text_direction=direction, compute_device=api.ComputeDevice.CPU))
+    recovered = [int(value) for value in result.plaintext]
+    match_ratio = (
+        sum(a == b for a, b in zip(recovered, reference_idx, strict=True))
+        / len(reference_idx)
+    )
+    print(f'Match ratio: {match_ratio:.3f}')
     print()
     api.display.print_result(
         result, spec=display_spec, options=api.display.SummaryOptions.for_tutorial()
     )
+    if match_ratio < MIN_MATCH_RATIO:
+        raise AssertionError('columnar tutorial did not recover exact plaintext')
 
 
 if __name__ == "__main__":

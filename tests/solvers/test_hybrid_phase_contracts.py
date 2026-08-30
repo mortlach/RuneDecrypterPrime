@@ -111,6 +111,33 @@ def test_hybrid_child_phase_rng_streams_repeat_and_are_phase_distinct(monkeypatc
     assert first == second
     assert len({tuple(first[phase]) for phase in ('beam', 'ga', 'sa')}) == 3
 
+
+def test_hybrid_explicit_nested_seeds_own_ga_and_sa_rng_streams(monkeypatch):
+    calls = []
+    draws = {}
+    _patch_phases(
+        monkeypatch,
+        _controlled_phase_classes(
+            calls,
+            beam_result=_result([1, 1], 1.0, beam_keys=[[1, 1]]),
+            ga_result=_result([2, 2], 2.0),
+            sa_result=_result([3, 3], 3.0),
+            rng_draws=draws,
+        ),
+    )
+
+    HybridSolver(
+        _TinyProblem(),
+        opt_cfg={"use_beam": True, "ga": {"seed": 201}, "sa": {"seed": 202}},
+        rng=np.random.default_rng(999),
+        seed_keys=[[0, 0]],
+        verbose=False,
+        log_interval=0,
+    ).solve()
+
+    assert draws["ga"] == np.random.default_rng(201).integers(0, 2 ** 31, size=6).tolist()
+    assert draws["sa"] == np.random.default_rng(202).integers(0, 2 ** 31, size=6).tolist()
+
 def test_small_real_hybrid_route_runs_end_to_end():
     problem = _TinyProblem(key_length=1, modulus=3)
     solution = HybridSolver(problem, opt_cfg={'use_beam': True, 'beam_width': 3, 'rounds': 1, 'expand.parent_mode': 'all', 'ga': {'pop_size': 4, 'generations': 2, 'mut_prob': 0.5}, 'sa': {'iters': 3, 'T0': 0.5, 'Tmin': 0.1, 'cool': 0.8}}, rng=np.random.default_rng(45), seed_keys=[[0]], verbose=False, log_interval=0).solve()

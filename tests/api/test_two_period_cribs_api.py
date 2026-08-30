@@ -84,8 +84,8 @@ def test_real_route_returns_standard_exact_solution_with_installed_assets():
     solver = api.SolverSpec.two_period_cribs(fixed_cribs=tuple(fixed_cribs), starts=1, seed=2026)
     result = api.run(problem_input=api.RuneIndexInput(indices=ciphertext, word_lengths=wli), cipher=cipher, key_space=key, solver=solver, text_direction=api.TextDirection.LEFT_TO_RIGHT)
     assert isinstance(result, api.RunResult)
-    assert result.key == known_key.astype(int).tolist()
-    assert result.plaintext == plaintext.astype(int).tolist()
+    assert result.key == tuple(int(value) for value in known_key)
+    assert result.plaintext == tuple(int(value) for value in plaintext)
     assert result.status.stop_reason is api.advanced.StopReason.CONFIGURED_WORK_LIMIT_REACHED
     assert result.solver_report.details['run_status']['stop_reason'] == 'configured_work_limit_reached'
     assert result.solver_report.solver is api.advanced.SolverKind.TWO_PERIOD_CRIBS

@@ -26,3 +26,8 @@ def test_tutorial_reference_builds_benchmark_summary_from_solution() -> None:
     summary = ref.build_summary(run_kind=TutorialRunKind.REAL_KEY_RECOVERY_BENCHMARK, stop_policy=TutorialStopPolicy(readable_match_ratio=0.8, target_match_ratio=0.99), solution=solution)
     assert summary.match_ratio == 1.0
     assert summary.evals == 12
+
+
+def test_tutorial_reference_accepts_canonical_public_result_plaintext() -> None:
+    ref = TutorialReference.plaintext([1, 2, 3])
+    assert ref.match_ratio(SimpleNamespace(plaintext=(1, 2, 3))) == 1.0

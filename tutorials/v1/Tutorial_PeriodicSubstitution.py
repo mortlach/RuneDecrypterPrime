@@ -4,6 +4,7 @@ from rdp import api
 import sys
 from pathlib import Path
 from dataclasses import dataclass
+from typing import Sequence
 
 _ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / 'src'
@@ -78,13 +79,13 @@ def _build_ciphertext(pt_idx: np.ndarray, wli: list[list[int]], *, period: int, 
     ct_runes = Runeglish.to_rune(list(ct_idx), wli)
     return (ct_idx, ct_runes, key)
 
-def _make_periodic_seeds(ct_idx: np.ndarray, *, period: int, direction: api.TextDirection, seed: int, n_block_seeds: int, total_seeds: int, swaps_per_block: int) -> list[list[int]]:
+def _make_periodic_seeds(ct_idx: Sequence[int], *, period: int, direction: api.TextDirection, seed: int, n_block_seeds: int, total_seeds: int, swaps_per_block: int) -> list[list[int]]:
     rng = np.random.default_rng(seed)
     block_seeds: list[list[list[int]]] = []
     for r in range(period):
         phase_idx = ct_idx[r::period]
-        phase_runes = Runeglish.to_rune(phase_idx.tolist(), wli=None)
-        seeds = make_seeds_from_freq(phase_runes, n_keys=n_block_seeds, swaps_per_key=swaps_per_block, seed=seed + r, A=ALPHABET, direction=direction.value)
+        phase_runes = Runeglish.to_rune([int(value) for value in phase_idx], wli=None)
+        seeds = make_seeds_from_freq(phase_runes, n_keys=n_block_seeds, swaps_per_key=swaps_per_block, seed=seed + r, A=ALPHABET, direction=direction)
         block_seeds.append(seeds)
 
     def _concat(blocks: list[list[int]]) -> list[int]:
@@ -102,8 +103,9 @@ def main() -> None:
     pretty.print_rdp_identity()
     pretty.print_initialising()
     pretty.print_tutorial_contract(name='Periodic substitution', cipher='periodic substitution', solver='hybrid', direction='rtl', expected_result='near-exact solve', uses_reference_stop_score=True)
+    print('Runtime class: LONG-RUNNING KAEDING QUALIFICATION (may take several hours)')
     direction = api.TextDirection.RIGHT_TO_LEFT
-    pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(plaintext_english_string, direction=direction.value)
+    pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(plaintext_english_string, direction=direction)
     pt_idx_arr = np.asarray(pt_idx, dtype=np.uint8)
     print('Periodic substitution problem')
     print(f'encoding direction: {direction.value}')
@@ -129,7 +131,12 @@ def main() -> None:
         stop = oracle_stop_score(pt_idx, wli, scorer_params, device='cpu', encoding_dir=direction, margin=0.02, min_score=0.5, fallback=0.55)
         print_stop_summary(f'PeriodicSub {label}', stop)
         solver = scenario.solver(target_score=stop.stop_score)
-        result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=scorer_params, telemetry_enabled=True, text_direction=direction))
+        initial_keys = (
+            None
+            if seed_keys is None
+            else tuple(tuple(int(value) for value in seed) for seed in seed_keys)
+        )
+        result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=scorer_params, initial_keys=initial_keys, telemetry_enabled=True, text_direction=direction))
         if _match_ratio(result, pt_idx) < 0.999:
             print('Retrying with stronger Kaeding settings...')
             seed_keys = None
@@ -137,15 +144,27 @@ def main() -> None:
                 seed_keys = _make_periodic_seeds(ct_idx, period=period, direction=direction, seed=TUTORIAL_SEED + period + 99, n_block_seeds=scenario.retry_block_seeds, total_seeds=scenario.retry_seed_keys, swaps_per_block=scenario.retry_seed_swaps)
                 print(f'Seed pool (retry): {len(seed_keys)} keys')
             solver = scenario.solver(target_score=stop.stop_score, retry=True)
-            result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=scorer_params, telemetry_enabled=True, text_direction=direction))
+            retry_initial_keys = (
+                None
+                if seed_keys is None
+                else tuple(tuple(int(value) for value in seed) for seed in seed_keys)
+            )
+            result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=scorer_params, initial_keys=retry_initial_keys, telemetry_enabled=True, text_direction=direction))
+        ratio = _match_ratio(result, pt_idx)
         recovered = (result.plaintext_text or '') or (result.plaintext_text or '')
         print('Recovered preview:', _preview(str(recovered)))
+        print(f'Match ratio: {ratio:.3f}')
         display_spec = api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx_list, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=display_scorer_params, text_direction=direction, telemetry_enabled=True)
         pretty.print_summary_spacer()
         api.display.print_result(
             result, spec=display_spec, options=api.display.SummaryOptions.for_tutorial()
         )
         print(f"True key length ({label}): {int(key.size)}")
+        if ratio < MIN_MATCH_RATIO:
+            raise AssertionError(
+                f'{label} periodic substitution solve below acceptance threshold: '
+                f'{ratio:.3f}'
+            )
 
 
 if __name__ == "__main__":

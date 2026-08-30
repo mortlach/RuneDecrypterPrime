@@ -7,7 +7,7 @@ from rune_decrypter_prime.utils.runeglish import Runeglish
 pytestmark = pytest.mark.tier_a
 
 def _encrypt_vigenere(text: str, direction: api.TextDirection, key: np.ndarray):
-    pt_idx, wli, _ = Runeglish.encode_english_to_runes(text, direction=direction.value)
+    pt_idx, wli, _ = Runeglish.encode_english_to_runes(text, direction=direction)
     cipher = api.CipherSpec.vigenere(alphabet_size=29)
     ct_idx = api.encrypt(tuple(int(value) for value in pt_idx), cipher=cipher, key=tuple(int(value) for value in key))
     return (np.asarray(ct_idx, dtype=np.uint8), np.asarray(pt_idx, dtype=np.uint8), wli)

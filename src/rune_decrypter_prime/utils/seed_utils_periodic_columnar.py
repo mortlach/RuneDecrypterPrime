@@ -11,11 +11,38 @@ from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rune_decrypter_prime.core.transpositions import assert_is_permutation
-from rune_decrypter_prime.core.types import Direction, Device, KEY_DTYPE, ensure_direction
+from rune_decrypter_prime.core.types import (
+    Direction,
+    Device,
+    KEY_DTYPE,
+    OutOfVocabularyPolicy,
+    SmoothingMethod,
+    ensure_direction,
+)
 from rune_decrypter_prime.scoring.language_model.language_model_prime import LanguageModelPrime
 
 ALPHABET_SIZE = 29
 _ALLOWED_ORDERS = {"col_then_sub", "sub_then_col"}
+
+
+def _language_model_from_config(cfg: ScoringConfig) -> LanguageModelPrime:
+    smoothing = {
+        SmoothingMethod.NONE: "none",
+        SmoothingMethod.LIDSTONE: "lidstone",
+        SmoothingMethod.JEFFREYS: "jeffreys",
+        SmoothingMethod.AUTO_GOOD_TURING: "auto_gt",
+    }[cfg.smoothing]
+    oov_policy = {
+        OutOfVocabularyPolicy.FLOOR_MINIMUM_SEEN: "floor_min_seen",
+        OutOfVocabularyPolicy.LIDSTONE: "lidstone",
+    }[cfg.out_of_vocabulary_policy]
+    return LanguageModelPrime(
+        lm_root=cfg.language_model_root,
+        smoothing=smoothing,
+        alpha=cfg.smoothing_alpha,
+        oov_policy=oov_policy,
+        include_char=True,
+    )
 
 
 @dataclass(frozen=True)
@@ -32,14 +59,12 @@ class SeedPlan:
 class _RawCharScorer:
     def __init__(self, cfg: ScoringConfig, *, direction: Direction):
         self._direction = ensure_direction(direction)
-        self.lm = LanguageModelPrime(
-            lm_root=getattr(cfg, "model_root", None),
-            smoothing=getattr(cfg, "smoothing", None),
-            alpha=float(getattr(cfg, "alpha", 0.5) or 0.5),
-            oov_policy=getattr(cfg, "oov_policy", None),
-            include_char=True,
+        self.lm = _language_model_from_config(cfg)
+        weights = (
+            dict(cfg.character_order_weights)
+            if cfg.character_order_weights
+            else {3: 0.5, 4: 0.5}
         )
-        weights = dict(cfg.char_weights) if cfg.char_weights else {3: 0.5, 4: 0.5}
         self._weights = {int(n): float(w) for n, w in weights.items() if int(n) > 0 and float(w) > 0.0}
         if not self._weights:
             raise ValueError("char_weights must include at least one positive n-gram weight")
@@ -290,13 +315,7 @@ def _pt_unigram_order(
 
 def _lm_unigram_probs(cfg: ScoringConfig, *, direction: Direction, lm: LanguageModelPrime | None) -> np.ndarray:
     if lm is None:
-        lm = LanguageModelPrime(
-            lm_root=getattr(cfg, "model_root", None),
-            smoothing=getattr(cfg, "smoothing", None),
-            alpha=float(getattr(cfg, "alpha", 0.5) or 0.5),
-            oov_policy=getattr(cfg, "oov_policy", None),
-            include_char=True,
-        )
+        lm = _language_model_from_config(cfg)
     L = 64
     pts = [[r] * L for r in range(ALPHABET_SIZE)]
     res = lm.score(pts, None, direction=direction.value, se="nose", n=1, model="char")

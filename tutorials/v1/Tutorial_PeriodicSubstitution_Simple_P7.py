@@ -59,8 +59,9 @@ def main() -> None:
     pretty.print_rdp_identity()
     pretty.print_initialising()
     pretty.print_tutorial_contract(name='Periodic substitution simple P7', cipher='periodic substitution', solver='hybrid', direction='rtl', expected_result='near-exact solve', uses_reference_stop_score=True)
+    print('Runtime class: LONG-RUNNING KAEDING QUALIFICATION (may take several hours)')
     encoding_dir = api.TextDirection.RIGHT_TO_LEFT
-    pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(plaintext_english_string, direction=encoding_dir.value)
+    pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(plaintext_english_string, direction=encoding_dir)
     pt_idx_arr = np.asarray(pt_idx, dtype=np.uint8)
     print('Periodic substitution simple problem')
     print(f'encoding direction: {encoding_dir.value}')
@@ -73,7 +74,7 @@ def main() -> None:
     print_tutorial_debug_preview(label='ciphertext', idx=[int(v) for v in list(ct_idx)], wli=wli, direction=encoding_dir)
     seed_keys = None
     if USE_SEEDS:
-        seed_keys = make_periodic_seed_pool(ct_idx, period=PERIOD, direction=encoding_dir.value, seed=TUTORIAL_SEED + PERIOD, n_block_seeds=BLOCK_SEEDS, total_seeds=SEED_KEYS, swaps_per_block=SEED_SWAPS, alphabet_size=ALPHABET)
+        seed_keys = make_periodic_seed_pool(ct_idx, period=PERIOD, direction=encoding_dir, seed=TUTORIAL_SEED + PERIOD, n_block_seeds=BLOCK_SEEDS, total_seeds=SEED_KEYS, swaps_per_block=SEED_SWAPS, alphabet_size=ALPHABET)
         print(f'Seed pool: {len(seed_keys)} keys')
     cipher_spec = api.CipherSpec.periodic_substitution(period=PERIOD, alphabet_size=ALPHABET)
     key_spec = api.KeySpec.periodic_substitution(period=PERIOD, alphabet_size=ALPHABET)
@@ -84,9 +85,15 @@ def main() -> None:
     plateau_rounds = max(10, int(SOLVER_STEPS * 0.1))
     solver = api.SolverSpec.kaeding(steps=SOLVER_STEPS, restarts=SOLVER_RESTARTS, inner_batch_size=SOLVER_INNER_BATCH, slip_interval=SOLVER_SLIP_EVERY, slip_blocks=SOLVER_SLIP_BLOCKS, block_schedule=api.advanced.KaedingBlockSchedule.ROUND_ROBIN, plateau_rounds=plateau_rounds, plateau_minimum_delta=0.0001, target_score=stop.stop_score, seed=TUTORIAL_SEED, slip_policy=api.advanced.KaedingSlipPolicy.ON_STALL, stall_rounds=SOLVER_STALL_ROUNDS, stall_slip_limit=SOLVER_STALL_SLIP_LIMIT, slip_swaps=SOLVER_SLIP_SWAPS, stop_after_stall_slip_limit=True)
     display_spec = api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx_list, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=display_scorer_params, text_direction=encoding_dir, telemetry_enabled=True)
-    result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=scorer_params, telemetry_enabled=True, text_direction=encoding_dir))
+    initial_keys = (
+        None
+        if seed_keys is None
+        else tuple(tuple(int(value) for value in seed) for seed in seed_keys)
+    )
+    result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=scorer_params, initial_keys=initial_keys, telemetry_enabled=True, text_direction=encoding_dir))
     ratio = _match_ratio(result, pt_idx)
-    if ratio < 0.999:
+    print(f'Match ratio: {ratio:.3f}')
+    if ratio < MIN_MATCH_RATIO:
         raise RuntimeError(f'Solve failed: match_ratio={ratio:.4f}')
     recovered = (result.plaintext_text or '') or (result.plaintext_text or '')
     print('Recovered preview:', _preview(str(recovered)))
