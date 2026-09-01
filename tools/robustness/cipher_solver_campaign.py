@@ -461,7 +461,10 @@ def campaign_artifact_paths(output: Path) -> tuple[Path, Path]:
 
 def qualification_output_path(mode: str, family: str) -> Path:
     recipe_id = str(resolved_recipe(family).recipe_id)
-    filename = f'{mode}_{recipe_id}_seed{CAMPAIGN_SEED}.jsonl'
+    revision = _git_value('rev-parse', 'HEAD').lower()
+    if not re.fullmatch(r'[0-9a-f]{40,64}', revision):
+        raise ValueError(f'invalid Git revision for qualification output: {revision!r}')
+    filename = f'{mode}_{recipe_id}_seed{CAMPAIGN_SEED}_git{revision}.jsonl'
     return (OUTPUT_ROOT / 'qualifications' / filename).resolve()
 
 def _git_value(*args: str) -> str:

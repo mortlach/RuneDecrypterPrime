@@ -3,12 +3,17 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+import pytest
+
 from tutorials.v1 import Tutorial_PeriodicColumnar_Simple_P7_ColThenSub as tutorial
 from tutorials.v1.data.periodic_columnar_p7_warm_start import (
     QUALIFICATION_CANDIDATE_ID,
     QUALIFICATION_RECIPE_ID,
     QUALIFIED_INITIAL_KEY,
 )
+
+
+pytestmark = pytest.mark.tier_a
 
 
 def test_qualified_tutorial_builds_one_public_non_oracle_run() -> None:

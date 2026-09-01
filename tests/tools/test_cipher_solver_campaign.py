@@ -334,11 +334,18 @@ def test_multiple_attempt_selection_prefers_valid_and_breaks_score_ties_early() 
     tied_later = {'attempt_index': 2, 'valid': True, 'best_score': 0.5}
     assert max((invalid, first, tied_later), key=campaign._selection_key) is first
 
-def test_output_is_external_and_jsonl_schema_is_exact(tmp_path: Path) -> None:
+def test_output_is_external_revision_scoped_and_jsonl_schema_is_exact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     campaign = _campaign()
+    revision = "a" * 40
+    monkeypatch.setattr(campaign, "_git_value", lambda *args: revision)
     output_path = campaign.qualification_output_path('full', 'mono_ga')
     assert not output_path.is_relative_to(ROOT)
-    assert output_path.name == 'full_mono_char2_wli12_3start_v1_seed20260822.jsonl'
+    assert output_path.name == (
+        'full_mono_char2_wli12_3start_v1_seed20260822_'
+        f'git{revision}.jsonl'
+    )
     record = campaign.failure_record('vigenere_beam', 0, 7, RuntimeError('broken'), 0.5)
     assert set(record) == set(campaign.RESULT_FIELDS)
     output = tmp_path / 'result.jsonl'
@@ -346,6 +353,19 @@ def test_output_is_external_and_jsonl_schema_is_exact(tmp_path: Path) -> None:
     assert json.loads(output.read_text(encoding='utf-8')) == json.loads(json.dumps(record))
     campaign.append_record(record, output)
     assert len(output.read_text(encoding='utf-8').splitlines()) == 2
+
+
+def test_qualification_output_revision_prevents_cross_commit_resume(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    campaign = _campaign()
+    monkeypatch.setattr(campaign, "_git_value", lambda *args: "a" * 40)
+    first = campaign.qualification_output_path("full", "vigenere_beam")
+    monkeypatch.setattr(campaign, "_git_value", lambda *args: "b" * 40)
+    second = campaign.qualification_output_path("full", "vigenere_beam")
+
+    assert first != second
+    assert first.parent == second.parent
 
 def test_resume_repairs_partial_tail_without_duplicate_trials(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     campaign = _campaign()
