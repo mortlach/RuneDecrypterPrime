@@ -90,7 +90,7 @@ def test_module_map_source_paths_exist() -> None:
 def test_module_map_covers_top_level_source_packages() -> None:
     text = _read(CODER_MODULE_MAP)
     expected_paths = {
-        "src/rune_decrypter_prime/backends/",
+        "src/rdp/backends/",
         "src/rune_decrypter_prime/ciphers/",
         "src/rune_decrypter_prime/core/",
         "src/rune_decrypter_prime/data/",

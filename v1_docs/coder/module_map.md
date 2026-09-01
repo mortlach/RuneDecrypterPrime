@@ -8,7 +8,7 @@ packages. Importability does not make an engine module public.
 | Source path | Responsibility | Audience |
 | --- | --- | --- |
 | `src/rdp/api/` | Canonical V1 requests, results, operations, display, data, advanced, and experimental namespaces. | Public |
-| `src/rune_decrypter_prime/backends/` | Optional compute-backend selection. | Internal/contributor |
+| `src/rdp/backends/` | Optional compute-backend selection. | Internal/contributor |
 | `src/rune_decrypter_prime/ciphers/` | Runtime cipher implementations and exact materializers. | Internal/contributor |
 | `src/rune_decrypter_prime/core/` | Engine configuration, problem materialization, component contracts, and runtime orchestration. | Internal |
 | `src/rune_decrypter_prime/data/` | Built-in data owners and asset adapters. | Internal except promoted data API |

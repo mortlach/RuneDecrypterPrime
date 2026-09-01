@@ -25,8 +25,8 @@ from rune_decrypter_prime.core.types import (
 from rune_decrypter_prime.telemetry.pipeline import device_request_str
 from rune_decrypter_prime.keyops.registry import create as create_keyops
 from rune_decrypter_prime.io.logging_adapter import module_logger
-from rune_decrypter_prime.backends.xp import select_backend
-from rune_decrypter_prime.backends.xp import to_numpy
+from rdp.backends.xp import select_backend
+from rdp.backends.xp import to_numpy
 from rune_decrypter_prime.telemetry.schema import (
     to_canonical_device_str,  # kept available for callers; unused here
 )

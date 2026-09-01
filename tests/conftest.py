@@ -1,13 +1,15 @@
 from __future__ import annotations
-from rdp import api
 import random
 import sys
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / 'src'
 for path in (ROOT, SRC):
-    if str(path) not in sys.path:
-        sys.path.insert(0, str(path))
+    resolved = str(path)
+    while resolved in sys.path:
+        sys.path.remove(resolved)
+    sys.path.insert(0, resolved)
+from rdp import api
 import pytest
 from rune_decrypter_prime.core.config.logging_config import (
     init_logging,

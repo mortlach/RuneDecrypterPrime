@@ -1,5 +1,5 @@
 # ============================================================
-# rune_decrypter_prime/backends/device.py
+# rdp/backends/device.py
 # Resolve the execution device and return a NumPy-like xp shim.
 # Prefers CUDA (Torch/CuPy) when requested/available; else CPU.
 # ============================================================

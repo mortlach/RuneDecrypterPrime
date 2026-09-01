@@ -42,7 +42,7 @@ from rune_decrypter_prime.scoring.unified_tables import (
 )
 from rune_decrypter_prime.scoring.language_model.language_model_prime_runtime import ECDFCache
 from rune_decrypter_prime.scoring.stat_transform import apply_stat_transform
-from rune_decrypter_prime.backends.xp import select_backend
+from rdp.backends.xp import select_backend
 from rune_decrypter_prime.scoring.base_scorer import BaseScorer
 from rune_decrypter_prime.scoring.objective_normalize import (
     normalize_objective_input as _normalize_objective,

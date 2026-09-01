@@ -1,6 +1,6 @@
 from __future__ import annotations
 import numpy as np
-from rune_decrypter_prime.backends.xp import select_backend
+from rdp.backends.xp import select_backend
 
 A = 29
 
