@@ -69,6 +69,93 @@ AN4 retains deeper physical organisation of engine packages, including ciphers,
 solvers, scoring, key operations, telemetry, data and native-extension ownership.
 AN3 must not perform that reorganisation.
 
+## AN3 closure
+
+AN3 is **PASS and closed** at the accepted local and remote commit:
+
+```text
+f7af2d2d70ae3aab0965b914024a35df2225fb2f
+```
+
+The two disclosed deterministic robustness REVIEW trials are accepted as
+non-blocking qualification-recipe limitations, not API or runtime defects:
+
+- `mono_ga.19`, seed `1799567883`, match ratio
+  `0.33221476510067116`;
+- `generic_map_multiply_beam.12`, seed `65126706`, match ratio
+  `0.2558922558922559`.
+
+Their future recipe refinement is separate from AN4. Beginner tutorial tiering
+is likewise deferred to GitHub issue #4 and is not AN4 work.
+
+## AN4 implementation authority
+
+AN4-P is **READY and closed**. AN4 implementation is authorised from the exact
+accepted AN3 commit above. The approved planning evidence is:
+
+- pack: `AN4_P_REVIEW_PACK_20260901T151832Z_f7af2d2d.zip`;
+- pack SHA-256:
+  `12c1c780e533eaaacb971c31f4c1cf1dd1480e62793599171c8121bf6956f72f`;
+- module move manifest: `an4_module_move_manifest.csv`;
+- module move manifest SHA-256:
+  `ebb66241432e07f0ed8d3c236e89c94f369463d1e83a2adea68dd4d74edc8c7b`;
+- manifest identity: 50 reviewed rows accounting for all 234 tracked files
+  under the old engine package.
+
+`AN4_IMPLEMENTATION_PLAN.md`, the module-move manifest, dependency/consumer
+matrix, native/asset/packaging matrix, test-gate matrix,
+active/historical-documentation matrix, and risks/decisions record in that pack
+are the implementation authority. The pack remains external review evidence;
+it is not copied into the repository.
+
+The reviewed source baseline is:
+
+- `src/rune_decrypter_prime`: 234 tracked files, comprising 191 Python files
+  and 43 other tracked files;
+- `src/rdp`: 30 tracked files, comprising 27 Python files and 3 other tracked
+  files;
+- accepted public surface: exactly 141 paths across the accepted root and four
+  subnamespaces, as snapshotted by
+  `v1_docs/reference/public_api_allowlist.md` at SHA-256
+  `13ab2964ddc40706b0be4b01dac496e6d30005ba98a8117ae1c43bfac19c219a`;
+- 69 public objects have accepted physical implementation-owner
+  (`__module__`) changes during the package movement.
+
+AN4 must preserve all 141 public paths, signatures, enum values, JSON and replay
+values, equality and hashing behaviour. The accepted 69 implementation-owner
+changes do not authorise public-path or schema changes. Old prerelease Python
+pickle module names are not supported and receive no compatibility shim.
+
+The final installed import namespace is only:
+
+```text
+rdp
+```
+
+Its implementation domains are `rdp.api`, `rdp.backends`, `rdp.core`,
+`rdp.ciphers`, `rdp.keyops`, `rdp.solvers`, `rdp.scoring`, `rdp.telemetry`,
+`rdp.data` and `rdp.io`. The distribution name remains
+`rune-decrypter-prime`. There must be no installed `rune_decrypter_prime`
+package, `rdp.utils`, old-name shim, forwarding module, compatibility package,
+duplicate implementation owner or public API expansion.
+
+Implementation proceeds only through the reviewed stages:
+
+1. AN4.0 - authority and baseline;
+2. AN4.1 - leaf ownership;
+3. AN4.2 - core configuration and problem materialisation;
+4. AN4.3 - ciphers and key operations;
+5. AN4.4 - scoring and native extensions;
+6. AN4.5 - solvers, engine and telemetry;
+7. AN4.6 - utility, fixture and support closure;
+8. AN4.7 - final consumer and package cutover;
+9. AN4.8 - installation and complete validation.
+
+Each stage must retain one real owner per implementation, migrate its callers
+and focused tests together, and remain reviewable and green. Package movement
+must not change algorithms or scientific behaviour. No old-name forwarding or
+duplicate ownership may be used to keep an intermediate stage working.
+
 ## Resolved decisions
 
 The machine-readable record is `v1_resolved_decisions.csv`. Its decisions are

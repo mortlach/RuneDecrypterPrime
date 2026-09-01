@@ -31,7 +31,7 @@ These files make those decisions reviewable and machine-checkable.
 - `v1_cleanup_deprecation_ledger.json` - machine-readable cleanup/deprecation ledger
 - `d7_acceptance_test_promotion_status.csv` - acceptance-test promotion status rows
 - `V1_RELEASE_ACCEPTANCE_GATES.md` - human-readable release acceptance gates used by contract tests
-- `V1_AUTHORITY_AND_DECISIONS.md` - final V1 authority hierarchy and human-readable resolved-decision record
+- `V1_AUTHORITY_AND_DECISIONS.md` - final V1 authority hierarchy and human-readable resolved-decision record, including the approved AN4 package-organisation authority
 - `AN3_IMPLEMENTATION_SUMMARY.md` - implementation-stage delivery, validation and known qualification exceptions
 - `AN3_EXTERNAL_REVIEW_REQUEST.md` - focused external-review entry point and requested disposition
 - `v1_resolved_decisions.csv` - machine-readable approved final-integration decisions
@@ -39,6 +39,23 @@ These files make those decisions reviewable and machine-checkable.
 - `V1_ASSET_AND_CI_PROFILES.md` - A1 canonical asset profiles, test markers and workflow tiers
 - `../../../assets_manifest_ci_light_v1.json` - exact source-bundled CI-light asset hashes
 - `PACK09_DEPENDENCY_REVIEW_A1.md` - A1 retained fixture-closure review and refreshed hashes
+
+## Current staged implementation authority
+
+AN3 is **PASS and closed** at
+`f7af2d2d70ae3aab0965b914024a35df2225fb2f`. The two disclosed robustness
+REVIEW trials are accepted non-blocking recipe limitations, and beginner
+tutorial tiering remains deferred to GitHub issue #4.
+
+AN4-P is **READY and closed**. The approved external planning pack is
+`AN4_P_REVIEW_PACK_20260901T151832Z_f7af2d2d.zip`, SHA-256
+`12c1c780e533eaaacb971c31f4c1cf1dd1480e62793599171c8121bf6956f72f`.
+Its reviewed plan and matrices govern the staged AN4.0-AN4.8 physical package
+organisation. The detailed baseline, target, public-surface preservation rules
+and move-manifest identity are recorded in `V1_AUTHORITY_AND_DECISIONS.md`.
+
+The planning pack remains external review evidence. It is not copied into this
+repository or made another documentation authority tree.
 
 ## Human-readable policy/evidence notes
 
