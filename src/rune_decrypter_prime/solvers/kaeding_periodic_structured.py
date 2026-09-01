@@ -49,6 +49,7 @@ class KaedingPeriodicStructuredSolver(SolverBase):
             stop_score=kwargs.get("stop_score"),
             verbose=bool(kwargs.get("verbose", True)),
             log_interval=int(kwargs.get("log_interval", 50)),
+            progress_callback=kwargs.get("progress_callback"),
         )
 
     def _structure_traits(self) -> dict:

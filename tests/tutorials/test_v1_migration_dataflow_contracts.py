@@ -32,12 +32,14 @@ def test_frequency_seed_pools_cross_the_public_run_boundary() -> None:
     assert "initial_keys=initial_keys" in periodic_simple
 
 
-def test_periodic_columnar_preserves_both_stage_handoffs() -> None:
+def test_periodic_columnar_uses_the_qualified_public_warm_start() -> None:
     source = _source("Tutorial_PeriodicColumnar_Simple_P7_ColThenSub.py")
-    assert "generate_seed_keys_periodic_columnar(" in source
-    assert "initial_keys=stage1_initial_keys" in source
-    assert "warm_keys.append(tuple(int(value) for value in stage1.key))" in source
-    assert "initial_keys=tuple(warm_keys) if warm_keys else None" in source
+    assert "from rdp import api" in source
+    assert "initial_keys=(QUALIFIED_INITIAL_KEY,)" in source
+    assert "target_score=None" in source
+    assert "result = api.run(" in source
+    assert "oracle_stop_score" not in source
+    assert "generate_seed_keys_periodic_columnar" not in source
 
 
 def test_long_running_kaeding_tutorials_are_labelled_in_the_manifest() -> None:

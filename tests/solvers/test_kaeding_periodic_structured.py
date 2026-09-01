@@ -42,6 +42,21 @@ def test_kaeding_emits_progress_fields():
     assert set(tel['kaeding']['per_phase']) == {'0', '1'}
     freeze_parameter_items(tel, 'telemetry')
 
+def test_kaeding_forwards_progress_callback():
+    received = []
+    problem = _make_periodic_problem()
+    solver = KaedingPeriodicStructuredSolver(
+        problem,
+        opt_cfg={'steps': 4, 'restarts': 1, 'inner_batch': 4, 'col_every': 0},
+        rng=np.random.default_rng(0),
+        progress_callback=lambda payload, key: received.append((payload, key)),
+    )
+
+    solver.solve()
+
+    assert received
+    assert received[-1][0]['pct'] == 100
+
 def test_kaeding_rejects_non_structured_keyops():
     cfg = CipherConfig(ciphertext=[0, 1, 2], wli_data=[], key_length=3, name='substitution', alphabet_size=3)
     cipher = SubstitutionCipher(cfg)

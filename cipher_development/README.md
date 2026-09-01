@@ -42,6 +42,31 @@ deliberately one-case replay only; run its 20-case qualification through
 |---|---|---|---|
 | `autokey` | Replays one deterministic case with the canonical qualified Autokey Beam recipe | `ci_light` | Use `tools/robustness` for 20 cases |
 | `two_period_pack09` | Preserves the final Pack 09 P13/P31 d30 scientific fixture | `ci_light` | `full_v1` |
+| `periodic_columnar_staged` | Qualified the P7/C7 RTL periodic-columnar solve through deterministic head reduction, exhaustive C7 tails and one integrated refinement | `full_v1` | `periodic_columnar_decomposed_v2` |
+
+The periodic-columnar qualification uses the same single entry point as every
+retained development experiment. Set its constants to:
+
+```python
+EXPERIMENT = "periodic_columnar_staged"
+MODE = "development"
+SEED = 12345
+```
+
+Then run:
+
+```text
+python -X utf8 cipher_development/run_experiment.py
+```
+
+It fixes the recipe in source and enforces a 60-minute wall-clock limit.
+Standard output and errors are mirrored to the visible terminal and to a
+timestamped transcript under
+`run_outputs/tests/cipher_development/`. Search-visible evidence contains
+no benchmark truth; exact recovery is assessed only in the separate terminal
+evaluation artifact. The retained qualification recovered all 2,489 plaintext
+symbols in 36 minutes 38 seconds; full evidence and hashes are recorded in the
+workflow README.
 
 Autokey obtains its scorer, Beam budget, restart count, seed handling and
 acceptance rule directly from `CAMPAIGN_RECIPES`. It does not redefine them.

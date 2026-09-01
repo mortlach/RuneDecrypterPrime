@@ -12,11 +12,11 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def test_documented_experiments_match_entry_point_registry() -> None:
     text = (ROOT / 'cipher_development' / 'README.md').read_text(encoding='utf-8')
-    assert set(entry.EXPERIMENTS) == {'autokey', 'two_period_pack09'}
+    assert set(entry.EXPERIMENTS) == {'autokey', 'two_period_pack09', 'periodic_columnar_staged'}
     assert all((f'`{name}`' in text for name in entry.EXPERIMENTS))
 
 def test_every_retained_experiment_imports() -> None:
-    modules = ('cipher_development.autokey_search.experiment', 'cipher_development.two_period_overlay.pack09')
+    modules = ('cipher_development.autokey_search.experiment', 'cipher_development.two_period_overlay.pack09', 'cipher_development.periodic_columnar_staged.qualification')
     assert all((importlib.import_module(name) for name in modules))
 
 def test_unknown_experiment_and_mode_fail_clearly(tmp_path: Path) -> None:
@@ -64,6 +64,34 @@ def test_entry_point_prints_resolved_configuration(tmp_path: Path, monkeypatch: 
     output = capsys.readouterr().out
     for expected in ('experiment: test', 'mode: smoke', 'recipe/profile: test_recipe_v1', 'seed: 7', 'asset profile: ci_light', str(tmp_path.resolve())):
         assert expected in output
+
+def test_main_mirrors_success_and_failure_to_external_transcripts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    success_log = tmp_path / "success.log"
+    monkeypatch.setattr(entry, "TRANSCRIPT_LOCATION", tmp_path)
+    monkeypatch.setattr(entry, "_transcript_path", lambda: success_log)
+    monkeypatch.setattr(entry, "run_selected", lambda: print("completed output"))
+
+    assert entry.main() == 0
+    success = success_log.read_text(encoding="utf-8")
+    assert "completed output" in success
+    assert "transcript retained:" in success
+
+    failure_log = tmp_path / "failure.log"
+    monkeypatch.setattr(entry, "_transcript_path", lambda: failure_log)
+
+    def fail() -> None:
+        print("output before failure")
+        raise RuntimeError("deliberate transcript test")
+
+    monkeypatch.setattr(entry, "run_selected", fail)
+    assert entry.main() == 1
+    failure = failure_log.read_text(encoding="utf-8")
+    assert "output before failure" in failure
+    assert "RuntimeError: deliberate transcript test" in failure
+    assert "transcript retained after execution failure:" in failure
 
 def test_pack09_declares_full_asset_development_boundary() -> None:
     definition = entry.EXPERIMENTS['two_period_pack09']

@@ -115,9 +115,11 @@ ci_light -> TutorialRunSet.CI_LIGHT
 full_v1 -> TutorialRunSet.ALL_WORKING
 ```
 
-`ALL_WORKING` includes three explicitly labelled Kaeding qualifications that
-may each take several hours. Use it only for the manual full proof, not routine
-local validation.
+`ALL_WORKING` includes three explicitly labelled Kaeding qualifications. The
+qualification-derived periodic-columnar tutorial is expected to take roughly
+40 minutes on the qualified machine; the other Kaeding tutorials may take
+several hours. Use this set only for the manual full proof, not routine local
+validation.
 
 The normal local full-profile command remains:
 

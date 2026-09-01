@@ -19,15 +19,19 @@ CONSOLE_OUTPUT = ConsoleOutput.FULL
 
 ## Long-running Kaeding qualifications
 
-These full-assets tutorials may each take several hours. They are excluded from
-the normal `FAST`, `RELEASE`, `EXTENDED`, and `CI_LIGHT` run sets:
+These full-assets tutorials are excluded from the normal `FAST`, `RELEASE`,
+`EXTENDED`, and `CI_LIGHT` run sets:
 
 - `Tutorial_PeriodicSubstitution.py`
 - `Tutorial_PeriodicSubstitution_Simple_P7.py`
 - `Tutorial_PeriodicColumnar_Simple_P7_ColThenSub.py`
 
 Selecting `FULL_ASSETS` or `ALL_WORKING` includes them and prints an explicit
-long-running warning before execution begins.
+long-running warning before execution begins. The periodic-columnar tutorial is
+the public-API exploitation half of the qualified decomposed workflow: it uses
+one score-selected non-answer warm key, one restart, no target/oracle stop, and
+took approximately 40 minutes on the qualification machine. Candidate discovery
+remains in `cipher_development/periodic_columnar_staged/`.
 
 ## Final V1 List
 
