@@ -12,6 +12,9 @@ The pack includes small files from:
 - `tests/`
 - `docs/`
 - `tutorials/`
+- `solving/`
+- `cipher_development/`
+- `tools/`
 - `.github/workflows/`
 
 It also includes only allow-listed root files:
@@ -37,7 +40,9 @@ The manifest field `root_file_selection` must be:
 strict_root_allowlist_filtered_by_review_pack_rules
 ```
 
-The tool itself, `tools/release_review_pack.py`, is included so reviewers can see exactly how the pack was produced.
+Tracked small tooling is included so reviewers can inspect release, install,
+robustness and evidence-generation behaviour. The pack generator itself,
+`tools/release_review_pack.py`, is therefore also visible.
 
 Small `src/.../data/...` files are allowed when they pass the suffix and size filters. This is deliberate: small import-critical files such as baseline registries should not disappear from review packs just because they live below a `data` directory.
 

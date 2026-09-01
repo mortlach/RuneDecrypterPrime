@@ -29,8 +29,11 @@ def test_release_review_pack_includes_review_contract_files_and_small_data(tmp_p
     _write(repo / 'tests' / 'core' / 'test_core.py', 'def test_ok():\n    pass\n')
     _write(repo / 'docs' / 'release_contracts' / 'v1' / 'd4_contract_closure.md', '# D4\n')
     _write(repo / 'tutorials' / 'v1' / 'run_tutorials.py', "print('tutorials')\n")
+    _write(repo / 'solving' / 'solved_lp' / 'run_all.py', "print('solved LP')\n")
+    _write(repo / 'cipher_development' / 'run_experiment.py', "print('experiment')\n")
     _write(repo / '.github' / 'workflows' / 'rdp_v1_full_proof.yml', 'name: proof\n')
     _write(repo / 'tools' / 'release_review_pack.py', '# tool copy\n')
+    _write(repo / 'tools' / 'robustness' / 'cipher_solver_campaign.py', '# campaign\n')
     _write(repo / 'output' / 'test_logs' / 'full_pytest.log', 'NOPE\n')
     _write(repo / 'assets' / 'lm2.zst', 'NOPE\n')
     _write(repo / 'planning' / 'private.md', 'NOPE\n')
@@ -63,8 +66,11 @@ def test_release_review_pack_includes_review_contract_files_and_small_data(tmp_p
     assert 'tests/core/test_core.py' in names
     assert 'docs/release_contracts/v1/d4_contract_closure.md' in names
     assert 'tutorials/v1/run_tutorials.py' in names
+    assert 'solving/solved_lp/run_all.py' in names
+    assert 'cipher_development/run_experiment.py' in names
     assert '.github/workflows/rdp_v1_full_proof.yml' in names
     assert 'tools/release_review_pack.py' in names
+    assert 'tools/robustness/cipher_solver_campaign.py' in names
     assert 'output/test_logs/full_pytest.log' not in names
     assert 'assets/lm2.zst' not in names
     assert 'planning/private.md' not in names

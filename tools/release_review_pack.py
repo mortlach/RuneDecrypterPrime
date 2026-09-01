@@ -10,7 +10,16 @@ OUTPUT_ROOT = REPO_ROOT / 'output' / 'tools' / 'release_review_pack'
 ZIP_STEM = 'rdp_v1_review_pack'
 MAX_FILE_BYTES = 256 * 1024
 ROOT_FILE_NAMES: tuple[str, ...] = ('AGENTS.md', '.gitattributes', '.gitignore', 'CONTRIBUTING.md', 'README.md', 'CHANGELOG.md', 'LICENSE', 'LICENSE.txt', 'LICENSE_MIT.txt', 'MANIFEST.in', 'pyproject.toml', 'pytest.ini', 'requirements.txt', 'install.py', 'install.bat', 'install.ps1', 'install.sh', 'assets_manifest_v1.json', 'setup.py')
-REVIEW_DIRS: tuple[str, ...] = ('src', 'tests', 'docs', 'tutorials', '.github/workflows')
+REVIEW_DIRS: tuple[str, ...] = (
+    'src',
+    'tests',
+    'docs',
+    'tutorials',
+    'solving',
+    'cipher_development',
+    'tools',
+    '.github/workflows',
+)
 REVIEW_TOOL_FILES: tuple[str, ...] = ('tools/release_review_pack.py',)
 EXCLUDED_DIR_NAMES = frozenset({'.git', '.idea', '.mypy_cache', '.pytest_cache', '.ruff_cache', '.venv', '.vscode', '__pycache__', 'assets', 'build', 'dist', 'node_modules', 'output', 'planning', 'venv'})
 EXCLUDED_SUFFIXES = frozenset({'.7z', '.bin', '.bz2', '.dll', '.dylib', '.exe', '.gz', '.jpg', '.jpeg', '.npy', '.npz', '.o', '.obj', '.pdb', '.png', '.pyc', '.pyd', '.pyo', '.so', '.tar', '.webp', '.whl', '.zip', '.zst'})

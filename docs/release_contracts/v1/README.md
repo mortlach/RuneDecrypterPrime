@@ -32,6 +32,8 @@ These files make those decisions reviewable and machine-checkable.
 - `d7_acceptance_test_promotion_status.csv` - acceptance-test promotion status rows
 - `V1_RELEASE_ACCEPTANCE_GATES.md` - human-readable release acceptance gates used by contract tests
 - `V1_AUTHORITY_AND_DECISIONS.md` - final V1 authority hierarchy and human-readable resolved-decision record
+- `AN3_IMPLEMENTATION_SUMMARY.md` - implementation-stage delivery, validation and known qualification exceptions
+- `AN3_EXTERNAL_REVIEW_REQUEST.md` - focused external-review entry point and requested disposition
 - `v1_resolved_decisions.csv` - machine-readable approved final-integration decisions
 - `v1_final_integration_baseline.json` - reviewed repository, branch and source-snapshot baseline
 - `V1_ASSET_AND_CI_PROFILES.md` - A1 canonical asset profiles, test markers and workflow tiers
