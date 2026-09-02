@@ -1,4 +1,4 @@
-# rune_decrypter_prime/keyops/vector.py
+# rdp/keyops/vector.py
 from __future__ import annotations
 
 from dataclasses import dataclass, is_dataclass
@@ -9,7 +9,6 @@ import numpy as np
 from rdp.core.types import KeyOpsFamily
 from rdp.io.rng import RNGController
 from .base_keyops import KeyOpBase, KeyCaps
-from .registry import register_keyop
 
 # --- Helper RNG adapters (support both Generator and RandomState gracefully) --
 def _rng_integers(rng, low: int, high: int, size=None):
@@ -31,7 +30,6 @@ class VectorKeyConfig:
     minimum: int = 0
     # future traits can go here (e.g., per-position step); keep simple for now
 
-@register_keyop(KeyOpsFamily.VECTOR)
 class VectorKeyOps(KeyOpBase):
     """
     Additive vector key over Z_mod of fixed length K.

@@ -3,8 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 from rdp.core.types import KeyOpsFamily
-from rune_decrypter_prime.keyops.base_keyops import KeyCaps, KeyOpBase
-from rune_decrypter_prime.keyops.registry import create, register_keyop, get
+from rdp.keyops.base_keyops import KeyCaps, KeyOpBase
+from rdp.keyops.registry import create, get, register_keyop
 
 pytestmark = pytest.mark.tier_a
 

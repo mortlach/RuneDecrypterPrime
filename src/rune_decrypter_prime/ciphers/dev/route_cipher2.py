@@ -1,8 +1,8 @@
 # rune_decrypter_prime/ciphers/route_cipher.py
 from __future__ import annotations
-from rune_decrypter_prime.keyops.permutation_ops import PermutationKeyOps,  PermutationKeyConfig
+from rdp.keyops.permutation_ops import PermutationKeyConfig, PermutationKeyOps
 from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin, ArrayU8
-from rune_decrypter_prime.keyops import PermutationKeyOps, PermutationKeyConfig
+from rdp.keyops.permutation_ops import PermutationKeyConfig, PermutationKeyOps
 import numpy as np
 
 class RouteCipher(CipherPipelineMixin):

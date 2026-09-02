@@ -1,7 +1,7 @@
 # rune_decrypter_prime/ciphers/double_transposition_cipher.py
 from __future__ import annotations
 import numpy as np
-from rune_decrypter_prime.keyops.permutation_ops import PermutationOps
+from rdp.keyops.permutation_ops import PermutationOps
 from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin, ArrayU8
 
 class _ConcatPermKeyOps:

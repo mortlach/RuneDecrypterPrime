@@ -1,5 +1,5 @@
 import numpy as np
-from rune_decrypter_prime.keyops import VectorKeyOps, VectorKeyConfig
+from rdp.keyops.vector import VectorKeyConfig, VectorKeyOps
 import pytest
 pytestmark = [pytest.mark.tier_a]
 

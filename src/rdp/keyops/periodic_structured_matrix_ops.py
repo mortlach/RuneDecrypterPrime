@@ -1,11 +1,12 @@
-# rune_decrypter_prime/keyops/periodic_structured_matrix_ops.py
+# rdp/keyops/periodic_structured_matrix_ops.py
+"""Structured periodic and periodic-columnar key operations."""
+
 from __future__ import annotations
 from typing import Any, Optional
 import numpy as np
 
 from rdp.core.types import KeyOpsFamily, KEY_DTYPE
-from rune_decrypter_prime.keyops.base_keyops import KeyOpBase, KeyCaps
-from rune_decrypter_prime.keyops.registry import register_keyop
+from .base_keyops import KeyOpBase, KeyCaps
 
 
 def _rng_integers(rng, low: int, high: int, size=None):
@@ -69,7 +70,6 @@ def _ox(a: np.ndarray, b: np.ndarray, rng) -> np.ndarray:
     return child
 
 
-@register_keyop(KeyOpsFamily.MATRIX)
 class PeriodicStructuredMatrixKeyOps(KeyOpBase):
     """
     Structured key:

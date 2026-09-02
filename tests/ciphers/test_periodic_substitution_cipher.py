@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from rdp.core.config.cipher import CipherConfig
 from rune_decrypter_prime.ciphers.periodic_substitution_cipher import PeriodicSubstitutionCipher
-from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
+from rdp.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
 pytestmark = pytest.mark.tier_a
 
 def _ref_periodic_decrypt(ct: np.ndarray, key: np.ndarray, period: int, A: int) -> np.ndarray:

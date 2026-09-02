@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 from rdp.core.types import Device, Direction, ObjectiveFamily, ObjectiveSpec, Stat
-from rune_decrypter_prime.keyops.vector import VectorKeyOps
+from rdp.keyops.vector import VectorKeyOps
 from rune_decrypter_prime.solvers.hybrid import HybridSolver
 pytestmark = pytest.mark.tier_a
 

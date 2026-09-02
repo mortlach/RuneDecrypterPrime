@@ -4,8 +4,8 @@ and legacy RandomState, since users may pass either.
 """
 import numpy as np
 import pytest
-from rune_decrypter_prime.keyops.registry import create
-from rune_decrypter_prime.keyops import VectorKeyOps
+from rdp.keyops.registry import create
+from rdp.keyops.vector import VectorKeyOps
 
 @pytest.mark.parametrize('rng_kind', ['generator', 'randomstate'])
 def test_vector_ops_accept_both_rng_kinds(rng_kind):

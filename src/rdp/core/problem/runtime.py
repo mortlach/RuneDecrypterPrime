@@ -23,7 +23,7 @@ from rdp.core.types import (
     KEY_DTYPE,
 )
 from rdp.telemetry.pipeline import device_request_str
-from rune_decrypter_prime.keyops.registry import create as create_keyops
+from rdp.keyops.registry import create as create_keyops
 from rdp.io.logging_adapter import module_logger
 from rdp.backends.xp import select_backend
 from rdp.backends.xp import to_numpy

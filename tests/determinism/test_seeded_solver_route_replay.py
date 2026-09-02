@@ -8,7 +8,7 @@ from rune_decrypter_prime.ciphers.periodic_substitution_cipher import PeriodicSu
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.types import Device, Direction, ObjectiveFamily, ObjectiveSpec, Stat
-from rune_decrypter_prime.keyops.vector import VectorKeyOps
+from rdp.keyops.vector import VectorKeyOps
 from rune_decrypter_prime.solvers.hybrid import HybridSolver
 from rune_decrypter_prime.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
 from rune_decrypter_prime.solvers.sa import SASolver

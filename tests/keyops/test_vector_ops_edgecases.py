@@ -7,8 +7,8 @@ Edge cases clarify contracts and prevent "works on my data" regressions.
 """
 import numpy as np
 import pytest
-from rune_decrypter_prime.keyops.registry import create
-from rune_decrypter_prime.keyops import VectorKeyOps
+from rdp.keyops.registry import create
+from rdp.keyops.vector import VectorKeyOps
 
 def test_partial_mask_boundaries_and_errors():
     K, L = (4, 10)

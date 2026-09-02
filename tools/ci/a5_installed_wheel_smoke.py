@@ -18,7 +18,7 @@ REQUIRED_MODULES = (
 )
 BLOCKED_MODULES = (
     "rune_decrypter_prime.ciphers.dev",
-    "rune_decrypter_prime.keyops.dev",
+    "rdp.keyops.dev",
     "rune_decrypter_prime.data.liber_primus.old",
 )
 PUBLIC_API_ALLOWLIST = (

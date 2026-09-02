@@ -1,5 +1,5 @@
 import numpy as np
-from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
+from rdp.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
 
 def _assert_perm(block: np.ndarray, size: int) -> None:
     assert np.array_equal(np.sort(block.astype(np.int64)), np.arange(size, dtype=np.int64))

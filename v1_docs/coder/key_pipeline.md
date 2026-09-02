@@ -3,8 +3,8 @@
 Status: staged V1 draft
 
 Owner paths:
-- `src/rune_decrypter_prime/api/specs.py`
-- `src/rune_decrypter_prime/keyops/`
+- `src/rdp/api/key_spec.py`
+- `src/rdp/keyops/`
 - `src/rdp/core/types.py`
 - `src/rdp/core/problem/runtime.py`
 
@@ -45,12 +45,12 @@ solvers can use without knowing cipher details.
 
 | Object | Owner path | Role |
 | --- | --- | --- |
-| `KeySpec` | `src/rune_decrypter_prime/api/specs.py` | Public declarative key plan. |
+| `KeySpec` | `src/rdp/api/key_spec.py` | Public declarative key plan. |
 | `KeyOpsFamily` | `src/rdp/core/types.py` | Canonical runtime family enum. |
-| `KeyCaps` | `src/rune_decrypter_prime/keyops/base_keyops.py` | Capability description for a keyops class. |
-| `KeyOpBase` | `src/rune_decrypter_prime/keyops/base_keyops.py` | Base class and verb registry. |
-| keyops registry | `src/rune_decrypter_prime/keyops/registry.py` | Constructs keyops by family. |
-| concrete keyops | `src/rune_decrypter_prime/keyops/` | Implement family-specific key verbs. |
+| `KeyCaps` | `src/rdp/keyops/base_keyops.py` | Capability description for a keyops class. |
+| `KeyOpBase` | `src/rdp/keyops/base_keyops.py` | Base class and verb registry. |
+| keyops registry | `src/rdp/keyops/registry.py` | Constructs keyops by family. |
+| concrete keyops | `src/rdp/keyops/` | Implement family-specific key verbs. |
 
 ## How It Fits Into A Run
 
@@ -97,6 +97,5 @@ truth keys as production ranking inputs.
 ## What Not To Rely On
 
 - Internal keyops repair helpers.
-- Development keyops under `src/rune_decrypter_prime/keyops/dev/` unless
-  promoted explicitly.
+- Deleted development key-operation experiments from Git history.
 - Direct mutation of private `KeySpec` fields such as `_align_offset`.

@@ -5,8 +5,9 @@ Contract: the public keyops registry advertises available families and
 import numpy as np
 import pytest
 from rdp.core.types import KeyOpsFamily
-from rune_decrypter_prime.keyops.registry import create, available
-from rune_decrypter_prime.keyops import PermutationKeyOps, VectorKeyOps
+from rdp.keyops.permutation_ops import PermutationKeyOps
+from rdp.keyops.registry import available, create
+from rdp.keyops.vector import VectorKeyOps
 
 def test_available_lists_core_families():
     fams = set(available())

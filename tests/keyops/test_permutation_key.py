@@ -1,5 +1,5 @@
 import numpy as np
-from rune_decrypter_prime.keyops import PermutationKeyOps, PermutationKeyConfig
+from rdp.keyops.permutation_ops import PermutationKeyConfig, PermutationKeyOps
 import pytest
 pytestmark = [pytest.mark.tier_a]
 

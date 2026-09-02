@@ -5,8 +5,8 @@ given RNG seed. All verbs return uint8 arrays with correct shapes.
 """
 import numpy as np
 import pytest
-from rune_decrypter_prime.keyops.registry import create
-from rune_decrypter_prime.keyops import VectorKeyOps
+from rdp.keyops.registry import create
+from rdp.keyops.vector import VectorKeyOps
 
 def test_random_and_mutate_bounds_and_types():
     K, MOD = (8, 29)

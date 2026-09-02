@@ -1,7 +1,7 @@
 # rune_decrypter_prime/ciphers/block_permutation_cipher.py
 from __future__ import annotations
 import numpy as np
-from rune_decrypter_prime.keyops.permutation_ops import PermutationOps
+from rdp.keyops.permutation_ops import PermutationOps
 from .pipeline import CipherPipelineMixin, ArrayU8
 
 class BlockPermutationCipher(CipherPipelineMixin):

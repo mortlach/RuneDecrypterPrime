@@ -33,8 +33,8 @@ Use these tests as a template when designing your own permutation-style KeyOps.
 """
 import numpy as np
 from rdp.core.types import KEY_DTYPE
-from rune_decrypter_prime.keyops.registry import create
-from rune_decrypter_prime.keyops import PermutationKeyOps
+from rdp.keyops.permutation_ops import PermutationKeyOps
+from rdp.keyops.registry import create
 
 def _is_perm(arr: np.ndarray) -> bool:
     """Quick invariant: 1-D KEY_DTYPE and a true permutation of 0..K-1."""

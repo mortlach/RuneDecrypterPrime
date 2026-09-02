@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from rdp.core.config.cipher import CipherConfig
 from rune_decrypter_prime.ciphers.periodic_columnar_cipher import PeriodicColumnarCipher
-from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
+from rdp.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
 pytestmark = pytest.mark.tier_a
 
 def _make_cfg(period: int, A: int, columns: int, order: str) -> CipherConfig:

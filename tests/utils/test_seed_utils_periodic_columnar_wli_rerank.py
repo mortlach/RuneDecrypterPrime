@@ -7,7 +7,7 @@ from rdp.core.types import (
     Device,
     Direction,
 )
-from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import (
+from rdp.keyops.periodic_structured_matrix_ops import (
     PeriodicStructuredMatrixKeyOps,
 )
 from rdp.data.runeglish import Runeglish

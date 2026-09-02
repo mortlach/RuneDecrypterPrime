@@ -9,9 +9,9 @@ A5 hardens the V1 release boundary; it does not introduce a second release frame
 - Wheel/sdist asset staging is allowlist-based. A developer's locally downloaded full LM1-LM4 tree is never swept into an artifact by a recursive asset glob.
 - Installed-wheel lookup resolves those staged package assets only; it does not search CWD/home/env locations.
 - Complete external LM1-LM4 data remains explicit through the existing `model_root` contract.
-- `ciphers.dev`, `keyops.dev`, and `data.liber_primus.old` remain repository development/history material and are excluded from the distributable Python package/sdist.
+- `ciphers.dev` and `data.liber_primus.old` remain repository development/history material and are excluded from the distributable Python package/sdist. The obsolete `keyops.dev` tree was deleted during AN4 rather than retained in either installed namespace.
 - Production KeyOps registration is strict and deterministic; duplicate registration is an error unless replacement is explicit.
-- The development `MatrixKey` must not register itself as the production MATRIX family.
+- The production MATRIX family is owned only by `rdp.keyops.periodic_structured_matrix_ops.PeriodicStructuredMatrixKeyOps`.
 - Source ZIP members use frozen metadata so identical source bytes create identical archive bytes.
 - Release qualification is claimed for Python 3.11 on Windows and Ubuntu/Linux; metadata may permit newer Python without claiming it has been qualified.
 

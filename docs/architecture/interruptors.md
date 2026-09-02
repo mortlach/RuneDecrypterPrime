@@ -123,7 +123,7 @@ TODO: Document the conversion rules for `index_space="core"` and
   (not required; config validation lives in core)
 - `src/rdp/core/problem/runtime.py`
   Resolve interruptor indices, split key, and pass to decrypt.
-- `src/rune_decrypter_prime/keyops/*`
+- `src/rdp/keyops/*`
   Add a KeyOps family or composite mechanism for interruptor selection.
 - `src/rune_decrypter_prime/solvers/solver_base.py`
   Optional hooks for brute-force expansions when enabled.

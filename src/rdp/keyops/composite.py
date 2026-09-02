@@ -1,4 +1,4 @@
-# rune_decrypter_prime/keyops/composite.py
+# rdp/keyops/composite.py
 from __future__ import annotations
 
 from dataclasses import dataclass, is_dataclass
@@ -6,10 +6,12 @@ from typing import Any, Optional, Sequence
 
 import numpy as np
 
-from rdp.core.types import KeyOpsFamily, KEY_DTYPE
+from rdp.core.types import KeyOpsFamily, KEY_DTYPE, ensure_keyops_family
 from rdp.io.rng import RNGController
 from .base_keyops import KeyOpBase, KeyCaps
-from .registry import register_keyop
+from .periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
+from .permutation_ops import PermutationKeyOps
+from .vector import VectorKeyOps
 
 
 def _rng_integers(rng, low: int, high: int, size=None):
@@ -53,7 +55,6 @@ class CompositeKeyConfig:
     core_family: KeyOpsFamily | str = KeyOpsFamily.VECTOR
 
 
-@register_keyop(KeyOpsFamily.COMPOSITE)
 class CompositeKeyOps(KeyOpBase):
     """
     Composite key: [core key | interruptor positions].
@@ -121,8 +122,7 @@ class CompositeKeyOps(KeyOpBase):
         if self.core_K is None or self.core_K <= 0:
             raise ValueError("CompositeKeyOps requires K (core key length) > 0")
 
-        # Build nested core KeyOps
-        from rune_decrypter_prime.keyops.registry import create as create_keyops
+        # Build nested core KeyOps from its exact implementation owner.
         core_family = self.core_family
         if hasattr(core_family, "value"):
             core_family = core_family.value
@@ -130,15 +130,29 @@ class CompositeKeyOps(KeyOpBase):
         if core_family in {"composite", "param"}:
             raise ValueError("CompositeKeyOps core_family must be non-composite")
 
+        family = ensure_keyops_family(core_family)
+        core_factories = {
+            KeyOpsFamily.VECTOR: VectorKeyOps,
+            KeyOpsFamily.PERMUTATION: PermutationKeyOps,
+            KeyOpsFamily.MATRIX: PeriodicStructuredMatrixKeyOps,
+        }
+        factory = core_factories[family]
+
         core_kwargs = {"K": self.core_K}
-        if core_family == KeyOpsFamily.VECTOR.value:
+        if family is KeyOpsFamily.VECTOR:
             core_kwargs["mod"] = self.mod
-        self._core_ops = create_keyops(core_family, **core_kwargs)
+        try:
+            self._core_ops = factory(**core_kwargs)
+        except TypeError as exc:
+            raise TypeError(
+                f"{factory.__name__} could not be constructed for family='{family.value}' "
+                f"with kwargs={core_kwargs!r}. Original error: {exc}"
+            ) from exc
 
         total_K = self.core_K + self.interrupt_K
         traits = {
             "family": KeyOpsFamily.COMPOSITE,
-            "core_family": core_family,
+            "core_family": family.value,
             "core_length": self.core_K,
             "interruptors_min": self.interrupt_min,
             "interruptors_max": self.interrupt_K,

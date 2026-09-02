@@ -98,7 +98,7 @@ def test_module_map_covers_top_level_source_packages() -> None:
         "src/rune_decrypter_prime/ciphers/",
         "src/rune_decrypter_prime/core/",
         "src/rune_decrypter_prime/data/",
-        "src/rune_decrypter_prime/keyops/",
+        "src/rdp/keyops/",
         "src/rune_decrypter_prime/scoring/",
         "src/rune_decrypter_prime/solvers/",
         "src/rune_decrypter_prime/utils/",

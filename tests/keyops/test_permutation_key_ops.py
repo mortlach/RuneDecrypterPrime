@@ -5,8 +5,8 @@ and consumes only the injected RNG. With the same seed, sequences are identical.
 import numpy as np
 import pytest
 from rdp.core.types import KEY_DTYPE
-from rune_decrypter_prime.keyops.registry import create
-from rune_decrypter_prime.keyops import PermutationKeyOps
+from rdp.keyops.permutation_ops import PermutationKeyOps
+from rdp.keyops.registry import create
 
 def _is_perm(arr: np.ndarray) -> bool:
     arr = np.asarray(arr)

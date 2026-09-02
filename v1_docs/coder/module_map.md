@@ -15,7 +15,7 @@ packages. Importability does not make an engine module public.
 | `src/rdp/data/` | Liber Primus runtime data, rune translation, and asset resolution. | Internal except promoted data API |
 | `src/rune_decrypter_prime/data/` | Retained fixtures, corpora, and wordlists awaiting their later AN4 move. | Internal/test support |
 | `src/rdp/io/` | Logging, artifact paths, and deterministic I/O support. | Internal |
-| `src/rune_decrypter_prime/keyops/` | Key generation, validation, mutation, and batching. | Internal/contributor |
+| `src/rdp/keyops/` | Key generation, validation, mutation, and batching. | Internal/contributor |
 | `src/rune_decrypter_prime/scoring/` | Candidate ranking and scorer reports. | Internal except promoted report types |
 | `src/rune_decrypter_prime/solvers/` | Search algorithms over key spaces. | Internal/contributor |
 | `src/rdp/telemetry/` | Structured runtime evidence. | Internal |

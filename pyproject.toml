@@ -62,8 +62,8 @@ include = ["rune_decrypter_prime*", "rdp*"]
 exclude = [
   "rune_decrypter_prime.ciphers.dev",
   "rune_decrypter_prime.ciphers.dev.*",
-  "rune_decrypter_prime.keyops.dev",
-  "rune_decrypter_prime.keyops.dev.*",
+  "rdp.keyops.dev",
+  "rdp.keyops.dev.*",
   "rune_decrypter_prime.data.liber_primus.old",
   "rune_decrypter_prime.data.liber_primus.old.*",
 ]
@@ -97,8 +97,7 @@ extend-exclude = ["src/rune_decrypter_prime/ciphers/dev"]
 "src/rune_decrypter_prime/ciphers/vigenere_cipher.py" = ["E702"]
 "src/rdp/core/config/solver.py" = ["E702"]
 "src/rdp/data/liber_primus/lp_transcript.py" = ["E741", "F841"]
-"src/rune_decrypter_prime/keyops/base_keyops.py" = ["F811"]
-"src/rune_decrypter_prime/keyops/dev/matrix.py" = ["E702", "E703"]
+"src/rdp/keyops/base_keyops.py" = ["F811"]
 "src/rune_decrypter_prime/scoring/base_scorer.py" = ["F811"]
 "src/rune_decrypter_prime/scoring/language_model/language_model_prime.py" = ["E702"]
 "src/rune_decrypter_prime/scoring/policy.py" = ["E702"]

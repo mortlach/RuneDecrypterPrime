@@ -1,4 +1,4 @@
-# rune_decrypter_prime/keyops/permutation_ops.py
+# rdp/keyops/permutation_ops.py
 # -*- coding: utf-8 -*-
 """
 Permutation KeyOps
@@ -20,14 +20,12 @@ import numpy as np
 from rdp.core.types import RuntimeKeyKind, KeyOpsFamily, KEY_DTYPE
 from rdp.io.rng import RNGController
 from .base_keyops import KeyOpBase, KeyCaps
-from .registry import register_keyop
 
 @dataclass(frozen=True)
 class PermutationKeyConfig:
     """Configuration for permutation keys: K = permutation length."""
     K: int
 
-@register_keyop(KeyOpsFamily.PERMUTATION)
 class PermutationKeyOps(KeyOpBase):
     """
     Key space: permutations of [0..K-1] (uint8).

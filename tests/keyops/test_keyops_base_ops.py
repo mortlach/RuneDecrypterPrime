@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
-from rune_decrypter_prime.keyops.base_keyops import KeyOpBase, KeyCaps
-from rune_decrypter_prime.keyops.vector import VectorKeyOps
+from rdp.keyops.base_keyops import KeyCaps, KeyOpBase
+from rdp.keyops.vector import VectorKeyOps
 pytestmark = pytest.mark.tier_a
 
 class _DummyKeyOps(KeyOpBase):

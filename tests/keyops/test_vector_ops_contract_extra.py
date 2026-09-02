@@ -12,8 +12,8 @@ Why these matter:
   diversity per column to avoid identical individuals.
 """
 import numpy as np
-from rune_decrypter_prime.keyops.registry import create
-from rune_decrypter_prime.keyops import VectorKeyOps
+from rdp.keyops.registry import create
+from rdp.keyops.vector import VectorKeyOps
 
 def _hamming(a, b) -> int:
     return int(np.count_nonzero(a != b))

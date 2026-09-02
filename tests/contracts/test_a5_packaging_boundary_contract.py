@@ -3,7 +3,7 @@ import tomllib
 import pytest
 pytestmark = pytest.mark.tier_a
 ROOT = Path(__file__).resolve().parents[2]
-BLOCKED = ('rune_decrypter_prime.ciphers.dev', 'rune_decrypter_prime.keyops.dev', 'rune_decrypter_prime.data.liber_primus.old')
+BLOCKED = ('rune_decrypter_prime.ciphers.dev', 'rdp.keyops.dev', 'rune_decrypter_prime.data.liber_primus.old')
 
 def test_pyproject_declares_clean_runtime_dependency_and_package_exclusions():
     data = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
@@ -26,8 +26,12 @@ def test_manifest_does_not_glob_local_asset_tree_and_mirrors_code_boundary():
     manifest = (ROOT / 'MANIFEST.in').read_text(encoding='utf-8')
     assert 'recursive-include assets' not in manifest
     assert 'include assets_manifest_ci_light_v1.json' in manifest
-    for fragment in ('ciphers/dev', 'keyops/dev', 'data/liber_primus/old'):
-        assert f'prune src/rune_decrypter_prime/{fragment}' in manifest
+    for path in (
+        'src/rune_decrypter_prime/ciphers/dev',
+        'src/rdp/keyops/dev',
+        'src/rune_decrypter_prime/data/liber_primus/old',
+    ):
+        assert f'prune {path}' in manifest
 
 def test_support_claims_are_limited_to_qualified_gate():
     data = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))

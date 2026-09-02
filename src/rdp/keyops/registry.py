@@ -1,10 +1,21 @@
+"""Canonical runtime key-operation registry and construction."""
+
 from __future__ import annotations
 from typing import Any, Callable, Dict
 
 from rdp.core.types import KeyOpsFamily, ensure_keyops_family
+from .composite import CompositeKeyOps
+from .periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
+from .permutation_ops import PermutationKeyOps
+from .vector import VectorKeyOps
 
 # Registry storage: KeyOpsFamily -> factory (callable returning a KeyOpBase)
-_REG: Dict[KeyOpsFamily, Callable[..., Any]] = {}
+_REG: Dict[KeyOpsFamily, Callable[..., Any]] = {
+    KeyOpsFamily.COMPOSITE: CompositeKeyOps,
+    KeyOpsFamily.MATRIX: PeriodicStructuredMatrixKeyOps,
+    KeyOpsFamily.PERMUTATION: PermutationKeyOps,
+    KeyOpsFamily.VECTOR: VectorKeyOps,
+}
 
 
 def _normalize_family(name: KeyOpsFamily | str) -> KeyOpsFamily:
@@ -100,12 +111,5 @@ def create(name: KeyOpsFamily | str, **kwargs: Any):
             f"with kwargs={canon_kwargs!r}. Original error: {exc}"
         ) from exc
 
-
-# Production registrations are required. Import failures must be visible rather
-# than silently changing the registry according to environment/import order.
-from . import permutation_ops as _permutation_ops  # noqa: E402,F401
-from . import vector as _vector  # noqa: E402,F401
-from . import composite as _composite  # noqa: E402,F401
-from . import periodic_structured_matrix_ops as _periodic_structured_matrix_ops  # noqa: E402,F401
 
 __all__ = ["register_keyop", "create", "get", "has", "available"]

@@ -9,7 +9,7 @@ from rdp.core.types import (
     Direction,
     Device,
 )
-from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import (
+from rdp.keyops.periodic_structured_matrix_ops import (
     PeriodicStructuredMatrixKeyOps,
 )
 from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext_string

@@ -4,7 +4,7 @@ import numpy as np
 from typing import Tuple
 
 # todo move to own file
-from rune_decrypter_prime.keyops import PermutationKeyOps, PermutationKeyConfig
+from rdp.keyops.permutation_ops import PermutationKeyConfig, PermutationKeyOps
 from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin, ArrayU8
 
 

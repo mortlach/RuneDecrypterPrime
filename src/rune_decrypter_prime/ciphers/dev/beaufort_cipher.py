@@ -3,7 +3,7 @@
 # ============================================================
 import numpy as np
 from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin, ArrayU8
-from rune_decrypter_prime.keyops import VectorKeyOps
+from rdp.keyops.vector import VectorKeyOps
 
 class BeaufortCipher(CipherPipelineMixin):
     """
