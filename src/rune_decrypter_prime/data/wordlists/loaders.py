@@ -8,7 +8,7 @@ from rdp.api.word_crib_config import WordCribConfig
 from rdp.data.asset_paths import resolve_assets_path, to_repo_relative
 from rdp.core.types import Direction, ensure_direction
 from rdp.data.runeglish import Runeglish
-from rune_decrypter_prime.scoring.hamming.loader import load_raw1grams_wordlists
+from rdp.scoring.hamming.loader import load_raw1grams_wordlists
 
 _DEFAULT_WORDLISTS_ASSETS_REL = Path("wordlists")
 

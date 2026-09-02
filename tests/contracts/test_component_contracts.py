@@ -141,7 +141,7 @@ def test_component_contract_json_is_stable() -> None:
         ranking_effect=RankingEffect.PRODUCTION,
         required_if_requested=True,
         default_fallback_policy=FallbackPolicy.BLOCK,
-        owner_module="rune_decrypter_prime.scoring.span_hamming",
+        owner_module="rdp.scoring.span_hamming",
     )
     payload = contract.to_json_dict()
     assert payload["component_id"] == "span_hamming_raw"

@@ -10,8 +10,8 @@ from rdp.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.problem.spec import ProblemSpec
-from rune_decrypter_prime.scoring.rune_scorer import RuneScorer
-from rune_decrypter_prime.scoring.unified_rune_scorer import UnifiedRuneScorer
+from rdp.scoring.rune_scorer import RuneScorer
+from rdp.scoring.unified_rune_scorer import UnifiedRuneScorer
 
 def _cipher_config() -> CipherConfig:
     return CipherConfig(ciphertext=[1, 2, 3], wli_data=[], key_length=3, name='vigenere')

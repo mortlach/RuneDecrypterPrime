@@ -6,7 +6,7 @@ Owners:
 
 ```text
 src/rune_decrypter_prime/api/solver_report.py
-src/rune_decrypter_prime/scoring/scorer_report.py
+src/rdp/scoring/scorer_report.py
 src/rune_decrypter_prime/api/display.py
 ```
 

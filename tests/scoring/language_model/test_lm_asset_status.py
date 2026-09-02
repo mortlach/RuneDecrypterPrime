@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import pytest
-from rune_decrypter_prime.scoring.language_model.paths import load_index, resolve_lm_root
+from rdp.scoring.language_model.paths import load_index, resolve_lm_root
 
 def _write_index(root: Path, *, payload: dict | None=None) -> None:
     root.mkdir(parents=True, exist_ok=True)

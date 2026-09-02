@@ -38,9 +38,10 @@ def test_ci_light_wrapper_bootstraps_repo_root_for_standalone_execution(tmp_path
 
 def test_root_setup_builds_native_extensions_from_present_sources() -> None:
     text = (ROOT / 'setup.py').read_text(encoding='utf-8')
-    assert 'rune_decrypter_prime.scoring.language_model._fastlm' in text
-    assert 'rune_decrypter_prime.scoring.hamming._hamming' in text
-    assert 'rune_decrypter_prime.scoring.span_hamming._span_hamming_fast' in text
+    assert text.count('rdp.scoring.language_model._fastlm') == 1
+    assert text.count('rdp.scoring.hamming._hamming') == 1
+    assert text.count('rdp.scoring.span_hamming._span_hamming_fast') == 1
+    assert '_ngram_hamming_fast' not in text
 
 def test_root_setup_uses_relative_extension_sources_for_editable_builds() -> None:
     text = (ROOT / 'setup.py').read_text(encoding='utf-8')

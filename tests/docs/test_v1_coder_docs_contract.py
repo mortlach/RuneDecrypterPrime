@@ -99,7 +99,7 @@ def test_module_map_covers_top_level_source_packages() -> None:
         "src/rune_decrypter_prime/core/",
         "src/rune_decrypter_prime/data/",
         "src/rdp/keyops/",
-        "src/rune_decrypter_prime/scoring/",
+        "src/rdp/scoring/",
         "src/rune_decrypter_prime/solvers/",
         "src/rune_decrypter_prime/utils/",
         "src/rdp/api/",
@@ -200,7 +200,7 @@ def test_howto_pages_name_core_owner_paths() -> None:
         "add_scorer_lane.md": [
             "src/rdp/core/component_contracts.py",
             "src/rdp/core/config/scoring.py",
-            "src/rune_decrypter_prime/scoring/scorer_report_builder.py",
+            "src/rdp/scoring/scorer_report_builder.py",
         ],
     }
     for path in HOWTO_PAGES:

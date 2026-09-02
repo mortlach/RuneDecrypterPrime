@@ -12,9 +12,9 @@ SOURCE_ROOT = (PROJECT_ROOT / "src").resolve()
 REQUIRED_MODULES = (
     "rune_decrypter_prime",
     "rdp",
-    "rune_decrypter_prime.scoring.language_model._fastlm",
-    "rune_decrypter_prime.scoring.hamming._hamming",
-    "rune_decrypter_prime.scoring.span_hamming._span_hamming_fast",
+    "rdp.scoring.language_model._fastlm",
+    "rdp.scoring.hamming._hamming",
+    "rdp.scoring.span_hamming._span_hamming_fast",
 )
 BLOCKED_MODULES = (
     "rdp.ciphers.dev",
@@ -137,7 +137,7 @@ def main() -> int:
         lm_index = asset_root / 'language_model' / 'lmp' / 'index.json'
         if not lm_index.is_file():
             raise AssertionError('packaged language-model index.json missing')
-        from rune_decrypter_prime.scoring.language_model.paths import default_lm_root
+        from rdp.scoring.language_model.paths import default_lm_root
         if default_lm_root() != lm_index.parent.resolve():
             raise AssertionError(
                 "default LM root does not resolve to packaged CI-light data"

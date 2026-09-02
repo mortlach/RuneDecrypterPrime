@@ -2,7 +2,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 import numpy as np
 import pytest
-from rune_decrypter_prime.scoring.unified_rune_scorer import UnifiedRuneScorer
+from rdp.scoring.unified_rune_scorer import UnifiedRuneScorer
 pytestmark = pytest.mark.tier_a
 
 def _mk_unified(backend) -> UnifiedRuneScorer:

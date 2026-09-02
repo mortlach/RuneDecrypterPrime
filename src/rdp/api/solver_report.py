@@ -7,7 +7,6 @@ import sys
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 from types import MappingProxyType
 
 from rune_decrypter_prime import rune_decrypter_prime_version
@@ -20,38 +19,9 @@ from rdp.core.types import (
     JsonValue,
     ScorerBackend,
     SolverKind,
+    freeze_report_mapping,
     normalize_concrete_key,
 )
-
-
-def _json_value(value: object, field_name: str) -> JsonValue:
-    if value is None or type(value) in {str, bool, int}:
-        return value  # type: ignore[return-value]
-    if isinstance(value, float):
-        if not math.isfinite(value):
-            raise ValueError(f"{field_name} contains a non-finite float")
-        return value
-    if isinstance(value, Enum):
-        return str(value.value)
-    if isinstance(value, Path):
-        if value.is_absolute():
-            raise ValueError(f"{field_name} contains an absolute path")
-        return value.as_posix()
-    if isinstance(value, Mapping):
-        return {str(key): _json_value(item, f"{field_name}.{key}") for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_value(item, f"{field_name}[]") for item in value]
-    raise TypeError(f"{field_name} contains unsupported {type(value).__name__}")
-
-
-def _mapping(value: Mapping[str, object], field_name: str) -> Mapping[str, JsonValue]:
-    if not isinstance(value, Mapping):
-        raise TypeError(f"{field_name} must be a mapping")
-    if any(not isinstance(key, str) for key in value):
-        raise TypeError(f"{field_name} keys must be strings")
-    return MappingProxyType(
-        {key: _json_value(item, f"{field_name}.{key}") for key, item in value.items()}
-    )
 
 
 def _optional_int(value: int | None, field_name: str) -> int | None:
@@ -85,8 +55,8 @@ class ConfigurationResolution:
     effective: JsonObject = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "requested", _mapping(self.requested, "requested"))
-        object.__setattr__(self, "effective", _mapping(self.effective, "effective"))
+        object.__setattr__(self, "requested", freeze_report_mapping(self.requested, "requested"))
+        object.__setattr__(self, "effective", freeze_report_mapping(self.effective, "effective"))
 
     def to_dict(self) -> JsonObject:
         return {"requested": dict(self.requested), "effective": dict(self.effective)}
@@ -201,7 +171,7 @@ class ReproducibilityMetadata:
         for name in ("solver_config", "scoring_config", "objective", "cipher"):
             value = getattr(self, name)
             if value is not None:
-                object.__setattr__(self, name, _mapping(value, name))
+                object.__setattr__(self, name, freeze_report_mapping(value, name))
         ids = tuple(self.asset_ids)
         if any(not isinstance(item, str) for item in ids):
             raise TypeError("asset_ids must contain strings")
@@ -284,7 +254,7 @@ class SolverReport:
             object.__setattr__(self, name, _counter(getattr(self, name), name))
         for name in ("wall_time_seconds", "decrypt_time_seconds", "score_time_seconds"):
             object.__setattr__(self, name, _time(getattr(self, name), name))
-        object.__setattr__(self, "details", _mapping(self.details, "details"))
+        object.__setattr__(self, "details", freeze_report_mapping(self.details, "details"))
 
     def to_dict(self) -> JsonObject:
         return {

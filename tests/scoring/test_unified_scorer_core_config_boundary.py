@@ -2,7 +2,7 @@ from __future__ import annotations
 from rdp import api
 import pytest
 from rdp.core.config.cipher import CipherConfig
-from rune_decrypter_prime.scoring.unified_rune_scorer import UnifiedRuneScorer
+from rdp.scoring.unified_rune_scorer import UnifiedRuneScorer
 
 def _cipher_config() -> CipherConfig:
     return CipherConfig(ciphertext=[0, 1, 2], wli_data=[], key_length=3)

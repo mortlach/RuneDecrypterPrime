@@ -1,7 +1,7 @@
 from __future__ import annotations
 from rdp import api
 import os
-from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
+from rdp.scoring.scorer_lane_report import build_scorer_lane_report
 
 def test_scorer_lane_report_sections_are_stable_public_labels() -> None:
     report = build_scorer_lane_report(api.ScoringConfig())

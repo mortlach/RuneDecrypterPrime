@@ -5,7 +5,7 @@ from rdp.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1, word_breaks1
 from rdp.core.types import Device, Direction
-from rune_decrypter_prime.scoring.windowing import aligned_window_count
+from rdp.scoring.windowing import aligned_window_count
 from tests.scoring._helpers.lm_test_guard import require_full_lm_assets
 A = 29
 

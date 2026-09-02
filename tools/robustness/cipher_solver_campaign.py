@@ -28,8 +28,8 @@ from rdp import api
 from tutorials.v1.data.two_period_cribs_demo import encrypt_interruptor_fixture
 from rune_decrypter_prime.data.cipher_tests.book_corpus import load_book, select_passage
 from rdp.io.rng import RNGController
-from rune_decrypter_prime.scoring.language_model import _fastlm
-from rune_decrypter_prime.scoring.language_model.paths import default_lm_root, expand_pattern, load_index
+from rdp.scoring.language_model import _fastlm
+from rdp.scoring.language_model.paths import default_lm_root, expand_pattern, load_index
 from rdp.data.runeglish import Runeglish
 from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
 from rune_decrypter_prime.utils.solve_output import match_ratio

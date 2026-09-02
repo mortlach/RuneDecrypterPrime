@@ -26,21 +26,21 @@ LARGE_ASSET_DOWNLOAD_DIR = ROOT / "downloads"
 LARGE_ASSET_ROOT = ROOT / "assets"
 
 REQUIRED_NATIVE_MODULES = [
-    "rune_decrypter_prime.scoring.language_model._fastlm",
+    "rdp.scoring.language_model._fastlm",
 ]
 
 NATIVE_SOURCE_CHECKS = [
     (
-        "rune_decrypter_prime.scoring.hamming._hamming",
+        "rdp.scoring.hamming._hamming",
         [
-            ROOT / "src" / "rune_decrypter_prime" / "scoring" / "hamming" / "bindings.cpp",
-            ROOT / "src" / "rune_decrypter_prime" / "scoring" / "hamming" / "Hamming.cpp",
-            ROOT / "src" / "rune_decrypter_prime" / "scoring" / "hamming" / "Flat2DArray.cpp",
+            ROOT / "src" / "rdp" / "scoring" / "hamming" / "bindings.cpp",
+            ROOT / "src" / "rdp" / "scoring" / "hamming" / "Hamming.cpp",
+            ROOT / "src" / "rdp" / "scoring" / "hamming" / "Flat2DArray.cpp",
         ],
     ),
     (
-        "rune_decrypter_prime.scoring.span_hamming._span_hamming_fast",
-        [ROOT / "src" / "rune_decrypter_prime" / "scoring" / "span_hamming" / "fast_bindings.cpp"],
+        "rdp.scoring.span_hamming._span_hamming_fast",
+        [ROOT / "src" / "rdp" / "scoring" / "span_hamming" / "fast_bindings.cpp"],
     ),
 ]
 

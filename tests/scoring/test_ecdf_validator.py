@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import numpy as np
-from rune_decrypter_prime.scoring.language_model.ecdf_validator import validate_ecdf_npz
+from rdp.scoring.language_model.ecdf_validator import validate_ecdf_npz
 
 def _meta_base(*, win: int, n: int, stat: str='logp') -> dict:
     return {'model': 'char', 'direction': 'ltr', 'se_mode': 'nose', 'n': int(n), 'stat': stat, 'win_ngrams': int(win), 'window_def': {'win_ngrams': int(win), 'span_formula': 'nose: L_n = W + n - 1; wise: L_n = W + n + 1', 'start_index_rule': 'i = 0 .. T - L_max; L_max = max_n L_n', 'tags': 'wise uses [29]... [30], nose has no tags', 'tags_start_id': 29, 'tags_end_id': 30}, 'smoothing': {'kind': 'auto_gt', 'alpha': 0.5}, 'oov_policy': 'floor_min_seen', 'mesh': {'kind': 'linear', 'params': {}, 'num_knots': 5}, 'strict_increasing': {'enforce': True, 'method': 'nextafter'}, 'tie_policy': 'builder nudges duplicate quantiles to enforce strict grid', 'ecdf_canonical': True}

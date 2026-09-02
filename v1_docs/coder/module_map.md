@@ -16,7 +16,7 @@ packages. Importability does not make an engine module public.
 | `src/rune_decrypter_prime/data/` | Retained fixtures, corpora, and wordlists awaiting their later AN4 move. | Internal/test support |
 | `src/rdp/io/` | Logging, artifact paths, and deterministic I/O support. | Internal |
 | `src/rdp/keyops/` | Key generation, validation, mutation, and batching. | Internal/contributor |
-| `src/rune_decrypter_prime/scoring/` | Candidate ranking and scorer reports. | Internal except promoted report types |
+| `src/rdp/scoring/` | Candidate ranking and scorer reports. | Internal except promoted report types |
 | `src/rune_decrypter_prime/solvers/` | Search algorithms over key spaces. | Internal/contributor |
 | `src/rdp/telemetry/` | Structured runtime evidence. | Internal |
 | `src/rune_decrypter_prime/utils/` | Focused tutorial and text utilities. | Internal/test support |

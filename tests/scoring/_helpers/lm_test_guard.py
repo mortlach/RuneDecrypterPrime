@@ -5,7 +5,7 @@ from typing import List, Tuple
 import json
 import numpy as np
 import pytest
-from rune_decrypter_prime.scoring.language_model.paths import default_lm_root, load_index, expand_pattern
+from rdp.scoring.language_model.paths import default_lm_root, load_index, expand_pattern
 
 @dataclass(frozen=True)
 class MissingAsset:

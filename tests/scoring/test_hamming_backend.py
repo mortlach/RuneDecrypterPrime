@@ -1,10 +1,12 @@
 from __future__ import annotations
 from pathlib import Path
 import pytest
-from rune_decrypter_prime.scoring.hamming.loader import load_raw1grams_wordlists
-from rune_decrypter_prime.scoring.hamming.backend import HammingBackend
+from rdp.scoring.hamming.loader import load_raw1grams_wordlists
+from rdp.scoring.hamming.backend import HammingBackend
 from rdp.data.runeglish import Runeglish
 try:
+    from rdp.scoring.hamming import _hamming as _hamming_extension
+
     _EXT_AVAILABLE = True
 except Exception:
     _EXT_AVAILABLE = False

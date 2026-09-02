@@ -7,7 +7,7 @@ pytestmark = pytest.mark.tier_a
 
 def _fake_torch_scorer():
     pytest.importorskip('torch')
-    from rune_decrypter_prime.scoring.torch_rune_scorer import RuneScorerTorch
+    from rdp.scoring.torch_rune_scorer import RuneScorerTorch
     scorer = object.__new__(RuneScorerTorch)
     scorer.se_mode = SeMode.NOSE
 

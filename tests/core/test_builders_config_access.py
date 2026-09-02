@@ -32,15 +32,15 @@ def _cipher_cfg(*, device: Device=Device.CPU) -> CipherConfig:
     return CipherConfig(ciphertext=np.asarray([0], dtype=np.uint8), wli_data=None, key_length=None, device=device)
 
 def _patch_scorer_classes(monkeypatch: pytest.MonkeyPatch) -> None:
-    numpy_module = types.ModuleType('rune_decrypter_prime.scoring.rune_scorer')
+    numpy_module = types.ModuleType('rdp.scoring.rune_scorer')
     numpy_module.RuneScorer = _DummyNumpy
-    torch_module = types.ModuleType('rune_decrypter_prime.scoring.torch_rune_scorer')
+    torch_module = types.ModuleType('rdp.scoring.torch_rune_scorer')
     torch_module.RuneScorerTorch = _DummyTorch
-    unified_module = types.ModuleType('rune_decrypter_prime.scoring.unified_rune_scorer')
+    unified_module = types.ModuleType('rdp.scoring.unified_rune_scorer')
     unified_module.UnifiedRuneScorer = _DummyUnified
-    monkeypatch.setitem(sys.modules, 'rune_decrypter_prime.scoring.rune_scorer', numpy_module)
-    monkeypatch.setitem(sys.modules, 'rune_decrypter_prime.scoring.torch_rune_scorer', torch_module)
-    monkeypatch.setitem(sys.modules, 'rune_decrypter_prime.scoring.unified_rune_scorer', unified_module)
+    monkeypatch.setitem(sys.modules, 'rdp.scoring.rune_scorer', numpy_module)
+    monkeypatch.setitem(sys.modules, 'rdp.scoring.torch_rune_scorer', torch_module)
+    monkeypatch.setitem(sys.modules, 'rdp.scoring.unified_rune_scorer', unified_module)
 
 def test_build_scorer_reads_impl_from_scoring_config(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_scorer_classes(monkeypatch)

@@ -4,7 +4,7 @@ Status: staged V1 draft
 
 Owner paths:
 - `src/rdp/core/config/scoring.py`
-- `src/rune_decrypter_prime/scoring/`
+- `src/rdp/scoring/`
 - `src/rdp/core/component_contracts.py`
 - `src/rdp/core/capability_gates.py`
 
@@ -49,10 +49,10 @@ whether it affects ranking or is diagnostic/report-only.
 | --- | --- | --- |
 | `ScoringConfig` | `src/rdp/core/config/scoring.py` | Canonical runtime scoring configuration. |
 | `ObjectiveSpec` | `src/rdp/core/types.py` | Typed objective family/stat/window description. |
-| `ScorerReport` | `src/rune_decrypter_prime/scoring/scorer_report.py` | Public scoring evidence surface. |
-| `build_scorer_report` | `src/rune_decrypter_prime/scoring/scorer_report_builder.py` | Builds scorer report details from runtime observations. |
-| `build_scorer_lane_report` | `src/rune_decrypter_prime/scoring/scorer_lane_report.py` | Reports requested/effective scorer lane status. |
-| scorer runtimes | `src/rune_decrypter_prime/scoring/` | Implement ranking and optional component integration. |
+| `ScorerReport` | `src/rdp/scoring/scorer_report.py` | Public scoring evidence surface. |
+| `build_scorer_report` | `src/rdp/scoring/scorer_report_builder.py` | Builds scorer report details from runtime observations. |
+| `build_scorer_lane_report` | `src/rdp/scoring/scorer_lane_report.py` | Reports requested/effective scorer lane status. |
+| scorer runtimes | `src/rdp/scoring/` | Implement ranking and optional component integration. |
 
 ## How It Fits Into A Run
 

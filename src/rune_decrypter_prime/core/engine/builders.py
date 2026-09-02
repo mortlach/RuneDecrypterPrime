@@ -68,7 +68,7 @@ def _attach_scorer_capability_report(scorer: Any, s_cfg: ScoringConfig) -> Any:
     if callable(native_report):
         report = native_report()
     else:
-        from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
+        from rdp.scoring.scorer_lane_report import build_scorer_lane_report
 
         span_hamming_backend = getattr(target, "_span_hamming_backend", None)
         span_hamming_mode = ensure_span_hamming_mode(
@@ -124,14 +124,14 @@ def build_scorer(c_cfg: CipherConfig, s_cfg: ScoringConfig):
             )
 
     if impl is ScorerImpl.NUMPY:
-        from rune_decrypter_prime.scoring.rune_scorer import RuneScorer
+        from rdp.scoring.rune_scorer import RuneScorer
 
         scorer = RuneScorer(c_cfg, s_cfg)
         return _attach_scorer_capability_report(scorer, s_cfg)
 
     if impl is ScorerImpl.TORCH:
         try:
-            from rune_decrypter_prime.scoring.torch_rune_scorer import RuneScorerTorch
+            from rdp.scoring.torch_rune_scorer import RuneScorerTorch
         except ModuleNotFoundError as exc:
             if exc.name == ScorerImpl.TORCH.value:
                 requested_impl = ScorerImpl.TORCH.value
@@ -148,7 +148,7 @@ def build_scorer(c_cfg: CipherConfig, s_cfg: ScoringConfig):
         return _attach_scorer_capability_report(scorer, s_cfg)
 
     if impl is ScorerImpl.UNIFIED:
-        from rune_decrypter_prime.scoring.unified_rune_scorer import UnifiedRuneScorer
+        from rdp.scoring.unified_rune_scorer import UnifiedRuneScorer
 
         scorer = UnifiedRuneScorer(c_cfg, s_cfg)
         return _attach_scorer_capability_report(scorer, s_cfg)

@@ -4,26 +4,26 @@ ROOT = Path(__file__).resolve().parents[2]
 ARTIFACT_AGREEMENT = ROOT / "src" / "rdp" / "api" / "artifact_agreement.py"
 SOLVER_REPORT = ROOT / "src" / "rdp" / "api" / "solver_report.py"
 SCORER_REPORT_BUILDER = (
-    ROOT / "src" / "rune_decrypter_prime" / "scoring" / "scorer_report_builder.py"
+    ROOT / "src" / "rdp" / "scoring" / "scorer_report_builder.py"
 )
 SCORING_CONFIG = (
     ROOT / "src" / "rdp" / "core" / "config" / "scoring.py"
 )
 CORE_TYPES = ROOT / "src" / "rdp" / "core" / "types.py"
 RUNE_SCORER_IMPL = (
-    ROOT / "src" / "rune_decrypter_prime" / "scoring" / "rune_scorer_impl.py"
+    ROOT / "src" / "rdp" / "scoring" / "rune_scorer_impl.py"
 )
 TORCH_RUNE_SCORER = (
-    ROOT / "src" / "rune_decrypter_prime" / "scoring" / "torch_rune_scorer.py"
+    ROOT / "src" / "rdp" / "scoring" / "torch_rune_scorer.py"
 )
 ENGINE_BUILDERS = (
     ROOT / "src" / "rune_decrypter_prime" / "core" / "engine" / "builders.py"
 )
 UNIFIED_RUNE_SCORER = (
-    ROOT / "src" / "rune_decrypter_prime" / "scoring" / "unified_rune_scorer.py"
+    ROOT / "src" / "rdp" / "scoring" / "unified_rune_scorer.py"
 )
 RUNE_SCORER_WRAPPER = (
-    ROOT / "src" / "rune_decrypter_prime" / "scoring" / "rune_scorer.py"
+    ROOT / "src" / "rdp" / "scoring" / "rune_scorer.py"
 )
 
 

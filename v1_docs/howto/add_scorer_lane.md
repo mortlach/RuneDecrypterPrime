@@ -6,9 +6,9 @@ Owner paths:
 - `src/rdp/core/component_contracts.py`
 - `src/rdp/core/config/scoring.py`
 - `src/rdp/core/capability_gates.py`
-- `src/rune_decrypter_prime/scoring/`
-- `src/rune_decrypter_prime/scoring/scorer_lane_report.py`
-- `src/rune_decrypter_prime/scoring/scorer_report_builder.py`
+- `src/rdp/scoring/`
+- `src/rdp/scoring/scorer_lane_report.py`
+- `src/rdp/scoring/scorer_report_builder.py`
 - `tests/scoring/`
 - `tests/contracts/`
 

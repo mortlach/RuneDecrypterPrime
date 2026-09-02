@@ -1,6 +1,6 @@
 from __future__ import annotations
 import numpy as np
-from rune_decrypter_prime.scoring.language_model import language_model_prime_runtime as lm_rt
+from rdp.scoring.language_model import language_model_prime_runtime as lm_rt
 
 class _StubLM:
 

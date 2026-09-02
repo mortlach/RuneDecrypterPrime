@@ -8,8 +8,26 @@ ROOT = Path(__file__).resolve().parents[2]
 WHEEL_DIRS = (ROOT / 'wheelhouse', ROOT / 'dist')
 SDIST_DIR = ROOT / 'dist'
 CI_MANIFEST = ROOT / 'assets_manifest_ci_light_v1.json'
-BLOCKED = ('rdp/ciphers/dev/', 'rune_decrypter_prime/keyops/dev/', 'rune_decrypter_prime/data/liber_primus/old/')
+BLOCKED = ('rdp/ciphers/dev/', 'rune_decrypter_prime/keyops/dev/', 'rune_decrypter_prime/data/liber_primus/old/', 'rune_decrypter_prime/scoring/')
 REQUIRED_NATIVE_STEMS = ('_fastlm', '_hamming', '_span_hamming_fast')
+REQUIRED_NATIVE_PREFIXES = (
+    'rdp/scoring/language_model/_fastlm',
+    'rdp/scoring/hamming/_hamming',
+    'rdp/scoring/span_hamming/_span_hamming_fast',
+)
+REQUIRED_NATIVE_SOURCES = {
+    'src/rdp/scoring/language_model/fastlm.cpp',
+    'src/rdp/scoring/hamming/Flat2DArray.cpp',
+    'src/rdp/scoring/hamming/Flat2DArray.h',
+    'src/rdp/scoring/hamming/Hamming.cpp',
+    'src/rdp/scoring/hamming/Hamming.h',
+    'src/rdp/scoring/hamming/Types.h',
+    'src/rdp/scoring/hamming/bindings.cpp',
+    'src/rdp/scoring/span_hamming/FastSpanHamming.h',
+    'src/rdp/scoring/span_hamming/fast_bindings.cpp',
+    'src/rdp/scoring/ngram_hamming/FastNgramHamming.h',
+    'src/rdp/scoring/ngram_hamming/fast_bindings.cpp',
+}
 WHEEL_ASSET_PREFIX = 'rune_decrypter_prime/data/assets/'
 WHEEL_CI_MANIFEST = 'rune_decrypter_prime/data/assets_manifest_ci_light_v1.json'
 INDEX_REL = 'language_model/lmp/index.json'
@@ -65,6 +83,11 @@ def main() -> int:
         for stem in REQUIRED_NATIVE_STEMS:
             if not any((stem in n for n in names)):
                 raise AssertionError(f'native module missing: {stem}')
+        for prefix in REQUIRED_NATIVE_PREFIXES:
+            if not any((n.startswith(prefix) for n in names)):
+                raise AssertionError(f'native module has wrong qualified path: {prefix}')
+        if any(('_ngram_hamming_fast' in n for n in names)):
+            raise AssertionError('experimental _ngram_hamming_fast must remain unbuilt')
         if WHEEL_CI_MANIFEST not in names_set:
             raise AssertionError('packaged CI-light manifest missing')
         missing = sorted(expected_wheel_assets - names_set)
@@ -87,6 +110,9 @@ def main() -> int:
             raise AssertionError(f'blocked sdist members: {bad[:20]}')
         rel_names = {_strip_sdist_root(n) for n in names}
         rel_files = {_strip_sdist_root(member.name) for member in members if member.isfile()}
+        missing_native_sources = sorted(REQUIRED_NATIVE_SOURCES - rel_files)
+        if missing_native_sources:
+            raise AssertionError(f'native sources missing from sdist: {missing_native_sources}')
         expected_sdist_assets = {'assets/' + rel for rel in ci_paths}
         expected_sdist_assets.add('assets/' + INDEX_REL)
         missing = sorted(expected_sdist_assets - rel_names)

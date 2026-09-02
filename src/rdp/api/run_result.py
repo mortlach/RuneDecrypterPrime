@@ -25,7 +25,7 @@ from rdp.core.types import (
     normalize_rune_indices,
     thaw_parameter_items,
 )
-from rune_decrypter_prime.scoring.scorer_report import ScorerReport
+from rdp.scoring.scorer_report import ScorerReport
 
 
 @dataclass(frozen=True, slots=True)

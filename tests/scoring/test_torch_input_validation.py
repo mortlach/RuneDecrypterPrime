@@ -5,7 +5,7 @@ import pytest
 from rdp.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rdp.core.types import Direction
-from rune_decrypter_prime.scoring.windowing import START_TAG, END_TAG
+from rdp.scoring.windowing import START_TAG, END_TAG
 pytestmark = pytest.mark.tier_a
 
 def _mk_torch_scorer(*, use_wli: bool):

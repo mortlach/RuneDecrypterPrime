@@ -19,7 +19,7 @@ from rdp.core.types import (
     SmoothingMethod,
     ensure_direction,
 )
-from rune_decrypter_prime.scoring.language_model.language_model_prime import LanguageModelPrime
+from rdp.scoring.language_model.language_model_prime import LanguageModelPrime
 
 ALPHABET_SIZE = 29
 _ALLOWED_ORDERS = {"col_then_sub", "sub_then_col"}

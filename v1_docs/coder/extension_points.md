@@ -6,7 +6,7 @@ Owner paths:
 - `src/rdp/ciphers/`
 - `src/rdp/keyops/`
 - `src/rune_decrypter_prime/solvers/`
-- `src/rune_decrypter_prime/scoring/`
+- `src/rdp/scoring/`
 - `src/rune_decrypter_prime/core/engine/`
 - `src/rdp/core/component_contracts.py`
 - `src/rdp/core/config/scoring.py`
@@ -40,7 +40,7 @@ others still require explicit enum and table updates.
 | Cipher | `src/rdp/ciphers/` | Exact runtime registry for engine ciphers; `api.experimental` for typed two-input maps/lookups | Semi-stable | [Add A Cipher](../howto/add_cipher.md) |
 | KeyOps family | `src/rdp/keyops/` | keyops registry and capability objects | Internal to semi-stable | `coder/key_pipeline.md` |
 | Solver | `src/rune_decrypter_prime/solvers/` | `SolverBase` plus explicit `SolverName` and `_SOLVER_TABLE` registration | Internal to semi-stable | [Add A Solver](../howto/add_solver.md) |
-| Scorer runtime | `src/rune_decrypter_prime/scoring/` | `BaseScorer`, scorer builders, `ScoringConfig.impl` | Internal | `coder/scoring_pipeline.md` |
+| Scorer runtime | `src/rdp/scoring/` | `BaseScorer`, scorer builders, `ScoringConfig.impl` | Internal | `coder/scoring_pipeline.md` |
 | Scorer lane | `src/rdp/core/component_contracts.py` and `src/rdp/core/config/scoring.py` | lane enum, request detection, capability/report sections | Semi-stable contract area | [Add A Scorer Lane](../howto/add_scorer_lane.md) |
 | Report/artifact | `src/rune_decrypter_prime/api/` | dataclass reports, artifact agreement, manifest rows | Public V1 for known API surfaces | `coder/telemetry_and_reports.md` |
 | Tutorial | `tutorials/v1/` | tutorial file, runner entry, metadata alignment | Public docs evidence | `development/adding_a_tutorial.md` |

@@ -25,7 +25,7 @@ request must block or report an explicitly authorised fallback; it must not be
 silently omitted.
 
 Contributor-level backend work imports the exact owners under
-`rune_decrypter_prime.scoring.hamming`. That implementation surface is not a
+`rdp.scoring.hamming`. That implementation surface is not a
 normal tutorial API.
 
 Diagnostic Hamming sections must not influence ranking unless the typed scoring

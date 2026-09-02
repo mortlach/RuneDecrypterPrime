@@ -6,9 +6,10 @@ include assets_manifest_ci_light_v1.json
 include assets_manifest_v1.json
 include asset_profiles_v1.json
 
-recursive-include src/rune_decrypter_prime/scoring/language_model *.cpp *.hpp *.h
-recursive-include src/rune_decrypter_prime/scoring/hamming *.cpp *.hpp *.h
-recursive-include src/rune_decrypter_prime/scoring/span_hamming *.cpp *.hpp *.h
+recursive-include src/rdp/scoring/language_model *.cpp *.hpp *.h
+recursive-include src/rdp/scoring/hamming *.cpp *.hpp *.h
+recursive-include src/rdp/scoring/span_hamming *.cpp *.hpp *.h
+recursive-include src/rdp/scoring/ngram_hamming *.cpp *.hpp *.h
 
 # CI-light runtime files are added to the sdist by A5Sdist from the exact
 # assets_manifest_ci_light_v1.json allowlist. Do not recursively include the

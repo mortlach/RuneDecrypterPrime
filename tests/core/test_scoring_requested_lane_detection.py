@@ -111,7 +111,7 @@ class _FakeRuneScorer:
 
 @pytest.fixture(autouse=True)
 def _reset_fake_numpy_scorer(monkeypatch):
-    import rune_decrypter_prime.scoring.rune_scorer as rune_scorer_module
+    import rdp.scoring.rune_scorer as rune_scorer_module
     _FakeRuneScorer.hamming_backend = None
     _FakeRuneScorer.span_hamming_backend = None
     _FakeRuneScorer.span_hamming_assets = None

@@ -1,6 +1,6 @@
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.scoring.scorer_report_builder import build_scorer_report
+from rdp.scoring.scorer_report_builder import build_scorer_report
 pytestmark = pytest.mark.tier_a
 
 class _FakeScorer:

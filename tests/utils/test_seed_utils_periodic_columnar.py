@@ -13,7 +13,7 @@ from rdp.keyops.periodic_structured_matrix_ops import (
     PeriodicStructuredMatrixKeyOps,
 )
 from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext_string
-from rune_decrypter_prime.scoring.language_model.language_model_prime import LanguageModelPrime
+from rdp.scoring.language_model.language_model_prime import LanguageModelPrime
 from rdp.data.runeglish import Runeglish
 from tests.scoring._helpers.lm_test_guard import require_full_lm_assets
 from rune_decrypter_prime.utils.seed_utils_periodic_columnar import SeedPlan, generate_seed_keys_periodic_columnar

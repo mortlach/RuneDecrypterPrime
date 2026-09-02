@@ -3,7 +3,7 @@ import types
 import numpy as np
 import pytest
 from rdp.core.types import ObjectiveFamily, ObjectiveSpec, Stat
-torch_scorer_module = pytest.importorskip('rune_decrypter_prime.scoring.torch_rune_scorer', reason='Torch backend required for Torch scorer tests')
+torch_scorer_module = pytest.importorskip('rdp.scoring.torch_rune_scorer', reason='Torch backend required for Torch scorer tests')
 RuneScorerTorch = torch_scorer_module.RuneScorerTorch
 pytestmark = pytest.mark.tier_a
 

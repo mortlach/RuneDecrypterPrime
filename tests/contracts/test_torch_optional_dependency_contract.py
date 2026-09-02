@@ -27,11 +27,11 @@ def test_torch_pytest_marker_is_declared() -> None:
     assert any((marker.startswith('torch:') for marker in markers))
 
 def test_requested_torch_scorer_errors_when_torch_runtime_unavailable(monkeypatch) -> None:
-    monkeypatch.delitem(sys.modules, 'rune_decrypter_prime.scoring.torch_rune_scorer', raising=False)
+    monkeypatch.delitem(sys.modules, 'rdp.scoring.torch_rune_scorer', raising=False)
     real_import = builtins.__import__
 
     def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
-        if name == 'rune_decrypter_prime.scoring.torch_rune_scorer':
+        if name == 'rdp.scoring.torch_rune_scorer':
             raise ModuleNotFoundError("No module named 'torch'", name='torch')
         return real_import(name, globals, locals, fromlist, level)
     monkeypatch.setattr(builtins, '__import__', fake_import)

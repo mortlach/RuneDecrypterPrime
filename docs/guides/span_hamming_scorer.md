@@ -10,7 +10,7 @@ Outcome: Understand how `span_hamming` computes deterministic, length-aware word
 
 ## Lexical source
 - Reuses `load_raw1grams_wordlists(...)` from:
-  - `src/rune_decrypter_prime/scoring/hamming/loader.py`
+  - `src/rdp/scoring/hamming/loader.py`
 - Dictionary entries are deduplicated and sorted deterministically per length.
 
 ## Core scoring model

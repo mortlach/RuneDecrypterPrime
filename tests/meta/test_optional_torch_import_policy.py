@@ -5,7 +5,7 @@ import pytest
 pytestmark = pytest.mark.tier_a
 ROOT = Path(__file__).resolve().parents[2]
 TESTS_ROOT = ROOT / 'tests'
-BANNED_TOP_LEVEL_IMPORTS = {'torch', 'rune_decrypter_prime.scoring.torch_rune_scorer'}
+BANNED_TOP_LEVEL_IMPORTS = {'torch', 'rdp.scoring.torch_rune_scorer'}
 
 def _module_name_from_import(node: ast.Import | ast.ImportFrom) -> str | None:
     if isinstance(node, ast.Import):

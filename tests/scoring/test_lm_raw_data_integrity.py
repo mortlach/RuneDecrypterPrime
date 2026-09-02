@@ -6,11 +6,11 @@ from typing import Dict
 import numpy as np
 import pytest
 import zstandard as zstd
-from rune_decrypter_prime.scoring.language_model.language_model_prime import _load_bin
-from rune_decrypter_prime.scoring.language_model.language_model_prime_runtime import (
+from rdp.scoring.language_model.language_model_prime import _load_bin
+from rdp.scoring.language_model.language_model_prime_runtime import (
     ECDFCache,
 )
-from rune_decrypter_prime.scoring.language_model.paths import expand_pattern
+from rdp.scoring.language_model.paths import expand_pattern
 from tests.scoring._helpers.lm_test_guard import require_full_lm_assets
 BASELINE_PATH = Path(__file__).resolve().parent / '_baselines' / 'scorer_drift_baseline.json'
 

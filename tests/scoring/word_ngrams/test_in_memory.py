@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 import pytest
-from rune_decrypter_prime.scoring.word_ngrams import RuneTokenWordNgramMemoryModel, RuneTokenWordNgramScorer, summarize_prefix_total_confidence, summarize_word_ngram_report_trust, wli_pairs_from_flat_array, word_ngram_report_is_active, word_tokens_from_idx_and_wli
+from rdp.scoring.word_ngrams import RuneTokenWordNgramMemoryModel, RuneTokenWordNgramScorer, summarize_prefix_total_confidence, summarize_word_ngram_report_trust, wli_pairs_from_flat_array, word_ngram_report_is_active, word_tokens_from_idx_and_wli
 pytestmark = pytest.mark.tier_a
 
 def test_word_tokens_from_idx_and_wli_splits_words() -> None:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from rdp import api
 from rdp.core.component_contracts import RankingEffect, ScoringLane
-from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
+from rdp.scoring.scorer_lane_report import build_scorer_lane_report
 
 def _production_lane_json(report):
     return [

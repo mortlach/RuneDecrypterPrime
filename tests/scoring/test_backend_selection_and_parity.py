@@ -1,7 +1,7 @@
 from __future__ import annotations
 import pytest
 from rune_decrypter_prime.core.engine.builders import build_scorer
-from rune_decrypter_prime.scoring.rune_scorer import RuneScorer
+from rdp.scoring.rune_scorer import RuneScorer
 from tests._helpers.configs import _mk_cfgs
 from tests.scoring._helpers.lm_test_guard import require_full_lm_assets
 pytestmark = pytest.mark.tier_a
@@ -29,7 +29,7 @@ def test_backend_selection_cpu_uses_reference(encoding_dir: str):
 @pytest.mark.parametrize('encoding_dir', ['ltr', 'rtl'])
 @pytest.mark.skipif(not (torch and torch.cuda.is_available()), reason='CUDA not available')
 def test_backend_selection_cuda_prefers_torch(encoding_dir: str):
-    from rune_decrypter_prime.scoring.torch_rune_scorer import RuneScorerTorch
+    from rdp.scoring.torch_rune_scorer import RuneScorerTorch
     c_cfg, s_cfg = _mk_cfgs(device='cuda', encoding_dir=encoding_dir)
     scorer = build_scorer(c_cfg, s_cfg)
     assert isinstance(scorer, RuneScorerTorch), 'CUDA build must select RuneScorerTorch'
@@ -37,7 +37,7 @@ def test_backend_selection_cuda_prefers_torch(encoding_dir: str):
 @pytest.mark.skipif(not (torch and torch.cuda.is_available()), reason='CUDA not available')
 def test_cuda_stats_align_with_cpu_reference():
     import numpy as np
-    from rune_decrypter_prime.scoring.torch_rune_scorer import RuneScorerTorch
+    from rdp.scoring.torch_rune_scorer import RuneScorerTorch
     require_full_lm_assets(models=('char', 'wli'), modes=('ltr',), poses=('nose',), ns=(2,), ecdf_stats=('logp',))
     plaintext = np.arange(128, dtype=np.uint8) % 29
     wli = _make_wli(len(plaintext))

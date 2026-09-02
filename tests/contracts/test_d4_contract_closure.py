@@ -22,7 +22,7 @@ def test_d4_source_gates_are_present() -> None:
     assert "_ensure_capability_report_method" in builders
     assert "raise_if_requested_lane_blocked(report)" in builders
     assert "hamming_issue=getattr" in builders
-    unified = _text("src/rune_decrypter_prime/scoring/unified_rune_scorer.py")
+    unified = _text("src/rdp/scoring/unified_rune_scorer.py")
     assert "def capability_report" in unified
     assert "cfg_scorer must be ScoringConfig" in unified
     assert "hamming_issue=getattr" in unified

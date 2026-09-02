@@ -13,7 +13,7 @@ from setuptools.command.sdist import sdist as _sdist
 
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "src"
-PACKAGE_ROOT = SRC / "rune_decrypter_prime"
+SCORING_PACKAGE_ROOT = SRC / "rdp"
 CI_ASSET_MANIFEST = ROOT / "assets_manifest_ci_light_v1.json"
 CI_ASSET_SOURCE_ROOT = ROOT / "assets"
 CI_LM_INDEX_REL = Path("language_model/lmp/index.json")
@@ -135,24 +135,24 @@ class A5Sdist(_sdist):
             shutil.copyfile(source, target)
 
 
-lm_dir = PACKAGE_ROOT / "scoring" / "language_model"
-hamming_dir = PACKAGE_ROOT / "scoring" / "hamming"
-span_hamming_dir = PACKAGE_ROOT / "scoring" / "span_hamming"
+lm_dir = SCORING_PACKAGE_ROOT / "scoring" / "language_model"
+hamming_dir = SCORING_PACKAGE_ROOT / "scoring" / "hamming"
+span_hamming_dir = SCORING_PACKAGE_ROOT / "scoring" / "span_hamming"
 
 extensions: list[Pybind11Extension] = []
 for maybe_ext in (
     _extension_if_sources_exist(
-        "rune_decrypter_prime.scoring.language_model._fastlm",
+        "rdp.scoring.language_model._fastlm",
         [lm_dir / "fastlm.cpp"],
         [lm_dir],
     ),
     _extension_if_sources_exist(
-        "rune_decrypter_prime.scoring.hamming._hamming",
+        "rdp.scoring.hamming._hamming",
         [hamming_dir / "bindings.cpp", hamming_dir / "Hamming.cpp", hamming_dir / "Flat2DArray.cpp"],
         [hamming_dir],
     ),
     _extension_if_sources_exist(
-        "rune_decrypter_prime.scoring.span_hamming._span_hamming_fast",
+        "rdp.scoring.span_hamming._span_hamming_fast",
         [span_hamming_dir / "fast_bindings.cpp"],
         [span_hamming_dir],
     ),

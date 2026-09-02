@@ -8,7 +8,7 @@ from rdp.core.types import (
     Device,
     Direction,
 )
-from rune_decrypter_prime.scoring.language_model.paths import (
+from rdp.scoring.language_model.paths import (
     default_lm_root,
     load_index,
     expand_pattern,

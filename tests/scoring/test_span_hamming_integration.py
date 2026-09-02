@@ -17,12 +17,12 @@ from rdp.core.types import (
     ObjectiveSpec,
     Stat,
 )
-from rune_decrypter_prime.scoring import rune_scorer
-from rune_decrypter_prime.scoring.span_hamming.calibrated_assets import SpanCalibratedAssets
+from rdp.scoring import rune_scorer
+from rdp.scoring.span_hamming.calibrated_assets import SpanCalibratedAssets
 pytestmark = pytest.mark.tier_a
 
 def _make_torch_scorer():
-    module = pytest.importorskip('rune_decrypter_prime.scoring.torch_rune_scorer', reason='Torch backend required for Torch span-hamming tests')
+    module = pytest.importorskip('rdp.scoring.torch_rune_scorer', reason='Torch backend required for Torch span-hamming tests')
     return object.__new__(module.RuneScorerTorch)
 
 def _cipher_config() -> CipherConfig:

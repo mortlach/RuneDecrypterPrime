@@ -44,7 +44,7 @@ from rdp.core.types import (
     WordLengthPolicy,
     Direction,
 )
-from rune_decrypter_prime.scoring.scorer_report import ScorerReport
+from rdp.scoring.scorer_report import ScorerReport
 
 
 _UNSET = object()

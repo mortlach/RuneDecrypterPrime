@@ -1,7 +1,7 @@
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.scoring.span_hamming.backend import SpanHammingBackend
-from rune_decrypter_prime.scoring.span_hamming.types import SpanHammingConfig
+from rdp.scoring.span_hamming.backend import SpanHammingBackend
+from rdp.scoring.span_hamming.types import SpanHammingConfig
 
 def _build_backend(wordlists, *, len_min: int, len_max: int, max_hd: int=2, start_stride: int=1, max_windows_total: int=0, debug_return_intervals: bool=False, min_quality_threshold: float=1e-09, max_candidates_per_window: int=256, max_intervals_considered_per_start: int=4) -> SpanHammingBackend:
     cfg = SpanHammingConfig(len_min=len_min, len_max=len_max, max_hd=max_hd, start_stride=start_stride, max_windows_total=max_windows_total, debug_return_intervals=debug_return_intervals, min_quality_threshold=min_quality_threshold, max_candidates_per_window=max_candidates_per_window, max_intervals_considered_per_start=max_intervals_considered_per_start)

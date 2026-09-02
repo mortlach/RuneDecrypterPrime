@@ -5,7 +5,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = REPO_ROOT / "src"
 RDP_CORE_ROOT = SRC_ROOT / "rdp" / "core"
 ENGINE_CORE_ROOT = SRC_ROOT / "rune_decrypter_prime" / "core"
-RUNE_SCORER = SRC_ROOT / "rune_decrypter_prime" / "scoring" / "rune_scorer.py"
+RUNE_SCORER = SRC_ROOT / "rdp" / "scoring" / "rune_scorer.py"
 CONSTRUCTION_BOUNDARY_FILES = {
     RDP_CORE_ROOT / "config" / "run.py",
     RDP_CORE_ROOT / "config" / "scoring.py",

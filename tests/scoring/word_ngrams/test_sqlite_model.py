@@ -2,7 +2,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 import pytest
-from rune_decrypter_prime.scoring.word_ngrams import RuneTokenWordNgramMemoryModel, RuneTokenWordNgramScorer, RuneTokenWordNgramSqlite, make_prefix_key, make_token_ngram_key
+from rdp.scoring.word_ngrams import RuneTokenWordNgramMemoryModel, RuneTokenWordNgramScorer, RuneTokenWordNgramSqlite, make_prefix_key, make_token_ngram_key
 pytestmark = pytest.mark.tier_a
 
 def _init_sqlite(path: Path) -> None:

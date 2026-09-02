@@ -1,6 +1,6 @@
 import pytest
 from rdp.core.types import SeMode
-from rune_decrypter_prime.scoring.windowing import aligned_window_count, span_core_tokens, span_map, span_max, span_with_tags
+from rdp.scoring.windowing import aligned_window_count, span_core_tokens, span_map, span_max, span_with_tags
 
 def test_span_core_tokens_matches_W_plus_n_minus_1():
     assert span_core_tokens(n=4, W=10) == 13

@@ -1,6 +1,6 @@
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.scoring.hamming.anneal import compute_hamming_weight
+from rdp.scoring.hamming.anneal import compute_hamming_weight
 
 @pytest.mark.parametrize('progress,expected', [(0.0, 0.0), (0.1, 0.0), (0.2, 0.0), (0.45, 0.05), (0.7, 0.1), (0.9, 0.1)])
 def test_compute_hamming_weight_linear(progress, expected):

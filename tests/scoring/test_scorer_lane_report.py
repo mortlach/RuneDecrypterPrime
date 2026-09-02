@@ -12,7 +12,7 @@ from rdp.core.component_contracts import (
     RequestedLaneUnavailableError,
     ScoringLane,
 )
-from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
+from rdp.scoring.scorer_lane_report import build_scorer_lane_report
 
 def _issue(code: str='backend_unavailable') -> CapabilityIssue:
     return CapabilityIssue(code=code, message='test lane unavailable', status=CapabilityStatus.UNAVAILABLE, source='test')

@@ -3,8 +3,8 @@ import json
 from pathlib import Path
 import numpy as np
 import pytest
-from rune_decrypter_prime.scoring.language_model.language_model_prime_runtime import ECDFCache
-from rune_decrypter_prime.scoring.language_model.load_status import LmLoadStatus
+from rdp.scoring.language_model.language_model_prime_runtime import ECDFCache
+from rdp.scoring.language_model.load_status import LmLoadStatus
 
 def _write_index(root: Path) -> None:
     (root / 'ecdf').mkdir(parents=True, exist_ok=True)

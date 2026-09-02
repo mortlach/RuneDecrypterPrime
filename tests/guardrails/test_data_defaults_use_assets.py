@@ -2,8 +2,8 @@ from __future__ import annotations
 from pathlib import Path
 from rdp.data.liber_primus.lp_main import default_main_transcript_path
 from rune_decrypter_prime.data.wordlists.loaders import default_wordlists_dir
-from rune_decrypter_prime.scoring.hamming.loader import default_hamming_dir
-from rune_decrypter_prime.scoring.language_model.paths import default_lm_root
+from rdp.scoring.hamming.loader import default_hamming_dir
+from rdp.scoring.language_model.paths import default_lm_root
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]

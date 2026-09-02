@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from rdp.core.component_contracts import RequestedLaneUnavailableError
 from rdp.core.config.cipher import CipherConfig
-from rune_decrypter_prime.scoring import rune_scorer
+from rdp.scoring import rune_scorer
 
 class _StubECDF:
 

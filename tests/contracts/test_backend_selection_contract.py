@@ -56,9 +56,9 @@ assert attempted == [], attempted
 assert 'rdp.api' not in sys.modules
 assert 'torch' not in sys.modules
 assert 'cupy' not in sys.modules
-assert 'rune_decrypter_prime.scoring.language_model._fastlm' not in sys.modules
-assert 'rune_decrypter_prime.scoring.hamming._hamming' not in sys.modules
-assert 'rune_decrypter_prime.scoring.span_hamming._span_hamming_fast' not in sys.modules
+assert 'rdp.scoring.language_model._fastlm' not in sys.modules
+assert 'rdp.scoring.hamming._hamming' not in sys.modules
+assert 'rdp.scoring.span_hamming._span_hamming_fast' not in sys.modules
 """)
 
 

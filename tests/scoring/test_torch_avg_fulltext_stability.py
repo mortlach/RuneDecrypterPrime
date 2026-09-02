@@ -7,9 +7,9 @@ from rune_decrypter_prime.core.engine.builders import build_scorer
 from rdp.core.types import (
     Direction,
 )
-from rune_decrypter_prime.scoring.rune_scorer import RuneScorer
+from rdp.scoring.rune_scorer import RuneScorer
 from tests.scoring._helpers.lm_test_guard import require_full_lm_assets
-torch_scorer_module = pytest.importorskip('rune_decrypter_prime.scoring.torch_rune_scorer', reason='Torch backend required for Torch scorer tests')
+torch_scorer_module = pytest.importorskip('rdp.scoring.torch_rune_scorer', reason='Torch backend required for Torch scorer tests')
 RuneScorerTorch = torch_scorer_module.RuneScorerTorch
 pytestmark = pytest.mark.tier_a
 

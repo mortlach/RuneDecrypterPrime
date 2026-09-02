@@ -11,6 +11,6 @@ def test_manifest_in_includes_native_extension_sources() -> None:
     manifest_path = root / 'MANIFEST.in'
     assert manifest_path.is_file(), 'MANIFEST.in is required so sdist-based wheel builds include native C++ sources.'
     text = manifest_path.read_text(encoding='utf-8')
-    required_patterns = ['recursive-include src/rune_decrypter_prime/scoring/language_model *.cpp *.hpp *.h', 'recursive-include src/rune_decrypter_prime/scoring/hamming *.cpp *.hpp *.h', 'recursive-include src/rune_decrypter_prime/scoring/span_hamming *.cpp *.hpp *.h']
+    required_patterns = ['recursive-include src/rdp/scoring/language_model *.cpp *.hpp *.h', 'recursive-include src/rdp/scoring/hamming *.cpp *.hpp *.h', 'recursive-include src/rdp/scoring/span_hamming *.cpp *.hpp *.h', 'recursive-include src/rdp/scoring/ngram_hamming *.cpp *.hpp *.h']
     missing = [pattern for pattern in required_patterns if pattern not in text]
     assert not missing, 'MANIFEST.in is missing native source include patterns:\n' + '\n'.join((f'- {pattern}' for pattern in missing))

@@ -6,7 +6,7 @@ from rdp.core.component_contracts import (
     CapabilityRequestState,
     ScoringLane,
 )
-from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
+from rdp.scoring.scorer_lane_report import build_scorer_lane_report
 
 
 def _lane(report, name: ScoringLane):

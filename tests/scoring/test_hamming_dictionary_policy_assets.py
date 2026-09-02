@@ -5,7 +5,7 @@ from rdp.core.hamming_dictionary_policy import (
     HammingDictionaryPolicy,
     ensure_hamming_dictionary_policy,
 )
-from rune_decrypter_prime.scoring.hamming.dictionary_assets import (
+from rdp.scoring.hamming.dictionary_assets import (
     choose_hamming_dictionary_wordlist_dir,
     resolve_hamming_dictionary_wordlist_dir,
 )

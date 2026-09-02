@@ -1,6 +1,6 @@
 from __future__ import annotations
 from rdp.core.component_contracts import ScoringLane
-from rune_decrypter_prime.scoring.base_scorer import BaseScorer
+from rdp.scoring.base_scorer import BaseScorer
 
 def test_scorer_lane_registry_values_are_stable() -> None:
     assert tuple((lane.value for lane in ScoringLane)) == (

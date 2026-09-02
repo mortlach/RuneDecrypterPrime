@@ -97,6 +97,47 @@ def freeze_parameter_items(values: Mapping[str, object], field_name: str = "para
     )
 
 
+def _report_json_value(value: object, field_name: str) -> JsonValue:
+    """Normalize report payloads while preserving their established contract."""
+    if value is None or type(value) in {str, bool, int}:
+        return value  # type: ignore[return-value]
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError(f"{field_name} contains a non-finite float")
+        return value
+    if isinstance(value, Enum):
+        return str(value.value)
+    if isinstance(value, Path):
+        if value.is_absolute():
+            raise ValueError(f"{field_name} contains an absolute path")
+        return value.as_posix()
+    if isinstance(value, Mapping):
+        return {
+            str(key): _report_json_value(item, f"{field_name}.{key}")
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_report_json_value(item, f"{field_name}[]") for item in value]
+    raise TypeError(f"{field_name} contains unsupported {type(value).__name__}")
+
+
+def freeze_report_mapping(
+    value: Mapping[str, object],
+    field_name: str,
+) -> Mapping[str, JsonValue]:
+    """Return a read-only, JSON-safe report mapping with frozen validation."""
+    if not isinstance(value, Mapping):
+        raise TypeError(f"{field_name} must be a mapping")
+    if any(not isinstance(key, str) for key in value):
+        raise TypeError(f"{field_name} keys must be strings")
+    normalized = {
+        key: _report_json_value(item, f"{field_name}.{key}")
+        for key, item in value.items()
+    }
+    frozen = freeze_parameter_items(normalized, field_name)
+    return MappingProxyType(thaw_parameter_items(frozen, json_compatible=True))
+
+
 def _looks_like_frozen_items(value: tuple[object, ...]) -> bool:
     return bool(value) and all(
         isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], str)

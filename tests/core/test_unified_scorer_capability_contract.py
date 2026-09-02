@@ -12,7 +12,7 @@ from rdp.core.component_contracts import (
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.config.scoring import ScoringConfig
 from rdp.core.types import Device
-from rune_decrypter_prime.scoring.unified_rune_scorer import UnifiedRuneScorer
+from rdp.scoring.unified_rune_scorer import UnifiedRuneScorer
 
 class _FakeBackendScorer:
     hamming_backend = None
@@ -35,7 +35,7 @@ class _FakeBackendScorer:
         return [0.0 for _ in pts]
 
 def _install_fake_numpy_backend(monkeypatch) -> None:
-    module = ModuleType('rune_decrypter_prime.scoring.rune_scorer')
+    module = ModuleType('rdp.scoring.rune_scorer')
     module.RuneScorer = _FakeBackendScorer
     monkeypatch.setitem(sys.modules, module.__name__, module)
 

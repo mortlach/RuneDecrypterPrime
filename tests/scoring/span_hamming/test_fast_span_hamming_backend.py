@@ -1,9 +1,9 @@
 from __future__ import annotations
 import time
 import pytest
-from rune_decrypter_prime.scoring.span_hamming.backend import SpanHammingBackend
-from rune_decrypter_prime.scoring.span_hamming.fast_backend import FastSpanHammingBackend, fast_span_hamming_available
-from rune_decrypter_prime.scoring.span_hamming.types import SpanHammingConfig
+from rdp.scoring.span_hamming.backend import SpanHammingBackend
+from rdp.scoring.span_hamming.fast_backend import FastSpanHammingBackend, fast_span_hamming_available
+from rdp.scoring.span_hamming.types import SpanHammingConfig
 pytestmark = pytest.mark.skipif(not fast_span_hamming_available(), reason='optional _span_hamming_fast extension is not built')
 
 def _stats_key(stats):

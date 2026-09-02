@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import numpy as np
 import pytest
-from rune_decrypter_prime.scoring.span_hamming.calibrated_assets import SpanCalibratedAssets
+from rdp.scoring.span_hamming.calibrated_assets import SpanCalibratedAssets
 pytestmark = pytest.mark.tier_a
 
 def _write_assets(root: Path) -> Path:

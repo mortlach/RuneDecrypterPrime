@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 import pytest
-from rune_decrypter_prime.scoring.rune_scorer import RuneScorer
+from rdp.scoring.rune_scorer import RuneScorer
 from tests._helpers.configs import _mk_cfgs
 from tests.scoring._helpers.lm_test_guard import require_full_lm_assets
 pytestmark = pytest.mark.tier_a

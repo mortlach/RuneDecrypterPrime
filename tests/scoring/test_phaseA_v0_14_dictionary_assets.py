@@ -2,7 +2,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 from rdp.data.asset_paths import resolve_assets_path
-from rune_decrypter_prime.scoring.hamming.loader import load_raw1grams_wordlists
+from rdp.scoring.hamming.loader import load_raw1grams_wordlists
 from rdp.data.runeglish import Runeglish
 PHASEA14_REL_ROOT = 'hamming_dictionary_policies_phaseA_v0_14'
 EXPECTED_RAW_FILES = {f'raw1grams_{idx:02d}.csv' for idx in range(1, 15)} | {'raw1grams_a1.csv'}

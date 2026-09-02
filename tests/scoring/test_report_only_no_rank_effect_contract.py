@@ -6,8 +6,8 @@ from rdp.core.component_contracts import (
     RankingEffect,
     ScoringLane,
 )
-from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report
-from rune_decrypter_prime.scoring.scorer_report_builder import build_scorer_report
+from rdp.scoring.scorer_lane_report import build_scorer_lane_report
+from rdp.scoring.scorer_report_builder import build_scorer_report
 
 class _Scorer:
     win = 10

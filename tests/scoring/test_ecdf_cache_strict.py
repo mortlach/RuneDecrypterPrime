@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import numpy as np
 import pytest
-from rune_decrypter_prime.scoring.language_model.language_model_prime_runtime import ECDFCache
+from rdp.scoring.language_model.language_model_prime_runtime import ECDFCache
 
 def _write_index(root: Path) -> None:
     data = {'version': 'v1', 'base': 'char29', 'ecdf_root': 'ecdf', 'joint_root': '.', 'models': {'char': {'n': [1], 'stats': ['logp'], 'joint_pattern': 'char/%%MODE%%/char29_joint_%%MODE%%_%%N%%_%%POS%%.bin.zst', 'ecdf_pattern': 'ecdf/char/%%MODE%%/%%MODE%%_%%POS%%_char_n%%N%%_win10_%%STAT%%.npz'}}}

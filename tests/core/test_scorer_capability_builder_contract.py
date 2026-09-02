@@ -49,12 +49,12 @@ def _reset_fake_runtime_scorer():
     _FakeRuntimeScorer.word_ngram_judge = None
 
 def _install_fake_torch(monkeypatch) -> None:
-    module = ModuleType('rune_decrypter_prime.scoring.torch_rune_scorer')
+    module = ModuleType('rdp.scoring.torch_rune_scorer')
     module.RuneScorerTorch = _FakeRuntimeScorer
     monkeypatch.setitem(sys.modules, module.__name__, module)
 
 def _install_fake_unified(monkeypatch) -> None:
-    module = ModuleType('rune_decrypter_prime.scoring.unified_rune_scorer')
+    module = ModuleType('rdp.scoring.unified_rune_scorer')
     module.UnifiedRuneScorer = _FakeUnifiedScorer
     monkeypatch.setitem(sys.modules, module.__name__, module)
 

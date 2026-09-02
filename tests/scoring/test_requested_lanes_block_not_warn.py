@@ -21,7 +21,7 @@ class _FakeRuneScorer:
 
 @pytest.fixture(autouse=True)
 def _patch_numpy_scorer(monkeypatch: pytest.MonkeyPatch):
-    import rune_decrypter_prime.scoring.rune_scorer as rune_scorer_module
+    import rdp.scoring.rune_scorer as rune_scorer_module
     monkeypatch.setattr(rune_scorer_module, 'RuneScorer', _FakeRuneScorer)
 
 def _cipher_cfg() -> CipherConfig:

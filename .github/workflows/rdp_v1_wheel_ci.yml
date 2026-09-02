@@ -26,10 +26,10 @@ jobs:
       CIBW_SKIP: "*-musllinux_*"
       CIBW_TEST_REQUIRES: "pytest jsonschema"
       CIBW_TEST_COMMAND: >-
-        python -c "import rune_decrypter_prime;
-        import rune_decrypter_prime.scoring.language_model._fastlm;
-        import rune_decrypter_prime.scoring.hamming._hamming;
-        import rune_decrypter_prime.scoring.span_hamming._span_hamming_fast;
+        python -c "import rdp; from rdp import api; assert len(api.__all__) == 32;
+        import rdp.scoring.language_model._fastlm;
+        import rdp.scoring.hamming._hamming;
+        import rdp.scoring.span_hamming._span_hamming_fast;
         print('wheel native imports passed')"
 
     steps:

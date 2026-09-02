@@ -55,7 +55,7 @@ def _avg_cfg(
 
 
 def test_numpy_avg_works_when_ecdf_constructor_would_fail(monkeypatch) -> None:
-    from rune_decrypter_prime.scoring import rune_scorer as rs
+    from rdp.scoring import rune_scorer as rs
 
     class _FailECDF:
         def __init__(self, *args, **kwargs):
@@ -72,7 +72,7 @@ def test_numpy_avg_works_when_ecdf_constructor_would_fail(monkeypatch) -> None:
 
 
 def test_numpy_avg_does_not_call_ecdf_path(monkeypatch) -> None:
-    from rune_decrypter_prime.scoring import rune_scorer as rs
+    from rdp.scoring import rune_scorer as rs
 
     monkeypatch.setattr(rs, "LmPrimeRuntime", _StubLmRuntime)
     scorer = rs.RuneScorer(
@@ -90,7 +90,7 @@ def test_numpy_avg_does_not_call_ecdf_path(monkeypatch) -> None:
 
 def test_torch_avg_does_not_construct_or_call_ecdf(monkeypatch) -> None:
     trs = pytest.importorskip(
-        "rune_decrypter_prime.scoring.torch_rune_scorer",
+        "rdp.scoring.torch_rune_scorer",
         reason="Torch backend required for Torch AVG scorer tests",
     )
 

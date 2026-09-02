@@ -6,7 +6,7 @@ import subprocess
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
-from rune_decrypter_prime.scoring.language_model.paths import default_lm_root
+from rdp.scoring.language_model.paths import default_lm_root
 _DATA_SUFFIXES = {'.bin', '.csv', '.db', '.json', '.npy', '.npz', '.sqlite', '.tsv', '.txt', '.zst'}
 _ASSET_TOKENS = {'asset', 'assets', 'language_model', 'models', 'model'}
 

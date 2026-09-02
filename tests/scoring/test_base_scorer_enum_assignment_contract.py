@@ -5,7 +5,7 @@ from rdp.core.config.scoring import (
     SpanHammingGateFailurePolicy,
     SpanHammingMode,
 )
-from rune_decrypter_prime.scoring.base_scorer import BaseScorer
+from rdp.scoring.base_scorer import BaseScorer
 
 class _ConcreteScorer(BaseScorer):
 

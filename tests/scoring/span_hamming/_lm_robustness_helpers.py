@@ -2,8 +2,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Iterable, Sequence
 import numpy as np
-from rune_decrypter_prime.scoring.span_hamming import SpanCalibratedAssets, SpanHammingBackend, SpanHammingLmAssetsV2
-from rune_decrypter_prime.scoring.span_hamming.ecdf_interp import clamp_pct, energy_to_pct, pct_to_energy
+from rdp.scoring.span_hamming import SpanCalibratedAssets, SpanHammingBackend, SpanHammingLmAssetsV2
+from rdp.scoring.span_hamming.ecdf_interp import clamp_pct, energy_to_pct, pct_to_energy
 
 @dataclass(frozen=True)
 class SpanHammingBenchmarkRuntimeConfig:

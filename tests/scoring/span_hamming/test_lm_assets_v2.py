@@ -3,7 +3,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 import pytest
-from rune_decrypter_prime.scoring.span_hamming.lm_assets_v2 import SpanHammingLmAssetsV2
+from rdp.scoring.span_hamming.lm_assets_v2 import SpanHammingLmAssetsV2
 pytestmark = pytest.mark.tier_a
 
 def _write_asset(root: Path, payload: dict) -> Path:

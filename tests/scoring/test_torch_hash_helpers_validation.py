@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 pytestmark = pytest.mark.tier_a
 torch = pytest.importorskip('torch')
-_torch_scorer = pytest.importorskip('rune_decrypter_prime.scoring.torch_rune_scorer', reason='Torch scorer helper tests require the optional Torch backend')
+_torch_scorer = pytest.importorskip('rdp.scoring.torch_rune_scorer', reason='Torch scorer helper tests require the optional Torch backend')
 _xxh64_u32words_cpu = _torch_scorer._xxh64_u32words_cpu
 _xxh64_u32words_device = _torch_scorer._xxh64_u32words_device
 

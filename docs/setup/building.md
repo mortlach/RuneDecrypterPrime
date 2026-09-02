@@ -24,9 +24,9 @@ The wheel test imports:
 
 ```text
 rune_decrypter_prime
-rune_decrypter_prime.scoring.language_model._fastlm
-rune_decrypter_prime.scoring.hamming._hamming
-rune_decrypter_prime.scoring.span_hamming._span_hamming_fast
+rdp.scoring.language_model._fastlm
+rdp.scoring.hamming._hamming
+rdp.scoring.span_hamming._span_hamming_fast
 ```
 
 That proves the installed wheel can import the package and the required native
@@ -43,9 +43,9 @@ MANIFEST.in
 The important source areas are:
 
 ```text
-src/rune_decrypter_prime/scoring/language_model/
-src/rune_decrypter_prime/scoring/hamming/
-src/rune_decrypter_prime/scoring/span_hamming/
+src/rdp/scoring/language_model/
+src/rdp/scoring/hamming/
+src/rdp/scoring/span_hamming/
 ```
 
 Do not move native source files without updating `setup.py`, `MANIFEST.in`, and

@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 import pytest
-from rune_decrypter_prime.scoring.span_hamming.ecdf_interp import clamp_pct, energy_to_pct, fix_strict_increasing_breakpoints, interp_pct, pct_to_energy
+from rdp.scoring.span_hamming.ecdf_interp import clamp_pct, energy_to_pct, fix_strict_increasing_breakpoints, interp_pct, pct_to_energy
 pytestmark = pytest.mark.tier_a
 
 def test_fix_strict_increasing_breakpoints_dedupes_deterministically() -> None:

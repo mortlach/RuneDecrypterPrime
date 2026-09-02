@@ -15,7 +15,7 @@ import itertools
 from rdp.core.types import Direction, TextDirection, ensure_direction
 from rdp.keyops.permutation_ops import PermutationKeyOps
 from rdp.data.runeglish import Runeglish
-from rune_decrypter_prime.scoring.language_model.language_model_prime import LanguageModelPrime
+from rdp.scoring.language_model.language_model_prime import LanguageModelPrime
 from rdp.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
 
 CiphertextLike = Union[str, Sequence[int], np.ndarray]
