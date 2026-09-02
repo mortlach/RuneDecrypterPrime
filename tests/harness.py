@@ -24,18 +24,16 @@ import pstats
 import datetime
 import time
 import numpy as np
-from rune_decrypter_prime.core.config import (
-    CipherConfig,
-    RunConfig,
-    SolverConfig,
-)
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.run import RunConfig
+from rdp.core.config.solver import SolverConfig
 from rune_decrypter_prime.core.solver_engine import RuneSolverEngine
 from rdp.data.runeglish import Runeglish
-from rune_decrypter_prime.data.cipher_tests.baseline_registry import BASELINE
+from tests._helpers.baseline_registry import BASELINE
 from rdp.io.run_logger import get_logger
 from pathlib import Path as _Path
 try:
-    from rune_decrypter_prime.core.config.logging_config import get_run_dir as _get_run_dir
+    from rdp.core.config.logging_config import get_run_dir as _get_run_dir
 except Exception:
     _get_run_dir = None
 _TEST_OUT_BASE = _get_run_dir() / 'artifacts' / 'tests' if _get_run_dir else _Path('output') / 'tests' / 'manual' / 'artifacts' / 'tests'

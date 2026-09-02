@@ -3,10 +3,8 @@ from rdp import api
 import numpy as np
 import pytest
 from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
-from rune_decrypter_prime.core.config import (
-    CipherConfig,
-)
-from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.types import KEY_DTYPE, Direction
 import rdp.data.liber_primus as lp
 from rdp.data.runeglish import Runeglish

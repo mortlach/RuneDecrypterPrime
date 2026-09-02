@@ -9,7 +9,7 @@ SRC = ROOT / 'src'
 for path in (ROOT, SRC):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
-from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rdp.core.config.cipher import CipherConfig
 from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
 import rdp.data.liber_primus as lp
 from rune_decrypter_prime.utils.solve_output import configure_utf8_stdio, match_ratio, page_value, print_block, print_final_result, render_plaintext, zero_positions

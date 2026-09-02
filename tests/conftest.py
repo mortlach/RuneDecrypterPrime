@@ -11,11 +11,11 @@ for path in (ROOT, SRC):
     sys.path.insert(0, resolved)
 from rdp import api
 import pytest
-from rune_decrypter_prime.core.config.logging_config import (
+from rdp.core.config.logging_config import (
     init_logging,
     get_run_dir,
 )
-from rune_decrypter_prime.data.cipher_tests.baseline_registry import BASELINE
+from tests._helpers.baseline_registry import BASELINE
 
 def _init_session_logging() -> Path:
     """

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
-from rune_decrypter_prime.core.config.logging_config import LoggingConfig as CoreLoggingConfig
+from rdp.core.config.logging_config import LoggingConfig as CoreLoggingConfig
 
 _RUNTIME_LOGGING_KEYS = {"progress_callback", "log_interval"}
 _DURABLE_OUTPUT_PATH_KEYS = {
@@ -38,7 +38,7 @@ def normalize_logging_cfg(logging: Any) -> CoreLoggingConfig:
     if isinstance(logging, dict):
         return CoreLoggingConfig.from_dict(dict(logging))
     raise TypeError(
-        "logging must be None, a dict, or rune_decrypter_prime.core.logging_config.LoggingConfig"
+        "logging must be None, a dict, or rdp.core.config.logging_config.LoggingConfig"
     )
 
 
@@ -72,5 +72,5 @@ def _route_logging_input(logging: Any) -> _LoggingRoute:
             )
         return _LoggingRoute(runtime_controls=runtime_controls)
     raise TypeError(
-        "logging must be None, a dict, or rune_decrypter_prime.core.logging_config.LoggingConfig"
+        "logging must be None, a dict, or rdp.core.config.logging_config.LoggingConfig"
     )

@@ -6,7 +6,7 @@ Owner paths:
 - `src/rune_decrypter_prime/api/specs.py`
 - `src/rune_decrypter_prime/keyops/`
 - `src/rdp/core/types.py`
-- `src/rune_decrypter_prime/core/problem/runtime.py`
+- `src/rdp/core/problem/runtime.py`
 
 Related tests:
 - `tests/keyops/`

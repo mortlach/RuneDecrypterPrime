@@ -9,6 +9,7 @@ _SRC = _ROOT / 'src'
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 from rune_decrypter_prime.utils import tutorial_pretty as pretty
+from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.scheduled_stream_lookup_tutorial_utils import build_ciphertext, concat_keys, default_scorer_params, encode_plaintext, key_period13, key_period31, make_real_solve_solver, mask_from_segments
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
@@ -39,6 +40,7 @@ def _run_case(label: str, mask: list[int], key: list[int]) -> None:
     )
     key_spec = api.KeySpec.repeating(length=44)
     cipher_spec, key_spec, pt_idx, wli, _pt_runes, ct_idx_list, ct_runes, _key = build_ciphertext(
+        plaintext=plaintext_english_string,
         cipher_spec=cipher_spec,
         key_spec=key_spec,
         key_values=key,
@@ -69,7 +71,7 @@ def _run_case(label: str, mask: list[int], key: list[int]) -> None:
         raise AssertionError(f'partial recovery below threshold: match_ratio={ratio:.3f}')
 
 def main() -> None:
-    pt_idx, _wli, _pt_runes = encode_plaintext(DIRECTION)
+    pt_idx, _wli, _pt_runes = encode_plaintext(plaintext_english_string, DIRECTION)
     n = len(pt_idx)
     key = concat_keys(key_period13(), key_period31())
     mask_13_31_13 = mask_from_segments(n, [('A', 0, 120), ('B', 120, 240), ('A', 240, None)])

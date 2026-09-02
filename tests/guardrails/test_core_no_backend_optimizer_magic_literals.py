@@ -2,7 +2,8 @@ from __future__ import annotations
 import ast
 import re
 from pathlib import Path
-import rune_decrypter_prime as rdp
+import rdp
+import rune_decrypter_prime
 _BANNED = {'numpy', 'torch', 'unified', 'auto', 'beam', 'ga', 'sa', 'hybrid', 'cpu', 'cuda'}
 _PATTERN = re.compile('\\b(?:numpy|torch|unified|auto|beam|ga|sa|hybrid|cpu|cuda)\\b', re.IGNORECASE)
 _ALLOWLIST = {'core/types.py', 'core/config/logging_config.py', 'core/config/cipher.py', 'core/config/scoring.py', 'core/engine/engine.py', 'core/problem/instance.py', 'core/solver_engine.py'}
@@ -72,13 +73,16 @@ def _scan_file(py: Path) -> list[tuple[str, int, str, str]]:
     return offenders
 
 def test_core_has_no_backend_optimizer_magic_literals():
-    root = Path(rdp.__file__).resolve().parent
-    core = root / 'core'
     all_offenders: list[str] = []
-    for py in core.rglob('*.py'):
-        rel = py.relative_to(root).as_posix()
-        if rel in _ALLOWLIST:
-            continue
-        for kind, lineno, token, ctx in _scan_file(py):
-            all_offenders.append(f'- {rel}:{lineno} [{kind}] {ctx}')
+    package_roots = (
+        Path(rdp.__file__).resolve().parent,
+        Path(rune_decrypter_prime.__file__).resolve().parent,
+    )
+    for root in package_roots:
+        for py in (root / 'core').rglob('*.py'):
+            rel = py.relative_to(root).as_posix()
+            if rel in _ALLOWLIST:
+                continue
+            for kind, lineno, token, ctx in _scan_file(py):
+                all_offenders.append(f'- {rel}:{lineno} [{kind}] {ctx}')
     assert not all_offenders, 'Backend/optimizer magic strings found in core code (comments/docstrings ignored).\n' + '\n'.join(all_offenders)

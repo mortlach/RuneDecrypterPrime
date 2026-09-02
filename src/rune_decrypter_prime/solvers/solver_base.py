@@ -33,7 +33,7 @@ from rdp.telemetry.events import (
 from rdp.telemetry.pipeline import make_pipeline_block
 
 # Solution + logging
-from ..core.config import Solution
+from rdp.core.config.solution import Solution
 from rdp.io.logging_adapter import module_logger
 
 logger = module_logger(__name__)

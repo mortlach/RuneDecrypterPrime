@@ -3,7 +3,7 @@ from rdp import api
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 import pytest
-from rune_decrypter_prime.core.config.logging_config import LoggingConfig
+from rdp.core.config.logging_config import LoggingConfig
 
 def _minimal_runspec(problem_input: object) -> api.RunSpec:
     return api.RunSpec(problem_input=problem_input, cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=2, rounds=0))

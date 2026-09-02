@@ -2,7 +2,7 @@ from __future__ import annotations
 from rdp import api
 import pytest
 from rdp.core.component_contracts import ScoringLane
-from rune_decrypter_prime.core.config.scoring import (
+from rdp.core.config.scoring import (
     HammingTextDirectionMode,
     SpanHammingBucketPolicy,
     SpanHammingCombineMode,

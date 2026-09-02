@@ -28,11 +28,11 @@ from rdp.api.stop_reason_contract import (
     stop_category_for_reason,
 )
 from rdp.core.component_contracts import ScorerCapabilityReport
-from rune_decrypter_prime.core.config import SolverConfig
-from rune_decrypter_prime.core.config.interruptor import InterruptorConfig
-from rune_decrypter_prime.core.config.logging_config import LoggingConfig
-from rune_decrypter_prime.core.config.logging_config import get_run_dir, init_logging
-from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rdp.core.config.solver import SolverConfig
+from rdp.core.config.interruptor import InterruptorConfig
+from rdp.core.config.logging_config import LoggingConfig
+from rdp.core.config.logging_config import get_run_dir, init_logging
+from rdp.core.config.scoring import ScoringConfig
 from rdp.core.types import (
     ComputeDevice,
     Device,

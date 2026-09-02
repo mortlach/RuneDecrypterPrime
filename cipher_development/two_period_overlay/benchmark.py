@@ -39,11 +39,11 @@ def build_rdp_case(
     *,
     scoring_contract: Mapping[str, Any] | None = None,
 ) -> tuple[SearchCase, ReferenceCase]:
-    from rune_decrypter_prime.core.config import HardCribConfig
-    from rune_decrypter_prime.core.config.cipher import materialize_cipher_config
+    from rdp.core.config.hard_crib import HardCribConfig
+    from rdp.core.config.cipher import materialize_cipher_config
     from rune_decrypter_prime.core.engine.builders import build_scorer
     from rune_decrypter_prime.core.engine.builders import build_cipher
-    from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
+    from rdp.core.problem.runtime import DecryptionProblem
     from rdp.core.types import Direction
     from rune_decrypter_prime.data.cipher_tests.plaintext import (
         plaintext1,

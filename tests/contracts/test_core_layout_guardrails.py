@@ -3,21 +3,22 @@ import ast
 from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = REPO_ROOT / "src"
-CORE_ROOT = SRC_ROOT / "rune_decrypter_prime" / "core"
+RDP_CORE_ROOT = SRC_ROOT / "rdp" / "core"
+ENGINE_CORE_ROOT = SRC_ROOT / "rune_decrypter_prime" / "core"
 RUNE_SCORER = SRC_ROOT / "rune_decrypter_prime" / "scoring" / "rune_scorer.py"
 CONSTRUCTION_BOUNDARY_FILES = {
-    CORE_ROOT / "config" / "run.py",
-    CORE_ROOT / "config" / "scoring.py",
-    CORE_ROOT / "config" / "cipher.py",
-    CORE_ROOT / "config" / "hard_crib.py",
-    CORE_ROOT / "config" / "interruptor.py",
-    CORE_ROOT / "config" / "logging_config.py",
-    CORE_ROOT / "component_contracts.py",
-    CORE_ROOT / "types.py",
+    RDP_CORE_ROOT / "config" / "run.py",
+    RDP_CORE_ROOT / "config" / "scoring.py",
+    RDP_CORE_ROOT / "config" / "cipher.py",
+    RDP_CORE_ROOT / "config" / "hard_crib.py",
+    RDP_CORE_ROOT / "config" / "interruptor.py",
+    RDP_CORE_ROOT / "config" / "logging_config.py",
+    RDP_CORE_ROOT / "component_contracts.py",
+    RDP_CORE_ROOT / "types.py",
 }
 TELEMETRY_OR_PAYLOAD_DICT_CHECKS = {
-    CORE_ROOT / "engine" / "engine.py": {"tele"},
-    CORE_ROOT / "problem" / "runtime.py": {
+    ENGINE_CORE_ROOT / "engine" / "engine.py": {"tele"},
+    RDP_CORE_ROOT / "problem" / "runtime.py": {
         "self.telemetry",
         "sc_tel",
         "extra",
@@ -28,7 +29,12 @@ TELEMETRY_OR_PAYLOAD_DICT_CHECKS = {
 
 
 def _python_files_under_core() -> list[Path]:
-    return sorted((path for path in CORE_ROOT.rglob('*.py') if '__pycache__' not in path.parts))
+    return sorted(
+        path
+        for root in (RDP_CORE_ROOT, ENGINE_CORE_ROOT)
+        for path in root.rglob("*.py")
+        if "__pycache__" not in path.parts
+    )
 
 def _core_runtime_files() -> list[Path]:
     return [path for path in _python_files_under_core() if path not in CONSTRUCTION_BOUNDARY_FILES and path.name != '__init__.py']
@@ -54,11 +60,12 @@ def _checked_expression(node: ast.Call, text: str) -> str:
 
 def test_core_has_no_module_package_name_collisions() -> None:
     collisions: list[str] = []
-    for package_init in CORE_ROOT.rglob('__init__.py'):
-        package_dir = package_init.parent
-        sibling_module = package_dir.with_suffix('.py')
-        if sibling_module.exists():
-            collisions.append(f'{sibling_module.relative_to(SRC_ROOT)} conflicts with {package_dir.relative_to(SRC_ROOT)}/')
+    for root in (RDP_CORE_ROOT, ENGINE_CORE_ROOT):
+        for package_init in root.rglob('__init__.py'):
+            package_dir = package_init.parent
+            sibling_module = package_dir.with_suffix('.py')
+            if sibling_module.exists():
+                collisions.append(f'{sibling_module.relative_to(SRC_ROOT)} conflicts with {package_dir.relative_to(SRC_ROOT)}/')
     assert collisions == []
 
 def test_core_runtime_has_no_hidden_config_getters() -> None:
@@ -79,7 +86,7 @@ def test_core_runtime_does_not_import_aggregate_config_package() -> None:
         for node in ast.walk(tree):
             if not isinstance(node, ast.ImportFrom):
                 continue
-            if node.module == 'rune_decrypter_prime.core.config':
+            if node.module == 'rdp.core.config':
                 hits.append(f'{path.relative_to(REPO_ROOT)} imports aggregate core.config')
             if node.level > 0 and node.module == 'config':
                 hits.append(f'{path.relative_to(REPO_ROOT)} imports relative aggregate core.config')
@@ -107,13 +114,13 @@ def test_numpy_scorer_uses_direct_scoring_config_attributes() -> None:
     assert 'getattr(scorer_cfg' not in text
 
 def test_decryption_problem_uses_direct_canonical_config_attributes() -> None:
-    path = CORE_ROOT / 'problem' / 'runtime.py'
+    path = RDP_CORE_ROOT / 'problem' / 'runtime.py'
     text = path.read_text(encoding='utf-8')
     assert 'getattr(self.c_cfg' not in text
     assert 'getattr(self.s_cfg' not in text
 
 def test_core_runtime_uses_direct_typed_config_attributes() -> None:
-    checked_files = {CORE_ROOT / 'solver_engine.py': ['getattr(cfg', 'getattr(cfg.cipher', 'getattr(self.cfg.cipher'], CORE_ROOT / 'problem' / 'instance.py': ['getattr(spec.cipher_cfg', 'getattr(spec.scorer_params']}
+    checked_files = {ENGINE_CORE_ROOT / 'solver_engine.py': ['getattr(cfg', 'getattr(cfg.cipher', 'getattr(self.cfg.cipher'], RDP_CORE_ROOT / 'problem' / 'instance.py': ['getattr(spec.cipher_cfg', 'getattr(spec.scorer_params']}
     hits: list[str] = []
     for path, forbidden_fragments in checked_files.items():
         text = path.read_text(encoding='utf-8')

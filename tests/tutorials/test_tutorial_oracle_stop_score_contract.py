@@ -1,8 +1,8 @@
 from __future__ import annotations
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.utils import tutorial_utils
 pytestmark = pytest.mark.tier_a
 

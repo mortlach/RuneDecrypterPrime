@@ -7,7 +7,7 @@ import inspect
 import pytest
 
 from rdp.api import CipherSpec, KeySpec, decrypt, encrypt, experimental
-from rune_decrypter_prime.core.config.cipher import materialize_cipher_config
+from rdp.core.config.cipher import materialize_cipher_config
 from rune_decrypter_prime.core.engine.builders import build_cipher
 from rdp.core.types import ComputeDevice, TextDirection
 from tutorials.v1.data.two_period_cribs_demo import build_demo_fixture

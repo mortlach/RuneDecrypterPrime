@@ -1,5 +1,5 @@
 # ============================================================
-# rune_decrypter_prime/core/config.py
+# rdp/core/config/solution.py
 # Unified dataclasses for cipher/scorer/solver/run configs.
 # ============================================================
 

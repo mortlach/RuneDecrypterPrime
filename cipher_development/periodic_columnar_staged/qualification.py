@@ -21,9 +21,9 @@ from cipher_development.shared.experiment import (
     TruthPolicy,
     WliMode,
 )
-from rune_decrypter_prime.core.config.cipher import materialize_cipher_config
+from rdp.core.config.cipher import materialize_cipher_config
 from rune_decrypter_prime.core.engine.builders import build_cipher, build_scorer
-from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
+from rdp.core.problem.runtime import DecryptionProblem
 from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext_string
 from rdp.data.runeglish import Runeglish
 from rune_decrypter_prime.utils.seed_utils import make_periodic_seed_pool

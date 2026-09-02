@@ -5,7 +5,7 @@ Status: staged V1 draft
 Owner paths:
 - `src/rune_decrypter_prime/ciphers/`
 - `src/rune_decrypter_prime/api/wrappers/registry.py`
-- `src/rune_decrypter_prime/core/problem/runtime.py`
+- `src/rdp/core/problem/runtime.py`
 
 Related tests:
 - `tests/ciphers/`

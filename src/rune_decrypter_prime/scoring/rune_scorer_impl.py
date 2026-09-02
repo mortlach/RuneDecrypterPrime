@@ -16,8 +16,8 @@ from rune_decrypter_prime.scoring.objective_normalize import (
     normalize_objective_input as _normalize_objective,
 )
 from rune_decrypter_prime.scoring.language_model.language_model_prime_runtime import LmPrimeRuntime, ECDFCache
-from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.scoring import (
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scoring import (
     HammingTextDirectionMode,
     ScoringConfig,
     SpanHammingBucketPolicy,

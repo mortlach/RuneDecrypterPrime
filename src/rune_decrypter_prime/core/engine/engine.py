@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional
 import numpy as np
 
 # Core
-from rune_decrypter_prime.core.problem.instance import ProblemInstance
+from rdp.core.problem.instance import ProblemInstance
 from rdp.core.types import SolverName, ensure_solver_name
 from rdp.core.types import ensure_device, Device
 

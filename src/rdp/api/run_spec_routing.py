@@ -9,7 +9,7 @@ import numpy as np
 from rdp.api.normalize import _assert_core_ready, normalize_ciphertext
 from rdp.api.run_spec import RawTextInput, RuneIndexInput, RunSpec, SourceReferenceInput
 from rdp.api.source_resolution import resolve_source_input_ref
-from rune_decrypter_prime.core.config.logging_config import LoggingConfig
+from rdp.core.config.logging_config import LoggingConfig
 
 
 RUNTIME_LOGGING_KEYS = frozenset({"progress_callback", "log_interval"})

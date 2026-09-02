@@ -3,8 +3,8 @@ from rdp import api
 import numpy as np
 import pytest
 from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
-from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.problem import DecryptionProblem
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.types import Direction
 from rune_decrypter_prime.solvers.sa import SASolver
 pytestmark = pytest.mark.tier_a

@@ -63,7 +63,7 @@ Every helper (`tests/conftest.py`, tutorials, RunLogger) writes relative to the 
 ---
 
 ## Expert Track - Logging & Validation
-- **LoggingConfig** (`src/rune_decrypter_prime/core/config/logging_config.py`) initialises the `output/<kind>/<run_id>/` folders used by tests and tooling.
+- **LoggingConfig** (`src/rdp/core/config/logging_config.py`) initialises the `output/<kind>/<run_id>/` folders used by tests and tooling.
 - Tests (`tests/telemetry/test_schema_contract.py`) assume `META.json` includes repo/out roots, run IDs, git info, and pointers to logs/trace/artifacts.
 - Tools (`tools/repo_utils/index_project_symbols.py`, `share_package.py`) write into `output/share/<timestamp>__share__<label>/`.
 - Use `tools/ci/validate_outputs.py` to enforce that docs lint commands write into `output/tools/docs_lint/<...>/`.

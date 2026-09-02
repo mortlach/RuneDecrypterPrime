@@ -3,7 +3,7 @@ from rdp import api
 import sys
 import types
 import numpy as np
-from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rdp.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rdp.core.types import Device
 

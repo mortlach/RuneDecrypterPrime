@@ -2,9 +2,9 @@ from __future__ import annotations
 from rdp import api
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rdp.core.config.cipher import CipherConfig
 from rune_decrypter_prime.ciphers.generic_map_cipher import GenericMapCipher
-from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
+from rdp.core.problem.runtime import DecryptionProblem
 pytestmark = pytest.mark.tier_a
 
 class _ZeroScorer:

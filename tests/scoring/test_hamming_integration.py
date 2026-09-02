@@ -4,7 +4,7 @@ import csv
 import numpy as np
 import pytest
 from pathlib import Path
-from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rdp.core.config.cipher import CipherConfig
 from rdp.core.types import Direction
 from rune_decrypter_prime.scoring import rune_scorer
 from rune_decrypter_prime.scoring.hamming.loader import default_hamming_dir, load_raw1grams_wordlists

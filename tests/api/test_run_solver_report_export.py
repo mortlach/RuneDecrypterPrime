@@ -4,7 +4,7 @@ import importlib
 import json
 
 from rdp import api
-from rune_decrypter_prime.core.config.solution import Solution
+from rdp.core.config.solution import Solution
 
 
 def _solution() -> Solution:

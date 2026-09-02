@@ -2,8 +2,8 @@ from __future__ import annotations
 from rdp import api
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.config import CipherConfig
-from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.types import Direction, KEY_DTYPE
 from rune_decrypter_prime.ciphers.generic_map_cipher import GenericMapCipher
 pytestmark = pytest.mark.tier_a

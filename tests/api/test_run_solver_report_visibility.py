@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 
 from rdp import api
-from rune_decrypter_prime.core.config.solution import Solution
+from rdp.core.config.solution import Solution
 
 
 def _solution() -> Solution:

@@ -55,9 +55,9 @@ from rdp.core.types import (
     ensure_direction,
     ensure_avg_window_policy,
 )
-from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rdp.core.config.cipher import CipherConfig
 from rune_decrypter_prime.scoring.word_ngrams import RuneTokenWordNgramJudgeRuntime
-from rune_decrypter_prime.core.config.scoring import (
+from rdp.core.config.scoring import (
     ScoringConfig,
     HammingTextDirectionMode,
     SpanHammingBucketPolicy,

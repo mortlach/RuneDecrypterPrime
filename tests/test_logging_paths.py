@@ -4,7 +4,7 @@ import json
 import os
 import shutil
 from pathlib import Path
-from rune_decrypter_prime.core.config import logging_config as logging_config
+import rdp.core.config.logging_config as logging_config
 
 def _assert_local_path(value: str) -> None:
     assert value, 'path string must be non-empty'

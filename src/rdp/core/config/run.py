@@ -1,5 +1,5 @@
 # ============================================================
-# rune_decrypter_prime/core/config.py
+# rdp/core/config/run.py
 # Unified dataclasses for cipher/scorer/solver/run configs.
 # ============================================================
 
@@ -7,17 +7,18 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict
 from typing import Any, Dict, Optional
 
-from rune_decrypter_prime.core.config.logging_config import LoggingConfig
-from rune_decrypter_prime.core.config.scoring import ScoringConfig
-from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.solver import SolverConfig
-from rune_decrypter_prime.data.cipher_tests.baseline_registry import BASELINE
+from rdp.core.config.logging_config import LoggingConfig
+from rdp.core.config.scoring import ScoringConfig
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.solver import SolverConfig
 from rdp.core.types import (
     SolverName,
     ScorerName,
     ensure_solver_name,
     ensure_scorer_name,
 )
+
+_DEFAULT_RUN_SEED = 12345
 
 @dataclass
 class RunConfig:
@@ -29,7 +30,7 @@ class RunConfig:
     optimizer_name: Optional[SolverName | str] = None
     optimizer_params: Optional[Dict[str, Any]] = None
     logging: LoggingConfig | None = None
-    seed: Optional[int] = BASELINE["seed"]
+    seed: Optional[int] = _DEFAULT_RUN_SEED
 
     def __post_init__(self) -> None:
         if isinstance(self.cipher, dict):

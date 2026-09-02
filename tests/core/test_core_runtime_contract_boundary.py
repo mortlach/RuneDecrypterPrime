@@ -4,11 +4,12 @@ import importlib
 import json
 from pathlib import Path
 import pytest
-import rune_decrypter_prime
-from rune_decrypter_prime.core.config import CipherConfig, ScoringConfig
+import rdp
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
-from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
-from rune_decrypter_prime.core.problem.spec import ProblemSpec
+from rdp.core.problem.runtime import DecryptionProblem
+from rdp.core.problem.spec import ProblemSpec
 from rune_decrypter_prime.scoring.rune_scorer import RuneScorer
 from rune_decrypter_prime.scoring.unified_rune_scorer import UnifiedRuneScorer
 
@@ -106,13 +107,16 @@ def test_runapi_accepts_typed_public_scoring_config(
     assert captured["scoring"].character_lane_enabled is False
 
 
-def test_core_config_public_import_surface_is_package_reexport() -> None:
-    from rune_decrypter_prime.core.config import CipherConfig as ImportedCipherConfig
-    from rune_decrypter_prime.core.config import ScoringConfig as ImportedScoringConfig
-    config_module = importlib.import_module('rune_decrypter_prime.core.config')
+def test_core_config_package_is_lightweight_and_uses_exact_owners() -> None:
+    from rdp.core.config.cipher import CipherConfig as ImportedCipherConfig
+    from rdp.core.config.scoring import ScoringConfig as ImportedScoringConfig
+
+    config_module = importlib.import_module('rdp.core.config')
     module_path = Path(config_module.__file__).resolve()
-    package_root = Path(rune_decrypter_prime.__file__).resolve().parent
+    package_root = Path(rdp.__file__).resolve().parent
     assert ImportedCipherConfig is CipherConfig
     assert ImportedScoringConfig is ScoringConfig
     assert module_path == package_root / 'core' / 'config' / '__init__.py'
     assert not (package_root / 'core' / 'config.py').exists()
+    assert not hasattr(config_module, 'CipherConfig')
+    assert not hasattr(config_module, 'ScoringConfig')

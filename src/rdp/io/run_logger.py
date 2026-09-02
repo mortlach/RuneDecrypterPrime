@@ -18,7 +18,7 @@ except Exception:  # pragma: no cover
     ZoneInfoNotFoundError = Exception  # type: ignore[assignment]
 
 # Importing here avoids circulars (core.logging_config does not import us)
-from rune_decrypter_prime.core.config.logging_config import (
+from rdp.core.config.logging_config import (
     LoggingConfig,
     init_logging,
     get_run_dir,

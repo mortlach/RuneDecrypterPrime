@@ -43,20 +43,21 @@ These are construction-boundary behaviours, not runtime dict acceptance.
 
 ## Layout guardrails
 
-The public config import surface is the package `rune_decrypter_prime.core.config`, backed by:
+The canonical configuration owner is the lightweight package
+`rdp.core.config`, backed by:
 
-`src/rune_decrypter_prime/core/config/__init__.py`
+`src/rdp/core/config/__init__.py`
 
 There must not also be a sibling module file:
 
-`src/rune_decrypter_prime/core/config.py`
+`src/rdp/core/config.py`
 
-D3-0b/D3-0c delete that file because Python resolves `rune_decrypter_prime.core.config` to the package directory, not to the sibling module file. Keeping both creates an ambiguous layout and makes the file-level shim unreachable.
+D3-0b/D3-0c delete that file because Python resolves `rdp.core.config` to the package directory, not to the sibling module file. Keeping both creates an ambiguous layout and makes the file-level shim unreachable.
 
 The guardrail tests enforce:
 
-- no module/package name collisions under `src/rune_decrypter_prime/core`;
-- no aggregate `from rune_decrypter_prime.core.config import ...` imports inside core runtime files;
+- no module/package name collisions under either current core package;
+- no aggregate `from rdp.core.config import ...` imports inside core runtime files;
 - no hidden config getter helpers such as `_cfg_get`, `_config_get`, `_get_cfg`, or `_get_config` in core runtime or the NumPy scorer;
 - no dict-like config acceptance in runtime paths;
 - direct attribute access after `CipherConfig` / `ScoringConfig` type checks;
@@ -67,19 +68,21 @@ The guardrail tests enforce:
 Core runtime files must import exact config submodules, for example:
 
 ```python
-from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.scoring import ScoringConfig
-from rune_decrypter_prime.core.config.solver import SolverConfig
-from rune_decrypter_prime.core.config.run import RunConfig
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scoring import ScoringConfig
+from rdp.core.config.solver import SolverConfig
+from rdp.core.config.run import RunConfig
 ```
 
 Core runtime files must not import from the aggregate package surface:
 
 ```python
-from rune_decrypter_prime.core.config import CipherConfig
+from rdp.core.config import CipherConfig
 ```
 
-The aggregate package re-export remains public-facing and may be used by API modules, tutorials, and external callers.
+The package initializer is deliberately lightweight. API and internal callers
+import each object from its exact defining submodule; normal users obtain the
+accepted public objects through `rdp.api`.
 
 ## Removed runtime probes
 
@@ -100,13 +103,7 @@ D3-0b tightens this further:
 - `DecryptionProblem` uses direct `self.c_cfg.field` and `self.s_cfg.field` access for canonical config fields.
 - `CipherConfig.spec` is an explicit optional field so degeneracy handling does not probe for hidden attributes.
 
-## Retained compatibility surfaces
-
-`src/rune_decrypter_prime/core/config/__init__.py` remains the V1 public re-export surface for existing imports such as:
-
-```python
-from rune_decrypter_prime.core.config import CipherConfig, ScoringConfig
-```
+## Retained payload surfaces
 
 Telemetry dictionaries, scorer report/stat dictionaries, and key-operation hint dictionaries remain allowed as payload data. They are not runtime config objects. Any such exception must be named in `tests/contracts/test_core_layout_guardrails.py`.
 
@@ -129,7 +126,7 @@ They lock the following behaviours:
 - `build_scorer` rejects dict `s_cfg`.
 - `RuneScorer` rejects dict `scorer_cfg` before any backend or asset load.
 - `RunAPI.run(...)` still accepts user-facing `scorer_params` dicts and normalises them before core.
-- `rune_decrypter_prime.core.config` resolves to `core/config/__init__.py`.
+- `rdp.core.config` resolves to its lightweight `core/config/__init__.py`.
 - no `core/config.py` sibling module exists.
 - no hidden config getter helpers remain in core runtime or the NumPy scorer.
 - no aggregate config imports remain inside core runtime.

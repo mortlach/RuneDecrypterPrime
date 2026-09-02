@@ -4,7 +4,7 @@ import io
 import json
 from pathlib import Path
 import pytest
-from rune_decrypter_prime.core.config import Solution
+from rdp.core.config.solution import Solution
 from tests._helpers.reports import completed_status, make_solver_report
 
 def _solution() -> Solution:

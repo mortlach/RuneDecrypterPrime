@@ -16,7 +16,7 @@ from rdp.core.component_contracts import (
     CapabilityStatus,
     NonInvertibleCipherError,
 )
-from rune_decrypter_prime.core.config.cipher import (
+from rdp.core.config.cipher import (
     materialize_cipher_config,
     validate_concrete_key,
 )

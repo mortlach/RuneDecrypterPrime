@@ -6,8 +6,8 @@ from typing import Iterable, Optional
 import numpy as np
 
 from rdp.api.display import PrintOptions, format_key_value_block, print_block
-from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scoring import ScoringConfig
 from rdp.core.types import Direction, TextDirection
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rune_decrypter_prime.scoring.language_model.load_status import LmLoadReporter, LmLoadStatus

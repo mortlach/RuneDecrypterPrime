@@ -6,8 +6,8 @@ import numpy as np
 
 import rdp.api.pipeline
 from rdp import api
-from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.solver import SolverConfig
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.solver import SolverConfig
 from rdp.core.types import Device, Direction
 
 

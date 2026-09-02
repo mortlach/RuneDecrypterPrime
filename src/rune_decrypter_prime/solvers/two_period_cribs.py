@@ -18,15 +18,13 @@ from rdp.api.two_period_cribs import (
     TWO_PERIOD_CRIBS_CONTRACT,
     TwoPeriodCribsRequest,
 )
-from rune_decrypter_prime.core.config import (
-    HardCribConfig,
-    InterruptorConfig,
-    ScoringConfig,
-    Solution,
-)
-from rune_decrypter_prime.core.config.cipher import materialize_cipher_config
+from rdp.core.config.hard_crib import HardCribConfig
+from rdp.core.config.interruptor import InterruptorConfig
+from rdp.core.config.scoring import ScoringConfig
+from rdp.core.config.solution import Solution
+from rdp.core.config.cipher import materialize_cipher_config
 from rune_decrypter_prime.core.engine.builders import build_cipher, build_scorer
-from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
+from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.types import (
     Device,
     Direction,

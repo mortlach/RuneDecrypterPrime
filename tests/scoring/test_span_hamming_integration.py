@@ -5,8 +5,8 @@ import json
 from pathlib import Path
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.scoring import (
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scoring import (
     SpanHammingCombineMode,
     SpanHammingMode,
     SpanHammingGateFailurePolicy,

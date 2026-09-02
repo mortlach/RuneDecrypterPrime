@@ -6,7 +6,7 @@ import inspect
 import re
 from dataclasses import fields
 from pathlib import Path
-from rune_decrypter_prime.core.config.logging_config import LoggingConfig
+from rdp.core.config.logging_config import LoggingConfig
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 V1_DOCS = REPO_ROOT / 'v1_docs'
@@ -91,6 +91,7 @@ def test_module_map_covers_top_level_source_packages() -> None:
     text = _read(CODER_MODULE_MAP)
     expected_paths = {
         "src/rdp/backends/",
+        "src/rdp/core/",
         "src/rdp/data/",
         "src/rdp/io/",
         "src/rdp/telemetry/",
@@ -198,7 +199,7 @@ def test_howto_pages_name_core_owner_paths() -> None:
         ],
         "add_scorer_lane.md": [
             "src/rdp/core/component_contracts.py",
-            "src/rune_decrypter_prime/core/config/scoring.py",
+            "src/rdp/core/config/scoring.py",
             "src/rune_decrypter_prime/scoring/scorer_report_builder.py",
         ],
     }

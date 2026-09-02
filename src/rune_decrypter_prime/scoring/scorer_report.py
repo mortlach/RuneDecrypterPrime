@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 
 from rdp.core.component_contracts import ScorerCapabilityReport
-from rune_decrypter_prime.core.config.scoring import ScoringObjective
+from rdp.core.config.scoring import ScoringObjective
 from rdp.core.types import JsonObject, JsonValue
 
 

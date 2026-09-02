@@ -9,9 +9,9 @@ from types import MappingProxyType
 from typing import Any
 
 from rdp.api.specs import CipherSpec, KeySpec, SolverSpec
-from rune_decrypter_prime.core.config.interruptor import InterruptorConfig
-from rune_decrypter_prime.core.config.logging_config import LoggingConfig
-from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rdp.core.config.interruptor import InterruptorConfig
+from rdp.core.config.logging_config import LoggingConfig
+from rdp.core.config.scoring import ScoringConfig
 from rdp.core.types import (
     ComputeDevice,
     IndexPermutation,
@@ -407,7 +407,7 @@ class RunSpec:
             raise TypeError("key_space must be a KeySpec")
         if not isinstance(self.solver, SolverSpec):
             raise TypeError("solver must be a SolverSpec")
-        from rune_decrypter_prime.core.config.cipher import expected_concrete_key_length
+        from rdp.core.config.cipher import expected_concrete_key_length
         expected_concrete_key_length(self.cipher, self.key_space)
         if not isinstance(self.scoring, ScoringConfig):
             raise TypeError("scoring must be a ScoringConfig")

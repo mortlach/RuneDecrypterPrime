@@ -6,10 +6,10 @@ import json
 from types import SimpleNamespace
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.config import logging_config
-from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.logging_config import LoggingConfig
-from rune_decrypter_prime.core.config.solver import SolverConfig
+import rdp.core.config.logging_config as logging_config
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.logging_config import LoggingConfig
+from rdp.core.config.solver import SolverConfig
 from rdp.core.types import Device, Direction
 
 def _minimal_cipher_config() -> CipherConfig:

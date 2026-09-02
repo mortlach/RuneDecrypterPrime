@@ -12,8 +12,8 @@ from rdp.core.component_contracts import (
     RequestedLaneUnavailableError,
     ScoringLane,
 )
-from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode
 from rune_decrypter_prime.scoring import rune_scorer_impl as _impl
 from rune_decrypter_prime.scoring.rune_scorer_impl import *  # noqa: F401,F403
 from rune_decrypter_prime.scoring.scorer_lane_report import build_scorer_lane_report

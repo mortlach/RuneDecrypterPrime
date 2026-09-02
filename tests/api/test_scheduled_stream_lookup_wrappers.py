@@ -4,7 +4,7 @@ import pytest
 
 from rdp import api
 from rune_decrypter_prime.ciphers import cipher_runtime_registry
-from rune_decrypter_prime.core.config.cipher import materialize_cipher_config
+from rdp.core.config.cipher import materialize_cipher_config
 from rdp.core.types import KeyOpsFamily
 
 

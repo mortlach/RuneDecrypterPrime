@@ -18,7 +18,7 @@ from rdp.core.component_contracts import (
     ScorerCapabilityReport,
     ScoringLane,
 )
-from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rdp.core.config.scoring import ScoringConfig
 
 
 _LANE_ORDER: tuple[ScoringLane, ...] = (

@@ -5,8 +5,8 @@ import numpy as np
 
 from rdp.data.runeglish import Runeglish
 from rdp.backends.xp import select_backend
-from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode
 from rdp.core.types import Device, Direction
 
 class UnifiedRuneScorer:

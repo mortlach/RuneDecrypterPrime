@@ -2,7 +2,7 @@ import rdp.api.logging_utils
 import rdp.api.normalize
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.config.logging_config import LoggingConfig
+from rdp.core.config.logging_config import LoggingConfig
 from rdp.core.types import Channel, Device, Direction, ObjectiveFamily, ScorerImpl, SeMode, SolverName, Stat
 
 def test_normalize_objective_spec_from_string():

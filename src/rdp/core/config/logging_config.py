@@ -1,5 +1,5 @@
 # # ============================================================
-# # rune_decrypter_prime/core/logging_config.py
+# rdp/core/config/logging_config.py
 # # Single-source logging config + run-dir lifecycle (no CLI).
 # # ============================================================
 from __future__ import annotations

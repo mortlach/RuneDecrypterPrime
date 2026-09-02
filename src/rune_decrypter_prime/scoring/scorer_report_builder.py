@@ -216,7 +216,7 @@ def build_scorer_report(
     if diagnostics:
         derived_details[ScorerReportDetailKey.REPORT_BUILDER_DIAGNOSTICS.value] = diagnostics
     details = _merge_detail_sections(derived_details, _safe_mapping(extra_details or {}))
-    from rune_decrypter_prime.core.config.scoring import ScoringObjective
+    from rdp.core.config.scoring import ScoringObjective
     from rdp.core.types import ObjectiveFamily, ScoreStatistic, Stat
 
     if objective_spec.family is ObjectiveFamily.AVG:

@@ -22,7 +22,7 @@ def normalize_objective_input(value: Any, *, default_win: int) -> ObjectiveSpec:
     - objective string like "pct.logp.win10"
     - None (defaults to pct.logp.win<default_win>)
     """
-    from rune_decrypter_prime.core.config.scoring import ScoringObjective
+    from rdp.core.config.scoring import ScoringObjective
     from rdp.core.types import ScoringObjectiveKind, ScoreStatistic
 
     if isinstance(value, ScoringObjective):

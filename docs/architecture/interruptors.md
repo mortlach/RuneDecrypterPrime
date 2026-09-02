@@ -113,15 +113,15 @@ TODO: Document the conversion rules for `index_space="core"` and
 `index_space="post_permutation"` once the permutation pipeline is formalized.
 
 ## Implementation Touchpoints (Planned)
-- `src/rune_decrypter_prime/core/config/interruptor.py`
+- `src/rdp/core/config/interruptor.py`
   Define `InterruptorConfig` and its validation rules.
-- `src/rune_decrypter_prime/core/config/cipher.py`
+- `src/rdp/core/config/cipher.py`
   Add `interruptors_cfg: InterruptorConfig | None` and map legacy fields.
 - `src/rune_decrypter_prime/api/run.py`
   Accept interruptor config and pass to pipeline.
 - `src/rune_decrypter_prime/api/normalize.py`
   (not required; config validation lives in core)
-- `src/rune_decrypter_prime/core/problem/runtime.py`
+- `src/rdp/core/problem/runtime.py`
   Resolve interruptor indices, split key, and pass to decrypt.
 - `src/rune_decrypter_prime/keyops/*`
   Add a KeyOps family or composite mechanism for interruptor selection.

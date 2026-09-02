@@ -1,6 +1,6 @@
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.core.config import Solution
+from rdp.core.config.solution import Solution
 from rune_decrypter_prime.utils.pretty import print_run_report
 pytestmark = pytest.mark.tier_a
 

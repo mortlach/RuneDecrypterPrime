@@ -38,8 +38,8 @@ from rdp.core.component_contracts import (
     UnknownComponentError,
     UnsupportedConfigurationError,
 )
-from rune_decrypter_prime.core.config.hard_crib import HardCribConfig, HardCribMode
-from rune_decrypter_prime.core.config.scoring import ScoringObjective
+from rdp.core.config.hard_crib import HardCribConfig, HardCribMode
+from rdp.core.config.scoring import ScoringObjective
 from rdp.core.hamming_dictionary_policy import HammingDictionaryPolicy
 from rdp.core.types import (
     AverageWindowPolicy,

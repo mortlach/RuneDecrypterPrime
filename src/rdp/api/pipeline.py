@@ -4,14 +4,16 @@ from types import SimpleNamespace
 import numpy as np
 
 from rdp.core.types import Device, Direction, SolverName, KEY_DTYPE
-from rune_decrypter_prime.core.config import ScoringConfig, SolverConfig
-from rune_decrypter_prime.core.config.logging_config import LoggingConfig, init_logging
+from rdp.core.config.scoring import ScoringConfig
+from rdp.core.config.solver import SolverConfig
+from rdp.core.config.logging_config import LoggingConfig, init_logging
 from rdp.api.pipeline_helpers import finalize_solution, coerce_wli_for_config
-from rune_decrypter_prime.core.config.cipher import materialize_cipher_config
+from rdp.core.config.cipher import materialize_cipher_config
 from rdp.core.types import ComputeDevice, TextDirection
 
 # Stage-2 imports
-from rune_decrypter_prime.core.problem import ProblemSpec, ProblemInstance
+from rdp.core.problem.spec import ProblemSpec
+from rdp.core.problem.instance import ProblemInstance
 from rune_decrypter_prime.core.engine import EngineConfig, solve as engine_solve
 from rdp.api.normalize import normalize_optimizer_name  # str -> SolverName
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 import numpy as np
-from rune_decrypter_prime.data.cipher_tests.baseline_registry import BASELINE
+from tests._helpers.baseline_registry import BASELINE
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1, word_breaks1
 A = 29
 

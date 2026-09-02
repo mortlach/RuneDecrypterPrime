@@ -2,9 +2,11 @@ from __future__ import annotations
 from rdp import api
 from dataclasses import asdict, is_dataclass, replace
 from typing import Dict, Any, Tuple
-from rune_decrypter_prime.core.config import CipherConfig, ScoringConfig, SolverConfig
-from rune_decrypter_prime.core.config.logging_config import LoggingConfig
-from rune_decrypter_prime.data.cipher_tests.baseline_registry import BASELINE
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scoring import ScoringConfig
+from rdp.core.config.solver import SolverConfig
+from rdp.core.config.logging_config import LoggingConfig
+from tests._helpers.baseline_registry import BASELINE
 from rdp.core.types import Device, ensure_direction
 
 def _to_dict(dc_or_dict):

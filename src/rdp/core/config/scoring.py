@@ -12,7 +12,7 @@ from types import MappingProxyType
 from typing import Any
 
 from rdp.core.component_contracts import ScoringLane
-from rune_decrypter_prime.core.config.hard_crib import (
+from rdp.core.config.hard_crib import (
     HardCribConfig,
     normalize_hard_crib_config,
 )

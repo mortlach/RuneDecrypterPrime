@@ -9,8 +9,8 @@ from rdp.core.component_contracts import (
     CapabilityEffectiveState,
     ScoringLane,
 )
-from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scoring import ScoringConfig
 from rdp.core.types import Device
 from rune_decrypter_prime.scoring.unified_rune_scorer import UnifiedRuneScorer
 

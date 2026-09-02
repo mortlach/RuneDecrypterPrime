@@ -8,8 +8,8 @@ from rdp.core.component_contracts import (
     RankingEffect,
     CapabilityRequestState,
 )
-from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.scoring import SpanHammingMode
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scoring import SpanHammingMode
 from rdp.core.types import (
     Device,
     Direction,

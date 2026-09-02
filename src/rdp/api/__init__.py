@@ -23,9 +23,9 @@ from rdp.api.run_spec import (
 )
 from rdp.api.specs import CipherSpec, KeySpec, SolverSpec
 from rdp.api.stop_reason_contract import RunStatus
-from rune_decrypter_prime.core.config.interruptor import InterruptorConfig
-from rune_decrypter_prime.core.config.logging_config import LoggingConfig
-from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rdp.core.config.interruptor import InterruptorConfig
+from rdp.core.config.logging_config import LoggingConfig
+from rdp.core.config.scoring import ScoringConfig
 from rdp.core.types import (
     ComputeDevice,
     ConcreteKey,

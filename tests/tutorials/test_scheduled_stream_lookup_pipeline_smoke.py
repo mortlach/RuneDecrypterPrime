@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from rdp import api
+from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.scheduled_stream_lookup_tutorial_utils import (
     build_ciphertext,
     concat_keys,
@@ -47,6 +48,7 @@ def test_typed_scheduled_tutorial_fixture_round_trip(
     key: tuple[int, ...],
 ) -> None:
     _, _, plaintext, _, _, ciphertext, _, returned_key = build_ciphertext(
+        plaintext=plaintext_english_string,
         cipher_spec=cipher,
         key_spec=key_space,
         key_values=key,
@@ -58,7 +60,7 @@ def test_typed_scheduled_tutorial_fixture_round_trip(
 
 
 def test_typed_mask_schedule_fixture_round_trip() -> None:
-    plaintext, _, _ = encode_plaintext()
+    plaintext, _, _ = encode_plaintext(plaintext_english_string)
     mask = mask_from_segments(
         len(plaintext),
         (("A", 0, 120), ("B", 120, 240), ("A", 240, None)),
@@ -72,6 +74,7 @@ def test_typed_mask_schedule_fixture_round_trip() -> None:
     key_space = api.KeySpec.repeating(length=44)
     key = tuple(concat_keys(key_period13(), key_period31()))
     _, _, expected, _, _, ciphertext, _, _ = build_ciphertext(
+        plaintext=plaintext_english_string,
         cipher_spec=cipher,
         key_spec=key_space,
         key_values=key,

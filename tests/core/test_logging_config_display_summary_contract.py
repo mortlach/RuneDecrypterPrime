@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 import pytest
-from rune_decrypter_prime.core.config.logging_config import init_logging
+from rdp.core.config.logging_config import init_logging
 
 def test_logging_config_accepts_display_summary_flag(tmp_path: Path) -> None:
     cfg = api.LoggingConfig(

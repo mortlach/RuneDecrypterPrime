@@ -7,8 +7,8 @@ from typing import Dict, Iterable, List, Optional, Sequence
 import numpy as np
 
 from rune_decrypter_prime.ciphers.periodic_columnar_cipher import PeriodicColumnarCipher
-from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rdp.core.transpositions import assert_is_permutation
 from rdp.core.types import (

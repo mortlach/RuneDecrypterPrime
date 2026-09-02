@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from rdp import api
-from rune_decrypter_prime.core.config.solution import Solution
+from rdp.core.config.solution import Solution
 
 
 def _request(logging: api.LoggingConfig | None = None) -> api.RunSpec:

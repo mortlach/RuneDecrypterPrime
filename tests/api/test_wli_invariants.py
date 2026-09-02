@@ -2,7 +2,7 @@ from __future__ import annotations
 import rdp.api.normalize
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.config import CipherConfig
+from rdp.core.config.cipher import CipherConfig
 pytestmark = pytest.mark.tier_a
 
 def _split_wli_words(wli):

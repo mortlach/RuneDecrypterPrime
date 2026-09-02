@@ -1,5 +1,5 @@
 # ============================================================
-# rune_decrypter_prime/core/problem/instance.py
+# rdp/core/problem/instance.py
 # Runtime materialisation of a Problem from a ProblemSpec.
 # ============================================================
 from __future__ import annotations
@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence
 
 
-from rune_decrypter_prime.core.problem.spec import ProblemSpec
-from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
+from rdp.core.problem.spec import ProblemSpec
+from rdp.core.problem.runtime import DecryptionProblem
 from rune_decrypter_prime.core.engine.builders import build_cipher, build_scorer
 from rdp.telemetry.pipeline import make_pipeline_block
 from rdp.core.types import Direction, ensure_direction

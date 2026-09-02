@@ -9,6 +9,7 @@ _SRC = _ROOT / 'src'
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 from rune_decrypter_prime.utils import tutorial_pretty as pretty
+from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rune_decrypter_prime.utils.scheduled_stream_lookup_tutorial_utils import build_ciphertext, default_scorer_params, key_period13, make_real_solve_solver
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
@@ -37,6 +38,7 @@ def main() -> None:
     cipher_spec = api.CipherSpec.periodic_with_prime_stream(period=13, prime_offset=0)
     key_spec = api.KeySpec.repeating(length=expected_key_len)
     cipher_spec, key_spec, pt_idx, wli, _pt_runes, ct_idx_list, ct_runes, _key = build_ciphertext(
+        plaintext=plaintext_english_string,
         cipher_spec=cipher_spec,
         key_spec=key_spec,
         key_values=key_values,

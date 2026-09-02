@@ -5,7 +5,6 @@ from typing import Sequence
 import numpy as np
 
 from rdp import api
-from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rdp.data.runeglish import Runeglish
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
@@ -16,8 +15,8 @@ APP_VERSION = "tutorial-scheduled-stream-lookup-1.0"
 TUTORIAL_SEED = 12345
 
 
-def tutorial_plaintext(max_symbols: int = 520) -> str:
-    return plaintext_english_string[:max_symbols]
+def tutorial_plaintext(plaintext: str, max_symbols: int = 520) -> str:
+    return plaintext[:max_symbols]
 
 
 def key_period13() -> list[int]:
@@ -61,10 +60,11 @@ def mask_from_segments(length: int, segments: Sequence[tuple[str, int, int | Non
 
 
 def encode_plaintext(
+    plaintext: str,
     direction: api.TextDirection = api.TextDirection.RIGHT_TO_LEFT,
 ):
     pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(
-        tutorial_plaintext(),
+        tutorial_plaintext(plaintext),
         direction=direction,
     )
     return [int(v) for v in pt_idx], wli, pt_runes
@@ -138,12 +138,13 @@ def make_real_solve_solver(
 
 def build_ciphertext(
     *,
+    plaintext: str,
     cipher_spec: api.CipherSpec,
     key_spec: api.KeySpec,
     key_values: Sequence[int],
     direction: api.TextDirection,
 ):
-    pt_idx, wli, pt_runes = encode_plaintext(direction)
+    pt_idx, wli, pt_runes = encode_plaintext(plaintext, direction)
     key = tuple(int(value) for value in key_values)
     expected_key_len = int(key_spec.parameters.get("length", len(key)))
     if len(key) != expected_key_len:

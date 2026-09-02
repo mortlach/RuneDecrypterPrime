@@ -5,7 +5,7 @@
 from __future__ import annotations
 from typing import Dict, Any, Optional
 
-from rune_decrypter_prime.core.config.validation import strict_positive_int
+from rdp.core.config.validation import strict_positive_int
 
 
 # ----------------------------- optimiser ----------------------------- #

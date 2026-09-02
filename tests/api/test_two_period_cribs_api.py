@@ -4,7 +4,7 @@ from rdp import api
 import json
 import pytest
 import numpy as np
-from rune_decrypter_prime.core.config import Solution
+from rdp.core.config.solution import Solution
 from rdp.data.runeglish import Runeglish
 
 def test_builder_is_canonical_and_json_safe():

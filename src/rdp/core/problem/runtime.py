@@ -6,13 +6,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional, Sequence, Tuple, Any
 import math
+import time
 
-from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.interruptor import InterruptorConfig
-from rune_decrypter_prime.core.config.scoring import ScoringConfig
-from rune_decrypter_prime.core.config.hard_crib import HardCribConfig, normalize_hard_crib_config
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.interruptor import InterruptorConfig
+from rdp.core.config.scoring import ScoringConfig
+from rdp.core.config.hard_crib import HardCribConfig, normalize_hard_crib_config
 from rdp.telemetry.bag import TelemetryBag
-from rune_decrypter_prime.core.telemetry import _Timer
 from rdp.core.types import (
     Device,
     InterruptorMode,
@@ -32,6 +32,19 @@ from rdp.telemetry.schema import (
 )
 
 logger = module_logger(__name__)
+
+
+class _Timer:
+    """Tiny helper for elapsed time measurements (perf counters)."""
+
+    def __init__(self):
+        self.t0: float = 0.0
+
+    def start(self) -> None:
+        self.t0 = time.perf_counter()
+
+    def stop(self) -> float:
+        return time.perf_counter() - self.t0
 
 
 @dataclass(slots=True)

@@ -1,5 +1,5 @@
 # ============================================================
-# rune_decrypter_prime/core/config/cipher.py
+# rdp/core/config/cipher.py
 # ============================================================
 from __future__ import annotations
 from dataclasses import dataclass
@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 if TYPE_CHECKING:
     from rdp.api.specs import CipherSpec, KeySpec
 
-from rune_decrypter_prime.core.config.interruptor import InterruptorConfig
+from rdp.core.config.interruptor import InterruptorConfig
 from rdp.core.types import (
     Device,
     Direction,

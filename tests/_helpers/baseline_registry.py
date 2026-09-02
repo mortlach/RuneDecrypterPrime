@@ -1,12 +1,12 @@
 # ============================================================
-# tests/baseline_registry.py
+# tests/_helpers/baseline_registry.py
 # ============================================================
 """
-Canonical baseline registry for Rune Decrypter Prime tests.
+Test-only baseline registry for Rune Decrypter Prime.
 
 Purpose
 -------
-This module defines the *single source of truth* for:
+This module defines the test-suite baseline for:
   • RNG seed(s) used in reproducible test/benchmark runs.
   • Default key lengths (e.g., K=12 for Vigenère baselines).
   • Per-solver budget dictionaries (Beam, GA, SA, Hybrid).
@@ -25,7 +25,7 @@ How to use
 Tests should **import from this registry** instead of hard-coding
 seeds or budgets. Example:
 
-    from rune_decrypter_prime.tests.baseline_registry import BASELINE
+    from tests._helpers.baseline_registry import BASELINE
 
     rng = np.random.default_rng(BASELINE["seed"])
     K   = BASELINE["key_length"]
@@ -37,10 +37,10 @@ but baseline CI and benchmark traces should stick to these values.
 from __future__ import annotations
 from rdp.core.types import Device, ScorerImpl, Direction
 
-# Single source of truth for ALL tests: seed, devices, key length, budgets,
+# Test-suite baseline for seed, devices, key length, budgets,
 # and default config knobs for logging/scoring/solver.
 BASELINE: dict = {
-    # Deterministic seed (env TEST_SEED overrides)
+    # Deterministic test seed.
     "seed": 12345,
     #
     # """

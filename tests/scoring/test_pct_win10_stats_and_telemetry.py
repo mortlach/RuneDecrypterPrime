@@ -1,7 +1,7 @@
 from rdp import api
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.config.cipher import CipherConfig
+from rdp.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1, word_breaks1
 from rdp.core.types import Device, Direction

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Iterable, Sequence, Any
-from rune_decrypter_prime.core.config.scoring import (
+from rdp.core.config.scoring import (
     SpanHammingCombineMode,
     SpanHammingGateFailurePolicy,
     SpanHammingMode,

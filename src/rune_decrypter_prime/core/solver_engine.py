@@ -8,11 +8,12 @@ from typing import Any, Dict, Optional
 
 import numpy as np
 
-from rune_decrypter_prime.core.config.run import RunConfig
-from rune_decrypter_prime.core.config.solution import Solution
-from rune_decrypter_prime.core.config.solver import SolverConfig
+from rdp.core.config.run import RunConfig
+from rdp.core.config.solution import Solution
+from rdp.core.config.solver import SolverConfig
 from rune_decrypter_prime.core.engine import EngineConfig, solve as engine_solve
-from rune_decrypter_prime.core.problem import ProblemInstance, ProblemSpec
+from rdp.core.problem.instance import ProblemInstance
+from rdp.core.problem.spec import ProblemSpec
 from rdp.core.types import (
     Direction,
     SolverName,

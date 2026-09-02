@@ -10,14 +10,14 @@ import pytest
 
 from rdp.api import CipherSpec, KeySpec, RuneIndexInput, RunResult, RunSpec, SolverSpec
 from rune_decrypter_prime.ciphers import cipher_runtime_registry
-from rune_decrypter_prime.core.config.interruptor import InterruptorConfig
-from rune_decrypter_prime.core.config.cipher import (
+from rdp.core.config.interruptor import InterruptorConfig
+from rdp.core.config.cipher import (
     expected_concrete_key_length,
     materialize_cipher_config,
     validate_concrete_key,
 )
-from rune_decrypter_prime.core.config.logging_config import LoggingConfig
-from rune_decrypter_prime.core.config.scoring import ScoringConfig, ScoringObjective
+from rdp.core.config.logging_config import LoggingConfig
+from rdp.core.config.scoring import ScoringConfig, ScoringObjective
 from rune_decrypter_prime.core.engine.builders import build_cipher
 from rdp.core.component_contracts import (
     CipherKeyMismatchError,
@@ -375,7 +375,7 @@ def test_run_writes_only_requested_typed_artifacts(monkeypatch, tmp_path: Path) 
     run_module = importlib.import_module("rdp.api.run")
 
     def fake_execute_run(**kwargs):
-        from rune_decrypter_prime.core.config.logging_config import init_logging
+        from rdp.core.config.logging_config import init_logging
 
         init_logging(kwargs["logging_config"])
         return SimpleNamespace(

@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from enum import Enum, StrEnum
 from pathlib import Path
 from typing import Any
-from rune_decrypter_prime.core.config.logging_config import init_logging
+from rdp.core.config.logging_config import init_logging
 from rdp.io.artifact_policy import portable_exception_message
 from cipher_development.shared.ledger import SCHEMA as LEDGER_SCHEMA
 from cipher_development.shared.ledger import ExperimentLedgerRow, append_ledger_row

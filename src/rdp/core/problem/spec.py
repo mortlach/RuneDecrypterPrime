@@ -1,14 +1,14 @@
 # ============================================================
-# rune_decrypter_prime/core/problem/spec.py
+# rdp/core/problem/spec.py
 # Declarative problem specification (no side effects).
 # ============================================================
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
-from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.config.cipher import expected_concrete_key_length
-from rune_decrypter_prime.core.config.scoring import ScoringConfig
+from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.cipher import expected_concrete_key_length
+from rdp.core.config.scoring import ScoringConfig
 from rdp.core.types import Direction, ensure_direction
 
 
