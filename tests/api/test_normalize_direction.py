@@ -7,7 +7,7 @@ Proves: api.normalize.normalize_direction exists and canonicalises inputs to Dir
 
 import rdp.api.normalize
 import pytest
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 
 @pytest.mark.parametrize('inp,expect', [(Direction.LTR, Direction.LTR), (Direction.RTL, Direction.RTL), ('ltr', Direction.LTR), ('rtl', Direction.RTL)])
 def test_normalize_direction_accepts_enum_and_strings(inp, expect):

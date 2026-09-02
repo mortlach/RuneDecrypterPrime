@@ -8,7 +8,7 @@ import rdp.api.pipeline
 from rdp import api
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.solver import SolverConfig
-from rune_decrypter_prime.core.types import Device, Direction
+from rdp.core.types import Device, Direction
 
 
 def _minimal_cipher_config() -> CipherConfig:

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Dict, Iterable
 
-from rune_decrypter_prime.core.types import SeMode
+from rdp.core.types import SeMode
 
 START_TAG: int = 29
 END_TAG: int = 30

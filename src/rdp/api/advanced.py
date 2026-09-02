@@ -19,7 +19,7 @@ from rdp.api.stop_reason_contract import (
     StopCategory,
     StopReason,
 )
-from rune_decrypter_prime.core.component_contracts import (
+from rdp.core.component_contracts import (
     CapabilityEffectiveState,
     CapabilityIssue,
     CapabilityRequestState,
@@ -40,8 +40,8 @@ from rune_decrypter_prime.core.component_contracts import (
 )
 from rune_decrypter_prime.core.config.hard_crib import HardCribConfig, HardCribMode
 from rune_decrypter_prime.core.config.scoring import ScoringObjective
-from rune_decrypter_prime.core.hamming_dictionary_policy import HammingDictionaryPolicy
-from rune_decrypter_prime.core.types import (
+from rdp.core.hamming_dictionary_policy import HammingDictionaryPolicy
+from rdp.core.types import (
     AverageWindowPolicy,
     BeamExpansionMode,
     CipherKind,

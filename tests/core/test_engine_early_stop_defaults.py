@@ -1,7 +1,7 @@
 from __future__ import annotations
 import pytest
 from rune_decrypter_prime.core.engine.engine import _with_early_stop_defaults
-from rune_decrypter_prime.core.types import SolverName
+from rdp.core.types import SolverName
 pytestmark = pytest.mark.tier_a
 
 def test_engine_defaults_apply_when_plateau_missing():

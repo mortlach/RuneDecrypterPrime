@@ -1,7 +1,7 @@
 import numpy as np
 from rdp import api
 
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 from rune_decrypter_prime.utils.runeglish import Runeglish
 
 def test_encode_english_to_runes_return_order_and_shapes():

@@ -9,12 +9,12 @@ from enum import Enum
 from numbers import Integral, Real
 from typing import Any, ClassVar
 
-from rune_decrypter_prime.core.component_contracts import (
+from rdp.core.component_contracts import (
     ComponentKind,
     UnknownComponentError,
     UnsupportedConfigurationError,
 )
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     BeamExpansionMode,
     CipherKind,
     KeyKind,

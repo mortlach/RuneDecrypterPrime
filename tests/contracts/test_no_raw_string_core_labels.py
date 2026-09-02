@@ -1,7 +1,7 @@
 from __future__ import annotations
 from rdp import api
 import pytest
-from rune_decrypter_prime.core.component_contracts import (
+from rdp.core.component_contracts import (
     CapabilityEffectiveState,
     FallbackPolicy,
     ScoringLaneStatus,
@@ -10,7 +10,7 @@ from rune_decrypter_prime.core.component_contracts import (
 )
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import SpanHammingMode
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     Device,
     Direction,
     KeyOpsFamily,

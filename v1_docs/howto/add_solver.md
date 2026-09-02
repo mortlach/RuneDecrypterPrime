@@ -5,7 +5,7 @@ Status: staged V1 draft
 Owner paths:
 - `src/rune_decrypter_prime/solvers/`
 - `src/rune_decrypter_prime/solvers/solver_base.py`
-- `src/rune_decrypter_prime/core/types.py`
+- `src/rdp/core/types.py`
 - `src/rune_decrypter_prime/api/normalize.py`
 - `src/rune_decrypter_prime/core/engine/engine.py`
 - `src/rune_decrypter_prime/core/solver_engine.py`

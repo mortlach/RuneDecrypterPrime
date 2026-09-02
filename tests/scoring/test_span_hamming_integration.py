@@ -11,7 +11,7 @@ from rune_decrypter_prime.core.config.scoring import (
     SpanHammingMode,
     SpanHammingGateFailurePolicy,
 )
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     Direction,
     ObjectiveFamily,
     ObjectiveSpec,

@@ -42,7 +42,7 @@ import numpy as np
 
 from rune_decrypter_prime.utils.interrupter import InterruptorManager, InterruptorInfo  # noqa: F401
 from rune_decrypter_prime.utils.transposition import TranspositionManager
-from rune_decrypter_prime.core.types import KEY_DTYPE
+from rdp.core.types import KEY_DTYPE
 
 ArrayU8 = np.ndarray
 

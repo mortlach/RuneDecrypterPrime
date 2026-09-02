@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
-from rune_decrypter_prime.core.types import freeze_parameter_items
+from rdp.core.types import freeze_parameter_items
 from rune_decrypter_prime.ciphers.periodic_substitution_cipher import PeriodicSubstitutionCipher
 from rune_decrypter_prime.ciphers.substitution_cipher import SubstitutionCipher
 from rune_decrypter_prime.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver

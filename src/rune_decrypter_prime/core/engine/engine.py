@@ -15,8 +15,8 @@ import numpy as np
 
 # Core
 from rune_decrypter_prime.core.problem.instance import ProblemInstance
-from rune_decrypter_prime.core.types import SolverName, ensure_solver_name
-from rune_decrypter_prime.core.types import ensure_device, Device
+from rdp.core.types import SolverName, ensure_solver_name
+from rdp.core.types import ensure_device, Device
 
 # Solvers (Stage-2 paths)
 from rune_decrypter_prime.solvers.beam import BeamSolver

@@ -7,7 +7,7 @@ from rune_decrypter_prime.utils.runeglish import Runeglish
 from rdp.backends.xp import select_backend
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode
-from rune_decrypter_prime.core.types import Device, Direction
+from rdp.core.types import Device, Direction
 
 class UnifiedRuneScorer:
     """

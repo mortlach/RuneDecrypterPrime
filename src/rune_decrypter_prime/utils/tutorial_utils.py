@@ -8,7 +8,7 @@ import numpy as np
 from rdp.api.display import PrintOptions, format_key_value_block, print_block
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
-from rune_decrypter_prime.core.types import Direction, TextDirection
+from rdp.core.types import Direction, TextDirection
 from rune_decrypter_prime.core.engine.builders import build_scorer
 from rune_decrypter_prime.scoring.language_model.load_status import LmLoadReporter, LmLoadStatus
 from rune_decrypter_prime.utils.tutorial_pretty import print_model_loading

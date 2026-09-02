@@ -1,7 +1,7 @@
 from rdp import api
 import numpy as np
 from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 from rune_decrypter_prime.scoring import rune_scorer
 
 class _StubRt:

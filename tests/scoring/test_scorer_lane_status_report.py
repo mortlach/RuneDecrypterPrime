@@ -1,6 +1,6 @@
 from __future__ import annotations
 from rdp import api
-from rune_decrypter_prime.core.component_contracts import (
+from rdp.core.component_contracts import (
     CapabilityEffectiveState,
     RankingEffect,
     CapabilityRequestState,

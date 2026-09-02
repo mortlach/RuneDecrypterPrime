@@ -1,7 +1,7 @@
 """GPU smoke tests for the Stage-2 pipeline."""
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.core.types import Device
+from rdp.core.types import Device
 from tests._helpers.runner import run_vigenere_roundtrip_baseline
 torch = pytest.importorskip('torch', reason='Torch backend required for CUDA smoke test')
 pytestmark = [pytest.mark.tier_a, pytest.mark.cuda]

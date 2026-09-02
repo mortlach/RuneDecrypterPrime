@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from rune_decrypter_prime.core.component_contracts import (
+from rdp.core.component_contracts import (
     CipherRegistrationError,
     ComponentKind,
     UnknownComponentError,

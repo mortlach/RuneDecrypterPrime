@@ -2,7 +2,7 @@ from __future__ import annotations
 import types
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.types import SeMode
+from rdp.core.types import SeMode
 pytestmark = pytest.mark.tier_a
 
 def _fake_torch_scorer():

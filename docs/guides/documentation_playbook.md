@@ -8,7 +8,7 @@ Prereqs: None
 This guide describes how we create and maintain repo docs when iterating with ChatGPT/Codex.
 
 ## Principles
-- Single source of truth - narrative pages reference code paths (for example src/rune_decrypter_prime/core/types.py) so reviewers can jump straight to implementations.
+- Single source of truth - narrative pages reference code paths (for example src/rdp/core/types.py) so reviewers can jump straight to implementations.
 - Neutral, concise voice - explain facts and decisions; avoid hypey language. Use the imperative for procedures and present tense for ongoing guarantees.
 - Cross-link everything - every tutorial should link to scoring/backends/telemetry sections so readers can travel between guides without context loss.
 - Determinism reminders - mention seeds, telemetry obligations, and output/ paths in each how-to so contributors do not miss the mission charter.

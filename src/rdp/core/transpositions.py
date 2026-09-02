@@ -1,5 +1,5 @@
 # # ============================================================
-# # rune_decrypter_prime/core/transpositions.py
+# # rdp/core/transpositions.py
 # # Columnar transposition helpers (single/batch); extensible hook
 # # for other transpositions via cipher config hints.
 # # ============================================================

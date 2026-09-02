@@ -38,7 +38,7 @@ from typing import Dict, List, Tuple, Optional
 
 import numpy as np
 
-from rune_decrypter_prime.core.types import Stat
+from rdp.core.types import Stat
 from rune_decrypter_prime.scoring.stat_transform import apply_stat_transform
 from .language_model_prime import LanguageModelPrime
 from .load_status import LmLoadReporter, LmLoadStatus

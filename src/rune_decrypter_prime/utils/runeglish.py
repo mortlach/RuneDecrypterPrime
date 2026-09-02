@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import List, Sequence, Iterable
 import re
 
-from rune_decrypter_prime.core.types import Direction, TextDirection, ensure_direction
+from rdp.core.types import Direction, TextDirection, ensure_direction
 
 class Runeglish:
     _BIGRAMS = {'TH', 'EO', 'NG', 'OE', 'AE', 'IA', 'IO', 'EA'}

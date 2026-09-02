@@ -7,7 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
 
-from rune_decrypter_prime.core.types import KeyOpsFamily
+from rdp.core.types import KeyOpsFamily
 from rune_decrypter_prime.keyops.base_keyops import KeyOpBase, KeyCaps
 from rune_decrypter_prime.keyops.registry import register_keyop
 

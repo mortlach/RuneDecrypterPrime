@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Any, Callable, Dict
 
-from rune_decrypter_prime.core.types import KeyOpsFamily, ensure_keyops_family
+from rdp.core.types import KeyOpsFamily, ensure_keyops_family
 
 # Registry storage: KeyOpsFamily -> factory (callable returning a KeyOpBase)
 _REG: Dict[KeyOpsFamily, Callable[..., Any]] = {}

@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.engine import builders
-from rune_decrypter_prime.core.types import Device, ScorerImpl
+from rdp.core.types import Device, ScorerImpl
 pytestmark = pytest.mark.tier_a
 
 class _DummyNumpy:

@@ -2,7 +2,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 import pytest
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 from rune_decrypter_prime.data.wordlists.loaders import default_wordlists_dir, load_short_word_csv, load_word_crib_config_from_csv
 
 def test_load_short_word_csv_reads_counts():

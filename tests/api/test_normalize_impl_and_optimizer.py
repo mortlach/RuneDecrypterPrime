@@ -6,7 +6,7 @@ Proves: api.normalize has helpers for scorer impl and optimizer name that return
 
 import rdp.api.normalize
 import pytest
-from rune_decrypter_prime.core.types import ScorerImpl, SolverName
+from rdp.core.types import ScorerImpl, SolverName
 
 @pytest.mark.parametrize('inp,expect', [(ScorerImpl.NUMPY, ScorerImpl.NUMPY), ('numpy', ScorerImpl.NUMPY), ('torch', ScorerImpl.TORCH), ('unified', ScorerImpl.UNIFIED), ('auto', ScorerImpl.AUTO)])
 def test_normalize_scorer_impl(inp, expect):

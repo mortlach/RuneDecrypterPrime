@@ -1,6 +1,6 @@
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview, tutorial_debug_preview_block, tutorial_debug_preview_lines
 

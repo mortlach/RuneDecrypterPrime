@@ -8,7 +8,7 @@ from collections.abc import Callable, Sequence
 from enum import StrEnum
 
 from rdp.api.specs import CipherSpec
-from rune_decrypter_prime.core.types import RuntimeCipherKind
+from rdp.core.types import RuntimeCipherKind
 
 
 class DegeneracyPolicy(StrEnum):

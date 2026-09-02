@@ -9,7 +9,7 @@ from typing import Any
 
 import numpy as np
 
-from rune_decrypter_prime.core.types import Direction, ensure_direction
+from rdp.core.types import Direction, ensure_direction
 
 
 @dataclass(frozen=True, slots=True)

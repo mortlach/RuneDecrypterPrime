@@ -5,7 +5,7 @@ import pytest
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
-from rune_decrypter_prime.core.types import Direction, KEY_DTYPE
+from rdp.core.types import Direction, KEY_DTYPE
 pytestmark = pytest.mark.tier_a
 
 class _AssertWliScorer:

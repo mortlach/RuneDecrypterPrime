@@ -5,7 +5,7 @@ Status: staged V1 draft
 Owner paths:
 - `src/rune_decrypter_prime/api/specs.py`
 - `src/rune_decrypter_prime/keyops/`
-- `src/rune_decrypter_prime/core/types.py`
+- `src/rdp/core/types.py`
 - `src/rune_decrypter_prime/core/problem/runtime.py`
 
 Related tests:
@@ -46,7 +46,7 @@ solvers can use without knowing cipher details.
 | Object | Owner path | Role |
 | --- | --- | --- |
 | `KeySpec` | `src/rune_decrypter_prime/api/specs.py` | Public declarative key plan. |
-| `KeyOpsFamily` | `src/rune_decrypter_prime/core/types.py` | Canonical runtime family enum. |
+| `KeyOpsFamily` | `src/rdp/core/types.py` | Canonical runtime family enum. |
 | `KeyCaps` | `src/rune_decrypter_prime/keyops/base_keyops.py` | Capability description for a keyops class. |
 | `KeyOpBase` | `src/rune_decrypter_prime/keyops/base_keyops.py` | Base class and verb registry. |
 | keyops registry | `src/rune_decrypter_prime/keyops/registry.py` | Constructs keyops by family. |

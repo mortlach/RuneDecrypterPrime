@@ -4,7 +4,7 @@ from typing import Dict, List, Sequence
 
 import numpy as np
 
-from rune_decrypter_prime.core.types import Direction, ensure_direction
+from rdp.core.types import Direction, ensure_direction
 
 try:
     from rune_decrypter_prime.scoring.hamming import _hamming as _hamming_ext  # type: ignore

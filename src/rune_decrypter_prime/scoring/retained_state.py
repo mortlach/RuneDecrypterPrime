@@ -6,7 +6,7 @@ from typing import Any, Iterable, Literal, Mapping
 
 import numpy as np
 
-from rune_decrypter_prime.core.types import Direction, ensure_direction
+from rdp.core.types import Direction, ensure_direction
 from rune_decrypter_prime.scoring.scorer_report import ScorerReport
 from rune_decrypter_prime.scoring.scorer_report_builder import build_scorer_report
 from rune_decrypter_prime.scoring.ngram_hamming.reference import PhraseHit

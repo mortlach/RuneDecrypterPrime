@@ -6,7 +6,7 @@
 from __future__ import annotations
 from typing import Any, Dict
 
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     SolverName,
     parse_optimizer_kind,
 )

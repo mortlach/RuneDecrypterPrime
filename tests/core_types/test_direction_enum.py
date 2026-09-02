@@ -1,5 +1,5 @@
 from __future__ import annotations
-from rune_decrypter_prime.core.types import Direction, Device, PipelineCfg, SolveCfg
+from rdp.core.types import Direction, Device, PipelineCfg, SolveCfg
 
 def test_direction_enum_values():
     assert Direction.LTR.value == 'ltr'

@@ -5,7 +5,7 @@ import pytest
 from rune_decrypter_prime.core.config import CipherConfig
 from rune_decrypter_prime.ciphers.generic_map_cipher import GenericMapCipher
 from rdp.backends.xp import have_torch_cuda
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 pytestmark = pytest.mark.tier_a
 
 def _build_cipher_for_spec(spec: api.CipherSpec, *, key_length: int=1, device: str='cpu', length: int=1):

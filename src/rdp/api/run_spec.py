@@ -12,7 +12,7 @@ from rdp.api.specs import CipherSpec, KeySpec, SolverSpec
 from rune_decrypter_prime.core.config.interruptor import InterruptorConfig
 from rune_decrypter_prime.core.config.logging_config import LoggingConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     ComputeDevice,
     IndexPermutation,
     InitialKeys,

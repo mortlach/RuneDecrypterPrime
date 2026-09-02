@@ -11,13 +11,13 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
-from rune_decrypter_prime.core.component_contracts import ScoringLane
+from rdp.core.component_contracts import ScoringLane
 from rune_decrypter_prime.core.config.hard_crib import (
     HardCribConfig,
     normalize_hard_crib_config,
 )
-from rune_decrypter_prime.core.hamming_dictionary_policy import HammingDictionaryPolicy
-from rune_decrypter_prime.core.types import (
+from rdp.core.hamming_dictionary_policy import HammingDictionaryPolicy
+from rdp.core.types import (
     AverageWindowPolicy,
     FloatDType,
     HammingTextDirectionMode,

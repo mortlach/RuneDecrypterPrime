@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from rune_decrypter_prime.core.types import Stat
+from rdp.core.types import Stat
 
 
 def apply_stat_transform(stat: Stat | str | None, values: np.ndarray) -> np.ndarray:

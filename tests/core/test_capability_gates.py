@@ -1,12 +1,12 @@
 from __future__ import annotations
 import json
 import pytest
-from rune_decrypter_prime.core.capability_gates import (
+from rdp.core.capability_gates import (
     lane_failure_status,
     raise_for_lane_status,
     raise_if_requested_lane_blocked,
 )
-from rune_decrypter_prime.core.component_contracts import (
+from rdp.core.component_contracts import (
     CapabilityIssue,
     CapabilityStatus,
     CapabilityEffectiveState,

@@ -8,7 +8,7 @@ Owner paths:
 - `src/rune_decrypter_prime/solvers/`
 - `src/rune_decrypter_prime/scoring/`
 - `src/rune_decrypter_prime/core/engine/`
-- `src/rune_decrypter_prime/core/component_contracts.py`
+- `src/rdp/core/component_contracts.py`
 - `src/rune_decrypter_prime/core/config/scoring.py`
 - `src/rune_decrypter_prime/api/wrappers/`
 - `tests/`
@@ -41,7 +41,7 @@ others still require explicit enum and table updates.
 | KeyOps family | `src/rune_decrypter_prime/keyops/` | keyops registry and capability objects | Internal to semi-stable | `coder/key_pipeline.md` |
 | Solver | `src/rune_decrypter_prime/solvers/` | `SolverBase` plus explicit `SolverName` and `_SOLVER_TABLE` registration | Internal to semi-stable | [Add A Solver](../howto/add_solver.md) |
 | Scorer runtime | `src/rune_decrypter_prime/scoring/` | `BaseScorer`, scorer builders, `ScoringConfig.impl` | Internal | `coder/scoring_pipeline.md` |
-| Scorer lane | `src/rune_decrypter_prime/core/component_contracts.py` and `src/rune_decrypter_prime/core/config/scoring.py` | lane enum, request detection, capability/report sections | Semi-stable contract area | [Add A Scorer Lane](../howto/add_scorer_lane.md) |
+| Scorer lane | `src/rdp/core/component_contracts.py` and `src/rune_decrypter_prime/core/config/scoring.py` | lane enum, request detection, capability/report sections | Semi-stable contract area | [Add A Scorer Lane](../howto/add_scorer_lane.md) |
 | Report/artifact | `src/rune_decrypter_prime/api/` | dataclass reports, artifact agreement, manifest rows | Public V1 for known API surfaces | `coder/telemetry_and_reports.md` |
 | Tutorial | `tutorials/v1/` | tutorial file, runner entry, metadata alignment | Public docs evidence | `development/adding_a_tutorial.md` |
 

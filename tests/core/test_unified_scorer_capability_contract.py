@@ -3,7 +3,7 @@ from rdp import api
 import sys
 from types import ModuleType, SimpleNamespace
 import pytest
-from rune_decrypter_prime.core.component_contracts import (
+from rdp.core.component_contracts import (
     CapabilityIssue,
     CapabilityStatus,
     CapabilityEffectiveState,
@@ -11,7 +11,7 @@ from rune_decrypter_prime.core.component_contracts import (
 )
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
-from rune_decrypter_prime.core.types import Device
+from rdp.core.types import Device
 from rune_decrypter_prime.scoring.unified_rune_scorer import UnifiedRuneScorer
 
 class _FakeBackendScorer:

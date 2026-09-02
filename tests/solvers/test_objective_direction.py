@@ -2,7 +2,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.types import Direction, Device, ObjectiveFamily, ObjectiveSpec, SolverName, Stat
+from rdp.core.types import Direction, Device, ObjectiveFamily, ObjectiveSpec, SolverName, Stat
 from rune_decrypter_prime.solvers.solver_base import SolverBase
 pytestmark = pytest.mark.tier_a
 

@@ -4,7 +4,7 @@ and consumes only the injected RNG. With the same seed, sequences are identical.
 """
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.types import KEY_DTYPE
+from rdp.core.types import KEY_DTYPE
 from rune_decrypter_prime.keyops.registry import create
 from rune_decrypter_prime.keyops import PermutationKeyOps
 

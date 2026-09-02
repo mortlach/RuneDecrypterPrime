@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Iterable, Sequence, Dict, Tuple, Optional
 import re
 
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     Direction,
     SeMode,
 )

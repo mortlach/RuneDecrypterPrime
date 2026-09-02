@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Sequence
 
-from rune_decrypter_prime.core.types import Direction, ensure_direction, Device, ensure_device
+from rdp.core.types import Direction, ensure_direction, Device, ensure_device
 
 _DEFAULT_TELEMETRY_DIR = Path("output") / "telemetry" / "logs"
 

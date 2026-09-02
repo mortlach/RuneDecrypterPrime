@@ -7,7 +7,7 @@ from rune_decrypter_prime.core.config import (
     CipherConfig,
 )
 from rune_decrypter_prime.core.problem import DecryptionProblem
-from rune_decrypter_prime.core.types import Direction, Device, KeyOpsFamily, KEY_DTYPE
+from rdp.core.types import Direction, Device, KeyOpsFamily, KEY_DTYPE
 pytestmark = pytest.mark.tier_a
 
 class _ExactMatchScorer:

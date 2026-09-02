@@ -3,7 +3,7 @@ import rdp.api.normalize
 import numpy as np
 import pytest
 from rune_decrypter_prime.core.config.logging_config import LoggingConfig
-from rune_decrypter_prime.core.types import Channel, Device, Direction, ObjectiveFamily, ScorerImpl, SeMode, SolverName, Stat
+from rdp.core.types import Channel, Device, Direction, ObjectiveFamily, ScorerImpl, SeMode, SolverName, Stat
 
 def test_normalize_objective_spec_from_string():
     spec = rdp.api.normalize.normalize_objective_spec('pct.logp.win10')

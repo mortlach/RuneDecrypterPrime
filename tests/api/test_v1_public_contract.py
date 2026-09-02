@@ -19,11 +19,11 @@ from rune_decrypter_prime.core.config.cipher import (
 from rune_decrypter_prime.core.config.logging_config import LoggingConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig, ScoringObjective
 from rune_decrypter_prime.core.engine.builders import build_cipher
-from rune_decrypter_prime.core.component_contracts import (
+from rdp.core.component_contracts import (
     CipherKeyMismatchError,
     InvalidConcreteKeyError,
 )
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     BeamExpansionMode,
     ComputeDevice,
     ScheduledStreamOperation,

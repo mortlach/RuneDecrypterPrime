@@ -2,7 +2,7 @@ from __future__ import annotations
 import rdp.api.pipeline_helpers
 import numpy as np
 from rune_decrypter_prime.core.config import Solution
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.utils.solve_output import render_plaintext
 

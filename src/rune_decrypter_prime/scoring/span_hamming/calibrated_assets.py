@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Tuple
 
 import numpy as np
-from rune_decrypter_prime.core.hamming_dictionary_policy import ensure_hamming_dictionary_policy
+from rdp.core.hamming_dictionary_policy import ensure_hamming_dictionary_policy
 
 
 def _decode_meta_json(raw: Any) -> dict[str, Any]:

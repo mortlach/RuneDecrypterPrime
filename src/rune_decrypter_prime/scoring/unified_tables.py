@@ -57,7 +57,7 @@ class RuntimeTablesProvider:
             LanguageModelPrime,
         )
         from rune_decrypter_prime.core.config.scoring import ScoringConfig
-        from rune_decrypter_prime.core.types import (
+        from rdp.core.types import (
             OutOfVocabularyPolicy,
             SmoothingMethod,
         )

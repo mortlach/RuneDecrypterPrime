@@ -3,7 +3,7 @@ from rdp import api
 import sys
 from types import ModuleType
 import pytest
-from rune_decrypter_prime.core.component_contracts import (
+from rdp.core.component_contracts import (
     CapabilityIssue,
     CapabilityStatus,
     CapabilityEffectiveState,

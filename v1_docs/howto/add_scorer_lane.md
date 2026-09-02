@@ -3,9 +3,9 @@
 Status: staged V1 draft
 
 Owner paths:
-- `src/rune_decrypter_prime/core/component_contracts.py`
+- `src/rdp/core/component_contracts.py`
 - `src/rune_decrypter_prime/core/config/scoring.py`
-- `src/rune_decrypter_prime/core/capability_gates.py`
+- `src/rdp/core/capability_gates.py`
 - `src/rune_decrypter_prime/scoring/`
 - `src/rune_decrypter_prime/scoring/scorer_lane_report.py`
 - `src/rune_decrypter_prime/scoring/scorer_report_builder.py`

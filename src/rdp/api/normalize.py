@@ -5,7 +5,7 @@ import numpy as np
 
 from rdp.api._resolve import resolve_optimizer_aliases
 from rune_decrypter_prime.utils.runeglish import Runeglish
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     Direction,
     Device,
     SeMode,

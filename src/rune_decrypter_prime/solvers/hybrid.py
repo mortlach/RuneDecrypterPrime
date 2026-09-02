@@ -24,7 +24,7 @@ from __future__ import annotations
 from typing import Any, Dict, Optional, Tuple
 import numpy as np
 
-from ..core.types import SolverName, KEY_DTYPE
+from rdp.core.types import SolverName, KEY_DTYPE
 from .solver_base import SolverBase
 from .beam import BeamSolver
 from .ga import GASolver

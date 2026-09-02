@@ -40,7 +40,7 @@ from rune_decrypter_prime.scoring.windowing import (
     aligned_window_count,
     span_map,
 )
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     Direction,
     SeMode,
     Channel,
@@ -339,7 +339,7 @@ class RuneScorer(BaseScorer):
             raise ValueError("span_hamming_bucket_policy currently only supports 'nearest_smaller_on_tie'")
         if self._span_hamming_enabled:
             try:
-                from rune_decrypter_prime.core.hamming_dictionary_policy import ensure_hamming_dictionary_policy
+                from rdp.core.hamming_dictionary_policy import ensure_hamming_dictionary_policy
                 from rune_decrypter_prime.scoring.hamming.dictionary_assets import choose_hamming_dictionary_wordlist_dir
                 from rune_decrypter_prime.scoring.span_hamming import (
                     SpanCalibratedAssets,

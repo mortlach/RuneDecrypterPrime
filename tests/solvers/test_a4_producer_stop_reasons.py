@@ -6,7 +6,7 @@ from rune_decrypter_prime.ciphers.periodic_substitution_cipher import PeriodicSu
 from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
 from rune_decrypter_prime.core.config import CipherConfig
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 from rune_decrypter_prime.solvers.beam import BeamSolver
 from rune_decrypter_prime.solvers.ga import GASolver
 from rune_decrypter_prime.solvers.hybrid import HybridSolver

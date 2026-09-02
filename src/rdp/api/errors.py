@@ -1,6 +1,6 @@
 """Stable V1 error types."""
 
-from rune_decrypter_prime.core.component_contracts import (
+from rdp.core.component_contracts import (
     AssetUnavailableError,
     CapabilityUnavailableError,
     ConfigurationError,

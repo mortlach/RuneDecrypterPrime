@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 from rune_decrypter_prime.solvers.solver_base import SolverBase
-from rune_decrypter_prime.core.types import SolverName, KEY_DTYPE, Device, Direction
+from rdp.core.types import SolverName, KEY_DTYPE, Device, Direction
 pytestmark = pytest.mark.tier_a
 
 class _DummyKeyOps:

@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 from rune_decrypter_prime.core.config import CipherConfig
 from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 pytestmark = pytest.mark.tier_a
 
 def test_variable_interruptors():

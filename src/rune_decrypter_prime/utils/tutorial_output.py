@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from rdp.api.display import PrintOptions, format_key_value_block, print_block
-from rune_decrypter_prime.core.types import Direction, ensure_direction
+from rdp.core.types import Direction, ensure_direction
 from rune_decrypter_prime.utils.runeglish import Runeglish
 
 

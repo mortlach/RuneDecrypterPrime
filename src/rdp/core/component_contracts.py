@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from rdp.api.specs import CipherSpec, KeySpec
     from rdp.api.stop_reason_contract import RunStatus
-    from rune_decrypter_prime.core.types import ConcreteKey, JsonObject
+    from rdp.core.types import ConcreteKey, JsonObject
 
 
 class ComponentKind(StrEnum):

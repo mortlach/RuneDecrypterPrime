@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Optional
 import numpy as np
 
-from rune_decrypter_prime.core.types import KEY_DTYPE
+from rdp.core.types import KEY_DTYPE
 
 ArrayU8 = np.ndarray
 

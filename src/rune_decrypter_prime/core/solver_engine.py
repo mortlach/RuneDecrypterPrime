@@ -13,7 +13,7 @@ from rune_decrypter_prime.core.config.solution import Solution
 from rune_decrypter_prime.core.config.solver import SolverConfig
 from rune_decrypter_prime.core.engine import EngineConfig, solve as engine_solve
 from rune_decrypter_prime.core.problem import ProblemInstance, ProblemSpec
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     Direction,
     SolverName,
     ensure_direction,

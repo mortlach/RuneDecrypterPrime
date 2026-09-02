@@ -12,7 +12,7 @@ import math
 import numpy as np
 import itertools
 
-from rune_decrypter_prime.core.types import Direction, TextDirection, ensure_direction
+from rdp.core.types import Direction, TextDirection, ensure_direction
 from rune_decrypter_prime.keyops.permutation_ops import PermutationKeyOps
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.scoring.language_model.language_model_prime import LanguageModelPrime

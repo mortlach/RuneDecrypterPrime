@@ -2,7 +2,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.types import Device, Direction, ObjectiveFamily, ObjectiveSpec, Stat
+from rdp.core.types import Device, Direction, ObjectiveFamily, ObjectiveSpec, Stat
 from rune_decrypter_prime.keyops.vector import VectorKeyOps
 from rune_decrypter_prime.solvers.hybrid import HybridSolver
 pytestmark = pytest.mark.tier_a

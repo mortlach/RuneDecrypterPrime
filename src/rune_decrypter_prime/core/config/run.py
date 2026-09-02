@@ -12,7 +12,7 @@ from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.solver import SolverConfig
 from rune_decrypter_prime.data.cipher_tests.baseline_registry import BASELINE
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     SolverName,
     ScorerName,
     ensure_solver_name,

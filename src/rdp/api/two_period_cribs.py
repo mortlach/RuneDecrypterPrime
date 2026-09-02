@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
 from rdp.api.specs import SolverSpec
-from rune_decrypter_prime.core.types import SolverKind
+from rdp.core.types import SolverKind
 
 TWO_PERIOD_CRIBS_SOLVER_NAME = "two_period_cribs"
 TWO_PERIOD_CRIBS_CONTRACT = "two_period_cribs.v1"

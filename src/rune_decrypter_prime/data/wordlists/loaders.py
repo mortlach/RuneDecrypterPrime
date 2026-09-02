@@ -6,7 +6,7 @@ from typing import Dict, Sequence
 
 from rdp.api.word_crib_config import WordCribConfig
 from rune_decrypter_prime.data.asset_paths import resolve_assets_path, to_repo_relative
-from rune_decrypter_prime.core.types import Direction, ensure_direction
+from rdp.core.types import Direction, ensure_direction
 from rune_decrypter_prime.utils.runeglish import Runeglish
 from rune_decrypter_prime.scoring.hamming.loader import load_raw1grams_wordlists
 

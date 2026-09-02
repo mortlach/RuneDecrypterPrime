@@ -4,7 +4,7 @@ import math
 from enum import StrEnum
 from typing import Any, Mapping
 
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     ObjectiveFamily,
     ObjectiveSpec,
     Stat,
@@ -217,7 +217,7 @@ def build_scorer_report(
         derived_details[ScorerReportDetailKey.REPORT_BUILDER_DIAGNOSTICS.value] = diagnostics
     details = _merge_detail_sections(derived_details, _safe_mapping(extra_details or {}))
     from rune_decrypter_prime.core.config.scoring import ScoringObjective
-    from rune_decrypter_prime.core.types import ObjectiveFamily, ScoreStatistic, Stat
+    from rdp.core.types import ObjectiveFamily, ScoreStatistic, Stat
 
     if objective_spec.family is ObjectiveFamily.AVG:
         objective = ScoringObjective.average_log_probability()

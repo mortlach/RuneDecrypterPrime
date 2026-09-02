@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 from rune_decrypter_prime.ciphers.periodic_columnar_cipher import PeriodicColumnarCipher
 from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     Device,
     Direction,
 )

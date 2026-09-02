@@ -5,7 +5,7 @@ import importlib
 import pytest
 
 from rdp.api import CipherSpec, decrypt, encrypt
-from rune_decrypter_prime.core.component_contracts import (
+from rdp.core.component_contracts import (
     InvalidConcreteKeyError,
     NonInvertibleCipherError,
 )

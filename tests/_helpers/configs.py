@@ -5,7 +5,7 @@ from typing import Dict, Any, Tuple
 from rune_decrypter_prime.core.config import CipherConfig, ScoringConfig, SolverConfig
 from rune_decrypter_prime.core.config.logging_config import LoggingConfig
 from rune_decrypter_prime.data.cipher_tests.baseline_registry import BASELINE
-from rune_decrypter_prime.core.types import Device, ensure_direction
+from rdp.core.types import Device, ensure_direction
 
 def _to_dict(dc_or_dict):
     if hasattr(dc_or_dict, "to_dict"):

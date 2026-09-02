@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from rune_decrypter_prime.core.config import CipherConfig
 from rune_decrypter_prime.core.problem import ProblemSpec, ProblemInstance
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 pytestmark = pytest.mark.tier_a
 
 class _DummyScorer:

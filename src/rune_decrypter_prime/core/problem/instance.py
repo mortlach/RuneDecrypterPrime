@@ -11,12 +11,12 @@ from rune_decrypter_prime.core.problem.spec import ProblemSpec
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
 from rune_decrypter_prime.core.engine.builders import build_cipher, build_scorer
 from rune_decrypter_prime.telemetry.pipeline import make_pipeline_block
-from rune_decrypter_prime.core.types import Direction, ensure_direction
+from rdp.core.types import Direction, ensure_direction
 
 
 def _expected_runtime_identity(spec: object) -> str | None:
     from rdp.api.specs import CipherSpec
-    from rune_decrypter_prime.core.types import CipherKind, RuntimeCipherKind
+    from rdp.core.types import CipherKind, RuntimeCipherKind
 
     if not isinstance(spec, CipherSpec):
         return None

@@ -6,7 +6,7 @@ from rune_decrypter_prime.core.config import (
     CipherConfig,
 )
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
-from rune_decrypter_prime.core.types import Direction, KEY_DTYPE
+from rdp.core.types import Direction, KEY_DTYPE
 from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
 pytestmark = pytest.mark.tier_a
 

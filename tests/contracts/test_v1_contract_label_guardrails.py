@@ -9,7 +9,7 @@ SCORER_REPORT_BUILDER = (
 SCORING_CONFIG = (
     ROOT / "src" / "rune_decrypter_prime" / "core" / "config" / "scoring.py"
 )
-CORE_TYPES = ROOT / "src" / "rune_decrypter_prime" / "core" / "types.py"
+CORE_TYPES = ROOT / "src" / "rdp" / "core" / "types.py"
 RUNE_SCORER_IMPL = (
     ROOT / "src" / "rune_decrypter_prime" / "scoring" / "rune_scorer_impl.py"
 )

@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from rune_decrypter_prime.core.capability_gates import (
+from rdp.core.capability_gates import (
     active_lane,
     inactive_lane,
     lane_failure_status,
 )
-from rune_decrypter_prime.core.component_contracts import (
+from rdp.core.component_contracts import (
     CapabilityIssue,
     CapabilityStatus,
     CapabilityEffectiveState,

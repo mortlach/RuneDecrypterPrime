@@ -5,7 +5,7 @@ import pytest
 from rune_decrypter_prime.ciphers.substitution_cipher import SubstitutionCipher
 from rune_decrypter_prime.core.config import CipherConfig
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 from rune_decrypter_prime.solvers.beam import BeamSolver
 pytestmark = pytest.mark.tier_a
 ALPHABET_SIZE = 29

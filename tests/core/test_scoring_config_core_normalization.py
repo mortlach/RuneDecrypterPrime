@@ -8,7 +8,7 @@ from rune_decrypter_prime.core.config.scoring import (
     SpanHammingLanguageModelProfileSource,
     SpanHammingMode,
 )
-from rune_decrypter_prime.core.types import FloatDType, ScorerBackend
+from rdp.core.types import FloatDType, ScorerBackend
 
 
 def test_scoring_config_preserves_typed_public_enums() -> None:

@@ -5,7 +5,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SRC_ROOT = REPO_ROOT / 'src' / 'rune_decrypter_prime'
+SRC_ROOTS = (
+    REPO_ROOT / 'src' / 'rdp',
+    REPO_ROOT / 'src' / 'rune_decrypter_prime',
+)
 LEDGER = REPO_ROOT / 'docs' / 'v1_traceability' / 'v1_enum_domain_ledger.json'
 
 @dataclass(frozen=True)
@@ -42,12 +45,13 @@ def _load_ledger() -> dict:
     return data
 
 def _py_files() -> Iterable[Path]:
-    assert SRC_ROOT.is_dir(), f'missing source root: {_repo_relative(SRC_ROOT)}'
-    for path in sorted(SRC_ROOT.rglob('*.py')):
-        parts = set(path.parts)
-        if '__pycache__' in parts:
-            continue
-        yield path
+    for source_root in SRC_ROOTS:
+        assert source_root.is_dir(), f'missing source root: {_repo_relative(source_root)}'
+        for path in sorted(source_root.rglob('*.py')):
+            parts = set(path.parts)
+            if '__pycache__' in parts:
+                continue
+            yield path
 
 def _base_name(base: ast.expr) -> str | None:
     if isinstance(base, ast.Name):
@@ -90,7 +94,7 @@ def test_enum_domain_ledger_schema_is_valid() -> None:
 def test_string_enum_inventory_can_be_built_without_parse_errors() -> None:
     """Keep the enum audit live without making duplicate wire values a requirement."""
     members = {member.qualified_name: member for member in _iter_string_enum_members()}
-    assert members, "no string enum members found under src/rune_decrypter_prime"
+    assert members, "no string enum members found under the source package roots"
     expected_sentinels = {
         "Direction.LTR": "ltr",
         "TextDirection.LEFT_TO_RIGHT": "left_to_right",

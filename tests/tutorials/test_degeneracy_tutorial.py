@@ -5,7 +5,7 @@ import pytest
 from rune_decrypter_prime.ciphers.generic_map_cipher import GenericMapCipher
 from rune_decrypter_prime.core.config import CipherConfig
 from rune_decrypter_prime.core.problem import ProblemSpec, ProblemInstance
-from rune_decrypter_prime.core.types import Direction, Device
+from rdp.core.types import Direction, Device
 
 pytestmark = pytest.mark.tier_a
 

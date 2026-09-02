@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 
-from rune_decrypter_prime.core.types import Direction, ensure_direction
+from rdp.core.types import Direction, ensure_direction
 from rune_decrypter_prime.scoring.span_hamming.types import SpanInterval
 from rune_decrypter_prime.scoring.word_ngrams.scorer import (
     RuneTokenWordNgramScorer,

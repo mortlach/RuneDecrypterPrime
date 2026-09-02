@@ -10,7 +10,7 @@ from rune_decrypter_prime.ciphers.base_keyed_cipher import (
     KeyedCipherBase,
 )
 from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
-from rune_decrypter_prime.core.types import KeyOpsFamily
+from rdp.core.types import KeyOpsFamily
 
 
 @register_cipher("rail_fence")

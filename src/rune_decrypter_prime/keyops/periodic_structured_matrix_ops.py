@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Optional
 import numpy as np
 
-from rune_decrypter_prime.core.types import KeyOpsFamily, KEY_DTYPE
+from rdp.core.types import KeyOpsFamily, KEY_DTYPE
 from rune_decrypter_prime.keyops.base_keyops import KeyOpBase, KeyCaps
 from rune_decrypter_prime.keyops.registry import register_keyop
 

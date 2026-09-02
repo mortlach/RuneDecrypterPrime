@@ -1,7 +1,7 @@
 from __future__ import annotations
 import pytest
 from tests._helpers.runner import run_vigenere_roundtrip_baseline
-from rune_decrypter_prime.core.types import Device
+from rdp.core.types import Device
 pytestmark = pytest.mark.tier_a
 
 def test_progress_events_use_canonical_timing_keys(small_problem_cfg):

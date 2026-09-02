@@ -3,7 +3,7 @@ from rdp import api
 from types import SimpleNamespace
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.types import Device, Direction, ObjectiveFamily, ObjectiveSpec, Stat
+from rdp.core.types import Device, Direction, ObjectiveFamily, ObjectiveSpec, Stat
 from rune_decrypter_prime.keyops.vector import VectorKeyOps
 from rune_decrypter_prime.solvers.ga import GASolver
 from rune_decrypter_prime.solvers.hybrid import HybridSolver

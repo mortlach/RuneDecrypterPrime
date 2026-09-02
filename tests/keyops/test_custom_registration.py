@@ -2,7 +2,7 @@
 from __future__ import annotations
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.types import KeyOpsFamily
+from rdp.core.types import KeyOpsFamily
 from rune_decrypter_prime.keyops.base_keyops import KeyCaps, KeyOpBase
 from rune_decrypter_prime.keyops.registry import create, register_keyop, get
 

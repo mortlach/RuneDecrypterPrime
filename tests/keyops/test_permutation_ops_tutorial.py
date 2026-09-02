@@ -32,7 +32,7 @@ What this file teaches (and enforces):
 Use these tests as a template when designing your own permutation-style KeyOps.
 """
 import numpy as np
-from rune_decrypter_prime.core.types import KEY_DTYPE
+from rdp.core.types import KEY_DTYPE
 from rune_decrypter_prime.keyops.registry import create
 from rune_decrypter_prime.keyops import PermutationKeyOps
 

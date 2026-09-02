@@ -4,7 +4,7 @@ Contract: the public keyops registry advertises available families and
 """
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.types import KeyOpsFamily
+from rdp.core.types import KeyOpsFamily
 from rune_decrypter_prime.keyops.registry import create, available
 from rune_decrypter_prime.keyops import PermutationKeyOps, VectorKeyOps
 

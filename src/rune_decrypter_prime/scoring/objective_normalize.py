@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     ObjectiveFamily,
     ObjectiveSpec,
     Stat,
@@ -23,7 +23,7 @@ def normalize_objective_input(value: Any, *, default_win: int) -> ObjectiveSpec:
     - None (defaults to pct.logp.win<default_win>)
     """
     from rune_decrypter_prime.core.config.scoring import ScoringObjective
-    from rune_decrypter_prime.core.types import ScoringObjectiveKind, ScoreStatistic
+    from rdp.core.types import ScoringObjectiveKind, ScoreStatistic
 
     if isinstance(value, ScoringObjective):
         if value.kind is ScoringObjectiveKind.PERCENTILE:

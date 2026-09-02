@@ -1,5 +1,5 @@
 from __future__ import annotations
-from rune_decrypter_prime.core.component_contracts import ScoringLane
+from rdp.core.component_contracts import ScoringLane
 from rune_decrypter_prime.scoring.base_scorer import BaseScorer
 
 def test_scorer_lane_registry_values_are_stable() -> None:

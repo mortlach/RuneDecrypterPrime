@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from rune_decrypter_prime.core.config import CipherConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 from rune_decrypter_prime.scoring.windowing import START_TAG, END_TAG
 pytestmark = pytest.mark.tier_a
 

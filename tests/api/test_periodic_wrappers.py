@@ -1,6 +1,6 @@
 from rdp import api
 from rune_decrypter_prime.core.config.cipher import materialize_cipher_config
-from rune_decrypter_prime.core.types import KeyOpsFamily
+from rdp.core.types import KeyOpsFamily
 
 
 def _cfg(cipher: api.CipherSpec, key: api.KeySpec):

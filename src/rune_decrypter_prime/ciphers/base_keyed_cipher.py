@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Any
 import numpy as np
 
-from rune_decrypter_prime.core.types import KeyOpsFamily, ensure_keyops_family
+from rdp.core.types import KeyOpsFamily, ensure_keyops_family
 
 ArrayU8 = np.ndarray
 

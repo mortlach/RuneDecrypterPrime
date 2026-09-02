@@ -9,7 +9,7 @@ from typing import Optional, Sequence
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.cipher import expected_concrete_key_length
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
-from rune_decrypter_prime.core.types import Direction, ensure_direction
+from rdp.core.types import Direction, ensure_direction
 
 
 @dataclass(slots=True)

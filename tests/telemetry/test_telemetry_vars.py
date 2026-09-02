@@ -1,6 +1,6 @@
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.core.types import Device, ScorerImpl
+from rdp.core.types import Device, ScorerImpl
 from tests._helpers.runner import run_vigenere_roundtrip_baseline
 from tests._helpers.telemetry_contract import assert_basic_timing_fields, assert_pipeline_contract, assert_pipeline_stable, assert_no_magic_strings
 pytestmark = pytest.mark.tier_a

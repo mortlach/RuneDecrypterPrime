@@ -7,9 +7,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
 
-from rune_decrypter_prime.core.component_contracts import ScorerCapabilityReport
+from rdp.core.component_contracts import ScorerCapabilityReport
 from rune_decrypter_prime.core.config.scoring import ScoringObjective
-from rune_decrypter_prime.core.types import JsonObject, JsonValue
+from rdp.core.types import JsonObject, JsonValue
 
 
 def _json_mapping(value: Mapping[str, object], field_name: str) -> Mapping[str, JsonValue]:

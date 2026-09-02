@@ -10,8 +10,8 @@ from rune_decrypter_prime.ciphers.periodic_columnar_cipher import PeriodicColumn
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.engine.builders import build_scorer
-from rune_decrypter_prime.core.transpositions import assert_is_permutation
-from rune_decrypter_prime.core.types import (
+from rdp.core.transpositions import assert_is_permutation
+from rdp.core.types import (
     Direction,
     Device,
     KEY_DTYPE,

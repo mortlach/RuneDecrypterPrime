@@ -11,7 +11,7 @@ from collections.abc import Sequence
 import numpy as np
 
 from rdp.api.specs import CipherSpec, KeySpec
-from rune_decrypter_prime.core.component_contracts import (
+from rdp.core.component_contracts import (
     CapabilityIssue,
     CapabilityStatus,
     NonInvertibleCipherError,
@@ -21,7 +21,7 @@ from rune_decrypter_prime.core.config.cipher import (
     validate_concrete_key,
 )
 from rune_decrypter_prime.core.engine.builders import build_cipher
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     ComputeDevice,
     CipherKind,
     RuntimeCipherKind,

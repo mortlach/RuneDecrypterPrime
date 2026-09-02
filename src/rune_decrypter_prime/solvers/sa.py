@@ -13,7 +13,7 @@ import math
 import numpy as np
 
 from ..core.config.validation import strict_positive_int
-from ..core.types import SolverName, KEY_DTYPE
+from rdp.core.types import SolverName, KEY_DTYPE
 from .solver_base import SolverBase
 
 

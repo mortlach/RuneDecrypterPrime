@@ -7,8 +7,8 @@ from dataclasses import dataclass, field
 from numbers import Integral
 from typing import ClassVar
 
-from rune_decrypter_prime.core.component_contracts import UnsupportedConfigurationError
-from rune_decrypter_prime.core.types import (
+from rdp.core.component_contracts import UnsupportedConfigurationError
+from rdp.core.types import (
     InterruptorSearchStrategy,
     FrozenParameterItems,
     InterruptorMode,

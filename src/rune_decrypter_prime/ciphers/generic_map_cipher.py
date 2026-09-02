@@ -10,7 +10,7 @@ from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin
 from rune_decrypter_prime.ciphers.base_keyed_cipher import KeyedCipherBase
 from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
 from rdp.backends.xp import select_backend
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     RuntimeCipherKind,
     Device,
     Direction,

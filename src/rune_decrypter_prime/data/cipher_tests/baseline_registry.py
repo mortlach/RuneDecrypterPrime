@@ -35,7 +35,7 @@ Developers can override these in *experimental tests*,
 but baseline CI and benchmark traces should stick to these values.
 """
 from __future__ import annotations
-from rune_decrypter_prime.core.types import Device, ScorerImpl, Direction
+from rdp.core.types import Device, ScorerImpl, Direction
 
 # Single source of truth for ALL tests: seed, devices, key length, budgets,
 # and default config knobs for logging/scoring/solver.

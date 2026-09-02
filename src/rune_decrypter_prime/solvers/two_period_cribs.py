@@ -27,7 +27,7 @@ from rune_decrypter_prime.core.config import (
 from rune_decrypter_prime.core.config.cipher import materialize_cipher_config
 from rune_decrypter_prime.core.engine.builders import build_cipher, build_scorer
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     Device,
     Direction,
     ComputeDevice,

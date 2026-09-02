@@ -9,7 +9,7 @@ import time
 import numpy as np
 
 # Core enums / guards
-from ..core.types import (
+from rdp.core.types import (
     Device,
     Direction,
     SolverName,

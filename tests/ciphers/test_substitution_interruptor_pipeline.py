@@ -7,7 +7,7 @@ from rune_decrypter_prime.core.config import (
     CipherConfig,
 )
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 pytestmark = pytest.mark.tier_a
 
 def _cipher(alphabet_size: int=5) -> SubstitutionCipher:

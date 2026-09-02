@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import warnings
 
-from rune_decrypter_prime.core.capability_gates import issue_from_exception
-from rune_decrypter_prime.core.component_contracts import (
+from rdp.core.capability_gates import issue_from_exception
+from rdp.core.component_contracts import (
     CapabilityIssue,
     CapabilityStatus,
     RequestedLaneUnavailableError,

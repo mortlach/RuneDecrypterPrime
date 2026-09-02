@@ -13,7 +13,7 @@ from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.config.hard_crib import HardCribConfig, normalize_hard_crib_config
 from rune_decrypter_prime.telemetry.bag import TelemetryBag
 from rune_decrypter_prime.core.telemetry import _Timer
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     Device,
     InterruptorMode,
     InterruptorSearchStrategy,

@@ -3,7 +3,7 @@ from pathlib import Path
 import tomllib
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 from rune_decrypter_prime.data.cipher_tests import book_corpus
 pytestmark = pytest.mark.tier_a
 ROOT = Path(__file__).resolve().parents[2]

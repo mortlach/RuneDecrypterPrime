@@ -5,7 +5,7 @@ from tests._helpers.configs import (
     make_optimizer_cfg,
     overrides_dict,
 )
-from rune_decrypter_prime.core.types import Device
+from rdp.core.types import Device
 from tests._helpers.vigenere_case import build_vigenere_known_key_case
 from tests.harness import run_roundtrip_case
 

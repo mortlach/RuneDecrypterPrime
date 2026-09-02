@@ -1,6 +1,6 @@
 import pytest
 from rune_decrypter_prime.telemetry.pipeline import make_pipeline_block
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 pytestmark = pytest.mark.tier_a
 
 def _mk(min_len=8):

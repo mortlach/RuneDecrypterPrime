@@ -2,7 +2,7 @@
 from __future__ import annotations
 from rdp import api
 import pytest
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 from rune_decrypter_prime.telemetry.pipeline import make_pipeline_block
 from rune_decrypter_prime.utils.runeglish import Runeglish
 pytestmark = pytest.mark.tier_a

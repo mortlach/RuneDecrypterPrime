@@ -2,7 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.types import Direction, ObjectiveFamily, ObjectiveSpec, Stat
+from rdp.core.types import Direction, ObjectiveFamily, ObjectiveSpec, Stat
 from rune_decrypter_prime.scoring.retained_state import PlaintextRetainedCandidate, score_plaintext_candidate
 from rune_decrypter_prime.scoring.ngram_hamming.reference import PhraseHit
 from rune_decrypter_prime.scoring.ngram_hamming.report_only_telemetry import N3CNormalReportTelemetryConfig, REPORT_DETAILS_KEY

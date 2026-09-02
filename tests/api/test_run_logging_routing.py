@@ -10,7 +10,7 @@ from rune_decrypter_prime.core.config import logging_config
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.logging_config import LoggingConfig
 from rune_decrypter_prime.core.config.solver import SolverConfig
-from rune_decrypter_prime.core.types import Device, Direction
+from rdp.core.types import Device, Direction
 
 def _minimal_cipher_config() -> CipherConfig:
     return CipherConfig(ciphertext=np.asarray([0], dtype=np.uint8), wli_data=None, key_length=1, name='vigenere', device=Device.CPU, encoding_dir=api.TextDirection.LEFT_TO_RIGHT)

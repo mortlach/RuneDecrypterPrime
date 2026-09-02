@@ -1,7 +1,7 @@
 from __future__ import annotations
 import pytest
 from rune_decrypter_prime.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.types import Device, Direction, KeyOpsFamily
+from rdp.core.types import Device, Direction, KeyOpsFamily
 
 def test_cipher_config_normalises_api_strings_to_core_enums() -> None:
     cfg = CipherConfig(ciphertext=[0, 1, 2], wli_data=[], key_length=3, device='cuda:0', encoding_dir='fwd', keyops_family='vector')

@@ -3,7 +3,7 @@ from rdp import api
 import warnings
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.component_contracts import RequestedLaneUnavailableError
+from rdp.core.component_contracts import RequestedLaneUnavailableError
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.scoring import rune_scorer
 

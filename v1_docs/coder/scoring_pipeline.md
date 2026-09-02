@@ -5,8 +5,8 @@ Status: staged V1 draft
 Owner paths:
 - `src/rune_decrypter_prime/core/config/scoring.py`
 - `src/rune_decrypter_prime/scoring/`
-- `src/rune_decrypter_prime/core/component_contracts.py`
-- `src/rune_decrypter_prime/core/capability_gates.py`
+- `src/rdp/core/component_contracts.py`
+- `src/rdp/core/capability_gates.py`
 
 Related tests:
 - `tests/scoring/`
@@ -48,7 +48,7 @@ whether it affects ranking or is diagnostic/report-only.
 | Object | Owner path | Role |
 | --- | --- | --- |
 | `ScoringConfig` | `src/rune_decrypter_prime/core/config/scoring.py` | Canonical runtime scoring configuration. |
-| `ObjectiveSpec` | `src/rune_decrypter_prime/core/types.py` | Typed objective family/stat/window description. |
+| `ObjectiveSpec` | `src/rdp/core/types.py` | Typed objective family/stat/window description. |
 | `ScorerReport` | `src/rune_decrypter_prime/scoring/scorer_report.py` | Public scoring evidence surface. |
 | `build_scorer_report` | `src/rune_decrypter_prime/scoring/scorer_report_builder.py` | Builds scorer report details from runtime observations. |
 | `build_scorer_lane_report` | `src/rune_decrypter_prime/scoring/scorer_lane_report.py` | Reports requested/effective scorer lane status. |

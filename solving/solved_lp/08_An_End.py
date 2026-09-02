@@ -12,7 +12,7 @@ SRC = ROOT / 'src'
 for path in (ROOT, SRC):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 from rune_decrypter_prime.data import liber_primus as lp
 from rune_decrypter_prime.data.wordlists.loaders import load_short_word_dictionary
 from rune_decrypter_prime.utils.runeglish import Runeglish

@@ -7,7 +7,7 @@ from rune_decrypter_prime.core.config import (
     CipherConfig,
 )
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
-from rune_decrypter_prime.core.types import KEY_DTYPE, Direction
+from rdp.core.types import KEY_DTYPE, Direction
 from rune_decrypter_prime.data import liber_primus as lp
 from rune_decrypter_prime.utils.runeglish import Runeglish
 pytestmark = pytest.mark.tier_a

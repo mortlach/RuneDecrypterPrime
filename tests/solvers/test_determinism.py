@@ -7,7 +7,7 @@ from rune_decrypter_prime.core.config.solver import SolverConfig
 from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
 from rune_decrypter_prime.core.solver_engine import build_optimizer
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 pytestmark = pytest.mark.tier_a
 
 class _ZeroScorer:

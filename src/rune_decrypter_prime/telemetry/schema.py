@@ -1,6 +1,6 @@
 # rune_decrypter_prime/telemetry/schema.py
 from __future__ import annotations
-from rune_decrypter_prime.core.types import Device, ScorerImpl, ensure_device, ensure_scorer_impl
+from rdp.core.types import Device, ScorerImpl, ensure_device, ensure_scorer_impl
 
 def to_canonical_device_str(dev: Device | str) -> str:
     """Canonical device string for telemetry."""

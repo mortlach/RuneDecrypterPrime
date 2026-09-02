@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from rdp.api.specs import CipherSpec, KeySpec
 
 from rune_decrypter_prime.core.config.interruptor import InterruptorConfig
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     Device,
     Direction,
     ensure_device,
@@ -161,7 +161,7 @@ class CipherConfig:
 
 
 def _binding_error(cipher: "CipherSpec", key_space: "KeySpec", message: str):
-    from rune_decrypter_prime.core.component_contracts import CipherKeyMismatchError
+    from rdp.core.component_contracts import CipherKeyMismatchError
 
     raise CipherKeyMismatchError(message, cipher=cipher, key_space=key_space)
 
@@ -169,7 +169,7 @@ def _binding_error(cipher: "CipherSpec", key_space: "KeySpec", message: str):
 def expected_concrete_key_length(cipher: "CipherSpec", key_space: "KeySpec") -> int:
     """Validate one accepted cipher/key-space pair and return its flat length."""
     from rdp.api.specs import CipherSpec, KeySpec
-    from rune_decrypter_prime.core.types import CipherKind, KeyKind, RuntimeCipherKind
+    from rdp.core.types import CipherKind, KeyKind, RuntimeCipherKind
 
     if not isinstance(cipher, CipherSpec):
         raise TypeError("cipher must be CipherSpec")
@@ -264,8 +264,8 @@ def validate_concrete_key(
     key: tuple[int, ...],
 ) -> tuple[int, ...]:
     """Apply the shared strict V1 key length, range, and segment validator."""
-    from rune_decrypter_prime.core.component_contracts import InvalidConcreteKeyError
-    from rune_decrypter_prime.core.types import CipherKind, RuntimeCipherKind, normalize_concrete_key
+    from rdp.core.component_contracts import InvalidConcreteKeyError
+    from rdp.core.types import CipherKind, RuntimeCipherKind, normalize_concrete_key
 
     concrete_key = normalize_concrete_key(key)
     expected_length = expected_concrete_key_length(cipher, key_space)
@@ -351,7 +351,7 @@ def materialize_cipher_config(
     interruptors: InterruptorConfig | None = None,
 ) -> CipherConfig:
     """Build the sole internal runtime cipher configuration from typed specs."""
-    from rune_decrypter_prime.core.types import (
+    from rdp.core.types import (
         ComputeDevice,
         CipherKind,
         RuntimeCipherKind,

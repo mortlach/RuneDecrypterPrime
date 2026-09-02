@@ -49,7 +49,7 @@ from rune_decrypter_prime.scoring.objective_normalize import (
 )
 from rune_decrypter_prime.scoring.windowing import START_TAG, END_TAG
 from rune_decrypter_prime.utils.telemetry import stash as _tstash  # canonical helper  ✔
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     SeMode,
     AvgWindowPolicy,
     ensure_direction,
@@ -298,7 +298,7 @@ class RuneScorerTorch(BaseScorer):
         self._weight_contract = scorer_cfg.weight_contract()
 
         # objective intake supports ObjectiveSpec | dict | str | None
-        from rune_decrypter_prime.core.types import ObjectiveFamily, Stat, ObjectiveSpec
+        from rdp.core.types import ObjectiveFamily, Stat, ObjectiveSpec
         obj = _normalize_objective(
             scorer_cfg.objective,
             default_win=int(self.win),
@@ -548,7 +548,7 @@ class RuneScorerTorch(BaseScorer):
         self._span_hamming_enabled = self._span_hamming_mode is not SpanHammingMode.OFF
         if self._span_hamming_enabled:
             try:
-                from rune_decrypter_prime.core.hamming_dictionary_policy import ensure_hamming_dictionary_policy
+                from rdp.core.hamming_dictionary_policy import ensure_hamming_dictionary_policy
                 from rune_decrypter_prime.scoring.hamming.dictionary_assets import choose_hamming_dictionary_wordlist_dir
                 from rune_decrypter_prime.scoring.span_hamming import (
                     SpanCalibratedAssets,
@@ -599,7 +599,7 @@ class RuneScorerTorch(BaseScorer):
                     require_selected=require_selected,
                 )
                 if self._span_hamming_mode is SpanHammingMode.CALIBRATED:
-                    from rune_decrypter_prime.core.types import ObjectiveFamily
+                    from rdp.core.types import ObjectiveFamily
                     fam = getattr(self.objective, "family", None)
                     if fam not in (ObjectiveFamily.PCT, ObjectiveFamily.ENERGY):
                         raise ValueError(
@@ -942,7 +942,7 @@ class RuneScorerTorch(BaseScorer):
         self.ensure_loaded(self.device)
         ecdf = self._ensure_ecdf()
         B, L = int(pt_b.shape[0]), int(pt_b.shape[1])
-        from rune_decrypter_prime.core.types import ObjectiveFamily, Stat
+        from rdp.core.types import ObjectiveFamily, Stat
 
         se_name = BaseScorer._se_name(self.se_mode)
         if se_name != "nose":
@@ -1316,7 +1316,7 @@ class RuneScorerTorch(BaseScorer):
     def _score_raw_logp_full_text(self, pt_b: np.ndarray, wli_b: np.ndarray | None) -> np.ndarray:
         self.ensure_loaded(self.device)
         B, L = int(pt_b.shape[0]), int(pt_b.shape[1])
-        from rune_decrypter_prime.core.types import Stat
+        from rdp.core.types import Stat
 
         se_name = BaseScorer._se_name(self.se_mode)
         if se_name != "nose":
@@ -1587,7 +1587,7 @@ class RuneScorerTorch(BaseScorer):
             return self._score_raw_logp_full_text(pt_b, wli_b)
         self.ensure_loaded(self.device)
         B, L = int(pt_b.shape[0]), int(pt_b.shape[1])
-        from rune_decrypter_prime.core.types import Stat
+        from rdp.core.types import Stat
 
         se_name = BaseScorer._se_name(self.se_mode)
         if se_name != "nose":
@@ -1872,7 +1872,7 @@ class RuneScorerTorch(BaseScorer):
         pt_b: np.ndarray,
         wli_b: np.ndarray | None,
     ) -> tuple[np.ndarray, np.ndarray]:
-        from rune_decrypter_prime.core.types import ObjectiveFamily
+        from rdp.core.types import ObjectiveFamily
 
         prev_mode = self._span_hamming_mode
         prev_enabled = self._span_hamming_enabled
@@ -1899,7 +1899,7 @@ class RuneScorerTorch(BaseScorer):
         pt_b: np.ndarray,
         wli_b: np.ndarray | None,
     ) -> np.ndarray:
-        from rune_decrypter_prime.core.types import ObjectiveFamily
+        from rdp.core.types import ObjectiveFamily
 
         backend = self._span_hamming_backend
         assets = self._span_hamming_assets
@@ -2559,7 +2559,7 @@ class RuneScorerTorch(BaseScorer):
         if fam is None:
             _ = self._require_objective_pct_logp_win()
             return self._score_pct_logp_win(pt_b, wli_b)
-        from rune_decrypter_prime.core.types import ObjectiveFamily, Stat
+        from rdp.core.types import ObjectiveFamily, Stat
         if fam is ObjectiveFamily.AVG:
             if getattr(obj, "stat", None) not in (None, Stat.LOGP):
                 raise ValueError("torch backend only supports avg.logp for raw objectives.")

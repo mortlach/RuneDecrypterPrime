@@ -16,7 +16,7 @@ from rdp.api.solver_report import (
     SolverReport,
 )
 from rdp.api.stop_reason_contract import RunStatus
-from rune_decrypter_prime.core.types import (
+from rdp.core.types import (
     ConcreteKey,
     JsonValue,
     RuneIndices,

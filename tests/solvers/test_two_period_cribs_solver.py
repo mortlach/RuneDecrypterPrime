@@ -6,7 +6,7 @@ from rdp import api
 import hashlib
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.types import Device, Direction
+from rdp.core.types import Device, Direction
 from rune_decrypter_prime.solvers.two_period_cribs import CribConstraintSpace, TwoPeriodBranch, _candidate_id, _deduplicated_union, _run_refinement_stage, build_branches, coordinate_search, derive_child_seed, derive_constraint_space, expand_reduced_key, profile_contract_hash, _resolve_interruptor_hypotheses, run_two_period_stages
 pytestmark = pytest.mark.tier_a
 

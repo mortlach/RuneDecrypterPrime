@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from rune_decrypter_prime.core.hamming_dictionary_policy import (
+from rdp.core.hamming_dictionary_policy import (
     HammingDictionaryPolicy,
     ensure_hamming_dictionary_policy,
 )

@@ -3,10 +3,10 @@ from __future__ import annotations
 from types import MethodType
 from typing import Any
 
-from rune_decrypter_prime.core.capability_gates import raise_if_requested_lane_blocked
+from rdp.core.capability_gates import raise_if_requested_lane_blocked
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode
-from rune_decrypter_prime.core.types import Device, ScorerBackend, ScorerImpl, ensure_device
+from rdp.core.types import Device, ScorerBackend, ScorerImpl, ensure_device
 from rdp.backends.xp import select_backend
 from rune_decrypter_prime.ciphers import cipher_runtime_registry
 

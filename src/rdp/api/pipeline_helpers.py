@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional, Sequence, Dict, Any
 import numpy as np
 
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 from rune_decrypter_prime.utils.runeglish import Runeglish as _R
 from rune_decrypter_prime.telemetry.events import attach_telemetry_to_meta
 from rune_decrypter_prime.telemetry.pipeline import finalize_run_meta

@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.types import Direction
+from rdp.core.types import Direction
 from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext_string
 from rune_decrypter_prime.utils.text_scoring_comparison import compare_two_texts, default_scoring_methods
 

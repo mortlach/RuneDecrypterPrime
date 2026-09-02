@@ -2,7 +2,7 @@ from __future__ import annotations
 import re
 import pytest
 from tests._helpers.runner import run_vigenere_roundtrip_baseline
-from rune_decrypter_prime.core.types import Direction, Device, ScorerImpl
+from rdp.core.types import Direction, Device, ScorerImpl
 
 pytestmark = pytest.mark.tier_a
 

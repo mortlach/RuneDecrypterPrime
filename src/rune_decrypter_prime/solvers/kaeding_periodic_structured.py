@@ -8,7 +8,7 @@ from collections import deque
 import hashlib
 import numpy as np
 
-from ..core.types import SolverName, KEY_DTYPE
+from rdp.core.types import SolverName, KEY_DTYPE
 from .solver_base import SolverBase
 
 

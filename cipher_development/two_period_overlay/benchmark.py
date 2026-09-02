@@ -44,7 +44,7 @@ def build_rdp_case(
     from rune_decrypter_prime.core.engine.builders import build_scorer
     from rune_decrypter_prime.core.engine.builders import build_cipher
     from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
-    from rune_decrypter_prime.core.types import Direction
+    from rdp.core.types import Direction
     from rune_decrypter_prime.data.cipher_tests.plaintext import (
         plaintext1,
         word_breaks1,
