@@ -72,6 +72,7 @@ def test_interruptor_support_import_is_defined_for_direct_execution() -> None:
 
     exact = _source("Tutorial_Vigenere_Interruptors_Exact.py")
     assert "rune_decrypter_prime.utils.interrupter" not in exact
+    assert "rdp.ciphers.interruptors" not in exact
     assert "InterruptorConfig.exact(INTERRUPTORS)" in exact
 
 

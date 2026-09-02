@@ -53,7 +53,7 @@ promoted casually:
 - private report-builder helpers
 - telemetry payload internals
 - generated run output layout outside known artifact paths
-- experimental ciphers under `ciphers/dev/`
+- experimental cipher-development workspaces outside the runtime package
 - asset loader internals
 - local benchmark or cache outputs
 

@@ -1,6 +1,6 @@
 import pytest
 from rdp.core.config.cipher import CipherConfig
-from rune_decrypter_prime.ciphers.columnar_transposition_cipher import ColumnarTranspositionCipher
+from rdp.ciphers.columnar_transposition_cipher import ColumnarTranspositionCipher
 pytestmark = pytest.mark.tier_a
 
 def test_columnar_key_length_limit():

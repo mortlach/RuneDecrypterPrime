@@ -4,8 +4,8 @@ import pytest
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.types import freeze_parameter_items
-from rune_decrypter_prime.ciphers.periodic_substitution_cipher import PeriodicSubstitutionCipher
-from rune_decrypter_prime.ciphers.substitution_cipher import SubstitutionCipher
+from rdp.ciphers.periodic_substitution_cipher import PeriodicSubstitutionCipher
+from rdp.ciphers.substitution_cipher import SubstitutionCipher
 from rune_decrypter_prime.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
 pytestmark = pytest.mark.tier_a
 

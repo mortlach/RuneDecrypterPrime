@@ -2,7 +2,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 import numpy as np
 import pytest
-from rune_decrypter_prime.ciphers.scheduled_stream_lookup_cipher import ScheduledStreamLookupCipher, validate_operation_degeneracy, validate_schedule_for_streams, validate_streams_v1
+from rdp.ciphers.scheduled_stream_lookup_cipher import ScheduledStreamLookupCipher, validate_operation_degeneracy, validate_schedule_for_streams, validate_streams_v1
 pytestmark = pytest.mark.tier_a
 
 def _periodic_stream(period: int=3) -> dict[str, object]:

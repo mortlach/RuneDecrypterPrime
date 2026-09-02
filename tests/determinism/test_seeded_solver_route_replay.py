@@ -4,7 +4,7 @@ import hashlib
 from types import SimpleNamespace
 import numpy as np
 import pytest
-from rune_decrypter_prime.ciphers.periodic_substitution_cipher import PeriodicSubstitutionCipher
+from rdp.ciphers.periodic_substitution_cipher import PeriodicSubstitutionCipher
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.types import Device, Direction, ObjectiveFamily, ObjectiveSpec, Stat

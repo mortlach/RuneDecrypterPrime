@@ -1,5 +1,5 @@
 # ============================================================
-# rune_decrypter_prime/ciphers/vigenere_cipher.py  (unified CPU/Torch)
+# rdp/ciphers/vigenere_cipher.py  (unified CPU/Torch)
 # ============================================================
 from __future__ import annotations
 from typing import Iterable, Union
@@ -7,9 +7,8 @@ import re
 import numpy as np
 
 from rdp.backends.xp import select_backend
-from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin  # transposition/interruptors mixin
-from rune_decrypter_prime.ciphers.base_keyed_cipher import KeyedCipherBase
-from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
+from rdp.ciphers.ciphers_pipeline import CipherPipelineMixin  # transposition/interruptors mixin
+from rdp.ciphers.base_keyed_cipher import KeyedCipherBase
 from rdp.core.types import (
     Device,
     Direction,
@@ -78,7 +77,6 @@ def encrypt(pt: np.ndarray, key: Union[str, bytes, bytearray, Iterable[int], np.
     return ((pt_u8.astype(np.int16) + key_u8[cols].astype(np.int16)) % A).astype(np.uint8)
 
 
-@register_cipher("vigenere")
 class RuneVigenereCipher(CipherPipelineMixin, KeyedCipherBase):
     """
     Canonical Vigenère implementation (mod 29).

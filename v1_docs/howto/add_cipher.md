@@ -4,8 +4,8 @@ Status: implemented V1 boundary
 
 Owner paths:
 
-- `src/rune_decrypter_prime/ciphers/`
-- `src/rune_decrypter_prime/ciphers/cipher_runtime_registry.py`
+- `src/rdp/ciphers/`
+- `src/rdp/ciphers/cipher_runtime_registry.py`
 - `src/rdp/api/experimental.py`
 - `tests/`
 
@@ -20,7 +20,7 @@ a public runtime-object API or an alias.
    `api.experimental.define_cipher_map` or `define_cipher_lookup` and add an
    experimental tutorial/test.
 2. For an engine cipher, implement the runtime under
-   `src/rune_decrypter_prime/ciphers/` and register its one canonical
+   `src/rdp/ciphers/` and register its one canonical
    snake-case identity with the exact runtime registry.
 3. Define key length, semantic concrete-key layout, compatible key-space kind,
    conflict validation, encrypt/decrypt validation, and replay identity.

@@ -32,7 +32,7 @@ def test_d4_source_gates_are_present() -> None:
     assert "test_key" in stop_reason
     assert "BUDGET_REASON_PREFIXES" in stop_reason
     scheduled = _text(
-        "src/rune_decrypter_prime/ciphers/scheduled_stream_lookup_cipher.py"
+        "src/rdp/ciphers/scheduled_stream_lookup_cipher.py"
     )
     assert "requires degeneracy='allow'" in scheduled
     assert 'fixed stream values must be a sequence of integer symbols, not text' in scheduled

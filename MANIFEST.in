@@ -15,7 +15,7 @@ recursive-include src/rune_decrypter_prime/scoring/span_hamming *.cpp *.hpp *.h
 # local assets tree: a developer's full_v1 install may contain large files that
 # must never leak into the Python package by globbing.
 
-prune src/rune_decrypter_prime/ciphers/dev
+prune src/rdp/ciphers/dev
 prune src/rdp/keyops/dev
 prune src/rune_decrypter_prime/data/liber_primus/old
 

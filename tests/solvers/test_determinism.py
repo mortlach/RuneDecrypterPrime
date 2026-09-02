@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.config.solver import SolverConfig
-from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
+from rdp.ciphers.vigenere_cipher import RuneVigenereCipher
 from rdp.core.problem.runtime import DecryptionProblem
 from rune_decrypter_prime.core.solver_engine import build_optimizer
 from rdp.core.types import Direction

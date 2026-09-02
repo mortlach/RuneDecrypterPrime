@@ -17,7 +17,7 @@ REQUIRED_MODULES = (
     "rune_decrypter_prime.scoring.span_hamming._span_hamming_fast",
 )
 BLOCKED_MODULES = (
-    "rune_decrypter_prime.ciphers.dev",
+    "rdp.ciphers.dev",
     "rdp.keyops.dev",
     "rune_decrypter_prime.data.liber_primus.old",
 )

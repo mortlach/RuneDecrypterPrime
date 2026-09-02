@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from rdp.core.config.cipher import CipherConfig
-from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
+from rdp.ciphers.vigenere_cipher import RuneVigenereCipher
 from rdp.core.types import Direction
 pytestmark = pytest.mark.tier_a
 

@@ -1,5 +1,5 @@
 # ============================================================
-# rune_decrypter_prime/utils/transposition.py
+# rdp/ciphers/transposition.py
 # Text/key transposition utilities: identity, reverse, or explicit perm.
 # Behaviour unchanged; defensive checks and copies where relevant.
 # ============================================================

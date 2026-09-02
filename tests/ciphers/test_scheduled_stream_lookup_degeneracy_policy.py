@@ -2,7 +2,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 import numpy as np
 import pytest
-from rune_decrypter_prime.ciphers.scheduled_stream_lookup_cipher import ScheduledStreamLookupCipher, validate_operation_degeneracy
+from rdp.ciphers.scheduled_stream_lookup_cipher import ScheduledStreamLookupCipher, validate_operation_degeneracy
 pytestmark = pytest.mark.tier_a
 
 def test_xor_mod_and_lookup_require_explicit_degeneracy_allow() -> None:

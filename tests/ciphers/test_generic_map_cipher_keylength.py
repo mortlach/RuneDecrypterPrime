@@ -3,7 +3,7 @@ from rdp import api
 from types import SimpleNamespace
 import numpy as np
 import pytest
-from rune_decrypter_prime.ciphers.generic_map_cipher import GenericMapCipher
+from rdp.ciphers.generic_map_cipher import GenericMapCipher
 from rdp.core.types import Direction
 pytestmark = pytest.mark.tier_a
 A = 29

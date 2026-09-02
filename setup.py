@@ -22,8 +22,8 @@ PACKAGE_ASSETS_REL = PACKAGE_DATA_REL / "assets"
 PACKAGE_CI_MANIFEST_REL = PACKAGE_DATA_REL / "assets_manifest_ci_light_v1.json"
 
 _PACKAGE_EXCLUDES = [
-    "rune_decrypter_prime.ciphers.dev",
-    "rune_decrypter_prime.ciphers.dev.*",
+    "rdp.ciphers.dev",
+    "rdp.ciphers.dev.*",
     "rdp.keyops.dev",
     "rdp.keyops.dev.*",
     "rune_decrypter_prime.data.liber_primus.old",

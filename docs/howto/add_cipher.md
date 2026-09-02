@@ -4,7 +4,7 @@ Audience: contributors
 
 1. Prototype in the cipher-development workspace.
 2. Implement or repair the exact runtime cipher owner under
-   `src/rune_decrypter_prime/ciphers/`.
+   `src/rdp/ciphers/`.
 3. Define the semantic concrete-key layout and compatible key-space operations.
 4. Register the implementation with its existing runtime registry.
 5. Add round-trip, invalid-key, device-parity and solver integration tests as

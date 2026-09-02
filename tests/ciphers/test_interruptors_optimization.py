@@ -2,7 +2,7 @@ from __future__ import annotations
 from rdp import api
 import numpy as np
 import pytest
-from rune_decrypter_prime.ciphers.generic_map_cipher import GenericMapCipher
+from rdp.ciphers.generic_map_cipher import GenericMapCipher
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.types import Direction, Device, KeyOpsFamily, KEY_DTYPE

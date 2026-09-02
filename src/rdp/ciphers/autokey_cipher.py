@@ -1,17 +1,15 @@
 # ============================================================
-# rune_decrypter_prime/ciphers/autokey_cipher.py
+# rdp/ciphers/autokey_cipher.py
 # ============================================================
 from __future__ import annotations
 
 import numpy as np
 
-from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin, ArrayU8
-from rune_decrypter_prime.ciphers.base_keyed_cipher import KeyedCipherBase
-from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
+from rdp.ciphers.ciphers_pipeline import CipherPipelineMixin, ArrayU8
+from rdp.ciphers.base_keyed_cipher import KeyedCipherBase
 from rdp.core.types import Direction, KeyOpsFamily, ensure_direction
 
 
-@register_cipher("autokey")
 class AutokeyCipher(CipherPipelineMixin, KeyedCipherBase):
     """
     Additive Autokey cipher over the 29-rune alphabet.

@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 import pytest
-from rune_decrypter_prime.utils.transposition import TranspositionManager
+from rdp.ciphers.transposition import TranspositionManager
 pytestmark = pytest.mark.tier_a
 
 def test_transposition_manager_rejects_duplicate_text_perm():

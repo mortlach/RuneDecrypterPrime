@@ -10,7 +10,7 @@ packages. Importability does not make an engine module public.
 | `src/rdp/api/` | Canonical V1 requests, results, operations, display, data, advanced, and experimental namespaces. | Public |
 | `src/rdp/backends/` | Optional compute-backend selection. | Internal/contributor |
 | `src/rdp/core/` | Canonical component contracts, runtime configuration, and problem materialisation. | Internal/contributor |
-| `src/rune_decrypter_prime/ciphers/` | Runtime cipher implementations and exact materializers. | Internal/contributor |
+| `src/rdp/ciphers/` | Runtime cipher implementations and exact materializers. | Internal/contributor |
 | `src/rune_decrypter_prime/core/` | Runtime engine orchestration retained until its later AN4 move. | Internal |
 | `src/rdp/data/` | Liber Primus runtime data, rune translation, and asset resolution. | Internal except promoted data API |
 | `src/rune_decrypter_prime/data/` | Retained fixtures, corpora, and wordlists awaiting their later AN4 move. | Internal/test support |

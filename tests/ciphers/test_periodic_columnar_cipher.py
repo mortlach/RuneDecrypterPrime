@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from rdp.core.config.cipher import CipherConfig
-from rune_decrypter_prime.ciphers.periodic_columnar_cipher import PeriodicColumnarCipher
+from rdp.ciphers.periodic_columnar_cipher import PeriodicColumnarCipher
 from rdp.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
 pytestmark = pytest.mark.tier_a
 

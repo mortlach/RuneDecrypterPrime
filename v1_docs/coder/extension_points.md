@@ -3,7 +3,7 @@
 Status: staged V1 draft
 
 Owner paths:
-- `src/rune_decrypter_prime/ciphers/`
+- `src/rdp/ciphers/`
 - `src/rdp/keyops/`
 - `src/rune_decrypter_prime/solvers/`
 - `src/rune_decrypter_prime/scoring/`
@@ -37,7 +37,7 @@ others still require explicit enum and table updates.
 
 | Extension | Main owner path | Current mechanism | Stability | Start here |
 | --- | --- | --- | --- | --- |
-| Cipher | `src/rune_decrypter_prime/ciphers/` | Exact runtime registry for engine ciphers; `api.experimental` for typed two-input maps/lookups | Semi-stable | [Add A Cipher](../howto/add_cipher.md) |
+| Cipher | `src/rdp/ciphers/` | Exact runtime registry for engine ciphers; `api.experimental` for typed two-input maps/lookups | Semi-stable | [Add A Cipher](../howto/add_cipher.md) |
 | KeyOps family | `src/rdp/keyops/` | keyops registry and capability objects | Internal to semi-stable | `coder/key_pipeline.md` |
 | Solver | `src/rune_decrypter_prime/solvers/` | `SolverBase` plus explicit `SolverName` and `_SOLVER_TABLE` registration | Internal to semi-stable | [Add A Solver](../howto/add_solver.md) |
 | Scorer runtime | `src/rune_decrypter_prime/scoring/` | `BaseScorer`, scorer builders, `ScoringConfig.impl` | Internal | `coder/scoring_pipeline.md` |

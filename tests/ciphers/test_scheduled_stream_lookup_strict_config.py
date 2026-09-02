@@ -1,6 +1,6 @@
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.ciphers.scheduled_stream_lookup_cipher import config_int, validate_operation_degeneracy, validate_schedule_for_streams, validate_streams_v1
+from rdp.ciphers.scheduled_stream_lookup_cipher import config_int, validate_operation_degeneracy, validate_schedule_for_streams, validate_streams_v1
 pytestmark = pytest.mark.tier_a
 
 def test_rejects_bad_stream_kind_direction_anchor_and_advance() -> None:

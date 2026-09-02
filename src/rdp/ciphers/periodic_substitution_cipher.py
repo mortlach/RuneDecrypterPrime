@@ -1,13 +1,12 @@
 # ============================================================
-# rune_decrypter_prime/ciphers/periodic_substitution_cipher.py
+# rdp/ciphers/periodic_substitution_cipher.py
 # Periodic mixed-alphabet substitution (p tables of size A).
 # ============================================================
 from __future__ import annotations
 import numpy as np
 
-from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin, ArrayU8
-from rune_decrypter_prime.ciphers.base_keyed_cipher import KeyedCipherBase
-from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
+from rdp.ciphers.ciphers_pipeline import CipherPipelineMixin, ArrayU8
+from rdp.ciphers.base_keyed_cipher import KeyedCipherBase
 from rdp.core.types import Direction, KeyOpsFamily, ensure_direction
 
 DEFAULT_A = 29
@@ -44,7 +43,6 @@ def _validate_key_blocks(keys_arr: np.ndarray, period: int, A: int) -> None:
                 raise ValueError("periodic_substitution key blocks must be permutations of 0..A-1")
 
 
-@register_cipher("periodic_substitution")
 class PeriodicSubstitutionCipher(CipherPipelineMixin, KeyedCipherBase):
     """
     Periodic substitution with p independent inverse tables (ct->pt).

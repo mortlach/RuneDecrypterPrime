@@ -1,6 +1,6 @@
 from __future__ import annotations
 from rdp import api
-from rune_decrypter_prime.ciphers import cipher_runtime_registry
+import rdp.ciphers.cipher_runtime_registry as cipher_runtime_registry
 
 def test_scheduled_public_presets_share_one_runtime_identity() -> None:
     assert cipher_runtime_registry.has('scheduled_stream_lookup')

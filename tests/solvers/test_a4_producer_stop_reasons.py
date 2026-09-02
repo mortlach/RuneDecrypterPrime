@@ -2,8 +2,8 @@ from __future__ import annotations
 from rdp import api
 import numpy as np
 import pytest
-from rune_decrypter_prime.ciphers.periodic_substitution_cipher import PeriodicSubstitutionCipher
-from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
+from rdp.ciphers.periodic_substitution_cipher import PeriodicSubstitutionCipher
+from rdp.ciphers.vigenere_cipher import RuneVigenereCipher
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.types import Direction

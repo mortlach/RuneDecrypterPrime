@@ -1,8 +1,8 @@
 from __future__ import annotations
 import numpy as np
 import pytest
-from rune_decrypter_prime.utils.interrupter import InterruptorManager
-from rune_decrypter_prime.utils.transposition import TranspositionManager
+from rdp.ciphers.interruptors import InterruptorManager
+from rdp.ciphers.transposition import TranspositionManager
 pytestmark = pytest.mark.tier_a
 
 def _roundtrip_with_perm(ct: np.ndarray, interrupt_idx: list[int], perm: np.ndarray) -> np.ndarray:

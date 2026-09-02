@@ -1,16 +1,14 @@
 # ============================================================
-# rune_decrypter_prime/ciphers/substitution_cipher.py
+# rdp/ciphers/substitution_cipher.py
 # Monoalphabetic substitution (permutation of N symbols; default N=29).
 # ============================================================
 from __future__ import annotations
 import numpy as np
-from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin, ArrayU8
-from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
+from rdp.ciphers.ciphers_pipeline import CipherPipelineMixin, ArrayU8
 from rdp.core.types import Direction, KeyOpsFamily, ensure_direction
 
 DEFAULT_N = 29
 
-@register_cipher("substitution")
 class SubstitutionCipher(CipherPipelineMixin):
     """
     Monoalphabetic substitution (permutation of N symbols).

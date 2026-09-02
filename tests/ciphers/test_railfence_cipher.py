@@ -2,7 +2,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 import numpy as np
 import pytest
-from rune_decrypter_prime.ciphers.railfence_cipher import RailFenceCipher
+from rdp.ciphers.railfence_cipher import RailFenceCipher
 pytestmark = pytest.mark.tier_a
 
 def _make_cipher(**overrides) -> RailFenceCipher:

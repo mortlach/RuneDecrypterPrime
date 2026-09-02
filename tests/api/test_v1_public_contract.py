@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import pytest
 
 from rdp.api import CipherSpec, KeySpec, RuneIndexInput, RunResult, RunSpec, SolverSpec
-from rune_decrypter_prime.ciphers import cipher_runtime_registry
+import rdp.ciphers.cipher_runtime_registry as cipher_runtime_registry
 from rdp.core.config.interruptor import InterruptorConfig
 from rdp.core.config.cipher import (
     expected_concrete_key_length,

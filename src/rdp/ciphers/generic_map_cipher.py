@@ -1,14 +1,16 @@
 # ============================================================
-# rune_decrypter_prime/ciphers/generic_map_cipher.py
+# rdp/ciphers/generic_map_cipher.py
 # Generic map/lookup cipher with CPU/Torch parity and degeneracy handling.
 # ============================================================
 from __future__ import annotations
-from typing import Optional, Tuple
+import hashlib
+import inspect
+from collections.abc import Callable, Sequence
+from typing import Any, Optional, Tuple
 import numpy as np
 
-from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin
-from rune_decrypter_prime.ciphers.base_keyed_cipher import KeyedCipherBase
-from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
+from rdp.ciphers.ciphers_pipeline import CipherPipelineMixin
+from rdp.ciphers.base_keyed_cipher import KeyedCipherBase
 from rdp.backends.xp import select_backend
 from rdp.core.types import (
     RuntimeCipherKind,
@@ -22,6 +24,90 @@ from rdp.core.types import (
 
 ArrayU8 = np.ndarray
 
+_FUNCTIONS: dict[str, Callable[[int, int], int]] = {}
+
+
+def register_function(function: Callable[[int, int], int]) -> str:
+    """Register a runtime map callable and return its stable definition ID."""
+    validate_function(function)
+    definition_id = function_id(function)
+    _FUNCTIONS[definition_id] = function
+    return definition_id
+
+
+def function_for(spec: Any) -> Callable[[int, int], int]:
+    """Resolve the callable for a materialized two-input map specification."""
+    if getattr(spec, "kind", None) is not RuntimeCipherKind.USER_MAP2:
+        raise TypeError("spec must be an experimental two-input CipherSpec")
+    definition_id = str(spec.parameters["definition_id"])
+    try:
+        return _FUNCTIONS[definition_id]
+    except KeyError as exc:
+        raise RuntimeError(
+            "experimental map callable is not registered in this process; "
+            "define the map before materializing it"
+        ) from exc
+
+
+def validate_lookup_table(
+    table: Sequence[Sequence[int]],
+    *,
+    alphabet_size: int,
+) -> tuple[tuple[int, ...], ...]:
+    """Validate and freeze a lookup table for a replayable cipher spec."""
+    if isinstance(table, (str, bytes)) or not isinstance(table, Sequence):
+        raise TypeError("table must be a sequence of rows")
+    rows: list[tuple[int, ...]] = []
+    for row_index, row in enumerate(table):
+        if isinstance(row, (str, bytes)) or not isinstance(row, Sequence):
+            raise TypeError(f"table[{row_index}] must be a sequence")
+        values: list[int] = []
+        for column_index, value in enumerate(row):
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(f"table[{row_index}][{column_index}] must be an integer")
+            if not 0 <= value < alphabet_size:
+                raise ValueError(
+                    f"table[{row_index}][{column_index}] must be in [0, {alphabet_size - 1}]"
+                )
+            values.append(value)
+        if not values:
+            raise ValueError(f"table[{row_index}] must not be empty")
+        rows.append(tuple(values))
+    if len(rows) != alphabet_size:
+        raise ValueError(f"table must contain exactly {alphabet_size} rows")
+    if len({len(row) for row in rows}) != 1:
+        raise ValueError("table rows must have equal length")
+    return tuple(rows)
+
+
+def validate_function(function: object) -> None:
+    if not callable(function):
+        raise TypeError("function must be callable")
+    if not hasattr(function, "__code__"):
+        raise TypeError("function must be a Python function with stable code identity")
+    parameters = tuple(inspect.signature(function).parameters.values())
+    if len(parameters) != 2 or any(
+        parameter.kind
+        not in {parameter.POSITIONAL_ONLY, parameter.POSITIONAL_OR_KEYWORD}
+        for parameter in parameters
+    ):
+        raise TypeError("function must accept exactly two positional inputs")
+
+
+def function_id(function: Callable[[int, int], int]) -> str:
+    code = function.__code__
+    closure = tuple(repr(cell.cell_contents) for cell in (function.__closure__ or ()))
+    payload = repr(
+        (
+            function.__module__,
+            function.__qualname__,
+            code.co_code,
+            code.co_consts,
+            closure,
+        )
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
 def _as_u8(value, name: str) -> np.ndarray:
     try:
         return np.asarray(value, dtype=np.uint8, order="C")
@@ -29,7 +115,6 @@ def _as_u8(value, name: str) -> np.ndarray:
         raise TypeError(f"{name} must be array-like of uint8") from exc
 
 
-@register_cipher("generic_map")
 class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
     """
     Generic map cipher that evaluates a per-position mapping:
@@ -112,8 +197,6 @@ class GenericMapCipher(CipherPipelineMixin, KeyedCipherBase):
         if self.kind in (RuntimeCipherKind.USER_MAP2, RuntimeCipherKind.USER_MAP3):
             if K <= 0:
                 raise ValueError("GenericMapCipher requires cfg.key_length > 0 for user_map2/user_map3")
-            from rdp.api.experimental import function_for
-
             f = function_for(spec)
             if not callable(f):
                 raise ValueError(f"{self.kind.value} requires spec.function")

@@ -10,10 +10,29 @@ from rdp.core.component_contracts import (
     ComponentKind,
     UnknownComponentError,
 )
+from rdp.ciphers.autokey_cipher import AutokeyCipher
+from rdp.ciphers.columnar_transposition_cipher import ColumnarTranspositionCipher
+from rdp.ciphers.generic_map_cipher import GenericMapCipher
+from rdp.ciphers.periodic_columnar_cipher import PeriodicColumnarCipher
+from rdp.ciphers.periodic_substitution_cipher import PeriodicSubstitutionCipher
+from rdp.ciphers.railfence_cipher import RailFenceCipher
+from rdp.ciphers.scheduled_stream_lookup_cipher import ScheduledStreamLookupCipher
+from rdp.ciphers.substitution_cipher import SubstitutionCipher
+from rdp.ciphers.vigenere_cipher import RuneVigenereCipher
 
 CipherRuntimeConstructor = Callable[[Any], Any]
 
-_REGISTRY: dict[str, CipherRuntimeConstructor] = {}
+_REGISTRY: dict[str, CipherRuntimeConstructor] = {
+    "autokey": AutokeyCipher,
+    "columnar": ColumnarTranspositionCipher,
+    "generic_map": GenericMapCipher,
+    "periodic_columnar": PeriodicColumnarCipher,
+    "periodic_substitution": PeriodicSubstitutionCipher,
+    "rail_fence": RailFenceCipher,
+    "scheduled_stream_lookup": ScheduledStreamLookupCipher,
+    "substitution": SubstitutionCipher,
+    "vigenere": RuneVigenereCipher,
+}
 
 
 def register_cipher(identity: str) -> Callable[[CipherRuntimeConstructor], CipherRuntimeConstructor]:

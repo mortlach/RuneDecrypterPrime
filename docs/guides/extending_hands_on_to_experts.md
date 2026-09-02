@@ -10,7 +10,7 @@ Prereqs: Ran at least one tutorial, basic pytest familiarity
 ## Overview
 This guide maps the learning ladder:
 1. **Hands-on** - build or tweak a cipher in `tutorials/` without touching core.
-2. **Builder** - promote stable ideas into `src/rune_decrypter_prime/ciphers/`, `keyops/`, or `api/`.
+2. **Builder** - promote stable ideas into `src/rdp/ciphers/`, `keyops/`, or `api/`.
 3. **Expert** - add new solvers or scoring backends with full telemetry/tests.
 
 ---
@@ -44,7 +44,7 @@ This guide maps the learning ladder:
 - Includes KNF checks, scoring sanity, and telemetry coverage.
 
 **Steps (Expert):**
-1. Move the implementation into `src/rune_decrypter_prime/ciphers/<name>.py`.
+1. Move the implementation into `src/rdp/ciphers/<name>.py`.
 2. Register it with the existing runtime registry and, if the family is approved
    for the public surface, add the exact typed `api.CipherSpec` constructor.
 3. Add tests:

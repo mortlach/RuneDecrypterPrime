@@ -2,7 +2,7 @@ from __future__ import annotations
 from rdp import api
 import numpy as np
 import pytest
-from rune_decrypter_prime.ciphers.substitution_cipher import SubstitutionCipher
+from rdp.ciphers.substitution_cipher import SubstitutionCipher
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.types import Direction

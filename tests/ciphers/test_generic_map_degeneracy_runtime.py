@@ -5,7 +5,7 @@ import pytest
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.types import Direction, KEY_DTYPE
-from rune_decrypter_prime.ciphers.generic_map_cipher import GenericMapCipher
+from rdp.ciphers.generic_map_cipher import GenericMapCipher
 pytestmark = pytest.mark.tier_a
 
 class SumScorer:

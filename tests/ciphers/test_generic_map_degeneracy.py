@@ -3,7 +3,7 @@ from rdp import api
 import numpy as np
 import pytest
 from rdp.core.config.cipher import CipherConfig
-from rune_decrypter_prime.ciphers.generic_map_cipher import GenericMapCipher
+from rdp.ciphers.generic_map_cipher import GenericMapCipher
 from rdp.backends.xp import have_torch_cuda
 from rdp.core.types import Direction
 pytestmark = pytest.mark.tier_a

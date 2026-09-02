@@ -1,19 +1,17 @@
 # ============================================================
-# rune_decrypter_prime/ciphers/railfence_cipher.py
+# rdp/ciphers/railfence_cipher.py
 # ============================================================
 from __future__ import annotations
 
 import numpy as np
 
-from rune_decrypter_prime.ciphers.base_keyed_cipher import (
+from rdp.ciphers.base_keyed_cipher import (
     ArrayU8,
     KeyedCipherBase,
 )
-from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
 from rdp.core.types import KeyOpsFamily
 
 
-@register_cipher("rail_fence")
 class RailFenceCipher(KeyedCipherBase):
     """
     Railfence (zig-zag) transposition cipher.

@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from math import factorial
-from rune_decrypter_prime.ciphers.periodic_columnar_cipher import PeriodicColumnarCipher
+from rdp.ciphers.periodic_columnar_cipher import PeriodicColumnarCipher
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.types import Device, Direction
 from rune_decrypter_prime.utils.seed_utils_periodic_columnar_sub_then_col import enumerate_column_permutations, undo_columnar_with_perm

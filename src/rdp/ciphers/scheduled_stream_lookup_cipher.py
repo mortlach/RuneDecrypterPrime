@@ -1,5 +1,5 @@
 # ============================================================
-# rune_decrypter_prime/ciphers/scheduled_stream_lookup_cipher.py
+# rdp/ciphers/scheduled_stream_lookup_cipher.py
 # Scheduled two-stream lookup cipher for compact RDP experiments.
 # ============================================================
 from __future__ import annotations
@@ -11,9 +11,8 @@ from typing import Any, Callable, Iterable, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 
-from rune_decrypter_prime.ciphers.ciphers_pipeline import CipherPipelineMixin
-from rune_decrypter_prime.ciphers.base_keyed_cipher import KeyedCipherBase
-from rune_decrypter_prime.ciphers.cipher_runtime_registry import register_cipher
+from rdp.ciphers.ciphers_pipeline import CipherPipelineMixin
+from rdp.ciphers.base_keyed_cipher import KeyedCipherBase
 from rdp.core.types import Device, Direction, KeyOpsFamily, ensure_device, ensure_direction
 
 ArrayInt = np.ndarray
@@ -700,7 +699,6 @@ def _first_primes(n: int) -> np.ndarray:
     return np.asarray(out, dtype=np.int64)
 
 
-@register_cipher("scheduled_stream_lookup")
 class ScheduledStreamLookupCipher(CipherPipelineMixin, KeyedCipherBase):
     """
     Scheduled two-stream lookup cipher.

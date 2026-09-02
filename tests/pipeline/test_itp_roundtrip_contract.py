@@ -1,7 +1,7 @@
 import rdp.api.normalize
 import numpy as np
 import pytest
-from rune_decrypter_prime.utils.transposition import TranspositionManager
+from rdp.ciphers.transposition import TranspositionManager
 
 def apply_then_undo(tokens, perm):
     tm = TranspositionManager(text_mode='perm', key_mode='ltr', text_perm=np.asarray(perm, dtype=np.int64))

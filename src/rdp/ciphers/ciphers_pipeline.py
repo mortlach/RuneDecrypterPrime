@@ -1,5 +1,5 @@
 # ============================================================
-# rune_decrypter_prime/ciphers/ciphers_pipeline.py
+# rdp/ciphers/ciphers_pipeline.py
 # ============================================================
 """
 Cipher pipeline mixin for canonical encrypt/decrypt orchestration.
@@ -40,8 +40,8 @@ from __future__ import annotations
 from typing import Optional, Sequence
 import numpy as np
 
-from rune_decrypter_prime.utils.interrupter import InterruptorManager, InterruptorInfo  # noqa: F401
-from rune_decrypter_prime.utils.transposition import TranspositionManager
+from rdp.ciphers.interruptors import InterruptorManager, InterruptorInfo  # noqa: F401
+from rdp.ciphers.transposition import TranspositionManager
 from rdp.core.types import KEY_DTYPE
 
 ArrayU8 = np.ndarray
@@ -460,8 +460,8 @@ class CipherPipelineMixin:
 # import os
 # import numpy as np
 #
-# from rune_decrypter_prime.utils.interrupter import InterruptorManager, InterruptorInfo  # noqa: F401
-# from rune_decrypter_prime.utils.transposition import TranspositionManager
+# from rdp.ciphers.interruptors import InterruptorManager, InterruptorInfo  # noqa: F401
+# from rdp.ciphers.transposition import TranspositionManager
 #
 # ArrayU8 = np.ndarray
 # def _as_u8(a) -> np.ndarray:

@@ -1,5 +1,5 @@
 # ============================================================
-# rune_decrypter_prime/utils/interrupter.py
+# rdp/ciphers/interruptors.py
 # Strip/reinsert interruptors (by position only) for numeric pipelines.
 # Behaviour preserved; numpy-only and side-effect free.
 # ============================================================

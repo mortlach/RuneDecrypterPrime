@@ -60,8 +60,8 @@ Issues = "https://github.com/mortlach/RuneDecrypterPrime/issues"
 where = ["src"]
 include = ["rune_decrypter_prime*", "rdp*"]
 exclude = [
-  "rune_decrypter_prime.ciphers.dev",
-  "rune_decrypter_prime.ciphers.dev.*",
+  "rdp.ciphers.dev",
+  "rdp.ciphers.dev.*",
   "rdp.keyops.dev",
   "rdp.keyops.dev.*",
   "rune_decrypter_prime.data.liber_primus.old",
@@ -84,7 +84,7 @@ markers = [
 
 [tool.ruff]
 target-version = "py311"
-extend-exclude = ["src/rune_decrypter_prime/ciphers/dev"]
+extend-exclude = ["src/rdp/ciphers/dev"]
 
 [tool.ruff.lint.per-file-ignores]
 "cipher_development/**/*.py" = ["E402"]
@@ -93,8 +93,8 @@ extend-exclude = ["src/rune_decrypter_prime/ciphers/dev"]
 "tutorials/**/*.py" = ["E402"]
 "tests/conftest.py" = ["E402"]
 "src/rdp/api/normalize.py" = ["E701"]
-"src/rune_decrypter_prime/ciphers/__init__.py" = ["F401"]
-"src/rune_decrypter_prime/ciphers/vigenere_cipher.py" = ["E702"]
+"src/rdp/ciphers/__init__.py" = ["F401"]
+"src/rdp/ciphers/vigenere_cipher.py" = ["E702"]
 "src/rdp/core/config/solver.py" = ["E702"]
 "src/rdp/data/liber_primus/lp_transcript.py" = ["E741", "F841"]
 "src/rdp/keyops/base_keyops.py" = ["F811"]

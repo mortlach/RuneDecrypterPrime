@@ -95,7 +95,7 @@ def test_module_map_covers_top_level_source_packages() -> None:
         "src/rdp/data/",
         "src/rdp/io/",
         "src/rdp/telemetry/",
-        "src/rune_decrypter_prime/ciphers/",
+        "src/rdp/ciphers/",
         "src/rune_decrypter_prime/core/",
         "src/rune_decrypter_prime/data/",
         "src/rdp/keyops/",
@@ -188,8 +188,8 @@ def test_howto_pages_have_contract_shape() -> None:
 def test_howto_pages_name_core_owner_paths() -> None:
     expected = {
         "add_cipher.md": [
-            "src/rune_decrypter_prime/ciphers/",
-            "src/rune_decrypter_prime/ciphers/cipher_runtime_registry.py",
+            "src/rdp/ciphers/",
+            "src/rdp/ciphers/cipher_runtime_registry.py",
             "src/rdp/api/experimental.py",
         ],
         "add_solver.md": [

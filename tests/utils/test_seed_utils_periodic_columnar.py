@@ -1,7 +1,7 @@
 from rdp import api
 import numpy as np
 import pytest
-from rune_decrypter_prime.ciphers.periodic_columnar_cipher import PeriodicColumnarCipher
+from rdp.ciphers.periodic_columnar_cipher import PeriodicColumnarCipher
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.config.scoring import ScoringConfig
 from rdp.core.transpositions import assert_is_permutation

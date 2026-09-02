@@ -400,7 +400,7 @@ def materialize_cipher_config(
         CipherKind.PERIODIC_WITH_PRIME_STREAM,
         CipherKind.TWO_PERIOD_STREAMS,
     }:
-        from rune_decrypter_prime.ciphers.scheduled_stream_lookup_cipher import (
+        from rdp.ciphers.scheduled_stream_lookup_cipher import (
             solved_key_length_for_streams,
             validate_mask,
             validate_schedule_for_streams,
