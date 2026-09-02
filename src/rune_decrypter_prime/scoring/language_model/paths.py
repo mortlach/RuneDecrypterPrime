@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Mapping, Iterable, Union, Dict
 
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
-from rune_decrypter_prime.data.asset_paths import resolve_assets_path, to_repo_relative
+from rdp.data.asset_paths import resolve_assets_path, to_repo_relative
 
 # __file__ = .../src/rune_decrypter_prime/scoring/language_model/paths.py
 _MODULE_PATH = Path(__file__).resolve()

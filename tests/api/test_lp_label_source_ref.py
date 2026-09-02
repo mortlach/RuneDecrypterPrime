@@ -29,7 +29,7 @@ def test_lp_label_source_ref_rejects_extra_keys() -> None:
         api.SourceReferenceInput(source_kind='liber_primus.label', asset_id='liber_primus.main_transcript', asset_version='test-version', reference={'label': 'welcome_pilgrim', 'period': 7})
 
 def test_source_resolution_dispatches_lp_label(monkeypatch) -> None:
-    from rune_decrypter_prime.data.liber_primus import lp_source_catalogue
+    import rdp.data.liber_primus.lp_source_catalogue as lp_source_catalogue
     monkeypatch.setattr(rdp.api.source_resolution, '_validate_lp_main_identity', lambda source_ref: None)
 
     def fake_payload_from_label(label: str):

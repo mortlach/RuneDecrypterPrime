@@ -4,7 +4,7 @@ from collections.abc import Sequence
 
 from rdp.api.display import PrintOptions, format_key_value_block, print_block
 from rdp.core.types import Direction, ensure_direction
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 
 
 DEFAULT_DEBUG_PREVIEW_TOKENS = 80

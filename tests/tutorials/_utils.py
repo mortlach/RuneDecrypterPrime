@@ -1,7 +1,7 @@
 from __future__ import annotations
 from rdp import api
 import numpy as np
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 
 def build_mono_ciphertext(plaintext: str, *, direction: api.TextDirection=api.TextDirection.RIGHT_TO_LEFT, cipher_seed: int=12345) -> tuple[str, list[list[int]], np.ndarray, np.ndarray]:
     """

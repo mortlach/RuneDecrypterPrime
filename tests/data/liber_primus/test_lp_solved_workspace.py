@@ -2,7 +2,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 import pytest
-from rune_decrypter_prime.data import liber_primus as lp
+import rdp.data.liber_primus as lp
 pytestmark = pytest.mark.tier_a
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SOLVED_ROOT = REPO_ROOT / 'solving' / 'solved_lp'

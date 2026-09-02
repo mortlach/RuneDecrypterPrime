@@ -8,13 +8,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional, Sequence, Tuple
 
-from rune_decrypter_prime.data.asset_paths import (
+from rdp.data.asset_paths import (
     find_repo_root,
     resolve_assets_path,
     to_repo_relative,
 )
-from rune_decrypter_prime.data.liber_primus.lp_data import LPSection, LP_DATA
-from rune_decrypter_prime.data.liber_primus.lp_registry import (
+from rdp.data.liber_primus.lp_data import LPSection, LP_DATA
+from rdp.data.liber_primus.lp_registry import (
     LPFragmentLocator,
     LPPageRef,
     LPPartitionEntry,
@@ -22,13 +22,13 @@ from rune_decrypter_prime.data.liber_primus.lp_registry import (
     resolve_page_ref,
     resolve_relative_index,
 )
-from rune_decrypter_prime.data.liber_primus.lp_routes import (
+from rdp.data.liber_primus.lp_routes import (
     LPLineReadMode,
     LPLineRuneSelector,
     read_lines,
 )
-from rune_decrypter_prime.data.liber_primus.lp_transcript import LPTranscript
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.liber_primus.lp_transcript import LPTranscript
+from rdp.data.runeglish import Runeglish
 
 _DEFAULT_LP_ASSETS_REL = Path("liber_primus")
 _MAIN_TRANSCRIPT_NAME = "liber-primus__transcription--master.txt"

@@ -1,7 +1,11 @@
 from __future__ import annotations
 import rdp.api.data_helpers
 import pytest
-from rune_decrypter_prime.data.liber_primus import LPFragmentLocator, LPPageRef, build_red_rune_17_partition
+from rdp.data.liber_primus.lp_registry import (
+    LPFragmentLocator,
+    LPPageRef,
+    build_red_rune_17_partition,
+)
 pytestmark = pytest.mark.tier_a
 
 def test_api_locator_payload_helper_returns_solver_payload() -> None:

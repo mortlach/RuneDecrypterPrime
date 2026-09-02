@@ -27,7 +27,7 @@ def test_constraint_space_contains_canonical_known_key():
 
 def test_constraint_space_uses_core_positions_after_structural_interruptors():
     from rune_decrypter_prime.solvers.two_period_cribs import CribSpan
-    from rune_decrypter_prime.utils.runeglish import Runeglish
+    from rdp.data.runeglish import Runeglish
     plain, _wli, _runes = Runeglish.encode_english_to_runes('uncomfortable', direction='ltr')
     plaintext = np.asarray(plain, dtype=np.uint8)
     key_a = np.asarray([3, 8, 13, 18, 23], dtype=np.uint8)
@@ -159,7 +159,7 @@ def test_profile_hashes_are_stable_and_distinct():
 @pytest.mark.parametrize('spans, expected_dimension', [((('uncomfortable', 188),), 30), ((('uncomfortable', 188), ('dormouse', 81)), 22), ((('uncomfortable', 188), ('dormouse', 206)), 22), ((('uncomfortable', 188), ('dormouse', 81), ('dormouse', 206)), 14)])
 def test_p13_p31_accepted_affine_dimensions(spans, expected_dimension):
     from rune_decrypter_prime.solvers.two_period_cribs import CribSpan
-    from rune_decrypter_prime.utils.runeglish import Runeglish
+    from rdp.data.runeglish import Runeglish
     plaintext = np.arange(308, dtype=np.uint16) % 29
     key_a = np.asarray([(5 * index + 3) % 29 for index in range(13)], dtype=np.uint8)
     key_b = np.asarray([0, *((7 * index + 11) % 29 for index in range(1, 31))], dtype=np.uint8)

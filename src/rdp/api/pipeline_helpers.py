@@ -4,9 +4,9 @@ from typing import Optional, Sequence, Dict, Any
 import numpy as np
 
 from rdp.core.types import Direction
-from rune_decrypter_prime.utils.runeglish import Runeglish as _R
-from rune_decrypter_prime.telemetry.events import attach_telemetry_to_meta
-from rune_decrypter_prime.telemetry.pipeline import finalize_run_meta
+from rdp.data.runeglish import Runeglish as _R
+from rdp.telemetry.events import attach_telemetry_to_meta
+from rdp.telemetry.pipeline import finalize_run_meta
 
 
 _SCORER_LANES_ERROR_CODE = "scorer_lanes_unavailable"

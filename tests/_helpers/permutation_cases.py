@@ -2,7 +2,7 @@
 from __future__ import annotations
 from rdp import api
 import numpy as np
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 
 def encode_text(text: str, direction: api.TextDirection):
     pt_idx, wli, _ = Runeglish.encode_english_to_runes(text, direction=direction)

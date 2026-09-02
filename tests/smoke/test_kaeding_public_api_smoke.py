@@ -12,7 +12,7 @@ import json
 import pytest
 
 from rdp import api
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 
 
 pytestmark = pytest.mark.tier_a

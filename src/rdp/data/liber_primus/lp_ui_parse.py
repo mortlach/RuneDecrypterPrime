@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from rune_decrypter_prime.data.liber_primus.lp_registry import LPPageRef
+from rdp.data.liber_primus.lp_registry import LPPageRef
 
 
 _CANON_JPG_RE = re.compile(r"^(?P<num>\d+)\.jpg$", re.IGNORECASE)

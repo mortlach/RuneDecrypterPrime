@@ -4,7 +4,7 @@ from rdp import api
 import json
 import numpy as np
 import pytest
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 pytestmark = pytest.mark.tier_a
 
 def _encrypt_fixture_text(*, text: str, direction: api.TextDirection, key: np.ndarray):

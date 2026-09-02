@@ -1,6 +1,6 @@
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.data import liber_primus as lp
+import rdp.data.liber_primus as lp
 pytestmark = pytest.mark.tier_a
 EXPECTED_SOLVED_SOURCE_RANGES = {'warning': ('red_rune.warning', (0, 0)), 'welcome_pilgrim': ('red_rune.welcome_pilgrim', (1, 2)), 'some_wisdom': ('red_rune.some_wisdom', (3, 3)), 'koan_a_man': ('red_rune.koan_a_man', (4, 7)), 'loss_of_divinity': ('red_rune.loss_of_divinity', (8, 11)), 'koan_during_lesson': ('red_rune.koan_during_lesson', (12, 13)), 'instruction': ('red_rune.instruction', (14, 14)), 'an_end': ('red_rune.an_end', (71, 71)), 'parable': ('red_rune.parable', (72, 72))}
 ALIAS_GROUPS = {'warning': ('warning', 'red_rune.warning', 'solved.warning'), 'welcome_pilgrim': ('welcome_pilgrim', 'red_rune.welcome_pilgrim', 'solved.welcome_pilgrim'), 'some_wisdom': ('some_wisdom', 'red_rune.some_wisdom', 'solved.some_wisdom'), 'koan_a_man': ('koan_a_man', 'red_rune.koan_a_man', 'solved.koan_a_man'), 'loss_of_divinity': ('loss_of_divinity', 'red_rune.loss_of_divinity', 'solved.loss_of_divinity'), 'koan_during_lesson': ('koan_during_lesson', 'red_rune.koan_during_lesson', 'solved.koan_during_lesson'), 'instruction': ('instruction', 'red_rune.instruction', 'solved.instruction'), 'an_end': ('an_end', 'red_rune.an_end', 'solved.an_end', 'p56', '56.jpg', 'canon.56'), 'parable': ('parable', 'red_rune.parable', 'solved.parable', 'p57', '57.jpg', 'canon.57')}

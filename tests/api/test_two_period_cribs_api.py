@@ -5,7 +5,7 @@ import json
 import pytest
 import numpy as np
 from rune_decrypter_prime.core.config import Solution
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 
 def test_builder_is_canonical_and_json_safe():
     spec = api.SolverSpec.two_period_cribs(fixed_cribs=(('Uncomfortable', 188),), candidate_words=('pilgrimage', 'Dormouse', 'dormouse'), candidate_positions={'dormouse': (206, 81, 206)}, starts=7, seed=2026)

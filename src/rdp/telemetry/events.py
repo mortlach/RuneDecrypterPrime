@@ -1,4 +1,4 @@
-# rune_decrypter_prime/telemetry/events.py
+# rdp/telemetry/events.py
 from __future__ import annotations
 import copy
 import time

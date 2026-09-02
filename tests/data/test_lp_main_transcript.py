@@ -2,10 +2,10 @@ from __future__ import annotations
 import rdp.api.data_helpers
 from importlib import util
 from pathlib import Path
-from rune_decrypter_prime.data.liber_primus.lp_data import LP_DATA
-from rune_decrypter_prime.data.liber_primus.lp_registry import LPFragmentLocator, LPPageRef, build_red_rune_17_partition
-from rune_decrypter_prime.data.liber_primus.lp_routes import LPLineReadMode, LPLineRuneSelector, read_lines
-from rune_decrypter_prime.data.liber_primus.lp_main import CANON_PAGE_COUNT, RuneGlyphIndex, extract_locator_ct_wli, extract_partition_entry_ct_wli, extract_section_ct_wli, extract_section_ct_wli_by_id, glyph_span_from_partition_entry, load_main_transcript, match_lp_section, page_view_from_ref, resolve_typed_page_ref, route_locator_lines_text
+from rdp.data.liber_primus.lp_data import LP_DATA
+from rdp.data.liber_primus.lp_registry import LPFragmentLocator, LPPageRef, build_red_rune_17_partition
+from rdp.data.liber_primus.lp_routes import LPLineReadMode, LPLineRuneSelector, read_lines
+from rdp.data.liber_primus.lp_main import CANON_PAGE_COUNT, RuneGlyphIndex, extract_locator_ct_wli, extract_partition_entry_ct_wli, extract_section_ct_wli, extract_section_ct_wli_by_id, glyph_span_from_partition_entry, load_main_transcript, match_lp_section, page_view_from_ref, resolve_typed_page_ref, route_locator_lines_text
 
 def _canon_num(value: object) -> int | None:
     if not value:

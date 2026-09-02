@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
-from rune_decrypter_prime.data.liber_primus.lp_main import default_main_transcript_path
+from rdp.data.liber_primus.lp_main import default_main_transcript_path
 from rune_decrypter_prime.data.wordlists.loaders import default_wordlists_dir
 from rune_decrypter_prime.scoring.hamming.loader import default_hamming_dir
 from rune_decrypter_prime.scoring.language_model.paths import default_lm_root

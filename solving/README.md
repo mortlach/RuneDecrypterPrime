@@ -12,7 +12,7 @@ solving/  = apply RDP to real LP sources and record the attempt
 The first V1 solving path is built around labelled LP sources:
 
 ```python
-from rune_decrypter_prime.data import liber_primus as lp
+import rdp.data.liber_primus as lp
 
 entry = lp.resolve_source_label("red_rune.welcome_pilgrim")
 recipe = lp.resolve_solve_recipe_label("recipe.welcome_pilgrim.vigenere_interruptors")

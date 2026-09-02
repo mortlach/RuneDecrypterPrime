@@ -1,5 +1,5 @@
 # ============================================================
-# rune_decrypter_prime/utils/runeglish.py
+# rdp/data/runeglish.py
 # Minimal “Runeglish” utilities for 29-rune mapping and WLI handling.
 # Provides Latin↔Rune↔Position conversions and simple tokenisation.
 # ============================================================

@@ -5,8 +5,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from rune_decrypter_prime.data.asset_paths import resolve_assets_path, to_repo_relative
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.asset_paths import resolve_assets_path, to_repo_relative
+from rdp.data.runeglish import Runeglish
 
 
 Wordlist = Dict[int, List[List[int]]]

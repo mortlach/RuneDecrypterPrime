@@ -11,7 +11,7 @@ if str(_SRC) not in sys.path:
 import numpy as np
 from rdp import api
 from tutorials.v1.data.two_period_cribs_demo import encrypt_interruptor_fixture
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary

@@ -11,12 +11,13 @@ packages. Importability does not make an engine module public.
 | `src/rdp/backends/` | Optional compute-backend selection. | Internal/contributor |
 | `src/rune_decrypter_prime/ciphers/` | Runtime cipher implementations and exact materializers. | Internal/contributor |
 | `src/rune_decrypter_prime/core/` | Engine configuration, problem materialization, component contracts, and runtime orchestration. | Internal |
-| `src/rune_decrypter_prime/data/` | Built-in data owners and asset adapters. | Internal except promoted data API |
-| `src/rune_decrypter_prime/io/` | Logging, artifact paths, and deterministic I/O support. | Internal |
+| `src/rdp/data/` | Liber Primus runtime data, rune translation, and asset resolution. | Internal except promoted data API |
+| `src/rune_decrypter_prime/data/` | Retained fixtures, corpora, and wordlists awaiting their later AN4 move. | Internal/test support |
+| `src/rdp/io/` | Logging, artifact paths, and deterministic I/O support. | Internal |
 | `src/rune_decrypter_prime/keyops/` | Key generation, validation, mutation, and batching. | Internal/contributor |
 | `src/rune_decrypter_prime/scoring/` | Candidate ranking and scorer reports. | Internal except promoted report types |
 | `src/rune_decrypter_prime/solvers/` | Search algorithms over key spaces. | Internal/contributor |
-| `src/rune_decrypter_prime/telemetry/` | Structured runtime evidence. | Internal |
+| `src/rdp/telemetry/` | Structured runtime evidence. | Internal |
 | `src/rune_decrypter_prime/utils/` | Focused tutorial and text utilities. | Internal/test support |
 | `tutorials/v1/` | Active typed V1 examples and runner. | User-facing |
 | `tests/` | Contract, regression, installation, and runtime tests. | Test-only |

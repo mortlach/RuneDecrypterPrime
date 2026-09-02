@@ -1,5 +1,5 @@
 import pytest
-from rune_decrypter_prime.data import asset_paths
+import rdp.data.asset_paths as asset_paths
 pytestmark = pytest.mark.tier_a
 
 def test_source_checkout_assets_have_precedence(monkeypatch, tmp_path):

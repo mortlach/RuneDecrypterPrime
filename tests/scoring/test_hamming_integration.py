@@ -9,7 +9,7 @@ from rdp.core.types import Direction
 from rune_decrypter_prime.scoring import rune_scorer
 from rune_decrypter_prime.scoring.hamming.loader import default_hamming_dir, load_raw1grams_wordlists
 from rune_decrypter_prime.scoring.hamming.backend import HammingBackend
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 try:
     _EXT_AVAILABLE = True
 except Exception:

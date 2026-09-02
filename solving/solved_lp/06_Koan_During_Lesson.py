@@ -11,9 +11,9 @@ for path in (ROOT, SRC):
         sys.path.insert(0, str(path))
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.ciphers.vigenere_cipher import RuneVigenereCipher
-from rune_decrypter_prime.data import liber_primus as lp
+import rdp.data.liber_primus as lp
 from rune_decrypter_prime.utils.solve_output import configure_utf8_stdio, match_ratio, page_value, print_block, print_final_result, render_plaintext, zero_positions
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 configure_utf8_stdio()
 SOURCE_LABEL = 'koan_during_lesson'
 RECIPE_LABEL = 'recipe.koan_during_lesson.vigenere_interruptors'

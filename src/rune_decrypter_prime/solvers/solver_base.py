@@ -21,20 +21,20 @@ from rdp.core.types import (
 )
 
 # Utils
-from ..utils.runeglish import Runeglish  # for plaintext rendering
+from rdp.data.runeglish import Runeglish  # for plaintext rendering
 
 # Telemetry
-from ..telemetry.events import (
+from rdp.telemetry.events import (
     solver_start as opt_start,
     solver_progress as opt_progress,
     solver_end as opt_end,
     attach_telemetry_to_meta,
 )
-from ..telemetry.pipeline import make_pipeline_block
+from rdp.telemetry.pipeline import make_pipeline_block
 
 # Solution + logging
 from ..core.config import Solution
-from ..io.logging_adapter import module_logger
+from rdp.io.logging_adapter import module_logger
 
 logger = module_logger(__name__)
 

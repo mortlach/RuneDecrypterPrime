@@ -1,4 +1,4 @@
-# rune_decrypter_prime/telemetry/bag.py
+# rdp/telemetry/bag.py
 from __future__ import annotations
 from typing import Any
 

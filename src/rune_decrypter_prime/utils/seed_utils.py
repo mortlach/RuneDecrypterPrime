@@ -14,7 +14,7 @@ import itertools
 
 from rdp.core.types import Direction, TextDirection, ensure_direction
 from rune_decrypter_prime.keyops.permutation_ops import PermutationKeyOps
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 from rune_decrypter_prime.scoring.language_model.language_model_prime import LanguageModelPrime
 from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import PeriodicStructuredMatrixKeyOps
 

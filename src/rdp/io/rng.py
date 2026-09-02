@@ -1,4 +1,4 @@
-# rune_decrypter_prime/io/rng.py
+# rdp/io/rng.py
 from __future__ import annotations
 import hashlib
 from dataclasses import dataclass

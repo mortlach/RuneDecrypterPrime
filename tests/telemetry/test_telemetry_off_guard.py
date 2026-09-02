@@ -1,6 +1,6 @@
 from rdp import api
 import pytest
-from rune_decrypter_prime.telemetry.pipeline import dump_telemetry
+from rdp.telemetry.pipeline import dump_telemetry
 pytestmark = pytest.mark.tier_a
 
 def test_telemetry_off_prevents_dump(tmp_path):

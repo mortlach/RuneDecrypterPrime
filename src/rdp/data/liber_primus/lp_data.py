@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, Mapping, Sequence
 
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 
 lp_sections_by_red_runes = [
     ["ᛋᚻᛖᚩᚷᛗᛡᚠ", "ᛋᚣᛖᛝᚳ", "ᚦᛂᚷᚫ", "ᚠᛂᛟ", "ᚩᚾᚦ", "ᚾᛖᚹᛒᚪᛋᛟᛇᛁᛝᚢ", "ᚾᚫᚷᛁᚦ", "ᚻᛒᚾᛡ", "ᛈᛒᚾ", "ᛇᛂᚦ", "ᚪᛝᚣᛉ", "ᛒᛞᛈ", "ᛖᛡᚠᛉᚷᚠ",

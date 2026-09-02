@@ -8,7 +8,7 @@ _SRC = _ROOT / 'src'
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 from rune_decrypter_prime.utils.tutorial_output import tutorial_debug_preview_block
 from rune_decrypter_prime.utils.tutorial_utils import format_stop_summary, oracle_stop_score
 '\nTutorial variant: Columnar Transposition with the standard RDP printer facade.\n\nThis file intentionally lives beside the original tutorial. The original remains\nstable while this variant proves the new display/printer contract.\n'

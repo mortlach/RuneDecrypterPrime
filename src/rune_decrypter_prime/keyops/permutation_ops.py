@@ -18,7 +18,7 @@ from typing import Optional, Any
 import numpy as np
 
 from rdp.core.types import RuntimeKeyKind, KeyOpsFamily, KEY_DTYPE
-from rune_decrypter_prime.io.rng import RNGController
+from rdp.io.rng import RNGController
 from .base_keyops import KeyOpBase, KeyCaps
 from .registry import register_keyop
 

@@ -1,4 +1,4 @@
-# rune_decrypter_prime/io/logging_adapter.py
+# rdp/io/logging_adapter.py
 from __future__ import annotations
 
 def module_logger(name: str):
@@ -12,7 +12,7 @@ def module_logger(name: str):
         # Common shapes this covers:
         #  1) run_logger.get_logger(__name__) -> stdlib Logger-like
         #  2) run_logger.RunLogger(__name__)  -> object with .debug/.info/...
-        from rune_decrypter_prime.io import run_logger  # type: ignore
+        import rdp.io.run_logger as run_logger  # type: ignore
         # Shape A: get_logger API
         if hasattr(run_logger, "get_logger"):
             return run_logger.get_logger(name)  # type: ignore[attr-defined]

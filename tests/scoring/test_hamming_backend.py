@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from rune_decrypter_prime.scoring.hamming.loader import load_raw1grams_wordlists
 from rune_decrypter_prime.scoring.hamming.backend import HammingBackend
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 try:
     _EXT_AVAILABLE = True
 except Exception:

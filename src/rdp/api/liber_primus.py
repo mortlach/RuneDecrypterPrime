@@ -11,19 +11,19 @@ from rdp.api.data_helpers import (
     load_lp_section as load_section_indices,
     load_lp_section_inputs as load_section_inputs,
 )
-from rune_decrypter_prime.data.liber_primus.lp_adapter import LPSolverPayload as SolverPayload
-from rune_decrypter_prime.data.liber_primus.lp_data import LPSection as Section
-from rune_decrypter_prime.data.liber_primus.lp_registry import (
+from rdp.data.liber_primus.lp_adapter import LPSolverPayload as SolverPayload
+from rdp.data.liber_primus.lp_data import LPSection as Section
+from rdp.data.liber_primus.lp_registry import (
     LPFragmentLocator as FragmentLocator,
     LPPageRef as PageReference,
     LPPartitionEntry as PartitionEntry,
 )
-from rune_decrypter_prime.data.liber_primus.lp_routes import (
+from rdp.data.liber_primus.lp_routes import (
     LPLineReadMode as LineReadMode,
     LPLineRuneSelector as LineRuneSelector,
     LPSpiralRoute as SpiralRoute,
 )
-from rune_decrypter_prime.data.liber_primus.lp_transcript import LPTranscript as Transcript
+from rdp.data.liber_primus.lp_transcript import LPTranscript as Transcript
 
 __all__ = [
     "Section",

@@ -1,9 +1,9 @@
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.data.liber_primus.lp_adapter import payload_from_locator, payload_from_partition_entry
-from rune_decrypter_prime.data.liber_primus.lp_main import extract_locator_ct_wli, extract_partition_entry_ct_wli, load_main_transcript
-from rune_decrypter_prime.data.liber_primus.lp_registry import LPFragmentLocator, LPPageRef, build_red_rune_17_partition
-from rune_decrypter_prime.data.liber_primus.lp_routes import LPLineReadMode, LPLineRuneSelector, LPSpiralDirection, LPSpiralRoute
+from rdp.data.liber_primus.lp_adapter import payload_from_locator, payload_from_partition_entry
+from rdp.data.liber_primus.lp_main import extract_locator_ct_wli, extract_partition_entry_ct_wli, load_main_transcript
+from rdp.data.liber_primus.lp_registry import LPFragmentLocator, LPPageRef, build_red_rune_17_partition
+from rdp.data.liber_primus.lp_routes import LPLineReadMode, LPLineRuneSelector, LPSpiralDirection, LPSpiralRoute
 pytestmark = pytest.mark.tier_a
 LP_MAIN_TRANSCRIPT_SHA256 = '105f1c68cecde03df1e66982d3021ab31d7f49ee975ca109d1a1924cbcafc99c'
 

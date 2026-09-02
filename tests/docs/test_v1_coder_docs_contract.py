@@ -91,14 +91,15 @@ def test_module_map_covers_top_level_source_packages() -> None:
     text = _read(CODER_MODULE_MAP)
     expected_paths = {
         "src/rdp/backends/",
+        "src/rdp/data/",
+        "src/rdp/io/",
+        "src/rdp/telemetry/",
         "src/rune_decrypter_prime/ciphers/",
         "src/rune_decrypter_prime/core/",
         "src/rune_decrypter_prime/data/",
-        "src/rune_decrypter_prime/io/",
         "src/rune_decrypter_prime/keyops/",
         "src/rune_decrypter_prime/scoring/",
         "src/rune_decrypter_prime/solvers/",
-        "src/rune_decrypter_prime/telemetry/",
         "src/rune_decrypter_prime/utils/",
         "src/rdp/api/",
         "tutorials/v1/",

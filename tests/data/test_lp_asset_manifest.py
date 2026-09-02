@@ -3,7 +3,7 @@ import hashlib
 import json
 from pathlib import Path
 import pytest
-from rune_decrypter_prime.data.liber_primus import lp_main
+import rdp.data.liber_primus.lp_main as lp_main
 pytestmark = pytest.mark.tier_a
 
 def _repo_root() -> Path:

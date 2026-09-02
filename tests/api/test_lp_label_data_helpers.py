@@ -11,7 +11,7 @@ class _Payload:
     metadata: dict[str, object]
 
 def test_load_lp_payload_from_label_delegates_to_catalogue(monkeypatch) -> None:
-    from rune_decrypter_prime.data.liber_primus import lp_source_catalogue
+    import rdp.data.liber_primus.lp_source_catalogue as lp_source_catalogue
 
     def fake_payload_from_label(label: str):
         assert label == 'red_rune.welcome_pilgrim'

@@ -1,4 +1,4 @@
-# rune_decrypter_prime/telemetry/schema.py
+# rdp/telemetry/schema.py
 from __future__ import annotations
 from rdp.core.types import Device, ScorerImpl, ensure_device, ensure_scorer_impl
 

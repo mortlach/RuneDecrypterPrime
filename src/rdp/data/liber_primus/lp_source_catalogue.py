@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from rune_decrypter_prime.data.liber_primus.lp_registry import LPFragmentLocator
-from rune_decrypter_prime.data.liber_primus.lp_transcript import LPTranscript
+from rdp.data.liber_primus.lp_registry import LPFragmentLocator
+from rdp.data.liber_primus.lp_transcript import LPTranscript
 
 
 BOUNDARY_MAIN_PAGE_RANGE = "verified_main_transcript_page_range"
@@ -327,9 +327,9 @@ def payload_from_label(label: str, *, doc: LPTranscript | None = None):
     The user-facing label stays simple; page-system details are metadata.
     """
 
-    from rune_decrypter_prime.data.liber_primus.lp_adapter import LPSolverPayload, payload_from_locator
-    from rune_decrypter_prime.data.liber_primus.lp_main import load_main_transcript, page_view_from_ref
-    from rune_decrypter_prime.data.liber_primus.lp_registry import LPPageRef
+    from rdp.data.liber_primus.lp_adapter import LPSolverPayload, payload_from_locator
+    from rdp.data.liber_primus.lp_main import load_main_transcript, page_view_from_ref
+    from rdp.data.liber_primus.lp_registry import LPPageRef
 
     entry = resolve_source_label(label)
     effective_doc = doc or load_main_transcript(attach_catalogue=True)

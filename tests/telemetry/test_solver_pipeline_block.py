@@ -2,7 +2,7 @@
 from __future__ import annotations
 from rdp import api
 import pytest
-from rune_decrypter_prime.telemetry.pipeline import make_pipeline_block
+from rdp.telemetry.pipeline import make_pipeline_block
 from tests._helpers.permutation_cases import columnar_roundtrip_case
 pytestmark = pytest.mark.tier_a
 

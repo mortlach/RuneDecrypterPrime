@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 
 # -----------------------------
 # Format model

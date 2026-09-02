@@ -1,7 +1,7 @@
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.data import liber_primus as lp
-from rune_decrypter_prime.utils.runeglish import Runeglish
+import rdp.data.liber_primus as lp
+from rdp.data.runeglish import Runeglish
 pytestmark = pytest.mark.tier_a
 _WORD_BREAKERS = {'-', ',', '.', ';', '"', "'"}
 _STRUCTURAL_MARKERS = {'/', '%', '&', '$', '§'}

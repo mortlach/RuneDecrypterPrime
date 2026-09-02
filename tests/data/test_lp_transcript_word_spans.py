@@ -1,6 +1,6 @@
 from __future__ import annotations
-from rune_decrypter_prime.data.liber_primus.lp_transcript import LPTranscript
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.liber_primus.lp_transcript import LPTranscript
+from rdp.data.runeglish import Runeglish
 
 def test_word_spans_page_boundary_and_wli_is_slice_relative(tmp_path):
     r1, r2, r3 = Runeglish.runes[:3]

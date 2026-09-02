@@ -1,6 +1,6 @@
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.data.liber_primus.lp_registry import LPBuiltInPageScheme, LPPageRef, LPRegistry, LPRegistryLabel, LPResolutionContext, LPSectionOrdinal, build_nested_side_art_red_rune_partition, build_red_rune_17_partition, build_side_art_10_partition, resolve_page_ref, resolve_relative_index
+from rdp.data.liber_primus.lp_registry import LPBuiltInPageScheme, LPPageRef, LPRegistry, LPRegistryLabel, LPResolutionContext, LPSectionOrdinal, build_nested_side_art_red_rune_partition, build_red_rune_17_partition, build_side_art_10_partition, resolve_page_ref, resolve_relative_index
 pytestmark = pytest.mark.tier_a
 
 def test_page_scheme_values_are_stable_strings() -> None:

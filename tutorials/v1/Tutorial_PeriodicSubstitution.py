@@ -12,7 +12,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 import numpy as np
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview

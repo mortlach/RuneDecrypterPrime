@@ -10,7 +10,7 @@
     },
     {
       "path": "cipher_development/shared/experiment.py",
-      "sha256": "d5f5406cc6d406f4eb3ccdbdc15d907b7cd0fc99dfc744b0c98e9183bed388e8",
+      "sha256": "cf5c63b9146a71c37f6301da35580617708daf20e67c0772934922dd7e74d633",
       "role": "recursive local dependency"
     },
     {

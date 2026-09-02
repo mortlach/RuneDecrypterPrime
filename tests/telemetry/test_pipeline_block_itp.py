@@ -1,6 +1,6 @@
 import re
 import pytest
-from rune_decrypter_prime.telemetry.pipeline import make_pipeline_block
+from rdp.telemetry.pipeline import make_pipeline_block
 pytestmark = pytest.mark.tier_a
 HEX32 = re.compile('^[0-9a-f]{32}$')
 

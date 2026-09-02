@@ -3,7 +3,7 @@ import rdp.api.pipeline_helpers
 import numpy as np
 from rune_decrypter_prime.core.config import Solution
 from rdp.core.types import Direction
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 from rune_decrypter_prime.utils.solve_output import render_plaintext
 
 def test_ensure_plaintext_rune_uses_encoding_direction_for_latin_display() -> None:

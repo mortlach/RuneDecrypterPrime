@@ -4,8 +4,8 @@ import os
 import datetime as dt
 from pathlib import Path
 import pytest
-from rune_decrypter_prime.io import run_logger
-from rune_decrypter_prime.io.run_logger import RunLogger
+import rdp.io.run_logger as run_logger
+from rdp.io.run_logger import RunLogger
 
 def _jsonl_events(run_dir: Path) -> list[dict[str, object]]:
     text = (run_dir / 'logs' / 'app.jsonl').read_text(encoding='utf-8')

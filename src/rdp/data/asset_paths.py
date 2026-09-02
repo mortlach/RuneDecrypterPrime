@@ -4,7 +4,12 @@ from pathlib import Path
 
 
 _REPO_MARKERS = ("assets_manifest_v1.json", "pyproject.toml", ".git")
-_PACKAGE_DATA_ROOT = Path(__file__).resolve().parent
+# Packaged CI-light assets retain their single accepted AN3 storage location
+# until the AN4.7 package/asset cutover. This is one exact location, not a
+# namespace search or fallback.
+_PACKAGE_DATA_ROOT = (
+    Path(__file__).resolve().parents[2] / "rune_decrypter_prime" / "data"
+)
 _PACKAGE_ASSETS_ROOT = _PACKAGE_DATA_ROOT / "assets"
 _PACKAGE_CI_MANIFEST = _PACKAGE_DATA_ROOT / "assets_manifest_ci_light_v1.json"
 

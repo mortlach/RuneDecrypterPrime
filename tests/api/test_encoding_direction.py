@@ -1,7 +1,7 @@
 from __future__ import annotations
 import rdp.api.normalize
 import pytest
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 pytestmark = pytest.mark.tier_a
 
 def test_encoding_direction():

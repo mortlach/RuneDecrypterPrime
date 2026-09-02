@@ -1,6 +1,6 @@
 from __future__ import annotations
 import numpy as np
-from rune_decrypter_prime.io.rng import RNGController
+from rdp.io.rng import RNGController
 
 def _sample(gen: np.random.Generator, n: int=8) -> list[int]:
     return gen.integers(0, 1000000, size=n).tolist()

@@ -13,9 +13,9 @@ for path in (ROOT, SRC):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 from rdp.core.types import Direction
-from rune_decrypter_prime.data import liber_primus as lp
+import rdp.data.liber_primus as lp
 from rune_decrypter_prime.data.wordlists.loaders import load_short_word_dictionary
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 from rune_decrypter_prime.utils.solve_output import configure_utf8_stdio, match_ratio, page_value, print_block, write_json_evidence, zero_positions
 configure_utf8_stdio()
 SOURCE_LABEL = 'an_end'

@@ -3,7 +3,7 @@ from rdp import api
 import re
 import pytest
 import numpy as np
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from tests.tutorials._utils import plaintext_match_rate

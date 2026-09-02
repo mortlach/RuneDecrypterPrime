@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 from typing import Any, Iterable, Mapping
-from rune_decrypter_prime.io.logging_adapter import module_logger
+from rdp.io.logging_adapter import module_logger
 from dataclasses import is_dataclass
 from dataclasses import asdict
 from enum import Enum

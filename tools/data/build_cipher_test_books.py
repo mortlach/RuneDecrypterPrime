@@ -8,7 +8,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = REPO_ROOT / 'src'
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 SOURCE_BOOKS: tuple[Path, ...] = ()
 OUTPUT_ROOT = SRC_ROOT / 'rune_decrypter_prime' / 'data' / 'cipher_tests' / 'books'
 SOURCE_LABEL = 'public-domain source supplied by user'

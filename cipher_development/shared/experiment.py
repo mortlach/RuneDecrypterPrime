@@ -14,7 +14,7 @@ from enum import Enum, StrEnum
 from pathlib import Path
 from typing import Any
 from rune_decrypter_prime.core.config.logging_config import init_logging
-from rune_decrypter_prime.io.artifact_policy import portable_exception_message
+from rdp.io.artifact_policy import portable_exception_message
 from cipher_development.shared.ledger import SCHEMA as LEDGER_SCHEMA
 from cipher_development.shared.ledger import ExperimentLedgerRow, append_ledger_row
 MANIFEST_SCHEMA = 'rdp_cipher_development_experiment_manifest.v1'

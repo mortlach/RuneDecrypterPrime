@@ -9,9 +9,9 @@ SRC = ROOT / 'src'
 for path in (ROOT, SRC):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
-from rune_decrypter_prime.data import liber_primus as lp
+import rdp.data.liber_primus as lp
 from rune_decrypter_prime.utils.solve_output import collect_solver_attempt, configure_utf8_stdio, print_block, print_final_result, print_kv, safe_public_dict, write_latest_evidence, zero_positions
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 configure_utf8_stdio()
 SOURCE_LABEL = 'welcome_pilgrim'
 RECIPE_LABEL = 'recipe.welcome_pilgrim.vigenere_interruptors'

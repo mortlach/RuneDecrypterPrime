@@ -1,4 +1,4 @@
-from rune_decrypter_prime.telemetry.pipeline import make_pipeline_block
+from rdp.telemetry.pipeline import make_pipeline_block
 
 def _mk(min_len=8):
     return dict(ciphertext_len=10, text_permutation=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])

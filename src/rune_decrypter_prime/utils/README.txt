@@ -5,8 +5,8 @@ Shared utilities used across API/core/solvers.
 
 Examples
 --------
-- `runeglish.py`: bidirectional mapping between rune strings and index arrays,
-  plus helpers for word-break inference.
+- `rdp/data/runeglish.py`: definition owner for bidirectional rune/index
+  mapping and word-break inference helpers.
 - `rng.py`: deterministic RNG helpers (namespaced seeds, child generators).
 - `pretty.py`, `telemetry` helpers, etc.: presentation utilities for tutorials.
 

@@ -170,7 +170,7 @@ def _validate_lp_page_ref(
     number_key: str,
     field_name: str,
 ) -> None:
-    from rune_decrypter_prime.data.liber_primus.lp_registry import LPBuiltInPageScheme
+    from rdp.data.liber_primus.lp_registry import LPBuiltInPageScheme
 
     scheme = _require_enum_value(ref[scheme_key], _enum_values(LPBuiltInPageScheme), scheme_key)
     number = _require_int(ref[number_key], number_key)
@@ -182,7 +182,7 @@ def _validate_lp_page_ref(
 
 
 def _validate_lp_locator_ref(ref: Mapping[str, Any]) -> None:
-    from rune_decrypter_prime.data.liber_primus.lp_routes import (
+    from rdp.data.liber_primus.lp_routes import (
         LPLineReadMode,
         LPLineRuneSelector,
         LPSpiralDirection,
@@ -235,7 +235,7 @@ def _validate_partition_ordinal(value: Any) -> None:
 
 
 def _validate_lp_partition_ref(ref: Mapping[str, Any]) -> None:
-    from rune_decrypter_prime.data.liber_primus.lp_registry import LPBuiltInPartitionScheme
+    from rdp.data.liber_primus.lp_registry import LPBuiltInPartitionScheme
 
     _require_exact_keys(ref, _LP_PARTITION_KEYS, "ref")
     _require_enum_value(ref["partition_scheme"], _enum_values(LPBuiltInPartitionScheme), "partition_scheme")

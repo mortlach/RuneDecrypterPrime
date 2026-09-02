@@ -3,7 +3,7 @@ from __future__ import annotations
 from rdp import api
 import numpy as np
 import pytest
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 from tests.tutorials._utils import plaintext_match_rate
 pytestmark = pytest.mark.tier_a
 

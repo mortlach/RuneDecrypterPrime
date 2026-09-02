@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType
 import pytest
-from rune_decrypter_prime.data.liber_primus.lp_main import MAIN_TRANSCRIPT_ASSET_ID, main_transcript_asset_identity
+from rdp.data.liber_primus.lp_main import MAIN_TRANSCRIPT_ASSET_ID, main_transcript_asset_identity
 
 def _main_asset_version() -> str:
     return main_transcript_asset_identity()['asset_version']

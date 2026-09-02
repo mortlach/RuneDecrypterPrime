@@ -59,7 +59,7 @@ def resolve_source_input_ref(source_ref: SourceReferenceInput) -> ResolvedSource
 def _resolve_lp_label(source_ref: SourceReferenceInput) -> ResolvedSourceInput:
     _validate_lp_main_identity(source_ref)
 
-    from rune_decrypter_prime.data.liber_primus.lp_source_catalogue import payload_from_label
+    from rdp.data.liber_primus.lp_source_catalogue import payload_from_label
 
     payload = payload_from_label(source_ref.ref["label"])
     return ResolvedSourceInput(
@@ -73,10 +73,10 @@ def _resolve_lp_label(source_ref: SourceReferenceInput) -> ResolvedSourceInput:
 def _resolve_lp_locator(source_ref: SourceReferenceInput) -> ResolvedSourceInput:
     _validate_lp_main_identity(source_ref)
 
-    from rune_decrypter_prime.data.liber_primus.lp_adapter import payload_from_locator
-    from rune_decrypter_prime.data.liber_primus.lp_main import load_main_transcript
-    from rune_decrypter_prime.data.liber_primus.lp_registry import LPFragmentLocator
-    from rune_decrypter_prime.data.liber_primus.lp_routes import (
+    from rdp.data.liber_primus.lp_adapter import payload_from_locator
+    from rdp.data.liber_primus.lp_main import load_main_transcript
+    from rdp.data.liber_primus.lp_registry import LPFragmentLocator
+    from rdp.data.liber_primus.lp_routes import (
         LPLineReadMode,
         LPLineRuneSelector,
         LPSpiralDirection,
@@ -127,9 +127,9 @@ def _resolve_lp_locator(source_ref: SourceReferenceInput) -> ResolvedSourceInput
 def _resolve_lp_partition(source_ref: SourceReferenceInput) -> ResolvedSourceInput:
     _validate_lp_main_identity(source_ref)
 
-    from rune_decrypter_prime.data.liber_primus.lp_adapter import payload_from_partition_entry
-    from rune_decrypter_prime.data.liber_primus.lp_main import load_main_transcript
-    from rune_decrypter_prime.data.liber_primus.lp_registry import (
+    from rdp.data.liber_primus.lp_adapter import payload_from_partition_entry
+    from rdp.data.liber_primus.lp_main import load_main_transcript
+    from rdp.data.liber_primus.lp_registry import (
         LPBuiltInPartitionScheme,
         LPPageRef,
         LPPartitionEntry,
@@ -166,7 +166,7 @@ def _resolve_lp_partition(source_ref: SourceReferenceInput) -> ResolvedSourceInp
 
 
 def _validate_lp_main_identity(source_ref: SourceReferenceInput) -> None:
-    from rune_decrypter_prime.data.liber_primus.lp_main import (
+    from rdp.data.liber_primus.lp_main import (
         MAIN_TRANSCRIPT_ASSET_ID,
         main_transcript_asset_identity,
     )
@@ -182,7 +182,7 @@ def _validate_lp_main_identity(source_ref: SourceReferenceInput) -> None:
 
 
 def _lp_page_ref(ref: Mapping[str, Any], *, scheme_key: str, number_key: str):
-    from rune_decrypter_prime.data.liber_primus.lp_registry import LPBuiltInPageScheme, LPPageRef
+    from rdp.data.liber_primus.lp_registry import LPBuiltInPageScheme, LPPageRef
 
     return LPPageRef(
         scheme=LPBuiltInPageScheme(ref[scheme_key]),

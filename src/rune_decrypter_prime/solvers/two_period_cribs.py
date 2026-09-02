@@ -37,7 +37,7 @@ from rdp.core.types import (
     InterruptorMode,
     TextDirection,
 )
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 
 _EPSILON = 1e-15
 

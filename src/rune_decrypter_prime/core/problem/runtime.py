@@ -11,7 +11,7 @@ from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.interruptor import InterruptorConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig
 from rune_decrypter_prime.core.config.hard_crib import HardCribConfig, normalize_hard_crib_config
-from rune_decrypter_prime.telemetry.bag import TelemetryBag
+from rdp.telemetry.bag import TelemetryBag
 from rune_decrypter_prime.core.telemetry import _Timer
 from rdp.core.types import (
     Device,
@@ -22,12 +22,12 @@ from rdp.core.types import (
     ensure_device,
     KEY_DTYPE,
 )
-from rune_decrypter_prime.telemetry.pipeline import device_request_str
+from rdp.telemetry.pipeline import device_request_str
 from rune_decrypter_prime.keyops.registry import create as create_keyops
-from rune_decrypter_prime.io.logging_adapter import module_logger
+from rdp.io.logging_adapter import module_logger
 from rdp.backends.xp import select_backend
 from rdp.backends.xp import to_numpy
-from rune_decrypter_prime.telemetry.schema import (
+from rdp.telemetry.schema import (
     to_canonical_device_str,  # kept available for callers; unused here
 )
 

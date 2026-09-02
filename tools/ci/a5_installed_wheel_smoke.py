@@ -117,12 +117,11 @@ def main() -> int:
         for name in BLOCKED_MODULES:
             if importlib.util.find_spec(name) is not None:
                 raise AssertionError(f'development/old namespace present in wheel: {name}')
-        from rune_decrypter_prime.data import asset_paths
+        import rdp.data.asset_paths as asset_paths
         asset_root = asset_paths.find_assets_root()
         if _under(asset_root, PROJECT_ROOT / 'assets'):
             raise AssertionError(f'installed wheel fell back to checkout assets: {asset_root}')
-        package_data = Path(asset_paths.__file__).resolve().parent
-        manifest_path = package_data / 'assets_manifest_ci_light_v1.json'
+        manifest_path = asset_paths._PACKAGE_CI_MANIFEST.resolve()
         manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
         rows = manifest.get('installed_assets', [])
         if not rows:

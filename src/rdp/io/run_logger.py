@@ -1,5 +1,5 @@
 # ============================================================
-# rune_decrypter_prime/io/run_logger.py
+# rdp/io/run_logger.py
 # Minimal structured run logger for tests & dev runs.
 # ============================================================
 from __future__ import annotations
@@ -23,7 +23,7 @@ from rune_decrypter_prime.core.config.logging_config import (
     init_logging,
     get_run_dir,
 )
-from rune_decrypter_prime.io.artifact_policy import (
+from rdp.io.artifact_policy import (
     artifact_json_value,
     artifact_path,
     portable_exception_message,

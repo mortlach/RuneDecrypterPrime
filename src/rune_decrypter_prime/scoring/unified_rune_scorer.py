@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Iterable, Sequence, Dict
 import numpy as np
 
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 from rdp.backends.xp import select_backend
 from rune_decrypter_prime.core.config.cipher import CipherConfig
 from rune_decrypter_prime.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode

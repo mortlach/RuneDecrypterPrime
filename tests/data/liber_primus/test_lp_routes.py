@@ -1,6 +1,6 @@
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.data.liber_primus.lp_routes import LPLineReadMode, LPLineRuneSelector, LPSpiralDirection, LPSpiralRoute, read_lines, spiral_read
+from rdp.data.liber_primus.lp_routes import LPLineReadMode, LPLineRuneSelector, LPSpiralDirection, LPSpiralRoute, read_lines, spiral_read
 pytestmark = pytest.mark.tier_a
 
 def test_read_lines_left_to_right() -> None:

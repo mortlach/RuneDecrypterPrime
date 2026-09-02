@@ -7,7 +7,7 @@ from tests.tutorials._utils import plaintext_match_rate
 pytestmark = pytest.mark.tier_a
 
 def _encode_text(text: str, direction: api.TextDirection):
-    from rune_decrypter_prime.utils.runeglish import Runeglish
+    from rdp.data.runeglish import Runeglish
     pt_idx, wli, _ = Runeglish.encode_english_to_runes(text, direction=direction)
     return (np.asarray(pt_idx, dtype=np.uint8), wli)
 

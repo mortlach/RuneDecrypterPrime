@@ -1,5 +1,5 @@
 from __future__ import annotations
-from rune_decrypter_prime.data.liber_primus.lp_transcript import LPTranscript
+from rdp.data.liber_primus.lp_transcript import LPTranscript
 
 def test_section_by_label_lookup(tmp_path):
     content = 'x-y-/\n%\nz-w-/\n%\n'

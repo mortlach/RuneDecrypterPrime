@@ -8,8 +8,8 @@ from rune_decrypter_prime.core.config import (
 )
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
 from rdp.core.types import KEY_DTYPE, Direction
-from rune_decrypter_prime.data import liber_primus as lp
-from rune_decrypter_prime.utils.runeglish import Runeglish
+import rdp.data.liber_primus as lp
+from rdp.data.runeglish import Runeglish
 pytestmark = pytest.mark.tier_a
 SOURCE_LABEL = 'welcome_pilgrim'
 KEY_TEXT = 'DIVINITY'

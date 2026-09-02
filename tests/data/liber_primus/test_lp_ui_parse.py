@@ -1,7 +1,7 @@
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.data.liber_primus.lp_registry import LPPageRef
-from rune_decrypter_prime.data.liber_primus.lp_ui_parse import parse_page_token
+from rdp.data.liber_primus.lp_registry import LPPageRef
+from rdp.data.liber_primus.lp_ui_parse import parse_page_token
 pytestmark = pytest.mark.tier_a
 
 def test_parse_canon_jpg_token() -> None:

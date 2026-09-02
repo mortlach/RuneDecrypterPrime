@@ -6,7 +6,7 @@ Owner paths:
 - `src/rune_decrypter_prime/api/specs.py`
 - `src/rune_decrypter_prime/core/engine/engine.py`
 - `src/rune_decrypter_prime/solvers/`
-- `src/rune_decrypter_prime/telemetry/events.py`
+- `src/rdp/telemetry/events.py`
 
 Related tests:
 - `tests/solvers/`

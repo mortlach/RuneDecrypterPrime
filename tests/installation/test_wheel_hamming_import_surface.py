@@ -11,7 +11,7 @@ def _clear_hamming_modules() -> None:
         sys.modules.pop(name, None)
 
 def test_hamming_package_import_does_not_resolve_repo_assets(monkeypatch: pytest.MonkeyPatch) -> None:
-    from rune_decrypter_prime.data import asset_paths
+    import rdp.data.asset_paths as asset_paths
 
     def _bomb(*_args, **_kwargs):
         raise AssertionError('asset resolution must not run during hamming package import')
@@ -24,7 +24,7 @@ def test_hamming_package_import_does_not_resolve_repo_assets(monkeypatch: pytest
         _clear_hamming_modules()
 
 def test_hamming_loader_import_does_not_resolve_repo_assets(monkeypatch: pytest.MonkeyPatch) -> None:
-    from rune_decrypter_prime.data import asset_paths
+    import rdp.data.asset_paths as asset_paths
 
     def _bomb(*_args, **_kwargs):
         raise AssertionError('asset resolution must not run during hamming loader import')
@@ -37,7 +37,7 @@ def test_hamming_loader_import_does_not_resolve_repo_assets(monkeypatch: pytest.
         _clear_hamming_modules()
 
 def test_hamming_loader_resolves_default_assets_only_when_called(monkeypatch: pytest.MonkeyPatch) -> None:
-    from rune_decrypter_prime.data import asset_paths
+    import rdp.data.asset_paths as asset_paths
 
     def _bomb(*_args, **_kwargs):
         raise FileNotFoundError('expected test sentinel')

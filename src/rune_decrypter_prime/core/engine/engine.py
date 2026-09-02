@@ -26,11 +26,11 @@ from rune_decrypter_prime.solvers.hybrid import HybridSolver
 from rune_decrypter_prime.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
 
 # Telemetry (keep canonical helpers)
-from rune_decrypter_prime.telemetry.events import (
+from rdp.telemetry.events import (
     run_start as tel_run_start,
     run_end   as tel_run_end,
 )
-from rune_decrypter_prime.telemetry.schema import to_canonical_device_str
+from rdp.telemetry.schema import to_canonical_device_str
 from rdp.api.stop_reason_contract import (
     ExecutionStatus,
     build_run_status,

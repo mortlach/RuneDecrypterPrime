@@ -10,7 +10,7 @@ from rdp.core.types import (
 from rune_decrypter_prime.keyops.periodic_structured_matrix_ops import (
     PeriodicStructuredMatrixKeyOps,
 )
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 from rune_decrypter_prime.utils.seed_utils_periodic_columnar import SeedPlan, generate_seed_keys_periodic_columnar
 from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext_string
 ALPHABET_SIZE = 29

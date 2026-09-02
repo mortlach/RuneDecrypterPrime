@@ -2,7 +2,7 @@ import numpy as np
 from rdp import api
 
 from rdp.core.types import Direction
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 
 def test_encode_english_to_runes_return_order_and_shapes():
     pt_idx, wli, rune_str = Runeglish.encode_english_to_runes('HELLO WORLD', direction='ltr')

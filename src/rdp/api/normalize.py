@@ -4,7 +4,7 @@ from typing import List, Tuple, Sequence, Union, Optional, TypeVar, Dict, Any
 import numpy as np
 
 from rdp.api._resolve import resolve_optimizer_aliases
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 from rdp.core.types import (
     Direction,
     Device,

@@ -11,7 +11,7 @@ Owner paths:
 - `src/rune_decrypter_prime/api/run_artifact_manifest.py`
 - `src/rune_decrypter_prime/scoring/scorer_report.py`
 - `src/rune_decrypter_prime/scoring/scorer_report_builder.py`
-- `src/rune_decrypter_prime/telemetry/`
+- `src/rdp/telemetry/`
 
 Related tests:
 - `tests/api/`

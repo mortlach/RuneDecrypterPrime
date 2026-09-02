@@ -10,7 +10,7 @@ This function drives a full cycle:
   • Return (known_key, found_key, sol.meta)
 
 Unified logging:
-  - Uses rune_decrypter_prime.io.run_logger.RunLogger
+  - Uses rdp.io.run_logger.RunLogger
   - All events (start/end/errors/trace) go to JSONL in output/<kind>/<run_id>/logs/
   - Trace logs also go to output/<kind>/<run_id>/trace/ for unused_report
 """
@@ -30,9 +30,9 @@ from rune_decrypter_prime.core.config import (
     SolverConfig,
 )
 from rune_decrypter_prime.core.solver_engine import RuneSolverEngine
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 from rune_decrypter_prime.data.cipher_tests.baseline_registry import BASELINE
-from rune_decrypter_prime.io.run_logger import get_logger
+from rdp.io.run_logger import get_logger
 from pathlib import Path as _Path
 try:
     from rune_decrypter_prime.core.config.logging_config import get_run_dir as _get_run_dir

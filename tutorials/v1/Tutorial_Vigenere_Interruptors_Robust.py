@@ -13,7 +13,7 @@ from rdp import api
 from tutorials.v1.data.two_period_cribs_demo import encrypt_interruptor_fixture
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1, word_breaks1
 from rune_decrypter_prime.utils import tutorial_pretty as pretty
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.runeglish import Runeglish
 DIRECTION = api.TextDirection.LEFT_TO_RIGHT
 TRUE_KEY = [7, 0, 13, 2, 5, 21, 8]
 TRUE_INTERRUPTORS = [190, 194]

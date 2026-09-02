@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Sequence
 from rune_decrypter_prime.core.problem.spec import ProblemSpec
 from rune_decrypter_prime.core.problem.runtime import DecryptionProblem
 from rune_decrypter_prime.core.engine.builders import build_cipher, build_scorer
-from rune_decrypter_prime.telemetry.pipeline import make_pipeline_block
+from rdp.telemetry.pipeline import make_pipeline_block
 from rdp.core.types import Direction, ensure_direction
 
 

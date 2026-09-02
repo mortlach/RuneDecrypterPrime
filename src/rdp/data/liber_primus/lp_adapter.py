@@ -3,23 +3,23 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from rune_decrypter_prime.data.liber_primus.lp_main import (
+from rdp.data.liber_primus.lp_main import (
     extract_locator_ct_wli,
     extract_partition_entry_ct_wli,
     glyph_span_from_partition_entry,
     main_transcript_asset_identity,
     page_view_from_ref,
 )
-from rune_decrypter_prime.data.liber_primus.lp_registry import LPFragmentLocator, LPPageRef, LPPartitionEntry
-from rune_decrypter_prime.data.liber_primus.lp_routes import (
+from rdp.data.liber_primus.lp_registry import LPFragmentLocator, LPPageRef, LPPartitionEntry
+from rdp.data.liber_primus.lp_routes import (
     LPLineReadMode,
     LPLineRuneSelector,
     LPSpiralRoute,
     read_lines,
     spiral_read,
 )
-from rune_decrypter_prime.data.liber_primus.lp_transcript import LPTranscript
-from rune_decrypter_prime.utils.runeglish import Runeglish
+from rdp.data.liber_primus.lp_transcript import LPTranscript
+from rdp.data.runeglish import Runeglish
 
 
 @dataclass(frozen=True)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
-from rune_decrypter_prime.io.artifact_policy import EXTERNAL_PATH, REDACTED_PATH_TEXT, artifact_json_value, artifact_path, portable_exception_message
+from rdp.io.artifact_policy import EXTERNAL_PATH, REDACTED_PATH_TEXT, artifact_json_value, artifact_path, portable_exception_message
 
 def test_artifact_path_preserves_relative_path_values(tmp_path: Path) -> None:
     assert artifact_path(Path('artifacts/report.json'), root=tmp_path) == 'artifacts/report.json'
