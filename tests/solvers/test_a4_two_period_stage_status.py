@@ -2,7 +2,7 @@ from __future__ import annotations
 from rdp import api
 import numpy as np
 import pytest
-from rune_decrypter_prime.solvers.two_period_cribs import _coordinate_search_with_status, coordinate_search
+from rdp.solvers.two_period_cribs import _coordinate_search_with_status, coordinate_search
 pytestmark = pytest.mark.tier_a
 
 def _quadratic(values: np.ndarray) -> np.ndarray:

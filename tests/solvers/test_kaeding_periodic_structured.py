@@ -6,7 +6,7 @@ from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.types import freeze_parameter_items
 from rdp.ciphers.periodic_substitution_cipher import PeriodicSubstitutionCipher
 from rdp.ciphers.substitution_cipher import SubstitutionCipher
-from rune_decrypter_prime.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
+from rdp.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
 pytestmark = pytest.mark.tier_a
 
 class ZeroScorer:

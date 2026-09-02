@@ -1,6 +1,6 @@
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.solvers.solver_base import SolverBase
+from rdp.solvers.solver_base import SolverBase
 pytestmark = pytest.mark.tier_a
 
 def test_is_improvement_requires_strict_gain_when_min_delta_zero():

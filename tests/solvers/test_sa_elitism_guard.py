@@ -6,7 +6,7 @@ from rdp.ciphers.vigenere_cipher import RuneVigenereCipher
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.types import Direction
-from rune_decrypter_prime.solvers.sa import SASolver
+from rdp.solvers.sa import SASolver
 pytestmark = pytest.mark.tier_a
 
 class _ZeroScorer:

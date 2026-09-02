@@ -3,8 +3,8 @@
 Status: staged V1 draft
 
 Owner paths:
-- `src/rune_decrypter_prime/solvers/`
-- `src/rune_decrypter_prime/solvers/solver_base.py`
+- `src/rdp/solvers/`
+- `src/rdp/solvers/solver_base.py`
 - `src/rdp/core/types.py`
 - `src/rune_decrypter_prime/api/normalize.py`
 - `src/rune_decrypter_prime/core/engine/engine.py`
@@ -27,7 +27,7 @@ enum and engine-table wiring.
 
 ## Steps
 
-1. Create the solver module under `src/rune_decrypter_prime/solvers/`.
+1. Create the solver module under `src/rdp/solvers/`.
 2. Subclass `SolverBase`.
 3. Accept the same constructor shape used by existing solvers.
 4. Use `self.problem.evaluate_keys(...)` or `self._score_batch(...)` for scoring.

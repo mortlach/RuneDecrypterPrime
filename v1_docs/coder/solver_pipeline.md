@@ -5,7 +5,7 @@ Status: staged V1 draft
 Owner paths:
 - `src/rune_decrypter_prime/api/specs.py`
 - `src/rune_decrypter_prime/core/engine/engine.py`
-- `src/rune_decrypter_prime/solvers/`
+- `src/rdp/solvers/`
 - `src/rdp/telemetry/events.py`
 
 Related tests:
@@ -49,8 +49,8 @@ or scoring logic directly.
 | `SolverSpec` | `src/rune_decrypter_prime/api/specs.py` | Public declarative solver choice. |
 | `EngineConfig` | `src/rune_decrypter_prime/core/engine/engine.py` | Runtime solver kind, params, seed, and knobs. |
 | `_SOLVER_TABLE` | `src/rune_decrypter_prime/core/engine/engine.py` | Maps `SolverName` to solver class. |
-| `SolverBase` | `src/rune_decrypter_prime/solvers/solver_base.py` | Shared telemetry, scoring, early-stop, and seed helpers. |
-| concrete solvers | `src/rune_decrypter_prime/solvers/` | Implement beam, GA, SA, hybrid, and kaeding-style search. |
+| `SolverBase` | `src/rdp/solvers/solver_base.py` | Shared telemetry, scoring, early-stop, and seed helpers. |
+| concrete solvers | `src/rdp/solvers/` | Implement beam, GA, SA, hybrid, and kaeding-style search. |
 
 ## How It Fits Into A Run
 
@@ -93,7 +93,7 @@ truth-data policy, and scorer-lane details.
 ## Extension Checklist
 
 1. Add a `SolverSpec` factory or supported name.
-2. Implement or subclass solver logic under `src/rune_decrypter_prime/solvers/`.
+2. Implement or subclass solver logic under `src/rdp/solvers/`.
 3. Register the solver in the engine solver table.
 4. Emit progress through shared telemetry helpers.
 5. Define stop reasons clearly.

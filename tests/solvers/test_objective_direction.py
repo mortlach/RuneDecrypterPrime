@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 from rdp.core.types import Direction, Device, ObjectiveFamily, ObjectiveSpec, SolverName, Stat
-from rune_decrypter_prime.solvers.solver_base import SolverBase
+from rdp.solvers.solver_base import SolverBase
 pytestmark = pytest.mark.tier_a
 
 class _DummyKeyOps:

@@ -13,7 +13,7 @@ Prereqs: Python 3.11+, pytest, familiarity with `SolverSpec` and `SolverBase`
 - Note any new CLI flags or tutorial instructions that future readers will need.
 
 ## Expert Implementation Steps
-1. **Subclass** `solvers/solver_base.SolverBase` (or compose from it) under `src/rune_decrypter_prime/solvers/<name>.py`.
+1. **Subclass** `solvers/solver_base.SolverBase` (or compose from it) under `src/rdp/solvers/<name>.py`.
 2. **Implement** `_solve()` using the provided RNG (`self._rng`) and emit telemetry via `self._progress_pct(...)`, `self._start_span(...)`, and `self._end_span(...)`.
 3. **Register** the solver in `core/engine/_SOLVER_TABLE` and add a builder helper (e.g., `SolverSpec.my_solver(...)`) in `api/specs.py`.
 4. **Expose** presets/tutorial knobs by updating `docs/tutorials/<name>.md` or extending existing tutorials (Hands-on readers need concrete parameters).

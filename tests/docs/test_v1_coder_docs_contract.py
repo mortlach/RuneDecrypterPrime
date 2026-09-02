@@ -100,7 +100,7 @@ def test_module_map_covers_top_level_source_packages() -> None:
         "src/rune_decrypter_prime/data/",
         "src/rdp/keyops/",
         "src/rdp/scoring/",
-        "src/rune_decrypter_prime/solvers/",
+        "src/rdp/solvers/",
         "src/rune_decrypter_prime/utils/",
         "src/rdp/api/",
         "tutorials/v1/",
@@ -193,7 +193,7 @@ def test_howto_pages_name_core_owner_paths() -> None:
             "src/rdp/api/experimental.py",
         ],
         "add_solver.md": [
-            "src/rune_decrypter_prime/solvers/",
+            "src/rdp/solvers/",
             "src/rdp/core/types.py",
             "src/rune_decrypter_prime/core/engine/engine.py",
         ],

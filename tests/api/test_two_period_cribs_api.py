@@ -24,7 +24,7 @@ def test_builder_rejects_invalid_contracts(kwargs, error):
         api.SolverSpec.two_period_cribs(**kwargs)
 
 def test_special_route_passes_canonical_interruptor_config_to_staged_solver(monkeypatch):
-    from rune_decrypter_prime.solvers import two_period_cribs as staged
+    from rdp.solvers import two_period_cribs as staged
     captured = {}
 
     def fake_run_two_period_stages(**kwargs):
@@ -40,9 +40,10 @@ def test_special_route_passes_canonical_interruptor_config_to_staged_solver(monk
     assert captured['interruptors_exact'] is None
     assert captured['interruptors_pool'] is None
     assert captured['interruptors_max'] is None
+    assert callable(captured['solution_finalizer'])
 
 def test_special_route_passes_search_interruptor_config_without_legacy_projection(monkeypatch):
-    from rune_decrypter_prime.solvers import two_period_cribs as staged
+    from rdp.solvers import two_period_cribs as staged
     captured = {}
 
     def fake_run_two_period_stages(**kwargs):
@@ -57,6 +58,7 @@ def test_special_route_passes_search_interruptor_config_without_legacy_projectio
     assert captured['interruptors_exact'] is None
     assert captured['interruptors_pool'] is None
     assert captured['interruptors_max'] is None
+    assert callable(captured['solution_finalizer'])
 
 @pytest.mark.full_assets
 def test_real_route_returns_standard_exact_solution_with_installed_assets():

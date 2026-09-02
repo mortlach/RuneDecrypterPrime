@@ -7,7 +7,7 @@ from rdp.ciphers.vigenere_cipher import RuneVigenereCipher
 from rdp.ciphers.columnar_transposition_cipher import ColumnarTranspositionCipher
 from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.types import Direction
-from rune_decrypter_prime.solvers.beam import BeamSolver
+from rdp.solvers.beam import BeamSolver
 pytestmark = pytest.mark.tier_a
 
 class _ZeroScorer:

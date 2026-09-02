@@ -26,7 +26,7 @@ from rune_decrypter_prime.core.engine.builders import build_cipher, build_scorer
 from rdp.core.problem.runtime import DecryptionProblem
 from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext_string
 from rdp.data.runeglish import Runeglish
-from rune_decrypter_prime.utils.seed_utils import make_periodic_seed_pool
+from rdp.solvers.seed_generation import make_periodic_seed_pool
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RECIPE_ID = "periodic_columnar_decomposed_v2"

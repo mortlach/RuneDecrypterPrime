@@ -6,7 +6,7 @@ import pytest
 from rdp.ciphers.periodic_substitution_cipher import PeriodicSubstitutionCipher
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.problem.runtime import DecryptionProblem
-from rune_decrypter_prime.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
+from rdp.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
 pytestmark = pytest.mark.tier_a
 
 class _NoopScorer:

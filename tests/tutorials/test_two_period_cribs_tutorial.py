@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from rdp import api
 from rdp.core.types import Direction
-from rune_decrypter_prime.solvers.two_period_cribs import build_branches
+from rdp.solvers.two_period_cribs import build_branches
 pytestmark = pytest.mark.tier_a
 ROOT = Path(__file__).resolve().parents[2]
 TUTORIALS = ROOT / 'tutorials' / 'v1'

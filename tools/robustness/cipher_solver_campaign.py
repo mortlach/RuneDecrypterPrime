@@ -31,7 +31,7 @@ from rdp.io.rng import RNGController
 from rdp.scoring.language_model import _fastlm
 from rdp.scoring.language_model.paths import default_lm_root, expand_pattern, load_index
 from rdp.data.runeglish import Runeglish
-from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
+from rdp.solvers.seed_generation import make_seeds_from_freq
 from rune_decrypter_prime.utils.solve_output import match_ratio
 import cipher_solver_campaign_config as config
 ALPHABET = 29

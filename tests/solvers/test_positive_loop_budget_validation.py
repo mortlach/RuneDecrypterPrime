@@ -5,9 +5,9 @@ import numpy as np
 import pytest
 from rdp.core.types import Device, Direction, ObjectiveFamily, ObjectiveSpec, Stat
 from rdp.keyops.vector import VectorKeyOps
-from rune_decrypter_prime.solvers.ga import GASolver
-from rune_decrypter_prime.solvers.hybrid import HybridSolver
-from rune_decrypter_prime.solvers.sa import SASolver
+from rdp.solvers.ga import GASolver
+from rdp.solvers.hybrid import HybridSolver
+from rdp.solvers.sa import SASolver
 pytestmark = pytest.mark.tier_a
 
 class _TinyProblem:

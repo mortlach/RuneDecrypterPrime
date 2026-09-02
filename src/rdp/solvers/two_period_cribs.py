@@ -11,7 +11,6 @@ from typing import Any, Callable, Sequence
 
 import numpy as np
 
-from rdp.api.pipeline_helpers import finalize_solution
 from rdp.api.stop_reason_contract import StopCategory, StopReason
 from rdp.api.specs import CipherSpec, KeySpec
 from rdp.api.two_period_cribs import (
@@ -638,6 +637,7 @@ def run_two_period_stages(
     interruptors_exact: Sequence[int] | None = None,
     interruptors_pool: Sequence[int] | None = None,
     interruptors_max: int | None = None,
+    solution_finalizer: Callable[[DecryptionProblem, Solution], Solution] | None = None,
 ) -> Solution:
     started = time.perf_counter()
     period_a, period_b, modulus = _validate_cipher(cipher, key)
@@ -1052,6 +1052,8 @@ def run_two_period_stages(
     solution = Solution(
         key=best_key.astype(int).tolist(),
         plaintext=np.asarray(plaintext, dtype=np.uint8).astype(int).tolist(),
+        plaintext_idx=np.asarray(plaintext, dtype=np.uint8).astype(int).tolist(),
+        wli=wli,
         score=float(best["final_score"]),
         meta={"two_period_solve": metadata},
         evals=total_evaluations,
@@ -1065,20 +1067,9 @@ def run_two_period_stages(
         device=device,
         direction=direction,
     )
-    return finalize_solution(
-        final_problem,
-        solution,
-        ciphertext=ciphertext,
-        wli=wli,
-        cipher=cipher,
-        encoding_dir=direction,
-        telemetry_on=telemetry_on,
-        pipeline_block={
-            "text_encoding_direction": direction.value,
-            "input_permutation": {"kind": "none", "length": len(ciphertext), "hash": ""},
-            "solver_route": "two_period_cribs",
-        },
-    )
+    if solution_finalizer is not None:
+        return solution_finalizer(final_problem, solution)
+    return solution
 
 
 __all__ = [

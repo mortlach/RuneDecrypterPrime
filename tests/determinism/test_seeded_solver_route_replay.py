@@ -9,9 +9,9 @@ from rdp.core.config.cipher import CipherConfig
 from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.types import Device, Direction, ObjectiveFamily, ObjectiveSpec, Stat
 from rdp.keyops.vector import VectorKeyOps
-from rune_decrypter_prime.solvers.hybrid import HybridSolver
-from rune_decrypter_prime.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
-from rune_decrypter_prime.solvers.sa import SASolver
+from rdp.solvers.hybrid import HybridSolver
+from rdp.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
+from rdp.solvers.sa import SASolver
 pytestmark = pytest.mark.tier_a
 
 class _TraceProblem:

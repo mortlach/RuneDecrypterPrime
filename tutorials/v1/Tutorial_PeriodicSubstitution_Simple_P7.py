@@ -13,7 +13,7 @@ from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_s
 from rdp.data.runeglish import Runeglish
 from rune_decrypter_prime.utils import tutorial_pretty as pretty
 from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
-from rune_decrypter_prime.utils.seed_utils import make_periodic_seed_pool, make_periodic_structured_key
+from rdp.solvers.seed_generation import make_periodic_seed_pool, make_periodic_structured_key
 from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')

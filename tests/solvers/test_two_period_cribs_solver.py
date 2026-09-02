@@ -7,7 +7,7 @@ import hashlib
 import numpy as np
 import pytest
 from rdp.core.types import Device, Direction
-from rune_decrypter_prime.solvers.two_period_cribs import CribConstraintSpace, TwoPeriodBranch, _candidate_id, _deduplicated_union, _run_refinement_stage, build_branches, coordinate_search, derive_child_seed, derive_constraint_space, expand_reduced_key, profile_contract_hash, _resolve_interruptor_hypotheses, run_two_period_stages
+from rdp.solvers.two_period_cribs import CribConstraintSpace, TwoPeriodBranch, _candidate_id, _deduplicated_union, _run_refinement_stage, build_branches, coordinate_search, derive_child_seed, derive_constraint_space, expand_reduced_key, profile_contract_hash, _resolve_interruptor_hypotheses, run_two_period_stages
 pytestmark = pytest.mark.tier_a
 
 def _ciphertext(plaintext, key_a, key_b, modulus=29):
@@ -18,7 +18,7 @@ def test_constraint_space_contains_canonical_known_key():
     key_b = np.asarray([0, 7, 14, 21, 28, 6, 13], dtype=np.uint8)
     plain = np.arange(40, dtype=np.uint8) % 29
     ct = _ciphertext(plain, key_a, key_b)
-    from rune_decrypter_prime.solvers.two_period_cribs import CribSpan
+    from rdp.solvers.two_period_cribs import CribSpan
     span = CribSpan('fixture', tuple((int(x) for x in plain[4:20])), 4)
     space = derive_constraint_space(ct, (span,), period_a=5, period_b=7, modulus=29)
     variables = np.asarray([np.concatenate((key_a, key_b))[i] for i in space.free_columns])
@@ -26,7 +26,7 @@ def test_constraint_space_contains_canonical_known_key():
     assert expand_reduced_key(variables, space)[5] == 0
 
 def test_constraint_space_uses_core_positions_after_structural_interruptors():
-    from rune_decrypter_prime.solvers.two_period_cribs import CribSpan
+    from rdp.solvers.two_period_cribs import CribSpan
     from rdp.data.runeglish import Runeglish
     plain, _wli, _runes = Runeglish.encode_english_to_runes('uncomfortable', direction='ltr')
     plaintext = np.asarray(plain, dtype=np.uint8)
@@ -43,7 +43,7 @@ def test_constraint_space_uses_core_positions_after_structural_interruptors():
     assert all((int(ciphertext[index]) == int(plaintext[index]) for index in interruptors))
 
 def test_crib_must_match_unchanged_interruptor_symbol():
-    from rune_decrypter_prime.solvers.two_period_cribs import CribSpan
+    from rdp.solvers.two_period_cribs import CribSpan
     ciphertext = np.asarray([4, 9, 5, 7], dtype=np.uint8)
     span = CribSpan('fixture', (4, 9, 6, 7), 0)
     with pytest.raises(ValueError, match='contradicts interruptor at position 2'):
@@ -72,7 +72,7 @@ def test_interruptor_pool_keyops_is_explicitly_unsupported_for_constraint_route(
         _resolve_interruptor_hypotheses(cfg, 20)
 
 def test_staged_pool_search_keeps_structural_candidates_distinct_and_uses_winning_interruptors(monkeypatch):
-    from rune_decrypter_prime.solvers import two_period_cribs as staged
+    from rdp.solvers import two_period_cribs as staged
     plaintext, wli = rdp.api.normalize.normalize_ciphertext('uncomfortable dormouse')
     known_key = np.asarray([3, 8, 13, 18, 23, 0, 7, 14, 21, 28, 6, 13], dtype=np.uint8)
     true_interruptors = (14,)
@@ -116,7 +116,7 @@ def test_staged_pool_search_keeps_structural_candidates_distinct_and_uses_winnin
     assert details['final_union_count'] == 2
 
 def test_contradictory_overlapping_crib_rejects():
-    from rune_decrypter_prime.solvers.two_period_cribs import CribSpan
+    from rdp.solvers.two_period_cribs import CribSpan
     ct = np.zeros(20, dtype=np.uint8)
     spans = (CribSpan('a', (0,), 0), CribSpan('b', (1,), 0))
     try:
@@ -158,7 +158,7 @@ def test_profile_hashes_are_stable_and_distinct():
 
 @pytest.mark.parametrize('spans, expected_dimension', [((('uncomfortable', 188),), 30), ((('uncomfortable', 188), ('dormouse', 81)), 22), ((('uncomfortable', 188), ('dormouse', 206)), 22), ((('uncomfortable', 188), ('dormouse', 81), ('dormouse', 206)), 14)])
 def test_p13_p31_accepted_affine_dimensions(spans, expected_dimension):
-    from rune_decrypter_prime.solvers.two_period_cribs import CribSpan
+    from rdp.solvers.two_period_cribs import CribSpan
     from rdp.data.runeglish import Runeglish
     plaintext = np.arange(308, dtype=np.uint16) % 29
     key_a = np.asarray([(5 * index + 3) % 29 for index in range(13)], dtype=np.uint8)
@@ -211,7 +211,7 @@ def test_candidate_identity_preserves_legacy_key_only_hash_without_interruptors(
     assert _candidate_id(key) == expected
 
 def test_branch_identity_varies_with_periods_and_modulus():
-    from rune_decrypter_prime.solvers.two_period_cribs import _branch_id
+    from rdp.solvers.two_period_cribs import _branch_id
     spaces = (CribConstraintSpace(29, 5, 7, (0,) * 12, ((),) * 12, ()), CribConstraintSpace(29, 4, 8, (0,) * 12, ((),) * 12, ()), CribConstraintSpace(31, 5, 7, (0,) * 12, ((),) * 12, ()))
     identities = {_branch_id((), None, space) for space in spaces}
     assert len(identities) == 3

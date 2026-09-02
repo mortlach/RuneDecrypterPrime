@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 import pytest
-from rune_decrypter_prime.solvers.solver_base import SolverBase
+from rdp.solvers.solver_base import SolverBase
 pytestmark = pytest.mark.tier_a
 
 def test_stable_topk_prefers_lower_index_on_ties():

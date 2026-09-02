@@ -1,5 +1,5 @@
 # ============================================================
-# rune_decrypter_prime/solver/base.py
+# rdp/solvers/solver_base.py
 # ============================================================
 from __future__ import annotations
 from dataclasses import dataclass

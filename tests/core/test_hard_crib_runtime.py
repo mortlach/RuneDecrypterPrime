@@ -6,7 +6,7 @@ from rdp.ciphers.substitution_cipher import SubstitutionCipher
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.types import Direction
-from rune_decrypter_prime.solvers.beam import BeamSolver
+from rdp.solvers.beam import BeamSolver
 pytestmark = pytest.mark.tier_a
 ALPHABET_SIZE = 29
 

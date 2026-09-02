@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from rdp.core.types import Device, Direction, ObjectiveFamily, ObjectiveSpec, Stat
 from rdp.keyops.vector import VectorKeyOps
-from rune_decrypter_prime.solvers.hybrid import HybridSolver
+from rdp.solvers.hybrid import HybridSolver
 pytestmark = pytest.mark.tier_a
 
 class _TinyProblem:
@@ -64,9 +64,9 @@ def _controlled_phase_classes(calls, *, beam_result, ga_result, sa_result, rng_d
 
 def _patch_phases(monkeypatch, phase_classes):
     beam, ga, sa = phase_classes
-    monkeypatch.setattr('rune_decrypter_prime.solvers.hybrid.BeamSolver', beam)
-    monkeypatch.setattr('rune_decrypter_prime.solvers.hybrid.GASolver', ga)
-    monkeypatch.setattr('rune_decrypter_prime.solvers.hybrid.SASolver', sa)
+    monkeypatch.setattr('rdp.solvers.hybrid.BeamSolver', beam)
+    monkeypatch.setattr('rdp.solvers.hybrid.GASolver', ga)
+    monkeypatch.setattr('rdp.solvers.hybrid.SASolver', sa)
 
 def test_hybrid_orders_phases_hands_beam_to_ga_and_retained_winner_to_sa(monkeypatch):
     calls = []

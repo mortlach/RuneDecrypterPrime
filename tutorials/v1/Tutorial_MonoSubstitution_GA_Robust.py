@@ -13,7 +13,7 @@ if str(_SRC) not in sys.path:
 import numpy as np
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from rdp.data.runeglish import Runeglish
-from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
+from rdp.solvers.seed_generation import make_seeds_from_freq
 from rune_decrypter_prime.utils import tutorial_pretty as pretty
 DIRECTION = api.TextDirection.LEFT_TO_RIGHT
 CIPHERTEXT_SEED = 20260822

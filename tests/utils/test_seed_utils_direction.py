@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 from rdp import api
-from rune_decrypter_prime.utils import seed_utils
+import rdp.solvers.seed_generation as seed_utils
 
 
 @pytest.mark.parametrize(

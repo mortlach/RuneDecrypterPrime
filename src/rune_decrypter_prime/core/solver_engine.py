@@ -22,11 +22,11 @@ from rdp.core.types import (
 )
 from rdp.api.pipeline_helpers import finalize_solution
 
-from rune_decrypter_prime.solvers.beam import BeamSolver
-from rune_decrypter_prime.solvers.ga import GASolver
-from rune_decrypter_prime.solvers.sa import SASolver
-from rune_decrypter_prime.solvers.hybrid import HybridSolver
-from rune_decrypter_prime.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
+from rdp.solvers.beam import BeamSolver
+from rdp.solvers.ga import GASolver
+from rdp.solvers.sa import SASolver
+from rdp.solvers.hybrid import HybridSolver
+from rdp.solvers.kaeding_periodic_structured import KaedingPeriodicStructuredSolver
 
 
 _SOLVER_TABLE: Dict[SolverName, Any] = {

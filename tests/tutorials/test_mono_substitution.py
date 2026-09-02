@@ -4,7 +4,7 @@ import re
 import pytest
 import numpy as np
 from rdp.data.runeglish import Runeglish
-from rune_decrypter_prime.utils.seed_utils import make_seeds_from_freq
+from rdp.solvers.seed_generation import make_seeds_from_freq
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
 from tests.tutorials._utils import plaintext_match_rate
 from tests.scoring._helpers.lm_test_guard import require_full_lm_assets

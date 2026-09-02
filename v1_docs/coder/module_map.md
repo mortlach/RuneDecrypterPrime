@@ -17,7 +17,7 @@ packages. Importability does not make an engine module public.
 | `src/rdp/io/` | Logging, artifact paths, and deterministic I/O support. | Internal |
 | `src/rdp/keyops/` | Key generation, validation, mutation, and batching. | Internal/contributor |
 | `src/rdp/scoring/` | Candidate ranking and scorer reports. | Internal except promoted report types |
-| `src/rune_decrypter_prime/solvers/` | Search algorithms over key spaces. | Internal/contributor |
+| `src/rdp/solvers/` | Search algorithms over key spaces. | Internal/contributor |
 | `src/rdp/telemetry/` | Structured runtime evidence. | Internal |
 | `src/rune_decrypter_prime/utils/` | Focused tutorial and text utilities. | Internal/test support |
 | `tutorials/v1/` | Active typed V1 examples and runner. | User-facing |

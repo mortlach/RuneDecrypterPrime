@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ============================================================
-# rune_decrypter_prime/utils/seed_utils.py
+# rdp/solvers/seed_generation.py
 # Seed builders for mono-substitution (rank alignment + jitter).
 # Behaviour unchanged; pure NumPy + LanguageModelPrime unigram probe.
 # ============================================================

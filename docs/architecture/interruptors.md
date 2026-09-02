@@ -125,7 +125,7 @@ TODO: Document the conversion rules for `index_space="core"` and
   Resolve interruptor indices, split key, and pass to decrypt.
 - `src/rdp/keyops/*`
   Add a KeyOps family or composite mechanism for interruptor selection.
-- `src/rune_decrypter_prime/solvers/solver_base.py`
+- `src/rdp/solvers/solver_base.py`
   Optional hooks for brute-force expansions when enabled.
 - `docs/architecture/interruptors.md`
   (this document) as the canonical design reference.
