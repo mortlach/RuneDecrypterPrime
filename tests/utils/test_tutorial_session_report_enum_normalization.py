@@ -1,8 +1,8 @@
 from __future__ import annotations
 from types import SimpleNamespace
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialStopPolicy
-from rune_decrypter_prime.utils.tutorial_reference import TutorialReference
-from rune_decrypter_prime.utils.tutorial_session_report import build_tutorial_session_report
+from tutorials.v1.support.tutorial_benchmark import TutorialStopPolicy
+from tutorials.v1.support.tutorial_reference import TutorialReference
+from tutorials.v1.support.tutorial_session_report import build_tutorial_session_report
 
 def test_session_report_accepts_string_run_kind_and_reference_policy() -> None:
     solution = SimpleNamespace(key=[3, 1, 4], plaintext_idx=[1, 2, 3], meta={})

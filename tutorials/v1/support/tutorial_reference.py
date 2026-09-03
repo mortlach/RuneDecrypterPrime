@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from rune_decrypter_prime.utils.tutorial_benchmark import (
+from tutorials.v1.support.tutorial_benchmark import (
     TutorialRunKind,
     TutorialStopPolicy,
     TutorialTruthPolicy,

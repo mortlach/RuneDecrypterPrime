@@ -7,9 +7,9 @@ _ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / 'src'
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
-from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
+from tutorials.v1.data.plaintext_fixtures import plaintext_english_string
 from rdp.data.runeglish import Runeglish
-from rune_decrypter_prime.utils import tutorial_pretty as pretty
+from tutorials.v1.support import tutorial_pretty as pretty
 DIRECTION = api.TextDirection.RIGHT_TO_LEFT
 TRUE_SEED = [6, 1, 4, 17, 3, 22, 9, 12]
 SOLVER_SEED = 20260822

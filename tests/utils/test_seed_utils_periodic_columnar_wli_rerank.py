@@ -12,7 +12,7 @@ from rdp.keyops.periodic_structured_matrix_ops import (
 )
 from rdp.data.runeglish import Runeglish
 from rune_decrypter_prime.utils.seed_utils_periodic_columnar import SeedPlan, generate_seed_keys_periodic_columnar
-from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext_string
+from tutorials.v1.data.plaintext_fixtures import long_plaintext_string
 ALPHABET_SIZE = 29
 
 def _word_aligned_prefix_len(wli: list[list[int]], target: int) -> int:

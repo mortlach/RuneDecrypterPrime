@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 
 from rdp import api
-from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
-from rune_decrypter_prime.utils.scheduled_stream_lookup_tutorial_utils import (
+from tutorials.v1.data.plaintext_fixtures import plaintext_english_string
+from tutorials.v1.support.scheduled_stream_lookup import (
     build_ciphertext,
     concat_keys,
     encode_plaintext,

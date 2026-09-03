@@ -12,9 +12,9 @@ import numpy as np
 from rdp import api
 from tutorials.v1.data.two_period_cribs_demo import encrypt_interruptor_fixture
 from rdp.data.runeglish import Runeglish
-from rune_decrypter_prime.utils import tutorial_pretty as pretty
-from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
-from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
+from tutorials.v1.support import tutorial_pretty as pretty
+from tutorials.v1.support.tutorial_output import print_tutorial_debug_preview
+from tutorials.v1.support.tutorial_utils import oracle_stop_score, print_stop_summary
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 KEY = [7, 0, 13, 2, 0]

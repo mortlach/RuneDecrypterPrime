@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.config.scoring import ScoringConfig
-from rune_decrypter_prime.utils import tutorial_utils
+from tutorials.v1.support import tutorial_utils
 pytestmark = pytest.mark.tier_a
 
 class _FakeScorer:

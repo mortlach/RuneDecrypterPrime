@@ -2,8 +2,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import pytest
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
-from rune_decrypter_prime.utils.scheduled_stream_lookup_tutorial_utils import make_real_solve_solver
+from tutorials.v1.support.tutorial_benchmark import TutorialAcceptanceKind
+from tutorials.v1.support.scheduled_stream_lookup import make_real_solve_solver
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / 'tutorials' / 'v1' / 'tutorial_manifest_v1.json'
 pytestmark = pytest.mark.tier_a

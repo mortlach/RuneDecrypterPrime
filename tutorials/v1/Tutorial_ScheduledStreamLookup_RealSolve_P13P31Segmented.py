@@ -8,9 +8,9 @@ _ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / 'src'
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
-from rune_decrypter_prime.utils import tutorial_pretty as pretty
-from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
-from rune_decrypter_prime.utils.scheduled_stream_lookup_tutorial_utils import build_ciphertext, concat_keys, default_scorer_params, encode_plaintext, key_period13, key_period31, make_real_solve_solver, mask_from_segments
+from tutorials.v1.support import tutorial_pretty as pretty
+from tutorials.v1.data.plaintext_fixtures import plaintext_english_string
+from tutorials.v1.support.scheduled_stream_lookup import build_ciphertext, concat_keys, default_scorer_params, encode_plaintext, key_period13, key_period31, make_real_solve_solver, mask_from_segments
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 MIN_MATCH_RATIO = 0.9

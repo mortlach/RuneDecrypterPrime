@@ -13,7 +13,7 @@ from rdp.api.display import (
     print_block,
 )
 from rdp.scoring.language_model.load_status import LmLoadStatus
-from rune_decrypter_prime.utils.tutorial_output import tutorial_debug_preview_block
+from tutorials.v1.support.tutorial_output import tutorial_debug_preview_block
 
 TRUTH_REFERENCE_USE = "stop-score calibration; not supplied to solver ranking"
 

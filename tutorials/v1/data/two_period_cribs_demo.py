@@ -11,7 +11,7 @@ from typing import Sequence
 
 import numpy as np
 
-from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1, word_breaks1
+from tutorials.v1.data.plaintext_fixtures import plaintext1, word_breaks1
 from rdp import api
 from rdp.core.config.cipher import materialize_cipher_config
 from rdp.core.engine.builders import build_cipher

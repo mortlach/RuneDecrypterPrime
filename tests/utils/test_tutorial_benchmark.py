@@ -1,6 +1,6 @@
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialBenchmarkOutcome, TutorialBenchmarkSummary, TutorialRunKind, TutorialStopPolicy, TutorialStopReason, TutorialTruthPolicy, build_tutorial_benchmark_summary
+from tutorials.v1.support.tutorial_benchmark import TutorialBenchmarkOutcome, TutorialBenchmarkSummary, TutorialRunKind, TutorialStopPolicy, TutorialStopReason, TutorialTruthPolicy, build_tutorial_benchmark_summary
 
 def test_tutorial_benchmark_target_match_pass() -> None:
     summary = build_tutorial_benchmark_summary(run_kind=TutorialRunKind.REAL_KEY_RECOVERY_BENCHMARK, truth_policy=TutorialTruthPolicy.KNOWN_PLAINTEXT_REFERENCE, stop_policy=TutorialStopPolicy(readable_match_ratio=0.8, target_match_ratio=0.95), plaintext_idx=[1, 2, 3, 4], reference_idx=[1, 2, 3, 4], score=0.57, evals=100, tokens=1000, wall_time_s=2.5)

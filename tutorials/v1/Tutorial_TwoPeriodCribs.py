@@ -8,10 +8,10 @@ SRC = ROOT / 'src'
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 from rdp import api
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialRunKind, TutorialStopPolicy
-from rune_decrypter_prime.utils.tutorial_reference import TutorialReference
-from rune_decrypter_prime.utils.tutorial_session_report import print_tutorial_session_report
-from rune_decrypter_prime.utils import tutorial_pretty as pretty
+from tutorials.v1.support.tutorial_benchmark import TutorialRunKind, TutorialStopPolicy
+from tutorials.v1.support.tutorial_reference import TutorialReference
+from tutorials.v1.support.tutorial_session_report import print_tutorial_session_report
+from tutorials.v1.support import tutorial_pretty as pretty
 from data.two_period_cribs_demo import build_demo_fixture
 PERIOD_A = 13
 PERIOD_B = 31

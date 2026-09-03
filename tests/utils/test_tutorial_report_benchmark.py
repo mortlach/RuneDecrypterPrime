@@ -1,7 +1,7 @@
 from __future__ import annotations
 from types import SimpleNamespace
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialRunKind, TutorialStopPolicy, TutorialTruthPolicy, build_tutorial_benchmark_summary
-from rune_decrypter_prime.utils.tutorial_report import build_tutorial_run_report, render_tutorial_run_report
+from tutorials.v1.support.tutorial_benchmark import TutorialRunKind, TutorialStopPolicy, TutorialTruthPolicy, build_tutorial_benchmark_summary
+from tutorials.v1.support.tutorial_report import build_tutorial_run_report, render_tutorial_run_report
 
 def test_tutorial_report_includes_benchmark_summary_section() -> None:
     solution = SimpleNamespace(key=[3, 1, 4], plaintext_idx=[1, 2, 3, 4], plaintext_rune='ᚠᚢᚦᚩ', score=0.75, meta={})

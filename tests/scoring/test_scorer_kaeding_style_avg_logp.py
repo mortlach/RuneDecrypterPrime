@@ -13,7 +13,7 @@ from rdp.scoring.language_model.paths import (
     load_index,
     expand_pattern,
 )
-from rune_decrypter_prime.data.cipher_tests.plaintext import (
+from tutorials.v1.data.plaintext_fixtures import (
     long_plaintext,
     plaintext1,
     plaintext1_rev,

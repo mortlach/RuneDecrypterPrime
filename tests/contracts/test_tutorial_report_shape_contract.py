@@ -1,6 +1,6 @@
 from __future__ import annotations
 from types import SimpleNamespace
-from rune_decrypter_prime.utils.tutorial_report import SCHEMA, build_tutorial_run_report
+from tutorials.v1.support.tutorial_report import SCHEMA, build_tutorial_run_report
 
 def test_tutorial_report_top_level_shape_is_stable() -> None:
     solution = SimpleNamespace(

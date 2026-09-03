@@ -2,7 +2,7 @@ from __future__ import annotations
 import pytest
 from rdp.core.types import Direction
 from rdp.data.runeglish import Runeglish
-from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview, tutorial_debug_preview_block, tutorial_debug_preview_lines
+from tutorials.v1.support.tutorial_output import print_tutorial_debug_preview, tutorial_debug_preview_block, tutorial_debug_preview_lines
 
 def test_tutorial_debug_preview_prints_unambiguous_text_views() -> None:
     idx, wli, _ = Runeglish.encode_english_to_runes('READ THE WORDS', direction=Direction.RTL)

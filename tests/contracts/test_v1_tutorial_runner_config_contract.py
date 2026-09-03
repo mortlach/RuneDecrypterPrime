@@ -3,8 +3,8 @@ import importlib.util
 import sys
 from pathlib import Path
 import pytest
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
-from rune_decrypter_prime.utils.tutorial_runner import ConsoleOutput, TutorialEntry, TutorialRunSet
+from tutorials.v1.support.tutorial_benchmark import TutorialAcceptanceKind
+from tutorials.v1.support.tutorial_runner import ConsoleOutput, TutorialEntry, TutorialRunSet
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TUTORIAL_DIR = REPO_ROOT / 'tutorials' / 'v1'
 RUNNER = TUTORIAL_DIR / 'run_tutorials.py'
@@ -57,7 +57,7 @@ def test_single_runner_uses_shared_package_runner_model() -> None:
     assert 'class ConsoleOutput' not in text
     assert 'class TutorialEntry' not in text
     assert 'class TutorialResult' not in text
-    assert 'from rune_decrypter_prime.utils.tutorial_runner import' in text
+    assert 'from tutorials.v1.support.tutorial_runner import' in text
 
 def test_single_runner_prints_rdp_startup_before_compact_output_policy() -> None:
     text = RUNNER.read_text(encoding='utf-8')

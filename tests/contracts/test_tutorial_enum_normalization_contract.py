@@ -1,6 +1,6 @@
 from __future__ import annotations
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialBenchmarkOutcome, TutorialBenchmarkSummary, TutorialRunKind, TutorialStopPolicy, TutorialStopReason, TutorialTruthPolicy, build_tutorial_benchmark_summary
-from rune_decrypter_prime.utils.tutorial_reference import TutorialReference
+from tutorials.v1.support.tutorial_benchmark import TutorialBenchmarkOutcome, TutorialBenchmarkSummary, TutorialRunKind, TutorialStopPolicy, TutorialStopReason, TutorialTruthPolicy, build_tutorial_benchmark_summary
+from tutorials.v1.support.tutorial_reference import TutorialReference
 
 def test_tutorial_boundary_strings_normalize_to_enum_instances() -> None:
     summary = build_tutorial_benchmark_summary(run_kind='real_key_recovery_benchmark', truth_policy='known_plaintext_reference', stop_policy=TutorialStopPolicy(), plaintext_idx=[1, 2, 3], reference_idx=[1, 2, 3])

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from tests._helpers.reports import make_solver_report
 from types import SimpleNamespace
-from rune_decrypter_prime.utils.tutorial_report import build_tutorial_run_report
+from tutorials.v1.support.tutorial_report import build_tutorial_run_report
 
 def test_tutorial_report_falls_back_to_solution_when_report_fields_are_none() -> None:
     solution = SimpleNamespace(

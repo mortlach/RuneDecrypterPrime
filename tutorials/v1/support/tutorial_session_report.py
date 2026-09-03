@@ -3,9 +3,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialRunKind, TutorialStopPolicy
-from rune_decrypter_prime.utils.tutorial_reference import TutorialReference
-from rune_decrypter_prime.utils.tutorial_report import build_tutorial_run_report, render_tutorial_run_report
+from tutorials.v1.support.tutorial_benchmark import TutorialRunKind, TutorialStopPolicy
+from tutorials.v1.support.tutorial_reference import TutorialReference
+from tutorials.v1.support.tutorial_report import build_tutorial_run_report, render_tutorial_run_report
 
 
 def build_tutorial_session_report(

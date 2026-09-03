@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 from tests._helpers.baseline_registry import BASELINE
-from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1, word_breaks1
+from tutorials.v1.data.plaintext_fixtures import plaintext1, word_breaks1
 A = 29
 
 def enc_vigenere_idx(pt: np.ndarray, key: np.ndarray) -> np.ndarray:

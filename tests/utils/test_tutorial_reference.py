@@ -1,8 +1,8 @@
 from __future__ import annotations
 from types import SimpleNamespace
 import pytest
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialRunKind, TutorialStopPolicy, TutorialTruthPolicy
-from rune_decrypter_prime.utils.tutorial_reference import TutorialReference
+from tutorials.v1.support.tutorial_benchmark import TutorialRunKind, TutorialStopPolicy, TutorialTruthPolicy
+from tutorials.v1.support.tutorial_reference import TutorialReference
 
 def test_tutorial_reference_can_be_created_before_vectors_are_attached() -> None:
     ref = TutorialReference.plaintext(label='demo')

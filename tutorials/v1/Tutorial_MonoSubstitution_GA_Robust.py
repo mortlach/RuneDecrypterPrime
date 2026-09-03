@@ -11,10 +11,10 @@ _SRC = _ROOT / 'src'
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 import numpy as np
-from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
+from tutorials.v1.data.plaintext_fixtures import plaintext_english_string
 from rdp.data.runeglish import Runeglish
 from rdp.solvers.seed_generation import make_seeds_from_freq
-from rune_decrypter_prime.utils import tutorial_pretty as pretty
+from tutorials.v1.support import tutorial_pretty as pretty
 DIRECTION = api.TextDirection.LEFT_TO_RIGHT
 CIPHERTEXT_SEED = 20260822
 ATTEMPT_SEEDS = (20260831, 20260832, 20260833)

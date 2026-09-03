@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 from rdp.core.types import Direction
-from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext_string
+from tutorials.v1.data.plaintext_fixtures import long_plaintext_string
 from rune_decrypter_prime.utils.text_scoring_comparison import compare_two_texts, default_scoring_methods
 
 def _randomize_letters_preserving_spaces(text: str, *, seed: int) -> str:

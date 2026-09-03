@@ -7,10 +7,10 @@ _ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / 'src'
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
-from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
+from tutorials.v1.data.plaintext_fixtures import plaintext_english_string
 from rdp.data.runeglish import Runeglish
-from rune_decrypter_prime.utils.tutorial_output import tutorial_debug_preview_block
-from rune_decrypter_prime.utils.tutorial_utils import format_stop_summary, oracle_stop_score
+from tutorials.v1.support.tutorial_output import tutorial_debug_preview_block
+from tutorials.v1.support.tutorial_utils import format_stop_summary, oracle_stop_score
 '\nTutorial variant: Columnar Transposition with the standard RDP printer facade.\n\nThis file intentionally lives beside the original tutorial. The original remains\nstable while this variant proves the new display/printer contract.\n'
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')

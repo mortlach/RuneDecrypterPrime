@@ -1,7 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
-from rune_decrypter_prime.utils.tutorial_runner import TutorialEntry, TutorialResult, evaluate_tutorial_acceptance, repo_relpath
+from tutorials.v1.support.tutorial_benchmark import TutorialAcceptanceKind
+from tutorials.v1.support.tutorial_runner import TutorialEntry, TutorialResult, evaluate_tutorial_acceptance, repo_relpath
 
 def test_process_success_acceptance_does_not_require_match_ratio() -> None:
     entry = TutorialEntry('Tutorial_A.py', 1.0, TutorialAcceptanceKind.PROCESS_SUCCESS)

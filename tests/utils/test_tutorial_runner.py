@@ -1,8 +1,8 @@
 from __future__ import annotations
 from pathlib import Path
 import pytest
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
-from rune_decrypter_prime.utils.tutorial_runner import ConsoleOutput, TutorialEntry, TutorialRunSet, parse_match_ratio, repo_relpath, select_tutorials, tail_text, validate_tutorial_entries
+from tutorials.v1.support.tutorial_benchmark import TutorialAcceptanceKind
+from tutorials.v1.support.tutorial_runner import ConsoleOutput, TutorialEntry, TutorialRunSet, parse_match_ratio, repo_relpath, select_tutorials, tail_text, validate_tutorial_entries
 
 def test_tutorial_runner_enums_are_plain_stable_labels() -> None:
     assert [item.value for item in TutorialRunSet] == ['fast', 'release', 'extended', 'partial_recovery', 'ci_light', 'full_assets', 'all_working']

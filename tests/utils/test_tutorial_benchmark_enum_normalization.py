@@ -1,6 +1,6 @@
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialBenchmarkOutcome, TutorialBenchmarkSummary, TutorialRunKind, TutorialStopPolicy, TutorialStopReason, TutorialTruthPolicy, build_tutorial_benchmark_summary
+from tutorials.v1.support.tutorial_benchmark import TutorialBenchmarkOutcome, TutorialBenchmarkSummary, TutorialRunKind, TutorialStopPolicy, TutorialStopReason, TutorialTruthPolicy, build_tutorial_benchmark_summary
 
 def test_builder_normalizes_string_enum_domains() -> None:
     summary = build_tutorial_benchmark_summary(run_kind='real_key_recovery_benchmark', truth_policy='known_plaintext_reference', stop_policy=TutorialStopPolicy(), plaintext_idx=[1, 2, 3], reference_idx=[1, 2, 3])

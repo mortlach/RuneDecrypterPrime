@@ -1,7 +1,7 @@
 from __future__ import annotations
 from rdp import api
 from types import SimpleNamespace
-from rune_decrypter_prime.utils.tutorial_report import (
+from tutorials.v1.support.tutorial_report import (
     SCHEMA,
     build_tutorial_run_report,
     render_tutorial_run_report,

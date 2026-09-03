@@ -1,6 +1,6 @@
 from __future__ import annotations
 from types import SimpleNamespace
-from rune_decrypter_prime.utils.tutorial_report import build_tutorial_run_report
+from tutorials.v1.support.tutorial_report import build_tutorial_run_report
 
 def test_tutorial_report_preserves_scorer_lanes_dict_payload() -> None:
     solution = SimpleNamespace(

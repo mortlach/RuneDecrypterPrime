@@ -24,7 +24,7 @@ from cipher_development.shared.experiment import (
 from rdp.core.config.cipher import materialize_cipher_config
 from rdp.core.engine.builders import build_cipher, build_scorer
 from rdp.core.problem.runtime import DecryptionProblem
-from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext_string
+from tutorials.v1.data.plaintext_fixtures import long_plaintext_string
 from rdp.data.runeglish import Runeglish
 from rdp.solvers.seed_generation import make_periodic_seed_pool
 

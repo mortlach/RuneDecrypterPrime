@@ -12,7 +12,7 @@ from rdp.core.types import (
 from rdp.keyops.periodic_structured_matrix_ops import (
     PeriodicStructuredMatrixKeyOps,
 )
-from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext_string
+from tutorials.v1.data.plaintext_fixtures import long_plaintext_string
 from rdp.scoring.language_model.language_model_prime import LanguageModelPrime
 from rdp.data.runeglish import Runeglish
 from tests.scoring._helpers.lm_test_guard import require_full_lm_assets

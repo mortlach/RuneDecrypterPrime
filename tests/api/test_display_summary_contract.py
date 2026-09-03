@@ -6,7 +6,7 @@ from pathlib import Path
 from dataclasses import replace
 import pytest
 from rdp.core.config.solution import Solution
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
+from tutorials.v1.support.tutorial_benchmark import TutorialAcceptanceKind
 from tests._helpers.reports import completed_status, make_solver_report
 
 def _solution() -> Solution:

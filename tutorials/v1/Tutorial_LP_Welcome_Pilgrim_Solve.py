@@ -10,8 +10,8 @@ _SRC = _ROOT / 'src'
 for path in (_ROOT, _SRC):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
-from rune_decrypter_prime.utils import tutorial_pretty as pretty
-from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
+from tutorials.v1.support import tutorial_pretty as pretty
+from tutorials.v1.support.tutorial_output import print_tutorial_debug_preview
 _SOLVE_SCRIPT = _ROOT / 'solving' / 'solved_lp' / '02_Welcome_Pilgrim.py'
 
 def _load_workbook():

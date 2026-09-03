@@ -1,5 +1,5 @@
 from __future__ import annotations
-from rune_decrypter_prime.utils.tutorial_utils import StopScoreResult, format_stop_summary, print_stop_summary, stop_summary_rows
+from tutorials.v1.support.tutorial_utils import StopScoreResult, format_stop_summary, print_stop_summary, stop_summary_rows
 
 def test_stop_summary_rows_include_oracle_stop_and_status() -> None:
     result = StopScoreResult(oracle_score=0.5, stop_score=0.48, reason='oracle_ok')

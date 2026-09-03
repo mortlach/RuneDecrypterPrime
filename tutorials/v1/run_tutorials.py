@@ -8,9 +8,9 @@ SRC = ROOT / 'src'
 TUTORIAL_DIR = Path(__file__).resolve().parent
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
-from rune_decrypter_prime.utils import tutorial_pretty as pretty
-from rune_decrypter_prime.utils.tutorial_runner import ConsoleOutput, TutorialEntry, TutorialResult, TutorialRunSet, evaluate_tutorial_acceptance, parse_match_ratio, repo_relpath, select_tutorials, tail_text, validate_tutorial_entries
+from tutorials.v1.support.tutorial_benchmark import TutorialAcceptanceKind
+from tutorials.v1.support import tutorial_pretty as pretty
+from tutorials.v1.support.tutorial_runner import ConsoleOutput, TutorialEntry, TutorialResult, TutorialRunSet, evaluate_tutorial_acceptance, parse_match_ratio, repo_relpath, select_tutorials, tail_text, validate_tutorial_entries
 RUN_SET = TutorialRunSet.RELEASE
 CONSOLE_OUTPUT = ConsoleOutput.COMPACT
 STOP_ON_FIRST_FAILURE = False

@@ -60,7 +60,7 @@ def test_special_route_passes_search_interruptor_config_without_legacy_projectio
 
 @pytest.mark.full_assets
 def test_real_route_returns_standard_exact_solution_with_installed_assets():
-    from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1, word_breaks1
+    from tutorials.v1.data.plaintext_fixtures import plaintext1, word_breaks1
     word_starts = [index for index, pair in enumerate(word_breaks1) if int(pair[0]) == 0]
     word_ends = {index + 1 for index, pair in enumerate(word_breaks1) if int(pair[0]) == int(pair[1]) - 1}
     sample_start = next((index for index in word_starts if index + 308 in word_ends))

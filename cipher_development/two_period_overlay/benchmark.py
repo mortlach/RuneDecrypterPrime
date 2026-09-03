@@ -45,7 +45,7 @@ def build_rdp_case(
     from rdp.core.engine.builders import build_cipher
     from rdp.core.problem.runtime import DecryptionProblem
     from rdp.core.types import Direction
-    from rune_decrypter_prime.data.cipher_tests.plaintext import (
+    from tutorials.v1.data.plaintext_fixtures import (
         plaintext1,
         word_breaks1,
     )

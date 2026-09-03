@@ -6,11 +6,11 @@ _ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / 'src'
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
-from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext_english_string
+from tutorials.v1.data.plaintext_fixtures import plaintext_english_string
 from rdp.data.runeglish import Runeglish
-from rune_decrypter_prime.utils import tutorial_pretty as pretty
-from rune_decrypter_prime.utils.tutorial_output import print_tutorial_debug_preview
-from rune_decrypter_prime.utils.tutorial_utils import oracle_stop_score, print_stop_summary
+from tutorials.v1.support import tutorial_pretty as pretty
+from tutorials.v1.support.tutorial_output import print_tutorial_debug_preview
+from tutorials.v1.support.tutorial_utils import oracle_stop_score, print_stop_summary
 '\nTutorial variant: Vigenere via the General Map API with the standard RDP printer.\n\nThe original tutorial remains unchanged; this variant proves the printer facade.\n'
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')

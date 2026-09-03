@@ -11,7 +11,7 @@ Tutorial and benchmark runs are allowed to use known plaintext/key references wh
 
 ## Typed framework
 
-`rune_decrypter_prime.utils.tutorial_benchmark` defines:
+`tutorials.v1.support.tutorial_benchmark` defines:
 
 - `TutorialRunKind`
 - `TutorialTruthPolicy`

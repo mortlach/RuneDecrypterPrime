@@ -16,8 +16,8 @@ for _import_root in (_ROOT, _SRC):
 import numpy as np
 from rdp import api
 
-from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext_string
-from rune_decrypter_prime.utils import tutorial_pretty as pretty
+from tutorials.v1.data.plaintext_fixtures import long_plaintext_string
+from tutorials.v1.support import tutorial_pretty as pretty
 from rdp.data.runeglish import Runeglish
 from tutorials.v1.data.periodic_columnar_p7_warm_start import (
     QUALIFICATION_CANDIDATE_ID,

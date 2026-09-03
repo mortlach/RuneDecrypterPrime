@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import numpy as np
 import pytest
-from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext
+from tutorials.v1.data.plaintext_fixtures import long_plaintext
 from rdp.scoring.span_hamming import SpanCalibratedAssets, SpanHammingBackend, SpanHammingConfig, SpanHammingLmAssetsV2
 from tests.scoring.span_hamming._lm_robustness_helpers import SpanHammingBenchmarkRuntimeConfig, corrupt_with_random, make_block_shuffle, make_fragment_soup, make_random_text, score_text_with_assets, summarize_numeric
 pytestmark = pytest.mark.tier_a

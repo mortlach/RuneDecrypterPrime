@@ -1,6 +1,6 @@
 # D7 tutorial benchmark match-ratio addendum
 
-Superseded by the source contract in `rune_decrypter_prime.utils.tutorial_benchmark` and its tests.
+Superseded by the source contract in `tutorials.v1.support.tutorial_benchmark` and its tests.
 
 Current D7 rule:
 

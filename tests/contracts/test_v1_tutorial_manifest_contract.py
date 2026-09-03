@@ -4,7 +4,7 @@ import json
 import sys
 from pathlib import Path
 from types import ModuleType
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
+from tutorials.v1.support.tutorial_benchmark import TutorialAcceptanceKind
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TUTORIAL_ROOT = REPO_ROOT / 'tutorials' / 'v1'
 MANIFEST = TUTORIAL_ROOT / 'tutorial_manifest_v1.json'

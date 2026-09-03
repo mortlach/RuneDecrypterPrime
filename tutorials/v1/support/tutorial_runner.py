@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from rune_decrypter_prime.utils.tutorial_benchmark import TutorialAcceptanceKind
+from tutorials.v1.support.tutorial_benchmark import TutorialAcceptanceKind
 
 
 class TutorialRunSet(StrEnum):
