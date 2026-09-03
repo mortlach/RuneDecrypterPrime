@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 import numpy as np
-from rune_decrypter_prime.utils.solve_output import as_int_list, collect_solver_attempt, json_value, match_ratio, print_block, render_plaintext, write_json_evidence, zero_positions
+from solving.solve_output import as_int_list, collect_solver_attempt, json_value, match_ratio, print_block, render_plaintext, write_json_evidence, zero_positions
 
 def test_as_int_list_accepts_plain_and_numpy_values() -> None:
     assert as_int_list([1, '2', 3]) == [1, 2, 3]

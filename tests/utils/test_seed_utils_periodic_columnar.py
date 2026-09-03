@@ -16,7 +16,7 @@ from tutorials.v1.data.plaintext_fixtures import long_plaintext_string
 from rdp.scoring.language_model.language_model_prime import LanguageModelPrime
 from rdp.data.runeglish import Runeglish
 from tests.scoring._helpers.lm_test_guard import require_full_lm_assets
-from rune_decrypter_prime.utils.seed_utils_periodic_columnar import SeedPlan, generate_seed_keys_periodic_columnar
+from cipher_development.periodic_columnar_staged.seed_utils_periodic_columnar import SeedPlan, generate_seed_keys_periodic_columnar
 pytestmark = pytest.mark.tier_a
 ALPHABET_SIZE = 29
 

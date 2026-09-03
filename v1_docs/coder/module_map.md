@@ -11,16 +11,16 @@ packages. Importability does not make an engine module public.
 | `src/rdp/backends/` | Optional compute-backend selection. | Internal/contributor |
 | `src/rdp/core/` | Canonical component contracts, runtime configuration, and problem materialisation. | Internal/contributor |
 | `src/rdp/ciphers/` | Runtime cipher implementations and exact materializers. | Internal/contributor |
-| `src/rune_decrypter_prime/core/` | Runtime engine orchestration retained until its later AN4 move. | Internal |
 | `src/rdp/data/` | Liber Primus runtime data, rune translation, and asset resolution. | Internal except promoted data API |
-| `src/rune_decrypter_prime/data/` | Retained fixtures, corpora, and wordlists awaiting their later AN4 move. | Internal/test support |
 | `src/rdp/io/` | Logging, artifact paths, and deterministic I/O support. | Internal |
 | `src/rdp/keyops/` | Key generation, validation, mutation, and batching. | Internal/contributor |
 | `src/rdp/scoring/` | Candidate ranking and scorer reports. | Internal except promoted report types |
 | `src/rdp/solvers/` | Search algorithms over key spaces. | Internal/contributor |
 | `src/rdp/telemetry/` | Structured runtime evidence. | Internal |
-| `src/rune_decrypter_prime/utils/` | Focused tutorial and text utilities. | Internal/test support |
 | `tutorials/v1/` | Active typed V1 examples and runner. | User-facing |
+| `cipher_development/` | Cipher-development experiments and their specialised analysis helpers. | Contributor |
+| `solving/` | Real solve workbooks and solve-output support. | User/contributor |
+| `tools/robustness/fixtures/` | Robustness-campaign fixture loaders and book corpora. | Tooling/test support |
 | `tests/` | Contract, regression, installation, and runtime tests. | Test-only |
 
 ## Public ownership

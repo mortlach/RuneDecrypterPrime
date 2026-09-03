@@ -64,8 +64,6 @@ exclude = [
   "rdp.ciphers.dev.*",
   "rdp.keyops.dev",
   "rdp.keyops.dev.*",
-  "rune_decrypter_prime.data.liber_primus.old",
-  "rune_decrypter_prime.data.liber_primus.old.*",
 ]
 
 [tool.setuptools.package-data]
@@ -101,9 +99,8 @@ extend-exclude = ["src/rdp/ciphers/dev"]
 "src/rdp/solvers/ga.py" = ["E702"]
 "src/rdp/solvers/sa.py" = ["E702", "E741"]
 "src/rdp/solvers/solver_base.py" = ["E702"]
-"src/rune_decrypter_prime/utils/pretty.py" = ["E701", "E702", "E731"]
+"tutorials/v1/support/tutorial_pretty.py" = ["E701", "E702", "E731"]
 "src/rdp/data/runeglish.py" = ["E702", "E741", "F811"]
-"src/rune_decrypter_prime/utils/seed_utils.py" = ["E702"]
 "tests/api/test_run_logging_routing.py" = ["E731"]
 "tests/api/test_run_routing.py" = ["E731"]
 "tests/ciphers/test_substitution_interruptor_pipeline.py" = ["F841"]

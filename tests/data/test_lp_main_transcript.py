@@ -1,6 +1,8 @@
 from __future__ import annotations
+import hashlib
+import json
+
 import rdp.api.data_helpers
-from importlib import util
 from pathlib import Path
 from rdp.data.liber_primus.lp_data import LP_DATA
 from rdp.data.liber_primus.lp_registry import LPFragmentLocator, LPPageRef, build_red_rune_17_partition
@@ -12,14 +14,6 @@ def _canon_num(value: object) -> int | None:
         return None
     stem = str(value).split('.', 1)[0]
     return int(stem) if stem.isdigit() else None
-
-def _load_old_5455(path: Path) -> tuple[list[int], list[list[int]]]:
-    spec = util.spec_from_file_location('old_5455', path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f'Unable to load old data from {path}')
-    module = util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return (list(getattr(module, 'CT_5455')), list(getattr(module, 'WLI_5455')))
 
 def test_main_transcript_canon_mapping():
     doc = load_main_transcript(attach_catalogue=True)
@@ -43,16 +37,15 @@ def test_lp_sections_match_transcript_pages_and_ct():
         assert len(wli) == len(ct_idx)
 
 def test_pages_54_55_match_old_5455():
-    root = Path(__file__).resolve().parents[2]
-    old_path = root / 'src' / 'rune_decrypter_prime' / 'data' / 'liber_primus' / 'old' / '5455.py'
-    old_ct, old_wli = _load_old_5455(old_path)
     doc = load_main_transcript(attach_catalogue=True)
     p54 = doc.page_by_canon('54.jpg')
     p55 = doc.page_by_canon('55.jpg')
     span = doc.glyph_span(p54.rec.g_start, p55.rec.g_end - p54.rec.g_start)
     ct_idx, wli = span.ct_wli()
-    assert ct_idx == old_ct
-    assert wli == old_wli
+    payload = json.dumps([ct_idx, wli], separators=(',', ':')).encode()
+    assert hashlib.sha256(payload).hexdigest() == (
+        'c97db5c89a82ec66b9710b2076c9e5b9ebc677c9bc1b0075a6bc29982848ce8f'
+    )
 
 def test_pages_54_55_span_matches_master_section_and_crosses_boundary():
     doc = load_main_transcript(attach_catalogue=True)

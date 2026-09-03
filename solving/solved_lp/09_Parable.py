@@ -8,7 +8,7 @@ for path in (ROOT, SRC):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 import rdp.data.liber_primus as lp
-from rune_decrypter_prime.utils.solve_output import configure_utf8_stdio, page_value, print_final_result, render_plaintext
+from solving.solve_output import configure_utf8_stdio, page_value, print_final_result, render_plaintext
 configure_utf8_stdio()
 SOURCE_LABEL = 'parable'
 RECIPE_LABEL = 'recipe.parable.constant_shift_zero_replay'

@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 WHEEL_DIRS = (ROOT / 'wheelhouse', ROOT / 'dist')
 SDIST_DIR = ROOT / 'dist'
 CI_MANIFEST = ROOT / 'assets_manifest_ci_light_v1.json'
-BLOCKED = ('rdp/ciphers/dev/', 'rune_decrypter_prime/keyops/dev/', 'rune_decrypter_prime/data/liber_primus/old/', 'rune_decrypter_prime/scoring/')
+BLOCKED = ('rdp/ciphers/dev/', 'rune_decrypter_prime/keyops/dev/', 'rune_decrypter_prime/scoring/')
 REQUIRED_NATIVE_STEMS = ('_fastlm', '_hamming', '_span_hamming_fast')
 REQUIRED_NATIVE_PREFIXES = (
     'rdp/scoring/language_model/_fastlm',
@@ -86,7 +86,11 @@ def main() -> int:
         for prefix in REQUIRED_NATIVE_PREFIXES:
             if not any((n.startswith(prefix) for n in names)):
                 raise AssertionError(f'native module has wrong qualified path: {prefix}')
-        if any(('_ngram_hamming_fast' in n for n in names)):
+        if any(
+            PurePosixPath(n).name.startswith('_ngram_hamming_fast.')
+            and PurePosixPath(n).suffix in {'.pyd', '.so'}
+            for n in names
+        ):
             raise AssertionError('experimental _ngram_hamming_fast must remain unbuilt')
         if WHEEL_CI_MANIFEST not in names_set:
             raise AssertionError('packaged CI-light manifest missing')

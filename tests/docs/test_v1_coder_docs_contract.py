@@ -96,14 +96,14 @@ def test_module_map_covers_top_level_source_packages() -> None:
         "src/rdp/io/",
         "src/rdp/telemetry/",
         "src/rdp/ciphers/",
-        "src/rune_decrypter_prime/core/",
-        "src/rune_decrypter_prime/data/",
         "src/rdp/keyops/",
         "src/rdp/scoring/",
         "src/rdp/solvers/",
-        "src/rune_decrypter_prime/utils/",
         "src/rdp/api/",
         "tutorials/v1/",
+        "cipher_development/",
+        "solving/",
+        "tools/robustness/fixtures/",
         "tests/",
     }
     for relpath in sorted(expected_paths):

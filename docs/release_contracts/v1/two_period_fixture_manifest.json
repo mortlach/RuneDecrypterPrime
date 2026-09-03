@@ -45,7 +45,7 @@
     },
     {
       "path": "cipher_development/two_period_overlay/benchmark.py",
-      "sha256": "97826298d6075bcb5bcd83cfbf5123a4b1c2cb224d3b8d46819e326f731e4528",
+      "sha256": "6c42d9664e528e6e1021e2273ea1ffb1c86e13f0c134fc9ba5eaf0f606ce2208",
       "role": "recursive local dependency"
     },
     {

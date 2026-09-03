@@ -26,8 +26,6 @@ _PACKAGE_EXCLUDES = [
     "rdp.ciphers.dev.*",
     "rdp.keyops.dev",
     "rdp.keyops.dev.*",
-    "rune_decrypter_prime.data.liber_primus.old",
-    "rune_decrypter_prime.data.liber_primus.old.*",
 ]
 
 

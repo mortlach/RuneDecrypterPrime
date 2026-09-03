@@ -61,7 +61,10 @@ import importlib.util
 for name in (
     'rune_decrypter_prime.solvers',
     'rune_decrypter_prime.solvers.beam',
+    'rune_decrypter_prime.utils',
     'rune_decrypter_prime.utils.seed_utils',
+    'rune_decrypter_prime.data.cipher_tests',
+    'rune_decrypter_prime.data.wordlists',
 ):
     try:
         found = importlib.util.find_spec(name)

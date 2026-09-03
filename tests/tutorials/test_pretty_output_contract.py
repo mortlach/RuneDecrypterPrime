@@ -53,7 +53,7 @@ def test_active_pretty_tutorials_declare_standard_contract_blocks() -> None:
 
 def test_shared_stop_summary_prints_model_loading_before_stop_target() -> None:
     root = Path(__file__).resolve().parents[2]
-    source = (root / 'src' / 'rune_decrypter_prime' / 'utils' / 'tutorial_utils.py').read_text(encoding='utf-8')
+    source = (root / 'tutorials' / 'v1' / 'support' / 'tutorial_utils.py').read_text(encoding='utf-8')
     assert 'load_events: tuple[LmLoadStatus, ...]' in source
     assert 'print_model_loading(result.load_events)' in source
     assert 'format_stop_summary(label, result)' in source

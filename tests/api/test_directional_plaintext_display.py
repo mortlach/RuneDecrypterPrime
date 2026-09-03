@@ -4,7 +4,7 @@ import numpy as np
 from rdp.core.config.solution import Solution
 from rdp.core.types import Direction
 from rdp.data.runeglish import Runeglish
-from rune_decrypter_prime.utils.solve_output import render_plaintext
+from solving.solve_output import render_plaintext
 
 def test_ensure_plaintext_rune_uses_encoding_direction_for_latin_display() -> None:
     pt_idx, wli, _rune_str = Runeglish.encode_english_to_runes('READ EARTH AETHER', direction='rtl')

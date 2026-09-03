@@ -1,35 +1,68 @@
 from __future__ import annotations
+
+from rdp import api
 import pytest
-from rdp.core.config.solution import Solution
-from rune_decrypter_prime.utils.pretty import print_run_report
+from tests._helpers.reports import completed_status, make_solver_report
+
 pytestmark = pytest.mark.tier_a
 
-def _make_solution():
-    sol = Solution(key=[1, 2, 3, 4, 9], plaintext=[0, 1], score=0.123)
-    sol.plaintext_idx = [0, 1]
-    sol.plaintext_str = 'AB'
-    sol.meta = {}
-    return sol
 
-def test_print_run_report_includes_interruptors_when_solved(capsys):
-    sol = _make_solution()
-    sol.meta = {'interruptors': {'found': [4, 9], 'core_length': 3}}
-    print_run_report(title='Interruptor Demo', cipher='vigenere', solution=sol, match_ok=None, app_version='test', key_idx=[1, 2, 3, 4, 9], key_len=5)
-    out = capsys.readouterr().out
-    assert 'Interruptors(found): [4, 9]' in out
-    assert 'Interruptors(real) : [4, 9]' in out
-    assert 'Interruptors match: Yes' in out
+def _result(*, telemetry: dict[str, object] | None = None) -> api.RunResult:
+    report = make_solver_report(
+        requested_seed=1,
+        effective_seed=1,
+        parameters={},
+        status=completed_status(api.advanced.StopReason.TARGET_SCORE_REACHED),
+        best_score=0.123,
+        best_key=(1, 2, 3, 4, 9),
+    )
+    return api.RunResult(
+        plaintext=(0, 1),
+        plaintext_text='AB',
+        key=(1, 2, 3, 4, 9),
+        score=0.123,
+        status=report.status,
+        solver_report=report,
+        scorer_report=api.advanced.ScorerReport(
+            objective=api.advanced.ScoringObjective.percentile_log_probability(
+                window_size=10
+            ),
+            score=0.123,
+        ),
+        configuration=api.advanced.RunConfigurationReport(
+            solver=report.parameters,
+            scoring=api.advanced.ConfigurationResolution(),
+            cipher=api.advanced.ConfigurationResolution(),
+        ),
+        reproducibility=api.advanced.ReproducibilityMetadata(),
+        oracle=api.advanced.OracleReport(),
+        telemetry=telemetry or {},
+    )
 
-def test_print_run_report_omits_interruptors_without_meta(capsys):
-    sol = _make_solution()
-    print_run_report(title='Interruptor Demo', cipher='vigenere', solution=sol, match_ok=None, app_version='test')
-    out = capsys.readouterr().out
-    assert 'Interruptors(' not in out
 
-def test_print_run_report_prefers_interruptors_ref(capsys):
-    sol = _make_solution()
-    sol.meta = {'interruptors': {'found': [4, 9], 'expected': [9], 'core_length': 3}}
-    print_run_report(title='Interruptor Demo', cipher='vigenere', solution=sol, match_ok=None, app_version='test', interruptors_ref=[1, 2], key_idx=[1, 2, 3, 4, 9], key_len=5)
-    out = capsys.readouterr().out
-    assert 'Interruptors(found): [4, 9]' in out
-    assert 'Interruptors(real) : [1, 2]' in out
+def test_print_run_report_includes_interruptors_when_solved() -> None:
+    summary = api.display.build_summary(
+        _result(telemetry={'interruptors': {'found': [4, 9], 'core_length': 3}})
+    )
+    assert summary.telemetry['interruptors']['found'] == (4, 9)
+    assert summary.key['recovered_key']['preview'] == (1, 2, 3, 4, 9)
+
+
+def test_print_run_report_omits_interruptors_without_meta() -> None:
+    summary = api.display.build_summary(_result())
+    assert 'interruptors' not in summary.telemetry
+
+
+def test_print_run_report_prefers_interruptors_ref() -> None:
+    summary = api.display.build_summary(
+        _result(
+            telemetry={
+                'interruptors': {
+                    'found': [4, 9],
+                    'expected': [1, 2],
+                    'core_length': 3,
+                }
+            }
+        )
+    )
+    assert summary.telemetry['interruptors']['expected'] == (1, 2)

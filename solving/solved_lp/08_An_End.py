@@ -16,7 +16,7 @@ from rdp.core.types import Direction
 import rdp.data.liber_primus as lp
 from rdp.data.wordlists.loaders import load_short_word_dictionary
 from rdp.data.runeglish import Runeglish
-from rune_decrypter_prime.utils.solve_output import configure_utf8_stdio, match_ratio, page_value, print_block, write_json_evidence, zero_positions
+from solving.solve_output import configure_utf8_stdio, match_ratio, page_value, print_block, write_json_evidence, zero_positions
 configure_utf8_stdio()
 SOURCE_LABEL = 'an_end'
 RECIPE_LABEL = 'recipe.an_end.stream_sequence_interruptors'
