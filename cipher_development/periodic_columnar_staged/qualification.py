@@ -22,7 +22,7 @@ from cipher_development.shared.experiment import (
     WliMode,
 )
 from rdp.core.config.cipher import materialize_cipher_config
-from rune_decrypter_prime.core.engine.builders import build_cipher, build_scorer
+from rdp.core.engine.builders import build_cipher, build_scorer
 from rdp.core.problem.runtime import DecryptionProblem
 from rune_decrypter_prime.data.cipher_tests.plaintext import long_plaintext_string
 from rdp.data.runeglish import Runeglish

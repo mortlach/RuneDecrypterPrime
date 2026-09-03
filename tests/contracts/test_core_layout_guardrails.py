@@ -17,7 +17,11 @@ CONSTRUCTION_BOUNDARY_FILES = {
     RDP_CORE_ROOT / "types.py",
 }
 TELEMETRY_OR_PAYLOAD_DICT_CHECKS = {
-    ENGINE_CORE_ROOT / "engine" / "engine.py": {"tele"},
+    RDP_CORE_ROOT / "engine" / "engine.py": {"tele"},
+    RDP_CORE_ROOT / "engine" / "finalization.py": {
+        'getattr(res, "meta", None)',
+        "payload",
+    },
     RDP_CORE_ROOT / "problem" / "runtime.py": {
         "self.telemetry",
         "sc_tel",
@@ -120,7 +124,13 @@ def test_decryption_problem_uses_direct_canonical_config_attributes() -> None:
     assert 'getattr(self.s_cfg' not in text
 
 def test_core_runtime_uses_direct_typed_config_attributes() -> None:
-    checked_files = {ENGINE_CORE_ROOT / 'solver_engine.py': ['getattr(cfg', 'getattr(cfg.cipher', 'getattr(self.cfg.cipher'], RDP_CORE_ROOT / 'problem' / 'instance.py': ['getattr(spec.cipher_cfg', 'getattr(spec.scorer_params']}
+    checked_files = {
+        RDP_CORE_ROOT / 'engine' / 'engine.py': ['getattr(engine_cfg'],
+        RDP_CORE_ROOT / 'problem' / 'instance.py': [
+            'getattr(spec.cipher_cfg',
+            'getattr(spec.scorer_params',
+        ],
+    }
     hits: list[str] = []
     for path, forbidden_fragments in checked_files.items():
         text = path.read_text(encoding='utf-8')

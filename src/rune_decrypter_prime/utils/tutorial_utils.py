@@ -9,7 +9,7 @@ from rdp.api.display import PrintOptions, format_key_value_block, print_block
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.config.scoring import ScoringConfig
 from rdp.core.types import Direction, TextDirection
-from rune_decrypter_prime.core.engine.builders import build_scorer
+from rdp.core.engine.builders import build_scorer
 from rdp.scoring.language_model.load_status import LmLoadReporter, LmLoadStatus
 from rune_decrypter_prime.utils.tutorial_pretty import print_model_loading
 

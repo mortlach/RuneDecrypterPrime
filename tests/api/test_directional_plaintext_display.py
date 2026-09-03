@@ -1,5 +1,5 @@
 from __future__ import annotations
-import rdp.api.pipeline_helpers
+import rdp.core.engine.finalization
 import numpy as np
 from rdp.core.config.solution import Solution
 from rdp.core.types import Direction
@@ -9,7 +9,7 @@ from rune_decrypter_prime.utils.solve_output import render_plaintext
 def test_ensure_plaintext_rune_uses_encoding_direction_for_latin_display() -> None:
     pt_idx, wli, _rune_str = Runeglish.encode_english_to_runes('READ EARTH AETHER', direction='rtl')
     solution = Solution(key=[1], plaintext=np.asarray(pt_idx, dtype=np.uint8), score=0.0)
-    rdp.api.pipeline_helpers.ensure_plaintext_rune(solution, ciphertext=np.asarray(pt_idx, dtype=np.uint8), wli=wli, cipher=None, encoding_dir=Direction.RTL)
+    rdp.core.engine.finalization.ensure_plaintext_rune(solution, ciphertext=np.asarray(pt_idx, dtype=np.uint8), wli=wli, cipher=None, encoding_dir=Direction.RTL)
     assert solution.plaintext_idx == pt_idx
     assert solution.plaintext_latin == 'READ EARTH AETHER'
     assert 'RAED' not in solution.plaintext_latin

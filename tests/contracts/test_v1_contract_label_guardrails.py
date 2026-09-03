@@ -17,7 +17,7 @@ TORCH_RUNE_SCORER = (
     ROOT / "src" / "rdp" / "scoring" / "torch_rune_scorer.py"
 )
 ENGINE_BUILDERS = (
-    ROOT / "src" / "rune_decrypter_prime" / "core" / "engine" / "builders.py"
+    ROOT / "src" / "rdp" / "core" / "engine" / "builders.py"
 )
 UNIFIED_RUNE_SCORER = (
     ROOT / "src" / "rdp" / "scoring" / "unified_rune_scorer.py"

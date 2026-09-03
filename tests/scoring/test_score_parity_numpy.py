@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 from rdp import api
-from rune_decrypter_prime.core.engine.builders import build_scorer
+from rdp.core.engine.builders import build_scorer
 from tests._helpers.configs import _mk_cfgs
 from tests.scoring._helpers.lm_test_guard import require_full_lm_assets
 from tests.scoring.golden_vectors import GOLDEN_SCORE_VECTORS, PLAINTEXT_TOKEN_VECTORS

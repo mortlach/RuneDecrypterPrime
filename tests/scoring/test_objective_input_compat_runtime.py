@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 import pytest
-from rune_decrypter_prime.core.engine.builders import build_scorer
+from rdp.core.engine.builders import build_scorer
 from rdp.core.types import (
     ScorerImpl,
 )

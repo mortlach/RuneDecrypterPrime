@@ -18,7 +18,7 @@ def test_d4_closure_doc_covers_every_stage() -> None:
         assert required_phrase in text
 
 def test_d4_source_gates_are_present() -> None:
-    builders = _text("src/rune_decrypter_prime/core/engine/builders.py")
+    builders = _text("src/rdp/core/engine/builders.py")
     assert "_ensure_capability_report_method" in builders
     assert "raise_if_requested_lane_blocked(report)" in builders
     assert "hamming_issue=getattr" in builders

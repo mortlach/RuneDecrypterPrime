@@ -36,7 +36,7 @@ assert 'rdp.scoring.language_model._fastlm' not in sys.modules
 assert 'rdp.scoring.hamming._hamming' not in sys.modules
 assert 'rdp.scoring.span_hamming._span_hamming_fast' not in sys.modules
 assert not any(name.startswith('rdp.solvers') for name in sys.modules)
-assert not any(name.startswith('rune_decrypter_prime.core.engine') for name in sys.modules)
+assert not any(name.startswith('rdp.core.engine') for name in sys.modules)
 """
     )
 

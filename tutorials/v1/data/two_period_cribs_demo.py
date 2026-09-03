@@ -14,7 +14,7 @@ import numpy as np
 from rune_decrypter_prime.data.cipher_tests.plaintext import plaintext1, word_breaks1
 from rdp import api
 from rdp.core.config.cipher import materialize_cipher_config
-from rune_decrypter_prime.core.engine.builders import build_cipher
+from rdp.core.engine.builders import build_cipher
 
 
 TEXT_LENGTH = 308

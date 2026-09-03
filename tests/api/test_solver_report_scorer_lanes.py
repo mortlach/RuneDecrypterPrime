@@ -1,5 +1,5 @@
 from __future__ import annotations
-import rdp.api.pipeline_helpers
+import rdp.core.engine.finalization
 import importlib
 
 
@@ -46,7 +46,7 @@ def test_scorer_lanes_report_failure_cannot_silently_disappear_from_solver_repor
             raise RuntimeError("capability report exploded")
 
     solution = _SolutionLike(meta={}, stop_reason="max_rounds_reached")
-    rdp.api.pipeline_helpers._attach_scorer_lanes_to_meta(
+    rdp.core.engine.finalization._attach_scorer_lanes_to_meta(
         solution, _ProblemLike(_BrokenScorer())
     )
     run_module = importlib.import_module("rdp.api.run")
@@ -70,7 +70,7 @@ def test_scorer_lanes_serialization_failure_cannot_silently_disappear_from_solve
             return _BrokenReport()
 
     solution = _SolutionLike(meta={}, stop_reason="max_rounds_reached")
-    rdp.api.pipeline_helpers._attach_scorer_lanes_to_meta(
+    rdp.core.engine.finalization._attach_scorer_lanes_to_meta(
         solution, _ProblemLike(_BrokenScorer())
     )
     run_module = importlib.import_module("rdp.api.run")

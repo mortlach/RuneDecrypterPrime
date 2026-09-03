@@ -20,7 +20,7 @@ from rdp.core.config.cipher import (
     materialize_cipher_config,
     validate_concrete_key,
 )
-from rune_decrypter_prime.core.engine.builders import build_cipher
+from rdp.core.engine.builders import build_cipher
 from rdp.core.types import (
     ComputeDevice,
     CipherKind,

@@ -6,7 +6,7 @@ import tomllib
 from pathlib import Path
 import pytest
 from rdp.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.engine.builders import build_scorer
+from rdp.core.engine.builders import build_scorer
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PYPROJECT = REPO_ROOT / 'pyproject.toml'

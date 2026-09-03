@@ -178,7 +178,6 @@ def _execute(
         if request.logging is not None:
             init_logging(request.logging)
         from rdp.api.two_period_cribs import normalize_two_period_cribs_request
-        from rdp.api.pipeline_helpers import finalize_solution
         from rdp.solvers.two_period_cribs import run_two_period_stages
 
         special_request = normalize_two_period_cribs_request(request.solver)
@@ -195,24 +194,6 @@ def _execute(
             interruptors_exact=None,
             interruptors_pool=None,
             interruptors_max=None,
-            solution_finalizer=lambda problem, result: finalize_solution(
-                problem,
-                result,
-                ciphertext=materialized.ciphertext,
-                wli=materialized.wli,
-                cipher=request.cipher,
-                encoding_dir=direction,
-                telemetry_on=request.telemetry_enabled,
-                pipeline_block={
-                    "text_encoding_direction": direction.value,
-                    "input_permutation": {
-                        "kind": "none",
-                        "length": len(materialized.ciphertext),
-                        "hash": "",
-                    },
-                    "solver_route": "two_period_cribs",
-                },
-            ),
         )
     else:
         solver_config = _runtime_solver_config(request.solver, effective_seed=effective_seed)

@@ -4,10 +4,10 @@ import pytest
 pytestmark = pytest.mark.guardrails
 ROOT = Path(__file__).resolve().parents[2]
 D3_CONTRACT_FILES = [
-    ROOT / "src/rune_decrypter_prime/core/engine/builders.py",
+    ROOT / "src/rdp/core/engine/builders.py",
     ROOT / "src/rdp/core/capability_gates.py",
     ROOT / "src/rdp/scoring/scorer_lane_report.py",
-    ROOT / "src/rdp/api/pipeline_helpers.py",
+    ROOT / "src/rdp/core/engine/finalization.py",
     ROOT / "src/rdp/api/run.py",
 ]
 

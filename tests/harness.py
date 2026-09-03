@@ -27,7 +27,11 @@ import numpy as np
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.config.run import RunConfig
 from rdp.core.config.solver import SolverConfig
-from rune_decrypter_prime.core.solver_engine import RuneSolverEngine
+from rdp.core.engine import EngineConfig, solve as engine_solve
+from rdp.core.engine.finalization import finalize_solution
+from rdp.core.problem.instance import ProblemInstance
+from rdp.core.problem.spec import ProblemSpec
+from rdp.core.types import KEY_DTYPE, ensure_direction
 from rdp.data.runeglish import Runeglish
 from tests._helpers.baseline_registry import BASELINE
 from rdp.io.run_logger import get_logger
@@ -107,25 +111,64 @@ def run_roundtrip_case(*, cipher_name: str, plaintext_idx: np.ndarray, wli_data:
     }
     log_cfg = api.LoggingConfig.from_dict({**{**log_defaults, **log_over}})
     solver_cfg = RunConfig(cipher=c_cfg, scorer_name='rune', scorer_params=s_cfg, solver=o_cfg, logging=log_cfg, seed=seed)
-    eng = RuneSolverEngine(solver_cfg)
+    direction = ensure_direction(c_cfg.encoding_dir)
+    instance = ProblemInstance.materialise(
+        ProblemSpec(
+            text='',
+            text_encoding_direction=direction,
+            cipher_cfg=c_cfg,
+            scorer_params=s_cfg,
+            input_permutation=c_cfg.initial_text_permutation_indices,
+        )
+    )
+    solver_params = dict(o_cfg.params)
+    seed_keys = c_cfg.initial_keys
+    engine_cfg = EngineConfig(
+        solver=o_cfg.kind,
+        params=solver_params,
+        seed=solver_cfg.seed,
+        stop_score=solver_params.get('stop_score'),
+        verbose=bool(solver_params.get('verbose', True)),
+        log_interval=int(solver_params.get('log_interval', 50)),
+        seed_keys=(
+            None
+            if seed_keys is None or np.asarray(seed_keys).size == 0
+            else np.asarray(seed_keys, dtype=KEY_DTYPE)
+        ),
+    )
+
+    def solve_once():
+        solution = engine_solve(instance, engine_cfg)
+        return finalize_solution(
+            instance.problem,
+            solution,
+            ciphertext=ct,
+            wli=c_cfg.wli_data,
+            cipher=c_cfg,
+            encoding_dir=direction,
+            cfg=solver_cfg,
+            telemetry_on=solver_cfg.enable_telemetry,
+            pipeline_block=instance.pipeline_block,
+        )
+
     log = get_logger()
     log.log_event({'type': 'run_start', 'cipher': cipher_name, 'solver': o_cfg.name, 'device': device.value if device else None, 'seed': seed})
     if enable_trace:
         print(f'[trace enabled] sort={trace_sort} top_n={trace_top_n}', flush=True)
         pr = cProfile.Profile()
         pr.enable()
-        sol = eng.solve()
+        sol = solve_once()
         pr.disable()
         s = io.StringIO()
         pstats.Stats(pr, stream=s).sort_stats(trace_sort).print_stats(trace_top_n)
         trace_report = s.getvalue()
         log.log_trace({'func': f'{cipher_name}::{o_cfg.name}', 'trace': trace_report})
     else:
-        sol = eng.solve()
+        sol = solve_once()
         trace_report = None
     found_key = np.asarray(sol.key, dtype=np.uint8)
-    pt_known = eng.cipher.decrypt(ciphertext=ct, key=key)[0]
-    pt_found = eng.cipher.decrypt(ciphertext=ct, key=found_key)[0]
+    pt_known = instance.problem.cipher.decrypt(ciphertext=ct, key=key)[0]
+    pt_found = instance.problem.cipher.decrypt(ciphertext=ct, key=found_key)[0]
     match_rate = float(np.mean(pt_found == pt_known))
     if match_rate < pt_ok_threshold:
         raise AssertionError(f'decryption below threshold match_rate={match_rate:.4f}, score={sol.score}')
@@ -156,10 +199,10 @@ def run_roundtrip_case(*, cipher_name: str, plaintext_idx: np.ndarray, wli_data:
             print(trace_report)
         print('───────────────────────────────────────\n')
     t0 = time.perf_counter()
-    _ = eng.solve()
+    _ = solve_once()
     solve_time = time.perf_counter() - t0
-    pt_known = eng.cipher.decrypt(ciphertext=ct, key=key)[0]
-    pt_found = eng.cipher.decrypt(ciphertext=ct, key=found_key)[0]
+    pt_known = instance.problem.cipher.decrypt(ciphertext=ct, key=key)[0]
+    pt_found = instance.problem.cipher.decrypt(ciphertext=ct, key=found_key)[0]
     acc = float(np.mean(pt_found == pt_known))
     run_meta = sol.meta.get("run_meta", {})
     run_meta.update(

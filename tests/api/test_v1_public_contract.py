@@ -18,7 +18,7 @@ from rdp.core.config.cipher import (
 )
 from rdp.core.config.logging_config import LoggingConfig
 from rdp.core.config.scoring import ScoringConfig, ScoringObjective
-from rune_decrypter_prime.core.engine.builders import build_cipher
+from rdp.core.engine.builders import build_cipher
 from rdp.core.component_contracts import (
     CipherKeyMismatchError,
     InvalidConcreteKeyError,

@@ -8,7 +8,7 @@ import numpy as np
 
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.config.scoring import ScoringConfig
-from rune_decrypter_prime.core.engine.builders import build_scorer
+from rdp.core.engine.builders import build_scorer
 from rdp.core.types import Device, Direction, ScorerBackend
 from rdp.scoring.language_model.language_model_prime import LanguageModelPrime
 from rdp.data.runeglish import Runeglish

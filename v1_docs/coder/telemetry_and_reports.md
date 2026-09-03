@@ -9,6 +9,7 @@ Owner paths:
 - `src/rune_decrypter_prime/api/printer.py`
 - `src/rune_decrypter_prime/api/artifact_agreement.py`
 - `src/rune_decrypter_prime/api/run_artifact_manifest.py`
+- `src/rdp/core/engine/finalization.py`
 - `src/rdp/scoring/scorer_report.py`
 - `src/rdp/scoring/scorer_report_builder.py`
 - `src/rdp/telemetry/`
@@ -160,6 +161,11 @@ Telemetry is best-effort runtime evidence. The current helpers record:
 Telemetry can be copied into solution metadata and can feed display/report
 summaries. It is not a stable persistence format and should not be required for
 solver correctness.
+
+`rdp.core.engine.finalization.finalize_solution` owns the runtime step that
+attaches telemetry or the authoritative telemetry-off state, scorer-lane
+evidence, WLI, normalized plaintext/key views, final run metadata, and pipeline
+metadata. Public report construction and artifact writing remain in `rdp.api`.
 
 ## Artifact Manifest Rules
 

@@ -3,7 +3,7 @@ from rdp import api
 from types import SimpleNamespace
 import pytest
 from rdp.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.engine.builders import build_cipher, build_scorer
+from rdp.core.engine.builders import build_cipher, build_scorer
 
 def test_build_cipher_requires_typed_cipher_config() -> None:
     with pytest.raises(TypeError, match='CipherConfig'):

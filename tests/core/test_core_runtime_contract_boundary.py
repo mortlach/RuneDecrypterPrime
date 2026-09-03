@@ -7,7 +7,7 @@ import pytest
 import rdp
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.config.scoring import ScoringConfig
-from rune_decrypter_prime.core.engine.builders import build_scorer
+from rdp.core.engine.builders import build_scorer
 from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.problem.spec import ProblemSpec
 from rdp.scoring.rune_scorer import RuneScorer

@@ -195,7 +195,7 @@ def test_howto_pages_name_core_owner_paths() -> None:
         "add_solver.md": [
             "src/rdp/solvers/",
             "src/rdp/core/types.py",
-            "src/rune_decrypter_prime/core/engine/engine.py",
+            "src/rdp/core/engine/engine.py",
         ],
         "add_scorer_lane.md": [
             "src/rdp/core/component_contracts.py",

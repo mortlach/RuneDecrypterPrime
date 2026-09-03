@@ -3,10 +3,9 @@ from rdp import api
 import numpy as np
 import pytest
 from rdp.core.config.cipher import CipherConfig
-from rdp.core.config.solver import SolverConfig
 from rdp.ciphers.vigenere_cipher import RuneVigenereCipher
 from rdp.core.problem.runtime import DecryptionProblem
-from rune_decrypter_prime.core.solver_engine import build_optimizer
+from rdp.solvers.beam import BeamSolver
 from rdp.core.types import Direction
 pytestmark = pytest.mark.tier_a
 
@@ -24,6 +23,5 @@ def _make_problem():
 
 def test_determinism():
     problem = _make_problem()
-    solver_cfg = SolverConfig(name='beam', params={'beam_width': 1})
     with pytest.raises(TypeError):
-        build_optimizer(problem, solver_cfg, rng=None)
+        BeamSolver(problem, opt_cfg={'beam_width': 1}, rng=None)

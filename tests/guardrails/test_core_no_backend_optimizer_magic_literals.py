@@ -6,7 +6,7 @@ import rdp
 import rune_decrypter_prime
 _BANNED = {'numpy', 'torch', 'unified', 'auto', 'beam', 'ga', 'sa', 'hybrid', 'cpu', 'cuda'}
 _PATTERN = re.compile('\\b(?:numpy|torch|unified|auto|beam|ga|sa|hybrid|cpu|cuda)\\b', re.IGNORECASE)
-_ALLOWLIST = {'core/types.py', 'core/config/logging_config.py', 'core/config/cipher.py', 'core/config/scoring.py', 'core/engine/engine.py', 'core/problem/instance.py', 'core/solver_engine.py'}
+_ALLOWLIST = {'core/types.py', 'core/config/logging_config.py', 'core/config/cipher.py', 'core/config/scoring.py', 'core/engine/engine.py', 'core/engine/finalization.py', 'core/problem/instance.py'}
 
 def _strip_docstrings(tree: ast.AST) -> ast.AST:
     """Remove module/class/function docstrings so we don't scan them."""

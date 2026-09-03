@@ -4,7 +4,8 @@ Status: staged V1 draft
 
 Owner paths:
 - `src/rune_decrypter_prime/api/specs.py`
-- `src/rune_decrypter_prime/core/engine/engine.py`
+- `src/rdp/core/engine/engine.py`
+- `src/rdp/core/engine/finalization.py`
 - `src/rdp/solvers/`
 - `src/rdp/telemetry/events.py`
 
@@ -32,7 +33,10 @@ or scoring logic directly.
 - progress events
 - stop reasons
 - seed-key handling
-- final solution construction
+- search-result `Solution` construction
+
+Runtime solution finalisation belongs to `rdp.core.engine.finalization`; public
+`RunResult` adaptation remains in `rdp.api.run`.
 
 ## What This Layer Must Not Own
 
@@ -47,8 +51,9 @@ or scoring logic directly.
 | Object | Owner path | Role |
 | --- | --- | --- |
 | `SolverSpec` | `src/rune_decrypter_prime/api/specs.py` | Public declarative solver choice. |
-| `EngineConfig` | `src/rune_decrypter_prime/core/engine/engine.py` | Runtime solver kind, params, seed, and knobs. |
-| `_SOLVER_TABLE` | `src/rune_decrypter_prime/core/engine/engine.py` | Maps `SolverName` to solver class. |
+| `EngineConfig` | `src/rdp/core/engine/engine.py` | Runtime solver kind, params, seed, and knobs. |
+| `_SOLVER_TABLE` | `src/rdp/core/engine/engine.py` | Maps `SolverName` to solver class. |
+| `finalize_solution` | `src/rdp/core/engine/finalization.py` | Attaches runtime telemetry, scorer lanes, WLI, normalized text/key views, run metadata, and pipeline metadata. |
 | `SolverBase` | `src/rdp/solvers/solver_base.py` | Shared telemetry, scoring, early-stop, and seed helpers. |
 | concrete solvers | `src/rdp/solvers/` | Implement beam, GA, SA, hybrid, and kaeding-style search. |
 
@@ -62,12 +67,15 @@ SolverSpec
   -> solver proposes candidate keys
   -> DecryptionProblem evaluates keys
   -> solver returns Solution
+  -> engine finalises the runtime Solution
+  -> api.run adapts it to RunResult
 ```
 
 The specialised `two_period_cribs` route is dispatched directly by `api.run`.
 It derives complete-word crib constraints, performs deterministic S2 scout, B1
 bridge and three-sweep F1 judge searches, then statically ranks the complete
-deduplicated union. It still returns the normal `Solution` and `SolverReport`.
+deduplicated union. It uses the same engine-owned runtime finalisation and still
+returns the normal `Solution` for API report adaptation.
 
 ## Contracts And Invariants
 

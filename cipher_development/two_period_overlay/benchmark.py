@@ -41,8 +41,8 @@ def build_rdp_case(
 ) -> tuple[SearchCase, ReferenceCase]:
     from rdp.core.config.hard_crib import HardCribConfig
     from rdp.core.config.cipher import materialize_cipher_config
-    from rune_decrypter_prime.core.engine.builders import build_scorer
-    from rune_decrypter_prime.core.engine.builders import build_cipher
+    from rdp.core.engine.builders import build_scorer
+    from rdp.core.engine.builders import build_cipher
     from rdp.core.problem.runtime import DecryptionProblem
     from rdp.core.types import Direction
     from rune_decrypter_prime.data.cipher_tests.plaintext import (

@@ -7,7 +7,7 @@ Owner paths:
 - `src/rdp/keyops/`
 - `src/rdp/solvers/`
 - `src/rdp/scoring/`
-- `src/rune_decrypter_prime/core/engine/`
+- `src/rdp/core/engine/`
 - `src/rdp/core/component_contracts.py`
 - `src/rdp/core/config/scoring.py`
 - `src/rune_decrypter_prime/api/wrappers/`

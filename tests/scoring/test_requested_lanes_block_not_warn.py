@@ -9,7 +9,7 @@ from rdp.core.component_contracts import (
 )
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.config.scoring import ScoringConfig
-from rune_decrypter_prime.core.engine.builders import build_scorer
+from rdp.core.engine.builders import build_scorer
 
 class _FakeRuneScorer:
 

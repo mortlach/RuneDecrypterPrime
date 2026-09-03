@@ -1,7 +1,10 @@
 from pathlib import Path
-import rune_decrypter_prime as rdp
+import rdp
 
 def test_solver_engine_no_legacy_fwd_default_string():
     root = Path(rdp.__file__).resolve().parent
-    se = (root / 'core' / 'solver_engine.py').read_text(encoding='utf-8', errors='ignore')
+    se = '\n'.join(
+        path.read_text(encoding='utf-8', errors='ignore')
+        for path in (root / 'core' / 'engine').glob('*.py')
+    )
     assert '"ltr"' not in se and "'ltr'" not in se

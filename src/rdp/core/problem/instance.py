@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from rdp.core.problem.spec import ProblemSpec
 from rdp.core.problem.runtime import DecryptionProblem
-from rune_decrypter_prime.core.engine.builders import build_cipher, build_scorer
+from rdp.core.engine.builders import build_cipher, build_scorer
 from rdp.telemetry.pipeline import make_pipeline_block
 from rdp.core.types import Direction, ensure_direction
 

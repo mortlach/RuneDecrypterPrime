@@ -33,7 +33,6 @@ import sys
 for name in (
     'rdp.api',
     'rdp.core.engine',
-    'rune_decrypter_prime.core.engine',
     'rdp.scoring',
     'torch',
     'cupy',

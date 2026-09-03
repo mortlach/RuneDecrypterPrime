@@ -4,7 +4,7 @@ import sys
 import types
 import numpy as np
 from rdp.core.config.cipher import CipherConfig
-from rune_decrypter_prime.core.engine.builders import build_scorer
+from rdp.core.engine.builders import build_scorer
 from rdp.core.types import Device
 
 class _FakeRuneScorer:

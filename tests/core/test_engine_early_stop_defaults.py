@@ -1,6 +1,6 @@
 from __future__ import annotations
 import pytest
-from rune_decrypter_prime.core.engine.engine import _with_early_stop_defaults
+from rdp.core.engine.engine import _with_early_stop_defaults
 from rdp.core.types import SolverName
 pytestmark = pytest.mark.tier_a
 

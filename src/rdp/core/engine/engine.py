@@ -1,5 +1,5 @@
 # ============================================================
-# rune_decrypter_prime/core/engine/engine.py
+# rdp/core/engine/engine.py
 # Minimal, typed orchestrator for Stage-2
 #  - Accepts a ProblemInstance (already materialised)
 #  - Instantiates the chosen Solver (Beam/GA/SA/Hybrid)
@@ -31,15 +31,6 @@ from rdp.telemetry.events import (
     run_end   as tel_run_end,
 )
 from rdp.telemetry.schema import to_canonical_device_str
-from rdp.api.stop_reason_contract import (
-    ExecutionStatus,
-    build_run_status,
-    execution_status_for_category,
-    run_status_from_solution,
-    stop_category_for_reason,
-)
-
-
 _SOLVER_TABLE: Dict[SolverName, Any] = {
     SolverName.BEAM:   BeamSolver,
     SolverName.GA:     GASolver,
@@ -166,6 +157,16 @@ def solve(instance: ProblemInstance, engine_cfg: EngineConfig):
     """
     if not isinstance(instance, ProblemInstance):
         raise TypeError("solve() expects a ProblemInstance (use ProblemInstance.materialise(spec)).")
+
+    # Keep the engine module importable before the public API package while
+    # retaining the single accepted status-contract definitions.
+    from rdp.api.stop_reason_contract import (
+        ExecutionStatus,
+        build_run_status,
+        execution_status_for_category,
+        run_status_from_solution,
+        stop_category_for_reason,
+    )
 
     kind = ensure_solver_name(engine_cfg.solver)
 

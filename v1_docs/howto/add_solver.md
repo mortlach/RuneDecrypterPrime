@@ -7,8 +7,7 @@ Owner paths:
 - `src/rdp/solvers/solver_base.py`
 - `src/rdp/core/types.py`
 - `src/rune_decrypter_prime/api/normalize.py`
-- `src/rune_decrypter_prime/core/engine/engine.py`
-- `src/rune_decrypter_prime/core/solver_engine.py`
+- `src/rdp/core/engine/engine.py`
 - `tests/solvers/`
 - `tests/contracts/`
 
@@ -38,9 +37,7 @@ enum and engine-table wiring.
 8. Add the solver name to `SolverName` in `core/types.py`.
 9. Add normalization support in `api/normalize.py`.
 10. Register the solver in `_SOLVER_TABLE` in `core/engine/engine.py`.
-11. Check whether the legacy `core/solver_engine.py` table also needs the new
-    solver.
-12. Add focused solver tests and contract tests.
+11. Add focused solver tests and contract tests.
 
 ## Solver Contract
 
