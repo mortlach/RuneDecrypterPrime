@@ -4,7 +4,7 @@ import tomllib
 import numpy as np
 import pytest
 from rdp.core.types import Direction
-from rune_decrypter_prime.data.cipher_tests import book_corpus
+from tools.robustness.fixtures.cipher_books import book_corpus
 pytestmark = pytest.mark.tier_a
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -77,7 +77,8 @@ def test_passage_selection_enforces_requested_tolerance() -> None:
     with pytest.raises(ValueError, match='no whole-word passage lies within'):
         book_corpus.select_passage(corpus, seed=1, target_runes=4, tolerance_runes=0)
 
-def test_book_corpus_has_a_narrow_package_data_allowlist() -> None:
+def test_book_corpus_is_excluded_from_runtime_package_data() -> None:
     project = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
-    patterns = project['tool']['setuptools']['package-data']['rune_decrypter_prime']
-    assert patterns == ['data/cipher_tests/books/*.npz', 'data/cipher_tests/books/*.json']
+    patterns = project['tool']['setuptools']['package-data']
+    assert patterns['rdp'] == ['py.typed', 'data/wordlists/cribs/*.txt']
+    assert 'rune_decrypter_prime' not in patterns

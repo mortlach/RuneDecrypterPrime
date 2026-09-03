@@ -3,7 +3,7 @@ import csv
 from pathlib import Path
 import pytest
 from rdp.core.types import Direction
-from rune_decrypter_prime.data.wordlists.loaders import default_wordlists_dir, load_short_word_csv, load_word_crib_config_from_csv
+from rdp.data.wordlists.loaders import default_wordlists_dir, load_short_word_csv, load_word_crib_config_from_csv
 
 def test_load_short_word_csv_reads_counts():
     table = load_short_word_csv(length=1, direction=Direction.LTR)

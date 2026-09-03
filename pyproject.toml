@@ -69,11 +69,7 @@ exclude = [
 ]
 
 [tool.setuptools.package-data]
-rdp = ["py.typed"]
-rune_decrypter_prime = [
-  "data/cipher_tests/books/*.npz",
-  "data/cipher_tests/books/*.json",
-]
+rdp = ["py.typed", "data/wordlists/cribs/*.txt"]
 
 [tool.pytest.ini_options]
 markers = [

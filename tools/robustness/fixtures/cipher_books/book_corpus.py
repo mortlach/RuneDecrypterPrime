@@ -32,7 +32,7 @@ class BookPassage:
 
 
 def _books_root():
-    return resources.files(__package__).joinpath("books")
+    return resources.files(__package__)
 
 
 def available_books() -> tuple[str, ...]:

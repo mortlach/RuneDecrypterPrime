@@ -26,7 +26,7 @@ for import_root in (REPO_ROOT, SRC_ROOT, TOOL_ROOT):
         sys.path.insert(0, str(import_root))
 from rdp import api
 from tutorials.v1.data.two_period_cribs_demo import encrypt_interruptor_fixture
-from rune_decrypter_prime.data.cipher_tests.book_corpus import load_book, select_passage
+from tools.robustness.fixtures.cipher_books.book_corpus import load_book, select_passage
 from rdp.io.rng import RNGController
 from rdp.scoring.language_model import _fastlm
 from rdp.scoring.language_model.paths import default_lm_root, expand_pattern, load_index

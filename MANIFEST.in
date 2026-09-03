@@ -10,6 +10,7 @@ recursive-include src/rdp/scoring/language_model *.cpp *.hpp *.h
 recursive-include src/rdp/scoring/hamming *.cpp *.hpp *.h
 recursive-include src/rdp/scoring/span_hamming *.cpp *.hpp *.h
 recursive-include src/rdp/scoring/ngram_hamming *.cpp *.hpp *.h
+recursive-include src/rdp/data/wordlists/cribs *.txt
 
 # CI-light runtime files are added to the sdist by A5Sdist from the exact
 # assets_manifest_ci_light_v1.json allowlist. Do not recursively include the
