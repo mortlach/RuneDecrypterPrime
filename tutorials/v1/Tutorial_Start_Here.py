@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, List, cast
 _ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / 'src'
-for path in (_SRC,):
+for path in (_ROOT, _SRC):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 import numpy as np

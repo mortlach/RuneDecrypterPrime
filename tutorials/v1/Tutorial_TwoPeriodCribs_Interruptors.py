@@ -5,6 +5,8 @@ from pathlib import Path
 from time import perf_counter
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / 'src'
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 from rdp import api

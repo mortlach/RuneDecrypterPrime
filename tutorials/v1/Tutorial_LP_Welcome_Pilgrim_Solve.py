@@ -1,5 +1,4 @@
 from __future__ import annotations
-from rdp import api
 'Pretty-print variant for the Welcome Pilgrim solved-LP tutorial.\n\nThe original tutorial wrapper and solved-LP workbook remain unchanged. This\nvariant imports the workbook contract explicitly and prints the result through\nthe standard RDP printer facade.\n'
 import importlib.util
 import sys
@@ -10,6 +9,7 @@ _SRC = _ROOT / 'src'
 for path in (_ROOT, _SRC):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
+from rdp import api
 from tutorials.v1.support import tutorial_pretty as pretty
 from tutorials.v1.support.tutorial_output import print_tutorial_debug_preview
 _SOLVE_SCRIPT = _ROOT / 'solving' / 'solved_lp' / '02_Welcome_Pilgrim.py'

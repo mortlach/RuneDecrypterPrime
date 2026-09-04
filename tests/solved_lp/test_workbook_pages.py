@@ -33,6 +33,26 @@ def test_workbook_files_have_source_recipe_and_main() -> None:
         assert 'workbook._common' not in text
         assert 'from solving.solved_lp.workbook' not in text
 
+
+def test_welcome_pilgrim_binds_current_source_before_importing_rdp() -> None:
+    script = WORKBOOK_ROOT / '02_Welcome_Pilgrim.py'
+    probe = (
+        "import runpy, sys\n"
+        "from pathlib import Path\n"
+        f"runpy.run_path({str(script)!r})\n"
+        "import rdp\n"
+        f"expected = Path({str(REPO_ROOT / 'src' / 'rdp')!r}).resolve()\n"
+        "assert Path(rdp.__file__).resolve().parent == expected\n"
+    )
+    completed = subprocess.run(
+        [sys.executable, '-I', '-B', '-X', 'utf8', '-c', probe],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+
 @pytest.mark.tier_a
 @pytest.mark.full_assets
 def test_run_all_workbook_solves_require_solved_status() -> None:

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import ast
 import importlib.util
 import json
 import sys
@@ -59,6 +60,39 @@ def test_all_release_tutorial_entries_exist_on_disk() -> None:
             if not path.is_file():
                 missing.append(entry['path'])
     assert not missing
+
+
+def test_active_tutorials_bind_repo_and_source_before_project_imports() -> None:
+    for entry in _entries():
+        if entry['current_status'] != 'active':
+            continue
+        path = TUTORIAL_ROOT / entry['path']
+        text = path.read_text(encoding='utf-8')
+        tree = ast.parse(text, filename=str(path))
+        project_import_lines = [
+            node.lineno
+            for node in tree.body
+            if (
+                isinstance(node, ast.ImportFrom)
+                and node.module is not None
+                and node.module.split('.', 1)[0] in {'rdp', 'tutorials'}
+            )
+            or (
+                isinstance(node, ast.Import)
+                and any(alias.name.split('.', 1)[0] in {'rdp', 'tutorials'} for alias in node.names)
+            )
+        ]
+        assert project_import_lines, entry['path']
+        prefix = '\n'.join(text.splitlines()[: min(project_import_lines) - 1])
+        assert "Path(__file__).resolve().parents[2]" in prefix, entry['path']
+        assert "'src'" in prefix or '"src"' in prefix, entry['path']
+        assert 'sys.path.insert' in prefix, entry['path']
+        assert (
+            'str(_ROOT)' in prefix
+            or 'str(ROOT)' in prefix
+            or '(_ROOT, _SRC)' in prefix
+            or '(ROOT, SRC)' in prefix
+        ), entry['path']
 
 def test_release_gate_includes_scheduled_stream_lookup_exact_real_solve() -> None:
     entry = _entry('Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py')

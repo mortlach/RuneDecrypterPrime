@@ -1,5 +1,4 @@
 from __future__ import annotations
-from rdp import api
 'Qualification-derived three-attempt Mono-substitution GA tutorial.'
 import math
 import sys
@@ -8,8 +7,10 @@ from dataclasses import dataclass
 from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / 'src'
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
+for _import_root in (_ROOT, _SRC):
+    if str(_import_root) not in sys.path:
+        sys.path.insert(0, str(_import_root))
+from rdp import api
 import numpy as np
 from tutorials.v1.data.plaintext_fixtures import plaintext_english_string
 from rdp.data.runeglish import Runeglish

@@ -1,12 +1,13 @@
 from __future__ import annotations
-from rdp import api
 import sys
 from pathlib import Path
 from typing import List, Sequence
 _ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / 'src'
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
+for _import_root in (_ROOT, _SRC):
+    if str(_import_root) not in sys.path:
+        sys.path.insert(0, str(_import_root))
+from rdp import api
 from tutorials.v1.data.plaintext_fixtures import plaintext_english_string
 from rdp.data.runeglish import Runeglish
 from tutorials.v1.support.tutorial_output import tutorial_debug_preview_block

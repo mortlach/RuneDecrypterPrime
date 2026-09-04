@@ -1,13 +1,14 @@
 from __future__ import annotations
-from rdp import api
 'ScheduledStreamLookup segmented P13/P31/P13 partial-recovery tutorial.'
 import sys
 from pathlib import Path
 from typing import Sequence
 _ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / 'src'
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
+for _import_root in (_ROOT, _SRC):
+    if str(_import_root) not in sys.path:
+        sys.path.insert(0, str(_import_root))
+from rdp import api
 from tutorials.v1.support import tutorial_pretty as pretty
 from tutorials.v1.data.plaintext_fixtures import plaintext_english_string
 from tutorials.v1.support.scheduled_stream_lookup import build_ciphertext, concat_keys, default_scorer_params, encode_plaintext, key_period13, key_period31, make_real_solve_solver, mask_from_segments

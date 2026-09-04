@@ -1,5 +1,4 @@
 from __future__ import annotations
-from rdp import api
 'Evidence-producing worked solve for the LP section "Welcome Pilgrim".\n\nThis file is intentionally self-contained. It loads the real LP source by\nlabel, searches a period-8 Vigenere key with exactly 11 interrupters selected\nfrom ciphertext-zero positions, validates against the canonical solved text,\nprints structured evidence blocks, and writes a local JSON evidence file.\n'
 import sys
 import time
@@ -9,6 +8,7 @@ SRC = ROOT / 'src'
 for path in (ROOT, SRC):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
+from rdp import api
 import rdp.data.liber_primus as lp
 from solving.solve_output import collect_solver_attempt, configure_utf8_stdio, print_block, print_final_result, print_kv, safe_public_dict, write_latest_evidence, zero_positions
 from rdp.data.runeglish import Runeglish

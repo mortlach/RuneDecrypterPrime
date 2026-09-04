@@ -1,13 +1,14 @@
 from __future__ import annotations
-from rdp import api
 'Older Autokey GA and crib-assisted comparison.\n\nThis lighter alternative keeps the historical teaching shape: first a no-crib GA\nsolve, then a crib-assisted GA solve. It prints compact problem context, solver\ncalibration/progress, and a standard RDP summary for each solve. The qualified\nrobust Beam/WLI1+2 recipe is shown in ``Tutorial_Autokey_Robust.py``.\n'
 import sys
 from pathlib import Path
 from typing import List, Sequence
 _ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / 'src'
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
+for _import_root in (_ROOT, _SRC):
+    if str(_import_root) not in sys.path:
+        sys.path.insert(0, str(_import_root))
+from rdp import api
 import numpy as np
 from rdp.data.runeglish import Runeglish
 from tutorials.v1.support import tutorial_pretty as pretty
