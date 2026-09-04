@@ -160,7 +160,7 @@ def _check_module_import(module_name: str, *, label: str | None = None) -> None:
 
 
 def _check_imports() -> None:
-    _check_module_import("rune_decrypter_prime", label="Check Python package import")
+    _check_module_import("rdp", label="Check Python package import")
 
     print("[RUN ] Check required native extension imports")
     for module_name in REQUIRED_NATIVE_MODULES:

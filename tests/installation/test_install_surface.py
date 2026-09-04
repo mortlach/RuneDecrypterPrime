@@ -11,6 +11,27 @@ def test_root_installer_does_not_import_removed_benchmark_bootstrap() -> None:
     assert 'tools.benchmarks.community' not in text
     assert 'install_smoke.py' not in text
 
+def test_root_installer_checks_the_canonical_package_import() -> None:
+    text = (ROOT / 'install.py').read_text(encoding='utf-8')
+    tree = ast.parse(text)
+    package_checks = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == '_check_module_import'
+        and any(
+            keyword.arg == 'label'
+            and isinstance(keyword.value, ast.Constant)
+            and keyword.value.value == 'Check Python package import'
+            for keyword in node.keywords
+        )
+    ]
+    assert len(package_checks) == 1
+    assert len(package_checks[0].args) == 1
+    assert isinstance(package_checks[0].args[0], ast.Constant)
+    assert package_checks[0].args[0].value == 'rdp'
+
 def test_root_installer_is_full_v1_and_ci_light_is_separate() -> None:
     install_text = (ROOT / 'install.py').read_text(encoding='utf-8')
     light_text = (ROOT / 'tools' / 'ci' / 'install_light.py').read_text(encoding='utf-8')
