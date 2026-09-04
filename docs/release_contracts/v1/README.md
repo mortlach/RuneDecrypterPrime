@@ -47,15 +47,16 @@ AN3 is **PASS and closed** at
 REVIEW trials are accepted non-blocking recipe limitations, and beginner
 tutorial tiering remains deferred to GitHub issue #4.
 
-AN4-P is **READY and closed**. The approved external planning pack is
-`AN4_P_REVIEW_PACK_20260901T151832Z_f7af2d2d.zip`, SHA-256
-`12c1c780e533eaaacb971c31f4c1cf1dd1480e62793599171c8121bf6956f72f`.
-Its reviewed plan and matrices govern the staged AN4.0-AN4.8 physical package
-organisation. The detailed baseline, target, public-surface preservation rules
-and move-manifest identity are recorded in `V1_AUTHORITY_AND_DECISIONS.md`.
+AN4 package organisation is **PASS and complete** at accepted implementation
+commit `f30c5d09080429f64a8a7e982712a5c339c091a2`. The final installation has
+`rdp` as its sole project namespace, retains exactly 141 public paths and 32
+root API exports, and has no old-name compatibility or forwarding package.
+Local source, assets, tutorials, workbooks, typing, distribution and isolated
+installation gates passed. The final Windows and Ubuntu push gate and
+native-wheel evidence is recorded in `V1_AUTHORITY_AND_DECISIONS.md`.
 
-The planning pack remains external review evidence. It is not copied into this
-repository or made another documentation authority tree.
+The approved AN4-P planning pack remains external review evidence. It is not
+copied into this repository or made another documentation authority tree.
 
 ## Human-readable policy/evidence notes
 

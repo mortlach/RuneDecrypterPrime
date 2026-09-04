@@ -156,6 +156,39 @@ and focused tests together, and remain reviewable and green. Package movement
 must not change algorithms or scientific behaviour. No old-name forwarding or
 duplicate ownership may be used to keep an intermediate stage working.
 
+## AN4 closure
+
+AN4 package organisation is **PASS and complete** at the accepted implementation
+commit:
+
+```text
+f30c5d09080429f64a8a7e982712a5c339c091a2
+```
+
+The final installed project namespace is solely `rdp`. The old
+`src/rune_decrypter_prime` tree, compatibility packages, forwarding packages and
+duplicate implementation owners are absent. The public contract remains exactly
+141 paths with 32 root API exports, and its accepted snapshot SHA-256 remains:
+
+```text
+13ab2964ddc40706b0be4b01dac496e6d30005ba98a8117ae1c43bfac19c219a
+```
+
+Local ordinary and full-assets suites, active tutorial and solved-workbook
+validation, strict public typing, fresh wheel and sdist construction, and
+isolated installed-package validation passed. The final installer correction
+verifies the canonical `import rdp` route.
+
+The final cross-platform GitHub evidence is:
+
+- Windows and Ubuntu push gate:
+  `https://github.com/mortlach/RuneDecrypterPrime/actions/runs/33833945061`;
+- Windows and Linux native-wheel proof:
+  `https://github.com/mortlach/RuneDecrypterPrime/actions/runs/33833958654`.
+
+These successful replacement runs supersede the earlier installer-gate failures
+and are the final AN4 GitHub evidence.
+
 ## Resolved decisions
 
 The machine-readable record is `v1_resolved_decisions.csv`. Its decisions are
