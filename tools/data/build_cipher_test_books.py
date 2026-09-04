@@ -10,7 +10,7 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 from rdp.data.runeglish import Runeglish
 SOURCE_BOOKS: tuple[Path, ...] = ()
-OUTPUT_ROOT = SRC_ROOT / 'rune_decrypter_prime' / 'data' / 'cipher_tests' / 'books'
+OUTPUT_ROOT = REPO_ROOT / 'tools' / 'robustness' / 'fixtures' / 'cipher_books'
 SOURCE_LABEL = 'public-domain source supplied by user'
 REDISTRIBUTION_NOTE = 'Public-domain source selected by user'
 

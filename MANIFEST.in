@@ -19,5 +19,10 @@ recursive-include src/rdp/data/wordlists/cribs *.txt
 
 prune src/rdp/ciphers/dev
 prune src/rdp/keyops/dev
+prune tests
+prune tutorials
+prune cipher_development
+prune solving
+prune tools
 
 global-exclude __pycache__ *.py[cod] .DS_Store Thumbs.db

@@ -22,7 +22,7 @@ confusing ways.
 
 | Symptom | Likely cause | What to do |
 | --- | --- | --- |
-| `ModuleNotFoundError: rune_decrypter_prime` | The package was not installed for the Python you are using now. | Run `python install.py`, then run the tutorial command again with the same `python`. |
+| `ModuleNotFoundError: rdp` | The package was not installed for the Python you are using now. | Run `python install.py`, then run the tutorial command again with the same `python`. |
 | Native extension import fails, such as `_fastlm` | Build tools or package build dependencies are missing or stale. | Run `python install.py` again and inspect the newest log under `output/install_logs/`. |
 | Required LM asset download fails | Network access, proxy settings, or the GitHub Release asset is unavailable. | Download `rdp-v1-lm-large-part*.zip` from the V1 release, place the files under `downloads/`, then run `python install.py` again. |
 | Required LM asset hash mismatch | A partial or corrupt download was found. | Delete the matching zip under `downloads/` and rerun `python install.py`, or download a fresh copy from the release. |

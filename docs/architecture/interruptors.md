@@ -117,9 +117,9 @@ TODO: Document the conversion rules for `index_space="core"` and
   Define `InterruptorConfig` and its validation rules.
 - `src/rdp/core/config/cipher.py`
   Add `interruptors_cfg: InterruptorConfig | None` and map legacy fields.
-- `src/rune_decrypter_prime/api/run.py`
+- `src/rdp/api/run.py`
   Accept interruptor config and pass to pipeline.
-- `src/rune_decrypter_prime/api/normalize.py`
+- `src/rdp/api/normalize.py`
   (not required; config validation lives in core)
 - `src/rdp/core/problem/runtime.py`
   Resolve interruptor indices, split key, and pass to decrypt.

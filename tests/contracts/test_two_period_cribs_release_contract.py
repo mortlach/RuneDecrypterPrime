@@ -23,7 +23,7 @@ def test_scope_lock_contains_two_period_crib_solver_without_hamming_drift() -> N
 
 def test_production_package_never_imports_tutorials_or_cipher_development() -> None:
     offenders = []
-    for path in (ROOT / 'src' / 'rune_decrypter_prime').rglob('*.py'):
+    for path in (ROOT / 'src' / 'rdp').rglob('*.py'):
         text = path.read_text(encoding='utf-8')
         if 'cipher_development' in text or 'tutorials.v1' in text:
             offenders.append(path.relative_to(ROOT).as_posix())

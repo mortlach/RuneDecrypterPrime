@@ -10,12 +10,17 @@ def test_pyproject_declares_clean_runtime_dependency_and_package_exclusions():
     deps = data['project']['dependencies']
     assert any((dep.split('>=', 1)[0].strip().lower() == 'lark' for dep in deps))
     excluded = tuple(data['tool']['setuptools']['packages']['find']['exclude'])
+    assert data['tool']['setuptools']['packages']['find']['include'] == ['rdp*']
+    assert data['tool']['setuptools']['include-package-data'] is False
     for prefix in BLOCKED:
         assert prefix in excluded
         assert prefix + '.*' in excluded
 
 def test_setup_uses_exact_ci_light_asset_allowlist_for_wheel_and_sdist():
     setup_text = (ROOT / 'setup.py').read_text(encoding='utf-8')
+    compact = ''.join(setup_text.split())
+    assert 'include=("rdp","rdp.*")' in compact
+    assert 'include_package_data=False' in compact
     assert 'exclude=_PACKAGE_EXCLUDES' in setup_text
     assert 'assets_manifest_ci_light_v1.json' in setup_text
     assert 'class A5BuildPy' in setup_text
@@ -30,6 +35,8 @@ def test_manifest_does_not_glob_local_asset_tree_and_mirrors_code_boundary():
         'src/rdp/ciphers/dev',
         'src/rdp/keyops/dev',
     ):
+        assert f'prune {path}' in manifest
+    for path in ('tests', 'tutorials', 'cipher_development', 'solving', 'tools'):
         assert f'prune {path}' in manifest
 
 def test_support_claims_are_limited_to_qualified_gate():

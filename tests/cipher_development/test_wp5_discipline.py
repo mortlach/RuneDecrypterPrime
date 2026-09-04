@@ -10,7 +10,7 @@ def test_lessons_preserve_current_development_discipline() -> None:
 
 def test_readme_defines_boundaries_and_external_output() -> None:
     text = (ROOT / 'cipher_development/README.md').read_text(encoding='utf-8')
-    for boundary in ('src/rune_decrypter_prime/', 'tutorials/', 'tools/robustness/', 'run_outputs/cipher_development/', 'ci_light', 'full_v1', 'Truth', 'CAMPAIGN_RECIPES'):
+    for boundary in ('src/rdp/', 'tutorials/', 'tools/robustness/', 'run_outputs/cipher_development/', 'ci_light', 'full_v1', 'Truth', 'CAMPAIGN_RECIPES'):
         assert boundary in text
     assert 'output/cipher_development/' not in text
 

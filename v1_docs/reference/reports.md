@@ -5,9 +5,9 @@ Status: staged V1 draft
 Owners:
 
 ```text
-src/rune_decrypter_prime/api/solver_report.py
+src/rdp/api/solver_report.py
 src/rdp/scoring/scorer_report.py
-src/rune_decrypter_prime/api/display.py
+src/rdp/api/display.py
 ```
 
 ## RunResult
@@ -15,7 +15,7 @@ src/rune_decrypter_prime/api/display.py
 Owner:
 
 ```text
-src/rune_decrypter_prime/api/run_result.py
+src/rdp/api/run_result.py
 ```
 
 `RunResult` contains:

@@ -1,7 +1,8 @@
 from __future__ import annotations
 import ast
 from pathlib import Path
-import rune_decrypter_prime as rdp
+
+RDP_ROOT = Path(__file__).resolve().parents[2] / 'src' / 'rdp'
 _ALLOWED = {'core/types.py'}
 _BANNED = {'fwd', 'rev'}
 
@@ -38,7 +39,7 @@ def _scan_tokens(py: Path) -> list[tuple[int, str]]:
     return offenders
 
 def test_core_has_no_legacy_fwd_rev_literals_outside_allowlist() -> None:
-    root = Path(rdp.__file__).resolve().parent
+    root = RDP_ROOT
     core = root / 'core'
     all_offenders: list[str] = []
     for py in core.rglob('*.py'):

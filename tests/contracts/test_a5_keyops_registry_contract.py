@@ -34,7 +34,8 @@ def test_matrix_registry_identity_is_invariant_across_12_fresh_import_sequences(
     assert _fresh(_import_order_code(order)) == EXPECTED_MATRIX_FACTORY
 
 def test_deleted_keyops_development_packages_are_not_discoverable():
-    code = "import importlib.util\nfor name in ('rdp.keyops.dev', 'rune_decrypter_prime.keyops.dev'):\n    try:\n        found = importlib.util.find_spec(name)\n    except ModuleNotFoundError:\n        found = None\n    assert found is None, (name, found)\nprint('absent')\n"
+    assert not (REPO_ROOT / 'src' / 'rune_decrypter_prime').exists()
+    code = "import importlib.util\nname = 'rdp.keyops.dev'\ntry:\n    found = importlib.util.find_spec(name)\nexcept ModuleNotFoundError:\n    found = None\nassert found is None, (name, found)\nprint('absent')\n"
     assert _fresh(code) == 'absent'
 
 def test_duplicate_registration_is_loud_unless_replace_is_explicit():

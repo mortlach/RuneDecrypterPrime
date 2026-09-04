@@ -3,12 +3,12 @@
 Status: staged V1 draft
 
 Owner paths:
-- `src/rune_decrypter_prime/api/run_result.py`
-- `src/rune_decrypter_prime/api/solver_report.py`
-- `src/rune_decrypter_prime/api/display.py`
-- `src/rune_decrypter_prime/api/printer.py`
-- `src/rune_decrypter_prime/api/artifact_agreement.py`
-- `src/rune_decrypter_prime/api/run_artifact_manifest.py`
+- `src/rdp/api/run_result.py`
+- `src/rdp/api/solver_report.py`
+- `src/rdp/api/display.py`
+- `src/rdp/api/printer.py`
+- `src/rdp/api/artifact_agreement.py`
+- `src/rdp/api/run_artifact_manifest.py`
 - `src/rdp/core/engine/finalization.py`
 - `src/rdp/scoring/scorer_report.py`
 - `src/rdp/scoring/scorer_report_builder.py`

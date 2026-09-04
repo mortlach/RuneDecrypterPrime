@@ -56,9 +56,12 @@ Homepage = "https://github.com/mortlach/RuneDecrypterPrime"
 Documentation = "https://github.com/mortlach/RuneDecrypterPrime/tree/main/docs"
 Issues = "https://github.com/mortlach/RuneDecrypterPrime/issues"
 
+[tool.setuptools]
+include-package-data = false
+
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["rune_decrypter_prime*", "rdp*"]
+include = ["rdp*"]
 exclude = [
   "rdp.ciphers.dev",
   "rdp.ciphers.dev.*",

@@ -12,9 +12,9 @@ immutable RunSpec -> validation/materialisation -> engine
 ```
 
 Public definitions live in `src/rdp/api`. Ciphers, solvers, scoring, key
-operations, telemetry, data and native extensions remain in their exact
-`src/rune_decrypter_prime` modules. There is no forwarding public package or
-generic internal facade.
+operations, telemetry, data and native extensions live under their exact
+`src/rdp` domain owners. There is no forwarding package or generic internal
+facade.
 
 ## Public layer
 

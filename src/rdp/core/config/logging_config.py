@@ -141,7 +141,7 @@ def _detect_repo_root(start: Optional[Path] = None) -> Path:
     the project sentinel. Falls back to the current working directory.
     """
     p = (start or Path.cwd()).resolve()
-    sentinels = {".git", ".hg", "pyproject.toml", "rune_decrypter_prime"}
+    sentinels = {".git", ".hg", "pyproject.toml", "rdp"}
     for ancestor in [p, *p.parents]:
         try:
             names = {x.name for x in ancestor.iterdir()}

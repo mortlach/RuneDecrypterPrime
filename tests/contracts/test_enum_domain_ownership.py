@@ -5,10 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SRC_ROOTS = (
-    REPO_ROOT / 'src' / 'rdp',
-    REPO_ROOT / 'src' / 'rune_decrypter_prime',
-)
+SRC_ROOTS = (REPO_ROOT / 'src' / 'rdp',)
 LEDGER = REPO_ROOT / 'docs' / 'v1_traceability' / 'v1_enum_domain_ledger.json'
 
 @dataclass(frozen=True)

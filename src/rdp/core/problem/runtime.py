@@ -1,5 +1,5 @@
 # ============================================================
-# rune_decrypter_prime/core/runtime.py
+# rdp/core/problem/runtime.py
 # Canonical binding of cipher, scorer, ciphertext, and telemetry.
 # ============================================================
 from __future__ import annotations

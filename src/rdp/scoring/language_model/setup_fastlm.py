@@ -122,7 +122,7 @@ def main():
     setup(
         name="rune-decrypter-prime-fastlm",
         version="0.1.0",
-        description="Optional fast LM scorer for rune_decrypter_prime",
+        description="Optional fast LM scorer for Rune Decrypter Prime",
         ext_modules=ext_modules,
         cmdclass={"build_ext": _BuildExtShort},
         options={

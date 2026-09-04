@@ -5,7 +5,11 @@ src/
   rdp/
     __init__.py          # exposes the definition-owning api package
     api/                 # canonical V1 public definitions
-  rune_decrypter_prime/  # engine implementations and exact internal owners
+    core/                # materialisation, configuration and engine
+    ciphers/ keyops/     # cipher and concrete-key implementations
+    solvers/ scoring/    # search and scoring implementations
+    backends/            # optional backend and device selection
+    data/ io/ telemetry/ # runtime resources, artifacts and observations
 tests/                   # unit, contract, installation and type-check evidence
 tutorials/v1/            # active V1 tutorials
 docs/                    # active documentation and release contracts
@@ -16,8 +20,9 @@ Public consumers use `from rdp import api`. Internal consumers import the exact
 implementation module they require. There is no forwarding public package,
 compatibility alias namespace or generic internal facade.
 
-The engine package retains ciphers, solvers, scoring, key operations, telemetry,
-data and native-extension ownership until the separately governed AN4 work.
+The distribution installs only `rdp` and its intended subpackages. CI-light
+runtime assets are staged under `rdp/data/assets`; complete language-model
+assets remain explicit external inputs.
 
 Generated output, caches, review packs, local configuration and large local
 assets do not belong in the repository.

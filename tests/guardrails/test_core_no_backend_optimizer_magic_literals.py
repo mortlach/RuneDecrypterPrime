@@ -2,8 +2,8 @@ from __future__ import annotations
 import ast
 import re
 from pathlib import Path
-import rdp
-import rune_decrypter_prime
+
+RDP_ROOT = Path(__file__).resolve().parents[2] / 'src' / 'rdp'
 _BANNED = {'numpy', 'torch', 'unified', 'auto', 'beam', 'ga', 'sa', 'hybrid', 'cpu', 'cuda'}
 _PATTERN = re.compile('\\b(?:numpy|torch|unified|auto|beam|ga|sa|hybrid|cpu|cuda)\\b', re.IGNORECASE)
 _ALLOWLIST = {'core/types.py', 'core/config/logging_config.py', 'core/config/cipher.py', 'core/config/scoring.py', 'core/engine/engine.py', 'core/engine/finalization.py', 'core/problem/instance.py'}
@@ -74,10 +74,7 @@ def _scan_file(py: Path) -> list[tuple[str, int, str, str]]:
 
 def test_core_has_no_backend_optimizer_magic_literals():
     all_offenders: list[str] = []
-    package_roots = (
-        Path(rdp.__file__).resolve().parent,
-        Path(rune_decrypter_prime.__file__).resolve().parent,
-    )
+    package_roots = (RDP_ROOT,)
     for root in package_roots:
         for py in (root / 'core').rglob('*.py'):
             rel = py.relative_to(root).as_posix()

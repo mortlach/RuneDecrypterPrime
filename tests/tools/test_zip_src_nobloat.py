@@ -30,14 +30,14 @@ def test_make_zip_src_nobloat_preserves_src_structure(tmp_path: Path):
     src_root = repo_root / 'src'
     output_root = repo_root / 'output'
     zip_path = output_root / 'src_nobloat_test.zip'
-    _write(src_root / 'rune_decrypter_prime' / '__init__.py', '')
-    _write(src_root / 'rune_decrypter_prime' / 'utils' / 'runeglish.py', '# ok\n')
-    _write(src_root / 'rune_decrypter_prime' / 'data' / 'huge.bin', 'NOPE')
+    _write(src_root / 'rdp' / '__init__.py', '')
+    _write(src_root / 'rdp' / 'core' / 'types.py', '# ok\n')
+    _write(src_root / 'rdp' / 'data' / 'huge.bin', 'NOPE')
     summary = zsn.make_zip_src_nobloat(repo_root=repo_root, src_root=src_root, output_root=output_root, zip_path_override=zip_path)
     assert zip_path.exists()
     assert int(summary['included_files_count']) == 2
     with ZipFile(zip_path, 'r') as zf:
         names = set(zf.namelist())
-    assert 'src/rune_decrypter_prime/__init__.py' in names
-    assert 'src/rune_decrypter_prime/utils/runeglish.py' in names
-    assert 'src/rune_decrypter_prime/data/huge.bin' not in names
+    assert 'src/rdp/__init__.py' in names
+    assert 'src/rdp/core/types.py' in names
+    assert 'src/rdp/data/huge.bin' not in names

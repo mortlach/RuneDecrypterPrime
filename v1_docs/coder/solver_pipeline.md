@@ -3,7 +3,7 @@
 Status: staged V1 draft
 
 Owner paths:
-- `src/rune_decrypter_prime/api/specs.py`
+- `src/rdp/api/specs.py`
 - `src/rdp/core/engine/engine.py`
 - `src/rdp/core/engine/finalization.py`
 - `src/rdp/solvers/`
@@ -50,7 +50,7 @@ Runtime solution finalisation belongs to `rdp.core.engine.finalization`; public
 
 | Object | Owner path | Role |
 | --- | --- | --- |
-| `SolverSpec` | `src/rune_decrypter_prime/api/specs.py` | Public declarative solver choice. |
+| `SolverSpec` | `src/rdp/api/specs.py` | Public declarative solver choice. |
 | `EngineConfig` | `src/rdp/core/engine/engine.py` | Runtime solver kind, params, seed, and knobs. |
 | `_SOLVER_TABLE` | `src/rdp/core/engine/engine.py` | Maps `SolverName` to solver class. |
 | `finalize_solution` | `src/rdp/core/engine/finalization.py` | Attaches runtime telemetry, scorer lanes, WLI, normalized text/key views, run metadata, and pipeline metadata. |

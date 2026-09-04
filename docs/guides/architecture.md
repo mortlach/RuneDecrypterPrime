@@ -33,9 +33,9 @@ convenience, not a second execution route.
 
 ## Engine ownership
 
-The existing `rune_decrypter_prime` modules continue to own ciphers, key
-operations, solver algorithms, scoring, telemetry, data and native extensions.
-AN3 changes their public boundary, not their deeper physical organisation.
+The exact `rdp.ciphers`, `rdp.keyops`, `rdp.solvers`, `rdp.scoring`,
+`rdp.telemetry`, `rdp.data` and `rdp.io` modules own engine behaviour. The
+materialisation and execution path is owned by `rdp.core`.
 
 ## Determinism and reporting
 

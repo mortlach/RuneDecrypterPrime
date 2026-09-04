@@ -24,8 +24,8 @@ def test_release_review_pack_includes_review_contract_files_and_small_data(tmp_p
     _write(repo / 'unexpected_root_patch.py', "print('patch')\n")
     _write(repo / 'repair_old_release.py', "print('repair')\n")
     _write(repo / 'root_archive.zip', 'NOPE\n')
-    _write(repo / 'src' / 'rune_decrypter_prime' / 'core.py', 'VALUE = 1\n')
-    _write(repo / 'src' / 'rune_decrypter_prime' / 'data' / 'cipher_tests' / 'baseline_registry.py', 'BASELINE = {}\n')
+    _write(repo / 'src' / 'rdp' / 'core.py', 'VALUE = 1\n')
+    _write(repo / 'tests' / '_helpers' / 'baseline_registry.py', 'BASELINE = {}\n')
     _write(repo / 'tests' / 'core' / 'test_core.py', 'def test_ok():\n    pass\n')
     _write(repo / 'docs' / 'release_contracts' / 'v1' / 'd4_contract_closure.md', '# D4\n')
     _write(repo / 'tutorials' / 'v1' / 'run_tutorials.py', "print('tutorials')\n")
@@ -37,7 +37,7 @@ def test_release_review_pack_includes_review_contract_files_and_small_data(tmp_p
     _write(repo / 'output' / 'test_logs' / 'full_pytest.log', 'NOPE\n')
     _write(repo / 'assets' / 'lm2.zst', 'NOPE\n')
     _write(repo / 'planning' / 'private.md', 'NOPE\n')
-    _write(repo / 'src' / 'rune_decrypter_prime' / 'data' / 'large_asset.zst', 'NOPE\n')
+    _write(repo / 'src' / 'rdp' / 'data' / 'large_asset.zst', 'NOPE\n')
     summary = pack.make_release_review_pack(repo_root=repo, output_root=zip_path.parent, zip_path_override=zip_path, max_file_bytes=4096, git_metadata={'git_branch': 'prelease/v1.0.0_d7', 'git_commit_sha': '0123456789abcdef', 'git_working_tree_dirty': False})
     assert zip_path.exists()
     assert summary['included_files_count'] >= 10
@@ -61,8 +61,8 @@ def test_release_review_pack_includes_review_contract_files_and_small_data(tmp_p
     assert 'assets_manifest_v1.json' in names
     assert 'unexpected_root_patch.py' not in names
     assert 'repair_old_release.py' not in names
-    assert 'src/rune_decrypter_prime/core.py' in names
-    assert 'src/rune_decrypter_prime/data/cipher_tests/baseline_registry.py' in names
+    assert 'src/rdp/core.py' in names
+    assert 'tests/_helpers/baseline_registry.py' in names
     assert 'tests/core/test_core.py' in names
     assert 'docs/release_contracts/v1/d4_contract_closure.md' in names
     assert 'tutorials/v1/run_tutorials.py' in names
@@ -74,7 +74,7 @@ def test_release_review_pack_includes_review_contract_files_and_small_data(tmp_p
     assert 'output/test_logs/full_pytest.log' not in names
     assert 'assets/lm2.zst' not in names
     assert 'planning/private.md' not in names
-    assert 'src/rune_decrypter_prime/data/large_asset.zst' not in names
+    assert 'src/rdp/data/large_asset.zst' not in names
     assert 'root_archive.zip' not in names
     assert 'repair_old_release.py' not in names
     assert manifest['schema'] == 'rdp_v1_review_pack_manifest.v1'

@@ -30,7 +30,7 @@ def _import_paths_from_allowlist() -> list[str]:
         match = re.match('^\\| `([^`]+)` \\|', line)
         if match:
             import_path = match.group(1)
-            if import_path.startswith(('rune_decrypter_prime.', 'rdp.')):
+            if import_path.startswith('rdp.'):
                 paths.append(import_path)
     return paths
 

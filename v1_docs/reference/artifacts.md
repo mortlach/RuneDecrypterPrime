@@ -5,8 +5,8 @@ Status: staged V1 draft
 Owners:
 
 ```text
-src/rune_decrypter_prime/api/artifact_agreement.py
-src/rune_decrypter_prime/api/run_artifact_manifest.py
+src/rdp/api/artifact_agreement.py
+src/rdp/api/run_artifact_manifest.py
 ```
 
 ## Known Artifact Paths

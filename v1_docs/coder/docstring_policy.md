@@ -3,7 +3,7 @@
 Status: staged V1 draft
 
 Owner paths:
-- `src/rune_decrypter_prime/`
+- `src/rdp/`
 
 Related tests:
 - `tests/docs/test_v1_coder_docs_contract.py`

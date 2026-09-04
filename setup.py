@@ -17,7 +17,7 @@ SCORING_PACKAGE_ROOT = SRC / "rdp"
 CI_ASSET_MANIFEST = ROOT / "assets_manifest_ci_light_v1.json"
 CI_ASSET_SOURCE_ROOT = ROOT / "assets"
 CI_LM_INDEX_REL = Path("language_model/lmp/index.json")
-PACKAGE_DATA_REL = Path("rune_decrypter_prime/data")
+PACKAGE_DATA_REL = Path("rdp/data")
 PACKAGE_ASSETS_REL = PACKAGE_DATA_REL / "assets"
 PACKAGE_CI_MANIFEST_REL = PACKAGE_DATA_REL / "assets_manifest_ci_light_v1.json"
 
@@ -160,7 +160,12 @@ for maybe_ext in (
 
 
 setup(
-    packages=find_packages(where="src", exclude=_PACKAGE_EXCLUDES),
+    include_package_data=False,
+    packages=find_packages(
+        where="src",
+        include=("rdp", "rdp.*"),
+        exclude=_PACKAGE_EXCLUDES,
+    ),
     package_dir={"": "src"},
     ext_modules=extensions,
     cmdclass={"build_ext": build_ext, "build_py": A5BuildPy, "sdist": A5Sdist},

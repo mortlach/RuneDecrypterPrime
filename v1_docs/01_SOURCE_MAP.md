@@ -90,7 +90,7 @@ Use these archived areas for context, not copy:
 | `development/testing.md` | `tests/`, `tests/conftest.py`, CI workflow contracts | Contributor testing only; not beginner setup. |
 | `development/adding_a_tutorial.md` | current pretty-print tutorials, runner contracts, tutorial report helpers | Explain the expected tutorial shape. |
 | `development/docs_style.md` | staged docs policy, old docs playbook | Keep V1 docs plain, checked, and honest. |
-| `reference/run_spec.md` | `src/rune_decrypter_prime/api/run_spec.py` | Stable input contract summary. |
+| `reference/run_spec.md` | `src/rdp/api/run_spec.py` | Stable input contract summary. |
 | `reference/reports.md` | `solver_report.py`, `scorer_report.py`, `display.py` | Stable report/display vocabulary. |
 | `reference/artifacts.md` | `artifact_agreement.py`, `run_artifact_manifest.py` | Known artifact paths and classifications. |
 | `reference/tutorial_runners.md` | `run_tutorials.py`, runner contract tests | Runner ownership and current mismatch notes. |

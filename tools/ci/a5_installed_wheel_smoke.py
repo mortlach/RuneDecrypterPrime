@@ -10,16 +10,18 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOT = (PROJECT_ROOT / "src").resolve()
 REQUIRED_MODULES = (
-    "rune_decrypter_prime",
     "rdp",
     "rdp.scoring.language_model._fastlm",
     "rdp.scoring.hamming._hamming",
     "rdp.scoring.span_hamming._span_hamming_fast",
 )
 BLOCKED_MODULES = (
+    "rune_decrypter_prime",
     "rdp.ciphers.dev",
     "rdp.keyops.dev",
-    "rune_decrypter_prime.data.liber_primus.old",
+    "rdp.utils",
+    "rdp.data.cipher_tests",
+    "rdp.data.liber_primus.old",
 )
 PUBLIC_API_ALLOWLIST = (
     PROJECT_ROOT / "v1_docs" / "reference" / "public_api_allowlist.md"

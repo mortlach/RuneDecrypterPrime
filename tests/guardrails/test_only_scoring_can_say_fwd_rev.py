@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 
 def test_only_scoring_mentions_fwd_rev():
-    root = Path(__file__).resolve().parents[2] / 'rune_decrypter_prime'
+    root = Path(__file__).resolve().parents[2] / 'src' / 'rdp'
     offenders = []
     for p in root.rglob('*.py'):
         rel = p.relative_to(root).as_posix()

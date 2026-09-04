@@ -44,10 +44,10 @@ def _candidate_asset_files(repo_root: Path, scoring_contracts: Sequence[Mapping[
                 candidates.append((f'distribution/{logical.as_posix()}', path))
     except importlib.metadata.PackageNotFoundError:
         pass
-    spec = importlib.util.find_spec('rune_decrypter_prime')
+    spec = importlib.util.find_spec('rdp')
     if spec is not None and spec.submodule_search_locations:
         package_root = Path(next(iter(spec.submodule_search_locations))).resolve()
-        for relative_root in (Path('scoring/language_model'), Path('assets')):
+        for relative_root in (Path('scoring/language_model'), Path('data/assets')):
             root = package_root / relative_root
             if root.is_dir():
                 for path in sorted(root.rglob('*')):

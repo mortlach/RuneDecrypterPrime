@@ -40,7 +40,7 @@
     },
     {
       "path": "cipher_development/shared/replay_provenance.py",
-      "sha256": "8f008fa1d58850efb064d83ca278f22939c88636a18c69cb3b3e6dbb0883e516",
+      "sha256": "c18da2c99038d12064bca5a90fcac048564908baf074dcbece8bbea503c409b9",
       "role": "recursive local dependency"
     },
     {
@@ -93,7 +93,7 @@
   "external_import_policy": {
     "standard_library": "not copied",
     "third_party_packages": "not copied",
-    "rune_decrypter_prime": "production package dependency, not copied into fixture"
+    "rdp": "production package dependency, not copied into fixture"
   },
   "production_wheel_included": false,
   "curated_source_release_included": true,

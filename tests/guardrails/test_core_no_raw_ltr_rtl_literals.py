@@ -1,11 +1,12 @@
 from pathlib import Path
 import re
-import rune_decrypter_prime as rdp
+
+RDP_ROOT = Path(__file__).resolve().parents[2] / 'src' / 'rdp'
 LITERAL = re.compile('(?<![A-Za-z0-9_])([\\\'\\"])\\\\s*(ltr|rtl)\\\\s*\\\\1')
 ALLOWLIST = {'core/types.py', 'core/telemetry_helpers.py'}
 
 def test_core_has_no_raw_ltr_rtl_literals_outside_allowlist():
-    root = Path(rdp.__file__).resolve().parent
+    root = RDP_ROOT
     core = root / 'core'
     offenders = []
     for py in core.rglob('*.py'):

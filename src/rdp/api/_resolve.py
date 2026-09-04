@@ -1,5 +1,5 @@
 # ============================================================
-# rune_decrypter_prime/api/_resolve.py
+# rdp/api/_resolve.py
 #   Strict validators for optimiser/scorer specs (no aliases)
 # ============================================================
 from __future__ import annotations

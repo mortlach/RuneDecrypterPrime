@@ -1,4 +1,4 @@
-# rune_decrypter_prime/telemetry/ciphers_pipeline.py
+# rdp/telemetry/pipeline.py
 from __future__ import annotations
 import hashlib
 import json

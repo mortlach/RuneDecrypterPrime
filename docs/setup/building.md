@@ -23,7 +23,7 @@ ubuntu-latest
 The wheel test imports:
 
 ```text
-rune_decrypter_prime
+rdp
 rdp.scoring.language_model._fastlm
 rdp.scoring.hamming._hamming
 rdp.scoring.span_hamming._span_hamming_fast

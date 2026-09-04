@@ -44,7 +44,9 @@ assert not any(name.startswith('rdp.core.engine') for name in sys.modules)
 def test_old_scoring_package_is_not_discoverable() -> None:
     _run_isolated(
         """
-import importlib.util
-assert importlib.util.find_spec('rune_decrypter_prime.scoring') is None
+from importlib.machinery import PathFinder
+import sys
+
+assert PathFinder.find_spec('rune_decrypter_prime', [sys.path[0]]) is None
 """
     )

@@ -6,7 +6,7 @@ Owner paths:
 - `src/rdp/solvers/`
 - `src/rdp/solvers/solver_base.py`
 - `src/rdp/core/types.py`
-- `src/rune_decrypter_prime/api/normalize.py`
+- `src/rdp/api/normalize.py`
 - `src/rdp/core/engine/engine.py`
 - `tests/solvers/`
 - `tests/contracts/`

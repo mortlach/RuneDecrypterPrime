@@ -8,7 +8,21 @@ ROOT = Path(__file__).resolve().parents[2]
 WHEEL_DIRS = (ROOT / 'wheelhouse', ROOT / 'dist')
 SDIST_DIR = ROOT / 'dist'
 CI_MANIFEST = ROOT / 'assets_manifest_ci_light_v1.json'
-BLOCKED = ('rdp/ciphers/dev/', 'rune_decrypter_prime/keyops/dev/', 'rune_decrypter_prime/scoring/')
+BLOCKED = (
+    'rune_decrypter_prime/',
+    'rdp/utils/',
+    'rdp/ciphers/dev/',
+    'rdp/keyops/dev/',
+    'rdp/data/cipher_tests/',
+)
+SDIST_BLOCKED_PREFIXES = (
+    'tests/',
+    'tutorials/',
+    'cipher_development/',
+    'solving/',
+    'tools/',
+)
+SDIST_METADATA_PREFIX = 'src/rune_decrypter_prime.egg-info'
 REQUIRED_NATIVE_STEMS = ('_fastlm', '_hamming', '_span_hamming_fast')
 REQUIRED_NATIVE_PREFIXES = (
     'rdp/scoring/language_model/_fastlm',
@@ -28,8 +42,8 @@ REQUIRED_NATIVE_SOURCES = {
     'src/rdp/scoring/ngram_hamming/FastNgramHamming.h',
     'src/rdp/scoring/ngram_hamming/fast_bindings.cpp',
 }
-WHEEL_ASSET_PREFIX = 'rune_decrypter_prime/data/assets/'
-WHEEL_CI_MANIFEST = 'rune_decrypter_prime/data/assets_manifest_ci_light_v1.json'
+WHEEL_ASSET_PREFIX = 'rdp/data/assets/'
+WHEEL_CI_MANIFEST = 'rdp/data/assets_manifest_ci_light_v1.json'
 INDEX_REL = 'language_model/lmp/index.json'
 
 def _wheel() -> Path:
@@ -76,10 +90,13 @@ def main() -> int:
         bad = _blocked(names)
         if bad:
             raise AssertionError(f'blocked wheel members: {bad[:20]}')
-        if not any((n.startswith('rune_decrypter_prime/') for n in names)):
-            raise AssertionError('production package missing')
+        native_sources = sorted(
+            n for n in names if PurePosixPath(n).suffix.lower() in {'.cpp', '.h', '.hpp'}
+        )
+        if native_sources:
+            raise AssertionError(f'native source files must not be installed in wheel: {native_sources[:20]}')
         if not any((n.startswith('rdp/') for n in names)):
-            raise AssertionError('rdp facade missing')
+            raise AssertionError('production package missing')
         for stem in REQUIRED_NATIVE_STEMS:
             if not any((stem in n for n in names)):
                 raise AssertionError(f'native module missing: {stem}')
@@ -102,6 +119,9 @@ def main() -> int:
         if unexpected:
             raise AssertionError(f'unexpected wheel assets (possible local full_v1 leak): {unexpected[:20]}')
         meta_name = next((n for n in names if n.endswith('.dist-info/METADATA')))
+        top_level_name = next((n for n in names if n.endswith('.dist-info/top_level.txt')))
+        if zf.read(top_level_name).decode('utf-8').split() != ['rdp']:
+            raise AssertionError('wheel top_level.txt must contain only rdp')
         meta = email.message_from_bytes(zf.read(meta_name))
         reqs = [v.lower() for v in meta.get_all('Requires-Dist') or []]
         if not any((v.startswith('lark') for v in reqs)):
@@ -114,6 +134,24 @@ def main() -> int:
             raise AssertionError(f'blocked sdist members: {bad[:20]}')
         rel_names = {_strip_sdist_root(n) for n in names}
         rel_files = {_strip_sdist_root(member.name) for member in members if member.isfile()}
+        blocked_support = sorted(
+            name
+            for name in rel_names
+            if any(name == prefix[:-1] or name.startswith(prefix) for prefix in SDIST_BLOCKED_PREFIXES)
+        )
+        if blocked_support:
+            raise AssertionError(f'support/test members in sdist: {blocked_support[:20]}')
+        wrong_source_packages = sorted(
+            name
+            for name in rel_names
+            if name.startswith('src/')
+            and name != 'src/rdp'
+            and not name.startswith('src/rdp/')
+            and name != SDIST_METADATA_PREFIX
+            and not name.startswith(SDIST_METADATA_PREFIX + '/')
+        )
+        if wrong_source_packages:
+            raise AssertionError(f'non-rdp source package in sdist: {wrong_source_packages[:20]}')
         missing_native_sources = sorted(REQUIRED_NATIVE_SOURCES - rel_files)
         if missing_native_sources:
             raise AssertionError(f'native sources missing from sdist: {missing_native_sources}')
@@ -122,10 +160,10 @@ def main() -> int:
         missing = sorted(expected_sdist_assets - rel_names)
         if missing:
             raise AssertionError(f'CI-light sdist assets missing: {missing[:20]}')
-        actual_lm_files = {n for n in rel_files if n.startswith('assets/language_model/lmp/')}
-        unexpected = sorted(actual_lm_files - expected_sdist_assets)
+        actual_asset_files = {n for n in rel_files if n.startswith('assets/')}
+        unexpected = sorted(actual_asset_files - expected_sdist_assets)
         if unexpected:
-            raise AssertionError(f'unexpected sdist LM assets (possible local full_v1 leak): {unexpected[:20]}')
+            raise AssertionError(f'unexpected sdist assets (possible local full_v1 leak): {unexpected[:20]}')
         forbidden = [n for n in names if '/output/' in n or '/.git/' in n or '__pycache__' in n]
         if forbidden:
             raise AssertionError(f'generated/private members in sdist: {forbidden[:20]}')

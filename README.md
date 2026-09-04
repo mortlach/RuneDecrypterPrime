@@ -48,7 +48,7 @@ install.bat
 ## Common paths
 
 ```text
-src/rune_decrypter_prime/   package source
+src/rdp/                    installed package source
 tutorials/v1/               V1 tutorial scripts and tutorial runner
 tests/                      pytest test suite
 docs/                       user, expert, and contract-evidence docs

@@ -10,7 +10,7 @@ Owner paths:
 - `src/rdp/core/engine/`
 - `src/rdp/core/component_contracts.py`
 - `src/rdp/core/config/scoring.py`
-- `src/rune_decrypter_prime/api/wrappers/`
+- `src/rdp/api/wrappers/`
 - `tests/`
 
 Related how-to pages:
@@ -42,7 +42,7 @@ others still require explicit enum and table updates.
 | Solver | `src/rdp/solvers/` | `SolverBase` plus explicit `SolverName` and `_SOLVER_TABLE` registration | Internal to semi-stable | [Add A Solver](../howto/add_solver.md) |
 | Scorer runtime | `src/rdp/scoring/` | `BaseScorer`, scorer builders, `ScoringConfig.impl` | Internal | `coder/scoring_pipeline.md` |
 | Scorer lane | `src/rdp/core/component_contracts.py` and `src/rdp/core/config/scoring.py` | lane enum, request detection, capability/report sections | Semi-stable contract area | [Add A Scorer Lane](../howto/add_scorer_lane.md) |
-| Report/artifact | `src/rune_decrypter_prime/api/` | dataclass reports, artifact agreement, manifest rows | Public V1 for known API surfaces | `coder/telemetry_and_reports.md` |
+| Report/artifact | `src/rdp/api/` | dataclass reports, artifact agreement, manifest rows | Public V1 for known API surfaces | `coder/telemetry_and_reports.md` |
 | Tutorial | `tutorials/v1/` | tutorial file, runner entry, metadata alignment | Public docs evidence | `development/adding_a_tutorial.md` |
 
 ## General Rules

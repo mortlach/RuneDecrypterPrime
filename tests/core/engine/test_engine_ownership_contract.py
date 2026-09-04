@@ -52,18 +52,11 @@ for name in (
 def test_removed_engine_owners_are_not_discoverable() -> None:
     _run_isolated(
         """
-import importlib.util
+from importlib.machinery import PathFinder
+import sys
 
-for name in (
-    'rune_decrypter_prime.core.engine',
-    'rune_decrypter_prime.core.engine.builders',
-    'rune_decrypter_prime.core.solver_engine',
-):
-    try:
-        found = importlib.util.find_spec(name)
-    except ModuleNotFoundError:
-        found = None
-    assert found is None, (name, found)
+name = 'rune_decrypter_prime'
+assert PathFinder.find_spec(name, [sys.path[0]]) is None, name
 """
     )
 

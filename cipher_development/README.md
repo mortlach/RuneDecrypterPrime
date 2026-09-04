@@ -4,7 +4,7 @@
 remain useful after their production behaviour has stabilised. It is not a
 public API, tutorial collection, solver framework, or robustness campaign.
 
-- Production ciphers, scorers and solvers live under `src/rune_decrypter_prime/`.
+- Production ciphers, scorers and solvers live under `src/rdp/`.
 - Public teaching examples live under `tutorials/`.
 - Repeatable multi-family qualification lives in `tools/robustness/`.
 - This directory holds only focused diagnostic or scientific fixtures.

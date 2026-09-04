@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from types import MappingProxyType
 
-from rune_decrypter_prime import rune_decrypter_prime_version
+from rdp import __version__ as _rdp_version
 from rdp.api.stop_reason_contract import RunStatus, StopCategory, StopReason
 from rdp.core.types import (
     ComputeDevice,
@@ -131,7 +131,7 @@ class OracleReport:
 class ReproducibilityMetadata:
     run_id: str | None = None
     created_at_utc: str | None = None
-    rdp_version: str = rune_decrypter_prime_version
+    rdp_version: str = _rdp_version
     git_branch: str | None = None
     git_commit: str | None = None
     python_version: str = sys.version

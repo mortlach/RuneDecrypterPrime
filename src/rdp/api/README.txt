@@ -15,5 +15,6 @@ serialized or dynamically loaded configuration. There is no public runtime
 cipher object, execution class, generic transform, forwarding package or
 automatic internal fallback.
 
-Engine implementations remain under `rune_decrypter_prime` and are imported by
-their exact internal consumers, not re-exported as another public surface.
+Engine implementations live under their exact `rdp.*` domain owners and are
+imported directly by internal consumers, not re-exported as another public
+surface.

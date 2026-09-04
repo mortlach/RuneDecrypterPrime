@@ -34,7 +34,7 @@ Notes:
 
 ## Symbol Index (optional manual refresh)
 
-- **Command:** `python tools/symbols/generate_symbol_index.py --root src/rune_decrypter_prime > output/tools/symbols/project_symbol_index.txt`
+- **Command:** `python tools/symbols/generate_symbol_index.py --root src/rdp > output/tools/symbols/project_symbol_index.txt`
 - **Purpose:** generates a lightweight class/function inventory consumed by the docs lint coverage step. Feed the resulting file into version control if the public API changes.
 - **Output hygiene:** redirect stdout into `output/tools/symbols/project_symbol_index.txt` (or `output/share/...`) so it stays outside source trees.
 - **Customisation:** pass `--root` to scan a different package path.

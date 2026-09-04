@@ -4,7 +4,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = REPO_ROOT / "src"
 RDP_CORE_ROOT = SRC_ROOT / "rdp" / "core"
-ENGINE_CORE_ROOT = SRC_ROOT / "rune_decrypter_prime" / "core"
+ENGINE_CORE_ROOT = RDP_CORE_ROOT
 RUNE_SCORER = SRC_ROOT / "rdp" / "scoring" / "rune_scorer.py"
 CONSTRUCTION_BOUNDARY_FILES = {
     RDP_CORE_ROOT / "config" / "run.py",
@@ -35,7 +35,7 @@ TELEMETRY_OR_PAYLOAD_DICT_CHECKS = {
 def _python_files_under_core() -> list[Path]:
     return sorted(
         path
-        for root in (RDP_CORE_ROOT, ENGINE_CORE_ROOT)
+        for root in (RDP_CORE_ROOT,)
         for path in root.rglob("*.py")
         if "__pycache__" not in path.parts
     )
@@ -64,7 +64,7 @@ def _checked_expression(node: ast.Call, text: str) -> str:
 
 def test_core_has_no_module_package_name_collisions() -> None:
     collisions: list[str] = []
-    for root in (RDP_CORE_ROOT, ENGINE_CORE_ROOT):
+    for root in (RDP_CORE_ROOT,):
         for package_init in root.rglob('__init__.py'):
             package_dir = package_init.parent
             sibling_module = package_dir.with_suffix('.py')

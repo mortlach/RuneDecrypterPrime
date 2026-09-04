@@ -115,7 +115,7 @@ def main() -> None:
     setup(
         name="rune-decrypter-prime-span-hamming-fast",
         version="0.1.0",
-        description="Optional fast span-Hamming backend for rune_decrypter_prime",
+        description="Optional fast span-Hamming backend for Rune Decrypter Prime",
         ext_modules=ext_modules,
         cmdclass={"build_ext": _BuildExtShort},
         options={
