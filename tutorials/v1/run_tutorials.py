@@ -6,6 +6,9 @@ reports whether it passed. Each example checks its own expected result.
 
 from __future__ import annotations
 
+import os
+import uuid
+from rdp.core.config.output_paths import resolve_output_root, path_from
 import subprocess
 import sys
 from enum import StrEnum
@@ -34,8 +37,8 @@ RUN_SET = TutorialRunSet.RELEASE
 CONSOLE_OUTPUT = ConsoleOutput.COMPACT
 STOP_ON_FIRST_FAILURE = False
 WRITE_OUTPUT_LOGS = True
-CLEAN_OUTPUT_LOGS = True
-OUTPUT_DIR = Path("output/tutorial_logs")
+OUTPUT_DIR: Path | None = None
+_ACTIVE_OUTPUT: Path | None = None
 FAILURE_TAIL_LINES = 80
 
 # RELEASE adds three different cipher/problem shapes to the complete short
@@ -100,28 +103,19 @@ def _selected_tutorials() -> tuple[Path, ...]:
 
 
 def _output_dir() -> Path:
-    if OUTPUT_DIR.is_absolute():
-        raise ValueError("OUTPUT_DIR must be repo-relative, not absolute")
-    output_dir = (ROOT / OUTPUT_DIR).resolve()
-    output_root = (ROOT / "output").resolve()
-    if output_root not in output_dir.parents:
-        raise ValueError("OUTPUT_DIR must stay under output/")
-    return output_dir
+    if _ACTIVE_OUTPUT is None:
+        raise RuntimeError("Tutorial output has not been initialized")
+    return _ACTIVE_OUTPUT
 
 
 def _prepare_output_dir() -> None:
-    if not WRITE_OUTPUT_LOGS:
-        return
-    output_dir = _output_dir()
-    output_dir.mkdir(parents=True, exist_ok=True)
-    if CLEAN_OUTPUT_LOGS:
-        for path in output_dir.glob("*.txt"):
-            if path.is_file():
-                path.unlink()
+    global _ACTIVE_OUTPUT
+    _ACTIVE_OUTPUT = resolve_output_root(OUTPUT_DIR) / "tutorial_logs" / uuid.uuid4().hex
+    _ACTIVE_OUTPUT.mkdir(parents=True)
 
 
 def _relative(path: Path) -> str:
-    return path.relative_to(ROOT).as_posix()
+    return path_from(path, ROOT).replace(os.sep, "/")
 
 
 def _module_name(script: Path) -> str:
@@ -145,6 +139,7 @@ def _run_one(script: Path) -> tuple[bool, Path | None]:
     completed = subprocess.run(
         [sys.executable, "-X", "utf8", "-m", _module_name(script)],
         cwd=ROOT,
+        env={**os.environ, "RDP_OUTPUT_ROOT": str(_output_dir() / script.stem)},
         text=True,
         encoding="utf-8",
         errors="replace",

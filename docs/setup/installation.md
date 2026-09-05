@@ -25,12 +25,17 @@ The installer:
 
 1. checks the Python version;
 2. installs RDP in editable mode with test dependencies;
-3. checks the required native imports;
-4. verifies or installs the full V1 language-model assets;
-5. runs bounded smoke tests.
+3. provisions and verifies Torch CUDA when a supported NVIDIA GPU is detected;
+4. checks the required native imports;
+5. verifies or installs the full V1 language-model assets;
+6. runs compact smoke tests.
 
-Logs are written under `output/install_logs/`. Set `RDP_INSTALL_VERBOSE=1` when
+Logs are written under `output/install/<run-id>/`. Set `RDP_INSTALL_VERBOSE=1` when
 you need successful command output as well as failures.
+
+These paths use the default source output location. Set an absolute
+`RDP_OUTPUT_ROOT` for external developer output. See [output locations](../development/output_locations.md)
+and [CUDA installation](../development/cuda_installation.md).
 
 ## Full language-model assets
 

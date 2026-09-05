@@ -26,14 +26,14 @@ Prereqs: Completed one tutorial or test run
 ```text
 output/
   tutorials/
-    <timestamp>__tutorials__<label>__<git>/
+    <timestamp>__tutorials__<label>__<git>__<unique-id>/
       META.json
       config/logging.json
       logs/app.jsonl
       trace/
       artifacts/
   tests/
-    <timestamp>__tests__<label>__<git>/
+    <timestamp>__tests__<label>__<git>__<unique-id>/
       META.json
       config/logging.json
       logs/app.jsonl
@@ -50,15 +50,16 @@ output/
     <puzzle_id_or_name>/<solver_name>/<timestamp>/summary.json
 ```
 
-Every helper (`tests/conftest.py`, tutorials, RunLogger) writes relative to the repo root so the tree stays portable.
+This tree is relative to the selected output root. See [output locations](../development/output_locations.md)
+for explicit configuration, inherited developer output and installed-package defaults.
 
 ---
 
 ## Hands-on Track - Reading Your Outputs
 1. Run `python tutorials/v1/run_tutorials.py`.
 2. Open `output/tutorial_logs/` to inspect the full output for each pretty tutorial.
-3. Tutorial/session artifacts, when a tutorial writes them, live under `output/tutorials/`.
-4. If files show up outside `output/`, re-check the working directory or the troubleshooting appendix.
+3. Child tutorial artifacts live beneath their unique tutorial-run directory.
+4. If you configured `RDP_OUTPUT_ROOT`, use that directory in place of `output/`.
 
 ---
 

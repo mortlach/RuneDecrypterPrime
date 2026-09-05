@@ -8,7 +8,7 @@ from typing import Any, Dict, Sequence
 
 from rdp.core.types import Direction, ensure_direction, Device, ensure_device
 
-_DEFAULT_TELEMETRY_DIR = Path("output") / "telemetry" / "logs"
+from rdp.core.config.output_paths import resolve_output_root
 
 def device_request_str(dev: Device | str) -> str:
     """Return backend request token accepted by backends.xp.select_backend."""
@@ -98,7 +98,7 @@ def dump_telemetry(sol, *, base_dir: str | Path | None = None) -> str:
     tel = getattr(sol, "meta", {}).get("telemetry", None) if hasattr(sol, "meta") else None
     if not isinstance(tel, dict):
         return ""
-    dest = Path(base_dir) if base_dir is not None else _DEFAULT_TELEMETRY_DIR
+    dest = Path(base_dir) if base_dir is not None else (resolve_output_root() / "telemetry" / "logs")
     dest.mkdir(parents=True, exist_ok=True)
     ts = time.strftime("%Y%m%d-%H%M%S")
     path = dest / f"run-{ts}.jsonl"

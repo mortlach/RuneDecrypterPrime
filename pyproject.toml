@@ -14,6 +14,7 @@ dependencies = [
   "zstandard>=0.22",
   "tzdata>=2024.1",
   "lark>=1.1",
+  "platformdirs>=4.0",
 ]
 classifiers = [
   "Programming Language :: Python :: 3",

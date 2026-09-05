@@ -30,6 +30,6 @@ def test_v1_full_proof_is_manual_full_asset_release_gate() -> None:
 def test_v1_full_proof_preserves_install_test_and_tutorial_logs() -> None:
     text = FULL_PROOF.read_text(encoding='utf-8')
     assert 'Upload full-proof logs' in text
-    assert 'output/install_logs/*.log' in text
+    assert 'output/install/**/*.log' in text
     assert 'output/test_logs/*.log' in text
-    assert 'output/tutorial_logs/*.txt' in text
+    assert 'output/tutorial_logs/**/*.txt' in text

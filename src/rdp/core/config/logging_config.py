@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 import subprocess
+import uuid
+from rdp.core.config.output_paths import resolve_output_root, source_root
 
 # TODO(core/logging_config): avoid importing array libraries directly use dynamic __import__ with non-literal module tokens or collect versions in an allow-listed module.
 
@@ -27,20 +29,10 @@ class LoggingConfig:
     """
     Configuration for initializing a run's logging/telemetry directories.
 
-    Fields mirror the existing codebase to avoid breaking callers:
-      - verbose:                     enable verbose console logging
-      - print_progress:              allow progress printing
-      - write_jsonl:                 write JSONL event stream under logs/
-      - repo_root:                   explicit repository root (optional)
-      - out_root:                    base output directory (optional, default: <repo_root>/out)
-      - run_kind:                    short tag for the run kind (e.g., "test", "bench", "solve")
-      - label:                       human-friendly label to include in the run directory name
-      - fixed_run_dir:               if set, use this exact directory (absolute or relative to out_root/runs)
-      - write_solver_report:         write artifacts/solver_report.json
-      - write_rdp_display_summary:   write artifacts/rdp_display_summary.json
-      - write_run_artifacts_manifest: write artifacts/run_artifacts_manifest.json
-
-    No environment variables or CLI flags are read here—config is explicit.
+    output_root overrides RDP_OUTPUT_ROOT; otherwise use source output/ or
+    the operating system's per-user application data directory. Relative
+    explicit paths resolve from the caller's current working directory.
+    run_directory optionally selects an exact directory; otherwise runs are unique.
     """
     verbose: bool = False
     show_progress: bool = True
@@ -136,24 +128,7 @@ def _safe_token(s: Optional[str], default: str = "run") -> str:
 
 
 def _detect_repo_root(start: Optional[Path] = None) -> Path:
-    """
-    Heuristic repo root detection: walk up until we find a VCS marker or
-    the project sentinel. Falls back to the current working directory.
-    """
-    p = (start or Path.cwd()).resolve()
-    sentinels = {".git", ".hg", "pyproject.toml", "rdp"}
-    for ancestor in [p, *p.parents]:
-        try:
-            names = {x.name for x in ancestor.iterdir()}
-        except Exception:
-            continue
-        if names & sentinels:
-            return ancestor
-    return p
-
-
-def _default_out_root(repo_root: Path) -> Path:
-    return repo_root / "output"
+    return source_root(start) or Path(__file__).resolve().parent
 
 
 def _relativize_path(path: Path, base: Path, *, external_label: str = "path") -> str:
@@ -315,14 +290,14 @@ def init_logging(cfg: LoggingConfig) -> Path:
         - Updates module-global _PATHS so get_run_dir() and current_paths() work.
     """
     repo_root = _detect_repo_root()
-    out_root = cfg.output_root.resolve() if cfg.output_root else _default_out_root(repo_root)
+    out_root = resolve_output_root(cfg.output_root)
 
     ts = _now_stamp()
     kind_token = _safe_token(cfg.run_category, "run")
     label_token = _safe_token(cfg.label, kind_token)
     git_info = _git_info(repo_root)
     git_token = git_info.get("short") or "nogit"
-    run_id = f"{ts}__{kind_token}__{label_token}__{git_token}"
+    run_id = f"{ts}__{kind_token}__{label_token}__{git_token}__{uuid.uuid4().hex[:8]}"
     kind_root = out_root / kind_token
 
     if cfg.run_directory:

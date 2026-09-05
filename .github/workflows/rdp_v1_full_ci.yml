@@ -116,7 +116,8 @@ jobs:
         with:
           name: rdp-v1-push-gate-${{ matrix.os }}-py${{ matrix.python-version }}
           path: |
-            output/install_logs/*.log
+            output/install/**/*.log
+            output/install/**/*.json
             output/ci_logs/*.log
-            output/tutorial_logs/*.txt
+            output/tutorial_logs/**/*.txt
           if-no-files-found: warn

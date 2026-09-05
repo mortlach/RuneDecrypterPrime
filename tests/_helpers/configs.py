@@ -138,7 +138,7 @@ def make_logging_cfg(overrides: Dict[str, Any] | None=None, /, **kw) -> LoggingC
 
     Accepts both:
         make_logging_cfg({"verbose": False})
-        make_logging_cfg(overrides={"print_progress": False}, write_jsonl=True)
+        make_logging_cfg(overrides={"show_progress": False}, write_event_log=True)
     """
     if 'overrides' in kw:
         o2 = kw.pop('overrides') or {}

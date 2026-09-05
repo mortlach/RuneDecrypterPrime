@@ -98,7 +98,8 @@ jobs:
         with:
           name: rdp-v1-full-proof-${{ matrix.os }}-py${{ matrix.python-version }}
           path: |
-            output/install_logs/*.log
+            output/install/**/*.log
+            output/install/**/*.json
             output/test_logs/*.log
-            output/tutorial_logs/*.txt
+            output/tutorial_logs/**/*.txt
           if-no-files-found: warn

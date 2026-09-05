@@ -108,3 +108,11 @@ policy.
 The release contracts live under
 [`docs/release_contracts/v1/`](docs/release_contracts/v1/). They are test-backed
 drift controls, not the first reader path.
+
+### Output and GPU setup
+
+The source installer automatically provisions and verifies Torch CUDA on supported
+NVIDIA machines. See [CUDA installation](docs/development/cuda_installation.md).
+Generated output uses ignored source `output/` by default; developers can choose
+an external project root with `RDP_OUTPUT_ROOT`. See
+[output locations](docs/development/output_locations.md).

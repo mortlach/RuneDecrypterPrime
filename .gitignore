@@ -53,6 +53,7 @@ tests/tools/test_integrity_check.py
 # Private working material must not be published
 /planning/
 /local_archive/
+/run_outputs/
 .env
 .env.*
 !.env.example

@@ -24,3 +24,17 @@ Choose the family through `api.CipherSpec`. For transpositions, column or rail c
 To add a cipher, specify its key layout and compatible key operations, then implement and register its runtime behaviour. Reuse the shared pipeline so position handling stays consistent.
 
 Continue with the [guide](../../../docs/howto/add_cipher.md) or the [package map](../README.md).
+
+## CPU and CUDA array boundary
+
+Cipher orchestration normalizes input arrays to host NumPy through
+`rdp.backends.xp.to_numpy`. This includes text, keys and interruptor indices;
+Torch CPU/CUDA tensors and CuPy arrays use the same boundary. Permutations and
+interruptor reconstruction operate on host arrays and cipher methods return
+NumPy plaintext batches. Each cipher kernel retains its own selected compute
+device; normalizing input storage does not change that choice.
+
+The problem runtime may keep its bound arrays on a device. It sends plaintext
+batches to the selected scorer and returns host score arrays to the solver.
+Conversion errors propagate rather than retrying through implicit NumPy coercion.
+A CUDA request is not a promise that every orchestration operation runs on GPU.

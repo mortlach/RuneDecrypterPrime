@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from time import perf_counter
 
-from data.two_period_cribs_demo import build_demo_fixture
+from tutorials.v1.data.two_period_cribs_demo import build_demo_fixture
 
 from rdp import api
 from tutorials.v1.support import tutorial_pretty as pretty

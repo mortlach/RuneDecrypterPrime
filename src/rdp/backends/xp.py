@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
+
 import numpy as _np
 
 
@@ -111,6 +113,15 @@ class _CuPyXP:
     def synchronize(self):                    _cp.cuda.Stream.null.synchronize()
 
 
+@lru_cache(maxsize=64)
+def _torch_dtype(dtype):
+    """Normalize NumPy dtype specifications at the NumPy-like Torch boundary."""
+    if dtype is None or isinstance(dtype, _torch.dtype):
+        return dtype
+    # Let Torch define supported NumPy types; reject unsupported types unchanged.
+    return _torch.from_numpy(_np.empty(0, dtype=dtype)).dtype
+
+
 # ---------- Torch backend (CPU or CUDA) ----------
 class _TorchXP:
     backend = "torch"
@@ -134,18 +145,16 @@ class _TorchXP:
 
     # ops (NumPy-ish signatures)
     def asarray(self, x, dtype=None):
-        t = _torch.as_tensor(x, device=self.device)
-        return t.to(dtype) if dtype is not None else t
+        return _torch.as_tensor(x, dtype=_torch_dtype(dtype), device=self.device)
 
     def arange(self, n, dtype=None):
-        t = _torch.arange(int(n), device=self.device)
-        return t.to(dtype) if dtype is not None else t
+        return _torch.arange(int(n), dtype=_torch_dtype(dtype), device=self.device)
 
-    def zeros(self, shape, dtype=None):       return _torch.zeros(shape, dtype=dtype, device=self.device)
-    def zeros_like(self, a, dtype=None):      return _torch.zeros_like(a, dtype=dtype, device=a.device) if dtype is not None else _torch.zeros_like(a)
-    def empty(self, shape, dtype=None):       return _torch.empty(shape, dtype=dtype, device=self.device)
-    def empty_like(self, a, dtype=None):      return _torch.empty_like(a, dtype=dtype, device=a.device) if dtype is not None else _torch.empty_like(a)
-    def full(self, shape, fill_value, dtype=None): return _torch.full(shape, fill_value, dtype=dtype, device=self.device)
+    def zeros(self, shape, dtype=None):       return _torch.zeros(shape, dtype=_torch_dtype(dtype), device=self.device)
+    def zeros_like(self, a, dtype=None):      return _torch.zeros_like(a, dtype=_torch_dtype(dtype))
+    def empty(self, shape, dtype=None):       return _torch.empty(shape, dtype=_torch_dtype(dtype), device=self.device)
+    def empty_like(self, a, dtype=None):      return _torch.empty_like(a, dtype=_torch_dtype(dtype))
+    def full(self, shape, fill_value, dtype=None): return _torch.full(shape, fill_value, dtype=_torch_dtype(dtype), device=self.device)
     def concatenate(self, seq, axis=0):       return _torch.cat(seq, dim=axis)
     def mod(self, a, m):                      return a.remainder(m)
 
@@ -159,7 +168,7 @@ class _TorchXP:
         return out.reshape(idx.shape)
 
     def sum(self, a, axis=None):              return a.sum(dim=axis)
-    def astype(self, a, dtype):               return a.to(dtype)
+    def astype(self, a, dtype):               return a.to(dtype=_torch_dtype(dtype))
     def to_numpy(self, x):                    return x.detach().cpu().numpy()
     def synchronize(self):
         if self.device == "cuda":
@@ -232,18 +241,11 @@ def select_backend(requested: str | None = "auto"):
 
 
 def to_numpy(x):
-    """Best-effort conversion of xp/torch/cupy arrays/tensors to NumPy."""
-    if _torch is not None and hasattr(x, "detach") and hasattr(x, "cpu"):
-        try:
-            return x.detach().cpu().numpy()
-        except Exception:
-            pass
-    if _cp is not None:
-        try:
-            if isinstance(x, _cp.ndarray):
-                return _cp.asnumpy(x)
-        except Exception:
-            pass
+    """Transfer supported device arrays to host; conversion failures propagate."""
+    if _torch is not None and isinstance(x, _torch.Tensor):
+        return x.detach().cpu().numpy()
+    if _cp is not None and isinstance(x, _cp.ndarray):
+        return _cp.asnumpy(x)
     return _np.asarray(x)
 
 

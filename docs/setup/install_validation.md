@@ -68,8 +68,8 @@ The full proof is the real release signal for the complete asset profile.
 Collect:
 
 ```text
-output/install_logs/*.log
+output/install/<run-id>/*.log
 output/ci_logs/*.log
 output/test_logs/*.log
-output/tutorial_logs/*.txt
+output/tutorial_logs/**/*.txt
 ```

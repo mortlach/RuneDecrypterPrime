@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import importlib.util
+import json
+import uuid
 import os
 import subprocess
 import sys
-from datetime import datetime
 from pathlib import Path
 
 
@@ -11,7 +13,7 @@ ROOT = Path(__file__).resolve().parent
 PYTHON = sys.executable
 MIN_PYTHON = (3, 11)
 VERBOSE = os.environ.get("RDP_INSTALL_VERBOSE", "").strip().lower() in {"1", "true", "yes", "on"}
-LOG_DIR = ROOT / "output" / "install_logs"
+LOG_DIR: Path | None = None
 INSTALL_MODE_LABEL = "Full V1 install"
 ASSET_PROFILE_MANIFEST = ROOT / "asset_profiles_v1.json"
 DEFAULT_ASSET_PROFILE = "full_v1"
@@ -60,66 +62,44 @@ def _safe_name(label: str) -> str:
     return "".join(ch.lower() if ch.isalnum() else "_" for ch in label).strip("_") or "step"
 
 
-def _tail(text: str, *, max_lines: int = 35) -> str:
-    lines = text.rstrip().splitlines()
-    if not lines:
-        return ""
-    if len(lines) <= max_lines:
-        return "\n".join(lines)
-    return "\n".join(["... output truncated; see full log file ...", *lines[-max_lines:]])
-
-
-def _write_log(label: str, args: list[str], proc: subprocess.CompletedProcess[str]) -> Path:
-    LOG_DIR.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    path = LOG_DIR / f"{stamp}_{_safe_name(label)}.log"
-    body = [
-        f"label: {label}",
-        "command: " + " ".join(args),
-        f"returncode: {proc.returncode}",
-        "",
-        "--- stdout ---",
-        proc.stdout or "",
-        "",
-        "--- stderr ---",
-        proc.stderr or "",
-    ]
-    path.write_text("\n".join(body), encoding="utf-8")
-    return path
-
-
-def _print_failure_output(proc: subprocess.CompletedProcess[str], log_path: Path) -> None:
-    print(f"Full log: {log_path}")
-    combined = "\n".join(part for part in (proc.stdout, proc.stderr) if part)
-    if combined:
-        print("\n--- output tail ---")
-        print(_tail(combined))
-
-
 def _run(label: str, args: list[str]) -> None:
-    print(f"[RUN ] {label}")
-    if VERBOSE:
-        print("      " + " ".join(args))
-    proc = subprocess.run(
-        args,
-        cwd=str(ROOT),
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        capture_output=True,
-        check=False,
-    )
-    log_path = _write_log(label, args, proc)
-    if proc.returncode == 0:
-        print(f"[PASS] {label}")
-        if VERBOSE:
-            _print_failure_output(proc, log_path)
-        return
-
-    print(f"[FAIL] {label} exited with {proc.returncode}")
-    print("Command:", " ".join(args))
-    _print_failure_output(proc, log_path)
-    raise InstallFailure(label)
+    if LOG_DIR is None:
+        raise RuntimeError("Installer output has not been initialized")
+    log_path = LOG_DIR / (_safe_name(label) + ".log")
+    print(f"[RUN ] {label}", flush=True)
+    with log_path.open("w", encoding="utf-8") as log:
+        log.write("command: " + json.dumps(["python", *args[1:]]) + "\n")
+        log.flush()
+        process = subprocess.Popen(
+            args, cwd=ROOT, text=True, encoding="utf-8", errors="replace",
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            env={**os.environ, "RDP_OUTPUT_ROOT": str(LOG_DIR / "artifacts"),
+                 "PYTHONDONTWRITEBYTECODE": "1"}, start_new_session=os.name != "nt")
+        tail = []
+        try:
+            for line in process.stdout:
+                log.write(line)
+                log.flush()
+                tail = (tail + [line])[-35:]
+                if VERBOSE:
+                    print(line, end="", flush=True)
+            code = process.wait()
+            log.write(f"\nreturncode: {code}\n")
+        finally:
+            if process.poll() is None:
+                if os.name == "nt":
+                    subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                else:
+                    import signal
+                    os.killpg(process.pid, signal.SIGKILL)
+                process.wait()
+            process.stdout.close()
+    if code:
+        print("".join(tail), end="")
+        print(f"[FAIL] {label}; log={log_path.name}")
+        raise InstallFailure(label)
+    print(f"[PASS] {label}", flush=True)
 
 
 def _verify_python() -> None:
@@ -234,15 +214,23 @@ def _install_or_verify_profile_assets(profile) -> None:
 
 
 def _run_smoke_tests() -> None:
-    _run("Run compact V1 smoke tests", [PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider", *SMOKE_TESTS])
+    _run("Run compact V1 smoke tests", [PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider", f"--basetemp={LOG_DIR / 'pytest_tmp'}", *SMOKE_TESTS])
 
 
 def run_install(*, asset_profile_name: str, mode_label: str) -> int:
+    global LOG_DIR
+    # Load the dependency-light canonical owner without importing an uninstalled RDP.
+    spec = importlib.util.spec_from_file_location(
+        "rdp_install_output_paths", ROOT / "src/rdp/core/config/output_paths.py")
+    routing = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(routing)
+    LOG_DIR = routing.resolve_output_root() / "install" / uuid.uuid4().hex
+    LOG_DIR.mkdir(parents=True)
     print("Rune Decrypter Prime V1 installer")
     print(f"Mode: {mode_label}")
     print(f"Repo root: {ROOT}")
     print("Successful command output is hidden. Set RDP_INSTALL_VERBOSE=1 to show it.")
-    print("Full command logs are written under output/install_logs/.")
+    print(f"Install evidence: {routing.path_from(LOG_DIR, ROOT)}")
     print("pip is not upgraded automatically.")
     from tools.assets.asset_profiles import select_asset_profile
 
@@ -257,13 +245,18 @@ def run_install(*, asset_profile_name: str, mode_label: str) -> int:
     try:
         _verify_python()
         _install_package()
+        from tools.torch_runtime import provision_torch
+        gpu_report = provision_torch(_run)
+        (LOG_DIR / "gpu.json").write_text(json.dumps(gpu_report, indent=2), encoding="utf-8")
         _check_imports()
         _check_small_asset_sentinels()
         _install_or_verify_profile_assets(profile)
         _run_smoke_tests()
         print(f"[PASS] RDP V1 install smoke complete ({mode_label})")
         return 0
-    except InstallFailure as exc:
+    except (InstallFailure, RuntimeError) as exc:
+        (LOG_DIR / "failure.json").write_text(
+            json.dumps({"status": "failed", "error": str(exc)}, indent=2), encoding="utf-8")
         print(f"[INSTALL FAILED] {exc}")
         return 1
     except KeyboardInterrupt:

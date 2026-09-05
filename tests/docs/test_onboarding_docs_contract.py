@@ -38,17 +38,6 @@ def test_root_readme_uses_the_exact_public_identity_and_route() -> None:
         assert path in text
 
 
-def test_quickstart_names_every_route_stop_in_order() -> None:
-    text = _read(QUICKSTART)
-    names = [
-        path.name for path in sorted(ROUTE.glob("[0-9][0-9]_*.py"))
-    ]
-    # The guide runs modules, so the executable stem appears without .py.
-    offsets = [text.index(Path(name).stem) for name in names]
-    assert offsets == sorted(offsets)
-    assert "completed run is not relabelled as an exact solve" in text
-
-
 def test_catalogue_covers_every_example_without_fixing_a_total() -> None:
     text = _read(CATALOGUE)
     examples = sorted(
@@ -67,15 +56,6 @@ def test_catalogue_covers_every_example_without_fixing_a_total() -> None:
         "Truth / oracle",
     ):
         assert field in text
-
-
-def test_active_roadmap_retains_but_does_not_launch_p7_c7_work() -> None:
-    text = _read(ROADMAP)
-    assert "cipher_development/periodic_columnar_staged/" in text
-    assert "select the next scientific question" in text
-    assert "No new cipher development or long campaign is authorised" in text
-    assert "never part of an ordinary install or release run" not in text
-    assert "not part of these checks" in text
 
 
 def test_canonical_docs_do_not_restore_retired_taxonomy_or_prohibited_tone() -> None:

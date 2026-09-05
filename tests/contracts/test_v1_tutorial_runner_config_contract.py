@@ -30,19 +30,17 @@ def test_v1_tutorial_folder_has_one_public_runner() -> None:
     ]
 
 
-def test_runner_uses_file_constants_not_environment_or_cli() -> None:
+def test_runner_uses_file_constants_for_selection() -> None:
     runner = _runner_module()
     assert runner.RUN_SET is runner.TutorialRunSet.RELEASE
     assert runner.CONSOLE_OUTPUT is runner.ConsoleOutput.COMPACT
     assert runner.STOP_ON_FIRST_FAILURE is False
     assert runner.WRITE_OUTPUT_LOGS is True
-    assert runner.CLEAN_OUTPUT_LOGS is True
-    assert runner.OUTPUT_DIR.as_posix() == "output/tutorial_logs"
+    assert runner.OUTPUT_DIR is None
     assert runner.FAILURE_TAIL_LINES == 80
 
     source = RUNNER.read_text(encoding="utf-8")
     for forbidden in (
-        "os.environ",
         "argparse",
         "sys.argv",
         "tutorial_manifest_v1",
@@ -117,12 +115,14 @@ def test_qualification_warning_is_plain_and_unconditional() -> None:
     assert "requires the full V1 asset profile" in source
 
 
-def test_module_launch_preserves_script_failure(monkeypatch, capsys) -> None:
+def test_module_launch_preserves_script_failure(monkeypatch, capsys, tmp_path) -> None:
     """A failed script must remain a failure through the shared launcher."""
     from subprocess import CompletedProcess
 
     runner = _runner_module()
     runner.WRITE_OUTPUT_LOGS = False
+    runner.OUTPUT_DIR = tmp_path
+    runner._prepare_output_dir()
     script = runner.EXAMPLES_DIR / "columnar_transposition.py"
     launches = []
 

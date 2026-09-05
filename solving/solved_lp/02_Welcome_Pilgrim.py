@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import time
 from pathlib import Path
+import uuid
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / 'src'
 for path in (ROOT, SRC):
@@ -10,6 +11,7 @@ for path in (ROOT, SRC):
         sys.path.insert(0, str(path))
 from rdp import api
 import rdp.data.liber_primus as lp
+from rdp.core.config.output_paths import resolve_output_root
 from solving.solve_output import collect_solver_attempt, configure_utf8_stdio, print_block, print_final_result, print_kv, safe_public_dict, write_latest_evidence, zero_positions
 from rdp.data.runeglish import Runeglish
 configure_utf8_stdio()
@@ -24,7 +26,7 @@ SCORER_VARIANT = SCORER_OBJECTIVE
 CHAR_NGRAM_WEIGHTS = {1: 0.3, 2: 0.7}
 WLI_NGRAM_WEIGHTS = {1: 0.3, 2: 0.7}
 ACCEPTANCE_MATCH_RATIO = 1.0
-EVIDENCE_DIR = ROOT / 'output' / 'solved_lp' / SOURCE_LABEL
+EVIDENCE_DIR = Path('solved_lp') / SOURCE_LABEL
 PINNED_CIPHERTEXT_ZERO_POOL = [5, 14, 47, 48, 74, 84, 132, 144, 152, 159, 160, 165, 219, 250, 317, 331, 398, 421, 423, 443, 465, 470, 499, 505, 514]
 CANONICAL_WELCOME_PILGRIM_TEXT = 'WELCOME WELCOME PILGRIM TO THE GREAT JOURNEY TOWARD THE END OF ALL THINGS IT IS NOT AN EASY TRIP BUT FOR THOSE WHO FIND THEIR WAY HERE IT IS A NECESSARY ONE ALONG THE WAY YOU WILL FIND AN END TO ALL STRUGGLE AND SUFFERING YOUR INNOCENCE YOUR ILLUSIONS YOUR CERTAINTY AND YOUR REALITY ULTIMATELY YOU WILL DISCOVER AN END TO SELF IT IS THROUGH THIS PILGRIMAGE THAT WE SHAPE OURSELVES AND OUR REALITIES JOURNEY DEEP WITHIN AND YOU WILL ARRIVE OUTSIDE LIKE THE INSTAR IT IS ONLY THROUGH GOING WITHIN THAT WE MAY EMERGE WIDSOM YOU ARE A BEING UNTO YOURSELF YOU ARE A LAW UNTO YOURSELF EACH INTELLIGENCE IS HOLY FOR ALL THAT LIVES IS HOLY AN INSTRUCTION COMMAND YOUR OWN SELF'
 CANONICAL_WELCOME_PILGRIM_IDX = tuple((int(value) for value in Runeglish.encode_english_to_runes(CANONICAL_WELCOME_PILGRIM_TEXT, direction='ltr')[0]))
@@ -123,7 +125,7 @@ def main() -> int:
     print_final_result(block_name='LP_WELCOME_PILGRIM_FINAL_RESULT', source_label=SOURCE_LABEL, resolved_source_label=metadata['source_label'], main_page_start=metadata['main_page_start'], main_page_end=metadata['main_page_end'], ciphertext_length=len(ct_idx), wli_length=len(wli), recipe=recipe.recipe_label, cipher_family=recipe.cipher_family, method='beam_64_period_8_vigenere_interruptor_search', key_or_params={'key_text_hint': KEY_TEXT_HINT, 'key_length': KEY_LENGTH}, match_ratio=float(best_attempt.get('match_ratio') or 0.0), status=status, acceptance_rule='match_ratio >= 1.000 and 11 interrupters in pool and plaintext length equals ciphertext length', plaintext_latin=plaintext_latin, plaintext_runes=plaintext_runes, extra_fields={'solver_variant': best_attempt.get('solver_variant'), 'scorer_variant': SCORER_VARIANT, 'found_key_core': best_attempt.get('found_key_core'), 'found_interruptors': best_attempt.get('found_interruptors'), 'found_interruptors_sorted': best_attempt.get('found_interruptors_sorted'), 'found_interruptors_unique': best_attempt.get('found_interruptors_unique'), 'found_interruptors_in_pool': best_attempt.get('found_interruptors_in_pool'), 'found_interrupter_count': best_attempt.get('found_interrupter_count'), 'found_interrupter_count_matches_required': best_attempt.get('found_interrupter_count_matches_required'), 'interrupter_pool_size': len(interruptor_pool), 'interrupter_pool': interruptor_pool, 'ciphertext_zero_positions': pool_validation['ciphertext_zero_positions'], 'ciphertext_zero_count': pool_validation['ciphertext_zero_count'], 'interrupter_pool_zero_validation': pool_validation['interrupter_pool_zero_validation'], 'interrupter_pool_equals_ciphertext_zero_positions': pool_validation['interrupter_pool_equals_ciphertext_zero_positions'], 'best_score': best_attempt.get('best_score'), 'stop_reason': best_attempt.get('stop_reason'), 'plaintext_idx_length': best_attempt.get('plaintext_idx_length'), 'score_time_s': best_attempt.get('score_time_s'), 'decrypt_time_s': best_attempt.get('decrypt_time_s'), 'tokens': best_attempt.get('tokens'), 'evals_or_candidates': best_attempt.get('evals_or_candidates'), 'elapsed_wall_time_s': best_attempt.get('elapsed_wall_time_s'), 'notes': notes})
     final = {'status': status, 'match_ratio': best_attempt.get('match_ratio'), 'found_key_core': best_attempt.get('found_key_core'), 'found_interruptors': best_attempt.get('found_interruptors'), 'notes': notes}
     evidence = {'source_label': SOURCE_LABEL, 'resolved_source_label': metadata['source_label'], 'recipe': recipe.recipe_label, 'cipher_family': recipe.cipher_family, 'run_config': run_config, 'attempts': attempt_records, 'best_attempt': best_attempt, 'score_separation': score_separation, 'final': final}
-    latest_path, stamped_path = write_latest_evidence(EVIDENCE_DIR, evidence)
+    latest_path, stamped_path = write_latest_evidence(resolve_output_root() / "solving" / uuid.uuid4().hex / EVIDENCE_DIR, evidence)
     print('json_evidence_latest:', latest_path.relative_to(ROOT))
     print('json_evidence_timestamped:', stamped_path.relative_to(ROOT) if stamped_path is not None else None)
     return 0 if status == 'solved' else 1

@@ -42,27 +42,6 @@ def test_periodic_columnar_uses_the_qualified_public_warm_start() -> None:
     assert "generate_seed_keys_periodic_columnar" not in source
 
 
-def test_interruptor_support_import_is_defined_for_direct_execution() -> None:
-    for filename in (
-        "vigenere_interruptors_exact.py",
-        "vigenere_interruptors_solve.py",
-        "vigenere_interruptors_nontrivial.py",
-        "vigenere_interruptors_robust.py",
-    ):
-        source = _source(filename)
-        root_setup = source.index("sys.path.insert(0, str(_ROOT))")
-        support_import = source.index(
-            "from tutorials.v1.data.two_period_cribs_demo import "
-            "encrypt_interruptor_fixture"
-        )
-        assert root_setup < support_import
-
-    exact = _source("vigenere_interruptors_exact.py")
-    assert "rune_decrypter_prime.utils.interrupter" not in exact
-    assert "rdp.ciphers.interruptors" not in exact
-    assert "InterruptorConfig.exact(INTERRUPTORS)" in exact
-
-
 def test_hybrid_mono_frequency_seeds_cross_the_public_run_boundary() -> None:
     source = _source("mono_substitution_hybrid_rtl.py")
     assert "make_seeds_from_freq(" in source

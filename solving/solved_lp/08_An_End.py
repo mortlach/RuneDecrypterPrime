@@ -6,6 +6,7 @@ import sys
 from collections.abc import Callable, Sequence
 from itertools import combinations
 from pathlib import Path
+import uuid
 from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / 'src'
@@ -16,6 +17,7 @@ from rdp.core.types import Direction
 import rdp.data.liber_primus as lp
 from rdp.data.wordlists.loaders import load_short_word_dictionary
 from rdp.data.runeglish import Runeglish
+from rdp.core.config.output_paths import resolve_output_root
 from solving.solve_output import configure_utf8_stdio, match_ratio, page_value, print_block, write_json_evidence, zero_positions
 configure_utf8_stdio()
 SOURCE_LABEL = 'an_end'
@@ -31,7 +33,7 @@ SHAPE_MATCH_KEEP = 120
 FULL_ATTEMPT_SHAPE_TOP_N = 12
 TOP_ATTEMPT_KEEP = 200
 TOP_ATTEMPT_PRINT_COUNT = 20
-EVIDENCE_DIR = ROOT / 'output' / 'solved_lp' / SOURCE_LABEL
+EVIDENCE_DIR = Path('solved_lp') / SOURCE_LABEL
 EVIDENCE_PATH = EVIDENCE_DIR / 'latest_solve_evidence.json'
 DERIVE_MODES = ('ct_minus_pt', 'pt_minus_ct')
 STREAM_MODES = ('ct_minus_key', 'ct_plus_key')
@@ -365,7 +367,7 @@ def main() -> int:
     final = {'source_label': SOURCE_LABEL, 'resolved_source_label': metadata['source_label'], 'aliases': ALIASES, 'main_page_start': main_page_start, 'main_page_end': main_page_end, 'recipe': recipe.recipe_label, 'cipher_family': recipe.cipher_family, 'method': run_config['method'], 'candidate_phrase': best.get('candidate_phrase'), 'derive_mode': best.get('derive_mode'), 'sequence_family': best.get('sequence_family'), 'sequence_offset': best.get('sequence_offset'), 'absolute_shift': best.get('absolute_shift'), 'stream_mode': best.get('stream_mode'), 'interrupter_semantics': best.get('interrupter_semantics'), 'found_interruptors': best.get('interrupters', []), 'found_interrupter_count': best.get('interrupter_count', 0), 'match_ratio': best.get('match_ratio'), 'best_match_ratio': best.get('match_ratio'), 'best_shape_match_ratio': best.get('shape_match_ratio'), 'best_candidate_phrase': best.get('candidate_phrase'), 'best_sequence_family': best.get('sequence_family'), 'best_sequence_offset': best.get('sequence_offset'), 'best_interrupters': best.get('interrupters', []), 'status': 'solved' if solved else 'diagnostic_not_yet_solved', 'notes': 'exact solved reference match using zero-shifted sequence shape search and ciphertext-zero interrupter pool' if solved else 'structured zero-shifted sequence/interrupter search did not reach exact reference match', 'plaintext_latin': best.get('plaintext_latin_preview'), 'plaintext_runes': best.get('plaintext_runes_preview')}
     print_block('LP_AN_END_FINAL_RESULT', [('source_label', final['source_label']), ('resolved_source_label', final['resolved_source_label']), ('aliases', final['aliases']), ('main_page_start', final['main_page_start']), ('main_page_end', final['main_page_end']), ('recipe', final['recipe']), ('cipher_family', final['cipher_family']), ('method', final['method']), ('candidate_phrase', final['candidate_phrase']), ('derive_mode', final['derive_mode']), ('sequence_family', final['sequence_family']), ('sequence_offset', final['sequence_offset']), ('absolute_shift', final['absolute_shift']), ('stream_mode', final['stream_mode']), ('interrupter_semantics', final['interrupter_semantics']), ('found_interruptors', final['found_interruptors']), ('found_interrupter_count', final['found_interrupter_count']), ('match_ratio', final['match_ratio']), ('best_match_ratio', final['best_match_ratio']), ('best_shape_match_ratio', final['best_shape_match_ratio']), ('best_candidate_phrase', final['best_candidate_phrase']), ('best_sequence_family', final['best_sequence_family']), ('best_sequence_offset', final['best_sequence_offset']), ('best_interrupters', final['best_interrupters']), ('status', final['status']), ('notes', final['notes']), ('plaintext_latin', final['plaintext_latin']), ('plaintext_runes', final['plaintext_runes'])])
     evidence = {'source_label': SOURCE_LABEL, 'resolved_source_label': metadata['source_label'], 'recipe': recipe.recipe_label, 'cipher_family': recipe.cipher_family, 'run_config': run_config, 'sequence_shape_search': shape_records, 'top_attempts': top_attempts[:TOP_ATTEMPT_PRINT_COUNT], 'best_attempt': best, 'final': final}
-    write_json_evidence(EVIDENCE_PATH, evidence)
+    write_json_evidence(resolve_output_root() / "solving" / uuid.uuid4().hex / EVIDENCE_PATH, evidence)
     return 0
 if __name__ == '__main__':
     raise SystemExit(main())

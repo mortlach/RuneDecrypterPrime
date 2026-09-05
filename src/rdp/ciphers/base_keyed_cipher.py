@@ -6,6 +6,7 @@
 from __future__ import annotations
 from typing import Any
 import numpy as np
+from rdp.backends.xp import to_numpy
 
 from rdp.core.types import KeyOpsFamily, ensure_keyops_family
 
@@ -41,10 +42,10 @@ class KeyedCipherBase:
     @staticmethod
     def _as_u8(a: Any) -> ArrayU8:
         """Coerce to contiguous uint8 array (preserve shape)."""
-        return np.asarray(a, dtype=np.uint8, order="C")
+        return np.asarray(to_numpy(a), dtype=np.uint8, order="C")
 
     @staticmethod
     def _as_u8_1d(a: Any) -> ArrayU8:
         """Coerce to 1-D contiguous uint8 array."""
-        x = np.asarray(a, dtype=np.uint8, order="C")
+        x = np.asarray(to_numpy(a), dtype=np.uint8, order="C")
         return x.reshape(-1)

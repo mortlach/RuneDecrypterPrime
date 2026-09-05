@@ -43,6 +43,7 @@ import numpy as np
 from rdp.ciphers.interruptors import InterruptorManager, InterruptorInfo  # noqa: F401
 from rdp.ciphers.transposition import TranspositionManager
 from rdp.core.types import KEY_DTYPE
+from rdp.backends.xp import to_numpy
 
 ArrayU8 = np.ndarray
 
@@ -52,6 +53,8 @@ class CipherPipelineMixin:
 
     Responsibilities
     ----------------
+    - Normalize host/device inputs to NumPy at this orchestration boundary.
+      Cipher kernels retain responsibility for their selected compute device.
     - Normalise inputs (uint8) and support legacy defaults to bound cfg fields.
     - Manage interruptors through `InterruptorManager`.
     - Apply/undo text and key transposition through `TranspositionManager`.
@@ -353,8 +356,7 @@ class CipherPipelineMixin:
     @staticmethod
     def _as_u8(x, name: str) -> ArrayU8:
         """Coerce an input to a contiguous `np.uint8` array."""
-        arr = x.get() if hasattr(x, "get") else x
-        arr = np.asarray(arr, dtype=np.uint8)
+        arr = np.asarray(to_numpy(x), dtype=np.uint8, order="C")
         if arr.ndim < 1:
             raise ValueError(f"{name} must be array-like")
         return arr
@@ -362,8 +364,7 @@ class CipherPipelineMixin:
     @staticmethod
     def _as_key_dtype(x, name: str) -> ArrayU8:
         """Coerce an input to a contiguous `KEY_DTYPE` array (keys only)."""
-        arr = x.get() if hasattr(x, "get") else x
-        arr = np.asarray(arr, dtype=KEY_DTYPE)
+        arr = np.asarray(to_numpy(x), dtype=KEY_DTYPE, order="C")
         if arr.ndim < 1:
             raise ValueError(f"{name} must be array-like")
         return arr
@@ -384,7 +385,7 @@ class CipherPipelineMixin:
     @staticmethod
     def _as_intp(x, name: str) -> ArrayU8:
         """Coerce an input to a 1-D `np.intp` array."""
-        arr = np.asarray(x, dtype=np.intp)
+        arr = np.asarray(to_numpy(x), dtype=np.intp, order="C")
         if arr.ndim != 1:
             raise ValueError(f"{name} must be 1D")
         return arr
