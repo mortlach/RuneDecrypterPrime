@@ -116,7 +116,7 @@ The reviewed source baseline is:
   files;
 - accepted public surface: exactly 141 paths across the accepted root and four
   subnamespaces, as snapshotted by
-  `v1_docs/reference/public_api_allowlist.md` at SHA-256
+  `v1_docs/reference/public_api_allowlist.md` at canonical CRLF-rendered SHA-256
   `13ab2964ddc40706b0be4b01dac496e6d30005ba98a8117ae1c43bfac19c219a`;
 - 69 public objects have accepted physical implementation-owner
   (`__module__`) changes during the package movement.
@@ -168,7 +168,8 @@ f30c5d09080429f64a8a7e982712a5c339c091a2
 The final installed project namespace is solely `rdp`. The old
 `src/rune_decrypter_prime` tree, compatibility packages, forwarding packages and
 duplicate implementation owners are absent. The public contract remains exactly
-141 paths with 32 root API exports, and its accepted snapshot SHA-256 remains:
+141 paths with 32 root API exports, and its accepted canonical CRLF-rendered
+snapshot SHA-256 remains:
 
 ```text
 13ab2964ddc40706b0be4b01dac496e6d30005ba98a8117ae1c43bfac19c219a

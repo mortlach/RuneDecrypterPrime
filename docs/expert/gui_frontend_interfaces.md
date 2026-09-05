@@ -45,28 +45,16 @@ direction
 known source/known key policy
 ```
 
-## Tutorial manifest as catalogue
+## Runnable examples are not a GUI protocol
 
-The tutorial manifest is the best first catalogue for GUI work:
+`tutorials/v1/README.md` is the human catalogue and
+`tutorials/v1/run_tutorials.py` is a source-checkout runner. Neither is a stable
+machine-readable GUI protocol. A front-end should own its navigation metadata,
+construct typed `RunSpec` values, and call `api.run`.
 
-```text
-tutorials/v1/tutorial_manifest_v1.json
-```
-
-Use it to populate:
-
-```text
-tutorial list
-active/optional/blocked status
-gate labels
-asset profile requirement
-script path
-acceptance type
-expected match ratio or threshold
-```
-
-The GUI should not present blocked or legacy tutorial entries as normal beginner
-options.
+The catalogue remains useful review material for asset requirements, result
+policy and truth use. Do not scrape its Markdown tables or console prose at
+runtime.
 
 ## Outputs to read
 

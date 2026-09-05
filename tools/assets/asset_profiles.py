@@ -16,7 +16,6 @@ class AssetProfile:
     download_release_assets: bool
     language_model_orders: tuple[int, ...]
     pytest_marker_expression: str | None
-    tutorial_run_set: str
 
 def _require_text(value: Any, label: str) -> str:
     if not isinstance(value, str) or not value.strip():
@@ -37,7 +36,7 @@ def _require_manifest_path(value: Any, label: str) -> str:
 def _profile(name: str, raw: Any) -> AssetProfile:
     if not isinstance(raw, dict):
         raise AssetProfileError(f'profiles.{name} must be an object')
-    expected = {'description', 'release_asset_set', 'verification_manifest', 'download_release_assets', 'language_model_orders', 'pytest_marker_expression', 'tutorial_run_set'}
+    expected = {'description', 'release_asset_set', 'verification_manifest', 'download_release_assets', 'language_model_orders', 'pytest_marker_expression'}
     if set(raw) != expected:
         missing = sorted(expected - set(raw))
         extra = sorted(set(raw) - expected)
@@ -56,7 +55,7 @@ def _profile(name: str, raw: Any) -> AssetProfile:
     marker = raw['pytest_marker_expression']
     if marker is not None and (not isinstance(marker, str) or not marker.strip()):
         raise AssetProfileError(f'profiles.{name}.pytest_marker_expression must be null or non-empty')
-    return AssetProfile(name=name, description=_require_text(raw['description'], f'profiles.{name}.description'), release_asset_set=_require_text(raw['release_asset_set'], f'profiles.{name}.release_asset_set'), verification_manifest=_require_manifest_path(raw['verification_manifest'], f'profiles.{name}.verification_manifest'), download_release_assets=download, language_model_orders=orders, pytest_marker_expression=None if marker is None else marker.strip(), tutorial_run_set=_require_text(raw['tutorial_run_set'], f'profiles.{name}.tutorial_run_set'))
+    return AssetProfile(name=name, description=_require_text(raw['description'], f'profiles.{name}.description'), release_asset_set=_require_text(raw['release_asset_set'], f'profiles.{name}.release_asset_set'), verification_manifest=_require_manifest_path(raw['verification_manifest'], f'profiles.{name}.verification_manifest'), download_release_assets=download, language_model_orders=orders, pytest_marker_expression=None if marker is None else marker.strip())
 
 def load_asset_profiles(path: Path | str) -> tuple[str, dict[str, AssetProfile]]:
     manifest_path = Path(path)

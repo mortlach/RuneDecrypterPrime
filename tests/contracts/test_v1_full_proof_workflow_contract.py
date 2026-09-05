@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from pathlib import Path
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PUSH_GATE = REPO_ROOT / '.github' / 'workflows' / 'rdp_v1_full_ci.yml'
 FULL_PROOF = REPO_ROOT / '.github' / 'workflows' / 'rdp_v1_full_proof.yml'
@@ -12,7 +14,7 @@ def test_v1_push_gate_is_the_only_automatic_ci_gate() -> None:
     assert '"prelease/**"' in text
     assert 'python tools/ci/install_light.py' in text
     assert '"not full_assets"' in text
-    assert 'TutorialRunSet.CI_LIGHT' in text
+    assert 'TutorialRunSet.RELEASE' in text
 
 def test_v1_full_proof_is_manual_full_asset_release_gate() -> None:
     text = FULL_PROOF.read_text(encoding='utf-8')
@@ -23,7 +25,7 @@ def test_v1_full_proof_is_manual_full_asset_release_gate() -> None:
     assert '"3.11"' in text
     assert 'python install.py' in text
     assert 'complete pytest suite with full assets' in text
-    assert 'TutorialRunSet.ALL_WORKING' in text
+    assert 'TutorialRunSet.FULL_ASSET_EXAMPLES' in text
 
 def test_v1_full_proof_preserves_install_test_and_tutorial_logs() -> None:
     text = FULL_PROOF.read_text(encoding='utf-8')

@@ -29,6 +29,8 @@ assets/language_model/lmp/**/*_3_*.bin.zst
 assets/language_model/lmp/**/*_4_*.bin.zst
 assets/language_model/lmp/**/*_n3_win10_*.npz
 assets/language_model/lmp/**/*_n4_win10_*.npz
+assets/language_model/lmp/**/*_wise.bin.zst
+assets/language_model/lmp/**/*_wise_*.npz
 
 # Local virtual environments
 .venv/

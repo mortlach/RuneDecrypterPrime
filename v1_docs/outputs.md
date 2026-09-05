@@ -27,15 +27,15 @@ review.
 The normal tutorial runner prints compact review lines:
 
 ```text
-[RUN ] Tutorial_Autokey.py
-[PASS] Tutorial_Autokey.py acceptance=exact match_ratio=1.000 min=1.000 log=output/tutorial_logs/Tutorial_Autokey.txt
+[RUN ] tutorials/v1/examples/autokey.py
+[PASS] tutorials/v1/examples/autokey.py log=output/tutorial_logs/examples_autokey.txt
 ```
 
 The final summary is the main beginner signal:
 
 ```text
-Tutorial summary
-selected=21 run=21 passed=21 failed=0
+Run summary
+selected=10 run=10 passed=10 failed=0
 ```
 
 For V1 release review, `failed=0` is the important part.

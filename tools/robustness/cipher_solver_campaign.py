@@ -325,7 +325,12 @@ def _build_two_period(trial_index: int, attempt_index: int) -> CampaignCase:
     if str(tutorial_root) not in sys.path:
         sys.path.insert(0, str(tutorial_root))
     from tutorials.v1.data.two_period_cribs_demo import build_demo_fixture
-    from tutorials.v1.Tutorial_TwoPeriodCribs import FIXED_CRIBS, PERIOD_A, PERIOD_B, STARTS
+    from tutorials.v1.examples.two_period_cribs import (
+        FIXED_CRIBS,
+        PERIOD_A,
+        PERIOD_B,
+        STARTS,
+    )
     cipher, key = (api.CipherSpec.two_period_vigenere(first_period=PERIOD_A, second_period=PERIOD_B, alphabet_size=ALPHABET), api.KeySpec.repeating(length=PERIOD_A + PERIOD_B))
     fixture = build_demo_fixture(cipher)
     solver = api.SolverSpec.two_period_cribs(fixed_cribs=FIXED_CRIBS, starts=STARTS, seed=solver_seed)

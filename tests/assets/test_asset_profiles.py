@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import subprocess
 from pathlib import Path
 import pytest
 from tools.assets.asset_profiles import AssetProfileError, load_asset_profiles, select_asset_profile
@@ -60,6 +61,27 @@ def test_full_v1_manifest_preserves_the_same_canonical_source_index() -> None:
     assert full_index['sha256'] == ci_index['sha256']
     assert full_index['size_bytes'] == ci_index['size_bytes'] == 627
     assert full_index['install_policy'] == 'preserve_existing_verified'
+
+def test_full_only_asset_paths_are_gitignored() -> None:
+    full_manifest = load_manifest(RELEASE_MANIFEST)
+    ci_manifest = load_manifest(CI_MANIFEST)
+    ci_paths = {row['final_relpath'] for row in ci_manifest['installed_assets']}
+    full_only_paths = {
+        row['final_relpath']
+        for row in full_manifest['installed_assets']
+        if row['final_relpath'] not in ci_paths
+    }
+    assert full_only_paths
+    offenders = []
+    for relpath in sorted(full_only_paths):
+        completed = subprocess.run(
+            ['git', 'check-ignore', '--no-index', '-q', f'assets/{relpath}'],
+            cwd=ROOT,
+            check=False,
+        )
+        if completed.returncode != 0:
+            offenders.append(relpath)
+    assert offenders == []
 
 def test_unknown_or_malformed_profile_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(AssetProfileError, match='unknown asset profile'):

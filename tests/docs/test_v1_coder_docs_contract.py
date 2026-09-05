@@ -1,16 +1,19 @@
 from __future__ import annotations
-from rdp import api
-import rdp.api.run_artifact_manifest
+import hashlib
 import importlib
 import inspect
 import re
 from dataclasses import fields
 from pathlib import Path
+
+import rdp.api.run_artifact_manifest
+from rdp import api
 from rdp.core.config.logging_config import LoggingConfig
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 V1_DOCS = REPO_ROOT / 'v1_docs'
 PUBLIC_API_ALLOWLIST = V1_DOCS / 'reference' / 'public_api_allowlist.md'
+PUBLIC_API_SNAPSHOT_SHA256 = '13ab2964ddc40706b0be4b01dac496e6d30005ba98a8117ae1c43bfac19c219a'
 CODER_MODULE_MAP = V1_DOCS / 'coder' / 'module_map.md'
 CODER_README = V1_DOCS / 'coder' / 'README.md'
 CODER_PUBLIC_API = V1_DOCS / 'coder' / 'public_api.md'
@@ -77,7 +80,17 @@ def test_public_api_allowlist_is_the_exact_five_namespace_contract() -> None:
         )
         for name in namespace.__all__
     }
-    assert {row[0] for row in _allowlist_rows()} == expected
+    paths = {row[0] for row in _allowlist_rows()}
+    assert len(paths) == 141
+    assert len(api.__all__) == 32
+    assert paths == expected
+
+
+def test_public_api_allowlist_preserves_the_accepted_crlf_snapshot() -> None:
+    canonical = ('\r\n'.join(_read(PUBLIC_API_ALLOWLIST).splitlines()) + '\r\n').encode(
+        'utf-8'
+    )
+    assert hashlib.sha256(canonical).hexdigest() == PUBLIC_API_SNAPSHOT_SHA256
 
 
 def test_module_map_source_paths_exist() -> None:

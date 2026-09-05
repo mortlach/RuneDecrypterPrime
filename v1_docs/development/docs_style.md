@@ -7,8 +7,8 @@ details.
 
 ## Reader First
 
-Write for an interested high-school student first, then give deeper links for
-expert readers.
+Write for a technically capable reader who is new to RDP, then give deeper
+links for specialists and integrators.
 
 Prefer:
 

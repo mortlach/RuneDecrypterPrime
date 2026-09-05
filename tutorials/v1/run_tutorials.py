@@ -1,120 +1,200 @@
+"""Run the ordered V1 route or one explicit group of retained examples.
+
+The scripts own their semantic assertions.  This runner selects files, starts
+each one in a subprocess and reports whether it exited cleanly.  Edit RUN_SET
+below; there is deliberately no second configuration surface.
+"""
+
 from __future__ import annotations
-'Run V1 tutorials from one editable runner file.\n\nNormal tutorial control lives in the constants below. There are no command-line\nswitches, RDP environment variables, or separate config files for public V1\ntutorial runs.\n'
+
 import subprocess
 import sys
+from enum import StrEnum
 from pathlib import Path
+
 ROOT = Path(__file__).resolve().parents[2]
-SRC = ROOT / 'src'
-TUTORIAL_DIR = Path(__file__).resolve().parent
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
-from tutorials.v1.support.tutorial_benchmark import TutorialAcceptanceKind
-from tutorials.v1.support import tutorial_pretty as pretty
-from tutorials.v1.support.tutorial_runner import ConsoleOutput, TutorialEntry, TutorialResult, TutorialRunSet, evaluate_tutorial_acceptance, parse_match_ratio, repo_relpath, select_tutorials, tail_text, validate_tutorial_entries
+TUTORIAL_ROOT = Path(__file__).resolve().parent
+GETTING_STARTED_DIR = TUTORIAL_ROOT / "getting_started"
+EXAMPLES_DIR = TUTORIAL_ROOT / "examples"
+
+
+class TutorialRunSet(StrEnum):
+    GETTING_STARTED = "getting_started"
+    RELEASE = "release"
+    BUNDLED_EXAMPLES = "bundled_examples"
+    FULL_ASSET_EXAMPLES = "full_asset_examples"
+    QUALIFICATION = "qualification"
+
+
+class ConsoleOutput(StrEnum):
+    COMPACT = "compact"
+    FULL = "full"
+
+
 RUN_SET = TutorialRunSet.RELEASE
 CONSOLE_OUTPUT = ConsoleOutput.COMPACT
 STOP_ON_FIRST_FAILURE = False
 WRITE_OUTPUT_LOGS = True
 CLEAN_OUTPUT_LOGS = True
-OUTPUT_DIR = Path('output/tutorial_logs')
+OUTPUT_DIR = Path("output/tutorial_logs")
 FAILURE_TAIL_LINES = 80
-TUTORIALS: tuple[TutorialEntry, ...] = (TutorialEntry('Tutorial_TwoPeriodCribs.py', 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE, TutorialRunSet.FULL_ASSETS), required_asset_profile='full_v1'), TutorialEntry('Tutorial_TwoPeriodCribs_Interruptors.py', 1.0, run_sets=(TutorialRunSet.RELEASE, TutorialRunSet.FULL_ASSETS), required_asset_profile='full_v1'), TutorialEntry('Tutorial_TwoPeriodCribs_P13P31_Search.py', 1.0, run_sets=(TutorialRunSet.EXTENDED, TutorialRunSet.FULL_ASSETS), required_asset_profile='full_v1'), TutorialEntry('Tutorial_Start_Here.py', 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_Autokey.py', 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_Autokey_Robust.py', 1.0, run_sets=(TutorialRunSet.EXTENDED,)), TutorialEntry('Tutorial_Railfence.py', 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_Vigenere_Interruptors_Exact.py', 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_ColumnarTransposition.py', 1.0, run_sets=(TutorialRunSet.FAST, TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_Vigenere_GeneralMap.py', 1.0, run_sets=(TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_Vigenere_Interruptors_Solve.py', 1.0, run_sets=(TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_MonoSubstitution_GA_RTL.py', 0.97, TutorialAcceptanceKind.HUMAN_READABLE, (TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_MonoSubstitution_GA_LTR.py', 0.97, TutorialAcceptanceKind.HUMAN_READABLE, (TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_MonoSubstitution_GA_Robust.py', 0.97, TutorialAcceptanceKind.HUMAN_READABLE, (TutorialRunSet.EXTENDED,)), TutorialEntry('Tutorial_Repeating_multiply.py', 1.0, run_sets=(TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_MonoSubstitution_HYBRID_RTL.py', 0.995, TutorialAcceptanceKind.NEAR_EXACT, (TutorialRunSet.EXTENDED,)), TutorialEntry('Tutorial_Vigenere_Interruptors_NonTrivial.py', 1.0, run_sets=(TutorialRunSet.EXTENDED,)), TutorialEntry('Tutorial_Vigenere_Interruptors_Robust.py', 1.0, run_sets=(TutorialRunSet.EXTENDED,)), TutorialEntry('Tutorial_ScheduledStreamLookup_RealSolve_P13Sequence.py', 1.0, run_sets=(TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_ScheduledStreamLookup_RealSolve_P13Primes.py', 1.0, run_sets=(TutorialRunSet.EXTENDED,)), TutorialEntry('Tutorial_ScheduledStreamLookup_RealSolve_P13P31Segmented.py', 0.9, TutorialAcceptanceKind.PARTIAL_RECOVERY, (TutorialRunSet.PARTIAL_RECOVERY,)), TutorialEntry('Tutorial_LP_Welcome_Pilgrim_Solve.py', 1.0, run_sets=(TutorialRunSet.RELEASE, TutorialRunSet.CI_LIGHT)), TutorialEntry('Tutorial_MonoSubstitution_SA_LTR.py', 0.995, TutorialAcceptanceKind.NEAR_EXACT, (TutorialRunSet.EXTENDED,)), TutorialEntry('Tutorial_PeriodicSubstitution.py', 0.995, TutorialAcceptanceKind.NEAR_EXACT, (TutorialRunSet.FULL_ASSETS,), required_asset_profile='full_v1'), TutorialEntry('Tutorial_PeriodicSubstitution_Simple_P7.py', 0.995, TutorialAcceptanceKind.NEAR_EXACT, (TutorialRunSet.FULL_ASSETS,), required_asset_profile='full_v1'), TutorialEntry('Tutorial_PeriodicColumnar_Simple_P7_ColThenSub.py', 1.0, run_sets=(TutorialRunSet.FULL_ASSETS,), required_asset_profile='full_v1'))
-LONG_RUNNING_KAEDING_TUTORIALS = frozenset({
-    'Tutorial_PeriodicSubstitution.py',
-    'Tutorial_PeriodicSubstitution_Simple_P7.py',
-    'Tutorial_PeriodicColumnar_Simple_P7_ColThenSub.py',
-})
 
-def _selected_tutorials() -> tuple[TutorialEntry, ...]:
-    return select_tutorials(TUTORIALS, RUN_SET)
+# RELEASE adds three different cipher/problem shapes to the complete short
+# route.  Measured together on the reference CPU, they take roughly 45 seconds.
+RELEASE_EXAMPLE_NAMES = (
+    "columnar_transposition.py",
+    "repeating_multiply.py",
+    "scheduled_stream_lookup_p13_sequence.py",
+)
+FULL_ASSET_EXAMPLE_NAMES = (
+    "two_period_cribs.py",
+    "two_period_cribs_interruptors.py",
+)
+QUALIFICATION_NAMES = (
+    "periodic_substitution.py",
+    "periodic_substitution_p7.py",
+    "periodic_columnar_p7_column_then_substitution.py",
+)
+FULL_ASSET_ONLY_NAMES = frozenset(
+    {
+        *FULL_ASSET_EXAMPLE_NAMES,
+        "two_period_cribs_p13_p31_search.py",
+        *QUALIFICATION_NAMES,
+    }
+)
 
-def _validate_tutorials(entries: tuple[TutorialEntry, ...]) -> None:
-    validate_tutorial_entries(entries, tutorial_dir=TUTORIAL_DIR, run_set=RUN_SET)
+
+def _discover(directory: Path, pattern: str) -> tuple[Path, ...]:
+    return tuple(sorted(path for path in directory.glob(pattern) if path.is_file()))
+
+
+def _named_examples(names: tuple[str, ...]) -> tuple[Path, ...]:
+    paths = tuple(EXAMPLES_DIR / name for name in names)
+    missing = [path.name for path in paths if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(f"missing V1 examples: {', '.join(missing)}")
+    return paths
+
+
+def _selected_tutorials() -> tuple[Path, ...]:
+    getting_started = _discover(GETTING_STARTED_DIR, "[0-9][0-9]_*.py")
+    examples = _discover(EXAMPLES_DIR, "*.py")
+    examples = tuple(path for path in examples if path.name != "__init__.py")
+    if not getting_started:
+        raise FileNotFoundError("no getting-started files were discovered")
+    if not examples:
+        raise FileNotFoundError("no V1 examples were discovered")
+
+    if RUN_SET is TutorialRunSet.GETTING_STARTED:
+        return getting_started
+    if RUN_SET is TutorialRunSet.RELEASE:
+        return getting_started + _named_examples(RELEASE_EXAMPLE_NAMES)
+    if RUN_SET is TutorialRunSet.BUNDLED_EXAMPLES:
+        return tuple(
+            path for path in examples if path.name not in FULL_ASSET_ONLY_NAMES
+        )
+    if RUN_SET is TutorialRunSet.FULL_ASSET_EXAMPLES:
+        return _named_examples(FULL_ASSET_EXAMPLE_NAMES)
+    if RUN_SET is TutorialRunSet.QUALIFICATION:
+        return _named_examples(QUALIFICATION_NAMES)
+    raise ValueError(f"unsupported tutorial run set: {RUN_SET!r}")
+
 
 def _output_dir() -> Path:
     if OUTPUT_DIR.is_absolute():
-        raise ValueError('OUTPUT_DIR must be repo-relative, not absolute.')
-    return ROOT / OUTPUT_DIR
+        raise ValueError("OUTPUT_DIR must be repo-relative, not absolute")
+    output_dir = (ROOT / OUTPUT_DIR).resolve()
+    output_root = (ROOT / "output").resolve()
+    if output_root not in output_dir.parents:
+        raise ValueError("OUTPUT_DIR must stay under output/")
+    return output_dir
+
 
 def _prepare_output_dir() -> None:
     if not WRITE_OUTPUT_LOGS:
         return
-    output_dir = _output_dir().resolve()
-    output_root = (ROOT / 'output').resolve()
-    if output_root not in output_dir.parents:
-        raise ValueError('OUTPUT_DIR must stay under output/ for cleanup.')
+    output_dir = _output_dir()
     output_dir.mkdir(parents=True, exist_ok=True)
     if CLEAN_OUTPUT_LOGS:
-        for path in output_dir.glob('*.txt'):
+        for path in output_dir.glob("*.txt"):
             if path.is_file():
                 path.unlink()
 
-def _parse_match_ratio(text: str) -> float | None:
-    return parse_match_ratio(text)
 
-def _tail(text: str, *, lines: int) -> str:
-    return tail_text(text, lines=lines)
+def _relative(path: Path) -> str:
+    return path.relative_to(ROOT).as_posix()
 
-def _relpath(path: Path) -> str:
-    return repo_relpath(path, repo_root=ROOT)
 
-def _write_output_log(entry: TutorialEntry, output: str) -> Path | None:
+def _write_output_log(script: Path, output: str) -> Path | None:
     if not WRITE_OUTPUT_LOGS:
         return None
-    output_dir = _output_dir()
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / (Path(entry.path).stem + '.txt')
-    output_path.write_text(output, encoding='utf-8')
-    return output_path
+    path = _output_dir() / f"{script.parent.name}_{script.stem}.txt"
+    path.write_text(output, encoding="utf-8")
+    return path
 
-def _run_one(entry: TutorialEntry) -> TutorialResult:
-    script = TUTORIAL_DIR / entry.path
-    proc = subprocess.run([sys.executable, '-X', 'utf8', str(script)], cwd=ROOT, text=True, encoding='utf-8', errors='replace', capture_output=True, check=False)
-    output = (proc.stdout or '') + (proc.stderr or '')
-    output_path = _write_output_log(entry, output)
-    if CONSOLE_OUTPUT == ConsoleOutput.FULL or proc.returncode != 0:
-        print(f'\n--- output: {entry.path} ---')
+
+def _tail(text: str) -> str:
+    return "\n".join(text.rstrip().splitlines()[-FAILURE_TAIL_LINES:])
+
+
+def _run_one(script: Path) -> tuple[bool, Path | None]:
+    completed = subprocess.run(
+        [sys.executable, "-X", "utf8", str(script)],
+        cwd=ROOT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        capture_output=True,
+        check=False,
+    )
+    output = (completed.stdout or "") + (completed.stderr or "")
+    output_path = _write_output_log(script, output)
+    passed = completed.returncode == 0
+    if CONSOLE_OUTPUT is ConsoleOutput.FULL:
+        print(f"\n--- output: {_relative(script)} ---")
         print(output.rstrip())
-    match_ratio = _parse_match_ratio(output)
-    process_succeeded = proc.returncode == 0
-    acceptance_met = evaluate_tutorial_acceptance(entry, process_succeeded=process_succeeded, match_ratio=match_ratio)
-    passed = process_succeeded and acceptance_met
-    if not passed and CONSOLE_OUTPUT != ConsoleOutput.FULL:
-        print(f'\n--- tail: {entry.path} ---')
-        print(_tail(output, lines=FAILURE_TAIL_LINES))
-    return TutorialResult(path=entry.path, acceptance=entry.acceptance, returncode=proc.returncode, match_ratio=match_ratio, passed=passed, output_path=output_path, process_succeeded=process_succeeded, acceptance_met=acceptance_met)
+    elif not passed:
+        print(f"\n--- failure: {_relative(script)} ---")
+        print(_tail(output))
+    return passed, output_path
+
 
 def main() -> int:
     selected = _selected_tutorials()
-    _validate_tutorials(selected)
     _prepare_output_dir()
-    pretty.print_rdp_identity()
-    pretty.print_initialising()
-    pretty.print_result_note('Tutorial runner setup', [('runner', 'tutorials/v1/run_tutorials.py'), ('run set', RUN_SET.value), ('asset profile', 'full_v1' if RUN_SET in {TutorialRunSet.FULL_ASSETS, TutorialRunSet.ALL_WORKING} else 'ci_light' if RUN_SET == TutorialRunSet.CI_LIGHT else 'mixed by tutorial'), ('console output', CONSOLE_OUTPUT.value), ('selected', len(selected)), ('output logs', _relpath(_output_dir()) if WRITE_OUTPUT_LOGS else 'disabled')])
-    long_running = [entry.path for entry in selected if entry.path in LONG_RUNNING_KAEDING_TUTORIALS]
-    if long_running:
-        pretty.print_result_note(
-            'Long-running Kaeding qualification warning',
-            [
-                ('runtime', 'may take several hours per tutorial'),
-                ('tutorials', ', '.join(long_running)),
-            ],
-        )
-    results: list[TutorialResult] = []
-    for entry in selected:
-        print(f'[RUN ] {entry.path}')
-        result = _run_one(entry)
-        results.append(result)
-        status = 'PASS' if result.passed else 'FAIL'
-        match_text = 'none' if result.match_ratio is None else f'{result.match_ratio:.3f}'
-        log_text = '' if result.output_path is None else f' log={_relpath(result.output_path)}'
-        print(f"[{status}] {entry.path} process={('PASS' if result.process_succeeded else 'FAIL')} acceptance={entry.acceptance.value}:{('PASS' if result.acceptance_met else 'FAIL')} match_ratio={match_text} min={entry.min_match_ratio:.3f}{log_text}")
-        if not result.passed and STOP_ON_FIRST_FAILURE:
+    print("Rune Decrypter Prime V1 runnable material")
+    print(f"run set: {RUN_SET.value}")
+    print(f"selected: {len(selected)}")
+    print("acceptance: every script must complete its own semantic assertions")
+
+    if RUN_SET in {
+        TutorialRunSet.FULL_ASSET_EXAMPLES,
+        TutorialRunSet.QUALIFICATION,
+    }:
+        print("NOTICE: this selection requires the full V1 asset profile")
+    if RUN_SET is TutorialRunSet.QUALIFICATION:
+        print("WARNING: qualification programs may take several hours each")
+
+    results: list[bool] = []
+    for script in selected:
+        relative = _relative(script)
+        print(f"[RUN ] {relative}")
+        passed, output_path = _run_one(script)
+        results.append(passed)
+        log = "" if output_path is None else f" log={_relative(output_path)}"
+        print(f"[{'PASS' if passed else 'FAIL'}] {relative}{log}")
+        if not passed and STOP_ON_FIRST_FAILURE:
             break
-    passed = sum((1 for result in results if result.passed))
-    failed = len(results) - passed
-    print('\nTutorial summary')
-    print(f'selected={len(selected)} run={len(results)} passed={passed} failed={failed}')
-    return 0 if failed == 0 and len(results) == len(selected) else 1
-if __name__ == '__main__':
+
+    passed_count = sum(results)
+    failed_count = len(results) - passed_count
+    print("\nRun summary")
+    print(
+        f"selected={len(selected)} run={len(results)} "
+        f"passed={passed_count} failed={failed_count}"
+    )
+    return 0 if failed_count == 0 and len(results) == len(selected) else 1
+
+
+if __name__ == "__main__":
     raise SystemExit(main())

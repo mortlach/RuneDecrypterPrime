@@ -1,26 +1,19 @@
 from __future__ import annotations
+
 import ast
-import json
 from pathlib import Path
+
 import pytest
+
 pytestmark = pytest.mark.tier_a
 
-def _active_tutorial_paths(root: Path) -> list[Path]:
-    manifest = json.loads((root / 'tutorials' / 'v1' / 'tutorial_manifest_v1.json').read_text(encoding='utf-8'))
-    paths: list[Path] = []
-    for entry in manifest['tutorials']:
-        path = str(entry.get('path', ''))
-        status = str(entry.get('current_status', ''))
-        if not path.endswith('.py') or status in {'known_broken', 'remove_from_pure_release'}:
-            continue
-        script = root / 'tutorials' / 'v1' / path
-        if script.is_file():
-            paths.append(script)
-    return paths
+def _active_example_paths(root: Path) -> list[Path]:
+    examples = root / 'tutorials' / 'v1' / 'examples'
+    return sorted(path for path in examples.glob('*.py') if path.name != '__init__.py')
 
-def test_active_pretty_tutorials_declare_standard_contract_blocks() -> None:
+def test_retained_examples_declare_standard_contract_blocks() -> None:
     root = Path(__file__).resolve().parents[2]
-    for script in _active_tutorial_paths(root):
+    for script in _active_example_paths(root):
         source = script.read_text(encoding="utf-8")
         string_literals = {
             node.value
@@ -47,7 +40,6 @@ def test_active_pretty_tutorials_declare_standard_contract_blocks() -> None:
         assert (
             "print_summary_spacer()" in source
             or "print()" in source
-            or script.name == "Tutorial_PeriodicColumnar.py"
         ), script.name
 
 

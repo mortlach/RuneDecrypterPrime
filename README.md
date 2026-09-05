@@ -1,93 +1,108 @@
 # Rune Decrypter Prime
 
 Rune Decrypter Prime (RDP) is a deterministic cryptanalysis toolkit for a
-29-rune alphabet.
+29-rune alphabet. It was built around Liber Primus work, but its ciphers,
+scorers and solvers are useful beyond one text.
 
-The project is built around small, testable parts: ciphers, key schedules,
-scorers, solvers, tutorial runs, and reports. The aim is to make decryption
-experiments repeatable rather than mysterious.
+A high score is interesting. A run that can be repeated, inspected and proved
+against the evidence is useful. RDP therefore keeps configuration, seeds, stop
+reasons, truth use and reports visible. It rejects incompatible inputs instead
+of quietly inventing a fallback.
 
-This branch is the V1 pre-release surface. It focuses on:
+RDP is an independent project by `mortlach`.
 
-- a clean Python install path
-- ScheduledStreamLookup cipher support
-- Span-Hamming support
-- deterministic tutorials
-- traceable solver/scorer reports
-- Windows and Ubuntu CI proof
-- wheel builds with native extension import checks
+## Who this is for
 
-## Start here
+The ordinary route is for technically capable people who are comfortable
+reading Python and thinking critically about search results: cipher
+researchers, puzzle solvers, engineers and curious Liber Primus readers. It
+assumes no prior RDP knowledge. It also does not stop every few lines to explain
+Python.
 
-For most users:
+The public V1 surface is intentionally narrow:
 
-1. Install: [`docs/setup/installation.md`](docs/setup/installation.md)
-2. Run the V1 tutorials: [`docs/guides/quickstart.md`](docs/guides/quickstart.md)
-3. Read the project overview: [`docs/README.md`](docs/README.md)
+```python
+from rdp import api
+```
 
-The shortest install check is:
+Start there. Repository helpers and development campaigns exist, but they are
+not a better version of the public API.
+
+## Smallest installed-package check
+
+This code works with an installed RDP package and uses no repository helper:
+
+```python
+from rdp import api
+
+plaintext = (0, 3, 20, 20, 3, 7, 2, 18)
+cipher = api.CipherSpec.vigenere()
+key: api.ConcreteKey = (3, 1, 4)
+
+ciphertext = api.encrypt(plaintext, cipher=cipher, key=key)
+assert api.decrypt(ciphertext, cipher=cipher, key=key) == plaintext
+```
+
+Known-key operations use rune indices. The getting-started route makes the
+Latin, rune and index views explicit before moving on to solver searches.
+
+## Start from a source checkout
+
+RDP requires Python 3.11 or newer. From the repository root:
 
 ```text
 python install.py
+python tutorials/v1/getting_started/01_known_key.py
 ```
 
-This verifies the package and installs or checks the required V1 LM3/LM4 assets.
-If automatic download is unavailable, place the release zip parts under
-`downloads/` and run the same command again.
+On Windows, `install.bat` is an equivalent installer entry point.
 
-GitHub push and pull-request workflows use an internal CI-light install to avoid
-downloading the large release bundles on every run. That is a workflow-cost
-choice only; `python install.py` remains the full V1 install.
-
-On Windows, this wrapper is also available:
+Then follow the seven short files in
+[`tutorials/v1/getting_started/`](tutorials/v1/getting_started/) or run the
+default release selection:
 
 ```text
-install.bat
+python tutorials/v1/run_tutorials.py
 ```
 
-## Common paths
+The default selection runs the complete starting route and three different,
+bounded examples. Long P7/C7 qualifications are never hidden inside it.
+
+## Read next
+
+1. [`docs/setup/installation.md`](docs/setup/installation.md) — installation,
+   assets and qualified platforms.
+2. [`docs/guides/quickstart.md`](docs/guides/quickstart.md) — the seven-stop
+   route and what each stop establishes.
+3. [`docs/guides/runes_and_text.md`](docs/guides/runes_and_text.md) — rune
+   indices, word boundaries and text direction.
+4. [`tutorials/v1/README.md`](tutorials/v1/README.md) — the complete runnable
+   example catalogue, including assets, runtime and truth use.
+5. [`docs/README.md`](docs/README.md) — guides, reference and expert paths.
+
+## Repository map
 
 ```text
-src/rdp/                    installed package source
-tutorials/v1/               V1 tutorial scripts and tutorial runner
-tests/                      pytest test suite
-docs/                       user, expert, and contract-evidence docs
-assets/                     small V1 asset baseline
-output/                     generated logs and test/tutorial output
+src/rdp/                         installed package source
+tutorials/v1/getting_started/   ordered public-API route
+tutorials/v1/examples/          runnable source-checkout examples
+cipher_development/             bounded development and qualification tools
+docs/                            user, expert and release-contract documents
+tests/                           pytest suite
+assets/                          source-bundled asset baseline
+output/                          generated local evidence and logs
 ```
 
-`output/` is local runtime output and should not be committed.
+Generated `output/` is local evidence, not source.
 
-## User docs
+## Release posture
 
-- [`docs/README.md`](docs/README.md) - docs map and reading order
-- [`docs/setup/installation.md`](docs/setup/installation.md) - simple install and tutorial run
-- [`docs/guides/quickstart.md`](docs/guides/quickstart.md) - first tutorial run
-- [`docs/guides/troubleshooting.md`](docs/guides/troubleshooting.md) - common failures
+V1 is qualified on Python 3.11 on Windows and Ubuntu. Push checks use the
+bundled CI-light asset profile; the manual full proof verifies the complete V1
+asset set, including the required V1 LM3/LM4 assets. Several-hour qualification
+campaigns remain explicit, manual work under the repository's workflow-cost
+policy.
 
-## Expert and integration docs
-
-- [`docs/expert/README.md`](docs/expert/README.md) - expert reading order
-- [`docs/expert/design_philosophy.md`](docs/expert/design_philosophy.md) - goals and motivations
-- [`docs/expert/component_model.md`](docs/expert/component_model.md) - component boundaries
-- [`docs/expert/gui_frontend_interfaces.md`](docs/expert/gui_frontend_interfaces.md) - GUI/front-end guidance
-- [`docs/expert/gui_interface_contract.md`](docs/expert/gui_interface_contract.md) - practical GUI contract
-- [`docs/expert/stability_surface.md`](docs/expert/stability_surface.md) - stable versus non-stable surfaces
-
-## Contract evidence used by tests
-
-The release-contract folder is not the beginner docs path. It is retained because
-contract tests read it as repo-local evidence to stop V1 drift:
-
-- [`docs/release_contracts/v1/README.md`](docs/release_contracts/v1/README.md)
-
-Do not delete or move that folder without updating the corresponding contract
-tests.
-
-## Developer notes
-
-Python 3.11+ is the supported target for V1.
-
-The public V1 boundary is intentionally narrow. Experimental n-gram Hamming
-campaign work, large benchmark runs, and save/restore solver state are not part
-of the V1 production surface.
+The release contracts live under
+[`docs/release_contracts/v1/`](docs/release_contracts/v1/). They are test-backed
+drift controls, not the first reader path.

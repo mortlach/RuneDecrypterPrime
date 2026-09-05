@@ -11,7 +11,6 @@
         2
       ],
       "pytest_marker_expression": "not full_assets",
-      "tutorial_run_set": "ci_light",
       "verification_manifest": "assets_manifest_ci_light_v1.json"
     },
     "full_v1": {
@@ -25,7 +24,6 @@
         4
       ],
       "pytest_marker_expression": null,
-      "tutorial_run_set": "all_working",
       "verification_manifest": "assets_manifest_v1.json"
     }
   }

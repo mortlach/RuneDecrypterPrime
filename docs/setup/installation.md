@@ -1,158 +1,97 @@
 # Installation
 
-This page is the simple V1 install path.
+RDP requires Python 3.11 or newer. V1 release proof covers Python 3.11 on
+Windows and Ubuntu; newer Python versions and other platforms may work but have
+not passed that same release matrix.
 
-All paths below are relative to the repository root unless a clean installed-wheel proof is explicitly described.
+Use the same Python interpreter to install, run examples and run tests. Mixing
+interpreters is an efficient way to create an uninteresting mystery.
 
-## Requirements and qualified platforms
+## From a source checkout
 
-- The package requires Python 3.11 or newer at the metadata/API level.
-- The V1 release gate is currently qualified on **Python 3.11** on **Windows** and **Ubuntu/Linux**.
-- Newer Python versions or other platforms may work, but are not release-qualified until the same gates are run there.
-- A normal C/C++ build toolchain is required if native extensions need to be built locally.
-- Git is recommended for source development, but is not part of the installed Python package.
-
-## Simple install
-
-Run this from the repository root:
+From the repository root:
 
 ```text
 python install.py
 ```
 
-On Windows you can also use:
+On Windows, the equivalent wrapper is:
 
 ```text
 install.bat
 ```
 
-The installer is deliberately conservative. It:
+The installer:
 
-1. checks the Python version
-2. installs the package in editable mode with test extras
-3. checks required V1 asset sentinels
-4. checks required native imports
-5. installs or verifies the required V1 LM3/LM4 release assets
-6. runs compact V1 smoke tests
+1. checks the Python version;
+2. installs RDP in editable mode with test dependencies;
+3. checks the required native imports;
+4. verifies or installs the full V1 language-model assets;
+5. runs bounded smoke tests.
 
-Installer logs are written under:
+Logs are written under `output/install_logs/`. Set `RDP_INSTALL_VERBOSE=1` when
+you need successful command output as well as failures.
+
+## Full language-model assets
+
+The complete V1 scoring profile uses LM1–LM4 assets. LM1/LM2 are bundled with
+the source. The larger files are pinned GitHub Release archives described by
+`assets_manifest_v1.json`; they are not quietly placed in the wheel.
+
+`python install.py` first reuses verified archives in `downloads/`. Otherwise
+it downloads the pinned parts, verifies byte size and SHA256, extracts them
+safely under `assets/`, and verifies the installed files.
+
+If automatic download is unavailable:
+
+1. download `rdp-v1-lm-large-part*.zip` from the V1 GitHub Release;
+2. place the parts in `downloads/`;
+3. run `python install.py` again.
+
+Missing full assets do not cause a silent downgrade to a smaller scoring
+profile.
+
+## Installed wheel or sdist
+
+The build produces the `rune-decrypter-prime` distribution. Install a local
+artifact with pip in the normal way, for example:
 
 ```text
-output/install_logs/
+python -m pip install path/to/the-built-wheel.whl
 ```
 
-To show successful command output while debugging, set this before running the installer:
+The Python package contains the public `rdp` namespaces and small runtime data.
+The repository’s `tutorials/`, `docs/`, tests and large release assets are not
+promised as importable wheel contents. Code in the getting-started files uses
+the installed API, but the files themselves are source-checkout companions.
+
+## First proof
+
+After a source install:
 
 ```text
-RDP_INSTALL_VERBOSE=1
-```
-
-The installer does not silently upgrade build tools for you. If pip, setuptools,
-or wheel are too old, upgrade them deliberately and rerun the installer.
-
-## Large V1 language-model assets
-
-Full V1 requires the LM3/LM4 language-model assets. They are distributed as
-GitHub Release zip parts, not committed to normal Git history and not silently
-embedded into the production wheel.
-
-`python install.py` first reuses valid local bundles from:
-
-```text
-downloads/
-```
-
-If the bundles are not there, it downloads the pinned release files listed in
-`assets_manifest_v1.json`, verifies each zip by SHA256 and byte size, extracts
-them safely under `assets/`, then verifies the final runtime files.
-
-If automatic download fails, use the manual fallback:
-
-```text
-Download rdp-v1-lm-large-part*.zip from the V1 GitHub Release.
-Place them under downloads/.
-Run python install.py again.
-```
-
-The installer does not silently downgrade to LM2 if required LM3/LM4 assets are
-missing or corrupt. Clean installed-wheel/scorer proofs supply any external full
-LM root through the existing explicit `model_root` configuration; RDP does not
-search user/home/current-working-directory locations for substitute assets.
-
-## Run the V1 tutorial gate
-
-After install:
-
-```text
+python tutorials/v1/getting_started/01_known_key.py
 python tutorials/v1/run_tutorials.py
 ```
 
-The pretty-print runner is the normal V1 tutorial review path. Its tutorial
-list, thresholds, output policy, and log folder are visible as constants near
-the top of `tutorials/v1/run_tutorials.py`.
+The first command checks a known-key round trip. The second runs the normal
+release selection and writes full subprocess output under
+`output/tutorial_logs/`.
 
-Generated tutorial output is written under:
+## Validation profiles
 
-```text
-output/
-```
+- The automatic push/pull-request gate installs the source-bundled `ci_light`
+  assets, excludes tests marked `full_assets`, and runs the `RELEASE` group.
+- The manual full proof installs `full_v1`, runs the complete pytest suite and
+  runs the bounded `FULL_ASSET_EXAMPLES` group on Windows and Ubuntu.
+- `QUALIFICATION` is separate. It contains several-hour scientific programs
+  and is never part of an ordinary install or release run.
 
-## Run all tests after a manual install
-
-For the full expert test gate:
-
-```text
-python -m pytest -q -p no:cacheprovider
-```
-
-This is the same broad pytest command used by full CI.
-
-## CI gates used for V1
-
-The repository has two authoritative validation gates:
-
-1. Normal push gate: `.github/workflows/rdp_v1_full_ci.yml`
-   - `ci_light` on Windows and Ubuntu with Python 3.11
-   - excludes `full_assets`
-   - runs `TutorialRunSet.CI_LIGHT`
-
-2. Manual full proof: `.github/workflows/rdp_v1_full_proof.yml`
-   - complete `full_v1` profile
-   - all tests and active V1 tutorials
-   - Windows and Ubuntu with Python 3.11
-
-The package workflow `.github/workflows/rdp_v1_wheel_build_proof.yml` is a separate
-manual packaging proof. It builds CPython 3.11 wheels plus an sdist, performs an
-isolated installed-wheel import/native-module check outside `src`, and validates
-artifact allow/deny boundaries. It is not a substitute for either validation gate.
-
-## Manual install notes
-
-For normal development, prefer `python install.py`.
-
-If you need to debug the package install manually, the core editable install is:
+For a manual editable install while diagnosing packaging:
 
 ```text
 python -m pip install -e ".[test]"
-```
-
-Then run:
-
-```text
 python -m pytest -q -p no:cacheprovider tests/contracts
-python tutorials/v1/run_tutorials.py
 ```
 
-Use the full pytest command above before promoting a branch.
-
-## CI install note
-
-GitHub push and pull-request workflows use an internal CI-light install script:
-
-```text
-python tools/ci/install_light.py
-```
-
-That script is not the user install path. It skips the real large LM download so
-ordinary CI does not fetch the release bundles on every run. The full product
-contract remains `python install.py`.
+The normal user path remains `python install.py`.

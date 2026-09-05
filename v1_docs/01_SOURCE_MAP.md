@@ -86,7 +86,7 @@ Use these archived areas for context, not copy:
 | `runes_and_text.md` | current rune encoding helpers, display tests, WLI behavior | Must explain direction, multi-letter runes, and canonical display. |
 | `runs_reports_and_artifacts.md` | RunSpec/RunResult/SolverReport/ScorerReport code and tests | Next core-design page. |
 | `tutorials_as_evidence.md` | tutorial manifests, release contracts, current runners | Separate tutorial evidence from production ranking. |
-| `lp_examples.md` | `Tutorial_LP_Welcome_Pilgrim_Solve.py`, `solving/solved_lp/`, LP source catalogue | Explain solved LP examples without turning workbooks into beginner setup. |
+| `lp_examples.md` | `lp_welcome_pilgrim_solve.py`, `solving/solved_lp/`, LP source catalogue | Explain solved LP examples without turning workbooks into beginner setup. |
 | `development/testing.md` | `tests/`, `tests/conftest.py`, CI workflow contracts | Contributor testing only; not beginner setup. |
 | `development/adding_a_tutorial.md` | current pretty-print tutorials, runner contracts, tutorial report helpers | Explain the expected tutorial shape. |
 | `development/docs_style.md` | staged docs policy, old docs playbook | Keep V1 docs plain, checked, and honest. |
@@ -94,7 +94,7 @@ Use these archived areas for context, not copy:
 | `reference/reports.md` | `solver_report.py`, `scorer_report.py`, `display.py` | Stable report/display vocabulary. |
 | `reference/artifacts.md` | `artifact_agreement.py`, `run_artifact_manifest.py` | Known artifact paths and classifications. |
 | `reference/tutorial_runners.md` | `run_tutorials.py`, runner contract tests | Runner ownership and current mismatch notes. |
-| `reference/tutorial_manifest.md` | `tutorial_manifest_v1.json`, pretty runner list, tutorial contract tests | Target metadata policy for a growing tutorial set. |
+| `tutorials/v1/README.md` | runnable files, runner selection and focused tests | Human catalogue for the growing example set. |
 
 ## Do Not Promote Directly
 

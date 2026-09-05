@@ -8,7 +8,7 @@ pytestmark = pytest.mark.tier_a
 
 def test_autokey_tutorial_runs_both_modes():
     repo_root = Path(__file__).resolve().parents[2]
-    script = repo_root / 'tutorials' / 'v1' / 'Tutorial_Autokey.py'
+    script = repo_root / 'tutorials' / 'v1' / 'examples' / 'autokey.py'
     assert script.is_file(), 'Tutorial script missing'
     src_path = repo_root / 'src'
     launch = f"import runpy, sys; sys.path.insert(0, {str(src_path)!r}); runpy.run_path({str(script)!r}, run_name='__main__')"

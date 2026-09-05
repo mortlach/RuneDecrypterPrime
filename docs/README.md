@@ -1,69 +1,48 @@
-# Rune Decrypter Prime docs
+# Rune Decrypter Prime documentation
 
-Rune Decrypter Prime (RDP) is a deterministic lab for testing decryption methods
-on a 29-rune alphabet.
+RDP is a deterministic cryptanalysis toolkit: one typed public request goes in;
+a result, stop status and reproducibility record come out. The documents are
+arranged for technically capable readers who are new to RDP, not new to using a
+computer.
 
-The point of the project is not just to get a high score. It is to make each run
-repeatable and explainable:
+## First route
 
-```text
-ciphertext
-  -> optional pipeline transform
-  -> cipher and key schedule
-  -> scorer
-  -> solver/search loop
-  -> report, telemetry, and tutorial/test result
-```
+Read these in order:
 
-## First-time user path
+1. [`setup/installation.md`](setup/installation.md)
+2. [`guides/quickstart.md`](guides/quickstart.md)
+3. [`guides/runes_and_text.md`](guides/runes_and_text.md)
+4. [`../tutorials/v1/README.md`](../tutorials/v1/README.md)
+5. [`guides/outputs.md`](guides/outputs.md)
+6. [`guides/troubleshooting.md`](guides/troubleshooting.md)
 
-1. Install: [`setup/installation.md`](setup/installation.md)
-2. Run tutorials: [`guides/quickstart.md`](guides/quickstart.md)
-3. If something fails: [`guides/troubleshooting.md`](guides/troubleshooting.md)
+The first three runnable stops cover known-key operations, a small search and a
+repeating-key search. Four further stops make repeatability, interruptors,
+partial recovery and named Liber Primus sources concrete.
 
-## Normal user docs
+## Guides
 
-- [`setup/installation.md`](setup/installation.md) - install and first checks
-- [`guides/quickstart.md`](guides/quickstart.md) - first tutorial run
-- [`guides/troubleshooting.md`](guides/troubleshooting.md) - common failures
-- [`guides/outputs.md`](guides/outputs.md) - generated reports, logs, and telemetry
-- [`tutorials/index.md`](tutorials/index.md) - final V1 pretty-print tutorial list
-- [`development/docs_style.md`](development/docs_style.md) - documentation and tutorial-runner policy
+- [`guides/pipeline.md`](guides/pipeline.md) — how a run moves through RDP.
+- [`guides/scoring.md`](guides/scoring.md) — what scores mean and do not mean.
+- [`guides/solvers.md`](guides/solvers.md) — choosing a supported search.
+- [`guides/telemetry.md`](guides/telemetry.md) — progress and evidence.
+- [`guides/liber_primus_typed_workflows.md`](guides/liber_primus_typed_workflows.md)
+  — source-labelled LP work.
+- [`guides/liber_primus_solved_sources.md`](guides/liber_primus_solved_sources.md)
+  — known solved-source boundaries.
 
-## Expert and integrator docs
+## Reference and extension work
 
-Use this path if you are an expert client, reviewer, or someone building a GUI or
-overlay on top of RDP:
+- [`architecture/overview.md`](architecture/overview.md) — architecture map.
+- [`expert/README.md`](expert/README.md) — integrator and reviewer route.
+- [`howto/add_cipher.md`](howto/add_cipher.md) — add a cipher deliberately.
+- [`howto/add_solver.md`](howto/add_solver.md) — add a solver deliberately.
+- [`tests/overview.md`](tests/overview.md) — test layout.
+- [`ROADMAP.md`](ROADMAP.md) — active follow-up work, including the deferred
+  P7/C7 scientific campaign decision.
 
-- [`expert/README.md`](expert/README.md) - expert reading order
-- [`expert/design_philosophy.md`](expert/design_philosophy.md) - goals and motivations
-- [`expert/component_model.md`](expert/component_model.md) - component boundaries
-- [`expert/gui_frontend_interfaces.md`](expert/gui_frontend_interfaces.md) - front-end integration guidance
-- [`expert/gui_interface_contract.md`](expert/gui_interface_contract.md) - practical GUI input/output contract
-- [`expert/stability_surface.md`](expert/stability_surface.md) - stable versus non-stable surfaces
+## Contract evidence
 
-## Contract evidence used by tests
-
-The folder below is intentionally retained because contract tests read it as
-repo-local V1 evidence:
-
-- [`release_contracts/v1/README.md`](release_contracts/v1/README.md)
-
-That folder is not the beginner path and should not be treated as prose-only docs
-cleanup. It is a test-backed drift lock. Do not delete or move it unless the
-contract tests are updated at the same time.
-
-## Existing technical reference
-
-Some technical reference pages still exist while the docs are being cleaned up:
-
-- [`architecture/engine_api.md`](architecture/engine_api.md)
-- [`architecture/pipeline.md`](architecture/pipeline.md)
-- [`architecture/ciphers.md`](architecture/ciphers.md)
-- [`architecture/keyops.md`](architecture/keyops.md)
-- [`architecture/optimisers.md`](architecture/optimisers.md)
-- [`architecture/telemetry.md`](architecture/telemetry.md)
-- [`architecture/data.md`](architecture/data.md)
-
-These are useful for advanced readers, but the intended expert landing page is
-now [`expert/README.md`](expert/README.md).
+[`release_contracts/v1/`](release_contracts/v1/) is retained because tests use
+it to stop the V1 contract drifting. It records why the surface looks as it
+does. It is not required reading before the first run.

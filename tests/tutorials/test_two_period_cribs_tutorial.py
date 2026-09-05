@@ -13,9 +13,10 @@ from rdp.solvers.two_period_cribs import build_branches
 pytestmark = pytest.mark.tier_a
 ROOT = Path(__file__).resolve().parents[2]
 TUTORIALS = ROOT / 'tutorials' / 'v1'
-FAST = TUTORIALS / 'Tutorial_TwoPeriodCribs.py'
-SEARCH = TUTORIALS / 'Tutorial_TwoPeriodCribs_P13P31_Search.py'
-INTERRUPTORS = TUTORIALS / 'Tutorial_TwoPeriodCribs_Interruptors.py'
+EXAMPLES = TUTORIALS / 'examples'
+FAST = EXAMPLES / 'two_period_cribs.py'
+SEARCH = EXAMPLES / 'two_period_cribs_p13_p31_search.py'
+INTERRUPTORS = EXAMPLES / 'two_period_cribs_interruptors.py'
 HELPER = TUTORIALS / 'data' / 'two_period_cribs_demo.py'
 
 def _load(path: Path, name: str):
@@ -109,19 +110,13 @@ def test_interruptor_tutorial_uses_public_pool_count_contract() -> None:
     assert "two_period_vigenere" in _string_literals(text)
     assert not any((fragment in text for fragment in forbidden))
 
-def test_tutorials_are_uniquely_active_and_honestly_manifested() -> None:
-    manifest = json.loads((TUTORIALS / 'tutorial_manifest_v1.json').read_text(encoding='utf-8'))
-    entries = manifest['tutorials']
-    for filename in (FAST.name, SEARCH.name, INTERRUPTORS.name):
-        matches = [entry for entry in entries if entry['path'] == filename]
-        assert len(matches) == 1
-        entry = matches[0]
-        assert entry['current_status'] == 'active'
-        assert entry['acceptance_kind'] == 'exact'
-        assert entry['min_match_ratio'] == 1.0
-        assert entry['uses_oracle_stop_score'] is False
-        assert entry['supplies_true_key_to_solver'] is False
-        assert entry['required_asset_profile'] == 'full_v1'
+def test_two_period_examples_are_full_asset_only_and_non_oracle() -> None:
+    runner = _load(TUTORIALS / 'run_tutorials.py', 'rdp_two_period_runner_test')
+    expected = {FAST.name, SEARCH.name, INTERRUPTORS.name}
+    assert expected <= runner.FULL_ASSET_ONLY_NAMES
+    for path in (FAST, SEARCH, INTERRUPTORS):
+        source = path.read_text(encoding='utf-8')
+        assert 'oracle_stop_score(' not in source
 
 @pytest.mark.full_assets
 def test_fast_walkthrough_returns_exact_plaintext_and_key(capsys) -> None:

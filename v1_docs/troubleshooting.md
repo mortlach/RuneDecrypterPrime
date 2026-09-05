@@ -55,8 +55,8 @@ python tutorials/v1/run_tutorials.py
 The normal runner prints one line per tutorial and ends with:
 
 ```text
-Tutorial summary
-selected=21 run=21 passed=21 failed=0
+Run summary
+selected=10 run=10 passed=10 failed=0
 ```
 
 If `failed` is not `0`, open the log for the failing tutorial under:
@@ -66,10 +66,10 @@ output/tutorial_logs/
 ```
 
 Each log is named after the tutorial file. For example, a failure in
-`Tutorial_Autokey.py` writes:
+`autokey.py` writes:
 
 ```text
-output/tutorial_logs/Tutorial_Autokey.txt
+output/tutorial_logs/examples_autokey.txt
 ```
 
 ## Reviewing The Full Printout
@@ -110,12 +110,13 @@ rune, so display bugs can look like spelling bugs.
 
 ## Match Ratio Is Below The Minimum
 
-The runner compares the last reported match ratio with the tutorial threshold in
-`tutorials/v1/run_tutorials.py`.
+Each runnable file checks its own result and exits non-zero when its semantic
+condition is not met. The runner reports that failure without interpreting
+prose output.
 
 If the tutorial is an exact-recovery lesson, the minimum is usually `1.000`.
-Some longer or stochastic tutorials use a lower threshold. That threshold is
-part of the tutorial contract and should be easy to see in the runner.
+Some longer or stochastic examples use a lower threshold. That threshold is
+visible in the script and in `tutorials/v1/README.md`.
 
 ## A Word Looks Misspelled
 

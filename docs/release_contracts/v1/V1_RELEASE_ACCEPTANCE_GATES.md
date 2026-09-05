@@ -111,15 +111,14 @@ pytest -q -ra -p no:cacheprovider tests
 The canonical tutorial selections must pass under the profile that supplies their declared assets:
 
 ```text
-ci_light -> TutorialRunSet.CI_LIGHT
-full_v1 -> TutorialRunSet.ALL_WORKING
+ci_light -> TutorialRunSet.RELEASE
+full_v1 -> TutorialRunSet.FULL_ASSET_EXAMPLES
 ```
 
-`ALL_WORKING` includes three explicitly labelled Kaeding qualifications. The
-qualification-derived periodic-columnar tutorial is expected to take roughly
-40 minutes on the qualified machine; the other Kaeding tutorials may take
-several hours. Use this set only for the manual full proof, not routine local
-validation.
+`QUALIFICATION` contains three explicitly named Kaeding programs. The
+qualification-derived periodic-columnar example took roughly 40 minutes on the
+qualified machine; the other programs may take several hours. This group is
+never selected by an ordinary local or workflow gate.
 
 The normal local full-profile command remains:
 
@@ -133,9 +132,9 @@ The manual full-proof workflow must run the full-profile tutorial gate.
 
 The repository must keep exactly one automatic push/pull-request gate and one manual full-proof gate.
 
-The automatic gate is `.github/workflows/rdp_v1_full_ci.yml`. It covers `main` and `prelease/**`, installs `ci_light`, excludes `full_assets` tests, and runs the `CI_LIGHT` tutorial set.
+The automatic gate is `.github/workflows/rdp_v1_full_ci.yml`. It covers `main` and `prelease/**`, installs `ci_light`, excludes `full_assets` tests, and runs the `RELEASE` tutorial set.
 
-The full-proof gate is `.github/workflows/rdp_v1_full_proof.yml`. It remains manually runnable through `workflow_dispatch`, installs `full_v1`, runs complete pytest, and runs the `ALL_WORKING` tutorial set on Windows and Ubuntu with Python 3.11.
+The full-proof gate is `.github/workflows/rdp_v1_full_proof.yml`. It remains manually runnable through `workflow_dispatch`, installs `full_v1`, runs complete pytest, and runs the `FULL_ASSET_EXAMPLES` set on Windows and Ubuntu with Python 3.11.
 
 A final release note must record either green full-proof CI evidence or clearly labelled equivalent local proof.
 

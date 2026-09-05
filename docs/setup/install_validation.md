@@ -37,7 +37,7 @@ This is the only automatic V1 gate. On Windows and Ubuntu with Python 3.11 it:
 
 1. installs `ci_light`;
 2. runs pytest with `not full_assets`;
-3. runs `TutorialRunSet.CI_LIGHT`;
+3. runs `TutorialRunSet.RELEASE`;
 4. preserves install, test and tutorial logs.
 
 ## Manual full-proof validation
@@ -54,14 +54,12 @@ This manual `workflow_dispatch` gate uses a fresh Windows and Ubuntu runner. It:
 2. downloads pinned release bundles when they are not already present;
 3. verifies bundle SHA-256, byte size, extraction safety and final runtime files;
 4. runs complete pytest, including `full_assets` tests;
-5. runs `TutorialRunSet.ALL_WORKING`;
+5. runs `TutorialRunSet.FULL_ASSET_EXAMPLES`;
 6. preserves install, test and tutorial logs.
 
-`ALL_WORKING` includes the three long-running Kaeding qualifications. The
-qualification-derived periodic-columnar tutorial took approximately 40 minutes
-on its qualification machine but may take several hours on slower supported
-systems; the other Kaeding qualifications may also take several hours. This
-manual gate is intentionally not a normal CI or local smoke command.
+The full proof does not launch `TutorialRunSet.QUALIFICATION`. That separate
+group contains the long-running Kaeding programs and requires an explicit
+scientific decision rather than an ordinary release check.
 
 The full proof is the real release signal for the complete asset profile.
 

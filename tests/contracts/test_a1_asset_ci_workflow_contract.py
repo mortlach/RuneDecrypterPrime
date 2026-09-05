@@ -1,17 +1,30 @@
 from __future__ import annotations
+
 import ast
+import importlib.util
 import json
+import sys
 from pathlib import Path
+
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / '.github' / 'workflows'
 PUSH_GATE = WORKFLOWS / 'rdp_v1_full_ci.yml'
 FULL_PROOF = WORKFLOWS / 'rdp_v1_full_proof.yml'
 PROFILE_MANIFEST = ROOT / 'asset_profiles_v1.json'
-TUTORIAL_MANIFEST = ROOT / 'tutorials' / 'v1' / 'tutorial_manifest_v1.json'
+TUTORIAL_RUNNER = ROOT / 'tutorials' / 'v1' / 'run_tutorials.py'
+
+def _tutorial_runner():
+    name = 'rdp_asset_profile_runner_test'
+    spec = importlib.util.spec_from_file_location(name, TUTORIAL_RUNNER)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
 
 def _decorator_names(path: Path, function_name: str) -> set[str]:
     tree = ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
-    function = next((node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == function_name))
+    function = next(node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == function_name)
     names: set[str] = set()
     for decorator in function.decorator_list:
         names.add(ast.unparse(decorator))
@@ -25,12 +38,12 @@ def test_one_authoritative_push_gate_and_one_manual_full_proof() -> None:
     assert 'name: RDP V1 push gate' in push
     assert 'python tools/ci/install_light.py' in push
     assert '"not full_assets"' in push
-    assert 'TutorialRunSet.CI_LIGHT' in push
+    assert 'TutorialRunSet.RELEASE' in push
     proof = FULL_PROOF.read_text(encoding='utf-8')
     assert 'workflow_dispatch:' in proof
     assert '\n  push:\n' not in proof
     assert 'python install.py' in proof
-    assert 'TutorialRunSet.ALL_WORKING' in proof
+    assert 'TutorialRunSet.FULL_ASSET_EXAMPLES' in proof
     assert 'windows-latest' in proof and 'ubuntu-latest' in proof
     assert '"3.11"' in proof
 
@@ -54,12 +67,17 @@ def test_full_asset_integration_tests_are_explicitly_marked() -> None:
     pyproject = (ROOT / 'pyproject.toml').read_text(encoding='utf-8')
     assert 'full_assets: requires the canonical full_v1' in pyproject
 
-def test_tutorial_labels_use_only_canonical_profiles() -> None:
+def test_full_asset_example_exceptions_remain_explicit() -> None:
     profiles = json.loads(PROFILE_MANIFEST.read_text(encoding='utf-8'))['profiles']
-    manifest = json.loads(TUTORIAL_MANIFEST.read_text(encoding='utf-8'))
-    assert manifest['asset_profile_default'] == 'full_v1'
-    assert manifest['asset_profile_contract'] == '../../asset_profiles_v1.json'
-    assert {row['required_asset_profile'] for row in manifest['tutorials']} <= set(profiles)
-    two_period = {row['path']: row for row in manifest['tutorials'] if row['path'].startswith('Tutorial_TwoPeriodCribs')}
-    assert two_period
-    assert {row['required_asset_profile'] for row in two_period.values()} == {'full_v1'}
+    assert {'ci_light', 'full_v1'} <= set(profiles)
+    runner = _tutorial_runner()
+    two_period = {
+        name
+        for name in runner.FULL_ASSET_ONLY_NAMES
+        if name.startswith('two_period_cribs')
+    }
+    assert two_period == {
+        'two_period_cribs.py',
+        'two_period_cribs_interruptors.py',
+        'two_period_cribs_p13_p31_search.py',
+    }

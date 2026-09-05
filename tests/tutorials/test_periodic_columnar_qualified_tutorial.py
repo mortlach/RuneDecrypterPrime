@@ -5,13 +5,14 @@ from pathlib import Path
 
 import pytest
 
-from tutorials.v1 import Tutorial_PeriodicColumnar_Simple_P7_ColThenSub as tutorial
 from tutorials.v1.data.periodic_columnar_p7_warm_start import (
     QUALIFICATION_CANDIDATE_ID,
     QUALIFICATION_RECIPE_ID,
     QUALIFIED_INITIAL_KEY,
 )
-
+from tutorials.v1.examples import (
+    periodic_columnar_p7_column_then_substitution as tutorial,
+)
 
 pytestmark = pytest.mark.tier_a
 

@@ -9,11 +9,9 @@ This page tells expert users and GUI/front-end developers what they can rely on.
 These are intended to be stable enough for users and GUIs:
 
 ```text
-tutorial manifest
-tutorial runner
-gate profile
+typed public API
+source-labelled input
 asset profile
-tutorial status
 source label concept
 output/ generated-output root
 reports, artefacts, and telemetry as evidence surfaces
@@ -24,11 +22,9 @@ known truth/key visibility
 ## Stable enough paths
 
 ```text
-tutorials/v1/tutorial_manifest_v1.json
-tutorials/v1/run_tutorials.py
 docs/README.md
 docs/expert/gui_interface_contract.md
-output/
+installed rdp.api namespaces
 ```
 
 ## Test-backed evidence surface
@@ -48,6 +44,7 @@ Do not build user tools around:
 
 ```text
 exact console wording
+example filenames and group membership
 private helper modules
 temporary output folder names
 internal test-only helpers
@@ -61,7 +58,7 @@ A change that affects a stable user-facing concept should update:
 ```text
 docs/guides/
 docs/expert/
-tutorials/v1/tutorial_manifest_v1.json
+tutorials/v1/README.md
 tests/contracts/
 ```
 

@@ -2,7 +2,7 @@
 
 Status: superseded duplicate
 
-Use `tutorials/v1/Tutorial_MonoSubstitution_GA_LTR.py` or
-`tutorials/v1/Tutorial_MonoSubstitution_GA_RTL.py`. Both use the typed V1 route
+Use `tutorials/v1/examples/mono_substitution_ga_ltr.py` or
+`tutorials/v1/examples/mono_substitution_ga_rtl.py`. Both use the typed V1 route
 through `from rdp import api`, `CipherSpec.substitution`, `KeySpec.permutation`,
 `SolverSpec.genetic_algorithm` and `api.run`.

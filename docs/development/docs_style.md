@@ -11,7 +11,7 @@ Allowed:
 
 - clear constants in the runner file
 - one public tutorial runner with named run-set and console-output constants
-- tutorial manifest data used by tests and release gates
+- one human catalogue with asset, runtime and truth-use notes
 
 Avoid:
 

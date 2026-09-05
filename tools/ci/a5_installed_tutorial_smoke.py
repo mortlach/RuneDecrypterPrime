@@ -1,12 +1,20 @@
 from __future__ import annotations
+
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
 EXTERNAL_ASSETS_ROOT: Path | None = None
-TUTORIAL_REL = Path('tutorials/v1/Tutorial_Autokey.py')
+TUTORIAL_REL = Path('tutorials/v1/examples/autokey.py')
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-_PATH_INJECTION = "_ROOT = Path(__file__).resolve().parents[2]\n_SRC = _ROOT / 'src'\nif str(_SRC) not in sys.path:\n    sys.path.insert(0, str(_SRC))\n"
+_PATH_INJECTION = (
+    "_ROOT = Path(__file__).resolve().parents[3]\n"
+    "_SRC = _ROOT / 'src'\n"
+    "for _import_root in (_ROOT, _SRC):\n"
+    "    if str(_import_root) not in sys.path:\n"
+    "        sys.path.insert(0, str(_import_root))\n"
+)
 
 def main() -> int:
     if EXTERNAL_ASSETS_ROOT is None:
@@ -30,7 +38,16 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix='rdp_a5_installed_tutorial_') as td:
         copied = Path(td) / source.name
         copied.write_text(text, encoding='utf-8', newline='\n')
-        proc = subprocess.run([sys.executable, str(copied)], cwd=td, text=True, encoding='utf-8', errors='replace', stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        proc = subprocess.run(
+            [sys.executable, str(copied)],
+            cwd=td,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=False,
+        )
         print(proc.stdout, end='')
         if proc.returncode:
             raise SystemExit(proc.returncode)

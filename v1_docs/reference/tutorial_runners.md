@@ -26,7 +26,7 @@ Normal tutorial control is visible near the top of `run_tutorials.py`.
 | `CLEAN_OUTPUT_LOGS` | Whether stale `.txt` logs are cleared before a new run. |
 | `OUTPUT_DIR` | Repo-relative log folder. |
 | `FAILURE_TAIL_LINES` | Failure-tail size for compact output. |
-| `TUTORIALS` | Tutorial filenames, thresholds, acceptance kinds, and run sets. |
+| explicit filename sets | Release, full-asset and qualification exceptions. |
 
 Run-set choices are enum values:
 
@@ -36,12 +36,11 @@ RUN_SET = TutorialRunSet.RELEASE
 
 The available sets are:
 
-- `FAST`
+- `GETTING_STARTED`
 - `RELEASE`
-- `EXTENDED`
-- `PARTIAL_RECOVERY`
-- `OPTIONAL_LM3`
-- `ALL_WORKING`
+- `BUNDLED_EXAMPLES`
+- `FULL_ASSET_EXAMPLES`
+- `QUALIFICATION`
 
 Console-output choices are also enum values:
 
@@ -64,3 +63,7 @@ runner file:
 - no separate config file for normal review
 - no hidden shell-controlled tutorial selection
 - no CLI switch matrix for beginner tutorial control
+
+The runner discovers the numbered route and ordinary example files. Scripts own
+semantic acceptance through their exit status; the runner does not parse match
+ratios from prose.
