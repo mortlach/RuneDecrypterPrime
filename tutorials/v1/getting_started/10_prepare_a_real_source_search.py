@@ -1,14 +1,14 @@
 # ruff: noqa: N999
-"""Prepare the reviewed Welcome Pilgrim search without launching it.
+"""Put together a search for Welcome Pilgrim.
 
-This bridges named source loading to a real RunSpec.  The recipe is made
-visible, but the longer solve remains an explicit next action.
+We can now connect a real source to the cipher, key space and search settings.
+This file prepares the request. The worked LP example runs the longer solve.
 """
 
 from rdp import api
 
 SOURCE_LABEL = "welcome_pilgrim"
-# The solved-source recipe supplies the length; it is not inferred here.
+# We know this length from the existing solved-source example.
 KEY_LENGTH = 8
 INTERRUPTOR_COUNT = 11
 
@@ -16,10 +16,9 @@ INTERRUPTOR_COUNT = 11
 def main() -> None:
     payload = api.liber_primus.payload_from_label(SOURCE_LABEL)
 
-    # The reviewed hypothesis treats ciphertext zeroes as candidate interruptor
-    # positions, then asks RDP to choose exactly eleven.  This is searched
-    # evidence, unlike the already-known positions supplied with exact(...) in
-    # stop 05.
+    # We'll treat the zero-valued ciphertext runes as possible interruptors
+    # and ask RDP to choose eleven of them. In example 05 we supplied the
+    # exact positions; here the positions are part of the search.
     candidate_positions = tuple(
         index for index, value in enumerate(payload.ct_idx) if value == 0
     )
@@ -31,10 +30,10 @@ def main() -> None:
         maximum_combinations=5000,
     )
 
-    # These settings come from the existing solved-source recipe, including
-    # key length and interruptor count. They are prior knowledge in this
-    # reconstruction, even though the actual key values are not supplied.
-    # Changing the pool or count changes the hypothesis, not just the budget.
+    # The key length and interruptor count come from the existing solution. We
+    # aren't supplying the key values, but we are using that prior knowledge.
+    # If you change the pool or the count, you're trying a different
+    # explanation of the ciphertext, not simply giving the solver more time.
     request = api.RunSpec(
         problem_input=api.RuneIndexInput(
             indices=payload.ct_idx,

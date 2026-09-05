@@ -1,11 +1,11 @@
 # Choosing and configuring a solver
 
 A solver chooses which keys to try. The cipher turns each key into candidate
-plaintext; the scorer ranks that plaintext. A different solver changes the
-search strategy while the cryptanalytic hypothesis can stay the same.
+plaintext; the scorer ranks that plaintext. We can try a different search method
+while keeping the same ciphertext, cipher and possible keys.
 
 Choose a nearby [worked example](../../tutorials/v1/README.md) with a compatible
-key shape before tuning a new recipe.
+key shape as a starting point for your own settings.
 
 ## Main choices
 
@@ -21,7 +21,7 @@ key shape before tuning a new recipe.
 The last two serve specialised problems. A solver needs compatible key
 operations, so choosing an algorithm is more than swapping a name.
 
-## A bounded beam request
+## Set up a beam search
 
 ```python
 from rdp import api
@@ -33,16 +33,16 @@ solver = api.SolverSpec.beam_search(
 )
 ```
 
-These are example settings, not general defaults. `width` controls the retained
-alternatives; a wider beam can keep candidates that a narrow beam discards, at
-additional cost. `rounds=0` asks the beam implementation to choose its automatic
+These values are settings for this example, rather than library defaults.
+`width` controls how many alternatives the beam keeps. Making it wider can
+keep promising candidates that a narrow beam would discard, but takes more work. `rounds=0` asks the beam implementation to choose its automatic
 refinement count; it does not mean zero work. Set a positive value when you want
 an explicit round limit. Keep the seed fixed when comparing a budget change.
 
 `plateau_rounds` and `plateau_minimum_delta` describe insufficient improvement;
 GA and SA expose corresponding generation and iteration controls. `target_score`
-can stop at a configured score, but its meaning depends on the scorer. If known
-plaintext was used to choose that target, disclose that reference use.
+can stop at a configured score, but its meaning depends on the scorer. If you used the original
+plaintext to choose that target, say so in the example.
 
 ## Compare one change
 
@@ -50,8 +50,8 @@ Keep ciphertext, key space, scoring, direction and seed fixed. Change one budget
 and compare the returned candidate, score, evaluation count and stop reason.
 The [budget comparison](../../tutorials/v1/getting_started/09_changing_search_budget.py)
 shows a case where the wider search does more work and returns the same answer.
-More search is useful when it finds a better candidate; it is not evidence by
-itself that the candidate is correct.
+Here, the extra work does not improve the result. Try a similar comparison
+when deciding whether a larger budget is useful for your problem.
 
 Use `result.solver_report` for work performed and `result.status` for execution
 and stopping. Timings vary between runs; the seed alone does not make different

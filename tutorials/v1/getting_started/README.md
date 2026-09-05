@@ -1,54 +1,40 @@
 # Getting started
 
-This folder is the ordered route into ordinary RDP use. The numbered files are
-small executable arguments: each introduces one cryptanalytic concept, runs or
-prepares a bounded public-API request, and states the claim it can support.
+Start here if you can read Python and are new to RDP. The files build on one
+another, from using a known key to preparing a search against a Liber Primus
+source. Read them in filename order; each explains the new choices beside
+the code that uses them.
 
-The commentary assumes the reader can read Python. It explains RDP concepts,
-why each object exists in the cryptanalytic process, nearby public alternatives,
-and where known truth enters. It does not narrate Python syntax.
+## The route
 
-## Route
-
-| Stops | Purpose |
+| Files | What we do |
 | --- | --- |
-| `01`–`03` | Separate known-key operations from search, then introduce `RunSpec`, key-space shapes, raw rune input and WLI. |
-| `04`–`07` | Add reproducibility, interruptors, honest partial recovery and named Liber Primus sources. |
-| `08`–`10` | Read result evidence, compare controlled search budgets, then prepare a real-source search without launching the longer solve. |
+| `01`–`03` | Encrypt with a known key, find an unknown rail count, then search for a repeating key. |
+| `04`–`07` | Repeat a run, use known interruptors, inspect a partial recovery and load a Liber Primus source. |
+| `08`–`10` | Read the result reports, compare search budgets and prepare a real-source search. |
 
-Run a file as a repository module from the repository root:
+Install RDP using the [installation guide](../../../docs/setup/installation.md),
+then run a file from the repository root:
 
 ```text
 python -m tutorials.v1.getting_started.02_first_search
 ```
 
-Module execution keeps repository location setup out of the example. The `rdp`
-package must already be installed as described in
-[`docs/setup/installation.md`](../../../docs/setup/installation.md).
+Every file uses `from rdp import api`. You can use the same calls in your own
+program; the numbered files themselves are included in the source checkout.
+Some of the larger [worked examples](../examples/) also use repository helpers
+to prepare their inputs and reports.
 
-## Boundary
+The parent [catalogue](../README.md) lists each file and its approximate runtime.
+[Anatomy of a run](../../../docs/guides/anatomy_of_a_run.md) brings the main RDP
+objects and their options together in one place.
 
-Every numbered file imports normal functionality through:
+## Things to change
 
-```python
-from rdp import api
-```
+Try changing the rail range in `02`, the repeating-key length in `03`, or the
+beam width in `09`. The first two change which keys RDP can try. Beam width
+changes how much of the search it keeps exploring.
 
-These files do not import repository fixtures, tutorial support or runtime
-implementation modules. The larger [`examples/`](../examples/) folder is the
-place for worked repository cases that need those facilities.
-
-The complete route and runtime table is in the parent
-[`tutorials/v1/README.md`](../README.md). The conceptual companion is
-[`docs/guides/anatomy_of_a_run.md`](../../../docs/guides/anatomy_of_a_run.md).
-
-## Adapting a nearby example
-
-Start with one change: rail bounds in `02`, repeating-key length in `03`, or
-beam width in `09`. Bounds and lengths describe the proposed problem; width
-changes the search budget. The comments explain the distinction and link to
-other key shapes, solvers and custom cipher/key development.
-
-The supplied settings have a checked outcome. Once you change the problem,
-review its reference comparison too; a failed example assertion may mean your
-new hypothesis did not recover the constructed answer.
+Each supplied example checks its result against an expected outcome. When you
+change the problem, check that comparison too. A failed assertion may simply
+mean your new settings didn't recover the original message.

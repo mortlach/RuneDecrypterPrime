@@ -1,6 +1,40 @@
 # Documentation style
 
-Status: V1 cleanup policy
+This is the agreed voice for RDP documentation, guides, tutorial comments and
+folder READMEs. Use it for new material and later editing passes.
+
+## Voice
+
+Write in `mortlach`'s voice: direct, practical and natural, with clear grammar
+and correct spelling. Assume the reader is technically capable and new to RDP.
+Explain what we are doing, why we need it and what we can change. Use “we” when
+walking through a shared example, and “you” when describing the reader's choices.
+
+A little dry humour is welcome when it comes naturally. Leave it out when
+unsure. Do not add jokes to meet a quota, imitate typos or invent biographical
+details. Public attribution is exactly `mortlach`.
+
+Prefer ordinary verbs and concrete explanations. “Tell RDP which keys to try”
+is usually clearer than “define the admissible candidate-space contract”. Keep
+technical names where they help the reader find the corresponding code.
+Explain a limitation where it affects a choice; avoid turning every paragraph
+into a warning about what the example does not prove.
+
+For example, replace:
+
+> RDP's cipher boundary uses rune indices. All three reviewed forms are kept
+> together here so no transliteration step is hidden inside the example.
+
+with:
+
+> RDP works with 29 runes, numbered from 0 to 28. Here is our message in English,
+> in runes, and as those numbers. The encrypt/decrypt functions take the numbers;
+> the other two lines are here so we can read what we're working with.
+
+The comments in [the known-key example](../../tutorials/v1/getting_started/01_known_key.py)
+are the starting reference for this voice. Keep the useful detail: a warmer
+sentence should still explain the concept, its purpose and relevant options.
+This is an orientation to RDP, not a Python lesson or a cryptography course.
 
 ## Folder README policy
 

@@ -1,6 +1,7 @@
-"""Vigenere interruptors exact.
+"""Find a Vigenere key when the interruptor positions are already known.
 
-See the example catalogue for assets, runtime and reference use.
+We tell RDP which positions to leave unchanged, then search for the repeating
+key and compare the recovered message with the original.
 """
 
 from __future__ import annotations

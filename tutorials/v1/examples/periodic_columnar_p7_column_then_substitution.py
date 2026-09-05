@@ -1,6 +1,7 @@
-"""Periodic columnar p7 column then substitution.
+"""Search the P7/C7 problem from a prepared starting key.
 
-See the example catalogue for assets, runtime and reference use.
+This is a longer qualification run using the existing staged work. Read the
+catalogue and the starting-key notes before running it; it is not a quick demo.
 """
 
 from __future__ import annotations

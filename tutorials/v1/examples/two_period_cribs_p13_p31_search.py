@@ -1,6 +1,7 @@
-"""Two period cribs p13 p31 search.
+"""Search the P13/P31 case with crib constraints.
 
-See the example catalogue for assets, runtime and reference use.
+This uses the larger two-period example and full model assets. Read the crib
+and interruptor settings to see what information the search has been given.
 """
 
 from __future__ import annotations

@@ -1,6 +1,7 @@
-"""Scheduled stream lookup p13 primes.
+"""Find a period-13 key with a prime-based stream schedule.
 
-See the example catalogue for assets, runtime and reference use.
+We generate the schedule first and give it to RDP. The repeating key remains
+unknown to the solver.
 """
 
 from __future__ import annotations

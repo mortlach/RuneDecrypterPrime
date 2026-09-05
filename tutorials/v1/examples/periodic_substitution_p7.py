@@ -1,6 +1,7 @@
-"""Periodic substitution p7.
+"""Run the periodic-substitution recipe with period seven.
 
-See the example catalogue for assets, runtime and reference use.
+This is a longer Kaeding search using the full model assets. The original
+message helps set the stopping score and lets us check the result afterwards.
 """
 
 from __future__ import annotations

@@ -1,57 +1,47 @@
 # Worked examples
 
-This folder contains retained cipher problems, solver comparisons, robustness
-recipes and qualification programs. It is a reference library, not a course and
-not an ordered difficulty ladder.
+Choose a file close to the problem you want to try. This folder includes cipher
+solves, comparisons between search methods, runs with several starts and longer
+qualification programs. The [catalogue](../README.md) lists all of them with
+their required assets, approximate runtime and expected result.
 
-The examples answer larger questions than the numbered getting-started route.
-Some use repository fixtures, text preparation or reporting support to create a
-repeatable problem. The actual RDP request should still cross the public boundary
-through `from rdp import api`; repository support is not presented as installed
-API.
-
-Run an example as a module from the repository root:
+Run an example from the repository root:
 
 ```text
 python -m tutorials.v1.examples.columnar_transposition
 ```
 
-This convention allows normal package imports and keeps `_ROOT`, `_SRC` and
-`sys.path` manipulation out of reader-facing code.
-
-## What belongs here
-
-- a meaningful cipher or solver case;
-- a comparison that changes one important part of the recipe;
-- a robustness recipe with a stated acceptance condition;
-- a real-source workflow that connects evidence to a repeatable run;
-- an explicit qualification program whose assets and runtime are declared.
-
-A changed constant alone is not another example. Unstable investigations belong
-under `cipher_development/`; regression-only cases belong under `tests/`.
+The module command lets the examples import shared input and reporting helpers.
+Those helpers live in this repository; the RDP request itself uses
+`from rdp import api`.
 
 ## Before running
 
-Use the parent [`catalogue`](../README.md) to check:
+Check the catalogue for the assets and time the example needs. Also check how
+it uses the known answer: some scripts only compare the result afterwards,
+while others use a reference score to decide when to stop searching.
 
-- purpose and cipher/solver combination;
-- public, experimental or repository-only surface;
-- required asset profile;
-- approximate runtime;
-- expected exact, partial or thresholded result;
-- whether known truth affects setup, stopping or only validation.
+The three qualification programs take from tens of minutes to several hours.
+Select them explicitly when you intend to run that work.
 
-The three qualification files can take from tens of minutes to several hours.
-They are never selected merely because somebody asked to run the examples.
+## Things to change
 
-## Useful changes
+In the columnar example, the permutation length sets the number of columns.
+The hybrid solver's stage budgets control the work spent finding their order.
+In repeating multiplication, the map defines the cipher rule and beam width
+controls how many alternatives the search keeps. The scheduled-stream example
+supplies a known schedule and searches for the repeating key.
 
-Choose a script with the key structure your problem needs. In the columnar
-example, the permutation fixes the column count while hybrid stage budgets
-control search work. In repeating multiplication, the map is the cipher rule
-and beam width controls retained alternatives. The scheduled-stream example
-separates the supplied schedule from the unknown repeating key.
+Keep the scorer and seed fixed when comparing search budgets. If you change the
+cipher, schedule or key shape, check that the inputs and expected result still
+match the problem you want to try.
 
-Keep the scorer and seed fixed when comparing a budget. If you change the
-cipher, schedule or key shape, you have changed the hypothesis; check that its
-inputs and acceptance condition still describe what you intend to demonstrate.
+## Adding an example
+
+A useful addition might cover a different kind of key, compare two approaches,
+use a real source or fill a missing step in the getting-started route. Explain
+what it adds, what it needs to run and how to judge the result. Changing a
+constant in an existing example usually doesn't need another file.
+
+Work still under investigation belongs in `cipher_development/`. Cases whose
+main purpose is to catch regressions belong in `tests/`.

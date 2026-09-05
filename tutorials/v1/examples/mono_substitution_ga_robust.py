@@ -1,6 +1,7 @@
-"""Mono substitution ga robust.
+"""Compare three starts on a substitution problem.
 
-See the example catalogue for assets, runtime and reference use.
+We select the highest-scoring result before comparing it with the original
+message. This shows how the recipe behaves across several attempts.
 """
 
 from __future__ import annotations

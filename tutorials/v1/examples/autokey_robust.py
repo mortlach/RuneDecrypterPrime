@@ -1,6 +1,7 @@
-"""Autokey robust.
+"""Try several starts on the same Autokey problem.
 
-See the example catalogue for assets, runtime and reference use.
+We choose the result by its score, then compare it with the original message.
+The known answer is for checking afterwards, not for picking the winning run.
 """
 
 from __future__ import annotations

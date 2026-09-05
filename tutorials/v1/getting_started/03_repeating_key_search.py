@@ -1,8 +1,8 @@
 # ruff: noqa: N999
-"""Recover a repeating Vigenere key from rune text with word boundaries.
+"""Find a repeating Vigenere key.
 
-This stop changes both the key shape and the input representation while keeping
-the same RunSpec -> api.run -> RunResult route introduced in stop 02.
+We know the key has four values, but we'll ask RDP to find what they are.
+We'll also supply the ciphertext as runes this time, with spaces between words.
 """
 
 from rdp import api
@@ -19,18 +19,20 @@ CIPHERTEXT_RUNES = "ᛗᚾᛟᚳᛝ ᚻᛠᛏ ᛡ ᛒᛠᛖᛞᛗ ᛗᛗᛗ ᚱ�
 
 
 def main() -> None:
-    # RawTextInput accepts visible rune text.  Spaces become word-location
-    # information (WLI), allowing the default scorer to use both character and
-    # word-shape evidence without asking this file to build WLI itself.
+    # RawTextInput lets us supply the runes directly. RDP converts them to
+    # numbers and uses the spaces to work out where the words are.
+    # This word-location information (WLI) gives the scorer something else to
+    # work with alongside the rune sequences.
     problem_input = api.RawTextInput(text=CIPHERTEXT_RUNES)
 
-    # A repeating key is a vector whose values cycle across the text.  Its
-    # length is fixed here; repeating_range is available when length itself is
-    # part of the search question.
+    # A repeating key cycles through the same values along the message.
+    # Here we know its length. If we wanted to search different lengths too,
+    # we could use KeySpec.repeating_range(...).
     key_space = api.KeySpec.repeating(length=len(SECRET_KEY))
 
-    # Direction is part of the evidence model, not a display preference.  It
-    # affects rune tokenisation and the interpretation of word positions.
+    # Set the reading direction to match how the text was prepared. It affects
+    # the rune and word information RDP builds, so changing it is more than
+    # turning the display around.
     request = api.RunSpec(
         problem_input=problem_input,
         cipher=api.CipherSpec.vigenere(),
@@ -47,8 +49,8 @@ def main() -> None:
     print("Recovered runes:", result.plaintext_text)
     print("Score           :", result.score)
 
-    # As before, known truth checks the returned candidate after the search; it
-    # was not supplied to ranking or stopping.
+    # Now compare the result with our original message and key. We kept these
+    # for checking afterwards; they weren't given to the solver.
     if result.key != SECRET_KEY or result.plaintext != PLAINTEXT:
         raise AssertionError("the search did not recover the exact key and text")
 

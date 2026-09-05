@@ -1,6 +1,7 @@
-"""Scheduled stream lookup p13 p31 segmented.
+"""Search a message with different stream combinations in different sections.
 
-See the example catalogue for assets, runtime and reference use.
+The two key periods are 13 and 31. The supplied section map tells RDP where
+each stream applies; the key values still have to be found.
 """
 
 from __future__ import annotations

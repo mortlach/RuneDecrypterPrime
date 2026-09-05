@@ -1,6 +1,7 @@
-"""Lp welcome pilgrim solve.
+"""Run the Welcome Pilgrim example from the solved-LP workbook.
 
-See the example catalogue for assets, runtime and reference use.
+The workbook supplies the source, search settings and final comparison.
+This file brings them together and prints the result.
 """
 
 from __future__ import annotations

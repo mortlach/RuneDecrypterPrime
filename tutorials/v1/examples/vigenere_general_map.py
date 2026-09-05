@@ -1,6 +1,7 @@
-"""Vigenere general map.
+"""Write the Vigenere rule as a function and use it in a search.
 
-See the example catalogue for assets, runtime and reference use.
+This is another way to describe the familiar cipher. It also shows where to
+start if you want to experiment with a different rune-by-rune rule.
 """
 
 from __future__ import annotations

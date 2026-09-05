@@ -1,9 +1,8 @@
 # ruff: noqa: N999
-"""Run the same bounded search twice and inspect its repeatability record.
+"""Run the same search twice and compare the results.
 
-Repeatability is an observable property of a complete recipe.  Recording a
-seed is necessary for stochastic work, but is not by itself a correctness
-claim or a promise that unrelated devices and backends are interchangeable.
+If we're going to investigate a result, it helps to be able to get it again.
+We'll keep the input, settings and seed the same, then check what comes back.
 """
 
 from rdp import api
@@ -21,8 +20,8 @@ SECRET_KEY: api.ConcreteKey = (7,)
 def build_request() -> api.RunSpec:
     cipher = api.CipherSpec.rail_fence(minimum_rails=2, maximum_rails=8)
     ciphertext = api.encrypt(PLAINTEXT, cipher=cipher, key=SECRET_KEY)
-    # Keeping request construction in one function makes it harder for the two
-    # runs to drift apart while we are claiming to compare identical recipes.
+    # Both runs use this function, so we don't accidentally change one of
+    # their settings while comparing them.
     return api.RunSpec(
         problem_input=api.RuneIndexInput(indices=ciphertext),
         cipher=cipher,
@@ -39,8 +38,8 @@ def build_request() -> api.RunSpec:
 
 
 def main() -> None:
-    # The request is rebuilt, not reused after mutation: public specs are
-    # immutable values and each run records its own effective configuration.
+    # Make the same request twice. Each run produces its own result and
+    # records the seed and settings it used.
     first = api.run(build_request())
     second = api.run(build_request())
 
@@ -51,8 +50,10 @@ def main() -> None:
     print("Same result   :", first.plaintext == second.plaintext)
     print("Same status   :", first.status == second.status)
 
-    # We compare candidate, score, status and effective seed.  Matching only the
-    # recovered plaintext would miss meaningful execution differences.
+    # Check the key, plaintext, score and stopping reason, as well as the
+    # seed. Matching only the plaintext could hide a difference elsewhere.
+    # If you repeat this on another machine, keep the RDP version, models and
+    # backend in mind too; the seed doesn't fix those for you.
     same_observations = (
         first.key == second.key == SECRET_KEY
         and first.plaintext == second.plaintext == PLAINTEXT

@@ -1,6 +1,7 @@
-"""Mono substitution sa ltr.
+"""Try simulated annealing on a substitution problem.
 
-See the example catalogue for assets, runtime and reference use.
+The search makes changes to a candidate key and sometimes accepts a worse
+score so it can move away from a local best.
 """
 
 from __future__ import annotations

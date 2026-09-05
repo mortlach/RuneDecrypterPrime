@@ -1,6 +1,7 @@
-"""Two period cribs.
+"""Use known pieces of text to search a two-period cipher.
 
-See the example catalogue for assets, runtime and reference use.
+Cribs reduce the possible keys before the remaining search. They are useful
+information we supply, so the result needs to be understood in that context.
 """
 
 from __future__ import annotations

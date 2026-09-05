@@ -1,8 +1,8 @@
-"""Recover the order of seven columns with a hybrid search.
+"""Find the order of seven columns with a hybrid search.
 
-The plaintext makes a controlled problem and calibrates its stopping score.
-The solver receives ciphertext and the permitted column orders. Repository
-text helpers prepare the rune input; the actual request uses the public API.
+We make our own ciphertext so we can check the answer. This example also uses
+the original message to choose a stopping score; keep that in mind if you adapt
+it for a message whose plaintext you do not know.
 """
 
 from rdp import api
@@ -21,8 +21,8 @@ def encrypt_columnar(pt: str, key: list[int]) -> str:
 
 
 def main() -> None:
-    # Spaces are removed for this transposition example, so the scorer below
-    # uses adjacent rune pairs without word-location information.
+    # We'll remove the spaces for this example. That leaves the scorer with
+    # rune pairs to work from, without word positions.
     direction = api.TextDirection.RIGHT_TO_LEFT
     _, _, plaintext_runes = Runeglish.encode_english_to_runes(
         plaintext_english_string, direction=direction
@@ -33,9 +33,10 @@ def main() -> None:
     ciphertext = encrypt_columnar(plaintext_runes, known_key)
     indices = Runeglish.rune_to_pos(ciphertext)
 
-    # A permutation contains each column exactly once. Repeating keys would
-    # allow duplicates, which describe a different problem. To change the number
-    # of columns, change the fixture key and its order together.
+    # The key is a permutation: each column appears exactly once. A repeating
+    # key could contain duplicates, so it wouldn't describe a column order.
+    # To try a different number of columns, change the key's length and order
+    # together.
     cipher = api.CipherSpec.columnar(columns=len(known_key))
     key_space = api.KeySpec.permutation(length=len(known_key))
     scoring = api.ScoringConfig(
@@ -48,9 +49,9 @@ def main() -> None:
         ),
     )
 
-    # Known plaintext calibrates this example's stopping threshold. That makes
-    # the run bounded, but it is reference use: an unknown-text investigation
-    # would need a stopping rule that does not require its answer in advance.
+    # We use the original message to choose a stopping score here. That's
+    # convenient for a constructed example. With an unknown message, we'd need
+    # a stopping rule that doesn't already need the answer.
     stop = oracle_stop_score(
         reference,
         None,
@@ -63,9 +64,9 @@ def main() -> None:
     )
     print_stop_summary("Columnar Hybrid", stop)
 
-    # Hybrid combines beam exploration, a population search and annealing.
-    # Each stage has its own budget. Increase one at a time when investigating
-    # search cost; the retained settings below are this example's recipe.
+    # Hybrid combines beam search, a genetic algorithm and annealing. Each
+    # stage has its own settings below. Change one budget at a time if you
+    # want to see where extra work helps.
     solver = api.SolverSpec.hybrid(
         use_beam_search=True,
         beam_width=96,
@@ -118,8 +119,8 @@ def main() -> None:
         a == b for a, b in zip(result.plaintext, reference, strict=True)
     ) / len(reference)
     print(f"Match ratio: {match_ratio:.3f}")
-    # The summary describes the same request that was executed. Use
-    # SummaryOptions.for_debug() when you need additional diagnostics.
+    # Print the result with the settings we actually used.
+    # SummaryOptions.for_debug() gives more detail if you need it.
     api.display.print_result(
         result, spec=request, options=api.display.SummaryOptions.for_tutorial()
     )

@@ -1,7 +1,7 @@
-"""Recover a repeating key for a user-defined multiplication map.
+"""Search for a repeating key using multiplication modulo 29.
 
-The map is deliberately small: it demonstrates how an experimental cipher
-definition joins the ordinary public RunSpec and result path.
+We define the cipher rule ourselves, then pass it to the usual RDP search.
+The rest of the request should look familiar from the Vigenere examples.
 """
 
 from __future__ import annotations
@@ -35,8 +35,8 @@ def _preview(label: str, text: str, limit: int = 160) -> None:
 
 
 def main() -> None:
-    # Non-zero values are used because multiplication by zero destroys the
-    # plaintext symbol and has no multiplicative inverse modulo 29.
+    # Leave zero out of the key: multiplying by zero loses the original rune
+    # value, so we couldn't undo it.
     rng = np.random.default_rng(TUTORIAL_SEED)
     key_nums = rng.integers(1, N, size=KEY_LEN).tolist()
     pt_idx = [int(v) for v in plaintext1_rev]
@@ -51,8 +51,8 @@ def main() -> None:
     print(f"key length: {KEY_LEN}")
     _preview("plaintext runes", pt_runes)
     _preview("ciphertext runes", ct_runes)
-    # The experimental boundary turns a small user function into a CipherSpec.
-    # From this point the ordinary RunSpec, solver and result contracts apply.
+    # Pass our multiplication function to define_cipher_map. It gives us a
+    # CipherSpec we can use in the same request as before.
     cipher = api.experimental.define_cipher_map(mult_map, alphabet_size=N)
     key_spec = api.KeySpec.repeating(length=KEY_LEN)
     scorer_params = api.ScoringConfig(
@@ -61,8 +61,8 @@ def main() -> None:
         character_order_weights={2: 0.3},
         word_length_order_weights={2: 0.7},
     )
-    # This retained example uses known plaintext to calibrate its stop score.
-    # The catalogue labels that oracle use; a real unknown solve cannot do it.
+    # We use the original message to choose a stopping score. That's help we
+    # have in this example, but wouldn't have for an unknown plaintext.
     stop = oracle_stop_score(
         pt_idx,
         wli,
@@ -74,9 +74,9 @@ def main() -> None:
         fallback=0.55,
     )
     print_stop_summary("Repeating Multiply Beam", stop)
-    # Width retains candidate alternatives; plateau controls stop a search
-    # after insufficient improvement. Change one budget at a time and keep the
-    # seed fixed to make comparisons easier to interpret.
+    # A wider beam keeps more alternatives. The plateau settings let the
+    # search stop when it isn't improving enough. Keep the seed fixed and
+    # change one setting at a time when comparing runs.
     solve_spec = api.SolverSpec.beam_search(
         width=32,
         maximum_children_per_parent=24,

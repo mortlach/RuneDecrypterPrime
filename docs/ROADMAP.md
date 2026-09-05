@@ -38,6 +38,18 @@ migration. The next work item is to define the campaign before running it:
 The unresolved item is the scientific question itself. It must not be guessed
 from the existence of a warm start or turned into an automatic release task.
 
+## Later documentation pass
+
+Apply the agreed [documentation style](development/docs_style.md) to the
+remaining guides and folder READMEs when their next editing phase begins.
+Use the tutorial comments as the voice reference: natural explanations of
+what RDP does, why each choice matters and useful alternatives. Keep technical
+accuracy and correct grammar; use dry humour sparingly, or leave it out.
+Older README samples are style references only. Check technical details against
+current code instead of restoring their old descriptions.
+
+This follow-up is a prose pass, separate from cipher development or campaigns.
+
 ## Not active V1 work
 
 - repository-wide style cleanup;

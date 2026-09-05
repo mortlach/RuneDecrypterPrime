@@ -1,81 +1,94 @@
 # Anatomy of an RDP run
 
-An RDP search is not just ciphertext plus a solver name. It is one explicit
-claim about the evidence, transformation, possible keys, ranking model and work
-budget. `RunSpec` keeps those parts together so the result can report what was
-actually requested and executed.
+To search for a key, we need to tell RDP what text we have, which cipher we think
+was used and which keys to try. We also choose how to search and how to judge
+the resulting plaintext. `RunSpec` brings those choices together.
 
-## Problem input: what evidence is available?
+The getting-started files introduce each part as we need it. This page keeps
+them in one place for when you want to put together your own run.
 
-`RawTextInput` accepts visible rune text and derives rune indices plus
-word-location information (WLI). `RuneIndexInput` accepts reviewed indices and
-optional WLI directly. Source-reference inputs name resolver-owned material such
-as Liber Primus fragments without embedding a machine-specific path.
+## Input: what text do we have?
 
-Choose the input form that matches the evidence. Do not invent spaces, a Latin
-rendering or source provenance merely because it improves presentation.
+Use `RawTextInput` for visible rune text. RDP converts it to rune indices and
+records the word positions, called word-location information or WLI. If you
+already have the numbers, use `RuneIndexInput` and supply WLI separately if you
+have it. Named source inputs let you refer to bundled material, including
+Liber Primus passages, without putting a local file path in the request.
 
-## Cipher specification: what transformation is proposed?
+Use the information the source gives you. Adding spaces means giving the
+scorer word boundaries, so it changes more than how the text looks.
 
-`CipherSpec` identifies the cipher family and its fixed structural parameters.
-For example, a rail-fence specification may bound valid rail counts, while a
-periodic fixed-stream specification carries the known schedule.
+## CipherSpec: which cipher are we trying?
 
-The cipher specification is not the unknown key and does not initiate a search.
-Known-key `encrypt` and `decrypt` operations combine a `CipherSpec` with a
-concrete key and return directly.
+`CipherSpec` selects the cipher and its fixed settings. For rail fence, those
+settings can include the allowed rail counts. A scheduled-stream cipher also
+needs the known schedule.
 
-## Key specification: what may the solver vary?
+The key is supplied separately. If we already know it, we can pass it with the
+cipher to `api.encrypt` or `api.decrypt` and get the result straight back.
+To find an unknown key, we first need to describe the possibilities.
 
-`KeySpec` describes the candidate space. Its shape must agree with the cipher:
+## KeySpec: which keys can we try?
 
-| Key space | Cryptanalytic meaning |
+`KeySpec` defines the keys the solver may consider. Different ciphers need
+different kinds of key:
+
+| Key space | What the solver can change |
 | --- | --- |
-| `scalar(minimum, maximum)` | One integer chosen from a bounded range, such as a rail count. |
-| `repeating(length)` | A fixed-length vector repeated across the text. |
-| `repeating_range(minimum_length, maximum_length)` | Repeating content and its length are both search questions. |
-| `permutation(length)` | Every position appears once, as required by a column order. |
-| `periodic_substitution(...)` | A structured family of substitution alphabets over a period. |
-| `periodic_columnar(...)` | Periodic substitution structure combined with a column permutation. |
+| `scalar(minimum, maximum)` | One integer within a range, such as the number of rails. |
+| `repeating(length)` | The values in a repeating key of a known length. |
+| `repeating_range(minimum_length, maximum_length)` | Both the values and the length of a repeating key. |
+| `permutation(length)` | An ordering, such as the columns in a transposition. Each position appears once. |
+| `periodic_substitution(...)` | Substitution alphabets used over a repeating period. |
+| `periodic_columnar(...)` | Periodic substitutions together with a column ordering. |
 
-A concrete key is an answer. A `KeySpec` is the set of answers the solver is
-allowed to consider.
+A concrete key contains actual values, such as `(3, 1, 4)`. A `KeySpec` tells
+RDP which possible values to search. Choosing the wrong length or range can
+exclude the key before the search has even started.
 
-Custom key types and their search operations can be implemented during cipher
-development. See [key spaces and extension](keyops.md) for the supported shapes
-and the contributor route.
+Custom key types and their search operations can also be implemented as part
+of cipher development. See [key spaces and extension](keyops.md) for the
+available options and where to start adding your own.
 
-## Solver specification: how much search is requested?
+## SolverSpec: how should RDP search?
 
-`SolverSpec` selects an algorithm and records its work controls: beam width,
-rounds, generations, starts, plateau rules, seed and any target score. Larger
-budgets may explore more candidates; they do not make the best candidate true.
+`SolverSpec` chooses the search algorithm and how much work it can do. Depending
+on the solver, you might change beam width, rounds, generations or the number
+of starts. A wider beam keeps more alternatives; extra rounds give the search
+more opportunities to improve them. Both cost time. The [solver guide](solvers.md)
+explains the choices in more detail.
 
-Initial keys and cribs are prior evidence. When used, their origin matters. A
-known answer inserted merely to make a run succeed is not an unknown-key solve.
+A seed lets us repeat the random choices in a run. Keep it fixed when comparing
+settings, along with the scorer and the rest of the request.
 
-## Scoring: how are candidates ranked?
+You can also give a search initial keys or cribs. Explain where these came
+from: a search with a useful hint answers a different question from one that
+started with ciphertext alone.
 
-`ScoringConfig` defines the evidence used to rank candidates. Character lanes
-measure rune-sequence plausibility; word-length lanes use WLI. Their weights,
-orders and objective are part of the recipe, not decorative output.
+## ScoringConfig: which candidates look promising?
 
-A score is meaningful only under its configured model. It ranks candidates; it
-does not certify plaintext.
+The scorer ranks candidate plaintexts so the solver has something to work
+with. Character scoring looks at rune sequences. Word-length scoring uses the
+word information supplied with the input. `ScoringConfig` selects those parts
+and sets their weights and orders.
 
-## Direction and interruptors: what structural evidence applies?
+Changing the scorer can change which candidates the search prefers. Keep its
+settings with the result, and compare scores using the same model. A high score
+alone doesn't tell us that we have recovered the original message.
 
-Text direction affects rune tokenisation and WLI interpretation. It must match
-the source evidence.
+## Direction and interruptors
 
-Interruptors are positions left unchanged by a cipher. `exact(...)` supplies
-positions already known; `search(...)` supplies a candidate pool and asks RDP to
-select positions under explicit bounds. Those are different cryptanalytic
-claims.
+Text direction affects how RDP reads the runes and their word information.
+Choose it to match the source you are using.
 
-## RunSpec: one executable statement
+Interruptors are positions the cipher leaves alone. If you know their positions,
+use `InterruptorConfig.exact(...)`. If you want RDP to find them, `search(...)`
+lets you supply possible positions and bounds for the search. Supplying the
+positions saves work, but it also gives RDP more information about the problem.
 
-The request binds the parts together:
+## RunSpec: put the request together
+
+Once those parts are defined, the usual call looks like this:
 
 ```python
 request = api.RunSpec(
@@ -90,28 +103,29 @@ request = api.RunSpec(
 result = api.run(request)
 ```
 
-There is one ordinary run path. Advanced options extend this request; they do
-not create a second solver API.
+The getting-started files contain complete runnable versions. As the problem
+gets more involved, we add settings to this same request.
 
-## RunResult: what happened, and what was found?
+## RunResult: what did we get back?
 
-Read the result in layers:
+Start with the candidate key and plaintext, then look at how the run reached
+them. The result keeps both:
 
-| Result section | Question answered |
+| Result section | What to look for |
 | --- | --- |
-| `key`, `plaintext`, `score` | What was the best candidate returned? |
-| `status` | Did execution complete, block or error, and why did it stop? |
-| `solver_report` | What work did the solver perform? |
-| `scorer_report` | Which scoring lanes and assets were effective? |
-| `configuration` | How did requested settings resolve into effective settings? |
-| `reproducibility` | Which seed, backend, device, version and assets contextualise the run? |
-| `oracle` | Did known truth affect scoring, ranking or stopping? |
-| `artifacts` | Which declared evidence files were written? |
+| `key`, `plaintext`, `score` | The best candidate returned and its score. |
+| `status` | Whether the run completed, was blocked or failed, and why it stopped. |
+| `solver_report` | How much work the search performed. |
+| `scorer_report` | Which scoring components and assets were used. |
+| `configuration` | The settings RDP actually used, including resolved defaults. |
+| `reproducibility` | Seed, backend, device, version and assets needed to repeat the run. |
+| `oracle` | Whether a known answer affected scoring, ranking or stopping. |
+| `artifacts` | Any output files requested for the run. |
 
-Search completion is an execution fact. Exact recovery is a comparison with
-known truth. A plausible unknown plaintext is an interpretation supported by
-evidence. RDP keeps those statements separate because they are not synonyms.
+A run can finish successfully and still recover only part of the message.
+When we know the original, we can compare it directly. With an unknown message,
+we have to investigate the candidate and explain why we think it is right.
 
 Continue through the numbered
-[`getting_started`](../../tutorials/v1/getting_started/) files, then use the
-[`example catalogue`](../../tutorials/v1/README.md) to select a larger problem.
+[`getting_started`](../../tutorials/v1/getting_started/) files, then choose a
+problem from the [example catalogue](../../tutorials/v1/README.md).

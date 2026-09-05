@@ -1,8 +1,8 @@
 # ruff: noqa: N999
-"""Recover an unknown rail-fence key through the public RDP API.
+"""Find a rail-fence key from the ciphertext.
 
-This is the first search: RDP receives ciphertext plus a bounded recipe and
-ranks candidate keys.  The known answer is retained only to check the result.
+This time we won't give the solver the key. We'll tell it which rail counts
+to consider, then check whether it finds the one we used.
 """
 
 from rdp import api
@@ -18,28 +18,32 @@ SECRET_KEY: api.ConcreteKey = (7,)
 
 
 def main() -> None:
-    # CipherSpec describes how candidate keys will be applied.  The bounds here
-    # also reject rail counts that this cipher instance cannot accept.
+    # We'll make our ciphertext using seven rails. The solver will only
+    # receive the ciphertext and the range of rail counts below.
     cipher = api.CipherSpec.rail_fence(minimum_rails=2, maximum_rails=8)
     ciphertext = api.encrypt(PLAINTEXT, cipher=cipher, key=SECRET_KEY)
 
-    # KeySpec describes what may be searched, not the answer.  A scalar key is
-    # one integer in a range.  Other public shapes include repeating keys,
-    # repeating-length ranges, permutations and structured periodic keys.
-    # Custom key types and their search operations can also be implemented
-    # as part of cipher development; see docs/howto/add_cipher.md.
-    # Keep the true rail count within these bounds to make recovery possible.
+    # KeySpec defines which candidate keys the solver may consider.
+    # Here the unknown is one integer: the number of rails.
+    # Other problems use a repeating vector of values or a permutation, such
+    # as the order of columns in a columnar transposition.
+    # Custom key types and their search operations can also be implemented as
+    # part of cipher development; see docs/howto/add_cipher.md.
+    #
+    # Keep seven within these bounds if you want the solver to find our key.
     key_space = api.KeySpec.scalar(minimum=2, maximum=8)
 
-    # SolverSpec is the search recipe.  Width is a work/coverage choice; the
-    # seed records stochastic choices.  Neither is evidence that the best
-    # candidate is correct. A wider beam retains more candidates at greater
-    # cost. GA and simulated annealing offer other search strategies; see
-    # docs/guides/solvers.md for compatible choices.
+    # SolverSpec tells RDP how to search. We'll use beam search here.
+    # A wider beam keeps more alternatives, but also takes more work. The seed
+    # lets us repeat the random choices made during a run.
+    #
+    # GA and simulated annealing are other options. See docs/guides/solvers.md
+    # for when they might be useful.
     solver = api.SolverSpec.beam_search(width=8, rounds=0, seed=7)
 
-    # ScoringConfig says how candidates are ranked.  This small rail-fence case
-    # uses character evidence only because it carries no word boundaries.
+    # The scorer decides which decrypted candidates look most plausible.
+    # This message has no word boundaries, so we'll use individual runes and
+    # pairs of runes. The weights below set their contributions.
     scoring = api.ScoringConfig(
         character_lane_enabled=True,
         word_length_lane_enabled=False,
@@ -47,9 +51,8 @@ def main() -> None:
         word_length_order_weights={},
     )
 
-    # RunSpec binds the evidence to one explicit cipher, key space, solver,
-    # scorer and reading direction.  api.run has one object to execute and one
-    # configuration to report afterwards.
+    # RunSpec puts those choices together: our input, cipher, possible keys,
+    # search method and scorer. We can then pass the whole request to api.run.
     request = api.RunSpec(
         problem_input=api.RuneIndexInput(indices=ciphertext),
         cipher=cipher,
@@ -60,8 +63,8 @@ def main() -> None:
     )
     result = api.run(request)
 
-    # A completed search returns its best candidate and a truthful stop reason.
-    # Exact recovery is established separately by comparison with known truth.
+    # RDP returns the best candidate it found. Since we made this problem
+    # ourselves, we can check both the key and the original message.
     exact_recovery = result.key == SECRET_KEY and result.plaintext == PLAINTEXT
 
     print("First search")

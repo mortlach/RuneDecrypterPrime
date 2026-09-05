@@ -1,6 +1,7 @@
-"""Two period cribs interruptors.
+"""Search a two-period cipher with cribs and possible interruptors.
 
-See the example catalogue for assets, runtime and reference use.
+RDP has to choose interruptor positions as well as recover the key. We keep
+the original key, text and positions to check its answer afterwards.
 """
 
 from __future__ import annotations

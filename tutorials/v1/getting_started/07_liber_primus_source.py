@@ -1,8 +1,8 @@
 # ruff: noqa: N999
-"""Load a named Liber Primus source through the public data boundary.
+"""Load Welcome Pilgrim from the bundled Liber Primus data.
 
-Source selection, solve recipe, known truth and solver result are separate
-objects.  This stop loads only the first of them so the boundary is unmistakable.
+We've used constructed messages so far. Now let's load a real source and
+look at what RDP provides before deciding how to search it.
 """
 
 from rdp import api
@@ -12,9 +12,9 @@ TEXT_DIRECTION = api.TextDirection.RIGHT_TO_LEFT
 
 
 def main() -> None:
-    # A stable label asks RDP's public LP namespace for reviewed ciphertext,
-    # word locations and provenance metadata.  It avoids embedding a local file
-    # path or silently selecting a page fragment in the example.
+    # Use the source label to select Welcome Pilgrim. The payload contains its
+    # rune numbers, word positions and information about where the text came
+    # from. We don't need to find a local transcript file ourselves.
     payload = api.liber_primus.payload_from_label(SOURCE_LABEL)
     metadata = payload.metadata
 
@@ -26,13 +26,13 @@ def main() -> None:
     print("Rune count   :", len(payload.ct_idx))
     print("Index preview:", tuple(payload.ct_idx[:12]))
     print("Solve recipe : not loaded")
-    print("Known truth  : source status only; not supplied to a solver")
+    print("Known answer : not used; this file only loads the source")
     print("Solver result: none")
-    print("Boundary     : source data loaded")
+    print("Loaded       : ciphertext and word information")
     print("Where next   : examples/lp_welcome_pilgrim_solve.py")
 
-    # These checks protect source identity and alignment.  They say nothing
-    # about a cipher hypothesis because no solve recipe has been constructed.
+    # Check that we loaded the expected source and that its rune and word
+    # information line up. We haven't asked RDP to decrypt anything yet.
     expected_boundary = (
         metadata["display_name"] == "Welcome Pilgrim"
         and metadata["source_label"] == "red_rune.welcome_pilgrim"

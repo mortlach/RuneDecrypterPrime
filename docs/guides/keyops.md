@@ -1,8 +1,8 @@
 # Keys and key spaces
 
 A concrete key contains actual values. `api.KeySpec` describes the candidates a
-solver is allowed to consider. Keeping these separate lets you specify what is
-known about a key without supplying the answer.
+solver is allowed to consider. Use the key space to tell RDP what you know
+about the key: perhaps its length or the range of possible values.
 
 ## Choose a shape that matches the cipher
 
@@ -15,8 +15,8 @@ known about a key without supplying the answer.
 | `periodic_substitution(...)` | Structured substitution alphabets over a period. | Set the period to match the proposed cipher. |
 | `periodic_columnar(...)` | Periodic substitution plus column-order structure. | Keep the period and column count consistent with the cipher. |
 
-These are methods on `api.KeySpec`. They are alternatives for different problem
-shapes, not interchangeable settings on every cipher.
+These are methods on `api.KeySpec`. Choose one that matches your cipher.
+For example, a Vigenere search with a known key length can use:
 
 ```python
 from rdp import api
@@ -32,17 +32,18 @@ it is known; search a bounded alignment range when it is another unknown.
 
 ## How the solver changes keys
 
-Internally, key operations generate candidates and provide operations such as
-mutation and recombination. Each implementation preserves the appropriate
-invariants: a permutation must remain a permutation, while a rune-value vector
-must retain its valid length and values. The solver chooses how to explore;
-key operations define the changes it can make.
+Key operations give the solver ways to create and change candidate keys,
+including mutation and recombination. Those changes must keep the key valid.
+Reordering columns must still use each column once; changing a rune value must
+keep it within the allowed range. The solver chooses when to try a change,
+and the key operations determine which changes it can make.
 
 Custom key types and their search operations can be implemented as part of
 cipher development. Start with the key's layout and validity rules, then provide
-the operations needed by the intended solver. Runtime registration and public
-API support are separate integration steps; a custom class is not automatically
-accepted by the existing public `KeySpec` constructors.
+the operations needed by the intended solver. You will also need to register
+the implementation and connect it to the public API if you want to use it
+through `KeySpec`.
+Defining a new class alone does not make the existing constructors accept it.
 
 Read the [key-operation source map](../../src/rdp/keyops/README.md), then
 [build a cipher and key operations](../howto/build_keyops.md) for the contributor

@@ -1,3 +1,9 @@
+"""Apply a known Vigenere key, then try finding a key with a general map.
+
+The first case has the key supplied. The second uses a search, so we can
+compare the two ways of asking RDP to work with the same kind of cipher.
+"""
+
 from __future__ import annotations
 
 import sys

@@ -1,6 +1,7 @@
-"""Autokey.
+"""Compare an Autokey search with and without help from a crib.
 
-See the example catalogue for assets, runtime and reference use.
+We use the same constructed problem for both runs, then see what changes when
+a piece of known text helps us choose starting keys.
 """
 
 from __future__ import annotations

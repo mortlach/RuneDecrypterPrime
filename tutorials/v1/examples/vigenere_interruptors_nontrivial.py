@@ -1,6 +1,7 @@
-"""Vigenere interruptors nontrivial.
+"""Try a larger Vigenere problem with unknown interruptor positions.
 
-See the example catalogue for assets, runtime and reference use.
+The search must choose positions from the supplied pool as well as find the
+key. Check the pool and count settings before adapting it to another message.
 """
 
 from __future__ import annotations

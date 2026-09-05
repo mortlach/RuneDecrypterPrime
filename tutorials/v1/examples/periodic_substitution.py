@@ -1,6 +1,7 @@
-"""Periodic substitution.
+"""Run the longer periodic-substitution comparison.
 
-See the example catalogue for assets, runtime and reference use.
+Each position in the period has its own substitution alphabet. This recipe
+uses the Kaeding solver and full model assets, and can take several hours.
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
-"""Recover a P13 key under a supplied non-periodic stream schedule.
+"""Find a period-13 key with a supplied stream sequence.
 
-The fixture support constructs a known problem.  RDP receives the ciphertext,
-fixed schedule, repeating key space and bounded beam recipe explicitly.
+The sequence is part of the cipher we give RDP. It still has to find the
+repeating key that goes with it.
 """
 
 from __future__ import annotations
@@ -48,9 +48,9 @@ def main() -> None:
         expected_result="exact solve",
         uses_reference_stop_score=True,
     )
-    # The supplied sequence controls when stream values are selected; it is not
-    # the unknown P13 key.  Keeping schedule and key separate is the essential
-    # difference from ordinary repeating Vigenere.
+    # We supply the stream sequence here. RDP knows that part of the cipher;
+    # it has to find the repeating key. Ordinary Vigenere doesn't have this
+    # extra supplied sequence.
     sequence = sample_sequence(64)
     key_values = key_period13()
     expected_key_len = 13
@@ -75,8 +75,8 @@ def main() -> None:
     print(
         f"ciphertext preview: {ct_runes[:160]}{('...' if len(ct_runes) > 160 else '')}"
     )
-    # Character pairs and word-location pairs contribute to this recipe.
-    # Changing their weights changes what counts as a plausible candidate.
+    # We'll score rune pairs and word-location pairs. Their weights decide how
+    # much each contributes when comparing candidate plaintexts.
     scorer_params = api.ScoringConfig(
         character_lane_enabled=True,
         word_length_lane_enabled=True,
@@ -86,9 +86,10 @@ def main() -> None:
             window_size=10
         ),
     )
-    # The fixed stop score was selected for this constructed problem. The key
-    # is not used as an initial candidate. Width and plateau rounds are useful
-    # work controls when trying a different message or schedule.
+    # This stopping score was chosen for our constructed message. We don't
+    # give the solver the key as a starting point. Width and plateau rounds
+    # are useful settings to try when working with another message or
+    # sequence.
     solver = api.SolverSpec.beam_search(
         width=72,
         rounds=0,

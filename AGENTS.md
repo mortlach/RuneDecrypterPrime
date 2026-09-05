@@ -41,3 +41,11 @@ for current implementation ownership.
 When a source contradiction prevents an approved contract from being implemented,
 stop and report the exact conflict. Aesthetic alternatives and settled decisions
 are not blockers.
+
+## Documentation voice
+
+Follow [the documentation style guide](docs/development/docs_style.md) for
+reader-facing prose and tutorial comments. Use natural, direct explanations
+in `mortlach`'s voice, with correct spelling and grammar. Explain RDP concepts
+and useful choices where they first appear. Dry humour is optional; omit it
+when unsure. Preserve technical meaning and the known-answer details of runs.

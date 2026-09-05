@@ -1,6 +1,7 @@
-"""Rail fence.
+"""Find the number of rails used to encrypt a longer message.
 
-See the example catalogue for assets, runtime and reference use.
+We know the answer because we made the ciphertext. The solver gets the
+ciphertext and a range of possible rail counts; we check its answer afterwards.
 """
 
 from __future__ import annotations

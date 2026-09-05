@@ -1,26 +1,13 @@
-# Style Guide
+# Documentation style
 
-## Voice & tone
-- Use plain, imperative English. Avoid filler ("Let us...", "you will just...").
-- Keep examples concrete and copy-pasteable. Prefer code over prose.
-- Prefer short sentences. No rhetorical questions.
+Use the [documentation style guide](../development/docs_style.md) for the agreed
+voice, tutorial comments, folder READMEs and formatting. It applies to new
+material and later editing passes.
 
-## Page header block (Tutorials/How-To)
-Add the following four lines immediately after the title:
+Use British English and the exact public attribution `mortlach`. Keep code
+examples runnable and use the public enum values where required. Where a
+snippet needs variables defined earlier, say so.
 
-```text
-Audience: Hands-on / Expert
-Time: <estimate>
-Outcome: <what the reader achieves>
-Prereqs: <tools or steps> 
-```
-
-## Drafts and deep dives
-- Mark stubs with `> DRAFT` at the top and link to the deep-dive page.
-- Guide pages should call out when they are overviews and point to deep dives.
-
-- British English.
-- Workflow-agnostic examples (IDE/CLI/notebook all acceptable).
-- Canonical Enums in examples.
-- Keep snippets small and runnable; avoid pseudo-code.
-
+Add prerequisites and approximate runtime when they help someone decide whether
+to run an example. Keep them short and specific to the page. Mark unfinished
+pages as drafts and link to the available detail.

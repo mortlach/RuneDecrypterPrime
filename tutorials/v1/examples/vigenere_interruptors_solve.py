@@ -1,6 +1,7 @@
-"""Vigenere interruptors solve.
+"""Find a Vigenere key and choose its interruptor positions.
 
-See the example catalogue for assets, runtime and reference use.
+We supply a small pool of possible positions. RDP searches within that pool
+instead of being told the exact positions in advance.
 """
 
 from __future__ import annotations

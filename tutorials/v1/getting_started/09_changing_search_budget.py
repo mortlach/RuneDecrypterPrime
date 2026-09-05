@@ -1,9 +1,8 @@
 # ruff: noqa: N999
-"""Change a search budget while holding the cryptanalytic problem fixed.
+"""Try a wider beam on the same problem.
 
-A larger budget may explore more candidates, but it is not automatically a
-better explanation of the evidence.  Here both bounded searches recover the
-same answer; the wider one simply performs more evaluations.
+Both searches recover the answer here. The wider one does more work, so this
+is a useful reminder to check what the extra search actually bought us.
 """
 
 from rdp import api
@@ -20,8 +19,8 @@ CIPHERTEXT_RUNES = "ᛗᚾᛟᚳᛝ ᚻᛠᛏ ᛡ ᛒᛠᛖᛞᛗ ᛗᛗᛗ ᚱ�
 
 
 def build_request(*, width: int) -> api.RunSpec:
-    # Only beam width changes.  Ciphertext, cipher, key space, scoring,
-    # direction and seed remain fixed so the comparison has one variable.
+    # Only the width changes. We'll keep the ciphertext, key length, scorer,
+    # direction and seed fixed so we can see what that one change does.
     return api.RunSpec(
         problem_input=api.RawTextInput(text=CIPHERTEXT_RUNES),
         cipher=api.CipherSpec.vigenere(),

@@ -1,6 +1,7 @@
-"""Vigenere interruptors robust.
+"""Try several starts on a Vigenere interruptor problem.
 
-See the example catalogue for assets, runtime and reference use.
+Choose the best-scoring attempt first, then compare it with the original
+message. This avoids using the answer to decide which attempt to keep.
 """
 
 from __future__ import annotations

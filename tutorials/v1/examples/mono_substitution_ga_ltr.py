@@ -1,6 +1,7 @@
-"""Mono substitution ga ltr.
+"""Search a substitution cipher using a genetic algorithm.
 
-See the example catalogue for assets, runtime and reference use.
+This version uses left-to-right text and one search attempt. We keep the
+original message so we can see how much the solver recovers.
 """
 
 from __future__ import annotations

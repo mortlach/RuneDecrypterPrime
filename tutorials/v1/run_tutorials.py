@@ -1,8 +1,7 @@
-"""Run the ordered V1 route or one explicit group of retained examples.
+"""Run the getting-started files or a group of worked examples.
 
-The scripts own their semantic assertions.  This runner selects files, starts
-each one in a subprocess and reports whether it exited cleanly.  Edit RUN_SET
-below; there is deliberately no second configuration surface.
+Choose RUN_SET below. The runner starts each file in a separate process and
+reports whether it passed. Each example checks its own expected result.
 """
 
 from __future__ import annotations

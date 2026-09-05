@@ -1,10 +1,14 @@
 # Example support
 
-Shared presentation and fixture helpers keep the worked examples readable.
-`tutorial_pretty.py` and `tutorial_output.py` handle display; `tutorial_utils.py`
-includes stop-score calibration; `tutorial_reference.py` handles reference comparison.
-The report, session-report and benchmark modules collect detailed evidence.
-`scheduled_stream_lookup.py` prepares related stream examples. Keep cipher hypotheses,
-solver budgets and reference-derived stopping visible in the calling example.
+The worked examples share helpers here so each script can concentrate on its
+cipher and search settings.
 
-Continue with the [related guide](../examples/README.md).
+`tutorial_pretty.py` and `tutorial_output.py` format output.
+`tutorial_utils.py` includes reference-score calculation for stopping a search,
+and `tutorial_reference.py` compares results with the original text. The report,
+session-report and benchmark modules collect more detailed run information.
+`scheduled_stream_lookup.py` prepares inputs for the related stream examples.
+
+Keep the important choices in the calling example, including its cipher,
+search budget and any use of a known answer to set a stopping score. See the
+[worked examples](../examples/README.md) for how these helpers are used.

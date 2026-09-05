@@ -1,14 +1,14 @@
 # ruff: noqa: N999
-"""Read a RunResult without confusing completion with correctness.
+"""Look through the result of a small search.
 
-The earlier stops inspect selected fields.  This one names the main result
-sections and the different questions they answer after a small exact search.
+We've already printed the recovered key and text. This time we'll also look
+at how much work the solver did and why it stopped.
 """
 
 from rdp import api
 
-# Known truth is present so this example can assess recovery after the run.  It
-# is not included in the RunSpec and therefore cannot affect candidate ranking.
+# We'll keep the original message so we can check the answer afterwards. It
+# won't be given to the solver.
 # fmt: off
 PLAINTEXT = (
     2, 18, 4, 18, 7, 24, 15, 24, 16, 24, 17, 20, 18, 15,
@@ -37,16 +37,16 @@ def main() -> None:
     )
     result = api.run(request)
 
-    # RunResult keeps several kinds of evidence separate:
-    # - key/plaintext/score: the best candidate found;
-    # - status: how and why execution stopped;
-    # - solver_report: work performed by the solver;
-    # - configuration: requested and effective component settings;
-    # - reproducibility: seed, backend, device and version context;
-    # - oracle: whether known truth influenced scoring, ranking or stopping.
-    # For a formatted overview, api.display.print_result(result) is available.
-    # Its SummaryOptions.for_debug() preset includes more diagnostic detail;
-    # start with the fields below when you only need the answer and its cost.
+    # RunResult has a few useful parts:
+    # - key, plaintext and score tell us what it found;
+    # - status tells us how the run ended;
+    # - solver_report records the work done;
+    # - configuration records our settings and how they were applied;
+    # - reproducibility records the seed, backend and version;
+    # - oracle records whether a known answer helped the run.
+    #
+    # You can also use api.display.print_result(result) for a formatted
+    # summary. SummaryOptions.for_debug() adds more detail when you need it.
     print("Reading a result")
     print("Best key       :", result.key)
     print("Best score     :", result.score)

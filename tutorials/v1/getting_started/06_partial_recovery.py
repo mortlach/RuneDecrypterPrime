@@ -1,8 +1,8 @@
 # ruff: noqa: N999
-"""Inspect an honest partial result from an intentionally narrow search.
+"""Look at a search that gets part of the message right.
 
-Search completion and cryptanalytic recovery are different facts.  This recipe
-is deliberately too narrow for exact recovery so the distinction is visible.
+We'll give this search a narrow beam on purpose. It will finish normally,
+but it won't recover the whole message. That is still a result worth inspecting.
 """
 
 from rdp import api
@@ -33,9 +33,9 @@ def match_ratio(candidate: tuple[int, ...]) -> float:
 
 
 def main() -> None:
-    # Width four is an intentional work limit, not a recommended production
-    # setting.  The solver may exhaust that configured budget cleanly while its
-    # best candidate remains only partially correct.
+    # We'll keep only four candidates in the beam. For this example that isn't
+    # enough to recover the whole message. It gives us a useful case for
+    # looking at what the solver found and why it stopped.
     request = api.RunSpec(
         problem_input=api.RawTextInput(text=CIPHERTEXT_RUNES),
         cipher=api.CipherSpec.vigenere(),
@@ -44,8 +44,7 @@ def main() -> None:
         scoring=api.ScoringConfig(),
         text_direction=api.TextDirection.LEFT_TO_RIGHT,
     )
-    # A second identical run checks stability of this fixture.  It does not
-    # promote the partial candidate into an exact result.
+    # Run it twice to check that we get the same partial answer again.
     first = api.run(request)
     second = api.run(request)
     ratio = match_ratio(first.plaintext)
@@ -57,11 +56,12 @@ def main() -> None:
     print("Beam width     :", 4)
     print("Stop category  :", first.status.stop_category.value)
     print("Stop reason    :", first.status.stop_reason.value)
-    print("Interpretation : partial evidence, not an exact solve")
-    print("Acceptance     : route fixture check, not a production score")
+    print("Result         : part of the message recovered")
+    print("Comparison     : against the original message")
 
-    # The reference ratio is tutorial acceptance evidence only.  It did not
-    # participate in the scorer used to rank candidates.
+    # The fraction of matching runes tells us how much we recovered. We can
+    # calculate it because we have the original message; it wasn't part of the
+    # score used during the search.
     stable_partial = (
         first.key == second.key
         and first.plaintext == second.plaintext

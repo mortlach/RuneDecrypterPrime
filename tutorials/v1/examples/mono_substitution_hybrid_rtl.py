@@ -1,6 +1,7 @@
-"""Mono substitution hybrid rtl.
+"""Use a hybrid search on a substitution problem.
 
-See the example catalogue for assets, runtime and reference use.
+The search combines several methods. Look at the stage settings to see how
+the work is divided, then compare the result with the original message.
 """
 
 from __future__ import annotations

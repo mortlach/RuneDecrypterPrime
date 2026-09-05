@@ -1,16 +1,16 @@
 # ruff: noqa: N999
-"""Encrypt and decrypt one reviewed rune message with a known key.
+"""Encrypt a message, then decrypt it with the same key.
 
-This first stop separates a known-key operation from a search.  Nothing is
-being inferred: the cipher, key and plaintext are all supplied explicitly.
+Before trying to find an unknown key, let's use one we already know.
+We should get our original message back.
 """
 
 from rdp import api
 
-# RDP's cipher boundary uses rune indices.  Latin and visible runes are useful
-# to a reader, but the numeric sequence is the value transformed by the cipher.
-# All three reviewed forms are kept together here so no transliteration step is
-# hidden inside the example.
+# RDP works with 29 runes, numbered from 0 to 28.
+# Here is our message in English, in runes, and as those numbers.
+# The encrypt/decrypt functions take the numbers; the other two lines are here
+# so we can read what we're working with.
 LATIN_TEXT = "FOLLOW THE EVIDENCE"
 RUNE_TEXT = "ᚠᚩᛚᛚᚩᚹ ᚦᛖ ᛖᚢᛁᛞᛖᚾᚳᛖ"
 # fmt: off
@@ -19,17 +19,26 @@ PLAINTEXT = (
     5, 18,
 )
 # fmt: on
+# Our key contains three values. Vigenere repeats them along the message:
+# 3, 1, 4, 3, 1, 4, ...
+#
+# ConcreteKey simply means we have the actual key values.
+# When we start searching, we'll use KeySpec to describe the possible
+# keys instead.
 KEY: api.ConcreteKey = (3, 1, 4)
 
 
 def main() -> None:
-    # A CipherSpec identifies the transformation and its fixed parameters.  It
-    # does not contain the key and it does not ask a solver to find anything.
+    # CipherSpec tells RDP which cipher to use.
+    # We'll use Vigenere: add each key value to the corresponding rune number,
+    # wrapping around modulo 29.
+    #
+    # Other choices include substitution, rail fence and columnar
+    # transposition. Each needs a suitable kind of key.
     cipher = api.CipherSpec.vigenere()
 
-    # A concrete key is the actual key used by a known-key operation.  Later
-    # examples use KeySpec instead: that describes a space of possible keys for
-    # a solver to search.
+    # Encrypt our message, then use the same key to decrypt it.
+    # There is no search involved here—we supplied the key ourselves.
     ciphertext = api.encrypt(PLAINTEXT, cipher=cipher, key=KEY)
     recovered = api.decrypt(ciphertext, cipher=cipher, key=KEY)
 
@@ -41,10 +50,13 @@ def main() -> None:
     print("Ciphertext      :", ciphertext)
     print("Recovered       :", recovered)
 
-    # The assertion is the scientific claim made by this file: applying the
-    # known inverse returns exactly the original rune indices.
+    # We should have exactly the message we started with.
     if recovered != PLAINTEXT:
         raise AssertionError("decrypt(encrypt(plaintext)) changed the message")
+
+    # Try changing one key value and running this again.
+    # The ciphertext will change, but we should still recover our message
+    # because both operations use the same key.
 
 
 if __name__ == "__main__":
