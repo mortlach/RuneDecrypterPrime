@@ -9,6 +9,7 @@ the current implementation, outstanding reviews and deliberately deferred work.
 ## Before V1 release
 
 - Complete the remaining documentation/voice pass and reconcile stale status notes.
+- Complete the bounded [Ruff cleanup with the local agent](development/v1_cleanup_local_agent_plan.md).
 - Close the agreed risk-based test and fixture review (V1-DEC-010).
 - Complete the bounded code/release and OPSEC/publication reviews.
 - Prepare release notes and the announcement for the actual delivered artefacts.
@@ -61,7 +62,7 @@ This follow-up is a prose pass, separate from cipher development or campaigns.
 
 ## Not active V1 work
 
-- repository-wide style cleanup;
+- broad code redesign disguised as style cleanup;
 - new public cipher, solver or scorer families;
 - unreviewed expansion of the getting-started route;
 - routine CI execution of long P7/C7 campaigns.

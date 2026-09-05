@@ -8,6 +8,11 @@ pass. The remaining work is documentation, a bounded test-system and release
 review, public-release hygiene, and final proof on the version we intend to ship.
 There is no agreed V2 feature plan in the reviewed material.
 
+Later owner decision: practical repository-wide Ruff cleanup is now included
+in V1 preparation and assigned to the local agent. The
+[cleanup plan](v1_cleanup_local_agent_plan.md) defines the scope and verification
+limits; it supersedes the earlier blanket deferral.
+
 ## Current source
 
 - Repository: `mortlach/RuneDecrypterPrime`.
@@ -144,7 +149,7 @@ match an older plan.
 | Robustness recipe refinement | `mono_ga.19` and `generic_map_multiply_beam.12` remain accepted, non-blocking REVIEW cases. Their recipe limitations are disclosed; they are not reopened API defects. |
 | Broad scientific retuning | Separate from documentation and release cleanup. |
 | New ciphers, solvers, scorer families or public-API redesign | Outside V1 closeout unless a concrete blocker requires an owner decision. |
-| Repository-wide Ruff/code-style cleanup | Deferred. The agreed prose cleanup is a different task. |
+| Repository-wide Ruff/code-style cleanup | Now planned for V1 with the local agent; broad redesign and unnecessary rule expansion remain excluded. |
 | More starting examples | Add only for a demonstrated gap, useful comparison or supported feature; no target file count or general course. |
 | Tutorial CLI, installed tutorial namespace, new tutorial registries/hashes | Outside the agreed design. Keep the simple module route and explicit runner groups. |
 | General Python or cryptography curriculum | Outside this project's onboarding scope. |
@@ -169,7 +174,8 @@ review. No unresolved item above should be read as a discovered runtime defect.
 
 ## Suggested order
 
-Finish docs and status reconciliation, then close the bounded test/fixture and
+Finish docs and status reconciliation, complete the bounded Ruff cleanup, then
+close the bounded test/fixture and
 public-release reviews. Fix concrete findings, settle the release notes, run the
 explicitly authorised final proof and publish V1. Future scientific work can
 then proceed without extending the release indefinitely.
