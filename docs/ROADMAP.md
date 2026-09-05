@@ -3,8 +3,15 @@
 This page is the short list of work that remains genuinely active. Release
 history and closed contract decisions belong elsewhere.
 
+The [V1 status and remaining work](development/v1_release_status.md) records
+the current implementation, outstanding reviews and deliberately deferred work.
+
 ## Before V1 release
 
+- Complete the remaining documentation/voice pass and reconcile stale status notes.
+- Close the agreed risk-based test and fixture review (V1-DEC-010).
+- Complete the bounded code/release and OPSEC/publication reviews.
+- Prepare release notes and the announcement for the actual delivered artefacts.
 - Run the normal push/pull-request gate on Windows and Ubuntu, including the
   `RELEASE` runnable group.
 - Run the manual `full_v1` proof, including complete pytest, package evidence
@@ -14,7 +21,9 @@ history and closed contract decisions belong elsewhere.
 - Keep local folder READMEs aligned when components or useful options change;
   the reader-experience pass establishes the current coverage.
 
-The `QUALIFICATION` group is not part of these checks.
+Broad or long execution requires an explicit owner request; this list records
+release work, not permission to start it. The `QUALIFICATION` group is not part
+of these checks.
 
 ## P7/C7 follow-up
 
