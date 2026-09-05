@@ -49,3 +49,8 @@ reader-facing prose and tutorial comments. Use natural, direct explanations
 in `mortlach`'s voice, with correct spelling and grammar. Explain RDP concepts
 and useful choices where they first appear. Dry humour is optional; omit it
 when unsure. Preserve technical meaning and the known-answer details of runs.
+
+Keep agent handoffs, chat prompts, execution plans and private working notes out
+of tracked files. Share them in chat or keep them outside the checkout. A hidden
+tracked directory is still public. Commit product documentation and durable
+technical contracts, not agent-to-agent messages.

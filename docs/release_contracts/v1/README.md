@@ -33,7 +33,6 @@ These files make those decisions reviewable and machine-checkable.
 - `V1_RELEASE_ACCEPTANCE_GATES.md` - human-readable release acceptance gates used by contract tests
 - `V1_AUTHORITY_AND_DECISIONS.md` - final V1 authority hierarchy and human-readable resolved-decision record, including the approved AN4 package-organisation authority
 - `AN3_IMPLEMENTATION_SUMMARY.md` - implementation-stage delivery, validation and known qualification exceptions
-- `AN3_EXTERNAL_REVIEW_REQUEST.md` - focused external-review entry point and requested disposition
 - `v1_resolved_decisions.csv` - machine-readable approved final-integration decisions
 - `v1_final_integration_baseline.json` - reviewed repository, branch and source-snapshot baseline
 - `V1_ASSET_AND_CI_PROFILES.md` - A1 canonical asset profiles, test markers and workflow tiers
@@ -44,8 +43,8 @@ These files make those decisions reviewable and machine-checkable.
 
 AN3 is **PASS and closed** at
 `f7af2d2d70ae3aab0965b914024a35df2225fb2f`. The two disclosed robustness
-REVIEW trials are accepted non-blocking recipe limitations, and beginner
-tutorial tiering remains deferred to GitHub issue #4.
+REVIEW trials are accepted non-blocking recipe limitations. The current
+getting-started route and worked examples are documented in `tutorials/v1/README.md`.
 
 AN4 package organisation is **PASS and complete** at accepted implementation
 commit `f30c5d09080429f64a8a7e982712a5c339c091a2`. The final installation has

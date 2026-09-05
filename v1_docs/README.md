@@ -50,7 +50,3 @@ not a second user entry point.
 - `reference/artifacts.md`
 - `reference/tutorial_runners.md`
 - `reference/public_api_allowlist.md`
-- `01_SOURCE_MAP.md`
-- `02_CROSSCHECK.md`
-- `03_REMAINING_WORK.md`
-- `04_REVIEW_SUMMARY.md`

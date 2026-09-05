@@ -34,7 +34,6 @@ ACTIVE_DOCUMENTS = (
     "docs/repo/structure.md",
     "docs/setup/building.md",
     "docs/tests_docs/tools.md",
-    "v1_docs/01_SOURCE_MAP.md",
     "v1_docs/coder/cipher_pipeline.md",
     "v1_docs/coder/docstring_policy.md",
     "v1_docs/coder/extension_points.md",

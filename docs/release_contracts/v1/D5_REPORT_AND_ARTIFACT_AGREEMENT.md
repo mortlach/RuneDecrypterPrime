@@ -74,3 +74,9 @@ D5 is acceptable only when:
 - report-only no-rank-effect tests pass;
 - D5 docs and handoff tests pass;
 - full-proof CI passes on the final branch head.
+
+## Generated solver-report details
+
+`report_contract`, `oracle_use`, `truth_data_policy` and `reproducibility` are
+reserved generated sections. Caller-provided details must not overwrite or pre-seed
+these sections. Ordinary additional details remain supported.

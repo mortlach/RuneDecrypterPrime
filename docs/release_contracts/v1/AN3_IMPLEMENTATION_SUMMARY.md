@@ -134,5 +134,5 @@ AN4. No AN4 engine-package restructuring is included here.
 
 The AN3 implementation is complete and ready for focused external review. AN4
 must not begin until the owner accepts that review. Reviewers should use
-`AN3_EXTERNAL_REVIEW_REQUEST.md` as the entry point and the generated pack
+this implementation summary as the entry point and the generated pack
 manifest/checksums as the exact evidence identity.

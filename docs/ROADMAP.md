@@ -1,68 +1,21 @@
-# Active roadmap
-
-This page is the short list of work that remains genuinely active. Release
-history and closed contract decisions belong elsewhere.
-
-The [V1 status and remaining work](development/v1_release_status.md) records
-the current implementation, outstanding reviews and deliberately deferred work.
+# Roadmap
 
 ## Before V1 release
 
-- Complete the remaining documentation/voice pass and reconcile stale status notes.
-- Complete the bounded [Ruff cleanup with the local agent](development/v1_cleanup_local_agent_plan.md).
-- Close the agreed risk-based test and fixture review (V1-DEC-010).
-- Complete the bounded code/release and OPSEC/publication reviews.
-- Prepare release notes and the announcement for the actual delivered artefacts.
-- Run the normal push/pull-request gate on Windows and Ubuntu, including the
-  `RELEASE` runnable group.
-- Run the manual `full_v1` proof, including complete pytest, package evidence
-  and the bounded `FULL_ASSET_EXAMPLES` group.
-- Record the final integration head and regenerate the review pack from that
-  exact head.
-- Keep local folder READMEs aligned when components or useful options change;
-  the reader-experience pass establishes the current coverage.
+- Finish the guides and reference documentation, including useful material still
+  under `v1_docs/`, and reconcile outdated links and status notes.
+- Complete the bounded Ruff cleanup and risk-based test/fixture review.
+- Complete code, packaging and public-release hygiene checks.
+- Verify the final candidate on Windows and Ubuntu/Linux with the declared
+  assets, tests and release example groups.
+- Prepare the wheel, sdist, full language-model assets, curated scientific
+  evidence and release notes.
 
-Broad or long execution requires an explicit owner request; this list records
-release work, not permission to start it. The `QUALIFICATION` group is not part
-of these checks.
+## Further work
 
-## P7/C7 follow-up
+- Investigate the next P7/C7 question using the existing
+  [staged tools](../cipher_development/periodic_columnar_staged/).
+- Refine the two accepted robustness recipe limitations recorded in the
+  [V1 decisions](release_contracts/v1/V1_AUTHORITY_AND_DECISIONS.md).
 
-The repository already contains the qualified staged tool and evidence under:
-
-```text
-cipher_development/periodic_columnar_staged/
-```
-
-No new cipher development or long campaign is authorised by the documentation
-migration. The next work item is to define the campaign before running it:
-
-1. select the next scientific question;
-2. state which existing evidence makes that question worth testing;
-3. choose a bounded compute budget and stop rule;
-4. define success, useful partial evidence and failure before looking at the
-   result;
-5. identify the exact existing tool entry point and output location;
-6. review the plan explicitly, then run only the approved bound.
-
-The unresolved item is the scientific question itself. It must not be guessed
-from the existence of a warm start or turned into an automatic release task.
-
-## Later documentation pass
-
-Apply the agreed [documentation style](development/docs_style.md) to the
-remaining guides and folder READMEs when their next editing phase begins.
-Use the tutorial comments as the voice reference: natural explanations of
-what RDP does, why each choice matters and useful alternatives. Keep technical
-accuracy and correct grammar; use dry humour sparingly, or leave it out.
-Older README samples are style references only. Check technical details against
-current code instead of restoring their old descriptions.
-
-This follow-up is a prose pass, separate from cipher development or campaigns.
-
-## Not active V1 work
-
-- broad code redesign disguised as style cleanup;
-- new public cipher, solver or scorer families;
-- unreviewed expansion of the getting-started route;
-- routine CI execution of long P7/C7 campaigns.
+Long qualification programs remain separate from ordinary release checks.
