@@ -19,6 +19,9 @@ STOPS = (
     "05_known_interruptors.py",
     "06_partial_recovery.py",
     "07_liber_primus_source.py",
+    "08_reading_a_result.py",
+    "09_changing_search_budget.py",
+    "10_prepare_a_real_source_search.py",
 )
 
 

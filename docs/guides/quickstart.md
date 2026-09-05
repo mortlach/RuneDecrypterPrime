@@ -1,9 +1,16 @@
 # Getting started
 
-This is an ordered route through ordinary RDP use. Each file is a small,
-runnable claim backed by an assertion.
+RDP separates what you know from what you want to find. With a known key, apply
+`api.encrypt` or `api.decrypt` directly. With an unknown key, describe the allowed
+candidates in a `KeySpec`: the solver searches them and the scorer ranks the
+resulting plaintext. `RunSpec` keeps that request together.
 
-All commands assume a source checkout and a completed
+The files below introduce those choices where they are used. Their comments
+explain RDP concepts and useful alternatives, so you can adapt a nearby example
+to your own question. Each file checks the specific outcome it describes.
+
+The module commands below run from the repository root. They assume a source
+checkout and a completed
 [`installation`](../setup/installation.md).
 
 ## The first three stops
@@ -11,9 +18,9 @@ All commands assume a source checkout and a completed
 Run these in order:
 
 ```text
-python tutorials/v1/getting_started/01_known_key.py
-python tutorials/v1/getting_started/02_first_search.py
-python tutorials/v1/getting_started/03_repeating_key_search.py
+python -m tutorials.v1.getting_started.01_known_key
+python -m tutorials.v1.getting_started.02_first_search
+python -m tutorials.v1.getting_started.03_repeating_key_search
 ```
 
 They establish three different things:
@@ -29,10 +36,10 @@ key is a scored search.
 ## Continue when the first shape is clear
 
 ```text
-python tutorials/v1/getting_started/04_reproducible_runs.py
-python tutorials/v1/getting_started/05_known_interruptors.py
-python tutorials/v1/getting_started/06_partial_recovery.py
-python tutorials/v1/getting_started/07_liber_primus_source.py
+python -m tutorials.v1.getting_started.04_reproducible_runs
+python -m tutorials.v1.getting_started.05_known_interruptors
+python -m tutorials.v1.getting_started.06_partial_recovery
+python -m tutorials.v1.getting_started.07_liber_primus_source
 ```
 
 - `04` runs the same seeded request twice and checks its observable result.
@@ -42,15 +49,36 @@ python tutorials/v1/getting_started/07_liber_primus_source.py
 - `07` loads the named Welcome Pilgrim source through the public LP boundary.
   Loading source data is not the same operation as solving it.
 
+## Read the evidence, then prepare a real case
+
+```text
+python -m tutorials.v1.getting_started.08_reading_a_result
+python -m tutorials.v1.getting_started.09_changing_search_budget
+python -m tutorials.v1.getting_started.10_prepare_a_real_source_search
+```
+
+- `08` separates the returned candidate, execution status, solver work,
+  effective configuration, reproducibility and oracle record.
+- `09` changes only beam width. Both searches recover the same answer, while
+  the wider search performs more work; a larger budget is not a correctness
+  certificate.
+- `10` connects the named Welcome Pilgrim source to its reviewed cipher, key
+  space, interruptor hypothesis, scorer and solver request. It deliberately
+  prepares rather than launches the longer solve.
+
+The companion [`anatomy of a run`](anatomy_of_a_run.md) explains these objects
+as parts of one cryptanalytic claim.
+
 ## Run the release selection
 
 ```text
 python tutorials/v1/run_tutorials.py
 ```
 
-The default `RELEASE` group contains all seven stops plus columnar
+The default `RELEASE` group contains all ten stops plus columnar
 transposition, repeating multiplication and scheduled-stream lookup examples.
-On the reference CPU used for this migration it completed in about 51 seconds.
+The previous seven-stop selection took about 51 seconds on the reference CPU.
+The expanded selection has not been timed as a whole; runtime depends on hardware.
 
 The runner is intentionally edited in one place. To run only the ordered route,
 set:

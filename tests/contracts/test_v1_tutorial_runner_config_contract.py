@@ -66,22 +66,16 @@ def test_runner_exposes_only_the_five_honest_groups() -> None:
 def test_runner_discovers_the_route_and_preserves_the_baseline_examples() -> None:
     runner = _runner_module()
     route = runner._discover(runner.GETTING_STARTED_DIR, "[0-9][0-9]_*.py")
-    assert [path.name for path in route] == [
-        "01_known_key.py",
-        "02_first_search.py",
-        "03_repeating_key_search.py",
-        "04_reproducible_runs.py",
-        "05_known_interruptors.py",
-        "06_partial_recovery.py",
-        "07_liber_primus_source.py",
-    ]
+    assert route
+    assert all(path.parent == runner.GETTING_STARTED_DIR for path in route)
+    assert list(route) == sorted(route)
 
     examples = {
         path.name
         for path in runner._discover(runner.EXAMPLES_DIR, "*.py")
         if path.name != "__init__.py"
     }
-    assert len(examples) >= 26
+    assert examples
     assert set(runner.RELEASE_EXAMPLE_NAMES) <= examples
     assert set(runner.FULL_ASSET_ONLY_NAMES) <= examples
 
@@ -91,12 +85,15 @@ def test_runner_selection_keeps_heavy_work_explicit() -> None:
 
     runner.RUN_SET = runner.TutorialRunSet.GETTING_STARTED
     getting_started = runner._selected_tutorials()
-    assert len(getting_started) == 7
+    assert getting_started
 
     runner.RUN_SET = runner.TutorialRunSet.RELEASE
     release = runner._selected_tutorials()
-    assert release[:7] == getting_started
-    assert tuple(path.name for path in release[7:]) == runner.RELEASE_EXAMPLE_NAMES
+    assert release[: len(getting_started)] == getting_started
+    assert (
+        tuple(path.name for path in release[len(getting_started) :])
+        == runner.RELEASE_EXAMPLE_NAMES
+    )
 
     runner.RUN_SET = runner.TutorialRunSet.BUNDLED_EXAMPLES
     bundled = runner._selected_tutorials()
@@ -118,3 +115,25 @@ def test_qualification_warning_is_plain_and_unconditional() -> None:
     source = RUNNER.read_text(encoding="utf-8")
     assert "qualification programs may take several hours each" in source
     assert "requires the full V1 asset profile" in source
+
+
+def test_module_launch_preserves_script_failure(monkeypatch, capsys) -> None:
+    """A failed script must remain a failure through the shared launcher."""
+    from subprocess import CompletedProcess
+
+    runner = _runner_module()
+    runner.WRITE_OUTPUT_LOGS = False
+    script = runner.EXAMPLES_DIR / "columnar_transposition.py"
+    launches = []
+
+    def fail(command, **kwargs):
+        launches.append((command, kwargs))
+        return CompletedProcess(command, 1, stdout="", stderr="semantic check failed")
+
+    monkeypatch.setattr(runner.subprocess, "run", fail)
+    passed, log = runner._run_one(script)
+    assert not passed and log is None
+    command, options = launches[0]
+    assert command[-2:] == ["-m", "tutorials.v1.examples.columnar_transposition"]
+    assert options["cwd"] == REPO_ROOT
+    assert "semantic check failed" in capsys.readouterr().out

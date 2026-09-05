@@ -2,7 +2,7 @@
 
 There are two different kinds of runnable material here.
 
-- [`getting_started/`](getting_started/) is a seven-stop route through the
+- [`getting_started/`](getting_started/) is a ten-stop route through the
   ordinary installed API. Read it in filename order.
 - [`examples/`](examples/) is a library of worked problems, comparisons,
   robustness recipes and qualifications. It is not ordered by difficulty.
@@ -21,11 +21,14 @@ directory.
 | [`05_known_interruptors.py`](getting_started/05_known_interruptors.py) | Exact interruptor positions as supplied evidence | ~2 s | exact key and text |
 | [`06_partial_recovery.py`](getting_started/06_partial_recovery.py) | Honest interpretation of a deliberately narrow budget | ~2 s | stable partial range |
 | [`07_liber_primus_source.py`](getting_started/07_liber_primus_source.py) | Named Liber Primus source loading | <1 s | source boundary only |
+| [`08_reading_a_result.py`](getting_started/08_reading_a_result.py) | Candidate, status, work, configuration, reproducibility and oracle evidence | <1 s | reports agree with exact result |
+| [`09_changing_search_budget.py`](getting_started/09_changing_search_budget.py) | One-variable comparison of narrow and wider beam searches | ~3 s | same exact result; different work |
+| [`10_prepare_a_real_source_search.py`](getting_started/10_prepare_a_real_source_search.py) | Assemble the reviewed Welcome Pilgrim request without launching the longer solve | <1 s | request prepared; not executed |
 
 Run a stop directly, for example:
 
 ```text
-python tutorials/v1/getting_started/03_repeating_key_search.py
+python -m tutorials.v1.getting_started.03_repeating_key_search
 ```
 
 These files use `from rdp import api` and no repository imports or path
@@ -42,7 +45,7 @@ python tutorials/v1/run_tutorials.py
 
 | Group | Contents |
 | --- | --- |
-| `GETTING_STARTED` | All seven numbered stops. |
+| `GETTING_STARTED` | All ten numbered stops. |
 | `RELEASE` | The numbered route plus three bounded, distinct examples. |
 | `BUNDLED_EXAMPLES` | Examples that use bundled assets and exclude qualifications. |
 | `FULL_ASSET_EXAMPLES` | Two bounded two-period examples proving the full assets. |
@@ -60,10 +63,10 @@ recipes and remain hardware-dependent.
 
 | File | Purpose | Cipher / solver | Surface | Assets | Runtime | Result | Truth / oracle |
 | --- | --- | --- | --- | --- | ---: | --- | --- |
-| [`vigenere_known_key_and_general_map.py`](examples/vigenere_known_key_and_general_map.py) | Compare a supplied-key wrapper with an unseeded general-map solve | Vigenere / beam | Public run; repo text support | bundled | seconds | exact | known key enters first comparison; plaintext validates both |
+| [`vigenere_known_key_and_general_map.py`](examples/vigenere_known_key_and_general_map.py) | Compare a supplied-key operation with an unseeded general-map solve | Vigenere / beam | Public run; repo text support | bundled | seconds | exact | known key enters first comparison; plaintext validates both |
 | [`vigenere_general_map.py`](examples/vigenere_general_map.py) | Express Vigenere through the experimental map boundary | general map / beam | Public + experimental API; repo fixture | bundled | seconds | exact | plaintext sets an oracle stop and validates |
 | [`rail_fence.py`](examples/rail_fence.py) | Recover an unknown rail count | rail fence / beam | Public run; repo text support | bundled | seconds | exact | plaintext validates only; no oracle stop |
-| [`columnar_transposition.py`](examples/columnar_transposition.py) | Recover a column permutation | columnar / beam | Public run; repo text support | bundled | ~4 s observed | exact | plaintext sets an oracle stop and validates |
+| [`columnar_transposition.py`](examples/columnar_transposition.py) | Recover a column permutation | columnar / hybrid | Public run; repo text support | bundled | ~4 s observed | exact | plaintext sets an oracle stop and validates |
 | [`repeating_multiply.py`](examples/repeating_multiply.py) | Recover a repeating multiplicative key modulo 29 | general map / beam | Public + experimental API; repo fixture | bundled | ~17 s observed | exact | plaintext sets an oracle stop and validates |
 
 ## Autokey and mono-substitution examples

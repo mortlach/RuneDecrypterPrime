@@ -11,6 +11,7 @@ pytestmark = pytest.mark.tier_a
 ROOT = Path(__file__).resolve().parents[2]
 README = ROOT / "README.md"
 QUICKSTART = ROOT / "docs" / "guides" / "quickstart.md"
+RUN_ANATOMY = ROOT / "docs" / "guides" / "anatomy_of_a_run.md"
 CATALOGUE = ROOT / "tutorials" / "v1" / "README.md"
 ROADMAP = ROOT / "docs" / "ROADMAP.md"
 EXAMPLES = ROOT / "tutorials" / "v1" / "examples"
@@ -30,6 +31,7 @@ def test_root_readme_uses_the_exact_public_identity_and_route() -> None:
     for path in (
         "docs/setup/installation.md",
         "docs/guides/quickstart.md",
+        "docs/guides/anatomy_of_a_run.md",
         "docs/guides/runes_and_text.md",
         "tutorials/v1/README.md",
     ):
@@ -41,7 +43,8 @@ def test_quickstart_names_every_route_stop_in_order() -> None:
     names = [
         path.name for path in sorted(ROUTE.glob("[0-9][0-9]_*.py"))
     ]
-    offsets = [text.index(name) for name in names]
+    # The guide runs modules, so the executable stem appears without .py.
+    offsets = [text.index(Path(name).stem) for name in names]
     assert offsets == sorted(offsets)
     assert "completed run is not relabelled as an exact solve" in text
 
@@ -81,6 +84,7 @@ def test_canonical_docs_do_not_restore_retired_taxonomy_or_prohibited_tone() -> 
         ROOT / "docs" / "README.md",
         ROOT / "docs" / "setup" / "installation.md",
         QUICKSTART,
+        RUN_ANATOMY,
         ROOT / "docs" / "guides" / "runes_and_text.md",
         CATALOGUE,
         ROADMAP,
@@ -100,9 +104,12 @@ def test_canonical_docs_do_not_restore_retired_taxonomy_or_prohibited_tone() -> 
         ROOT / "docs" / "README.md",
         ROOT / "docs" / "setup" / "installation.md",
         QUICKSTART,
+        RUN_ANATOMY,
         ROOT / "docs" / "guides" / "runes_and_text.md",
         ROOT / "docs" / "tutorials" / "index.md",
         CATALOGUE,
+        ROUTE / "README.md",
+        EXAMPLES / "README.md",
     ],
 )
 def test_canonical_local_markdown_links_resolve(document: Path) -> None:

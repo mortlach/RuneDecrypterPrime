@@ -11,18 +11,22 @@ Read these in order:
 
 1. [`setup/installation.md`](setup/installation.md)
 2. [`guides/quickstart.md`](guides/quickstart.md)
-3. [`guides/runes_and_text.md`](guides/runes_and_text.md)
-4. [`../tutorials/v1/README.md`](../tutorials/v1/README.md)
-5. [`guides/outputs.md`](guides/outputs.md)
-6. [`guides/troubleshooting.md`](guides/troubleshooting.md)
+3. [`guides/anatomy_of_a_run.md`](guides/anatomy_of_a_run.md)
+4. [`guides/runes_and_text.md`](guides/runes_and_text.md)
+5. [`../tutorials/v1/README.md`](../tutorials/v1/README.md)
+6. [`guides/outputs.md`](guides/outputs.md)
+7. [`guides/troubleshooting.md`](guides/troubleshooting.md)
 
 The first three runnable stops cover known-key operations, a small search and a
-repeating-key search. Four further stops make repeatability, interruptors,
-partial recovery and named Liber Primus sources concrete.
+repeating-key search. The remaining stops make repeatability, interruptors,
+partial recovery, result interpretation, controlled budget comparisons and a
+real Liber Primus request concrete.
 
 ## Guides
 
 - [`guides/pipeline.md`](guides/pipeline.md) — how a run moves through RDP.
+- [`guides/anatomy_of_a_run.md`](guides/anatomy_of_a_run.md) — what each public
+  request and result object means in the cryptanalytic process.
 - [`guides/scoring.md`](guides/scoring.md) — what scores mean and do not mean.
 - [`guides/solvers.md`](guides/solvers.md) — choosing a supported search.
 - [`guides/telemetry.md`](guides/telemetry.md) — progress and evidence.

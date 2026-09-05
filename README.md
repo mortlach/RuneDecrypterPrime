@@ -57,7 +57,7 @@ python tutorials/v1/getting_started/01_known_key.py
 
 On Windows, `install.bat` is an equivalent installer entry point.
 
-Then follow the seven short files in
+Then follow the ten short files in
 [`tutorials/v1/getting_started/`](tutorials/v1/getting_started/) or run the
 default release selection:
 
@@ -72,13 +72,15 @@ bounded examples. Long P7/C7 qualifications are never hidden inside it.
 
 1. [`docs/setup/installation.md`](docs/setup/installation.md) — installation,
    assets and qualified platforms.
-2. [`docs/guides/quickstart.md`](docs/guides/quickstart.md) — the seven-stop
+2. [`docs/guides/quickstart.md`](docs/guides/quickstart.md) — the ten-stop
    route and what each stop establishes.
-3. [`docs/guides/runes_and_text.md`](docs/guides/runes_and_text.md) — rune
+3. [`docs/guides/anatomy_of_a_run.md`](docs/guides/anatomy_of_a_run.md) — how
+   evidence, cipher, key space, solver, scoring and results fit together.
+4. [`docs/guides/runes_and_text.md`](docs/guides/runes_and_text.md) — rune
    indices, word boundaries and text direction.
-4. [`tutorials/v1/README.md`](tutorials/v1/README.md) — the complete runnable
+5. [`tutorials/v1/README.md`](tutorials/v1/README.md) — the complete runnable
    example catalogue, including assets, runtime and truth use.
-5. [`docs/README.md`](docs/README.md) — guides, reference and expert paths.
+6. [`docs/README.md`](docs/README.md) — guides, reference and expert paths.
 
 ## Repository map
 

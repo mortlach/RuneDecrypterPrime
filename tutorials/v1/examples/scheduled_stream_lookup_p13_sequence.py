@@ -1,23 +1,32 @@
+"""Recover a P13 key under a supplied non-periodic stream schedule.
+
+The fixture support constructs a known problem.  RDP receives the ciphertext,
+fixed schedule, repeating key space and bounded beam recipe explicitly.
+"""
+
 from __future__ import annotations
+
 import sys
-from pathlib import Path
-from typing import Sequence
-_ROOT = Path(__file__).resolve().parents[3]
-_SRC = _ROOT / 'src'
-for _import_root in (_ROOT, _SRC):
-    if str(_import_root) not in sys.path:
-        sys.path.insert(0, str(_import_root))
+from collections.abc import Sequence
+
 from rdp import api
-from tutorials.v1.support import tutorial_pretty as pretty
 from tutorials.v1.data.plaintext_fixtures import plaintext_english_string
-from tutorials.v1.support.scheduled_stream_lookup import build_ciphertext, default_scorer_params, key_period13, make_real_solve_solver, sample_sequence
-if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8')
+from tutorials.v1.support import tutorial_pretty as pretty
+from tutorials.v1.support.scheduled_stream_lookup import (
+    build_ciphertext,
+    key_period13,
+    sample_sequence,
+)
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 
 def _as_int_list(value: object) -> list[int] | None:
     if isinstance(value, (list, tuple)):
         return [int(v) for v in value]
     return None
+
 
 def _match_ratio(found: Sequence[int], expected: Sequence[int]) -> float:
     if len(found) != len(expected) or not expected:
@@ -27,10 +36,21 @@ def _match_ratio(found: Sequence[int], expected: Sequence[int]) -> float:
         for actual, wanted in zip(found, expected, strict=True)
     ) / len(expected)
 
+
 def main() -> None:
     pretty.print_rdp_identity()
     pretty.print_initialising()
-    pretty.print_tutorial_contract(name='ScheduledStreamLookup P13 plus supplied sequence', cipher='scheduled stream lookup', solver='beam', direction='rtl', expected_result='exact solve', uses_reference_stop_score=True)
+    pretty.print_tutorial_contract(
+        name="ScheduledStreamLookup P13 plus supplied sequence",
+        cipher="scheduled stream lookup",
+        solver="beam",
+        direction="rtl",
+        expected_result="exact solve",
+        uses_reference_stop_score=True,
+    )
+    # The supplied sequence controls when stream values are selected; it is not
+    # the unknown P13 key.  Keeping schedule and key separate is the essential
+    # difference from ordinary repeating Vigenere.
     sequence = sample_sequence(64)
     key_values = key_period13()
     expected_key_len = 13
@@ -38,39 +58,78 @@ def main() -> None:
     direction = api.TextDirection.RIGHT_TO_LEFT
     cipher_spec = api.CipherSpec.periodic_with_fixed_stream(sequence, period=13)
     key_spec = api.KeySpec.repeating(length=expected_key_len)
-    cipher_spec, key_spec, pt_idx, wli, _pt_runes, ct_idx_list, ct_runes, _key = build_ciphertext(
-        plaintext=plaintext_english_string,
-        cipher_spec=cipher_spec,
-        key_spec=key_spec,
-        key_values=key_values,
-        direction=direction,
+    cipher_spec, key_spec, pt_idx, wli, _pt_runes, ct_idx_list, ct_runes, _key = (
+        build_ciphertext(
+            plaintext=plaintext_english_string,
+            cipher_spec=cipher_spec,
+            key_spec=key_spec,
+            key_values=key_values,
+            direction=direction,
+        )
     )
-    print('ScheduledStreamLookup real-solve problem')
-    print(f'direction: {direction.value}')
-    print(f'periodic key length: {expected_key_len}')
-    print(f'sequence length: {len(sequence)}')
-    print(f'ciphertext length: {len(ct_idx_list)}')
-    print(f"ciphertext preview: {ct_runes[:160]}{('...' if len(ct_runes) > 160 else '')}")
-    scorer_params = default_scorer_params(direction)
-    solver = make_real_solve_solver(stop_score=stop_score)
-    result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx_list, word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=scorer_params, initial_keys=None, telemetry_enabled=True, text_direction=direction, compute_device=api.ComputeDevice.CPU))
+    print("ScheduledStreamLookup real-solve problem")
+    print(f"direction: {direction.value}")
+    print(f"periodic key length: {expected_key_len}")
+    print(f"sequence length: {len(sequence)}")
+    print(f"ciphertext length: {len(ct_idx_list)}")
+    print(
+        f"ciphertext preview: {ct_runes[:160]}{('...' if len(ct_runes) > 160 else '')}"
+    )
+    # Character pairs and word-location pairs contribute to this recipe.
+    # Changing their weights changes what counts as a plausible candidate.
+    scorer_params = api.ScoringConfig(
+        character_lane_enabled=True,
+        word_length_lane_enabled=True,
+        character_order_weights={2: 0.3},
+        word_length_order_weights={2: 0.7},
+        objective=api.advanced.ScoringObjective.percentile_log_probability(
+            window_size=10
+        ),
+    )
+    # The fixed stop score was selected for this constructed problem. The key
+    # is not used as an initial candidate. Width and plateau rounds are useful
+    # work controls when trying a different message or schedule.
+    solver = api.SolverSpec.beam_search(
+        width=72,
+        rounds=0,
+        target_score=stop_score,
+        plateau_rounds=12,
+        plateau_minimum_delta=0.0001,
+        maximum_children_per_parent=29,
+        seed=2026,
+    )
+    result = api.run(
+        api.RunSpec(
+            problem_input=api.RuneIndexInput(indices=ct_idx_list, word_lengths=wli),
+            cipher=cipher_spec,
+            key_space=key_spec,
+            solver=solver,
+            scoring=scorer_params,
+            initial_keys=None,
+            telemetry_enabled=True,
+            text_direction=direction,
+            compute_device=api.ComputeDevice.CPU,
+        )
+    )
     found_key = _as_int_list(result.key or None)
     expected_key = [int(v) for v in key_values]
     if found_key is None:
-        raise AssertionError('real solve did not return a key')
+        raise AssertionError("real solve did not return a key")
     key_ok = found_key == expected_key
     match_ratio = _match_ratio(result.plaintext, pt_idx)
     plaintext_ok = match_ratio == 1.0
-    print(f'Expected key : {expected_key}')
-    print(f'Found key    : {found_key}')
-    print(f'Key accepted?: {key_ok}')
-    print(f'Plaintext OK?: {plaintext_ok}')
-    print(f'Match ratio: {match_ratio:.3f}')
+    print(f"Expected key : {expected_key}")
+    print(f"Found key    : {found_key}")
+    print(f"Key accepted?: {key_ok}")
+    print(f"Plaintext OK?: {plaintext_ok}")
+    print(f"Match ratio: {match_ratio:.3f}")
     pretty.print_summary_spacer()
     api.display.print_result(result, options=api.display.SummaryOptions.for_tutorial())
     if not plaintext_ok:
-        raise AssertionError('real solve did not recover the expected plaintext')
+        raise AssertionError("real solve did not recover the expected plaintext")
     if not key_ok:
-        raise AssertionError('real solve did not recover the expected key')
-if __name__ == '__main__':
+        raise AssertionError("real solve did not recover the expected key")
+
+
+if __name__ == "__main__":
     main()

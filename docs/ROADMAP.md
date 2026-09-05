@@ -11,6 +11,8 @@ history and closed contract decisions belong elsewhere.
   and the bounded `FULL_ASSET_EXAMPLES` group.
 - Record the final integration head and regenerate the review pack from that
   exact head.
+- Keep local folder READMEs aligned when components or useful options change;
+  the reader-experience pass establishes the current coverage.
 
 The `QUALIFICATION` group is not part of these checks.
 
@@ -40,5 +42,5 @@ from the existence of a warm start or turned into an automatic release task.
 
 - repository-wide style cleanup;
 - new public cipher, solver or scorer families;
-- silent expansion of the getting-started route;
+- unreviewed expansion of the getting-started route;
 - routine CI execution of long P7/C7 campaigns.

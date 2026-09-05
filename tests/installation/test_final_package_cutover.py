@@ -15,8 +15,8 @@ OLD_PACKAGE = "rune_" + "decrypter_prime"
 ACTIVE_DOCUMENTS = (
     "README.md",
     "src/README.md",
-    "src/rdp/README.txt",
-    "src/rdp/api/README.txt",
+    "src/rdp/README.md",
+    "src/rdp/api/README.md",
     "cipher_development/README.md",
     "solving/README.md",
     "docs/architecture/interruptors.md",

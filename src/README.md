@@ -1,11 +1,8 @@
-# Source folder
+# Source tree
 
-Project source code lives under `src/`.
+`rdp/` is the sole installed project namespace. Its README maps the API, engine, cipher,
+key, scoring and data domains. Build outputs belong outside the maintained source tree.
+Public callers use `from rdp import api`; contributors follow exact implementation
+owners.
 
-- `src/rdp/api/` owns the canonical V1 public definitions.
-- `src/rdp/__init__.py` exposes that package without wildcard forwarding.
-- `src/rdp/` contains every engine implementation under its exact domain owner.
-
-Public consumers use `from rdp import api`. Internal consumers import exact
-`rdp.*` owners; there is no second package, compatibility layer or forwarding
-namespace.
+Continue with the [related guide](rdp/README.md).

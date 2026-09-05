@@ -1,37 +1,57 @@
+"""Autokey robust.
+
+See the example catalogue for assets, runtime and reference use.
+"""
+
 from __future__ import annotations
-'Qualification-derived Autokey Beam tutorial.\n\nThe solver receives the ciphertext and seed length, but never the true seed.\nTruth is inspected only after the solver has returned.\n'
-import sys
-from pathlib import Path
-_ROOT = Path(__file__).resolve().parents[3]
-_SRC = _ROOT / 'src'
-for _import_root in (_ROOT, _SRC):
-    if str(_import_root) not in sys.path:
-        sys.path.insert(0, str(_import_root))
+
 from rdp import api
-from tutorials.v1.data.plaintext_fixtures import plaintext_english_string
 from rdp.data.runeglish import Runeglish
+from tutorials.v1.data.plaintext_fixtures import plaintext_english_string
 from tutorials.v1.support import tutorial_pretty as pretty
+
 DIRECTION = api.TextDirection.RIGHT_TO_LEFT
 TRUE_SEED = [6, 1, 4, 17, 3, 22, 9, 12]
 SOLVER_SEED = 20260822
 BEAM_WIDTH = 96
 ROUNDS = 32
 RESTARTS = 3
-SCORER_PARAMS = api.ScoringConfig(character_lane_enabled=False, word_length_lane_enabled=True, character_order_weights={}, word_length_order_weights={1: 0.3, 2: 0.7}, objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10))
-DISPLAY_SCORER_PARAMS = api.ScoringConfig(character_lane_enabled=False, word_length_lane_enabled=True, word_length_order_weights={1: 0.3, 2: 0.7}, objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10))
+SCORER_PARAMS = api.ScoringConfig(
+    character_lane_enabled=False,
+    word_length_lane_enabled=True,
+    character_order_weights={},
+    word_length_order_weights={1: 0.3, 2: 0.7},
+    objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10),
+)
+DISPLAY_SCORER_PARAMS = api.ScoringConfig(
+    character_lane_enabled=False,
+    word_length_lane_enabled=True,
+    word_length_order_weights={1: 0.3, 2: 0.7},
+    objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10),
+)
+
 
 def _ints(value: object) -> list[int]:
-    if hasattr(value, 'tolist'):
+    if hasattr(value, "tolist"):
         value = value.tolist()
     return [int(item) for item in value]
+
 
 def _match(found: list[int], expected: list[int]) -> float:
     return sum((a == b for a, b in zip(found, expected, strict=True))) / len(expected)
 
+
 def main() -> None:
     pretty.print_rdp_identity()
     pretty.print_initialising()
-    pretty.print_tutorial_contract(name='Autokey robust Beam solve', cipher='autokey', solver='beam', direction=DIRECTION.value, expected_result='exact solve', uses_reference_stop_score=False)
+    pretty.print_tutorial_contract(
+        name="Autokey robust Beam solve",
+        cipher="autokey",
+        solver="beam",
+        direction=DIRECTION.value,
+        expected_result="exact solve",
+        uses_reference_stop_score=False,
+    )
     plaintext = plaintext_english_string
     pt_idx, wli, _ = Runeglish.encode_english_to_runes(plaintext, direction=DIRECTION)
     seed_length = len(TRUE_SEED)
@@ -75,16 +95,20 @@ def main() -> None:
     plaintext_match = _match(recovered_plaintext, [int(v) for v in pt_idx])
     seed_match = recovered_seed == TRUE_SEED
     recovered_runes = Runeglish.to_rune(recovered_plaintext, wli)
-    print(f'solver score: {float(result.score):.6f}')
-    print(f'stop reason: {result.solver_report.status.stop_reason}')
-    print(f"recovered plaintext: {recovered_runes[:240]}{('...' if len(recovered_runes) > 240 else '')}")
-    print(f'recovered seed: {recovered_seed}')
-    print(f'plaintext match: {plaintext_match:.3f}')
-    print(f'seed match: {seed_match}')
-    print(f'Match ratio: {plaintext_match:.3f}')
+    print(f"solver score: {float(result.score):.6f}")
+    print(f"stop reason: {result.solver_report.status.stop_reason}")
+    print(
+        f"recovered plaintext: {recovered_runes[:240]}{('...' if len(recovered_runes) > 240 else '')}"
+    )
+    print(f"recovered seed: {recovered_seed}")
+    print(f"plaintext match: {plaintext_match:.3f}")
+    print(f"seed match: {seed_match}")
+    print(f"Match ratio: {plaintext_match:.3f}")
     pretty.print_summary_spacer()
     api.display.print_result(result, options=api.display.SummaryOptions.for_tutorial())
     if plaintext_match != 1.0 or not seed_match:
-        raise AssertionError('robust Autokey tutorial did not recover exact truth')
-if __name__ == '__main__':
+        raise AssertionError("robust Autokey tutorial did not recover exact truth")
+
+
+if __name__ == "__main__":
     main()

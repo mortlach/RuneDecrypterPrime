@@ -40,7 +40,7 @@ OUTPUT_DIR = Path("output/tutorial_logs")
 FAILURE_TAIL_LINES = 80
 
 # RELEASE adds three different cipher/problem shapes to the complete short
-# route.  Measured together on the reference CPU, they take roughly 45 seconds.
+# route. The expanded selection has not been timed as a whole.
 RELEASE_EXAMPLE_NAMES = (
     "columnar_transposition.py",
     "repeating_multiply.py",
@@ -125,6 +125,11 @@ def _relative(path: Path) -> str:
     return path.relative_to(ROOT).as_posix()
 
 
+def _module_name(script: Path) -> str:
+    """Return the repository module name for one selected Python file."""
+    return ".".join(script.relative_to(ROOT).with_suffix("").parts)
+
+
 def _write_output_log(script: Path, output: str) -> Path | None:
     if not WRITE_OUTPUT_LOGS:
         return None
@@ -139,7 +144,7 @@ def _tail(text: str) -> str:
 
 def _run_one(script: Path) -> tuple[bool, Path | None]:
     completed = subprocess.run(
-        [sys.executable, "-X", "utf8", str(script)],
+        [sys.executable, "-X", "utf8", "-m", _module_name(script)],
         cwd=ROOT,
         text=True,
         encoding="utf-8",

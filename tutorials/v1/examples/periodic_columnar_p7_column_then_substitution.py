@@ -1,29 +1,26 @@
-from __future__ import annotations
+"""Periodic columnar p7 column then substitution.
 
-"""Qualification-derived public P7/C7 periodic-columnar warm-start solve."""
+See the example catalogue for assets, runtime and reference use.
+"""
+
+from __future__ import annotations
 
 import sys
 import time
-from pathlib import Path
-from typing import Any, Sequence
-
-_ROOT = Path(__file__).resolve().parents[3]
-_SRC = _ROOT / "src"
-for _import_root in (_ROOT, _SRC):
-    if str(_import_root) not in sys.path:
-        sys.path.insert(0, str(_import_root))
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
-from rdp import api
 
-from tutorials.v1.data.plaintext_fixtures import long_plaintext_string
-from tutorials.v1.support import tutorial_pretty as pretty
+from rdp import api
 from rdp.data.runeglish import Runeglish
 from tutorials.v1.data.periodic_columnar_p7_warm_start import (
     QUALIFICATION_CANDIDATE_ID,
     QUALIFICATION_RECIPE_ID,
     QUALIFIED_INITIAL_KEY,
 )
+from tutorials.v1.data.plaintext_fixtures import long_plaintext_string
+from tutorials.v1.support import tutorial_pretty as pretty
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -151,9 +148,9 @@ def _progress(payload: dict[str, Any], _key: Sequence[int] | None = None) -> Non
 def _match_ratio(recovered: Sequence[int] | None, expected: Sequence[int]) -> float:
     if recovered is None or len(recovered) != len(expected) or not expected:
         return 0.0
-    return sum(int(left) == int(right) for left, right in zip(recovered, expected)) / len(
-        expected
-    )
+    return sum(
+        int(left) == int(right) for left, right in zip(recovered, expected)
+    ) / len(expected)
 
 
 def main() -> None:
