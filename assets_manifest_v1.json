@@ -5,13 +5,13 @@
   "required_assets": [
     {
       "asset_id": "liber_primus.main_transcript",
-      "asset_version": "105f1c68cecde03df1e66982d3021ab31d7f49ee975ca109d1a1924cbcafc99c",
+      "asset_version": "ad516b6d88106d68b3334cee0800ac83fa2e4d27c1a5c52bf8b0c2fb3ebc45d6",
       "version_scheme": "sha256",
-      "sha256": "105f1c68cecde03df1e66982d3021ab31d7f49ee975ca109d1a1924cbcafc99c",
-      "size_bytes": 55485,
-      "final_relpath": "liber_primus/liber-primus__transcription--master.txt",
+      "sha256": "ad516b6d88106d68b3334cee0800ac83fa2e4d27c1a5c52bf8b0c2fb3ebc45d6",
+      "size_bytes": 57236,
+      "final_relpath": "liber_primus/liber-primus__transcription--master-v2.txt",
       "parts": [
-        "liber_primus/liber-primus__transcription--master.txt.part001"
+        "liber_primus/liber-primus__transcription--master-v2.txt.part001"
       ],
       "required_for": [
         "builtin_data_contracts",

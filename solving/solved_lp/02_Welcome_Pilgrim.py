@@ -11,7 +11,7 @@ for path in (ROOT, SRC):
         sys.path.insert(0, str(path))
 from rdp import api
 import rdp.data.liber_primus as lp
-from rdp.core.config.output_paths import resolve_output_root
+from rdp.core.config.output_paths import resolve_output_root, path_from
 from solving.solve_output import collect_solver_attempt, configure_utf8_stdio, print_block, print_final_result, print_kv, safe_public_dict, write_latest_evidence, zero_positions
 from rdp.data.runeglish import Runeglish
 configure_utf8_stdio()
@@ -126,8 +126,8 @@ def main() -> int:
     final = {'status': status, 'match_ratio': best_attempt.get('match_ratio'), 'found_key_core': best_attempt.get('found_key_core'), 'found_interruptors': best_attempt.get('found_interruptors'), 'notes': notes}
     evidence = {'source_label': SOURCE_LABEL, 'resolved_source_label': metadata['source_label'], 'recipe': recipe.recipe_label, 'cipher_family': recipe.cipher_family, 'run_config': run_config, 'attempts': attempt_records, 'best_attempt': best_attempt, 'score_separation': score_separation, 'final': final}
     latest_path, stamped_path = write_latest_evidence(resolve_output_root() / "solving" / uuid.uuid4().hex / EVIDENCE_DIR, evidence)
-    print('json_evidence_latest:', latest_path.relative_to(ROOT))
-    print('json_evidence_timestamped:', stamped_path.relative_to(ROOT) if stamped_path is not None else None)
+    print('json_evidence_latest:', path_from(latest_path, ROOT))
+    print('json_evidence_timestamped:', path_from(stamped_path, ROOT) if stamped_path is not None else None)
     return 0 if status == 'solved' else 1
 if __name__ == '__main__':
     raise SystemExit(main())

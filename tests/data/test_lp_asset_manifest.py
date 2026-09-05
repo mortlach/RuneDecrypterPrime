@@ -24,19 +24,22 @@ def test_lp_main_transcript_has_manifest_integrity_entry() -> None:
     row = rows[0]
     assert row['version_scheme'] == 'sha256'
     assert row['asset_version'] == row['sha256']
-    assert row['final_relpath'] == 'liber_primus/liber-primus__transcription--master.txt'
-    assert row['parts'] == ['liber_primus/liber-primus__transcription--master.txt.part001']
+    assert row['final_relpath'] == 'liber_primus/liber-primus__transcription--master-v2.txt'
+    assert row['parts'] == ['liber_primus/liber-primus__transcription--master-v2.txt.part001']
     packed_part = root / manifest['packed_root'] / row['parts'][0]
     assert packed_part.is_file()
     assert packed_part.stat().st_size == row['size_bytes']
     assert _sha256(packed_part) == row['sha256']
+    installed = root / manifest['assets_root'] / row['final_relpath']
+    assert installed.read_bytes() == packed_part.read_bytes()
+    assert lp_main.default_main_transcript_path() == installed.resolve()
 
 def test_lp_main_transcript_identity_returns_fresh_mutable_copy() -> None:
     lp_main._cached_main_transcript_asset_identity.cache_clear()
     first = lp_main.main_transcript_asset_identity()
     first['asset_version'] = 'bad'
     second = lp_main.main_transcript_asset_identity()
-    assert second == {'asset_id': 'liber_primus.main_transcript', 'asset_version': '105f1c68cecde03df1e66982d3021ab31d7f49ee975ca109d1a1924cbcafc99c'}
+    assert second == {'asset_id': 'liber_primus.main_transcript', 'asset_version': 'ad516b6d88106d68b3334cee0800ac83fa2e4d27c1a5c52bf8b0c2fb3ebc45d6'}
     assert second is not first
 
 def test_lp_main_transcript_identity_rejects_duplicate_manifest_rows(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

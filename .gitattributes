@@ -5,3 +5,5 @@ assets/language_model/lmp/index.json -text
 # Keep exact-hash Pack 09 Python sources byte-stable on Windows and Linux.
 cipher_development/shared/*.py text eol=lf
 cipher_development/two_period_overlay/*.py text eol=lf
+assets/liber_primus/liber-primus__transcription--master-v2.txt text eol=crlf
+assets/liber_primus/liber-primus__transcription--master-v2.txt.part001 text eol=crlf

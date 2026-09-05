@@ -5,7 +5,7 @@ from rdp.data.liber_primus.lp_main import extract_locator_ct_wli, extract_partit
 from rdp.data.liber_primus.lp_registry import LPFragmentLocator, LPPageRef, build_red_rune_17_partition
 from rdp.data.liber_primus.lp_routes import LPLineReadMode, LPLineRuneSelector, LPSpiralDirection, LPSpiralRoute
 pytestmark = pytest.mark.tier_a
-LP_MAIN_TRANSCRIPT_SHA256 = '105f1c68cecde03df1e66982d3021ab31d7f49ee975ca109d1a1924cbcafc99c'
+LP_MAIN_TRANSCRIPT_SHA256 = 'ad516b6d88106d68b3334cee0800ac83fa2e4d27c1a5c52bf8b0c2fb3ebc45d6'
 
 def test_payload_from_locator_matches_direct_ct_wli() -> None:
     doc = load_main_transcript(attach_catalogue=True)

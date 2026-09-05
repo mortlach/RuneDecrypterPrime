@@ -31,7 +31,7 @@ from rdp.data.liber_primus.lp_transcript import LPTranscript
 from rdp.data.runeglish import Runeglish
 
 _DEFAULT_LP_ASSETS_REL = Path("liber_primus")
-_MAIN_TRANSCRIPT_NAME = "liber-primus__transcription--master.txt"
+_MAIN_TRANSCRIPT_NAME = "liber-primus__transcription--master-v2.txt"
 MAIN_TRANSCRIPT_ASSET_ID = "liber_primus.main_transcript"
 
 

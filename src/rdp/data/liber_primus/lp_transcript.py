@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import re
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from rdp.data.runeglish import Runeglish
+
+_DOT_TAG_RE = re.compile(r"\[dot_[1-9][0-9]*(?:_[A-Za-z0-9]+)*\]")
 
 # -----------------------------
 # Format model
@@ -635,7 +638,10 @@ class LPTranscript:
         def hard_break() -> None:
             flush_line(force_advance=False)
 
-        for raw_ln in lines[body_start:]:
+        # Colour annotations never end a word. Keep their state across physical
+        # newlines and '/' markers; the original annotations remain in self.raw.
+        red_open: Optional[str] = None
+        for file_line, raw_ln in enumerate(lines[body_start:], start=body_start + 1):
             ln = raw_ln.strip()
             if not ln:
                 continue
@@ -655,8 +661,40 @@ class LPTranscript:
                 start_new_chapter()
                 continue
 
-            # Content line: scan chars; '/' is authoritative for line breaks.
-            for ch in ln:
+            # Read tags before characters so their letters, digits and closing
+            # slash cannot enter ciphertext or create a spurious text line.
+            offset = len(raw_ln) - len(raw_ln.lstrip())
+            pos = 0
+            while pos < len(ln):
+                location = (
+                    f"file line {file_line}, column {offset + pos + 1} "
+                    f"(chapter {chapter}, page {page}, line {line_in_page})"
+                )
+                ch = ln[pos]
+                if ch == "[":
+                    end = ln.find("]", pos + 1)
+                    if end < 0:
+                        raise ValueError(f"Unterminated typography tag at {location}")
+                    tag = ln[pos:end + 1]
+                    if tag == "[red]":
+                        if red_open is not None:
+                            raise ValueError(f"Nested [red] at {location}; opened at {red_open}")
+                        red_open = location
+                    elif tag == "[/red]":
+                        if red_open is None:
+                            raise ValueError(f"Unmatched [/red] at {location}")
+                        red_open = None
+                    elif _DOT_TAG_RE.fullmatch(tag):
+                        # Consecutive marks occupy one word gap: flush_word()
+                        # already ignores an empty buffer.
+                        flush_word()
+                    else:
+                        raise ValueError(f"Unknown typography tag {tag!r} at {location}")
+                    pos = end + 1
+                    continue
+                if ch == "]":
+                    raise ValueError(f"Unexpected ']' at {location}")
+                pos += 1
                 if ch.isspace():
                     continue
 
@@ -689,6 +727,9 @@ class LPTranscript:
                     word_in_line += 1
                 self.glyphs.append(ch)
                 cur_word_chars.append(ch)
+
+        if red_open is not None:
+            raise ValueError(f"Unclosed [red] opened at {red_open}")
 
         # Finalise any trailing content
         flush_word()
