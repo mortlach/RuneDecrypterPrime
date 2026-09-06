@@ -52,10 +52,11 @@ RDP requires Python 3.11 or newer. From the repository root:
 
 ```text
 python install.py
-python tutorials/v1/getting_started/01_known_key.py
+python -m tutorials.v1.getting_started.01_known_key
 ```
 
-On Windows, `install.bat` is an equivalent installer entry point.
+`python install.py` is the canonical installer. On Windows, `install.bat` calls
+the same route.
 
 Then follow the ten short files in
 [`tutorials/v1/getting_started/`](tutorials/v1/getting_started/) or run the
@@ -71,7 +72,7 @@ bounded examples. Long P7/C7 qualifications are never hidden inside it.
 ## Read next
 
 1. [`docs/setup/installation.md`](docs/setup/installation.md) — installation,
-   assets and qualified platforms.
+   assets, CPU/CUDA setup and qualified platforms.
 2. [`docs/guides/quickstart.md`](docs/guides/quickstart.md) — the ten-stop
    route and what each stop establishes.
 3. [`docs/guides/anatomy_of_a_run.md`](docs/guides/anatomy_of_a_run.md) — how
@@ -95,13 +96,13 @@ assets/                          source-bundled asset baseline
 output/                          generated local evidence and logs
 ```
 
-Generated `output/` is local evidence, not source.
+Generated output is local evidence, not source.
 
 ## Release posture
 
 V1 is qualified on Python 3.11 on Windows and Ubuntu. Push checks use the
 bundled CI-light asset profile; the manual full proof verifies the complete V1
-asset set, including the required V1 LM3/LM4 assets. Several-hour qualification
+asset set, including the required LM3/LM4 assets. Several-hour qualification
 campaigns remain explicit, manual work under the repository's workflow-cost
 policy.
 
@@ -111,8 +112,12 @@ drift controls, not the first reader path.
 
 ### Output and GPU setup
 
-The source installer automatically provisions and verifies Torch CUDA on supported
-NVIDIA machines. See [CUDA installation](docs/development/cuda_installation.md).
-Generated output uses ignored source `output/` by default; developers can choose
-an external project root with `RDP_OUTPUT_ROOT`. See
-[output locations](docs/development/output_locations.md).
+The source installer can provision and verify Torch CUDA on supported NVIDIA
+machines. Runs still default to CPU; request `api.ComputeDevice.CUDA` when GPU
+execution is wanted. See
+[CUDA provisioning](docs/development/cuda_installation.md).
+
+An ordinary `api.run` returns its `RunResult` in memory. On-disk run evidence is
+created when logging is requested, while repository tools such as the installer
+and tutorial runner write their own documented evidence. See
+[outputs and artefacts](docs/guides/outputs.md).

@@ -1,75 +1,83 @@
-# Install validation playbook
+# Install validation
 
-This page separates the complete product install from normal CI cost control.
-The canonical definitions are in `asset_profiles_v1.json` and
-`docs/release_contracts/v1/V1_ASSET_AND_CI_PROFILES.md`.
-
-## Full V1 product install
+This page is for maintainers and release checks. The ordinary installation
+route remains:
 
 ```text
 python install.py
 ```
 
-This selects `full_v1`. It installs the package, checks native imports, obtains
-or verifies the complete supported LM1-LM4 runtime assets, and runs compact
-smoke tests. It must not silently fall back to LM1/LM2 when full assets are
-missing.
+That command installs the `full_v1` asset profile and runs compact smoke tests.
+The checks below answer a different question: how much of the supported release
+surface has been exercised?
 
-## CI-light install
+The asset-profile definitions live in `asset_profiles_v1.json`.
 
-```text
-python tools/ci/install_light.py
-```
+## CI-light push gate
 
-This selects `ci_light`. It verifies the exact source-bundled LM1/LM2 asset set
-and does not download the large GitHub Release bundles. It is internal CI
-tooling, not a replacement product install.
-
-## Normal push and pull-request validation
-
-Workflow:
+The normal push and pull-request workflow is:
 
 ```text
 .github/workflows/rdp_v1_full_ci.yml
 ```
 
-This is the only automatic V1 gate. On Windows and Ubuntu with Python 3.11 it:
+On Windows and Ubuntu with Python 3.11 it:
 
-1. installs `ci_light`;
-2. runs pytest with `not full_assets`;
-3. runs `TutorialRunSet.RELEASE`;
-4. preserves install, test and tutorial logs.
+1. runs `python tools/ci/install_light.py`;
+2. verifies the source-bundled `ci_light` LM1/LM2 profile;
+3. runs pytest with `not full_assets`;
+4. runs `TutorialRunSet.RELEASE`;
+5. preserves install, CI and tutorial logs.
 
-## Manual full-proof validation
+This keeps routine validation bounded. It is deliberately not proof of the
+complete LM1-LM4 asset profile.
 
-Workflow:
+## Manual full proof
+
+The complete release workflow is:
 
 ```text
 .github/workflows/rdp_v1_full_proof.yml
 ```
 
-This manual `workflow_dispatch` gate uses a fresh Windows and Ubuntu runner. It:
+It is manual (`workflow_dispatch`) and uses fresh Windows and Ubuntu runners
+with Python 3.11. It:
 
-1. runs `python install.py`;
-2. downloads pinned release bundles when they are not already present;
-3. verifies bundle SHA-256, byte size, extraction safety and final runtime files;
-4. runs complete pytest, including `full_assets` tests;
-5. runs `TutorialRunSet.FULL_ASSET_EXAMPLES`;
-6. preserves install, test and tutorial logs.
+1. runs `python install.py`, selecting `full_v1`;
+2. downloads or verifies the pinned release assets;
+3. runs the complete pytest suite, including `full_assets` tests;
+4. runs `TutorialRunSet.FULL_ASSET_EXAMPLES`;
+5. preserves install, test and tutorial logs.
 
-The full proof does not launch `TutorialRunSet.QUALIFICATION`. That separate
-group contains the long-running Kaeding programs and requires an explicit
-scientific decision rather than an ordinary release check.
+This is the release proof for the complete supported asset profile.
 
-The full proof is the real release signal for the complete asset profile.
+## Qualification is separate
 
-## Failure triage artefacts
+`TutorialRunSet.QUALIFICATION` is not part of the push gate or the full proof.
+It contains several-hour scientific programs. Run those only when the scientific
+question requires them; a documentation edit is not improved by accidentally
+starting an afternoon's worth of cryptanalysis.
 
-Collect:
+## Manual wheel proof
+
+`.github/workflows/rdp_v1_wheel_ci.yml` is a separate manual,
+non-authoritative packaging check. It proves that CPython 3.11 wheels can be
+built and can import the package plus the required native modules on the
+supported CI platforms. It does not replace the full asset proof.
+
+See [build and packaging notes](building.md).
+
+## Failure evidence
+
+With the default source output root, useful evidence is written under:
 
 ```text
-output/install/<run-id>/*.log
-output/ci_logs/*.log
-output/test_logs/*.log
-output/tutorial_logs/**/*.txt
+output/install/<run-id>/
+output/ci_logs/
+output/test_logs/
+output/tutorial_logs/
 ```
+
+The installer records each command in its own log and writes failure metadata
+when installation stops. CI workflows upload the relevant log directories as
+workflow artefacts.

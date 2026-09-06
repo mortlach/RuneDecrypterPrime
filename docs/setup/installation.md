@@ -4,10 +4,10 @@ RDP requires Python 3.11 or newer. V1 release proof covers Python 3.11 on
 Windows and Ubuntu; newer Python versions and other platforms may work but have
 not passed that same release matrix.
 
-Use the same Python interpreter to install, run examples and run tests. Mixing
-interpreters is an efficient way to create an uninteresting mystery.
+Use the same Python interpreter to install RDP, run examples and run tests.
+Mixing interpreters is an efficient way to create an uninteresting mystery.
 
-## From a source checkout
+## Source checkout
 
 From the repository root:
 
@@ -15,88 +15,106 @@ From the repository root:
 python install.py
 ```
 
-On Windows, the equivalent wrapper is:
-
-```text
-install.bat
-```
+`python install.py` is the canonical source-install route. On Windows,
+`install.bat` calls the same installer.
 
 The installer:
 
 1. checks the Python version;
 2. installs RDP in editable mode with test dependencies;
-3. provisions and verifies Torch CUDA when a supported NVIDIA GPU is detected;
-4. checks the required native imports;
-5. verifies or installs the full V1 language-model assets;
-6. runs compact smoke tests.
+3. reuses or provisions a working Torch CUDA runtime when supported NVIDIA
+   hardware is detected;
+4. checks the package and required native-extension imports;
+5. installs or verifies the `full_v1` language-model asset profile;
+6. runs a compact smoke-test selection.
 
-Logs are written under `output/install/<run-id>/`. Set `RDP_INSTALL_VERBOSE=1` when
-you need successful command output as well as failures.
+CUDA provisioning only makes GPU execution available. It does not change a run
+from CPU to CUDA; normal `RunSpec` requests still default to
+`api.ComputeDevice.CPU`.
 
-These paths use the default source output location. Set an absolute
-`RDP_OUTPUT_ROOT` for external developer output. See [output locations](../development/output_locations.md)
-and [CUDA installation](../development/cuda_installation.md).
+Installer evidence is written below the selected output root as
+`install/<run-id>/`. In a source checkout the default root is `output/`, so the
+usual path is `output/install/<run-id>/`. Set `RDP_INSTALL_VERBOSE=1` when you
+need successful command output as well as failures.
+
+See [output locations](../development/output_locations.md) for output-root
+selection and [CUDA provisioning](../development/cuda_installation.md) for the
+GPU policy.
 
 ## Full language-model assets
 
-The complete V1 scoring profile uses LM1–LM4 assets. LM1/LM2 are bundled with
-the source. The larger files are pinned GitHub Release archives described by
-`assets_manifest_v1.json`; they are not quietly placed in the wheel.
+The complete `full_v1` profile contains the supported LM1-LM4 character and WLI
+assets. The small LM1/LM2 baseline is source-bundled; the larger runtime files
+are pinned release assets described by `assets_manifest_v1.json`.
 
 `python install.py` first reuses verified archives in `downloads/`. Otherwise
-it downloads the pinned parts, verifies byte size and SHA256, extracts them
+it downloads the pinned parts, verifies their size and SHA-256, extracts them
 safely under `assets/`, and verifies the installed files.
 
 If automatic download is unavailable:
 
-1. download `rdp-v1-lm-large-part*.zip` from the V1 GitHub Release;
-2. place the parts in `downloads/`;
+1. download the `rdp-v1-lm-large-part*.zip` files from the V1 GitHub Release;
+2. place them in `downloads/`;
 3. run `python install.py` again.
 
-Missing full assets do not cause a silent downgrade to a smaller scoring
-profile.
+Missing full assets are an error. RDP does not quietly substitute the smaller
+CI-light profile.
 
-## Installed wheel or sdist
+## Wheel or sdist
 
-The build produces the `rune-decrypter-prime` distribution. Install a local
-artifact with pip in the normal way, for example:
+The distribution name is `rune-decrypter-prime`. A built wheel can be installed
+with pip in the normal way, for example:
 
 ```text
 python -m pip install path/to/the-built-wheel.whl
 ```
 
-The Python package contains the public `rdp` namespaces and small runtime data.
-The repository’s `tutorials/`, `docs/`, tests and large release assets are not
-promised as importable wheel contents. Code in the getting-started files uses
-the installed API, but the files themselves are source-checkout companions.
+A plain pip install installs the package. It does not run RDP's source installer,
+provision CUDA for the machine, or download the external full-asset bundle.
+
+The installed package contains the public `rdp` namespaces and packaged runtime
+data. Repository tutorials, documentation, tests and large release assets are
+source-checkout companions rather than promised importable wheel contents.
 
 ## First proof
 
-After a source install:
+After a source install, run the first getting-started example:
 
 ```text
-python tutorials/v1/getting_started/01_known_key.py
+python -m tutorials.v1.getting_started.01_known_key
+```
+
+It encrypts a short message and decrypts it with the same known key. There is no
+search involved yet; the point is simply to prove that the installed public API
+works.
+
+Then run the normal tutorial selection:
+
+```text
 python tutorials/v1/run_tutorials.py
 ```
 
-The first command checks a known-key round trip. The second runs the normal
-release selection and writes full subprocess output under
-`output/tutorial_logs/`.
+For the rest of the learning route, continue with the
+[quickstart](../guides/quickstart.md).
 
-## Validation profiles
+## CPU, CUDA and scoring backends
 
-- The automatic push/pull-request gate installs the source-bundled `ci_light`
-  assets, excludes tests marked `full_assets`, and runs the `RELEASE` group.
-- The manual full proof installs `full_v1`, runs the complete pytest suite and
-  runs the bounded `FULL_ASSET_EXAMPLES` group on Windows and Ubuntu.
-- `QUALIFICATION` is separate. It contains several-hour scientific programs
-  and is never part of an ordinary install or release run.
+CPU is the default compute device. To request GPU execution, use
+`api.ComputeDevice.CUDA` in the run specification. Scoring backend selection is
+a separate typed choice; `ScorerBackend.AUTO` resolves against the requested
+device and available capabilities.
 
-For a manual editable install while diagnosing packaging:
+An explicitly requested unavailable device or backend blocks clearly rather
+than silently changing the request. See
+[scorer backend selection](scorer_backend_selection.md).
 
-```text
-python -m pip install -e ".[test]"
-python -m pytest -q -p no:cacheprovider tests/contracts
-```
+## Validation levels
 
-The normal user path remains `python install.py`.
+A successful `python install.py` proves the source install, full asset profile,
+required imports and compact smoke tests. It is not the whole release matrix.
+
+Maintainers use the CI-light push gate for ordinary changes and the manual full
+proof for the complete Windows/Ubuntu release check. Several-hour qualification
+runs are separate scientific work.
+
+See the [install validation playbook](install_validation.md) for those checks.

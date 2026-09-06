@@ -1,9 +1,21 @@
 # Installation and runtime setup
 
-Begin with `installation.md` to distinguish a released wheel, source checkout and
-complete asset installation. `scorer_backend_selection.md` describes backend choices;
-`building.md` covers build concerns. Validation and preflight pages serve release or
-troubleshooting work. Optional dependencies and full assets should be chosen for the run
-you intend to perform.
+Start with [installation](installation.md). It covers the supported Python
+version, the normal source-install route, full assets and the first runnable
+proof.
 
-Continue with the [related guide](../guides/quickstart.md).
+Use the other pages when the question is more specific:
+
+- [Scorer backend selection](scorer_backend_selection.md) — choose CPU/CUDA and
+  the scoring backend without confusing availability with selection.
+- [Install validation](install_validation.md) — CI-light, full release proof and
+  the boundary between ordinary validation and long qualification work.
+- [Build and packaging notes](building.md) — manual wheel and native-extension
+  packaging checks.
+- [CUDA provisioning](../development/cuda_installation.md) — how the source
+  installer detects, provisions and verifies supported NVIDIA hardware.
+- [Outputs and artefacts](../guides/outputs.md) — what `api.run` returns, when a
+  run writes files, and where those files go.
+
+Once the installation is working, continue with the
+[quickstart](../guides/quickstart.md).

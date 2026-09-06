@@ -1,11 +1,9 @@
 # Build and packaging notes
 
-This page is for maintainers who need to check wheels or native extension
-packaging.
+This page is for maintainers checking wheels or native-extension packaging.
+Most users should start with [installation](installation.md).
 
-Most users should start with [`installation.md`](installation.md).
-
-## What the wheel gate proves
+## Manual wheel proof
 
 The wheel workflow is:
 
@@ -13,14 +11,15 @@ The wheel workflow is:
 .github/workflows/rdp_v1_wheel_ci.yml
 ```
 
-It builds CPython 3.11 wheels on:
+It is a manual, non-authoritative packaging proof. It builds CPython 3.11
+wheels on:
 
 ```text
 windows-latest
 ubuntu-latest
 ```
 
-The wheel test imports:
+The installed-wheel test imports:
 
 ```text
 rdp
@@ -29,8 +28,9 @@ rdp.scoring.hamming._hamming
 rdp.scoring.span_hamming._span_hamming_fast
 ```
 
-That proves the installed wheel can import the package and the required native
-modules.
+That proves the built wheel can import the package and the native modules on
+those CI platforms. It does not prove the full language-asset profile or replace
+the manual V1 full proof.
 
 ## Native source packaging
 
@@ -48,10 +48,10 @@ src/rdp/scoring/hamming/
 src/rdp/scoring/span_hamming/
 ```
 
-Do not move native source files without updating `setup.py`, `MANIFEST.in`, and
-the install-surface tests.
+Do not move native sources without checking `setup.py`, `MANIFEST.in` and the
+install-surface tests together.
 
-## Wheel artifacts
+## Wheel artefacts
 
 Successful wheel CI uploads:
 
@@ -60,20 +60,16 @@ rdp-v1-wheelhouse-windows-latest
 rdp-v1-wheelhouse-ubuntu-latest
 ```
 
-It also uploads wheel build logs:
+It also uploads the corresponding wheel-build logs.
 
-```text
-rdp-v1-wheel-build-log-windows-latest
-rdp-v1-wheel-build-log-ubuntu-latest
-```
+## Local development
 
-## Local build notes
-
-For normal development:
+For normal source development, use:
 
 ```text
 python install.py
 ```
 
-For manual packaging/debugging, use the workflow as the authority. Local wheel
-builds can differ depending on installed compiler tools and Python layout.
+Use the wheel workflow when the question is specifically packaging. Local wheel
+results depend on the available compiler toolchain and Python layout, so they
+are useful diagnostics rather than a substitute for the CI packaging proof.

@@ -1,97 +1,118 @@
-# Outputs & Artefacts Guide
+# Outputs and artefacts
 
-> Tracks: **Hands-on** sections explain where to find results after tutorials/tests; **Expert** sections describe how logging is initialised and validated.
+The first thing to know is that `api.run` does not need a directory in order to
+return a result. An ordinary run returns a typed `RunResult` in memory.
 
-Audience: Hands-on / Expert
-Time: 3-5 minutes
-Outcome: Locate `META.json`, `logs/app.jsonl`, `trace/`, and `artifacts/` for any run
-Prereqs: Completed one tutorial or test run
+Disk output starts when you supply `api.LoggingConfig`, or when a repository
+tool such as the installer or tutorial runner deliberately writes its own
+evidence.
 
-## What This Page Covers
-- Structure of the `output/` directory for tutorials/tests/tools.
-- How to browse logs, traces, and artifacts.
-- Required files (META, logging snapshots) for reproducibility.
-- Links to troubleshooting and telemetry docs.
+## A normal API run
 
----
+Without logging:
 
-## Why It Matters
-- **Hands-on** - everyone writes to the same predictable folders, making it easy to compare runs.
-- **Expert** - output layout is part of the telemetry contract; CI expects logs and traces in canonical locations.
-- **Mission** - output hygiene prevents personal path leakage and keeps determinism auditable.
+```python
+from rdp import api
 
----
-
-## Canonical Tree
-```text
-output/
-  tutorials/
-    <timestamp>__tutorials__<label>__<git>__<unique-id>/
-      META.json
-      config/logging.json
-      logs/app.jsonl
-      trace/
-      artifacts/
-  tests/
-    <timestamp>__tests__<label>__<git>__<unique-id>/
-      META.json
-      config/logging.json
-      logs/app.jsonl
-      trace/
-      artifacts/tests/<pytest-nodeid>/
-  telemetry/
-    logs/run-*.jsonl   (optional mirror via telemetry.pipeline.dump_telemetry)
-  share/
-    <timestamp>__share__<label>/...  (symbol index, release bundles)
-  release/
-    ... (created by tools/repo_utils/make_release_src.py)
-  solve/
-    <puzzle_id_or_name>/<timestamp>/...
-    <puzzle_id_or_name>/<solver_name>/<timestamp>/summary.json
+result = api.run(
+    problem_input=api.RuneIndexInput(indices=(0, 1, 2, 3)),
+    cipher=api.CipherSpec.vigenere(),
+    key_space=api.KeySpec.repeating(length=3),
+    solver=api.SolverSpec.beam_search(width=8, rounds=2, seed=7),
+)
 ```
 
-This tree is relative to the selected output root. See [output locations](../development/output_locations.md)
-for explicit configuration, inherited developer output and installed-package defaults.
+`result` contains the recovered plaintext/key when available, score, run status,
+solver/scorer reports, configuration evidence, reproducibility metadata, oracle
+information and telemetry. No run directory is requested by this call.
 
----
+## Requesting a run directory
 
-## Hands-on Track - Reading Your Outputs
-1. Run `python tutorials/v1/run_tutorials.py`.
-2. Open `output/tutorial_logs/` to inspect the full output for each pretty tutorial.
-3. Child tutorial artifacts live beneath their unique tutorial-run directory.
-4. If you configured `RDP_OUTPUT_ROOT`, use that directory in place of `output/`.
+Supply a logging configuration when you want on-disk run evidence:
 
----
+```python
+from rdp import api
 
-## Expert Track - Logging & Validation
-- **LoggingConfig** (`src/rdp/core/config/logging_config.py`) initialises the `output/<kind>/<run_id>/` folders used by tests and tooling.
-- Tests (`tests/telemetry/test_schema_contract.py`) assume `META.json` includes repo/out roots, run IDs, git info, and pointers to logs/trace/artifacts.
-- Tools (`tools/repo_utils/index_project_symbols.py`, `share_package.py`) write into `output/share/<timestamp>__share__<label>/`.
-- Use `tools/ci/validate_outputs.py` to enforce that docs lint commands write into `output/tools/docs_lint/<...>/`.
-- When adding scripts, call `io/run_logger.get_logger()` or `LoggingConfig` to guarantee they write inside `output/`.
+logging = api.LoggingConfig(
+    run_category="solve",
+    label="trial",
+    write_solver_report=True,
+    write_display_summary=True,
+    write_artifact_manifest=True,
+)
+```
 
-**Verification checklist when touching logging:**
-- `pytest tests/telemetry -q` (ensures schema + paths).
-- `pytest tests/tests_docs -q` if you modify docs around outputs.
-- Manual inspection: run `python tutorials/...` and confirm new files appear under the canonical tree.
+When logging is initialised, RDP creates a unique directory beneath the selected
+output root:
 
----
+```text
+<output-root>/
+  <run-category>/
+    <run-id>/
+      META.json
+      config/
+        logging.json
+      logs/
+      trace/
+      artifacts/
+```
 
-## FAQ
-- **Where do tests store per-case artifacts?** Under `output/tests/<run>/artifacts/tests/<pytest-nodeid>/` (see `tests/conftest.py`).
-- **Can I change the base folder?** Yes by passing `out_root` to `LoggingConfig`, but tools/docs assume the default `output/` relative to repo root.
-- **How do I share logs with someone else?** Zip the entire `output/<kind>/<run_id>/` folder; META.json + config snapshots ensure reproducibility.
+`META.json` and `config/logging.json` are written when the run directory is
+created. The optional switches control additional output:
 
----
+- `write_event_log` enables the structured event log;
+- `write_solver_report` writes `artifacts/solver_report.json`;
+- `write_display_summary` writes `artifacts/rdp_display_summary.json`;
+- `write_artifact_manifest` writes `artifacts/run_artifacts_manifest.json`.
 
-## Related Docs
-- `guides/telemetry.md` - describes the JSON payloads stored inside `logs/app.jsonl`.
-- `guides/troubleshooting.md` - what to do if outputs are missing.
-- `docs/tests_docs/tools.md` - how helper scripts (symbol index, release builder) populate the `output/share/` and `output/release/` trees.
+The report files are review/share artefacts. The display summary is not a
+solver-state resume file.
 
+## Choosing the output root
 
-## Related tests
-- `tests/telemetry/test_schema_contract.py`
-- `tests/telemetry/test_progress_events.py`
-- `tests/pipeline/test_permutation_tracking.py`
-- `tests/guardrails/test_suite_does_not_import_ui.py`
+The first applicable destination wins:
+
+1. `LoggingConfig.output_root`;
+2. the absolute `RDP_OUTPUT_ROOT` environment variable;
+3. `output/` in the RDP source checkout;
+4. for an installed package without a source checkout, the operating system's
+   per-user `RuneDecrypterPrime` data directory with an `output/` child.
+
+An invalid or unwritable selected location fails. RDP does not silently choose
+somewhere else.
+
+`LoggingConfig.run_directory` can select the run directory more precisely. An
+absolute value is used directly; a relative value is placed beneath
+`<output-root>/<run-category>/`.
+
+See [output locations](../development/output_locations.md) for the developer
+case, including multiple checkouts and external output roots.
+
+## Installer, tutorials and validation tools
+
+Repository tools also write evidence, but they do not all pretend to be normal
+`api.run` directories.
+
+With the default source output root:
+
+- `python install.py` writes under `output/install/<run-id>/`;
+- the tutorial runner stores captured subprocess output under
+  `output/tutorial_logs/`;
+- CI and validation tools use their documented categories such as
+  `output/ci_logs/` and `output/test_logs/`.
+
+Use each tool's README or validation page for its exact evidence. There is no
+benefit in inventing one giant directory diagram and then requiring every tool
+to impersonate it.
+
+## Portable output and sharing
+
+`LoggingConfig.portable_output` defaults to `True`. Public metadata therefore
+uses portable paths and redacts machine/user identity by default.
+
+That does not make arbitrary raw logs anonymous. A traceback or subprocess log
+can still contain a local path supplied by another program. Review raw logs
+before sharing them.
+
+Generated output is evidence, not source code. Keep it out of the maintained
+source tree.
