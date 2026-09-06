@@ -28,10 +28,7 @@ def main() -> None:
     # Key length and interruptor count are prior information from the known
     # solution. The key values and exact interruptor positions are not supplied.
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(
-            indices=payload.ct_idx,
-            word_lengths=payload.wli,
-        ),
+        problem_input=api.liber_primus.source(SOURCE_LABEL),
         cipher=api.CipherSpec.vigenere(alphabet_size=29),
         key_space=api.KeySpec.repeating(length=KEY_LENGTH),
         solver=api.SolverSpec.beam_search(

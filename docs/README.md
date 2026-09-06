@@ -1,4 +1,17 @@
-# RDP documentation
+# Documentation
+
+## New to RDP
+
+Start with [Learn RDP by solving](learn/README.md).
+
+If the basic cryptography terms are new, the learning route begins with a short
+[definitions page](learn/00_words_used_here.md).
+
+It uses short scripts and ordinary defaults to get from a known-key operation to
+a small search and then to real Liber Primus data.
+
+Use the rest of this index when you need more control or want to understand the
+internals.
 
 The main route is:
 

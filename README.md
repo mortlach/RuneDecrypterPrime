@@ -1,96 +1,128 @@
 # Rune Decrypter Prime
 
-Rune Decrypter Prime (RDP) is a cryptanalysis toolkit for runeglish and Liber
-Primus.
+Rune Decrypter Prime (RDP) is a cryptanalysis and cipher-development framework
+built around Runeglish and Liber Primus.
 
-It brings the main parts of a solve into one explicit, repeatable run:
+At its simplest, it is a way to take a cipher idea, a key or key space, and some
+Liber Primus text and actually try it without writing another one-off solver
+from scratch.
+
+That matters more than it may sound.
+
+Liber Primus solving has accumulated a great many ideas over the years.
+Someone tries a cipher, another person changes the period, someone else adds a
+sequence or an interruptor rule, and six months later the surviving description
+is often something like:
+
+> I tried this method and found nothing.
+
+Possibly. But what, exactly, was tried?
+
+RDP makes the experiment explicit enough that somebody else can run it again.
 
 ```text
-ciphertext
+source text
 -> cipher hypothesis
--> key space
+-> key or key space
 -> search
 -> scoring
 -> result and evidence
 ```
 
-RDP began as a way to make increasingly complicated Liber Primus experiments
-easier to express, compare and repeat. The same structure now supports a wider
-set of ciphers, solvers and scoring methods, with a public API intended for
-other solvers to use and extend.
+A small experiment might iterate over one key length or apply an existing cipher
+to a section of Liber Primus. A larger one might search a structured key space,
+compare scoring models or develop a new cipher construction.
 
-The Python entry point is:
+They use the same underlying machinery.
 
-```python
-from rdp import api
+## Start here
+
+If you want to try RDP rather than study it, start with
+[Learn RDP by solving](docs/learn/README.md).
+
+The learning route keeps the examples small and uses ordinary defaults. It
+introduces one idea at a time:
+
+```text
+load some text
+-> try a known cipher
+-> search a key
+-> change one thing
+-> use real Liber Primus data
+-> read the result
 ```
 
-## Why RDP exists
+You do not need to understand the architecture, scoring backends or solver
+internals first.
 
-Cryptanalysis becomes difficult to reason about when the cipher, search method,
-scoring assumptions, starting information and known truth are mixed together.
+The fuller [documentation index](docs/README.md) is there when you need it.
 
-RDP keeps those parts separate.
+## What RDP is for
 
-A run records what text was used, what cipher was tried, what keys were allowed,
-how the search was performed, how candidates were scored, why the run stopped,
-and what evidence is available for the result.
+RDP has two closely related jobs.
 
-A promising result can then be repeated. Two approaches can be compared
-without quietly changing five other things. Known plaintext can be used to check recovery without
-becoming part of the search by accident.
+The first is practical solving.
+
+It provides Liber Primus source material, rune and Runeglish handling, existing
+cipher implementations, key models, solvers and scoring tools needed to turn an
+idea into a repeatable experiment.
+
+You should not need to rebuild Vigenere, rune conversion, key iteration,
+language scoring and LP source handling every time you want to test one new
+thought.
+
+The second is cipher development.
+
+RDP separates the parts of a cryptanalytic problem so new ciphers, key
+structures, search methods and scoring evidence can be developed independently,
+then combined through the same run model.
+
+That gives us something useful between a notebook experiment and a finished
+solver: a place where new ideas can be tried quickly without becoming another
+private framework.
+
+## Why repeatability matters
+
+A result is more useful when another solver can inspect what produced it.
+
+RDP records the important parts of a run: source text, cipher, allowed keys,
+solver settings, scoring model, starting information, seed, stopping condition
+and result.
+
+That makes these different statements distinguishable:
+
+```text
+I applied this known key and reproduced the plaintext.
+
+I searched this key space and recovered the known solution.
+
+I tested this hypothesis under these settings and it did not recover anything.
+
+I used known plaintext to investigate the structure around a solution.
+```
+
+They are not the same claim.
+
+RDP tries to keep the difference visible.
+
+It cannot prevent bad cryptanalysis. That would be an ambitious dependency. It
+can at least make it easier to tell what was actually done.
 
 ## Who it is for
 
-RDP is aimed at people who want to work on cipher problems rather than only run
-a fixed decoder.
+RDP is for people working on Liber Primus and related cipher problems, from a
+short experimental script to development of a new cipher or search method.
 
-That includes:
+If you are new to the project, use the
+[learning route](docs/learn/README.md).
 
-- Liber Primus solvers
-- people testing classical and custom cipher ideas
-- developers comparing search methods and scoring models
-- contributors adding ciphers, solvers, data sources or scoring methods
-- anyone who wants a cryptanalytic experiment to be reproducible enough to
-  inspect later
+If you already know what you want to build, use the
+[full documentation](docs/README.md).
 
-You do not need to understand the whole codebase to use it. Normal solving stays
-on the public `rdp.api` surface.
+For the internal design, see [Architecture](docs/architecture/README.md).
 
-## Design goals
-
-The main design goal is to keep cipher, key, search, scoring and evaluation
-separate enough to compare and extend them.
-
-A few principles shape most of RDP:
-
-**One clear public route.** Normal user code starts with `from rdp import api`
-and builds typed requests.
-
-**Explicit assumptions.** Cipher choice, key space, solver, scoring, direction,
-WLI and starting information are visible in the run.
-
-**Determinism where it matters.** Seeds, configuration, assets and effective run
-state are recorded so that meaningful experiments can be repeated and compared.
-
-**Truth stays separate from search.** Known keys and plaintext may be used to
-check a completed result. They do not silently rank candidates or stop a normal
-search.
-
-**No silent substitution.** If a requested capability or asset is unavailable,
-RDP reports the problem rather than quietly doing something else.
-
-**Extension without parallel frameworks.** New capabilities join the existing
-cipher, key, solver and scoring structure instead of creating a second way to
-run the same problem.
-
-The same model continues from a small solve into cipher development and qualification.
-
-See [Project aims and design principles](docs/project_overview.md) for the fuller
-version.
-
-For how those pieces fit together internally, see
-[Architecture](docs/architecture/README.md).
+For adding ciphers, key models or solvers, see
+[Extending RDP](docs/guides/extending_rdp.md).
 
 ## Install
 
@@ -198,3 +230,20 @@ The public API, tutorials, test-backed contracts and solver/scoring components
 are now organised around the same run model. The remaining release work is
 mainly documentation consolidation, final validation and packaging rather than
 another redesign of the user surface.
+
+## Development lineage
+
+RDP is the current form of a much older solving toolkit.
+
+```text
+early Mathematica experiments
+-> portable C++ tooling
+-> Python solving framework
+-> modular test-0.1 generation
+-> RDP V1 typed and reproducible framework
+```
+
+The implementation changed several times. The recurring aim did not: make
+cipher ideas easier to test, compare and reproduce.
+
+See [Project origins](docs/project_origins.md) for a little more context.
