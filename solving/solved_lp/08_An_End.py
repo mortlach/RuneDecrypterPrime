@@ -1,5 +1,5 @@
 from __future__ import annotations
-'Structured AN END solve attempt using sequence-shape diagnostics.'
+'AN END reference-guided diagnostic/reconstruction, not independent recovery.'
 import csv
 import math
 import sys
@@ -342,6 +342,7 @@ def print_top_attempts(records: Sequence[dict[str, Any]], limit: int=TOP_ATTEMPT
     print('LP_AN_END_TOP_ATTEMPTS_END')
 
 def main() -> int:
+    print('Evidence class: reference-guided diagnostic/reconstruction. Reference plaintext participates in ranking.')
     payload = lp.payload_from_label(SOURCE_LABEL)
     recipe = lp.resolve_solve_recipe_label(RECIPE_LABEL)
     ct_idx = [int(value) for value in payload.ct_idx]

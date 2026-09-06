@@ -21,7 +21,7 @@ Known gaps / TODOs:
   pass ``spec=...`` when they want complete problem/cipher/key/scoring display;
 - ScoringConfig has many fields; v1 displays API scorer params and a compact
   scope note rather than mirroring every normalised ScoringConfig attribute;
-- ScorerReport is not always returned by normal solves yet, so it is optional;
+- RunResult includes ScorerReport, while standalone summaries can omit context;
 - artifact path discovery is caller-supplied unless a logging/run-dir layer adds
   a display-summary artifact in a later patch;
 - this module is a display/share view, not a persistence format for resuming
