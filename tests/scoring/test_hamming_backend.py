@@ -5,7 +5,7 @@ from rdp.scoring.hamming.loader import load_raw1grams_wordlists
 from rdp.scoring.hamming.backend import HammingBackend
 from rdp.data.runeglish import Runeglish
 try:
-    from rdp.scoring.hamming import _hamming as _hamming_extension
+    from rdp.scoring.hamming import _hamming as _hamming_extension  # noqa: F401 - verify native extension loading
 
     _EXT_AVAILABLE = True
 except Exception:

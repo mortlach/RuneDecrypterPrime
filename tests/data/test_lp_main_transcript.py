@@ -3,7 +3,6 @@ import hashlib
 import json
 
 import rdp.api.data_helpers
-from pathlib import Path
 from rdp.data.liber_primus.lp_data import LP_DATA
 from rdp.data.liber_primus.lp_registry import LPFragmentLocator, LPPageRef, build_red_rune_17_partition
 from rdp.data.liber_primus.lp_routes import LPLineReadMode, LPLineRuneSelector, read_lines

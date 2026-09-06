@@ -101,10 +101,6 @@ class KeyOpBase:
         """Stage-specific hints: 'sa', 'ga', 'beam', etc."""
         return getattr(self.caps, "hints", {}).get(stage, {})
 
-    def normalize(self, keys):
-        """Base hook: subclasses override to enforce invariants."""
-        raise NotImplementedError
-
     # ----------------- Required surface (abstract by convention) -----------------
 
     def random(self, rng: np.random.RandomState) -> np.ndarray:

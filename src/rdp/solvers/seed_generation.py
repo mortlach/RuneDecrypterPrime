@@ -63,7 +63,8 @@ def _normalize_perm(key: np.ndarray, A: int) -> np.ndarray:
     j = 0
     for i in range(A):
         if out[i] < 0:
-            out[i] = int(missing[j]); j += 1
+            out[i] = int(missing[j])
+            j += 1
     return out.astype(np.uint8)
 
 

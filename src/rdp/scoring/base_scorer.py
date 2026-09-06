@@ -117,10 +117,6 @@ class BaseScorer(ABC):
         """Return per-call stats recorded by the last score()/batch_score() call, if any."""
         return getattr(self, "_last_stats", {}) or {}
 
-    def telemetry(self):
-        """Structured info for run logger / dashboards. Implementation may extend."""
-        return getattr(self, "_telemetry", {}) or {}
-
     # --- tiny shared helper for telemetry (no-throw, in-place) ---
     # --- tiny shared helper for telemetry (no-throw, in-place) ---
     def _stash_stats(self, dtype: str | None = None, **stats):

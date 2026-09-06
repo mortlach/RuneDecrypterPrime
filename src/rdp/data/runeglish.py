@@ -67,12 +67,7 @@ class Runeglish:
         return Runeglish.latin2pos.get(latin, latin)
 
     @staticmethod
-    def rune_to_latin(rune: str) -> str:
-        """Map rune → canonical Latin token (fallback to input if unknown)."""
-        return Runeglish.rune2latin.get(rune, rune)
-
-    @staticmethod
-    def rune_to_latin(rune_or_runes: str) -> str:  # Note: later def overrides earlier (kept for back-compat)
+    def rune_to_latin(rune_or_runes: str) -> str:
         """
         Accepts a rune string (or any iterable of runes) and returns Latin tokens.
         Unknown runes are returned unchanged.

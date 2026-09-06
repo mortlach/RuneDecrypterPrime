@@ -15,7 +15,7 @@ from rdp.core.component_contracts import (
 from rdp.core.config.cipher import CipherConfig
 from rdp.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode
 from rdp.scoring import rune_scorer_impl as _impl
-from rdp.scoring.rune_scorer_impl import *  # noqa: F401,F403
+from rdp.scoring.rune_scorer_impl import *  # noqa: F403
 from rdp.scoring.scorer_lane_report import build_scorer_lane_report
 
 
