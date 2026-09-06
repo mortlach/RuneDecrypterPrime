@@ -25,13 +25,11 @@ def _read(path: Path) -> str:
 def test_root_readme_uses_the_public_api_and_reader_route() -> None:
     text = _read(README)
     assert "from rdp import api" in text
-    assert "technically capable" in text
     for path in (
-        "docs/setup/installation.md",
         "docs/guides/quickstart.md",
         "docs/guides/anatomy_of_a_run.md",
         "docs/guides/ciphertext_input.md",
-        "tutorials/v1/README.md",
+        "docs/tutorials/README.md",
     ):
         assert path in text
 

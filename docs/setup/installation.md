@@ -66,7 +66,7 @@ The tutorial groups and their purpose are described in
 For an existing wheel:
 
 ```text
-python -m pip install path/to/rune_decrypter_prime.whl
+python -m pip install path/to/downloaded-release.whl
 ```
 
 A wheel installs the package itself.
@@ -83,3 +83,8 @@ It does not replace the larger release or qualification checks.
 
 See [Install validation](install_validation.md) for the different validation
 levels, then [Quickstart](../guides/quickstart.md) for the first solve.
+
+## Installer command output
+
+Use `python install.py --verbose` to stream child-command output while keeping
+the same installation logs. The default keeps successful command output quiet.

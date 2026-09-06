@@ -5,4 +5,4 @@ getting-started checks are separate from longer robustness and qualification exa
 
 Useful entry points: [test_autokey_tutorial.py](test_autokey_tutorial.py), [test_crib_drag_api.py](test_crib_drag_api.py), [test_degeneracy_tutorial.py](test_degeneracy_tutorial.py).
 
-See [test selection and tiers](../../docs/tests_docs/tiering.md) for the wider testing context.
+See [test selection and tiers](../README.md) for the wider testing context.

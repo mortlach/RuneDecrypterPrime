@@ -5,4 +5,4 @@ configuration.
 
 Useful entry points: [test_torch_scorer_optional_runtime.py](test_torch_scorer_optional_runtime.py).
 
-See [test selection and tiers](../../docs/tests_docs/tiering.md) for the wider testing context.
+See [test selection and tiers](../README.md) for the wider testing context.

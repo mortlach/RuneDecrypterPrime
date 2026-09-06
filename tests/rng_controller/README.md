@@ -5,4 +5,4 @@ the same inputs.
 
 Useful entry points: [test_rng_controller.py](test_rng_controller.py).
 
-See [test selection and tiers](../../docs/tests_docs/tiering.md) for the wider testing context.
+See [test selection and tiers](../README.md) for the wider testing context.

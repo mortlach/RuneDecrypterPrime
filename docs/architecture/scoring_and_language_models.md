@@ -97,3 +97,20 @@ The language-model runtime under `src/rdp/scoring/language_model/` owns table
 loading, model indices, calibration data and the native fast loader.
 
 See [Extending RDP](../guides/extending_rdp.md).
+
+## Span-Hamming interval evidence
+
+The span backend matches a flat rune stream against dictionary words without
+requiring WLI. For a span of length `L` at bounded Hamming distance `d`, quality
+is `1 - min(d, max_hd + 1) / (max_hd + 1)` and interval weight is quality times
+`L`. Intervals below the configured quality threshold are discarded.
+
+Weighted interval scheduling chooses non-overlapping spans. Weight comparisons
+use a `1e-12` tolerance, then prefer greater character coverage and the
+lexicographically earlier canonical `(end, start, -length)` schedule.
+
+`coverage` is covered characters divided by text length, `quality` is selected
+weight divided by covered characters, and `span_raw = coverage * quality`.
+Zero-length denominators are guarded. Per-length metrics use fixed bins, and
+candidate/truncation limits are deterministic. These backend measurements do
+not themselves decide whether a configured lane ranks or only reports.

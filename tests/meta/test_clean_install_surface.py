@@ -18,6 +18,9 @@ def test_readme_clean_install_does_not_use_removed_benchmark_path() -> None:
 def test_readme_keeps_full_install_as_public_path() -> None:
     text = (ROOT / 'README.md').read_text(encoding='utf-8')
     assert 'python install.py' in text
-    assert 'required V1 LM3/LM4 assets' in text
-    assert 'CI-light' in text
-    assert 'workflow-cost' in text
+    installation = (ROOT / 'docs/setup/installation.md').read_text(encoding='utf-8')
+    assert 'LM3 and LM4' in installation
+    assert 'release assets' in installation
+    validation = (ROOT / 'docs/setup/install_validation.md').read_text(encoding='utf-8')
+    assert '## Normal CI' in validation
+    assert '## Full release check' in validation

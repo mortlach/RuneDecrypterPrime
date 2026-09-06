@@ -179,3 +179,9 @@ contain `None`.
 See [Solvers](../../guides/solvers.md) and
 [Repeating a run](../../guides/reproducibility.md).
 
+
+## Typed identity
+
+`kind` identifies the selected SolverSpec family. Constructor arguments are
+exposed through its immutable `parameters` mapping. Use the typed constructors
+for new requests and the existing parsers for serialized data.

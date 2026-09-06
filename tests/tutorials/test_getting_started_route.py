@@ -45,7 +45,7 @@ def test_route_stop_runs_and_checks_its_claim(filename: str) -> None:
         f"runpy.run_path({str(script)!r}, run_name='__main__')"
     )
     completed = subprocess.run(
-        [sys.executable, "-c", launch],
+        [sys.executable, "-X", "utf8", "-c", launch],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,

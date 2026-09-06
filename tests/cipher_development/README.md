@@ -5,4 +5,4 @@ infrastructure behaviour; they do not automatically qualify a scientific hypothe
 
 Useful entry points: [test_archive.py](test_archive.py), [test_campaign_replay.py](test_campaign_replay.py), [test_experiment.py](test_experiment.py).
 
-See [test selection and tiers](../../docs/tests_docs/tiering.md) for the wider testing context.
+See [test selection and tiers](../README.md) for the wider testing context.

@@ -56,4 +56,4 @@ def test_absolute_path_sweep_checks_current_supporting_projects(tmp_path: Path) 
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(f'PATH = r"{private}"\n', encoding='utf-8')
     result = run_sweep(tmp_path)
-    assert [issue.path for issue in result.absolute_path_issues] == [path.as_posix() for path in paths]
+    assert [issue.path for issue in result.absolute_path_issues] == sorted(path.as_posix() for path in paths)

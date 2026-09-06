@@ -96,6 +96,8 @@ def test_public_configuration_fields_have_current_parameter_owners() -> None:
     for cls, owner in owners.items():
         text = _read(DOCS / 'reference' / 'parameters' / owner)
         for field in fields(cls):
+            if field.name.startswith("_"):
+                continue  # Private storage is not a public constructor parameter.
             assert f'`{field.name}`' in text, f'{cls.__name__}.{field.name}: {owner}'
 
 
