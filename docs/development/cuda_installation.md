@@ -1,79 +1,62 @@
-# CUDA provisioning
+# CUDA setup
 
-RDP runs on CPU by default. The source installer can also prepare and verify a
-Torch CUDA runtime on a supported NVIDIA machine, but these are separate
-decisions:
+RDP does not require CUDA. CPU is the default.
 
-1. installation determines whether CUDA execution is available;
-2. `RunSpec.compute_device` determines whether a particular run requests it.
+On a supported NVIDIA system, the source installer checks whether the installed
+Torch build can already use CUDA. If it can, that setup is kept.
 
-Installing CUDA support does not silently move a run to the GPU. The public
-default remains `api.ComputeDevice.CPU`; request `api.ComputeDevice.CUDA` when
-GPU execution is wanted.
+If a supported GPU is present but the working Torch CUDA build is missing, the
+installer installs the pinned build used by RDP and checks it on the visible
+devices.
 
-## What `install.py` does
+If no NVIDIA GPU is present, installation continues normally on CPU.
 
-`python install.py` first probes the current Torch installation. If CUDA
-arithmetic already works, it reuses that installation. Otherwise, if
-`nvidia-smi` reports supported NVIDIA hardware, the installer selects and
-installs the matching pinned Torch CUDA wheel and verifies arithmetic on every
-visible device.
+For the normal installation route, see
+[Installation](../setup/installation.md).
 
-If no NVIDIA GPU is detected, CUDA is reported as `not_selected` and the normal
-installation continues. If NVIDIA hardware is detected but the driver query,
-wheel selection, installation or arithmetic verification fails, installation
-fails clearly and preserves the command logs.
+## Supported automatic setup
 
-Automatic provisioning currently supports Windows/Linux x86-64 with NVIDIA
-compute capability 7.5 or newer. The current policy pins Torch 2.13.0 and
-selects CUDA 12.6 below compute capability 10.0 or CUDA 13.0 for newer hardware.
-The conservative driver floors are 560.76 on Windows and 560.28.03 on Linux for
-CUDA 12.6, and 580 for CUDA 13.0.
+Automatic setup currently covers Windows and Linux on x86-64 with NVIDIA
+compute capability 7.5 or newer.
 
-Older architectures or otherwise unsupported combinations require a manually
-selected compatible Torch build. An already working build is still verified and
-reused.
+The pinned V1 setup uses Torch 2.13.0, with CUDA 12.6 for GPUs below compute
+capability 10.0 and CUDA 13.0 for compute capability 10.0 and newer.
 
-The policy follows the official
-[Torch wheels](https://pytorch.org/get-started/previous-versions/) and
-[NVIDIA driver requirements](https://docs.nvidia.com/cuda/archive/12.6.0/cuda-toolkit-release-notes/index.html).
-Torch supplies its CUDA runtime dependencies; RDP does not install a system
-NVIDIA driver or development CUDA toolkit.
+The installer uses these minimum driver versions:
 
-## Verify an existing installation
+| CUDA | Windows | Linux |
+| --- | --- | --- |
+| 12.6 | 560.76 | 560.28.03 |
+| 13.0 | 580 | 580 |
 
-Run:
+These are RDP installer limits, not a general CUDA compatibility table.
+
+## Check CUDA
+
+The dedicated validation program is:
 
 ```text
 python tools/run_gpu_validation.py
 ```
 
-This requires CUDA, provisions it if necessary, verifies arithmetic on every
-visible device, and runs the dedicated GPU validation selection. Missing GPU
-execution cannot pass by being reported as a skipped test.
+This checks whether the CUDA runtime used by RDP is actually available.
 
-See [validation](../../tools/run_validation.md) for the wider validation
-runner.
+## Use CUDA in a solve
 
-## Select CUDA in a run
-
-Availability is not selection. A run requests CUDA explicitly:
+CUDA is selected in the run:
 
 ```python
-from rdp import api
-
 request = api.RunSpec(
-    problem_input=api.RuneIndexInput(indices=(0, 1, 2, 3)),
-    cipher=api.CipherSpec.vigenere(),
-    key_space=api.KeySpec.repeating(length=3),
-    solver=api.SolverSpec.beam_search(width=8, rounds=2, seed=7),
+    ...,
     compute_device=api.ComputeDevice.CUDA,
 )
 ```
 
-Backend choice is separate again; see
-[scorer backend selection](../setup/scorer_backend_selection.md).
+The library default is `ComputeDevice.CPU`.
 
-A plain `pip install` does not run RDP's hardware provisioning. Use
-`python install.py` for the automatic source-install route, or manage the
-compatible Torch installation yourself.
+See [CPU, CUDA and scoring](../setup/scorer_backend_selection.md) and
+[RunSpec parameters](../reference/parameters/run_spec.md).
+
+When comparing CPU and CUDA runs, keep the cryptanalytic choices fixed first.
+[Repeating a run](../guides/reproducibility.md) describes the other state that
+matters for a fair comparison.

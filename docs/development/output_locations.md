@@ -1,76 +1,38 @@
-# Output locations for development
+# Output locations
 
-This page is for developers who need an external output root, multiple checkouts
-or a fixed run directory. For ordinary run output, start with the
-[outputs and artefacts guide](../guides/outputs.md).
+For normal solving, choose the output location explicitly in `LoggingConfig`
+when the default is not suitable.
 
-## Output-root precedence
+```python
+from pathlib import Path
+from rdp import api
 
-RDP's shared resolver uses the first applicable destination:
-
-1. an explicit output root, such as `LoggingConfig.output_root`;
-2. `RDP_OUTPUT_ROOT`, which must be a non-empty absolute path;
-3. `output/` in the source checkout containing RDP;
-4. when no source checkout is available, the operating system's per-user
-   `RuneDecrypterPrime` data directory with an `output/` child.
-
-Explicit `Path` values are resolved normally, so a relative
-`LoggingConfig.output_root` is relative to the caller's current working
-directory. `RDP_OUTPUT_ROOT` is deliberately stricter and must be absolute.
-
-The selected root is created and checked for writability. Failure is reported;
-RDP does not fall through to a different destination.
-
-Source-checkout detection follows RDP's project manifest and package layout. It
-does not depend on which directory the terminal happened to start in.
-
-## Run directories
-
-For logged API runs, the normal layout is:
-
-```text
-<output-root>/<run-category>/<run-id>/
+logging = api.LoggingConfig(
+    output_root=Path("my_runs"),
+    run_category="solve",
+    label="period7",
+)
 ```
 
-`LoggingConfig.run_directory` can override the generated run ID:
+Attach that configuration to the run:
 
-- an absolute `run_directory` selects that exact directory;
-- a relative `run_directory` is resolved beneath
-  `<output-root>/<run-category>/`.
-
-The run directory then receives `META.json`, `config/logging.json`, and the
-`logs/`, `trace/` and `artifacts/` directories.
-
-## Multiple projects or checkouts
-
-For several checkouts, keep checkout, interpreter and output choices together
-in an external launcher. Set one absolute `RDP_OUTPUT_ROOT` per project or job.
-
-For example:
-
-```text
-workspace/
-  checkouts/candidate-a/
-  checkouts/candidate-b/
-  environments/candidate-a/
-  run_outputs/project-a/
-  run_outputs/project-b/
+```python
+request = api.RunSpec(
+    ...,
+    logging=logging,
+)
 ```
 
-Each child process inherits the correct project root. A run-level explicit
-`LoggingConfig.output_root` still wins when one is intentionally supplied.
+A source checkout otherwise uses its normal `output/` area.
 
-This is simpler than discovering output folders after the run and moving them
-around. Files are much less mysterious when they are written to the right place
-in the first place.
+`run_directory` can be used when a run must use one exact directory.
 
-## Portability and privacy
+If the selected destination cannot be used, the run fails rather than silently
+writing somewhere unrelated.
 
-`LoggingConfig.portable_output=True` is the default. Portable run metadata uses
-relative or labelled external paths and redacts user/host identity.
+See [Outputs](../guides/outputs.md) for when a run needs files and
+[Logging parameters](../reference/parameters/logging.md) for the complete
+configuration.
 
-Raw process output is different. External commands and tracebacks can still
-print absolute machine paths. Review raw logs before sharing them.
-
-Generated logs, review packs and private working notes belong outside the
-maintained source tree whether or not Git happens to ignore them.
+Telemetry does not require an output directory. See
+[Telemetry](../guides/telemetry.md).

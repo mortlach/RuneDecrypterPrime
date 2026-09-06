@@ -1,62 +1,138 @@
-# Choosing and configuring a solver
+# Solvers
 
-A solver chooses which keys to try. The cipher turns each key into candidate
-plaintext; the scorer ranks that plaintext. We can try a different search method
-while keeping the same ciphertext, cipher and possible keys.
+`SolverSpec` defines how RDP searches the key space.
 
-Choose a nearby [worked example](../../tutorials/v1/README.md) with a compatible
-key shape as a starting point for your own settings.
+The current public constructors are:
 
-## Main choices
+- `beam_search`
+- `genetic_algorithm`
+- `simulated_annealing`
+- `hybrid`
+- `kaeding`
+- `two_period_cribs`
 
-| Constructor on `api.SolverSpec` | Search approach | Useful controls |
-| --- | --- | --- |
-| `beam_search(...)` | Retain promising alternatives during key construction and refinement. | `width`, `rounds`, `restarts` |
-| `genetic_algorithm(...)` | Select, recombine and mutate a population. | `population_size`, `generations`, `mutation_probability` |
-| `simulated_annealing(...)` | Explore changes to a candidate, sometimes accepting a worse score. | `iterations`, `initial_temperature`, `cooling_rate` |
-| `hybrid(...)` | Combine beam exploration with genetic and annealing stages. | Beam controls and the two nested solver specifications. |
-| `kaeding(...)` | Explore structured periodic keys. | `steps`, `restarts`, block and column controls. |
-| `two_period_cribs(...)` | Use crib constraints to reduce a two-period search. | Periods, crib evidence and the bounded search configuration. |
+The complete constructor tables are in
+[Solver parameters](../reference/parameters/solvers.md).
 
-The last two serve specialised problems. A solver needs compatible key
-operations, so choosing an algorithm is more than swapping a name.
+## Solvers do not own key mutation
 
-## Set up a beam search
+A solver controls the search strategy, not the details of every key type.
+
+RDP supplies each solver with runtime key operations. Beam can ask for an
+expansion, GA can ask for recombination and mutation, and SA can ask for a
+neighbour.
+
+The KeyOps implementation preserves the invariants of the selected key model.
+
+See [Key models and search operations](../architecture/key_model_and_search.md)
+and [Solver mechanics](../architecture/solver_mechanics.md).
+
+## Beam search
 
 ```python
-from rdp import api
-
 solver = api.SolverSpec.beam_search(
-    width=16,
-    rounds=0,
-    seed=4242,
+    width=96,
+    rounds=12,
+    seed=12345,
 )
 ```
 
-These values are settings for this example, rather than library defaults.
-`width` controls how many alternatives the beam keeps. Making it wider can
-keep promising candidates that a narrow beam would discard, but takes more work. `rounds=0` asks the beam implementation to choose its automatic
-refinement count; it does not mean zero work. Set a positive value when you want
-an explicit round limit. Keep the seed fixed when comparing a budget change.
+`width` and `rounds` are required.
 
-`plateau_rounds` and `plateau_minimum_delta` describe insufficient improvement;
-GA and SA expose corresponding generation and iteration controls. `target_score`
-can stop at a configured score, but its meaning depends on the scorer. If you used the original
-plaintext to choose that target, say so in the example.
+The public defaults use one restart, sweep expansion and a top-parent
+fraction of `0.5`.
 
-## Compare one change
+`plateau_rounds=None` is the request default, but the current engine supplies an
+effective plateau of 16 rounds when it is omitted. `rounds=0` also has runtime
+meaning: Beam uses `max(2 * key_length, 12)` rounds.
 
-Keep ciphertext, key space, scoring, direction and seed fixed. Change one budget
-and compare the returned candidate, score, evaluation count and stop reason.
-The [budget comparison](../../tutorials/v1/getting_started/09_changing_search_budget.py)
-shows a case where the wider search does more work and returns the same answer.
-Here, the extra work does not improve the result. Try a similar comparison
-when deciding whether a larger budget is useful for your problem.
+## Genetic algorithm
 
-Use `result.solver_report` for work performed and `result.status` for execution
-and stopping. Timings vary between runs; the seed alone does not make different
-backends, assets or software versions equivalent.
+```python
+solver = api.SolverSpec.genetic_algorithm(
+    population_size=256,
+    generations=200,
+    seed=12345,
+)
+```
 
-For implementation details, see the [solver source map](../../src/rdp/solvers/README.md)
-and [adding a solver](../howto/add_solver.md). The [key-space guide](keyops.md)
-explains the structures those algorithms explore.
+The default fractions are `0.1` elite, `0.2` mutation and `0.8` crossover.
+Tournament size defaults to `3`.
+
+## Simulated annealing
+
+```python
+solver = api.SolverSpec.simulated_annealing(
+    iterations=10000,
+    seed=12345,
+)
+```
+
+Only `iterations` is required.
+
+Temperature and cooling settings are optional. Automatic cooling is off by
+default.
+
+When the temperature fields are omitted, the current runtime uses `1.0`,
+`0.001` and `0.995` for initial temperature, minimum temperature and cooling
+rate respectively.
+
+## Hybrid
+
+Hybrid combines a GA spec and a simulated-annealing spec.
+
+A beam phase is enabled by default, with its budget supplied explicitly when
+used.
+
+## Kaeding
+
+Kaeding requires `steps`, `restarts` and `inner_batch_size`.
+
+Block scheduling, slip behaviour and plateau stopping have explicit defaults in
+the parameter reference.
+
+## Two-period crib search
+
+The specialised crib solver accepts fixed cribs, candidate words, optional
+candidate positions and a start count.
+
+`starts` defaults to `96`.
+
+## Changing the search budget
+
+A larger budget is useful when a smaller run is finding promising structure but
+stopping before the search has settled.
+
+Typical comparisons change one budget dimension at a time:
+
+```text
+beam width 96 vs 192
+beam rounds 12 vs 24
+GA generations 200 vs 400
+SA iterations 10,000 vs 20,000
+```
+
+The final candidate is only part of that comparison. Solver accounting and
+telemetry can show whether the extra work changed the search behaviour.
+
+See [Telemetry](telemetry.md) and [Reading a result](results.md).
+
+## Starting keys
+
+`RunSpec.initial_keys` can supply prepared starting points to solvers that
+support them.
+
+That changes the experiment and should be recorded as such.
+
+See [Keys and key spaces](keyops.md) and [Comparing solve experiments](working_a_solve.md).
+
+## Runnable examples
+
+- `tutorials/v1/getting_started/02_first_search.py` introduces a solver
+- `tutorials/v1/getting_started/09_changing_search_budget.py` changes the search
+  budget
+
+See [Tutorials and examples](../tutorials/README.md).
+
+For the full request/effective-default distinction, see
+[Solver parameters](../reference/parameters/solvers.md).

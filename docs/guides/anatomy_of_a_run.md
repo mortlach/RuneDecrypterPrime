@@ -1,94 +1,127 @@
-# Anatomy of an RDP run
+# Defining a run
 
-To search for a key, we need to tell RDP what text we have, which cipher we think
-was used and which keys to try. We also choose how to search and how to judge
-the resulting plaintext. `RunSpec` brings those choices together.
+`RunSpec` describes one solve.
 
-The getting-started files introduce each part as we need it. This page keeps
-them in one place for when you want to put together your own run.
+Four fields are required:
 
-## Input: what text do we have?
+```text
+problem_input
+cipher
+key_space
+solver
+```
 
-Use `RawTextInput` for visible rune text. RDP converts it to rune indices and
-records the word positions, called word-location information or WLI. If you
-already have the numbers, use `RuneIndexInput` and supply WLI separately if you
-have it. Named source inputs let you refer to bundled material, including
-Liber Primus passages, without putting a local file path in the request.
+Everything else is optional or has a library default.
 
-Use the information the source gives you. Adding spaces means giving the
-scorer word boundaries, so it changes more than how the text looks.
+## Problem input
 
-## CipherSpec: which cipher are we trying?
+The input may be raw text, prepared rune indices, or a registered source:
 
-`CipherSpec` selects the cipher and its fixed settings. For rail fence, those
-settings can include the allowed rail counts. A scheduled-stream cipher also
-needs the known schedule.
+```python
+api.RawTextInput(...)
+api.RuneIndexInput(...)
+api.SourceReferenceInput(...)
+```
 
-The key is supplied separately. If we already know it, we can pass it with the
-cipher to `api.encrypt` or `api.decrypt` and get the result straight back.
-To find an unknown key, we first need to describe the possibilities.
+See [Ciphertext input](ciphertext_input.md).
 
-## KeySpec: which keys can we try?
+## Cipher
 
-`KeySpec` defines the keys the solver may consider. Different ciphers need
-different kinds of key:
+The cipher states the family being tested:
 
-| Key space | What the solver can change |
+```python
+cipher = api.CipherSpec.vigenere()
+```
+
+The current public surface also includes Autokey, columnar, rail fence,
+substitution, periodic substitution, periodic columnar and the scheduled-stream
+families.
+
+The cipher defines what a concrete key means.
+
+## Key space
+
+The key space defines which keys are valid:
+
+```python
+key_space = api.KeySpec.repeating(
+    length=7,
+)
+```
+
+That choice also determines the runtime key operations available to the solver.
+
+A repeating key is searched as a vector. A permutation key is mutated and
+recombined with permutation-safe operations. Structured periodic keys preserve
+their own block structure.
+
+The solver therefore works with generic key operations rather than knowing the
+representation of every key family.
+
+See [Keys and key spaces](keyops.md). The runtime binding is described in
+[Key models and search operations](../architecture/key_model_and_search.md).
+
+## Solver
+
+The solver controls how the key space is explored:
+
+```python
+solver = api.SolverSpec.beam_search(
+    width=96,
+    rounds=12,
+    seed=12345,
+)
+```
+
+Beam search, genetic algorithm, simulated annealing, hybrid, Kaeding and the
+two-period crib solver are available through `SolverSpec`.
+
+The solver chooses which key to evaluate next. It does not define the cipher or
+the scoring model.
+
+See [Solvers](solvers.md).
+
+## Scoring
+
+`ScoringConfig()` is the default.
+
+The ordinary language-model lanes are character n-grams and WLI n-grams. Both
+are enabled by default.
+
+```python
+scoring = api.ScoringConfig(
+    character_lane_enabled=True,
+    word_length_lane_enabled=True,
+    character_order_weights={1: 0.3, 2: 0.7},
+    word_length_order_weights={1: 0.3, 2: 0.7},
+)
+```
+
+The scorer ranks candidate plaintexts. Search remains the solver's job.
+
+See [Scoring](scoring.md) and
+[Scoring and language models](../architecture/scoring_and_language_models.md).
+
+## Other run fields
+
+The current defaults are:
+
+| Field | Default |
 | --- | --- |
-| `scalar(minimum, maximum)` | One integer within a range, such as the number of rails. |
-| `repeating(length)` | The values in a repeating key of a known length. |
-| `repeating_range(minimum_length, maximum_length)` | Both the values and the length of a repeating key. |
-| `permutation(length)` | An ordering, such as the columns in a transposition. Each position appears once. |
-| `periodic_substitution(...)` | Substitution alphabets used over a repeating period. |
-| `periodic_columnar(...)` | Periodic substitutions together with a column ordering. |
+| `scoring` | `ScoringConfig()` |
+| `initial_keys` | `None` |
+| `logging` | `None` |
+| `word_length_policy` | `WordLengthPolicy.INFER` |
+| `text_direction` | `TextDirection.RIGHT_TO_LEFT` |
+| `compute_device` | `ComputeDevice.CPU` |
+| `telemetry_enabled` | `True` |
+| `text_permutation` | `None` |
+| `interruptors` | `None` |
 
-A concrete key contains actual values, such as `(3, 1, 4)`. A `KeySpec` tells
-RDP which possible values to search. Choosing the wrong length or range can
-exclude the key before the search has even started.
+See [RunSpec parameters](../reference/parameters/run_spec.md) for the full
+contract.
 
-Custom key types and their search operations can also be implemented as part
-of cipher development. See [key spaces and extension](keyops.md) for the
-available options and where to start adding your own.
-
-## SolverSpec: how should RDP search?
-
-`SolverSpec` chooses the search algorithm and how much work it can do. Depending
-on the solver, you might change beam width, rounds, generations or the number
-of starts. A wider beam keeps more alternatives; extra rounds give the search
-more opportunities to improve them. Both cost time. The [solver guide](solvers.md)
-explains the choices in more detail.
-
-A seed lets us repeat the random choices in a run. Keep it fixed when comparing
-settings, along with the scorer and the rest of the request.
-
-You can also give a search initial keys or cribs. Explain where these came
-from: a search with a useful hint answers a different question from one that
-started with ciphertext alone.
-
-## ScoringConfig: which candidates look promising?
-
-The scorer ranks candidate plaintexts so the solver has something to work
-with. Character scoring looks at rune sequences. Word-length scoring uses the
-word information supplied with the input. `ScoringConfig` selects those parts
-and sets their weights and orders.
-
-Changing the scorer can change which candidates the search prefers. Keep its
-settings with the result, and compare scores using the same model. A high score
-alone doesn't tell us that we have recovered the original message.
-
-## Direction and interruptors
-
-Text direction affects how RDP reads the runes and their word information.
-Choose it to match the source you are using.
-
-Interruptors are positions the cipher leaves alone. If you know their positions,
-use `InterruptorConfig.exact(...)`. If you want RDP to find them, `search(...)`
-lets you supply possible positions and bounds for the search. Supplying the
-positions saves work, but it also gives RDP more information about the problem.
-
-## RunSpec: put the request together
-
-Once those parts are defined, the usual call looks like this:
+## Run
 
 ```python
 request = api.RunSpec(
@@ -96,36 +129,10 @@ request = api.RunSpec(
     cipher=cipher,
     key_space=key_space,
     solver=solver,
-    scoring=scoring,
-    text_direction=direction,
 )
 
 result = api.run(request)
 ```
 
-The getting-started files contain complete runnable versions. As the problem
-gets more involved, we add settings to this same request.
-
-## RunResult: what did we get back?
-
-Start with the candidate key and plaintext, then look at how the run reached
-them. The result keeps both:
-
-| Result section | What to look for |
-| --- | --- |
-| `key`, `plaintext`, `score` | The best candidate returned and its score. |
-| `status` | Whether the run completed, was blocked or failed, and why it stopped. |
-| `solver_report` | How much work the search performed. |
-| `scorer_report` | Which scoring components and assets were used. |
-| `configuration` | The settings RDP actually used, including resolved defaults. |
-| `reproducibility` | Seed, backend, device, version and assets needed to repeat the run. |
-| `oracle` | Whether a known answer affected scoring, ranking or stopping. |
-| `artifacts` | Any output files requested for the run. |
-
-A run can finish successfully and still recover only part of the message.
-When we know the original, we can compare it directly. With an unknown message,
-we have to investigate the candidate and explain why we think it is right.
-
-Continue through the numbered
-[`getting_started`](../../tutorials/v1/getting_started/) files, then choose a
-problem from the [example catalogue](../../tutorials/v1/README.md).
+See [Reading a result](results.md) for the return value and
+[Run pipeline](../architecture/pipeline.md) for the runtime path.

@@ -1,70 +1,90 @@
 # Troubleshooting
 
-This page covers the normal V1 install and tutorial path.
+## The result is nonsense
 
-All paths below are relative to the repository root.
+Check the problem input first.
 
-## Quick checks
+For numerical input, confirm that the rune indices and WLI belong to the same
+text.
 
-Run these from the repository root:
+For Liber Primus data, reload the source through `api.liber_primus` rather than
+carrying old arrays between experiments.
 
-```text
-python --version
-python install.py
-python tutorials/v1/run_tutorials.py
+See [Ciphertext input](ciphertext_input.md),
+[Word-length information](word_length_information.md) and
+[Liber Primus data](../reference/liber_primus.md).
+
+Then check the cipher, key space, text direction and scoring assumptions.
+
+## The run finishes without recovery
+
+Read the stop reason and solver report.
+
+See [Reading a result](results.md).
+
+If the search is still improving when it reaches its budget, a larger search
+may be justified.
+
+If nearby searches all fail in the same way, revisiting the cipher or key model
+is usually more informative than increasing the same budget.
+
+See [Solvers](solvers.md) and [Comparing solve experiments](working_a_solve.md).
+
+## WLI changes the result
+
+That is expected when the WLI lane is enabled.
+
+Check that the WLI is aligned with the exact ciphertext, then compare the same
+run with:
+
+```python
+scoring = api.ScoringConfig(
+    word_length_lane_enabled=False,
+)
 ```
 
-Use the same Python interpreter for all three commands. If you install with one
-Python and run tutorials with another, imports and native extensions can fail in
-confusing ways.
+See [Scoring](scoring.md).
 
-## Common issues
+## Same seed, different result
 
-| Symptom | Likely cause | What to do |
-| --- | --- | --- |
-| `ModuleNotFoundError: rdp` | The package was not installed for the Python you are using now. | Run `python install.py`, then run the tutorial command again with the same `python`. |
-| Native extension import fails, such as `_fastlm` | Build tools or package build dependencies are missing or stale. | Run `python install.py` again and inspect the newest log under `output/install/<run-id>/`. |
-| Required LM asset download fails | Network access, proxy settings, or the GitHub Release asset is unavailable. | Download `rdp-v1-lm-large-part*.zip` from the V1 release, place the files under `downloads/`, then run `python install.py` again. |
-| Required LM asset hash mismatch | A partial or corrupt download was found. | Delete the matching zip under `downloads/` and rerun `python install.py`, or download a fresh copy from the release. |
-| Large LM asset verification fails after extraction | A runtime asset is missing or corrupt under `assets/language_model/lmp/`. | Rerun `python install.py`; it will reinstall from verified bundles and recheck the final files. |
-| A tutorial fails but most tutorials pass | That tutorial hit a real failure or missing asset. | Open the matching log in `output/tutorial_logs/` and check the tail printed by the runner. |
-| Output appears somewhere unexpected | The command was run from a different working directory. | Change to the repository root and rerun the command. |
-| Results differ between machines | Different Python/package state, assets, or code checkout. | Confirm `python --version`, rerun `python install.py`, and check that Git is on the expected branch. |
+Compare the whole request, including scoring, WLI, direction, initial keys,
+interruptors and compute device.
 
-## Tutorial logs
+Then compare the result configuration, reproducibility metadata and telemetry.
 
-The normal V1 pretty-print runner writes full tutorial output here:
+See [Repeating a run](reproducibility.md) and [Telemetry](telemetry.md).
 
-```text
-output/tutorial_logs/
+## CUDA is available but the run uses CPU
+
+CPU is the default.
+
+Set:
+
+```python
+compute_device=api.ComputeDevice.CUDA
 ```
 
-Each active pretty tutorial gets one text log. The console stays compact unless a
-tutorial fails.
+when CUDA is required.
 
-For a review pass that echoes every captured tutorial printout to the console,
-run:
+See [CUDA setup](../development/cuda_installation.md).
 
-```text
-python tutorials/v1/run_tutorials.py
+## No run files were created
+
+`RunSpec.logging` defaults to `None`.
+
+Add `LoggingConfig` when files are needed.
+
+See [Outputs](outputs.md).
+
+## The result is hard to inspect
+
+Use the standard display view:
+
+```python
+api.display.print_result(
+    result,
+    spec=request,
+)
 ```
 
-## What to include in a report
-
-Include:
-
-```text
-python --version
-the command you ran
-the full error text
-the relevant output/tutorial_logs/**/*.txt file
-the current Git branch and commit, if available
-```
-
-Do not include local private files or unrelated generated output.
-
-## Related docs
-
-- `docs/setup/installation.md`
-- `docs/guides/quickstart.md`
-- `docs/README.md`
+See [Displaying results](displaying_results.md).

@@ -1,43 +1,103 @@
-# RuneDecrypterPrime architecture overview
+# Architecture overview
 
-RDP uses one typed public boundary over existing engine owners:
+RDP uses one typed public boundary over the runtime components:
 
 ```text
 from rdp import api
         |
         v
-immutable RunSpec -> validation/materialisation -> engine
-                  -> cipher + key operations + solver + scorer
-                  -> immutable RunResult and reports
+     RunSpec
+        |
+        v
+validation and input preparation
+        |
+        v
+cipher + key operations + solver + scoring
+        |
+        v
+    RunResult
 ```
 
-Public definitions live in `src/rdp/api`. Ciphers, solvers, scoring, key
-operations, telemetry, data and native extensions live under their exact
-`src/rdp` domain owners. There is no forwarding package or generic internal
-facade.
+The public request says what experiment should be run.
+
+The implementation owners decide how their part of that experiment works.
 
 ## Public layer
 
-The public root provides `api.run`, `api.encrypt` and `api.decrypt`. Normal code
-uses typed inputs, specs, configs and enums. Serialized parsers are secondary
-boundaries, not a source of loose runtime dictionaries.
+Normal user code starts with:
 
-## Engine layer
+```python
+from rdp import api
+```
 
-The engine materialises a validated request, constructs the compatible cipher
-and key operations, resolves scorer capabilities, runs the selected solver and
-normalizes the outcome into public reports. Algorithms do not own public API
-shape.
+A solve is described with `RunSpec`:
 
-## Key contracts
+```python
+request = api.RunSpec(
+    problem_input=problem_input,
+    cipher=cipher,
+    key_space=key_space,
+    solver=solver,
+)
 
-- every state and behaviour has one canonical owner;
-- concrete public keys are semantic `tuple[int, ...]` values;
-- invalid or conflicting configuration fails before execution;
-- requested scorer lanes run, block clearly or report an authorised fallback;
-- diagnostic and oracle data do not silently affect ranking;
-- requested and effective state, stop reason and artefact status are observable;
-- seeded work is reproducible within the documented backend/asset contract.
+result = api.run(request)
+```
 
-See `docs/release_contracts/v1/RDP_CORE_DESIGN_PRINCIPLES.md` for the governing
-design rules and `docs/guides/api_deep.md` for a typed example.
+Known-key work uses `api.encrypt(...)` and `api.decrypt(...)`.
+
+See [API reference](../reference/README.md).
+
+## Component ownership
+
+The major pieces remain separate:
+
+- ciphers define the cipher relation
+- key operations define valid key structure and changes
+- solvers search the allowed space
+- scoring ranks candidate plaintexts
+- data modules provide source material such as Liber Primus
+- telemetry records execution behaviour
+- result and artifact code report what happened
+
+The ownership boundary also keeps the cryptanalytic assumptions separate. A
+solver change does not need another cipher or scoring model around it.
+
+See [Project aims and design principles](../project_overview.md).
+
+## Validation before execution
+
+Public requests are typed and validated before the engine runs them.
+
+Invalid combinations should fail clearly rather than being silently adjusted.
+
+The same principle applies to requested assets and scoring capabilities.
+
+A reported run should therefore correspond to the configuration that was
+actually requested, or clearly report an authorised difference.
+
+## Requested and effective state
+
+Some execution details are resolved at runtime.
+
+RDP records the effective configuration, stop reason, solver and scorer reports,
+reproducibility information and telemetry in `RunResult`.
+
+See [Reading a result](../guides/results.md) and
+[Telemetry](../guides/telemetry.md).
+
+## Extension
+
+New behaviour extends the component that owns it.
+
+A new cipher becomes a cipher.
+
+A new search method becomes a solver.
+
+A new source becomes part of the data layer.
+
+A new ranking signal becomes scoring evidence.
+
+The implementation can grow without adding another public route.
+
+See [Extending RDP](../guides/extending_rdp.md) and
+[Development](../development/README.md).

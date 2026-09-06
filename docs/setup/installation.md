@@ -1,13 +1,7 @@
 # Installation
 
-RDP requires Python 3.11 or newer. V1 release proof covers Python 3.11 on
-Windows and Ubuntu; newer Python versions and other platforms may work but have
-not passed that same release matrix.
-
-Use the same Python interpreter to install RDP, run examples and run tests.
-Mixing interpreters is an efficient way to create an uninteresting mystery.
-
-## Source checkout
+RDP needs Python 3.11 or newer. V1 is tested on Python 3.11 on Windows and
+Ubuntu.
 
 From the repository root:
 
@@ -15,106 +9,77 @@ From the repository root:
 python install.py
 ```
 
-`python install.py` is the canonical source-install route. On Windows,
-`install.bat` calls the same installer.
+The installer installs the checkout, checks the compiled parts of RDP, makes
+sure the V1 language files are available, and checks the install at the end.
 
-The installer:
+A supported NVIDIA GPU can also be prepared for CUDA. RDP still uses CPU unless
+a run asks for CUDA explicitly.
 
-1. checks the Python version;
-2. installs RDP in editable mode with test dependencies;
-3. reuses or provisions a working Torch CUDA runtime when supported NVIDIA
-   hardware is detected;
-4. checks the package and required native-extension imports;
-5. installs or verifies the `full_v1` language-model asset profile;
-6. runs a compact smoke-test selection.
+For the run-side choice, see
+[CPU, CUDA and scoring](scorer_backend_selection.md).
 
-CUDA provisioning only makes GPU execution available. It does not change a run
-from CPU to CUDA; normal `RunSpec` requests still default to
-`api.ComputeDevice.CPU`.
+## Language files
 
-Installer evidence is written below the selected output root as
-`install/<run-id>/`. In a source checkout the default root is `output/`, so the
-usual path is `output/install/<run-id>/`. Set `RDP_INSTALL_VERBOSE=1` when you
-need successful command output as well as failures.
+The smaller LM1 and LM2 language files are included with the source.
 
-See [output locations](../development/output_locations.md) for output-root
-selection and [CUDA provisioning](../development/cuda_installation.md) for the
-GPU policy.
+The larger LM3 and LM4 files are release assets. The source installer checks
+for them and obtains them when needed.
 
-## Full language-model assets
-
-The complete `full_v1` profile contains the supported LM1-LM4 character and WLI
-assets. The small LM1/LM2 baseline is source-bundled; the larger runtime files
-are pinned release assets described by `assets_manifest_v1.json`.
-
-`python install.py` first reuses verified archives in `downloads/`. Otherwise
-it downloads the pinned parts, verifies their size and SHA-256, extracts them
-safely under `assets/`, and verifies the installed files.
-
-If automatic download is unavailable:
-
-1. download the `rdp-v1-lm-large-part*.zip` files from the V1 GitHub Release;
-2. place them in `downloads/`;
-3. run `python install.py` again.
-
-Missing full assets are an error. RDP does not quietly substitute the smaller
-CI-light profile.
-
-## Wheel or sdist
-
-The distribution name is `rune-decrypter-prime`. A built wheel can be installed
-with pip in the normal way, for example:
+If the automatic download is unavailable, place the V1 large-language-model
+release archives in `downloads/` and run:
 
 ```text
-python -m pip install path/to/the-built-wheel.whl
+python install.py
 ```
 
-A plain pip install installs the package. It does not run RDP's source installer,
-provision CUDA for the machine, or download the external full-asset bundle.
+again.
 
-The installed package contains the public `rdp` namespaces and packaged runtime
-data. Repository tutorials, documentation, tests and large release assets are
-source-checkout companions rather than promised importable wheel contents.
+A missing required asset is an error. RDP does not silently replace it with a
+different scoring setup.
 
-## First proof
+That behaviour follows the project rule that requested capabilities should fail
+clearly rather than quietly change the experiment.
 
-After a source install, run the first getting-started example:
+See [Project aims and design principles](../project_overview.md).
+
+## Check the install
+
+Run:
 
 ```text
 python -m tutorials.v1.getting_started.01_known_key
 ```
 
-It encrypts a short message and decrypts it with the same known key. There is no
-search involved yet; the point is simply to prove that the installed public API
-works.
+This checks the public known-key path.
 
-Then run the normal tutorial selection:
+Then run the normal tutorial set:
 
 ```text
 python tutorials/v1/run_tutorials.py
 ```
 
-For the rest of the learning route, continue with the
-[quickstart](../guides/quickstart.md).
+The tutorial groups and their purpose are described in
+[Tutorials and examples](../tutorials/README.md).
 
-## CPU, CUDA and scoring backends
+## Installing a built wheel
 
-CPU is the default compute device. To request GPU execution, use
-`api.ComputeDevice.CUDA` in the run specification. Scoring backend selection is
-a separate typed choice; `ScorerBackend.AUTO` resolves against the requested
-device and available capabilities.
+For an existing wheel:
 
-An explicitly requested unavailable device or backend blocks clearly rather
-than silently changing the request. See
-[scorer backend selection](scorer_backend_selection.md).
+```text
+python -m pip install path/to/rune_decrypter_prime.whl
+```
 
-## Validation levels
+A wheel installs the package itself.
 
-A successful `python install.py` proves the source install, full asset profile,
-required imports and compact smoke tests. It is not the whole release matrix.
+The source installer remains the normal route for a complete checkout with the
+V1 assets and machine-specific CUDA checks.
 
-Maintainers use the CI-light push gate for ordinary changes and the manual full
-proof for the complete Windows/Ubuntu release check. Several-hour qualification
-runs are separate scientific work.
+## What this proves
 
-See the [install validation playbook](install_validation.md) for those checks.
+A successful install shows that the package installed, required assets were
+found, key imports work and the installer checks passed.
+
+It does not replace the larger release or qualification checks.
+
+See [Install validation](install_validation.md) for the different validation
+levels, then [Quickstart](../guides/quickstart.md) for the first solve.

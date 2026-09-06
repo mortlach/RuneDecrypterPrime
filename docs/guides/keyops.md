@@ -1,50 +1,144 @@
 # Keys and key spaces
 
-A concrete key contains actual values. `api.KeySpec` describes the candidates a
-solver is allowed to consider. Use the key space to tell RDP what you know
-about the key: perhaps its length or the range of possible values.
+A concrete key, a key space and key operations are three different things.
 
-## Choose a shape that matches the cipher
+That distinction matters once a solver is involved.
 
-| Constructor | Meaning | Useful choice |
-| --- | --- | --- |
-| `scalar(minimum=2, maximum=8)` | One integer, such as a rail count. | Widen the bounds to include more candidates. |
-| `repeating(length=4)` | Four values repeated across the text. | Change the length when testing a different period. |
-| `repeating_range(minimum_length=3, maximum_length=6)` | Search both content and length. | Use when the period is part of the question; expect more work. |
-| `permutation(length=7)` | An ordering containing each element once. | Use for column orders or a substitution alphabet of the appropriate size. |
-| `periodic_substitution(...)` | Structured substitution alphabets over a period. | Set the period to match the proposed cipher. |
-| `periodic_columnar(...)` | Periodic substitution plus column-order structure. | Keep the period and column count consistent with the cipher. |
+## Concrete key
 
-These are methods on `api.KeySpec`. Choose one that matches your cipher.
-For example, a Vigenere search with a known key length can use:
+A concrete key is one actual candidate:
 
 ```python
-from rdp import api
-
-cipher = api.CipherSpec.vigenere()
-key_space = api.KeySpec.repeating(length=4)
+key: api.ConcreteKey = (3, 1, 4)
 ```
 
-Repeating keys also support `with_fixed_alignment(offset=...)` and
-`with_alignment_search(minimum_offset=..., maximum_offset=...)`. These describe
-where the repeating key begins relative to the text. Use a fixed alignment when
-it is known; search a bounded alignment range when it is another unknown.
+When the key is already known:
 
-## How the solver changes keys
+```python
+plaintext = api.decrypt(
+    ciphertext,
+    cipher=cipher,
+    key=key,
+)
+```
 
-Key operations give the solver ways to create and change candidate keys,
-including mutation and recombination. Those changes must keep the key valid.
-Reordering columns must still use each column once; changing a rune value must
-keep it within the allowed range. The solver chooses when to try a change,
-and the key operations determine which changes it can make.
+No solver is needed.
 
-Custom key types and their search operations can be implemented as part of
-cipher development. Start with the key's layout and validity rules, then provide
-the operations needed by the intended solver. You will also need to register
-the implementation and connect it to the public API if you want to use it
-through `KeySpec`.
-Defining a new class alone does not make the existing constructors accept it.
+See [Known-key encrypt and decrypt](../reference/known_key.md).
 
-Read the [key-operation source map](../../src/rdp/keyops/README.md), then
-[build a cipher and key operations](../howto/build_keyops.md) for the contributor
-route. For ordinary use, return to [the first search](../../tutorials/v1/getting_started/02_first_search.py).
+## Key space
+
+When the key is unknown, `KeySpec` describes the allowed search space.
+
+A fixed repeating key:
+
+```python
+key_space = api.KeySpec.repeating(
+    length=7,
+)
+```
+
+A permutation key:
+
+```python
+key_space = api.KeySpec.permutation(
+    length=7,
+)
+```
+
+A scalar range:
+
+```python
+key_space = api.KeySpec.scalar(
+    minimum=2,
+    maximum=8,
+)
+```
+
+Structured periodic key spaces have their own constructors.
+
+The complete public list is in
+[KeySpec parameters](../reference/parameters/keys.md).
+
+## Why key type changes the search
+
+The solver needs ways to move from one valid key to another.
+
+Those moves depend on the key structure.
+
+A repeating vector can change one value while keeping the rest fixed.
+
+A permutation cannot replace one element with an arbitrary value because that
+would stop being a permutation. Its mutation must swap or reorder existing
+elements.
+
+A periodic-substitution key contains several permutation blocks, so mutation
+has to preserve each block separately.
+
+RDP handles this through runtime **KeyOps**.
+
+The public caller chooses `KeySpec`. The runtime supplies the matching key
+operations.
+
+## Solver moves
+
+KeyOps can provide operations such as:
+
+```text
+random
+mutate
+neighbor
+recombine
+make_population
+batch_neighbors
+expand_position
+```
+
+Beam search uses expansion or neighbours.
+
+GA uses population generation, recombination and mutation.
+
+SA follows neighbouring keys.
+
+The solver therefore asks for a legal move without hard-coding the key type.
+
+For the full mechanism, see
+[Key models and search operations](../architecture/key_model_and_search.md).
+
+## Starting keys
+
+`RunSpec.initial_keys` supplies candidate keys to a solver that supports them:
+
+```python
+request = api.RunSpec(
+    ...,
+    initial_keys=(
+        (1, 4, 9, 16, 25, 7, 20),
+    ),
+)
+```
+
+The runtime validates those keys against the same key model before search.
+
+A warm-started solve demonstrates something different from finding the same
+region without that starting information.
+
+See [Comparing solve experiments](working_a_solve.md) and
+[Repeating a run](reproducibility.md).
+
+## Runnable examples
+
+`tutorials/v1/getting_started/03_repeating_key_search.py` introduces a repeating
+key search.
+
+The first tutorial, `01_known_key.py`, shows the concrete-key path without a
+solver.
+
+See [Tutorials and examples](../tutorials/README.md).
+
+## Extending key behaviour
+
+Contributor work on a new key structure starts with the semantic layout and
+invariants, then implements the operations the intended solvers need.
+
+See [Build key operations](../howto/build_keyops.md).

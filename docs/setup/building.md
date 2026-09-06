@@ -1,46 +1,22 @@
 # Build and packaging notes
 
-This page is for maintainers checking wheels or native-extension packaging.
-Most users should start with [installation](installation.md).
+[Installation](installation.md) is the normal user route.
 
-## Manual wheel proof
+This page covers the package build itself.
 
-The wheel workflow is:
+## Wheel check
 
-```text
-.github/workflows/rdp_v1_wheel_ci.yml
-```
+The wheel workflow builds a CPython 3.11 wheel on Windows and Ubuntu, installs
+it, and checks the package and compiled scoring modules.
 
-It is a manual, non-authoritative packaging proof. It builds CPython 3.11
-wheels on:
+That is a packaging check rather than a full solver or asset qualification run.
 
-```text
-windows-latest
-ubuntu-latest
-```
+See [Install validation](install_validation.md) for the distinction between
+routine, full and qualification checks.
 
-The installed-wheel test imports:
+## Compiled scoring code
 
-```text
-rdp
-rdp.scoring.language_model._fastlm
-rdp.scoring.hamming._hamming
-rdp.scoring.span_hamming._span_hamming_fast
-```
-
-That proves the built wheel can import the package and the native modules on
-those CI platforms. It does not prove the full language-asset profile or replace
-the manual V1 full proof.
-
-## Native source packaging
-
-Native C++ sources are included for source-distribution based wheel builds by:
-
-```text
-MANIFEST.in
-```
-
-The important source areas are:
+The compiled scoring sources live under:
 
 ```text
 src/rdp/scoring/language_model/
@@ -48,28 +24,23 @@ src/rdp/scoring/hamming/
 src/rdp/scoring/span_hamming/
 ```
 
-Do not move native sources without checking `setup.py`, `MANIFEST.in` and the
-install-surface tests together.
+If one of these areas moves, the package configuration needs the corresponding
+change.
 
-## Wheel artefacts
+Changes to the scoring behaviour itself should also be reflected in
+[Scoring](../guides/scoring.md) and the
+[Scoring parameter reference](../reference/parameters/scoring.md).
 
-Successful wheel CI uploads:
+## Source development
 
-```text
-rdp-v1-wheelhouse-windows-latest
-rdp-v1-wheelhouse-ubuntu-latest
-```
-
-It also uploads the corresponding wheel-build logs.
-
-## Local development
-
-For normal source development, use:
+For ordinary development from a checkout:
 
 ```text
 python install.py
 ```
 
-Use the wheel workflow when the question is specifically packaging. Local wheel
-results depend on the available compiler toolchain and Python layout, so they
-are useful diagnostics rather than a substitute for the CI packaging proof.
+The wheel workflow is for changes where the package build itself is under test.
+
+For the wider implementation route, see
+[Development](../development/README.md) and
+[Contributing](../../CONTRIBUTING.md).

@@ -1,21 +1,28 @@
-# Installation and runtime setup
+# Setup
 
-Start with [installation](installation.md). It covers the supported Python
-version, the normal source-install route, full assets and the first runnable
-proof.
+For a normal source checkout, start with:
 
-Use the other pages when the question is more specific:
+```text
+python install.py
+```
 
-- [Scorer backend selection](scorer_backend_selection.md) — choose CPU/CUDA and
-  the scoring backend without confusing availability with selection.
-- [Install validation](install_validation.md) — CI-light, full release proof and
-  the boundary between ordinary validation and long qualification work.
-- [Build and packaging notes](building.md) — manual wheel and native-extension
-  packaging checks.
-- [CUDA provisioning](../development/cuda_installation.md) — how the source
-  installer detects, provisions and verifies supported NVIDIA hardware.
-- [Outputs and artefacts](../guides/outputs.md) — what `api.run` returns, when a
-  run writes files, and where those files go.
+Then run:
 
-Once the installation is working, continue with the
+```text
+python -m tutorials.v1.getting_started.01_known_key
+```
+
+The other setup pages cover the cases where more detail is useful:
+
+- [Installation](installation.md)
+- [CPU, CUDA and scoring](scorer_backend_selection.md)
+- [Install validation](install_validation.md)
+- [Build and packaging notes](building.md)
+- [CUDA setup](../development/cuda_installation.md)
+
+Once the install is working, continue with the
 [quickstart](../guides/quickstart.md).
+
+For maintainers working on specialised CI or tooling environments, see
+[Requirements files](../../requirements/README.md).
+

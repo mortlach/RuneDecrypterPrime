@@ -1,118 +1,97 @@
-# Outputs and artefacts
+# Outputs
 
-The first thing to know is that `api.run` does not need a directory in order to
-return a result. An ordinary run returns a typed `RunResult` in memory.
-
-Disk output starts when you supply `api.LoggingConfig`, or when a repository
-tool such as the installer or tutorial runner deliberately writes its own
-evidence.
-
-## A normal API run
-
-Without logging:
+A normal run can remain in memory:
 
 ```python
-from rdp import api
-
-result = api.run(
-    problem_input=api.RuneIndexInput(indices=(0, 1, 2, 3)),
-    cipher=api.CipherSpec.vigenere(),
-    key_space=api.KeySpec.repeating(length=3),
-    solver=api.SolverSpec.beam_search(width=8, rounds=2, seed=7),
-)
+result = api.run(request)
 ```
 
-`result` contains the recovered plaintext/key when available, score, run status,
-solver/scorer reports, configuration evidence, reproducibility metadata, oracle
-information and telemetry. No run directory is requested by this call.
+`RunSpec.logging` defaults to `None`, so no run directory is required.
 
-## Requesting a run directory
-
-Supply a logging configuration when you want on-disk run evidence:
+Add `LoggingConfig` when files are needed:
 
 ```python
+from pathlib import Path
 from rdp import api
 
 logging = api.LoggingConfig(
+    output_root=Path("my_runs"),
     run_category="solve",
-    label="trial",
+    label="welcome_pilgrim",
     write_solver_report=True,
     write_display_summary=True,
     write_artifact_manifest=True,
 )
+
+request = api.RunSpec(
+    problem_input=problem_input,
+    cipher=cipher,
+    key_space=key_space,
+    solver=solver,
+    logging=logging,
+)
 ```
 
-When logging is initialised, RDP creates a unique directory beneath the selected
-output root:
+## Default logging behaviour
+
+A default `LoggingConfig()` uses:
 
 ```text
-<output-root>/
-  <run-category>/
-    <run-id>/
-      META.json
-      config/
-        logging.json
-      logs/
-      trace/
-      artifacts/
+verbose=False
+show_progress=True
+write_event_log=False
+run_category="run"
+portable_output=True
+write_solver_report=False
+write_display_summary=False
+write_artifact_manifest=False
 ```
 
-`META.json` and `config/logging.json` are written when the run directory is
-created. The optional switches control additional output:
+`output_root`, `label` and `run_directory` default to `None`.
 
-- `write_event_log` enables the structured event log;
-- `write_solver_report` writes `artifacts/solver_report.json`;
-- `write_display_summary` writes `artifacts/rdp_display_summary.json`;
-- `write_artifact_manifest` writes `artifacts/run_artifacts_manifest.json`.
+The complete field list is in
+[Logging parameters](../reference/parameters/logging.md).
 
-The report files are review/share artefacts. The display summary is not a
-solver-state resume file.
+## Telemetry is not logging
 
-## Choosing the output root
+Telemetry is returned in memory through `RunResult.telemetry`.
 
-The first applicable destination wins:
+Logging controls files.
 
-1. `LoggingConfig.output_root`;
-2. the absolute `RDP_OUTPUT_ROOT` environment variable;
-3. `output/` in the RDP source checkout;
-4. for an installed package without a source checkout, the operating system's
-   per-user `RuneDecrypterPrime` data directory with an `output/` child.
+A run can therefore use telemetry without creating a run directory, or it can
+write selected artifacts through `LoggingConfig`.
 
-An invalid or unwritable selected location fails. RDP does not silently choose
-somewhere else.
+See [Telemetry](telemetry.md).
 
-`LoggingConfig.run_directory` can select the run directory more precisely. An
-absolute value is used directly; a relative value is placed beneath
-`<output-root>/<run-category>/`.
+## Display summaries
 
-See [output locations](../development/output_locations.md) for the developer
-case, including multiple checkouts and external output roots.
+A run can request a saved display summary through:
 
-## Installer, tutorials and validation tools
+```python
+logging = api.LoggingConfig(
+    write_display_summary=True,
+)
+```
 
-Repository tools also write evidence, but they do not all pretend to be normal
-`api.run` directories.
+The same summary can be inspected directly in Python with `api.display`.
 
-With the default source output root:
+See [Displaying results](displaying_results.md).
 
-- `python install.py` writes under `output/install/<run-id>/`;
-- the tutorial runner stores captured subprocess output under
-  `output/tutorial_logs/`;
-- CI and validation tools use their documented categories such as
-  `output/ci_logs/` and `output/test_logs/`.
+## Source-checkout output
 
-Use each tool's README or validation page for its exact evidence. There is no
-benefit in inventing one giant directory diagram and then requiring every tool
-to impersonate it.
+When no explicit output root is supplied, a source checkout uses its normal
+`output/` area.
 
-## Portable output and sharing
+Use `LoggingConfig.output_root` for another location. The public documentation
+uses explicit configuration rather than environment variables.
 
-`LoggingConfig.portable_output` defaults to `True`. Public metadata therefore
-uses portable paths and redacts machine/user identity by default.
+## Sharing output
 
-That does not make arbitrary raw logs anonymous. A traceback or subprocess log
-can still contain a local path supplied by another program. Review raw logs
-before sharing them.
+Portable output is enabled by default. The normal metadata omits user and
+machine identity.
 
-Generated output is evidence, not source code. Keep it out of the maintained
-source tree.
+Raw logs and tracebacks can still contain local paths and should be checked
+before publication.
+
+For the result-side view of generated files, see `RunResult.artifacts` in
+[Reading a result](results.md).

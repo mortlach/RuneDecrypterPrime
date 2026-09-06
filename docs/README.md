@@ -1,52 +1,68 @@
-# Rune Decrypter Prime documentation
+# RDP documentation
 
-RDP is a deterministic cryptanalysis toolkit: one typed public request goes in;
-a result, stop status and reproducibility record come out. The documents are
-arranged for technically capable readers who are new to RDP, not new to using a
-computer.
+The main route is:
 
-## First route
+1. [Installation](setup/installation.md)
+2. [Quickstart](guides/quickstart.md)
+3. [Ciphertext input](guides/ciphertext_input.md)
+4. [Word-length information](guides/word_length_information.md)
+5. [Text direction](guides/text_direction.md)
+6. [Defining a run](guides/anatomy_of_a_run.md)
+7. [Comparing solve experiments](guides/working_a_solve.md)
+8. [Reading a result](guides/results.md)
 
-Read these in order:
+## Solving guides
 
-1. [`setup/installation.md`](setup/installation.md)
-2. [`guides/quickstart.md`](guides/quickstart.md)
-3. [`guides/anatomy_of_a_run.md`](guides/anatomy_of_a_run.md)
-4. [`guides/runes_and_text.md`](guides/runes_and_text.md)
-5. [`../tutorials/v1/README.md`](../tutorials/v1/README.md)
-6. [`guides/outputs.md`](guides/outputs.md)
-7. [`guides/troubleshooting.md`](guides/troubleshooting.md)
+- [Keys and key spaces](guides/keyops.md)
+- [Interruptors](guides/interruptors.md)
+- [Solvers](guides/solvers.md)
+- [Scoring](guides/scoring.md)
+- [Repeating a run](guides/reproducibility.md)
+- [Telemetry](guides/telemetry.md)
+- [Displaying results](guides/displaying_results.md)
+- [Outputs](guides/outputs.md)
+- [Troubleshooting](guides/troubleshooting.md)
+- [Extending RDP](guides/extending_rdp.md)
 
-The first three runnable stops cover known-key operations, a small search and a
-repeating-key search. The remaining stops make repeatability, interruptors,
-partial recovery, result interpretation, controlled budget comparisons and a
-real Liber Primus request concrete.
+## Liber Primus
 
-## Guides
+- [Ciphertext input](guides/ciphertext_input.md)
+- [Liber Primus data](reference/liber_primus.md)
+- [Tutorials and examples](tutorials/README.md)
 
-- [`guides/pipeline.md`](guides/pipeline.md) — how a run moves through RDP.
-- [`guides/anatomy_of_a_run.md`](guides/anatomy_of_a_run.md) — what each public
-  request and result object means in the cryptanalytic process.
-- [`guides/scoring.md`](guides/scoring.md) — what scores mean and do not mean.
-- [`guides/solvers.md`](guides/solvers.md) — choosing a supported search.
-- [`guides/telemetry.md`](guides/telemetry.md) — progress and evidence.
-- [`guides/liber_primus_typed_workflows.md`](guides/liber_primus_typed_workflows.md)
-  — source-labelled LP work.
-- [`guides/liber_primus_solved_sources.md`](guides/liber_primus_solved_sources.md)
-  — known solved-source boundaries.
+## Reference
 
-## Reference and extension work
+- [API reference](reference/README.md)
+- [Public API surface](reference/public_api.md)
+- [Defaults at a glance](reference/defaults.md)
+- [Complete parameter reference](reference/parameters/README.md)
+- [Experimental ciphers](reference/experimental.md)
+- [Public errors](reference/errors.md)
 
-- [`architecture/overview.md`](architecture/overview.md) — architecture map.
-- [`expert/README.md`](expert/README.md) — integrator and reviewer route.
-- [`howto/add_cipher.md`](howto/add_cipher.md) — add a cipher deliberately.
-- [`howto/add_solver.md`](howto/add_solver.md) — add a solver deliberately.
-- [`tests/overview.md`](tests/overview.md) — test layout.
-- [`ROADMAP.md`](ROADMAP.md) — active follow-up work, including the deferred
-  P7/C7 scientific campaign decision.
+## Development
 
-## Contract evidence
+- [Cipher development](development/cipher_development.md)
+- [Contributor how-to guides](howto/README.md)
+- [CUDA setup](development/cuda_installation.md)
+- [Build and packaging notes](setup/building.md)
 
-[`release_contracts/v1/`](release_contracts/v1/) is retained because tests use
-it to stop the V1 contract drifting. It records why the surface looks as it
-does. It is not required reading before the first run.
+## Development and contribution
+
+- [Development map](development/README.md)
+- [Extending RDP](guides/extending_rdp.md)
+- [How-to guides](howto/README.md)
+
+## Background
+
+- [Project origins](project_origins.md)
+
+## Other useful entry points
+
+- [FAQ](FAQ.md)
+- [Setup](setup/README.md)
+- [Defaults at a glance](reference/defaults.md)
+
+## Worked solving material
+
+- [Solving examples](../solving/README.md)
+
