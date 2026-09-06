@@ -13,7 +13,7 @@ from rdp.core.problem.spec import ProblemSpec
 from rdp.core.types import Device, KEY_DTYPE
 
 torch = pytest.importorskip('torch')
-pytestmark = pytest.mark.torch
+pytestmark = [pytest.mark.tier_a, pytest.mark.torch]
 
 
 @pytest.fixture(params=['cpu', 'cuda'])

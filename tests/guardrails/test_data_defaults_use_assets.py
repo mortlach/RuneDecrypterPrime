@@ -25,4 +25,4 @@ def test_wordlists_default_root_under_assets():
     _assert_under_assets(default_wordlists_dir(), expected_suffix='wordlists')
 
 def test_lp_main_transcript_default_under_assets():
-    _assert_under_assets(default_main_transcript_path(), expected_suffix='liber_primus/liber-primus__transcription--master.txt')
+    _assert_under_assets(default_main_transcript_path(), expected_suffix='liber_primus/liber-primus__transcription--master-v2.txt')

@@ -60,7 +60,6 @@ NEGATIVE_EXECUTABLE_EVIDENCE = {
     "tests/meta/test_d3_contract_sweep.py",
     "tests/scoring/test_scoring_package_import_policy.py",
     "tests/solvers/test_solver_package_import_policy.py",
-    "tests/tutorials/test_v1_migration_dataflow_contracts.py",
     "tools/ci/a5_artifact_contract.py",
     "tools/ci/a5_installed_wheel_smoke.py",
 }
