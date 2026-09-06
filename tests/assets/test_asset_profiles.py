@@ -40,7 +40,8 @@ def test_profile_asset_sets_exist_and_full_v1_uses_github_release_assets() -> No
 def test_ci_light_manifest_rows_are_source_bundled_and_hash_exact() -> None:
     release = load_manifest(CI_MANIFEST)
     rows = [row for row in release['installed_assets'] if 'v1_lm_ci_light' in row['required_for']]
-    assert len(rows) == 33
+    assert len(rows) == 34  # 33 language-model assets plus the active LP transcript.
+    assert sum(row["asset_id"] == "liber_primus.main_transcript" for row in rows) == 1
     assert any((row['final_relpath'].endswith('index.json') for row in rows))
     assert not any(('_n3_' in row['final_relpath'] or '_n4_' in row['final_relpath'] for row in rows))
     from tools.assets.release_asset_installer import verify_installed_assets
