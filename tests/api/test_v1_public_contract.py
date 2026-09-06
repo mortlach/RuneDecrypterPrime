@@ -60,13 +60,6 @@ from rdp.core.types import (
         ),
         (KeySpec.repeating(length=13), KeySpec.from_name("repeating", parameters={"length": 13})),
         (
-            KeySpec.repeating_range(minimum_length=3, maximum_length=13),
-            KeySpec.from_name(
-                "repeating_range",
-                parameters={"minimum_length": 3, "maximum_length": 13},
-            ),
-        ),
-        (
             SolverSpec.beam_search(
                 width=64,
                 rounds=20,

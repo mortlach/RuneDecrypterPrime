@@ -421,14 +421,6 @@ class KeySpec(_ImmutableSpec):
         return cls._create(KeyKind.REPEATING, {"length": _strict_int(length, "length", minimum=1)})
 
     @classmethod
-    def repeating_range(cls, *, minimum_length: int, maximum_length: int) -> KeySpec:
-        low = _strict_int(minimum_length, "minimum_length", minimum=1)
-        high = _strict_int(maximum_length, "maximum_length", minimum=1)
-        if low > high:
-            raise ValueError("minimum_length must not exceed maximum_length")
-        return cls._create(KeyKind.REPEATING_RANGE, {"minimum_length": low, "maximum_length": high})
-
-    @classmethod
     def permutation(cls, *, length: int) -> KeySpec:
         return cls._create(KeyKind.PERMUTATION, {"length": _strict_int(length, "length", minimum=1)})
 
@@ -478,7 +470,7 @@ class KeySpec(_ImmutableSpec):
         return self._create(self.kind, parameters)
 
     def _require_alignment_capability(self) -> None:
-        if self.kind not in {KeyKind.REPEATING, KeyKind.REPEATING_RANGE}:
+        if self.kind is not KeyKind.REPEATING:
             raise UnsupportedConfigurationError(
                 f"{self.kind.value} keys do not support alignment", field_paths=("alignment",)
             )
@@ -497,7 +489,6 @@ class KeySpec(_ImmutableSpec):
         alignment = values.pop("alignment", None)
         constructors = {
             "repeating": cls.repeating,
-            "repeating_range": cls.repeating_range,
             "permutation": cls.permutation,
             "scalar": cls.scalar,
             "periodic_substitution": cls.periodic_substitution,

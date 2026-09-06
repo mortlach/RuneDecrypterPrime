@@ -10,26 +10,13 @@ api.KeySpec.repeating(length=...)
 | --- | --- | --- | --- |
 | `length` | `int` | **required** | At least `1`. |
 
-## Repeating range
+## Variable-length repeating keys
 
-```python
-api.KeySpec.repeating_range(
-    minimum_length=...,
-    maximum_length=...,
-)
-```
-
-| Parameter | Type | Default | Constraint |
-| --- | --- | --- | --- |
-| `minimum_length` | `int` | **required** | At least `1`. |
-| `maximum_length` | `int` | **required** | At least `1` and not below `minimum_length`. |
-
-### Current V1 binding note
-
-The constructor is part of the typed spec layer, but the current V1
-cipher/key materialisation requires fixed `repeating` keys for the existing
-Vigenere and Autokey solve bindings. Treat `repeating_range` as unbound for
-ordinary V1 solves until a variable-length runtime binding is added.
+V1 does not expose a variable-length repeating-key constructor. Vigenere and
+Autokey require a fixed repeating-key length. Compare separate, explicitly
+configured runs when testing different lengths. The serialized key-kind enum
+retains its existing values, but `repeating_range` is not a supported public
+constructor or parser route.
 
 ## Permutation
 
@@ -121,3 +108,9 @@ its serialized form, including supported alignment information.
 For practical use, see [Keys and key spaces](../../guides/keyops.md).
 
 See also [Parameter reference](README.md) and [Defaults at a glance](../defaults.md).
+
+## Typed identity
+
+`kind` identifies the selected KeySpec family. Constructor arguments are
+exposed through its immutable `parameters` mapping. Use the typed constructors
+for new requests and the existing parsers for serialized data.

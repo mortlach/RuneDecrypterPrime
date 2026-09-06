@@ -23,8 +23,9 @@ def test_final_key_space_constructors_are_complete_and_strict() -> None:
     assert api.KeySpec.repeating(length=4).kind is api.advanced.KeyKind.REPEATING
     assert api.KeySpec.permutation(length=4).kind is api.advanced.KeyKind.PERMUTATION
     assert api.KeySpec.scalar(minimum=0, maximum=8).kind is api.advanced.KeyKind.SCALAR
-    with pytest.raises((TypeError, ValueError)):
-        api.KeySpec.repeating_range(minimum_length=5, maximum_length=3)
+    assert not hasattr(api.KeySpec, 'repeating_range')
+    with pytest.raises(api.advanced.UnknownComponentError):
+        api.KeySpec.from_name('repeating_range', parameters={'minimum_length': 3, 'maximum_length': 5})
 
 def test_secondary_cipher_parser_is_only_for_serialized_configuration() -> None:
     parsed = api.CipherSpec.from_name("vigenere", parameters={"alphabet_size": 29})
