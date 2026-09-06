@@ -83,7 +83,10 @@ copied into this repository or made another documentation authority tree.
 
 ## Public API snapshot
 
-[`public_api_allowlist.md`](public_api_allowlist.md) is the unchanged 141-path
-contract snapshot migrated from the retired parallel manual. Import validation
-and installed-wheel checks consume this file. Its canonical CRLF SHA-256 remains
-`13ab2964ddc40706b0be4b01dac496e6d30005ba98a8117ae1c43bfac19c219a`.
+[`public_api_allowlist.md`](public_api_allowlist.md) contains the current 142-path
+contract, including the owner-approved `api.liber_primus.source` addition. The
+root namespace still has 32 exports. The accepted historical 141-path baseline
+remains recorded in the closure evidence above.
+
+The current canonical CRLF SHA-256 is
+`8489f5fa3ac1fef1d7aadc02ecca83d9982a09f9c4de921278ee3b9a523a836b`.

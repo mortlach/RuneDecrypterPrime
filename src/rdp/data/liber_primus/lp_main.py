@@ -54,12 +54,20 @@ def main_transcript_asset_identity() -> dict[str, str]:
 
 @lru_cache(maxsize=1)
 def _cached_main_transcript_asset_identity() -> tuple[str, str]:
-    root = find_repo_root(Path(__file__))
-    manifest_path = root / "assets_manifest_v1.json"
+    try:
+        root = find_repo_root(Path(__file__))
+    except FileNotFoundError:
+        # The wheel carries the same versioned LP row beside its staged assets.
+        # Use that exact package manifest; never discover identity through CWD.
+        manifest_path = Path(__file__).resolve().parents[1] / "assets_manifest_ci_light_v1.json"
+        row_key = "installed_assets"
+    else:
+        manifest_path = root / "assets_manifest_v1.json"
+        row_key = "required_assets"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    rows = manifest.get("required_assets")
+    rows = manifest.get(row_key)
     if not isinstance(rows, list):
-        raise RuntimeError("assets_manifest_v1.json required_assets must be a list")
+        raise RuntimeError(f"{manifest_path.name} {row_key} must be a list")
     matches = [
         row
         for row in rows

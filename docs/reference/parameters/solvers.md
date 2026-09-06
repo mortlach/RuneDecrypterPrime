@@ -13,8 +13,8 @@ feature is disabled.
 
 | Parameter | Type | Default | Constraint |
 | --- | --- | --- | --- |
-| `width` | `int` | **required** | At least `1`. |
-| `rounds` | `int` | **required** | At least `0`. |
+| `width` | `int` | `64` | At least `1`. |
+| `rounds` | `int` | `0` (auto) | At least `0`. |
 | `restarts` | `int` | `1` | At least `1`. |
 | `expansion` | `BeamExpansionMode` | `SWEEP` | `EXHAUSTIVE`, `SAMPLE`, or `SWEEP`. |
 | `maximum_children_per_parent` | `int | None` | `None` | At least `1` when supplied. |

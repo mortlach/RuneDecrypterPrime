@@ -63,7 +63,7 @@ def _assert_v1_public_contract() -> None:
         )
         for name in namespace.__all__
     }
-    if len(paths) != 141 or paths != expected:
+    if len(paths) != 142 or paths != expected:
         raise AssertionError(
             f"installed public surface mismatch: documented={len(paths)} exported={len(expected)}"
         )
@@ -80,6 +80,15 @@ def _assert_v1_public_contract() -> None:
 
 def _assert_v1_operations() -> None:
     from rdp import api
+
+    from rdp.api.source_resolution import resolve_source_input_ref
+
+    source = api.liber_primus.source("welcome_pilgrim")
+    resolved = resolve_source_input_ref(source)
+    if len(resolved.ct_idx) != 515 or len(resolved.wli) != 515:
+        raise AssertionError("installed named LP source is not aligned")
+    if source != api.liber_primus.source("solved.welcome_pilgrim"):
+        raise AssertionError("installed LP alias lost canonical identity")
 
     cipher = api.CipherSpec.vigenere()
     key: api.ConcreteKey = (3, 5)
@@ -147,7 +156,7 @@ def main() -> int:
         _assert_v1_public_contract()
         _assert_v1_operations()
         print(f"[a5-wheel-smoke] PASS assets={len(rows)}")
-        print("[a5-wheel-smoke] PASS public_paths=141 operations=run/encrypt/decrypt")
+        print("[a5-wheel-smoke] PASS public_paths=142 operations=run/encrypt/decrypt")
         for name, path in loaded:
             print(f'[a5-wheel-smoke] {name} -> {path}')
         print(f'[a5-wheel-smoke] package_asset_root -> {asset_root}')

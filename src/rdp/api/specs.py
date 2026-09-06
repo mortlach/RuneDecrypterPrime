@@ -549,8 +549,8 @@ class SolverSpec(_ImmutableSpec):
     def beam_search(
         cls,
         *,
-        width: int,
-        rounds: int,
+        width: int = 64,
+        rounds: int = 0,
         restarts: int = 1,
         expansion: BeamExpansionMode = BeamExpansionMode.SWEEP,
         maximum_children_per_parent: int | None = None,

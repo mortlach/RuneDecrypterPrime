@@ -12,7 +12,7 @@ from rdp import api
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCS = REPO_ROOT / 'docs'
 PUBLIC_API_ALLOWLIST = DOCS / 'release_contracts' / 'v1' / 'public_api_allowlist.md'
-PUBLIC_API_SNAPSHOT_SHA256 = '13ab2964ddc40706b0be4b01dac496e6d30005ba98a8117ae1c43bfac19c219a'
+PUBLIC_API_SNAPSHOT_SHA256 = '8489f5fa3ac1fef1d7aadc02ecca83d9982a09f9c4de921278ee3b9a523a836b'
 
 def _read(path: Path) -> str:
     return path.read_text(encoding='utf-8')
@@ -67,7 +67,7 @@ def test_public_api_allowlist_is_the_exact_five_namespace_contract() -> None:
         for name in namespace.__all__
     }
     paths = {row[0] for row in _allowlist_rows()}
-    assert len(paths) == 141
+    assert len(paths) == 142
     assert len(api.__all__) == 32
     assert paths == expected
 

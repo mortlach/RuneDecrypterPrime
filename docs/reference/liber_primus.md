@@ -14,43 +14,23 @@ For the normal solving route, start with
 
 ## Named sources
 
-The simplest route for a known source is a label:
+For a normal run, use a named, versioned source reference:
 
 ```python
-payload = api.liber_primus.payload_from_label(
-    "welcome_pilgrim"
-)
+problem_input = api.liber_primus.source("welcome_pilgrim")
 ```
 
-The returned solver payload contains:
+The returned `SourceReferenceInput` preserves the canonical label, asset ID and
+transcript version. Pass it directly as `RunSpec.problem_input`. The existing
+resolver loads ciphertext/WLI and rejects a mismatched installed transcript.
+Unknown labels raise `KeyError`. No local path is part of the reference.
 
-```text
-payload.ct_idx
-payload.wli
-payload.metadata
-```
+### Advanced payload access
 
-The metadata includes the canonical source label and the information used to
-identify the selected LP material.
-
-That keeps source identity, ciphertext and word information together.
-
-See [Word-length information](../guides/word_length_information.md).
-
-## Use the payload in a run
-
-A solver payload can go directly into `RuneIndexInput`:
-
-```python
-problem_input = api.RuneIndexInput(
-    indices=payload.ct_idx,
-    word_lengths=payload.wli,
-)
-```
-
-The rest of the run uses the normal public API.
-
-See [Defining a run](../guides/anatomy_of_a_run.md).
+`api.liber_primus.payload_from_label(label)` remains available when inspecting
+numeric `ct_idx`, `wli` and source metadata directly. It returns `SolverPayload`,
+not a run-input reference. Use `source(label)` for the ordinary named-source run
+so provenance remains explicit in the request.
 
 ## Main transcript
 
@@ -118,11 +98,8 @@ A `RunSpec` can also carry a registered LP source reference directly.
 
 The built-in resolver supports label, locator and partition source kinds.
 
-For many solving scripts, loading a solver payload first is simpler because the
-ciphertext, WLI and source metadata are immediately available together.
-
-The direct source-reference route is useful when source identity itself should
-be part of the durable request.
+Use `source(label)` for ordinary named-source runs. Direct payload access is
+useful when inspecting ciphertext, WLI or metadata before constructing a request.
 
 See [Problem inputs](inputs.md).
 

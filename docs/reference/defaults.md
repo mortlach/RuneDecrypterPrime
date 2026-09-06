@@ -99,3 +99,7 @@ Notably:
 - Hybrid enabled beam with no width -> width `16`
 
 See [Solver parameters](parameters/solvers.md).
+
+Beam can be constructed with `SolverSpec.beam_search()`: width `64`, rounds `0`
+(automatic), and requested seed `None` with effective seed `0`. Other solver
+settings and the default scoring configuration are unchanged.

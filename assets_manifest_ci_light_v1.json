@@ -341,6 +341,19 @@
         "v1_lm_ci_light"
       ],
       "policy": "source_bundled_v1_ci_light_asset"
+    },
+    {
+      "asset_id": "liber_primus.main_transcript",
+      "asset_version": "ad516b6d88106d68b3334cee0800ac83fa2e4d27c1a5c52bf8b0c2fb3ebc45d6",
+      "version_scheme": "sha256",
+      "sha256": "ad516b6d88106d68b3334cee0800ac83fa2e4d27c1a5c52bf8b0c2fb3ebc45d6",
+      "size_bytes": 57236,
+      "final_relpath": "liber_primus/liber-primus__transcription--master-v2.txt",
+      "required_for": [
+        "v1_lm_ci_light",
+        "liber_primus_source_resolution"
+      ],
+      "policy": "source_bundled_v1_ci_light_asset"
     }
   ]
 }

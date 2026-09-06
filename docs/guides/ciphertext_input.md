@@ -52,20 +52,12 @@ The `api.liber_primus` namespace provides solver-ready data from the bundled
 transcript and source catalogue:
 
 ```python
-payload = api.liber_primus.payload_from_label(
-    "welcome_pilgrim"
-)
-
-problem_input = api.RuneIndexInput(
-    indices=payload.ct_idx,
-    word_lengths=payload.wli,
-)
+problem_input = api.liber_primus.source("welcome_pilgrim")
 ```
 
-The payload keeps the ciphertext, WLI and source metadata together.
-
-Liber Primus data can also be selected by transcript section, page span,
-locator, or partition entry. See [Liber Primus data](../reference/liber_primus.md).
+This returns a source reference preserving the canonical label and transcript
+version. The run resolves the ciphertext and WLI. Advanced data inspection can
+still use `payload_from_label` for numeric data and metadata directly.
 
 ## Registered source references
 

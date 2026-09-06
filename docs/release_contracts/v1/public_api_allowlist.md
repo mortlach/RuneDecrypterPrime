@@ -139,6 +139,7 @@ internal.
 | `rdp.api.liber_primus.PageReference` | Public V1 surface | Liber Primus export. |
 | `rdp.api.liber_primus.Transcript` | Public V1 surface | Liber Primus export. |
 | `rdp.api.liber_primus.get_section` | Public V1 surface | Liber Primus export. |
+| `rdp.api.liber_primus.source` | Public V1 surface | Named, versioned source reference for a run. |
 | `rdp.api.liber_primus.payload_from_label` | Public V1 surface | Liber Primus export. |
 | `rdp.api.liber_primus.payload_from_locator` | Public V1 surface | Liber Primus export. |
 | `rdp.api.liber_primus.payload_from_main_pages` | Public V1 surface | Liber Primus export. |

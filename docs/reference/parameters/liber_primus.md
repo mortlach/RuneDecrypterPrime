@@ -5,14 +5,19 @@ The namespace returns solver-ready Liber Primus data and typed source objects.
 ## Named source
 
 ```python
-api.liber_primus.payload_from_label(label)
+api.liber_primus.source(label)
 ```
 
 | Parameter | Type | Default | Constraint |
 | --- | --- | --- | --- |
 | `label` | `str` | **required** | Registered source label or alias. |
 
-The returned `SolverPayload` contains `ct_idx`, `wli` and source metadata.
+Returns `SourceReferenceInput` with canonical source label and the current
+transcript asset ID/version. Resolve it through `RunSpec.problem_input`.
+
+For advanced numeric inspection, `api.liber_primus.payload_from_label(label)`
+returns `SolverPayload` containing `ct_idx`, `wli` and source metadata. It does
+not replace the named reference used in the ordinary learner route.
 
 ## Main transcript
 
