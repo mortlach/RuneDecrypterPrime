@@ -1,7 +1,12 @@
 # Appendices
 
-The glossary, style notes, determinism checklist and telemetry schema supply supporting
-reference material. Read the guide for the task first, then consult the relevant
-appendix when a term or record needs clarification.
+These pages provide compact supporting reference material:
 
-Continue with the [related guide](../README.md).
+- [`glossary.md`](glossary.md) — project terminology;
+- [`determinism_checklist.md`](determinism_checklist.md) — reproducibility checks;
+- [`telemetry_schema.md`](telemetry_schema.md) — telemetry record notes.
+
+Read the guide for the task first, then use an appendix when a term or record
+needs clarification.
+
+Continue with the [documentation index](../README.md).

@@ -9,8 +9,6 @@ against the evidence is useful. RDP therefore keeps configuration, seeds, stop
 reasons, truth use and reports visible. It rejects incompatible inputs instead
 of quietly inventing a fallback.
 
-RDP is an independent project by `mortlach`.
-
 ## Who this is for
 
 The ordinary route is for technically capable people who are comfortable

@@ -22,10 +22,8 @@ def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_root_readme_uses_the_exact_public_identity_and_route() -> None:
+def test_root_readme_uses_the_public_api_and_reader_route() -> None:
     text = _read(README)
-    assert "independent project by `mortlach`" in text
-    assert "Mortlach" not in text
     assert "from rdp import api" in text
     assert "technically capable" in text
     for path in (
