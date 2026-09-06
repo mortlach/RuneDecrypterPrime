@@ -5,10 +5,12 @@ on:
     branches:
       - main
       - "prelease/**"
+      - "docs/v1-final-integration"
   pull_request:
     branches:
       - main
       - "prelease/**"
+      - "docs/v1-final-integration"
   workflow_dispatch:
 
 permissions:
