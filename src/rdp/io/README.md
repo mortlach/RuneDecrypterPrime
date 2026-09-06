@@ -1,16 +1,18 @@
 # Logs, artifacts and random streams
 
-These helpers handle durable run output and random-stream ownership. Structured progress-event definitions live in the neighbouring telemetry package.
+This package owns durable run-output helpers and random-stream support.
 
-## Where to look
+## Main owners
 
-- [run_logger.py](run_logger.py) — RunLogger and file logging.
-- [logging_adapter.py](logging_adapter.py) — Module-level logging adapter.
-- [artifact_policy.py](artifact_policy.py) — Artifact paths and portable serialisation.
-- [rng.py](rng.py) — RNGController and derived random streams.
+- `run_logger.py` owns run-file logging
+- `logging_adapter.py` provides module logging integration
+- `artifact_policy.py` owns artifact paths and portable serialisation rules
+- `rng.py` owns derived random streams used by internal workflows
 
-## Choices and extension
+Public saved output is configured through `api.LoggingConfig`.
 
-Configure output through `api.LoggingConfig` and the run request. Keep paths portable when sharing results. A seed identifies the random recipe; retain the input, settings and backend context with it to make the run interpretable.
+Telemetry is a separate execution-observation layer.
 
-Continue with the [guide](../../../docs/guides/outputs.md) or the [package map](../README.md).
+See [Outputs](../../../docs/guides/outputs.md),
+[Telemetry](../../../docs/guides/telemetry.md) and
+[Repeating a run](../../../docs/guides/reproducibility.md).

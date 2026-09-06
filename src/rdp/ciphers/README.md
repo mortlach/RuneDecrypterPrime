@@ -1,40 +1,15 @@
 # Cipher implementations
 
-A cipher transforms rune indices according to a rule and a concrete key. Candidate generation belongs to key operations; search strategy belongs to solvers. Start with the implementation closest to the rule you want to investigate.
+Cipher implementations transform rune indices for a concrete key.
 
-## Where to look
+They do not own candidate generation or search.
 
-- [vigenere_cipher.py](vigenere_cipher.py) — Repeating additive transformation.
-- [substitution_cipher.py](substitution_cipher.py) — Monoalphabetic substitution.
-- [columnar_transposition_cipher.py](columnar_transposition_cipher.py) — Column-order transposition.
-- [railfence_cipher.py](railfence_cipher.py) — Rail-fence transposition.
-- [autokey_cipher.py](autokey_cipher.py) — Autokey transformation.
-- [periodic_substitution_cipher.py](periodic_substitution_cipher.py) — A repeating family of substitution alphabets.
-- [periodic_columnar_cipher.py](periodic_columnar_cipher.py) — Periodic substitution with columnar structure.
-- [scheduled_stream_lookup_cipher.py](scheduled_stream_lookup_cipher.py) — Scheduled stream transformations.
-- [generic_map_cipher.py](generic_map_cipher.py) — Runtime for configured maps and lookups.
-- [ciphers_pipeline.py](ciphers_pipeline.py) — Shared permutation, interruptor and transposition processing.
-- [interruptors.py](interruptors.py) — Remove and reinsert positions left unchanged.
-- [cipher_runtime_registry.py](cipher_runtime_registry.py) — Runtime implementation registration.
+Candidate-key behaviour belongs to key operations. Search belongs to solvers.
+Scoring belongs to the scorer.
 
-## Choices and extension
+The runtime registry maps canonical cipher identities to implementation classes.
+The typed public `CipherSpec` binding is separate and includes key compatibility,
+validation and materialisation.
 
-Choose the family through `api.CipherSpec`. For transpositions, column or rail constraints describe the permitted structure. For stream problems, the supplied schedule and the unknown key play different roles. Interruptor settings describe which positions bypass the normal transformation.
-
-To add a cipher, specify its key layout and compatible key operations, then implement and register its runtime behaviour. Reuse the shared pipeline so position handling stays consistent.
-
-Continue with the [guide](../../../docs/howto/add_cipher.md) or the [package map](../README.md).
-
-## CPU and CUDA array boundary
-
-Cipher orchestration normalizes input arrays to host NumPy through
-`rdp.backends.xp.to_numpy`. This includes text, keys and interruptor indices;
-Torch CPU/CUDA tensors and CuPy arrays use the same boundary. Permutations and
-interruptor reconstruction operate on host arrays and cipher methods return
-NumPy plaintext batches. Each cipher kernel retains its own selected compute
-device; normalizing input storage does not change that choice.
-
-The problem runtime may keep its bound arrays on a device. It sends plaintext
-batches to the selected scorer and returns host score arrays to the solver.
-Conversion errors propagate rather than retrying through implicit NumPy coercion.
-A CUDA request is not a promise that every orchestration operation runs on GPU.
+See [Cipher runtime and registration](../../../docs/architecture/cipher_runtime_and_registration.md)
+and [Add a cipher](../../../docs/howto/add_cipher.md).

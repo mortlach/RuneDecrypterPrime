@@ -12,4 +12,4 @@ The engine constructs and runs the requested components, then finalises the retu
 
 Start in `engine.py` when following a run. Use `builders.py` for backend or capability questions and `finalization.py` for the final report. Settings should be changed through the public request; engine extensions must preserve status and cleanup behaviour.
 
-Continue with the [guide](../../../../docs/guides/pipeline.md) or the [package map](../../README.md).
+Continue with the [guide](../../../../docs/guides/displaying_results.md) or the [package map](../../README.md).

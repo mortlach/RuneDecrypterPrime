@@ -16,4 +16,4 @@ Hamming support measures differences from dictionary words. Its Python adapter a
 
 Hamming weight, maximum distance and dictionary policy affect which matches contribute. Direction and available wordlists must match the run. Check the requested lane status before interpreting its contribution.
 
-Continue with the [guide](../../../../docs/guides/hamming_scorer.md) or the [package map](../../README.md).
+Continue with the [guide](../../../../docs/guides/scoring.md) or the [package map](../../README.md).

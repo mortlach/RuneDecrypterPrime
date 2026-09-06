@@ -1,20 +1,28 @@
 # Key operations
 
-Key operations define how a solver explores valid keys. They generate candidates, normalise their representation and provide changes such as mutation or recombination. This lets the search work with different cipher-specific key structures.
+Key operations define how solvers generate and change valid candidate keys.
 
-## Where to look
+Ordinary callers choose a key space through `api.KeySpec`. The runtime binds that
+semantic key model to one of the KeyOps families implemented here.
 
-- [base_keyops.py](base_keyops.py) — KeyOpBase and KeyCaps: the operations an implementation supports.
-- [vector.py](vector.py) — Sequences of rune values, including repeating-key content.
-- [permutation_ops.py](permutation_ops.py) — Orderings that contain each element once.
-- [periodic_structured_matrix_ops.py](periodic_structured_matrix_ops.py) — Structured key blocks for periodic substitution.
-- [composite.py](composite.py) — A core key combined with searched interruptor positions.
-- [registry.py](registry.py) — Construct key operations by their canonical runtime family.
+Current families include vector, permutation, structured matrix and composite
+operations.
 
-## Choices and extension
+The common capability vocabulary is owned by `base_keyops.py`:
 
-Ordinary callers select the key space with `api.KeySpec`; they do not instantiate these classes. A repeating vector allows repeated values, while a permutation must preserve a complete ordering. Composite operations add interruptor choices to the core key.
+```text
+random
+normalize
+mutate
+neighbor
+recombine
+make_population
+batch_neighbors
+local_improve
+expand_position
+```
 
-Custom key types and their search operations can be implemented during cipher development. Define the key layout and invariants first, then implement the required operations and declare capabilities. Solvers can only use operations the implementation supports. Registration uses the existing family model; public integration requires the matching typed binding.
+Solvers use these capabilities rather than branching on key type.
 
-Continue with the [guide](../../../docs/howto/build_keyops.md) or the [package map](../README.md).
+See [Key models and search operations](../../../docs/architecture/key_model_and_search.md)
+and [Build key operations](../../../docs/howto/build_keyops.md).

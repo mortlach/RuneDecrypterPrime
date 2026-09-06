@@ -1,24 +1,32 @@
 # Public API
 
-This is the front door for an RDP experiment. It turns an explicit request into a result while retaining what was requested, how execution stopped and what was found.
+This directory owns the public Python surface reached through:
 
-## Where to look
+```python
+from rdp import api
+```
 
-- [specs.py](specs.py) — CipherSpec, KeySpec and SolverSpec constructors.
-- [run_spec.py](run_spec.py) — Input types and the RunSpec request.
-- [known_key.py](known_key.py) — Encrypt and decrypt using an actual key.
-- [run.py](run.py) — Execute a search through api.run.
-- [run_result.py](run_result.py) — The returned RunResult.
-- [solver_report.py](solver_report.py) — Work counters, configuration, oracle and reproducibility records.
-- [display.py](display.py) — Human-readable result summaries.
-- [liber_primus.py](liber_primus.py) — Named Liber Primus sources and typed source helpers.
-- [experimental.py](experimental.py) — User-defined cipher maps and lookup tables.
-- [pipeline.py](pipeline.py) — Internal orchestration after public request binding.
+Normal callers should not need implementation modules below this layer.
 
-## Choices and extension
+## Main owners
 
-Use `KeySpec.scalar(...)` for a bounded integer, `repeating(...)` for a fixed sequence or `permutation(...)` for an ordering. The cipher determines which shapes are valid. `SolverSpec.beam_search(...)`, `genetic_algorithm(...)`, `simulated_annealing(...)` and `hybrid(...)` supply different search recipes. `api.display.SummaryOptions.for_debug()` expands the result detail.
+- `specs.py` owns `CipherSpec`, `KeySpec` and `SolverSpec`
+- `run_spec.py` owns public inputs and `RunSpec`
+- `run.py` binds a typed request to execution
+- `known_key.py` owns public known-key encrypt/decrypt
+- `run_result.py` owns `RunResult`
+- `solver_report.py` owns solver, configuration, oracle and reproducibility reports
+- `display.py` owns standard human/JSON result summaries
+- `liber_primus.py` owns the public LP data namespace
+- `experimental.py` owns typed experimental cipher maps and lookups
 
-Start extensions in the existing cipher-development workspace. A new runtime capability and a new supported public constructor are separate decisions; do not add a second front door.
+## Boundary
 
-Continue with the [guide](../../../docs/guides/anatomy_of_a_run.md) or the [package map](../README.md).
+The public objects describe the experiment.
+
+Runtime configuration and implementation classes below `src/rdp/` are derived
+from those objects. They are not additional public request routes.
+
+See [Public API surface](../../../docs/reference/public_api.md),
+[Defining a run](../../../docs/guides/anatomy_of_a_run.md) and
+[Architecture](../../../docs/architecture/README.md).

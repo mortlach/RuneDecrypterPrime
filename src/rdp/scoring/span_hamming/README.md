@@ -18,4 +18,4 @@ Find approximate word spans, choose compatible intervals and turn span evidence 
 
 Span mode, distance limits and calibration profile affect how overlapping matches are assessed. Use the guide to choose a supported combination and check lane availability. The native and reference implementations serve the same declared scoring purpose.
 
-Continue with the [guide](../../../../docs/guides/span_hamming_scorer.md) or the [package map](../../README.md).
+Continue with the [guide](../../../../docs/guides/scoring.md) or the [package map](../../README.md).

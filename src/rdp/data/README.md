@@ -1,16 +1,21 @@
-# Rune and source data access
+# Rune and source data
 
-This folder turns stored source material into the representations RDP uses and resolves asset locations for source checkouts and installed packages.
+This package converts stored source material into the representations used by
+RDP and resolves packaged data assets.
 
-## Where to look
+## Main owners
 
-- [runeglish.py](runeglish.py) — Rune conversion and word-location helpers.
-- [asset_paths.py](asset_paths.py) — Resolve source or packaged asset paths.
-- [liber_primus/](liber_primus/) — LP transcription, source identities, routes and payloads.
-- [wordlists/](wordlists/) — Short-word and crib dictionary loaders.
+- `runeglish.py` converts Latin/runes and constructs word-location information
+- `asset_paths.py` resolves source and installed-package assets
+- `liber_primus/` owns LP transcription, source identities, routes and payloads
+- `wordlists/` owns retained word-list loaders used by specialist scoring and
+  diagnostic work
 
-## Choices and extension
+Normal callers use the public input types and `api.liber_primus`.
 
-Normal examples use `api.RawTextInput`, `api.RuneIndexInput` or `api.liber_primus`. Known-key operations take rune indices. The internal Runeglish converter is used by repository fixtures; it is not an extra public constructor. Select text direction to match the source convention.
+The internal Runeglish converter is implementation/support code rather than
+another public input API.
 
-Continue with the [guide](../../../docs/guides/runes_and_text.md) or the [package map](../README.md).
+See [Ciphertext input](../../../docs/guides/ciphertext_input.md),
+[Word-length information](../../../docs/guides/word_length_information.md) and
+[Liber Primus data](../../../docs/reference/liber_primus.md).

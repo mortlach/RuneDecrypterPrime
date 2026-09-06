@@ -1,15 +1,20 @@
 # Candidate evaluation
 
-A problem binds the input, cipher, key operations and scoring evidence. Solvers evaluate candidates through this boundary so those components operate on the same text and key representation.
+The problem runtime binds one cipher, one scorer, the ciphertext/WLI and the
+runtime KeyOps.
 
-## Where to look
+Solvers evaluate candidate keys through this boundary.
 
-- [spec.py](spec.py) — ProblemSpec describes the problem and transformations.
-- [instance.py](instance.py) — ProblemInstance materialises the specification.
-- [runtime.py](runtime.py) — DecryptionProblem evaluates key batches and applies constraints.
+The main path is:
 
-## Choices and extension
+```text
+key
+-> decrypt
+-> constraints
+-> score
+```
 
-Use the public input types to supply rune text or reviewed indices and word information. Position permutations, interruptors and cribs change the evaluation problem; they are not display choices. Start at `runtime.py` to trace what happens to a candidate key.
+Interruptor search can split a composite key into its core key and interruptor
+positions before decryption.
 
-Continue with the [guide](../../../../docs/guides/pipeline.md) or the [package map](../../README.md).
+See [Candidate evaluation](../../../../docs/architecture/candidate_evaluation.md).
