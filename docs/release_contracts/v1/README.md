@@ -80,3 +80,10 @@ copied into this repository or made another documentation authority tree.
   compatibility shims.
 - Do not add machine-specific absolute paths to public release artefacts.
 - If this folder is relocated later, move the tests and docs references in the same commit.
+
+## Public API snapshot
+
+[`public_api_allowlist.md`](public_api_allowlist.md) is the unchanged 141-path
+contract snapshot migrated from the retired parallel manual. Import validation
+and installed-wheel checks consume this file. Its canonical CRLF SHA-256 remains
+`13ab2964ddc40706b0be4b01dac496e6d30005ba98a8117ae1c43bfac19c219a`.

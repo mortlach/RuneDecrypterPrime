@@ -95,3 +95,15 @@ before publication.
 
 For the result-side view of generated files, see `RunResult.artifacts` in
 [Reading a result](results.md).
+
+## Artifact contracts
+
+Known run-relative paths are `META.json`, `config/logging.json`,
+`artifacts/solver_report.json`, `artifacts/rdp_display_summary.json` and
+`artifacts/run_artifacts_manifest.json`. The manifest writer requires the first
+two files. Solver-report and display-summary files are optional.
+
+Artifact classifications distinguish `candidate`, `not_candidate` and
+`needs_review`. Unregistered logs, caches and asset output are not automatically
+export candidates. Manifest paths use `/`, stay below the run directory and
+must not contain `..` or an absolute machine path.

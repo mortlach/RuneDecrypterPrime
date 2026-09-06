@@ -102,3 +102,13 @@ See [Reading a result](results.md),
 inspection path and points to `api.display.print_result(...)`.
 
 See [Tutorials and examples](../tutorials/README.md).
+
+## Front-end integration
+
+A GUI should retain typed `RunSpec` and `RunResult` objects and use public display
+helpers for presentation. Load serialized state through the existing parsers,
+then keep typed objects. Show stop status, blocked capabilities, oracle use,
+partial recovery and artifact status explicitly.
+
+Console wording and the human tutorial catalogue are not machine protocols.
+A front end owns its navigation metadata rather than parsing example scripts.

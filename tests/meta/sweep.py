@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List, Sequence
-ALLOWED_TOP_DIRS = {'.github', 'assets', 'cipher_development', 'src', 'docs', 'requirements', 'solving', 'tools', 'tests', 'tutorials', 'v1_docs'}
+ALLOWED_TOP_DIRS = {'.github', 'assets', 'cipher_development', 'src', 'docs', 'requirements', 'solving', 'tools', 'tests', 'tutorials'}
 ALLOWED_TOOLS_SUBDIRS = {'assets', 'ci', 'data', 'get_src_zip', 'robustness'}
 ALLOWED_TOOLS_ROOT_FILES = {'README.md', '__init__.py', 'refresh_two_period_fixture_manifest.py', 'release_review_pack.py'}
 FORBIDDEN_ROOT_OUTPUT_FILES = {'setup.log', 'setup_report.json', 'preflight.log', 'preflight_report.json', 'benchmark_ready.json'}

@@ -13,43 +13,12 @@ SRC = ROOT / "src"
 OLD_PACKAGE = "rune_" + "decrypter_prime"
 
 ACTIVE_DOCUMENTS = (
-    "README.md",
-    "src/README.md",
-    "src/rdp/README.md",
-    "src/rdp/api/README.md",
-    "cipher_development/README.md",
-    "solving/README.md",
-    "docs/architecture/interruptors.md",
-    "docs/architecture/overview.md",
-    "docs/guides/architecture.md",
-    "docs/guides/documentation_playbook.md",
-    "docs/guides/extending_hands_on_to_experts.md",
-    "docs/guides/hamming_scorer.md",
-    "docs/guides/outputs.md",
-    "docs/guides/philosophy.md",
-    "docs/guides/span_hamming_scorer.md",
-    "docs/guides/troubleshooting.md",
-    "docs/howto/add_cipher.md",
-    "docs/howto/add_solver.md",
-    "docs/repo/structure.md",
-    "docs/setup/building.md",
-    "docs/tests_docs/tools.md",
-    "v1_docs/coder/cipher_pipeline.md",
-    "v1_docs/coder/docstring_policy.md",
-    "v1_docs/coder/extension_points.md",
-    "v1_docs/coder/key_pipeline.md",
-    "v1_docs/coder/module_map.md",
-    "v1_docs/coder/README.md",
-    "v1_docs/coder/scoring_pipeline.md",
-    "v1_docs/coder/solver_pipeline.md",
-    "v1_docs/coder/stability_and_internals.md",
-    "v1_docs/coder/telemetry_and_reports.md",
-    "v1_docs/howto/add_cipher.md",
-    "v1_docs/howto/add_scorer_lane.md",
-    "v1_docs/howto/add_solver.md",
-    "v1_docs/reference/artifacts.md",
-    "v1_docs/reference/reports.md",
+    'README.md', 'CONTRIBUTING.md',
+    *(p.relative_to(ROOT).as_posix() for p in (ROOT / 'docs').rglob('*.md')
+      if 'release_contracts' not in p.parts and 'v1_traceability' not in p.parts),
+    'src/rdp/api/README.md', 'solving/README.md', 'tests/README.md', 'tools/README.md',
 )
+
 
 NEGATIVE_EXECUTABLE_EVIDENCE = {
     "tests/contracts/test_a5_keyops_registry_contract.py",
@@ -158,7 +127,7 @@ def test_active_documentation_contains_no_old_package_path() -> None:
 def test_historical_old_path_text_is_exactly_allowlisted() -> None:
     found = {
         path.relative_to(ROOT).as_posix()
-        for path in _project_files("docs", "v1_docs")
+        for path in _project_files("docs")
         if OLD_PACKAGE in path.read_text(encoding="utf-8", errors="ignore")
     }
     assert found == HISTORICAL_OLD_PATH_EVIDENCE

@@ -177,3 +177,19 @@ framework inside the first one.
 
 For the wider design, see
 [Project aims and design principles](../project_overview.md).
+
+## Adding a scoring lane
+
+Reuse the capability vocabulary in `src/rdp/core/component_contracts.py`, the
+request owner in `src/rdp/core/config/scoring.py`, and the report owners in
+`src/rdp/scoring/scorer_lane_report.py` and
+`src/rdp/scoring/scorer_report_builder.py`.
+
+Decide whether the lane changes production ranking, provides report-only
+measurements, or records capability availability. Requested lanes must run,
+block clearly, or report an explicitly authorised fallback. Report-only
+measurements must not change ranking, stopping, tie-breaks or candidate selection.
+
+Cover request detection, unavailable assets/runtime, allowed fallback, JSON-safe
+reports and the report-only boundary with focused tests. Keep truth data outside
+production scoring.

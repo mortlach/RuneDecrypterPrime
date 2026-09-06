@@ -138,3 +138,15 @@ loading example.
 into a full search request.
 
 See [Tutorials and examples](../tutorials/README.md).
+
+## Page labels and catalogue identity
+
+A solved-source label identifies text, not a solve recipe. Aliases for a label
+must resolve to the same `ct_idx` and WLI payload. Puzzle filenames are not
+transcript indices: in the current catalogue `0.jpg` begins at transcript page
+15, `56.jpg` identifies `an_end` at page 71, and `57.jpg` identifies `parable` at
+page 72. Bound-book display numbers are another numbering system.
+
+Use catalogue resolution rather than arithmetic on a filename. Source references
+carry source identity and location. Solver budgets, key hints and interruptor
+policy belong in the run's cipher/key/solver configuration.

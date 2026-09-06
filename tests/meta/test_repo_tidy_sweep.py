@@ -23,7 +23,7 @@ def test_repo_tidy_sweep_does_not_require_git_cli() -> None:
     assert '["git"' not in source
 
 def test_tidy_policy_names_the_current_v1_projects() -> None:
-    assert ALLOWED_TOP_DIRS == {'.github', 'assets', 'cipher_development', 'docs', 'requirements', 'solving', 'src', 'tests', 'tools', 'tutorials', 'v1_docs'}
+    assert ALLOWED_TOP_DIRS == {'.github', 'assets', 'cipher_development', 'docs', 'requirements', 'solving', 'src', 'tests', 'tools', 'tutorials'}
     assert ALLOWED_TOOLS_SUBDIRS == {'assets', 'ci', 'data', 'get_src_zip', 'robustness'}
     assert ALLOWED_TOOLS_ROOT_FILES == {'README.md', '__init__.py', 'refresh_two_period_fixture_manifest.py', 'release_review_pack.py'}
 
@@ -50,7 +50,7 @@ def test_absolute_path_sweep_distinguishes_local_and_fixture_surfaces(tmp_path: 
 
 def test_absolute_path_sweep_checks_current_supporting_projects(tmp_path: Path) -> None:
     private = 'C:' + '\\Users\\name\\private.txt'
-    paths = (Path('cipher_development/experiment.py'), Path('solving/attempt.py'), Path('tools/data/helper.py'), Path('tutorials/v1/example.py'), Path('v1_docs/note.md'))
+    paths = (Path('cipher_development/experiment.py'), Path('solving/attempt.py'), Path('tools/data/helper.py'), Path('tutorials/v1/example.py'), Path('docs/note.md'))
     for path in paths:
         target = tmp_path / path
         target.parent.mkdir(parents=True, exist_ok=True)

@@ -24,7 +24,7 @@ BLOCKED_MODULES = (
     "rdp.data.liber_primus.old",
 )
 PUBLIC_API_ALLOWLIST = (
-    PROJECT_ROOT / "v1_docs" / "reference" / "public_api_allowlist.md"
+    PROJECT_ROOT / "docs" / "release_contracts" / "v1" / "public_api_allowlist.md"
 )
 
 

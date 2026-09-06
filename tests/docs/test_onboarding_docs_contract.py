@@ -13,7 +13,7 @@ README = ROOT / "README.md"
 QUICKSTART = ROOT / "docs" / "guides" / "quickstart.md"
 RUN_ANATOMY = ROOT / "docs" / "guides" / "anatomy_of_a_run.md"
 CATALOGUE = ROOT / "tutorials" / "v1" / "README.md"
-ROADMAP = ROOT / "docs" / "ROADMAP.md"
+ROADMAP = ROOT / "docs" / "project_overview.md"
 EXAMPLES = ROOT / "tutorials" / "v1" / "examples"
 ROUTE = ROOT / "tutorials" / "v1" / "getting_started"
 
@@ -30,7 +30,7 @@ def test_root_readme_uses_the_public_api_and_reader_route() -> None:
         "docs/setup/installation.md",
         "docs/guides/quickstart.md",
         "docs/guides/anatomy_of_a_run.md",
-        "docs/guides/runes_and_text.md",
+        "docs/guides/ciphertext_input.md",
         "tutorials/v1/README.md",
     ):
         assert path in text
@@ -63,7 +63,7 @@ def test_canonical_docs_do_not_restore_retired_taxonomy_or_prohibited_tone() -> 
         ROOT / "docs" / "setup" / "installation.md",
         QUICKSTART,
         RUN_ANATOMY,
-        ROOT / "docs" / "guides" / "runes_and_text.md",
+        ROOT / "docs" / "guides" / "ciphertext_input.md",
         CATALOGUE,
         ROADMAP,
     )
@@ -83,8 +83,8 @@ def test_canonical_docs_do_not_restore_retired_taxonomy_or_prohibited_tone() -> 
         ROOT / "docs" / "setup" / "installation.md",
         QUICKSTART,
         RUN_ANATOMY,
-        ROOT / "docs" / "guides" / "runes_and_text.md",
-        ROOT / "docs" / "tutorials" / "index.md",
+        ROOT / "docs" / "guides" / "ciphertext_input.md",
+        ROOT / "docs" / "tutorials" / "README.md",
         CATALOGUE,
         ROUTE / "README.md",
         EXAMPLES / "README.md",
