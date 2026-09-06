@@ -1,14 +1,11 @@
 # ruff: noqa: N999
-"""Put together a search for Welcome Pilgrim.
-
-We can now connect a real source to the cipher, key space and search settings.
-This file prepares the request. The worked LP example runs the longer solve.
-"""
+"""Prepare a Welcome Pilgrim search without running the longer solve."""
 
 from rdp import api
 
 SOURCE_LABEL = "welcome_pilgrim"
-# We know this length from the existing solved-source example.
+
+# These values come from the existing solved-source example.
 KEY_LENGTH = 8
 INTERRUPTOR_COUNT = 11
 
@@ -16,9 +13,7 @@ INTERRUPTOR_COUNT = 11
 def main() -> None:
     payload = api.liber_primus.payload_from_label(SOURCE_LABEL)
 
-    # We'll treat the zero-valued ciphertext runes as possible interruptors
-    # and ask RDP to choose eleven of them. In example 05 we supplied the
-    # exact positions; here the positions are part of the search.
+    # Zero-valued ciphertext positions form the reviewed candidate pool.
     candidate_positions = tuple(
         index for index, value in enumerate(payload.ct_idx) if value == 0
     )
@@ -30,10 +25,8 @@ def main() -> None:
         maximum_combinations=5000,
     )
 
-    # The key length and interruptor count come from the existing solution. We
-    # aren't supplying the key values, but we are using that prior knowledge.
-    # If you change the pool or the count, you're trying a different
-    # explanation of the ciphertext, not simply giving the solver more time.
+    # Key length and interruptor count are prior information from the known
+    # solution. The key values and exact interruptor positions are not supplied.
     request = api.RunSpec(
         problem_input=api.RuneIndexInput(
             indices=payload.ct_idx,
@@ -63,14 +56,13 @@ def main() -> None:
     )
 
     print("Prepared real-source search")
-    print("Source            :", payload.metadata["display_name"])
-    print("Ciphertext length :", len(payload.ct_idx))
-    print("Key shape         : repeating, length", KEY_LENGTH)
-    print("Interruptor pool  :", len(candidate_positions))
+    print("Source             :", payload.metadata["display_name"])
+    print("Ciphertext length  :", len(payload.ct_idx))
+    print("Key shape          : repeating, length", KEY_LENGTH)
+    print("Interruptor pool   :", len(candidate_positions))
     print("Interruptors sought:", INTERRUPTOR_COUNT)
-    print("Solver            :", request.solver.kind.value)
-    print("Execution         : not started")
-    print("Next              : examples/lp_welcome_pilgrim_solve.py")
+    print("Solver             :", request.solver.kind.value)
+    print("Execution          : not started")
 
     if len(payload.ct_idx) != len(payload.wli) or len(payload.ct_idx) != 515:
         raise AssertionError("the source payload is no longer aligned")

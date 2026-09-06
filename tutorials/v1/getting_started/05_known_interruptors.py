@@ -1,9 +1,5 @@
 # ruff: noqa: N999
-"""Search for a Vigenere key when some positions are left unchanged.
-
-These positions are called interruptors. Here we already know where they are,
-so we can tell RDP to leave them alone while it searches for the key.
-"""
+"""Recover a Vigenere key with known interruptor positions."""
 
 from rdp import api
 
@@ -17,6 +13,7 @@ PLAINTEXT = (
     7, 18, 4, 18, 8, 24, 1, 21, 16, 28, 24, 16, 10, 16,
 )
 # fmt: on
+
 SECRET_KEY: api.ConcreteKey = (7, 0, 13, 2, 0)
 INTERRUPTOR_POSITIONS = (2, 7, 13)
 INTERRUPTOR_SYMBOLS = (4, 24, 15)
@@ -28,12 +25,7 @@ CIPHERTEXT_RUNES = (
 
 
 def main() -> None:
-    # Positions are numbered from zero. RDP takes these symbols out before
-    # applying Vigenere, then puts them back unchanged. They don't use up
-    # positions in the repeating key.
-    #
-    # Use exact(...) when you know the positions. If you only have a set of
-    # possible positions, search(...) lets RDP choose from that set.
+    # exact(...) means the interruptor positions are prior information.
     interruptors = api.InterruptorConfig.exact(INTERRUPTOR_POSITIONS)
 
     request = api.RunSpec(
@@ -50,12 +42,9 @@ def main() -> None:
     print("Known interruptors")
     print("Positions       :", INTERRUPTOR_POSITIONS)
     print("Untouched runes :", INTERRUPTOR_SYMBOLS)
-    print("Searched symbols:", len(PLAINTEXT) - len(INTERRUPTOR_POSITIONS))
-    print("Recovered key  :", result.key)
-    print("Recovered runes:", result.plaintext_text)
+    print("Recovered key   :", result.key)
+    print("Recovered runes :", result.plaintext_text)
 
-    # Check that we've recovered the message and key, and that the interruptor
-    # symbols are still where we left them.
     untouched_symbols = tuple(
         result.plaintext[position] for position in INTERRUPTOR_POSITIONS
     )

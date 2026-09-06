@@ -1,14 +1,8 @@
 # ruff: noqa: N999
-"""Look through the result of a small search.
-
-We've already printed the recovered key and text. This time we'll also look
-at how much work the solver did and why it stopped.
-"""
+"""Inspect the result and reports from a small search."""
 
 from rdp import api
 
-# We'll keep the original message so we can check the answer afterwards. It
-# won't be given to the solver.
 # fmt: off
 PLAINTEXT = (
     2, 18, 4, 18, 7, 24, 15, 24, 16, 24, 17, 20, 18, 15,
@@ -16,12 +10,14 @@ PLAINTEXT = (
     18,
 )
 # fmt: on
+
 SECRET_KEY: api.ConcreteKey = (7,)
 
 
 def main() -> None:
     cipher = api.CipherSpec.rail_fence(minimum_rails=2, maximum_rails=8)
     ciphertext = api.encrypt(PLAINTEXT, cipher=cipher, key=SECRET_KEY)
+
     request = api.RunSpec(
         problem_input=api.RuneIndexInput(indices=ciphertext),
         cipher=cipher,
@@ -37,16 +33,6 @@ def main() -> None:
     )
     result = api.run(request)
 
-    # RunResult has a few useful parts:
-    # - key, plaintext and score tell us what it found;
-    # - status tells us how the run ended;
-    # - solver_report records the work done;
-    # - configuration records our settings and how they were applied;
-    # - reproducibility records the seed, backend and version;
-    # - oracle records whether a known answer helped the run.
-    #
-    # You can also use api.display.print_result(result) for a formatted
-    # summary. SummaryOptions.for_debug() adds more detail when you need it.
     print("Reading a result")
     print("Best key       :", result.key)
     print("Best score     :", result.score)
@@ -58,6 +44,13 @@ def main() -> None:
     print("Requested seed :", result.reproducibility.requested_seed)
     print("Effective seed :", result.reproducibility.effective_seed)
     print("Oracle ranking :", result.oracle.used_for_ranking)
+
+    # The same information can be rendered through the standard display view.
+    api.display.print_result(
+        result,
+        spec=request,
+        options=api.display.SummaryOptions.for_console(),
+    )
 
     exact_recovery = result.key == SECRET_KEY and result.plaintext == PLAINTEXT
     report_agrees = (

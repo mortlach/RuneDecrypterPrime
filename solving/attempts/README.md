@@ -1,24 +1,47 @@
 # LP attempts
 
-This folder is for reproducible attempts against unsolved or diagnostic Liber
-Primus sources.
+This folder contains reproducible attempts against unsolved or diagnostic Liber
+Primus material.
 
-Attempts should be useful even when they do not solve anything. Each attempt
-should record:
+An attempt records:
 
 ```text
-question         what hypothesis is being tested
-source_label     which LP source was loaded
-recipe/model     which cipher or route family was tried
-truth_policy     usually no_truth for unsolved material
-expected_result  solve, partial_recovery, diagnostic_only, or expected_fail
-result_summary   what happened and why it matters
+question
+source_label
+cipher / model hypothesis
+prior information
+truth policy
+search and scoring setup
+expected outcome
+result summary
 ```
 
-Do not start unsolved attempts by hand-copying ciphertext. Use the LP source
-catalogue and verified main transcript locators so attempts can be rerun and
-compared later.
+For genuinely unsolved material the normal truth policy is `no_truth`.
 
-The solved-page reproductions in `../solved_lp/` should come first. Once the
-source-label and recipe interface is proven there, unsolved attempts can reuse
-it without new ad-hoc wiring.
+A failed solve still records something if the tested hypothesis, budget and
+result are clear.
+
+## Source handling
+
+Load text through the LP catalogue or reviewed transcript locators.
+
+Do not hand-copy ciphertext into a new attempt when a registered source already
+exists.
+
+See [Liber Primus data](../../docs/reference/liber_primus.md).
+
+## Keep claims narrow
+
+An attempt that uses a crib, prepared key, fixed period or restricted candidate
+pool should say so.
+
+Changing prior information changes the experiment.
+
+See [Comparing solve experiments](../../docs/guides/working_a_solve.md).
+
+## Solved examples first
+
+Use the solved workbook to check a cipher/search/scoring route before applying
+it to unsolved material.
+
+See [Solved LP workbook](../solved_lp/README.md).

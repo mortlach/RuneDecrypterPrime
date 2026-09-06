@@ -1,9 +1,5 @@
 # ruff: noqa: N999
-"""Try a wider beam on the same problem.
-
-Both searches recover the answer here. The wider one does more work, so this
-is a useful reminder to check what the extra search actually bought us.
-"""
+"""Compare two beam widths on the same problem."""
 
 from rdp import api
 
@@ -14,13 +10,13 @@ PLAINTEXT = (
     18, 18,
 )
 # fmt: on
+
 SECRET_KEY: api.ConcreteKey = (3, 1, 4, 1)
 CIPHERTEXT_RUNES = "ᛗᚾᛟᚳᛝ ᚻᛠᛏ ᛡ ᛒᛠᛖᛞᛗ ᛗᛗᛗ ᚱᚳᛒ ᚱᛁᛡᛗᚹ ᚫ ᛚᚳᛝᛗ"
 
 
 def build_request(*, width: int) -> api.RunSpec:
-    # Only the width changes. We'll keep the ciphertext, key length, scorer,
-    # direction and seed fixed so we can see what that one change does.
+    # Width is the only changed variable.
     return api.RunSpec(
         problem_input=api.RawTextInput(text=CIPHERTEXT_RUNES),
         cipher=api.CipherSpec.vigenere(),

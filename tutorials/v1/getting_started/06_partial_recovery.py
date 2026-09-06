@@ -1,9 +1,5 @@
 # ruff: noqa: N999
-"""Look at a search that gets part of the message right.
-
-We'll give this search a narrow beam on purpose. It will finish normally,
-but it won't recover the whole message. That is still a result worth inspecting.
-"""
+"""Inspect a deterministic search that recovers only part of the plaintext."""
 
 from rdp import api
 
@@ -17,6 +13,7 @@ REFERENCE_PLAINTEXT = (
     7, 18, 4, 18, 8, 24, 1, 21, 16, 28, 24, 16, 10, 16,
 )
 # fmt: on
+
 CIPHERTEXT_RUNES = (
     "ᚳᛗᚻᛗ ᛇᚱᛒ ᚢ ᛗᚫᛝᛝᛞ ᚪᛚᛟ ᚷᚦᛚ ᚦᛉᚩᛚᛁ ᛡ ᛒᚻᛗᛞ ᛗᛂ "
     "ᚷᚹᚱᛈᛒ ᚻᚾ ᚱᚪ ᛂᚱᚳᛏᛞ ᚱᛂᚠ ᚳᛗ ᛞᚫᚾᛉᛁ ᛉᛡᚳᛟ ᚫᛉᚩ ᚱᚪ "
@@ -27,15 +24,17 @@ CIPHERTEXT_RUNES = (
 def match_ratio(candidate: tuple[int, ...]) -> float:
     matches = sum(
         observed == expected
-        for observed, expected in zip(candidate, REFERENCE_PLAINTEXT, strict=True)
+        for observed, expected in zip(
+            candidate,
+            REFERENCE_PLAINTEXT,
+            strict=True,
+        )
     )
     return matches / len(REFERENCE_PLAINTEXT)
 
 
 def main() -> None:
-    # We'll keep only four candidates in the beam. For this example that isn't
-    # enough to recover the whole message. It gives us a useful case for
-    # looking at what the solver found and why it stopped.
+    # The deliberately small beam gives a stable partial result.
     request = api.RunSpec(
         problem_input=api.RawTextInput(text=CIPHERTEXT_RUNES),
         cipher=api.CipherSpec.vigenere(),
@@ -44,7 +43,7 @@ def main() -> None:
         scoring=api.ScoringConfig(),
         text_direction=api.TextDirection.LEFT_TO_RIGHT,
     )
-    # Run it twice to check that we get the same partial answer again.
+
     first = api.run(request)
     second = api.run(request)
     ratio = match_ratio(first.plaintext)
@@ -53,15 +52,10 @@ def main() -> None:
     print("Recovered key  :", first.key)
     print("Recovered runes:", first.plaintext_text)
     print("Reference match:", f"{ratio:.3f}")
-    print("Beam width     :", 4)
     print("Stop category  :", first.status.stop_category.value)
     print("Stop reason    :", first.status.stop_reason.value)
-    print("Result         : part of the message recovered")
-    print("Comparison     : against the original message")
 
-    # The fraction of matching runes tells us how much we recovered. We can
-    # calculate it because we have the original message; it wasn't part of the
-    # score used during the search.
+    # The reference plaintext is used only after the search to measure recovery.
     stable_partial = (
         first.key == second.key
         and first.plaintext == second.plaintext
