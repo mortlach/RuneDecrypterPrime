@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import argparse
 import json
 import uuid
 import os
@@ -12,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 PYTHON = sys.executable
 MIN_PYTHON = (3, 11)
-VERBOSE = os.environ.get("RDP_INSTALL_VERBOSE", "").strip().lower() in {"1", "true", "yes", "on"}
+VERBOSE = False
 LOG_DIR: Path | None = None
 INSTALL_MODE_LABEL = "Full V1 install"
 ASSET_PROFILE_MANIFEST = ROOT / "asset_profiles_v1.json"
@@ -217,8 +218,9 @@ def _run_smoke_tests() -> None:
     _run("Run compact V1 smoke tests", [PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider", f"--basetemp={LOG_DIR / 'pytest_tmp'}", *SMOKE_TESTS])
 
 
-def run_install(*, asset_profile_name: str, mode_label: str) -> int:
-    global LOG_DIR
+def run_install(*, asset_profile_name: str, mode_label: str, verbose: bool = False) -> int:
+    global LOG_DIR, VERBOSE
+    VERBOSE = verbose
     # Load the dependency-light canonical owner without importing an uninstalled RDP.
     spec = importlib.util.spec_from_file_location(
         "rdp_install_output_paths", ROOT / "src/rdp/core/config/output_paths.py")
@@ -229,7 +231,8 @@ def run_install(*, asset_profile_name: str, mode_label: str) -> int:
     print("Rune Decrypter Prime V1 installer")
     print(f"Mode: {mode_label}")
     print(f"Repo root: {ROOT}")
-    print("Successful command output is hidden. Set RDP_INSTALL_VERBOSE=1 to show it.")
+    print("Command output is streamed." if verbose else
+          "Successful command output is hidden. Use --verbose to show it.")
     print(f"Install evidence: {routing.path_from(LOG_DIR, ROOT)}")
     print("pip is not upgraded automatically.")
     from tools.assets.asset_profiles import select_asset_profile
@@ -265,7 +268,11 @@ def run_install(*, asset_profile_name: str, mode_label: str) -> int:
 
 
 def main() -> int:
-    return run_install(asset_profile_name=DEFAULT_ASSET_PROFILE, mode_label=INSTALL_MODE_LABEL)
+    parser = argparse.ArgumentParser(description="Install and verify RDP V1.")
+    parser.add_argument("--verbose", action="store_true", help="Stream command output while retaining logs.")
+    args = parser.parse_args()
+    return run_install(asset_profile_name=DEFAULT_ASSET_PROFILE, mode_label=INSTALL_MODE_LABEL,
+                       verbose=args.verbose)
 
 
 if __name__ == "__main__":
