@@ -37,7 +37,7 @@ class SolverPlan(Protocol):
 @dataclass(frozen=True, slots=True)
 class BeamPlan:
     width: int
-    rounds: int = 0
+    rounds: int | None = None
     restarts: int = 1
     expansion: api.advanced.BeamExpansionMode = api.advanced.BeamExpansionMode.SWEEP
     maximum_children_per_parent: int | None = None

@@ -45,11 +45,7 @@ EXCLUDED_EXAMPLES = {
     'periodic_substitution': 'long qualification',
     'periodic_substitution_p7': 'long qualification',
 }
-EXCLUDED_TESTS = (
-    'tests/cipher_development',
-    'tests/tools/test_cipher_solver_campaign.py',
-    'tests/tools/test_cipher_solver_campaign_rail_interruptors.py',
-)
+EXCLUDED_TESTS: tuple[str, ...] = ()  # Comprehensive validation collects every test under tests/.
 
 
 GPU_TEST_FILES = (
@@ -108,7 +104,6 @@ def build_jobs(run_set: str, root: Path = ROOT) -> list[Job]:
     if not (root / test_target).exists():
         raise ValueError(f'Missing test target: {test_target}')
     pytest_args = ('-m', 'pytest', '-q', '-p', 'no:cacheprovider', test_target)
-    pytest_args += tuple(f'--ignore={p}' for p in EXCLUDED_TESTS)
     jobs = [Job('tests', pytest_args, 'pytest')]
     selected_examples = list(EXAMPLES)
     if INCLUDE_LONG_P7C7_EXAMPLE:

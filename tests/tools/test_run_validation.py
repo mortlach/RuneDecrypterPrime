@@ -34,7 +34,8 @@ def test_all_catalogue_has_each_example_and_workbook_once_without_campaigns():
     assert not any(runner.P7C7_EXAMPLE in m for m in modules)
     assert not any('cipher_development' in m or 'campaign' in m for m in modules)
     assert 'tests' in jobs[0].args
-    assert all(f'--ignore={p}' in jobs[0].args for p in runner.EXCLUDED_TESTS)
+    assert runner.EXCLUDED_TESTS == ()
+    assert not any(arg.startswith('--ignore=') for arg in jobs[0].args)
     assert runner.build_jobs('smoke')[0].args[5] == 'tests/tools/test_run_validation.py'
     p7c7 = runner.build_jobs('p7c7')
     assert len(p7c7) == 1

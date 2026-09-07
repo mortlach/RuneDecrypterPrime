@@ -6,7 +6,8 @@ No runner time limits. User launch only.
 
 46 jobs with `INCLUDE_LONG_P7C7_EXAMPLE = False`: one pytest selection plus 45 standalone programs.
 
-Pytest determines parameterized test counts and skips at runtime; file counts are not individual test counts.
+Pytest collects every test under `tests/`. Parameterized test counts and skips
+are determined at runtime; file counts are not individual test counts.
 
 ## Getting started
 
@@ -407,9 +408,6 @@ Pytest determines parameterized test counts and skips at runtime; file counts ar
 
 ## Excluded
 
-- `tests/cipher_development`
-- `tests/tools/test_cipher_solver_campaign.py`
-- `tests/tools/test_cipher_solver_campaign_rail_interruptors.py`
 - `tutorials/v1/examples/periodic_substitution.py`: long qualification
 - `tutorials/v1/examples/periodic_substitution_p7.py`: long qualification
 - `tutorials/v1/examples/periodic_columnar_p7_column_then_substitution.py`: long prepared-start example; toggle `INCLUDE_LONG_P7C7_EXAMPLE` to include it

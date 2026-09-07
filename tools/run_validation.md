@@ -17,7 +17,7 @@ write and print its plan without launching any subprocess jobs.
 
 | Selection | Contents |
 | --- | --- |
-| Tests | Pytest under `tests/`, including full-asset tests, excluding the development/campaign paths listed below. |
+| Tests | Every pytest test under `tests/`, including full-asset, campaign-tooling, and cipher-development tests. Test collection does not launch campaign entry points. |
 | Getting started | All ten numbered files under `tutorials/v1/getting_started/`, followed by the three `solving/getting_started/` examples. |
 | Examples | The 23 ordinary admitted examples in `EXAMPLES`, including robust recipes and full-asset crib examples. Set `INCLUDE_LONG_P7C7_EXAMPLE = True` near the top of the runner to add the single-start P7/C7 example. |
 | Solving | All nine numbered `solving/solved_lp/` workbooks, individually. |
@@ -37,10 +37,9 @@ The runner never selects `tools/robustness/` campaigns, `cipher_development/`,
 `EXCLUDED_EXAMPLES`. The single-start P7/C7 warm-start example is excluded from
 `all` by default; toggle `INCLUDE_LONG_P7C7_EXAMPLE` near the top of the runner
 to include it. The dedicated `p7c7` run set remains available.
-Pytest excludes `tests/cipher_development/` and the two
-`tests/tools/test_cipher_solver_campaign*.py` files listed in `EXCLUDED_TESTS`.
-Ordinary contract tests that inspect qualification definitions remain included;
-they do not launch qualification campaigns. Full assets must already be installed.
+Pytest collects every test under `tests/`, including tests of campaign and
+cipher-development code. These tests do not add campaign or development entry
+points to the standalone program selection. Full assets must already be installed.
 Optional Torch/CUDA skips remain visible in pytest's JUnit report and summary counts.
 
 To add an ordinary example, add its stem to `EXAMPLES`. To exclude a new
