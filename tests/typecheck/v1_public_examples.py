@@ -12,7 +12,7 @@ def canonical_public_examples() -> None:
     key_space = api.KeySpec.repeating(length=3)
     solver = api.SolverSpec.beam_search(width=8, rounds=2, seed=7)
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=(0, 1, 2, 3)),
+        problem_input=api.RuneInput(value=(0, 1, 2, 3)),
         cipher=cipher,
         key_space=key_space,
         solver=solver,

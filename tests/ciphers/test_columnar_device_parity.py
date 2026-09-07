@@ -17,7 +17,7 @@ def test_columnar_solver_device_parity(device_matrix):
     baseline = None
     for dev in device_matrix:
         device = api.ComputeDevice(dev)
-        sol = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=tuple(int(value) for value in ct_idx), word_length_information=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=api.ScoringConfig(compute_dtype=api.advanced.FloatDType.FLOAT64), initial_keys=(tuple(int(value) for value in perm),), telemetry_enabled=True, text_direction=direction, compute_device=device))
+        sol = api.run(api.RunSpec(problem_input=api.RuneInput(value=tuple(int(value) for value in ct_idx), word_length_information=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=api.ScoringConfig(compute_dtype=api.advanced.FloatDType.FLOAT64), initial_keys=(tuple(int(value) for value in perm),), telemetry_enabled=True, text_direction=direction, compute_device=device))
         arr_plain = np.asarray(sol.plaintext_indices, dtype=np.uint8)
         if baseline is None:
             baseline = (

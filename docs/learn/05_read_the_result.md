@@ -28,7 +28,7 @@ These answer five useful questions:
 
 `plaintext_indices`, `plaintext_runes` and `plaintext_rune_latin` are equivalent
 representations of the candidate. RuneLatin keeps rune boundaries visible with
-`|`; it is not an English translation.
+`·`; it is not an English translation.
 
 The score is a ranking value, not a declaration that the plaintext is correct.
 

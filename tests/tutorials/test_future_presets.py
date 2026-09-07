@@ -23,6 +23,6 @@ def test_columnar_preset_recovers_text_with_custom_map():
     columnar = api.CipherSpec.columnar(columns=len(perm), alphabet_size=29)
     ct_idx = api.encrypt(tuple(int(value) for value in pt_idx), cipher=columnar, key=tuple(int(value) for value in perm))
     solver = api.SolverSpec.beam_search(width=6, seed=707, rounds=None)
-    sol = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli), cipher=api.CipherSpec.columnar(columns=len(perm), alphabet_size=29), key_space=api.KeySpec.permutation(length=len(perm)), solver=solver, scoring=api.ScoringConfig(), initial_keys=(tuple(int(value) for value in perm),), telemetry_enabled=False, text_direction=api.TextDirection.LTR))
+    sol = api.run(api.RunSpec(problem_input=api.RuneInput(value=ct_idx, word_length_information=wli), cipher=api.CipherSpec.columnar(columns=len(perm), alphabet_size=29), key_space=api.KeySpec.permutation(length=len(perm)), solver=solver, scoring=api.ScoringConfig(), initial_keys=(tuple(int(value) for value in perm),), telemetry_enabled=False, text_direction=api.TextDirection.LTR))
     match = plaintext_match_rate(sol.plaintext_indices, pt_idx)
     assert match >= 0.95

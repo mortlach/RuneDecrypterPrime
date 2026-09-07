@@ -69,8 +69,8 @@ def _run_smoke(
     )
     result = api.run(
         api.RunSpec(
-            problem_input=api.RuneIndexInput(
-                indices=ciphertext, word_length_information=word_lengths
+            problem_input=api.RuneInput(
+                value=ciphertext, word_length_information=word_lengths
             ),
             cipher=cipher,
             key_space=key_space,

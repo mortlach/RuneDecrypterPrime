@@ -84,9 +84,9 @@ copied into this repository or made another documentation authority tree.
 ## Public API snapshot
 
 [`public_api_allowlist.md`](public_api_allowlist.md) contains the current 142-path
-contract, including the owner-approved `api.liber_primus.source` addition. The
-root namespace still has 32 exports. The accepted historical 141-path baseline
-remains recorded in the closure evidence above.
+contract, including `RuneInput`, `RuneInputFormat`, and
+`api.liber_primus.source`. The root namespace still has 32 exports. The accepted
+historical 141-path baseline remains recorded in the closure evidence above.
 
 The current canonical CRLF SHA-256 is
-`a7bb2d1d23eeb30fde2c47177a37ced1a0630dae78c89b1777e9c0c24e87b33c`.
+`942a4cc533ed75fda238b97f5e74934781f3c0f30a74e25f62da7df5c8beaada`.

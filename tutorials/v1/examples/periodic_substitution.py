@@ -256,7 +256,7 @@ def main() -> None:
         )
         result = api.run(
             api.RunSpec(
-                problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli),
+                problem_input=api.RuneInput(value=ct_idx, word_length_information=wli),
                 cipher=cipher_spec,
                 key_space=key_spec,
                 solver=solver,
@@ -288,7 +288,7 @@ def main() -> None:
             )
             result = api.run(
                 api.RunSpec(
-                    problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli),
+                    problem_input=api.RuneInput(value=ct_idx, word_length_information=wli),
                     cipher=cipher_spec,
                     key_space=key_spec,
                     solver=solver,
@@ -303,8 +303,8 @@ def main() -> None:
         print("Recovered preview:", _preview(str(recovered)))
         print(f"Match ratio: {ratio:.3f}")
         display_spec = api.RunSpec(
-            problem_input=api.RuneIndexInput(
-                indices=ct_idx_list,
+            problem_input=api.RuneInput(
+                value=ct_idx_list,
                 word_length_information=wli,
             ),
             cipher=cipher_spec,

@@ -13,7 +13,7 @@ The full parameter tables are under
 | `initial_keys` | `None` |
 | `logging` | `None` |
 | `word_length_policy` | `WordLengthPolicy.INFER` |
-| `text_direction` | `TextDirection.RTL` |
+| `text_direction` | `TextDirection.LTR` |
 | `compute_device` | `ComputeDevice.CPU` |
 | `telemetry_enabled` | `True` |
 | `text_permutation` | `None` |

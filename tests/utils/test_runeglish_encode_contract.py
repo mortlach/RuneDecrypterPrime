@@ -47,10 +47,10 @@ def test_delimited_rune_latin_preserves_rune_and_word_boundaries():
         "THE LOSS OF", direction="ltr"
     )
     assert Runeglish.to_delimited_rune_latin(rtl_indices, rtl_wli) == (
-        "T|H|E L|O|S|S O|F"
+        "T·H·E L·O·S·S O·F"
     )
     assert Runeglish.to_delimited_rune_latin(ltr_indices, ltr_wli) == (
-        "TH|E L|O|S|S O|F"
+        "TH·E L·O·S·S O·F"
     )
 
 

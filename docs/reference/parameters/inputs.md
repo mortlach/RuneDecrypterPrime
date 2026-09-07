@@ -1,33 +1,35 @@
 # Problem input parameters
 
-## RawTextInput
+## RuneInput
 
 ```python
-api.RawTextInput(text=...)
-```
-
-| Parameter | Type | Default | Constraint |
-| --- | --- | --- | --- |
-| `text` | `str` | **required** | Non-empty string. |
-
-The current normalisation route accepts rune text and Latin text. Spaces are
-used when deriving WLI.
-
-## RuneIndexInput
-
-```python
-api.RuneIndexInput(
-    indices=...,
-    word_length_information=...,
+api.RuneInput(
+    value,
+    format=None,
+    word_length_information=None,
 )
 ```
 
 | Parameter | Type | Default | Constraint |
 | --- | --- | --- | --- |
-| `indices` | ordered sequence of `int` | **required** | Non-empty. Every value must be in `0..28`. |
-| `word_length_information` | WLI sequence or `None` | `None` | One `(position, word_length)` pair per rune when supplied. |
+| `value` | `str` or ordered sequence of `int` | **required** | Non-empty text, or non-empty indices in `0..28`. |
+| `format` | `RuneInputFormat | None` | `None` | Inferred when omitted. Must agree with the value type when supplied. |
+| `word_length_information` | WLI sequence or `None` | `None` | Accepted only for index input; one pair per index. |
 
-For every WLI pair, `position >= 0`, `word_length > 0`, and
+Inference rules, in order:
+
+1. An integer sequence is `INDICES`.
+2. Text containing rune glyphs is `RUNES`.
+3. Text containing `·` or `|` is `RUNE_LATIN`.
+4. Other Latin text is `ENGLISH`.
+
+`RuneInputFormat` values are `INDICES`, `RUNES`, `RUNE_LATIN`, and `ENGLISH`.
+RuneLatin accepts `|` on input but renders with `·`. Spaces delimit words in
+all text formats. Explicit WLI cannot be combined with text input.
+
+English conversion uses `RunSpec.text_direction`; its default is `LTR`.
+
+For each WLI pair, `position >= 0`, `word_length > 0`, and
 `position < word_length`.
 
 ## SourceReferenceInput
@@ -56,10 +58,8 @@ liber_primus.locator
 liber_primus.partition
 ```
 
-Each LP source kind has a stricter reference shape enforced by the resolver.
 Use `api.liber_primus.source(label)` for a named run input. The `load_source`
-helpers are useful when direct numerical inspection is needed.
+helpers return the numerical data when direct inspection is needed.
 
-For practical use, see [Ciphertext input](../../guides/ciphertext_input.md).
-
-See also [Parameter reference](README.md) and [Defaults at a glance](../defaults.md).
+See [Ciphertext input](../../guides/ciphertext_input.md),
+[Parameter reference](README.md), and [Defaults at a glance](../defaults.md).

@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from enum import StrEnum
 from numbers import Integral
 from pathlib import Path
 from types import MappingProxyType
@@ -22,6 +23,7 @@ from rdp.core.types import (
     WordLengthPolicy,
     normalize_initial_keys,
 )
+from rdp.data.runeglish import Runeglish
 
 
 LP_SOURCE_KINDS = frozenset(
@@ -277,74 +279,104 @@ def _validate_source_ref(source_kind: str, ref: Mapping[str, Any]) -> None:
         _validate_lp_partition_ref(ref)
 
 
-@dataclass(frozen=True, slots=True)
-class RawTextInput:
-    """Raw ciphertext text supplied at the API boundary.
+class RuneInputFormat(StrEnum):
+    """The representation supplied to :class:`RuneInput`."""
 
-    The text is validated as a non-empty string and is normalised later by the
-    RunSpec routing layer. File paths and other objects are rejected here so the
-    input source remains explicit.
+    INDICES = "indices"
+    RUNES = "runes"
+    RUNE_LATIN = "rune_latin"
+    ENGLISH = "english"
+
+
+def _infer_rune_input_format(value: str | Sequence[int]) -> RuneInputFormat:
+    if not isinstance(value, str):
+        return RuneInputFormat.INDICES
+
+    rune_chars = frozenset(Runeglish.rune2pos)
+    contains_rune = any(char in rune_chars for char in value)
+    if contains_rune:
+        unsupported = sorted(
+            {char for char in value if not char.isspace() and char not in rune_chars}
+        )
+        if unsupported:
+            raise ValueError("RuneInput cannot mix rune glyphs with Latin text")
+        return RuneInputFormat.RUNES
+    if "·" in value or "|" in value:
+        return RuneInputFormat.RUNE_LATIN
+    return RuneInputFormat.ENGLISH
+
+
+@dataclass(frozen=True, slots=True)
+class RuneInput:
+    """Ciphertext supplied as indices, rune glyphs, RuneLatin, or English.
+
+    The format is inferred unless ``format`` is supplied. Text inputs derive
+    word boundaries from spaces. Index inputs may provide explicit word length
+    information. English is encoded when the containing :class:`RunSpec` is
+    materialised, using that run's text direction.
     """
 
-    text: str
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "text", _require_text(self.text, "text"))
-
-
-@dataclass(frozen=True, slots=True)
-class RuneIndexInput:
-    """Rune indices for a run input or plaintext candidate, optionally with WLI.
-
-    `indices` is copied to an immutable tuple of rune indices in the inclusive
-    range 0..28. `word_length_information`, when supplied, must be the same
-    length as `indices` and contain ordered `(position, word_length)` pairs.
-
-    `ct_idx` and `wli` are short read-only properties. The constructor uses the
-    full names `indices` and `word_length_information`.
-    """
-
-    indices: Sequence[int]
+    value: str | Sequence[int]
+    format: RuneInputFormat | None = None
     word_length_information: WordLengthInformation | None = None
 
     def __post_init__(self) -> None:
-        ct_idx_input = _require_ordered_sequence(self.indices, "indices")
-        ct_idx = tuple(
-            _require_index(item, f"indices[{index}]")
-            for index, item in enumerate(ct_idx_input)
-        )
-        if not ct_idx:
-            raise ValueError("indices must not be empty")
+        if isinstance(self.value, Path):
+            raise TypeError("value must be text or an ordered sequence of rune indices")
 
-        wli: tuple[tuple[int, int], ...] | None
-        if self.word_length_information is None:
-            wli = None
-        else:
-            wli_input = _require_ordered_sequence(
-                self.word_length_information,
-                "word_length_information",
+        resolved_format = self.format
+        if resolved_format is not None and not isinstance(resolved_format, RuneInputFormat):
+            raise TypeError("format must be RuneInputFormat or None")
+        if resolved_format is None:
+            resolved_format = _infer_rune_input_format(self.value)
+
+        if resolved_format is RuneInputFormat.INDICES:
+            values = _require_ordered_sequence(self.value, "value")
+            indices = tuple(
+                _require_index(item, f"value[{index}]")
+                for index, item in enumerate(values)
             )
-            wli_items: list[tuple[int, int]] = []
-            for index, pair in enumerate(wli_input):
-                wli_items.append(
-                    _require_wli_pair(pair, f"word_length_information[{index}]")
-                )
-            wli = tuple(wli_items)
-            if len(wli) != len(ct_idx):
-                raise ValueError(
-                    "word_length_information length must match indices length"
-                )
+            if not indices:
+                raise ValueError("value must not be empty")
+            wli = _normalise_rune_input_wli(self.word_length_information, len(indices))
+            object.__setattr__(self, "value", indices)
+            object.__setattr__(self, "word_length_information", wli)
+        else:
+            text = _require_text(self.value, "value")
+            if self.word_length_information is not None:
+                raise ValueError("word_length_information is only accepted with index input")
+            if resolved_format is RuneInputFormat.RUNES:
+                rune_chars = frozenset(Runeglish.rune2pos)
+                if any(not char.isspace() and char not in rune_chars for char in text):
+                    raise ValueError("rune input may contain only rune glyphs and spaces")
+                if not any(char in rune_chars for char in text):
+                    raise ValueError("rune input must contain at least one rune glyph")
+            object.__setattr__(self, "value", text)
 
-        object.__setattr__(self, "indices", ct_idx)
-        object.__setattr__(self, "word_length_information", wli)
+        object.__setattr__(self, "format", resolved_format)
 
     @property
-    def ct_idx(self) -> tuple[int, ...]:
-        return tuple(self.indices)
+    def indices(self) -> tuple[int, ...]:
+        """Return supplied indices; text inputs are materialised through RunSpec."""
+        if self.format is not RuneInputFormat.INDICES:
+            raise AttributeError("indices are available only for RuneInputFormat.INDICES")
+        return tuple(self.value)  # type: ignore[arg-type]
 
-    @property
-    def wli(self) -> WordLengthInformation | None:
-        return self.word_length_information
+
+def _normalise_rune_input_wli(
+    value: WordLengthInformation | None,
+    index_count: int,
+) -> tuple[tuple[int, int], ...] | None:
+    if value is None:
+        return None
+    wli_input = _require_ordered_sequence(value, "word_length_information")
+    wli = tuple(
+        _require_wli_pair(pair, f"word_length_information[{index}]")
+        for index, pair in enumerate(wli_input)
+    )
+    if len(wli) != index_count:
+        raise ValueError("word_length_information length must match index input length")
+    return wli
 
 
 @dataclass(frozen=True, slots=True)
@@ -384,7 +416,7 @@ class SourceReferenceInput:
         return self.reference
 
 
-ProblemInput = RawTextInput | RuneIndexInput | SourceReferenceInput
+ProblemInput = RuneInput | SourceReferenceInput
 
 @dataclass(frozen=True, slots=True)
 class RunSpec:
@@ -404,15 +436,15 @@ class RunSpec:
     initial_keys: InitialKeys | None = None
     logging: LoggingConfig | None = None
     word_length_policy: WordLengthPolicy = WordLengthPolicy.INFER
-    text_direction: TextDirection = TextDirection.RTL
+    text_direction: TextDirection = TextDirection.LTR
     compute_device: ComputeDevice = ComputeDevice.CPU
     telemetry_enabled: bool = True
     text_permutation: IndexPermutation | None = None
     interruptors: InterruptorConfig | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.problem_input, (RawTextInput, RuneIndexInput, SourceReferenceInput)):
-            raise TypeError("problem_input must be RawTextInput, RuneIndexInput, or SourceReferenceInput")
+        if not isinstance(self.problem_input, (RuneInput, SourceReferenceInput)):
+            raise TypeError("problem_input must be RuneInput or SourceReferenceInput")
         if not isinstance(self.cipher, CipherSpec):
             raise TypeError("cipher must be a CipherSpec")
         if not isinstance(self.key_space, KeySpec):
@@ -439,17 +471,21 @@ class RunSpec:
             permutation = tuple(_require_int(value, "text_permutation") for value in self.text_permutation)
             if sorted(permutation) != list(range(len(permutation))):
                 raise ValueError("text_permutation must be a permutation of 0..n-1")
-            if isinstance(self.problem_input, RuneIndexInput) and len(permutation) != len(self.problem_input.indices):
-                raise ValueError("text_permutation length must match RuneIndexInput.indices")
+            if (
+                isinstance(self.problem_input, RuneInput)
+                and self.problem_input.format is RuneInputFormat.INDICES
+                and len(permutation) != len(self.problem_input.indices)
+            ):
+                raise ValueError("text_permutation length must match RuneInput indices")
             object.__setattr__(self, "text_permutation", permutation)
         if self.interruptors is not None and not isinstance(self.interruptors, InterruptorConfig):
             raise TypeError("interruptors must be InterruptorConfig or None")
 
 
 __all__ = [
-    "RuneIndexInput",
     "ProblemInput",
-    "RawTextInput",
+    "RuneInput",
+    "RuneInputFormat",
     "RunSpec",
     "SourceReferenceInput",
 ]

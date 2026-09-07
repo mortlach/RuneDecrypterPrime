@@ -31,7 +31,7 @@ def _result() -> api.RunResult:
         plaintext_indices=tuple(_solution().plaintext_idx),
         word_length_information=None,
         plaintext_runes="ᚢᚦ",
-        plaintext_rune_latin="U|TH",
+        plaintext_rune_latin="U·TH",
         key=tuple(_solution().key),
         score=float(_solution().score),
         status=report.status,
@@ -55,7 +55,7 @@ def _result() -> api.RunResult:
 
 def _spec() -> api.RunSpec:
     return api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=[3, 4]),
+        problem_input=api.RuneInput(value=[3, 4]),
         cipher=api.CipherSpec.periodic_substitution(period=2),
         key_space=api.KeySpec.periodic_substitution(period=2),
         solver=api.SolverSpec.beam_search(width=2, rounds=None, seed=42),

@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from rdp.api import CipherSpec, KeySpec, RuneIndexInput, RunResult, RunSpec, SolverSpec
+from rdp.api import CipherSpec, KeySpec, RuneInput, RunResult, RunSpec, SolverSpec
 import rdp.ciphers.cipher_runtime_registry as cipher_runtime_registry
 from rdp.core.config.interruptor import InterruptorConfig
 from rdp.core.config.cipher import (
@@ -133,7 +133,10 @@ def test_scoring_and_logging_are_exact_immutable_configs() -> None:
 
 def test_runspec_owns_the_complete_request() -> None:
     request = RunSpec(
-        problem_input=RuneIndexInput((1, 2, 3), ((0, 1), (0, 1), (0, 1))),
+        problem_input=RuneInput(
+            (1, 2, 3),
+            word_length_information=((0, 1), (0, 1), (0, 1)),
+        ),
         cipher=CipherSpec.vigenere(),
         key_space=KeySpec.repeating(length=3),
         solver=SolverSpec.beam_search(width=4, rounds=2, seed=11),
@@ -337,7 +340,7 @@ def test_both_run_forms_use_one_execution_path_and_always_return_run_result(monk
 
     monkeypatch.setattr(run_module, "execute_run", fake_execute_run)
     request = RunSpec(
-        problem_input=RuneIndexInput((1, 2, 3)),
+        problem_input=RuneInput((1, 2, 3)),
         cipher=CipherSpec.vigenere(),
         key_space=KeySpec.repeating(length=3),
         solver=SolverSpec.beam_search(width=4, rounds=2, seed=11),
@@ -362,7 +365,7 @@ def test_both_run_forms_use_one_execution_path_and_always_return_run_result(monk
     assert from_request.plaintext_indices == (3, 2, 1)
     assert from_request.word_length_information is None
     assert from_request.plaintext_runes
-    assert from_request.plaintext_rune_latin == "O|TH|U"
+    assert from_request.plaintext_rune_latin == "O·TH·U"
     assert not hasattr(from_request, "plaintext")
     assert not hasattr(from_request, "plaintext_text")
     assert from_request.solver_report.best_key == from_request.key
@@ -395,7 +398,7 @@ def test_run_writes_only_requested_typed_artifacts(monkeypatch, tmp_path: Path) 
     monkeypatch.setattr(run_module, "execute_run", fake_execute_run)
     run_dir = tmp_path / "typed-run"
     result = run_module.run(
-        problem_input=RuneIndexInput((1, 2, 3)),
+        problem_input=RuneInput((1, 2, 3)),
         cipher=CipherSpec.vigenere(),
         key_space=KeySpec.repeating(length=3),
         solver=SolverSpec.beam_search(width=4, rounds=2, seed=11),

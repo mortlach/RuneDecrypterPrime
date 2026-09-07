@@ -121,7 +121,7 @@ def main() -> None:
     cipher_spec = api.CipherSpec.vigenere(alphabet_size=29)
     key_spec = api.KeySpec.repeating(length=len(KEY_NUMS))
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=ct_idx_list, word_length_information=wli),
+        problem_input=api.RuneInput(value=ct_idx_list, word_length_information=wli),
         cipher=cipher_spec,
         key_space=key_spec,
         solver=solver,

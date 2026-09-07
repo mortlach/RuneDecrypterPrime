@@ -15,7 +15,7 @@ def _solution() -> Solution:
 
 def _spec(*, logging: api.LoggingConfig | None = None) -> api.RunSpec:
     return api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=(0, 1)),
+        problem_input=api.RuneInput(value=(0, 1)),
         cipher=api.CipherSpec.vigenere(),
         key_space=api.KeySpec.repeating(length=1),
         solver=api.SolverSpec.beam_search(width=1, rounds=None),

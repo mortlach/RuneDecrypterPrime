@@ -21,8 +21,8 @@ internal.
 | `rdp.api.ScoringConfig` | Public V1 surface | Root configuration type. |
 | `rdp.api.LoggingConfig` | Public V1 surface | Root configuration type. |
 | `rdp.api.InterruptorConfig` | Public V1 surface | Root configuration type. |
-| `rdp.api.RawTextInput` | Public V1 surface | Root input type. |
-| `rdp.api.RuneIndexInput` | Public V1 surface | Root input type. |
+| `rdp.api.RuneInput` | Public V1 surface | Root input type. |
+| `rdp.api.RuneInputFormat` | Public V1 surface | Root input-format enum. |
 | `rdp.api.SourceReferenceInput` | Public V1 surface | Root input type. |
 | `rdp.api.ProblemInput` | Public V1 surface | Root type alias. |
 | `rdp.api.ConcreteKey` | Public V1 surface | Root type alias. |

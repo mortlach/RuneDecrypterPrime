@@ -100,7 +100,7 @@ def main() -> int:
     key_spec = api.KeySpec.repeating(length=workbook.KEY_LENGTH)
     started = time.perf_counter()
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli),
+        problem_input=api.RuneInput(value=ct_idx, word_length_information=wli),
         cipher=cipher_spec,
         key_space=key_spec,
         solver=workbook.SOLVER,

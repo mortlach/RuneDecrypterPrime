@@ -56,7 +56,7 @@ def test_beam_zero_rounds_is_not_an_automatic_budget_alias():
 @pytest.mark.parametrize('length', [3, 4])
 def test_ordinary_beam_repeats_across_fixed_vector_key_lengths(length):
     request = api.RunSpec(
-        problem_input=api.RawTextInput('ᚠᚢᚦᚩᚱᚳᚠᚢᚦᚩᚱᚳ'),
+        problem_input=api.RuneInput('ᚠᚢᚦᚩᚱᚳᚠᚢᚦᚩᚱᚳ'),
         cipher=api.CipherSpec.vigenere(),
         key_space=api.KeySpec.repeating(length=length),
         solver=api.SolverSpec.beam_search(),

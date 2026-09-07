@@ -14,14 +14,14 @@ A three-rune word is represented as:
 
 ## Where WLI comes from
 
-For `RawTextInput`, spaces can be used to derive WLI when the text is prepared
+For `RuneInput`, spaces can be used to derive WLI when the text is prepared
 for the solver.
 
 For prepared rune data, WLI can be supplied directly:
 
 ```python
-problem_input = api.RuneIndexInput(
-    indices=ct_idx,
+problem_input = api.RuneInput(
+    value=ct_idx,
     word_length_information=wli,
 )
 ```

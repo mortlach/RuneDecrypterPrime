@@ -114,8 +114,8 @@ def build_run_spec() -> tuple[api.RunSpec, api.RuneIndices]:
         stop_after_stall_slip_limit=False,
     )
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(
-            indices=ciphertext,
+        problem_input=api.RuneInput(
+            value=ciphertext,
             word_length_information=word_lengths,
         ),
         cipher=cipher,

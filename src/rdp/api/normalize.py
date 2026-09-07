@@ -1,5 +1,6 @@
 """Single-source normalisation helpers for the public API boundary."""
 from __future__ import annotations
+import re
 from typing import List, Tuple, Sequence, Union, Optional, TypeVar, Dict, Any
 import numpy as np
 
@@ -7,6 +8,7 @@ from rdp.api._resolve import resolve_optimizer_aliases
 from rdp.data.runeglish import Runeglish
 from rdp.core.types import (
     Direction,
+    TextDirection,
     Device,
     SeMode,
     Channel,
@@ -346,6 +348,82 @@ def normalize_ciphertext(
         wli_list = make_single_word_wli(int(ct.size))
     _assert_core_ready(ct, wli_list)
     return ct, wli_list
+
+
+def normalize_rune_input(
+    value: str | Sequence[int],
+    *,
+    input_format: str,
+    direction: Direction | TextDirection | str,
+    wli_data: Optional[Sequence[Sequence[int]]] = None,
+) -> Tuple[np.ndarray, Optional[List[List[int]]]]:
+    """Materialise a public RuneInput into canonical indices and WLI."""
+    if input_format == "indices":
+        ciphertext = _coerce_index_array(value)
+        if wli_data is None:
+            wli = None
+        else:
+            wli = [[int(pair[0]), int(pair[1])] for pair in wli_data]
+        _assert_core_ready(ciphertext, wli)
+        return ciphertext, wli
+    if not isinstance(value, str):
+        raise TypeError(f"{input_format} input must be a string")
+    if wli_data is not None:
+        raise ValueError("word_length_information is only accepted with index input")
+
+    if input_format == "english":
+        indices, wli, _ = Runeglish.encode_english_to_runes(value, direction=direction)
+    elif input_format == "runes":
+        indices, wli = _parse_rune_words(value)
+    elif input_format == "rune_latin":
+        indices, wli = _parse_rune_latin_words(value)
+    else:
+        raise ValueError(f"unsupported RuneInput format: {input_format}")
+
+    if not indices:
+        raise ValueError(f"{input_format} input did not contain any runes")
+    ciphertext = _coerce_index_array(indices)
+    _assert_core_ready(ciphertext, wli)
+    return ciphertext, wli
+
+
+def _parse_rune_words(text: str) -> tuple[list[int], list[list[int]]]:
+    words = text.split()
+    indices: list[int] = []
+    word_lengths: list[int] = []
+    for word in words:
+        try:
+            word_indices = Runeglish.rune_to_pos(word)
+        except KeyError as exc:
+            raise ValueError(f"unknown rune character: {exc.args[0]}") from None
+        indices.extend(word_indices)
+        word_lengths.append(len(word_indices))
+    return indices, _wli_from_word_lengths(word_lengths)
+
+
+def _parse_rune_latin_words(text: str) -> tuple[list[int], list[list[int]]]:
+    words = text.split()
+    indices: list[int] = []
+    word_lengths: list[int] = []
+    for word in words:
+        tokens = re.split(r"[·|]", word.upper())
+        if any(not token for token in tokens):
+            raise ValueError("RuneLatin delimiters must appear between rune tokens")
+        try:
+            word_indices = [Runeglish.latin2pos[token] for token in tokens]
+        except KeyError as exc:
+            raise ValueError(f"unknown RuneLatin token: {exc.args[0]}") from None
+        indices.extend(word_indices)
+        word_lengths.append(len(word_indices))
+    return indices, _wli_from_word_lengths(word_lengths)
+
+
+def _wli_from_word_lengths(word_lengths: Sequence[int]) -> list[list[int]]:
+    return [
+        [position, word_length]
+        for word_length in word_lengths
+        for position in range(word_length)
+    ]
 
 
 # --------------------------- internal helpers --------------------------- #

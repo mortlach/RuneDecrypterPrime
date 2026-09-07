@@ -30,7 +30,7 @@ For example:
 from rdp import api
 
 request = api.RunSpec(
-    problem_input=api.RuneIndexInput(indices=ciphertext),
+    problem_input=api.RuneInput(value=ciphertext),
     cipher=api.CipherSpec.rail_fence(
         minimum_rails=2,
         maximum_rails=8,
@@ -60,9 +60,10 @@ Each part states one assumption about the problem. In this example the rail
 count is unknown, beam search explores the allowed range, character scoring is
 used without WLI, and the text direction is set explicitly.
 
-The library default text direction is `RTL`. The example chooses `LTR` because
-that is the problem being demonstrated. The longer names remain available as
-aliases when they read better in a particular context.
+The library default text direction is `LTR`, which is also the direction used
+by this example. Set `RTL` explicitly when the input or experiment requires it.
+The longer names remain available as aliases when they read better in a
+particular context.
 
 Before using a new ciphertext, the three useful pieces are:
 

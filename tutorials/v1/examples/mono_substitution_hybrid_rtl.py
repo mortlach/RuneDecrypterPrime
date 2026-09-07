@@ -152,7 +152,7 @@ def main() -> None:
     cipher_spec = api.CipherSpec.substitution(alphabet_size=29)
     key_spec = api.KeySpec.permutation(length=29)
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli),
+        problem_input=api.RuneInput(value=ct_idx, word_length_information=wli),
         cipher=cipher_spec,
         key_space=key_spec,
         solver=solver,

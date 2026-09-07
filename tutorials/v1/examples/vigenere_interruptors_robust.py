@@ -93,8 +93,8 @@ def main() -> None:
     print(f"deterministic solver seed: {SOLVER_SEED}")
     result = api.run(
         api.RunSpec(
-            problem_input=api.RuneIndexInput(
-                indices=_ints(ciphertext), word_length_information=wli
+            problem_input=api.RuneInput(
+                value=_ints(ciphertext), word_length_information=wli
             ),
             cipher=cipher_spec,
             key_space=api.KeySpec.repeating(length=len(TRUE_KEY)),

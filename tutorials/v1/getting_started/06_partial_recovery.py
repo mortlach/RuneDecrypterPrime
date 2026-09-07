@@ -36,7 +36,7 @@ def match_ratio(candidate: tuple[int, ...]) -> float:
 def main() -> None:
     # The deliberately small beam gives a stable partial result.
     request = api.RunSpec(
-        problem_input=api.RawTextInput(text=CIPHERTEXT_RUNES),
+        problem_input=api.RuneInput(value=CIPHERTEXT_RUNES),
         cipher=api.CipherSpec.vigenere(),
         key_space=api.KeySpec.repeating(length=8),
         solver=api.SolverSpec.beam_search(width=4, rounds=None, seed=909),

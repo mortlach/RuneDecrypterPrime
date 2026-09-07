@@ -39,4 +39,4 @@ def test_learning_track_has_one_glossary_and_canonical_named_source_route():
     source_page = (LEARN / '04_use_liber_primus.md').read_text(encoding='utf-8')
     assert 'api.liber_primus.source(' in source_page
     assert 'payload_from_label' not in source_page
-    assert 'RuneIndexInput' not in source_page
+    assert 'RuneInput' not in source_page

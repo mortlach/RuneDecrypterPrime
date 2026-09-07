@@ -10,7 +10,7 @@ def test_telemetry_off_prevents_dump(tmp_path):
     )
     sol = api.run(
         api.RunSpec(
-            problem_input=api.RawTextInput(text=ct),
+            problem_input=api.RuneInput(value=ct),
             cipher=api.CipherSpec.vigenere(alphabet_size=29),
             key_space=api.KeySpec.repeating(length=3),
             solver=solver,

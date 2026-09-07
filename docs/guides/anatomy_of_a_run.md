@@ -15,11 +15,11 @@ Everything else is optional or has a library default.
 
 ## Problem input
 
-The input may be raw text, prepared rune indices, or a registered source:
+The input may be rune indices, rune text, RuneLatin, English, or a registered
+source:
 
 ```python
-api.RawTextInput(...)
-api.RuneIndexInput(...)
+api.RuneInput(...)
 api.SourceReferenceInput(...)
 ```
 
@@ -112,7 +112,7 @@ The current defaults are:
 | `initial_keys` | `None` |
 | `logging` | `None` |
 | `word_length_policy` | `WordLengthPolicy.INFER` |
-| `text_direction` | `TextDirection.RTL` |
+| `text_direction` | `TextDirection.LTR` |
 | `compute_device` | `ComputeDevice.CPU` |
 | `telemetry_enabled` | `True` |
 | `text_permutation` | `None` |

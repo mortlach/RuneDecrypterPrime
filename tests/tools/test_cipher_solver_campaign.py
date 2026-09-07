@@ -285,8 +285,8 @@ def test_specialist_adapter_supplies_ciphertext_and_wli(monkeypatch: pytest.Monk
     monkeypatch.setattr(campaign.api, 'run', fake_run)
     campaign.execute_case(case)
     spec = captured["spec"]
-    assert spec.problem_input == api.RuneIndexInput(
-        indices=case.ciphertext, word_length_information=case.wli
+    assert spec.problem_input == api.RuneInput(
+        value=case.ciphertext, word_length_information=case.wli
     )
 
 

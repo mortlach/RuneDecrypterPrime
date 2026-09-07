@@ -36,7 +36,7 @@ def test_secondary_cipher_parser_is_only_for_serialized_configuration() -> None:
 def test_runspec_rejects_cipher_key_dimension_conflicts() -> None:
     with pytest.raises(api.advanced.CipherKeyMismatchError):
         api.RunSpec(
-            problem_input=api.RuneIndexInput(indices=(0, 1, 2)),
+            problem_input=api.RuneInput(value=(0, 1, 2)),
             cipher=api.CipherSpec.periodic_substitution(period=3),
             key_space=api.KeySpec.repeating(length=2),
             solver=api.SolverSpec.beam_search(width=2, rounds=1),

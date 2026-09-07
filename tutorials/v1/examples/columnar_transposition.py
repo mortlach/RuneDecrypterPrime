@@ -101,7 +101,7 @@ def main() -> None:
         target_score=stop.stop_score,
     )
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=indices, word_length_information=None),
+        problem_input=api.RuneInput(value=indices, word_length_information=None),
         cipher=cipher,
         key_space=key_space,
         solver=solver,

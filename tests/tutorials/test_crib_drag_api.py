@@ -62,8 +62,8 @@ def test_runapi_accepts_crib_seeded_keys_for_vigenere():
     solver = api.SolverSpec.beam_search(width=1, seed=2025, target_score=0.5, rounds=1)
     sol = api.run(
         api.RunSpec(
-            problem_input=api.RuneIndexInput(
-                indices=tuple(int(value) for value in ct_idx), word_length_information=wli
+            problem_input=api.RuneInput(
+                value=tuple(int(value) for value in ct_idx), word_length_information=wli
             ),
             cipher=api.CipherSpec.vigenere(alphabet_size=29),
             key_space=api.KeySpec.repeating(length=true_key.size),

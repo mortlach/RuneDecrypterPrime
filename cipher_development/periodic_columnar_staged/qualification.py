@@ -691,8 +691,8 @@ def run_qualification(*, mode: str, seed: int = 12_345, output_root: Path) -> Pa
         try:
             result = api.run(
                 api.RunSpec(
-                    problem_input=api.RuneIndexInput(
-                        indices=ciphertext,
+                    problem_input=api.RuneInput(
+                        value=ciphertext,
                         word_length_information=word_lengths,
                     ),
                     cipher=cipher_spec,

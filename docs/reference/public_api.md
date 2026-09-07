@@ -34,8 +34,8 @@ SolverSpec
 ScoringConfig
 LoggingConfig
 InterruptorConfig
-RawTextInput
-RuneIndexInput
+RuneInput
+RuneInputFormat
 SourceReferenceInput
 ProblemInput
 ```

@@ -45,7 +45,7 @@ def _run_result() -> api.RunResult:
         plaintext_indices=tuple(_solution().plaintext_idx),
         word_length_information=None,
         plaintext_runes="ᚱᚫᚦ",
-        plaintext_rune_latin="R|A|TH",
+        plaintext_rune_latin="R·A·TH",
         key=tuple(_solution().key),
         score=float(_solution().score),
         status=_solver_report().status,
@@ -68,8 +68,8 @@ def _run_result() -> api.RunResult:
 
 def _run_spec() -> api.RunSpec:
     return api.RunSpec(
-        problem_input=api.RuneIndexInput(
-            indices=[4, 5, 6], word_length_information=[[0, 3], [1, 3], [2, 3]]
+        problem_input=api.RuneInput(
+            value=[4, 5, 6], word_length_information=[[0, 3], [1, 3], [2, 3]]
         ),
         cipher=api.CipherSpec.periodic_substitution(period=3),
         key_space=api.KeySpec.periodic_substitution(period=3),
@@ -100,7 +100,8 @@ def test_builds_spec_aware_display_summary() -> None:
     )
     data = summary.to_json_dict()
     assert data["schema"] == api.display.SUMMARY_SCHEMA
-    assert data["problem"]["input_kind"] == "normalized"
+    assert data["problem"]["input_kind"] == "rune_input"
+    assert data["problem"]["input_format"] == "indices"
     assert data["problem"]["ciphertext_length"] == 3
     assert data["cipher"]["name"] == "periodic_substitution"
     assert data["cipher"]["parameters"]["period"] == 3
@@ -136,7 +137,7 @@ def test_missing_runspec_is_visible_as_warning() -> None:
     assert summary.problem['scope_note'] == 'Problem display is complete only when RunSpec is supplied.'
 
 def test_text_reference_match_ratio_uses_normalised_plaintext() -> None:
-    result = replace(_run_result(), plaintext_rune_latin="H|E|L|L|O W|O|R|L|D")
+    result = replace(_run_result(), plaintext_rune_latin="H·E·L·L·O W·O·R·L·D")
     summary = api.display.build_summary(result, reference_plaintext="hello there")
     assert summary.result["reference_kind"] == "plaintext_rune_latin"
     assert summary.result["match_ratio"] == pytest.approx(0.5)
@@ -159,7 +160,7 @@ def test_format_and_write_json_summary(tmp_path: Path) -> None:
     summary = api.display.build_summary(_run_result(), spec=_run_spec())
     text = api.display.format_summary(summary)
     assert "RDP standard summary" in text
-    assert "encoding_dir: right_to_left" in text
+    assert "encoding_dir: left_to_right" in text
     assert "stop_category: success" in text
     assert "Plaintext" in text
     out = tmp_path / "artifacts" / "rdp_display_summary.json"
@@ -209,7 +210,7 @@ def test_display_options_validate_types() -> None:
 
 def test_format_summary_prints_explicit_encoding_direction() -> None:
     spec = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=[3, 4]),
+        problem_input=api.RuneInput(value=[3, 4]),
         cipher=api.CipherSpec.periodic_substitution(period=2),
         key_space=api.KeySpec.periodic_substitution(period=2),
         solver=api.SolverSpec.beam_search(width=2, rounds=None, seed=42),
@@ -243,7 +244,7 @@ def test_display_prefers_canonical_run_status_over_legacy_solution_reason() -> N
             plaintext_indices=tuple(solution.plaintext_idx),
             word_length_information=None,
             plaintext_runes=solution.plaintext_rune,
-            plaintext_rune_latin="R|A|TH",
+            plaintext_rune_latin="R·A·TH",
             key=tuple(solution.key),
             score=float(solution.score),
             status=report.status,

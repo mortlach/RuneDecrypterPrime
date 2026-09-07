@@ -1,93 +1,84 @@
 # Ciphertext input
 
-`RunSpec` accepts three public input forms:
+Most runs start with `RuneInput`:
 
 ```python
-api.RawTextInput(...)
-api.RuneIndexInput(...)
-api.SourceReferenceInput(...)
+problem_input = api.RuneInput("THE LOSS OF")
 ```
 
-They cover the three common cases: text, prepared rune data, and a registered
-source.
+It accepts four representations and records the resolved format on
+`problem_input.format`.
 
-## Text input
+| Supplied value | Inferred format |
+| --- | --- |
+| A sequence of integers | `RuneInputFormat.INDICES` |
+| A string containing rune glyphs | `RuneInputFormat.RUNES` |
+| Latin rune tokens separated by `·` or `|` | `RuneInputFormat.RUNE_LATIN` |
+| Other Latin text | `RuneInputFormat.ENGLISH` |
 
-`RawTextInput` accepts a non-empty string:
+Inference is deterministic. If a short value would be ambiguous, state the
+format explicitly:
 
 ```python
-problem_input = api.RawTextInput(
-    text="ᚠᚢᚦ ᚩᚱᚳ",
+problem_input = api.RuneInput(
+    "TH",
+    format=api.RuneInputFormat.RUNE_LATIN,
 )
 ```
 
-Rune strings and ordinary Latin text are accepted by the current normalisation
-route. Spaces are preserved as word boundaries and can be used to derive WLI.
+## Text forms
 
-## Rune-index input
-
-Use `RuneIndexInput` when the ciphertext is already in canonical rune indices:
+Spaces mark word boundaries in rune, RuneLatin, and English input:
 
 ```python
-problem_input = api.RuneIndexInput(
-    indices=(1, 28, 21, 15, 12, 0),
+runes = api.RuneInput("ᚦᛖ ᛚᚩᛋᛋ")
+rune_latin = api.RuneInput("TH·E L·O·S·S")
+english = api.RuneInput("THE LOSS")
+```
+
+`|` is accepted as a keyboard-friendly RuneLatin delimiter. RDP renders the
+canonical form with the middle dot: `TH·E`, not `TH|E`.
+
+English is converted after the input is attached to a `RunSpec`, because its
+rune tokenisation depends on `text_direction`. The default is `LTR`; set `RTL`
+explicitly when that is the intended encoding:
+
+```python
+request = api.RunSpec(
+    problem_input=api.RuneInput("THE LOSS"),
+    # ...cipher, key_space, and solver...
+    text_direction=api.TextDirection.RTL,
 )
 ```
 
-WLI can be supplied with the same input:
+Rune glyphs and Latin characters cannot be mixed in the same input string.
+
+## Rune indices and WLI
+
+Prepared indices can include word-length information:
 
 ```python
-problem_input = api.RuneIndexInput(
-    indices=ct_idx,
+problem_input = api.RuneInput(
+    ct_idx,
     word_length_information=wli,
 )
 ```
 
-`indices` must contain values from `0` to `28`. If
-`word_length_information` is supplied,
-it must contain one WLI pair for each rune.
+Indices must be in `0..28`. WLI must contain one `(position, word_length)` pair
+per index. Text inputs derive WLI from spaces, so explicit WLI is accepted only
+with index input.
 
 ## Liber Primus sources
 
-The `api.liber_primus` namespace provides solver-ready data from the bundled
-transcript and source catalogue:
+Use a registered source when its identity is part of the run:
 
 ```python
 problem_input = api.liber_primus.source("welcome_pilgrim")
 ```
 
-This returns a source reference preserving the canonical label and transcript
-version. The run resolves the ciphertext and WLI. Use `load_source` when you
-want the numeric data and metadata directly.
+This returns a `SourceReferenceInput`. The run resolves the canonical
+ciphertext and WLI while retaining the source label and transcript version.
 
-## Registered source references
-
-`SourceReferenceInput` records the identity of a registered source in the run
-request. The built-in resolver currently supports Liber Primus labels, locators
-and partitions.
-
-This is useful when source identity is part of the experiment and should be
-recorded with it.
-
-## Conversion and display
-
-RDP also contains public display and conversion helpers for rendering solver
-data and moving between supported text forms. These are separate from the
-`RunSpec` input itself. The run request still records one explicit input form.
-
-The exact constructor parameters are listed in
-[Problem input parameters](../reference/parameters/inputs.md).
-
-## Where this appears in the tutorials
-
-`tutorials/v1/getting_started/07_liber_primus_source.py` loads a named Liber
-Primus source and inspects its recorded identity.
-
-`tutorials/v1/getting_started/10_prepare_a_real_source_search.py` carries that
-source data into a full `RunSpec`.
-
-See [Tutorials and examples](../tutorials/README.md).
-
-For the word-information side, continue with
-[Word-length information](word_length_information.md). For the registered LP
-source API, see [Liber Primus data](../reference/liber_primus.md).
+See [Problem input parameters](../reference/parameters/inputs.md),
+[Text direction](text_direction.md), and
+[Word-length information](word_length_information.md).

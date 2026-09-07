@@ -90,11 +90,11 @@ def _token_text(idx: Sequence[int], wli: Sequence[Sequence[int]] | None) -> str:
 
 
 def _rune_text(idx: Sequence[int], wli: Sequence[Sequence[int]] | None) -> str:
-    return "  ".join("".join(str(Runeglish.pos_to_rune(int(value))) for value in word) for word in _word_groups(idx, wli))
+    return " ".join("".join(str(Runeglish.pos_to_rune(int(value))) for value in word) for word in _word_groups(idx, wli))
 
 
 def _join_words(words: Sequence[Sequence[str]]) -> str:
-    return "  ".join("|".join(token for token in word) for word in words)
+    return " ".join("·".join(token for token in word) for word in words)
 
 
 def _word_groups(idx: Sequence[int], wli: Sequence[Sequence[int]] | None) -> list[list[int]]:

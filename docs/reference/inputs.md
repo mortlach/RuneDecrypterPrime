@@ -1,20 +1,19 @@
 # Problem inputs
 
-`RunSpec.problem_input` accepts three public types:
+`RunSpec.problem_input` accepts two public types:
 
 ```python
-api.RawTextInput
-api.RuneIndexInput
+api.RuneInput
 api.SourceReferenceInput
 ```
 
-`RawTextInput` starts from a non-empty string.
-
-`RuneIndexInput` starts from canonical rune indices and may carry WLI in its
-`word_length_information` field.
+`RuneInput` accepts rune indices, rune glyphs, delimited RuneLatin, or English.
+It infers and records the representation; `RuneInputFormat` provides an
+explicit override for ambiguous text. Text input derives word boundaries from
+spaces. Index input may carry `word_length_information`.
 
 `SourceReferenceInput` records a resolver-owned source identity. The built-in
-source resolver currently supports Liber Primus labels, locators and partitions.
+resolver supports Liber Primus labels, locators, and partitions.
 
-The exact fields and constraints are listed in
-[Problem input parameters](parameters/inputs.md).
+See [Problem input parameters](parameters/inputs.md) for the exact fields and
+constraints.

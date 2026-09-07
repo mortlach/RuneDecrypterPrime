@@ -18,7 +18,7 @@ CIPHERTEXT_RUNES = "ᛗᚾᛟᚳᛝ ᚻᛠᛏ ᛡ ᛒᛠᛖᛞᛗ ᛗᛗᛗ ᚱ�
 def build_request(*, width: int) -> api.RunSpec:
     # Width is the only changed variable.
     return api.RunSpec(
-        problem_input=api.RawTextInput(text=CIPHERTEXT_RUNES),
+        problem_input=api.RuneInput(value=CIPHERTEXT_RUNES),
         cipher=api.CipherSpec.vigenere(),
         key_space=api.KeySpec.repeating(length=len(SECRET_KEY)),
         solver=api.SolverSpec.beam_search(width=width, rounds=None, seed=4242),

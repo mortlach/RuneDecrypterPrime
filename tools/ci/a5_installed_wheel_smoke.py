@@ -99,9 +99,9 @@ def _assert_v1_operations() -> None:
 
     result = api.run(
         api.RunSpec(
-            problem_input=api.RuneIndexInput(
+            problem_input=api.RuneInput(
                 ciphertext,
-                tuple((0, 1) for _ in ciphertext),
+                word_length_information=tuple((0, 1) for _ in ciphertext),
             ),
             cipher=cipher,
             key_space=api.KeySpec.repeating(length=len(key)),

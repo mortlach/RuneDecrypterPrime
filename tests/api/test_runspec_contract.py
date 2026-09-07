@@ -24,73 +24,90 @@ def _valid_locator_ref_spiral() -> dict[str, object]:
 def _valid_partition_ref() -> dict[str, object]:
     return {'partition_scheme': 'red_rune_17', 'partition_ordinal': '1', 'canon_start': 0, 'canon_end': 2, 'intersect_page_scheme': None, 'intersect_page_number': None}
 
-def test_raw_text_input_is_frozen_and_requires_real_string() -> None:
-    raw = api.RawTextInput('ᚠᚢᚦ')
-    assert raw.text == 'ᚠᚢᚦ'
+def test_rune_input_is_frozen_and_infers_text_formats() -> None:
+    raw = api.RuneInput('ᚠᚢᚦ')
+    assert raw.value == 'ᚠᚢᚦ'
+    assert raw.format is api.RuneInputFormat.RUNES
     with pytest.raises(FrozenInstanceError):
-        raw.text = 'changed'
+        raw.value = 'changed'
     with pytest.raises(ValueError):
-        api.RawTextInput('')
+        api.RuneInput('')
     with pytest.raises(TypeError):
-        api.RawTextInput(Path('assets/input.txt'))
+        api.RuneInput(Path('assets/input.txt'))
+
+    assert api.RuneInput('TH·E').format is api.RuneInputFormat.RUNE_LATIN
+    assert api.RuneInput('T|H|E').format is api.RuneInputFormat.RUNE_LATIN
+    assert api.RuneInput('the loss of').format is api.RuneInputFormat.ENGLISH
+    with pytest.raises(ValueError, match='mix'):
+        api.RuneInput('ᚦHE')
+
+
+def test_rune_input_accepts_an_explicit_format() -> None:
+    payload = api.RuneInput('TH', format=api.RuneInputFormat.RUNE_LATIN)
+    assert payload.format is api.RuneInputFormat.RUNE_LATIN
+    with pytest.raises(TypeError):
+        api.RuneInput('TH', format='rune_latin')  # type: ignore[arg-type]
+    with pytest.raises(TypeError):
+        api.RuneInput('TH', format=api.RuneInputFormat.INDICES)
+    with pytest.raises(ValueError):
+        api.RuneInput('TH', word_length_information=((0, 1),))
 
 def test_normalized_input_copies_ct_idx_and_wli_to_tuples() -> None:
     ct_idx = [1, 2, 3]
     wli = [[0, 1], [1, 2], [2, 3]]
-    payload = api.RuneIndexInput(indices=ct_idx, word_length_information=wli)
+    payload = api.RuneInput(value=ct_idx, word_length_information=wli)
     ct_idx.append(4)
     wli[0][0] = 99
     assert payload.indices == (1, 2, 3)
     assert payload.word_length_information == ((0, 1), (1, 2), (2, 3))
-    assert payload.ct_idx == (1, 2, 3)
-    assert payload.wli == ((0, 1), (1, 2), (2, 3))
+    assert payload.indices == (1, 2, 3)
     with pytest.raises(TypeError):
-        api.RuneIndexInput(indices=[1], word_lengths=[(0, 1)])  # type: ignore[call-arg]
+        api.RuneInput(value=[1], word_lengths=[(0, 1)])  # type: ignore[call-arg]
 
 def test_normalized_input_rejects_invalid_ct_idx_and_wli() -> None:
     with pytest.raises(ValueError):
-        api.RuneIndexInput(indices=[])
+        api.RuneInput(value=[])
     with pytest.raises(ValueError):
-        api.RuneIndexInput(indices=[29])
+        api.RuneInput(value=[29])
     with pytest.raises(TypeError):
-        api.RuneIndexInput(indices=[True])
+        api.RuneInput(value=[True])
     with pytest.raises(ValueError):
-        api.RuneIndexInput(indices=[1, 2], word_length_information=[(0, 1)])
+        api.RuneInput(value=[1, 2], word_length_information=[(0, 1)])
     with pytest.raises(ValueError):
-        api.RuneIndexInput(indices=[1], word_length_information=[(0, 1, 2)])
+        api.RuneInput(value=[1], word_length_information=[(0, 1, 2)])
     with pytest.raises(TypeError):
-        api.RuneIndexInput(indices=[1], word_length_information=[('0', 1)])
+        api.RuneInput(value=[1], word_length_information=[('0', 1)])
 
 def test_normalized_input_rejects_unordered_or_one_shot_ct_idx_containers() -> None:
     with pytest.raises(TypeError):
-        api.RuneIndexInput(indices={1, 2, 3})
+        api.RuneInput(value={1, 2, 3})
     with pytest.raises(TypeError):
-        api.RuneIndexInput(indices=(item for item in [1, 2, 3]))
+        api.RuneInput(value=(item for item in [1, 2, 3]))
     with pytest.raises(TypeError):
-        api.RuneIndexInput(indices={0: 1})
+        api.RuneInput(value={0: 1})
 
 def test_normalized_input_accepts_deterministic_ordered_ct_idx_containers() -> None:
-    assert api.RuneIndexInput(indices=[1, 2, 3]).ct_idx == (1, 2, 3)
-    assert api.RuneIndexInput(indices=(1, 2, 3)).ct_idx == (1, 2, 3)
-    assert api.RuneIndexInput(indices=range(3)).ct_idx == (0, 1, 2)
+    assert api.RuneInput(value=[1, 2, 3]).indices == (1, 2, 3)
+    assert api.RuneInput(value=(1, 2, 3)).indices == (1, 2, 3)
+    assert api.RuneInput(value=range(3)).indices == (0, 1, 2)
 
 def test_normalized_input_rejects_unordered_or_one_shot_wli_containers() -> None:
     with pytest.raises(TypeError):
-        api.RuneIndexInput(indices=[1], word_length_information={(0, 1)})
+        api.RuneInput(value=[1], word_length_information={(0, 1)})
     with pytest.raises(TypeError):
-        api.RuneIndexInput(indices=[1], word_length_information=(pair for pair in [(0, 1)]))
+        api.RuneInput(value=[1], word_length_information=(pair for pair in [(0, 1)]))
     with pytest.raises(TypeError):
-        api.RuneIndexInput(indices=[1], word_length_information=[{0, 1}])
+        api.RuneInput(value=[1], word_length_information=[{0, 1}])
     with pytest.raises(TypeError):
-        api.RuneIndexInput(indices=[1], word_length_information=[(item for item in [0, 1])])
+        api.RuneInput(value=[1], word_length_information=[(item for item in [0, 1])])
 
 def test_normalized_input_validates_wli_pair_semantics() -> None:
     with pytest.raises(ValueError):
-        api.RuneIndexInput(indices=[1], word_length_information=[(-1, 3)])
+        api.RuneInput(value=[1], word_length_information=[(-1, 3)])
     with pytest.raises(ValueError):
-        api.RuneIndexInput(indices=[1], word_length_information=[(0, 0)])
+        api.RuneInput(value=[1], word_length_information=[(0, 0)])
     with pytest.raises(ValueError):
-        api.RuneIndexInput(indices=[1], word_length_information=[(3, 3)])
+        api.RuneInput(value=[1], word_length_information=[(3, 3)])
 
 def test_source_input_ref_copies_flat_json_primitive_ref_metadata() -> None:
     ref = {'page': 1, 'label': 'p1', 'ambiguous': False, 'note': None}
@@ -222,9 +239,9 @@ def test_source_input_ref_rejects_paths_objects_and_nested_mutable_ref_metadata(
 
 def test_runspec_defaults_and_copies_scorer_params() -> None:
     scorer_params = {'window_size': 10}
-    spec = api.RunSpec(problem_input=api.RawTextInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=2, rounds=None), scoring=api.ScoringConfig.from_dict(scorer_params))
+    spec = api.RunSpec(problem_input=api.RuneInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=2, rounds=None), scoring=api.ScoringConfig.from_dict(scorer_params))
     scorer_params['window_size'] = 20
-    assert spec.text_direction is api.TextDirection.RTL
+    assert spec.text_direction is api.TextDirection.LTR
     assert spec.compute_device is api.ComputeDevice.CPU
     assert spec.telemetry_enabled is True
     assert spec.scoring.window_size == 10
@@ -232,7 +249,7 @@ def test_runspec_defaults_and_copies_scorer_params() -> None:
         spec.telemetry_enabled = False
 
 def test_runspec_accepts_each_problem_input_form() -> None:
-    for problem_input in (api.RawTextInput('abc'), api.RuneIndexInput(indices=[1, 2, 3]), api.SourceReferenceInput(source_kind='liber_primus.partition', asset_id='a', asset_version='v', reference=_valid_partition_ref())):
+    for problem_input in (api.RuneInput('abc'), api.RuneInput(value=[1, 2, 3]), api.SourceReferenceInput(source_kind='liber_primus.partition', asset_id='a', asset_version='v', reference=_valid_partition_ref())):
         spec = _minimal_runspec(problem_input)
         assert spec.problem_input is problem_input
 
@@ -240,16 +257,16 @@ def test_runspec_rejects_alias_problem_inputs_and_runtime_controls() -> None:
     with pytest.raises(TypeError):
         _minimal_runspec({'text': 'abc'})
     with pytest.raises(TypeError):
-        api.RunSpec(problem_input=api.RawTextInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=2, rounds=None), telemetry_on=False)
+        api.RunSpec(problem_input=api.RuneInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=2, rounds=None), telemetry_on=False)
 
 def test_runspec_validates_nested_public_specs_without_execution_routing() -> None:
     with pytest.raises(TypeError):
-        api.RunSpec(problem_input=api.RawTextInput('abc'), cipher=object(), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=2, rounds=None))
+        api.RunSpec(problem_input=api.RuneInput('abc'), cipher=object(), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=2, rounds=None))
     with pytest.raises(TypeError):
-        api.RunSpec(problem_input=api.RawTextInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=(api.KeySpec.repeating(length=3), object()), solver=api.SolverSpec.beam_search(width=2, rounds=None))
+        api.RunSpec(problem_input=api.RuneInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=(api.KeySpec.repeating(length=3), object()), solver=api.SolverSpec.beam_search(width=2, rounds=None))
     with pytest.raises(TypeError):
-        api.RunSpec(problem_input=api.RawTextInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=object())
+        api.RunSpec(problem_input=api.RuneInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=object())
     with pytest.raises(TypeError):
-        api.RunSpec(problem_input=api.RawTextInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=2, rounds=None), logging=object())
-    spec = api.RunSpec(problem_input=api.RawTextInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=2, rounds=None), logging=api.LoggingConfig(portable_output=True))
+        api.RunSpec(problem_input=api.RuneInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=2, rounds=None), logging=object())
+    spec = api.RunSpec(problem_input=api.RuneInput('abc'), cipher=api.CipherSpec.vigenere(), key_space=api.KeySpec.repeating(length=3), solver=api.SolverSpec.beam_search(width=2, rounds=None), logging=api.LoggingConfig(portable_output=True))
     assert isinstance(spec.logging, LoggingConfig)

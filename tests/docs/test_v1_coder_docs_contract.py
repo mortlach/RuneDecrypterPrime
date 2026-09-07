@@ -12,7 +12,7 @@ from rdp import api
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCS = REPO_ROOT / 'docs'
 PUBLIC_API_ALLOWLIST = DOCS / 'release_contracts' / 'v1' / 'public_api_allowlist.md'
-PUBLIC_API_SNAPSHOT_SHA256 = '5f204ba957065e0f72d6df10de10fac2c994e2e96428490ee94f1e0ed7cf8027'
+PUBLIC_API_SNAPSHOT_SHA256 = '942a4cc533ed75fda238b97f5e74934781f3c0f30a74e25f62da7df5c8beaada'
 
 def _read(path: Path) -> str:
     return path.read_text(encoding='utf-8')
@@ -78,7 +78,7 @@ def test_public_api_allowlist_preserves_the_accepted_crlf_snapshot() -> None:
     assert hashlib.sha256(canonical).hexdigest() == PUBLIC_API_SNAPSHOT_SHA256
 
 def test_targeted_public_contract_docstrings_exist() -> None:
-    expected_terms = {api.RawTextInput: ['non-empty string', 'input source'], api.RuneIndexInput: ['ct_idx', 'wli', '0..28'], api.SourceReferenceInput: ['source kind', 'asset', 'JSON primitive'], api.RunSpec: ['cipher spec', 'solver spec', 'routing'], rdp.api.run_artifact_manifest.RunArtifactManifestRow: ['known V1 run artifact', 'run-relative'], rdp.api.run_artifact_manifest.write_run_artifacts_manifest: ['META.json', 'config/logging.json', 'Returns']}
+    expected_terms = {api.RuneInput: ['indices', 'RuneLatin', 'English', 'word'], api.SourceReferenceInput: ['source kind', 'asset', 'JSON primitive'], api.RunSpec: ['cipher spec', 'solver spec', 'routing'], rdp.api.run_artifact_manifest.RunArtifactManifestRow: ['known V1 run artifact', 'run-relative'], rdp.api.run_artifact_manifest.write_run_artifacts_manifest: ['META.json', 'config/logging.json', 'Returns']}
     for obj, terms in expected_terms.items():
         doc = inspect.getdoc(obj)
         assert doc, getattr(obj, '__name__', repr(obj))
@@ -87,7 +87,7 @@ def test_targeted_public_contract_docstrings_exist() -> None:
 
 def test_public_configuration_fields_have_current_parameter_owners() -> None:
     owners = {
-        api.RawTextInput: 'inputs.md', api.RuneIndexInput: 'inputs.md',
+        api.RuneInput: 'inputs.md',
         api.SourceReferenceInput: 'inputs.md', api.RunSpec: 'run_spec.md',
         api.CipherSpec: 'ciphers.md', api.KeySpec: 'keys.md',
         api.SolverSpec: 'solvers.md', api.LoggingConfig: 'logging.md',

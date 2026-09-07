@@ -25,7 +25,7 @@ def _run_logging_route(monkeypatch, logging, *, progress_callback=None, progress
     monkeypatch.setattr(run_module, 'execute_run', fake_execute_run)
     result = api.run(
         api.RunSpec(
-            problem_input=api.RuneIndexInput(indices=[0]),
+            problem_input=api.RuneInput(value=[0]),
             cipher=api.CipherSpec.vigenere(),
             key_space=api.KeySpec.repeating(length=1),
             solver=api.SolverSpec.beam_search(width=1, seed=1, rounds=None),

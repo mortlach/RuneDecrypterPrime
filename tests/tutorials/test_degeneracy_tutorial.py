@@ -49,8 +49,8 @@ def test_degeneracy_pipeline_known_key_example():
     solver = api.SolverSpec.beam_search(width=1, seed=7, rounds=None)
     sol = api.run(
         api.RunSpec(
-            problem_input=api.RuneIndexInput(
-                indices=tuple(int(value) for value in ciphertext), word_length_information=wli
+            problem_input=api.RuneInput(
+                value=tuple(int(value) for value in ciphertext), word_length_information=wli
             ),
             cipher=spec,
             key_space=api.KeySpec.repeating(length=length),

@@ -110,7 +110,7 @@ def main() -> int:
     print_run_config(run_config)
     interruptors = api.InterruptorConfig.search(interruptor_pool, minimum_count=INTERRUPTOR_COUNT, maximum_count=INTERRUPTOR_COUNT, strategy=api.advanced.InterruptorSearchStrategy.KEY_OPERATIONS, maximum_combinations=5000)
     started = time.perf_counter()
-    result = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli), cipher=api.CipherSpec.vigenere(alphabet_size=29), key_space=api.KeySpec.repeating(length=KEY_LENGTH), solver=SOLVER, scoring=scorer_params, telemetry_enabled=True, text_direction=ENCODING_DIRECTION, interruptors=interruptors))
+    result = api.run(api.RunSpec(problem_input=api.RuneInput(value=ct_idx, word_length_information=wli), cipher=api.CipherSpec.vigenere(alphabet_size=29), key_space=api.KeySpec.repeating(length=KEY_LENGTH), solver=SOLVER, scoring=scorer_params, telemetry_enabled=True, text_direction=ENCODING_DIRECTION, interruptors=interruptors))
     elapsed = time.perf_counter() - started
     best_attempt = collect_result_diagnostics(result=result, attempt_index=1, solver_variant=SOLVER_VARIANT, scorer_variant=SCORER_VARIANT, solver=SOLVER, key_length=KEY_LENGTH, interruptor_pool=interruptor_pool, interruptor_count=INTERRUPTOR_COUNT, reference_idx=CANONICAL_WELCOME_PILGRIM_IDX, ciphertext_length=len(ct_idx), wli=wli, elapsed_wall_time_s=elapsed)
     attempt_records = [best_attempt]

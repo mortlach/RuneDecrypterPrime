@@ -41,7 +41,7 @@ def test_write_json_evidence(tmp_path) -> None:
 def test_collect_solver_attempt_accepts_canonical_public_result_fields() -> None:
     result = SimpleNamespace(
         plaintext_indices=(1, 2, 3),
-        plaintext_rune_latin="F|U|TH|O|R|C",
+        plaintext_rune_latin="F·U·TH·O·R·C",
         plaintext_runes="ᚠᚢᚦᚩᚱᚳ",
         key=(7, 11),
         score=2.5,
@@ -57,5 +57,5 @@ def test_collect_solver_attempt_accepts_canonical_public_result_fields() -> None
     )
     assert record["match_ratio"] == 1.0
     assert record["plaintext_idx_length"] == 3
-    assert record["plaintext_latin"] == "F|U|TH|O|R|C"
+    assert record["plaintext_latin"] == "F·U·TH·O·R·C"
     assert record["status"] == "solved"

@@ -42,7 +42,7 @@ def main() -> None:
     )
 
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=ciphertext),
+        problem_input=api.RuneInput(value=ciphertext),
         cipher=cipher,
         key_space=key_space,
         solver=solver,

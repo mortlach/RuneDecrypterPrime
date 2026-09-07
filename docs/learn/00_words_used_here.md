@@ -350,10 +350,11 @@ source_data = api.liber_primus.load_source("welcome_pilgrim")
 This returns `SourceData`. `api.liber_primus.source(...)` creates a source
 reference for a run instead of loading the data immediately.
 
-## `RuneIndexInput`
+## `RuneInput`
 
-A typed input containing rune indices, optionally with WLI. It can hold
-ciphertext for a run or a plaintext candidate for scoring.
+A typed run input containing rune indices, rune glyphs, RuneLatin, or English.
+It records the inferred or explicitly selected format. Index input can include
+WLI; text input derives word boundaries from spaces.
 
 It is precise, but most beginners should not need to construct one when using a
 named Liber Primus source.
@@ -362,7 +363,7 @@ named Liber Primus source.
 
 The ciphertext and associated information supplied to a run.
 
-It can be raw rune text, rune indices, or a named source reference.
+It can be a `RuneInput` or a named source reference.
 
 ## `RunSpec`
 
@@ -400,8 +401,8 @@ It contains the best candidate plus reports and reproducibility information.
 ## Plaintext representations
 
 `plaintext_indices`, `plaintext_runes` and `plaintext_rune_latin` are three
-views of the same candidate. RuneLatin uses `|` between rune tokens, so the LTR
-encoding `TH|E` and RTL encoding `T|H|E` remain visibly different. Both are
+views of the same candidate. RuneLatin uses `·` between rune tokens, so the LTR
+encoding `TH·E` and RTL encoding `T·H·E` remain visibly different. Both are
 valid for the direction-specific rune sequence. `word_length_information`
 carries the known word boundaries. None of these fields is an English
 translation.
@@ -488,11 +489,6 @@ The software and computing environment that executes the described run.
 ## Materialise
 
 Resolve a run description into the data and components needed to execute it.
-
-## `RawTextInput`
-
-A run input containing text. RDP converts the text to rune indices and derives
-word boundaries when spaces are present.
 
 ## API
 

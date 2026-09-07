@@ -21,8 +21,8 @@ The complete request fields and defaults are in
 
 ## 2. Prepare the input
 
-`RawTextInput`, `RuneIndexInput` and `SourceReferenceInput` are converted into
-the ciphertext and WLI needed by the engine.
+`RuneInput` and `SourceReferenceInput` are converted into the ciphertext and
+WLI needed by the engine.
 
 Liber Primus references are resolved through the same input boundary.
 
@@ -124,4 +124,3 @@ scoring contracts have been bound.
 See [Key models and search operations](key_model_and_search.md),
 [Candidate evaluation](candidate_evaluation.md) and
 [Solver mechanics](solver_mechanics.md).
-

@@ -17,8 +17,8 @@ def test_ga_permutation_solver_respects_seed_and_bijection():
     """
     ct_idx, pt_idx, wli, perm, direction = columnar_roundtrip_case()
     solver = api.SolverSpec.genetic_algorithm(population_size=32, generations=24, elite_fraction=0.15, mutation_probability=0.25, seed=9001)
-    seeded = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=tuple(int(value) for value in ct_idx), word_length_information=wli), cipher=api.CipherSpec.columnar(columns=len(perm), alphabet_size=29), key_space=api.KeySpec.permutation(length=len(perm)), solver=solver, scoring=api.ScoringConfig(), initial_keys=(tuple(int(value) for value in perm),), telemetry_enabled=False, text_direction=direction))
-    random = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=tuple(int(value) for value in ct_idx), word_length_information=wli), cipher=api.CipherSpec.columnar(columns=len(perm), alphabet_size=29), key_space=api.KeySpec.permutation(length=len(perm)), solver=solver, scoring=api.ScoringConfig(), telemetry_enabled=False, text_direction=direction))
+    seeded = api.run(api.RunSpec(problem_input=api.RuneInput(value=tuple(int(value) for value in ct_idx), word_length_information=wli), cipher=api.CipherSpec.columnar(columns=len(perm), alphabet_size=29), key_space=api.KeySpec.permutation(length=len(perm)), solver=solver, scoring=api.ScoringConfig(), initial_keys=(tuple(int(value) for value in perm),), telemetry_enabled=False, text_direction=direction))
+    random = api.run(api.RunSpec(problem_input=api.RuneInput(value=tuple(int(value) for value in ct_idx), word_length_information=wli), cipher=api.CipherSpec.columnar(columns=len(perm), alphabet_size=29), key_space=api.KeySpec.permutation(length=len(perm)), solver=solver, scoring=api.ScoringConfig(), telemetry_enabled=False, text_direction=direction))
     _assert_is_permutation(seeded.key)
     _assert_is_permutation(random.key)
     seeded_match = plaintext_match_rate(seeded.plaintext_indices, pt_idx)
@@ -32,7 +32,7 @@ def test_sa_permutation_solver_preserves_bijection_and_reaches_quality():
     """
     ct_idx, pt_idx, wli, perm, direction = columnar_roundtrip_case()
     solver = api.SolverSpec.simulated_annealing(iterations=320, initial_temperature=0.7, minimum_temperature=0.001, cooling_rate=0.995, automatic_cooling=True, seed=4242)
-    sol = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=tuple(int(value) for value in ct_idx), word_length_information=wli), cipher=api.CipherSpec.columnar(columns=len(perm), alphabet_size=29), key_space=api.KeySpec.permutation(length=len(perm)), solver=solver, scoring=api.ScoringConfig(), initial_keys=(tuple(int(value) for value in perm),), telemetry_enabled=False, text_direction=direction))
+    sol = api.run(api.RunSpec(problem_input=api.RuneInput(value=tuple(int(value) for value in ct_idx), word_length_information=wli), cipher=api.CipherSpec.columnar(columns=len(perm), alphabet_size=29), key_space=api.KeySpec.permutation(length=len(perm)), solver=solver, scoring=api.ScoringConfig(), initial_keys=(tuple(int(value) for value in perm),), telemetry_enabled=False, text_direction=direction))
     _assert_is_permutation(sol.key)
     match_rate = plaintext_match_rate(sol.plaintext_indices, pt_idx)
     assert match_rate >= 0.9, f'SA expected >=90% plaintext match, got {match_rate:.3f}'

@@ -53,8 +53,8 @@ def run_tutorial():
     )
     started = perf_counter()
     result = api.run(
-        problem_input=api.RuneIndexInput(
-            indices=fixture.ciphertext, word_length_information=fixture.wli
+        problem_input=api.RuneInput(
+            value=fixture.ciphertext, word_length_information=fixture.wli
         ),
         cipher=cipher,
         key_space=key,

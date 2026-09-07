@@ -16,8 +16,8 @@ CIPHERTEXT_RUNES = "ᛗᚾᛟᚳᛝ ᚻᛠᛏ ᛡ ᛒᛠᛖᛞᛗ ᛗᛗᛗ ᚱ�
 
 
 def main() -> None:
-    # Spaces in RawTextInput provide word boundaries, so WLI can be inferred.
-    problem_input = api.RawTextInput(text=CIPHERTEXT_RUNES)
+    # Spaces in RuneInput provide word boundaries, so WLI can be inferred.
+    problem_input = api.RuneInput(value=CIPHERTEXT_RUNES)
 
     # KeySpec describes the valid search space. Runtime KeyOps supplies the
     # vector operations used by the solver to search it.

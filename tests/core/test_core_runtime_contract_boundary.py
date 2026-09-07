@@ -91,7 +91,7 @@ def test_runapi_accepts_typed_public_scoring_config(
     monkeypatch.setattr(run_module, "execute_run", fake_execute_run)
     result = api.run(
         api.RunSpec(
-            problem_input=api.RuneIndexInput(indices=[1, 2, 3]),
+            problem_input=api.RuneInput(value=[1, 2, 3]),
             cipher=api.CipherSpec.periodic_substitution(period=3),
             key_space=api.KeySpec.periodic_substitution(period=3),
             solver=api.SolverSpec.beam_search(width=1, rounds=None),

@@ -29,7 +29,7 @@ def test_run_uses_public_defaults_and_always_returns_run_result(monkeypatch) -> 
 
     result = api.run(
         api.RunSpec(
-            problem_input=api.RuneIndexInput(indices=(0,)),
+            problem_input=api.RuneInput(value=(0,)),
             cipher=api.CipherSpec.vigenere(),
             key_space=api.KeySpec.repeating(length=1),
             solver=api.SolverSpec.beam_search(width=1, rounds=None),
@@ -38,7 +38,7 @@ def test_run_uses_public_defaults_and_always_returns_run_result(monkeypatch) -> 
     )
 
     assert isinstance(result, api.RunResult)
-    assert captured["encoding_dir"] is Direction.RTL
+    assert captured["encoding_dir"] is Direction.LTR
     assert captured["device"] is Device.CPU
 
 

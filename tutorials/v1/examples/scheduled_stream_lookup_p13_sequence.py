@@ -101,7 +101,7 @@ def main() -> None:
     )
     result = api.run(
         api.RunSpec(
-            problem_input=api.RuneIndexInput(indices=ct_idx_list, word_length_information=wli),
+            problem_input=api.RuneInput(value=ct_idx_list, word_length_information=wli),
             cipher=cipher_spec,
             key_space=key_spec,
             solver=solver,

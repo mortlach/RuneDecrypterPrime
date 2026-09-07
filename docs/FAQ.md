@@ -11,10 +11,9 @@ See [CPU, CUDA and scoring](setup/scorer_backend_selection.md).
 
 ## What ciphertext input forms are supported?
 
-For a normal `RunSpec`, RDP has three public input forms:
+For a normal `RunSpec`, RDP has two public input types:
 
-- `RawTextInput` for text,
-- `RuneIndexInput` for rune indices, with optional WLI,
+- `RuneInput` for inferred or explicitly tagged text and rune indices,
 - `SourceReferenceInput` for a registered source such as Liber Primus.
 
 See [Ciphertext input](guides/ciphertext_input.md).
@@ -77,4 +76,3 @@ Focused cipher investigations belong in
 
 Production contributor routes are in [How-to guides](howto/README.md) and
 [Contributing](../CONTRIBUTING.md).
-

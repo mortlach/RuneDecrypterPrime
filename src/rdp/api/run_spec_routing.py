@@ -6,8 +6,8 @@ from typing import Any, Sequence
 
 import numpy as np
 
-from rdp.api.normalize import _assert_core_ready, normalize_ciphertext
-from rdp.api.run_spec import RawTextInput, RuneIndexInput, RunSpec, SourceReferenceInput
+from rdp.api.normalize import _assert_core_ready, normalize_rune_input
+from rdp.api.run_spec import RuneInput, RunSpec, SourceReferenceInput
 from rdp.api.source_resolution import resolve_source_input_ref
 from rdp.core.config.logging_config import LoggingConfig
 
@@ -33,14 +33,17 @@ def materialize_runspec_problem_input(spec: RunSpec) -> MaterializedRunSpecInput
         raise TypeError("spec must be a RunSpec")
 
     problem_input = spec.problem_input
-    if isinstance(problem_input, RawTextInput):
-        ciphertext, wli = normalize_ciphertext(problem_input.text)
+    if isinstance(problem_input, RuneInput):
+        input_format = problem_input.format
+        if input_format is None:
+            raise RuntimeError("RuneInput format was not resolved")
+        ciphertext, wli = normalize_rune_input(
+            problem_input.value,
+            input_format=input_format.value,
+            direction=spec.text_direction,
+            wli_data=problem_input.word_length_information,
+        )
         return MaterializedRunSpecInput(ciphertext=ciphertext, wli=wli)
-
-    if isinstance(problem_input, RuneIndexInput):
-        ciphertext = _ct_idx_to_uint8_array(problem_input.ct_idx)
-        _assert_core_ready(ciphertext, problem_input.wli)
-        return MaterializedRunSpecInput(ciphertext=ciphertext, wli=problem_input.wli)
 
     if isinstance(problem_input, SourceReferenceInput):
         resolved = resolve_source_input_ref(problem_input)
@@ -48,7 +51,7 @@ def materialize_runspec_problem_input(spec: RunSpec) -> MaterializedRunSpecInput
         _assert_core_ready(ciphertext, resolved.wli)
         return MaterializedRunSpecInput(ciphertext=ciphertext, wli=resolved.wli)
 
-    raise TypeError("spec.problem_input must be RawTextInput, RuneIndexInput, or SourceReferenceInput")
+    raise TypeError("spec.problem_input must be RuneInput or SourceReferenceInput")
 
 
 def route_runspec_logging(spec: RunSpec, outside_logging: Any = None) -> RunSpecLoggingRoute:

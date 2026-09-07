@@ -16,8 +16,8 @@ from rdp.api.run import run
 from rdp.api.run_result import RunResult
 from rdp.api.run_spec import (
     ProblemInput,
-    RawTextInput,
-    RuneIndexInput,
+    RuneInput,
+    RuneInputFormat,
     RunSpec,
     SourceReferenceInput,
 )
@@ -47,8 +47,8 @@ __all__ = [
     "ScoringConfig",
     "LoggingConfig",
     "InterruptorConfig",
-    "RawTextInput",
-    "RuneIndexInput",
+    "RuneInput",
+    "RuneInputFormat",
     "SourceReferenceInput",
     "ProblemInput",
     "ConcreteKey",

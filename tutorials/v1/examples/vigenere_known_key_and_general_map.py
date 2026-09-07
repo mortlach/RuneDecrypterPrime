@@ -89,8 +89,8 @@ def _display_spec(
     solver_spec: api.SolverSpec,
 ) -> api.RunSpec:
     return api.RunSpec(
-        problem_input=api.RuneIndexInput(
-            indices=cast(list[int], demo["ciphertext_idx"]),
+        problem_input=api.RuneInput(
+            value=cast(list[int], demo["ciphertext_idx"]),
             word_length_information=cast(list[list[int]], demo["wli"]),
         ),
         cipher=cipher_spec,
@@ -111,8 +111,8 @@ def solve_with_wrappers(
     """Interface demonstration with the known key supplied as an initial key."""
     solver_spec = api.SolverSpec.beam_search(width=18, rounds=None, seed=1337)
     result = api.run(
-        problem_input=api.RuneIndexInput(
-            indices=demo["ciphertext_idx"], word_length_information=demo["wli"]
+        problem_input=api.RuneInput(
+            value=demo["ciphertext_idx"], word_length_information=demo["wli"]
         ),
         cipher=cipher_spec,
         key_space=key_spec,
@@ -145,8 +145,8 @@ def solve_with_general_map(
     key_spec = api.KeySpec.repeating(length=key_len)
     solver_spec = api.SolverSpec.beam_search(width=96, rounds=None, seed=4242)
     result = api.run(
-        problem_input=api.RuneIndexInput(
-            indices=demo["ciphertext_idx"], word_length_information=demo["wli"]
+        problem_input=api.RuneInput(
+            value=demo["ciphertext_idx"], word_length_information=demo["wli"]
         ),
         cipher=cipher_spec,
         key_space=key_spec,

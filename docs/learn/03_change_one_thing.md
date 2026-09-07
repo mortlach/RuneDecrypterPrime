@@ -11,7 +11,7 @@ three-value key or a repeating four-value key:
 ```python
 from rdp import api
 
-ciphertext = api.RawTextInput("ᚠᚢᚦᚩᚱᚳ")
+ciphertext = api.RuneInput("ᚠᚢᚦᚩᚱᚳ")
 
 for key_length in (3, 4):
     result = api.run(

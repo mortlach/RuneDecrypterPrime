@@ -19,7 +19,7 @@ def main() -> None:
     ciphertext = api.encrypt(PLAINTEXT, cipher=cipher, key=SECRET_KEY)
 
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=ciphertext),
+        problem_input=api.RuneInput(value=ciphertext),
         cipher=cipher,
         key_space=api.KeySpec.scalar(minimum=2, maximum=8),
         solver=api.SolverSpec.beam_search(width=8, rounds=None, seed=2718),

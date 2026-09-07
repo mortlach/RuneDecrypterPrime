@@ -72,7 +72,7 @@ def run(
     initial_keys: InitialKeys | None = None,
     logging: LoggingConfig | None = None,
     word_length_policy: WordLengthPolicy = WordLengthPolicy.INFER,
-    text_direction: TextDirection = TextDirection.RTL,
+    text_direction: TextDirection = TextDirection.LTR,
     compute_device: ComputeDevice = ComputeDevice.CPU,
     telemetry_enabled: bool = True,
     text_permutation: IndexPermutation | None = None,
@@ -94,7 +94,7 @@ def run(
     initial_keys: InitialKeys | None = None,
     logging: LoggingConfig | None = None,
     word_length_policy: WordLengthPolicy = WordLengthPolicy.INFER,
-    text_direction: TextDirection = TextDirection.RTL,
+    text_direction: TextDirection = TextDirection.LTR,
     compute_device: ComputeDevice = ComputeDevice.CPU,
     telemetry_enabled: bool = True,
     text_permutation: IndexPermutation | None = None,
@@ -114,7 +114,7 @@ def run(
             for value in (scoring, initial_keys, logging, text_permutation, interruptors)
         ) or (
             word_length_policy is not WordLengthPolicy.INFER
-            or text_direction is not TextDirection.RTL
+            or text_direction is not TextDirection.LTR
             or compute_device is not ComputeDevice.CPU
             or telemetry_enabled is not True
         ):

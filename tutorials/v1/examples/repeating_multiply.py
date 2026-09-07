@@ -87,7 +87,7 @@ def main() -> None:
         rounds=None,
     )
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli),
+        problem_input=api.RuneInput(value=ct_idx, word_length_information=wli),
         cipher=cipher,
         key_space=key_spec,
         solver=solve_spec,

@@ -15,8 +15,8 @@ def test_pipeline_block_tracks_custom_permutation_and_reinsertion():
     solver = api.SolverSpec.beam_search(width=2, seed=99, rounds=None)
     sol = api.run(
         api.RunSpec(
-            problem_input=api.RuneIndexInput(
-                indices=tuple(int(value) for value in pt_idx), word_length_information=wli
+            problem_input=api.RuneInput(
+                value=tuple(int(value) for value in pt_idx), word_length_information=wli
             ),
             cipher=api.CipherSpec.vigenere(alphabet_size=29),
             key_space=api.KeySpec.repeating(length=5),

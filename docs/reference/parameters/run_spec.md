@@ -4,7 +4,7 @@
 
 | Parameter | Type | Default | Purpose / constraint |
 | --- | --- | --- | --- |
-| `problem_input` | `ProblemInput` | **required** | `RawTextInput`, `RuneIndexInput`, or `SourceReferenceInput`. |
+| `problem_input` | `ProblemInput` | **required** | `RuneInput` or `SourceReferenceInput`. |
 | `cipher` | `CipherSpec` | **required** | Cipher family and cipher-specific parameters. |
 | `key_space` | `KeySpec` | **required** | Keys the solver may search. Must be compatible with the cipher. |
 | `solver` | `SolverSpec` | **required** | Search method and its budget. |
@@ -12,14 +12,14 @@
 | `initial_keys` | `InitialKeys | None` | `None` | Optional tuple of concrete starting keys. |
 | `logging` | `LoggingConfig | None` | `None` | Enables saved run output when supplied. |
 | `word_length_policy` | `WordLengthPolicy` | `INFER` | `DISABLED`, `INFER`, or `REQUIRE`. |
-| `text_direction` | `TextDirection` | `RTL` | `LTR` or `RTL`; long aliases are also available. |
+| `text_direction` | `TextDirection` | `LTR` | `LTR` or `RTL`; long aliases are also available. English `RuneInput` conversion uses this value. |
 | `compute_device` | `ComputeDevice` | `CPU` | `CPU` or `CUDA`. |
 | `telemetry_enabled` | `bool` | `True` | Collect run telemetry. |
 | `text_permutation` | `IndexPermutation | None` | `None` | Optional permutation of text positions. Must be a complete `0..n-1` permutation. |
 | `interruptors` | `InterruptorConfig | None` | `None` | Exact or searched interruptor positions. |
 
-For `RuneIndexInput`, a supplied `text_permutation` must have the same length as
-the input indices.
+For an index-format `RuneInput`, a supplied `text_permutation` must have the
+same length as the input indices.
 
 ## api.run runtime controls
 

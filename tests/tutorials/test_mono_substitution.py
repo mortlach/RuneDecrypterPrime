@@ -46,7 +46,7 @@ def test_tutorial_mono_runs(optimizer):
         )
     else:
         solver = api.SolverSpec.genetic_algorithm(population_size=144, generations=160, target_score=0.56, elite_fraction=0.08, crossover_fraction=0.85, mutation_probability=0.25, tournament_size=4, plateau_generations=20, seed=12345)
-    sol = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli), cipher=api.CipherSpec.substitution(alphabet_size=29), key_space=api.KeySpec.permutation(length=29), solver=solver, scoring=api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=True, character_order_weights={2: 0.3}, wli_order_weights={2: 0.7}, objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10)), initial_keys=tuple(tuple(int(value) for value in key) for key in seeds), text_direction=api.TextDirection.RTL, compute_device=api.ComputeDevice.CPU))
+    sol = api.run(api.RunSpec(problem_input=api.RuneInput(value=ct_idx, word_length_information=wli), cipher=api.CipherSpec.substitution(alphabet_size=29), key_space=api.KeySpec.permutation(length=29), solver=solver, scoring=api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=True, character_order_weights={2: 0.3}, wli_order_weights={2: 0.7}, objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10)), initial_keys=tuple(tuple(int(value) for value in key) for key in seeds), text_direction=api.TextDirection.RTL, compute_device=api.ComputeDevice.CPU))
     recovered_rune = sol.plaintext_runes or None
     if not recovered_rune:
         pt_arr = getattr(sol, 'plaintext', [])

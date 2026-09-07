@@ -25,8 +25,8 @@ def test_runapi_seed_replay_consistency(device_matrix, text):
     key_spec = api.KeySpec.repeating(length=key.size)
     for dev in device_matrix:
         device = api.ComputeDevice(dev)
-        sol_a = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=tuple(int(value) for value in ct_idx), word_length_information=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=api.ScoringConfig(), initial_keys=(tuple(int(value) for value in key),), telemetry_enabled=True, text_direction=direction, compute_device=device))
-        sol_b = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=tuple(int(value) for value in ct_idx), word_length_information=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=api.ScoringConfig(), initial_keys=(tuple(int(value) for value in key),), telemetry_enabled=True, text_direction=direction, compute_device=device))
+        sol_a = api.run(api.RunSpec(problem_input=api.RuneInput(value=tuple(int(value) for value in ct_idx), word_length_information=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=api.ScoringConfig(), initial_keys=(tuple(int(value) for value in key),), telemetry_enabled=True, text_direction=direction, compute_device=device))
+        sol_b = api.run(api.RunSpec(problem_input=api.RuneInput(value=tuple(int(value) for value in ct_idx), word_length_information=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=api.ScoringConfig(), initial_keys=(tuple(int(value) for value in key),), telemetry_enabled=True, text_direction=direction, compute_device=device))
         assert np.array_equal(sol_a.plaintext_indices, sol_b.plaintext_indices)
         assert np.array_equal(sol_a.key, sol_b.key)
         assert sol_a.score == pytest.approx(sol_b.score, rel=0, abs=0)

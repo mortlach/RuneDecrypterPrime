@@ -15,7 +15,7 @@ For `width`, `rounds`, `seed` and the other Beam controls, see
 from rdp import api
 
 request = api.RunSpec(
-    problem_input=api.RawTextInput("ᚠᚢᚦᚩᚱᚳ"),
+    problem_input=api.RuneInput("ᚠᚢᚦᚩᚱᚳ"),
     cipher=api.CipherSpec.vigenere(),
     key_space=api.KeySpec.repeating(length=3),
     solver=api.SolverSpec.beam_search(),
@@ -30,7 +30,7 @@ print(result.score)
 
 The rune characters are the ciphertext.
 
-`RawTextInput` converts them to the same `0..28` rune indices used by the cipher
+`RuneInput` converts them to the same `0..28` rune indices used by the cipher
 maths.
 
 The request says:

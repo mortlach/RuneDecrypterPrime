@@ -13,7 +13,7 @@ Its public fields are:
 | `plaintext_indices` | Candidate plaintext as rune indices, or `None`. This does not establish a successful recovery. |
 | `word_length_information` | One `(position, word_length)` pair per plaintext rune, or `None`. |
 | `plaintext_runes` | Rune characters with spaces between known words, or `None`. |
-| `plaintext_rune_latin` | RuneLatin with `|` between rune tokens and spaces between known words, or `None`. |
+| `plaintext_rune_latin` | RuneLatin with `·` between rune tokens and spaces between known words, or `None`. |
 | `key` | Best key, or `None`. |
 | `score` | Best score, or `None`. |
 | `status` | `RunStatus`. |

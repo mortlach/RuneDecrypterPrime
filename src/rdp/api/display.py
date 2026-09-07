@@ -41,7 +41,7 @@ from typing import Any, TextIO
 
 from rdp.api.artifact_agreement import KnownArtifactRelpath
 from rdp.api.run_result import RunResult
-from rdp.api.run_spec import RawTextInput, RuneIndexInput, RunSpec, SourceReferenceInput
+from rdp.api.run_spec import RuneInput, RuneInputFormat, RunSpec, SourceReferenceInput
 from rdp.api.solver_report import SolverReport
 from rdp.api.specs import KeySpec
 from rdp.api.stop_reason_contract import (
@@ -351,17 +351,21 @@ def _problem_summary(spec: RunSpec | None, solution: object | None, *, options: 
     out: dict[str, Any] = {}
     if spec is not None:
         inp = spec.problem_input
-        if isinstance(inp, RawTextInput):
-            out.update({"input_kind": "raw_text", "text_length": len(inp.text), "text_preview": _preview_text(inp.text, 160)})
-        elif isinstance(inp, RuneIndexInput):
-            out.update(
-                {
-                    "input_kind": "normalized",
-                    "ciphertext_length": len(inp.ct_idx),
-                    "has_wli": inp.wli is not None,
-                    "wli_length": len(inp.wli) if inp.wli is not None else None,
-                }
-            )
+        if isinstance(inp, RuneInput):
+            out["input_kind"] = "rune_input"
+            out["input_format"] = inp.format.value
+            if inp.format is RuneInputFormat.INDICES:
+                wli = inp.word_length_information
+                out.update(
+                    {
+                        "ciphertext_length": len(inp.indices),
+                        "has_wli": wli is not None,
+                        "wli_length": len(wli) if wli is not None else None,
+                    }
+                )
+            else:
+                text = str(inp.value)
+                out.update({"text_length": len(text), "text_preview": _preview_text(text, 160)})
         elif isinstance(inp, SourceReferenceInput):
             out.update(
                 {

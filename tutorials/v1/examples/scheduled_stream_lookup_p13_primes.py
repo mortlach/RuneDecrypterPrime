@@ -76,7 +76,7 @@ def main() -> None:
     solver = make_real_solve_solver(stop_score=stop_score)
     result = api.run(
         api.RunSpec(
-            problem_input=api.RuneIndexInput(indices=ct_idx_list, word_length_information=wli),
+            problem_input=api.RuneInput(value=ct_idx_list, word_length_information=wli),
             cipher=cipher_spec,
             key_space=key_spec,
             solver=solver,

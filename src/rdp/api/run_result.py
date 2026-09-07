@@ -34,7 +34,7 @@ class RunResult:
     """The best candidate and the evidence produced by one run.
 
     Plaintext is exposed in four explicit, mutually consistent forms. RuneLatin
-    uses ``|`` between rune tokens, so it remains distinct from natural English.
+    uses ``·`` between rune tokens, so it remains distinct from natural English.
     """
 
     plaintext_indices: RuneIndices | None

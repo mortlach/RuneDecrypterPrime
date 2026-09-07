@@ -348,7 +348,7 @@ def build_case(family: str, trial_index: int, attempt_index: int=0) -> CampaignC
     return definition.builder(int(trial_index), int(attempt_index))
 
 def execute_case(case: CampaignCase) -> api.RunResult:
-    return api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=case.ciphertext, word_length_information=case.wli), cipher=case.cipher, key_space=case.key, solver=case.solver, scoring=case.scoring, initial_keys=case.initial_keys, text_direction=case.direction, telemetry_enabled=True, interruptors=case.interruptors))
+    return api.run(api.RunSpec(problem_input=api.RuneInput(value=case.ciphertext, word_length_information=case.wli), cipher=case.cipher, key_space=case.key, solver=case.solver, scoring=case.scoring, initial_keys=case.initial_keys, text_direction=case.direction, telemetry_enabled=True, interruptors=case.interruptors))
 
 def _plain_value(value: Any) -> Any:
     return getattr(value, 'value', value)

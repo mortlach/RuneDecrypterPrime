@@ -22,7 +22,7 @@ solver = api.SolverSpec.two_period_cribs(
     seed=2026,
 )
 request = api.RunSpec(
-    problem_input=api.RuneIndexInput(indices=(0, 1, 2, 3)),
+    problem_input=api.RuneInput(value=(0, 1, 2, 3)),
     cipher=cipher,
     key_space=key_space,
     solver=solver,

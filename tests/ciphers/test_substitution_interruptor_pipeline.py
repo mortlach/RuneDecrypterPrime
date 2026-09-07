@@ -39,8 +39,8 @@ def test_runapi_substitution_exact_interruptor_regression():
     inverse_shift = np.r_[28, np.arange(28)].astype(int).tolist()
     solution = api.run(
         api.RunSpec(
-            problem_input=api.RuneIndexInput(
-                indices=[1, 2, 3], word_length_information=[[i, 3] for i in range(3)]
+            problem_input=api.RuneInput(
+                value=[1, 2, 3], word_length_information=[[i, 3] for i in range(3)]
             ),
             cipher=api.CipherSpec.substitution(alphabet_size=29),
             key_space=api.KeySpec.permutation(length=29),

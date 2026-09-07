@@ -29,7 +29,7 @@ def main() -> None:
     interruptors = api.InterruptorConfig.exact(INTERRUPTOR_POSITIONS)
 
     request = api.RunSpec(
-        problem_input=api.RawTextInput(text=CIPHERTEXT_RUNES),
+        problem_input=api.RuneInput(value=CIPHERTEXT_RUNES),
         cipher=api.CipherSpec.vigenere(),
         key_space=api.KeySpec.repeating(length=len(SECRET_KEY)),
         solver=api.SolverSpec.beam_search(width=8, rounds=None, seed=2025),

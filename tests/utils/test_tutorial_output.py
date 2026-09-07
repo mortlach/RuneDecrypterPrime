@@ -13,8 +13,8 @@ def test_tutorial_debug_preview_prints_unambiguous_text_views() -> None:
     assert 'latin_tokens:' in text
     assert 'rune_indices:' in text
     assert 'runes:' in text
-    assert 'R|AE|D' in text
-    assert 'T|H|E' in text
+    assert 'R·AE·D' in text
+    assert 'T·H·E' in text
     rune_line = next((line for line in lines if line.startswith('runes:')))
     assert '|' not in rune_line
 
@@ -33,8 +33,8 @@ def test_tutorial_debug_preview_block_uses_standard_printer_style() -> None:
     assert 'latin_tokens' in text
     assert 'rune_indices' in text
     assert 'runes' in text
-    assert 'R|AE|D' in text
-    assert 'T|H|E' in text
+    assert 'R·AE·D' in text
+    assert 'T·H·E' in text
     rune_line = next((line for line in text.splitlines() if line.startswith('runes')))
     assert '|' not in rune_line
 
@@ -45,4 +45,4 @@ def test_print_tutorial_debug_preview_uses_standard_block(capsys: pytest.Capture
     assert 'Debug preview: ciphertext' in out
     assert 'encoding_dir' in out
     assert 'rtl' in out
-    assert 'T|H|E' in out
+    assert 'T·H·E' in out

@@ -136,7 +136,7 @@ def main() -> None:
             else tuple(tuple(int(value) for value in key) for key in initial_keys)
         )
         request = api.RunSpec(
-            problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli),
+            problem_input=api.RuneInput(value=ct_idx, word_length_information=wli),
             cipher=cipher_spec,
             key_space=key_spec,
             solver=solver,

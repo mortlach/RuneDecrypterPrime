@@ -22,8 +22,8 @@ def test_solver_spans_include_pipeline_block(solver_name: str):
     custom_perm = tuple(reversed(range(len(ct_idx))))
     sol = api.run(
         api.RunSpec(
-            problem_input=api.RuneIndexInput(
-                indices=tuple(int(value) for value in ct_idx), word_length_information=wli
+            problem_input=api.RuneInput(
+                value=tuple(int(value) for value in ct_idx), word_length_information=wli
             ),
             cipher=api.CipherSpec.columnar(columns=len(perm), alphabet_size=29),
             key_space=api.KeySpec.permutation(length=len(perm)),

@@ -112,7 +112,7 @@ def main() -> None:
     key_spec = api.KeySpec.repeating(length=key_len)
     interruptors = api.InterruptorConfig.exact(INTERRUPTORS)
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=ct_idx_list, word_length_information=wli),
+        problem_input=api.RuneInput(value=ct_idx_list, word_length_information=wli),
         cipher=cipher_spec,
         key_space=key_spec,
         solver=solver,
