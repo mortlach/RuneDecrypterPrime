@@ -2,6 +2,10 @@
 
 `solving/` contains worked Liber Primus material.
 
+If this is your first time using the bundled Liber Primus material, start with
+the [short LP route](getting_started/README.md). It loads a named source,
+prepares the reviewed Welcome Pilgrim search, and shows how to run it.
+
 The examples are evidence, not all the same kind of evidence.
 
 The distinction is what information the program receives before the result is
