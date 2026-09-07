@@ -23,7 +23,7 @@ python solving/solved_lp/run_all.py
 | `03_Some_Wisdom.py` | shift-0 recipe | deterministic replay | known recipe defines the transform |
 | `04_Koan_A_Man.py` | rotated reverse-gematria recipe | deterministic replay | known shift/recipe defines the transform |
 | `05_Loss_Of_Divinity.py` | shift-0 recipe | deterministic replay | known recipe defines the transform |
-| `06_Koan_During_Lesson.py` | pinned period-13 Vigenere/interrupter result | deterministic replay | known recovered key and interruptor positions are supplied directly |
+| `06_Koan_During_Lesson.py` | pinned period-13 Vigenere/interruptor result | deterministic replay | known recovered key and interruptor positions are supplied directly |
 | `07_Instruction.py` | shift-0 recipe | deterministic replay | known recipe defines the transform |
 | `08_An_End.py` | sequence-shape reconstruction | reference-guided diagnostic | canonical plaintext can participate in attempt ranking and selection |
 | `09_Parable.py` | shift-0 recipe | deterministic replay | known recipe defines the transform |

@@ -32,7 +32,7 @@ def _assert_perm(x: np.ndarray, size: int) -> None:
 
 def test_seed_generator_wli_rerank_requires_wli_data_when_enabled():
     with pytest.raises(ValueError):
-        generate_seed_keys_periodic_columnar(np.asarray([0, 1, 2, 3], dtype=np.uint8), period=2, columns=2, order='col_then_sub', direction=Direction.RTL, seed=0, scoring_cfg=None, pt_unigram_rank_override=list(range(29)), n_keys=4, refine=False, rerank_cfg=api.ScoringConfig(word_length_lane_enabled=True))
+        generate_seed_keys_periodic_columnar(np.asarray([0, 1, 2, 3], dtype=np.uint8), period=2, columns=2, order='col_then_sub', direction=Direction.RTL, seed=0, scoring_cfg=None, pt_unigram_rank_override=list(range(29)), n_keys=4, refine=False, rerank_cfg=api.ScoringConfig(wli_lane_enabled=True))
 
 @pytest.mark.full_assets
 def test_seed_generator_wli_rerank_runs_when_assets_present():
@@ -54,9 +54,9 @@ def test_seed_generator_wli_rerank_runs_when_assets_present():
     scoring_cfg = api.ScoringConfig(
         language_model_root=lm_root,
         character_lane_enabled=True,
-        word_length_lane_enabled=False,
+        wli_lane_enabled=False,
         character_order_weights={3: 0.5, 4: 0.5},
-        word_length_order_weights={},
+        wli_order_weights={},
         backend=api.advanced.ScorerBackend.NUMPY,
     )
     rerank_cfg = api.ScoringConfig(
@@ -65,9 +65,9 @@ def test_seed_generator_wli_rerank_runs_when_assets_present():
             window_size=10
         ),
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights={3: 0.25, 4: 0.25},
-        word_length_order_weights={3: 0.25, 4: 0.25},
+        wli_order_weights={3: 0.25, 4: 0.25},
         backend=api.advanced.ScorerBackend.NUMPY,
     )
     keys = generate_seed_keys_periodic_columnar(

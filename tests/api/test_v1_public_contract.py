@@ -117,7 +117,7 @@ def test_scoring_and_logging_are_exact_immutable_configs() -> None:
         language_model_root=Path("models"),
         objective=ScoringObjective.average_log_probability(),
         character_order_weights={3: 0.4, 4: 0.6},
-        word_length_lane_enabled=False,
+        wli_lane_enabled=False,
     )
     restored = ScoringConfig.from_dict(scoring.to_dict())
 
@@ -139,7 +139,7 @@ def test_runspec_owns_the_complete_request() -> None:
         solver=SolverSpec.beam_search(width=4, rounds=2, seed=11),
         initial_keys=((1, 2, 3),),
         word_length_policy=WordLengthPolicy.REQUIRE,
-        text_direction=TextDirection.RIGHT_TO_LEFT,
+        text_direction=TextDirection.RTL,
         compute_device=ComputeDevice.CPU,
         interruptors=InterruptorConfig.disabled(),
     )
@@ -194,7 +194,7 @@ def test_all_v1_cipher_key_bindings_have_one_exact_length(
         key_space=key_space,
         ciphertext=(1, 2, 3, 4),
         word_lengths=None,
-        text_direction=TextDirection.RIGHT_TO_LEFT,
+        text_direction=TextDirection.RTL,
         compute_device=ComputeDevice.CPU,
     )
     assert cfg.key_length == length
@@ -268,7 +268,7 @@ def test_scheduled_presets_materialize_one_truthful_runtime(
         key_space=key_space,
         ciphertext=(1, 2, 3, 4),
         word_lengths=None,
-        text_direction=TextDirection.RIGHT_TO_LEFT,
+        text_direction=TextDirection.RTL,
         compute_device=ComputeDevice.CPU,
     )
 
@@ -308,7 +308,7 @@ def test_mask_schedule_is_bound_to_the_run_input_length() -> None:
             key_space=KeySpec.repeating(length=5),
             ciphertext=(1, 2, 3),
             word_lengths=None,
-            text_direction=TextDirection.RIGHT_TO_LEFT,
+            text_direction=TextDirection.RTL,
             compute_device=ComputeDevice.CPU,
         )
 
@@ -359,6 +359,12 @@ def test_both_run_forms_use_one_execution_path_and_always_return_run_result(monk
     assert calls[0]["solver"].name == "beam"
     assert calls[0]["solver"].params["beam_width"] == 4
     assert from_request.key == (1, 2, 3)
+    assert from_request.plaintext_indices == (3, 2, 1)
+    assert from_request.word_length_information is None
+    assert from_request.plaintext_runes
+    assert from_request.plaintext_rune_latin == "O|TH|U"
+    assert not hasattr(from_request, "plaintext")
+    assert not hasattr(from_request, "plaintext_text")
     assert from_request.solver_report.best_key == from_request.key
     assert from_request.configuration.solver.requested["kind"] == "beam_search"
     assert from_request.scorer_report.to_json_dict()["score"] == -1.25

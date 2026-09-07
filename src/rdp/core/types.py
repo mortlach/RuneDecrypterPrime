@@ -24,7 +24,7 @@ JsonObject: TypeAlias = dict[str, JsonValue]
 RuneIndices: TypeAlias = tuple[int, ...]
 ConcreteKey: TypeAlias = tuple[int, ...]
 InitialKeys: TypeAlias = tuple[ConcreteKey, ...]
-WordLengthInfo: TypeAlias = tuple[tuple[int, int], ...]
+WordLengthInformation: TypeAlias = tuple[tuple[int, int], ...]
 IndexPermutation: TypeAlias = tuple[int, ...]
 ProgressCallback: TypeAlias = Callable[[Mapping[str, JsonValue]], None]
 FrozenValue: TypeAlias = JsonPrimitive | tuple[Any, ...]
@@ -203,8 +203,12 @@ def replay_key(prefix: str, payload: Mapping[str, object]) -> str:
 
 
 class TextDirection(StrEnum):
-    LEFT_TO_RIGHT = "left_to_right"
-    RIGHT_TO_LEFT = "right_to_left"
+    LTR = "left_to_right"
+    RTL = "right_to_left"
+
+    # Readable aliases remain available when the long form is clearer.
+    LEFT_TO_RIGHT = LTR
+    RIGHT_TO_LEFT = RTL
 
 
 class ComputeDevice(StrEnum):
@@ -496,7 +500,7 @@ def ensure_direction(value) -> Direction:
     if isinstance(value, TextDirection):
         return (
             Direction.LTR
-            if value is TextDirection.LEFT_TO_RIGHT
+            if value is TextDirection.LTR
             else Direction.RTL
         )
     return _coerce_enum_value(Direction, value, aliases={

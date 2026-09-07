@@ -46,11 +46,11 @@ def test_degeneracy_pipeline_known_key_example():
     )
     assert not bool(np.asarray(invalid[0]).any())
     assert int(np.max(lens[0])) > 1
-    solver = api.SolverSpec.beam_search(width=1, seed=7, rounds=0)
+    solver = api.SolverSpec.beam_search(width=1, seed=7, rounds=None)
     sol = api.run(
         api.RunSpec(
             problem_input=api.RuneIndexInput(
-                indices=tuple(int(value) for value in ciphertext), word_lengths=wli
+                indices=tuple(int(value) for value in ciphertext), word_length_information=wli
             ),
             cipher=spec,
             key_space=api.KeySpec.repeating(length=length),
@@ -58,11 +58,11 @@ def test_degeneracy_pipeline_known_key_example():
             scoring=api.ScoringConfig(),
             initial_keys=(tuple(int(value) for value in key),),
             telemetry_enabled=False,
-            text_direction=api.TextDirection.LEFT_TO_RIGHT,
+            text_direction=api.TextDirection.LTR,
             compute_device=api.ComputeDevice.CPU,
         )
     )
-    sol_plaintext = sol.plaintext
+    sol_plaintext = sol.plaintext_indices
     scoring_cfg = api.ScoringConfig()
     cipher_cfg = CipherConfig(
         ciphertext=ciphertext,

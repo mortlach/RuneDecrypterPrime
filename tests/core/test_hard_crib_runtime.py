@@ -40,7 +40,7 @@ def _swap_key(a: int, b: int) -> np.ndarray:
 def _make_problem(*, ct: list[int], wli, hard_crib: dict, scorer=None) -> DecryptionProblem:
     cfg = CipherConfig(name='substitution', ciphertext=ct, wli_data=wli, key_length=ALPHABET_SIZE, alphabet_size=ALPHABET_SIZE, encoding_dir=Direction.LTR, device='cpu')
     cipher = SubstitutionCipher(cfg)
-    s_cfg = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=False, hard_crib=hard_crib, backend=api.advanced.ScorerBackend.NUMPY)
+    s_cfg = api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=False, hard_crib=hard_crib, backend=api.advanced.ScorerBackend.NUMPY)
     return DecryptionProblem(cipher=cipher, scorer=scorer or _CountingScorer(), c_cfg=cfg, s_cfg=s_cfg)
 
 def test_fixed_characters_filter_masks_invalid_candidates_and_skips_scoring():

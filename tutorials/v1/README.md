@@ -113,8 +113,6 @@ settings and expected runtimes before starting one.
 
 Candidate discovery for the last program remains in
 [`cipher_development/periodic_columnar_staged/`](../../cipher_development/periodic_columnar_staged/).
-The next campaign question is deliberately still open; see
-[`docs/ROADMAP.md`](../../docs/README.md).
 
 ## Adding another example
 

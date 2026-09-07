@@ -73,7 +73,7 @@ from rdp.core.types import (
     SpanHammingGateFailurePolicy,
     SpanHammingLanguageModelProfileSource,
     SpanHammingMode,
-    WordLengthInfo,
+    WordLengthInformation,
 )
 from rdp.scoring.scorer_report import ScorerReport
 

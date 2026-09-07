@@ -480,7 +480,7 @@ def materialize_cipher_config(
         alphabet_size=int(values["alphabet_size"]),
         initial_text_permutation_indices=text_permutation,
         device=Device.CPU if compute_device is ComputeDevice.CPU else Device.CUDA,
-        encoding_dir=Direction.LTR if text_direction is TextDirection.LEFT_TO_RIGHT else Direction.RTL,
+        encoding_dir=Direction.LTR if text_direction is TextDirection.LTR else Direction.RTL,
         interruptors_cfg=interruptors,
         initial_keys=validated_initial_keys,
         name=runtime_identity,

@@ -52,18 +52,14 @@ The main route is:
 - [Experimental ciphers](reference/experimental.md)
 - [Public errors](reference/errors.md)
 
-## Development
-
-- [Cipher development](development/cipher_development.md)
-- [Contributor how-to guides](howto/README.md)
-- [CUDA setup](development/cuda_installation.md)
-- [Build and packaging notes](setup/building.md)
-
 ## Development and contribution
 
 - [Development map](development/README.md)
+- [Cipher development](development/cipher_development.md)
 - [Extending RDP](guides/extending_rdp.md)
-- [How-to guides](howto/README.md)
+- [Contributor how-to guides](howto/README.md)
+- [CUDA setup](development/cuda_installation.md)
+- [Build and packaging notes](setup/building.md)
 
 ## Background
 
@@ -78,4 +74,3 @@ The main route is:
 ## Worked solving material
 
 - [Solving examples](../solving/README.md)
-

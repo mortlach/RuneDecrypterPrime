@@ -82,8 +82,8 @@ def test_problem_evaluation_raw_scores_and_plaintext_resolution(tensor_device):
     cfg = replace(cfg, ciphertext=ciphertext.tolist())
     scoring = api.ScoringConfig(
         objective=api.advanced.ScoringObjective.average_log_probability(),
-        character_lane_enabled=True, word_length_lane_enabled=False,
-        character_order_weights={1: 1.0}, word_length_order_weights={},
+        character_lane_enabled=True, wli_lane_enabled=False,
+        character_order_weights={1: 1.0}, wli_order_weights={},
         average_window_policy=api.advanced.AverageWindowPolicy.FULL_TEXT,
     )
     reference = ProblemInstance.materialise(ProblemSpec(text='', cipher_cfg=cfg, scorer_params=scoring)).problem

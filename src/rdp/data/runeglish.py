@@ -173,7 +173,36 @@ class Runeglish:
         return ' '.join(words)
 
     @staticmethod
-    def to_rune(pt: Sequence[int], wli: Sequence[Sequence[int]], limit: int | None = None) -> str:
+    def to_delimited_rune_latin(
+        pt: Sequence[int],
+        wli: Sequence[Sequence[int]] | None,
+        limit: int | None = None,
+    ) -> str:
+        """Render RuneLatin with ``|`` between runes and spaces between words.
+
+        Unlike ordinary Latin-like text, this form preserves rune-token
+        boundaries. For example, the TH rune followed by E is ``TH|E`` while
+        separate T, H and E runes are ``T|H|E``.
+        """
+        words: list[str] = []
+        current: list[str] = []
+        for index, symbol in enumerate(pt):
+            current.append(Runeglish.pos_to_latin(symbol))
+            if wli is not None and wli[index][0] == wli[index][1] - 1:
+                words.append("|".join(current))
+                current = []
+            if limit and len(" ".join(words)) >= limit:
+                break
+        if current:
+            words.append("|".join(current))
+        return " ".join(words)
+
+    @staticmethod
+    def to_rune(
+        pt: Sequence[int],
+        wli: Sequence[Sequence[int]] | None,
+        limit: int | None = None,
+    ) -> str:
         """Render positions as runes, respecting WLI word breaks."""
         words, cur = [], []
         for i, sym in enumerate(pt):

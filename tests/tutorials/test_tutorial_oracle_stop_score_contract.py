@@ -24,7 +24,7 @@ def test_tutorial_score_plaintext_passes_typed_config_objects(monkeypatch) -> No
     score = tutorial_utils.score_plaintext(
         np.asarray([1, 2, 3], dtype=np.uint8),
         [(0, 3), (1, 3), (2, 3)],
-        ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=False),
+        ScoringConfig(character_lane_enabled=True, wli_lane_enabled=False),
         device="cpu",
     )
     assert score == 0.75

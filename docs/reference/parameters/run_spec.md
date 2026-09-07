@@ -12,7 +12,7 @@
 | `initial_keys` | `InitialKeys | None` | `None` | Optional tuple of concrete starting keys. |
 | `logging` | `LoggingConfig | None` | `None` | Enables saved run output when supplied. |
 | `word_length_policy` | `WordLengthPolicy` | `INFER` | `DISABLED`, `INFER`, or `REQUIRE`. |
-| `text_direction` | `TextDirection` | `RIGHT_TO_LEFT` | `LEFT_TO_RIGHT` or `RIGHT_TO_LEFT`. |
+| `text_direction` | `TextDirection` | `RTL` | `LTR` or `RTL`; long aliases are also available. |
 | `compute_device` | `ComputeDevice` | `CPU` | `CPU` or `CUDA`. |
 | `telemetry_enabled` | `bool` | `True` | Collect run telemetry. |
 | `text_permutation` | `IndexPermutation | None` | `None` | Optional permutation of text positions. Must be a complete `0..n-1` permutation. |

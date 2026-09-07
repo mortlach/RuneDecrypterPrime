@@ -55,7 +55,7 @@ def main() -> None:
     key_values = key_period13()
     expected_key_len = 13
     stop_score = 0.56
-    direction = api.TextDirection.RIGHT_TO_LEFT
+    direction = api.TextDirection.RTL
     cipher_spec = api.CipherSpec.periodic_with_fixed_stream(sequence, period=13)
     key_spec = api.KeySpec.repeating(length=expected_key_len)
     cipher_spec, key_spec, pt_idx, wli, _pt_runes, ct_idx_list, ct_runes, _key = (
@@ -79,9 +79,9 @@ def main() -> None:
     # much each contributes when comparing candidate plaintexts.
     scorer_params = api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights={2: 0.3},
-        word_length_order_weights={2: 0.7},
+        wli_order_weights={2: 0.7},
         objective=api.advanced.ScoringObjective.percentile_log_probability(
             window_size=10
         ),
@@ -92,7 +92,7 @@ def main() -> None:
     # sequence.
     solver = api.SolverSpec.beam_search(
         width=72,
-        rounds=0,
+        rounds=None,
         target_score=stop_score,
         plateau_rounds=12,
         plateau_minimum_delta=0.0001,
@@ -101,7 +101,7 @@ def main() -> None:
     )
     result = api.run(
         api.RunSpec(
-            problem_input=api.RuneIndexInput(indices=ct_idx_list, word_lengths=wli),
+            problem_input=api.RuneIndexInput(indices=ct_idx_list, word_length_information=wli),
             cipher=cipher_spec,
             key_space=key_spec,
             solver=solver,
@@ -117,7 +117,7 @@ def main() -> None:
     if found_key is None:
         raise AssertionError("real solve did not return a key")
     key_ok = found_key == expected_key
-    match_ratio = _match_ratio(result.plaintext, pt_idx)
+    match_ratio = _match_ratio(result.plaintext_indices, pt_idx)
     plaintext_ok = match_ratio == 1.0
     print(f"Expected key : {expected_key}")
     print(f"Found key    : {found_key}")

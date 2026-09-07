@@ -94,7 +94,7 @@ def test_string_enum_inventory_can_be_built_without_parse_errors() -> None:
     assert members, "no string enum members found under the source package roots"
     expected_sentinels = {
         "Direction.LTR": "ltr",
-        "TextDirection.LEFT_TO_RIGHT": "left_to_right",
+        "TextDirection.LTR": "left_to_right",
         "SolverKind.BEAM_SEARCH": "beam_search",
         "ScorerBackend.NUMPY": "numpy",
     }

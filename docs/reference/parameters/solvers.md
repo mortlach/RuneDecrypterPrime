@@ -141,14 +141,14 @@ through to the runtime.
 
 ### Beam rounds
 
-`rounds=0` is accepted by the public Beam constructor and means automatic
+`rounds=None` is accepted by the public Beam constructor and means automatic
 runtime rounds:
 
 ```text
 max(2 * key_length, 12)
 ```
 
-It is not a zero-work search.
+An explicit positive integer requests that many rounds. Zero is rejected.
 
 ### Simulated annealing temperatures
 

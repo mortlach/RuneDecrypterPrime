@@ -113,12 +113,4 @@ The runtime binding selects KeyOps from the accepted cipher/key-space pair.
 
 Contributor work starts at [Build key operations](../howto/build_keyops.md).
 
-## Repeating-range note
-
-`KeySpec.repeating_range(...)` exists in the typed spec layer, but the current
-V1 Vigenere and Autokey bindings require fixed `repeating` keys.
-
-Do not use `repeating_range` for a V1 solve until a variable-length runtime
-binding exists.
-
 See [KeySpec parameters](../reference/parameters/keys.md).

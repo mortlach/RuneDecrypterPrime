@@ -52,7 +52,7 @@ def test_typed_scheduled_tutorial_fixture_round_trip(
         cipher_spec=cipher,
         key_spec=key_space,
         key_values=key,
-        direction=api.TextDirection.RIGHT_TO_LEFT,
+        direction=api.TextDirection.RTL,
     )
 
     assert returned_key == key
@@ -78,7 +78,7 @@ def test_typed_mask_schedule_fixture_round_trip() -> None:
         cipher_spec=cipher,
         key_spec=key_space,
         key_values=key,
-        direction=api.TextDirection.RIGHT_TO_LEFT,
+        direction=api.TextDirection.RTL,
     )
 
     assert api.decrypt(tuple(ciphertext), cipher=cipher, key=key) == tuple(expected)

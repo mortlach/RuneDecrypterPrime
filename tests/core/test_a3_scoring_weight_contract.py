@@ -16,19 +16,19 @@ def test_base_lane_weights_are_normalized_after_lane_selection() -> None:
     cfg = api.ScoringConfig(
         base_lane_weights=(1.0, 3.0),
         character_ngram_order=2,
-        word_length_ngram_order=3,
+        wli_ngram_order=3,
     )
     assert cfg.effective_lm_model_weights() == (
         ("char", 2, 0.25),
         ("wli", 3, 0.75),
     )
-    assert cfg.effective_lm_model_weights(use_word_lengths=False) == (("char", 2, 1.0),)
+    assert cfg.effective_lm_model_weights(use_wli=False) == (("char", 2, 1.0),)
 
 
 def test_per_order_weights_are_canonical_and_normalized() -> None:
     cfg = api.ScoringConfig(
         character_order_weights={1: 0.1, 2: 0.2},
-        word_length_order_weights={2: 0.3, 3: 0.4},
+        wli_order_weights={2: 0.3, 3: 0.4},
     )
     models = cfg.effective_lm_model_weights()
     assert [(channel, order) for channel, order, _weight in models] == [
@@ -59,7 +59,7 @@ def test_base_and_per_order_weights_cannot_be_combined() -> None:
         {"character_order_weights": {2: -0.1}},
         {
             "character_order_weights": {2: 0.0},
-            "word_length_order_weights": {},
+            "wli_order_weights": {},
         },
     ],
 )
@@ -77,7 +77,7 @@ def test_invalid_weight_configurations_fail_at_construction(
         api.ScoringConfig(base_lane_weights=(2.0, 6.0)),
         api.ScoringConfig(
             character_order_weights={1: 0.2, 2: 0.3},
-            word_length_order_weights={2: 0.5},
+            wli_order_weights={2: 0.5},
         ),
     ],
 )
@@ -96,7 +96,7 @@ def test_weight_contract_uses_canonical_requested_field_names() -> None:
     assert payload["requested"] == {
         "base_lane_weights": [2.0, 6.0],
         "character_order_weights": {},
-        "word_length_order_weights": {},
+        "wli_order_weights": {},
     }
     assert payload["effective_lm_models"] == [
         {"channel": "char", "n": 2, "weight": 0.25},

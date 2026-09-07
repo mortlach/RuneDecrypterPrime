@@ -149,7 +149,11 @@ def build_tutorial_run_report(
     found_key = _int_list(getattr(solution, "key", None))
     expected_key = _int_list(key_idx)
     plaintext_idx = _int_list(
-        getattr(solution, "plaintext_idx", getattr(solution, "plaintext", None))
+        getattr(
+            solution,
+            "plaintext_indices",
+            getattr(solution, "plaintext_idx", getattr(solution, "plaintext", None)),
+        )
     )
     ratio = _first_present(benchmark.get("match_ratio"), _match_ratio(plaintext_idx, pt_idx_ref))
     recovered = bool(match_ok) if match_ok is not None else (None if ratio is None else float(ratio) >= 0.97)
@@ -225,7 +229,14 @@ def build_tutorial_run_report(
         },
         "previews": {
             "ciphertext_runes": _preview_text(ct_rune, preview_len),
-            "plaintext_runes": _preview_text(getattr(solution, "plaintext_rune", ""), preview_len),
+            "plaintext_runes": _preview_text(
+                getattr(
+                    solution,
+                    "plaintext_runes",
+                    getattr(solution, "plaintext_rune", ""),
+                ),
+                preview_len,
+            ),
             "reference_runes": _preview_text(pt_rune_ref, preview_len),
             "ciphertext_idx_head": (_int_list(ct_idx) or [])[:32],
             "plaintext_idx_head": (plaintext_idx or [])[:32],

@@ -72,7 +72,7 @@ def _known_key_operation(
         key_space=key_space,
         ciphertext=indices,
         word_lengths=None,
-        text_direction=TextDirection.RIGHT_TO_LEFT,
+        text_direction=TextDirection.RTL,
         compute_device=ComputeDevice.CPU,
     )
     runtime = build_cipher(cfg)

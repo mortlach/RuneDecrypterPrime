@@ -87,7 +87,7 @@ def run_roundtrip_case(*, cipher_name: str, plaintext_idx: np.ndarray, wli_data:
     ct = np.asarray(encrypt_fn(pt, key), dtype=np.uint8)
     c_cfg = CipherConfig(ciphertext=ct.tolist(), wli_data=wli.tolist() if wli is not None else [], key_length=int(key_length) if key_length is not None else None, name=cipher_name, device=device)
     s_over = _coerce_dict(scorer_cfg_overrides)
-    s_cfg = api.ScoringConfig.from_dict({**{'character_lane_enabled': True, 'word_length_lane_enabled': True, 'character_ngram_order': 2, 'word_length_ngram_order': 2, 'window_size': 10, 'objective': {'kind': 'percentile', 'statistic': 'log_probability', 'window_size': 10}, 'base_lane_weights': (0.3, 0.7), 'score_direction': 'maximize' if True else 'minimize', **s_over}})
+    s_cfg = api.ScoringConfig.from_dict({**{'character_lane_enabled': True, 'wli_lane_enabled': True, 'character_ngram_order': 2, 'wli_ngram_order': 2, 'window_size': 10, 'objective': {'kind': 'percentile', 'statistic': 'log_probability', 'window_size': 10}, 'base_lane_weights': (0.3, 0.7), 'score_direction': 'maximize' if True else 'minimize', **s_over}})
     o_over = _coerce_dict(optimizer_cfg_overrides)
     use_test_key = bool(o_over.pop('use_test_key', use_test_key))
     o_over.setdefault('seed', seed)

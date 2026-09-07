@@ -44,6 +44,7 @@ from rdp.core.types import (
     WordLengthPolicy,
     Direction,
 )
+from rdp.data.runeglish import Runeglish
 from rdp.scoring.scorer_report import ScorerReport
 
 
@@ -71,7 +72,7 @@ def run(
     initial_keys: InitialKeys | None = None,
     logging: LoggingConfig | None = None,
     word_length_policy: WordLengthPolicy = WordLengthPolicy.INFER,
-    text_direction: TextDirection = TextDirection.RIGHT_TO_LEFT,
+    text_direction: TextDirection = TextDirection.RTL,
     compute_device: ComputeDevice = ComputeDevice.CPU,
     telemetry_enabled: bool = True,
     text_permutation: IndexPermutation | None = None,
@@ -93,7 +94,7 @@ def run(
     initial_keys: InitialKeys | None = None,
     logging: LoggingConfig | None = None,
     word_length_policy: WordLengthPolicy = WordLengthPolicy.INFER,
-    text_direction: TextDirection = TextDirection.RIGHT_TO_LEFT,
+    text_direction: TextDirection = TextDirection.RTL,
     compute_device: ComputeDevice = ComputeDevice.CPU,
     telemetry_enabled: bool = True,
     text_permutation: IndexPermutation | None = None,
@@ -113,7 +114,7 @@ def run(
             for value in (scoring, initial_keys, logging, text_permutation, interruptors)
         ) or (
             word_length_policy is not WordLengthPolicy.INFER
-            or text_direction is not TextDirection.RIGHT_TO_LEFT
+            or text_direction is not TextDirection.RTL
             or compute_device is not ComputeDevice.CPU
             or telemetry_enabled is not True
         ):
@@ -166,7 +167,7 @@ def _execute(
 ) -> RunResult:
     materialized = materialize_runspec_problem_input(request)
     device = Device.CPU if request.compute_device is ComputeDevice.CPU else Device.CUDA
-    direction = Direction.LTR if request.text_direction is TextDirection.LEFT_TO_RIGHT else Direction.RTL
+    direction = Direction.LTR if request.text_direction is TextDirection.LTR else Direction.RTL
     effective_seed = 0 if request.solver.seed is None else request.solver.seed
     logging_runtime: dict[str, object] = {}
     if progress_callback is not None:
@@ -218,7 +219,12 @@ def _execute(
             interruptors_pool=None,
             interruptors_max=None,
         )
-    result = _result_from_solution(request, solution, effective_seed=effective_seed)
+    result = _result_from_solution(
+        request,
+        solution,
+        effective_seed=effective_seed,
+        word_length_information=materialized.wli,
+    )
     _write_requested_artifacts(request, result)
     return result
 
@@ -263,7 +269,9 @@ def _runtime_solver_parameters(solver: SolverSpec) -> dict[str, object]:
         )
         return _without_none({
             "beam_width": params["width"],
-            "rounds": params["rounds"],
+            # The engine still owns its internal zero sentinel. Public callers
+            # use None to request the automatic round count.
+            "rounds": 0 if params["rounds"] is None else params["rounds"],
             "restarts": params["restarts"],
             "expand_mode": params["expansion"],
             "expand.max_children_per_parent": params["maximum_children_per_parent"],
@@ -549,7 +557,11 @@ def _solver_report_details_from_solution(
 
 
 def _result_from_solution(
-    request: RunSpec, solution: object, *, effective_seed: int
+    request: RunSpec,
+    solution: object,
+    *,
+    effective_seed: int,
+    word_length_information: object,
 ) -> RunResult:
     runtime_reason = getattr(solution, "stop_reason", None)
     category = stop_category_for_reason(runtime_reason)
@@ -626,12 +638,21 @@ def _result_from_solution(
         stop_category=status.stop_category,
         stop_reason=status.stop_reason,
     )
-    plaintext_text = getattr(solution, "plaintext_str", None)
-    if plaintext_text is not None:
-        plaintext_text = str(plaintext_text)
+    wli = None
+    solution_wli = getattr(solution, "wli", None)
+    wli_source = solution_wli if solution_wli is not None else word_length_information
+    if plaintext is not None and wli_source is not None:
+        wli = tuple(tuple(int(item) for item in pair) for pair in wli_source)
+    plaintext_runes = None
+    plaintext_rune_latin = None
+    if plaintext is not None:
+        plaintext_runes = Runeglish.to_rune(plaintext, wli)
+        plaintext_rune_latin = Runeglish.to_delimited_rune_latin(plaintext, wli)
     return RunResult(
-        plaintext=plaintext,
-        plaintext_text=plaintext_text,
+        plaintext_indices=plaintext,
+        word_length_information=wli,
+        plaintext_runes=plaintext_runes,
+        plaintext_rune_latin=plaintext_rune_latin,
         key=key,
         score=score,
         status=status,

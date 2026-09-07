@@ -23,15 +23,31 @@ from rdp.data.runeglish import Runeglish
 
 
 @dataclass(frozen=True)
-class LPSolverPayload:
-    ct_idx: list[int]
-    wli: list[list[int]]
+class SourceData:
+    """Loaded Liber Primus rune data and its source metadata.
+
+    The full field names describe the data without assuming it is ciphertext.
+    `ct_idx` and `wli` remain convenient read-only properties for working code.
+    """
+
+    indices: list[int]
+    word_length_information: list[list[int]]
     metadata: dict[str, Any]
+
+    @property
+    def ct_idx(self) -> list[int]:
+        return self.indices
+
+    @property
+    def wli(self) -> list[list[int]]:
+        return self.word_length_information
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "ct_idx": list(self.ct_idx),
-            "wli": [list(pair) for pair in self.wli],
+            "indices": list(self.indices),
+            "word_length_information": [
+                list(pair) for pair in self.word_length_information
+            ],
             "metadata": dict(self.metadata),
         }
 
@@ -52,7 +68,7 @@ def payload_from_locator(
     line_mode: LPLineReadMode | None = None,
     selector: LPLineRuneSelector = LPLineRuneSelector.ALL,
     spiral_route: LPSpiralRoute | None = None,
-) -> LPSolverPayload:
+) -> SourceData:
     if line_mode is not None and spiral_route is not None:
         raise ValueError("line_mode and spiral_route are mutually exclusive")
 
@@ -69,7 +85,11 @@ def payload_from_locator(
             "word_end": locator.word_end,
             "route": "none",
         }
-        return LPSolverPayload(ct_idx=ct_idx, wli=wli, metadata=metadata)
+        return SourceData(
+            indices=ct_idx,
+            word_length_information=wli,
+            metadata=metadata,
+        )
 
     if locator.word is not None or locator.word_end is not None:
         raise ValueError("routed payload extraction does not support word selectors")
@@ -94,7 +114,11 @@ def payload_from_locator(
         "word_end": None,
         "route": route_name,
     }
-    return LPSolverPayload(ct_idx=ct_idx, wli=wli, metadata=metadata)
+    return SourceData(
+        indices=ct_idx,
+        word_length_information=wli,
+        metadata=metadata,
+    )
 
 
 def payload_from_partition_entry(
@@ -102,7 +126,7 @@ def payload_from_partition_entry(
     entry: LPPartitionEntry,
     *,
     intersect_page_ref: LPPageRef | None = None,
-) -> LPSolverPayload:
+) -> SourceData:
     if intersect_page_ref is None:
         ct_idx, wli = extract_partition_entry_ct_wli(doc, entry)
         metadata = {
@@ -114,7 +138,11 @@ def payload_from_partition_entry(
             "canon_end": entry.end_page.number,
             "intersect_page": None,
         }
-        return LPSolverPayload(ct_idx=ct_idx, wli=wli, metadata=metadata)
+        return SourceData(
+            indices=ct_idx,
+            word_length_information=wli,
+            metadata=metadata,
+        )
 
     partition_span = glyph_span_from_partition_entry(doc, entry)
     page = page_view_from_ref(doc, intersect_page_ref)
@@ -132,7 +160,11 @@ def payload_from_partition_entry(
             "number": intersect_page_ref.number,
         },
     }
-    return LPSolverPayload(ct_idx=ct_idx, wli=wli, metadata=metadata)
+    return SourceData(
+        indices=ct_idx,
+        word_length_information=wli,
+        metadata=metadata,
+    )
 
 
 def _locator_line_text(doc: LPTranscript, locator: LPFragmentLocator) -> list[str]:
@@ -167,8 +199,7 @@ def _ct_wli_from_rune_text(text: str) -> tuple[list[int], list[list[int]]]:
 
 
 __all__ = [
-    "LPSolverPayload",
+    "SourceData",
     "payload_from_locator",
     "payload_from_partition_entry",
 ]
-

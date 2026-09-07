@@ -12,18 +12,18 @@ def test_pipeline_block_tracks_custom_permutation_and_reinsertion():
     plaintext = 'rune prime telemetry'
     pt_idx, wli, _ = Runeglish.encode_english_to_runes(plaintext, direction='ltr')
     perm = list(reversed(range(len(pt_idx))))
-    solver = api.SolverSpec.beam_search(width=2, seed=99, rounds=0)
+    solver = api.SolverSpec.beam_search(width=2, seed=99, rounds=None)
     sol = api.run(
         api.RunSpec(
             problem_input=api.RuneIndexInput(
-                indices=tuple(int(value) for value in pt_idx), word_lengths=wli
+                indices=tuple(int(value) for value in pt_idx), word_length_information=wli
             ),
             cipher=api.CipherSpec.vigenere(alphabet_size=29),
             key_space=api.KeySpec.repeating(length=5),
             solver=solver,
             scoring=api.ScoringConfig(),
             telemetry_enabled=True,
-            text_direction=api.TextDirection.LEFT_TO_RIGHT,
+            text_direction=api.TextDirection.LTR,
             text_permutation=tuple(perm),
             compute_device=api.ComputeDevice.CPU,
         )

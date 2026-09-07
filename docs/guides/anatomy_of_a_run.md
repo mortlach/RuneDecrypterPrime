@@ -91,9 +91,9 @@ are enabled by default.
 ```python
 scoring = api.ScoringConfig(
     character_lane_enabled=True,
-    word_length_lane_enabled=True,
+    wli_lane_enabled=True,
     character_order_weights={1: 0.3, 2: 0.7},
-    word_length_order_weights={1: 0.3, 2: 0.7},
+    wli_order_weights={1: 0.3, 2: 0.7},
 )
 ```
 
@@ -112,7 +112,7 @@ The current defaults are:
 | `initial_keys` | `None` |
 | `logging` | `None` |
 | `word_length_policy` | `WordLengthPolicy.INFER` |
-| `text_direction` | `TextDirection.RIGHT_TO_LEFT` |
+| `text_direction` | `TextDirection.RTL` |
 | `compute_device` | `ComputeDevice.CPU` |
 | `telemetry_enabled` | `True` |
 | `text_permutation` | `None` |

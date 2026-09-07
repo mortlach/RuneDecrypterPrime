@@ -45,9 +45,9 @@ def _avg_cfg(
     return api.ScoringConfig(
         objective=api.advanced.ScoringObjective.average_log_probability(),
         character_lane_enabled=True,
-        word_length_lane_enabled=False,
+        wli_lane_enabled=False,
         character_order_weights={int(n_char): 1.0},
-        word_length_order_weights={},
+        wli_order_weights={},
         average_window_policy=api.advanced.AverageWindowPolicy.FULL_TEXT,
         backend=impl,
         compute_dtype=api.advanced.FloatDType.FLOAT32,
@@ -145,9 +145,9 @@ def test_avg_fulltext_mixed_order_ngram_counts() -> None:
     cfg = api.ScoringConfig(
         objective=api.advanced.ScoringObjective.average_log_probability(),
         character_lane_enabled=True,
-        word_length_lane_enabled=False,
+        wli_lane_enabled=False,
         character_order_weights={3: 0.2, 4: 0.8},
-        word_length_order_weights={},
+        wli_order_weights={},
         average_window_policy=api.advanced.AverageWindowPolicy.FULL_TEXT,
         backend=api.advanced.ScorerBackend.NUMPY,
         compute_dtype=api.advanced.FloatDType.FLOAT32,

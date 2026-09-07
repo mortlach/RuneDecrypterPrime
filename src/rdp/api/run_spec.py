@@ -18,7 +18,7 @@ from rdp.core.types import (
     InitialKeys,
     JsonObject,
     TextDirection,
-    WordLengthInfo,
+    WordLengthInformation,
     WordLengthPolicy,
     normalize_initial_keys,
 )
@@ -294,15 +294,18 @@ class RawTextInput:
 
 @dataclass(frozen=True, slots=True)
 class RuneIndexInput:
-    """Pre-normalised ciphertext indices, optionally with WLI pairs.
+    """Rune indices for a run input or plaintext candidate, optionally with WLI.
 
-    `ct_idx` is copied to an immutable tuple of rune indices in the inclusive
-    range 0..28. `wli`, when supplied, must be the same length as `ct_idx` and
-    must contain ordered `(position, word_length)` pairs.
+    `indices` is copied to an immutable tuple of rune indices in the inclusive
+    range 0..28. `word_length_information`, when supplied, must be the same
+    length as `indices` and contain ordered `(position, word_length)` pairs.
+
+    `ct_idx` and `wli` are short read-only properties. The constructor uses the
+    full names `indices` and `word_length_information`.
     """
 
     indices: Sequence[int]
-    word_lengths: WordLengthInfo | None = None
+    word_length_information: WordLengthInformation | None = None
 
     def __post_init__(self) -> None:
         ct_idx_input = _require_ordered_sequence(self.indices, "indices")
@@ -314,27 +317,34 @@ class RuneIndexInput:
             raise ValueError("indices must not be empty")
 
         wli: tuple[tuple[int, int], ...] | None
-        if self.word_lengths is None:
+        if self.word_length_information is None:
             wli = None
         else:
-            wli_input = _require_ordered_sequence(self.word_lengths, "word_lengths")
+            wli_input = _require_ordered_sequence(
+                self.word_length_information,
+                "word_length_information",
+            )
             wli_items: list[tuple[int, int]] = []
             for index, pair in enumerate(wli_input):
-                wli_items.append(_require_wli_pair(pair, f"word_lengths[{index}]"))
+                wli_items.append(
+                    _require_wli_pair(pair, f"word_length_information[{index}]")
+                )
             wli = tuple(wli_items)
             if len(wli) != len(ct_idx):
-                raise ValueError("word_lengths length must match indices length")
+                raise ValueError(
+                    "word_length_information length must match indices length"
+                )
 
         object.__setattr__(self, "indices", ct_idx)
-        object.__setattr__(self, "word_lengths", wli)
+        object.__setattr__(self, "word_length_information", wli)
 
     @property
     def ct_idx(self) -> tuple[int, ...]:
         return tuple(self.indices)
 
     @property
-    def wli(self) -> WordLengthInfo | None:
-        return self.word_lengths
+    def wli(self) -> WordLengthInformation | None:
+        return self.word_length_information
 
 
 @dataclass(frozen=True, slots=True)
@@ -342,9 +352,11 @@ class SourceReferenceInput:
     """Reference to a resolver-owned source input.
 
     The identity fields name the source kind, asset id, and asset version.
-    `ref` is restricted to flat JSON primitive metadata so reports can remain
+    `reference` is restricted to flat JSON primitive metadata so reports can remain
     portable and free of local path objects. Liber Primus references receive
     stricter shape validation according to `source_kind`.
+
+    `ref` is a read-only property alias, not a constructor keyword.
     """
 
     source_kind: str
@@ -392,7 +404,7 @@ class RunSpec:
     initial_keys: InitialKeys | None = None
     logging: LoggingConfig | None = None
     word_length_policy: WordLengthPolicy = WordLengthPolicy.INFER
-    text_direction: TextDirection = TextDirection.RIGHT_TO_LEFT
+    text_direction: TextDirection = TextDirection.RTL
     compute_device: ComputeDevice = ComputeDevice.CPU
     telemetry_enabled: bool = True
     text_permutation: IndexPermutation | None = None

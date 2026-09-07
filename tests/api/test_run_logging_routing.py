@@ -13,7 +13,7 @@ from rdp.core.config.solver import SolverConfig
 from rdp.core.types import Device, Direction
 
 def _minimal_cipher_config() -> CipherConfig:
-    return CipherConfig(ciphertext=np.asarray([0], dtype=np.uint8), wli_data=None, key_length=1, name='vigenere', device=Device.CPU, encoding_dir=api.TextDirection.LEFT_TO_RIGHT)
+    return CipherConfig(ciphertext=np.asarray([0], dtype=np.uint8), wli_data=None, key_length=1, name='vigenere', device=Device.CPU, encoding_dir=api.TextDirection.LTR)
 
 def _run_logging_route(monkeypatch, logging, *, progress_callback=None, progress_interval=None):
     captured = {}
@@ -28,11 +28,11 @@ def _run_logging_route(monkeypatch, logging, *, progress_callback=None, progress
             problem_input=api.RuneIndexInput(indices=[0]),
             cipher=api.CipherSpec.vigenere(),
             key_space=api.KeySpec.repeating(length=1),
-            solver=api.SolverSpec.beam_search(width=1, seed=1, rounds=0),
+            solver=api.SolverSpec.beam_search(width=1, seed=1, rounds=None),
             scoring=api.ScoringConfig(),
             logging=logging,
             telemetry_enabled=False,
-            text_direction=api.TextDirection.LEFT_TO_RIGHT,
+            text_direction=api.TextDirection.LTR,
         ),
         progress_callback=progress_callback,
         progress_interval=progress_interval,

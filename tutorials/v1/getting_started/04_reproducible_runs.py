@@ -22,14 +22,14 @@ def build_request() -> api.RunSpec:
         problem_input=api.RuneIndexInput(indices=ciphertext),
         cipher=cipher,
         key_space=api.KeySpec.scalar(minimum=2, maximum=8),
-        solver=api.SolverSpec.beam_search(width=8, rounds=0, seed=314159),
+        solver=api.SolverSpec.beam_search(width=8, rounds=None, seed=314159),
         scoring=api.ScoringConfig(
             character_lane_enabled=True,
-            word_length_lane_enabled=False,
+            wli_lane_enabled=False,
             character_order_weights={1: 0.2, 2: 0.8},
-            word_length_order_weights={},
+            wli_order_weights={},
         ),
-        text_direction=api.TextDirection.LEFT_TO_RIGHT,
+        text_direction=api.TextDirection.LTR,
     )
 
 
@@ -41,12 +41,12 @@ def main() -> None:
     print("Requested seed:", first.reproducibility.requested_seed)
     print("Effective seed:", first.reproducibility.effective_seed)
     print("Backend       :", first.reproducibility.backend.value)
-    print("Same result   :", first.plaintext == second.plaintext)
+    print("Same result   :", first.plaintext_indices == second.plaintext_indices)
     print("Same status   :", first.status == second.status)
 
     same_observations = (
         first.key == second.key == SECRET_KEY
-        and first.plaintext == second.plaintext == PLAINTEXT
+        and first.plaintext_indices == second.plaintext_indices == PLAINTEXT
         and first.score == second.score
         and first.status == second.status
         and first.reproducibility.requested_seed

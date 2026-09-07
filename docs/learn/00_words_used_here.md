@@ -200,9 +200,9 @@ One step of Beam search.
 In a round, Beam expands some of the current candidates into nearby alternatives,
 scores them, then keeps the best candidates up to the chosen width.
 
-## `rounds=0`
+## `rounds=None`
 
-In RDP, `rounds=0` does **not** mean zero search.
+In RDP, `rounds=None` does **not** mean zero search.
 
 It means:
 
@@ -217,7 +217,7 @@ max(2 * key_length, 12)
 So for a key length of `8`:
 
 ```text
-rounds=0
+rounds=None
 ```
 
 means:
@@ -338,19 +338,22 @@ identifies the Welcome Pilgrim source.
 
 ## `payload`
 
-An older/internal-sounding term for a bundle of source data.
+An internal term for data passed between parts of the program. It also appears
+in ordinary phrases such as a JSON payload.
 
-You may still encounter names containing `payload` in current code. In beginner
-documentation, think of it simply as:
+For Liber Primus data in the public API, use:
 
-> the loaded source data.
+```python
+source_data = api.liber_primus.load_source("welcome_pilgrim")
+```
 
-The learning route uses `api.liber_primus.source(...)` instead.
+This returns `SourceData`. `api.liber_primus.source(...)` creates a source
+reference for a run instead of loading the data immediately.
 
 ## `RuneIndexInput`
 
-A typed input containing ciphertext that has already been converted into rune
-indices, optionally with WLI.
+A typed input containing rune indices, optionally with WLI. It can hold
+ciphertext for a run or a plaintext candidate for scoring.
 
 It is precise, but most beginners should not need to construct one when using a
 named Liber Primus source.
@@ -394,10 +397,14 @@ The object returned by a completed run.
 
 It contains the best candidate plus reports and reproducibility information.
 
-## `plaintext_text`
+## Plaintext representations
 
-The best candidate plaintext rendered as rune characters. This does not
-automatically translate or transliterate the candidate into English.
+`plaintext_indices`, `plaintext_runes` and `plaintext_rune_latin` are three
+views of the same candidate. RuneLatin uses `|` between rune tokens, so the LTR
+encoding `TH|E` and RTL encoding `T|H|E` remain visibly different. Both are
+valid for the direction-specific rune sequence. `word_length_information`
+carries the known word boundaries. None of these fields is an English
+translation.
 
 ## `key`
 

@@ -17,7 +17,7 @@ def _cipher_cfg(length: int) -> CipherConfig:
     return CipherConfig(ciphertext=[0] * int(length), wli_data=[], key_length=None, encoding_dir=Direction.LTR)
 
 def _avg_fulltext_cfg(*, backend: api.advanced.ScorerBackend) -> api.ScoringConfig:
-    return api.ScoringConfig(objective=api.advanced.ScoringObjective.average_log_probability(), character_lane_enabled=True, word_length_lane_enabled=False, character_order_weights={3: 0.2, 4: 0.8}, word_length_order_weights={}, average_window_policy=api.advanced.AverageWindowPolicy.FULL_TEXT, backend=backend, compute_dtype=api.advanced.FloatDType.FLOAT32)
+    return api.ScoringConfig(objective=api.advanced.ScoringObjective.average_log_probability(), character_lane_enabled=True, wli_lane_enabled=False, character_order_weights={3: 0.2, 4: 0.8}, wli_order_weights={}, average_window_policy=api.advanced.AverageWindowPolicy.FULL_TEXT, backend=backend, compute_dtype=api.advanced.FloatDType.FLOAT32)
 
 @pytest.mark.full_assets
 @pytest.mark.parametrize('length', [4, 40, 96, 240])

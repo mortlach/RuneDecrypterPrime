@@ -27,7 +27,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 MIN_MATCH_RATIO = 0.9
 STOP_SCORE = 0.56
-DIRECTION = api.TextDirection.RIGHT_TO_LEFT
+DIRECTION = api.TextDirection.RTL
 
 
 def _as_int_list(value: object) -> list[int] | None:
@@ -90,7 +90,7 @@ def _run_case(label: str, mask: list[int], key: list[int]) -> None:
     )
     result = api.run(
         api.RunSpec(
-            problem_input=api.RuneIndexInput(indices=ct_idx_list, word_lengths=wli),
+            problem_input=api.RuneIndexInput(indices=ct_idx_list, word_length_information=wli),
             cipher=cipher_spec,
             key_space=key_spec,
             solver=solver,
@@ -102,7 +102,7 @@ def _run_case(label: str, mask: list[int], key: list[int]) -> None:
         )
     )
     found_key = _as_int_list(result.key or None)
-    recovered = (result.plaintext or []) or []
+    recovered = (result.plaintext_indices or []) or []
     ratio = _match_ratio(recovered, pt_idx)
     print(f"Expected key length : {len(key)}")
     print(f"Found key length    : {(0 if found_key is None else len(found_key))}")

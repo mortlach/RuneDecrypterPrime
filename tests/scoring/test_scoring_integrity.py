@@ -15,10 +15,10 @@ def _make_char_only_scorer(*, impl: ScorerImpl, dtype: str):
         scorer_overrides={
             "backend": api.advanced.ScorerBackend(impl.value),
             "compute_dtype": api.advanced.FloatDType(dtype),
-            "word_length_lane_enabled": False,
+            "wli_lane_enabled": False,
             "character_lane_enabled": True,
             "character_order_weights": {2: 1.0},
-            "word_length_order_weights": {},
+            "wli_order_weights": {},
         },
     )
     return build_scorer(c_cfg, s_cfg)

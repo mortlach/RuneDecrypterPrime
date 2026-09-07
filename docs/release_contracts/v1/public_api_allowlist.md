@@ -3,8 +3,8 @@
 Status: implemented V1 contract
 
 The definition-owning package is `src/rdp/api/`. Normal consumers use
-`from rdp import api`. The table below is exhaustive: its 141 paths are the
-32 root exports plus the 65 advanced, 22 display, 18 Liber Primus, and four
+`from rdp import api`. The table below is exhaustive: its 142 paths are the
+32 root exports plus the 65 advanced, 22 display, 19 Liber Primus, and four
 experimental exports. Importable implementation helpers not listed here are
 internal.
 
@@ -105,7 +105,7 @@ internal.
 | `rdp.api.advanced.SpanHammingGateFailurePolicy` | Public V1 surface | Advanced export. |
 | `rdp.api.advanced.SpanHammingLanguageModelProfileSource` | Public V1 surface | Advanced export. |
 | `rdp.api.advanced.SpanHammingMode` | Public V1 surface | Advanced export. |
-| `rdp.api.advanced.WordLengthInfo` | Public V1 surface | Advanced export. |
+| `rdp.api.advanced.WordLengthInformation` | Public V1 surface | Advanced export. |
 | `rdp.api.advanced.ScorerReport` | Public V1 surface | Advanced export. |
 | `rdp.api.display.SUMMARY_RELATIVE_PATH` | Public V1 surface | Display export. |
 | `rdp.api.display.SUMMARY_SCHEMA` | Public V1 surface | Display export. |
@@ -130,7 +130,7 @@ internal.
 | `rdp.api.display.print_block` | Public V1 surface | Display export. |
 | `rdp.api.display.print_text` | Public V1 surface | Display export. |
 | `rdp.api.liber_primus.Section` | Public V1 surface | Liber Primus export. |
-| `rdp.api.liber_primus.SolverPayload` | Public V1 surface | Liber Primus export. |
+| `rdp.api.liber_primus.SourceData` | Public V1 surface | Loaded Liber Primus data. |
 | `rdp.api.liber_primus.FragmentLocator` | Public V1 surface | Liber Primus export. |
 | `rdp.api.liber_primus.LineReadMode` | Public V1 surface | Liber Primus export. |
 | `rdp.api.liber_primus.LineRuneSelector` | Public V1 surface | Liber Primus export. |
@@ -140,10 +140,10 @@ internal.
 | `rdp.api.liber_primus.Transcript` | Public V1 surface | Liber Primus export. |
 | `rdp.api.liber_primus.get_section` | Public V1 surface | Liber Primus export. |
 | `rdp.api.liber_primus.source` | Public V1 surface | Named, versioned source reference for a run. |
-| `rdp.api.liber_primus.payload_from_label` | Public V1 surface | Liber Primus export. |
-| `rdp.api.liber_primus.payload_from_locator` | Public V1 surface | Liber Primus export. |
-| `rdp.api.liber_primus.payload_from_main_pages` | Public V1 surface | Liber Primus export. |
-| `rdp.api.liber_primus.payload_from_partition_entry` | Public V1 surface | Liber Primus export. |
+| `rdp.api.liber_primus.load_source` | Public V1 surface | Load data for a named source. |
+| `rdp.api.liber_primus.load_source_from_locator` | Public V1 surface | Load data selected by a typed locator. |
+| `rdp.api.liber_primus.load_source_from_main_pages` | Public V1 surface | Load data for complete main-transcript pages. |
+| `rdp.api.liber_primus.load_source_from_partition_entry` | Public V1 surface | Load data for a partition entry. |
 | `rdp.api.liber_primus.load_main_section_indices` | Public V1 surface | Liber Primus export. |
 | `rdp.api.liber_primus.load_main_transcript` | Public V1 surface | Liber Primus export. |
 | `rdp.api.liber_primus.load_section_indices` | Public V1 surface | Liber Primus export. |

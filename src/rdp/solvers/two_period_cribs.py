@@ -470,11 +470,11 @@ def _profile(profile_id: str, hard_crib: HardCribConfig, direction: Direction) -
     include_char, use_wli, char_orders, wli_orders, char_total, wli_total = profiles[profile_id]
     return ScoringConfig(
         character_lane_enabled=include_char,
-        word_length_lane_enabled=use_wli,
+        wli_lane_enabled=use_wli,
         character_ngram_order=max(char_orders, default=1),
-        word_length_ngram_order=max(wli_orders, default=1),
+        wli_ngram_order=max(wli_orders, default=1),
         character_order_weights={} if not char_orders else {order: char_total / len(char_orders) for order in char_orders},
-        word_length_order_weights={} if not wli_orders else {order: wli_total / len(wli_orders) for order in wli_orders},
+        wli_order_weights={} if not wli_orders else {order: wli_total / len(wli_orders) for order in wli_orders},
         hard_crib=hard_crib,
     )
 
@@ -489,11 +489,11 @@ def profile_contract_hash(profile_id: str) -> str:
     payload = {
         "profile": profile_id,
         "character_lane_enabled": cfg.character_lane_enabled,
-        "word_length_lane_enabled": cfg.word_length_lane_enabled,
+        "wli_lane_enabled": cfg.wli_lane_enabled,
         "character_ngram_order": cfg.character_ngram_order,
-        "word_length_ngram_order": cfg.word_length_ngram_order,
+        "wli_ngram_order": cfg.wli_ngram_order,
         "character_order_weights": dict(cfg.character_order_weights or {}),
-        "word_length_order_weights": dict(cfg.word_length_order_weights or {}),
+        "wli_order_weights": dict(cfg.wli_order_weights or {}),
         # A2 profile identity was defined by the effective aggregate channel
         # totals, even when per-order maps supplied them. Preserve that stable
         # contract while ScoringConfig keeps requested and derived fields separate.
@@ -653,9 +653,9 @@ def run_two_period_stages(
         word_lengths=wli,
         compute_device=(ComputeDevice.CUDA if device is Device.CUDA else ComputeDevice.CPU),
         text_direction=(
-            TextDirection.LEFT_TO_RIGHT
+            TextDirection.LTR
             if direction is Direction.LTR
-            else TextDirection.RIGHT_TO_LEFT
+            else TextDirection.RTL
         ),
         text_permutation=None,
         initial_keys=None,
@@ -756,9 +756,9 @@ def run_two_period_stages(
                     ComputeDevice.CUDA if device is Device.CUDA else ComputeDevice.CPU
                 ),
                 text_direction=(
-                    TextDirection.LEFT_TO_RIGHT
+                    TextDirection.LTR
                     if direction is Direction.LTR
-                    else TextDirection.RIGHT_TO_LEFT
+                    else TextDirection.RTL
                 ),
                 initial_keys=None,
                 text_permutation=None,

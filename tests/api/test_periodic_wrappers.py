@@ -10,7 +10,7 @@ def _cfg(cipher: api.CipherSpec, key: api.KeySpec):
         ciphertext=(0, 1, 2),
         word_lengths=None,
         compute_device=api.ComputeDevice.CPU,
-        text_direction=api.TextDirection.LEFT_TO_RIGHT,
+        text_direction=api.TextDirection.LTR,
     )
 
 def test_build_periodic_substitution_config():

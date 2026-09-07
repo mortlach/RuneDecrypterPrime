@@ -12,7 +12,7 @@ from rdp import api
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCS = REPO_ROOT / 'docs'
 PUBLIC_API_ALLOWLIST = DOCS / 'release_contracts' / 'v1' / 'public_api_allowlist.md'
-PUBLIC_API_SNAPSHOT_SHA256 = '8489f5fa3ac1fef1d7aadc02ecca83d9982a09f9c4de921278ee3b9a523a836b'
+PUBLIC_API_SNAPSHOT_SHA256 = '5f204ba957065e0f72d6df10de10fac2c994e2e96428490ee94f1e0ed7cf8027'
 
 def _read(path: Path) -> str:
     return path.read_text(encoding='utf-8')

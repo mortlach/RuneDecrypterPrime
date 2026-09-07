@@ -5,8 +5,10 @@
 The fields normally read first are:
 
 ```text
-plaintext
-plaintext_text
+plaintext_indices
+word_length_information
+plaintext_runes
+plaintext_rune_latin
 key
 score
 status
@@ -14,8 +16,15 @@ status
 
 ## Candidate
 
-`plaintext` contains rune indices. `plaintext_text` is the rendered form when
-one is available. `key` is the best key returned by the solver.
+`plaintext_indices` contains rune indices. `word_length_information` records
+the word boundaries when they are known. `plaintext_runes` renders those
+indices as rune characters, while `plaintext_rune_latin` renders the same runes
+with `|` between rune tokens. For example, the direction-specific encoding of
+“THE” can be `TH|E` in LTR or `T|H|E` in RTL. Both are correct RuneLatin for
+the rune sequence actually produced.
+
+These are representations of the same candidate. They are not an English
+translation. `key` is the best key returned by the solver.
 
 These fields can be `None` when the run did not produce a candidate.
 

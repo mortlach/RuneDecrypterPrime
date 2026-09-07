@@ -23,7 +23,7 @@ def encrypt_columnar(pt: str, key: list[int]) -> str:
 def main() -> None:
     # We'll remove the spaces for this example. That leaves the scorer with
     # rune pairs to work from, without word positions.
-    direction = api.TextDirection.RIGHT_TO_LEFT
+    direction = api.TextDirection.RTL
     _, _, plaintext_runes = Runeglish.encode_english_to_runes(
         plaintext_english_string, direction=direction
     )
@@ -41,9 +41,9 @@ def main() -> None:
     key_space = api.KeySpec.permutation(length=len(known_key))
     scoring = api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=False,
+        wli_lane_enabled=False,
         character_order_weights={2: 1.0},
-        word_length_order_weights={},
+        wli_order_weights={},
         objective=api.advanced.ScoringObjective.percentile_log_probability(
             window_size=10
         ),
@@ -101,7 +101,7 @@ def main() -> None:
         target_score=stop.stop_score,
     )
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=indices, word_lengths=None),
+        problem_input=api.RuneIndexInput(indices=indices, word_length_information=None),
         cipher=cipher,
         key_space=key_space,
         solver=solver,
@@ -116,7 +116,7 @@ def main() -> None:
     result = api.run(request)
 
     match_ratio = sum(
-        a == b for a, b in zip(result.plaintext, reference, strict=True)
+        a == b for a, b in zip(result.plaintext_indices, reference, strict=True)
     ) / len(reference)
     print(f"Match ratio: {match_ratio:.3f}")
     # Print the result with the settings we actually used.

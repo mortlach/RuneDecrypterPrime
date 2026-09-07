@@ -29,16 +29,16 @@ def main() -> None:
 
     solver = api.SolverSpec.beam_search(
         width=8,
-        rounds=0,
+        rounds=None,
         seed=7,
     )
 
     # This constructed message has no WLI, so only the character lane is used.
     scoring = api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=False,
+        wli_lane_enabled=False,
         character_order_weights={1: 0.2, 2: 0.8},
-        word_length_order_weights={},
+        wli_order_weights={},
     )
 
     request = api.RunSpec(
@@ -47,15 +47,15 @@ def main() -> None:
         key_space=key_space,
         solver=solver,
         scoring=scoring,
-        text_direction=api.TextDirection.LEFT_TO_RIGHT,
+        text_direction=api.TextDirection.LTR,
     )
     result = api.run(request)
 
-    exact_recovery = result.key == SECRET_KEY and result.plaintext == PLAINTEXT
+    exact_recovery = result.key == SECRET_KEY and result.plaintext_indices == PLAINTEXT
 
     print("First search")
     print("Recovered key  :", result.key)
-    print("Recovered runes:", result.plaintext_text)
+    print("Recovered runes:", result.plaintext_runes)
     print("Stop reason    :", result.status.stop_reason.value)
     print("Exact recovery :", exact_recovery)
 

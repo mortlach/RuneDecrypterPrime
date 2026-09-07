@@ -32,7 +32,7 @@ def test_run_uses_public_defaults_and_always_returns_run_result(monkeypatch) -> 
             problem_input=api.RuneIndexInput(indices=(0,)),
             cipher=api.CipherSpec.vigenere(),
             key_space=api.KeySpec.repeating(length=1),
-            solver=api.SolverSpec.beam_search(width=1, rounds=0),
+            solver=api.SolverSpec.beam_search(width=1, rounds=None),
             telemetry_enabled=False,
         )
     )

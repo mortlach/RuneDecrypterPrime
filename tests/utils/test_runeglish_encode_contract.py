@@ -39,13 +39,28 @@ def test_latin_rendering_uses_canonical_alphabet_normalisation():
     assert Runeglish.to_rune_latin(pt_idx, wli, direction='rtl') == 'LOOCED'
 
 
+def test_delimited_rune_latin_preserves_rune_and_word_boundaries():
+    rtl_indices, rtl_wli, _ = Runeglish.encode_english_to_runes(
+        "THE LOSS OF", direction="rtl"
+    )
+    ltr_indices, ltr_wli, _ = Runeglish.encode_english_to_runes(
+        "THE LOSS OF", direction="ltr"
+    )
+    assert Runeglish.to_delimited_rune_latin(rtl_indices, rtl_wli) == (
+        "T|H|E L|O|S|S O|F"
+    )
+    assert Runeglish.to_delimited_rune_latin(ltr_indices, ltr_wli) == (
+        "TH|E L|O|S|S O|F"
+    )
+
+
 def test_public_text_direction_is_normalised_to_engine_direction():
     text = 'READ EARTH AETHER'
     public_ltr = Runeglish.encode_english_to_runes(
-        text, direction=api.TextDirection.LEFT_TO_RIGHT
+        text, direction=api.TextDirection.LTR
     )
     public_rtl = Runeglish.encode_english_to_runes(
-        text, direction=api.TextDirection.RIGHT_TO_LEFT
+        text, direction=api.TextDirection.RTL
     )
 
     assert public_ltr == Runeglish.encode_english_to_runes(
@@ -55,3 +70,8 @@ def test_public_text_direction_is_normalised_to_engine_direction():
         text, direction=Direction.RTL
     )
     assert public_ltr != public_rtl
+
+
+def test_public_text_direction_prefers_short_names_and_keeps_long_aliases():
+    assert api.TextDirection.LEFT_TO_RIGHT is api.TextDirection.LTR
+    assert api.TextDirection.RIGHT_TO_LEFT is api.TextDirection.RTL

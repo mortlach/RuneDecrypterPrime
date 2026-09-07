@@ -14,7 +14,7 @@ from tutorials.v1.data.plaintext_fixtures import plaintext1, word_breaks1
 from tutorials.v1.data.two_period_cribs_demo import encrypt_interruptor_fixture
 from tutorials.v1.support import tutorial_pretty as pretty
 
-DIRECTION = api.TextDirection.LEFT_TO_RIGHT
+DIRECTION = api.TextDirection.LTR
 TRUE_KEY = [7, 0, 13, 2, 5, 21, 8]
 TRUE_INTERRUPTORS = [190, 194]
 INTERRUPTOR_COUNT = 2
@@ -24,16 +24,16 @@ BEAM_WIDTH = 64
 RESTARTS = 3
 SCORER_PARAMS = api.ScoringConfig(
     character_lane_enabled=True,
-    word_length_lane_enabled=True,
+    wli_lane_enabled=True,
     character_order_weights={2: 0.3},
-    word_length_order_weights={2: 0.7},
+    wli_order_weights={2: 0.7},
     objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10),
 )
 DISPLAY_SCORER_PARAMS = api.ScoringConfig(
     character_lane_enabled=True,
-    word_length_lane_enabled=True,
+    wli_lane_enabled=True,
     character_order_weights={2: 0.3},
-    word_length_order_weights={2: 0.7},
+    wli_order_weights={2: 0.7},
     objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10),
 )
 
@@ -76,7 +76,7 @@ def main() -> None:
         expansion=api.advanced.BeamExpansionMode.SWEEP,
         plateau_rounds=10,
         seed=SOLVER_SEED,
-        rounds=0,
+        rounds=None,
     )
     search = api.InterruptorConfig.search(
         INTERRUPTOR_POOL,
@@ -94,7 +94,7 @@ def main() -> None:
     result = api.run(
         api.RunSpec(
             problem_input=api.RuneIndexInput(
-                indices=_ints(ciphertext), word_lengths=wli
+                indices=_ints(ciphertext), word_length_information=wli
             ),
             cipher=cipher_spec,
             key_space=api.KeySpec.repeating(length=len(TRUE_KEY)),
@@ -105,7 +105,7 @@ def main() -> None:
             interruptors=search,
         )
     )
-    recovered_plaintext = _ints(result.plaintext)
+    recovered_plaintext = _ints(result.plaintext_indices)
     recovered_values = _ints(result.key)
     recovered_key = recovered_values[: len(TRUE_KEY)]
     recovered_interruptors = sorted(recovered_values[len(TRUE_KEY) :])

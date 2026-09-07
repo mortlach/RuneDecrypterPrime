@@ -183,7 +183,7 @@ class RunBudget:
         if self.sa_tmin > self.sa_t0:
             raise ValueError('sa_tmin must be no greater than sa_t0')
 RUN_BUDGETS = {'canary': RunBudget(coordinate_restarts=4, coordinate_sweeps=2, handoff_candidates=2, minimum_comparisons=1, sa_steps=50, sa_cycles=1, wallclock_limit_s=300.0), 'full': RunBudget(coordinate_restarts=64, coordinate_sweeps=20, handoff_candidates=8, minimum_comparisons=4, sa_steps=5000, sa_cycles=2, wallclock_limit_s=28800.0)}
-SCORING_CONTRACT = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=True, character_order_weights={3: 0.5, 4: 0.5}, word_length_order_weights={3: 0.5, 4: 0.5}, objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10))
+SCORING_CONTRACT = api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=True, character_order_weights={3: 0.5, 4: 0.5}, wli_order_weights={3: 0.5, 4: 0.5}, objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10))
 
 def budget_for(profile: str) -> RunBudget:
     try:

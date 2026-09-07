@@ -37,7 +37,7 @@ also enabled by default:
 
 ```python
 scoring = api.ScoringConfig(
-    word_length_lane_enabled=True,
+    wli_lane_enabled=True,
 )
 ```
 
@@ -48,7 +48,7 @@ If the input has no meaningful word boundaries, the lane can be disabled:
 ```python
 scoring = api.ScoringConfig(
     character_lane_enabled=True,
-    word_length_lane_enabled=False,
+    wli_lane_enabled=False,
 )
 ```
 
@@ -59,7 +59,7 @@ Weights can be supplied per n-gram order:
 ```python
 scoring = api.ScoringConfig(
     character_order_weights={1: 0.3, 2: 0.7},
-    word_length_order_weights={1: 0.3, 2: 0.7},
+    wli_order_weights={1: 0.3, 2: 0.7},
 )
 ```
 
@@ -85,7 +85,7 @@ Directional scoring uses the direction supplied by the run:
 ```python
 request = api.RunSpec(
     ...,
-    text_direction=api.TextDirection.RIGHT_TO_LEFT,
+    text_direction=api.TextDirection.RTL,
 )
 ```
 

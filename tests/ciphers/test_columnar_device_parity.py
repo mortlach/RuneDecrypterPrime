@@ -11,14 +11,14 @@ def test_columnar_solver_device_parity(device_matrix):
     Columnar solver should return identical plaintext/keys across devices.
     """
     ct_idx, pt_idx, wli, perm, direction = columnar_roundtrip_case()
-    solver = api.SolverSpec.beam_search(width=2, seed=2025, rounds=0)
+    solver = api.SolverSpec.beam_search(width=2, seed=2025, rounds=None)
     cipher_spec = api.CipherSpec.columnar(columns=len(perm), alphabet_size=29)
     key_spec = api.KeySpec.permutation(length=len(perm))
     baseline = None
     for dev in device_matrix:
         device = api.ComputeDevice(dev)
-        sol = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=tuple(int(value) for value in ct_idx), word_lengths=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=api.ScoringConfig(compute_dtype=api.advanced.FloatDType.FLOAT64), initial_keys=(tuple(int(value) for value in perm),), telemetry_enabled=True, text_direction=direction, compute_device=device))
-        arr_plain = np.asarray(sol.plaintext, dtype=np.uint8)
+        sol = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=tuple(int(value) for value in ct_idx), word_length_information=wli), cipher=cipher_spec, key_space=key_spec, solver=solver, scoring=api.ScoringConfig(compute_dtype=api.advanced.FloatDType.FLOAT64), initial_keys=(tuple(int(value) for value in perm),), telemetry_enabled=True, text_direction=direction, compute_device=device))
+        arr_plain = np.asarray(sol.plaintext_indices, dtype=np.uint8)
         if baseline is None:
             baseline = (
                 arr_plain,

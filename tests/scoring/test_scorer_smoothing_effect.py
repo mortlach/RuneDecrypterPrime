@@ -38,7 +38,7 @@ def _mk_cipher_cfg(length: int) -> CipherConfig:
 def _mk_avg_scorer(
     *, smoothing: api.advanced.SmoothingMethod
 ) -> tuple[RuneScorer, api.ScoringConfig]:
-    s = api.ScoringConfig(objective=api.advanced.ScoringObjective.average_log_probability(), character_lane_enabled=True, word_length_lane_enabled=False, character_order_weights={4: 1.0}, word_length_order_weights={}, smoothing=smoothing, backend=api.advanced.ScorerBackend.NUMPY, compute_dtype=api.advanced.FloatDType.FLOAT32)
+    s = api.ScoringConfig(objective=api.advanced.ScoringObjective.average_log_probability(), character_lane_enabled=True, wli_lane_enabled=False, character_order_weights={4: 1.0}, wli_order_weights={}, smoothing=smoothing, backend=api.advanced.ScorerBackend.NUMPY, compute_dtype=api.advanced.FloatDType.FLOAT32)
     scorer = build_scorer(_mk_cipher_cfg(1000), s)
     assert isinstance(scorer, RuneScorer)
     return scorer, s

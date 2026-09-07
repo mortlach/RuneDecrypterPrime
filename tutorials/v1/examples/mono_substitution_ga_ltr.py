@@ -20,7 +20,7 @@ from tutorials.v1.support.tutorial_utils import oracle_stop_score, print_stop_su
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
-DIRECTION = api.TextDirection.LEFT_TO_RIGHT
+DIRECTION = api.TextDirection.LTR
 START_MODE = "seeded"
 STOP_SCORE = 0.55
 TUTORIAL_SEED = 12345
@@ -104,9 +104,9 @@ def main() -> None:
     print(f"GA population: {POPULATION}")
     print(f"GA generations: {GENERATIONS}")
     scorer_params = api.ScoringConfig(
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights={2: 0.3},
-        word_length_order_weights={2: 0.7},
+        wli_order_weights={2: 0.7},
     )
     stop = oracle_stop_score(
         pt_idx,
@@ -139,7 +139,7 @@ def main() -> None:
         else tuple(tuple(int(value) for value in key) for key in seeds)
     )
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli),
+        problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli),
         cipher=cipher_spec,
         key_space=key_spec,
         solver=solver,
@@ -151,14 +151,14 @@ def main() -> None:
     result = api.run(request)
     mode_label = "GA (seeded start)" if seeds is not None else "GA (noise start)"
     print(f"Mode: {mode_label}")
-    rec = (result.plaintext_text or "") or (result.plaintext_text or "")
+    rec = result.plaintext_runes or ""
     print("Recovered plaintext:", preview(str(rec)))
     print("Score:", round(result.score, 6))
     pipeline = getattr(result.solver_report.details, "value", {}) or {}
     print("Pipeline block:", pipeline)
     has_tel = bool((result.telemetry or {}).get("telemetry"))
     print("Telemetry attached:", has_tel)
-    recovered_idx = [int(value) for value in result.plaintext]
+    recovered_idx = [int(value) for value in result.plaintext_indices]
     expected_idx = [int(value) for value in pt_idx]
     match_ratio = sum(
         a == b for a, b in zip(recovered_idx, expected_idx, strict=True)

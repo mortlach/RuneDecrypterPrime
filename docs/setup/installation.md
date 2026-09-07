@@ -12,6 +12,28 @@ python install.py
 The installer installs the checkout, checks the compiled parts of RDP, makes
 sure the V1 language files are available, and checks the install at the end.
 
+It uses the Python environment that launched it. It does not create or select
+an environment for you.
+
+## Externally managed Python on Linux
+
+Some Linux distributions protect their system Python using PEP 668. On those
+systems, pip may refuse the package-installation step.
+
+The installer reports this case and leaves the choice with you. Run it with
+another Python or from an environment you manage, or explicitly override the
+protection:
+
+```text
+python install.py --break-system-packages
+```
+
+That option allows pip to modify an externally managed Python installation.
+RDP never enables it automatically.
+
+See [Troubleshooting](../guides/troubleshooting.md) if pip still refuses the
+installation.
+
 A supported NVIDIA GPU can also be prepared for CUDA. RDP still uses CPU unless
 a run asks for CUDA explicitly.
 
@@ -26,13 +48,7 @@ The larger LM3 and LM4 files are release assets. The source installer checks
 for them and obtains them when needed.
 
 If the automatic download is unavailable, place the V1 large-language-model
-release archives in `downloads/` and run:
-
-```text
-python install.py
-```
-
-again.
+release archives in `downloads/` and run the same installer command again.
 
 A missing required asset is an error. RDP does not silently replace it with a
 different scoring setup.

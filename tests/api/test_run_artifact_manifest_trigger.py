@@ -15,7 +15,7 @@ def _request(logging: api.LoggingConfig | None = None) -> api.RunSpec:
         problem_input=api.RuneIndexInput(indices=(0,)),
         cipher=api.CipherSpec.vigenere(),
         key_space=api.KeySpec.repeating(length=1),
-        solver=api.SolverSpec.beam_search(width=1, rounds=0),
+        solver=api.SolverSpec.beam_search(width=1, rounds=None),
         logging=logging,
         telemetry_enabled=False,
     )

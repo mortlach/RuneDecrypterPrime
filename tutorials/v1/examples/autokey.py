@@ -52,7 +52,7 @@ def _crib_seeds_from_prefix(
 ) -> list[list[int]]:
     crib_idx, _, _ = Runeglish.encode_english_to_runes(
         crib_text,
-        direction=("ltr" if direction is api.TextDirection.LEFT_TO_RIGHT else "rtl"),
+        direction=("ltr" if direction is api.TextDirection.LTR else "rtl"),
     )
     crib_idx = [int(v) for v in crib_idx if v >= 0]
     if len(crib_idx) < seed_len or len(ct_idx) < seed_len:
@@ -75,11 +75,11 @@ def main() -> None:
         expected_result="exact solve",
         uses_reference_stop_score=True,
     )
-    direction = api.TextDirection.RIGHT_TO_LEFT
+    direction = api.TextDirection.RTL
     plaintext = "WHEN THE WHITE RABBIT READ THESE WORDS HE SEEMED SUDDENLY ALARMED FOR A SHOWER OF LITTLE GLASS BOXES CAME TUMBLING UPON HIM"
     pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(
         plaintext,
-        direction=("ltr" if direction is api.TextDirection.LEFT_TO_RIGHT else "rtl"),
+        direction=("ltr" if direction is api.TextDirection.LTR else "rtl"),
     )
     pt_idx_arr = np.asarray(pt_idx, dtype=np.uint8)
     autokey_cipher = api.CipherSpec.autokey(alphabet_size=ALPHABET_SIZE)
@@ -107,9 +107,9 @@ def main() -> None:
     key_spec = api.KeySpec.repeating(length=SEED_LEN)
     scorer_params = api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights={2: 0.3},
-        word_length_order_weights={2: 0.7},
+        wli_order_weights={2: 0.7},
         objective=api.advanced.ScoringObjective.percentile_log_probability(
             window_size=10
         ),
@@ -136,7 +136,7 @@ def main() -> None:
             else tuple(tuple(int(value) for value in key) for key in initial_keys)
         )
         request = api.RunSpec(
-            problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli),
+            problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli),
             cipher=cipher_spec,
             key_space=key_spec,
             solver=solver,
@@ -147,7 +147,7 @@ def main() -> None:
             compute_device=api.ComputeDevice.CPU,
         )
         result = api.run(request)
-        ratio = _match_ratio(result.plaintext, pt_idx)
+        ratio = _match_ratio(result.plaintext_indices, pt_idx)
         print(f"Match ratio ({label}): {ratio:.3f}")
         pretty.print_summary_spacer()
         api.display.print_result(

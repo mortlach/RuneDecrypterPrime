@@ -550,7 +550,7 @@ class SolverSpec(_ImmutableSpec):
         cls,
         *,
         width: int = 64,
-        rounds: int = 0,
+        rounds: int | None = None,
         restarts: int = 1,
         expansion: BeamExpansionMode = BeamExpansionMode.SWEEP,
         maximum_children_per_parent: int | None = None,
@@ -567,7 +567,7 @@ class SolverSpec(_ImmutableSpec):
             raise ValueError("top_parents_fraction must be in (0, 1]")
         return cls._create(SolverKind.BEAM_SEARCH, seed, {
             "width": _strict_int(width, "width", minimum=1),
-            "rounds": _strict_int(rounds, "rounds", minimum=0),
+            "rounds": _optional_int(rounds, "rounds", minimum=1),
             "restarts": _strict_int(restarts, "restarts", minimum=1),
             "expansion": expansion,
             "maximum_children_per_parent": _optional_int(maximum_children_per_parent, "maximum_children_per_parent", minimum=1),

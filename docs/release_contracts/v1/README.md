@@ -89,4 +89,4 @@ root namespace still has 32 exports. The accepted historical 141-path baseline
 remains recorded in the closure evidence above.
 
 The current canonical CRLF SHA-256 is
-`8489f5fa3ac1fef1d7aadc02ecca83d9982a09f9c4de921278ee3b9a523a836b`.
+`a7bb2d1d23eeb30fde2c47177a37ced1a0630dae78c89b1777e9c0c24e87b33c`.

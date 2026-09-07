@@ -18,12 +18,13 @@ Source selection and solve method remain separate.
 For a known source label:
 
 ```python
-payload = api.liber_primus.payload_from_label(
-    "welcome_pilgrim"
-)
+problem_input = api.liber_primus.source("welcome_pilgrim")
 ```
 
 Loading a solved source does not run a solver.
+
+Use `api.liber_primus.load_source(...)` when code needs the aligned
+numeric ciphertext, WLI and metadata directly.
 
 Changing a locator or reading route changes the source evidence supplied to the
 solve.

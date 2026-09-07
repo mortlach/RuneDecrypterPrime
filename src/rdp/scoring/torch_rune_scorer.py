@@ -258,9 +258,9 @@ class RuneScorerTorch(BaseScorer):
 
         # core flags / numbers
         self.include_char = scorer_cfg.character_lane_enabled
-        self.use_wli = scorer_cfg.word_length_lane_enabled
+        self.use_wli = scorer_cfg.wli_lane_enabled
         self.n_char = scorer_cfg.character_ngram_order
-        self.n_wli = scorer_cfg.word_length_ngram_order
+        self.n_wli = scorer_cfg.wli_ngram_order
         self.win = scorer_cfg.window_size
         self.stride = scorer_cfg.stride
 
@@ -293,7 +293,7 @@ class RuneScorerTorch(BaseScorer):
 
         self.weights = scorer_cfg.base_lane_weights or (0.5, 0.5)
         self.char_weights = scorer_cfg.character_order_weights
-        self.wli_weights = scorer_cfg.word_length_order_weights
+        self.wli_weights = scorer_cfg.wli_order_weights
         self._effective_model_weights = scorer_cfg.effective_lm_model_weights
         self._weight_contract = scorer_cfg.weight_contract()
 
@@ -852,7 +852,7 @@ class RuneScorerTorch(BaseScorer):
         return [
             (channel, int(n), float(weight))
             for channel, n, weight in self._effective_model_weights(
-                use_word_lengths=use_wli_now
+                use_wli=use_wli_now
             )
         ]
 

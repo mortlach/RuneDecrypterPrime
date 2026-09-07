@@ -37,13 +37,15 @@ solver = api.SolverSpec.beam_search(
 )
 ```
 
-`width` and `rounds` are required.
+`width` defaults to `64`. `rounds=None` lets the runtime choose the round count.
+An explicit positive integer requests that many rounds; `rounds=0` is rejected
+at the public boundary because it used to mean something other than zero.
 
 The public defaults use one restart, sweep expansion and a top-parent
 fraction of `0.5`.
 
 `plateau_rounds=None` is the request default, but the current engine supplies an
-effective plateau of 16 rounds when it is omitted. `rounds=0` also has runtime
+effective plateau of 16 rounds when it is omitted. `rounds=None` also has runtime
 meaning: Beam uses `max(2 * key_length, 12)` rounds.
 
 ## Genetic algorithm
@@ -81,8 +83,8 @@ rate respectively.
 
 Hybrid combines a GA spec and a simulated-annealing spec.
 
-A beam phase is enabled by default, with its budget supplied explicitly when
-used.
+A beam phase is enabled by default. When its budget is omitted, the runtime
+uses the documented Hybrid defaults.
 
 ## Kaeding
 

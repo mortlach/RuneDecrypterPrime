@@ -265,7 +265,7 @@ _SOLVE_RECIPES: tuple[LPSolveRecipeEntry, ...] = (
         target_kind="real_solve",
         priority="P0",
         reference_key_or_shift="primes_minus_1",
-        notes="Special case: derive candidate sequence from early key material, then solve with interrupters.",
+        notes="Special case: derive candidate sequence from early key material, then solve with interruptors.",
     ),
     LPSolveRecipeEntry(
         recipe_label="recipe.parable.constant_shift_zero_replay",
@@ -327,7 +327,7 @@ def payload_from_label(label: str, *, doc: LPTranscript | None = None):
     The user-facing label stays simple; page-system details are metadata.
     """
 
-    from rdp.data.liber_primus.lp_adapter import LPSolverPayload, payload_from_locator
+    from rdp.data.liber_primus.lp_adapter import SourceData, payload_from_locator
     from rdp.data.liber_primus.lp_main import load_main_transcript, page_view_from_ref
     from rdp.data.liber_primus.lp_registry import LPPageRef
 
@@ -344,7 +344,11 @@ def payload_from_label(label: str, *, doc: LPTranscript | None = None):
         end_page = page_view_from_ref(effective_doc, LPPageRef.transcript_page(end_main))
         span = effective_doc.glyph_span(start_page.rec.g_start, end_page.rec.g_end - start_page.rec.g_start)
         ct_idx, wli = span.ct_wli()
-        payload = LPSolverPayload(ct_idx=ct_idx, wli=wli, metadata={})
+        payload = SourceData(
+            indices=ct_idx,
+            word_length_information=wli,
+            metadata={},
+        )
 
     metadata = {
         **payload.metadata,
@@ -367,7 +371,11 @@ def payload_from_label(label: str, *, doc: LPTranscript | None = None):
         "line_end": None,
         "boundary_granularity": "full_main_pages",
     }
-    return type(payload)(ct_idx=payload.ct_idx, wli=payload.wli, metadata=metadata)
+    return SourceData(
+        indices=payload.indices,
+        word_length_information=payload.word_length_information,
+        metadata=metadata,
+    )
 
 
 __all__ = [

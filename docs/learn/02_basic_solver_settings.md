@@ -43,7 +43,7 @@ take current candidate keys
 In RDP:
 
 ```text
-rounds = 0
+rounds = None
 ```
 
 means:

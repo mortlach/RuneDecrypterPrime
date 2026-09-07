@@ -21,9 +21,9 @@ def test_torch_short_text_applies_hamming_penalty():
     cfg_s = api.ScoringConfig(
         backend=api.advanced.ScorerBackend.TORCH,
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_ngram_order=2,
-        word_length_ngram_order=2,
+        wli_ngram_order=2,
         hamming_enabled=True,
         compute_dtype=api.advanced.FloatDType.FLOAT32,
     )

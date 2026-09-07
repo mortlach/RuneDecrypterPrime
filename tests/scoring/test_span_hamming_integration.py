@@ -109,7 +109,7 @@ def _write_span_assets(root: Path, *, length_bucket: int=3) -> Path:
 
 def test_numpy_rune_scorer_applies_span_bonus(monkeypatch):
     monkeypatch.setattr(rune_scorer, 'LmPrimeRuntime', _StubRt)
-    cfg = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=False, span_hamming_enabled=True, span_hamming_weight=0.5)
+    cfg = api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=False, span_hamming_enabled=True, span_hamming_weight=0.5)
     scorer = rune_scorer.RuneScorer(_cipher_config(), cfg)
     scorer._span_hamming_backend = _DummySpanBackend(raw=0.4)
     scorer._span_hamming_weight = 0.5
@@ -215,7 +215,7 @@ def test_torch_calibrated_span_batch_weighted_sum_and_char_gate(tmp_path: Path):
 def test_numpy_rune_scorer_calibrated_span_pct_mode(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(rune_scorer, 'LmPrimeRuntime', _StubRt)
     assets_dir = _write_span_assets(tmp_path, length_bucket=3)
-    cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), character_lane_enabled=True, word_length_lane_enabled=False, span_hamming_enabled=True, span_hamming_mode=api.advanced.SpanHammingMode.CALIBRATED, span_hamming_assets_directory=assets_dir, span_hamming_minimum_coverage=0.0, span_hamming_minimum_gate_quality=0.0)
+    cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), character_lane_enabled=True, wli_lane_enabled=False, span_hamming_enabled=True, span_hamming_mode=api.advanced.SpanHammingMode.CALIBRATED, span_hamming_assets_directory=assets_dir, span_hamming_minimum_coverage=0.0, span_hamming_minimum_gate_quality=0.0)
     scorer = rune_scorer.RuneScorer(_cipher_config(), cfg)
     scorer._span_hamming_backend = _DummySpanBackend(raw=0.45, coverage=0.6, quality=0.7)
     out = scorer.score([1, 2, 3], None)
@@ -228,7 +228,7 @@ def test_numpy_rune_scorer_calibrated_span_pct_mode(tmp_path: Path, monkeypatch)
 def test_numpy_rune_scorer_calibrated_span_gate_floor(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(rune_scorer, 'LmPrimeRuntime', _StubRt)
     assets_dir = _write_span_assets(tmp_path, length_bucket=3)
-    cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), character_lane_enabled=True, word_length_lane_enabled=False, span_hamming_enabled=True, span_hamming_mode=api.advanced.SpanHammingMode.CALIBRATED, span_hamming_assets_directory=assets_dir, span_hamming_minimum_coverage=0.9, span_hamming_gate_score_floor=0.123)
+    cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), character_lane_enabled=True, wli_lane_enabled=False, span_hamming_enabled=True, span_hamming_mode=api.advanced.SpanHammingMode.CALIBRATED, span_hamming_assets_directory=assets_dir, span_hamming_minimum_coverage=0.9, span_hamming_gate_score_floor=0.123)
     scorer = rune_scorer.RuneScorer(_cipher_config(), cfg)
     scorer._span_hamming_backend = _DummySpanBackend(raw=0.45, coverage=0.6, quality=0.7)
     out = scorer.score([1, 2, 3], None)
@@ -239,7 +239,7 @@ def test_numpy_rune_scorer_calibrated_min_combine_with_char_pct(tmp_path: Path, 
     monkeypatch.setattr(rune_scorer, 'LmPrimeRuntime', _StubRt)
     monkeypatch.setattr(rune_scorer.RuneScorer, '_ensure_ecdf', _stub_ensure_ecdf)
     assets_dir = _write_span_assets(tmp_path, length_bucket=3)
-    cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), character_lane_enabled=True, word_length_lane_enabled=False, character_order_weights={4: 1.0}, span_hamming_enabled=True, span_hamming_mode=api.advanced.SpanHammingMode.CALIBRATED, span_hamming_assets_directory=assets_dir, span_hamming_combine_mode=api.advanced.SpanHammingCombineMode.MINIMUM, span_hamming_character_weight=1.0, span_hamming_minimum_coverage=0.0, span_hamming_minimum_gate_quality=0.0)
+    cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), character_lane_enabled=True, wli_lane_enabled=False, character_order_weights={4: 1.0}, span_hamming_enabled=True, span_hamming_mode=api.advanced.SpanHammingMode.CALIBRATED, span_hamming_assets_directory=assets_dir, span_hamming_combine_mode=api.advanced.SpanHammingCombineMode.MINIMUM, span_hamming_character_weight=1.0, span_hamming_minimum_coverage=0.0, span_hamming_minimum_gate_quality=0.0)
     scorer = rune_scorer.RuneScorer(_cipher_config(), cfg)
     scorer._span_hamming_backend = _DummySpanBackend(raw=0.45, coverage=0.6, quality=0.7)
     out = scorer.score(list(range(20)), None)
@@ -253,7 +253,7 @@ def test_numpy_rune_scorer_calibrated_weighted_sum_combine_with_char_pct(tmp_pat
     monkeypatch.setattr(rune_scorer, 'LmPrimeRuntime', _StubRt)
     monkeypatch.setattr(rune_scorer.RuneScorer, '_ensure_ecdf', _stub_ensure_ecdf)
     assets_dir = _write_span_assets(tmp_path, length_bucket=3)
-    cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), character_lane_enabled=True, word_length_lane_enabled=False, character_order_weights={4: 1.0}, span_hamming_enabled=True, span_hamming_mode=api.advanced.SpanHammingMode.CALIBRATED, span_hamming_assets_directory=assets_dir, span_hamming_combine_mode=api.advanced.SpanHammingCombineMode.WEIGHTED_SUM, span_hamming_span_weight=1.0, span_hamming_character_weight=3.0, span_hamming_minimum_coverage=0.0, span_hamming_minimum_gate_quality=0.0)
+    cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), character_lane_enabled=True, wli_lane_enabled=False, character_order_weights={4: 1.0}, span_hamming_enabled=True, span_hamming_mode=api.advanced.SpanHammingMode.CALIBRATED, span_hamming_assets_directory=assets_dir, span_hamming_combine_mode=api.advanced.SpanHammingCombineMode.WEIGHTED_SUM, span_hamming_span_weight=1.0, span_hamming_character_weight=3.0, span_hamming_minimum_coverage=0.0, span_hamming_minimum_gate_quality=0.0)
     scorer = rune_scorer.RuneScorer(_cipher_config(), cfg)
     scorer._span_hamming_backend = _DummySpanBackend(raw=0.45, coverage=0.6, quality=0.7)
     out = scorer.score(list(range(20)), None)
@@ -265,7 +265,7 @@ def test_numpy_rune_scorer_calibrated_char_gate_floor(tmp_path: Path, monkeypatc
     monkeypatch.setattr(rune_scorer, 'LmPrimeRuntime', _StubRt)
     monkeypatch.setattr(rune_scorer.RuneScorer, '_ensure_ecdf', _stub_ensure_ecdf)
     assets_dir = _write_span_assets(tmp_path, length_bucket=3)
-    cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), character_lane_enabled=True, word_length_lane_enabled=False, character_order_weights={4: 1.0}, span_hamming_enabled=True, span_hamming_mode=api.advanced.SpanHammingMode.CALIBRATED, span_hamming_assets_directory=assets_dir, span_hamming_combine_mode=api.advanced.SpanHammingCombineMode.MINIMUM, span_hamming_character_weight=1.0, span_hamming_minimum_character_percentile=0.9, span_hamming_gate_score_floor=0.222, span_hamming_minimum_coverage=0.0, span_hamming_minimum_gate_quality=0.0)
+    cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), character_lane_enabled=True, wli_lane_enabled=False, character_order_weights={4: 1.0}, span_hamming_enabled=True, span_hamming_mode=api.advanced.SpanHammingMode.CALIBRATED, span_hamming_assets_directory=assets_dir, span_hamming_combine_mode=api.advanced.SpanHammingCombineMode.MINIMUM, span_hamming_character_weight=1.0, span_hamming_minimum_character_percentile=0.9, span_hamming_gate_score_floor=0.222, span_hamming_minimum_coverage=0.0, span_hamming_minimum_gate_quality=0.0)
     scorer = rune_scorer.RuneScorer(_cipher_config(), cfg)
     scorer._span_hamming_backend = _DummySpanBackend(raw=0.45, coverage=0.6, quality=0.7)
     out = scorer.score(list(range(20)), None)
@@ -278,7 +278,7 @@ def test_numpy_rune_scorer_calibrated_char_gate_char_only_fallback(tmp_path: Pat
     monkeypatch.setattr(rune_scorer, 'LmPrimeRuntime', _StubRt)
     monkeypatch.setattr(rune_scorer.RuneScorer, '_ensure_ecdf', _stub_ensure_ecdf)
     assets_dir = _write_span_assets(tmp_path, length_bucket=3)
-    cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), character_lane_enabled=True, word_length_lane_enabled=False, character_order_weights={4: 1.0}, span_hamming_enabled=True, span_hamming_mode=api.advanced.SpanHammingMode.CALIBRATED, span_hamming_assets_directory=assets_dir, span_hamming_combine_mode=api.advanced.SpanHammingCombineMode.MINIMUM, span_hamming_character_weight=1.0, span_hamming_minimum_character_percentile=0.9, span_hamming_gate_failure_policy=api.advanced.SpanHammingGateFailurePolicy.CHARACTER_ONLY, span_hamming_gate_score_floor=0.222, span_hamming_minimum_coverage=0.0, span_hamming_minimum_gate_quality=0.0)
+    cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), character_lane_enabled=True, wli_lane_enabled=False, character_order_weights={4: 1.0}, span_hamming_enabled=True, span_hamming_mode=api.advanced.SpanHammingMode.CALIBRATED, span_hamming_assets_directory=assets_dir, span_hamming_combine_mode=api.advanced.SpanHammingCombineMode.MINIMUM, span_hamming_character_weight=1.0, span_hamming_minimum_character_percentile=0.9, span_hamming_gate_failure_policy=api.advanced.SpanHammingGateFailurePolicy.CHARACTER_ONLY, span_hamming_gate_score_floor=0.222, span_hamming_minimum_coverage=0.0, span_hamming_minimum_gate_quality=0.0)
     scorer = rune_scorer.RuneScorer(_cipher_config(), cfg)
     scorer._span_hamming_backend = _DummySpanBackend(raw=0.45, coverage=0.6, quality=0.7)
     out = scorer.score(list(range(20)), None)
@@ -292,13 +292,13 @@ def test_numpy_rune_scorer_calibrated_char_gate_char_only_fallback(tmp_path: Pat
 def test_numpy_rune_scorer_calibrated_rejects_char_channel_when_not_char4_only(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(rune_scorer, 'LmPrimeRuntime', _StubRt)
     assets_dir = _write_span_assets(tmp_path, length_bucket=3)
-    cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), character_lane_enabled=True, word_length_lane_enabled=False, character_order_weights={3: 1.0}, span_hamming_enabled=True, span_hamming_mode=api.advanced.SpanHammingMode.CALIBRATED, span_hamming_assets_directory=assets_dir, span_hamming_character_weight=1.0)
+    cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), character_lane_enabled=True, wli_lane_enabled=False, character_order_weights={3: 1.0}, span_hamming_enabled=True, span_hamming_mode=api.advanced.SpanHammingMode.CALIBRATED, span_hamming_assets_directory=assets_dir, span_hamming_character_weight=1.0)
     with pytest.raises(ValueError, match='char4-only base scorer'):
         _ = rune_scorer.RuneScorer(_cipher_config(), cfg)
 
 def test_numpy_rune_scorer_calibrated_rejects_avg_objective(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(rune_scorer, 'LmPrimeRuntime', _StubRt)
     assets_dir = _write_span_assets(tmp_path, length_bucket=3)
-    cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.average_log_probability(), character_lane_enabled=True, word_length_lane_enabled=False, span_hamming_enabled=True, span_hamming_mode=api.advanced.SpanHammingMode.CALIBRATED, span_hamming_assets_directory=assets_dir)
+    cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.average_log_probability(), character_lane_enabled=True, wli_lane_enabled=False, span_hamming_enabled=True, span_hamming_mode=api.advanced.SpanHammingMode.CALIBRATED, span_hamming_assets_directory=assets_dir)
     with pytest.raises(ValueError, match='only supports ObjectiveFamily.PCT or ENERGY'):
         _ = rune_scorer.RuneScorer(_cipher_config(), cfg)

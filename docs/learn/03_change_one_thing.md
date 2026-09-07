@@ -28,7 +28,7 @@ for key_length in (3, 4):
     print(
         key_length,
         result.score,
-        result.plaintext_text,
+        result.plaintext_runes,
     )
 ```
 

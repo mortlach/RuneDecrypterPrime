@@ -18,14 +18,14 @@ used when deriving WLI.
 ```python
 api.RuneIndexInput(
     indices=...,
-    word_lengths=...,
+    word_length_information=...,
 )
 ```
 
 | Parameter | Type | Default | Constraint |
 | --- | --- | --- | --- |
 | `indices` | ordered sequence of `int` | **required** | Non-empty. Every value must be in `0..28`. |
-| `word_lengths` | WLI sequence or `None` | `None` | One `(position, word_length)` pair per rune when supplied. |
+| `word_length_information` | WLI sequence or `None` | `None` | One `(position, word_length)` pair per rune when supplied. |
 
 For every WLI pair, `position >= 0`, `word_length > 0`, and
 `position < word_length`.
@@ -57,8 +57,8 @@ liber_primus.partition
 ```
 
 Each LP source kind has a stricter reference shape enforced by the resolver.
-The higher-level `api.liber_primus` helpers are usually easier when building a
-solver payload directly.
+Use `api.liber_primus.source(label)` for a named run input. The `load_source`
+helpers are useful when direct numerical inspection is needed.
 
 For practical use, see [Ciphertext input](../../guides/ciphertext_input.md).
 

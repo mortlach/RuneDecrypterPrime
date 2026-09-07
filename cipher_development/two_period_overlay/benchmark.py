@@ -31,7 +31,7 @@ class ReferenceCase:
 
 def _scoring_kwargs(direction_type: Any, hard_crib: Any, scoring_contract: Mapping[str, Any]=SCORING_CONTRACT) -> api.ScoringConfig:
     contract = dict(scoring_contract)
-    return api.ScoringConfig(character_lane_enabled=bool(contract['include_char']), word_length_lane_enabled=bool(contract['use_word_breaks']), character_order_weights=dict(contract['char_weights']), word_length_order_weights=dict(contract['wli_weights']), objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10))
+    return api.ScoringConfig(character_lane_enabled=bool(contract['include_char']), wli_lane_enabled=bool(contract['use_word_breaks']), character_order_weights=dict(contract['char_weights']), wli_order_weights=dict(contract['wli_weights']), objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10))
 
 
 def build_rdp_case(

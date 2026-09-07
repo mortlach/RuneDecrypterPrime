@@ -162,7 +162,7 @@ def _repeating_key_equivalence(case: CampaignCase, recovered: list[int]) -> bool
     expected = list(case.expected_key or [])
     if not expected or len(recovered) != len(expected):
         return False
-    if case.direction is api.TextDirection.LEFT_TO_RIGHT:
+    if case.direction is api.TextDirection.LTR:
         return recovered == expected
     core_length = len(case.reference) - len(case.expected_interruptors or ())
     shift = core_length % len(expected)
@@ -334,7 +334,7 @@ def _build_two_period(trial_index: int, attempt_index: int) -> CampaignCase:
     cipher, key = (api.CipherSpec.two_period_vigenere(first_period=PERIOD_A, second_period=PERIOD_B, alphabet_size=ALPHABET), api.KeySpec.repeating(length=PERIOD_A + PERIOD_B))
     fixture = build_demo_fixture(cipher)
     solver = api.SolverSpec.two_period_cribs(fixed_cribs=FIXED_CRIBS, starts=STARTS, seed=solver_seed)
-    return CampaignCase(family=family, direction=api.TextDirection.LEFT_TO_RIGHT, ciphertext=list(fixture.ciphertext), reference=list(fixture.reference_plaintext), wli=[list(row) for row in fixture.wli], cipher=cipher, key=key, solver=solver, scoring=api.ScoringConfig(), cipher_parameters={'period_a': PERIOD_A, 'period_b': PERIOD_B, 'key': list(fixture.reference_key)}, solver_parameters=solver.to_dict(), source={'plaintext_source': 'two_period_cribs_demo', 'book': None, 'start_word': None, 'word_count': None}, key_length=PERIOD_A + PERIOD_B, expected_key=list(fixture.reference_key))
+    return CampaignCase(family=family, direction=api.TextDirection.LTR, ciphertext=list(fixture.ciphertext), reference=list(fixture.reference_plaintext), wli=[list(row) for row in fixture.wli], cipher=cipher, key=key, solver=solver, scoring=api.ScoringConfig(), cipher_parameters={'period_a': PERIOD_A, 'period_b': PERIOD_B, 'key': list(fixture.reference_key)}, solver_parameters=solver.to_dict(), source={'plaintext_source': 'two_period_cribs_demo', 'book': None, 'start_word': None, 'word_count': None}, key_length=PERIOD_A + PERIOD_B, expected_key=list(fixture.reference_key))
 FAMILIES = {definition.name: definition for definition in (FamilyDefinition('vigenere_beam', config.FAMILY_GROUPS['vigenere_beam'], _build_vigenere, _repeating_key_equivalence), FamilyDefinition('railfence_beam', config.FAMILY_GROUPS['railfence_beam'], _build_railfence), FamilyDefinition('autokey_beam', config.FAMILY_GROUPS['autokey_beam'], _build_autokey, _exact_key_equivalence), FamilyDefinition('columnar_hybrid', config.FAMILY_GROUPS['columnar_hybrid'], _build_columnar, _exact_key_equivalence), FamilyDefinition('mono_ga', config.FAMILY_GROUPS['mono_ga'], _build_mono), FamilyDefinition('vigenere_interruptors_beam', config.FAMILY_GROUPS['vigenere_interruptors_beam'], _build_vigenere_interruptors, _repeating_key_equivalence), FamilyDefinition('generic_map_multiply_beam', config.FAMILY_GROUPS['generic_map_multiply_beam'], _build_generic_map, _exact_key_equivalence), FamilyDefinition('scheduled_stream_beam', config.FAMILY_GROUPS['scheduled_stream_beam'], _build_scheduled_stream, _exact_key_equivalence), FamilyDefinition('two_period_cribs', config.FAMILY_GROUPS['two_period_cribs'], _build_two_period))}
 ORDINARY_FAMILIES = tuple((name for name, definition in FAMILIES.items() if definition.group != 'SPECIALIST'))
 SPECIALIST_FAMILIES = tuple((name for name, definition in FAMILIES.items() if definition.group == 'SPECIALIST'))
@@ -348,7 +348,7 @@ def build_case(family: str, trial_index: int, attempt_index: int=0) -> CampaignC
     return definition.builder(int(trial_index), int(attempt_index))
 
 def execute_case(case: CampaignCase) -> api.RunResult:
-    return api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=case.ciphertext, word_lengths=case.wli), cipher=case.cipher, key_space=case.key, solver=case.solver, scoring=case.scoring, initial_keys=case.initial_keys, text_direction=case.direction, telemetry_enabled=True, interruptors=case.interruptors))
+    return api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=case.ciphertext, word_length_information=case.wli), cipher=case.cipher, key_space=case.key, solver=case.solver, scoring=case.scoring, initial_keys=case.initial_keys, text_direction=case.direction, telemetry_enabled=True, interruptors=case.interruptors))
 
 def _plain_value(value: Any) -> Any:
     return getattr(value, 'value', value)
@@ -374,7 +374,7 @@ def classify_result(*, valid: bool, truth_accepted: bool) -> str:
 
 def assess_result(case: CampaignCase, result: api.RunResult) -> dict[str, Any]:
     report = result.solver_report
-    plaintext = _int_list(result.plaintext)
+    plaintext = _int_list(result.plaintext_indices)
     ratio = match_ratio(plaintext, case.reference)
     score = result.score
     recovered_values = _int_list(result.key)
@@ -515,7 +515,7 @@ def required_lm_lanes(family: str) -> dict[str, tuple[int, ...]]:
         return {'char': (1, 2, 3, 4), 'wli': (1, 2, 3, 4)}
     scoring = resolved_recipe(family).scoring
     char = tuple(sorted((int(order) for order, weight in (scoring.character_order_weights or {}).items() if float(weight) > 0.0))) if scoring.character_lane_enabled else ()
-    wli = tuple(sorted((int(order) for order, weight in (scoring.word_length_order_weights or {}).items() if float(weight) > 0.0))) if scoring.word_length_lane_enabled else ()
+    wli = tuple(sorted((int(order) for order, weight in (scoring.wli_order_weights or {}).items() if float(weight) > 0.0))) if scoring.wli_lane_enabled else ()
     return {'char': char, 'wli': wli}
 
 def _asset_profile_for_lanes(lanes: Mapping[str, Sequence[int]]) -> dict[str, Any]:
@@ -544,8 +544,8 @@ def language_model_asset_provenance(family: str) -> dict[str, Any]:
     required_paths = {root / 'index.json'}
     se_mode = str(config.scoring_to_dict(resolved_recipe(family).scoring).get('se_mode', 'nose'))
     direction_tokens = {
-        api.TextDirection.LEFT_TO_RIGHT: 'ltr',
-        api.TextDirection.RIGHT_TO_LEFT: 'rtl',
+        api.TextDirection.LTR: 'ltr',
+        api.TextDirection.RTL: 'rtl',
     }
     for direction in config.DIRECTIONS:
         mode = direction_tokens[direction]
@@ -660,7 +660,7 @@ def _parser() -> argparse.ArgumentParser:
 
 def _scorer_summary(recipe: config.CampaignRecipe) -> str:
     scorer = recipe.scoring
-    parts = [*(f'char{order}={float(weight):.2f}' for order, weight in sorted((scorer.character_order_weights or {}).items())), *(f'WLI{order}={float(weight):.2f}' for order, weight in sorted((scorer.word_length_order_weights or {}).items()))]
+    parts = [*(f'char{order}={float(weight):.2f}' for order, weight in sorted((scorer.character_order_weights or {}).items())), *(f'WLI{order}={float(weight):.2f}' for order, weight in sorted((scorer.wli_order_weights or {}).items()))]
     return ', '.join(parts) if parts else 'none'
 
 def print_resolved_plan(mode: str, family: str, plan: Sequence[tuple[str, int]]) -> None:

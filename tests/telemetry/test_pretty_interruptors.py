@@ -17,8 +17,10 @@ def _result(*, telemetry: dict[str, object] | None = None) -> api.RunResult:
         best_key=(1, 2, 3, 4, 9),
     )
     return api.RunResult(
-        plaintext=(0, 1),
-        plaintext_text='AB',
+        plaintext_indices=(0, 1),
+        word_length_information=None,
+        plaintext_runes='ᚠᚢ',
+        plaintext_rune_latin='F|U',
         key=(1, 2, 3, 4, 9),
         score=0.123,
         status=report.status,

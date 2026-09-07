@@ -8,7 +8,7 @@ from rdp import api
 CAMPAIGN_SEED = 20260822
 CAMPAIGN_MODE = "pilot"
 BOOKS = ("13124.txt", "42770-0.txt", "46808.txt", "58447-0.txt", "736-0.txt")
-DIRECTIONS = (api.TextDirection.LEFT_TO_RIGHT, api.TextDirection.RIGHT_TO_LEFT)
+DIRECTIONS = (api.TextDirection.LTR, api.TextDirection.RTL)
 TARGET_RUNES = 300
 RUNE_TOLERANCE = 30
 PILOT_TRIALS_PER_ORDINARY_FAMILY = 4
@@ -103,18 +103,18 @@ class CampaignRecipe:
     acceptance: AcceptanceRule
 
 DEFAULT_SCORING = api.ScoringConfig(
-    character_lane_enabled=True, word_length_lane_enabled=True,
-    character_order_weights={2: 0.3}, word_length_order_weights={2: 0.7},
+    character_lane_enabled=True, wli_lane_enabled=True,
+    character_order_weights={2: 0.3}, wli_order_weights={2: 0.7},
     objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10),
 )
 AUTOKEY_SCORING = api.ScoringConfig(
-    character_lane_enabled=False, word_length_lane_enabled=True,
-    character_order_weights={}, word_length_order_weights={1: 0.3, 2: 0.7},
+    character_lane_enabled=False, wli_lane_enabled=True,
+    character_order_weights={}, wli_order_weights={1: 0.3, 2: 0.7},
     objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10),
 )
 MONO_SCORING = api.ScoringConfig(
-    character_lane_enabled=True, word_length_lane_enabled=True,
-    character_order_weights={2: 0.30}, word_length_order_weights={1: 0.21, 2: 0.49},
+    character_lane_enabled=True, wli_lane_enabled=True,
+    character_order_weights={2: 0.30}, wli_order_weights={1: 0.21, 2: 0.49},
     objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10),
 )
 
@@ -205,9 +205,9 @@ CAMPAIGN_RECIPES: dict[str, CampaignRecipe] = {
 def scoring_to_dict(value: api.ScoringConfig) -> dict[str, object]:
     return {
         "objective": "pct.logp.win10", "include_char": value.character_lane_enabled,
-        "use_word_breaks": value.word_length_lane_enabled,
+        "use_word_breaks": value.wli_lane_enabled,
         "char_weights": dict(value.character_order_weights or {}),
-        "wli_weights": dict(value.word_length_order_weights or {}),
+        "wli_weights": dict(value.wli_order_weights or {}),
     }
 
 def recipe_to_dict(value: CampaignRecipe) -> dict[str, object]:

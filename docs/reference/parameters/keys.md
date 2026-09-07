@@ -74,7 +74,7 @@ api.KeySpec.periodic_columnar(
 
 ## Alignment
 
-Repeating and repeating-range key spaces support alignment controls.
+Repeating key spaces support alignment controls.
 
 ```python
 key_space = key_space.with_fixed_alignment(
@@ -84,7 +84,7 @@ key_space = key_space.with_fixed_alignment(
 
 | Parameter | Type | Default | Constraint |
 | --- | --- | --- | --- |
-| `offset` | `int` | **required** | Available only for repeating key kinds. |
+| `offset` | `int` | **required** | Available only for repeating key spaces. |
 
 Or search an offset range:
 

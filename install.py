@@ -7,6 +7,7 @@ import uuid
 import os
 import subprocess
 import sys
+import sysconfig
 from pathlib import Path
 
 
@@ -114,14 +115,42 @@ def _verify_python() -> None:
     print(f"[PASS] Python {version.major}.{version.minor}.{version.micro}")
 
 
-def _install_package() -> None:
+def _uses_externally_managed_python() -> bool:
+    """Return whether pip is expected to protect this base interpreter."""
+    if sys.prefix != sys.base_prefix:
+        return False
+    stdlib = sysconfig.get_path("stdlib")
+    return bool(stdlib) and (Path(stdlib) / "EXTERNALLY-MANAGED").is_file()
+
+
+def _print_externally_managed_help() -> None:
+    print()
+    print("This Python installation is managed by the operating system, so pip refused")
+    print("to install RDP into it.")
+    print()
+    print("Choose the route that suits your system:")
+    print("  - run install.py with another Python or from an environment you manage; or")
+    print("  - if you intend to override this protection, run:")
+    print("      python install.py --break-system-packages")
+    print()
+    print("RDP does not enable that override automatically.")
+
+
+def _install_package(*, break_system_packages: bool = False) -> None:
+    args = [PYTHON, "-m", "pip", "install"]
+    if break_system_packages:
+        args.append("--break-system-packages")
+    args.extend(["-e", ".[test]"])
     try:
-        _run("Install package and build native extensions", [PYTHON, "-m", "pip", "install", "-e", ".[test]"])
+        _run("Install package and build native extensions", args)
     except InstallFailure:
-        print()
-        print("RDP did not upgrade pip automatically.")
-        print("If this failed because pip/setuptools/wheel are too old, run this yourself and retry:")
-        print("  python -m pip install --upgrade pip setuptools wheel")
+        if _uses_externally_managed_python() and not break_system_packages:
+            _print_externally_managed_help()
+        else:
+            print()
+            print("RDP did not upgrade pip automatically.")
+            print("If this failed because pip/setuptools/wheel are too old, run this yourself and retry:")
+            print("  python -m pip install --upgrade pip setuptools wheel")
         raise
 
 
@@ -207,7 +236,7 @@ def _install_or_verify_profile_assets(profile) -> None:
             print("Manual fallback:")
             print("  Download rdp-v1-lm-large-part*.zip from the V1 GitHub Release.")
             print("  Place them under downloads/.")
-            print("  Run python install.py again.")
+            print("  Run the same install.py command again.")
         raise InstallFailure(
             f"asset profile {profile.name!r} is missing or corrupt: {exc}"
         ) from exc
@@ -218,7 +247,13 @@ def _run_smoke_tests() -> None:
     _run("Run compact V1 smoke tests", [PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider", f"--basetemp={LOG_DIR / 'pytest_tmp'}", *SMOKE_TESTS])
 
 
-def run_install(*, asset_profile_name: str, mode_label: str, verbose: bool = False) -> int:
+def run_install(
+    *,
+    asset_profile_name: str,
+    mode_label: str,
+    verbose: bool = False,
+    break_system_packages: bool = False,
+) -> int:
     global LOG_DIR, VERBOSE
     VERBOSE = verbose
     # Load the dependency-light canonical owner without importing an uninstalled RDP.
@@ -247,7 +282,7 @@ def run_install(*, asset_profile_name: str, mode_label: str, verbose: bool = Fal
     print()
     try:
         _verify_python()
-        _install_package()
+        _install_package(break_system_packages=break_system_packages)
         from tools.torch_runtime import provision_torch
         gpu_report = provision_torch(_run)
         (LOG_DIR / "gpu.json").write_text(json.dumps(gpu_report, indent=2), encoding="utf-8")
@@ -270,9 +305,18 @@ def run_install(*, asset_profile_name: str, mode_label: str, verbose: bool = Fal
 def main() -> int:
     parser = argparse.ArgumentParser(description="Install and verify RDP V1.")
     parser.add_argument("--verbose", action="store_true", help="Stream command output while retaining logs.")
+    parser.add_argument(
+        "--break-system-packages",
+        action="store_true",
+        help="Allow pip to modify a PEP 668 externally managed Python installation.",
+    )
     args = parser.parse_args()
-    return run_install(asset_profile_name=DEFAULT_ASSET_PROFILE, mode_label=INSTALL_MODE_LABEL,
-                       verbose=args.verbose)
+    return run_install(
+        asset_profile_name=DEFAULT_ASSET_PROFILE,
+        mode_label=INSTALL_MODE_LABEL,
+        verbose=args.verbose,
+        break_system_packages=args.break_system_packages,
+    )
 
 
 if __name__ == "__main__":

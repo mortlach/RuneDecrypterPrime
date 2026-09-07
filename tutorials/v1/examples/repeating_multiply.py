@@ -21,7 +21,7 @@ N = 29
 TUTORIAL_SEED = 12345
 KEY_LEN = 13
 MIN_MATCH_RATIO = 1.0
-DIRECTION = api.TextDirection.RIGHT_TO_LEFT
+DIRECTION = api.TextDirection.RTL
 
 
 def mult_map(pt: int, k: int) -> int:
@@ -57,9 +57,9 @@ def main() -> None:
     key_spec = api.KeySpec.repeating(length=KEY_LEN)
     scorer_params = api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights={2: 0.3},
-        word_length_order_weights={2: 0.7},
+        wli_order_weights={2: 0.7},
     )
     # We use the original message to choose a stopping score. That's help we
     # have in this example, but wouldn't have for an unknown plaintext.
@@ -84,10 +84,10 @@ def main() -> None:
         plateau_minimum_delta=0.0001,
         target_score=stop.stop_score,
         seed=TUTORIAL_SEED,
-        rounds=0,
+        rounds=None,
     )
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli),
+        problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli),
         cipher=cipher,
         key_space=key_spec,
         solver=solve_spec,
@@ -96,12 +96,12 @@ def main() -> None:
         text_direction=DIRECTION,
     )
     result = api.run(request)
-    recovered = result.plaintext_text or ""
+    recovered = result.plaintext_runes or ""
     print(
         "Recovered plaintext preview:",
         str(recovered)[:120] + ("..." if len(str(recovered)) > 120 else ""),
     )
-    recovered_idx = [int(value) for value in result.plaintext]
+    recovered_idx = [int(value) for value in result.plaintext_indices]
     match_ratio = sum(a == b for a, b in zip(recovered_idx, pt_idx, strict=True)) / len(
         pt_idx
     )

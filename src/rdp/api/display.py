@@ -279,7 +279,7 @@ def format_summary(summary: DisplaySummary | object, **build_kwargs: Any) -> str
 
     plaintext = result.get("plaintext")
     if isinstance(plaintext, Mapping):
-        preview = plaintext.get("latin_preview") or plaintext.get("rune_preview")
+        preview = plaintext.get("rune_latin_preview") or plaintext.get("rune_preview")
         if preview:
             lines.extend(["", "Plaintext", "---------", str(preview)])
 
@@ -377,7 +377,7 @@ def _problem_summary(spec: RunSpec | None, solution: object | None, *, options: 
         out["telemetry_on"] = bool(spec.telemetry_enabled)
     if solution is not None:
         ct_idx = _as_sequence(getattr(solution, "ciphertext_idx", None))
-        plaintext_value = getattr(solution, "plaintext", None)
+        plaintext_value = getattr(solution, "plaintext_indices", None)
         pt_idx = _as_sequence(
             plaintext_value if isinstance(solution, RunResult) else getattr(solution, "plaintext_idx", None)
         )
@@ -500,10 +500,23 @@ def _result_summary(
         }
     )
     if options.include_plaintext:
+        if isinstance(solution, RunResult):
+            rune_latin = solution.plaintext_rune_latin
+            runes = solution.plaintext_runes
+            indices = solution.plaintext_indices
+        else:
+            rune_latin = getattr(solution, "plaintext_latin", "")
+            runes = (
+                getattr(solution, "plaintext_rune", "")
+                or getattr(solution, "plaintext_str", "")
+            )
+            indices = getattr(solution, "plaintext_idx", None)
         out["plaintext"] = {
-            "latin_preview": _preview_text(getattr(solution, "plaintext_latin", "") or "", options.plaintext_preview_chars),
-            "rune_preview": _preview_text(getattr(solution, "plaintext_rune", "") or getattr(solution, "plaintext_text", None) or getattr(solution, "plaintext_str", "") or "", options.plaintext_preview_chars),
-            "length": _safe_len(getattr(solution, "plaintext", None) if isinstance(solution, RunResult) else getattr(solution, "plaintext_idx", None)),
+            "rune_latin_preview": _preview_text(
+                rune_latin or "", options.plaintext_preview_chars
+            ),
+            "rune_preview": _preview_text(runes or "", options.plaintext_preview_chars),
+            "length": _safe_len(indices),
         }
     if options.include_ciphertext:
         out["ciphertext"] = {
@@ -692,24 +705,42 @@ def _reference_match(
 ) -> dict[str, Any]:
     if reference_idx is not None:
         candidate = _as_int_list(
-            getattr(solution, "plaintext", None)
+            getattr(solution, "plaintext_indices", None)
             if isinstance(solution, RunResult)
             else getattr(solution, "plaintext_idx", None)
         )
         reference = _as_int_list(reference_idx)
         if candidate is not None and reference is not None:
-            return {"match_ratio": _match_ratio(candidate, reference), "reference_kind": "plaintext_idx"}
+            reference_kind = (
+                "plaintext_indices"
+                if isinstance(solution, RunResult)
+                else "plaintext_idx"
+            )
+            return {
+                "match_ratio": _match_ratio(candidate, reference),
+                "reference_kind": reference_kind,
+            }
     if reference_plaintext is not None:
         candidate_text = str(
-            getattr(solution, "plaintext_latin", "")
-            or getattr(solution, "plaintext_text", "")
-            or getattr(solution, "plaintext_str", "")
-            or ""
+            getattr(solution, "plaintext_rune_latin", "")
+            if isinstance(solution, RunResult)
+            else (
+                getattr(solution, "plaintext_latin", "")
+                or getattr(solution, "plaintext_str", "")
+            )
         )
         candidate_norm = _normalise_plaintext_for_match(candidate_text)
         reference_norm = _normalise_plaintext_for_match(reference_plaintext)
         if candidate_norm or reference_norm:
-            return {"match_ratio": _text_match_ratio(candidate_norm, reference_norm), "reference_kind": "plaintext_text"}
+            reference_kind = (
+                "plaintext_rune_latin"
+                if isinstance(solution, RunResult)
+                else "plaintext_text"
+            )
+            return {
+                "match_ratio": _text_match_ratio(candidate_norm, reference_norm),
+                "reference_kind": reference_kind,
+            }
     return {}
 
 
@@ -1004,7 +1035,7 @@ def write_summary_artifact(
 def format_banner(
     *,
     title: str = "Rune Decrypter Prime",
-    version_label: str = "RDP V1 pre-release",
+    version_label: str = "RDP V1",
     output_root: str | Path | None = None,
     options: PrintOptions | None = None,
 ) -> str:

@@ -3,7 +3,7 @@ from rdp import api
 import numpy as np
 from rdp.data.runeglish import Runeglish
 
-def build_mono_ciphertext(plaintext: str, *, direction: api.TextDirection=api.TextDirection.RIGHT_TO_LEFT, cipher_seed: int=12345) -> tuple[str, list[list[int]], np.ndarray, np.ndarray]:
+def build_mono_ciphertext(plaintext: str, *, direction: api.TextDirection=api.TextDirection.RTL, cipher_seed: int=12345) -> tuple[str, list[list[int]], np.ndarray, np.ndarray]:
     """
     Encode plaintext into runes/WLI, encrypt with a deterministic mono key,
     and return (ciphertext_runes, wli, plaintext_idx, key_forward).

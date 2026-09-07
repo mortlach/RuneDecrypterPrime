@@ -19,10 +19,15 @@ def test_named_source_preserves_canonical_identity_and_resolves_existing_payload
         asset_version=source.asset_version, reference=dict(source.reference)))))
     assert restored == source
     resolved = resolve_source_input_ref(restored)
-    payload = api.liber_primus.payload_from_label('welcome_pilgrim')
-    assert resolved.ct_idx == tuple(payload.ct_idx)
-    assert resolved.wli == tuple(tuple(pair) for pair in payload.wli)
+    source_data = api.liber_primus.load_source('welcome_pilgrim')
+    assert isinstance(source_data, api.liber_primus.SourceData)
+    assert source_data.indices == source_data.ct_idx
+    assert source_data.word_length_information == source_data.wli
+    assert resolved.ct_idx == tuple(source_data.ct_idx)
+    assert resolved.wli == tuple(tuple(pair) for pair in source_data.wli)
     assert resolved.source_ref == source
+    assert not hasattr(api.liber_primus, 'SolverPayload')
+    assert not hasattr(api.liber_primus, 'payload_from_label')
     with pytest.raises(ValueError, match='asset_version'):
         resolve_source_input_ref(replace(source, asset_version='wrong-version'))
 
@@ -35,11 +40,17 @@ def test_named_source_rejects_invalid_labels(label, error):
 
 def test_beam_defaults_have_the_same_serialized_request_as_explicit_settings():
     solver = api.SolverSpec.beam_search()
-    assert solver == api.SolverSpec.beam_search(width=64, rounds=0, seed=None)
+    assert solver == api.SolverSpec.beam_search(width=64, rounds=None, seed=None)
+    assert solver.parameters["rounds"] is None
     serialized = json.loads(json.dumps(solver.to_dict()))
     restored = api.SolverSpec.from_name(serialized['kind'], parameters={**serialized['parameters'], 'seed': serialized['seed']})
     assert restored == solver
     assert restored.replay_key == solver.replay_key
+
+
+def test_beam_zero_rounds_is_not_an_automatic_budget_alias():
+    with pytest.raises(ValueError, match="rounds must be >= 1"):
+        api.SolverSpec.beam_search(rounds=0)
 
 
 @pytest.mark.parametrize('length', [3, 4])
@@ -51,8 +62,8 @@ def test_ordinary_beam_repeats_across_fixed_vector_key_lengths(length):
         solver=api.SolverSpec.beam_search(),
     )
     first = api.run(request)
-    second = api.run(replace(request, solver=api.SolverSpec.beam_search(width=64, rounds=0)))
-    assert (first.key, first.plaintext, first.score) == (second.key, second.plaintext, second.score)
+    second = api.run(replace(request, solver=api.SolverSpec.beam_search(width=64, rounds=None)))
+    assert (first.key, first.plaintext_indices, first.score) == (second.key, second.plaintext_indices, second.score)
     assert first.solver_report.requested_seed is None
     assert first.solver_report.effective_seed == 0
     assert first.reproducibility.requested_seed is None

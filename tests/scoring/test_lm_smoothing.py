@@ -13,10 +13,10 @@ def _make_scorer(smoothing: str):
         encoding_dir="ltr",
         scorer_overrides={
             "smoothing": api.advanced.SmoothingMethod(smoothing),
-            "word_length_lane_enabled": False,
+            "wli_lane_enabled": False,
             "character_lane_enabled": True,
             "character_order_weights": {2: 1.0},
-            "word_length_order_weights": {},
+            "wli_order_weights": {},
         },
     )
     return RuneScorer(c_cfg, s_cfg)

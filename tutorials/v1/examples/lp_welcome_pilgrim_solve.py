@@ -48,9 +48,9 @@ def main() -> int:
         )
     scorer_params = api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights=workbook.CHAR_NGRAM_WEIGHTS,
-        word_length_order_weights=workbook.WLI_NGRAM_WEIGHTS,
+        wli_order_weights=workbook.WLI_NGRAM_WEIGHTS,
         objective=api.advanced.ScoringObjective.percentile_log_probability(
             window_size=10
         ),
@@ -100,7 +100,7 @@ def main() -> int:
     key_spec = api.KeySpec.repeating(length=workbook.KEY_LENGTH)
     started = time.perf_counter()
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli),
+        problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli),
         cipher=cipher_spec,
         key_space=key_spec,
         solver=workbook.SOLVER,

@@ -132,7 +132,7 @@ class RuneScorer(BaseScorer):
 
         # Channels
         self.include_char: bool = bool(scorer_cfg.character_lane_enabled)
-        self.use_word_breaks: bool = bool(scorer_cfg.word_length_lane_enabled)
+        self.use_word_breaks: bool = bool(scorer_cfg.wli_lane_enabled)
 
         # ECDF clamps / dtype
         self._ecdf_clamp_min: float = float(scorer_cfg.ecdf_clamp_minimum)
@@ -165,9 +165,9 @@ class RuneScorer(BaseScorer):
 
         # Model selection — either per-order maps or legacy single-order + pair weights
         self._char_weights: Dict[int, float] | None = scorer_cfg.character_order_weights  # type: ignore[assignment]
-        self._wli_weights: Dict[int, float] | None = scorer_cfg.word_length_order_weights  # type: ignore[assignment]
+        self._wli_weights: Dict[int, float] | None = scorer_cfg.wli_order_weights  # type: ignore[assignment]
         self._n_char: Optional[int] = scorer_cfg.character_ngram_order
-        self._n_wli: Optional[int] = scorer_cfg.word_length_ngram_order
+        self._n_wli: Optional[int] = scorer_cfg.wli_ngram_order
         self._weights_pair: Optional[Tuple[float, float]] = scorer_cfg.base_lane_weights
         self._effective_model_weights = scorer_cfg.effective_lm_model_weights
 
@@ -2250,7 +2250,7 @@ class RuneScorer(BaseScorer):
     def _active_models(self) -> List[Tuple[Channel, int, float]]:
         return [
             (Channel.CHAR if channel == "char" else Channel.WLI, int(n), float(weight))
-            for channel, n, weight in self._effective_model_weights(use_word_lengths=self.use_word_breaks)
+            for channel, n, weight in self._effective_model_weights(use_wli=self.use_word_breaks)
         ]
 
     def _requires_wli(self) -> bool:

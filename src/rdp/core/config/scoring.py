@@ -183,16 +183,16 @@ class ScoringConfig:
     smoothing_alpha: float = 0.5
     out_of_vocabulary_policy: OutOfVocabularyPolicy = OutOfVocabularyPolicy.FLOOR_MINIMUM_SEEN
     character_lane_enabled: bool = True
-    word_length_lane_enabled: bool = True
+    wli_lane_enabled: bool = True
     character_ngram_order: int = 2
-    word_length_ngram_order: int = 2
+    wli_ngram_order: int = 2
     window_size: int = 10
     stride: int = 1
     boundary_mode: LanguageModelBoundaryMode = LanguageModelBoundaryMode.EXCLUDE_BOUNDARIES
     base_lane_weights: tuple[float, float] | None = None
     score_direction: ScoreDirection = ScoreDirection.MAXIMIZE
     character_order_weights: Mapping[int, float] | None = None
-    word_length_order_weights: Mapping[int, float] | None = None
+    wli_order_weights: Mapping[int, float] | None = None
     backend: ScorerBackend = ScorerBackend.AUTO
     compute_dtype: FloatDType = FloatDType.FLOAT32
     accumulator_dtype: FloatDType = FloatDType.FLOAT64
@@ -296,7 +296,7 @@ class ScoringConfig:
 
         for name in (
             "character_ngram_order",
-            "word_length_ngram_order",
+            "wli_ngram_order",
             "window_size",
             "stride",
             "span_hamming_minimum_length",
@@ -370,11 +370,11 @@ class ScoringConfig:
             object.__setattr__(self, "base_lane_weights", pair)
 
         character_weights = _weight_map(self.character_order_weights, "character_order_weights")
-        word_length_weights = _weight_map(self.word_length_order_weights, "word_length_order_weights")
-        if pair is not None and (character_weights or word_length_weights):
+        wli_weights = _weight_map(self.wli_order_weights, "wli_order_weights")
+        if pair is not None and (character_weights or wli_weights):
             raise ValueError("base_lane_weights cannot be combined with per-order weights")
         object.__setattr__(self, "character_order_weights", character_weights)
-        object.__setattr__(self, "word_length_order_weights", word_length_weights)
+        object.__setattr__(self, "wli_order_weights", wli_weights)
         object.__setattr__(
             self,
             "hamming_length_weights",
@@ -448,7 +448,7 @@ class ScoringConfig:
             payload["base_lane_weights"] = tuple(payload["base_lane_weights"])
         for name in (
             "character_order_weights",
-            "word_length_order_weights",
+            "wli_order_weights",
             "hamming_length_weights",
         ):
             if isinstance(payload.get(name), Mapping):
@@ -472,26 +472,26 @@ class ScoringConfig:
         return tuple(lanes)
 
     def effective_lm_model_weights(
-        self, *, use_word_lengths: bool | None = None
+        self, *, use_wli: bool | None = None
     ) -> tuple[tuple[str, int, float], ...]:
-        use_word_lengths_now = self.word_length_lane_enabled if use_word_lengths is None else use_word_lengths
+        use_wli_now = self.wli_lane_enabled if use_wli is None else use_wli
         models: list[tuple[str, int, float]] = []
         if self.base_lane_weights is not None:
-            character_weight, word_length_weight = self.base_lane_weights
+            character_weight, wli_weight = self.base_lane_weights
             if self.character_lane_enabled and character_weight > 0.0:
                 models.append(("char", self.character_ngram_order, character_weight))
-            if use_word_lengths_now and word_length_weight > 0.0:
-                models.append(("wli", self.word_length_ngram_order, word_length_weight))
+            if use_wli_now and wli_weight > 0.0:
+                models.append(("wli", self.wli_ngram_order, wli_weight))
         else:
             character_weights = self.character_order_weights
-            word_length_weights = self.word_length_order_weights
-            if character_weights is None and word_length_weights is None:
+            wli_weights = self.wli_order_weights
+            if character_weights is None and wli_weights is None:
                 character_weights = MappingProxyType({2: 0.5})
-                word_length_weights = MappingProxyType({2: 0.5})
+                wli_weights = MappingProxyType({2: 0.5})
             if self.character_lane_enabled:
                 models.extend(("char", order, weight) for order, weight in (character_weights or {}).items() if weight > 0.0)
-            if use_word_lengths_now:
-                models.extend(("wli", order, weight) for order, weight in (word_length_weights or {}).items() if weight > 0.0)
+            if use_wli_now:
+                models.extend(("wli", order, weight) for order, weight in (wli_weights or {}).items() if weight > 0.0)
         total = sum(weight for _channel, _order, weight in models)
         if total <= 0.0:
             raise ValueError("no active language-model weights remain after channel selection")
@@ -502,7 +502,7 @@ class ScoringConfig:
             "requested": {
                 "base_lane_weights": list(self.base_lane_weights) if self.base_lane_weights is not None else None,
                 "character_order_weights": dict(self.character_order_weights or {}),
-                "word_length_order_weights": dict(self.word_length_order_weights or {}),
+                "wli_order_weights": dict(self.wli_order_weights or {}),
             },
             "effective_lm_models": [
                 {"channel": channel, "n": order, "weight": weight}

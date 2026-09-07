@@ -1,6 +1,6 @@
 """Liber Primus typed domain surface."""
 
-from .lp_adapter import LPSolverPayload, payload_from_locator, payload_from_partition_entry
+from .lp_adapter import SourceData, payload_from_locator, payload_from_partition_entry
 from .lp_main import (
     CANON_PAGE_COUNT,
     CANON_SUFFIX,
@@ -84,7 +84,7 @@ __all__ = [
     "LPSpiralDirection",
     "LPSpiralRoute",
     "LPSpiralStartCorner",
-    "LPSolverPayload",
+    "SourceData",
     "LPSolveRecipeEntry",
     "build_nested_side_art_red_rune_partition",
     "build_red_rune_17_partition",

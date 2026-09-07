@@ -32,9 +32,9 @@ def main() -> None:
         problem_input=api.RawTextInput(text=CIPHERTEXT_RUNES),
         cipher=api.CipherSpec.vigenere(),
         key_space=api.KeySpec.repeating(length=len(SECRET_KEY)),
-        solver=api.SolverSpec.beam_search(width=8, rounds=0, seed=2025),
+        solver=api.SolverSpec.beam_search(width=8, rounds=None, seed=2025),
         scoring=api.ScoringConfig(),
-        text_direction=api.TextDirection.LEFT_TO_RIGHT,
+        text_direction=api.TextDirection.LTR,
         interruptors=interruptors,
     )
     result = api.run(request)
@@ -43,14 +43,14 @@ def main() -> None:
     print("Positions       :", INTERRUPTOR_POSITIONS)
     print("Untouched runes :", INTERRUPTOR_SYMBOLS)
     print("Recovered key   :", result.key)
-    print("Recovered runes :", result.plaintext_text)
+    print("Recovered runes :", result.plaintext_runes)
 
     untouched_symbols = tuple(
-        result.plaintext[position] for position in INTERRUPTOR_POSITIONS
+        result.plaintext_indices[position] for position in INTERRUPTOR_POSITIONS
     )
     if (
         result.key != SECRET_KEY
-        or result.plaintext != PLAINTEXT
+        or result.plaintext_indices != PLAINTEXT
         or untouched_symbols != INTERRUPTOR_SYMBOLS
     ):
         raise AssertionError("known interruptors did not produce exact recovery")

@@ -18,7 +18,7 @@ from rdp.solvers.seed_generation import make_seeds_from_freq
 from tutorials.v1.data.plaintext_fixtures import plaintext_english_string
 from tutorials.v1.support import tutorial_pretty as pretty
 
-DIRECTION = api.TextDirection.LEFT_TO_RIGHT
+DIRECTION = api.TextDirection.LTR
 CIPHERTEXT_SEED = 20260822
 ATTEMPT_SEEDS = (20260831, 20260832, 20260833)
 SEED_KEYS = 160
@@ -33,9 +33,9 @@ PLATEAU_ROUNDS = 30
 MIN_MATCH_RATIO = 0.97
 SCORER_PARAMS = api.ScoringConfig(
     character_lane_enabled=True,
-    word_length_lane_enabled=True,
+    wli_lane_enabled=True,
     character_order_weights={2: 0.3},
-    word_length_order_weights={1: 0.21, 2: 0.49},
+    wli_order_weights={1: 0.21, 2: 0.49},
     objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10),
 )
 
@@ -43,9 +43,9 @@ SCORER_PARAMS = api.ScoringConfig(
 def _display_scorer_params() -> api.ScoringConfig:
     return api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights={2: 0.3},
-        word_length_order_weights={1: 0.21, 2: 0.49},
+        wli_order_weights={1: 0.21, 2: 0.49},
         objective=api.advanced.ScoringObjective.percentile_log_probability(
             window_size=10
         ),
@@ -140,7 +140,7 @@ def main() -> None:
         started = time.perf_counter()
         result = api.run(
             api.RunSpec(
-                problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli),
+                problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli),
                 cipher=cipher_spec,
                 key_space=api.KeySpec.permutation(length=29),
                 solver=solver,
@@ -167,13 +167,13 @@ def main() -> None:
             f"attempt {index + 1}: seed={seed} score={score:.6f} runtime={elapsed:.3f}s stop_reason={stop_reason} valid={valid}"
         )
     winner = select_attempt(attempts)
-    recovered = _ints(winner.result.plaintext)
+    recovered = _ints(winner.result.plaintext_indices)
     expected = [int(v) for v in pt_idx]
     match_ratio = sum((a == b for a, b in zip(recovered, expected, strict=True))) / len(
         expected
     )
     classification = "PASS" if match_ratio >= MIN_MATCH_RATIO else "REVIEW"
-    recovered_text = winner.result.plaintext_text or ""
+    recovered_text = winner.result.plaintext_runes or ""
     recovered_key = _ints(winner.result.key)[:29]
     print(f"selected attempt: {winner.index + 1} (seed={winner.seed})")
     print(f"selected score: {winner.score:.6f}")

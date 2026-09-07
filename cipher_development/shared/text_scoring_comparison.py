@@ -369,9 +369,9 @@ def _build_pct_scorer(
     cfg = ScoringConfig(
         language_model_root=Path(model_root).resolve() if model_root is not None else None,
         character_lane_enabled=include_char,
-        word_length_lane_enabled=use_wli,
+        wli_lane_enabled=use_wli,
         character_order_weights=char_w,
-        word_length_order_weights=wli_w,
+        wli_order_weights=wli_w,
         backend=ScorerBackend.NUMPY,
     )
     dummy = CipherConfig(

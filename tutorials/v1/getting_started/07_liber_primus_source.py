@@ -7,27 +7,22 @@ SOURCE_LABEL = "welcome_pilgrim"
 
 
 def main() -> None:
-    payload = api.liber_primus.payload_from_label(SOURCE_LABEL)
-    metadata = payload.metadata
+    source = api.liber_primus.source(SOURCE_LABEL)
 
     print("Liber Primus source")
-    print("Display name :", metadata["display_name"])
-    print("Source label :", metadata["source_label"])
-    print("Source status:", metadata["source_status"])
-    print("Rune count   :", len(payload.ct_idx))
-    print("Index preview:", tuple(payload.ct_idx[:12]))
+    print("Source kind      :", source.source_kind)
+    print("Source label     :", source.ref["label"])
+    print("Transcript asset :", source.asset_id)
+    print("Transcript version:", source.asset_version)
 
-    # This tutorial checks source loading only. It does not run a solver.
+    # A source reference records identity. The run loads its ciphertext and WLI.
     expected_boundary = (
-        metadata["display_name"] == "Welcome Pilgrim"
-        and metadata["source_label"] == "red_rune.welcome_pilgrim"
-        and metadata["source_status"] == "solved_text_available"
-        and len(payload.ct_idx) == len(payload.wli) == 515
-        and tuple(payload.ct_idx[:12])
-        == (1, 28, 21, 15, 12, 0, 5, 4, 12, 1, 6, 13)
+        source.source_kind == "liber_primus.label"
+        and source.ref["label"] == "red_rune.welcome_pilgrim"
+        and source.asset_id == "liber_primus.main_transcript"
     )
     if not expected_boundary:
-        raise AssertionError("the named Liber Primus source boundary changed")
+        raise AssertionError("the named Liber Primus source reference changed")
 
 
 if __name__ == "__main__":

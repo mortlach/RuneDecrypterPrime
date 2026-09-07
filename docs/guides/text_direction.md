@@ -3,20 +3,23 @@
 Text direction is a field on `RunSpec`:
 
 ```python
-text_direction=api.TextDirection.LEFT_TO_RIGHT
+text_direction=api.TextDirection.LTR
 ```
 
 or:
 
 ```python
-text_direction=api.TextDirection.RIGHT_TO_LEFT
+text_direction=api.TextDirection.RTL
 ```
 
 The library default is:
 
 ```python
-api.TextDirection.RIGHT_TO_LEFT
+api.TextDirection.RTL
 ```
+
+`LTR` and `RTL` are the preferred names. `LEFT_TO_RIGHT` and
+`RIGHT_TO_LEFT` remain equivalent aliases when the longer wording is useful.
 
 The direction is passed through the solver and scoring path. It therefore
 matters when a scoring lane or model is directional.

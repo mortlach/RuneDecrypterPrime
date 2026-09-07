@@ -28,8 +28,10 @@ def _result() -> api.RunResult:
         best_key=(1, 2),
     )
     return api.RunResult(
-        plaintext=tuple(_solution().plaintext_idx),
-        plaintext_text=_solution().plaintext_latin,
+        plaintext_indices=tuple(_solution().plaintext_idx),
+        word_length_information=None,
+        plaintext_runes="ᚢᚦ",
+        plaintext_rune_latin="U|TH",
         key=tuple(_solution().key),
         score=float(_solution().score),
         status=report.status,
@@ -56,7 +58,7 @@ def _spec() -> api.RunSpec:
         problem_input=api.RuneIndexInput(indices=[3, 4]),
         cipher=api.CipherSpec.periodic_substitution(period=2),
         key_space=api.KeySpec.periodic_substitution(period=2),
-        solver=api.SolverSpec.beam_search(width=2, rounds=0, seed=42),
+        solver=api.SolverSpec.beam_search(width=2, rounds=None, seed=42),
     )
 
 
@@ -112,7 +114,7 @@ def test_rdp_print_options_are_small_and_explicit() -> None:
 
 def test_format_rdp_banner_defaults_to_plain_ascii() -> None:
     banner = api.display.format_banner()
-    assert banner == 'Rune Decrypter Prime\n====================\nRDP V1 pre-release\noutput root : output/\n'
+    assert banner == 'Rune Decrypter Prime\n====================\nRDP V1\noutput root : output/\n'
     assert '+' not in banner
     boxed = api.display.format_banner(options=api.display.PrintOptions(banner_style=api.display.BannerStyle.BOX))
     assert '+' in boxed

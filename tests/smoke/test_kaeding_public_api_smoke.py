@@ -21,7 +21,7 @@ _TEXT = (
     "THERE WAS A TABLE SET OUT UNDER A TREE IN FRONT OF THE HOUSE AND THE "
     "MARCH HARE WAS HAVING TEA"
 )
-_DIRECTION = api.TextDirection.LEFT_TO_RIGHT
+_DIRECTION = api.TextDirection.LTR
 _IDENTITY = tuple(range(29))
 _ROTATED = tuple(range(1, 29)) + (0,)
 
@@ -29,9 +29,9 @@ _ROTATED = tuple(range(1, 29)) + (0,)
 def _scoring() -> api.ScoringConfig:
     return api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights={2: 0.3},
-        word_length_order_weights={2: 0.7},
+        wli_order_weights={2: 0.7},
         objective=api.advanced.ScoringObjective.percentile_log_probability(
             window_size=10
         ),
@@ -70,7 +70,7 @@ def _run_smoke(
     result = api.run(
         api.RunSpec(
             problem_input=api.RuneIndexInput(
-                indices=ciphertext, word_lengths=word_lengths
+                indices=ciphertext, word_length_information=word_lengths
             ),
             cipher=cipher,
             key_space=key_space,
@@ -83,7 +83,7 @@ def _run_smoke(
         )
     )
 
-    assert result.plaintext == plaintext
+    assert result.plaintext_indices == plaintext
     assert result.key == concrete_key
     assert result.solver_report.steps == 2
     assert result.solver_report.evaluations > 0

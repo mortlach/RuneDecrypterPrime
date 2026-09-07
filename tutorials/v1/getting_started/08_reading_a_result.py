@@ -22,14 +22,14 @@ def main() -> None:
         problem_input=api.RuneIndexInput(indices=ciphertext),
         cipher=cipher,
         key_space=api.KeySpec.scalar(minimum=2, maximum=8),
-        solver=api.SolverSpec.beam_search(width=8, rounds=0, seed=2718),
+        solver=api.SolverSpec.beam_search(width=8, rounds=None, seed=2718),
         scoring=api.ScoringConfig(
             character_lane_enabled=True,
-            word_length_lane_enabled=False,
+            wli_lane_enabled=False,
             character_order_weights={1: 0.2, 2: 0.8},
-            word_length_order_weights={},
+            wli_order_weights={},
         ),
-        text_direction=api.TextDirection.LEFT_TO_RIGHT,
+        text_direction=api.TextDirection.LTR,
     )
     result = api.run(request)
 
@@ -52,7 +52,7 @@ def main() -> None:
         options=api.display.SummaryOptions.for_console(),
     )
 
-    exact_recovery = result.key == SECRET_KEY and result.plaintext == PLAINTEXT
+    exact_recovery = result.key == SECRET_KEY and result.plaintext_indices == PLAINTEXT
     report_agrees = (
         result.solver_report.best_key == result.key
         and result.solver_report.status == result.status

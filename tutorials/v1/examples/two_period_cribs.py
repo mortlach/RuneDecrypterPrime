@@ -54,12 +54,12 @@ def run_tutorial():
     started = perf_counter()
     result = api.run(
         problem_input=api.RuneIndexInput(
-            indices=fixture.ciphertext, word_lengths=fixture.wli
+            indices=fixture.ciphertext, word_length_information=fixture.wli
         ),
         cipher=cipher,
         key_space=key,
         solver=solver,
-        text_direction=api.TextDirection.LEFT_TO_RIGHT,
+        text_direction=api.TextDirection.LTR,
     )
     elapsed_s = perf_counter() - started
     pretty.print_summary_spacer()

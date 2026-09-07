@@ -49,7 +49,7 @@ def encrypt_interruptor_fixture(
         key_space=key_space,
         ciphertext=plaintext_values,
         word_lengths=None,
-        text_direction=api.TextDirection.RIGHT_TO_LEFT,
+        text_direction=api.TextDirection.RTL,
         compute_device=api.ComputeDevice.CPU,
     )
     encrypted = build_cipher(config).encrypt(
@@ -98,7 +98,7 @@ def build_demo_fixture(
         key_space=key_space,
         ciphertext=tuple(int(value) for value in plaintext),
         word_lengths=wli,
-        text_direction=api.TextDirection.RIGHT_TO_LEFT,
+        text_direction=api.TextDirection.RTL,
         compute_device=api.ComputeDevice.CPU,
     )
     runtime = build_cipher(config)

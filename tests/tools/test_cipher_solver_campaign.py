@@ -46,8 +46,10 @@ def _result(
         best_score=score,
     )
     return api.RunResult(
-        plaintext=recovered_plaintext,
-        plaintext_text=None,
+        plaintext_indices=recovered_plaintext,
+        word_length_information=None,
+        plaintext_runes=None,
+        plaintext_rune_latin=None,
         key=recovered_key,
         score=score,
         status=status,
@@ -139,7 +141,7 @@ def test_mono_canonical_recipe_contract_is_exact() -> None:
     assert case.solver.parameters["population_size"] == 128
     assert case.solver.parameters["generations"] == 160
     assert dict(case.scoring.character_order_weights or {}) == {2: 0.3}
-    assert dict(case.scoring.word_length_order_weights or {}) == {1: 0.21, 2: 0.49}
+    assert dict(case.scoring.wli_order_weights or {}) == {1: 0.21, 2: 0.49}
 
 
 def test_qualification_status_is_group_and_mode_aware() -> None:
@@ -185,7 +187,7 @@ def test_registered_ordinary_cases_retain_wli(family: str) -> None:
     case = campaign.build_case(family, 0)
     assert len(case.reference) == len(case.wli)
     assert 270 <= len(case.reference) <= 330
-    assert case.scoring.word_length_lane_enabled is True
+    assert case.scoring.wli_lane_enabled is True
     assert "stop_score" not in case.solver_parameters
 
 
@@ -202,9 +204,9 @@ def test_autokey_uses_the_qualified_beam_and_wli_profile() -> None:
     assert case.solver.kind is api.advanced.SolverKind.BEAM_SEARCH
     assert case.solver.parameters["restarts"] == 3
     assert case.scoring.character_lane_enabled is False
-    assert case.scoring.word_length_lane_enabled is True
+    assert case.scoring.wli_lane_enabled is True
     assert dict(case.scoring.character_order_weights or {}) == {}
-    assert dict(case.scoring.word_length_order_weights or {}) == {1: 0.3, 2: 0.7}
+    assert dict(case.scoring.wli_order_weights or {}) == {1: 0.3, 2: 0.7}
 
 
 @pytest.mark.full_assets
@@ -284,7 +286,7 @@ def test_specialist_adapter_supplies_ciphertext_and_wli(monkeypatch: pytest.Monk
     campaign.execute_case(case)
     spec = captured["spec"]
     assert spec.problem_input == api.RuneIndexInput(
-        indices=case.ciphertext, word_lengths=case.wli
+        indices=case.ciphertext, word_length_information=case.wli
     )
 
 

@@ -23,7 +23,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 
 def _demo_ciphertext() -> dict[str, Any]:
-    encoding_dir = api.TextDirection.RIGHT_TO_LEFT
+    encoding_dir = api.TextDirection.RTL
     pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(
         DEMO_TEXT, direction=encoding_dir
     )
@@ -61,9 +61,9 @@ def _solution_match_ratio(solution, pt_idx: list[int]) -> float:
 def _make_scorer_params(demo: dict[str, Any]) -> api.ScoringConfig:
     return api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights={2: 0.3},
-        word_length_order_weights={2: 0.7},
+        wli_order_weights={2: 0.7},
         objective=api.advanced.ScoringObjective.percentile_log_probability(
             window_size=10
         ),
@@ -73,9 +73,9 @@ def _make_scorer_params(demo: dict[str, Any]) -> api.ScoringConfig:
 def _display_scorer_params(demo: dict[str, Any]) -> api.ScoringConfig:
     return api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights={2: 0.3},
-        word_length_order_weights={2: 0.7},
+        wli_order_weights={2: 0.7},
         objective=api.advanced.ScoringObjective.percentile_log_probability(
             window_size=10
         ),
@@ -91,7 +91,7 @@ def _display_spec(
     return api.RunSpec(
         problem_input=api.RuneIndexInput(
             indices=cast(list[int], demo["ciphertext_idx"]),
-            word_lengths=cast(list[list[int]], demo["wli"]),
+            word_length_information=cast(list[list[int]], demo["wli"]),
         ),
         cipher=cipher_spec,
         key_space=key_spec,
@@ -109,10 +109,10 @@ def solve_with_wrappers(
     scorer_params: api.ScoringConfig,
 ) -> None:
     """Interface demonstration with the known key supplied as an initial key."""
-    solver_spec = api.SolverSpec.beam_search(width=18, rounds=0, seed=1337)
+    solver_spec = api.SolverSpec.beam_search(width=18, rounds=None, seed=1337)
     result = api.run(
         problem_input=api.RuneIndexInput(
-            indices=demo["ciphertext_idx"], word_lengths=demo["wli"]
+            indices=demo["ciphertext_idx"], word_length_information=demo["wli"]
         ),
         cipher=cipher_spec,
         key_space=key_spec,
@@ -143,10 +143,10 @@ def solve_with_general_map(
     )
     key_len = len(cast(list[int], demo["secret_key"]))
     key_spec = api.KeySpec.repeating(length=key_len)
-    solver_spec = api.SolverSpec.beam_search(width=96, rounds=0, seed=4242)
+    solver_spec = api.SolverSpec.beam_search(width=96, rounds=None, seed=4242)
     result = api.run(
         problem_input=api.RuneIndexInput(
-            indices=demo["ciphertext_idx"], word_lengths=demo["wli"]
+            indices=demo["ciphertext_idx"], word_length_information=demo["wli"]
         ),
         cipher=cipher_spec,
         key_space=key_spec,

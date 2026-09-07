@@ -90,7 +90,7 @@ and `BOX`.
 ## Console formatting helpers
 
 `format_banner` accepts `title="Rune Decrypter Prime"`,
-`version_label="RDP V1 pre-release"`, `output_root=None` and `options=None`.
+`version_label="RDP V1"`, `output_root=None` and `options=None`.
 
 `format_section(title, underline="-")` creates a section heading.
 

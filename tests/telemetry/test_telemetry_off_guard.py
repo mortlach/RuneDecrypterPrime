@@ -16,7 +16,7 @@ def test_telemetry_off_prevents_dump(tmp_path):
             solver=solver,
             scoring=api.ScoringConfig(),
             telemetry_enabled=False,
-            text_direction=api.TextDirection.LEFT_TO_RIGHT,
+            text_direction=api.TextDirection.LTR,
         )
     )
     assert dict(sol.telemetry) == {"telemetry_off": True}

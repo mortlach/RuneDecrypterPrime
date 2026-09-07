@@ -19,7 +19,7 @@ def _spec(*, seed: int | None = 7) -> api.RunSpec:
         problem_input=api.RuneIndexInput(indices=(0, 1)),
         cipher=api.CipherSpec.vigenere(),
         key_space=api.KeySpec.repeating(length=2),
-        solver=api.SolverSpec.beam_search(width=2, rounds=0, seed=seed),
+        solver=api.SolverSpec.beam_search(width=2, rounds=None, seed=seed),
         telemetry_enabled=False,
     )
 

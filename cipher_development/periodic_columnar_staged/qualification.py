@@ -241,9 +241,9 @@ def _match(left: Sequence[int] | None, right: Sequence[int]) -> float:
 def _head_scoring() -> api.ScoringConfig:
     return api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=False,
+        wli_lane_enabled=False,
         character_order_weights={1: 0.75, 2: 0.25},
-        word_length_order_weights={},
+        wli_order_weights={},
         objective=api.advanced.ScoringObjective.percentile_log_probability(
             window_size=10
         ),
@@ -253,11 +253,11 @@ def _head_scoring() -> api.ScoringConfig:
 def _fast_scoring(*, alternate: bool) -> api.ScoringConfig:
     return api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=False,
+        wli_lane_enabled=False,
         character_order_weights={3: 0.2, 4: 0.8}
         if alternate
         else {3: 0.5, 4: 0.5},
-        word_length_order_weights={},
+        wli_order_weights={},
         objective=api.advanced.ScoringObjective.percentile_log_probability(
             window_size=10
         ),
@@ -267,9 +267,9 @@ def _fast_scoring(*, alternate: bool) -> api.ScoringConfig:
 def _ranking_scoring() -> api.ScoringConfig:
     return api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights={3: 0.2, 4: 0.8},
-        word_length_order_weights={2: 0.3, 4: 0.7},
+        wli_order_weights={2: 0.3, 4: 0.7},
         objective=api.advanced.ScoringObjective.percentile_log_probability(
             window_size=10
         ),
@@ -316,7 +316,7 @@ def _problem(
         ciphertext=tuple(int(value) for value in ciphertext),
         word_lengths=word_lengths,
         compute_device=api.ComputeDevice.CPU,
-        text_direction=api.TextDirection.RIGHT_TO_LEFT,
+        text_direction=api.TextDirection.RTL,
     )
     return DecryptionProblem(
         cipher=build_cipher(materialized),
@@ -398,7 +398,7 @@ def _search_candidates(
         make_periodic_seed_pool(
             ciphertext,
             period=cfg.period,
-            direction=api.TextDirection.RIGHT_TO_LEFT,
+            direction=api.TextDirection.RTL,
             seed=cfg.head_seed,
             n_block_seeds=cfg.head_block_seeds,
             total_seeds=cfg.head_pool_size,
@@ -616,7 +616,7 @@ def run_qualification(*, mode: str, seed: int = 12_345, output_root: Path) -> Pa
         artifact_root = run.run_dir / "artifacts/qualification"
         plaintext, word_lengths, _ = Runeglish.encode_english_to_runes(
             long_plaintext_string,
-            direction=api.TextDirection.RIGHT_TO_LEFT,
+            direction=api.TextDirection.RTL,
         )
         plaintext, word_lengths = _complete_word_prefix(
             plaintext,
@@ -693,7 +693,7 @@ def run_qualification(*, mode: str, seed: int = 12_345, output_root: Path) -> Pa
                 api.RunSpec(
                     problem_input=api.RuneIndexInput(
                         indices=ciphertext,
-                        word_lengths=word_lengths,
+                        word_length_information=word_lengths,
                     ),
                     cipher=cipher_spec,
                     key_space=key_space,
@@ -701,7 +701,7 @@ def run_qualification(*, mode: str, seed: int = 12_345, output_root: Path) -> Pa
                     scoring=_final_scoring(cfg),
                     initial_keys=selected_keys,
                     telemetry_enabled=True,
-                    text_direction=api.TextDirection.RIGHT_TO_LEFT,
+                    text_direction=api.TextDirection.RTL,
                     compute_device=api.ComputeDevice.CPU,
                 ),
                 progress_callback=callback,
@@ -710,7 +710,7 @@ def run_qualification(*, mode: str, seed: int = 12_345, output_root: Path) -> Pa
         except QualificationTimeLimit:
             timed_out = True
 
-        recovered = None if result is None else result.plaintext
+        recovered = None if result is None else result.plaintext_indices
         match_ratio = _match(recovered, plaintext)
         exact_plaintext = bool(
             result is not None

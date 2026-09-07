@@ -15,7 +15,7 @@ def _mk_cipher_cfg(length: int) -> CipherConfig:
     return CipherConfig(ciphertext=ct, wli_data=[], key_length=None, device=Device.CPU, encoding_dir=Direction.LTR)
 
 def _mk_pct_scorer(*, ecdf_clamp_min: float | None=None, ecdf_clamp_max: float | None=None) -> object:
-    s = api.ScoringConfig(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), character_lane_enabled=True, word_length_lane_enabled=False, character_order_weights={2: 1.0}, word_length_order_weights={}, compute_dtype=api.advanced.FloatDType.FLOAT32, ecdf_clamp_minimum=ecdf_clamp_min if ecdf_clamp_min is not None else 1e-06, ecdf_clamp_maximum=ecdf_clamp_max if ecdf_clamp_max is not None else 1.0 - 1e-06)
+    s = api.ScoringConfig(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), character_lane_enabled=True, wli_lane_enabled=False, character_order_weights={2: 1.0}, wli_order_weights={}, compute_dtype=api.advanced.FloatDType.FLOAT32, ecdf_clamp_minimum=ecdf_clamp_min if ecdf_clamp_min is not None else 1e-06, ecdf_clamp_maximum=ecdf_clamp_max if ecdf_clamp_max is not None else 1.0 - 1e-06)
     return build_scorer(_mk_cipher_cfg(1000), s)
 
 @pytest.mark.tier_a

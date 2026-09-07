@@ -49,7 +49,7 @@ def main() -> None:
         expected_result="exact solve",
         uses_reference_stop_score=False,
     )
-    direction = api.TextDirection.RIGHT_TO_LEFT
+    direction = api.TextDirection.RTL
     pt_latin = plaintext_english_string
     reference_idx, wli, pt_runes = Runeglish.encode_english_to_runes(
         pt_latin, direction=direction
@@ -82,18 +82,18 @@ def main() -> None:
     key_spec = api.KeySpec.scalar(minimum=MIN_RAILS, maximum=MAX_RAILS)
     scorer_params = api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights={2: 0.3},
-        word_length_order_weights={2: 0.7},
+        wli_order_weights={2: 0.7},
         objective=api.advanced.ScoringObjective.percentile_log_probability(
             window_size=10
         ),
     )
     solver_spec = api.SolverSpec.beam_search(
-        width=64, plateau_rounds=40, seed=TUTORIAL_SEED, rounds=0
+        width=64, plateau_rounds=40, seed=TUTORIAL_SEED, rounds=None
     )
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli),
+        problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli),
         cipher=cipher_spec,
         key_space=key_spec,
         solver=solver_spec,
@@ -103,12 +103,12 @@ def main() -> None:
         compute_device=api.ComputeDevice.CPU,
     )
     result = api.run(request)
-    recovered = (result.plaintext_text or "") or (result.plaintext_text or "")
+    recovered = result.plaintext_runes or ""
     print(
         "Recovered plaintext preview:",
         recovered[:120] + ("..." if len(recovered) > 120 else ""),
     )
-    match_ratio = _match_ratio(result.plaintext, reference_idx)
+    match_ratio = _match_ratio(result.plaintext_indices, reference_idx)
     print(f"Match ratio: {match_ratio:.3f}")
     if match_ratio < MIN_MATCH_RATIO:
         raise AssertionError(

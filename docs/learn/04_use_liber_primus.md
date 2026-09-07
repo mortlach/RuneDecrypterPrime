@@ -17,7 +17,7 @@ result = api.run(
     )
 )
 
-print(result.plaintext_text)
+print(result.plaintext_runes)
 print(result.key)
 print(result.score)
 ```
@@ -31,7 +31,8 @@ RDP resolves the named ciphertext and word-length information when the run is
 materialised. It rejects a saved source reference if its transcript version no
 longer matches the installed data.
 
-This tests a fixed eight-value Vigenere key using ordinary CPU Beam defaults.
+This searches for an eight-value repeating Vigenere key using ordinary CPU and
+Beam defaults.
 It is an experiment, not the complete known Welcome Pilgrim recovery recipe.
 It does not supply the interruptor information used by that worked recovery.
 An unreadable candidate is therefore possible even when the program succeeds.

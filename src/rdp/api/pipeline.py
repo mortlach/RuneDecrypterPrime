@@ -51,9 +51,9 @@ def execute_run(
         word_lengths=coerce_wli_for_config(wli),
         compute_device=(ComputeDevice.CUDA if device is Device.CUDA else ComputeDevice.CPU),
         text_direction=(
-            TextDirection.RIGHT_TO_LEFT
+            TextDirection.RTL
             if encoding_dir is Direction.RTL
-            else TextDirection.LEFT_TO_RIGHT
+            else TextDirection.LTR
         ),
         text_permutation=initial_text_permutation_indices,
         initial_keys=initial_keys,

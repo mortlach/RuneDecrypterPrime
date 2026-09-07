@@ -41,16 +41,39 @@ def _solver_report():
 
 
 def _run_result() -> api.RunResult:
-    return api.RunResult(plaintext=tuple(_solution().plaintext_idx), plaintext_text=_solution().plaintext_latin, key=tuple(_solution().key), score=float(_solution().score), status=_solver_report().status, solver_report=_solver_report(), scorer_report=api.advanced.ScorerReport(objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10), score=float(_solution().score)), configuration=api.advanced.RunConfigurationReport(solver=_solver_report().parameters, scoring=api.advanced.ConfigurationResolution(), cipher=api.advanced.ConfigurationResolution()), reproducibility=api.advanced.ReproducibilityMetadata(), oracle=api.advanced.OracleReport(), telemetry=dict(getattr(_solution(), 'meta', {}).get('telemetry', {})))
+    return api.RunResult(
+        plaintext_indices=tuple(_solution().plaintext_idx),
+        word_length_information=None,
+        plaintext_runes="ᚱᚫᚦ",
+        plaintext_rune_latin="R|A|TH",
+        key=tuple(_solution().key),
+        score=float(_solution().score),
+        status=_solver_report().status,
+        solver_report=_solver_report(),
+        scorer_report=api.advanced.ScorerReport(
+            objective=api.advanced.ScoringObjective.percentile_log_probability(
+                window_size=10
+            ),
+            score=float(_solution().score),
+        ),
+        configuration=api.advanced.RunConfigurationReport(
+            solver=_solver_report().parameters,
+            scoring=api.advanced.ConfigurationResolution(),
+            cipher=api.advanced.ConfigurationResolution(),
+        ),
+        reproducibility=api.advanced.ReproducibilityMetadata(),
+        oracle=api.advanced.OracleReport(),
+        telemetry=dict(getattr(_solution(), "meta", {}).get("telemetry", {})),
+    )
 
 def _run_spec() -> api.RunSpec:
     return api.RunSpec(
         problem_input=api.RuneIndexInput(
-            indices=[4, 5, 6], word_lengths=[[0, 3], [1, 3], [2, 3]]
+            indices=[4, 5, 6], word_length_information=[[0, 3], [1, 3], [2, 3]]
         ),
         cipher=api.CipherSpec.periodic_substitution(period=3),
         key_space=api.KeySpec.periodic_substitution(period=3),
-        solver=api.SolverSpec.beam_search(width=4, rounds=0, seed=123),
+        solver=api.SolverSpec.beam_search(width=4, rounds=None, seed=123),
         scoring=api.ScoringConfig(
             objective=api.advanced.ScoringObjective.percentile_log_probability(
                 window_size=10
@@ -91,7 +114,7 @@ def test_builds_spec_aware_display_summary() -> None:
     assert data["solver"]["effective_seed"] == 123
     assert data["scoring"]["scorer"] == "auto"
     assert data["result"]["match_ratio"] == pytest.approx(2 / 3)
-    assert data["result"]["reference_kind"] == "plaintext_idx"
+    assert data["result"]["reference_kind"] == "plaintext_indices"
     assert data["stop"]["stop_category"] == "success"
     assert data["oracle"]["mode"] == "real_solve"
     assert data["oracle"]["available"] is False
@@ -113,9 +136,9 @@ def test_missing_runspec_is_visible_as_warning() -> None:
     assert summary.problem['scope_note'] == 'Problem display is complete only when RunSpec is supplied.'
 
 def test_text_reference_match_ratio_uses_normalised_plaintext() -> None:
-    result = replace(_run_result(), plaintext_text="HELLO WORLD")
+    result = replace(_run_result(), plaintext_rune_latin="H|E|L|L|O W|O|R|L|D")
     summary = api.display.build_summary(result, reference_plaintext="hello there")
-    assert summary.result["reference_kind"] == "plaintext_text"
+    assert summary.result["reference_kind"] == "plaintext_rune_latin"
     assert summary.result["match_ratio"] == pytest.approx(0.5)
 
 
@@ -189,8 +212,8 @@ def test_format_summary_prints_explicit_encoding_direction() -> None:
         problem_input=api.RuneIndexInput(indices=[3, 4]),
         cipher=api.CipherSpec.periodic_substitution(period=2),
         key_space=api.KeySpec.periodic_substitution(period=2),
-        solver=api.SolverSpec.beam_search(width=2, rounds=0, seed=42),
-        text_direction=api.TextDirection.LEFT_TO_RIGHT,
+        solver=api.SolverSpec.beam_search(width=2, rounds=None, seed=42),
+        text_direction=api.TextDirection.LTR,
     )
     text = api.display.format_summary(
         api.display.build_summary(_run_result(), spec=spec)
@@ -217,8 +240,10 @@ def test_display_prefers_canonical_run_status_over_legacy_solution_reason() -> N
     )
     summary = api.display.build_summary(
         api.RunResult(
-            plaintext=tuple(solution.plaintext_idx),
-            plaintext_text=solution.plaintext_latin,
+            plaintext_indices=tuple(solution.plaintext_idx),
+            word_length_information=None,
+            plaintext_runes=solution.plaintext_rune,
+            plaintext_rune_latin="R|A|TH",
             key=tuple(solution.key),
             score=float(solution.score),
             status=report.status,

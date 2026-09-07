@@ -9,7 +9,7 @@ def encode_text(text: str, direction: api.TextDirection):
     return (np.asarray(pt_idx, dtype=np.uint8), wli)
 
 def columnar_roundtrip_case(text: str='columnar permutation solvers must stay bijective'):
-    direction = api.TextDirection.LEFT_TO_RIGHT
+    direction = api.TextDirection.LTR
     pt_idx, wli = encode_text(text, direction)
     perm = np.array([2, 0, 3, 1], dtype=np.uint8)
     columnar = api.CipherSpec.columnar(columns=len(perm), alphabet_size=29)

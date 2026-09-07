@@ -50,9 +50,9 @@ def _char_only_scoring_cfg(direction: Direction, *, model_root=None) -> ScoringC
             window_size=10
         ),
         character_lane_enabled=True,
-        word_length_lane_enabled=False,
+        wli_lane_enabled=False,
         character_order_weights={3: 0.5, 4: 0.5},
-        word_length_order_weights={},
+        wli_order_weights={},
         backend=api.advanced.ScorerBackend.NUMPY,
     )
 

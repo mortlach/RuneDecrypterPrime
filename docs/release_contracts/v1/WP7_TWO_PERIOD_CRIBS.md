@@ -26,7 +26,7 @@ request = api.RunSpec(
     cipher=cipher,
     key_space=key_space,
     solver=solver,
-    text_direction=api.TextDirection.LEFT_TO_RIGHT,
+    text_direction=api.TextDirection.LTR,
 )
 result = api.run(request)
 ```

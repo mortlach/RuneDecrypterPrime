@@ -92,7 +92,7 @@ def normalise_stream_anchor(value: Any) -> str:
 def normalise_stream_advance(value: Any) -> str:
     """Return the V1 stream advance mode.
 
-    The config field exists because raw/interrupter-aware stepping is a real LP
+    The config field exists because raw/interruptor-aware stepping is a real LP
     ambiguity.  V1 intentionally supports only compact-core stepping so the
     first production interface stays small and testable.
     """

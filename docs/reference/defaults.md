@@ -13,7 +13,7 @@ The full parameter tables are under
 | `initial_keys` | `None` |
 | `logging` | `None` |
 | `word_length_policy` | `WordLengthPolicy.INFER` |
-| `text_direction` | `TextDirection.RIGHT_TO_LEFT` |
+| `text_direction` | `TextDirection.RTL` |
 | `compute_device` | `ComputeDevice.CPU` |
 | `telemetry_enabled` | `True` |
 | `text_permutation` | `None` |
@@ -94,12 +94,12 @@ Notably:
 - SA `plateau_iterations=None` -> effective `300`
 - Hybrid `plateau_rounds=None` -> effective `24`
 - Kaeding `plateau_rounds=None` -> effective `360`
-- Beam `rounds=0` -> `max(2 * key_length, 12)`
+- Beam `rounds=None` -> `max(2 * key_length, 12)`
 - SA omitted temperatures -> `1.0`, `0.001`, `0.995`
 - Hybrid enabled beam with no width -> width `16`
 
 See [Solver parameters](parameters/solvers.md).
 
-Beam can be constructed with `SolverSpec.beam_search()`: width `64`, rounds `0`
-(automatic), and requested seed `None` with effective seed `0`. Other solver
+Beam can be constructed with `SolverSpec.beam_search()`: width `64`, rounds
+`None` (automatic), and requested seed `None` with effective seed `0`. Other solver
 settings and the default scoring configuration are unchanged.

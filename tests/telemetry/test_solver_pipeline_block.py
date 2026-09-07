@@ -8,7 +8,7 @@ pytestmark = pytest.mark.tier_a
 
 def _solver_factory(name: str):
     if name == 'beam':
-        return api.SolverSpec.beam_search(width=2, seed=111, rounds=0)
+        return api.SolverSpec.beam_search(width=2, seed=111, rounds=None)
     if name == 'ga':
         return api.SolverSpec.genetic_algorithm(population_size=16, generations=10, mutation_probability=0.2, elite_fraction=0.2, seed=222)
     if name == 'sa':
@@ -23,7 +23,7 @@ def test_solver_spans_include_pipeline_block(solver_name: str):
     sol = api.run(
         api.RunSpec(
             problem_input=api.RuneIndexInput(
-                indices=tuple(int(value) for value in ct_idx), word_lengths=wli
+                indices=tuple(int(value) for value in ct_idx), word_length_information=wli
             ),
             cipher=api.CipherSpec.columnar(columns=len(perm), alphabet_size=29),
             key_space=api.KeySpec.permutation(length=len(perm)),

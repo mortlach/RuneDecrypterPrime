@@ -57,14 +57,14 @@ def test_head_and_tail_rankers_use_the_intended_lane_sequence() -> None:
     smoke_final = _final_scoring(SMOKE)
 
     assert dict(head.character_order_weights) == {1: 0.75, 2: 0.25}
-    assert not head.word_length_lane_enabled
+    assert not head.wli_lane_enabled
     assert dict(ranking.character_order_weights) == {3: 0.2, 4: 0.8}
-    assert dict(ranking.word_length_order_weights) == {2: 0.3, 4: 0.7}
-    assert ranking.word_length_lane_enabled
+    assert dict(ranking.wli_order_weights) == {2: 0.3, 4: 0.7}
+    assert ranking.wli_lane_enabled
     assert dict(final.character_order_weights) == {3: 0.5, 4: 0.5}
-    assert not final.word_length_lane_enabled
-    assert smoke_final.word_length_lane_enabled
-    assert dict(smoke_final.word_length_order_weights) == {2: 0.3, 4: 0.7}
+    assert not final.wli_lane_enabled
+    assert smoke_final.wli_lane_enabled
+    assert dict(smoke_final.wli_order_weights) == {2: 0.3, 4: 0.7}
 
 
 def test_final_solver_is_one_real_column_aware_kaeding_run() -> None:

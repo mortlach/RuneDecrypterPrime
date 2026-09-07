@@ -64,7 +64,7 @@ def _warning_messages(caught) -> list[str]:
 
 def test_requested_hamming_missing_wordlist_blocks_without_warning(monkeypatch, tmp_path) -> None:
     _patch_runtime(monkeypatch)
-    cfg = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=False, hamming_enabled=True, hamming_wordlist_directory=tmp_path / 'missing_hamming_wordlists')
+    cfg = api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=False, hamming_enabled=True, hamming_wordlist_directory=tmp_path / 'missing_hamming_wordlists')
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter('always')
         with pytest.raises(RequestedLaneUnavailableError, match='hamming'):
@@ -73,7 +73,7 @@ def test_requested_hamming_missing_wordlist_blocks_without_warning(monkeypatch, 
 
 def test_nonzero_hamming_weight_missing_wordlist_blocks_without_warning(monkeypatch, tmp_path) -> None:
     _patch_runtime(monkeypatch)
-    cfg = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=False, hamming_weight=0.01, hamming_wordlist_directory=tmp_path / 'missing_hamming_wordlists')
+    cfg = api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=False, hamming_weight=0.01, hamming_wordlist_directory=tmp_path / 'missing_hamming_wordlists')
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter('always')
         with pytest.raises(RequestedLaneUnavailableError, match='hamming'):
@@ -82,7 +82,7 @@ def test_nonzero_hamming_weight_missing_wordlist_blocks_without_warning(monkeypa
 
 def test_unrequested_hamming_missing_wordlist_does_not_block(monkeypatch, tmp_path) -> None:
     _patch_runtime(monkeypatch)
-    cfg = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=False, hamming_enabled=False, hamming_weight=0.0, hamming_wordlist_directory=tmp_path / 'missing_hamming_wordlists')
+    cfg = api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=False, hamming_enabled=False, hamming_weight=0.0, hamming_wordlist_directory=tmp_path / 'missing_hamming_wordlists')
     scorer = rune_scorer.RuneScorer(_cipher_cfg(), cfg)
     assert scorer is not None
     assert getattr(scorer, '_hamming_backend') is None

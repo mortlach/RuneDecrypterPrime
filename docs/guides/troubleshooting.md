@@ -1,5 +1,19 @@
 # Troubleshooting
 
+## Pip reports an externally managed environment
+
+Some Linux distributions protect their system Python using PEP 668. If pip
+refuses to install RDP, use another Python or an environment you manage.
+
+If you deliberately want pip to override that protection, run:
+
+```text
+python install.py --break-system-packages
+```
+
+This permits pip to modify the externally managed Python installation. The
+installer never chooses that override for you.
+
 ## The result is nonsense
 
 Check the problem input first.
@@ -39,7 +53,7 @@ run with:
 
 ```python
 scoring = api.ScoringConfig(
-    word_length_lane_enabled=False,
+    wli_lane_enabled=False,
 )
 ```
 

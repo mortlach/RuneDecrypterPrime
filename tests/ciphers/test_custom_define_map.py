@@ -41,7 +41,7 @@ def test_lookup_map_reuses_generic_runtime() -> None:
         key_space=KeySpec.repeating(length=2),
         ciphertext=(0, 1, 2, 3),
         word_lengths=None,
-        text_direction=TextDirection.RIGHT_TO_LEFT,
+        text_direction=TextDirection.RTL,
         compute_device=ComputeDevice.CPU,
     )
 

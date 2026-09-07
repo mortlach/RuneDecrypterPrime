@@ -12,7 +12,7 @@ def _spec(problem_input: api.ProblemInput) -> api.RunSpec:
         problem_input=problem_input,
         cipher=api.CipherSpec.vigenere(),
         key_space=api.KeySpec.repeating(length=1),
-        solver=api.SolverSpec.beam_search(width=1, rounds=0),
+        solver=api.SolverSpec.beam_search(width=1, rounds=None),
         telemetry_enabled=False,
     )
 
@@ -28,7 +28,7 @@ def _capture(monkeypatch):
     "problem_input",
     [
         api.RawTextInput("abc def"),
-        api.RuneIndexInput(indices=(1, 2), word_lengths=((0, 1), (0, 1))),
+        api.RuneIndexInput(indices=(1, 2), word_length_information=((0, 1), (0, 1))),
     ],
 )
 def test_run_spec_materializes_supported_inputs(monkeypatch, problem_input) -> None:
@@ -47,7 +47,7 @@ def test_component_overload_builds_the_same_request(monkeypatch) -> None:
         problem_input=api.RuneIndexInput(indices=(1, 2)),
         cipher=api.CipherSpec.vigenere(),
         key_space=api.KeySpec.repeating(length=1),
-        solver=api.SolverSpec.beam_search(width=1, rounds=0),
+        solver=api.SolverSpec.beam_search(width=1, rounds=None),
         telemetry_enabled=False,
     )
 

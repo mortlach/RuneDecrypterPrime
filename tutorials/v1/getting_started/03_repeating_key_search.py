@@ -27,20 +27,20 @@ def main() -> None:
         problem_input=problem_input,
         cipher=api.CipherSpec.vigenere(),
         key_space=key_space,
-        solver=api.SolverSpec.beam_search(width=16, rounds=0, seed=4242),
+        solver=api.SolverSpec.beam_search(width=16, rounds=None, seed=4242),
         scoring=api.ScoringConfig(),
-        text_direction=api.TextDirection.RIGHT_TO_LEFT,
+        text_direction=api.TextDirection.RTL,
     )
     result = api.run(request)
 
     print("Repeating-key search")
     print("Key length     :", len(SECRET_KEY))
     print("Recovered key  :", result.key)
-    print("Recovered runes:", result.plaintext_text)
+    print("Recovered runes:", result.plaintext_runes)
     print("Score           :", result.score)
 
     # The known key and plaintext are used only to check the completed search.
-    if result.key != SECRET_KEY or result.plaintext != PLAINTEXT:
+    if result.key != SECRET_KEY or result.plaintext_indices != PLAINTEXT:
         raise AssertionError("the search did not recover the exact key and text")
 
 

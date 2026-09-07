@@ -6,7 +6,7 @@ These values are exported through `api` or `api.advanced`.
 
 | Enum | Values |
 | --- | --- |
-| `TextDirection` | `LEFT_TO_RIGHT`, `RIGHT_TO_LEFT` |
+| `TextDirection` | `LTR`, `RTL` (preferred); `LEFT_TO_RIGHT`, `RIGHT_TO_LEFT` aliases |
 | `ComputeDevice` | `CPU`, `CUDA` |
 | `WordLengthPolicy` | `DISABLED`, `INFER`, `REQUIRE` |
 

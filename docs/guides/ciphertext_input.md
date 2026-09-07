@@ -39,11 +39,12 @@ WLI can be supplied with the same input:
 ```python
 problem_input = api.RuneIndexInput(
     indices=ct_idx,
-    word_lengths=wli,
+    word_length_information=wli,
 )
 ```
 
-`indices` must contain values from `0` to `28`. If `word_lengths` is supplied,
+`indices` must contain values from `0` to `28`. If
+`word_length_information` is supplied,
 it must contain one WLI pair for each rune.
 
 ## Liber Primus sources
@@ -56,8 +57,8 @@ problem_input = api.liber_primus.source("welcome_pilgrim")
 ```
 
 This returns a source reference preserving the canonical label and transcript
-version. The run resolves the ciphertext and WLI. Advanced data inspection can
-still use `payload_from_label` for numeric data and metadata directly.
+version. The run resolves the ciphertext and WLI. Use `load_source` when you
+want the numeric data and metadata directly.
 
 ## Registered source references
 
@@ -80,7 +81,7 @@ The exact constructor parameters are listed in
 ## Where this appears in the tutorials
 
 `tutorials/v1/getting_started/07_liber_primus_source.py` loads a named Liber
-Primus source and inspects the returned ciphertext and word information.
+Primus source and inspects its recorded identity.
 
 `tutorials/v1/getting_started/10_prepare_a_real_source_search.py` carries that
 source data into a full `RunSpec`.

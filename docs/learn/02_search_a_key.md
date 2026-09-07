@@ -23,7 +23,7 @@ request = api.RunSpec(
 
 result = api.run(request)
 
-print(result.plaintext_text)
+print(result.plaintext_runes)
 print(result.key)
 print(result.score)
 ```

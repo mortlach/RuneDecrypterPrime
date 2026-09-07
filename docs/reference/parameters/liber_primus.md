@@ -1,6 +1,6 @@
 # api.liber_primus parameters
 
-The namespace returns solver-ready Liber Primus data and typed source objects.
+The namespace returns loaded Liber Primus data and typed source references.
 
 ## Named source
 
@@ -15,9 +15,10 @@ api.liber_primus.source(label)
 Returns `SourceReferenceInput` with canonical source label and the current
 transcript asset ID/version. Resolve it through `RunSpec.problem_input`.
 
-For advanced numeric inspection, `api.liber_primus.payload_from_label(label)`
-returns `SolverPayload` containing `ct_idx`, `wli` and source metadata. It does
-not replace the named reference used in the ordinary learner route.
+For direct numeric inspection, `api.liber_primus.load_source(label)` returns
+`SourceData` containing `indices`, `word_length_information` and source
+metadata. Its shorter `ct_idx` and `wli` properties are convenient when working
+with the data. It does not replace the source reference used by a normal run.
 
 ## Main transcript
 
@@ -79,7 +80,7 @@ extracted from the parsed main transcript.
 ## Complete main pages
 
 ```python
-api.liber_primus.payload_from_main_pages(
+api.liber_primus.load_source_from_main_pages(
     start_page,
     end_page=None,
 )
@@ -110,10 +111,10 @@ api.liber_primus.FragmentLocator(
 | `word` | `int | None` | `None` | Optional starting word. |
 | `word_end` | `int | None` | `None` | Optional ending word. |
 
-A locator becomes a solver payload with:
+A locator becomes loaded source data with:
 
 ```python
-api.liber_primus.payload_from_locator(
+api.liber_primus.load_source_from_locator(
     locator,
     line_mode=None,
     selector=None,
@@ -167,10 +168,10 @@ api.liber_primus.PartitionEntry(
 )
 ```
 
-A partition entry becomes a solver payload with:
+A partition entry becomes loaded source data with:
 
 ```python
-api.liber_primus.payload_from_partition_entry(
+api.liber_primus.load_source_from_partition_entry(
     entry,
     intersect_page_ref=None,
 )

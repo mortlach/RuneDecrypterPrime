@@ -40,20 +40,20 @@ def test_runapi_substitution_exact_interruptor_regression():
     solution = api.run(
         api.RunSpec(
             problem_input=api.RuneIndexInput(
-                indices=[1, 2, 3], word_lengths=[[i, 3] for i in range(3)]
+                indices=[1, 2, 3], word_length_information=[[i, 3] for i in range(3)]
             ),
             cipher=api.CipherSpec.substitution(alphabet_size=29),
             key_space=api.KeySpec.permutation(length=29),
-            solver=api.SolverSpec.beam_search(width=1, seed=1, rounds=0),
+            solver=api.SolverSpec.beam_search(width=1, seed=1, rounds=None),
             scoring=api.ScoringConfig(),
             initial_keys=(tuple(inverse_shift),),
             telemetry_enabled=False,
             interruptors=api.InterruptorConfig.exact([1]),
         )
     )
-    assert solution.plaintext is not None
-    assert len(solution.plaintext) == 3
-    assert solution.plaintext[1] == 2
+    assert solution.plaintext_indices is not None
+    assert len(solution.plaintext_indices) == 3
+    assert solution.plaintext_indices[1] == 2
 
 class _TransparentScorer:
 
@@ -69,7 +69,7 @@ def test_candidate_evaluation_scores_corrected_plaintext_transparently():
     inverse_shift = np.r_[28, np.arange(28)].astype(np.uint8)
     cfg = CipherConfig(name='substitution', ciphertext=[1, 2, 3], wli_data=[], key_length=29, alphabet_size=29, encoding_dir=Direction.LTR, device='cpu', interruptors_cfg=api.InterruptorConfig.exact([1]))
     scorer = _TransparentScorer()
-    problem = DecryptionProblem(cipher=SubstitutionCipher(cfg), scorer=scorer, c_cfg=cfg, s_cfg=api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=False, backend=api.advanced.ScorerBackend.NUMPY))
+    problem = DecryptionProblem(cipher=SubstitutionCipher(cfg), scorer=scorer, c_cfg=cfg, s_cfg=api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=False, backend=api.advanced.ScorerBackend.NUMPY))
     scores = problem.evaluate_keys(inverse_shift[None, :])
     assert scorer.plaintexts == [[0, 2, 2]]
     np.testing.assert_array_equal(scores, np.asarray([0.0], dtype=np.float64))

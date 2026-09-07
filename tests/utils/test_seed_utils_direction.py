@@ -9,8 +9,8 @@ import rdp.solvers.seed_generation as seed_utils
 @pytest.mark.parametrize(
     ("direction", "expected_token"),
     [
-        (api.TextDirection.LEFT_TO_RIGHT, "ltr"),
-        (api.TextDirection.RIGHT_TO_LEFT, "rtl"),
+        (api.TextDirection.LTR, "ltr"),
+        (api.TextDirection.RTL, "rtl"),
     ],
 )
 def test_unigram_seed_probe_converts_public_direction_at_lm_boundary(

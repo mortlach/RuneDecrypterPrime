@@ -41,16 +41,16 @@ request = api.RunSpec(
     ),
     solver=api.SolverSpec.beam_search(
         width=8,
-        rounds=0,
+        rounds=None,
         seed=7,
     ),
     scoring=api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=False,
+        wli_lane_enabled=False,
         character_order_weights={1: 0.2, 2: 0.8},
-        word_length_order_weights={},
+        wli_order_weights={},
     ),
-    text_direction=api.TextDirection.LEFT_TO_RIGHT,
+    text_direction=api.TextDirection.LTR,
 )
 
 result = api.run(request)
@@ -60,8 +60,9 @@ Each part states one assumption about the problem. In this example the rail
 count is unknown, beam search explores the allowed range, character scoring is
 used without WLI, and the text direction is set explicitly.
 
-The library default text direction is `RIGHT_TO_LEFT`. The example chooses
-`LEFT_TO_RIGHT` because that is the problem being demonstrated.
+The library default text direction is `RTL`. The example chooses `LTR` because
+that is the problem being demonstrated. The longer names remain available as
+aliases when they read better in a particular context.
 
 Before using a new ciphertext, the three useful pieces are:
 

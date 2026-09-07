@@ -14,7 +14,7 @@ request = api.RunSpec(
 The four fields above are required.
 
 The remaining fields have library defaults. In particular, the current default
-text direction is `RIGHT_TO_LEFT`, the compute device is `CPU`, WLI policy is
+text direction is `RTL`, the compute device is `CPU`, WLI policy is
 `INFER`, and telemetry is enabled.
 
 See [Defaults at a glance](defaults.md).
@@ -44,7 +44,7 @@ request = api.RunSpec(
     key_space=key_space,
     solver=solver,
     scoring=scoring,
-    text_direction=api.TextDirection.LEFT_TO_RIGHT,
+    text_direction=api.TextDirection.LTR,
     telemetry_enabled=True,
 )
 ```

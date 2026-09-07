@@ -52,7 +52,7 @@ def find_assets_root(start: Path | None = None) -> Path:
       2. the exact CI-light assets staged into the installed wheel.
 
     Complete external LM1-LM4 data remains explicit through the existing
-    scoring ``model_root`` contract. No environment-variable or CWD search is
+    scoring ``language_model_root`` setting. No environment-variable or CWD search is
     introduced here.
     """
     origin = (start or Path(__file__)).resolve()
@@ -65,7 +65,8 @@ def find_assets_root(start: Path | None = None) -> Path:
     raise FileNotFoundError(
         "No RDP asset root is available. Expected a source checkout 'assets/' "
         "directory or the source-bundled CI-light assets staged in the installed "
-        "wheel. Complete external LM assets must be supplied through model_root."
+        "wheel. Complete external LM assets must be supplied through "
+        "ScoringConfig.language_model_root."
     )
 
 

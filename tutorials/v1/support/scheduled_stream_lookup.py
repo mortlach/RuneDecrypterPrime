@@ -61,7 +61,7 @@ def mask_from_segments(length: int, segments: Sequence[tuple[str, int, int | Non
 
 def encode_plaintext(
     plaintext: str,
-    direction: api.TextDirection = api.TextDirection.RIGHT_TO_LEFT,
+    direction: api.TextDirection = api.TextDirection.RTL,
 ):
     pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(
         tutorial_plaintext(plaintext),
@@ -73,9 +73,9 @@ def encode_plaintext(
 def default_scorer_params(direction: api.TextDirection) -> api.ScoringConfig:
     return api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights={2: 0.3},
-        word_length_order_weights={2: 0.7},
+        wli_order_weights={2: 0.7},
         objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10),
     )
 
@@ -127,7 +127,7 @@ def make_real_solve_solver(
     print(f"[real solve] fixed stop_score={stop_score:.6f}; true key is not supplied")
     return api.SolverSpec.beam_search(
         width=int(beam_width),
-        rounds=0,
+        rounds=None,
         target_score=float(stop_score),
         plateau_rounds=int(plateau_rounds),
         plateau_minimum_delta=1e-4,
@@ -154,7 +154,7 @@ def build_ciphertext(
     ct_idx_list = list(ciphertext)
     ct_runes = Runeglish.to_rune(ct_idx_list, wli)
     display_direction = (
-        "rtl" if direction is api.TextDirection.RIGHT_TO_LEFT else "ltr"
+        "rtl" if direction is api.TextDirection.RTL else "ltr"
     )
     print_tutorial_debug_preview(label="plaintext", idx=pt_idx, wli=wli, direction=display_direction)
     print_tutorial_debug_preview(label="ciphertext", idx=ct_idx_list, wli=wli, direction=display_direction)

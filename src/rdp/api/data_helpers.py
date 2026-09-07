@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
-    from rdp.data.liber_primus.lp_adapter import LPSolverPayload
+    from rdp.data.liber_primus.lp_adapter import SourceData
     from rdp.data.liber_primus.lp_data import LPSection
     from rdp.data.liber_primus.lp_registry import LPFragmentLocator, LPPageRef, LPPartitionEntry
     from rdp.data.liber_primus.lp_routes import (
@@ -67,7 +67,7 @@ def load_lp_main_section(
     return extract_section_ct_wli_by_id(doc, section_id=section_id, split=split)
 
 
-def load_lp_payload_from_label(label: str) -> "LPSolverPayload":
+def load_lp_payload_from_label(label: str) -> "SourceData":
     """Return deterministic solver payload for a verified LP source label."""
     from rdp.data.liber_primus.lp_source_catalogue import payload_from_label
 
@@ -77,13 +77,13 @@ def load_lp_payload_from_label(label: str) -> "LPSolverPayload":
 def load_lp_payload_from_main_pages(
     start_page: int,
     end_page: int | None = None,
-) -> "LPSolverPayload":
+) -> "SourceData":
     """Return deterministic solver payload for complete main transcript pages.
 
     Page numbers are zero-based main transcript page ids. This is the direct
     helper behind solved-source page-span retrieval.
     """
-    from rdp.data.liber_primus.lp_adapter import LPSolverPayload
+    from rdp.data.liber_primus.lp_adapter import SourceData
     from rdp.data.liber_primus.lp_main import load_main_transcript, page_view_from_ref
     from rdp.data.liber_primus.lp_registry import LPPageRef
 
@@ -111,7 +111,11 @@ def load_lp_payload_from_main_pages(
         "bound_book_end": end_page + 1,
         "boundary_granularity": "full_main_pages",
     }
-    return LPSolverPayload(ct_idx=ct_idx, wli=wli, metadata=metadata)
+    return SourceData(
+        indices=ct_idx,
+        word_length_information=wli,
+        metadata=metadata,
+    )
 
 
 def load_lp_payload_from_locator(
@@ -120,7 +124,7 @@ def load_lp_payload_from_locator(
     line_mode: "LPLineReadMode | None" = None,
     selector: "LPLineRuneSelector | None" = None,
     spiral_route: "LPSpiralRoute | None" = None,
-) -> "LPSolverPayload":
+) -> "SourceData":
     """Return deterministic solver payload for a typed LP locator."""
     from rdp.data.liber_primus.lp_adapter import payload_from_locator
     from rdp.data.liber_primus.lp_main import load_main_transcript
@@ -141,7 +145,7 @@ def load_lp_payload_from_partition_entry(
     entry: "LPPartitionEntry",
     *,
     intersect_page_ref: "LPPageRef | None" = None,
-) -> "LPSolverPayload":
+) -> "SourceData":
     """Return deterministic solver payload for a typed LP partition entry."""
     from rdp.data.liber_primus.lp_adapter import payload_from_partition_entry
     from rdp.data.liber_primus.lp_main import load_main_transcript

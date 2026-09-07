@@ -96,7 +96,7 @@ def main() -> None:
         uses_reference_stop_score=True,
     )
     print("Runtime class: LONG-RUNNING KAEDING QUALIFICATION (may take several hours)")
-    encoding_dir = api.TextDirection.RIGHT_TO_LEFT
+    encoding_dir = api.TextDirection.RTL
     pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(
         plaintext_english_string, direction=encoding_dir
     )
@@ -141,9 +141,9 @@ def main() -> None:
     key_spec = api.KeySpec.periodic_substitution(period=PERIOD, alphabet_size=ALPHABET)
     scorer_params = api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights={3: 0.3, 4: 0.7},
-        word_length_order_weights={3: 0.4, 4: 0.6},
+        wli_order_weights={3: 0.4, 4: 0.6},
         objective=api.advanced.ScoringObjective.percentile_log_probability(
             window_size=10
         ),
@@ -183,7 +183,7 @@ def main() -> None:
         else tuple(tuple(int(value) for value in seed) for seed in seed_keys)
     )
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli),
+        problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli),
         cipher=cipher_spec,
         key_space=key_spec,
         solver=solver,
@@ -197,7 +197,7 @@ def main() -> None:
     print(f"Match ratio: {ratio:.3f}")
     if ratio < MIN_MATCH_RATIO:
         raise RuntimeError(f"Solve failed: match_ratio={ratio:.4f}")
-    recovered = (result.plaintext_text or "") or (result.plaintext_text or "")
+    recovered = result.plaintext_runes or ""
     print("Recovered preview:", _preview(str(recovered)))
     pretty.print_summary_spacer()
     api.display.print_result(

@@ -20,7 +20,7 @@ from tutorials.v1.support.tutorial_utils import oracle_stop_score, print_stop_su
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
-DIRECTION = api.TextDirection.RIGHT_TO_LEFT
+DIRECTION = api.TextDirection.RTL
 TUTORIAL_SEED = 12345
 CIPHERTEXT_SEED = 12345
 MIN_MATCH_RATIO = 0.995
@@ -97,9 +97,9 @@ def main() -> None:
     )
     scorer_params = api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights={2: 0.3},
-        word_length_order_weights={2: 0.7},
+        wli_order_weights={2: 0.7},
     )
     stop = oracle_stop_score(
         pt_idx,
@@ -152,7 +152,7 @@ def main() -> None:
     cipher_spec = api.CipherSpec.substitution(alphabet_size=29)
     key_spec = api.KeySpec.permutation(length=29)
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli),
+        problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli),
         cipher=cipher_spec,
         key_space=key_spec,
         solver=solver,
@@ -163,10 +163,10 @@ def main() -> None:
         compute_device=api.ComputeDevice.CPU,
     )
     result = api.run(request)
-    recovered = (result.plaintext_text or "") or (result.plaintext_text or "")
+    recovered = result.plaintext_runes or ""
     print("Recovered plaintext:", preview(str(recovered)))
     print("Score:", round(result.score, 6))
-    recovered_idx = [int(value) for value in result.plaintext]
+    recovered_idx = [int(value) for value in result.plaintext_indices]
     expected_idx = [int(value) for value in pt_idx]
     match_ratio = sum(
         a == b for a, b in zip(recovered_idx, expected_idx, strict=True)

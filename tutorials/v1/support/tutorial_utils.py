@@ -35,9 +35,9 @@ def score_plaintext(
     pt_arr = np.asarray(list(pt_idx), dtype=np.uint8)
     runtime_direction = (
         Direction.LTR
-        if encoding_dir is TextDirection.LEFT_TO_RIGHT
+        if encoding_dir is TextDirection.LTR
         else Direction.RTL
-        if encoding_dir is TextDirection.RIGHT_TO_LEFT
+        if encoding_dir is TextDirection.RTL
         else encoding_dir
     )
     c_cfg = CipherConfig(

@@ -39,18 +39,18 @@ def main() -> None:
         problem_input=api.RawTextInput(text=CIPHERTEXT_RUNES),
         cipher=api.CipherSpec.vigenere(),
         key_space=api.KeySpec.repeating(length=8),
-        solver=api.SolverSpec.beam_search(width=4, rounds=0, seed=909),
+        solver=api.SolverSpec.beam_search(width=4, rounds=None, seed=909),
         scoring=api.ScoringConfig(),
-        text_direction=api.TextDirection.LEFT_TO_RIGHT,
+        text_direction=api.TextDirection.LTR,
     )
 
     first = api.run(request)
     second = api.run(request)
-    ratio = match_ratio(first.plaintext)
+    ratio = match_ratio(first.plaintext_indices)
 
     print("Bounded partial recovery")
     print("Recovered key  :", first.key)
-    print("Recovered runes:", first.plaintext_text)
+    print("Recovered runes:", first.plaintext_runes)
     print("Reference match:", f"{ratio:.3f}")
     print("Stop category  :", first.status.stop_category.value)
     print("Stop reason    :", first.status.stop_reason.value)
@@ -58,7 +58,7 @@ def main() -> None:
     # The reference plaintext is used only after the search to measure recovery.
     stable_partial = (
         first.key == second.key
-        and first.plaintext == second.plaintext
+        and first.plaintext_indices == second.plaintext_indices
         and 0.70 <= ratio < 1.0
         and first.status.stop_category.value == "budget"
     )

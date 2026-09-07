@@ -19,7 +19,7 @@ def _swap_key(a: int, b: int) -> np.ndarray:
 
 def _make_problem(scorer) -> DecryptionProblem:
     cfg = CipherConfig(name='substitution', ciphertext=[0, 1, 2, 3], wli_data=[], key_length=ALPHABET_SIZE, alphabet_size=ALPHABET_SIZE, encoding_dir=Direction.LTR, device='cpu')
-    s_cfg = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=False, backend=api.advanced.ScorerBackend.NUMPY)
+    s_cfg = api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=False, backend=api.advanced.ScorerBackend.NUMPY)
     return DecryptionProblem(cipher=SubstitutionCipher(cfg), scorer=scorer, c_cfg=cfg, s_cfg=s_cfg)
 
 class _BatchOkScorer:

@@ -42,7 +42,7 @@ def test_qualified_tutorial_builds_one_public_non_oracle_run() -> None:
     assert solver["seed"] == 12_446
     assert parameters["target_score"] is None
     assert dict(request.scoring.character_order_weights) == {3: 0.5, 4: 0.5}
-    assert request.scoring.word_length_lane_enabled is False
+    assert request.scoring.wli_lane_enabled is False
 
 
 def test_qualified_tutorial_exposes_no_development_or_oracle_api() -> None:

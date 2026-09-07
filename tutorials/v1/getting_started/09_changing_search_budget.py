@@ -21,9 +21,9 @@ def build_request(*, width: int) -> api.RunSpec:
         problem_input=api.RawTextInput(text=CIPHERTEXT_RUNES),
         cipher=api.CipherSpec.vigenere(),
         key_space=api.KeySpec.repeating(length=len(SECRET_KEY)),
-        solver=api.SolverSpec.beam_search(width=width, rounds=0, seed=4242),
+        solver=api.SolverSpec.beam_search(width=width, rounds=None, seed=4242),
         scoring=api.ScoringConfig(),
-        text_direction=api.TextDirection.RIGHT_TO_LEFT,
+        text_direction=api.TextDirection.RTL,
     )
 
 
@@ -36,11 +36,11 @@ def main() -> None:
     print("Narrow evaluations :", narrow.solver_report.evaluations)
     print("Wider key          :", wider.key)
     print("Wider evaluations  :", wider.solver_report.evaluations)
-    print("Same candidate     :", narrow.plaintext == wider.plaintext)
+    print("Same candidate     :", narrow.plaintext_indices == wider.plaintext_indices)
 
     both_exact = (
         narrow.key == wider.key == SECRET_KEY
-        and narrow.plaintext == wider.plaintext == PLAINTEXT
+        and narrow.plaintext_indices == wider.plaintext_indices == PLAINTEXT
     )
     if not both_exact:
         raise AssertionError("the controlled budget comparison changed its result")

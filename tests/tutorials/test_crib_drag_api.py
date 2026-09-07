@@ -51,7 +51,7 @@ def test_runapi_accepts_crib_seeded_keys_for_vigenere():
     """
     Derive a Vigenère key from a plaintext crib and ensure api.run converges.
     """
-    direction = api.TextDirection.LEFT_TO_RIGHT
+    direction = api.TextDirection.LTR
     plaintext = 'future crib drag cases keep new presets stable for release'
     true_key = np.array([3, 7, 11, 5, 19], dtype=np.uint8)
     ct_idx, pt_idx, wli = _encrypt_vigenere(plaintext, direction, true_key)
@@ -63,7 +63,7 @@ def test_runapi_accepts_crib_seeded_keys_for_vigenere():
     sol = api.run(
         api.RunSpec(
             problem_input=api.RuneIndexInput(
-                indices=tuple(int(value) for value in ct_idx), word_lengths=wli
+                indices=tuple(int(value) for value in ct_idx), word_length_information=wli
             ),
             cipher=api.CipherSpec.vigenere(alphabet_size=29),
             key_space=api.KeySpec.repeating(length=true_key.size),
@@ -74,7 +74,7 @@ def test_runapi_accepts_crib_seeded_keys_for_vigenere():
             text_direction=direction,
         )
     )
-    match = plaintext_match_rate(sol.plaintext, pt_idx)
+    match = plaintext_match_rate(sol.plaintext_indices, pt_idx)
     assert match >= 0.99
 
 def test_hill_crib_drag_route_is_not_public_v1():

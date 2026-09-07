@@ -20,7 +20,7 @@ from tutorials.v1.support.tutorial_utils import oracle_stop_score, print_stop_su
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
-DIRECTION = api.TextDirection.LEFT_TO_RIGHT
+DIRECTION = api.TextDirection.LTR
 TUTORIAL_SEED = 12345
 CIPHERTEXT_SEED = 12345
 MIN_MATCH_RATIO = 0.995
@@ -105,18 +105,18 @@ def main() -> None:
     print(f"seeded starts: {len(seeds)}")
     scorer_params = api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights={2: 0.3},
-        word_length_order_weights={2: 0.7},
+        wli_order_weights={2: 0.7},
         objective=api.advanced.ScoringObjective.percentile_log_probability(
             window_size=10
         ),
     )
     display_scorer_params = api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights={2: 0.3},
-        word_length_order_weights={2: 0.7},
+        wli_order_weights={2: 0.7},
         objective=api.advanced.ScoringObjective.percentile_log_probability(
             window_size=10
         ),
@@ -137,7 +137,7 @@ def main() -> None:
 
     def _solve_with_sa(solver: api.SolverSpec):
         display_spec = api.RunSpec(
-            problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli),
+            problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli),
             cipher=cipher_spec,
             key_space=key_spec,
             solver=solver,
@@ -147,7 +147,7 @@ def main() -> None:
         )
         result = api.run(
             api.RunSpec(
-                problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli),
+                problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli),
                 cipher=cipher_spec,
                 key_space=key_spec,
                 solver=solver,
@@ -176,7 +176,7 @@ def main() -> None:
         seed=TUTORIAL_SEED,
     )
     result, display_spec = _solve_with_sa(solver_spec)
-    recovered = (result.plaintext_text or "") or (result.plaintext_text or "")
+    recovered = result.plaintext_runes or ""
     print("Recovered plaintext:", preview(str(recovered)))
     print("Score:", round(result.score, 6))
     match_ratio = _match_ratio(result, pt_idx)

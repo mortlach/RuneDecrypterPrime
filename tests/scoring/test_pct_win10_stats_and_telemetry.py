@@ -25,7 +25,7 @@ def test_pct_win10_stats_present_numpy():
     pt = np.asarray(plaintext1, dtype=np.uint8)
     wli = np.asarray(word_breaks1, dtype=np.uint8)
     cfg_c = CipherConfig(ciphertext=pt, wli_data=wli, key_length=None, encoding_dir=Direction.LTR, initial_text_permutation_indices=None)
-    cfg_s = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=True, character_ngram_order=2, word_length_ngram_order=2, compute_dtype=api.advanced.FloatDType.FLOAT32)
+    cfg_s = api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=True, character_ngram_order=2, wli_ngram_order=2, compute_dtype=api.advanced.FloatDType.FLOAT32)
     scorer = build_scorer(cfg_c, cfg_s)
     _ = float(scorer.score(pt, wli))
     tel = getattr(scorer, 'telemetry')() if hasattr(scorer, 'telemetry') else {}
@@ -54,7 +54,7 @@ def test_pct_win10_wli_numpy_vs_list_equivalence():
     wli_np = np.asarray(word_breaks1, dtype=np.uint8)
     wli_list = [tuple(map(int, pair)) for pair in wli_np.tolist()]
     cfg_c = CipherConfig(ciphertext=pt, wli_data=wli_np, key_length=None, initial_text_permutation_indices=None)
-    cfg_s = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=True, character_ngram_order=2, word_length_ngram_order=2, compute_dtype=api.advanced.FloatDType.FLOAT32)
+    cfg_s = api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=True, character_ngram_order=2, wli_ngram_order=2, compute_dtype=api.advanced.FloatDType.FLOAT32)
     scorer = build_scorer(cfg_c, cfg_s)
     score_np = float(scorer.score(pt, wli_np))
     score_list = float(scorer.score(pt, wli_list))
@@ -77,9 +77,9 @@ def test_pct_win10_stats_cpu_cuda_parity():
         CipherConfig(**base),
         api.ScoringConfig(
             character_lane_enabled=True,
-            word_length_lane_enabled=True,
+            wli_lane_enabled=True,
             character_ngram_order=2,
-            word_length_ngram_order=2,
+            wli_ngram_order=2,
             compute_dtype=api.advanced.FloatDType.FLOAT32,
         ),
     )
@@ -87,9 +87,9 @@ def test_pct_win10_stats_cpu_cuda_parity():
         CipherConfig(**base, device=Device.CUDA),
         api.ScoringConfig(
             character_lane_enabled=True,
-            word_length_lane_enabled=True,
+            wli_lane_enabled=True,
             character_ngram_order=2,
-            word_length_ngram_order=2,
+            wli_ngram_order=2,
             backend=api.advanced.ScorerBackend.TORCH,
             compute_dtype=api.advanced.FloatDType.FLOAT32,
         ),
@@ -111,7 +111,7 @@ def test_pct_win10_batch_stats_present_numpy():
     pts = [pt] * B
     wlis = [wli] * B
     cfg_c = CipherConfig(ciphertext=pt, wli_data=wli, key_length=None, initial_text_permutation_indices=None)
-    cfg_s = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=True, character_ngram_order=2, word_length_ngram_order=2, compute_dtype=api.advanced.FloatDType.FLOAT32)
+    cfg_s = api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=True, character_ngram_order=2, wli_ngram_order=2, compute_dtype=api.advanced.FloatDType.FLOAT32)
     scorer = build_scorer(cfg_c, cfg_s)
     bs = scorer.batch_score(pts, wlis)
     assert isinstance(bs, np.ndarray) and bs.shape == (B,)
@@ -132,7 +132,7 @@ def test_pct_win10_batch_score_with_raw_numpy():
     pts = [pt, pt]
     wlis = [wli, wli]
     cfg_c = CipherConfig(ciphertext=pt, wli_data=wli, key_length=None, initial_text_permutation_indices=None)
-    cfg_s = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=True, character_ngram_order=2, word_length_ngram_order=2, compute_dtype=api.advanced.FloatDType.FLOAT32)
+    cfg_s = api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=True, character_ngram_order=2, wli_ngram_order=2, compute_dtype=api.advanced.FloatDType.FLOAT32)
     scorer = build_scorer(cfg_c, cfg_s)
     pct, raw = scorer.batch_score_with_raw(pts, wlis)
     assert isinstance(pct, np.ndarray) and isinstance(raw, np.ndarray)
@@ -154,9 +154,9 @@ def test_pct_win10_batch_stats_cpu_cuda_parity():
         CipherConfig(**base),
         api.ScoringConfig(
             character_lane_enabled=True,
-            word_length_lane_enabled=True,
+            wli_lane_enabled=True,
             character_ngram_order=2,
-            word_length_ngram_order=2,
+            wli_ngram_order=2,
             compute_dtype=api.advanced.FloatDType.FLOAT32,
         ),
     )
@@ -164,9 +164,9 @@ def test_pct_win10_batch_stats_cpu_cuda_parity():
         CipherConfig(**base, device=Device.CUDA),
         api.ScoringConfig(
             character_lane_enabled=True,
-            word_length_lane_enabled=True,
+            wli_lane_enabled=True,
             character_ngram_order=2,
-            word_length_ngram_order=2,
+            wli_ngram_order=2,
             backend=api.advanced.ScorerBackend.TORCH,
             compute_dtype=api.advanced.FloatDType.FLOAT32,
         ),

@@ -52,7 +52,7 @@ def main() -> None:
     key_values = key_period13()
     expected_key_len = 13
     stop_score = 0.56
-    direction = api.TextDirection.RIGHT_TO_LEFT
+    direction = api.TextDirection.RTL
     cipher_spec = api.CipherSpec.periodic_with_prime_stream(period=13, prime_offset=0)
     key_spec = api.KeySpec.repeating(length=expected_key_len)
     cipher_spec, key_spec, pt_idx, wli, _pt_runes, ct_idx_list, ct_runes, _key = (
@@ -76,7 +76,7 @@ def main() -> None:
     solver = make_real_solve_solver(stop_score=stop_score)
     result = api.run(
         api.RunSpec(
-            problem_input=api.RuneIndexInput(indices=ct_idx_list, word_lengths=wli),
+            problem_input=api.RuneIndexInput(indices=ct_idx_list, word_length_information=wli),
             cipher=cipher_spec,
             key_space=key_spec,
             solver=solver,
@@ -92,7 +92,7 @@ def main() -> None:
     if found_key is None:
         raise AssertionError("real solve did not return a key")
     key_ok = found_key == expected_key
-    match_ratio = _match_ratio(result.plaintext, pt_idx)
+    match_ratio = _match_ratio(result.plaintext_indices, pt_idx)
     plaintext_ok = match_ratio == 1.0
     print(f"Expected key : {expected_key}")
     print(f"Found key    : {found_key}")

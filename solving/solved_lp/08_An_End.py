@@ -307,7 +307,7 @@ def build_attempt_records(*, ct_idx: Sequence[int], wli: Sequence[Sequence[int]]
                             plaintext_idx = list(pt_core)
                             render_wli = wli_core
                         else:
-                            raise ValueError(f'unknown interrupter semantics: {semantics}')
+                            raise ValueError(f'unknown interruptor semantics: {semantics}')
                         ratio = match_ratio(plaintext_idx, reference_idx)
                         lang = score_plaintext_idx(plaintext_idx, render_wli, word_weights)
                         status = 'candidate'

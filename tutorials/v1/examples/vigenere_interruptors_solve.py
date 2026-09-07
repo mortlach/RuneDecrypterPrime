@@ -55,7 +55,7 @@ def main() -> None:
         expected_result="exact solve",
         uses_reference_stop_score=True,
     )
-    direction = api.TextDirection.LEFT_TO_RIGHT
+    direction = api.TextDirection.LTR
     pt_idx, wli, pt_runes = Runeglish.encode_english_to_runes(
         DEMO_TEXT, direction=direction
     )
@@ -104,9 +104,9 @@ def main() -> None:
     )
     scorer_params = api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=True,
+        wli_lane_enabled=True,
         character_order_weights={2: 0.3},
-        word_length_order_weights={2: 0.7},
+        wli_order_weights={2: 0.7},
         objective=api.advanced.ScoringObjective.percentile_log_probability(
             window_size=10
         ),
@@ -129,12 +129,12 @@ def main() -> None:
         plateau_minimum_delta=0.0001,
         target_score=stop.stop_score,
         seed=TUTORIAL_SEED,
-        rounds=0,
+        rounds=None,
     )
     key_spec = api.KeySpec.repeating(length=len(KEY_NUMS))
     cipher_spec = api.CipherSpec.vigenere(alphabet_size=29)
     request = api.RunSpec(
-        problem_input=api.RuneIndexInput(indices=ct_idx_list, word_lengths=wli),
+        problem_input=api.RuneIndexInput(indices=ct_idx_list, word_length_information=wli),
         cipher=cipher_spec,
         key_space=key_spec,
         solver=solver,
@@ -150,7 +150,7 @@ def main() -> None:
     if found_key:
         print("Found key (core):", found_core)
         print("Found interruptors:", found_intr)
-    recovered = [int(value) for value in result.plaintext]
+    recovered = [int(value) for value in result.plaintext_indices]
     match_ratio = sum(a == b for a, b in zip(recovered, pt_idx, strict=True)) / len(
         pt_idx
     )

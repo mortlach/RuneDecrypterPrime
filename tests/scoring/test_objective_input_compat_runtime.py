@@ -19,9 +19,9 @@ def test_runtime_accepts_objective_spec_dict_and_string(impl: ScorerImpl) -> Non
     base_overrides = {
         "backend": api.advanced.ScorerBackend(impl.value),
         "character_lane_enabled": True,
-        "word_length_lane_enabled": False,
+        "wli_lane_enabled": False,
         "character_order_weights": {2: 1.0},
-        "word_length_order_weights": {},
+        "wli_order_weights": {},
     }
     objective_variants = [
         api.advanced.ScoringObjective.percentile_log_probability(window_size=10),

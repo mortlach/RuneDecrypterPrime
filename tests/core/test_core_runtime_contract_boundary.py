@@ -94,7 +94,7 @@ def test_runapi_accepts_typed_public_scoring_config(
             problem_input=api.RuneIndexInput(indices=[1, 2, 3]),
             cipher=api.CipherSpec.periodic_substitution(period=3),
             key_space=api.KeySpec.periodic_substitution(period=3),
-            solver=api.SolverSpec.beam_search(width=1, rounds=0),
+            solver=api.SolverSpec.beam_search(width=1, rounds=None),
             scoring=api.ScoringConfig(
                 character_lane_enabled=False,
                 backend=api.advanced.ScorerBackend.NUMPY,

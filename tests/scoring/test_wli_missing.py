@@ -13,7 +13,7 @@ def test_wli_missing():
     c_cfg, s_cfg = _mk_cfgs(
         device="cpu",
         encoding_dir="ltr",
-        scorer_overrides={"word_length_lane_enabled": True},
+        scorer_overrides={"wli_lane_enabled": True},
     )
     scorer = RuneScorer(c_cfg, s_cfg)
     pt = np.arange(40, dtype=np.uint8) % 29

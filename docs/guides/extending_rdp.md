@@ -57,7 +57,7 @@ See [Cipher development](../development/cipher_development.md) and
 
 Key structure belongs with key operations.
 
-If the existing repeating, range, permutation, scalar or periodic key spaces are
+If the existing repeating, permutation, scalar or periodic key spaces are
 not enough, define the semantic key shape and the operations required by the
 solver before adding another public constructor.
 

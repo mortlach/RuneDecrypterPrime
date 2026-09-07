@@ -22,14 +22,22 @@ For prepared rune data, WLI can be supplied directly:
 ```python
 problem_input = api.RuneIndexInput(
     indices=ct_idx,
-    word_lengths=wli,
+    word_length_information=wli,
 )
 ```
 
-Liber Primus solver payloads already provide aligned ciphertext and WLI:
+For a normal Liber Primus run, a named source carries its ciphertext and WLI
+through the run-input boundary:
 
 ```python
-payload = api.liber_primus.payload_from_label(
+problem_input = api.liber_primus.source("welcome_pilgrim")
+```
+
+When you need to inspect the numeric data directly, load the corresponding
+source data:
+
+```python
+source_data = api.liber_primus.load_source(
     "welcome_pilgrim"
 )
 ```
@@ -55,11 +63,11 @@ The WLI lane can be disabled with:
 
 ```python
 scoring = api.ScoringConfig(
-    word_length_lane_enabled=False,
+    wli_lane_enabled=False,
 )
 ```
 
-`word_length_lane_enabled=True` is the library default.
+`wli_lane_enabled=True` is the library default.
 
 See [Scoring](scoring.md) for the scoring side and
 [Scoring parameters](../reference/parameters/scoring.md) for the complete

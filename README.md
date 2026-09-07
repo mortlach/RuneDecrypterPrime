@@ -134,6 +134,11 @@ From the repository root:
 python install.py
 ```
 
+The installer uses the Python environment you choose. If a Linux distribution
+protects its system Python, the installer explains the available next steps
+rather than changing that protection automatically. See
+[Installation](docs/setup/installation.md).
+
 Then run the first tutorial:
 
 ```text
@@ -179,10 +184,14 @@ No solver is involved because the key is already known.
 Liber Primus data is available through the public namespace:
 
 ```python
-payload = api.liber_primus.payload_from_label("welcome_pilgrim")
+source = api.liber_primus.source("welcome_pilgrim")
 ```
 
-The payload supplies aligned rune indices, WLI and source metadata.
+Pass the source directly as `RunSpec.problem_input`. It keeps the catalogue
+label and transcript version with the run, so the input remains identifiable.
+
+Direct payload access is also available when you need to inspect rune indices,
+word-length information or source metadata before constructing a run.
 
 The same namespace also provides transcript, page, locator and partition access.
 See [Liber Primus data](docs/reference/liber_primus.md).
@@ -221,29 +230,3 @@ See [CUDA setup](docs/development/cuda_installation.md).
 
 Add `api.LoggingConfig` when a run is worth saving to disk. See
 [Outputs](docs/guides/outputs.md).
-
-## Status
-
-The V1 codebase is being prepared as a stable community-facing release.
-
-The public API, tutorials, test-backed contracts and solver/scoring components
-are now organised around the same run model. The remaining release work is
-mainly documentation consolidation, final validation and packaging rather than
-another redesign of the user surface.
-
-## Development lineage
-
-RDP is the current form of a much older solving toolkit.
-
-```text
-early Mathematica experiments
--> portable C++ tooling
--> Python solving framework
--> modular test-0.1 generation
--> RDP V1 typed and reproducible framework
-```
-
-The implementation changed several times. The recurring aim did not: make
-cipher ideas easier to test, compare and reproduce.
-
-See [Project origins](docs/project_origins.md) for a little more context.

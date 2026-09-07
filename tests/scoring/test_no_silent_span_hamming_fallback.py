@@ -64,7 +64,7 @@ def _warning_messages(caught) -> list[str]:
 
 def test_requested_raw_span_missing_wordlist_blocks_without_warning(monkeypatch, tmp_path) -> None:
     _patch_runtime(monkeypatch)
-    cfg = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=False, span_hamming_enabled=True, span_hamming_weight=0.5, span_hamming_wordlist_directory=tmp_path / 'missing_span_wordlists')
+    cfg = api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=False, span_hamming_enabled=True, span_hamming_weight=0.5, span_hamming_wordlist_directory=tmp_path / 'missing_span_wordlists')
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter('always')
         with pytest.raises(RequestedLaneUnavailableError, match='span_hamming'):
@@ -73,7 +73,7 @@ def test_requested_raw_span_missing_wordlist_blocks_without_warning(monkeypatch,
 
 def test_explicit_raw_span_mode_missing_wordlist_blocks_even_with_zero_weight(monkeypatch, tmp_path) -> None:
     _patch_runtime(monkeypatch)
-    cfg = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=False, span_hamming_mode=api.advanced.SpanHammingMode.RAW_BONUS, span_hamming_weight=0.0, span_hamming_wordlist_directory=tmp_path / 'missing_span_wordlists')
+    cfg = api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=False, span_hamming_mode=api.advanced.SpanHammingMode.RAW_BONUS, span_hamming_weight=0.0, span_hamming_wordlist_directory=tmp_path / 'missing_span_wordlists')
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter('always')
         with pytest.raises(RequestedLaneUnavailableError, match='span_hamming'):
@@ -82,7 +82,7 @@ def test_explicit_raw_span_mode_missing_wordlist_blocks_even_with_zero_weight(mo
 
 def test_unrequested_raw_span_missing_wordlist_does_not_block(monkeypatch, tmp_path) -> None:
     _patch_runtime(monkeypatch)
-    cfg = api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=False, span_hamming_enabled=False, span_hamming_mode=api.advanced.SpanHammingMode.OFF, span_hamming_weight=0.0, span_hamming_wordlist_directory=tmp_path / 'missing_span_wordlists')
+    cfg = api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=False, span_hamming_enabled=False, span_hamming_mode=api.advanced.SpanHammingMode.OFF, span_hamming_weight=0.0, span_hamming_wordlist_directory=tmp_path / 'missing_span_wordlists')
     scorer = rune_scorer.RuneScorer(_cipher_cfg(), cfg)
     assert scorer is not None
     assert getattr(scorer, '_span_hamming_backend') is None

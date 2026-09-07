@@ -16,9 +16,9 @@ def _mk_torch_scorer(*, use_wli: bool):
     cfg_s = api.ScoringConfig(
         backend=api.advanced.ScorerBackend.TORCH,
         character_lane_enabled=True,
-        word_length_lane_enabled=use_wli,
+        wli_lane_enabled=use_wli,
         character_ngram_order=2,
-        word_length_ngram_order=2,
+        wli_ngram_order=2,
         compute_dtype=api.advanced.FloatDType.FLOAT32,
     )
     return build_scorer(cfg_c, cfg_s)

@@ -15,7 +15,7 @@ def _cfg(spec: api.CipherSpec, key_space: api.KeySpec):
         ciphertext=tuple(range(8)),
         word_lengths=None,
         compute_device=api.ComputeDevice.CPU,
-        text_direction=api.TextDirection.LEFT_TO_RIGHT,
+        text_direction=api.TextDirection.LTR,
     )
 
 

@@ -11,11 +11,15 @@ INTERRUPTOR_COUNT = 11
 
 
 def main() -> None:
-    payload = api.liber_primus.payload_from_label(SOURCE_LABEL)
+    source = api.liber_primus.source(SOURCE_LABEL)
+
+    # This search needs the numeric ciphertext to derive a candidate interruptor
+    # pool. Loaded source data is for inspection; the run still uses `source`.
+    source_data = api.liber_primus.load_source(SOURCE_LABEL)
 
     # Zero-valued ciphertext positions form the reviewed candidate pool.
     candidate_positions = tuple(
-        index for index, value in enumerate(payload.ct_idx) if value == 0
+        index for index, value in enumerate(source_data.ct_idx) if value == 0
     )
     interruptors = api.InterruptorConfig.search(
         candidate_positions,
@@ -28,7 +32,7 @@ def main() -> None:
     # Key length and interruptor count are prior information from the known
     # solution. The key values and exact interruptor positions are not supplied.
     request = api.RunSpec(
-        problem_input=api.liber_primus.source(SOURCE_LABEL),
+        problem_input=source,
         cipher=api.CipherSpec.vigenere(alphabet_size=29),
         key_space=api.KeySpec.repeating(length=KEY_LENGTH),
         solver=api.SolverSpec.beam_search(
@@ -37,32 +41,35 @@ def main() -> None:
             plateau_rounds=5,
             plateau_minimum_delta=0.0001,
             seed=2026,
-            rounds=0,
+            rounds=None,
         ),
         scoring=api.ScoringConfig(
             character_lane_enabled=True,
-            word_length_lane_enabled=True,
+            wli_lane_enabled=True,
             character_order_weights={1: 0.3, 2: 0.7},
-            word_length_order_weights={1: 0.3, 2: 0.7},
+            wli_order_weights={1: 0.3, 2: 0.7},
             objective=api.advanced.ScoringObjective.percentile_log_probability(
                 window_size=10
             ),
         ),
-        text_direction=api.TextDirection.LEFT_TO_RIGHT,
+        text_direction=api.TextDirection.LTR,
         interruptors=interruptors,
     )
 
     print("Prepared real-source search")
-    print("Source             :", payload.metadata["display_name"])
-    print("Ciphertext length  :", len(payload.ct_idx))
+    print("Source             :", source_data.metadata["display_name"])
+    print("Ciphertext length  :", len(source_data.ct_idx))
     print("Key shape          : repeating, length", KEY_LENGTH)
     print("Interruptor pool   :", len(candidate_positions))
     print("Interruptors sought:", INTERRUPTOR_COUNT)
     print("Solver             :", request.solver.kind.value)
     print("Execution          : not started")
 
-    if len(payload.ct_idx) != len(payload.wli) or len(payload.ct_idx) != 515:
-        raise AssertionError("the source payload is no longer aligned")
+    if (
+        len(source_data.ct_idx) != len(source_data.wli)
+        or len(source_data.ct_idx) != 515
+    ):
+        raise AssertionError("the loaded source data is no longer aligned")
     if len(candidate_positions) != 25:
         raise AssertionError("the reviewed interruptor candidate pool changed")
 

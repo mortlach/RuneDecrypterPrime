@@ -47,7 +47,7 @@ def _mk_cipher_cfg(length: int, *, encoding_dir: Direction) -> CipherConfig:
 def _mk_kaeding_scorer(win_ngrams: int, *, encoding_dir: Direction) -> object:
     n_order = 4
     span_len = int(win_ngrams) + n_order - 1
-    s_cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.average_log_probability(), character_lane_enabled=True, word_length_lane_enabled=False, character_order_weights={4: 1.0}, word_length_order_weights={}, compute_dtype=api.advanced.FloatDType.FLOAT32)
+    s_cfg = api.ScoringConfig(objective=api.advanced.ScoringObjective.average_log_probability(), character_lane_enabled=True, wli_lane_enabled=False, character_order_weights={4: 1.0}, wli_order_weights={}, compute_dtype=api.advanced.FloatDType.FLOAT32)
     return build_scorer(_mk_cipher_cfg(span_len, encoding_dir=encoding_dir), s_cfg)
 
 @pytest.mark.full_assets

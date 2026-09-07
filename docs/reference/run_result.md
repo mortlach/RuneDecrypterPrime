@@ -10,8 +10,10 @@ Its public fields are:
 
 | Field | Contents |
 | --- | --- |
-| `plaintext` | Recovered rune indices, or `None`. |
-| `plaintext_text` | Rendered plaintext, or `None`. |
+| `plaintext_indices` | Candidate plaintext as rune indices, or `None`. This does not establish a successful recovery. |
+| `word_length_information` | One `(position, word_length)` pair per plaintext rune, or `None`. |
+| `plaintext_runes` | Rune characters with spaces between known words, or `None`. |
+| `plaintext_rune_latin` | RuneLatin with `|` between rune tokens and spaces between known words, or `None`. |
 | `key` | Best key, or `None`. |
 | `score` | Best score, or `None`. |
 | `status` | `RunStatus`. |
@@ -28,7 +30,8 @@ Its public fields are:
 ## A normal first look
 
 ```python
-print(result.plaintext_text)
+print(result.plaintext_runes)
+print(result.plaintext_rune_latin)
 print(result.key)
 print(result.score)
 print(result.status.stop_reason.value)

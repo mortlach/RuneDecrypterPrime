@@ -34,7 +34,7 @@ def test_special_route_passes_canonical_interruptor_config_to_staged_solver(monk
     cipher, key = (api.CipherSpec.two_period_vigenere(first_period=5, second_period=7, alphabet_size=29), api.KeySpec.repeating(length=5 + 7))
     solver = api.SolverSpec.two_period_cribs(fixed_cribs=(('a', 0),), starts=1)
     config = api.InterruptorConfig.exact([1])
-    result = api.run(problem_input=api.RuneIndexInput(indices=(0, 1, 2), word_lengths=((0, 1), (0, 1), (0, 1))), cipher=cipher, key_space=key, solver=solver, text_direction=api.TextDirection.LEFT_TO_RIGHT, interruptors=config)
+    result = api.run(problem_input=api.RuneIndexInput(indices=(0, 1, 2), word_length_information=((0, 1), (0, 1), (0, 1))), cipher=cipher, key_space=key, solver=solver, text_direction=api.TextDirection.LTR, interruptors=config)
     assert isinstance(result, api.RunResult)
     assert captured['interruptors'] is config
     assert captured['interruptors_exact'] is None
@@ -52,7 +52,7 @@ def test_special_route_passes_search_interruptor_config_without_legacy_projectio
     cipher, key = (api.CipherSpec.two_period_vigenere(first_period=5, second_period=7, alphabet_size=29), api.KeySpec.repeating(length=5 + 7))
     solver = api.SolverSpec.two_period_cribs(fixed_cribs=(('a', 0),), starts=1)
     config = api.InterruptorConfig.search([2, 1], maximum_count=1)
-    api.run(problem_input=api.RuneIndexInput(indices=(0, 1, 2), word_lengths=((0, 1), (0, 1), (0, 1))), cipher=cipher, key_space=key, solver=solver, text_direction=api.TextDirection.LEFT_TO_RIGHT, interruptors=config)
+    api.run(problem_input=api.RuneIndexInput(indices=(0, 1, 2), word_length_information=((0, 1), (0, 1), (0, 1))), cipher=cipher, key_space=key, solver=solver, text_direction=api.TextDirection.LTR, interruptors=config)
     assert captured['interruptors'] is config
     assert captured['interruptors_exact'] is None
     assert captured['interruptors_pool'] is None
@@ -82,10 +82,10 @@ def test_real_route_returns_standard_exact_solution_with_installed_assets():
     known_key = np.asarray([*((5 * index + 3) % 29 for index in range(13)), 0, *((7 * index + 11) % 29 for index in range(1, 31))], dtype=np.uint8)
     ciphertext = api.encrypt(tuple((int(value) for value in plaintext)), cipher=cipher, key=tuple((int(value) for value in known_key)))
     solver = api.SolverSpec.two_period_cribs(fixed_cribs=tuple(fixed_cribs), starts=1, seed=2026)
-    result = api.run(problem_input=api.RuneIndexInput(indices=ciphertext, word_lengths=wli), cipher=cipher, key_space=key, solver=solver, text_direction=api.TextDirection.LEFT_TO_RIGHT)
+    result = api.run(problem_input=api.RuneIndexInput(indices=ciphertext, word_length_information=wli), cipher=cipher, key_space=key, solver=solver, text_direction=api.TextDirection.LTR)
     assert isinstance(result, api.RunResult)
     assert result.key == tuple(int(value) for value in known_key)
-    assert result.plaintext == tuple(int(value) for value in plaintext)
+    assert result.plaintext_indices == tuple(int(value) for value in plaintext)
     assert result.status.stop_reason is api.advanced.StopReason.CONFIGURED_WORK_LIMIT_REACHED
     assert result.solver_report.details['run_status']['stop_reason'] == 'configured_work_limit_reached'
     assert result.solver_report.solver is api.advanced.SolverKind.TWO_PERIOD_CRIBS

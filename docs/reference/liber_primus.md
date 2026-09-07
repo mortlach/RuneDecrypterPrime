@@ -6,8 +6,7 @@ The public LP namespace is:
 api.liber_primus
 ```
 
-It provides typed access to the bundled main transcript and solver-ready
-payloads.
+It provides typed access to the bundled main transcript and loaded source data.
 
 For the normal solving route, start with
 [Ciphertext input](../guides/ciphertext_input.md).
@@ -25,12 +24,12 @@ transcript version. Pass it directly as `RunSpec.problem_input`. The existing
 resolver loads ciphertext/WLI and rejects a mismatched installed transcript.
 Unknown labels raise `KeyError`. No local path is part of the reference.
 
-### Advanced payload access
+### Loading source data
 
-`api.liber_primus.payload_from_label(label)` remains available when inspecting
-numeric `ct_idx`, `wli` and source metadata directly. It returns `SolverPayload`,
-not a run-input reference. Use `source(label)` for the ordinary named-source run
-so provenance remains explicit in the request.
+`api.liber_primus.load_source(label)` loads numeric rune indices, WLI and source
+metadata directly. It returns `SourceData`, not a run-input reference. Use
+`source(label)` for an ordinary named-source run so the request retains its
+source identity.
 
 ## Main transcript
 
@@ -60,10 +59,10 @@ section = api.liber_primus.get_section(
 
 ## Page spans
 
-Complete main-transcript page spans can be turned into solver payloads:
+Complete main-transcript page spans can be loaded as source data:
 
 ```python
-payload = api.liber_primus.payload_from_main_pages(
+source_data = api.liber_primus.load_source_from_main_pages(
     start_page,
     end_page,
 )
@@ -77,17 +76,17 @@ fragment.
 Line and spiral routes are available through the LP route types.
 
 ```python
-payload = api.liber_primus.payload_from_locator(
+source_data = api.liber_primus.load_source_from_locator(
     locator
 )
 ```
 
 ## Partitions
 
-Registered partition entries can also be converted to solver payloads:
+Registered partition entries can also be loaded as source data:
 
 ```python
-payload = api.liber_primus.payload_from_partition_entry(
+source_data = api.liber_primus.load_source_from_partition_entry(
     entry
 )
 ```
@@ -98,8 +97,9 @@ A `RunSpec` can also carry a registered LP source reference directly.
 
 The built-in resolver supports label, locator and partition source kinds.
 
-Use `source(label)` for ordinary named-source runs. Direct payload access is
-useful when inspecting ciphertext, WLI or metadata before constructing a request.
+Use `source(label)` for ordinary named-source runs. `load_source(label)` is
+useful when inspecting rune indices, WLI or metadata before constructing a
+request.
 
 See [Problem inputs](inputs.md).
 

@@ -138,7 +138,9 @@ def _truth_policy(value: TutorialTruthPolicy | str) -> TutorialTruthPolicy:
 
 
 def _solution_plaintext(value: Any) -> tuple[int, ...] | None:
-    plaintext = getattr(value, "plaintext_idx", None)
+    plaintext = getattr(value, "plaintext_indices", None)
+    if plaintext is None:
+        plaintext = getattr(value, "plaintext_idx", None)
     if plaintext is None:
         plaintext = getattr(value, "plaintext", value)
     return _int_tuple(plaintext)

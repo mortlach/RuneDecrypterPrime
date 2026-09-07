@@ -56,7 +56,7 @@ def _complete_word_prefix(
 
 
 def build_run_spec() -> tuple[api.RunSpec, api.RuneIndices]:
-    direction = api.TextDirection.RIGHT_TO_LEFT
+    direction = api.TextDirection.RTL
     plaintext, word_lengths, _ = Runeglish.encode_english_to_runes(
         long_plaintext_string,
         direction=direction,
@@ -89,9 +89,9 @@ def build_run_spec() -> tuple[api.RunSpec, api.RuneIndices]:
     )
     scoring = api.ScoringConfig(
         character_lane_enabled=True,
-        word_length_lane_enabled=False,
+        wli_lane_enabled=False,
         character_order_weights={3: 0.5, 4: 0.5},
-        word_length_order_weights={},
+        wli_order_weights={},
         objective=api.advanced.ScoringObjective.percentile_log_probability(
             window_size=10
         ),
@@ -116,7 +116,7 @@ def build_run_spec() -> tuple[api.RunSpec, api.RuneIndices]:
     request = api.RunSpec(
         problem_input=api.RuneIndexInput(
             indices=ciphertext,
-            word_lengths=word_lengths,
+            word_length_information=word_lengths,
         ),
         cipher=cipher,
         key_space=api.KeySpec.periodic_columnar(
@@ -183,7 +183,7 @@ def main() -> None:
         progress_interval=120,
     )
     elapsed = time.perf_counter() - started
-    ratio = _match_ratio(result.plaintext, expected_plaintext)
+    ratio = _match_ratio(result.plaintext_indices, expected_plaintext)
     changed_positions = (
         None
         if result.key is None

@@ -46,13 +46,13 @@ def test_tutorial_mono_runs(optimizer):
         )
     else:
         solver = api.SolverSpec.genetic_algorithm(population_size=144, generations=160, target_score=0.56, elite_fraction=0.08, crossover_fraction=0.85, mutation_probability=0.25, tournament_size=4, plateau_generations=20, seed=12345)
-    sol = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=api.CipherSpec.substitution(alphabet_size=29), key_space=api.KeySpec.permutation(length=29), solver=solver, scoring=api.ScoringConfig(character_lane_enabled=True, word_length_lane_enabled=True, character_order_weights={2: 0.3}, word_length_order_weights={2: 0.7}, objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10)), initial_keys=tuple(tuple(int(value) for value in key) for key in seeds), text_direction=api.TextDirection.RIGHT_TO_LEFT, compute_device=api.ComputeDevice.CPU))
-    recovered_rune = sol.plaintext_text or None
+    sol = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli), cipher=api.CipherSpec.substitution(alphabet_size=29), key_space=api.KeySpec.permutation(length=29), solver=solver, scoring=api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=True, character_order_weights={2: 0.3}, wli_order_weights={2: 0.7}, objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10)), initial_keys=tuple(tuple(int(value) for value in key) for key in seeds), text_direction=api.TextDirection.RTL, compute_device=api.ComputeDevice.CPU))
+    recovered_rune = sol.plaintext_runes or None
     if not recovered_rune:
         pt_arr = getattr(sol, 'plaintext', [])
         recovered_rune = Runeglish.to_rune(pt_arr, wli)
     assert isinstance(recovered_rune, str)
-    match_rate = plaintext_match_rate(sol.plaintext, pt_idx)
+    match_rate = plaintext_match_rate(sol.plaintext_indices, pt_idx)
     assert match_rate >= 0.9, f'{optimizer} tutorial must reach >=90% match (got {match_rate:.3f})'
     latin_text = None
     if hasattr(Runeglish, 'runes_to_latin'):

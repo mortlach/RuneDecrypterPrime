@@ -18,11 +18,11 @@ def test_hill_is_not_a_public_v1_preset():
 
 def test_columnar_preset_recovers_text_with_custom_map():
     text = 'columnar presets need coverage for future docs'
-    pt_idx, wli = _encode_text(text, api.TextDirection.LEFT_TO_RIGHT)
+    pt_idx, wli = _encode_text(text, api.TextDirection.LTR)
     perm = np.array([2, 0, 3, 1], dtype=np.uint8)
     columnar = api.CipherSpec.columnar(columns=len(perm), alphabet_size=29)
     ct_idx = api.encrypt(tuple(int(value) for value in pt_idx), cipher=columnar, key=tuple(int(value) for value in perm))
-    solver = api.SolverSpec.beam_search(width=6, seed=707, rounds=0)
-    sol = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_lengths=wli), cipher=api.CipherSpec.columnar(columns=len(perm), alphabet_size=29), key_space=api.KeySpec.permutation(length=len(perm)), solver=solver, scoring=api.ScoringConfig(), initial_keys=(tuple(int(value) for value in perm),), telemetry_enabled=False, text_direction=api.TextDirection.LEFT_TO_RIGHT))
-    match = plaintext_match_rate(sol.plaintext, pt_idx)
+    solver = api.SolverSpec.beam_search(width=6, seed=707, rounds=None)
+    sol = api.run(api.RunSpec(problem_input=api.RuneIndexInput(indices=ct_idx, word_length_information=wli), cipher=api.CipherSpec.columnar(columns=len(perm), alphabet_size=29), key_space=api.KeySpec.permutation(length=len(perm)), solver=solver, scoring=api.ScoringConfig(), initial_keys=(tuple(int(value) for value in perm),), telemetry_enabled=False, text_direction=api.TextDirection.LTR))
+    match = plaintext_match_rate(sol.plaintext_indices, pt_idx)
     assert match >= 0.95

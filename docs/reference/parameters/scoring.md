@@ -12,16 +12,16 @@ model and several specialist scoring features.
 | `smoothing_alpha` | `float` | `0.5` | Finite. |
 | `out_of_vocabulary_policy` | `OutOfVocabularyPolicy` | `FLOOR_MINIMUM_SEEN` | See [Common enums](enums.md). |
 | `character_lane_enabled` | `bool` | `True` | Enables character LM scoring. |
-| `word_length_lane_enabled` | `bool` | `True` | Enables WLI LM scoring. |
+| `wli_lane_enabled` | `bool` | `True` | Enables WLI LM scoring. |
 | `character_ngram_order` | `int` | `2` | Positive. |
-| `word_length_ngram_order` | `int` | `2` | Positive. |
+| `wli_ngram_order` | `int` | `2` | Positive. |
 | `window_size` | `int` | `10` | Positive. |
 | `stride` | `int` | `1` | Positive. |
 | `boundary_mode` | `LanguageModelBoundaryMode` | `EXCLUDE_BOUNDARIES` | See [Common enums](enums.md). |
 | `base_lane_weights` | `tuple[float, float] | None` | `None` | Optional base character/WLI lane weights. |
 | `score_direction` | `ScoreDirection` | `MAXIMIZE` | `MAXIMIZE` or `MINIMIZE`. |
 | `character_order_weights` | mapping or `None` | `None` | Positive integer n-gram orders to non-negative weights. |
-| `word_length_order_weights` | mapping or `None` | `None` | Positive integer n-gram orders to non-negative weights. |
+| `wli_order_weights` | mapping or `None` | `None` | Positive integer n-gram orders to non-negative weights. |
 | `backend` | `ScorerBackend` | `AUTO` | `AUTO`, `NUMPY`, `TORCH`, or `UNIFIED`. |
 | `compute_dtype` | `FloatDType` | `FLOAT32` | `FLOAT32` or `FLOAT64`. |
 | `accumulator_dtype` | `FloatDType` | `FLOAT64` | `FLOAT32` or `FLOAT64`. |

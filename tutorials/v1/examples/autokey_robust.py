@@ -11,7 +11,7 @@ from rdp.data.runeglish import Runeglish
 from tutorials.v1.data.plaintext_fixtures import plaintext_english_string
 from tutorials.v1.support import tutorial_pretty as pretty
 
-DIRECTION = api.TextDirection.RIGHT_TO_LEFT
+DIRECTION = api.TextDirection.RTL
 TRUE_SEED = [6, 1, 4, 17, 3, 22, 9, 12]
 SOLVER_SEED = 20260822
 BEAM_WIDTH = 96
@@ -19,15 +19,15 @@ ROUNDS = 32
 RESTARTS = 3
 SCORER_PARAMS = api.ScoringConfig(
     character_lane_enabled=False,
-    word_length_lane_enabled=True,
+    wli_lane_enabled=True,
     character_order_weights={},
-    word_length_order_weights={1: 0.3, 2: 0.7},
+    wli_order_weights={1: 0.3, 2: 0.7},
     objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10),
 )
 DISPLAY_SCORER_PARAMS = api.ScoringConfig(
     character_lane_enabled=False,
-    word_length_lane_enabled=True,
-    word_length_order_weights={1: 0.3, 2: 0.7},
+    wli_lane_enabled=True,
+    wli_order_weights={1: 0.3, 2: 0.7},
     objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10),
 )
 
@@ -81,7 +81,7 @@ def main() -> None:
     result = api.run(
         api.RunSpec(
             problem_input=api.RuneIndexInput(
-                indices=_ints(ciphertext), word_lengths=wli
+                indices=_ints(ciphertext), word_length_information=wli
             ),
             cipher=cipher_spec,
             key_space=api.KeySpec.repeating(length=seed_length),
@@ -91,7 +91,7 @@ def main() -> None:
             text_direction=DIRECTION,
         )
     )
-    recovered_plaintext = _ints(result.plaintext)
+    recovered_plaintext = _ints(result.plaintext_indices)
     recovered_seed = _ints(result.key)[:seed_length]
     plaintext_match = _match(recovered_plaintext, [int(v) for v in pt_idx])
     seed_match = recovered_seed == TRUE_SEED
