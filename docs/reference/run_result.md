@@ -11,8 +11,8 @@ Its public fields are:
 | Field | Contents |
 | --- | --- |
 | `plaintext_indices` | Candidate plaintext as rune indices, or `None`. This does not establish a successful recovery. |
-| `word_length_information` | One `(position, word_length)` pair per plaintext rune, or `None`. |
-| `plaintext_runes` | Rune characters with spaces between known words, or `None`. |
+| `word_length_information` | Aligned metadata: one `(position, word_length)` pair per plaintext rune, or `None`. |
+| `plaintext_runes` | Rune text with spaces between known words, or `None`. |
 | `plaintext_rune_latin` | RuneLatin with `·` between rune tokens and spaces between known words, or `None`. |
 | `key` | Best key, or `None`. |
 | `score` | Best score, or `None`. |

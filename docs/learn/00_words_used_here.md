@@ -5,6 +5,13 @@ This page defines the words and names used anywhere in the learning track.
 You do not need to memorise them. Use this page when a term appears that you do
 not recognise.
 
+## English
+
+Ordinary natural-language English.
+
+RDP keeps this name for the language itself. It does not use **English** to
+mean rune glyphs or Latin letters standing for rune tokens.
+
 ## Plaintext
 
 The message before encryption.
@@ -25,6 +32,38 @@ In Liber Primus, the ciphertext is written as runes.
 
 One symbol from the 29-rune alphabet used by Liber Primus.
 
+## Rune text
+
+Actual rune glyphs, such as:
+
+```text
+ᚦᛖ ᛚᚩᛋᛋ
+```
+
+Spaces can preserve known word boundaries.
+
+## RuneLatin
+
+A Latin rendering of rune tokens. Rune boundaries are kept explicit with `·`
+and spaces separate words:
+
+```text
+TH·E L·O·S·S
+```
+
+RuneLatin is a rune representation, not an English translation. The exact
+tokens depend on text direction; for example, “THE” can encode as `TH·E` in
+LTR or `T·H·E` in RTL.
+
+## Runeglish
+
+English represented and analysed through the 29-rune system.
+
+RDP uses Runeglish when tokenising English into runes and when building or
+applying language evidence for rune-based English. It is not another name for
+RuneLatin. Conversion from English is not lossless because different English
+spellings can produce the same rune sequence.
+
 ## Rune index
 
 RDP performs cipher maths with numbers rather than rune characters.
@@ -42,19 +81,17 @@ is a sequence of rune indices.
 Those numbers are not another cipher. They are simply the rune symbols written
 in a form convenient for arithmetic.
 
+## Rune prime
+
+The prime number corresponding to a rune when gematria arithmetic requires
+prime values. Rune primes are derived from rune indices; they are not a
+different alphabet.
+
 ## `ct_idx`
 
 Short for **ciphertext indices**.
 
 This is the ciphertext represented as rune indices.
-
-## Runeglish
-
-RDP uses **Runeglish** for the Latin/English-oriented representation and
-language treatment of rune text.
-
-It is used when displaying candidate plaintext and when building language
-models for rune-based English.
 
 ## Cipher
 
@@ -304,6 +341,8 @@ RDP language models can use n-gram evidence when scoring plaintext.
 WLI means **word-length information**.
 
 It records where each rune sits inside a word and how long that word is.
+It is metadata aligned with rune indices, not another rendering of the
+plaintext.
 
 For a five-rune word, the entries could look like:
 

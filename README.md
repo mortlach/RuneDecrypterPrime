@@ -63,9 +63,9 @@ RDP has two closely related jobs.
 
 The first is practical solving.
 
-It provides Liber Primus source material, rune and Runeglish handling, existing
-cipher implementations, key models, solvers and scoring tools needed to turn an
-idea into a repeatable experiment.
+It provides Liber Primus source material, rune representations, Runeglish
+language handling, existing cipher implementations, key models, solvers and
+scoring tools needed to turn an idea into a repeatable experiment.
 
 You should not need to rebuild Vigenere, rune conversion, key iteration,
 language scoring and LP source handling every time you want to test one new

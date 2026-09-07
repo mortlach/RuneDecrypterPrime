@@ -289,8 +289,7 @@ def wli_from_text(text: str) -> List[List[int]]:
 
 def runes_from_indices(idx: Sequence[int], wli: Optional[Sequence[Sequence[int]]] = None) -> str:
     """
-    Render rune characters from indices (grouped by WLI).
-    This is NOT the Latin-canon. For Latin-canon, use Runeglish.to_rune(indices, wli).
+    Render rune text from indices, grouped by WLI when supplied.
     """
     idx = list(map(int, idx))
     if Runeglish is None:

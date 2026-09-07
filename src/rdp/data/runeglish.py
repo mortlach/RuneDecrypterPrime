@@ -148,7 +148,11 @@ class Runeglish:
         *,
         direction: str | object = "ltr",
     ) -> str:
-        """Render positions as Latin text, respecting WLI and encoding direction."""
+        """Render compact Latin tokens, respecting WLI and direction.
+
+        This form does not preserve token boundaries. Use
+        :meth:`to_delimited_rune_latin` for canonical RuneLatin output.
+        """
         dir_value = getattr(direction, "value", direction)
         dir_text = str(dir_value).strip().lower()
 

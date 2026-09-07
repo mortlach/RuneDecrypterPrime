@@ -101,6 +101,30 @@ def test_public_configuration_fields_have_current_parameter_owners() -> None:
             assert f'`{field.name}`' in text, f'{cls.__name__}.{field.name}: {owner}'
 
 
+def test_run_result_representation_names_match_reference() -> None:
+    names = (
+        'plaintext_indices',
+        'word_length_information',
+        'plaintext_runes',
+        'plaintext_rune_latin',
+    )
+    result_fields = tuple(field.name for field in fields(api.RunResult))
+    assert result_fields[:4] == names
+
+    reference = _read(DOCS / 'reference' / 'run_result.md')
+    for name in names:
+        assert f'`{name}`' in reference
+
+    public_examples = [
+        *DOCS.rglob('*.md'),
+        *(REPO_ROOT / 'tutorials' / 'v1' / 'getting_started').glob('*.py'),
+        *(REPO_ROOT / 'solving' / 'getting_started').glob('*.py'),
+    ]
+    stale_access = re.compile(r'\bresult\.(?:plaintext|plaintext_idx|plaintext_latin)\b')
+    for path in public_examples:
+        assert not stale_access.search(_read(path)), path
+
+
 def test_one_public_documentation_tree_without_generated_or_private_material() -> None:
     assert not (REPO_ROOT / 'v1_docs').exists()
     blocked = {'planning', 'output', 'assets_packed', 'handoff', 'logs', 'preview_site'}

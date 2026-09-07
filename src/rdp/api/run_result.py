@@ -33,8 +33,9 @@ from rdp.scoring.scorer_report import ScorerReport
 class RunResult:
     """The best candidate and the evidence produced by one run.
 
-    Plaintext is exposed in four explicit, mutually consistent forms. RuneLatin
-    uses ``·`` between rune tokens, so it remains distinct from natural English.
+    The candidate has explicit index, rune text, and RuneLatin representations.
+    Word-length information carries aligned boundary metadata. RuneLatin uses
+    ``·`` between rune tokens, so it remains distinct from natural English.
     """
 
     plaintext_indices: RuneIndices | None
