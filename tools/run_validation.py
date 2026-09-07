@@ -20,6 +20,8 @@ ROOT = Path(__file__).resolve().parents[1]
 from rdp.core.config.output_paths import resolve_output_root, path_from
 OUTPUT_ROOT = None  # Optional explicit validation destination; otherwise shared root/validation.
 RUN_SET = 'all'  # 'smoke', 'all', 'p7c7', or 'gpu'
+# Set True to include the roughly 36-minute prepared-start P7/C7 example in 'all'.
+INCLUDE_LONG_P7C7_EXAMPLE = False
 SHOW_JOB_OUTPUT = True
 DRY_RUN = False
 STOP_ON_FAILURE = False
@@ -30,7 +32,7 @@ EXAMPLES = (
     'autokey', 'autokey_robust', 'columnar_transposition', 'lp_welcome_pilgrim_solve',
     'mono_substitution_ga_ltr', 'mono_substitution_ga_robust', 'mono_substitution_ga_rtl',
     'mono_substitution_hybrid_rtl', 'mono_substitution_sa_ltr', 'rail_fence',
-    'repeating_multiply', 'periodic_columnar_p7_column_then_substitution',
+    'repeating_multiply',
     'scheduled_stream_lookup_p13_p31_segmented',
     'scheduled_stream_lookup_p13_primes', 'scheduled_stream_lookup_p13_sequence',
     'two_period_cribs', 'two_period_cribs_interruptors', 'two_period_cribs_p13_p31_search',
@@ -38,6 +40,7 @@ EXAMPLES = (
     'vigenere_interruptors_robust', 'vigenere_interruptors_solve',
     'vigenere_known_key_and_general_map',
 )
+P7C7_EXAMPLE = 'periodic_columnar_p7_column_then_substitution'
 EXCLUDED_EXAMPLES = {
     'periodic_substitution': 'long qualification',
     'periodic_substitution_p7': 'long qualification',
@@ -85,23 +88,33 @@ def build_jobs(run_set: str, root: Path = ROOT) -> list[Job]:
                                  *GPU_TEST_FILES), 'pytest_gpu')]
     examples_root = root / 'tutorials/v1/examples'
     found = {p.stem for p in examples_root.glob('*.py') if p.name != '__init__.py'}
-    if found != set(EXAMPLES) | set(EXCLUDED_EXAMPLES):
+    if found != set(EXAMPLES) | set(EXCLUDED_EXAMPLES) | {P7C7_EXAMPLE}:
         raise ValueError(f'Example catalogue changed; classify new/missing files: '
-                         f'{sorted(found ^ (set(EXAMPLES) | set(EXCLUDED_EXAMPLES)))}')
+                         f'{sorted(found ^ (set(EXAMPLES) | set(EXCLUDED_EXAMPLES) | {P7C7_EXAMPLE}))}')
     if run_set == 'p7c7':
-        return [Job('tutorials__v1__examples__periodic_columnar_p7_column_then_substitution',
-                    ('-m', 'tutorials.v1.examples.periodic_columnar_p7_column_then_substitution'))]
+        return [Job(f'tutorials__v1__examples__{P7C7_EXAMPLE}',
+                    ('-m', f'tutorials.v1.examples.{P7C7_EXAMPLE}'))]
     getting_started = sorted((root / 'tutorials/v1/getting_started').glob('[0-9][0-9]_*.py'))
+    solving_getting_started = [
+        root / 'solving/getting_started/load_source.py',
+        root / 'solving/getting_started/prepare_search.py',
+        root / 'solving/getting_started/run_search.py',
+    ]
     workbooks = sorted((root / 'solving/solved_lp').glob('[0-9][0-9]_*.py'))
-    if not getting_started or not workbooks:
-        raise ValueError('Missing getting-started or solved-workbook catalogue')
+    if (not getting_started or not workbooks
+            or any(not path.is_file() for path in solving_getting_started)):
+        raise ValueError('Missing getting-started, solving example, or solved-workbook catalogue')
     test_target = 'tests/tools/test_run_validation.py' if run_set == 'smoke' else 'tests'
     if not (root / test_target).exists():
         raise ValueError(f'Missing test target: {test_target}')
     pytest_args = ('-m', 'pytest', '-q', '-p', 'no:cacheprovider', test_target)
     pytest_args += tuple(f'--ignore={p}' for p in EXCLUDED_TESTS)
     jobs = [Job('tests', pytest_args, 'pytest')]
-    paths = getting_started + [examples_root / f'{name}.py' for name in EXAMPLES] + workbooks
+    selected_examples = list(EXAMPLES)
+    if INCLUDE_LONG_P7C7_EXAMPLE:
+        selected_examples.append(P7C7_EXAMPLE)
+    paths = (getting_started + solving_getting_started
+             + [examples_root / f'{name}.py' for name in selected_examples] + workbooks)
     if run_set == 'smoke':
         paths = [root / 'tutorials/v1/getting_started/01_known_key.py',
                  root / 'solving/solved_lp/01_A_Warning.py']

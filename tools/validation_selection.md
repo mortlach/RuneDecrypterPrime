@@ -4,7 +4,7 @@ Statically listed from the current checkout. No tests, examples, runner, or pyte
 
 No runner time limits. User launch only.
 
-44 jobs: one pytest selection (335 candidate test files) plus 43 standalone programs.
+46 jobs with `INCLUDE_LONG_P7C7_EXAMPLE = False`: one pytest selection plus 45 standalone programs.
 
 Pytest determines parameterized test counts and skips at runtime; file counts are not individual test counts.
 
@@ -23,6 +23,14 @@ Pytest determines parameterized test counts and skips at runtime; file counts ar
 
 ## Examples
 
+### Solving getting started
+
+- `solving/getting_started/load_source.py`
+- `solving/getting_started/prepare_search.py`
+- `solving/getting_started/run_search.py`
+
+### Tutorial examples
+
 - `tutorials/v1/examples/autokey.py`
 - `tutorials/v1/examples/autokey_robust.py`
 - `tutorials/v1/examples/columnar_transposition.py`
@@ -34,7 +42,6 @@ Pytest determines parameterized test counts and skips at runtime; file counts ar
 - `tutorials/v1/examples/mono_substitution_sa_ltr.py`
 - `tutorials/v1/examples/rail_fence.py`
 - `tutorials/v1/examples/repeating_multiply.py`
-- `tutorials/v1/examples/periodic_columnar_p7_column_then_substitution.py`
 - `tutorials/v1/examples/scheduled_stream_lookup_p13_p31_segmented.py`
 - `tutorials/v1/examples/scheduled_stream_lookup_p13_primes.py`
 - `tutorials/v1/examples/scheduled_stream_lookup_p13_sequence.py`
@@ -405,6 +412,7 @@ Pytest determines parameterized test counts and skips at runtime; file counts ar
 - `tests/tools/test_cipher_solver_campaign_rail_interruptors.py`
 - `tutorials/v1/examples/periodic_substitution.py`: long qualification
 - `tutorials/v1/examples/periodic_substitution_p7.py`: long qualification
+- `tutorials/v1/examples/periodic_columnar_p7_column_then_substitution.py`: long prepared-start example; toggle `INCLUDE_LONG_P7C7_EXAMPLE` to include it
 - Campaign entry points under `tools/robustness/`.
 - Development/attempt entry points under `cipher_development/` and `solving/attempts/`.
 

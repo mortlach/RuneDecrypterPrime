@@ -18,11 +18,11 @@ write and print its plan without launching any subprocess jobs.
 | Selection | Contents |
 | --- | --- |
 | Tests | Pytest under `tests/`, including full-asset tests, excluding the development/campaign paths listed below. |
-| Getting started | All ten numbered files under `tutorials/v1/getting_started/`. |
-| Examples | The 24 admitted examples in `EXAMPLES`, including robust recipes, full-asset crib examples and the single-start P7/C7 example. |
+| Getting started | All ten numbered files under `tutorials/v1/getting_started/`, followed by the three `solving/getting_started/` examples. |
+| Examples | The 23 ordinary admitted examples in `EXAMPLES`, including robust recipes and full-asset crib examples. Set `INCLUDE_LONG_P7C7_EXAMPLE = True` near the top of the runner to add the single-start P7/C7 example. |
 | Solving | All nine numbered `solving/solved_lp/` workbooks, individually. |
 
-The full selection currently has 44 jobs: one pytest job and 43 individual
+With the long P7/C7 switch off, the full selection has 46 jobs: one pytest job and 45 individual
 programs. Some programs are also covered by pytest; the standalone run checks
 their actual entry points as well. A selected program is not a claim of a
 passing result: failures are reported, including missing optional dependencies.
@@ -34,8 +34,9 @@ files, tutorials, examples, workbooks, and exclusions.
 
 The runner never selects `tools/robustness/` campaigns, `cipher_development/`,
 `solving/attempts/`, or the two multi-hour qualification examples named in
-`EXCLUDED_EXAMPLES`. The single-start P7/C7 warm-start example is explicitly
-included despite the older tutorial catalogue's qualification grouping.
+`EXCLUDED_EXAMPLES`. The single-start P7/C7 warm-start example is excluded from
+`all` by default; toggle `INCLUDE_LONG_P7C7_EXAMPLE` near the top of the runner
+to include it. The dedicated `p7c7` run set remains available.
 Pytest excludes `tests/cipher_development/` and the two
 `tests/tools/test_cipher_solver_campaign*.py` files listed in `EXCLUDED_TESTS`.
 Ordinary contract tests that inspect qualification definitions remain included;

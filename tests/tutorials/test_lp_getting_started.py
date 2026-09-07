@@ -1,3 +1,5 @@
+import pytest
+
 from rdp import api
 
 from solving.getting_started.prepare_search import (
@@ -5,6 +7,8 @@ from solving.getting_started.prepare_search import (
     KEY_LENGTH,
     build_request,
 )
+
+pytestmark = pytest.mark.tier_a
 
 
 def test_lp_getting_started_builds_reviewed_request() -> None:

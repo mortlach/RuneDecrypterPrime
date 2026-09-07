@@ -29,4 +29,4 @@ def test_real_solve_examples_keep_truth_out_of_solver_setup() -> None:
 
 def test_real_solve_helper_preserves_the_original_automatic_round_budget() -> None:
     solver = make_real_solve_solver()
-    assert solver.parameters["rounds"] == 0
+    assert solver.parameters["rounds"] is None

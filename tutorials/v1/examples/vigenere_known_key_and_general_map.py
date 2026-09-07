@@ -47,7 +47,7 @@ def _demo_ciphertext() -> dict[str, Any]:
 
 
 def _solution_match_ratio(solution, pt_idx: list[int]) -> float:
-    guess = solution.plaintext or None
+    guess = solution.plaintext_indices or None
     if not guess:
         return 0.0
     a = np.asarray(guess, dtype=np.int64).reshape(-1)

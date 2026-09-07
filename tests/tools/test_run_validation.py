@@ -22,10 +22,16 @@ def _job(name, source, evidence='exit_code'):
 def test_all_catalogue_has_each_example_and_workbook_once_without_campaigns():
     jobs = runner.build_jobs('all')
     modules = [j.args[-1] for j in jobs[1:]]
-    assert len(jobs) == 44  # one pytest selection, ten stops, 24 examples, nine workbooks
+    assert len(jobs) == 46  # pytest, ten tutorials, three solving starts, 23 examples, nine workbooks
     assert len(modules) == len(set(modules))
+    assert [m for m in modules if m.startswith('solving.getting_started.')] == [
+        'solving.getting_started.load_source',
+        'solving.getting_started.prepare_search',
+        'solving.getting_started.run_search',
+    ]
     assert sum(m.startswith('solving.solved_lp.') for m in modules) == 9
     assert not any(name in m for m in modules for name in runner.EXCLUDED_EXAMPLES)
+    assert not any(runner.P7C7_EXAMPLE in m for m in modules)
     assert not any('cipher_development' in m or 'campaign' in m for m in modules)
     assert 'tests' in jobs[0].args
     assert all(f'--ignore={p}' in jobs[0].args for p in runner.EXCLUDED_TESTS)
