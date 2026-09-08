@@ -34,6 +34,22 @@ The reasoning behind that structure is described in
 - Keep generated output, logs, downloaded assets and review material outside the
   maintained source tree.
 
+### Pack 09 fixture-manifest gate
+
+The Pack 09 fixture manifest records SHA-256 content hashes, not Git commit
+IDs. Before pushing, run:
+
+```text
+python tools/refresh_two_period_fixture_manifest.py
+pytest -q tests/contracts/test_two_period_fixture_manifest.py
+```
+
+Whenever a retained file under `cipher_development/shared/` or
+`cipher_development/two_period_overlay/` changes, including through formatting
+or line-ending conversion, commit the refreshed
+`docs/release_contracts/v1/two_period_fixture_manifest.json` in the same commit.
+Review any dependency-closure change rather than accepting it mechanically.
+
 These are mostly consequences of the same rule: make it possible to tell what
 changed and what a result demonstrates.
 

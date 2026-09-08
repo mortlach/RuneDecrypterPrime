@@ -10,12 +10,12 @@ def test_tutorial_debug_preview_prints_unambiguous_text_views() -> None:
     text = '\n'.join(lines)
     assert 'Debug preview: plaintext' in text
     assert 'encoding_dir: rtl' in text
-    assert 'latin_tokens:' in text
+    assert 'rune_latin:' in text
     assert 'rune_indices:' in text
-    assert 'runes:' in text
+    assert 'rune_text:' in text
     assert 'R·AE·D' in text
     assert 'T·H·E' in text
-    rune_line = next((line for line in lines if line.startswith('runes:')))
+    rune_line = next((line for line in lines if line.startswith('rune_text:')))
     assert '|' not in rune_line
 
 def test_tutorial_debug_preview_marks_truncation() -> None:
@@ -30,12 +30,12 @@ def test_tutorial_debug_preview_block_uses_standard_printer_style() -> None:
     assert 'Debug preview: plaintext' in text
     assert 'encoding_dir' in text
     assert 'rtl' in text
-    assert 'latin_tokens' in text
+    assert 'rune_latin' in text
     assert 'rune_indices' in text
-    assert 'runes' in text
+    assert 'rune_text' in text
     assert 'R·AE·D' in text
     assert 'T·H·E' in text
-    rune_line = next((line for line in text.splitlines() if line.startswith('runes')))
+    rune_line = next((line for line in text.splitlines() if line.startswith('rune_text')))
     assert '|' not in rune_line
 
 def test_print_tutorial_debug_preview_uses_standard_block(capsys: pytest.CaptureFixture[str]) -> None:

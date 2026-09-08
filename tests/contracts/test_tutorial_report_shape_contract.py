@@ -37,6 +37,12 @@ def test_tutorial_report_top_level_shape_is_stable() -> None:
         "previews",
     }
     assert {"present", "stop_category", "scorer_lanes"} <= set(report["solver_report"])
-    assert {"plaintext_runes", "reference_runes", "plaintext_idx_head"} <= set(
-        report["previews"]
-    )
+    assert set(report["previews"]) == {"ciphertext", "plaintext", "reference"}
+    assert set(report["previews"]["ciphertext"]) == {"rune_indices", "rune_text"}
+    assert set(report["previews"]["plaintext"]) == {
+        "plaintext_indices",
+        "word_length_information",
+        "plaintext_rune_latin",
+        "plaintext_runes",
+    }
+    assert set(report["previews"]["reference"]) == {"rune_text"}

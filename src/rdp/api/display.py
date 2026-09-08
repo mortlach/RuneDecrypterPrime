@@ -49,6 +49,7 @@ from rdp.api.stop_reason_contract import (
     stop_category_for_reason,
     stop_reason_details_from_solution,
 )
+from rdp.data.runeglish import Runeglish
 
 SUMMARY_SCHEMA = "api_display_summary.v1"
 SUMMARY_RELATIVE_PATH = KnownArtifactRelpath.RDP_DISPLAY_SUMMARY.value
@@ -279,7 +280,7 @@ def format_summary(summary: DisplaySummary | object, **build_kwargs: Any) -> str
 
     plaintext = result.get("plaintext")
     if isinstance(plaintext, Mapping):
-        preview = plaintext.get("rune_latin_preview") or plaintext.get("rune_preview")
+        preview = plaintext.get("plaintext_rune_latin") or plaintext.get("plaintext_runes")
         if preview:
             lines.extend(["", "Plaintext", "---------", str(preview)])
 
@@ -360,7 +361,7 @@ def _problem_summary(spec: RunSpec | None, solution: object | None, *, options: 
                     {
                         "ciphertext_length": len(inp.indices),
                         "has_wli": wli is not None,
-                        "wli_length": len(wli) if wli is not None else None,
+                        "word_length_information_length": len(wli) if wli is not None else None,
                     }
                 )
             else:
@@ -388,7 +389,7 @@ def _problem_summary(spec: RunSpec | None, solution: object | None, *, options: 
         if ct_idx is not None:
             out.setdefault("ciphertext_length", len(ct_idx))
         if pt_idx is not None:
-            out.setdefault("plaintext_length", len(pt_idx))
+            out.setdefault("plaintext_rune_count", len(pt_idx))
         out.setdefault("has_wli", getattr(solution, "has_wli", None))
         out.setdefault("alphabet", getattr(solution, "alphabet", None))
         out.setdefault("alphabet_size", getattr(solution, "alphabet_size", None))
@@ -508,25 +509,56 @@ def _result_summary(
             rune_latin = solution.plaintext_rune_latin
             runes = solution.plaintext_runes
             indices = solution.plaintext_indices
+            word_length_information = solution.word_length_information
+            compact_latin = ""
         else:
-            rune_latin = getattr(solution, "plaintext_latin", "")
+            indices = getattr(solution, "plaintext_idx", None)
+            word_length_information = getattr(solution, "wli", None)
+            rune_latin = (
+                Runeglish.to_delimited_rune_latin(indices, word_length_information)
+                if _as_sequence(indices) is not None
+                else ""
+            )
+            compact_latin = getattr(solution, "plaintext_latin", "")
             runes = (
                 getattr(solution, "plaintext_rune", "")
                 or getattr(solution, "plaintext_str", "")
             )
-            indices = getattr(solution, "plaintext_idx", None)
         out["plaintext"] = {
-            "rune_latin_preview": _preview_text(
+            "plaintext_indices": _preview_sequence(indices, options.max_sequence_preview),
+            "word_length_information": _preview_sequence(
+                word_length_information, options.max_sequence_preview
+            ),
+            "plaintext_rune_latin": _preview_text(
                 rune_latin or "", options.plaintext_preview_chars
             ),
-            "rune_preview": _preview_text(runes or "", options.plaintext_preview_chars),
-            "length": _safe_len(indices),
+            "plaintext_runes": _preview_text(runes or "", options.plaintext_preview_chars),
+            "plaintext_rune_count": _safe_len(indices),
         }
+        if compact_latin:
+            out["plaintext"]["plaintext_latin_compact"] = _preview_text(
+                compact_latin, options.plaintext_preview_chars
+            )
     if options.include_ciphertext:
+        ciphertext_indices = getattr(solution, "ciphertext_idx", None)
+        ciphertext_wli = getattr(solution, "wli", None)
+        ciphertext_rune_latin = (
+            Runeglish.to_delimited_rune_latin(ciphertext_indices, ciphertext_wli)
+            if _as_sequence(ciphertext_indices) is not None
+            else ""
+        )
         out["ciphertext"] = {
-            "latin_preview": _preview_text(getattr(solution, "ciphertext_latin", "") or "", options.ciphertext_preview_chars),
-            "rune_preview": _preview_text(getattr(solution, "ciphertext_rune", "") or "", options.ciphertext_preview_chars),
-            "length": _safe_len(getattr(solution, "ciphertext_idx", None)),
+            "rune_indices": _preview_sequence(
+                ciphertext_indices, options.max_sequence_preview
+            ),
+            "rune_latin": _preview_text(
+                ciphertext_rune_latin, options.ciphertext_preview_chars
+            ),
+            "rune_text": _preview_text(
+                getattr(solution, "ciphertext_rune", "") or "",
+                options.ciphertext_preview_chars,
+            ),
+            "rune_count": _safe_len(ciphertext_indices),
         }
     match = _reference_match(solution, reference_plaintext=reference_plaintext, reference_idx=reference_idx)
     if match:

@@ -228,18 +228,28 @@ def build_tutorial_run_report(
             "scorer_lanes": scorer_lanes,
         },
         "previews": {
-            "ciphertext_runes": _preview_text(ct_rune, preview_len),
-            "plaintext_runes": _preview_text(
-                getattr(
-                    solution,
-                    "plaintext_runes",
-                    getattr(solution, "plaintext_rune", ""),
+            "ciphertext": {
+                "rune_text": _preview_text(ct_rune, preview_len),
+                "rune_indices": (_int_list(ct_idx) or [])[:32],
+            },
+            "plaintext": {
+                "plaintext_indices": (plaintext_idx or [])[:32],
+                "word_length_information": getattr(
+                    solution, "word_length_information", None
                 ),
-                preview_len,
-            ),
-            "reference_runes": _preview_text(pt_rune_ref, preview_len),
-            "ciphertext_idx_head": (_int_list(ct_idx) or [])[:32],
-            "plaintext_idx_head": (plaintext_idx or [])[:32],
+                "plaintext_rune_latin": _preview_text(
+                    getattr(solution, "plaintext_rune_latin", ""), preview_len
+                ),
+                "plaintext_runes": _preview_text(
+                    getattr(
+                        solution,
+                        "plaintext_runes",
+                        getattr(solution, "plaintext_rune", ""),
+                    ),
+                    preview_len,
+                ),
+            },
+            "reference": {"rune_text": _preview_text(pt_rune_ref, preview_len)},
         },
     }
 
@@ -274,10 +284,12 @@ def render_tutorial_run_report(report: Mapping[str, Any]) -> list[str]:
         lines.append(f"timings_s   : {timings}")
     if solver_report:
         lines.append(f"report      : {solver_report}")
-    if previews.get("plaintext_runes"):
-        lines.extend(["plaintext   :", str(previews["plaintext_runes"])])
-    if previews.get("reference_runes"):
-        lines.extend(["reference   :", str(previews["reference_runes"])])
+    plaintext_preview = _as_dict(previews.get("plaintext"))
+    reference_preview = _as_dict(previews.get("reference"))
+    if plaintext_preview.get("plaintext_runes"):
+        lines.extend(["plaintext   :", str(plaintext_preview["plaintext_runes"])])
+    if reference_preview.get("rune_text"):
+        lines.extend(["reference   :", str(reference_preview["rune_text"])])
     app_version = report.get("app_version")
     if app_version:
         lines.append(f"app_version : {app_version}")

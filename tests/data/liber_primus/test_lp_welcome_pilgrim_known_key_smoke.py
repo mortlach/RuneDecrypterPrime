@@ -34,7 +34,7 @@ def test_welcome_pilgrim_known_key_and_interruptors_plaintext_smoke() -> None:
     plaintext_idx = problem.resolve_plaintext(key)
     assert plaintext_idx is not None
     plaintext = [int(value) for value in plaintext_idx.tolist()]
-    plaintext_latin = Runeglish.to_rune_latin(plaintext, wli)
+    plaintext_rune_latin = Runeglish.to_delimited_rune_latin(plaintext, wli)
     plaintext_runes = Runeglish.to_rune(plaintext, wli)
     plaintext_runes_ascii = plaintext_runes.encode('unicode_escape').decode('ascii')
     print('\nLP_WELCOME_PILGRIM_KNOWN_KEY_SMOKE_BEGIN')
@@ -44,15 +44,15 @@ def test_welcome_pilgrim_known_key_and_interruptors_plaintext_smoke() -> None:
     print('vigenere_key:', list(VIGENERE_KEY))
     print('zero_pool_size:', len(zero_pool))
     print('interruptor_positions:', list(INTERRUPTOR_POSITIONS))
-    print('plaintext_latin:')
-    print(plaintext_latin)
+    print('plaintext_rune_latin:')
+    print(plaintext_rune_latin)
     print('plaintext_runes_unicode_escape:')
     print(plaintext_runes_ascii)
     print('LP_WELCOME_PILGRIM_KNOWN_KEY_SMOKE_END')
     assert len(plaintext) == len(ciphertext)
-    assert plaintext_latin.startswith('WELCOME WELCOME PILGRIM')
-    assert 'COMMAND YOUR OWN SELF' in plaintext_latin
-    assert plaintext_latin.strip()
+    assert plaintext_rune_latin.startswith('W·E·L·C·O·M·E W·E·L·C·O·M·E P·I·L·G·R·I·M')
+    assert 'C·O·M·M·A·N·D Y·O·U·R O·W·N S·E·L·F' in plaintext_rune_latin
+    assert plaintext_rune_latin.strip()
     assert plaintext_runes.strip()
     for position in INTERRUPTOR_POSITIONS:
         assert plaintext[position] == int(ciphertext[position])

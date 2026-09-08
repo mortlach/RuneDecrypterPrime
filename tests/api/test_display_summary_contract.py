@@ -114,6 +114,22 @@ def test_builds_spec_aware_display_summary() -> None:
     assert data["solver"]["name"] == "beam_search"
     assert data["solver"]["effective_seed"] == 123
     assert data["scoring"]["scorer"] == "auto"
+    plaintext = data["result"]["plaintext"]
+    assert plaintext["plaintext_indices"]["preview"] == [1, 2, 3]
+    assert plaintext["word_length_information"] == {
+        "length": None,
+        "preview": None,
+        "truncated": False,
+    }
+    assert plaintext["plaintext_runes"] == "ᚱᚫᚦ"
+    assert plaintext["plaintext_rune_latin"] == "R·A·TH"
+    assert plaintext["plaintext_rune_count"] == 3
+    assert set(data["result"]["ciphertext"]) == {
+        "rune_indices",
+        "rune_latin",
+        "rune_text",
+        "rune_count",
+    }
     assert data["result"]["match_ratio"] == pytest.approx(2 / 3)
     assert data["result"]["reference_kind"] == "plaintext_indices"
     assert data["stop"]["stop_category"] == "success"
@@ -146,6 +162,9 @@ def test_low_level_solution_display_uses_frozen_public_result_labels() -> None:
 
     text_summary = api.display.build_summary(_solution(), reference_plaintext="ABC")
     assert text_summary.result["reference_kind"] == "plaintext_rune_latin"
+    plaintext = text_summary.result["plaintext"]
+    assert plaintext["plaintext_rune_latin"] == "U·TH·O"
+    assert plaintext["plaintext_latin_compact"] == "ABC"
 
 
 def test_partial_recovery_tutorial_policy_is_warned() -> None:

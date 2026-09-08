@@ -38,6 +38,26 @@ def test_write_json_evidence(tmp_path) -> None:
     assert json.loads(path.read_text(encoding='utf-8')) == {'a': 'ok', 'b': [1, 2]}
 
 
+def test_write_json_evidence_keeps_frozen_plaintext_arrays_lossless(tmp_path) -> None:
+    path = tmp_path / 'evidence.json'
+    indices = list(range(45))
+    wli = [[index, 45] for index in range(45)]
+    write_json_evidence(
+        path,
+        {
+            'final': {
+                'plaintext_indices': indices,
+                'word_length_information': wli,
+                'ordinary_diagnostic': indices,
+            }
+        },
+    )
+    saved = json.loads(path.read_text(encoding='utf-8'))['final']
+    assert saved['plaintext_indices'] == indices
+    assert saved['word_length_information'] == wli
+    assert saved['ordinary_diagnostic']['length'] == 45
+
+
 def test_collect_solver_attempt_accepts_canonical_public_result_fields() -> None:
     result = SimpleNamespace(
         plaintext_indices=(1, 2, 3),
@@ -57,8 +77,9 @@ def test_collect_solver_attempt_accepts_canonical_public_result_fields() -> None
         wli=((0, 3), (1, 3), (2, 3)),
     )
     assert record["match_ratio"] == 1.0
-    assert record["plaintext_indices_length"] == 3
-    assert record["word_length_information_length"] == 3
+    assert record["plaintext_rune_count"] == 3
+    assert record["plaintext_indices"] == [1, 2, 3]
+    assert record["word_length_information"] == [[0, 3], [1, 3], [2, 3]]
     assert record["plaintext_rune_latin"] == "F·U·TH·O·R·C"
     assert record["status"] == "solved"
     assert not {"plaintext_idx_length", "plaintext_latin", "wli_length"} & record.keys()
@@ -84,7 +105,7 @@ def test_final_result_uses_consistent_solved_output_fields(capsys) -> None:
         plaintext_runes="ᚪᚾ",
     )
     out = capsys.readouterr().out
-    assert "plaintext_indices_length: 2" in out
+    assert "plaintext_rune_count: 2" in out
     assert "word_length_information_length: 2" in out
     assert "plaintext_rune_latin:\nA·N" in out
     assert "plaintext_runes:\nᚪᚾ" in out

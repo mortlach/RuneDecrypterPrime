@@ -51,9 +51,9 @@ def tutorial_debug_preview_block(
         f"Debug preview: {label}",
         [
             ("encoding_dir", direction_value.value),
-            ("latin_tokens", f"{_token_text(clipped, wli)}{suffix}"),
+            ("rune_latin", f"{_token_text(clipped, wli)}{suffix}"),
             ("rune_indices", f"{clipped}{suffix}"),
-            ("runes", f"{_rune_text(clipped, wli)}{suffix}"),
+            ("rune_text", f"{_rune_text(clipped, wli)}{suffix}"),
         ],
         options=options,
     )
@@ -79,9 +79,9 @@ def tutorial_debug_preview_lines(
         f"Debug preview: {label}",
         "----------------------",
         f"encoding_dir: {direction_value.value}",
-        f"latin_tokens: {_token_text(clipped, wli)}{suffix}",
+        f"rune_latin: {_token_text(clipped, wli)}{suffix}",
         f"rune_indices: {clipped}{suffix}",
-        f"runes: {_rune_text(clipped, wli)}{suffix}",
+        f"rune_text: {_rune_text(clipped, wli)}{suffix}",
     ]
 
 

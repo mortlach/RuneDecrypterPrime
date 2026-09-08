@@ -93,6 +93,19 @@ The display can bring together:
 The underlying objects remain available separately. For detailed programmatic
 work, use `RunResult` directly.
 
+Plaintext entries inside the JSON display retain the public result meanings:
+`plaintext_indices`, `word_length_information`, `plaintext_runes`, and
+`plaintext_rune_latin`. RuneLatin is canonical and uses `·` between rune tokens
+and spaces between words. Generic ciphertext and debug previews use
+`rune_indices`, `rune_text`, and `rune_latin`. A compact undelimited
+transliteration, when one is available from an internal result, is identified
+separately as `plaintext_latin_compact`.
+
+The `Artifacts` section lists files that exist or paths supplied by the caller.
+In particular, `display_summary_relpath` is added only by
+`write_summary_artifact(...)` after it writes the display-summary sidecar;
+printing or merely building a summary does not advertise that path.
+
 See [Reading a result](results.md),
 [Telemetry](telemetry.md) and [Outputs](outputs.md).
 

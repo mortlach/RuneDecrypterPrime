@@ -96,7 +96,7 @@ def print_final_result(
     acceptance_rule: str | None,
     plaintext_latin: str,
     plaintext_runes: str,
-    plaintext_indices_length: int | None = None,
+    plaintext_rune_count: int | None = None,
     extra_fields: Mapping[str, object] | None = None,
 ) -> None:
     ratio = f"{match_ratio:.3f}" if isinstance(match_ratio, float) else match_ratio
@@ -108,8 +108,8 @@ def print_final_result(
         ("ciphertext_length", ciphertext_length),
         ("word_length_information_length", wli_length),
         (
-            "plaintext_indices_length",
-            ciphertext_length if plaintext_indices_length is None else plaintext_indices_length,
+            "plaintext_rune_count",
+            ciphertext_length if plaintext_rune_count is None else plaintext_rune_count,
         ),
         ("recipe", recipe),
         ("cipher_family", cipher_family),
@@ -118,11 +118,7 @@ def print_final_result(
     if key_or_params is not None:
         fields.append(("key_or_params", key_or_params))
     if extra_fields:
-        fields.extend(
-            (str(key), value)
-            for key, value in extra_fields.items()
-            if key not in {"plaintext_idx_length", "wli_length", "plaintext_latin"}
-        )
+        fields.extend((str(key), value) for key, value in extra_fields.items())
     fields.extend(
         [
             ("match_ratio", ratio),
@@ -203,10 +199,47 @@ def safe_public_dict(obj: object) -> dict[str, object]:
     return out
 
 
+_LOSSLESS_PLAINTEXT_EVIDENCE_FIELDS = frozenset(
+    {"plaintext_indices", "word_length_information"}
+)
+
+
+def _evidence_json_value(value: object, *, lossless_sequence: bool = False) -> object:
+    """Keep frozen plaintext arrays lossless while summarising other large diagnostics."""
+    if dataclasses.is_dataclass(value):
+        return _evidence_json_value(
+            dataclasses.asdict(value), lossless_sequence=lossless_sequence
+        )
+    if isinstance(value, Mapping):
+        return {
+            str(key): _evidence_json_value(
+                val,
+                lossless_sequence=(
+                    lossless_sequence
+                    or str(key) in _LOSSLESS_PLAINTEXT_EVIDENCE_FIELDS
+                ),
+            )
+            for key, val in value.items()
+        }
+    if lossless_sequence and hasattr(value, "tolist"):
+        value = value.tolist()
+    if lossless_sequence and isinstance(value, (list, tuple, set)):
+        return [
+            _evidence_json_value(item, lossless_sequence=True) for item in value
+        ]
+    return json_value(value)
+
+
 def write_json_evidence(path: Path, evidence: Mapping[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        json.dumps(json_value(dict(evidence)), indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+        json.dumps(
+            _evidence_json_value(dict(evidence)),
+            indent=2,
+            sort_keys=True,
+            ensure_ascii=False,
+        )
+        + "\n",
         encoding="utf-8",
     )
 
@@ -297,8 +330,11 @@ def collect_solver_attempt(
         "best_score": best_score,
         "stop_reason": stop_reason,
         "match_ratio": ratio,
-        "plaintext_indices_length": len(plaintext_idx),
-        "word_length_information_length": len(wli) if wli is not None else None,
+        "plaintext_rune_count": len(plaintext_idx),
+        "plaintext_indices": plaintext_idx,
+        "word_length_information": (
+            [[int(part) for part in pair] for pair in wli] if wli is not None else None
+        ),
         "score_time_s": _get_nested(report, "score_time_s", default=_get_nested(solution, "score_time_s")),
         "decrypt_time_s": _get_nested(report, "decrypt_time_s", default=_get_nested(solution, "decrypt_time_s")),
         "tokens": _get_nested(report, "tokens_processed", default=_get_nested(solution, "tokens_processed")),
