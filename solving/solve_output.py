@@ -49,7 +49,7 @@ def render_plaintext(
     if not plaintext_idx:
         return "", ""
     idx = [int(value) for value in plaintext_idx]
-    return Runeglish.to_rune_latin(idx, wli, direction=direction), Runeglish.to_rune(idx, wli)
+    return Runeglish.to_delimited_rune_latin(idx, wli), Runeglish.to_rune(idx, wli)
 
 
 def page_value(metadata: Mapping[str, object], canonical: str, legacy: str | None = None) -> object:
@@ -96,6 +96,7 @@ def print_final_result(
     acceptance_rule: str | None,
     plaintext_latin: str,
     plaintext_runes: str,
+    plaintext_indices_length: int | None = None,
     extra_fields: Mapping[str, object] | None = None,
 ) -> None:
     ratio = f"{match_ratio:.3f}" if isinstance(match_ratio, float) else match_ratio
@@ -105,7 +106,11 @@ def print_final_result(
         ("main_page_start", main_page_start),
         ("main_page_end", main_page_end),
         ("ciphertext_length", ciphertext_length),
-        ("wli_length", wli_length),
+        ("word_length_information_length", wli_length),
+        (
+            "plaintext_indices_length",
+            ciphertext_length if plaintext_indices_length is None else plaintext_indices_length,
+        ),
         ("recipe", recipe),
         ("cipher_family", cipher_family),
         ("method", method),
@@ -113,7 +118,11 @@ def print_final_result(
     if key_or_params is not None:
         fields.append(("key_or_params", key_or_params))
     if extra_fields:
-        fields.extend((str(key), value) for key, value in extra_fields.items())
+        fields.extend(
+            (str(key), value)
+            for key, value in extra_fields.items()
+            if key not in {"plaintext_idx_length", "wli_length", "plaintext_latin"}
+        )
     fields.extend(
         [
             ("match_ratio", ratio),
@@ -126,7 +135,7 @@ def print_final_result(
     print(f"\n{block_name}_BEGIN")
     for key, value in fields:
         print_kv(key, value)
-    print("plaintext_latin:")
+    print("plaintext_rune_latin:")
     print(plaintext_latin)
     print("plaintext_runes:")
     print(plaintext_runes)
@@ -288,13 +297,14 @@ def collect_solver_attempt(
         "best_score": best_score,
         "stop_reason": stop_reason,
         "match_ratio": ratio,
-        "plaintext_idx_length": len(plaintext_idx),
+        "plaintext_indices_length": len(plaintext_idx),
+        "word_length_information_length": len(wli) if wli is not None else None,
         "score_time_s": _get_nested(report, "score_time_s", default=_get_nested(solution, "score_time_s")),
         "decrypt_time_s": _get_nested(report, "decrypt_time_s", default=_get_nested(solution, "decrypt_time_s")),
         "tokens": _get_nested(report, "tokens_processed", default=_get_nested(solution, "tokens_processed")),
         "evals_or_candidates": _get_nested(report, "evals", default=_get_nested(solution, "evals")),
         "elapsed_wall_time_s": elapsed_wall_time_s,
         "status": "solved" if solved else "diagnostic_not_yet_solved",
-        "plaintext_latin": plaintext_latin,
+        "plaintext_rune_latin": plaintext_latin,
         "plaintext_runes": plaintext_runes,
     }

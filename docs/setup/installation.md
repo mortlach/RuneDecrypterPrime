@@ -9,6 +9,18 @@ From the repository root:
 python install.py
 ```
 
+That root command is the standard and simplest entry point. Optional platform
+wrappers are kept under `tools/installation/`:
+
+```text
+tools/installation/install.ps1
+tools/installation/install.bat
+tools/installation/install.sh
+```
+
+Each wrapper resolves the repository root from its own location and invokes the
+same root `install.py`.
+
 The installer installs the checkout, checks the compiled parts of RDP, makes
 sure the V1 language files are available, and checks the install at the end.
 

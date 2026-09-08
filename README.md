@@ -134,6 +134,9 @@ From the repository root:
 python install.py
 ```
 
+Optional PowerShell, Command Prompt and POSIX shell wrappers are under
+[`tools/installation/`](tools/installation/README.md).
+
 The installer uses the Python environment you choose. If a Linux distribution
 protects its system Python, the installer explains the available next steps
 rather than changing that protection automatically. See

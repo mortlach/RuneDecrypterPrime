@@ -28,7 +28,7 @@ It also includes only allow-listed root files:
 - `setup.py`
 - `MANIFEST.in`
 - `requirements.txt`
-- `install.py` and platform launcher scripts
+- root `install.py` and the platform launcher scripts under `tools/installation/`
 - `assets_manifest_v1.json`
 - `.gitignore`
 

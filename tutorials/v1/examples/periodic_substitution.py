@@ -88,7 +88,7 @@ def _preview(text: str, n: int = 160) -> str:
 
 
 def _match_ratio(solution, pt_idx: list[int]) -> float:
-    guess = solution.plaintext or None
+    guess = solution.plaintext_indices or None
     if not guess:
         return 0.0
     a = np.asarray(guess, dtype=np.int64).reshape(-1)

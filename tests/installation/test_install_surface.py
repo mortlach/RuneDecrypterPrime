@@ -6,6 +6,28 @@ import tomllib
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
+
+def test_root_keeps_one_obvious_installer_and_platform_wrappers_are_grouped() -> None:
+    assert (ROOT / 'install.py').is_file()
+    assert not any((ROOT / name).exists() for name in ('install.ps1', 'install.bat', 'install.sh'))
+    wrapper_root = ROOT / 'tools' / 'installation'
+    assert {path.name for path in wrapper_root.iterdir() if path.is_file()} == {
+        'README.md', 'install.ps1', 'install.bat', 'install.sh'
+    }
+
+
+def test_platform_wrappers_resolve_the_root_installer_from_their_own_location() -> None:
+    wrapper_root = ROOT / 'tools' / 'installation'
+    powershell = (wrapper_root / 'install.ps1').read_text(encoding='utf-8')
+    batch = (wrapper_root / 'install.bat').read_text(encoding='utf-8')
+    shell = (wrapper_root / 'install.sh').read_text(encoding='utf-8')
+    assert 'Split-Path -Parent (Split-Path -Parent $ScriptDir)' in powershell
+    assert 'Join-Path $RepoRoot "install.py"' in powershell
+    assert 'set REPO_ROOT=%SCRIPT_DIR%..\\..\\' in batch
+    assert '"%REPO_ROOT%install.py"' in batch
+    assert '"$SCRIPT_DIR/../.."' in shell
+    assert '"$REPO_ROOT/install.py"' in shell
+
 def test_root_installer_does_not_import_removed_benchmark_bootstrap() -> None:
     text = (ROOT / 'install.py').read_text(encoding='utf-8')
     assert 'tools.benchmarks.community' not in text

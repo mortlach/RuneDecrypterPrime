@@ -81,6 +81,7 @@ def test_print_rdp_result_returns_summary_and_writes_stream() -> None:
     summary = api.display.print_result(_result(), file=stream)
     assert summary.schema == 'api_display_summary.v1'
     assert 'RDP standard summary' in stream.getvalue()
+    assert 'display_summary_relpath' not in stream.getvalue()
 
 def test_write_rdp_summary_artifact_returns_relative_path(tmp_path: Path) -> None:
     relpath = api.display.write_summary_artifact(
@@ -88,6 +89,8 @@ def test_write_rdp_summary_artifact_returns_relative_path(tmp_path: Path) -> Non
     )
     assert relpath == "artifacts/rdp_display_summary.json"
     assert (tmp_path / relpath).is_file()
+    payload = json.loads((tmp_path / relpath).read_text(encoding="utf-8"))
+    assert payload["artifacts"]["display_summary_relpath"] == relpath
 
 def test_printer_rejects_bad_format_run_dir_and_paths(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="PrintFormat"):

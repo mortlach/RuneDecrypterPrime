@@ -63,7 +63,7 @@ def main() -> int:
             "recipe_label": recipe.recipe_label,
             "cipher_family": recipe.cipher_family,
             "ciphertext_length": len(ct_idx),
-            "wli_length": len(wli),
+            "word_length_information_length": len(wli),
             "key_text_hint": workbook.KEY_TEXT_HINT,
             "key_length": workbook.KEY_LENGTH,
             "interrupter_count_required": workbook.INTERRUPTOR_COUNT,

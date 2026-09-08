@@ -9,7 +9,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_ROOT = REPO_ROOT / 'output' / 'tools' / 'release_review_pack'
 ZIP_STEM = 'rdp_v1_review_pack'
 MAX_FILE_BYTES = 256 * 1024
-ROOT_FILE_NAMES: tuple[str, ...] = ('AGENTS.md', '.gitattributes', '.gitignore', 'CONTRIBUTING.md', 'README.md', 'CHANGELOG.md', 'LICENSE', 'LICENSE.txt', 'LICENSE_MIT.txt', 'MANIFEST.in', 'pyproject.toml', 'pytest.ini', 'requirements.txt', 'install.py', 'install.bat', 'install.ps1', 'install.sh', 'assets_manifest_v1.json', 'setup.py')
+ROOT_FILE_NAMES: tuple[str, ...] = ('AGENTS.md', '.gitattributes', '.gitignore', 'CONTRIBUTING.md', 'README.md', 'CHANGELOG.md', 'LICENSE', 'LICENSE.txt', 'LICENSE_MIT.txt', 'MANIFEST.in', 'pyproject.toml', 'pytest.ini', 'requirements.txt', 'install.py', 'assets_manifest_v1.json', 'setup.py')
 REVIEW_DIRS: tuple[str, ...] = (
     'src',
     'tests',

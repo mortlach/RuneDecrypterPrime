@@ -8,6 +8,7 @@ from pathlib import Path
 
 import rdp.api.run_artifact_manifest
 from rdp import api
+from rdp.data.runeglish import Runeglish
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCS = REPO_ROOT / 'docs'
@@ -116,13 +117,64 @@ def test_run_result_representation_names_match_reference() -> None:
         assert f'`{name}`' in reference
 
     public_examples = [
+        REPO_ROOT / 'README.md',
         *DOCS.rglob('*.md'),
         *(REPO_ROOT / 'tutorials' / 'v1' / 'getting_started').glob('*.py'),
+        *(REPO_ROOT / 'tutorials' / 'v1' / 'examples').glob('*.py'),
         *(REPO_ROOT / 'solving' / 'getting_started').glob('*.py'),
     ]
-    stale_access = re.compile(r'\bresult\.(?:plaintext|plaintext_idx|plaintext_latin)\b')
+    stale_access = re.compile(
+        r'\b(?:result|solution|winner\.result)\.'
+        r'(?:plaintext|plaintext_text|plaintext_idx|plaintext_latin)\b'
+    )
     for path in public_examples:
         assert not stale_access.search(_read(path)), path
+
+
+def test_removed_input_classes_do_not_appear_in_public_docs_or_examples() -> None:
+    public_files = [
+        REPO_ROOT / 'README.md',
+        *DOCS.rglob('*.md'),
+        *(REPO_ROOT / 'tutorials').rglob('*.py'),
+        *(REPO_ROOT / 'tutorials').rglob('*.md'),
+        *(REPO_ROOT / 'solving').rglob('*.py'),
+        *(REPO_ROOT / 'solving').rglob('*.md'),
+    ]
+    removed = ('RawTextInput', 'RuneIndexInput')
+    for path in public_files:
+        text = _read(path)
+        for name in removed:
+            assert name not in text, (path, name)
+
+
+def test_result_fields_and_rune_input_formats_are_documented_directly() -> None:
+    result_reference = _read(DOCS / 'reference' / 'run_result.md')
+    for name in (
+        'plaintext_indices',
+        'word_length_information',
+        'plaintext_runes',
+        'plaintext_rune_latin',
+    ):
+        assert f'`{name}`' in result_reference
+
+    input_reference = _read(DOCS / 'reference' / 'parameters' / 'inputs.md')
+    for value in api.RuneInputFormat:
+        assert f'`{value.name}`' in input_reference
+
+
+def test_runelatin_rendering_and_documented_defaults_match_public_api() -> None:
+    assert Runeglish.to_delimited_rune_latin((16, 8, 18), ((0, 3), (1, 3), (2, 3))) == 'T·H·E'
+
+    solver_reference = _read(DOCS / 'reference' / 'parameters' / 'solvers.md')
+    beam_signature = inspect.signature(api.SolverSpec.beam_search)
+    assert beam_signature.parameters['width'].default == 64
+    assert beam_signature.parameters['rounds'].default is None
+    assert re.search(r'\| `width` \|[^\n]+\| `64` \|', solver_reference)
+    assert re.search(r'\| `rounds` \|[^\n]+\| `None` \(automatic\) \|', solver_reference)
+
+    run_spec_reference = _read(DOCS / 'reference' / 'parameters' / 'run_spec.md')
+    assert inspect.signature(api.RunSpec).parameters['text_direction'].default is api.TextDirection.LTR
+    assert re.search(r'\| `text_direction` \|[^\n]+\| `LTR` \|', run_spec_reference)
 
 
 def test_one_public_documentation_tree_without_generated_or_private_material() -> None:

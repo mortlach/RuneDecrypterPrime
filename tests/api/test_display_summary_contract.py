@@ -120,10 +120,7 @@ def test_builds_spec_aware_display_summary() -> None:
     assert data["oracle"]["mode"] == "real_solve"
     assert data["oracle"]["available"] is False
     assert data["tutorial"]["path"] == "Tutorial_Demo.py"
-    assert (
-        data["artifacts"]["display_summary_relpath"]
-        == api.display.SUMMARY_RELATIVE_PATH
-    )
+    assert "display_summary_relpath" not in data["artifacts"]
     assert data["artifacts"]["solver_report_path"] == "artifacts/solver_report.json"
     assert data["solver_report"]["details"]["scorer_lanes"] == {
         "lanes": [],
@@ -141,6 +138,14 @@ def test_text_reference_match_ratio_uses_normalised_plaintext() -> None:
     summary = api.display.build_summary(result, reference_plaintext="hello there")
     assert summary.result["reference_kind"] == "plaintext_rune_latin"
     assert summary.result["match_ratio"] == pytest.approx(0.5)
+
+
+def test_low_level_solution_display_uses_frozen_public_result_labels() -> None:
+    index_summary = api.display.build_summary(_solution(), reference_idx=[1, 2, 4])
+    assert index_summary.result["reference_kind"] == "plaintext_indices"
+
+    text_summary = api.display.build_summary(_solution(), reference_plaintext="ABC")
+    assert text_summary.result["reference_kind"] == "plaintext_rune_latin"
 
 
 def test_partial_recovery_tutorial_policy_is_warned() -> None:
@@ -170,6 +175,7 @@ def test_format_and_write_json_summary(tmp_path: Path) -> None:
     payload = json.loads(out.read_text(encoding="utf-8"))
     assert payload["schema"] == api.display.SUMMARY_SCHEMA
     assert payload["solver"]["solver_name"] == "beam_search"
+    assert "display_summary_relpath" not in payload["artifacts"]
 
 def test_write_json_accepts_default_standard_relpath(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)

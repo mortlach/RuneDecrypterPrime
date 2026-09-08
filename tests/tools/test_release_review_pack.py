@@ -16,7 +16,9 @@ def test_release_review_pack_includes_review_contract_files_and_small_data(tmp_p
     _write(repo / 'README.md', '# readme\n')
     _write(repo / 'pyproject.toml', "[project]\nname='x'\n")
     _write(repo / 'install.py', "print('install')\n")
-    _write(repo / 'install.ps1', 'Write-Host install\n')
+    _write(repo / 'tools' / 'installation' / 'install.ps1', 'Write-Host install\n')
+    _write(repo / 'tools' / 'installation' / 'install.bat', '@echo off\n')
+    _write(repo / 'tools' / 'installation' / 'install.sh', '#!/usr/bin/env sh\n')
     _write(repo / 'setup.py', 'from setuptools import setup\n')
     _write(repo / 'pytest.ini', '[pytest]\n')
     _write(repo / 'MANIFEST.in', 'include README.md\n')
@@ -54,7 +56,9 @@ def test_release_review_pack_includes_review_contract_files_and_small_data(tmp_p
     assert 'README.md' in names
     assert 'pyproject.toml' in names
     assert 'install.py' in names
-    assert 'install.ps1' in names
+    assert 'tools/installation/install.ps1' in names
+    assert 'tools/installation/install.bat' in names
+    assert 'tools/installation/install.sh' in names
     assert 'setup.py' in names
     assert 'pytest.ini' in names
     assert 'MANIFEST.in' in names

@@ -1,6 +1,7 @@
 @echo off
 setlocal
 set SCRIPT_DIR=%~dp0
+set REPO_ROOT=%SCRIPT_DIR%..\..\
 
 echo Rune Decrypter Prime V1 full installer
 echo This installs or verifies the required LM3/LM4 release assets.
@@ -9,13 +10,13 @@ echo.
 
 where py >nul 2>nul
 if %ERRORLEVEL%==0 (
-  py -3.11 "%SCRIPT_DIR%install.py" %*
+  py -3.11 "%REPO_ROOT%install.py" %*
   exit /b %ERRORLEVEL%
 )
 
 where python >nul 2>nul
 if %ERRORLEVEL%==0 (
-  python "%SCRIPT_DIR%install.py" %*
+  python "%REPO_ROOT%install.py" %*
   exit /b %ERRORLEVEL%
 )
 

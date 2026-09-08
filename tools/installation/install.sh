@@ -2,6 +2,7 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
 
 echo "Rune Decrypter Prime V1 full installer"
 echo "This installs or verifies the required LM3/LM4 release assets."
@@ -17,4 +18,4 @@ else
   exit 1
 fi
 
-exec "$PYTHON_BIN" "$SCRIPT_DIR/install.py" "$@"
+exec "$PYTHON_BIN" "$REPO_ROOT/install.py" "$@"

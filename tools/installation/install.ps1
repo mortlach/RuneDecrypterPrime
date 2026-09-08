@@ -4,7 +4,8 @@ param(
 )
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$InstallPy = Join-Path $ScriptDir "install.py"
+$RepoRoot = Split-Path -Parent (Split-Path -Parent $ScriptDir)
+$InstallPy = Join-Path $RepoRoot "install.py"
 
 Write-Host "Rune Decrypter Prime V1 full installer"
 Write-Host "This installs or verifies the required LM3/LM4 release assets."

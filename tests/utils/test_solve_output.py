@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 import numpy as np
-from solving.solve_output import as_int_list, collect_solver_attempt, json_value, match_ratio, print_block, render_plaintext, write_json_evidence, zero_positions
+from solving.solve_output import as_int_list, collect_solver_attempt, json_value, match_ratio, print_block, print_final_result, render_plaintext, write_json_evidence, zero_positions
 
 def test_as_int_list_accepts_plain_and_numpy_values() -> None:
     assert as_int_list([1, '2', 3]) == [1, 2, 3]
@@ -29,7 +29,7 @@ def test_print_block_formats_begin_fields_and_end(capsys) -> None:
 
 def test_render_plaintext_on_tiny_sequence() -> None:
     latin, runes = render_plaintext([24, 9], [[0, 2], [1, 2]])
-    assert latin == 'AN'
+    assert latin == 'A·N'
     assert runes
 
 def test_write_json_evidence(tmp_path) -> None:
@@ -54,8 +54,39 @@ def test_collect_solver_attempt_accepts_canonical_public_result_fields() -> None
         key_length=2,
         reference_idx=(1, 2, 3),
         ciphertext_length=3,
+        wli=((0, 3), (1, 3), (2, 3)),
     )
     assert record["match_ratio"] == 1.0
-    assert record["plaintext_idx_length"] == 3
-    assert record["plaintext_latin"] == "F·U·TH·O·R·C"
+    assert record["plaintext_indices_length"] == 3
+    assert record["word_length_information_length"] == 3
+    assert record["plaintext_rune_latin"] == "F·U·TH·O·R·C"
     assert record["status"] == "solved"
+    assert not {"plaintext_idx_length", "plaintext_latin", "wli_length"} & record.keys()
+
+
+def test_final_result_uses_consistent_solved_output_fields(capsys) -> None:
+    print_final_result(
+        block_name="TEST_FINAL_RESULT",
+        source_label="source",
+        resolved_source_label="resolved",
+        main_page_start=1,
+        main_page_end=1,
+        ciphertext_length=2,
+        wli_length=2,
+        recipe="recipe.test",
+        cipher_family="test",
+        method="test",
+        key_or_params=None,
+        match_ratio=1.0,
+        status="solved",
+        acceptance_rule="exact",
+        plaintext_latin="A·N",
+        plaintext_runes="ᚪᚾ",
+    )
+    out = capsys.readouterr().out
+    assert "plaintext_indices_length: 2" in out
+    assert "word_length_information_length: 2" in out
+    assert "plaintext_rune_latin:\nA·N" in out
+    assert "plaintext_runes:\nᚪᚾ" in out
+    assert "plaintext_latin:" not in out
+    assert "wli_length:" not in out

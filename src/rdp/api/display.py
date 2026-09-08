@@ -34,7 +34,7 @@ import json
 import math
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum, StrEnum
 from pathlib import Path, PurePosixPath
 from typing import Any, TextIO
@@ -633,7 +633,6 @@ def _artifact_summary(
     options: SummaryOptions,
 ) -> dict[str, Any]:
     out = dict(artifacts or {})
-    out.setdefault("display_summary_relpath", SUMMARY_RELATIVE_PATH)
     if artifact_manifest_path is not None:
         out["artifact_manifest_path"] = artifact_manifest_path
     return _json_value(_redact_artifact_paths(out), options=options)
@@ -715,14 +714,9 @@ def _reference_match(
         )
         reference = _as_int_list(reference_idx)
         if candidate is not None and reference is not None:
-            reference_kind = (
-                "plaintext_indices"
-                if isinstance(solution, RunResult)
-                else "plaintext_idx"
-            )
             return {
                 "match_ratio": _match_ratio(candidate, reference),
-                "reference_kind": reference_kind,
+                "reference_kind": "plaintext_indices",
             }
     if reference_plaintext is not None:
         candidate_text = str(
@@ -736,14 +730,9 @@ def _reference_match(
         candidate_norm = _normalise_plaintext_for_match(candidate_text)
         reference_norm = _normalise_plaintext_for_match(reference_plaintext)
         if candidate_norm or reference_norm:
-            reference_kind = (
-                "plaintext_rune_latin"
-                if isinstance(solution, RunResult)
-                else "plaintext_text"
-            )
             return {
                 "match_ratio": _text_match_ratio(candidate_norm, reference_norm),
-                "reference_kind": reference_kind,
+                "reference_kind": "plaintext_rune_latin",
             }
     return {}
 
@@ -1029,6 +1018,10 @@ def write_summary_artifact(
         built = summary
     else:
         built = build_summary(summary, options=options, **build_kwargs)
+    built = replace(
+        built,
+        artifacts={**built.artifacts, "display_summary_relpath": SUMMARY_RELATIVE_PATH},
+    )
     relpath = write_summary_json(built, run_dir / SUMMARY_RELATIVE_PATH)
     if relpath != SUMMARY_RELATIVE_PATH:
         # Keep the public contract fixed even if the internal path was absolute.
