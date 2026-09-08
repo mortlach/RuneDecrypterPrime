@@ -6,7 +6,6 @@ from rdp.core.config.cipher import CipherConfig
 from rdp.core.config.scorer_context import ScorerContext
 from rdp.core.engine.builders import build_scorer
 from rdp.core.types import Device, Direction
-import rdp.scoring.torch_rune_scorer as torch_scorer_module
 from rdp.scoring.windowing import START_TAG, END_TAG
 pytestmark = pytest.mark.tier_a
 
@@ -35,6 +34,9 @@ def test_torch_scorer_uses_the_exact_typed_device_value(
     device: Device,
     expected: str,
 ) -> None:
+    pytest.importorskip("torch")
+    import rdp.scoring.torch_rune_scorer as torch_scorer_module
+
     requests: list[str] = []
 
     def select(requested: str):

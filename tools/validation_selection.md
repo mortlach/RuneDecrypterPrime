@@ -4,7 +4,7 @@ Statically listed from the current checkout. No tests, examples, runner, or pyte
 
 No runner time limits. User launch only.
 
-46 jobs with `INCLUDE_LONG_P7C7_EXAMPLE = False`: one pytest selection plus 45 standalone programs.
+52 jobs with `INCLUDE_LONG_P7C7_EXAMPLE = False`: one pytest selection plus 51 standalone programs.
 
 Pytest collects every test under `tests/`. Parameterized test counts and skips
 are determined at runtime; file counts are not individual test counts.
@@ -29,6 +29,15 @@ are determined at runtime; file counts are not individual test counts.
 - `solving/getting_started/load_source.py`
 - `solving/getting_started/prepare_search.py`
 - `solving/getting_started/run_search.py`
+
+## Liber Primus learning route
+
+- `solving/lp_getting_started/01_load_welcome_pilgrim.py`
+- `solving/lp_getting_started/02_try_vigenere.py`
+- `solving/lp_getting_started/03_add_interruptors.py`
+- `solving/lp_getting_started/04_try_reverse_shifts.py`
+- `solving/lp_getting_started/05_let_rdp_search.py`
+- `solving/lp_getting_started/06_explore_an_end.py`
 
 ### Tutorial examples
 

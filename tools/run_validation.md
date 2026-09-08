@@ -18,11 +18,11 @@ write and print its plan without launching any subprocess jobs.
 | Selection | Contents |
 | --- | --- |
 | Tests | Every pytest test under `tests/`, including full-asset, campaign-tooling, and cipher-development tests. Test collection does not launch campaign entry points. |
-| Getting started | All ten numbered files under `tutorials/v1/getting_started/`, followed by the three `solving/getting_started/` examples. |
+| Getting started | All ten numbered files under `tutorials/v1/getting_started/`, followed by the three `solving/getting_started/` examples and six `solving/lp_getting_started/` lessons. |
 | Examples | The 23 ordinary admitted examples in `EXAMPLES`, including robust recipes and full-asset crib examples. Set `INCLUDE_LONG_P7C7_EXAMPLE = True` near the top of the runner to add the single-start P7/C7 example. |
 | Solving | All nine numbered `solving/solved_lp/` workbooks, individually. |
 
-With the long P7/C7 switch off, the full selection has 46 jobs: one pytest job and 45 individual
+With the long P7/C7 switch off, the full selection has 52 jobs: one pytest job and 51 individual
 programs. Some programs are also covered by pytest; the standalone run checks
 their actual entry points as well. A selected program is not a claim of a
 passing result: failures are reported, including missing optional dependencies.

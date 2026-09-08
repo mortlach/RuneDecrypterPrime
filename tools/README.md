@@ -8,6 +8,10 @@
 ordinary tests, tutorials/examples and solved-LP workbook checks from one
 place.
 
+Visible-terminal launchers and their output-mirroring instructions are kept in
+[`validation/`](validation/README.md). Generated evidence belongs outside the
+repository.
+
 Use the smallest selection that answers the current question.
 
 CUDA provisioning has its own check:

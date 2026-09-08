@@ -123,6 +123,7 @@ def test_run_result_representation_names_match_reference() -> None:
         *(REPO_ROOT / 'tutorials' / 'v1' / 'getting_started').glob('*.py'),
         *(REPO_ROOT / 'tutorials' / 'v1' / 'examples').glob('*.py'),
         *(REPO_ROOT / 'solving' / 'getting_started').glob('*.py'),
+        *(REPO_ROOT / 'solving' / 'lp_getting_started').glob('*.py'),
     ]
     stale_access = re.compile(
         r'\b(?:result|solution|winner\.result)\.'

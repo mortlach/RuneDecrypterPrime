@@ -96,10 +96,16 @@ def build_jobs(run_set: str, root: Path = ROOT) -> list[Job]:
         root / 'solving/getting_started/prepare_search.py',
         root / 'solving/getting_started/run_search.py',
     ]
+    lp_getting_started = sorted(
+        (root / 'solving/lp_getting_started').glob('[0-9][0-9]_*.py')
+    )
     workbooks = sorted((root / 'solving/solved_lp').glob('[0-9][0-9]_*.py'))
-    if (not getting_started or not workbooks
+    if (not getting_started or len(lp_getting_started) != 6 or not workbooks
             or any(not path.is_file() for path in solving_getting_started)):
-        raise ValueError('Missing getting-started, solving example, or solved-workbook catalogue')
+        raise ValueError(
+            'Missing getting-started, LP learning, solving example, '
+            'or solved-workbook catalogue'
+        )
     test_target = 'tests/tools/test_run_validation.py' if run_set == 'smoke' else 'tests'
     if not (root / test_target).exists():
         raise ValueError(f'Missing test target: {test_target}')
@@ -108,7 +114,7 @@ def build_jobs(run_set: str, root: Path = ROOT) -> list[Job]:
     selected_examples = list(EXAMPLES)
     if INCLUDE_LONG_P7C7_EXAMPLE:
         selected_examples.append(P7C7_EXAMPLE)
-    paths = (getting_started + solving_getting_started
+    paths = (getting_started + solving_getting_started + lp_getting_started
              + [examples_root / f'{name}.py' for name in selected_examples] + workbooks)
     if run_set == 'smoke':
         paths = [root / 'tutorials/v1/getting_started/01_known_key.py',
