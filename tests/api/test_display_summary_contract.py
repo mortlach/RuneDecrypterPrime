@@ -46,6 +46,7 @@ def _run_result() -> api.RunResult:
         word_length_information=None,
         plaintext_runes="ᚱᚫᚦ",
         plaintext_rune_latin="R·A·TH",
+        plaintext_reading_rune_latin="R·A·TH",
         key=tuple(_solution().key),
         score=float(_solution().score),
         status=_solver_report().status,
@@ -123,10 +124,12 @@ def test_builds_spec_aware_display_summary() -> None:
     }
     assert plaintext["plaintext_runes"] == "ᚱᚫᚦ"
     assert plaintext["plaintext_rune_latin"] == "R·A·TH"
+    assert plaintext["plaintext_reading_rune_latin"] == "R·A·TH"
     assert plaintext["plaintext_rune_count"] == 3
     assert set(data["result"]["ciphertext"]) == {
         "rune_indices",
         "rune_latin",
+        "reading_rune_latin",
         "rune_text",
         "rune_count",
     }
@@ -164,7 +167,27 @@ def test_low_level_solution_display_uses_frozen_public_result_labels() -> None:
     assert text_summary.result["reference_kind"] == "plaintext_rune_latin"
     plaintext = text_summary.result["plaintext"]
     assert plaintext["plaintext_rune_latin"] == "U·TH·O"
+    assert plaintext["plaintext_reading_rune_latin"] == "U·TH·O"
     assert plaintext["plaintext_latin_compact"] == "ABC"
+
+
+def test_rtl_display_separates_canonical_identity_from_reading_order() -> None:
+    from rdp.data.runeglish import Runeglish
+
+    indices, wli, rune_text = Runeglish.encode_english_to_runes(
+        "READ", direction=api.TextDirection.RTL
+    )
+    solution = Solution(key=[1], plaintext=indices, score=0.0)
+    solution.plaintext_idx = indices
+    solution.plaintext_rune = rune_text
+    solution.wli = wli
+    solution.direction = api.TextDirection.RTL
+
+    summary = api.display.build_summary(solution)
+    plaintext = summary.result["plaintext"]
+    assert plaintext["plaintext_rune_latin"] == "R·AE·D"
+    assert plaintext["plaintext_reading_rune_latin"] == "R·EA·D"
+    assert "R·EA·D" in api.display.format_summary(summary)
 
 
 def test_partial_recovery_tutorial_policy_is_warned() -> None:
@@ -194,6 +217,8 @@ def test_format_and_write_json_summary(tmp_path: Path) -> None:
     payload = json.loads(out.read_text(encoding="utf-8"))
     assert payload["schema"] == api.display.SUMMARY_SCHEMA
     assert payload["solver"]["solver_name"] == "beam_search"
+    assert payload["result"]["plaintext"]["plaintext_rune_latin"] == "R·A·TH"
+    assert payload["result"]["plaintext"]["plaintext_reading_rune_latin"] == "R·A·TH"
     assert "display_summary_relpath" not in payload["artifacts"]
 
 def test_write_json_accepts_default_standard_relpath(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -270,6 +295,7 @@ def test_display_prefers_canonical_run_status_over_legacy_solution_reason() -> N
             word_length_information=None,
             plaintext_runes=solution.plaintext_rune,
             plaintext_rune_latin="R·A·TH",
+            plaintext_reading_rune_latin="R·A·TH",
             key=tuple(solution.key),
             score=float(solution.score),
             status=report.status,

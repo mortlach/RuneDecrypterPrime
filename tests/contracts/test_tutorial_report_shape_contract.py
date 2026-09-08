@@ -43,6 +43,7 @@ def test_tutorial_report_top_level_shape_is_stable() -> None:
         "plaintext_indices",
         "word_length_information",
         "plaintext_rune_latin",
+        "plaintext_reading_rune_latin",
         "plaintext_runes",
     }
     assert set(report["previews"]["reference"]) == {"rune_text"}

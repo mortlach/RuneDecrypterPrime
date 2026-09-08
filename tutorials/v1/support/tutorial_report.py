@@ -240,6 +240,10 @@ def build_tutorial_run_report(
                 "plaintext_rune_latin": _preview_text(
                     getattr(solution, "plaintext_rune_latin", ""), preview_len
                 ),
+                "plaintext_reading_rune_latin": _preview_text(
+                    getattr(solution, "plaintext_reading_rune_latin", ""),
+                    preview_len,
+                ),
                 "plaintext_runes": _preview_text(
                     getattr(
                         solution,

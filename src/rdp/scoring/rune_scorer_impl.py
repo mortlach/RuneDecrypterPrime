@@ -17,6 +17,7 @@ from rdp.scoring.objective_normalize import (
 )
 from rdp.scoring.language_model.language_model_prime_runtime import LmPrimeRuntime, ECDFCache
 from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scorer_context import ScorerContext, require_scorer_context
 from rdp.core.config.scoring import (
     HammingTextDirectionMode,
     ScoringConfig,
@@ -101,9 +102,10 @@ class RuneScorer(BaseScorer):
     Windows: W = n-grams per window (W=10 typical), stride in runes.
     """
 
-    def __init__(self, cfg_cipher: CipherConfig, scorer_cfg: ScoringConfig) -> None:
-        if not isinstance(cfg_cipher, CipherConfig):
-            raise TypeError(f"cfg_cipher must be CipherConfig, got {type(cfg_cipher).__name__}")
+    def __init__(
+        self, cfg_cipher: CipherConfig | ScorerContext, scorer_cfg: ScoringConfig
+    ) -> None:
+        cfg_cipher = require_scorer_context(cfg_cipher)
         if not isinstance(scorer_cfg, ScoringConfig):
             raise TypeError(f"scorer_cfg must be ScoringConfig, got {type(scorer_cfg).__name__}")
 

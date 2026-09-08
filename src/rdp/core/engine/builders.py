@@ -5,6 +5,7 @@ from typing import Any
 
 from rdp.core.capability_gates import raise_if_requested_lane_blocked
 from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scorer_context import ScorerContext, require_scorer_context
 from rdp.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode
 from rdp.core.types import Device, ScorerBackend, ScorerImpl, ensure_device
 from rdp.backends.xp import select_backend
@@ -99,8 +100,8 @@ def _attach_scorer_capability_report(scorer: Any, s_cfg: ScoringConfig) -> Any:
     return scorer
 
 
-def build_scorer(c_cfg: CipherConfig, s_cfg: ScoringConfig):
-    c_cfg = _require_cipher_config(c_cfg)
+def build_scorer(c_cfg: CipherConfig | ScorerContext, s_cfg: ScoringConfig):
+    c_cfg = require_scorer_context(c_cfg)
     s_cfg = _require_scoring_config(s_cfg)
 
     impl = {

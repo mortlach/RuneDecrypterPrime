@@ -50,7 +50,7 @@ def render_plaintext(
         return "", ""
     idx = [int(value) for value in plaintext_idx]
     return (
-        Runeglish.to_delimited_rune_latin(idx, wli, direction=direction),
+        Runeglish.to_delimited_rune_latin(idx, wli),
         Runeglish.to_rune(idx, wli),
     )
 
@@ -99,6 +99,7 @@ def print_final_result(
     acceptance_rule: str | None,
     plaintext_latin: str,
     plaintext_runes: str,
+    plaintext_reading_rune_latin: str | None = None,
     plaintext_rune_count: int | None = None,
     extra_fields: Mapping[str, object] | None = None,
 ) -> None:
@@ -136,6 +137,12 @@ def print_final_result(
         print_kv(key, value)
     print("plaintext_rune_latin:")
     print(plaintext_latin)
+    if (
+        plaintext_reading_rune_latin
+        and plaintext_reading_rune_latin != plaintext_latin
+    ):
+        print("plaintext_reading_rune_latin:")
+        print(plaintext_reading_rune_latin)
     print("plaintext_runes:")
     print(plaintext_runes)
     print(f"{block_name}_END")
@@ -273,6 +280,7 @@ def collect_solver_attempt(
     reference_idx: Sequence[int] | None = None,
     ciphertext_length: int | None = None,
     wli: Sequence[Sequence[int]] | None = None,
+    direction: str | object = "ltr",
     elapsed_wall_time_s: float | None = None,
     acceptance_match_ratio: float = 1.0,
 ) -> dict[str, object]:
@@ -285,13 +293,9 @@ def collect_solver_attempt(
             getattr(solution, "plaintext_idx", getattr(solution, "plaintext", [])),
         )
     )
-    plaintext_latin = str(
-        getattr(
-            solution,
-            "plaintext_rune_latin",
-            getattr(solution, "plaintext_latin", ""),
-        )
-        or ""
+    plaintext_latin = str(getattr(solution, "plaintext_rune_latin", "") or "")
+    plaintext_reading_latin = str(
+        getattr(solution, "plaintext_reading_rune_latin", "") or ""
     )
     plaintext_runes = str(
         getattr(
@@ -301,8 +305,15 @@ def collect_solver_attempt(
         )
         or ""
     )
-    if plaintext_idx and wli is not None and (not plaintext_latin or not plaintext_runes):
-        plaintext_latin, plaintext_runes = render_plaintext(plaintext_idx, wli)
+    if plaintext_idx and wli is not None:
+        if not plaintext_latin:
+            plaintext_latin = Runeglish.to_delimited_rune_latin(plaintext_idx, wli)
+        if not plaintext_reading_latin:
+            plaintext_reading_latin = Runeglish.to_reading_rune_latin(
+                plaintext_idx, wli, direction=direction
+            )
+        if not plaintext_runes:
+            plaintext_runes = Runeglish.to_rune(plaintext_idx, wli)
 
     key_values = as_int_list(getattr(solution, "key", []))
     found_key_core = key_values[:key_length]
@@ -345,5 +356,6 @@ def collect_solver_attempt(
         "elapsed_wall_time_s": elapsed_wall_time_s,
         "status": "solved" if solved else "diagnostic_not_yet_solved",
         "plaintext_rune_latin": plaintext_latin,
+        "plaintext_reading_rune_latin": plaintext_reading_latin,
         "plaintext_runes": plaintext_runes,
     }

@@ -50,6 +50,7 @@ def _result(
         word_length_information=None,
         plaintext_runes=None,
         plaintext_rune_latin=None,
+        plaintext_reading_rune_latin=None,
         key=recovered_key,
         score=score,
         status=status,

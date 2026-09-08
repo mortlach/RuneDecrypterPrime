@@ -183,12 +183,40 @@ class Runeglish:
         *,
         direction: str | object = "ltr",
     ) -> str:
-        """Render readable RuneLatin with rune and word boundaries preserved.
+        """Render canonical RuneLatin with exact rune-token labels.
 
-        RTL encoding reverses a word before choosing multichar rune tokens and
-        reverses the resulting token sequence again. Rendering therefore must
-        invert each token's letters once more: encoded ``R | AE | D`` becomes
-        readable ``R·EA·D``. The middle dots preserve the three rune boundaries.
+        ``direction`` remains accepted for call-site compatibility, but cannot
+        rewrite canonical rune identity. Use :meth:`to_reading_rune_latin` for
+        a direction-aware human presentation.
+        """
+        del direction
+
+        words: list[str] = []
+        current: list[str] = []
+        for index, symbol in enumerate(pt):
+            current.append(Runeglish.pos_to_latin(symbol))
+            if wli is not None and wli[index][0] == wli[index][1] - 1:
+                words.append("·".join(current))
+                current = []
+            if limit and len(" ".join(words)) >= limit:
+                break
+        if current:
+            words.append("·".join(current))
+        return " ".join(words)
+
+    @staticmethod
+    def to_reading_rune_latin(
+        pt: Sequence[int],
+        wli: Sequence[Sequence[int]] | None,
+        limit: int | None = None,
+        *,
+        direction: str | object = "ltr",
+    ) -> str:
+        """Render delimited rune tokens in human reading direction.
+
+        This preserves rune boundaries but is not canonical rune identity. In
+        RTL, visible letters within multichar labels are inverted, so the
+        canonical ``R·AE·D`` is presented as readable ``R·EA·D``.
         """
         is_rtl = ensure_direction(direction) is Direction.RTL
 

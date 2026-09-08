@@ -51,7 +51,11 @@ def tutorial_debug_preview_block(
         f"Debug preview: {label}",
         [
             ("encoding_dir", direction_value.value),
-            ("rune_latin", f"{_token_text(clipped, wli, direction_value)}{suffix}"),
+            ("rune_latin", f"{_token_text(clipped, wli)}{suffix}"),
+            (
+                "reading_rune_latin",
+                f"{_reading_token_text(clipped, wli, direction_value)}{suffix}",
+            ),
             ("rune_indices", f"{clipped}{suffix}"),
             ("rune_text", f"{_rune_text(clipped, wli)}{suffix}"),
         ],
@@ -79,7 +83,8 @@ def tutorial_debug_preview_lines(
         f"Debug preview: {label}",
         "----------------------",
         f"encoding_dir: {direction_value.value}",
-        f"rune_latin: {_token_text(clipped, wli, direction_value)}{suffix}",
+        f"rune_latin: {_token_text(clipped, wli)}{suffix}",
+        f"reading_rune_latin: {_reading_token_text(clipped, wli, direction_value)}{suffix}",
         f"rune_indices: {clipped}{suffix}",
         f"rune_text: {_rune_text(clipped, wli)}{suffix}",
     ]
@@ -88,9 +93,16 @@ def tutorial_debug_preview_lines(
 def _token_text(
     idx: Sequence[int],
     wli: Sequence[Sequence[int]] | None,
+) -> str:
+    return Runeglish.to_delimited_rune_latin(idx, wli)
+
+
+def _reading_token_text(
+    idx: Sequence[int],
+    wli: Sequence[Sequence[int]] | None,
     direction: Direction,
 ) -> str:
-    return Runeglish.to_delimited_rune_latin(idx, wli, direction=direction)
+    return Runeglish.to_reading_rune_latin(idx, wli, direction=direction)
 
 
 def _rune_text(idx: Sequence[int], wli: Sequence[Sequence[int]] | None) -> str:

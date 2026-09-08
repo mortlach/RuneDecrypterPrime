@@ -20,6 +20,9 @@ def test_solve_output_render_plaintext_preserves_rtl_multigraph_boundaries() -> 
         'READ THE AETHER', direction='rtl'
     )
     latin, runes = render_plaintext(pt_idx, wli, direction=Direction.RTL)
-    assert latin == 'R·EA·D T·H·E AE·T·H·E·R'
+    assert latin == 'R·AE·D T·H·E EA·T·H·E·R'
+    assert Runeglish.to_reading_rune_latin(
+        pt_idx, wli, direction=Direction.RTL
+    ) == 'R·EA·D T·H·E AE·T·H·E·R'
     assert Runeglish.to_rune_latin(pt_idx, wli, direction=Direction.RTL) == 'READ THE AETHER'
     assert runes == rune_text

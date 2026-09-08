@@ -62,6 +62,7 @@ def test_collect_solver_attempt_accepts_canonical_public_result_fields() -> None
     result = SimpleNamespace(
         plaintext_indices=(1, 2, 3),
         plaintext_rune_latin="F·U·TH·O·R·C",
+        plaintext_reading_rune_latin="F·U·TH·O·R·C",
         plaintext_runes="ᚠᚢᚦᚩᚱᚳ",
         key=(7, 11),
         score=2.5,
@@ -81,6 +82,7 @@ def test_collect_solver_attempt_accepts_canonical_public_result_fields() -> None
     assert record["plaintext_indices"] == [1, 2, 3]
     assert record["word_length_information"] == [[0, 3], [1, 3], [2, 3]]
     assert record["plaintext_rune_latin"] == "F·U·TH·O·R·C"
+    assert record["plaintext_reading_rune_latin"] == "F·U·TH·O·R·C"
     assert record["status"] == "solved"
     assert not {"plaintext_idx_length", "plaintext_latin", "wli_length"} & record.keys()
 
@@ -102,6 +104,7 @@ def test_final_result_uses_consistent_solved_output_fields(capsys) -> None:
         status="solved",
         acceptance_rule="exact",
         plaintext_latin="A·N",
+        plaintext_reading_rune_latin="A·N",
         plaintext_runes="ᚪᚾ",
     )
     out = capsys.readouterr().out
@@ -111,3 +114,28 @@ def test_final_result_uses_consistent_solved_output_fields(capsys) -> None:
     assert "plaintext_runes:\nᚪᚾ" in out
     assert "plaintext_latin:" not in out
     assert "wli_length:" not in out
+
+
+def test_final_result_prints_distinct_rtl_reading_rune_latin(capsys) -> None:
+    print_final_result(
+        block_name="TEST_FINAL_RESULT",
+        source_label="source",
+        resolved_source_label="resolved",
+        main_page_start=1,
+        main_page_end=1,
+        ciphertext_length=3,
+        wli_length=3,
+        recipe="recipe.test",
+        cipher_family="test",
+        method="test",
+        key_or_params=None,
+        match_ratio=1.0,
+        status="solved",
+        acceptance_rule="exact",
+        plaintext_latin="R·AE·D",
+        plaintext_reading_rune_latin="R·EA·D",
+        plaintext_runes="ᚱᚫᛞ",
+    )
+    out = capsys.readouterr().out
+    assert "plaintext_rune_latin:\nR·AE·D" in out
+    assert "plaintext_reading_rune_latin:\nR·EA·D" in out

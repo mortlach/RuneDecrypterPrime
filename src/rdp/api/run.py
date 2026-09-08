@@ -645,9 +645,11 @@ def _result_from_solution(
         wli = tuple(tuple(int(item) for item in pair) for pair in wli_source)
     plaintext_runes = None
     plaintext_rune_latin = None
+    plaintext_reading_rune_latin = None
     if plaintext is not None:
         plaintext_runes = Runeglish.to_rune(plaintext, wli)
-        plaintext_rune_latin = Runeglish.to_delimited_rune_latin(
+        plaintext_rune_latin = Runeglish.to_delimited_rune_latin(plaintext, wli)
+        plaintext_reading_rune_latin = Runeglish.to_reading_rune_latin(
             plaintext, wli, direction=request.text_direction
         )
     return RunResult(
@@ -655,6 +657,7 @@ def _result_from_solution(
         word_length_information=wli,
         plaintext_runes=plaintext_runes,
         plaintext_rune_latin=plaintext_rune_latin,
+        plaintext_reading_rune_latin=plaintext_reading_rune_latin,
         key=key,
         score=score,
         status=status,

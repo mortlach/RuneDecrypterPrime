@@ -1,6 +1,7 @@
 import numpy as np
 from rdp import api
 
+from rdp.api.normalize import normalize_rune_input
 from rdp.core.types import Direction
 from rdp.data.runeglish import Runeglish
 
@@ -54,29 +55,74 @@ def test_delimited_rune_latin_preserves_rune_and_word_boundaries():
     )
 
 
-def test_delimited_rtl_rune_latin_inverts_multigraphs_without_losing_boundaries():
+def test_canonical_and_reading_rtl_rune_latin_keep_distinct_meanings():
     indices, wli, _ = Runeglish.encode_english_to_runes(
-        "READ AETHER", direction="rtl"
+        "READ THE AETHER", direction="rtl"
+    )
+    assert Runeglish.to_delimited_rune_latin(indices, wli) == (
+        "R·AE·D T·H·E EA·T·H·E·R"
     )
     assert Runeglish.to_delimited_rune_latin(
         indices, wli, direction=api.TextDirection.RTL
-    ) == "R·EA·D AE·T·H·E·R"
+    ) == "R·AE·D T·H·E EA·T·H·E·R"
+    assert Runeglish.to_reading_rune_latin(
+        indices, wli, direction=api.TextDirection.RTL
+    ) == "R·EA·D T·H·E AE·T·H·E·R"
+    assert Runeglish.to_rune_latin(
+        indices, wli, direction=api.TextDirection.RTL
+    ) == "READ THE AETHER"
 
 
-def test_delimited_rtl_rune_latin_covers_every_rune_position_in_one_sequence():
+def test_canonical_and_reading_rtl_rune_latin_cover_every_rune_position():
     indices = list(range(29))
     wli = [[position, len(indices)] for position in indices]
-    expected = (
+    canonical = (
+        "F·U·TH·O·R·C·G·W·H·N·I·J·EO·P·X·S·T·B·E·M·L·(I)NG·OE·D·A·AE·Y·IO·EA"
+    )
+    reading = (
         "F·U·HT·O·R·C·G·W·H·N·I·J·OE·P·X·S·T·B·E·M·L·GNI·EO·D·A·EA·Y·OI·AE"
     )
 
     assert Runeglish.size() == 29
+    assert Runeglish.to_delimited_rune_latin(indices, wli) == canonical
     assert Runeglish.to_delimited_rune_latin(
         indices, wli, direction=api.TextDirection.RTL
-    ) == expected
-    assert Runeglish.to_rune_latin(
+    ) == canonical
+    assert Runeglish.to_reading_rune_latin(
         indices, wli, direction=api.TextDirection.RTL
-    ) == expected.replace("·", "")
+    ) == reading
+
+
+def test_canonical_rune_latin_round_trips_but_reading_form_changes_identity():
+    indices, wli, rune_text = Runeglish.encode_english_to_runes(
+        "READ THE AETHER", direction="rtl"
+    )
+    canonical = Runeglish.to_delimited_rune_latin(indices, wli)
+    reading = Runeglish.to_reading_rune_latin(
+        indices, wli, direction=api.TextDirection.RTL
+    )
+
+    parsed_canonical, parsed_wli = normalize_rune_input(
+        canonical, input_format="rune_latin", direction=api.TextDirection.LTR
+    )
+    parsed_reading, _ = normalize_rune_input(
+        reading, input_format="rune_latin", direction=api.TextDirection.LTR
+    )
+
+    assert parsed_canonical.tolist() == indices
+    assert parsed_wli == wli
+    assert parsed_reading.tolist() != indices
+    assert Runeglish.to_rune(indices, wli) == rune_text
+
+
+def test_ltr_canonical_and_reading_rune_latin_are_equal():
+    indices, wli, _ = Runeglish.encode_english_to_runes(
+        "READ THE AETHER", direction="ltr"
+    )
+    canonical = Runeglish.to_delimited_rune_latin(indices, wli)
+    assert Runeglish.to_reading_rune_latin(
+        indices, wli, direction=api.TextDirection.LTR
+    ) == canonical
 
 
 def test_public_text_direction_is_normalised_to_engine_direction():

@@ -15,6 +15,7 @@ def main() -> None:
     print("Plaintext indices :", result.plaintext_indices)
     print("Plaintext runes   :", result.plaintext_runes)
     print("Plaintext RuneLatin:", result.plaintext_rune_latin)
+    print("Reading RuneLatin :", result.plaintext_reading_rune_latin)
 
 
 if __name__ == "__main__":

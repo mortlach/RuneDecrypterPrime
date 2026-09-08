@@ -285,7 +285,11 @@ def format_summary(summary: DisplaySummary | object, **build_kwargs: Any) -> str
 
     plaintext = result.get("plaintext")
     if isinstance(plaintext, Mapping):
-        preview = plaintext.get("plaintext_rune_latin") or plaintext.get("plaintext_runes")
+        preview = (
+            plaintext.get("plaintext_reading_rune_latin")
+            or plaintext.get("plaintext_rune_latin")
+            or plaintext.get("plaintext_runes")
+        )
         if preview:
             lines.extend(["", "Plaintext", "---------", str(preview)])
 
@@ -513,6 +517,7 @@ def _result_summary(
     if options.include_plaintext:
         if isinstance(solution, RunResult):
             rune_latin = solution.plaintext_rune_latin
+            reading_rune_latin = solution.plaintext_reading_rune_latin
             runes = solution.plaintext_runes
             indices = solution.plaintext_indices
             word_length_information = solution.word_length_information
@@ -521,7 +526,12 @@ def _result_summary(
             indices = getattr(solution, "plaintext_idx", None)
             word_length_information = getattr(solution, "wli", None)
             rune_latin = (
-                Runeglish.to_delimited_rune_latin(
+                Runeglish.to_delimited_rune_latin(indices, word_length_information)
+                if _as_sequence(indices) is not None
+                else ""
+            )
+            reading_rune_latin = (
+                Runeglish.to_reading_rune_latin(
                     indices, word_length_information, direction=direction
                 )
                 if _as_sequence(indices) is not None
@@ -540,6 +550,9 @@ def _result_summary(
             "plaintext_rune_latin": _preview_text(
                 rune_latin or "", options.plaintext_preview_chars
             ),
+            "plaintext_reading_rune_latin": _preview_text(
+                reading_rune_latin or "", options.plaintext_preview_chars
+            ),
             "plaintext_runes": _preview_text(runes or "", options.plaintext_preview_chars),
             "plaintext_rune_count": _safe_len(indices),
         }
@@ -551,7 +564,12 @@ def _result_summary(
         ciphertext_indices = getattr(solution, "ciphertext_idx", None)
         ciphertext_wli = getattr(solution, "wli", None)
         ciphertext_rune_latin = (
-            Runeglish.to_delimited_rune_latin(
+            Runeglish.to_delimited_rune_latin(ciphertext_indices, ciphertext_wli)
+            if _as_sequence(ciphertext_indices) is not None
+            else ""
+        )
+        ciphertext_reading_rune_latin = (
+            Runeglish.to_reading_rune_latin(
                 ciphertext_indices, ciphertext_wli, direction=direction
             )
             if _as_sequence(ciphertext_indices) is not None
@@ -563,6 +581,9 @@ def _result_summary(
             ),
             "rune_latin": _preview_text(
                 ciphertext_rune_latin, options.ciphertext_preview_chars
+            ),
+            "reading_rune_latin": _preview_text(
+                ciphertext_reading_rune_latin, options.ciphertext_preview_chars
             ),
             "rune_text": _preview_text(
                 getattr(solution, "ciphertext_rune", "") or "",

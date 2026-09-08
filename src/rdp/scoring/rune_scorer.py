@@ -13,6 +13,7 @@ from rdp.core.component_contracts import (
     ScoringLane,
 )
 from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scorer_context import ScorerContext
 from rdp.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode
 from rdp.scoring import rune_scorer_impl as _impl
 from rdp.scoring.rune_scorer_impl import *  # noqa: F403
@@ -65,7 +66,9 @@ def _sync_patchable_impl_globals() -> None:
 class RuneScorer(_LegacyRuneScorer):
     """Strict V1 contract wrapper around the NumPy scorer implementation."""
 
-    def __init__(self, cfg_cipher: CipherConfig, scorer_cfg: ScoringConfig) -> None:
+    def __init__(
+        self, cfg_cipher: CipherConfig | ScorerContext, scorer_cfg: ScoringConfig
+    ) -> None:
         requested = _requested_lanes(scorer_cfg) if isinstance(scorer_cfg, ScoringConfig) else set()
         _sync_patchable_impl_globals()
 

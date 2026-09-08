@@ -439,14 +439,13 @@ It contains the best candidate plus reports and reproducibility information.
 
 ## Plaintext representations
 
-`plaintext_indices`, `plaintext_runes` and `plaintext_rune_latin` are three
-views of the same candidate. RuneLatin uses `·` between rune tokens, so the LTR
-encoding `TH·E` and RTL encoding `T·H·E` remain visibly different. Both are
-valid for the direction-specific rune sequence. An RTL multichar token is
-presented in reading direction, so “READ” becomes `R·EA·D`: the `EA` remains
-one rune token. `word_length_information`
-carries the known word boundaries. None of these fields is an English
-translation.
+`plaintext_indices`, `plaintext_runes`, `plaintext_rune_latin`, and
+`plaintext_reading_rune_latin` are views of the same candidate. Canonical
+`plaintext_rune_latin` uses the exact label of every rune, with `·` between
+tokens. The reading field applies direction-aware presentation: RTL “READ” is
+canonical `R·AE·D` but reading-order `R·EA·D`. Use the canonical form when rune
+identity must round-trip. `word_length_information` carries the known word
+boundaries. None of these fields is an English translation.
 
 ## `key`
 

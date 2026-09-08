@@ -14,6 +14,7 @@ from rdp.api.errors import (
 from rdp.api.known_key import decrypt, encrypt
 from rdp.api.run import run
 from rdp.api.run_result import RunResult
+from rdp.api.scoring import score, score_many
 from rdp.api.run_spec import (
     ProblemInput,
     RuneInput,
@@ -37,6 +38,8 @@ from rdp.core.types import (
 
 __all__ = [
     "run",
+    "score",
+    "score_many",
     "encrypt",
     "decrypt",
     "RunSpec",

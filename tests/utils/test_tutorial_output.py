@@ -11,8 +11,10 @@ def test_tutorial_debug_preview_prints_unambiguous_text_views() -> None:
     assert 'Debug preview: plaintext' in text
     assert 'encoding_dir: rtl' in text
     assert 'rune_latin:' in text
+    assert 'reading_rune_latin:' in text
     assert 'rune_indices:' in text
     assert 'rune_text:' in text
+    assert 'R·AE·D' in text
     assert 'R·EA·D' in text
     assert 'T·H·E' in text
     rune_line = next((line for line in lines if line.startswith('rune_text:')))
@@ -31,8 +33,10 @@ def test_tutorial_debug_preview_block_uses_standard_printer_style() -> None:
     assert 'encoding_dir' in text
     assert 'rtl' in text
     assert 'rune_latin' in text
+    assert 'reading_rune_latin' in text
     assert 'rune_indices' in text
     assert 'rune_text' in text
+    assert 'R·AE·D' in text
     assert 'R·EA·D' in text
     assert 'T·H·E' in text
     rune_line = next((line for line in text.splitlines() if line.startswith('rune_text')))
@@ -46,3 +50,4 @@ def test_print_tutorial_debug_preview_uses_standard_block(capsys: pytest.Capture
     assert 'encoding_dir' in out
     assert 'rtl' in out
     assert 'T·H·E' in out
+    assert 'reading_rune_latin' in out

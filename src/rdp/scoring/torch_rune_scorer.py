@@ -50,12 +50,14 @@ from rdp.scoring.objective_normalize import (
 from rdp.scoring.windowing import START_TAG, END_TAG
 from rdp.telemetry.scoring import stash as _tstash  # canonical helper  ✔
 from rdp.core.types import (
+    Device,
     SeMode,
     AvgWindowPolicy,
     ensure_direction,
     ensure_avg_window_policy,
 )
 from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scorer_context import ScorerContext, require_scorer_context
 from rdp.scoring.word_ngrams import RuneTokenWordNgramJudgeRuntime
 from rdp.core.config.scoring import (
     ScoringConfig,
@@ -243,16 +245,19 @@ class RuneScorerTorch(BaseScorer):
 
     def __init__(
         self,
-        cfg_cipher: CipherConfig,
+        cfg_cipher: CipherConfig | ScorerContext,
         scorer_cfg: ScoringConfig,
         tables: TablesProvider | None = None,
     ) -> None:
-        if not isinstance(cfg_cipher, CipherConfig):
-            raise TypeError("cfg_cipher must be CipherConfig")
+        cfg_cipher = require_scorer_context(cfg_cipher)
         if not isinstance(scorer_cfg, ScoringConfig):
             raise TypeError("scorer_cfg must be ScoringConfig")
         # device
-        device_req = str(cfg_cipher.device or "auto")
+        device_req = (
+            cfg_cipher.device.value
+            if isinstance(cfg_cipher.device, Device)
+            else str(cfg_cipher.device or "auto")
+        )
         dev_name, _xp = select_backend(device_req)
         self.device = torch.device("cuda" if dev_name == "cuda" else "cpu")
 

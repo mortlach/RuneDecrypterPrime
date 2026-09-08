@@ -33,15 +33,17 @@ from rdp.scoring.scorer_report import ScorerReport
 class RunResult:
     """The best candidate and the evidence produced by one run.
 
-    The candidate has explicit index, rune text, and RuneLatin representations.
-    Word-length information carries aligned boundary metadata. RuneLatin uses
-    ``·`` between rune tokens, so it remains distinct from natural English.
+    The candidate has explicit index, rune text, canonical RuneLatin, and
+    reading-direction RuneLatin representations. Word-length information
+    carries aligned boundary metadata. Both Latin forms use ``·`` between rune
+    tokens; only ``plaintext_rune_latin`` preserves canonical token identity.
     """
 
     plaintext_indices: RuneIndices | None
     word_length_information: WordLengthInformation | None
     plaintext_runes: str | None
     plaintext_rune_latin: str | None
+    plaintext_reading_rune_latin: str | None
     key: ConcreteKey | None
     score: float | None
     status: RunStatus
@@ -72,7 +74,11 @@ class RunResult:
                 "word_length_information length must match plaintext_indices length"
             )
         object.__setattr__(self, "word_length_information", wli)
-        for field_name in ("plaintext_runes", "plaintext_rune_latin"):
+        for field_name in (
+            "plaintext_runes",
+            "plaintext_rune_latin",
+            "plaintext_reading_rune_latin",
+        ):
             value = getattr(self, field_name)
             if value is not None and not isinstance(value, str):
                 raise TypeError(f"{field_name} must be a string or None")

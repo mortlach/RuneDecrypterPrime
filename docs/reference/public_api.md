@@ -12,15 +12,19 @@ The V1 surface is intentionally small enough to navigate from that namespace.
 
 ```text
 run
+score
+score_many
 encrypt
 decrypt
 ```
 
-`run` executes a solver request.
+`run` executes a solver request. `score` and `score_many` rank already-formed
+plaintext candidates without requiring a cipher, key space, or solver.
 
 `encrypt` and `decrypt` are the known-key path.
 
-See [RunSpec](run_spec.md), [RunResult](run_result.md) and
+See [RunSpec](run_spec.md), [RunResult](run_result.md),
+[Scoring](../guides/scoring.md), and
 [Known-key encrypt and decrypt](known_key.md).
 
 ## Run and configuration objects

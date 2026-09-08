@@ -21,6 +21,7 @@ def _result(*, telemetry: dict[str, object] | None = None) -> api.RunResult:
         word_length_information=None,
         plaintext_runes='ᚠᚢ',
         plaintext_rune_latin='F·U',
+        plaintext_reading_rune_latin='F·U',
         key=(1, 2, 3, 4, 9),
         score=0.123,
         status=report.status,

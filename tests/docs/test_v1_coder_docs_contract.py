@@ -13,7 +13,7 @@ from rdp.data.runeglish import Runeglish
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCS = REPO_ROOT / 'docs'
 PUBLIC_API_ALLOWLIST = DOCS / 'release_contracts' / 'v1' / 'public_api_allowlist.md'
-PUBLIC_API_SNAPSHOT_SHA256 = '942a4cc533ed75fda238b97f5e74934781f3c0f30a74e25f62da7df5c8beaada'
+PUBLIC_API_SNAPSHOT_SHA256 = '0eaa8939d2e62cd149a4e96c9ba3412d8c0824ccfa0f7a68725e3f0504ad648f'
 
 def _read(path: Path) -> str:
     return path.read_text(encoding='utf-8')
@@ -68,8 +68,8 @@ def test_public_api_allowlist_is_the_exact_five_namespace_contract() -> None:
         for name in namespace.__all__
     }
     paths = {row[0] for row in _allowlist_rows()}
-    assert len(paths) == 142
-    assert len(api.__all__) == 32
+    assert len(paths) == 144
+    assert len(api.__all__) == 34
     assert paths == expected
 
 def test_public_api_allowlist_preserves_the_accepted_crlf_snapshot() -> None:
@@ -79,7 +79,7 @@ def test_public_api_allowlist_preserves_the_accepted_crlf_snapshot() -> None:
     assert hashlib.sha256(canonical).hexdigest() == PUBLIC_API_SNAPSHOT_SHA256
 
 def test_targeted_public_contract_docstrings_exist() -> None:
-    expected_terms = {api.RuneInput: ['indices', 'RuneLatin', 'English', 'word'], api.SourceReferenceInput: ['source kind', 'asset', 'JSON primitive'], api.RunSpec: ['cipher spec', 'solver spec', 'routing'], rdp.api.run_artifact_manifest.RunArtifactManifestRow: ['known V1 run artifact', 'run-relative'], rdp.api.run_artifact_manifest.write_run_artifacts_manifest: ['META.json', 'config/logging.json', 'Returns']}
+    expected_terms = {api.score: ['Score one', 'probability'], api.score_many: ['input order', 'empty'], api.RuneInput: ['indices', 'RuneLatin', 'English', 'word'], api.SourceReferenceInput: ['source kind', 'asset', 'JSON primitive'], api.RunSpec: ['cipher spec', 'solver spec', 'routing'], rdp.api.run_artifact_manifest.RunArtifactManifestRow: ['known V1 run artifact', 'run-relative'], rdp.api.run_artifact_manifest.write_run_artifacts_manifest: ['META.json', 'config/logging.json', 'Returns']}
     for obj, terms in expected_terms.items():
         doc = inspect.getdoc(obj)
         assert doc, getattr(obj, '__name__', repr(obj))
@@ -108,9 +108,10 @@ def test_run_result_representation_names_match_reference() -> None:
         'word_length_information',
         'plaintext_runes',
         'plaintext_rune_latin',
+        'plaintext_reading_rune_latin',
     )
     result_fields = tuple(field.name for field in fields(api.RunResult))
-    assert result_fields[:4] == names
+    assert result_fields[:5] == names
 
     reference = _read(DOCS / 'reference' / 'run_result.md')
     for name in names:
@@ -154,6 +155,7 @@ def test_result_fields_and_rune_input_formats_are_documented_directly() -> None:
         'word_length_information',
         'plaintext_runes',
         'plaintext_rune_latin',
+        'plaintext_reading_rune_latin',
     ):
         assert f'`{name}`' in result_reference
 

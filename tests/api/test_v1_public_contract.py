@@ -31,6 +31,7 @@ from rdp.core.types import (
     TextDirection,
     WordLengthPolicy,
 )
+from rdp.data.runeglish import Runeglish
 
 
 @pytest.mark.parametrize(
@@ -366,11 +367,56 @@ def test_both_run_forms_use_one_execution_path_and_always_return_run_result(monk
     assert from_request.word_length_information is None
     assert from_request.plaintext_runes
     assert from_request.plaintext_rune_latin == "O·TH·U"
+    assert from_request.plaintext_reading_rune_latin == "O·TH·U"
     assert not hasattr(from_request, "plaintext")
     assert not hasattr(from_request, "plaintext_text")
     assert from_request.solver_report.best_key == from_request.key
     assert from_request.configuration.solver.requested["kind"] == "beam_search"
     assert from_request.scorer_report.to_json_dict()["score"] == -1.25
+
+
+def test_run_result_separates_rtl_canonical_and_reading_rune_latin(monkeypatch) -> None:
+    run_module = importlib.import_module("rdp.api.run")
+    indices, wli, _ = Runeglish.encode_english_to_runes(
+        "READ", direction=TextDirection.RTL
+    )
+    plaintexts = [indices, None]
+
+    def fake_execute_run(**kwargs):
+        plaintext = plaintexts.pop(0)
+        return SimpleNamespace(
+            key=(0,),
+            plaintext=plaintext,
+            plaintext_idx=plaintext,
+            wli=wli if plaintext is not None else None,
+            score=-1.25,
+            stop_reason="max_rounds",
+            evals=8,
+            step=2,
+            tokens_processed=24,
+            wall_time_s=0.1,
+            decrypt_time_s=0.02,
+            score_time_s=0.03,
+            meta={},
+        )
+
+    monkeypatch.setattr(run_module, "execute_run", fake_execute_run)
+    request = RunSpec(
+        problem_input=RuneInput("READ"),
+        cipher=CipherSpec.vigenere(),
+        key_space=KeySpec.repeating(length=1),
+        solver=SolverSpec.beam_search(width=2, rounds=1, seed=11),
+        text_direction=TextDirection.RTL,
+    )
+
+    result = run_module.run(request)
+    assert result.plaintext_rune_latin == "R·AE·D"
+    assert result.plaintext_reading_rune_latin == "R·EA·D"
+
+    no_candidate = run_module.run(request)
+    assert no_candidate.plaintext_indices is None
+    assert no_candidate.plaintext_rune_latin is None
+    assert no_candidate.plaintext_reading_rune_latin is None
 
 
 def test_run_writes_only_requested_typed_artifacts(monkeypatch, tmp_path: Path) -> None:

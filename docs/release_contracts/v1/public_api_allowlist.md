@@ -3,14 +3,16 @@
 Status: implemented V1 contract
 
 The definition-owning package is `src/rdp/api/`. Normal consumers use
-`from rdp import api`. The table below is exhaustive: its 142 paths are the
-32 root exports plus the 65 advanced, 22 display, 19 Liber Primus, and four
+`from rdp import api`. The table below is exhaustive: its 144 paths are the
+34 root exports plus the 65 advanced, 22 display, 19 Liber Primus, and four
 experimental exports. Importable implementation helpers not listed here are
 internal.
 
 | Import path | Stability | Notes |
 | --- | --- | --- |
 | `rdp.api.run` | Public V1 surface | Root operation. |
+| `rdp.api.score` | Public V1 surface | Score one plaintext candidate. |
+| `rdp.api.score_many` | Public V1 surface | Score plaintext candidates in input order. |
 | `rdp.api.encrypt` | Public V1 surface | Root operation. |
 | `rdp.api.decrypt` | Public V1 surface | Root operation. |
 | `rdp.api.RunSpec` | Public V1 surface | Root request type. |

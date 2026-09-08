@@ -94,10 +94,12 @@ The underlying objects remain available separately. For detailed programmatic
 work, use `RunResult` directly.
 
 Plaintext entries inside the JSON display retain the public result meanings:
-`plaintext_indices`, `word_length_information`, `plaintext_runes`, and
-`plaintext_rune_latin`. RuneLatin is canonical and uses `·` between rune tokens
-and spaces between words. Generic ciphertext and debug previews use
-`rune_indices`, `rune_text`, and `rune_latin`. A compact undelimited
+`plaintext_indices`, `word_length_information`, `plaintext_runes`,
+`plaintext_rune_latin`, and `plaintext_reading_rune_latin`. Canonical RuneLatin
+uses exact rune labels with `·` between tokens and spaces between words; the
+reading field applies direction-aware presentation. Generic ciphertext and
+debug previews use `rune_indices`, `rune_text`, `rune_latin`, and
+`reading_rune_latin` with the same distinction. A compact undelimited
 transliteration, when one is available from an internal result, is identified
 separately as `plaintext_latin_compact`.
 

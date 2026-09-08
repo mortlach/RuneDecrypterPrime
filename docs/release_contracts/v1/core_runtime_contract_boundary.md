@@ -20,7 +20,8 @@ The core runtime boundary is:
 - `DecryptionProblem.c_cfg`: `CipherConfig`
 - `DecryptionProblem.s_cfg`: `ScoringConfig`
 - `build_cipher(cfg_cipher)`: `CipherConfig`
-- `build_scorer(c_cfg, s_cfg)`: `CipherConfig` plus `ScoringConfig`
+- `build_scorer(c_cfg, s_cfg)`: typed `CipherConfig` or internal
+  `ScorerContext`, plus `ScoringConfig`
 
 Dictionaries, `SimpleNamespace`, loose objects, and config-like bags are rejected at this boundary.
 
@@ -60,7 +61,7 @@ The guardrail tests enforce:
 - no aggregate `from rdp.core.config import ...` imports inside core runtime files;
 - no hidden config getter helpers such as `_cfg_get`, `_config_get`, `_get_cfg`, or `_get_config` in core runtime or the NumPy scorer;
 - no dict-like config acceptance in runtime paths;
-- direct attribute access after `CipherConfig` / `ScoringConfig` type checks;
+- direct attribute access after typed scorer-context / `ScoringConfig` checks;
 - documented construction-boundary and payload exceptions only.
 
 ## Import rule inside core runtime
@@ -89,7 +90,8 @@ accepted public objects through `rdp.api`.
 D3-0 removes hidden config probing from the core runtime path:
 
 - `core/engine/builders.py` no longer has `_cfg_get` and no longer accepts mapping-like cipher/scorer configs.
-- `scoring/rune_scorer.py` no longer has `_cfg_get`; the NumPy scorer now requires `CipherConfig` and `ScoringConfig`.
+- `scoring/rune_scorer.py` no longer has `_cfg_get`; the NumPy scorer requires
+  `CipherConfig` or internal `ScorerContext`, plus `ScoringConfig`.
 - `core/problem/runtime.py` no longer converts a dict `c_cfg` into `CipherConfig` inside `DecryptionProblem`.
 - `core/problem/runtime.py` no longer checks dict scorer config while resolving hard-crib settings.
 - `core/engine/engine.py` no longer treats `ProblemSpec.scorer_params` as either a dict or object.
@@ -121,7 +123,9 @@ They lock the following behaviours:
 - `ProblemSpec` rejects dict `scorer_params`.
 - `DecryptionProblem` rejects dict `c_cfg`.
 - `DecryptionProblem` rejects dict `s_cfg`.
-- `build_scorer` accepts canonical `CipherConfig` and `ScoringConfig` without monkeypatching core runtime.
+- `build_scorer` accepts canonical `CipherConfig` and `ScoringConfig` without
+  monkeypatching core runtime, and accepts the internal `ScorerContext` used by
+  standalone public scoring.
 - `build_scorer` rejects dict `c_cfg`.
 - `build_scorer` rejects dict `s_cfg`.
 - `RuneScorer` rejects dict `scorer_cfg` before any backend or asset load.

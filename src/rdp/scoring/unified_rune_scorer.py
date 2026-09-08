@@ -6,6 +6,7 @@ import numpy as np
 from rdp.data.runeglish import Runeglish
 from rdp.backends.xp import select_backend
 from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scorer_context import ScorerContext, require_scorer_context
 from rdp.core.config.scoring import ScoringConfig, SpanHammingMode, ensure_span_hamming_mode
 from rdp.core.types import Device, Direction
 
@@ -25,12 +26,11 @@ class UnifiedRuneScorer:
       • capability_report() -> ScorerCapabilityReport
 
     V1 boundary:
-      • direct construction requires CipherConfig + ScoringConfig, matching build_scorer()
+      • direct construction requires scorer context + ScoringConfig, matching build_scorer()
     """
 
-    def __init__(self, cfg_cipher: CipherConfig, cfg_scorer_params: ScoringConfig, tables: Any | None = None):
-        if not isinstance(cfg_cipher, CipherConfig):
-            raise TypeError(f"cfg_cipher must be CipherConfig, got {type(cfg_cipher).__name__}")
+    def __init__(self, cfg_cipher: CipherConfig | ScorerContext, cfg_scorer_params: ScoringConfig, tables: Any | None = None):
+        cfg_cipher = require_scorer_context(cfg_cipher)
         if not isinstance(cfg_scorer_params, ScoringConfig):
             raise TypeError(f"cfg_scorer must be ScoringConfig, got {type(cfg_scorer_params).__name__}")
 

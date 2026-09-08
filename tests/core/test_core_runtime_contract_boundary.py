@@ -6,12 +6,14 @@ from pathlib import Path
 import pytest
 import rdp
 from rdp.core.config.cipher import CipherConfig
+from rdp.core.config.scorer_context import ScorerContext
 from rdp.core.config.scoring import ScoringConfig
 from rdp.core.engine.builders import build_scorer
 from rdp.core.problem.runtime import DecryptionProblem
 from rdp.core.problem.spec import ProblemSpec
 from rdp.scoring.rune_scorer import RuneScorer
 from rdp.scoring.unified_rune_scorer import UnifiedRuneScorer
+from rdp.core.types import Device, Direction
 
 def _cipher_config() -> CipherConfig:
     return CipherConfig(ciphertext=[1, 2, 3], wli_data=[], key_length=3, name='vigenere')
@@ -56,6 +58,20 @@ def test_build_scorer_accepts_canonical_configs(tmp_path: Path) -> None:
     s_cfg = _scoring_config(_minimal_lm_root(tmp_path))
     scorer = build_scorer(c_cfg, s_cfg)
     assert isinstance(scorer, RuneScorer)
+
+
+def test_build_scorer_accepts_standalone_context_without_changing_cipher_route(
+    tmp_path: Path,
+) -> None:
+    s_cfg = _scoring_config(_minimal_lm_root(tmp_path))
+    standalone = build_scorer(
+        ScorerContext(encoding_dir=Direction.LTR, device=Device.CPU),
+        s_cfg,
+    )
+    cipher_backed = build_scorer(_cipher_config(), s_cfg)
+    assert isinstance(standalone, RuneScorer)
+    assert isinstance(cipher_backed, RuneScorer)
+    assert standalone.direction is cipher_backed.direction is Direction.LTR
 
 def test_build_scorer_rejects_dict_c_cfg() -> None:
     with pytest.raises(TypeError, match='cfg_cipher must be CipherConfig'):

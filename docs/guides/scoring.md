@@ -20,6 +20,36 @@ Direction, n-gram order and objective determine how that evidence is used.
 For the internal path, see
 [Scoring and language models](../architecture/scoring_and_language_models.md).
 
+## Score plaintext candidates directly
+
+Use the same scoring machinery without constructing a cipher or solver:
+
+```python
+candidate = api.RuneInput(
+    value=plaintext_indices,
+    word_length_information=wli,
+)
+value = api.score(candidate)
+```
+
+For a comparison experiment, `score_many` returns one value per candidate in
+the original order. Candidates may have different lengths and word boundaries:
+
+```python
+values = api.score_many(
+    (first_candidate, second_candidate),
+    scoring=api.ScoringConfig(),
+    text_direction=api.TextDirection.LTR,
+)
+```
+
+English, rune glyph, RuneLatin, and index `RuneInput` values use the same input
+normalisation as a run. Index input must include
+`word_length_information` when the configuration gives the WLI lane effective
+weight; character-only scoring can explicitly disable that lane. A score ranks
+candidates under one scoring configuration—it is not proof that a candidate
+is correct.
+
 ## Character lane
 
 The character lane scores rune sequences. It is enabled by default:

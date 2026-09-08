@@ -32,6 +32,7 @@ def _result() -> api.RunResult:
         word_length_information=None,
         plaintext_runes="ᚢᚦ",
         plaintext_rune_latin="U·TH",
+        plaintext_reading_rune_latin="U·TH",
         key=tuple(_solution().key),
         score=float(_solution().score),
         status=report.status,

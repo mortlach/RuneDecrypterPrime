@@ -9,6 +9,7 @@ plaintext_indices
 word_length_information
 plaintext_runes
 plaintext_rune_latin
+plaintext_reading_rune_latin
 key
 score
 status
@@ -18,13 +19,12 @@ status
 
 `plaintext_indices` contains rune indices. `word_length_information` is aligned
 metadata recording the word boundaries when they are known. `plaintext_runes`
-renders those indices as rune text, while `plaintext_rune_latin` renders the
-same runes as RuneLatin with `·` between rune tokens. For example, the
-direction-specific encoding of “THE” can be `TH·E` in LTR or `T·H·E` in RTL.
-Both are correct RuneLatin for the rune sequence actually produced.
-For RTL multichar runes, presentation applies the inverse reading transform
-inside each token: “READ” is `R·EA·D`, preserving three rune tokens while still
-reading as the original word.
+renders those indices as rune text. `plaintext_rune_latin` is the canonical
+identity view: it uses the exact RuneLatin label for each rune and joins tokens
+with `·`. `plaintext_reading_rune_latin` is the direction-aware reading view.
+For RTL “READ”, the same three runes are canonical `R·AE·D` and reading-order
+`R·EA·D`. The reading view is for presentation; parse the canonical view when
+exact rune identity must round-trip.
 
 These are representations of the same candidate. They are not an English
 translation. `key` is the best key returned by the solver.
