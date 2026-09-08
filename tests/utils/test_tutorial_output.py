@@ -13,7 +13,7 @@ def test_tutorial_debug_preview_prints_unambiguous_text_views() -> None:
     assert 'rune_latin:' in text
     assert 'rune_indices:' in text
     assert 'rune_text:' in text
-    assert 'R·AE·D' in text
+    assert 'R·EA·D' in text
     assert 'T·H·E' in text
     rune_line = next((line for line in lines if line.startswith('rune_text:')))
     assert '|' not in rune_line
@@ -33,7 +33,7 @@ def test_tutorial_debug_preview_block_uses_standard_printer_style() -> None:
     assert 'rune_latin' in text
     assert 'rune_indices' in text
     assert 'rune_text' in text
-    assert 'R·AE·D' in text
+    assert 'R·EA·D' in text
     assert 'T·H·E' in text
     rune_line = next((line for line in text.splitlines() if line.startswith('rune_text')))
     assert '|' not in rune_line

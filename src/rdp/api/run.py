@@ -647,7 +647,9 @@ def _result_from_solution(
     plaintext_rune_latin = None
     if plaintext is not None:
         plaintext_runes = Runeglish.to_rune(plaintext, wli)
-        plaintext_rune_latin = Runeglish.to_delimited_rune_latin(plaintext, wli)
+        plaintext_rune_latin = Runeglish.to_delimited_rune_latin(
+            plaintext, wli, direction=request.text_direction
+        )
     return RunResult(
         plaintext_indices=plaintext,
         word_length_information=wli,

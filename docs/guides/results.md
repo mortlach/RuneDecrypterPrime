@@ -22,6 +22,9 @@ renders those indices as rune text, while `plaintext_rune_latin` renders the
 same runes as RuneLatin with `·` between rune tokens. For example, the
 direction-specific encoding of “THE” can be `TH·E` in LTR or `T·H·E` in RTL.
 Both are correct RuneLatin for the rune sequence actually produced.
+For RTL multichar runes, presentation applies the inverse reading transform
+inside each token: “READ” is `R·EA·D`, preserving three rune tokens while still
+reading as the original word.
 
 These are representations of the same candidate. They are not an English
 translation. `key` is the best key returned by the solver.

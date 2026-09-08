@@ -54,6 +54,31 @@ def test_delimited_rune_latin_preserves_rune_and_word_boundaries():
     )
 
 
+def test_delimited_rtl_rune_latin_inverts_multigraphs_without_losing_boundaries():
+    indices, wli, _ = Runeglish.encode_english_to_runes(
+        "READ AETHER", direction="rtl"
+    )
+    assert Runeglish.to_delimited_rune_latin(
+        indices, wli, direction=api.TextDirection.RTL
+    ) == "R·EA·D AE·T·H·E·R"
+
+
+def test_delimited_rtl_rune_latin_covers_every_rune_position_in_one_sequence():
+    indices = list(range(29))
+    wli = [[position, len(indices)] for position in indices]
+    expected = (
+        "F·U·HT·O·R·C·G·W·H·N·I·J·OE·P·X·S·T·B·E·M·L·GNI·EO·D·A·EA·Y·OI·AE"
+    )
+
+    assert Runeglish.size() == 29
+    assert Runeglish.to_delimited_rune_latin(
+        indices, wli, direction=api.TextDirection.RTL
+    ) == expected
+    assert Runeglish.to_rune_latin(
+        indices, wli, direction=api.TextDirection.RTL
+    ) == expected.replace("·", "")
+
+
 def test_public_text_direction_is_normalised_to_engine_direction():
     text = 'READ EARTH AETHER'
     public_ltr = Runeglish.encode_english_to_runes(

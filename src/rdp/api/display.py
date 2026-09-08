@@ -212,6 +212,11 @@ def build_summary(
     scoring = _scoring_summary(spec, options=options)
     result = _result_summary(
         solution,
+        direction=(
+            spec.text_direction
+            if spec is not None
+            else getattr(solution, "direction", "ltr")
+        ),
         reference_plaintext=reference_plaintext,
         reference_idx=reference_idx,
         options=options,
@@ -485,6 +490,7 @@ def _scoring_summary(spec: RunSpec | None, *, options: SummaryOptions) -> dict[s
 def _result_summary(
     solution: object | None,
     *,
+    direction: object,
     reference_plaintext: str | None,
     reference_idx: Sequence[int] | None,
     options: SummaryOptions,
@@ -515,7 +521,9 @@ def _result_summary(
             indices = getattr(solution, "plaintext_idx", None)
             word_length_information = getattr(solution, "wli", None)
             rune_latin = (
-                Runeglish.to_delimited_rune_latin(indices, word_length_information)
+                Runeglish.to_delimited_rune_latin(
+                    indices, word_length_information, direction=direction
+                )
                 if _as_sequence(indices) is not None
                 else ""
             )
@@ -543,7 +551,9 @@ def _result_summary(
         ciphertext_indices = getattr(solution, "ciphertext_idx", None)
         ciphertext_wli = getattr(solution, "wli", None)
         ciphertext_rune_latin = (
-            Runeglish.to_delimited_rune_latin(ciphertext_indices, ciphertext_wli)
+            Runeglish.to_delimited_rune_latin(
+                ciphertext_indices, ciphertext_wli, direction=direction
+            )
             if _as_sequence(ciphertext_indices) is not None
             else ""
         )

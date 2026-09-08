@@ -51,7 +51,7 @@ def tutorial_debug_preview_block(
         f"Debug preview: {label}",
         [
             ("encoding_dir", direction_value.value),
-            ("rune_latin", f"{_token_text(clipped, wli)}{suffix}"),
+            ("rune_latin", f"{_token_text(clipped, wli, direction_value)}{suffix}"),
             ("rune_indices", f"{clipped}{suffix}"),
             ("rune_text", f"{_rune_text(clipped, wli)}{suffix}"),
         ],
@@ -79,22 +79,22 @@ def tutorial_debug_preview_lines(
         f"Debug preview: {label}",
         "----------------------",
         f"encoding_dir: {direction_value.value}",
-        f"rune_latin: {_token_text(clipped, wli)}{suffix}",
+        f"rune_latin: {_token_text(clipped, wli, direction_value)}{suffix}",
         f"rune_indices: {clipped}{suffix}",
         f"rune_text: {_rune_text(clipped, wli)}{suffix}",
     ]
 
 
-def _token_text(idx: Sequence[int], wli: Sequence[Sequence[int]] | None) -> str:
-    return _join_words([[str(Runeglish.pos_to_latin(int(value))) for value in word] for word in _word_groups(idx, wli)])
+def _token_text(
+    idx: Sequence[int],
+    wli: Sequence[Sequence[int]] | None,
+    direction: Direction,
+) -> str:
+    return Runeglish.to_delimited_rune_latin(idx, wli, direction=direction)
 
 
 def _rune_text(idx: Sequence[int], wli: Sequence[Sequence[int]] | None) -> str:
     return " ".join("".join(str(Runeglish.pos_to_rune(int(value))) for value in word) for word in _word_groups(idx, wli))
-
-
-def _join_words(words: Sequence[Sequence[str]]) -> str:
-    return " ".join("·".join(token for token in word) for word in words)
 
 
 def _word_groups(idx: Sequence[int], wli: Sequence[Sequence[int]] | None) -> list[list[int]]:

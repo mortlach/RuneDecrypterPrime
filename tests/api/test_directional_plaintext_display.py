@@ -15,8 +15,11 @@ def test_ensure_plaintext_rune_uses_encoding_direction_for_latin_display() -> No
     assert 'RAED' not in solution.plaintext_latin
     assert solution.direction is Direction.RTL
 
-def test_solve_output_render_plaintext_accepts_direction() -> None:
-    pt_idx, wli, _rune_str = Runeglish.encode_english_to_runes('READ', direction='rtl')
+def test_solve_output_render_plaintext_preserves_rtl_multigraph_boundaries() -> None:
+    pt_idx, wli, rune_text = Runeglish.encode_english_to_runes(
+        'READ THE AETHER', direction='rtl'
+    )
     latin, runes = render_plaintext(pt_idx, wli, direction=Direction.RTL)
-    assert latin == 'READ'
-    assert runes == 'ᚱᚫᛞ'
+    assert latin == 'R·EA·D T·H·E AE·T·H·E·R'
+    assert Runeglish.to_rune_latin(pt_idx, wli, direction=Direction.RTL) == 'READ THE AETHER'
+    assert runes == rune_text

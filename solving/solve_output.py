@@ -49,7 +49,10 @@ def render_plaintext(
     if not plaintext_idx:
         return "", ""
     idx = [int(value) for value in plaintext_idx]
-    return Runeglish.to_delimited_rune_latin(idx, wli), Runeglish.to_rune(idx, wli)
+    return (
+        Runeglish.to_delimited_rune_latin(idx, wli, direction=direction),
+        Runeglish.to_rune(idx, wli),
+    )
 
 
 def page_value(metadata: Mapping[str, object], canonical: str, legacy: str | None = None) -> object:

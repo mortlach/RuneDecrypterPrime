@@ -153,11 +153,10 @@ class Runeglish:
         This form does not preserve token boundaries. Use
         :meth:`to_delimited_rune_latin` for canonical RuneLatin output.
         """
-        dir_value = getattr(direction, "value", direction)
-        dir_text = str(dir_value).strip().lower()
+        is_rtl = ensure_direction(direction) is Direction.RTL
 
         def _display_word(tokens: list[str]) -> str:
-            if dir_text != "rtl" or wli is None:
+            if not is_rtl or wli is None:
                 return ''.join(tokens)
             # Inverse of encode_english_to_runes(..., direction="rtl"):
             # encoded tokens are in display order, but multigraph boundaries were
@@ -181,17 +180,28 @@ class Runeglish:
         pt: Sequence[int],
         wli: Sequence[Sequence[int]] | None,
         limit: int | None = None,
+        *,
+        direction: str | object = "ltr",
     ) -> str:
-        """Render RuneLatin with ``·`` between runes and spaces between words.
+        """Render readable RuneLatin with rune and word boundaries preserved.
 
-        Unlike ordinary Latin-like text, this form preserves rune-token
-        boundaries. For example, the TH rune followed by E is ``TH·E`` while
-        separate T, H and E runes are ``T·H·E``.
+        RTL encoding reverses a word before choosing multichar rune tokens and
+        reverses the resulting token sequence again. Rendering therefore must
+        invert each token's letters once more: encoded ``R | AE | D`` becomes
+        readable ``R·EA·D``. The middle dots preserve the three rune boundaries.
         """
+        is_rtl = ensure_direction(direction) is Direction.RTL
+
+        def _display_token(symbol: int) -> str:
+            token = Runeglish.pos_to_latin(symbol)
+            if not is_rtl:
+                return token
+            return token.replace("(I)NG", "ING")[::-1]
+
         words: list[str] = []
         current: list[str] = []
         for index, symbol in enumerate(pt):
-            current.append(Runeglish.pos_to_latin(symbol))
+            current.append(_display_token(symbol))
             if wli is not None and wli[index][0] == wli[index][1] - 1:
                 words.append("·".join(current))
                 current = []

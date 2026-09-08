@@ -442,7 +442,9 @@ It contains the best candidate plus reports and reproducibility information.
 `plaintext_indices`, `plaintext_runes` and `plaintext_rune_latin` are three
 views of the same candidate. RuneLatin uses `·` between rune tokens, so the LTR
 encoding `TH·E` and RTL encoding `T·H·E` remain visibly different. Both are
-valid for the direction-specific rune sequence. `word_length_information`
+valid for the direction-specific rune sequence. An RTL multichar token is
+presented in reading direction, so “READ” becomes `R·EA·D`: the `EA` remains
+one rune token. `word_length_information`
 carries the known word boundaries. None of these fields is an English
 translation.
 
