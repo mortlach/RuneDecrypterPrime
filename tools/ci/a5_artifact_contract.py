@@ -157,6 +157,11 @@ def main() -> int:
             raise AssertionError(f'native sources missing from sdist: {missing_native_sources}')
         expected_sdist_assets = {'assets/' + rel for rel in ci_paths}
         expected_sdist_assets.add('assets/' + INDEX_REL)
+        expected_sdist_assets.update({
+            'assets/manifests/asset_profiles_v1.json',
+            'assets/manifests/assets_manifest_ci_light_v1.json',
+            'assets/manifests/assets_manifest_v1.json',
+        })
         missing = sorted(expected_sdist_assets - rel_names)
         if missing:
             raise AssertionError(f'CI-light sdist assets missing: {missing[:20]}')

@@ -49,6 +49,15 @@ def test_manifest_does_not_glob_local_asset_tree_and_mirrors_code_boundary():
     for path in ('tests', 'tutorials', 'cipher_development', 'solving', 'tools'):
         assert f'prune {path}' in manifest
 
+def test_a5_artifact_contract_allows_only_the_moved_control_manifests():
+    contract = (ROOT / 'tools' / 'ci' / 'a5_artifact_contract.py').read_text(encoding='utf-8')
+    for relpath in (
+        'assets/manifests/asset_profiles_v1.json',
+        'assets/manifests/assets_manifest_ci_light_v1.json',
+        'assets/manifests/assets_manifest_v1.json',
+    ):
+        assert repr(relpath) in contract
+
 def test_support_claims_are_limited_to_qualified_gate():
     data = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
     classifiers = set(data['project']['classifiers'])

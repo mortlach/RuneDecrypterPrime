@@ -63,7 +63,7 @@ def _assert_v1_public_contract() -> None:
         )
         for name in namespace.__all__
     }
-    if len(paths) != 142 or paths != expected:
+    if len(paths) != 144 or paths != expected:
         raise AssertionError(
             f"installed public surface mismatch: documented={len(paths)} exported={len(expected)}"
         )
@@ -156,7 +156,7 @@ def main() -> int:
         _assert_v1_public_contract()
         _assert_v1_operations()
         print(f"[a5-wheel-smoke] PASS assets={len(rows)}")
-        print("[a5-wheel-smoke] PASS public_paths=142 operations=run/encrypt/decrypt")
+        print("[a5-wheel-smoke] PASS public_paths=144 operations=run/encrypt/decrypt")
         for name, path in loaded:
             print(f'[a5-wheel-smoke] {name} -> {path}')
         print(f'[a5-wheel-smoke] package_asset_root -> {asset_root}')

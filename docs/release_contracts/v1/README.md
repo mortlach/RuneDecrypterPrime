@@ -83,7 +83,7 @@ copied into this repository or made another documentation authority tree.
 
 ## Public API snapshot
 
-[`public_api_allowlist.md`](public_api_allowlist.md) contains the current 142-path
+[`public_api_allowlist.md`](public_api_allowlist.md) contains the current 144-path
 contract, including `RuneInput`, `RuneInputFormat`, and
 `api.liber_primus.source`. The root namespace still has 32 exports. The accepted
 historical 141-path baseline remains recorded in the closure evidence above.
