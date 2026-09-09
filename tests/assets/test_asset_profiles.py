@@ -6,9 +6,9 @@ import pytest
 from tools.assets.asset_profiles import AssetProfileError, load_asset_profiles, select_asset_profile
 from tools.assets.release_asset_installer import load_manifest
 ROOT = Path(__file__).resolve().parents[2]
-PROFILE_MANIFEST = ROOT / 'asset_profiles_v1.json'
-RELEASE_MANIFEST = ROOT / 'assets_manifest_v1.json'
-CI_MANIFEST = ROOT / 'assets_manifest_ci_light_v1.json'
+PROFILE_MANIFEST = ROOT / 'assets' / 'manifests' / 'asset_profiles_v1.json'
+RELEASE_MANIFEST = ROOT / 'assets' / 'manifests' / 'assets_manifest_v1.json'
+CI_MANIFEST = ROOT / 'assets' / 'manifests' / 'assets_manifest_ci_light_v1.json'
 pytestmark = pytest.mark.tier_a
 
 def test_canonical_asset_profiles_are_exact_and_default_to_full_v1() -> None:
@@ -26,8 +26,8 @@ def test_profile_asset_sets_exist_and_full_v1_uses_github_release_assets() -> No
     _default, profiles = load_asset_profiles(PROFILE_MANIFEST)
     release = load_manifest(RELEASE_MANIFEST)
     ci = load_manifest(CI_MANIFEST)
-    assert profiles['ci_light'].verification_manifest == CI_MANIFEST.name
-    assert profiles['full_v1'].verification_manifest == RELEASE_MANIFEST.name
+    assert profiles['ci_light'].verification_manifest == CI_MANIFEST.relative_to(ROOT).as_posix()
+    assert profiles['full_v1'].verification_manifest == RELEASE_MANIFEST.relative_to(ROOT).as_posix()
     assert profiles['ci_light'].release_asset_set in ci['release_asset_sets']
     assert profiles['full_v1'].release_asset_set in release['release_asset_sets']
     assert ci['release_asset_sets']['v1_lm_ci_light']['bundled_with_source'] is True

@@ -31,8 +31,10 @@ edition LP37's removed separator joins rune lengths 2 and 3 into 5; all page
 ciphertexts and all nine solved-source ciphertext/WLI pairs are unchanged.
 
 After editing, synchronise the companion part and update the single
-`liber_primus.main_transcript` rows in `assets_manifest_v1.json` and
-`assets_manifest_ci_light_v1.json` (size, SHA-256 and asset_version), plus the
+`liber_primus.main_transcript` rows in
+`assets/manifests/assets_manifest_v1.json` and
+`assets/manifests/assets_manifest_ci_light_v1.json` (size, SHA-256 and
+asset_version), plus the
 identity assertions in the LP tests. The wheel and sdist include the active v2
 transcript through the CI-light allowlist; historical transcripts stay outside
 that package. Git attributes
