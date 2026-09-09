@@ -99,6 +99,29 @@ def test_summary_reports_no_time_limit(tmp_path):
     assert summary['time_limits'] is None
 
 
+def test_summary_save_retries_a_transient_windows_sharing_violation(tmp_path, monkeypatch):
+    destination = tmp_path / 'summary.json'
+    destination.write_text('{}\n')
+    original_replace = runner.Path.replace
+    calls = 0
+
+    def transient_replace(path, target):
+        nonlocal calls
+        calls += 1
+        if calls < 3:
+            raise PermissionError('transient sharing violation')
+        return original_replace(path, target)
+
+    delays = []
+    monkeypatch.setattr(runner.Path, 'replace', transient_replace)
+    monkeypatch.setattr(runner.time, 'sleep', delays.append)
+    runner._save(destination, {'status': 'running'})
+
+    assert calls == 3
+    assert delays == [runner.SUMMARY_REPLACE_RETRY_SECONDS] * 2
+    assert json.loads(destination.read_text()) == {'status': 'running'}
+
+
 def test_dry_run_does_not_execute(tmp_path):
     code, directory, summary = _run(tmp_path, [_job('never', 'raise RuntimeError()')], dry_run=True)
     assert code == 0 and summary['status'] == 'planned'

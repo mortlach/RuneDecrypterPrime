@@ -26,6 +26,8 @@ SHOW_JOB_OUTPUT = True
 DRY_RUN = False
 STOP_ON_FAILURE = False
 HEARTBEAT_SECONDS = 10
+SUMMARY_REPLACE_ATTEMPTS = 20
+SUMMARY_REPLACE_RETRY_SECONDS = 0.1
 
 # Explicit admission prevents a new campaign from silently entering the suite.
 EXAMPLES = (
@@ -129,7 +131,15 @@ def build_jobs(run_set: str, root: Path = ROOT) -> list[Job]:
 def _save(path: Path, value: dict) -> None:
     temporary = path.with_suffix('.tmp')
     temporary.write_text(json.dumps(value, indent=2) + '\n', encoding='utf-8')
-    temporary.replace(path)
+    # Windows scanners and readers can briefly deny replacement of an existing file.
+    for attempt in range(SUMMARY_REPLACE_ATTEMPTS):
+        try:
+            temporary.replace(path)
+            return
+        except PermissionError:
+            if attempt + 1 == SUMMARY_REPLACE_ATTEMPTS:
+                raise
+            time.sleep(SUMMARY_REPLACE_RETRY_SECONDS)
 
 
 def _stop_process_tree(process: subprocess.Popen) -> None:
