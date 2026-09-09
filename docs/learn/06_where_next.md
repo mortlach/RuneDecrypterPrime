@@ -5,6 +5,19 @@ name in the fuller documentation is unfamiliar.
 
 If the small examples are enough for what you want to try, keep using them.
 
+## Work with Liber Primus
+
+If you want to move into genuine solved Liber Primus material:
+
+- [Getting started with Liber Primus](../../solving/getting_started/README.md)
+  is the shortest load, prepare and run bridge.
+- [Start solving Liber Primus](../../solving/lp_getting_started/README.md)
+  works through real examples while keeping the cryptanalytic choices visible.
+- [Solved LP workbook](../../solving/solved_lp/README.md) contains the detailed
+  replay, recovery and diagnostic evidence once you need it.
+
+## Use more of RDP
+
 When you need more control:
 
 - [Defining a run](../guides/anatomy_of_a_run.md) explains every part of `RunSpec`

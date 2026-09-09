@@ -7,6 +7,11 @@ with a solver search, then explore number-sequence streams on An End.
 These are small solving tutorials, not proof workbooks. They keep the choices
 visible and print ordinary results rather than producing evidence files.
 
+If you are new to the RDP API itself, start with
+[Learn RDP by solving](../../docs/learn/README.md). If you only want the shortest
+bridge from a named LP source to a complete run, use
+[Getting started with Liber Primus](../getting_started/README.md).
+
 Run them from the repository root:
 
 ```text
@@ -25,7 +30,7 @@ The search budgets bound the work, not elapsed time.
 ## 1. Look at the source
 
 [`01_load_welcome_pilgrim.py`](01_load_welcome_pilgrim.py) loads the named source
-and inspects its numeric payload. Welcome Pilgrim has 515 runes. Each rune also
+and inspects its numeric source data. Welcome Pilgrim has 515 runes. Each rune also
 has a WLI pair: its position within its word and the length of that word.
 
 The source reference is the object passed to `RunSpec`. Loaded source data gives

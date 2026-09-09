@@ -7,6 +7,7 @@ SRC = ROOT / 'src'
 for path in (ROOT, SRC):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
+from rdp import api
 import rdp.data.liber_primus as lp
 from solving.solve_output import configure_utf8_stdio, page_value, print_final_result, render_plaintext
 configure_utf8_stdio()
@@ -14,11 +15,11 @@ SOURCE_LABEL = 'loss_of_divinity'
 RECIPE_LABEL = 'recipe.loss_of_divinity.constant_shift_zero_replay'
 
 def main() -> int:
-    payload = lp.payload_from_label(SOURCE_LABEL)
+    source_data = api.liber_primus.load_source(SOURCE_LABEL)
     recipe = lp.resolve_solve_recipe_label(RECIPE_LABEL)
-    ct_idx = list(payload.ct_idx)
-    wli = [list(pair) for pair in payload.wli]
-    metadata = payload.metadata
+    ct_idx = list(source_data.ct_idx)
+    wli = [list(pair) for pair in source_data.wli]
+    metadata = source_data.metadata
     plaintext_idx = list(ct_idx)
     match = 1.0 if plaintext_idx == ct_idx else 0.0
     status = 'solved' if match >= 1.0 else 'diagnostic_not_yet_solved'

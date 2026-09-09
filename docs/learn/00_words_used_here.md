@@ -52,8 +52,36 @@ TH·E L·O·S·S
 ```
 
 RuneLatin is a rune representation, not an English translation. The exact
-tokens depend on text direction; for example, “THE” can encode as `TH·E` in
-LTR or `T·H·E` in RTL.
+rune tokens depend on the encoded indices.
+
+## Reading-direction RuneLatin
+
+A presentation view that keeps rune boundaries visible while making RTL text
+read naturally to a person.
+
+For RTL `READ`, the canonical rune identities are:
+
+```text
+R·AE·D
+```
+
+while the reading-direction form is:
+
+```text
+R·EA·D
+```
+
+The middle dot still marks one rune boundary. Use canonical RuneLatin when exact
+rune identity must round-trip; use the reading form for display.
+
+## Text direction
+
+The direction used when English is encoded into runes and when direction-aware
+text is presented.
+
+`LTR` means **left to right**. `RTL` means **right to left**. RDP defaults to
+`LTR`. `TextDirection` is the public enum used to select them. Text direction is
+part of the run or standalone scoring request; it is not a different cipher.
 
 ## Runeglish
 
@@ -80,6 +108,9 @@ is a sequence of rune indices.
 
 Those numbers are not another cipher. They are simply the rune symbols written
 in a form convenient for arithmetic.
+
+`RuneIndices` is the public type name for an ordered sequence of rune-index
+values.
 
 ## Rune prime
 
@@ -174,6 +205,36 @@ It tells RDP what a valid key looks like.
 
 The key model also determines the legal operations the solver can use when it
 changes candidate keys.
+
+## Concrete key / `ConcreteKey`
+
+The actual key values used to encrypt, decrypt or evaluate one candidate.
+
+For example, `(3, 1, 4)` is a concrete key. `KeySpec.repeating(length=3)` is not:
+it describes the keys that may be searched without choosing their values.
+
+## KeyOps
+
+The runtime operations that define legal changes to a particular key model.
+Solvers use KeyOps to mutate, expand or combine candidate keys without having to
+know the details of every key shape.
+
+Most users choose a `KeySpec`; they do not construct KeyOps directly.
+
+## Initial key / `InitialKeys`
+
+A concrete key supplied as a starting point for a search. It can guide where the
+solver begins without changing which keys the key space allows. `InitialKeys` is
+the public type used when one or more starting keys are supplied.
+
+## Repeating key
+
+A key whose values repeat across the text, such as `(3, 1, 4, 3, 1, 4, ...)`.
+
+## Structured key
+
+A key with meaningful parts rather than one undifferentiated sequence. The
+cipher and key model define what those parts mean.
 
 ## Solver
 
@@ -278,11 +339,38 @@ It controls the solver's random stream.
 
 The amount of work allowed for a search.
 
-Width, rounds, generations, iterations and similar settings can all contribute
-to the search budget.
+Width, rounds, generations, iterations, steps and similar settings can all
+contribute to the search budget.
 
 More budget can explore more candidates, but it does not make a wrong cipher
 hypothesis become correct.
+
+## Generation
+
+One update of a population-based solver such as a genetic algorithm.
+
+## Iteration
+
+One repeated update in a solver whose budget is expressed in iterations. Its
+exact work depends on that solver.
+
+## Step
+
+One unit in a solver that exposes a `steps` budget. A step is solver-specific; it
+is not a universal RDP measure of work.
+
+## Start
+
+One starting point for a search. Some methods can try several starts or
+restarts. These terms describe search behaviour, not separate runs unless the
+solver says otherwise.
+
+## Work unit
+
+A generic phrase for solver effort, not a single V1 field. Beam rounds, genetic
+algorithm generations, simulated-annealing iterations and other solver budgets
+are intentionally reported in their own terms rather than converted into one
+misleading universal number.
 
 ## Candidate
 
@@ -314,6 +402,57 @@ The part of RDP that assigns scores to candidate plaintexts.
 The solver chooses what to try next.
 
 The scorer judges the candidate produced by that choice.
+
+## `ScoringConfig`
+
+The public configuration object that selects scoring lanes, language-model
+orders, objective, backend and specialist scoring options. It describes scoring
+behaviour; it does not itself score a candidate.
+
+## `api.score(...)` and `api.score_many(...)`
+
+Public operations for scoring plaintext candidates directly, without building a
+cipher, key space or solver.
+
+`score(...)` returns one value. `score_many(...)` returns one value per candidate
+in the same order. They use the same `RuneInput`, scoring, direction and compute
+device contracts as normal runs.
+
+## Objective
+
+The rule that selects the scalar value the scorer optimises or returns. For
+example, RDP can use a percentile of language-model log probability.
+
+## Metric
+
+A general measured quantity used to compare or describe results. In RDP, a
+metric is not automatically the solver's selected score.
+
+## Statistic
+
+A particular summary calculated from scoring evidence, such as log probability,
+a z-score sum or a median-absolute-deviation sum.
+
+## Character lane
+
+The scoring lane that uses neighbouring rune identities without requiring word
+boundaries.
+
+## WLI lane
+
+The scoring lane that uses word-length information. It requires meaningful WLI
+when it has effective scoring weight.
+
+## Raw score
+
+A score before a later calibration or conversion, such as conversion to a
+percentile. Raw scores may have a scale that is useful only within the scorer
+that produced them.
+
+## Percentile
+
+A calibrated position within a reference score distribution. A percentile is a
+ranking statistic, not a probability that the plaintext is correct.
 
 ## Language model
 
@@ -356,6 +495,12 @@ For a five-rune word, the entries could look like:
 
 You do not need to construct WLI by hand in the beginner examples.
 
+## `WordLengthPolicy`
+
+The run setting that controls how missing word-length information is handled.
+The V1 default is `INFER` where the input representation provides enough
+information to infer word boundaries.
+
 ## Source
 
 A named piece of input text.
@@ -375,6 +520,32 @@ welcome_pilgrim
 
 identifies the Welcome Pilgrim source.
 
+## Source reference / `SourceReferenceInput`
+
+A typed description of named source data. It records the source kind, asset ID,
+asset version and resolver-owned reference information without embedding a local
+file path.
+
+`api.liber_primus.source("welcome_pilgrim")` creates one for a run.
+
+## Source resolver
+
+The code that turns a `SourceReferenceInput` into the actual rune indices and
+word-length information at run time. The resolver also checks the recorded
+source identity and version.
+
+## `load_source(...)`
+
+A direct LP data-inspection operation. `api.liber_primus.load_source(label)`
+returns the loaded `SourceData`; `api.liber_primus.source(label)` returns a
+reference for a run instead.
+
+## `SourceData`
+
+The loaded Liber Primus data returned by `load_source(...)` and related direct
+inspection helpers. It contains numeric ciphertext indices, WLI and source
+metadata; it is data, not a `RunSpec.problem_input` reference.
+
 ## `payload`
 
 An internal term for data passed between parts of the program. It also appears
@@ -391,16 +562,29 @@ reference for a run instead of loading the data immediately.
 
 ## `RuneInput`
 
-A typed run input containing rune indices, rune glyphs, RuneLatin, or English.
-It records the inferred or explicitly selected format. Index input can include
-WLI; text input derives word boundaries from spaces.
+A typed rune input containing rune indices, rune glyphs, RuneLatin, or English.
+It is used by runs and by standalone scoring. Index input can include WLI; text
+input derives word boundaries from spaces.
 
 It is precise, but most beginners should not need to construct one when using a
 named Liber Primus source.
 
-## Problem input
+## `RuneInputFormat`
 
-The ciphertext and associated information supplied to a run.
+The explicit representation attached to a `RuneInput` when inference is not
+wanted or would be ambiguous:
+
+```text
+INDICES
+RUNES
+RUNE_LATIN
+ENGLISH
+```
+
+## Problem input / `ProblemInput`
+
+The ciphertext and associated information supplied to a run. `ProblemInput` is
+the public type alias covering the accepted input objects.
 
 It can be a `RuneInput` or a named source reference.
 
@@ -420,6 +604,11 @@ scoring
 
 and other optional settings.
 
+## Text permutation
+
+An optional reordering of input positions applied as part of a run request. It
+is explicit experiment configuration, not an automatic text-direction change.
+
 ## Run
 
 One complete cryptanalytic experiment.
@@ -431,11 +620,23 @@ returns the best result found plus evidence about how the search behaved.
 
 The ordinary function that executes a `RunSpec`.
 
-## Result
+## Result / `RunResult`
 
 The object returned by a completed run.
 
 It contains the best candidate plus reports and reproducibility information.
+
+## `SolverReport`
+
+Structured evidence about the search itself: the best key, stopping information,
+search accounting and other solver-owned observations.
+
+## `ScorerReport`
+
+Structured evidence about scoring: the selected objective, effective scorer
+configuration and scoring capability information. It is different from
+`RunResult.score`, which is the convenient scalar value for the selected
+candidate.
 
 ## Plaintext representations
 
@@ -455,12 +656,23 @@ The candidate key that produced the best returned plaintext.
 
 The score assigned to the best returned candidate.
 
+## Status / `RunStatus`
+
+The structured outcome of a run. `RunStatus` separates whether execution
+completed from why the search stopped and, where applicable, whether recovery
+was established.
+
 ## Stop reason
 
 The recorded reason the search ended.
 
 Examples include reaching a budget, hitting a target, or stopping after a
 plateau.
+
+## Stop category
+
+A broader grouping of stop reasons, such as a budget or target condition. Use
+the exact stop reason when the detailed cause matters.
 
 ## Evaluation count
 
@@ -481,16 +693,50 @@ A position in the ciphertext that is treated specially rather than being
 processed by the ordinary repeating cipher stream.
 
 Interruptors appear in some Liber Primus solving hypotheses.
+`InterruptorConfig` is the public run configuration for exact or searched
+interruptor behaviour.
 
 They are not needed for the first learning examples.
 
-## Reproducible
+## Reproducible / reproducibility
 
 A run is reproducible when another person has enough information to repeat the
 same experiment and understand what was changed.
 
 That includes the source, cipher, key model, solver settings, scoring settings
-and any randomness that affects the search.
+and any randomness that affects the search. `RunResult.reproducibility` records
+replay-relevant metadata.
+
+## Telemetry
+
+Execution observations collected during a run, such as solver progress, timing,
+device information and scorer activity. Telemetry observes the run; it should
+not change candidate ranking.
+
+## Oracle
+
+RDP's structured known-answer comparison. Oracle information may be used only
+after a search to measure recovery, or deliberately as part of a diagnostic
+method. Those two uses support different claims.
+
+## Known answer / reference
+
+Truth already known for a solved or test problem, such as an expected plaintext
+or key. A reference can be useful for checking a result, but using it to rank or
+select candidates makes the experiment reference-guided rather than independent
+recovery.
+
+## Artifact
+
+A file produced or retained as part of a run, such as a configuration, report,
+log or saved result. `RunResult.artifacts` records known run artifacts without
+turning every in-memory result into a file.
+
+## Logging / `LoggingConfig`
+
+Logging is the optional file-output side of a run. `LoggingConfig` selects the
+durable output behaviour. A normal `RunResult` exists in memory whether or not
+logging is enabled.
 
 Next: [Apply a known key](01_apply_a_known_key.md).
 
@@ -501,6 +747,38 @@ The setting RDP uses when you omit an optional argument.
 ## CPU
 
 The computer's general-purpose processor. Ordinary beginner runs use it.
+
+## Compute device / `ComputeDevice`
+
+The processor family requested for execution. `ComputeDevice.CPU` is the V1
+default; `ComputeDevice.CUDA` requests supported NVIDIA GPU execution.
+
+## CUDA
+
+NVIDIA's GPU compute platform. CUDA changes where supported numerical work runs;
+it is an execution choice, not additional cryptanalytic evidence.
+
+## Asset
+
+A data file or packaged resource used by RDP, such as a language model,
+calibration table or Liber Primus transcript.
+
+## Asset profile
+
+A named set of assets expected for a particular installation or validation job.
+For example, the full V1 profile includes the complete supported language-model
+set.
+
+## CI-light
+
+The smaller asset/test profile used for routine continuous-integration checks.
+It is designed to catch ordinary regressions without downloading or running the
+complete release asset set.
+
+## Full V1 assets
+
+The complete supported V1 asset profile used for full scoring/examples and
+release-level validation. It is broader than CI-light.
 
 ## Restart
 
@@ -516,11 +794,6 @@ A chosen score at which to stop early. Reaching it is not proof of a decryption.
 The identity of the exact stored Liber Primus transcription used by a source.
 A source reference preserves it so a different transcription is not substituted
 silently when the request is reused.
-
-## Source reference
-
-A typed description of named source data, including its identity and version.
-`api.liber_primus.source("welcome_pilgrim")` produces one for a run.
 
 ## Runtime
 

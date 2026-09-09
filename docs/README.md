@@ -39,8 +39,11 @@ The main route is:
 
 ## Liber Primus
 
-- [Ciphertext input](guides/ciphertext_input.md)
+- [Getting started with Liber Primus](../solving/getting_started/README.md)
+- [Start solving Liber Primus](../solving/lp_getting_started/README.md)
+- [Solved LP workbook](../solving/solved_lp/README.md)
 - [Liber Primus data](reference/liber_primus.md)
+- [Ciphertext input](guides/ciphertext_input.md)
 - [Tutorials and examples](tutorials/README.md)
 
 ## Reference

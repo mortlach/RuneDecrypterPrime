@@ -11,6 +11,7 @@ for path in (ROOT, SRC):
         sys.path.insert(0, str(path))
 from rdp.core.config.cipher import CipherConfig
 from rdp.ciphers.vigenere_cipher import RuneVigenereCipher
+from rdp import api
 import rdp.data.liber_primus as lp
 from solving.solve_output import configure_utf8_stdio, match_ratio, page_value, print_block, print_final_result, render_plaintext, zero_positions
 from rdp.data.runeglish import Runeglish
@@ -39,11 +40,11 @@ def replay_pinned_solution(ct_idx: list[int], wli: list[list[int]]) -> list[int]
 
 def main() -> int:
     started = time.perf_counter()
-    payload = lp.payload_from_label(SOURCE_LABEL)
+    source_data = api.liber_primus.load_source(SOURCE_LABEL)
     recipe = lp.resolve_solve_recipe_label(RECIPE_LABEL)
-    ct_idx = [int(value) for value in payload.ct_idx]
-    wli = [list(pair) for pair in payload.wli]
-    metadata = payload.metadata
+    ct_idx = [int(value) for value in source_data.ct_idx]
+    wli = [list(pair) for pair in source_data.wli]
+    metadata = source_data.metadata
     main_page_start = page_value(metadata, 'main_page_start')
     main_page_end = page_value(metadata, 'main_page_end')
     interruptor_pool = zero_positions(ct_idx)
@@ -56,9 +57,9 @@ def main() -> int:
     keyspace_hint_idx = encode_reference(RECIPE_REFERENCE_KEY_OR_SHIFT)
     key_matches_recipe_hint = PINNED_FOUND_KEY_CORE == keyspace_hint_idx
     elapsed_wall_time_s = time.perf_counter() - started
-    print_block('LP_KOAN_DURING_LESSON_RUN_CONFIG', (('source_label', SOURCE_LABEL), ('resolved_source_label', metadata['source_label']), ('main_page_start', main_page_start), ('main_page_end', main_page_end), ('ciphertext_length', len(ct_idx)), ('word_length_information_length', len(wli)), ('recipe', recipe.recipe_label), ('cipher_family', recipe.cipher_family), ('key_text_hint_human', KEY_TEXT_HINT_HUMAN), ('recipe_reference_key_or_shift', RECIPE_REFERENCE_KEY_OR_SHIFT), ('key_length', KEY_LENGTH), ('interrupter_count_required', INTERRUPTOR_COUNT), ('interrupter_pool_strategy', 'ciphertext_zero_positions'), ('interrupter_pool_size', len(interruptor_pool)), ('interrupter_pool', interruptor_pool), ('acceptance_match_ratio', f'{ACCEPTANCE_MATCH_RATIO:.3f}')))
-    print_block('LP_KOAN_DURING_LESSON_ATTEMPT_SUMMARY', (('method', 'pinned_period_13_vigenere_interruptor_replay'), ('found_key_core', PINNED_FOUND_KEY_CORE), ('found_key_core_len', len(PINNED_FOUND_KEY_CORE)), ('found_key_matches_recipe_keyspace_hint', key_matches_recipe_hint), ('found_interruptors', PINNED_FOUND_INTERRUPTORS), ('found_interrupter_count', len(PINNED_FOUND_INTERRUPTORS)), ('found_interruptors_in_pool', found_interruptors_in_pool), ('best_score', PINNED_BEST_SCORE), ('stop_reason', PINNED_STOP_REASON), ('match_ratio', f'{ratio:.3f}'), ('plaintext_rune_count', len(plaintext_idx)), ('reference_idx_length', len(reference_idx)), ('elapsed_wall_time_s', elapsed_wall_time_s), ('status', status)))
-    print_final_result(block_name='LP_KOAN_DURING_LESSON_FINAL_RESULT', source_label=SOURCE_LABEL, resolved_source_label=metadata['source_label'], main_page_start=main_page_start, main_page_end=main_page_end, ciphertext_length=len(ct_idx), wli_length=len(wli), recipe=recipe.recipe_label, cipher_family=recipe.cipher_family, method='pinned_period_13_vigenere_interruptor_replay', key_or_params=None, match_ratio=ratio, status=status, acceptance_rule='exact canonical reference match', plaintext_latin=plaintext_latin, plaintext_runes=plaintext_runes, extra_fields={'key_text_hint_human': KEY_TEXT_HINT_HUMAN, 'recipe_reference_key_or_shift': RECIPE_REFERENCE_KEY_OR_SHIFT, 'key_length': KEY_LENGTH, 'interrupter_pool_size': len(interruptor_pool), 'interrupter_pool': interruptor_pool, 'interrupter_count_required': INTERRUPTOR_COUNT, 'found_key_core': PINNED_FOUND_KEY_CORE, 'found_interruptors': PINNED_FOUND_INTERRUPTORS, 'found_interrupter_count': len(PINNED_FOUND_INTERRUPTORS), 'found_interruptors_in_pool': found_interruptors_in_pool, 'best_score': PINNED_BEST_SCORE, 'stop_reason': PINNED_STOP_REASON, 'notes': 'exact solved reference match using period-13 Vigenere/interruptor replay over ciphertext-zero pool; found two interruptors [49, 58]'})
+    print_block('LP_KOAN_DURING_LESSON_RUN_CONFIG', (('source_label', SOURCE_LABEL), ('resolved_source_label', metadata['source_label']), ('main_page_start', main_page_start), ('main_page_end', main_page_end), ('ciphertext_length', len(ct_idx)), ('word_length_information_length', len(wli)), ('recipe', recipe.recipe_label), ('cipher_family', recipe.cipher_family), ('key_text_hint_human', KEY_TEXT_HINT_HUMAN), ('recipe_reference_key_or_shift', RECIPE_REFERENCE_KEY_OR_SHIFT), ('key_length', KEY_LENGTH), ('interruptor_count_required', INTERRUPTOR_COUNT), ('interruptor_pool_strategy', 'ciphertext_zero_positions'), ('interruptor_pool_size', len(interruptor_pool)), ('interruptor_pool', interruptor_pool), ('acceptance_match_ratio', f'{ACCEPTANCE_MATCH_RATIO:.3f}')))
+    print_block('LP_KOAN_DURING_LESSON_ATTEMPT_SUMMARY', (('method', 'pinned_period_13_vigenere_interruptor_replay'), ('found_key_core', PINNED_FOUND_KEY_CORE), ('found_key_core_len', len(PINNED_FOUND_KEY_CORE)), ('found_key_matches_recipe_keyspace_hint', key_matches_recipe_hint), ('found_interruptors', PINNED_FOUND_INTERRUPTORS), ('found_interruptor_count', len(PINNED_FOUND_INTERRUPTORS)), ('found_interruptors_in_pool', found_interruptors_in_pool), ('best_score', PINNED_BEST_SCORE), ('stop_reason', PINNED_STOP_REASON), ('match_ratio', f'{ratio:.3f}'), ('plaintext_rune_count', len(plaintext_idx)), ('reference_idx_length', len(reference_idx)), ('elapsed_wall_time_s', elapsed_wall_time_s), ('status', status)))
+    print_final_result(block_name='LP_KOAN_DURING_LESSON_FINAL_RESULT', source_label=SOURCE_LABEL, resolved_source_label=metadata['source_label'], main_page_start=main_page_start, main_page_end=main_page_end, ciphertext_length=len(ct_idx), wli_length=len(wli), recipe=recipe.recipe_label, cipher_family=recipe.cipher_family, method='pinned_period_13_vigenere_interruptor_replay', key_or_params=None, match_ratio=ratio, status=status, acceptance_rule='exact canonical reference match', plaintext_latin=plaintext_latin, plaintext_runes=plaintext_runes, extra_fields={'key_text_hint_human': KEY_TEXT_HINT_HUMAN, 'recipe_reference_key_or_shift': RECIPE_REFERENCE_KEY_OR_SHIFT, 'key_length': KEY_LENGTH, 'interruptor_pool_size': len(interruptor_pool), 'interruptor_pool': interruptor_pool, 'interruptor_count_required': INTERRUPTOR_COUNT, 'found_key_core': PINNED_FOUND_KEY_CORE, 'found_interruptors': PINNED_FOUND_INTERRUPTORS, 'found_interruptor_count': len(PINNED_FOUND_INTERRUPTORS), 'found_interruptors_in_pool': found_interruptors_in_pool, 'best_score': PINNED_BEST_SCORE, 'stop_reason': PINNED_STOP_REASON, 'notes': 'exact solved reference match using period-13 Vigenere/interruptor replay over ciphertext-zero pool; found two interruptors [49, 58]'})
     return 0 if status == 'solved' else 1
 if __name__ == '__main__':
     raise SystemExit(main())

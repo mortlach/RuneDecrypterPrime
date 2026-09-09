@@ -3,6 +3,11 @@
 This short route connects the public API to a real bundled source without
 hiding the important choices.
 
+It is deliberately compact. If you want the choices unpacked one at a time,
+continue with [Start solving Liber Primus](../lp_getting_started/README.md).
+If the RDP run model itself is still new, start with
+[Learn RDP by solving](../../docs/learn/README.md).
+
 Read the files in this order:
 
 1. [`load_source.py`](load_source.py) loads Welcome Pilgrim and inspects its

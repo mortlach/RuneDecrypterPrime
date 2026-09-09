@@ -30,8 +30,14 @@ def test_learning_examples_execute_exactly_as_documented():
 
 def test_learning_track_has_one_glossary_and_canonical_named_source_route():
     glossary = (LEARN / '00_words_used_here.md').read_text(encoding='utf-8')
-    for term in ('Beam search', 'Width', 'Round', 'Seed', 'Plateau', 'WLI', 'Rune index',
-                 'CipherSpec', 'KeySpec', 'SolverSpec', 'RunSpec', 'Source reference'):
+    for term in (
+        'Beam search', 'Width', 'Round', 'Seed', 'Plateau', 'WLI', 'Rune index',
+        'RuneInputFormat', 'RuneIndices', 'SourceReferenceInput', 'SourceData', 'Source resolver', 'CipherSpec',
+        'ConcreteKey', 'InitialKeys', 'KeySpec', 'KeyOps', 'SolverSpec', 'RunSpec', 'ProblemInput', 'Text permutation',
+        'score_many', 'ScoringConfig', 'Objective', 'Character lane', 'WLI lane', 'ScorerReport',
+        'SolverReport', 'RunStatus', 'Stop category', 'Telemetry', 'Oracle', 'Artifact', 'LoggingConfig', 'InterruptorConfig',
+        'Asset profile', 'CI-light', 'WordLengthPolicy', 'ComputeDevice', 'CUDA',
+    ):
         assert term in glossary
     for page in LEARN.glob('*.md'):
         if page.name != '00_words_used_here.md':
@@ -40,3 +46,12 @@ def test_learning_track_has_one_glossary_and_canonical_named_source_route():
     assert 'api.liber_primus.source(' in source_page
     assert 'payload_from_label' not in source_page
     assert 'RuneInput' not in source_page
+
+
+def test_public_learning_and_solve_material_uses_interruptor_spelling():
+    public_roots = [ROOT / 'solving', ROOT / 'tutorials' / 'v1']
+    for root in public_roots:
+        for path in root.rglob('*'):
+            if path.suffix not in {'.py', '.md'}:
+                continue
+            assert 'interrupter' not in path.read_text(encoding='utf-8').lower(), path

@@ -14,6 +14,7 @@ for path in (ROOT, SRC):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 from rdp.core.types import Direction
+from rdp import api
 import rdp.data.liber_primus as lp
 from rdp.data.wordlists.loaders import load_short_word_dictionary
 from rdp.data.runeglish import Runeglish
@@ -37,7 +38,7 @@ EVIDENCE_DIR = Path('solved_lp') / SOURCE_LABEL
 EVIDENCE_PATH = EVIDENCE_DIR / 'latest_solve_evidence.json'
 DERIVE_MODES = ('ct_minus_pt', 'pt_minus_ct')
 STREAM_MODES = ('ct_minus_key', 'ct_plus_key')
-INTERRUPTER_SEMANTICS = ('reinsert_cipher_symbol', 'remove_null')
+INTERRUPTOR_SEMANTICS = ('reinsert_cipher_symbol', 'remove_null')
 SEQUENCE_FAMILY_ORDER = ('primes_minus_1', 'primes', 'fibonacci', 'triangular', 'squares')
 
 def word_lengths_from_wli(wli: Sequence[Sequence[int]]) -> list[int]:
@@ -270,11 +271,11 @@ def build_shape_records(*, ct_idx: Sequence[int], candidates: Sequence[dict[str,
 def attempt_sort_key_with_reference(record: dict[str, Any]) -> tuple[float, float, float, int]:
     match = -1.0 if record['match_ratio'] is None else float(record['match_ratio'])
     language = -math.inf if record['language_score'] is None else float(record['language_score'])
-    return (match, float(record['shape_match_ratio']), language, -int(record['interrupter_count']))
+    return (match, float(record['shape_match_ratio']), language, -int(record['interruptor_count']))
 
 def attempt_sort_key_without_reference(record: dict[str, Any]) -> tuple[float, float, int]:
     language = -math.inf if record['language_score'] is None else float(record['language_score'])
-    return (language, float(record['shape_match_ratio']), -int(record['interrupter_count']))
+    return (language, float(record['shape_match_ratio']), -int(record['interruptor_count']))
 
 def build_attempt_records(*, ct_idx: Sequence[int], wli: Sequence[Sequence[int]], shape_records: Sequence[dict[str, Any]], sequences: dict[str, list[int]], interruptor_pool: Sequence[int], reference_idx: Sequence[int] | None, word_weights: dict[tuple[int, ...], float]) -> list[dict[str, Any]]:
     top: list[dict[str, Any]] = []
@@ -283,8 +284,8 @@ def build_attempt_records(*, ct_idx: Sequence[int], wli: Sequence[Sequence[int]]
     for shape in shape_records[:FULL_ATTEMPT_SHAPE_TOP_N]:
         sequence = sequences[shape['sequence_family']]
         offset = int(shape['sequence_offset'])
-        for interrupters in subsets:
-            interruptor_set = set(interrupters)
+        for interruptors in subsets:
+            interruptor_set = set(interruptors)
             ct_core = [int(value) for value in remove_positions(ct_idx, interruptor_set)]
             wli_core = remove_positions(wli, interruptor_set)
             base_sequence = sequence[offset:offset + len(ct_core)]
@@ -299,9 +300,9 @@ def build_attempt_records(*, ct_idx: Sequence[int], wli: Sequence[Sequence[int]]
                         pt_core = decrypt_stream_ct_plus_key(ct_core, stream)
                     else:
                         raise ValueError(f'unknown stream mode: {stream_mode}')
-                    for semantics in INTERRUPTER_SEMANTICS:
+                    for semantics in INTERRUPTOR_SEMANTICS:
                         if semantics == 'reinsert_cipher_symbol':
-                            plaintext_idx = reinsert_values(pt_core, ct_idx, interrupters)
+                            plaintext_idx = reinsert_values(pt_core, ct_idx, interruptors)
                             render_wli = wli
                         elif semantics == 'remove_null':
                             plaintext_idx = list(pt_core)
@@ -313,7 +314,7 @@ def build_attempt_records(*, ct_idx: Sequence[int], wli: Sequence[Sequence[int]]
                         status = 'candidate'
                         if ratio is not None and ratio >= 1.0:
                             status = 'solved'
-                        record = {'candidate_phrase': shape['candidate_phrase'], 'candidate_word_lengths': shape['candidate_word_lengths'], 'derive_mode': shape['derive_mode'], 'derived_key': shape['derived_key'], 'derived_key_zero_shifted': shape['derived_key_zero_shifted'], 'sequence_family': shape['sequence_family'], 'sequence_offset': offset, 'sequence_segment': shape['sequence_segment'], 'sequence_segment_zero_shifted': shape['sequence_segment_zero_shifted'], 'shape_match_count': shape['shape_match_count'], 'shape_match_ratio': shape['shape_match_ratio'], 'absolute_shift': absolute_shift, 'stream_mode': stream_mode, 'interrupter_semantics': semantics, 'interrupters': interrupters, 'interrupter_count': len(interrupters), 'core_length': len(ct_core), 'candidate_plaintext_length': len(plaintext_idx), 'match_ratio': ratio, 'language_score': lang, '_plaintext_idx': plaintext_idx, '_render_wli': render_wli, 'status': status}
+                        record = {'candidate_phrase': shape['candidate_phrase'], 'candidate_word_lengths': shape['candidate_word_lengths'], 'derive_mode': shape['derive_mode'], 'derived_key': shape['derived_key'], 'derived_key_zero_shifted': shape['derived_key_zero_shifted'], 'sequence_family': shape['sequence_family'], 'sequence_offset': offset, 'sequence_segment': shape['sequence_segment'], 'sequence_segment_zero_shifted': shape['sequence_segment_zero_shifted'], 'shape_match_count': shape['shape_match_count'], 'shape_match_ratio': shape['shape_match_ratio'], 'absolute_shift': absolute_shift, 'stream_mode': stream_mode, 'interruptor_semantics': semantics, 'interruptors': interruptors, 'interruptor_count': len(interruptors), 'core_length': len(ct_core), 'candidate_plaintext_length': len(plaintext_idx), 'match_ratio': ratio, 'language_score': lang, '_plaintext_idx': plaintext_idx, '_render_wli': render_wli, 'status': status}
                         keep_top(top, record, limit=TOP_ATTEMPT_KEEP, key=sort_key)
     top.sort(key=sort_key, reverse=True)
     return attach_attempt_previews(top[:TOP_ATTEMPT_KEEP])
@@ -344,16 +345,16 @@ def print_top_attempts(records: Sequence[dict[str, Any]], limit: int=TOP_ATTEMPT
     for rank, record in enumerate(records[:limit], start=1):
         rune_latin = str(record['plaintext_rune_latin'])
         preview = rune_latin[:180] + ('...' if len(rune_latin) > 180 else '')
-        print('rank:', rank, 'candidate_phrase:', record['candidate_phrase'], 'derive_mode:', record['derive_mode'], 'sequence_family:', record['sequence_family'], 'sequence_offset:', record['sequence_offset'], 'absolute_shift:', record['absolute_shift'], 'stream_mode:', record['stream_mode'], 'shape_match_ratio:', f"{record['shape_match_ratio']:.3f}", 'interrupter_semantics:', record['interrupter_semantics'], 'interrupters:', record['interrupters'], 'interrupter_count:', record['interrupter_count'], 'match_ratio:', record['match_ratio'], 'language_score:', record['language_score'], 'plaintext_rune_latin:', preview)
+        print('rank:', rank, 'candidate_phrase:', record['candidate_phrase'], 'derive_mode:', record['derive_mode'], 'sequence_family:', record['sequence_family'], 'sequence_offset:', record['sequence_offset'], 'absolute_shift:', record['absolute_shift'], 'stream_mode:', record['stream_mode'], 'shape_match_ratio:', f"{record['shape_match_ratio']:.3f}", 'interruptor_semantics:', record['interruptor_semantics'], 'interruptors:', record['interruptors'], 'interruptor_count:', record['interruptor_count'], 'match_ratio:', record['match_ratio'], 'language_score:', record['language_score'], 'plaintext_rune_latin:', preview)
     print('LP_AN_END_TOP_ATTEMPTS_END')
 
 def main() -> int:
     print('Evidence class: reference-guided diagnostic/reconstruction. Reference plaintext participates in ranking.')
-    payload = lp.payload_from_label(SOURCE_LABEL)
+    source_data = api.liber_primus.load_source(SOURCE_LABEL)
     recipe = lp.resolve_solve_recipe_label(RECIPE_LABEL)
-    ct_idx = [int(value) for value in payload.ct_idx]
-    wli = [list(pair) for pair in payload.wli]
-    metadata = payload.metadata
+    ct_idx = [int(value) for value in source_data.ct_idx]
+    wli = [list(pair) for pair in source_data.wli]
+    metadata = source_data.metadata
     main_page_start = page_value(metadata, 'main_page_start')
     main_page_end = page_value(metadata, 'main_page_end')
     word_lengths = word_lengths_from_wli(wli)
@@ -363,16 +364,16 @@ def main() -> int:
     max_sequence_count = MAX_SEQUENCE_OFFSET + len(ct_idx) + 1
     sequences = sequence_families(max_sequence_count)
     word_weights = load_short_word_index_weights()
-    run_config = {'source_label': SOURCE_LABEL, 'resolved_source_label': metadata['source_label'], 'aliases': ALIASES, 'main_page_start': main_page_start, 'main_page_end': main_page_end, 'ciphertext_length': len(ct_idx), 'word_length_information_length': len(wli), 'word_lengths': word_lengths, 'ciphertext_zero_count': len(interruptor_pool), 'ciphertext_zero_positions': interruptor_pool, 'recipe': recipe.recipe_label, 'cipher_family': recipe.cipher_family, 'recipe_hint': recipe.reference_key_or_shift, 'method': 'zero_shifted_sequence_shape_search_with_zero_position_interruptors', 'candidate_phrase_count': len(candidates), 'curated_candidate_phrase_count': len(CANDIDATE_PHRASE_STARTS), 'generated_phrase_limit': GENERATED_PHRASE_LIMIT, 'prime_offset_max': MAX_SEQUENCE_OFFSET, 'sequence_offset_max': MAX_SEQUENCE_OFFSET, 'sequence_families_tested': list(SEQUENCE_FAMILY_ORDER), 'derive_modes_tested': list(DERIVE_MODES), 'stream_modes_tested': list(STREAM_MODES), 'interrupter_pool_strategy': 'ciphertext_zero_positions', 'interrupter_semantics_tested': list(INTERRUPTER_SEMANTICS), 'canonical_reference_available': reference_idx is not None}
-    print_block('LP_AN_END_RUN_CONFIG', [('source_label', run_config['source_label']), ('resolved_source_label', run_config['resolved_source_label']), ('aliases', run_config['aliases']), ('main_page_start', run_config['main_page_start']), ('main_page_end', run_config['main_page_end']), ('ciphertext_length', run_config['ciphertext_length']), ('word_length_information_length', run_config['word_length_information_length']), ('word_lengths', run_config['word_lengths']), ('ciphertext_zero_count', run_config['ciphertext_zero_count']), ('ciphertext_zero_positions', run_config['ciphertext_zero_positions']), ('recipe', run_config['recipe']), ('cipher_family', run_config['cipher_family']), ('recipe_hint', run_config['recipe_hint']), ('candidate_phrase_count', run_config['candidate_phrase_count']), ('prime_offset_max', run_config['prime_offset_max']), ('sequence_offset_max', run_config['sequence_offset_max']), ('sequence_families_tested', run_config['sequence_families_tested']), ('interrupter_pool_strategy', run_config['interrupter_pool_strategy']), ('interrupter_semantics_tested', run_config['interrupter_semantics_tested'])])
+    run_config = {'source_label': SOURCE_LABEL, 'resolved_source_label': metadata['source_label'], 'aliases': ALIASES, 'main_page_start': main_page_start, 'main_page_end': main_page_end, 'ciphertext_length': len(ct_idx), 'word_length_information_length': len(wli), 'word_lengths': word_lengths, 'ciphertext_zero_count': len(interruptor_pool), 'ciphertext_zero_positions': interruptor_pool, 'recipe': recipe.recipe_label, 'cipher_family': recipe.cipher_family, 'recipe_hint': recipe.reference_key_or_shift, 'method': 'zero_shifted_sequence_shape_search_with_zero_position_interruptors', 'candidate_phrase_count': len(candidates), 'curated_candidate_phrase_count': len(CANDIDATE_PHRASE_STARTS), 'generated_phrase_limit': GENERATED_PHRASE_LIMIT, 'prime_offset_max': MAX_SEQUENCE_OFFSET, 'sequence_offset_max': MAX_SEQUENCE_OFFSET, 'sequence_families_tested': list(SEQUENCE_FAMILY_ORDER), 'derive_modes_tested': list(DERIVE_MODES), 'stream_modes_tested': list(STREAM_MODES), 'interruptor_pool_strategy': 'ciphertext_zero_positions', 'interruptor_semantics_tested': list(INTERRUPTOR_SEMANTICS), 'canonical_reference_available': reference_idx is not None}
+    print_block('LP_AN_END_RUN_CONFIG', [('source_label', run_config['source_label']), ('resolved_source_label', run_config['resolved_source_label']), ('aliases', run_config['aliases']), ('main_page_start', run_config['main_page_start']), ('main_page_end', run_config['main_page_end']), ('ciphertext_length', run_config['ciphertext_length']), ('word_length_information_length', run_config['word_length_information_length']), ('word_lengths', run_config['word_lengths']), ('ciphertext_zero_count', run_config['ciphertext_zero_count']), ('ciphertext_zero_positions', run_config['ciphertext_zero_positions']), ('recipe', run_config['recipe']), ('cipher_family', run_config['cipher_family']), ('recipe_hint', run_config['recipe_hint']), ('candidate_phrase_count', run_config['candidate_phrase_count']), ('prime_offset_max', run_config['prime_offset_max']), ('sequence_offset_max', run_config['sequence_offset_max']), ('sequence_families_tested', run_config['sequence_families_tested']), ('interruptor_pool_strategy', run_config['interruptor_pool_strategy']), ('interruptor_semantics_tested', run_config['interruptor_semantics_tested'])])
     shape_records = build_shape_records(ct_idx=ct_idx, candidates=candidates, sequences=sequences)
     print_shape_records(shape_records)
     top_attempts = build_attempt_records(ct_idx=ct_idx, wli=wli, shape_records=shape_records, sequences=sequences, interruptor_pool=interruptor_pool, reference_idx=reference_idx, word_weights=word_weights)
     print_top_attempts(top_attempts)
     best = top_attempts[0] if top_attempts else {}
     solved = bool(best) and best.get('match_ratio') is not None and (float(best['match_ratio']) >= 1.0)
-    final = {'source_label': SOURCE_LABEL, 'resolved_source_label': metadata['source_label'], 'aliases': ALIASES, 'main_page_start': main_page_start, 'main_page_end': main_page_end, 'recipe': recipe.recipe_label, 'cipher_family': recipe.cipher_family, 'method': run_config['method'], 'candidate_phrase': best.get('candidate_phrase'), 'derive_mode': best.get('derive_mode'), 'sequence_family': best.get('sequence_family'), 'sequence_offset': best.get('sequence_offset'), 'absolute_shift': best.get('absolute_shift'), 'stream_mode': best.get('stream_mode'), 'interrupter_semantics': best.get('interrupter_semantics'), 'found_interruptors': best.get('interrupters', []), 'found_interrupter_count': best.get('interrupter_count', 0), 'plaintext_rune_count': best.get('plaintext_rune_count'), 'plaintext_indices': best.get('plaintext_indices'), 'word_length_information': best.get('word_length_information'), 'match_ratio': best.get('match_ratio'), 'best_match_ratio': best.get('match_ratio'), 'best_shape_match_ratio': best.get('shape_match_ratio'), 'best_candidate_phrase': best.get('candidate_phrase'), 'best_sequence_family': best.get('sequence_family'), 'best_sequence_offset': best.get('sequence_offset'), 'best_interrupters': best.get('interrupters', []), 'status': 'solved' if solved else 'diagnostic_not_yet_solved', 'notes': 'exact solved reference match using zero-shifted sequence shape search and ciphertext-zero interrupter pool' if solved else 'structured zero-shifted sequence/interrupter search did not reach exact reference match', 'plaintext_rune_latin': best.get('plaintext_rune_latin'), 'plaintext_reading_rune_latin': best.get('plaintext_reading_rune_latin'), 'plaintext_runes': best.get('plaintext_runes')}
-    print_block('LP_AN_END_FINAL_RESULT', [('source_label', final['source_label']), ('resolved_source_label', final['resolved_source_label']), ('aliases', final['aliases']), ('main_page_start', final['main_page_start']), ('main_page_end', final['main_page_end']), ('recipe', final['recipe']), ('cipher_family', final['cipher_family']), ('method', final['method']), ('candidate_phrase', final['candidate_phrase']), ('derive_mode', final['derive_mode']), ('sequence_family', final['sequence_family']), ('sequence_offset', final['sequence_offset']), ('absolute_shift', final['absolute_shift']), ('stream_mode', final['stream_mode']), ('interrupter_semantics', final['interrupter_semantics']), ('found_interruptors', final['found_interruptors']), ('found_interrupter_count', final['found_interrupter_count']), ('plaintext_rune_count', final['plaintext_rune_count']), ('match_ratio', final['match_ratio']), ('best_match_ratio', final['best_match_ratio']), ('best_shape_match_ratio', final['best_shape_match_ratio']), ('best_candidate_phrase', final['best_candidate_phrase']), ('best_sequence_family', final['best_sequence_family']), ('best_sequence_offset', final['best_sequence_offset']), ('best_interrupters', final['best_interrupters']), ('status', final['status']), ('notes', final['notes']), ('plaintext_rune_latin', final['plaintext_rune_latin']), ('plaintext_runes', final['plaintext_runes'])])
+    final = {'source_label': SOURCE_LABEL, 'resolved_source_label': metadata['source_label'], 'aliases': ALIASES, 'main_page_start': main_page_start, 'main_page_end': main_page_end, 'recipe': recipe.recipe_label, 'cipher_family': recipe.cipher_family, 'method': run_config['method'], 'candidate_phrase': best.get('candidate_phrase'), 'derive_mode': best.get('derive_mode'), 'sequence_family': best.get('sequence_family'), 'sequence_offset': best.get('sequence_offset'), 'absolute_shift': best.get('absolute_shift'), 'stream_mode': best.get('stream_mode'), 'interruptor_semantics': best.get('interruptor_semantics'), 'found_interruptors': best.get('interruptors', []), 'found_interruptor_count': best.get('interruptor_count', 0), 'plaintext_rune_count': best.get('plaintext_rune_count'), 'plaintext_indices': best.get('plaintext_indices'), 'word_length_information': best.get('word_length_information'), 'match_ratio': best.get('match_ratio'), 'best_match_ratio': best.get('match_ratio'), 'best_shape_match_ratio': best.get('shape_match_ratio'), 'best_candidate_phrase': best.get('candidate_phrase'), 'best_sequence_family': best.get('sequence_family'), 'best_sequence_offset': best.get('sequence_offset'), 'best_interruptors': best.get('interruptors', []), 'status': 'solved' if solved else 'diagnostic_not_yet_solved', 'notes': 'exact solved reference match using zero-shifted sequence shape search and ciphertext-zero interruptor pool' if solved else 'structured zero-shifted sequence/interruptor search did not reach exact reference match', 'plaintext_rune_latin': best.get('plaintext_rune_latin'), 'plaintext_reading_rune_latin': best.get('plaintext_reading_rune_latin'), 'plaintext_runes': best.get('plaintext_runes')}
+    print_block('LP_AN_END_FINAL_RESULT', [('source_label', final['source_label']), ('resolved_source_label', final['resolved_source_label']), ('aliases', final['aliases']), ('main_page_start', final['main_page_start']), ('main_page_end', final['main_page_end']), ('recipe', final['recipe']), ('cipher_family', final['cipher_family']), ('method', final['method']), ('candidate_phrase', final['candidate_phrase']), ('derive_mode', final['derive_mode']), ('sequence_family', final['sequence_family']), ('sequence_offset', final['sequence_offset']), ('absolute_shift', final['absolute_shift']), ('stream_mode', final['stream_mode']), ('interruptor_semantics', final['interruptor_semantics']), ('found_interruptors', final['found_interruptors']), ('found_interruptor_count', final['found_interruptor_count']), ('plaintext_rune_count', final['plaintext_rune_count']), ('match_ratio', final['match_ratio']), ('best_match_ratio', final['best_match_ratio']), ('best_shape_match_ratio', final['best_shape_match_ratio']), ('best_candidate_phrase', final['best_candidate_phrase']), ('best_sequence_family', final['best_sequence_family']), ('best_sequence_offset', final['best_sequence_offset']), ('best_interruptors', final['best_interruptors']), ('status', final['status']), ('notes', final['notes']), ('plaintext_rune_latin', final['plaintext_rune_latin']), ('plaintext_runes', final['plaintext_runes'])])
     evidence = {'source_label': SOURCE_LABEL, 'resolved_source_label': metadata['source_label'], 'recipe': recipe.recipe_label, 'cipher_family': recipe.cipher_family, 'run_config': run_config, 'sequence_shape_search': shape_records, 'top_attempts': top_attempts[:TOP_ATTEMPT_PRINT_COUNT], 'best_attempt': best, 'final': final}
     write_json_evidence(resolve_output_root() / "solving" / uuid.uuid4().hex / EVIDENCE_PATH, evidence)
     return 0

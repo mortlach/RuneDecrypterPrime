@@ -339,7 +339,7 @@ def collect_solver_attempt(
         "scorer_variant": scorer_variant,
         "found_key_core": found_key_core,
         "found_interruptors": found_interruptors,
-        "found_interrupter_count": len(found_interruptors),
+        "found_interruptor_count": len(found_interruptors),
         "found_interruptors_in_pool": found_interruptors_in_pool,
         "best_score": best_score,
         "stop_reason": stop_reason,

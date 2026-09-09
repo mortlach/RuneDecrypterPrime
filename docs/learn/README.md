@@ -26,4 +26,8 @@ and [What can the score tell you?](05_scoring_limits.md).
 
 You can stop after any page and use the pattern in your own script.
 
+When you are ready to move from small API examples to genuine solved Liber
+Primus material, continue with
+[Start solving Liber Primus](../../solving/lp_getting_started/README.md).
+
 The fuller guides explain the options that are intentionally omitted here.

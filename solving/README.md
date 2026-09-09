@@ -2,9 +2,20 @@
 
 `solving/` contains worked Liber Primus material.
 
-If this is your first time using the bundled Liber Primus material, start with
-the [short LP route](getting_started/README.md). It loads a named source,
-prepares the reviewed Welcome Pilgrim search, and shows how to run it.
+If you are still learning the basic RDP run model, start with
+[Learn RDP by solving](../docs/learn/README.md).
+
+If you are ready to work with the bundled Liber Primus material, choose the
+route that matches what you want to do:
+
+- [Getting started with Liber Primus](getting_started/README.md) is the compact
+  code bridge: load a source, prepare the reviewed Welcome Pilgrim search, then
+  run it.
+- [Start solving Liber Primus](lp_getting_started/README.md) is the gentler
+  worked route through real solved material. It leaves the cryptanalytic choices
+  visible and builds from small experiments.
+- [Solved LP workbook](solved_lp/README.md) contains the detailed replay,
+  recovery and diagnostic examples used as evidence.
 
 The examples are evidence, not all the same kind of evidence.
 

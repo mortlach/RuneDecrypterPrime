@@ -31,20 +31,20 @@ def main() -> int:
         uses_reference_stop_score=False,
     )
     workbook = _load_workbook()
-    payload = workbook.lp.payload_from_label(workbook.SOURCE_LABEL)
+    source_data = api.liber_primus.load_source(workbook.SOURCE_LABEL)
     recipe = workbook.lp.resolve_solve_recipe_label(workbook.RECIPE_LABEL)
-    ct_idx = list(payload.ct_idx)
-    wli = [list(pair) for pair in payload.wli]
-    metadata = payload.metadata
+    ct_idx = list(source_data.ct_idx)
+    wli = [list(pair) for pair in source_data.wli]
+    metadata = source_data.metadata
     interruptor_pool = workbook.zero_positions(ct_idx)
     if interruptor_pool != workbook.PINNED_CIPHERTEXT_ZERO_POOL:
         raise ValueError(
             "Loaded Welcome Pilgrim ciphertext-zero pool does not match the pinned solve evidence"
         )
-    pool_validation = workbook.validate_interrupter_pool(ct_idx, interruptor_pool)
+    pool_validation = workbook.validate_interruptor_pool(ct_idx, interruptor_pool)
     if len(workbook.CANONICAL_WELCOME_PILGRIM_IDX) != len(ct_idx):
         raise ValueError(
-            "Canonical Welcome Pilgrim reference is not aligned with the loaded source payload"
+            "Canonical Welcome Pilgrim reference is not aligned with the loaded source data"
         )
     scorer_params = api.ScoringConfig(
         character_lane_enabled=True,
@@ -66,11 +66,11 @@ def main() -> int:
             "word_length_information_length": len(wli),
             "key_text_hint": workbook.KEY_TEXT_HINT,
             "key_length": workbook.KEY_LENGTH,
-            "interrupter_count_required": workbook.INTERRUPTOR_COUNT,
-            "interrupter_pool_strategy": "ciphertext_zero_positions",
-            "interrupter_pool_size": len(interruptor_pool),
-            "interrupter_pool_zero_validation": pool_validation[
-                "interrupter_pool_zero_validation"
+            "interruptor_count_required": workbook.INTERRUPTOR_COUNT,
+            "interruptor_pool_strategy": "ciphertext_zero_positions",
+            "interruptor_pool_size": len(interruptor_pool),
+            "interruptor_pool_zero_validation": pool_validation[
+                "interruptor_pool_zero_validation"
             ],
             "encoding_direction": workbook.ENCODING_DIRECTION.value,
             "scorer_variant": workbook.SCORER_VARIANT,
