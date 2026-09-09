@@ -39,7 +39,12 @@ These files make those decisions reviewable and machine-checkable.
 - `../../../assets/manifests/assets_manifest_ci_light_v1.json` - exact source-bundled CI-light asset hashes
 - `PACK09_DEPENDENCY_REVIEW_A1.md` - A1 retained fixture-closure review and refreshed hashes
 
-## Current staged implementation authority
+## Historical staged implementation baselines
+
+The AN3 and AN4 notes below are retained because contract tests and closure
+evidence refer to those checkpoints. Their API counts are historical rather
+than the current V1 surface.
+
 
 AN3 is **PASS and closed** at
 `f7af2d2d70ae3aab0965b914024a35df2225fb2f`. The two disclosed robustness
@@ -47,9 +52,9 @@ REVIEW trials are accepted non-blocking recipe limitations. The current
 getting-started route and worked examples are documented in `tutorials/v1/README.md`.
 
 AN4 package organisation is **PASS and complete** at accepted implementation
-commit `f30c5d09080429f64a8a7e982712a5c339c091a2`. The final installation has
-`rdp` as its sole project namespace, retains exactly 141 public paths and 32
-root API exports, and has no old-name compatibility or forwarding package.
+commit `f30c5d09080429f64a8a7e982712a5c339c091a2`. At that checkpoint, the
+installation had `rdp` as its sole project namespace, 141 public paths and 32
+root API exports, with no old-name compatibility or forwarding package.
 Local source, assets, tutorials, workbooks, typing, distribution and isolated
 installation gates passed. The final Windows and Ubuntu push gate and
 native-wheel evidence is recorded in `V1_AUTHORITY_AND_DECISIONS.md`.
@@ -84,9 +89,10 @@ copied into this repository or made another documentation authority tree.
 ## Public API snapshot
 
 [`public_api_allowlist.md`](public_api_allowlist.md) contains the current 144-path
-contract, including `RuneInput`, `RuneInputFormat`, and
-`api.liber_primus.source`. The root namespace still has 32 exports. The accepted
-historical 141-path baseline remains recorded in the closure evidence above.
+contract. The root namespace has 34 exports, including `score`, `score_many`,
+`RuneInput`, `RuneInputFormat`, and `api.liber_primus.source`. The accepted
+historical 141-path / 32-root-export baseline remains recorded in the closure
+evidence above.
 
 The current canonical CRLF SHA-256 is
-`942a4cc533ed75fda238b97f5e74934781f3c0f30a74e25f62da7df5c8beaada`.
+`0eaa8939d2e62cd149a4e96c9ba3412d8c0824ccfa0f7a68725e3f0504ad648f`.

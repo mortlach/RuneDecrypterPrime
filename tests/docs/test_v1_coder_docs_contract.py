@@ -78,6 +78,19 @@ def test_public_api_allowlist_preserves_the_accepted_crlf_snapshot() -> None:
     )
     assert hashlib.sha256(canonical).hexdigest() == PUBLIC_API_SNAPSHOT_SHA256
 
+def test_release_contract_index_reports_current_public_api_snapshot() -> None:
+    text = _read(DOCS / 'release_contracts' / 'v1' / 'README.md')
+    assert 'current 144-path' in text
+    assert 'root namespace has 34 exports' in text
+    assert PUBLIC_API_SNAPSHOT_SHA256 in text
+
+
+def test_public_docs_do_not_restore_project_origin_history_page() -> None:
+    assert not (DOCS / 'project_origins.md').exists()
+    assert 'project_origins.md' not in _read(DOCS / 'README.md')
+    assert 'project_origins.md' not in _read(DOCS / 'project_overview.md')
+
+
 def test_targeted_public_contract_docstrings_exist() -> None:
     expected_terms = {api.score: ['Score one', 'probability'], api.score_many: ['input order', 'empty'], api.RuneInput: ['indices', 'RuneLatin', 'English', 'word'], api.SourceReferenceInput: ['source kind', 'asset', 'JSON primitive'], api.RunSpec: ['cipher spec', 'solver spec', 'routing'], rdp.api.run_artifact_manifest.RunArtifactManifestRow: ['known V1 run artifact', 'run-relative'], rdp.api.run_artifact_manifest.write_run_artifacts_manifest: ['META.json', 'config/logging.json', 'Returns']}
     for obj, terms in expected_terms.items():

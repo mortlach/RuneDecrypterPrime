@@ -3,9 +3,9 @@
 RDP exists to make cryptanalytic experiments easier to express, compare and
 repeat.
 
-The project grew from Liber Primus solving work into a general run model for
-cipher search. The aim is not to hide cryptanalysis behind one solver call. It
-is to keep the important parts of the problem explicit.
+It uses a general run model for cipher search. The aim is not to hide
+cryptanalysis behind one solver call. It is to keep the important parts of the
+problem explicit.
 
 ## The problem
 
@@ -190,16 +190,13 @@ See [Development](development/README.md).
 
 ## Community use
 
-V1 is intended to stand outside the development environment that produced it.
+V1 is intended to be understandable and usable outside any one development
+environment.
 
 The public API, documentation, examples, data access, errors and reproducibility
-information therefore need to be understandable without knowing the project's
-internal history.
+information therefore need to stand on their own.
 
 The aim is a stable base for testing, sharing and extending cryptanalytic ideas,
 not a frozen set of solver recipes.
 
 For the current public surface, see [API reference](reference/README.md).
-
-A short account of the project's earlier generations is kept in
-[Project origins](project_origins.md).

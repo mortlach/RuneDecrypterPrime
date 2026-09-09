@@ -58,8 +58,7 @@ changed and what a result demonstrates.
 For project structure:
 
 - [Project overview](docs/project_overview.md)
-- [Architecture overview](docs/architecture/overview.md) when present in the
-  integrated repository
+- [Architecture overview](docs/architecture/overview.md)
 - [Extending RDP](docs/guides/extending_rdp.md)
 - [Development map](docs/development/README.md)
 

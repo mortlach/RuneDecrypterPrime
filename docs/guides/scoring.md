@@ -108,9 +108,9 @@ The complete objective and scoring defaults are listed in
 
 ## Direction
 
-Text direction is part of `RunSpec`, not `ScoringConfig`.
+Text direction is not part of `ScoringConfig`.
 
-Directional scoring uses the direction supplied by the run:
+For a run, it is supplied by `RunSpec`:
 
 ```python
 request = api.RunSpec(
@@ -118,6 +118,18 @@ request = api.RunSpec(
     text_direction=api.TextDirection.RTL,
 )
 ```
+
+For standalone scoring, pass the same public enum directly to `score` or
+`score_many`:
+
+```python
+value = api.score(
+    candidate,
+    text_direction=api.TextDirection.RTL,
+)
+```
+
+Both run and standalone-scoring direction defaults are `LTR`.
 
 See [Text direction](text_direction.md).
 

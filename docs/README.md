@@ -64,10 +64,6 @@ The main route is:
 - [CUDA setup](development/cuda_installation.md)
 - [Build and packaging notes](setup/building.md)
 
-## Background
-
-- [Project origins](project_origins.md)
-
 ## Other useful entry points
 
 - [FAQ](FAQ.md)

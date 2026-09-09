@@ -1,6 +1,6 @@
 # V1 review pack contract
 
-`tools/release_review_pack.py` builds the standard lightweight ZIP used for external and cross-chat review of the V1 repository state.
+`tools/release_review_pack.py` builds the standard lightweight ZIP used for external review of the V1 repository state.
 
 The review pack is not a release artifact and is not intended for installation. Its purpose is to make code, tests, docs, workflow gates, and small import-critical files visible without copying generated output or large data assets.
 
