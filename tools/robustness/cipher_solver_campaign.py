@@ -67,7 +67,7 @@ class FamilyDefinition:
 RESULT_FIELDS = ('campaign_seed', 'trial_seed', 'trial_index', 'trial_id', 'family', 'recipe_id', 'recipe_fingerprint', 'configuration_fingerprint', 'scorer_profile', 'selection_policy', 'truth_used_for_selection', 'campaign_group', 'direction', 'plaintext_source', 'book', 'start_word', 'word_count', 'plaintext_length', 'cipher_parameters', 'solver_parameters', 'attempt_count', 'attempt_seeds', 'attempts', 'selected_attempt', 'selection_reason', 'requested_seed', 'effective_seed', 'match_ratio', 'exact_recovery', 'expected_key', 'recovered_key', 'key_equivalent', 'expected_interruptors', 'recovered_interruptors', 'interruptor_match', 'run_status', 'stop_reason', 'best_score', 'evaluations', 'tokens', 'runtime_seconds', 'classification', 'notes')
 _SELECTION_POLICIES = {'highest_valid_solver_score'}
 _RECIPE_ID_PATTERN = re.compile('^[a-z0-9][a-z0-9_]*_v[1-9][0-9]*$')
-_RUNTIME_SOURCE_PATHS = ('src', 'tools/robustness', 'tutorials/v1', 'asset_profiles_v1.json', 'assets_manifest_ci_light_v1.json', 'assets_manifest_v1.json')
+_RUNTIME_SOURCE_PATHS = ('src', 'tools/robustness', 'tutorials/v1', 'assets/manifests')
 
 def _validated_weights(value: Any, label: str) -> dict[int, float]:
     if not isinstance(value, Mapping):
@@ -519,7 +519,7 @@ def required_lm_lanes(family: str) -> dict[str, tuple[int, ...]]:
     return {'char': char, 'wli': wli}
 
 def _asset_profile_for_lanes(lanes: Mapping[str, Sequence[int]]) -> dict[str, Any]:
-    profile_manifest = REPO_ROOT / 'asset_profiles_v1.json'
+    profile_manifest = REPO_ROOT / 'assets' / 'manifests' / 'asset_profiles_v1.json'
     raw = json.loads(profile_manifest.read_text(encoding='utf-8'))
     required_orders = {int(order) for orders in lanes.values() for order in orders}
     candidates: list[tuple[int, str, Mapping[str, Any]]] = []

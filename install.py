@@ -17,7 +17,7 @@ MIN_PYTHON = (3, 11)
 VERBOSE = False
 LOG_DIR: Path | None = None
 INSTALL_MODE_LABEL = "Full V1 install"
-ASSET_PROFILE_MANIFEST = ROOT / "asset_profiles_v1.json"
+ASSET_PROFILE_MANIFEST = ROOT / "assets" / "manifests" / "asset_profiles_v1.json"
 DEFAULT_ASSET_PROFILE = "full_v1"
 
 REQUIRED_ASSET_SENTINELS = [
@@ -25,7 +25,7 @@ REQUIRED_ASSET_SENTINELS = [
     ROOT / "assets" / "hamming_dictionary_policies_phaseA_v0_14" / "strict" / "hamming_raw_1g" / "raw1grams_14.csv",
     ROOT / "assets" / "hamming_dictionary_policies_phaseA_v0_14" / "normal" / "hamming_raw_1g" / "raw1grams_14.csv",
 ]
-FULL_ASSET_MANIFEST = ROOT / "assets_manifest_v1.json"
+FULL_ASSET_MANIFEST = ROOT / "assets" / "manifests" / "assets_manifest_v1.json"
 LARGE_ASSET_DOWNLOAD_DIR = ROOT / "downloads"
 LARGE_ASSET_ROOT = ROOT / "assets"
 

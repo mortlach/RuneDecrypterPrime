@@ -74,9 +74,13 @@ exclude = [
 rdp = ["py.typed", "data/wordlists/cribs/*.txt"]
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
 markers = [
   "tier_a: fast deterministic unit or contract test",
   "full_assets: requires the canonical full_v1 LM1-LM4 asset profile",
+  "cuda: tests requiring CUDA runtime",
+  "guardrails: release guardrail and contract-sweep tests",
   "torch: tests that require the optional Torch runtime; skipped when torch is unavailable",
 ]
 

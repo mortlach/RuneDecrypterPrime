@@ -5,7 +5,7 @@ A5 hardens the V1 release boundary; it does not introduce a second release frame
 ## Implemented software contracts
 
 - Source checkout asset lookup prefers the checkout `assets/` root.
-- The wheel stages **only** the exact source-bundled CI-light runtime assets named by `assets_manifest_ci_light_v1.json`, plus the LM `index.json` metadata required to load them.
+- The wheel stages **only** the exact source-bundled CI-light runtime assets named by `assets/manifests/assets_manifest_ci_light_v1.json`, plus the LM `index.json` metadata required to load them.
 - Wheel/sdist asset staging is allowlist-based. A developer's locally downloaded full LM1-LM4 tree is never swept into an artifact by a recursive asset glob.
 - Installed-wheel lookup resolves those staged package assets only; it does not search CWD/home/env locations.
 - Complete external LM1-LM4 data remains explicit through the existing `model_root` contract.
@@ -21,7 +21,7 @@ The 2026-08-22 review covered the principal material data families that RDP actu
 
 ### Review conclusion
 
-- RDP software is distributed under `LICENSE_MIT.txt`.
+- RDP software is distributed under `LICENSE`.
 - The Alice's Adventures in Wonderland test passage is from Lewis Carroll's 1865 public-domain work and is transformed into rune/numeric fixtures.
 - A5 does not vendor the source of its Python or build dependencies.
 - No concrete copyright, licence, attribution or redistribution blocker was identified for the reviewed data families.

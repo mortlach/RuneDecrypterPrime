@@ -2,9 +2,7 @@ include pyproject.toml
 include setup.py
 include README.md
 include LICENSE*
-include assets_manifest_ci_light_v1.json
-include assets_manifest_v1.json
-include asset_profiles_v1.json
+include assets/manifests/*.json
 
 recursive-include src/rdp/scoring/language_model *.cpp *.hpp *.h
 recursive-include src/rdp/scoring/hamming *.cpp *.hpp *.h
@@ -13,7 +11,7 @@ recursive-include src/rdp/scoring/ngram_hamming *.cpp *.hpp *.h
 recursive-include src/rdp/data/wordlists/cribs *.txt
 
 # CI-light runtime files are added to the sdist by A5Sdist from the exact
-# assets_manifest_ci_light_v1.json allowlist. Do not recursively include the
+# assets/manifests/assets_manifest_ci_light_v1.json allowlist. Do not recursively include the
 # local assets tree: a developer's full_v1 install may contain large files that
 # must never leak into the Python package by globbing.
 

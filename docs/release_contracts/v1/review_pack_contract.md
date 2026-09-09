@@ -24,13 +24,14 @@ It also includes only allow-listed root files:
 - `CHANGELOG.md` if present
 - `LICENSE` / `LICENSE.txt` if present
 - `pyproject.toml`
-- `pytest.ini`
 - `setup.py`
 - `MANIFEST.in`
 - `requirements.txt`
 - root `install.py` and the platform launcher scripts under `tools/installation/`
-- `assets_manifest_v1.json`
 - `.gitignore`
+
+The three small files under `assets/manifests/` are also included explicitly;
+the rest of the asset tree remains excluded.
 
 Root repair/apply/patch/temp scripts are not included just because they are small text files. If a new root file is review-critical, add it deliberately to the allowlist and update the tests.
 
@@ -51,7 +52,7 @@ Small `src/.../data/...` files are allowed when they pass the suffix and size fi
 The pack excludes bulky or generated material, including:
 
 - `output/`
-- `assets/`
+- `assets/` except the small `assets/manifests/` contract files
 - `planning/`
 - caches such as `__pycache__`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache`
 - build/dist/virtualenv directories

@@ -4,8 +4,8 @@ This is the A1 contract for V1 language-model assets and validation tiers.
 
 ## Canonical asset profiles
 
-The repository has exactly two named profiles, defined in the root
-`asset_profiles_v1.json` file.
+The repository has exactly two named profiles, defined in
+`assets/manifests/asset_profiles_v1.json`.
 
 ### `ci_light`
 
@@ -72,7 +72,7 @@ not replace either validation gate.
 
 ## Release asset contract
 
-`assets_manifest_v1.json` remains the file-and-hash authority. The
+`assets/manifests/assets_manifest_v1.json` remains the file-and-hash authority. The
 `v1_lm_ci_light` set identifies the exact source-bundled files. The
 `v1_lm_runtime_full` set identifies the complete supported installation and the
 pinned GitHub Release bundles used to obtain missing large files.

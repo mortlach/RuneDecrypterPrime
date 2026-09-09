@@ -14,7 +14,7 @@ from setuptools.command.sdist import sdist as _sdist
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "src"
 SCORING_PACKAGE_ROOT = SRC / "rdp"
-CI_ASSET_MANIFEST = ROOT / "assets_manifest_ci_light_v1.json"
+CI_ASSET_MANIFEST = ROOT / "assets" / "manifests" / "assets_manifest_ci_light_v1.json"
 CI_ASSET_SOURCE_ROOT = ROOT / "assets"
 CI_LM_INDEX_REL = Path("language_model/lmp/index.json")
 PACKAGE_DATA_REL = Path("rdp/data")
@@ -125,7 +125,9 @@ class A5Sdist(_sdist):
         release_root = Path(base_dir)
         # The manifest itself is already included by MANIFEST.in; copying again
         # is intentional and makes the source of this staged contract explicit.
-        shutil.copyfile(CI_ASSET_MANIFEST, release_root / CI_ASSET_MANIFEST.name)
+        manifest_target = release_root / CI_ASSET_MANIFEST.relative_to(ROOT)
+        manifest_target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(CI_ASSET_MANIFEST, manifest_target)
         for rel in _ci_asset_relpaths():
             source = CI_ASSET_SOURCE_ROOT / rel
             target = release_root / "assets" / rel

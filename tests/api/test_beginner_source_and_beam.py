@@ -76,7 +76,7 @@ def test_packaged_transcript_identity_uses_the_staged_manifest(monkeypatch, tmp_
     from rdp.data.liber_primus import lp_main
 
     root = Path(__file__).resolve().parents[2]
-    manifest = json.loads((root / 'assets_manifest_ci_light_v1.json').read_text())
+    manifest = json.loads((root / 'assets' / 'manifests' / 'assets_manifest_ci_light_v1.json').read_text())
     row = next(row for row in manifest['installed_assets']
                if row['asset_id'] == lp_main.MAIN_TRANSCRIPT_ASSET_ID)
     assert row['asset_version'] == main_transcript_asset_identity()['asset_version']

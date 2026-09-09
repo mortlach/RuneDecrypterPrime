@@ -7,7 +7,7 @@ from zipfile import ZipFile
 ROOT = Path(__file__).resolve().parents[2]
 WHEEL_DIRS = (ROOT / 'wheelhouse', ROOT / 'dist')
 SDIST_DIR = ROOT / 'dist'
-CI_MANIFEST = ROOT / 'assets_manifest_ci_light_v1.json'
+CI_MANIFEST = ROOT / 'assets' / 'manifests' / 'assets_manifest_ci_light_v1.json'
 BLOCKED = (
     'rune_decrypter_prime/',
     'rdp/utils/',

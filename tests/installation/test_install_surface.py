@@ -75,7 +75,7 @@ def test_root_installer_is_full_v1_and_ci_light_is_separate() -> None:
 
 def test_ci_light_wrapper_bootstraps_repo_root_for_standalone_execution(tmp_path: Path) -> None:
     wrapper = ROOT / 'tools' / 'ci' / 'install_light.py'
-    probe = '\n'.join(('import importlib.util', f'wrapper = {str(wrapper)!r}', "spec = importlib.util.spec_from_file_location('rdp_ci_install_probe', wrapper)", 'assert spec is not None and spec.loader is not None', 'module = importlib.util.module_from_spec(spec)', 'spec.loader.exec_module(module)', 'module._load_install_module()', 'from tools.assets.asset_profiles import select_asset_profile', "profile = select_asset_profile(module.REPO_ROOT / 'asset_profiles_v1.json', 'ci_light')", "assert profile.name == 'ci_light'"))
+    probe = '\n'.join(('import importlib.util', f'wrapper = {str(wrapper)!r}', "spec = importlib.util.spec_from_file_location('rdp_ci_install_probe', wrapper)", 'assert spec is not None and spec.loader is not None', 'module = importlib.util.module_from_spec(spec)', 'spec.loader.exec_module(module)', 'module._load_install_module()', 'from tools.assets.asset_profiles import select_asset_profile', "profile = select_asset_profile(module.REPO_ROOT / 'assets' / 'manifests' / 'asset_profiles_v1.json', 'ci_light')", "assert profile.name == 'ci_light'"))
     proc = subprocess.run([sys.executable, '-I', '-c', probe], cwd=tmp_path, text=True, encoding='utf-8', errors='replace', stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
     assert proc.returncode == 0, proc.stdout
 

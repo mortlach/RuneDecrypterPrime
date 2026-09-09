@@ -20,9 +20,10 @@ def test_release_review_pack_includes_review_contract_files_and_small_data(tmp_p
     _write(repo / 'tools' / 'installation' / 'install.bat', '@echo off\n')
     _write(repo / 'tools' / 'installation' / 'install.sh', '#!/usr/bin/env sh\n')
     _write(repo / 'setup.py', 'from setuptools import setup\n')
-    _write(repo / 'pytest.ini', '[pytest]\n')
     _write(repo / 'MANIFEST.in', 'include README.md\n')
-    _write(repo / 'assets_manifest_v1.json', '{}\n')
+    _write(repo / 'assets' / 'manifests' / 'asset_profiles_v1.json', '{}\n')
+    _write(repo / 'assets' / 'manifests' / 'assets_manifest_ci_light_v1.json', '{}\n')
+    _write(repo / 'assets' / 'manifests' / 'assets_manifest_v1.json', '{}\n')
     _write(repo / 'unexpected_root_patch.py', "print('patch')\n")
     _write(repo / 'repair_old_release.py', "print('repair')\n")
     _write(repo / 'root_archive.zip', 'NOPE\n')
@@ -60,9 +61,10 @@ def test_release_review_pack_includes_review_contract_files_and_small_data(tmp_p
     assert 'tools/installation/install.bat' in names
     assert 'tools/installation/install.sh' in names
     assert 'setup.py' in names
-    assert 'pytest.ini' in names
     assert 'MANIFEST.in' in names
-    assert 'assets_manifest_v1.json' in names
+    assert 'assets/manifests/asset_profiles_v1.json' in names
+    assert 'assets/manifests/assets_manifest_ci_light_v1.json' in names
+    assert 'assets/manifests/assets_manifest_v1.json' in names
     assert 'unexpected_root_patch.py' not in names
     assert 'repair_old_release.py' not in names
     assert 'src/rdp/core.py' in names

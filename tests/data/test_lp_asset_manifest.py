@@ -18,7 +18,7 @@ def _sha256(path: Path) -> str:
 
 def test_lp_main_transcript_has_manifest_integrity_entry() -> None:
     root = _repo_root()
-    manifest = json.loads((root / 'assets_manifest_v1.json').read_text(encoding='utf-8'))
+    manifest = json.loads((root / 'assets' / 'manifests' / 'assets_manifest_v1.json').read_text(encoding='utf-8'))
     rows = [row for row in manifest['required_assets'] if row.get('asset_id') == 'liber_primus.main_transcript']
     assert len(rows) == 1
     row = rows[0]
@@ -45,7 +45,9 @@ def test_lp_main_transcript_identity_returns_fresh_mutable_copy() -> None:
 def test_lp_main_transcript_identity_rejects_duplicate_manifest_rows(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     row = {'asset_id': 'liber_primus.main_transcript', 'asset_version': 'a' * 64, 'version_scheme': 'sha256', 'sha256': 'a' * 64}
     manifest = {'required_assets': [row, dict(row)]}
-    (tmp_path / 'assets_manifest_v1.json').write_text(json.dumps(manifest), encoding='utf-8')
+    manifest_path = tmp_path / 'assets' / 'manifests' / 'assets_manifest_v1.json'
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(manifest), encoding='utf-8')
     lp_main._cached_main_transcript_asset_identity.cache_clear()
     monkeypatch.setattr(lp_main, 'find_repo_root', lambda _start: tmp_path)
     try:
@@ -56,7 +58,9 @@ def test_lp_main_transcript_identity_rejects_duplicate_manifest_rows(monkeypatch
 
 def test_lp_main_transcript_identity_rejects_version_mismatch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     manifest = {'required_assets': [{'asset_id': 'liber_primus.main_transcript', 'asset_version': 'a' * 64, 'version_scheme': 'sha256', 'sha256': 'b' * 64}]}
-    (tmp_path / 'assets_manifest_v1.json').write_text(json.dumps(manifest), encoding='utf-8')
+    manifest_path = tmp_path / 'assets' / 'manifests' / 'assets_manifest_v1.json'
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(manifest), encoding='utf-8')
     lp_main._cached_main_transcript_asset_identity.cache_clear()
     monkeypatch.setattr(lp_main, 'find_repo_root', lambda _start: tmp_path)
     try:

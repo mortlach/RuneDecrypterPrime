@@ -7,7 +7,46 @@ At its simplest, it is a way to take a cipher idea, a key or key space, and some
 Liber Primus text and actually try it without writing another one-off solver
 from scratch.
 
-That matters more than it may sound.
+## Start here
+
+RDP needs Python 3.11 or newer. From the repository root:
+
+```text
+python install.py
+```
+
+The installer uses the Python environment you choose. If a Linux distribution
+protects its system Python, RDP explains the available next steps rather than
+changing that protection automatically. See
+[Installation](docs/setup/installation.md).
+
+A minimal known-key check looks like this:
+
+```python
+from rdp import api
+
+plaintext: api.RuneIndices = (0, 3, 20, 20, 3, 7, 2, 18)
+key: api.ConcreteKey = (3, 1, 4)
+
+cipher = api.CipherSpec.vigenere()
+ciphertext = api.encrypt(plaintext, cipher=cipher, key=key)
+recovered = api.decrypt(ciphertext, cipher=cipher, key=key)
+
+assert recovered == plaintext
+```
+
+No solver is involved because the key is already known.
+
+Choose the route that matches what you want to do next:
+
+- **Learn RDP:** [Learn RDP by solving](docs/learn/README.md)
+- **Solve Liber Primus:** [Start solving Liber Primus](solving/lp_getting_started/README.md)
+- **Develop or extend RDP:** [Extending RDP](docs/guides/extending_rdp.md)
+
+The fuller [documentation index](docs/README.md) is there when you need more
+control or want to understand the internals.
+
+## Why RDP exists
 
 Liber Primus solving has accumulated a great many ideas over the years.
 Someone tries a cipher, another person changes the period, someone else adds a
@@ -34,28 +73,6 @@ to a section of Liber Primus. A larger one might search a structured key space,
 compare scoring models or develop a new cipher construction.
 
 They use the same underlying machinery.
-
-## Start here
-
-If you want to try RDP rather than study it, start with
-[Learn RDP by solving](docs/learn/README.md).
-
-The learning route keeps the examples small and uses ordinary defaults. It
-introduces one idea at a time:
-
-```text
-load some text
--> try a known cipher
--> search a key
--> change one thing
--> use real Liber Primus data
--> read the result
-```
-
-You do not need to understand the architecture, scoring backends or solver
-internals first.
-
-The fuller [documentation index](docs/README.md) is there when you need it.
 
 ## What RDP is for
 
@@ -124,29 +141,8 @@ For the internal design, see [Architecture](docs/architecture/README.md).
 For adding ciphers, key models or solvers, see
 [Extending RDP](docs/guides/extending_rdp.md).
 
-## Install
-
-RDP needs Python 3.11 or newer.
-
-From the repository root:
-
-```text
-python install.py
-```
-
-Optional PowerShell, Command Prompt and POSIX shell wrappers are under
-[`tools/installation/`](tools/installation/README.md).
-
-The installer uses the Python environment you choose. If a Linux distribution
-protects its system Python, the installer explains the available next steps
-rather than changing that protection automatically. See
-[Installation](docs/setup/installation.md).
-
-Then run the first tutorial:
-
-```text
-python -m tutorials.v1.getting_started.01_known_key
-```
+Optional PowerShell, Command Prompt and POSIX shell installation wrappers are
+under [`tools/installation/`](tools/installation/README.md).
 
 ## Start solving
 
@@ -164,24 +160,6 @@ The full documentation index is in [docs/README.md](docs/README.md).
 
 Worked Liber Primus material is under [Solving examples](solving/README.md).
 
-## A small known-key check
-
-```python
-from rdp import api
-
-plaintext: api.RuneIndices = (0, 3, 20, 20, 3, 7, 2, 18)
-key: api.ConcreteKey = (3, 1, 4)
-
-cipher = api.CipherSpec.vigenere()
-
-ciphertext = api.encrypt(plaintext, cipher=cipher, key=key)
-recovered = api.decrypt(ciphertext, cipher=cipher, key=key)
-
-assert recovered == plaintext
-```
-
-No solver is involved because the key is already known.
-
 ## Working with Liber Primus
 
 Liber Primus data is available through the public namespace:
@@ -193,8 +171,8 @@ source = api.liber_primus.source("welcome_pilgrim")
 Pass the source directly as `RunSpec.problem_input`. It keeps the catalogue
 label and transcript version with the run, so the input remains identifiable.
 
-Direct payload access is also available when you need to inspect rune indices,
-word-length information or source metadata before constructing a run.
+Direct source-data access is also available when you need to inspect rune
+indices, word-length information or source metadata before constructing a run.
 
 The same namespace also provides transcript, page, locator and partition access.
 See [Liber Primus data](docs/reference/liber_primus.md).

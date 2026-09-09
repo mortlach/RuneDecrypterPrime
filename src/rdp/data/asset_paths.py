@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 
-_REPO_MARKERS = ("assets_manifest_v1.json", "pyproject.toml", ".git")
+_REPO_MARKERS = ("pyproject.toml", ".git")
 # Packaged CI-light assets have one exact installed location beside this module.
 # This is not a namespace search or fallback.
 _PACKAGE_DATA_ROOT = Path(__file__).resolve().parent

@@ -16,12 +16,22 @@ def test_pyproject_declares_clean_runtime_dependency_and_package_exclusions():
         assert prefix in excluded
         assert prefix + '.*' in excluded
 
+def test_pyproject_owns_complete_pytest_configuration():
+    data = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
+    config = data['tool']['pytest']['ini_options']
+    assert config['testpaths'] == ['tests']
+    assert config['addopts'] == '-ra'
+    markers = {entry.split(':', 1)[0] for entry in config['markers']}
+    assert {'tier_a', 'full_assets', 'cuda', 'guardrails', 'torch'} <= markers
+    assert not (ROOT / 'pytest.ini').exists()
+
 def test_setup_uses_exact_ci_light_asset_allowlist_for_wheel_and_sdist():
     setup_text = (ROOT / 'setup.py').read_text(encoding='utf-8')
     compact = ''.join(setup_text.split())
     assert 'include=("rdp","rdp.*")' in compact
     assert 'include_package_data=False' in compact
     assert 'exclude=_PACKAGE_EXCLUDES' in setup_text
+    assert 'ROOT/\"assets\"/\"manifests\"/\"assets_manifest_ci_light_v1.json\"' in compact
     assert 'assets_manifest_ci_light_v1.json' in setup_text
     assert 'class A5BuildPy' in setup_text
     assert 'class A5Sdist' in setup_text
@@ -30,7 +40,7 @@ def test_setup_uses_exact_ci_light_asset_allowlist_for_wheel_and_sdist():
 def test_manifest_does_not_glob_local_asset_tree_and_mirrors_code_boundary():
     manifest = (ROOT / 'MANIFEST.in').read_text(encoding='utf-8')
     assert 'recursive-include assets' not in manifest
-    assert 'include assets_manifest_ci_light_v1.json' in manifest
+    assert 'include assets/manifests/*.json' in manifest
     for path in (
         'src/rdp/ciphers/dev',
         'src/rdp/keyops/dev',

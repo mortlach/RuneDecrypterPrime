@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / '.github' / 'workflows'
 PUSH_GATE = WORKFLOWS / 'rdp_v1_full_ci.yml'
 FULL_PROOF = WORKFLOWS / 'rdp_v1_full_proof.yml'
-PROFILE_MANIFEST = ROOT / 'asset_profiles_v1.json'
+PROFILE_MANIFEST = ROOT / 'assets' / 'manifests' / 'asset_profiles_v1.json'
 TUTORIAL_RUNNER = ROOT / 'tutorials' / 'v1' / 'run_tutorials.py'
 
 def _tutorial_runner():
@@ -70,6 +70,8 @@ def test_full_asset_integration_tests_are_explicitly_marked() -> None:
 def test_full_asset_example_exceptions_remain_explicit() -> None:
     profiles = json.loads(PROFILE_MANIFEST.read_text(encoding='utf-8'))['profiles']
     assert {'ci_light', 'full_v1'} <= set(profiles)
+    assert profiles['ci_light']['verification_manifest'] == 'assets/manifests/assets_manifest_ci_light_v1.json'
+    assert profiles['full_v1']['verification_manifest'] == 'assets/manifests/assets_manifest_v1.json'
     runner = _tutorial_runner()
     two_period = {
         name

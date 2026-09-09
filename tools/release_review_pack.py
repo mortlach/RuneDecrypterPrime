@@ -9,7 +9,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_ROOT = REPO_ROOT / 'output' / 'tools' / 'release_review_pack'
 ZIP_STEM = 'rdp_v1_review_pack'
 MAX_FILE_BYTES = 256 * 1024
-ROOT_FILE_NAMES: tuple[str, ...] = ('AGENTS.md', '.gitattributes', '.gitignore', 'CONTRIBUTING.md', 'README.md', 'CHANGELOG.md', 'LICENSE', 'LICENSE.txt', 'LICENSE_MIT.txt', 'MANIFEST.in', 'pyproject.toml', 'pytest.ini', 'requirements.txt', 'install.py', 'assets_manifest_v1.json', 'setup.py')
+ROOT_FILE_NAMES: tuple[str, ...] = ('AGENTS.md', '.gitattributes', '.gitignore', 'CONTRIBUTING.md', 'README.md', 'CHANGELOG.md', 'LICENSE', 'LICENSE.txt', 'MANIFEST.in', 'pyproject.toml', 'requirements.txt', 'install.py', 'setup.py')
 REVIEW_DIRS: tuple[str, ...] = (
     'src',
     'tests',
@@ -19,6 +19,7 @@ REVIEW_DIRS: tuple[str, ...] = (
     'cipher_development',
     'tools',
     '.github/workflows',
+    'assets/manifests',
 )
 REVIEW_TOOL_FILES: tuple[str, ...] = ('tools/release_review_pack.py',)
 EXCLUDED_DIR_NAMES = frozenset({'.git', '.idea', '.mypy_cache', '.pytest_cache', '.ruff_cache', '.venv', '.vscode', '__pycache__', 'assets', 'build', 'dist', 'node_modules', 'output', 'planning', 'venv'})
@@ -48,6 +49,10 @@ def _repo_rel(path: Path, repo_root: Path) -> str:
     return str(path.resolve().relative_to(repo_root.resolve())).replace('\\', '/')
 
 def _is_under_excluded_dir(rel: Path) -> bool:
+    # The asset tree is intentionally excluded except for its small contract
+    # manifests, which reviewers need to inspect.
+    if rel.parts[:2] == ('assets', 'manifests'):
+        return False
     return any((part in EXCLUDED_DIR_NAMES for part in rel.parts[:-1]))
 
 def _suffix(path: Path) -> str:

@@ -11,7 +11,7 @@
         2
       ],
       "pytest_marker_expression": "not full_assets",
-      "verification_manifest": "assets_manifest_ci_light_v1.json"
+      "verification_manifest": "assets/manifests/assets_manifest_ci_light_v1.json"
     },
     "full_v1": {
       "description": "Complete supported V1 language-model assets, including LM1-LM4 character and WLI data.",
@@ -24,7 +24,7 @@
         4
       ],
       "pytest_marker_expression": null,
-      "verification_manifest": "assets_manifest_v1.json"
+      "verification_manifest": "assets/manifests/assets_manifest_v1.json"
     }
   }
 }

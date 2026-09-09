@@ -5,6 +5,6 @@ material. The tracked models support the short examples. Full language-model pac
 installed separately. Asset manifests protect data integrity; adding documentation does
 not change the model tables.
 
-Subfolders: [hamming_dictionary_policies_phaseA_v0_14/](hamming_dictionary_policies_phaseA_v0_14/), [hamming_raw_1g/](hamming_raw_1g/), [language_model/](language_model/), [liber_primus/](liber_primus/), [wordlists/](wordlists/).
+Subfolders: [manifests/](manifests/), [hamming_dictionary_policies_phaseA_v0_14/](hamming_dictionary_policies_phaseA_v0_14/), [hamming_raw_1g/](hamming_raw_1g/), [language_model/](language_model/), [liber_primus/](liber_primus/), [wordlists/](wordlists/).
 
 See [installation and asset profiles](../docs/setup/installation.md).

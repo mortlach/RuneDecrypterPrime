@@ -62,7 +62,7 @@ def _cached_main_transcript_asset_identity() -> tuple[str, str]:
         manifest_path = Path(__file__).resolve().parents[1] / "assets_manifest_ci_light_v1.json"
         row_key = "installed_assets"
     else:
-        manifest_path = root / "assets_manifest_v1.json"
+        manifest_path = root / "assets" / "manifests" / "assets_manifest_v1.json"
         row_key = "required_assets"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     rows = manifest.get(row_key)
