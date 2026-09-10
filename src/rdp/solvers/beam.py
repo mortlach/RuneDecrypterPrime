@@ -76,6 +76,7 @@ class BeamSolver(SolverBase):
             stop_score=kwargs.get("stop_score", None),
             verbose=bool(kwargs.get("verbose", True)),
             log_interval=int(kwargs.get("log_interval", 50)),
+            progress_callback=kwargs.get("progress_callback"),
         )
 
     # ── Expansion params normalization ──

@@ -4,6 +4,7 @@ import rdp.api.normalize
 import rdp.api.two_period_cribs
 from rdp import api
 import hashlib
+import json
 import numpy as np
 import pytest
 from rdp.core.types import Device, Direction
@@ -105,7 +106,8 @@ def test_staged_pool_search_keeps_structural_candidates_distinct_and_uses_winnin
             return self._plain(key_values)
     monkeypatch.setattr(staged, 'DecryptionProblem', FakeProblem)
     monkeypatch.setattr(staged, 'build_scorer', lambda *_args, **_kwargs: object())
-    result = run_two_period_stages(ciphertext=np.asarray(ciphertext, dtype=np.uint8), wli=wli, cipher=cipher, key=key, request=request, device=Device.CPU, direction=Direction.LTR, telemetry_on=False, interruptors=api.InterruptorConfig.search([15, 14], minimum_count=1, maximum_count=1, strategy=api.advanced.InterruptorSearchStrategy.AUTO, maximum_combinations=2))
+    events = []
+    result = run_two_period_stages(ciphertext=np.asarray(ciphertext, dtype=np.uint8), wli=wli, cipher=cipher, key=key, request=request, device=Device.CPU, direction=Direction.LTR, telemetry_on=False, interruptors=api.InterruptorConfig.search([15, 14], minimum_count=1, maximum_count=1, strategy=api.advanced.InterruptorSearchStrategy.AUTO, maximum_combinations=2), progress_callback=events.append)
     details = result.meta['two_period_solve']
     assert result.key == known_key.astype(int).tolist()
     assert result.plaintext_idx == np.asarray(plaintext, dtype=np.uint8).astype(int).tolist()
@@ -114,6 +116,8 @@ def test_staged_pool_search_keeps_structural_candidates_distinct_and_uses_winnin
     assert details['interruptors']['winning_count'] == 1
     assert details['branch_count'] == 2
     assert details['final_union_count'] == 2
+    assert {'S2', 'B1', 'F1', 'final_union'} == {event['stage_id'] for event in events}
+    json.dumps(events, allow_nan=False)
 
 def test_contradictory_overlapping_crib_rejects():
     from rdp.solvers.two_period_cribs import CribSpan

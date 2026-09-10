@@ -49,13 +49,14 @@ def test_kaeding_forwards_progress_callback():
         problem,
         opt_cfg={'steps': 4, 'restarts': 1, 'inner_batch': 4, 'col_every': 0},
         rng=np.random.default_rng(0),
-        progress_callback=lambda payload, key: received.append((payload, key)),
+        progress_callback=received.append,
     )
 
     solver.solve()
 
     assert received
-    assert received[-1][0]['pct'] == 100
+    assert received[-1]['pct'] == 100
+    assert isinstance(received[-1]['best_key'], list)
 
 def test_kaeding_rejects_non_structured_keyops():
     cfg = CipherConfig(ciphertext=[0, 1, 2], wli_data=[], key_length=3, name='substitution', alphabet_size=3)

@@ -37,6 +37,11 @@ These values are exported through `api` or `api.advanced`.
 | `AverageWindowPolicy` | `FIXED_WINDOW`, `FULL_TEXT` |
 | `FloatDType` | `FLOAT32`, `FLOAT64` |
 
+All enum members remain serializable names, but not every alternative is an
+implemented V1 behaviour. `LanguageModelBoundaryMode.INCLUDE_BOUNDARIES` and
+`ScoreDirection.MINIMIZE` are rejected clearly. V1 uses excluded boundaries,
+and the selected scoring objective owns ranking sense.
+
 ## Hamming and span-Hamming
 
 | Enum | Values |

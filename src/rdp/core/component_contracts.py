@@ -16,6 +16,7 @@ class ComponentKind(StrEnum):
     SCORER_LANE = "scorer_lane"
     SCORER_RUNTIME = "scorer_runtime"
     CIPHER = "cipher"
+    KEY = "key"
     SOLVER = "solver"
     ASSET = "asset"
     ARTIFACT = "artifact"

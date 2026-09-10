@@ -108,10 +108,10 @@ def test_normalize_optimizer_spec_flattens_params():
 
 def test_normalize_logging_cfg_accepts_canonical_serialized_paths(tmp_path):
     cfg = rdp.api.logging_utils.normalize_logging_cfg(
-        {"verbose": False, "output_root": str(tmp_path)}
+        {"run_category": "tests", "output_root": str(tmp_path)}
     )
     assert isinstance(cfg, LoggingConfig)
-    assert cfg.verbose is False
+    assert cfg.run_category == "tests"
     assert cfg.output_root == tmp_path
 
 def test_normalize_logging_cfg_accepts_portable_output_and_redact_identity():

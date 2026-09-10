@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType
 import pytest
+from rdp.api.run_spec_routing import materialize_runspec_problem_input
 from rdp.data.liber_primus.lp_main import MAIN_TRANSCRIPT_ASSET_ID, main_transcript_asset_identity
 
 def _main_asset_version() -> str:
@@ -52,6 +53,22 @@ def test_resolve_lp_locator_ref_returns_tuple_solver_input() -> None:
     assert resolved.source_metadata['source_kind'] == 'liber_primus.locator'
     assert resolved.source_metadata['asset_id'] == MAIN_TRANSCRIPT_ASSET_ID
     assert resolved.source_metadata['asset_version'] == _main_asset_version()
+
+
+def test_runspec_infer_policy_preserves_source_wli() -> None:
+    source_ref = _source_ref(source_kind='liber_primus.locator', ref=_valid_locator_ref_none())
+    request = api.RunSpec(
+        problem_input=source_ref,
+        cipher=api.CipherSpec.vigenere(),
+        key_space=api.KeySpec.repeating(length=1),
+        solver=api.SolverSpec.beam_search(width=1, rounds=1),
+        word_length_policy=api.WordLengthPolicy.INFER,
+    )
+
+    resolved = rdp.api.source_resolution.resolve_source_input_ref(source_ref)
+    materialized = materialize_runspec_problem_input(request)
+
+    assert tuple(map(tuple, materialized.wli or ())) == resolved.wli
 
 def test_resolve_lp_partition_ref_returns_tuple_solver_input() -> None:
     source_ref = _source_ref(source_kind='liber_primus.partition', ref=_valid_partition_ref())

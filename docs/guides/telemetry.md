@@ -97,15 +97,19 @@ def show_progress(event):
 result = api.run(
     request,
     progress_callback=show_progress,
-    progress_interval=10,
 )
 ```
 
-`progress_interval` controls how often the runtime progress hook is called.
+Each callback invocation receives one JSON-safe mapping. Generic solver events
+include `best_key` as a list of integers when a candidate key is available.
+Hybrid events include a `phase` field; the specialised two-period solver emits
+its existing S2, B1, F1 and final-union stage summaries. Event cadence is
+solver-specific. An exception raised by the callback propagates as a caller-code
+failure.
 
-The callback receives progress data while the run is active. The final
-`RunResult.telemetry` remains the place to inspect collected telemetry after the
-run.
+The final `RunResult.telemetry` remains the place to inspect collected telemetry
+after the run. `RunResult.scorer_report.telemetry` contains only the scorer-owned
+subsection.
 
 Live presentation therefore stays outside the durable run request.
 

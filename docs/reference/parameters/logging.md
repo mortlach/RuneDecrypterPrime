@@ -5,9 +5,6 @@ output route.
 
 | Parameter | Type | Default | Notes / constraint |
 | --- | --- | --- | --- |
-| `verbose` | `bool` | `False` | Verbose run logging. |
-| `show_progress` | `bool` | `True` | Show progress information. |
-| `write_event_log` | `bool` | `False` | Write the event log. |
 | `output_root` | `Path | None` | `None` | Explicit output root. |
 | `run_category` | `str` | `"run"` | Non-empty category name. |
 | `label` | `str | None` | `None` | Optional run label. |
@@ -23,6 +20,10 @@ use `Path` objects when supplied.
 
 `LoggingConfig.from_dict(values)` accepts only these fields and converts string
 paths for `output_root` and `run_directory` to `Path` objects.
+
+Live progress is separate from durable logging. Supply a one-argument
+`progress_callback` to `api.run(...)`; `LoggingConfig` has no presentation or
+event-log switches.
 
 For practical use, see [Outputs](../../guides/outputs.md).
 

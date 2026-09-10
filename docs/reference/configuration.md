@@ -6,6 +6,11 @@ The main typed configuration objects are `CipherSpec`, `KeySpec`, `SolverSpec`,
 They describe different parts of the experiment. Keeping those parts separate
 is one of the main RDP design choices.
 
+`RunSpec` is the complete durable request. The result's `configuration` section
+distinguishes requested and effective component configuration,
+`reproducibility` records its owned replay metadata, and `telemetry` records
+execution observations.
+
 See [Project aims and design principles](../project_overview.md).
 
 ## CipherSpec
@@ -34,6 +39,10 @@ See [Solver parameters](parameters/solvers.md) and
 `ScoringConfig` owns the language-model scoring and the optional specialist
 lanes.
 
+The scoring objective owns ranking sense. V1 rejects the unimplemented
+`INCLUDE_BOUNDARIES` boundary mode and the redundant `MINIMIZE` score direction
+instead of accepting no-op settings.
+
 See [Scoring parameters](parameters/scoring.md) and
 [Scoring](../guides/scoring.md).
 
@@ -42,6 +51,10 @@ See [Scoring parameters](parameters/scoring.md) and
 `LoggingConfig` controls saved run output.
 
 `RunSpec.logging` is `None` by default.
+
+It owns output location, portable/redacted metadata and the optional solver
+report, display summary and artifact manifest. Live progress is instead a
+runtime-only callback passed to `api.run(...)`.
 
 See [Logging parameters](parameters/logging.md) and
 [Outputs](../guides/outputs.md).

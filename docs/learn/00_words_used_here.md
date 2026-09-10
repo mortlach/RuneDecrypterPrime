@@ -497,9 +497,11 @@ You do not need to construct WLI by hand in the beginner examples.
 
 ## `WordLengthPolicy`
 
-The run setting that controls how missing word-length information is handled.
-The V1 default is `INFER` where the input representation provides enough
-information to infer word boundaries.
+The run setting that controls effective word-length information. The V1 default
+is `INFER`, which derives or preserves WLI when the input provides it and leaves
+it absent otherwise. `REQUIRE` fails if aligned WLI is unavailable. `DISABLED`
+removes WLI and therefore cannot be combined with scoring that requires the WLI
+lane.
 
 ## Source
 
@@ -633,10 +635,10 @@ search accounting and other solver-owned observations.
 
 ## `ScorerReport`
 
-Structured evidence about scoring: the selected objective, effective scorer
-configuration and scoring capability information. It is different from
-`RunResult.score`, which is the convenient scalar value for the selected
-candidate.
+Structured evidence about scoring: the selected objective, primary and raw
+scores, typed runtime capability state and scorer-specific telemetry. Whole-run
+telemetry stays on `RunResult`. `ScorerReport.score` agrees with
+`RunResult.score`; `raw_score` is separate diagnostic evidence when available.
 
 ## Plaintext representations
 
@@ -704,8 +706,9 @@ A run is reproducible when another person has enough information to repeat the
 same experiment and understand what was changed.
 
 That includes the source, cipher, key model, solver settings, scoring settings
-and any randomness that affects the search. `RunResult.reproducibility` records
-replay-relevant metadata.
+and any randomness that affects the search. `RunSpec` is the complete request.
+`RunResult.reproducibility` records the replay metadata it owns rather than
+copying every request field.
 
 ## Telemetry
 
@@ -715,9 +718,10 @@ not change candidate ranking.
 
 ## Oracle
 
-RDP's structured known-answer comparison. Oracle information may be used only
-after a search to measure recovery, or deliberately as part of a diagnostic
-method. Those two uses support different claims.
+RDP's structured report of known-answer use. Ordinary `api.run()` has no general
+oracle input, so this report is normally unavailable. The explicit internal
+test-key fast path is reported as test-mode oracle use; external post-run
+comparison remains the caller's responsibility.
 
 ## Known answer / reference
 
@@ -729,8 +733,8 @@ recovery.
 ## Artifact
 
 A file produced or retained as part of a run, such as a configuration, report,
-log or saved result. `RunResult.artifacts` records known run artifacts without
-turning every in-memory result into a file.
+log or saved result. With logging enabled, `RunResult.artifacts` records
+agreement-backed files actually present. It is empty for an in-memory-only run.
 
 ## Logging / `LoggingConfig`
 

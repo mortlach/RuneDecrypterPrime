@@ -170,7 +170,8 @@ Scoring still owns ranking evidence.
 
 Evaluation stays separate from production search.
 
-Reproducibility records what actually ran.
+The `RunSpec` records the complete request. Configuration, reproducibility and
+telemetry each report the runtime evidence they own.
 
 Those ownership boundaries stop an experimental feature becoming a second
 framework inside the first one.

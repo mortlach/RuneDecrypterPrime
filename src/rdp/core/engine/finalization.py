@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Optional, Sequence, Dict, Any
 import numpy as np
 
-from rdp.core.types import Direction
+from rdp.core.component_contracts import ScorerCapabilityReport
+from rdp.core.types import Direction, freeze_report_mapping
 from rdp.data.runeglish import Runeglish as _R
 from rdp.telemetry.events import attach_telemetry_to_meta
 from rdp.telemetry.pipeline import finalize_run_meta
@@ -29,6 +30,7 @@ def finalize_solution(
     """
     if telemetry_on:
         attach_telemetry_to_meta(res, problem)
+        _attach_scorer_telemetry_to_meta(res, problem)
     else:
         if not hasattr(res, "meta") or res.meta is None:
             res.meta = {}
@@ -73,6 +75,23 @@ def _set_scorer_lanes_payload(res, payload: dict[str, Any]) -> None:
     res.meta["scorer_lanes"] = payload
 
 
+def _attach_scorer_telemetry_to_meta(res, problem) -> None:
+    scorer = getattr(problem, "scorer", None)
+    telemetry = getattr(scorer, "telemetry", None)
+    if not callable(telemetry):
+        return
+    try:
+        payload = telemetry()
+        normalized = freeze_report_mapping(payload, "scorer_telemetry")
+    except Exception:
+        return
+    if not hasattr(res, "meta") or not isinstance(getattr(res, "meta", None), dict):
+        res.meta = {}
+    run_telemetry = res.meta.setdefault("telemetry", {})
+    if isinstance(run_telemetry, dict):
+        run_telemetry["scorer"] = dict(normalized)
+
+
 def _scorer_lanes_error_payload(*, message: str, exc: BaseException | None = None) -> dict[str, Any]:
     error: dict[str, Any] = {
         "code": _SCORER_LANES_ERROR_CODE,
@@ -104,6 +123,20 @@ def _attach_scorer_lanes_to_meta(res, problem) -> None:
             ),
         )
         return
+
+    if not isinstance(report, ScorerCapabilityReport):
+        _set_scorer_lanes_payload(
+            res,
+            _scorer_lanes_error_payload(
+                message=(
+                    "scorer capability_report() must return ScorerCapabilityReport, "
+                    f"got {type(report).__name__}"
+                ),
+            ),
+        )
+        return
+
+    res.scorer_capabilities = report
 
     to_json_dict = getattr(report, "to_json_dict", None)
     try:

@@ -1,20 +1,23 @@
 from __future__ import annotations
+import json
 import rdp.core.engine.finalization
 import importlib
 from types import SimpleNamespace
+from rdp.core.component_contracts import ScorerCapabilityReport
+from rdp.core.config.scoring import ScoringConfig
+from rdp.scoring.scorer_lane_report import build_scorer_lane_report
+from rdp.core.types import Direction
 
-class _Report:
-
-    def __init__(self, payload):
-        self.payload = payload
-
-    def to_json_dict(self):
-        return self.payload
-
-class _ReportWithBrokenJson:
+class _ReportWithBrokenJson(ScorerCapabilityReport):
 
     def to_json_dict(self):
         raise RuntimeError('json broke')
+
+
+class _ReportWithNonDictJson(ScorerCapabilityReport):
+
+    def to_json_dict(self):
+        return ['not', 'a', 'dict']
 
 class _Scorer:
 
@@ -34,11 +37,14 @@ def _error_payload(res):
     return payload['error']
 
 def test_scorer_lanes_payload_is_attached_when_report_serializes() -> None:
-    payload = {'lanes': [{'lane': 'hamming'}], 'components': []}
+    report = build_scorer_lane_report(ScoringConfig())
+    payload = report.to_json_dict()
     res = SimpleNamespace(meta={})
-    problem = SimpleNamespace(scorer=_Scorer(_Report(payload)))
+    problem = SimpleNamespace(scorer=_Scorer(report))
     rdp.core.engine.finalization._attach_scorer_lanes_to_meta(res, problem)
     assert res.meta['scorer_lanes'] == payload
+    assert res.scorer_capabilities is report
+    assert report.lanes[0].effective_state.value == 'active'
 
 def test_scorer_lanes_capability_report_failure_is_visible() -> None:
     res = SimpleNamespace(meta={})
@@ -50,7 +56,7 @@ def test_scorer_lanes_capability_report_failure_is_visible() -> None:
 
 def test_scorer_lanes_serialization_failure_is_visible() -> None:
     res = SimpleNamespace(meta={})
-    problem = SimpleNamespace(scorer=_Scorer(_ReportWithBrokenJson()))
+    problem = SimpleNamespace(scorer=_Scorer(_ReportWithBrokenJson(lanes=())))
     rdp.core.engine.finalization._attach_scorer_lanes_to_meta(res, problem)
     error = _error_payload(res)
     assert error['message'] == 'scorer capability report serialization failed'
@@ -58,11 +64,29 @@ def test_scorer_lanes_serialization_failure_is_visible() -> None:
 
 def test_scorer_lanes_non_dict_payload_is_visible_as_contract_error() -> None:
     res = SimpleNamespace(meta={})
-    problem = SimpleNamespace(scorer=_Scorer(_Report(['not', 'a', 'dict'])))
+    problem = SimpleNamespace(scorer=_Scorer(_ReportWithNonDictJson(lanes=())))
     rdp.core.engine.finalization._attach_scorer_lanes_to_meta(res, problem)
     error = _error_payload(res)
     assert 'must be dict' in error['message']
     assert error.get('exception_type') is None
+
+
+def test_scorer_telemetry_is_normalized_to_json_safe_data() -> None:
+    res = SimpleNamespace(meta={'telemetry': {}})
+    scorer = SimpleNamespace(
+        telemetry=lambda: {
+            'encoding_dir': Direction.LTR,
+            'window': {'L_n': {1: 10, 2: 9}},
+        }
+    )
+
+    rdp.core.engine.finalization._attach_scorer_telemetry_to_meta(
+        res, SimpleNamespace(scorer=scorer)
+    )
+
+    assert res.meta['telemetry']['scorer']['encoding_dir'] == 'ltr'
+    assert res.meta['telemetry']['scorer']['window']['L_n'] == {'1': 10, '2': 9}
+    json.dumps(res.meta['telemetry']['scorer'], allow_nan=False)
 
 def test_solver_report_details_preserves_scorer_lanes_payload() -> None:
     scorer_lanes = {

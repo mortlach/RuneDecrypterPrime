@@ -1,4 +1,5 @@
 from __future__ import annotations
+import json
 from types import SimpleNamespace
 import numpy as np
 import pytest
@@ -162,6 +163,77 @@ def test_child_solvers_honor_inherited_and_direct_target_scores(solver_type, par
 
     assert inherited.stop_reason == "target_score"
     assert direct.stop_reason == "target_score"
+
+
+@pytest.mark.parametrize(
+    ("solver_type", "parameters"),
+    [
+        (BeamSolver, {"beam_width": 2, "rounds": 2}),
+        (GASolver, {"pop_size": 4, "generations": 2}),
+        (SASolver, {"iters": 2}),
+    ],
+)
+def test_generic_solver_callbacks_receive_one_json_safe_mapping(
+    solver_type, parameters
+):
+    events = []
+    solver = solver_type(
+        _TinyProblem(),
+        opt_cfg=parameters,
+        rng=np.random.default_rng(46),
+        seed_keys=[[0, 0]],
+        verbose=False,
+        log_interval=0,
+        progress_callback=events.append,
+    )
+
+    solver.solve()
+
+    assert events
+    assert all(isinstance(event, dict) for event in events)
+    assert all(isinstance(event.get("best_key"), list) for event in events)
+    json.dumps(events, allow_nan=False)
+
+
+def test_hybrid_child_callbacks_include_phase_and_are_json_safe():
+    events = []
+    HybridSolver(
+        _TinyProblem(key_length=1, modulus=3),
+        opt_cfg={
+            'use_beam': True,
+            'beam_width': 3,
+            'rounds': 1,
+            'expand.parent_mode': 'all',
+            'ga': {'pop_size': 4, 'generations': 2},
+            'sa': {'iters': 2, 'T0': 0.5, 'Tmin': 0.1, 'cool': 0.8},
+        },
+        rng=np.random.default_rng(47),
+        seed_keys=[[0]],
+        verbose=False,
+        log_interval=0,
+        progress_callback=events.append,
+    ).solve()
+
+    assert {'beam', 'ga', 'sa'} <= {event['phase'] for event in events}
+    json.dumps(events, allow_nan=False)
+
+
+def test_callback_error_propagates_from_solver():
+    def fail(_event):
+        raise RuntimeError('callback failed')
+
+    solver = BeamSolver(
+        _TinyProblem(),
+        opt_cfg={"beam_width": 2, "rounds": 1},
+        rng=np.random.default_rng(48),
+        seed_keys=[[0, 0]],
+        verbose=False,
+        log_interval=0,
+        progress_callback=fail,
+    )
+
+    with pytest.raises(RuntimeError, match='callback failed'):
+        solver.solve()
 
 def test_hybrid_child_phase_rng_streams_repeat_and_are_phase_distinct(monkeypatch):
 

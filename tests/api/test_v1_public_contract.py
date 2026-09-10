@@ -128,8 +128,8 @@ def test_scoring_and_logging_are_exact_immutable_configs() -> None:
         ("char", 3, 0.4),
         ("char", 4, 0.6),
     )
-    assert LoggingConfig().write_event_log is False
     assert LoggingConfig().portable_output is True
+    assert LoggingConfig().write_solver_report is False
 
 
 def test_runspec_owns_the_complete_request() -> None:

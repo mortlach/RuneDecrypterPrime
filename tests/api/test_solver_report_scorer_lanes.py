@@ -1,6 +1,7 @@
 from __future__ import annotations
 import rdp.core.engine.finalization
 import importlib
+from rdp.core.component_contracts import ScorerCapabilityReport
 
 
 class _SolutionLike:
@@ -61,13 +62,13 @@ def test_scorer_lanes_report_failure_cannot_silently_disappear_from_solver_repor
 def test_scorer_lanes_serialization_failure_cannot_silently_disappear_from_solver_report_details() -> (
     None
 ):
-    class _BrokenReport:
+    class _BrokenReport(ScorerCapabilityReport):
         def to_json_dict(self):
             raise ValueError("serialization exploded")
 
     class _BrokenScorer:
         def capability_report(self):
-            return _BrokenReport()
+            return _BrokenReport(lanes=())
 
     solution = _SolutionLike(meta={}, stop_reason="max_rounds_reached")
     rdp.core.engine.finalization._attach_scorer_lanes_to_meta(

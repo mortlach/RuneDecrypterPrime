@@ -13,7 +13,7 @@ example removes the key and introduces a search:
 python -m tutorials.v1.getting_started.02_first_search
 ```
 
-A normal search brings together five things:
+A normal search brings together six things:
 
 ```text
 ciphertext
@@ -29,12 +29,21 @@ For example:
 ```python
 from rdp import api
 
+PLAINTEXT: api.RuneIndices = (
+    2, 18, 4, 18, 7, 24, 15, 24, 16, 24, 17, 20, 18, 15,
+    18, 16, 3, 1, 16, 1, 9, 23, 18, 4, 24, 16, 4, 18, 18,
+)
+SECRET_KEY: api.ConcreteKey = (7,)
+
+cipher = api.CipherSpec.rail_fence(
+    minimum_rails=2,
+    maximum_rails=8,
+)
+ciphertext = api.encrypt(PLAINTEXT, cipher=cipher, key=SECRET_KEY)
+
 request = api.RunSpec(
     problem_input=api.RuneInput(value=ciphertext),
-    cipher=api.CipherSpec.rail_fence(
-        minimum_rails=2,
-        maximum_rails=8,
-    ),
+    cipher=cipher,
     key_space=api.KeySpec.scalar(
         minimum=2,
         maximum=8,
@@ -54,6 +63,10 @@ request = api.RunSpec(
 )
 
 result = api.run(request)
+
+assert result.key == SECRET_KEY
+assert result.plaintext_indices == PLAINTEXT
+print(result.plaintext_runes)
 ```
 
 Each part states one assumption about the problem. In this example the rail

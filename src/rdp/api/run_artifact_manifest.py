@@ -85,21 +85,16 @@ def write_run_artifacts_manifest(
     Returns the run-relative manifest path.
     """
 
-    if not isinstance(run_dir, Path):
-        raise TypeError("run_dir must be a Path")
-    if type(include_solver_report) is not bool:
-        raise TypeError("include_solver_report must be a bool")
-
-    run_root = run_dir.resolve()
-    _require_existing_file(run_root, KnownArtifactRelpath.RUN_META.value)
-    _require_existing_file(run_root, KnownArtifactRelpath.LOGGING_CONFIG.value)
-
-    rows = _build_v1_rows(run_root, include_solver_report=include_solver_report)
+    rows = build_run_artifact_rows(
+        run_dir=run_dir,
+        include_solver_report=include_solver_report,
+    )
     payload = {
         "manifest_version": RunArtifactManifestVersion.V1.value,
         "rows": [row.to_json_dict() for row in rows],
     }
 
+    run_root = run_dir.resolve()
     manifest_path = (run_root / MANIFEST_RELPATH).resolve()
     if not manifest_path.is_relative_to(run_root):
         raise ValueError("run artifact manifest path must be under run_dir")
@@ -109,6 +104,23 @@ def write_run_artifacts_manifest(
         encoding="utf-8",
     )
     return MANIFEST_RELPATH
+
+
+def build_run_artifact_rows(
+    *,
+    run_dir: Path,
+    include_solver_report: bool = False,
+) -> tuple[RunArtifactManifestRow, ...]:
+    """Build agreement-backed rows for files actually present in one run."""
+    if not isinstance(run_dir, Path):
+        raise TypeError("run_dir must be a Path")
+    if type(include_solver_report) is not bool:
+        raise TypeError("include_solver_report must be a bool")
+
+    run_root = run_dir.resolve()
+    _require_existing_file(run_root, KnownArtifactRelpath.RUN_META.value)
+    _require_existing_file(run_root, KnownArtifactRelpath.LOGGING_CONFIG.value)
+    return _build_v1_rows(run_root, include_solver_report=include_solver_report)
 
 
 def _build_v1_rows(
@@ -190,5 +202,6 @@ def _validate_rows_match_agreement(rows: Iterable[RunArtifactManifestRow]) -> No
 __all__ = [
     "MANIFEST_RELPATH",
     "RunArtifactManifestRow",
+    "build_run_artifact_rows",
     "write_run_artifacts_manifest",
 ]

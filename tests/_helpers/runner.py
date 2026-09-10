@@ -20,7 +20,7 @@ def run_vigenere_roundtrip_baseline(device: Device, seed: int, beam_width: int, 
     pt_idx, wli, make_key, encrypt_fn, K, known_key = build_vigenere_known_key_case(
         seed
     )
-    logging_cfg = make_logging_cfg({"write_event_log": True})
+    logging_cfg = make_logging_cfg()
     scorer_cfg = make_scorer_cfg(scorer_over)
     optimizer_cfg = make_optimizer_cfg('beam', {'beam_width': int(beam_width), **(optimizer_over or {})})
     logging_cfg_overrides = overrides_dict(logging_cfg, extra=logging_over)

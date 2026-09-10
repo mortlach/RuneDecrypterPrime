@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from rdp.core.config.logging_config import LoggingConfig as CoreLoggingConfig
 
-_RUNTIME_LOGGING_KEYS = {"progress_callback", "log_interval"}
+_RUNTIME_LOGGING_KEYS = {"progress_callback"}
 _DURABLE_OUTPUT_PATH_KEYS = {
     "output_root",
     "run_directory",
@@ -15,7 +15,6 @@ _DURABLE_OUTPUT_PATH_KEYS = {
 _DURABLE_OUTPUT_TRUE_KEYS = {
     "portable_output",
     "redact_identity",
-    "write_event_log",
     "write_solver_report",
     "write_artifact_manifest",
 }

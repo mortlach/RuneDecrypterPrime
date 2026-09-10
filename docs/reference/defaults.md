@@ -42,6 +42,10 @@ The main defaults are:
 | span-Hamming | disabled |
 | word n-gram judge | disabled |
 
+V1 accepts only `EXCLUDE_BOUNDARIES` for language-model boundary handling and
+only `MAXIMIZE` for the retained `score_direction` field. Unsupported
+alternatives fail clearly; the selected objective owns ranking sense.
+
 See [Scoring](../guides/scoring.md) and
 [Scoring parameters](parameters/scoring.md).
 
@@ -49,9 +53,6 @@ See [Scoring](../guides/scoring.md) and
 
 | Parameter | Default |
 | --- | --- |
-| `verbose` | `False` |
-| `show_progress` | `True` |
-| `write_event_log` | `False` |
 | `output_root` | `None` |
 | `run_category` | `"run"` |
 | `label` | `None` |
@@ -64,6 +65,8 @@ See [Scoring](../guides/scoring.md) and
 
 See [Outputs](../guides/outputs.md) and
 [Logging parameters](parameters/logging.md).
+
+Live progress is a runtime-only `api.run(..., progress_callback=...)` control.
 
 ## Solver and component defaults
 

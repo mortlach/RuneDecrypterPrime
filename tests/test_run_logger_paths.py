@@ -4,6 +4,9 @@ import os
 import datetime as dt
 from pathlib import Path
 import pytest
+import logging
+import rdp.core.config.logging_config as logging_config
+import rdp.io.logging_adapter as logging_adapter
 import rdp.io.run_logger as run_logger
 from rdp.io.run_logger import RunLogger
 
@@ -90,3 +93,35 @@ def test_log_trace_error_event_uses_portable_error_fields(tmp_path: Path, monkey
     assert event['error_message'] == 'cannot write <path>'
     assert event['error_details_redacted'] is True
     assert str(leaked_path) not in json.dumps(event)
+
+
+def test_run_logger_self_initializes_with_current_logging_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    previous = logging_config.current_paths()
+    monkeypatch.setenv('RDP_OUTPUT_ROOT', str(tmp_path))
+    logging_config._PATHS.clear()
+    try:
+        logger = RunLogger()
+        logger.log_event({'type': 'self_init'})
+
+        assert logger.run_dir.is_relative_to(tmp_path.resolve())
+        assert _jsonl_events(logger.run_dir)[0]['type'] == 'self_init'
+    finally:
+        logging_config._PATHS.clear()
+        logging_config._PATHS.update(previous)
+
+
+def test_module_logger_is_an_ordinary_stdlib_logger(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        run_logger,
+        'get_logger',
+        lambda: (_ for _ in ()).throw(TypeError('must not be called')),
+    )
+
+    logger = logging_adapter.module_logger('rdp.tests.module')
+
+    assert isinstance(logger, logging.Logger)
+    assert logger.name == 'rdp.tests.module'

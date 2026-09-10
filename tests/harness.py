@@ -105,9 +105,6 @@ def run_roundtrip_case(*, cipher_name: str, plaintext_idx: np.ndarray, wli_data:
     log_defaults = {
         "run_category": "tests",
         "label": "pytest",
-        "verbose": True,
-        "show_progress": True,
-        "write_event_log": True,
     }
     log_cfg = api.LoggingConfig.from_dict({**{**log_defaults, **log_over}})
     solver_cfg = RunConfig(cipher=c_cfg, scorer_name='rune', scorer_params=s_cfg, solver=o_cfg, logging=log_cfg, seed=seed)
@@ -174,7 +171,7 @@ def run_roundtrip_case(*, cipher_name: str, plaintext_idx: np.ndarray, wli_data:
         raise AssertionError(f'decryption below threshold match_rate={match_rate:.4f}, score={sol.score}')
     if require_key_match and found_key.size == key.size and (not np.array_equal(found_key, key)):
         raise AssertionError(f'found key != known key\nfound={found_key.tolist()}\nknown={key.tolist()}')
-    effective_verbose = bool(log_cfg.verbose) if logging_cfg_overrides is not None else bool(verbose)
+    effective_verbose = bool(verbose)
     if effective_verbose:
         print('\n──────────────── debug ────────────────')
         print(f'cipher     : {cipher_name}')
@@ -213,6 +210,5 @@ def run_roundtrip_case(*, cipher_name: str, plaintext_idx: np.ndarray, wli_data:
         }
     )
     sol.meta["run_meta"] = run_meta
-    if log_cfg.write_event_log:
-        log.log_event({"type": "run_meta", **run_meta})
+    log.log_event({"type": "run_meta", **run_meta})
     return (key, found_key, sol.meta)

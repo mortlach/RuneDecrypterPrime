@@ -71,11 +71,9 @@ BASELINE: dict = {
           "ga": {"population": 64, "generations": 50},
     },
     "logging": {
-        "run_kind": "tests",
+        "run_category": "tests",
         "label": "pytest",
-        "write_jsonl": True,
-        "verbose": True,
-        "print_progress": True,
+        "portable_output": True,
     },
     "devices": ["cpu", "torch", "cuda"],
     # Default config knobs (mapped to dataclasses by helpers)

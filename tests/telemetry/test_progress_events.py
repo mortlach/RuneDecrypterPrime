@@ -10,7 +10,7 @@ def test_progress_events_use_canonical_timing_keys(small_problem_cfg):
         seed=small_problem_cfg["seed"],
         beam_width=small_problem_cfg["beam_width"],
         preview=small_problem_cfg["preview"],
-        logging_over={"show_progress": False},
+        logging_over={},
         use_test_key=False,
     )
     telemetry = meta.get("telemetry", {})

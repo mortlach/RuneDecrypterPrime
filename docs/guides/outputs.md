@@ -37,9 +37,6 @@ request = api.RunSpec(
 A default `LoggingConfig()` uses:
 
 ```text
-verbose=False
-show_progress=True
-write_event_log=False
 run_category="run"
 portable_output=True
 write_solver_report=False
@@ -48,6 +45,9 @@ write_artifact_manifest=False
 ```
 
 `output_root`, `label` and `run_directory` default to `None`.
+
+`LoggingConfig` owns durable file output, not console presentation or live
+progress. Pass `progress_callback` directly to `api.run(...)` for live updates.
 
 The complete field list is in
 [Logging parameters](../reference/parameters/logging.md).
@@ -95,6 +95,12 @@ before publication.
 
 For the result-side view of generated files, see `RunResult.artifacts` in
 [Reading a result](results.md).
+
+With no logging, `RunResult.artifacts` is empty. When logging is enabled, it
+contains agreement-backed rows for the metadata/config files and requested
+solver-report or display-summary files that are actually present. If a manifest
+is requested, its rows agree with the returned rows; the manifest does not list
+itself.
 
 ## Artifact contracts
 

@@ -17,12 +17,12 @@ model and several specialist scoring features.
 | `wli_ngram_order` | `int` | `2` | Positive. |
 | `window_size` | `int` | `10` | Positive. |
 | `stride` | `int` | `1` | Positive. |
-| `boundary_mode` | `LanguageModelBoundaryMode` | `EXCLUDE_BOUNDARIES` | See [Common enums](enums.md). |
+| `boundary_mode` | `LanguageModelBoundaryMode` | `EXCLUDE_BOUNDARIES` | V1 supports only `EXCLUDE_BOUNDARIES`; `INCLUDE_BOUNDARIES` is rejected. |
 | `base_lane_weights` | `tuple[float, float] | None` | `None` | Optional base character/WLI lane weights. |
-| `score_direction` | `ScoreDirection` | `MAXIMIZE` | `MAXIMIZE` or `MINIMIZE`. |
+| `score_direction` | `ScoreDirection` | `MAXIMIZE` | V1 accepts only `MAXIMIZE`; `MINIMIZE` is rejected because the objective owns ranking sense. |
 | `character_order_weights` | mapping or `None` | `None` | Positive integer n-gram orders to non-negative weights. |
 | `wli_order_weights` | mapping or `None` | `None` | Positive integer n-gram orders to non-negative weights. |
-| `backend` | `ScorerBackend` | `AUTO` | `AUTO`, `NUMPY`, `TORCH`, or `UNIFIED`. |
+| `backend` | `ScorerBackend` | `AUTO` | `AUTO`, `NUMPY`, `TORCH`, or `UNIFIED`. A resolved AUTO backend is reported as effective runtime state when scorer telemetry establishes it. |
 | `compute_dtype` | `FloatDType` | `FLOAT32` | `FLOAT32` or `FLOAT64`. |
 | `accumulator_dtype` | `FloatDType` | `FLOAT64` | `FLOAT32` or `FLOAT64`. |
 | `objective` | `ScoringObjective` | percentile log probability, window `10` | Typed objective. |

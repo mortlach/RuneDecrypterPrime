@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import inspect
 
 import pytest
 
@@ -92,21 +93,108 @@ def test_run_spec_rejects_mixed_component_arguments(monkeypatch) -> None:
 
 def test_run_spec_accepts_only_runtime_progress_controls(monkeypatch) -> None:
     captured = _capture(monkeypatch)
-    callback = lambda *_args, **_kwargs: None
+    callback = lambda _event: None
 
     api.run(
         _spec(api.RuneInput("abc")),
         progress_callback=callback,
-        progress_interval=10,
     )
 
-    assert captured["logging_runtime"] == {
-        "progress_callback": callback,
-        "log_interval": 10,
-    }
+    assert captured["logging_runtime"] == {"progress_callback": callback}
 
 
-@pytest.mark.parametrize("value", [0, True, "10"])
-def test_progress_interval_is_strict(value) -> None:
-    with pytest.raises((TypeError, ValueError)):
-        api.run(_spec(api.RuneInput("abc")), progress_interval=value)
+def test_progress_interval_is_not_in_public_signature() -> None:
+    assert "progress_interval" not in inspect.signature(api.run).parameters
+
+
+def test_word_length_policy_infer_derives_text_wli() -> None:
+    materialized = materialize_runspec_problem_input(_spec(api.RuneInput("abc def")))
+
+    assert materialized.wli is not None
+    assert len(materialized.wli) == len(materialized.ciphertext)
+
+
+def test_word_length_policy_infer_preserves_explicit_index_wli() -> None:
+    supplied = ((0, 2), (1, 2))
+    materialized = materialize_runspec_problem_input(
+        _spec(api.RuneInput((1, 2), word_length_information=supplied))
+    )
+
+    assert tuple(map(tuple, materialized.wli or ())) == supplied
+
+
+def test_word_length_policy_require_accepts_aligned_wli() -> None:
+    base = _spec(api.RuneInput((1, 2), word_length_information=((0, 2), (1, 2))))
+    request = api.RunSpec(
+        problem_input=base.problem_input,
+        cipher=base.cipher,
+        key_space=base.key_space,
+        solver=base.solver,
+        word_length_policy=api.WordLengthPolicy.REQUIRE,
+        telemetry_enabled=False,
+    )
+
+    assert materialize_runspec_problem_input(request).wli is not None
+
+
+def test_word_length_policy_require_rejects_missing_wli() -> None:
+    base = _spec(api.RuneInput((1, 2)))
+    request = api.RunSpec(
+        problem_input=base.problem_input,
+        cipher=base.cipher,
+        key_space=base.key_space,
+        solver=base.solver,
+        word_length_policy=api.WordLengthPolicy.REQUIRE,
+        telemetry_enabled=False,
+    )
+
+    with pytest.raises(api.ConfigurationError, match="REQUIRE"):
+        materialize_runspec_problem_input(request)
+
+
+def test_word_length_policy_disabled_removes_available_wli() -> None:
+    base = _spec(api.RuneInput("abc def"))
+    request = api.RunSpec(
+        problem_input=base.problem_input,
+        cipher=base.cipher,
+        key_space=base.key_space,
+        solver=base.solver,
+        scoring=api.ScoringConfig(wli_lane_enabled=False),
+        word_length_policy=api.WordLengthPolicy.DISABLED,
+        telemetry_enabled=False,
+    )
+
+    assert materialize_runspec_problem_input(request).wli is None
+
+
+def test_word_length_policy_disabled_character_only_reaches_execution(monkeypatch) -> None:
+    captured = _capture(monkeypatch)
+    base = _spec(api.RuneInput("abc def"))
+    request = api.RunSpec(
+        problem_input=base.problem_input,
+        cipher=base.cipher,
+        key_space=base.key_space,
+        solver=base.solver,
+        scoring=api.ScoringConfig(wli_lane_enabled=False),
+        word_length_policy=api.WordLengthPolicy.DISABLED,
+        telemetry_enabled=False,
+    )
+
+    api.run(request)
+
+    assert captured["wli"] is None
+
+
+def test_word_length_policy_disabled_rejects_wli_required_scoring() -> None:
+    base = _spec(api.RuneInput("abc def"))
+    request = api.RunSpec(
+        problem_input=base.problem_input,
+        cipher=base.cipher,
+        key_space=base.key_space,
+        solver=base.solver,
+        word_length_policy=api.WordLengthPolicy.DISABLED,
+        telemetry_enabled=False,
+    )
+
+    with pytest.raises(api.advanced.UnsupportedConfigurationError, match="DISABLED"):
+        api.run(request)

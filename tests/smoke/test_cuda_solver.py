@@ -14,7 +14,7 @@ def test_stage2_solver_runs_on_cuda_and_emits_cuda_telemetry():
         seed=12345,
         beam_width=4,
         preview=32,
-        logging_over={'show_progress': False},
+        logging_over={},
         use_test_key=False,
     )
     telemetry = meta.get('telemetry', {})

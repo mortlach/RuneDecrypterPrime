@@ -39,15 +39,30 @@ def test_run_without_logging_writes_no_artifacts(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _patch_execution(monkeypatch, tmp_path)
-    api.run(_request())
+    result = api.run(_request())
+    assert result.artifacts == ()
     assert not (tmp_path / "artifacts" / "run_artifacts_manifest.json").exists()
+
+
+def test_logging_only_returns_present_meta_and_config_rows(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _patch_execution(monkeypatch, tmp_path)
+
+    result = api.run(_request(api.LoggingConfig()))
+
+    assert [row.relpath.value for row in result.artifacts] == [
+        "META.json",
+        "config/logging.json",
+    ]
+    assert all(row.present for row in result.artifacts)
 
 
 def test_run_writes_requested_solver_report_and_manifest(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _patch_execution(monkeypatch, tmp_path)
-    api.run(
+    result = api.run(
         _request(
             api.LoggingConfig(
                 write_solver_report=True,
@@ -67,6 +82,25 @@ def test_run_writes_requested_solver_report_and_manifest(
         "config/logging.json",
         "artifacts/solver_report.json",
     ]
+    assert [row.to_json_dict() for row in result.artifacts] == payload["rows"]
+
+
+def test_run_returns_requested_display_summary_row(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _patch_execution(monkeypatch, tmp_path)
+
+    result = api.run(
+        _request(api.LoggingConfig(write_display_summary=True))
+    )
+
+    assert (tmp_path / "artifacts" / "rdp_display_summary.json").is_file()
+    assert [row.relpath.value for row in result.artifacts] == [
+        "META.json",
+        "config/logging.json",
+        "artifacts/rdp_display_summary.json",
+    ]
+    assert all(not Path(row.relpath.value).is_absolute() for row in result.artifacts)
 
 
 @pytest.mark.parametrize(

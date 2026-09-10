@@ -27,6 +27,13 @@ def test_final_key_space_constructors_are_complete_and_strict() -> None:
     with pytest.raises(api.advanced.UnknownComponentError):
         api.KeySpec.from_name('repeating_range', parameters={'minimum_length': 3, 'maximum_length': 5})
 
+
+def test_unknown_key_name_has_key_component_classification() -> None:
+    with pytest.raises(api.advanced.UnknownComponentError) as raised:
+        api.KeySpec.from_name('unknown_key', parameters={})
+
+    assert raised.value.component_kind is api.advanced.ComponentKind.KEY
+
 def test_secondary_cipher_parser_is_only_for_serialized_configuration() -> None:
     parsed = api.CipherSpec.from_name("vigenere", parameters={"alphabet_size": 29})
     assert parsed == api.CipherSpec.vigenere(alphabet_size=29)

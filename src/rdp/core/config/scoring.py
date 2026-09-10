@@ -11,7 +11,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
-from rdp.core.component_contracts import ScoringLane
+from rdp.core.component_contracts import ScoringLane, UnsupportedConfigurationError
 from rdp.core.config.hard_crib import (
     HardCribConfig,
     normalize_hard_crib_config,
@@ -274,6 +274,17 @@ class ScoringConfig:
         )
         for name, enum_type in enum_fields:
             _enum_value(enum_type, getattr(self, name), name)
+        if self.boundary_mode is not LanguageModelBoundaryMode.EXCLUDE_BOUNDARIES:
+            raise UnsupportedConfigurationError(
+                "boundary_mode=INCLUDE_BOUNDARIES is not supported in V1",
+                field_paths=("boundary_mode",),
+            )
+        if self.score_direction is not ScoreDirection.MAXIMIZE:
+            raise UnsupportedConfigurationError(
+                "score_direction=MINIMIZE is not supported in V1; "
+                "the scoring objective owns ranking direction",
+                field_paths=("score_direction",),
+            )
         if not isinstance(self.objective, ScoringObjective):
             raise TypeError("objective must be ScoringObjective")
         if self.span_hamming_assets_dictionary_policy is not None:
@@ -470,6 +481,15 @@ class ScoringConfig:
         if self.word_ngram_judge_enabled:
             lanes.append(ScoringLane.WORD_NGRAM_JUDGE_REPORT_ONLY)
         return tuple(lanes)
+
+    def requires_word_length_information(self) -> bool:
+        """Return whether this configuration requires aligned WLI at runtime."""
+        if self.span_hamming_mode is SpanHammingMode.CALIBRATED:
+            return False
+        return any(
+            channel == "wli"
+            for channel, _order, _weight in self.effective_lm_model_weights()
+        )
 
     def effective_lm_model_weights(
         self, *, use_wli: bool | None = None

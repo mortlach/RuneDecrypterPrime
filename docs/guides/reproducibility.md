@@ -17,10 +17,18 @@ For a repeatable experiment, the relevant parts normally include:
 - compute device
 - RDP and asset versions where exact replay matters
 
-`RunResult.configuration` records the effective run configuration.
-`RunResult.reproducibility` records the replay-relevant metadata.
+The original `RunSpec` is the complete durable request. It owns fields such as
+the input, direction, initial keys and interruptors.
 
-These are the first places to compare when two runs that should match do not.
+`RunResult.configuration` records requested and effective solver, scoring and
+cipher component configuration. `RunResult.reproducibility` records the replay
+metadata it actually owns: effective seed and component configuration, runtime
+types, stop information, and authoritative run/Git identity when logging made
+that evidence available. It does not independently duplicate every `RunSpec`
+field. `RunResult.telemetry` records execution observations.
+
+Compare the `RunSpec` first, then use these result sections to explain what the
+runtime resolved and observed.
 
 ## A minimal comparison
 

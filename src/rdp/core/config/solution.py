@@ -7,6 +7,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence
 
+from rdp.core.component_contracts import ScorerCapabilityReport
+
 from rdp.core.types import (
     Device,
     SolverName,
@@ -35,6 +37,7 @@ class Solution:
     # Optional context / flags
     has_wli: Optional[bool] = None
     meta: Dict[str, Any] = field(default_factory=dict)
+    scorer_capabilities: Optional[ScorerCapabilityReport] = None
 
     # Convenience (safe views for tutorials/UIs)
     plaintext_str: str = ""                 # always a real str by the time API returns

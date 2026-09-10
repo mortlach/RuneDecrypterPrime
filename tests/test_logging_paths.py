@@ -2,7 +2,6 @@ from __future__ import annotations
 from rdp import api
 import json
 import os
-import shutil
 from pathlib import Path
 import rdp.core.config.logging_config as logging_config
 
@@ -10,19 +9,14 @@ def _assert_local_path(value: str) -> None:
     assert value, 'path string must be non-empty'
     assert not os.path.isabs(value), f'{value} should be relative'
 
-def test_meta_and_snapshot_paths_are_repo_local():
-    repo_root = Path(__file__).resolve().parents[1]
-    out_root = repo_root / 'output' / '__test_relpaths__'
-    shutil.rmtree(out_root, ignore_errors=True)
+def test_meta_and_snapshot_paths_are_repo_local(tmp_path: Path):
+    out_root = tmp_path / '__test_relpaths__'
     prev_paths = logging_config.current_paths()
     try:
         cfg = api.LoggingConfig(
             output_root=out_root,
             run_category="tests",
             label="pytest",
-            verbose=False,
-            show_progress=False,
-            write_event_log=False,
         )
         run_dir = logging_config.init_logging(cfg)
         meta = json.loads((run_dir / 'META.json').read_text(encoding='utf-8'))
@@ -37,10 +31,12 @@ def test_meta_and_snapshot_paths_are_repo_local():
         _assert_local_path(snap["output_root"])
         if snap.get("run_directory"):
             _assert_local_path(snap["run_directory"])
+        for removed in ("verbose", "print_progress", "write_jsonl"):
+            assert removed not in meta
+            assert removed not in snap
     finally:
         logging_config._PATHS.clear()
         logging_config._PATHS.update(prev_paths)
-        shutil.rmtree(out_root, ignore_errors=True)
 
 def _init_test_logging(repo_root: Path, out_root: Path, **overrides):
     cfg = api.LoggingConfig.from_dict(
@@ -48,9 +44,6 @@ def _init_test_logging(repo_root: Path, out_root: Path, **overrides):
             "output_root": str(out_root),
             "run_category": "tests",
             "label": "pytest",
-            "verbose": False,
-            "show_progress": False,
-            "write_event_log": False,
             "portable_output": False,
             **overrides,
         }
@@ -61,10 +54,9 @@ def _init_test_logging(repo_root: Path, out_root: Path, **overrides):
     return (meta, snap)
 
 
-def test_logging_config_explicit_nonportable_identity_behavior():
+def test_logging_config_explicit_nonportable_identity_behavior(tmp_path: Path):
     repo_root = Path(__file__).resolve().parents[1]
-    out_root = repo_root / 'output' / '__test_identity_default__'
-    shutil.rmtree(out_root, ignore_errors=True)
+    out_root = tmp_path / '__test_identity_default__'
     prev_paths = logging_config.current_paths()
     try:
         meta, snap = _init_test_logging(repo_root, out_root)
@@ -78,12 +70,10 @@ def test_logging_config_explicit_nonportable_identity_behavior():
     finally:
         logging_config._PATHS.clear()
         logging_config._PATHS.update(prev_paths)
-        shutil.rmtree(out_root, ignore_errors=True)
 
-def test_logging_config_portable_output_redacts_identity():
+def test_logging_config_portable_output_redacts_identity(tmp_path: Path):
     repo_root = Path(__file__).resolve().parents[1]
-    out_root = repo_root / 'output' / '__test_portable_identity__'
-    shutil.rmtree(out_root, ignore_errors=True)
+    out_root = tmp_path / '__test_portable_identity__'
     prev_paths = logging_config.current_paths()
     try:
         meta, snap = _init_test_logging(repo_root, out_root, portable_output=True)
@@ -95,12 +85,10 @@ def test_logging_config_portable_output_redacts_identity():
     finally:
         logging_config._PATHS.clear()
         logging_config._PATHS.update(prev_paths)
-        shutil.rmtree(out_root, ignore_errors=True)
 
-def test_logging_config_redact_identity_still_redacts_without_portable_output():
+def test_logging_config_redact_identity_still_redacts_without_portable_output(tmp_path: Path):
     repo_root = Path(__file__).resolve().parents[1]
-    out_root = repo_root / 'output' / '__test_redact_identity__'
-    shutil.rmtree(out_root, ignore_errors=True)
+    out_root = tmp_path / '__test_redact_identity__'
     prev_paths = logging_config.current_paths()
     try:
         meta, snap = _init_test_logging(repo_root, out_root, redact_identity=True)
@@ -113,4 +101,3 @@ def test_logging_config_redact_identity_still_redacts_without_portable_output():
     finally:
         logging_config._PATHS.clear()
         logging_config._PATHS.update(prev_paths)
-        shutil.rmtree(out_root, ignore_errors=True)

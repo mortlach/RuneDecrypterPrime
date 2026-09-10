@@ -2,7 +2,14 @@ from __future__ import annotations
 import numpy as np
 import pytest
 from rdp.solvers.solver_base import SolverBase
-from rdp.core.types import SolverName, KEY_DTYPE, Device, Direction
+from rdp.core.types import (
+    SolverName,
+    KEY_DTYPE,
+    Device,
+    Direction,
+    ObjectiveFamily,
+    ObjectiveSpec,
+)
 pytestmark = pytest.mark.tier_a
 
 class _DummyKeyOps:
@@ -51,7 +58,7 @@ def test_progress_preview_prints_text_snippet(capfd: pytest.CaptureFixture[str])
 
 def test_progress_callback_is_runtime_state_and_still_receives_progress() -> None:
     received = []
-    solver = _PreviewSolver(lambda payload, key: received.append((payload, key)))
+    solver = _PreviewSolver(received.append)
     best_key = np.arange(solver.K, dtype=np.uint8)
 
     solver._progress_pct(
@@ -63,7 +70,33 @@ def test_progress_callback_is_runtime_state_and_still_receives_progress() -> Non
     )
 
     assert len(received) == 1
-    payload, key = received[0]
+    payload = received[0]
     assert payload['best_score'] == pytest.approx(0.42)
-    assert key == best_key.astype(int).tolist()
+    assert payload['best_key'] == best_key.astype(int).tolist()
     assert not hasattr(solver.problem.telemetry, 'progress_callback')
+
+
+def test_negative_log_probability_objective_owns_lower_is_better_ranking() -> None:
+    solver = _PreviewSolver()
+    solver.problem.scorer = type(
+        'Scorer',
+        (),
+        {'objective': ObjectiveSpec(ObjectiveFamily.NEGLOGP, None, None)},
+    )()
+
+    ranked = solver._rank_scores(np.asarray([1.0, 2.0]))
+
+    assert ranked.tolist() == [-1.0, -2.0]
+    assert int(np.argmax(ranked)) == 0
+
+
+def test_test_key_fastpath_puts_metadata_in_meta_field() -> None:
+    solver = _PreviewSolver()
+    solver.problem.c_cfg.test_key = [0, 1, 2, 3, 4, 5]
+
+    solution = solver._maybe_return_test_key_fastpath()
+
+    assert solution is not None
+    assert solution.has_wli is None
+    assert solution.meta['reason'] == 'test_key'
+    assert solution.stop_reason == 'test_key'

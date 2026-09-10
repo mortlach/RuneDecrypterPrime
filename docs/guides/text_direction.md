@@ -37,8 +37,9 @@ See [Ciphertext input](ciphertext_input.md) and [Scoring](scoring.md).
 
 ## Where the setting is recorded
 
-Direction is part of the durable `RunSpec`, so it is also available through the
-result configuration and reproducibility information.
+Direction is part of the durable `RunSpec`. Runtime pipeline telemetry also
+records direction when telemetry is enabled. The current reproducibility schema
+does not independently duplicate this field.
 
 That makes an LTR/RTL comparison easier to review after the run rather than
 relying on a comment in the solving script.

@@ -19,14 +19,17 @@ Its public fields are:
 | `score` | Best score, or `None`. |
 | `status` | `RunStatus`. |
 | `solver_report` | Solver report. |
-| `scorer_report` | Scoring report. |
-| `configuration` | Effective run configuration. |
-| `reproducibility` | Reproducibility metadata. |
-| `oracle` | Known-answer/oracle report. |
-| `telemetry` | Telemetry mapping. |
-| `artifacts` | Artifact-manifest rows. |
+| `scorer_report` | Scoring report. Its capabilities are the typed scorer-lane states observed at runtime, and its telemetry is scorer-specific. |
+| `configuration` | Requested and effective solver, scoring and cipher configuration. Resolved scorer backend evidence is used when available. |
+| `reproducibility` | Replay metadata owned by the result, including effective seed/configuration and authoritative run/Git identity when available. It is not a replacement for the complete `RunSpec`. |
+| `oracle` | Normally unavailable because `api.run()` has no general oracle input. Explicit internal test-key use is reported as test-mode oracle evidence. |
+| `telemetry` | Complete run telemetry mapping. |
+| `artifacts` | Agreement-backed rows for files actually present. Empty when logging is disabled. |
 
 `RunResult.key` and the solver report's best key are required to agree.
+`RunResult.score`, `SolverReport.best_score` and `ScorerReport.score` describe
+the same selected primary-objective score. `ScorerReport.raw_score` is separate
+raw diagnostic evidence when the runtime supplies it.
 
 ## A normal first look
 

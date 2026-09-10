@@ -136,9 +136,7 @@ def make_logging_cfg(overrides: Dict[str, Any] | None=None, /, **kw) -> LoggingC
     """
     Construct a LoggingConfig from BASELINE['logging'] with user overrides winning.
 
-    Accepts both:
-        make_logging_cfg({"verbose": False})
-        make_logging_cfg(overrides={"show_progress": False}, write_event_log=True)
+    Accepts both positional and keyword field overrides.
     """
     if 'overrides' in kw:
         o2 = kw.pop('overrides') or {}
@@ -146,9 +144,7 @@ def make_logging_cfg(overrides: Dict[str, Any] | None=None, /, **kw) -> LoggingC
     base = {
         "run_category": "tests",
         "label": "pytest",
-        "write_event_log": True,
-        "verbose": True,
-        "show_progress": True,
+        "portable_output": True,
     }
     merged = _deep_merge(base, overrides or {})
     merged = _deep_merge(merged, kw)

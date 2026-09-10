@@ -3,17 +3,24 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
+from datetime import datetime, timezone
+import json
 from typing import overload
 
 import numpy as np
 
 from rdp.api.pipeline import execute_run
-from rdp.api.run_artifact_manifest import write_run_artifacts_manifest
+from rdp.api.run_artifact_manifest import (
+    build_run_artifact_rows,
+    write_run_artifacts_manifest,
+)
 from rdp.api.run_result import RunResult
 from rdp.api.run_spec import ProblemInput, RunSpec
 from rdp.api.run_spec_routing import materialize_runspec_problem_input
 from rdp.api.solver_report import (
     ConfigurationResolution,
+    OracleMode,
     OracleReport,
     ReproducibilityMetadata,
     RunConfigurationReport,
@@ -26,6 +33,7 @@ from rdp.api.stop_reason_contract import (
     execution_status_for_category,
     run_status_from_solution,
     stop_category_for_reason,
+    StopReason,
 )
 from rdp.core.component_contracts import ScorerCapabilityReport
 from rdp.core.config.solver import SolverConfig
@@ -39,6 +47,7 @@ from rdp.core.types import (
     IndexPermutation,
     InitialKeys,
     ProgressCallback,
+    ScorerBackend,
     SolverKind,
     TextDirection,
     WordLengthPolicy,
@@ -57,7 +66,6 @@ def run(
     /,
     *,
     progress_callback: ProgressCallback | None = None,
-    progress_interval: int | None = None,
 ) -> RunResult: ...
 
 
@@ -78,7 +86,6 @@ def run(
     text_permutation: IndexPermutation | None = None,
     interruptors: InterruptorConfig | None = None,
     progress_callback: ProgressCallback | None = None,
-    progress_interval: int | None = None,
 ) -> RunResult: ...
 
 
@@ -100,7 +107,6 @@ def run(
     text_permutation: IndexPermutation | None = None,
     interruptors: InterruptorConfig | None = None,
     progress_callback: ProgressCallback | None = None,
-    progress_interval: int | None = None,
 ) -> RunResult:
     """Run one solve through the single typed execution route."""
     component_values = (problem_input, cipher, key_space, solver)
@@ -151,19 +157,13 @@ def run(
 
     if progress_callback is not None and not callable(progress_callback):
         raise TypeError("progress_callback must be callable or None")
-    if progress_interval is not None:
-        if isinstance(progress_interval, bool) or not isinstance(progress_interval, int):
-            raise TypeError("progress_interval must be an integer or None")
-        if progress_interval < 1:
-            raise ValueError("progress_interval must be >= 1")
-    return _execute(request, progress_callback=progress_callback, progress_interval=progress_interval)
+    return _execute(request, progress_callback=progress_callback)
 
 
 def _execute(
     request: RunSpec,
     *,
     progress_callback: ProgressCallback | None,
-    progress_interval: int | None,
 ) -> RunResult:
     materialized = materialize_runspec_problem_input(request)
     device = Device.CPU if request.compute_device is ComputeDevice.CPU else Device.CUDA
@@ -172,8 +172,6 @@ def _execute(
     logging_runtime: dict[str, object] = {}
     if progress_callback is not None:
         logging_runtime["progress_callback"] = progress_callback
-    if progress_interval is not None:
-        logging_runtime["log_interval"] = progress_interval
 
     if request.solver.kind is SolverKind.TWO_PERIOD_CRIBS:
         if request.logging is not None:
@@ -195,6 +193,7 @@ def _execute(
             interruptors_exact=None,
             interruptors_pool=None,
             interruptors_max=None,
+            progress_callback=progress_callback,
         )
     else:
         solver_config = _runtime_solver_config(request.solver, effective_seed=effective_seed)
@@ -225,8 +224,7 @@ def _execute(
         effective_seed=effective_seed,
         word_length_information=materialized.wli,
     )
-    _write_requested_artifacts(request, result)
-    return result
+    return _write_requested_artifacts(request, result)
 
 
 def _runtime_solver_config(solver: SolverSpec, *, effective_seed: int) -> SolverConfig:
@@ -478,10 +476,10 @@ def _solver_spec_from_mapping(value: object, field_name: str) -> SolverSpec:
     return SolverSpec.from_name(kind, parameters=parsed_parameters)
 
 
-def _write_requested_artifacts(request: RunSpec, result: RunResult) -> None:
+def _write_requested_artifacts(request: RunSpec, result: RunResult) -> RunResult:
     logging = request.logging
     if logging is None:
-        return
+        return result
     run_dir = get_run_dir()
     if logging.write_solver_report:
         write_solver_report_json(result.solver_report, run_dir=run_dir)
@@ -499,6 +497,11 @@ def _write_requested_artifacts(request: RunSpec, result: RunResult) -> None:
             run_dir=run_dir,
             include_solver_report=logging.write_solver_report,
         )
+    rows = build_run_artifact_rows(
+        run_dir=run_dir,
+        include_solver_report=logging.write_solver_report,
+    )
+    return replace(result, artifacts=rows)
 
 
 def _solution_key(solution: object) -> tuple[int, ...] | None:
@@ -525,6 +528,18 @@ def _solution_telemetry(solution: object) -> Mapping[str, object]:
         return {}
     telemetry = meta.get("telemetry")
     return telemetry if isinstance(telemetry, Mapping) else {}
+
+
+def _solution_scorer_telemetry(solution: object) -> Mapping[str, object]:
+    scorer = _solution_telemetry(solution).get("scorer")
+    return dict(scorer) if isinstance(scorer, Mapping) else {}
+
+
+def _solution_scorer_capabilities(solution: object) -> ScorerCapabilityReport:
+    capabilities = getattr(solution, "scorer_capabilities", None)
+    if isinstance(capabilities, ScorerCapabilityReport):
+        return capabilities
+    return ScorerCapabilityReport(lanes=())
 
 
 def _solution_raw_score(solution: object) -> float | None:
@@ -590,6 +605,76 @@ def _effective_solver_configuration(
     }
 
 
+def _effective_scoring_configuration(
+    request: RunSpec,
+    solution: object,
+) -> tuple[dict[str, object], ScorerBackend]:
+    effective = dict(request.scoring.to_dict())
+    backend = request.scoring.backend
+    if backend is ScorerBackend.AUTO:
+        scorer_telemetry = _solution_scorer_telemetry(solution)
+        token = scorer_telemetry.get("impl") or scorer_telemetry.get("backend")
+        value = str(token or "").strip().lower()
+        if value == ScorerBackend.NUMPY.value:
+            backend = ScorerBackend.NUMPY
+        elif value.startswith(ScorerBackend.TORCH.value) or value == "cuda":
+            backend = ScorerBackend.TORCH
+        elif value == ScorerBackend.UNIFIED.value:
+            backend = ScorerBackend.UNIFIED
+        effective["backend"] = backend.value
+    return effective, backend
+
+
+def _run_reproducibility_identity(
+    request: RunSpec,
+    solution: object,
+) -> dict[str, str | None]:
+    identity: dict[str, str | None] = {
+        "run_id": None,
+        "created_at_utc": None,
+        "git_branch": None,
+        "git_commit": None,
+    }
+    if request.logging is not None:
+        try:
+            meta = json.loads((get_run_dir() / "META.json").read_text(encoding="utf-8"))
+        except (OSError, RuntimeError, TypeError, ValueError):
+            meta = {}
+        if isinstance(meta, Mapping):
+            identity["run_id"] = _optional_text(meta.get("run_id"))
+            identity["created_at_utc"] = _optional_text(meta.get("created_at_utc"))
+            git = meta.get("git")
+            if isinstance(git, Mapping):
+                identity["git_branch"] = _optional_text(git.get("branch"))
+                identity["git_commit"] = _optional_text(git.get("commit"))
+
+    if identity["created_at_utc"] is None:
+        run_telemetry = _solution_telemetry(solution).get("run")
+        start_ts = run_telemetry.get("start_ts") if isinstance(run_telemetry, Mapping) else None
+        if isinstance(start_ts, (int, float)) and not isinstance(start_ts, bool):
+            identity["created_at_utc"] = (
+                datetime.fromtimestamp(float(start_ts), tz=timezone.utc)
+                .isoformat()
+                .replace("+00:00", "Z")
+            )
+    return identity
+
+
+def _optional_text(value: object) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
+def _oracle_report(status: object) -> OracleReport:
+    if getattr(status, "stop_reason", None) is StopReason.ORACLE_TEST_KEY_USED:
+        return OracleReport(
+            available=True,
+            used_for_stop=True,
+            stop_reason=StopReason.ORACLE_TEST_KEY_USED,
+            mode=OracleMode.TEST,
+        )
+    return OracleReport()
+
+
 def _result_from_solution(
     request: RunSpec,
     solution: object,
@@ -613,13 +698,17 @@ def _result_from_solution(
         solution,
         effective_seed=effective_seed,
     )
+    effective_scoring_configuration, effective_backend = _effective_scoring_configuration(
+        request,
+        solution,
+    )
     solver_resolution = ConfigurationResolution(
         requested=request.solver.to_dict(),
         effective=effective_solver_configuration,
     )
     scoring_resolution = ConfigurationResolution(
         requested=request.scoring.to_dict(),
-        effective=request.scoring.to_dict(),
+        effective=effective_scoring_configuration,
     )
     cipher_resolution = ConfigurationResolution(
         requested={
@@ -656,13 +745,18 @@ def _result_from_solution(
         objective=request.scoring.objective,
         score=score,
         raw_score=_solution_raw_score(solution),
-        telemetry=_solution_telemetry(solution),
+        telemetry=_solution_scorer_telemetry(solution),
         time_seconds=float(getattr(solution, "score_time_s", 0.0) or 0.0),
-        capabilities=ScorerCapabilityReport(lanes=()),
+        capabilities=_solution_scorer_capabilities(solution),
         details=_scorer_report_details_from_solution(solution),
     )
+    identity = _run_reproducibility_identity(request, solution)
     reproducibility = ReproducibilityMetadata(
-        backend=request.scoring.backend,
+        run_id=identity["run_id"],
+        created_at_utc=identity["created_at_utc"],
+        git_branch=identity["git_branch"],
+        git_commit=identity["git_commit"],
+        backend=effective_backend,
         compute_device=request.compute_device,
         compute_dtype=request.scoring.compute_dtype,
         accumulator_dtype=request.scoring.accumulator_dtype,
@@ -670,7 +764,7 @@ def _result_from_solution(
         effective_seed=effective_seed,
         stochastic=True,
         solver_config=effective_solver_configuration,
-        scoring_config=request.scoring.to_dict(),
+        scoring_config=effective_scoring_configuration,
         objective=request.scoring.objective.to_dict(),
         cipher={"cipher": request.cipher.to_dict(), "key_space": request.key_space.to_dict()},
         dictionary_policy=request.scoring.hamming_dictionary_policy.value,
@@ -704,7 +798,7 @@ def _result_from_solution(
         scorer_report=scorer_report,
         configuration=configuration,
         reproducibility=reproducibility,
-        oracle=OracleReport(),
+        oracle=_oracle_report(status),
         telemetry=_solution_telemetry(solution),
         artifacts=(),
     )

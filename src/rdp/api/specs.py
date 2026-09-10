@@ -498,7 +498,7 @@ class KeySpec(_ImmutableSpec):
         if constructor is None:
             raise UnknownComponentError(
                 f"unsupported key name {name!r}",
-                component_kind=ComponentKind.CIPHER,
+                component_kind=ComponentKind.KEY,
                 token=name,
             )
         try:

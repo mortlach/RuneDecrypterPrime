@@ -17,6 +17,10 @@ The remaining fields have library defaults. In particular, the current default
 text direction is `LTR`, the compute device is `CPU`, WLI policy is
 `INFER`, and telemetry is enabled.
 
+`INFER` preserves or derives WLI when the input provides boundaries. `REQUIRE`
+fails before solver execution if aligned WLI is unavailable. `DISABLED` removes
+WLI and is rejected when the selected scoring configuration requires it.
+
 See [Defaults at a glance](defaults.md).
 
 ## Optional run choices
@@ -51,6 +55,9 @@ request = api.RunSpec(
 
 The complete field table is in
 [RunSpec parameters](parameters/run_spec.md).
+
+Live progress is not part of the durable request. Pass a one-argument
+`progress_callback` to `api.run(...)` when runtime updates are needed.
 
 ## Where the pieces are explained
 

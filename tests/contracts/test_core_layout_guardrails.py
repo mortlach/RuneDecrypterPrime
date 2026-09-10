@@ -17,10 +17,11 @@ CONSTRUCTION_BOUNDARY_FILES = {
     RDP_CORE_ROOT / "types.py",
 }
 TELEMETRY_OR_PAYLOAD_DICT_CHECKS = {
-    RDP_CORE_ROOT / "engine" / "engine.py": {"tele"},
+    RDP_CORE_ROOT / "engine" / "engine.py": {"tele", "meta"},
     RDP_CORE_ROOT / "engine" / "finalization.py": {
         'getattr(res, "meta", None)',
         "payload",
+        "run_telemetry",
     },
     RDP_CORE_ROOT / "problem" / "runtime.py": {
         "self.telemetry",

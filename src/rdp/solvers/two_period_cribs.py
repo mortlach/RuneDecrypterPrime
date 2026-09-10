@@ -33,6 +33,7 @@ from rdp.core.types import (
     InterruptorSearchStrategy,
     KeyKind,
     InterruptorMode,
+    ProgressCallback,
     TextDirection,
 )
 from rdp.data.runeglish import Runeglish
@@ -643,6 +644,7 @@ def run_two_period_stages(
     interruptors_exact: Sequence[int] | None = None,
     interruptors_pool: Sequence[int] | None = None,
     interruptors_max: int | None = None,
+    progress_callback: ProgressCallback | None = None,
 ) -> Solution:
     started = time.perf_counter()
     period_a, period_b, modulus = _validate_cipher(cipher, key)
@@ -827,7 +829,7 @@ def run_two_period_stages(
         candidate_counts["scout_generated_terminals"] += request.starts
         candidate_counts["scout_unique_terminals"] += len(scout)
         candidate_counts["scout_duplicates"] += request.starts - len(scout)
-        stage_summaries.append({
+        scout_summary = {
             "branch_id": branch.branch_id,
             "stage_id": "S2",
             "profile_id": "s2_wli12",
@@ -847,7 +849,10 @@ def run_two_period_stages(
             "terminal_digest": _records_digest(
                 [(candidate_id, record["scout_score"]) for candidate_id, record in scout.items()]
             ),
-        })
+        }
+        stage_summaries.append(scout_summary)
+        if progress_callback is not None:
+            progress_callback(dict(scout_summary))
 
         bridge, bridge_evaluations, bridge_elapsed = _run_refinement_stage(
             stage_id="B1",
@@ -866,7 +871,7 @@ def run_two_period_stages(
         candidate_counts["bridge_generated_terminals"] += len(scout)
         candidate_counts["bridge_unique_terminals"] += len(bridge)
         candidate_counts["bridge_duplicates"] += len(scout) - len(bridge)
-        stage_summaries.append({
+        bridge_summary = {
             "branch_id": branch.branch_id,
             "stage_id": "B1",
             "profile_id": "b1_char23_wli23",
@@ -883,7 +888,10 @@ def run_two_period_stages(
             "terminal_digest": _records_digest(
                 [(candidate_id, record["bridge_score"]) for candidate_id, record in bridge.items()]
             ),
-        })
+        }
+        stage_summaries.append(bridge_summary)
+        if progress_callback is not None:
+            progress_callback(dict(bridge_summary))
 
         judge_inputs = _deduplicated_union(scout, bridge)
         judge, judge_evaluations, judge_elapsed = _run_refinement_stage(
@@ -903,7 +911,7 @@ def run_two_period_stages(
         candidate_counts["judge_generated_terminals"] += len(judge_inputs)
         candidate_counts["judge_unique_terminals"] += len(judge)
         candidate_counts["judge_duplicates"] += len(judge_inputs) - len(judge)
-        stage_summaries.append({
+        judge_summary = {
             "branch_id": branch.branch_id,
             "stage_id": "F1",
             "profile_id": "f1_char1234_wli1234",
@@ -922,7 +930,10 @@ def run_two_period_stages(
             "terminal_digest": _records_digest(
                 [(candidate_id, record["judge_score"]) for candidate_id, record in judge.items()]
             ),
-        })
+        }
+        stage_summaries.append(judge_summary)
+        if progress_callback is not None:
+            progress_callback(dict(judge_summary))
 
         final_union = _deduplicated_union(scout, bridge, judge)
         ordered_ids = sorted(final_union)
@@ -950,7 +961,7 @@ def run_two_period_stages(
             ):
                 all_union[candidate_id] = record
         candidate_counts["final_union_inputs"] += len(final_union)
-        stage_summaries.append({
+        final_union_summary = {
             "branch_id": branch.branch_id,
             "stage_id": "final_union",
             "profile_id": "f1_char1234_wli1234",
@@ -968,7 +979,10 @@ def run_two_period_stages(
             "terminal_digest": _records_digest(
                 list(zip(ordered_ids, (float(score) for score in scores)))
             ),
-        })
+        }
+        stage_summaries.append(final_union_summary)
+        if progress_callback is not None:
+            progress_callback(dict(final_union_summary))
         branch_summaries.append({
             "branch_id": branch.branch_id,
             "interruptors": list(branch.interruptors),

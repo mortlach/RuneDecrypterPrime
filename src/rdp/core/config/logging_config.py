@@ -34,9 +34,6 @@ class LoggingConfig:
     explicit paths resolve from the caller's current working directory.
     run_directory optionally selects an exact directory; otherwise runs are unique.
     """
-    verbose: bool = False
-    show_progress: bool = True
-    write_event_log: bool = False
     output_root: Path | None = None
     run_category: str = "run"
     label: str | None = None
@@ -49,8 +46,7 @@ class LoggingConfig:
 
     def __post_init__(self) -> None:
         for field_name in (
-            "verbose", "show_progress", "write_event_log", "redact_identity",
-            "portable_output", "write_solver_report", "write_display_summary",
+            "redact_identity", "portable_output", "write_solver_report", "write_display_summary",
             "write_artifact_manifest",
         ):
             if type(getattr(self, field_name)) is not bool:
@@ -225,9 +221,6 @@ def _write_meta(
         "out_root": _relativize_path(out_root, repo_root, external_label="out_root"),
         "run_kind": cfg.run_category,
         "label": cfg.label,
-        "verbose": cfg.verbose,
-        "print_progress": cfg.show_progress,
-        "write_jsonl": cfg.write_event_log,
         "portable_output": bool(cfg.portable_output),
         "identity_redacted": identity_redacted,
         "pid": os.getpid(),

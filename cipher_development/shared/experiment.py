@@ -266,9 +266,6 @@ class ExperimentRun:
             if out_root == self.repo_root or out_root.is_relative_to(self.repo_root):
                 raise ValueError("output_root must stay outside the repository")
             cfg = api.LoggingConfig(
-                verbose=False,
-                show_progress=False,
-                write_event_log=True,
                 output_root=out_root,
                 run_category=self.spec.campaign_id,
                 label=self.spec.experiment_id,

@@ -55,7 +55,9 @@ The status and solver report show how the search ended and how much work it did.
 
 Telemetry records runtime behaviour.
 
-Reproducibility metadata records the state needed for a repeat.
+The `RunSpec` is the complete request. Configuration, reproducibility metadata
+and telemetry report the effective state and runtime evidence owned by each
+section.
 
 See [Reading a result](results.md), [Telemetry](telemetry.md) and
 [Repeating a run](reproducibility.md).

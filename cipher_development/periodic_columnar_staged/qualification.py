@@ -705,7 +705,6 @@ def run_qualification(*, mode: str, seed: int = 12_345, output_root: Path) -> Pa
                     compute_device=api.ComputeDevice.CPU,
                 ),
                 progress_callback=callback,
-                progress_interval=10,
             )
         except QualificationTimeLimit:
             timed_out = True

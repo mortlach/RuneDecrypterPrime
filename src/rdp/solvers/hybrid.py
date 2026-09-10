@@ -80,6 +80,7 @@ class HybridSolver(SolverBase):
             stop_score=kwargs.get("stop_score"),
             verbose=bool(kwargs.get("verbose", True)),
             log_interval=int(kwargs.get("log_interval", 50)),
+            progress_callback=kwargs.get("progress_callback"),
         )
         self._phase: str = "beam" if bool(self.get_param("use_beam", True)) else "ga"
         self._effective_phase_params: Dict[str, Dict[str, Any]] = {}
@@ -104,6 +105,18 @@ class HybridSolver(SolverBase):
     # Provide phase tag in progress
     def extra_progress_fields(self) -> Dict[str, Any]:
         return {"phase": self._phase}
+
+    def _phase_progress_callback(self, phase: str):
+        callback = self.progress_callback
+        if not callable(callback):
+            return None
+
+        def emit(payload: Dict[str, Any]) -> None:
+            event = dict(payload)
+            event["phase"] = phase
+            callback(event)
+
+        return emit
 
     # --------- phase helpers ---------
 
@@ -135,6 +148,7 @@ class HybridSolver(SolverBase):
             stop_score=self.get_param("stop_score", None),
             verbose=self.verbose,
             log_interval=self.log_interval,
+            progress_callback=self._phase_progress_callback("beam"),
         )
         sol = beam.solve()
         self._effective_phase_params["beam"] = self._child_effective_params(beam, b_params)
@@ -189,6 +203,7 @@ class HybridSolver(SolverBase):
             stop_score=self.get_param("stop_score", None),
             verbose=self.verbose,
             log_interval=self.log_interval,
+            progress_callback=self._phase_progress_callback("ga"),
         )
         sol = ga.solve()
         self._effective_phase_params["ga"] = self._child_effective_params(ga, g_params)
@@ -226,6 +241,7 @@ class HybridSolver(SolverBase):
             stop_score=self.get_param("stop_score", None),
             verbose=self.verbose,
             log_interval=self.log_interval,
+            progress_callback=self._phase_progress_callback("sa"),
         )
         sol = sa.solve()
         self._effective_phase_params["sa"] = self._child_effective_params(sa, s_params)

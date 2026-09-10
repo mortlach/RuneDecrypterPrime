@@ -180,7 +180,6 @@ def main() -> None:
     result = api.run(
         request,
         progress_callback=_progress,
-        progress_interval=120,
     )
     elapsed = time.perf_counter() - started
     ratio = _match_ratio(result.plaintext_indices, expected_plaintext)

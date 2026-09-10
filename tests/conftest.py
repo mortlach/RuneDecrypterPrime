@@ -22,7 +22,7 @@ def _init_session_logging() -> Path:
     Initialize logging once per pytest session using the public dataclass API,
     then return the resolved run_dir.
     """
-    cfg = api.LoggingConfig(run_category='tests', label='pytest', write_event_log=True, verbose=False, show_progress=False)
+    cfg = api.LoggingConfig(run_category='tests', label='pytest')
     run_dir = init_logging(cfg)
     return run_dir
 

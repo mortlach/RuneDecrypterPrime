@@ -9,10 +9,12 @@ import numpy as np
 from rdp.api.normalize import _assert_core_ready, normalize_rune_input
 from rdp.api.run_spec import RuneInput, RunSpec, SourceReferenceInput
 from rdp.api.source_resolution import resolve_source_input_ref
+from rdp.core.component_contracts import ConfigurationError, UnsupportedConfigurationError
 from rdp.core.config.logging_config import LoggingConfig
+from rdp.core.types import WordLengthPolicy
 
 
-RUNTIME_LOGGING_KEYS = frozenset({"progress_callback", "log_interval"})
+RUNTIME_LOGGING_KEYS = frozenset({"progress_callback"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,15 +45,47 @@ def materialize_runspec_problem_input(spec: RunSpec) -> MaterializedRunSpecInput
             direction=spec.text_direction,
             wli_data=problem_input.word_length_information,
         )
-        return MaterializedRunSpecInput(ciphertext=ciphertext, wli=wli)
+        return _apply_word_length_policy(spec, ciphertext=ciphertext, wli=wli)
 
     if isinstance(problem_input, SourceReferenceInput):
         resolved = resolve_source_input_ref(problem_input)
         ciphertext = _ct_idx_to_uint8_array(resolved.ct_idx)
         _assert_core_ready(ciphertext, resolved.wli)
-        return MaterializedRunSpecInput(ciphertext=ciphertext, wli=resolved.wli)
+        return _apply_word_length_policy(
+            spec,
+            ciphertext=ciphertext,
+            wli=resolved.wli,
+        )
 
     raise TypeError("spec.problem_input must be RuneInput or SourceReferenceInput")
+
+
+def _apply_word_length_policy(
+    spec: RunSpec,
+    *,
+    ciphertext: np.ndarray,
+    wli: Sequence[Sequence[int]] | None,
+) -> MaterializedRunSpecInput:
+    policy = spec.word_length_policy
+    if policy is WordLengthPolicy.DISABLED:
+        if spec.scoring.requires_word_length_information():
+            raise UnsupportedConfigurationError(
+                "word_length_policy=DISABLED cannot be used when scoring requires "
+                "word-length information",
+                field_paths=("word_length_policy", "scoring.wli_lane_enabled"),
+            )
+        return MaterializedRunSpecInput(ciphertext=ciphertext, wli=None)
+
+    if policy is WordLengthPolicy.REQUIRE:
+        if wli is None or len(wli) != len(ciphertext):
+            raise ConfigurationError(
+                "word_length_policy=REQUIRE needs word-length information aligned "
+                "with the materialized ciphertext",
+                field_path="word_length_policy",
+            )
+        _assert_core_ready(ciphertext, wli)
+
+    return MaterializedRunSpecInput(ciphertext=ciphertext, wli=wli)
 
 
 def route_runspec_logging(spec: RunSpec, outside_logging: Any = None) -> RunSpecLoggingRoute:

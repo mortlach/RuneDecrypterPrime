@@ -84,6 +84,16 @@ The solver report contains the detailed search information behind that status.
 These objects keep the candidate, configuration and evidence about the run
 separate.
 
+`configuration` distinguishes the public request from effective component
+configuration. `scorer_report.capabilities` carries the typed runtime lane
+states, and `scorer_report.telemetry` contains only scorer-owned telemetry;
+whole-run observations remain in `telemetry`. `reproducibility` contains the
+replay metadata it owns, while the original `RunSpec` remains the complete
+durable request.
+
+When logging is absent, `artifacts` is empty. For a logged run it lists the
+agreement-backed metadata/config and requested report files actually present.
+
 Useful follow-on pages are:
 
 - [Telemetry](telemetry.md) for execution behaviour
@@ -93,11 +103,15 @@ Useful follow-on pages are:
 
 ## Known answers
 
-When an expected plaintext or key is available, the oracle report records the
-known-answer side of the result.
+Ordinary `api.run()` has no general known-plaintext or known-key input, so its
+oracle report is normally unavailable. The existing explicit internal/test-key
+fast path reports test-mode oracle use and the `ORACLE_TEST_KEY_USED` stop
+reason. A result is not marked as oracle-assisted merely because it happens to
+recover a known answer.
 
-Truth used only after the search checks recovery. Truth used to rank candidates
-or stop the search is part of the method and supports a different claim.
+Callers may still compare a result with external truth after the search. Truth
+used to rank candidates or stop the search is part of the method and supports a
+different claim.
 
 This distinction is also used in the
 [project design principles](../project_overview.md).

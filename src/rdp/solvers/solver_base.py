@@ -154,7 +154,7 @@ class SolverBase:
         stop_score: Optional[float] = None,
         verbose: bool = True,
         log_interval: int = 50,
-        progress_callback: Optional[Callable[..., None]] = None,
+        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     ):
         self.problem = problem
         self.keyops = getattr(problem, "keyops")
@@ -399,11 +399,11 @@ class SolverBase:
         cb = self.progress_callback
         if not callable(cb):
             return
-        key_list = None
+        callback_payload = dict(payload)
         if preview_key is not None:
             key_arr = np.asarray(preview_key, dtype=self.key_dtype).reshape(-1)
-            key_list = key_arr.astype(int).tolist()
-        cb(dict(payload), key_list)
+            callback_payload["best_key"] = key_arr.astype(int).tolist()
+        cb(callback_payload)
 
     # ---------------- Early-stop / Patience helpers ----------------
     def _maybe_console_progress(self, payload: Dict[str, Any]) -> None:
@@ -1151,7 +1151,13 @@ class SolverBase:
 
         solver_tag = tag.value if isinstance(tag, SolverName) else tag
         solver_str = solver_tag or getattr(self, "optimizer_name", self.solver_name.value)
-        sol = Solution(key_arr.tolist(), pt_str, score, {"solver": solver_str, "reason": "test_key"})
+        sol = Solution(
+            key=key_arr.tolist(),
+            plaintext=pt_str,
+            score=score,
+            meta={"solver": solver_str, "reason": "test_key"},
+            stop_reason="test_key",
+        )
         meta = getattr(sol, "meta", {})
         if isinstance(meta, dict):
             work = meta.setdefault("work", {})

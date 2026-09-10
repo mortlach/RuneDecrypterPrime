@@ -87,10 +87,7 @@ def score_many(
         for candidate in values
     )
     calibrated = config.span_hamming_mode is SpanHammingMode.CALIBRATED
-    requires_wli = not calibrated and any(
-        channel == "wli"
-        for channel, _order, _weight in config.effective_lm_model_weights()
-    )
+    requires_wli = config.requires_word_length_information()
     for index, (_, wli) in enumerate(materialized):
         if wli is None and requires_wli:
             raise ValueError(

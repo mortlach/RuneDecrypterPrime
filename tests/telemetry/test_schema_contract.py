@@ -12,7 +12,7 @@ def test_schema_contract_minimal_plus_pipeline(small_problem_cfg):
         seed=small_problem_cfg["seed"],
         beam_width=small_problem_cfg["beam_width"],
         preview=small_problem_cfg["preview"],
-        logging_over={"write_event_log": True},
+        logging_over={},
     )
     tel = meta.get("telemetry", {})
     assert isinstance(tel.get("decrypt_time_s", 0.0), (int, float))

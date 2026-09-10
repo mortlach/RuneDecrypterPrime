@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -32,6 +34,25 @@ def test_root_readme_uses_the_public_api_and_reader_route() -> None:
         "docs/tutorials/README.md",
     ):
         assert path in text
+
+
+def test_quickstart_python_fences_execute_as_documented() -> None:
+    blocks = re.findall(
+        r'^```python\s*\n(.*?)^```\s*$',
+        _read(QUICKSTART),
+        re.MULTILINE | re.DOTALL,
+    )
+    assert blocks
+    code = '\n\n'.join(blocks)
+    completed = subprocess.run(
+        [sys.executable, '-B', '-X', 'utf8', '-c', code],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding='utf-8',
+        timeout=180,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
 
 
 def test_catalogue_covers_every_example_without_fixing_a_total() -> None:

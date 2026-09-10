@@ -106,6 +106,15 @@ Alternative typed objectives are exposed through
 The complete objective and scoring defaults are listed in
 [Scoring parameters](../reference/parameters/scoring.md).
 
+The objective owns ranking sense. In particular, the negative-log-probability
+objective uses its explicit lower-is-better ranking rule internally. The
+separate `score_direction` field accepts only `MAXIMIZE` in V1; requesting
+`MINIMIZE` fails instead of being silently ignored.
+
+V1 language-model scoring excludes boundary tokens. The serialized
+`boundary_mode` field therefore accepts only `EXCLUDE_BOUNDARIES`;
+`INCLUDE_BOUNDARIES` is rejected until that behaviour has a runtime owner.
+
 ## Direction
 
 Text direction is not part of `ScoringConfig`.
@@ -136,6 +145,11 @@ See [Text direction](text_direction.md).
 ## Backend and numeric types
 
 The default backend is `ScorerBackend.AUTO`.
+
+When `AUTO` resolves to NumPy or Torch and the scorer reports that evidence,
+`RunResult.configuration.scoring.effective` and
+`RunResult.reproducibility.backend` record the resolved backend. The requested
+configuration remains `AUTO`.
 
 The default compute dtype is `FLOAT32` and the accumulator dtype is `FLOAT64`.
 
