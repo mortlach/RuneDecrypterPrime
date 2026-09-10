@@ -4,7 +4,10 @@ import numpy as np
 import pytest
 from rdp.core.types import Device, Direction, ObjectiveFamily, ObjectiveSpec, Stat
 from rdp.keyops.vector import VectorKeyOps
+from rdp.solvers.beam import BeamSolver
+from rdp.solvers.ga import GASolver
 from rdp.solvers.hybrid import HybridSolver
+from rdp.solvers.sa import SASolver
 pytestmark = pytest.mark.tier_a
 
 class _TinyProblem:
@@ -97,6 +100,68 @@ def test_hybrid_stop_score_terminates_between_phases(monkeypatch, stop_score, be
     assert [phase for phase, _seeds in calls] == expected_phases
     np.testing.assert_array_equal(solution.key, np.asarray(expected_key, dtype=np.int16))
     assert solution.score == stop_score
+
+
+def test_hybrid_stop_score_terminates_the_active_beam_phase(monkeypatch):
+    class UnexpectedLaterPhase:
+
+        def __init__(self, *_args, **_kwargs):
+            raise AssertionError("Hybrid should stop before constructing a later phase")
+
+    monkeypatch.setattr("rdp.solvers.hybrid.GASolver", UnexpectedLaterPhase)
+    monkeypatch.setattr("rdp.solvers.hybrid.SASolver", UnexpectedLaterPhase)
+    problem = _TinyProblem()
+
+    solution = HybridSolver(
+        problem,
+        opt_cfg={
+            "use_beam": True,
+            "beam_width": 2,
+            "rounds": 4,
+            "expand.max_children_per_parent": 2,
+            "stop_score": -100.0,
+        },
+        rng=np.random.default_rng(44),
+        seed_keys=[[0, 0]],
+        verbose=False,
+        log_interval=0,
+    ).solve()
+
+    beam_result = problem.telemetry["solver_spans"]["beam"]["result"]
+    assert beam_result["rounds"] == 1
+    assert beam_result["reason"] == "target_score"
+    assert solution.stop_reason == "target_score"
+
+
+@pytest.mark.parametrize(
+    ("solver_type", "parameters"),
+    [
+        (BeamSolver, {"beam_width": 2, "rounds": 4}),
+        (GASolver, {"pop_size": 4, "generations": 4}),
+        (SASolver, {"iters": 4}),
+    ],
+)
+def test_child_solvers_honor_inherited_and_direct_target_scores(solver_type, parameters):
+    inherited = solver_type(
+        _TinyProblem(),
+        opt_cfg=parameters,
+        rng=np.random.default_rng(45),
+        seed_keys=[[0, 0]],
+        stop_score=-100.0,
+        verbose=False,
+        log_interval=0,
+    ).solve()
+    direct = solver_type(
+        _TinyProblem(),
+        opt_cfg={**parameters, "stop_score": -100.0},
+        rng=np.random.default_rng(45),
+        seed_keys=[[0, 0]],
+        verbose=False,
+        log_interval=0,
+    ).solve()
+
+    assert inherited.stop_reason == "target_score"
+    assert direct.stop_reason == "target_score"
 
 def test_hybrid_child_phase_rng_streams_repeat_and_are_phase_distinct(monkeypatch):
 

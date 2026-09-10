@@ -527,6 +527,18 @@ def _solution_telemetry(solution: object) -> Mapping[str, object]:
     return telemetry if isinstance(telemetry, Mapping) else {}
 
 
+def _solution_raw_score(solution: object) -> float | None:
+    telemetry = _solution_telemetry(solution)
+    objective = telemetry.get("objective")
+    if not isinstance(objective, Mapping):
+        return None
+    for name in ("logp_mean_per_ngram_penalized", "raw_total"):
+        value = objective.get(name)
+        if value is not None:
+            return float(value)
+    return None
+
+
 def _scorer_report_details_from_solution(solution: object) -> Mapping[str, object]:
     """Retain the runtime scorer-capability evidence in its canonical report owner."""
     meta = getattr(solution, "meta", None)
@@ -548,12 +560,34 @@ def _solver_report_details_from_solution(
     if not isinstance(meta, Mapping):
         return details
     for name, value in meta.items():
-        if name not in {"telemetry", "scorer_lanes"}:
+        if name not in {"telemetry", "scorer_lanes", "runtime_configuration"}:
             details[str(name)] = value
     two_period = meta.get("two_period_solve")
     if isinstance(two_period, Mapping) and "execution_route" in two_period:
         details["execution_route"] = two_period["execution_route"]
     return details
+
+
+def _effective_solver_configuration(
+    request: RunSpec,
+    solution: object,
+    *,
+    effective_seed: int,
+) -> dict[str, object]:
+    requested = request.solver.to_dict()
+    meta = getattr(solution, "meta", None)
+    runtime = meta.get("runtime_configuration") if isinstance(meta, Mapping) else None
+    parameters = runtime.get("parameters") if isinstance(runtime, Mapping) else None
+    if not isinstance(parameters, Mapping):
+        fallback = dict(requested)
+        fallback["seed"] = effective_seed
+        return fallback
+    runtime_seed = runtime.get("effective_seed", effective_seed)
+    return {
+        "kind": requested["kind"],
+        "parameters": dict(parameters),
+        "seed": int(runtime_seed),
+    }
 
 
 def _result_from_solution(
@@ -574,9 +608,14 @@ def _result_from_solution(
     score_value = getattr(solution, "score", None)
     score = None if score_value is None else float(score_value)
 
+    effective_solver_configuration = _effective_solver_configuration(
+        request,
+        solution,
+        effective_seed=effective_seed,
+    )
     solver_resolution = ConfigurationResolution(
         requested=request.solver.to_dict(),
-        effective=request.solver.to_dict(),
+        effective=effective_solver_configuration,
     )
     scoring_resolution = ConfigurationResolution(
         requested=request.scoring.to_dict(),
@@ -616,7 +655,7 @@ def _result_from_solution(
     scorer_report = ScorerReport(
         objective=request.scoring.objective,
         score=score,
-        raw_score=score,
+        raw_score=_solution_raw_score(solution),
         telemetry=_solution_telemetry(solution),
         time_seconds=float(getattr(solution, "score_time_s", 0.0) or 0.0),
         capabilities=ScorerCapabilityReport(lanes=()),
@@ -630,7 +669,7 @@ def _result_from_solution(
         requested_seed=request.solver.seed,
         effective_seed=effective_seed,
         stochastic=True,
-        solver_config=request.solver.to_dict(),
+        solver_config=effective_solver_configuration,
         scoring_config=request.scoring.to_dict(),
         objective=request.scoring.objective.to_dict(),
         cipher={"cipher": request.cipher.to_dict(), "key_space": request.key_space.to_dict()},

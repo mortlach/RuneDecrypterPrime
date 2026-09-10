@@ -82,6 +82,24 @@ class HybridSolver(SolverBase):
             log_interval=int(kwargs.get("log_interval", 50)),
         )
         self._phase: str = "beam" if bool(self.get_param("use_beam", True)) else "ga"
+        self._effective_phase_params: Dict[str, Dict[str, Any]] = {}
+
+    def effective_runtime_params(self) -> Dict[str, Any]:
+        params = super().effective_runtime_params()
+        if self._effective_phase_params:
+            params["phases"] = {
+                name: dict(values)
+                for name, values in self._effective_phase_params.items()
+            }
+        return params
+
+    @staticmethod
+    def _child_effective_params(child: Any, fallback: Dict[str, Any]) -> Dict[str, Any]:
+        resolve = getattr(child, "effective_runtime_params", None)
+        if callable(resolve):
+            return dict(resolve())
+        params = getattr(child, "params", None)
+        return dict(params) if isinstance(params, dict) else dict(fallback)
 
     # Provide phase tag in progress
     def extra_progress_fields(self) -> Dict[str, Any]:
@@ -119,6 +137,7 @@ class HybridSolver(SolverBase):
             log_interval=self.log_interval,
         )
         sol = beam.solve()
+        self._effective_phase_params["beam"] = self._child_effective_params(beam, b_params)
 
         best_key = np.asarray(sol.key, dtype=KEY_DTYPE).reshape(-1)
         best_score = float(sol.score)
@@ -172,6 +191,7 @@ class HybridSolver(SolverBase):
             log_interval=self.log_interval,
         )
         sol = ga.solve()
+        self._effective_phase_params["ga"] = self._child_effective_params(ga, g_params)
         return np.asarray(sol.key, dtype=KEY_DTYPE).reshape(-1), float(sol.score)
 
     def _run_sa(self, start_key: np.ndarray) -> Tuple[np.ndarray, float]:
@@ -208,6 +228,7 @@ class HybridSolver(SolverBase):
             log_interval=self.log_interval,
         )
         sol = sa.solve()
+        self._effective_phase_params["sa"] = self._child_effective_params(sa, s_params)
         return np.asarray(sol.key, dtype=KEY_DTYPE).reshape(-1), float(sol.score)
 
     # --------- main solve ---------

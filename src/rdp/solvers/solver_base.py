@@ -280,6 +280,10 @@ class SolverBase:
             pass
         return out
 
+    def effective_runtime_params(self) -> Dict[str, Any]:
+        """Return the parameter state resolved by the solver that actually ran."""
+        return dict(self.params)
+
     def _start_span(self) -> TelemetrySpan:
         span = TelemetrySpan(self.problem, name=self.optimizer_name, params=self._public_params())
         span.__enter__()  # explicit enter so we can keep a handle
@@ -1010,6 +1014,8 @@ class SolverBase:
         """Stop immediately if a target score is configured and reached."""
         target = self.get_param("stop_score", None)
         if target is None:
+            target = self.stop_score
+        if target is None:
             return False
         try:
             target = float(target)
@@ -1036,9 +1042,13 @@ class SolverBase:
         if k == n:
             idx = np.arange(n, dtype=np.int64)
             return np.lexsort((idx, -arr))
-        part = np.argpartition(arr, -k)[-k:]
-        order = np.lexsort((part, -arr[part]))
-        return part[order]
+        cutoff = float(np.partition(arr, n - k)[n - k])
+        above = np.flatnonzero(arr > cutoff).astype(np.int64, copy=False)
+        remaining = k - int(above.size)
+        at_cutoff = np.flatnonzero(arr == cutoff).astype(np.int64, copy=False)
+        chosen = np.concatenate((above, at_cutoff[:remaining]))
+        order = np.lexsort((chosen, -arr[chosen]))
+        return chosen[order]
 
     # ---------------- Core scoring entrypoint ----------------
 

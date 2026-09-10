@@ -70,6 +70,69 @@ def test_ordinary_beam_repeats_across_fixed_vector_key_lengths(length):
     assert first.reproducibility.effective_seed == 0
     assert first.solver_report.steps <= max(2 * length, 12)
     assert first.solver_report.evaluations > 0
+    requested = first.configuration.solver.requested
+    effective = first.configuration.solver.effective
+    assert requested["parameters"]["plateau_rounds"] is None
+    assert requested["parameters"]["rounds"] is None
+    assert effective["parameters"]["plateau_rounds"] == 16
+    assert effective["parameters"]["rounds"] == max(2 * length, 12)
+    assert effective["seed"] == 0
+    assert dict(first.reproducibility.solver_config) == dict(effective)
+
+
+def test_sa_result_reports_runtime_defaults_and_effective_seed():
+    request = api.RunSpec(
+        problem_input=api.RuneInput("THERE WAS A TABLE"),
+        cipher=api.CipherSpec.vigenere(),
+        key_space=api.KeySpec.repeating(length=3),
+        solver=api.SolverSpec.simulated_annealing(iterations=2, seed=None),
+    )
+
+    result = api.run(request)
+
+    requested = result.configuration.solver.requested
+    effective = result.configuration.solver.effective
+    assert requested["parameters"]["initial_temperature"] is None
+    assert requested["parameters"]["minimum_temperature"] is None
+    assert requested["parameters"]["cooling_rate"] is None
+    assert effective["parameters"]["T0"] == pytest.approx(1.0)
+    assert effective["parameters"]["Tmin"] == pytest.approx(0.001)
+    assert effective["parameters"]["cool"] == pytest.approx(0.995)
+    assert effective["parameters"]["plateau_rounds"] == 300
+    assert effective["seed"] == 0
+    assert result.reproducibility.requested_seed is None
+    assert result.reproducibility.effective_seed == 0
+    assert dict(result.reproducibility.solver_config) == dict(effective)
+
+
+def test_hybrid_result_reports_resolved_child_phase_defaults():
+    request = api.RunSpec(
+        problem_input=api.RuneInput("THERE WAS A TABLE"),
+        cipher=api.CipherSpec.vigenere(),
+        key_space=api.KeySpec.repeating(length=3),
+        solver=api.SolverSpec.hybrid(
+            genetic_algorithm=api.SolverSpec.genetic_algorithm(
+                population_size=4,
+                generations=1,
+            ),
+            simulated_annealing=api.SolverSpec.simulated_annealing(iterations=1),
+            use_beam_search=False,
+            plateau_rounds=None,
+            seed=None,
+        ),
+    )
+
+    result = api.run(request)
+
+    effective = result.configuration.solver.effective
+    phases = effective["parameters"]["phases"]
+    assert effective["parameters"]["plateau_rounds"] == 24
+    assert phases["ga"]["pop_size"] == 4
+    assert phases["ga"]["generations"] == 1
+    assert phases["sa"]["iters"] == 1
+    assert phases["sa"]["T0"] == pytest.approx(1.0)
+    assert phases["sa"]["Tmin"] == pytest.approx(0.001)
+    assert phases["sa"]["cool"] == pytest.approx(0.995)
 
 
 def test_packaged_transcript_identity_uses_the_staged_manifest(monkeypatch, tmp_path):

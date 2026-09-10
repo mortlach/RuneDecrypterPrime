@@ -6,6 +6,7 @@ from rdp.core.config.cipher import CipherConfig
 from rdp.ciphers.vigenere_cipher import RuneVigenereCipher
 from rdp.core.problem.runtime import DecryptionProblem
 from rdp.solvers.beam import BeamSolver
+from rdp.solvers.ga import GASolver
 from rdp.core.types import Direction
 pytestmark = pytest.mark.tier_a
 
@@ -25,3 +26,37 @@ def test_determinism():
     problem = _make_problem()
     with pytest.raises(TypeError):
         BeamSolver(problem, opt_cfg={'beam_width': 1}, rng=None)
+
+
+def test_beam_repeats_with_same_seed_when_scores_tie():
+    def run_once():
+        return BeamSolver(
+            _make_problem(),
+            opt_cfg={"beam_width": 4, "rounds": 4},
+            rng=np.random.default_rng(123),
+            verbose=False,
+            log_interval=0,
+        ).solve()
+
+    first = run_once()
+    second = run_once()
+
+    np.testing.assert_array_equal(first.key, second.key)
+    assert first.score == second.score
+
+
+def test_ga_repeats_with_same_seed_when_scores_tie():
+    def run_once():
+        return GASolver(
+            _make_problem(),
+            opt_cfg={"pop_size": 8, "generations": 4},
+            rng=np.random.default_rng(456),
+            verbose=False,
+            log_interval=0,
+        ).solve()
+
+    first = run_once()
+    second = run_once()
+
+    np.testing.assert_array_equal(first.key, second.key)
+    assert first.score == second.score

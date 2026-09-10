@@ -149,6 +149,26 @@ def _solver_from_cfg(kind: SolverName, problem: Any, params: Dict[str, Any] | No
     )
 
 
+def _attach_effective_runtime_configuration(
+    solution: Any,
+    *,
+    solver: Any,
+    kind: SolverName,
+    seed: Optional[int],
+) -> None:
+    meta = getattr(solution, "meta", None)
+    if not isinstance(meta, dict):
+        meta = {}
+        solution.meta = meta
+    resolve_params = getattr(solver, "effective_runtime_params", None)
+    params = resolve_params() if callable(resolve_params) else dict(solver.params)
+    meta["runtime_configuration"] = {
+        "solver": kind.value,
+        "parameters": params,
+        "effective_seed": 0 if seed is None else int(seed),
+    }
+
+
 def solve(instance: ProblemInstance, engine_cfg: EngineConfig):
     """
     Single entrypoint for Stage-2 engine.
@@ -202,6 +222,12 @@ def solve(instance: ProblemInstance, engine_cfg: EngineConfig):
 
     try:
         solution = solver.solve()
+        _attach_effective_runtime_configuration(
+            solution,
+            solver=solver,
+            kind=kind,
+            seed=engine_cfg.seed,
+        )
 
         solution_reason = getattr(solution, "stop_reason", None)
         stop_reason = solution_reason or getattr(solver, "_stop_reason", None)

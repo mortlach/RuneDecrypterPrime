@@ -276,7 +276,7 @@ class KaedingPeriodicStructuredSolver(SolverBase):
         slip_swaps = max(1, int(self.get_param("slip_swaps", 20)))
         stall_stop_on_limit = bool(self.get_param("stall_stop_on_limit", False))
         slip_follow_steps = max(1, int(self.get_param("slip_follow_steps", 200)))
-        use_raw_score = bool(self.get_param("use_raw_score", True))
+        use_raw_score = bool(self.get_param("use_raw_score", False))
         raw_accept_min_delta = float(self.get_param("raw_accept_min_delta", 1e-6) or 0.0)
         pct_plateau_min_delta = float(self.get_param("pct_plateau_min_delta", 0.0) or 0.0)
         delta_window = max(1, int(self.get_param("delta_window", 200)))
@@ -286,6 +286,28 @@ class KaedingPeriodicStructuredSolver(SolverBase):
             raise ValueError("block_schedule must be 'round_robin' or 'random'")
         if slip_policy not in {"fixed", "stall"}:
             raise ValueError("slip_policy must be 'fixed' or 'stall'")
+
+        self.params.update({
+            "steps": steps,
+            "restarts": restarts,
+            "inner_batch": inner_batch,
+            "block_schedule": block_schedule,
+            "slip_every": slip_every,
+            "slip_blocks": slip_blocks,
+            "col_every": col_every,
+            "col_batch": col_batch,
+            "slip_policy": slip_policy,
+            "stall_rounds": stall_rounds,
+            "stall_slip_limit": stall_slip_limit,
+            "slip_swaps": slip_swaps,
+            "stall_stop_on_limit": stall_stop_on_limit,
+            "slip_follow_steps": slip_follow_steps,
+            "use_raw_score": use_raw_score,
+            "raw_accept_min_delta": raw_accept_min_delta,
+            "pct_plateau_min_delta": pct_plateau_min_delta,
+            "delta_window": delta_window,
+            "top_k": top_k,
+        })
 
         fast = self._maybe_return_test_key_fastpath(SolverName.KAEDING)
         if fast is not None:

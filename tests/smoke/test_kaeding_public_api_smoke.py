@@ -98,6 +98,22 @@ def _run_smoke(
     assert result.solver_report.evaluations == span_result["evals"]
     assert result.solver_report.tokens_processed == span_result["tokens"]
     assert result.solver_report.wall_time_seconds == span_result["wall_time_s"]
+
+    rescored = api.score(
+        api.RuneInput(
+            value=result.plaintext_indices,
+            word_length_information=result.word_length_information,
+        ),
+        scoring=_scoring(),
+        text_direction=_DIRECTION,
+        compute_device=api.ComputeDevice.CPU,
+    )
+    assert result.score == pytest.approx(rescored)
+    assert result.solver_report.best_score == pytest.approx(rescored)
+    assert result.scorer_report.score == pytest.approx(rescored)
+    assert result.scorer_report.raw_score == pytest.approx(
+        result.telemetry["objective"]["logp_mean_per_ngram_penalized"]
+    )
     return result, plaintext
 
 

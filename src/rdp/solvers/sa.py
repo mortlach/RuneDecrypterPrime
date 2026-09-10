@@ -45,6 +45,7 @@ class SASolver(SolverBase):
             T0 = max(1e-12, float(params["T0"]))
             Tmin = max(1e-12, float(params["Tmin"]))
             params["cool"] = 1.0 if Tmin >= T0 else float((Tmin / T0) ** (1.0 / I))
+        params["auto_cooling"] = bool(auto_cooling)
 
         if bool(params.get("sa_elitism", False)):
             raise ValueError("sa_elitism is not supported (remove or set to False)")
