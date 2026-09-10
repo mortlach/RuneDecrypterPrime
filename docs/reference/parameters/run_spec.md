@@ -39,5 +39,3 @@ stage summaries. Exceptions raised by the callback propagate to the caller.
 components directly. The defaults are the same as the table above.
 
 For practical use, see [Defining a run](../../guides/anatomy_of_a_run.md).
-
-See also [Parameter reference](README.md) and [Defaults at a glance](../defaults.md).

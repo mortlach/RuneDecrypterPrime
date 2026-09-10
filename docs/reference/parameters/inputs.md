@@ -61,5 +61,4 @@ liber_primus.partition
 Use `api.liber_primus.source(label)` for a named run input. The `load_source`
 helpers return the numerical data when direct inspection is needed.
 
-See [Ciphertext input](../../guides/ciphertext_input.md),
-[Parameter reference](README.md), and [Defaults at a glance](../defaults.md).
+For practical use, see [Ciphertext input](../../guides/ciphertext_input.md).

@@ -20,6 +20,9 @@ protects its system Python, RDP explains the available next steps rather than
 changing that protection automatically. See
 [Installation](docs/setup/installation.md).
 
+Optional PowerShell, Command Prompt and POSIX shell wrappers are under
+[`tools/installation/`](tools/installation/README.md).
+
 A minimal known-key check looks like this:
 
 ```python
@@ -76,23 +79,18 @@ They use the same underlying machinery.
 
 ## What RDP is for
 
-RDP has two closely related jobs.
-
-The first is practical solving.
-
-It provides Liber Primus source material, rune representations, Runeglish
-language handling, existing cipher implementations, key models, solvers and
-scoring tools needed to turn an idea into a repeatable experiment.
+For practical solving, RDP provides Liber Primus source material, rune
+representations, Runeglish language handling, cipher implementations, key
+models, solvers and scoring tools needed to turn an idea into a repeatable
+experiment.
 
 You should not need to rebuild Vigenere, rune conversion, key iteration,
 language scoring and LP source handling every time you want to test one new
 thought.
 
-The second is cipher development.
-
-RDP separates the parts of a cryptanalytic problem so new ciphers, key
-structures, search methods and scoring evidence can be developed independently,
-then combined through the same run model.
+For cipher development, RDP separates those parts so new ciphers, key structures,
+search methods and scoring evidence can be developed independently, then
+combined through the same run model.
 
 That gives us something useful between a notebook experiment and a finished
 solver: a place where new ideas can be tried quickly without becoming another
@@ -125,25 +123,6 @@ RDP tries to keep the difference visible.
 It cannot prevent bad cryptanalysis. That would be an ambitious dependency. It
 can at least make it easier to tell what was actually done.
 
-## Who it is for
-
-RDP is for people working on Liber Primus and related cipher problems, from a
-short experimental script to development of a new cipher or search method.
-
-If you are new to the project, use the
-[learning route](docs/learn/README.md).
-
-If you already know what you want to build, use the
-[full documentation](docs/README.md).
-
-For the internal design, see [Architecture](docs/architecture/README.md).
-
-For adding ciphers, key models or solvers, see
-[Extending RDP](docs/guides/extending_rdp.md).
-
-Optional PowerShell, Command Prompt and POSIX shell installation wrappers are
-under [`tools/installation/`](tools/installation/README.md).
-
 ## Start solving
 
 The main documentation route is:
@@ -165,6 +144,8 @@ Worked Liber Primus material is under [Solving examples](solving/README.md).
 Liber Primus data is available through the public namespace:
 
 ```python
+from rdp import api
+
 source = api.liber_primus.source("welcome_pilgrim")
 ```
 

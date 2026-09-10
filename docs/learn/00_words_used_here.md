@@ -742,8 +742,6 @@ Logging is the optional file-output side of a run. `LoggingConfig` selects the
 durable output behaviour. A normal `RunResult` exists in memory whether or not
 logging is enabled.
 
-Next: [Apply a known key](01_apply_a_known_key.md).
-
 ## Default
 
 The setting RDP uses when you omit an optional argument.
@@ -814,8 +812,8 @@ uses to ask RDP to do work. `from rdp import api` imports that interface.
 
 ## Python
 
-The programming language used for these examples. A script is a file of Python
-instructions; `print(...)` shows a value in the terminal.
+The programming language used for the examples. `print(...)` shows a value in
+the terminal.
 
 ## Tuple
 
@@ -840,3 +838,5 @@ The collection of candidate keys currently being explored.
 
 Python's value for an omitted or absent setting. Its effect depends on the
 setting: for Beam's seed, RDP records requested `None` and effective `0`.
+
+Next: [Apply a known key](01_apply_a_known_key.md).

@@ -55,5 +55,3 @@ and the selected scoring objective owns ranking sense.
 | `SpanHammingLanguageModelProfileSource` | `RAW_SPAN_BY_LENGTH`, `CHARACTERS_COVERED_BY_LENGTH` |
 
 For practical use, see [API reference](../README.md).
-
-See also [Parameter reference](README.md) and [Defaults at a glance](../defaults.md).

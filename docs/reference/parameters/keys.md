@@ -103,11 +103,10 @@ key_space = key_space.with_alignment_search(
 ## Serialized construction
 
 `KeySpec.from_name(name, parameters=None)` reconstructs a public key spec from
-its serialized form, including supported alignment information.
+its serialized form, including supported alignment information. An unknown name
+raises the public unknown-component error classified as a key error.
 
 For practical use, see [Keys and key spaces](../../guides/keyops.md).
-
-See also [Parameter reference](README.md) and [Defaults at a glance](../defaults.md).
 
 ## Typed identity
 

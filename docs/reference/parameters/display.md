@@ -101,5 +101,3 @@ accept a title, key/value rows and optional `PrintOptions`.
 console text.
 
 For practical use, see [Displaying results](../../guides/displaying_results.md).
-
-See also [Parameter reference](README.md) and [Defaults at a glance](../defaults.md).

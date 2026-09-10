@@ -117,8 +117,6 @@ mapping.
 
 For practical use, see [Solvers](../../guides/solvers.md).
 
-See also [Parameter reference](README.md) and [Defaults at a glance](../defaults.md).
-
 ## Effective runtime defaults
 
 The engine fills a few values after the public `SolverSpec` has been translated

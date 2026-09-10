@@ -50,5 +50,3 @@ api.InterruptorConfig.search(
 `parameters` fields for the three modes above.
 
 For practical use, see [Interruptors](../../guides/interruptors.md).
-
-See also [Parameter reference](README.md) and [Defaults at a glance](../defaults.md).

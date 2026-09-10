@@ -183,5 +183,3 @@ api.liber_primus.load_source_from_partition_entry(
 | `intersect_page_ref` | `PageReference | None` | `None` | Optional page intersection. |
 
 For practical use, see [Ciphertext input](../../guides/ciphertext_input.md).
-
-See also [Parameter reference](README.md) and [Defaults at a glance](../defaults.md).

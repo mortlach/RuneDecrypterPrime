@@ -26,5 +26,3 @@ Live progress is separate from durable logging. Supply a one-argument
 event-log switches.
 
 For practical use, see [Outputs](../../guides/outputs.md).
-
-See also [Parameter reference](README.md) and [Defaults at a glance](../defaults.md).

@@ -133,5 +133,3 @@ The specialist lanes are off by default. A run that enables one should normally
 explain why it is part of that experiment.
 
 For practical use, see [Scoring](../../guides/scoring.md).
-
-See also [Parameter reference](README.md) and [Defaults at a glance](../defaults.md).

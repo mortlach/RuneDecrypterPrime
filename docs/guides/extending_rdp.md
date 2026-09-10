@@ -33,7 +33,6 @@ moves through the space.
 See [Cipher runtime and registration](../architecture/cipher_runtime_and_registration.md)
 and [Key models and search operations](../architecture/key_model_and_search.md).
 
-
 ## New cipher
 
 A new cipher hypothesis often begins as a focused experiment.
@@ -158,23 +157,11 @@ See [Contributing](../../CONTRIBUTING.md).
 
 ## Preserve the method
 
-Extension should add capability without obscuring ownership.
-
-The cipher still owns the cipher relation.
-
-The key model still owns the search space.
-
-The solver still owns search.
-
-Scoring still owns ranking evidence.
-
-Evaluation stays separate from production search.
-
-The `RunSpec` records the complete request. Configuration, reproducibility and
-telemetry each report the runtime evidence they own.
-
-Those ownership boundaries stop an experimental feature becoming a second
-framework inside the first one.
+Extension should add capability without obscuring ownership or mixing evaluation
+into production search. `RunSpec` records the complete request; configuration,
+reproducibility and telemetry report the runtime evidence they each own. Those
+boundaries stop an experimental feature becoming a second framework inside the
+first one.
 
 For the wider design, see
 [Project aims and design principles](../project_overview.md).

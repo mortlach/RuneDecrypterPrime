@@ -45,5 +45,3 @@ The option parameters and defaults are the same as `define_cipher_map`.
 `table` is the required lookup table and is validated against `alphabet_size`.
 
 For practical use, see [Extending RDP](../../guides/extending_rdp.md).
-
-See also [Parameter reference](README.md) and [Defaults at a glance](../defaults.md).

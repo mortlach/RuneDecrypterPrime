@@ -14,9 +14,9 @@ Read the files in this order:
    identity and numeric data.
 2. [`prepare_search.py`](prepare_search.py) builds the reviewed period-8
    Vigenere search without starting it.
-3. [`run_search.py`](run_search.py) runs that request and prints the structured
-   result. This is the longer step and takes roughly a minute on the reference
-   machine.
+3. [`run_search.py`](run_search.py) runs the prepared Beam search over the
+   eight-value repeating key and 11-interruptor search, then prints the
+   structured result. Runtime depends on the machine and installed scorer.
 
 From the repository root:
 

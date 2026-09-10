@@ -1,11 +1,8 @@
 # Project aims and design principles
 
-RDP exists to make cryptanalytic experiments easier to express, compare and
-repeat.
-
-It uses a general run model for cipher search. The aim is not to hide
-cryptanalysis behind one solver call. It is to keep the important parts of the
-problem explicit.
+RDP makes cryptanalytic experiments easier to express, compare and repeat. Its
+run model keeps the important parts of a cipher search explicit instead of
+hiding them behind one solver call.
 
 ## The problem
 
@@ -33,8 +30,6 @@ problem input
 -> scoring
 -> RunResult
 ```
-
-The model is small.
 
 ## One method from experiment to qualification
 
@@ -95,14 +90,14 @@ Known plaintext and known keys are valuable for development and evaluation.
 
 They are also easy to leak into candidate selection.
 
-RDP therefore keeps oracle and truth information separate from normal ranking,
-stopping and tie-breaking. A known answer may classify the result after the run.
-If a method intentionally uses truth during search, that is a different
-experiment and should be described as such.
+RDP keeps oracle and truth information separate from normal ranking, stopping
+and tie-breaking. A known answer may classify the result after the run. If a
+method intentionally uses truth during search, that is a different experiment
+and should be described as such.
 
 That distinction determines what a solver result can claim.
 
-## One owner for each capability
+## Ownership and extension
 
 Each major behaviour has one implementation owner.
 
@@ -111,58 +106,24 @@ search. Scoring owns ranking evidence. Data modules own source material.
 Telemetry records execution behaviour.
 
 The public API binds those pieces together without becoming a second
-implementation of them.
+implementation. New behaviour stays with its owner: a cipher relation belongs
+with ciphers, a search method with solvers, and a scoring signal with scoring.
+This avoids parallel request models and compatibility layers where the existing
+boundary is enough.
 
-Extension stays with the owner of the behaviour rather than creating a parallel
-runtime path.
-
-See [Architecture overview](architecture/overview.md).
-
-## Defaults are explicit
-
-RDP uses defaults where there is a clear general choice.
-
-Those defaults are documented and validated. A caller can override them where
-the problem requires something different.
+A first run need not configure every scoring lane, solver control, artifact type
+or development tool. Defaults cover ordinary choices and are documented and
+validated. More specialised features use the same `RunSpec` when the problem
+needs them, including WLI-aware scoring, interruptor search, two-period crib
+search, custom cipher maps and direct Liber Primus source routing.
 
 A requested value is not silently replaced merely because another option is
 available. If a requested scorer lane, device, asset or other capability cannot
 run, that should be visible.
 
-See [Defaults at a glance](reference/defaults.md).
-
-## Advanced features stay optional
-
-A first run does not require knowledge of every scoring lane, solver control,
-artifact type or development tool.
-
-More specialised features are available when the problem needs them:
-
-- multiple solver families
-- WLI-aware scoring
-- interruptor search
-- Hamming and span-Hamming scoring
-- two-period crib search
-- custom experimental cipher maps
-- direct Liber Primus source routing
-- telemetry and run artifacts
-
-The main run model does not change when these features are added.
-
-## Extensibility without another framework
-
-A new cipher belongs with the cipher implementation.
-
-A new search method should become a solver.
-
-A new scoring signal should become part of scoring.
-
-A new source should become part of the data layer.
-
-The project avoids speculative abstraction layers, duplicate request models and
-compatibility wrappers where the existing ownership model is enough.
-
-See [Extending RDP](guides/extending_rdp.md).
+See [Architecture overview](architecture/overview.md),
+[Defaults at a glance](reference/defaults.md) and
+[Extending RDP](guides/extending_rdp.md).
 
 ## From solving to development
 
@@ -176,9 +137,8 @@ solving experiment
 -> robustness or qualification
 ```
 
-At each stage, the same things should remain visible: cipher relation, key
-structure, search, scoring evidence, prior information and the claim being
-tested.
+At each stage, the cipher relation, key structure, search, scoring evidence,
+prior information and claim being tested should remain visible.
 
 `cipher_development/` is used for bounded scientific or diagnostic experiments.
 
@@ -188,15 +148,8 @@ Repeatable multi-family qualification belongs under `tools/robustness/`.
 
 See [Development](development/README.md).
 
-## Community use
-
-V1 is intended to be understandable and usable outside any one development
-environment.
-
 The public API, documentation, examples, data access, errors and reproducibility
-information therefore need to stand on their own.
-
-The aim is a stable base for testing, sharing and extending cryptanalytic ideas,
-not a frozen set of solver recipes.
-
-For the current public surface, see [API reference](reference/README.md).
+information must stand on their own outside any one development environment.
+V1 is a base for testing, sharing and extending cryptanalytic ideas, not a
+frozen set of solver recipes. See [API reference](reference/README.md) for the
+current public surface.

@@ -24,8 +24,8 @@ solver combinations.
 
 For a route built specifically around genuine solved Liber Primus material, see
 [Start solving Liber Primus](../../solving/lp_getting_started/README.md). The
-[detailed solved-page workbook](../../solving/solved_lp/README.md) is separate:
-it is evidence-oriented rather than a beginner tutorial.
+[detailed solved-page workbooks](../../solving/solved_lp/README.md) are separate:
+they are evidence-oriented rather than a beginner tutorial.
 
 ## Run the normal set
 

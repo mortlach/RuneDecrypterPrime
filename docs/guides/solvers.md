@@ -24,6 +24,10 @@ neighbour.
 
 The KeyOps implementation preserves the invariants of the selected key model.
 
+Beam and GA order top candidates by score descending. Exact score ties keep the
+earlier candidate index, including ties at the top-k cutoff, so fixed-seed runs
+do not depend on an arbitrary tied sort.
+
 See [Key models and search operations](../architecture/key_model_and_search.md)
 and [Solver mechanics](../architecture/solver_mechanics.md).
 
@@ -86,12 +90,21 @@ Hybrid combines a GA spec and a simulated-annealing spec.
 A beam phase is enabled by default. When its budget is omitted, the runtime
 uses the documented Hybrid defaults.
 
+The Hybrid `target_score` is passed to its Beam, GA and SA phases. A target on a
+nested child spec takes precedence for that child, and reaching a target can end
+the active phase and the Hybrid run early.
+
 ## Kaeding
 
 Kaeding requires `steps`, `restarts` and `inner_batch_size`.
 
 Block scheduling, slip behaviour and plateau stopping have explicit defaults in
 the parameter reference.
+
+The public result uses the requested primary scoring objective:
+`RunResult.score`, `SolverReport.best_score` and `ScorerReport.score` agree.
+When the scorer supplies a raw diagnostic, it remains separate in
+`ScorerReport.raw_score`.
 
 ## Two-period crib search
 

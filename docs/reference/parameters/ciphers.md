@@ -173,8 +173,6 @@ or parameter sets raise the public component/configuration errors.
 
 For practical use, see [Defining a run](../../guides/anatomy_of_a_run.md).
 
-See also [Parameter reference](README.md) and [Defaults at a glance](../defaults.md).
-
 ## Typed identity
 
 `kind` identifies the selected CipherSpec family. Constructor arguments are
