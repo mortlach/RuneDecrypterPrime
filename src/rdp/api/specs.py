@@ -699,11 +699,13 @@ class SolverSpec(_ImmutableSpec):
         stall_rounds: int = 0,
         stall_slip_limit: int = 0,
         stop_after_stall_slip_limit: bool = False,
+        use_raw_score: bool = False,
         plateau_rounds: int | None = None,
         plateau_minimum_delta: float = 0.0,
         target_score: float | None = None,
         seed: int | None = None,
     ) -> SolverSpec:
+        """Configure Kaeding; raw ordering does not change the public score objective."""
         _strict_enum(block_schedule, KaedingBlockSchedule, "block_schedule")
         _strict_enum(slip_policy, KaedingSlipPolicy, "slip_policy")
         return cls._create(SolverKind.KAEDING, seed, {
@@ -720,6 +722,7 @@ class SolverSpec(_ImmutableSpec):
             "stall_rounds": _strict_int(stall_rounds, "stall_rounds", minimum=0),
             "stall_slip_limit": _strict_int(stall_slip_limit, "stall_slip_limit", minimum=0),
             "stop_after_stall_slip_limit": _strict_bool(stop_after_stall_slip_limit, "stop_after_stall_slip_limit"),
+            "use_raw_score": _strict_bool(use_raw_score, "use_raw_score"),
             "plateau_rounds": _optional_int(plateau_rounds, "plateau_rounds", minimum=1),
             "plateau_minimum_delta": _finite_float(plateau_minimum_delta, "plateau_minimum_delta"),
             "target_score": _optional_float(target_score, "target_score"),

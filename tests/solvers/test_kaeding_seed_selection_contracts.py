@@ -101,3 +101,17 @@ def test_kaeding_seed_selection_metric_rejects_unknown_value():
     seed = np.asarray([0, 1, 2, 3, 4, 0, 1, 2, 3, 4], dtype=np.int16)
     with pytest.raises(ValueError, match='seed_selection_metric'):
         _run_solver(problem, seed_keys=[seed], metric='bogus', restarts=1, seed_restarts=1)
+
+
+def test_raw_ordering_returns_public_score_of_raw_selected_key():
+    problem = _SeedMetricProblem()
+    seed = np.asarray([4, 1, 2, 3, 0, 0, 1, 2, 3, 4], dtype=np.int16)
+    solver = KaedingPeriodicStructuredSolver(problem,
+        opt_cfg={'steps': 1, 'restarts': 1, 'inner_batch': 1, 'col_every': 0,
+            'use_raw_score': True},
+        rng=np.random.default_rng(12446), seed_keys=[seed])
+    result = solver.solve()
+    assert result.key[0] == 4  # Raw ordering retains the raw-best, not percentile-best key.
+    assert result.score == -4.0
+    assert result.meta['telemetry']['kaeding']['best_raw'] == 4.0
+    assert result.meta['telemetry']['kaeding']['best_pct'] == -4.0

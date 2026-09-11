@@ -45,6 +45,7 @@ def _run_smoke(
     concrete_key: tuple[int, ...],
     column_interval: int,
     column_batch_size: int,
+    use_raw_score: bool = False,
 ) -> tuple[api.RunResult, tuple[int, ...]]:
     plaintext, word_lengths, _ = Runeglish.encode_english_to_runes(
         _TEXT, direction=_DIRECTION
@@ -66,6 +67,7 @@ def _run_smoke(
         slip_swaps=1,
         plateau_rounds=1,
         seed=24680,
+        use_raw_score=use_raw_score,
     )
     result = api.run(
         api.RunSpec(
@@ -92,6 +94,8 @@ def _run_smoke(
     assert result.solver_report.score_time_seconds > 0.0
     assert result.status.stop_reason is not None
     assert result.reproducibility.effective_seed == 24680
+    assert result.configuration.solver.requested["parameters"]["use_raw_score"] is use_raw_score
+    assert result.configuration.solver.effective["parameters"]["use_raw_score"] is use_raw_score
     json.dumps(dict(result.telemetry), sort_keys=True)
     span_result = result.telemetry["solver_spans"]["kaeding"]["result"]
     assert result.solver_report.steps == span_result["steps"]
@@ -117,13 +121,15 @@ def _run_smoke(
     return result, plaintext
 
 
-def test_periodic_substitution_kaeding_public_route() -> None:
+@pytest.mark.parametrize("use_raw_score", [False, True])
+def test_periodic_substitution_kaeding_public_route(use_raw_score) -> None:
     result, _ = _run_smoke(
         cipher=api.CipherSpec.periodic_substitution(period=2),
         key_space=api.KeySpec.periodic_substitution(period=2),
         concrete_key=_IDENTITY + _ROTATED,
         column_interval=0,
         column_batch_size=0,
+        use_raw_score=use_raw_score,
     )
 
     kaeding = result.telemetry["kaeding"]
@@ -132,7 +138,8 @@ def test_periodic_substitution_kaeding_public_route() -> None:
     assert all(event["col_moves"] == 0 for event in result.telemetry["solver_progress"])
 
 
-def test_periodic_columnar_kaeding_public_route_and_column_moves() -> None:
+@pytest.mark.parametrize("use_raw_score", [False, True])
+def test_periodic_columnar_kaeding_public_route_and_column_moves(use_raw_score) -> None:
     result, _ = _run_smoke(
         cipher=api.CipherSpec.periodic_columnar(
             period=2,
@@ -143,6 +150,7 @@ def test_periodic_columnar_kaeding_public_route_and_column_moves() -> None:
         concrete_key=_IDENTITY + _ROTATED + (2, 0, 1),
         column_interval=1,
         column_batch_size=4,
+        use_raw_score=use_raw_score,
     )
 
     progress = result.telemetry["solver_progress"]

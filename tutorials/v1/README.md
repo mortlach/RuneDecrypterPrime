@@ -109,7 +109,7 @@ settings and expected runtimes before starting one.
 | --- | --- | --- | --- | --- | ---: | --- | --- |
 | [`periodic_substitution.py`](examples/periodic_substitution.py) | Full periodic-substitution qualification recipe | periodic substitution / Kaeding | Public run + repo seed/support | full V1 | several hours | near-exact ≥0.995 | plaintext sets an oracle stop and validates |
 | [`periodic_substitution_p7.py`](examples/periodic_substitution_p7.py) | Focused P7 periodic-substitution qualification | periodic substitution / Kaeding | Public run + repo seed/support | full V1 | several hours | near-exact ≥0.995 | plaintext sets an oracle stop and validates |
-| [`periodic_columnar_p7_column_then_substitution.py`](examples/periodic_columnar_p7_column_then_substitution.py) | Exploit the qualified P7/C7 warm start | periodic columnar / Kaeding | Public run + qualified repo evidence | full V1 | ~40 min on qualification machine | exact | non-answer warm key enters search; plaintext validates only |
+| [`periodic_columnar_p7_column_then_substitution.py`](examples/periodic_columnar_p7_column_then_substitution.py) | Solve P7/C7 from a qualified warm start | periodic columnar / Kaeding, raw ordering | Public run | full V1 | tens of minutes on CPU, depending on specifications | exact | non-answer warm key enters search; plaintext validates only |
 
 Candidate discovery for the last program remains in
 [`cipher_development/periodic_columnar_staged/`](../../cipher_development/periodic_columnar_staged/).

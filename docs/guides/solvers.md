@@ -101,6 +101,11 @@ Kaeding requires `steps`, `restarts` and `inner_batch_size`.
 Block scheduling, slip behaviour and plateau stopping have explicit defaults in
 the parameter reference.
 
+`use_raw_score=True` optionally orders Kaeding's internal local search using the
+scorer's raw language-model statistic while retaining the configured public
+scoring objective for scoring and reporting. It defaults to `False`; the
+qualified P7/C7 example explicitly enables it.
+
 The public result uses the requested primary scoring objective:
 `RunResult.score`, `SolverReport.best_score` and `ScorerReport.score` agree.
 When the scorer supplies a raw diagnostic, it remains separate in

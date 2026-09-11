@@ -1,7 +1,9 @@
-"""Search the P7/C7 problem from a prepared starting key.
+"""Solve a P7/C7 periodic-columnar problem from a qualified non-answer warm start.
 
-This is a longer qualification run using the existing staged work. Read the
-catalogue and the starting-key notes before running it; it is not a quick demo.
+Kaeding orders this search by the raw LM statistic while the public scorer stays
+percentile log probability. Reference plaintext verifies recovery only after the
+solve. Expect exact recovery. This will likely take tens of minutes on a CPU,
+depending on its specifications.
 """
 
 from __future__ import annotations
@@ -16,8 +18,6 @@ import numpy as np
 from rdp import api
 from rdp.data.runeglish import Runeglish
 from tutorials.v1.data.periodic_columnar_p7_warm_start import (
-    QUALIFICATION_CANDIDATE_ID,
-    QUALIFICATION_RECIPE_ID,
     QUALIFIED_INITIAL_KEY,
 )
 from tutorials.v1.data.plaintext_fixtures import long_plaintext_string
@@ -33,6 +33,7 @@ PLAINTEXT_LENGTH = 2_489
 BENCHMARK_KEY_SEED = 54_321
 SOLVER_SEED = 12_446
 MIN_MATCH_RATIO = 1.0
+PROGRESS_PERCENT_INTERVAL = 10
 
 
 def _complete_word_prefix(
@@ -97,7 +98,7 @@ def build_run_spec() -> tuple[api.RunSpec, api.RuneIndices]:
         ),
     )
     solver = api.SolverSpec.kaeding(
-        steps=12_000,
+        steps=360,
         restarts=1,
         inner_batch_size=192,
         column_interval=1,
@@ -112,6 +113,7 @@ def build_run_spec() -> tuple[api.RunSpec, api.RuneIndices]:
         stall_slip_limit=3,
         slip_swaps=50,
         stop_after_stall_slip_limit=False,
+        use_raw_score=True,
     )
     request = api.RunSpec(
         problem_input=api.RuneInput(
@@ -135,13 +137,17 @@ def build_run_spec() -> tuple[api.RunSpec, api.RuneIndices]:
 
 
 def _progress(payload: dict[str, Any], _key: Sequence[int] | None = None) -> None:
+    percent = int(payload.get("pct", 0) or 0)
+    if percent <= 0 or percent % PROGRESS_PERCENT_INTERVAL:
+        return
     score = payload.get("best_score")
     score_text = "n/a" if score is None else f"{float(score):.6f}"
     print(
         "[Kaeding] "
+        f"{percent}% "
         f"step={int(payload.get('step', 0) or 0)} "
         f"evaluations={int(payload.get('evals', 0) or 0)} "
-        f"best={score_text}",
+        f"percentile={score_text}",
         flush=True,
     )
 
@@ -154,11 +160,9 @@ def _match_ratio(recovered: Sequence[int] | None, expected: Sequence[int]) -> fl
     ) / len(expected)
 
 
-def main() -> None:
-    pretty.print_rdp_identity()
-    pretty.print_initialising()
+def main() -> api.RunResult:
     pretty.print_tutorial_contract(
-        name="Periodic columnar P7/C7 qualification-derived warm start",
+        name="Periodic columnar P7/C7 with a qualified warm start",
         cipher="periodic columnar (columnar then substitution)",
         solver="one-start Kaeding",
         direction="right_to_left",
@@ -166,14 +170,9 @@ def main() -> None:
         uses_reference_stop_score=False,
     )
     print(
-        "Runtime class: LONG-RUNNING KAEDING QUALIFICATION; "
-        "may take several hours on slower supported machines "
-        "(~40 minutes on the qualification machine)"
+        "This will likely take tens of minutes on a CPU, depending on its specifications."
     )
-    print(f"qualification recipe: {QUALIFICATION_RECIPE_ID}")
-    print(f"warm-start candidate: {QUALIFICATION_CANDIDATE_ID}")
-    print("warm-start origin: ciphertext-only char/WLI qualification ranking")
-    print("truth use: terminal tutorial acceptance only; no oracle/target stop")
+    print("Search ordering: raw LM statistic; public scorer: percentile log probability.")
 
     request, expected_plaintext = build_run_spec()
     started = time.perf_counter()
@@ -193,9 +192,14 @@ def main() -> None:
     )
     print(f"Solver stop reason: {result.status.stop_reason.value}")
     print(f"Solver runtime reason: {result.status.runtime_reason}")
+    print(f"Steps: {result.solver_report.steps}")
+    print(f"Evaluations: {result.solver_report.evaluations}")
+    print(f"Public score: {result.score}")
+    print(f"Raw LM statistic: {result.telemetry['kaeding']['best_raw']}")
     print(f"Warm-start positions changed: {changed_positions}")
     print(f"Elapsed seconds: {elapsed:.3f}")
     print(f"Match ratio: {ratio:.3f}")
+    print(f"Exact recovery: {tuple(result.plaintext_indices or ()) == expected_plaintext} ({len(expected_plaintext)} runes)")
     pretty.print_summary_spacer()
     api.display.print_result(
         result,
@@ -204,6 +208,7 @@ def main() -> None:
     )
     if ratio < MIN_MATCH_RATIO:
         raise RuntimeError(f"Solve failed: match_ratio={ratio:.6f}")
+    return result
 
 
 if __name__ == "__main__":

@@ -92,6 +92,7 @@ feature is disabled.
 | `stall_rounds` | `int` | `0` | At least `0`. |
 | `stall_slip_limit` | `int` | `0` | At least `0`. |
 | `stop_after_stall_slip_limit` | `bool` | `False` | Boolean. |
+| `use_raw_score` | `bool` | `False` | Strict Boolean; use the raw LM statistic for internal search ordering, not the public result score. |
 | `plateau_rounds` | `int | None` | `None` | At least `1` when supplied. |
 | `plateau_minimum_delta` | `float` | `0.0` | Finite. |
 | `target_score` | `float | None` | `None` | Finite when supplied. |

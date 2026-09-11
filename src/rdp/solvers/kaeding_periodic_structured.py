@@ -638,7 +638,9 @@ class KaedingPeriodicStructuredSolver(SolverBase):
                 except Exception:
                     pass
 
-            final_score = float(best_raw) if use_raw_score else float(best_pct)
+            # Ordering is internal; report the configured objective for the
+            # selected key. The raw search statistic remains separate above.
+            final_score = float(best_pct)
             if self._stop_reason is None:
                 self._stop_reason = "max_steps_reached"
             self._end_span(getattr(self, "_span", None),
