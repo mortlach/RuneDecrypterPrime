@@ -27,9 +27,7 @@ INTERRUPTOR_COUNT = len(PINNED_FOUND_INTERRUPTORS)
 PINNED_BEST_SCORE = 0.6140413888975398
 PINNED_STOP_REASON = 'no_improve_5'
 ACCEPTANCE_MATCH_RATIO = 1.0
-CANONICAL_KOAN_DURING_LESSON_TEXT = "\nA KOAN DURING A LESSON THE MASTER EXPLAINED THE I THE I IS THE VOICE OF THE\nCIRCUMFERENCE HE SAID WHEN ASKED BY A STUDENT TO EXPLAIN WHAT THAT MEANT THE\nMASTER SAID IT IS A VOICE INSIDE YOUR HEAD I DON'T HAVE A VOICE IN MY HEAD\nTHOUGHT THE STUDENT AND HE RAISED HIS HAND TO TELL THE MASTER THE MASTER\nSTOPPED THE STUDENT AND SAID THE VOICE THAT JUST SAID YOU HAVE NO VOICE IN\nYOUR HEAD IS THE I AND THE STUDENTS WERE ENLIGHTENED\n"
-
-def encode_reference(text: str) -> list[int]:
+def encode_text(text: str) -> list[int]:
     idx, _wli, _runes = Runeglish.encode_english_to_runes(text, direction='ltr')
     return [int(value) for value in idx]
 
@@ -41,6 +39,7 @@ def replay_pinned_solution(ct_idx: list[int], wli: list[list[int]]) -> list[int]
 def main() -> int:
     started = time.perf_counter()
     source_data = api.liber_primus.load_source(SOURCE_LABEL)
+    reference = api.liber_primus.load_plaintext(SOURCE_LABEL)
     recipe = lp.resolve_solve_recipe_label(RECIPE_LABEL)
     ct_idx = [int(value) for value in source_data.ct_idx]
     wli = [list(pair) for pair in source_data.wli]
@@ -48,13 +47,13 @@ def main() -> int:
     main_page_start = page_value(metadata, 'main_page_start')
     main_page_end = page_value(metadata, 'main_page_end')
     interruptor_pool = zero_positions(ct_idx)
-    reference_idx = encode_reference(CANONICAL_KOAN_DURING_LESSON_TEXT)
+    reference_idx = list(reference.indices)
     plaintext_idx = replay_pinned_solution(ct_idx, wli)
     plaintext_latin, plaintext_runes = render_plaintext(plaintext_idx, wli)
     ratio = match_ratio(plaintext_idx, reference_idx)
     status = 'solved' if ratio >= ACCEPTANCE_MATCH_RATIO else 'diagnostic_not_yet_solved'
     found_interruptors_in_pool = all((value in interruptor_pool for value in PINNED_FOUND_INTERRUPTORS))
-    keyspace_hint_idx = encode_reference(RECIPE_REFERENCE_KEY_OR_SHIFT)
+    keyspace_hint_idx = encode_text(RECIPE_REFERENCE_KEY_OR_SHIFT)
     key_matches_recipe_hint = PINNED_FOUND_KEY_CORE == keyspace_hint_idx
     elapsed_wall_time_s = time.perf_counter() - started
     print_block('LP_KOAN_DURING_LESSON_RUN_CONFIG', (('source_label', SOURCE_LABEL), ('resolved_source_label', metadata['source_label']), ('main_page_start', main_page_start), ('main_page_end', main_page_end), ('ciphertext_length', len(ct_idx)), ('word_length_information_length', len(wli)), ('recipe', recipe.recipe_label), ('cipher_family', recipe.cipher_family), ('key_text_hint_human', KEY_TEXT_HINT_HUMAN), ('recipe_reference_key_or_shift', RECIPE_REFERENCE_KEY_OR_SHIFT), ('key_length', KEY_LENGTH), ('interruptor_count_required', INTERRUPTOR_COUNT), ('interruptor_pool_strategy', 'ciphertext_zero_positions'), ('interruptor_pool_size', len(interruptor_pool)), ('interruptor_pool', interruptor_pool), ('acceptance_match_ratio', f'{ACCEPTANCE_MATCH_RATIO:.3f}')))

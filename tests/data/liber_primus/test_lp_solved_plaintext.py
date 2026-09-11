@@ -20,7 +20,8 @@ from rdp.data.runeglish import Runeglish
 pytestmark = pytest.mark.tier_a
 
 # Counts and semantic hashes come from the independently validated user-supplied
-# dump. Line wrapping and newline encoding in the presentation files are not data.
+# dump, including the source-verified Some Wisdom magic-square words.
+# Line wrapping and newline encoding in the presentation files are not data.
 # Semantic hashes cover indices plus exact word-length information; rune hashes
 # independently cover the flattened supplied rune arrays.
 EXPECTED = {
@@ -35,10 +36,10 @@ EXPECTED = {
     "some_wisdom": (
         "red_rune.some_wisdom",
         "some_wisdom.txt",
-        18,
-        81,
-        "08a1354f74fa5fd421c97566bea387acc7b1d8e09464bf3d5efee06538b4c1b3",
-        "7d156f190410f2ff8bb61f31591a34991084c19910b669539970615786997d29",
+        31,
+        157,
+        "28c20b1c3d685504c18a4ee2929dabc3ef1fab294f66e5075b2d49d822dfb75d",
+        "6d34dc722558502375b256829c6ebac3ab4fd36db3322c97e51b30f87968ca07",
     ),
     "welcome_pilgrim": (
         "red_rune.welcome_pilgrim",
@@ -168,6 +169,14 @@ def test_every_solved_plaintext_matches_the_supplied_data(
         reference.word_length_information,
         reference.rune_latin,
     )
+
+
+@pytest.mark.parametrize("label", ["some_wisdom", "loss_of_divinity"])
+def test_unenciphered_solved_plaintext_matches_the_complete_source(label: str) -> None:
+    source = api.liber_primus.load_source(label)
+    reference = api.liber_primus.load_plaintext(label)
+    assert reference.indices == tuple(source.ct_idx)
+    assert reference.word_length_information == tuple(map(tuple, source.wli))
 
 
 @pytest.mark.parametrize("label", EXPECTED)

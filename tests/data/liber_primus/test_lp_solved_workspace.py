@@ -1,6 +1,8 @@
 from __future__ import annotations
 import ast
+from importlib import import_module
 from pathlib import Path
+from types import SimpleNamespace
 import pytest
 import rdp.data.liber_primus as lp
 pytestmark = pytest.mark.tier_a
@@ -18,6 +20,23 @@ def test_solved_lp_workspace_labels_resolve_to_payloads(label: str) -> None:
 
 def test_solved_lp_workspace_is_flat() -> None:
     assert [path.name for path in SOLVED_ROOT.iterdir() if path.is_dir() and path.name != '__pycache__'] == []
+
+@pytest.mark.parametrize('module_name', (
+    'solving.solved_lp.03_Some_Wisdom',
+    'solving.solved_lp.05_Loss_Of_Divinity',
+))
+def test_unenciphered_replays_reject_an_incorrect_reference(
+    module_name: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    workbook = import_module(module_name)
+    reference = workbook.api.liber_primus.load_plaintext(workbook.SOURCE_LABEL)
+    incorrect = ((reference.indices[0] + 1) % 29, *reference.indices[1:])
+    monkeypatch.setattr(
+        workbook.api.liber_primus, 'load_plaintext',
+        lambda _label: SimpleNamespace(indices=incorrect),
+    )
+    assert workbook.main() == 1
+    assert 'diagnostic_not_yet_solved' in capsys.readouterr().out
 
 @pytest.mark.parametrize('filename', WORKBOOK_FILES)
 def test_solved_lp_has_human_readable_files(filename: str) -> None:
@@ -68,7 +87,8 @@ def test_koan_during_lesson_workbook_pins_solved_count_two_replay(path: Path) ->
     assert 'INTERRUPTOR_COUNT = len(PINNED_FOUND_INTERRUPTORS)' in text
     assert 'PINNED_FOUND_INTERRUPTORS = [49, 58]' in text
     assert 'ACCEPTANCE_MATCH_RATIO = 1.0' in text
-    assert 'CANONICAL_KOAN_DURING_LESSON_TEXT' in text
+    assert 'api.liber_primus.load_plaintext(SOURCE_LABEL)' in text
+    assert 'CANONICAL_KOAN_DURING_LESSON_TEXT' not in text
     assert 'zero_positions(ct_idx)' in text
     assert 'zero_positions(ct_idx)' in text
     assert 'match_ratio(plaintext_idx, reference_idx)' in text

@@ -39,7 +39,7 @@ def test_lp_main_transcript_identity_returns_fresh_mutable_copy() -> None:
     first = lp_main.main_transcript_asset_identity()
     first['asset_version'] = 'bad'
     second = lp_main.main_transcript_asset_identity()
-    assert second == {'asset_id': 'liber_primus.main_transcript', 'asset_version': 'ad516b6d88106d68b3334cee0800ac83fa2e4d27c1a5c52bf8b0c2fb3ebc45d6'}
+    assert second == {'asset_id': 'liber_primus.main_transcript', 'asset_version': '431202b7e38df1365b28f8a6938afdbd894dd74f34215a91bc0c58dc10f74979'}
     assert second is not first
 
 def test_lp_main_transcript_identity_rejects_duplicate_manifest_rows(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

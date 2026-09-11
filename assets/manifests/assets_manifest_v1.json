@@ -5,9 +5,9 @@
   "required_assets": [
     {
       "asset_id": "liber_primus.main_transcript",
-      "asset_version": "ad516b6d88106d68b3334cee0800ac83fa2e4d27c1a5c52bf8b0c2fb3ebc45d6",
+      "asset_version": "431202b7e38df1365b28f8a6938afdbd894dd74f34215a91bc0c58dc10f74979",
       "version_scheme": "sha256",
-      "sha256": "ad516b6d88106d68b3334cee0800ac83fa2e4d27c1a5c52bf8b0c2fb3ebc45d6",
+      "sha256": "431202b7e38df1365b28f8a6938afdbd894dd74f34215a91bc0c58dc10f74979",
       "size_bytes": 57236,
       "final_relpath": "liber_primus/liber-primus__transcription--master-v2.txt",
       "parts": [

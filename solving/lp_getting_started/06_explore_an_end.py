@@ -145,7 +145,6 @@ def main() -> None:
 
     print("Best stream before interruptors:", family, "offset", offset, "shift", shift)
     print("Score:", scores[winning_index])
-    print("Matches solved text:", plaintexts[winning_index] == reference.indices)
 
     # Only five ciphertext-zero positions: 2**5 == 32 possible subsets.
     zero_positions = tuple(
@@ -185,6 +184,7 @@ def main() -> None:
 
     # Only now compare with reference data, after candidate ranking is complete.
     reference = api.liber_primus.load_plaintext("an_end")
+    print("Before interruptors matches solved text:", plaintexts[winning_index] == reference.indices)
 
     print("Selected interruptor positions:", tuple(sorted(selected_positions)))
     print("Final score:", interrupted_scores[interrupted_index])

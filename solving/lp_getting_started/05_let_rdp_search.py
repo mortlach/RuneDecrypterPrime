@@ -77,7 +77,6 @@ def main() -> None:
     print("Solver key         :", result.key)
     print("Same plaintext     :", result.plaintext_indices == manual_plaintexts[best_shift])
     print("Same score         :", result.score == scores[best_shift])
-    print("Matches solved text:", result.plaintext_indices == reference.indices)
 
     # Now remove the reverse-shift assumption. Any permutation of the 29-rune
     # alphabet is allowed. Two thousand SA iterations are only a first look.
@@ -100,6 +99,7 @@ def main() -> None:
 
     # Reference data is loaded only after both searches have produced candidates.
     reference = api.liber_primus.load_plaintext("koan_a_man")
+    print("Matches solved text:", result.plaintext_indices == reference.indices)
 
     matches = sum(
         left == right

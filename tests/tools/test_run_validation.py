@@ -23,8 +23,9 @@ def test_all_catalogue_has_each_example_and_workbook_once_without_campaigns():
     jobs = runner.build_jobs('all')
     modules = [j.args[-1] for j in jobs[1:]]
     # pytest, ten tutorials, three solving starts, six LP lessons,
-    # 23 examples, and nine workbooks
-    assert len(jobs) == 52
+    # 24 examples (including the long P7/C7 job), and nine workbooks
+    assert runner.INCLUDE_LONG_P7C7_EXAMPLE is True
+    assert len(jobs) == 53
     assert len(modules) == len(set(modules))
     assert [m for m in modules if m.startswith('solving.getting_started.')] == [
         'solving.getting_started.load_source',
@@ -44,7 +45,7 @@ def test_all_catalogue_has_each_example_and_workbook_once_without_campaigns():
     ]
     assert sum(m.startswith('solving.solved_lp.') for m in modules) == 9
     assert not any(name in m for m in modules for name in runner.EXCLUDED_EXAMPLES)
-    assert not any(runner.P7C7_EXAMPLE in m for m in modules)
+    assert sum(runner.P7C7_EXAMPLE in m for m in modules) == 1
     assert not any('cipher_development' in m or 'campaign' in m for m in modules)
     assert 'tests' in jobs[0].args
     assert runner.EXCLUDED_TESTS == ()
@@ -55,6 +56,20 @@ def test_all_catalogue_has_each_example_and_workbook_once_without_campaigns():
     assert p7c7[0].args[-1] == 'tutorials.v1.examples.periodic_columnar_p7_column_then_substitution'
     with pytest.raises(ValueError, match='Unknown run set'):
         runner.build_jobs('campaign')
+
+
+def test_documented_selection_lists_every_collected_test_file():
+    selection = (runner.ROOT / 'tools/validation_selection.md').read_text(encoding='utf-8')
+    listed = {
+        line.removeprefix('- `').removesuffix('`')
+        for line in selection.splitlines()
+        if line.startswith('- `tests/') and line.endswith('.py`')
+    }
+    expected = {
+        path.relative_to(runner.ROOT).as_posix()
+        for path in (runner.ROOT / 'tests').rglob('test_*.py')
+    }
+    assert listed == expected
 
 
 def test_unclassified_example_blocks_execution(tmp_path):

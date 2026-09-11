@@ -20,8 +20,8 @@ ROOT = Path(__file__).resolve().parents[1]
 from rdp.core.config.output_paths import resolve_output_root, path_from
 OUTPUT_ROOT = None  # Optional explicit validation destination; otherwise shared root/validation.
 RUN_SET = 'all'  # 'smoke', 'all', 'p7c7', or 'gpu'
-# Set True to include the roughly 36-minute prepared-start P7/C7 example in 'all'.
-INCLUDE_LONG_P7C7_EXAMPLE = False
+# The V1 full catalogue includes the roughly 36-minute prepared-start P7/C7 example.
+INCLUDE_LONG_P7C7_EXAMPLE = True
 SHOW_JOB_OUTPUT = True
 DRY_RUN = False
 STOP_ON_FAILURE = False

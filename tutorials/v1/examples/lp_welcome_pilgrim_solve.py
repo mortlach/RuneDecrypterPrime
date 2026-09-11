@@ -26,12 +26,14 @@ def main() -> int:
         name="Liber Primus Welcome Pilgrim label solve",
         cipher="liber primus label solve",
         solver="beam",
-        direction="rtl",
+        direction="ltr",
         expected_result="exact solve",
         uses_reference_stop_score=False,
     )
     workbook = _load_workbook()
     source_data = api.liber_primus.load_source(workbook.SOURCE_LABEL)
+    reference = api.liber_primus.load_plaintext(workbook.SOURCE_LABEL)
+    reference_idx = reference.indices
     recipe = workbook.lp.resolve_solve_recipe_label(workbook.RECIPE_LABEL)
     ct_idx = list(source_data.ct_idx)
     wli = [list(pair) for pair in source_data.wli]
@@ -42,7 +44,7 @@ def main() -> int:
             "Loaded Welcome Pilgrim ciphertext-zero pool does not match the pinned solve evidence"
         )
     pool_validation = workbook.validate_interruptor_pool(ct_idx, interruptor_pool)
-    if len(workbook.CANONICAL_WELCOME_PILGRIM_IDX) != len(ct_idx):
+    if len(reference_idx) != len(ct_idx):
         raise ValueError(
             "Canonical Welcome Pilgrim reference is not aligned with the loaded source data"
         )
@@ -82,7 +84,7 @@ def main() -> int:
     )
     print_tutorial_debug_preview(
         label="reference_plaintext",
-        idx=workbook.CANONICAL_WELCOME_PILGRIM_IDX,
+        idx=reference_idx,
         wli=wli,
         direction=workbook.ENCODING_DIRECTION,
     )
@@ -120,7 +122,7 @@ def main() -> int:
         key_length=workbook.KEY_LENGTH,
         interruptor_pool=interruptor_pool,
         interruptor_count=workbook.INTERRUPTOR_COUNT,
-        reference_idx=workbook.CANONICAL_WELCOME_PILGRIM_IDX,
+        reference_idx=reference_idx,
         ciphertext_length=len(ct_idx),
         wli=wli,
         elapsed_wall_time_s=elapsed,

@@ -4,7 +4,7 @@ Statically listed from the current checkout. No tests, examples, runner, or pyte
 
 No runner time limits. User launch only.
 
-52 jobs with `INCLUDE_LONG_P7C7_EXAMPLE = False`: one pytest selection plus 51 standalone programs.
+53 jobs with `INCLUDE_LONG_P7C7_EXAMPLE = True`: one pytest selection plus 52 standalone programs.
 
 Pytest collects every test under `tests/`. Parameterized test counts and skips
 are determined at runtime; file counts are not individual test counts.
@@ -50,6 +50,7 @@ are determined at runtime; file counts are not individual test counts.
 - `tutorials/v1/examples/mono_substitution_ga_rtl.py`
 - `tutorials/v1/examples/mono_substitution_hybrid_rtl.py`
 - `tutorials/v1/examples/mono_substitution_sa_ltr.py`
+- `tutorials/v1/examples/periodic_columnar_p7_column_then_substitution.py`
 - `tutorials/v1/examples/rail_fence.py`
 - `tutorials/v1/examples/repeating_multiply.py`
 - `tutorials/v1/examples/scheduled_stream_lookup_p13_p31_segmented.py`
@@ -82,6 +83,7 @@ are determined at runtime; file counts are not individual test counts.
 - `tests/api/test_a3_public_config_strictness.py`
 - `tests/api/test_a4_state_reporting_reproducibility.py`
 - `tests/api/test_artifact_agreement.py`
+- `tests/api/test_beginner_source_and_beam.py`
 - `tests/api/test_directional_plaintext_display.py`
 - `tests/api/test_display_summary_contract.py`
 - `tests/api/test_encoding_direction.py`
@@ -97,6 +99,7 @@ are determined at runtime; file counts are not individual test counts.
 - `tests/api/test_normalize_text_permutation.py`
 - `tests/api/test_periodic_wrappers.py`
 - `tests/api/test_printer_contract.py`
+- `tests/api/test_progress_callback_contract.py`
 - `tests/api/test_public_execution_boundary.py`
 - `tests/api/test_run_artifact_manifest.py`
 - `tests/api/test_run_artifact_manifest_artifact_agreement.py`
@@ -104,6 +107,7 @@ are determined at runtime; file counts are not individual test counts.
 - `tests/api/test_run_artifact_manifest_trigger.py`
 - `tests/api/test_run_defaults.py`
 - `tests/api/test_run_logging_routing.py`
+- `tests/api/test_run_result_runtime_truth.py`
 - `tests/api/test_run_routing.py`
 - `tests/api/test_run_solver_report_export.py`
 - `tests/api/test_run_solver_report_visibility.py`
@@ -120,6 +124,7 @@ are determined at runtime; file counts are not individual test counts.
 - `tests/api/test_solver_report_truth_repro_contract.py`
 - `tests/api/test_solver_runtime_translation.py`
 - `tests/api/test_source_resolution.py`
+- `tests/api/test_standalone_scoring.py`
 - `tests/api/test_stop_reason_contract.py`
 - `tests/api/test_two_period_cribs_api.py`
 - `tests/api/test_v1_public_contract.py`
@@ -132,6 +137,18 @@ are determined at runtime; file counts are not individual test counts.
 - `tests/assets/test_lm_large_audit.py`
 - `tests/assets/test_lm_large_release_builder.py`
 - `tests/assets/test_release_asset_installer.py`
+- `tests/cipher_development/test_archive.py`
+- `tests/cipher_development/test_campaign_replay.py`
+- `tests/cipher_development/test_experiment.py`
+- `tests/cipher_development/test_ledger.py`
+- `tests/cipher_development/test_periodic_columnar_staged.py`
+- `tests/cipher_development/test_replay.py`
+- `tests/cipher_development/test_run_experiment.py`
+- `tests/cipher_development/test_two_period_experiment_e.py`
+- `tests/cipher_development/test_two_period_p13_p31.py`
+- `tests/cipher_development/test_two_period_review_pack.py`
+- `tests/cipher_development/test_wp2_review_fixes.py`
+- `tests/cipher_development/test_wp5_discipline.py`
 - `tests/ciphers/test_autokey_cipher.py`
 - `tests/ciphers/test_by_name_future_wrappers.py`
 - `tests/ciphers/test_columnar_device_parity.py`
@@ -152,6 +169,7 @@ are determined at runtime; file counts are not individual test counts.
 - `tests/ciphers/test_scheduled_stream_lookup_schedule_modes.py`
 - `tests/ciphers/test_scheduled_stream_lookup_strict_config.py`
 - `tests/ciphers/test_substitution_interruptor_pipeline.py`
+- `tests/ciphers/test_torch_cipher_boundary.py`
 - `tests/ciphers/test_user_map3_domain.py`
 - `tests/ciphers/test_vigenere_key_range_guard.py`
 - `tests/contracts/test_a1_asset_ci_workflow_contract.py`
@@ -222,6 +240,7 @@ are determined at runtime; file counts are not individual test counts.
 - `tests/data/liber_primus/test_lp_public_surface.py`
 - `tests/data/liber_primus/test_lp_registry.py`
 - `tests/data/liber_primus/test_lp_routes.py`
+- `tests/data/liber_primus/test_lp_solved_plaintext.py`
 - `tests/data/liber_primus/test_lp_solved_source_spreadsheet_references.py`
 - `tests/data/liber_primus/test_lp_solved_workspace.py`
 - `tests/data/liber_primus/test_lp_source_catalogue.py`
@@ -232,11 +251,13 @@ are determined at runtime; file counts are not individual test counts.
 - `tests/data/test_lp_asset_manifest.py`
 - `tests/data/test_lp_main_transcript.py`
 - `tests/data/test_lp_transcript_sections.py`
+- `tests/data/test_lp_transcript_typography.py`
 - `tests/data/test_lp_transcript_word_spans.py`
 - `tests/data/test_wordlists_loader.py`
 - `tests/determinism/test_a5_zip_src_determinism.py`
 - `tests/determinism/test_repeatability.py`
 - `tests/determinism/test_seeded_solver_route_replay.py`
+- `tests/docs/test_learning_route.py`
 - `tests/docs/test_onboarding_docs_contract.py`
 - `tests/docs/test_v1_coder_docs_contract.py`
 - `tests/guardrails/test_core_no_backend_optimizer_magic_literals.py`
@@ -374,8 +395,13 @@ are determined at runtime; file counts are not individual test counts.
 - `tests/test_artifact_policy.py`
 - `tests/test_logging_paths.py`
 - `tests/test_run_logger_paths.py`
+- `tests/tools/test_cipher_solver_campaign.py`
+- `tests/tools/test_cipher_solver_campaign_rail_interruptors.py`
+- `tests/tools/test_installer_cli.py`
+- `tests/tools/test_output_routing.py`
 - `tests/tools/test_release_review_pack.py`
 - `tests/tools/test_run_validation.py`
+- `tests/tools/test_torch_provisioning.py`
 - `tests/tools/test_zip_src_nobloat.py`
 - `tests/torch/test_torch_scorer_optional_runtime.py`
 - `tests/tutorials/test_autokey_tutorial.py`
@@ -383,6 +409,8 @@ are determined at runtime; file counts are not individual test counts.
 - `tests/tutorials/test_degeneracy_tutorial.py`
 - `tests/tutorials/test_future_presets.py`
 - `tests/tutorials/test_getting_started_route.py`
+- `tests/tutorials/test_lp_getting_started.py`
+- `tests/tutorials/test_lp_learning_route.py`
 - `tests/tutorials/test_mono_substitution.py`
 - `tests/tutorials/test_periodic_columnar_qualified_tutorial.py`
 - `tests/tutorials/test_pretty_output_contract.py`
@@ -419,7 +447,6 @@ are determined at runtime; file counts are not individual test counts.
 
 - `tutorials/v1/examples/periodic_substitution.py`: long qualification
 - `tutorials/v1/examples/periodic_substitution_p7.py`: long qualification
-- `tutorials/v1/examples/periodic_columnar_p7_column_then_substitution.py`: long prepared-start example; toggle `INCLUDE_LONG_P7C7_EXAMPLE` to include it
 - Campaign entry points under `tools/robustness/`.
 - Development/attempt entry points under `cipher_development/` and `solving/attempts/`.
 
