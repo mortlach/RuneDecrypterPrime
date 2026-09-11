@@ -1,0 +1,168 @@
+name: RDP V1 Pyodide Wheel Proof
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pyodide-wheel:
+    name: pinned WASM wheel / B1-B8
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PYODIDE_XBUILDENV_PATH: ${{ runner.temp }}/rdp-xbuildenv
+      RDP_PYODIDE_OUTPUT: ${{ runner.temp }}/rdp-pyodide
+      RDP_OUTPUT_ROOT: ${{ runner.temp }}/rdp-native-output
+
+    steps:
+      - name: Check out requested commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Read the proven toolchain pins
+        id: pins
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          pins = json.loads(Path('tools/pyodide/versions.json').read_text())
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              for key in ('python', 'pyodide', 'pyodide_build', 'pyodide_cli', 'emscripten'):
+                  output.write(f'{key}={pins[key]}\n')
+          PY
+          test -z "$(git status --porcelain)"
+
+      - name: Set up pinned host Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ steps.pins.outputs.python }}
+
+      - name: Install pinned Pyodide build environment and SDK
+        env:
+          RDP_PYODIDE_VERSION: ${{ steps.pins.outputs.pyodide }}
+          RDP_BUILD_VERSION: ${{ steps.pins.outputs.pyodide_build }}
+          RDP_CLI_VERSION: ${{ steps.pins.outputs.pyodide_cli }}
+          RDP_EMSCRIPTEN_VERSION: ${{ steps.pins.outputs.emscripten }}
+        run: |
+          python -m venv "$RUNNER_TEMP/rdp-tool-env"
+          source "$RUNNER_TEMP/rdp-tool-env/bin/activate"
+          python -m pip install "pyodide-build==$RDP_BUILD_VERSION" "pyodide-cli==$RDP_CLI_VERSION"
+          pyodide xbuildenv install "$RDP_PYODIDE_VERSION"
+          pyodide xbuildenv install-emscripten --version "$RDP_EMSCRIPTEN_VERSION"
+          echo "$RUNNER_TEMP/rdp-tool-env/bin" >> "$GITHUB_PATH"
+          echo "RDP_EMSDK_ENV=$(pyodide config get emsdk_dir)/emsdk_env.sh" >> "$GITHUB_ENV"
+          echo "RDP_PYODIDE_DIST=$(pyodide config get dist_dir)" >> "$GITHUB_ENV"
+
+      - name: Build and verify exactly one WASM wheel
+        run: |
+          source "$RDP_EMSDK_ENV"
+          bash tools/pyodide/build_wheel.sh
+          test -z "$(git status --porcelain)"
+
+      - name: Smoke the built wheel through the public API (B1-B8)
+        run: |
+          source "$RDP_EMSDK_ENV"
+          node tools/pyodide/run_smoke.mjs
+          test -z "$(git status --porcelain)"
+
+      - name: Focused native safety checks (28 tests)
+        run: |
+          # Build outside the checkout, without activating Emscripten here.
+          python -m venv "$RUNNER_TEMP/rdp-native-env"
+          native_python="$RUNNER_TEMP/rdp-native-env/bin/python"
+          mkdir -p "$RUNNER_TEMP/rdp-native-source" "$RUNNER_TEMP/rdp-native-wheels"
+          git archive HEAD | tar -x -C "$RUNNER_TEMP/rdp-native-source"
+          "$native_python" -m pip wheel --no-deps "$RUNNER_TEMP/rdp-native-source" \
+            --wheel-dir "$RUNNER_TEMP/rdp-native-wheels"
+          "$native_python" -m pip install "$RUNNER_TEMP"/rdp-native-wheels/*.whl 'pytest==9.1.1'
+          "$native_python" -I -B - <<'PY'
+          from pathlib import Path
+          import rdp
+          import rdp.scoring.language_model._fastlm
+          import rdp.scoring.hamming._hamming
+          import rdp.scoring.span_hamming._span_hamming_fast
+          assert 'site-packages' in Path(rdp.__file__).parts, rdp.__file__
+          print('Native installed-wheel imports: PASS')
+          PY
+          "$native_python" -I -B -m pytest --noconftest --import-mode=importlib -q \
+            -p no:cacheprovider -c pyproject.toml \
+            --junitxml "$RUNNER_TEMP/rdp-native.xml" \
+            tests/contracts/test_a5_packaging_boundary_contract.py \
+            tests/installation/test_wheel_source_manifest.py \
+            tests/tools/test_pyodide_tooling.py \
+            tests/api/test_known_key_operations.py
+          test -z "$(git status --porcelain)"
+
+      - name: Verify receipts and write the job summary
+        run: |
+          python - <<'PY'
+          import hashlib, json, os, subprocess, tomllib
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          output = Path(os.environ['RDP_PYODIDE_OUTPUT'])
+          build = json.loads((output / 'wheel.json').read_text())
+          smoke = json.loads((output / 'smoke.json').read_text())
+          pins = json.loads(Path('tools/pyodide/versions.json').read_text())
+          wheels = list((output / 'wheels').glob('*.whl'))
+          assert len(wheels) == 1
+          wheel = wheels[0]
+          assert output / build['wheel'] == wheel
+          digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
+          assert build['status'] == smoke['status'] == 'PASS'
+          assert build['pins'] == smoke['pins'] == pins
+          assert build['sha256'] == smoke['wheel']['sha256'] == digest
+          assert build['size_bytes'] == smoke['wheel']['size_bytes'] == wheel.stat().st_size
+          assert smoke['wheel']['filename'] == wheel.name
+          assert wheel.name.endswith('-' + pins['wheel_tag'] + '.whl')
+          assert build['source_revision'] == os.environ['GITHUB_SHA']
+          assert build['source_status'] == ''
+          assert not subprocess.check_output(['git', 'status', '--porcelain'], text=True)
+          checks = smoke['smoke']['checks']
+          assert set(checks) == {f'B{i}' for i in range(1, 9)}
+          assert all(check['status'] == 'PASS' for check in checks.values())
+          suites = ET.parse(Path(os.environ['RUNNER_TEMP']) / 'rdp-native.xml').findall('testsuite')
+          assert sum(int(s.attrib['tests']) for s in suites) == 28
+          assert all(int(s.attrib[field]) == 0 for s in suites for field in ('failures', 'errors', 'skipped'))
+          version = tomllib.loads(Path('pyproject.toml').read_text())['project']['version']
+          rows = [
+              ('Source commit', build['source_revision']), ('RDP', version),
+              ('Pyodide', pins['pyodide']), ('Python', pins['python']),
+              ('pyodide-build', pins['pyodide_build']), ('pyodide-cli', pins['pyodide_cli']),
+              ('Emscripten', pins['emscripten']), ('Node', pins['node']),
+              ('Wheel', wheel.name), ('SHA-256', digest), ('Bytes', build['size_bytes']),
+              ('Build seconds', f"{build['build_seconds']:.2f}"),
+              ('Smoke seconds', f"{smoke['seconds']:.2f}"), ('Native tests', '28 PASS'),
+          ]
+          lines = ['## RDP V1 Pyodide wheel proof', '', '| Item | Result |', '| --- | --- |']
+          lines += [f'| {name} | `{value}` |' for name, value in rows]
+          lines += ['', 'B1 import; B2 extensions; B3 package data; B4 known-key operation;',
+                    'B5 scalar/batch scoring; B6 Beam; B7 fixed-seed GA; B8 LP loading.', '']
+          lines += [f"- {name}: {check['status']} ({check['seconds']:.3f}s)" for name, check in checks.items()]
+          lines += ['', 'Temporary Actions proof artifact; not a release or PyPI publication.', '']
+          summary = '\n'.join(lines)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as target:
+              target.write(summary)
+          print(summary)
+          PY
+
+      - name: Upload verified WASM wheel and small receipts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rdp-v1-pyodide-wheel
+          path: |
+            ${{ runner.temp }}/rdp-pyodide/wheels/*.whl
+            ${{ runner.temp }}/rdp-pyodide/wheel.json
+            ${{ runner.temp }}/rdp-pyodide/smoke.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
