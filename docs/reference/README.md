@@ -21,6 +21,7 @@ result = api.run(request)
 
 ## Core reference
 
+- [Full A-Z glossary](glossary.md)
 - [Public API surface](public_api.md)
 - [Problem inputs](inputs.md)
 - [RunSpec](run_spec.md)

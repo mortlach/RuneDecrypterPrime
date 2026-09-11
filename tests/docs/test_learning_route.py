@@ -28,17 +28,33 @@ def test_learning_examples_execute_exactly_as_documented():
     assert completed.returncode == 0, completed.stdout + completed.stderr
 
 
-def test_learning_track_has_one_glossary_and_canonical_named_source_route():
-    glossary = (LEARN / '00_words_used_here.md').read_text(encoding='utf-8')
+def test_learning_track_has_split_glossaries_and_canonical_named_source_route():
+    learner_glossary = (LEARN / '00_words_used_here.md').read_text(encoding='utf-8')
+    reference_glossary = (LEARN.parent / 'reference/glossary.md').read_text(
+        encoding='utf-8'
+    )
     for term in (
-        'Beam search', 'Width', 'Round', 'Seed', 'Plateau', 'WLI', 'Rune index',
-        'RuneInputFormat', 'RuneIndices', 'SourceReferenceInput', 'SourceData', 'Source resolver', 'CipherSpec',
-        'ConcreteKey', 'InitialKeys', 'KeySpec', 'KeyOps', 'SolverSpec', 'RunSpec', 'ProblemInput', 'Text permutation',
-        'score_many', 'ScoringConfig', 'Objective', 'Character lane', 'WLI lane', 'ScorerReport',
-        'SolverReport', 'RunStatus', 'Stop category', 'Telemetry', 'Oracle', 'Artifact', 'LoggingConfig', 'InterruptorConfig',
-        'Asset profile', 'CI-light', 'WordLengthPolicy', 'ComputeDevice', 'CUDA',
+        'Beam search', 'Candidate', 'Width', 'Round', 'Seed', 'Search budget',
+        'Plateau', 'Score', 'Scorer', 'Language model', 'WLI', 'CipherSpec',
+        'KeySpec', 'SolverSpec', 'RunSpec', 'RunResult', 'Stop reason',
+        'Source label', 'load_source', 'load_plaintext',
     ):
-        assert term in glossary
+        assert term in learner_glossary
+    for term in (
+        'RuneInputFormat', 'RuneIndices', 'SourceReferenceInput', 'SourceData',
+        'Source resolver', 'ConcreteKey', 'InitialKeys', 'KeyOps',
+        'ProblemInput', 'Text permutation', 'score_many', 'ScoringConfig',
+        'Objective', 'Character lane', 'WLI lane', 'ScorerReport',
+        'SolverReport', 'RunStatus', 'Stop category', 'Telemetry', 'Oracle',
+        'Artifact', 'LoggingConfig', 'InterruptorConfig', 'Asset profile',
+        'CI-light', 'WordLengthPolicy', 'ComputeDevice', 'CUDA',
+    ):
+        assert term in reference_glossary
+    assert '../reference/glossary.md' in learner_glossary
+    assert '../learn/00_words_used_here.md' in reference_glossary
+    for letter in 'abcdefghijklmnopqrstuvwxyz':
+        assert f'[{letter.upper()}](#{letter})' in reference_glossary
+        assert f'## {letter.upper()}' in reference_glossary
     for page in LEARN.glob('*.md'):
         if page.name != '00_words_used_here.md':
             assert '00_words_used_here.md' in page.read_text(encoding='utf-8'), page

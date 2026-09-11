@@ -49,6 +49,7 @@ The main route is:
 ## Reference
 
 - [API reference](reference/README.md)
+- [Full A-Z glossary](reference/glossary.md)
 - [Public API surface](reference/public_api.md)
 - [Defaults at a glance](reference/defaults.md)
 - [Complete parameter reference](reference/parameters/README.md)

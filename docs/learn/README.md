@@ -2,8 +2,9 @@
 
 This route is for getting a first experiment running quickly.
 
-The [learner glossary](00_words_used_here.md) defines every technical term used
-in this track. Keep it open and use it whenever a name is unfamiliar.
+The [learner glossary](00_words_used_here.md) defines the core terms needed in
+this track. Keep it open and use it whenever a name is unfamiliar; it links to
+the full reference glossary for less common vocabulary.
 
 The examples are deliberately small. They use existing ciphers, ordinary
 defaults and bundled data so each page can concentrate on one idea.
