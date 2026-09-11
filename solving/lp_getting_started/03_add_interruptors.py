@@ -52,7 +52,11 @@ def main() -> None:
     )
 
     result = api.run(request)
-    if result.key is None or result.plaintext_runes is None:
+    if (
+        result.key is None
+        or result.plaintext_indices is None
+        or result.plaintext_runes is None
+    ):
         raise RuntimeError("the search did not return a candidate")
 
     # For this search, the concrete key holds key values followed by positions.
@@ -63,26 +67,12 @@ def main() -> None:
     print("Score:", result.score)
     print("Plaintext:", result.plaintext_runes)
 
-    exact_match = result.plaintext_runes == REFERENCE_RUNES
+    # The search is finished; now compare it with the separately stored answer.
+    reference = api.liber_primus.load_plaintext("welcome_pilgrim")
+    exact_match = result.plaintext_indices == reference.indices
     print("Matches the complete solved text:", exact_match)
     if not exact_match:
         raise AssertionError("the interruptor model did not recover the solved text")
-
-
-# Canonical solved text, rendered as runes. Keep the source spelling WIDSOM.
-# This reference is also used by the detailed Welcome Pilgrim workbook.
-REFERENCE_RUNES = (
-    "ᚹᛖᛚᚳᚩᛗᛖ ᚹᛖᛚᚳᚩᛗᛖ ᛈᛁᛚᚷᚱᛁᛗ ᛏᚩ ᚦᛖ ᚷᚱᛠᛏ ᛂᚩᚢᚱᚾᛖᚣ ᛏᚩᚹᚪᚱᛞ ᚦᛖ ᛖᚾᛞ ᚩᚠ ᚪᛚᛚ ᚦᛝᛋ "
-    "ᛁᛏ ᛁᛋ ᚾᚩᛏ ᚪᚾ ᛠᛋᚣ ᛏᚱᛁᛈ ᛒᚢᛏ ᚠᚩᚱ ᚦᚩᛋᛖ ᚹᚻᚩ ᚠᛁᚾᛞ ᚦᛖᛁᚱ ᚹᚪᚣ ᚻᛖᚱᛖ ᛁᛏ ᛁᛋ ᚪ "
-    "ᚾᛖᚳᛖᛋᛋᚪᚱᚣ ᚩᚾᛖ ᚪᛚᚩᛝ ᚦᛖ ᚹᚪᚣ ᚣᚩᚢ ᚹᛁᛚᛚ ᚠᛁᚾᛞ ᚪᚾ ᛖᚾᛞ ᛏᚩ ᚪᛚᛚ ᛋᛏᚱᚢᚷᚷᛚᛖ ᚪᚾᛞ "
-    "ᛋᚢᚠᚠᛖᚱᛝ ᚣᚩᚢᚱ ᛁᚾᚾᚩᚳᛖᚾᚳᛖ ᚣᚩᚢᚱ ᛁᛚᛚᚢᛋᛡᚾᛋ ᚣᚩᚢᚱ ᚳᛖᚱᛏᚪᛁᚾᛏᚣ ᚪᚾᛞ ᚣᚩᚢᚱ ᚱᛠᛚᛁᛏᚣ "
-    "ᚢᛚᛏᛁᛗᚪᛏᛖᛚᚣ ᚣᚩᚢ ᚹᛁᛚᛚ ᛞᛁᛋᚳᚩᚢᛖᚱ ᚪᚾ ᛖᚾᛞ ᛏᚩ ᛋᛖᛚᚠ ᛁᛏ ᛁᛋ ᚦᚱᚩᚢᚷᚻ ᚦᛁᛋ ᛈᛁᛚᚷᚱᛁᛗᚪᚷᛖ ᚦᚪᛏ ᚹᛖ "
-    "ᛋᚻᚪᛈᛖ ᚩᚢᚱᛋᛖᛚᚢᛖᛋ ᚪᚾᛞ ᚩᚢᚱ ᚱᛠᛚᛁᛏᛁᛖᛋ ᛂᚩᚢᚱᚾᛖᚣ ᛞᛖᛖᛈ ᚹᛁᚦᛁᚾ ᚪᚾᛞ ᚣᚩᚢ ᚹᛁᛚᛚ ᚪᚱᚱᛁᚢᛖ ᚩᚢᛏᛋᛁᛞᛖ "
-    "ᛚᛁᚳᛖ ᚦᛖ ᛁᚾᛋᛏᚪᚱ ᛁᛏ ᛁᛋ ᚩᚾᛚᚣ ᚦᚱᚩᚢᚷᚻ ᚷᚩᛝ ᚹᛁᚦᛁᚾ ᚦᚪᛏ ᚹᛖ ᛗᚪᚣ ᛖᛗᛖᚱᚷᛖ ᚹᛁᛞᛋᚩᛗ ᚣᚩᚢ ᚪᚱᛖ ᚪ ᛒᛖᛝ "
-    "ᚢᚾᛏᚩ ᚣᚩᚢᚱᛋᛖᛚᚠ ᚣᚩᚢ ᚪᚱᛖ ᚪ ᛚᚪᚹ ᚢᚾᛏᚩ ᚣᚩᚢᚱᛋᛖᛚᚠ ᛠᚳᚻ ᛁᚾᛏᛖᛚᛚᛁᚷᛖᚾᚳᛖ ᛁᛋ ᚻᚩᛚᚣ ᚠᚩᚱ ᚪᛚᛚ ᚦᚪᛏ ᛚᛁᚢᛖᛋ ᛁᛋ "
-    "ᚻᚩᛚᚣ ᚪᚾ ᛁᚾᛋᛏᚱᚢᚳᛏᛡᚾ ᚳᚩᛗᛗᚪᚾᛞ ᚣᚩᚢᚱ ᚩᚹᚾ ᛋᛖᛚᚠ"
-)
-
 
 if __name__ == "__main__":
     main()

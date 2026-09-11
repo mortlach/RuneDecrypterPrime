@@ -26,7 +26,6 @@ RECIPE_LABEL = 'recipe.an_end.stream_sequence_interruptors'
 ALIASES = ['an_end', 'p56', '56.jpg', 'canon.56']
 MODULUS = 29
 CANDIDATE_PHRASE_STARTS = ['AN END', 'OF THE', 'IN THE', 'TO THE', 'IS THE', 'OF ALL', 'IN ALL', 'WE ARE', 'IT IS', 'SO IT']
-CANONICAL_AN_END_TEXT = '\nAN END WITHIN THE DEEP WEB THERE EXISTS A PAGE THAT HASHES TO IT IS THE DUTY\nOF EVERY PILGRIM TO SEEK OUT THIS PAGE\n'
 ENCODING_DIRECTION = Direction.LTR
 MAX_SEQUENCE_OFFSET = 200
 GENERATED_PHRASE_LIMIT = 40
@@ -195,9 +194,9 @@ def decrypt_stream_ct_minus_key(ct_core: Sequence[int], stream: Sequence[int]) -
 def decrypt_stream_ct_plus_key(ct_core: Sequence[int], stream: Sequence[int]) -> list[int]:
     return [(int(c) + int(k)) % MODULUS for c, k in zip(ct_core, stream)]
 
-def load_reference_idx() -> list[int] | None:
-    reference_idx, _wli, _runes = Runeglish.encode_english_to_runes(CANONICAL_AN_END_TEXT, direction='ltr')
-    return [int(value) for value in reference_idx]
+def load_reference_idx() -> list[int]:
+    reference = api.liber_primus.load_plaintext(SOURCE_LABEL)
+    return list(reference.indices)
 
 def plaintext_word_tuples(values: Sequence[int], wli: Sequence[Sequence[int]]) -> list[tuple[int, ...]]:
     words: list[tuple[int, ...]] = []

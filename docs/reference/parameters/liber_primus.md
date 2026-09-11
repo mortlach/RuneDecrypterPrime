@@ -20,6 +20,18 @@ For direct numeric inspection, `api.liber_primus.load_source(label)` returns
 metadata. Its shorter `ct_idx` and `wli` properties are convenient when working
 with the data. It does not replace the source reference used by a normal run.
 
+```python
+api.liber_primus.load_plaintext(label)
+```
+
+| Parameter | Type | Default | Constraint |
+| --- | --- | --- | --- |
+| `label` | `str` | **required** | Solved source label or existing alias. |
+
+Returns immutable known plaintext with `indices`, `word_length_information`,
+`runes`, canonical delimited `rune_latin`, and metadata. This reference is
+loaded independently and is not supplied to `api.run()` or scoring.
+
 ## Main transcript
 
 ```python

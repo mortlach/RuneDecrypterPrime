@@ -13,7 +13,6 @@ from rdp import api
 import rdp.data.liber_primus as lp
 from rdp.core.config.output_paths import resolve_output_root, path_from
 from solving.solve_output import collect_solver_attempt, configure_utf8_stdio, print_block, print_final_result, print_kv, safe_public_dict, write_latest_evidence, zero_positions
-from rdp.data.runeglish import Runeglish
 configure_utf8_stdio()
 SOURCE_LABEL = 'welcome_pilgrim'
 RECIPE_LABEL = 'recipe.welcome_pilgrim.vigenere_interruptors'
@@ -28,8 +27,6 @@ WLI_NGRAM_WEIGHTS = {1: 0.3, 2: 0.7}
 ACCEPTANCE_MATCH_RATIO = 1.0
 EVIDENCE_DIR = Path('solved_lp') / SOURCE_LABEL
 PINNED_CIPHERTEXT_ZERO_POOL = [5, 14, 47, 48, 74, 84, 132, 144, 152, 159, 160, 165, 219, 250, 317, 331, 398, 421, 423, 443, 465, 470, 499, 505, 514]
-CANONICAL_WELCOME_PILGRIM_TEXT = 'WELCOME WELCOME PILGRIM TO THE GREAT JOURNEY TOWARD THE END OF ALL THINGS IT IS NOT AN EASY TRIP BUT FOR THOSE WHO FIND THEIR WAY HERE IT IS A NECESSARY ONE ALONG THE WAY YOU WILL FIND AN END TO ALL STRUGGLE AND SUFFERING YOUR INNOCENCE YOUR ILLUSIONS YOUR CERTAINTY AND YOUR REALITY ULTIMATELY YOU WILL DISCOVER AN END TO SELF IT IS THROUGH THIS PILGRIMAGE THAT WE SHAPE OURSELVES AND OUR REALITIES JOURNEY DEEP WITHIN AND YOU WILL ARRIVE OUTSIDE LIKE THE INSTAR IT IS ONLY THROUGH GOING WITHIN THAT WE MAY EMERGE WIDSOM YOU ARE A BEING UNTO YOURSELF YOU ARE A LAW UNTO YOURSELF EACH INTELLIGENCE IS HOLY FOR ALL THAT LIVES IS HOLY AN INSTRUCTION COMMAND YOUR OWN SELF'
-CANONICAL_WELCOME_PILGRIM_IDX = tuple((int(value) for value in Runeglish.encode_english_to_runes(CANONICAL_WELCOME_PILGRIM_TEXT, direction='ltr')[0]))
 SOLVER_VARIANT = 'beam_64'
 SOLVER = api.SolverSpec.beam_search(width=64, expansion=api.advanced.BeamExpansionMode.SWEEP, plateau_rounds=5, plateau_minimum_delta=0.0001, seed=2026, rounds=None)
 
@@ -95,6 +92,8 @@ def print_score_separation() -> dict[str, object]:
 
 def main() -> int:
     source_data = api.liber_primus.load_source(SOURCE_LABEL)
+    reference = api.liber_primus.load_plaintext(SOURCE_LABEL)
+    reference_idx = reference.indices
     recipe = lp.resolve_solve_recipe_label(RECIPE_LABEL)
     ct_idx = list(source_data.ct_idx)
     wli = [list(pair) for pair in source_data.wli]
@@ -103,8 +102,8 @@ def main() -> int:
     if interruptor_pool != PINNED_CIPHERTEXT_ZERO_POOL:
         raise ValueError(f'Loaded Welcome Pilgrim ciphertext-zero pool does not match the pinned solve evidence: loaded={interruptor_pool} pinned={PINNED_CIPHERTEXT_ZERO_POOL}')
     pool_validation = validate_interruptor_pool(ct_idx, interruptor_pool)
-    if len(CANONICAL_WELCOME_PILGRIM_IDX) != len(ct_idx):
-        raise ValueError(f'Canonical Welcome Pilgrim reference is not aligned with the loaded source data: canonical={len(CANONICAL_WELCOME_PILGRIM_IDX)} ct={len(ct_idx)}')
+    if len(reference_idx) != len(ct_idx):
+        raise ValueError(f'Canonical Welcome Pilgrim reference is not aligned with the loaded source data: canonical={len(reference_idx)} ct={len(ct_idx)}')
     scorer_params = api.ScoringConfig(character_lane_enabled=True, wli_lane_enabled=True, character_order_weights=CHAR_NGRAM_WEIGHTS, wli_order_weights=WLI_NGRAM_WEIGHTS, objective=api.advanced.ScoringObjective.percentile_log_probability(window_size=10))
     run_config = {'source_label': SOURCE_LABEL, 'resolved_source_label': metadata['source_label'], 'display_name': metadata['display_name'], 'main_page_start': metadata['main_page_start'], 'main_page_end': metadata['main_page_end'], 'bound_book_start': metadata['bound_book_start'], 'bound_book_end': metadata['bound_book_end'], 'ciphertext_length': len(ct_idx), 'word_length_information_length': len(wli), 'recipe_label': recipe.recipe_label, 'cipher_family': recipe.cipher_family, 'key_text_hint': KEY_TEXT_HINT, 'key_length': KEY_LENGTH, 'interruptor_count_required': INTERRUPTOR_COUNT, 'interruptor_pool_strategy': 'ciphertext_zero_positions', 'interruptor_pool_size': len(interruptor_pool), 'interruptor_pool': interruptor_pool, 'ciphertext_zero_positions': pool_validation['ciphertext_zero_positions'], 'ciphertext_zero_count': pool_validation['ciphertext_zero_count'], 'interruptor_pool_zero_validation': pool_validation['interruptor_pool_zero_validation'], 'interruptor_pool_equals_ciphertext_zero_positions': pool_validation['interruptor_pool_equals_ciphertext_zero_positions'], 'encoding_direction': ENCODING_DIRECTION.value, 'scorer_variant': SCORER_VARIANT, 'objective': SCORER_OBJECTIVE, 'include_char': True, 'use_word_breaks': True, 'char_weights': CHAR_NGRAM_WEIGHTS, 'wli_weights': WLI_NGRAM_WEIGHTS, 'ecdf_assets_expected': expected_ecdf_assets(), 'solver_variant': SOLVER_VARIANT, 'solver_name': SOLVER.kind.value, 'solver_params': solver_params_dict(SOLVER), 'seed': SOLVER.seed, 'acceptance_match_ratio': ACCEPTANCE_MATCH_RATIO}
     print_run_config(run_config)
@@ -112,11 +111,11 @@ def main() -> int:
     started = time.perf_counter()
     result = api.run(api.RunSpec(problem_input=api.RuneInput(value=ct_idx, word_length_information=wli), cipher=api.CipherSpec.vigenere(alphabet_size=29), key_space=api.KeySpec.repeating(length=KEY_LENGTH), solver=SOLVER, scoring=scorer_params, telemetry_enabled=True, text_direction=ENCODING_DIRECTION, interruptors=interruptors))
     elapsed = time.perf_counter() - started
-    best_attempt = collect_result_diagnostics(result=result, attempt_index=1, solver_variant=SOLVER_VARIANT, scorer_variant=SCORER_VARIANT, solver=SOLVER, key_length=KEY_LENGTH, interruptor_pool=interruptor_pool, interruptor_count=INTERRUPTOR_COUNT, reference_idx=CANONICAL_WELCOME_PILGRIM_IDX, ciphertext_length=len(ct_idx), wli=wli, elapsed_wall_time_s=elapsed)
+    best_attempt = collect_result_diagnostics(result=result, attempt_index=1, solver_variant=SOLVER_VARIANT, scorer_variant=SCORER_VARIANT, solver=SOLVER, key_length=KEY_LENGTH, interruptor_pool=interruptor_pool, interruptor_count=INTERRUPTOR_COUNT, reference_idx=reference_idx, ciphertext_length=len(ct_idx), wli=wli, elapsed_wall_time_s=elapsed)
     attempt_records = [best_attempt]
     print_attempt_summary(best_attempt)
     print_best_variant(best_attempt)
-    print_found_interruptor_detail(found_interruptors=list(best_attempt.get('found_interruptors') or []), ct_idx=ct_idx, reference_idx=CANONICAL_WELCOME_PILGRIM_IDX, wli=wli)
+    print_found_interruptor_detail(found_interruptors=list(best_attempt.get('found_interruptors') or []), ct_idx=ct_idx, reference_idx=reference_idx, wli=wli)
     score_separation = print_score_separation()
     plaintext_latin = str(best_attempt.get('plaintext_rune_latin') or '')
     plaintext_runes = str(best_attempt.get('plaintext_runes') or '')

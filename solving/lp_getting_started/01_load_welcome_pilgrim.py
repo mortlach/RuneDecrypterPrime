@@ -12,12 +12,17 @@ def main() -> None:
     """Inspect the source and check that each rune has a WLI pair."""
     source = api.liber_primus.source("welcome_pilgrim")
     source_data = api.liber_primus.load_source("welcome_pilgrim")
+    reference = api.liber_primus.load_plaintext("welcome_pilgrim")
 
     print("Source       :", source_data.metadata["display_name"])
     print("Source label :", source.ref["label"])
     print("Rune count   :", len(source_data.ct_idx))
     print("First indices:", list(source_data.ct_idx[:12]))
     print("WLI aligned  :", len(source_data.ct_idx) == len(source_data.wli))
+    print(
+        "Known plaintext is separate:",
+        reference.indices != tuple(source_data.ct_idx),
+    )
 
 
 if __name__ == "__main__":

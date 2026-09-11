@@ -56,7 +56,12 @@ def test_incomplete_vigenere_lesson_keeps_the_reviewed_bounded_request(
 
     def fake_run(request):
         requests.append(request)
-        return SimpleNamespace(key=(0,) * 8, score=0.0, plaintext_runes="ᚠ")
+        return SimpleNamespace(
+            key=(0,) * 8,
+            score=0.0,
+            plaintext_indices=(0,),
+            plaintext_runes="ᚠ",
+        )
 
     monkeypatch.setattr(lesson.api, "run", fake_run)
     lesson.main()
@@ -75,13 +80,15 @@ def test_interruptor_lesson_keeps_truth_out_of_the_search_request(
 ) -> None:
     lesson = _lesson(3, "add_interruptors")
     requests = []
+    reference = lesson.api.liber_primus.load_plaintext("welcome_pilgrim")
 
     def fake_run(request):
         requests.append(request)
         return SimpleNamespace(
             key=(0,) * (lesson.KEY_LENGTH + lesson.INTERRUPTOR_COUNT),
             score=0.0,
-            plaintext_runes=lesson.REFERENCE_RUNES,
+            plaintext_indices=reference.indices,
+            plaintext_runes=reference.runes,
         )
 
     monkeypatch.setattr(lesson.api, "run", fake_run)
@@ -125,20 +132,37 @@ def test_an_end_lesson_searches_all_small_interruptor_subsets() -> None:
     ) == (0, 2, 1)
 
 
+def test_an_end_known_stream_matches_the_canonical_reference() -> None:
+    lesson = _lesson(6, "explore_an_end")
+    source = lesson.api.liber_primus.load_source("an_end")
+    reference = lesson.api.liber_primus.load_plaintext("an_end")
+    sequences = lesson.sequence_families(len(source.ct_idx))
+    plaintext = lesson.decrypt_stream(
+        tuple(source.ct_idx),
+        sequences["primes"],
+        offset=0,
+        shift=28,
+        interruptors=frozenset({56}),
+    )
+    assert plaintext == reference.indices
+
+
 def test_truth_checks_follow_candidate_ranking_in_scoring_lessons() -> None:
     reverse_source = (ROUTE / "04_try_reverse_shifts.py").read_text(
         encoding="utf-8"
     )
     assert reverse_source.index("api.score_many(") < reverse_source.index(
-        "Known shift ranks first:"
+        'load_plaintext("koan_a_man")'
     )
 
     search_source = (ROUTE / "05_let_rdp_search.py").read_text(encoding="utf-8")
     assert search_source.index("api.score_many(") < search_source.index(
-        "Same plaintext"
+        'load_plaintext("koan_a_man")'
     )
 
     source = (ROUTE / "06_explore_an_end.py").read_text(encoding="utf-8")
     second_ranking = source.rindex("api.score_many(")
     assert second_ranking < source.index("# Only now compare")
-    assert source.index("# Only now compare") < source.index("reference = tuple")
+    assert source.index("# Only now compare") < source.index(
+        'load_plaintext("an_end")'
+    )

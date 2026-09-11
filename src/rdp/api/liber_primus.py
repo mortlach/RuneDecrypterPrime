@@ -25,6 +25,10 @@ from rdp.data.liber_primus.lp_routes import (
     LPLineRuneSelector as LineRuneSelector,
     LPSpiralRoute as SpiralRoute,
 )
+from rdp.data.liber_primus.lp_solved_plaintext import (
+    SolvedPlaintextData as _SolvedPlaintextData,
+    load_plaintext as _load_plaintext,
+)
 from rdp.data.liber_primus.lp_transcript import LPTranscript as Transcript
 
 
@@ -50,6 +54,11 @@ def source(label: str) -> _SourceReferenceInput:
 def load_source(label: str) -> SourceData:
     """Load rune indices, WLI and metadata for a named Liber Primus source."""
     return _load_source(label)
+
+
+def load_plaintext(label: str) -> _SolvedPlaintextData:
+    """Load known solved reference plaintext for a named Liber Primus source."""
+    return _load_plaintext(label)
 
 
 def load_source_from_main_pages(
@@ -100,6 +109,7 @@ __all__ = [
     "PageReference",
     "Transcript",
     "get_section",
+    "load_plaintext",
     "load_source",
     "load_source_from_locator",
     "load_source_from_main_pages",

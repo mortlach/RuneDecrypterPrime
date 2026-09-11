@@ -31,6 +31,25 @@ metadata directly. It returns `SourceData`, not a run-input reference. Use
 `source(label)` for an ordinary named-source run so the request retains its
 source identity.
 
+### Loading known plaintext
+
+Known solved plaintext is separate reference data:
+
+```python
+reference = api.liber_primus.load_plaintext("welcome_pilgrim")
+```
+
+The immutable result contains `indices`, `word_length_information`, rendered
+`runes`, canonical delimited `rune_latin`, and source metadata. Catalogue
+aliases resolve to the same reference. A valid source without solved plaintext
+raises a clear error, and an unknown label keeps the catalogue's `KeyError`
+behaviour.
+
+`load_source(label)` loads the ciphertext/source material.
+`load_plaintext(label)` loads the independently stored known answer. The latter
+is never attached to `SourceData`, `RunSpec`, `api.run()`, scoring, ranking, or
+stopping; load it explicitly for post-run comparison.
+
 ## Main transcript
 
 Load the parsed main transcript with:
@@ -99,7 +118,8 @@ The built-in resolver supports label, locator and partition source kinds.
 
 Use `source(label)` for ordinary named-source runs. `load_source(label)` is
 useful when inspecting rune indices, WLI or metadata before constructing a
-request.
+request. Use `load_plaintext(label)` only when a known solved reference is
+needed separately.
 
 See [Problem inputs](inputs.md).
 

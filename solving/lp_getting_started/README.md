@@ -68,8 +68,9 @@ The program prints the key, selected positions and full rune plaintext, then
 checks the complete result against the canonical reference. A normal solver
 stop is not itself proof of recovery. The final comparison supplies that check.
 
-The reference preserves the source spelling `WIDSOM`. Each file contains its
-own reference so that it can be read and run independently.
+The reference preserves the source spelling `WIDSOM`. It is loaded from the
+canonical LP plaintext resource after the run, rather than copied into each
+example.
 
 ## 4. Sweep reverse shifts
 
@@ -79,7 +80,9 @@ with `api.score_many`, then prints the strongest five with rune previews.
 
 Shift 3 ranks first under the LM1-LM4 character and WLI model. The important
 point is not that 29 candidates are difficult; it is that a complete manual
-sweep gives us a simple result to compare with the optimiser.
+sweep gives us a simple result to compare with the optimiser. Once the ranking
+is finished, the winning text is also checked against the separately loaded
+`koan_a_man` reference.
 
 The transform is its own inverse when the same shift is applied twice. That is
 a useful round-trip check, but every one of the 29 possible shifts passes that
@@ -95,6 +98,8 @@ the complete sweep.
 The narrow search agrees with the sweep: shift 3 wins. The second experiment
 then removes that structural assumption and permits any substitution of the
 29-rune alphabet.
+
+The narrow result is checked against the same canonical `koan_a_man` reference.
 
 That problem is much larger. The short 2,000-iteration run previously matched
 443 of the 778 runes in the narrow result. It is reported as an incomplete
@@ -114,7 +119,7 @@ prime stream at offset 0 with shift 28, but the text breaks partway through.
 There are five ciphertext-zero positions. The follow-up keeps the winning
 stream and tries all 32 subsets as possible interruptors. Position 56 is then
 selected and all 85 reference runes are recovered. The solved reference is
-checked only after the language model has chosen its candidate.
+loaded and checked only after the language model has chosen its candidate.
 
 The [detailed An End workbook](../solved_lp/08_An_End.py) also explores phrase
 starts and interruptors. That workbook can use the reference in ranking and

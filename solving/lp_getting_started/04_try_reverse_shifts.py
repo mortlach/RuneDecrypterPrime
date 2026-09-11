@@ -67,6 +67,12 @@ def main() -> None:
     print("Best shift:", best_shift)
     print("Known shift ranks first:", best_shift == 3)
 
+    reference = api.liber_primus.load_plaintext("koan_a_man")
+    print(
+        "Matches the complete solved text:",
+        plaintexts[best_shift] == reference.indices,
+    )
+
     # Reversibility is useful, but it cannot choose the key: every shift passes.
     roundtrip = tuple((28 - value + best_shift) % 29 for value in plaintexts[best_shift])
     print("Best candidate round-trips:", roundtrip == tuple(source_data.ct_idx))

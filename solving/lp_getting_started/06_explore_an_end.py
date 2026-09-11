@@ -155,17 +155,13 @@ def main() -> None:
     print("Final score:", interrupted_scores[interrupted_index])
 
     # Only now compare the selected candidate with the known solved text.
-    reference = tuple(RUNES.index(rune) for rune in REFERENCE_RUNES if rune != " ")
-    exact_match = plaintext == reference
+    reference = api.liber_primus.load_plaintext("an_end")
+    exact_match = plaintext == reference.indices
     print("Matches all reference runes:", exact_match)
-    print("Plaintext:", REFERENCE_RUNES if exact_match else "".join(RUNES[v] for v in plaintext))
-
-
-# Canonical text used by the detailed An End workbook, rendered as runes.
-REFERENCE_RUNES = (
-    "ᚪᚾ ᛖᚾᛞ ᚹᛁᚦᛁᚾ ᚦᛖ ᛞᛖᛖᛈ ᚹᛖᛒ ᚦᛖᚱᛖ ᛖᛉᛁᛋᛏᛋ ᚪ ᛈᚪᚷᛖ ᚦᚪᛏ ᚻᚪᛋᚻᛖᛋ ᛏᚩ "
-    "ᛁᛏ ᛁᛋ ᚦᛖ ᛞᚢᛏᚣ ᚩᚠ ᛖᚢᛖᚱᚣ ᛈᛁᛚᚷᚱᛁᛗ ᛏᚩ ᛋᛖᛖᚳ ᚩᚢᛏ ᚦᛁᛋ ᛈᚪᚷᛖ"
-)
+    print(
+        "Plaintext:",
+        reference.runes if exact_match else "".join(RUNES[v] for v in plaintext),
+    )
 
 
 if __name__ == "__main__":

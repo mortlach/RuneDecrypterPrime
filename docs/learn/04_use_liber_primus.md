@@ -20,6 +20,10 @@ result = api.run(
 print(result.plaintext_runes)
 print(result.key)
 print(result.score)
+
+# This is a separate post-run check, not part of the search request.
+reference = api.liber_primus.load_plaintext("welcome_pilgrim")
+print(result.plaintext_indices == reference.indices)
 ```
 
 [CipherSpec](00_words_used_here.md#cipherspec) describes the cipher hypothesis.
@@ -37,6 +41,10 @@ It is an experiment, not the complete known Welcome Pilgrim recovery recipe.
 It does not supply the interruptor information used by that worked recovery.
 An unreadable candidate is therefore possible even when the program succeeds.
 Do not interpret completion or a high score as proof of decryption.
+
+`load_source("welcome_pilgrim")` loads the ciphertext directly for inspection.
+`load_plaintext("welcome_pilgrim")` loads the known solved reference. RDP does
+not join those two paths automatically.
 
 For the reviewed recovery with its stated prior information, see
 [the solved LP workbook](../../solving/solved_lp/README.md).

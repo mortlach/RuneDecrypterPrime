@@ -24,6 +24,7 @@ class LPSourceEntry:
     spreadsheet_sheet: str
     red_rune_sections: tuple[int, ...]
     main_page_range: tuple[int, int]
+    solved_plaintext_file: Optional[str] = None
     side_art_label: Optional[str] = None
     aliases: tuple[str, ...] = ()
     locator: Optional[LPFragmentLocator] = None
@@ -44,6 +45,20 @@ class LPSourceEntry:
         start, end = self.main_page_range
         if start < 0 or end < start:
             raise ValueError("main_page_range must be a non-negative inclusive range")
+        if self.source_status == SOURCE_STATUS_SOLVED_TEXT_AVAILABLE:
+            if self.solved_plaintext_file is None:
+                raise ValueError(
+                    "solved_text_available sources must identify a solved plaintext file"
+                )
+        if self.solved_plaintext_file is not None:
+            if (
+                not self.solved_plaintext_file.endswith(".txt")
+                or "/" in self.solved_plaintext_file
+                or "\\" in self.solved_plaintext_file
+            ):
+                raise ValueError(
+                    "solved_plaintext_file must be a package-local .txt filename"
+                )
         for alias in self.aliases:
             _require_label(alias, "alias")
 
@@ -102,6 +117,7 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         spreadsheet_sheet="A Warning",
         red_rune_sections=(1,),
         main_page_range=(0, 0),
+        solved_plaintext_file="warning.txt",
         side_art_label="sign_post_cross",
         aliases=("warning", "solved.warning"),
     ),
@@ -114,6 +130,7 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         spreadsheet_sheet="Welcome",
         red_rune_sections=(3,),
         main_page_range=(1, 2),
+        solved_plaintext_file="welcome_pilgrim.txt",
         side_art_label="spirals",
         aliases=("welcome_pilgrim", "solved.welcome_pilgrim"),
     ),
@@ -126,6 +143,7 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         spreadsheet_sheet="Some Wisdom",
         red_rune_sections=(2,),
         main_page_range=(3, 3),
+        solved_plaintext_file="some_wisdom.txt",
         side_art_label="spirals",
         aliases=("some_wisdom", "solved.some_wisdom"),
     ),
@@ -138,6 +156,7 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         spreadsheet_sheet="A Koan A Man",
         red_rune_sections=(4, 5),
         main_page_range=(4, 7),
+        solved_plaintext_file="koan_a_man.txt",
         side_art_label="spirals",
         aliases=("koan_a_man", "solved.koan_a_man"),
     ),
@@ -150,6 +169,7 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         spreadsheet_sheet="The Loss Of",
         red_rune_sections=(6,),
         main_page_range=(8, 11),
+        solved_plaintext_file="loss_of_divinity.txt",
         side_art_label="branches",
         aliases=("loss_of_divinity", "solved.loss_of_divinity"),
     ),
@@ -162,6 +182,7 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         spreadsheet_sheet="A Koan During",
         red_rune_sections=(7, 8),
         main_page_range=(12, 13),
+        solved_plaintext_file="koan_during_lesson.txt",
         side_art_label="mobius",
         aliases=("koan_during_lesson", "solved.koan_during_lesson"),
     ),
@@ -174,6 +195,7 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         spreadsheet_sheet="An Instruction",
         red_rune_sections=(15,),
         main_page_range=(14, 14),
+        solved_plaintext_file="instruction.txt",
         side_art_label="spiral_branches",
         aliases=("instruction", "solved.instruction"),
     ),
@@ -186,6 +208,7 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         spreadsheet_sheet="p56 An End",
         red_rune_sections=(16,),
         main_page_range=(71, 71),
+        solved_plaintext_file="an_end.txt",
         side_art_label="an_end",
         aliases=("an_end", "solved.an_end", "p56", "56.jpg", "canon.56"),
     ),
@@ -198,6 +221,7 @@ _SOURCE_ENTRIES: tuple[LPSourceEntry, ...] = (
         spreadsheet_sheet="p57 Parable",
         red_rune_sections=(17,),
         main_page_range=(72, 72),
+        solved_plaintext_file="parable.txt",
         side_art_label="parable",
         aliases=("parable", "solved.parable", "p57", "57.jpg", "canon.57"),
     ),

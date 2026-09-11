@@ -88,11 +88,12 @@ copied into this repository or made another documentation authority tree.
 
 ## Public API snapshot
 
-[`public_api_allowlist.md`](public_api_allowlist.md) contains the current 144-path
+[`public_api_allowlist.md`](public_api_allowlist.md) contains the current 145-path
 contract. The root namespace has 34 exports, including `score`, `score_many`,
-`RuneInput`, `RuneInputFormat`, and `api.liber_primus.source`. The accepted
+`RuneInput`, `RuneInputFormat`, `api.liber_primus.source`, and
+`api.liber_primus.load_plaintext`. The accepted
 historical 141-path / 32-root-export baseline remains recorded in the closure
 evidence above.
 
 The current canonical CRLF SHA-256 is
-`0eaa8939d2e62cd149a4e96c9ba3412d8c0824ccfa0f7a68725e3f0504ad648f`.
+`0c43a2f019a39104785490f5230c8aecd39f927282eb38fbf4028f2e27dea3e8`.

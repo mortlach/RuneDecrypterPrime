@@ -71,7 +71,11 @@ exclude = [
 ]
 
 [tool.setuptools.package-data]
-rdp = ["py.typed", "data/wordlists/cribs/*.txt"]
+rdp = [
+  "py.typed",
+  "data/wordlists/cribs/*.txt",
+  "data/liber_primus/solved_plaintext/*.txt",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

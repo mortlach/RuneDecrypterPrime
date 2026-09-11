@@ -80,5 +80,9 @@ def test_passage_selection_enforces_requested_tolerance() -> None:
 def test_book_corpus_has_a_narrow_package_data_allowlist() -> None:
     project = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
     patterns = project['tool']['setuptools']['package-data']
-    assert patterns['rdp'] == ['py.typed', 'data/wordlists/cribs/*.txt']
+    assert patterns['rdp'] == [
+        'py.typed',
+        'data/wordlists/cribs/*.txt',
+        'data/liber_primus/solved_plaintext/*.txt',
+    ]
     assert 'rune_decrypter_prime' not in patterns

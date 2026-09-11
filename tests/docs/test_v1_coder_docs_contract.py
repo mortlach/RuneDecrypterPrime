@@ -13,7 +13,7 @@ from rdp.data.runeglish import Runeglish
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCS = REPO_ROOT / 'docs'
 PUBLIC_API_ALLOWLIST = DOCS / 'release_contracts' / 'v1' / 'public_api_allowlist.md'
-PUBLIC_API_SNAPSHOT_SHA256 = '0eaa8939d2e62cd149a4e96c9ba3412d8c0824ccfa0f7a68725e3f0504ad648f'
+PUBLIC_API_SNAPSHOT_SHA256 = '0c43a2f019a39104785490f5230c8aecd39f927282eb38fbf4028f2e27dea3e8'
 
 def _read(path: Path) -> str:
     return path.read_text(encoding='utf-8')
@@ -68,7 +68,7 @@ def test_public_api_allowlist_is_the_exact_five_namespace_contract() -> None:
         for name in namespace.__all__
     }
     paths = {row[0] for row in _allowlist_rows()}
-    assert len(paths) == 144
+    assert len(paths) == 145
     assert len(api.__all__) == 34
     assert paths == expected
 
@@ -80,7 +80,7 @@ def test_public_api_allowlist_preserves_the_accepted_crlf_snapshot() -> None:
 
 def test_release_contract_index_reports_current_public_api_snapshot() -> None:
     text = _read(DOCS / 'release_contracts' / 'v1' / 'README.md')
-    assert 'current 144-path' in text
+    assert 'current 145-path' in text
     assert 'root namespace has 34 exports' in text
     assert PUBLIC_API_SNAPSHOT_SHA256 in text
 

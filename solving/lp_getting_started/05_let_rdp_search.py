@@ -71,6 +71,8 @@ def main() -> None:
     print("Solver key       :", result.key)
     print("Same plaintext   :", result.plaintext_indices == manual_plaintexts[best_shift])
     print("Same score       :", result.score == scores[best_shift])
+    reference = api.liber_primus.load_plaintext("koan_a_man")
+    print("Matches solved text:", result.plaintext_indices == reference.indices)
 
     # Now remove the reverse-shift structure. The optimiser must search an
     # arbitrary permutation, so 2,000 iterations are only a first look.
@@ -93,9 +95,9 @@ def main() -> None:
 
     matches = sum(
         left == right
-        for left, right in zip(broad.plaintext_indices, manual_plaintexts[best_shift])
+        for left, right in zip(broad.plaintext_indices, reference.indices)
     )
-    print("General substitution matches:", f"{matches}/{len(result.plaintext_indices)}")
+    print("General substitution matches:", f"{matches}/{len(reference.indices)}")
     print("General substitution text   :", broad.plaintext_runes)
     print("This broader run is incomplete; a larger search space needs a larger budget.")
 

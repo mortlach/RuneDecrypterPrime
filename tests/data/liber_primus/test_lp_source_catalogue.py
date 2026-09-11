@@ -24,7 +24,22 @@ def test_resolve_source_label_exposes_spreadsheet_and_main_page_metadata() -> No
     assert entry.boundary_status == lp.BOUNDARY_MAIN_PAGE_RANGE
     assert entry.red_rune_sections == (3,)
     assert entry.main_page_range == (1, 2)
+    assert entry.solved_plaintext_file == 'welcome_pilgrim.txt'
     assert entry.locator is None
+
+
+def test_solved_catalogue_entries_require_an_explicit_plaintext_file() -> None:
+    with pytest.raises(ValueError, match='must identify a solved plaintext file'):
+        lp.LPSourceEntry(
+            source_label='red_rune.missing_plaintext',
+            display_name='Missing plaintext',
+            source_status=lp.SOURCE_STATUS_SOLVED_TEXT_AVAILABLE,
+            boundary_status=lp.BOUNDARY_MAIN_PAGE_RANGE,
+            red_rune_label='missing_plaintext',
+            spreadsheet_sheet='Missing plaintext',
+            red_rune_sections=(99,),
+            main_page_range=(99, 99),
+        )
 
 @pytest.mark.parametrize('simple_label,expected', sorted(EXPECTED_SOLVED_SOURCE_RANGES.items()))
 def test_source_aliases_resolve_to_canonical_text_label(simple_label: str, expected: tuple[str, tuple[int, int]]) -> None:

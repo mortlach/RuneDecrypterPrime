@@ -3,8 +3,8 @@
 Status: implemented V1 contract
 
 The definition-owning package is `src/rdp/api/`. Normal consumers use
-`from rdp import api`. The table below is exhaustive: its 144 paths are the
-34 root exports plus the 65 advanced, 22 display, 19 Liber Primus, and four
+`from rdp import api`. The table below is exhaustive: its 145 paths are the
+34 root exports plus the 65 advanced, 22 display, 20 Liber Primus, and four
 experimental exports. Importable implementation helpers not listed here are
 internal.
 
@@ -142,6 +142,7 @@ internal.
 | `rdp.api.liber_primus.Transcript` | Public V1 surface | Liber Primus export. |
 | `rdp.api.liber_primus.get_section` | Public V1 surface | Liber Primus export. |
 | `rdp.api.liber_primus.source` | Public V1 surface | Named, versioned source reference for a run. |
+| `rdp.api.liber_primus.load_plaintext` | Public V1 surface | Load known solved reference plaintext for a named source. |
 | `rdp.api.liber_primus.load_source` | Public V1 surface | Load data for a named source. |
 | `rdp.api.liber_primus.load_source_from_locator` | Public V1 surface | Load data selected by a typed locator. |
 | `rdp.api.liber_primus.load_source_from_main_pages` | Public V1 surface | Load data for complete main-transcript pages. |
