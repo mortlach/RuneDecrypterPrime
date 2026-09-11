@@ -70,12 +70,14 @@ jobs:
       - name: Build and verify exactly one WASM wheel
         run: |
           source "$RDP_EMSDK_ENV"
+          export PATH="$(dirname -- "$EMSDK_NODE"):$PATH"
           bash tools/pyodide/build_wheel.sh
           test -z "$(git status --porcelain)"
 
       - name: Smoke the built wheel through the public API (B1-B8)
         run: |
           source "$RDP_EMSDK_ENV"
+          export PATH="$(dirname -- "$EMSDK_NODE"):$PATH"
           node tools/pyodide/run_smoke.mjs
           test -z "$(git status --porcelain)"
 
