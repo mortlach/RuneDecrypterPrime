@@ -19,9 +19,6 @@ jobs:
       PYTHONIOENCODING: utf-8
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
-      PYODIDE_XBUILDENV_PATH: ${{ runner.temp }}/rdp-xbuildenv
-      RDP_PYODIDE_OUTPUT: ${{ runner.temp }}/rdp-pyodide
-      RDP_OUTPUT_ROOT: ${{ runner.temp }}/rdp-native-output
 
     steps:
       - name: Check out requested commit
@@ -39,6 +36,13 @@ jobs:
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
               for key in ('python', 'pyodide', 'pyodide_build', 'pyodide_cli', 'emscripten'):
                   output.write(f'{key}={pins[key]}\n')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as output:
+              for key, directory in (
+                  ('PYODIDE_XBUILDENV_PATH', 'rdp-xbuildenv'),
+                  ('RDP_PYODIDE_OUTPUT', 'rdp-pyodide'),
+                  ('RDP_OUTPUT_ROOT', 'rdp-native-output'),
+              ):
+                  output.write(f'{key}={Path(os.environ["RUNNER_TEMP"]) / directory}\n')
           PY
           test -z "$(git status --porcelain)"
 
