@@ -1,5 +1,8 @@
 # D4 contract closure
 
+> Status: Historical D4 checkpoint retained as release evidence. Later active
+> V1 contracts and implementation tests own the current behaviour.
+
 D4 is the V1 hardening pass that turns the D3 lessons into explicit, testable contracts. It is not a feature-expansion pass. The goal is that requested capabilities run, block, or report an explicit fallback; they must not disappear behind compatibility helpers, broad exception handlers, façade scorers, optional runtimes, or tutorial-only assumptions.
 
 ## D4.0 full-proof gate

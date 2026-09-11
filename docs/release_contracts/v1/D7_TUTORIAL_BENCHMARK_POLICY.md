@@ -1,5 +1,8 @@
 # D7 tutorial benchmark policy
 
+> Status: Retained release evidence. Current implementation authority lives in
+> `tutorials.v1.support.tutorial_benchmark` and its tests.
+
 Tutorial and benchmark runs are allowed to use known plaintext/key references when the run explicitly declares a tutorial truth policy. This is not a ciphertext-only solving claim; it is tutorial evidence and compute-efficiency instrumentation.
 
 ## Policy split

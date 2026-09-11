@@ -1,5 +1,8 @@
 # D5 CI and close-out note
 
+> Status: Historical D5 checkpoint. Its branch and CI statements describe that
+> closeout stage, not the current branch.
+
 ## Status
 
 D5 is contract-complete when the final `preleasev1.0.0_d5` branch head passes full-proof CI.

@@ -1,5 +1,8 @@
 # RDP V1 authority and resolved decisions
 
+Status: Active V1 authority. Named AN3 and AN4 sections below are historical
+checkpoints; their counts and paths do not describe the current public surface.
+
 This file is repository-owned contract evidence for final V1 integration.
 It records which sources control decisions when documents, implementation and
 tests disagree. It does not replace the detailed design and implementation
@@ -189,6 +192,16 @@ The final cross-platform GitHub evidence is:
 
 These successful replacement runs supersede the earlier installer-gate failures
 and are the final AN4 GitHub evidence.
+
+## Current V1 public-surface addendum
+
+The historical AN4 snapshot above remains 141 paths and 32 root exports. The
+current contract is [`public_api_allowlist.md`](public_api_allowlist.md): 145
+paths and 34 root exports. The accepted additions include standalone scoring
+inputs/operations and `api.liber_primus.load_plaintext(...)`, which loads known
+solved-plaintext reference data separately from ciphertext source data.
+
+This addendum updates the live authority without rewriting the AN4 checkpoint.
 
 ## Resolved decisions
 

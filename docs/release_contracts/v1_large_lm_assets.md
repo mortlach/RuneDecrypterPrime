@@ -1,5 +1,7 @@
 # V1 Large Language Model Assets
 
+Status: Active V1 asset contract.
+
 LM3 and LM4 assets are required full V1 release assets.
 
 They are needed for the public V1 capability set, especially the PeriodicSubstitution path. They must not be committed into normal Git history. The release source of truth is the GitHub Release payload, and the runtime install location remains:

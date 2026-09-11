@@ -1,5 +1,8 @@
 # D7 final review-ready note
 
+> Status: Historical D7 checkpoint. Values below describe the named review
+> candidate and must not be updated to resemble the current branch.
+
 Branch: `prelease/v1.0.0_d7`
 
 Current status: final closeout review candidate after bounded review-pack evidence fixes, post-review polish, and local proof reruns.

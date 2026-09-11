@@ -1,5 +1,8 @@
 # AN3 V1 public API implementation summary
 
+> Status: Historical checkpoint retained as release evidence. Counts, branches
+> and results describe AN3, not the current API.
+
 Status: **READY FOR EXTERNAL REVIEW**
 
 AN3 implements the accepted AN1/AN2 V1 public-interface contract. It does not

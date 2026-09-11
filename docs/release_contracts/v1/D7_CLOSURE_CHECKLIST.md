@@ -1,5 +1,8 @@
 # D7 closure checklist
 
+> Status: Development/closeout meta retained because release tests and evidence
+> reference it. This is not the current user or API documentation.
+
 D7 is the final V1 contract-closure branch. It is not a feature branch.
 
 The branch is considered closed only when the release-contract evidence, focused contract tests, compact smoke tests, tutorial gate, and full pytest/CI evidence are green after the final commit.

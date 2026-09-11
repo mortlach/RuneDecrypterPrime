@@ -1,5 +1,8 @@
 # D7 review request
 
+> Status: Development/review meta for the D7 checkpoint. It is retained for
+> traceability and is not a current review request.
+
 Branch under review: `prelease/v1.0.0_d7`
 
 Review target: current head of `prelease/v1.0.0_d7`.

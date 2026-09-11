@@ -1,5 +1,8 @@
 # D7 final summary
 
+> Status: Historical D7 checkpoint retained as release evidence. Counts, paths
+> and results below belong to that stage.
+
 D7 is a V1 closure and hardening branch. It is not a feature branch.
 
 Branch under closure:

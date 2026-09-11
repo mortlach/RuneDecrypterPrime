@@ -1,5 +1,8 @@
 # D7 tutorial output framework
 
+> Status: Retained D7 evidence. The module names below describe that checkpoint;
+> current ownership lives under `tutorials.v1.support` and its tests.
+
 D7 starts a unified tutorial/session output layer. It is intentionally outside strict runtime modules.
 
 ## Layers

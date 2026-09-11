@@ -82,7 +82,34 @@ def test_release_contract_index_reports_current_public_api_snapshot() -> None:
     text = _read(DOCS / 'release_contracts' / 'v1' / 'README.md')
     assert 'current 145-path' in text
     assert 'root namespace has 34 exports' in text
+    assert 'api.liber_primus.load_plaintext' in text
     assert PUBLIC_API_SNAPSHOT_SHA256 in text
+
+
+def test_release_contract_index_classifies_every_retained_v1_file() -> None:
+    contract_root = DOCS / 'release_contracts' / 'v1'
+    index = contract_root / 'README.md'
+    classification = _read(index).split('## Current public API snapshot', 1)[0]
+    for heading in (
+        '### Active V1 contracts',
+        '### Release evidence and test fixtures',
+        '### Historical checkpoints',
+        '### Development and review meta',
+    ):
+        assert heading in classification
+
+    expected = {
+        path.resolve()
+        for path in contract_root.rglob('*')
+        if path.is_file() and path != index
+    }
+    classified = [
+        (contract_root / href.split('#', 1)[0]).resolve()
+        for href in re.findall(r'\[[^\]]+\]\(([^)]+)\)', classification)
+        if (contract_root / href.split('#', 1)[0]).resolve() in expected
+    ]
+    assert len(classified) == len(set(classified))
+    assert set(classified) == expected
 
 
 def test_public_docs_do_not_restore_project_origin_history_page() -> None:

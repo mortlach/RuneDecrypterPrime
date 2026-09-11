@@ -1,8 +1,16 @@
 # Release contracts
 
-`v1/` retains the accepted V1 decisions and evidence that release checks consume.
-`v1_large_lm_assets.md` describes the large language-model asset boundary. Consult this
-material when changing a release contract or reconciling historical decisions, not as a
-prerequisite to using RDP.
+Status: Internal release-contract and test-evidence documentation.
 
-Continue with the [related guide](v1/README.md).
+Ordinary RDP users should use [`docs/learn/`](../learn/README.md),
+[`docs/guides/`](../guides/quickstart.md) and
+[`docs/reference/`](../reference/README.md). Nothing in this directory is
+prerequisite reading for installation or normal use.
+
+- [`v1/`](v1/README.md) classifies the active V1 contracts, test-backed release
+  evidence, historical checkpoints and review material retained in the tree.
+- [`v1_large_lm_assets.md`](v1_large_lm_assets.md) is the active contract for
+  the large language-model asset boundary.
+
+Do not move or delete material here without checking its test, tool and
+traceability consumers.
