@@ -1,14 +1,21 @@
 """Try all 29 reverse shifts on the koan A Man.
 
-Rune indices run from 0 to 28. Reversing that alphabet gives 28 - value;
-adding a shift and reducing modulo 29 rotates it. There are only 29 choices,
-so an ordinary loop can try the complete family before we involve a solver.
+The proposed rule is simple:
+
+    (28 - value + shift) % 29
+
+and the shift can only be 0 to 28.
+
+There are therefore 29 possibilities. This is not yet a problem that needs a
+clever optimiser. We can just try all 29, score the resulting plaintexts and see
+what comes out on top.
+
+That gives us a complete result to compare with the solver in the next example.
 """
 
 from rdp import api
 
-# These examples use all four model orders, equally weighted within each lane.
-# They require the full language-model files obtained by the source installer.
+# These examples use all four installed model orders.
 ORDER_WEIGHTS = {1: 0.25, 2: 0.25, 3: 0.25, 4: 0.25}
 RUNES = "ᚠᚢᚦᚩᚱᚳᚷᚹᚻᚾᛁᛂᛇᛈᛉᛋᛏᛒᛖᛗᛚᛝᛟᛞᚪᚫᚣᛡᛠ"
 
@@ -29,13 +36,13 @@ def rune_preview(
 
 
 def main() -> None:
-    """Rank the complete shift family, then check the known shift."""
+    """Score the complete 29-shift family."""
     source_data = api.liber_primus.load_source("koan_a_man")
     candidates = []
     plaintexts = []
+
     for shift in range(29):
         plaintext = tuple((28 - value + shift) % 29 for value in source_data.ct_idx)
-        # This changes rune values, so the original word boundaries still apply.
         plaintexts.append(plaintext)
         candidates.append(
             api.RuneInput(
@@ -57,24 +64,27 @@ def main() -> None:
     )
 
     ranking = sorted(range(29), key=lambda shift: scores[shift], reverse=True)
+
+    print("Top five:")
     for shift in ranking[:5]:
         print(
-            f"shift={shift:2d} score={scores[shift]:.8f}",
+            f"  shift={shift:2d} score={scores[shift]:.8f}",
             rune_preview(plaintexts[shift], source_data.wli),
         )
 
     best_shift = ranking[0]
-    print("Best shift:", best_shift)
-    print("Known shift ranks first:", best_shift == 3)
-
     reference = api.liber_primus.load_plaintext("koan_a_man")
-    print(
-        "Matches the complete solved text:",
-        plaintexts[best_shift] == reference.indices,
-    )
+    exact_match = plaintexts[best_shift] == reference.indices
 
-    # Reversibility is useful, but it cannot choose the key: every shift passes.
-    roundtrip = tuple((28 - value + best_shift) % 29 for value in plaintexts[best_shift])
+    print("Best shift              :", best_shift)
+    print("Matches the solved text :", exact_match)
+
+    # The transform is its own inverse, which is useful as a sanity check.
+    # It does not tell us which shift is right: every shift passes this test.
+    roundtrip = tuple(
+        (28 - value + best_shift) % 29
+        for value in plaintexts[best_shift]
+    )
     print("Best candidate round-trips:", roundtrip == tuple(source_data.ct_idx))
 
 

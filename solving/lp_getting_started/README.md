@@ -1,18 +1,23 @@
 # Start solving Liber Primus
 
-Start with Welcome Pilgrim: inspect the ciphertext, try a cipher model, then
-account for interruptors. Next, use the koan A Man to compare a manual sweep
-with a solver search, then explore number-sequence streams on An End.
+This is the point where the examples stop using made-up ciphertext and start
+working with Liber Primus itself.
 
-These are small solving tutorials, not proof workbooks. They keep the choices
-visible and print ordinary results rather than producing evidence files.
+We begin with  Welcome Pilgrim  because it gives us a useful solved problem to
+play with. We already know some things about its construction, but we can choose
+what to give the search and see what each assumption buys us.
 
-If you are new to the RDP API itself, start with
-[Learn RDP by solving](../../docs/learn/README.md). If you only want the shortest
-bridge from a named LP source to a complete run, use
-[Getting started with Liber Primus](../getting_started/README.md).
+After that we use A Man for a very small complete search, then An End for
+a more exploratory sequence experiment.
 
-Run them from the repository root:
+These are not proof workbooks. They are small solving examples where the
+assumptions are kept close to the code and the known plaintext is used only
+afterwards to check what we found.
+
+If the RDP API itself is still unfamiliar, start with
+[Learn RDP by solving](../../docs/learn/README.md).
+
+Run these from the repository root:
 
 ```text
 python -m solving.lp_getting_started.01_load_welcome_pilgrim
@@ -23,111 +28,84 @@ python -m solving.lp_getting_started.05_let_rdp_search
 python -m solving.lp_getting_started.06_explore_an_end
 ```
 
-The first example is immediate. The Welcome Pilgrim searches take longer.
-The final three scoring examples use the complete LM1-LM4 assets.
-The search budgets bound the work, not elapsed time.
+The first example is immediate. The Welcome Pilgrim searches take longer. The
+last three examples use the complete LM1-LM4 language-model assets. Search
+budgets limit the work; elapsed time depends on the machine.
 
-## 1. Look at the source
+## 1. Look at the ciphertext first
 
-[`01_load_welcome_pilgrim.py`](01_load_welcome_pilgrim.py) loads the named source
-and inspects its numeric source data. Welcome Pilgrim has 515 runes. Each rune also
-has a WLI pair: its position within its word and the length of that word.
+`01_load_welcome_pilgrim.py` loads Welcome Pilgrim as an RDP source and prints a
+few useful parts of its record.
 
-The source reference is the object passed to `RunSpec`. Loaded source data gives
-us the actual indices, as we will need when constructing the interruptor pool.
+Nothing clever happens. That is the point. Before testing a cipher idea, it is
+worth checking which text you are actually about to attack.
 
-## 2. Try a period-eight key
+## 2. Try the period-eight model
 
-[`02_try_vigenere.py`](02_try_vigenere.py) supplies the Vigenere family and a key
-length of eight. The key values are unknown to the search. The language model
-ranks the resulting plaintext candidates.
+`02_try_vigenere.py` uses one known fact from the solved page: the Vigenere
+period is eight.
 
-This is useful, but incomplete. The search finds a rotation of the real key and
-reads a substantial stretch correctly without recovering the complete page.
-A plausible fragment is evidence worth following, not permission to stop.
+The eight key values are not supplied to the search. Nor are interruptors.
 
-The solved text is compared only after the run. The failure tells us that the
-period-eight model is missing part of the construction.
+The model gets part of the way, but not all the way. That is useful information:
+period eight is probably real, but ordinary Vigenere alone does not explain the
+whole page.
 
-## 3. Account for interruptors
+## 3. Add interruptors
 
-[`03_add_interruptors.py`](03_add_interruptors.py) treats selected positions as
-runes that pass through unchanged without advancing the repeating key. Missing
-one such position changes the key alignment for the text that follows it.
+`03_add_interruptors.py` gives the search one more known fact: there are eleven
+interruptors among the ciphertext-zero positions.
 
-The key length and interruptor count are prior information from the solved page.
-The search receives neither the eight key values nor the eleven chosen
-positions. It selects them from the 25 places where the ciphertext value is
-zero.
+It still has to find the eight key values and choose the eleven positions.
 
-The solver, scoring weights, seed and search budget are otherwise the same as
-the previous lesson. With the missing mechanism included, the search recovers
-all 515 runes.
+With that missing alignment rule included, the complete solved plaintext is
+recovered.
 
-The program prints the key, selected positions and full rune plaintext, then
-checks the complete result against the canonical reference. A normal solver
-stop is not itself proof of recovery. The final comparison supplies that check.
+The known plaintext is loaded separately with:
 
-The reference preserves the source spelling `WIDSOM`. It is loaded from the
-canonical LP plaintext resource after the run, rather than copied into each
-example.
+```python
+api.liber_primus.load_plaintext("welcome_pilgrim")
+```
 
-## 4. Sweep reverse shifts
+and used only after the run to check the result.
 
-[`04_try_reverse_shifts.py`](04_try_reverse_shifts.py) tries all 29 transformations
-of the form `(28 - value + shift) % 29` on `koan_a_man`. It scores the candidates
-with `api.score_many`, then prints the strongest five with rune previews.
+## 4. Try all 29 shifts
 
-Shift 3 ranks first under the LM1-LM4 character and WLI model. The important
-point is not that 29 candidates are difficult; it is that a complete manual
-sweep gives us a simple result to compare with the optimiser. Once the ranking
-is finished, the winning text is also checked against the separately loaded
-`koan_a_man` reference.
+`04_try_reverse_shifts.py` moves to A Man.
 
-The transform is its own inverse when the same shift is applied twice. That is
-a useful round-trip check, but every one of the 29 possible shifts passes that
-check. It would not tell us which shift to choose.
+The proposed reverse-shift transform has only 29 possible shifts. There is no
+reason to ask an optimiser to guess among 29 cases when Python can simply try all
+of them.
 
-## 5. Let RDP search
+So we do.
 
-[`05_let_rdp_search.py`](05_let_rdp_search.py) expresses the same rule through
-`api.experimental.define_cipher_map`. A repeating key of length one holds the
-unknown shift. The program compares the solver's key, plaintext and score with
-the complete sweep.
+## 5. Make the solver agree
 
-The narrow search agrees with the sweep: shift 3 wins. The second experiment
-then removes that structural assumption and permits any substitution of the
-29-rune alphabet.
+`05_let_rdp_search.py` expresses the same reverse-shift rule through the RDP
+cipher interface and checks that Beam finds the same answer as the complete
+sweep.
 
-The narrow result is checked against the same canonical `koan_a_man` reference.
-
-That problem is much larger. The short 2,000-iteration run previously matched
-443 of the 778 runes in the narrow result. It is reported as an incomplete
-experiment, not dressed up as a recovery because part of the plaintext
-contains the answer.
+Then we remove that convenient structure and allow an arbitrary substitution.
+The same small budget is suddenly nowhere near enough. Search spaces have a
+sense of humour like that.
 
 ## 6. Explore An End
 
-[`06_explore_an_end.py`](06_explore_an_end.py) tries four sequence families as
-key streams: primes, Fibonacci numbers, triangular numbers and squares.
-For each family it varies the starting offset from 0 to 20 and the constant
-shift from 0 to 28.
+`06_explore_an_end.py` tries primes, Fibonacci numbers, triangular numbers and
+squares as key streams, with different offsets and shifts.
 
-The first sweep uses language-model scores alone. It previously selected the
-prime stream at offset 0 with shift 28, but the text breaks partway through.
+The language model chooses the best stream without being given the known
+plaintext.
 
-There are five ciphertext-zero positions. The follow-up keeps the winning
-stream and tries all 32 subsets as possible interruptors. Position 56 is then
-selected and all 85 reference runes are recovered. The solved reference is
-loaded and checked only after the language model has chosen its candidate.
+There are then only five ciphertext-zero positions, so every possible
+interruptor subset means just 32 cases. We try all 32 and compare the winner
+with the solved `An End` plaintext afterwards.
 
-The [detailed An End workbook](../solved_lp/08_An_End.py) also explores phrase
-starts and interruptors. That workbook can use the reference in ranking and
-remains a reference-guided diagnostic. The shorter example is a separate
-language-model ranking experiment.
+## Where next?
 
-## Further examples
+The fuller solved-LP workbooks retain the more detailed diagnostics and evidence:
 
-The [detailed Welcome Pilgrim workbook](../solved_lp/02_Welcome_Pilgrim.py)
-retains the fuller diagnostics and evidence output. See the
-[workbook index](../solved_lp/README.md) for other solved sources.
+[solving/solved_lp/README.md](../solved_lp/README.md)
+
+Or take one of these examples and change something. That is rather more the
+point of having RDP in the first place.
