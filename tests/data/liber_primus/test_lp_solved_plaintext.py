@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import FrozenInstanceError
 from importlib import resources
 from types import SimpleNamespace
@@ -18,15 +19,17 @@ from rdp.data.runeglish import Runeglish
 
 pytestmark = pytest.mark.tier_a
 
-# Counts and hashes come from the independently validated user-supplied dump.
-# Rune hashes cover the flattened supplied rune arrays, not the formatted files.
+# Counts and semantic hashes come from the independently validated user-supplied
+# dump. Line wrapping and newline encoding in the presentation files are not data.
+# Semantic hashes cover indices plus exact word-length information; rune hashes
+# independently cover the flattened supplied rune arrays.
 EXPECTED = {
     "warning": (
         "red_rune.warning",
         "warning.txt",
         45,
         184,
-        "0cd840a9c30e22f094ca7f8750803cf7ad20cee5304873d25ac620732229cd76",
+        "853c1fe69a8b96ddee4bf3f896d8c5cfed76b6330e8dc822ccd3a0f53c81882a",
         "c20d5cad4734ee41ecc992ae2fafc110405f5366bf1fa1ebfebe9d28179c3460",
     ),
     "some_wisdom": (
@@ -34,7 +37,7 @@ EXPECTED = {
         "some_wisdom.txt",
         18,
         81,
-        "b92b540cc8062f648678f8b6d7a883bba9a392ac133824cdc2ce254c45366a40",
+        "08a1354f74fa5fd421c97566bea387acc7b1d8e09464bf3d5efee06538b4c1b3",
         "7d156f190410f2ff8bb61f31591a34991084c19910b669539970615786997d29",
     ),
     "welcome_pilgrim": (
@@ -42,7 +45,7 @@ EXPECTED = {
         "welcome_pilgrim.txt",
         124,
         515,
-        "9ccdc80085da1483a5e87bcb65ed1df65ba2cd3be253da3691b65b748e337b39",
+        "82c1fa5265ffed1c3480df4543cbcb1bb02abd585c52e7aca7e49b5caf265398",
         "0d40810fc02a57bc30eaa0d85f2a78a987b85fe2ac04afa9bba14bd492fc86d0",
     ),
     "koan_a_man": (
@@ -50,7 +53,7 @@ EXPECTED = {
         "koan_a_man.txt",
         208,
         778,
-        "4c97b4637b4788d2bba87bc0f4ef0cf74b3699e98f5d7edeb70fc4b971c2708c",
+        "4f4ed2dad440bcfa232b5e56af9b08863471fcc347ef9e02ae60902c452c4155",
         "59917f477040b6196b670df9b07559e81703b33963a12751061b84ddd49823c5",
     ),
     "loss_of_divinity": (
@@ -58,7 +61,7 @@ EXPECTED = {
         "loss_of_divinity.txt",
         181,
         755,
-        "75cad3c778dcaf8c188a0074e95c45d87f3754512a7b36e0dee16f10a074b031",
+        "b8e2923f32cf53901a107ed7c4e738d81e1ca35f5d4b519931cf2b1817e7c742",
         "b4c81a1fb34f890f6a2534a701782501fccc1cc1249c1353c17dabafc68896f0",
     ),
     "koan_during_lesson": (
@@ -66,7 +69,7 @@ EXPECTED = {
         "koan_during_lesson.txt",
         87,
         319,
-        "28fe5bb102fa0829834ef85e4e7702e52d2d07d1303baf9d3da7fbb7c3a1b0cd",
+        "9b78d4c2a1b40483db322697f3b8a084f7da085c197fbfaf313c242100cac376",
         "e67cc38e4567c0be37360804b7cff2c7ac7e6138e6b01a4c34923288cb89b8a0",
     ),
     "instruction": (
@@ -74,7 +77,7 @@ EXPECTED = {
         "instruction.txt",
         18,
         89,
-        "989a06842f1ac0fe76985c0bf44f2f00b1b405974e148dd3b4b309f17199dc6a",
+        "d6869f765301162f787e263033147fff7eb78d8c9b15ea3f1bed22235a4a0ab0",
         "8b42909a73bf2873dc13dea618cd7e12b594606f44bc556d1aa1881128ddea3d",
     ),
     "an_end": (
@@ -82,7 +85,7 @@ EXPECTED = {
         "an_end.txt",
         25,
         85,
-        "63f2344a6bb5e6bed7677dbe5f53eb066bc02b6ca11df71402f05f50c8b9bc57",
+        "4356d8c43bb9218fb6b75dfc11159933f7b77d6e7612813b79c78e732dff6e43",
         "9f94fa76136eb8d6c23f3e8aed540aefc27971fab2dd427f3b714db5f85cda51",
     ),
     "parable": (
@@ -90,7 +93,7 @@ EXPECTED = {
         "parable.txt",
         20,
         95,
-        "a4e2aa7d2cc9a11f68358204fab4bfdf2f5bcade594f7d6f853a280f535a5a05",
+        "d8abec2a60b387aabec45402f69a2c2c71d26f0bb6700f602c1928518b6e632e",
         "03561957c3cda8729d773fd6986d30d4bb3e74d84501a6e28e897d4783dfa0ff",
     ),
 }
@@ -101,7 +104,7 @@ def test_every_solved_plaintext_matches_the_supplied_data(
     label: str,
     expected: tuple[str, str, int, int, str, str],
 ) -> None:
-    canonical_label, filename, word_count, rune_count, file_hash, rune_hash = expected
+    canonical_label, filename, word_count, rune_count, semantic_hash, rune_hash = expected
     entry = resolve_source_label(label)
     reference = api.liber_primus.load_plaintext(label)
 
@@ -126,7 +129,6 @@ def test_every_solved_plaintext_matches_the_supplied_data(
         .joinpath(filename)
     )
     raw = resource.read_bytes()
-    assert hashlib.sha256(raw).hexdigest() == file_hash
 
     tokens = [
         token
@@ -135,6 +137,17 @@ def test_every_solved_plaintext_matches_the_supplied_data(
     ]
     assert all(token in Runeglish.latin_canon for token in tokens)
     assert len(tokens) == rune_count
+    semantic_payload = json.dumps(
+        {
+            "indices": list(reference.indices),
+            "word_length_information": [
+                list(item) for item in reference.word_length_information
+            ],
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    assert hashlib.sha256(semantic_payload).hexdigest() == semantic_hash
     assert Runeglish.to_delimited_rune_latin(
         reference.indices,
         reference.word_length_information,
@@ -163,6 +176,39 @@ def test_every_existing_alias_loads_the_same_plaintext(label: str) -> None:
     reference = api.liber_primus.load_plaintext(label)
     for alias in (entry.source_label, *entry.aliases):
         assert api.liber_primus.load_plaintext(alias) == reference
+
+
+@pytest.mark.parametrize("label,expected", EXPECTED.items())
+def test_presentation_whitespace_does_not_change_solved_plaintext(
+    label: str,
+    expected: tuple[str, str, int, int, str, str],
+) -> None:
+    canonical_label, filename, *_rest = expected
+    resource = (
+        resources.files("rdp.data.liber_primus")
+        .joinpath("solved_plaintext")
+        .joinpath(filename)
+    )
+    words = resource.read_text(encoding="utf-8").split()
+    reference = api.liber_primus.load_plaintext(label)
+
+    presentations = (
+        " ".join(words),
+        "\r\n".join(words) + "\r\n",
+        "\n".join(
+            "\t".join(words[index : index + 7])
+            for index in range(0, len(words), 7)
+        ),
+    )
+    for presentation in presentations:
+        assert lp_solved_plaintext._parse_canonical_rune_latin(
+            presentation,
+            source_label=canonical_label,
+        ) == (
+            reference.indices,
+            reference.word_length_information,
+            reference.rune_latin,
+        )
 
 
 @pytest.mark.parametrize("token", ("NG", "ING", "K", "V", "Z", "IA"))

@@ -6,5 +6,8 @@ assets/language_model/lmp/index.json -text
 cipher_development/shared/*.py text eol=lf
 cipher_development/two_period_overlay/*.py text eol=lf
 tools/installation/*.sh text eol=lf
+
+# Keep solved plaintext presentation consistent across checkout platforms.
+src/rdp/data/liber_primus/solved_plaintext/*.txt text eol=lf
 assets/liber_primus/liber-primus__transcription--master-v2.txt text eol=crlf
 assets/liber_primus/liber-primus__transcription--master-v2.txt.part001 text eol=crlf
