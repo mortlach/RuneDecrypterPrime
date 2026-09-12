@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "rune-decrypter-prime"
 version = "1.0.0"
-description = "Deterministic, solving toolkit for a 29-rune alphabet."
+description = "Cryptanalysis and cipher development for Runeglish and Liber Primus."
 authors = [{ name = "mortlach" }]
 readme = "README.md"
 requires-python = ">=3.11"

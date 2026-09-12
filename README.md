@@ -1,15 +1,16 @@
 # Rune Decrypter Prime
 
 Rune Decrypter Prime (RDP) is a cryptanalysis and cipher-development framework
-built around Runeglish and Liber Primus.
+built around Runeglish and the 29-rune alphabet of Liber Primus.
 
 At its simplest, it is a way to take a cipher idea, a key or key space, and some
 Liber Primus text and actually try it without writing another one-off solver
-from scratch.
+from scratch. You can change the cipher, keys, search or scoring while keeping
+the rest of the experiment the same.
 
 ## Start here
 
-RDP needs Python 3.11 or newer. From the repository root:
+RDP 1.0.0 needs Python 3.11 or newer. From the repository root:
 
 ```text
 python install.py
@@ -48,6 +49,9 @@ Choose the route that matches what you want to do next:
 
 The fuller [documentation index](docs/README.md) is there when you need more
 control or want to understand the internals.
+
+RDP can also run in a browser through Pyodide/WebAssembly; see the
+[build and smoke tooling](tools/pyodide/README.md).
 
 ## Why RDP exists
 
@@ -134,8 +138,6 @@ The main documentation route is:
 5. [Comparing solve experiments](docs/guides/working_a_solve.md)
 6. [Reading a result](docs/guides/results.md)
 7. [Tutorials and examples](docs/tutorials/README.md)
-
-The full documentation index is in [docs/README.md](docs/README.md).
 
 Worked Liber Primus material is under [Solving examples](solving/README.md).
 
