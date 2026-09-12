@@ -27,6 +27,18 @@ for the implementation view.
 For a new production cipher, continue with
 [Add a cipher](../howto/add_cipher.md).
 
+## AI-assisted development
+
+AI coding tools are already part of RDP's development workflow, and they can be
+useful for reading the API, building a first experiment, expanding tests or
+checking code and documentation against each other.
+
+The useful boundary is not who typed the code. The input, code and result should
+still be inspectable and independently verifiable.
+
+See [AI-assisted development](ai_assisted_workflow.md) for the practical workflow
+that has worked well on RDP.
+
 ## Solvers and key operations
 
 New search behaviour belongs with the solver implementation and public

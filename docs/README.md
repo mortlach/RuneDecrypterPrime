@@ -57,7 +57,6 @@ RDP is meant to be used for real experiments, not only read about.
 A small experiment can stay small. The deeper development material becomes useful
 when you want to turn an idea into a repeatable method or a maintained RDP feature.
 
-
 ## Reference
 
 - [API reference](reference/README.md)
@@ -72,6 +71,7 @@ when you want to turn an idea into a repeatable method or a maintained RDP featu
 
 - [Development map](development/README.md)
 - [Cipher development](development/cipher_development.md)
+- [AI-assisted development](development/ai_assisted_workflow.md)
 - [Extending RDP](guides/extending_rdp.md)
 - [Contributor how-to guides](howto/README.md)
 - [CUDA setup](development/cuda_installation.md)
@@ -82,6 +82,7 @@ when you want to turn an idea into a repeatable method or a maintained RDP featu
 - [FAQ](FAQ.md)
 - [Setup](setup/README.md)
 - [Defaults at a glance](reference/defaults.md)
+- [Project history](project_history.md)
 
 ## Worked solving material
 

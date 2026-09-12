@@ -230,11 +230,12 @@ def test_one_public_documentation_tree_without_generated_or_private_material() -
 
 def test_current_public_markdown_links_resolve() -> None:
     pages = [REPO_ROOT / 'README.md', REPO_ROOT / 'CONTRIBUTING.md', *DOCS.rglob('*.md')]
+    windows_drive = re.compile(r'(?<![A-Za-z])[A-Za-z]:[\\/]')
     for page in pages:
         if 'release_contracts' in page.parts or 'v1_traceability' in page.parts:
             continue
         text = _read(page)
-        assert not re.search(r'[A-Za-z]:[\\/]', text), page
+        assert not windows_drive.search(text), page
         for href in re.findall(r'\[[^\]]+\]\(([^)]+)\)', text):
             if '://' in href or href.startswith('#'):
                 continue

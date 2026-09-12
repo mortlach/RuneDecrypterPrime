@@ -214,3 +214,6 @@ See [CUDA setup](docs/development/cuda_installation.md).
 
 Add `api.LoggingConfig` when a run is worth saving to disk. See
 [Outputs](docs/guides/outputs.md).
+
+For the longer history of RDP and how modern AI tools became part of its
+development, see [Project history](docs/project_history.md).
