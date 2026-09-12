@@ -118,7 +118,9 @@ full_v1 -> TutorialRunSet.FULL_ASSET_EXAMPLES
 `QUALIFICATION` contains three explicitly named Kaeding programs. The
 qualification-derived periodic-columnar example took roughly 40 minutes on the
 qualified machine; the other programs may take several hours. This group is
-never selected by an ordinary local or workflow gate.
+never selected as a group by an ordinary local or workflow gate. The canonical
+53-job validator does include the long production P7/C7 example individually;
+the authoritative full proof must retain it.
 
 The normal local full-profile command remains:
 
@@ -126,15 +128,45 @@ The normal local full-profile command remains:
 python -X utf8 tutorials/v1/run_tutorials.py
 ```
 
-The manual full-proof workflow must run the full-profile tutorial gate.
+The authoritative full-proof workflow must also run the full-profile tutorial
+gate, separately from the canonical validator.
 
 ## CI gate
 
-The repository must keep exactly one automatic push/pull-request gate and one manual full-proof gate.
+The repository must keep one cheap automatic push/pull-request gate and one
+authoritative full-proof gate for the release boundary and every push to main.
 
 The automatic gate is `.github/workflows/rdp_v1_full_ci.yml`. It covers `main` and `prelease/**`, installs `ci_light`, excludes `full_assets` tests, and runs the `RELEASE` tutorial set.
 
-The full-proof gate is `.github/workflows/rdp_v1_full_proof.yml`. It remains manually runnable through `workflow_dispatch`, installs `full_v1`, runs complete pytest, and runs the `FULL_ASSET_EXAMPLES` set on Windows and Ubuntu with Python 3.11.
+The full-proof gate is `.github/workflows/rdp_v1_full_proof.yml`. Its only triggers
+are `workflow_dispatch` and `push` to `main`. It does not automatically run on
+release-branch, prelease or feature-branch pushes, or on pull requests.
+
+For a release candidate, freeze the release branch, dispatch that ref, and verify
+the run's `github.sha` is the approved frozen commit. All proof jobs check out
+that SHA. Every push to main receives the same proof automatically.
+
+Native validation runs on Windows and Ubuntu with Python 3.11. It uses
+`python install.py` for `full_v1`, then `python tools/run_validation.py` with
+unchanged `RUN_SET = 'all'` and `INCLUDE_LONG_P7C7_EXAMPLE = True`. Require
+53/53 PASS on each OS, including complete pytest, the current examples and LP
+routes, all nine solved-LP workbooks and the long production P7/C7 example.
+Retain the separate `FULL_ASSET_EXAMPLES` tutorial gate.
+
+Separate jobs build CPython 3.11 native wheels and sdists, reuse the installed
+wheel smoke and artifact-boundary contracts, and build/smoke the pinned Pyodide
+wheel with B1-B8 and the existing 28 native safety tests. Upload distribution
+artifacts and checksums/receipts identified by source SHA and OS where relevant;
+preserve `output/validation/**`, installer logs and full-asset tutorial logs.
+These are Actions artifacts, not a PyPI publication or GitHub Release.
+
+Platform matrices use `fail-fast: false`. The final summary must fail unless all
+required hosted jobs pass and both native 53-job results are present and match
+the source SHA. Missing, skipped or cancelled proof is not a pass. Hosted proof
+does not exercise CUDA; prior qualified CUDA validation remains separate.
+
+Other workflows remain manual and labelled non-authoritative. They are diagnostic
+routes, not substitutes for this complete proof.
 
 A final release note must record either green full-proof CI evidence or clearly labelled equivalent local proof.
 

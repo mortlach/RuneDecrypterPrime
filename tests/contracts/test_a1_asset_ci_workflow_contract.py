@@ -30,10 +30,10 @@ def _decorator_names(path: Path, function_name: str) -> set[str]:
         names.add(ast.unparse(decorator))
     return names
 
-def test_one_authoritative_push_gate_and_one_manual_full_proof() -> None:
+def test_cheap_pr_gate_and_main_or_manual_full_proof() -> None:
     workflows = sorted(WORKFLOWS.glob('*.yml'))
     push_files = [path.name for path in workflows if '\n  push:\n' in path.read_text(encoding='utf-8') or '\n  pull_request:\n' in path.read_text(encoding='utf-8')]
-    assert push_files == [PUSH_GATE.name]
+    assert push_files == [PUSH_GATE.name, FULL_PROOF.name]
     push = PUSH_GATE.read_text(encoding='utf-8')
     assert 'name: RDP V1 push gate' in push
     assert 'python tools/ci/install_light.py' in push
@@ -41,8 +41,12 @@ def test_one_authoritative_push_gate_and_one_manual_full_proof() -> None:
     assert 'TutorialRunSet.RELEASE' in push
     proof = FULL_PROOF.read_text(encoding='utf-8')
     assert 'workflow_dispatch:' in proof
-    assert '\n  push:\n' not in proof
+    assert proof.split('\non:\n', 1)[1].split('\npermissions:', 1)[0].strip() == (
+        'workflow_dispatch:\n  push:\n    branches:\n      - main'
+    )
+    assert '\n  pull_request:\n' not in proof
     assert 'python install.py' in proof
+    assert 'python tools/run_validation.py' in proof
     assert 'TutorialRunSet.FULL_ASSET_EXAMPLES' in proof
     assert 'windows-latest' in proof and 'ubuntu-latest' in proof
     assert '"3.11"' in proof
@@ -53,6 +57,7 @@ def test_non_gate_workflows_are_manual_and_labelled_non_authoritative() -> None:
             continue
         text = path.read_text(encoding='utf-8')
         assert 'workflow_dispatch:' in text
+        assert text.split('\non:\n', 1)[1].split('\npermissions:', 1)[0].strip() == 'workflow_dispatch:'
         assert '\n  push:\n' not in text
         assert '\n  pull_request:\n' not in text
         assert 'non-authoritative' in text.splitlines()[0]

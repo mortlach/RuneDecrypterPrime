@@ -18,8 +18,9 @@ This profile controls CI cost. It is not the complete product capability claim.
 ### `full_v1`
 
 `full_v1` is the normal user install and release-proof profile. It verifies or
-downloads the complete supported LM1-LM4 runtime asset set, runs the complete
-pytest suite, and runs the bounded `FULL_ASSET_EXAMPLES` selection.
+downloads the complete supported LM1-LM4 runtime asset set. The authoritative
+full proof then runs the canonical 53-job validator, including complete pytest,
+and the separate bounded `FULL_ASSET_EXAMPLES` selection.
 
 The default public install remains:
 
@@ -38,7 +39,7 @@ Tests that require the installed full LM1-LM4 profile use:
 @pytest.mark.full_assets
 ```
 
-The push gate excludes that marker. The manual full-proof gate does not. Tests
+The cheap push/PR gate excludes that marker. The full-proof gate does not. Tests
 that only inspect the full-profile contract or exercise fake asset bundles may
 run under `ci_light`.
 
@@ -56,19 +57,31 @@ required; a successful cached run does not justify a narrower label.
 
 There are two authoritative validation workflows:
 
-1. `.github/workflows/rdp_v1_full_ci.yml` is the only automatic push and
+1. `.github/workflows/rdp_v1_full_ci.yml` is the cheap automatic push and
    pull-request gate. It installs `ci_light`, excludes `full_assets` tests and
    runs the `RELEASE` tutorial set on Python 3.11 for Windows and Ubuntu.
-2. `.github/workflows/rdp_v1_full_proof.yml` is a manual `workflow_dispatch`
-   release gate. It installs `full_v1`, runs complete pytest and runs
-   `FULL_ASSET_EXAMPLES` on Python 3.11 for Windows and Ubuntu.
+2. `.github/workflows/rdp_v1_full_proof.yml` is the authoritative release/main
+   proof: `workflow_dispatch` plus automatic `push` to `main` only. It installs
+   `full_v1` with `python install.py`, runs `python tools/run_validation.py` with
+   `RUN_SET = 'all'` and `INCLUDE_LONG_P7C7_EXAMPLE = True`, and requires 53/53 PASS
+   on Python 3.11 for Windows and Ubuntu. The separate `FULL_ASSET_EXAMPLES`
+   gate remains. Release-branch pushes and pull requests do not trigger this
+   heavy workflow automatically; the final frozen candidate is dispatched manually.
 
-The `QUALIFICATION` group is separate from both workflows. Its long-running
-P7/C7 programs require an explicit scientific plan and are not routine release
-checks.
+The `QUALIFICATION` tutorial group is not selected wholesale. The canonical
+validator includes the long production P7/C7 example individually in the rare
+full proof; it must not be removed to reduce CI cost. The other longer
+qualification programs remain outside that catalogue.
 
-Packaging workflows may remain manual and explicitly non-authoritative. They do
-not replace either validation gate.
+The full proof also reuses the qualified native package build/installed-wheel
+contracts and pinned Pyodide B1-B8 procedure. It preserves validator logs and
+summaries, uploads SHA-identified artifacts/checksums, and fails unless every
+required hosted job passes. CUDA is not exercised on hosted runners; prior
+qualified CUDA evidence remains separate. See
+[V1 release acceptance gates](V1_RELEASE_ACCEPTANCE_GATES.md#ci-gate).
+
+Other packaging and Pyodide workflows remain manual and explicitly
+non-authoritative diagnostics. They do not replace either authoritative gate.
 
 ## Release asset contract
 
