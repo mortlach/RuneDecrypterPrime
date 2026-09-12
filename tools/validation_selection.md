@@ -399,6 +399,7 @@ are determined at runtime; file counts are not individual test counts.
 - `tests/tools/test_cipher_solver_campaign_rail_interruptors.py`
 - `tests/tools/test_installer_cli.py`
 - `tests/tools/test_output_routing.py`
+- `tests/tools/test_pyodide_tooling.py`
 - `tests/tools/test_release_review_pack.py`
 - `tests/tools/test_run_validation.py`
 - `tests/tools/test_torch_provisioning.py`

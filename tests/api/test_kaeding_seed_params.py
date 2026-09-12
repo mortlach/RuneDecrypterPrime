@@ -52,6 +52,7 @@ def test_kaeding_raw_ordering_rejects_non_bool(value):
         api.SolverSpec.from_name('kaeding', parameters=parameters)
 
 
+@pytest.mark.full_assets
 @pytest.mark.parametrize('telemetry_enabled', [False, True])
 def test_raw_ordering_reports_public_score_and_effective_request(telemetry_enabled):
     from rdp.data.runeglish import Runeglish
