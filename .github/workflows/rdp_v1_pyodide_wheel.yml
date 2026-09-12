@@ -1,4 +1,4 @@
-name: RDP V1 Pyodide Wheel Proof
+name: RDP V1 Pyodide Wheel Proof (non-authoritative)
 
 on:
   workflow_dispatch:
