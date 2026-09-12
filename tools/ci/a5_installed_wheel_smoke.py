@@ -4,7 +4,6 @@ import hashlib
 import importlib
 import importlib.util
 import json
-import re
 import tempfile
 from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -23,9 +22,7 @@ BLOCKED_MODULES = (
     "rdp.data.cipher_tests",
     "rdp.data.liber_primus.old",
 )
-PUBLIC_API_ALLOWLIST = (
-    PROJECT_ROOT / "docs" / "release_contracts" / "v1" / "public_api_allowlist.md"
-)
+PUBLIC_API_SNAPSHOT = PROJECT_ROOT / "tests" / "fixtures" / "v1_public_api.txt"
 
 
 def _under(path: Path, root: Path) -> bool:
@@ -46,12 +43,7 @@ def _sha256(path: Path) -> str:
 def _assert_v1_public_contract() -> None:
     from rdp import api
 
-    paths = {
-        match.group(1)
-        for line in PUBLIC_API_ALLOWLIST.read_text(encoding="utf-8").splitlines()
-        if (match := re.match(r"^\| `([^`]+)` \|", line))
-        and match.group(1).startswith("rdp.")
-    }
+    paths = set(PUBLIC_API_SNAPSHOT.read_text(encoding="utf-8").splitlines())
     expected = {
         f"{prefix}.{name}"
         for prefix, namespace in (
@@ -65,7 +57,7 @@ def _assert_v1_public_contract() -> None:
     }
     if len(paths) != 145 or paths != expected:
         raise AssertionError(
-            f"installed public surface mismatch: documented={len(paths)} exported={len(expected)}"
+            f"installed public surface mismatch: snapshot={len(paths)} exported={len(expected)}"
         )
     for path in paths:
         module_name, attr_name = path.rsplit(".", 1)

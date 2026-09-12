@@ -27,11 +27,10 @@ See [CUDA setup](../docs/development/cuda_installation.md).
 - `assets/` prepares and checks asset profiles and bundles
 - `ci/` contains installed-package and CI checks
 - `data/` prepares retained corpus/data fixtures
-- `get_src_zip/` prepares source archives
 - `robustness/` runs explicit multi-case campaigns
 
-Release and fixture-maintenance utilities also live here when they are
-repository-only operations.
+Fixture-maintenance utilities also live here when they are repository-only
+operations.
 
 ## Robustness
 

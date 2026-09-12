@@ -14,38 +14,24 @@ OLD_PACKAGE = "rune_" + "decrypter_prime"
 
 ACTIVE_DOCUMENTS = (
     'README.md', 'CONTRIBUTING.md',
-    *(p.relative_to(ROOT).as_posix() for p in (ROOT / 'docs').rglob('*.md')
-      if 'release_contracts' not in p.parts and 'v1_traceability' not in p.parts),
+    *(p.relative_to(ROOT).as_posix() for p in (ROOT / 'docs').rglob('*.md')),
     'src/rdp/api/README.md', 'solving/README.md', 'tests/README.md', 'tools/README.md',
 )
 
 
 NEGATIVE_EXECUTABLE_EVIDENCE = {
     "tests/contracts/test_a5_keyops_registry_contract.py",
-    "tests/contracts/test_d7_final_summary_doc.py",
     "tests/core/engine/test_engine_ownership_contract.py",
     "tests/core/test_no_dead_config_shim_imports.py",
     "tests/data/test_book_corpus.py",
-    "tests/meta/test_d3_contract_sweep.py",
+    "tests/contracts/test_runtime_source_guardrails.py",
     "tests/scoring/test_scoring_package_import_policy.py",
     "tests/solvers/test_solver_package_import_policy.py",
     "tools/ci/a5_artifact_contract.py",
     "tools/ci/a5_installed_wheel_smoke.py",
 }
 
-HISTORICAL_OLD_PATH_EVIDENCE = {
-    "docs/release_contracts/v1/D7_FINAL_SUMMARY.md",
-    "docs/release_contracts/v1/V1_AUTHORITY_AND_DECISIONS.md",
-    "docs/release_contracts/v1/core_runtime_config_contract.md",
-    "docs/release_contracts/v1/d3_numpy_strict_requested_lanes.md",
-    "docs/release_contracts/v1/d3_stage_overlays/d3_1_2_capability_gate_overlay.md",
-    "docs/release_contracts/v1/d3_stage_overlays/d3_3_scorer_lane_report_overlay.md",
-    "docs/release_contracts/v1/d3_stage_overlays/d3_4_numpy_builder_wiring_overlay.md",
-    "docs/release_contracts/v1/d3_stage_overlays/d3_6_solver_report_scorer_lanes_overlay.md",
-    "docs/release_contracts/v1/d3_stage_overlays/d3_7_targeted_contract_sweep_overlay.md",
-    "docs/release_contracts/v1/final_source_to_wp_decision_target_test_chain.csv",
-    "docs/release_contracts/v1/v1_cleanup_deprecation_ledger.json",
-}
+
 
 
 def _project_files(*roots: str) -> list[Path]:
@@ -122,12 +108,3 @@ def test_active_documentation_contains_no_old_package_path() -> None:
         if OLD_PACKAGE in (ROOT / path).read_text(encoding="utf-8", errors="strict")
     ]
     assert offenders == []
-
-
-def test_historical_old_path_text_is_exactly_allowlisted() -> None:
-    found = {
-        path.relative_to(ROOT).as_posix()
-        for path in _project_files("docs")
-        if OLD_PACKAGE in path.read_text(encoding="utf-8", errors="ignore")
-    }
-    assert found == HISTORICAL_OLD_PATH_EVIDENCE

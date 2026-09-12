@@ -1,23 +1,9 @@
 from __future__ import annotations
-from pathlib import Path
 from types import SimpleNamespace
 from tutorials.v1.support import tutorial_benchmark, tutorial_report
 from tutorials.v1.support.tutorial_benchmark import TutorialRunKind, TutorialStopPolicy
 from tutorials.v1.support.tutorial_reference import TutorialReference
 from tutorials.v1.support.tutorial_session_report import build_tutorial_session_report
-REPO_ROOT = Path(__file__).resolve().parents[2]
-REQUIRED_FILES = {
-    'tutorials/v1/support/tutorial_report.py',
-    'tutorials/v1/support/tutorial_benchmark.py',
-    'tutorials/v1/support/tutorial_reference.py',
-    'tutorials/v1/support/tutorial_session_report.py',
-    'docs/release_contracts/v1/D7_TUTORIAL_OUTPUT_FRAMEWORK.md',
-}
-
-def test_tutorial_output_framework_files_exist() -> None:
-    missing = sorted((path for path in REQUIRED_FILES if not (REPO_ROOT / path).is_file()))
-    assert not missing, f'missing tutorial output framework files: {missing}'
-
 def test_tutorial_output_framework_schema_names_are_stable() -> None:
     assert tutorial_report.SCHEMA == 'rdp_tutorial_run_report.v1'
     summary = tutorial_benchmark.build_tutorial_benchmark_summary(run_kind=tutorial_benchmark.TutorialRunKind.REAL_KEY_RECOVERY_BENCHMARK, truth_policy=tutorial_benchmark.TutorialTruthPolicy.KNOWN_PLAINTEXT_REFERENCE, stop_policy=tutorial_benchmark.TutorialStopPolicy(), plaintext_idx=[1, 2, 3], reference_idx=[1, 2, 3])

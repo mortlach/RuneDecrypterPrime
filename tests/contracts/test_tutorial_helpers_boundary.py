@@ -22,3 +22,11 @@ def test_tutorial_oracle_helpers_do_not_leak_into_strict_runtime_modules() -> No
         if any((snippet in text for snippet in FORBIDDEN_IMPORT_SNIPPETS)):
             offenders.append(str(path.relative_to(REPO_ROOT)))
     assert not offenders, 'tutorial/session oracle helpers must stay outside strict runtime modules: ' + repr(offenders)
+
+def test_production_package_never_imports_tutorials_or_cipher_development() -> None:
+    offenders = []
+    for path in (REPO_ROOT / 'src' / 'rdp').rglob('*.py'):
+        text = path.read_text(encoding='utf-8')
+        if 'cipher_development' in text or 'tutorials.v1' in text:
+            offenders.append(path.relative_to(REPO_ROOT).as_posix())
+    assert not offenders

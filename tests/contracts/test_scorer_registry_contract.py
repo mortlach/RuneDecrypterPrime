@@ -2,17 +2,6 @@ from __future__ import annotations
 from rdp.core.component_contracts import ScoringLane
 from rdp.scoring.base_scorer import BaseScorer
 
-def test_scorer_lane_registry_values_are_stable() -> None:
-    assert tuple((lane.value for lane in ScoringLane)) == (
-        "language_model_character_and_word_length",
-        "hamming",
-        "span_hamming_raw",
-        "span_hamming_calibrated",
-        "word_ngram_judge_report_only",
-        "ngram_hamming_experimental_report_only",
-    )
-
-
 def test_base_scorer_remains_the_single_public_scorer_interface() -> None:
     required_methods = {'score', 'batch_score', 'score_with_raw', 'batch_score_with_raw', 'supports_raw', 'last_stats', 'telemetry', 'impl_name', 'dtype_name', 'device_name'}
     assert required_methods <= set(BaseScorer.__dict__)

@@ -27,8 +27,10 @@ See [Installation](installation.md) for the setup route and
 
 The normal V1 CI runs on Windows and Ubuntu with Python 3.11.
 
-It uses the smaller bundled language assets and runs the ordinary test and
-tutorial route.
+It verifies the bundled `ci_light` LM1/LM2 assets and selects pytest with
+`-m "not full_assets"`, followed by the release tutorial group. Tests that genuinely
+need LM3/LM4 remain marked `full_assets` and run with those assets in full proof.
+See [Language-model assets](language_model_assets.md) for the profiles.
 
 This is the routine check for supported installation and normal public
 behaviour.
@@ -39,7 +41,8 @@ The full release workflow checks the complete V1 asset set and the tests and
 examples that depend on it.
 
 It is separate from the normal fast path because it answers a larger release
-question and costs more to run.
+question and costs more to run. Maintainers should follow the
+[release validation guidance](../development/README.md#release-validation).
 
 ## Qualification runs
 

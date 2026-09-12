@@ -51,7 +51,7 @@ def test_scorer_report_reserved_detail_keys_are_enum_derived() -> None:
     assert 'RESERVED_DETAIL_KEYS = frozenset(key.value for key in ScorerReportDetailKey)' in text
     assert 'CALLER_FORBIDDEN_DETAIL_KEYS' in text
 
-def test_d7_scoring_config_modes_are_enum_owned_not_raw_validation_sets() -> None:
+def test_scoring_config_modes_are_enum_owned_not_raw_validation_sets() -> None:
     text = SCORING_CONFIG.read_text(encoding="utf-8")
     type_text = CORE_TYPES.read_text(encoding="utf-8")
     assert "class HammingTextDirectionMode(StrEnum)" in type_text
@@ -69,7 +69,7 @@ def test_d7_scoring_config_modes_are_enum_owned_not_raw_validation_sets() -> Non
     assert "SpanHammingMode.CALIBRATED" in text
 
 
-def test_d7_scorer_report_telemetry_sources_are_enum_owned() -> None:
+def test_scorer_report_telemetry_sources_are_enum_owned() -> None:
     text = SCORER_REPORT_BUILDER.read_text(encoding='utf-8')
     assert 'class ScorerTelemetryPrefix(StrEnum)' in text
     assert 'class ScorerTelemetryKey(StrEnum)' in text
@@ -80,7 +80,7 @@ def test_d7_scorer_report_telemetry_sources_are_enum_owned() -> None:
     assert "for key in ScorerTelemetryKey:" in text
 
 
-def test_d7_solver_report_does_not_reuse_oracle_use_for_route_or_param_domains() -> (
+def test_solver_report_does_not_reuse_oracle_use_for_route_or_param_domains() -> (
     None
 ):
     text = SOLVER_REPORT.read_text(encoding="utf-8")
@@ -90,7 +90,7 @@ def test_d7_solver_report_does_not_reuse_oracle_use_for_route_or_param_domains()
     assert "test_key" not in text
 
 
-def test_d7_runtime_scorers_use_enum_owned_mode_state() -> None:
+def test_runtime_scorers_use_enum_owned_mode_state() -> None:
     for path in (RUNE_SCORER_IMPL, TORCH_RUNE_SCORER):
         text = path.read_text(encoding="utf-8")
         assert "ensure_hamming_text_direction_mode" in text
@@ -111,7 +111,7 @@ def test_d7_runtime_scorers_use_enum_owned_mode_state() -> None:
         assert "SpanHammingCombineMode.WEIGHTED_SUM" in text
 
 
-def test_d7_capability_report_helpers_normalise_backend_mode_through_contract() -> None:
+def test_capability_report_helpers_normalise_backend_mode_through_contract() -> None:
     for path in (ENGINE_BUILDERS, UNIFIED_RUNE_SCORER, RUNE_SCORER_WRAPPER):
         text = path.read_text(encoding='utf-8')
         assert 'SpanHammingMode' in text

@@ -79,6 +79,38 @@ Kaeding is specialised for structured periodic keys.
 The two-period crib solver has its own staged reduction/search path but returns
 the standard public result contract.
 
+## Two-period crib search
+
+The CPU-only two-period crib solver targets additive Vigenere over the 29-rune
+alphabet. The two periods belong to `CipherSpec.two_period_vigenere`; its
+compatible repeating key has `first_period + second_period` values in A-then-B
+order. Each value is a semantic rune shift in `0..28`. A conflicting key length
+is rejected.
+
+Cribs must cover complete words according to the supplied word-length
+information. Fixed cribs specify known placements; candidate words are tried at
+every matching complete-word span. Impossible or incompatible placements are
+reported as rejection evidence.
+
+An omitted seed has the deterministic effective value `0`. Search uses S2 scout
+(5 coordinate sweeps), B1 bridge (4) and F1 judge (3), then static F1 ranking over
+the complete deduplicated union of candidates from all three stages.
+
+Structural interruptors are removed before the core cipher runs and reinserted
+unchanged afterwards. Crib equations use compacted core positions, not absolute
+full-text positions. A crib rune on an interruptor must match the unchanged
+ciphertext rune and adds no key equation.
+
+Automatic structural search enumerates hypotheses within `bruteforce_max`.
+Exceeding that cap raises an error: narrow the pool/count range, raise the cap,
+or explicitly request brute force. The KeyOps search strategy is unsupported
+for this constraint route. The standard `RunResult` includes the requested
+interruptor configuration, hypothesis count and winning positions in its solver
+report.
+
+See [Solver parameters](../reference/parameters/solvers.md) and the runnable
+[two-period crib example](../../tutorials/v1/examples/two_period_cribs.py).
+
 ## Evaluation
 
 Generic solvers score candidate batches through the shared problem boundary.

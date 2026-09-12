@@ -16,7 +16,7 @@ The suite includes:
 - Liber Primus source handling
 - logging and artifact policy
 - packaging and installed-wheel checks
-- retained release contracts
+- cross-component boundaries, fixture integrity and release workflows
 
 Some solver, asset and qualification tests are expensive.
 

@@ -68,7 +68,9 @@ different scoring setup.
 That behaviour follows the project rule that requested capabilities should fail
 clearly rather than quietly change the experiment.
 
-See [Project aims and design principles](../project_overview.md).
+See [Language-model assets](language_model_assets.md) for profiles, pinned
+manifests and verification, and
+[Project aims and design principles](../project_overview.md) for the design rule.
 
 ## Check the install
 

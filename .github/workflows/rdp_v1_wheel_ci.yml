@@ -26,7 +26,8 @@ jobs:
       CIBW_SKIP: "*-musllinux_*"
       CIBW_TEST_REQUIRES: "pytest jsonschema"
       CIBW_TEST_COMMAND: >-
-        python -c "import rdp; from rdp import api; assert len(api.__all__) == 32;
+        python -c "import runpy;
+        runpy.run_path('{project}/tools/ci/a5_installed_wheel_smoke.py')['_assert_v1_public_contract']();
         import rdp.scoring.language_model._fastlm;
         import rdp.scoring.hamming._hamming;
         import rdp.scoring.span_hamming._span_hamming_fast;

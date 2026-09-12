@@ -492,15 +492,6 @@ def _validate_wli_poslen(wli_list: Sequence[Sequence[int]], L: int) -> None:
         raise ValueError("wli word_len exceeds available positions")
 
 # --- Enum normalisers (API boundary only) -------------------------------------
-# def normalize_direction(x: Union[str, Direction]) -> Direction:
-#     if isinstance(x, Direction):
-#         return x
-#     v = str(x).strip().lower()
-#     if v == "ltr":
-#         return Direction.LTR
-#     if v == "rtl":
-#         return Direction.RTL
-#     raise ValueError(f"Unknown direction: {x!r} (expected 'ltr' or 'rtl' or Direction)")
 
 def normalize_scorer_impl(x: Union[str, ScorerImpl]) -> ScorerImpl:
     if isinstance(x, ScorerImpl):

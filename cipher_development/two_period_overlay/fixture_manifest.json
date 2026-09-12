@@ -1,7 +1,6 @@
 {
   "schema": "rdp_two_period_fixture_manifest.v1",
   "entry_point": "cipher_development/two_period_overlay/pack09.py",
-  "accepted_role": "final WP6 scientific/development fixture",
   "retained_sources": [
     {
       "path": "cipher_development/shared/archive.py",
@@ -80,7 +79,7 @@
     },
     {
       "path": "cipher_development/two_period_overlay/review_pack.py",
-      "sha256": "dd1125cda26b3928ab34b4367c4280ad144728b0f6b06673e26983cbaa7486dc",
+      "sha256": "33dd72b65b9f278bc9e03633c78d66eab59b5c400de804878bfaf4b7959c6cbd",
       "role": "Pack 09 review-pack generation"
     },
     {
@@ -88,45 +87,5 @@
       "sha256": "4c2abbabedd8b4bf173768ac98f05e81a753651f1937dc225c5b630c3028f89e",
       "role": "recursive local dependency"
     }
-  ],
-  "excluded_historical_sources": [],
-  "external_import_policy": {
-    "standard_library": "not copied",
-    "third_party_packages": "not copied",
-    "rdp": "production package dependency, not copied into fixture"
-  },
-  "production_wheel_included": false,
-  "curated_source_release_included": true,
-  "curation_authority": "This tested manifest is the V1 source-fixture authority; no separate source-release assembly path exists.",
-  "generated_material_policy": {
-    "outputs": "excluded",
-    "assets": "excluded",
-    "binaries": "excluded",
-    "caches": "excluded"
-  },
-  "dependency_review": {
-    "review_date": "2026-08-23",
-    "closure_changed": true,
-    "reviewed_changed_dependencies": [
-      "cipher_development/shared/archive.py",
-      "cipher_development/shared/experiment.py",
-      "cipher_development/shared/ledger.py",
-      "cipher_development/shared/replay.py",
-      "cipher_development/shared/replay_binding.py",
-      "cipher_development/shared/replay_evidence.py",
-      "cipher_development/shared/replay_execution.py",
-      "cipher_development/shared/replay_provenance.py",
-      "cipher_development/two_period_overlay/benchmark.py",
-      "cipher_development/two_period_overlay/config.py",
-      "cipher_development/two_period_overlay/experiment_e.py",
-      "cipher_development/two_period_overlay/keyspace.py",
-      "cipher_development/two_period_overlay/pack09.py",
-      "cipher_development/two_period_overlay/pack09_support.py",
-      "cipher_development/two_period_overlay/replay.py",
-      "cipher_development/two_period_overlay/review_pack.py",
-      "cipher_development/two_period_overlay/scorer_profiles.py"
-    ],
-    "decision": "retain_only_final_pack09_dependency_closure",
-    "production_package_boundary_changed": false
-  }
+  ]
 }

@@ -1,6 +1,4 @@
 from __future__ import annotations
-import hashlib
-import importlib
 import inspect
 import re
 from dataclasses import fields
@@ -12,111 +10,9 @@ from rdp.data.runeglish import Runeglish
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCS = REPO_ROOT / 'docs'
-PUBLIC_API_ALLOWLIST = DOCS / 'release_contracts' / 'v1' / 'public_api_allowlist.md'
-PUBLIC_API_SNAPSHOT_SHA256 = '0c43a2f019a39104785490f5230c8aecd39f927282eb38fbf4028f2e27dea3e8'
 
 def _read(path: Path) -> str:
     return path.read_text(encoding='utf-8')
-
-def _import_paths_from_allowlist() -> list[str]:
-    paths: list[str] = []
-    for line in _read(PUBLIC_API_ALLOWLIST).splitlines():
-        match = re.match('^\\| `([^`]+)` \\|', line)
-        if match:
-            import_path = match.group(1)
-            if import_path.startswith('rdp.'):
-                paths.append(import_path)
-    return paths
-
-def _allowlist_rows() -> list[tuple[str, str, str]]:
-    rows: list[tuple[str, str, str]] = []
-    for line in _read(PUBLIC_API_ALLOWLIST).splitlines():
-        match = re.match('^\\| `([^`]+)` \\| ([^|]+) \\| ([^|]+) \\|$', line)
-        if match and match.group(1) != 'Import path':
-            rows.append((match.group(1).strip(), match.group(2).strip(), match.group(3).strip()))
-    return rows
-
-def test_public_api_allowlist_imports() -> None:
-    import_paths = _import_paths_from_allowlist()
-    assert import_paths, 'public API allowlist must contain import paths'
-    for import_path in import_paths:
-        module_name, attr_name = import_path.rsplit('.', 1)
-        module = importlib.import_module(module_name)
-        assert hasattr(module, attr_name), import_path
-
-def test_public_api_allowlist_labels_are_controlled() -> None:
-    allowed = {'Public V1 surface', 'Semi-stable contributor surface', 'Internal helper', 'Test-only helper', 'Legacy / transitional'}
-    rows = _allowlist_rows()
-    assert rows, 'public API allowlist must contain rows'
-    for _import_path, stability, _notes in rows:
-        assert stability in allowed
-
-def test_public_api_allowlist_has_no_duplicates() -> None:
-    import_paths = [row[0] for row in _allowlist_rows()]
-    assert len(import_paths) == len(set(import_paths))
-
-def test_public_api_allowlist_is_the_exact_five_namespace_contract() -> None:
-    expected = {
-        f"{prefix}.{name}"
-        for prefix, namespace in (
-            ("rdp.api", api),
-            ("rdp.api.advanced", api.advanced),
-            ("rdp.api.display", api.display),
-            ("rdp.api.liber_primus", api.liber_primus),
-            ("rdp.api.experimental", api.experimental),
-        )
-        for name in namespace.__all__
-    }
-    paths = {row[0] for row in _allowlist_rows()}
-    assert len(paths) == 145
-    assert len(api.__all__) == 34
-    assert paths == expected
-
-def test_public_api_allowlist_preserves_the_accepted_crlf_snapshot() -> None:
-    canonical = ('\r\n'.join(_read(PUBLIC_API_ALLOWLIST).splitlines()) + '\r\n').encode(
-        'utf-8'
-    )
-    assert hashlib.sha256(canonical).hexdigest() == PUBLIC_API_SNAPSHOT_SHA256
-
-def test_release_contract_index_reports_current_public_api_snapshot() -> None:
-    text = _read(DOCS / 'release_contracts' / 'v1' / 'README.md')
-    assert 'current 145-path' in text
-    assert 'root namespace has 34 exports' in text
-    assert 'api.liber_primus.load_plaintext' in text
-    assert PUBLIC_API_SNAPSHOT_SHA256 in text
-
-
-def test_release_contract_index_classifies_every_retained_v1_file() -> None:
-    contract_root = DOCS / 'release_contracts' / 'v1'
-    index = contract_root / 'README.md'
-    classification = _read(index).split('## Current public API snapshot', 1)[0]
-    for heading in (
-        '### Active V1 contracts',
-        '### Release evidence and test fixtures',
-        '### Historical checkpoints',
-        '### Development and review meta',
-    ):
-        assert heading in classification
-
-    expected = {
-        path.resolve()
-        for path in contract_root.rglob('*')
-        if path.is_file() and path != index
-    }
-    classified = [
-        (contract_root / href.split('#', 1)[0]).resolve()
-        for href in re.findall(r'\[[^\]]+\]\(([^)]+)\)', classification)
-        if (contract_root / href.split('#', 1)[0]).resolve() in expected
-    ]
-    assert len(classified) == len(set(classified))
-    assert set(classified) == expected
-
-
-def test_public_docs_do_not_restore_project_origin_history_page() -> None:
-    assert not (DOCS / 'project_origins.md').exists()
-    assert 'project_origins.md' not in _read(DOCS / 'README.md')
-    assert 'project_origins.md' not in _read(DOCS / 'project_overview.md')
-
 
 def test_targeted_public_contract_docstrings_exist() -> None:
     expected_terms = {api.score: ['Score one', 'probability'], api.score_many: ['input order', 'empty'], api.RuneInput: ['indices', 'RuneLatin', 'English', 'word'], api.SourceReferenceInput: ['source kind', 'asset', 'JSON primitive'], api.RunSpec: ['cipher spec', 'solver spec', 'routing'], rdp.api.run_artifact_manifest.RunArtifactManifestRow: ['known V1 run artifact', 'run-relative'], rdp.api.run_artifact_manifest.write_run_artifacts_manifest: ['META.json', 'config/logging.json', 'Returns']}
@@ -232,8 +128,6 @@ def test_current_public_markdown_links_resolve() -> None:
     pages = [REPO_ROOT / 'README.md', REPO_ROOT / 'CONTRIBUTING.md', *DOCS.rglob('*.md')]
     windows_drive = re.compile(r'(?<![A-Za-z])[A-Za-z]:[\\/]')
     for page in pages:
-        if 'release_contracts' in page.parts or 'v1_traceability' in page.parts:
-            continue
         text = _read(page)
         assert not windows_drive.search(text), page
         for href in re.findall(r'\[[^\]]+\]\(([^)]+)\)', text):

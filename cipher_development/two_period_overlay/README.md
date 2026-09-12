@@ -11,7 +11,12 @@ into a different experiment.
 
 Run it only through `cipher_development/run_experiment.py`. Its exact recursive
 Python dependency closure is recorded in
-`docs/release_contracts/v1/two_period_fixture_manifest.json`.
+[fixture_manifest.json](fixture_manifest.json).
+
+After an intentional dependency change, refresh the closure and hashes with
+`python tools/refresh_two_period_fixture_manifest.py` from the repository root,
+then review the manifest diff and run
+`tests/contracts/test_two_period_fixture_manifest.py`.
 
 The normal public route starts with `from rdp import api` and uses
 `api.SolverSpec.two_period_cribs(...)` through `api.run(...)`. Historical staged,

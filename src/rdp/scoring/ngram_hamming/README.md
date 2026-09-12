@@ -14,4 +14,4 @@ This folder implements n-gram Hamming phrase diagnostics. In V1 these are report
 
 Profiles and diagnostic output can be explored when inspecting candidates. Enabling a report must not alter solver ranking or stopping. Promoting a diagnostic into scoring is a separate design decision.
 
-Continue with the [guide](../../../../docs/release_contracts/v1/report_only_diagnostics_contract.md) or the [package map](../../README.md).
+Continue with the [guide](../../../../docs/architecture/scoring_and_language_models.md#specialist-evidence) or the [package map](../../README.md).

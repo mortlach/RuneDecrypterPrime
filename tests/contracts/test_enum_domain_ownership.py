@@ -1,12 +1,10 @@
 from __future__ import annotations
 import ast
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOTS = (REPO_ROOT / 'src' / 'rdp',)
-LEDGER = REPO_ROOT / 'docs' / 'v1_traceability' / 'v1_enum_domain_ledger.json'
 
 @dataclass(frozen=True)
 class EnumMember:
@@ -31,15 +29,6 @@ def _repo_relative(path: Path) -> str:
 
 def _read_py_text(path: Path) -> str:
     return path.read_text(encoding='utf-8-sig')
-
-def _load_ledger() -> dict:
-    assert LEDGER.is_file(), f'missing enum-domain ledger: {_repo_relative(LEDGER)}'
-    data = json.loads(LEDGER.read_text(encoding='utf-8'))
-    assert data['schema'] == 'rdp_v1_enum_domain_ledger.v1'
-    assert data['policy'] == 'enum_wire_values_have_explicit_domain_ownership'
-    assert isinstance(data.get('allowed_shared_wire_values'), list)
-    assert isinstance(data.get('forbidden_enum_usages'), list)
-    return data
 
 def _py_files() -> Iterable[Path]:
     for source_root in SRC_ROOTS:
@@ -85,9 +74,6 @@ def _iter_string_enum_members() -> Iterable[EnumMember]:
                     if isinstance(target, ast.Name) and target.id.isupper():
                         yield EnumMember(path=relpath, enum_class=node.name, member_name=target.id, value=value)
 
-def test_enum_domain_ledger_schema_is_valid() -> None:
-    _load_ledger()
-
 def test_string_enum_inventory_can_be_built_without_parse_errors() -> None:
     """Keep the enum audit live without making duplicate wire values a requirement."""
     members = {member.qualified_name: member for member in _iter_string_enum_members()}
@@ -103,29 +89,27 @@ def test_string_enum_inventory_can_be_built_without_parse_errors() -> None:
     wrong_values = {name: (members[name].value, expected) for name, expected in expected_sentinels.items() if members[name].value != expected}
     assert not wrong_values, f'enum scanner returned unexpected sentinel values: {wrong_values}'
 
-def test_ledgered_allowed_shared_wire_values_are_well_formed() -> None:
-    data = _load_ledger()
-    known_members = {member.qualified_name for member in _iter_string_enum_members()}
-    for row in data['allowed_shared_wire_values']:
-        assert str(row.get('value', '')).strip(), row
-        assert str(row.get('reason', '')).strip(), row
-        members = row.get('enum_members')
-        assert isinstance(members, list) and members, row
-        missing = sorted(set(members) - known_members)
-        assert not missing, f"ledger references unknown enum members for {row['value']!r}: {missing}"
-
 def test_known_wrong_domain_enum_borrowing_patterns_are_absent() -> None:
-    data = _load_ledger()
+    # Oracle/truth labels must not be borrowed for execution routes or parameter keys.
+    forbidden_usages = (
+        (
+            'OracleUse.KNOWN_KEY_FASTPATH.value',
+            ('SolverReportDetailKey.EXECUTION_ROUTE.value', 'execution_route'),
+            'ExecutionRoute.KNOWN_KEY_FASTPATH.value',
+        ),
+        (
+            'OracleUse.TEST_KEY.value',
+            ('normalized_params', 'SolverParamKey'),
+            'SolverParamKey.TEST_KEY.value',
+        ),
+    )
     failures: list[str] = []
     for path in _py_files():
-        text = _read_py_text(path)
-        for line_number, line in enumerate(text.splitlines(), start=1):
-            for rule in data['forbidden_enum_usages']:
-                expression = rule['enum_expression']
-                contexts = rule.get('forbidden_when_file_contains_any', [])
-                if expression not in line:
-                    continue
-                if contexts and (not any((context in line for context in contexts))):
-                    continue
-                failures.append(f"{_repo_relative(path)}:{line_number}: {rule['id']} uses {expression}; use {rule['replacement']} instead. Reason: {rule['reason']}")
+        for line_number, line in enumerate(_read_py_text(path).splitlines(), start=1):
+            for expression, contexts, replacement in forbidden_usages:
+                if expression in line and any(context in line for context in contexts):
+                    failures.append(
+                        f'{_repo_relative(path)}:{line_number}: '
+                        f'use {replacement} instead of {expression}'
+                    )
     assert not failures, '\n'.join(failures)

@@ -4,7 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
-MANIFEST_PATH = ROOT / 'docs' / 'release_contracts' / 'v1' / 'two_period_fixture_manifest.json'
+MANIFEST_PATH = ROOT / 'cipher_development' / 'two_period_overlay' / 'fixture_manifest.json'
 
 def _local_import_closure(entry_point: str) -> set[str]:
     pending = [entry_point]
@@ -51,50 +51,9 @@ def test_fixture_manifest_is_exact_tracked_pack09_closure() -> None:
         assert hashlib.sha256(path.read_bytes()).hexdigest() == row['sha256']
         assert path.suffix == '.py'
 
-def test_fixture_policy_excludes_historical_runners_and_generated_material() -> None:
-    manifest = json.loads(MANIFEST_PATH.read_text(encoding='utf-8'))
-    retained = {row['path'] for row in manifest['retained_sources']}
-    excluded = set(manifest['excluded_historical_sources'])
-    assert excluded == set()
-    assert not retained & excluded
+def test_unretained_experiment_runners_are_absent() -> None:
     assert not (ROOT / 'cipher_development/two_period_overlay/pack04.py').exists()
     assert not (ROOT / 'cipher_development/two_period_overlay/experiment_a.py').exists()
-    assert manifest['production_wheel_included'] is False
-    assert manifest['curated_source_release_included'] is True
-    policy = manifest['generated_material_policy']
-    assert policy['outputs'] == 'excluded'
-    assert policy['assets'] == 'excluded'
-    assert policy['binaries'] == 'excluded'
-    assert policy['caches'] == 'excluded'
-
-def test_cleanup_dependency_review_is_recorded() -> None:
-    manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
-    review = manifest["dependency_review"]
-    assert review == {
-        "review_date": "2026-08-23",
-        "closure_changed": True,
-        "reviewed_changed_dependencies": [
-            "cipher_development/shared/archive.py",
-            "cipher_development/shared/experiment.py",
-            "cipher_development/shared/ledger.py",
-            "cipher_development/shared/replay.py",
-            "cipher_development/shared/replay_binding.py",
-            "cipher_development/shared/replay_evidence.py",
-            "cipher_development/shared/replay_execution.py",
-            "cipher_development/shared/replay_provenance.py",
-            "cipher_development/two_period_overlay/benchmark.py",
-            "cipher_development/two_period_overlay/config.py",
-            "cipher_development/two_period_overlay/experiment_e.py",
-            "cipher_development/two_period_overlay/keyspace.py",
-            "cipher_development/two_period_overlay/pack09.py",
-            "cipher_development/two_period_overlay/pack09_support.py",
-            "cipher_development/two_period_overlay/replay.py",
-            "cipher_development/two_period_overlay/review_pack.py",
-            "cipher_development/two_period_overlay/scorer_profiles.py",
-        ],
-        "decision": "retain_only_final_pack09_dependency_closure",
-        "production_package_boundary_changed": False,
-    }
 
 def test_refresh_replaces_stale_rows_with_the_exact_dependency_closure(tmp_path: Path) -> None:
     from tools.refresh_two_period_fixture_manifest import refresh_manifest
@@ -109,4 +68,6 @@ def test_refresh_replaces_stale_rows_with_the_exact_dependency_closure(tmp_path:
     refreshed = refresh_manifest(tmp_path, manifest_path)
     retained = {row['path'] for row in refreshed['retained_sources']}
     assert retained == {'cipher_development/two_period_overlay/pack09.py', 'cipher_development/shared/extra.py'}
-    assert refreshed['dependency_review']['closure_changed'] is True
+    for row in refreshed['retained_sources']:
+        assert row['sha256'] == hashlib.sha256((tmp_path / row['path']).read_bytes()).hexdigest()
+    assert json.loads(manifest_path.read_text(encoding='utf-8')) == refreshed

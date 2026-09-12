@@ -57,6 +57,25 @@ See [Build key operations](../howto/build_keyops.md).
 - [Installation](../setup/installation.md)
 - [Install validation](../setup/install_validation.md)
 
+## Release validation
+
+The [full-proof workflow](../../.github/workflows/rdp_v1_full_proof.yml) is the
+executable release authority. It runs automatically on pushes to `main` and
+supports manual `workflow_dispatch`. Before publication, select the frozen
+candidate ref and verify the run's checked-out commit matches the intended SHA.
+
+Full proof installs `full_v1` assets and runs the unchanged
+[canonical validator](../../tools/run_validation.py): 53 jobs, including the
+production P7/C7 example. It also runs the separate `FULL_ASSET_EXAMPLES` tutorial
+group and native-wheel and Pyodide checks. All required jobs and the final proof
+summary must pass; uploaded evidence must identify the same source SHA.
+The workflow records native and WebAssembly artifact checksums.
+
+Hosted CPU proof does not qualify CUDA. Any CUDA release claim needs separate
+machine-specific evidence. Ordinary push/PR CI stays on the cheap
+[CI-light selection](../setup/install_validation.md#normal-ci); use full proof
+for a release candidate, not as a routine documentation check.
+
 ## Public behaviour
 
 A public change is not complete when only the implementation works.

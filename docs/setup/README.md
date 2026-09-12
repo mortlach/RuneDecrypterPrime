@@ -15,6 +15,7 @@ python -m tutorials.v1.getting_started.01_known_key
 The other setup pages cover the cases where more detail is useful:
 
 - [Installation](installation.md)
+- [Language-model assets](language_model_assets.md)
 - [CPU, CUDA and scoring](scorer_backend_selection.md)
 - [Install validation](install_validation.md)
 - [Build and packaging notes](building.md)

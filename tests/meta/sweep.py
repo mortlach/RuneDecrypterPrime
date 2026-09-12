@@ -1,17 +1,31 @@
 from __future__ import annotations
 import argparse
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List, Sequence
 ALLOWED_TOP_DIRS = {'.github', 'assets', 'cipher_development', 'src', 'docs', 'requirements', 'solving', 'tools', 'tests', 'tutorials'}
-ALLOWED_TOOLS_SUBDIRS = {'assets', 'ci', 'data', 'get_src_zip', 'robustness'}
-ALLOWED_TOOLS_ROOT_FILES = {'README.md', '__init__.py', 'refresh_two_period_fixture_manifest.py', 'release_review_pack.py'}
+# Tool source is discovered recursively, not through a list of historical tools.
+# Only generated/cache/download directories are excluded from that walk.
+IGNORED_TOOL_DIRS = {
+    '.git', '.venv', 'venv', '.tox', '.nox', '__pycache__', '.pytest_cache',
+    '.mypy_cache', '.ruff_cache', 'node_modules', 'build', 'dist', 'wheelhouse',
+    'output', 'run_outputs', 'downloads', 'assets_packed',
+}
 FORBIDDEN_ROOT_OUTPUT_FILES = {'setup.log', 'setup_report.json', 'preflight.log', 'preflight_report.json', 'benchmark_ready.json'}
 IGNORED_TOP_DIRS = {'.git', '.idea', '.pytest_cache', '.venv', '__pycache__', 'planning', 'output'}
 LOCAL_ONLY_ROOT_FILES = {'AGENTS.md'}
 ABSOLUTE_PATH_FIXTURE_FILES = {Path('tests/test_artifact_policy.py'), Path('tests/scoring/test_retained_state_plaintext_rescore.py')}
-TEXT_SUFFIXES = {'.py', '.md', '.txt', '.json', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.csv', '.tsv', '.ps1', '.sh', '.bat', '.rst', '.xml'}
+# These exact contexts address Pyodide's isolated MEMFS, never the host filesystem.
+# Match context as well as file; all other paths on the same line are still scanned.
+VIRTUAL_FILESYSTEM_PATH_FRAGMENTS = {
+    Path('tools/pyodide/run_smoke.mjs'): (
+        "RDP_OUTPUT_ROOT: '" + '/' + "tmp/rdp-smoke'",
+        "const virtualWheel = '" + '/' + "tmp/' + path.basename(wheelPath);",
+    ),
+}
+TEXT_SUFFIXES = {'.py', '.md', '.txt', '.json', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.csv', '.tsv', '.ps1', '.sh', '.bat', '.rst', '.xml', '.js', '.mjs'}
 WINDOWS_ABS_RE = re.compile('(?<![A-Za-z0-9_])[A-Za-z]:(?:\\\\|/)')
 UNIX_ABS_RE = re.compile('(?<![A-Za-z0-9_])/(?:home|Users|opt|var|etc|private|tmp|mnt|srv|root)/')
 
@@ -52,15 +66,15 @@ def _iter_repo_files(repo_root: Path) -> List[Path]:
         if child.name not in ALLOWED_TOP_DIRS:
             continue
         if child.name == 'tools':
-            for entry in child.iterdir():
-                if entry.is_file() and entry.name in ALLOWED_TOOLS_ROOT_FILES:
-                    files.append(entry.relative_to(repo_root))
-            for sub_name in sorted(ALLOWED_TOOLS_SUBDIRS):
-                sub = child / sub_name
-                if not sub.exists():
-                    continue
-                for entry in sub.rglob('*'):
-                    if entry.is_file():
+            for directory, subdirs, names in os.walk(child, followlinks=False):
+                subdirs[:] = [
+                    name for name in subdirs
+                    if name not in IGNORED_TOOL_DIRS and not name.endswith('.egg-info')
+                    and not (Path(directory) / name).is_symlink()
+                ]
+                for name in names:
+                    entry = Path(directory) / name
+                    if entry.is_file() and not entry.is_symlink() and _is_text_candidate(entry):
                         files.append(entry.relative_to(repo_root))
             continue
         for entry in child.rglob('*'):
@@ -85,18 +99,6 @@ def _check_top_level_policy(repo_root: Path, *, strict: bool) -> List[SweepIssue
             continue
         if child.name not in ALLOWED_TOP_DIRS:
             issues.append(SweepIssue(kind='tree_policy', path=child.name, detail=f"top-level directory '{child.name}' is not in allowed set {sorted(ALLOWED_TOP_DIRS)}"))
-    tools_dir = repo_root / 'tools'
-    if tools_dir.exists():
-        for child in sorted(tools_dir.iterdir(), key=lambda p: p.name.lower()):
-            if child.is_file():
-                if child.name not in ALLOWED_TOOLS_ROOT_FILES:
-                    issues.append(SweepIssue(kind='tree_policy', path=f'tools/{child.name}', detail=f"tools root file '{child.name}' is not in allowed set {sorted(ALLOWED_TOOLS_ROOT_FILES)}"))
-                continue
-            if not child.is_dir():
-                continue
-            if child.name in ALLOWED_TOOLS_SUBDIRS:
-                continue
-            issues.append(SweepIssue(kind='tree_policy', path=f'tools/{child.name}', detail=f"tools subdir '{child.name}' is not in allowed set {sorted(ALLOWED_TOOLS_SUBDIRS)}"))
     return issues
 
 def _check_tree_policy(paths: Iterable[Path]) -> List[SweepIssue]:
@@ -108,10 +110,6 @@ def _check_tree_policy(paths: Iterable[Path]) -> List[SweepIssue]:
             continue
         if len(parts) <= 1:
             continue
-        if parts[0] == 'tools':
-            allowed = len(parts) == 2 and parts[1] in ALLOWED_TOOLS_ROOT_FILES or (len(parts) >= 3 and parts[1] in ALLOWED_TOOLS_SUBDIRS)
-            if not allowed:
-                issues.append(SweepIssue(kind='tree_policy', path=p.as_posix(), detail=f"tracked tools path must be an approved root file or under tools/{' or tools/'.join(sorted(ALLOWED_TOOLS_SUBDIRS))}"))
     return issues
 
 def _is_text_candidate(path: Path) -> bool:
@@ -132,7 +130,10 @@ def _check_absolute_paths(repo_root: Path, paths: Iterable[Path]) -> List[SweepI
         except Exception:
             continue
         for line_no, line in enumerate(lines, start=1):
-            if WINDOWS_ABS_RE.search(line) or UNIX_ABS_RE.search(line):
+            checked_line = line
+            for fragment in VIRTUAL_FILESYSTEM_PATH_FRAGMENTS.get(rel_path, ()):
+                checked_line = checked_line.replace(fragment, '<virtual-filesystem>')
+            if WINDOWS_ABS_RE.search(checked_line) or UNIX_ABS_RE.search(checked_line):
                 preview = line.strip()
                 if len(preview) > 140:
                     preview = preview[:137] + '...'

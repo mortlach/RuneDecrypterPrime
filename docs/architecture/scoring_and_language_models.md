@@ -82,6 +82,8 @@ A scoring feature should state whether it ranks candidates, gates candidates,
 adds calibrated evidence or reports diagnostics only.
 
 Requested, active, unavailable and report-only states are kept distinct.
+Report-only diagnostics cannot change public or raw scores, candidate ranking,
+tie-breaking or stopping decisions.
 
 ## Search boundary
 

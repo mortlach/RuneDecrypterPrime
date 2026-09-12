@@ -73,7 +73,7 @@ acceptance rule directly from `CAMPAIGN_RECIPES`. It does not redefine them.
 Its WLI1+2 recipe is correctly supported by the `ci_light` asset profile.
 
 Pack 09's recursive source closure is recorded in
-`docs/release_contracts/v1/two_period_fixture_manifest.json`. Its smoke mode is
+[fixture_manifest.json](two_period_overlay/fixture_manifest.json). Its smoke mode is
 a bounded contract preflight. Its development mode is a long specialist run,
 requires the downloaded `full_v1` asset pack and must not be started as a
 normal test or tutorial.

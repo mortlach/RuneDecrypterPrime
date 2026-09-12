@@ -2,7 +2,7 @@
 
 The active master is `liber-primus__transcription--master-v2.txt`. Its `.part001`
 companion contains identical bytes for the release asset installer. The previous
-`liber-primus__transcription--master.txt` and its part remain historical references.
+`liber-primus__transcription--master.txt` remains a historical reference.
 There is one default loader and one parser for both encodings.
 
 Edit the master as UTF-8 text, keeping the existing delimiter legend, `/` line

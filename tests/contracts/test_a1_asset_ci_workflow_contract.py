@@ -3,8 +3,12 @@ from __future__ import annotations
 import ast
 import importlib.util
 import json
+import re
+import shlex
 import sys
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / '.github' / 'workflows'
@@ -61,6 +65,36 @@ def test_non_gate_workflows_are_manual_and_labelled_non_authoritative() -> None:
         assert '\n  push:\n' not in text
         assert '\n  pull_request:\n' not in text
         assert 'non-authoritative' in text.splitlines()[0]
+
+
+def test_manual_native_workflow_checks_the_canonical_public_api(monkeypatch, tmp_path: Path) -> None:
+    from rdp import api
+
+    text = (WORKFLOWS / 'rdp_v1_wheel_ci.yml').read_text(encoding='utf-8')
+    block = re.search(r'^      CIBW_TEST_COMMAND: >-\n((?:        .+\n)+)', text, re.M)
+    assert block is not None
+    command = shlex.split(' '.join(line.strip() for line in block[1].splitlines()))
+    assert command[:2] == ['python', '-c']
+    assert len(command) == 3
+    code = command[2].replace('{project}', ROOT.as_posix())
+    tree = ast.parse(code)
+    assert ast.unparse(tree.body[0]) == 'import runpy'
+    expected_call = ast.parse(
+        f"runpy.run_path('{ROOT.as_posix()}/tools/ci/a5_installed_wheel_smoke.py')['_assert_v1_public_contract']()"
+    ).body[0]
+    assert ast.dump(tree.body[1]) == ast.dump(expected_call)
+    assert [node.names[0].name for node in tree.body[2:] if isinstance(node, ast.Import)] == [
+        'rdp.scoring.language_model._fastlm',
+        'rdp.scoring.hamming._hamming',
+        'rdp.scoring.span_hamming._span_hamming_fast',
+    ]
+    # Exercise the workflow's API check outside the checkout CWD, without a build.
+    public_check = compile(ast.Module(body=tree.body[:2], type_ignores=[]), '<manual-wheel-api-check>', 'exec')
+    monkeypatch.chdir(tmp_path)
+    exec(public_check, {})
+    monkeypatch.setattr(api, '__all__', api.__all__[1:])
+    with pytest.raises(AssertionError, match='installed public surface mismatch'):
+        exec(public_check, {})
 
 def test_full_asset_integration_tests_are_explicitly_marked() -> None:
     assert 'pytest.mark.full_assets' in _decorator_names(ROOT / 'tests' / 'api' / 'test_two_period_cribs_api.py', 'test_real_route_returns_standard_exact_solution_with_installed_assets')

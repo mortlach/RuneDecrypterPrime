@@ -12,7 +12,7 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 import numpy as np
 REVIEW_PACK_SCHEMA = 'rdp.two_period_overlay.pack09_review_pack.v1'
 PACK09_EXPERIMENT_ID = 'p13_p31_one_word_d30_s2_discovery_panel_v1'
-FIXTURE_MANIFEST = Path('docs/release_contracts/v1/two_period_fixture_manifest.json')
+FIXTURE_MANIFEST = Path('cipher_development/two_period_overlay/fixture_manifest.json')
 _FIXED_ZIP_TIME = (1980, 1, 1, 0, 0, 0)
 _REFERENCE_KEYS = {'expected_key', 'expected_plaintext', 'ground_truth', 'known_key', 'known_plaintext', 'match_ratio', 'oracle', 'oracle_key', 'reference', 'reference_evaluation', 'reference_metrics', 'test_key', 'truth', 'truth_key', 'truth_metrics'}
 _REFERENCE_PREFIXES = ('oracle_', 'reference_', 'truth_')

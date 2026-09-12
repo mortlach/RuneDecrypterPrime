@@ -301,14 +301,3 @@ def test_native_checksum_step_binds_both_artifacts_to_source_sha(tmp_path, monke
     assert evidence.startswith(f'# Source commit: {SHA}\n')
     for name in ('wheelhouse/fixture.whl', 'dist/fixture.tar.gz'):
         assert f'{hashlib.sha256(name.encode()).hexdigest()}  {name}' in evidence
-
-
-def test_active_policy_documents_match_the_new_release_boundary():
-    for name in ('V1_RELEASE_ACCEPTANCE_GATES.md', 'V1_ASSET_AND_CI_PROFILES.md'):
-        text = (REPO_ROOT / 'docs/release_contracts/v1' / name).read_text(encoding='utf-8')
-        for phrase in ('workflow_dispatch', '`push` to `main`', '53/53 PASS',
-                       'python tools/run_validation.py', "RUN_SET = 'all'",
-                       'INCLUDE_LONG_P7C7_EXAMPLE = True', 'FULL_ASSET_EXAMPLES', 'CUDA'):
-            assert phrase in text, (name, phrase)
-        assert 'only automatic push and' not in text
-        assert 'one manual full-proof gate' not in text
