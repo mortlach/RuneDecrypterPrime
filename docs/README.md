@@ -46,6 +46,18 @@ The main route is:
 - [Ciphertext input](guides/ciphertext_input.md)
 - [Tutorials and examples](tutorials/README.md)
 
+## Try, share and contribute
+
+RDP is meant to be used for real experiments, not only read about.
+
+- [Try and share a Liber Primus attempt](../solving/attempts/README.md)
+- [Contributing to RDP](../CONTRIBUTING.md)
+- [Uncovering Cicada Wiki](https://uncovering-cicada.fandom.com/wiki/Uncovering_Cicada_Wiki) for wider Cicada 3301 background and current community links
+
+A small experiment can stay small. The deeper development material becomes useful
+when you want to turn an idea into a repeatable method or a maintained RDP feature.
+
+
 ## Reference
 
 - [API reference](reference/README.md)
@@ -56,7 +68,7 @@ The main route is:
 - [Experimental ciphers](reference/experimental.md)
 - [Public errors](reference/errors.md)
 
-## Development and contribution
+## Development
 
 - [Development map](development/README.md)
 - [Cipher development](development/cipher_development.md)

@@ -46,6 +46,7 @@ Choose the route that matches what you want to do next:
 - **Learn RDP:** [Learn RDP by solving](docs/learn/README.md)
 - **Solve Liber Primus:** [Start solving Liber Primus](solving/lp_getting_started/README.md)
 - **Develop or extend RDP:** [Extending RDP](docs/guides/extending_rdp.md)
+- **Try something and share it:** [Liber Primus attempts](solving/attempts/README.md) · [Contributing](CONTRIBUTING.md)
 
 The fuller [documentation index](docs/README.md) is there when you need more
 control or want to understand the internals.
@@ -126,6 +127,25 @@ RDP tries to keep the difference visible.
 
 It cannot prevent bad cryptanalysis. That would be an ambitious dependency. It
 can at least make it easier to tell what was actually done.
+
+## Try something and share it
+
+The quickest way to use RDP is to give yourself a concrete question and try it.
+Pick some Liber Primus text, choose a method, and see what happens. A period-10
+Vigenere test is already a perfectly reasonable experiment. So is changing one
+assumption in an existing example or trying a cipher idea of your own.
+
+If you want to share the result, keep the exact input file, the script, and a
+short note about what you tried. It does not have to recover plaintext to be
+useful. The point is that the next person can see what really ran instead of
+hearing that "somebody tried that once".
+
+See [Liber Primus attempts](solving/attempts/README.md). For wider Cicada 3301
+background and current community links, including places to find live discussion,
+start with the [Uncovering Cicada Wiki](https://uncovering-cicada.fandom.com/wiki/Uncovering_Cicada_Wiki).
+
+Bugs, feature requests and changes to RDP itself are covered in
+[Contributing](CONTRIBUTING.md).
 
 ## Start solving
 

@@ -31,29 +31,21 @@ problem input
 -> RunResult
 ```
 
-## One method from experiment to qualification
+## From a quick test to something worth keeping
 
-The same structure is used at different scales.
+RDP is meant to work at more than one level.
 
-A short solving script, a cipher-development experiment and a qualification
-campaign may use very different amounts of compute, but they still need to
-answer the same questions:
+At the light end, you can pick an LP input, change one thing and see what
+happens. If the test is worth sharing, keeping the input, script and result makes
+it much easier for somebody else to understand what was actually tried.
 
-```text
-cipher hypothesis
-key model
-search
-scoring evidence
-prior information
-evaluation
-reproducibility
-```
+If the idea grows into a real line of attack, the same pieces are still there:
+the cipher idea, key model, search, scoring, prior information and result. More
+careful development adds structure only where it becomes useful — for example a
+known benchmark, repeatable seed, fixed recipe or broader qualification.
 
-A promising idea can therefore move from a small comparison into focused
-development, production code and wider qualification without being rewritten
-into a different conceptual framework.
-
-The machinery becomes more capable. The experiment should remain legible.
+The machinery can become more capable without turning the original experiment
+into a different story.
 
 ## RunSpec records the experiment
 
@@ -150,6 +142,6 @@ See [Development](development/README.md).
 
 The public API, documentation, examples, data access, errors and reproducibility
 information must stand on their own outside any one development environment.
-V1 is a base for testing, sharing and extending cryptanalytic ideas, not a
+V1 is a base for trying, sharing and extending cryptanalytic ideas, not a
 frozen set of solver recipes. See [API reference](reference/README.md) for the
 current public surface.

@@ -44,14 +44,17 @@ generation, ranking or selection. This is diagnostic work, not independent recov
 See [Solved LP workbook](solved_lp/README.md) for the classification of each
 file.
 
-## Attempts
+## Share an attempt
 
-`attempts/` is for reproducible work on unsolved or diagnostic material.
+`attempts/` is where concrete LP experiments can be kept and shared. They can be
+small: an exact input file, a script, and a few lines saying what was tried and
+what happened are enough to start.
 
-An attempt should say what hypothesis is being tested, what source is used, what
-prior information is allowed and what outcome would be informative.
+More involved searches can record more detail when it matters. The point is not
+to make every attempt look like a formal study; it is to make it possible to
+know what was actually tested and to run it again.
 
-See [LP attempts](attempts/README.md).
+See [Sharing a Liber Primus attempt](attempts/README.md).
 
 ## Why the evidence label matters
 
