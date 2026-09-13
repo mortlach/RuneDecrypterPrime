@@ -25,7 +25,7 @@ See [Installation](installation.md) for the setup route and
 
 ## Normal CI
 
-The normal V1 CI runs on Windows and Ubuntu with Python 3.11.
+The normal V1 CI runs on Windows and Ubuntu with CPython 3.11, 3.12, 3.13 and 3.14.
 
 It verifies the bundled `ci_light` LM1/LM2 assets and selects pytest with
 `-m "not full_assets"`, followed by the release tutorial group. Tests that genuinely
@@ -38,7 +38,8 @@ behaviour.
 ## Full release check
 
 The full release workflow checks the complete V1 asset set and the tests and
-examples that depend on it.
+examples that depend on it on CPython 3.11. It also requires all eight desktop
+wheel builds for CPython 3.11–3.14 and the pinned Pyodide proof to pass.
 
 It is separate from the normal fast path because it answers a larger release
 question and costs more to run. Maintainers should follow the
@@ -60,8 +61,9 @@ The same distinction appears in
 
 ## Wheel check
 
-Wheel building has its own packaging check. It verifies that the package and
-compiled modules build and import correctly on the supported CI systems.
+Wheel building has its own packaging check for each Python/platform pair.
+It verifies that the package and compiled modules build, import and perform
+the installed public API checks correctly in an isolated environment.
 
 That proves packaging, not solver quality.
 

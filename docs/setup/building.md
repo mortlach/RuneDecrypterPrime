@@ -71,10 +71,38 @@ binary. Python-only edits are different, as explained in
 
 ## Wheel check
 
-The wheel workflow builds a CPython 3.11 wheel on Windows and Ubuntu, installs
-it, and checks the package and compiled scoring modules.
+The [Python wheel workflow](../../.github/workflows/rdp_v1_wheel_build_proof.yml)
+builds eight wheels: CPython 3.11, 3.12, 3.13 and 3.14 on Windows and Linux
+x86-64. Each job installs its wheel in an isolated environment, checks the
+native modules and public API operations, and verifies package contents.
+The routine CI matrix separately runs the CI-light tests and release tutorials
+on all four Python versions on Windows and Ubuntu.
 
-That is a packaging check rather than a full solver or asset qualification run.
+Package-related pull requests run the wheel workflow automatically. It can
+also be run manually, and the full release proof calls the same workflow.
+Each job uploads its packages and checksums. The final collection job verifies
+all eight wheels and produces one `rdp-v1-native-packages-<commit>` artifact
+containing the wheels, the Linux 3.11 source archive and `SHA256SUMS.txt`.
+The source archive is independent of the Python version used to install it.
+
+For additional wheels from an existing release, run the workflow manually from
+the branch containing the build changes and set `source_ref` to the release tag
+(for example, `v1.0.0`). The workflow resolves that reference once and uses the
+resulting commit for all eight package builds and CI-light test/tutorial jobs.
+The test environment supplies `setuptools` even when the old source does not list
+it as a test dependency. The source checkout is not patched.
+
+The job summaries and `SHA256SUMS.txt` record the package source commit separately
+from the workflow run commit. The combined package artifact is produced only after
+all builds and any requested source-validation jobs pass. With `source_ref` blank,
+normal PR and full-proof builds use their triggering commit, as before.
+
+These are CI artifacts tied to the checked-out commit. Published downloads are
+listed on the [releases page](https://github.com/mortlach/RuneDecrypterPrime/releases).
+
+The canonical 53-job solver and full-asset validation remains on Python 3.11.
+Pyodide uses its separate pinned WebAssembly environment; these desktop builds
+do not extend the CUDA or other platform qualification.
 
 See [Install validation](install_validation.md) for the distinction between
 routine, full and qualification checks.

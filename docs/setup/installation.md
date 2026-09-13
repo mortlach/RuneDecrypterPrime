@@ -1,7 +1,7 @@
 # Installation
 
-RDP needs Python 3.11 or newer. V1 is tested on Python 3.11 on Windows and
-Ubuntu.
+RDP needs Python 3.11 or newer. Routine CI tests CPython 3.11, 3.12, 3.13 and
+3.14 on Windows and Ubuntu. The longer 53-job release validation runs on 3.11.
 
 From the repository root:
 
@@ -31,6 +31,48 @@ sure the V1 language files are available, and checks the install at the end.
 
 It uses the Python environment that launched it. It does not create or select
 an environment for you.
+
+For example, `python3.12 install.py` on Linux builds and installs RDP for that
+Python 3.12 environment. To use a virtual environment, create it with the
+Python version you want, then run the installer with that environment's Python.
+The source installer builds locally; it does not download a prebuilt RDP wheel
+or switch Python versions.
+
+## Download and install V1 from the command line
+
+These commands download the `v1.0.0` source, create a separate Python environment,
+and run the full installer, including the LM3/LM4 asset downloads and installation
+checks. They build the native modules locally.
+
+Start in the parent folder where you want RDP. You need Git, an installed 64-bit
+CPython 3.11–3.14, and the [compiler prerequisites](building.md#compiler-prerequisites).
+On Linux, install your distribution's venv support and matching Python development
+headers too. The commands create `RDP-v1` and `rdp-v1-env`; use unused folder names.
+
+**Windows PowerShell:**
+
+```powershell
+cmd /c "git clone --depth 1 --branch v1.0.0 https://github.com/mortlach/RuneDecrypterPrime.git RDP-v1 && py -3 -m venv rdp-v1-env && cd RDP-v1 && ..\rdp-v1-env\Scripts\python.exe -m pip install setuptools && ..\rdp-v1-env\Scripts\python.exe install.py"
+```
+
+`cmd /c` lets the same line work in Windows PowerShell 5.1 and PowerShell 7;
+each step runs only if the preceding step succeeds. The `py` launcher uses your
+installed Python 3. To choose a particular installed version, replace `py -3`
+with, for example, `py -3.12`.
+
+**Linux (bash or sh):**
+
+```bash
+git clone --depth 1 --branch v1.0.0 https://github.com/mortlach/RuneDecrypterPrime.git RDP-v1 && python3 -m venv rdp-v1-env && cd RDP-v1 && ../rdp-v1-env/bin/python -m pip install setuptools && ../rdp-v1-env/bin/python install.py
+```
+
+`python3` must be one of the versions above. Replace it with `python3.12`, for
+example, to select that installed interpreter. No environment activation or
+system-Python override is needed. The explicit `setuptools` installation supplies
+a test dependency omitted from the original V1 source's test extras.
+
+Afterwards, open `RDP-v1` and use `..\rdp-v1-env\Scripts\python.exe` on Windows,
+or `../rdp-v1-env/bin/python` on Linux, in place of `python` in the commands below.
 
 ## Externally managed Python on Linux
 
@@ -102,6 +144,13 @@ The tutorial groups and their purpose are described in
 [Tutorials and examples](../tutorials/README.md).
 
 ## Installing a built wheel
+
+Choose a wheel matching your Python version, operating system and architecture.
+For example, `cp312-cp312` is for CPython 3.12, and `win_amd64` is for 64-bit
+x86 Windows. Linux x86-64 wheels use `manylinux` platform tags. Each wheel works
+with the matching Python minor version; a 3.11 wheel cannot be used with 3.12.
+See the [release downloads](https://github.com/mortlach/RuneDecrypterPrime/releases)
+for the published files.
 
 For an existing wheel:
 

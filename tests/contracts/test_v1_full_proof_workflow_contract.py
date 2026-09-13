@@ -16,6 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = REPO_ROOT / '.github/workflows'
 PUSH_GATE = WORKFLOWS / 'rdp_v1_full_ci.yml'
 FULL_PROOF = WORKFLOWS / 'rdp_v1_full_proof.yml'
+PACKAGES = WORKFLOWS / 'rdp_v1_wheel_build_proof.yml'
 SHA = 'a' * 40
 pytestmark = pytest.mark.tier_a
 
@@ -24,6 +25,9 @@ def _job(name: str, workflow: Path = FULL_PROOF) -> str:
     text = workflow.read_text(encoding='utf-8')
     match = re.search(rf'^  {re.escape(name)}:\n(.*?)(?=^  [\w-]+:\n|\Z)', text, re.M | re.S)
     assert match, name
+    if workflow == FULL_PROOF and name == 'native-packages':
+        assert 'uses: ./.github/workflows/rdp_v1_wheel_build_proof.yml' in match[1]
+        return _job('build-packages', PACKAGES)
     return match[1]
 
 
@@ -91,9 +95,13 @@ def test_independent_jobs_and_fail_fast_false_matrices():
         assert 'runs-on: ${{ matrix.os }}' in job
         assert 'fail-fast: false' in job
         assert 'python-version: "3.11"' in job
-        assert '\n    needs:' not in job
-    for name in ('native-validation', 'native-packages', 'pyodide'):
+        if name == 'native-validation':
+            assert '\n    needs:' not in job
+        else:
+            assert 'needs: resolve-source' in job
+    for name in ('native-validation', 'pyodide'):
         assert 'ref: ${{ github.sha }}' in _job(name)
+    assert 'ref: ${{ needs.resolve-source.outputs.sha }}' in _job('native-packages')
 
 
 def test_full_native_validation_uses_the_real_catalogue_without_overrides():
@@ -124,15 +132,21 @@ def test_full_native_validation_uses_the_real_catalogue_without_overrides():
 
 def test_native_packages_reuse_qualified_build_and_installed_artifact_contracts():
     job = _job('native-packages')
-    qualified = _job('build-packages', WORKFLOWS / 'rdp_v1_wheel_build_proof.yml')
-    for name in ('Install package-build drivers', 'Build and isolate-test CPython 3.11 wheels',
-                 'Build source distribution', 'Validate wheel and sdist boundaries'):
-        assert _run(_steps(job)[name]) == _run(_steps(qualified)[name])
-    for setting in ('CIBW_BUILD: "cp311-*"', 'CIBW_SKIP: "*-musllinux_*"',
+    for version in ('3.11', '3.12', '3.13', '3.14'):
+        tag = 'cp' + version.replace('.', '')
+        assert f'{{version: "{version}", tag: "{tag}"}}' in job
+        assert f'          - "{version}"' in PUSH_GATE.read_text(encoding='utf-8')
+    assert len(re.findall(r'\{version:', job)) == 4
+    for setting in ('CIBW_BUILD: "${{ matrix.python.tag }}-*"', 'CIBW_SKIP: "*-musllinux_*"',
                     'python {project}/tools/ci/a5_installed_wheel_smoke.py'):
-        assert setting in job and setting in qualified
+        assert setting in job
+    steps = _steps(job)
+    assert _run(steps['Build and isolate-test the selected CPython wheel']) == 'python -m cibuildwheel --output-dir wheelhouse'
+    assert _run(steps['Validate wheel and sdist boundaries']) == 'python tools/ci/a5_artifact_contract.py'
     assert 'python install.py' not in job
     assert 'CIBW_ARCHS_WINDOWS: "AMD64"' in job
+    assert 'CIBW_ARCHS_LINUX: "x86_64"' in job
+    assert 'matrix.python.version' in steps['Upload proven native package artifacts']
     smoke = (REPO_ROOT / 'tools/ci/a5_installed_wheel_smoke.py').read_text(encoding='utf-8')
     for module in ('rdp.scoring.language_model._fastlm', 'rdp.scoring.hamming._hamming',
                    'rdp.scoring.span_hamming._span_hamming_fast'):
@@ -194,7 +208,8 @@ def test_evidence_uploads_are_sha_identified_and_failures_keep_native_logs():
         for step in _steps(_job(name)).values():
             if 'uses: actions/upload-artifact@v4' in step:
                 artifact_name = re.search(r'^          name: (.*)$', step, re.M)
-                assert artifact_name and '${{ github.sha }}' in artifact_name[1]
+                source = '${{ needs.resolve-source.outputs.sha }}' if name == 'native-packages' else '${{ github.sha }}'
+                assert artifact_name and source in artifact_name[1]
                 if name != 'pyodide':
                     assert '${{ matrix.os }}' in artifact_name[1]
                 assert 'overwrite: true' in step
@@ -217,6 +232,9 @@ def test_all_inline_python_steps_compile_without_expression_injection():
         for step_name, step in _steps(_job(name)).items():
             if 'shell: python' in step:
                 compile(_code(name, step_name), '<workflow-python>', 'exec')
+    code = _run(_steps(_job('collect-packages', PACKAGES))['Verify and collect the complete native package set'])
+    assert '$' + '{{' not in code
+    compile(code, '<package-collection>', 'exec')
 
 
 @pytest.mark.parametrize('defect', [None, 'missing', 'malformed', 'short', 'failed_job',
@@ -304,14 +322,126 @@ def test_final_summary_rejects_missing_or_invalid_platform_evidence(tmp_path, mo
 
 def test_native_checksum_step_binds_both_artifacts_to_source_sha(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv('GITHUB_SHA', SHA)
+    monkeypatch.setenv('GITHUB_SHA', 'b' * 40)
+    monkeypatch.setenv('SOURCE_SHA', SHA)
+    monkeypatch.setenv('WHEEL_TAG', 'cp312')
+    monkeypatch.setenv('PROOF_OS', 'windows-latest')
     monkeypatch.setattr(subprocess, 'check_output', lambda *args, **kwargs: SHA + '\n')
-    for name in ('wheelhouse/fixture.whl', 'dist/fixture.tar.gz'):
+    names = ('wheelhouse/fixture-1.0.0-cp312-cp312-win_amd64.whl', 'dist/fixture.tar.gz')
+    for name in names:
         path = tmp_path / name
         path.parent.mkdir()
         path.write_bytes(name.encode())
     exec(compile(_code('native-packages', 'Record native artifact identity and checksums'), '<checksums>', 'exec'), {})
     evidence = (tmp_path / 'output/package-proof/SHA256SUMS.txt').read_text()
     assert evidence.startswith(f'# Source commit: {SHA}\n')
-    for name in ('wheelhouse/fixture.whl', 'dist/fixture.tar.gz'):
+    for name in names:
         assert f'{hashlib.sha256(name.encode()).hexdigest()}  {name}' in evidence
+
+
+def test_selected_source_is_resolved_once_for_builds_tests_and_collection(tmp_path, monkeypatch):
+    packages = PACKAGES.read_text(encoding='utf-8')
+    for event in ('workflow_dispatch', 'workflow_call'):
+        assert f'  {event}:\n    inputs:\n      source_ref:' in packages
+    resolver = _job('resolve-source', PACKAGES)
+    assert 'ref: ${{ inputs.source_ref || github.sha }}' in resolver
+    code = _run(_steps(resolver)['Record resolved source commit'])
+    monkeypatch.setenv('GITHUB_SHA', 'b' * 40)
+    monkeypatch.setenv('GITHUB_OUTPUT', str(tmp_path / 'output'))
+    monkeypatch.setenv('GITHUB_STEP_SUMMARY', str(tmp_path / 'summary'))
+    monkeypatch.setattr(subprocess, 'check_output', lambda *args, **kwargs: SHA + '\n')
+    exec(compile(code, '<resolve-source>', 'exec'), {})
+    assert (tmp_path / 'output').read_text() == f'sha={SHA}\n'
+    assert SHA in (tmp_path / 'summary').read_text()
+    assert 'b' * 40 in (tmp_path / 'summary').read_text()
+    selected = _job('validate-source', PACKAGES)
+    assert "if: ${{ inputs.source_ref != '' }}" in selected
+    assert 'uses: ./.github/workflows/rdp_v1_full_ci.yml' in selected
+    assert 'source_ref: ${{ needs.resolve-source.outputs.sha }}' in selected
+    gate = PUSH_GATE.read_text(encoding='utf-8')
+    assert 'ref: ${{ inputs.source_ref || github.sha }}' in gate
+    assert "assert sha == os.environ['SOURCE_SHA']" in gate
+    assert "'pip', 'install', 'setuptools'" in gate
+    for job in ('build-packages', 'collect-packages'):
+        assert 'SOURCE_SHA: ${{ needs.resolve-source.outputs.sha }}' in _job(job, PACKAGES)
+    collection = _job('collect-packages', PACKAGES)
+    assert 'needs: [resolve-source, build-packages, validate-source]' in collection
+    assert "needs.build-packages.result == 'success'" in collection
+    assert "needs.validate-source.result == 'success' || needs.validate-source.result == 'skipped'" in collection
+
+
+def test_native_checksums_reject_a_checkout_that_is_not_the_selected_source(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('SOURCE_SHA', SHA)
+    monkeypatch.setattr(subprocess, 'check_output', lambda *args, **kwargs: 'b' * 40 + '\n')
+    with pytest.raises(AssertionError):
+        exec(compile(_code('native-packages', 'Record native artifact identity and checksums'), '<checksums>', 'exec'), {})
+    assert not (tmp_path / 'output/package-proof/SHA256SUMS.txt').exists()
+
+
+@pytest.mark.parametrize('filename', [
+    'fixture-1.0.0-cp311-cp311-win_amd64.whl',
+    'fixture-1.0.0-cp312-cp312-win32.whl',
+    'fixture-1.0.0-cp312-cp312-manylinux_2_28_x86_64.whl',
+])
+def test_native_checksum_step_rejects_wrong_python_or_platform(tmp_path, monkeypatch, filename):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('GITHUB_SHA', 'b' * 40)
+    monkeypatch.setenv('SOURCE_SHA', SHA)
+    monkeypatch.setenv('WHEEL_TAG', 'cp312')
+    monkeypatch.setenv('PROOF_OS', 'windows-latest')
+    monkeypatch.setattr(subprocess, 'check_output', lambda *args, **kwargs: SHA + '\n')
+    for name in ('wheelhouse/' + filename, 'dist/fixture.tar.gz'):
+        path = tmp_path / name
+        path.parent.mkdir()
+        path.write_bytes(b'fixture')
+    with pytest.raises(AssertionError):
+        exec(compile(_code('native-packages', 'Record native artifact identity and checksums'), '<checksums>', 'exec'), {})
+    assert not (tmp_path / 'output/package-proof/SHA256SUMS.txt').exists()
+
+
+@pytest.mark.parametrize('defect', [None, 'missing', 'wrong_sha', 'corrupt', 'duplicate', 'wrong_python'])
+def test_native_bundle_requires_all_eight_verified_wheels(tmp_path, monkeypatch, defect):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('GITHUB_SHA', 'b' * 40)
+    monkeypatch.setenv('SOURCE_SHA', SHA)
+    monkeypatch.setenv('GITHUB_STEP_SUMMARY', str(tmp_path / 'summary.md'))
+    last_wheel = None
+    for platform in ('windows-latest', 'ubuntu-latest'):
+        for version in ('3.11', '3.12', '3.13', '3.14'):
+            folder = tmp_path / 'packages' / f'rdp-v1-packages-{platform}-py{version}-{SHA}'
+            tag = 'cp' + version.replace('.', '')
+            suffix = 'win_amd64' if platform == 'windows-latest' else 'manylinux_2_28_x86_64'
+            wheel = folder / 'wheelhouse' / f'fixture-1.0.0-{tag}-{tag}-{suffix}.whl'
+            sdist = folder / 'dist/fixture-1.0.0.tar.gz'
+            lines = [f'# Source commit: {SHA}']
+            for path in (wheel, sdist):
+                path.parent.mkdir(parents=True)
+                path.write_bytes(f'{platform} {version}'.encode())
+                lines.append(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.relative_to(folder).as_posix()}')
+            checksum = folder / 'output/package-proof/SHA256SUMS.txt'
+            checksum.parent.mkdir(parents=True)
+            checksum.write_text('\n'.join(lines) + '\n')
+            last_wheel = wheel
+    if defect == 'missing':
+        last_wheel.unlink()
+    elif defect == 'wrong_sha':
+        checksum.write_text(checksum.read_text().replace(SHA, 'b' * 40))
+    elif defect == 'corrupt':
+        last_wheel.write_bytes(b'tampered')
+    elif defect == 'duplicate':
+        (last_wheel.parent / 'extra.whl').write_bytes(b'extra')
+    elif defect == 'wrong_python':
+        last_wheel.rename(last_wheel.with_name(last_wheel.name.replace('cp314', 'cp310')))
+    code = _run(_steps(_job('collect-packages', PACKAGES))['Verify and collect the complete native package set'])
+    if defect:
+        with pytest.raises((AssertionError, FileNotFoundError)):
+            exec(compile(code, '<package-collection>', 'exec'), {})
+        assert not (tmp_path / 'release-packages/SHA256SUMS.txt').exists()
+    else:
+        exec(compile(code, '<package-collection>', 'exec'), {})
+        destination = tmp_path / 'release-packages'
+        assert len(list(destination.glob('*.whl'))) == 8
+        assert len(list(destination.glob('*.tar.gz'))) == 1
+        assert len((destination / 'SHA256SUMS.txt').read_text().splitlines()) == 10
+        assert (destination / 'fixture-1.0.0.tar.gz').read_bytes() == b'ubuntu-latest 3.11'

@@ -12,6 +12,12 @@ on:
       - "prelease/**"
       - "docs/v1-final-integration"
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      source_ref:
+        description: 'Resolved source commit supplied by the wheel workflow'
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -33,16 +39,35 @@ jobs:
           - ubuntu-latest
         python-version:
           - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref || github.sha }}
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
+
+      - name: Verify selected source and prepare test tooling
+        shell: python
+        env:
+          SOURCE_SHA: ${{ inputs.source_ref || github.sha }}
+        run: |
+          import os, subprocess, sys
+          sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          assert sha == os.environ['SOURCE_SHA'], 'Wrong test source commit'
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write(f'Test source commit: `{sha}`\n')
+          # Older release sources omit this packaging-test dependency.
+          subprocess.run([sys.executable, '-m', 'pip', 'install', 'setuptools'], check=True)
 
       - name: Install and verify the canonical ci_light asset profile
         run: python tools/ci/install_light.py

@@ -33,6 +33,7 @@ community-organiser = [
 ]
 dev = [
   "pytest>=8.0",
+  "setuptools>=68",
   "ruff>=0.5.0",
   "mypy>=1.11.0",
   "pre-commit>=3.0",
@@ -40,6 +41,7 @@ dev = [
 ]
 test = [
   "pytest>=8.0",
+  "setuptools>=68",
   "jsonschema>=4.23.0",
 ]
 torch = [
