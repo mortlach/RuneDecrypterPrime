@@ -187,6 +187,7 @@ jobs:
     env:
       CIBW_BUILD: "cp311-*"
       CIBW_SKIP: "*-musllinux_*"
+      CIBW_ARCHS_WINDOWS: "AMD64"
       CIBW_TEST_COMMAND: >-
         python {project}/tools/ci/a5_installed_wheel_smoke.py
 
@@ -350,7 +351,7 @@ jobs:
           node tools/pyodide/run_smoke.mjs
           test -z "$(git status --porcelain)"
 
-      - name: Focused native safety checks (28 tests)
+      - name: Focused native safety checks (29 tests)
         run: |
           # Build outside the checkout, without activating Emscripten here.
           python -m venv "$RUNNER_TEMP/rdp-native-env"
@@ -406,7 +407,7 @@ jobs:
           assert set(checks) == {f'B{i}' for i in range(1, 9)}
           assert all(check['status'] == 'PASS' for check in checks.values())
           suites = ET.parse(Path(os.environ['RUNNER_TEMP']) / 'rdp-native.xml').findall('testsuite')
-          assert sum(int(s.attrib['tests']) for s in suites) == 28
+          assert sum(int(s.attrib['tests']) for s in suites) == 29
           assert all(int(s.attrib[field]) == 0 for s in suites for field in ('failures', 'errors', 'skipped'))
           version = tomllib.loads(Path('pyproject.toml').read_text())['project']['version']
           rows = [
@@ -416,7 +417,7 @@ jobs:
               ('Emscripten', pins['emscripten']), ('Node', pins['node']),
               ('Wheel', wheel.name), ('SHA-256', digest), ('Bytes', build['size_bytes']),
               ('Build seconds', f"{build['build_seconds']:.2f}"),
-              ('Smoke seconds', f"{smoke['seconds']:.2f}"), ('Native tests', '28 PASS'),
+              ('Smoke seconds', f"{smoke['seconds']:.2f}"), ('Native tests', '29 PASS'),
           ]
           lines = ['## RDP V1 Pyodide wheel proof', '', '| Item | Result |', '| --- | --- |']
           lines += [f'| {name} | `{value}` |' for name, value in rows]
@@ -489,7 +490,7 @@ jobs:
           rows += [
               ('53-job validation matrix', 'PASS' if native_pass else 'FAIL'),
               ('Native wheels / sdists / installed-artifact proof', 'PASS' if os.environ['PACKAGE_RESULT'] == 'success' else 'FAIL'),
-              ('Pyodide B1-B8 / 28 native safety tests', 'PASS' if os.environ['PYODIDE_RESULT'] == 'success' else 'FAIL'),
+              ('Pyodide B1-B8 / 29 native safety tests', 'PASS' if os.environ['PYODIDE_RESULT'] == 'success' else 'FAIL'),
               ('CUDA', 'Not exercised by hosted workflow; prior qualified CUDA validation is separate'),
               ('Overall release proof', 'PASS' if overall else 'FAIL'),
           ]

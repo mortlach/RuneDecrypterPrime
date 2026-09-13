@@ -132,6 +132,7 @@ def test_native_packages_reuse_qualified_build_and_installed_artifact_contracts(
                     'python {project}/tools/ci/a5_installed_wheel_smoke.py'):
         assert setting in job and setting in qualified
     assert 'python install.py' not in job
+    assert 'CIBW_ARCHS_WINDOWS: "AMD64"' in job
     smoke = (REPO_ROOT / 'tools/ci/a5_installed_wheel_smoke.py').read_text(encoding='utf-8')
     for module in ('rdp.scoring.language_model._fastlm', 'rdp.scoring.hamming._hamming',
                    'rdp.scoring.span_hamming._span_hamming_fast'):
@@ -152,6 +153,14 @@ def test_catalogue_preflight_runs_from_a_temporary_python_script(tmp_path):
 
 def test_pyodide_procedure_is_exactly_the_qualified_manual_recipe():
     qualified = _steps(_job('pyodide-wheel', WORKFLOWS / 'rdp_v1_pyodide_wheel.yml'))
+    # The full proof corrects the legacy recipe's stale test count only.
+    qualified = {
+        name.replace('(28 tests)', '(29 tests)'): step.replace(
+            "assert sum(int(s.attrib['tests']) for s in suites) == 28",
+            "assert sum(int(s.attrib['tests']) for s in suites) == 29",
+        ).replace("('Native tests', '28 PASS')", "('Native tests', '29 PASS')")
+        for name, step in qualified.items()
+    }
     release = _steps(_job('pyodide'))
     assert release.keys() == qualified.keys()
     for name, step in qualified.items():
@@ -160,10 +169,15 @@ def test_pyodide_procedure_is_exactly_the_qualified_manual_recipe():
     job = _job('pyodide')
     for token in ('timeout-minutes: 20', 'tools/pyodide/versions.json',
                   'bash tools/pyodide/build_wheel.sh', 'node tools/pyodide/run_smoke.mjs',
-                  'dirname -- "$EMSDK_NODE"', "{f'B{i}' for i in range(1, 9)}", '== 28',
+                  'dirname -- "$EMSDK_NODE"', "{f'B{i}' for i in range(1, 9)}", '== 29',
                   "('failures', 'errors', 'skipped')", "build['source_revision'] == os.environ['GITHUB_SHA']",
                   "build['sha256'] == smoke['wheel']['sha256'] == digest"):
         assert token in job
+    assert 'Focused native safety checks (29 tests)' in job
+    assert "('Native tests', '29 PASS')" in job
+    text = FULL_PROOF.read_text(encoding='utf-8')
+    assert 'Pyodide B1-B8 / 29 native safety tests' in text
+    assert not re.search(r'\b28\b', text)
 
 
 def test_evidence_uploads_are_sha_identified_and_failures_keep_native_logs():
