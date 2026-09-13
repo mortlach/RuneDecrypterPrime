@@ -11,12 +11,12 @@ If the RDP run model itself is still new, start with
 Read the files in this order:
 
 1. [`load_source.py`](load_source.py) loads Welcome Pilgrim and inspects its
-   identity and numeric data.
+   identity and numeric data
 2. [`prepare_search.py`](prepare_search.py) builds the reviewed period-8
-   Vigenere search without starting it.
+   Vigenere search without starting it
 3. [`run_search.py`](run_search.py) runs the prepared Beam search over the
    eight-value repeating key and 11-interruptor search, then prints the
-   structured result. Runtime depends on the machine and installed scorer.
+   structured result. Runtime depends on the machine and installed scorer
 
 From the repository root:
 

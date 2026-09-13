@@ -13,8 +13,8 @@ See [CPU, CUDA and scoring](setup/scorer_backend_selection.md).
 
 For a normal `RunSpec`, RDP has two public input types:
 
-- `RuneInput` for inferred or explicitly tagged text and rune indices,
-- `SourceReferenceInput` for a registered source such as Liber Primus.
+- `RuneInput` for inferred or explicitly tagged text and rune indices
+- `SourceReferenceInput` for a registered source such as Liber Primus
 
 See [Ciphertext input](guides/ciphertext_input.md).
 

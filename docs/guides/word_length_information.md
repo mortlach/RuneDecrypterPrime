@@ -80,13 +80,13 @@ is `WordLengthPolicy.INFER`.
 
 - `INFER` derives WLI from text boundaries, preserves WLI supplied with index
   input, and preserves WLI resolved from a registered source. If none is
-  available, it remains `None`.
+  available, it remains `None`
 - `REQUIRE` accepts only materialised input with aligned WLI and fails before
   solver execution when WLI is missing. It does not invent a single-word
-  boundary model.
+  boundary model
 - `DISABLED` removes WLI after input or source materialisation. It can be used
   with character-only scoring, but a scoring configuration that requires the
-  WLI lane is rejected rather than silently changed.
+  WLI lane is rejected rather than silently changed
 
 The full field definition is in
 [RunSpec parameters](../reference/parameters/run_spec.md).

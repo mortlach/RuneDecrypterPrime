@@ -18,10 +18,10 @@ api.RuneInput(
 
 Inference rules, in order:
 
-1. An integer sequence is `INDICES`.
-2. Text containing rune glyphs is `RUNES`.
-3. Text containing `·` or `|` is `RUNE_LATIN`.
-4. Other Latin text is `ENGLISH`.
+1. An integer sequence is `INDICES`
+2. Text containing rune glyphs is `RUNES`
+3. Text containing `·` or `|` is `RUNE_LATIN`
+4. Other Latin text is `ENGLISH`
 
 `RuneInputFormat` values are `INDICES`, `RUNES`, `RUNE_LATIN`, and `ENGLISH`.
 RuneLatin accepts `|` on input but renders with `·`. Spaces delimit words in

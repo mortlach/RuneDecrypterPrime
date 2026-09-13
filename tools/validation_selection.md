@@ -431,7 +431,7 @@ are determined at runtime; file counts are not individual test counts.
 
 - `tutorials/v1/examples/periodic_substitution.py`: long qualification
 - `tutorials/v1/examples/periodic_substitution_p7.py`: long qualification
-- Campaign entry points under `tools/robustness/`.
-- Development/attempt entry points under `cipher_development/` and `solving/attempts/`.
+- Campaign entry points under `tools/robustness/`
+- Development/attempt entry points under `cipher_development/` and `solving/attempts/`
 
 The test job is `python -m pytest -q -p no:cacheprovider tests` with the listed test exclusions and external JUnit/temp paths. Full-assets tests are included. Optional Torch/CUDA tests retain their own skip behavior. Existing internal test/example bounds are not modified.

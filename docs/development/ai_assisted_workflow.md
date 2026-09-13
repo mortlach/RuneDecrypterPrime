@@ -15,17 +15,17 @@ particular development tool.
 A few habits have made AI-assisted work much more useful during RDP development:
 
 - give the tool the current API and documentation rather than asking it to
-  invent an interface;
-- start with a small experiment that can actually be run;
+  invent an interface
+- start with a small experiment that can actually be run
 - use solved material or another known case when you need to check that the
-  machinery works;
+  machinery works
 - inspect the real inputs and effective settings rather than trusting a
-  plausible description of what ran;
-- keep tests that expose a genuine boundary or regression;
+  plausible description of what ran
+- keep tests that expose a genuine boundary or regression
 - use longer robustness runs only when the question needs more than one good
-  example;
+  example
 - review the result as code and evidence, not as an answer that becomes true
-  because a model produced it.
+  because a model produced it
 
 The tools are especially good at accelerating the mechanical parts of an
 investigation: wiring an experiment together, comparing variants, reading a

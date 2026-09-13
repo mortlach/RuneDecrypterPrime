@@ -54,10 +54,10 @@ when intentionally changing the number of standalone programs.
 Every invocation creates a unique run directory under `OUTPUT_ROOT`, with:
 
 - `summary.json`: source commit, dirty-file list, Python version, exclusions,
-  commands, results, timings, and pending/not-run jobs;
-- one UTF-8 `.log` per job, written as the subprocess emits output;
-- pytest JUnit XML, including skipped-test details;
-- per-job `_artifacts/` folders for generated native outputs.
+  commands, results, timings, and pending/not-run jobs
+- one UTF-8 `.log` per job, written as the subprocess emits output
+- pytest JUnit XML, including skipped-test details
+- per-job `_artifacts/` folders for generated native outputs
 
 The shared [output policy](../docs/development/output_locations.md) chooses the
 base directory. Validation uses its `validation/` child unless `OUTPUT_ROOT`

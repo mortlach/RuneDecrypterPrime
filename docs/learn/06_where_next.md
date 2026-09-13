@@ -10,11 +10,11 @@ If the small examples are enough for what you want to try, keep using them.
 If you want to move into genuine solved Liber Primus material:
 
 - [Getting started with Liber Primus](../../solving/getting_started/README.md)
-  is the shortest load, prepare and run bridge.
+  is the shortest load, prepare and run bridge
 - [Start solving Liber Primus](../../solving/lp_getting_started/README.md)
-  works through real examples while keeping the cryptanalytic choices visible.
+  works through real examples while keeping the cryptanalytic choices visible
 - [Solved LP workbook](../../solving/solved_lp/README.md) contains the detailed
-  replay, recovery and diagnostic evidence once you need it.
+  replay, recovery and diagnostic evidence once you need it
 
 ## Use more of RDP
 

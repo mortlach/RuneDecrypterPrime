@@ -38,9 +38,9 @@ required.
 
 - `smoke`: P1/C2 contract preflight using the same candidate-reduction and
   public-solver path. It passes on coherent completion and records recovery
-  diagnostically; only the P7/C7 qualification claims an exact solve.
+  diagnostically; only the P7/C7 qualification claims an exact solve
 - `qualification`: P7/C7, 2,489 runes, full assets and a 60-minute wall-clock
-  limit.
+  limit
 
 ## V2 reduction
 
@@ -53,18 +53,18 @@ minimal passing recipe to qualify before any further runtime reduction.
 
 The fixed v2 recipe passed its P7/C7 qualification on 1 September 2026:
 
-- exact plaintext recovery: yes (2,489 of 2,489 symbols);
+- exact plaintext recovery: yes (2,489 of 2,489 symbols)
 - exact concrete-key recovery: no, because unused substitution-table entries
-  remain non-identifiable and are not required for plaintext recovery;
-- elapsed time: 36 minutes 38 seconds;
+  remain non-identifiable and are not required for plaintext recovery
+- elapsed time: 36 minutes 38 seconds
 - candidate reduction: 384 heads to one head, 5,040 exhaustive C7 tails to one
-  complete key;
+  complete key
 - integrated refinement: one initial key, one restart, 933 steps and 537,411
-  solver evaluations; the solver changed 147 of the seed's 210 key positions;
+  solver evaluations; the solver changed 147 of the seed's 210 key positions
 - solver termination: the normal `no_improve_360` budget condition, after the
-  exact plaintext had already become the best-scoring result;
+  exact plaintext had already become the best-scoring result
 - recipe/configuration: `periodic_columnar_decomposed_v2` / configuration hash
-  `85669848982da5ae1dc6f70a8d9824e416fc4c25`.
+  `85669848982da5ae1dc6f70a8d9824e416fc4c25`
 
 The retained head and tail were selected entirely by the declared char and WLI
 scores. The benchmark key was used only to encrypt the fixed benchmark fixture.
@@ -81,10 +81,10 @@ and transcript
 `run_outputs/tests/periodic_columnar_staged/p7c7_qualification_20260901_012544.log`.
 Its principal SHA-256 values are:
 
-- experiment result: `01ea286b76c3ab2ec76b5d44c8d8ef9686d7b73e1f5e2a6482ca4d9b92fde8d6`;
-- candidate search: `4637836ec382196d51e7fc58549224fe466c0998711935ff3efd55fe0ea2a64c`;
-- terminal evaluation: `321effee1da38e36d86b8ccaf825d7fa57430a2a17044f760e869d928df355ca`;
-- transcript: `1a5c7c80634b8be3d05d6a0b7f3ee81f589ad39172e8b3921c73ca3b208a70a3`.
+- experiment result: `01ea286b76c3ab2ec76b5d44c8d8ef9686d7b73e1f5e2a6482ca4d9b92fde8d6`
+- candidate search: `4637836ec382196d51e7fc58549224fe466c0998711935ff3efd55fe0ea2a64c`
+- terminal evaluation: `321effee1da38e36d86b8ccaf825d7fa57430a2a17044f760e869d928df355ca`
+- transcript: `1a5c7c80634b8be3d05d6a0b7f3ee81f589ad39172e8b3921c73ca3b208a70a3`
 
 The run metadata records branch `an3/v1-api-implementation`, HEAD `8452a6c`,
 and `git.dirty=true`: v2 was deliberately qualified before committing. The

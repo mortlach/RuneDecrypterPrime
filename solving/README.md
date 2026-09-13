@@ -10,12 +10,12 @@ route that matches what you want to do:
 
 - [Getting started with Liber Primus](getting_started/README.md) is the compact
   code bridge: load a source, prepare the reviewed Welcome Pilgrim search, then
-  run it.
+  run it
 - [Start solving Liber Primus](lp_getting_started/README.md) is the gentler
   worked route through real solved material. It leaves the cryptanalytic choices
-  visible and builds from small experiments.
+  visible and builds from small experiments
 - [Solved LP workbook](solved_lp/README.md) contains the detailed replay,
-  recovery and diagnostic examples used as evidence.
+  recovery and diagnostic examples used as evidence
 
 The examples are evidence, not all the same kind of evidence.
 

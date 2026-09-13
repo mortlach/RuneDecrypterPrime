@@ -6,10 +6,10 @@ Primus.
 The easiest place to start is just to pick a target and try something. For
 example:
 
-- run Vigenere at a particular period against one LP input;
-- change one assumption in an existing example;
-- try a transposition or interruptor idea;
-- write a small script for a cipher construction you want to explore.
+- run Vigenere at a particular period against one LP input
+- change one assumption in an existing example
+- try a transposition or interruptor idea
+- write a small script for a cipher construction you want to explore
 
 You do not need a grand theory before you start. A useful first experiment can
 be a short script and a clear question.

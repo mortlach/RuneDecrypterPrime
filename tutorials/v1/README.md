@@ -3,9 +3,9 @@
 Start with the numbered files, or choose a worked example close to your problem.
 
 - [`getting_started/`](getting_started/) is a ten-stop route through the
-  usual public API calls. Read it in filename order.
+  usual public API calls. Read it in filename order
 - [`examples/`](examples/) is a library of worked problems, comparisons,
-  runs with several starts and longer qualification programs.
+  runs with several starts and longer qualification programs
 
 All paths and commands below assume the repository root as the working
 directory.

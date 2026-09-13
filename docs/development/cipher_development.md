@@ -19,9 +19,9 @@ code.
 
 That might be:
 
-- one LP input and one parameter choice;
-- a solved section where the expected answer is known;
-- a small comparison between two versions of the same idea.
+- one LP input and one parameter choice
+- a solved section where the expected answer is known
+- a small comparison between two versions of the same idea
 
 Solved material is especially useful early on. If a search cannot recover a
 known answer under a sensible setup, that is often more informative than a long
@@ -39,15 +39,15 @@ to keep complicated work understandable while RDP itself was changing.
 While developing the Kaeding, periodic-columnar and overlapping two-period
 work, I found a few things repeatedly useful:
 
-- keep the exact input that produced an important result;
-- keep one known working case around while changing the implementation;
-- record the choices that materially affect the search;
-- make random searches repeatable when comparing versions;
-- change one thing at a time when that is practical;
+- keep the exact input that produced an important result
+- keep one known working case around while changing the implementation
+- record the choices that materially affect the search
+- make random searches repeatable when comparing versions
+- change one thing at a time when that is practical
 - keep the known answer for evaluation rather than accidentally feeding it into
-  production ranking;
+  production ranking
 - if a retained result changes, treat that as a reason to investigate rather
-  than silently accepting the new answer.
+  than silently accepting the new answer
 
 Once a method had become stable enough to keep, some experiments were pinned
 more tightly: fixed recipes, seeds, budgets, or even a fixture dependency
@@ -91,11 +91,11 @@ fixture, and the staged periodic-columnar investigation.
 
 As an experiment matures, different parts naturally belong in different places:
 
-- a one-off or community LP test can live under `solving/attempts/`;
+- a one-off or community LP test can live under `solving/attempts/`
 - focused development that is still answering a scientific or implementation
-  question can live under `cipher_development/`;
-- production ciphers, scorers and solvers live under `src/rdp/`;
-- broader multi-case qualification lives under `tools/robustness/`.
+  question can live under `cipher_development/`
+- production ciphers, scorers and solvers live under `src/rdp/`
+- broader multi-case qualification lives under `tools/robustness/`
 
 There is no need to move an experiment through every one of those locations.
 They are places for different kinds of work, not a mandatory ladder.
@@ -128,11 +128,11 @@ to implement it as maintained behaviour.
 
 A new cipher usually means:
 
-1. make sure the cipher relation itself is understood;
-2. implement the production owner under `src/rdp/ciphers/`;
+1. make sure the cipher relation itself is understood
+2. implement the production owner under `src/rdp/ciphers/`
 3. add the public `CipherSpec` and compatible `KeySpec` route when the interface
-   is ready;
-4. add focused tests that prove the maintained behaviour.
+   is ready
+4. add focused tests that prove the maintained behaviour
 
 See [Add a cipher](../howto/add_cipher.md).
 

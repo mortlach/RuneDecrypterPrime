@@ -75,12 +75,12 @@ few genuinely awkward cipher/search problems and finding out what helped.
 
 My own pattern was roughly:
 
-1. get a concrete idea running quickly;
-2. check it on something where the answer is known when possible;
-3. once a recipe works, keep the important input and settings stable;
-4. change things deliberately and watch whether the result moves;
+1. get a concrete idea running quickly
+2. check it on something where the answer is known when possible
+3. once a recipe works, keep the important input and settings stable
+4. change things deliberately and watch whether the result moves
 5. when a result becomes important, preserve enough of the recipe that future
-   code changes cannot quietly turn it into a different experiment.
+   code changes cannot quietly turn it into a different experiment
 
 The Kaeding, periodic-columnar and overlapping two-period work are examples of
 why that became useful. Long searches and complicated pipelines are very easy to
@@ -120,14 +120,14 @@ The reasoning behind the project structure is described in
 A few engineering rules matter once you are changing maintained behaviour:
 
 - Prefer extending or repairing the existing owner of a behaviour rather than
-  creating a parallel route around it.
-- Avoid silent fallbacks that make it difficult to tell what actually ran.
-- Preserve reproducibility where randomness matters.
+  creating a parallel route around it
+- Avoid silent fallbacks that make it difficult to tell what actually ran
+- Preserve reproducibility where randomness matters
 - Keep known answers out of production ranking, stopping and candidate selection
-  unless the method intentionally uses that information.
-- Change focused tests and relevant documentation with maintained code.
+  unless the method intentionally uses that information
+- Change focused tests and relevant documentation with maintained code
 - Keep generated output, logs and downloaded assets outside the maintained
-  source tree.
+  source tree
 
 Some retained development fixtures have extra local checks because they were
 frozen after the development work had stabilised. If you change one of those,

@@ -4,10 +4,10 @@
 remain useful after their production behaviour has stabilised. It is not a
 public API, tutorial collection, solver framework, or robustness campaign.
 
-- Production ciphers, scorers and solvers live under `src/rdp/`.
-- Public teaching examples live under `tutorials/`.
-- Repeatable multi-family qualification lives in `tools/robustness/`.
-- This directory holds only focused diagnostic or scientific fixtures.
+- Production ciphers, scorers and solvers live under `src/rdp/`
+- Public teaching examples live under `tutorials/`
+- Repeatable multi-family qualification lives in `tools/robustness/`
+- This directory holds only focused diagnostic or scientific fixtures
 
 ## Contents
 
@@ -91,23 +91,23 @@ sample-as-full substitutions here.
 
 ## Evidence rules
 
-- Seeds and frozen recipes/profiles are explicit.
+- Seeds and frozen recipes/profiles are explicit
 - Truth, plaintext and known keys may classify a completed benchmark result;
-  they must never select candidates, rank attempts or stop production search.
+  they must never select candidates, rank attempts or stop production search
 - Generated JSON, JSONL, logs and review packs belong under the configured
-  external `run_outputs/cipher_development/` root and are never committed.
+  external `run_outputs/cipher_development/` root and are never committed
 - A repeated smoke run with the same seed reconstructs the same case and
-  result. Use a fresh output location when preserving both runs.
+  result. Use a fresh output location when preserving both runs
 
 ## Adding a future experiment
 
 Before adding one, confirm that it:
 
-1. asks a distinct unresolved question;
-2. uses existing RDP ciphers, scorers, solvers and asset resolution;
-3. has an explicit deterministic seed and bounded smoke path;
-4. keeps truth out of ranking and selection;
-5. writes only to external `run_outputs`;
-6. blocks clearly when its declared asset profile is missing;
-7. has focused tests and a short README entry;
-8. does not duplicate `tools/robustness` or introduce a public framework.
+1. asks a distinct unresolved question
+2. uses existing RDP ciphers, scorers, solvers and asset resolution
+3. has an explicit deterministic seed and bounded smoke path
+4. keeps truth out of ranking and selection
+5. writes only to external `run_outputs`
+6. blocks clearly when its declared asset profile is missing
+7. has focused tests and a short README entry
+8. does not duplicate `tools/robustness` or introduce a public framework
