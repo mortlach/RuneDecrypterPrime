@@ -30,12 +30,30 @@ they are evidence-oriented rather than a beginner tutorial.
 ## Run the normal set
 
 ```text
-python tutorials/v1/run_tutorials.py
+python tutorials/v1/run_tutorials.py --list
+python tutorials/v1/run_tutorials.py getting-started
+python tutorials/v1/run_tutorials.py release
+python tutorials/v1/run_tutorials.py --only 01 07 10
 ```
 
 The runner has separate groups for getting started, the release set,
 bundled-asset examples, full-asset examples and qualification. The default is
-the release set.
+the release set. Select `bundled`, `full-assets` or `qualification` by name when
+you want those groups. `--list` lists the catalogue without running anything.
+`--only` selects numbered or named items from the complete catalogue.
+
+You can use the runner without installing RDP. It puts this checkout's `src`
+first for itself and its child processes, and launches tutorials with UTF-8.
+Prepare the dependencies as described in [Using RDP](../guides/using_rdp.md).
+
+- 01, 07 and 10 work in the basic NumPy source setup with no RDP-native build
+- Other normal search tutorials need `_fastlm`, zstandard and bundled LM1/LM2
+- Hamming and fast span-Hamming are not prerequisites for the normal groups
+- Full-asset examples and qualifications need full_v1 LM1–LM4
+
+Qualification programs may take hours. Read the
+[full catalogue and runtime notes](../../tutorials/v1/README.md) before selecting
+one. Group membership and tutorial acceptance checks are unchanged.
 
 ## Reading a larger example
 

@@ -1,5 +1,7 @@
 # Quickstart
 
+For an uninstalled checkout or interactive Python, see [Using RDP](using_rdp.md).
+
 Start with the known-key tutorial:
 
 ```text

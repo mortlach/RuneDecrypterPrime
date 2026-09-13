@@ -30,7 +30,7 @@ def test_v1_tutorial_folder_has_one_public_runner() -> None:
     ]
 
 
-def test_runner_uses_file_constants_for_selection() -> None:
+def test_runner_preserves_defaults_and_programmatic_selection() -> None:
     runner = _runner_module()
     assert runner.RUN_SET is runner.TutorialRunSet.RELEASE
     assert runner.CONSOLE_OUTPUT is runner.ConsoleOutput.COMPACT
@@ -41,8 +41,6 @@ def test_runner_uses_file_constants_for_selection() -> None:
 
     source = RUNNER.read_text(encoding="utf-8")
     for forbidden in (
-        "argparse",
-        "sys.argv",
         "tutorial_manifest_v1",
         "support.tutorial_runner",
     ):

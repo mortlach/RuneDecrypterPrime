@@ -32,26 +32,39 @@ python -m tutorials.v1.getting_started.03_repeating_key_search
 ```
 
 These files use `from rdp import api` and no repository imports or path
-injection. Their code works against an installed package; the files themselves
-are source-checkout companions.
+injection. Use an installed package or a source checkout prepared as described
+in [Using RDP](../../docs/guides/using_rdp.md). The files themselves are
+source-checkout companions.
 
 ## Runner groups
 
-Edit `RUN_SET` near the top of [`run_tutorials.py`](run_tutorials.py), then run:
+Choose a group on the command line. The default is `release`:
 
 ```text
-python tutorials/v1/run_tutorials.py
+python tutorials/v1/run_tutorials.py --list
+python tutorials/v1/run_tutorials.py getting-started
+python tutorials/v1/run_tutorials.py release
+python tutorials/v1/run_tutorials.py --only 01 07 10
 ```
 
 | Group | Contents |
 | --- | --- |
-| `GETTING_STARTED` | All ten numbered stops. |
-| `RELEASE` | The numbered route plus three bounded, distinct examples. |
-| `BUNDLED_EXAMPLES` | Examples that use bundled assets and exclude qualifications. |
-| `FULL_ASSET_EXAMPLES` | Two two-period examples using the full assets. |
-| `QUALIFICATION` | Three longer P7/C7 programs. |
+| `getting-started` | All ten numbered stops |
+| `release` | The numbered route plus three bounded, distinct examples |
+| `bundled` | Examples that use bundled assets and exclude qualifications |
+| `full-assets` | Two two-period examples using the full assets |
+| `qualification` | Three longer P7/C7 programs |
 
-Choose `QUALIFICATION` separately when you want to run the longer programs.
+Choose `qualification` separately when you want to run the longer programs.
+
+The runner supplies the checkout's source path to itself and its children.
+It does not install dependencies. Tutorials 01, 07 and 10 need only the basic
+NumPy source setup. Normal search tutorials need `_fastlm` and LM dependencies,
+but neither Hamming nor fast span-Hamming is a prerequisite for the groups.
+Full-asset examples and qualifications need LM3/LM4 as well as the bundled data.
+
+`--only` accepts numbers, stems, filenames or repository-relative paths from
+the complete catalogue. `--list` lists it without running any tutorial.
 
 Use the runtimes as a rough guide. Values marked “observed” were measured on
 the reference CPU during the migration. The other entries estimate the scale

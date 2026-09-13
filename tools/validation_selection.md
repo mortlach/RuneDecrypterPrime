@@ -378,12 +378,14 @@ are determined at runtime; file counts are not individual test counts.
 - `tests/test_artifact_policy.py`
 - `tests/test_logging_paths.py`
 - `tests/test_run_logger_paths.py`
+- `tests/tools/test_build_native.py`
 - `tests/tools/test_cipher_solver_campaign.py`
 - `tests/tools/test_cipher_solver_campaign_rail_interruptors.py`
 - `tests/tools/test_installer_cli.py`
 - `tests/tools/test_output_routing.py`
 - `tests/tools/test_pyodide_tooling.py`
 - `tests/tools/test_run_validation.py`
+- `tests/tools/test_source_use.py`
 - `tests/tools/test_torch_provisioning.py`
 - `tests/torch/test_torch_scorer_optional_runtime.py`
 - `tests/tutorials/test_autokey_tutorial.py`

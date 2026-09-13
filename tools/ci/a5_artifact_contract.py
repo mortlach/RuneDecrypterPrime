@@ -124,8 +124,12 @@ def main() -> int:
             raise AssertionError('wheel top_level.txt must contain only rdp')
         meta = email.message_from_bytes(zf.read(meta_name))
         reqs = [v.lower() for v in meta.get_all('Requires-Dist') or []]
-        if not any((v.startswith('lark') for v in reqs)):
-            raise AssertionError('lark runtime dependency missing from wheel metadata')
+        runtime_names = {
+            value.split(';', 1)[0].split('>=', 1)[0].strip()
+            for value in reqs if ';' not in value
+        }
+        if runtime_names != {'numpy', 'zstandard', 'tzdata', 'platformdirs'}:
+            raise AssertionError(f'unexpected RDP runtime dependencies: {sorted(runtime_names)}')
     with tarfile.open(sdist, 'r:gz') as tf:
         members = tf.getmembers()
         names = [member.name for member in members]

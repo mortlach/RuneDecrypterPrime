@@ -8,7 +8,9 @@ BLOCKED = ('rdp.ciphers.dev', 'rdp.keyops.dev')
 def test_pyproject_declares_clean_runtime_dependency_and_package_exclusions():
     data = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
     deps = data['project']['dependencies']
-    assert any((dep.split('>=', 1)[0].strip().lower() == 'lark' for dep in deps))
+    assert {dep.split('>=', 1)[0].strip().lower() for dep in deps} == {
+        'numpy', 'zstandard', 'tzdata', 'platformdirs',
+    }
     excluded = tuple(data['tool']['setuptools']['packages']['find']['exclude'])
     assert data['tool']['setuptools']['packages']['find']['include'] == ['rdp*']
     assert data['tool']['setuptools']['include-package-data'] is False

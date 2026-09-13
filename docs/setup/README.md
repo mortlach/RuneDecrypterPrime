@@ -1,6 +1,6 @@
 # Setup
 
-For a normal source checkout, start with:
+For the simplest complete source installation, start with:
 
 ```text
 python install.py
@@ -14,6 +14,7 @@ python -m tutorials.v1.getting_started.01_known_key
 
 The other setup pages cover the cases where more detail is useful:
 
+- [Using RDP: source checkout, editable installs and interactive Python](../guides/using_rdp.md)
 - [Installation](installation.md)
 - [Language-model assets](language_model_assets.md)
 - [CPU, CUDA and scoring](scorer_backend_selection.md)

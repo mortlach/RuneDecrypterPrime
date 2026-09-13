@@ -80,6 +80,9 @@ def test_canonical_docs_do_not_restore_retired_taxonomy_or_prohibited_tone() -> 
         README,
         ROOT / "docs" / "README.md",
         ROOT / "docs" / "setup" / "installation.md",
+        ROOT / "docs" / "setup" / "building.md",
+        ROOT / "docs" / "setup" / "README.md",
+        ROOT / "docs" / "guides" / "using_rdp.md",
         QUICKSTART,
         RUN_ANATOMY,
         ROOT / "docs" / "guides" / "ciphertext_input.md",
@@ -107,6 +110,9 @@ def test_canonical_docs_do_not_restore_retired_taxonomy_or_prohibited_tone() -> 
         CATALOGUE,
         ROUTE / "README.md",
         EXAMPLES / "README.md",
+        ROOT / "docs/setup/building.md",
+        ROOT / "docs/setup/README.md",
+        ROOT / "docs/guides/using_rdp.md",
     ],
 )
 def test_canonical_local_markdown_links_resolve(document: Path) -> None:
@@ -119,3 +125,12 @@ def test_canonical_local_markdown_links_resolve(document: Path) -> None:
                 document.relative_to(ROOT),
                 href,
             )
+
+
+def test_using_rdp_explains_editable_and_native_boundaries() -> None:
+    text = _read(ROOT / "docs/guides/using_rdp.md")
+    for term in ("python -m pip install -e .", "new Python process", "Restart",
+                 "rebuild", "dependency metadata", "--all", "--only 01 07 10",
+                 "CicadaSolvers", "does not ship a public browser front end"):
+        assert term in text
+    assert "working source checkout" in text

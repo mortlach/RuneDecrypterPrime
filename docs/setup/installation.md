@@ -21,6 +21,11 @@ tools/installation/install.sh
 Each wrapper resolves the repository root from its own location and invokes the
 same root `install.py`.
 
+The full installer is not the only way to use a checkout. [Using RDP](../guides/using_rdp.md)
+covers direct source use, editable installs, local native builds and interactive
+Python. A tutorial needs the dependencies and capabilities it uses, not a fresh
+full installation before every run.
+
 The installer installs the checkout, checks the compiled parts of RDP, makes
 sure the V1 language files are available, and checks the install at the end.
 

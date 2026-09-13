@@ -43,6 +43,7 @@ No solver is involved because the key is already known.
 
 Choose the route that matches what you want to do next:
 
+- **Use the checkout, build native modules or work at the Python prompt:** [Using RDP](docs/guides/using_rdp.md)
 - **Learn RDP:** [Learn RDP by solving](docs/learn/README.md)
 - **Solve Liber Primus:** [Start solving Liber Primus](solving/lp_getting_started/README.md)
 - **Develop or extend RDP:** [Extending RDP](docs/guides/extending_rdp.md)
@@ -51,8 +52,10 @@ Choose the route that matches what you want to do next:
 The fuller [documentation index](docs/README.md) is there when you need more
 control or want to understand the internals.
 
-RDP can also run in a browser through Pyodide/WebAssembly; see the
-[build and smoke tooling](tools/pyodide/README.md).
+RDP has also been built and exercised under Pyodide/WebAssembly in a real
+browser. V1 does not ship a browser front end. Check
+[CicadaSolvers](https://www.cicadasolvers.com/) for current community experiments,
+or see the [build and smoke tooling](tools/pyodide/README.md) for technical details.
 
 ## Why RDP exists
 

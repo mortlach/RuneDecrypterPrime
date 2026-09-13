@@ -13,6 +13,9 @@ a small search and then to real Liber Primus data.
 Use the rest of this index when you need more control or want to understand the
 internals.
 
+For source checkout, editable-install, local-build and interactive options,
+start with [Using RDP](guides/using_rdp.md).
+
 The main route is:
 
 1. [Installation](setup/installation.md)

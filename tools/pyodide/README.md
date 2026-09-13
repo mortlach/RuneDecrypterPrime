@@ -68,7 +68,7 @@ The launcher creates a fresh Pyodide filesystem without mounting the checkout or
 inheriting its Python environment. It copies in the selected wheel, installs it
 with micropip, and executes `smoke.py`. Compiled dependencies use the pinned
 Pyodide package index (NumPy 2.4.6, zstandard 0.25.0, micropip 0.11.1). Pure
-Python dependencies use exact pins (tzdata 2026.3, lark 1.3.1, platformdirs 4.11.8)
+Python dependencies use exact pins (tzdata 2026.3, platformdirs 4.11.8)
 resolved by micropip; network access to the Pyodide CDN/PyPI is needed on an empty
 cache. Package downloads are cached under the output directory.
 

@@ -13,8 +13,9 @@ the code that uses them.
 | `04`–`07` | Repeat a run, use known interruptors, inspect a partial recovery and load a Liber Primus source. |
 | `08`–`10` | Read the result reports, compare search budgets and prepare a real-source search. |
 
-Install RDP using the [installation guide](../../../docs/setup/installation.md),
-then run a file from the repository root:
+Use the [normal installation](../../../docs/setup/installation.md) or prepare
+the source checkout as described in [Using RDP](../../../docs/guides/using_rdp.md).
+Then run a file from the repository root:
 
 ```text
 python -m tutorials.v1.getting_started.02_first_search

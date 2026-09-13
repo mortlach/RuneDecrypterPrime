@@ -1,23 +1,35 @@
-"""Run the getting-started files or a group of worked examples.
+"""Run RDP V1 tutorials and worked examples from a source checkout.
 
-Choose RUN_SET below. The runner starts each file in a separate process and
-reports whether it passed. Each example checks its own expected result.
+The runner makes ``src/`` importable for itself and its child processes, so the
+RDP package does not have to be installed just to use this source-tree runner.
+Python dependencies and any native extensions required by the selected examples
+still need to be available.
 """
 
 from __future__ import annotations
 
+import argparse
 import os
-import uuid
-from rdp.core.config.output_paths import resolve_output_root, path_from
 import subprocess
 import sys
+import uuid
 from enum import StrEnum
 from pathlib import Path
+from collections.abc import Sequence
+
 
 ROOT = Path(__file__).resolve().parents[2]
+SRC = ROOT / "src"
 TUTORIAL_ROOT = Path(__file__).resolve().parent
 GETTING_STARTED_DIR = TUTORIAL_ROOT / "getting_started"
 EXAMPLES_DIR = TUTORIAL_ROOT / "examples"
+
+# Prefer the checkout when an installed RDP also exists.
+while str(SRC) in sys.path:
+    sys.path.remove(str(SRC))
+sys.path.insert(0, str(SRC))
+
+from rdp.core.config.output_paths import path_from, resolve_output_root
 
 
 class TutorialRunSet(StrEnum):
@@ -40,6 +52,14 @@ WRITE_OUTPUT_LOGS = True
 OUTPUT_DIR: Path | None = None
 _ACTIVE_OUTPUT: Path | None = None
 FAILURE_TAIL_LINES = 80
+
+GROUPS: dict[str, TutorialRunSet] = {
+    "getting-started": TutorialRunSet.GETTING_STARTED,
+    "release": TutorialRunSet.RELEASE,
+    "bundled": TutorialRunSet.BUNDLED_EXAMPLES,
+    "full-assets": TutorialRunSet.FULL_ASSET_EXAMPLES,
+    "qualification": TutorialRunSet.QUALIFICATION,
+}
 
 # RELEASE adds three different cipher/problem shapes to the complete short
 # route. The expanded selection has not been timed as a whole.
@@ -70,6 +90,24 @@ def _discover(directory: Path, pattern: str) -> tuple[Path, ...]:
     return tuple(sorted(path for path in directory.glob(pattern) if path.is_file()))
 
 
+def _getting_started() -> tuple[Path, ...]:
+    paths = _discover(GETTING_STARTED_DIR, "[0-9][0-9]_*.py")
+    if not paths:
+        raise FileNotFoundError("no getting-started files were discovered")
+    return paths
+
+
+def _examples() -> tuple[Path, ...]:
+    paths = tuple(
+        path
+        for path in _discover(EXAMPLES_DIR, "*.py")
+        if path.name != "__init__.py"
+    )
+    if not paths:
+        raise FileNotFoundError("no V1 examples were discovered")
+    return paths
+
+
 def _named_examples(names: tuple[str, ...]) -> tuple[Path, ...]:
     paths = tuple(EXAMPLES_DIR / name for name in names)
     missing = [path.name for path in paths if not path.is_file()]
@@ -78,28 +116,91 @@ def _named_examples(names: tuple[str, ...]) -> tuple[Path, ...]:
     return paths
 
 
-def _selected_tutorials() -> tuple[Path, ...]:
-    getting_started = _discover(GETTING_STARTED_DIR, "[0-9][0-9]_*.py")
-    examples = _discover(EXAMPLES_DIR, "*.py")
-    examples = tuple(path for path in examples if path.name != "__init__.py")
-    if not getting_started:
-        raise FileNotFoundError("no getting-started files were discovered")
-    if not examples:
-        raise FileNotFoundError("no V1 examples were discovered")
+def _selected_tutorials(
+    run_set: TutorialRunSet | None = None,
+) -> tuple[Path, ...]:
+    selected_set = RUN_SET if run_set is None else run_set
+    getting_started = _getting_started()
+    examples = _examples()
 
-    if RUN_SET is TutorialRunSet.GETTING_STARTED:
+    if selected_set is TutorialRunSet.GETTING_STARTED:
         return getting_started
-    if RUN_SET is TutorialRunSet.RELEASE:
+    if selected_set is TutorialRunSet.RELEASE:
         return getting_started + _named_examples(RELEASE_EXAMPLE_NAMES)
-    if RUN_SET is TutorialRunSet.BUNDLED_EXAMPLES:
+    if selected_set is TutorialRunSet.BUNDLED_EXAMPLES:
         return tuple(
             path for path in examples if path.name not in FULL_ASSET_ONLY_NAMES
         )
-    if RUN_SET is TutorialRunSet.FULL_ASSET_EXAMPLES:
+    if selected_set is TutorialRunSet.FULL_ASSET_EXAMPLES:
         return _named_examples(FULL_ASSET_EXAMPLE_NAMES)
-    if RUN_SET is TutorialRunSet.QUALIFICATION:
+    if selected_set is TutorialRunSet.QUALIFICATION:
         return _named_examples(QUALIFICATION_NAMES)
-    raise ValueError(f"unsupported tutorial run set: {RUN_SET!r}")
+    raise ValueError(f"unsupported tutorial run set: {selected_set!r}")
+
+
+def _all_runnable_material() -> tuple[Path, ...]:
+    return _getting_started() + _examples()
+
+
+def _match_one(name: str, paths: Sequence[Path]) -> Path:
+    token = name.strip()
+    if not token:
+        raise ValueError("empty tutorial name")
+
+    exact = [
+        path
+        for path in paths
+        if token in {path.name, path.stem, _relative(path)}
+    ]
+    if len(exact) == 1:
+        return exact[0]
+
+    if token.isdigit():
+        prefix = f"{int(token):02d}_"
+        numbered = [path for path in _getting_started() if path.stem.startswith(prefix)]
+        if len(numbered) == 1:
+            return numbered[0]
+
+    by_stem_prefix = [path for path in paths if path.stem.startswith(token)]
+    if len(by_stem_prefix) == 1:
+        return by_stem_prefix[0]
+    if len(by_stem_prefix) > 1:
+        choices = ", ".join(path.stem for path in by_stem_prefix)
+        raise ValueError(f"{name!r} is ambiguous; matches: {choices}")
+
+    raise ValueError(f"no tutorial/example matched {name!r}; use --list")
+
+
+def _resolve_only(names: Sequence[str]) -> tuple[Path, ...]:
+    all_paths = _all_runnable_material()
+    resolved: list[Path] = []
+    seen: set[Path] = set()
+    for name in names:
+        path = _match_one(name, all_paths)
+        if path not in seen:
+            resolved.append(path)
+            seen.add(path)
+    return tuple(resolved)
+
+
+def _print_catalogue() -> None:
+    print("Runner groups")
+    for name in GROUPS:
+        print(f"  {name}")
+
+    print("\nGetting started")
+    for path in _getting_started():
+        print(f"  {path.stem}")
+
+    print("\nWorked examples")
+    for path in _examples():
+        tags: list[str] = []
+        if path.name in FULL_ASSET_ONLY_NAMES:
+            tags.append("full-assets")
+        if path.name in QUALIFICATION_NAMES:
+            tags.append("qualification")
+        suffix = "" if not tags else f"  [{', '.join(tags)}]"
+        print(f"  {path.stem}{suffix}")
 
 
 def _output_dir() -> Path:
@@ -135,11 +236,21 @@ def _tail(text: str) -> str:
     return "\n".join(text.rstrip().splitlines()[-FAILURE_TAIL_LINES:])
 
 
+def _child_environment(script: Path) -> dict[str, str]:
+    existing = os.environ.get("PYTHONPATH")
+    pythonpath = str(SRC) if not existing else os.pathsep.join((str(SRC), existing))
+    return {
+        **os.environ,
+        "PYTHONPATH": pythonpath,
+        "RDP_OUTPUT_ROOT": str(_output_dir() / script.stem),
+    }
+
+
 def _run_one(script: Path) -> tuple[bool, Path | None]:
     completed = subprocess.run(
         [sys.executable, "-X", "utf8", "-m", _module_name(script)],
         cwd=ROOT,
-        env={**os.environ, "RDP_OUTPUT_ROOT": str(_output_dir() / script.stem)},
+        env=_child_environment(script),
         text=True,
         encoding="utf-8",
         errors="replace",
@@ -158,20 +269,86 @@ def _run_one(script: Path) -> tuple[bool, Path | None]:
     return passed, output_path
 
 
-def main() -> int:
-    selected = _selected_tutorials()
+def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run RDP V1 tutorials/examples from this checkout."
+    )
+    parser.add_argument(
+        "group",
+        nargs="?",
+        choices=tuple(GROUPS),
+        default=None,
+        help="runner group (default: release)",
+    )
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="list groups and runnable tutorial/example names, then exit",
+    )
+    parser.add_argument(
+        "--only",
+        nargs="+",
+        metavar="NAME",
+        help="run only named items; accepts a stem, filename, path, or 01..10",
+    )
+    parser.add_argument(
+        "--full-output",
+        action="store_true",
+        help="show each script's complete console output",
+    )
+    parser.add_argument(
+        "--stop-on-first-failure",
+        action="store_true",
+        help="stop after the first failed script",
+    )
+    parser.add_argument(
+        "--no-logs",
+        action="store_true",
+        help="do not save per-script tutorial logs",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] = ()) -> int:
+    global CONSOLE_OUTPUT, STOP_ON_FIRST_FAILURE, WRITE_OUTPUT_LOGS
+
+    args = _parse_args(argv)
+    if args.list:
+        try:
+            _print_catalogue()
+        except (FileNotFoundError, ValueError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        return 0
+
+    if args.full_output:
+        CONSOLE_OUTPUT = ConsoleOutput.FULL
+    if args.stop_on_first_failure:
+        STOP_ON_FIRST_FAILURE = True
+    if args.no_logs:
+        WRITE_OUTPUT_LOGS = False
+
+    try:
+        selected = (
+            _resolve_only(args.only)
+            if args.only
+            else _selected_tutorials(GROUPS[args.group] if args.group else RUN_SET)
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
     _prepare_output_dir()
+    label = "selected" if args.only else (args.group or RUN_SET.value)
     print("Rune Decrypter Prime V1 runnable material")
-    print(f"run set: {RUN_SET.value}")
+    print(f"run set: {label}")
     print(f"selected: {len(selected)}")
     print("acceptance: every script must complete its own semantic assertions")
 
-    if RUN_SET in {
-        TutorialRunSet.FULL_ASSET_EXAMPLES,
-        TutorialRunSet.QUALIFICATION,
-    }:
+    selected_names = {path.name for path in selected}
+    if selected_names & FULL_ASSET_ONLY_NAMES:
         print("NOTICE: this selection requires the full V1 asset profile")
-    if RUN_SET is TutorialRunSet.QUALIFICATION:
+    if selected_names & set(QUALIFICATION_NAMES):
         print("WARNING: qualification programs may take several hours each")
 
     results: list[bool] = []
@@ -196,4 +373,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))

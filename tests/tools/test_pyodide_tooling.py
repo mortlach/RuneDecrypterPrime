@@ -1,6 +1,7 @@
 """Fast native guards for the portable smoke recipes; WASM is tested by Node."""
 import importlib.util
 import json
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -8,6 +9,17 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 TOOLING = ROOT / 'tools/pyodide'
 pytestmark = pytest.mark.tier_a
+
+
+def test_pinned_runtime_packages_match_rdp_dependencies_without_lark():
+    pins = json.loads((TOOLING / 'versions.json').read_text(encoding='utf-8'))
+    metadata = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
+    runtime_names = {item.split('>=', 1)[0] for item in metadata['project']['dependencies']}
+    assert runtime_names == {'numpy', 'zstandard', 'tzdata', 'platformdirs'}
+    assert set(pins['python_packages']) == {'tzdata', 'platformdirs'}
+    assert set(pins['runtime_packages']) == {'numpy', 'zstandard', 'micropip'}
+    assert runtime_names == (set(pins['python_packages']) | set(pins['runtime_packages'])) - {'micropip'}
+    assert 'lark' not in pins['python_packages']
 
 
 def test_version_pins_are_consumed_by_both_entry_points():
