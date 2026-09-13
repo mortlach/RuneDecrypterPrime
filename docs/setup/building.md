@@ -85,6 +85,18 @@ all eight wheels and produces one `rdp-v1-native-packages-<commit>` artifact
 containing the wheels, the Linux 3.11 source archive and `SHA256SUMS.txt`.
 The source archive is independent of the Python version used to install it.
 
+For additional wheels from an existing release, run the workflow manually from
+the branch containing the build changes and set `source_ref` to the release tag
+(for example, `v1.0.0`). The workflow resolves that reference once and uses the
+resulting commit for all eight package builds and CI-light test/tutorial jobs.
+The test environment supplies `setuptools` even when the old source does not list
+it as a test dependency. The source checkout is not patched.
+
+The job summaries and `SHA256SUMS.txt` record the package source commit separately
+from the workflow run commit. The combined package artifact is produced only after
+all builds and any requested source-validation jobs pass. With `source_ref` blank,
+normal PR and full-proof builds use their triggering commit, as before.
+
 These are CI artifacts tied to the checked-out commit. Published downloads are
 listed on the [releases page](https://github.com/mortlach/RuneDecrypterPrime/releases).
 

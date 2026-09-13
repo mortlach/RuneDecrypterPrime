@@ -95,9 +95,13 @@ def test_independent_jobs_and_fail_fast_false_matrices():
         assert 'runs-on: ${{ matrix.os }}' in job
         assert 'fail-fast: false' in job
         assert 'python-version: "3.11"' in job
-        assert '\n    needs:' not in job
-    for name in ('native-validation', 'native-packages', 'pyodide'):
+        if name == 'native-validation':
+            assert '\n    needs:' not in job
+        else:
+            assert 'needs: resolve-source' in job
+    for name in ('native-validation', 'pyodide'):
         assert 'ref: ${{ github.sha }}' in _job(name)
+    assert 'ref: ${{ needs.resolve-source.outputs.sha }}' in _job('native-packages')
 
 
 def test_full_native_validation_uses_the_real_catalogue_without_overrides():
@@ -204,7 +208,8 @@ def test_evidence_uploads_are_sha_identified_and_failures_keep_native_logs():
         for step in _steps(_job(name)).values():
             if 'uses: actions/upload-artifact@v4' in step:
                 artifact_name = re.search(r'^          name: (.*)$', step, re.M)
-                assert artifact_name and '${{ github.sha }}' in artifact_name[1]
+                source = '${{ needs.resolve-source.outputs.sha }}' if name == 'native-packages' else '${{ github.sha }}'
+                assert artifact_name and source in artifact_name[1]
                 if name != 'pyodide':
                     assert '${{ matrix.os }}' in artifact_name[1]
                 assert 'overwrite: true' in step
@@ -317,7 +322,8 @@ def test_final_summary_rejects_missing_or_invalid_platform_evidence(tmp_path, mo
 
 def test_native_checksum_step_binds_both_artifacts_to_source_sha(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv('GITHUB_SHA', SHA)
+    monkeypatch.setenv('GITHUB_SHA', 'b' * 40)
+    monkeypatch.setenv('SOURCE_SHA', SHA)
     monkeypatch.setenv('WHEEL_TAG', 'cp312')
     monkeypatch.setenv('PROOF_OS', 'windows-latest')
     monkeypatch.setattr(subprocess, 'check_output', lambda *args, **kwargs: SHA + '\n')
@@ -333,6 +339,46 @@ def test_native_checksum_step_binds_both_artifacts_to_source_sha(tmp_path, monke
         assert f'{hashlib.sha256(name.encode()).hexdigest()}  {name}' in evidence
 
 
+def test_selected_source_is_resolved_once_for_builds_tests_and_collection(tmp_path, monkeypatch):
+    packages = PACKAGES.read_text(encoding='utf-8')
+    for event in ('workflow_dispatch', 'workflow_call'):
+        assert f'  {event}:\n    inputs:\n      source_ref:' in packages
+    resolver = _job('resolve-source', PACKAGES)
+    assert 'ref: ${{ inputs.source_ref || github.sha }}' in resolver
+    code = _run(_steps(resolver)['Record resolved source commit'])
+    monkeypatch.setenv('GITHUB_SHA', 'b' * 40)
+    monkeypatch.setenv('GITHUB_OUTPUT', str(tmp_path / 'output'))
+    monkeypatch.setenv('GITHUB_STEP_SUMMARY', str(tmp_path / 'summary'))
+    monkeypatch.setattr(subprocess, 'check_output', lambda *args, **kwargs: SHA + '\n')
+    exec(compile(code, '<resolve-source>', 'exec'), {})
+    assert (tmp_path / 'output').read_text() == f'sha={SHA}\n'
+    assert SHA in (tmp_path / 'summary').read_text()
+    assert 'b' * 40 in (tmp_path / 'summary').read_text()
+    selected = _job('validate-source', PACKAGES)
+    assert "if: ${{ inputs.source_ref != '' }}" in selected
+    assert 'uses: ./.github/workflows/rdp_v1_full_ci.yml' in selected
+    assert 'source_ref: ${{ needs.resolve-source.outputs.sha }}' in selected
+    gate = PUSH_GATE.read_text(encoding='utf-8')
+    assert 'ref: ${{ inputs.source_ref || github.sha }}' in gate
+    assert "assert sha == os.environ['SOURCE_SHA']" in gate
+    assert "'pip', 'install', 'setuptools'" in gate
+    for job in ('build-packages', 'collect-packages'):
+        assert 'SOURCE_SHA: ${{ needs.resolve-source.outputs.sha }}' in _job(job, PACKAGES)
+    collection = _job('collect-packages', PACKAGES)
+    assert 'needs: [resolve-source, build-packages, validate-source]' in collection
+    assert "needs.build-packages.result == 'success'" in collection
+    assert "needs.validate-source.result == 'success' || needs.validate-source.result == 'skipped'" in collection
+
+
+def test_native_checksums_reject_a_checkout_that_is_not_the_selected_source(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('SOURCE_SHA', SHA)
+    monkeypatch.setattr(subprocess, 'check_output', lambda *args, **kwargs: 'b' * 40 + '\n')
+    with pytest.raises(AssertionError):
+        exec(compile(_code('native-packages', 'Record native artifact identity and checksums'), '<checksums>', 'exec'), {})
+    assert not (tmp_path / 'output/package-proof/SHA256SUMS.txt').exists()
+
+
 @pytest.mark.parametrize('filename', [
     'fixture-1.0.0-cp311-cp311-win_amd64.whl',
     'fixture-1.0.0-cp312-cp312-win32.whl',
@@ -340,7 +386,8 @@ def test_native_checksum_step_binds_both_artifacts_to_source_sha(tmp_path, monke
 ])
 def test_native_checksum_step_rejects_wrong_python_or_platform(tmp_path, monkeypatch, filename):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv('GITHUB_SHA', SHA)
+    monkeypatch.setenv('GITHUB_SHA', 'b' * 40)
+    monkeypatch.setenv('SOURCE_SHA', SHA)
     monkeypatch.setenv('WHEEL_TAG', 'cp312')
     monkeypatch.setenv('PROOF_OS', 'windows-latest')
     monkeypatch.setattr(subprocess, 'check_output', lambda *args, **kwargs: SHA + '\n')
@@ -356,7 +403,8 @@ def test_native_checksum_step_rejects_wrong_python_or_platform(tmp_path, monkeyp
 @pytest.mark.parametrize('defect', [None, 'missing', 'wrong_sha', 'corrupt', 'duplicate', 'wrong_python'])
 def test_native_bundle_requires_all_eight_verified_wheels(tmp_path, monkeypatch, defect):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv('GITHUB_SHA', SHA)
+    monkeypatch.setenv('GITHUB_SHA', 'b' * 40)
+    monkeypatch.setenv('SOURCE_SHA', SHA)
     monkeypatch.setenv('GITHUB_STEP_SUMMARY', str(tmp_path / 'summary.md'))
     last_wheel = None
     for platform in ('windows-latest', 'ubuntu-latest'):

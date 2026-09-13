@@ -2,7 +2,19 @@ name: RDP Python wheel builds
 
 on:
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: 'Source tag or commit to build and test (blank uses the workflow commit)'
+        type: string
+        required: false
+        default: ''
   workflow_call:
+    inputs:
+      source_ref:
+        description: 'Source tag or commit to build and test (blank uses the caller commit)'
+        type: string
+        required: false
+        default: ''
   pull_request:
     branches: [main]
     paths:
@@ -27,8 +39,41 @@ env:
   PYTHONUNBUFFERED: "1"
 
 jobs:
+  resolve-source:
+    name: resolve the package source commit
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - name: Check out selected source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref || github.sha }}
+          persist-credentials: false
+
+      - name: Record resolved source commit
+        id: source
+        shell: python
+        run: |
+          import os, subprocess
+          sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write(f'sha={sha}\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write(f'Package source commit: `{sha}`\n\n')
+              summary.write(f'Workflow run commit: `{os.environ["GITHUB_SHA"]}`\n')
+
+  validate-source:
+    name: selected source tests and tutorials
+    if: ${{ inputs.source_ref != '' }}
+    needs: resolve-source
+    uses: ./.github/workflows/rdp_v1_full_ci.yml
+    with:
+      source_ref: ${{ needs.resolve-source.outputs.sha }}
+
   build-packages:
     name: native packages / ${{ matrix.os }} / py${{ matrix.python.version }}
+    needs: resolve-source
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -40,6 +85,7 @@ jobs:
           - {version: "3.13", tag: "cp313"}
           - {version: "3.14", tag: "cp314"}
     env:
+      SOURCE_SHA: ${{ needs.resolve-source.outputs.sha }}
       CIBW_BUILD: "${{ matrix.python.tag }}-*"
       CIBW_SKIP: "*-musllinux_*"
       CIBW_ARCHS_WINDOWS: "AMD64"
@@ -51,7 +97,7 @@ jobs:
       - name: Check out source commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ needs.resolve-source.outputs.sha }}
           persist-credentials: false
 
       - name: Set up Python
@@ -85,7 +131,7 @@ jobs:
           import hashlib, os, subprocess
           from pathlib import Path
           from packaging.utils import parse_wheel_filename
-          sha = os.environ['GITHUB_SHA']
+          sha = os.environ['SOURCE_SHA']
           assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip() == sha
           wheels = list(Path('wheelhouse').glob('*.whl'))
           sdists = list(Path('dist').glob('*.tar.gz'))
@@ -112,7 +158,7 @@ jobs:
         id: artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rdp-v1-packages-${{ matrix.os }}-py${{ matrix.python.version }}-${{ github.sha }}
+          name: rdp-v1-packages-${{ matrix.os }}-py${{ matrix.python.version }}-${{ needs.resolve-source.outputs.sha }}
           path: |
             wheelhouse/*.whl
             dist/*.tar.gz
@@ -134,7 +180,7 @@ jobs:
         run: |
           import os
           from pathlib import Path
-          rows = [('Source commit', os.environ['GITHUB_SHA']), ('OS', os.environ['PROOF_OS']),
+          rows = [('Source commit', os.environ['SOURCE_SHA']), ('OS', os.environ['PROOF_OS']),
                   ('Python', os.environ['PROOF_PYTHON'])]
           rows += [(key, os.environ[key]) for key in (
               'WHEEL_RESULT', 'SDIST_RESULT', 'BOUNDARY_RESULT', 'CHECKSUM_RESULT', 'ARTIFACT_RESULT')]
@@ -148,8 +194,13 @@ jobs:
 
   collect-packages:
     name: collect eight native wheels and checksums
-    needs: build-packages
+    needs: [resolve-source, build-packages, validate-source]
+    if: >-
+      ${{ !cancelled() && needs.build-packages.result == 'success' &&
+          (needs.validate-source.result == 'success' || needs.validate-source.result == 'skipped') }}
     runs-on: ubuntu-latest
+    env:
+      SOURCE_SHA: ${{ needs.resolve-source.outputs.sha }}
     steps:
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -159,7 +210,7 @@ jobs:
       - name: Download verified package artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: rdp-v1-packages-*-py*-${{ github.sha }}
+          pattern: rdp-v1-packages-*-py*-${{ needs.resolve-source.outputs.sha }}
           path: packages
 
       - name: Verify and collect the complete native package set
@@ -167,7 +218,7 @@ jobs:
         run: |
           import hashlib, os, shutil
           from pathlib import Path
-          sha = os.environ['GITHUB_SHA']
+          sha = os.environ['SOURCE_SHA']
           root = Path('packages')
           destination = Path('release-packages')
           destination.mkdir()
@@ -207,7 +258,7 @@ jobs:
       - name: Upload the complete native package set
         uses: actions/upload-artifact@v4
         with:
-          name: rdp-v1-native-packages-${{ github.sha }}
+          name: rdp-v1-native-packages-${{ needs.resolve-source.outputs.sha }}
           path: release-packages/*
           if-no-files-found: error
           overwrite: true
