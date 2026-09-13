@@ -1,0 +1,49 @@
+from __future__ import annotations
+from types import SimpleNamespace
+from tutorials.v1.support.tutorial_report import SCHEMA, build_tutorial_run_report
+
+def test_tutorial_report_top_level_shape_is_stable() -> None:
+    solution = SimpleNamespace(
+        key=[3, 1, 4],
+        plaintext_idx=[1, 2, 3],
+        plaintext_rune="abc",
+        stop_reason="target_score",
+        score=0.7,
+        evals=12,
+        tokens_processed=99,
+        meta={},
+    )
+    report = build_tutorial_run_report(
+        title="contract",
+        cipher="scheduled_stream_lookup",
+        solution=solution,
+        key_idx=[3, 1, 4],
+        pt_idx_ref=[1, 2, 3],
+    )
+    assert report["schema"] == SCHEMA
+    assert set(report) == {
+        "schema",
+        "title",
+        "app_version",
+        "cipher",
+        "recovered",
+        "match_ratio",
+        "solver",
+        "key",
+        "benchmark",
+        "timings_s",
+        "telemetry",
+        "solver_report",
+        "previews",
+    }
+    assert {"present", "stop_category", "scorer_lanes"} <= set(report["solver_report"])
+    assert set(report["previews"]) == {"ciphertext", "plaintext", "reference"}
+    assert set(report["previews"]["ciphertext"]) == {"rune_indices", "rune_text"}
+    assert set(report["previews"]["plaintext"]) == {
+        "plaintext_indices",
+        "word_length_information",
+        "plaintext_rune_latin",
+        "plaintext_reading_rune_latin",
+        "plaintext_runes",
+    }
+    assert set(report["previews"]["reference"]) == {"rune_text"}

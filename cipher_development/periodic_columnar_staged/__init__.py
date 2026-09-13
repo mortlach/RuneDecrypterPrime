@@ -1,0 +1,1 @@
+"""Periodic-columnar decomposed qualification."""

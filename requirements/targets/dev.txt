@@ -1,0 +1,6 @@
+-r runner.txt
+
+pytest==8.4.1
+ruff==0.5.7
+mypy==1.11.1
+pre-commit==3.8.0

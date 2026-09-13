@@ -1,0 +1,115 @@
+[build-system]
+requires = ["setuptools>=68", "wheel", "pybind11>=2.13.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rune-decrypter-prime"
+version = "1.0.0"
+description = "Cryptanalysis and cipher development for Runeglish and Liber Primus."
+authors = [{ name = "mortlach" }]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=1.26",
+  "zstandard>=0.22",
+  "tzdata>=2024.1",
+  "platformdirs>=4.0",
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+]
+
+[project.optional-dependencies]
+community-runner = [
+  "jsonschema>=4.23.0",
+  "pybind11>=2.13.0",
+]
+community-organiser = [
+  "jsonschema>=4.23.0",
+]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.5.0",
+  "mypy>=1.11.0",
+  "pre-commit>=3.0",
+  "jsonschema>=4.23.0",
+]
+test = [
+  "pytest>=8.0",
+  "jsonschema>=4.23.0",
+]
+torch = [
+  "torch",
+]
+test-torch = [
+  "pytest>=8.0",
+  "jsonschema>=4.23.0",
+  "torch",
+]
+
+[project.urls]
+Homepage = "https://github.com/mortlach/RuneDecrypterPrime"
+Documentation = "https://github.com/mortlach/RuneDecrypterPrime/tree/main/docs"
+Issues = "https://github.com/mortlach/RuneDecrypterPrime/issues"
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["rdp*"]
+exclude = [
+  "rdp.ciphers.dev",
+  "rdp.ciphers.dev.*",
+  "rdp.keyops.dev",
+  "rdp.keyops.dev.*",
+]
+
+[tool.setuptools.package-data]
+rdp = [
+  "py.typed",
+  "data/wordlists/cribs/*.txt",
+  "data/liber_primus/solved_plaintext/*.txt",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+  "tier_a: fast deterministic unit or contract test",
+  "full_assets: requires the canonical full_v1 LM1-LM4 asset profile",
+  "cuda: tests requiring CUDA runtime",
+  "guardrails: release guardrail and contract-sweep tests",
+  "torch: tests that require the optional Torch runtime; skipped when torch is unavailable",
+]
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint.per-file-ignores]
+"cipher_development/**/*.py" = ["E402"]
+"solving/**/*.py" = ["E402"]
+"tools/**/*.py" = ["E402"]
+"tutorials/**/*.py" = ["E402"]
+"tests/conftest.py" = ["E402"]
+"src/rdp/api/normalize.py" = ["E701"]
+"src/rdp/ciphers/vigenere_cipher.py" = ["E702"]
+"src/rdp/core/config/solver.py" = ["E702"]
+"src/rdp/data/liber_primus/lp_transcript.py" = ["E741", "F841"]
+"src/rdp/scoring/language_model/language_model_prime.py" = ["E702"]
+"src/rdp/scoring/policy.py" = ["E702"]
+"src/rdp/scoring/torch_rune_scorer.py" = ["E702"]
+"src/rdp/solvers/ga.py" = ["E702"]
+"src/rdp/solvers/sa.py" = ["E702", "E741"]
+"src/rdp/solvers/solver_base.py" = ["E702"]
+"src/rdp/data/runeglish.py" = ["E702", "E741"]
+"tests/api/test_run_logging_routing.py" = ["E731"]
+"tests/api/test_run_routing.py" = ["E731"]
+"tests/harness.py" = ["F841"]
+"tests/scoring/test_hamming_integration.py" = ["E741"]
+"tests/scoring/test_scoring_integrity.py" = ["F841"]
+"tests/solvers/test_a4_two_period_stage_status.py" = ["E731"]

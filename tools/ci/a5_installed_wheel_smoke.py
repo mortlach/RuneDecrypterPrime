@@ -1,0 +1,169 @@
+from __future__ import annotations
+import contextlib
+import hashlib
+import importlib
+import importlib.util
+import json
+import tempfile
+from pathlib import Path
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+SOURCE_ROOT = (PROJECT_ROOT / "src").resolve()
+REQUIRED_MODULES = (
+    "rdp",
+    "rdp.scoring.language_model._fastlm",
+    "rdp.scoring.hamming._hamming",
+    "rdp.scoring.span_hamming._span_hamming_fast",
+)
+BLOCKED_MODULES = (
+    "rune_decrypter_prime",
+    "rdp.ciphers.dev",
+    "rdp.keyops.dev",
+    "rdp.utils",
+    "rdp.data.cipher_tests",
+    "rdp.data.liber_primus.old",
+)
+PUBLIC_API_SNAPSHOT = PROJECT_ROOT / "tests" / "fixtures" / "v1_public_api.txt"
+
+
+def _under(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open('rb') as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b''):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _assert_v1_public_contract() -> None:
+    from rdp import api
+
+    paths = set(PUBLIC_API_SNAPSHOT.read_text(encoding="utf-8").splitlines())
+    expected = {
+        f"{prefix}.{name}"
+        for prefix, namespace in (
+            ("rdp.api", api),
+            ("rdp.api.advanced", api.advanced),
+            ("rdp.api.display", api.display),
+            ("rdp.api.liber_primus", api.liber_primus),
+            ("rdp.api.experimental", api.experimental),
+        )
+        for name in namespace.__all__
+    }
+    if len(paths) != 145 or paths != expected:
+        raise AssertionError(
+            f"installed public surface mismatch: snapshot={len(paths)} exported={len(expected)}"
+        )
+    for path in paths:
+        module_name, attr_name = path.rsplit(".", 1)
+        if not hasattr(importlib.import_module(module_name), attr_name):
+            raise AssertionError(f"installed public path missing: {path}")
+    for obsolete in ("RunAPI", "solve", "cipher_instance", "preview", "transform"):
+        if hasattr(api, obsolete):
+            raise AssertionError(
+                f"obsolete installed public export present: {obsolete}"
+            )
+
+
+def _assert_v1_operations() -> None:
+    from rdp import api
+
+    from rdp.api.source_resolution import resolve_source_input_ref
+
+    source = api.liber_primus.source("welcome_pilgrim")
+    resolved = resolve_source_input_ref(source)
+    if len(resolved.ct_idx) != 515 or len(resolved.wli) != 515:
+        raise AssertionError("installed named LP source is not aligned")
+    if source != api.liber_primus.source("solved.welcome_pilgrim"):
+        raise AssertionError("installed LP alias lost canonical identity")
+    reference = api.liber_primus.load_plaintext("welcome_pilgrim")
+    if (
+        len(reference.indices) != 515
+        or len(reference.word_length_information) != 515
+    ):
+        raise AssertionError("installed solved LP resource is not aligned")
+    if reference != api.liber_primus.load_plaintext("solved.welcome_pilgrim"):
+        raise AssertionError("installed solved LP alias lost canonical identity")
+    if not reference.rune_latin.startswith(
+        "W·E·L·C·O·M·E W·E·L·C·O·M·E P·I·L·G·R·I·M"
+    ):
+        raise AssertionError("installed solved LP resource has unexpected content")
+
+    cipher = api.CipherSpec.vigenere()
+    key: api.ConcreteKey = (3, 5)
+    plaintext: api.RuneIndices = (0, 1, 2, 3, 4, 5)
+    ciphertext = api.encrypt(plaintext, cipher=cipher, key=key)
+    if api.decrypt(ciphertext, cipher=cipher, key=key) != plaintext:
+        raise AssertionError("installed known-key Vigenere round trip failed")
+
+    result = api.run(
+        api.RunSpec(
+            problem_input=api.RuneInput(
+                ciphertext,
+                word_length_information=tuple((0, 1) for _ in ciphertext),
+            ),
+            cipher=cipher,
+            key_space=api.KeySpec.repeating(length=len(key)),
+            solver=api.SolverSpec.beam_search(width=1, rounds=1, seed=7),
+            initial_keys=(key,),
+            telemetry_enabled=False,
+        )
+    )
+    if not isinstance(result, api.RunResult):
+        raise AssertionError("installed api.run did not return RunResult")
+
+
+def main() -> int:
+    with tempfile.TemporaryDirectory(prefix='rdp_a5_wheel_smoke_') as td, contextlib.chdir(td):
+        loaded = []
+        for name in REQUIRED_MODULES:
+            mod = importlib.import_module(name)
+            file = getattr(mod, '__file__', None)
+            if file:
+                p = Path(file).resolve()
+                if _under(p, SOURCE_ROOT):
+                    raise AssertionError(f'source-tree contamination for {name}: {p}')
+                loaded.append((name, str(p)))
+        for name in BLOCKED_MODULES:
+            if importlib.util.find_spec(name) is not None:
+                raise AssertionError(f'development/old namespace present in wheel: {name}')
+        import rdp.data.asset_paths as asset_paths
+        asset_root = asset_paths.find_assets_root()
+        if _under(asset_root, PROJECT_ROOT / 'assets'):
+            raise AssertionError(f'installed wheel fell back to checkout assets: {asset_root}')
+        manifest_path = asset_paths._PACKAGE_CI_MANIFEST.resolve()
+        manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+        rows = manifest.get('installed_assets', [])
+        if not rows:
+            raise AssertionError('packaged CI-light manifest has no installed_assets')
+        for row in rows:
+            path = asset_root / row['final_relpath']
+            if not path.is_file():
+                raise AssertionError(f"packaged CI-light asset missing: {row['final_relpath']}")
+            if path.stat().st_size != int(row['size_bytes']):
+                raise AssertionError(f"packaged CI-light size mismatch: {row['final_relpath']}")
+            if _sha256(path) != row['sha256']:
+                raise AssertionError(f"packaged CI-light hash mismatch: {row['final_relpath']}")
+        lm_index = asset_root / 'language_model' / 'lmp' / 'index.json'
+        if not lm_index.is_file():
+            raise AssertionError('packaged language-model index.json missing')
+        from rdp.scoring.language_model.paths import default_lm_root
+        if default_lm_root() != lm_index.parent.resolve():
+            raise AssertionError(
+                "default LM root does not resolve to packaged CI-light data"
+            )
+        _assert_v1_public_contract()
+        _assert_v1_operations()
+        print(f"[a5-wheel-smoke] PASS assets={len(rows)}")
+        print("[a5-wheel-smoke] PASS public_paths=145 operations=run/encrypt/decrypt")
+        for name, path in loaded:
+            print(f'[a5-wheel-smoke] {name} -> {path}')
+        print(f'[a5-wheel-smoke] package_asset_root -> {asset_root}')
+    return 0
+if __name__ == '__main__':
+    raise SystemExit(main())

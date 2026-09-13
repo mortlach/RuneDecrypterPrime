@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+import subprocess
+import sys
+import tomllib
+from pathlib import Path
+
+from setuptools import find_packages
+
+
+ROOT = Path(__file__).resolve().parents[2]
+SRC = ROOT / "src"
+OLD_PACKAGE = "rune_" + "decrypter_prime"
+
+ACTIVE_DOCUMENTS = (
+    'README.md', 'CONTRIBUTING.md',
+    *(p.relative_to(ROOT).as_posix() for p in (ROOT / 'docs').rglob('*.md')),
+    'src/rdp/api/README.md', 'solving/README.md', 'tests/README.md', 'tools/README.md',
+)
+
+
+NEGATIVE_EXECUTABLE_EVIDENCE = {
+    "tests/contracts/test_a5_keyops_registry_contract.py",
+    "tests/core/engine/test_engine_ownership_contract.py",
+    "tests/core/test_no_dead_config_shim_imports.py",
+    "tests/data/test_book_corpus.py",
+    "tests/contracts/test_runtime_source_guardrails.py",
+    "tests/scoring/test_scoring_package_import_policy.py",
+    "tests/solvers/test_solver_package_import_policy.py",
+    "tools/ci/a5_artifact_contract.py",
+    "tools/ci/a5_installed_wheel_smoke.py",
+}
+
+
+
+
+def _project_files(*roots: str) -> list[Path]:
+    files: list[Path] = []
+    for root_name in roots:
+        root = ROOT / root_name
+        if root.is_file():
+            files.append(root)
+        elif root.is_dir():
+            files.extend(path for path in root.rglob("*") if path.is_file())
+    return files
+
+
+def test_source_tree_and_package_discovery_are_rdp_only() -> None:
+    assert not (SRC / OLD_PACKAGE).exists()
+    packages = set(find_packages(where=str(SRC)))
+    assert packages
+    assert {name.split(".", 1)[0] for name in packages} == {"rdp"}
+    assert "rdp.utils" not in packages
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert pyproject["tool"]["setuptools"]["packages"]["find"]["include"] == ["rdp*"]
+
+
+def test_old_package_is_not_import_discoverable_from_source() -> None:
+    script = "\n".join(
+        (
+            "from importlib.machinery import PathFinder",
+            "import rdp",
+            "from rdp import api",
+            "assert rdp.__all__ == ['api']",
+            "assert api.__name__ == 'rdp.api'",
+            f"assert PathFinder.find_spec({OLD_PACKAGE!r}, [{str(SRC)!r}]) is None",
+        )
+    )
+    launch = f"import sys\nsys.path.insert(0, {str(SRC)!r})\n{script}"
+    completed = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", launch],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+
+
+def test_retained_executable_old_path_text_is_exact_negative_evidence() -> None:
+    found = {
+        path.relative_to(ROOT).as_posix()
+        for path in _project_files(
+            "src",
+            "tests",
+            "tutorials/v1",
+            "solving",
+            "cipher_development",
+            "tools",
+            ".github",
+            "setup.py",
+            "pyproject.toml",
+            "MANIFEST.in",
+        )
+        if path.suffix.lower() not in {".pyc", ".pyd", ".so"}
+        and not any(part.endswith(".egg-info") for part in path.parts)
+        and OLD_PACKAGE in path.read_text(encoding="utf-8", errors="ignore")
+    }
+    assert found == NEGATIVE_EXECUTABLE_EVIDENCE
+
+
+def test_active_documentation_contains_no_old_package_path() -> None:
+    missing = [path for path in ACTIVE_DOCUMENTS if not (ROOT / path).is_file()]
+    assert missing == []
+    offenders = [
+        path
+        for path in ACTIVE_DOCUMENTS
+        if OLD_PACKAGE in (ROOT / path).read_text(encoding="utf-8", errors="strict")
+    ]
+    assert offenders == []

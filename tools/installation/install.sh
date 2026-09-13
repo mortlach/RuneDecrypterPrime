@@ -1,0 +1,21 @@
+#!/usr/bin/env sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
+
+echo "Rune Decrypter Prime V1 full installer"
+echo "This installs or verifies the required LM3/LM4 release assets."
+echo "If automatic download fails, place rdp-v1-lm-large-part*.zip under downloads/ and run this again."
+echo
+
+if command -v python >/dev/null 2>&1; then
+  PYTHON_BIN=python
+elif command -v python3 >/dev/null 2>&1; then
+  PYTHON_BIN=python3
+else
+  echo "Python interpreter not found. Install Python 3.11+ and retry." >&2
+  exit 1
+fi
+
+exec "$PYTHON_BIN" "$REPO_ROOT/install.py" "$@"

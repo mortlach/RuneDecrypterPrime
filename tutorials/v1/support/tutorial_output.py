@@ -1,0 +1,141 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
+
+from rdp.api.display import PrintOptions, format_key_value_block, print_block
+from rdp.core.types import Direction, ensure_direction
+from rdp.data.runeglish import Runeglish
+
+
+DEFAULT_DEBUG_PREVIEW_TOKENS = 80
+
+
+def print_tutorial_debug_preview(
+    *,
+    label: str,
+    idx: Sequence[int],
+    wli: Sequence[Sequence[int]] | None,
+    direction: Direction | str,
+    token_limit: int = DEFAULT_DEBUG_PREVIEW_TOKENS,
+) -> None:
+    """Print an unambiguous tutorial text preview using the standard style."""
+    print_block(
+        tutorial_debug_preview_block(
+            label=label,
+            idx=idx,
+            wli=wli,
+            direction=direction,
+            token_limit=token_limit,
+        )
+    )
+
+
+def tutorial_debug_preview_block(
+    *,
+    label: str,
+    idx: Sequence[int],
+    wli: Sequence[Sequence[int]] | None,
+    direction: Direction | str,
+    token_limit: int = DEFAULT_DEBUG_PREVIEW_TOKENS,
+    options: PrintOptions | None = None,
+) -> str:
+    """Return a sectioned debug preview for tutorial/review output."""
+    direction_value = ensure_direction(direction)
+    idx_values = [int(value) for value in idx]
+    if token_limit < 1:
+        raise ValueError("token_limit must be >= 1")
+
+    clipped = idx_values[:token_limit]
+    suffix = "" if len(idx_values) <= token_limit else f" ... <{len(idx_values) - token_limit} more>"
+    return format_key_value_block(
+        f"Debug preview: {label}",
+        [
+            ("encoding_dir", direction_value.value),
+            ("rune_latin", f"{_token_text(clipped, wli)}{suffix}"),
+            (
+                "reading_rune_latin",
+                f"{_reading_token_text(clipped, wli, direction_value)}{suffix}",
+            ),
+            ("rune_indices", f"{clipped}{suffix}"),
+            ("rune_text", f"{_rune_text(clipped, wli)}{suffix}"),
+        ],
+        options=options,
+    )
+
+
+def tutorial_debug_preview_lines(
+    *,
+    label: str,
+    idx: Sequence[int],
+    wli: Sequence[Sequence[int]] | None,
+    direction: Direction | str,
+    token_limit: int = DEFAULT_DEBUG_PREVIEW_TOKENS,
+) -> list[str]:
+    direction_value = ensure_direction(direction)
+    idx_values = [int(value) for value in idx]
+    if token_limit < 1:
+        raise ValueError("token_limit must be >= 1")
+
+    clipped = idx_values[:token_limit]
+    suffix = "" if len(idx_values) <= token_limit else f" ... <{len(idx_values) - token_limit} more>"
+
+    return [
+        f"Debug preview: {label}",
+        "----------------------",
+        f"encoding_dir: {direction_value.value}",
+        f"rune_latin: {_token_text(clipped, wli)}{suffix}",
+        f"reading_rune_latin: {_reading_token_text(clipped, wli, direction_value)}{suffix}",
+        f"rune_indices: {clipped}{suffix}",
+        f"rune_text: {_rune_text(clipped, wli)}{suffix}",
+    ]
+
+
+def _token_text(
+    idx: Sequence[int],
+    wli: Sequence[Sequence[int]] | None,
+) -> str:
+    return Runeglish.to_delimited_rune_latin(idx, wli)
+
+
+def _reading_token_text(
+    idx: Sequence[int],
+    wli: Sequence[Sequence[int]] | None,
+    direction: Direction,
+) -> str:
+    return Runeglish.to_reading_rune_latin(idx, wli, direction=direction)
+
+
+def _rune_text(idx: Sequence[int], wli: Sequence[Sequence[int]] | None) -> str:
+    return " ".join("".join(str(Runeglish.pos_to_rune(int(value))) for value in word) for word in _word_groups(idx, wli))
+
+
+def _word_groups(idx: Sequence[int], wli: Sequence[Sequence[int]] | None) -> list[list[int]]:
+    values = [int(value) for value in idx]
+    if not values:
+        return []
+    if not wli:
+        return [values]
+
+    groups: list[list[int]] = []
+    current: list[int] = []
+    for pos, value in enumerate(values):
+        current.append(value)
+        try:
+            word_pos = int(wli[pos][0])
+            word_len = int(wli[pos][1])
+        except (IndexError, TypeError, ValueError):
+            continue
+        if word_pos == word_len - 1:
+            groups.append(current)
+            current = []
+    if current:
+        groups.append(current)
+    return groups
+
+
+__all__ = [
+    "DEFAULT_DEBUG_PREVIEW_TOKENS",
+    "print_tutorial_debug_preview",
+    "tutorial_debug_preview_block",
+    "tutorial_debug_preview_lines",
+]
