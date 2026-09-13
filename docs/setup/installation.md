@@ -64,8 +64,13 @@ The smaller LM1 and LM2 language files are included with the source.
 The larger LM3 and LM4 files are release assets. The source installer checks
 for them and obtains them when needed.
 
-If the automatic download is unavailable, place the V1 large-language-model
-release archives in `downloads/` and run the same installer command again.
+For manual downloads, get both ZIPs from the
+[V1 language-model asset release](https://github.com/mortlach/rdp_assets/releases/tag/rdp-v1.0.0-lm-large),
+place them in `downloads/`, and run the same installer command again.
+
+Already working from source or an editable install? You can
+[prepare just the assets](language_model_assets.md#assets-only-without-reinstalling-rdp)
+without reinstalling RDP or rebuilding its native modules.
 
 A missing required asset is an error. RDP does not silently replace it with a
 different scoring setup.
@@ -104,7 +109,10 @@ For an existing wheel:
 python -m pip install path/to/downloaded-release.whl
 ```
 
-A wheel installs the package itself.
+A wheel installs the package and the small bundled asset profile. It does not
+fetch LM3/LM4. Follow
+[the wheel and separate-directory instructions](language_model_assets.md#installed-wheel-or-a-separate-model-directory)
+to obtain the full models and select them through `ScoringConfig.language_model_root`.
 
 The source installer remains the normal route for a complete checkout with the
 V1 assets and machine-specific CUDA checks.

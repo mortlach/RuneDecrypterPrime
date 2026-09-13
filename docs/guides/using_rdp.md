@@ -87,6 +87,9 @@ for its console, run and debug configurations.
 Known-key operations do not need RDP's native scoring code. Normal language-model
 scoring and the solver tutorials do.
 
+The bundled LM1/LM2 data covers the normal tutorial route. Before requesting
+LM3/LM4, [obtain the full model files](../setup/language_model_assets.md).
+
 Install the normal runtime dependencies in the environment.
 
 ```text
@@ -182,6 +185,12 @@ python -X utf8 -c "import rdp; print(rdp.__file__)"
 The path should point into the checkout you installed with `-e`. This route
 builds the current three release-native modules and installs the declared
 runtime dependencies. It does not fetch LM3/LM4 or provision CUDA by itself.
+
+For the additional language models, use the
+[assets-only setup](../setup/language_model_assets.md#assets-only-without-reinstalling-rdp).
+It downloads and verifies the data without reinstalling the package.
+The same guide explains
+[how a wheel uses an external model directory](../setup/language_model_assets.md#installed-wheel-or-a-separate-model-directory).
 
 ## Run the tutorials
 

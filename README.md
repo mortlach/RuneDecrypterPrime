@@ -407,6 +407,11 @@ work without compiling RDP's native scoring code.
 
 See [Using RDP](docs/guides/using_rdp.md) for the different source-use options.
 
+The source and wheels include the smaller LM1/LM2 models. For LM3/LM4,
+[get the additional language-model assets](docs/setup/language_model_assets.md).
+That guide includes an assets-only setup for source, editable and wheel users;
+you do not need to run the full installer just to obtain the data.
+
 ### Use an editable install
 
 If you are working on RDP itself, an editable install is often convenient:
