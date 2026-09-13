@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / '.github' / 'workflows'
 PUSH_GATE = WORKFLOWS / 'rdp_v1_full_ci.yml'
 FULL_PROOF = WORKFLOWS / 'rdp_v1_full_proof.yml'
+PACKAGES = WORKFLOWS / 'rdp_v1_wheel_build_proof.yml'
 PROFILE_MANIFEST = ROOT / 'assets' / 'manifests' / 'asset_profiles_v1.json'
 TUTORIAL_RUNNER = ROOT / 'tutorials' / 'v1' / 'run_tutorials.py'
 
@@ -37,7 +38,7 @@ def _decorator_names(path: Path, function_name: str) -> set[str]:
 def test_cheap_pr_gate_and_main_or_manual_full_proof() -> None:
     workflows = sorted(WORKFLOWS.glob('*.yml'))
     push_files = [path.name for path in workflows if '\n  push:\n' in path.read_text(encoding='utf-8') or '\n  pull_request:\n' in path.read_text(encoding='utf-8')]
-    assert push_files == [PUSH_GATE.name, FULL_PROOF.name]
+    assert push_files == [PUSH_GATE.name, FULL_PROOF.name, PACKAGES.name]
     push = PUSH_GATE.read_text(encoding='utf-8')
     assert 'name: RDP V1 push gate' in push
     assert 'python tools/ci/install_light.py' in push
@@ -55,9 +56,9 @@ def test_cheap_pr_gate_and_main_or_manual_full_proof() -> None:
     assert 'windows-latest' in proof and 'ubuntu-latest' in proof
     assert '"3.11"' in proof
 
-def test_non_gate_workflows_are_manual_and_labelled_non_authoritative() -> None:
+def test_other_specialist_workflows_remain_manual_and_non_authoritative() -> None:
     for path in sorted(WORKFLOWS.glob('*.yml')):
-        if path in {PUSH_GATE, FULL_PROOF}:
+        if path in {PUSH_GATE, FULL_PROOF, PACKAGES}:
             continue
         text = path.read_text(encoding='utf-8')
         assert 'workflow_dispatch:' in text
@@ -65,6 +66,19 @@ def test_non_gate_workflows_are_manual_and_labelled_non_authoritative() -> None:
         assert '\n  push:\n' not in text
         assert '\n  pull_request:\n' not in text
         assert 'non-authoritative' in text.splitlines()[0]
+
+
+def test_package_matrix_runs_for_relevant_prs_and_is_reused_by_full_proof() -> None:
+    packages = PACKAGES.read_text(encoding='utf-8')
+    for event in ('workflow_dispatch', 'workflow_call', 'pull_request'):
+        assert f'\n  {event}:\n' in packages
+    assert 'branches: [main]' in packages
+    assert '    paths:\n' in packages
+    for path in ('src/**', 'tests/**', 'pyproject.toml', 'setup.py', 'tools/ci/**'):
+        assert f"      - '{path}'" in packages
+    assert 'contents: read' in packages
+    assert 'continue-on-error:' not in packages
+    assert 'uses: ./.github/workflows/rdp_v1_wheel_build_proof.yml' in FULL_PROOF.read_text(encoding='utf-8')
 
 
 def test_manual_native_workflow_checks_the_canonical_public_api(monkeypatch, tmp_path: Path) -> None:

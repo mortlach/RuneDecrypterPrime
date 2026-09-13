@@ -1,7 +1,21 @@
-name: RDP V1 wheel/sdist build proof (manual, non-authoritative)
+name: RDP Python wheel builds
 
 on:
   workflow_dispatch:
+  workflow_call:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/rdp_v1_wheel_build_proof.yml'
+      - '.github/workflows/rdp_v1_full_proof.yml'
+      - '.github/workflows/rdp_v1_full_ci.yml'
+      - 'pyproject.toml'
+      - 'setup.py'
+      - 'MANIFEST.in'
+      - 'src/**'
+      - 'assets/**'
+      - 'tools/ci/**'
+      - 'tests/**'
 
 permissions:
   contents: read
@@ -9,25 +23,36 @@ permissions:
 env:
   PYTHONUTF8: "1"
   PYTHONIOENCODING: "utf-8"
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONUNBUFFERED: "1"
 
 jobs:
   build-packages:
-    name: package proof / ${{ matrix.os }} / py3.11
+    name: native packages / ${{ matrix.os }} / py${{ matrix.python.version }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
-
+        python:
+          - {version: "3.11", tag: "cp311"}
+          - {version: "3.12", tag: "cp312"}
+          - {version: "3.13", tag: "cp313"}
+          - {version: "3.14", tag: "cp314"}
     env:
-      CIBW_BUILD: "cp311-*"
+      CIBW_BUILD: "${{ matrix.python.tag }}-*"
       CIBW_SKIP: "*-musllinux_*"
+      CIBW_ARCHS_WINDOWS: "AMD64"
+      CIBW_ARCHS_LINUX: "x86_64"
       CIBW_TEST_COMMAND: >-
         python {project}/tools/ci/a5_installed_wheel_smoke.py
 
     steps:
-      - name: Check out repository
+      - name: Check out source commit
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -36,22 +61,153 @@ jobs:
           cache: pip
 
       - name: Install package-build drivers
-        run: python -m pip install cibuildwheel build
+        run: python -m pip install cibuildwheel==4.2.1 build
 
-      - name: Build and isolate-test CPython 3.11 wheels
+      - name: Build and isolate-test the selected CPython wheel
+        id: wheels
         run: python -m cibuildwheel --output-dir wheelhouse
 
       - name: Build source distribution
+        id: sdist
         run: python -m build --sdist --outdir dist
 
       - name: Validate wheel and sdist boundaries
+        id: boundaries
         run: python tools/ci/a5_artifact_contract.py
 
-      - name: Upload package artifacts
+      - name: Record native artifact identity and checksums
+        id: checksums
+        shell: python
+        env:
+          WHEEL_TAG: ${{ matrix.python.tag }}
+          PROOF_OS: ${{ matrix.os }}
+        run: |
+          import hashlib, os, subprocess
+          from pathlib import Path
+          from packaging.utils import parse_wheel_filename
+          sha = os.environ['GITHUB_SHA']
+          assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip() == sha
+          wheels = list(Path('wheelhouse').glob('*.whl'))
+          sdists = list(Path('dist').glob('*.tar.gz'))
+          assert len(wheels) == len(sdists) == 1
+          tags = parse_wheel_filename(wheels[0].name)[3]
+          expected = os.environ['WHEEL_TAG']
+          assert all(tag.interpreter == tag.abi == expected for tag in tags), 'Wrong Python wheel'
+          if os.environ['PROOF_OS'] == 'windows-latest':
+              assert all(tag.platform == 'win_amd64' for tag in tags), 'Wrong Windows architecture'
+          else:
+              assert all(tag.platform.startswith('manylinux_') and tag.platform.endswith('_x86_64')
+                         for tag in tags), 'Wrong Linux platform or architecture'
+          lines = [f'# Source commit: {sha}']
+          for path in sorted(wheels + sdists):
+              with path.open('rb') as stream:
+                  digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+              lines.append(f'{digest}  {path.as_posix()}')
+          destination = Path('output/package-proof')
+          destination.mkdir(parents=True, exist_ok=True)
+          (destination / 'SHA256SUMS.txt').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          print('\n'.join(lines))
+
+      - name: Upload proven native package artifacts
+        id: artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rdp-v1-packages-${{ matrix.os }}-py3.11
+          name: rdp-v1-packages-${{ matrix.os }}-py${{ matrix.python.version }}-${{ github.sha }}
           path: |
             wheelhouse/*.whl
             dist/*.tar.gz
+            output/package-proof/SHA256SUMS.txt
           if-no-files-found: error
+          overwrite: true
+
+      - name: Summarize native package proof
+        if: always()
+        shell: python
+        env:
+          PROOF_OS: ${{ matrix.os }}
+          PROOF_PYTHON: ${{ matrix.python.version }}
+          WHEEL_RESULT: ${{ steps.wheels.outcome }}
+          SDIST_RESULT: ${{ steps.sdist.outcome }}
+          BOUNDARY_RESULT: ${{ steps.boundaries.outcome }}
+          CHECKSUM_RESULT: ${{ steps.checksums.outcome }}
+          ARTIFACT_RESULT: ${{ steps.artifacts.outcome }}
+        run: |
+          import os
+          from pathlib import Path
+          rows = [('Source commit', os.environ['GITHUB_SHA']), ('OS', os.environ['PROOF_OS']),
+                  ('Python', os.environ['PROOF_PYTHON'])]
+          rows += [(key, os.environ[key]) for key in (
+              'WHEEL_RESULT', 'SDIST_RESULT', 'BOUNDARY_RESULT', 'CHECKSUM_RESULT', 'ARTIFACT_RESULT')]
+          lines = ['## Native package proof', '', '| Item | Result |', '| --- | --- |']
+          lines += [f'| {key} | {value} |' for key, value in rows]
+          checksums = Path('output/package-proof/SHA256SUMS.txt')
+          if checksums.is_file():
+              lines += ['', '```text', checksums.read_text(encoding='utf-8').strip(), '```']
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as stream:
+              stream.write('\n'.join(lines) + '\n')
+
+  collect-packages:
+    name: collect eight native wheels and checksums
+    needs: build-packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download verified package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: rdp-v1-packages-*-py*-${{ github.sha }}
+          path: packages
+
+      - name: Verify and collect the complete native package set
+        shell: python
+        run: |
+          import hashlib, os, shutil
+          from pathlib import Path
+          sha = os.environ['GITHUB_SHA']
+          root = Path('packages')
+          destination = Path('release-packages')
+          destination.mkdir()
+          selected = []
+          for platform in ('windows-latest', 'ubuntu-latest'):
+              for version in ('3.11', '3.12', '3.13', '3.14'):
+                  folder = root / f'rdp-v1-packages-{platform}-py{version}-{sha}'
+                  checksums = (folder / 'output/package-proof/SHA256SUMS.txt').read_text().splitlines()
+                  assert checksums[0] == f'# Source commit: {sha}', 'Wrong source commit'
+                  wheels = list((folder / 'wheelhouse').glob('*.whl'))
+                  sdists = list((folder / 'dist').glob('*.tar.gz'))
+                  assert len(wheels) == len(sdists) == 1, 'Missing or duplicate package'
+                  expected = 'cp' + version.replace('.', '')
+                  assert f'-{expected}-{expected}-' in wheels[0].name, 'Wrong Python wheel'
+                  assert (wheels[0].name.endswith('-win_amd64.whl') if platform == 'windows-latest'
+                          else '-manylinux_' in wheels[0].name and wheels[0].name.endswith('_x86_64.whl'))
+                  assert len(checksums) == 3, 'Unexpected checksum entries'
+                  for path in wheels + sdists:
+                      digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                      assert f'{digest}  {path.relative_to(folder).as_posix()}' in checksums, 'Checksum mismatch'
+                  selected.extend(wheels)
+                  # The source archive is interpreter-independent; publish the Linux 3.11 copy.
+                  if platform == 'ubuntu-latest' and version == '3.11':
+                      selected.extend(sdists)
+          assert len(selected) == len({path.name for path in selected}) == 9
+          lines = [f'# Source commit: {sha}']
+          for source in sorted(selected, key=lambda path: path.name):
+              target = destination / source.name
+              shutil.copyfile(source, target)
+              lines.append(f'{hashlib.sha256(target.read_bytes()).hexdigest()}  {target.name}')
+          (destination / 'SHA256SUMS.txt').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write('## Native package matrix: PASS\n\n')
+              summary.write(f'Source commit: `{sha}`\n\n')
+              summary.write('Eight CPython 3.11–3.14 Windows/Linux x86-64 wheels, one sdist and SHA256SUMS.txt.\n')
+
+      - name: Upload the complete native package set
+        uses: actions/upload-artifact@v4
+        with:
+          name: rdp-v1-native-packages-${{ github.sha }}
+          path: release-packages/*
+          if-no-files-found: error
+          overwrite: true

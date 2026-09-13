@@ -1,7 +1,7 @@
 # Installation
 
-RDP needs Python 3.11 or newer. V1 is tested on Python 3.11 on Windows and
-Ubuntu.
+RDP needs Python 3.11 or newer. Routine CI tests CPython 3.11, 3.12, 3.13 and
+3.14 on Windows and Ubuntu. The longer 53-job release validation runs on 3.11.
 
 From the repository root:
 
@@ -31,6 +31,12 @@ sure the V1 language files are available, and checks the install at the end.
 
 It uses the Python environment that launched it. It does not create or select
 an environment for you.
+
+For example, `python3.12 install.py` on Linux builds and installs RDP for that
+Python 3.12 environment. To use a virtual environment, create it with the
+Python version you want, then run the installer with that environment's Python.
+The source installer builds locally; it does not download a prebuilt RDP wheel
+or switch Python versions.
 
 ## Externally managed Python on Linux
 
@@ -102,6 +108,13 @@ The tutorial groups and their purpose are described in
 [Tutorials and examples](../tutorials/README.md).
 
 ## Installing a built wheel
+
+Choose a wheel matching your Python version, operating system and architecture.
+For example, `cp312-cp312` is for CPython 3.12, and `win_amd64` is for 64-bit
+x86 Windows. Linux x86-64 wheels use `manylinux` platform tags. Each wheel works
+with the matching Python minor version; a 3.11 wheel cannot be used with 3.12.
+See the [release downloads](https://github.com/mortlach/RuneDecrypterPrime/releases)
+for the published files.
 
 For an existing wheel:
 
