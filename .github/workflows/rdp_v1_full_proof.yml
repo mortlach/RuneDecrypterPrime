@@ -1,0 +1,502 @@
+name: RDP V1 full proof
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  native-validation:
+    name: full_v1 / 53 jobs / ${{ matrix.os }} / py3.11
+    runs-on: ${{ matrix.os }}
+    # Hosted runner ceiling, not a shortened scientific search budget.
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    env:
+      RDP_OUTPUT_ROOT: ${{ github.workspace }}/output
+
+    steps:
+      - name: Check out source commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install and verify the canonical full_v1 asset profile
+        id: install
+        run: python install.py
+
+      - name: Verify the unchanged canonical 53-job selection
+        shell: python
+        run: |
+          import importlib.util, os, subprocess, sys
+          from pathlib import Path
+          spec = importlib.util.spec_from_file_location('rdp_release_validator', Path('tools/run_validation.py'))
+          validator = importlib.util.module_from_spec(spec)
+          sys.modules[spec.name] = validator
+          spec.loader.exec_module(validator)
+          assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip() == os.environ['GITHUB_SHA']
+          assert validator.RUN_SET == 'all'
+          assert validator.INCLUDE_LONG_P7C7_EXAMPLE is True
+          assert validator.DRY_RUN is False
+          jobs = validator.build_jobs(validator.RUN_SET)
+          assert len(jobs) == 53
+          assert jobs[0].args == ('-m', 'pytest', '-q', '-p', 'no:cacheprovider', 'tests')
+          assert sum(job.args[-1] == 'tutorials.v1.examples.' + validator.P7C7_EXAMPLE for job in jobs) == 1
+
+      - name: Run canonical full validation including production P7/C7
+        id: validation
+        run: python tools/run_validation.py
+
+      - name: Run representative V1 examples with full assets
+        id: tutorials
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        shell: python
+        run: |
+          from pathlib import Path
+          import importlib.util
+          import subprocess
+          import sys
+
+          log_path = Path("output") / "test_logs" / "full_v1_tutorials.log"
+          log_path.parent.mkdir(parents=True, exist_ok=True)
+          script = Path("tutorials") / "v1" / "run_tutorials.py"
+          code = (
+              "import importlib.util, pathlib, sys; "
+              f"script = pathlib.Path({str(script)!r}); "
+              "spec = importlib.util.spec_from_file_location('rdp_full_tutorial_runner', script); "
+              "mod = importlib.util.module_from_spec(spec); "
+              "sys.modules[spec.name] = mod; "
+              "spec.loader.exec_module(mod); "
+              "mod.RUN_SET = mod.TutorialRunSet.FULL_ASSET_EXAMPLES; "
+              "raise SystemExit(mod.main())"
+          )
+          proc = subprocess.run(
+              [sys.executable, "-X", "utf8", "-c", code],
+              text=True,
+              encoding="utf-8",
+              errors="replace",
+              stdout=subprocess.PIPE,
+              stderr=subprocess.STDOUT,
+          )
+          log_path.write_text(proc.stdout, encoding="utf-8")
+          print(proc.stdout, end="")
+          raise SystemExit(proc.returncode)
+
+      - name: Record and enforce native validation evidence
+        if: always()
+        shell: python
+        env:
+          PROOF_OS: ${{ matrix.os }}
+          INSTALL_RESULT: ${{ steps.install.outcome }}
+          VALIDATION_RESULT: ${{ steps.validation.outcome }}
+          TUTORIAL_RESULT: ${{ steps.tutorials.outcome }}
+        run: |
+          import json, os
+          from pathlib import Path
+          receipt = {
+              'source_commit': os.environ['GITHUB_SHA'], 'os': os.environ['PROOF_OS'],
+              'install': os.environ['INSTALL_RESULT'], 'validation': os.environ['VALIDATION_RESULT'],
+              'tutorials': os.environ['TUTORIAL_RESULT'], 'expected_jobs': 53,
+              'passed_jobs': 0, 'elapsed_seconds': None, 'status': 'FAIL',
+          }
+          try:
+              paths = list(Path('output/validation').glob('*/summary.json'))
+              assert len(paths) == 1, f'Expected one validator summary, found {len(paths)}'
+              summary = json.loads(paths[0].read_text(encoding='utf-8'))
+              jobs = summary['jobs']
+              receipt['passed_jobs'] = sum(row['status'] == 'passed' for row in jobs)
+              receipt['elapsed_seconds'] = summary.get('elapsed_seconds')
+              receipt['validation_summary'] = paths[0].as_posix()
+              assert summary['commit'] == receipt['source_commit'], 'Validator source SHA mismatch'
+              assert summary['working_tree_status'] == [], 'Validator source was dirty'
+              assert len(jobs) == len({row['name'] for row in jobs}) == 53, 'Catalogue is not 53 distinct jobs'
+              assert summary['status'] == 'passed' and receipt['passed_jobs'] == 53, '53/53 PASS not established'
+              assert all(receipt[key] == 'success' for key in ('install', 'validation', 'tutorials')), 'A required native step did not succeed'
+              receipt['status'] = 'PASS'
+          except (AssertionError, OSError, ValueError, KeyError, TypeError) as exc:
+              receipt['error'] = str(exc)
+          destination = Path('output/release-proof')
+          destination.mkdir(parents=True, exist_ok=True)
+          (destination / (receipt['os'] + '.json')).write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+          rows = [
+              ('Source commit', receipt['source_commit']), ('OS', receipt['os']),
+              ('full_v1 install', receipt['install']), ('Canonical validation', receipt['validation']),
+              ('Passed jobs / expected jobs', f"{receipt['passed_jobs']}/53"),
+              ('Validation elapsed seconds', receipt['elapsed_seconds']),
+              ('Full-asset tutorials', receipt['tutorials']), ('Native proof', receipt['status']),
+          ]
+          lines = ['## Native release validation', '', '| Item | Result |', '| --- | --- |']
+          lines += [f'| {key} | {value} |' for key, value in rows]
+          if 'error' in receipt:
+              lines += ['', receipt['error']]
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as stream:
+              stream.write('\n'.join(lines) + '\n')
+          print(json.dumps(receipt, indent=2))
+          raise SystemExit(0 if receipt['status'] == 'PASS' else 1)
+
+      - name: Upload full-proof logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rdp-v1-full-proof-${{ matrix.os }}-${{ github.sha }}
+          path: |
+            output/install/**/*.log
+            output/install/**/*.json
+            output/validation/**
+            output/test_logs/*.log
+            output/tutorial_logs/**/*.txt
+          if-no-files-found: warn
+          overwrite: true
+
+      - name: Upload compact native status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rdp-v1-native-status-${{ matrix.os }}-${{ github.sha }}
+          path: output/release-proof/*.json
+          if-no-files-found: error
+          overwrite: true
+
+  native-packages:
+    name: native packages / ${{ matrix.os }} / py3.11
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    env:
+      CIBW_BUILD: "cp311-*"
+      CIBW_SKIP: "*-musllinux_*"
+      CIBW_ARCHS_WINDOWS: "AMD64"
+      CIBW_TEST_COMMAND: >-
+        python {project}/tools/ci/a5_installed_wheel_smoke.py
+
+    steps:
+      - name: Check out source commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package-build drivers
+        run: python -m pip install cibuildwheel build
+
+      - name: Build and isolate-test CPython 3.11 wheels
+        id: wheels
+        run: python -m cibuildwheel --output-dir wheelhouse
+
+      - name: Build source distribution
+        id: sdist
+        run: python -m build --sdist --outdir dist
+
+      - name: Validate wheel and sdist boundaries
+        id: boundaries
+        run: python tools/ci/a5_artifact_contract.py
+
+      - name: Record native artifact identity and checksums
+        id: checksums
+        shell: python
+        run: |
+          import hashlib, os, subprocess
+          from pathlib import Path
+          sha = os.environ['GITHUB_SHA']
+          assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip() == sha
+          wheels = list(Path('wheelhouse').glob('*.whl'))
+          sdists = list(Path('dist').glob('*.tar.gz'))
+          assert len(wheels) == len(sdists) == 1
+          lines = [f'# Source commit: {sha}']
+          for path in sorted(wheels + sdists):
+              with path.open('rb') as stream:
+                  digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+              lines.append(f'{digest}  {path.as_posix()}')
+          destination = Path('output/package-proof')
+          destination.mkdir(parents=True, exist_ok=True)
+          (destination / 'SHA256SUMS.txt').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          print('\n'.join(lines))
+
+      - name: Upload proven native package artifacts
+        id: artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rdp-v1-packages-${{ matrix.os }}-py3.11-${{ github.sha }}
+          path: |
+            wheelhouse/*.whl
+            dist/*.tar.gz
+            output/package-proof/SHA256SUMS.txt
+          if-no-files-found: error
+          overwrite: true
+
+      - name: Summarize native package proof
+        if: always()
+        shell: python
+        env:
+          PROOF_OS: ${{ matrix.os }}
+          WHEEL_RESULT: ${{ steps.wheels.outcome }}
+          SDIST_RESULT: ${{ steps.sdist.outcome }}
+          BOUNDARY_RESULT: ${{ steps.boundaries.outcome }}
+          CHECKSUM_RESULT: ${{ steps.checksums.outcome }}
+          ARTIFACT_RESULT: ${{ steps.artifacts.outcome }}
+        run: |
+          import os
+          from pathlib import Path
+          rows = [('Source commit', os.environ['GITHUB_SHA']), ('OS', os.environ['PROOF_OS'])]
+          rows += [(key, os.environ[key]) for key in (
+              'WHEEL_RESULT', 'SDIST_RESULT', 'BOUNDARY_RESULT', 'CHECKSUM_RESULT', 'ARTIFACT_RESULT')]
+          lines = ['## Native package proof', '', '| Item | Result |', '| --- | --- |']
+          lines += [f'| {key} | {value} |' for key, value in rows]
+          checksums = Path('output/package-proof/SHA256SUMS.txt')
+          if checksums.is_file():
+              lines += ['', '```text', checksums.read_text(encoding='utf-8').strip(), '```']
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as stream:
+              stream.write('\n'.join(lines) + '\n')
+
+  pyodide:
+    name: pinned WASM wheel / B1-B8
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Check out requested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Read the proven toolchain pins
+        id: pins
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          pins = json.loads(Path('tools/pyodide/versions.json').read_text())
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              for key in ('python', 'pyodide', 'pyodide_build', 'pyodide_cli', 'emscripten'):
+                  output.write(f'{key}={pins[key]}\n')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as output:
+              for key, directory in (
+                  ('PYODIDE_XBUILDENV_PATH', 'rdp-xbuildenv'),
+                  ('RDP_PYODIDE_OUTPUT', 'rdp-pyodide'),
+                  ('RDP_OUTPUT_ROOT', 'rdp-native-output'),
+              ):
+                  output.write(f'{key}={Path(os.environ["RUNNER_TEMP"]) / directory}\n')
+          PY
+          test -z "$(git status --porcelain)"
+
+      - name: Set up pinned host Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ steps.pins.outputs.python }}
+
+      - name: Install pinned Pyodide build environment and SDK
+        env:
+          RDP_PYODIDE_VERSION: ${{ steps.pins.outputs.pyodide }}
+          RDP_BUILD_VERSION: ${{ steps.pins.outputs.pyodide_build }}
+          RDP_CLI_VERSION: ${{ steps.pins.outputs.pyodide_cli }}
+          RDP_EMSCRIPTEN_VERSION: ${{ steps.pins.outputs.emscripten }}
+        run: |
+          python -m venv "$RUNNER_TEMP/rdp-tool-env"
+          source "$RUNNER_TEMP/rdp-tool-env/bin/activate"
+          python -m pip install "pyodide-build==$RDP_BUILD_VERSION" "pyodide-cli==$RDP_CLI_VERSION"
+          pyodide xbuildenv install "$RDP_PYODIDE_VERSION"
+          pyodide xbuildenv install-emscripten --version "$RDP_EMSCRIPTEN_VERSION"
+          echo "$RUNNER_TEMP/rdp-tool-env/bin" >> "$GITHUB_PATH"
+          echo "RDP_EMSDK_ENV=$(pyodide config get emsdk_dir)/emsdk_env.sh" >> "$GITHUB_ENV"
+          echo "RDP_PYODIDE_DIST=$(pyodide config get dist_dir)" >> "$GITHUB_ENV"
+
+      - name: Build and verify exactly one WASM wheel
+        run: |
+          source "$RDP_EMSDK_ENV"
+          export PATH="$(dirname -- "$EMSDK_NODE"):$PATH"
+          bash tools/pyodide/build_wheel.sh
+          test -z "$(git status --porcelain)"
+
+      - name: Smoke the built wheel through the public API (B1-B8)
+        run: |
+          source "$RDP_EMSDK_ENV"
+          export PATH="$(dirname -- "$EMSDK_NODE"):$PATH"
+          node tools/pyodide/run_smoke.mjs
+          test -z "$(git status --porcelain)"
+
+      - name: Focused native safety checks (29 tests)
+        run: |
+          # Build outside the checkout, without activating Emscripten here.
+          python -m venv "$RUNNER_TEMP/rdp-native-env"
+          native_python="$RUNNER_TEMP/rdp-native-env/bin/python"
+          mkdir -p "$RUNNER_TEMP/rdp-native-source" "$RUNNER_TEMP/rdp-native-wheels"
+          git archive HEAD | tar -x -C "$RUNNER_TEMP/rdp-native-source"
+          "$native_python" -m pip wheel --no-deps "$RUNNER_TEMP/rdp-native-source" \
+            --wheel-dir "$RUNNER_TEMP/rdp-native-wheels"
+          "$native_python" -m pip install "$RUNNER_TEMP"/rdp-native-wheels/*.whl 'pytest==9.1.1'
+          "$native_python" -I -B - <<'PY'
+          from pathlib import Path
+          import rdp
+          import rdp.scoring.language_model._fastlm
+          import rdp.scoring.hamming._hamming
+          import rdp.scoring.span_hamming._span_hamming_fast
+          assert 'site-packages' in Path(rdp.__file__).parts, rdp.__file__
+          print('Native installed-wheel imports: PASS')
+          PY
+          "$native_python" -I -B -m pytest --noconftest --import-mode=importlib -q \
+            -p no:cacheprovider -c pyproject.toml \
+            --junitxml "$RUNNER_TEMP/rdp-native.xml" \
+            tests/contracts/test_a5_packaging_boundary_contract.py \
+            tests/installation/test_wheel_source_manifest.py \
+            tests/tools/test_pyodide_tooling.py \
+            tests/api/test_known_key_operations.py
+          test -z "$(git status --porcelain)"
+
+      - name: Verify receipts and write the job summary
+        run: |
+          python - <<'PY'
+          import hashlib, json, os, subprocess, tomllib
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          output = Path(os.environ['RDP_PYODIDE_OUTPUT'])
+          build = json.loads((output / 'wheel.json').read_text())
+          smoke = json.loads((output / 'smoke.json').read_text())
+          pins = json.loads(Path('tools/pyodide/versions.json').read_text())
+          wheels = list((output / 'wheels').glob('*.whl'))
+          assert len(wheels) == 1
+          wheel = wheels[0]
+          assert output / build['wheel'] == wheel
+          digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
+          assert build['status'] == smoke['status'] == 'PASS'
+          assert build['pins'] == smoke['pins'] == pins
+          assert build['sha256'] == smoke['wheel']['sha256'] == digest
+          assert build['size_bytes'] == smoke['wheel']['size_bytes'] == wheel.stat().st_size
+          assert smoke['wheel']['filename'] == wheel.name
+          assert wheel.name.endswith('-' + pins['wheel_tag'] + '.whl')
+          assert build['source_revision'] == os.environ['GITHUB_SHA']
+          assert build['source_status'] == ''
+          assert not subprocess.check_output(['git', 'status', '--porcelain'], text=True)
+          checks = smoke['smoke']['checks']
+          assert set(checks) == {f'B{i}' for i in range(1, 9)}
+          assert all(check['status'] == 'PASS' for check in checks.values())
+          suites = ET.parse(Path(os.environ['RUNNER_TEMP']) / 'rdp-native.xml').findall('testsuite')
+          assert sum(int(s.attrib['tests']) for s in suites) == 29
+          assert all(int(s.attrib[field]) == 0 for s in suites for field in ('failures', 'errors', 'skipped'))
+          version = tomllib.loads(Path('pyproject.toml').read_text())['project']['version']
+          rows = [
+              ('Source commit', build['source_revision']), ('RDP', version),
+              ('Pyodide', pins['pyodide']), ('Python', pins['python']),
+              ('pyodide-build', pins['pyodide_build']), ('pyodide-cli', pins['pyodide_cli']),
+              ('Emscripten', pins['emscripten']), ('Node', pins['node']),
+              ('Wheel', wheel.name), ('SHA-256', digest), ('Bytes', build['size_bytes']),
+              ('Build seconds', f"{build['build_seconds']:.2f}"),
+              ('Smoke seconds', f"{smoke['seconds']:.2f}"), ('Native tests', '29 PASS'),
+          ]
+          lines = ['## RDP V1 Pyodide wheel proof', '', '| Item | Result |', '| --- | --- |']
+          lines += [f'| {name} | `{value}` |' for name, value in rows]
+          lines += ['', 'B1 import; B2 extensions; B3 package data; B4 known-key operation;',
+                    'B5 scalar/batch scoring; B6 Beam; B7 fixed-seed GA; B8 LP loading.', '']
+          lines += [f"- {name}: {check['status']} ({check['seconds']:.3f}s)" for name, check in checks.items()]
+          lines += ['', 'Temporary Actions proof artifact; not a release or PyPI publication.', '']
+          summary = '\n'.join(lines)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as target:
+              target.write(summary)
+          print(summary)
+          PY
+
+      - name: Upload verified WASM wheel and small receipts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rdp-v1-pyodide-wheel-${{ github.sha }}
+          overwrite: true
+          path: |
+            ${{ runner.temp }}/rdp-pyodide/wheels/*.whl
+            ${{ runner.temp }}/rdp-pyodide/wheel.json
+            ${{ runner.temp }}/rdp-pyodide/smoke.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  release-proof-summary:
+    name: release proof / overall result
+    if: always()
+    needs: [native-validation, native-packages, pyodide]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download compact native status
+        uses: actions/download-artifact@v4
+        with:
+          pattern: rdp-v1-native-status-*-${{ github.sha }}
+          path: native-status
+          merge-multiple: true
+
+      - name: Summarize and enforce every required hosted proof
+        if: always()
+        shell: python
+        env:
+          NATIVE_RESULT: ${{ needs.native-validation.result }}
+          PACKAGE_RESULT: ${{ needs.native-packages.result }}
+          PYODIDE_RESULT: ${{ needs.pyodide.result }}
+        run: |
+          import json, os
+          from pathlib import Path
+          sha = os.environ['GITHUB_SHA']
+          overall = all(os.environ[key] == 'success' for key in ('NATIVE_RESULT', 'PACKAGE_RESULT', 'PYODIDE_RESULT'))
+          native_pass = os.environ['NATIVE_RESULT'] == 'success'
+          rows = [('Source SHA', sha)]
+          for platform in ('windows-latest', 'ubuntu-latest'):
+              result = 'FAIL (missing or invalid evidence)'
+              try:
+                  receipt = json.loads((Path('native-status') / (platform + '.json')).read_text(encoding='utf-8'))
+                  passed = (
+                      receipt['source_commit'] == sha and receipt['os'] == platform
+                      and receipt['status'] == 'PASS'
+                      and receipt['passed_jobs'] == receipt['expected_jobs'] == 53
+                      and all(receipt[key] == 'success' for key in ('install', 'validation', 'tutorials'))
+                  )
+                  result = 'PASS (53/53; full_v1 and full-asset tutorials)' if passed else 'FAIL'
+                  native_pass = native_pass and passed
+              except (OSError, ValueError, KeyError, TypeError):
+                  native_pass = False
+              rows.append((f'Native {platform} validation', result))
+          overall = overall and native_pass
+          rows += [
+              ('53-job validation matrix', 'PASS' if native_pass else 'FAIL'),
+              ('Native wheels / sdists / installed-artifact proof', 'PASS' if os.environ['PACKAGE_RESULT'] == 'success' else 'FAIL'),
+              ('Pyodide B1-B8 / 29 native safety tests', 'PASS' if os.environ['PYODIDE_RESULT'] == 'success' else 'FAIL'),
+              ('CUDA', 'Not exercised by hosted workflow; prior qualified CUDA validation is separate'),
+              ('Overall release proof', 'PASS' if overall else 'FAIL'),
+          ]
+          lines = ['## RDP V1 authoritative release proof', '', '| Check | Result |', '| --- | --- |']
+          lines += [f'| {key} | {value} |' for key, value in rows]
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as stream:
+              stream.write('\n'.join(lines) + '\n')
+          print('\n'.join(lines))
+          raise SystemExit(0 if overall else 1)

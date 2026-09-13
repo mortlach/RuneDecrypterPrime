@@ -1,0 +1,125 @@
+name: RDP V1 push gate
+
+on:
+  push:
+    branches:
+      - main
+      - "prelease/**"
+      - "docs/v1-final-integration"
+  pull_request:
+    branches:
+      - main
+      - "prelease/**"
+      - "docs/v1-final-integration"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
+
+jobs:
+  push-gate:
+    name: V1 push gate / ${{ matrix.os }} / py${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+        python-version:
+          - "3.11"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install and verify the canonical ci_light asset profile
+        run: python tools/ci/install_light.py
+
+      - name: Run CI-light pytest selection
+        shell: python
+        run: |
+          from pathlib import Path
+          import subprocess
+          import sys
+
+          log_path = Path("output") / "ci_logs" / "ci_light_pytest.log"
+          log_path.parent.mkdir(parents=True, exist_ok=True)
+          cmd = [
+              sys.executable,
+              "-m",
+              "pytest",
+              "-q",
+              "-p",
+              "no:cacheprovider",
+              "-m",
+              "not full_assets",
+              "tests",
+          ]
+          proc = subprocess.run(
+              cmd,
+              text=True,
+              encoding="utf-8",
+              errors="replace",
+              stdout=subprocess.PIPE,
+              stderr=subprocess.STDOUT,
+          )
+          log_path.write_text(proc.stdout, encoding="utf-8")
+          print(proc.stdout, end="")
+          raise SystemExit(proc.returncode)
+
+      - name: Run the V1 release tutorial group
+        shell: python
+        run: |
+          from pathlib import Path
+          import importlib.util
+          import subprocess
+          import sys
+
+          log_path = Path("output") / "ci_logs" / "ci_light_tutorials.log"
+          log_path.parent.mkdir(parents=True, exist_ok=True)
+          script = Path("tutorials") / "v1" / "run_tutorials.py"
+          code = (
+              "import importlib.util, pathlib, sys; "
+              f"script = pathlib.Path({str(script)!r}); "
+              "spec = importlib.util.spec_from_file_location('rdp_ci_tutorial_runner', script); "
+              "mod = importlib.util.module_from_spec(spec); "
+              "sys.modules[spec.name] = mod; "
+              "spec.loader.exec_module(mod); "
+              "mod.RUN_SET = mod.TutorialRunSet.RELEASE; "
+              "raise SystemExit(mod.main())"
+          )
+          proc = subprocess.run(
+              [sys.executable, "-X", "utf8", "-c", code],
+              text=True,
+              encoding="utf-8",
+              errors="replace",
+              stdout=subprocess.PIPE,
+              stderr=subprocess.STDOUT,
+          )
+          log_path.write_text(proc.stdout, encoding="utf-8")
+          print(proc.stdout, end="")
+          raise SystemExit(proc.returncode)
+
+      - name: Upload push-gate logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rdp-v1-push-gate-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: |
+            output/install/**/*.log
+            output/install/**/*.json
+            output/ci_logs/*.log
+            output/tutorial_logs/**/*.txt
+          if-no-files-found: warn

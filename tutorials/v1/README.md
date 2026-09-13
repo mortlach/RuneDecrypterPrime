@@ -1,0 +1,152 @@
+# V1 tutorials and examples
+
+Start with the numbered files, or choose a worked example close to your problem.
+
+- [`getting_started/`](getting_started/) is a ten-stop route through the
+  usual public API calls. Read it in filename order
+- [`examples/`](examples/) is a library of worked problems, comparisons,
+  runs with several starts and longer qualification programs
+
+All paths and commands below assume the repository root as the working
+directory.
+
+## Contents
+
+- [Getting started](#getting-started)
+- [Runner groups](#runner-groups)
+- [Cipher examples](#cipher-examples)
+- [Autokey and mono-substitution examples](#autokey-and-mono-substitution-examples)
+- [Interruptor and scheduled-stream examples](#interruptor-and-scheduled-stream-examples)
+- [Liber Primus and two-period examples](#liber-primus-and-two-period-examples)
+- [Qualification programs](#qualification-programs)
+- [Adding another example](#adding-another-example)
+
+## Getting started
+
+| File | What we do | Typical runtime | Result |
+| --- | --- | ---: | --- |
+| [`01_known_key.py`](getting_started/01_known_key.py) | Encrypt and decrypt; see the text, runes and numbers | <1 s | exact round trip |
+| [`02_first_search.py`](getting_started/02_first_search.py) | A small unknown-key search | <1 s | exact key and text |
+| [`03_repeating_key_search.py`](getting_started/03_repeating_key_search.py) | Raw rune text, WLI and a repeating key | ~3 s | exact key and text |
+| [`04_reproducible_runs.py`](getting_started/04_reproducible_runs.py) | Seed and reproducibility metadata | <1 s | identical observations |
+| [`05_known_interruptors.py`](getting_started/05_known_interruptors.py) | Tell RDP which positions are interruptors | ~2 s | exact key and text |
+| [`06_partial_recovery.py`](getting_started/06_partial_recovery.py) | See what a small search budget recovers | ~2 s | stable partial range |
+| [`07_liber_primus_source.py`](getting_started/07_liber_primus_source.py) | Named Liber Primus source loading | <1 s | source loaded |
+| [`08_reading_a_result.py`](getting_started/08_reading_a_result.py) | Find the answer and the run details in the result | <1 s | reports agree with exact result |
+| [`09_changing_search_budget.py`](getting_started/09_changing_search_budget.py) | One-variable comparison of narrow and wider beam searches | ~3 s | same exact result; different work |
+| [`10_prepare_a_real_source_search.py`](getting_started/10_prepare_a_real_source_search.py) | Prepare a Welcome Pilgrim search and inspect its settings | <1 s | request prepared; not executed |
+
+Run a stop directly, for example:
+
+```text
+python -m tutorials.v1.getting_started.03_repeating_key_search
+```
+
+These files use `from rdp import api` and no repository imports or path
+injection. Use an installed package or a source checkout prepared as described
+in [Using RDP](../../docs/guides/using_rdp.md). The files themselves are
+source-checkout companions.
+
+## Runner groups
+
+Choose a group on the command line. The default is `release`:
+
+```text
+python tutorials/v1/run_tutorials.py --list
+python tutorials/v1/run_tutorials.py getting-started
+python tutorials/v1/run_tutorials.py release
+python tutorials/v1/run_tutorials.py --only 01 07 10
+```
+
+| Group | Contents |
+| --- | --- |
+| `getting-started` | All ten numbered stops |
+| `release` | The numbered route plus three bounded, distinct examples |
+| `bundled` | Examples that use bundled assets and exclude qualifications |
+| `full-assets` | Two two-period examples using the full assets |
+| `qualification` | Three longer P7/C7 programs |
+
+Choose `qualification` separately when you want to run the longer programs.
+
+The runner supplies the checkout's source path to itself and its children.
+It does not install dependencies. Tutorials 01, 07 and 10 need only the basic
+NumPy source setup. Normal search tutorials need `_fastlm` and LM dependencies,
+but neither Hamming nor fast span-Hamming is a prerequisite for the groups.
+Full-asset examples and qualifications need LM3/LM4 as well as the bundled data.
+
+`--only` accepts numbers, stems, filenames or repository-relative paths from
+the complete catalogue. `--list` lists it without running any tutorial.
+
+Use the runtimes as a rough guide. Values marked “observed” were measured on
+the reference CPU during the migration. The other entries estimate the scale
+of the run; your hardware will affect all of them.
+
+## Cipher examples
+
+| File | Purpose | Cipher / solver | Surface | Assets | Runtime | Result | Truth / oracle |
+| --- | --- | --- | --- | --- | ---: | --- | --- |
+| [`vigenere_known_key_and_general_map.py`](examples/vigenere_known_key_and_general_map.py) | Compare a supplied-key operation with an unseeded general-map solve | Vigenere / beam | Public run; repo text support | bundled | seconds | exact | known key enters first comparison; plaintext validates both |
+| [`vigenere_general_map.py`](examples/vigenere_general_map.py) | Express Vigenere through the experimental general-map API | general map / beam | Public + experimental API; repo fixture | bundled | seconds | exact | plaintext sets an oracle stop and validates |
+| [`rail_fence.py`](examples/rail_fence.py) | Recover an unknown rail count | rail fence / beam | Public run; repo text support | bundled | seconds | exact | plaintext validates only; no oracle stop |
+| [`columnar_transposition.py`](examples/columnar_transposition.py) | Recover a column permutation | columnar / hybrid | Public run; repo text support | bundled | ~4 s observed | exact | plaintext sets an oracle stop and validates |
+| [`repeating_multiply.py`](examples/repeating_multiply.py) | Recover a repeating multiplicative key modulo 29 | general map / beam | Public + experimental API; repo fixture | bundled | ~17 s observed | exact | plaintext sets an oracle stop and validates |
+
+## Autokey and mono-substitution examples
+
+| File | Purpose | Cipher / solver | Surface | Assets | Runtime | Result | Truth / oracle |
+| --- | --- | --- | --- | --- | ---: | --- | --- |
+| [`autokey.py`](examples/autokey.py) | Compare an older GA run with crib-assisted seeds | Autokey / GA | Public run; repo fixture/support | bundled | seconds | exact assisted run | plaintext sets an oracle stop; crib informs second seed pool |
+| [`autokey_robust.py`](examples/autokey_robust.py) | Use the qualified multi-restart recipe | Autokey / beam | Public run; repo fixture/support | bundled | tens of seconds | exact robust evidence | truth validates after selection; no oracle stop or true-key seed |
+| [`mono_substitution_ga_ltr.py`](examples/mono_substitution_ga_ltr.py) | LTR single-attempt baseline | mono substitution / GA | Public run; repo fixture/support | bundled | tens of seconds | readable ≥0.970 | plaintext sets an oracle stop and validates |
+| [`mono_substitution_ga_rtl.py`](examples/mono_substitution_ga_rtl.py) | Independent RTL single-attempt baseline | mono substitution / GA | Public run; repo fixture/support | bundled | tens of seconds | readable ≥0.970 | plaintext sets an oracle stop and validates |
+| [`mono_substitution_ga_robust.py`](examples/mono_substitution_ga_robust.py) | Score-select three independent attempts | mono substitution / GA | Public run; repo fixture/support | bundled | minutes | readable ≥0.970 | truth validates after score-only selection; no oracle stop |
+| [`mono_substitution_hybrid_rtl.py`](examples/mono_substitution_hybrid_rtl.py) | Contrast the hybrid solver on RTL text | mono substitution / hybrid | Public run; repo fixture/support | bundled | minutes | near-exact ≥0.995 | plaintext sets an oracle stop and validates |
+| [`mono_substitution_sa_ltr.py`](examples/mono_substitution_sa_ltr.py) | Use simulated annealing on an LTR fixture | mono substitution / SA | Public run; repo fixture/support | bundled | minutes | near-exact ≥0.995 | plaintext sets an oracle stop and validates |
+
+## Interruptor and scheduled-stream examples
+
+| File | Purpose | Cipher / solver | Surface | Assets | Runtime | Result | Truth / oracle |
+| --- | --- | --- | --- | --- | ---: | --- | --- |
+| [`vigenere_interruptors_exact.py`](examples/vigenere_interruptors_exact.py) | Supply known interruptor positions | Vigenere / beam | Public run; repo fixture/support | bundled | seconds | exact | plaintext sets an oracle stop and validates |
+| [`vigenere_interruptors_solve.py`](examples/vigenere_interruptors_solve.py) | Search a small interruptor pool from one start | Vigenere / beam | Public run; repo fixture/support | bundled | seconds | exact | plaintext sets an oracle stop and validates |
+| [`vigenere_interruptors_nontrivial.py`](examples/vigenere_interruptors_nontrivial.py) | Search a larger interruptor case | Vigenere / beam | Public run; repo fixture/support | bundled | tens of seconds | exact | plaintext sets an oracle stop and validates |
+| [`vigenere_interruptors_robust.py`](examples/vigenere_interruptors_robust.py) | Use the qualified three-restart interruptor recipe | Vigenere / beam | Public run; repo fixture/support | bundled | tens of seconds | exact robust evidence | truth validates after selection; no oracle stop |
+| [`scheduled_stream_lookup_p13_sequence.py`](examples/scheduled_stream_lookup_p13_sequence.py) | Recover a P13 key with a supplied sequence schedule | scheduled stream / beam | Public run; repo fixture/support | bundled | ~22 s observed | exact | truth validates only; no key seed or oracle stop |
+| [`scheduled_stream_lookup_p13_primes.py`](examples/scheduled_stream_lookup_p13_primes.py) | Recover a P13 key with a generated prime schedule | scheduled stream / beam | Public run; repo fixture/support | bundled | tens of seconds | exact | truth validates only; no key seed or oracle stop |
+| [`scheduled_stream_lookup_p13_p31_segmented.py`](examples/scheduled_stream_lookup_p13_p31_segmented.py) | Recover a thresholded segmented P13/P31/P13 case | scheduled stream / beam | Public run; repo fixture/support | bundled | tens of seconds | partial ≥0.900 | truth validates threshold only; no key seed or oracle stop |
+
+## Liber Primus and two-period examples
+
+| File | Purpose | Cipher / solver | Surface | Assets | Runtime | Result | Truth / oracle |
+| --- | --- | --- | --- | --- | ---: | --- | --- |
+| [`lp_welcome_pilgrim_solve.py`](examples/lp_welcome_pilgrim_solve.py) | Run the reviewed Welcome Pilgrim workbook from a named source | Vigenere interruptors / beam | Public run + solved-workbook bridge | bundled | ~50 s observed | exact | canonical plaintext validates; no oracle stop |
+| [`two_period_cribs.py`](examples/two_period_cribs.py) | Fast two-period crib-constrained solve | two-period Vigenere / crib solver | Public run + repo fixture | full V1 | ~11 s observed | exact | key/plaintext validate only; fixed cribs constrain search |
+| [`two_period_cribs_interruptors.py`](examples/two_period_cribs_interruptors.py) | Add structural interruptor-pool search | two-period Vigenere / crib solver | Public run + repo fixture | full V1 | ~11 s observed | exact | truth validates key, text and positions; no oracle stop |
+| [`two_period_cribs_p13_p31_search.py`](examples/two_period_cribs_p13_p31_search.py) | Exercise the genuine P13/P31 d14 branch | two-period Vigenere / crib solver | Public run + repo fixture | full V1 | tens of seconds | exact | truth validates key, text and positions; no oracle stop |
+
+## Qualification programs
+
+These programs run larger searches and need the full assets. Read their
+settings and expected runtimes before starting one.
+
+| File | Purpose | Cipher / solver | Surface | Assets | Runtime | Result | Truth / oracle |
+| --- | --- | --- | --- | --- | ---: | --- | --- |
+| [`periodic_substitution.py`](examples/periodic_substitution.py) | Full periodic-substitution qualification recipe | periodic substitution / Kaeding | Public run + repo seed/support | full V1 | several hours | near-exact ≥0.995 | plaintext sets an oracle stop and validates |
+| [`periodic_substitution_p7.py`](examples/periodic_substitution_p7.py) | Focused P7 periodic-substitution qualification | periodic substitution / Kaeding | Public run + repo seed/support | full V1 | several hours | near-exact ≥0.995 | plaintext sets an oracle stop and validates |
+| [`periodic_columnar_p7_column_then_substitution.py`](examples/periodic_columnar_p7_column_then_substitution.py) | Solve P7/C7 from a qualified warm start | periodic columnar / Kaeding, raw ordering | Public run | full V1 | tens of minutes on CPU, depending on specifications | exact | non-answer warm key enters search; plaintext validates only |
+
+Candidate discovery for the last program remains in
+[`cipher_development/periodic_columnar_staged/`](../../cipher_development/periodic_columnar_staged/).
+
+## Adding another example
+
+An addition should close a real difficulty gap, cover a novel V1 problem,
+demonstrate an otherwise uncovered feature, provide an important comparison, or
+connect a real source to a repeatable workflow. Changed constants alone are not
+a reason for another file.
+
+For each example, explain what it does, which assets it needs, how long it
+takes and what result to expect. Include the seed where applicable and say
+how any known answer is used. If its main value is regression protection, put it in
+`tests/`. If it has no stable result yet, put it in the relevant development
+area.

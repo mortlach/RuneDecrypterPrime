@@ -1,0 +1,148 @@
+import numpy as np
+from rdp import api
+
+from rdp.api.normalize import normalize_rune_input
+from rdp.core.types import Direction
+from rdp.data.runeglish import Runeglish
+
+def test_encode_english_to_runes_return_order_and_shapes():
+    pt_idx, wli, rune_str = Runeglish.encode_english_to_runes('HELLO WORLD', direction='ltr')
+    assert isinstance(pt_idx, list)
+    assert isinstance(wli, list)
+    assert isinstance(rune_str, str)
+    assert len(pt_idx) > 0
+    assert len(wli) == len(pt_idx)
+    arr = np.asarray(pt_idx, dtype=np.int64)
+    assert arr.ndim == 1
+    assert arr.min() >= 0
+    assert arr.max() <= 28
+    assert all((isinstance(p, list) and len(p) == 2 for p in wli))
+    assert all((isinstance(p[0], int) and isinstance(p[1], int) for p in wli))
+
+def test_rtl_latin_rendering_inverts_reversed_multigraph_tokenisation():
+    text = 'READ EARTH AETHER THE WHITE RABBIT'
+    pt_idx, wli, rune_str = Runeglish.encode_english_to_runes(text, direction='rtl')
+    assert 'ᚱᚫᛞ' in rune_str
+    assert Runeglish.to_rune_latin(pt_idx, wli) != text
+    assert Runeglish.to_rune_latin(pt_idx, wli, direction='rtl') == text
+
+def test_ltr_latin_rendering_keeps_left_to_right_multigraphs():
+    text = 'READ RAED EARTH AETHER'
+    pt_idx, wli, _rune_str = Runeglish.encode_english_to_runes(text, direction='ltr')
+    assert Runeglish.to_rune_latin(pt_idx, wli, direction='ltr') == text
+
+def test_rtl_latin_rendering_requires_wli_for_wordwise_inverse():
+    pt_idx, _wli, _rune_str = Runeglish.encode_english_to_runes('READ', direction='rtl')
+    assert Runeglish.to_rune_latin(pt_idx, None, direction='rtl') == 'RAED'
+
+def test_latin_rendering_uses_canonical_alphabet_normalisation():
+    pt_idx, wli, _rune_str = Runeglish.encode_english_to_runes('LOOKED', direction='rtl')
+    assert Runeglish.to_rune_latin(pt_idx, wli, direction='rtl') == 'LOOCED'
+
+
+def test_delimited_rune_latin_preserves_rune_and_word_boundaries():
+    rtl_indices, rtl_wli, _ = Runeglish.encode_english_to_runes(
+        "THE LOSS OF", direction="rtl"
+    )
+    ltr_indices, ltr_wli, _ = Runeglish.encode_english_to_runes(
+        "THE LOSS OF", direction="ltr"
+    )
+    assert Runeglish.to_delimited_rune_latin(rtl_indices, rtl_wli) == (
+        "T·H·E L·O·S·S O·F"
+    )
+    assert Runeglish.to_delimited_rune_latin(ltr_indices, ltr_wli) == (
+        "TH·E L·O·S·S O·F"
+    )
+
+
+def test_canonical_and_reading_rtl_rune_latin_keep_distinct_meanings():
+    indices, wli, _ = Runeglish.encode_english_to_runes(
+        "READ THE AETHER", direction="rtl"
+    )
+    assert Runeglish.to_delimited_rune_latin(indices, wli) == (
+        "R·AE·D T·H·E EA·T·H·E·R"
+    )
+    assert Runeglish.to_delimited_rune_latin(
+        indices, wli, direction=api.TextDirection.RTL
+    ) == "R·AE·D T·H·E EA·T·H·E·R"
+    assert Runeglish.to_reading_rune_latin(
+        indices, wli, direction=api.TextDirection.RTL
+    ) == "R·EA·D T·H·E AE·T·H·E·R"
+    assert Runeglish.to_rune_latin(
+        indices, wli, direction=api.TextDirection.RTL
+    ) == "READ THE AETHER"
+
+
+def test_canonical_and_reading_rtl_rune_latin_cover_every_rune_position():
+    indices = list(range(29))
+    wli = [[position, len(indices)] for position in indices]
+    canonical = (
+        "F·U·TH·O·R·C·G·W·H·N·I·J·EO·P·X·S·T·B·E·M·L·(I)NG·OE·D·A·AE·Y·IO·EA"
+    )
+    reading = (
+        "F·U·HT·O·R·C·G·W·H·N·I·J·OE·P·X·S·T·B·E·M·L·GNI·EO·D·A·EA·Y·OI·AE"
+    )
+
+    assert Runeglish.size() == 29
+    assert Runeglish.to_delimited_rune_latin(indices, wli) == canonical
+    assert Runeglish.to_delimited_rune_latin(
+        indices, wli, direction=api.TextDirection.RTL
+    ) == canonical
+    assert Runeglish.to_reading_rune_latin(
+        indices, wli, direction=api.TextDirection.RTL
+    ) == reading
+
+
+def test_canonical_rune_latin_round_trips_but_reading_form_changes_identity():
+    indices, wli, rune_text = Runeglish.encode_english_to_runes(
+        "READ THE AETHER", direction="rtl"
+    )
+    canonical = Runeglish.to_delimited_rune_latin(indices, wli)
+    reading = Runeglish.to_reading_rune_latin(
+        indices, wli, direction=api.TextDirection.RTL
+    )
+
+    parsed_canonical, parsed_wli = normalize_rune_input(
+        canonical, input_format="rune_latin", direction=api.TextDirection.LTR
+    )
+    parsed_reading, _ = normalize_rune_input(
+        reading, input_format="rune_latin", direction=api.TextDirection.LTR
+    )
+
+    assert parsed_canonical.tolist() == indices
+    assert parsed_wli == wli
+    assert parsed_reading.tolist() != indices
+    assert Runeglish.to_rune(indices, wli) == rune_text
+
+
+def test_ltr_canonical_and_reading_rune_latin_are_equal():
+    indices, wli, _ = Runeglish.encode_english_to_runes(
+        "READ THE AETHER", direction="ltr"
+    )
+    canonical = Runeglish.to_delimited_rune_latin(indices, wli)
+    assert Runeglish.to_reading_rune_latin(
+        indices, wli, direction=api.TextDirection.LTR
+    ) == canonical
+
+
+def test_public_text_direction_is_normalised_to_engine_direction():
+    text = 'READ EARTH AETHER'
+    public_ltr = Runeglish.encode_english_to_runes(
+        text, direction=api.TextDirection.LTR
+    )
+    public_rtl = Runeglish.encode_english_to_runes(
+        text, direction=api.TextDirection.RTL
+    )
+
+    assert public_ltr == Runeglish.encode_english_to_runes(
+        text, direction=Direction.LTR
+    )
+    assert public_rtl == Runeglish.encode_english_to_runes(
+        text, direction=Direction.RTL
+    )
+    assert public_ltr != public_rtl
+
+
+def test_public_text_direction_prefers_short_names_and_keeps_long_aliases():
+    assert api.TextDirection.LEFT_TO_RIGHT is api.TextDirection.LTR
+    assert api.TextDirection.RIGHT_TO_LEFT is api.TextDirection.RTL

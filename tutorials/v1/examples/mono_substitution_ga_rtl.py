@@ -1,0 +1,178 @@
+"""Search a substitution cipher using a genetic algorithm.
+
+This is the right-to-left version of the single-attempt example. The scorer
+and word information need to match the direction used to prepare the text.
+"""
+
+from __future__ import annotations
+
+import sys
+
+import numpy as np
+
+from rdp import api
+from rdp.data.runeglish import Runeglish
+from rdp.solvers.seed_generation import make_seeds_from_freq
+from tutorials.v1.data.plaintext_fixtures import plaintext_english_string
+from tutorials.v1.support import tutorial_pretty as pretty
+from tutorials.v1.support.tutorial_output import print_tutorial_debug_preview
+from tutorials.v1.support.tutorial_utils import oracle_stop_score, print_stop_summary
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+DIRECTION = api.TextDirection.RTL
+START_MODE = "seeded"
+STOP_SCORE = 0.55
+TUTORIAL_SEED = 12345
+CIPHERTEXT_SEED = 12345
+SEED_KEYS = 120
+SEED_SWAPS = 2
+POPULATION = 96
+GENERATIONS = 96
+MIN_MATCH_RATIO = 0.97
+TUTORIAL_PATH = "examples/mono_substitution_ga_rtl.py"
+TUTORIAL_TITLE = "Mono-substitution lighter single-attempt GA RTL demonstration"
+
+
+def preview(s: str, n: int = 120) -> str:
+    return s if len(s) <= n else s[:n] + "..."
+
+
+def _invert_perm(pt_to_ct: np.ndarray) -> np.ndarray:
+    inv = np.empty_like(pt_to_ct)
+    inv[pt_to_ct] = np.arange(pt_to_ct.size, dtype=np.uint8)
+    return inv
+
+
+def _build_ciphertext(pt_en: str, *, encoding_direction: api.TextDirection, seed: int):
+    pt_idx, wli, _ = Runeglish.encode_english_to_runes(pt_en, direction="rtl")
+    rng = np.random.default_rng(seed)
+    key_fwd = rng.permutation(29).astype(np.uint8)
+    ciph = api.CipherSpec.substitution(alphabet_size=29)
+    ct_idx = api.encrypt(
+        tuple(int(value) for value in pt_idx),
+        cipher=ciph,
+        key=tuple(int(value) for value in key_fwd),
+    )
+    ct_runes = Runeglish.to_rune(list(ct_idx), wli)
+    key_inv = _invert_perm(key_fwd)
+    return (ct_idx, ct_runes, wli, key_fwd.tolist(), key_inv.tolist(), pt_idx)
+
+
+def main() -> None:
+    pretty.print_rdp_identity()
+    pretty.print_initialising()
+    pretty.print_tutorial_contract(
+        name="Mono-substitution lighter single-attempt GA RTL",
+        cipher="mono substitution",
+        solver="ga",
+        direction="rtl",
+        expected_result="human-readable solve",
+        uses_reference_stop_score=True,
+    )
+    pt_en = plaintext_english_string
+    ct_idx, ct_runes, wli, _key_fwd, _key_inv, pt_idx = _build_ciphertext(
+        pt_en, encoding_direction=DIRECTION, seed=CIPHERTEXT_SEED
+    )
+    ct_idx_list = [int(v) for v in list(ct_idx)]
+    print("Mono-substitution lighter single-attempt GA problem")
+    print(
+        "recipe status: earlier scorer demonstration; not the qualified robust recipe"
+    )
+    print(f"encoding direction: {DIRECTION.value}")
+    print(
+        "example relation: independent generated RTL ciphertext, not paired with the LTR tutorial"
+    )
+    print(f"ciphertext length: {len(ct_idx_list)}")
+    print(f"ciphertext preview: {preview(ct_runes, 160)}")
+    print_tutorial_debug_preview(
+        label="plaintext", idx=pt_idx, wli=wli, direction=DIRECTION
+    )
+    print_tutorial_debug_preview(
+        label="ciphertext", idx=ct_idx_list, wli=wli, direction=DIRECTION
+    )
+    seeds = None
+    if START_MODE == "seeded":
+        seeds = make_seeds_from_freq(
+            ct_runes.replace(" ", ""),
+            n_keys=SEED_KEYS,
+            swaps_per_key=SEED_SWAPS,
+            seed=TUTORIAL_SEED,
+            direction="rtl",
+        )
+    print(f"seeded starts: {(0 if seeds is None else len(seeds))}")
+    print(f"GA population: {POPULATION}")
+    print(f"GA generations: {GENERATIONS}")
+    scorer_params = api.ScoringConfig(
+        wli_lane_enabled=True,
+        character_order_weights={2: 0.3},
+        wli_order_weights={2: 0.7},
+    )
+    stop = oracle_stop_score(
+        pt_idx,
+        wli,
+        scorer_params,
+        device="cpu",
+        encoding_dir=DIRECTION,
+        margin=0.02,
+        min_score=0.5,
+        fallback=STOP_SCORE,
+    )
+    print_stop_summary(f"Mono GA {DIRECTION.value}", stop)
+    solver = api.SolverSpec.genetic_algorithm(
+        population_size=POPULATION,
+        generations=GENERATIONS,
+        target_score=stop.stop_score,
+        elite_fraction=0.08,
+        crossover_fraction=0.85,
+        mutation_probability=0.25,
+        tournament_size=4,
+        plateau_generations=20,
+        plateau_minimum_delta=0.0001,
+        seed=TUTORIAL_SEED,
+    )
+    key_spec = api.KeySpec.permutation(length=29)
+    cipher_spec = api.CipherSpec.substitution(alphabet_size=29)
+    initial_keys = (
+        None
+        if seeds is None
+        else tuple(tuple(int(value) for value in key) for key in seeds)
+    )
+    request = api.RunSpec(
+        problem_input=api.RuneInput(value=ct_idx, word_length_information=wli),
+        cipher=cipher_spec,
+        key_space=key_spec,
+        solver=solver,
+        scoring=scorer_params,
+        initial_keys=initial_keys,
+        telemetry_enabled=True,
+        text_direction=DIRECTION,
+    )
+    result = api.run(request)
+    mode_label = "GA (seeded start)" if seeds is not None else "GA (noise start)"
+    print(f"Mode: {mode_label}")
+    rec = result.plaintext_runes or ""
+    print("Recovered plaintext:", preview(str(rec)))
+    print("Score:", round(result.score, 6))
+    pipeline = getattr(result.solver_report.details, "value", {}) or {}
+    print("Pipeline block:", pipeline)
+    has_tel = bool((result.telemetry or {}).get("telemetry"))
+    print("Telemetry attached:", has_tel)
+    recovered_idx = [int(value) for value in result.plaintext_indices]
+    expected_idx = [int(value) for value in pt_idx]
+    match_ratio = sum(
+        a == b for a, b in zip(recovered_idx, expected_idx, strict=True)
+    ) / len(expected_idx)
+    print(f"Match ratio: {match_ratio:.3f}")
+    pretty.print_summary_spacer()
+    api.display.print_result(
+        result, spec=request, options=api.display.SummaryOptions.for_tutorial()
+    )
+    if match_ratio < MIN_MATCH_RATIO:
+        raise AssertionError(
+            f"GA RTL solve below acceptance threshold: {match_ratio:.3f}"
+        )
+
+
+if __name__ == "__main__":
+    main()
