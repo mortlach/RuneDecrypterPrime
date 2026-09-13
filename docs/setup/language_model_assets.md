@@ -91,15 +91,16 @@ from pathlib import Path
 from rdp import api
 
 # Replace this with your prepared lmp directory.
-lm_root = Path("/path/to/assets/language_model/lmp").resolve()
+lm_root = Path("path/to/prepared/lmp").resolve()
 
 scoring = api.ScoringConfig(language_model_root=lm_root)
 ```
 
-On Windows, for example, the path could be
-`Path("D:/rdp-data/language_model/lmp")`. Use an absolute path to the directory
-containing `index.json`, not to a ZIP, the outer `assets/` directory, or
-`index.json` itself.
+Replace the example with the location of your prepared model directory.
+Here, `.resolve()` turns a relative path into an absolute path from the
+current working directory on Windows or Linux. The resulting path must point
+to the directory containing `index.json`, not to a ZIP, the outer `assets/`
+directory, or `index.json` itself.
 
 Pass this configuration as `scoring=scoring` to `api.score()`,
 `api.score_many()` or `api.RunSpec(...)`. If your experiment already has a
