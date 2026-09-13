@@ -8,21 +8,107 @@ Liber Primus text and actually try it without writing another one-off solver
 from scratch. You can change the cipher, keys, search or scoring while keeping
 the rest of the experiment the same.
 
-## Start here
+## Choose how you want to use RDP
 
-RDP 1.0.0 needs Python 3.11 or newer. From the repository root:
+RDP 1.0.0 needs Python 3.11 or newer.
+
+There are a few normal ways to work with it. Use whichever fits what you are
+trying to do.
+
+### Install RDP normally
+
+If you just want RDP set up and ready to use, from the repository root run:
 
 ```text
 python install.py
 ```
 
-The installer uses the Python environment you choose. If a Linux distribution
-protects its system Python, RDP explains the available next steps rather than
-changing that protection automatically. See
-[Installation](docs/setup/installation.md).
+The installer uses the Python environment you choose, builds the native scoring
+modules and checks the V1 assets.
 
-Optional PowerShell, Command Prompt and POSIX shell wrappers are under
-[`tools/installation/`](tools/installation/README.md).
+If a Linux distribution protects its system Python, RDP explains the available
+next steps rather than changing that protection automatically.
+
+See [Installation](docs/setup/installation.md).
+
+### Run directly from the source checkout
+
+You do not have to install RDP as a package to use the source.
+
+Install the Python dependencies:
+
+```text
+python -m pip install numpy zstandard tzdata platformdirs
+```
+
+Then make `src/` available to Python. There are several ordinary ways to do
+that, including `PYTHONPATH`, setting the source root in your IDE, or using the
+source-aware tutorial runner.
+
+For example, on PowerShell:
+
+```text
+$env:PYTHONPATH = "$PWD\src"
+python -m tutorials.v1.getting_started.01_known_key
+```
+
+On Command Prompt:
+
+```text
+set PYTHONPATH=%CD%\src
+python -m tutorials.v1.getting_started.01_known_key
+```
+
+On Linux or macOS:
+
+```text
+PYTHONPATH="$PWD/src" python -m tutorials.v1.getting_started.01_known_key
+```
+
+Known-key operations, Liber Primus source access and some of the first tutorials
+work without compiling RDP's native scoring code.
+
+See [Using RDP](docs/guides/using_rdp.md) for the different source-use options.
+
+### Use an editable install
+
+If you are working on RDP itself, an editable install is often convenient:
+
+```text
+python -m pip install -e .
+```
+
+Python then imports RDP from your checkout. Changes you make to Python source
+will be picked up by new Python processes without reinstalling the package.
+
+An interpreter that has already imported a module may need to be restarted or
+the module reloaded. Changes to the native C++ code still need to be rebuilt.
+
+### Build the native modules yourself
+
+RDP is mostly Python, but some scoring code is native C++.
+
+Building it yourself is a normal way to work with the project, especially if
+you want to change the scoring code or work on the experimental scoring
+backends.
+
+From the repository root:
+
+```text
+python tools/build_native.py
+```
+
+This builds the native modules used by the V1 release package. For all retained
+native and experimental modules:
+
+```text
+python tools/build_native.py --all
+```
+
+See [Build and packaging notes](docs/setup/building.md) for compiler and build
+details.
+
+## Try RDP
 
 A minimal known-key check looks like this:
 
@@ -41,9 +127,32 @@ assert recovered == plaintext
 
 No solver is involved because the key is already known.
 
+You can run the same calls interactively:
+
+```text
+python
+```
+
+```python
+from rdp import api
+```
+
+or put them in your own script, notebook or IDE console.
+
+The tutorial runner can show what is available:
+
+```text
+python tutorials/v1/run_tutorials.py --list
+```
+
+and run the getting-started route:
+
+```text
+python tutorials/v1/run_tutorials.py getting-started
+```
+
 Choose the route that matches what you want to do next:
 
-- **Use the checkout, build native modules or work at the Python prompt:** [Using RDP](docs/guides/using_rdp.md)
 - **Learn RDP:** [Learn RDP by solving](docs/learn/README.md)
 - **Solve Liber Primus:** [Start solving Liber Primus](solving/lp_getting_started/README.md)
 - **Develop or extend RDP:** [Extending RDP](docs/guides/extending_rdp.md)
@@ -52,10 +161,9 @@ Choose the route that matches what you want to do next:
 The fuller [documentation index](docs/README.md) is there when you need more
 control or want to understand the internals.
 
-RDP has also been built and exercised under Pyodide/WebAssembly in a real
-browser. V1 does not ship a browser front end. Check
-[CicadaSolvers](https://www.cicadasolvers.com/) for current community experiments,
-or see the [build and smoke tooling](tools/pyodide/README.md) for technical details.
+RDP has also been built and run under Pyodide/WebAssembly in a real browser.
+V1 does not ship a browser front end. Check [CicadaSolvers](https://www.cicadasolvers.com/)
+for current community work and experiments.
 
 ## Why RDP exists
 
