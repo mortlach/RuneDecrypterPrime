@@ -1,14 +1,13 @@
 # AI-assisted development
 
-AI coding tools are part of RDP's development workflow. They are also useful for
-working with RDP as a solver.
+AI coding tools are used in RDP's development workflow. They have also been useful
+when working with RDP as a solver.
 
 A modern coding assistant can usually read the public API and documentation,
 help turn a cipher idea into a small experiment, explain an unfamiliar example,
 write tests, or in some environments run the code and inspect the result.
 
-Use that as much or as little as you find useful. RDP does not require a
-particular development tool.
+Use that as much or as little as you find useful.
 
 ## What has worked well here
 
@@ -27,13 +26,11 @@ A few habits have made AI-assisted work much more useful during RDP development:
 - review the result as code and evidence, not as an answer that becomes true
   because a model produced it
 
-The tools are especially good at accelerating the mechanical parts of an
-investigation: wiring an experiment together, comparing variants, reading a
-large API surface, expanding test coverage and checking documentation against
-code.
+The tools are especially good at accelerating the mechanical parts of an investigation: wiring an experiment together, comparing variants, reading a large API surface, expanding test coverage and checking documentation against code.
 
-They are less useful when a plausible explanation is allowed to substitute for
-the actual run.
+There is a more important caution. Modern AI tools are extremely good at finding and completing patterns, including patterns that are weak, accidental or simply not there. Given enough suggestive fragments, they can turn noise into a very convincing story. Cipher solving is already vulnerable to this kind of over-interpretation, so AI can make a sloppy solve look much stronger than it is.
+
+Treat explanations, apparent patterns and proposed plaintexts as hypotheses. Run the experiment, keep the exact input and settings, and check the result independently. A persuasive explanation is not evidence that the cipher was solved.
 
 ## The standard does not change
 
@@ -46,7 +43,4 @@ the script and a note about what happened. For a serious cipher-development
 result it may also mean fixed settings, seeds, benchmarks or broader robustness
 evidence.
 
-The amount of machinery can change. The result still has to stand on its own.
-
-For the longer history of RDP and when AI-assisted development became part of
-it, see [Project history](../project_history.md).
+The result still has to stand on its own.
