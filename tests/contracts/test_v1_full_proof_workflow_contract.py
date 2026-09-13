@@ -321,7 +321,7 @@ def test_native_checksum_step_binds_both_artifacts_to_source_sha(tmp_path, monke
     monkeypatch.setenv('WHEEL_TAG', 'cp312')
     monkeypatch.setenv('PROOF_OS', 'windows-latest')
     monkeypatch.setattr(subprocess, 'check_output', lambda *args, **kwargs: SHA + '\n')
-    names = ('wheelhouse/rune_decrypter_prime-1.0.0-cp312-cp312-win_amd64.whl', 'dist/fixture.tar.gz')
+    names = ('wheelhouse/fixture-1.0.0-cp312-cp312-win_amd64.whl', 'dist/fixture.tar.gz')
     for name in names:
         path = tmp_path / name
         path.parent.mkdir()
@@ -334,9 +334,9 @@ def test_native_checksum_step_binds_both_artifacts_to_source_sha(tmp_path, monke
 
 
 @pytest.mark.parametrize('filename', [
-    'rune_decrypter_prime-1.0.0-cp311-cp311-win_amd64.whl',
-    'rune_decrypter_prime-1.0.0-cp312-cp312-win32.whl',
-    'rune_decrypter_prime-1.0.0-cp312-cp312-manylinux_2_28_x86_64.whl',
+    'fixture-1.0.0-cp311-cp311-win_amd64.whl',
+    'fixture-1.0.0-cp312-cp312-win32.whl',
+    'fixture-1.0.0-cp312-cp312-manylinux_2_28_x86_64.whl',
 ])
 def test_native_checksum_step_rejects_wrong_python_or_platform(tmp_path, monkeypatch, filename):
     monkeypatch.chdir(tmp_path)
@@ -364,8 +364,8 @@ def test_native_bundle_requires_all_eight_verified_wheels(tmp_path, monkeypatch,
             folder = tmp_path / 'packages' / f'rdp-v1-packages-{platform}-py{version}-{SHA}'
             tag = 'cp' + version.replace('.', '')
             suffix = 'win_amd64' if platform == 'windows-latest' else 'manylinux_2_28_x86_64'
-            wheel = folder / 'wheelhouse' / f'rune_decrypter_prime-1.0.0-{tag}-{tag}-{suffix}.whl'
-            sdist = folder / 'dist/rune_decrypter_prime-1.0.0.tar.gz'
+            wheel = folder / 'wheelhouse' / f'fixture-1.0.0-{tag}-{tag}-{suffix}.whl'
+            sdist = folder / 'dist/fixture-1.0.0.tar.gz'
             lines = [f'# Source commit: {SHA}']
             for path in (wheel, sdist):
                 path.parent.mkdir(parents=True)
@@ -396,4 +396,4 @@ def test_native_bundle_requires_all_eight_verified_wheels(tmp_path, monkeypatch,
         assert len(list(destination.glob('*.whl'))) == 8
         assert len(list(destination.glob('*.tar.gz'))) == 1
         assert len((destination / 'SHA256SUMS.txt').read_text().splitlines()) == 10
-        assert (destination / 'rune_decrypter_prime-1.0.0.tar.gz').read_bytes() == b'ubuntu-latest 3.11'
+        assert (destination / 'fixture-1.0.0.tar.gz').read_bytes() == b'ubuntu-latest 3.11'
