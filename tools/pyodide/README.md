@@ -4,6 +4,12 @@ Build the normal RDP package for WebAssembly and test its installed public API.
 This is the same Python/RDP implementation, not a separate web cryptanalysis
 engine. Website integration and release automation are outside this tooling.
 
+## Contents
+
+- [Pinned target](#pinned-target)
+- [Build](#build)
+- [Smoke the wheel](#smoke-the-wheel)
+
 ## Pinned target
 
 `versions.json` is consumed by both entry points. The supported stack is:

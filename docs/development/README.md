@@ -19,6 +19,16 @@ See [Project aims and design principles](../project_overview.md) for the
 reasoning behind that model, and [Architecture](../architecture/README.md)
 for the implementation view.
 
+## Contents
+
+- [Cipher development](#cipher-development)
+- [AI-assisted development](#ai-assisted-development)
+- [Solvers and key operations](#solvers-and-key-operations)
+- [Runtime and installation work](#runtime-and-installation-work)
+- [Release validation](#release-validation)
+- [Public behaviour](#public-behaviour)
+- [Understand the runtime before extending it](#understand-the-runtime-before-extending-it)
+
 ## Cipher development
 
 [Cipher development](cipher_development.md) explains the retained

@@ -134,3 +134,43 @@ def test_using_rdp_explains_editable_and_native_boundaries() -> None:
                  "CicadaSolvers", "does not ship a public browser front end"):
         assert term in text
     assert "working source checkout" in text
+
+
+@pytest.mark.parametrize("relative", [
+    "README.md",
+    "docs/README.md",
+    "docs/development/README.md",
+    "docs/tutorials/README.md",
+    "tutorials/v1/README.md",
+    "solving/README.md",
+    "solving/solved_lp/README.md",
+    "solving/attempts/README.md",
+    "solving/lp_getting_started/README.md",
+    "cipher_development/README.md",
+    "cipher_development/periodic_columnar_staged/README.md",
+    "tools/pyodide/README.md",
+])
+def test_long_readme_contents_follow_intro_and_link_to_sections(relative: str) -> None:
+    text = _read(ROOT / relative)
+    prose = re.sub(r"^```.*?^```[^\n]*$", "", text, flags=re.MULTILINE | re.DOTALL)
+    before, contents_and_rest = prose.split("## Contents\n", 1)
+    assert before.split("\n", 1)[1].strip(), "Keep an introduction before Contents"
+    contents, _ = contents_and_rest.split("\n## ", 1)
+    headings = re.findall(r"^## (.+)$", prose, re.MULTILINE)
+    assert re.findall(r"^- \[([^\]]+)\]", contents, re.MULTILINE) == [
+        heading for heading in headings if heading != "Contents"
+    ]
+    all_headings = re.findall(r"^#{2,3} (.+)$", prose, re.MULTILINE)
+    for label, anchor in re.findall(r"\[([^\]]+)\]\(#([^)]+)\)", contents):
+        assert label in all_headings
+        assert anchor == re.sub(r"[^\w -]", "", label.lower()).replace(" ", "-")
+
+
+def test_root_readme_sections_follow_the_owner_reader_order() -> None:
+    headings = re.findall(r"^## (.+)$", _read(README), re.MULTILINE)
+    assert headings == [
+        "Contents", "Why RDP exists", "What RDP is for", "Why repeatability matters",
+        "Choose how you want to use RDP", "Try RDP", "Try something and share it",
+        "Start solving", "Working with Liber Primus", "Extending RDP",
+        "CPU and CUDA", "Output", "Project History",
+    ]

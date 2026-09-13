@@ -8,6 +8,99 @@ Liber Primus text and actually try it without writing another one-off solver
 from scratch. You can change the cipher, keys, search or scoring while keeping
 the rest of the experiment the same.
 
+## Contents
+
+- [Why RDP exists](#why-rdp-exists)
+- [What RDP is for](#what-rdp-is-for)
+- [Why repeatability matters](#why-repeatability-matters)
+- [Choose how you want to use RDP](#choose-how-you-want-to-use-rdp)
+  - [Install RDP normally](#install-rdp-normally)
+  - [Run directly from the source checkout](#run-directly-from-the-source-checkout)
+  - [Use an editable install](#use-an-editable-install)
+  - [Build the native modules yourself](#build-the-native-modules-yourself)
+- [Try RDP](#try-rdp)
+- [Try something and share it](#try-something-and-share-it)
+- [Start solving](#start-solving)
+- [Working with Liber Primus](#working-with-liber-primus)
+- [Extending RDP](#extending-rdp)
+- [CPU and CUDA](#cpu-and-cuda)
+- [Output](#output)
+- [Project History](#project-history)
+
+## Why RDP exists
+
+Liber Primus solving has accumulated a great many ideas over the years.
+Someone tries a cipher, another person changes the period, someone else adds a
+sequence or an interruptor rule, and six months later the surviving description
+is often something like:
+
+> I tried this method and found nothing.
+
+Possibly. But what, exactly, was tried?
+
+RDP makes the experiment explicit enough that somebody else can run it again.
+
+```text
+source text
+-> cipher hypothesis
+-> key or key space
+-> search
+-> scoring
+-> result and evidence
+```
+
+A small experiment might iterate over one key length or apply an existing cipher
+to a section of Liber Primus. A larger one might search a structured key space,
+compare scoring models or develop a new cipher construction.
+
+They use the same underlying machinery.
+
+## What RDP is for
+
+For practical solving, RDP provides Liber Primus source material, rune
+representations, Runeglish language handling, cipher implementations, key
+models, solvers and scoring tools needed to turn an idea into a repeatable
+experiment.
+
+You should not need to rebuild Vigenere, rune conversion, key iteration,
+language scoring and LP source handling every time you want to test one new
+thought.
+
+For cipher development, RDP separates those parts so new ciphers, key structures,
+search methods and scoring evidence can be developed independently, then
+combined through the same run model.
+
+That gives us something useful between a notebook experiment and a finished
+solver: a place where new ideas can be tried quickly without becoming another
+private framework.
+
+## Why repeatability matters
+
+A result is more useful when another solver can inspect what produced it.
+
+RDP records the important parts of a run: source text, cipher, allowed keys,
+solver settings, scoring model, starting information, seed, stopping condition
+and result.
+
+That makes these different statements distinguishable:
+
+```text
+I applied this known key and reproduced the plaintext.
+
+I searched this key space and recovered the known solution.
+
+I tested this hypothesis under these settings and it did not recover anything.
+
+I used known plaintext to investigate the structure around a solution.
+```
+
+They are not the same claim.
+
+RDP tries to keep the difference visible.
+
+It cannot prevent bad cryptanalysis. That would be an ambitious dependency. It
+can at least make it easier to tell what was actually done.
+
 ## Choose how you want to use RDP
 
 RDP 1.0.0 needs Python 3.11 or newer.
@@ -165,80 +258,6 @@ RDP has also been built and run under Pyodide/WebAssembly in a real browser.
 V1 does not ship a browser front end. Check [CicadaSolvers](https://www.cicadasolvers.com/)
 for current community work and experiments.
 
-## Why RDP exists
-
-Liber Primus solving has accumulated a great many ideas over the years.
-Someone tries a cipher, another person changes the period, someone else adds a
-sequence or an interruptor rule, and six months later the surviving description
-is often something like:
-
-> I tried this method and found nothing.
-
-Possibly. But what, exactly, was tried?
-
-RDP makes the experiment explicit enough that somebody else can run it again.
-
-```text
-source text
--> cipher hypothesis
--> key or key space
--> search
--> scoring
--> result and evidence
-```
-
-A small experiment might iterate over one key length or apply an existing cipher
-to a section of Liber Primus. A larger one might search a structured key space,
-compare scoring models or develop a new cipher construction.
-
-They use the same underlying machinery.
-
-## What RDP is for
-
-For practical solving, RDP provides Liber Primus source material, rune
-representations, Runeglish language handling, cipher implementations, key
-models, solvers and scoring tools needed to turn an idea into a repeatable
-experiment.
-
-You should not need to rebuild Vigenere, rune conversion, key iteration,
-language scoring and LP source handling every time you want to test one new
-thought.
-
-For cipher development, RDP separates those parts so new ciphers, key structures,
-search methods and scoring evidence can be developed independently, then
-combined through the same run model.
-
-That gives us something useful between a notebook experiment and a finished
-solver: a place where new ideas can be tried quickly without becoming another
-private framework.
-
-## Why repeatability matters
-
-A result is more useful when another solver can inspect what produced it.
-
-RDP records the important parts of a run: source text, cipher, allowed keys,
-solver settings, scoring model, starting information, seed, stopping condition
-and result.
-
-That makes these different statements distinguishable:
-
-```text
-I applied this known key and reproduced the plaintext.
-
-I searched this key space and recovered the known solution.
-
-I tested this hypothesis under these settings and it did not recover anything.
-
-I used known plaintext to investigate the structure around a solution.
-```
-
-They are not the same claim.
-
-RDP tries to keep the difference visible.
-
-It cannot prevent bad cryptanalysis. That would be an ambitious dependency. It
-can at least make it easier to tell what was actually done.
-
 ## Try something and share it
 
 The quickest way to use RDP is to give yourself a concrete question and try it.
@@ -325,5 +344,7 @@ See [CUDA setup](docs/development/cuda_installation.md).
 
 Add `api.LoggingConfig` when a run is worth saving to disk. See
 [Outputs](docs/guides/outputs.md).
+
+## Project History
 
 For the longer history of RDP, see [Project history](docs/project_history.md).

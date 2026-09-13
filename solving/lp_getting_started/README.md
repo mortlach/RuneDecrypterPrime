@@ -32,6 +32,16 @@ The first example is immediate. The Welcome Pilgrim searches take longer. The
 last three examples use the complete LM1-LM4 language-model assets. Search
 budgets limit the work; elapsed time depends on the machine.
 
+## Contents
+
+- [1. Look at the ciphertext first](#1-look-at-the-ciphertext-first)
+- [2. Try the period-eight model](#2-try-the-period-eight-model)
+- [3. Add interruptors](#3-add-interruptors)
+- [4. Try all 29 shifts](#4-try-all-29-shifts)
+- [5. Make the solver agree](#5-make-the-solver-agree)
+- [6. Explore An End](#6-explore-an-end)
+- [Where next?](#where-next)
+
 ## 1. Look at the ciphertext first
 
 `01_load_welcome_pilgrim.py` loads Welcome Pilgrim as an RDP source and prints a

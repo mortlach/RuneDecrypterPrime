@@ -22,6 +22,12 @@ The examples are evidence, not all the same kind of evidence.
 The distinction is what information the program receives before the result is
 chosen.
 
+## Contents
+
+- [Solved LP workbook](#solved-lp-workbook)
+- [Share an attempt](#share-an-attempt)
+- [Why the evidence label matters](#why-the-evidence-label-matters)
+
 ## Solved LP workbook
 
 `solved_lp/` contains the solved-page workbook.

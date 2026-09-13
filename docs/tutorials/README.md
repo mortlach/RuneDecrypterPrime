@@ -27,6 +27,12 @@ For a route built specifically around genuine solved Liber Primus material, see
 [detailed solved-page workbooks](../../solving/solved_lp/README.md) are separate:
 they are evidence-oriented rather than a beginner tutorial.
 
+## Contents
+
+- [Run the normal set](#run-the-normal-set)
+- [Reading a larger example](#reading-a-larger-example)
+- [Where each concept is documented](#where-each-concept-is-documented)
+
 ## Run the normal set
 
 ```text

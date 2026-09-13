@@ -28,6 +28,15 @@ solving/attempts/<short-name>/
 
 The script and README can both be short.
 
+## Contents
+
+- [Keep the input you actually used](#keep-the-input-you-actually-used)
+- [A good small attempt can be tiny](#a-good-small-attempt-can-be-tiny)
+- [Negative results are still results](#negative-results-are-still-results)
+- [If the idea starts getting serious](#if-the-idea-starts-getting-serious)
+- [Solved material is useful for checking your machinery](#solved-material-is-useful-for-checking-your-machinery)
+- [Share it](#share-it)
+
 ## Keep the input you actually used
 
 `input.txt` should be the input the experiment really consumed.

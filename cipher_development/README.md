@@ -9,6 +9,13 @@ public API, tutorial collection, solver framework, or robustness campaign.
 - Repeatable multi-family qualification lives in `tools/robustness/`.
 - This directory holds only focused diagnostic or scientific fixtures.
 
+## Contents
+
+- [Run an experiment](#run-an-experiment)
+- [Retained experiments](#retained-experiments)
+- [Evidence rules](#evidence-rules)
+- [Adding a future experiment](#adding-a-future-experiment)
+
 ## Run an experiment
 
 Edit the four constants at the top of `cipher_development/run_experiment.py`:

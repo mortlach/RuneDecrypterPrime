@@ -10,6 +10,17 @@ Start with the numbered files, or choose a worked example close to your problem.
 All paths and commands below assume the repository root as the working
 directory.
 
+## Contents
+
+- [Getting started](#getting-started)
+- [Runner groups](#runner-groups)
+- [Cipher examples](#cipher-examples)
+- [Autokey and mono-substitution examples](#autokey-and-mono-substitution-examples)
+- [Interruptor and scheduled-stream examples](#interruptor-and-scheduled-stream-examples)
+- [Liber Primus and two-period examples](#liber-primus-and-two-period-examples)
+- [Qualification programs](#qualification-programs)
+- [Adding another example](#adding-another-example)
+
 ## Getting started
 
 | File | What we do | Typical runtime | Result |

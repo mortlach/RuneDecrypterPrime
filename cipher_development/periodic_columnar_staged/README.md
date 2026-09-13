@@ -28,6 +28,12 @@ the single solver run has completed. A completed process is promoted only for
 exact plaintext recovery; exact recovery of unused key-table entries is not
 required.
 
+## Contents
+
+- [Modes](#modes)
+- [V2 reduction](#v2-reduction)
+- [Qualified result](#qualified-result)
+
 ## Modes
 
 - `smoke`: P1/C2 contract preflight using the same candidate-reduction and

@@ -14,6 +14,14 @@ Run the workbook check with:
 python solving/solved_lp/run_all.py
 ```
 
+## Contents
+
+- [Evidence classes](#evidence-classes)
+- [Welcome Pilgrim](#welcome-pilgrim)
+- [Koan During Lesson](#koan-during-lesson)
+- [AN END](#an-end)
+- [Source labels](#source-labels)
+
 ## Evidence classes
 
 | File | Method | Evidence class | Truth use |

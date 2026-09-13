@@ -1,5 +1,19 @@
 # Documentation
 
+Start with the learning route, or use this index to find setup, solving,
+reference and development documentation.
+
+## Contents
+
+- [New to RDP](#new-to-rdp)
+- [Solving guides](#solving-guides)
+- [Liber Primus](#liber-primus)
+- [Try, share and contribute](#try-share-and-contribute)
+- [Reference](#reference)
+- [Development](#development)
+- [Other useful entry points](#other-useful-entry-points)
+- [Worked solving material](#worked-solving-material)
+
 ## New to RDP
 
 Start with [Learn RDP by solving](learn/README.md).
