@@ -218,8 +218,8 @@ def run_jobs(jobs: list[Job], *, root: Path = ROOT, output_root: Path | None = O
         junit = run_dir / f'{job.name}.xml'
         command = [sys.executable, '-X', 'utf8', '-u', *job.args]
         if job.evidence in {'pytest', 'pytest_gpu'}:
-            command += [f'--junitxml={path_from(junit, root)}',
-                        f'--basetemp={path_from(run_dir / (job.name + "_tmp"), root)}']
+            # Retain evidence here; let pytest manage temporary fixtures separately.
+            command += [f'--junitxml={path_from(junit, root)}']
         env = os.environ.copy()
         for key in ('PYTHONPATH', 'PYTHONHOME', 'PYTEST_ADDOPTS'):
             env.pop(key, None)

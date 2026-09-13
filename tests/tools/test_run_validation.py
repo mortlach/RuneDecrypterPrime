@@ -155,6 +155,39 @@ def test_existing_output_is_preserved_and_repo_output_is_supported(tmp_path):
     assert directory.is_relative_to(root / 'output/validation')
 
 
+@pytest.mark.parametrize('evidence', ['pytest', 'pytest_gpu'])
+def test_pytest_fixtures_stay_outside_checkout_with_retained_evidence_inside(tmp_path, evidence):
+    root = tmp_path / 'checkout'
+    root.mkdir()
+    (root / 'test_fixture_location.py').write_text(
+        'import json, os\n'
+        'from pathlib import Path\n'
+        'def test_location(tmp_path, tmp_path_factory, pytestconfig):\n'
+        '    checkout = Path.cwd().resolve()\n'
+        '    artifacts = Path(os.environ["RDP_OUTPUT_ROOT"])\n'
+        '    assert artifacts.is_absolute() and artifacts.is_relative_to(checkout)\n'
+        '    assert not tmp_path.resolve().is_relative_to(checkout)\n'
+        '    assert not tmp_path_factory.getbasetemp().resolve().is_relative_to(checkout)\n'
+        '    assert pytestconfig.getoption("basetemp") is None\n'
+        '    (artifacts / "fixture.json").write_text(json.dumps({"tmp_path": str(tmp_path)}))\n',
+        encoding='utf-8',
+    )
+    job = runner.Job('tests', ('-m', 'pytest', '-q', '-p', 'no:cacheprovider',
+                               'test_fixture_location.py'), evidence)
+    code, directory = runner.run_jobs([job], root=root, output_root=root / 'output/validation')
+    summary = json.loads((directory / 'summary.json').read_text())
+    assert code == 0, (directory / 'tests.log').read_text(encoding='utf-8')
+    assert summary['status'] == 'passed'
+    row = summary['jobs'][0]
+    assert row['evidence_result'] == {'tests': 1, 'skipped': 0, 'failures': 0, 'errors': 0}
+    assert directory.is_relative_to(root / 'output/validation')
+    assert (directory / 'tests.xml').is_file()
+    assert (directory / row['artifacts'] / 'fixture.json').is_file()
+    assert f'--junitxml={runner.path_from(directory / "tests.xml", root)}' in row['command']
+    assert not any(arg.startswith('--basetemp') for arg in row['command'])
+    assert not (directory / 'tests_tmp').exists()
+
+
 def test_zero_exit_without_solved_evidence_fails(tmp_path):
     code, _, summary = _run(tmp_path, [_job('unsolved', "print('status: solved')", evidence='workbook')])
     assert code == 1 and 'Workbook did not report' in summary['jobs'][0]['error']
