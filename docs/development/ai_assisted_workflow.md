@@ -1,6 +1,6 @@
 # AI-assisted development
 
-AI coding tools are used in RDP's development workflow. They have also been useful
+AI coding tools have been used in RDP's development workflow. They have also been useful
 when working with RDP as a solver.
 
 A modern coding assistant can usually read the public API and documentation,
@@ -28,7 +28,7 @@ A few habits have made AI-assisted work much more useful during RDP development:
 
 The tools are especially good at accelerating the mechanical parts of an investigation: wiring an experiment together, comparing variants, reading a large API surface, expanding test coverage and checking documentation against code.
 
-There is a more important caution. Modern AI tools are extremely good at finding and completing patterns, including patterns that are weak, accidental or simply not there. Given enough suggestive fragments, they can turn noise into a very convincing story. Cipher solving is already vulnerable to this kind of over-interpretation, so AI can make a sloppy solve look much stronger than it is.
+There is a more important thing to beware of. Modern AI tools are extremely good at finding and completing patterns, including patterns that are weak, accidental or simply not there. Given enough suggestive fragments, they can turn noise into a very convincing story. Cipher solving is already vulnerable to this kind of over-interpretation, so AI can make a sloppy solve look much stronger than it is.
 
 Treat explanations, apparent patterns and proposed plaintexts as hypotheses. Run the experiment, keep the exact input and settings, and check the result independently. A persuasive explanation is not evidence that the cipher was solved.
 

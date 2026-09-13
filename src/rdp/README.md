@@ -19,4 +19,4 @@ RDP brings a cipher, a candidate key space, a search method and scoring evidence
 
 Normal callers use `from rdp import api`. Choose a cipher and compatible key space before selecting a solver; each domain below explains the choices it owns. Internal module paths are contributor interfaces, not additional public entry points.
 
-Continue with the [guide](../../docs/guides/anatomy_of_a_run.md).
+Continue with the [guide](../../docs/guides/building_a_run.md).

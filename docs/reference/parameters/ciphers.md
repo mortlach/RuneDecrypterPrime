@@ -171,7 +171,7 @@ api.CipherSpec.two_period_streams(
 cipher specs from its serialized name and parameter mapping. Unsupported names
 or parameter sets raise the public component/configuration errors.
 
-For practical use, see [Defining a run](../../guides/anatomy_of_a_run.md).
+For practical use, see [Building a run](../../guides/building_a_run.md).
 
 ## Typed identity
 

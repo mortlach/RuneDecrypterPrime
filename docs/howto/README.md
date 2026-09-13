@@ -2,7 +2,7 @@
 
 These pages are for changes to RDP itself.
 
-For normal solving, start with [Defining a run](../guides/anatomy_of_a_run.md).
+For normal solving, start with [Building a run](../guides/building_a_run.md).
 
 ## Cipher work
 

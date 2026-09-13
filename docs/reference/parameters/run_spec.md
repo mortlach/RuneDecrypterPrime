@@ -38,4 +38,4 @@ stage summaries. Exceptions raised by the callback propagate to the caller.
 `api.run(...)` also has a keyword form that accepts the durable `RunSpec`
 components directly. The defaults are the same as the table above.
 
-For practical use, see [Defining a run](../../guides/anatomy_of_a_run.md).
+For practical use, see [Building a run](../../guides/building_a_run.md).

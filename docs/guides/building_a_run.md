@@ -1,4 +1,4 @@
-# Defining a run
+# Building a run
 
 `RunSpec` describes one solve.
 

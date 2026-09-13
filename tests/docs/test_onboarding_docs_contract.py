@@ -13,7 +13,7 @@ pytestmark = pytest.mark.tier_a
 ROOT = Path(__file__).resolve().parents[2]
 README = ROOT / "README.md"
 QUICKSTART = ROOT / "docs" / "guides" / "quickstart.md"
-RUN_ANATOMY = ROOT / "docs" / "guides" / "anatomy_of_a_run.md"
+BUILDING_A_RUN = ROOT / "docs" / "guides" / "building_a_run.md"
 CATALOGUE = ROOT / "tutorials" / "v1" / "README.md"
 ROADMAP = ROOT / "docs" / "project_overview.md"
 EXAMPLES = ROOT / "tutorials" / "v1" / "examples"
@@ -29,7 +29,7 @@ def test_root_readme_uses_the_public_api_and_reader_route() -> None:
     assert "from rdp import api" in text
     for path in (
         "docs/guides/quickstart.md",
-        "docs/guides/anatomy_of_a_run.md",
+        "docs/guides/building_a_run.md",
         "docs/guides/ciphertext_input.md",
         "docs/tutorials/README.md",
     ):
@@ -84,7 +84,7 @@ def test_canonical_docs_do_not_restore_retired_taxonomy_or_prohibited_tone() -> 
         ROOT / "docs" / "setup" / "README.md",
         ROOT / "docs" / "guides" / "using_rdp.md",
         QUICKSTART,
-        RUN_ANATOMY,
+        BUILDING_A_RUN,
         ROOT / "docs" / "guides" / "ciphertext_input.md",
         CATALOGUE,
         ROADMAP,
@@ -104,7 +104,7 @@ def test_canonical_docs_do_not_restore_retired_taxonomy_or_prohibited_tone() -> 
         ROOT / "docs" / "README.md",
         ROOT / "docs" / "setup" / "installation.md",
         QUICKSTART,
-        RUN_ANATOMY,
+        BUILDING_A_RUN,
         ROOT / "docs" / "guides" / "ciphertext_input.md",
         ROOT / "docs" / "tutorials" / "README.md",
         CATALOGUE,
@@ -170,7 +170,22 @@ def test_root_readme_sections_follow_the_owner_reader_order() -> None:
     headings = re.findall(r"^## (.+)$", _read(README), re.MULTILINE)
     assert headings == [
         "Contents", "Why RDP exists", "What RDP is for", "Why repeatability matters",
-        "Choose how you want to use RDP", "Try RDP", "Try something and share it",
+        "Try RDP", "Try something and share it",
         "Start solving", "Working with Liber Primus", "Extending RDP",
-        "CPU and CUDA", "Output", "Project History",
+        "CPU and CUDA", "Output", "Choose how you want to use RDP", "Project History",
     ]
+
+
+def test_root_readme_output_example_is_collapsed_and_identifies_its_source() -> None:
+    text = _read(README)
+    output = text.split("## Output\n", 1)[1].split("\n## ", 1)[0]
+    assert "<details>" in output and "</details>" in output
+    assert "<details open" not in output
+    assert "<summary>Show the example console output</summary>" in output
+    assert "```text\nReading a result" in output
+    assert "RDP standard summary" in output
+    assert "tutorials/v1/getting_started/08_reading_a_result.py" in output
+    for term in ("RunResult.artifacts", "progress_callback", "write_solver_report",
+                 "write_display_summary", "write_artifact_manifest",
+                 "docs/guides/working_a_solve.md"):
+        assert term in output

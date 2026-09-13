@@ -86,5 +86,5 @@ Before using a new ciphertext, the three useful pieces are:
 - [Word-length information](word_length_information.md)
 - [Text direction](text_direction.md)
 
-The next step is [Defining a run](anatomy_of_a_run.md). The broader solving
+The next step is [Building a run](building_a_run.md). The broader solving
 workflow is covered in [Comparing solve experiments](working_a_solve.md).

@@ -45,7 +45,7 @@ Known-key operations are useful for:
 
 They do not use the solver or scorer.
 
-For unknown keys, move to [Defining a run](../guides/anatomy_of_a_run.md) and
+For unknown keys, move to [Building a run](../guides/building_a_run.md) and
 [Keys and key spaces](../guides/keyops.md).
 
 `tutorials/v1/getting_started/01_known_key.py` is the first runnable example.

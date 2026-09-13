@@ -70,4 +70,4 @@ Live progress is not part of the durable request. Pass a one-argument
 - [Outputs](../guides/outputs.md)
 
 For the whole request in context, see
-[Defining a run](../guides/anatomy_of_a_run.md).
+[Building a run](../guides/building_a_run.md).

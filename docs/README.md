@@ -37,7 +37,7 @@ The main route is:
 3. [Ciphertext input](guides/ciphertext_input.md)
 4. [Word-length information](guides/word_length_information.md)
 5. [Text direction](guides/text_direction.md)
-6. [Defining a run](guides/anatomy_of_a_run.md)
+6. [Building a run](guides/building_a_run.md)
 7. [Comparing solve experiments](guides/working_a_solve.md)
 8. [Reading a result](guides/results.md)
 

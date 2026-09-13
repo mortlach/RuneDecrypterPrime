@@ -85,7 +85,7 @@ The numbered route is backed by the main guides:
 | Tutorial topic | Documentation |
 | --- | --- |
 | Known key | [Keys and key spaces](../guides/keyops.md) |
-| First search | [Defining a run](../guides/anatomy_of_a_run.md) |
+| First search | [Building a run](../guides/building_a_run.md) |
 | Repeating keys | [Keys and key spaces](../guides/keyops.md) |
 | Reproducibility | [Repeating a run](../guides/reproducibility.md) |
 | Interruptors | [Interruptors](../guides/interruptors.md) |

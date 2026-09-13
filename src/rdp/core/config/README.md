@@ -17,4 +17,4 @@ These objects carry validated settings into runtime components. They sit beneath
 
 For normal use, configure `api.RunSpec` and its typed components. A contributor adding a setting must trace it from validation to actual use and returned configuration; a field accepted but ignored is a defect.
 
-Continue with the [guide](../../../../docs/guides/anatomy_of_a_run.md) or the [package map](../../README.md).
+Continue with the [guide](../../../../docs/guides/building_a_run.md) or the [package map](../../README.md).

@@ -28,5 +28,5 @@ Runtime configuration and implementation classes below `src/rdp/` are derived
 from those objects. They are not additional public request routes.
 
 See [Public API surface](../../../docs/reference/public_api.md),
-[Defining a run](../../../docs/guides/anatomy_of_a_run.md) and
+[Building a run](../../../docs/guides/building_a_run.md) and
 [Architecture](../../../docs/architecture/README.md).

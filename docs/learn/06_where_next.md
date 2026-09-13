@@ -20,7 +20,7 @@ If you want to move into genuine solved Liber Primus material:
 
 When you need more control:
 
-- [Defining a run](../guides/anatomy_of_a_run.md) explains every part of `RunSpec`
+- [Building a run](../guides/building_a_run.md) explains every part of `RunSpec`
 - [Keys and key spaces](../guides/keyops.md) explains the available key models
 - [Solvers](../guides/solvers.md) explains the search methods
 - [Scoring](../guides/scoring.md) explains how candidate plaintext is ranked

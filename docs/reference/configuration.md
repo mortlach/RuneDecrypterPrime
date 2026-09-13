@@ -18,7 +18,7 @@ See [Project aims and design principles](../project_overview.md).
 `CipherSpec` identifies the cipher family and its cipher-specific settings.
 
 See [Cipher parameters](parameters/ciphers.md) and
-[Defining a run](../guides/anatomy_of_a_run.md).
+[Building a run](../guides/building_a_run.md).
 
 ## KeySpec
 

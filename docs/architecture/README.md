@@ -16,7 +16,7 @@ The first two pages are enough to follow an ordinary run.
 
 The later pages cover the main internal boundaries used when extending RDP.
 
-For public use, see [Defining a run](../guides/anatomy_of_a_run.md).
+For public use, see [Building a run](../guides/building_a_run.md).
 
 For contributor work, see [Extending RDP](../guides/extending_rdp.md) and
 [Development](../development/README.md).

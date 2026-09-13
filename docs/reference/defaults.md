@@ -22,7 +22,7 @@ The full parameter tables are under
 `problem_input`, `cipher`, `key_space` and `solver` are required.
 
 See [RunSpec parameters](parameters/run_spec.md) and
-[Defining a run](../guides/anatomy_of_a_run.md).
+[Building a run](../guides/building_a_run.md).
 
 ## ScoringConfig
 

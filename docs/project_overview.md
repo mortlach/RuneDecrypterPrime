@@ -58,7 +58,7 @@ device, telemetry and other explicit controls.
 The result can then report both the candidate and the configuration that
 produced it.
 
-See [Defining a run](guides/anatomy_of_a_run.md) and
+See [Building a run](guides/building_a_run.md) and
 [RunSpec parameters](reference/parameters/run_spec.md).
 
 ## Determinism is part of the method

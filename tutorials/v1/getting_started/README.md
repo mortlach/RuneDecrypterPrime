@@ -27,7 +27,7 @@ Some of the larger [worked examples](../examples/) also use repository helpers
 to prepare their inputs and reports.
 
 The parent [catalogue](../README.md) lists each file and its approximate runtime.
-[Anatomy of a run](../../../docs/guides/anatomy_of_a_run.md) brings the main RDP
+[Building a run](../../../docs/guides/building_a_run.md) brings the main RDP
 objects and their options together in one place.
 
 ## Things to change
